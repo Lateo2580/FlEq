@@ -65,8 +65,8 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
     notificationProbeComplete: true,
     units: {
       "U-E": { schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [], persistence: progress },
-      "U-W": { schemaVersion: "p2-weather-current-unit-v7", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
-        tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: progress },
+      "U-W": { schemaVersion: "p2-weather-current-unit-v8", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+        tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], notices: [], persistence: progress },
       "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: progress },
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
@@ -1145,7 +1145,9 @@ describe("P2 shared runtime", () => {
     const notices = (unit: "U-W" | "U-F") => {
       const base = intent(unit);
       const source = { ...base.source, family: unit === "U-W" ? "VPWS50" : "VPWP50", reportDateTimeRaw: "2026-09-23T00:00:00Z" };
-      return Array.from({ length: 128 }, (_, index): NotificationIntent => ({ ...base, source, id: `${unit}-${index}` }));
+      // P3-WN-AC07 (3): U-W の codec は payload の domain を weather と確かめる。
+      return Array.from({ length: 128 }, (_, index): NotificationIntent => ({ ...base, source, id: `${unit}-${index}`,
+        payload: unit === "U-W" ? { ...base.payload, domain: "weather" } : base.payload }));
     };
     const weatherPayload = weatherCurrentUnitCodec.encode({ ...initial.units["U-W"], intents: notices("U-W") });
     const seriesPayload = weatherTimeseriesUnitCodec.encode({ ...initial.units["U-F"], intents: notices("U-F") });

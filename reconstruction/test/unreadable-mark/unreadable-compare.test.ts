@@ -144,9 +144,10 @@ describe("P3-UNREADABLE-MARK-001 order 2", () => {
   });
 
   it("P3-UM-T04 regression / AC04 (3): U-L does not ring around an unreadable kind name", () => {
-    expect(chainL([(xml) => xml, kindless, (xml) => xml])).toEqual([2, 0, 0]);
-    // 対照: 名前の読める版どうしで種別の組が変われば鳴る。
-    expect(chainL([(xml) => xml, kindless, L.areas([{ code: "0121400", kind: "09" }])])).toEqual([2, 0, 2]);
+    // P3-WN-AC08（H11）: 稚内のレベル 4 は desktop だけ（Q-WN-EXISTING-TESTS (8)）。
+    expect(chainL([(xml) => xml, kindless, (xml) => xml])).toEqual([1, 0, 0]);
+    // 対照: 名前の読める版どうしで種別の組が変われば鳴る（レベル 3 は鳴らないので、対照はレベル 5 の 39）。
+    expect(chainL([(xml) => xml, kindless, L.areas([{ code: "0121400", kind: "39" }])])).toEqual([1, 0, 2]);
   });
 
   it("P3-UM-T04 regression / AC04 (1)(3): U-V does not ring around an unreadable volcano name or area kind name", () => {

@@ -501,7 +501,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   const payload = candidate.cancelled ? existing != null && (visible(existing) || heard(existing.notice))
     ? payloadOf(operation, candidate.headType, "cancel", candidate.title, "", "cancel", existing.source.reportDateTimeRaw) : null
     : visible(next) && (correction || !visible(existing) || compared.changed)
-      ? payloadOf(operation, candidate.headType, "warning", next.title, bodyOf(next), correction ? "correction" : "plain") : null;
+      ? payloadOf(operation, candidate.headType, candidate.headType === "VPOA50" || allRecordRain(candidate.items) ? "normal" : "warning", next.title, bodyOf(next), correction ? "correction" : "plain") : null; // P3-WN-AC09: VPOA50 と記録雨だけの VPBS50 は normal（作者の足し、P3-WN-D-VPBS50=A）
   const transition = candidate.cancelled ? "cancelled" as const : correction || visible(existing) ? "updated" as const : "activated" as const;
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const fresh = payload == null ? [] : intentsFor(candidate, transition, payload, now, existing?.notice, versionDigest(candidate.source));
@@ -594,7 +594,7 @@ function collect(state: BriefingUnitState, clock: ClockReading, basis: WallBasis
     if (kept === item) return [item];
     changes.push([item, kept]);
     if (item.effective === "held" && kept != null && !silent && now < item.holdUntil + HOLD_MS && visible(kept))
-      released.push(...intentsFor(kept, "activated", payloadOf(kept.operation, "VPOA50", "warning", kept.title, bodyOf(kept), "plain"),
+      released.push(...intentsFor(kept, "activated", payloadOf(kept.operation, "VPOA50", "normal", kept.title, bodyOf(kept), "plain"),
         now, kept.notice, versionDigest(kept.source)));
     return kept == null ? [] : [kept];
   });
@@ -847,7 +847,7 @@ function currentRecord(value: unknown): BriefingCurrent | null {
   return built == null || row.retainUntil !== built.retainUntil ? null : row.expiryPending !== true ? built
     : shownKind(built) ? { ...built, expiryPending: true } : null;
 }
-const LEVEL_SET: readonly Level[] = ["warning", "critical", "cancel"];
+const LEVEL_SET: readonly Level[] = ["normal", "warning", "critical", "cancel"];
 function intentRecord(value: unknown): BriefingIntent | null {
   const row = record(value), payload = record(row?.payload);
   const operation = operationOf(row?.operation);

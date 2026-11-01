@@ -3,7 +3,7 @@ import type {
   ClockReading,
   FreshnessRecord,
   JsonValue,
-  NotificationIntent,
+  NoticeEvidence, NotificationIntent,
   PersistenceStatus,
   ReportRef,
   RuntimeDisplaySubject,
@@ -34,16 +34,16 @@ import {
   validateWeatherCandidate,
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
-import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { finite } from "../codec-base";
+import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { count, finite } from "../codec-base";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { applyIntentUpdate, readIntentState, restoreStarted } from "../notice-mark"; import { advanceAreas, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas } from "./weather-current-public";
+import { applyIntentUpdate, readIntentState, restoreStarted, updateEvidence } from "../notice-mark"; import { advanceAreas, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas } from "./weather-current-public"; import { noticeReserve, raiseNotices, readNotices, readPayload, receiveNotices, recoveryNotices as weatherRecoveryNotices, seriesKey } from "./weather-current-notice";
 
-const SCHEMA = "p2-weather-current-unit-v7" as const;
+const SCHEMA = "p2-weather-current-unit-v8" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
 // P3-UM-RES-09: 読めない報のカード 8 枚の分を足す（U-W の記録の印は ③。カードを envelope に書くのは発注 3）。
 const GENERATION_BYTES = 16 * 1024 * 1024 + UNREADABLE_CARDS_MAX_BYTES;
-const encoder = new TextEncoder();
+const encoder = new TextEncoder(); let receiveReserve = 0; // P3-WN-AC06 (3): 受けた報の系列の印 1 件の上界。受信の間だけ持ち、reduceCore が 0 に戻す（cited の fitNormalByByte に引数を足せないため）
 const operations = ["normal", "training", "test"] as const;
 // A1 AC09 / spec 5.6: restored references stay unconfirmed until their own report is adopted.
 // A symbol survives immutable snapshot copies but never enters the checkpoint JSON.
@@ -52,7 +52,7 @@ const recordByteCache = new WeakMap<object, number>();
 const mapByteCache = new WeakMap<object, number>();
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-W", generation: 0,
   capturedAt: 0, payload: { schemaVersion: SCHEMA, national: {}, partials: [], histories: [], ownership: {},
-    tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
+    tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], notices: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 
 function recordBytes(value: object): number {
   let bytes = recordByteCache.get(value);
@@ -124,7 +124,7 @@ function reserve(intents: readonly NotificationIntent[]): number {
 
 // 世代の計量は intent の加算と同じ走査で予約を足す（P3-IUR-RES-03）。
 const intentBytes = (item: NotificationIntent) => recordBytes(item) + (item.disposition === "pending" ? deliveryGrowth(item) : 0);
-
+// P3-WN-AC06 (3): 受理の器の判定（reservedGenerationBytes）は intents を pending の上限 131,072 byte（予約込み、実の値以上）として数え、encode は実の byte。
 function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: number, base: Ownership): number {
   const ownership = ownershipMeasure(state.ownership, base);
   const generation = state.persistence.currentGeneration;
@@ -133,7 +133,7 @@ function reservedGenerationBytes(state: WeatherCurrentUnitState, capturedAt: num
     throw new RangeError("invalid checkpoint generation or capture time");
   return emptyEnvelopeBytes + 62 + mapBytes(state.national) + arrayBytes(state.partials)
     + arrayBytes(state.histories, historyBytes) + ownership.sum + Math.max(ownership.count - 1, 0) + arrayBytes(state.tombstones)
-    + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + arrayBytes(state.intents, intentBytes) + arrayBytes(state.unconfirmed);
+    + arrayBytes(state.freshness) + arrayBytes(state.unavailable) + 131_072 + arrayBytes(state.unconfirmed) + arrayBytes(state.notices) + receiveReserve;
 }
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -186,19 +186,19 @@ function tombstone(value: unknown): value is WeatherCurrentTombstone {
     && Array.isArray(record.affectedScope) && record.affectedScope.every((item) => typeof item === "string")
     && validScopeSet(record.affectedScope) && tuple?.[0] === record.source.family;
 }
-
-function intent(value: unknown): value is NotificationIntent {
-  const record = object(value);
-  return record != null && typeof record.id === "string" && record.unit === "U-W"
-    && typeof record.subject === "string" && operation(record.operation) && reportRef(record.source)
-    && typeof record.transition === "string" && ["activated", "updated", "cancelled", "released", "expired"].includes(record.transition)
-    && (record.channel === "desktop" || record.channel === "sound")
-    && object(record.payload) != null && json(record.payload)
-    && finite(record.createdAt) && finite(record.expiresAt) && finite(record.nextAttemptAt)
-    && Number.isSafeInteger(record.attempts) && Number(record.attempts) >= 0
-    && typeof record.configRevision === "string" && readIntentState(record, "U-W", record.operation, null) != null
-    && record.expiresAt >= record.createdAt && record.source.subject === record.subject
-    && record.source.operation === record.operation;
+const intentList = (value: unknown): NotificationIntent[] | null => { if (!Array.isArray(value)) return null; const list: NotificationIntent[] = []; for (const item of value) { const read = intent(item); if (read == null) return null; list.push(read); } return list; };
+function intent(value: unknown): NotificationIntent | null { // P3-WN-AC07 (3)・AGENTS.md の読み戻し: 確かめた項目から組み立てる（元の record は残さない）
+  const record = object(value), transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((item) => item === record?.transition);
+  const payload = readPayload(record?.payload, transition), source = record != null && reportRef(record.source) ? readReportRef(record.source) : null;
+  if (record == null || transition == null || payload == null || source == null || typeof record.id !== "string" || record.unit !== "U-W"
+    || typeof record.subject !== "string" || !operation(record.operation) || record.channel !== "desktop" && record.channel !== "sound"
+    || !finite(record.createdAt) || !finite(record.expiresAt) || !finite(record.nextAttemptAt) || !count(record.attempts)
+    || typeof record.configRevision !== "string" || record.expiresAt < record.createdAt
+    || source.subject !== record.subject || source.operation !== record.operation) return null;
+  const fields = readIntentState(record, "U-W", record.operation, null);
+  return fields == null ? null : { id: record.id, unit: "U-W", subject: record.subject, operation: record.operation, source, transition,
+    channel: record.channel, payload, createdAt: record.createdAt, expiresAt: record.expiresAt, nextAttemptAt: record.nextAttemptAt,
+    attempts: record.attempts, configRevision: record.configRevision, disposition: "pending", ...fields };
 }
 
 function freshness(value: unknown): value is FreshnessRecord {
@@ -234,7 +234,7 @@ function orphanMarks(value: PersistedWeatherCurrentUnit): boolean {
   const key = (item: Readonly<{ subject: string; operation: Operation }>) => `${item.operation}\u0000${item.subject}`;
   const series = new Set([...Object.values(value.national), ...value.partials, ...value.histories, ...value.tombstones, ...value.unavailable]
     .flatMap((item) => item == null ? [] : [key(item)]));
-  return value.unconfirmed.some((item) => !series.has(key(item)));
+  return value.unconfirmed.some((item) => !series.has(key(item))) || value.notices.some((item) => !series.has(key(item))); // P3-WN-AC05 (6)
 }
 
 // P3-VM-AC04: 系列ごとに 1 つの未確認の印（subject・operation の重複なし）。
@@ -263,7 +263,7 @@ function unavailable(value: unknown): value is WeatherCurrentUnitState["unavaila
 function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
   const record = object(value);
   const national = object(record?.national);
-  const ownership = object(record?.ownership);
+  const ownership = object(record?.ownership), notices = readNotices(record?.notices), intents = intentList(record?.intents);
   if (record == null || record.schemaVersion !== SCHEMA || national == null
     || Object.keys(national).some((key) => !operation(key))
     || Object.entries(national).some(([key, item]) => !snapshot(item) || item.scope !== "national" || item.operation !== key)
@@ -274,7 +274,7 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
     || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
     || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
     || !Array.isArray(record.unavailable) || !record.unavailable.every(unavailable)
-    || !Array.isArray(record.intents) || !record.intents.every(intent) || !marks(record.unconfirmed)) return null;
+    || intents == null || !marks(record.unconfirmed) || notices == null) return null;
 
   const result: PersistedWeatherCurrentUnit = {
     schemaVersion: SCHEMA,
@@ -287,7 +287,7 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
       target: { ...item.target, affectedScope: normalizeScopes(item.target.affectedScope) },
       confirmedScope: normalizeScopes(item.confirmedScope) })),
     unavailable: record.unavailable.map((item) => ({ ...item, affectedScope: normalizeScopes(item.affectedScope) })),
-    intents: record.intents, unconfirmed: record.unconfirmed,
+    intents, unconfirmed: record.unconfirmed, notices,
   };
   const nationalHistory = result.histories.flatMap((item) => item.reports).filter((item) => item.scope === "national");
   if (nationalHistory.length > 2 || new Set(result.partials.map((item) => item.subject)).size !== result.partials.length
@@ -307,7 +307,7 @@ function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
 }
 
 const emptyPayloadBytes = encoder.encode(JSON.stringify({ schemaVersion: SCHEMA, national: {}, partials: [], histories: [],
-  ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [] })).byteLength;
+  ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], notices: [] })).byteLength;
 
 // P3-WL1-AC05（D-WL1-ENCODE-CHECKS=A）: encode 用。persistedValue と同じ確かめを同じ順で並べ、最後の 16MiB の守りだけを
 // 受理時と同じ要素ごとの cache の和で数える（payload 全体を JSON.stringify しない）。persistedValue に確かめを足すときはここにも足す。
@@ -315,7 +315,7 @@ const emptyPayloadBytes = encoder.encode(JSON.stringify({ schemaVersion: SCHEMA,
 function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUnit | null {
   const record = persistedFromState(state);
   const national = object(record.national);
-  const ownership = object(record.ownership);
+  const ownership = object(record.ownership), notices = readNotices(record.notices);
   if (national == null
     || Object.keys(national).some((key) => !operation(key))
     || Object.entries(national).some(([key, item]) => !snapshot(item) || item.scope !== "national" || item.operation !== key)
@@ -326,7 +326,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
     || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
     || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
     || !Array.isArray(record.unavailable) || !record.unavailable.every(unavailable)
-    || !Array.isArray(record.intents) || !record.intents.every(intent) || !marks(record.unconfirmed)) return null;
+    || intentList(record.intents) == null || !marks(record.unconfirmed) || notices == null) return null;
 
   // 既に正規形の record は作り直さない（byte の cache の key を保つ）。作り直すときの形は persistedValue と同じ。
   const normalized = (tokens: readonly string[]) => {
@@ -352,7 +352,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
       const affectedScope = normalized(item.affectedScope);
       return affectedScope === item.affectedScope ? item : { ...item, affectedScope };
     }),
-    intents: record.intents, unconfirmed: record.unconfirmed,
+    intents: record.intents, unconfirmed: record.unconfirmed, notices: record.notices,
   };
   const nationalHistory = result.histories.flatMap((item) => item.reports).filter((item) => item.scope === "national");
   if (nationalHistory.length > 2 || new Set(result.partials.map((item) => item.subject)).size !== result.partials.length
@@ -370,14 +370,14 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
   const bytes = emptyEnvelopeBytes + 62 + mapBytes(result.national) + arrayBytes(result.partials) // P3-VM-AC06: 受理（reservedGenerationBytes）と同じ式
     + arrayBytes(result.histories, historyBytes) + owned.sum + Math.max(owned.count - 1, 0)
     + arrayBytes(result.tombstones) + arrayBytes(result.freshness) + arrayBytes(result.unavailable) + arrayBytes(result.intents, intentBytes)
-    + arrayBytes(result.unconfirmed);
+    + arrayBytes(result.unconfirmed) + arrayBytes(result.notices);
   return bytes <= GENERATION_BYTES ? result : null;
 }
 
 function persistedFromState(state: WeatherCurrentUnitState): PersistedWeatherCurrentUnit {
   return { schemaVersion: SCHEMA, national: state.national, partials: state.partials,
     histories: state.histories, ownership: state.ownership, tombstones: state.tombstones,
-    freshness: state.freshness, unavailable: state.unavailable, intents: state.intents, unconfirmed: state.unconfirmed };
+    freshness: state.freshness, unavailable: state.unavailable, intents: state.intents, unconfirmed: state.unconfirmed, notices: state.notices };
 }
 
 function cleanPersistence(): PersistenceStatus {
@@ -413,8 +413,8 @@ function removeSubject(state: WeatherCurrentUnitState, subjectValue: string, ope
     histories: state.histories.filter((item) => item.subject !== subjectValue || item.operation !== operationValue),
     ownership: Object.fromEntries(Object.entries(state.ownership)
       .filter(([key, value]) => value !== subjectValue || !key.startsWith(`${operationValue}\u0000`))),
-    intents: state.intents.filter((item) => item.subject !== subjectValue || item.operation !== operationValue),
-    unconfirmed: state.unconfirmed.filter((item) => item.subject !== subjectValue || item.operation !== operationValue) };
+    intents: state.intents, // P3-WN-AC06 (2): pending は系列では外さない（通知の module が targets の規則で外す）
+    unconfirmed: state.unconfirmed.filter((item) => item.subject !== subjectValue || item.operation !== operationValue), notices: state.notices.filter((item) => item.subject !== subjectValue || item.operation !== operationValue) };
 }
 
 function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number, touched: CurrentChange): Readonly<{ state: WeatherCurrentUnitState; count: number }> {
@@ -454,7 +454,7 @@ function reduceWeatherCurrentCore(state: WeatherCurrentUnitState,
     if (step.state !== state) for (const change of changes) touched(...change);
     return step;
   };
-  const step = reduceWeatherCurrentMeaning(state, input, collect);
+  const step = reduceWeatherCurrentMeaning(state, input, collect); receiveReserve = noticeReserve(step.decisions[0]);
   const fits = (value: WeatherCurrentUnitState) =>
     reservedGenerationBytes(value, input.clock.wallTimeMs, state.ownership) <= GENERATION_BYTES;
   if (step.state === state || fits(step.state)) return adopt(step);
@@ -513,7 +513,7 @@ function restore(state: WeatherCurrentUnitState, value: PersistedWeatherCurrentU
   const previous = (item: WeatherCurrentSnapshot) => ({ ...item, [restoredAt]: state.persistence.savedCapturedAt });
   // P3-NL-AC08 (1): started のまま残った pending は通知したか不明（再試行しない）。
   const restored = restoreStarted(decoded.state.intents);
-  const base = { ...decoded.state, intents: restored.intents,
+  const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [seriesKey(item), "unknown" as const]))), intents: restored.intents, // P3-WN-AC05 (4)
     persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs),
     national: Object.fromEntries(Object.entries(decoded.state.national).map(([operation, item]) => [operation, previous(item)])),
     partials: decoded.state.partials.map(previous),
@@ -551,19 +551,19 @@ function intentUpdate(state: WeatherCurrentUnitState,
   input: Extract<WeatherCurrentInput, { kind: "intentUpdate" }>): InternalStep {
   const updates = "id" in input.intentUpdate ? [input.intentUpdate] : input.intentUpdate;
   const originals = new Map(state.intents.map((item) => [item.id, item]));
-  const changed = new Map<string, NotificationIntent>();
+  const changed = new Map<string, NotificationIntent>(), raised = new Map<string, NoticeEvidence>();
   let persistence = state.persistence;
   for (const update of updates) {
     const current = originals.get(update.id);
     const updated = current == null ? null : applyIntentUpdate(current, update);
     if (updated == null) continue;
-    changed.set(updated.id, updated);
+    changed.set(updated.id, updated); const evidence = updateEvidence(updated); if (evidence != null) raised.set(seriesKey(updated), evidence); // P3-WN-AC05 (3)
     persistence = dirty(persistence, input.clock.monotonicMs);
   }
   if (changed.size === 0) return noChange(state);
   const adopted = [...changed.values()];
   // P3-NL-AC05 (1): pending でなくなった intent は intents から外す。
-  const next = { ...state, intents: state.intents.flatMap((item) => {
+  const next = { ...raiseNotices(state, raised), intents: state.intents.flatMap((item) => {
     const updated = changed.get(item.id);
     return updated == null ? [item] : updated.disposition === "pending" ? [updated] : [];
   }), persistence };
@@ -575,7 +575,7 @@ function intentUpdate(state: WeatherCurrentUnitState,
 }
 
 function reduceCore(state: WeatherCurrentUnitState, input: WeatherCurrentInput, touched: CurrentChange): InternalStep {
-  if (input.kind === "receive") return reduceWeatherCurrentCore(state, input, touched);
+  if (input.kind === "receive") try { return reduceWeatherCurrentCore(state, input, touched); } finally { receiveReserve = 0; }
   if (input.kind === "restore") return restore(state, input.persisted, input.clock, (input.basis ?? "verified") === "verified");
   if (input.kind === "coverageConfirmed") return coverageConfirmed(state, input);
   if (input.kind === "intentUpdate") return intentUpdate(state, input);
@@ -664,13 +664,13 @@ function fitNormalHistories(state: WeatherCurrentUnitState, capturedAt: number, 
   // (c) の「系列の最後の参照」: current・墓標・unavailable の系列と、系列ごとの履歴の版の数（seriesExists と同じ集合）。
   const held = new Set([...Object.values(state.national), ...state.partials, ...state.tombstones, ...state.unavailable]
     .flatMap((item) => item == null ? [] : [key(item)]));
-  const marks = new Map(state.unconfirmed.map((item) => [key(item), item]));
+  const marks = new Map(state.unconfirmed.map((item) => [key(item), item])), notices = new Map(state.notices.map((item) => [key(item), item]));
   const left = new Map(state.histories.map((entry) => [entry, entry.reports.length]));
   const candidates = state.histories.flatMap((entry) => entry.operation !== "normal" ? []
     : entry.reports.map((report) => ({ entry, report }))).sort((a, b) => compareSnapshot(a.report, b.report));
-  const removed = new Set<WeatherCurrentSnapshot>(), orphaned = new Set<ReportRef>();
+  const removed = new Set<WeatherCurrentSnapshot>(), orphaned = new Set<ReportRef>(), dropped = new Set<WeatherCurrentUnitState["notices"][number]>();
   const separator = (count: number) => count >= 2 ? 1 : 0; // 要素の数 count から count−1 への区切りの減り
-  let entries = state.histories.length, markCount = state.unconfirmed.length, next = state, at = 0;
+  let entries = state.histories.length, markCount = state.unconfirmed.length, noticeCount = state.notices.length, next = state, at = 0;
   while (over > 0 && at < candidates.length) {
     for (let freed = 0; freed < over && at < candidates.length; at++) {
       const { entry, report } = candidates[at];
@@ -681,12 +681,12 @@ function fitNormalHistories(state: WeatherCurrentUnitState, capturedAt: number, 
       // (b) entry が空になる: 外枠＋最後の版と histories の区切り。(c) 系列の参照が無くなれば印も孤児として消える（系列で 1 回）。
       freed += historyBytes(entry) - arrayBytes(entry.reports) + recordBytes(report) + separator(entries--);
       const mark = held.has(key(entry)) ? undefined : marks.get(key(entry));
-      if (mark != null) { freed += recordBytes(mark) + separator(markCount--); orphaned.add(mark); }
+      if (mark != null) { freed += recordBytes(mark) + separator(markCount--); orphaned.add(mark); } const notice = held.has(key(entry)) ? undefined : notices.get(key(entry)); if (notice != null) { freed += recordBytes(notice) + separator(noticeCount--); dropped.add(notice); }
     }
     next = { ...state, histories: state.histories.flatMap((entry) => {
       const reports = entry.reports.filter((report) => !removed.has(report));
       return reports.length === entry.reports.length ? [entry] : reports.length === 0 ? [] : [{ ...entry, reports }];
-    }), unconfirmed: orphaned.size === 0 ? state.unconfirmed : state.unconfirmed.filter((item) => !orphaned.has(item)) };
+    }), unconfirmed: orphaned.size === 0 ? state.unconfirmed : state.unconfirmed.filter((item) => !orphaned.has(item)), notices: dropped.size === 0 ? state.notices : state.notices.filter((item) => !dropped.has(item)) };
     over = reservedGenerationBytes(next, capturedAt, state.ownership) - GENERATION_BYTES;
   }
   return { state: next, count: removed.size };
@@ -748,7 +748,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     const key = JSON.stringify([operation, subject]);
     currents.set(key, { before: currents.has(key) ? currents.get(key)!.before : before, after });
   });
-  const displayChanges: WeatherCurrentUnitStep["displayChanges"][number][] = [];
+  const displayChanges: WeatherCurrentUnitStep["displayChanges"][number][] = []; let rebuilt: ReadonlySet<string> = new Set<string>();
   const currentChanged = step.state.national !== state.national || step.state.partials !== state.partials;
   const monitorChanged = step.state.unavailable !== state.unavailable || step.state.freshness !== state.freshness;
   if (currentChanged || monitorChanged) {
@@ -774,7 +774,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     // 新しい公開形と unavailable の記録の版は、この step の内容版（Q-UFP-REVISION と同じ持ち方）。
     const revision = String(state.contentRevision + 1);
     advanceAreas(input.kind === "restore" ? null : state, step.state, input.kind === "restore" ? null : areas, revision);
-    if (monitorChanged) { const old = new Set(state.unavailable); for (const record of step.state.unavailable) if (!old.has(record)) markUnavailable(record, revision); }
+    rebuilt = areas; if (monitorChanged) { const old = new Set(state.unavailable); for (const record of step.state.unavailable) if (!old.has(record)) markUnavailable(record, revision); }
     const after = input.kind === "restore" ? displaySubjects(step.state)
       : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
     displayChanges.push(...rowChanges(before, after));
@@ -788,8 +788,10 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
         unit: "U-W" as const, operation: item.operation, kind: "area" as const, subject: item.subject, token,
       })) }] : item.decision === "capacityExceeded" ? [{ source: "capacityExceeded", scopes: [{ unit: "U-W", operation: item.operation,
         kind: "unit" }] }] : []) : [];
-  return { ...step, state: displayChanges.length !== 0
-    ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
+  // P3-WEATHER-NOTICE-001: 受理の step の通知（作り直した府県の前後の合わせを読む、P3-WN-AC02・AC03・AC06 (2)）。
+  const noticed = input.kind === "receive" ? receiveNotices(state, step, input, rebuilt) : step;
+  return { ...noticed, state: displayChanges.length !== 0
+    ? { ...noticed.state, contentRevision: state.contentRevision + 1 } : noticed.state,
     displayChanges, confirmationEvidence };
 }
 
@@ -831,8 +833,19 @@ const weatherCurrentUnit = {
   persistence: { kind: "durable", codec: weatherCurrentUnitCodec },
   confirmationScopeLimit: 1024,
   reclaimDeadlineBeforeReceive: false,
+  recoveryNotices: (open, adopted, at) => fittedRecoveryNotices(open, adopted, at.live, at.clock), // P3-WN-AC12（H27）
   recoveryChanges,
 } satisfies UnitModule<"U-W">;
+
+// P3-WN-AC12（契約適合 r0 の証拠不足）: H27 の印を足した世代が器（受理と同じ予約込みの計量）を越えるなら H27 を足さず、外す規則の結果だけを採る。
+// 無いと 16 MiB の際で H27 の印が encode を断らせ、保存が throw し続ける。intents は 131,072 byte と数えるので越えうるのは印の分だけ。
+// 欠けの数は出さない（recoveryNotices の行は state だけを返し、診断の口が無い）。
+function fittedRecoveryNotices(open: WeatherCurrentUnitState, adopted: WeatherCurrentUnitState, live: WeatherCurrentUnitState,
+  clock: ClockReading): WeatherCurrentUnitState {
+  const next = weatherRecoveryNotices(open, adopted, live, clock);
+  return next.notices === adopted.notices || reservedGenerationBytes(next, clock.wallTimeMs, adopted.ownership) <= GENERATION_BYTES ? next
+    : weatherRecoveryNotices(open, adopted, live, clock, false);
+}
 
 // P3-REC-AC07（Q-REC-PRECHECK-8 の N5）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。全部の行を作り、reduce と
 // 同じ述語で比べる（O(N前＋N後)）。無いと U-W の採用で owner の netChanges が RangeError。contentRevision は候補を作る step で進んだので進めない。

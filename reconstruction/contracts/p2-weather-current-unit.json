@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "9137338f658227a373e3f14250ff567ffd74476c5d190c43a0b8299ee0f24336",
+    "sha256": "2f30cab67841144972285806b35dd22dda133bc82dee273ef52e906f8bce5f43",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -378,7 +378,7 @@
       },
       {
         "id": "P2-A5-AC04",
-        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v7（P3-UW-CANON-001で上げた版。欄はv6と同じで件数と深さの上限だけを変え、新築の保存は初期化する、P3-UWC-AC08）の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2は三区分合算、partialはnormal 384とtraining/test合算64の別の上限、partial履歴2は官署×familyごとの三区分合算（P3-UW-CANON-001）、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "PersistedWeatherCurrentUnitとschemaVersion=p2-weather-current-unit-v8（P3-WEATHER-NOTICE-001 で系列ごとの通知の印 notices を足した版。v7 は P3-UW-CANON-001 で上げた版。欄はv6と同じで件数と深さの上限だけを変え、新築の保存は初期化する、P3-UWC-AC08）の唯一のcodecを用い、全国baseはoperation別1（合算3）、全国履歴2は三区分合算、partialはnormal 384とtraining/test合算64の別の上限、partial履歴2は官署×familyごとの三区分合算（P3-UW-CANON-001）、16MiBを維持する。decodeはnationalのkeyがnormal/training/testのいずれかで、各WeatherCurrentSnapshot.operationがkeyと一致することを検証し、不一致・未知key・旧単一slot/nullはinvalidとして正常stateへ昇格しない。容量超過はAC11のadmission判定後に理由付きunavailableにする P2-A7-AC04のpending上限128件/131072 UTF-8 byteはcodecのencode/decodeでも検証する。intent idは一意、dispositionはpending/delivered/expired/supersededに限る。終端Tに固定件数上限を追加せず保存世代byte予算に含め、全dispositionのexpiresAtをnextDeadlineへ予約し、期限・restoreで回収する（P3-NOTICE-LEDGER-001の後は終端のintentを残さず、保存するのはpendingだけ、P3-NL-AC05）。（今の器は U-W 16,870,999 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:572 «707af6766cf5f2d2»",
           "docs/specs/reconstruction-p0-contracts.md:732 «f96fd8a8dd40563c»",

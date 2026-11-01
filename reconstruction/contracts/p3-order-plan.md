@@ -82,7 +82,7 @@ P3-2（津波）:
 | C17 `P3-REPLAY-CLI-001` | R10②: `fleq replay <fixture...>`、spec:650 | C3b（host の入口）、C4 の runner | 固定時計・隔離保存先・通知無効化。runner を C4 と共有するのは、検収用 replay と公開口を同じ製品経路に通すため（spec:650）。Q7 表への追記は §4.4 |
 | C18 `P3-CLI-REPL-001` | B12。§11.2 の互換必須行、§11.3 の互換必須の REPL 19 行（spec:2310〜2352）、§11.5 の設定移行（spec:2403） | 着手: C2（引数解析と typed command の先行実装）。完了: C9（U-V）・C15・C16・C19（各入口の機能結線） | §11 と O10。無効入力で副作用 0（spec:381）。`volcanorepair`（spec:2347）は新 U-V と移行契約で復旧不足の確認・明示解決を実現する（spec:2351）ので、機能結線の検収は依存先の配送後 |
 | C19 `P3-TERMINAL-OUTPUT-001` | B13。R10① の CLI 表示設計 spec、§11.4 の端末側の互換必須行（定期要約・当日地震履歴・EEW ログファイル・待機 tips・update check・lowmem、spec:2353〜2400） | CLI 表示設計 spec（材料は CLI 監査 2026-08-26、作業ノート） | §11 と O02（spec:382）。出力滞留が受理を止めない |
-| C20 `P3-WEATHER-NOTICE-001` | U-W・U-F の通知 intent の生成 | Q-NOTICE の気象分、台帳 48（終端 intent の持ち方を U-E 型へ揃えるか）の決定 | E21 の気象分、終端 intent の件数上限が復元境界と保持の両方で効く証拠 |
+| C20 `P3-WEATHER-NOTICE-001` | U-W の通知 intent の生成と U-L・U-B の段の改め（H11、作者裁定 2026-11-01）、weather の分野の既定を on | Q-NOTICE の気象分（台帳 48 は K8 の P3-NL-AC05 で前提が消えた） | E21 の気象分、受理の時点の pending の上限（128 件・131,072 byte） |
 | C21 `P3-PERSONAL-001` | spec P3 行の personal 配線、B10・§12 | PERS-1〜5（spec:2949〜2953）。この checkout に実体が無い | 未見積もり（§8） |
 | C22 `P3-FINAL-GATE-001`（統合担当） | 全単位接続後の最終検証（spec:2664）と終了の再確認（spec:889） | C7〜C20 の配送。C21 の配送前は部分受入で、配送後に影響する部分（O09/O10 の実配線分を含む）を再受入 | 全 route の正常・取消・復元の oracle、一入力一保存単位、全単位での E20（spec:2072）、Pi での短い確認（最も重い急ぐ unit との競合、全 unit 同時 dirty の保存、終了。D-P3-7）、通知・export の故障隔離と O10 の U-V・export 分（p2plan:215） |
 
@@ -106,7 +106,7 @@ C5 → unit レーン: C7〜C14 を D-P3-5 の順に（C6 と重なってよい�
 
 - **同時実行の上限**: 本数の上限は置かない（2026-10-31 作者指示「エージェントの同時並列数（3体まで）を撤廃してください」。Claude の 5 時間の使用制限が無くなったため。それまでは C6・unit レーン・脇レーンを全部合わせて同時に 3 本まで、D-P3-12 で 4 本目を試す形だった）。下の所有の決まり（同じ directory・file を 2 つの契約が同時に持たない）と、統合担当の直列合流は残す。
 - **unit を並走させてよい条件**（C5 が R45「1 unit 追加の型」の試行なので、C5 の配送後に限る）: 各 unit レーンは自分の unit・domain・test の directory だけを所有し、共有ファイルには自分の 1 行（unit 表・coverage・route）を足すだけにする。P2 計画も A4〜A6 の並走を認め、結線は直列にしていた（p2plan:126。実際の配送は 9/20 朝・同夜・9/23 で、同時進行の度合いは未確認）。
-- **脇レーンの所有**: 各脇レーンは契約で名前を固定する新設 directory だけを排他的に持つ（C15 は移行器、C16 は回復、C17・C18 は CLI、C19 は端末出力）。C20 は実施中だけ U-W・U-F の unit・domain directory を持つ。脇レーンが使う他契約の境界は、着手前に凍結済みであること（C16 は C3a の mailbox と runtime 採用、C2 の REST。C17 は C3b の host 入口と C4 の runner。C20 は C3a）。
+- **脇レーンの所有**: 各脇レーンは契約で名前を固定する新設 directory だけを排他的に持つ（C15 は移行器、C16 は回復、C17・C18 は CLI、C19 は端末出力）。C20 は実施中だけ U-W の unit・domain directory と landslide-unit.ts・briefing-unit.ts・notification-gate.ts を持つ（U-F は持たない、P3-WN-D-UF）。脇レーンが使う他契約の境界は、着手前に凍結済みであること（C16 は C3a の mailbox と runtime 採用、C2 の REST。C17 は C3b の host 入口と C4 の runner。C20 は C3a）。
 - **共有部分への合流**: unit レーンも脇レーンも、共有ファイル（§3.2）への結線は統合担当が 1 本ずつ直列に合流し、合流のたびに reconstruction のゲートを全部回し直す。
 - **C6 と最初の unit レーン**: C7 の依存は C5 で C6 ではないので、C6 と unit レーンは重なってよい（上限 3 本の内側で）。
 - **測定の隔離**: C4・C6 の正式測定の窓では、同じ機械で build・test・他レーンの作業を走らせない。正式測定は Mac mini の独立 checkout で行い（2026-10-06 作者裁定、C4 の P3-C4-MACHINES=B。A10 の MacBook M5 の値は参考の比較にだけ使う）、その窓では Mac mini で build・test・他レーンを走らせず、実装レーンは MacBook で続ける（`reconstruction/dist/`・`node_modules` を測定用 checkout と共有しない）。Pi 予備確認（§4.5）の第 1 段は Pi の中で完結するので Mac のレーンを止めない。第 2 段（Pi backend＋Mac Chrome）は Pi と Mac の両方を測定機として扱い、この規則を両方に適用する。private corpus と測定の生データは Mac・Mini・Pi のローカルに置き、公開の Actions・artifact に渡さない。
@@ -253,7 +253,7 @@ S6（Q6 の残り、最終表示端末）と Q5（Q5-a・Q5-b）は P4 着手前
 | IR05・IR02（津波） | 独立レビュー :204 | C5（運用区分）、C6（E01） | §1.2 の津波行。**C6 で検収済み**（凍結版 61f05dde の 8 母集団×3 run、P3 tsunami E01 Pass、2026-10-29 に閉鎖。`p3-tsunami-e01.json` の P3-C6-CLOSE-VERDICTS） |
 | R10 の 2 点 | 進捗ノート §3（2026-09-19）、spec:650・:2308 | C17（replay）、C19（CLI 表示設計） | §2.1 の各行 |
 | 台帳 49（上流 view の semanticRevision が O(N)） | `e01:553`（「P3 の受信経路契約前」に再検討） | C3a | view の版を固定長にするかを C3a の凍結時に決める。受信 1 回の直列化回数を報告 |
-| 台帳 48（終端 intent の件数上限） | 台帳 48 | C20 の前 | 気象通知を生成する前に持ち方を決める |
+| 台帳 48（終端 intent の件数上限） | 台帳 48 | K8（P3-NL-AC05、739ecc97）で解消 | 終端 intent は印に置き換わり、件数上限の問いは消えた。C20 は受理の時点の pending の上限（128 件・131,072 byte）だけを持つ |
 
 台帳のうち上の表に無いもの: 38（tree 転送の費用）→ C3a の固定内容。41・47・60 → C7〜C14 の共通条文。46・55・56 → C1・C3a・C4。51（起動入口）→ A10（S1）で host を持ち、worker の生成だけ C3a に残る。52 → C0。62（解消済み）→ 同型の点検を C3a のレビュー項目に入れる。42・43 は旧築の U-W 防御の話で、新築の U-W に解除率防御を持ち込む契約ができたときに現象単位で設計する（P3 の最初の契約群には入れない）。44・45 は P2 で解消。50・53・54 は P4。
 
@@ -444,7 +444,7 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | EEW の閉じ方と鳴り直し | `P3-LIFETIME-AND-EEW-GATE-001`（P3-LIFE-D-EEW）、`P2-EEW-UNIT-001`、`P2-CHECKPOINT-SHUTDOWN-001`（P2-A3-AC01） | H20、H33 | H20・H33 だけなら型の変更は不要（current・gate は保存しない）。H48 の互換処理は別 |
 | 通知の出し直しを B にする | `P2-NOTIFICATION-DELIVERY-001`、`P2-CHECKPOINT-SHUTDOWN-001`（P2-A3-AC01）、`P2-EEW-UNIT-001`（Q-NOTICE.capacity）、全 unit の復元 intent の再試行 | H48、H33 | 未定（保持方式が決まってから） |
 | 期限切れの形の統一と二段の期限 | `P3-UNIT-L-001`（P3-C10-ACTIVE-EXPIRY）、`P3-UNIT-Y-001`（P3-C14-EXPIRY）、`P3-UNIT-N-001`（P3-C8-CURRENT-EXPIRY）、`P3-UNIT-M-001`（P3-C13-TORNADO-EXPIRY）、`P3-UNIT-V-001`（噴火の期限） | H23 | 未定（旧期限の扱いが決まってから） |
-| 消えた理由と欠けの件数のお知らせ | `P2-SNAPSHOT-SSE-001`（P2-A8-NOTICE、Q-NOTICE-UX） | H17、H39、H11（画面のお知らせも作るとき） | A8 の表示 wire に永続 schema の移行は無い。再起動後もまとめを残すかは未定 |
+| 消えた理由と欠けの件数のお知らせ | `P2-SNAPSHOT-SSE-001`（P2-A8-NOTICE、Q-NOTICE-UX） | H17、H39、H11（特別警報の画面のお知らせ。C20 では作らない、作者裁定 2026-11-01 の問い 3=B） | A8 の表示 wire に永続 schema の移行は無い。再起動後もまとめを残すかは未定 |
 | 地震の取消の印と保持件数 | `P3-UNIT-Q-001`（P3-C7-CANCEL-SCOPE、P3-C7-CAPACITY） | H18、H36 | 取消表示の recent.cancelled は既存。取消による件数の補正は別で、旧 count は取消を引かず recent は 5 件なので、旧集計を完全には直せない |
 | 南海トラフの情報系列の保存 | `P3-UNIT-N-001`（P3-C8-SUBJECTS、288 KiB の予算） | H30 | 有り |
 | 接続の間隔、繋がらない理由、切断の時刻 | `P3-DMDATA-CONNECT-001`（P3-C2-RETRY、P3-C2-RECOVERY）。新しい契約 `P3-DMDATA-CONNECT-002`（p3-dmdata-connect-002.json）で改める。baseOid は C18 発注 2 の配送の後に取る（P3-DC2-D-ORDER） | H24、H26、H29 | 無し |
@@ -463,7 +463,7 @@ C11配送後、K1〜K6の受入条件と対応するNodeゲートが成功し、
 | C16 `P3-RECOVERY-001` | H04、H22、H26、H27、H28、H31、H32、H41 |
 | C18 `P3-CLI-REPL-001` | H11（`notify` の既定）、H46、H50（設定）。ほかに `fleq replay` の振り分けは runReplay を呼ぶ 1 行（C17 の P3-RP-D-ENTRY） |
 | C19 `P3-TERMINAL-OUTPUT-001` | H08（端末の枠）、H18（今日の件数）、H24、H25、H29 |
-| C20 `P3-WEATHER-NOTICE-001` | H11、H19 |
+| C20 `P3-WEATHER-NOTICE-001` | H11、H16、H19、H27（U-W・U-L の取り直しの引上げ） |
 | ③ U-W の正本の持ち方（`P3-UW-CANON-001`、2026-10-31 起草） | H38 |
 | 区域の対応表の資材（新しい契約） | H50 |
 | P4 の契約群 | H01、H02、H03、H05、H07、H10、H15、H17、H21、H34、H40、H45、H47、H49、H50、ほかの決まりの見せ方 |

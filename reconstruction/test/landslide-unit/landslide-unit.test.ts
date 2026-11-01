@@ -169,7 +169,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     for (const name of [F.soya, F.correction]) expect(shape(send(cancelled.state, name))).toEqual([[SUBJECT, "unchanged", "stale"]]);
     const again = follow(cancelled.state, soya(ORIGINAL));
     expect([shape(again), recordOf(again.state)?.effective, again.intents.map((item) => item.transition)]).toEqual([
-      [[SUBJECT, "changed", "semantic"]], "active", ["activated", "activated"]]);
+      [[SUBJECT, "changed", "semantic"]], "active", ["activated"]]);
     // 記録の無い官署への取消は記憶だけで鳴らない。
     const memory = send(emptyState(), F.cancel);
     expect([recordOf(memory.state)?.effective, memory.intents]).toEqual(["cancelled", []]);
@@ -197,7 +197,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     // 到着の時点で期限を過ぎた解除の報は採用して同じ reduce で回収する（記録を消し、鳴らさない）。
     const overdue = follow(first.state, released(), "2020-06-23T00:00:00+09:00");
     const due = send(first.state, F.soya, (xml) => retime("2020-06-23T00:00:00+09:00")(areas(released())(xml)), T0 + 7 * HOUR + 60_000);
-    expect(overdue.intents.length).toBe(2);
+    expect(overdue.intents.length).toBe(0); // P3-WN-AC08 (2): 解除は作らない（Q-WN-EXISTING-TESTS (2)）
     expect([due.state.currents, due.intents, due.displayChanges.map((item) => [item.subject, item.after])]).toEqual([[], [], [[SUBJECT, null]]]);
     // 監査 F12（P3-FINAL-AC05）: 新しいが失効済みの解除で、まだ有効な旧 active を消す今の意味を保ち、保存の対象として世代を進める（+1 に限らない）。
     expect(due.state.persistence.currentGeneration).toBeGreaterThan(first.state.persistence.currentGeneration);
@@ -206,7 +206,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       expect.objectContaining({ decision: "changed", change: "semantic", currentEstablished: null })]);
     // K3 の残存リスク (3)（P3-OPCAP-AC03）: 続報の pending が生きている間に届いた期限切れの新しい解除は、その pending を全部撤回する。
     const lateAt = T0 + 7 * HOUR;
-    const update = send(first.state, F.soya, (xml) => retime(iso(lateAt - 6 * HOUR - 120_000))(areas(soya(["49", ...Array(9).fill("29")]))(xml)),
+    const update = send(first.state, F.soya, (xml) => retime(iso(lateAt - 6 * HOUR - 120_000))(areas(soya(["39", ...Array(9).fill("29")]))(xml)), // P3-WN-AC08: pending を作る続報はレベル 5（39）
       lateAt - 30_000);
     expect(pending(update.state).map((item) => item.channel)).toEqual(["desktop", "sound"]);
     const withdrawn = send(update.state, F.soya, (xml) => retime(iso(lateAt - 6 * HOUR - 60_000))(areas(released())(xml)), lateAt);
@@ -289,18 +289,20 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
 
     // pending 128/129 件と 131,072/131,073 byte（予約は delivery-growth.ts の deliveryGrowth、式を写さない）。
     const template = send(emptyState(), F.soya).intents[0];
+    // P3-WN-AC08: レベル 4 は desktop だけなので、2 件（desktop＋sound）を作る境界はレベル 5（39）の報で見る。
+    const loud = areas(soya(["39", ...ORIGINAL.slice(1)]));
     const seeded = (count: number, pad = 0): LandslideIntent[] => Array.from({ length: count }, (_, index) => ({ ...template, id: `seed-${index}`,
       subject: `normal/VPWW56/S${index}`, source: { ...template.source, subject: `normal/VPWW56/S${index}` },
       payload: { ...template.payload, body: index === 0 ? "x".repeat(1 + pad) : "x" }, createdAt: T0 - 1000, expiresAt: T0 + 179_000 }));
-    const fits = send({ ...emptyState(), intents: seeded(126) }, F.soya);
+    const fits = send({ ...emptyState(), intents: seeded(126) }, F.soya, loud);
     expect([fits.intents.length, pending(fits.state).length, fits.diagnostics]).toEqual([2, 128, []]);
-    const over = send({ ...emptyState(), intents: seeded(127) }, F.soya);
+    const over = send({ ...emptyState(), intents: seeded(127) }, F.soya, loud);
     expect([over.intents.map((item) => item.channel), over.diagnostics]).toMatchObject([["sound"], [{ reason: "notificationCapacityEvicted", count: 1 }]]);
     const bytesOf = (values: readonly LandslideIntent[]) => Buffer.byteLength(JSON.stringify(values));
-    const fresh = send(emptyState(), F.soya).intents;
+    const fresh = send(emptyState(), F.soya, loud).intents;
     const pad = 131_072 - bytesOf([...seeded(10), ...fresh]) - [...seeded(10), ...fresh].reduce((sum, item) => sum + deliveryGrowth(item), 0);
-    expect(pending(send({ ...emptyState(), intents: seeded(10, pad) }, F.soya).state)).toHaveLength(12);
-    expect(send({ ...emptyState(), intents: seeded(10, pad + 1) }, F.soya).intents.map((item) => item.channel)).toEqual(["sound"]);
+    expect(pending(send({ ...emptyState(), intents: seeded(10, pad) }, F.soya, loud).state)).toHaveLength(12);
+    expect(send({ ...emptyState(), intents: seeded(10, pad + 1) }, F.soya, loud).intents.map((item) => item.channel)).toEqual(["sound"]);
     // 新しい intent が容量で外れただけなら intent の配列を変えない（C9 の Q-C9-IMPL-AMEND(9)(e)）。
     const busy: LandslideUnitState = { ...emptyState(), intents: seeded(128) };
     const dropped = send(busy, F.soya, status("訓練"));
@@ -308,7 +310,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       unit: "U-L", count: 1 }]]);
     expect(dropped.state.intents).toBe(busy.intents);
     // 配送の更新で attempts が 1 桁から 5 桁・nextAttemptAt の桁が増えても、予約の内側で decode が受ける。
-    const budget = send({ ...emptyState(), intents: seeded(10, pad) }, F.soya).state;
+    const budget = send({ ...emptyState(), intents: seeded(10, pad) }, F.soya, loud).state;
     const grown = reduceLandslideUnit(budget, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending(budget).map((item) => ({ ...item,
       attempts: 12_345, nextAttemptAt: T0 + 0.123456, disposition: "pending" as const, lossReason: null })) });
     expect(roundTrip(grown.state).kind).toBe("restored");
@@ -422,44 +424,43 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
   // acceptance: Q-NOTICE の土砂分（AC07）。
   it("P3-C10-T06 acceptance / AC07: opportunities, the NOTICE-LEVELS=B table, replacement, title/body, intentUpdate, training and restart", () => {
     const first = send(emptyState(), F.soya);
-    expect([levels(first), first.intents.map((item) => item.transition)]).toEqual([["desktop:warning", "sound:warning"], ["activated", "activated"]]);
+    // P3-WN-AC08（H11）: 上がった区域の最大がレベル 4（49）なので desktop だけ（Q-WN-EXISTING-TESTS (2)）。
+    expect([levels(first), first.intents.map((item) => item.transition)]).toEqual([["desktop:warning"], ["activated"]]);
     expect([first.intents[0].payload.title, first.intents[0].payload.body]).toEqual(["宗谷地方土砂災害警報・注意報",
       "レベル４土砂災害危険警報 1地域 / レベル３土砂災害警報 1地域 / レベル２土砂災害注意報 8地域 / 宗谷地方にレベル４土砂災害危険警報を発表しています。土砂災害に厳重に警戒をしてください。"]);
-    expect(first.intents.map((item) => [item.payload.domain, item.expiresAt - item.createdAt])).toEqual([["weather", 180_000], ["weather", 60_000]]);
-    // 上がった区域の最大: レベル5 critical・4 と 3 warning・2 normal・表に無い code warning。上がった区域の無い報（引下げ）は normal。
+    expect(first.intents.map((item) => [item.payload.domain, item.expiresAt - item.createdAt])).toEqual([["weather", 180_000]]);
+    // 上がった区域の最大（P3-WN-AC08）: レベル5 critical・4 warning・表に無い code（十の位 5）は warning、レベル 3・2 と上がった区域の無い報（引下げ）は作らない。
     const raised = (kinds: readonly string[]) => levels(follow(first.state, soya(kinds)))[0];
     expect([raised(["49", "09", "39", ...Array(7).fill("29")]), raised(["49", "09", "49", ...Array(7).fill("29")]),
       raised(["49", "09", "09", ...Array(7).fill("29")]), raised(["49", "09", "59", ...Array(7).fill("29")]),
       raised(["49", "29", ...Array(8).fill("29")]), raised(["49", "59", ...Array(8).fill("29")])]).toEqual(["desktop:critical", "desktop:warning",
-      "desktop:warning", "desktop:warning", "desktop:normal", "desktop:normal"]);
-    // 新しい区域だけの報（レベル2 の区域が増える）は normal、同じ事実の新しい報（revisionOnly）・重複では作らない。
+      undefined, "desktop:warning", undefined, undefined]);
+    // 新しい区域だけの報（レベル2 の区域が増える）は作らない（P3-WN-AC08 (2)）。同じ事実の新しい報（revisionOnly）・重複でも作らない。
     const smaller = follow(first.state, soya(ORIGINAL).slice(0, 9)).state;
-    expect(levels(follow(smaller, soya(ORIGINAL), "2020-06-22T23:40:00+09:00"))).toEqual(["desktop:normal", "sound:normal"]);
+    expect(levels(follow(smaller, soya(ORIGINAL), "2020-06-22T23:40:00+09:00"))).toEqual([]);
     expect([follow(first.state, soya(ORIGINAL)).intents, send(first.state, F.soya).intents]).toEqual([[], []]);
-    // 全解除は released・normal で、本文は Headline。記録の無い官署・取消の記録への解除の報（inactiveAdoption）も作る。ended への解除では作らない。
+    // 全解除・記録の無い官署や取消の記録への解除の報（inactiveAdoption）・ended への解除は作らない（P3-WN-AC08 (2)）。
     const ended = follow(first.state, released());
-    expect([levels(ended), ended.intents[0].transition, ended.intents[0].payload.body]).toEqual([["desktop:normal", "sound:normal"], "released",
-      "宗谷地方にレベル４土砂災害危険警報を発表しています。土砂災害に厳重に警戒をしてください。"]);
+    expect([levels(ended), ended.intents]).toEqual([[], []]);
     const kagawa = send(emptyState(), F.kagawa);
-    expect([levels(kagawa), kagawa.intents[0].transition, kagawa.intents[0].payload.body]).toEqual([["desktop:normal", "sound:normal"], "released",
-      "注意報を解除します。"]);
-    expect(levels(follow(send(emptyState(), F.cancel).state, released()))).toEqual(["desktop:normal", "sound:normal"]);
+    expect([levels(kagawa), kagawa.intents]).toEqual([[], []]);
+    expect(levels(follow(send(emptyState(), F.cancel).state, released()))).toEqual([]);
     expect(follow(ended.state, released(), "2020-06-22T23:50:00+09:00").intents).toEqual([]);
-    // 訂正は事実が同じでも作る（normal、[訂正]・「訂正: 」）。記憶だけの取消では作らない。取消は cancel。
+    // 事実の同じ訂正は作らない（P3-WN-AC08 (2)、作者裁定 2026-11-01 の問い 2=A）。記憶だけの取消では作らない。取消は cancel（レベル 4 だけの記録は desktop だけ）。
     const corrected = send(first.state, F.correction);
-    expect(corrected.intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body.startsWith("訂正: ")]))
-      .toEqual([["updated", "normal", "[訂正] 宗谷地方土砂災害警報・注意報", true], ["updated", "normal", "[訂正] 宗谷地方土砂災害警報・注意報", true]]);
+    expect(corrected.intents).toEqual([]);
     expect(send(emptyState(), F.cancel).intents).toEqual([]);
     const cancel = send(first.state, F.cancel);
     expect(cancel.intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
-      ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報（23:00 発表）", "23:00 発表の宗谷地方土砂災害警報・注意報を取り消しました"],
       ["cancelled", "cancel", "[取消] 宗谷地方土砂災害警報・注意報（23:00 発表）", "23:00 発表の宗谷地方土砂災害警報・注意報を取り消しました"]]);
     // 置換（P3-C10-REPLACEMENT=A）: 同じ subject・channel の新しい intent は古い pending を、取消は対象 subject の全 pending を置き換える。
-    const replaced = follow(first.state, soya(["49", ...Array(9).fill("29")]), "2020-06-22T23:00:30+09:00").state;
+    // 39 への引上げ（P3-WN-AC08: critical の desktop＋sound、sound は 60,000 ms、spec:973）が :first の desktop を置き換える。
+    const raisedStep = follow(first.state, soya(["39", ...Array(9).fill("29")]), "2020-06-22T23:00:30+09:00"), replaced = raisedStep.state;
     // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
-    expect(replaced.intents.map((item) => item.disposition)).toEqual(["pending", "pending"]);
+    expect([replaced.intents.map((item) => [item.channel, item.disposition, item.id === first.intents[0].id]), raisedStep.intents.map((item) => item.expiresAt - item.createdAt)])
+      .toEqual([[["desktop", "pending", false], ["sound", "pending", false]], [180_000, 60_000]]);
     expect(pending(send(replaced, F.cancel, retime("2020-06-22T23:00:40+09:00")).state).map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
-    expect(send(first.state, F.soya, office("旭川地方気象台")).state.intents.slice(0, 2)).toEqual(first.state.intents);
+    expect(send(first.state, F.soya, office("旭川地方気象台")).state.intents.slice(0, 1)).toEqual(first.state.intents);
     // intentUpdate: 既存 id だけを一括で更新し、保存世代を 1 つ進める。未知 id・同値は no-op。
     const [desktop] = first.intents;
     const updated = reduceLandslideUnit(first.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: [{ ...desktop,
@@ -469,11 +470,11 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       [{ decision: "changed", change: "deliveryOnly" }]]);
     expect(reduceLandslideUnit(updated.state, { kind: "intentUpdate", clock: clock(desktop.createdAt), intentUpdate: { ...desktop, attempts: 1,
       nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
-    // 復元直後の続報は復元した記録との差で決める（同じ報は duplicate で鳴らさない、引下げは normal）。訓練は desktop だけ。
+    // 復元直後の続報は復元した記録との差で決める（同じ報は duplicate で鳴らさない、引下げは作らない）。訓練は desktop だけ。
     const restored = reduceLandslideUnit(emptyState(), { kind: "restore", persisted: landslideUnitCodec.encode(first.state),
       clock: clock(desktop.createdAt + 1) }).state;
     expect(send(restored, F.soya).intents).toEqual([]);
-    expect(levels(follow(restored, soya(["49", ...Array(9).fill("29")])))).toEqual(["desktop:normal", "sound:normal"]);
+    expect(levels(follow(restored, soya(["49", ...Array(9).fill("29")])))).toEqual([]);
     expect(send(emptyState(), F.soya, status("訓練")).intents.map((item) => [item.channel, item.payload.level, item.payload.title])).toEqual([
       ["desktop", "warning", "【訓練】宗谷地方土砂災害警報・注意報"]]);
   });
@@ -485,7 +486,7 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
     const live = receive(state, decodeXml(raise(fixtureXml(F.soya))), clock(T0 + 30 * 60_000));
     const recovery = receive(state, decodeXml(raise(fixtureXml(F.soya)), "recovered", "recovery"), clock(T0 + 30 * 60_000));
     expect([shape(recovery), groups(recordOf(recovery.state)), state.intents.length, live.intents.length, recovery.intents, recovery.state.intents])
-      .toEqual([shape(live), groups(recordOf(live.state)), 2, 2, [], []]);
+      .toEqual([shape(live), groups(recordOf(live.state)), 1, 2, [], []]); // P3-WN-AC08: 初報のレベル 4 は desktop だけ
     const unsure = receive(state, decodeXml(areas(soya(["49", ...Array(9).fill("29")]))(fixtureXml(F.soya)), "unsure", "recovery"), clock(T0));
     expect([unsure.state === state, shape(unsure), unsure.diagnostics, unsure.displayChanges]).toEqual([true, [[SUBJECT, "unchanged", "noChange"]], [], []]);
   });
@@ -564,11 +565,54 @@ describe("P3-UNIT-L-001 U-L reducer", () => {
       (state, key) => receive(restarting ? restart(state) : state, reports[key as keyof typeof reports], clock(T0)).state, first)));
     expect(finals.map((state) => [recordOf(state)?.effective, recordOf(state)?.source.serialRaw, recordOf(state)?.source.infoTypeRaw,
       pending(state).map((item) => [item.channel, item.transition]), roundTrip(state).kind]))
-      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"], ["sound", "cancelled"]], "restored"]));
+      .toEqual(Array(12).fill(["cancelled", "1", "取消", [["desktop", "cancelled"]], "restored"])); // P3-WN-AC08 (3): レベル 4 だけの記録の取消は desktop だけ
   });
 
   // contractBoundary（P3-VM-AC03 が P3-ORDER-AC01・AC03 を置き換えた）: 同じ時刻（Head と Control/DateTime が同じ）の 2 報は Serial と InfoType の
   // 順位で決めず、到着順によらない。取消は取消でない報に勝ち、中身（InfoType と事実）が同じなら duplicate、違えば先着を保って未確認の印を付ける。
+  // acceptance: P3-WEATHER-NOTICE-001 の P3-WN-T08（AC08、H11 を U-L に当てる。P3-WN-D-H11-SCOPE=B・CANCEL-HEARD=A・H27-L4=A）。
+  it("P3-WN-T08 acceptance / P3-WN-AC08: level 4 is desktop, level 5 rings, levels 2-3, same-fact corrections and releases are silent", () => {
+    const level = (kinds: readonly string[]) => areas(soya(kinds));
+    const sent = (step: LandslideUnitStep) => step.intents.map((item) => `${item.channel}:${item.payload.level}`);
+    const first = send(emptyState(), F.soya);
+    expect(sent(first)).toEqual(["desktop:warning"]);
+    expect(sent(send(emptyState(), F.soya, level(["39", ...ORIGINAL.slice(1)])))).toEqual(["desktop:critical", "sound:critical"]);
+    // レベル 3・2 だけの引上げ・事実の同じ訂正・全区域の解除・記録の無い官署への解除は作らない。
+    expect([follow(first.state, soya(["49", "09", "09", ...Array(7).fill("29")])), send(first.state, F.correction), follow(first.state, released()),
+      send(emptyState(), F.kagawa)].map(sent)).toEqual([[], [], [], []]);
+    // 取消の channel は取消の前の記録の段（レベル 4 だけなら desktop、レベル 5 があれば desktop＋sound、レベル 3 だけで印が unattempted なら作らない）。
+    expect([send(first.state, F.cancel), send(send(emptyState(), F.soya, level(["39", ...ORIGINAL.slice(1)])).state, F.cancel),
+      send(send(emptyState(), F.soya, level(["09", ...Array(9).fill("29")])).state, F.cancel)].map(sent)).toEqual([["desktop:cancel"],
+      ["desktop:cancel", "sound:cancel"], []]);
+    // 取り直しの H27 はレベル 4 も 5 も info の desktop＋sound、レベル 3 は作らない。
+    const now = clock(T0), recovered = (kinds: readonly string[], id: string) => receive(emptyState(), decodeXml(level(kinds)(fixtureXml(F.soya)), id, "recovery"), now).state;
+    const infos = (state: LandslideUnitState) => recoveryNotices(emptyState(), state, now).intents.map((item) => `${item.channel}:${item.payload.level}`);
+    expect([infos(recovered(ORIGINAL, "r4")), infos(recovered(["39", ...ORIGINAL.slice(1)], "r5")), infos(recovered(["09", ...Array(9).fill("29")], "r3"))])
+      .toEqual([["desktop:info", "sound:info"], ["desktop:info", "sound:info"], []]);
+    // ヘルツ r0 の P2（P3-WN-AC08 (5) の置換は今のまま）: 通知を作らない全解除・引下げも、同じ subject の未配送の L5 の pending を外す。
+    const loud = send(emptyState(), F.soya, level(["39", ...ORIGINAL.slice(1)])).state;
+    expect([pending(loud).length, pending(follow(loud, released()).state), pending(follow(loud, soya(ORIGINAL)).state)]).toEqual([2, [], []]);
+  });
+
+  // ヘルツ・Opus r1 の P2: L5 が続く間、別の区域だけが変わる続報（猿払村の L3→L2 以外の区域が L2→L3）は、未配送の L5 の pending を外さない。
+  it("P3-WN-T08 regression / P3-WN-AC08 (5): a follow-up that keeps the level-5 area keeps its pending, live and in a recovery shadow", () => {
+    const loud = areas(soya(["39", ...ORIGINAL.slice(1)])), first = send(emptyState(), F.soya, loud).state;
+    const other = soya(["39", "09", "09", ...Array(7).fill("29")]);
+    const live = follow(first, other, "2020-06-22T23:00:30+09:00");
+    expect([live.intents, pending(live.state).map((item) => [item.channel, item.payload.level])]).toEqual([[], [["desktop", "critical"], ["sound", "critical"]]]);
+    const shadow = receive(first, decodeXml(retime("2020-06-22T23:00:30+09:00")(areas(other)(fixtureXml(F.soya))), "shadow", "recovery"), clock(T0 + 100));
+    expect([shadow.intents, shadow.state.intents]).toEqual([[], first.intents]);
+  });
+
+  // 統合担当の決め（2026-11-01、P3-WEATHER-NOTICE-001 の r1）: 取り直しの H27 は operation ごとに 1 組。
+  it("P3-WN-T08 acceptance / P3-WN-AC08 (6): the recovery raise is one info per operation", () => {
+    const now = clock(T0), level = (kinds: readonly string[]) => areas(soya(kinds));
+    const normal = receive(emptyState(), decodeXml(level(["39", ...ORIGINAL.slice(1)])(fixtureXml(F.soya)), "rn", "recovery"), now).state;
+    const both = receive(normal, decodeXml(status("訓練")(level(ORIGINAL)(fixtureXml(F.soya))), "rt", "recovery"), now).state;
+    expect(recoveryNotices(emptyState(), both, now).intents.map((item) => [item.operation, item.channel, item.payload.level, item.payload.title.startsWith("【訓練】")]))
+      .toEqual([["normal", "desktop", "info", false], ["normal", "sound", "info", false], ["training", "desktop", "info", true]]);
+  });
+
   it("P3-ORDER-T02 contractBoundary / P3-VM-AC03: at the same time a cancel wins, Serial is not compared and a differing InfoType is held with a mark", () => {
     const first = ordered();
     const rows: [readonly [string, string], readonly [string, string], "cancel" | "duplicate" | "held"][] = [
@@ -639,7 +683,8 @@ function reserveOver(intent: Record<string, unknown>): Record<string, unknown>[]
 }
 // P3-NL-AC08 (1)(4)・AC15 (4): started の pending は復元で外れ、failed・null の pending は欄ごと戻る。
 it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-L restores failed and null pending with their fields and drops a started one", () => {
-  const issued = send(emptyState(), F.soya);
+  // P3-WN-AC08: 2 件（desktop＋sound）を作るのはレベル 5 の報（レベル 4 は desktop だけ）。
+  const issued = send(emptyState(), F.soya, areas(soya(["39", ...ORIGINAL.slice(1)])));
   expect(issued.intents.length).toBeGreaterThanOrEqual(2);
   expectRestoreStarted({ intents: [issued.intents[0], issued.intents[1]], make: (intents) => ({ ...issued.state, intents }),
     restore: (state, at) => reduceLandslideUnit(emptyState(), { kind: "restore", persisted: landslideUnitCodec.encode(state), clock: at }),

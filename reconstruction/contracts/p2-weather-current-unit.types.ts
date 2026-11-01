@@ -16,7 +16,7 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView,
-} from "./p2-shared-runtime.types"; import type { WeatherCurrentPublicArea } from "./p3-uw-canon.types";
+} from "./p2-shared-runtime.types"; import type { WeatherCurrentPublicArea } from "./p3-uw-canon.types"; import type { WeatherCurrentNotice } from "./p3-weather-notice.types";
 
 export type WeatherCurrentUnavailableReason =
   | "capacityExceeded"
@@ -51,7 +51,7 @@ export type WeatherCurrentTombstone = Readonly<{
 }>;
 
 export type WeatherCurrentUnitState = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v7";
+  schemaVersion: "p2-weather-current-unit-v8";
   contentRevision: number;
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
@@ -62,11 +62,12 @@ export type WeatherCurrentUnitState = Readonly<{
   freshness: readonly FreshnessRecord[];
   unavailable: readonly Readonly<{ subject: string; operation: Operation; reason: WeatherCurrentUnavailableReason; source: ReportRef | null; lastKnown: WeatherCurrentSnapshot | null; affectedScope: readonly string[] }>[];
   intents: readonly NotificationIntent[]; unconfirmed: readonly ReportRef[]; // P3-VM-AC04: 系列（subject・operation）ごとに 1 つの未確認の印。snapshot に置くと histories の報ごとに増えるので別に持つ
+  notices: readonly WeatherCurrentNotice[]; // P3-WN-AC05: 系列ごとの通知の印（unconfirmed と同じ系列の集合で生き、同じ所で消える）
   persistence: PersistenceStatus;
 }>;
 
 export type PersistedWeatherCurrentUnit = Readonly<{
-  schemaVersion: "p2-weather-current-unit-v7";
+  schemaVersion: "p2-weather-current-unit-v8";
   national: Readonly<Partial<Record<Operation, WeatherCurrentSnapshot>>>;
   partials: readonly WeatherCurrentSnapshot[];
   histories: readonly WeatherCurrentHistory[];
@@ -75,6 +76,7 @@ export type PersistedWeatherCurrentUnit = Readonly<{
   freshness: readonly FreshnessRecord[];
   unavailable: readonly Readonly<{ subject: string; operation: Operation; reason: WeatherCurrentUnavailableReason; source: ReportRef | null; lastKnown: WeatherCurrentSnapshot | null; affectedScope: readonly string[] }>[];
   intents: readonly NotificationIntent[]; unconfirmed: readonly ReportRef[];
+  notices: readonly WeatherCurrentNotice[];
 }>;
 
 export type WeatherCurrentUnitView = SharedUnitView & Readonly<{
@@ -111,5 +113,5 @@ export type WeatherCurrentUnitStep = Readonly<{
 }>;
 
 export type WeatherCurrentUnitCodec = UnitCodec<WeatherCurrentUnitState, PersistedWeatherCurrentUnit> & Readonly<{
-  schemaVersion: "p2-weather-current-unit-v7";
+  schemaVersion: "p2-weather-current-unit-v8";
 }>;

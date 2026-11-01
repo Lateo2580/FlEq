@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "ba99f98b1dd897533e347b51a1ef8e2d49c42a8d62933591c24c4a17c5b3b249",
+    "sha256": "b8ea5339961ac38e7638a1986c7b241a15094df244d6d772a515096be7500aa1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -142,7 +142,7 @@
         "status": "closed",
         "reason": "P2-A7-AC02/E21: 投入offset・背景pending・生成markerの固定が無いと、競合しない実33報だけで初回1秒を合格にできる。",
         "clock": "各行は独立run。run開始時のClockReadingを記録し、W0=start.wallTimeMs+1000、M0=start.monotonicMs+1000を前景投入の基準とする。offsetはM0からの予定msで実投入/受理時刻も記録する。生成marker createdAtMonotonicMsはA4が同世代へintent集合を採用した入力ClockReading.monotonicMsをtraceへ記録する。保存fieldは増やさず、wall差から生成markerを推測しない。",
-        "background": "C1/C2のU-Wは人工の配送境界入力であり気象電文からの生成合格ではない。計4 pending: lower-desktop/lower-soundはnormal、domain=weather、level=info、title/body=E21背景、各1件。retry-desktop/retry-soundも同payloadでattempts=1、nextAttemptAt=W0の再試行各1件。全てcreatedAt=W0-1000、expiresAtはsound=createdAt+60000/desktop=createdAt+180000、configRevision=e21-v1、優先群other。lowerはnextAttemptAt=createdAt、試行前attempts=0、開始後1。U-E/U-Fの背景pendingは0。開始時はlowerの2件だけをchannelごとrunningにし、retryの2件はpendingのまま置く。",
+        "background": "C1/C2のU-Wは人工の配送境界入力であり気象電文からの生成合格ではない。気象電文から U-W が作った intent の群と選ばれる順は P3-WEATHER-NOTICE-001 の P3-WN-T12 で確かめる。計4 pending: lower-desktop/lower-soundはnormal、domain=weather、level=info、title/body=E21背景、各1件。retry-desktop/retry-soundも同payloadでattempts=1、nextAttemptAt=W0の再試行各1件。全てcreatedAt=W0-1000、expiresAtはsound=createdAt+60000/desktop=createdAt+180000、configRevision=e21-v1、優先群other。lowerはnextAttemptAt=createdAt、試行前attempts=0、開始後1。U-E/U-Fの背景pendingは0。開始時はlowerの2件だけをchannelごとrunningにし、retryの2件はpendingのまま置く。",
         "competition": "人工EEW A/Bは別EventID 20990101000001/20990101000002のnormal VXSE45合法第1報（予報）。既存A4 T11の合法入力からEventID/日時だけを固定した人工境界系列で、各desktop/soundを生成し同群で競合させる。Aはoffset=0、Bはoffset=10ms。A/Bの置換対象は別eventなので互いをsupersededにしない。",
         "rows": [
           {

@@ -258,12 +258,12 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     expect(effective(tick(held.state, T0 + 59_999).state, P)).toBe("held");
     const released = tick(held.state, T0 + 60_000);
     expect([effective(released.state, P), channels(released), released.intents[0].payload.title]).toEqual(["released",
-      ["desktop:warning:activated", "sound:warning:activated"], "東京都記録的短時間大雨情報（対応電文未確認）"]);
+      ["desktop:normal:activated", "sound:normal:activated"], "東京都記録的短時間大雨情報（対応電文未確認）"]);
     // released の後の対応報で aliased（release の pending は撤回）。released の系列の続報は通知する。
     const late = send(released.state, F.k1, undefined, T0 + 61_000);
     expect([effective(late.state, P), pending(late.state, P)]).toEqual(["aliased", []]);
     const follow = send(released.state, F.oa2, undefined, at("2026-08-22T17:17:00+09:00"));
-    expect([effective(follow.state, P), channels(follow)]).toEqual(["released", ["desktop:warning:updated", "sound:warning:updated"]]);
+    expect([effective(follow.state, P), channels(follow)]).toEqual(["released", ["desktop:normal:updated", "sound:normal:updated"]]);
     // held の間の続報は holdUntil を延ばさない。窓から 60 秒以後の移行・終了入力・restore 入力では無音で released。
     const heldFollow = send(held.state, F.oa2, undefined, T0 + 10_000).state;
     expect(recordOf(heldFollow, P)).toMatchObject({ effective: "held", holdUntil: T0 + 60_000, source: { serialRaw: "2" } });
@@ -542,10 +542,10 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
     const headline = record?.effective === "active" ? record.headline : "";
     const title = "東京都気象防災速報（記録的短時間大雨）";
     expect(first.intents.map((item) => [item.channel, item.transition, item.payload.domain, item.payload.level, item.payload.title,
-      item.payload.body, item.expiresAt - item.createdAt])).toEqual([["desktop", "activated", "weather", "warning", title, headline, 180_000],
-      ["sound", "activated", "weather", "warning", title, headline, 60_000]]);
+      item.payload.body, item.expiresAt - item.createdAt])).toEqual([["desktop", "activated", "weather", "normal", title, headline, 180_000],
+      ["sound", "activated", "weather", "normal", title, headline, 60_000]]);
     // 公開事実の変わった続報は updated、同じ事実の新しい版は revisionOnly で作らない。訂正は事実が同じでも作る（[訂正]・「訂正: 」）。
-    expect(channels(send(first.state, F.k2))).toEqual(["desktop:warning:updated", "sound:warning:updated"]);
+    expect(channels(send(first.state, F.k2))).toEqual(["desktop:normal:updated", "sound:normal:updated"]);
     const same = send(first.state, F.k1, (xml) => serial("5")(retime("2026-08-22T17:10:00+09:00")(xml)));
     expect([shape(same), same.intents]).toEqual([[[K, "changed", "revisionOnly"]], []]);
     const corrected = send(first.state, F.k1, (xml) => replaceTag("InfoType", "訂正")(control("2026-08-22T17:09:45+09:00")(xml)));
@@ -590,11 +590,19 @@ describe("P3-UNIT-B-001 U-B reducer", () => {
       nextAttemptAt: desktop.createdAt + 1_000, disposition: "pending", lossReason: null } }).state).toBe(updated.state);
     // 復元直後の続報は復元した記録との差で決める（同じ報は duplicate で鳴らさない、事実の変わった続報は鳴る）。
     const restored = reduceBriefingUnit(emptyState(), { kind: "restore", persisted: briefingUnitCodec.encode(first.state), clock: clock(T0 + 1) }).state;
-    expect([send(restored, F.k1).intents, channels(send(restored, F.k2))]).toEqual([[], ["desktop:warning:updated", "sound:warning:updated"]]);
+    expect([send(restored, F.k1).intents, channels(send(restored, F.k2))]).toEqual([[], ["desktop:normal:updated", "sound:normal:updated"]]);
   });
 
   // contractBoundary: origin=recovery の入口（C16 発注 4b-1、P3-REC-AC12・P3-C12-N2・UNIT-ENTRANCE=A）。live と同じ意味を当てて intent を作らず、live なら
   // 新しい intent が置き換える古い pending は外す。版が決まらない本文は印も WARN も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。
+  // acceptance: P3-WEATHER-NOTICE-001 の P3-WN-T09（AC09、作者の足しと P3-WN-D-VPBS50=A）。
+  it("P3-WN-T09 acceptance / P3-WN-AC09: the released VPOA50 and a record-rain-only VPBS50 are normal, a linear rain band stays warning", () => {
+    const held = send(emptyState(), F.oa1);
+    expect([channels(tick(held.state, T0 + 60_000)), channels(send(emptyState(), F.k1)), channels(send(emptyState(), F.yjpnb))]).toEqual([
+      ["desktop:normal:activated", "sound:normal:activated"], ["desktop:normal:activated", "sound:normal:activated"],
+      ["desktop:warning:activated", "sound:warning:activated"]]);
+  });
+
   it("P3-C12-T11 contractBoundary / AC13: origin=recovery applies the meaning without intents and returns an undecided version untouched", () => {
     const state = send(emptyState(), F.k1).state, now = clock(T0 + 8 * 60_000);
     const live = receive(state, decodeXml(fixtureXml(F.k2)), now), recovery = receive(state, decodeXml(fixtureXml(F.k2), "VPBS50", "recovered", "recovery"), now);

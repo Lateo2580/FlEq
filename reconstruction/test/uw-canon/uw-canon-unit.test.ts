@@ -11,6 +11,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import { weatherCurrentAreas, weatherCurrentDetail } from "../../src/units/weather-current/weather-current-public";
 import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
+import { noticeReserve } from "../../src/units/weather-current/weather-current-notice";
 
 // P3-UW-CANON-001 の unit の側（件数・深さ・byte の縮退・合わせ・公開形・詳細の 1 ページ・受信経路の計算量）。
 const NOW = 1_800_000_000_000;
@@ -252,7 +253,8 @@ describe("P3-UWC-T08 acceptance (AC03・AC02): the byte budget drops the oldest 
   const sized = (state: WeatherCurrentUnitState, material: DecodedMaterial, over: number) => {
     const probe = receive(padded(state, 0), material);
     expect(probe.diagnostics).toEqual([]);
-    return padded(state, LIMIT - reserved(probe.state) + over);
+    // P3-WN-AC06 (3)（Q-WN-EXISTING-TESTS (5)）: 受理の器の判定は通知を足す前の state で、intents を 131,072 byte と数え、受けた報の系列の印 1 件の上界を足す。
+    return padded(state, LIMIT - reserved({ ...probe.state, intents: [], notices: state.notices }) - 131_072 - noticeReserve(probe.decisions[0]) + over);
   };
   it("adopts by dropping the oldest version, keeps every normal current, and a later cancel goes back to what is left", () => {
     let state = empty();

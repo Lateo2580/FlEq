@@ -164,22 +164,22 @@ function currentOf(candidate: LandslideCandidate, existing: LandslideCurrent | n
 // ---- 通知（questionResolutions[Q-NOTICE]） ----
 
 const PREFIX: Readonly<Record<Operation, string>> = { normal: "", training: "【訓練】", test: "【試験】" };
-// P3-C10-NOTICE-LEVELS=B（作者裁定）: 表に無い code（null）は warning で、上がったかの比較ではレベル 3 と同じ順位。
-const SOUND: ReadonlyMap<LandslideKindGroup["level"], Level> = new Map([[5, "critical"], [4, "warning"], [3, "warning"], [2, "normal"],
-  [null, "warning"]]);
-const LEVEL_ORDER: readonly Level[] = ["info", "normal", "warning", "critical", "cancel"];
-const rankOf = (level: LandslideKindGroup["level"]): number => level ?? 3;
-// 採用前の記録より上がった区域（新しい区域か順位の上がった区域）の段階の最大。上がった区域が無ければ normal。
-function levelFor(before: LandslideCurrent | null, after: Active): Level {
+// P3-WEATHER-NOTICE-001（H11、P3-WN-AC08）: レベル 5 は critical の desktop＋sound、4 は warning の desktop だけ、3・2 は作らない。表に無い code は
+// 十の位が 3 なら 5、4 なら 4 と読み、ほかは今どおり warning の desktop＋sound（fail-bright、比べの順位 3）。
+const tierOf = (group: LandslideKindGroup): 4 | 5 | null => group.level === 5 || group.level == null && group.code[0] === "3" ? 5 : group.level === 4 || group.level == null && group.code[0] === "4" ? 4 : null;
+// tierOf は rankOf に畳まない: 表に無い code（fail-bright）は比べの順位 3 でレベル 3 と同じだが、レベル 3 と違って通知を作るので段を別に持つ。
+const rankOf = (group: LandslideKindGroup): number => tierOf(group) ?? group.level ?? 3;
+// 採用前の記録より上がった区域（新しい区域か順位の上がった区域）の段と音。レベル 4・5 か表に無い code の区域が上がらなければ null（作らない）。
+function levelFor(before: LandslideCurrent | null, after: Active): Readonly<{ level: Level; sound: boolean }> | null {
   const previous = new Map<string, number>();
-  if (visible(before)) for (const group of before.kinds) for (const area of group.areas) previous.set(area, rankOf(group.level));
-  let level: Level = "normal";
+  if (visible(before)) for (const group of before.kinds) for (const area of group.areas) previous.set(area, rankOf(group));
+  let raised = false, critical = false, loud = false;
   for (const group of after.kinds) {
-    const sound = SOUND.get(group.level) ?? "warning";
-    if (LEVEL_ORDER.indexOf(sound) > LEVEL_ORDER.indexOf(level)
-      && group.areas.some((area) => (previous.get(area) ?? -Infinity) < rankOf(group.level))) level = sound;
+    const tier = tierOf(group);
+    if ((tier != null || group.level == null) && group.areas.some((area) => (previous.get(area) ?? -Infinity) < rankOf(group)))
+      { raised = true; critical ||= tier === 5; loud ||= tier !== 4; } // 5 と fail-bright は音を鳴らす
   }
-  return level;
+  return raised ? { level: critical ? "critical" : "warning", sound: loud } : null;
 }
 // 題は operationPrefix＋訂正・取消の前置き＋Head/Title、本文は Kind の名前ごとの区域の数と Headline（旧築 notifier.ts の組み方を区分ごとに）。
 // 取消は取り消した記録の ReportDateTime（cancelledAt）を書く（P3-NL-AC10）。
@@ -199,10 +199,10 @@ function payloadOf(candidate: LandslideCandidate, after: LandslideCurrent, level
 }
 // P3-NL-AC01: ID は世代番号を含まない。官署の系列の印に同じ版の鍵と種類があれば作らない。
 function intentsFor(candidate: LandslideCandidate, transition: LandslideIntent["transition"], payload: LandslideNotificationPayload,
-  now: number, mark: NoticeMark | undefined, version: string): LandslideIntent[] {
+  now: number, mark: NoticeMark | undefined, version: string, sound = true): LandslideIntent[] {
   if (noticed(mark, version, noticeKind(transition))) return [];
-  // P3-C10-TRAINING=A: training/test は desktop だけ。
-  const channels = candidate.operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
+  // P3-C10-TRAINING=A: training/test は desktop だけ。P3-WN-AC08: レベル 4 だけの引上げと、レベル 5 の無い記録の取消も desktop だけ。
+  const channels = candidate.operation === "normal" && sound ? ["desktop", "sound"] as const : ["desktop"] as const;
   return channels.map((channel) => ({ id: noticeId("U-L", candidate.subject, "", candidate.source, transition, channel), unit: "U-L",
     subject: candidate.subject, operation: candidate.operation, source: candidate.source, transition, channel, payload, createdAt: now,
     expiresAt: now + TTL[channel], nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending",
@@ -321,20 +321,20 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   // 退去を伴う受理は decision も outcome も semantic（U-N と同じ）。
   const change = fields.length !== 0 || evicted != null ? "semantic" as const : "revisionOnly" as const;
 
-  // Q-NOTICE.generationTable。訂正は事実が同じでも作る。記録の無い官署か取消の記録への解除の報（inactiveAdoption）も作る。
-  // 期限で回収される報・記憶だけの取消・endedの記録への解除では作らない。
+  // Q-NOTICE.generationTable（P3-WN-AC08 (2)）: 上がった区域がレベル 4・5（表に無い code を含む）の報と訂正だけ作る。解除・事実の同じ訂正・inactiveAdoption・期限で回収される報は作らない。
   const correction = candidate.infoRank === 2;
-  // P3-NL-AC09 (1): 取消は active だったか、系列の印に通知の証拠があるとき（H19）。
-  const notify = !due && (candidate.cancelled ? visible(existing) || heard(existing?.notice) : correction || (visible(next) ? !visible(existing)
-    || noticeChanged(existing, next, fields)
-    : visible(existing) || candidate.released && (existing == null || existing.effective === "cancelled")));
+  const raise = candidate.cancelled || !visible(next) ? null : levelFor(existing, next), held = visible(existing) ? Math.max(0, ...existing.kinds.map((group) => tierOf(group) ?? 0)) : 0;
+  const notify = !due && (candidate.cancelled ? held >= 4 || heard(existing?.notice) : raise != null); // 取消は直前の記録がレベル 4・5 か印の証拠があるとき（P3-NL-AC09 (1)・P3-WN-AC08 (3)、H19）
+  const sound = candidate.cancelled ? held === 5 : raise?.sound === true; // 取消は取消の前の記録の段（P3-WN-D-CANCEL-HEARD=A。U-L は取消の後の記録が無い）
   const transition = candidate.cancelled ? "cancelled" as const : correction ? "updated" as const
     : visible(next) ? visible(existing) ? "updated" as const : "activated" as const : "released" as const;
-  const level = candidate.cancelled ? "cancel" : visible(next) ? levelFor(existing, next) : "normal";
+  const level = candidate.cancelled ? "cancel" : raise?.level ?? "normal";
+  // P3-WN-AC08 (5)・ヘルツ r0／r1 の P2: 同じ subject の pending は、告げた段（critical は 5、info は 4 以上、warning は 4 か fail-bright の 3）を採用の後の記録がまだ持てば残し、持たなくなれば（全解除・その段より下への引下げ）外す（:340 は他の契約が引く行なので state の側で外す）。
+  const top = visible(next) ? Math.max(0, ...next.kinds.map((group) => tierOf(group) ?? (group.level == null ? 3 : 0))) : 0, kept = due || candidate.cancelled ? state.intents : state.intents.filter((item) => item.subject !== subject || (item.payload.level === "critical" ? top === 5 : item.payload.level === "info" ? top >= 4 : item.payload.level === "warning" && top >= 3)); if (kept.length !== state.intents.length) state = { ...state, intents: kept };
   // 版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16）。
   const digest = notify ? versionDigest(candidate.source) : "";
   const fresh = notify ? intentsFor(candidate, transition, payloadOf(candidate, next, level, existing?.source.reportDateTimeRaw ?? null), now,
-    existing?.notice, digest) : [];
+    existing?.notice, digest, sound) : [];
   // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、取消でなくてもその pending を全部撤回する（D-WITHDRAW=A、P3-OPCAP-AC03）。
   // 取り直しは intent を作らず、live の新しい intent が置き換える古い pending だけを外す（P3-REC-D-UNIT-ENTRANCE=A）。
   const notices = admit(state.intents, recovering ? [] : fresh, candidate.cancelled || due && visible(existing) ? subject : null, fresh);
@@ -649,44 +649,51 @@ const landslideUnit = {
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4b-1、P3-REC-AC10・P3-REC-D-N2-RAISE-4B=A） ----
 
-// H27 の段は live の levelFor と同じ区域ごとの rank。open より上がった区域の rank の最大で、上がった区域が無ければ null。
+// H27 の段は live の levelFor と同じ区域ごとの rank。open より上がった区域のうちレベル 4・5（表に無い code の十の位の読みを含む）の段の最大で、
+// 上がった区域が無ければ null（P3-WN-AC08 (6)。レベル 2・3 と fail-bright の code は数えない）。
 function raisedRank(before: LandslideCurrent | null, after: Active): number | null {
   const previous = new Map<string, number>();
-  if (visible(before)) for (const group of before.kinds) for (const area of group.areas) previous.set(area, rankOf(group.level));
+  if (visible(before)) for (const group of before.kinds) for (const area of group.areas) previous.set(area, rankOf(group));
   let rank: number | null = null;
-  for (const group of after.kinds)
-    if (group.areas.some((area) => (previous.get(area) ?? -Infinity) < rankOf(group.level))) rank = Math.max(rank ?? -Infinity, rankOf(group.level));
+  for (const group of after.kinds) {
+    const tier = tierOf(group);
+    if (tier != null && group.areas.some((area) => (previous.get(area) ?? -Infinity) < tier)) rank = Math.max(rank ?? -Infinity, tier);
+  }
   return rank;
 }
 
 /**
  * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
- * candidate は採用する state。区域の段が open より上がり、いまも見える官署のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で unit に 1 件）。
+ * candidate は採用する state。区域の段が open より上がり、いまも見える官署のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で operation ごとに 1 件。
+ * normal は desktop＋sound、training・test は desktop だけ。統合担当の決め 2026-11-01、P3-WEATHER-NOTICE-001 の r1）。
  * 通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
 function recoveryNotices(open: LandslideUnitState, candidate: LandslideUnitState, clock: ClockReading): LandslideUnitState {
   const now = clock.wallTimeMs, before = new Map(open.currents.map((item) => [item.subject, item]));
-  let best: Readonly<{ current: Active; rank: number }> | null = null;
+  const best = new Map<Operation, Readonly<{ current: Active; rank: number }>>();
   for (const current of candidate.currents) {
     if (!visible(current) || current.retainUntil <= now) continue;
-    const rank = raisedRank(before.get(current.subject) ?? null, current);
+    const rank = raisedRank(before.get(current.subject) ?? null, current), found = best.get(current.operation);
     if (rank == null || noticed(current.notice, versionDigest(current.source), noticeKind("updated"))) continue;
-    if (best == null || rank > best.rank) best = { current, rank };
+    if (found == null || rank > found.rank) best.set(current.operation, { current, rank });
   }
-  if (best == null) return candidate;
-  const { current } = best, { operation, source } = current, version = versionDigest(source);
-  const at = new Date(reportMs(source) + 32_400_000).toISOString().slice(11, 16);
-  const payload: LandslideNotificationPayload = { domain: "weather", level: "info", title: cut(`${PREFIX[operation]}${current.title}（${at} 発表）`, NOTICE_BOUNDS.title),
-    body: cut(current.kinds.map((group) => `${group.name === "" && hasPart(current.unreadable, "kindName") ? UNREAD_TEXT : group.name} ${group.areas.length}地域`).join(" / "), NOTICE_BOUNDS.body), reportDateTime: source.reportDateTimeRaw, recovered: true };
-  const channels = operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
-  const fresh: LandslideIntent[] = channels.map((channel) => ({ id: noticeId("U-L", current.subject, "", source, "updated", channel), unit: "U-L",
-    subject: current.subject, operation, source, transition: "updated", channel, payload, createdAt: now, expiresAt: now + TTL[channel],
-    nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-L", operation) }));
-  const notices = admit(candidate.intents, fresh, null);
-  if (notices.admitted.length === 0) return candidate;
-  // P3-NL-AC02 (3): 引上げの版と種類を官署の系列の印に足す。
-  const currents = candidate.currents.map((item) => item !== current ? item : { ...item, notice: markNotice(item.notice, version, noticeKind("updated")) });
-  return { ...candidate, currents, intents: notices.intents };
+  let intents = candidate.intents, currents = candidate.currents;
+  for (const { current } of best.values()) {
+    const { operation, source } = current, version = versionDigest(source);
+    const at = new Date(reportMs(source) + 32_400_000).toISOString().slice(11, 16);
+    const payload: LandslideNotificationPayload = { domain: "weather", level: "info", title: cut(`${PREFIX[operation]}${current.title}（${at} 発表）`, NOTICE_BOUNDS.title),
+      body: cut(current.kinds.map((group) => `${group.name === "" && hasPart(current.unreadable, "kindName") ? UNREAD_TEXT : group.name} ${group.areas.length}地域`).join(" / "), NOTICE_BOUNDS.body), reportDateTime: source.reportDateTimeRaw, recovered: true };
+    const channels = operation === "normal" ? ["desktop", "sound"] as const : ["desktop"] as const;
+    const fresh: LandslideIntent[] = channels.map((channel) => ({ id: noticeId("U-L", current.subject, "", source, "updated", channel), unit: "U-L",
+      subject: current.subject, operation, source, transition: "updated", channel, payload, createdAt: now, expiresAt: now + TTL[channel],
+      nextAttemptAt: now, attempts: 0, configRevision: SCHEMA, disposition: "pending", ...freshState("U-L", operation) }));
+    const notices = admit(intents, fresh, null);
+    if (notices.admitted.length === 0) continue;
+    // P3-NL-AC02 (3): 引上げの版と種類を官署の系列の印に足す。
+    intents = notices.intents;
+    currents = currents.map((item) => item.subject !== current.subject ? item : { ...item, notice: markNotice(item.notice, version, noticeKind("updated")) });
+  }
+  return intents === candidate.intents ? candidate : { ...candidate, currents, intents };
 }
 
 // P3-REC-AC07（投影の直し、Q-REC-PRECHECK-7 の N2）: 取り直しの採用の step の正味の表示の変化（採用の直前の live → 最終の state）。

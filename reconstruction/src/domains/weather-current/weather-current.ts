@@ -372,8 +372,8 @@ function seriesExists(state: Pick<WeatherCurrentUnitState, "national" | "partial
 }
 // 系列が state から消えたら印も消す。受信で消えうる系列（全国の入れ替え・履歴の退去）の印のある subject だけを確かめる。
 function dropOrphanMark(state: WeatherCurrentUnitState, series: Readonly<{ subject: string; operation: Operation }> | null | undefined): WeatherCurrentUnitState {
-  const mark = series == null ? null : markOf(state, series);
-  return mark == null || seriesExists(state, mark.operation, mark.subject) ? state : { ...state, unconfirmed: state.unconfirmed.filter((item) => item !== mark) };
+  const mark = series == null ? null : markOf(state, series), notice = series == null ? undefined : state.notices.find((item) => item.subject === series.subject && item.operation === series.operation);
+  return series == null || mark == null && notice == null || seriesExists(state, series.operation, series.subject) ? state : { ...state, unconfirmed: mark == null ? state.unconfirmed : state.unconfirmed.filter((item) => item !== mark), notices: notice == null ? state.notices : state.notices.filter((item) => item !== notice) }; // P3-WN-AC05 (5): 通知の印も同じ系列で消える
 }
 function withMark(state: WeatherCurrentUnitState, candidate: Candidate, mark: ReportRef | null): WeatherCurrentUnitState {
   const current = markOf(state, candidate);
@@ -458,8 +458,8 @@ function removeSubjects(state: WeatherCurrentUnitState, subjects: ReadonlySet<st
     histories: state.histories.filter((item) => item.operation !== operation || !subjects.has(item.subject)),
     ownership: Object.fromEntries(Object.entries(state.ownership)
       .filter(([key, subject]) => !key.startsWith(`${operation}\u0000`) || !subjects.has(subject))),
-    intents: state.intents.filter((item) => item.operation !== operation || !subjects.has(item.subject)),
-    unconfirmed: state.unconfirmed.filter((item) => item.operation !== operation || !subjects.has(item.subject)) };
+    intents: state.intents, // P3-WN-AC06 (2): pending は系列では外さない（通知の module が targets の規則で外す）
+    unconfirmed: state.unconfirmed.filter((item) => item.operation !== operation || !subjects.has(item.subject)), notices: state.notices.filter((item) => item.operation !== operation || !subjects.has(item.subject)) };
 }
 
 function addUnavailable(state: WeatherCurrentUnitState, candidate: Candidate, reason: WeatherCurrentUnavailableReason,
@@ -481,7 +481,7 @@ function addUnavailable(state: WeatherCurrentUnitState, candidate: Candidate, re
   next = { ...next,
     ownership: Object.fromEntries(Object.entries(next.ownership)
       .filter(([key, subject]) => subject !== candidate.subject || !key.startsWith(`${candidate.operation}\u0000`))),
-    intents: next.intents.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation) };
+    intents: next.intents }; // P3-WN-AC06 (2): 取消の履歴なし・容量の unavailable も pending を系列では外さない
   next = { ...next, persistence: dirty(state.persistence, clockMs) };
   return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
     decisions: [{ subject: candidate.subject, operation: candidate.operation,
@@ -519,13 +519,13 @@ function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate,
   };
   const national = Object.fromEntries(Object.entries(state.national).map(([operation, value]) => [operation, currentEnded(value!)]));
   const partials = state.partials.map(currentEnded);
-  const changedSubjects = new Set([
-    ...Object.values(state.national).filter((value): value is WeatherCurrentSnapshot =>
-      value != null && national[value.operation] !== value),
-    ...state.partials.filter((value, index) => partials[index] !== value),
-  ].map((value) => value.subject));
+  // P3-WN-AC06 (2)（P3-WEATHER-NOTICE-001）: 終了で行の変わった報の pending を系列ごとに外す filter は置かない。
+  // 引上げの pending は、知らせる cell（targets）のどれも終了の後の合わせでその段以上で成り立たないときだけ、
+  // 通知の module（weather-current-notice.ts）が step の後に外す。片方の府県だけの終了で、
+  // 別の府県の L5 を知らせる pending を消さない（Q-WN-PENDING-TARGETS の 3）。
+  // 取消・容量の unavailable・training/test の退去・採用の filter も同じ規則に代えた。
   return { ...state, national, partials,
-    intents: state.intents.filter((item) => item.operation !== candidate.operation || !changedSubjects.has(item.subject)),
+    intents: state.intents,
     histories: state.histories.map((history) => ({ ...history, reports: history.reports.map(ended) })),
     ownership: Object.fromEntries([
       ...Object.values(national).filter((value): value is WeatherCurrentSnapshot => value != null), ...partials,
@@ -650,7 +650,7 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
     const ownership = Object.fromEntries(Object.entries(next.ownership)
       .filter(([key, subject]) => subject !== candidate.subject || !key.startsWith(`${candidate.operation}\u0000`)));
     for (const key of owned(masked)) ownership[key] = candidate.subject;
-    next = { ...next, ownership, intents: next.intents.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
+    next = { ...next, ownership, // P3-WN-AC06 (2): 取消は pending を系列では外さない
       persistence: dirty(state.persistence, input.clock.monotonicMs) };
     return { state: next, nextDeadline: nextWeatherCurrentDeadline(next),
       decisions: [{ subject: candidate.subject, operation: candidate.operation,
@@ -711,7 +711,7 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
   const ownership = Object.fromEntries(Object.entries(next.ownership)
     .filter(([key, subject]) => subject !== candidate.subject || !key.startsWith(`${candidate.operation}\u0000`)));
   for (const key of owned(projected)) ownership[key] = candidate.subject;
-  next = { ...next, ownership, intents: next.intents.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
+  next = { ...next, ownership, // P3-WN-AC06 (2): 採用は pending を系列では外さない（P3-WN-D-REPLACE を読み替え）
     tombstones: next.tombstones.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
   };
   next = dropOrphanMark(dropOrphanMark(clearMonitoring(next, candidate), displaced), evictedReport);

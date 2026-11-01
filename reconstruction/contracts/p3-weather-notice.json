@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "c67d9b95255c070379b41a955460b73f0406d92ee461e8aa2741ef456b2a6abb",
+    "sha256": "5c45c4e8066c75a6a9fed417464c74089d850aea797343dd243f90a77c63fad4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -391,6 +391,14 @@
         "closed": "(1) repl.test.ts:182〜:183（weather の欄の無い設定で U-L が鳴らない → 鳴る。理由: P3-CLI-D-O2-WEATHER-NOW=B の「C20 の配送で on」） (2) landslide-unit.test.ts・landslide-corpus.test.ts（:19〜:26 の段と訂正・解除の intent）・landslide-runtime.test.ts（H27 の段と channel）・landslide-host.test.ts の通知の段・channel・機会の期待（理由: P3-WN-D-H11-SCOPE=B） (3) briefing-corpus.test.ts:23・:76、briefing-unit.test.ts:545〜:546、briefing-runtime.test.ts の VPOA50 と記録雨の VPBS50 の段（理由: 作者の足しと P3-WN-D-VPBS50=A。線状降水帯・短時間大雪の warning は変わらない） (4) U-W の state を組む所の版の字と notices の欄（weather-current-unit.test.ts:33〜:34・:328、shared-runtime.test.ts:68、checkpoint-shutdown/runtime-fixture.ts:64 ほか、tsc が止める所）。期待の値ではなく形の追加 (5) 器の境界の試験 P2-A5-T11（weather-current-unit.test.ts の「reserved envelope bytes set the receive boundary」）と P3-UWC-T08 は、境界を実の encode の byte から組むので、intents を 131,072 byte と数える分（P3-WN-AC06 の (3)）だけ境界が手前に動く。境界の式に 131,072 から実の pending の byte を引いた分を足す（期待の形は変えない） (7) VPWW57（15_16_02_251222_VPWW57、Body に Code 48 を 8 行で L4）と fukui を U-W に流す既存の試験（`git grep -lE '15_16_02_251222_VPWW57|fukui' -- reconstruction/test | wc -l` の出力は 47。.ts だけに絞ると 22。試験の file は recovery-adopt・recovery-projection・execution-split・owner-harness・lifecycle・expiry-form・host・checkpoint-drive・display-wiring・unit-wiring・shared-runtime・startup・boundaries・corpus・cost・tsunami-host・version-material・uw-canon の 2 本・weather-current-unit・disaster。ほかは eew-e01 の凍結した証拠と道具）では、配送の後に L4・L5 の intent と印が新しく出る。起草の grep で U-W の intents を空と比べる所は recovery-adopt.test.ts の (b)（VPNO50 だけなので変わらない）だけで、shared-runtime.test.ts:905・:1188 と execution-split.test.ts:851 は試験が置いた人工の intent。ただし U-W の state 全体・保存の世代の数・envelope の byte を比べる所は変わりうるので、実装担当は vitest の結果で洗い、変えた試験の名前と理由を報告する（allowedPaths の該当の行） (8) U-L に H11 を当てて landslide-unit の外で変わる期待（発注前点検の grep で見つけた分）: unreadable-mark/unreadable-compare.test.ts:147（[2,0,0]、稚内のレベル 4 は desktop だけ）・:149（[2,0,2]、対照の kind 09 はレベル 3 で鳴らないので、対照を 39 か新しい区域の 49 にする）、expiry-form/expiry-form.test.ts:64（cancel 2 件 → 印だけの取消で cancel 1 件。desktop だけ）、recovery/recovery-projection.test.ts:230（U-L の cancelSent 2→1）。一般の規則: U-L の段（AC08）と U-B の normal（AC09）で期待が変わる試験は、reconstruction/test/ の下なら、その期待（段・channel・件数・取消の数）の書き換えだけを許す（allowedPaths の reconstruction/test/** の行）。変える前に file:行と旧→新の値と理由を報告する。期待以外（仕組み・fixture）は変えない (6) landslide-corpus.test.ts:95〜:96 と briefing-corpus.test.ts:159〜:160 は sequences.json の notices・intents を読むので、P3-WN-AC17 の書き換えと一緒に通る",
         "remaining": "実装担当が変えた試験の名前と理由を成果物に書く",
         "reason": "AGENTS.md の「既存テストの期待値を変える必要があるときは、変更前に理由を報告する」"
+      },
+      {
+        "id": "Q-WN-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-01。実装は baseOid e1f129cd の木 ~/dev/fleq-c20-impl で行い、main 1cf8f6b3 の上の配送の木 ~/dev/fleq-c20-deliver に r2 の patch〔sha256 0a2bd3d7…〕を当てた。前例は Q-UWC-DELIVERY）",
+        "closed": "実装: Opus（~/dev/fleq-c20-impl）。レビュー: 契約適合 Opus（effort xhigh）r0 GO（P3 6）→ r1 条件付き GO → r2 GO → r3 条件付き GO。品質 ヘルツ（gpt-6-astra xhigh、新しい thread 01a1953b、read-only）r0 NO-GO（U-L の全解除で再試行待ちの L5 が配られる）→ r1 NO-GO（外す規則が広すぎ、続く L5 の未配送が消える）→ r2 NO-GO（取り直しの shadow の途中の L4 が L5 の pending を外す。r1 から続く）→ 作者に族を示し、作者裁定 A（U-W と同じ規則を U-L にも当ててもう 1 巡し、だめなら残存として記録して配送する、2026-11-01）→ r3 では 2 つのレビューが、r2 に無かった P2 を見つけた（取消の記録が期限で回収されると取消済みの L5 が配られる／取り直しの後に古い取消の通知と音が鳴る）→ 作者の決めどおり r3 を捨て、r2 で配送した。統合担当の決め: (a) U-L の pending は、告げた段（critical は L5、info は L4 以上、warning は L4 か表に無い code）を採用の後の記録がまだ持てば残し、全解除・その段より下への引下げで外す（P3-WN-AC08 の (5) の補足）。cancel・normal の pending は取消でない採用で外れる（C20 より前の 2 channel の置換と同じ結果） (b) H27 は operation ごとに 1 組（normal は info の desktop＋音、training・test は接頭辞つきの desktop）。作者裁定の「取り直し 1 回で info 1 回」は normal の読みで、U-L も同じ (c) 取り直しの欠け（器の際で H27 を足さない、取り直しの admit の容量）は recoveryNotices に診断の口が無いので notificationCapacityEvicted に出ない（残存） (d) landslide-unit.ts の tierOf は rankOf に畳めない（表に無い code の段）ので容認。markOf・noticeChanged（:145〜:150）は r2 から呼ばれないが、:539 以前の行の数を保つため残す (e) prune は全 pending の targets を読む（上界 128 件・131,072 byte） (f) receiveReserve は受信の間だけ持つ module の変数にした（他の契約が引く行に引数を足せないため。try/finally で 0 に戻す） (g) 括弧の外で変えた試験の入力（landslide-unit の T03・T04・NL-T07 を 39 に、weather-current-unit の OPCAP-T06 の base の intents を []）と payload の形（weather-current-unit.test の pendingIntent・pad、shared-runtime の U-W の payload）は、元の狙いを保つ直しとして容認 (h) 実装の計算量: 全国報 1 通で作り直す府県 47、読む行は前 6,573＋後 6,559、受信 1 回 約 42 ms（.impl-work/measure.log）。実装の requiredCommands の結果は r2 の報告のもの（vitest 1,154 passed・25 skipped、shuffle も同じ）。最終ゲート: 統合担当が配送の commit で回す。原文の改訂は P3-WN-AC15 の (1)〜(23) のとおり当てた（(14) は実装の patch の sequences.json、(16) は配送の後の作者の手元の確かめで、字の改訂は無い）",
+        "remaining": "残存（作者に示した場面）: 土砂の L5 の通知が再試行待ちの間に取り直しが始まり、同じ官署の L4 の本文が先に当たると critical の pending が外れ、続く L5 の本文は取り直しの最中なので通知を作らず、採用で open=L5／candidate=L5 なので H27 も出ない → 続く L5 が知らされない（画面のカードは出る）。直しの候補は U-W の P3-WN-AC12 の (1)(2) と同じ形だが、r3 で取消と期限の扱いを合わせる必要が分かった（C22 か後の契約で）。取り直しの欠けが notificationCapacityEvicted に出ないこと（上の (c)）。最終ゲートの結果は統合担当が配送の commit の後に足す",
+        "reason": "P3-WEATHER-NOTICE-001 の配送の記録"
       }
     ],
     "operationContract": {
@@ -593,7 +601,7 @@
         "id": "P3-WN-AC01",
         "requirement": "U-W の段の表（P3-WN-D-CODE-RANGE=A・NONLEVEL=A・LANDSLIDE=A、H11）。新しい file reconstruction/src/units/weather-current/weather-current-notice.ts に置く。(1) Kind/Code の十の位が 3 で 39 でない行は L5、十の位が 4 で 49 でない行は L4、ほかは段を持たない。現象は Code の一の位（33・43 は大雨、38・48 は高潮、32・35・36・37 は暴風雪・暴風・大雪・波浪） (2) 段を数える行は、Code があり 00 でなく、Status が「解除」「発表警報・注意報はなし」でない行。復元して未確認の報の行も数える（復元した記録との差で決める、Q-NOTICE.restart） (3) channel: normal は L5 で desktop＋sound（payload の level は critical）、L4 で desktop だけ（level は warning）。training・test は desktop だけ（P3-WN-D-TRAINING=A） (4) 群は other（spec:951、priorityGroupOf） (5) 引上げの intent の payload は targets（p3-weather-notice.types.ts の WeatherCurrentNoticeTarget の配列）を持つ: その報で上がった cell（府県・層の番号〔WARNING_TYPES の順〕・区域の Code・現象〔Code の一の位〕・段〔4 か 5〕）を、層・Code・現象の順に重なり無く。上界は 1 報の Body の行の数（I-U-W の上限の内）。1 件の intent が pending の上限（131,072 byte、予約込み）を越えれば admit で落ち、notificationCapacityEvicted として欠けに数える（H39）。実測: 7 日の normal の発表の VPWS50 433 通で、1 通の L4・L5 の cell の最大は 38、その targets の JSON は 935 byte（起草の作業場所の targets_probe.py の出力「VPWS50 normal 発表 433 通、最大 cell 38 、その targets の JSON 935 byte」。製品の code は呼んでいない）。desktop と sound は同じ targets（Q-WN-PENDING-TARGETS）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3038 «080a1a8f980c6847»",
+          "docs/specs/reconstruction-p0-contracts.md:3038 «fc1a1fc607e6814f»",
           "src/dmdata/weather-warning-level.ts:56 «d81ebaeb97a6ed37»",
           "src/dmdata/weather-warning-level.ts:61 «a56a0d72f8b32d2c»",
           "src/dmdata/weather-warning-level.ts:62 «e37f26f11090aa6f»",
@@ -613,7 +621,7 @@
           "reconstruction/src/units/weather-current/weather-current-public.ts:175 «1b1a700b3b2e4445»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:185 «f4a65021cd1bcea0»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:108 «d4f7cb4e885c6b5a»",
-          "docs/specs/reconstruction-p0-contracts.md:3038 «080a1a8f980c6847»"
+          "docs/specs/reconstruction-p0-contracts.md:3038 «fc1a1fc607e6814f»"
         ]
       },
       {
@@ -643,7 +651,7 @@
         "evidenceRefs": [
           "reconstruction/src/units/notice-mark.ts:57 «84568d5b83712096»",
           "reconstruction/src/domains/weather-current/weather-current.ts:374 «6f1f081284ba00ec»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:462 «2eee631fbee5debb»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:462 «aa96d8083e04d8be»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:515 «93ffcd867f77ad43»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:550 «5a214f0b30aec52a»",
           "reconstruction/contracts/p2-weather-current-unit.types.ts:64 «afb699fcfcc210d0»",
@@ -656,7 +664,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:128 «df5df2a7404852a7»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:136 «f59bf45fdc24bfee»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:136 «9572377f604fa34c»",
           "reconstruction/src/domains/weather-current/weather-current.ts:715 «768459d0a1e7acdf»",
           "reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c»"
         ]
@@ -665,25 +673,25 @@
         "id": "P3-WN-AC07",
         "requirement": "保存の版（P3-WN-D-SCHEMA=A）。(1) schemaVersion を p2-weather-current-unit-v8 にする（weather-current-unit.ts:42、p2-weather-current-unit.types.ts の 3 か所、owner-runtime.ts:80 の初期 state）。保存の欄は v7 に notices を足したもの (2) v7 の保存は invalid として読まず、新築の保存は初期化する（discardable の一覧に足さない、P3-MIG-AC01・AC02） (3) codec の encode・decode は pending の上限（128 件・131,072 byte）と印を確かめ、intent()（weather-current-unit.ts:190〜:201）で payload を項目ごとに確かめる: domain は weather、level は info・warning・critical・cancel、title・body は空でない文字列、reportDateTime・recovered は notice-mark.ts の recoveredPayload で対（契約適合 r0 の P2-7）、targets は transition が cancelled でない intent だけが持ち、各項目を確かめて組み立てる（府県は 2 桁の数字、層は 0〜4、区域の Code は数字、現象は 1 桁の数字、段は 4 か 5、重なり無し、1 件以上） (4) 新しい形の保存→復元の試験を残す（印・started の pending の復元を含む、P3-NL-AC15 の (4)） (5) 起草で確かめた: codec の系列の確かめ（orphanMarks、weather-current-unit.ts:233〜:237）は unconfirmed だけを見て、intents の側には系列の確かめが無い（intent()〔:190〜:201〕は source.subject と subject の一致だけ）。系列の無い引上げの pending は今の codec のまま encode・restore できる。notices の確かめ（P3-WN-AC05 の (6)）を intents に広げない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «67d7e61a09b05882»",
-          "reconstruction/src/runtime/owner-runtime.ts:80 «c62b2951c25c6fac»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «56b74e5ca440b4e4»",
+          "reconstruction/src/runtime/owner-runtime.ts:80 «be7cb3b681d6ae4f»",
           "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «fa803e07aae7e3bc»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «33381152f78f4cab»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:233 «7beee561332a6d6c»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:190 «9efa1590288d01ce»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:190 «0280fdddbde2e178»"
         ]
       },
       {
         "id": "P3-WN-AC08",
         "requirement": "U-L に H11（P3-WN-D-H11-SCOPE=B、P3-C10-NOTICE-LEVELS を置き換える）。landslide-unit.ts で: (1) 段: レベル 5（39）は critical で normal は desktop＋sound、レベル 4（49）は warning で desktop だけ。レベル 3・2 は作らない。表に無い code（level null）は Code の十の位が 3 なら 5、4 なら 4 と読み、ほかは今の fail-bright（P3-C10-NOTICE-LEVELS の「表に無い code は warning」、比べの順位 3）のまま、上がれば warning の desktop＋sound で作る（気象庁の code の追加で土砂の警報級を黙らせない。契約適合 r0 の P3(e)） (2) 上がった区域（採用前の記録より新しい区域か順位の上がった区域）がレベル 4・5 のときだけ作る。上がった区域の無い報・事実の同じ訂正・解除（release）・記録の無い官署への解除（inactiveAdoption）は作らない (3) 取消は、取消の直前の記録が active でレベル 4・5 の区域を持っていたか、系列の印の evidence が possible か unknown のとき（P3-WN-D-CANCEL=A と同じ）。channel は取消の前の記録の段で読む（U-L は取消で前の事実を戻さないので取消の後の記録が無い、P3-C10-CANCEL-SCOPE=A）: レベル 5 の区域があれば desktop＋sound（cancel）、レベル 4 だけか印だけなら desktop だけ（P3-WN-D-CANCEL-HEARD=A） (4) training・test は desktop だけ（P3-C10-TRAINING=A のまま） (5) 文面・置換・容量・印は今のまま (6) 取り直しの H27（recoveryNotices と raisedRank）は、レベル 4・5（表に無い code の (1) の読みを含む）に上がった区域だけを数え、レベル 4 も 5 も info の desktop＋sound を 1 組（P3-WN-D-H27-L4=A）。保存の形は変えない（p3-landslide-unit-v8 のまま）",
         "evidenceRefs": [
-          "reconstruction/src/units/landslide/landslide-unit.ts:168 «7353befa719f867c»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:173 «7eea2c07a0b9548f»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:324 «c7953a101c057b23»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:328 «4b22fcc111b17e64»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:653 «f23946afe530ea53»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:667 «7edc4188cf34004e»",
-          "reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:168 «a51710726820fd97»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:173 «7083fb2ba7973602»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:324 «643c72b839dd1af9»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:328 «6cd7691ce71518ea»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:654 «f23946afe530ea53»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:671 «7edc4188cf34004e»",
+          "reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d»"
         ]
       },
       {
@@ -692,9 +700,9 @@
         "evidenceRefs": [
           "reconstruction/src/units/briefing/briefing-unit.ts:78 «cf3eb36ff2e0f215»",
           "reconstruction/src/units/briefing/briefing-unit.ts:277 «2a1593363fbdf910»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:504 «d3bf973ff6837fb8»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:597 «c8823a666007e104»",
-          "reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a»"
+          "reconstruction/src/units/briefing/briefing-unit.ts:504 «c51497e929d45438»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:597 «809973be0324f432»",
+          "reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d»"
         ]
       },
       {
@@ -702,19 +710,19 @@
         "requirement": "weather の分野の既定を on（C18 から移された仕事、P3-CLI-REPL-001 の Q-CLI-O2-DELIVERY と P3-CLI-AC20 の (3)、P3-CLI-D-O2-WEATHER-NOW=B）。(1) notification-gate.ts の ON_BY_DEFAULT に weather を足し、:18・:34 のコメントを C20 の配送の後の形に直す (2) 分野 weatherWarningTimeseries（U-F）は off のまま（P3-WN-D-UF=A では U-F は intent を作らず、この switch は何も止めない） (3) P3-WN-D-RECORD-RAIN-CATEGORY=A（作者裁定）: U-B の subject の 2 つ目が VPBS50 で 3 つ目が K で始まる試行の分野を weather にする（表の引き 1 回の外に文字の比べ 1 回、P3-CLI-RES-04 の門の費用の内。categoryOf〔:41〜:43〕の中で、notification-gate.ts は他の契約に引かれていないので行を足してよい） (4) repl.test.ts:182〜:183 の期待を「weather の欄の無い設定で U-L は鳴る」に変える（Q-WN-EXISTING-TESTS (1)）",
         "evidenceRefs": [
           "reconstruction/src/cli/notification-gate.ts:35 «d7047d2032e411de»",
-          "reconstruction/src/cli/notification-gate.ts:18 «c2b8c3fc8d40eea5»",
-          "reconstruction/src/cli/notification-gate.ts:34 «a8dacfc6060ccad5»",
+          "reconstruction/src/cli/notification-gate.ts:18 «2158283753defe1c»",
+          "reconstruction/src/cli/notification-gate.ts:34 «8d0e6f01016a3bb2»",
           "reconstruction/src/cli/notification-gate.ts:32 «dbc3d616864b5b13»",
-          "reconstruction/test/cli/repl.test.ts:182 «a0b50cdfd0d4e1ef»",
+          "reconstruction/test/cli/repl.test.ts:182 «d1ce1d7422b91ad4»",
           "reconstruction/contracts/p3-cli-repl.json:384 «1c36b13cd5b33f8a»",
-          "docs/specs/reconstruction-p0-contracts.md:2325 «05f480ab951bf8d2»"
+          "docs/specs/reconstruction-p0-contracts.md:2325 «cff85750d90544b8»"
         ]
       },
       {
         "id": "P3-WN-AC11",
         "requirement": "E21 の気象分（P2-A7-E21-LOAD-v1 の人工の U-W intent の置き換え）。本物の電文（18_00_01_260830_VPWW55_fukui_L5）を U-W の reduce に通して作った desktop と sound の intent を、通常運用の EEW と津波緊急の intent と同じ A7 の選択に入れ、選ばれる順が U-E（normalEew）→ U-T（normalTsunamiEmergency）→ U-W（other）で、走っている津波緊急の試行を U-W の critical が中断しない（先例 landslide-runtime.test.ts:74 の P3-C10-T07）。試験は公開の CI で回す（test/fixtures の公開の電文だけを使う。private corpus は使わない）。凍結した E21 の harness・証拠は変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-notification-delivery.json:145 «97d8fc89056e64aa»",
+          "reconstruction/contracts/p2-notification-delivery.json:145 «3a059d6494463640»",
           "reconstruction/test/landslide-unit/landslide-runtime.test.ts:74 «3ef080a20e035371»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»"
@@ -725,8 +733,8 @@
         "requirement": "U-W の取り直しの H27（P3-WN-D-UW-H27=A、作者裁定 2026-11-01）。順序（品質 r2 の P2-1）: (1) 最終の candidate を作る（基点が変わっていれば、取り直しの本文を最新の live に当て直す。owner-host.ts:225 の分岐。候補を作る途中の step では P3-WN-AC06 の (2) の外す規則を当てない） (2) live 由来の pending（candidate の intents。部分集合の検査〔owner-runtime.ts:688〕を通ったもの）に、P3-WN-AC06 の (2) の外す規則を最終の candidate の合わせに対して 1 回だけ当てる (3) そのあと H27 の除外は下の at.live の規則だけ（生きている pending の target では除かない。古い desktop の L4 の target が H27 を抑えるため、品質 r3 の P2）。(2) と (3) は U-W の unit の行の recoveryNotices の中で行う（owner-runtime.ts の noticed が :725 で呼ぶ。owner-runtime.ts と owner-host.ts は変えない）。以下は (3) の H27 の作り方。U-W の unit の行に recoveryNotices を足す（owner-runtime.ts は units[unit].recoveryNotices を読むので変えない）。取り直しを始めた時の state（open）と採用する state（candidate）の合わせを全部の府県で比べ（取り直し 1 回に 1 回、O(前後の勝った行の和)）、AC02 の規則で上がった区域×現象のうち、採用の時点で active なものの最も重い段を 1 件選ぶ（同じ段は府県の Code の昇順）。その行の報の系列の印に同じ版の報があれば除いてから選ぶ。payload は level info、title「<Kind の名前>（HH:MM 発表）」、body「<Kind の名前> <区域の数>地域」、reportDateTime と recovered: true（U-L と同じ形。区域の名前は保存していないので数で書く）。channel は L4 も L5 も desktop＋sound（P3-WN-D-H27-L4=A、training・test は desktop）。取り直しの間の live の通知と重ねない: candidate の cell の段が、採用の直前の live（at.live）の合わせの同じ cell の段以下なら除く。P3-WN-AC06 の (2) により live の pending は系列の取消では消えないので、at.live でその段なら、配った・配る途中・容量で落とした（H39）のどれか（Q-WN-PENDING-TARGETS の 5）。H27 の intent の targets は、選んだ cell 1 つでなく、その取り直しで上がった cell 全部（土砂を除き、印と at.live の除外の後に残ったもの、全府県・全報）とし、P3-WN-AC06 の (2) の規則で外れる。intent は今どおり 1 組（作者裁定「取り直し 1 回で info 1 回」）。文面は今どおり代表の cell（最も重い段・府県の Code の昇順）で作り、代表が配る前に終わって他の cell が残るときの文面は Q-WN-PENDING-TARGETS の残存 (1) と同じ扱い（dot のモデル検査の I1 の反例、Q-WN-MODEL-CHECK）。H27 の targets の上界は 1 報の行の数でなく、その取り直しで上がった cell の数（合わせの L4・L5 の cell の数まで）。7 日の合わせの L4・L5 の cell の同時の最大は 38（起草の作業場所の h27_peak.py の出力「合わせの L4・L5 の cell の同時の最大 38 ('x-2026-06-26', '2026-06-26T07:58:00+09:00', 38) 、targets の JSON の上界の目安 912 byte」）。131,072 byte を越えれば（1 cell 約 25 byte で約 5,200 cell）admit で落ち、notificationCapacityEvicted として欠けに数える（P3-WN-AC01 の (5) と同じ）",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:725 «a087f7117133613b»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:667 «7edc4188cf34004e»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:827 «ddca12f199bf8601»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:671 «7edc4188cf34004e»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:829 «ddca12f199bf8601»",
           "reconstruction/contracts/p3-recovery.json:386 «58c04337850a479c»",
           "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
           "reconstruction/src/runtime/owner-runtime.ts:688 «bd849811b6986b11»"
@@ -762,44 +770,44 @@
         "id": "P3-WN-AC15",
         "requirement": "配送の commit で統合担当が改める原文（実装担当は変えない。どれも行の中身の書き換えで、行を足さない・消さない。JSON の配列の行〔normalChannels など〕の数も変えない）。(1) p3-order-plan.md:85 の C20 の行を「| C20 `P3-WEATHER-NOTICE-001` | U-W の通知 intent の生成と U-L・U-B の段の改め（H11、作者裁定 2026-11-01）、weather の分野の既定を on | Q-NOTICE の気象分（台帳 48 は K8 の P3-NL-AC05 で前提が消えた） | E21 の気象分、受理の時点の pending の上限（128 件・131,072 byte） |」に (2) :109 の「C20 は実施中だけ U-W・U-F の unit・domain directory を持つ」を「C20 は実施中だけ U-W の unit・domain directory と landslide-unit.ts・briefing-unit.ts・notification-gate.ts を持つ（U-F は持たない、P3-WN-D-UF）」に (3) :256 の台帳 48 の行の 3・4 列目を「K8（P3-NL-AC05、739ecc97）で解消」「終端 intent は印に置き換わり、件数上限の問いは消えた。C20 は受理の時点の pending の上限（128 件・131,072 byte）だけを持つ」に (4) :447 の 3 列目の「H11（画面のお知らせも作るとき）」を「H11（特別警報の画面のお知らせ。C20 では作らない、作者裁定 2026-11-01 の問い 3=B）」に (5) spec:2325 の 3 列目を「CMD:81。地震系等と weather（気象警報・注意報）on、ほかの気象系offが既定（weather は C20 の配送から、H11）」に (6) spec:3038（H11）の 3 列目を「:2325†（`notify` の weather の既定は C20 で on）」、4 列目を「C20（`P3-WEATHER-NOTICE-001`。U-W と U-L に当て、記録的短時間大雨情報は普通の音、作者裁定 2026-11-01）。画面のお知らせは §16 の候補表の「消えた理由と欠けの件数のお知らせ」の契約（作者裁定 2026-11-01 の問い 3=B）」に (7) p3-landslide-unit.json: :28（P3-C10-NOTICE-LEVELS の ruling）の末尾に「。P3-WEATHER-NOTICE-001 で H11 に置き換えた（作者裁定 2026-11-01、P3-WN-AC08）」。Q-NOTICE の generationTable の condition の末尾に「（P3-WEATHER-NOTICE-001 で改訂: …）」を足す: :158 は「上がった区域がレベル 4・5 のときだけ作る。normalChannels の sound はレベル 5 のときだけで、レベル 4 は desktop だけ。表に無い code は十の位が 3・4 なら 5・4、ほかは今どおり warning の desktop＋sound」、:169 と :180 は「作らない。下の channel の字は使わない」、:191 は「上がった区域がレベル 4・5 の訂正だけ作る（事実の同じ訂正は作らない、作者裁定 2026-11-01 の問い 2=A）」、:202 は「取消の直前の記録がレベル 4・5 の区域を持っていたか、印の evidence が possible か unknown のとき。レベル 2・3 だけの記録の取消は作らない」。:218（level）を「P3-WEATHER-NOTICE-001（H11、作者裁定 2026-11-01）で P3-C10-NOTICE-LEVELS=B を置き換えた: 取消は cancel。レベル 5（39）は critical で desktop＋sound、レベル 4（49）は warning で desktop だけ、レベル 3（09）・2（29）は作らない。表に無い code（level null）は十の位が 3 なら 5、4 なら 4、ほかは今どおり warning の desktop＋sound（順位 3）。採用前の記録より上がった区域の段の最大で決め、上がった区域が無い報・release・inactiveAdoption は作らない。訂正も同じ規則」に。:239（LEGACY-DIFF の段階）の末尾に「（P3-WEATHER-NOTICE-001 で H11: レベル 4 は desktop だけ、5 は desktop＋音、2・3 と解除は作らない）」。:303（HANDOFF の C20）の末尾に「→ P3-WEATHER-NOTICE-001 の P3-WN-D-LANDSLIDE=A（U-W は土砂の code で通知を作らない）」 (8) p3-briefing-unit.json:318（level）を「P3-C12-NOTICE-LEVELS=A（作者裁定2026-10-10昼前）を P3-WEATHER-NOTICE-001 で改めた（作者裁定 2026-11-01、P3-WN-D-VPBS50）: 取消はcancel。VPOA50 と、items が全部記録雨の VPBS50 は normal。ほかは warning（P3-C12-KINDS の線状降水帯・短時間大雪・unknown、itemsの空）」に。:49（ruling）の末尾に「。VPOA50 と記録雨だけの VPBS50 は P3-WEATHER-NOTICE-001 で normal に改めた」 (9) p3-notice-ledger.json:443 の「U-W・U-F は通知を作らないので持たない」を「U-F は通知を作らないので持たない。U-W は系列ごとの notices に持つ（P3-WEATHER-NOTICE-001 の P3-WN-AC05）」に。:691 の「intent の型の変わる U-W・U-F）」の後に「（U-W は P3-WEATHER-NOTICE-001 で p2-weather-current-unit-v8 に上げ、印を持つ）」 (10) p3-cli-repl.json:509（Q-CLI-O2-DELIVERY）の「C20 の契約はまだ無いので移管は書かず、C20 の起草の入力として統合担当のバックログと進捗ノートに書いた。」の後に「（2026-11-01 追記: 移管先は P3-WEATHER-NOTICE-001 の P3-WN-AC10）」。:1028（P3-CLI-AC20）の (3) の末尾に「→ P3-WEATHER-NOTICE-001 の P3-WN-AC10 が受けた」 (11) p2-notification-delivery.json:145 の「気象電文からの生成合格ではない。」の後に「気象電文から U-W が作った intent の群と選ばれる順は P3-WEATHER-NOTICE-001 の P3-WN-T12 で確かめる。」 (12) p2-weather-current-unit.json:381 の「schemaVersion=p2-weather-current-unit-v7（P3-UW-CANON-001で上げた版。」を「schemaVersion=p2-weather-current-unit-v8（P3-WEATHER-NOTICE-001 で系列ごとの通知の印 notices を足した版。v7 は P3-UW-CANON-001 で上げた版。」に (13) p2-weather-timeseries-unit.json:420 の「intent（P2では生成しない）」を「intent（P2 でも P3 でも生成しない、P3-WEATHER-NOTICE-001 の P3-WN-D-UF）」に (14) sequences.json の期待の書き換えは実装担当が P3-WN-AC17 で行う（corpus の試験が読むので実装と同じ patch に入れる）。統合担当は配送で全契約を封し直す（AC16） (15) p3-recovery.json:1120（P3-REC-AC12 の受入の本文）の「U-W は live でも intent を作らないので H27 は無い。」を「U-W の H27 は P3-WEATHER-NOTICE-001 の P3-WN-AC12（L4・L5 に上がった区域、info を 1 回）。」に。:391（P3-REC-D-N2-RAISE-4B の ruling。:386 の裁定の A の本文は書き換えない）の末尾に「。U-W は C20 の配送で live の通知を持つので P3-WEATHER-NOTICE-001 の P3-WN-AC12 で H27 を作る（作者裁定 2026-11-01、P3-WN-D-UW-H27=A）。U-L の引上げは L4・L5 だけで、L4 も L5 も info の desktop＋sound（P3-WN-AC08 の (6)、P3-WN-D-H27-L4=A）。U-F は無しのまま」 (16) 配送の後の確かめ（作者の手元）: 新しい fleq の notify で weather が ON と出ること (17) p3-notice-ledger.json:595（P3-NL-AC09）の (1) の「通知のある 10 unit（U-E・U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y）」を「通知のある 11 unit（U-E・U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y と、P3-WEATHER-NOTICE-001 の U-W）」に、同じ (1) の「取消の直前に active だった」の後に「（U-W・U-L は P3-WEATHER-NOTICE-001 で、取消の前か後の版に L4・L5 があった。L2・L3 だけの記録の取消は作らないので、P2 の実装で鳴った U-L のレベル 2・3 の取消は鳴らなくなる）」を足し、同じ (1) の後ろの「P2 の実装で鳴る取消は鳴らなくならない」の後に「（U-L のレベル 2・3 だけの記録の取消を除く、P3-WEATHER-NOTICE-001）」を足す。(4) の「取消の音は今どおり cancel。」の後に「（U-W・U-L は P3-WEATHER-NOTICE-001 で取消の前か後の版の段で読む: 特別警報〔L5〕があれば取消の音、無ければ desktop だけ。U-L は取消の前の記録だけ。作者裁定 2026-11-01、P3-WN-D-CANCEL・P3-WN-D-CANCEL-HEARD）」を足す (18) p3-landslide-unit.json:202 の改訂の字（(7)）に「channel は取消の前の記録の段で読み、レベル 5 があれば desktop＋sound、レベル 4 だけか印だけなら desktop だけ」を足す (19) p3-cli-repl.json:886（P3-CLI-AC13 の (1)(2)）の「intent を作るのは C20 の P3-WEATHER-NOTICE-001、未起草」を「intent を作るのは P3-WEATHER-NOTICE-001」に、「P2-A6-AC03 で intent を作らず、作るのは C20」を「P2-A6-AC03 と P3-WEATHER-NOTICE-001 の P3-WN-D-UF=A で intent を作らない」に、「受け手の無い分野は無い（U-W と U-F は C20 まで intent を作らない）」を「受け手の無い分野は weatherWarningTimeseries だけ（U-F は intent を作らない、P3-WN-D-UF=A）」に、「VPBS50→briefing」の後に「（EventID が K で始まる系列は weather、P3-WEATHER-NOTICE-001 の P3-WN-D-RECORD-RAIN-CATEGORY=A）」を、(2) の既定の on の列に weather を足す (20) p3-intent-update-reserve.json:46 の (2) の「U-E・U-W・U-Fは更新を展開する。」、(3) の「U-T・U-Q・U-N・U-W・U-Fは同じ記録のdispositionを書き換えてintentsに残す」、(5) の「U-W・U-Fはdecode・encodeだけ（受理の経路が無い）」、(9) の「U-W・U-Fのdomain・unitにintentの生成箇所は無い」の後に、それぞれ「（U-W は P3-WEATHER-NOTICE-001 から受理で intent を作り、受理の admit でも上限を確かめる。終端は P3-NL-AC05 で印に置き換わった）」を足す（引いた字は実物の空白どおり） (21) p3-currency-coverage.json:90 の「U-W・U-F は intent を作らない（P2 のまま、U-W の印は subject の intent を落とす）」と :593 の「U-W・U-F は通知を作らない」の後に、それぞれ「（U-W は P3-WEATHER-NOTICE-001 から通知を作る。容量の unavailable は通知を作らない機会。subject の pending は系列では落とさず P3-WN-AC06(2) の規則で外す。D-PENDING の書き換えは今どおり U-W に当てない）」を足す (22) p3-order-plan.md:466 の C20 の行を「| C20 `P3-WEATHER-NOTICE-001` | H11、H16、H19、H27（U-W・U-L の取り直しの引上げ） |」に (23) spec:3054（H27）の 4 列目の末尾に「、`P3-WEATHER-NOTICE-001`（U-W・U-L は L4・L5 に上がったときだけ、info の desktop＋音、作者裁定 2026-11-01）」を足す",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-order-plan.md:85 «03ee5b232a0c9a48»",
-          "reconstruction/contracts/p3-order-plan.md:109 «d3bdeaf358ccde49»",
-          "reconstruction/contracts/p3-order-plan.md:256 «a120fda6f1acc0ca»",
-          "reconstruction/contracts/p3-order-plan.md:447 «f37f5c2dbeb4802d»",
-          "docs/specs/reconstruction-p0-contracts.md:2325 «05f480ab951bf8d2»",
-          "docs/specs/reconstruction-p0-contracts.md:3038 «080a1a8f980c6847»",
-          "reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a»",
-          "reconstruction/contracts/p3-landslide-unit.json:303 «1e47d7c4b1fee807»",
-          "reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a»",
-          "reconstruction/contracts/p3-notice-ledger.json:443 «52ffa585673a2468»",
-          "reconstruction/contracts/p3-notice-ledger.json:691 «9b6e55033fd7aa4d»",
-          "reconstruction/contracts/p3-cli-repl.json:509 «6b6ae345c8e73140»",
-          "reconstruction/contracts/p3-cli-repl.json:1028 «d19932a3184f94cf»",
-          "reconstruction/contracts/p2-notification-delivery.json:145 «97d8fc89056e64aa»",
-          "reconstruction/contracts/p2-weather-current-unit.json:381 «fa803e07aae7e3bc»",
-          "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «9221ed7e8620cbc0»",
-          "reconstruction/contracts/p3-recovery.json:1120 «5f5ae300d05f48ae»",
-          "reconstruction/contracts/p3-notice-ledger.json:595 «0182b3a4b2131a59»",
-          "reconstruction/contracts/p3-cli-repl.json:886 «7ef1ac4bd43f1a45»",
-          "reconstruction/contracts/p3-intent-update-reserve.json:46 «45b600469cdea0a6»",
-          "reconstruction/contracts/p3-currency-coverage.json:90 «2f517ee8385b211d»",
-          "reconstruction/contracts/p3-currency-coverage.json:593 «ff1a2b817637cb75»",
-          "reconstruction/contracts/p3-order-plan.md:466 «3f8e7e7bdc3fecda»",
-          "docs/specs/reconstruction-p0-contracts.md:3054 «9844920e53171b3b»"
+          "reconstruction/contracts/p3-order-plan.md:85 «16463eb15ec276c9»",
+          "reconstruction/contracts/p3-order-plan.md:109 «84314275adb7de65»",
+          "reconstruction/contracts/p3-order-plan.md:256 «74b2606ece30c7e0»",
+          "reconstruction/contracts/p3-order-plan.md:447 «accb3fbc099d629c»",
+          "docs/specs/reconstruction-p0-contracts.md:2325 «cff85750d90544b8»",
+          "docs/specs/reconstruction-p0-contracts.md:3038 «fc1a1fc607e6814f»",
+          "reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d»",
+          "reconstruction/contracts/p3-landslide-unit.json:303 «77e134295f97a49d»",
+          "reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d»",
+          "reconstruction/contracts/p3-notice-ledger.json:443 «33fff820a4d62b0b»",
+          "reconstruction/contracts/p3-notice-ledger.json:691 «acea9611b9f902d4»",
+          "reconstruction/contracts/p3-cli-repl.json:509 «649a15e39c3f1d83»",
+          "reconstruction/contracts/p3-cli-repl.json:1028 «ea1fff6e2ac50293»",
+          "reconstruction/contracts/p2-notification-delivery.json:145 «3a059d6494463640»",
+          "reconstruction/contracts/p2-weather-current-unit.json:381 «33381152f78f4cab»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «8bdd44bcb281344a»",
+          "reconstruction/contracts/p3-recovery.json:1120 «198ebeaaf97bcbb8»",
+          "reconstruction/contracts/p3-notice-ledger.json:595 «7169a5a4f59dce48»",
+          "reconstruction/contracts/p3-cli-repl.json:886 «6235e154b5559e6a»",
+          "reconstruction/contracts/p3-intent-update-reserve.json:46 «659b9165e808c99d»",
+          "reconstruction/contracts/p3-currency-coverage.json:90 «c139de6f2182309c»",
+          "reconstruction/contracts/p3-currency-coverage.json:593 «d306c3bb4a14d7d5»",
+          "reconstruction/contracts/p3-order-plan.md:466 «d3dd9d2f655ea6a9»",
+          "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»"
         ]
       },
       {
         "id": "P3-WN-AC16",
         "requirement": "anchor の付け直しと封し直し（統合担当が配送の commit で当てる。数えた script は起草の作業場所の whocites.py で、repo に入れない。baseOid の割当の時点と配送の前に数え直す。前例 P3-UWC-AC12）。(1) 実装で中身が変わる、他の契約が引く行: weather-current-unit.ts:42（p3-authority-evidence.json:344・p3-uw-canon.json:598）、landslide-unit.ts:328（p3-final-adoption.json:325）、weather-current.ts:484（p3-currency-coverage.json:473、P3-WN-AC06 の (2)）の 4 件 (2) AC15 の原文の改訂で変わる、他の契約が引く行: p3-order-plan.md:85（p3-cli-repl.json:905）・:109（同 :703）、spec:2325（p3-cli-repl.json:867・:889）・:3038（同 :890）・:3054（p3-notice-ledger.json:661・p3-recovery.json:1106）、p3-notice-ledger.json:443（p3-unit-n-series.json:438）、p2-weather-current-unit.json:381（p3-weather-light-step1.json:276・:286）、p2-weather-timeseries-unit.json:420（p3-cli-repl.json:904）の 11 件 (3) sequences.json が引く p3-landslide-unit.json:158（4）・:180（2）・:191（4）・:202（4）・:218（10）と p3-briefing-unit.json:318（20）の 44 件 (4) 本契約が引く «» のうち AC15 で改める行と (1) の行を引くもの: 40 件（29 行） (5) 計 99 件（r2 の数え: whocites.py に AC15 の 33 行と (1) の 3 行を渡した出力の行の数が 99、内訳は他の契約 15・sequences.json 44・本契約 40）。ほかに本契約が実装の file（weather-current-unit.ts・weather-current.ts・weather-current-public.ts・landslide-unit.ts・briefing-unit.ts・notification-gate.ts・repl.test.ts・owner-runtime.ts・p2-weather-current-unit.types.ts・p3-briefing-unit.types.ts）を引く 39 行（(4) と重なるものを含む。r3 の数え: 本契約の json から実装の file の «» を grep -o で抜いて sort -u | wc -l の出力が 39。owner-runtime.ts の :688・:725 は変えない行）は、実装の diff で中身か位置が変わった行だけを付け直す (6) sequences.json の中身が P3-WN-AC17 で変わるので、全契約の meta.sequencesSha256 と meta.sha256 を封し直す（P3-UW-CANON-001 の配送の前例）。sequences.json を書き換える前の check-contract の FAIL の一覧（実装担当の成果物）と照らし、一覧の外の FAIL を想定外として扱う。spec の行の数は変えない（sequences.json が spec を 2,958 か所で引く）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «67d7e61a09b05882»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:328 «4b22fcc111b17e64»",
-          "reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d»",
-          "reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9»",
-          "reconstruction/contracts/p3-landslide-unit.json:202 «b07b0bcc29b1e625»",
-          "reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «56b74e5ca440b4e4»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:328 «6cd7691ce71518ea»",
+          "reconstruction/contracts/p3-landslide-unit.json:158 «f29ae95c60447c35»",
+          "reconstruction/contracts/p3-landslide-unit.json:191 «d662ed37f27d4b39»",
+          "reconstruction/contracts/p3-landslide-unit.json:202 «59b85485e5a4fdb1»",
+          "reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d»",
           "docs/specs/reconstruction-p0-contracts.md:3046 «d827c421cada4e9c»",
-          "docs/specs/reconstruction-p0-contracts.md:3054 «9844920e53171b3b»"
+          "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»"
         ]
       }
     ],

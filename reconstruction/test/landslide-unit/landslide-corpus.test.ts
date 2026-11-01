@@ -15,20 +15,20 @@ describe("P3-UNIT-L-001 U-L corpus history", () => {
   // corpusHistory: expectedDecisions の 10 step と制御 step、E13（AC09）。
   it("P3-C10-T08 corpusHistory / AC09: the 10 expected steps, O01:80, O03:25, O07:45-53 and the E13 population", () => {
     const o01 = replay("O01", 80, 85);
-    // :82 の訂正は :81 の pending（同じ subject・channel）を置き換え、:83 の取消は :82 の pending を両 channel とも置き換える。
-    expect(o01[2].intents.map((item) => [item.payload.level, item.payload.title])).toEqual([["normal", "[訂正] 宗谷地方土砂災害警報・注意報"],
-      ["normal", "[訂正] 宗谷地方土砂災害警報・注意報"]]);
-    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる。
-    expect(o01[2].state.intents).toEqual(o01[2].intents);
-    expect(o01[3].state.intents.filter((item) => item.disposition === "pending").map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
-    expect(o01[1].intents.map((item) => item.payload.level)).toEqual(["warning", "warning"]);
+    // P3-WEATHER-NOTICE-001 の P3-WN-AC08（Q-WN-EXISTING-TESTS (2)）: :81 はレベル 4 で desktop だけ、:82 の事実の同じ訂正は作らず :81 の pending を残し、
+    // :83 の取消（レベル 4 だけの記録）は desktop だけで :81 の pending を置き換える。:26（記録の無い官署への解除）は作らない。
+    expect(o01[2].intents).toEqual([]);
+    expect(o01[2].state.intents).toEqual(o01[1].state.intents);
+    expect(o01[3].state.intents.filter((item) => item.disposition === "pending").map((item) => item.payload.level))
+      .toEqual(["cancel"]);
+    expect(o01[1].intents.map((item) => item.payload.level)).toEqual(["warning"]);
     const o03 = replay("O03", 25, 26);
-    expect([toLandslideView(o03[1].state).currents, o03[1].intents.map((item) => item.payload.level)]).toEqual([[], ["normal", "normal"]]);
+    expect([toLandslideView(o03[1].state).currents, o03[1].intents.map((item) => item.payload.level)]).toEqual([[], []]);
     const o07 = replay("O07", 45, 53);
     // :48 の復元は intent を作らず、:49 の訂正は復元した :46 の pending を置き換える。:52 の復元の後も取消の記憶が残る。
     expect(o07[3].intents).toEqual([]);
-    // P3-NL-AC05 (1): 置き換えた pending は intents から外れる（残るのは :49 の訂正の分だけ）。
-    expect(o07[4].state.intents).toEqual(o07[4].intents);
+    // P3-WN-AC08: :49 の事実の同じ訂正は作らず、復元した :46 の pending を置き換えない。
+    expect([o07[4].intents, o07[4].state.intents]).toEqual([[], o07[3].state.intents]);
     expect(o07[7].state.currents.map((item) => item.effective)).toEqual(["cancelled"]);
 
     // E13: fixtureIds の全正常 fixture を各 fixture の時刻の時計で受け、期限処理の後も残る恒常的な unavailable は U-L に無い。

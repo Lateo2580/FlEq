@@ -20,7 +20,7 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     const o01 = replay("O01", 89, 96);
     // :94 の訂正は事実が同じでも鳴り（[訂正]・「訂正: 」）、:95 の取消は cancel で鳴り、その subject の pending を全部置き換える。
     expect(o01[5].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body.startsWith("訂正: ")])).toEqual([
-      ["updated", "warning", "[訂正] 東京都気象防災速報（記録的短時間大雨）", true], ["updated", "warning", "[訂正] 東京都気象防災速報（記録的短時間大雨）", true]]);
+      ["updated", "normal", "[訂正] 東京都気象防災速報（記録的短時間大雨）", true], ["updated", "normal", "[訂正] 東京都気象防災速報（記録的短時間大雨）", true]]);
     expect(o01[6].intents.map((item) => [item.transition, item.payload.level, item.payload.title, item.payload.body])).toEqual([
       ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）", "17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました"],
       ["cancelled", "cancel", "[取消] 東京都気象防災速報（記録的短時間大雨）（17:27 発表）", "17:27 発表の東京都気象防災速報（記録的短時間大雨）を取り消しました"]]);
@@ -73,7 +73,7 @@ describe("P3-UNIT-B-001 U-B corpus history", () => {
     // （元報＋9 時間、P3-EF-AC05 (2)(3)）。
     expect(o08[2].state).toBe(o08[1].state);
     expect(o08[3].intents.map((item) => [item.channel, item.transition, item.payload.level, item.payload.title])).toEqual([
-      ["desktop", "activated", "warning", "東京都記録的短時間大雨情報（対応電文未確認）"], ["sound", "activated", "warning", "東京都記録的短時間大雨情報（対応電文未確認）"]]);
+      ["desktop", "activated", "normal", "東京都記録的短時間大雨情報（対応電文未確認）"], ["sound", "activated", "normal", "東京都記録的短時間大雨情報（対応電文未確認）"]]);
     expect(toBriefingView(o08[3].state).currents.map((item) => item.subject)).toEqual([JPTK]);
     expect(o08[4].state).toBe(o08[3].state);
     expect([recordOf(o08[6].state, JPTC)?.effective, o08[6].intents]).toEqual(["released", []]);

@@ -19,7 +19,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, restoreOwner } from "../../src/runtime/owner-runtime";
-import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
+import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit"; import { noticeReserve } from "../../src/units/weather-current/weather-current-notice";
 import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
 import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
@@ -30,8 +30,8 @@ const NOW = 1_800_000_000_000;
 const LIMIT = weatherCurrentUnitCodec.maxEnvelopeBytes!;
 
 function emptyState(): WeatherCurrentUnitState {
-  return { schemaVersion: "p2-weather-current-unit-v7", contentRevision: 0, national: {}, partials: [], histories: [],
-    ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [],
+  return { schemaVersion: "p2-weather-current-unit-v8", contentRevision: 0, national: {}, partials: [], histories: [],
+    ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], notices: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0,
       savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
@@ -123,7 +123,7 @@ function pendingIntent(): NotificationIntent {
   const subject = "normal/VPWS50/気象庁";
   return { id: "weather-intent", unit: "U-W", subject, operation: "normal",
     source: source("normal", "VPWS50", subject, "2026-09-06T10:00:00+09:00", "intent"),
-    transition: "activated", channel: "desktop", payload: {}, createdAt: NOW,
+    transition: "activated", channel: "desktop", payload: { domain: "weather", level: "warning", title: "t", body: "b" }, createdAt: NOW,
     expiresAt: NOW + 10_000, nextAttemptAt: NOW, attempts: 0,
     configRevision: "test", disposition: "pending", lastAttempt: null, replayed: false, priorityGroup: "other" as const };
 }
@@ -325,7 +325,7 @@ describe("P2 weather-current unit", () => {
     expect(weatherCurrentUnitCodec.decode(encoded)).toMatchObject({ kind: "restored", state: { partials, histories: state.histories } });
     const overflow = (operation: Operation) => snapshot(operation, "VPWW59", "overflow", "2026-09-06T10:00:00+09:00", `overflow-${operation}`);
     expect([{ ...encoded, partials: [...partials, overflow("normal")] }, { ...encoded, partials: [...partials, overflow("training")] }, { ...encoded, histories: [...encoded.histories.slice(0, 2), ...kyoto(partialHistory)] },
-      JSON.parse(JSON.stringify(encoded).replace('"p2-weather-current-unit-v7"', '"p2-weather-current-unit-v6"'))].map((value) => weatherCurrentUnitCodec.decode(value).kind)).toEqual(["invalid", "invalid", "invalid", "invalid"]);
+      JSON.parse(JSON.stringify(encoded).replace('"p2-weather-current-unit-v8"', '"p2-weather-current-unit-v7"'))].map((value) => weatherCurrentUnitCodec.decode(value).kind)).toEqual(["invalid", "invalid", "invalid", "invalid"]);
 
     const intent = pendingIntent();
     const intentState = { ...emptyState(), intents: [intent] };
@@ -481,7 +481,7 @@ describe("P2 weather-current unit", () => {
     const size = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration,
       capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
     const padded = (length: number): WeatherCurrentUnitState => ({ ...marked, national: { ...marked.national, normal: { ...filler, phenomena: { padding: "x".repeat(length) } } } });
-    const full = padded(LIMIT - 1_800 - size(padded(0)));
+    const full = padded(LIMIT - 1_800 - admissionExtra("training/VPWS50/官署B", "training") - size(padded(0)));
     const step = receive(full, decodeFixture(vpws50, "VPWS50", training("官署B", (xml) => atTime(xml, "2026-09-06T10:05:00+09:00", "2")), "other-office"));
     const restored = weatherCurrentUnitCodec.decode(JSON.parse(JSON.stringify(weatherCurrentUnitCodec.encode(step.state))));
     expect([marked.unconfirmed.map((item) => item.inputId), step.state.national.training?.subject, step.state.unavailable.map((item) => [item.subject, item.reason]),
@@ -546,7 +546,7 @@ describe("P2 weather-current unit", () => {
     expect(restored.state.tombstones[0].source.inputId).toBe("cancel");
     // R7: restored meaning, ownership, old delivery and public facts agree.
     expect(restored.state.ownership).toEqual(originalOwnership);
-    expect(restored.state.intents).toEqual([]);
+    expect(restored.state.intents.map((item) => [item.id === "weather-intent" ? "seeded" : item.transition, item.channel])).toEqual([["seeded", "desktop"], ["cancelled", "desktop"]]); // P3-WN-AC06 (2): 取消は pending を系列では外さない。L4 の版との取消は desktop だけ（P3-WN-D-CANCEL-HEARD=A）
     expect(JSON.stringify(restored.outcomes)).toContain('"code":"48"');
     expect(JSON.stringify(restored.outcomes)).not.toContain('"code":"45"');
     expect(receive(restored.state, second).decisions[0]).toMatchObject({ decision: "unchanged", reason: "stale" });
@@ -554,7 +554,7 @@ describe("P2 weather-current unit", () => {
       (xml) => cancellation(xml, "2020-06-22T23:03:00+09:00"), "cancel-again"));
     expect(again.state.unavailable[0]?.reason).toBe("historyUnavailable");
     expect(again.state.ownership).toEqual({});
-    expect(again.state.intents).toEqual([]);
+    expect(again.state.intents.map((item) => [item.id === "weather-intent" ? "seeded" : item.transition, item.channel])).toEqual([["seeded", "desktop"], ["cancelled", "desktop"], ["cancelled", "desktop"]]);
 
     // R6: cancellation identity does not alias the operation's national slot.
     const national = receive(emptyState(), decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before",
@@ -727,7 +727,7 @@ describe("P2 weather-current unit", () => {
     expect([byBytes.state, byBytes.decisions, byBytes.diagnostics]).toEqual([full, [expect.objectContaining({ decision: "capacityExceeded" })], rejected("byte-new")]);
     // 容量の unavailable が器に入る場面: 前の版（約 2 KB）を lastKnown に持ったまま入り、capacityRejected は 1 行（unit の容量の unavailable の段）。
     const previous = { ...snapshot("normal", "VPWS50", "気象庁本庁", "2019-01-01T00:00:00+09:00", "previous"), phenomena: { padding: "x".repeat(2_000) } };
-    const byUnavailable = receive(filled({ ...base, national: { normal: previous } }, 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + 100_000), decodeFixture("15_18_01_250630_VPWS50", "VPWS50"));
+    const byUnavailable = receive(filled({ ...base, national: { normal: previous } }, 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + 100_000 + admissionExtra("normal/VPWS50/気象庁本庁")), decodeFixture("15_18_01_250630_VPWS50", "VPWS50"));
     expect([byUnavailable.state.unavailable.map((item) => [item.reason, item.lastKnown?.source.inputId]), byUnavailable.diagnostics]).toEqual([[["capacityExceeded", "previous"]], rejected("15_18_01_250630_VPWS50")]);
   });
 
@@ -862,14 +862,14 @@ describe("P2 weather-current unit", () => {
     const normalBase: WeatherCurrentUnitState = { ...emptyState(),
       national: { normal: { ...snapshot("normal", "VPWS50", "気象庁本庁", "2019-01-01T00:00:00+09:00", "previous"), phenomena: { padding: "x".repeat(2_000) } } }, partials: [{ ...padded, phenomena: { padding: "" } }] };
     const normalFull = { ...normalBase, partials: [{ ...padded,
-      phenomena: { padding: "x".repeat(LIMIT - envelopeSize(normalBase) - 100) } }] };
+      phenomena: { padding: "x".repeat(LIMIT - envelopeSize(normalBase) - 100 - admissionExtra("normal/VPWS50/気象庁本庁")) } }] };
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(normalFull)).kind).toBe("restored");
     const droppedStep = receive(normalFull, decodeFixture("15_18_01_250630_VPWS50", "VPWS50")); // 前の版（小さい）を外しても新しい版（約 1.3 MB）が入らない
     expect(droppedStep.state.unavailable).toEqual([expect.objectContaining({
       reason: "capacityExceeded", lastKnown: null })]);
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(droppedStep.state)).kind).toBe("restored");
     expect(envelopeSize(droppedStep.state)).toBeLessThanOrEqual(LIMIT);
-    expect(envelopeSize(normalFull)).toBe(LIMIT - 100);
+    expect(envelopeSize(normalFull)).toBe(LIMIT - 100 - admissionExtra("normal/VPWS50/気象庁本庁"));
 
     // Final scoped regression: equal restored subjects remain isolated by operation.
     const sharedNormal = { ...current, subject: "s", source: { ...current.source, subject: "s" } };
@@ -913,7 +913,8 @@ describe("P2 weather-current unit", () => {
     const level5 = Object.entries(partial.phenomena).find(([, value]) => JSON.stringify(value).includes('"code":"33"'));
     if (level5 == null) throw new Error("Code 33 absent");
     const training = { ...snapshot("training", "VPWS50", "気象庁", "2026-09-06T09:00:00+09:00", "F10-training"), phenomena: { padding: "" } };
-    const base: WeatherCurrentUnitState = { ...first, partials: [{ ...partial, phenomena: { [level5[0]]: level5[1] } }], ownership: {},
+    // fukui_L5 が作る L5 の pending は外す（器の際の state を実 byte で組むので、配送の更新の予約を持ち込まない、Q-WN-EXISTING-TESTS (7)）。
+    const base: WeatherCurrentUnitState = { ...first, intents: [], partials: [{ ...partial, phenomena: { [level5[0]]: level5[1] } }], ownership: {},
       national: { training } };
     const full = { ...base, national: { training: { ...training, phenomena: { padding: "x".repeat(LIMIT - 32 - envelopeSize(base)) } } } };
     expect([envelopeSize(full), weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode(full)).kind]).toEqual([LIMIT - 32, "restored"]);
@@ -990,12 +991,12 @@ describe("P2 weather-current unit", () => {
     }).byteLength;
     const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
-    const padding = LIMIT - actualBytes(accepted.state) - unused;
+    const padding = LIMIT - actualBytes(accepted.state) - unused - admissionExtra("normal/VPWS50/気象庁本庁");
     const withPadding = (length: number) => ({ ...base,
       partials: [{ ...partial, phenomena: { [paddingKey]: prefix + "x".repeat(length) } }] });
     const exact = receive(withPadding(padding), candidate);
     expect(exact.decisions[0].decision).toBe("changed");
-    expect(actualBytes(exact.state) + unused).toBe(LIMIT);
+    expect(actualBytes(exact.state) + unused + admissionExtra("normal/VPWS50/気象庁本庁")).toBe(LIMIT);
     const over = receive(withPadding(padding + 1), candidate);
     expect(over.state.national.normal).toBeUndefined();
 
@@ -1017,7 +1018,7 @@ describe("P2 weather-current unit", () => {
     expect(evicted.state.histories).toEqual([]);
     expect(evicted.diagnostics).toContainEqual({ level: "INFO", component: "weather-current",
       reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
-    expect(actualBytes(evicted.state) + unused).toBe(LIMIT - 1);
+    expect(actualBytes(evicted.state) + unused + admissionExtra("normal/VPWS50/気象庁本庁")).toBe(LIMIT - 1);
   });
 
   it("P2-A5-T10 contractBoundary / AC12: canonical unavailable scope roundtrips and office containment is exact", () => {
@@ -1117,10 +1118,10 @@ describe("P2 weather-current unit", () => {
     expect(accepted.state.histories.flatMap((item) => item.reports)).toHaveLength(1);
     const unused = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES - (JSON.stringify(accepted.state.persistence.currentGeneration).length - 1)
       - (JSON.stringify(NOW).length - 1);
-    const padding = LIMIT - actualBytes(accepted.state) - unused;
+    const padding = LIMIT - actualBytes(accepted.state) - unused - admissionExtra("normal/VPWS50/気象庁本庁");
     const exact = receive(withPadding(padding), candidate);
     expect(exact.state.national.normal?.source.inputId).toBe(candidate.inputId);
-    expect(actualBytes(exact.state) + unused).toBe(LIMIT);
+    expect(actualBytes(exact.state) + unused + admissionExtra("normal/VPWS50/気象庁本庁")).toBe(LIMIT);
     const over = receive(withPadding(padding + 1), candidate); // P3-UWC-AC03: 1 byte 越えは normal の履歴の版を外して受ける
     expect([over.state.national.normal?.source.inputId, over.state.histories, over.diagnostics]).toEqual([candidate.inputId, [], [{ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 }]]);
   });
@@ -1139,7 +1140,7 @@ describe("P2 weather-current unit", () => {
     expect(() => weatherCurrentUnitCodec.encode(padded(length + 1))).toThrow(message);
 
     const intents = (count: number, pad = "") => Array.from({ length: count }, (_, index) =>
-      ({ ...pendingIntent(), id: `intent-${index}`, payload: { pad } }));
+      ({ ...pendingIntent(), id: `intent-${index}`, payload: { ...pendingIntent().payload, title: `t${pad}` } }));
     expect(weatherCurrentUnitCodec.decode(weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(128) })).kind)
       .toBe("restored");
     expect(() => weatherCurrentUnitCodec.encode({ ...emptyState(), intents: intents(129) })).toThrow(message);
@@ -1173,7 +1174,7 @@ describe("P2 weather-current unit", () => {
   // 実不具合の再発防止（台帳 73）: 合成の保存物の pending が予約込みの上限でも、配送の更新の後の encode が拒否しない。
   it("P3-IUR-T05 regression / P3-IUR-AC01,AC02,AC03: synthetic pending at its budget survives delivery updates, encode and decode through the owner", () => {
     const make = (pad: number) => Array.from({ length: 64 }, (_, index) =>
-      ({ ...pendingIntent(), id: `intent-${index}`, payload: { pad: index === 0 ? "x".repeat(pad) : "" } }));
+      ({ ...pendingIntent(), id: `intent-${index}`, payload: { ...pendingIntent().payload, title: index === 0 ? `t${"x".repeat(pad)}` : "t" } }));
     const reserved = (items: readonly NotificationIntent[]) => items.reduce((sum, item) => sum + deliveryGrowth(item), 0);
     const pending = make(131_072 - Buffer.byteLength(JSON.stringify(make(0))) - reserved(make(0)));
     expect(Buffer.byteLength(JSON.stringify(pending)) + reserved(pending)).toBe(131_072);
@@ -1238,3 +1239,9 @@ describe("P3-REC-T11 contractBoundary (unit side): the U-W entrance for origin=r
       .toEqual([[expect.objectContaining({ reason: "noChange" })], [expect.objectContaining({ reason: "stale" })]]);
   });
 });
+
+// P3-WN-AC06 (3)（Q-WN-EXISTING-TESTS (5)）: 受理の器の判定は intents を pending の上限 131,072 byte と数え、受けた報の系列の印 1 件の上界を足す。
+// 境界を実の encode の byte から組む試験は、この分を境界の式に足す（試験の state の pending は空）。他の契約が引く行の位置を保つため末尾に置く。
+function admissionExtra(subject: string, operation: Operation = "normal"): number {
+  return 131_072 + noticeReserve({ subject, operation });
+}

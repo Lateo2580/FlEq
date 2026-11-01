@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "5940deb8ade25868b83623deb8c724005dd9ae60eae0490a53dc04ced7f29bf3",
+    "sha256": "0886ced5efc5a9aa14bb1b466970ee312ace22bfd1a25c310c64beacdb872624",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -227,7 +227,7 @@
         "id": "Q-UWC-ORDER",
         "status": "closed",
         "source": "統合担当の起草（p3-order-plan.md:109・:486、p3-cli-repl.jsonのallowedPaths）",
-        "closed": "本契約は実装の間だけU-Wのunit・domainのdirectory（reconstruction/src/units/weather-current/・reconstruction/src/domains/weather-current/）を持つ。C20（P3-WEATHER-NOTICE-001、未起草）とP3-XML-READERS-001の後続（weather-current.tsの読み取り関数）は同時に持てない。C18の発注2はU-Wのfileを触らないが、p2-shared-runtime.types.ts（C18は:324の行の末尾、本契約は:11〜:12と:213〜:214）を両方が変える。C18はweather-current.ts:26とp2-weather-current-unit.json:390をanchorで引くので、本契約はその2行を変えない。C18の発注2は33a6f9ccでmainに配送済み（起草の時はuw-draftの祖先でなかったが、2026-11-01に4014bf04の上へrebaseして祖先になった、Q-UWC-PRECHECK）。33a6f9ccが変えた本契約の引くfileはp2-shared-runtime.types.ts（:324の1行）とp3-uf-public.json（:1〜:7のmetaと:483〜:490、行の数は変えない）だけで、本契約の引く行（p2-shared-runtime.types.ts:11〜:12・:213〜:214、p3-uf-public.json:135・:316）は動かない",
+        "closed": "本契約は実装の間だけU-Wのunit・domainのdirectory（reconstruction/src/units/weather-current/・reconstruction/src/domains/weather-current/）を持つ。C20（P3-WEATHER-NOTICE-001、2026-11-01 配送）とP3-XML-READERS-001の後続（weather-current.tsの読み取り関数）は同時に持てない。C18の発注2はU-Wのfileを触らないが、p2-shared-runtime.types.ts（C18は:324の行の末尾、本契約は:11〜:12と:213〜:214）を両方が変える。C18はweather-current.ts:26とp2-weather-current-unit.json:390をanchorで引くので、本契約はその2行を変えない。C18の発注2は33a6f9ccでmainに配送済み（起草の時はuw-draftの祖先でなかったが、2026-11-01に4014bf04の上へrebaseして祖先になった、Q-UWC-PRECHECK）。33a6f9ccが変えた本契約の引くfileはp2-shared-runtime.types.ts（:324の1行）とp3-uf-public.json（:1〜:7のmetaと:483〜:490、行の数は変えない）だけで、本契約の引く行（p2-shared-runtime.types.ts:11〜:12・:213〜:214、p3-uf-public.json:135・:316）は動かない",
         "remaining": "baseOidの割当のときに順を決める（Q-UWC-BASE）",
         "reason": "所有と衝突"
       },
@@ -595,7 +595,7 @@
         "id": "P3-UWC-AC08",
         "requirement": "保存の形（P3-UWC-D-SCHEMA=A）。(1) schemaVersionをp2-weather-current-unit-v7にする（weather-current-unit.ts:42、p2-weather-current-unit.types.tsの3か所、owner-runtime.ts:80の初期state）。保存の欄は今と同じ（national・partials・histories・ownership・tombstones・freshness・unavailable・intents・unconfirmed） (2) v6の保存はinvalidとして読まず、新築の保存は初期化する（旧い版の読み方は作らない。codecの旧い版の一覧は持たない、P3-MIG-AC01・AC02のまま） (3) 新しい形の保存→復元の往復: normal 384件・training・test 64件のpartialと深さ2の履歴を持つstateがencode→decodeで同じstateに戻り、復元の後の合わせ（AC04）と公開形が復元前と同じ（復元の印を除く） (4) 府県の公開形・版・合わせの結果・詳細のページは保存しない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «67d7e61a09b05882»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:42 «56b74e5ca440b4e4»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:639 «367ff6a6f849cb03»",
           "reconstruction/contracts/p3-order-plan.md:421 «f766a901db2c16ea»"
         ]

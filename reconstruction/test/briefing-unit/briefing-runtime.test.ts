@@ -280,7 +280,7 @@ describe("P3-UNIT-B-001 U-B through the composition root", () => {
     expect(second.unit("U-B").intents.filter((item) => !known.has(item.id))).toEqual([]);
     await report(second, text(K2), tick(1_000));
     expect(second.unit("U-B").intents.filter((item) => !known.has(item.id)).map((item) => [item.payload.level, item.transition]))
-      .toEqual([["warning", "updated"], ["warning", "updated"]]);
+      .toEqual([["normal", "updated"], ["normal", "updated"]]);
     // 復元の後の VPOA50 の取消は対応報へ波及しない。
     await report(second, cancel(text(OA1)), tick(1_000), "VPOA50");
     expect(second.unit("U-B").currents.find((item) => item.subject === K)?.effective).toBe("active");

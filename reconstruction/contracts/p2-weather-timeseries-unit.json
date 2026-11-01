@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "e16bdbfb6df21434562430e336a84a646aeb17b30d6bc4e10dfeb96dd22d2002",
+    "sha256": "47287e7e6a253d2c2903d62f77bbc8fcebfc23ceafe2c66c427a6c8c5466f2a6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -417,7 +417,7 @@
       },
       {
         "id": "P2-A6-AC03",
-        "requirement": "reduceWeatherTimeseriesUnitでsubject/period/gate/empty/unavailable/取消/intent（P2では生成しない）を一世代へ組み立て、reducerだけの配送を完了としない",
+        "requirement": "reduceWeatherTimeseriesUnitでsubject/period/gate/empty/unavailable/取消/intent（P2 でも P3 でも生成しない、P3-WEATHER-NOTICE-001 の P3-WN-D-UF）を一世代へ組み立て、reducerだけの配送を完了としない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:600 «9e138a8dc1cb2333»",
           "docs/specs/reconstruction-p0-contracts.md:620 «51fab1fc4a745268»"

@@ -179,8 +179,19 @@ describe("P3-CLI-REPL-001 発注 2 の REPL と通知の門", () => {
     settings.mute = { endsAtMonotonicMs: null, until: null, rules: [] };
     advance(30 * 86_400_000);
     expect(gate(quake("warning")).allow).toBe(false);
-    // (c) weather の欄の無い設定では U-L は鳴らない（P3-CLI-D-O2-WEATHER-NOW=B）
-    expect(createNotificationGate(settingsOf(), clock)(attempt("U-L", "normal/VPWW56/1", "warning")).allow).toBe(false);
+    // (c) weather の欄の無い設定では U-L が鳴る（P3-CLI-D-O2-WEATHER-NOW=B の「C20 の配送で on」、P3-WN-AC10）
+    expect(createNotificationGate(settingsOf(), clock)(attempt("U-L", "normal/VPWW56/1", "warning")).allow).toBe(true);
+  });
+
+  // P3-WN-T10 acceptance（P3-WEATHER-NOTICE-001 の AC10）: weather の既定 on と、記録的短時間大雨の対応報（K の VPBS50）の分野。
+  it("P3-WN-T10 acceptance / AC10: weather is on by default, U-F and briefing stay off, a K VPBS50 rings as weather", () => {
+    const { clock } = fakeClock();
+    const weather = [attempt("U-W", "normal/VPWW55/福井地方気象台", "critical"), attempt("U-L", "normal/VPWW56/1", "warning"),
+      attempt("U-B", "normal/VPOA50/JPTK202608221709_202608221709", "normal"), attempt("U-B", "normal/VPBS50/KJPTK202608221709_202608221709", "normal")];
+    const off = [attempt("U-F", "normal/VPWW54/1", "warning"), attempt("U-B", "normal/VPBS50/YJPNB202608270448", "warning")];
+    const allow = (settings: NotificationSettings, tried: NotificationAttempt) => createNotificationGate(settings, clock)(tried).allow;
+    expect([...weather, ...off].map((tried) => allow(settingsOf(), tried))).toEqual([true, true, true, true, false, false]);
+    expect(weather.map((tried) => [categoryOf(tried), allow(settingsOf({ weather: false }), tried)])).toEqual(weather.map(() => ["weather", false]));
   });
 
   // P3-CLI-T11 acceptance (AC15・AC17・AC14)

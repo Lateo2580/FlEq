@@ -15,7 +15,7 @@ type NotificationSettings = {
   version: number;
 };
 
-// unit で決まる分野。U-W・U-F は C20 まで intent を作らない。
+// unit で決まる分野。U-F は intent を作らない（P3-WN-D-UF=A）ので weatherWarningTimeseries の switch は何も止めない。
 const UNIT_CATEGORIES: ReadonlyMap<UnitId, LegacyNotifyCategory> = new Map<UnitId, LegacyNotifyCategory>([
   ["U-E", "eew"], ["U-T", "tsunami"], ["U-N", "nankaiTrough"], ["U-V", "volcano"], ["U-L", "weather"], ["U-R", "floodForecast"],
   ["U-W", "weather"], ["U-F", "weatherWarningTimeseries"],
@@ -31,15 +31,18 @@ const SUBJECT_CATEGORIES: ReadonlyMap<UnitId, ReadonlyMap<string, LegacyNotifyCa
   ["U-Y", new Map<string, LegacyNotifyCategory>([["typhoonAnalysis", "typhoonAnalysis"], ["typhoonProbability", "typhoonProbability"]])],
   ["U-B", new Map<string, LegacyNotifyCategory>([["VPBS50", "briefing"], ["VPOA50", "weather"]])],
 ]);
-// 欄の無い分野で on のもの。weather は C20 の配送まで off（P3-CLI-D-O2-WEATHER-NOW=B）、残りの 10 分野も off。
+// 欄の無い分野で on のもの。weather は C20 の配送から on（P3-CLI-D-O2-WEATHER-NOW=B、P3-WN-AC10）、残りの 10 分野は off。
 const ON_BY_DEFAULT: ReadonlySet<LegacyNotifyCategory> = new Set<LegacyNotifyCategory>([
-  "eew", "earthquake", "tsunami", "seismicText", "nankaiTrough", "lgObservation", "volcano",
+  "eew", "earthquake", "tsunami", "seismicText", "nankaiTrough", "lgObservation", "volcano", "weather",
 ]);
 const LEVEL_RANK: Readonly<Record<MuteRule["level"], number>> = { normal: 1, warning: 2, critical: 3 };
 
 /** 試行の分野。表に無い unit・2 つ目は null（分野の on/off で止めず、mute の条件にも当たらない）。 */
 function categoryOf(attempt: Pick<NotificationAttempt, "unit" | "subject">): LegacyNotifyCategory | null {
-  return UNIT_CATEGORIES.get(attempt.unit) ?? SUBJECT_CATEGORIES.get(attempt.unit)?.get(attempt.subject.split("/", 2)[1] ?? "") ?? null;
+  const [, family = "", series = ""] = attempt.subject.split("/", 3);
+  // P3-WN-D-RECORD-RAIN-CATEGORY=A: 記録的短時間大雨情報の対応報（EventID が K の VPBS50）は VPOA50 と同じ weather。
+  if (attempt.unit === "U-B" && family === "VPBS50" && series.startsWith("K")) return "weather";
+  return UNIT_CATEGORIES.get(attempt.unit) ?? SUBJECT_CATEGORIES.get(attempt.unit)?.get(family) ?? null;
 }
 
 const notifyEnabled = (settings: Readonly<NotificationSettings>, category: LegacyNotifyCategory): boolean =>

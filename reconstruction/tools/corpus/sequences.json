@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -1528,8 +1528,8 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
             "L1: reconstruction/contracts/p3-landslide-unit.json:43 «ac7dbb2bffd2f033» P3-C10-SUBJECTS=A",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:158 «f29ae95c60447c35» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
         },
@@ -1547,8 +1547,8 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:191 «d662ed37f27d4b39» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1567,7 +1567,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «b07b0bcc29b1e625» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «59b85485e5a4fdb1» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1690,7 +1690,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -1763,7 +1763,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:297 «bf769cf910f712a7» Q-NOTICE correction",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPBS50_KJPTK_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -1782,7 +1782,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:308 «28afd48d95c82798» Q-NOTICE cancellation",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPBS50_KJPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -3057,7 +3057,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:148 «7bdc4fcc59ee3fb6» P3-C12-EMPTY=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:74 «55e049a697f7c83b» P3-C12-KINDS=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPBS50_empty.xml:1 «12c29731e40adc0c» Control/Head/Body"
           ]
         },
@@ -3613,7 +3613,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -3701,7 +3701,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/replay/VPBS50_YJPNB202608270448.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -3722,7 +3722,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:238 «08377eedb8d2d26a» P3-C12-REPLACE-PENDING=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -3756,8 +3756,8 @@
             "L1: reconstruction/contracts/p3-landslide-unit.json:61 «df713ec539f267d2» P3-C10-ACTIVE-STATUS=A",
             "L1: reconstruction/contracts/p3-landslide-unit.json:52 «b0f7693ceac39793» P3-C10-AREAS=A",
             "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:180 «c3186f0189b273d1» Q-NOTICE inactiveAdoption",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:180 «5283dd4c6b5606f3» Q-NOTICE inactiveAdoption",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
           ]
         },
@@ -3831,7 +3831,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         }
@@ -5497,8 +5497,8 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:158 «f29ae95c60447c35» Q-NOTICE semanticAdoption",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
           ]
         },
@@ -5546,8 +5546,8 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:191 «d662ed37f27d4b39» Q-NOTICE correction",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
             "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -5567,7 +5567,7 @@
             "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
             "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «b07b0bcc29b1e625» Q-NOTICE cancellation",
+            "L1: reconstruction/contracts/p3-landslide-unit.json:202 «59b85485e5a4fdb1» Q-NOTICE cancellation",
             "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
             "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -5822,7 +5822,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
             "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -6402,7 +6402,7 @@
             "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
             "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
             "L1: reconstruction/contracts/p3-briefing-unit.json:286 «56244a4b2cca033c» Q-NOTICE release",
-            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）"
+            "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）"
           ]
         },
         {
@@ -15083,7 +15083,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:148 «7bdc4fcc59ee3fb6» P3-C12-EMPTY=A",
         "L1: reconstruction/contracts/p3-briefing-unit.json:74 «55e049a697f7c83b» P3-C12-KINDS=A",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPBS50_empty.xml:1 «12c29731e40adc0c» Control/Head/Body"
       ],
       "input": null,
@@ -15789,13 +15789,13 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221709（気象庁本庁、Serial 1、17:09）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。",
         "対応するVPOA50（JPTK202608221709_202608221709）は held で、この報の EventID の全体が「K」＋その全体なので alias にする（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)、:17 の合成の取消は stale）。accepted.subjects は KJPTK202608221709_202608221709 と JPTK202608221709_202608221709（JPTK は aliased）。",
         ":17 の合成の取消は stale なので JPTK の取消の記憶は無い（P3-VM-AC03、Q-VM-IMPL-2B）。取消の記憶が対応報の採用の後も残ることは :29〜:30 で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
@@ -15835,7 +15835,7 @@
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221717（気象庁本庁、Serial 2、17:17）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は板橋区の120（以上、atLeast）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:18 の記録は EventID の全体が違う別の subject で、置き換えず active のまま残る。EventID の全体が「K」＋VPOA50 の EventID の全体になる VPOA50 は無いので alias は作らない（aliased の JPTK は :18 の記録の対応のまま）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:18 の pending は別の subject なので置き換えない。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。:18 の pending は別の subject なので置き換えない。",
         ":17 の合成の取消は stale なので JPTK の取消の記憶は無い（P3-VM-AC03、Q-VM-IMPL-2B）。取消の記憶が対応報の採用の後も残ることは :29〜:30 で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -15874,7 +15874,7 @@
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221727（気象庁本庁、Serial 3、17:27）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は豊島区の100（約）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:18・:19 の記録は別の subject で、active のまま残る。alias は作らない（:19 と同じ）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:18・:19 の pending は別の subject なので置き換えない。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。:18・:19 の pending は別の subject なので置き換えない。",
         ":17 の合成の取消は stale なので JPTK の取消の記憶は無い（P3-VM-AC03、Q-VM-IMPL-2B）。取消の記憶が対応報の採用の後も残ることは :29〜:30 で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -15972,7 +15972,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:93 «5b37b5ac0820b06e» P3-C12-REPLACE=B（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/replay/VPBS50_YJPNB202608270448.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -16013,7 +16013,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:238 «08377eedb8d2d26a» P3-C12-REPLACE-PENDING=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/replay/VPBS50_HJPNB202608270458.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -24249,14 +24249,14 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
         "L1: reconstruction/contracts/p3-landslide-unit.json:43 «ac7dbb2bffd2f033» P3-C10-SUBJECTS=A",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:158 «f29ae95c60447c35» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "稚内地方気象台の記録の無い状態への発表。Body/Warning（市町村等）の10区域から、group 49×1（稚内市）・09×1（猿払村）・29×8を作りactive（I-U-L.currentSemantics(1)、P3-C10-SUBJECTS=AでsubjectはEditorialOffice）。titleは宗谷地方土砂災害警報・注意報。retainUntil=ReportDateTime+48時間（P3-C10-ACTIVE-EXPIRY=C）。",
-        "通知: semanticAdoption（新しい官署のactive）、desktop＋sound、level=warning（区域は全部新しく、上がった区域の最大がレベル4（49）。P3-C10-NOTICE-LEVELS=B）。",
+        "通知: semanticAdoption（新しい官署のactive）、desktop だけ、level=warning（区域は全部新しく、上がった区域の最大がレベル4（49）。P3-WEATHER-NOTICE-001 の P3-WN-AC08）。",
         "15_16_01は気象庁のサンプル電文（Control/DateTimeは2020年、R06の形）で、訂正・取消は試験用のsynthetic（実際の系列ではない）。続報（引上げ・引下げ・事実の同じ報・全解除）と別の官署はsequencesに足さず、P3-C10-T02・T03が試験内の入力で確かめる。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -24282,22 +24282,22 @@
           }
         }
       ],
-      "notices": true,
-      "intents": true,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:191 «d662ed37f27d4b39» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
       "checks": [
         "同じrevision（23:00・Serial空）の訂正はInfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。Body/Warningは15_16_01と同じで公開事実（effective・title・kinds）は変わらず、Head/Headline/Textの文だけが違うのでrevisionOnly（I-U-L.currentSemantics(4)）。",
-        "通知: correction（事実が同じでも作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=normal（採用前の記録より上がった区域が無い、P3-C10-NOTICE-LEVELS=B）、bodyの冒頭は「訂正: 」。:81のpendingのintent（sound 60秒・desktop 180秒の期限内）は同じsubject・channelなのでsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "通知: 作らない（事実の同じ訂正で上がった区域が無い、P3-WEATHER-NOTICE-001 の P3-WN-AC08）。:81 の pending は置き換えない",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -24332,14 +24332,14 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «b07b0bcc29b1e625» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «59b85485e5a4fdb1» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
       "checks": [
         "同じrevisionの取消はInfoTypeの優先で採用し、稚内地方気象台の記録だけをcancelledにして事実を捨てる。前の報の事実を戻さない（P3-C10-CANCEL-SCOPE=A）。Body/Warningの無い取消は合法（Q-ENUM.familyTable）。cancelledの記録のretainUntilはReportDateTime+6時間。",
-        "通知: cancellation（取消の前に記録がactive）、desktop＋sound、level=cancel、titleは「[取消] 宗谷地方土砂災害警報・注意報（23:00 発表）」、bodyは「23:00 発表の宗谷地方土砂災害警報・注意報を取り消しました」（P3-NOTICE-LEDGER-001のP3-NL-AC10: 種類は取消の報のHead/Title、時刻は取り消した記録〔:81・:82〕の発表）。同じsubjectのpendingのintent（:82のsound・desktop）は両channelともsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "通知: cancellation（取消の前に記録がactiveでレベル4の区域を持つ）、desktop だけ（取消の前の記録にレベル5の区域が無い、P3-WEATHER-NOTICE-001 の P3-WN-AC08）、level=cancel、titleは「[取消] 宗谷地方土砂災害警報・注意報（23:00 発表）」、bodyは「23:00 発表の宗谷地方土砂災害警報・注意報を取り消しました」（P3-NOTICE-LEDGER-001のP3-NL-AC10: 種類は取消の報のHead/Title、時刻は取り消した記録〔:81・:82〕の発表）。同じsubjectのpendingのintent（:81のdesktop）はsupersededにする（P3-C10-REPLACEMENT=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -24569,23 +24569,23 @@
           }
         }
       ],
-      "notices": true,
-      "intents": true,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p3-landslide-unit.json:61 «df713ec539f267d2» P3-C10-ACTIVE-STATUS=A",
         "L1: reconstruction/contracts/p3-landslide-unit.json:52 «b0f7693ceac39793» P3-C10-AREAS=A",
         "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:180 «c3186f0189b273d1» Q-NOTICE inactiveAdoption",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:180 «5283dd4c6b5606f3» Q-NOTICE inactiveAdoption",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L2: test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Archive の member と受領 hash 一致、manifest 参照）"
       ],
       "input": null,
       "checks": [
         "高松地方気象台の記録の無い状態への実配信の報（2026-06-03 10:16の発表）。Body/Warning（市町村等）の17 Itemのうち高松市はKind/Codeが29（レベル２土砂災害注意報）のままStatus=解除、残り16はStatus「発表警報・注意報はなし」。解除の区域はKind/Codeが元の種別のままでもinactive（P3-C10-ACTIVE-STATUS=A）で、activeの区域は0。",
         "記録が無いのでwatermarkだけのendedの記録を作る（changed/revisionOnly、I-U-L.currentSemantics(1)）。view・snapshotに載らない。retainUntil=ReportDateTime+6時間。受理の時点はReportDateTime+25.339秒（配信のreceivedTime）で+6時間の内側（P3-C10-RETENTION=A）。",
-        "通知: inactiveAdoption（記録の無い官署へのStatus「解除」の区域を持ちactiveの区域の無い報）、desktop＋sound、level=normal（P3-C10-NOTICE-LEVELS=B）。",
+        "通知: 作らない（記録の無い官署へのStatus「解除」の区域を持ちactiveの区域の無い報〔inactiveAdoption〕、P3-WEATHER-NOTICE-001 の P3-WN-AC08）。",
         "Head/Headlineの層は解除をKind/Code 00・Name「解除」で書くが、新築はHeadlineを読まない（P3-C10-AREAS=A）。ほかの官署の記録は無いので、O03の他の官署の所有現象との交差はこの系列では確かめない（P3-C10-T02）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -24639,14 +24639,14 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-landslide-unit.json:270 «b854435041851a53» I-U-L currentSemantics",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:158 «d012d1866b9f2d8d» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:158 «f29ae95c60447c35» Q-NOTICE semanticAdoption",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L2: test/fixtures/15_16_01_241031_VPWW56.xml:1 «12c29731e40adc0c» 気象庁のサンプル電文のControl/Head/Bodyを読解（実系列・原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "稚内地方気象台の記録の無い状態への発表。Body/Warning（市町村等）の10区域から、group 49×1（稚内市）・09×1（猿払村）・29×8を作りactive（I-U-L.currentSemantics(1)、P3-C10-SUBJECTS=AでsubjectはEditorialOffice）。titleは宗谷地方土砂災害警報・注意報。retainUntil=ReportDateTime+48時間（P3-C10-ACTIVE-EXPIRY=C）。",
-        "通知: semanticAdoption（新しい官署のactive）、desktop＋sound、level=warning（区域は全部新しく、上がった区域の最大がレベル4（49）。P3-C10-NOTICE-LEVELS=B）。",
+        "通知: semanticAdoption（新しい官署のactive）、desktop だけ、level=warning（区域は全部新しく、上がった区域の最大がレベル4（49）。P3-WEATHER-NOTICE-001 の P3-WN-AC08）。",
         "15_16_01は気象庁のサンプル電文（Control/DateTimeは2020年、R06の形）で、訂正・取消は試験用のsynthetic（実際の系列ではない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -24717,14 +24717,14 @@
           }
         }
       ],
-      "notices": true,
-      "intents": true,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:191 «315a071d06f19ec9» Q-NOTICE correction",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «50f826d178608f2a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:191 «d662ed37f27d4b39» Q-NOTICE correction",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=B）",
         "L1: reconstruction/contracts/p3-landslide-unit.json:228 «62bccde6f806cfc1» Q-NOTICE restart",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
@@ -24732,7 +24732,7 @@
       "input": null,
       "checks": [
         "復元直後の同じrevisionの訂正。復元した記録との差で決め、公開事実が同じなのでrevisionOnly（Q-NOTICE.restart、I-U-L.currentSemantics(4)）。",
-        "通知: correction、desktop＋sound、level=normal（復元した記録より上がった区域が無い）。復元した:46のpendingのintent（期限内）は同じsubject・channelなのでsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "通知: 作らない（復元した記録より上がった区域が無い事実の同じ訂正、P3-WEATHER-NOTICE-001 の P3-WN-AC08）。復元した:46 の pending は置き換えない",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -24767,14 +24767,14 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d» O07",
         "L1: reconstruction/contracts/p3-landslide-unit.json:263 «320f44c912243868» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-landslide-unit.json:70 «bce6dcd2b91bf44d» P3-C10-CANCEL-SCOPE=A",
-        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «b07b0bcc29b1e625» Q-NOTICE cancellation",
+        "L1: reconstruction/contracts/p3-landslide-unit.json:202 «59b85485e5a4fdb1» Q-NOTICE cancellation",
         "L1: reconstruction/contracts/p3-landslide-unit.json:115 «e26c35106f961b7c» P3-C10-REPLACEMENT=A",
         "L2: test/fixtures/synthetic_VPWW56_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
       "checks": [
         "復元後の取消。稚内地方気象台の記録だけをcancelledにし、事実を戻さない（P3-C10-CANCEL-SCOPE=A）。",
-        "通知: cancellation、level=cancel。同じsubjectのpendingのintentは両channelともsupersededにする（P3-C10-REPLACEMENT=A）。",
+        "通知: cancellation、desktop だけ、level=cancel（取消の前の記録にレベル5の区域が無い、P3-WEATHER-NOTICE-001 の P3-WN-AC08）。同じsubjectのpendingのintentはsupersededにする（P3-C10-REPLACEMENT=A）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25246,13 +25246,13 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:23 «a45b9775310b40c0» P3-C12-TTL=B（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221709（気象庁本庁、Serial 1、17:09）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25291,7 +25291,7 @@
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221717（気象庁本庁、Serial 2、17:17）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は板橋区の120（以上、atLeast）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:90 の記録（KJPTK202608221709_202608221709）は EventID の全体が違う別の subject で、置き換えず active のまま残る。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:90 の pending は別の subject なので置き換えない（P3-C12-REPLACEMENT=A は同じ subject・channel だけ）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。:90 の pending は別の subject なので置き換えない（P3-C12-REPLACEMENT=A は同じ subject・channel だけ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25330,7 +25330,7 @@
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221727（気象庁本庁、Serial 3、17:27）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は豊島区の100（約）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。:90・:91 の記録は別の subject で、active のまま残る。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:90・:91 の pending は別の subject なので置き換えない（P3-C12-REPLACEMENT=A は同じ subject・channel だけ）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。:90・:91 の pending は別の subject なので置き換えない（P3-C12-REPLACEMENT=A は同じ subject・channel だけ）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25398,13 +25398,13 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:297 «bf769cf910f712a7» Q-NOTICE correction",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPBS50_KJPTK_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
       "checks": [
         "Serial 3と同じrevision（17:27、Serial 3、EventID KJPTK202608221709_202608221727）の訂正。同じ運用区分に同じ EventID の記録（:92）があるので、その subject を引き継ぐ（P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)）。InfoTypeの優先（取消>訂正>発表）で採用する（Q-ENUM.revisionOrder）。公開事実はSerial 3と同じで、見える記録の事実が変わらないのでchangeはrevisionOnly（I-U-B.currentSemantics(6)）。sourceは訂正の報に進む。:90・:91 の記録は変わらない。",
-        "通知: correction（activeの記録への訂正は事実が同じでも作る、spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=warning、transition updated、titleは「[訂正] 東京都気象防災速報（記録的短時間大雨）」、bodyは「訂正: 」で始まる。同じsubject・channelの古いpendingはsupersededにする。",
+        "通知: correction（activeの記録への訂正は事実が同じでも作る、spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）、desktop＋sound、level=normal（P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition updated、titleは「[訂正] 東京都気象防災速報（記録的短時間大雨）」、bodyは「訂正: 」で始まる。同じsubject・channelの古いpendingはsupersededにする。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25440,7 +25440,7 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:372 «697f0691ffef370d» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-briefing-unit.json:121 «e20de1b8649d10a2» P3-C12-CANCEL-SCOPE=A",
         "L1: reconstruction/contracts/p3-briefing-unit.json:308 «28afd48d95c82798» Q-NOTICE cancellation",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPBS50_KJPTK_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -25540,13 +25540,13 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:12 «b70ca232917f4832» P3-C12-SUBJECTS=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221709（気象庁本庁、Serial 1、17:09）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は北区・板橋区の前１時間解析雨量100（約、approx）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -25668,7 +25668,7 @@
       "input": null,
       "checks": [
         "記録雨の報 KJPTK202608221709_202608221717（気象庁本庁、Serial 2、17:17）の記録の無い subject への発表。itemsは記録雨（recordRain）1つで区域は東京地方（130010）、観測は板橋区の120（以上、atLeast）。情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない）。復元した KJPTK202608221709_202608221709 の記録（Serial 1）は EventID の全体が違う別の subject で、置き換えず active のまま残る。表示の期限（retainUntil）=ReportDateTime+2時間（記録雨を含むactive、P3-C12-TTL=B）で、期限で事実を持たない expired の記憶に移り、記憶の retainUntil は元報+9時間（P3-EXPIRY-FORM-001 の P3-EF-AC05 の (2)(3)）。",
-        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=warning、transition activated（Q-NOTICE、P3-C12-NOTICE-LEVELS=A）。:65 の pending は別の subject なので置き換えない。",
+        "通知: semanticAdoption（新しいsubjectのactive）、desktop＋sound、level=normal（記録雨だけの VPBS50、P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated（Q-NOTICE）。:65 の pending は別の subject なので置き換えない。",
         "releasedのJPTCは変わらない（対応報ではない）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
@@ -26122,14 +26122,14 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:33 «84e1fb8346ad7090» P3-C12-VPOA=A（作者裁定）",
         "L1: reconstruction/contracts/p3-briefing-unit.json:37 «f9bab97178111c84» P3-C12-VPOA holdRules",
         "L1: reconstruction/contracts/p3-briefing-unit.json:286 «56244a4b2cca033c» Q-NOTICE release",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）"
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）"
       ],
       "input": {
         "required": "時計をholdUntil（2026-08-22T17:10:00.001+09:00）へ進めて期限処理を走らせる（期限横断）。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "holdUntilの到来でheldのJPTKをreleasedにし（P3-C12-VPOA=A、wall＝期限で到来）、viewに「対応電文未確認」として載せる。期限処理の時刻がholdUntil+60,000より前なので通知を作る: release、desktop＋sound、level=warning、transition activated、titleは「東京都記録的短時間大雨情報（対応電文未確認）」。保存世代を進める。"
+        "holdUntilの到来でheldのJPTKをreleasedにし（P3-C12-VPOA=A、wall＝期限で到来）、viewに「対応電文未確認」として載せる。期限処理の時刻がholdUntil+60,000より前なので通知を作る: release、desktop＋sound、level=normal（P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated、titleは「東京都記録的短時間大雨情報（対応電文未確認）」。保存世代を進める。"
       ]
     },
     {
@@ -27972,12 +27972,12 @@
         "L1: reconstruction/contracts/p3-briefing-unit.json:103 «964635124a1ebb92» P3-C12-ALIAS=A",
         "L1: reconstruction/contracts/p3-briefing-unit.json:380 «16132d68b3823ce3» I-U-B currentSemantics",
         "L1: reconstruction/contracts/p3-briefing-unit.json:275 «3e79d9ad7584fd38» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «75a6f5b0224b937a» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/phase6b_VPBS50_KJPTK202608221709_202608221709.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
-        "記録雨の報 KJPTK202608221709_202608221709 の記録の無い状態への Serial 1 の発表（:18 と同じ入力、情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない））。通知: semanticAdoption、desktop＋sound、level=warning、transition activated。",
+        "記録雨の報 KJPTK202608221709_202608221709 の記録の無い状態への Serial 1 の発表（:18 と同じ入力、情報タグの item が全部 recordRain（Condition「記録雨」）なので subject は EventID の全体（報ごと、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (1)。EventID の頭の「K」では見分けない））。通知: semanticAdoption、desktop＋sound、level=normal（P3-WEATHER-NOTICE-001 の P3-WN-AC09）、transition activated。",
         "対応する VPOA50（JPTK202608221709_202608221709）は :29 で cancelled なので alias にしない（P3-C12-ALIAS=A、P3-EXPIRY-FORM-001 の P3-EF-AC09 の (2)）。accepted.subjects は KJPTK202608221709_202608221709 だけ。:29 の取消の記憶は、このstepの後も同じ値で残り、取消済みの VPOA50 は戻らない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]

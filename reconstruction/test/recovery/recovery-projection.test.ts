@@ -227,7 +227,7 @@ const ROWS: readonly Row[] = [
     // 同じ中身の新しい版は表示の版だけを替え、段が変わらないので鳴らない（live の規則）。
     updated: { "normal/VPWW56/稚内地方気象台": B }, updateSent: 0,
     expired: { "normal/VPWW56/宇都宮地方気象台": GONE, "normal/VPWW56/稚内地方気象台": GONE }, expirySent: 0,
-    cancelled: { "normal/VPWW56/稚内地方気象台": GONE }, cancelSent: 2,
+    cancelled: { "normal/VPWW56/稚内地方気象台": GONE }, cancelSent: 1, // P3-WN-AC08 (3): レベル 4 だけの記録の取消は desktop だけ
     expiry: 2 * DAY + HOUR,
     seed: (at) => [{ type: "VPWW56", xml: tag("EditorialOffice", "宇都宮地方気象台")(retime(fixture("15_16_01_241031_VPWW56"), at)) }],
     bodies: (at) => [{ type: "VPWW56", xml: retime(fixture("15_16_01_241031_VPWW56"), at) }],
@@ -273,10 +273,11 @@ const ROWS: readonly Row[] = [
   // 発注 4b-2（Q-REC-PRECHECK-8 の N5）: U-W の記録に時間の期限は無い（intent の期限だけ）ので期限の列を持たない。live に稚内の partial と、その読めない
   // 新しい版の freshnessSuspect の行を置き、候補は全国の VPWS50 と京都の partial（差分の関数が見せる行を落とすと参照の照合で落ちる）。履歴の無い取消は
   // historyUnavailable の unavailable で行が残る。
-  { unit: "U-W", adopted: ["normal/VPWS50/気象庁", "normal/VPWW57/京都地方気象台", ...["01", "05", "06", "07", "15", "16", "17", "18", "20", "26", "46", "99"].map((code) => `normal/area/${code}`)], raise: false,
+  { unit: "U-W", adopted: ["normal/VPWS50/気象庁", "normal/VPWW57/京都地方気象台", ...["01", "05", "06", "07", "15", "16", "17", "18", "20", "26", "46", "99"].map((code) => `normal/area/${code}`)], raise: true,
     updated: { "normal/area/26": B }, updateSent: 0,
     expired: {}, expirySent: 0,
-    cancelled: { "normal/VPWW57/京都地方気象台": B, "normal/area/26": GONE }, cancelSent: 0,
+    // P3-WEATHER-NOTICE-001（Q-WN-EXISTING-TESTS (7)）: VPWW57 の Code 48（L4）は取り直しで H27 の info、取消は L4 の版なので desktop だけ。
+    cancelled: { "normal/VPWW57/京都地方気象台": B, "normal/area/26": GONE }, cancelSent: 1,
     expiry: null,
     seed: () => [{ type: "VPWW58", xml: fixture("15_16_04_251222_VPWW58") },
       { type: "VPWW58", xml: reportAt(fixture("15_16_04_251222_VPWW58"), "23:01").replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, "$1未知$2") }],

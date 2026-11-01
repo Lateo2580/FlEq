@@ -108,7 +108,7 @@ export type BriefingCurrent = BriefingReportCurrent | BriefingRecordRainCurrent;
 // 気象の音（sound-design-system.md の分野別根音表）。A7 の群は unit で決まり、U-B は other（P3-C12-NOTICE-GROUP）。
 export type BriefingNotificationPayload = Readonly<{
   domain: "weather";
-  level: "warning" | "critical" | "cancel";
+  level: "normal" | "warning" | "critical" | "cancel";
   title: string;
   body: string;
 }>;

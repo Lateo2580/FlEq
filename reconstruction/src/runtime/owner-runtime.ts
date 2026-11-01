@@ -77,7 +77,7 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
 const noHistory = { dayKey: null, count: 0, maxInt: null, counted: [], recent: [] } as const;
 const initialUnits: RuntimeUnitStates = {
   "U-E": { schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [], persistence: cleanPersistence },
-  "U-W": { schemaVersion: "p2-weather-current-unit-v7", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {},
+  "U-W": { schemaVersion: "p2-weather-current-unit-v8", contentRevision: 0, national: {}, partials: [], histories: [], ownership: {}, notices: [],
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
   "U-T": { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: cleanPersistence },

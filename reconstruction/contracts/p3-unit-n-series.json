@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "0bc66533701997c6b5d1ae9a0d7a330cdfae28b278486a4293d604d5010e178a",
+    "sha256": "f14659b71f90c842aadea1ab89753216c850aec1c4376ca72afdf61813646078",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -435,7 +435,7 @@
           "reconstruction/contracts/p3-persist-premises.md:524 «d6034014bda2abef»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
-          "reconstruction/contracts/p3-notice-ledger.json:443 «52ffa585673a2468»",
+          "reconstruction/contracts/p3-notice-ledger.json:443 «33fff820a4d62b0b»",
           "src/engine/display/standby-persistence.ts:756 «f66b938527ed523c»"
         ]
       },

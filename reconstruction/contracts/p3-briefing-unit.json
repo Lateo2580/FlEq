@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "749e588bba0f85c89c8ba4b428a1c46756b08d2f6b5ce8c17ab58d794f5a2e18",
+    "sha256": "6f4ff3bae98a90498865494001bee0fc864e7c1a34f4e44c58031c7ee48ee0e1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -46,7 +46,7 @@
         "B": "Aのうち、linearRainObservedかrecordRainのitemを含む報とVPOA50のreleasedをcriticalにする（旧築の表示の重さnonLevelSpecialに音を合わせる）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-10昼前、ご主人）、推奨どおり。採らなかったBは分岐の記録として残すだけで、実装はAの形（取消はcancel、ほかは全部warning）だけを読む",
+        "ruling": "作者裁定A（2026-10-10昼前、ご主人）、推奨どおり。採らなかったBは分岐の記録として残すだけで、実装はAの形（取消はcancel、ほかは全部warning）だけを読む。VPOA50 と記録雨だけの VPBS50 は P3-WEATHER-NOTICE-001 で normal に改めた",
         "reason": "旧築は線状降水帯発生・記録雨も音はwarning（weather-warning-level.ts:354、2026-06-12のレビューでの決定、level-helpers.ts:388の注記）、表示だけnonLevelSpecialにした。情報タグの未知のConditionはwarning、Conditionの無い報はinfo（level-helpers.ts:395）。新築は表に無い値をfail-brightでwarningに置く（C9〜C11の先例）。Bは特別警報級の名を持たない速報を特別警報と同じ音にする。どの案でも型は変わらず、Q-NOTICE.levelの表だけを差し替える。材料: 実配信と実配信由来のfixtureのVPBS50の種別は線状降水帯直前予測7・記録雨7・線状降水帯発生2（同じ系列の続報を含む）"
       },
       {
@@ -315,7 +315,7 @@
             ]
           }
         ],
-        "level": "P3-C12-NOTICE-LEVELS=A（作者裁定2026-10-10昼前）: 取消はcancel。ほかは全部warning（P3-C12-KINDSの全種別、unknown、itemsの空、VPOA50のreleased）",
+        "level": "P3-C12-NOTICE-LEVELS=A（作者裁定2026-10-10昼前）を P3-WEATHER-NOTICE-001 で改めた（作者裁定 2026-11-01、P3-WN-D-VPBS50）: 取消はcancel。VPOA50 と、items が全部記録雨の VPBS50 は normal。ほかは warning（P3-C12-KINDS の線状降水帯・短時間大雪・unknown、itemsの空）",
         "silent": "P3-C12-REPLACEで予測を減らす・replacedにする、期限での回収、aliasedへの移行、終了入力・restore入力・対応報の取消でのreleasedでは作らない。遅着の採用（P3-C12-LATE-INVERSION=A: 前の見える記録を消してpendingを撤回するだけ）でも作らない",
         "overlap": "一つの採用報は各channel最大1 intent。intentのsubjectは採用した報の記録のsubject（置換やaliasで変わった他のsubjectのintentは作らない）",
         "transition": "新しいsubjectのactiveへの採用・再採用とreleasedへの移行はactivated、新しいrevisionと訂正はupdated、取消はcancelled",

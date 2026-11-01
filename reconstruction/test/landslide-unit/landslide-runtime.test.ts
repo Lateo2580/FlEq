@@ -200,7 +200,7 @@ describe("P3-UNIT-L-001 U-L through the composition root", () => {
     const afterCancel = failed.unit("U-L");
     expect(afterCancel.persistence).toMatchObject({ kind: "failed", savedGeneration: 0 });
     expect(afterCancel.persistence.currentGeneration).toBeGreaterThan(beforeCancel);
-    expect(runningAdapter.aborts).toHaveLength(2);
+    expect(runningAdapter.aborts).toHaveLength(1); // P3-WN-AC08: 稚内のレベル 4 は desktop だけ（Q-WN-EXISTING-TESTS (2)）
     expect(view(failed).currents).toEqual([]);
     expect(afterCancel.currents.map((item) => item.effective)).toEqual(["cancelled"]);
     // P3-NL-AC05 (1): 置き換えた intent は intents から外れる（結果は系列の印に残る）。
@@ -251,8 +251,9 @@ describe("P3-UNIT-L-001 U-L through the composition root", () => {
     await report(second, text(SOYA_FILE), tick(1_000));
     expect(second.unit("U-L").intents.filter((item) => !known.has(item.id))).toEqual([]);
     await report(second, lowered, tick(1_000));
+    // P3-WN-AC08 (2): 引下げの続報は通知を作らない（Q-WN-EXISTING-TESTS (2)）。
     expect(second.unit("U-L").intents.filter((item) => !known.has(item.id)).map((item) => [item.payload.level, item.transition]))
-      .toEqual([["normal", "updated"], ["normal", "updated"]]);
+      .toEqual([]);
     expect(second.failures).toEqual([]);
 
     // U-F と U-L の同時 dirty: deferred の 2 unit は別々の書込み権を持つ（P3-C10-WRITE-RIGHT、P3-UNIT-WRITE-RIGHT-001）。

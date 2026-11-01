@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "6c9cba603519524935d4d14aa730929800074d27d7ac2104eef2830c4bee69c2",
+    "sha256": "dcef05af023a6bc8eb9e453c4ef409452e75af91e86dd90e1a0eb42ae37aea9e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -322,7 +322,7 @@
         "requirement": "F12（U-L）は本体を変えず試験と契約の読み替えで閉じる（D-OUTCOME=A）。記録のある官署に、到着の時点で期限を過ぎた新しい解除が届くと、今どおり採用して同じreduceで回収し、まだ有効だった前のactiveを消す（通知しない）。保存の対象（currents）が変わるので保存の世代を進める（+1に限らない。F12の観測は1→3）。acceptedのsubjectのtransitionはended（activeと返さない）。P3-C10-RETENTIONとpersistedの「到着の時点で期限を過ぎた報（遅着の発表・解除だけの遅着とも…正味のstateが変わらない）では、currentsの参照を変えず保存世代を進めない」（p3-landslide-unit.json:273）は、最終の状態が変わらない受理（記録の無い官署への遅着、P3-C10-ACTIVE-EXPIRY）だけに当たると読み替える。既存のP3-C10-T03の遅着の解除（landslide-unit.test.ts:192〜:196、T0のactiveにReportDateTime 2020-06-23T00:00の解除をT0＋7時間1分で受ける。F12と同じ形）に、保存の世代が進むこととacceptedのtransitionがendedであることを足す。",
         "evidenceRefs": [
           "reconstruction/src/units/landslide/landslide-unit.ts:296 «12767c397d3a7354»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:328 «4b22fcc111b17e64»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:328 «6cd7691ce71518ea»",
           "reconstruction/src/units/landslide/landslide-unit.ts:357 «9ee851f159aa71c4»",
           "reconstruction/contracts/p3-landslide-unit.json:79 «ae92021fec62f87f»",
           "reconstruction/contracts/p3-landslide-unit.json:273 «d16910d13705f145»",

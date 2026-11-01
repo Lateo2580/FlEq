@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0d271ae071a22e14a0a192b9f17320e9b44e3cbb",
-    "sha256": "65042e0194320e135e4a9b12d4dcee0fe94083e5381bc5288c7455d65521aa85",
+    "sha256": "d6c56914101a844dadc77374dcbd2cba14a9dc83a6578cc06968591b74608f2a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -25,7 +25,7 @@
         "D": "Bのうち、上がった区域の無い報（引下げ・区域の縮小・事実の同じ訂正・解除）はsoundを作らずdesktopだけにする。取消はB・Cと同じくcancel",
         "recommended": "B",
         "provisional": "B",
-        "ruling": "作者裁定B（2026-10-10朝、ご主人）、推奨どおり",
+        "ruling": "作者裁定B（2026-10-10朝、ご主人）、推奨どおり。P3-WEATHER-NOTICE-001 で H11 に置き換えた（作者裁定 2026-11-01、P3-WN-AC08）",
         "reason": "旧築の鳴り方: 受理した報ごとに鳴らし（message-router.ts:537〜:552）、段階は報の全区域の最大（level-helpers.ts:343のmaxSoundLevel）、解除だけの報はinfo、取消はcancel。レベル4は表示critical・音warning（weather-warning-level.ts:225〜:227の2026-06-12の作者のレビューの決定、.claude/rules/message-pipeline.md:143）。材料（実配信、~/dev/fleq-corpus-p0の3日分のVPWW56 425本、官署ごとの同じ日の続報347間隔）: 事実の変わらない続報は0、上がった区域がある報228、下がっただけの報116、両方3。1官署1日の最多は32報（銚子地方気象台、2026-09-21）。鳴り方の違い（corpusの15_16_01: 稚内市がレベル3→4、猿払村がレベル3のまま、8町村がレベル2のまま）: この報はA・B・Dともwarning（短三和音2回、気象の根音C4）で、Cはcritical（1オクターブ上の3打）。違いは続報で出る: 稚内市のレベル4が続く間に豊富町がレベル2へ入るだけの報はAでwarning（レベル4の区域が報に残るので）、B・Dではnormal（単音）。猿払村がレベル3から2へ下がるだけの報はAでwarning、Bでnormal、Dでは音なし（desktopだけ）。全区域の解除はAでinfo、Bでnormal、Dで音なし。実配信の347間隔でAとBの音の段階は286が同じ、Aが大きく鳴るのは31（warning→normal 20、critical→warningかnormal 11。後者はレベル5が続いているだけの報で、Bは下がる）、Bが大きく鳴るのは30（全区域の解除で、Aはinfo、Bはnormal）。下がっただけの116報はAでwarning以上19（critical 3を含む）・normal 67・info 30、Dでは鳴らない。どの案もA7の群はotherで、EEW・津波緊急を追い越さない（P3-C10-NOTICE-GROUP）。どの案も鳴る機会はQ-NOTICE.generationTableで同じ。推奨はB: Aでは悪くなっていない報でもレベル4・5の区域が残る限りwarning以上が鳴る（1官署・1日の最多は32報で、30報を超えたのはその1官署・1日だけ）。Bの代償: レベル5が続いているだけの報（区域が増えず上がらない）をnormalで鳴らす。引下げ・解除も状況の変化として単音で一度知らせる（旧築も鳴らしていた）ので、Dのように音を消す根拠は材料からは出ない（音を減らしたいならD）。レベル4をwarningに置くのは2026-06-12の決定を保つため。Cはその決定を開け直す案。表に無いcodeをwarningにするのは、気象庁のcodeの追加で警報級を軽く鳴らさないため（旧築の時系列の「未知Code含む＝最低warningへ昇格」、message-pipeline.md:165。バックログ〔新築:P3〕の「未知severityのfail-bright」、C9のP3-C9-NOTICE-LEVELSと同じ向き。実配信のcodeは29・09・49・39の4つだけ）。どの案でも型は変わらず、Q-NOTICE.levelの表だけを差し替える"
       },
       {
@@ -155,7 +155,7 @@
         "generationTable": [
           {
             "opportunity": "semanticAdoption",
-            "condition": "新しい官署のactiveの採用、取消・解除の後のactiveへの再採用、activeの記録への公開事実（title・kinds）の変わった新しいrevisionの採用。duplicate・stale・revisionOnly・noChangeでは作らない",
+            "condition": "新しい官署のactiveの採用、取消・解除の後のactiveへの再採用、activeの記録への公開事実（title・kinds）の変わった新しいrevisionの採用。duplicate・stale・revisionOnly・noChangeでは作らない（P3-WEATHER-NOTICE-001 で改訂: 上がった区域がレベル 4・5 のときだけ作る。normalChannels の sound はレベル 5 のときだけで、レベル 4 は desktop だけ。表に無い code は十の位が 3・4 なら 5・4、ほかは今どおり warning の desktop＋sound）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -166,7 +166,7 @@
           },
           {
             "opportunity": "release",
-            "condition": "activeの記録がended（全ての区域がinactive）になった",
+            "condition": "activeの記録がended（全ての区域がinactive）になった（P3-WEATHER-NOTICE-001 で改訂: 作らない。下の channel の字は使わない）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -177,7 +177,7 @@
           },
           {
             "opportunity": "inactiveAdoption",
-            "condition": "記録の無い官署か、記憶だけの取消（cancelled）の記録に、Status「解除」の区域を1つ以上持ちactiveの区域の無い報を採用した（changeがrevisionOnlyでも作る。起動の前の発表を取り逃した官署の解除を無音にしない。旧築も受理ごとに通知した、message-router.ts:552）。endedの記録への解除の報では作らない（解除はreleaseで一度知らせ済み）。遅れて届いた報（P3-C10-ACTIVE-EXPIRY・P3-C10-RETENTION）では作らない",
+            "condition": "記録の無い官署か、記憶だけの取消（cancelled）の記録に、Status「解除」の区域を1つ以上持ちactiveの区域の無い報を採用した（changeがrevisionOnlyでも作る。起動の前の発表を取り逃した官署の解除を無音にしない。旧築も受理ごとに通知した、message-router.ts:552）。endedの記録への解除の報では作らない（解除はreleaseで一度知らせ済み）。遅れて届いた報（P3-C10-ACTIVE-EXPIRY・P3-C10-RETENTION）では作らない（P3-WEATHER-NOTICE-001 で改訂: 作らない。下の channel の字は使わない）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -188,7 +188,7 @@
           },
           {
             "opportunity": "correction",
-            "condition": "訂正を採用した（事実が同じでも作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）",
+            "condition": "訂正を採用した（事実が同じでも作る。spec:1777のO01「受理済み訂正は表示差分なしでも通知判定」）（P3-WEATHER-NOTICE-001 で改訂: 上がった区域がレベル 4・5 の訂正だけ作る（事実の同じ訂正は作らない、作者裁定 2026-11-01 の問い 2=A））",
             "normalChannels": [
               "desktop",
               "sound"
@@ -199,7 +199,7 @@
           },
           {
             "opportunity": "cancellation",
-            "condition": "取消を採用し、取消の前に記録がactiveだった。記憶だけの取消（P3-C10-CANCEL-SCOPE）は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）",
+            "condition": "取消を採用し、取消の前に記録がactiveだった。記憶だけの取消（P3-C10-CANCEL-SCOPE）は通知しない（intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形〔unit・subject・系列・版の鍵・遷移・channel〕で保存の世代番号を含まず、同じ版の同じ種類〔報・取消・期限〕は系列の印で作り直さない）（P3-NOTICE-LEDGER-001で改訂: 取消の前にactiveでなくても、その系列の印のevidenceがpossibleかunknownなら〔解除・期限切れ・記憶になった後も記録を覚えている系列〕通知する。記録〔印〕の無い系列の取消は今どおり通知しない、H19、P3-NL-AC09）（P3-WEATHER-NOTICE-001 で改訂: 取消の直前の記録がレベル 4・5 の区域を持っていたか、印の evidence が possible か unknown のとき。レベル 2・3 だけの記録の取消は作らない。channel は取消の前の記録の段で読み、レベル 5 があれば desktop＋sound、レベル 4 だけか印だけなら desktop だけ）",
             "normalChannels": [
               "desktop",
               "sound"
@@ -215,7 +215,7 @@
             "trainingTestChannels": []
           }
         ],
-        "level": "P3-C10-NOTICE-LEVELS=B（作者裁定 2026-10-10朝）: 取消はcancel。区域のレベルの段階はレベル5（39）critical、レベル4（49）warning、レベル3（09）warning、レベル2（29）normal、表に無いcode（level null）はwarning。採用前の記録より上がった区域（新しい区域か、levelの順位が上がった区域。nullは3と同じ順位）の段階の最大で決める。上がった区域が無い報（引下げ・区域の縮小・事実の同じ訂正）・release・inactiveAdoptionはnormal。訂正も同じ規則で、採用前の記録と比べる",
+        "level": "P3-WEATHER-NOTICE-001（H11、作者裁定 2026-11-01）で P3-C10-NOTICE-LEVELS=B を置き換えた: 取消は cancel。レベル 5（39）は critical で desktop＋sound、レベル 4（49）は warning で desktop だけ、レベル 3（09）・2（29）は作らない。表に無い code（level null）は十の位が 3 なら 5、4 なら 4、ほかは今どおり warning の desktop＋sound（順位 3）。採用前の記録より上がった区域の段の最大で決め、上がった区域が無い報・release・inactiveAdoption は作らない。訂正も同じ規則",
         "overlap": "一つの採用報は各channel最大1 intent。intentのsubjectは官署のsubject",
         "transition": "新しい官署のactiveへの採用と、取消・解除の後のactiveへの再採用はactivated、activeの記録の新しいrevisionと訂正はupdated、release・inactiveAdoptionはreleased、取消はcancelled",
         "emergencyGroup": "U-Lのintentは全部A7の群other（P3-C10-NOTICE-GROUP=A）。レベル5でもEEW・津波緊急を追い越さない",
@@ -236,7 +236,7 @@
           "事実の読み方: 旧築はHead/Headline/Informationの市町村等の層（無ければ粗い層）から区域の名前とKindを持ち、Bodyは不足の区域を足すだけ（vpww56-state.ts:332、weather-parser.tsのmergeBodyWarningStatuses）。新築はU-Wと同じくBody/Warningの市町村等だけを読み、区域はcodeだけを持つ（P3-C10-AREAS・P3-C10-ACTIVE-STATUS）",
           "activeの期限: 旧築はactiveの記録も受信から6時間で黙って消す（revision-family-registry.ts:817、telegram-revision-gate.ts:1612、standby-persistence-admission.ts:1306）。新築はP3-C10-ACTIVE-EXPIRY=C（作者裁定）で解除・取消まで残し、元報の時刻から48時間で黙って打ち切る。期限の起点は受信時刻でなく元報の時刻（P3-C10-RETENTION）",
           "通知の機会: 旧築は受理した報ごとに鳴らす（message-router.ts:537〜:552。VPWW56にはweatherDiffが無いので変化なしの抑止も効かない）。新築は事実の変わった採用・解除・訂正・取消の前にactiveだった記録の取消・記録の無い官署への解除だけ（Q-NOTICE.generationTable）（P3-NOTICE-LEDGER-001で改訂: と、印の証拠のある系列の取消〔解除・期限切れの後も記録を覚えている系列、H19、P3-NL-AC09〕も鳴らす）",
-          "段階: 旧築は報の全区域の最大で、レベル4は表示critical・音warning（weather-warning-level.ts:225〜:231、.claude/rules/message-pipeline.md:143の2026-06-12の決定）、解除だけの報はinfo（level-helpers.ts:343）、取消はcancel、表に無いcodeは名前の推測かinfo。新築はP3-C10-NOTICE-LEVELS=B（作者裁定）で上がった区域で決め、引下げ・解除はnormal、表に無いcodeはwarning。音源は旧築の5段階でなく分野別根音表の気象（C4）",
+          "段階: 旧築は報の全区域の最大で、レベル4は表示critical・音warning（weather-warning-level.ts:225〜:231、.claude/rules/message-pipeline.md:143の2026-06-12の決定）、解除だけの報はinfo（level-helpers.ts:343）、取消はcancel、表に無いcodeは名前の推測かinfo。新築はP3-C10-NOTICE-LEVELS=B（作者裁定）で上がった区域で決め、引下げ・解除はnormal、表に無いcodeはwarning。音源は旧築の5段階でなく分野別根音表の気象（C4）（P3-WEATHER-NOTICE-001 で H11: レベル 4 は desktop だけ、5 は desktop＋音、2・3 と解除は作らない）",
           "通知の文面: 旧築はbodyを「警報 N地域 / 注意報 M地域 / headline」（notifier.ts:585）。新築はKindの名前ごとの区域の数（Q-NOTICE.payload）",
           "容量: 旧築は128件で非activeを退去し、全部activeならgateが不変条件の違反で受理を拒む（telegram-revision-gate.tsのmakeRoomForNewSubject）。新築は退去の順で受け、capacityExceededを返さない（P3-C10-CAPACITY）",
           "取消: 旧築も新築も官署のsubjectだけを消す（clearCurrent）。新築は記録の無い官署への取消を記憶だけにして鳴らさない（P3-C10-CANCEL-SCOPE）",
@@ -300,7 +300,7 @@
         "status": "frozen（他の契約・段への申し送り。C10の範囲には入れない）",
         "items": [
           "P4（表示）: VPWS50の全国の報も土砂の区域（code 29・49）を持つ（15_18_01_250630_VPWS50のBodyの全層でKind/Code 29が514件・49が512件）。U-Wの全国の土砂の区域とU-Lの官署の区域を一枚に合成するか、新しい方を採るかはP4の表示の契約で決める（U-Lはunionを保存しない、spec:479）。旧築も待機画面でvpws50とvpww56を別のsourceとして合わせた（process-weather.tsのapplyWeatherAlerts）。バックログ〔P5観察〕「VPWS50＋VPWW56併発時に重複行が1本になるか」",
-          "C20（P3-WEATHER-NOTICE-001）: U-Wの通知を作るとき、VPWS50の土砂の区域の変化とVPWW56（U-L）が同じ変化で2回鳴らないかを決める（P3-C10-NOTICE-OWNER）",
+          "C20（P3-WEATHER-NOTICE-001）: U-Wの通知を作るとき、VPWS50の土砂の区域の変化とVPWW56（U-L）が同じ変化で2回鳴らないかを決める（P3-C10-NOTICE-OWNER）→ P3-WEATHER-NOTICE-001 の P3-WN-D-LANDSLIDE=A（U-W は土砂の code で通知を作らない）",
           "C13（U-M）: 旧来の土砂災害警戒情報VXWW50はspec:498でU-Mのlegacy counterpart。VPWW56との対応付けは旧築でunconfirmed（legacy-counterpart-registry.ts:149）で、バックログの調査でKind 3↔49の単一の正規化が成り立たない（1↔29も実在）。U-LはVXWW50を読まず、U-Lの記録を推測で変えない",
           "C15（移行）: P3-C10-MIGRATION",
           "C4・C22（測定）: P3のE01の負荷N（reconstruction/test/eew-e01/evidence/p3/manifest.jsonのloads.N）は15_16_01_241031_VPWW56を何度も流す。C10の配送の後はnotPortedの経路でなくU-Lの受理（2回目以降はduplicate）になり、deferredの負荷が変わる。凍結した版付きの結果は書き換えず、C22の確認でこの差を記録する",

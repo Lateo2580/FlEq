@@ -61,7 +61,8 @@ describe("P3-EXPIRY-FORM-001 expired memory, the pending mark and the tornado so
       [[L_SUBJECT, null]]]);
     const cancelAt = L0 + 50 * HOUR;
     const cancelled = L.send(landslide.state, "synthetic_VPWW56_cancel", L.retime("2020-06-25T01:00:00+09:00"), cancelAt);
-    expect(cancelled.intents.map((item) => item.payload.level)).toEqual(["cancel", "cancel"]);
+    // P3-WN-AC08 (3): 記憶の取消は印の証拠だけなので desktop だけ（Q-WN-EXISTING-TESTS (8)）。
+    expect(cancelled.intents.map((item) => [item.payload.level, item.channel])).toEqual([["cancel", "desktop"]]);
     const forgotten = reduceLandslideUnit(landslide.state, { kind: "deadline", clock: clock(L0 + 54 * HOUR) }).state;
     expect(forgotten.currents).toEqual([]);
     expect(L.send(forgotten, "synthetic_VPWW56_cancel", L.retime("2020-06-25T06:00:00+09:00"), L0 + 55 * HOUR).intents).toEqual([]);
