@@ -11,9 +11,15 @@ type WeatherCurrentPayloadBase = Readonly<{
   title: string;
   body: string;
 }>;
+// 引上げの intent が知らせる cell と段（P3-WN-AC01 の (5)・AC06 の (2)、Q-WN-PENDING-TARGETS）。
+// [府県（区域 Code の先頭 2 桁）, 層の番号（WARNING_TYPES の順、0〜4）, 区域の Code, 現象（Kind/Code の一の位）, 段]。
+// 引上げの pending は、どの target も後の合わせでその段以上で成り立たないときだけ外れる。取消の通知は持たない。
+export type WeatherCurrentNoticeTarget = readonly [prefecture: string, layer: number, areaCode: string, phenomenon: string, level: 4 | 5];
+type WeatherCurrentRaisePayload = WeatherCurrentPayloadBase & Readonly<{ targets: readonly WeatherCurrentNoticeTarget[] }>;
 // 取り直しで拾った引上げ（H27、P3-WN-D-UW-H27=A、作者裁定 2026-11-01）は発表時刻と「取り直しで拾った」印を対で持つ（U-L と同じ形）。
 export type WeatherCurrentNotificationPayload = WeatherCurrentPayloadBase
-  | (WeatherCurrentPayloadBase & Readonly<{ reportDateTime: string; recovered: true }>);
+  | WeatherCurrentRaisePayload
+  | (WeatherCurrentRaisePayload & Readonly<{ reportDateTime: string; recovered: true }>);
 
 // 系列（報の subject・operation）ごとに 1 件。unconfirmed の印と同じ系列の集合（seriesExists）で生き、同じ所で消える（P3-WN-AC05）。
 export type WeatherCurrentNotice = Readonly<{ subject: string; operation: Operation; notice: NoticeMark }>;
