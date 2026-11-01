@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "7808c8da0fb96f3a881c22b46b91ca4abf69636ade07753160f758bfb8604112",
+    "sha256": "c67d9b95255c070379b41a955460b73f0406d92ee461e8aa2741ef456b2a6abb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "a4b44b8dca282e41d5ba52694de4983287064338a04596462ae0860ca72f8a1f",
@@ -402,7 +402,7 @@
     "contractId": "P3-WEATHER-NOTICE-001",
     "mode": "implementation",
     "objective": "気象の通知 intent を作る（C20、H11・H19・H16）。(1) U-W（全国の気象警報）: 全国報と府県の報を府県×区域×現象で合わせた結果の受理の前後の差で、危険警報（L4）に上がった区域があれば desktop、特別警報（L5、段の境界の無い暴風・暴風雪・大雪・波浪の特別警報を含む）に上がった区域があれば desktop＋音（critical）を 1 組作る。土砂の code は外し（U-L が出す）、引下げ・解除・変化の無い続報は作らず、取消は元の報を通知した系列か L4・L5 を持っていた版だけ 1 回（取消の前か後の版に特別警報があれば取消の音、無ければ desktop だけ） (2) U-L（土砂災害警戒情報）にも H11 を当て、P3-C10-NOTICE-LEVELS を置き換える (3) 記録的短時間大雨情報（U-B の VPOA50）と記録雨だけの VPBS50 の音を normal に下げる（作者の足し） (4) U-W に系列ごとの通知の印を持たせ、保存の版を p2-weather-current-unit-v8 に上げて初期化する (5) C20 の配送で weather の分野の既定を on にする（C18 から移された仕事）。画面のお知らせは作らない（作者裁定の問い 3=B）。U-F（VPWP50）は作らない（P3-WN-D-UF=A）。U-W の取り直しの引上げ（H27）を info で 1 回知らせ（P3-WN-D-UW-H27=A）、記録的短時間大雨の対応報（K の VPBS50）を分野 weather に入れる（P3-WN-D-RECORD-RAIN-CATEGORY=A）",
-    "baseOid": "unassigned",
+    "baseOid": "e1f129cd9e27e5013bb7960a204ba20f14f9f084",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
