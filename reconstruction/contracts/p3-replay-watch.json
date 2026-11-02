@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "857cf97e9af0d41fcc0b88cf481cc3da44650a8c",
-    "sha256": "d1e8b99c719820ec6a82139edac04c203999a0f525cf0d836b239558f21a81ec",
+    "sha256": "2bb4a0507c027ae2abc55d6f32f94c162b8aa1495821c75a9df249b8ad37fb3c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -169,6 +169,20 @@
         "status": "closed",
         "source": "起草の版での git grep と check-contract（2026-11-02）",
         "closed": "(1) 本契約が変える file は watch.mjs（新設）・fleq.mjs・試験（新設）だけで、fleq.mjs を行で引く参照は契約・spec に 0 件、watch.mjs・replay-watch・7791・7792 を引く参照も 0 件 (2) 計画は末尾（:627 の後ろ）に見出しと表と補いを足しただけで、既存の行は変えていない。:82（C17 の行）は p3-replay-cli.json、:109（脇レーンの所有）は p3-cli-repl.json と p3-weather-notice.json が引くので書き換えず、補いを計画:635〜:637 に置いた (3) spec:650 «b37a3cd2bafd9805» を引くのは p2-eew-e01.json 1 件・p3-lifetime-and-eew-gate.json 1 件・p3-replay-cli.json 3 件の計 5 件。AC09 の置き換えを当てる commit で、この 5 件の anchor と 3 契約の meta.sha256 を付け直す。anchor を持たずに文で spec:650 を引くのは p3-migration.json（C15）で、「replay は固定時計と manifest を持つ検証入力の意味」と読んでいる。置き換えは頭の一般則を残すので、その読みは変わらない（文は書き換えない） (4) frames.mjs・synth.ts・replay.mjs・host.ts・http-sse.ts は変えないので、それらを引く anchor はずれない"
+      },
+      {
+        "id": "Q-RW-C18-ORDER3",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-02 20:1x）",
+        "closed": "C18（p3-cli-repl.json）の baseOid は発注 2 の f9416a5d のままで、発注 3 の起草の branch・worktree も無い。fleq.mjs を本契約より先に変える発注は無いので、本契約の振り分けの分岐は今の fleq.mjs の上に足す（C18 発注 3 は本契約の配送の上で起草する、計画:636）"
+      },
+      {
+        "id": "Q-RW-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-02、作業の木 ~/dev/fleq-rw-draft の branch rw-draft、HEAD 2006db56〔起草の commit〕。前例は P3-REPLAY-CLI-001 の Q-RP-PRECHECK）。実走は Mac mini",
+        "closed": "(1) 分岐と未決: decisionBranches は 13 本で、status はどれも「確定」。作者の裁定を待つ分岐は 0。unresolvedQuestions は 0 件（Q-RW-C18-ORDER3 は本点検で closed） (2) requiredCommands を HEAD 2006db56 のまま Mac mini で 11 本回し、どれも rc 0: check-manifest・check-sequences・check-contract（WARN は本契約の baseOid unassigned の 1 行だけ）、tsc 3 本（reconstruction/tsconfig.json・tsconfig.test.json・src/display/chrome-eew/tsconfig.json）、vitest run --config reconstruction/vitest.config.ts --maxWorkers=2（1154 passed・25 skipped）、--sequence.shuffle を付けた回（同じ件数）、npm run build、npm test（6837 passed・3 skipped）、npm run typecheck:test (3) 想定内の FAIL は無い: watch.mjs と reconstruction/test/replay-watch/ はまだ無く、試験が走らないので落ちもしない (4) 起草の後の変化: git log 857cf97e..HEAD は起草の commit 2006db56 の 1 本だけで、変えたのは本契約と p3-order-plan.md の末尾の 10 行だけ。起草の後に他の契約・spec・src を変えた commit は 0 (5) checker の rc: 本項を足した後に meta.sha256 を起草の生成の script で取り直し、checker 3 本を回し直して rc 0",
+        "remaining": "なし（baseOid の割当は統合担当）",
+        "reason": "発注前点検"
       }
     ],
     "operationContract": {
@@ -608,18 +622,6 @@
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
       "残存リスク: (1) processed は owner が返したことまでで、表示に届いたかは /snapshot で見る。unit が stale・duplicate で捨てた分はどの観測にも出ない (2) ingress の拒否は observe に出ないので 10 秒の timedOut でしか分からない (3) 期限で timedOut にした注入の T0 が期限の後に遅れて出ると、次の注入の id に取り違えうる（loopback では T0 は受けた同期処理で出るので起きにくい） (4) observe を渡すので owner は測定の印付きで動き、費用だけが増える (5) Origin を送らないローカルのプロセスは WS server に繋いで current を奪える（同じ利用者のプロセスは信頼する）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-RW-C18-ORDER3",
-        "owner": "integrator",
-        "blocks": [
-          "本契約の baseOid の割当"
-        ],
-        "resolveBy": "発注前点検",
-        "requiredEvidence": [
-          "C18（P3-CLI-REPL-001）の発注 3 の baseOid が未割当であること（割り当て済みで fleq.mjs を先に変えるなら、本契約の fleq.mjs の分岐はその上に足し直す前提で割り当てる、計画:636）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
