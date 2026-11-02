@@ -506,7 +506,7 @@ FlEq [切断中 21:03:12 から・繋ぎ直し 3 回目]>
 
 端末には出さない。
 旧築の当日地震履歴は、Pi の画面の待機中の表示（今日の地震の件数と直近の地震）の材料で、画面を切っていても更新し続けるという機能だった（`src/engine/monitor/display-sink.ts` の dailyQuakes）。旧築も端末には出していない。
-新築では地震の unit の SeismicDailyHistory が、画面とは関係なく受信ごとに更新して保存する（P3-SEISMIC-UNIT-001、配送済み）。取り消された地震の印と件数の扱いは H18 のとおりで、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC07 が持つ。
+新築では地震の unit の SeismicDailyHistory が、画面とは関係なく受信ごとに更新して保存する（P3-UNIT-Q-001、配送済み）。取り消された地震の印と件数の扱いは H18 のとおりで、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC07 が持つ。
 互換必須の中身は配送済みの unit で満たしているので、C19 で作るものは無い。
 
 ### 6.4 待機中の tips（互換必須）
