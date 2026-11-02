@@ -1,0 +1,960 @@
+{
+  "meta": {
+    "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
+    "sha256": "ff355e954cde38027e5df4ec1b7e3deed737b8fc5cb4e2890734e95be462f611",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TO-D-SPLIT",
+        "kind": "統合担当",
+        "A": "1 契約を 2 回に分けて発注する（前例 P3-CLI-D-SPLIT・P3-RW2。同じ契約 ID、条文に【発注 n】の印）。発注 1＝土台（新設の directory、材料の口〔owner の TerminalReport と host の受け口〕、書き出しの列〔O02〕、色、幅、REPL と起動の行の出力の付け替え）と、表まで出す 3 分野（EEW・地震・津波）。発注 2＝短い形の 9 分野、処理できなかった報（P3-TO-D-UNREADABLE）、回線の行とデスクトップ通知（H24・H25・H29）、定期要約、待機 tips、更新の知らせ、起動時のまとめ、EEW ログ、--debug の電文の側、C18 の発注 3 への口（TerminalControl）、spec の置換（AC18）。順は 発注 1 → 発注 2 → C18 の発注 3",
+        "B": "1 回で発注する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "共有 file への直列合流（owner-host.ts・p3-execution-split.types.ts・host.ts・cli.ts・repl.ts）は発注 1 で一度に済み、発注 2 は C19 の directory と adapter.ts の export の後だけを触る。1 回にすると、実装とレビューが O02 の状態の遷移と 12 分野の見た目を同じ patch で見ることになる。発注 1 だけで、旧築の端末のうち最も重い 3 分野が出る。画面・音・通知の出方は分け方で変わらない"
+      },
+      {
+        "id": "P3-TO-D-MATERIAL",
+        "kind": "統合担当",
+        "A": "材料は 2 つの口から取る。EEW（U-E）は受信の outcome の facts.report（EewReportFacts）と facts の serial・terminal・warningClass・prediction（P3-EEW-FACTS-001、配送済み）。ほかの 11 unit は、owner が decode した報から terminal/material.ts の terminalReport が TerminalReport（p3-terminal-output.types.ts）を作り、inputDone の返信の新しい欄 terminal に載せる（owner-host.ts の input の場合の 1 か所）。publisher は返信を受けた所（composition root の onInputDone、host が受ける）で両方を読む",
+        "B": "各 unit の outcome の facts に report を足す（P3-EEW-FACTS-001 を 11 unit に繰り返す）",
+        "C": "publisher の snapshot（unit の view）から作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "view と outcome に無い材料がある: 地震の view は報ごとの見出し文と題名を持たず（seismic-unit.ts の FACT_FIELDS）、津波の outcome の facts は family・eventId・effective・stationCount だけで（tsunami-unit.ts）、津波の見出し文・震源・満潮時刻・WarningComment はどこにも無く、短い形の末尾の PublishingOffice はどの unit も持たない。C は snapshot が有界な射影（H37）で、view に欄を足すと表示の wire と byte の上限が変わる。B は 11 unit の directory（各 unit レーンの所有）を触り、unit ごとの契約になる。A は XML の tree を publisher へ送らず（R57、計画:60 の台帳 38）、owner の中で 1 報に 1 回だけ読む。Head の読み方は owner の unreadable のカードと同じ（unreadable.ts の titleOf・headlineOf）"
+      },
+      {
+        "id": "P3-TO-D-EXTRACT-PATH",
+        "kind": "統合担当",
+        "A": "TerminalReport は端末の有無によらず、origin が live か replay の採った報（その unit の outcome に kind accepted かつ change が semantic か revisionOnly のものがある入力。deliveryOnly と、duplicate・stale で outcome の無い入力は作らない）で毎回作る。製品の経路を 1 つにする",
+        "B": "OwnerStartData に印を足し、端末を持たない起動（測定の runner・試験）では作らない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "本番の fleq（cli.ts の通常起動と watch の子）はいつも端末を持つので、測定も同じ経路を測る方が実物に近い。B は workerData と型の欄が増え、測定の経路と本番の経路が分かれる。費用の上限は AC08 で確かめ、越えたら配送の前に止める"
+      },
+      {
+        "id": "P3-TO-D-ORIGIN",
+        "kind": "統合担当",
+        "A": "端末に出すのは origin が live か replay の採った報だけ。取り直し（origin recovery、owner-host の recoveryInput）の報と、起動の復元の outcome は出さない。止まっていた間の分は起動時のまとめ（AC14）で出す",
+        "B": "取り直しの報も 1 報ずつ出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec:649 は recovery を「現在受信した新報として扱わない」とする。起動の取り直しは unit が覚えている期間（上限 30 日、計画:606）を流し直すので、数十件の古い報が今の報と同じ形で流れ、見分けられない"
+      },
+      {
+        "id": "P3-TO-D-WRITER",
+        "kind": "統合担当",
+        "A": "書き出しは専用の worker thread 1 本（terminal/ の writer）が持つ。publisher（main thread）は材料と行を有界の列に積むだけで、整形と fs.writeSync(1, …) は worker が行う。REPL（readline）の出力と起動の後の行も同じ列を通す（readline の output を列へ流す Writable にし、columns は process.stdout の値を返す）。main は process.stdout へ直に書かない（起動の前の Refusal と --help などの短い出力を除く）",
+        "B": "main thread の process.stdout.write に writableLength の上限を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "Node の文書（process の I/O の注記）は、POSIX の TTY への書き込みを同期とする。SSH の向こうの端末が読まなくなると（iPhone の SSH が裏に回って TCP が止まる、端末で Ctrl+S）、main の write(2) が止まり、WS の受信・mailbox・通知の試行が止まる。B は pipe（非同期に溜まる）ではメモリを守るが、TTY では buffer に溜まらず同期で止まるので守れない。readline の出力を列に通さないと、prompt の書き直しのたびに main が同じく止まり、行の順も崩れる。無いと: SSH の端末が止まっている間、EEW を受けても処理と通知が止まる"
+      },
+      {
+        "id": "P3-TO-D-DROP",
+        "kind": "統合担当",
+        "A": "列は 1 本で、上限は byte の 1 つ（P3-TO-RES-01）。超えたら、種類（電文のブロック・REPL の返事と echo と prompt・回線の行・要約・tips など）によらず、古い順に出力の単位を丸ごと落とし、落とした数を数える。N に数えるのは電文（回線の行・要約・tips を含む端末の出力の単位）と REPL の返事の単位だけで、REPL の echo と prompt は落としても数えない（spec の §2「利用者が知っている件数」）。1 つの単位が上限より大きければ、その単位を積まずに落として数える。書き出しが進んだ最初に「（表示が間に合わなかったため、N 件の表示を省きました）」の 1 行を薄い字で出す。標準入力の読みとコマンドの実行は止めない",
+        "B": "新しい方を落とす。または REPL の返事だけは落とさず別の上限で縛る（r0 の形）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）。r2 で REPL の特別扱いを消して改めた（2026-11-03）",
+        "reason": "詰まりが解けた時に端末に出ているべきなのは新しい出力で、古い報は画面と通知で既に伝わっている。B の前半は詰まっている間に届いた最新の EEW を落とす。B の後半（REPL の返事を落とさない）は統合担当の r0 の裁定で、作者・spec の決めではない。readline の pause は受け取り済みの chunk の行を止めない（Node v26 で 1 回の write の help×1,000 が 17 行目で pause しても 1,000 行届いた）うえ、1 つの返事が上限を越えうる（repl.ts の未知の題名の返事は入力を全文返す）ので、有界にできなかった（r1・r2 のヘルツ NO-GO）。ブロックの途中で切ると表の行が欠け、要点を消さない約束（spec の §2）に反するので、落とすのは単位ごと"
+      },
+      {
+        "id": "P3-TO-D-DIGEST",
+        "kind": "統合担当",
+        "A": "起動時のまとめは host の publishDisplay（snapshot を受ける所）で、snapshot の recovery.digest が null から値になった最初の 1 回だけ端末へ渡す。以後は渡さない",
+        "B": "composition root の showRecoveryDigest に端末の callback を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "snapshot は digest を既に運ぶ（P3-REC-AC15、DisplayRecoveryView.digest）。publishDisplay は表示の server を開いていない起動でも呼ばれる（root の display.publish）。B は composition-root.ts（84 行が他の契約の anchor）に口を足す"
+      },
+      {
+        "id": "P3-TO-D-CANCEL-PHRASE",
+        "kind": "統合担当",
+        "A": "EEW の取消の 3 行目の材料（spec の §5.1）は、端末が EventID ごとに最後に出した報の震源名と発表時刻を覚えて使う（64 件まで、古い順に捨てる、保存しない）。覚えが無ければ EventID の時刻（検知時刻）で書く",
+        "B": "常に EventID の時刻で書く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "取消の facts.report は震源を持たない（取消の電文は Earthquake の要素を持たない）。spec の図の例「取り消したのは 23:15:10 発表の豊後水道の地震です」は前の報の値が要る。再起動の後は覚えが無く EventID の時刻になる（旧築も memory だけ）"
+      },
+      {
+        "id": "P3-TO-D-LOGDIR",
+        "kind": "統合担当",
+        "A": "EEW ログの置き場は settingsPaths().directory の下の eew-logs（新築の設定の場所。watch の子は一時 directory の下）。既定は off で、設定の eewLog が true のときだけ書く（opt-in）",
+        "B": "process.cwd() の下の eew-logs（旧築の DEFAULT_LOG_DIR）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec の §7 と P3-EWF-AC05 の申し送り（新旧の配置を分ける、spec §10.2。dmdata の規約で EEW は personal 限定なので opt-in）。cwd は起動の場所で変わり、旧築のログと同じ directory に混ざる。計画:637 の watch.mjs の 1 行は要らない（計画:647）"
+      },
+      {
+        "id": "P3-TO-D-LOWMEM",
+        "kind": "統合担当",
+        "A": "コードを足さない。lowmem は node の --optimize-for-size で、V8 の flag は process の全 thread（owner と writer の worker）に効く。新築の起動の script（通常と lowmem）は切替（P5）で配布の形と一緒に作る。発注前点検で、worker の中で flag が効くことを 1 回確かめる（AC17）",
+        "B": "package.json に新築の lowmem の script を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "新築にはまだ通常起動の script も無く（npm run watch だけ）、lowmem だけを足すと片方だけになる。配布の形は P3-RW2 も範囲外にした"
+      },
+      {
+        "id": "P3-TO-D-LINES",
+        "kind": "統合担当",
+        "A": "共有 file は行の数を変えない（既存の行の中身に書き足す）か、その file の anchor の最大の行より後にだけ足す。host.ts は :12（import type）・:44（config の欄）・:192（onInputDone の中の 1 呼び出し）・:216（lastLossFrameWallMs の宣言）・:234（dispatchLost で固める）・:591（publishDisplay の中の 1 呼び出し）・:655（status() の欄）の 7 行の中身だけ。p3-cli-repl.types.ts は :90 の中身。owner-host.ts は import の 1 行と :134（返信の inputGenerations の行）・:193 の中身。p3-execution-split.types.ts は :127（inputGenerations の行の後ろに欄）と :2（import）の中身。cli.ts は :13（import）・:326（変数）・:345（config の欄）・:357〜:362（起動の後の行を列へ）の中身と、他の契約の «» が引く最後の :344 より後（終わりの片付け）。repl.ts は :68（out）・:282（options の欄）・:425（readline の output）の中身だけ。adapter.ts は :202 の export の後に関数を 1 つ足す。試験の 2 本（repl.test.ts・cli.test.ts）の HostStatus の literal は行の中身に欄を足すだけ",
+        "B": "行を足し、ずれた他の契約の anchor を配送の commit で付け直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "他の契約の «» が引く行: host.ts 89 行（最大 :664）、owner-host.ts 15 行（最大 :421）、p3-execution-split.types.ts 12 行（最大 :142）、cli.ts 3 行（:322・:337・:344、P3-RW2-D-CLI-LINES）、repl.ts 3 行（:171・:255・:321）、adapter.ts 11 行（最大 :186）。上の行はどれも引かれていない（Q-TO-ANCHORS）"
+      },
+      {
+        "id": "P3-TO-D-PROMPT",
+        "kind": "統合担当",
+        "A": "切れている間の入力の行（spec の §6.1「FlEq [切断中 21:03:12 から・繋ぎ直し 3 回目]>」）と、clock の時計の入った行の文字は C19 の TerminalControl.promptLabel が作り、readline の prompt に当てて書き直すのは C18 の発注 3（clock の入口と一緒）",
+        "B": "C19 が repl.ts の prompt を直に書き換える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "prompt と clock の入口は C18 の file と入口。C19 が持つのは文字の作り方と、host.status() を読む周期だけ"
+      },
+      {
+        "id": "P3-TO-D-CONN-NOTIFY-PATH",
+        "kind": "統合担当",
+        "A": "切断のデスクトップ通知は、adapter.ts の desktop の起動（darwin の osascript、linux の notify-send）を使う関数 desktopNotice(title, body) を 1 つ export して呼ぶ。通知の intent・保存・通知の門（P3-CLI-D-O2-GATE）を通らず、音は付けない。止めるかは C19 が設定を読んで決める（P3-TO-D-CONN-NOTIFY）",
+        "B": "接続の状態から通知の intent を作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "spec 16.2.4 は、接続の状態から出す通知を §6（unit の reducer が作る intent）の外に置き、C19 の端末の出力として書くとする。intent にすると unit の無い通知の保存と鳴り直しの決まりが要る"
+      },
+      {
+        "id": "P3-TO-D-SUMMARY",
+        "kind": "統合担当",
+        "A": "定期要約の件数は、その時間の中に端末へ渡した報の数（採った報 1 つで 1 件、分野は spec の §6.2 の 6 つ）。地震の「最大震度」は、その時間の地震の報の最大震度（MaxInt）の最大。数えるのは AC01 の口を通った報だけ（取り直しは数えない）。区切りは interval の分の境目（例 10 分なら 21:20・21:30）で、起動の後の最初の区切りまでは起動の時刻から",
+        "B": "EEW は EventID の数で数える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-03 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "旧築の要約も受信した報ごとに数えた（summary-tracker の record）。EventID で数えると、地震は VXSE51・53 の 2 報が 1 件になり、津波・気象では EventID の意味が分野ごとに違う"
+      },
+      {
+        "id": "P3-TO-D-CONN-NOTIFY",
+        "kind": "作者",
+        "A": "★推奨。`notify` の分野を 1 つ足す（名前 connection、REPL の一覧の表示名「回線の切断」、既定 on）。mute が効いている間は rules の有無によらず出さない。分野の名前・設定の key・REPL の読み替えの表の 1 行は C18 の発注 3 が足し、C19 はその値を読む",
+        "B": "分野を足さない。notify all:off と mute でだけ止まる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者）",
+        "ruling": "作者の裁定 A（2026-11-03）。作者の裁定（A）の後、AC10 (4) に合わせて A の文の読みを揃えた（mute の rules の有無によらず出さない）",
+        "reason": "場面: 23:10 に Pi の回線が切れ、23:25 に戻り、23:40 にまた切れる。夜は回線の通知だけ止め、地震の通知は残したい。A は notify connection off で回線の通知だけが止まる。B は notify all:off で地震の通知も止まる。spec の Q-TO-C-3 は「notify で切れるようにする」までで、分野の名前と mute との関係を決めていない。A は REPL の notify の一覧に 1 行増える（旧築に無い分野）"
+      },
+      {
+        "id": "P3-TO-D-UNREADABLE",
+        "kind": "作者",
+        "A": "★推奨。読めなかった報（K14 の unreadable・unidentified のカード）を端末に 2 行で出す。帯「━ 処理できなかった電文 <種類のコード> ━…━ HH:MM:SS 発表 ━」（発表時刻が無ければ「受信」）と、1 行「<題名> を処理できませんでした。」（題名が無ければ種類のコード）。帯の段は地の色なし。材料は返信の unit の view の unreadableCards のうち、その入力 ID のカード（owner は変えない）",
+        "B": "端末には出さない（P4 の画面のカードだけ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者）",
+        "ruling": "作者の裁定 A（2026-11-03）。文言は「読めませんでした」が比喩なので「処理できませんでした」にする（作者）",
+        "reason": "場面: 02:10 に構造の変わった VXSE53 が届き、U-Q が断ってカードにした。CLI だけで使う利用者は、A なら端末に 2 行が出て、地震の情報が来たが処理できなかったと分かる。B では何も出ず、来なかったのと見分けられない（画面を使わない利用者には P4 のカードも見えない）。spec は端末に出すかを決めていない"
+      },
+      {
+        "id": "P3-TO-D-STATUS-MARK",
+        "kind": "作者",
+        "A": "★推奨。Control/Status が「通常」でない報（訓練・試験）は、帯の題名の後ろに「（訓練）」「（試験）」を付ける。EEW は outcome の subject の operation が normal でない報に同じ印を付ける",
+        "B": "印を付けない（見出し文に書いてあれば分かる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者）",
+        "ruling": "作者の裁定 A（2026-11-03）",
+        "reason": "場面: 設定の testMode が including の端末に、14:00 に試験の EEW 警報が届く。A は帯が「緊急地震速報（警報）（試験） 第1報」になる。B は本物と同じ見た目で、見出し文が空の EEW では試験と分からない。spec の図は通常の報だけを描き、訓練・試験の見た目を決めていない（VTSE52 の図の「＊＊＊これは訓練です＊＊＊」は見出し文の字）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TO-FACTS",
+        "status": "closed",
+        "source": "6c0fcf60 の reconstruction/src と contracts を読んだ（2026-11-03 起草）",
+        "closed": "(1) 端末の材料の在りか: EEW は facts.report（P3-EEW-FACTS-001）で足りる。地震の outcome の facts は event の view（eventView）で、震源・震度の区域・ForecastComment の文を持つが、報ごとの見出し文・題名・VXSE62 の URI を持たない（seismic-unit.ts の FACT_FIELDS、EarthquakeEventView）。長周期の記録（LongPeriodSubject）は title・headline を持つが URI を持たない。津波の outcome の facts は family・eventId・effective・stationCount だけで、view（TsunamiForecastArea・TsunamiStation）は区域と観測点を持つが、見出し文・震源・満潮時刻・WarningComment を持たない。短い形の 9 分野は、title・headline・editorialOffice を持つ unit と持たない unit があり、PublishingOffice はどの unit も持たない (2) publisher は XML を持たない（ingress は封筒だけを読み、decode と XML の parse は owner の worker、R57） (3) composition root は owner の inputDone の返信を onInputDone で host へ渡す（composition-root.ts:138、:927・:941 は project の後）。返信の output は outcomes と units（view）を持つ (4) 受信の outcome は受信の時だけで、起動の復元の outcome は restored の返信で、inputDone を通らない (5) 読めなかった報のカード（UnreadableCardView）は inputId・headType・title・reportDateTimeRaw を持ち、unit の view の unreadableCards に載る (6) 起動時のまとめは snapshot の recovery.digest（RecoveryDigestView）に載り、host の publishDisplay が毎回受ける (7) 回線の材料は host.status() の HostStatus（connection・failedAttempts・lastFailure・lastFrameWallMs・lostConnections）で、変化を知らせる口は無い（P3-DC2-AC08 (7) の申し送り）"
+      },
+      {
+        "id": "Q-TO-C18-ENTRIES",
+        "status": "closed",
+        "source": "p3-cli-repl.json の Q-CLI-SPLIT の【発注 3】と P3-CLI-D-SPLIT（2026-11-03 起草で読んだ）",
+        "closed": "C18 の発注 3 の 6 入口と C19 から要るもの: (1) summary on [分]／off／now → TerminalControl.setSummaryInterval・summaryNow (2) eewlog on/off と 12 の記録の欄 → setEewLog（欄の名前は p3-cli-repl.types.ts の EewLogField） (3) tipinterval 0〜1440 → setTipInterval (4) clock elapsed／now／uptime → promptLabel（P3-TO-D-PROMPT。prompt に当てるのは C18） (5) clear → clear（画面を消す制御の列を同じ書き出しの列に積む。直に process.stdout へ書くと列の順を追い越す） (6) --summary-interval → 起動の時に createTerminalOutput の初めの値で渡す（発注 1 の cli.ts は値だけを持つ）。--debug の電文の側は C19 の AC17。値の検査・保存・REPL の文は C18。C19 の発注 2 の配送の後に C18 の発注 3 を起草する"
+      },
+      {
+        "id": "Q-TO-H18",
+        "status": "closed",
+        "source": "cli-terminal-output.md §6.3、計画:465",
+        "closed": "H18（今日の地震の件数は取消を除く）は端末に出すものが無い。旧築の当日地震履歴は画面の待機中の表示の材料で、端末には出していなかった。新築では U-Q の SeismicDailyHistory が受信ごとに更新して保存し（P3-SEISMIC-UNIT-001、配送済み）、取消の扱いは P3-UNIT-Q-CAPACITY-001 の P3-QC-AC07。C19 で作るものは無い（計画:465 の H18 はこの読み）"
+      },
+      {
+        "id": "Q-TO-RW2",
+        "status": "closed",
+        "source": "p3-replay-watch-002.json の AC14 (2)、計画:637・:647",
+        "closed": "watch は host を起こさず、一時 directory の設定（XDG_CONFIG_HOME）で子の fleq を通常起動する。EEW ログの置き場を settingsPaths().directory の下にすれば（P3-TO-D-LOGDIR）、watch の子は一時 directory の下に書き、本番の場所へ書かない。watch.mjs は allowedPaths に入れない。watch の子は FLEQ_WS_URL を持つので、更新の知らせは確かめない（AC13）"
+      },
+      {
+        "id": "Q-TO-ANCHORS",
+        "status": "closed",
+        "source": "6c0fcf60 で全契約の json と sequences.json の «» を数えた（2026-11-03 起草、作業の木の .claude/tmp/c19/anchors.py）",
+        "closed": "(1) 変える file ごとに、他の契約の «» が引く行: host.ts 89 行（最大 :664。本契約が中身を変える :12・:44・:192・:216・:234・:591・:655 は 0 件）、owner-host.ts 15 行（最大 :421。:134・:193 と import の行は 0 件）、p3-execution-split.types.ts 12 行（:28・:51・:58・:70・:73・:97・:110・:116・:117・:123・:129・:142。:2・:127 は 0 件）、cli.ts 3 行（:322・:337・:344。:13・:326・:345・:357〜:362 は 0 件、:344 より後へは行を足せる）、repl.ts 3 行（:171・:255・:321。:68・:282・:425 は 0 件）、p3-cli-repl.types.ts 2 行（:76・:84。:90 は 0 件）、adapter.ts 11 行（最大 :186。:202 の後へ足す）、cli.test.ts・execution-split.test.ts は 0 件（execution-split.test.ts は :105 の key の一覧に \"terminal\" を足し、:138 の完全一致はそのまま）、repl.test.ts は :182 の 1 件（変えるのは :67・:109・:201 の中身だけ）、cli.test.ts は 0 件（:215 の中身）、計画 p3-order-plan.md は :84・:465 が 0 件、:637 が 2 件（変えない） (2) spec: :2373（定期要約・sparkline）・:3129・:3172・:3181 は他の契約の «» が 0 件で、AC18 の置換で行の数を変えない（本契約の 5 件は置換と同じ commit で付け直す）。:3131 は P3-DMDATA-CONNECT-002 が引くので変えない (3) 本契約の «» のうち、実装で中身が変わる行（host.ts:44・:192・:591、owner-host.ts:134・:193、p3-execution-split.types.ts:127、cli.ts:13・:326・:345・:357・:362、repl.ts:68・:282・:425）は、実装担当が本契約の中だけ付け直す（P3-EWF の前例）"
+      },
+      {
+        "id": "Q-TO-SPEC-READ",
+        "status": "closed",
+        "source": "cli-terminal-output.md（2026-11-03 に閉じた）と spec の §11.4・§16",
+        "closed": "(1) 見た目と文面は cli-terminal-output.md が真実源で、本契約は §8 の Q-TO-* を分岐に戻さない (2) O02 は spec:382 の B13 の 2 つ: 検証の欄「§11、O02。特殊値と取消を保持」（corpus の O02 は empty・unknown・構造不正・容量超過の区別と特殊値 0/missing/empty/range）と、不変条件の欄「出力滞留上限。受理完了条件にしない」 (3) §11.4 の端末側の互換必須 6 行: 定期要約（sparkline は Q-TO-R-1 で廃止、AC11・AC18）、当日地震履歴（Q-TO-H18）、EEW ログ（AC15）、待機 tips（AC12）、update check（AC13）、lowmem（P3-TO-D-LOWMEM） (4) spec 16.2.4 の 2 つの問い（「回線が不安定です」の回数、最後に受信した時刻の取り方）は Q-TO-C-3・Q-TO-C-2 で答えが出た (5) 設定した地域が一覧に載るときの出し方は H50 の対応表を待つ（unresolvedQuestions の Q-TO-REGION-MARK）"
+      },
+      {
+        "id": "Q-TO-AUTHOR",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-03）",
+        "closed": "P3-TO-D-CONN-NOTIFY・P3-TO-D-UNREADABLE・P3-TO-D-STATUS-MARK はどれも A。D-UNREADABLE の文言は、作者の指摘（「読めませんでした」は比喩）で帯を「処理できなかった電文」、本文を「<題名> を処理できませんでした。」にした。AC09 (4)(5)・AC10 (4)・AC01 (4)・AC18 (3) と outOfScope を A だけの文に書き直した"
+      },
+      {
+        "id": "Q-TO-REVIEW-1",
+        "status": "closed",
+        "source": "起草のレビュー r0（品質 ヘルツ NO-GO、契約適合 Opus 条件付き GO、2026-11-03）",
+        "closed": "当てた直し: H1 REPL の側の止め（AC02 (8)・D-DROP・RES-01・T06）、H2 writer の起動先（AC02 (1)）、H3 切断の時点の最後の受信を固める欄 lastLossFrameWallMs（AC10 (2)・T10）、H4 execution-split.test.ts の key の一覧（allowedPaths）、停止の 1 秒と EEW ログの鎖を捨てる時の進行中の append（AC02 (6)・AC15 (3)）、O1 裁定済みの分岐を A だけの文に、O2 spec の置換と本契約の «» の付け直し（AC18）、O3 T01 の取消の回を分けた、O5 分野 connection の key が来るまでは on、O6 failedAttempts をそのまま、P3 の 7（spec:3181）・8（--debug の移り）・10（77_01_26 を fixtureIds へ）・11（VXKO70 の半角の空白、cli-terminal-output.md:402）・12（T18）・13（計画の H08 の行と AC17 の引く行）・14（cli-terminal-output.md の :191・:290 の「起草中」、§8 の Q-TO-C-* を引く本文の ID〔:468 は C-2、:469 は C-3〕）・15（省いた件数の文）。O4（AC14 の「ほか <種類> n 件」の種類の名前）は作者裁定 Q-TO-D-2（種類のコードで出す、2026-11-03）で直した"
+      },
+      {
+        "id": "Q-TO-REVIEW-2",
+        "status": "closed",
+        "source": "起草のレビュー r2（品質 ヘルツ NO-GO 2 巡目、契約適合 Opus 条件付き GO、2026-11-03）",
+        "closed": "当てた直し: (1) REPL の特別扱いを消した。列は 1 本・byte の上限 1 つで、種類によらず古い単位から落とし、上限より大きい 1 単位は積まずに落とす（D-DROP・AC02 (3)・RES-01・T06。AC02 (8) の標準入力の止めは消した） (2) HostStatus の試験の literal の移行（repl.test.ts:67・cli.test.ts:215）と、P3-CLI-AC16 (7) の改訂（AC18 (3)） (3) T18 は Area の段に特殊値を持つ synthetic_phase4a_VXSE51_special にし、AC06 (3) を契約が読む段に限った（TerminalIntensityArea と seismic に maxIntCondition を足した） (4) EEW ログは追記だけで file を作り直さない（AC15 (3)・T16） (5) cli-terminal-output.md §6.6 の図の分野の順を digest の units の順に並べ替え（行は足さない）、AC14 に順を書いた。計画 :656 の共有 file に p3-cli-repl.types.ts を足し、D-CONN-NOTIFY の A を AC10 (4) に揃えた"
+      },
+      {
+        "id": "Q-TO-REVIEW-3",
+        "status": "closed",
+        "source": "起草のレビュー r3（品質 ヘルツ GO、契約適合 Opus 条件付き GO、2026-11-03）",
+        "closed": "当てた直し: (1) C18 の Q-CLI-FACTS (7)・P3-CLI-D-O2-TEXT の「REPL の返事は B13 の外」を改める項を AC18 (3) に足し、残存リスク (2) に REPL の返事が落ちうることを足した (2) EEW ログの記録終了の行と閉じるきっかけ（取消・最終報・停止。期限は端末の口に無いので閉じない）、閉じた後と表から外した後の続報は見出しから、65 件目の待ちの列（AC15・T16） (3) 省いた数 N は電文と REPL の返事の単位だけ (4) T15 の beforeWindow の行 (5) AC06 (3) は震度の MaxInt だけ（MaxLgInt の空の値は扱わない、型は足さない）、「5弱以上未入電」の帯は warning (6) D-CONN-NOTIFY の ruling に読みの揃えを残した"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-OUTPUT-001",
+    "mode": "implementation",
+    "objective": "C19（計画 §2.1、B13）。新築の fleq が端末に出すものを、CLI 表示設計 spec（docs/specs/cli-terminal-output.md、2026-11-03 に閉じた。見た目と文面の真実源）のとおりに作り、spec §11.4 の端末側の互換必須（定期要約・待機 tips・EEW ログファイル・起動時の update check。当日地震履歴と lowmem は作るもの無し）を満たす。材料は EEW が受信の outcome の facts.report、ほかの 11 unit は owner が decode した報から作る TerminalReport（inputDone の返信）。書き出しは専用の worker 1 本と有界の列で、端末が詰まっても電文の受信を止めない（spec:382 の B13「出力滞留上限。受理完了条件にしない」）。1 契約を 2 回に分けて発注する（P3-TO-D-SPLIT）: 発注 1 は土台と表まで出す 3 分野（EEW・地震・津波）、発注 2 は短い形の 9 分野と電文以外の出力（回線・定期要約・tips・更新の知らせ・起動時のまとめ）と EEW ログと C18 の発注 3 への口。作者の分岐 3 件（P3-TO-D-CONN-NOTIFY・D-UNREADABLE・D-STATUS-MARK）は 2026-11-03 に作者が A で裁定した",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/contracts/p3-eew-facts.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p3-dmdata-connect-002.json",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p3-replay-watch-002.json",
+      "reconstruction/contracts/check-contract.mjs",
+      "reconstruction/cli/**",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tools/corpus/manifest.json",
+      "test/fixtures/**",
+      "src/ui/**",
+      "src/tips/**",
+      "src/engine/eew/eew-logger.ts",
+      "src/engine/startup/update-checker.ts",
+      "src/utils/cancel-target-phrase.ts",
+      "src/index.ts",
+      "package.json",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/**（【発注 1】新設。【発注 2】足す）",
+      "reconstruction/test/terminal/**（【発注 1】新設。【発注 2】足す）",
+      "reconstruction/contracts/p3-terminal-output.types.ts（実装が欄の読み替えを要するときだけ。変えたら成果物に理由を書く）",
+      "reconstruction/contracts/p3-execution-split.types.ts（【発注 1】直列合流。:127 と :2 の行の中身だけ、P3-TO-D-LINES）",
+      "reconstruction/src/runtime/owner-host.ts（【発注 1】直列合流。import の 1 行と :134・:193 の行の中身だけ）",
+      "reconstruction/src/host/host.ts（【発注 1】直列合流 :12・:44・:192 の行の中身。【発注 2】:216・:234・:591・:655 の行の中身）",
+      "reconstruction/src/cli/cli.ts（【発注 1】直列合流。:13・:326・:345・:357〜:362 の行の中身と、:344 より後の行の追加〔終わりの片付け〕。344 行より前に行を足さない、P3-RW2-D-CLI-LINES）",
+      "reconstruction/src/cli/repl.ts（【発注 1】直列合流。:68・:282・:425 の行の中身だけ。行を足さない）",
+      "reconstruction/contracts/p3-cli-repl.types.ts（【発注 2】直列合流。HostStatus の :90 の行の中身に lastLossFrameWallMs を足すだけ、AC10 (2)）",
+      "reconstruction/src/notification-delivery/adapter.ts（【発注 2】:202 の後に desktopNotice を 1 つ足し、:202 の export に名前を足す）",
+      "reconstruction/test/execution-split/execution-split.test.ts（【発注 1】:105 の返信の key の一覧の inputDone に \"terminal\" を足す形の移行と、inputDone の literal の欄だけ）",
+      "reconstruction/test/cli/repl.test.ts（【発注 1】:109・:201 の runRepl の options に terminal を足す形の移行。【発注 2】:67 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行。ほかは変えない）",
+      "reconstruction/test/cli/cli.test.ts（【発注 1】runRepl・createTerminalOutput の mock を足す形の移行。【発注 2】:215 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行。ほかは変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-output.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13",
+      "B01",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-EEW-FACTS-001",
+      "P3-CLI-REPL-001",
+      "P3-DMDATA-CONNECT-002",
+      "P3-RECOVERY-001",
+      "P3-REPLAY-WATCH-002",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-UNREADABLE-MARK-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport",
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalHead",
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalBandLevel",
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalControl",
+      "reconstruction/contracts/p3-eew-facts.types.ts#EewReportFacts",
+      "reconstruction/contracts/p3-recovery.types.ts#RecoveryDigestView",
+      "reconstruction/contracts/p3-cli-repl.types.ts#HostStatus",
+      "reconstruction/contracts/p3-execution-split.types.ts#OwnerReply"
+    ],
+    "publicFunctions": [
+      "新（発注 1）: reconstruction/src/terminal/material.ts の terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): TerminalReport | null（owner の worker で呼ぶ、AC01）",
+      "新（発注 1）: reconstruction/src/terminal/output.ts の createTerminalOutput(options): { sink（host の config の terminal）, output（readline の Writable）, line(text), attach(host), close(): Promise<void>, control: TerminalControl（発注 2） }（AC02・AC16）",
+      "改（発注 1）: OwnerReply の inputDone に欄 terminal: TerminalReport | null、startP2Host の config に欄 terminal?、runRepl の options に欄 terminal",
+      "新（発注 2）: reconstruction/src/notification-delivery/adapter.ts の desktopNotice(title: string, body: string): Promise<void>（P3-TO-D-CONN-NOTIFY-PATH）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（chalk 4.1.2、node:worker_threads・node:fs・node:path・node:readline・node:stream・node:https〔update check〕・node:v8）。新しい npm 依存は足さず、package.json と package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_30_260101_VXSE45_FINAL",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM",
+      "test__fixtures__32-35_01_03_240613_VXSE53",
+      "test__fixtures__32-35_07_01_100915_VXSE51",
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__selected_xml__78_01_01_240613_VXSE62",
+      "test__fixtures__32-35_03_02_240613_VXSE61",
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__32-39_12_05_250206_VTSE52",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__16_00_01_260603_VXKO70_kozagawa_l5",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__32-35_10_01_220510_VXSE51",
+      "test__fixtures__synthetic_phase4a_VXSE51_special"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-TO-DLV-01",
+        "target": "回線の状態を読む周期",
+        "limit": "1 秒ごとに host.status() を 1 回（AC10）",
+        "unit": "秒",
+        "scope": "端末の 1 run",
+        "source": "P3-DC2-AC08 (7) の申し送り（変化を知らせる口は無い）"
+      },
+      {
+        "id": "P3-TO-DLV-02",
+        "target": "停止の時の書き残し",
+        "limit": "stop の後、列の残りを最長 1 秒書かせてから worker を終える（AC02 (6)）",
+        "unit": "秒",
+        "scope": "cli.ts の通常起動の終わり",
+        "source": "終了を延ばさない（spec:889 の停止の全体の期限の内側）"
+      }
+    ],
+    "retentionLimits": [
+      {
+        "id": "P3-TO-RET-01",
+        "target": "EventID ごとの覚え（取消の 3 行目・前の報の最大予測震度・EEW ログの file）",
+        "limit": "それぞれ 64 件、古い順に捨てる。保存しない",
+        "unit": "件",
+        "scope": "端末の 1 run",
+        "source": "P3-TO-D-CANCEL-PHRASE・AC15（旧築の activeFiles は上限なし）"
+      },
+      {
+        "id": "P3-TO-RET-02",
+        "target": "回線の切断の時刻",
+        "limit": "直近 3 つ",
+        "unit": "件",
+        "scope": "端末の 1 run",
+        "source": "Q-TO-C-3（30 分で 3 回）"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P3-TO-RES-01",
+        "target": "書き出しの列（main の側）",
+        "limit": "書き出しの列は 1 本で、上限は byte の 1 つ: 1 MiB（1,048,576 bytes。積む時の見積もり、AC08 (1)）。越えたら種類によらず古い単位から丸ごと落とす。1 つの単位が 1 MiB より大きければ、その単位を積まずに落として数える（例: repl.ts の未知の題名の返事が入力を全文返して 1 MiB を越える場合。C18 の repl.ts の文字列は変えない）。worker への 1 回の送りは 64 KiB まで（1 単位がそれより大きければその 1 単位だけ）",
+        "unit": "件・bytes",
+        "scope": "端末の 1 run",
+        "source": "O02（spec:382）。本物の fixture で最も大きい出力の見積もりは約 49 KiB（dmdataCaptured の phase7_5_VXSE53_…bf35e8ea1825、区域と観測点 84 行×160 byte＋名前と文の全 byte 37,000 の上界）、公開の最大は約 24 KiB（32-39_11_10 VTSE51、123 行）。RES-02 の件数の上限いっぱいの報（区域 256＋観測点 1,024＋推定 256 の行）でも約 250 KiB で 1 MiB の内。1 MiB は最大の本物の出力を約 20 件持てる"
+      },
+      {
+        "id": "P3-TO-RES-02",
+        "target": "TerminalReport の件数",
+        "limit": "地震の区域 256、津波の区域 256・観測点 1,024・推定区域 256、文字列は 1 つ 4,096 字（越えた分は … にして omitted に数えない）。越えた区域・観測点は omitted に数える",
+        "unit": "件・字",
+        "scope": "1 報",
+        "source": "細分区域 188・津波予報区 66・津波の観測点の上限 1,024（spec:575）の上に置く"
+      },
+      {
+        "id": "P3-TO-RES-03",
+        "target": "EEW ログの書きかけ",
+        "limit": "64 件（AC15 (3)）",
+        "unit": "件",
+        "scope": "端末の 1 run",
+        "source": "AGENTS.md の受信経路（書き込みの待ちを溜め続けない）"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（端末の材料・列・覚えは保存しない。update check の cache と EEW ログは設定の場所の下の file で、checkpoint の外）"
+    ],
+    "nonPersistedFields": [
+      "TerminalReport（inputDone の返信の中だけ）、書き出しの列と落とした数、EventID ごとの覚え、定期要約の数、回線の前の読み、起動時のまとめを出した印"
+    ],
+    "outOfScope": [
+      "unit・domain・parser・view-projector・http-sse・composition-root.ts・owner-runtime.ts・mailbox の変更（材料は owner-host の 1 か所で作る、P3-TO-D-MATERIAL）",
+      "REPL の入口・値の検査・設定の key と保存・prompt への当て方（C18 の発注 3、P3-TO-D-PROMPT）。分野 connection の key（P3-TO-D-CONN-NOTIFY、作者裁定 A。C18 の発注 3）",
+      "設定した地域が一覧に載るときの印（H50 の区域の対応表の契約、Q-TO-REGION-MARK）",
+      "画面（P4）の見せ方、当日地震履歴（Q-TO-H18）、新築の起動の script と配布の形（P3-TO-D-LOWMEM）",
+      "取り直しの報と起動の復元の報を 1 報ずつ出すこと（P3-TO-D-ORIGIN）",
+      "watch.mjs・telegram-gen・replay.mjs の変更（Q-TO-RW2）、spec 本体と計画の編集（AC18 の統合担当の分を除く）",
+      "package.json・package-lock.json・tsconfig・vitest config の変更と新しい npm 依存"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TO-AC01",
+        "requirement": "【発注 1】置き場と材料の口（P3-TO-D-MATERIAL・D-EXTRACT-PATH・D-ORIGIN・D-LINES）: (1) 新設の reconstruction/src/terminal/ と reconstruction/test/terminal/ を本契約が持つ。型は reconstruction/contracts/p3-terminal-output.types.ts (2) owner の側: terminal/material.ts に export function terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): TerminalReport | null を置き、owner-host.ts の input の場合で、返信に載せる output の outcomes に、その入力の unit の kind accepted で change が semantic か revisionOnly の outcome があり（内容の同じ続報も旧築と同じく 1 報として出す。tsunami-unit・seismic-unit は内容の同じ報を revisionOnly にする）、material.origin が live か replay のときだけ 1 回呼ぶ。U-E は呼ばず null。結果は inputDone の返信の新しい欄 terminal: TerminalReport | null に載せる（p3-execution-split.types.ts の inputDone の型。recoveryInput の返信は null） (3) 読む要素（どれも XML の生の文字、無ければ null）: Head と Control の共通（TerminalHead: Control/Title・Head/Title・Head/Headline/Text・ReportDateTime・InfoType・Control/Status・EventID・Serial・Control/PublishingOffice）。地震（U-Q）: Body/Earthquake の Hypocenter/Area/Name と座標と Magnitude（description・condition 属性）、Body/Intensity/Observation の MaxInt・MaxLgInt と Pref/Area の Name・MaxInt・MaxLgInt（区域の段、市町村と観測点は読まない）、Comments/ForecastComment/Text、Comments/URI、Body/Text。津波（U-T）: Body/Earthquake の震源、Tsunami/Forecast/Item（Area/Name・Category/Kind/Name・FirstHeight の ArrivalTime と Condition・MaxHeight の TsunamiHeight と Condition・Station の Name と HighTideDateTime）、Tsunami/Observation/Item/Station（Name・FirstHeight の ArrivalTime・Initial・Condition・MaxHeight の DateTime・TsunamiHeight・Condition）、Tsunami/Estimation/Item（沖合の情報の沿岸で推定される津波）、Comments/WarningComment/Text、Body/Text。短い形（ほかの 9 unit）: 共通の欄と、対象（target）＝Body の文書の順で最初の Area/Name（南海トラフは null）と、帯の段（level、AC09）。読み方は decode-material/xml-read.ts の関数（P3-XML-READERS-001 の集約）を使い、新しい読み取りの関数の写しを作らない (4) publisher の側: host の config に欄 terminal?: TerminalSink を 1 つ足し（host.ts:44 の行の中身）、onInputDone（host.ts:182〜:193）で返信を渡す呼び出しを 1 つ足す（:192 の行の中身）。TerminalSink は返信を受けて O(1) で列に積むだけ（AC08）。端末が渡すのは返信の terminal と、output の outcomes のうち unit U-E の outcome（facts.report を持つもの）と、output の units の view の unreadableCards のうち inputId がその入力のカード（P3-TO-D-UNREADABLE、作者裁定 A。発注 2） (5) 無いと: 地震・津波・短い形の端末の行に見出し文・震源・満潮時刻・発表した官署が出せない（Q-TO-FACTS）",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/owner-host.ts:121 «8f7955f32d3a74cf»",
+          "reconstruction/src/runtime/owner-host.ts:134 «50ea714f6d95f55c»",
+          "reconstruction/src/runtime/owner-host.ts:193 «2f823c1db3754272»",
+          "reconstruction/contracts/p3-execution-split.types.ts:122 «60744ac6cfe7149f»",
+          "reconstruction/src/runtime/composition-root.ts:138 «d2cdbb29215723fd»",
+          "reconstruction/src/runtime/composition-root.ts:941 «6ce06413a549c6e2»",
+          "reconstruction/src/host/host.ts:182 «26aeb254c6d4535e»",
+          "reconstruction/src/host/host.ts:44 «3a488ff635a51fb8»",
+          "reconstruction/src/units/unreadable.ts:76 «f1c095536f67b7f0»",
+          "reconstruction/src/units/unreadable.ts:78 «0af6ef3947ad1c91»",
+          "reconstruction/src/decode-material/xml-read.ts:42 «f6750367c3eb6039»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:309 «0945856dde68b769»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:267 «22d0c9f83deb6a55»",
+          "docs/specs/reconstruction-p0-contracts.md:649 «bcc7fbb79d790552»",
+          "reconstruction/contracts/p3-terminal-output.types.ts",
+          "reconstruction/contracts/p3-eew-facts.types.ts"
+        ]
+      },
+      {
+        "id": "P3-TO-AC02",
+        "requirement": "【発注 1】書き出しの列（O02、P3-TO-D-WRITER・D-DROP）: (1) terminal/output.ts に export function createTerminalOutput(options) を置く。作るのは writer の worker 1 本（起動先は resolveRepoPath(\"reconstruction/dist/src/terminal/writer-worker.js\")。reconstruction/tsconfig.json の rootDir は reconstruction、outDir は reconstruction/dist なので src/terminal/ の file は dist/src/terminal/ に出る。owner の worker〔host.ts:156〕と同じ形で、resolveRepoPath は path を補わない）と、main の側の列 1 つ。main の仕事は、材料（返信から取った TerminalReport・EEW の outcome・行の文字）を列に積むことと、worker の手が空いたら列の頭からまとめて 1 回 postMessage することだけ。整形（AC03〜AC07・AC09〜AC14）と fs.writeSync(1, …) は worker が行う。worker への in-flight は 1 回分（P3-TO-RES-01 の byte まで）で、worker の書き終わりの返事で次を送る (2) fd 1 が非 blocking で fs.writeSync が EAGAIN を投げたら、worker は Atomics.wait で 50 ms 待って同じ所から書き直す（main は待たない）。ほかの書き込みの失敗（EPIPE など、O10 の stdout の失敗）は、それ以後の書き出しをやめ、列を捨てて数えるだけにする（受信は止めない。worker の例外で process を落とさない） (3) 列は 1 本で、REPL の出力も電文と同じ単位として積む。上限は P3-TO-RES-01 の byte の 1 つ。超えたら種類によらず古い順に出力の単位を丸ごと落とし、上限より大きい 1 単位は積まずに落とし（D-DROP）、落とした数を数え（REPL の echo と prompt は数えない）、次に worker へ送る頭に「（表示が間に合わなかったため、N 件の表示を省きました）」の 1 行を置く (4) REPL の出力: createTerminalOutput が返す output（Writable。write は列に積むだけ、columns と rows は process.stdout の値を返し、process.stdout の resize を転送する）を repl.ts の createInterface の output にし（:425 の行の中身）、repl.ts の out（:68）と cli.ts の起動の後の行（:357〜:361）も列を通す。runRepl の options に欄 terminal を 1 つ足す（:282 の行の中身）。電文のブロックを書くときは、worker が今の行を消し（\\r と行の消去）、ブロックを書き、prompt と入力中の文字（main が積む時に readline の getPrompt と line を写す）を書き直す (5) 試験のために writer を差し替える口（options.write。既定は worker）を持つ。差し替えた writer は main で動き、返事を返さなければ列は進まない (6) 停止: cli.ts の終わり（stop の後）で close() を呼ぶ。close は列の残りを最長 1 秒書かせ、書き終わりの返事が来れば worker.terminate() を待つ。1 秒で返事が来なければ（worker が同期の write(2) の中で止まっている。この中断は JS から止められない）、worker.unref() と terminate() を呼ぶだけで待たずに resolve し、列の残りは捨てる。process の終わりは fleq.mjs の process.exit（reconstruction/cli/fleq.mjs:21）で、止まった worker を待たない（終了を延ばさない） (7) 無いと: SSH の向こうの端末が止まったとき main の write(2) が止まり、受信と通知が止まる（D-WRITER）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+          "docs/specs/reconstruction-p0-contracts.md:1786 «87707d6e22ba7759»",
+          "docs/specs/cli-terminal-output.md:28 «11fd6bdc660dca4c»",
+          "reconstruction/src/cli/repl.ts:425 «4dd55e5a3eb79577»",
+          "reconstruction/src/cli/repl.ts:68 «2b287f848cb00528»",
+          "reconstruction/src/cli/repl.ts:282 «60c6a82a2fe508c9»",
+          "reconstruction/src/cli/cli.ts:357 «4cc9e9c0a7b6df6d»",
+          "reconstruction/src/cli/cli.ts:362 «1865b63c51da643a»",
+          "reconstruction/src/host/host.ts:654 «2e82717c7bdadcab»",
+          "reconstruction/src/host/host.ts:156 «25188f036e0fbb6a»",
+          "reconstruction/cli/fleq.mjs:21 «35f85fde5f5d2ad4»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC03",
+        "requirement": "【発注 1】色（Q-TO-COLOR-1・Q-TO-COLOR-2）: (1) 色は root の依存の chalk 4.1.2 を worker の中で new chalk.Instance({ level }) にして付ける。新しい依存を足さない (2) level は main が起動の時に 1 回決めて worker へ渡す: 環境変数 NO_COLOR が空でない文字なら 0。標準出力が TTY でなければ chalk の判定（0）のまま。chalk の判定が 1 か 2 なら 3 に引き上げる（旧築の src/index.ts と同じ） (3) 色の役目と実際の色は spec の §3.1 の表を 1 つの表（terminal/ の 1 file の定数）に写し、震度の段と長周期の段も同じ表に持つ。整形の関数は役目の名前で色を引き、RGB を直に書かない (4) 色が 0 のとき、帯の文字と震度・階級の値は文字だけで読める（色だけで区別する所を作らない）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:57 «42c00299e9532d36»",
+          "docs/specs/cli-terminal-output.md:58 «400cb55bb2ac62a0»",
+          "docs/specs/cli-terminal-output.md:59 «0769597b7fd4a016»",
+          "docs/specs/cli-terminal-output.md:60 «2c6013084c8d15bb»",
+          "src/index.ts:13 «d90c3f46badd5886»",
+          "src/index.ts:14 «971313d1ce60168f»",
+          "src/ui/theme.ts:70 «e6d7229f0d7d2960»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC04",
+        "requirement": "【発注 1】幅（Q-TO-W-1）: (1) 桁数は main が列に積む時ではなく worker へ送る時に process.stdout.columns を読み（無ければ 80）、送る単位ごとに worker へ渡す。途中で端末の大きさが変われば次の送りから合う (2) 桁の数え方: 全角（Unicode の East Asian Width が W か F）を 2 桁、ほかを 1 桁（罫線の ━ と ─ は 1 桁。spec の図の幅の数え方と同じ）。依存を足さず、範囲の表を持つ小さい関数 1 つ（shortcut のコメントで、表に無い字を 1 桁に数えること） (3) 60 桁以上は spec の図の形。罫線は min(桁数, 80) まで伸ばす。60 桁未満は、見出しの罫線から発表時刻を外して次の行に出し、表の 1 行を地域の行と値の行の 2 行に分ける (4) どちらの形でも、電文の文（見出し文・本文の引用）は桁数で折り返して字下げし、URL は折らずに 1 行で出す。地域の一覧は桁数で折り返し、2 行目から地域の列の位置まで字下げする。表の列は、足りなければ地域名の列だけを詰め（末尾を … にする）、震度・階級・高さ・時刻の列は詰めない。地域名を詰めても入らなければ、その表を 60 桁未満の形で出す (5) どの桁数でも、出す行は桁数を越えない（URL の行を除く）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:64 «3cfa0e2b349d7eab»",
+          "docs/specs/cli-terminal-output.md:73 «f61d6aa33a21cdcd»",
+          "docs/specs/cli-terminal-output.md:74 «6d925bd6a2c35bcd»",
+          "docs/specs/cli-terminal-output.md:75 «6751e1eaee78ed3e»",
+          "docs/specs/cli-terminal-output.md:78 «3df1432fba45cd3f»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC05",
+        "requirement": "【発注 1】緊急地震速報（spec の §5.1、Q-TO-EEW-1〜8）: (1) 材料は U-E の outcome の facts（report・serial・terminal・warningClass・prediction）。帯の段は警報が warning、予報が caution、取消が cancel (2) 図の 5 つ（警報の第 2 報〔37_01_01 を 2 報目として〕・予報の第 1 報・取消・最終報・PLUM）の行と順に合わせる。見出し文が空の報は見出し文の行を出さず、震源の行を最大予測震度の行より先に出す。仮定震源の報は M と深さを出さず、到達予想時刻の欄に Condition を短くして出す。地域の一覧の無い報は表の見出しも出さない。長周期階級の無い報はその項目を出さない (3) 前の報の値と矢印（「4 →」）は、端末が EventID ごとに覚えた前の報の最大予測震度と違うときだけ出す（覚えは P3-TO-D-CANCEL-PHRASE と同じ 64 件の表） (4) 取消の 3 行目は P3-TO-D-CANCEL-PHRASE。文の形は旧築の eewCancelTargetPhrase に合わせる (5) 特殊値: M と深さは description・condition から旧築と同じ文字（例「M8を超える」「ごく浅い」「700km以上」）にし、全角の英数字は半角にする。値が読めないときは「不明」と出し、項目を落とさない（O02 の特殊値） (6) 設定した地域が一覧に無いときは何も足さない（Q-TO-EEW-5）。一覧に載るときの印は本契約で作らない（Q-TO-REGION-MARK）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:113 «3e2cf442a882c13d»",
+          "docs/specs/cli-terminal-output.md:116 «d924b518313925e5»",
+          "docs/specs/cli-terminal-output.md:117 «7beaa5510638a9e3»",
+          "docs/specs/cli-terminal-output.md:119 «db8e3948d749701b»",
+          "docs/specs/cli-terminal-output.md:155 «ce14131d2693c562»",
+          "docs/specs/cli-terminal-output.md:187 «234c32f4f6f99411»",
+          "src/utils/cancel-target-phrase.ts:37 «d077d1f3c66e689e»",
+          "reconstruction/contracts/p3-eew-facts.types.ts:20 «073c4c2293133123»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC06",
+        "requirement": "【発注 1】地震（spec の §5.2、Q-TO-Q-1〜5、H08）: (1) 図の 5 つ（VXSE53・VXSE51・VXSE52・VXSE62・VXSE61）の行と順に合わせる。地域は震度ごと（VXSE62 は長周期階級ごと、各地域の最大震度を括弧で）に 1 行にまとめ、全角の空白で区切る。震度 1・2 の地域も電文にあれば全部出す。ForecastComment の文は末尾の行の上。VXSE62 は URI と「長周期地震動についての詳しい情報は、以下のURL（気象庁ホームページ）からご確認ください」の 1 行。出さない定型文（揺れの目安の 5 行、VXSE61 の度単位の文）は出さない (2) 帯の段（H08）: 最大震度 5 弱以上か長周期地震動階級 2 以上は warning、最大震度 4 は caution、3 以下と震度の無い震源の情報は plain、取消（InfoType 取消）は cancel。境目は通知の音の段（P3-C7-NOTICE-LEVELS）と同じ値で、端末の側で 1 か所に書く (3) 特殊値（O02）: 契約が読む段の震度（Observation の MaxInt と Pref/Area の Area の MaxInt）の値だけを扱う（長周期階級の MaxLgInt は値の字をそのまま出し、空の値の condition は扱わない）。値が文字（例「5弱以上未入電」）ならその字のまま、要素はあるが値が空なら condition 属性の字（例「未入電」）を値の欄に出し、要素も condition も無ければ「不明」と出す。どの場合も区域の行を落とさない。M の不明は description の字（半角に寄せる）。市町村と観測点の段は読まない（AC01 (3)）ので、その段の特殊値は扱わない。Observation の MaxInt が「5弱以上未入電」（値の字か、値が空で condition の字）のときの帯の段は、H08 の 5 弱以上に当てて warning にする（危ない側に倒す）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:32 «5d811da9165c16e0»",
+          "docs/specs/cli-terminal-output.md:34 «8debeddd186b5769»",
+          "docs/specs/cli-terminal-output.md:193 «23479b8501a33d3e»",
+          "docs/specs/cli-terminal-output.md:194 «9172a608c956c57d»",
+          "docs/specs/cli-terminal-output.md:244 «94f597bb7c7716e8»",
+          "docs/specs/cli-terminal-output.md:272 «c4d15bf129c77a69»",
+          "docs/specs/cli-terminal-output.md:273 «660bc1f0d4bd5c75»",
+          "docs/specs/reconstruction-p0-contracts.md:3035 «cffe9b9877228250»",
+          "reconstruction/contracts/p3-terminal-output.types.ts"
+        ]
+      },
+      {
+        "id": "P3-TO-AC07",
+        "requirement": "【発注 1】津波（spec の §5.3、Q-TO-T-1〜4、監査 A1）: (1) 図の 3 つ（VTSE41・VTSE51・VTSE52）の行と順に合わせる。区分の名前はその区分の最初の行にだけ。到達予想時刻は時と分、発表の日と違う日だけ日を添える。津波予報（若干の海面変動）の地域は表の下に空白で区切って並べる。高さの無い行は欄を空ける。満潮時刻は地域ごとに観測点と時刻の組を並べる。観測した津波は観測点ごとに第 1 波とこれまでの最大波。沖合の観測は最大波の高さを、どの幅の形でも落とさない（60 桁未満の 2 行の形でも高さの欄を詰めない）。沿岸で推定される津波があれば観測点の表の下に津波警報の表と同じ形で出す (2) 帯の段（Q-TO-T-3）: 大津波警報を含む報は purple、津波警報を含む報は warning、津波注意報までは caution、津波予報だけと解除は plain、取消は cancel。区分は Kind の名前で見る (3) 観測の機器の種類（GPS波浪計、水圧計）は出さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:322 «f4c425831b8279b7»",
+          "docs/specs/cli-terminal-output.md:325 «d9390ac07074ba74»",
+          "docs/specs/cli-terminal-output.md:357 «e7820582e5ebfff1»",
+          "docs/specs/cli-terminal-output.md:378 «4b7b0658a2dfed30»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC08",
+        "requirement": "【発注 1】計算量と大きさ（AGENTS.md の受信経路の計算量、P3-TO-RES-01〜03）: (1) publisher（main）の 1 回の受信の仕事は、返信の terminal の参照を列に積むこと、output の outcomes のうち U-E のものを探すこと（その返信の outcomes の数に比例）、定期要約の数を 1 足すことだけで、整形・JSON.stringify・列全体の走査・全 unit の view の走査をしない。列の byte は積む時に 1 回だけ見積もる（TerminalReport は件数の上限があるので件数から見積もり、文字列の長さを足す。JSON にしない） (2) owner の terminalReport は decode 済みの tree を 1 回だけ線形に辿る。読む区域・観測点は P3-TO-RES-02 の件数まで（越えた数は omitted に数え、端末は「ほか N 件」の 1 行を出す） (3) 材料を作る時間を、配送の前に Mac で最も大きい fixture（VTSE41・VTSE51・VXSE53 と 18 の気象の最大）で測り、成果物に表で書く。どれかが 5 ms を越えたら配送の前に止めて報告する（owner の urgent の場所は津波を持つので、EEW の E01 の予算に効く）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+          "reconstruction/src/host/host.ts:182 «26aeb254c6d4535e»",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "id": "P3-TO-AC09",
+        "requirement": "【発注 2】短い形（spec の §5.4、Q-TO-S-1〜3）と処理できなかった報: (1) 9 unit（weather-current・weather-timeseries・landslide・flood・local-bulletins・typhoon・briefing・volcano・nankai）は帯の行・見出し文・末尾の行の 3 つ。帯は Control/Title から「（Ｒ」と全角数字と「）」の版の印を除いた題名と、対象（AC01 (3) の target）と発表時刻。末尾は種類のコードと PublishingOffice のまま（電文の空白も電文のまま。VXKO70 は半角の空白で連名）。見出し文が空の報は見出し文の行を出さない。EventID は出さない (2) 帯の段は Q-TO-S-2 の表を、owner の terminalReport が unit ごとの読み方で level にする（特別警報・警戒レベル 5 相当・噴火警戒レベル 4・5 と噴火速報・巨大地震警戒は purple、危険警報・警戒レベル 4 相当・土砂災害の危険警報・噴火警戒レベル 3・巨大地震注意と調査中は warning、警報・警戒レベル 3 相当・噴火警戒レベル 2・竜巻注意情報・記録的短時間大雨情報は caution、注意報・解除・気象解説・台風・噴火予報・南海トラフ地震関連解説情報は plain、取消は cancel）。unit ごとに読む要素（Kind の Code・Name、噴火警戒レベルの Code、情報の種類）を表にして成果物に書き、表の各行に fixture の例を 1 つ当てる。purple の帯は罫線を紫、帯の文字を白の地に黒にする (3) 図の 4 つ（VPWW55 福井・VXKO70 古座川・VFVO50 浅間山・VYSE50）の行に合わせる (4) P3-TO-D-UNREADABLE（作者裁定 A）: 返信の unit の view の unreadableCards のうち inputId がその入力のカードを、帯「━ 処理できなかった電文 <種類のコード> ━…━ HH:MM:SS 発表 ━」（発表時刻が無ければ「受信」、帯は地の色なし）と「<題名> を処理できませんでした。」（題名が無ければ種類のコード）の 2 行で出す (5) P3-TO-D-STATUS-MARK（作者裁定 A）: Control/Status が通常でない報（EEW は outcome の subject の operation が normal でない報）の帯の題名の後ろに「（訓練）」「（試験）」を付ける",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:386 «440db2d8c2a30287»",
+          "docs/specs/cli-terminal-output.md:421 «ac0d75ec8384aca1»",
+          "docs/specs/cli-terminal-output.md:422 «fb2f76a5d5321701»",
+          "docs/specs/cli-terminal-output.md:423 «6f2e5004dc154f6f»",
+          "docs/specs/cli-terminal-output.md:424 «4865e18bbd5293d8»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC10",
+        "requirement": "【発注 2】回線（spec の §6.1、Q-TO-C-1〜4、H24・H25・H29、P3-DC2-AC08 (7)）: (1) 端末は 1 秒ごとに host.status() を 1 回読み、前に読んだ値と比べる（変化を知らせる口は無い）。読む仕事は O(1) (2) 切れた: lostConnections が前の値より増えたら、増えた数だけ、spec の図の「━ 回線が切れました ━…━ HH:MM:SS ━」と「HH:MM:SS から受信できていません。自動で繋ぎ直しています。」を出す。時刻は HostStatus の新しい欄 lastLossFrameWallMs（切断の時点の最後の受信の wall。ping を含む）で、気付いた時刻は帯の右。lastFrameWallMs は読む前に新しい接続の frame で上書きされうる（切断の直後に手で retry した場合、host.ts:234 → :649 → :295）ので使わない。lastLossFrameWallMs は host の dispatchLost（host.ts:234 の行の中身）で lostConnections を増やすときに root.lastReceivedWallMs を写して固め、次の切断まで変えない（変数は :216 の行の中身に宣言、status() の戻りは :655 の行の中身に足す。型は p3-cli-repl.types.ts の HostStatus の :90 の行の中身に lastLossFrameWallMs: number | null）。2 回以上の切断が 1 回の読みの間に起きたら、行は増えた数だけ出し、時刻は最後の切断のもの (3) 戻った: connection が connected になり、前に切れた行を出していたら「── 回線が戻りました ── HH:MM:SS から HH:MM:SS まで（m 分 s 秒）受信できていませんでした ──」を 1 行 (4) デスクトップ通知: 切れるたびに「回線が切れました（HH:MM:SS から受信できていません）」を、音なしで adapter の desktopNotice（P3-TO-D-CONN-NOTIFY-PATH）で出す。30 分の中で 3 回目の切断は「回線が不安定です（30 分で 3 回切れました）」にし、その後 30 分続けて繋がるまで切断の通知を出さない（端末の行は切れるたびに出す）。覚える切断の時刻は直近 3 つだけ。止めるのは P3-TO-D-CONN-NOTIFY（作者裁定 A）のとおり、分野 connection が off のときと mute が効いている間（mute の rules の有無によらない）。分野 connection の key は C18 の発注 3 が足すので、それが配送されるまで（FleqSettings.notify は旧築の 18 分野の閉じた union で connection を持たない）は on として扱う。読むのは cli.ts が起動の時に作り通知の門と REPL に渡している通知の設定の object（notificationSettingsFrom の戻り、cli.ts:320）と同じもので、createTerminalOutput がその参照を受け、通知を出す時に O(1) で読む（設定 file を読み直さない、値の出どころを 2 つにしない） (5) 一度も繋がらない: 起動から lastFrameWallMs が null のまま lastFailure が null でない値になったら、spec の表の理由 5 種の文を出す。同じ理由は続けて出さず、理由が変わったときだけ出す。最初に受信したら以後出さない (6) 入力の行の印（切断中・繋ぎ直しの回数）は TerminalControl.promptLabel が作る（P3-TO-D-PROMPT）。繋ぎ直しの回数は failedAttempts をそのまま使う（P3-DC2-AC02 (2)。C18 の status の表示と同じ数）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:447 «bfaf727f08ae9815»",
+          "docs/specs/cli-terminal-output.md:468 «e474b4a8e6a9575c»",
+          "docs/specs/cli-terminal-output.md:469 «b08e97c95a7cfea1»",
+          "docs/specs/cli-terminal-output.md:470 «262ab433019143b1»",
+          "docs/specs/cli-terminal-output.md:472 «a9149cb5b7f8c5bb»",
+          "docs/specs/reconstruction-p0-contracts.md:3051 «59cd1745f08d91fb»",
+          "docs/specs/reconstruction-p0-contracts.md:3052 «d186ebc6e48c2d73»",
+          "docs/specs/reconstruction-p0-contracts.md:3056 «ac7133d4f617fb1e»",
+          "docs/specs/reconstruction-p0-contracts.md:3128 «cadd3139a876de33»",
+          "docs/specs/reconstruction-p0-contracts.md:3132 «e5a25ca549961227»",
+          "reconstruction/src/host/host.ts:653 «9531ba1e392e2c62»",
+          "reconstruction/src/cli/cli.ts:320 «af49fbae123bea1e»",
+          "reconstruction/src/notification-delivery/adapter.ts:202 «a8d7970a78812838»",
+          "reconstruction/contracts/p3-dmdata-connect-002.json",
+          "reconstruction/src/host/host.ts:234 «cdaf0a84735c1e30»",
+          "reconstruction/src/host/host.ts:295 «dd330d17bbf6c7c8»",
+          "reconstruction/src/host/host.ts:649 «0233faeeb2eae147»",
+          "reconstruction/contracts/p3-cli-repl.types.ts:90 «434c3be6813c31d9»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC11",
+        "requirement": "【発注 2】定期要約（spec の §6.2、Q-TO-R-1、P3-TO-D-SUMMARY）: (1) 1 行だけ「── HH:MM〜HH:MM の受信 ── EEW n件 ・ 地震 n件（最大震度 x） ・ 津波 n件 ・ 南海トラフ n件 ・ 火山 n件 ・ 気象 n件」。0 件の分野は出さず、全部 0 件なら「受信なし」。sparkline は出さない (2) 間隔の初めの値は起動の summaryInterval（--summary-interval と設定、cli.ts の resolved）で、0 か無しなら出さない。変えるのは TerminalControl.setSummaryInterval（C18 の発注 3） (3) 数えるのは AC01 の口を通った報だけで、持つのは分野ごとの件数と最大震度の 7 つの数（受信 1 回で O(1)）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:499 «740944585e241d7d»",
+          "docs/specs/cli-terminal-output.md:500 «0ccafd77bb11b150»",
+          "docs/specs/cli-terminal-output.md:501 «237b4283b3ac2f74»",
+          "docs/specs/cli-terminal-output.md:502 «b074478f0d03b3a5»",
+          "docs/specs/reconstruction-p0-contracts.md:2373 «ac89d7c7db5a4eba»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC12",
+        "requirement": "【発注 2】待機 tips（spec の §6.4）: (1) 旧築の src/tips/ の知識の tips を terminal/ の下へ写す（reconstruction の tsc の rootDir の外を import しない）。コマンドの tips（commands-basic・commands-advanced）は新築の REPL にある入口の分だけ残し、廃止した入口（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）の分を除く (2) 補足の薄い字で、先頭を 2 字下げて 1 行。既定の間隔は 30 分（設定の waitTipIntervalMin があればその値、0 は出さない）。最後に何かを出してから間隔の分だけ何も出していないときに 1 つ出す。選び方は旧築の tip-shuffler の写し (3) 変えるのは TerminalControl.setTipInterval（C18 の発注 3）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:518 «6b6b55310a9e6fb3»",
+          "docs/specs/cli-terminal-output.md:519 «822124990edfc1bc»",
+          "docs/specs/cli-terminal-output.md:520 «2395fc891b7f9e24»",
+          "docs/specs/reconstruction-p0-contracts.md:2376 «38c375fdf78cd4ba»",
+          "src/tips/waiting-tips.ts:63 «c129b2195f56d66e»",
+          "src/tips/waiting-tips.ts:104 «2bb919e5bf3db43f»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC13",
+        "requirement": "【発注 2】起動時の update check（spec の §6.5、Q-TO-R-2）: (1) 確かめ方は旧築の update-checker の写し（npm の registry、失敗したら GitHub、24 時間の cache、環境変数 FLEQ_NO_UPDATE_CHECK で止める）。cache の置き場は settingsPaths().directory の下 (2) host の起動の後に非同期で 1 回だけ。起動と受信を待たせず、失敗は何も出さない (3) 新しい版があれば「新しい版があります: v<今> → v<新>  npm install -g <package.json の name>@latest」（コマンドの部分は補足の薄い字） (4) 環境変数 FLEQ_WS_URL がある起動（watch の子）では確かめない（試験と watch がネットに出ない）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:528 «1f3e79b4a3236e21»",
+          "docs/specs/cli-terminal-output.md:529 «948a0ce7ad8a6faa»",
+          "docs/specs/reconstruction-p0-contracts.md:2381 «bea5f823f929910d»",
+          "src/engine/startup/update-checker.ts:13 «96fa8de862d6018a»",
+          "src/engine/startup/update-checker.ts:28 «d6ab3a08b43214de»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC14",
+        "requirement": "【発注 2】起動時のまとめ（spec の §6.6、Q-TO-D-1、P3-TO-D-DIGEST）: (1) host の publishDisplay（host.ts:591 の行の中身）で、snapshot.recovery.digest が null でない最初の 1 回だけ端末へ渡す (2) 形は spec の図（分野の順は digest の units の順〔P3-REC-D-ORDER-AND-LIMIT=A の U-T → U-V → U-Q → … → U-Y〕、分野ごとに件数、新しい順の見出し 3 件、「ほか <種類のコード> n 件」。種類のコードは omitted の key〔headType〕のまま、2 つ以上なら全角の空白で並べる。題名を引く表は足さない〔作者裁定 Q-TO-D-2、2026-11-03〕）。unsatisfied の分野は「取り直せませんでした」で 0 件と書かない。beforeWindow なら見出しの罫線の下に「7 日より前の情報は取り直していません」を薄い字で。時刻は reportDateTime、無ければ receivedAt (3) digest が作られない起動（{ wsUrl }、telegram.* を購読しない）では何も出さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:533 «f16f012995b53ec2»",
+          "docs/specs/cli-terminal-output.md:549 «e354158a3dc76602»",
+          "docs/specs/cli-terminal-output.md:550 «77e948d5933bdd50»",
+          "docs/specs/cli-terminal-output.md:551 «c68738b24a4bed31»",
+          "docs/specs/cli-terminal-output.md:552 «3e9467ef9bb2c3e7»",
+          "reconstruction/src/host/host.ts:591 «39630ead3088d8ca»",
+          "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
+          "reconstruction/contracts/p3-recovery.types.ts:70 «d16fb1cb758aa091»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC15",
+        "requirement": "【発注 2】EEW ログ（spec の §7、P3-TO-D-LOGDIR、P3-EWF-AC05 の申し送り）: (1) 材料は U-E の outcome の facts.report。置き場は settingsPaths().directory の下の eew-logs、file の名前・見出し（「=== 緊急地震速報 EventID: <EventID> ===」と「記録開始: …」）・1 報のブロック・差分・取消のブロック・記録終了の行（「--- 記録終了 (<理由>) HH:MM:SS ---」）は旧築の eew-logger.ts（file 名 eew_<EventID>_<時刻>.log、buildReportBlock、closeEvent）の写し。閉じるきっかけは旧築と同じく、取消の報（理由「取消」）・最終報（「最終報」）・停止（「シャットダウン」。AC02 (6) の close の中で、開いている EventID を全部閉じ、同じ 1 秒の内で書き終わりを待つ）。旧築の「タイムアウト」（message-router.ts の EEW の追跡の期限）に当たる知らせは端末の口に無い（U-E の期限切れの outcome は deadlineDone の返信で、inputDone を通らない）ので、期限では閉じない。閉じたらその EventID を表から外し、その後の続報は旧築どおり見出しから書く。記録する欄は設定の eewLogFields（C18 の EewLogField の 12 個） (2) 既定は off。設定の eewLog が true のときと、TerminalControl.setEewLog(true, …) の後だけ書く (3) 書き込みは fs.promises.appendFile（追記で開き、無ければ作る）だけで、main を止めない。file を作り直さず、名前に接尾辞を足さない（旧築も報ごとに追記していたので書式は互換）。EventID ごとに順を守る鎖を持ち、書きかけの数は 64 まで。越えたら最も古い EventID の鎖のうち始めていない書き込みを捨てて数える。始めた appendFile は取り消せないので最後まで走らせ、その終わりでその EventID の鎖を外す。その EventID の次の報は、始めた append の終わりの後に、同じ path へ追記で続ける。EventID → path の表は 64 件まで（古い順に外す。旧築は上限なし）。閉じた EventID と表から外した EventID の続報は、旧築どおり見出しから、旧築の命名（eew_<EventID>_<秒までの時刻>.log）の path に書く。同じ秒で同じ path になるときは、旧築と同じく同じ file に追記で見出しから続く。64 件の鎖がすべて書き込みの途中で、捨てられる始めていない書き込みが無いときは、65 件目の EventID の書き込みを待つ列（64 件まで、越えたら最も古い待ちを捨てて数える）に入れ、どれかの鎖が外れたら順に始める (4) 取消の報は取消の文だけを書き、震源も仮定震源の印も書かない（Q-TO-L-1） (5) dmdata の規約で EEW は personal 限定。書くのは利用者の設定の場所だけで、repo・診断・標準出力の外へ写さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:557 «1897c3a144684fd5»",
+          "docs/specs/cli-terminal-output.md:559 «9bdf2bf317349f96»",
+          "docs/specs/reconstruction-p0-contracts.md:2375 «1f2661ac116d42b6»",
+          "src/engine/eew/eew-logger.ts:22 «91d4fda9dcaffb04»",
+          "src/engine/eew/eew-logger.ts:122 «a39558e208338732»",
+          "src/engine/eew/eew-logger.ts:219 «98317cbe1c9e8a1b»",
+          "src/engine/eew/eew-logger.ts:292 «5a56c4ce64c22e4b»",
+          "reconstruction/contracts/p3-eew-facts.json",
+          "src/engine/eew/eew-logger.ts:59 «0718f0c14418bba7»",
+          "src/engine/eew/eew-logger.ts:191 «30d948ec918874d1»",
+          "src/engine/eew/eew-logger.ts:262 «b7154216febe3910»",
+          "src/engine/messages/message-router.ts:913 «5f80dd8b5f1187c5»",
+          "src/engine/presentation/processors/process-eew.ts"
+        ]
+      },
+      {
+        "id": "P3-TO-AC16",
+        "requirement": "【発注 2】C18 の発注 3 への口（Q-TO-C18-ENTRIES、P3-TO-D-PROMPT）: createTerminalOutput の戻りに TerminalControl（p3-terminal-output.types.ts）を持たせる。setSummaryInterval(0〜) は次の区切りから効く。summaryNow は今の時間の要約を 1 行出して数を 0 にする。setTipInterval(0〜1440)。setEewLog は AC15 の (2)。clear は画面を消す制御の列（\\x1b[2J\\x1b[H）を書き出しの列に積む。promptLabel は「FlEq> 」を基にした文字を返し、切れている間（AC10）は「FlEq [切断中 HH:MM:SS から・繋ぎ直し n 回目]> 」、clock の elapsed・clock・uptime は旧築の prompt の時計の形（「FlEq [● HH:MM:SS]> 」など）。値の検査・設定の保存・REPL の返事の文は C18",
+        "evidenceRefs": [
+          "reconstruction/src/cli/repl.ts:425 «4dd55e5a3eb79577»",
+          "reconstruction/contracts/p3-cli-repl.json",
+          "reconstruction/contracts/p3-terminal-output.types.ts"
+        ]
+      },
+      {
+        "id": "P3-TO-AC17",
+        "requirement": "【発注 2】--debug と lowmem: (1) 起動の --debug（C18 の発注 1 は CLI 自身の設定だけを標準エラーへ出す）のとき、端末は AC01 の口を通った入力ごとに「debug: <種類のコード> <入力 ID>（<unit>、出した｜出さない）」を薄い字の 1 行で出す（書き出しの列を通す）。出さない理由は「採らなかった」か「取り直し」の 2 つだけ (2) lowmem は P3-TO-D-LOWMEM のとおりコードを足さない。発注前点検で node --optimize-for-size のもとで worker の中の v8.getHeapStatistics と main の値の flag が同じに効くことを 1 回確かめ、記録する",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2382 «819786a9cb03a4b9»",
+          "reconstruction/src/cli/cli.ts:90 «d62936cb0fa4c51a»",
+          "reconstruction/src/cli/cli.ts:307 «6826729ae6278b43»"
+        ]
+      },
+      {
+        "id": "P3-TO-AC18",
+        "requirement": "統合担当の改訂と申し送り: (1) spec:2373 の行を、行の数を変えずに「| 定期要約 | 時刻つきの 1 行（sparkline は 2026-11-01 作者裁定 Q-TO-R-1 で廃止） | `summary-tracker.test.ts:54–143`、`docs/specs/cli-terminal-output.md` §6.2 | 互換必須（2026-09-14 作者）。sparkline は廃止可（2026-11-01 作者） |」に置き換える（他の契約の «» は 0 件）。spec:3129 の文末の「何回で出すか」の句（C19 へ送った問い）を「30 分で 3 回（cli-terminal-output.md の Q-TO-C-3）。」に、spec:3172 を「- （決めた）「回線が不安定です」を出す回数（H25）: 30 分で 3 回（Q-TO-C-3）。」に置き換え、spec:3181 を「- （決めた）設定した地域が EEW の予測の一覧に無いときは何も出さない（16.2.1、cli-terminal-output.md の Q-TO-EEW-5）。」に置き換える（どれも他の契約の «» は 0 件）。spec:3131 は P3-DMDATA-CONNECT-002 が引くので変えない。置き換えは起草の commit で行い、同じ commit で本契約の «» のうち置き換えた行を引く 5 件（spec:2373 を引く AC11・AC18、:3129・:3172・:3181 を引く AC18）を付け直して meta.sha256 を取り直す (2) 計画 p3-order-plan.md: :84 の C19 の行に状態の句を書き足し、末尾に「端末の出力（2026-11-03）」の節を足した（:637 は変えない） (3) 本契約の配送で改める他の契約の条文: P3-CLI-REPL-001 の Q-CLI-SPLIT の【発注 3】に TerminalControl の名前と、P3-TO-D-CONN-NOTIFY（作者裁定 A）の分野 connection（key・REPL の読み替えの表の 1 行）を足し、「--debug の電文の側の表示も C19 と一緒に入れる」を、本契約の AC17 へ移したと改める（C18 の発注 3 は --debug の電文の側を持たない）。P3-CLI-REPL-001 の P3-CLI-AC16 の (7)（HostStatus の欄の定義）に lastLossFrameWallMs（AC10 (2)）を足す。P3-CLI-REPL-001 の Q-CLI-FACTS の (7) と P3-CLI-D-O2-TEXT の reason の「REPL の返事は…電文の表示の滞留の上限（B13、spec:382）の外」を、「REPL の返事も本契約の書き出しの列に入り、端末が詰まれば電文と同じく古い順に落ちうる（P3-TO-D-DROP）」に改める (4) 設定した地域の印は H50 の対応表の契約に送る（Q-TO-REGION-MARK）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:2373 «ac89d7c7db5a4eba»",
+          "docs/specs/reconstruction-p0-contracts.md:3129 «69ea4310361f5ac9»",
+          "docs/specs/reconstruction-p0-contracts.md:3172 «f680ae6221156095»",
+          "docs/specs/reconstruction-p0-contracts.md:3131 «802c45797ba3d07c»",
+          "reconstruction/contracts/p3-order-plan.md:84 «cd7824517f8b7547»",
+          "reconstruction/contracts/p3-order-plan.md:637 «c518f6ebf619e10f»",
+          "reconstruction/contracts/p3-order-plan.md:647 «c7641c333f63618c»",
+          "docs/specs/cli-terminal-output.md:502 «b074478f0d03b3a5»",
+          "docs/specs/reconstruction-p0-contracts.md:3181 «a830d43064124352»",
+          "reconstruction/contracts/p3-cli-repl.json"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TO-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC05",
+          "P3-TO-AC03",
+          "P3-TO-AC04"
+        ],
+        "behavior": "受入条件（spec §5.1 の図）。reconstruction/test/terminal/eew.test.ts で、同じ EventID 20240417231454 の 77_01_01（予報 第1報）→ 37_01_01（警報）→ 37_01_03（取消）を順に、77_01_30 FINAL・77_02_01 PLUM を別々に reduceEewUnit に通し、outcome の facts から色 0・80 桁で整形する。予報・最終報・PLUM の 3 つは図の行と一致し、取消は図の 3 行目を除いて一致する（この回の 3 行目は 37_01_01 の震源名と発表時刻を使う形、P3-TO-D-CANCEL-PHRASE）。もう 1 回、37_01_03 だけを新しい端末に流すと、3 行目まで図の行（覚えが無いので EventID の時刻の形）と一致する。警報の図は作者のイメージ図（第2報・M6.6 など、fixture に無い値）なので、期待は図の形（行の順・項目・区切り）に 37_01_01 の値を当てた行とし、37_01_01 の最大予測震度が 77_01_01 の 3 と違えば「3 →」の矢印が付く。期待の行の作り方（図のどの行にどの値を当てたか）を成果物に書く"
+      },
+      {
+        "testId": "P3-TO-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC06",
+          "P3-TO-AC01"
+        ],
+        "behavior": "受入条件（spec §5.2 の図）。reconstruction/test/terminal/seismic.test.ts で、5 つの fixture（32-35_01_03 VXSE53・32-35_07_01 VXSE51・32-35_01_02 VXSE52・selected_xml の 78_01_01 VXSE62・32-35_03_02 VXSE61）を decodeMaterial に通して terminalReport を作り、色 0・80 桁で整形した行が図の行と一致する。VXSE53 の帯の段が warning（最大震度 5 弱）"
+      },
+      {
+        "testId": "P3-TO-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC07",
+          "P3-TO-AC01"
+        ],
+        "behavior": "受入条件（spec §5.3 の図）。reconstruction/test/terminal/tsunami.test.ts で、32-39_11_02 VTSE41・32-39_11_10 VTSE51・32-39_12_05 VTSE52 から作った行が図の行と一致し（図の「（この後…）」は実物の行）、VTSE41 の帯の段が purple"
+      },
+      {
+        "testId": "P3-TO-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC04",
+          "P3-TO-AC07"
+        ],
+        "behavior": "契約境界（60 桁の境目と 80 桁の止め）。T01〜T03 の 13 報を 59・60・100 桁で整形し、59 桁ではどの行も 59 桁以下（URL の行を除く）で見出しの罫線の行に発表時刻が無い、60 桁では図の形、100 桁では罫線が 80 桁。VTSE52 の 59 桁の形に沖合の観測点ごとの最大波の高さがすべて残る（監査 A1）"
+      },
+      {
+        "testId": "P3-TO-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC03"
+        ],
+        "behavior": "契約境界（色の level）。reconstruction/test/terminal/color.test.ts で、level を決める関数に (NO_COLOR=\"1\"、TTY、chalk の判定 3)→0、(NO_COLOR=\"\"、TTY、2)→3、(無し、TTY、1)→3、(無し、TTY でない、0)→0 を当てる。色 0 の整形に ESC の字が 1 つも無い"
+      },
+      {
+        "testId": "P3-TO-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC02",
+          "P3-TO-AC08"
+        ],
+        "behavior": "契約境界（O02、列の上限）。reconstruction/test/terminal/output.test.ts で、返事を返さない writer を差し込んだ createTerminalOutput に、VXSE53 の材料と REPL の返事（output の write）を交互に積み、合わせて P3-TO-RES-01 の 1 MiB を越えさせる。積む呼び出しはどれも同期で戻り、列の byte は 1 MiB を越えない。writer が返事を返し始めると、最初の書き出しの頭に「（表示が間に合わなかったため、N 件の表示を省きました）」があり、落ちたのは種類によらず古い順の単位で、N＋書いた単位の数＝積んだ単位の数。もう 1 つ、1 MiB より大きい 1 つの REPL の返事を積むと、その単位は列に入らず N に数えられ、前に積んだ単位は落ちない"
+      },
+      {
+        "testId": "P3-TO-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC02",
+          "P3-TO-AC01"
+        ],
+        "behavior": "契約境界（O02 の製品経路）。reconstruction/test/terminal/stall.test.ts で、node reconstruction/cli/fleq.mjs watch を FLEQ_WATCH_PORT=0 で起こし、標準出力の pipe を読まない（標準エラーの 1 行だけ読む）。繋がった後に、本文を 1 つずつ変えた VXSE53 を 300 本 /inject へ送り（応答はどれも 200 sent）、最後の 1 本の updatedAt が表示の /snapshot に出る（受信が止まらない）。その後に標準出力を読み始めると「件の表示を省きました」の行が出る。後始末は RW2 の試験と同じ（quit か SIGTERM）"
+      },
+      {
+        "testId": "P3-TO-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC01"
+        ],
+        "behavior": "契約境界（材料を作る入力）。reconstruction/test/terminal/material.test.ts で、owner-host の input の処理に VXSE53 を origin live で通すと返信の terminal が kind seismic、同じ報を 2 回目（duplicate）に通すと null、VXSE45 は null（U-E は作らない）、origin recovery の入力（recoveryInput）は null"
+      },
+      {
+        "testId": "P3-TO-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC09"
+        ],
+        "behavior": "受入条件（spec §5.4 の図、【発注 2】）。reconstruction/test/terminal/short.test.ts で、18_00_01 VPWW55 福井・16_00_01 VXKO70 古座川・45_01_01 VFVO50・selected_xml の 74_01_01 VYSE50 から作った行が図の行と一致し、帯の段は VPWW55・VXKO70 が purple（レベル 5）、VFVO50 が warning（噴火警戒レベル 3）、VYSE50 が warning（調査中）。AC09 (2) の表の各行の例の fixture の段が表のとおり"
+      },
+      {
+        "testId": "P3-TO-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC10"
+        ],
+        "behavior": "受入条件（回線、【発注 2】）。reconstruction/test/terminal/connection.test.ts で、host.status() の偽物に、繋がる→21:03:40 に lostConnections 1・lastFrameWallMs 21:03:12→21:06:02 に connected を 1 秒ごとに読ませると、spec §6.1 の図の 2 つの行と戻った行が出て、通知の偽物に「回線が切れました（21:03:12 から受信できていません）」が 1 回渡る。30 分の中の 3 回目の切断で「回線が不安定です（30 分で 3 回切れました）」、その後 29 分の中の 4 回目は通知なし（端末の行はあり）、30 分続けて繋がった後の切断はまた通知あり。もう 1 つ、host の偽物で、読みの直後に切断（lostConnections 1、lastLossFrameWallMs 21:03:12）→ 次の読みの前に retry で繋がり直して lastFrameWallMs が 21:03:13 に進む、の順にすると、切れた行と通知の時刻は 21:03:12。分野 connection の key が設定に無い間は通知が出て、mute（rules あり・なしの両方）の間は出ない"
+      },
+      {
+        "testId": "P3-TO-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC10"
+        ],
+        "behavior": "受入条件（一度も繋がらない、H29、【発注 2】）。同じ file で、lastFrameWallMs null のまま lastFailure を network→network→authRejected と読ませると、network の文が 1 回、authRejected の文が 1 回だけ出る。5 種の理由の文が spec の表の字と一致する"
+      },
+      {
+        "testId": "P3-TO-T12",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC11"
+        ],
+        "behavior": "受入条件（定期要約、【発注 2】）。reconstruction/test/terminal/summary.test.ts で、10 分の間に EEW 1・地震 3（最大震度 5 弱）・津波 1・気象 12 を数えさせて 21:30 の区切りを進めると「── 21:20〜21:30 の受信 ── EEW 1件 ・ 地震 3件（最大震度 5弱） ・ 津波 1件 ・ 気象 12件」、何も数えない区切りは「受信なし」"
+      },
+      {
+        "testId": "P3-TO-T13",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC12"
+        ],
+        "behavior": "受入条件（tips、【発注 2】）。写した tips の全件に、廃止した入口の名前（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）を入口として案内する文が無く、知識の tips の件数が旧築と同じ"
+      },
+      {
+        "testId": "P3-TO-T14",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC13"
+        ],
+        "behavior": "契約境界（update check、【発注 2】）。偽の fetch で、npm が失敗し GitHub が新しい版を返すと日本語の 1 行、24 時間の内の 2 回目は fetch を呼ばない、FLEQ_NO_UPDATE_CHECK=1 と FLEQ_WS_URL のある起動は fetch を呼ばない"
+      },
+      {
+        "testId": "P3-TO-T15",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC14"
+        ],
+        "behavior": "受入条件（起動時のまとめ、【発注 2】）。RecoveryDigestView の手書きの値（U-Q の listed で見出し 3 件と omitted 2、U-W の listed 1 件と omitted 1、U-T の unsatisfied、beforeWindow の unit 1 つ）から spec §6.6 の図の行と、beforeWindow の unit があるので見出しの罫線の下に「7 日より前の情報は取り直していません」の 1 行（§6.6 の本文の箇条。図には描いていない）が出る。digest が null の snapshot と、2 枚目以後の snapshot では何も出ない"
+      },
+      {
+        "testId": "P3-TO-T16",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC15"
+        ],
+        "behavior": "受入条件（EEW ログ、互換必須、【発注 2】）。reconstruction/test/terminal/eew-log.test.ts で、37_01_01→37_01_03（取消）と 77_01_26 系の続報を流すと、一時 directory の eew-logs に EventID ごとの file ができ、中身が旧築の eewEventLogger が同じ fixture で書いた期待の文（旧築の build で 1 回作り、試験の中に literal で持つ。作った手順を成果物に書く）と一致する。取消のブロックに震源と仮定震源の印が無い。eewLog が off の間は file を作らない。もう 1 つ、試験の時計を止めて（同じ秒）64 件より多い EventID を流して最初の EventID を表から外し、その EventID の続報を流すと、同じ path に追記され、前の中身が残る（file を作り直さない）。37_01_03（取消）の後の file の末尾が「--- 記録終了 (取消) HH:MM:SS ---」（時刻の部分を除いて比べる）で、その後に同じ EventID の報を流すと見出しから書かれる（旧築の eew-logger.test.ts の記録終了の試験と同じ形）"
+      },
+      {
+        "testId": "P3-TO-T17",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TO-AC02"
+        ],
+        "behavior": "受入条件（実端末、手で確かめる。統合担当が Mac mini と Pi の SSH で）。stty ixon の端末で npm run watch を起こし、Ctrl+S で出力を止めた後にページの場面「震度速報→震源・震度」を 20 回押すと、右の画面の表示は進む。Ctrl+Q で出力が戻ると「件の表示を省きました」の行が出て、REPL の入力の行が崩れない"
+      },
+      {
+        "testId": "P3-TO-T18",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TO-AC05",
+          "P3-TO-AC06",
+          "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»"
+        ],
+        "behavior": "契約境界（spec:382 の B13「特殊値と取消を保持」、【発注 1】）。reconstruction/test/terminal/seismic.test.ts の 1 つの it で表を回す: synthetic_phase4a_VXSE51_special（Area の段に、値が空で condition「未入電」の MaxInt と、値が「5弱以上未入電」の MaxInt を持つ）は、2 つの区域がどちらも行に残り、値の欄が「未入電」と「5弱以上未入電」。32-35_10_01 の VXSE51 の取消は帯の段が cancel。M の不明（description「Ｍ８を超える巨大地震」）は T03 の VTSE41 の行が「M8を超える巨大地震」であることで見る。深さの特殊値は corpus に fixture が無いので、深さを文字にする関数に手書きの description（「ごく浅い」「７００ｋｍ以上」）を当てて「ごく浅い」「700km以上」"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "T07 の watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列・覚え・module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "発注を 2 つに分ける（P3-TO-D-SPLIT）。発注 1: AC01〜AC08、T01〜T08。発注 2: AC09〜AC17（AC18 は統合担当）、T09〜T17。T18 は発注 1（地震の分）。発注 2 は発注 1 の配送の上で起こす（作者の分岐 3 件は 2026-11-03 に裁定 A）。C18 の発注 3 は本契約の発注 2 の配送の後に起草する",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行: terminalReport と返信の欄（AC01）、writer の worker と列と落とす規則（AC02）、色の level（AC03）、桁の数え方（AC04）、EventID ごとの覚え（AC05・P3-TO-D-CANCEL-PHRASE）、回線の前の読み（AC10）、update check の cache（AC13）、EEW ログの鎖（AC15）",
+      "追加した試験ごとに対応（T01〜T03・T09〜T13・T15〜T17 受入条件、T04〜T08・T14・T18 契約境界）を 1 行。既存の試験の期待は変えない（形の移行の 3 本は allowedPaths のとおり）。ほかの期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "AC08 (3) の材料を作る時間の表（fixture ごとの中央値と最大、Mac）と、AC09 (2) の unit ごとの段の読み方の表",
+      "実装で中身が変わった本契約の «»（Q-TO-ANCHORS の (3)）を本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は 1 件も付け直さない（付け直しが要るなら止めて報告する）",
+      "残存リスク: (1) createTerminalOutput を作る前に main が直に書く出力（起動の前の Refusal・--help・--version と cli.ts の fail〔標準エラー〕）は列を通らず、端末が止まっていればそこで止まりうる（受信の始まる前と標準エラーだけ） (2) 列が落とした出力は端末から消える。電文の報は画面・通知・EEW ログに残るが、REPL の返事（status の返事、mute の注意文〔P3-CLI-AC15〕、起動時の mute の 1 行〔P3-CLI-AC19 (3)〕など）は残らない (3) 材料を作る時間が owner の urgent の場所の処理に足される（AC08 (3) で上限を確かめる） (4) 再起動の後の最初の EEW の続報は、前の報の値と取消の 3 行目の震源を持たない（旧築と同じ） (5) 黒い地の端末を前提にした色で、白い地では黄が読みにくい (6) writer の worker 1 本ぶんの RSS が増える（E05 は C22 で全体を測る） (7) 短い形の対象（最初の Area/Name）は分野によって都道府県・河川・火山以外の名前になりうる（AC09 (2) の表で fixture ごとに示す）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-TO-REGION-MARK",
+        "owner": "integrator",
+        "blocks": [
+          "設定した地域が EEW の一覧に載るときの印（cli-terminal-output.md §5.1 の最後の項）"
+        ],
+        "resolveBy": "区域の対応表の資材の契約（H50）の配送の後、その契約か P4 で印を足す",
+        "requiredEvidence": [
+          "市区町村と EEW の地域の対応表の配送",
+          "印の見た目の作者の裁定"
+        ]
+      }
+    ]
+  }
+}

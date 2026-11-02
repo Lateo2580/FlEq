@@ -81,7 +81,7 @@ P3-2（津波）:
 | C16 `P3-RECOVERY-001` | §10.5 の REST 回復、N2、E22、`origin=recovery`（`p2-eew-unit.json:189`） | 着手: 回復範囲（N2、spec:2224）、C3a の mailbox credit（spec:2211）と runtime の候補採用（spec:2216）の境界、C2 の REST 接続。完了: 対象 unit の配送・結線後（共通の reducer を使う、spec:2207。live との競合の受入、spec:2224） | unit ごとの E22 subset。途中公開 0・新規履歴通知 0・live 上書き 0・期限延長 0（spec:2224） |
 | C17 `P3-REPLAY-CLI-001` | R10②: `fleq replay <fixture...>`、spec:650 | C3b（host の入口）、C4 の runner | 固定時計・隔離保存先・通知無効化。runner を C4 と共有するのは、検収用 replay と公開口を同じ製品経路に通すため（spec:650）。Q7 表への追記は §4.4 |
 | C18 `P3-CLI-REPL-001` | B12。§11.2 の互換必須行、§11.3 の互換必須の REPL 19 行（spec:2310〜2352）、§11.5 の設定移行（spec:2403） | 着手: C2（引数解析と typed command の先行実装）。完了: C9（U-V）・C15・C16・C19（各入口の機能結線） | §11 と O10。無効入力で副作用 0（spec:381）。`volcanorepair`（spec:2347）は新 U-V と移行契約で復旧不足の確認・明示解決を実現する（spec:2351）ので、機能結線の検収は依存先の配送後 |
-| C19 `P3-TERMINAL-OUTPUT-001` | B13。R10① の CLI 表示設計 spec、§11.4 の端末側の互換必須行（定期要約・当日地震履歴・EEW ログファイル・待機 tips・update check・lowmem、spec:2353〜2400） | CLI 表示設計 spec（材料は CLI 監査 2026-08-26、作業ノート） | §11 と O02（spec:382）。出力滞留が受理を止めない |
+| C19 `P3-TERMINAL-OUTPUT-001` | B13。R10① の CLI 表示設計 spec、§11.4 の端末側の互換必須行（定期要約・当日地震履歴・EEW ログファイル・待機 tips・update check・lowmem、spec:2353〜2400） | CLI 表示設計 spec（材料は CLI 監査 2026-08-26、作業ノート） | §11 と O02（spec:382）。出力滞留が受理を止めない。起草（2026-11-03、`p3-terminal-output.json`、末尾の「端末の出力」の節） |
 | C20 `P3-WEATHER-NOTICE-001` | U-W の通知 intent の生成と U-L・U-B の段の改め（H11、作者裁定 2026-11-01）、weather の分野の既定を on | Q-NOTICE の気象分（台帳 48 は K8 の P3-NL-AC05 で前提が消えた） | E21 の気象分、受理の時点の pending の上限（128 件・131,072 byte） |
 | C21 `P3-PERSONAL-001` | spec P3 行の personal 配線、B10・§12 | PERS-1〜5（spec:2949〜2953）。この checkout に実体が無い | 未見積もり（§8） |
 | C22 `P3-FINAL-GATE-001`（統合担当） | 全単位接続後の最終検証（spec:2664）と終了の再確認（spec:889） | C7〜C20 の配送。C21 の配送前は部分受入で、配送後に影響する部分（O09/O10 の実配線分を含む）を再受入 | 全 route の正常・取消・復元の oracle、一入力一保存単位、全単位での E20（spec:2072）、Pi での短い確認（最も重い急ぐ unit との競合、全 unit 同時 dirty の保存、終了。D-P3-7）、通知・export の故障隔離と O10 の U-V・export 分（p2plan:215） |
@@ -645,3 +645,15 @@ C15（`P3-MIGRATION-001`）は発注 2 で止め、保留にする。旧築か�
 - 起草中だった `P3-TELEGRAM-GEN-001`（電文ジェネレータ）は本契約の発注 2 に吸わせ、契約 file は作らない。
 - `reconstruction/src/cli/cli.ts` は C18 の file。C18 の発注 3 は未起草なので、本契約の発注 1 が数行（`FLEQ_WS_URL` の分岐と一時 directory の守り）を直列合流で先に入れ、C18 の発注 3 はその配送の上で起草する。1〜344 行の行数は変えない（`p3-replay-watch.json` が :322・:337・:344 を引く）。
 - §3.1 の脇レーンの所有への補い: `reconstruction/cli/watch.mjs` と `reconstruction/test/replay-watch/` は 001 から本契約へ移る。`reconstruction/tools/telegram-gen/` と `reconstruction/test/telegram-gen/` は本契約が持つ。上の C19 の起草に足すもの（`watch.mjs` への EEW ログの結線の 1 行）は本契約の配送で要らなくなる: watch は host を起こさず、子の fleq が設定の場所（一時 directory の下）を使う。
+
+### 端末の出力（2026-11-03）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| `P3-TERMINAL-OUTPUT-001`（`p3-terminal-output.json`） | C19。CLI 表示設計 spec（`docs/specs/cli-terminal-output.md`、2026-11-03 に閉じた）の見た目と文面を新築の端末に出す作り方と合格の条件。材料は EEW が受信の outcome の facts.report、ほかの 11 unit は owner が decode した報から作る TerminalReport（inputDone の返信で運ぶ）。書き出しは専用の worker 1 本と有界の列で、端末が詰まっても受信を止めない（O02、spec:382）。発注 1 は土台（置き場・材料の口・書き出しの列・色・幅）と表まで出す 3 分野（EEW・地震・津波）、発注 2 は短い形の 9 分野・回線の行と通知・定期要約・tips・更新の知らせ・起動時のまとめ・EEW ログと C18 発注 3 への口 | `P3-EEW-FACTS-001`・`P3-DMDATA-CONNECT-002`・`P3-RECOVERY-001`・`P3-CLI-REPL-001` 発注 2・`P3-REPLAY-WATCH-002`（どれも配送済み） | 起草（2026-11-03、6c0fcf60 から）。作者の分岐 3 件（P3-TO-D-CONN-NOTIFY・D-UNREADABLE・D-STATUS-MARK）は作者裁定 A（2026-11-03）。baseOid は unassigned |
+
+- §2.1 の C19 の行の読み（その行には状態の句だけを書き足した。行の数は変えない）: 当日地震履歴は作るもの無し（cli-terminal-output.md §6.3。配送済みの U-Q の SeismicDailyHistory と P3-QC-AC07 で満たす）。lowmem はコードを足さない（P3-TO-D-LOWMEM）。定期要約の sparkline は廃止に改める（Q-TO-R-1。spec:2373 の置換は本契約の AC18）。
+- §3.1 の脇レーンの所有への補い: `reconstruction/src/terminal/` と `reconstruction/test/terminal/` は本契約が持つ。共有 file（owner-host.ts・p3-execution-split.types.ts・p3-cli-repl.types.ts・host.ts・cli.ts・repl.ts・adapter.ts と、その形を写す既存の試験 3 本）は統合担当の直列合流で、他の契約の «» が引く最後の行より前は行の数を変えない（既存の行の中身に書き足す。cli.ts は :344 より後、adapter.ts は :202 より後にだけ行を足す。P3-TO-D-LINES）。
+- 637 行の申し送り（watch.mjs への EEW ログの結線）は 647 行のとおり要らない。EEW ログの置き場は設定の場所の下（P3-TO-D-LOGDIR）で、watch の子の fleq は一時 directory の下に書く。
+- 順: C19 発注 1 → C19 発注 2 → C18 発注 3（C19 の TerminalControl を REPL の summary・eewlog・tipinterval・clock・clear と --summary-interval から呼ぶ）。465 行の H18 は上の読みのとおりで、H08 は本契約の AC05〜AC07（端末の帯の段）、H24・H25・H29 は AC10。
+- spec の置換（本契約の AC18）は :2373・:3129・:3172・:3181 だけで、:3131 は `P3-DMDATA-CONNECT-002` が «» で引くので残す。
