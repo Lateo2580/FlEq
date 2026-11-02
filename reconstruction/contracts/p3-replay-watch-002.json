@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "a4da8e5b4c5e9ae6939d39e3d1adb26f4efdd0d228c42a1eb0911ea3b361d1c5",
+    "sha256": "80d4d367d1e68f47ad563adbfae08ba7feb7b96aedba885ad1edb581138df106",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -244,6 +244,12 @@
         "status": "closed",
         "source": "91fc093b での git grep（2026-11-02）",
         "closed": "(1) 本契約が変える file のうち、行を anchor で引かれているのは cli.ts だけ（p3-replay-watch.json が :322・:337・:344）。D-CLI-LINES で 1〜344 行の行数を保つ (2) watch.mjs・watch.test.ts・package.json・telegram-gen の file を行で引く契約は 0 件。本契約もこれらと cli.ts の行を anchor で引かない（自分の配送と C18 発注 3 で行がずれるため） (3) 計画は、未コミットの草稿の小見出しと表（638 行以降）を本契約の節に置き換えるだけで、633〜637 行（001 が引く）と :82・:109・:124 は変えない (4) spec:650 は変えない（Q-RW2-SUPERSEDE） (5) 記録だけ: p3-cli-repl.json の Q-CLI-O2-FACTS（同 file の 461 行）の文中の「cli.ts:348」「cli.ts:361」は anchor の無い行番号で、91fc093b で既に指す行がずれている（今の 348 行は catch の中、361 行は閉じ括弧）。本契約の発注 1 が catch に 1 行足すと、さらに 1 行ずれる。文は記録なので直さない"
+      },
+      {
+        "id": "Q-RW2-AUTHOR-POLISH",
+        "status": "closed",
+        "source": "作者の依頼（2026-11-03 朝、実機での確認の後）",
+        "closed": "(1) 起動の行: FLEQ_WS_URL で偽の dmdata に繋いだとき（replayWsFor が値を返し、host が起きたとき）だけ、cli.ts の「受信を始めました（区分: …、テスト電文: …）」を「偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C」に置き換える。区分は使っていない設定で、dmdata に繋がったと誤解されたため。C18 p3-cli-repl.json の発注 2 (3) の文の、watch のときだけの置き換えで、通常起動の文は変えない。358 行の書き換えと直前の注釈 1 行だけで、344 行より前は変えない（D-CLI-LINES） (2) watch のページの iframe 以外の地を暗色（#1e1f24、文字 #e6e6e6、color-scheme: dark、リンク #8ab4f8）にする。iframe の中は #000 (3) 分野の select の option の表示を「VXSE45（EEW 地震動予報）」の形にする。value はコードのまま。名前は watch.mjs の FAMILY_NAMES に 1 か所で持つ"
       }
     ],
     "operationContract": {

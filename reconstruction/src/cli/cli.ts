@@ -355,7 +355,8 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     if (requested) stopping ??= host.stop();
     else {
       if (resolved.display) out(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
-      out(`受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
+      // P3-RW2-AUTHOR-POLISH: FLEQ_WS_URL が空でなく host が起きたなら replayWsFor が返した場合だけ（断れば Refusal で起動しない）。使っていない区分を出して dmdata と誤解させない。
+      out(process.env.FLEQ_WS_URL ? "偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C" : `受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
       const muted = muteStartLine(notification, clock);
       if (muted != null) out(muted);
       repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal });

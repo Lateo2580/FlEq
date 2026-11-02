@@ -237,6 +237,7 @@ describe("P3-REPLAY-WATCH-002", () => {
     expect(html).toContain("JSON.parse(localStorage.getItem(");
     const options = (id: string) => (new RegExp(`<select id="${id}"[^>]*>(.*?)</select>`).exec(html)![1].match(/<option/g) ?? []).length;
     expect([options("area-VXSE45"), options("area-VXSE53")]).toEqual([44, 17]);
+    expect(html).toContain('<option value="VXSE45">VXSE45（EEW 地震動予報）</option>'); // AC-POLISH: 値はコードのまま、表示だけ注釈つき
     expect(html).not.toContain("地震火山関連コード表"); // 資料を読んだときだけ出る出典の 1 行
   });
 

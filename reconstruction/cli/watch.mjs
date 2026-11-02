@@ -17,7 +17,8 @@ const TYPE_EXACT = /^(V[A-Z]{3}\d{2}|WTJP\d{2})$/;
 const reportMs = (xml) => Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)?.[1] ?? ""); // frames.mjs の ReportDateTime の読みの写し（reportMs は export が無い）
 const FLEQ = fileURLToPath(new URL("./fleq.mjs", import.meta.url));
 
-const FAMILIES = ["VXSE43", "VXSE45", "VXSE51", "VXSE52", "VXSE53", "VTSE41", "VTSE51", "VTSE52"];
+const FAMILY_NAMES = { VXSE43: "EEW 警報", VXSE45: "EEW 地震動予報", VXSE51: "震度速報", VXSE52: "震源に関する情報", VXSE53: "震源・震度に関する情報", VTSE41: "津波警報・注意報・予報", VTSE51: "津波情報", VTSE52: "沖合の津波観測に関する情報" };
+const FAMILIES = Object.keys(FAMILY_NAMES);
 const escHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // 区域・震央地名の選択肢は choices から分野ごとの select に埋める（P3-RW2-AC12）。選んだ分野の select だけをページの script が見せる。
 const selects = (kind) => FAMILIES.flatMap((family) => {
@@ -28,12 +29,13 @@ const INTENSITY_OPTIONS = ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"].map(
 const SCENES = [["eew3", "EEW 予報→続報→最終報"], ["eew2", "EEW 警報"], ["eewCancel", "EEW の取消"], ["quake", "震度速報→震源・震度"], ["tsunami", "津波警報"]];
 
 const page = (displayPort) => String.raw`<!doctype html><meta charset="utf-8"><title>fleq watch</title>
+<meta name="color-scheme" content="dark"><style>body{background:#1e1f24;color:#e6e6e6}a{color:#8ab4f8}</style>
 <body style="font:14px sans-serif;margin:1em;display:flex;gap:1em;flex-wrap:wrap">
 <div style="flex:1 1 28em;min-width:0">
 <h1>fleq watch</h1>
 <div id="scenes">${SCENES.map(([id, label]) => `<button type="button" data-scene="${id}">${label}</button>`).join(" ")}</div>
 <form id="make" style="margin:.5em 0;padding:.5em;border:1px solid #888">
-<p><label>分野 <select id="family">${FAMILIES.map((family) => `<option>${family}</option>`).join("")}</select></label> <label><input type="checkbox" id="cancel"> 取消</label></p>
+<p><label>分野 <select id="family">${FAMILIES.map((family) => `<option value="${family}">${family}（${FAMILY_NAMES[family]}）</option>`).join("")}</select></label> <label><input type="checkbox" id="cancel"> 取消</label></p>
 <p><label>起点 <input id="originTime" size="26" placeholder="空なら今（時差つき）"></label></p>
 <p><label data-field="place">震央地名 ${selects("place")}</label></p>
 <p><label data-field="lat">北緯 <input id="lat" size="5"></label> <label data-field="lon">東経 <input id="lon" size="5"></label>
