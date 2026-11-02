@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "4f12dc718e3c3ea28649d4a73454a323d9af8ff5d6f982c807ec12d98770ec6b",
+    "sha256": "ea933351457e08c6c184b54cf60faecb226cfea9f87b224a1dc2c7e133793476",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -231,7 +231,7 @@
     "contractId": "P3-REPLAY-WATCH-002",
     "mode": "implementation",
     "objective": "P3-REPLAY-WATCH-001（fleq watch、配送 91fc093b）を、作者と決めた「偽の dmdata ＋ いつもの fleq」の形に作り直し、起草中だった電文ジェネレータ P3-TELEGRAM-GEN-001 をこの契約に吸わせる（作者裁定 2026-11-02）。watch.mjs は 1 つの port に dmdata の代わりの WS・注入の口・1 枚のページを持ち、一時 directory の設定でいつもの fleq（cli.ts の通常起動）を子として起こす。fleq は環境変数 FLEQ_WS_URL があれば dmdata の代わりにその WS へ繋ぎ（startP2Host の { wsUrl, origin: \"replay\" }）、設定の場所が一時 directory の下でなければ起動を断る。作者が触るのは npm run watch とページだけ。発注 1 は fleq の口と守り・watch.mjs の作り直し・npm run watch・試験。発注 2 はジェネレータ（骨組みは気象庁の公開サンプル、区域・市町村・観測点・震央地名の値は作者の手元のコード表を起動時に読む。D-CODES）とページの「作る」・場面。状態は子の fleq の生死・WS の接続・停止の 3 つだけ。watch の出力は spec:650 の通知配送・性能・保存の製品条件の合格に使わない",
-    "baseOid": "unassigned",
+    "baseOid": "3427ead463881aaf7d223c13fd216a08a4a57917",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
