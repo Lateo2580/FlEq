@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "857cf97e9af0d41fcc0b88cf481cc3da44650a8c",
-    "sha256": "8725625cedceae2fce4d9ddbe396d2720078c272ce9d56d1b048bf36eafdb387",
+    "sha256": "117d7068b072f9898ae1d6b87272c0d8d0dc4900a038c5b6af94c81eff1a2b98",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -183,6 +183,14 @@
         "closed": "(1) 分岐と未決: decisionBranches は 13 本で、status はどれも「確定」。作者の裁定を待つ分岐は 0。unresolvedQuestions は 0 件（Q-RW-C18-ORDER3 は本点検で closed） (2) requiredCommands を HEAD 2006db56 のまま Mac mini で 11 本回し、どれも rc 0: check-manifest・check-sequences・check-contract（WARN は本契約の baseOid unassigned の 1 行だけ）、tsc 3 本（reconstruction/tsconfig.json・tsconfig.test.json・src/display/chrome-eew/tsconfig.json）、vitest run --config reconstruction/vitest.config.ts --maxWorkers=2（1154 passed・25 skipped）、--sequence.shuffle を付けた回（同じ件数）、npm run build、npm test（6837 passed・3 skipped）、npm run typecheck:test (3) 想定内の FAIL は無い: watch.mjs と reconstruction/test/replay-watch/ はまだ無く、試験が走らないので落ちもしない (4) 起草の後の変化: git log 857cf97e..HEAD は起草の commit 2006db56 の 1 本だけで、変えたのは本契約と p3-order-plan.md の末尾の 10 行だけ。起草の後に他の契約・spec・src を変えた commit は 0 (5) checker の rc: 本項を足した後に meta.sha256 を起草の生成の script で取り直し、checker 3 本を回し直して rc 0",
         "remaining": "なし（baseOid の割当は統合担当）",
         "reason": "発注前点検"
+      },
+      {
+        "id": "Q-RW-IMPL-1",
+        "status": "closed",
+        "source": "実装のレビュー r0（2026-11-02、実装の木 ~/dev/fleq-rw-impl、HEAD a5947efa）。前例は P3-RECOVERY-001 の Q-REC-IMPL-1",
+        "closed": "配送で当てる契約の改訂: T13（outIsProduction）・T14（不正な入力 1 件で常駐が落ちない。ヘルツの r0 の P2 2 件で、実測で終了 code 1）を足した。AC05 に retimeFailed・badRequest、AC03 に injectListenFailed、AC08 (3) に応答の flush を最大 1 秒待つことを足した。T11 は win32 でも skip しない。実装の形の記録: (1) T10・T11 は POST を 2 つ送る形にした（1 件目で host の接続を確かめてから試験が current を奪う）。そのため T10 で試験の接続が受ける start frame の socketId は 2 になる (2) retime の差は、受けたときでなく送るとき（キューから取り出して frame を作るとき）に計算する。キューで待った分だけ時刻がずれないため (3) 停止中の POST への 503 stopping は、type の検査の後・枠の検査の前に返す",
+        "remaining": "なし",
+        "reason": "実装レビューの記録"
       }
     ],
     "operationContract": {
@@ -346,7 +354,7 @@
       },
       {
         "id": "P3-RW-AC03",
-        "requirement": "起動の順と後始末（D-CLOCK・D-NOTIFY・D-STATE）: AC02 の後に (1) 終了の signal の listener を登録する（SIGINT・SIGTERM、win32 以外は SIGHUP も。cli.ts:337 と同じ。host の SIGINT の once より先に置く、cli.ts:322） (2) 注入の HTTP server を 127.0.0.1:<inject> で開く（EADDRINUSE なら標準エラーに {\"error\":\"injectPortInUse\",\"port\":n} で終了 code 1、何も作らない） (3) 保存先を作る（--out が無ければ mkdtempSync(join(tmpdir(), \"fleq-watch-\"))、在れば無いときだけ mkdirSync で recursive にしない。replay.mjs:84 の形） (4) ws の WebSocketServer を 127.0.0.1 の port 0 で開く（replay.mjs:102 の形、verifyClient は AC04） (5) startP2Host({ wsUrl, origin: \"replay\", stateDirectory: <out>/state, diagnosticDirectory: <out>/diag, displayPort: <display>, clock, observe, notificationGate })。clock は () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() })。notificationGate は既定で () => ({ allow: false, stage: \"mute\", settingsVersion: 0 })、--notify のときは渡さない。observe は T0・T2・processing だけを AC06 へ渡す（observe を渡すので owner は測定の印 measured 付きで動く、host.ts:156 の workerData） (6) startP2Host が reject したら、待っている注入に stopping を返し、注入の server を close と closeAllConnections で閉じ、WS の client を terminate してから WebSocketServer を close し、listener を外し、標準エラーに JSON 1 行（EADDRINUSE なら {\"error\":\"displayPortInUse\",\"port\":n,\"outDirectory\":...}、ほかは {\"error\":\"hostStartFailed\",\"message\":...,\"outDirectory\":...}）を書いて終了 code 1（保存先は残す。表示の port が埋まっていると host.ts:99 で reject する） (7) 起動の途中で signal が来ていたら、そのまま AC08 の停止へ進む (8) 標準出力に JSON 1 行 { schemaVersion: \"fleq-watch-v1\", event: \"started\", display: \"http://127.0.0.1:<表示の実の port>/\", inject: \"http://127.0.0.1:<注入の実の port>/\", ws: \"ws://127.0.0.1:<WS server の実の port>/\"（startP2Host に渡す wsUrl と同じ文字列）, outDirectory, notification: \"muted\"|\"ungated\", measured: true } を書く（notification と measured は spec:650 の「試験ごとに明示」）。runWatch は止まるまで resolve しない",
+        "requirement": "起動の順と後始末（D-CLOCK・D-NOTIFY・D-STATE）: AC02 の後に (1) 終了の signal の listener を登録する（SIGINT・SIGTERM、win32 以外は SIGHUP も。cli.ts:337 と同じ。host の SIGINT の once より先に置く、cli.ts:322） (2) 注入の HTTP server を 127.0.0.1:<inject> で開く（EADDRINUSE なら標準エラーに {\"error\":\"injectPortInUse\",\"port\":n}、ほかの理由で開けなければ {\"error\":\"injectListenFailed\",\"port\":n,\"message\":...} で、どちらも終了 code 1、何も作らない） (3) 保存先を作る（--out が無ければ mkdtempSync(join(tmpdir(), \"fleq-watch-\"))、在れば無いときだけ mkdirSync で recursive にしない。replay.mjs:84 の形） (4) ws の WebSocketServer を 127.0.0.1 の port 0 で開く（replay.mjs:102 の形、verifyClient は AC04） (5) startP2Host({ wsUrl, origin: \"replay\", stateDirectory: <out>/state, diagnosticDirectory: <out>/diag, displayPort: <display>, clock, observe, notificationGate })。clock は () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() })。notificationGate は既定で () => ({ allow: false, stage: \"mute\", settingsVersion: 0 })、--notify のときは渡さない。observe は T0・T2・processing だけを AC06 へ渡す（observe を渡すので owner は測定の印 measured 付きで動く、host.ts:156 の workerData） (6) startP2Host が reject したら、待っている注入に stopping を返し、注入の server を close と closeAllConnections で閉じ、WS の client を terminate してから WebSocketServer を close し、listener を外し、標準エラーに JSON 1 行（EADDRINUSE なら {\"error\":\"displayPortInUse\",\"port\":n,\"outDirectory\":...}、ほかは {\"error\":\"hostStartFailed\",\"message\":...,\"outDirectory\":...}）を書いて終了 code 1（保存先は残す。表示の port が埋まっていると host.ts:99 で reject する） (7) 起動の途中で signal が来ていたら、そのまま AC08 の停止へ進む (8) 標準出力に JSON 1 行 { schemaVersion: \"fleq-watch-v1\", event: \"started\", display: \"http://127.0.0.1:<表示の実の port>/\", inject: \"http://127.0.0.1:<注入の実の port>/\", ws: \"ws://127.0.0.1:<WS server の実の port>/\"（startP2Host に渡す wsUrl と同じ文字列）, outDirectory, notification: \"muted\"|\"ungated\", measured: true } を書く（notification と measured は spec:650 の「試験ごとに明示」）。runWatch は止まるまで resolve しない",
         "evidenceRefs": [
           "reconstruction/src/cli/cli.ts:322 «531b50ed852b55cd»",
           "reconstruction/src/cli/cli.ts:337 «87bb62722e92f7e8»",
@@ -356,7 +364,7 @@
           "reconstruction/src/host/host.ts:45 «d2ed9c16b9fc7ba7»",
           "reconstruction/src/host/host.ts:99 «10aeffed5dacf3ac»",
           "reconstruction/src/host/host.ts:93 «dcad702d2191a3e9»",
-          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»",
           "docs/specs/reconstruction-p0-contracts.md:642 «0bfabb5bb9dfcac8»"
         ]
       },
@@ -376,7 +384,7 @@
       },
       {
         "id": "P3-RW-AC05",
-        "requirement": "注入の HTTP の口（D-RETIME・D-GUARD・D-VIEW）。どの要求も先に (1) Host が 127.0.0.1:<注入の実の port> か localhost:<同じ port> でなければ 403 {\"error\":\"hostRejected\"} (2) Origin があって http://127.0.0.1:<port> か http://localhost:<port> でなければ 403 {\"error\":\"originRejected\"}。GET / は text/html; charset=utf-8 の 1 枚（watch.mjs の中の文字列。外部の script・stylesheet を読まない）で、textarea・種類の欄・file を落とす枠・送るボタンの 4 つと、結果の行と、表示の port の /snapshot へのリンク（別のタブで開くだけ）を持つ。file を落とすと中身を textarea に入れ、種類の欄を file 名から AC01 の部分一致の正規表現で埋める。送るは同じ origin へ POST /inject?type=<種類の欄>（retime は既定）。結果の行の文言は、processed かつ decoded は「受理（input-n）」、processed で decoded でないものは「受理（読めず、input-n）」、timedOut は「時間切れ（処理は続いています）」（作者裁定 2026-11-02）、stopping は「停止中」とし、「表示された」とは書かない（processed は owner が返したことまで、unit が stale・duplicate で捨てた分はどの観測にも出ない）。POST /inject?type=&retime=: 本文は生の XML（UTF-8）。検査の順は、Host・Origin・path・method、type（無ければ 400 typeRequired、AC01 の全体一致の正規表現に合わなければ 400 typeInvalid）、retime、枠の順で、ここまでは本文を読まない。枠は受信中とキューで待つ注入の数（送信中の 1 件は数えない）で 8 件まで。本文を読み始める前に枠を 1 つ取り、取れなければ 503 {\"error\":\"queueFull\"}。取った枠は、受信の途中の切断・413・400 のときに返し、キューから取り出して送信中になったときに返す（キューに入った後の呼び手の切断では取り消さない）。本文が 8 MiB を超えたら読むのをやめて 413 {\"error\":\"bodyTooLarge\"}。type の検査の理由（種類の分からない headType は host で断られて T2 が来ないか、decode で断られるかで原因が見えないため）。retime（読むのは枠より前）は無いか \"1\" なら寄せ、\"0\" なら寄せず、ほかは 400 retimeInvalid。寄せるのに本文の最初の <ReportDateTime> が Date.parse で有限でなければ 400 reportDateTimeMissing（retime=0 なら流せる）。ほかの path は 404、ほかの method は 405。受けた注入は AC06 のキューに入れ、その結果を応答の形 { inputId: string | null, headType: string, processed: boolean, decoded: boolean, timedOut: boolean, stopping: boolean } で返す（processed・timedOut・stopping はちょうど 1 つが true、decoded が true なら processed も true。HTTP の status は processed・timedOut が 200、stopping が 503）。frame は dataFrame(type, 本文)（寄せるときは shiftTimestamps(本文の文字列, deltaMs) を渡す）。この口と応答の形は後の内製ジェネレータの契約が呼ぶ",
+        "requirement": "注入の HTTP の口（D-RETIME・D-GUARD・D-VIEW）。どの要求も先に (1) Host が 127.0.0.1:<注入の実の port> か localhost:<同じ port> でなければ 403 {\"error\":\"hostRejected\"} (2) Origin があって http://127.0.0.1:<port> か http://localhost:<port> でなければ 403 {\"error\":\"originRejected\"}。GET / は text/html; charset=utf-8 の 1 枚（watch.mjs の中の文字列。外部の script・stylesheet を読まない）で、textarea・種類の欄・file を落とす枠・送るボタンの 4 つと、結果の行と、表示の port の /snapshot へのリンク（別のタブで開くだけ）を持つ。file を落とすと中身を textarea に入れ、種類の欄を file 名から AC01 の部分一致の正規表現で埋める。送るは同じ origin へ POST /inject?type=<種類の欄>（retime は既定）。結果の行の文言は、processed かつ decoded は「受理（input-n）」、processed で decoded でないものは「受理（読めず、input-n）」、timedOut は「時間切れ（処理は続いています）」（作者裁定 2026-11-02）、stopping は「停止中」とし、「表示された」とは書かない（processed は owner が返したことまで、unit が stale・duplicate で捨てた分はどの観測にも出ない）。POST /inject?type=&retime=: 本文は生の XML（UTF-8）。検査の順は、Host・Origin・path・method、type（無ければ 400 typeRequired、AC01 の全体一致の正規表現に合わなければ 400 typeInvalid）、retime、枠の順で、ここまでは本文を読まない。枠は受信中とキューで待つ注入の数（送信中の 1 件は数えない）で 8 件まで。本文を読み始める前に枠を 1 つ取り、取れなければ 503 {\"error\":\"queueFull\"}。取った枠は、受信の途中の切断・413・400 のときに返し、キューから取り出して送信中になったときに返す（キューに入った後の呼び手の切断では取り消さない）。本文が 8 MiB を超えたら読むのをやめて 413 {\"error\":\"bodyTooLarge\"}。type の検査の理由（種類の分からない headType は host で断られて T2 が来ないか、decode で断られるかで原因が見えないため）。retime（読むのは枠より前）は無いか \"1\" なら寄せ、\"0\" なら寄せず、ほかは 400 retimeInvalid。寄せるのに本文の最初の <ReportDateTime> が Date.parse で有限でなければ 400 reportDateTimeMissing（retime=0 なら流せる）。寄せの平行移動が例外を投げたら（本文の中の <DateTime> などが日付として成り立たないとき）400 retimeFailed（差は送るときに計算する、Q-RW-IMPL-1）。要求先が URL として読めなければ（例 //[）400 badRequest。どちらも 1 件の不正な入力で常駐を落とさない（T14）。ほかの path は 404、ほかの method は 405。受けた注入は AC06 のキューに入れ、その結果を応答の形 { inputId: string | null, headType: string, processed: boolean, decoded: boolean, timedOut: boolean, stopping: boolean } で返す（processed・timedOut・stopping はちょうど 1 つが true、decoded が true なら processed も true。HTTP の status は processed・timedOut が 200、stopping が 503）。frame は dataFrame(type, 本文)（寄せるときは shiftTimestamps(本文の文字列, deltaMs) を渡す）。この口と応答の形は後の内製ジェネレータの契約が呼ぶ",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
           "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
@@ -418,7 +426,7 @@
       },
       {
         "id": "P3-RW-AC08",
-        "requirement": "停止（spec§5.9 と C3b の停止監視には触れない）: 登録した signal のどれかで、1 回だけ次の順に進める。(1) キューを stopping にし、送信中・キューで待つ・本文の受信中の注入に 503 stopping:true を返す（AC06） (2) ping の timer を止める (3) 注入の HTTP server を close し、続けて closeAllConnections() を呼ぶ（開いたままの画面のタブの keep-alive が close の完了を引き延ばすため。host 自身も同じく閉じる、host.ts:607〜:608） (4) host.stop() を待つ（host も自分の SIGINT・SIGTERM で同じ stop を呼ぶ。2 回目以降は同じ promise、host.ts:513・:539。SIGHUP は watch の listener だけが受ける） (5) WS の client を全部 terminate してから WebSocketServer を close する（replay.mjs:138〜:139 と同じ順） (6) signal の listener を外し、標準出力に JSON 1 行 { schemaVersion: \"fleq-watch-v1\", event: \"stopped\", shutdown }（shutdown は stop() が返した ShutdownSummary）を書き、shutdown.code で resolve する。stop() の段の順序・期限・code の決め方は変えない",
+        "requirement": "停止（spec§5.9 と C3b の停止監視には触れない）: 登録した signal のどれかで、1 回だけ次の順に進める。(1) キューを stopping にし、送信中・キューで待つ・本文の受信中の注入に 503 stopping:true を返す（AC06） (2) ping の timer を止める (3) 注入の HTTP server を close し、(1) で返した応答の flush を最大 1 秒待ってから（503 stopping を呼び手へ届けるため）closeAllConnections() を呼ぶ（開いたままの画面のタブの keep-alive が close の完了を引き延ばすため。host 自身も同じく閉じる、host.ts:607〜:608） (4) host.stop() を待つ（host も自分の SIGINT・SIGTERM で同じ stop を呼ぶ。2 回目以降は同じ promise、host.ts:513・:539。SIGHUP は watch の listener だけが受ける） (5) WS の client を全部 terminate してから WebSocketServer を close する（replay.mjs:138〜:139 と同じ順） (6) signal の listener を外し、標準出力に JSON 1 行 { schemaVersion: \"fleq-watch-v1\", event: \"stopped\", shutdown }（shutdown は stop() が返した ShutdownSummary）を書き、shutdown.code で resolve する。stop() の段の順序・期限・code の決め方は変えない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:513 «a2ad0b3b132c008c»",
           "reconstruction/src/host/host.ts:539 «a9963aed8491915c»",
@@ -431,7 +439,7 @@
       },
       {
         "id": "P3-RW-AC09",
-        "requirement": "計画・spec・C19 への申し送り（統合担当）: (1) 起草の commit で、計画の末尾に見出し「注入の口（2026-11-02）」と本契約の行、§2.1 の C17 の行と §3.1 の脇レーンの所有への補い、C19 の起草に足すものを置いた（既存の行は変えない。:82・:109 は他の契約の anchor が引く） (2) 凍結時に当てる原文の改訂: spec:650 の 1 行を、行数を変えずに次の 1 行へ置き換える。「- `replay` は固定時計と manifest を持つ検証入力。ただし `fleq watch`（手で試す）は実時計と呼び手が渡す headType を持つ。意味更新・intent 生成・射影は製品と同じ経路を通す。外部配送の無効化、試験専用保存先、実 adapter 使用を試験ごとに明示する。性能・保存・personal 検収で対象負荷を無効化した結果を製品条件の合格に使わない。」。同じ commit で、spec:650 を引く 5 件（p2-eew-e01.json 1・p3-lifetime-and-eew-gate.json 1・p3-replay-cli.json 3）の anchor を新しい行の値へ付け直し、3 契約の meta.sha256 を取り直して check-contract を通す。本契約の 2 件（AC03 と AC09 の spec:650）も同じく付け直す (3) C19（P3-TERMINAL-OUTPUT-001）の起草に足す: EEW ログ（spec §11.4）の置き場は host を起こす手順の引数から取り、watch は <out> を渡す。watch.mjs にその結線を繋ぐ 1 行は C19 の allowedPaths に入れる（計画:637）",
+        "requirement": "計画・spec・C19 への申し送り（統合担当）: (1) 起草の commit で、計画の末尾に見出し「注入の口（2026-11-02）」と本契約の行、§2.1 の C17 の行と §3.1 の脇レーンの所有への補い、C19 の起草に足すものを置いた（既存の行は変えない。:82・:109 は他の契約の anchor が引く） (2) 凍結時に当てる原文の改訂: spec:650 の 1 行を、行数を変えずに次の 1 行へ置き換える。「- `replay` は固定時計と manifest を持つ検証入力。ただし `fleq watch`（手で試す）は実時計と呼び手が渡す headType を持つ。意味更新・intent 生成・射影は製品と同じ経路を通す。外部配送の無効化、試験専用保存先、実 adapter 使用を試験ごとに明示する。性能・保存・personal 検収で対象負荷を無効化した結果を製品条件の合格に使わない。」。同じ commit で、spec:650 を引く 5 件（p2-eew-e01.json 1・p3-lifetime-and-eew-gate.json 1・p3-replay-cli.json 3）の anchor を新しい行の値へ付け直し、3 契約の meta.sha256 を取り直して check-contract を通す。本契約の 2 件（AC03 と AC09 の spec:650）も同じく付け直す (3) C19（P3-TERMINAL-OUTPUT-001）の起草に足す: EEW ログ（spec §11.4）の置き場は host を起こす手順の引数から取り、watch は <out> を渡す。watch.mjs にその結線を繋ぐ 1 行は C19 の allowedPaths に入れる（計画:637） (4) 記録: (2) は配送（2026-11-02）で当てた。spec:650 を置き換え、5 件（p2-eew-e01 1・p3-lifetime-and-eew-gate 1・p3-replay-cli 3）と本契約の 2 件（AC03・AC09）の anchor を «b37a3cd2bafd9805» から «5cea4232ff600572» へ付け直し、3 契約の meta.sha256 を取り直した。文で引く C15（p3-migration.json）の「spec:650 の replay は『固定時計と manifest を持つ検証入力』の意味」は、置き換え後の行の頭の一般則と同じ字なので読みは変わらない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:633 «d13d21d84ee90df8»",
           "reconstruction/contracts/p3-order-plan.md:635 «6103cdda52360b23»",
@@ -439,7 +447,7 @@
           "reconstruction/contracts/p3-order-plan.md:637 «c518f6ebf619e10f»",
           "reconstruction/contracts/p3-order-plan.md:82 «f49d34cd2cb8ad4a»",
           "reconstruction/contracts/p3-order-plan.md:109 «84314275adb7de65»",
-          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»",
           "docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"
         ]
       }
@@ -537,7 +545,7 @@
           "P3-RW-AC06",
           "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»"
         ],
-        "behavior": "T10 と同じく試験が current を奪って POST を 1 つ送ると、10 秒の期限で 200 と { processed: false, timedOut: true, inputId: null } を受ける。その間に host が 5 秒で繋ぎ直して current に戻る（試験の接続は切られる）。続けて送った VXSE53 の POST は processed: true を受ける（時間切れの後も次の件が処理される）"
+        "behavior": "win32 でも skip しない（signal を使わない。D-STOP-TEST の skip は T09・T10・T12 だけ）。T10 と同じく試験が current を奪って POST を 1 つ送ると、10 秒の期限で 200 と { processed: false, timedOut: true, inputId: null } を受ける。その間に host が 5 秒で繋ぎ直して current に戻る（試験の接続は切られる）。続けて送った VXSE53 の POST は processed: true を受ける（時間切れの後も次の件が処理される）"
       },
       {
         "testId": "P3-RW-T12",
@@ -547,6 +555,22 @@
           "reconstruction/src/host/host.ts:28 «95afe7e89c680cb9»"
         ],
         "behavior": "win32 では skip。子を起こして 95 秒待ち（host の切断の 90 秒を超える。この試験だけ vitest の timeout を 150 秒にする）、POST が processed: true を受ける。子を SIGINT で止めた後、<out>/diag/ の下の file のどれにも connectionLivenessExpired が無い（ping で接続が保たれ、host が切っていない）"
+      },
+      {
+        "testId": "P3-RW-T13",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC02"
+        ],
+        "behavior": "子プロセスの環境の XDG_CONFIG_HOME を試験の作業場所の下の directory に向け、--out <その directory>/fleq-next で起こすと、終了 code 1・標準出力が空・標準エラーが {\"error\":\"outIsProduction\",...} で、fleq-next が作られない（AC02 (3)）"
+      },
+      {
+        "testId": "P3-RW-T14",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-RW-AC05"
+        ],
+        "behavior": "実装レビュー r0 の P2 2 件（不正な入力 1 件で常駐が終了 code 1 で落ちた、実測）の再発防止。1 つの子プロセスに (a) 本文の <DateTime> を日付として成り立たない値にした VXSE53 を retime=1 で POST すると 400 {\"error\":\"retimeFailed\"} (b) 要求先 //[ の POST は 400 {\"error\":\"badRequest\"}。その後に送った正常な VXSE53 の POST が processed: true を受ける（子は生きている）"
       }
     ],
     "requiredCommands": [
@@ -597,7 +621,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "全 reconstruction 試験（T01〜T12 と既存の試験）。--sequence.shuffle を付けた回も 1 回通す"
+        "purpose": "全 reconstruction 試験（T01〜T14 と既存の試験）。--sequence.shuffle を付けた回も 1 回通す"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -617,7 +641,7 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行: watch.mjs と fleq.mjs の分岐（AC01）、引数の検査（AC02）、ping（AC04）、Origin の拒否（AC04・AC05）、直列キューと T0 の拾い（AC06）、期限と timedOut（AC06）、待ちの 8 件（AC06）、retime（AC05）、門（AC07）、停止の順（AC08）",
-      "追加した試験ごとに対応（T01・T09・T10 受入条件、T02〜T08・T11・T12 契約境界）を 1 行。T12 は 95 秒かかる",
+      "追加した試験ごとに対応（T01・T09・T10 受入条件、T02〜T08・T11〜T13 契約境界、T14 実不具合）を 1 行。T12 は 95 秒かかる",
       "T01 の起動の行と注入の応答の JSON、/snapshot の current.earthquake の items だけに縮めた写し",
       "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
       "残存リスク: (1) processed は owner が返したことまでで、表示に届いたかは /snapshot で見る。unit が stale・duplicate で捨てた分はどの観測にも出ない (2) ingress の拒否は observe に出ないので 10 秒の timedOut でしか分からない (3) 期限で timedOut にした注入の T0 が期限の後に遅れて出ると、次の注入の id に取り違えうる（loopback では T0 は受けた同期処理で出るので起きにくい） (4) observe を渡すので owner は測定の印付きで動き、費用だけが増える (5) Origin を送らないローカルのプロセスは WS server に繋いで current を奪える（同じ利用者のプロセスは信頼する）"

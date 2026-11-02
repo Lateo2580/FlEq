@@ -9,6 +9,9 @@ if (process.argv[1] != null && realpathSync(process.argv[1]) === import.meta.fil
   if (argv[0] === "replay") {
     const { runReplay } = await import("./replay.mjs");
     code = await runReplay(argv.slice(1));
+  } else if (argv[0] === "watch") {
+    const { runWatch } = await import("./watch.mjs");
+    code = await runWatch(argv.slice(1));
   } else {
     process.env.DOTENV_CONFIG_QUIET = "true";
     dotenv.config();

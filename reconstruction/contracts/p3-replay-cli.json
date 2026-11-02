@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b8ca889b4e0dfe8e816ae0fc99dc2778a9788c97",
-    "sha256": "c54599042648684fbe8ad428e1426e7492eef2814af6e2ebfc2e41375918fc96",
+    "sha256": "50c951611e9ea7b7429657367f2297d48ef7444b17582ef6747fe7c3c8e83e0e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -270,7 +270,7 @@
         "requirement": "境界の検査（D-INPUT・D-STATE、spec:381の無効入力で副作用0）: hostの起動とdirectoryの作成より前に、(1) flagは--outだけで1回、値があること (2) fixtureIdが1個以上 (3) REPOのreconstruction/tools/corpus/manifest.jsonがJSONでfixtures配列を持つ (4) 各fixtureIdがmanifestにあり、roleがtelegramXml、transport.headTypeが空でない文字列 (5) REPOからのpathのfileのbytesのsha256がmanifestのsha256と一致（fixtureIdとpathの対応はcheck-manifest.mjs:78、sha256の照合は:81が台帳の側で確かめる。pathの形は、manifestがrepoの中の信頼できるデータであることで守り、別に検査しない） (6) --outがあれば、その親directoryがあり、それ自体は無いか空のdirectory、を確かめる（mkdirはrecursiveにしない）。reportDateTimeRawの無い・不正な入力は拒まない（D-CLOCKで原点をDate.now()に代える）。1つでも外れたら何も作らずhostも起こさず、標準エラーにJSON 1行（{\"error\": <reason>, ...}）、標準出力は空、終了code 1。検査はこの境界の1か所だけに置き、内側（host・ingress・parser）の検査を写さない（headTypeの中身・XMLの形・運用区分の判定は製品の仕事）。manifestは1回読んでfixtureIdのMapを作る（入力ごとに全件を走査しない）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:381 «d3c49bbd2a708894»",
-          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»",
           "docs/specs/reconstruction-p0-contracts.md:2304 «a3d47e26ae41197f»",
           "reconstruction/tools/corpus/check-manifest.mjs:78 «8612fdaedfc06dad»",
           "reconstruction/tools/corpus/check-manifest.mjs:81 «4f14cb8f6bf854bc»",
@@ -303,7 +303,7 @@
           "reconstruction/test/eew-e01/host-launcher.mjs:41 «4113ec73f724a47d»",
           "reconstruction/src/host/host.ts:130 «f45693862d044177»",
           "reconstruction/src/host/host.ts:395 «4302f01a45d8e2c9»",
-          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»",
           "docs/specs/reconstruction-p0-contracts.md:1934 «e9bf4c61cea76a2a»",
           "docs/specs/reconstruction-p0-contracts.md:2059 «8ac7c45a9d2292ae»"
         ]
@@ -316,7 +316,7 @@
           "reconstruction/test/eew-e01/host-launcher.mjs:16 «e02f05c4847f1a67»",
           "reconstruction/test/eew-e01/host-launcher.mjs:19 «9aaf79e548eb638c»",
           "reconstruction/test/eew-e01/t05-corpus-replay.test.ts:55 «46cb0cf3ffa223ee»",
-          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»",
           "reconstruction/src/notification-delivery/adapter.ts:35 «cbdc7e3ea56c2064»",
           "reconstruction/src/notification-delivery/adapter.ts:179 «5ecf50df3ab82a44»"
         ]
