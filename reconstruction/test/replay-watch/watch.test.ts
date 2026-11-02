@@ -32,7 +32,7 @@ async function start(): Promise<Child> {
   const displayPort = await freePort();
   const child = spawn("node", [CLI, "watch"], {
     cwd: REPO, stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env, FLEQ_WATCH_PORT: "0", FLEQ_WATCH_DISPLAY_PORT: String(displayPort) },
+    env: { ...process.env, FLEQ_WATCH_PORT: "0", FLEQ_WATCH_DISPLAY_PORT: String(displayPort), FLEQ_JMA_CODES: "" }, // 資料なし（公開サンプルの範囲）で動かす（T14・T18）
   });
   spawned.push(child);
   let out = "";
@@ -203,6 +203,54 @@ describe("P3-REPLAY-WATCH-002", () => {
     expect(await new Promise((done) => child.once("exit", done))).toBe(1);
     expect(err).toContain("FLEQ_WS_URL");
     expect(existsSync(join(xdg, "fleq-next", "state"))).toBe(false);
+  }, 60_000);
+
+  // P3-RW2-T14 acceptance (AC12: /generate の HTTP の境界)
+  it("generates telegrams over POST /generate and the result can be injected", async () => {
+    const c = await common();
+    const generate = async (body: object, headers: Record<string, string> = {}) => {
+      const r = await request(c.port, "POST", "/generate", JSON.stringify(body), headers);
+      return { status: r.status, json: JSON.parse(r.text) };
+    };
+    const eew = { family: "VXSE45", placeCode: "681", lat: 33.2, lon: 132.4, depthKm: 10, magnitude: 5.5, maxInt: "5-", areaCode: "622" };
+    const first = await generate(eew);
+    expect(first.status).toBe(200);
+    expect(first.json).toMatchObject({ headType: "VXSE45", originTime: expect.any(String), eventId: expect.any(String) });
+    const again = await generate({ ...eew, originTime: first.json.originTime, serial: 2 });
+    expect(again.json.eventId).toBe(first.json.eventId);
+    expect(await generate({ ...eew, magnitude: 10 })).toEqual({ status: 400, json: { error: "magnitudeOutOfRange", field: "magnitude" } });
+    expect((await generate(eew, { origin: "http://evil.example" })).status).toBe(403);
+    const quake = await generate({ family: "VXSE53", placeCode: "485", lat: 34.8, lon: 138.5, depthKm: 10, magnitude: 5.5, maxInt: "5-", areaCode: "442" });
+    expect(quake.status).toBe(200);
+    // host が繋ぐまでは 503 notConnected（順序を変えても T01 に頼らない）
+    let sent = await post(c, "type=VXSE53&retime=0", quake.json.reports[0].xml);
+    for (let t = Date.now(); sent.status === 503 && Date.now() - t < 20_000;) { await sleep(500); sent = await post(c, "type=VXSE53&retime=0", quake.json.reports[0].xml); }
+    expect(sent).toEqual({ status: 200, json: { sent: true, headType: "VXSE53" } });
+  });
+
+  // P3-RW2-T18 acceptance (AC12: ページ)
+  it("serves the make form, five scenes and the choices from choices()", async () => {
+    const html = (await request((await common()).port, "GET", "/")).text;
+    expect(html).toContain('<form id="make"');
+    expect(html.match(/data-scene="/g)).toHaveLength(5);
+    expect(html).toContain("try { localStorage.setItem(");
+    expect(html).toContain("JSON.parse(localStorage.getItem(");
+    const options = (id: string) => (new RegExp(`<select id="${id}"[^>]*>(.*?)</select>`).exec(html)![1].match(/<option/g) ?? []).length;
+    expect([options("area-VXSE45"), options("area-VXSE53")]).toEqual([44, 17]);
+    expect(html).not.toContain("地震火山関連コード表"); // 資料を読んだときだけ出る出典の 1 行
+  });
+
+  // P3-RW2-T19 contractBoundary (AC12: 起動の失敗)
+  it("stops with codesUnreadable before starting fleq when FLEQ_JMA_CODES cannot be read", async () => {
+    const child = spawn("node", [CLI, "watch"], {
+      cwd: REPO, stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, FLEQ_WATCH_PORT: "0", FLEQ_WATCH_DISPLAY_PORT: String(await freePort()), FLEQ_JMA_CODES: join(work, "missing.xlsx") },
+    });
+    spawned.push(child);
+    let err = "";
+    child.stderr!.on("data", (chunk) => { err += chunk; });
+    expect(await new Promise((done) => child.once("exit", done))).toBe(1);
+    expect(err).toContain("codesUnreadable");
   }, 60_000);
 
   // P3-RW2-T20 contractBoundary (AC03: SIGTERM を子へ渡す。渡さないと watch だけが死んで子の fleq が残る)

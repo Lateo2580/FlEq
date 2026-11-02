@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "8a9c7c182adf2f12494df9a20efac988a09ecde3e15d5378c24055d184f9e30c",
+    "sha256": "a4da8e5b4c5e9ae6939d39e3d1adb26f4efdd0d228c42a1eb0911ea3b361d1c5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -77,7 +77,7 @@
       {
         "id": "P3-RW2-D-SCENES",
         "category": "作者裁定",
-        "A": "ページの左に場面のボタンを 5 つ置く。場面は「作る」の欄に値を入れるだけのプリセットで、押すとその値で作って続けて送る。欄はその後も手で変えて作り直せる（詳しく作るのは「作る」の欄）。場面が持つのは電文の流れ（分野・報の数・終わり方）と M・深さ・最大震度だけで、地域と震央は D-SCENE-AREA に従う。場面: (1) EEW 予報→続報→最終報（VXSE45、reports=3・end=final、合計 3 報） (2) EEW 警報（VXSE43、reports=2・end=final、合計 2 報） (3) EEW の取消（VXSE45、reports=1・end=cancel、第 1 報と取消の合計 2 報） (4) 震度速報→震源・震度（VXSE51 を作り、返った originTime で VXSE53 を作る。合計 2 報を 4 秒おきに送る） (5) 津波警報（VTSE41、1 報。区域・最大震度は無い）。(1)〜(4) は M 5.5・深さ 50 km・最大震度 5-。選んでいる区域がその分野の choices に無いとき（例 北海道の区域で EEW の場面）は、/generate の areaUnknown が結果の行に出る",
+        "A": "ページの左に場面のボタンを 5 つ置く。場面は「作る」の欄に値を入れるだけのプリセットで、押すとその値で作って続けて送る。欄はその後も手で変えて作り直せる（詳しく作るのは「作る」の欄）。場面が持つのは電文の流れ（分野・報の数・終わり方）と M・深さ・最大震度だけで、地域と震央は D-SCENE-AREA に従う。場面: (1) EEW 予報→続報→最終報（VXSE45、reports=3・end=final、合計 3 報） (2) EEW 警報（VXSE43、reports=2・end=final、合計 2 報） (3) EEW の取消（VXSE45、reports=1・end=cancel、第 1 報と取消の合計 2 報） (4) 震度速報→震源・震度（VXSE51 を作り、返った originTime で VXSE53 を作る。合計 2 報を 4 秒おきに送る） (5) 津波警報（VTSE41、1 報。区域・最大震度は無い）。(1)〜(4) は M 5.5・深さ 50 km・最大震度 5-。選んでいる区域がその分野の choices に無いとき（例 北海道の区域で EEW の場面）は、/generate の areaUnknown が結果の行に出る。Q-RW2-IMPL-2 (9) のとおり、場面 (5) は M 7.5・深さ 10 km",
         "B": "場面のボタンを置かない（「作る」の欄だけ）",
         "recommended": "A",
         "provisional": "A",
@@ -90,7 +90,7 @@
         "category": "作者の判断（使い勝手）",
         "A": "場面は公開サンプルの地域だけを使う（EEW は愛媛県南予と豊後水道、震度速報と震源・震度は静岡県中部と駿河湾）。栃木で試すときは「作る」の欄で選び直す",
         "B": "栃木県南部と茨城県南部の 1 組を場面の値としてページ（watch.mjs）に書く",
-        "C": "場面は電文の流れだけを持ち、地域（区域）と震央（震央地名・緯度・経度）は「作る」の欄で今選んでいるものを使う。選んだ区域・震央地名・緯度・経度はブラウザの localStorage に覚えさせ（読み書きは try/catch で囲み、使えなくても動く）、ページを開いたときに欄へ戻す。覚えた値がその時の choices に無ければ使わない。資料が無いときの欄の初期値は公開サンプルの値（EEW は愛媛県南予・豊後水道・北緯 33.2・東経 132.4、地震情報は静岡県中部・駿河湾・北緯 34.8・東経 138.5、津波は三陸沖・北緯 38.0・東経 142.9）。資料があるときの初期値も同じ値（コード表に在る区域・震央地名なので選べる）で、栃木は作者が一度選べば次から栃木になる",
+        "C": "場面は電文の流れだけを持ち、地域（区域）と震央（震央地名・緯度・経度）は「作る」の欄で今選んでいるものを使う。選んだ区域・震央地名・緯度・経度はブラウザの localStorage に覚えさせ（読み書きは try/catch で囲み、使えなくても動く）、ページを開いたときに欄へ戻す。覚えた値がその時の choices に無ければ使わない。資料が無いときの欄の初期値は公開サンプルの値（EEW は愛媛県南予・豊後水道・北緯 33.2・東経 132.4、地震情報は静岡県中部・駿河湾・北緯 34.8・東経 138.5、津波は三陸沖・北緯 38.0・東経 142.9）。資料があるときの初期値も同じ値（コード表に在る区域・震央地名なので選べる）で、栃木は作者が一度選べば次から栃木になる。Q-RW2-IMPL-2 (8) のとおり、ページは操作の世代の番号で古い応答を捨て、区域は分野の組（EEW・地震情報・津波）ごとに覚え、今の組に値が無いときはほかの組の値のうち今の分野の select にあるものを使う",
         "recommended": "C",
         "provisional": "C",
         "status": "作者裁定（2026-11-02、推奨どおり）",
@@ -100,7 +100,7 @@
       {
         "id": "P3-RW2-D-TIME",
         "category": "統合担当決定",
-        "A": "起点（originTime、既定は今）は発生時刻とし、秒に切り捨てる。生成した時刻は 1 回の呼出しで 1 度だけ取った今を秒に切り捨てた値。EventID は eventIdAt(起点)、Hypocenter の OriginTime と VXSE51 の TargetDateTime は起点そのもの。報の時刻（ReportDateTime・Control/DateTime、VXSE51 以外の TargetDateTime）は生成した時刻で、EEW の続報列だけ第 k 報を生成した時刻＋4 秒×(k−1) にする。起点が生成した時刻より後なら originTimeInvalid（等しいのは可）。ページは作った報を retime=0 で、第 1 報はすぐ、以後 4 秒おきに /inject へ送る",
+        "A": "起点（originTime、既定は今）は発生時刻とし、秒に切り捨てる。生成した時刻は 1 回の呼出しで 1 度だけ取った今を秒に切り捨てた値。EventID は eventIdAt(起点)、Hypocenter の OriginTime と VXSE51 の TargetDateTime は起点そのもの。報の時刻（ReportDateTime・Control/DateTime、VXSE51 以外の TargetDateTime）は生成した時刻で、EEW の続報列だけ第 k 報を生成した時刻＋4 秒×(k−1) にする。起点が生成した時刻より後なら originTimeInvalid（等しいのは可）。ページは作った報を retime=0 で、第 1 報はすぐ、以後 4 秒おきに /inject へ送る。Q-RW2-IMPL-2 (7) のとおり、/generate の生成した時刻は、今と「watch が最後に出した報の時刻＋1 秒」の遅い方にする",
         "B": "作った報も retime=1 で送り、watch に時刻を今へ寄せさせる",
         "recommended": "A",
         "provisional": "A",
@@ -219,9 +219,25 @@
         "id": "Q-RW2-IMPL-1",
         "status": "closed",
         "source": "発注 1 の実装とレビュー（2026-11-02〜03、実装の木 ~/dev/fleq-rw2-o1、base 3427ead4）。前例は P3-REPLAY-WATCH-001 の Q-RW-IMPL-1",
-        "closed": "配送で当てる契約の改訂と実装の形の記録: (1) AC02 (7) のページの open は、起動の (7) の時点ではなく、AC03 の [alive・none, Origin の無い upgrade] の初めての 1 回だけで行う。条件は darwin かつ process.stdin.isTTY のまま。状態の表の外に opened の 1 bit を持つ。起動の時点で開くと、右の iframe が子の fleq の表示の port が開く前に読み込まれ、画面が空のまま残るため（統合担当の追加、r1。ヘルツの観察から） (2) WebSocketServer は node:http の server の listen が済んだ後に作る。ws 8 は server の error を wss の error へ流し直すので、先に作ると listen の EADDRINUSE が AC02 (3) の portInUse として出ないため (3) T06・T10 は、試験の helper の injectWhenConnected（503 notConnected の間は注入をやり直す）で host の接続を待ってから進める。--sequence.shuffle で it の順が変わっても、T01 が先に接続を待ったことに頼らないため (4) 実装のレビュー: 品質（ヘルツ）は r0 で NO-GO（試験の順序依存）、r1 へ。契約適合（Opus）は r0 で条件付き GO、r1 で GO。Mac mini のゲートは r0 で 11 本とも rc 0。r1 の結果は統合担当が書き足す",
-        "remaining": "r1 の品質レビューとゲートの結果の書き足し（統合担当）",
+        "closed": "配送で当てる契約の改訂と実装の形の記録: (1) AC02 (7) のページの open は、起動の (7) の時点ではなく、AC03 の [alive・none, Origin の無い upgrade] の初めての 1 回だけで行う。条件は darwin かつ process.stdin.isTTY のまま。状態の表の外に opened の 1 bit を持つ。起動の時点で開くと、右の iframe が子の fleq の表示の port が開く前に読み込まれ、画面が空のまま残るため（統合担当の追加、r1。ヘルツの観察から） (2) WebSocketServer は node:http の server の listen が済んだ後に作る。ws 8 は server の error を wss の error へ流し直すので、先に作ると listen の EADDRINUSE が AC02 (3) の portInUse として出ないため (3) T06・T10 は、試験の helper の injectWhenConnected（503 notConnected の間は注入をやり直す）で host の接続を待ってから進める。--sequence.shuffle で it の順が変わっても、T01 が先に接続を待ったことに頼らないため (4) 実装のレビュー: 品質（ヘルツ）は r0 で NO-GO（試験の順序依存）、r1 へ。契約適合（Opus）は r0 で条件付き GO、r1 で GO。Mac mini のゲートは r0 で 11 本とも rc 0。r1 の結果と最終ゲートは発注 1 の配送（73073083）で書き足した: 最終ゲート 11 本とも rc 0",
+        "remaining": "なし（発注 1 の配送 73073083 で閉じた）",
         "reason": "実装レビューの記録"
+      },
+      {
+        "id": "Q-RW2-IMPL-2",
+        "status": "closed",
+        "source": "発注 2 の実装とレビュー（2026-11-03、実装の木 ~/dev/fleq-rw2-o2、HEAD 73073083）。前例は Q-RW2-IMPL-1",
+        "closed": "配送で当てる契約の改訂と実装の形の記録: (1) POST /generate で generateTelegrams が例外を投げたら 500 { error: \"generateFailed\" } を返す（AC12 の応答の一覧に足す）。1 件で常駐を落とさないため (2) 津波 3 種の震源の欄（placeCode・lat・lon・depthKm・magnitude）は任意だが、渡すなら 5 つそろえ、欠ければ missingField（AC08 の「任意」の読み） (3) シート 24 で、区域の Code が 3 桁なのに市町村等・観測点の Code が 7 桁でない行は、使わずに飛ばすのではなく Error にする（AC07 (e) より厳しい。実物では起きない） (4) VXSE53 で maxInt が 1・2 のときは Headline の Information を出さない（地震火山関連の解説資料 11-2(3)）。AC09 の「2 つの Information に作り直す」の例外 (5) 記録だけ: VXSE43 も Headline の Information を消す（解説資料 11-2(2) の形と違う。見出しの区域が選んだ区域と食い違わないため。型のまま残すと、選んだ区域と関係なく型の「四国・九州・中国」と愛媛の警報が見出しに残る） (6) 記録だけ: 最終報の文 FINAL_TEXT（AC10 の NextAdvisory「この情報をもって、緊急地震速報：最終報とします。」）は公開サンプルに無い文 (7) /generate の生成した時刻は、今と「watch が最後に出した報の時刻＋1 秒」の遅い方にする。同じ秒に作った続報が版の比べで採られないため（ヘルツ r0 の P2。D-TIME に添える） (8) ページは操作の世代の番号を持ち、古い操作の /generate の応答を捨てる。localStorage に覚える区域は分野の組（EEW・地震情報・津波）ごとに覚える。今の組に値が無いときは、ほかの組の値のうち今の分野の select にあるものを使う（D-SCENE-AREA C の『一度選べば次も』を保つため。ヘルツ r0 の P2。D-SCENE-AREA に添える） (9) 津波の場面 (5) は M 7.5・深さ 10 km（D-SCENES に値の指定が無かった） (10) cancel が boolean でなければ fieldNotInFamily（field は cancel）で断る（AC08 の閉じた一覧からの読み替え。新しい reason は足さない） (11) watch のプロセスの中に、最後に出した報の秒 lastSecond を 1 つ持つ（(7) のため）。AC12 の「/generate は状態を持たず」の例外で、保存しない (12) 実装のレビュー: 品質（ヘルツ）は r0 で NO-GO（P2 3 件）、契約適合（Opus）は r0 で条件付き GO（P2 2 件）。r1 以降: 品質（ヘルツ）は r1 で GO（P3 2 件を当てた）、r2（r1 からの差だけ）で GO。契約適合（Opus）は r1 で条件付き GO（regionOf を作者裁定 D-SCENE-AREA=C に合わせて直し、記録の食い違いも直した）。Mac mini の最終ゲートは配送の木で 11 本とも rc 0（新築 vitest 1182 passed・26 skipped、--sequence.shuffle の回も同じ件数、旧築 npm test 6837 passed・3 skipped）。本物のコード表での T15 は、実装者と契約適合の担当がそれぞれ 1 回ずつ緑（細分区域 188・震央地名 343・EEW の区域 125、栃木県南部の市町村 19）",
+        "remaining": "なし",
+        "reason": "実装レビューの記録"
+      },
+      {
+        "id": "Q-RW2-NPM-SIGINT",
+        "status": "closed",
+        "source": "統合担当の観測（2026-11-03 02 時ごろ、pty で npm run watch を起こし、前面のプロセス群に SIGINT を送った）",
+        "closed": "npm は即座に終わり、群に残るプロセスは 0（npm・sh・watch・子の fleq の 4 つがどれも終わった）。AC05 の script を node の直接起動へ替える改訂は要らない",
+        "remaining": "作者の実端末での目視（2026-11-03 朝）",
+        "reason": "配送の受入（もとは unresolvedQuestions）"
       },
       {
         "id": "Q-RW2-ANCHORS",
@@ -360,7 +376,7 @@
       "なし（保存の形は変えない。watch の fleq が作る checkpoint の ReportRef.origin が \"replay\" になるのは 001・C17 と同じ）"
     ],
     "nonPersistedFields": [
-      "watch.mjs の current の接続・ping の番号・socketId の番号、ジェネレータの型とコード表から抜き出した値（プロセスの間だけ。file に書かない）"
+      "watch.mjs の current の接続・ping の番号・socketId の番号・最後に出した報の秒 lastSecond（Q-RW2-IMPL-2 (11)）、ジェネレータの型とコード表から抜き出した値（プロセスの間だけ。file に書かない）"
     ],
     "outOfScope": [
       "host.ts・http-sse.ts・composition root・ingress・parser・unit・repl.ts・settings.ts・fleq.mjs・replay.mjs・frames.mjs・synth.ts の変更（synth.ts を変えると災害測定の sourceSha256 が変わる）",
@@ -439,7 +455,7 @@
       },
       {
         "id": "P3-RW2-AC07",
-        "requirement": "【発注 2】 ジェネレータの置き場と入口（D-AREA・D-CODES・D-FRAMES）: 新設の reconstruction/tools/telegram-gen/telegram-gen.mjs に export function generateTelegrams(input) と export function choices(family) の 2 つだけを置き、型の宣言は reconstruction/tools/telegram-gen/telegram-gen.d.mts（eew-e01 の .d.mts と同じ作法）。CLI は作らない。型の XML は fixtureIds の 13 本だけを frames.mjs の fixtureText で最初の呼出しに 1 回読み、Map に持つ。コード表は process.env.FLEQ_JMA_CODES が空でなければ、その path の xlsx を最初の呼出しに 1 回読む。読み取りは node だけで書き、依存を足さない（約 80 行）: (a) zip の末尾の End of Central Directory から central directory を読み、目当ての entry の local header を引いて、圧縮方式 8（deflate）は node:zlib の inflateRawSync で展開し、0（無圧縮）はそのまま使う。ほかの圧縮方式・暗号化（汎用 flag の bit 0）・zip64 は Error にする（コメント `shortcut: zip64・暗号化・deflate と無圧縮の外の圧縮方式は受けない。Excel の保存する xlsx がこれらを使うようになったら足す` を 1 行） (b) xl/workbook.xml の <sheet name=… r:id=…> と xl/_rels/workbook.xml.rels の Relationship の Id→Target から、シート名 \"22\"・\"23\"・\"24\"・\"41\"（D-TSUNAMI-AREA=A なので 31・35 は引かない）を file に引く（並びの番号では引かない。実物では \"24\" が sheet9.xml） (c) xl/sharedStrings.xml の <si> を順に読み、<rPh>（ふりがな）の中は飛ばし、<r> の中の <t> はつなぎ、&amp;・&lt;・&gt;・&quot;・&apos; と数値の文字参照を戻す (d) セルは <c r=\"B20\" t=\"s\"><v>（番号）</v></c> の形で、t=\"s\" なら <v> は sharedStrings の番号、無ければ <v> の値そのもの。空のセルは省かれるので、列は r の列の文字で合わせる（並びの位置で数えない） (e) 列の対応（実物の xlsx を読んで決めた列の文字。値は書かない）: シート 22・23・41 は A 列が Code・B 列が Name。シート 24 は A 列が細分区域の Code・B 列がその Name、D 列が市町村等の Code・E 列がその Name、G 列が震度観測点の Code・H 列がその Name（C・F・I 列はふりがなで読まない）。使う行は、シート 22 は A が 4 桁、23 は 2 桁、24 は A が 3 桁で D・G が 7 桁、41 は 3 桁の行だけ（見出し・空の行・備考の行を落とす）。シート 24 は 1 行が観測点 1 つで、A 列の細分区域の Code で区域に束ね、その中を D 列の市町村等の Code で束ね、G 列の観測点を行の順に並べる。同じ細分区域・市町村等の Code がまた出たとき、Name が前と同じなら同じ束に足し、違えば Error。同じ観測点の Code が 2 回出たら Error。シート 22・23・41 で同じ Code が 2 回出ても Error（実物ではどれも起きないことを起草時に数えた）。無いと（この読み取りが無いと）: xlsx を読む依存を足すか、抜き出した file を作ることになり、D-CODES の「資料と抜き出しを repo の外にも書かない」が守れない。。読めない・シートが無い・どれかのシートの行が 0・24 の行の欄が欠けるときは Error を投げる（黙って型の範囲へ落とさない）。抜き出した結果を file に書かない。choices(family) は { places: {code,name}[], areas: {code,name}[] } を返す。資料があるとき: places は震源を受ける分野（VXSE43・45・52・53 と津波 3 種）で震央地名 343 件、areas は VXSE51・53 で細分区域 188 件、VXSE43・45 で D-EEW-AREAS の 125 件。資料が無いとき: places は型に在る震央地名 3 件、areas は VXSE43・45 で 77_01_26 の 44 区域、VXSE51 で 32-35_07_01 の 37 区域、VXSE53 で 32-35_01_03 の 17 区域（Q-RW2-CODES (6)）。ほかの分野の areas は空。synth.ts・host.ts・http-sse.ts・replay.mjs・frames.mjs は変えない。先頭になぜのコメントを 2 行（watch へ注入する電文を作ること、骨組みは公開サンプルに限り、コード表は repo に入れず手元から読むこと）",
+        "requirement": "【発注 2】 ジェネレータの置き場と入口（D-AREA・D-CODES・D-FRAMES）: 新設の reconstruction/tools/telegram-gen/telegram-gen.mjs に export function generateTelegrams(input) と export function choices(family) の 2 つだけを置き、型の宣言は reconstruction/tools/telegram-gen/telegram-gen.d.mts（eew-e01 の .d.mts と同じ作法）。CLI は作らない。型の XML は fixtureIds の 13 本だけを frames.mjs の fixtureText で最初の呼出しに 1 回読み、Map に持つ。コード表は process.env.FLEQ_JMA_CODES が空でなければ、その path の xlsx を最初の呼出しに 1 回読む。読み取りは node だけで書き、依存を足さない（約 80 行）: (a) zip の末尾の End of Central Directory から central directory を読み、目当ての entry の local header を引いて、圧縮方式 8（deflate）は node:zlib の inflateRawSync で展開し、0（無圧縮）はそのまま使う。ほかの圧縮方式・暗号化（汎用 flag の bit 0）・zip64 は Error にする（コメント `shortcut: zip64・暗号化・deflate と無圧縮の外の圧縮方式は受けない。Excel の保存する xlsx がこれらを使うようになったら足す` を 1 行） (b) xl/workbook.xml の <sheet name=… r:id=…> と xl/_rels/workbook.xml.rels の Relationship の Id→Target から、シート名 \"22\"・\"23\"・\"24\"・\"41\"（D-TSUNAMI-AREA=A なので 31・35 は引かない）を file に引く（並びの番号では引かない。実物では \"24\" が sheet9.xml） (c) xl/sharedStrings.xml の <si> を順に読み、<rPh>（ふりがな）の中は飛ばし、<r> の中の <t> はつなぎ、&amp;・&lt;・&gt;・&quot;・&apos; と数値の文字参照を戻す (d) セルは <c r=\"B20\" t=\"s\"><v>（番号）</v></c> の形で、t=\"s\" なら <v> は sharedStrings の番号、無ければ <v> の値そのもの。空のセルは省かれるので、列は r の列の文字で合わせる（並びの位置で数えない） (e) 列の対応（実物の xlsx を読んで決めた列の文字。値は書かない）: シート 22・23・41 は A 列が Code・B 列が Name。シート 24 は A 列が細分区域の Code・B 列がその Name、D 列が市町村等の Code・E 列がその Name、G 列が震度観測点の Code・H 列がその Name（C・F・I 列はふりがなで読まない）。使う行は、シート 22 は A が 4 桁、23 は 2 桁、24 は A が 3 桁で D・G が 7 桁、41 は 3 桁の行だけ（見出し・空の行・備考の行を落とす）。シート 24 は 1 行が観測点 1 つで、A 列の細分区域の Code で区域に束ね、その中を D 列の市町村等の Code で束ね、G 列の観測点を行の順に並べる。同じ細分区域・市町村等の Code がまた出たとき、Name が前と同じなら同じ束に足し、違えば Error。同じ観測点の Code が 2 回出たら Error。シート 22・23・41 で同じ Code が 2 回出ても Error（実物ではどれも起きないことを起草時に数えた）。無いと（この読み取りが無いと）: xlsx を読む依存を足すか、抜き出した file を作ることになり、D-CODES の「資料と抜き出しを repo の外にも書かない」が守れない。。読めない・シートが無い・どれかのシートの行が 0・24 の行の欄が欠けるときは Error を投げる（黙って型の範囲へ落とさない）。抜き出した結果を file に書かない。choices(family) は { places: {code,name}[], areas: {code,name}[] } を返す。資料があるとき: places は震源を受ける分野（VXSE43・45・52・53 と津波 3 種）で震央地名 343 件、areas は VXSE51・53 で細分区域 188 件、VXSE43・45 で D-EEW-AREAS の 125 件。資料が無いとき: places は型に在る震央地名 3 件、areas は VXSE43・45 で 77_01_26 の 44 区域、VXSE51 で 32-35_07_01 の 37 区域、VXSE53 で 32-35_01_03 の 17 区域（Q-RW2-CODES (6)）。ほかの分野の areas は空。synth.ts・host.ts・http-sse.ts・replay.mjs・frames.mjs は変えない。先頭になぜのコメントを 2 行（watch へ注入する電文を作ること、骨組みは公開サンプルに限り、コード表は repo に入れず手元から読むこと） Q-RW2-IMPL-2 (3) のとおり、シート 24 で区域が 3 桁なのに市町村等・観測点が 7 桁でない行は Error にする。",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/frames.mjs:17 «1deb9824a910d22b»",
           "reconstruction/test/disaster/synth.ts:32 «ed7be20ea8f47d93»",
@@ -457,7 +473,7 @@
       },
       {
         "id": "P3-RW2-AC08",
-        "requirement": "【発注 2】 入力と範囲の検査（草稿 AC02 を写して改める）: generateTelegrams は範囲外を例外にせず { kind: \"rejected\", reason, field } を返す。欄が無い・null・空文字は渡していない扱い。lat・lon・depthKm・magnitude・serial・reports は number で受ける。family は VXSE43・VXSE45・VXSE51・VXSE52・VXSE53・VTSE41・VTSE51・VTSE52（他は unknownFamily）。originTime は時差つき ISO 8601（秒未満は切り捨て、既定は秒に切り捨てた今。読めない・生成した時刻より後は originTimeInvalid、D-TIME）。placeCode は choices(family).places のコード（placeUnknown）、lat は 0〜90・lon は 0〜180 で小数 1 桁まで（coordinateOutOfRange）、depthKm は 0〜700 の整数（depthOutOfRange）、magnitude は 0.0〜9.9 の小数 1 桁まで（magnitudeOutOfRange）。maxInt は 1・2・3・4・5-・5+・6-・6+・7 で、VXSE51 は 3 以上・VXSE43 は 5- 以上（intensityOutOfRange）。areaCode は choices(family).areas のコード（areaUnknown）。serial は 1〜999 の整数で既定 1、列の最後の報の番号が 999 を超えても serialOutOfRange。reports は 1〜60（reportsOutOfRange）、end は none・final・cancel（endInvalid）。組合せ: VXSE51 に震源の欄、VXSE52 と津波 3 種に maxInt・areaCode、VXSE51・VXSE52・VTSE41 に serial、EEW 以外に reports・end を渡したら fieldNotInFamily。cancel=true に震源の欄・maxInt・areaCode・reports・end を添えたら cancelWithContent、VXSE52・VXSE53・VTSE52 の cancel は cancelTemplateMissing（D-CANCEL）。必須の欠け（取消でない VXSE52・53 と EEW の震源の欄〔placeCode・lat・lon・depthKm・magnitude〕、VXSE51・53 と EEW の maxInt・areaCode）は missingField。津波 3 種の震源の欄は任意。reason は閉じた一覧で、足すのは契約の改訂。無いと: 範囲外の値が parser の拒否になり、作った側の誤りか製品の誤りか見分けられない",
+        "requirement": "【発注 2】 入力と範囲の検査（草稿 AC02 を写して改める）: generateTelegrams は範囲外を例外にせず { kind: \"rejected\", reason, field } を返す。欄が無い・null・空文字は渡していない扱い。lat・lon・depthKm・magnitude・serial・reports は number で受ける。family は VXSE43・VXSE45・VXSE51・VXSE52・VXSE53・VTSE41・VTSE51・VTSE52（他は unknownFamily）。originTime は時差つき ISO 8601（秒未満は切り捨て、既定は秒に切り捨てた今。読めない・生成した時刻より後は originTimeInvalid、D-TIME）。placeCode は choices(family).places のコード（placeUnknown）、lat は 0〜90・lon は 0〜180 で小数 1 桁まで（coordinateOutOfRange）、depthKm は 0〜700 の整数（depthOutOfRange）、magnitude は 0.0〜9.9 の小数 1 桁まで（magnitudeOutOfRange）。maxInt は 1・2・3・4・5-・5+・6-・6+・7 で、VXSE51 は 3 以上・VXSE43 は 5- 以上（intensityOutOfRange）。areaCode は choices(family).areas のコード（areaUnknown）。serial は 1〜999 の整数で既定 1、列の最後の報の番号が 999 を超えても serialOutOfRange。reports は 1〜60（reportsOutOfRange）、end は none・final・cancel（endInvalid）。組合せ: VXSE51 に震源の欄、VXSE52 と津波 3 種に maxInt・areaCode、VXSE51・VXSE52・VTSE41 に serial、EEW 以外に reports・end を渡したら fieldNotInFamily。cancel=true に震源の欄・maxInt・areaCode・reports・end を添えたら cancelWithContent、VXSE52・VXSE53・VTSE52 の cancel は cancelTemplateMissing（D-CANCEL）。必須の欠け（取消でない VXSE52・53 と EEW の震源の欄〔placeCode・lat・lon・depthKm・magnitude〕、VXSE51・53 と EEW の maxInt・areaCode）は missingField。津波 3 種の震源の欄は任意。reason は閉じた一覧で、足すのは契約の改訂。無いと: 範囲外の値が parser の拒否になり、作った側の誤りか製品の誤りか見分けられない。Q-RW2-IMPL-2 (2)(10) のとおり、津波 3 種の震源の欄は渡すなら 5 つそろえ、欠ければ missingField。cancel が boolean でなければ fieldNotInFamily（field は cancel）",
         "evidenceRefs": [
           "reconstruction/src/domains/seismic/seismic.ts:21 «3b05587c2ec9938e»",
           "reconstruction/src/domains/seismic/seismic.ts:151 «b3f3cdab9119dc3c»",
@@ -471,7 +487,7 @@
       },
       {
         "id": "P3-RW2-AC09",
-        "requirement": "【発注 2】 書き換え（草稿 AC03 を写し、値は資料があればコード表から、無ければ型から入れる）: EventID（eventIdAt(起点)）・Serial（既定 1。VXSE51・VXSE52・VTSE41 は型の空の <Serial/> のまま）・ReportDateTime・TargetDateTime・Control/DateTime・Control/Status（常に通常、D-STATUS）・InfoType（取消のときだけ取消）を head() の写しで書き、型の時刻は placed() の写しで OriginTime が起点になるよう全体を動かす（D-TIME）。震源: Hypocenter/Area の Name と Code（type=震央地名）を選んだ震央地名にし、jmx_eb:Coordinate は +緯度+経度-深さm/ と型と同じ全角の description、Magnitude は値と description（緯度・経度・M は toFixed(1)）。EEW は ReduceName を選んだ Name にし、ReduceCode は型のまま、LandOrSea は消す（D-CODES）。最大震度と区域: EEW は Forecast の ForecastInt を maxInt、Forecast 直下の ForecastLgInt を 0 にし（型の 2 が残ると全部が長周期階級 2 になる）、Pref（資料があればシート 22 の 9pp0 の行、無ければ型のその区域の Pref）→ Area（選んだ細分区域）の 1 本に縮め、Area に ForecastInt と Category（VXSE43 は警報 Code 10、VXSE45 は予報 Code 00）を書く（eewBody の写し）。EEW の Headline の Information は消し、Text は「<震央地名>で地震」にする（型の Code 31 が残ると VXSE45 も警報になる、eew.ts:446）。VXSE51 は Observation を Pref（資料があればシート 23 の市町村コードの頭 2 桁の行、無ければ型のその区域の Pref）→ Area の 1 本に作り直し、Observation 直下・Pref・Area の MaxInt を maxInt に、Headline の Information を 1 Item にする（headlineItems の写し）。VXSE53 は Observation を Pref → Area → その区域の全市町村 → 各市町村の全震度観測点に作り直し（資料があればシート 23・24 から、無ければ型のその区域の部分木をそのまま使う）、要素の並びと属性は型の先頭の Pref・Area・City・IntensityStation に合わせ、Observation 直下・Pref・Area・City の MaxInt と観測点の Int をすべて maxInt にする。Headline の 2 つの Information は、細分区域の 1 Item と、その区域の全市町村を並べた 1 Item に作り直す。津波 3 種は D-TSUNAMI-AREA に従う（A なら Serial〔VTSE51・52〕・取消・EventID・時刻と、渡されたときの震源・M・深さだけ）。地震情報と津波の Headline の Text は型のまま。欄の組み合わせ（要素の有無・回数・並び）は地震火山関連の解説資料と型に合わせ、型に無い要素は足さない（EEW の最終報の NextAdvisory を除く、AC10）。無いと: 型の EventID と時刻が残り、2 本目からは重複や古い報として捨てられる",
+        "requirement": "【発注 2】 書き換え（草稿 AC03 を写し、値は資料があればコード表から、無ければ型から入れる）: EventID（eventIdAt(起点)）・Serial（既定 1。VXSE51・VXSE52・VTSE41 は型の空の <Serial/> のまま）・ReportDateTime・TargetDateTime・Control/DateTime・Control/Status（常に通常、D-STATUS）・InfoType（取消のときだけ取消）を head() の写しで書き、型の時刻は placed() の写しで OriginTime が起点になるよう全体を動かす（D-TIME）。震源: Hypocenter/Area の Name と Code（type=震央地名）を選んだ震央地名にし、jmx_eb:Coordinate は +緯度+経度-深さm/ と型と同じ全角の description、Magnitude は値と description（緯度・経度・M は toFixed(1)）。EEW は ReduceName を選んだ Name にし、ReduceCode は型のまま、LandOrSea は消す（D-CODES）。最大震度と区域: EEW は Forecast の ForecastInt を maxInt、Forecast 直下の ForecastLgInt を 0 にし（型の 2 が残ると全部が長周期階級 2 になる）、Pref（資料があればシート 22 の 9pp0 の行、無ければ型のその区域の Pref）→ Area（選んだ細分区域）の 1 本に縮め、Area に ForecastInt と Category（VXSE43 は警報 Code 10、VXSE45 は予報 Code 00）を書く（eewBody の写し）。EEW の Headline の Information は消し、Text は「<震央地名>で地震」にする（型の Code 31 が残ると VXSE45 も警報になる、eew.ts:446）。VXSE51 は Observation を Pref（資料があればシート 23 の市町村コードの頭 2 桁の行、無ければ型のその区域の Pref）→ Area の 1 本に作り直し、Observation 直下・Pref・Area の MaxInt を maxInt に、Headline の Information を 1 Item にする（headlineItems の写し）。VXSE53 は Observation を Pref → Area → その区域の全市町村 → 各市町村の全震度観測点に作り直し（資料があればシート 23・24 から、無ければ型のその区域の部分木をそのまま使う）、要素の並びと属性は型の先頭の Pref・Area・City・IntensityStation に合わせ、Observation 直下・Pref・Area・City の MaxInt と観測点の Int をすべて maxInt にする。Headline の 2 つの Information は、細分区域の 1 Item と、その区域の全市町村を並べた 1 Item に作り直す。津波 3 種は D-TSUNAMI-AREA に従う（A なら Serial〔VTSE51・52〕・取消・EventID・時刻と、渡されたときの震源・M・深さだけ）。地震情報と津波の Headline の Text は型のまま。欄の組み合わせ（要素の有無・回数・並び）は地震火山関連の解説資料と型に合わせ、型に無い要素は足さない（EEW の最終報の NextAdvisory を除く、AC10）。無いと: 型の EventID と時刻が残り、2 本目からは重複や古い報として捨てられる。Q-RW2-IMPL-2 (4)(5) のとおり、VXSE53 の maxInt が 1・2 のときは Headline の Information を出さず、VXSE43 も Headline の Information を消す（解説資料 11-2(2) の形と違う。見出しの区域が選んだ区域と食い違わないため。記録だけ）",
         "evidenceRefs": [
           "reconstruction/test/disaster/synth.ts:28 «1cc48cf0cc53871b»",
           "reconstruction/test/disaster/synth.ts:32 «ed7be20ea8f47d93»",
@@ -490,7 +506,7 @@
       },
       {
         "id": "P3-RW2-AC10",
-        "requirement": "【発注 2】 EEW の続報列（草稿 AC04 のまま）: VXSE43・45 で reports=n のとき、Serial s..s＋n−1・同じ EventID・同じ OriginTime で、第 k 報の ReportDateTime と Control/DateTime が生成した時刻＋4 秒×(k−1) の n 報を順に返す（内容は全報同じ）。end=final は第 n 報の Body に NextAdvisory「この情報をもって、緊急地震速報：最終報とします。」を足す。end=cancel は第 n＋1 報として取消の型（37_01_03・77_01_33）から Serial s＋n・InfoType 取消・同じ EventID・生成した時刻＋4 秒×n の報を足す。単発の cancel=true は Serial（既定 1）の取消 1 報。無いと: 続報・最終報・取消を画面で試せない",
+        "requirement": "【発注 2】 EEW の続報列（草稿 AC04 のまま）: VXSE43・45 で reports=n のとき、Serial s..s＋n−1・同じ EventID・同じ OriginTime で、第 k 報の ReportDateTime と Control/DateTime が生成した時刻＋4 秒×(k−1) の n 報を順に返す（内容は全報同じ）。end=final は第 n 報の Body に NextAdvisory「この情報をもって、緊急地震速報：最終報とします。」を足す。end=cancel は第 n＋1 報として取消の型（37_01_03・77_01_33）から Serial s＋n・InfoType 取消・同じ EventID・生成した時刻＋4 秒×n の報を足す。単発の cancel=true は Serial（既定 1）の取消 1 報。無いと: 続報・最終報・取消を画面で試せない。Q-RW2-IMPL-2 (6) のとおり、最終報の NextAdvisory の文は公開サンプルに無い文",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:180 «febb29d41329b53e»",
           "reconstruction/src/domains/eew/eew.ts:178 «598613e1d0ffc4da»",
@@ -514,7 +530,7 @@
       },
       {
         "id": "P3-RW2-AC12",
-        "requirement": "【発注 2】 ページの「作る」と場面（D-TIME・D-SCENES）: watch.mjs に (1) generateTelegrams と choices の import (2) POST /generate（AC04 の Host・Origin の照合の後に置く。POST 以外は 405。本文は AC08 の入力の JSON で 64 KiB まで〔超えたら 413 bodyTooLarge〕、読めなければ 400 badRequest。成功は 200 { headType, eventId, originTime, reports: [{ serial, xml }] }、入力の拒否は 400 { error: <reason>, field }） (3) watch は起動の時（子を起こす前）に choices を 1 回呼び、Error なら標準エラーに {\"error\":\"codesUnreadable\",\"message\":...} を書いて 1 で終わる（FLEQ_JMA_CODES の誤りを最初の「作る」まで隠さない） (4) GET / の左に「作る」の欄（分野・起点・震央地名・緯度・経度・深さ・M・最大震度・区域・Serial・続報の数・終わり方〔なし・最終報・取消〕・取消）と、D-SCENES の場面のボタン（D-SCENE-AREA=C: 場面は流れだけを持ち、地域と震央は欄の今の値を使い、選んだ区域・震央地名・緯度・経度を localStorage に try/catch で覚えて開いたときに戻す。場面は「作る」の欄に値を入れて作り、続けて送るプリセットで、欄はその後も手で変えて作り直せる）。選択肢は choices から HTML を返すときに埋め、場面の値はページの JS の定数に持つ。資料を読んだときだけページに 1 行「区域・震央地名の値: 気象庁『地震火山関連コード表』（https://xml.kishou.go.jp/tec_material.html）を FlEq が加工して作成」を出す（Q-RW2-CODES (3)）。page の JS は選んだ分野で受ける欄だけを数値は Number にして送り、返った reports を retime=0 で第 1 報はすぐ・以後 4 秒おきに /inject へ順に送る（ページを閉じたら止まる）。起点の欄に応答の originTime を残す（Serial を進めて作り直しても同じ地震になる）。外部の道具は curl で /generate と /inject を叩く。/generate は状態を持たず、AC03 の表を変えない。無いと: ブラウザだけで震源や区域を変えた電文を試せない",
+        "requirement": "【発注 2】 ページの「作る」と場面（D-TIME・D-SCENES）: watch.mjs に (1) generateTelegrams と choices の import (2) POST /generate（AC04 の Host・Origin の照合の後に置く。POST 以外は 405。本文は AC08 の入力の JSON で 64 KiB まで〔超えたら 413 bodyTooLarge〕、読めなければ 400 badRequest。成功は 200 { headType, eventId, originTime, reports: [{ serial, xml }] }、入力の拒否は 400 { error: <reason>, field }） (3) watch は起動の時（子を起こす前）に choices を 1 回呼び、Error なら標準エラーに {\"error\":\"codesUnreadable\",\"message\":...} を書いて 1 で終わる（FLEQ_JMA_CODES の誤りを最初の「作る」まで隠さない） (4) GET / の左に「作る」の欄（分野・起点・震央地名・緯度・経度・深さ・M・最大震度・区域・Serial・続報の数・終わり方〔なし・最終報・取消〕・取消）と、D-SCENES の場面のボタン（D-SCENE-AREA=C: 場面は流れだけを持ち、地域と震央は欄の今の値を使い、選んだ区域・震央地名・緯度・経度を localStorage に try/catch で覚えて開いたときに戻す。場面は「作る」の欄に値を入れて作り、続けて送るプリセットで、欄はその後も手で変えて作り直せる）。選択肢は choices から HTML を返すときに埋め、場面の値はページの JS の定数に持つ。資料を読んだときだけページに 1 行「区域・震央地名の値: 気象庁『地震火山関連コード表』（https://xml.kishou.go.jp/tec_material.html）を FlEq が加工して作成」を出す（Q-RW2-CODES (3)）。page の JS は選んだ分野で受ける欄だけを数値は Number にして送り、返った reports を retime=0 で第 1 報はすぐ・以後 4 秒おきに /inject へ順に送る（ページを閉じたら止まる）。起点の欄に応答の originTime を残す（Serial を進めて作り直しても同じ地震になる）。外部の道具は curl で /generate と /inject を叩く。/generate は状態を持たず、AC03 の表を変えない（例外は Q-RW2-IMPL-2 (11) の lastSecond 1 つ）。無いと: ブラウザだけで震源や区域を変えた電文を試せない。Q-RW2-IMPL-2 (1) のとおり、/generate が例外を投げたら 500 { error: \"generateFailed\" } を返し、常駐を落とさない。報の時刻と古い応答の捨て方・区域の覚え方は Q-RW2-IMPL-2 (7)(8)",
         "evidenceRefs": [
           "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
           "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
@@ -803,18 +819,6 @@
       "既存試験の期待値は変えない（watch.test.ts は AC06 の対応表のとおり作り直す）。ほかの試験の期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
       "残存リスク: (1) 注入の応答は送ったことまでで、処理・表示の結果は画面と /snapshot と fleq の端末で見る (2) EEW の ReduceCode は型の値（豊後水道の 9798）のまま残る (3) 資料が無いと区域は公開サンプルの範囲だけ（栃木は選べない）。資料があっても北海道・東京・鹿児島・沖縄の細分区域は EEW で選べない。EEW の府県予報区の引き方は資料（コード表・解説資料）に無い推定で、公開の型の 53 組で 52 件が一致する（D-EEW-AREAS） (10) 本物の資料での確かめ（T15）は CI で走らず、作者の手元と Mac mini で回す。CI は自作の小さい xlsx（T17）で読み取りの形だけを確かめる (11) zip64・暗号化・deflate と無圧縮の外の圧縮方式は受けない (4) VXSE53 の震度は区域の全観測点で同じ値 (5) 地震情報と津波の Headline の Text は型の地震のまま (6) 津波の震源・M・深さは parser が読まない (7) 同じ秒に同じ起点で作り直した報は Control/DateTime が同じになり held・duplicate になりうる (8) Origin を送らないローカルのプロセスは WS に繋いで current を奪える（同じ利用者のプロセスは信頼する、001 と同じ） (9) npm run 下の Ctrl+C の振る舞いは Q-RW2-NPM-SIGINT"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-RW2-NPM-SIGINT",
-        "owner": "integrator",
-        "blocks": [
-          "発注 1 の配送の受入"
-        ],
-        "resolveBy": "発注 1 の配送の受入で、Mac の端末から npm run watch を起こして Ctrl+C を押す",
-        "requiredEvidence": [
-          "npm が子より先に抜けて端末が戻らないか、子の fleq の停止の行と watch の終了の後にプロンプトが戻るかの観測。npm が先に抜ける・子が残るなら、AC05 の script を node の直接起動にする改訂を作者に諮る"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
