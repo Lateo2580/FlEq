@@ -1,0 +1,625 @@
+{
+  "meta": {
+    "draftedFromOid": "857cf97e9af0d41fcc0b88cf481cc3da44650a8c",
+    "sha256": "d1e8b99c719820ec6a82139edac04c203999a0f525cf0d836b239558f21a81ec",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-RW-D-RETIME",
+        "category": "作者裁定",
+        "A": "既定は retime=1。本文の最初の <ReportDateTime> を今の秒（Date.now() のミリ秒を切り捨てた値）に合わせる差 deltaMs を求め、frames.mjs の shiftTimestamps(xml, deltaMs) で本文の全時刻（Z と +09:00）を同じ量だけ動かしてから流す。retime=0 は本文をそのまま流す",
+        "B": "既定はそのまま流し、retime=1 を付けたときだけ寄せる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "ジェネレータの型や過去の実電文をそのまま流すと、EEW は報の時刻から 600 秒で stale になり（frames.mjs の EEW 変種の注記）、U-F は期限が過ぎて状態が空になる。手で投げて何も出ないのが手軽さを一番損なう。秒で切り捨てるのは、shiftTimestamps が整数秒の元を整数秒の結果のときだけ元の形のまま返し、ミリ秒を足すと本文の時刻の書式が変わるため。同じ本文を同じ秒に 2 回送ると同じ ReportDateTime になり、unit が重複として捨てうる（version.ts:6 の比べる順）。応答は processed:true で画面は「受理」になる。+1 秒ずらす仕組みは足さず、この振る舞いを記録として残す（作者裁定 2026-11-02、推奨どおり）"
+      },
+      {
+        "id": "P3-RW-D-NOTIFY",
+        "category": "作者裁定",
+        "A": "既定は host に notificationGate を渡し、門は常に { allow: false, stage: \"mute\", settingsVersion: 0 } を返す定数の関数にする（例外を投げない）。--notify を付けたときは門を渡さず、adapter の既定のまま全部鳴る。起動の行に notification: \"muted\" か \"ungated\" を書く",
+        "B": "常に鳴らさない（--notify を作らない）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）。作者に示した案の文言は「本番どおり鳴らす」で、正確には「門を渡さず全部鳴る」（中身は同じ）",
+        "reason": "作者と同居人に聞こえる音を既定で出さない。門は host の正規の口（host.ts:45）で、抑止した通知も診断に notificationSuppressed として残る（host.ts の gatedAdapter）。門が例外を投げると鳴らす側に倒れる（host.ts:598）ので、定数を返すだけにする。--notify は「本番どおり」ではない。本番は設定から作った門を渡す（cli.ts:344）。--notify は門が無く、mute・音の段・区分の絞りを一切かけずに全部鳴る。win32 では adapter に backend が無いので何も鳴らない"
+      },
+      {
+        "id": "P3-RW-D-PORTS",
+        "category": "作者裁定",
+        "A": "表示の既定は 7791、注入の既定は 7792。--display-port・--inject-port で変えられる（0 は空いている番号を OS が選ぶ）。7788（Pi の旧築）と 7789（新築の既定、cli.ts の既定）の指定は拒否する。表示も注入も 127.0.0.1 だけで開く",
+        "B": "7789 の隣の番号を探して使う",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "固定の番号ならブラウザのブックマークと外部ツールの URL が変わらない。本番の新築・旧築と並べて動かせる。7790 は cli.test.ts の設定 fixture が使う（p3-cli-repl.json）。7791〜7799 を使うコードは無い（起草時の git grep）"
+      },
+      {
+        "id": "P3-RW-D-VIEW",
+        "category": "作者裁定",
+        "A": "P2 の仮画面に無い分野（地震の詳細・気象・火山など）は、P4 まで表示の port の /snapshot で見る。注入の画面に /snapshot へのリンクを 1 つ置く（別のタブで開くだけで、注入の口からは読まない）。仮画面は広げない",
+        "B": "仮画面に地震・気象・火山のカードを足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "画面は P4 の領分で、仮画面（index.html）と http-sse.ts は 6 本以上の契約が触る共有の file。/snapshot には 12 分野の current が載る（p2-snapshot-sse.types.ts:121）"
+      },
+      {
+        "id": "P3-RW-D-UF",
+        "category": "作者裁定",
+        "A": "U-F の不具合（台帳 89、Addition を持つ VPWP50 の拒否）は 4614dee9（P3-WEATHER-SHAPE-001、H44）で解消済みなので、U-F 用の契約は作らない",
+        "B": "watch の前に U-F の直しの契約を立てる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "git merge-base --is-ancestor 4614dee9 857cf97e が真。W2・N3 の測り直しは P3-DISASTER-CAPACITY-001 の Q-DC-REMEASURE に残る。58 官署がそろうと U-F が要約に落ちるのは容量の仕様（台帳 80）で、注入の画面で起きても parser の不具合ではない"
+      },
+      {
+        "id": "P3-RW-D-PLACE",
+        "category": "統合担当決定",
+        "A": "新設の reconstruction/cli/watch.mjs に関数 runWatch を置き、注入の口（node:http）とローカル WS（ws）を watch のプロセスが持つ。fleq.mjs に watch の振り分けを 1 分岐足す。host.ts・http-sse.ts・replay.mjs・frames.mjs・synth.ts は変えない",
+        "B": "replay.mjs に --watch を足す、または host の表示 server に POST の口を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "host.ts を行で引く anchor は 19 契約に 75 件、http-sse.ts は 14 件、replay.mjs:90 は p3-cli-repl.json が引く。replay は送る→T2→snapshot→stop の 1 回きりで寿命の形が違う。表示 server は GET だけ・loopback だけの約束（http-sse.ts:195）で、POST を同居させると P4 で LAN に開いたとき書き込みの口が付いてくる。watch.mjs に直接起動の判定を持たせないのは、その判定が Windows で未検証のため（バックログ）。fleq.mjs の行は anchor で引かない（自分の配送で壊れる）"
+      },
+      {
+        "id": "P3-RW-D-CLOCK",
+        "category": "統合担当決定",
+        "A": "時計は実時計 clock = () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() })。前へ飛ばさない。接続のたびに start frame を送る",
+        "B": "C17 と同じく報の時刻へ前へだけ付け直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "未来の報で時計を飛ばすと戻れず、後から来る今の報がすべて過去扱いになり、持っている状態の期限も次の tick で切れる。時刻は D-RETIME で本文の側を寄せる。start frame を送らないと起動から 30 秒で壁時計の根拠が unverified になる（host.ts:130 の wallBasis）。spec:650 の「固定時計」との食い違いは spec の 1 文の置き換えで解く（P3-RW-D-SPEC650）"
+      },
+      {
+        "id": "P3-RW-D-QUEUE",
+        "category": "統合担当決定",
+        "A": "注入は 1 本の直列キューで 1 件ずつ流す。送った後に最初に出る T0 の inputId をその注入の id にし、その inputId の T2 を待つ。待ちは取り出しから 10 秒が上限で、超えたら timedOut を返して次へ進む（host は処理を続けうるので、注入の画面は「時間切れ（処理は続いています）」と出す。作者裁定 2026-11-02、推奨どおり）。受信中とキューで待つ注入（送信中を除く）は 8 件まで",
+        "B": "C17 と同じく input-<n> を予測し、60 秒待って break する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "並べて送ると mailbox の通常の枠 120 件（mailbox.ts:12。全体の上限は 128 件、:10）を溢れさせ、host が接続を切る。過負荷中・停止中に届いた frame は番号を進めずに捨てられる（host.ts:292）ので予測はずれる。T2 が出ない注入（ingress の拒否 host.ts:325、止まった owner への入力 :334、mailbox の拒否）があり、待ちに上限が無いと応答が返らない。break すると常駐の口が止まる。8 件の上限が無いと、待たずに並列で投げる道具が 8 MiB の本文を際限なく抱えさせる"
+      },
+      {
+        "id": "P3-RW-D-RECONNECT",
+        "category": "統合担当決定",
+        "A": "host の接続が無い間（起動の直後と、切れてから host が 5 秒後に繋ぎ直すまで、host.ts:659）は、取り出した注入をその 10 秒の期限の中で接続を待ってから送る。期限までに繋がらなければ timedOut。送った後に接続が切れても送り直さない",
+        "B": "接続が無いときは 503 を即座に返す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "繋ぎ直しは 5 秒で終わるので、10 秒の期限の中に収まり、呼び手は再送を書かずに済む。送り直さないのは、host に届いていた場合に同じ報を 2 回入れないため（C17 の AC03 と同じ）"
+      },
+      {
+        "id": "P3-RW-D-GUARD",
+        "category": "統合担当決定",
+        "A": "注入の口は Host が 127.0.0.1:<port> か localhost:<port>（port は実際に開いた番号）でなければ 403、Origin があって http://127.0.0.1:<port> か http://localhost:<port> でなければ 403。WS server は verifyClient で Origin 付きの upgrade を拒む。token は作らない",
+        "B": "起動時に token を作り、URL で渡す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "閲覧中のほかのサイトが loopback に XML を投げ込む道（Origin 付きの POST）と DNS rebinding（Host が別名）を断つ。curl と外部ツールは Origin を送らないので通る。ブラウザの WebSocket には CORS が効かず、ほかのサイトが ws://127.0.0.1:<port> を探して繋ぐと start frame と注入がそちらへ流れる。host の WS client は origin を渡していない（host.ts:406）。loopback 限定とこの 2 つの照合で足りるので token は足さない"
+      },
+      {
+        "id": "P3-RW-D-STATE",
+        "category": "統合担当決定",
+        "A": "保存先は --out <dir>（replay.mjs:55〜:58 と同じく、親があり、それ自体は無いか空の directory。mkdir は recursive にしない）。加えて、--out が本番の保存先 settingsPaths().directory（fleq-next、settings.ts:46）と同じかその下なら拒否する（比べる path は、--out と本番の保存先の両方に同じ解決を当てる。在ればそれ自体の realpath、無ければ親の realpath と basename。--out の末尾が本番を指す symlink の場合も、~/.config が symlink の機械でまだ無い fleq-next の場合も外さないため）。省略時は os.tmpdir() の下に mkdtemp（接頭辞 fleq-watch-）。終わっても消さない",
+        "B": "既にある directory の使い直しを許す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "spec:650 の試験専用保存先。空でない directory の拒否で、本番の保存先（state・diag を持つ）を指したときは止まる。それでも新築を一度も起こしていない機械では fleq-next が無いか空なので通ってしまい、注入した電文が本番の最初の起動で復元される。fleq-next の下の拒否はその道を塞ぐ"
+      },
+      {
+        "id": "P3-RW-D-STOP-TEST",
+        "category": "統合担当決定",
+        "A": "停止を含む試験（T09・T10・T12）は子プロセスに SIGINT を送る形にし、win32 では skip する（skip の理由をコメント 1 行）。runWatch に試験のためだけの停止の口（AbortSignal など）は足さない",
+        "B": "runWatch に停止の口を足し、試験を同じプロセスで回す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "作者が止めるのは Ctrl+C なので、試すのは signal の経路そのもの。test-windows.yml は reconstruction の vitest を回すが、win32 で子プロセスに送る SIGINT は強制終了になり、停止の順序を確かめられない。Windows の端末の Ctrl+C は Node が SIGINT として受けるので、製品の側は win32 でも同じ経路で止まる（cli.ts:337 と同じ登録）。B は試験のためだけの口になる"
+      },
+      {
+        "id": "P3-RW-D-SPEC650",
+        "category": "spec決定",
+        "A": "spec:650 の 1 文を、行数を変えずに、頭の一般則「`replay` は固定時計と manifest を持つ検証入力」を残したまま「ただし `fleq watch`（手で試す）は実時計と呼び手が渡す headType を持つ」を例外として足した文に置き換える。凍結時に統合担当が当てる（P3-RW-AC09）",
+        "B": "spec は変えず、契約に逸脱として記録する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（spec決定）",
+        "ruling": "起草時に推奨で確定（統合担当。作者の指示「判断待ちはすべて推奨で」、2026-11-02）",
+        "reason": "spec:650 は replay を「固定時計と manifest を持つ検証入力」と定める。watch は origin=\"replay\" で流す（spec:642・:651 の取得起源の区別を保つため）が、時計と manifest を持たないので、逸脱のままにすると後の契約が spec:650 を引いたときに食い違う。置き換える行は 3 契約の 5 件の anchor が引く（Q-RW-ANCHORS）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-RW-CRITIQUE",
+        "status": "closed",
+        "source": "設計案への反証（P2 5 件・P3 12 件、2026-11-02、作業の木 .claude/tmp/rw/critique.md）",
+        "closed": "全部を条文にした。P2: (1) Origin 付き upgrade の拒否と host の 1 本だけへの送信→D-GUARD・AC04 (2) --out の本番の保存先→D-STATE・AC02 (3) processed と画面の区別→AC05 の decoded と画面の文言 (4) 停止で閉じきらない→AC08（stopping・closeAllConnections・terminate の後に close） (5) C19 の EEW ログの置き場→AC09 の申し送り。P3: 上限の出典→AC05 で自分の値（8 MiB）として書く／--notify の言い方→D-NOTIFY／origin の値→AC03 で origin:\"replay\"／measured→AC03・AC05 の出力／type の検査→AC05 の 400／繋ぎ直しの間→D-RECONNECT・AC06／表示の port の後始末→AC03／試験の port 0→testMapping／Host の localhost→D-GUARD／frames.mjs の regex と reportMs→AC01 で写す（frames.mjs は変えない）／計画の足し場所→計画:629 の見出しと :633 の行／引用のずれ→本契約は正しい行を引く（index.html:93〜:94、frames.mjs:99、host.ts:96・:156、mailbox.ts:12）"
+      },
+      {
+        "id": "Q-RW-FACTS",
+        "status": "closed",
+        "source": "起草の版（857cf97e）の読み（2026-11-02）",
+        "closed": "(1) dataFrame の固定の id \"a10\" は害が無い: 鮮度の帳簿は { dmdata } のときだけ作られ（host.ts:550）、{ wsUrl } では freshness が null で記録しない（composition-root.ts:1963） (2) 注入が長く無くても画面は stale にならない: heartbeat は 15 秒ごと（http-sse.ts:23）で、画面は受けるたびに最後の受信の時刻を更新し（main.ts:69）、45 秒の判定（main.ts:12）に届かない (3) duplicate の規則は version.ts:6 の比べる順（ReportDateTime、同じなら Control/DateTime）。retime=1 では送る秒が進めば ReportDateTime も進み、新しい報として扱われる (4) processing の観測は T2 と同じ worker の message の処理の中で同期で出る（host.ts:166 の T2 → root.receive → composition-root の onInputDone → host.ts:187）ので、T2 の次の macrotask で decoded を決められる (5) 起動時の desktop の probe は existsSync だけで、見える通知を出さない（adapter.ts:180） (6) 4614dee9 は起草の版の祖先（P3-RW-D-UF）"
+      },
+      {
+        "id": "Q-RW-ANCHORS",
+        "status": "closed",
+        "source": "起草の版での git grep と check-contract（2026-11-02）",
+        "closed": "(1) 本契約が変える file は watch.mjs（新設）・fleq.mjs・試験（新設）だけで、fleq.mjs を行で引く参照は契約・spec に 0 件、watch.mjs・replay-watch・7791・7792 を引く参照も 0 件 (2) 計画は末尾（:627 の後ろ）に見出しと表と補いを足しただけで、既存の行は変えていない。:82（C17 の行）は p3-replay-cli.json、:109（脇レーンの所有）は p3-cli-repl.json と p3-weather-notice.json が引くので書き換えず、補いを計画:635〜:637 に置いた (3) spec:650 «b37a3cd2bafd9805» を引くのは p2-eew-e01.json 1 件・p3-lifetime-and-eew-gate.json 1 件・p3-replay-cli.json 3 件の計 5 件。AC09 の置き換えを当てる commit で、この 5 件の anchor と 3 契約の meta.sha256 を付け直す。anchor を持たずに文で spec:650 を引くのは p3-migration.json（C15）で、「replay は固定時計と manifest を持つ検証入力の意味」と読んでいる。置き換えは頭の一般則を残すので、その読みは変わらない（文は書き換えない） (4) frames.mjs・synth.ts・replay.mjs・host.ts・http-sse.ts は変えないので、それらを引く anchor はずれない"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。注入の入力の運用区分は製品の parser が本文の Control/Status と envelope（dataFrame が本文の Status に揃える、frames.mjs:24）から決め、origin=\"replay\" を operation:\"test\" と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-REPLAY-WATCH-001",
+    "mode": "implementation",
+    "objective": "作者の要望「電文ジェネレータなどの外部ツールや GUI から手軽に電文を注入できる」のために、C17 の fleq replay に「見る口」を足す開発者 CLI fleq watch を作る。新設の reconstruction/cli/watch.mjs に関数 runWatch を置き、止めるまで常駐して、表示を 127.0.0.1:7791（P2 の仮画面と /snapshot）に、注入の口を 127.0.0.1:7792（POST /inject?type=&retime= と、GET / の 1 枚の HTML）に開く。注入は C17 と同じ製品経路（ローカル WS → startP2Host、frames.mjs の dataFrame、origin=\"replay\"）を通し、実時計・既定で時刻を今へ寄せる平行移動・既定で通知の門による全 mute・試験専用の保存先で動く。fleq.mjs に watch の振り分けを足す。host.ts・http-sse.ts・replay.mjs・frames.mjs・synth.ts は変えない。spec:2306 で廃止可とした表示の保持（旧 --hold）を、注入の口と組にして新しく作り直す。POST /inject?type=&retime= と応答の形（inputId・headType・processed・decoded・timedOut・stopping）は、後の内製ジェネレータの契約が呼ぶ口になる（既製品は無く、FlEq の中で後から作る、作者 2026-11-02）。この契約ではジェネレータを作らない。watch の出力は通知配送・性能・保存の製品条件の合格に使わない（spec:650）。C19 の実装より先に配送する（作者裁定）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-replay-watch.json",
+      "reconstruction/contracts/p3-replay-cli.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/contracts/check-contract.mjs",
+      "reconstruction/cli/replay.mjs",
+      "reconstruction/cli/fleq.mjs",
+      "reconstruction/src/**",
+      "reconstruction/test/eew-e01/frames.mjs",
+      "reconstruction/test/disaster/synth.ts",
+      "reconstruction/test/replay-cli/replay-cli.test.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "test/fixtures/32-35_01_03_240613_VXSE53.xml",
+      "test/fixtures/32-35_01_02_240613_VXSE52.xml",
+      ".github/workflows/test-windows.yml",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/cli/watch.mjs",
+      "reconstruction/cli/fleq.mjs",
+      "reconstruction/test/replay-watch/watch.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-replay-watch.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-REPLAY-CLI-001",
+      "P3-CLI-REPL-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#AcquisitionOrigin",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ShutdownSummary",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot",
+      "reconstruction/contracts/p3-cli-repl.types.ts#NotificationGate"
+    ],
+    "publicFunctions": [
+      "新: reconstruction/cli/watch.mjs の runWatch(argv: string[]): Promise<number>（止まったときに終了 code で resolve する。AC01〜AC08）。fleq.mjs の watch の振り分けから呼ぶ",
+      "新: HTTP の口 POST http://127.0.0.1:<inject>/inject?type=<headType>&retime=0|1（本文は生の XML）と GET http://127.0.0.1:<inject>/（AC05）。応答の形 { inputId, headType, processed, decoded, timedOut, stopping } は後の内製ジェネレータの契約が呼ぶ口で、変えるときは契約の改訂にする"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（ws、node:fs・node:os・node:path・node:http・node:perf_hooks）。frames.mjs からは export 済みの dataFrame・shiftTimestamps・REPO だけを import する（frames.mjs は変えない。export されていない headType の正規表現（frames.mjs:99）と reportMs（:119）は watch.mjs に写す）。dist からは host.js の startP2Host と settings.js の settingsPaths だけを dynamic import する。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__32-35_01_03_240613_VXSE53"
+    ],
+    "sequenceIds": [
+      "O09",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-RW-DLV-01",
+        "target": "1 件の注入の応答",
+        "limit": "取り出しから 10 秒（接続の待ち・T0・T2 を含む）。超えたら timedOut:true で返し、次の注入へ進む",
+        "unit": "秒",
+        "scope": "watch の直列キュー。host の処理の期限は変えない",
+        "source": "P3-RW-D-QUEUE・P3-RW-D-RECONNECT"
+      },
+      {
+        "id": "P3-RW-DLV-02",
+        "target": "host の接続の維持",
+        "limit": "30 秒ごとに ping を 1 つ送る（host の切断は最後の frame から 90 秒、host.ts:28）",
+        "unit": "秒",
+        "scope": "watch の WS server が持つ現在の接続",
+        "source": "AC04"
+      }
+    ],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-RW-RES-01",
+        "target": "watch.mjs が持つ記録と待ち",
+        "limit": "POST の本文は 8 MiB（8,388,608 bytes）まで。受信中とキューで待つ注入は合わせて 8 件まで（送信中の 1 件は別）。枠は本文を読み始める前に取り、受信の途中の切断・拒否で返す（AC05）。観測から持つのは送信中の注入の inputId と、その inputId の processing を見たかの 1 つだけ（全観測を積まない）",
+        "unit": "bytes・件",
+        "scope": "watch の 1 プロセス。製品の受信経路（host 以降）の仕事は変えない",
+        "source": "AGENTS.md の受信経路の計算量、P3-RW-D-QUEUE。8 MiB は watch が自分で決めた値で、corpus の最大の XML（test__fixtures__15_18_01_250630_VPWS50、4,567,490 bytes）の倍を目安にした"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形は変えない。watch で作る checkpoint の ReportRef.origin が \"replay\" になるのは C17 と同じ）"
+    ],
+    "nonPersistedFields": [
+      "watch.mjs の直列キュー・現在の接続・送信中の inputId・ping の番号・接続の socketId の番号（プロセスの間だけ）"
+    ],
+    "outOfScope": [
+      "電文ジェネレータ（後の内製の契約。本契約はその契約が呼ぶ口と応答の形だけを決める）",
+      "reconstruction/test/disaster/synth.ts の変更（読むだけ。変えると災害測定の結果に記録する sourceSha256 が変わる、scenario.ts:228）",
+      "host.ts・http-sse.ts・replay.mjs・frames.mjs・composition root・ingress・parser・unit の変更。変える必要が出たら止めて、変える行を引く契約の件数を添えて報告する",
+      "P2 の仮画面（index.html・chrome-eew）を広げること。地震の詳細・気象・火山は P4 まで /snapshot で見る（D-VIEW）",
+      "端末への電文の出力と EEW ログ（C19）。本契約は C19 への申し送り（AC09）だけを書く",
+      "C18 の通常起動（cli.ts の runCli）に注入を乗せること、REPL の入口",
+      "筋書きの file・DSL・directory を渡す再生、Title から headType を推す表、同じ秒の報を +1 秒ずらす処理、--as-is の flag、token による認証、注入の画面から状態を中継する口",
+      "U-F 用の新しい契約（D-UF）",
+      "watch の出力を通知配送・性能・保存の製品条件の合格に使うこと（spec:650）。--notify は本番の通知の検収ではない（実 adapter での検収は C21・C22）",
+      "dmdata から受けた EEW の原本を main のコードや試験で流すこと（dmdata 規約 15 項。watch は呼び手が POST した本文を流すだけで、原本の path を持たない）",
+      "配布の形（package の files・bin）と、watch.mjs の直接起動の判定",
+      "spec 本体の編集（spec:650 の置き換えは凍結時に統合担当が当てる、AC09）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しい npm 依存"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-RW-AC01",
+        "requirement": "入口と持ち主（D-PLACE）: 新しい file reconstruction/cli/watch.mjs に export async function runWatch(argv: string[]): Promise<number> を置く。直接起動の判定は持たせない。reconstruction/cli/fleq.mjs の振り分けに argv[0] === \"watch\" の分岐を 1 つ足し、await import(\"./watch.mjs\") の runWatch(argv.slice(1)) を呼ぶ（replay と同じく commander に解釈させない）。fleq.mjs は C18 の file なので、この分岐は直列合流で入れ、C18 発注 3 が先に fleq.mjs を変えていたらその上に足し直す（計画:636）。frames.mjs からは dataFrame・shiftTimestamps・REPO だけを import する。export されていない正規表現は 2 つに分けて watch.mjs に写す: file 名から種類を拾う方は frames.mjs:99 と同じ部分一致の /_(V[A-Z]{3}\\d{2}|WTJP\\d{2})/（注入の画面で使う）、type の検査は全体一致の /^(V[A-Z]{3}\\d{2}|WTJP\\d{2})$/（AC05）。ReportDateTime の読み（:119）も写す。frames.mjs・synth.ts・replay.mjs・host.ts・http-sse.ts は 1 行も変えない。先頭に、なぜのコメントを 2 行（常駐して外から注入を受ける口であること、C17 と同じ製品経路を通すこと）。無いと: 常駐・固定 port・外からの注入のどれもできない（replay は 1 回きりで止まる）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:124 «650a2128e6396b55»",
+          "reconstruction/contracts/p3-order-plan.md:636 «7ee8e483840edc8a»",
+          "reconstruction/test/eew-e01/frames.mjs:23 «e2cb43dfef2cc22b»",
+          "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
+          "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
+          "reconstruction/test/eew-e01/frames.mjs:119 «2892a4d4ba2ae168»",
+          "docs/specs/reconstruction-p0-contracts.md:2306 «6d4ef4e6da57ae17»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC02",
+        "requirement": "引数の境界（D-PORTS・D-STATE、spec:381 の無効入力で副作用 0）: 何かを開く・作る前に、(1) flag は --display-port <n>・--inject-port <n>・--out <dir>・--notify（値なし）だけで、どれも 1 回まで。位置引数は受けない（外れたら unknownFlag・duplicateFlag・missingFlagValue・unexpectedArgument） (2) port は 10 進の整数で 0〜65535（portInvalid）、7788 と 7789 は reservedPort、表示と注入が同じ 0 でない番号なら portConflict (3) --out は replay.mjs:55〜:58 と同じ検査（親があり、それ自体は無いか空の directory。outParentMissing・outNotEmpty）に加えて、比べる path（--out が在ればそれ自体の realpath、無ければ親の realpath と basename で組んだ path。末尾が本番を指す symlink でも外さないため）が、本番の保存先 settingsPaths().directory（fleq-next）に同じ解決（在れば realpath、無ければ親の realpath と basename。~/.config が symlink の機械で、まだ無い fleq-next を素通りさせないため）を当てた path と同じか、その下なら outIsProduction (4) reconstruction/dist/src/host/host.js・reconstruction/dist/src/runtime/owner-worker.js（host.ts:156）・reconstruction/dist/chrome-eew/src/display/chrome-eew（host.ts:96）が在ること（distMissing と path。無いと host の import が例外で落ちるか、表示の JS が 404 で画面が白い）。検査の順は (1)(2)(4)(3) とし、(3) の settingsPaths の dynamic import は (4) の後に置く（dist が無い機械で import が例外になり、distMissing の文が出なくなるため）。1 つでも外れたら何も開かず作らず、標準エラーに JSON 1 行（{\"error\": <reason>, ...}）、標準出力は空、終了 code 1。検査はこの 1 か所に置き、host・ingress・parser の検査を写さない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:381 «d3c49bbd2a708894»",
+          "reconstruction/cli/replay.mjs:55 «947955e8e540c4e9»",
+          "reconstruction/cli/replay.mjs:58 «1b8cef5f013a0386»",
+          "reconstruction/src/cli/settings.ts:46 «941afcfe54092e44»",
+          "reconstruction/src/host/host.ts:156 «25188f036e0fbb6a»",
+          "reconstruction/src/host/host.ts:96 «3eba4c9225f4762a»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC03",
+        "requirement": "起動の順と後始末（D-CLOCK・D-NOTIFY・D-STATE）: AC02 の後に (1) 終了の signal の listener を登録する（SIGINT・SIGTERM、win32 以外は SIGHUP も。cli.ts:337 と同じ。host の SIGINT の once より先に置く、cli.ts:322） (2) 注入の HTTP server を 127.0.0.1:<inject> で開く（EADDRINUSE なら標準エラーに {\"error\":\"injectPortInUse\",\"port\":n} で終了 code 1、何も作らない） (3) 保存先を作る（--out が無ければ mkdtempSync(join(tmpdir(), \"fleq-watch-\"))、在れば無いときだけ mkdirSync で recursive にしない。replay.mjs:84 の形） (4) ws の WebSocketServer を 127.0.0.1 の port 0 で開く（replay.mjs:102 の形、verifyClient は AC04） (5) startP2Host({ wsUrl, origin: \"replay\", stateDirectory: <out>/state, diagnosticDirectory: <out>/diag, displayPort: <display>, clock, observe, notificationGate })。clock は () => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() })。notificationGate は既定で () => ({ allow: false, stage: \"mute\", settingsVersion: 0 })、--notify のときは渡さない。observe は T0・T2・processing だけを AC06 へ渡す（observe を渡すので owner は測定の印 measured 付きで動く、host.ts:156 の workerData） (6) startP2Host が reject したら、待っている注入に stopping を返し、注入の server を close と closeAllConnections で閉じ、WS の client を terminate してから WebSocketServer を close し、listener を外し、標準エラーに JSON 1 行（EADDRINUSE なら {\"error\":\"displayPortInUse\",\"port\":n,\"outDirectory\":...}、ほかは {\"error\":\"hostStartFailed\",\"message\":...,\"outDirectory\":...}）を書いて終了 code 1（保存先は残す。表示の port が埋まっていると host.ts:99 で reject する） (7) 起動の途中で signal が来ていたら、そのまま AC08 の停止へ進む (8) 標準出力に JSON 1 行 { schemaVersion: \"fleq-watch-v1\", event: \"started\", display: \"http://127.0.0.1:<表示の実の port>/\", inject: \"http://127.0.0.1:<注入の実の port>/\", ws: \"ws://127.0.0.1:<WS server の実の port>/\"（startP2Host に渡す wsUrl と同じ文字列）, outDirectory, notification: \"muted\"|\"ungated\", measured: true } を書く（notification と measured は spec:650 の「試験ごとに明示」）。runWatch は止まるまで resolve しない",
+        "evidenceRefs": [
+          "reconstruction/src/cli/cli.ts:322 «531b50ed852b55cd»",
+          "reconstruction/src/cli/cli.ts:337 «87bb62722e92f7e8»",
+          "reconstruction/cli/replay.mjs:84 «2f3c1a88a65c217a»",
+          "reconstruction/cli/replay.mjs:102 «504f9e627d965209»",
+          "reconstruction/src/host/host.ts:42 «a43e972375d56f84»",
+          "reconstruction/src/host/host.ts:45 «d2ed9c16b9fc7ba7»",
+          "reconstruction/src/host/host.ts:99 «10aeffed5dacf3ac»",
+          "reconstruction/src/host/host.ts:93 «dcad702d2191a3e9»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:642 «0bfabb5bb9dfcac8»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC04",
+        "requirement": "host との接続（D-CLOCK・D-GUARD）。状態と遷移（接続の状態 none・open・stopping。current は今 frame を送る接続）: [none, Origin の無い upgrade] → open: current にし、start frame { type: \"start\", socketId: <接続ごとに 1 から増やす整数>, classifications: [], time: <今の Date の ISO 文字列> } を送る。[open, Origin の無い upgrade] → open: 前の current を terminate し、新しい方を current にして start frame を送る（host の接続は同時に 1 本なので、新しい方が host の繋ぎ直し）。[any, Origin 付きの upgrade] → 変わらず: verifyClient が拒む（ブラウザの WebSocket には CORS が効かないため。host の client は origin を渡さない、host.ts:406）。[open, current の close または error] → none: current を null にする（送信中の注入は送り直さない、D-RECONNECT）。[open, 30 秒の timer] → open: current に { type: \"ping\", pingId: \"watch-<n>\" } を送る（host は ping で最後の frame の時刻を進め、通し番号を進める前に return する、host.ts:300。無いと 90 秒で切られる、host.ts:28・:473）。[none・open, 停止の開始] → stopping: timer を止め、以後 frame を送らない。current 以外の接続には何も送らない。host が返す pong とほかの frame は読まずに捨てる",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:28 «95afe7e89c680cb9»",
+          "reconstruction/src/host/host.ts:300 «94f6cf3277c4f863»",
+          "reconstruction/src/host/host.ts:304 «d3f9f559ebe2eb0a»",
+          "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
+          "reconstruction/src/host/host.ts:473 «30f9166468d7f11f»",
+          "reconstruction/src/host/host.ts:130 «f45693862d044177»",
+          "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»",
+          "reconstruction/cli/replay.mjs:106 «d5cb481a2bb13e7b»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC05",
+        "requirement": "注入の HTTP の口（D-RETIME・D-GUARD・D-VIEW）。どの要求も先に (1) Host が 127.0.0.1:<注入の実の port> か localhost:<同じ port> でなければ 403 {\"error\":\"hostRejected\"} (2) Origin があって http://127.0.0.1:<port> か http://localhost:<port> でなければ 403 {\"error\":\"originRejected\"}。GET / は text/html; charset=utf-8 の 1 枚（watch.mjs の中の文字列。外部の script・stylesheet を読まない）で、textarea・種類の欄・file を落とす枠・送るボタンの 4 つと、結果の行と、表示の port の /snapshot へのリンク（別のタブで開くだけ）を持つ。file を落とすと中身を textarea に入れ、種類の欄を file 名から AC01 の部分一致の正規表現で埋める。送るは同じ origin へ POST /inject?type=<種類の欄>（retime は既定）。結果の行の文言は、processed かつ decoded は「受理（input-n）」、processed で decoded でないものは「受理（読めず、input-n）」、timedOut は「時間切れ（処理は続いています）」（作者裁定 2026-11-02）、stopping は「停止中」とし、「表示された」とは書かない（processed は owner が返したことまで、unit が stale・duplicate で捨てた分はどの観測にも出ない）。POST /inject?type=&retime=: 本文は生の XML（UTF-8）。検査の順は、Host・Origin・path・method、type（無ければ 400 typeRequired、AC01 の全体一致の正規表現に合わなければ 400 typeInvalid）、retime、枠の順で、ここまでは本文を読まない。枠は受信中とキューで待つ注入の数（送信中の 1 件は数えない）で 8 件まで。本文を読み始める前に枠を 1 つ取り、取れなければ 503 {\"error\":\"queueFull\"}。取った枠は、受信の途中の切断・413・400 のときに返し、キューから取り出して送信中になったときに返す（キューに入った後の呼び手の切断では取り消さない）。本文が 8 MiB を超えたら読むのをやめて 413 {\"error\":\"bodyTooLarge\"}。type の検査の理由（種類の分からない headType は host で断られて T2 が来ないか、decode で断られるかで原因が見えないため）。retime（読むのは枠より前）は無いか \"1\" なら寄せ、\"0\" なら寄せず、ほかは 400 retimeInvalid。寄せるのに本文の最初の <ReportDateTime> が Date.parse で有限でなければ 400 reportDateTimeMissing（retime=0 なら流せる）。ほかの path は 404、ほかの method は 405。受けた注入は AC06 のキューに入れ、その結果を応答の形 { inputId: string | null, headType: string, processed: boolean, decoded: boolean, timedOut: boolean, stopping: boolean } で返す（processed・timedOut・stopping はちょうど 1 つが true、decoded が true なら processed も true。HTTP の status は processed・timedOut が 200、stopping が 503）。frame は dataFrame(type, 本文)（寄せるときは shiftTimestamps(本文の文字列, deltaMs) を渡す）。この口と応答の形は後の内製ジェネレータの契約が呼ぶ",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
+          "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
+          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
+          "reconstruction/src/display/chrome-eew/index.html:93 «53f86ffd08a3e586»",
+          "reconstruction/src/display/chrome-eew/index.html:94 «4fbe20bfaef88efa»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:121 «b5b185097f7f2a3a»",
+          "reconstruction/src/contracts-revision/version.ts:6 «dc9a3530fe5d43c2»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC06",
+        "requirement": "直列キューと結果の照合（D-QUEUE・D-RECONNECT）。状態は idle・waitingT2・timedOut・stopping。[idle, 注入が入る] → waitingT2: 先頭を取り出し、期限を今から 10 秒に置く。current が open なら frame を送る（送った印を立てる）。[waitingT2, 接続が open になる、まだ送っていない] → waitingT2: 送る。[waitingT2, T0 の観測、送った後で inputId がまだ無い] → waitingT2: その inputId を注入の id にする（キューは直列で、data frame を送るのは watch だけなので、送った後の最初の T0 がこの注入のもの、host.ts:322）。[waitingT2, その inputId の processing の観測] → waitingT2: decoded の印を立てる。[waitingT2, その inputId の T2 の観測] → waitingT2 のまま: T2 を見た印を立て、次の macrotask（setImmediate）の callback を 1 つ張る（processing は T2 と同じ worker の message の処理の中で、T2 の後に同期で出る、host.ts:166・:187。ここで idle へ戻すと decoded の印を取り逃がす）。[waitingT2, その callback] → idle: processed:true・decoded:<印> で応答し、次を取り出す。[waitingT2, 期限] → timedOut → idle: processed:false・timedOut:true・inputId（無ければ null）で応答して次を取り出す。1 件の応答を決めるのは「callback・期限・停止の開始」のうち最初に来た 1 つだけで、後から来たものは何もしない（期限の timer と callback は応答を決めた側が外すか、決めた印を見て抜ける）。[waitingT2, 接続が閉じる] → waitingT2: 送り直さず、T2 か期限を待つ（host の繋ぎ直しは 5 秒、host.ts:659）。[idle・waitingT2・timedOut, 停止の開始] → stopping: 送信中・キューで待つ・本文の受信中の注入の全部に stopping:true（inputId は分かれば）を 503 で返す。[stopping, 注入が入る] → stopping: すぐ 503 stopping:true。inputId の違う T2・T0・processing（timedOut にした注入の遅れた T2 など）は捨てる。T2 が来ない注入は ingress の拒否（host.ts:325）、止まった owner への入力（:334）、mailbox の拒否、過負荷・停止中の frame の捨て（:292）で、どれも期限で timedOut になる（ingress の拒否は診断の sink にだけ入り observe に出ないので、早く知る道は無い）",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:322 «7da556e3df4f1cb5»",
+          "reconstruction/src/host/host.ts:166 «b747b81e2514721e»",
+          "reconstruction/src/host/host.ts:187 «8eccbc77af0cc99f»",
+          "reconstruction/src/host/host.ts:325 «cb6d2970662a0a8e»",
+          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
+          "reconstruction/src/host/host.ts:292 «e17c8666a6170c67»",
+          "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»",
+          "reconstruction/src/mailbox/mailbox.ts:12 «c8550d4a158a4b98»",
+          "reconstruction/src/runtime/owner-host.ts:125 «b9175302b7397122»",
+          "reconstruction/cli/replay.mjs:125 «c531a10008645180»",
+          "reconstruction/cli/replay.mjs:131 «3ce98686d9aa4d13»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC07",
+        "requirement": "通知（D-NOTIFY）: 既定は AC03 の門を渡し、抑止した通知は host が診断に notificationSuppressed（INFO）として書く。門は定数を返すだけで例外を投げない（投げると鳴らす側に倒れる、host.ts:598）。--notify のときは門を渡さず、adapter の既定のまま全部鳴る。C17 の spawn の差し替え（replay.mjs:90）は使わない。起動の行の notification は既定で \"muted\"、--notify で \"ungated\"。「本番どおり」とは書かない（本番は設定から作った門を渡す、cli.ts:344）",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:45 «d2ed9c16b9fc7ba7»",
+          "reconstruction/src/host/host.ts:598 «d87b34b5aa9f143b»",
+          "reconstruction/contracts/p3-cli-repl.types.ts:76 «138860a1fa71b11b»",
+          "reconstruction/src/cli/cli.ts:344 «1acb3d8b78e0a08b»",
+          "reconstruction/cli/replay.mjs:90 «e02f05c4847f1a67»",
+          "reconstruction/src/notification-delivery/adapter.ts:180 «7dd3fb09f5003c05»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC08",
+        "requirement": "停止（spec§5.9 と C3b の停止監視には触れない）: 登録した signal のどれかで、1 回だけ次の順に進める。(1) キューを stopping にし、送信中・キューで待つ・本文の受信中の注入に 503 stopping:true を返す（AC06） (2) ping の timer を止める (3) 注入の HTTP server を close し、続けて closeAllConnections() を呼ぶ（開いたままの画面のタブの keep-alive が close の完了を引き延ばすため。host 自身も同じく閉じる、host.ts:607〜:608） (4) host.stop() を待つ（host も自分の SIGINT・SIGTERM で同じ stop を呼ぶ。2 回目以降は同じ promise、host.ts:513・:539。SIGHUP は watch の listener だけが受ける） (5) WS の client を全部 terminate してから WebSocketServer を close する（replay.mjs:138〜:139 と同じ順） (6) signal の listener を外し、標準出力に JSON 1 行 { schemaVersion: \"fleq-watch-v1\", event: \"stopped\", shutdown }（shutdown は stop() が返した ShutdownSummary）を書き、shutdown.code で resolve する。stop() の段の順序・期限・code の決め方は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:513 «a2ad0b3b132c008c»",
+          "reconstruction/src/host/host.ts:539 «a9963aed8491915c»",
+          "reconstruction/src/host/host.ts:607 «6f7a1c6714b9926d»",
+          "reconstruction/src/host/host.ts:608 «a8b1466c99e900fd»",
+          "reconstruction/cli/replay.mjs:138 «6e81a65a537ad188»",
+          "reconstruction/cli/replay.mjs:140 «09ca6f0a327005dc»",
+          "reconstruction/src/cli/cli.ts:337 «87bb62722e92f7e8»"
+        ]
+      },
+      {
+        "id": "P3-RW-AC09",
+        "requirement": "計画・spec・C19 への申し送り（統合担当）: (1) 起草の commit で、計画の末尾に見出し「注入の口（2026-11-02）」と本契約の行、§2.1 の C17 の行と §3.1 の脇レーンの所有への補い、C19 の起草に足すものを置いた（既存の行は変えない。:82・:109 は他の契約の anchor が引く） (2) 凍結時に当てる原文の改訂: spec:650 の 1 行を、行数を変えずに次の 1 行へ置き換える。「- `replay` は固定時計と manifest を持つ検証入力。ただし `fleq watch`（手で試す）は実時計と呼び手が渡す headType を持つ。意味更新・intent 生成・射影は製品と同じ経路を通す。外部配送の無効化、試験専用保存先、実 adapter 使用を試験ごとに明示する。性能・保存・personal 検収で対象負荷を無効化した結果を製品条件の合格に使わない。」。同じ commit で、spec:650 を引く 5 件（p2-eew-e01.json 1・p3-lifetime-and-eew-gate.json 1・p3-replay-cli.json 3）の anchor を新しい行の値へ付け直し、3 契約の meta.sha256 を取り直して check-contract を通す。本契約の 2 件（AC03 と AC09 の spec:650）も同じく付け直す (3) C19（P3-TERMINAL-OUTPUT-001）の起草に足す: EEW ログ（spec §11.4）の置き場は host を起こす手順の引数から取り、watch は <out> を渡す。watch.mjs にその結線を繋ぐ 1 行は C19 の allowedPaths に入れる（計画:637）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:633 «d13d21d84ee90df8»",
+          "reconstruction/contracts/p3-order-plan.md:635 «6103cdda52360b23»",
+          "reconstruction/contracts/p3-order-plan.md:636 «7ee8e483840edc8a»",
+          "reconstruction/contracts/p3-order-plan.md:637 «c518f6ebf619e10f»",
+          "reconstruction/contracts/p3-order-plan.md:82 «f49d34cd2cb8ad4a»",
+          "reconstruction/contracts/p3-order-plan.md:109 «84314275adb7de65»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «b37a3cd2bafd9805»",
+          "docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-RW-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW-AC03",
+          "P3-RW-AC04",
+          "P3-RW-AC05",
+          "P3-RW-AC06",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:121 «b5b185097f7f2a3a»"
+        ],
+        "behavior": "reconstruction/test/replay-watch/watch.test.ts で、node reconstruction/cli/fleq.mjs watch --display-port 0 --inject-port 0 --out <空の一時 directory> を子プロセスで起こし、標準出力の最初の行（event started、notification \"muted\"、measured true、ws あり）から実の port を読む。test__fixtures__32-35_01_03_240613_VXSE53 の bytes を POST /inject?type=VXSE53（retime は既定）で送り、200 と { inputId: \"input-1\", headType: \"VXSE53\", processed: true, decoded: true, timedOut: false, stopping: false } を確かめる。表示の /snapshot の current.earthquake.items[1]（本文が訓練）の updatedAt が、POST の直前と直後の Date.now() を秒で切り捨てた範囲に入る（寄せが効いた。寄せないと 2009-10-01 の値になる）。<out>/state/ の下の file のどれかに \"origin\":\"replay\" がある。T02〜T06 は同じ describe の中で 1 つの子プロセスを共有してよい（どれも状態を変えない境界の検査）。終わったら子を止める（win32 では kill だけ）"
+      },
+      {
+        "testId": "P3-RW-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC05"
+        ],
+        "behavior": "Origin: http://evil.example を付けた POST /inject は 403 {\"error\":\"originRejected\"}"
+      },
+      {
+        "testId": "P3-RW-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC05"
+        ],
+        "behavior": "Host: evil.example:<注入の port> の POST /inject は 403 {\"error\":\"hostRejected\"}（localhost を通すことは、同じ it で Host: localhost:<port> の GET / が 200 になることだけで確かめる。localhost で注入すると、shuffle の回で T01 の inputId \"input-1\" が外れるため）"
+      },
+      {
+        "testId": "P3-RW-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC05"
+        ],
+        "behavior": "8 MiB＋1 byte の本文の POST は 413 {\"error\":\"bodyTooLarge\"}"
+      },
+      {
+        "testId": "P3-RW-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC05"
+        ],
+        "behavior": "type=VZZZ1 の POST は 400 {\"error\":\"typeInvalid\"}"
+      },
+      {
+        "testId": "P3-RW-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC04"
+        ],
+        "behavior": "started の行の ws の実 port へ、ws の client で origin に http://evil.example を付けて繋ぐと、upgrade が HTTP の拒否の応答（ws の unexpected-response で status 401。verifyClient が false を返したときの ws の既定）になる。任意の error を合格にしない（host の client が Origin を送らずに繋がることは T01 が示す）"
+      },
+      {
+        "testId": "P3-RW-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC02"
+        ],
+        "behavior": "--display-port 7788 で終了 code 1・標準出力が空・標準エラーが {\"error\":\"reservedPort\",...}、何も開かない"
+      },
+      {
+        "testId": "P3-RW-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC02"
+        ],
+        "behavior": "中に file が 1 つある --out で終了 code 1・標準エラーが {\"error\":\"outNotEmpty\",...} で、その directory の中身が変わらない"
+      },
+      {
+        "testId": "P3-RW-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW-AC08"
+        ],
+        "behavior": "win32 では skip する（子プロセスへの SIGINT が強制終了になるため、D-STOP-TEST）。T01 と同じ形で起こした子に SIGINT を送り、40 秒以内に終了 code 0 で終わり、標準出力の最後の行が event stopped で shutdown.code が 0、その後に注入の port への接続が拒まれる"
+      },
+      {
+        "testId": "P3-RW-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW-AC06",
+          "P3-RW-AC08"
+        ],
+        "behavior": "win32 では skip。試験が started の行の ws の port へ Origin 無しで繋いで current を奪い（AC04 の新しい接続が前を置き換える行。start frame を受けることも確かめる）、POST を 1 つ送る（frame は試験の接続へ届き T2 は来ない）。frame を受けた後に子へ SIGINT を送ると、その POST が 503 と { stopping: true, processed: false, timedOut: false } を受け、子は終了 code 0 で終わる"
+      },
+      {
+        "testId": "P3-RW-T11",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC06",
+          "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»"
+        ],
+        "behavior": "T10 と同じく試験が current を奪って POST を 1 つ送ると、10 秒の期限で 200 と { processed: false, timedOut: true, inputId: null } を受ける。その間に host が 5 秒で繋ぎ直して current に戻る（試験の接続は切られる）。続けて送った VXSE53 の POST は processed: true を受ける（時間切れの後も次の件が処理される）"
+      },
+      {
+        "testId": "P3-RW-T12",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW-AC04",
+          "reconstruction/src/host/host.ts:28 «95afe7e89c680cb9»"
+        ],
+        "behavior": "win32 では skip。子を起こして 95 秒待ち（host の切断の 90 秒を超える。この試験だけ vitest の timeout を 150 秒にする）、POST が processed: true を受ける。子を SIGINT で止めた後、<out>/diag/ の下の file のどれにも connectionLivenessExpired が無い（ping で接続が保たれ、host が切っていない）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash 検査（watch は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09・O10 の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。本契約の変更は anchor の引かれていない file だけなので FAIL は出ない想定。出たら想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction/dist/ の生成（watch.mjs は dist の host と settings を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（watch.test.ts は watch.mjs を import せず子プロセスで起こす）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "表示 server が配る chrome-eew の dist"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T01〜T12 と既存の試験）。--sequence.shuffle を付けた回も 1 回通す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤りが無いこと"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えないので通ることだけを確かめる）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行: watch.mjs と fleq.mjs の分岐（AC01）、引数の検査（AC02）、ping（AC04）、Origin の拒否（AC04・AC05）、直列キューと T0 の拾い（AC06）、期限と timedOut（AC06）、待ちの 8 件（AC06）、retime（AC05）、門（AC07）、停止の順（AC08）",
+      "追加した試験ごとに対応（T01・T09・T10 受入条件、T02〜T08・T11・T12 契約境界）を 1 行。T12 は 95 秒かかる",
+      "T01 の起動の行と注入の応答の JSON、/snapshot の current.earthquake の items だけに縮めた写し",
+      "既存試験の期待値は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "残存リスク: (1) processed は owner が返したことまでで、表示に届いたかは /snapshot で見る。unit が stale・duplicate で捨てた分はどの観測にも出ない (2) ingress の拒否は observe に出ないので 10 秒の timedOut でしか分からない (3) 期限で timedOut にした注入の T0 が期限の後に遅れて出ると、次の注入の id に取り違えうる（loopback では T0 は受けた同期処理で出るので起きにくい） (4) observe を渡すので owner は測定の印付きで動き、費用だけが増える (5) Origin を送らないローカルのプロセスは WS server に繋いで current を奪える（同じ利用者のプロセスは信頼する）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-RW-C18-ORDER3",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の baseOid の割当"
+        ],
+        "resolveBy": "発注前点検",
+        "requiredEvidence": [
+          "C18（P3-CLI-REPL-001）の発注 3 の baseOid が未割当であること（割り当て済みで fleq.mjs を先に変えるなら、本契約の fleq.mjs の分岐はその上に足し直す前提で割り当てる、計画:636）"
+        ]
+      }
+    ]
+  }
+}

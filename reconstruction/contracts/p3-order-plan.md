@@ -625,3 +625,13 @@ C15（`P3-MIGRATION-001`）は発注 2 で止め、保留にする。旧築か�
 | 契約 | 対象 | 依存 | 状態 |
 |---|---|---|---|
 | `P3-EEW-FACTS-001`（`p3-eew-facts.json`） | 台帳 106: 互換必須の EEW ログファイル（spec §11.4）と C19 の端末が要る EEW の値のうち今の facts から作れないもの（震源名・M・深さ・座標・発生時刻・検知時刻・精度・震度変化理由・長周期階級・区域名と到達予測・最終報と取消の文・見出し・震源の内陸か海域か・仮定震源）を、U-E が採った報の受信の outcome の facts.report に載せる。保存の形・view・EewCurrent・表示の wire・通知は変えない。ログを書くのと購読の口は C19、REPL の eewlog は C18 の発注 3 | K6・K6R・K8 の配送（eew.ts の今の形） | 起草（2026-10-31、447bea9c から）。分岐 3 件は統合担当が推奨で確定、作者の分岐は無し。次は発注前点検 |
+
+### 注入の口（2026-11-02）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| `P3-REPLAY-WATCH-001`（`p3-replay-watch.json`） | 開発者 CLI `fleq watch`。止めるまで常駐し、表示を 127.0.0.1:7791（P2 の仮画面と `/snapshot`）、注入の口を 127.0.0.1:7792（`POST /inject?type=&retime=` と `GET /` の 1 枚の HTML）に開く。注入は C17 の `fleq replay` と同じ製品経路（ローカル WS → startP2Host、origin=replay）を通る。後で FlEq の中に作る電文ジェネレータが呼ぶ口になる（ジェネレータは別の契約） | C17（配送済み）、C18 発注 2（通知の門、配送済み） | 起草。C19 の実装より先に配送する（作者裁定）。常駐・停止・直列キューは状態機械なので、品質レビューは Codex（`CLAUDE.md` の 2026-10-06 裁定）。D-P3-10 の節目ではない |
+
+- §2.1 の C17 の行への補い（その行は他の契約の anchor が引くので書き換えず、ここに書く）: C17 の検収用 replay の隣に、手で試す常駐の口 `fleq watch`（P3-REPLAY-WATCH-001）を足す。replay は固定時計と manifest、watch は実時計と呼び手が渡す headType で動く。
+- §3.1 の脇レーンの所有への補い（同じ理由でここに書く）: `reconstruction/cli/watch.mjs` と `reconstruction/test/replay-watch/` は P3-REPLAY-WATCH-001 が持つ。`reconstruction/cli/fleq.mjs` は C18 の file で、watch の振り分けの 1 分岐は §3.2 の「CLI の入口」の行と同じく直列合流にする。C18 発注 3 が先に fleq.mjs を変えたら、その上に足し直す。
+- C19 `P3-TERMINAL-OUTPUT-001` の起草に足すもの: 受信の結果を受け取る口と端末出力の結線は、host を起こす手順で 1 回だけ組む。EEW ログ（spec §11.4）の置き場はその手順の引数から取り、watch は自分の保存先 `<out>` を渡す（本番の保存先へ書かない）。watch.mjs にその結線を繋ぐ 1 行は C19 の allowedPaths に入れる。
