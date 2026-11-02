@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "4033a6300ee3d27cd6019c9beb7ac01a0c964525c52d2859ad714c3afb9c2fdf",
+    "sha256": "cd83d374fe958dcd151f927ca35158a71eea0b1420b95a6087f043ff21027175",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -275,7 +275,7 @@
     "contractId": "P3-TERMINAL-OUTPUT-001",
     "mode": "implementation",
     "objective": "C19（計画 §2.1、B13）。新築の fleq が端末に出すものを、CLI 表示設計 spec（docs/specs/cli-terminal-output.md、2026-11-03 に閉じた。見た目と文面の真実源）のとおりに作り、spec §11.4 の端末側の互換必須（定期要約・待機 tips・EEW ログファイル・起動時の update check。当日地震履歴と lowmem は作るもの無し）を満たす。材料は EEW が受信の outcome の facts.report、ほかの 11 unit は owner が decode した報から作る TerminalReport（inputDone の返信）。書き出しは専用の worker 1 本と有界の列で、端末が詰まっても電文の受信を止めない（spec:382 の B13「出力滞留上限。受理完了条件にしない」）。1 契約を 2 回に分けて発注する（P3-TO-D-SPLIT）: 発注 1 は土台と表まで出す 3 分野（EEW・地震・津波）、発注 2 は短い形の 9 分野と電文以外の出力（回線・定期要約・tips・更新の知らせ・起動時のまとめ）と EEW ログと C18 の発注 3 への口。作者の分岐 3 件（P3-TO-D-CONN-NOTIFY・D-UNREADABLE・D-STATUS-MARK）は 2026-11-03 に作者が A で裁定した",
-    "baseOid": "unassigned",
+    "baseOid": "295795d73189402c2675bec374914cbadf8da047",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
