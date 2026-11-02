@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "ea933351457e08c6c184b54cf60faecb226cfea9f87b224a1dc2c7e133793476",
+    "sha256": "8a9c7c182adf2f12494df9a20efac988a09ecde3e15d5378c24055d184f9e30c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -216,6 +216,14 @@
         "reason": "発注前点検"
       },
       {
+        "id": "Q-RW2-IMPL-1",
+        "status": "closed",
+        "source": "発注 1 の実装とレビュー（2026-11-02〜03、実装の木 ~/dev/fleq-rw2-o1、base 3427ead4）。前例は P3-REPLAY-WATCH-001 の Q-RW-IMPL-1",
+        "closed": "配送で当てる契約の改訂と実装の形の記録: (1) AC02 (7) のページの open は、起動の (7) の時点ではなく、AC03 の [alive・none, Origin の無い upgrade] の初めての 1 回だけで行う。条件は darwin かつ process.stdin.isTTY のまま。状態の表の外に opened の 1 bit を持つ。起動の時点で開くと、右の iframe が子の fleq の表示の port が開く前に読み込まれ、画面が空のまま残るため（統合担当の追加、r1。ヘルツの観察から） (2) WebSocketServer は node:http の server の listen が済んだ後に作る。ws 8 は server の error を wss の error へ流し直すので、先に作ると listen の EADDRINUSE が AC02 (3) の portInUse として出ないため (3) T06・T10 は、試験の helper の injectWhenConnected（503 notConnected の間は注入をやり直す）で host の接続を待ってから進める。--sequence.shuffle で it の順が変わっても、T01 が先に接続を待ったことに頼らないため (4) 実装のレビュー: 品質（ヘルツ）は r0 で NO-GO（試験の順序依存）、r1 へ。契約適合（Opus）は r0 で条件付き GO、r1 で GO。Mac mini のゲートは r0 で 11 本とも rc 0。r1 の結果は統合担当が書き足す",
+        "remaining": "r1 の品質レビューとゲートの結果の書き足し（統合担当）",
+        "reason": "実装レビューの記録"
+      },
+      {
         "id": "Q-RW2-ANCHORS",
         "status": "closed",
         "source": "91fc093b での git grep（2026-11-02）",
@@ -380,7 +388,7 @@
       },
       {
         "id": "P3-RW2-AC02",
-        "requirement": "【発注 1】 watch の起動（D-SHAPE・D-PORTS）: reconstruction/cli/watch.mjs を作り直し、export async function runWatch(argv) を残す（fleq.mjs の watch の振り分けは変えない）。順に (1) argv が空でなければ標準エラーに {\"error\":\"unexpectedArgument\"} を書いて 1 を返す（001 の flag を渡した人が黙って無視されないため） (2) FLEQ_WATCH_PORT（既定 7792、0〜65535 の 10 進）と FLEQ_WATCH_DISPLAY_PORT（既定 7791、1〜65535）を読み、外れたら {\"error\":\"portInvalid\",\"name\":<変数名>} で 1 (3) node:http の server 1 つを 127.0.0.1:<port> で開き、同じ server に ws の WebSocketServer({ server, verifyClient }) を載せる。EADDRINUSE なら {\"error\":\"portInUse\",\"port\":n}、ほかの失敗は {\"error\":\"listenFailed\",\"port\":n,\"message\":...} で 1（まだ何も作っていない） (4) mkdtempSync(join(tmpdir(), \"fleq-watch-\")) を作り、その下の fleq-next/config.json に { apiKey: \"watch\", appName: \"fleq-watch\", display: true, displayPort: <表示の port>, sound: false, mute: { until: null, rules: [] } } を書く（規則が空の無期限 mute は全部を止め、sound:false は音を止める。鳴らしたいときは REPL で mute off と sound on の両方を打つ。mute off だけでは音の通知は門の sound の段で止まったまま、repl.ts:321・:171、notification-gate.ts:58） (5) process.execPath で reconstruction/cli/fleq.mjs を引数なしで起こす。stdio は inherit、env は今の env に XDG_CONFIG_HOME=<一時 directory> と FLEQ_WS_URL=ws://127.0.0.1:<実の port>/ を足したもの（settings.ts は全 OS で XDG_CONFIG_HOME を先に見る） (6) 標準エラーに 1 行「fleq watch: http://127.0.0.1:<実の port>/（設定と保存: <一時 directory>）」を書く。標準出力には何も書かない（子の fleq と REPL が使う） (7) process.platform が darwin で process.stdin.isTTY のときだけ open でそのページを開く（無いと: 試験のたびにブラウザが開く）。先頭に、なぜのコメントを 2 行（dmdata の代わりをして、いつもの fleq を子として起こすこと。製品の起動・保存・通知・停止をそのまま使うため）",
+        "requirement": "【発注 1】 watch の起動（D-SHAPE・D-PORTS）: reconstruction/cli/watch.mjs を作り直し、export async function runWatch(argv) を残す（fleq.mjs の watch の振り分けは変えない）。順に (1) argv が空でなければ標準エラーに {\"error\":\"unexpectedArgument\"} を書いて 1 を返す（001 の flag を渡した人が黙って無視されないため） (2) FLEQ_WATCH_PORT（既定 7792、0〜65535 の 10 進）と FLEQ_WATCH_DISPLAY_PORT（既定 7791、1〜65535）を読み、外れたら {\"error\":\"portInvalid\",\"name\":<変数名>} で 1 (3) node:http の server 1 つを 127.0.0.1:<port> で開き、同じ server に ws の WebSocketServer({ server, verifyClient }) を載せる。EADDRINUSE なら {\"error\":\"portInUse\",\"port\":n}、ほかの失敗は {\"error\":\"listenFailed\",\"port\":n,\"message\":...} で 1（まだ何も作っていない） (4) mkdtempSync(join(tmpdir(), \"fleq-watch-\")) を作り、その下の fleq-next/config.json に { apiKey: \"watch\", appName: \"fleq-watch\", display: true, displayPort: <表示の port>, sound: false, mute: { until: null, rules: [] } } を書く（規則が空の無期限 mute は全部を止め、sound:false は音を止める。鳴らしたいときは REPL で mute off と sound on の両方を打つ。mute off だけでは音の通知は門の sound の段で止まったまま、repl.ts:321・:171、notification-gate.ts:58） (5) process.execPath で reconstruction/cli/fleq.mjs を引数なしで起こす。stdio は inherit、env は今の env に XDG_CONFIG_HOME=<一時 directory> と FLEQ_WS_URL=ws://127.0.0.1:<実の port>/ を足したもの（settings.ts は全 OS で XDG_CONFIG_HOME を先に見る） (6) 標準エラーに 1 行「fleq watch: http://127.0.0.1:<実の port>/（設定と保存: <一時 directory>）」を書く。標準出力には何も書かない（子の fleq と REPL が使う） (7) process.platform が darwin で process.stdin.isTTY のときだけ open でそのページを開く（無いと: 試験のたびにブラウザが開く）。open をいつ行うかは Q-RW2-IMPL-1 のとおり（host の最初の接続の後）。先頭に、なぜのコメントを 2 行（dmdata の代わりをして、いつもの fleq を子として起こすこと。製品の起動・保存・通知・停止をそのまま使うため）",
         "evidenceRefs": [
           "reconstruction/src/cli/settings.ts:37 «7a35f04b725adcdc»",
           "reconstruction/src/cli/settings.ts:152 «0b91e4d9c4f68711»",
@@ -395,7 +403,7 @@
       },
       {
         "id": "P3-RW2-AC03",
-        "requirement": "【発注 1】 状態と遷移（D-STOP・001 の D-CLOCK・D-GUARD）。状態は 3 つの組だけ: 子の fleq（alive・exited）、WS（none・open。current は今 frame を送る接続）、停止（no・yes）。遷移の表: [alive・none, Origin の無い upgrade] → open: current にし、start frame { type: \"start\", socketId: <接続ごとに 1 から増やす整数>, classifications: [], time: <今の ISO 文字列> } を送る（送らないと 30 秒で壁時計の根拠が unverified になる、host.ts:130）。[alive・open, Origin の無い upgrade] → open: 前の current を terminate し、新しい方を current にして start frame を送る（host の接続は 1 本なので、新しい方は host の繋ぎ直し）。[any, Origin 付きの upgrade] → 変わらず: verifyClient が拒む（ブラウザの WebSocket に CORS は効かない。host の client は Origin を付けない、host.ts:406）。[open, current の close・error] → none（host は 5 秒で繋ぎ直す、host.ts:659）。[open, 30 秒の timer] → open: current に { type: \"ping\", pingId: \"watch-<n>\" } を送る（無いと 90 秒で host が切る、host.ts:28・:300）。[open, POST /inject] → open: current に frame を送り 200。[none, POST /inject] → none: 503。[alive, SIGINT] → 変わらず（fleq が自分で止まる）。[alive, SIGTERM・SIGHUP] → 変わらず: 子へ同じ signal を送る。[alive, 子の exit・spawn の error] → exited・停止 yes: ping を止め、WS の client を terminate し、server を close と closeAllConnections で閉じ、子の終了 code（signal・error なら 1）で runWatch が resolve する。[停止 yes, 何でも] → 何もしない。host が返す pong とほかの frame は読まずに捨てる。この表の外に状態（キュー・待ち・期限）を持たない",
+        "requirement": "【発注 1】 状態と遷移（D-STOP・001 の D-CLOCK・D-GUARD）。状態は 3 つの組だけ: 子の fleq（alive・exited）、WS（none・open。current は今 frame を送る接続）、停止（no・yes）。遷移の表: [alive・none, Origin の無い upgrade] → open: current にし、start frame { type: \"start\", socketId: <接続ごとに 1 から増やす整数>, classifications: [], time: <今の ISO 文字列> } を送る（送らないと 30 秒で壁時計の根拠が unverified になる、host.ts:130）。[alive・open, Origin の無い upgrade] → open: 前の current を terminate し、新しい方を current にして start frame を送る（host の接続は 1 本なので、新しい方は host の繋ぎ直し）。[any, Origin 付きの upgrade] → 変わらず: verifyClient が拒む（ブラウザの WebSocket に CORS は効かない。host の client は Origin を付けない、host.ts:406）。[open, current の close・error] → none（host は 5 秒で繋ぎ直す、host.ts:659）。[open, 30 秒の timer] → open: current に { type: \"ping\", pingId: \"watch-<n>\" } を送る（無いと 90 秒で host が切る、host.ts:28・:300）。[open, POST /inject] → open: current に frame を送り 200。[none, POST /inject] → none: 503。[alive, SIGINT] → 変わらず（fleq が自分で止まる）。[alive, SIGTERM・SIGHUP] → 変わらず: 子へ同じ signal を送る。[alive, 子の exit・spawn の error] → exited・停止 yes: ping を止め、WS の client を terminate し、server を close と closeAllConnections で閉じ、子の終了 code（signal・error なら 1）で runWatch が resolve する。[停止 yes, 何でも] → 何もしない。host が返す pong とほかの frame は読まずに捨てる。この表の外に状態（キュー・待ち・期限）を持たない。ページの open は Q-RW2-IMPL-1 のとおり、[alive・none, Origin の無い upgrade] の初めての 1 回で行い、表の外に opened の 1 bit だけを持つ",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:130 «f45693862d044177»",
           "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",

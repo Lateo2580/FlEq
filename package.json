@@ -23,6 +23,7 @@
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "watch": "tsc --project reconstruction/tsconfig.json && tsc --project reconstruction/src/display/chrome-eew/tsconfig.json && node reconstruction/cli/fleq.mjs watch",
     "test:shuffle": "vitest run --sequence.shuffle",
     "test:phase6b-production": "npm --prefix display run test -- --config vitest.phase6b-production.config.ts",
     "typecheck:test": "tsc -p tsconfig.test.json",

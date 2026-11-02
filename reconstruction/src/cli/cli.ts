@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs"; import { tmpdir } from "node:os";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import { performance } from "node:perf_hooks";
 import { createInterface } from "node:readline";
 
@@ -339,12 +339,13 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   try {
     try {
       host = await startP2Host({
-        dmdata: { apiKey: apiKey.value, appName, classifications: resolved.classifications, testMode: resolved.testMode },
+        ...(replayWsFor(paths) ?? { dmdata: { apiKey: apiKey.value, appName, classifications: resolved.classifications, testMode: resolved.testMode } }),
         stateDirectory: paths.state, diagnosticDirectory: paths.diag,
         displayPort: resolved.display ? resolved.port : null, notificationGate: createNotificationGate(notification, clock),
         clock, observe: null,
       });
     } catch (error) {
+      if (error instanceof Refusal) throw error; // 守りの Refusal を「起動に失敗しました」にしない
       const code: unknown = error != null && typeof error === "object" && "code" in error ? error.code : undefined;
       // shortcut: 認証の失敗は host の Error の message との照合で見分ける。host の失敗が型になったら置き換える。
       if (code === "EADDRINUSE") throw new Refusal(`情報ディスプレイのポート ${resolved.port} は使われています。--display-port で別の番号を指定してください`);
@@ -374,6 +375,18 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     repl?.close();
     for (const signal of signals) process.off(signal, onSignal);
   }
+}
+
+// P3-RW2-AC01 (2)(3): FLEQ_WS_URL（fleq watch が子の fleq に渡す、P3-RW2-D-SHAPE）は設定の場所が一時 directory の下のときだけ受ける。
+// 無いと: 本番の fleq-next に偽の電文が保存され、本番の設定で鳴る。realpath で比べるのは macOS の /var と /private/var を揃えるため。
+function replayWsFor(paths: { directory: string }): { wsUrl: string; origin: "replay" } | null {
+  const wsUrl = process.env.FLEQ_WS_URL;
+  if (wsUrl == null || wsUrl === "") return null;
+  const refusal = new Refusal("FLEQ_WS_URL は設定の場所が一時 directory の下のときだけ使えます（npm run watch から起こしてください）");
+  let inside: string;
+  try { inside = relative(realpathSync(tmpdir()), realpathSync(paths.directory)); } catch { throw refusal; }
+  if (inside === "" || inside === ".." || inside.startsWith("../") || inside.startsWith("..\\") || isAbsolute(inside)) throw refusal;
+  return { wsUrl, origin: "replay" };
 }
 
 export { runCli };
