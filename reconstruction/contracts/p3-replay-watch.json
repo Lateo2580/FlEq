@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "857cf97e9af0d41fcc0b88cf481cc3da44650a8c",
-    "sha256": "2bb4a0507c027ae2abc55d6f32f94c162b8aa1495821c75a9df249b8ad37fb3c",
+    "sha256": "8725625cedceae2fce4d9ddbe396d2720078c272ce9d56d1b048bf36eafdb387",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -194,7 +194,7 @@
     "contractId": "P3-REPLAY-WATCH-001",
     "mode": "implementation",
     "objective": "作者の要望「電文ジェネレータなどの外部ツールや GUI から手軽に電文を注入できる」のために、C17 の fleq replay に「見る口」を足す開発者 CLI fleq watch を作る。新設の reconstruction/cli/watch.mjs に関数 runWatch を置き、止めるまで常駐して、表示を 127.0.0.1:7791（P2 の仮画面と /snapshot）に、注入の口を 127.0.0.1:7792（POST /inject?type=&retime= と、GET / の 1 枚の HTML）に開く。注入は C17 と同じ製品経路（ローカル WS → startP2Host、frames.mjs の dataFrame、origin=\"replay\"）を通し、実時計・既定で時刻を今へ寄せる平行移動・既定で通知の門による全 mute・試験専用の保存先で動く。fleq.mjs に watch の振り分けを足す。host.ts・http-sse.ts・replay.mjs・frames.mjs・synth.ts は変えない。spec:2306 で廃止可とした表示の保持（旧 --hold）を、注入の口と組にして新しく作り直す。POST /inject?type=&retime= と応答の形（inputId・headType・processed・decoded・timedOut・stopping）は、後の内製ジェネレータの契約が呼ぶ口になる（既製品は無く、FlEq の中で後から作る、作者 2026-11-02）。この契約ではジェネレータを作らない。watch の出力は通知配送・性能・保存の製品条件の合格に使わない（spec:650）。C19 の実装より先に配送する（作者裁定）",
-    "baseOid": "unassigned",
+    "baseOid": "a5947efa8734fe81e4f030ac8a3fa82d85aa0d7b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
