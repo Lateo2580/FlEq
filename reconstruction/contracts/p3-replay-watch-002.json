@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "fd479729df0d7d11494b1b6884cd689253f4a98a93996a281d588761b3e4c18b",
+    "sha256": "4f12dc718e3c3ea28649d4a73454a323d9af8ff5d6f982c807ec12d98770ec6b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -206,6 +206,14 @@
         "status": "closed",
         "source": "作者裁定（2026-11-02 深夜）",
         "closed": "P3-RW2-D-SCENE-AREA は推奨の C。場面は電文の流れだけを持ち、地域と震央は「作る」の欄の今の値を使い、選んだ値は localStorage に覚える。栃木の値を repo（watch.mjs）に書かない"
+      },
+      {
+        "id": "Q-RW2-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-02、作業の木 ~/dev/fleq-gen2 の branch gen-draft2、HEAD 72634068〔起草の commit〕。前例は P3-REPLAY-WATCH-001 の Q-RW-PRECHECK）。実走は Mac mini",
+        "closed": "(1) 分岐と未決: decisionBranches の status はどれも確定か作者裁定で、作者の裁定を待つ分岐は 0。unresolvedQuestions は Q-RW2-NPM-SIGINT の 1 件だけで、これは発注 1 の配送の受入を止めるもので、baseOid の割当は止めない (2) requiredCommands を HEAD 72634068 のまま Mac mini で 11 本回し、どれも rc 0: check-manifest・check-sequences・check-contract（WARN は本契約の baseOid unassigned の 1 行だけ）、tsc 3 本（reconstruction/tsconfig.json・tsconfig.test.json・src/display/chrome-eew/tsconfig.json）、vitest run --config reconstruction/vitest.config.ts --maxWorkers=2（1168 passed・25 skipped）、--sequence.shuffle を付けた回（同じ件数）、npm run build、npm test（6837 passed・3 skipped）、npm run typecheck:test (3) C18 の発注 3 は未起草で、p3-cli-repl.json の baseOid は発注 2 の f9416a5d のまま。本契約の cli.ts の直列合流を先に入れる順（計画の本契約の節）は変わらない (4) 起草の後の変化: git log 91fc093b..HEAD は起草の commit 72634068 の 1 本だけで、起草の後に他の契約・spec・src を変えた commit は 0 (5) checker の rc: 本項を足した後に meta.sha256 を起草の生成の script で取り直し、checker 3 本を回し直して rc 0",
+        "remaining": "なし（baseOid の割当は統合担当）",
+        "reason": "発注前点検"
       },
       {
         "id": "Q-RW2-ANCHORS",
