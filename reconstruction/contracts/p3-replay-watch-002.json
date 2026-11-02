@@ -1,0 +1,804 @@
+{
+  "meta": {
+    "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
+    "sha256": "fd479729df0d7d11494b1b6884cd689253f4a98a93996a281d588761b3e4c18b",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-RW2-D-SHAPE",
+        "category": "作者裁定",
+        "A": "偽の dmdata ＋ いつもの fleq。watch.mjs は dmdata の代わりの WS・注入の口・ページを 1 つの port に持ち、いつもの fleq（cli.ts の通常起動）を子として起こす。fleq は環境変数 FLEQ_WS_URL があれば startP2Host に { wsUrl, origin: \"replay\" } を渡す。作者が触るのは npm run watch と 1 枚のページだけ",
+        "B": "001 のまま（watch.mjs が startP2Host を自分で起こし、直列キュー・通知の門・停止の段取りを持つ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02）。作者の「さらに簡易化できる所がないか確認してから進めて」を受け、削減の監査 2 本（Opus と ヘルツ Sol high）で一致した形（作業の木 .claude/tmp/gen/audit-merged.md）",
+        "reason": "001 の watch は host の起動・停止・通知・保存先を写し持ち、製品の通常起動と別の道を通っていた。いつもの fleq を起こせば、設定・REPL・通知の門・保存・停止は製品のものをそのまま使え、watch は dmdata の代わりをするだけになる"
+      },
+      {
+        "id": "P3-RW2-D-AREA",
+        "category": "作者裁定",
+        "A": "区域は型（公開サンプル）に在る細分区域だけ",
+        "B": "区域の名前とコードを呼び手が自由に渡す",
+        "C": "骨組みは公開サンプル（manifest の jmaPublished・publicApproved）から取り、区域・市町村・観測点・震央地名の値は作者の手元の気象庁のコード表（地震火山関連コード表）から入れる。欄の組み合わせの決まりは地震火山関連の解説資料に合わせる。資料だけで骨組みを作らない（運用されない InfoType を合成した前例、台帳 97）。コード表は repo に入れず、起動時に読む（D-CODES）。資料が無いとき（CI・他の人の手元）は A の範囲に縮む",
+        "recommended": "C",
+        "provisional": "C",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02）。作者の案「気象庁 XML の技術資料を元にダミー電文を構築」を受けて仮置きし、同じ夜に裁定",
+        "reason": "A では栃木を選べない（公開サンプルの区域は 98 で栃木は無い）。C はコード表から 188 の細分区域を選べ、栃木県の細分区域も入る。コード表の扱いは D-CODES"
+      },
+      {
+        "id": "P3-RW2-D-STATUS",
+        "category": "作者裁定",
+        "A": "作る報の Control/Status は常に「通常」にする（synth.ts の head() と同じ）。VXSE52・53 の型は「訓練」なので、そのままだと snapshot の training の側に入る",
+        "B": "型の Status のまま（VXSE52・53 だけ訓練）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "watch の fleq は一時 directory の設定で動き、通知は既定で mute。通常にすると画面に本番と同じ形で出る。B は分野ごとに出る場所が変わり、理由を知らないと「出ない」に見える"
+      },
+      {
+        "id": "P3-RW2-D-CANCEL",
+        "category": "作者裁定",
+        "A": "取消は公開の取消の型がある 5 種（VXSE43 37_01_03・VXSE45 77_01_33・VXSE51 32-35_10_01・VTSE41 38-39_03_01・VTSE51 38-39_03_03）だけで作る。VXSE52・VXSE53・VTSE52 の取消は cancelTemplateMissing で断る",
+        "B": "VXSE52・53・VTSE52 の取消も VXSE51 の取消の型の Body に Title を差し替えて作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "B は公開の形を確かめていない XML を作ることになる（VXSE53 の取消は synthetic_VXSE53_cancel〔generated・unconfirmed〕しか無い）"
+      },
+      {
+        "id": "P3-RW2-D-TSUNAMI-AREA",
+        "category": "作者裁定",
+        "A": "ページで津波の予報区・観測点は選べない（型の三陸沖の地震の予報区・観測点のまま）。選べるのは Serial（VTSE51・52）・取消と、震源・M・深さ（津波の画面には出ない）。変わるのは EventID と時刻",
+        "B": "ページで VTSE41・VTSE51 の予報区を 1 つ選べ、VTSE51 はその予報区の潮位観測点も 1 つ選べる（資料があるときだけ。無いときは A と同じ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "作者の「変えられる項目」（震源・M・深さ・最大震度と地域・Serial・取消）に津波予報区は無い。A ではコード表のシート 31・34・35 を読まない。シート 34（沿岸地域）は 3 つの型のどれも使っていない（Item/Area は津波予報区、Station は潮位観測点）。B は Item をその 1 区域に縮めて等級・高さ・到達時刻を型の先頭の Item から取り、観測点をシート 35 の 5 桁のコードの頭 3 桁で予報区に結ぶが、その対応は解説資料に書かれていない（起草時に 66 予報区のどれにも 1 つ以上あることだけを数えた）。VTSE52 は B でも型のまま"
+      },
+      {
+        "id": "P3-RW2-D-EEW-AREAS",
+        "category": "作者裁定",
+        "A": "ページの EEW（VXSE43・45）の区域の選択肢は、資料があるとき 125 区域。北海道・東京・鹿児島・沖縄の細分区域は EEW では選べない（地震情報の 3 種では 188 区域すべて選べる）。栃木県北部・南部は選べる。資料が無いときは公開サンプルの 44 区域。この対応は資料（コード表・解説資料）に無い推定で、公開の型の 53 組で 52 件が一致する",
+        "B": "北海道・東京・鹿児島・沖縄の細分区域も選べるよう、区域の名前から府県予報区へ手で振り分ける表を足す（188 区域）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）",
+        "reason": "細分区域から府県予報区への対応はコード表にも解説資料にも無い。A は、細分区域の市町村コードの頭 2 桁 pp から作るコード 9pp0 がシート 22 に在る区域だけを選ばせる。この規則は 43 都府県でシート 22 の並びから読める推定。北海道・東京・鹿児島・沖縄は府県予報区が 2〜4 つに分かれていて 9pp0 の形のコードが無く、引けない。公開の型（37_01_01・77_01_26）の Pref と Area の組 53 件に当てると 52 件が一致し、外れる 1 件（鹿児島の府県予報区と細分区域の組）は A が選ばせない側（起草時に数えた）。B の振り分け表は資料に無い対応を手で書くことになる"
+      },
+      {
+        "id": "P3-RW2-D-SCENES",
+        "category": "作者裁定",
+        "A": "ページの左に場面のボタンを 5 つ置く。場面は「作る」の欄に値を入れるだけのプリセットで、押すとその値で作って続けて送る。欄はその後も手で変えて作り直せる（詳しく作るのは「作る」の欄）。場面が持つのは電文の流れ（分野・報の数・終わり方）と M・深さ・最大震度だけで、地域と震央は D-SCENE-AREA に従う。場面: (1) EEW 予報→続報→最終報（VXSE45、reports=3・end=final、合計 3 報） (2) EEW 警報（VXSE43、reports=2・end=final、合計 2 報） (3) EEW の取消（VXSE45、reports=1・end=cancel、第 1 報と取消の合計 2 報） (4) 震度速報→震源・震度（VXSE51 を作り、返った originTime で VXSE53 を作る。合計 2 報を 4 秒おきに送る） (5) 津波警報（VTSE41、1 報。区域・最大震度は無い）。(1)〜(4) は M 5.5・深さ 50 km・最大震度 5-。選んでいる区域がその分野の choices に無いとき（例 北海道の区域で EEW の場面）は、/generate の areaUnknown が結果の行に出る",
+        "B": "場面のボタンを置かない（「作る」の欄だけ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02、推奨どおり）。作者は「場面のボタンはプリセットで、ほかに『作る』の欄で詳しく作れる」と読んで裁定した。A の文はその読みのとおり。地域と震央の持ち方は D-SCENE-AREA（作者裁定 C）に合わせて文面を直した",
+        "reason": "削減の監査で「場面のボタン（/generate の入力の preset を JS に持つ）」を残すと決めた。中身の 5 つは起草で選んだ: EEW の続報・最終報・取消と、同じ地震の震度速報と震源・震度を 1 押しで試せる組。preset はページの JS の定数で、仕組みは足さない"
+      },
+      {
+        "id": "P3-RW2-D-SCENE-AREA",
+        "category": "作者の判断（使い勝手）",
+        "A": "場面は公開サンプルの地域だけを使う（EEW は愛媛県南予と豊後水道、震度速報と震源・震度は静岡県中部と駿河湾）。栃木で試すときは「作る」の欄で選び直す",
+        "B": "栃木県南部と茨城県南部の 1 組を場面の値としてページ（watch.mjs）に書く",
+        "C": "場面は電文の流れだけを持ち、地域（区域）と震央（震央地名・緯度・経度）は「作る」の欄で今選んでいるものを使う。選んだ区域・震央地名・緯度・経度はブラウザの localStorage に覚えさせ（読み書きは try/catch で囲み、使えなくても動く）、ページを開いたときに欄へ戻す。覚えた値がその時の choices に無ければ使わない。資料が無いときの欄の初期値は公開サンプルの値（EEW は愛媛県南予・豊後水道・北緯 33.2・東経 132.4、地震情報は静岡県中部・駿河湾・北緯 34.8・東経 138.5、津波は三陸沖・北緯 38.0・東経 142.9）。資料があるときの初期値も同じ値（コード表に在る区域・震央地名なので選べる）で、栃木は作者が一度選べば次から栃木になる",
+        "recommended": "C",
+        "provisional": "C",
+        "status": "作者裁定（2026-11-02、推奨どおり）",
+        "ruling": "作者裁定（2026-11-02 深夜、推奨どおり）",
+        "reason": "B はコード表の値が watch.mjs に入り、D-CODES（資料を repo に入れない）とぶつかる。A は栃木で試すたびに選び直しが要る。C は資料の値を repo に持たず、一度選べば次も同じ地域になる。localStorage はブラウザの中だけの覚えで、消えても初期値に戻るだけ（無いと: 栃木で試すたびに区域と震央を選び直す）"
+      },
+      {
+        "id": "P3-RW2-D-TIME",
+        "category": "統合担当決定",
+        "A": "起点（originTime、既定は今）は発生時刻とし、秒に切り捨てる。生成した時刻は 1 回の呼出しで 1 度だけ取った今を秒に切り捨てた値。EventID は eventIdAt(起点)、Hypocenter の OriginTime と VXSE51 の TargetDateTime は起点そのもの。報の時刻（ReportDateTime・Control/DateTime、VXSE51 以外の TargetDateTime）は生成した時刻で、EEW の続報列だけ第 k 報を生成した時刻＋4 秒×(k−1) にする。起点が生成した時刻より後なら originTimeInvalid（等しいのは可）。ページは作った報を retime=0 で、第 1 報はすぐ、以後 4 秒おきに /inject へ送る",
+        "B": "作った報も retime=1 で送り、watch に時刻を今へ寄せさせる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "起点を発生時刻にすると、同じ起点で作った震度速報・震源震度・EEW・続報が同じ EventID になる（synth.ts の eventIdAt(origin)）。報の時刻を生成した時刻にするのは、同じ起点で Serial を進めて作り直したとき Control/DateTime が進み、版の比較で held にならないため（version.ts）。retime=1 は本文の全時刻を同じ量だけ動かすので、送るたびに同じ地震の発生時刻がずれる。秒に切り捨てるのは、shiftTimestamps が小数秒を書き、seismic が 25 文字を超える ReportDateTime を断るため。草稿の D-TIME から CLI の --post を除いた"
+      },
+      {
+        "id": "P3-RW2-D-FRAMES",
+        "category": "統合担当決定",
+        "A": "shiftTimestamps と fixtureText は frames.mjs から import する（replay.mjs:11 と同じ前例）。synth.ts から写すのは jst・utc・eventIdAt・textOf・placed・head・between・headlineItems・eewBody と、それらが呼ぶ LABEL・RANK・rank・higher だけ（synth.ts は import しない）。quake51・quake53 は写さない",
+        "B": "shiftTimestamps も写す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "synth.ts を変えると災害測定の sourceSha256 が変わる（scenario.ts が synth.ts の bytes を hash する）ので、要る部品は写す。frames.mjs は 2026-09-30 から本文が同じで、replay.mjs と watch.mjs も import している"
+      },
+      {
+        "id": "P3-RW2-D-CODES",
+        "category": "作者裁定",
+        "A": "気象庁の技術資料（コード表を含む）は repo に入れない。ジェネレータは環境変数 FLEQ_JMA_CODES が指す、作者の手元の 地震火山関連コード表.xlsx を最初の呼出しで 1 回読み、シート 22（緊急地震速報／府県予報区）・23（地震情報／都道府県等）・24（細分区域・市町村等・震度観測点）・41（震央地名）の Code と Name だけを拾ってプロセスの中に持つ。抜き出した結果はどこにも書かない（読み取りのコードは repo に置くが、資料と抜き出しは置かない）。FLEQ_JMA_CODES が無いときは公開サンプル（型 13 本）に在る区域・市町村・観測点・震央地名だけで動く（D-AREA の A の範囲）。作者の挙げた 6 枚との違い: 23 を足す（VXSE51・53 の Pref は地震情報／都道府県等で 22 とは別の表。都道府県は市町村コードの頭 2 桁で引く）。31・35 は D-TSUNAMI-AREA が B のときだけ読み、34 はどの型も使わないので読まない。42（短縮用震央地名）は読まない: EEW の ReduceName は選んだ震央地名の Name を書き、ReduceCode は型の値のまま残す（41 と 42 の対応は表に無く、名前の一致は 343 件中 78 件。製品は ReduceName・ReduceCode を読まない）。EEW の LandOrSea は消す（0 回/1 回の要素で、型の「海域」が陸の震央に残ると製品が読む、eew.ts:811）",
+        "B": "コード表の必要な列を repo に写す（前の版）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定）",
+        "ruling": "作者裁定（2026-11-02 夜）",
+        "reason": "技術資料のページの全内容出力スタイルシートの注意「システムに直接組み込む等の方法でご利用になることは避けていただき、電文処理の参考資料としてお使い下さい」に合わせ、技術資料一式を保守的に扱う（作者）。xlsx を直接読むのは、抜き出した file を作らないため（作れば置き場の決まりと消し忘れが要る）。xlsx は zip なので、新しい依存を足さず node:zlib の inflateRawSync で読む。無いと（FLEQ_JMA_CODES の口が無いと）: 栃木を選べない"
+      },
+      {
+        "id": "P3-RW2-D-PORTS",
+        "category": "統合担当決定",
+        "A": "watch の port の既定は 7792（環境変数 FLEQ_WATCH_PORT で変えられ、0 は OS が選ぶ）、子の fleq の表示の port の既定は 7791（FLEQ_WATCH_DISPLAY_PORT、1〜65535）。どちらも 127.0.0.1 で開く。flag は作らない",
+        "B": "port を固定し、変える口を作らない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "既定は 001 の D-PORTS（作者裁定）と同じ番号でブックマークが変わらない。変える口が無いと: 作者が watch を動かしたまま試験を回すと port がぶつかる。表示の port に 0 を許さないのは、fleq の設定が 1〜65535 しか受けず（settings.ts:152）、子の出力を読まない watch がページの iframe の URL を組めないため"
+      },
+      {
+        "id": "P3-RW2-D-CLI-LINES",
+        "category": "統合担当決定",
+        "A": "cli.ts の変更は、startMonitor の startP2Host の呼出しの dmdata の 1 行をその場で 1 行に置き換えること、その try の catch の頭に Refusal をそのまま投げ直す 1 行を足すこと、startMonitor の後に守りの関数を足すことの 3 つと、import の行の書き足しだけにする。344 行より前に行を足さない: 守りが要る名前は既存の import の行にその場で足し（:1 の node:fs に realpathSync、:2 の node:path に relative・isAbsolute）、node:os の tmpdir は :1 の行の末尾に同じ行で import を書く",
+        "B": "守りを startMonitor の頭に置き、001 の cli.ts の anchor 3 件を配送の commit で付け直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "p3-replay-watch.json が cli.ts:322・:337・:344 を引く。344 行より前に行を足すとこの 3 件が check-contract で落ちる。守りが startP2Host の直前で効けば、host が保存・診断を書き始める前に止まる（その前に書きうるのは今までの fleq の設定の移行だけで、通常起動と同じ書き込み）"
+      },
+      {
+        "id": "P3-RW2-D-STOP",
+        "category": "統合担当決定",
+        "A": "watch は SIGINT を受けても何もしない（端末の Ctrl+C は同じ process group の子の fleq にも届き、fleq が自分で止まる）。SIGTERM と、win32 以外の SIGHUP は子へ同じ signal を送る。子が終わったら watch は ping を止め、WS の client を terminate し、server を close と closeAllConnections で閉じ、子の終了 code（signal で終わったら 1）で終わる。一時 directory は消さない",
+        "B": "watch が SIGINT を受けて子を止める段取りを持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（技術の分岐）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "停止の段取りは fleq の通常起動のもの（REPL の quit と Ctrl+C）をそのまま使う。SIGTERM を子へ送らないと: watch だけが死んで子の fleq が残り、5 秒ごとに繋ぎ直し続ける（host.ts:659）。一時 directory を残すのは、終わった後に state と diag を見られるため（001 の D-STATE と同じ）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-RW2-HOST-WRITES",
+        "status": "closed",
+        "source": "91fc093b の reconstruction/src を読んだ（2026-11-02。監査の未確認「{ wsUrl } の接続で host が設定 dir の外に書く物があるか」）",
+        "closed": "設定 dir の外に書くのは composition-root.ts:483 の音の probe だけで、os.tmpdir() の下に fleq-p2-probe- の directory を作って無音の wav を書き、finally で消す（{ dmdata } の起動と同じ）。ほかの書き込み（checkpoint・診断の sink・設定の保存）は、どれも startP2Host に渡す stateDirectory・diagnosticDirectory と settingsPaths() の下。移行元の state の place は `${stateDirectory}.legacy`（host.ts:175）で fleq-next の中。今までの fleq の設定は configDirectory(\"fleq\") から読むだけで、XDG_CONFIG_HOME を一時 directory に向けると無いので移行は起きない（settings.ts:37）。EEW ログは C19 が入れるまで無い"
+      },
+      {
+        "id": "Q-RW2-CODES",
+        "status": "closed",
+        "source": "~/research/fleq-jma-premises/sources/code/地震火山関連コード表.xlsx（imozuru 1 周目、2026-10-20 に https://xml.kishou.go.jp/jmaxml_20261019_Code.zip を curl で取得、map.md:57）と、配布元・気象庁の利用条件の WebFetch（2026-11-02）、作者裁定（2026-11-02 夜）",
+        "closed": "(1) 出典: https://xml.kishou.go.jp/tec_material.html の「個別コード表」jmaxml_20261019_Code.zip（令和 8 年 10 月 19 日一部更新）の 地震火山関連コード表.xlsx (2) 利用条件: xml.kishou.go.jp に個別の記載は無く、気象庁ホームページの利用規約（https://www.jma.go.jp/jma/kishou/info/coment.html）が公共データ利用規約（第1.0版、https://www.digital.go.jp/resources/open_data/public_data_license_v1.0）を指す（出典と加工の記載を求める）。技術資料のページは全内容出力スタイルシートについて「システムに直接組み込む等の方法でご利用になることは避けていただき、電文処理の参考資料としてお使い下さい」と注意しており、作者はこれを技術資料一式に広げて保守的に扱い、repo に入れないと裁定した（D-CODES） (3) 出典と加工の記載: 生成した電文は repo に入らず作者の手元の画面でだけ使うので、電文には何も足さない。資料を読んだときだけページに 1 行「区域・震央地名の値: 気象庁『地震火山関連コード表』（https://xml.kishou.go.jp/tec_material.html）を FlEq が加工して作成」を出す（AC12。公共データ利用規約は加工の主体の記載を求める） (4) 同じ zip を変換した .txt はセルのふりがな（<rPh>）が名前に繋がる（例「北海道地方ほっかいどうちほう」）ので、読み取りは xlsx の <si> の <t> だけを拾う (5) 起草時に xlsx から数えた値（試験 T15 の期待）: シート 22 の府県予報区 56、23 の都道府県等 47、24 の細分区域 188・市町村等 1,894・震度観測点 4,362、41 の震央地名 343。細分区域ごとの市町村コードの頭 2 桁はどの区域でも 1 種類 (6) 資料が無いときの範囲（型から数えた）: EEW の区域は 77_01_26 の Pref と Area の組 44、VXSE51 は 32-35_07_01 の 37 区域、VXSE53 は 32-35_01_03 の 17 区域（両方に在るのは 17 区域で静岡県中部 442 を含む）、震央地名は型に在る豊後水道 681・駿河湾 485・三陸沖 288 の 3 つ"
+      },
+      {
+        "id": "Q-RW2-SUPERSEDE",
+        "status": "closed",
+        "source": "p3-replay-watch.json（P3-REPLAY-WATCH-001、配送 91fc093b）と audit-merged.md を突き合わせた（2026-11-02）",
+        "closed": "本契約が置き換える 001 の条文: AC01（入口。fleq.mjs の watch の振り分けは残し、watch.mjs の中身を替える）、AC02（引数の境界。flag を全部やめる）、AC03（起動の順。host を起こさず fleq を子として起こす）、AC04（接続。状態表は本契約 AC03 へ）、AC05（HTTP の口。応答の形を { sent, headType } と 503 notConnected に替える）、AC06（直列キュー。消す）、AC07（通知の門。設定 file の無期限 mute と sound:false に替える）、AC08（停止。fleq の停止に任せる）。AC09 の (1)(2)(4) は記録としてそのまま、(3)（C19 への申し送り、watch.mjs への EEW ログの結線）は本契約の AC14 (2) で置き換える。決定: D-NOTIFY・D-PORTS（番号は D-PORTS で引き継ぐ）・D-PLACE・D-QUEUE・D-RECONNECT・D-STATE・D-STOP-TEST は置き換え、D-RETIME（ページは自動で決める）・D-GUARD・D-CLOCK（fleq の実時計と start frame）・D-VIEW（/snapshot のリンク）・D-UF・D-SPEC650 は引き継ぐ。期限: DLV-01（10 秒）は消し、DLV-02（30 秒の ping）は引き継ぐ。RES-01 は本文の 8 MiB だけ引き継ぎ、枠 8 件は消す。試験の対応は AC06。spec:650 の文「ただし `fleq watch`（手で試す）は実時計と呼び手が渡す headType を持つ」はそのままでよい: fleq.mjs の watch の振り分けは残り（npm run watch もそれを呼ぶ）、子の fleq は実時計で動き、headType は /inject の呼び手が渡す。「外部配送の無効化、試験専用保存先、実 adapter 使用を試験ごとに明示する」は、watch の標準エラーの 1 行（一時 directory）と fleq の起動の行「ミュート中です（mute off まで）。」（repl.ts の muteStartLine）で満たす。spec:650 を引く 7 件の anchor は付け直さない"
+      },
+      {
+        "id": "Q-RW2-GONE",
+        "status": "closed",
+        "source": "作者裁定（2026-11-02）と audit-merged.md §6・§9",
+        "closed": "草稿 P3-TELEGRAM-GEN-001（p3-telegram-gen.json、未コミット）は本契約に吸わせて消した。消えたもの: 分岐 D-GUI-SEQ（続報列はページが 4 秒おきに送る）と D-GUI-RETIME（retime はページが自動で決め、checkbox は出さない）、D-PLACE（地名の自由文字列。D-AREA=C で震央地名表から選ぶ）、CLI（cli.mjs・--post・--post-url・--out・終了 code）と試験 T04。生かしたもの: 型 13 本、D-STATUS・D-CANCEL・D-TIME・D-FRAMES、入力の検査（AC08）、書き換え（AC09）、続報列（AC10）、読み戻しの試験（AC11）、Q-TG-TEMPLATES・Q-TG-SYNTH の事実"
+      },
+      {
+        "id": "Q-RW2-TEMPLATES",
+        "status": "closed",
+        "source": "草稿 P3-TELEGRAM-GEN-001 の Q-TG-TEMPLATES・Q-TG-SYNTH（起草の版 857cf97e で dist を build して確かめた。91fc093b までに manifest・test/fixtures・src・synth.ts は変わっていない）",
+        "closed": "(1) 13 本とも jmaPublished・publicApproved・byteIdentical (2) 13 本とも decode でき、地震・津波の 9 本は parser が accepted。EEW の 4 本は reduceEewUnit を通す（validateCandidate は export されていない） (3) VXSE52（32-35_01_02）と VXSE53（32-35_01_03）は Status が訓練、他の 11 本は通常 (4) 公開の EEW の型はどれも NextAdvisory を持たない (5) synth.ts の M71 の大きな型は dmdataCaptured・unconfirmed なので使わない。VXSE51 は 32-35_07_01・32-35_10_01、VXSE53 は 32-35_01_03 (6) 公開の EEW の型の Hypocenter は豊後水道（681）で、ReduceName も同じ名前"
+      },
+      {
+        "id": "Q-RW2-AUTHOR",
+        "status": "closed",
+        "source": "作者裁定（2026-11-02 夜）",
+        "closed": "起草案の 3 件（D-TSUNAMI-AREA・D-EEW-AREAS・D-SCENES）は推奨の A。D-AREA=C・D-STATUS=A・D-CANCEL=A も仮置きから作者裁定にした。作者は「場面のボタンはプリセットで、ほかに『作る』の欄で詳しく作れる」と読んで裁定し、D-SCENES の A と AC12 はその読みのとおり。記録: 作者の「変えられる項目」6 つ（震源・M・深さ・最大震度と地域・Serial・取消）の外に、「作る」の欄には起点（発生時刻、同じ地震の続報を作るため。D-TIME）・続報の数（reports）・終わり方（なし・最終報・取消）がある。どれも EEW の続報列（AC10）と同じ地震の作り直しに要る欄で、新しい種類の値は作らない"
+      },
+      {
+        "id": "Q-RW2-SCENE-AREA",
+        "status": "closed",
+        "source": "作者裁定（2026-11-02 深夜）",
+        "closed": "P3-RW2-D-SCENE-AREA は推奨の C。場面は電文の流れだけを持ち、地域と震央は「作る」の欄の今の値を使い、選んだ値は localStorage に覚える。栃木の値を repo（watch.mjs）に書かない"
+      },
+      {
+        "id": "Q-RW2-ANCHORS",
+        "status": "closed",
+        "source": "91fc093b での git grep（2026-11-02）",
+        "closed": "(1) 本契約が変える file のうち、行を anchor で引かれているのは cli.ts だけ（p3-replay-watch.json が :322・:337・:344）。D-CLI-LINES で 1〜344 行の行数を保つ (2) watch.mjs・watch.test.ts・package.json・telegram-gen の file を行で引く契約は 0 件。本契約もこれらと cli.ts の行を anchor で引かない（自分の配送と C18 発注 3 で行がずれるため） (3) 計画は、未コミットの草稿の小見出しと表（638 行以降）を本契約の節に置き換えるだけで、633〜637 行（001 が引く）と :82・:109・:124 は変えない (4) spec:650 は変えない（Q-RW2-SUPERSEDE） (5) 記録だけ: p3-cli-repl.json の Q-CLI-O2-FACTS（同 file の 461 行）の文中の「cli.ts:348」「cli.ts:361」は anchor の無い行番号で、91fc093b で既に指す行がずれている（今の 348 行は catch の中、361 行は閉じ括弧）。本契約の発注 1 が catch に 1 行足すと、さらに 1 行ずれる。文は記録なので直さない"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。注入の入力の運用区分は製品の parser が本文の Control/Status と envelope（dataFrame が本文の Status に揃える）から決め、作った報の Status は常に通常（D-STATUS）。origin=\"replay\" を operation:\"test\" と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-REPLAY-WATCH-002",
+    "mode": "implementation",
+    "objective": "P3-REPLAY-WATCH-001（fleq watch、配送 91fc093b）を、作者と決めた「偽の dmdata ＋ いつもの fleq」の形に作り直し、起草中だった電文ジェネレータ P3-TELEGRAM-GEN-001 をこの契約に吸わせる（作者裁定 2026-11-02）。watch.mjs は 1 つの port に dmdata の代わりの WS・注入の口・1 枚のページを持ち、一時 directory の設定でいつもの fleq（cli.ts の通常起動）を子として起こす。fleq は環境変数 FLEQ_WS_URL があれば dmdata の代わりにその WS へ繋ぎ（startP2Host の { wsUrl, origin: \"replay\" }）、設定の場所が一時 directory の下でなければ起動を断る。作者が触るのは npm run watch とページだけ。発注 1 は fleq の口と守り・watch.mjs の作り直し・npm run watch・試験。発注 2 はジェネレータ（骨組みは気象庁の公開サンプル、区域・市町村・観測点・震央地名の値は作者の手元のコード表を起動時に読む。D-CODES）とページの「作る」・場面。状態は子の fleq の生死・WS の接続・停止の 3 つだけ。watch の出力は spec:650 の通知配送・性能・保存の製品条件の合格に使わない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-replay-watch-002.json",
+      "reconstruction/contracts/p3-replay-watch.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p3-order-plan.md",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/contracts/check-contract.mjs",
+      "reconstruction/cli/**",
+      "reconstruction/src/**",
+      "reconstruction/test/**",
+      "reconstruction/tools/corpus/manifest.json",
+      "test/fixtures/**",
+      "package.json",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/cli/cli.ts（【発注 1】直列合流。D-CLI-LINES の 3 か所と import の行の書き足しだけ、344 行より前に行を足さない）",
+      "reconstruction/cli/watch.mjs（【発注 1】作り直し。【発注 2】直列合流で /generate とページを足す）",
+      "reconstruction/test/replay-watch/watch.test.ts（【発注 1】作り直し。【発注 2】 T14 を足す）",
+      "package.json（【発注 1】 scripts の watch の 1 行だけ）",
+      "reconstruction/tools/telegram-gen/telegram-gen.mjs（【発注 2】）",
+      "reconstruction/tools/telegram-gen/telegram-gen.d.mts（【発注 2】）",
+      "reconstruction/test/telegram-gen/telegram-gen.test.ts（【発注 2】）",
+      "reconstruction/test/telegram-gen/with-codes.test.ts（【発注 2】）",
+      "reconstruction/test/telegram-gen/xlsx-reader.test.ts（【発注 2】）",
+      "reconstruction/test/telegram-gen/tiny-codes.xlsx（【発注 2】。自作の架空の値だけ、AC15）",
+      "reconstruction/test/telegram-gen/make-tiny-codes.mjs（【発注 2】）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-replay-watch-002.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B03",
+      "B04",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-REPLAY-WATCH-001",
+      "P3-CLI-REPL-001",
+      "P3-EEW-FACTS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#AcquisitionOrigin",
+      "reconstruction/contracts/p1-parser-boundary.types.ts#DecodedMaterial",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitStep",
+      "reconstruction/contracts/p3-cli-repl.types.ts#FleqSettings"
+    ],
+    "publicFunctions": [
+      "改（発注 1）: reconstruction/cli/watch.mjs の runWatch(argv): Promise<number>（子の fleq の終了 code で resolve、AC02・AC03）",
+      "新（発注 1）: 環境変数 FLEQ_WS_URL（fleq の通常起動、AC01）、FLEQ_WATCH_PORT・FLEQ_WATCH_DISPLAY_PORT（watch、AC02）、npm run watch（AC05）",
+      "改（発注 1）: POST http://127.0.0.1:<port>/inject?type=<headType>&retime=0|1 の応答を 200 { sent: true, headType } と 503 { error: \"notConnected\" } にする（001 の { inputId, processed, decoded, timedOut, stopping } は消える）",
+      "新（発注 2）: reconstruction/tools/telegram-gen/telegram-gen.mjs の generateTelegrams(input): { kind: \"generated\"; headType; eventId; originTime; reports: { serial; xml }[] } | { kind: \"rejected\"; reason; field } と choices(family): { places: { code; name }[]; areas: { code; name }[] }",
+      "新（発注 2）: POST http://127.0.0.1:<port>/generate（AC12）と環境変数 FLEQ_JMA_CODES（作者の手元のコード表の xlsx の path、D-CODES）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（ws、node:fs・node:os・node:path・node:http・node:child_process・node:url・node:zlib〔コード表の xlsx の展開、D-CODES〕）。frames.mjs からは dataFrame・shiftTimestamps・fixtureText・REPO だけを import する。新しい npm 依存は足さず、package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__77_01_33_240613_VXSE45",
+      "test__fixtures__32-35_07_01_100915_VXSE51",
+      "test__fixtures__32-35_10_01_220510_VXSE51",
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__32-35_01_03_240613_VXSE53",
+      "test__fixtures__32-39_11_09_250206_VTSE41",
+      "test__fixtures__38-39_03_01_210805_VTSE41",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__38-39_03_03_210805_VTSE51",
+      "test__fixtures__61_11_02_250206_VTSE52"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O05",
+      "O09",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-RW2-DLV-01",
+        "target": "host の接続の維持",
+        "limit": "30 秒ごとに ping を 1 つ送る（host の切断は最後の frame から 90 秒、host.ts:28）",
+        "unit": "秒",
+        "scope": "watch の WS server の current",
+        "source": "001 の P3-RW-DLV-02 を引き継ぐ"
+      }
+    ],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-RW2-RES-01",
+        "target": "watch.mjs と generateTelegrams",
+        "limit": "POST /inject の本文は 8 MiB（8,388,608 bytes）、POST /generate の本文は 64 KiB まで。watch が持つのは current の接続 1 本と ping の番号と socketId の番号だけ（注入の記録・キューを持たない）。型 13 本と FLEQ_JMA_CODES の xlsx（約 0.7 MB）は最初の呼出しに 1 回読み、抜き出した値はプロセスの中にだけ持つ。1 回の生成は 61 報まで（reports 60 と取消 1）",
+        "unit": "bytes・本・報",
+        "scope": "watch の 1 プロセス。製品の受信経路の仕事は変えない",
+        "source": "AGENTS.md の最小実装と受信経路の計算量。8 MiB は 001 の P3-RW-RES-01"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形は変えない。watch の fleq が作る checkpoint の ReportRef.origin が \"replay\" になるのは 001・C17 と同じ）"
+    ],
+    "nonPersistedFields": [
+      "watch.mjs の current の接続・ping の番号・socketId の番号、ジェネレータの型とコード表から抜き出した値（プロセスの間だけ。file に書かない）"
+    ],
+    "outOfScope": [
+      "host.ts・http-sse.ts・composition root・ingress・parser・unit・repl.ts・settings.ts・fleq.mjs・replay.mjs・frames.mjs・synth.ts の変更（synth.ts を変えると災害測定の sourceSha256 が変わる）",
+      "cli.ts の D-CLI-LINES の 3 か所の外の変更と、通常起動の検査（apiKey・appName）を FLEQ_WS_URL で緩めること",
+      "気象庁のコード表・技術資料と、そこから抜き出した値を repo（test/fixtures・tools・試験の期待の file）に置くこと（D-CODES）。実在のコード・名前を試験の期待に書くのは T15 だけ（ほかの試験は件数・型の値・架空の値で書く）",
+      "VXSE52・VXSE53・VTSE52 の取消（D-CANCEL）、複数の区域に震度を配ること、観測点ごとに違う震度、津波の等級・高さ・到達時刻の編集、長周期（VXSE61・62）・南海トラフ・気象・火山",
+      "ジェネレータの CLI・ファイル出力・筋書きの file・DSL、注入の処理結果の照合（T0・T2）と待ち",
+      "dmdata の EEW 原本・personal の corpus・dmdataCaptured の報を型や注入に使うこと、作った XML を corpus へ足すこと",
+      "watch の出力を spec:650 の通知配送・性能・保存の製品条件の合格に使うこと",
+      "C19 の端末出力と EEW ログ、配布の形（package の files・bin）、spec 本体の編集",
+      "package.json の scripts の watch の 1 行の外の変更、package-lock.json・tsconfig・vitest config、新しい npm 依存"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-RW2-AC01",
+        "requirement": "【発注 1】 いつもの fleq の口と守り（D-SHAPE・D-CLI-LINES）: reconstruction/src/cli/cli.ts の startMonitor で、(1) 環境変数 FLEQ_WS_URL が空でない文字列なら startP2Host に dmdata の代わりに { wsUrl: <その値>, origin: \"replay\" } を渡す。他の引数（stateDirectory・diagnosticDirectory・displayPort・notificationGate・clock・observe）は今のまま。flag は足さない (2) FLEQ_WS_URL があるとき、settingsPaths().directory が os.tmpdir() の下でなければ Refusal「FLEQ_WS_URL は設定の場所が一時 directory の下のときだけ使えます（npm run watch から起こしてください）」で断る（終了 code 1、host を起こさない）。比べるのは両方の realpath（macOS の /var と /private/var を揃えるため。設定の場所が無ければ断る）で、path.relative が '' でも '..' 始まりでも絶対 path でもないときだけ下とみなす。無いと: 本番の fleq-next に偽の電文が保存され、本番の設定で鳴る（001 の T13 の代わり） (3) 守りは startMonitor の後に置く関数 1 つにまとめ、startP2Host の引数の dmdata の 1 行をその場で `...(<守りの関数>(paths) ?? { dmdata: ... })` の 1 行に置き換える。その try の catch の頭に `if (error instanceof Refusal) throw error;` を 1 行足す（無いと守りの Refusal が「起動に失敗しました」に化ける）。344 行より前に行を足さない（import の名前は既存の :1・:2 の行にその場で足し、node:os の import は :1 の行の末尾に書く。D-CLI-LINES）。cli.ts は C18 の file なので直列合流で入れ、C18 発注 3 はこの上で起草する。apiKey・appName の要求（通常起動の検査）は変えず、watch が仮の値で満たす（AC02）",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:42 «a43e972375d56f84»",
+          "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
+          "reconstruction/src/cli/settings.ts:46 «941afcfe54092e44»",
+          "reconstruction/src/cli/settings.ts:37 «7a35f04b725adcdc»",
+          "reconstruction/contracts/p3-order-plan.md:124 «650a2128e6396b55»",
+          "reconstruction/contracts/p3-replay-watch.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC02",
+        "requirement": "【発注 1】 watch の起動（D-SHAPE・D-PORTS）: reconstruction/cli/watch.mjs を作り直し、export async function runWatch(argv) を残す（fleq.mjs の watch の振り分けは変えない）。順に (1) argv が空でなければ標準エラーに {\"error\":\"unexpectedArgument\"} を書いて 1 を返す（001 の flag を渡した人が黙って無視されないため） (2) FLEQ_WATCH_PORT（既定 7792、0〜65535 の 10 進）と FLEQ_WATCH_DISPLAY_PORT（既定 7791、1〜65535）を読み、外れたら {\"error\":\"portInvalid\",\"name\":<変数名>} で 1 (3) node:http の server 1 つを 127.0.0.1:<port> で開き、同じ server に ws の WebSocketServer({ server, verifyClient }) を載せる。EADDRINUSE なら {\"error\":\"portInUse\",\"port\":n}、ほかの失敗は {\"error\":\"listenFailed\",\"port\":n,\"message\":...} で 1（まだ何も作っていない） (4) mkdtempSync(join(tmpdir(), \"fleq-watch-\")) を作り、その下の fleq-next/config.json に { apiKey: \"watch\", appName: \"fleq-watch\", display: true, displayPort: <表示の port>, sound: false, mute: { until: null, rules: [] } } を書く（規則が空の無期限 mute は全部を止め、sound:false は音を止める。鳴らしたいときは REPL で mute off と sound on の両方を打つ。mute off だけでは音の通知は門の sound の段で止まったまま、repl.ts:321・:171、notification-gate.ts:58） (5) process.execPath で reconstruction/cli/fleq.mjs を引数なしで起こす。stdio は inherit、env は今の env に XDG_CONFIG_HOME=<一時 directory> と FLEQ_WS_URL=ws://127.0.0.1:<実の port>/ を足したもの（settings.ts は全 OS で XDG_CONFIG_HOME を先に見る） (6) 標準エラーに 1 行「fleq watch: http://127.0.0.1:<実の port>/（設定と保存: <一時 directory>）」を書く。標準出力には何も書かない（子の fleq と REPL が使う） (7) process.platform が darwin で process.stdin.isTTY のときだけ open でそのページを開く（無いと: 試験のたびにブラウザが開く）。先頭に、なぜのコメントを 2 行（dmdata の代わりをして、いつもの fleq を子として起こすこと。製品の起動・保存・通知・停止をそのまま使うため）",
+        "evidenceRefs": [
+          "reconstruction/src/cli/settings.ts:37 «7a35f04b725adcdc»",
+          "reconstruction/src/cli/settings.ts:152 «0b91e4d9c4f68711»",
+          "reconstruction/src/cli/settings.ts:115 «e1733364fdc5fa0a»",
+          "reconstruction/src/cli/repl.ts:255 «f5460e64bc05561d»",
+          "reconstruction/src/cli/notification-gate.ts:67 «2035e81c5451c745»",
+          "reconstruction/src/cli/notification-gate.ts:58 «f68e9eabe533fdab»",
+          "reconstruction/src/cli/repl.ts:321 «d8094f0bf8aff1ec»",
+          "reconstruction/src/cli/repl.ts:171 «b638b89bfff921c7»",
+          "reconstruction/src/runtime/composition-root.ts:483 «f2c41f577db102f7»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC03",
+        "requirement": "【発注 1】 状態と遷移（D-STOP・001 の D-CLOCK・D-GUARD）。状態は 3 つの組だけ: 子の fleq（alive・exited）、WS（none・open。current は今 frame を送る接続）、停止（no・yes）。遷移の表: [alive・none, Origin の無い upgrade] → open: current にし、start frame { type: \"start\", socketId: <接続ごとに 1 から増やす整数>, classifications: [], time: <今の ISO 文字列> } を送る（送らないと 30 秒で壁時計の根拠が unverified になる、host.ts:130）。[alive・open, Origin の無い upgrade] → open: 前の current を terminate し、新しい方を current にして start frame を送る（host の接続は 1 本なので、新しい方は host の繋ぎ直し）。[any, Origin 付きの upgrade] → 変わらず: verifyClient が拒む（ブラウザの WebSocket に CORS は効かない。host の client は Origin を付けない、host.ts:406）。[open, current の close・error] → none（host は 5 秒で繋ぎ直す、host.ts:659）。[open, 30 秒の timer] → open: current に { type: \"ping\", pingId: \"watch-<n>\" } を送る（無いと 90 秒で host が切る、host.ts:28・:300）。[open, POST /inject] → open: current に frame を送り 200。[none, POST /inject] → none: 503。[alive, SIGINT] → 変わらず（fleq が自分で止まる）。[alive, SIGTERM・SIGHUP] → 変わらず: 子へ同じ signal を送る。[alive, 子の exit・spawn の error] → exited・停止 yes: ping を止め、WS の client を terminate し、server を close と closeAllConnections で閉じ、子の終了 code（signal・error なら 1）で runWatch が resolve する。[停止 yes, 何でも] → 何もしない。host が返す pong とほかの frame は読まずに捨てる。この表の外に状態（キュー・待ち・期限）を持たない",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:130 «f45693862d044177»",
+          "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
+          "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»",
+          "reconstruction/src/host/host.ts:28 «95afe7e89c680cb9»",
+          "reconstruction/src/host/host.ts:300 «94f6cf3277c4f863»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC04",
+        "requirement": "【発注 1】 HTTP の口（001 の D-RETIME・D-GUARD・D-VIEW）。どの要求も先に (1) Host が 127.0.0.1:<実の port> か localhost:<同じ port> でなければ 403 {\"error\":\"hostRejected\"} (2) Origin があって http://127.0.0.1:<port> か http://localhost:<port> でなければ 403 {\"error\":\"originRejected\"} (3) 要求先が URL として読めなければ 400 badRequest。GET / は text/html; charset=utf-8 の 1 枚（watch.mjs の中の文字列。外部の script・stylesheet を読まない）で、左に file を落とす枠・種類の欄・textarea・送るボタン・結果の行・表示の /snapshot へのリンク（D-VIEW）、右に表示 http://127.0.0.1:<表示の port>/ の iframe（http-sse.ts は frame-ancestors も X-Frame-Options も付けない）。file を落とすと中身を textarea に、種類の欄を file 名から /_(V[A-Z]{3}\\d{2}|WTJP\\d{2})/（frames.mjs:99 と同じ部分一致）で埋め、その本文は retime=1 で送る（落とした過去の電文は今へ寄せる）。結果の行は「送った」「fleq が繋がっていない」「拒否（<error>）」の 3 つ。POST /inject?type=&retime=: type は必須で /^(V[A-Z]{3}\\d{2}|WTJP\\d{2})$/（外れたら 400 typeRequired・typeInvalid）、retime は無いか \"1\" で寄せ、\"0\" で寄せず、ほかは 400 retimeInvalid。本文は生の XML で 8 MiB（8,388,608 bytes）まで（超えたら読むのをやめて 413 bodyTooLarge）。寄せるときは本文の最初の <ReportDateTime>（frames.mjs:119 の読みの写し）が Date.parse で有限でなければ 400 reportDateTimeMissing、今を秒に切り捨てた値との差で shiftTimestamps を掛け、例外なら 400 retimeFailed（1 件の不正な入力で常駐を落とさない、001 の T14）。current が open なら dataFrame(type, 本文) を送って 200 { sent: true, headType }、無ければ 503 { error: \"notConnected\" }。ほかの path は 404、ほかの method は 405。送った後の処理の結果は返さない（画面と /snapshot と fleq の端末で見る）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
+          "reconstruction/test/eew-e01/frames.mjs:119 «2892a4d4ba2ae168»",
+          "reconstruction/test/eew-e01/frames.mjs:23 «e2cb43dfef2cc22b»",
+          "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
+          "reconstruction/contracts/p3-replay-watch.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC05",
+        "requirement": "【発注 1】 npm run watch: package.json の scripts に 1 行 \"watch\": \"tsc --project reconstruction/tsconfig.json && tsc --project reconstruction/src/display/chrome-eew/tsconfig.json && node reconstruction/cli/fleq.mjs watch\" を足す（古さの判定は書かず毎回 build する。chrome-eew の build が無いと表示の画面が白い、001 の distMissing）。ほかの scripts・依存・package-lock.json は変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-replay-watch.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC06",
+        "requirement": "【発注 1】 001 の試験の対応（Q-RW2-SUPERSEDE）: reconstruction/test/replay-watch/watch.test.ts を作り直す。T01（注入→表示→保存）は書き直して P3-RW2-T01、T02（Origin）・T03（Host）・T04（413）・T05（typeInvalid）・T06（WS の Origin 付き upgrade）は同じ振る舞いを新しい単一の port で確かめて P3-RW2-T02〜T06、T09（SIGINT の停止）は REPL の quit で子が止まり watch も終わる P3-RW2-T07 に替え、T12（95 秒の ping）は P3-RW2-T08、T13（outIsProduction）は fleq の一時 directory の守りの P3-RW2-T09 に替え、T14（不正な入力で落ちない）は P3-RW2-T10。T10 が見ていた current の置き換えと T11 が見ていた host の繋ぎ直しは P3-RW2-T06 へ移し、ほかは消す: T07（reservedPort）・T08（outNotEmpty）は flag が無くなり、T10 の停止中の 503 と T11 の 10 秒の timedOut は直列キューと期限が無くなる。試験は子を stdio pipe で起こし、標準入力を閉じない（閉じると子の fleq の REPL が閉じて止まる）。後始末は標準入力への quit か SIGTERM（D-STOP が子へ送る）で exit を待つ。watch だけを SIGKILL しない（子の fleq が孤児になり表示の port を握ったまま繋ぎ直し続け、後の回が EADDRINUSE で落ちる）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-replay-watch.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC07",
+        "requirement": "【発注 2】 ジェネレータの置き場と入口（D-AREA・D-CODES・D-FRAMES）: 新設の reconstruction/tools/telegram-gen/telegram-gen.mjs に export function generateTelegrams(input) と export function choices(family) の 2 つだけを置き、型の宣言は reconstruction/tools/telegram-gen/telegram-gen.d.mts（eew-e01 の .d.mts と同じ作法）。CLI は作らない。型の XML は fixtureIds の 13 本だけを frames.mjs の fixtureText で最初の呼出しに 1 回読み、Map に持つ。コード表は process.env.FLEQ_JMA_CODES が空でなければ、その path の xlsx を最初の呼出しに 1 回読む。読み取りは node だけで書き、依存を足さない（約 80 行）: (a) zip の末尾の End of Central Directory から central directory を読み、目当ての entry の local header を引いて、圧縮方式 8（deflate）は node:zlib の inflateRawSync で展開し、0（無圧縮）はそのまま使う。ほかの圧縮方式・暗号化（汎用 flag の bit 0）・zip64 は Error にする（コメント `shortcut: zip64・暗号化・deflate と無圧縮の外の圧縮方式は受けない。Excel の保存する xlsx がこれらを使うようになったら足す` を 1 行） (b) xl/workbook.xml の <sheet name=… r:id=…> と xl/_rels/workbook.xml.rels の Relationship の Id→Target から、シート名 \"22\"・\"23\"・\"24\"・\"41\"（D-TSUNAMI-AREA=A なので 31・35 は引かない）を file に引く（並びの番号では引かない。実物では \"24\" が sheet9.xml） (c) xl/sharedStrings.xml の <si> を順に読み、<rPh>（ふりがな）の中は飛ばし、<r> の中の <t> はつなぎ、&amp;・&lt;・&gt;・&quot;・&apos; と数値の文字参照を戻す (d) セルは <c r=\"B20\" t=\"s\"><v>（番号）</v></c> の形で、t=\"s\" なら <v> は sharedStrings の番号、無ければ <v> の値そのもの。空のセルは省かれるので、列は r の列の文字で合わせる（並びの位置で数えない） (e) 列の対応（実物の xlsx を読んで決めた列の文字。値は書かない）: シート 22・23・41 は A 列が Code・B 列が Name。シート 24 は A 列が細分区域の Code・B 列がその Name、D 列が市町村等の Code・E 列がその Name、G 列が震度観測点の Code・H 列がその Name（C・F・I 列はふりがなで読まない）。使う行は、シート 22 は A が 4 桁、23 は 2 桁、24 は A が 3 桁で D・G が 7 桁、41 は 3 桁の行だけ（見出し・空の行・備考の行を落とす）。シート 24 は 1 行が観測点 1 つで、A 列の細分区域の Code で区域に束ね、その中を D 列の市町村等の Code で束ね、G 列の観測点を行の順に並べる。同じ細分区域・市町村等の Code がまた出たとき、Name が前と同じなら同じ束に足し、違えば Error。同じ観測点の Code が 2 回出たら Error。シート 22・23・41 で同じ Code が 2 回出ても Error（実物ではどれも起きないことを起草時に数えた）。無いと（この読み取りが無いと）: xlsx を読む依存を足すか、抜き出した file を作ることになり、D-CODES の「資料と抜き出しを repo の外にも書かない」が守れない。。読めない・シートが無い・どれかのシートの行が 0・24 の行の欄が欠けるときは Error を投げる（黙って型の範囲へ落とさない）。抜き出した結果を file に書かない。choices(family) は { places: {code,name}[], areas: {code,name}[] } を返す。資料があるとき: places は震源を受ける分野（VXSE43・45・52・53 と津波 3 種）で震央地名 343 件、areas は VXSE51・53 で細分区域 188 件、VXSE43・45 で D-EEW-AREAS の 125 件。資料が無いとき: places は型に在る震央地名 3 件、areas は VXSE43・45 で 77_01_26 の 44 区域、VXSE51 で 32-35_07_01 の 37 区域、VXSE53 で 32-35_01_03 の 17 区域（Q-RW2-CODES (6)）。ほかの分野の areas は空。synth.ts・host.ts・http-sse.ts・replay.mjs・frames.mjs は変えない。先頭になぜのコメントを 2 行（watch へ注入する電文を作ること、骨組みは公開サンプルに限り、コード表は repo に入れず手元から読むこと）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/frames.mjs:17 «1deb9824a910d22b»",
+          "reconstruction/test/disaster/synth.ts:32 «ed7be20ea8f47d93»",
+          "reconstruction/test/disaster/synth.ts:38 «fac9f1acfa4c888f»",
+          "reconstruction/cli/replay.mjs:11 «61c68a68792ae445»",
+          "reconstruction/tools/corpus/manifest.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC15",
+        "requirement": "【発注 2】 読み取りの試験の材料（D-CODES）: 自作の小さい xlsx reconstruction/test/telegram-gen/tiny-codes.xlsx と、それを作る script reconstruction/test/telegram-gen/make-tiny-codes.mjs（node だけ。zip の entry を書き、圧縮は deflateRawSync と無圧縮の両方を 1 つ以上使い、crc32 は node:zlib の crc32 なので、この script だけ Node 22.2 以上が要る。先頭のコメントにそう書く。試験と読み取りは Node 20 でも動く）を置く。中身は架空の値だけで、シート名 \"22\"・\"23\"・\"24\"・\"41\" に各 1〜3 行。ふりがな（<rPh>）入りの文字列を 1 つ、<r> で分かれた文字列を 1 つ、空のセル（例 シート 24 の C 列を省いた行）を 1 つ、&amp; を含む名前を 1 つ入れ、シートの file の番号を名前の順と変える（\"24\" を sheet1.xml にする）。気象庁の資料の値を 1 つも含めない（区域・市町村・観測点・震央地名の名前とコードは「試験区域」「999」などの架空のもの）。script は試験の時には走らせず、統合担当が作った xlsx を commit する（script は作り直しの手順として残す）。無いと: CI で読み取りの誤り（ふりがなの混入・列のずれ・実体参照）が見えず、本物の資料のある機械でしか気づけない",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/manifest.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC08",
+        "requirement": "【発注 2】 入力と範囲の検査（草稿 AC02 を写して改める）: generateTelegrams は範囲外を例外にせず { kind: \"rejected\", reason, field } を返す。欄が無い・null・空文字は渡していない扱い。lat・lon・depthKm・magnitude・serial・reports は number で受ける。family は VXSE43・VXSE45・VXSE51・VXSE52・VXSE53・VTSE41・VTSE51・VTSE52（他は unknownFamily）。originTime は時差つき ISO 8601（秒未満は切り捨て、既定は秒に切り捨てた今。読めない・生成した時刻より後は originTimeInvalid、D-TIME）。placeCode は choices(family).places のコード（placeUnknown）、lat は 0〜90・lon は 0〜180 で小数 1 桁まで（coordinateOutOfRange）、depthKm は 0〜700 の整数（depthOutOfRange）、magnitude は 0.0〜9.9 の小数 1 桁まで（magnitudeOutOfRange）。maxInt は 1・2・3・4・5-・5+・6-・6+・7 で、VXSE51 は 3 以上・VXSE43 は 5- 以上（intensityOutOfRange）。areaCode は choices(family).areas のコード（areaUnknown）。serial は 1〜999 の整数で既定 1、列の最後の報の番号が 999 を超えても serialOutOfRange。reports は 1〜60（reportsOutOfRange）、end は none・final・cancel（endInvalid）。組合せ: VXSE51 に震源の欄、VXSE52 と津波 3 種に maxInt・areaCode、VXSE51・VXSE52・VTSE41 に serial、EEW 以外に reports・end を渡したら fieldNotInFamily。cancel=true に震源の欄・maxInt・areaCode・reports・end を添えたら cancelWithContent、VXSE52・VXSE53・VTSE52 の cancel は cancelTemplateMissing（D-CANCEL）。必須の欠け（取消でない VXSE52・53 と EEW の震源の欄〔placeCode・lat・lon・depthKm・magnitude〕、VXSE51・53 と EEW の maxInt・areaCode）は missingField。津波 3 種の震源の欄は任意。reason は閉じた一覧で、足すのは契約の改訂。無いと: 範囲外の値が parser の拒否になり、作った側の誤りか製品の誤りか見分けられない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/seismic/seismic.ts:21 «3b05587c2ec9938e»",
+          "reconstruction/src/domains/seismic/seismic.ts:151 «b3f3cdab9119dc3c»",
+          "reconstruction/src/domains/seismic/seismic.ts:164 «30ca2dcef270c650»",
+          "reconstruction/src/domains/seismic/seismic.ts:58 «bea708f11d7f8613»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:225 «e08676bd75cb64dc»",
+          "reconstruction/src/domains/eew/eew.ts:191 «6ffd42e48eda4196»",
+          "reconstruction/src/domains/seismic/seismic.ts:217 «1b174318d79f0919»",
+          "reconstruction/test/eew-e01/frames.mjs:37 «c4b177f6972e7760»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC09",
+        "requirement": "【発注 2】 書き換え（草稿 AC03 を写し、値は資料があればコード表から、無ければ型から入れる）: EventID（eventIdAt(起点)）・Serial（既定 1。VXSE51・VXSE52・VTSE41 は型の空の <Serial/> のまま）・ReportDateTime・TargetDateTime・Control/DateTime・Control/Status（常に通常、D-STATUS）・InfoType（取消のときだけ取消）を head() の写しで書き、型の時刻は placed() の写しで OriginTime が起点になるよう全体を動かす（D-TIME）。震源: Hypocenter/Area の Name と Code（type=震央地名）を選んだ震央地名にし、jmx_eb:Coordinate は +緯度+経度-深さm/ と型と同じ全角の description、Magnitude は値と description（緯度・経度・M は toFixed(1)）。EEW は ReduceName を選んだ Name にし、ReduceCode は型のまま、LandOrSea は消す（D-CODES）。最大震度と区域: EEW は Forecast の ForecastInt を maxInt、Forecast 直下の ForecastLgInt を 0 にし（型の 2 が残ると全部が長周期階級 2 になる）、Pref（資料があればシート 22 の 9pp0 の行、無ければ型のその区域の Pref）→ Area（選んだ細分区域）の 1 本に縮め、Area に ForecastInt と Category（VXSE43 は警報 Code 10、VXSE45 は予報 Code 00）を書く（eewBody の写し）。EEW の Headline の Information は消し、Text は「<震央地名>で地震」にする（型の Code 31 が残ると VXSE45 も警報になる、eew.ts:446）。VXSE51 は Observation を Pref（資料があればシート 23 の市町村コードの頭 2 桁の行、無ければ型のその区域の Pref）→ Area の 1 本に作り直し、Observation 直下・Pref・Area の MaxInt を maxInt に、Headline の Information を 1 Item にする（headlineItems の写し）。VXSE53 は Observation を Pref → Area → その区域の全市町村 → 各市町村の全震度観測点に作り直し（資料があればシート 23・24 から、無ければ型のその区域の部分木をそのまま使う）、要素の並びと属性は型の先頭の Pref・Area・City・IntensityStation に合わせ、Observation 直下・Pref・Area・City の MaxInt と観測点の Int をすべて maxInt にする。Headline の 2 つの Information は、細分区域の 1 Item と、その区域の全市町村を並べた 1 Item に作り直す。津波 3 種は D-TSUNAMI-AREA に従う（A なら Serial〔VTSE51・52〕・取消・EventID・時刻と、渡されたときの震源・M・深さだけ）。地震情報と津波の Headline の Text は型のまま。欄の組み合わせ（要素の有無・回数・並び）は地震火山関連の解説資料と型に合わせ、型に無い要素は足さない（EEW の最終報の NextAdvisory を除く、AC10）。無いと: 型の EventID と時刻が残り、2 本目からは重複や古い報として捨てられる",
+        "evidenceRefs": [
+          "reconstruction/test/disaster/synth.ts:28 «1cc48cf0cc53871b»",
+          "reconstruction/test/disaster/synth.ts:32 «ed7be20ea8f47d93»",
+          "reconstruction/test/disaster/synth.ts:38 «fac9f1acfa4c888f»",
+          "reconstruction/test/disaster/synth.ts:39 «617da94a8c5d29fb»",
+          "reconstruction/test/disaster/synth.ts:460 «fad26db42960bb3e»",
+          "reconstruction/test/disaster/synth.ts:261 «1d3bc67cac5f5fa8»",
+          "reconstruction/test/disaster/synth.ts:281 «77a76dd6ea97214c»",
+          "reconstruction/src/domains/eew/eew.ts:224 «f97c7c57cb7829b8»",
+          "reconstruction/src/domains/eew/eew.ts:446 «df787884833265fb»",
+          "reconstruction/src/domains/eew/eew.ts:448 «afaafcde30eca908»",
+          "reconstruction/src/domains/eew/eew.ts:811 «c8cfb468fabf9bb7»",
+          "reconstruction/src/domains/seismic/seismic.ts:141 «06a0314c04f54f2f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:226 «41e93c6fc2fd05e0»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC10",
+        "requirement": "【発注 2】 EEW の続報列（草稿 AC04 のまま）: VXSE43・45 で reports=n のとき、Serial s..s＋n−1・同じ EventID・同じ OriginTime で、第 k 報の ReportDateTime と Control/DateTime が生成した時刻＋4 秒×(k−1) の n 報を順に返す（内容は全報同じ）。end=final は第 n 報の Body に NextAdvisory「この情報をもって、緊急地震速報：最終報とします。」を足す。end=cancel は第 n＋1 報として取消の型（37_01_03・77_01_33）から Serial s＋n・InfoType 取消・同じ EventID・生成した時刻＋4 秒×n の報を足す。単発の cancel=true は Serial（既定 1）の取消 1 報。無いと: 続報・最終報・取消を画面で試せない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:180 «febb29d41329b53e»",
+          "reconstruction/src/domains/eew/eew.ts:178 «598613e1d0ffc4da»",
+          "reconstruction/src/domains/eew/eew.ts:462 «f5f2e5ec7fb6673e»",
+          "reconstruction/test/disaster/synth.ts:512 «d83b121804560e91»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC11",
+        "requirement": "【発注 2】 新築の parser を通ること（草稿 AC05 を写す）: 作った各分野 1 本ずつを reconstruction/test/telegram-gen/telegram-gen.test.ts の中で ingestXmlData（kind replay・origin replay）→ decodeMaterial に通し、地震 3 種は parseSeismic、津波 3 種は parseTsunami が accepted。EEW 2 種は reduceEewUnit に順に通し（clock はその報の ReportDateTime）、各報の decision が changed で、終端でない報の後は current にその subject がある。読み戻した値が入力と一致する: 震央地名の name と code・緯度・経度・深さ・M、VXSE51・53 の最大震度と区域（intensity.maxInt と、選んだ区域の item の maxInt）、VXSE53 の市町村が、その区域の市町村（資料が無いときは型のその区域の市町村）と同じ集合、EEW の facts.prediction.maximum と areas（選んだ区域の 1 件）、VXSE51 の TargetDateTime と VXSE52・53 の OriginTime が起点、Serial、EventID が eventIdAt(起点) で型と違う、operation が normal、VXSE45 の warningClass が forecast・VXSE43 が warning。津波 3 種は Serial（VTSE51・52）・EventID・operation に限る。無いと: 作った XML が製品に断られても気づかない",
+        "evidenceRefs": [
+          "reconstruction/test/seismic-unit/seismic-fixture.ts:26 «6db669c1f49fac65»",
+          "reconstruction/src/decode-material/decode-material.ts:441 «03ddf7f652e974c4»",
+          "reconstruction/src/domains/seismic/seismic.ts:211 «faed547ede075396»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:199 «2b87ae64dd9f2dd8»",
+          "reconstruction/src/units/eew/eew-unit.ts:301 «66d7eb8f4ffc477a»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:60 «9a91cda8d528a531»",
+          "reconstruction/src/domains/eew/eew.ts:783 «f21f9cdc18539ad5»",
+          "reconstruction/src/units/eew/eew-unit.ts:267 «47eda3b6897e9478»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC12",
+        "requirement": "【発注 2】 ページの「作る」と場面（D-TIME・D-SCENES）: watch.mjs に (1) generateTelegrams と choices の import (2) POST /generate（AC04 の Host・Origin の照合の後に置く。POST 以外は 405。本文は AC08 の入力の JSON で 64 KiB まで〔超えたら 413 bodyTooLarge〕、読めなければ 400 badRequest。成功は 200 { headType, eventId, originTime, reports: [{ serial, xml }] }、入力の拒否は 400 { error: <reason>, field }） (3) watch は起動の時（子を起こす前）に choices を 1 回呼び、Error なら標準エラーに {\"error\":\"codesUnreadable\",\"message\":...} を書いて 1 で終わる（FLEQ_JMA_CODES の誤りを最初の「作る」まで隠さない） (4) GET / の左に「作る」の欄（分野・起点・震央地名・緯度・経度・深さ・M・最大震度・区域・Serial・続報の数・終わり方〔なし・最終報・取消〕・取消）と、D-SCENES の場面のボタン（D-SCENE-AREA=C: 場面は流れだけを持ち、地域と震央は欄の今の値を使い、選んだ区域・震央地名・緯度・経度を localStorage に try/catch で覚えて開いたときに戻す。場面は「作る」の欄に値を入れて作り、続けて送るプリセットで、欄はその後も手で変えて作り直せる）。選択肢は choices から HTML を返すときに埋め、場面の値はページの JS の定数に持つ。資料を読んだときだけページに 1 行「区域・震央地名の値: 気象庁『地震火山関連コード表』（https://xml.kishou.go.jp/tec_material.html）を FlEq が加工して作成」を出す（Q-RW2-CODES (3)）。page の JS は選んだ分野で受ける欄だけを数値は Number にして送り、返った reports を retime=0 で第 1 報はすぐ・以後 4 秒おきに /inject へ順に送る（ページを閉じたら止まる）。起点の欄に応答の originTime を残す（Serial を進めて作り直しても同じ地震になる）。外部の道具は curl で /generate と /inject を叩く。/generate は状態を持たず、AC03 の表を変えない。無いと: ブラウザだけで震源や区域を変えた電文を試せない",
+        "evidenceRefs": [
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
+          "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
+          "reconstruction/contracts/p3-replay-watch.json"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC13",
+        "requirement": "【発注 2】 型と公開の範囲（草稿 AC08 にコード表の扱いを足す）: 型は fixtureIds の 13 本（jmaPublished・publicApproved・byteIdentical）だけを使い、dmdata の EEW 原本・personal の corpus・dmdataCaptured の報を読まない。作った XML を repo の中（test/fixtures・manifest・sequences）へ書かない。コード表とそこから抜き出した値、作った XML を repo に書かない（D-CODES）。作った XML に気象庁が作ったかのような表示を足さない。origin=replay を operation:test と同一視しない（spec:651）",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/manifest.json",
+          "reconstruction/test/disaster/synth.ts:125 «cd33b172aaf6448a»",
+          "docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"
+        ]
+      },
+      {
+        "id": "P3-RW2-AC14",
+        "requirement": "計画と申し送り（統合担当）: (1) 起草の commit で、p3-order-plan.md の未コミットの草稿の小見出し「電文ジェネレータ」と表を消し、末尾に小見出し「注入の口の作り直し（2026-11-02 作者裁定）」と本契約の行と補い 3 つ（ジェネレータを吸わせたこと、cli.ts の直列合流と C18 発注 3 の順、脇レーンの所有の移り）を置く。633〜637 行（001 が引く）は変えない (2) 637 行の C19 への申し送り（watch.mjs に EEW ログの結線の 1 行を足す）は本契約の配送で要らなくなる: watch は host を起こさず、子の fleq が設定の場所（一時 directory の下）を使う。C19 の起草では watch.mjs を allowedPaths に入れない (3) spec は変えない（Q-RW2-SUPERSEDE）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-order-plan.md:633 «d13d21d84ee90df8»",
+          "reconstruction/contracts/p3-order-plan.md:635 «6103cdda52360b23»",
+          "reconstruction/contracts/p3-order-plan.md:636 «7ee8e483840edc8a»",
+          "reconstruction/contracts/p3-order-plan.md:637 «c518f6ebf619e10f»",
+          "reconstruction/contracts/p3-order-plan.md:109 «84314275adb7de65»",
+          "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-RW2-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC01",
+          "P3-RW2-AC02",
+          "P3-RW2-AC03",
+          "P3-RW2-AC04"
+        ],
+        "behavior": "受入条件（001 の T01 の書き直し）。reconstruction/test/replay-watch/watch.test.ts で node reconstruction/cli/fleq.mjs watch を env FLEQ_WATCH_PORT=0・FLEQ_WATCH_DISPLAY_PORT=<試験が空きを探した番号> で起こし、標準エラーの 1 行から URL と一時 directory を読む。test__fixtures__32-35_01_03_240613_VXSE53 を POST /inject?type=VXSE53 で送り、200 { sent: true } になるまで 0.5 秒おきに最長 20 秒やり直す（その間は 503 notConnected）。表示の /snapshot の current.earthquake.items のどれかの updatedAt が送る直前と直後の秒の間に入るまで最長 10 秒待つ（寄せが効いた）。<一時 directory>/fleq-next/state/ の下の file のどれかに \"origin\":\"replay\" がある。子の fleq の標準出力（watch の標準出力の pipe に出る）に「ミュート中です（mute off まで）。」がある（spec:650 の外部配送の無効化の明示）。T02〜T06・T10 は同じ子を共有してよい"
+      },
+      {
+        "testId": "P3-RW2-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC04"
+        ],
+        "behavior": "契約境界（001 の T02）。Origin: http://evil.example を付けた POST /inject は 403 originRejected"
+      },
+      {
+        "testId": "P3-RW2-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC04"
+        ],
+        "behavior": "契約境界（001 の T03）。Host: evil.example:<port> の POST /inject は 403 hostRejected、Host: localhost:<port> の GET / は 200"
+      },
+      {
+        "testId": "P3-RW2-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC04"
+        ],
+        "behavior": "契約境界（001 の T04）。8 MiB＋1 byte の本文の POST /inject は 413 bodyTooLarge"
+      },
+      {
+        "testId": "P3-RW2-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC04"
+        ],
+        "behavior": "契約境界（001 の T05）。type=VZZZ1 の POST /inject は 400 typeInvalid"
+      },
+      {
+        "testId": "P3-RW2-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC03",
+          "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»"
+        ],
+        "behavior": "契約境界（001 の T06）。同じ port へ ws の client で origin http://evil.example を付けて繋ぐと、unexpected-response の status 401 になる（任意の error を合格にしない）。続けて、current を奪う前に固有の報（T01 と別の ReportDateTime の VXSE53）を 1 本注入し、それが /snapshot に出たことで host の接続を確かめる（起動直後の最初の接続を繋ぎ直しと取り違えないため）。その後に Origin を付けずに繋ぐと start frame（type start）を受け（001 の T10 が見ていた current の置き換え）、15 秒以内にその接続が watch に閉じられる（host が 5 秒で繋ぎ直して current を取り返す、host.ts:659。001 の T11 が見ていた繋ぎ直し）。その後の POST /inject は 200 sent"
+      },
+      {
+        "testId": "P3-RW2-T07",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC03"
+        ],
+        "behavior": "受入条件（001 の T09 の置き換え。signal を使わないので win32 でも skip しない）。T01 と同じ形で起こし、繋がった後に子の標準入力へ quit を書くと、watch が 40 秒以内に終了 code 0 で終わり、その後に watch の port への接続が拒まれる"
+      },
+      {
+        "testId": "P3-RW2-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC03",
+          "reconstruction/src/host/host.ts:28 «95afe7e89c680cb9»"
+        ],
+        "behavior": "契約境界（001 の T12。host の 90 秒の切断）。起こして 95 秒待ち（この試験だけ timeout 150 秒）、POST /inject が 200 sent。quit で止めた後、<一時 directory>/fleq-next/diag/ の下のどの file にも connectionLivenessExpired が無い"
+      },
+      {
+        "testId": "P3-RW2-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC01"
+        ],
+        "behavior": "契約境界（001 の T13 の置き換え）。<試験の作業場所>/tmp を mkdir してから（無いと realpath が投げる）、node reconstruction/cli/fleq.mjs を env TMPDIR・TMP・TEMP=<試験の作業場所>/tmp、XDG_CONFIG_HOME=<試験の作業場所>/xdg（tmp の外）、FLEQ_WS_URL=ws://127.0.0.1:1/ で起こし、<作業場所>/xdg/fleq-next/config.json に AC02 (4) と同じ設定を置くと、終了 code 1・標準エラーに FLEQ_WS_URL の文・<作業場所>/xdg/fleq-next/state が作られない"
+      },
+      {
+        "testId": "P3-RW2-T10",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-RW2-AC04"
+        ],
+        "behavior": "実不具合（001 の T14、r0 の P2 2 件: 不正な入力 1 件で常駐が落ちた）。本文の <DateTime> を日付として成り立たない値にした VXSE53 の retime=1 の POST は 400 retimeFailed、要求先 //[ は 400 badRequest。その後の正常な VXSE53 の POST は 200 sent"
+      },
+      {
+        "testId": "P3-RW2-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC07",
+          "P3-RW2-AC09",
+          "P3-RW2-AC11"
+        ],
+        "behavior": "受入条件（草稿 T01）。reconstruction/test/telegram-gen/telegram-gen.test.ts で 8 分野を 1 本ずつ、FLEQ_JMA_CODES を消した状態で、固定の originTime（例 2026-11-01T21:10:00+09:00）・maxInt 5+ と、震央地名・区域は choices(family) の先頭（資料が無いときの型の値）、lat 34.8・lon 138.5・depthKm 10・magnitude 6.5 で作り（分野に無い項目は渡さない）、AC11 の経路で読み戻した値の一致を it.each で確かめる。もう 1 件、同じ起点の VXSE53 の serial 1 と 2 の eventId が同じ"
+      },
+      {
+        "testId": "P3-RW2-T12",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC10",
+          "P3-RW2-AC11"
+        ],
+        "behavior": "受入条件（草稿 T02）。VXSE45 の reports=3・end=final（3 報、Serial 1..3、ReportDateTime が 4 秒ずつ、第 3 報だけ NextAdvisory）と reports=3・end=cancel（4 報、第 4 報が取消・Serial 4）を reduceEewUnit に順に通し、各報が changed、途中は current に subject があり、最後の後に current が空"
+      },
+      {
+        "testId": "P3-RW2-T13",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC07",
+          "P3-RW2-AC08"
+        ],
+        "behavior": "契約境界（草稿 T03 に D-EEW-AREAS を足す）。1 つの it で表を回す: magnitude 9.9 は通り 10.0 は magnitudeOutOfRange、depthKm 700/701、lat 90.1・lon −0.1 は coordinateOutOfRange、起点が今＋60 秒は originTimeInvalid、placeCode 000 は placeUnknown、serial 0、reports 61、end の未知の値、VXSE43 の maxInt 4、VXSE51 の maxInt 2、VXSE51 に lat、VTSE41 に serial、VXSE53 の cancel、VXSE45 の cancel に magnitude、VXSE61 は unknownFamily、VXSE53 に maxInt 無しは missingField、VXSE45 の serial 998・reports 2・end cancel は serialOutOfRange、FLEQ_JMA_CODES を消した状態で VXSE53 の areaCode 999（架空）は areaUnknown、choices(\"VXSE45\").areas が 44 件"
+      },
+      {
+        "testId": "P3-RW2-T14",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC12"
+        ],
+        "behavior": "受入条件（/generate の HTTP の境界。草稿 T05 を振る舞いごとに分けた 1 つ目）。reconstruction/test/replay-watch/watch.test.ts で T01 と同じ子に、POST /generate で起点を空にした VXSE45 を作ると 200 で originTime と eventId が返り、その originTime で serial 2 を作ると eventId が同じ。magnitude 10 は 400 magnitudeOutOfRange、Origin の違う POST /generate は 403。作った VXSE53 を /inject?type=VXSE53&retime=0 へ送ると 200 sent"
+      },
+      {
+        "testId": "P3-RW2-T18",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC12"
+        ],
+        "behavior": "受入条件（ページ。2 つ目）。reconstruction/test/replay-watch/watch.test.ts で T01 と同じ子（FLEQ_JMA_CODES なし）の GET / の HTML に、「作る」の form・場面のボタン 5 つ・localStorage の読み書きを try で囲んだ script が入り、区域の選択肢が choices と同じ件数（VXSE45 で 44 件・VXSE53 で 17 件）で、コード表の出典の 1 行は入らない"
+      },
+      {
+        "testId": "P3-RW2-T19",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC12"
+        ],
+        "behavior": "契約境界（起動の失敗。3 つ目）。reconstruction/test/replay-watch/watch.test.ts で FLEQ_JMA_CODES に無い path を渡して watch を起こすと、子を起こさずに終了 code 1・標準エラーに codesUnreadable"
+      },
+      {
+        "testId": "P3-RW2-T20",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC03"
+        ],
+        "behavior": "契約境界（D-STOP の signal の転送）。win32 では skip（子へ送る SIGTERM が強制終了になり、転送を確かめられない）。reconstruction/test/replay-watch/watch.test.ts で T01 と同じ形で起こし、繋がった後に親（watch）の pid だけへ SIGTERM を送ると、40 秒以内に親と子がどちらも終わり、その後に watch の port と表示の port への接続がどちらも拒まれる"
+      },
+      {
+        "testId": "P3-RW2-T17",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RW2-AC07",
+          "P3-RW2-AC15"
+        ],
+        "behavior": "契約境界（資料の読み取りの境界。CI で走る）。reconstruction/test/telegram-gen/xlsx-reader.test.ts で FLEQ_JMA_CODES を reconstruction/test/telegram-gen/tiny-codes.xlsx に向けてから telegram-gen.mjs を dynamic import し（コード表の読みはプロセスに 1 回なので file を分ける）、choices の places・areas が script の入れた架空の値と一致する: ふりがなが名前に混ざらない、<r> で分かれた文字列がつながる、&amp; が & に戻る、空のセルの行で列がずれない、sheet1.xml の \"24\" が名前で引ける。続けて別の子プロセスで FLEQ_JMA_CODES を zip でない file に向けると Error（watch なら codesUnreadable）"
+      },
+      {
+        "testId": "P3-RW2-T16",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC10",
+          "P3-RW2-AC11",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1641 «b850bb9aca0d01ab»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1309 «7b2ea92c8eae2d25»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:97 «c65875e2c4e4f9b9»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:815 «ac2fe724dfda62c0»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:843 «2c478593c6bd7870»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1321 «b2fc8351c923dfd0»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:395 «8347d528c026de1f»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:245 «e74757e96611c97e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:535 «a8e6e6ed3b383254»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:663 «df7aa51c821cf7dc»"
+        ],
+        "behavior": "受入条件（D-CANCEL の 5 種）。reconstruction/test/telegram-gen/telegram-gen.test.ts の 1 つの it で、取消の型のある 5 種（VXSE43・VXSE45・VXSE51・VTSE41・VTSE51）を表で回す: 資料の無い状態で同じ originTime の通常報 1 本と cancel=true の取消 1 本を作り、同じ EventID であることを確かめてから、分野の unit（EEW は reduceEewUnit、VXSE51 は reduceSeismicUnit、津波は reduceTsunamiUnit。各 unit の既存の試験の fixture の組み方に倣う）に順に通す。通常報は拒否されない。取消の後に見る所は unit ごとに違う: EEW（VXSE43・45）は state.current からその subject が消える。地震（VXSE51）は state.earthquakes のその EventID の event の寄与がすべて effective=\"cancelled\" になり（active な寄与が無い、seismic-unit.ts:97）、cancelledSummary を持って一覧には残る（:815・:843・:1321 の listed）。津波予報（VTSE41）は state.forecasts のその subject の記録が effective=\"cancelled\"・areas が空になる（tsunami-unit.ts:395）。津波観測（VTSE51）は state.observations のその subject の記録が effective=\"cancelled\"・stations と estimations が空になる（tsunami.ts:245、tsunami-unit.ts:535・:663）。VXSE45 は T12 の end=cancel と重なるが、表の 1 行として残す"
+      },
+      {
+        "testId": "P3-RW2-T15",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RW2-AC07",
+          "P3-RW2-AC09",
+          "P3-RW2-AC11",
+          "P3-RW2-AC12"
+        ],
+        "behavior": "受入条件（資料があるときの D-AREA=C。作者の手元で回す）。reconstruction/test/telegram-gen/with-codes.test.ts は describe.skipIf(!process.env.FLEQ_JMA_CODES) で、FLEQ_JMA_CODES に作者の 地震火山関連コード表.xlsx を渡した回だけ走る（CI では skip）。作者の手元と Mac mini（~/research/fleq-jma-premises/sources/code/地震火山関連コード表.xlsx、sha256 79f7c3e5… で手元と同じ）で、FLEQ_JMA_CODES=<その path> を付けて回す。choices(\"VXSE53\").areas が 188 件・places が 343 件、choices(\"VXSE45\").areas が 125 件で 310・311 を含み 100（北海道）を含まない。VXSE45 の areaCode 100 は areaUnknown、VXSE53 の 100 は通る。茨城県南部 301・栃木県南部 311・maxInt 5- の VXSE53 と VXSE45 を作り、AC11 の経路で読み戻した区域と震央地名と、VXSE53 の市町村の集合（シート 24 の 311 の 19 市町村）が一致する。ページで栃木県南部を選んで場面を押すと栃木の電文になること、開き直しても選んだ区域が残ること（D-SCENE-AREA）、出典の 1 行は、作者が npm run watch で目で確かめる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash の検査（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09・O10・O01・O05 の参照を検査する"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約を検査する。発注 1 の後も p3-replay-watch.json の cli.ts の anchor 3 件が通ること（D-CLI-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction/dist/ の生成（子の fleq と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "表示の chrome-eew の dist（T01 の表示が要る）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（FLEQ_JMA_CODES を付けない。T15 は skip）。--sequence.shuffle を付けた回も 1 回通す。T08 は 95 秒かかる。T15 は作者の手元と Mac mini で FLEQ_JMA_CODES=<xlsx> を付けて別に回す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤りが無いこと"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。package.json の scripts の 1 行のほかは旧築を変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "発注を 2 つに分ける。発注 1: cli.ts（AC01）・watch.mjs の作り直し（AC02〜AC04）・package.json の 1 行（AC05）・watch.test.ts（AC06、T01〜T10・T20）。発注 2: telegram-gen の 2 本と試験・試験の材料（AC07〜AC11・AC13・AC15、T11〜T13・T15〜T17）と、watch.mjs・watch.test.ts への直列合流（AC12、T14・T18・T19）。発注 2 は発注 1 の配送の上で起こす",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行: FLEQ_WS_URL の分岐と一時 directory の守り（AC01）、FLEQ_WATCH_PORT・FLEQ_WATCH_DISPLAY_PORT（D-PORTS）、config.json の mute と sound（AC02）、start frame・ping・Origin の拒否・current の置き換え（AC03）、retime（AC04）、SIGTERM・SIGHUP の転送（D-STOP）、open（AC02 (7)）、generateTelegrams・choices（AC07〜AC10）、POST /generate と場面（AC12）",
+      "追加した試験ごとに対応（T01・T07・T11・T12・T14・T15・T16・T18 受入条件、T02〜T06・T08・T09・T13・T17・T19・T20 契約境界、T10 実不具合）を 1 行",
+      "T11 の分野ごとの読み戻した値の表と、T12 の 2 列の Serial・ReportDateTime・InfoType の表",
+      "既存試験の期待値は変えない（watch.test.ts は AC06 の対応表のとおり作り直す）。ほかの試験の期待を変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "残存リスク: (1) 注入の応答は送ったことまでで、処理・表示の結果は画面と /snapshot と fleq の端末で見る (2) EEW の ReduceCode は型の値（豊後水道の 9798）のまま残る (3) 資料が無いと区域は公開サンプルの範囲だけ（栃木は選べない）。資料があっても北海道・東京・鹿児島・沖縄の細分区域は EEW で選べない。EEW の府県予報区の引き方は資料（コード表・解説資料）に無い推定で、公開の型の 53 組で 52 件が一致する（D-EEW-AREAS） (10) 本物の資料での確かめ（T15）は CI で走らず、作者の手元と Mac mini で回す。CI は自作の小さい xlsx（T17）で読み取りの形だけを確かめる (11) zip64・暗号化・deflate と無圧縮の外の圧縮方式は受けない (4) VXSE53 の震度は区域の全観測点で同じ値 (5) 地震情報と津波の Headline の Text は型の地震のまま (6) 津波の震源・M・深さは parser が読まない (7) 同じ秒に同じ起点で作り直した報は Control/DateTime が同じになり held・duplicate になりうる (8) Origin を送らないローカルのプロセスは WS に繋いで current を奪える（同じ利用者のプロセスは信頼する、001 と同じ） (9) npm run 下の Ctrl+C の振る舞いは Q-RW2-NPM-SIGINT"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-RW2-NPM-SIGINT",
+        "owner": "integrator",
+        "blocks": [
+          "発注 1 の配送の受入"
+        ],
+        "resolveBy": "発注 1 の配送の受入で、Mac の端末から npm run watch を起こして Ctrl+C を押す",
+        "requiredEvidence": [
+          "npm が子より先に抜けて端末が戻らないか、子の fleq の停止の行と watch の終了の後にプロンプトが戻るかの観測。npm が先に抜ける・子が残るなら、AC05 の script を node の直接起動にする改訂を作者に諮る"
+        ]
+      }
+    ]
+  }
+}

@@ -635,3 +635,13 @@ C15（`P3-MIGRATION-001`）は発注 2 で止め、保留にする。旧築か�
 - §2.1 の C17 の行への補い（その行は他の契約の anchor が引くので書き換えず、ここに書く）: C17 の検収用 replay の隣に、手で試す常駐の口 `fleq watch`（P3-REPLAY-WATCH-001）を足す。replay は固定時計と manifest、watch は実時計と呼び手が渡す headType で動く。
 - §3.1 の脇レーンの所有への補い（同じ理由でここに書く）: `reconstruction/cli/watch.mjs` と `reconstruction/test/replay-watch/` は P3-REPLAY-WATCH-001 が持つ。`reconstruction/cli/fleq.mjs` は C18 の file で、watch の振り分けの 1 分岐は §3.2 の「CLI の入口」の行と同じく直列合流にする。C18 発注 3 が先に fleq.mjs を変えたら、その上に足し直す。
 - C19 `P3-TERMINAL-OUTPUT-001` の起草に足すもの: 受信の結果を受け取る口と端末出力の結線は、host を起こす手順で 1 回だけ組む。EEW ログ（spec §11.4）の置き場はその手順の引数から取り、watch は自分の保存先 `<out>` を渡す（本番の保存先へ書かない）。watch.mjs にその結線を繋ぐ 1 行は C19 の allowedPaths に入れる。
+
+#### 注入の口の作り直し（2026-11-02 作者裁定）
+
+| 契約 | 対象 | 依存 | 状態 |
+|---|---|---|---|
+| `P3-REPLAY-WATCH-002`（`p3-replay-watch-002.json`） | `fleq watch` を「偽の dmdata ＋ いつもの fleq」の形に作り直す（作者裁定 2026-11-02、削減の監査 2 本の結果）。`watch.mjs` は 1 つの port に dmdata の代わりの WS・注入の口・1 枚のページを持ち、一時 directory の設定でいつもの fleq を子として起こす。fleq は環境変数 `FLEQ_WS_URL` があれば `{ wsUrl, origin: "replay" }` で繋ぎ、設定の場所が一時 directory の下でなければ断る。作者は `npm run watch` とページだけを触る。発注 1 は fleq の口と守り・`watch.mjs` の作り直し・`npm run watch`・試験、発注 2 は電文ジェネレータ（骨組みは公開サンプル、区域・市町村・観測点・震央地名は作者の手元のコード表を環境変数 `FLEQ_JMA_CODES` で起動時に読む。資料と抜き出した値は repo に入れず、無いときは公開サンプルの区域だけで動く）とページの「作る」・場面 | `P3-REPLAY-WATCH-001`（配送済み 91fc093b）、`P3-CLI-REPL-001`、`P3-EEW-FACTS-001` | 起草（2026-11-02）。作者の分岐はすべて裁定済み（2026-11-02 夜〜深夜。D-TSUNAMI-AREA・D-EEW-AREAS・D-SCENES は推奨の A、D-AREA と D-SCENE-AREA は C）。baseOid は unassigned |
+
+- 起草中だった `P3-TELEGRAM-GEN-001`（電文ジェネレータ）は本契約の発注 2 に吸わせ、契約 file は作らない。
+- `reconstruction/src/cli/cli.ts` は C18 の file。C18 の発注 3 は未起草なので、本契約の発注 1 が数行（`FLEQ_WS_URL` の分岐と一時 directory の守り）を直列合流で先に入れ、C18 の発注 3 はその配送の上で起草する。1〜344 行の行数は変えない（`p3-replay-watch.json` が :322・:337・:344 を引く）。
+- §3.1 の脇レーンの所有への補い: `reconstruction/cli/watch.mjs` と `reconstruction/test/replay-watch/` は 001 から本契約へ移る。`reconstruction/tools/telegram-gen/` と `reconstruction/test/telegram-gen/` は本契約が持つ。上の C19 の起草に足すもの（`watch.mjs` への EEW ログの結線の 1 行）は本契約の配送で要らなくなる: watch は host を起こさず、子の fleq が設定の場所（一時 directory の下）を使う。
