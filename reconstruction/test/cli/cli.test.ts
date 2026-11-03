@@ -11,6 +11,10 @@ type FakeReadline = { line(text: string): void; close(): void };
 const mocks = vi.hoisted(() => ({ startP2Host: vi.fn(), exchange: vi.fn(), answers: [] as (string | (() => string))[], readline: null as FakeReadline | null }));
 vi.mock("../../src/host/host", () => ({ startP2Host: mocks.startP2Host }));
 vi.mock("../../src/host/dmdata-rest", () => ({ exchange: mocks.exchange }));
+// P3-TO-AC02 の移行: 端末の列（writer の worker）の代わりに、行を同期で process.stdout へ書く（この file の期待は標準出力の文字）。
+vi.mock("../../src/terminal/output", () => ({ createTerminalOutput: () => ({
+  sink: { inputDone: () => {} }, output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {}, close: async () => {},
+}) }));
 // T07 の question の答え方はそのまま。REPL（T12）が使う on・setPrompt・prompt と、行と close を試験から起こす口を足した。
 vi.mock("node:readline", () => ({
   createInterface: () => {

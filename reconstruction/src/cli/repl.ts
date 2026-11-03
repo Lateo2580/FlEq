@@ -65,7 +65,7 @@ const HIDDEN = new Set(["?", "exit"]);
 const MUTE_USAGE = "  使い方: mute / mute <時間> / mute [<時間>] <category>:<normal|warning|critical>[,...] / mute off（時間の例: 30m, 1h, 90s）";
 const NOTIFY_USAGE = "  使い方: notify <category> [on|off] / notify all:on / notify all:off";
 
-const out = (line: string) => { process.stdout.write(`${line}\n`); };
+let out = (line: string): void => { process.stdout.write(`${line}\n`); }; // P3-TO-AC02 (4): runRepl が端末の列の line に替える（readline を作る行）
 const invalid = (message: string): ReplParse => ({ kind: "invalid", message });
 const command = (parsed: ReplCommand): ReplParse => ({ kind: "command", command: parsed });
 
@@ -279,7 +279,7 @@ type ReplOptions = Readonly<{
   displayPort: number;
   clock: () => ClockReading;
   // readline の close（quit・exit・Ctrl+C・Ctrl+D・標準入力の終わり）。CLI の 1 つの終了の要求へつなぐ（P3-CLI-D-O2-QUIT）。
-  onClose: () => void;
+  onClose: () => void; terminal: Pick<import("../terminal/output").TerminalOutput, "output" | "line" | "bind">; // P3-TO-AC02 (4): 返事・echo・prompt を端末の列に通す
 }>;
 
 /** REPL を起こす。close は readline を閉じ（以後の行は実行しない）、idle は保存の列が空になるのを待つ。 */
@@ -422,7 +422,7 @@ function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promis
   };
 
   // AC12 (1)(6): readline に SIGINT の listener を付けない（Ctrl+C は close になる、P3-CLI-D-O2-QUIT）。
-  const readline = createInterface({ input: process.stdin, output: process.stdout });
+  out = options.terminal.line; const readline = createInterface({ input: process.stdin, output: options.terminal.output }); options.terminal.bind(readline);
   readline.setPrompt("FlEq> ");
   // AC12 (5): 行は届いた順に 1 つずつ実行し、終了の要求の後の行は実行しない。
   readline.on("line", (line: string) => {

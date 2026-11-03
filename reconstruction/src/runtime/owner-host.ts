@@ -13,7 +13,7 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
 import type { CheckpointFileSystem, CodecMap } from "../checkpoint/checkpoint";
-import { decodeMaterial } from "../decode-material/decode-material";
+import { decodeMaterial } from "../decode-material/decode-material"; import { inputTerminal } from "../terminal/material";
 import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
 import type { WriteCounters } from "./composition-root";
 import {
@@ -131,7 +131,7 @@ class OwnerHost {
         decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded, xmlParseStartedMonotonicMs: this.threadToMeasured(parseTimes?.startedMs),
           xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) },
         heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null,
-        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, generationRaisedMs,
+        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, generationRaisedMs, terminal: inputTerminal(result, step.outcomes),
         output: this.output(forced == null ? [step] : [forced, step]) });
         return;
       }
@@ -190,7 +190,7 @@ class OwnerHost {
     this.options.reply({ kind: "inputDone", settlement: { kind: "parser", messageId: envelope.messageId, runId: envelope.runId,
       encodedByteLength: item.encodedByteLength, startedMonotonicMs: started.monotonicMs, completedMonotonicMs: clock.monotonicMs,
       inputId: item.inputId, inputSequence: item.inputSequence }, processingStartedMs, marks: noMarks, decode: null, heap: null,
-    inputGenerations: null, generationRaisedMs: null, output: this.output(forced == null ? [] : [forced]) });
+    inputGenerations: null, generationRaisedMs: null, terminal: null, output: this.output(forced == null ? [] : [forced]) }); // P3-TO-D-ORIGIN: 取り直しの本文は端末に出さない
   }
 
   private applyCandidate(candidate: Candidate, item: ParserMailboxItem, result: ParserMailboxResult, clock: ClockReading, basis: WallBasis, start: OwnerState): void { // start は shadow の基点（開いた時の live、当て直しでは今の live。U-R の期限の intent の判定、P3-REC-AC12）

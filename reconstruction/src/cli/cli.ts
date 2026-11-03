@@ -10,7 +10,7 @@ import type { DmdataClassification, DmdataTestMode } from "../../contracts/p3-dm
 import { exchange } from "../host/dmdata-rest";
 import { startP2Host } from "../host/host";
 import { createNotificationGate } from "./notification-gate";
-import { muteStartLine, notificationSettingsFrom, runRepl } from "./repl";
+import { muteStartLine, notificationSettingsFrom, runRepl } from "./repl"; import { createTerminalOutput } from "../terminal/output";
 import {
   appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, fieldOf, loadSettings, mask, parseClassifications,
   Refusal, SETTABLE_KEYS, settingsPaths, settingsUnchanged, showLines, TEST_MODES, valueFromText,
@@ -323,7 +323,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   // host が自分で止まったまま正常に戻る（P3-CLI-D-SIGNAL）。無いと: 終了 code が要約の code にならず、待ちが終わらない。
   type Host = Awaited<ReturnType<typeof startP2Host>>;
   let host: Host | null = null;
-  let repl: ReturnType<typeof runRepl> | null = null;
+  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput(); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）
   let stopping: ReturnType<Host["stop"]> | null = null;
   let wake: () => void = () => {};
   const asked = new Promise<void>((resolve) => { wake = resolve; });
@@ -342,7 +342,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
         ...(replayWsFor(paths) ?? { dmdata: { apiKey: apiKey.value, appName, classifications: resolved.classifications, testMode: resolved.testMode } }),
         stateDirectory: paths.state, diagnosticDirectory: paths.diag,
         displayPort: resolved.display ? resolved.port : null, notificationGate: createNotificationGate(notification, clock),
-        clock, observe: null,
+        clock, observe: null, terminal: terminal.sink,
       });
     } catch (error) {
       if (error instanceof Refusal) throw error; // 守りの Refusal を「起動に失敗しました」にしない
@@ -354,12 +354,12 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     }
     if (requested) stopping ??= host.stop();
     else {
-      if (resolved.display) out(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
+      if (resolved.display) terminal.line(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
       // P3-RW2-AUTHOR-POLISH: FLEQ_WS_URL が空でなく host が起きたなら replayWsFor が返した場合だけ（断れば Refusal で起動しない）。使っていない区分を出して dmdata と誤解させない。
-      out(process.env.FLEQ_WS_URL ? "偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C" : `受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
+      terminal.line(process.env.FLEQ_WS_URL ? "偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C" : `受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
       const muted = muteStartLine(notification, clock);
-      if (muted != null) out(muted);
-      repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal });
+      if (muted != null) terminal.line(muted);
+      repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal, terminal });
     }
     await asked;
     stopping ??= host.stop();
@@ -374,6 +374,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     return code === 0 ? 1 : code;
   } finally {
     repl?.close();
+    await terminal.close(); // P3-TO-AC02 (6)・DLV-02: 列の残りを最長 1 秒書かせて writer を終える
     for (const signal of signals) process.off(signal, onSignal);
   }
 }

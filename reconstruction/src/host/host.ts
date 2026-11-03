@@ -9,7 +9,7 @@ import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { ClockReading, DiagnosticLevel, DiagnosticReason, MailboxEnvelope, ShutdownSummary, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataClassification, DmdataSubscription } from "../../contracts/p3-dmdata-connect.types"; import type { HostCommandPort, HostStatus, NotificationGate, NotificationGateVerdict } from "../../contracts/p3-cli-repl.types";
-import { startDisplayServer } from "../http-sse/http-sse"; import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types";
+import { startDisplayServer } from "../http-sse/http-sse"; import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types"; import type { TerminalSink } from "../terminal/output";
 import { ingestXmlData } from "../ingress/ingress";
 import type { ParsedFrame } from "../ingress/ingress";
 import { abortNotificationAttempt, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
@@ -41,7 +41,7 @@ const knownClassifications: Readonly<Record<DmdataClassification, true>> = {
 // P3-C2-ENTRY: one start function; only how the connection is obtained differs, frames take the same path.
 type P2HostConfig = Readonly<({ wsUrl: string; origin?: "replay"; dmdata?: never } | { dmdata: DmdataSubscription; wsUrl?: never; origin?: never }) & {
   stateDirectory: string;
-  diagnosticDirectory: string;
+  diagnosticDirectory: string; terminal?: TerminalSink; // P3-TO-AC01 (4): 端末の列（無ければ端末に出さない）
   displayPort: number | null; notificationGate?: NotificationGate; // P3-CLI-AC16 (1): null は起動で表示の server を開かない。門が無ければ adapter の既定のまま
   clock: () => ClockReading;
   observe: ((observation: P2HostObservation) => void) | null; measureInputHeap?: boolean; displayBind?: Readonly<{ measurementAddress: string }>;
@@ -189,7 +189,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
             marks: { ...reply.marks, ingressJsonMs: ingressJsonMs.get(inputId) ?? null } } });
           ingressJsonMs.delete(inputId);
         }
-        resumeIfDrained();
+        config.terminal?.inputDone(reply); resumeIfDrained(); // P3-TO-AC08 (1): 端末は列に積むだけ
       },
       shutdownHooks: { drainMailbox: async (_deadline, active) => root.drainInputs(active), closeWorker: endOwners },
     });

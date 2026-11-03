@@ -102,7 +102,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       recovery: ["basis", "clock", "kind", "phase", "recoveryId", "sharedMs", "unit"],
     };
     const replyKeys: Readonly<Record<OwnerReply["kind"], readonly string[]>> = {
-      restored: ["kind", "output", "units"], inputDone: ["decode", "generationRaisedMs", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement"],
+      restored: ["kind", "output", "units"], inputDone: ["decode", "generationRaisedMs", "heap", "inputGenerations", "kind", "marks", "output", "processingStartedMs", "settlement", "terminal"],
       deadlineDone: ["heap", "kind", "output"], intentUpdateDone: ["adopted", "kind", "output", "requestId"],
       checkpointDone: ["grantId", "grantStartedMs", "kind", "measurements", "output", "result", "unit", "writeCounts"],
       shutdownInputDone: ["kind", "output"], finalizeDone: ["appliedThrough", "kind", "output"], detailDone: ["kind", "response"],

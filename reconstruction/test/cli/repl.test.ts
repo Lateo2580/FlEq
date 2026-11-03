@@ -106,7 +106,7 @@ describe("P3-CLI-REPL-001 発注 2 の REPL と通知の門", () => {
     const host = fakeHost();
     const settings = settingsOf();
     const { clock } = fakeClock();
-    const repl = runRepl({ host, settings, savedMute: undefined, displayPort: 7789, clock, onClose: () => {} });
+    const repl = runRepl({ host, settings, savedMute: undefined, displayPort: 7789, clock, onClose: () => {}, terminal: { output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {} } });
     const lines: [string, string][] = [
       ["hlep", "  不明なコマンド: hlep — もしかして: help"], ["foo", "  不明なコマンド: foo (help で一覧を表示)"],
       ["notify bogus", "  不明なカテゴリ: bogus (有効: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation, volcano, weather, tornado, briefing, earlyWeather, weatherWarningTimeseries, climateInfo, weatherExplanation, heatAlert, typhoonAnalysis, typhoonProbability, floodForecast)"],
@@ -198,7 +198,7 @@ describe("P3-CLI-REPL-001 発注 2 の REPL と通知の門", () => {
   it("mute・notify・sound は今の実行に効き、変えた欄だけを保存し、mute は起動し直しても続く", async () => {
     const { clock, advance } = fakeClock();
     const start = (settings: NotificationSettings, savedMute?: Parameters<typeof runRepl>[0]["savedMute"], host = fakeHost()) =>
-      ({ repl: runRepl({ host, settings, savedMute, displayPort: 7789, clock, onClose: () => {} }), gate: createNotificationGate(settings, clock) });
+      ({ repl: runRepl({ host, settings, savedMute, displayPort: 7789, clock, onClose: () => {}, terminal: { output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {} } }), gate: createNotificationGate(settings, clock) });
     const fromFile = () => {
       const checked = checkSettings(readConfig());
       if (!checked.ok) throw new Error(checked.reason);
