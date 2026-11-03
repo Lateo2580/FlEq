@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "7abd6d281a6d00aa23651f151939aeca58e469f1bf1e50bd412ac994d867cc97",
+    "sha256": "b14d47802d7b337cdde98afcb21f6f57a0b1acd8183f268ab28d122d2ee03549",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -706,7 +706,7 @@
       },
       {
         "id": "P3-TO-AC16",
-        "requirement": "【発注 2】C18 の発注 3 への口（Q-TO-C18-ENTRIES、P3-TO-D-PROMPT）: createTerminalOutput の戻りに TerminalControl（p3-terminal-output.types.ts）を持たせる。setSummaryInterval(0〜) は次の区切りから効く。ただし 0 はその場で止め、数と区切りを捨てる（区切りに 1 行を出さない。2026-11-03 作者裁定 A、C18 の P3-CLI-D-O3-SUMMARY-OFF）。summaryNow は今の時間の要約を 1 行出して数を 0 にする。setTipInterval(0〜1440)。setEewLog は AC15 の (2)。clear は画面を消す制御の列（\\x1b[2J\\x1b[H）を書き出しの列に積む。promptLabel は「FlEq> 」を基にした文字を返し、切れている間（AC10）は「FlEq [切断中 HH:MM:SS から・繋ぎ直し n 回目]> 」、clock の elapsed・clock・uptime は旧築の prompt の時計の形（「FlEq [● HH:MM:SS]> 」など）。値の検査・設定の保存・REPL の返事の文は C18",
+        "requirement": "【発注 2】C18 の発注 3 への口（Q-TO-C18-ENTRIES、P3-TO-D-PROMPT）: createTerminalOutput の戻りに TerminalControl（p3-terminal-output.types.ts）を持たせる。setSummaryInterval(0〜) は次の区切りから効く。ただし 0 はその場で止め、数と区切りを捨てる（区切りに 1 行を出さない。2026-11-03 作者裁定 A、C18 の P3-CLI-D-O3-SUMMARY-OFF）。summaryNow は今の時間の要約を 1 行出して数を 0 にする（区切りを過ぎた直後なら、先に区切りを通して前の時間の要約を 1 行出し、2 行目は出さない。C18 の P3-CLI-AC27 (1)）。setTipInterval(0〜1440)。setEewLog は AC15 の (2)。clear は画面を消す制御の列（\\x1b[2J\\x1b[H）を書き出しの列に積む。promptLabel は「FlEq> 」を基にした文字を返し、切れている間（AC10）は「FlEq [切断中 HH:MM:SS から・繋ぎ直し n 回目]> 」、clock の elapsed・clock・uptime は旧築の prompt の時計の形（「FlEq [● HH:MM:SS]> 」など）。値の検査・設定の保存・REPL の返事の文は C18",
         "evidenceRefs": [
           "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
           "reconstruction/contracts/p3-cli-repl.json",

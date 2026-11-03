@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "61e61d883a5817bd04ed6de3fddf927195b5a8d17f97c7098e0ad1713a3bd143",
+    "sha256": "5d3bb9b18bfcc64baadde4110acc1a87219f2727dae0ceb7402263e6de32af77",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1548,7 +1548,7 @@
         "referenceIds": [
           "P3-CLI-AC26"
         ],
-        "behavior": "【発注 3】reconstruction/test/cli/cli.test.ts で（隔離は T01、host は vi.mock、端末の出力の mock は control と held を持つ形に広げる）: 設定ファイルに apiKey・appName・summaryInterval 20・waitTipIntervalMin 5・eewLog true を置いて通常起動し、REPL に summary・tipinterval・eewlog の行を流すと『  定期要約: ON (20分間隔)』『  待機中ヒント間隔: 5分』『  EEW ログ記録: ON』が出る。--summary-interval 0 を足して起こすと summary が『  定期要約: OFF』"
+        "behavior": "【発注 3】reconstruction/test/cli/cli.test.ts で（隔離は T01、host は vi.mock、端末の出力の mock は control と drained を持つ形に広げる）: 設定ファイルに apiKey・appName・summaryInterval 20・waitTipIntervalMin 5・eewLog true を置いて通常起動し、REPL に summary・tipinterval・eewlog の行を流すと『  定期要約: ON (20分間隔)』『  待機中ヒント間隔: 5分』『  EEW ログ記録: ON』が出る。--summary-interval 0 を足して起こすと summary が『  定期要約: OFF』"
       }
     ],
     "requiredCommands": [
