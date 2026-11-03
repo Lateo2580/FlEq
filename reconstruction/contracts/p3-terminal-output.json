@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "b29874ac4591b90466608c3fc81b2644238f73ef8fe777338c5c6f8a3e853704",
+    "sha256": "7abd6d281a6d00aa23651f151939aeca58e469f1bf1e50bd412ac994d867cc97",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -170,7 +170,7 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（作者）",
-        "ruling": "作者の裁定 A（2026-11-03）。作者の裁定（A）の後、AC10 (4) に合わせて A の文の読みを揃えた（mute の rules の有無によらず出さない）",
+        "ruling": "作者の裁定 A（2026-11-03）。作者の裁定（A）の後、AC10 (4) に合わせて A の文の読みを揃えた（mute の rules の有無によらず出さない）。A の「REPL の読み替えの表の 1 行」は、C18 の P3-CLI-D-O3-CONN で REPL の notify の一覧の 1 行に置き換えた（通知の門の分野の表は 18 のまま）",
         "reason": "場面: 23:10 に Pi の回線が切れ、23:25 に戻り、23:40 にまた切れる。夜は回線の通知だけ止め、地震の通知は残したい。A は notify connection off で回線の通知だけが止まる。B は notify all:off で地震の通知も止まる。spec の Q-TO-C-3 は「notify で切れるようにする」までで、分野の名前と mute との関係を決めていない。A は REPL の notify の一覧に 1 行増える（旧築に無い分野）"
       },
       {
