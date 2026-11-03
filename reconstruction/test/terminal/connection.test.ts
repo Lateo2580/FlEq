@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NotificationSettings } from "../../src/cli/notification-gate";
+import { notificationSettingsFrom } from "../../src/cli/repl";
+import { checkSettings } from "../../src/cli/settings";
 import { at, harness } from "./terminal-fixture";
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(21, 3, 0)); });
@@ -108,5 +110,24 @@ describe("P3-TO-T11 一度も繋がらない（H29、AC10 (5)）", () => {
     vi.advanceTimersByTime(1_000);
     expect(joined()).toHaveLength(5);
     await h.output.close();
+  });
+});
+
+// P3-CLI-T20 contractBoundary (P3-CLI-AC24): 設定の読み戻しから端末の判定までの経路。保存の側は T16 (j)。
+describe("P3-CLI-T20 分野 connection の設定", () => {
+  it("設定ファイルの notify.connection が false なら切断の行だけを出して通知せず、欄が無ければ通知する", async () => {
+    expect(checkSettings({ notify: { connection: "x" } }).ok).toBe(false);
+    for (const [notify, notices] of [[{ connection: false }, 0], [{}, 1]] as const) {
+      const checked = checkSettings({ notify });
+      if (!checked.ok) throw new Error(checked.reason);
+      vi.setSystemTime(at(21, 3, 0));
+      const h = harness({ notification: notificationSettingsFrom(checked.settings, () => ({ wallTimeMs: Date.now(), monotonicMs: Date.now() })) });
+      h.attach();
+      h.set({ connection: "disconnected", lostConnections: 1, lastLossFrameWallMs: at(21, 3, 0) });
+      until(at(21, 3, 5));
+      expect(h.lines).toContain("21:03:00 から受信できていません。自動で繋ぎ直しています。");
+      expect(h.notices).toHaveLength(notices);
+      await h.output.close();
+    }
   });
 });

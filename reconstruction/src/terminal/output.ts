@@ -49,6 +49,8 @@ type TerminalOutput = Readonly<{
   close(): Promise<void>;
   // 試験の口（T06）: 列の配列がまだ参照している単位の数。
   held(): number;
+  // 【発注 3】列が空で、worker へ送った単位の書き込みも終わっている（O(1)）。入力の行の書き直しを詰まった端末に積まないため（P3-CLI-AC23 (3)）。
+  drained(): boolean;
 }>;
 
 // AC08 (1): 積む時に 1 回だけ見積もる（JSON にしない）。文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte。
@@ -163,7 +165,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   };
   // D-DROP: 越えたら種類によらず古い単位から丸ごと落とす。上限より大きい 1 単位は積まずに落とす。echo と prompt は数えない。
   const push = (unit: TerminalUnit): void => {
-    lastOutputMs = clock().monotonicMs;
+    // P3-CLI-AC27 (2): tips の待ちの起点は数える単位だけが動かす（入力の echo と入力の行の書き直しは「何かを出した」に数えない）。
+    if (counted(unit)) lastOutputMs = clock().monotonicMs;
     const size = failed ? 0 : estimate(unit);
     if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; return; }
     while (bytes + size > QUEUE_BYTES) if (counted(take().unit)) dropped += 1;
@@ -203,8 +206,9 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     summaryMinutes = nextSummaryMinutes;
     boundary = summaryMinutes > 0 ? nextBoundary(Math.max(ended, nowMs), summaryMinutes) : null;
   };
-  const count = (unit: RuntimeUnitId, headType: string, maxInt: string | null) => {
-    roll(clock().wallTimeMs);
+  // nowMs は受信 1 回で 1 回だけ読んだ時刻（読み直すと区切りの直前の受信が、報の後に区切りを越えて次の時間に数えられる）。
+  const count = (unit: RuntimeUnitId, headType: string, maxInt: string | null, nowMs: number) => {
+    roll(nowMs);
     counts[summaryKind(unit, headType)] += 1;
     const label = maxInt == null || maxInt === "" ? null : intensityLabel(maxInt);
     if (unit === "U-Q" && label != null && intensityRank(label) > (counts.maxInt == null ? -1 : intensityRank(counts.maxInt))) counts.maxInt = label;
@@ -223,11 +227,10 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   // RET-02: 覚える切断の時刻は直近 3 つ（monotonic）。
   const losses: number[] = [];
   // P3-TO-D-CONN-NOTIFY（作者裁定 A）: 分野 connection が off か mute の間（rules によらない）は出さない。
-  // 分野 connection の key は C18 の発注 3 が足す。それまでは閉じた union に無いので on として読む（as で言い換えない）。
+  // 分野 connection の key（C18 の NotifyCategory）が無ければ on。
   const notifyAllowed = (now: ClockReading): boolean => {
     if (settings == null) return true;
-    const notifyMap: Readonly<{ [key: string]: boolean | undefined }> = settings.notify;
-    return notifyMap.connection !== false && !muteActive(settings, now.monotonicMs);
+    return settings.notify.connection !== false && !muteActive(settings, now.monotonicMs);
   };
   const lost = (fromWallMs: number | null, now: ClockReading) => {
     upSince = null;
@@ -273,8 +276,16 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   const eewLog = options.eewLog == null ? null : createEewLog({ ...options.eewLog, clock });
   const control: TerminalControl = {
     // 次の区切りから効く。止まっている間に入れたら今から数え始める。
+    // 0 はその場で止め、数と区切りを捨てる（区切りに 1 行を出さない。P3-CLI-D-O3-SUMMARY-OFF=A）。
     setSummaryInterval(minutes) {
       nextSummaryMinutes = minutes;
+      if (minutes === 0) {
+        summaryMinutes = 0;
+        boundary = null;
+        counts = { eew: 0, quake: 0, tsunami: 0, nankai: 0, volcano: 0, weather: 0, maxInt: null };
+        periodStart = clock().wallTimeMs;
+        return;
+      }
       if (boundary == null && minutes > 0) {
         const now = clock().wallTimeMs;
         counts = { eew: 0, quake: 0, tsunami: 0, nankai: 0, volcano: 0, weather: 0, maxInt: null };
@@ -283,7 +294,11 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         boundary = nextBoundary(now, minutes);
       }
     },
-    summaryNow() { summarize(clock().wallTimeMs); },
+    // P3-CLI-AC27 (1): 区切りを過ぎていれば、その区切りの 1 行を今の要約にして区切りを進める（期限の過ぎた区切りを残すと次の tick が空の 1 行を出す）。
+    summaryNow() {
+      const now = clock().wallTimeMs;
+      if (boundary != null && now >= boundary) roll(now); else summarize(now);
+    },
     setTipInterval(minutes) { tipMs = minutes * 60_000; },
     setEewLog(enabled, fields) { eewLog?.set(enabled, fields); },
     // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
@@ -303,13 +318,16 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   return {
     sink: { inputDone(reply) {
       // AC08 (1): 返信の terminal の参照と、その返信の outcomes のうち U-E のもの（facts.report を持つ）を積むだけ。
+      // P3-CLI-AC27 (1): 区切りを過ぎていれば、前の時間の要約を報より先に積む。時刻はこの 1 回だけ読む。
+      const nowMs = clock().wallTimeMs;
+      roll(nowMs);
       const prompt = promptOf();
       let shown: { unit: RuntimeUnitId; headType: string } | null = null;
       if (reply.terminal != null) {
         const report = reply.terminal;
         push({ kind: "report", report, prompt });
         shown = { unit: unitOf(report), headType: report.head.headType };
-        count(shown.unit, shown.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null);
+        count(shown.unit, shown.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null, nowMs);
       }
       for (const { unit, outcome } of reply.output.outcomes) {
         if (unit !== "U-E" || outcome.kind !== "accepted" || outcome.change === "deliveryOnly") continue;
@@ -317,7 +335,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           if (subject.facts.report == null) continue;
           push({ kind: "eew", subject, prompt });
           shown = { unit, headType: typeof subject.facts.family === "string" ? subject.facts.family : subject.source?.family ?? "VXSE" };
-          count(unit, shown.headType, null);
+          count(unit, shown.headType, null, nowMs);
           eewLog?.record(subject);
         }
       }
@@ -330,7 +348,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           if (found != null) { push({ kind: "unreadable", card: found, prompt }); card = { unit: delta.unit, headType: found.headType }; break; }
         }
       }
-      if (shown != null) lastReportWallMs = clock().wallTimeMs;
+      if (shown != null) lastReportWallMs = nowMs;
       // AC17 (1): 出さない理由は取り直し（owner の recoveryInput は decode を持たない返信）か採らなかったの 2 つ。
       if (options.debug === true) {
         // 返信が種類のコードを持たない入力（採らなかった入力・取り直し）は、種類のコードと unit を書かない（「不明」とは出さない）。
@@ -348,6 +366,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     control,
     line: (text) => { push({ kind: "line", text }); },
     held: () => queue.filter((item) => item != null).length,
+    drained: () => !inFlight && head === queue.length,
     bind(next) {
       readline = next;
       next.once("close", () => { if (readline === next) readline = null; });

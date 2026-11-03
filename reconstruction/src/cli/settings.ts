@@ -155,32 +155,34 @@ const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
     check: (v, o) => v === "127.0.0.1" && put(o, "displayHost", v) },
   displayToken: { kind: "string", description: "情報ディスプレイの非 loopback 接続用アクセストークン", reason: "空でない文字列",
     check: (v, o) => nonEmpty(v) && put(o, "displayToken", v) },
-  summaryInterval: { kind: "number", description: `定期受信要約の間隔 (分, 1〜1440)${NOT_YET}`, reason: "1〜1440 の 10 進の整数",
+  summaryInterval: { kind: "number", description: "定期受信要約の間隔 (分, 1〜1440)", reason: "1〜1440 の 10 進の整数",
     check: (v, o) => isInt(v, 1, 1440) && put(o, "summaryInterval", v) },
-  promptClock: { kind: "string", description: `プロンプト時計: "elapsed" (経過時間) | "clock" (現在時刻) | "uptime" (稼働時間)${NOT_YET}`,
+  promptClock: { kind: "string", description: 'プロンプト時計: "elapsed" (経過時間) | "clock" (現在時刻) | "uptime" (稼働時間)',
     reason: "elapsed, clock, uptime のどれか",
     check: (v, o) => { const clock = oneOf(["elapsed", "clock", "uptime"] as const, v); return clock != null && put(o, "promptClock", clock); } },
-  waitTipIntervalMin: { kind: "number", description: `待機中ヒント表示間隔 (分, 0で無効)${NOT_YET}`, reason: "0〜1440 の 10 進の整数",
+  waitTipIntervalMin: { kind: "number", description: "待機中ヒント表示間隔 (分, 0で無効)", reason: "0〜1440 の 10 進の整数",
     check: (v, o) => isInt(v, 0, 1440) && put(o, "waitTipIntervalMin", v) },
   sound: { kind: "bool", description: "通知音の有効/無効 (true/false)", reason: BOOL,
     check: (v, o) => typeof v === "boolean" && put(o, "sound", v) },
-  eewLog: { kind: "bool", description: `EEWログ記録の有効/無効 (true/false)${NOT_YET}`, reason: BOOL,
+  eewLog: { kind: "bool", description: "EEWログ記録の有効/無効 (true/false)", reason: BOOL,
     check: (v, o) => typeof v === "boolean" && put(o, "eewLog", v) },
   region: { kind: "string", description: "自宅の市区町村（例: 栃木県宇都宮市）。今は書いた文字をそのまま保存し、まだ効きません",
     reason: "空でない文字列",
     check: (v, o) => typeof v === "string" && v.trim() !== "" && put(o, "region", v.trim()) },
   regionScope: { kind: "string",
-    description: "設定した地域の外の情報の出し方: all＝全部出して「設定した地域は対象外」を添える、regionOnly＝設定した地域の情報だけを出す（今は保存だけで、まだ効きません）",
+    description: `設定した地域の外の情報の出し方: all＝全部出して「設定した地域は対象外」を添える、regionOnly＝設定した地域の情報だけを出す${NOT_YET}`,
     reason: "all か regionOnly",
     check: (v, o) => { const scope = oneOf(["all", "regionOnly"] as const, v); return scope != null && put(o, "regionScope", scope); } },
   notify: { kind: "map", description: "通知する分野ごとの on/off", reason: "分野の名前と true か false の組",
-    check: (v, o) => { const map = boolMap(NOTIFY_CATEGORIES, v); return map != null && put(o, "notify", map); } },
-  eewLogFields: { kind: "map", description: `EEW ログに記録する項目ごとの on/off${NOT_YET}`, reason: "項目の名前と true か false の組",
+    check: (v, o) => { const map = boolMap(NOTIFY_KEYS, v); return map != null && put(o, "notify", map); } },
+  eewLogFields: { kind: "map", description: "EEW ログに記録する項目ごとの on/off", reason: "項目の名前と true か false の組",
     check: (v, o) => { const map = boolMap(EEW_LOG_FIELDS, v); return map != null && put(o, "eewLogFields", map); } },
   mute: { kind: "map", description: "ミュートの終わりと条件（REPL の mute で変える）",
     reason: `until（null か 0 以上の整数）と rules（分野と ${MUTE_LEVELS.join("・")} の組の配列、重複なし、${MUTE_RULE_LIMIT} 件まで）の object`,
     check: (v, o) => { const mute = persistedMute(v); return mute != null && put(o, "mute", mute); } },
 };
+// notify の欄の key は 18 分野と connection（P3-CLI-AC24 (1)）。mute の検査と移行は 18 分野のまま。check は呼ばれる時に読むので FIELDS の後に置ける。
+const NOTIFY_KEYS: readonly (keyof NonNullable<FleqSettings["notify"]>)[] = [...NOTIFY_CATEGORIES, "connection"];
 const fieldOf = (key: string): Field | undefined => Object.hasOwn(FIELDS, key) ? FIELDS[key as keyof FleqSettings] : undefined;
 const SETTABLE_KEYS: readonly string[] = Object.entries(FIELDS).filter(([, field]) => field.kind !== "map").map(([key]) => key);
 const ALL_KEYS: readonly string[] = Object.keys(FIELDS);
@@ -356,21 +358,26 @@ function showLines(settings: FleqSettings): string[] {
 
 // ── REPL の保存の列（P3-CLI-D-O2-WRITE、P3-CLI-RES-02） ──
 
-// REPL がこの起動で変えた欄だけ（AC17 (5) が唯一の列挙）。sound・mute は undefined が「変えていない」、mute の null は欄を消す。
-type ReplOverlay = Readonly<{ notify: Readonly<Partial<Record<LegacyNotifyCategory, boolean>>>; sound?: boolean; mute?: PersistedMute | null }>;
+// REPL がこの起動で変えた欄だけ（AC17 (5)・AC26 (3) が唯一の列挙）。notify・eewLogFields は変えた key だけ、ほかは undefined が「変えていない」、mute の null は欄を消す。
+type ReplOverlay = Readonly<{ notify: NonNullable<FleqSettings["notify"]>; eewLogFields: NonNullable<FleqSettings["eewLogFields"]>; sound?: boolean;
+  mute?: PersistedMute | null; waitTipIntervalMin?: number; promptClock?: FleqSettings["promptClock"]; eewLog?: boolean }>;
 
 function overlaid(base: FleqSettings, overlay: ReplOverlay): FleqSettings {
   const next: Out = { ...base };
   if (Object.keys(overlay.notify).length > 0) next.notify = { ...base.notify, ...overlay.notify };
+  if (Object.keys(overlay.eewLogFields).length > 0) next.eewLogFields = { ...base.eewLogFields, ...overlay.eewLogFields };
   if (overlay.sound !== undefined) next.sound = overlay.sound;
+  if (overlay.waitTipIntervalMin !== undefined) next.waitTipIntervalMin = overlay.waitTipIntervalMin;
+  if (overlay.promptClock !== undefined) next.promptClock = overlay.promptClock;
+  if (overlay.eewLog !== undefined) next.eewLog = overlay.eewLog;
   if (overlay.mute === null) delete next.mute;
   else if (overlay.mute !== undefined) next.mute = overlay.mute;
   return next;
 }
 
-/** 保存は 1 本の列で直列にし、走っている間の要求は「もう 1 回要る」の印に寄せる。終わった後に最新のメモリの値で 1 回だけ書く。 */
-function createSettingsSaver(overlay: () => ReplOverlay): Readonly<{ request(): void; idle(): Promise<void> }> {
-  const reply = (line: string) => { process.stdout.write(`${line}\n`); };
+/** 保存は 1 本の列で直列にし、走っている間の要求は「もう 1 回要る」の印に寄せる。終わった後に最新のメモリの値で 1 回だけ書く。
+ * reply は REPL の返事と同じ端末の列（P3-CLI-AC26 (5)。直に標準出力へ書くと、詰まった端末で main の write が止まる）。 */
+function createSettingsSaver(overlay: () => ReplOverlay, reply: (line: string) => void): Readonly<{ request(): void; idle(): Promise<void> }> {
   let running: Promise<void> | null = null;
   let again = false;
   // 読み直して重ねるのは、別の端末の config set の欄を REPL の古い中身で消さないため。読めない・書けないときもメモリの値は戻さない。
@@ -390,6 +397,6 @@ function createSettingsSaver(overlay: () => ReplOverlay): Readonly<{ request(): 
   return { request, idle: async () => { while (running != null) await running; } };
 }
 
-export { appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, createSettingsSaver, fieldOf, loadSettings, mask,
-  NOTIFY_CATEGORIES, parseClassifications, Refusal, rereadSettings, SETTABLE_KEYS, settingsPaths, settingsUnchanged, showLines, TEST_MODES, valueFromText };
+export { appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, createSettingsSaver, EEW_LOG_FIELDS, fieldOf, loadSettings, mask,
+  NOTIFY_CATEGORIES, NOTIFY_KEYS, parseClassifications, Refusal, rereadSettings, SETTABLE_KEYS, settingsPaths, settingsUnchanged, showLines, TEST_MODES, valueFromText };
 export type { Context, Loaded, ReplOverlay };

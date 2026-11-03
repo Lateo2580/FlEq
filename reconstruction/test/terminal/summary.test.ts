@@ -38,6 +38,50 @@ describe("P3-TO-T12 定期要約（spec §6.2、AC11）", () => {
     vi.advanceTimersByTime(at(21, 40, 1) - Date.now());
     const summaries = h.lines.join("\n").replace(/\n {2}/g, "").split("\n").filter((line) => line.startsWith("── ") && line.includes(" の受信 ── "));
     expect(summaries).toEqual(["── 21:20〜21:30 の受信 ── 受信なし", "── 21:30〜21:40 の受信 ── 津波 1件"]);
+    // P3-CLI-T18 (a)（C19 の Q-TO-IMPL-2 (8) の残した P3、P3-CLI-AC27 (1)）: 前の時間の要約の行が、区切りの直後の報のブロックより先に出る。
+    expect(h.lines.findIndex((line) => line.startsWith("── 21:20〜21:30 の受信 ──"))).toBeLessThan(h.lines.findIndex((line) => line.startsWith("━")));
+    await h.output.close();
+  });
+
+  // P3-CLI-T18 (b) acceptance（P3-CLI-D-O3-SUMMARY-OFF=A）: 0 はその場で止め、区切りに 1 行を出さない。
+  it("間隔の途中で 0 にすると、その時間の要約も出さずに止まる", async () => {
+    const h = harness({ summaryInterval: 10 });
+    h.attach();
+    vi.advanceTimersByTime(at(21, 25, 0) - Date.now());
+    h.output.control.setSummaryInterval(0);
+    vi.advanceTimersByTime(at(21, 31, 0) - Date.now());
+    expect(h.lines.filter((line) => line.startsWith("── "))).toEqual([]);
+    await h.output.close();
+  });
+
+  // P3-CLI-T18 (c) regression（品質レビュー r0 の P2、P3-CLI-AC27 (1)）: 区切りの直後の summary now が期限の過ぎた区切りを残すと、次の tick が空の 1 行を足した。
+  it("区切りの直後の summary now は前の時間の 1 行だけを出し、区切りを次へ進める", async () => {
+    vi.setSystemTime(at(21, 20, 0) + 500);
+    const h = harness({ summaryInterval: 10 });
+    h.attach();
+    vi.advanceTimersByTime(at(21, 30, 0) + 100 - Date.now());
+    h.output.control.summaryNow();
+    vi.advanceTimersByTime(at(21, 39, 0) - Date.now());
+    expect(h.lines.filter((line) => line.startsWith("── "))).toEqual(["── 21:20〜21:30 の受信 ── 受信なし"]);
+    await h.output.close();
+  });
+
+  // 実不具合の再発防止（発注 3 の品質レビュー r0 の F2）: 受信 1 回の中で時計を 2 回読むと、区切りの直前の受信で報が先に出て、次の時間に数えられた。
+  it("区切りの直前の受信は、1 回読んだ時刻で前の時間に数え、その時間の要約が報の後に出る", async () => {
+    vi.setSystemTime(at(21, 20, 0) + 500);
+    // 読むたびに 1 ms 進む時計（skew を true にした間だけ）。区切りの 1 ms 前に受けると、2 回目の読みが区切りを越える。
+    let skew = false, extra = 0;
+    const clock = () => { const ms = Date.now() + (skew ? extra++ : 0); return { wallTimeMs: ms, monotonicMs: ms }; };
+    const h = harness({ summaryInterval: 10, clock });
+    h.attach();
+    vi.advanceTimersByTime(at(21, 30, 0) - 1 - Date.now());
+    skew = true;
+    h.output.sink.inputDone(inputDoneOf("tsunami", reportOf("32-39_11_02_250206_VTSE41.xml", "U-T")));
+    skew = false;
+    vi.advanceTimersByTime(at(21, 30, 1) - Date.now());
+    const summaries = h.lines.filter((line) => line.startsWith("── ") && line.includes(" の受信 ── "));
+    expect(summaries).toEqual(["── 21:20〜21:30 の受信 ── 津波 1件"]);
+    expect(h.lines.findIndex((line) => line.startsWith("━"))).toBeLessThan(h.lines.indexOf(summaries[0]));
     await h.output.close();
   });
 });

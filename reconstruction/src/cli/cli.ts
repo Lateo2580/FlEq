@@ -359,7 +359,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
       terminal.line(process.env.FLEQ_WS_URL ? "偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C" : `受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
       const muted = muteStartLine(notification, clock);
       if (muted != null) terminal.line(muted);
-      repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal, terminal });
+      repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal, terminal, control: terminal.control, drained: terminal.drained, initial: { summaryMinutes: summaryInterval.value ?? 0, tipMinutes: settings.waitTipIntervalMin ?? 30, clock: settings.promptClock ?? "elapsed", eewLog: settings.eewLog === true, eewLogFields: settings.eewLogFields ?? {} } }); // 【発注 3】AC26 (1)(2): 初めの値は端末の出力に渡した起動の値と同じ（tips は旧築の既定 30 分、時計は elapsed）
     }
     await asked;
     stopping ??= host.stop();

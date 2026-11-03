@@ -13,8 +13,8 @@ vi.mock("../../src/host/host", () => ({ startP2Host: mocks.startP2Host }));
 vi.mock("../../src/host/dmdata-rest", () => ({ exchange: mocks.exchange }));
 // P3-TO-AC02 の移行: 端末の列（writer の worker）の代わりに、行を同期で process.stdout へ書く（この file の期待は標準出力の文字）。
 vi.mock("../../src/terminal/output", () => ({ createTerminalOutput: () => ({
-  sink: { inputDone: () => {} }, output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {}, attach: () => {}, close: async () => {},
-}) }));
+  sink: { inputDone: () => {} }, output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {}, attach: () => {}, close: async () => {}, drained: () => true,
+  control: { setSummaryInterval: () => {}, summaryNow: () => {}, setTipInterval: () => {}, setEewLog: () => {}, clear: () => {}, promptLabel: () => "FlEq> " } }) }));
 // T07 の question の答え方はそのまま。REPL（T12）が使う on・setPrompt・prompt と、行と close を試験から起こす口を足した。
 vi.mock("node:readline", () => ({
   createInterface: () => {
@@ -334,5 +334,19 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     expect(stderr).toContain("途中で変わりました");
     expect(stderr).not.toContain("写しました");
     expect(readConfig()).toEqual({ apiKey: "other-terminal" });
+  });
+
+  // P3-CLI-T21 acceptance (AC26)
+  it("REPL の summary・tipinterval・eewlog は起動の値（引数＞設定）から始まる", async () => {
+    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", summaryInterval: 20, waitTipIntervalMin: 5, eewLog: true });
+    for (const [argv, summary] of [[[], "  定期要約: ON (20分間隔)"], [["--summary-interval", "0"], "  定期要約: OFF"]] as const) {
+      clear();
+      mocks.startP2Host.mockResolvedValue(fakeHost(async () => ({ code: 0 })));
+      const result = runCli([...argv]);
+      await vi.waitFor(() => expect(stdout).toContain("受信を始めました"));
+      for (const line of ["summary", "tipinterval", "eewlog", "quit"]) mocks.readline!.line(line);
+      expect(await result).toBe(0);
+      for (const expected of [summary, "  待機中ヒント間隔: 5分", "  EEW ログ記録: ON"]) expect(stdout.split("\n"), expected).toContain(expected);
+    }
   });
 });

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "b14d47802d7b337cdde98afcb21f6f57a0b1acd8183f268ab28d122d2ee03549",
+    "sha256": "56aa2d43ef2ff5cdd60812604c77ed5f53c5a9ae1c7ddfb8ba84bcfe421a232d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -524,7 +524,7 @@
           "reconstruction/src/cli/repl.ts:68 «887c1ba3e75088ea»",
           "reconstruction/src/cli/repl.ts:282 «4d1bbb0e22b25764»",
           "reconstruction/src/cli/cli.ts:357 «e9f3366748ddf46e»",
-          "reconstruction/src/cli/cli.ts:362 «79e96ab6a412a439»",
+          "reconstruction/src/cli/cli.ts:362 «de26f0a18cadc1cd»",
           "reconstruction/src/host/host.ts:654 «2e82717c7bdadcab»",
           "reconstruction/src/host/host.ts:156 «25188f036e0fbb6a»",
           "reconstruction/cli/fleq.mjs:21 «35f85fde5f5d2ad4»"

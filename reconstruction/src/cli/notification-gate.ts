@@ -7,7 +7,7 @@ import type { LegacyNotifyCategory, MuteRule, NotificationGate, NotificationGate
 // CLI が持つ通知の設定。REPL が書き換え、門はその場で読む（REPL の変更は次の試行から効く）。
 type NotificationSettings = {
   // 欄の無い分野は既定（AC13 (2)）。REPL で変えた分野と、設定ファイルから読んだ分野だけを持つ。
-  notify: Partial<Record<LegacyNotifyCategory, boolean>>;
+  notify: Partial<Record<import("../../contracts/p3-cli-repl.types").NotifyCategory, boolean>>;
   sound: boolean;
   // 実行中の終わりは monotonic（null は mute off まで）、until は保存する wall の時刻（P3-CLI-D-O2-MUTE-PERSIST=B）。rules が空なら完全 mute。
   mute: Readonly<{ endsAtMonotonicMs: number | null; until: number | null; rules: readonly MuteRule[] }> | null;
@@ -45,8 +45,8 @@ function categoryOf(attempt: Pick<NotificationAttempt, "unit" | "subject">): Leg
   return UNIT_CATEGORIES.get(attempt.unit) ?? SUBJECT_CATEGORIES.get(attempt.unit)?.get(family) ?? null;
 }
 
-const notifyEnabled = (settings: Readonly<NotificationSettings>, category: LegacyNotifyCategory): boolean =>
-  settings.notify[category] ?? ON_BY_DEFAULT.has(category);
+const notifyEnabled = (settings: Readonly<NotificationSettings>, category: keyof NotificationSettings["notify"]): boolean => // connection は既定 on（P3-CLI-D-O3-CONN）
+  settings.notify[category] ?? (category === "connection" || ON_BY_DEFAULT.has(category));
 
 const muteActive = (settings: Readonly<NotificationSettings>, monotonicMs: number): boolean =>
   settings.mute != null && (settings.mute.endsAtMonotonicMs == null || monotonicMs < settings.mute.endsAtMonotonicMs);

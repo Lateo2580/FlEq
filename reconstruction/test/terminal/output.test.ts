@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { TerminalReport } from "../../contracts/p3-terminal-output.types";
 import type { OwnerReply } from "../../contracts/p3-execution-split.types";
 import { createRenderer } from "../../src/terminal/format";
 import type { TerminalBatch, TerminalUnit } from "../../src/terminal/format";
 import { createTerminalOutput, estimate } from "../../src/terminal/output";
-import { reportOf } from "./terminal-fixture";
+import { at, harness, reportOf } from "./terminal-fixture";
 
 const MIB = 1024 * 1024;
 // 返事を返さない writer。release で 1 回分ずつ返す（試験の writer は main で動く、AC02 (5)）。
@@ -71,6 +71,31 @@ describe("P3-TO-T06 列の上限（O02、AC02 (3)・AC08 (1)）", () => {
     writer.release();
     expect(writer.batches.slice(1).map((batch) => [batch.dropped, batch.units])).toEqual([
       [1, [{ kind: "line", text: "b" }, { kind: "line", text: "c" }]]]);
+    await terminal.close();
+  });
+});
+
+// P3-CLI-T19 contractBoundary (P3-CLI-AC27 (2)(3)・AC23)
+describe("P3-CLI-T19 入力の行の書き直しと tips・drained", () => {
+  it("入力の行を 1 秒ごとに書き直しても tips の待ちは延びず、drained は worker の書き込みが終わるまで false", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(at(21, 0, 0));
+    try {
+      const h = harness({ tipInterval: 1 });
+      h.attach();
+      for (let second = 1; second <= 61; second += 1) {
+        h.output.output.write(`\r\x1b[0JFlEq [● 00:00:${String(second % 60).padStart(2, "0")}]> `);
+        vi.advanceTimersByTime(1_000);
+      }
+      expect(h.lines.filter((line) => line.includes("Tip:"))).toHaveLength(1);
+      await h.output.close();
+    } finally { vi.useRealTimers(); }
+    const writer = heldWriter();
+    const terminal = createTerminalOutput({ write: writer.write });
+    terminal.line("a");
+    expect([terminal.held(), terminal.drained()]).toEqual([0, false]);
+    writer.release();
+    expect(terminal.drained()).toBe(true);
     await terminal.close();
   });
 });

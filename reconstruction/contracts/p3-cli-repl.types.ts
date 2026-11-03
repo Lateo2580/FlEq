@@ -44,7 +44,7 @@ export type FleqSettings = Readonly<{
   promptClock?: "elapsed" | "clock" | "uptime";
   waitTipIntervalMin?: number;
   // notify・sound は発注 1 では保存だけで、発注 1 の起動は通知と音を出さない（P3-CLI-D-SILENT）。効くのは発注 2 から。
-  notify?: Readonly<Partial<Record<LegacyNotifyCategory, boolean>>>;
+  notify?: Readonly<Partial<Record<NotifyCategory, boolean>>>;
   sound?: boolean;
   eewLog?: boolean;
   eewLogFields?: Readonly<Partial<Record<EewLogField, boolean>>>;
@@ -62,13 +62,13 @@ export type ReplCommand =
   | Readonly<{ kind: "status" }>
   | Readonly<{ kind: "config" }>
   | Readonly<{ kind: "notify"; action: Readonly<{ kind: "show" }> | Readonly<{ kind: "all"; enabled: boolean }>
-      | Readonly<{ kind: "category"; category: LegacyNotifyCategory; enabled: boolean | "toggle" }> }>
+      | Readonly<{ kind: "category"; category: NotifyCategory; enabled: boolean | null }> }>
   | Readonly<{ kind: "sound"; enabled: boolean | null }>
   // mute の on: durationMs が null なら mute off まで、rules が空なら完全 mute（Q-CLI-O2-AUTHOR-3）。
   | Readonly<{ kind: "mute"; action: Readonly<{ kind: "off" }> | Readonly<{ kind: "on"; durationMs: number | null; rules: readonly MuteRule[] }> }>
   | Readonly<{ kind: "retry" }>
   | Readonly<{ kind: "display"; action: "status" | "on" | "off" }>
-  | Readonly<{ kind: "quit" }>;
+  | Readonly<{ kind: "quit" }> | TerminalReplCommand;
 export type ReplParse = Readonly<{ kind: "empty" }> | Readonly<{ kind: "command"; command: ReplCommand }> | Readonly<{ kind: "invalid"; message: string }>;
 
 // 【発注 2】通知の門（P3-CLI-D-O2-GATE）。host は試行を adapter へ渡す直前に 1 回だけ聞き、allow が false なら子を作らずに delivered で終える。
