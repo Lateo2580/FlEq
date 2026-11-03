@@ -538,10 +538,17 @@ function notice(item: TerminalNotice, cols: number, narrow: boolean): Line[] {
   switch (item.kind) {
     case "lost": {
       const from = item.fromWallMs == null ? "--:--:--" : localClock(item.fromWallMs);
-      return [...band("回線が切れました", "plain", localClock(item.noticedWallMs), cols, narrow, ""),
-        line(seg(`${from} から受信できていません。自動で繋ぎ直しています。`))];
+      // 作者裁定 2026-11-03: 切れたとき・戻ったときとも帯・本文・罫線の 3 行を同じ色（クリーム／明るい緑）で出す。
+      return [...band("回線が切れました", "plain", localClock(item.noticedWallMs), cols, narrow, "", { band: "connLost", rule: "connLost" }),
+        line(seg(`${from} から受信できていません。自動で繋ぎ直しています。`, "connLost")),
+        line(seg("━".repeat(Math.min(cols, RULE_LIMIT)), "connLost"))];
     }
-    case "restored": return [line(seg(`── 回線が戻りました ── ${item.fromWallMs == null ? "--:--:--" : localClock(item.fromWallMs)} から ${localClock(item.toWallMs)} まで（${span(item.fromWallMs, item.toWallMs)}）受信できていませんでした ──`))];
+    case "restored": {
+      const from = item.fromWallMs == null ? "--:--:--" : localClock(item.fromWallMs);
+      return [...band("回線が戻りました", "plain", null, cols, narrow, "", { band: "connRestored", rule: "connRestored" }),
+        line(seg(`${from} から ${localClock(item.toWallMs)} まで（${span(item.fromWallMs, item.toWallMs)}）受信できていませんでした`, "connRestored")),
+        line(seg("━".repeat(Math.min(cols, RULE_LIMIT)), "connRestored"))];
+    }
     case "failure": return [line(seg(FAILURE_TEXT[item.reason]))];
     case "summary": return [line(seg(summary(item.fromWallMs, item.toWallMs, item.counts)))];
     case "tip": return [line(seg(`  ${item.text}`, "dim"))];

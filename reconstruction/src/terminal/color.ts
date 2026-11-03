@@ -7,13 +7,15 @@ import type { TerminalBandLevel } from "../../contracts/p3-terminal-output.types
 type ColorLevel = 0 | 1 | 2 | 3;
 type Style = Readonly<{ fg?: string; bg?: string; bold?: true }>;
 const GRAY = "#84919e", SKY = "#56b4e9", BLUE = "#0072b2", BLUE_GREEN = "#009e73", YELLOW = "#f0e442", ORANGE = "#e69f00",
-  VERMILLION = "#d55e00", RASPBERRY = "#cc79a7", DARK_RED = "#7a1e00", PURPLE = "#b23ab2", WHITE = "#ffffff", BLACK = "#000000";
+  VERMILLION = "#d55e00", RASPBERRY = "#cc79a7", DARK_RED = "#7a1e00", PURPLE = "#b23ab2", WHITE = "#ffffff", BLACK = "#000000",
+  CREAM = "#ffff99", LIGHT_GREEN = "#87e7b0";
 const ROLES = {
   bandPurple: { bg: PURPLE, fg: WHITE, bold: true }, rulePurple: { fg: PURPLE }, bandPurpleShort: { bg: WHITE, fg: BLACK, bold: true },
   bandWarning: { bg: DARK_RED, fg: WHITE, bold: true }, ruleWarning: { fg: VERMILLION },
   bandCaution: { bg: YELLOW, fg: BLACK }, ruleCaution: { fg: YELLOW },
   bandPlain: { bold: true }, rulePlain: { fg: GRAY },
   bandCancel: { bg: RASPBERRY, fg: BLACK, bold: true }, ruleCancel: { fg: RASPBERRY },
+  connLost: { fg: CREAM }, connRestored: { fg: LIGHT_GREEN },
   arrived: { fg: VERMILLION }, dim: { fg: GRAY }, strong: { bold: true },
   int1: { fg: GRAY }, int2: { fg: SKY }, int3: { fg: BLUE }, int4: { fg: BLUE_GREEN }, int5Lower: { fg: YELLOW }, int5Upper: { fg: ORANGE },
   int6Lower: { fg: VERMILLION, bold: true }, int6Upper: { bg: VERMILLION, fg: BLACK, bold: true }, int7: { bg: DARK_RED, fg: WHITE, bold: true },

@@ -306,7 +306,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。色と点滅は付けない。
     promptLabel(mode) {
       if (status == null) return "FlEq> ";
-      if (down) return `FlEq [切断中 ${lostFrom == null ? "--:--:--" : localClock(lostFrom)} から・繋ぎ直し ${status.failedAttempts} 回目]> `;
+      if (down) return `FlEq [${lostFrom == null ? "--:--:--" : localClock(lostFrom)} から 切断中・繋ぎ直し ${status.failedAttempts} 回目]> `;
       const now = clock(), connected = status.connection === "connected";
       if (mode === "uptime") return `FlEq [${connected ? "●" : "○"} ${uptime(process.uptime() * 1000)}]> `;
       if (!connected && !received) return "FlEq [○ --:--:--]> ";

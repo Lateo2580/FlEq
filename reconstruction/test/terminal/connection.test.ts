@@ -8,6 +8,7 @@ import { at, harness } from "./terminal-fixture";
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(21, 3, 0)); });
 afterEach(() => { vi.useRealTimers(); });
 
+const RULE = "━".repeat(80);
 const lostBand = (time: string): string => `━ 回線が切れました ${"━".repeat(80 - 16 - 6 - 8)} ${time} ━`;
 // 時刻 ms まで 1 秒ごとの読みを進める（読みは attach の時刻から 1 秒ごと）。
 const until = (ms: number) => { vi.advanceTimersByTime(ms - Date.now()); };
@@ -19,13 +20,13 @@ describe("P3-TO-T10 回線（spec §6.1、AC10）", () => {
     until(at(21, 3, 39));
     h.set({ connection: "disconnected", lostConnections: 1, lastLossFrameWallMs: at(21, 3, 12), lastFrameWallMs: at(21, 3, 12) });
     until(at(21, 3, 40));
-    expect(h.lines).toEqual([lostBand("21:03:40"), "21:03:12 から受信できていません。自動で繋ぎ直しています。"]);
+    expect(h.lines).toEqual([lostBand("21:03:40"), "21:03:12 から受信できていません。自動で繋ぎ直しています。", RULE]);
     expect(h.notices).toEqual(["回線が切れました（21:03:12 から受信できていません）"]);
     until(at(21, 6, 1));
     h.set({ connection: "connected", lastFrameWallMs: at(21, 6, 1) });
     until(at(21, 6, 2));
-    // 80 桁で折り返す（AC04 (5)）。
-    expect(h.lines.slice(2)).toEqual(["── 回線が戻りました ── 21:03:12 から 21:06:02 まで（2 分 50 秒）受信できていませ", "  んでした ──"]);
+    // 戻った 3 行（作者裁定 2026-11-03）。
+    expect(h.lines.slice(3)).toEqual([`━ 回線が戻りました ${"━".repeat(80 - 16 - 3)}`, "21:03:12 から 21:06:02 まで（2 分 50 秒）受信できていませんでした", RULE]);
 
     // 2 回目と 3 回目（30 分の中）。3 回目の通知はまとめの文。
     for (const [minute, count] of [[10, 2], [15, 3]] as const) {
@@ -39,7 +40,7 @@ describe("P3-TO-T10 回線（spec §6.1、AC10）", () => {
     h.set({ connection: "disconnected", lostConnections: 4, lastLossFrameWallMs: at(21, 40, 0) });
     until(at(21, 40, 5));
     expect(h.notices).toHaveLength(3);
-    expect(h.lines.at(-1)).toBe("21:40:00 から受信できていません。自動で繋ぎ直しています。");
+    expect(h.lines.at(-2)).toBe("21:40:00 から受信できていません。自動で繋ぎ直しています。");
     // 30 分続けて繋がった後の切断は、また通知する。
     h.set({ connection: "connected" });
     until(at(22, 10, 10));
@@ -56,7 +57,7 @@ describe("P3-TO-T10 回線（spec §6.1、AC10）", () => {
     // 読みの直後に切断（21:03:12 で固まる）→ 次の読みの前に繋がり直して lastFrameWallMs が進む。
     h.set({ lostConnections: 1, lastLossFrameWallMs: at(21, 3, 12), lastFrameWallMs: at(21, 3, 13) });
     until(at(21, 3, 13));
-    expect(h.lines.slice(0, 2)).toEqual([lostBand("21:03:13"), "21:03:12 から受信できていません。自動で繋ぎ直しています。"]);
+    expect(h.lines.slice(0, 3)).toEqual([lostBand("21:03:13"), "21:03:12 から受信できていません。自動で繋ぎ直しています。", RULE]);
     expect(h.notices).toEqual(["回線が切れました（21:03:12 から受信できていません）"]);
     await h.output.close();
   });

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "8187231a9ae87bf3e73fec5b996692bc12b4104125a82196e1ff6f3d8a88ec87",
+    "sha256": "9b9b9913d39913292353b32c552993c77d4dde2cb6016e68f233c6edfe98968c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -701,7 +701,7 @@
         "status": "closed",
         "source": "発注 3 の実装とレビュー（2026-11-03 夜、実装の木 ~/dev/fleq-c18-o3、base 9b5e2574）",
         "closed": "【発注 3】実装: Opus（9b5e2574 起点）。配送で当てた契約の改訂と実装の形の記録: (1) 試験の設定の隔離: prompt.test.ts（T17）が保存先を分けずに clock uptime を打ち、統合担当の Mac の設定の場所（macOS の Application Support の fleq-next/config.json）に {\"promptClock\":\"uptime\"} と書きかけの tmp 5 つを残した（品質レビュー r0 の P2。同じ場所に 2026-10-31 20:20 の {} の tmp が 1 つあり、発注 2 の作業中の版の試験の跡と見るが、今の試験では再現しない）。prompt.test.ts の beforeEach で XDG_CONFIG_HOME を一時 directory に向け、閉じる前に保存の終わりを待つ。試験の前後で利用者の設定の場所に新しい file ができないことを mtime で確かめた。残った file は作者が消す (2) inputDone の時刻: 時計を 2 回読んでいたので、区切りの 1 ms 前の受信で報が先に出て、その報が次の時間に数えられた（品質レビュー r0 の F2）。時刻を 1 回だけ読む形にし、allowedPaths の output.ts と AC27 (1) を改め、T18 に (d) を足した（summary.test.ts の allowedPaths も改めた） (3) T16 は振る舞いごとの it 10 本に分けた（品質レビュー r0 の P3、1 振る舞い 1 試験） (4) 統合担当が当てたもの: p3-terminal-output.json が引く cli.ts:362 の «» を付け直した（P3-CLI-D-O3-LINES の想定の 1 件）。本記録で本契約の行が増えたので、本契約の行を引く他の契約（p3-weather-notice・p3-dmdata-connect-002）の «» の行番号を付け直した。AC28 (1) の文の行番号は起草の時点（点検の前）のもので、点検の記録で +8、本記録でさらにずれている。今の番号は check-contract が通る各契約の «» を正とする (5) 実装の申告で割当の文面と違う所（契約適合レビューが範囲に収まると判断）: output.test.ts の :1・:8 の import の行の中身、connection.test.ts の先頭の import 2 行、settings.ts :173 の書き換え（出る文は同じ）、output.ts の notifyAllowed の型の言い換えの 1 行の削除。repl.ts の :10・:36 のコメントは古いまま（触る所の一覧に無い） (6) 実装が選んだ形: setSummaryInterval(0) は数と periodStart も捨てる。eewlog fields の引数の検査の順は旧築と同じ。試験の偽の control は promptLabel を記録しない (6a) 発注 2 からの不具合の直し（品質レビュー r1 の P2・P3、不変条件「閉じた REPL は新しい保存を要求せず、出力もしない」）: close・quit の後も mute の終わりの timer が残り、期限に saver.request() を出して、その時の環境で解いた保存先に mute を消した設定を書いていた（試験の片付けの後なら利用者の設定の場所に {}。10-31 の跡の見立てはこれだが、歴史の原因は確かめられない）。repl.ts の mute の期限の callback に closed の検査を足し、close の handler で timer を止めて世代を進める（試験は repl.test.ts の末尾、直す前は落ちた）。待っていた display の返事も、閉じた後は出さない（within の await の後に closed の検査）。どちらも :425 より前は行の中身だけ（repl.ts の :306・:364）で、他の契約の «» は動かない。残した P3 2 件（config の読み込み中に閉じると一覧が出る、保存の失敗の知らせが閉じた後に出る）はバックログ (7) AC28 (4) の実端末の確かめ（作者の手元の TTY）: 入力の行の時計が 1 秒ごとに進む、打っている途中（日本語の変換中を含む）は行が崩れない、clock now で FlEq [● HH:MM:SS]> になる、回線を切ると FlEq [切断中 HH:MM:SS から・繋ぎ直し n 回目]> に変わり戻ると元に戻る (8) レビュー: 契約適合（Opus）r0 GO（指摘 0）→ r1 条件付き GO（範囲の文を 2 か所改める、(2)）。品質（ヘルツ、thread 01a1a03c）r0 NO-GO（P2: 試験が利用者の設定に書く、区切りの直前の受信の順。P3: T16 を分ける）→ r1 NO-GO（r0 の P2 は直った。新しい P2: 閉じた後の mute の timer の保存、(6a)）→ 相談役（NO-GO 2 巡）→ r2 条件付き GO（G1・G2 は直った。P3 2 件はバックログ）。Mac mini のゲート 11 本は r0・r1・r2 とも rc 0（r2: 新築 1234 passed・26 skipped、shuffle 同数、旧築 6837 passed）",
-        "remaining": "AC28 (4) の作者の目視（実端末）",
+        "remaining": "なし（AC28 (4) は 2026-11-03 夜に作者が実端末〔Ghostty から ssh localhost、npm run watch〕で見て OK。時計が 1 秒ごとに進む・日本語の変換中も崩れない・clock now の形・切断中の形と戻り。切断中の語順は同じ夜の作者裁定で C19 の Q-TO-AUTHOR-CONN-LINES のとおり変えた）",
         "reason": "発注 3 の配送"
       }
     ],
@@ -1302,9 +1302,9 @@
           "src/ui/repl-handlers/info-handlers.ts:213 «00d4c5fc2ac552e9»",
           "src/ui/repl-handlers/info-handlers.ts:230 «e8311a4b2cf91da2»",
           "src/types.ts:436 «6445e703dbf7eba3»",
-          "reconstruction/contracts/p3-terminal-output.json:642 «40d5b30f5c1872c1»",
-          "docs/specs/cli-terminal-output.md:503 «8f639b4ef78e5729»",
-          "docs/specs/cli-terminal-output.md:518 «6b6b55310a9e6fb3»",
+          "reconstruction/contracts/p3-terminal-output.json:650 «40d5b30f5c1872c1»",
+          "docs/specs/cli-terminal-output.md:507 «8f639b4ef78e5729»",
+          "docs/specs/cli-terminal-output.md:522 «6b6b55310a9e6fb3»",
           "reconstruction/contracts/p3-terminal-output.types.ts"
         ]
       },
@@ -1312,12 +1312,12 @@
         "id": "P3-CLI-AC23",
         "requirement": "【発注 3】入力の行（P3-CLI-D-O3-PROMPT・P3-TO-D-PROMPT、spec cli-terminal-output §6.1）: (1) 文字は、端末の出力の output の isTTY が true なら TerminalControl.promptLabel(<時計の形>)、そうでなければ『FlEq> 』のまま（旧築 src/ui/repl.ts:302 と同じ）。切れている間の印（『FlEq [切断中 HH:MM:SS から・繋ぎ直し n 回目]> 』）も promptLabel が返す (2) readline.prompt() を呼ぶ前に必ず setPrompt で (1) の文字を当てる（起動の最初・各 command の後。clock で形を変えた後の prompt は新しい形の文字） (3) TTY のときだけ、REPL は 1 秒ごとの timer（unref。REPL の close で止める）で (1) の文字を作って setPrompt で当てる（入力中の文字があっても当てる。電文のブロックの後に端末が書き直す入力の行は readline.getPrompt() を読む）。そのうえで次を全部満たすときだけ readline.prompt() で書き直す: (a) 前に書いた文字と違う (b) command が走っていない（1 行を受けてから、その返事を出して prompt を呼ぶまで） (c) 入力中の文字が空（readline.line が \"\"。旧築 :130 と同じ） (d) 端末の書き出しが終わっている（TerminalOutput.drained() が true。列が空で、worker へ送った単位の書き込み中〔inFlight〕でもない） (e) REPL が close していない (4) 書き直しは端末の列を echo の単位として通り（直に process.stdout へ書かない、P3-TO-AC02 (4)）、tips の待ちを延ばさない（AC27 (2)） (5) 計算量は P3-CLI-RES-05",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:446 «2c890867ac553aaa»",
-          "docs/specs/cli-terminal-output.md:447 «bfaf727f08ae9815»",
-          "docs/specs/cli-terminal-output.md:459 «cdd989dfa5cb4d1c»",
-          "docs/specs/cli-terminal-output.md:465 «ad96dff759d7741f»",
+          "docs/specs/cli-terminal-output.md:447 «2c890867ac553aaa»",
+          "docs/specs/cli-terminal-output.md:448 «bfaf727f08ae9815»",
+          "docs/specs/cli-terminal-output.md:461 «4f7e9bcfcee4a634»",
+          "docs/specs/cli-terminal-output.md:467 «e031c40283a6b5e9»",
           "reconstruction/contracts/p3-terminal-output.json:135 «4df84d917a71bc1c»",
-          "reconstruction/contracts/p3-terminal-output.json:618 «0fd739941d818515»",
+          "reconstruction/contracts/p3-terminal-output.json:626 «0fd739941d818515»",
           "src/ui/repl.ts:127 «fbc832de0b3f22a8»",
           "src/ui/repl.ts:130 «1da5867822213444»",
           "src/ui/repl.ts:302 «e948c9d15cf37cf3»",
@@ -1329,7 +1329,7 @@
         "requirement": "【発注 3】分野 connection（P3-TO-D-CONN-NOTIFY の作者裁定 A、P3-CLI-D-O3-CONN）: (1) 通知の設定と設定ファイルの notify の key に connection を足す（型は NotifyCategory、p3-cli-repl.types.ts。実装が FleqSettings の :47 の notify の行、ReplCommand の :65 の notify の category の型、notification-gate.ts の NotificationSettings の notify の欄の型を NotifyCategory にする）。欄が無ければ on。設定ファイルの notify の検査は connection の bool を受ける (2) REPL の notify の一覧は 19 行で、最後の行が connection（表示名『回線の切断』、AC14 (5) の形、別名なし）。notify connection [on|off] と notify all:on・all:off（19 分野）で変わり、保存は AC17 (5) の notify の欄のまま（変えた分野だけ）。『不明なカテゴリ』の有効な名前の一覧、notify の詳細の『カテゴリ: …』、commands の notify の [値]（『<on の数>/19 ON』）も 19 で数える (3) mute の条件（MuteRule）・設定ファイルの mute の欄の検査・通知の門の分野の表・旧築の設定の移行で読む notify の名前は 18 分野のまま。mute connection:<段> は条件の不正（AC12 (4) の mute の使い方の文）で断る (4) 通知の門（AC13）は connection を見ない（Q-CLI-SPLIT と C19 の P3-TO-D-CONN-NOTIFY の「読み替えの表の 1 行」は、P3-CLI-D-O3-CONN が REPL の notify の一覧の 1 行に置き換えた。門の分野の表は 18 のまま）。端末の側は output.ts の今の読み（notify の connection が false でなく、mute でない）のままで効く（Q-CLI-O3-FACTS (7)）。AC27 (4) でコメントと型の言い換えだけを直す",
         "evidenceRefs": [
           "reconstruction/contracts/p3-terminal-output.json:168 «b82a379b9443ca00»",
-          "reconstruction/contracts/p3-terminal-output.json:618 «0fd739941d818515»",
+          "reconstruction/contracts/p3-terminal-output.json:626 «0fd739941d818515»",
           "reconstruction/contracts/p3-cli-repl.types.ts",
           "reconstruction/src/cli/notification-gate.ts",
           "reconstruction/src/cli/settings.ts"
