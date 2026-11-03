@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "5c45c4e8066c75a6a9fed417464c74089d850aea797343dd243f90a77c63fad4",
+    "sha256": "3227ee0cd36f0b1f7ddbe4c4448c72a9c97d5a19c8fedbd4907d3655bb1f5e8f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -715,7 +715,7 @@
           "reconstruction/src/cli/notification-gate.ts:32 «dbc3d616864b5b13»",
           "reconstruction/test/cli/repl.test.ts:182 «d1ce1d7422b91ad4»",
           "reconstruction/contracts/p3-cli-repl.json:384 «1c36b13cd5b33f8a»",
-          "docs/specs/reconstruction-p0-contracts.md:2325 «cff85750d90544b8»"
+          "docs/specs/reconstruction-p0-contracts.md:2325 «ac62f68d2139b098»"
         ]
       },
       {
@@ -774,21 +774,21 @@
           "reconstruction/contracts/p3-order-plan.md:109 «84314275adb7de65»",
           "reconstruction/contracts/p3-order-plan.md:256 «74b2606ece30c7e0»",
           "reconstruction/contracts/p3-order-plan.md:447 «accb3fbc099d629c»",
-          "docs/specs/reconstruction-p0-contracts.md:2325 «cff85750d90544b8»",
+          "docs/specs/reconstruction-p0-contracts.md:2325 «ac62f68d2139b098»",
           "docs/specs/reconstruction-p0-contracts.md:3038 «fc1a1fc607e6814f»",
           "reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d»",
           "reconstruction/contracts/p3-landslide-unit.json:303 «77e134295f97a49d»",
           "reconstruction/contracts/p3-briefing-unit.json:318 «5148e5efded9cf7d»",
           "reconstruction/contracts/p3-notice-ledger.json:443 «33fff820a4d62b0b»",
           "reconstruction/contracts/p3-notice-ledger.json:691 «acea9611b9f902d4»",
-          "reconstruction/contracts/p3-cli-repl.json:509 «649a15e39c3f1d83»",
-          "reconstruction/contracts/p3-cli-repl.json:1028 «ea1fff6e2ac50293»",
+          "reconstruction/contracts/p3-cli-repl.json:655 «649a15e39c3f1d83»",
+          "reconstruction/contracts/p3-cli-repl.json:1239 «ea1fff6e2ac50293»",
           "reconstruction/contracts/p2-notification-delivery.json:145 «3a059d6494463640»",
           "reconstruction/contracts/p2-weather-current-unit.json:381 «33381152f78f4cab»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «8bdd44bcb281344a»",
           "reconstruction/contracts/p3-recovery.json:1120 «198ebeaaf97bcbb8»",
           "reconstruction/contracts/p3-notice-ledger.json:595 «7169a5a4f59dce48»",
-          "reconstruction/contracts/p3-cli-repl.json:886 «6235e154b5559e6a»",
+          "reconstruction/contracts/p3-cli-repl.json:1097 «6235e154b5559e6a»",
           "reconstruction/contracts/p3-intent-update-reserve.json:46 «659b9165e808c99d»",
           "reconstruction/contracts/p3-currency-coverage.json:90 «c139de6f2182309c»",
           "reconstruction/contracts/p3-currency-coverage.json:593 «d306c3bb4a14d7d5»",

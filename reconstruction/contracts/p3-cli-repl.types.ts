@@ -102,3 +102,18 @@ export type HostCommandPort = Readonly<{
   closeDisplay(): Promise<"closed" | "notOpen">;
   status(): HostStatus;
 }>;
+
+// 【発注 3】notify の分野に connection（回線の切断の通知、P3-TO-D-CONN-NOTIFY の作者裁定 A）を足した名前。欄が無ければ on。
+// mute の条件（MuteRule）・通知の門の分野・旧築の設定の移行は 18 個のまま（回線の通知は通知の試行にならない、P3-CLI-D-O3-CONN）。
+// FleqSettings の notify と ReplCommand の notify の分野をこの型にするのは実装（P3-CLI-AC24 (1)）。
+export type NotifyCategory = LegacyNotifyCategory | "connection";
+
+// 【発注 3】C19 の端末の出力に頼る 5 入口の typed command（P3-CLI-AC21）。ReplCommand に足すのは実装（:71 の行の中身）。
+// clock の mode null は引数なしで、旧築どおり次の形へ順に切り替える（P3-CLI-D-O3-CLOCK=B）。eewlog の field の enabled null は今の状態を見せるだけ（P3-CLI-D-O3-SHOW）。
+export type TerminalReplCommand =
+  | Readonly<{ kind: "summary"; action: Readonly<{ kind: "show" | "off" | "now" }> | Readonly<{ kind: "on"; minutes: number }> }>
+  | Readonly<{ kind: "eewlog"; action: Readonly<{ kind: "show" | "fields" }> | Readonly<{ kind: "enabled"; enabled: boolean }>
+      | Readonly<{ kind: "field"; field: EewLogField; enabled: boolean | null }> }>
+  | Readonly<{ kind: "tipinterval"; minutes: number | null }>
+  | Readonly<{ kind: "clock"; mode: "elapsed" | "clock" | "uptime" | null }>
+  | Readonly<{ kind: "clear" }>;

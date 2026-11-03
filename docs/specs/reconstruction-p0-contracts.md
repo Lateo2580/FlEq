@@ -2311,18 +2311,18 @@ rollback条件:
 
 | 入口 | 下位操作・現行機能 | 利用を推定する材料 | 裁定 |
 |---|---|---|---|
-| `help` | command/subcommand詳細 | CMD:10。定義あり | 互換必須（2026-09-14 作者） |
+| `help` | 一覧（commands と同じ、[値] と検索つき。2026-11-03 作者）、command/subcommand詳細 | CMD:10。定義あり | 互換必須（2026-09-14 作者） |
 | `commands` | 一覧、category、検索 | CMD:16 | 互換必須（2026-09-14 作者） |
 | `?` | help alias | CMD:22 | 互換必須（2026-09-14 作者） |
 | `history` | REST地震履歴1〜100、既定10 | CMD:27。`repl.test.ts:232` | 廃止可（2026-09-14 作者） |
 | `stats` | 電文統計 | CMD:33。`statistics-formatter.test.ts:99` | 廃止可（2026-09-14 作者） |
 | `colors` | palette・震度色 | CMD:38 | 廃止可（2026-09-14 作者） |
 | `detail` | 既定津波、tsunami/tornado/vpws50/vpwp50/volcano | CMD:44–54 | 廃止可（2026-09-14 作者） |
-| `status` | WS、socket ID、再接続 | CMD:57。`repl.test.ts:313` | 互換必須（2026-09-14 作者） |
+| `status` | WS、socket ID、再接続、ミュートの状態（ミュート中か・残り・条件。2026-11-03 作者） | CMD:57。`repl.test.ts:313` | 互換必須（2026-09-14 作者） |
 | `config` | 保存設定表示 | CMD:63。`repl.test.ts:414` | 互換必須（2026-09-14 作者） |
 | `contract` | 契約区分取得 | CMD:69。`repl.test.ts:349` | 廃止可（2026-09-14 作者） |
 | `socket` | 接続socket一覧 | CMD:75。`repl.test.ts:373` | 廃止可（2026-09-14 作者） |
-| `notify` | category toggle/on/off、all:on/off | CMD:81。地震系等と weather（気象警報・注意報）on、ほかの気象系offが既定（weather は C20 の配送から、H11） | 互換必須（2026-09-14 作者） |
+| `notify` | category の状態の表示/on/off、all:on/off、connection（回線の切断、既定 on）（toggle は 2026-11-03 作者裁定で廃止） | CMD:81。地震系等と weather（気象警報・注意報）on、ほかの気象系offが既定（weather は C20 の配送から、H11） | 互換必須（2026-09-14 作者） |
 | `eewlog` | on/off、12記録fieldの切替 | CMD:92。既定off、`eew-logger.test.ts:95` | 互換必須（2026-09-14 作者） |
 | `tablewidth` | 40〜200 / auto | CMD:103。既定auto | 廃止可（2026-09-14 作者） |
 | `infotext` | full / short | CMD:113。既定short | 廃止可（2026-09-14 作者） |
