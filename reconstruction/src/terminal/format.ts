@@ -1,4 +1,6 @@
-import type { JsonValue, SubjectOutcome } from "../../contracts/p2-shared-runtime.types";
+import type { JsonValue, RuntimeUnitId, SubjectOutcome, UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
+import type { DmdataConnectFailure } from "../../contracts/p3-dmdata-connect.types";
+import type { RecoveryDigestView } from "../../contracts/p3-recovery.types";
 import type {
   TerminalBandLevel, TerminalHypocenter, TerminalReport, TerminalTsunamiArea, TerminalValue,
 } from "../../contracts/p3-terminal-output.types";
@@ -14,7 +16,21 @@ type TerminalUnit =
   | Readonly<{ kind: "report"; report: TerminalReport; prompt: string | null }>
   | Readonly<{ kind: "eew"; subject: SubjectOutcome; prompt: string | null }>
   | Readonly<{ kind: "line"; text: string }>
-  | Readonly<{ kind: "echo"; text: string }>;
+  | Readonly<{ kind: "echo"; text: string }>
+  // 【発注 2】処理できなかった報（P3-TO-D-UNREADABLE）と、電文以外の出力（AC10〜AC14・AC17）。時刻は wall の ms で、worker が地方時の字にする。
+  | Readonly<{ kind: "unreadable"; card: UnreadableCardView; prompt: string | null }>
+  | Readonly<{ kind: "notice"; notice: TerminalNotice; prompt: string | null }>;
+// 定期要約の数（AC11 (3)）。maxInt は地震の報の最大震度の字（無ければ null）。
+type SummaryCounts = Readonly<{ eew: number; quake: number; maxInt: string | null; tsunami: number; nankai: number; volcano: number; weather: number }>;
+type TerminalNotice =
+  | Readonly<{ kind: "lost"; fromWallMs: number | null; noticedWallMs: number }>
+  | Readonly<{ kind: "restored"; fromWallMs: number | null; toWallMs: number }>
+  | Readonly<{ kind: "failure"; reason: DmdataConnectFailure }>
+  | Readonly<{ kind: "summary"; fromWallMs: number; toWallMs: number; counts: SummaryCounts }>
+  | Readonly<{ kind: "tip"; text: string }>
+  | Readonly<{ kind: "update"; current: string; latest: string; packageName: string }>
+  | Readonly<{ kind: "digest"; digest: RecoveryDigestView }>
+  | Readonly<{ kind: "debug"; text: string }>;
 // worker への 1 回の送り。columns は送る時に読んだ端末の桁数（AC04 (1)）、dropped はその前に落とした単位の数（AC02 (3)）。
 type TerminalBatch = Readonly<{ columns: number; dropped: number; units: readonly TerminalUnit[] }>;
 
@@ -157,13 +173,15 @@ const minuteOf = (raw: string | null | undefined): string | null => /T(\d{2}:\d{
 const nfkc = (text: string): string => text.normalize("NFKC").trim();
 
 // 帯（spec §5 の見出しの罫線）。60 桁以上は 1 行で、罫線は min(桁数, 80) まで。60 桁未満か入らないときは発表時刻を次の行に出す。
-function band(title: string, level: TerminalBandLevel, time: string | null, cols: number, narrow: boolean): Line[] {
-  const total = Math.min(cols, RULE_LIMIT), roles = BAND_ROLES[level], size = width(title);
-  const timeLine = time == null ? [] : [line(seg(`${time} 発表`, "dim"))];
+// label は時刻の後ろの字（回線の帯は時刻だけ、処理できなかった報で発表時刻が無ければ「受信」）。roles は短い形の最も重い段の帯の字（白の地）。
+function band(title: string, level: TerminalBandLevel, time: string | null, cols: number, narrow: boolean, label = "発表",
+  roles: Readonly<{ band: Role; rule: Role }> = BAND_ROLES[level]): Line[] {
+  const total = Math.min(cols, RULE_LIMIT), size = width(title), stamp = time == null ? "" : label === "" ? time : `${time} ${label}`;
+  const timeLine = time == null ? [] : [line(seg(stamp, "dim"))];
   if (size + 4 > total) return [...wrapChars([seg(title, roles.band)], total, "").map((segs) => ({ segs })), line(seg("━".repeat(total), roles.rule)), ...timeLine];
-  const fill = total - size - 19 + (time == null ? 0 : 8 - width(time));
+  const fill = total - size - 6 - width(stamp);
   if (!narrow && time != null && fill >= 1) {
-    return [line(seg("━ ", roles.rule), seg(title, roles.band), seg(` ${"━".repeat(fill)} `, roles.rule), seg(`${time} 発表`, "dim"), seg(" ━", roles.rule))];
+    return [line(seg("━ ", roles.rule), seg(title, roles.band), seg(` ${"━".repeat(fill)} `, roles.rule), seg(stamp, "dim"), seg(" ━", roles.rule))];
   }
   return [line(seg("━ ", roles.rule), seg(title, roles.band), seg(` ${"━".repeat(total - size - 3)}`, roles.rule)), ...timeLine];
 }
@@ -451,6 +469,89 @@ function eew(subject: SubjectOutcome, memory: Memory, cols: number, narrow: bool
   return [...lines, footer(family, eventId)];
 }
 
+// ---- 短い形（AC09、spec §5.4）と処理できなかった報（P3-TO-D-UNREADABLE） ----
+function shortForm(report: Extract<TerminalReport, { kind: "short" }>, cols: number, narrow: boolean): Line[] {
+  const { head } = report;
+  // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
+  const base = (head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
+  const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${report.target == null || report.target === "" ? "" : ` ${report.target}`}`;
+  // 最も重い段は罫線を紫、帯の字を白の地に黒にする（Q-TO-S-2）。
+  const roles = report.level === "purple" ? { band: "bandPurpleShort", rule: "rulePurple" } as const : BAND_ROLES[report.level];
+  // 見出し文は省略せず、電文の改行は空白 1 つにする（spec §5.4 の図）。
+  const headline = head.headline?.trim().replace(/\n+/g, " ") ?? "";
+  return [...band(title, report.level, clockOf(head.reportDateTimeRaw), cols, narrow, "発表", roles),
+    ...headline === "" ? [] : [line(seg(headline))],
+    line(seg(head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} | ${head.publishingOffice}`, "dim"))];
+}
+const two = (value: number): string => String(value).padStart(2, "0");
+const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };
+function unreadable(card: UnreadableCardView, cols: number, narrow: boolean): Line[] {
+  const reported = clockOf(card.reportDateTimeRaw);
+  return [...band(`処理できなかった電文 ${card.headType}`, "plain", reported ?? localClock(card.receivedAt), cols, narrow, reported == null ? "受信" : "発表"),
+    line(seg(`${card.title == null || card.title === "" ? card.headType : card.title} を処理できませんでした。`))];
+}
+
+// ---- 電文以外の出力（spec §6） ----
+// Q-TO-C-4 の表の字（理由 5 種）。
+const FAILURE_TEXT: Readonly<Record<DmdataConnectFailure, string>> = {
+  network: "dmdata.jp に繋がりません。ネットワークの接続を確かめてください。繋がるまで自動で試し続けます。",
+  authRejected: "API キーが dmdata.jp に受け付けられませんでした。fleq init か fleq config set apiKey <key> で設定し直してください。",
+  capacity: "この API キーで開ける接続の数が上限に達しています。ほかのパソコンなどで動いている FlEq を止めるか、dmdata.jp の契約の接続数を確かめてください。",
+  dmdata: "dmdata.jp が接続を受け付けませんでした。しばらくしてから自動で繋ぎ直します。",
+  startUncertain: "接続を始められたか確かめられませんでした。自動で繋ぎ直します。",
+};
+// 起動時のまとめの分野の名前（spec §6.6 の図は 津波・地震・気象警報。ほかは unit の受け持ちの名前）。
+const UNIT_NAMES: Readonly<Record<RuntimeUnitId, string>> = {
+  "U-E": "緊急地震速報", "U-W": "気象警報", "U-F": "気象の時系列", "U-T": "津波", "U-Q": "地震", "U-N": "南海トラフ", "U-V": "火山",
+  "U-L": "土砂災害", "U-R": "洪水", "U-B": "気象解説", "U-M": "地方の情報", "U-Y": "台風",
+};
+function digest(view: RecoveryDigestView, cols: number, narrow: boolean): Line[] {
+  const lines: Line[] = [...band("止まっていた間に出た情報（7 日前まで）", "plain", null, cols, narrow)];
+  if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は取り直していません", "dim")));
+  const size = Math.max(11, ...view.units.map((unit) => width(UNIT_NAMES[unit.unit]) + 3));
+  for (const unit of view.units) {
+    const name = pad(UNIT_NAMES[unit.unit], size);
+    if (unit.kind === "unsatisfied") { lines.push(line(seg(`${name}取り直せませんでした`))); continue; }
+    const omitted = Object.entries(unit.omitted);
+    lines.push(line(seg(`${name}${unit.heads.length + omitted.reduce((total, [, count]) => total + count, 0)} 件`)));
+    const titles = Math.max(0, ...unit.heads.map((head) => width(head.title)));
+    for (const head of unit.heads) {
+      const at = minuteOf(head.reportDateTime) ?? localClock(head.receivedAt).slice(0, 5);
+      lines.push(line(seg(`  ${at}  ${pad(head.title, titles)}  ${head.headline ?? ""}`)));
+    }
+    // 残りは種類のコードと件数（Q-TO-D-2）。種類が 2 つ以上なら全角の空白で並べる。
+    if (omitted.length > 0) lines.push(line(seg(`  ほか ${omitted.map(([type, count]) => `${type} ${count} 件`).join("　")}`)));
+  }
+  return lines;
+}
+const span = (fromMs: number | null, toMs: number): string => {
+  const seconds = fromMs == null ? 0 : Math.max(0, Math.round((toMs - fromMs) / 1000));
+  return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
+};
+function summary(fromMs: number, toMs: number, counts: SummaryCounts): string {
+  const parts = [["EEW", counts.eew, ""], ["地震", counts.quake, counts.maxInt == null ? "" : `（最大震度 ${counts.maxInt}）`], ["津波", counts.tsunami, ""],
+    ["南海トラフ", counts.nankai, ""], ["火山", counts.volcano, ""], ["気象", counts.weather, ""]] as const;
+  const shown = parts.filter(([, count]) => count > 0).map(([name, count, extra]) => `${name} ${count}件${extra}`);
+  return `── ${localClock(fromMs).slice(0, 5)}〜${localClock(toMs).slice(0, 5)} の受信 ── ${shown.length === 0 ? "受信なし" : shown.join(" ・ ")}`;
+}
+function notice(item: TerminalNotice, cols: number, narrow: boolean): Line[] {
+  switch (item.kind) {
+    case "lost": {
+      const from = item.fromWallMs == null ? "--:--:--" : localClock(item.fromWallMs);
+      return [...band("回線が切れました", "plain", localClock(item.noticedWallMs), cols, narrow, ""),
+        line(seg(`${from} から受信できていません。自動で繋ぎ直しています。`))];
+    }
+    case "restored": return [line(seg(`── 回線が戻りました ── ${item.fromWallMs == null ? "--:--:--" : localClock(item.fromWallMs)} から ${localClock(item.toWallMs)} まで（${span(item.fromWallMs, item.toWallMs)}）受信できていませんでした ──`))];
+    case "failure": return [line(seg(FAILURE_TEXT[item.reason]))];
+    case "summary": return [line(seg(summary(item.fromWallMs, item.toWallMs, item.counts)))];
+    case "tip": return [line(seg(`  ${item.text}`, "dim"))];
+    case "update": return [line(seg(`新しい版があります: v${item.current.replace(/^v/, "")} → v${item.latest.replace(/^v/, "")}  `), seg(`npm install -g ${item.packageName}@latest`, "dim"))];
+    case "digest": return digest(item.digest, cols, narrow);
+    case "debug": return [line(seg(item.text, "dim"))];
+    default: { const unknown: never = item; throw new Error(`unknown terminal notice ${String(unknown)}`); }
+  }
+}
+
 // ---- 書き出す文字 ----
 function trimEnd(segs: readonly Seg[]): Seg[] {
   const kept = [...segs];
@@ -486,11 +587,11 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
           case "eew": out += block(eew(unit.subject, memory, cols, narrow), cols, unit.prompt); break;
           case "report": {
             const { report } = unit;
-            const lines = report.kind === "seismic" ? seismic(report, cols, narrow) : report.kind === "tsunami" ? tsunami(report, cols, narrow) : null;
-            // 短い形は【発注 2】（それまでは出さない）。
-            if (lines != null) out += block(lines, cols, unit.prompt);
+            out += block(report.kind === "seismic" ? seismic(report, cols, narrow) : report.kind === "tsunami" ? tsunami(report, cols, narrow) : shortForm(report, cols, narrow), cols, unit.prompt);
             break;
           }
+          case "unreadable": out += block(unreadable(unit.card, cols, narrow), cols, unit.prompt); break;
+          case "notice": out += block(notice(unit.notice, cols, narrow), cols, unit.prompt); break;
           default: { const unknown: never = unit; throw new Error(`unknown terminal unit ${String(unknown)}`); }
         }
       }
@@ -499,5 +600,8 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
   };
 }
 
-export { createRenderer, depthText, magnitudeText, seismicLevel, tsunamiLevel, width };
-export type { TerminalBatch, TerminalUnit };
+export {
+  createRenderer, depthText, intensityLabel, intensityRank, list as jsonList, localClock, magnitudeText, rawValue, record as jsonRecord, seismicLevel,
+  string as jsonString, tsunamiLevel, width,
+};
+export type { SummaryCounts, TerminalBatch, TerminalNotice, TerminalUnit };

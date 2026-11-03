@@ -213,7 +213,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   // Aborted at the stop request + 30 s: every dmdata REST still in flight is destroyed and none starts (RES-07).
   const halt = new AbortController();
   // Monotonic time of the current WS's open or last frame (P3-C2-LIVENESS).
-  let lastFrameAt = 0;
+  let lastFrameAt = 0, lastLossFrameWallMs: number | null = null; // P3-TO-AC10 (2): 切断の時点の最後の受信の wall（次の切断まで変えない）
   let overloaded = false;
   let lastSequence = 0;
   let lastAccepted: Readonly<{ sequence: number; inputId: string }> | null = null;
@@ -231,7 +231,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
 
   const dispatchLost = () => {
     if (root.state.shutdown.stage !== "running") return;
-    const at = clock(); if (establishedAt != null) { lostConnections += 1; if (at.monotonicMs - establishedAt >= STABLE_MS) retries = 0; establishedAt = null; } root.dispatch({ kind: "connectionLost", acceptedThroughSequence: lastAccepted?.sequence ?? -1, clock: at }); // P3-DC2-AC09 (3)・D-RESET: 確立した接続だけ数え、60 秒以上続いていたら n を数え直す
+    const at = clock(); if (establishedAt != null) { lostConnections += 1; lastLossFrameWallMs = root.lastReceivedWallMs; if (at.monotonicMs - establishedAt >= STABLE_MS) retries = 0; establishedAt = null; } root.dispatch({ kind: "connectionLost", acceptedThroughSequence: lastAccepted?.sequence ?? -1, clock: at }); // P3-DC2-AC09 (3)・D-RESET: 確立した接続だけ数え、60 秒以上続いていたら n を数え直す
   };
 
   // The one place an attempt starts: an unexpected rejection counts as a WS failure, so stop() and the retry still run.
@@ -588,7 +588,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   }
   // P3-CLI-D-O2-HOST-LINES: ここに置けるのは hoist される function の宣言だけ。:589 の前から呼ばれる表示と門の包みは、startRuntime より前で宣言した変数だけを読む。
   // P3-CLI-D-O2-DISPLAY: 閉じている間は最新の 1 枚と worker の値を持つだけにし、開いた直後に渡す（次の電文まで /snapshot と /events が空にならない）。
-  function publishDisplay(snapshot: DisplaySnapshot): void { latestSnapshot = snapshot; server?.publish(snapshot); }
+  function publishDisplay(snapshot: DisplaySnapshot): void { latestSnapshot = snapshot; server?.publish(snapshot); config.terminal?.digest(snapshot.recovery.digest); } // P3-TO-AC14 (1): 端末は最初の digest だけを出す
   function setDisplayWorker(worker: DisplayWorkerView): void { latestWorker = worker; server?.setWorker(worker); }
   // P3-CLI-D-O2-GATE: 門が false なら子を作らずに delivered で終え（印の evidence は possible）、止めた段と設定の版を INFO の 1 行に書く。門が投げたら鳴らす側に倒す。
   function gatedAdapter(gate: NotificationGate): Readonly<{ run: typeof runNotificationAttempt; abort: typeof abortNotificationAttempt }> {
@@ -652,7 +652,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   }
   function status(): HostStatus {
     return { connection: socket?.readyState === WebSocket.OPEN ? "connected" : attempting ? "connecting" : "disconnected", socketId: ownSocketId, failedAttempts: establishedAt == null ? retries : 0, lastFailure, lastFrameWallMs: root.lastReceivedWallMs, lostConnections, // P3-DC2-AC02 (2'): 確立している間は 0
-      display: server == null ? null : { port: server.port, clients: server.clientCount() } };
+      display: server == null ? null : { port: server.port, clients: server.clientCount() }, lastLossFrameWallMs };
   }
   // P3-DC2-AC01: { dmdata } は n ≤ 14 で min(5 秒×2^(n−1), 60 秒)、n ≥ 15 で 120 秒。Retry-After があれば式の代わりに 5 秒〜setTimeout の最大に収めて使う（recovery の lane と同じ上書き）。
   function reconnectDelay(n: number, retryAfterMs: number | null): number {

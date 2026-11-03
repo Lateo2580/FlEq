@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "a8962ef6e1f93e51b4e394067d62229459acb9727c184399c2ef6c258a69fa60",
+    "sha256": "fa00481844a5a4d23786f629c7f4721f9953a9314993730a7d74fb5c948a7525",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -272,6 +272,14 @@
         "closed": "配送で当てる契約の改訂と実装の形の記録: (1) TTY の書き先: fd 1 は Node の tty.WriteStream が blocking にするので、worker が fd 1 に writeSync すると端末が詰まったとき write(2) で止まり、process.exit が worker の join を待って終わらない（契約適合レビューが Node v26 で再現。AC02 (6) の『process.exit は止まった worker を待たない』は誤り）。統合担当の裁定で、worker は TTY を O_NONBLOCK で開き直す（Linux は /proc/self/fd/1 の装置の path、macOS は /dev/tty）。開けない起動（制御端末の無い setsid など）は fd 1 へ戻らず、端末には出さないと標準エラーに 1 行（待たずに書けるときだけ。品質レビュー r3 で、詰まった標準エラーへの同期の警告が worker を止めると分かり、2026-11-03 作者裁定 A）。AC02 (1)(2)(6) と D-WRITER の reason を改め、allowedDependencies に node:tty を足した。測った時間: macOS 制御端末あり close 1,003 ms、制御端末なし 835 ms で終わる、Pi（Linux aarch64、node v22.23.4、pty の読み手を SIGSTOP、8 MiB）SIGTERM から 1,046 ms と 1,043 ms（fd 1 に戻した対照は 15.6 秒生きていた） (2) EEW の覚えの鍵は operation/EventID（同じ EventID の訓練の報が通常の報の取消の文を上書きしないため。品質レビュー r1）。列は送った・落とした単位の参照を解放する（品質レビュー r1） (3) 公開: createTerminalOutput の戻りに bind(readline)、material.ts の inputTerminal と output.ts の estimate を export（publicFunctions を改めた）。公開は末尾の export { … } の形（P1-T04 が export function|const を数えて一覧と比べるため） (4) 図との合わせ: VXSE62 の階級の中は名前順（localeCompare ja、旧築の buildLgAreaRows と同じ）、津波の震源の行は VTSE52 だけ深さを出す。VTSE51 の観測点は電文の順（旧築も並べ替えない）で、spec の図を直した（cli-terminal-output.md の Q-TO-T-5） (5) RES-02 の観測点 1,024 は満潮の観測点と観測した観測点で分け合う。T07 は 25 本ごとに待って送る。T17 は Ctrl+S では止まらない（readline の raw mode が IXON を外す）ので止め方と期待を改めた (6) 残るリスク: macOS で fd 1 が制御端末と別の端末のとき（fleq > /dev/ttys005 など）は制御端末へ書く（shortcut のコメント。Linux は /proc の装置の path で fd 1 の端末へ書く）。標準エラーが file のときの警告は同期の writeSync（disk の書き込みは止まらない前提）。VTSE52（沖合の観測）の帯は AC07 (2) が Forecast の Kind だけで段を決めるので plain になる（spec の欠け。2026-11-03 作者裁定 A: 色を付けないまま。旧築と同じで、続けて紫の帯が出ると新しい大津波警報と読み違えるため。spec の Q-TO-T-6） (7) レビュー: 品質（ヘルツ、thread 01a19edc）r1 NO-GO（EEW の覚えの鍵・列の参照）→ r2 NO-GO（制御端末の無い TTY の blocking への戻り）→ r3 NO-GO（起動時の警告が blocking の標準エラーに書く）→ 作者裁定 A（待たずに書けるときだけ出す）→ r4 GO。r4 の測り: macOS で詰まった標準エラーの TTY と 65,536 byte で満杯の pipe でどちらも close 1〜2 ms、Pi で詰まった標準エラーの pty で警告を諦めて 115 ms で終わる。契約適合（Opus）r1 条件付き GO → r2 GO。Mac mini のゲート 11 本は r1・r2 とも rc 0（r2: 新築 1196 passed・26 skipped、shuffle 同数、旧築 6837 passed）",
         "remaining": "なし",
         "reason": "発注 1 の配送"
+      },
+      {
+        "id": "Q-TO-IMPL-2",
+        "status": "closed",
+        "source": "発注 2 の実装とレビュー（2026-11-03、実装の木 ~/dev/fleq-c19-o2、base bc63552d）",
+        "closed": "配送で当てる契約の改訂と実装の形の記録: (1) cli.ts の配線: allowedPaths の cli.ts の項は【発注 1】だけを挙げていたが、発注 2 も D-LINES の決まりの内で :326（createTerminalOutput に clock・通知の設定の object〔:320 の戻り〕・summaryInterval・tip の間隔・debug・EEW ログ・update check を渡す）と :357（先頭に terminal.attach(host)。update check は attach の中で 1 回だけ非同期に始める）の中身を変えた。cli.test.ts は :16 の mock に attach を足し、HostStatus の literal は発注 1 の mock で動いた :219 の中身に足した。allowedPaths の 2 項を改めた (2) EEW ログの鎖: r0 は条文どおり EventID ごとの鎖と待ちの列を持ったが、品質レビュー（ヘルツ）と契約適合レビュー（Opus）がどちらも、同じ EventID の書き順の逆転（待ちの列にある第 3 報より後の第 4 報が先に書かれる）と、上限が鎖の数にだけ掛かり書きかけが 65 件を越えることを再現した。統合担当の裁定で鎖を全体で 1 本にし、始めていない書き込みを 64 件までにした（EEW ログは 1 報が数 KB で、来るのは多くて毎秒数本なので、EventID ごとに並べて書く利点が無い）。AC15 (3) と RES-03 を改めた (3) --debug: 採らなかった入力の返信は種類のコードを持たない（material の返信が null）ので、種類のコードと unit を書かない形にした。取り直しの見分けは返信の decode が null であること（owner-host の取り直しの返信だけがそうなる）。AC17 (1) を改めた (4) tips: 旧築の tool-internals（47 件）は旧築の中の仕組み（再接続の 1 秒・2 秒・4 秒、notify の 7 分野、ルーティングの順、Material Symbols、maxReconnectDelaySec）を説明していて新築では正しくないので、分野ごと写さない。T13 の件数の比べは 24 分野・2,202 件。AC12 (1) と T13 を改めた。コマンドの tips は廃止した入口・廃止した設定の key（tableWidth・displayMode・nightMode）・--close-others を案内するものを除いた (5) 定期要約: 区切りの直後の受信を前の時間に数えないよう、数える前と tick の両方で区切りを確かめる（品質レビュー r0） (6) 実装が選んだ形: 起動時のまとめの分野の名前のうち spec の図に無いもの（緊急地震速報・気象の時系列・南海トラフ・火山・土砂災害・洪水・気象解説・地方の情報・台風）、切断のデスクトップ通知の title「FlEq」、要約で U-M の地震の解説（VXSE・VZSE）は地震に数える、EEW ログの旧築の特殊値（qualitative・範囲の M・空欄・一部不明の印）と「これまでの最大の段」は写していない（shortcut のコメント）。EEW ログが旧築と一致すると確かめたのは T16 の 7 報（旧築の EewEventLogger を束ねて走らせた出力と比べた） (7a) AC18 (3) の C18 の改訂: P3-CLI-AC16 の (7) に lastLossFrameWallMs を足す予定だったが、その行は P3-DMDATA-CONNECT-002 が «» で引くので変えず、同じ定義を Q-CLI-SPLIT の【発注 3】の文に書いた（型の定義は p3-cli-repl.types.ts の HostStatus） (7) AC17 (2) lowmem: 発注前点検の記録に無かったので統合担当が測った。node --optimize-for-size と --max-old-space-size=256 を付けた起動で、main と worker の heap_size_limit・execArgv が一致（Mac node v26.12.1: 4298113024・271581184、Pi node v22.23.4: 2150629376・271581184、flag 無しも一致）。コードは足さない (8) レビュー: 品質（ヘルツ、thread 01a19fb2）r0 NO-GO（P2 3 件: EEW ログの書き順の逆転、書きかけの上限が効かない、要約の区切りの直後の受信を前の時間に数える。どれも再現）→ r1 GO（3 件とも直った。実際の U-E に 130 報を受理させて書き込み 65・破棄 65・同時 1、close は append が終わらなくても約 1,003 ms で戻る）。契約適合（Opus）r0 条件付き GO（P2: 書きかけ 64 件の上限、P3: 同じ EventID の順・debug の「不明」・tool-internals）→ r1 GO。残した P3: 区切りの直後に受けた報は、前の時間の要約より先に端末に出る（数は正しく、条文は出す順を決めていない。直すなら inputDone の頭で roll を呼ぶ。バックログ）。Mac mini のゲート 11 本は r0・r1 とも rc 0（r1: 新築 1213 passed・26 skipped、shuffle 同数、旧築 6837 passed）",
+        "remaining": "なし",
+        "reason": "発注 2 の配送"
       }
     ],
     "operationContract": {
@@ -321,13 +329,13 @@
       "reconstruction/contracts/p3-execution-split.types.ts（【発注 1】直列合流。:127 と :2 の行の中身だけ、P3-TO-D-LINES）",
       "reconstruction/src/runtime/owner-host.ts（【発注 1】直列合流。import の 1 行と :134・:193 の行の中身だけ）",
       "reconstruction/src/host/host.ts（【発注 1】直列合流 :12・:44・:192 の行の中身。【発注 2】:216・:234・:591・:655 の行の中身）",
-      "reconstruction/src/cli/cli.ts（【発注 1】直列合流。:13・:326・:345・:357〜:362 の行の中身と、:344 より後の行の追加〔終わりの片付け〕。344 行より前に行を足さない、P3-RW2-D-CLI-LINES）",
+      "reconstruction/src/cli/cli.ts（【発注 1】直列合流。:13・:326・:345・:357〜:362 の行の中身と、:344 より後の行の追加〔終わりの片付け〕。344 行より前に行を足さない、P3-RW2-D-CLI-LINES。【発注 2】:326 の中身〔createTerminalOutput の options〕と :357 の中身〔先頭に terminal.attach(host)〕、Q-TO-IMPL-2 (1)）",
       "reconstruction/src/cli/repl.ts（【発注 1】直列合流。:68・:282・:425 の行の中身だけ。行を足さない）",
       "reconstruction/contracts/p3-cli-repl.types.ts（【発注 2】直列合流。HostStatus の :90 の行の中身に lastLossFrameWallMs を足すだけ、AC10 (2)）",
       "reconstruction/src/notification-delivery/adapter.ts（【発注 2】:202 の後に desktopNotice を 1 つ足し、:202 の export に名前を足す）",
       "reconstruction/test/execution-split/execution-split.test.ts（【発注 1】:105 の返信の key の一覧の inputDone に \"terminal\" を足す形の移行と、inputDone の literal の欄だけ）",
       "reconstruction/test/cli/repl.test.ts（【発注 1】:109・:201 の runRepl の options に terminal を足す形の移行。【発注 2】:67 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行。ほかは変えない）",
-      "reconstruction/test/cli/cli.test.ts（【発注 1】runRepl・createTerminalOutput の mock を足す形の移行。【発注 2】:215 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行。ほかは変えない）"
+      "reconstruction/test/cli/cli.test.ts（【発注 1】runRepl・createTerminalOutput の mock を足す形の移行。【発注 2】:219 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行〔発注 1 の mock で :215 から動いた〕と、:16 の mock に attach を足す形の移行〔cli.ts の attach の呼び出しのため、Q-TO-IMPL-2 (1)〕。ほかは変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -459,7 +467,7 @@
       {
         "id": "P3-TO-RES-03",
         "target": "EEW ログの書きかけ",
-        "limit": "64 件（AC15 (3)）",
+        "limit": "始めていない書き込み 64 件（鎖は全体で 1 本、AC15 (3)・Q-TO-IMPL-2 (2)）",
         "unit": "件",
         "scope": "端末の 1 run",
         "source": "AGENTS.md の受信経路（書き込みの待ちを溜め続けない）"
@@ -515,7 +523,7 @@
           "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
           "reconstruction/src/cli/repl.ts:68 «887c1ba3e75088ea»",
           "reconstruction/src/cli/repl.ts:282 «4d1bbb0e22b25764»",
-          "reconstruction/src/cli/cli.ts:357 «7ae0a4183b31aea7»",
+          "reconstruction/src/cli/cli.ts:357 «e9f3366748ddf46e»",
           "reconstruction/src/cli/cli.ts:362 «79e96ab6a412a439»",
           "reconstruction/src/host/host.ts:654 «2e82717c7bdadcab»",
           "reconstruction/src/host/host.ts:156 «25188f036e0fbb6a»",
@@ -621,12 +629,12 @@
           "docs/specs/reconstruction-p0-contracts.md:3132 «e5a25ca549961227»",
           "reconstruction/src/host/host.ts:653 «9531ba1e392e2c62»",
           "reconstruction/src/cli/cli.ts:320 «af49fbae123bea1e»",
-          "reconstruction/src/notification-delivery/adapter.ts:202 «a8d7970a78812838»",
+          "reconstruction/src/notification-delivery/adapter.ts:202 «51a3dfe295040a9b»",
           "reconstruction/contracts/p3-dmdata-connect-002.json",
-          "reconstruction/src/host/host.ts:234 «cdaf0a84735c1e30»",
+          "reconstruction/src/host/host.ts:234 «12503cfd5b79b4ea»",
           "reconstruction/src/host/host.ts:295 «dd330d17bbf6c7c8»",
           "reconstruction/src/host/host.ts:649 «0233faeeb2eae147»",
-          "reconstruction/contracts/p3-cli-repl.types.ts:90 «434c3be6813c31d9»"
+          "reconstruction/contracts/p3-cli-repl.types.ts:90 «841979bd8d2139ef»"
         ]
       },
       {
@@ -642,7 +650,7 @@
       },
       {
         "id": "P3-TO-AC12",
-        "requirement": "【発注 2】待機 tips（spec の §6.4）: (1) 旧築の src/tips/ の知識の tips を terminal/ の下へ写す（reconstruction の tsc の rootDir の外を import しない）。コマンドの tips（commands-basic・commands-advanced）は新築の REPL にある入口の分だけ残し、廃止した入口（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）の分を除く (2) 補足の薄い字で、先頭を 2 字下げて 1 行。既定の間隔は 30 分（設定の waitTipIntervalMin があればその値、0 は出さない）。最後に何かを出してから間隔の分だけ何も出していないときに 1 つ出す。選び方は旧築の tip-shuffler の写し (3) 変えるのは TerminalControl.setTipInterval（C18 の発注 3）",
+        "requirement": "【発注 2】待機 tips（spec の §6.4）: (1) 旧築の src/tips/ の知識の tips を terminal/ の下へ写す（reconstruction の tsc の rootDir の外を import しない）。コマンドの tips（commands-basic・commands-advanced）は新築の REPL にある入口の分だけ残し、廃止した入口（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）の分を除く。旧築の中の仕組みを説明する tool-internals の分野は、新築では正しくない文（再接続の待ち・通知の分野の数など）を含むので写さない（Q-TO-IMPL-2 (4)） (2) 補足の薄い字で、先頭を 2 字下げて 1 行。既定の間隔は 30 分（設定の waitTipIntervalMin があればその値、0 は出さない）。最後に何かを出してから間隔の分だけ何も出していないときに 1 つ出す。選び方は旧築の tip-shuffler の写し (3) 変えるのは TerminalControl.setTipInterval（C18 の発注 3）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:518 «6b6b55310a9e6fb3»",
           "docs/specs/cli-terminal-output.md:519 «822124990edfc1bc»",
@@ -672,14 +680,14 @@
           "docs/specs/cli-terminal-output.md:550 «77e948d5933bdd50»",
           "docs/specs/cli-terminal-output.md:551 «c68738b24a4bed31»",
           "docs/specs/cli-terminal-output.md:552 «3e9467ef9bb2c3e7»",
-          "reconstruction/src/host/host.ts:591 «39630ead3088d8ca»",
+          "reconstruction/src/host/host.ts:591 «57bcacc5289ac442»",
           "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
           "reconstruction/contracts/p3-recovery.types.ts:70 «d16fb1cb758aa091»"
         ]
       },
       {
         "id": "P3-TO-AC15",
-        "requirement": "【発注 2】EEW ログ（spec の §7、P3-TO-D-LOGDIR、P3-EWF-AC05 の申し送り）: (1) 材料は U-E の outcome の facts.report。置き場は settingsPaths().directory の下の eew-logs、file の名前・見出し（「=== 緊急地震速報 EventID: <EventID> ===」と「記録開始: …」）・1 報のブロック・差分・取消のブロック・記録終了の行（「--- 記録終了 (<理由>) HH:MM:SS ---」）は旧築の eew-logger.ts（file 名 eew_<EventID>_<時刻>.log、buildReportBlock、closeEvent）の写し。閉じるきっかけは旧築と同じく、取消の報（理由「取消」）・最終報（「最終報」）・停止（「シャットダウン」。AC02 (6) の close の中で、開いている EventID を全部閉じ、同じ 1 秒の内で書き終わりを待つ）。旧築の「タイムアウト」（message-router.ts の EEW の追跡の期限）に当たる知らせは端末の口に無い（U-E の期限切れの outcome は deadlineDone の返信で、inputDone を通らない）ので、期限では閉じない。閉じたらその EventID を表から外し、その後の続報は旧築どおり見出しから書く。記録する欄は設定の eewLogFields（C18 の EewLogField の 12 個） (2) 既定は off。設定の eewLog が true のときと、TerminalControl.setEewLog(true, …) の後だけ書く (3) 書き込みは fs.promises.appendFile（追記で開き、無ければ作る）だけで、main を止めない。file を作り直さず、名前に接尾辞を足さない（旧築も報ごとに追記していたので書式は互換）。EventID ごとに順を守る鎖を持ち、書きかけの数は 64 まで。越えたら最も古い EventID の鎖のうち始めていない書き込みを捨てて数える。始めた appendFile は取り消せないので最後まで走らせ、その終わりでその EventID の鎖を外す。その EventID の次の報は、始めた append の終わりの後に、同じ path へ追記で続ける。EventID → path の表は 64 件まで（古い順に外す。旧築は上限なし）。閉じた EventID と表から外した EventID の続報は、旧築どおり見出しから、旧築の命名（eew_<EventID>_<秒までの時刻>.log）の path に書く。同じ秒で同じ path になるときは、旧築と同じく同じ file に追記で見出しから続く。64 件の鎖がすべて書き込みの途中で、捨てられる始めていない書き込みが無いときは、65 件目の EventID の書き込みを待つ列（64 件まで、越えたら最も古い待ちを捨てて数える）に入れ、どれかの鎖が外れたら順に始める (4) 取消の報は取消の文だけを書き、震源も仮定震源の印も書かない（Q-TO-L-1） (5) dmdata の規約で EEW は personal 限定。書くのは利用者の設定の場所だけで、repo・診断・標準出力の外へ写さない",
+        "requirement": "【発注 2】EEW ログ（spec の §7、P3-TO-D-LOGDIR、P3-EWF-AC05 の申し送り）: (1) 材料は U-E の outcome の facts.report。置き場は settingsPaths().directory の下の eew-logs、file の名前・見出し（「=== 緊急地震速報 EventID: <EventID> ===」と「記録開始: …」）・1 報のブロック・差分・取消のブロック・記録終了の行（「--- 記録終了 (<理由>) HH:MM:SS ---」）は旧築の eew-logger.ts（file 名 eew_<EventID>_<時刻>.log、buildReportBlock、closeEvent）の写し。閉じるきっかけは旧築と同じく、取消の報（理由「取消」）・最終報（「最終報」）・停止（「シャットダウン」。AC02 (6) の close の中で、開いている EventID を全部閉じ、同じ 1 秒の内で書き終わりを待つ）。旧築の「タイムアウト」（message-router.ts の EEW の追跡の期限）に当たる知らせは端末の口に無い（U-E の期限切れの outcome は deadlineDone の返信で、inputDone を通らない）ので、期限では閉じない。閉じたらその EventID を表から外し、その後の続報は旧築どおり見出しから書く。記録する欄は設定の eewLogFields（C18 の EewLogField の 12 個） (2) 既定は off。設定の eewLog が true のときと、TerminalControl.setEewLog(true, …) の後だけ書く (3) 書き込みは fs.promises.appendFile（追記で開き、無ければ作る）だけで、main を止めない。file を作り直さず、名前に接尾辞を足さない（旧築も報ごとに追記していたので書式は互換）。書き込みの鎖は全体で 1 本で、appendFile は一度に 1 つ、受けた順に走らせる（EventID ごとの順もこれで守る）。始めていない書き込みは 64 件までで、越えたら最も古い始めていない書き込みを捨てて数える。始めた appendFile は取り消せないので最後まで走らせる。捨てるのは EventID を問わず最も古い書き込みなので、見出しや記録終了の行が捨てられたときは、その後の続報が見出しの無いまま同じ file に続く（書き込みが 64 件を越えて詰まったときだけ。Q-TO-IMPL-2 (2)）。EventID → path の表は 64 件まで（古い順に外す。旧築は上限なし）。閉じた EventID と表から外した EventID の続報は、旧築どおり見出しから、旧築の命名（eew_<EventID>_<秒までの時刻>.log）の path に書く。同じ秒で同じ path になるときは、旧築と同じく同じ file に追記で見出しから続く。(4) 取消の報は取消の文だけを書き、震源も仮定震源の印も書かない（Q-TO-L-1） (5) dmdata の規約で EEW は personal 限定。書くのは利用者の設定の場所だけで、repo・診断・標準出力の外へ写さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:557 «1897c3a144684fd5»",
           "docs/specs/cli-terminal-output.md:559 «9bdf2bf317349f96»",
@@ -707,7 +715,7 @@
       },
       {
         "id": "P3-TO-AC17",
-        "requirement": "【発注 2】--debug と lowmem: (1) 起動の --debug（C18 の発注 1 は CLI 自身の設定だけを標準エラーへ出す）のとき、端末は AC01 の口を通った入力ごとに「debug: <種類のコード> <入力 ID>（<unit>、出した｜出さない）」を薄い字の 1 行で出す（書き出しの列を通す）。出さない理由は「採らなかった」か「取り直し」の 2 つだけ (2) lowmem は P3-TO-D-LOWMEM のとおりコードを足さない。発注前点検で node --optimize-for-size のもとで worker の中の v8.getHeapStatistics と main の値の flag が同じに効くことを 1 回確かめ、記録する",
+        "requirement": "【発注 2】--debug と lowmem: (1) 起動の --debug（C18 の発注 1 は CLI 自身の設定だけを標準エラーへ出す）のとき、端末は AC01 の口を通った入力ごとに「debug: <種類のコード> <入力 ID>（<unit>、出した｜出さない）」を薄い字の 1 行で出す（書き出しの列を通す）。出さない理由は「採らなかった」か「取り直し」の 2 つだけ。返信に種類のコードが無い入力は、種類のコードと unit を書かずに「debug: <入力 ID>（出さない・採らなかった）」の形にする（Q-TO-IMPL-2 (3)） (2) lowmem は P3-TO-D-LOWMEM のとおりコードを足さない。発注前点検で node --optimize-for-size のもとで worker の中の v8.getHeapStatistics と main の値の flag が同じに効くことを 1 回確かめ、記録する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2382 «819786a9cb03a4b9»",
           "reconstruction/src/cli/cli.ts:90 «d62936cb0fa4c51a»",
@@ -841,7 +849,7 @@
         "referenceIds": [
           "P3-TO-AC12"
         ],
-        "behavior": "受入条件（tips、【発注 2】）。写した tips の全件に、廃止した入口の名前（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）を入口として案内する文が無く、知識の tips の件数が旧築と同じ"
+        "behavior": "受入条件（tips、【発注 2】）。写した tips の全件に、廃止した入口の名前（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）を入口として案内する文が無く、知識の tips の件数（tool-internals を除く 24 分野、2,202 件）が旧築と同じ"
       },
       {
         "testId": "P3-TO-T14",

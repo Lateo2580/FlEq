@@ -4,20 +4,35 @@ import { Worker } from "node:worker_threads";
 
 import chalk from "chalk";
 
+import type { ClockReading, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { EewLogField, HostCommandPort, HostStatus } from "../../contracts/p3-cli-repl.types";
+import type { DmdataConnectFailure } from "../../contracts/p3-dmdata-connect.types";
 import type { OwnerReply } from "../../contracts/p3-execution-split.types";
-import { resolveRepoPath } from "../notification-delivery/adapter";
+import type { RecoveryDigestView } from "../../contracts/p3-recovery.types";
+import type { TerminalControl, TerminalReport } from "../../contracts/p3-terminal-output.types";
+import { muteActive } from "../cli/notification-gate";
+import type { NotificationSettings } from "../cli/notification-gate";
+import { desktopNotice, resolveRepoPath } from "../notification-delivery/adapter";
 import { colorLevel } from "./color";
-import type { TerminalBatch, TerminalUnit } from "./format";
+import { createEewLog } from "./eew-log";
+import { intensityLabel, intensityRank, localClock } from "./format";
+import type { SummaryCounts, TerminalBatch, TerminalNotice, TerminalUnit } from "./format";
+import { createTipShuffler } from "./tips";
+import { checkForUpdate } from "./update-check";
+import type { UpdateCheck } from "./update-check";
 
 // P3-TO-AC02（O02、D-WRITER・D-DROP）: main は材料と行を有界の列に積み、worker の手が空いたら頭からまとめて 1 回送るだけ。
 // 整形と fs.writeSync(1, …) は writer の worker が行う。無いと SSH の向こうの端末が止まったとき main の write(2) が止まり、受信と通知が止まる。
 // RES-01: 列は 1 本で上限は 1 MiB の 1 つ。worker への 1 回の送りは 64 KiB まで（1 単位がそれより大きければその 1 単位だけ）。
 // DLV-02: 停止の後は列の残りを最長 1 秒書かせる。
 const QUEUE_BYTES = 1024 * 1024, SEND_BYTES = 64 * 1024, CLOSE_MS = 1_000;
+// DLV-01: 回線の状態を 1 秒ごとに読む（変化を知らせる口は無い、P3-DC2-AC08 (7)）。要約の区切りと tips の待ちも同じ tick で見る。
+// Q-TO-C-3: 30 分で 3 回切れたら「回線が不安定です」にまとめ、30 分続けて繋がるまで切断の通知を出さない。
+const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
 
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
-// AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。
-type TerminalSink = Readonly<{ inputDone(reply: InputDone): void }>;
+// AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
+type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; digest(view: RecoveryDigestView | null): void }>;
 // AC02 (5): 試験で差し替える writer。done を呼ぶまで次を送らない。
 type TerminalWriter = (batch: TerminalBatch, done: () => void) => void;
 type TerminalOutput = Readonly<{
@@ -28,6 +43,9 @@ type TerminalOutput = Readonly<{
   line(text: string): void;
   // 電文のブロックの後に書き直す prompt と入力中の文字を、積む時に readline から写す。
   bind(readline: Interface): void;
+  // 【発注 2】host の起動の後に 1 回: 回線の読み・定期要約・tips の時計を始め、update check を 1 回だけ非同期で始める。
+  attach(host: Pick<HostCommandPort, "status">): void;
+  control: TerminalControl;
   close(): Promise<void>;
   // 試験の口（T06）: 列の配列がまだ参照している単位の数。
   held(): number;
@@ -44,14 +62,55 @@ function estimate(value: unknown): number {
 }
 const counted = (unit: TerminalUnit): boolean => unit.kind !== "echo";
 
-function createTerminalOutput(options: Readonly<{ write?: TerminalWriter }> = {}): TerminalOutput {
+// 【発注 2】の口。どれも省けば出さない（試験と測定の起動）。cli.ts は起動の時に読んだ値を渡す。
+type TerminalOptions = Readonly<{
+  write?: TerminalWriter;
+  clock?: () => ClockReading;
+  // AC10 (4): cli.ts が通知の門と REPL に渡している object と同じもの（その場で読む）。
+  notification?: Readonly<NotificationSettings>;
+  // 切断の通知の口（既定は adapter の desktopNotice。試験で差し替える）。
+  notify?: (title: string, body: string) => Promise<void>;
+  // AC11 (2)・AC12 (2): 分。0 か無しは出さない（tips の既定は 30 分）。
+  summaryInterval?: number;
+  tipInterval?: number;
+  random?: () => number;
+  // AC17 (1)
+  debug?: boolean;
+  // AC15: 置き場は settingsPaths().directory の下の eew-logs（P3-TO-D-LOGDIR）。
+  eewLog?: Readonly<{ directory: string; enabled: boolean; fields: Readonly<Partial<Record<EewLogField, boolean>>> }>;
+  // AC13: 無しは確かめない。
+  updateCheck?: Omit<UpdateCheck, "now">;
+}>;
+
+// AC11 (3)・P3-TO-D-SUMMARY: 分野は §6.2 の 6 つ。U-M の地震の解説（VXSE56・VXSE60・VZSE40）は地震に数える。
+const summaryKind = (unit: RuntimeUnitId, headType: string): "eew" | "quake" | "tsunami" | "nankai" | "volcano" | "weather" =>
+  unit === "U-E" ? "eew" : unit === "U-Q" || (unit === "U-M" && /^V[XZ]SE/.test(headType)) ? "quake" : unit === "U-T" ? "tsunami"
+    : unit === "U-N" ? "nankai" : unit === "U-V" ? "volcano" : "weather";
+const unitOf = (report: TerminalReport): RuntimeUnitId => report.kind === "seismic" ? "U-Q" : report.kind === "tsunami" ? "U-T" : report.unit;
+// 区切りは interval の分の境目（地方時の 0 時から数える、P3-TO-D-SUMMARY）。
+function nextBoundary(afterMs: number, minutes: number): number {
+  const at = new Date(afterMs);
+  return new Date(at.getFullYear(), at.getMonth(), at.getDate(), 0, (Math.floor((at.getHours() * 60 + at.getMinutes()) / minutes) + 1) * minutes).getTime();
+}
+const hms = (ms: number): string => {
+  const total = Math.floor(Math.max(0, ms) / 1000);
+  return [Math.floor(total / 3600), Math.floor(total % 3600 / 60), total % 60].map((part) => String(part).padStart(2, "0")).join(":");
+};
+const uptime = (ms: number): string => {
+  const total = Math.floor(Math.max(0, ms) / 1000);
+  return `${String(Math.floor(total / 86400)).padStart(3, "0")}:${hms((total % 86400) * 1000)}`;
+};
+
+function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   const tty = process.stdout.isTTY === true;
+  const clock = options.clock ?? (() => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() }));
   // 送った・落とした枠は undefined にして単位の参照を残さない（残すと送り終えた材料が列の配列に溜まる）。
   const queue: ({ unit: TerminalUnit; bytes: number } | undefined)[] = [];
   let head = 0, bytes = 0, dropped = 0, inFlight = false, failed = false;
   let readline: Interface | null = null, idle: (() => void) | null = null, closing: Promise<void> | null = null;
   let pending: (() => void) | null = null;
   let worker: Worker | null = null;
+  let lastOutputMs = clock().monotonicMs;
   const fail = () => {
     if (failed) return;
     // AC02 (2): worker が落ちても process は落とさず、受信も止めない。以後は積まずに数えるだけ。
@@ -104,6 +163,7 @@ function createTerminalOutput(options: Readonly<{ write?: TerminalWriter }> = {}
   };
   // D-DROP: 越えたら種類によらず古い単位から丸ごと落とす。上限より大きい 1 単位は積まずに落とす。echo と prompt は数えない。
   const push = (unit: TerminalUnit): void => {
+    lastOutputMs = clock().monotonicMs;
     const size = failed ? 0 : estimate(unit);
     if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; return; }
     while (bytes + size > QUEUE_BYTES) if (counted(take().unit)) dropped += 1;
@@ -121,43 +181,221 @@ function createTerminalOutput(options: Readonly<{ write?: TerminalWriter }> = {}
   Object.defineProperties(output, { isTTY: { value: tty }, columns: { get: () => process.stdout.columns }, rows: { get: () => process.stdout.rows } });
   const resize = () => { output.emit("resize"); };
   process.stdout.on("resize", resize);
+  const notice = (item: TerminalNotice) => { push({ kind: "notice", notice: item, prompt: promptOf() }); };
+
+  // ---- 定期要約（AC11、P3-TO-D-SUMMARY）: 分野ごとの件数と最大震度の 7 つの数だけを持つ（受信 1 回で O(1)） ----
+  const created = clock();
+  let counts = { eew: 0, quake: 0, tsunami: 0, nankai: 0, volcano: 0, weather: 0, maxInt: null as string | null };
+  let summaryMinutes = options.summaryInterval ?? 0, nextSummaryMinutes = summaryMinutes, periodStart = created.wallTimeMs;
+  let boundary: number | null = summaryMinutes > 0 ? nextBoundary(periodStart, summaryMinutes) : null;
+  const summarize = (toMs: number) => {
+    const done: SummaryCounts = { ...counts };
+    notice({ kind: "summary", fromWallMs: periodStart, toWallMs: toMs, counts: done });
+    counts = { eew: 0, quake: 0, tsunami: 0, nankai: 0, volcano: 0, weather: 0, maxInt: null };
+    periodStart = toMs;
+  };
+  // 区切りを過ぎていたら前の時間の要約を出して区切りを進める（tick と数える前の両方で見る）。
+  // 無いと tick の間（最長 1 秒）に区切りを過ぎた受信が前の時間に数えられる。
+  const roll = (nowMs: number) => {
+    if (boundary == null || nowMs < boundary) return;
+    const ended = boundary;
+    summarize(ended);
+    summaryMinutes = nextSummaryMinutes;
+    boundary = summaryMinutes > 0 ? nextBoundary(Math.max(ended, nowMs), summaryMinutes) : null;
+  };
+  const count = (unit: RuntimeUnitId, headType: string, maxInt: string | null) => {
+    roll(clock().wallTimeMs);
+    counts[summaryKind(unit, headType)] += 1;
+    const label = maxInt == null || maxInt === "" ? null : intensityLabel(maxInt);
+    if (unit === "U-Q" && label != null && intensityRank(label) > (counts.maxInt == null ? -1 : intensityRank(counts.maxInt))) counts.maxInt = label;
+  };
+
+  // ---- tips（AC12） ----
+  let tipMs = (options.tipInterval ?? DEFAULT_TIP_MINUTES) * 60_000;
+  const tips = createTipShuffler(options.random);
+
+  // ---- 回線（AC10） ----
+  const settings = options.notification;
+  const notify = options.notify ?? desktopNotice;
+  let host: Pick<HostCommandPort, "status"> | null = null, status: HostStatus | null = null, timer: NodeJS.Timeout | null = null, closed = false;
+  let seenLost = 0, down = false, lostFrom: number | null = null, shownFailure: DmdataConnectFailure | null = null, received = false;
+  let unstable = false, upSince: number | null = null, lastReportWallMs: number | null = null, attachedWallMs = created.wallTimeMs;
+  // RET-02: 覚える切断の時刻は直近 3 つ（monotonic）。
+  const losses: number[] = [];
+  // P3-TO-D-CONN-NOTIFY（作者裁定 A）: 分野 connection が off か mute の間（rules によらない）は出さない。
+  // 分野 connection の key は C18 の発注 3 が足す。それまでは閉じた union に無いので on として読む（as で言い換えない）。
+  const notifyAllowed = (now: ClockReading): boolean => {
+    if (settings == null) return true;
+    const notifyMap: Readonly<{ [key: string]: boolean | undefined }> = settings.notify;
+    return notifyMap.connection !== false && !muteActive(settings, now.monotonicMs);
+  };
+  const lost = (fromWallMs: number | null, now: ClockReading) => {
+    upSince = null;
+    losses.push(now.monotonicMs);
+    if (losses.length > 3) losses.shift();
+    if (unstable) return;
+    const third = losses.length === 3 && now.monotonicMs - losses[0] <= UNSTABLE_MS;
+    if (third) unstable = true;
+    if (!notifyAllowed(now)) return;
+    notify("FlEq", third ? "回線が不安定です（30 分で 3 回切れました）" : `回線が切れました（${localClock(fromWallMs ?? now.wallTimeMs)} から受信できていません）`).catch(() => {});
+  };
+  const read = (now: ClockReading) => {
+    if (host == null) return;
+    const next = host.status();
+    status = next;
+    // AC10 (5): 一度も受信していない間だけ、理由が変わったときに 1 回出す。
+    if (next.lastFrameWallMs != null) received = true;
+    else if (!received && next.lastFailure != null && next.lastFailure !== shownFailure) {
+      shownFailure = next.lastFailure;
+      notice({ kind: "failure", reason: next.lastFailure });
+    }
+    // AC10 (2): 増えた数だけ行を出す。時刻は切断の時点で固めた最後の受信（読む前に新しい接続の frame で上書きされうる lastFrameWallMs は使わない）。
+    for (; seenLost < next.lostConnections; seenLost += 1) {
+      down = true;
+      lostFrom = next.lastLossFrameWallMs;
+      notice({ kind: "lost", fromWallMs: next.lastLossFrameWallMs, noticedWallMs: now.wallTimeMs });
+      lost(next.lastLossFrameWallMs, now);
+    }
+    if (next.connection === "connected") {
+      if (down) { down = false; notice({ kind: "restored", fromWallMs: lostFrom, toWallMs: now.wallTimeMs }); }
+      upSince ??= now.monotonicMs;
+      if (unstable && now.monotonicMs - upSince >= UNSTABLE_MS) unstable = false;
+    } else upSince = null;
+  };
+  const tick = () => {
+    const now = clock();
+    read(now);
+    roll(now.wallTimeMs);
+    // AC12 (2): 最後に何かを出してから間隔の分だけ何も出していないときに 1 つ。
+    if (tipMs > 0 && now.monotonicMs - lastOutputMs >= tipMs) notice({ kind: "tip", text: tips.next() });
+  };
+
+  const eewLog = options.eewLog == null ? null : createEewLog({ ...options.eewLog, clock });
+  const control: TerminalControl = {
+    // 次の区切りから効く。止まっている間に入れたら今から数え始める。
+    setSummaryInterval(minutes) {
+      nextSummaryMinutes = minutes;
+      if (boundary == null && minutes > 0) {
+        const now = clock().wallTimeMs;
+        counts = { eew: 0, quake: 0, tsunami: 0, nankai: 0, volcano: 0, weather: 0, maxInt: null };
+        summaryMinutes = minutes;
+        periodStart = now;
+        boundary = nextBoundary(now, minutes);
+      }
+    },
+    summaryNow() { summarize(clock().wallTimeMs); },
+    setTipInterval(minutes) { tipMs = minutes * 60_000; },
+    setEewLog(enabled, fields) { eewLog?.set(enabled, fields); },
+    // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
+    clear() { push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
+    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。色と点滅は付けない。
+    promptLabel(mode) {
+      if (status == null) return "FlEq> ";
+      if (down) return `FlEq [切断中 ${lostFrom == null ? "--:--:--" : localClock(lostFrom)} から・繋ぎ直し ${status.failedAttempts} 回目]> `;
+      const now = clock(), connected = status.connection === "connected";
+      if (mode === "uptime") return `FlEq [${connected ? "●" : "○"} ${uptime(process.uptime() * 1000)}]> `;
+      if (!connected && !received) return "FlEq [○ --:--:--]> ";
+      return `FlEq [● ${mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs))}]> `;
+    },
+  };
+
+  let digestShown = false;
   return {
     sink: { inputDone(reply) {
       // AC08 (1): 返信の terminal の参照と、その返信の outcomes のうち U-E のもの（facts.report を持つ）を積むだけ。
       const prompt = promptOf();
-      if (reply.terminal != null) push({ kind: "report", report: reply.terminal, prompt });
+      let shown: { unit: RuntimeUnitId; headType: string } | null = null;
+      if (reply.terminal != null) {
+        const report = reply.terminal;
+        push({ kind: "report", report, prompt });
+        shown = { unit: unitOf(report), headType: report.head.headType };
+        count(shown.unit, shown.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null);
+      }
       for (const { unit, outcome } of reply.output.outcomes) {
         if (unit !== "U-E" || outcome.kind !== "accepted" || outcome.change === "deliveryOnly") continue;
-        for (const subject of outcome.subjects) if (subject.facts.report != null) push({ kind: "eew", subject, prompt });
+        for (const subject of outcome.subjects) {
+          if (subject.facts.report == null) continue;
+          push({ kind: "eew", subject, prompt });
+          shown = { unit, headType: typeof subject.facts.family === "string" ? subject.facts.family : subject.source?.family ?? "VXSE" };
+          count(unit, shown.headType, null);
+          eewLog?.record(subject);
+        }
       }
+      const { inputId } = reply.settlement;
+      // P3-TO-D-UNREADABLE（作者裁定 A）: 何も出さなかった入力だけ、その入力の unreadable・unidentified のカードを返信の view から探す（views は変わった unit だけ）。
+      let card: Readonly<{ unit: RuntimeUnitId; headType: string }> | null = null;
+      if (shown == null) {
+        for (const delta of reply.output.units) {
+          const found = delta.view?.unreadableCards?.find((item) => item.inputId === inputId && item.kind !== "unknownType");
+          if (found != null) { push({ kind: "unreadable", card: found, prompt }); card = { unit: delta.unit, headType: found.headType }; break; }
+        }
+      }
+      if (shown != null) lastReportWallMs = clock().wallTimeMs;
+      // AC17 (1): 出さない理由は取り直し（owner の recoveryInput は decode を持たない返信）か採らなかったの 2 つ。
+      if (options.debug === true) {
+        // 返信が種類のコードを持たない入力（採らなかった入力・取り直し）は、種類のコードと unit を書かない（「不明」とは出さない）。
+        const known = shown ?? card;
+        const result = shown != null ? "出した" : `出さない・${reply.decode == null ? "取り直し" : "採らなかった"}`;
+        notice({ kind: "debug", text: known == null ? `debug: ${inputId}（${result}）` : `debug: ${known.headType} ${inputId}（${known.unit}、${result}）` });
+      }
+    }, digest(view) {
+      // P3-TO-D-DIGEST: null から値になった最初の 1 回だけ。
+      if (digestShown || view == null) return;
+      digestShown = true;
+      notice({ kind: "digest", digest: view });
     } },
     output,
+    control,
     line: (text) => { push({ kind: "line", text }); },
     held: () => queue.filter((item) => item != null).length,
     bind(next) {
       readline = next;
       next.once("close", () => { if (readline === next) readline = null; });
     },
+    attach(next) {
+      if (closed || host != null) return;
+      host = next;
+      attachedWallMs = clock().wallTimeMs;
+      read(clock());
+      // 時計は process の終わりを延ばさない（unref、close で止める）。
+      timer = setInterval(tick, TICK_MS);
+      timer.unref();
+      // AC13 (2): 起動と受信を待たせず 1 回だけ。close の後に返った答えは出さない。
+      if (options.updateCheck != null) {
+        void checkForUpdate({ ...options.updateCheck, now: () => clock().wallTimeMs }).then((found) => {
+          if (found != null && !closed) notice({ kind: "update", ...found });
+        });
+      }
+    },
     // AC02 (6): 列の残りを最長 1 秒書かせる。返事が来なければ（worker が同期の write(2) の中で止まっている）待たずに終える。
     close() {
       closing ??= new Promise<void>((resolve) => {
+        closed = true;
+        if (timer != null) clearInterval(timer);
         process.stdout.off("resize", resize);
-        const end = (drained: boolean) => {
-          clearTimeout(timer);
+        // AC15 (1): 開いている EventID を「シャットダウン」で閉じ、同じ 1 秒の内で書き終わりを待つ。
+        const logs = eewLog?.close() ?? Promise.resolve();
+        let drained = false, logged = false, ended = false;
+        const end = (finished: boolean) => {
+          if (ended) return;
+          ended = true;
+          clearTimeout(deadline);
           idle = null;
           queue.length = 0;
           head = 0;
           bytes = 0;
           if (worker == null) { resolve(); return; }
           worker.off("exit", fail);
-          if (drained) { worker.terminate().then(() => resolve(), () => resolve()); return; }
+          if (finished) { worker.terminate().then(() => resolve(), () => resolve()); return; }
           worker.unref();
           worker.terminate().catch(() => {});
           resolve();
         };
-        const timer = setTimeout(() => end(false), CLOSE_MS);
-        idle = () => end(true);
-        if (failed || (!inFlight && head === queue.length)) end(true);
+        const deadline = setTimeout(() => end(false), CLOSE_MS);
+        const settle = () => { if (drained && logged) end(true); };
+        void logs.then(() => { logged = true; settle(); });
+        idle = () => { drained = true; settle(); };
+        if (failed || (!inFlight && head === queue.length)) { drained = true; settle(); }
       });
       return closing;
     },
@@ -165,4 +403,4 @@ function createTerminalOutput(options: Readonly<{ write?: TerminalWriter }> = {}
 }
 
 export { createTerminalOutput, estimate };
-export type { TerminalOutput, TerminalSink, TerminalWriter };
+export type { TerminalOptions, TerminalOutput, TerminalSink, TerminalWriter };

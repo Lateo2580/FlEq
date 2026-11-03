@@ -199,5 +199,17 @@ async function probeSoundBackend(silentWavPath: string, clock: () => ClockReadin
   try { return await run; } finally { clearTimeout(timer); }
 }
 
-export { runNotificationAttempt, abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath };
+export { runNotificationAttempt, abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, desktopNotice };
 export type { SoundBackend };
+
+// P3-TO-D-CONN-NOTIFY-PATH: 回線の切断の通知（端末の出力の側、C19）。intent・保存・通知の門を通らず、音は付けない。
+// 起動と終わりを待たない（10 秒で止める）。backend の無い環境と起動の失敗は何もしない（R34 と同じく再試行しない）。
+function desktopNotice(title: string, body: string): Promise<void> {
+  const command = process.platform === "darwin" ? ["/usr/bin/osascript", ["-e", "on run argv", "-e",
+    "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", "--", title, body]] as const
+    : process.platform === "linux" ? ["/usr/bin/notify-send", ["--expire-time=10000", "--", title, body]] as const : null;
+  if (command == null || !existsSync(command[0])) return Promise.resolve();
+  return new Promise((done) => {
+    try { childProcess.execFile(command[0], command[1], { timeout: 10_000 }, () => done()).unref(); } catch { done(); }
+  });
+}

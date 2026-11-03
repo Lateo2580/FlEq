@@ -323,7 +323,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   // host が自分で止まったまま正常に戻る（P3-CLI-D-SIGNAL）。無いと: 終了 code が要約の code にならず、待ちが終わらない。
   type Host = Awaited<ReturnType<typeof startP2Host>>;
   let host: Host | null = null;
-  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput(); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）
+  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput({ clock, notification, summaryInterval: summaryInterval.value, tipInterval: settings.waitTipIntervalMin, debug: options.debug === true, eewLog: { directory: join(paths.directory, "eew-logs"), enabled: settings.eewLog === true, fields: settings.eewLogFields ?? {} }, updateCheck: { directory: paths.directory, env: process.env } }); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）。【発注 2】AC10 (4)・AC11 (2)・AC12 (2)・AC13・AC15・AC17 の値
   let stopping: ReturnType<Host["stop"]> | null = null;
   let wake: () => void = () => {};
   const asked = new Promise<void>((resolve) => { wake = resolve; });
@@ -354,7 +354,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     }
     if (requested) stopping ??= host.stop();
     else {
-      if (resolved.display) terminal.line(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
+      terminal.attach(host); if (resolved.display) terminal.line(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
       // P3-RW2-AUTHOR-POLISH: FLEQ_WS_URL が空でなく host が起きたなら replayWsFor が返した場合だけ（断れば Refusal で起動しない）。使っていない区分を出して dmdata と誤解させない。
       terminal.line(process.env.FLEQ_WS_URL ? "偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C" : `受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
       const muted = muteStartLine(notification, clock);

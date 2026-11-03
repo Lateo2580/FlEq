@@ -9,7 +9,7 @@ type Style = Readonly<{ fg?: string; bg?: string; bold?: true }>;
 const GRAY = "#84919e", SKY = "#56b4e9", BLUE = "#0072b2", BLUE_GREEN = "#009e73", YELLOW = "#f0e442", ORANGE = "#e69f00",
   VERMILLION = "#d55e00", RASPBERRY = "#cc79a7", DARK_RED = "#7a1e00", PURPLE = "#b23ab2", WHITE = "#ffffff", BLACK = "#000000";
 const ROLES = {
-  bandPurple: { bg: PURPLE, fg: WHITE, bold: true }, rulePurple: { fg: PURPLE },
+  bandPurple: { bg: PURPLE, fg: WHITE, bold: true }, rulePurple: { fg: PURPLE }, bandPurpleShort: { bg: WHITE, fg: BLACK, bold: true },
   bandWarning: { bg: DARK_RED, fg: WHITE, bold: true }, ruleWarning: { fg: VERMILLION },
   bandCaution: { bg: YELLOW, fg: BLACK }, ruleCaution: { fg: YELLOW },
   bandPlain: { bold: true }, rulePlain: { fg: GRAY },

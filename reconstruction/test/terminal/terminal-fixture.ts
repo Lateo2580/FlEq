@@ -2,13 +2,17 @@ import { readFileSync } from "node:fs";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { EewUnitState } from "../../contracts/p2-eew-unit.types";
-import type { RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, RuntimePublishedOutcome, RuntimeUnitId, SubjectOutcome } from "../../contracts/p2-shared-runtime.types";
+import type { HostStatus } from "../../contracts/p3-cli-repl.types";
+import type { OwnerReply } from "../../contracts/p3-execution-split.types";
 import type { TerminalReport } from "../../contracts/p3-terminal-output.types";
 import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { terminalReport } from "../../src/terminal/material";
 import { createRenderer, width } from "../../src/terminal/format";
 import type { TerminalUnit } from "../../src/terminal/format";
+import { createTerminalOutput } from "../../src/terminal/output";
+import type { TerminalOptions } from "../../src/terminal/output";
 import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 
 // 端末の試験の共通: fixture を ingress→decode に通し、色 0 の renderer で行にする。
@@ -72,4 +76,32 @@ const rule = (columns = 80): string => "─".repeat(Math.min(columns, 80));
 const band = (title: string, time: string, columns = 80): string =>
   `━ ${title} ${"━".repeat(Math.min(columns, 80) - width(title) - width(time) - 11)} ${time} 発表 ━`;
 
-export { allThirteen, band, decodeFixture, eewUnits, reportOf, reportUnit, rule, terminal };
+// 返信 1 つ（【発注 2】の試験）。outcomes は U-E の受信の outcome など、units は view の変わった unit。
+type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
+function inputDoneOf(inputId: string, terminal: TerminalReport | null, outcomes: readonly RuntimePublishedOutcome[] = [],
+  units: InputDone["output"]["units"] = [], decoded = true): InputDone {
+  return { kind: "inputDone", settlement: { kind: "parser", messageId: inputId, runId: "r", encodedByteLength: 0, startedMonotonicMs: 0,
+    completedMonotonicMs: 0, inputId, inputSequence: 1 }, processingStartedMs: 0, marks: { ingressJsonMs: null, base64DecodeMs: null,
+    decompressionMs: null, fullXmlParseMs: null, metadataSpecialValueMs: null, domainExtractionMs: null, workerTransferMs: null },
+  decode: decoded ? { startedMonotonicMs: 0, endedMonotonicMs: 0, xmlParseStartedMonotonicMs: null, xmlParseEndedMonotonicMs: null } : null,
+  heap: null, inputGenerations: null, generationRaisedMs: null, terminal,
+  output: { units, outcomes, displayChanges: [], confirmationEvidence: [], retiredEvents: [], diagnostics: [] } };
+}
+const eewOutcome = (subject: SubjectOutcome): RuntimePublishedOutcome => ({ unit: "U-E", outcome: { kind: "accepted", change: "semantic", subjects: [subject] } });
+
+// 偽の時計（vi.useFakeTimers の Date）で動く端末と、偽の host・通知の口。書き出しは色 0 の行にして lines に積む。
+const CONNECTED: HostStatus = { connection: "connected", socketId: 1, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0,
+  lastLossFrameWallMs: null, display: null };
+function harness(options: TerminalOptions = {}, initial: Partial<HostStatus> = {}) {
+  const renderer = createRenderer(0), lines: string[] = [], notices: string[] = [];
+  let status: HostStatus = { ...CONNECTED, ...initial };
+  const clock = (): ClockReading => ({ wallTimeMs: Date.now(), monotonicMs: Date.now() });
+  const output = createTerminalOutput({ tipInterval: 0, clock, notify: async (_title, body) => { notices.push(body); }, ...options,
+    write: (batch, done) => { lines.push(...renderer.render(batch).replace(/\n$/, "").split("\n")); done(); } });
+  return { output, lines, notices, attach: () => { output.attach({ status: () => status }); },
+    set: (next: Partial<HostStatus>) => { status = { ...status, ...next }; } };
+}
+// 地方時の 2026-11-03 の時刻（spec の図の場面の時刻）。
+const at = (hours: number, minutes: number, seconds = 0): number => new Date(2026, 10, 3, hours, minutes, seconds).getTime();
+
+export { allThirteen, at, band, decodeFixture, eewOutcome, eewUnits, harness, inputDoneOf, reportOf, reportUnit, rule, terminal };

@@ -1,9 +1,11 @@
 import type { DecodedMaterial, ParserMailboxResult, XmlElement } from "../../contracts/p1-parser-boundary.types";
 import type { RuntimePublishedOutcome, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type {
-  TerminalHead, TerminalHypocenter, TerminalIntensityArea, TerminalReport, TerminalTsunamiArea, TerminalTsunamiStation, TerminalValue,
+  TerminalBandLevel, TerminalHead, TerminalHypocenter, TerminalIntensityArea, TerminalReport, TerminalTsunamiArea, TerminalTsunamiStation, TerminalValue,
 } from "../../contracts/p3-terminal-output.types";
-import { attribute, children, first, scalar, text } from "../decode-material/xml-read";
+import { attribute, children, first, localName, scalar, text } from "../decode-material/xml-read";
+import { levelOf as floodLevel } from "../domains/flood/flood";
+import { levelOf as landslideLevel } from "../domains/landslide/landslide";
 import { classifyHeadType } from "../runtime/unit-coverage";
 
 // P3-TO-AC01 (3)・RES-02: 端末の材料を owner の worker で 1 報に 1 回だけ作る。XML の生の文字を写すだけで、整形は端末の側。
@@ -96,15 +98,70 @@ function tsunami(material: DecodedMaterial, body: XmlElement | null): TerminalRe
     omitted: areaBudget.omitted + stationBudget.omitted + estimationBudget.omitted };
 }
 
+// ---- 短い形（AC09、spec §5.4）----
+type ShortUnit = Exclude<RuntimeUnitId, "U-E" | "U-Q" | "U-T">;
+type Kind = Readonly<{ name: string | null; code: string | null; status: string | null }>;
+// Body を文書の順に 1 回だけ辿り、最初の Area/Name（対象）と、Kind（LastKind は名前が違うので入らない）と InfoSerial/Name を集める（AC08 (2)）。
+// Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
+function scan(body: XmlElement | null): { target: string | null; kinds: Kind[]; serialName: string | null } {
+  const found: { target: string | null; kinds: Kind[]; serialName: string | null } = { target: null, kinds: [], serialName: null };
+  const visit = (node: XmlElement): void => {
+    const name = localName(node);
+    if (name === "Area" && found.target == null) found.target = read(node, "Name");
+    else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
+    else if (name === "InfoSerial" && found.serialName == null) found.serialName = read(node, "Name");
+    for (const child of children(node)) visit(child);
+  };
+  if (body != null) visit(body);
+  return found;
+}
+// 気象・土砂で今の段に数えない Kind/Status（weather-current-notice.ts の NOT_CURRENT と同じ 2 つ）。
+const NOT_CURRENT = new Set(["解除", "発表警報・注意報はなし"]);
+const RANK: Readonly<Record<TerminalBandLevel, number>> = { cancel: 0, plain: 0, caution: 1, warning: 2, purple: 3 };
+const heaviest = (levels: readonly TerminalBandLevel[]): TerminalBandLevel =>
+  levels.reduce<TerminalBandLevel>((best, level) => RANK[level] > RANK[best] ? level : best, "plain");
+// Q-TO-S-2 の表を unit ごとの読み方で段にする（成果物の AC09 (2) の表）。段は 5・4・3 相当が purple・warning・caution、それより下は plain。
+const byLevel = (level: number | null): TerminalBandLevel => level === 5 ? "purple" : level === 4 ? "warning" : level === 3 ? "caution" : "plain";
+function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string | null, found: ReturnType<typeof scan>): TerminalBandLevel {
+  const { headType } = material;
+  // 洪水予報の段は Head/Headline の「（河川）」の Information の Kind にある（flood.ts と同じ在りか。Body の Kind は文の種類）。
+  const kinds = unit === "U-R" ? scan(first(first(material.xml, "Head"), "Headline")).kinds : found.kinds;
+  const codes = kinds.flatMap(({ code, status }) => code != null && (status == null || !NOT_CURRENT.has(status)) ? [code] : []);
+  switch (unit) {
+    // 気象警報（2026 年の新しい区分）の Kind/Code: 十の位 3 が特別警報（L5）、4 が危険警報（L4）、0 が警報（L3、00 は解除）。1・2 は注意報。
+    case "U-W": return heaviest(codes.map((code) => /^3\d$/.test(code) ? "purple" : /^4\d$/.test(code) ? "warning" : /^0[1-9]$/.test(code) ? "caution" : "plain"));
+    // 土砂災害（landslide.ts の LEVELS: 39 L5・49 L4・09 L3・29 L2）。
+    case "U-L": return heaviest(codes.map((code) => byLevel(landslideLevel(code))));
+    // 指定河川洪水予報（flood.ts の LEVELS: 51・53 L5、40・41 L4、30・31 L3）。
+    case "U-R": return heaviest(codes.map((code) => byLevel(floodLevel(code))));
+    // 噴火警戒レベルの Kind/Code（11〜15 がレベル 1〜5）。噴火速報（VFVO56）は最も重い段。
+    case "U-V": return headType === "VFVO56" ? "purple"
+      : heaviest(codes.map((code) => code === "15" || code === "14" ? "purple" : code === "13" ? "warning" : code === "12" ? "caution" : "plain"));
+    // 南海トラフ地震臨時情報の InfoSerial/Name。解説情報（VYSE51・52）と調査終了は plain。
+    case "U-N": return found.serialName === "巨大地震警戒" ? "purple" : found.serialName === "巨大地震注意" || found.serialName === "調査中" ? "warning" : "plain";
+    // 竜巻注意情報（VPHW50・51）。
+    case "U-M": return headType === "VPHW50" || headType === "VPHW51" ? "caution" : "plain";
+    // 記録的短時間大雨情報（VPOA50）と、その対応報（EventID が K の VPBS50、notification-gate の categoryOf と同じ読み）。
+    case "U-B": return headType === "VPOA50" || (headType === "VPBS50" && eventId?.startsWith("K") === true) ? "caution" : "plain";
+    case "U-F": case "U-Y": return "plain";
+    default: { const unknown: never = unit; throw new Error(`unknown short unit ${String(unknown)}`); }
+  }
+}
+function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | null): TerminalReport {
+  const heading = head(material), found = scan(body);
+  const level = heading.infoType === "取消" ? "cancel" : shortLevel(unit, material, heading.eventId, found);
+  return { kind: "short", unit, head: heading, target: unit === "U-N" ? null : found.target, level };
+}
+
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。
-// 短い形の 9 unit は【発注 2】で足す（それまでは null）。
 function terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): TerminalReport | null {
   if (material.origin === "recovery") return null;
   const body = first(material.xml, "Body");
   switch (unit) {
+    case "U-E": return null;
     case "U-Q": return seismic(material, body);
     case "U-T": return tsunami(material, body);
-    default: return null;
+    default: return short(material, unit, body);
   }
 }
 
