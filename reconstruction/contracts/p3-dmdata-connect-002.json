@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "fea95e823394dd32b9974354e7c621dd4966463e90272453abc0c0991e23adec",
+    "sha256": "b63b3f4945147b4099bd68c2a27439bfe5ddbc78c0fc29c60fc57204a58fc60b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -280,7 +280,7 @@
           "reconstruction/src/host/host.ts:285 «46bd0b7da169ddfa»",
           "reconstruction/src/host/host.ts:409 «acbfdd5626223d7d»",
           "reconstruction/contracts/p3-cli-repl.types.ts:84 «49ab626c97332de4»",
-          "reconstruction/contracts/p3-cli-repl.json:1190 «35261cfebcfaabcf»",
+          "reconstruction/contracts/p3-cli-repl.json:1198 «35261cfebcfaabcf»",
           "src/dmdata/ws-client.ts:381 «5f931d6f39f49cb0»",
           "src/dmdata/ws-client.ts:604 «6d9e94c28b45fc6b»",
           "src/ui/repl-handlers/info-handlers.ts:495 «375523484fb02438»",
@@ -336,7 +336,7 @@
           "reconstruction/src/host/host.ts:414 «4f5ab210377cc07e»",
           "reconstruction/src/host/host.ts:418 «1bdbd2fc0594394f»",
           "reconstruction/src/host/host.ts:470 «def569e75c9e71d6»",
-          "reconstruction/contracts/p3-cli-repl.json:1190 «35261cfebcfaabcf»",
+          "reconstruction/contracts/p3-cli-repl.json:1198 «35261cfebcfaabcf»",
           "reconstruction/src/host/host.ts:647 «6daea54468514f42»",
           "reconstruction/src/host/host.ts:649 «0233faeeb2eae147»"
         ]
@@ -350,7 +350,7 @@
           "reconstruction/src/host/host.ts:413 «6b3cd7da512a7baa»",
           "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
           "reconstruction/src/host/host.ts:208 «d4e90dd82533f3b2»",
-          "reconstruction/contracts/p3-cli-repl.json:1190 «35261cfebcfaabcf»",
+          "reconstruction/contracts/p3-cli-repl.json:1198 «35261cfebcfaabcf»",
           "reconstruction/src/host/host.ts:210 «0ad54f173fa3d818»",
           "reconstruction/src/host/host.ts:664 «0d3cc53c9450c53c»"
         ]
@@ -376,7 +376,7 @@
           "reconstruction/contracts/p3-dmdata-connect.json:84 «987c2ce45800ac2b»",
           "reconstruction/contracts/p3-dmdata-connect.json:281 «a64402667c1ede04»",
           "reconstruction/contracts/p3-dmdata-connect.json:308 «b5818773ccd6caf3»",
-          "reconstruction/contracts/p3-cli-repl.json:1190 «35261cfebcfaabcf»",
+          "reconstruction/contracts/p3-cli-repl.json:1198 «35261cfebcfaabcf»",
           "reconstruction/contracts/p3-recovery.json:989 «fc1603eaaea98eaa»",
           "docs/specs/reconstruction-p0-contracts.md:3051 «59cd1745f08d91fb»",
           "docs/specs/reconstruction-p0-contracts.md:3053 «c092eae213bff1be»",
