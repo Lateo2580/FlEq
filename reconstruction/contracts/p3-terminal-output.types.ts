@@ -63,6 +63,7 @@ export type TerminalReport =
       maxInt: string | null;
       maxIntCondition: string | null;
       maxLgInt: string | null;
+      originDateTimeRaw: string | null;
       areas: readonly TerminalIntensityArea[];
       forecastComment: string | null;
       uri: string | null;

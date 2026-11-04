@@ -304,13 +304,18 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
     clear() { push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
     // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。色と点滅は付けない。
+    // P3-TL-AC10: ミュート中は後ろに足す（期限は repl.ts の muteStartLine と同じ換算）。切断中は 56 桁に入るよう繋ぎ直しの回数と期限と条件を外す。
     promptLabel(mode) {
       if (status == null) return "FlEq> ";
-      if (down) return `FlEq [${lostFrom == null ? "--:--:--" : localClock(lostFrom)} から 切断中・繋ぎ直し ${status.failedAttempts} 回目]> `;
-      const now = clock(), connected = status.connection === "connected";
-      if (mode === "uptime") return `FlEq [${connected ? "●" : "○"} ${uptime(process.uptime() * 1000)}]> `;
-      if (!connected && !received) return "FlEq [○ --:--:--]> ";
-      return `FlEq [● ${mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs))}]> `;
+      const now = clock(), mute = settings?.mute;
+      const muted = settings != null && mute != null && muteActive(settings, now.monotonicMs);
+      if (down) return `FlEq [${lostFrom == null ? "--:--:--" : localClock(lostFrom)} から 切断中・${muted ? "ミュート中" : `繋ぎ直し ${status.failedAttempts} 回目`}]> `;
+      const until = muted && mute.endsAtMonotonicMs != null ? ` ${localClock(now.wallTimeMs + (mute.endsAtMonotonicMs - now.monotonicMs)).slice(0, 5)} まで` : "";
+      const mark = muted ? ` ミュート中${mute.rules.length > 0 ? "（条件つき）" : ""}${until}` : "";
+      const connected = status.connection === "connected";
+      if (mode === "uptime") return `FlEq [${connected ? "●" : "○"} ${uptime(process.uptime() * 1000)}${mark}]> `;
+      if (!connected && !received) return `FlEq [○ --:--:--${mark}]> `;
+      return `FlEq [● ${mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs))}${mark}]> `;
     },
   };
 

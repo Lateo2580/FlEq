@@ -53,10 +53,12 @@ function eewUnits(inputs: readonly EewInput[]): TerminalUnit[][] {
 }
 
 // 1 つの端末（覚えを持つ renderer）で、単位の並びを桁数 columns で行にする。
-function terminal(columns = 80): (units: readonly TerminalUnit[]) => string[] {
-  const renderer = createRenderer(0);
+// 電文のブロックの先頭は空行 1 行（P3-TL-AC01）。level が 0 より大きければ ESC を含む生の文字、plain で ESC を除く。
+function terminal(columns = 80, level: 0 | 3 = 0): (units: readonly TerminalUnit[]) => string[] {
+  const renderer = createRenderer(level);
   return (units) => renderer.render({ columns, dropped: 0, units }).replace(/\n$/, "").split("\n");
 }
+const plain = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, "");
 const reportUnit = (report: TerminalReport): TerminalUnit => ({ kind: "report", report, prompt: null });
 
 // T01〜T03 の 13 報（EEW 5・地震 5・津波 3）を端末の単位にする（T04・T05）。EEW は T01 と同じ順で同じ unit に通す。
@@ -71,10 +73,13 @@ function allThirteen(): TerminalUnit[] {
 }
 
 // 期待の行の罫線（spec の図は 60 桁で描いてあり、帯の罫線の長さは図ごとに揃っていない）。
-// 図の形は「━ 題名 ━…━ HH:MM:SS 発表 ━」と 60 桁以上の区切りなので、期待は罫線を min(桁数, 80) に伸ばした行にする（AC04 (3)）。
-const rule = (columns = 80): string => "─".repeat(Math.min(columns, 80));
+// 色なしの帯は「━ 題名 ━…━ HH:MM:SS 発表 ━」、区切りは桁数まで。どちらも min(桁数, 100) に伸ばした行にする（P3-TL-AC02 (2)）。
+const rule = (columns = 80): string => "─".repeat(Math.min(columns, 100));
 const band = (title: string, time: string, columns = 80): string =>
-  `━ ${title} ${"━".repeat(Math.min(columns, 80) - width(title) - width(time) - 11)} ${time} 発表 ━`;
+  `━ ${title} ${"━".repeat(Math.min(columns, 100) - width(title) - width(time) - 11)} ${time} 発表 ━`;
+// 色ありの警報以上の帯（ESC を除いた形）: 幅いっぱいに塗り、題名の後ろから時刻まで空白、右端の空白も残る。
+const filled = (title: string, time: string, columns = 80): string =>
+  ` ${title}${" ".repeat(Math.min(columns, 100) - width(title) - width(time) - 7)}${time} 発表 `;
 
 // 返信 1 つ（【発注 2】の試験）。outcomes は U-E の受信の outcome など、units は view の変わった unit。
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
@@ -104,4 +109,4 @@ function harness(options: TerminalOptions = {}, initial: Partial<HostStatus> = {
 // 地方時の 2026-11-03 の時刻（spec の図の場面の時刻）。
 const at = (hours: number, minutes: number, seconds = 0): number => new Date(2026, 10, 3, hours, minutes, seconds).getTime();
 
-export { allThirteen, at, band, decodeFixture, eewOutcome, eewUnits, harness, inputDoneOf, reportOf, reportUnit, rule, terminal };
+export { allThirteen, at, band, decodeFixture, eewOutcome, eewUnits, filled, harness, inputDoneOf, plain, reportOf, reportUnit, rule, terminal };

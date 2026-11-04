@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationSettings } from "../../src/cli/notification-gate";
 import { notificationSettingsFrom } from "../../src/cli/repl";
 import { checkSettings } from "../../src/cli/settings";
+import { width } from "../../src/terminal/format";
 import { at, harness } from "./terminal-fixture";
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(21, 3, 0)); });
@@ -130,5 +131,37 @@ describe("P3-CLI-T20 分野 connection の設定", () => {
       expect(h.notices).toHaveLength(notices);
       await h.output.close();
     }
+  });
+});
+
+// 入力の行のミュート表示（P3-TL-AC10、spec §6.1 の図）。期限は 21:30、時計は偽の時計（monotonic は Date.now と同じ）。
+describe("P3-TL-T09 入力の行のミュート表示", () => {
+  it("ミュートなし・期限なし・期限あり・条件つき・切断中の字が図のとおりで、解除の後に消え、切断中の字は 56 桁に入る", async () => {
+    const settings: NotificationSettings = { notify: {}, sound: true, mute: null, version: 0 };
+    const h = harness({ notification: settings });
+    h.attach();
+    until(at(21, 3, 0));
+    const label = () => h.output.control.promptLabel("clock");
+    const ends = at(21, 30, 0), rules = [{ category: "earthquake", level: "warning" }] as const;
+    expect(label()).toBe("FlEq [● 21:03:00]> ");
+    settings.mute = { endsAtMonotonicMs: null, until: null, rules: [] };
+    expect(label()).toBe("FlEq [● 21:03:00 ミュート中]> ");
+    settings.mute = { endsAtMonotonicMs: ends, until: null, rules: [] };
+    expect(label()).toBe("FlEq [● 21:03:00 ミュート中 21:30 まで]> ");
+    settings.mute = { endsAtMonotonicMs: null, until: null, rules: [...rules] };
+    expect(label()).toBe("FlEq [● 21:03:00 ミュート中（条件つき）]> ");
+    settings.mute = { endsAtMonotonicMs: ends, until: null, rules: [...rules] };
+    expect(label()).toBe("FlEq [● 21:03:00 ミュート中（条件つき） 21:30 まで]> ");
+    expect(h.output.control.promptLabel("uptime")).toMatch(/^FlEq \[● \d{3}:\d\d:\d\d:\d\d ミュート中（条件つき） 21:30 まで\]> $/);
+    h.set({ connection: "disconnected", lostConnections: 1, lastLossFrameWallMs: at(21, 3, 12), failedAttempts: 3 });
+    until(at(21, 3, 1));
+    expect(label()).toBe("FlEq [21:03:12 から 切断中・ミュート中]> ");
+    expect(width(label())).toBeLessThanOrEqual(56);
+    settings.mute = null;
+    expect(label()).toBe("FlEq [21:03:12 から 切断中・繋ぎ直し 3 回目]> ");
+    h.set({ connection: "connected" });
+    until(at(21, 3, 2));
+    expect(label()).toBe("FlEq [● 21:03:02]> ");
+    await h.output.close();
   });
 });

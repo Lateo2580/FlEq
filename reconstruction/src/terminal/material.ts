@@ -59,9 +59,12 @@ function seismic(material: DecodedMaterial, body: XmlElement | null): TerminalRe
       maxIntCondition: clip(attribute(first(area, "MaxInt"), "condition")), maxLgInt: read(area, "MaxLgInt") });
   }
   const comments = first(body, "Comments");
-  return { kind: "seismic", head: head(material), hypocenter: hypocenter(first(body, "Earthquake")),
+  const heading = head(material), earthquake = first(body, "Earthquake");
+  // P3-TL-AC06 (4): 発生の時刻。震源の情報は OriginTime、震度速報（VXSE51）には震源が無いので Head/TargetDateTime。
+  const origin = read(earthquake, "OriginTime") ?? (material.headType === "VXSE51" ? read(first(material.xml, "Head"), "TargetDateTime") : null);
+  return { kind: "seismic", head: heading, hypocenter: hypocenter(earthquake),
     maxInt: read(observation, "MaxInt"), maxIntCondition: clip(attribute(first(observation, "MaxInt"), "condition")),
-    maxLgInt: read(observation, "MaxLgInt"), areas, forecastComment: read(first(comments, "ForecastComment"), "Text"),
+    maxLgInt: read(observation, "MaxLgInt"), originDateTimeRaw: origin, areas, forecastComment: read(first(comments, "ForecastComment"), "Text"),
     uri: read(comments, "URI"), text: read(body, "Text"), omitted: budget.omitted };
 }
 
