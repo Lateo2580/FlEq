@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "68401af71bd1bc4731c6ef6633a588733ded298b685e76ba3aa53c77583922bd",
+    "sha256": "971a84ebf48a8c58fd192969f217f21d33baabe692fd3983cbf54e7aa5478cf2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -86,7 +86,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-001",
     "mode": "implementation",
     "objective": "端末の出力の見た目の作り直し。実端末の目視（作者「質素すぎる」）と 3 本の批評を受けて、2026-11-04 に作者と図の往復で決めた形（docs/specs/cli-terminal-output.md §2〜§5、§6.1 の入力の行、§8 の Q-TO2-*）を reconstruction/src/terminal に作る。合格の基準は「鳴って顔を上げた瞬間に、重さ・場所・行動が読める」。受信・列・worker の作り（P3-TERMINAL-OUTPUT-001）は変えず、整形と色と材料の欄 1 つと入力の行の字だけを変える。P3-TERMINAL-OUTPUT-001 の条文のうち見た目の形を決めたもの（AC04 (3)(4)、AC05 (2) の行の順、AC05 (3) と P3-TO-D-CANCEL-PHRASE の覚えの鍵、AC06 (1) の行の順、AC07 (1) の区分、AC09 (1) の末尾の行の区切り）は本契約が置き換える",
-    "baseOid": "unassigned",
+    "baseOid": "f65a5daaff22c34af7ff90911f00951ac8ca07e2",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
