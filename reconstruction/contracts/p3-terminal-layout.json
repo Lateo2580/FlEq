@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "a66e0a2ff8dcf7ad9a08022d90d4f8812313362e14950e315cb73076ef7017e2",
+    "sha256": "68401af71bd1bc4731c6ef6633a588733ded298b685e76ba3aa53c77583922bd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -25,8 +25,8 @@
         "B": "family をまたいで比べ、発表時刻の古い報を除く規則を足す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案",
-        "ruling": "未裁定",
+        "status": "確定（作者、2026-11-04）",
+        "ruling": "A（作者裁定）",
         "reason": "77_01_04（VXSE45 第4報）→37_01_01（VXSE43 第1報）で「第4報と同じです」が出ることを試作で再現した。family をまたぐ順は誰も止めない。今の「3 → 5弱」の予報から警報への矢印は VXSE45 と VXSE43 の間では出なくなる"
       },
       {
@@ -47,8 +47,8 @@
         "B": "足す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案",
-        "ruling": "未裁定",
+        "status": "確定（作者、2026-11-04）",
+        "ruling": "A（作者裁定）",
         "reason": "ヘルツは厳しすぎると指摘。図は描いていない"
       },
       {
@@ -58,12 +58,18 @@
         "B": "本契約に入れる",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案",
-        "ruling": "未裁定",
+        "status": "確定（作者、2026-11-04）",
+        "ruling": "A（作者裁定）",
         "reason": "津波は区域ごとの区分の切り替えがあり、形の図が要る"
       }
     ],
     "questionResolutions": [
+      {
+        "id": "Q-TL-PRECHECK",
+        "status": "closed",
+        "source": "2026-11-04 発注前点検",
+        "closed": "分岐の残り 0（起草案 0）。起草のレビューは r0・r1 とも条件付き GO で P1 0 件、P2 は全部当てた。作者裁定: 「同じです」の文も出さない（AC05 (3)）。依存の契約は配送済み。allowedPaths の file を行で引く他の契約の «» は 0 件。CI は 8064e8f7 が success（run 41627789637）で、本起草の 4 commit は docs と契約だけ"
+      },
       {
         "id": "Q-TL-FIGURES",
         "status": "closed",
@@ -174,8 +180,8 @@
     "retentionLimits": [
       {
         "id": "P3-TL-RET-01",
-        "target": "operation・family・EventID ごとの覚え（前の報の最大予測震度・震源名・M・深さ・長周期階級・報の番号・予報と警報の別・地域ごとの予測震度と到達と長周期階級）",
-        "limit": "P3-TO-RET-01 の 64 件のまま。1 件の地域の表は電文の地域の数まで（細分区域 188 の上）で、保存しない",
+        "target": "operation・family・EventID ごとの覚え（前の報の最大予測震度・震源名・発表時刻・M・深さ・長周期階級）",
+        "limit": "P3-TO-RET-01 の 64 件のまま。保存しない",
         "unit": "件",
         "scope": "端末の 1 run",
         "source": "AC05、P3-TO-RET-01"
@@ -241,7 +247,7 @@
       },
       {
         "id": "P3-TL-AC04",
-        "requirement": "緊急地震速報: (1) 最大予測震度の行を要点の先頭に固定する（見出し文の有無で行を入れ替えない） (2) 見出し文の先頭が「<震源名>で地震」のときだけ外し、残りの「四国　九州　中国で強い揺れ」を要点の 2 行目に出す（「同じです」の行はその次） (3) 地域が 1 つで到達も長周期階級も無い報は表を出さない (4) 取消・最終報・PLUM は spec §5.1 の図のとおり",
+        "requirement": "緊急地震速報: (1) 最大予測震度の行を要点の先頭に固定する（見出し文の有無で行を入れ替えない） (2) 見出し文の先頭が「<震源名>で地震」のときだけ外し、残りの「四国　九州　中国で強い揺れ」を要点の 2 行目に出す (3) 地域が 1 つで到達も長周期階級も無い報は表を出さない (4) 取消・最終報・PLUM は spec §5.1 の図のとおり",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:145 «a918d1bc96f8ed4e»",
           "docs/specs/cli-terminal-output.md:146 «a71bac9ad80bfe83»",
@@ -250,11 +256,11 @@
       },
       {
         "id": "P3-TL-AC05",
-        "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする。長周期階級は旧か新が 0 か無いときは矢印を付けない (2) 地域の増減の件数は出さない (3) 値と表の中身（地域ごとの予測震度・到達・長周期階級）と予報・警報の別と仮定の震源かどうかが全部前の報と同じときだけ、「表示の項目は第n報と同じです」を薄い字で出す (4) 覚えが無い報では矢印も「同じです」も出さない (5) 覚えの鍵を operation・family・EventID にする（今の鍵に family を足す。VXSE43 と VXSE45 は別の番号で並走し、版の比較も family ごと。取消の 3 行目の覚えも同じ鍵にする）。同じ family の古い報は unit が採らない (6) 仮定の震源の報（PLUM）は M と深さを覚えに書かず、その報の震源の行に矢印を付けない",
+        "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする。長周期階級は旧か新が 0 か無いときは矢印を付けない (2) 地域の増減の件数は出さない (3) 変わらなかった値には何も付けない。「同じです」のような比較の文は出さない（作者） (4) 覚えが無い報では矢印を出さない (5) 覚えの鍵を operation・family・EventID にする（今の鍵に family を足す。VXSE43 と VXSE45 は別の番号で並走し、版の比較も family ごと。取消の 3 行目の覚えも同じ鍵にする）。同じ family の古い報は unit が採らない (6) 仮定の震源の報（PLUM）は M と深さを覚えに書かず、その報の震源の行に矢印を付けない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:147 «6d00b4eb62bbeca7»",
-          "docs/specs/cli-terminal-output.md:150 «0d8358ea159bdafb»",
-          "docs/specs/cli-terminal-output.md:151 «0849e912368caad4»",
+          "docs/specs/cli-terminal-output.md:150 «83c2420add9b084c»",
+          "docs/specs/cli-terminal-output.md:151 «652bae84c6b2e7f2»",
           "docs/specs/cli-terminal-output.md:148 «c4a508d16ec76582»",
           "docs/specs/cli-terminal-output.md:149 «830f7e48fcc16af2»"
         ]
@@ -328,7 +334,7 @@
         "referenceIds": [
           "P3-TL-AC05"
         ],
-        "behavior": "受入条件。77_01_03→77_01_04→77_01_05 を同じ端末に流し、値の場所の「旧 → 新」が spec の形になり、件数の字が出ない。77_01_05 の Serial だけを変えた報で「表示の項目は第5報と同じです」が見出し文の残りの次に出て、到達だけを変えた報では出ない。覚えの無い端末では矢印も「同じです」も出ない。77_01_04（VXSE45）→37_01_01（VXSE43）で矢印も「同じです」も出ない。77_02_01 PLUM→77_02_02 で M と深さに矢印が付かない。最大と表を transform で揃えた PLUM→通常の報に「同じです」が出ない"
+        "behavior": "受入条件。77_01_03→77_01_04→77_01_05 を同じ端末に流し、値の場所の「旧 → 新」が spec の形になり、件数の字も比較の文も出ない。覚えの無い端末では矢印が出ない。77_01_04（VXSE45）→37_01_01（VXSE43）で矢印が出ない。77_02_01 PLUM→77_02_02 で M と深さに矢印が付かない"
       },
       {
         "testId": "P3-TL-T03",
