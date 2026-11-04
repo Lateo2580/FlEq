@@ -1,0 +1,460 @@
+{
+  "meta": {
+    "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
+    "sha256": "9fb228fc054a96b4435cce275cd09bf8d90a212f36031d14d18beaa45fae7850",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL-D-CONTRACT",
+        "kind": "統合担当",
+        "A": "閉じた C19 に発注を足さず、新しい契約にする",
+        "B": "C19 の発注 3 にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-04 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "C19 の受入条件の形そのものを改めるので、閉じた契約の記録を書き換えない"
+      },
+      {
+        "id": "P3-TL-D-ORIGIN-SOURCE",
+        "kind": "統合担当",
+        "A": "TerminalReport の seismic に発生の時刻の欄を 1 つ足し、material.ts で読む",
+        "B": "見出し文の字から時刻を読み取る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-04 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "OriginTime と TargetDateTime は fixture の見出し文の時刻と一致した。見出し文が空の報もある"
+      },
+      {
+        "id": "P3-TL-D-SHORT",
+        "kind": "作者",
+        "A": "短い形に要点の行を足さない（Q-TO-S-3 のまま）。見出し文が要点で、短い形は 10 行まで",
+        "B": "足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "未裁定",
+        "reason": "ヘルツは厳しすぎると指摘。図は描いていない"
+      },
+      {
+        "id": "P3-TL-D-TSUNAMI-FOLLOW",
+        "kind": "作者",
+        "A": "津波の続報の変化は本契約の外にする（EEW だけ）",
+        "B": "本契約に入れる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "ruling": "未裁定",
+        "reason": "津波は区域ごとの区分の切り替えがあり、形の図が要る"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL-FIGURES",
+        "status": "closed",
+        "source": "2026-11-04 図の往復（第 1 回 https://claude.ai/artifact/2xQ6rkRm4H5ks1BucNEy7n、第 2 回 https://claude.ai/artifact/AZaVjanXiGnBVKt73364dQ）と実端末の .ansi の目視",
+        "closed": "spec §8 の Q-TO2-*。format.ts の写しに案を当てた試作を fixture 272 本・6 幅に通し、桁の超え 0、地域名の詰め 0、例外 0 を確かめた。試作の控えは repo の外（~/dev/fleq-vault-archive/2026-11-04-terminal-figures/）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-001",
+    "mode": "implementation",
+    "objective": "端末の出力の見た目の作り直し。実端末の目視（作者「質素すぎる」）と 3 本の批評を受けて、2026-11-04 に作者と図の往復で決めた形（docs/specs/cli-terminal-output.md §2〜§5、§6.1 の入力の行、§8 の Q-TO2-*）を reconstruction/src/terminal に作る。合格の基準は「鳴って顔を上げた瞬間に、重さ・場所・行動が読める」。受信・列・worker の作り（P3-TERMINAL-OUTPUT-001）は変えず、整形と色と材料の欄 1 つと入力の行の字だけを変える",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/color.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/cli/repl.ts",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/cli/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/color.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/cli/repl.ts",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/contracts/p3-terminal-layout.json（本契約の «» の付け直しと meta.sha256 だけ）",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/cli/**（入力の行の字の期待だけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-CLI-REPL-001",
+      "P3-EEW-FACTS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport",
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalControl"
+    ],
+    "publicFunctions": [
+      "変える: TerminalControl.promptLabel に mute の字（string | null）の引数を足す（AC10）。createRenderer の口は変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（chalk 4.1.2 と node の標準）。文節の分割の依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__16_00_01_260603_VXKO70_kozagawa_l5",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__32-35_01_03_240613_VXSE53",
+      "test__fixtures__32-35_03_02_240613_VXSE61",
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__32-35_07_01_100915_VXSE51",
+      "test__fixtures__32-35_08_03_100915_VXSE51",
+      "test__fixtures__32-35_10_01_220510_VXSE51",
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__32-39_12_05_250206_VTSE52",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__77_01_03_240613_VXSE45",
+      "test__fixtures__77_01_04_240613_VXSE45",
+      "test__fixtures__77_01_05_240613_VXSE45",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__77_01_30_260101_VXSE45_FINAL",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM",
+      "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+      "test__fixtures__selected_xml__78_01_01_240613_VXSE62",
+      "test__fixtures__synthetic_phase4a_VXSE51_special",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P3-TL-RET-01",
+        "target": "EventID ごとの覚え（前の報の最大予測震度・震源名・M・深さ・長周期階級・報の番号・地域と予測震度の表）",
+        "limit": "P3-TO-RET-01 の 64 件のまま。1 件の地域の表は電文の地域の数まで（細分区域 188 の上）で、保存しない",
+        "unit": "件",
+        "scope": "端末の 1 run",
+        "source": "AC05、P3-TO-RET-01"
+      }
+    ],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "TerminalReport の発生の時刻の欄（返信の中だけ）、EventID ごとの覚えの足した欄"
+    ],
+    "outOfScope": [
+      "受信・書き出しの列・worker・落とす規則の変更（P3-TERMINAL-OUTPUT-001）",
+      "入力の行に今も有効な情報を出すこと（Q-TO2-ROOT の C。別の契約）",
+      "津波の続報の変化（P3-TL-D-TSUNAMI-FOLLOW）",
+      "短い形の要点の行（P3-TL-D-SHORT）",
+      "画面（P4）の見せ方、設定した地域の印（Q-TO-REGION-MARK）",
+      "EEW ログの書式（§7）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL-AC01",
+        "requirement": "組み立て（spec §5.0）: 電文のブロック（EEW・地震・津波・短い形・処理できなかった報）を、空行 1 行、帯、要点、区切りの罫線と地域の表、区切りの罫線と補足、末尾の再掲、末尾の行の順に出す。回線の行・定期要約・tips・起動時のまとめなどブロックでない出力には空行も縦線も足さない。末尾の行は「種類のコード ・ ID …」、短い形は「種類のコード ・ 官署」にする。要点の最大の行は太字で、最大の段の地域を幅に入る分だけ並べ、残りを「ほか n 地域」と書く",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:94 «e6a128ab332f341a»",
+          "docs/specs/cli-terminal-output.md:106 «b0dec1e224836813»",
+          "docs/specs/cli-terminal-output.md:107 «fd8fd1ac8e3771c6»",
+          "docs/specs/cli-terminal-output.md:109 «6c9ee0b85826f18e»",
+          "docs/specs/cli-terminal-output.md:29 «7101b67bd632de05»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC02",
+        "requirement": "幅（Q-TO2-W）: (1) NARROW_BELOW による一律の形をやめ、帯・表ごとに実際の幅で入るかを決める (2) 線と本文の右端を min(桁数, 100) に揃え、本文も同じ上限で折る (3) 帯: 1 行に入れば時刻も同じ行。塗る帯は入らなければ「発表」を落とし、それでも入らなければ時刻を次の行 (4) 表: 図の列幅 → 短い見出し（高さ・到達・長周期）で値に合わせた列幅 → 列の間 1 桁 → 地域の行と値の行の 2 行、の順で入る形を探す。fit による地域名の切り詰めを除く (5) 全部の行が空の列を出さない (6) 60 桁未満は縦線を外す。60 桁以上の端末で津波の表が 2 行の形に落ちないことを、fixture の津波の全部で確かめる",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:71 «03c90752c2e9264d»",
+          "docs/specs/cli-terminal-output.md:72 «21a82fc3c6a5f116»",
+          "docs/specs/cli-terminal-output.md:73 «c9760f93ab616291»",
+          "docs/specs/cli-terminal-output.md:77 «acd70b64750d0720»",
+          "docs/specs/cli-terminal-output.md:78 «6e8067bc456f4197»",
+          "docs/specs/cli-terminal-output.md:79 «774d39e01cd5af34»",
+          "docs/specs/cli-terminal-output.md:80 «22e3470a031e1e8d»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC03",
+        "requirement": "線と色（Q-TO2-STYLE・Q-TO2-NOCOLOR）: (1) 帯は警報以上と取消を幅いっぱいに地の色で塗る（時刻も帯の字）。注意は黄の太字と黄の罫線、普通は今の形。短い形の最も重い段は白の地に黒で塗る (2) 警報の帯は朱 #d55e00 の地に黒の太字、震度 7 は紫の地に白の太字。暗い赤の役目を除く (3) 帯の下の行に段の色の縦線を通す（地の色の空白 1 桁と空白 1 桁。本文の幅は 2 桁減る） (4) 色の level が 0 のとき（NO_COLOR、パイプ、ファイル）は帯を塗らず ━ の形にし、縦線を出さない。字下げの 2 桁も出さない (5) 回線の行の色と形は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:36 «51107f93a2bcfafd»",
+          "docs/specs/cli-terminal-output.md:45 «443d461044b2d725»",
+          "docs/specs/cli-terminal-output.md:47 «c568f6835afbc5d2»",
+          "docs/specs/cli-terminal-output.md:53 «580628cfda7ff89c»",
+          "docs/specs/cli-terminal-output.md:55 «033b2ca0d07400d3»",
+          "docs/specs/cli-terminal-output.md:56 «3cd73b1201fe360d»",
+          "docs/specs/cli-terminal-output.md:65 «4d41782887c7437f»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC04",
+        "requirement": "緊急地震速報: (1) 最大予測震度の行を要点の先頭に固定する（見出し文の有無で行を入れ替えない） (2) 見出し文の先頭が「<震源名>で地震」のときだけ外し、残りの「四国　九州　中国で強い揺れ」を要点の 2 行目に出す (3) 地域が 1 つで到達も長周期階級も無い報は表と表の上の罫線を出さない (4) 取消・最終報・PLUM は spec §5.1 の図のとおり",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:142 «a918d1bc96f8ed4e»",
+          "docs/specs/cli-terminal-output.md:143 «a71bac9ad80bfe83»",
+          "docs/specs/cli-terminal-output.md:147 «f44788c59b1a6593»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC05",
+        "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする (2) 地域の増減の件数は出さない (3) 値と地域（名前と予測震度）が全部前の報と同じときだけ、要点の 2 行目に「表示の項目は第n報と同じです」を薄い字で出す。地域が変わった報には出さない (4) 覚えが無い報では矢印も「同じです」も出さない (5) 仮定の震源の報（PLUM）は震源の行に矢印を付けない。覚えの比較は同じ operation と EventID の報の間だけ",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:144 «0a8c8019aa6c20c4»",
+          "docs/specs/cli-terminal-output.md:145 «221d9029bfbc06af»",
+          "docs/specs/cli-terminal-output.md:146 «0849e912368caad4»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC06",
+        "requirement": "地震: (1) 最大震度の行、津波についての文、震源の行の順に出す。最大震度の無い報は震源の行、津波についての文の順 (2) 見出し文を表の下へ移す (3) 震度が 1 段だけで要点の行に全部の地域が入る報は表を出さない (4) 発生の時刻を震源の行の末尾に「発生 13:45ころ」と出す。発表の日と違う日は「発生 11日 23:58ころ」。材料は TerminalReport の seismic に欄を 1 つ足し（Earthquake/OriginTime、無ければ VXSE51 だけ Head/TargetDateTime）、無い報は出さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:221 «1628470c3d202452»",
+          "docs/specs/cli-terminal-output.md:271 «47747343fc7a48b6»",
+          "docs/specs/cli-terminal-output.md:272 «8b2e71f944250b19»",
+          "docs/specs/cli-terminal-output.md:273 «0113ada281257fac»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC07",
+        "requirement": "津波: (1) 区分の名前を全部の地域の行に出す (2) 要点を「＊＊＊これは訓練です＊＊＊」、「避難」を含む見出し文（太字）、区分ごとの地域数（太字。大津波警報・津波警報・津波注意報、解除は数えない）、残りの見出し文、震源の順にする。電文の文は言い換えない (3) 時刻の無い到達の文を警報の色の字にする。確かさの違う文をまとめない (4) 取消の形は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:358 «99e4794d2e203257»",
+          "docs/specs/cli-terminal-output.md:359 «127cc61aaadfa8bc»",
+          "docs/specs/cli-terminal-output.md:360 «9086bc72e11fcfd8»",
+          "docs/specs/cli-terminal-output.md:361 «0fa68acac3a8468e»",
+          "docs/specs/cli-terminal-output.md:30 «fc7492ead78deadf»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC08",
+        "requirement": "末尾の再掲（Q-TO2-RECAP）: 末尾の行を除いた行が 20 行以上のとき、末尾の行の上に要点を発表時刻つきで出す。EEW は最大予測震度の行、地震は最大震度の行と津波についての文、津波は地域数と「避難」の文（無ければ地域数の行に時刻）。地域数の無い津波の報と、短い形には出さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:110 «334346ad51725089»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC09",
+        "requirement": "文の折り返し: 電文の文は句点で折り、1 文が幅に入らないときは字の境目で折って 2 字下げる。行頭に句読点を置かない。URL は折らない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:81 «8b9f6df260555e67»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC10",
+        "requirement": "入力の行（Q-TO2-MUTE）: ミュート中は入力の行に「ミュート中」を出す。期限があれば「ミュート中 21:30 まで」、切断中は「… 回目 ・ ミュート中」。promptLabel に mute の字を渡す引数を足し、repl.ts が今のミュートから字を作る。ミュートが切れたら次の書き直しで消える。TTY でないときは今の『FlEq> 』のまま",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:507 «f07a144c499a490c»"
+        ]
+      },
+      {
+        "id": "P3-TL-AC11",
+        "requirement": "短い形: 帯と末尾の行と空行・縦線だけを変える。見出し文のほかに要点の行を足さない（Q-TO-S-3）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:428 «ddeaab02e8a2036b»",
+          "docs/specs/cli-terminal-output.md:468 «88c1107f6db0df69»",
+          "docs/specs/cli-terminal-output.md:478 «94e30c4d68eb0c23»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC01",
+          "P3-TL-AC03",
+          "P3-TL-AC04"
+        ],
+        "behavior": "受入条件（spec §5.1 の図）。eew.test.ts で 77_01_01→37_01_01→37_01_03、77_01_30 FINAL、77_02_01 PLUM を色 0 と色ありで整形し、図の行と一致する"
+      },
+      {
+        "testId": "P3-TL-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC05"
+        ],
+        "behavior": "受入条件。77_01_03→77_01_04→77_01_05 を同じ端末に流し、値の場所の「旧 → 新」が spec の形になり、件数の字が出ない。77_01_05 の Serial だけを変えた報で「表示の項目は第5報と同じです」が出て、地域だけを変えた報では出ない。覚えの無い端末では矢印も「同じです」も出ない"
+      },
+      {
+        "testId": "P3-TL-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC06"
+        ],
+        "behavior": "受入条件（spec §5.2 の図）。VXSE53・VXSE51・VXSE52・VXSE62・VXSE61 が図の行と一致する。日をまたぐ発生の時刻の形を 1 報で確かめる"
+      },
+      {
+        "testId": "P3-TL-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC07",
+          "P3-TL-AC08"
+        ],
+        "behavior": "受入条件（spec §5.3 の図）。VTSE41・VTSE51・VTSE52 が図の行と一致し、全部の地域の行に区分があり、末尾の再掲が出る"
+      },
+      {
+        "testId": "P3-TL-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL-AC02",
+          "P3-TL-AC03"
+        ],
+        "behavior": "契約境界（批評の検証表）。fixture の全部を 40・56・59・60・61・80・100・120 桁に通し、URL の行を除いて行が min(桁数, 100) を越えず、… の切り詰めが無く、電文の地域名が全部残る。60 桁以上で津波の表が 2 行の形に落ちない。56 桁で 32-39_11_11 の表が 1 地域 1 行のまま"
+      },
+      {
+        "testId": "P3-TL-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL-AC03"
+        ],
+        "behavior": "契約境界。色 0 で帯が ━ の形になり、縦線も空白の字下げも出ず、制御文字が無い。色 3 で警報の帯が幅いっぱいに朱の地、注意の帯に地が無い"
+      },
+      {
+        "testId": "P3-TL-T07",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC08"
+        ],
+        "behavior": "受入条件。77_01_26（地域 44）が 24 行の末尾に最大予測震度の行を残す。19 行の報には再掲が出ず 20 行の報には出る"
+      },
+      {
+        "testId": "P3-TL-T08",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC09"
+        ],
+        "behavior": "受入条件。VXSE53 を 56 桁で句点で折り、VXSE62 の見出し文の行頭に句読点が来ない"
+      },
+      {
+        "testId": "P3-TL-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC10"
+        ],
+        "behavior": "受入条件。ミュートなし・期限なし・期限あり・切断中で入力の行の字が spec §6.1 の図のとおり。解除の後に字が消える"
+      },
+      {
+        "testId": "P3-TL-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL-AC11"
+        ],
+        "behavior": "受入条件（spec §5.4 の図）。短い形 4 報が図の行と一致し、最も重い段の帯が白の地に黒"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "T07 の watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列・覚え・module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。reconstruction/test/terminal の既存の期待は、spec の図が変わった分だけ本契約の範囲で変えてよい（図の形の移行）。図の変更で説明できない期待の変更が要るなら、変える前に試験名・旧の期待・理由を報告して止める",
+      "旧の narrow の分岐・fit・RULE_LIMIT の 80 など、新しい形で要らなくなったコードを残さない（足す前に引く）。旧の試験の NARROW_HEADERS も同じ",
+      "新しい «» が要るなら本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は付け直さない（要るなら止めて報告する）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
