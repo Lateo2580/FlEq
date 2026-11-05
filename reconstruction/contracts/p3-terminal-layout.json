@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "f2a0b2da795a3807eb83041413601a6150229d3dedf3d0b69865c0035aafdc69",
+    "sha256": "3a2d2c990c3f617a921b089f7ad7e4b6052fc019bf04c86433505e0e0ad24250",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -66,9 +66,9 @@
     "questionResolutions": [
       {
         "id": "Q-TL-DELIVERY",
-        "status": "open",
+        "status": "closed",
         "source": "2026-11-04 配送",
-        "closed": "実装 9ab0e811（Sonnet の子、worktree）。契約適合と品質のレビューは r0 が両方 NO-GO（解除を地域数に数える P1 ほか）、直して r1 は両方 GO。残りの P3 も当てた。Mac mini のゲート 11 本は最終の patch で全部 rc 0（ログ tl-r2）、commit は固定した patch と同じ byte。足した試験 2 本は直しを戻すと落ちることを Mac mini で確かめた。remaining: 作者の実端末の目視（npm run watch の本物の経路）と push"
+        "closed": "実装 9ab0e811（Sonnet の子、worktree）。契約適合と品質のレビューは r0 が両方 NO-GO（解除を地域数に数える P1 ほか）、直して r1 は両方 GO。残りの P3 も当てた。Mac mini のゲート 11 本は最終の patch で全部 rc 0（ログ tl-r2）、commit は固定した patch と同じ byte。足した試験 2 本は直しを戻すと落ちることを Mac mini で確かめた。2026-11-05 に作者が実端末の目視を OK とし（npm run watch の本物の経路）、cad17918 まで push、CI run 42005529306 success。remaining なし"
       },
       {
         "id": "Q-TL-PRECHECK",
