@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "3a2d2c990c3f617a921b089f7ad7e4b6052fc019bf04c86433505e0e0ad24250",
+    "sha256": "fa83b29d3da84f33f23dff4ffb995bd7e9e8e63bba195997e878557fa56d0586",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -216,11 +216,11 @@
         "id": "P3-TL-AC01",
         "requirement": "組み立て（spec §5.0）: 電文のブロック（EEW・地震・津波・短い形・処理できなかった報）を、空行 1 行、帯、要点、区切りの罫線と地域の表、区切りの罫線と補足、末尾の再掲、末尾の行の順に出す。回線の行・定期要約・tips・起動時のまとめなどブロックでない出力には空行も縦線も足さない。末尾の行は「種類のコード ・ ID …」、短い形は「種類のコード ・ 官署」にする。要点の最大の行は太字で、最大の段の地域を幅に入る分だけ並べ、残りを「ほか n 地域」と書く（VXSE62 は階級の行のままで地域を添えない）。区切りの罫線は要点・表・補足の間に 1 本、表の直後は次が末尾の行でも 1 本、表も補足も無い報は引かない。処理できなかった報は空行と縦線だけを足し、2 行のままにする（P3-TO-D-UNREADABLE）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:94 «e6a128ab332f341a»",
-          "docs/specs/cli-terminal-output.md:106 «b0dec1e224836813»",
-          "docs/specs/cli-terminal-output.md:107 «81f47a42c7f5bbd0»",
-          "docs/specs/cli-terminal-output.md:110 «6c9ee0b85826f18e»",
-          "docs/specs/cli-terminal-output.md:108 «69c6e736bc6f01b0»",
+          "docs/specs/cli-terminal-output.md:99 «e6a128ab332f341a»",
+          "docs/specs/cli-terminal-output.md:111 «b0dec1e224836813»",
+          "docs/specs/cli-terminal-output.md:112 «81f47a42c7f5bbd0»",
+          "docs/specs/cli-terminal-output.md:115 «6c9ee0b85826f18e»",
+          "docs/specs/cli-terminal-output.md:113 «69c6e736bc6f01b0»",
           "docs/specs/cli-terminal-output.md:29 «7101b67bd632de05»"
         ]
       },
@@ -228,14 +228,14 @@
         "id": "P3-TL-AC02",
         "requirement": "幅（Q-TO2-W）: (1) NARROW_BELOW による一律の形をやめ、帯・表ごとに実際の幅で入るかを決める (2) 線と本文の右端を min(桁数, 100) に揃え、本文も同じ上限で折る (3) 帯: 1 行に入れば時刻も同じ行。塗る帯は入らなければ「発表」を落とし、それでも入らなければ時刻を次の行 (4) 表: 図の列幅 → 短い見出し（高さ・到達・長周期）で値に合わせた列幅 → 列の間 1 桁 → 地域の行と値の行の 2 行、の順で入る形を探す。fit による地域名の切り詰めを除く (5) 全部の行が空の列を出さない (6) 60 桁未満は縦線を外す。60 桁以上の端末で津波の表が 2 行の形に落ちないことを、fixture の津波の全部で確かめる (7) 津波予報の地域の字下げは 60 桁未満で 2 桁、ほかは 12 桁 (8) 回線の行と起動時のまとめは色と字を変えず、線の上限と時刻の置き方だけ本条に従う",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:71 «03c90752c2e9264d»",
-          "docs/specs/cli-terminal-output.md:72 «dc77579ae97dfb32»",
-          "docs/specs/cli-terminal-output.md:73 «c9760f93ab616291»",
-          "docs/specs/cli-terminal-output.md:77 «acd70b64750d0720»",
-          "docs/specs/cli-terminal-output.md:78 «6e8067bc456f4197»",
-          "docs/specs/cli-terminal-output.md:79 «774d39e01cd5af34»",
-          "docs/specs/cli-terminal-output.md:80 «22e3470a031e1e8d»",
-          "docs/specs/cli-terminal-output.md:82 «145b28ee2f8393c0»"
+          "docs/specs/cli-terminal-output.md:75 «03c90752c2e9264d»",
+          "docs/specs/cli-terminal-output.md:76 «dc77579ae97dfb32»",
+          "docs/specs/cli-terminal-output.md:77 «c9760f93ab616291»",
+          "docs/specs/cli-terminal-output.md:81 «acd70b64750d0720»",
+          "docs/specs/cli-terminal-output.md:82 «e82e181994ff197b»",
+          "docs/specs/cli-terminal-output.md:83 «774d39e01cd5af34»",
+          "docs/specs/cli-terminal-output.md:84 «22e3470a031e1e8d»",
+          "docs/specs/cli-terminal-output.md:87 «02ee9a609c3acf74»"
         ]
       },
       {
@@ -243,52 +243,52 @@
         "requirement": "線と色（Q-TO2-STYLE・Q-TO2-NOCOLOR）: (1) 帯は警報以上と取消を幅いっぱいに地の色で塗る（時刻も帯の字）。注意は黄の太字と黄の罫線、普通は今の形。短い形の最も重い段は白の地に黒で塗る (2) 警報の帯は朱 #d55e00 の地に黒の太字、震度 7 は紫の地に白の太字。暗い赤の役目を除く (3) 帯の下の行に段の色の縦線を通す（地の色の空白 1 桁と空白 1 桁。本文の幅は 2 桁減る） (4) 色の level が 0 のとき（NO_COLOR、パイプ、ファイル）は帯を塗らず ━ の形にし、縦線を出さない。字下げの 2 桁も出さない。60 桁未満も字下げの 2 桁を出さない (5) 塗る帯の右端の空白を trimEnd で消さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:36 «51107f93a2bcfafd»",
-          "docs/specs/cli-terminal-output.md:45 «443d461044b2d725»",
-          "docs/specs/cli-terminal-output.md:47 «c568f6835afbc5d2»",
-          "docs/specs/cli-terminal-output.md:53 «580628cfda7ff89c»",
-          "docs/specs/cli-terminal-output.md:55 «033b2ca0d07400d3»",
-          "docs/specs/cli-terminal-output.md:56 «3cd73b1201fe360d»",
-          "docs/specs/cli-terminal-output.md:65 «6f4c8bcb0fbbce20»"
+          "docs/specs/cli-terminal-output.md:47 «443d461044b2d725»",
+          "docs/specs/cli-terminal-output.md:49 «c568f6835afbc5d2»",
+          "docs/specs/cli-terminal-output.md:56 «c959eff78e11be74»",
+          "docs/specs/cli-terminal-output.md:58 «033b2ca0d07400d3»",
+          "docs/specs/cli-terminal-output.md:59 «d2df2a8c95966d39»",
+          "docs/specs/cli-terminal-output.md:69 «6f4c8bcb0fbbce20»"
         ]
       },
       {
         "id": "P3-TL-AC04",
         "requirement": "緊急地震速報: (1) 最大予測震度の行を要点の先頭に固定する（見出し文の有無で行を入れ替えない） (2) 見出し文の先頭が「<震源名>で地震」のときだけ外し、残りの「四国　九州　中国で強い揺れ」を要点の 2 行目に出す (3) 地域が 1 つで到達も長周期階級も無い報は表を出さない (4) 取消・最終報・PLUM は spec §5.1 の図のとおり",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:145 «a918d1bc96f8ed4e»",
-          "docs/specs/cli-terminal-output.md:146 «a71bac9ad80bfe83»",
-          "docs/specs/cli-terminal-output.md:152 «f44788c59b1a6593»"
+          "docs/specs/cli-terminal-output.md:153 «a918d1bc96f8ed4e»",
+          "docs/specs/cli-terminal-output.md:154 «a71bac9ad80bfe83»",
+          "docs/specs/cli-terminal-output.md:163 «f44788c59b1a6593»"
         ]
       },
       {
         "id": "P3-TL-AC05",
         "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする。長周期階級は旧か新が 0 か無いときは矢印を付けない (2) 地域の増減の件数は出さない (3) 変わらなかった値には何も付けない。「同じです」のような比較の文は出さない（作者） (4) 覚えが無い報では矢印を出さない (5) 覚えの鍵を operation・family・EventID にする（今の鍵に family を足す。VXSE43 と VXSE45 は別の番号で並走し、版の比較も family ごと。取消の 3 行目の覚えも同じ鍵にする）。同じ family の古い報は unit が採らない (6) 仮定の震源の報（PLUM）は M と深さを覚えに書かず、その報の震源の行に矢印を付けない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:147 «6d00b4eb62bbeca7»",
-          "docs/specs/cli-terminal-output.md:150 «83c2420add9b084c»",
-          "docs/specs/cli-terminal-output.md:151 «652bae84c6b2e7f2»",
-          "docs/specs/cli-terminal-output.md:148 «c4a508d16ec76582»",
-          "docs/specs/cli-terminal-output.md:149 «830f7e48fcc16af2»"
+          "docs/specs/cli-terminal-output.md:158 «4f34ebbe0f83a759»",
+          "docs/specs/cli-terminal-output.md:161 «83c2420add9b084c»",
+          "docs/specs/cli-terminal-output.md:162 «652bae84c6b2e7f2»",
+          "docs/specs/cli-terminal-output.md:159 «c4a508d16ec76582»",
+          "docs/specs/cli-terminal-output.md:160 «830f7e48fcc16af2»"
         ]
       },
       {
         "id": "P3-TL-AC06",
         "requirement": "地震: (1) 最大震度の行、津波についての文、震源の行の順に出す。最大震度の無い報は震源の行、津波についての文の順 (2) 見出し文を表の下へ移す (3) 震度が 1 段だけで要点の行に全部の地域が入る報は表を出さない（VXSE62 は除く） (4) 発生の時刻を震源の行の末尾に「発生 13:45ころ」と出す。発表の日と違う日は「発生 11日 23:58ころ」。材料は TerminalReport の seismic に欄を 1 つ足し（Earthquake/OriginTime、無ければ VXSE51 だけ Head/TargetDateTime）、無い報は出さない。日の扱いは arrivalText を再利用する",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:226 «1628470c3d202452»",
-          "docs/specs/cli-terminal-output.md:276 «47747343fc7a48b6»",
-          "docs/specs/cli-terminal-output.md:277 «8b2e71f944250b19»",
-          "docs/specs/cli-terminal-output.md:278 «0113ada281257fac»"
+          "docs/specs/cli-terminal-output.md:240 «1628470c3d202452»",
+          "docs/specs/cli-terminal-output.md:291 «47747343fc7a48b6»",
+          "docs/specs/cli-terminal-output.md:292 «8b2e71f944250b19»",
+          "docs/specs/cli-terminal-output.md:293 «0113ada281257fac»"
         ]
       },
       {
         "id": "P3-TL-AC07",
         "requirement": "津波: (1) 区分の名前を全部の地域の行に出す (2) 要点を「＊＊＊これは訓練です＊＊＊」、「避難」を含む見出し文（太字）、区分ごとの地域数（太字。大津波警報・津波警報・津波注意報、解除は数えない）、残りの見出し文、震源の順にする。電文の文は言い換えない (3) 時刻の無い到達の文を警報の色の字にする。確かさの違う文をまとめない (4) 取消の行の並びは変えない（区切りの罫線は AC01）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:363 «99e4794d2e203257»",
-          "docs/specs/cli-terminal-output.md:364 «127cc61aaadfa8bc»",
-          "docs/specs/cli-terminal-output.md:365 «9086bc72e11fcfd8»",
-          "docs/specs/cli-terminal-output.md:366 «0fa68acac3a8468e»",
+          "docs/specs/cli-terminal-output.md:381 «99e4794d2e203257»",
+          "docs/specs/cli-terminal-output.md:382 «127cc61aaadfa8bc»",
+          "docs/specs/cli-terminal-output.md:383 «9086bc72e11fcfd8»",
+          "docs/specs/cli-terminal-output.md:386 «0fa68acac3a8468e»",
           "docs/specs/cli-terminal-output.md:30 «fc7492ead78deadf»"
         ]
       },
@@ -296,30 +296,30 @@
         "id": "P3-TL-AC08",
         "requirement": "末尾の再掲（Q-TO2-RECAP）: 帯から末尾の行までの実際に出る行（paintLines の折り返しの後。空行は数えない）が 20 行以上のとき、末尾の行の上に要点を発表時刻つきで出す。EEW は最大予測震度の行、地震は最大震度の行と津波についての文、津波は地域数と「避難」の文（無ければ地域数の行に時刻）。VXSE62 は「最大長周期階級 n ・ 最大震度 m」の行を出す。地域数の無い津波の報と、短い形には出さない。再掲の行に「旧の値 →」は写さない。訓練と試験の報は時刻の括弧に印を足す（「（14:49:00 発表・訓練）」）。行の数えには再掲そのものの行を入れない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:111 «bc0642e0b9275940»"
+          "docs/specs/cli-terminal-output.md:116 «39fe6a4aa1c20b55»"
         ]
       },
       {
         "id": "P3-TL-AC09",
         "requirement": "文の折り返し: 電文の文は 1 行に入ればそのまま出す。入らなければ句点で分け、それでも入らない文は字の境目で折って 2 字下げる。行頭に句読点を置かない。URL は折らない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:81 «b3d7842ea94768af»"
+          "docs/specs/cli-terminal-output.md:86 «b3d7842ea94768af»"
         ]
       },
       {
         "id": "P3-TL-AC10",
         "requirement": "入力の行（Q-TO2-MUTE）: ミュート中は入力の行に「ミュート中」を出す。期限があれば「ミュート中 21:30 まで」、条件つきは「ミュート中（条件つき）」、両方なら「ミュート中（条件つき） 21:30 まで」、切断中は「HH:MM:SS から 切断中・ミュート中」（繋ぎ直しの回数と期限と条件を外す）。●・○・uptime の形も同じ後ろに足す。output.ts の promptLabel の中だけで作る（options.notification は REPL と同じ object で、muteActive は読み込み済み。期限は repl.ts の muteStartLine と同じ換算）。引数も型も repl.ts も変えない。ミュートが切れたら次の書き直しで消える。TTY でないときは今の『FlEq> 』のまま",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:512 «39bd7df0b5b27b67»"
+          "docs/specs/cli-terminal-output.md:538 «39bd7df0b5b27b67»"
         ]
       },
       {
         "id": "P3-TL-AC11",
         "requirement": "短い形: 帯と末尾の行と空行・縦線と、見出し文の折り方（AC09）だけを変える。見出し文のほかに要点の行を足さない（Q-TO-S-3）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:433 «ddeaab02e8a2036b»",
-          "docs/specs/cli-terminal-output.md:473 «9c2fa6b135a818af»",
-          "docs/specs/cli-terminal-output.md:483 «94e30c4d68eb0c23»"
+          "docs/specs/cli-terminal-output.md:458 «fc9be00de26c3c82»",
+          "docs/specs/cli-terminal-output.md:498 «d8654378e356f57e»",
+          "docs/specs/cli-terminal-output.md:509 «e8af1e67c8b50f0f»"
         ]
       }
     ],

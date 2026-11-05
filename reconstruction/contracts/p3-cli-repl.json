@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "9edd6e4eb9bc7e2fa714dd37d40de7dd0884d8d2a4063114f1ce01cf214a97e3",
+    "sha256": "7d1bc34db912835371b841564ab2f4cb825a475930d7b955385c9ac44af8649b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1303,8 +1303,8 @@
           "src/ui/repl-handlers/info-handlers.ts:230 «e8311a4b2cf91da2»",
           "src/types.ts:436 «6445e703dbf7eba3»",
           "reconstruction/contracts/p3-terminal-output.json:650 «40d5b30f5c1872c1»",
-          "docs/specs/cli-terminal-output.md:563 «8f639b4ef78e5729»",
-          "docs/specs/cli-terminal-output.md:578 «6b6b55310a9e6fb3»",
+          "docs/specs/cli-terminal-output.md:589 «8f639b4ef78e5729»",
+          "docs/specs/cli-terminal-output.md:604 «6b6b55310a9e6fb3»",
           "reconstruction/contracts/p3-terminal-output.types.ts"
         ]
       },
@@ -1312,10 +1312,10 @@
         "id": "P3-CLI-AC23",
         "requirement": "【発注 3】入力の行（P3-CLI-D-O3-PROMPT・P3-TO-D-PROMPT、spec cli-terminal-output §6.1）: (1) 文字は、端末の出力の output の isTTY が true なら TerminalControl.promptLabel(<時計の形>)、そうでなければ『FlEq> 』のまま（旧築 src/ui/repl.ts:302 と同じ）。切れている間の印（『FlEq [切断中 HH:MM:SS から・繋ぎ直し n 回目]> 』）も promptLabel が返す (2) readline.prompt() を呼ぶ前に必ず setPrompt で (1) の文字を当てる（起動の最初・各 command の後。clock で形を変えた後の prompt は新しい形の文字） (3) TTY のときだけ、REPL は 1 秒ごとの timer（unref。REPL の close で止める）で (1) の文字を作って setPrompt で当てる（入力中の文字があっても当てる。電文のブロックの後に端末が書き直す入力の行は readline.getPrompt() を読む）。そのうえで次を全部満たすときだけ readline.prompt() で書き直す: (a) 前に書いた文字と違う (b) command が走っていない（1 行を受けてから、その返事を出して prompt を呼ぶまで） (c) 入力中の文字が空（readline.line が \"\"。旧築 :130 と同じ） (d) 端末の書き出しが終わっている（TerminalOutput.drained() が true。列が空で、worker へ送った単位の書き込み中〔inFlight〕でもない） (e) REPL が close していない (4) 書き直しは端末の列を echo の単位として通り（直に process.stdout へ書かない、P3-TO-AC02 (4)）、tips の待ちを延ばさない（AC27 (2)） (5) 計算量は P3-CLI-RES-05",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:495 «2c890867ac553aaa»",
-          "docs/specs/cli-terminal-output.md:496 «bfaf727f08ae9815»",
-          "docs/specs/cli-terminal-output.md:509 «4f7e9bcfcee4a634»",
-          "docs/specs/cli-terminal-output.md:523 «e031c40283a6b5e9»",
+          "docs/specs/cli-terminal-output.md:521 «2c890867ac553aaa»",
+          "docs/specs/cli-terminal-output.md:522 «bfaf727f08ae9815»",
+          "docs/specs/cli-terminal-output.md:535 «4f7e9bcfcee4a634»",
+          "docs/specs/cli-terminal-output.md:549 «e031c40283a6b5e9»",
           "reconstruction/contracts/p3-terminal-output.json:135 «4df84d917a71bc1c»",
           "reconstruction/contracts/p3-terminal-output.json:626 «0fd739941d818515»",
           "src/ui/repl.ts:127 «fbc832de0b3f22a8»",
