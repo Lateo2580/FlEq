@@ -13,7 +13,7 @@ const print = (path: string, unit: RuntimeUnitId) => terminal()([reportUnit(shor
 
 // 期待の行の作り方: spec §5.4 の図の行に、電文の文を 80 桁で折り返した行（1 行に入る文はそのまま、入らなければ句点で分け、それでも入らなければ字の境目で折って 2 字下げ、P3-TL-AC09）。図の帯の罫線は 80 桁に伸ばした。
 describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
-  it("図の 4 つの報が図の行になり、帯の段は VPWW55・VXKO70 が purple、VFVO50・VYSE50 が warning", () => {
+  it("図の 4 つの報が図の行になり、帯の段は VPWW55・VXKO70 が top、VFVO50・VYSE50 が warning", () => {
     expect(print("18_00_01_260830_VPWW55_fukui_L5.xml", "U-W")).toEqual([
       "",
       band("気象警報・注意報（大雨） 福井県", "06:51:00"),
@@ -24,6 +24,7 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
     expect(print("16_00_01_260603_VXKO70_kozagawa_l5.xml", "U-R")).toEqual([
       "",
       band("指定河川洪水予報 古座川", "05:35:00"),
+      "レベル５氾濫特別警報",
       "【警戒レベル５相当情報［洪水］】〔警戒レベル４相当から５相当に切替〕和歌山県古座",
       "  川水系古座川では、氾濫しているおそれ",
       "VXKO70 ・ 和歌山県東牟婁振興局串本建設部 和歌山地方気象台",
@@ -31,6 +32,7 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
     expect(print("45_01_01_200522_VFVO50.xml", "U-V")).toEqual([
       "",
       band("噴火警報・予報 浅間山", "13:03:00"),
+      "レベル３（入山規制）",
       "＜浅間山に火口周辺警報（噴火警戒レベル３、入山規制）を発表＞ 　山頂火口から概ね",
       "  ４ｋｍの範囲で大きな噴石や火砕流に警戒してください 。",
       "＜噴火警戒レベルを１（活火山であることに留意）から３（入山規制）に引上げ＞",
@@ -39,6 +41,7 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
     expect(print("selected_xml/74_01_01_200512_VYSE50.xml", "U-N")).toEqual([
       "",
       band("南海トラフ地震臨時情報", "16:20:00"),
+      "調査中",
       "●月●日●●時●●分頃に発生した地震と南海トラフ地震との関連性についての調査を開始しま",
       "  した。",
       "南海トラフ地震で被害が想定される地域の方は、個々の状況に応じて、身の安全を守る行",
@@ -47,31 +50,31 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
     ]);
     const figures: readonly (readonly [string, RuntimeUnitId])[] = [["18_00_01_260830_VPWW55_fukui_L5.xml", "U-W"],
       ["16_00_01_260603_VXKO70_kozagawa_l5.xml", "U-R"], ["45_01_01_200522_VFVO50.xml", "U-V"], ["selected_xml/74_01_01_200512_VYSE50.xml", "U-N"]];
-    expect(figures.map(([path, unit]) => short(path, unit).level)).toEqual(["purple", "purple", "warning", "warning"]);
+    expect(figures.map(([path, unit]) => short(path, unit).level)).toEqual(["top", "top", "warning", "warning"]);
   });
 
   it("最も重い段の帯は白の地に黒で幅いっぱいに塗り、縦線は紫。警報の段は朱の地（色 3）", () => {
     const purple = terminal(80, 3)([reportUnit(short("18_00_01_260830_VPWW55_fukui_L5.xml", "U-W"))]);
     expect(purple[1]).toContain("\x1b[48;2;255;255;255m");
     expect(plain(purple[1])).toBe(filled("気象警報・注意報（大雨） 福井県", "06:51:00"));
-    expect(purple[2].startsWith("\x1b[48;2;178;58;178m \x1b[49m ")).toBe(true);
+    expect(purple[2].startsWith("\x1b[48;2;196;107;222m \x1b[49m ")).toBe(true);
     const warning = terminal(80, 3)([reportUnit(short("45_01_01_200522_VFVO50.xml", "U-V"))]);
     expect(warning[1]).toContain("\x1b[48;2;213;94;0m");
   });
 
-  // AC09 (2) の表の各行の例（成果物の表と同じ並び）。段の無い行（U-L の purple・caution、U-B の warning など）は corpus に例が無い。
+  // Q-TO3-LEVEL の表の各行の例（警戒レベル 5・4・3・2 が top・purple・warning・caution）。段の無い行（U-L の purple・caution など）は corpus に例が無い。
   const examples: readonly (readonly [RuntimeUnitId, string, TerminalBandLevel])[] = [
-    ["U-W", "18_00_01_260830_VPWW55_fukui_L5.xml", "purple"], ["U-W", "15_16_02_251222_VPWW57.xml", "warning"],
-    ["U-W", "15_16_04_251222_VPWW58.xml", "caution"], ["U-W", "15_16_07_250825_VPWW61.xml", "plain"],
-    ["U-L", "15_16_01_241031_VPWW56.xml", "warning"], ["U-L", "18_00_01_260603_VPWW56_kagawa_release.xml", "plain"], ["U-L", "synthetic_VPWW56_cancel.xml", "cancel"],
-    ["U-R", "16_00_01_260603_VXKO70_kozagawa_l5.xml", "purple"], ["U-R", "16_06_01_220728_VXKO50.xml", "warning"],
-    ["U-R", "16_02_01_220728_VXKO50.xml", "caution"], ["U-R", "16_01_01_220728_VXKO50.xml", "plain"],
-    ["U-V", "44_01_01_151008_VFVO51.xml", "purple"], ["U-V", "67_01_01_140927_VFVO56.xml", "purple"], ["U-V", "45_01_01_200522_VFVO50.xml", "warning"],
+    ["U-W", "18_00_01_260830_VPWW55_fukui_L5.xml", "top"], ["U-W", "15_16_02_251222_VPWW57.xml", "purple"],
+    ["U-W", "15_16_04_251222_VPWW58.xml", "warning"], ["U-W", "15_16_07_250825_VPWW61.xml", "caution"],
+    ["U-L", "15_16_01_241031_VPWW56.xml", "purple"], ["U-L", "18_00_01_260603_VPWW56_kagawa_release.xml", "plain"], ["U-L", "synthetic_VPWW56_cancel.xml", "cancel"],
+    ["U-R", "16_00_01_260603_VXKO70_kozagawa_l5.xml", "top"], ["U-R", "16_06_01_220728_VXKO50.xml", "purple"],
+    ["U-R", "16_02_01_220728_VXKO50.xml", "warning"], ["U-R", "16_01_01_220728_VXKO50.xml", "caution"],
+    ["U-V", "44_01_01_151008_VFVO51.xml", "top"], ["U-V", "67_01_01_140927_VFVO56.xml", "top"], ["U-V", "45_01_01_200522_VFVO50.xml", "warning"],
     ["U-V", "44_02_01_200522_VFVO51.xml", "caution"], ["U-V", "42_02_01_071130_VZVO40.xml", "plain"], ["U-V", "43_03_01_200522_VFVO52.xml", "cancel"],
-    ["U-N", "selected_xml/74_01_04_200512_VYSE50.xml", "purple"], ["U-N", "selected_xml/74_01_01_200512_VYSE50.xml", "warning"],
+    ["U-N", "selected_xml/74_01_04_200512_VYSE50.xml", "top"], ["U-N", "selected_xml/74_01_01_200512_VYSE50.xml", "warning"],
     ["U-N", "selected_xml/74_01_07_200512_VYSE50.xml", "plain"],
-    ["U-M", "19_01_01_091210_VPHW50.xml", "caution"], ["U-M", "29_01_01_140129_VPZI50.xml", "plain"], ["U-M", "32-35_09_02_220316_VXSE56.xml", "cancel"],
-    ["U-B", "phase6b_VPOA50_JPDE202608201757_202608201757.xml", "caution"], ["U-B", "phase6b_VPBS50_KJPDE202608201757_202608201757.xml", "caution"],
+    ["U-M", "19_01_01_091210_VPHW50.xml", "warning"], ["U-M", "29_01_01_140129_VPZI50.xml", "plain"], ["U-M", "32-35_09_02_220316_VXSE56.xml", "cancel"],
+    ["U-B", "phase6b_VPOA50_JPDE202608201757_202608201757.xml", "purple"], ["U-B", "phase6b_VPBS50_KJPDE202608201757_202608201757.xml", "purple"],
     ["U-B", "82_01_01_260324_VPBS50.xml", "plain"],
     ["U-F", "81_01_01_260129_VPWP50.xml", "plain"], ["U-Y", "10_04_03_170913_VPTW60.xml", "plain"],
   ];

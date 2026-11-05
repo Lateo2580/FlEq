@@ -120,40 +120,43 @@ function scan(body: XmlElement | null): { target: string | null; kinds: Kind[]; 
 }
 // 気象・土砂で今の段に数えない Kind/Status（weather-current-notice.ts の NOT_CURRENT と同じ 2 つ）。
 const NOT_CURRENT = new Set(["解除", "発表警報・注意報はなし"]);
-const RANK: Readonly<Record<TerminalBandLevel, number>> = { cancel: 0, plain: 0, caution: 1, warning: 2, purple: 3 };
-const heaviest = (levels: readonly TerminalBandLevel[]): TerminalBandLevel =>
-  levels.reduce<TerminalBandLevel>((best, level) => RANK[level] > RANK[best] ? level : best, "plain");
-// Q-TO-S-2 の表を unit ごとの読み方で段にする（成果物の AC09 (2) の表）。段は 5・4・3 相当が purple・warning・caution、それより下は plain。
-const byLevel = (level: number | null): TerminalBandLevel => level === 5 ? "purple" : level === 4 ? "warning" : level === 3 ? "caution" : "plain";
-function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string | null, found: ReturnType<typeof scan>): TerminalBandLevel {
+const RANK: Readonly<Record<TerminalBandLevel, number>> = { cancel: 0, plain: 0, caution: 1, warning: 2, purple: 3, top: 4 };
+// 段と、その段を決めた Kind の名前（P3-TL2-AC08）。同じ段が複数なら電文で最初の 1 つを残す（reduce は厳密に重いときだけ置き換える）。
+type Ranked = Readonly<{ level: TerminalBandLevel; name: string | null }>;
+const heaviest = (items: readonly Ranked[]): Ranked =>
+  items.reduce<Ranked>((best, item) => RANK[item.level] > RANK[best.level] ? item : best, { level: "plain", name: null });
+// Q-TO-S-2 と Q-TO3-LEVEL の表を unit ごとの読み方で段にする。警戒レベル 5・4・3・2 が 最も重い・紫・警報・注意、それより下は plain。
+const byLevel = (level: number | null): TerminalBandLevel => level === 5 ? "top" : level === 4 ? "purple" : level === 3 ? "warning" : level === 2 ? "caution" : "plain";
+function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string | null, found: ReturnType<typeof scan>): Ranked {
   const { headType } = material;
   // 洪水予報の段は Head/Headline の「（河川）」の Information の Kind にある（flood.ts と同じ在りか。Body の Kind は文の種類）。
   const kinds = unit === "U-R" ? scan(first(first(material.xml, "Head"), "Headline")).kinds : found.kinds;
-  const codes = kinds.flatMap(({ code, status }) => code != null && (status == null || !NOT_CURRENT.has(status)) ? [code] : []);
+  const current = kinds.flatMap(({ name, code, status }) => code != null && (status == null || !NOT_CURRENT.has(status)) ? [{ name, code }] : []);
+  const ranked = (level: (code: string) => TerminalBandLevel): Ranked => heaviest(current.map(({ name, code }) => ({ level: level(code), name })));
   switch (unit) {
-    // 気象警報（2026 年の新しい区分）の Kind/Code: 十の位 3 が特別警報（L5）、4 が危険警報（L4）、0 が警報（L3、00 は解除）。1・2 は注意報。
-    case "U-W": return heaviest(codes.map((code) => /^3\d$/.test(code) ? "purple" : /^4\d$/.test(code) ? "warning" : /^0[1-9]$/.test(code) ? "caution" : "plain"));
+    // 気象警報（2026 年の新しい区分）の Kind/Code: 十の位 3 が特別警報（L5）、4 が危険警報（L4）、0 が警報（L3、00 は解除）。1・2 は注意報で、レベルの付かないものも注意の段（Q-TO3-LEVEL）。
+    case "U-W": return ranked((code) => /^3\d$/.test(code) ? "top" : /^4\d$/.test(code) ? "purple" : /^0[1-9]$/.test(code) ? "warning" : /^[12]\d$/.test(code) ? "caution" : "plain");
     // 土砂災害（landslide.ts の LEVELS: 39 L5・49 L4・09 L3・29 L2）。
-    case "U-L": return heaviest(codes.map((code) => byLevel(landslideLevel(code))));
-    // 指定河川洪水予報（flood.ts の LEVELS: 51・53 L5、40・41 L4、30・31 L3）。
-    case "U-R": return heaviest(codes.map((code) => byLevel(floodLevel(code))));
-    // 噴火警戒レベルの Kind/Code（11〜15 がレベル 1〜5）。噴火速報（VFVO56）は最も重い段。
-    case "U-V": return headType === "VFVO56" ? "purple"
-      : heaviest(codes.map((code) => code === "15" || code === "14" ? "purple" : code === "13" ? "warning" : code === "12" ? "caution" : "plain"));
+    case "U-L": return ranked((code) => byLevel(landslideLevel(code)));
+    // 指定河川洪水予報（flood.ts の LEVELS: 51・53 L5、40・41 L4、30・31 L3、20〜22 L2）。
+    case "U-R": return ranked((code) => byLevel(floodLevel(code)));
+    // 噴火警戒レベルの Kind/Code（11〜15 がレベル 1〜5）。噴火速報（VFVO56）は最も重い段で、段を電文の種類で決めるので理由の名前は無い。
+    case "U-V": return headType === "VFVO56" ? { level: "top", name: null }
+      : ranked((code) => code === "15" || code === "14" ? "top" : code === "13" ? "warning" : code === "12" ? "caution" : "plain");
     // 南海トラフ地震臨時情報の InfoSerial/Name。解説情報（VYSE51・52）と調査終了は plain。
-    case "U-N": return found.serialName === "巨大地震警戒" ? "purple" : found.serialName === "巨大地震注意" || found.serialName === "調査中" ? "warning" : "plain";
-    // 竜巻注意情報（VPHW50・51）。
-    case "U-M": return headType === "VPHW50" || headType === "VPHW51" ? "caution" : "plain";
-    // 記録的短時間大雨情報（VPOA50）と、その対応報（EventID が K の VPBS50、notification-gate の categoryOf と同じ読み）。
-    case "U-B": return headType === "VPOA50" || (headType === "VPBS50" && eventId?.startsWith("K") === true) ? "caution" : "plain";
-    case "U-F": case "U-Y": return "plain";
+    case "U-N": return { level: found.serialName === "巨大地震警戒" ? "top" : found.serialName === "巨大地震注意" || found.serialName === "調査中" ? "warning" : "plain", name: found.serialName };
+    // 気象防災速報（竜巻注意・竜巻目撃、VPHW50・51）は警報。
+    case "U-M": return { level: headType === "VPHW50" || headType === "VPHW51" ? "warning" : "plain", name: null };
+    // 気象防災速報（記録的短時間大雨、VPOA50 と、その対応報で EventID が K の VPBS50。notification-gate の categoryOf と同じ読み）は紫。
+    case "U-B": return { level: headType === "VPOA50" || (headType === "VPBS50" && eventId?.startsWith("K") === true) ? "purple" : "plain", name: null };
+    case "U-F": case "U-Y": return { level: "plain", name: null };
     default: { const unknown: never = unit; throw new Error(`unknown short unit ${String(unknown)}`); }
   }
 }
 function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | null): TerminalReport {
   const heading = head(material), found = scan(body);
-  const level = heading.infoType === "取消" ? "cancel" : shortLevel(unit, material, heading.eventId, found);
-  return { kind: "short", unit, head: heading, target: unit === "U-N" ? null : found.target, level };
+  const cancel = heading.infoType === "取消", { level, name } = cancel ? { level: "cancel" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
+  return { kind: "short", unit, head: heading, target: unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。

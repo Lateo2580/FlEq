@@ -33,7 +33,7 @@ describe("P3-TL-T06 帯と縦線の色（契約境界、AC03）", () => {
     expect(lines[1]).toContain("\x1b[48;2;213;94;0m");
     expect(plain(lines[1]).endsWith(" 発表 ")).toBe(true);
     expect(width(plain(lines[1]))).toBe(80);
-    expect(lines[2].startsWith("\x1b[48;2;213;94;0m \x1b[49m ")).toBe(true);
+    expect(lines[2].startsWith("\x1b[48;2;229;105;16m \x1b[49m ")).toBe(true);
     const caution = terminal(80, 3)([reportUnit(reportOf("32-35_04_04_240613_VXSE53.xml", "U-Q"))]);
     expect(caution[1]).not.toContain("\x1b[48;");
     expect(caution[1]).toContain("\x1b[38;2;240;228;66m");

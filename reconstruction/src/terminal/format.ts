@@ -14,7 +14,8 @@ import type { BandRoles, ColorLevel, Paint, Role } from "./color";
 // line は数える出力（REPL の返事・起動の行）、echo は readline が書く echo と prompt（D-DROP で数えない）。
 type TerminalUnit =
   | Readonly<{ kind: "report"; report: TerminalReport; prompt: string | null }>
-  | Readonly<{ kind: "eew"; subject: SubjectOutcome; prompt: string | null }>
+  // nowMs は受信した時刻（wall の ms）。同時に進む EEW の 10 分の期限を電文の時刻でなく端末の時計で測る（P3-TL2-AC11）。
+  | Readonly<{ kind: "eew"; subject: SubjectOutcome; prompt: string | null; nowMs: number }>
   | Readonly<{ kind: "line"; text: string }>
   | Readonly<{ kind: "echo"; text: string }>
   // 【発注 2】処理できなかった報（P3-TO-D-UNREADABLE）と、電文以外の出力（AC10〜AC14・AC17）。時刻は wall の ms で、worker が地方時の字にする。
@@ -115,15 +116,16 @@ function wrapChars(segs: readonly Seg[], cols: number, indent: string): Seg[][] 
 }
 
 // 地域の一覧（AC04 (4)）: 全角の空白で区切って並べ、幅で折り返し、2 行目からは indent 桁の位置まで字下げする。
-function flow(prefix: readonly Seg[], items: readonly (readonly Seg[])[], cols: number, indent: number): Line[] {
+// cont は続きの行の頭（既定は空白 indent 桁。震度の一覧は段の字、満潮は「満潮」を続きの行にも出す、P3-TL2-AC06）。
+function flow(prefix: readonly Seg[], items: readonly (readonly Seg[])[], cols: number, indent: number, cont: readonly Seg[] = [seg(" ".repeat(indent))]): Line[] {
   const lines: Line[] = [];
   let current: Seg[] = [...prefix], used = segsWidth(prefix), empty = true;
   for (const item of items) {
     const size = segsWidth(item);
     if (!empty && used + 2 + size > cols) {
       lines.push({ segs: current });
-      current = [seg(" ".repeat(indent))];
-      used = indent;
+      current = [...cont];
+      used = segsWidth(cont);
       empty = true;
     }
     if (!empty) { current.push(seg("　")); used += 2; }
@@ -181,7 +183,10 @@ function listTable(headers: readonly [string, string], rows: readonly Readonly<{
   min: number, cols: number): Line[] {
   const size = Math.max(min, width(headers[0]) + 2, ...rows.map((row) => width(row.label.text) + 2));
   return [line(seg(pad(headers[0], size) + headers[1], "dim")),
-    ...rows.flatMap((row) => flow([row.label, seg(" ".repeat(size - width(row.label.text)))], row.items, cols, size))];
+    ...rows.flatMap((row) => {
+      const lead = [row.label, seg(" ".repeat(size - width(row.label.text)))];
+      return flow(lead, row.items, cols, size, lead);
+    })];
 }
 
 // ---- 共通の行 ----
@@ -224,6 +229,28 @@ const statusMark = (status: string | null): string => status === "訓練" ? "（
 // 再掲の時刻の括弧（P3-TL-AC08）。訓練と試験の報は印を足す。
 const recapStamp = (time: string | null, status: string | null): string =>
   time == null ? "" : `（${time} 発表${status === "訓練" || status === "試験" ? `・${status}` : ""}）`;
+// 項目を「 ・ 」でつないだ行（震源の行）。入らなければ「 ・ 」の境で折り、折り目の「 ・ 」は出さず続きの行を 2 字下げる（P3-TL2-AC06 (1)）。
+// 1 項目が幅を超えるときはその項目だけの行になり、書き出す時に字の境目で折る。
+const SEP_WIDTH = width(" ・ ");
+function joined(items: readonly (readonly Seg[])[], cols: number): Line[] {
+  const lines: Line[] = [];
+  let current: Seg[] = [], used = 0, fresh = true;
+  for (const item of items) {
+    const size = segsWidth(item);
+    if (!fresh && used + SEP_WIDTH + size > cols) { lines.push({ segs: current }); current = [seg("  ")]; used = 2; fresh = true; }
+    if (!fresh) { current.push(seg(" ・ ")); used += SEP_WIDTH; }
+    current.push(...item);
+    used += size;
+    fresh = false;
+  }
+  lines.push({ segs: current });
+  return lines;
+}
+// 最後の行に時刻の括弧を足す（再掲）。
+const stampLast = (lines: readonly Line[], stamp: string): Line[] =>
+  lines.map((item, index) => index === lines.length - 1 && stamp !== "" ? { ...item, segs: [...item.segs, seg(stamp, "dim")] } : item);
+// 震度 7 の塗りは色を付けるときだけ前後に空白を足して 3 桁にする（P3-TL2-AC02 (5)、6 強と同じ幅）。比べる字は変えず、描く字だけ変える。
+const solid = (label: string, ctx: Ctx): string => ctx.color && label === "7" ? " 7 " : label;
 // 要点の行に並べる地域: 入る分だけ並べ、残りは「ほか n 地域」（P3-TL-AC01）。1 つ目は入らなくても出す（折り返しは書き出す時に行う）。
 function fitAreas(names: readonly string[], room: number): { text: string; all: boolean } {
   let shown = "", count = 0;
@@ -237,10 +264,10 @@ function fitAreas(names: readonly string[], room: number): { text: string; all: 
 }
 // 要点の最大の行（太字）。was は前の報の値（薄い字の「旧 →」）、suffix は再掲の時刻の括弧。
 const topRoom = (label: string, value: string, was: string | null, ctx: Ctx, suffix: readonly Seg[]): number =>
-  ctx.body - width(`${label}${was == null ? "" : `${was} → `}${value}  `) - segsWidth(suffix);
+  ctx.body - width(`${label}${was == null ? "" : `${was} →  `}${solid(value, ctx)}  `) - segsWidth(suffix);
 function maxLine(label: string, value: string, was: string | null, names: readonly string[], ctx: Ctx, suffix: readonly Seg[] = []): Line {
   const room = topRoom(label, value, was, ctx, suffix);
-  return line(seg(label, null, true), ...was == null ? [] : [seg(`${was} → `, "dim")], seg(value, intensityRole(value), true),
+  return line(seg(label, null, true), ...was == null ? [] : [seg(`${was} →  `, "dim")], seg(solid(value, ctx), intensityRole(value), true),
     ...names.length === 0 ? [] : [seg("  ", null, true), seg(fitAreas(names, room).text, null, true)], ...suffix);
 }
 
@@ -275,7 +302,9 @@ const intensityLabel = (raw: string): string => {
 };
 // 先頭の震度の段（「5弱以上未入電」は 5 弱）。段が読めなければ -1。
 const intensityRank = (label: string): number => INTENSITY_ORDER.indexOf(/^[1-7][弱強]?/.exec(label)?.[0] ?? "");
-const intensityRole = (label: string): Role | null => INTENSITY_ROLES[label] ?? null;
+// 合成の字（7程度以上、6強〜7）は 7 の役目、7 を含まない合成（6強程度以上）は先頭の段の役目（3 桁の詰めは solid が字ちょうど 7 のときだけ）。
+const intensityRole = (label: string): Role | null =>
+  INTENSITY_ROLES[label] ?? (label.includes("7") ? INTENSITY_ROLES["7"] : INTENSITY_ROLES[/^[1-7][弱強]?/.exec(label)?.[0] ?? ""] ?? null);
 const lgRole = (label: string): Role | null => LG_ROLES[label] ?? null;
 
 function magnitudeText(value: TerminalValue | null): string {
@@ -297,8 +326,9 @@ function depthText(value: TerminalValue | null): string {
   const km = Math.abs(Number(depth[1])) / 1000;
   return km === 0 ? "ごく浅い" : `${km}km`;
 }
-function hypocenterLine(hypocenter: TerminalHypocenter, extra: readonly Seg[] = [], depth = true): Line {
-  return line(seg(`震源: ${hypocenter.name ?? "不明"} ・ ${magnitudeText(hypocenter.magnitude)}${depth ? ` ・ 深さ${depthText(hypocenter.coordinate)}` : ""}`), ...extra);
+function hypocenterLines(hypocenter: TerminalHypocenter, ctx: Ctx, extra: readonly (readonly Seg[])[] = [], depth = true): Line[] {
+  return joined([[seg(`震源: ${hypocenter.name ?? "不明"}`)], [seg(magnitudeText(hypocenter.magnitude))],
+    ...depth ? [[seg(`深さ${depthText(hypocenter.coordinate)}`)]] : [], ...extra], ctx.body);
 }
 
 // ---- 地震（AC06） ----
@@ -309,6 +339,7 @@ function seismicLevel(report: Extract<TerminalReport, { kind: "seismic" }>): Ter
   const observed = report.maxInt == null || report.maxInt === "" ? report.maxIntCondition : report.maxInt;
   const rank = intensityRank(observed == null ? "" : intensityLabel(observed));
   const lg = Number(nfkc(report.maxLgInt ?? ""));
+  if (rank === INTENSITY_ORDER.indexOf("7")) return "top";
   if (rank >= INTENSITY_ORDER.indexOf("5弱") || lg >= 2) return "warning";
   return rank === INTENSITY_ORDER.indexOf("4") ? "caution" : "plain";
 }
@@ -344,15 +375,16 @@ function seismic(report: Extract<TerminalReport, { kind: "seismic" }>, ctx: Ctx)
   const stamp = recapStamp(time, head.status);
   // 最大の行（P3-TL-AC06 (1)）。長周期地震動の観測情報は階級の行で、地域を添えない。
   const lead = (suffix: readonly Seg[]): Line[] => longPeriod && maxLg != null
-    ? [line(seg("最大長周期階級 ", null, true), seg(maxLg, lgRole(maxLg), true), ...max == null ? [] : [seg(" ・ 最大震度 ", null, true), seg(max, intensityRole(max), true)], ...suffix)]
+    ? [line(seg("最大長周期階級 ", null, true), seg(maxLg, lgRole(maxLg), true), ...max == null ? [] : [seg(" ・ 最大震度 ", null, true), seg(solid(max, ctx), intensityRole(max), true)], ...suffix)]
     : max != null ? [maxLine("最大震度 ", max, null, tops, ctx, suffix)] : [];
   // 発生の時刻（Q-TO2-ORIGIN）。発表の日と違う日は日を添える。
   const origin = arrivalText(report.originDateTimeRaw, head.reportDateTimeRaw);
-  const originSeg = origin == null ? [] : [seg(` ・ 発生 ${origin}ころ`)];
-  const hypocenter = report.hypocenter == null ? line(seg("震源: 調査中"), ...originSeg) : hypocenterLine(report.hypocenter, originSeg);
+  const originItems = origin == null ? [] : [[seg(`発生 ${origin}ころ`)]];
+  // 震源の要素が無い報は「震源: 調査中」と書かず、発生の時刻だけの行にする（P3-TL2-AC03 (3)）。
+  const hypocenter = report.hypocenter == null ? origin == null ? [] : joined(originItems, ctx.body) : hypocenterLines(report.hypocenter, ctx, originItems);
   const comment = textLines(report.forecastComment, ctx.body);
   const first = lead([]);
-  const summary = first.length > 0 ? [...first, ...comment, hypocenter] : [hypocenter, ...comment];
+  const summary = first.length > 0 ? [...first, ...comment, ...hypocenter] : [...hypocenter, ...comment];
   // 震度が 1 段だけで、要点の行に全部の地域が入る報は表を出さない（VXSE62 は除く）。
   const covered = tops.length > 0 && tops.length === report.areas.length && report.omitted === 0 && max != null && fitAreas(tops, topRoom("最大震度 ", max, null, ctx, [])).all;
   const tables: Line[][] = [];
@@ -363,7 +395,7 @@ function seismic(report: Extract<TerminalReport, { kind: "seismic" }>, ctx: Ctx)
         // 階級の中は名前順（旧築 lg-observation-formatter.ts の buildLgAreaRows と同じ localeCompare の ja、spec §5.2 の図の並び）。
         items: [...group.items].sort((left, right) => left.name.localeCompare(right.name, "ja"))
           .map((area) => [seg(`${area.name}（震度${areaIntensity(area.maxInt, area.maxIntCondition)}）`)]) }))
-      : groups.map((group) => ({ label: seg(group.label, intensityRole(group.label)), items: group.items.map((area) => [seg(area.name)]) }));
+      : groups.map((group) => ({ label: seg(solid(group.label, ctx), intensityRole(group.label)), items: group.items.map((area) => [seg(area.name)]) }));
     tables.push([...listTable(longPeriod ? ["長周期階級", "地域"] : ["震度", "地域"], rows, longPeriod ? 12 : 8, ctx.body), ...omittedLine(report.omitted)]);
   }
   // 見出し文は定型の文なので表の下（Q-TO2-LAYOUT）。Q-TO-Q-5: 気象庁ホームページへのリンクである旨を明示する 1 行と、折らない URI。
@@ -375,10 +407,16 @@ function seismic(report: Extract<TerminalReport, { kind: "seismic" }>, ctx: Ctx)
 
 // ---- 津波（AC07） ----
 const kindOf = (area: TerminalTsunamiArea): string => (area.kindName ?? "").split("：")[0];
+// 区分の重さ（P3-TL2-AC09）。解除と津波予報、前の報に無い地域は 0。
+const kindRank = (kind: string): number => kind.includes("解除") ? 0 : kind.includes("大津波警報") ? 3 : kind.startsWith("津波警報") ? 2 : kind.startsWith("津波注意報") ? 1 : 0;
+const TSUNAMI_KINDS = [["大津波警報", 3], ["津波警報", 2], ["津波注意報", 1]] as const;
+// 文ごとの行（VTSE51 の行動の文、複数の文は文ごと、P3-TL2-AC04 (3)）。
+const sentenceLines = (text: string | null): Line[] => text == null ? [] : text.split(/\n+/).flatMap((part) => part.split(/(?<=。)/))
+  .map((piece) => piece.trim()).filter((piece) => piece !== "").map((piece) => line(seg(piece, null, true)));
 function tsunamiLevel(report: Extract<TerminalReport, { kind: "tsunami" }>): TerminalBandLevel {
   if (report.head.infoType === "取消") return "cancel";
   const kinds = report.areas.map(kindOf).filter((kind) => !kind.includes("解除"));
-  if (kinds.some((kind) => kind.includes("大津波警報"))) return "purple";
+  if (kinds.some((kind) => kind.includes("大津波警報"))) return "top";
   if (kinds.some((kind) => kind.startsWith("津波警報"))) return "warning";
   return kinds.some((kind) => kind.startsWith("津波注意報")) ? "caution" : "plain";
 }
@@ -404,29 +442,49 @@ function forecastTable(areas: readonly TerminalTsunamiArea[], reportRaw: string 
     return [...kinds ? [seg(kind, kind.includes("大津波警報") ? "rulePurple" : kind.startsWith("津波警報") ? "ruleWarning" : "ruleCaution")] : [],
       seg(area.name), height == null ? null : seg(height), arrival == null ? null : seg(arrival, area.arrivalTimeRaw == null ? "arrived" : null)];
   });
-  const columns: Column[] = [{ header: "地域", min: 22 }, { header: "予想される高さ", short: "高さ", min: 16 }, { header: "到達予想時刻", short: "到達", min: 0 }];
+  const columns: Column[] = [{ header: "地域", min: 22 }, { header: "予想される高さ", short: "予想", min: 16 }, { header: "到達予想時刻", short: "到達", min: 0 }];
   return kinds ? rowTable([{ header: "区分", min: 12 }, ...columns], rows, 1, cols) : rowTable(columns, rows, 0, cols);
 }
 
-function tsunami(report: Extract<TerminalReport, { kind: "tsunami" }>, ctx: Ctx): Rendered {
+function tsunami(report: Extract<TerminalReport, { kind: "tsunami" }>, memory: Memory, ctx: Ctx): Rendered {
   const { head } = report, cancel = head.infoType === "取消", reportRaw = head.reportDateTimeRaw, level = tsunamiLevel(report), roles = BAND_ROLES[level];
   // 帯の題名: 大津波警報・津波警報…（VTSE41）は段を名前に持つ Head/Title、ほかは Control/Title（末尾の「a」は電文の版の印なので外す）。
   const base = head.headType === "VTSE41" ? head.title ?? head.controlTitle : head.controlTitle?.replace(/a$/, "") ?? head.title;
   const title = `${base ?? head.headType}${statusMark(head.status)}${cancel ? " 取消" : ""}`;
   const time = clockOf(reportRaw), bandLines = band(title, roles, time, ctx), tail = footer(head.headType, head.eventId);
-  if (cancel) return compose(bandLines, roles, { summary: textLines(head.headline, ctx.body), tables: [], supplement: [], tail, recap: [] }, ctx);
+  // 区分の覚えは同じ運用区分・EventID の前の VTSE41 だけ（P3-TL2-AC09）。取消で消す。
+  const followKey = head.eventId == null ? null : `${head.status}/${head.eventId}`;
+  if (cancel) {
+    if (head.headType === "VTSE41" && followKey != null) memory.tsunami.delete(followKey);
+    return compose(bandLines, roles, { summary: textLines(head.headline, ctx.body), tables: [], supplement: [], tail, recap: [] }, ctx);
+  }
   // 要点（P3-TL-AC07 (2)）: 「＊＊＊これは訓練です＊＊＊」、「避難」を含む文（太字）、区分ごとの地域数（太字）、残りの見出し文、震源。電文の文は言い換えない。
   const said = (head.headline ?? "").split(/\n+/).map((part) => part.trim()).filter((part) => part !== "");
   const notes = said.filter((part) => part.startsWith("＊")), acts = said.filter((part) => !part.startsWith("＊") && part.includes("避難"));
   const rest = said.filter((part) => !part.startsWith("＊") && !part.includes("避難"));
-  const counted = ["大津波警報", "津波警報", "津波注意報"].flatMap((kind) => {
-    const count = report.areas.filter((area) => kindOf(area) === kind).length;
-    return count === 0 ? [] : [`${kind} ${count}地域`];
-  }).join(" ・ ");
+  const counts = TSUNAMI_KINDS.flatMap(([kind]) => {
+    const names = report.areas.filter((area) => kindOf(area) === kind).map((area) => area.name);
+    return names.length === 0 ? [] : [{ kind, names }];
+  });
+  // 区分の行（Q-TO3-RECAP）: 最も重い区分は地域数と地域名、残りの区分は数だけを次の行に出す。suffix は最後の行の時刻の括弧。
+  const countLines = (suffix: readonly Seg[]): Line[] => {
+    if (counts.length === 0) return [];
+    const [top, ...others] = counts, label = `${top.kind} ${top.names.length}地域`;
+    const names = fitAreas(top.names, ctx.body - width(`${label}  `) - (others.length === 0 ? segsWidth(suffix) : 0));
+    return [line(seg(label, null, true), seg("  ", null, true), seg(names.text, null, true), ...others.length === 0 ? suffix : []),
+      ...others.length === 0 ? [] : [line(seg(others.map((item) => `${item.kind} ${item.names.length}地域`).join(" ・ "), null, true), ...suffix)]];
+  };
+  // 前の VTSE41 より区分が上がった地域（VTSE41 だけ、覚えの無い報には出さない）。
+  const before = head.headType === "VTSE41" && followKey != null ? memory.tsunami.get(followKey) : undefined;
+  const raised = before == null ? [] : TSUNAMI_KINDS.flatMap(([kind, level]) => {
+    const names = report.areas.filter((area) => kindRank(kindOf(area)) === level && (before.get(area.name) ?? 0) < level).map((area) => area.name);
+    return names.length === 0 ? [] : [line(seg(`${kind}に引き上げ  ${fitAreas(names, ctx.body - width(`${kind}に引き上げ  `)).text}`))];
+  });
+  if (head.headType === "VTSE41" && followKey != null) remember(memory.tsunami, followKey, new Map(report.areas.map((area) => [area.name, kindRank(kindOf(area))])));
   // 深さは沖合の情報（VTSE52）だけ出す（spec §5.3 の図のとおり、作者裁定。VTSE41・VTSE51 の図は M までで止める）。
   const summary = [...notes.map((part) => line(seg(part))), ...acts.flatMap((part) => textLines(part, ctx.body, true)),
-    ...counted === "" ? [] : [line(seg(counted, null, true))], ...rest.flatMap((part) => textLines(part, ctx.body)),
-    ...report.hypocenter == null ? [] : [hypocenterLine(report.hypocenter, [], head.headType === "VTSE52")]];
+    ...countLines([]), ...raised, ...rest.flatMap((part) => textLines(part, ctx.body)),
+    ...report.hypocenter == null ? [] : hypocenterLines(report.hypocenter, ctx, [], head.headType === "VTSE52")];
   const tables: Line[][] = [];
   const forecast = report.areas.filter((area) => kindOf(area) !== "津波なし" && !kindOf(area).startsWith("津波予報"));
   const slight = report.areas.filter((area) => kindOf(area).startsWith("津波予報"));
@@ -439,11 +497,13 @@ function tsunami(report: Extract<TerminalReport, { kind: "tsunami" }>, ctx: Ctx)
   const tides = report.areas.filter((area) => area.stations.length > 0);
   if (tides.length > 0) {
     const size = Math.max(22, ...tides.map((area) => width(area.name) + 2));
+    // 各行（折り返した行も）の観測点の前に「満潮」を付ける（P3-TL2-AC06 (3)）。見出しが流れると到達の時刻と読み違えるため。
+    const tide = seg("満潮 ");
     tables.push([line(seg("満潮時刻")), ...tides.flatMap((area) => {
       const items = area.stations.map((station) => [seg(`${station.name} ${minuteOf(station.highTideDateTimeRaw) ?? ""}`.trimEnd())]);
       // 観測点の 1 組が地域の欄の後ろに入らないときだけ、地域の行と観測点の行に分ける。
-      return items.some((item) => size + segsWidth(item) > ctx.body) ? [line(seg(area.name)), ...flow([seg("  ")], items, ctx.body, 2)]
-        : flow([seg(pad(area.name, size))], items, ctx.body, size);
+      return items.some((item) => size + segsWidth([tide]) + segsWidth(item) > ctx.body) ? [line(seg(area.name)), ...flow([seg("  "), tide], items, ctx.body, 2, [seg("  "), tide])]
+        : flow([seg(pad(area.name, size)), tide], items, ctx.body, size, [seg(" ".repeat(size)), tide]);
     })]);
   }
   if (report.stations.length > 0) {
@@ -461,11 +521,12 @@ function tsunami(report: Extract<TerminalReport, { kind: "tsunami" }>, ctx: Ctx)
   }
   if (report.estimations.length > 0) tables.push([line(seg("沿岸で推定される津波")), ...forecastTable(report.estimations, reportRaw, ctx.body, false)]);
   if (report.omitted > 0) tables.push(omittedLine(report.omitted));
-  // 固定付加文は沖合の情報（VTSE52）だけ出す（VTSE41・VTSE51 の WarningComment は見出し文の繰り返しと長い定型文）。
-  const supplement = head.headType === "VTSE52" ? textLines(report.warningComment, ctx.body) : [];
-  // 再掲: 地域数と「避難」の文。「避難」の文が無ければ地域数の行に時刻（地域数の無い報には出さない）。
-  const stamp = recapStamp(time, head.status), stamped = (text: string, bold: boolean, mark: boolean): Line => line(seg(text, null, bold), ...mark ? [seg(stamp, "dim")] : []);
-  const recap = counted === "" || stamp === "" ? [] : [stamped(counted, true, acts.length === 0), ...acts.map((part, index) => stamped(part, true, index === acts.length - 1))];
+  // 固定付加文は沖合の情報（VTSE52、今のまま）と、VTSE51 の太字（流れ終わった画面に残す、Q-TO3-ACTION）。VTSE41 は見出し文の繰り返しなので出さない。
+  const supplement = head.headType === "VTSE52" ? textLines(report.warningComment, ctx.body) : head.headType === "VTSE51" ? sentenceLines(report.warningComment) : [];
+  // 再掲: 区分の 2 行と「避難」の文。「避難」の文が無ければ最後の区分の行に時刻（地域数の無い報には出さない）。
+  const stamp = recapStamp(time, head.status);
+  const recap = counts.length === 0 || stamp === "" ? [] : [...countLines(acts.length === 0 ? [seg(stamp, "dim")] : []),
+    ...acts.map((part, index) => line(seg(part, null, true), ...index === acts.length - 1 ? [seg(stamp, "dim")] : []))];
   return compose(bandLines, roles, { summary, tables, supplement, tail, recap }, ctx);
 }
 
@@ -496,12 +557,13 @@ function lgLabel(value: Json): string | null {
   return high === low ? low : `${low}〜${high}`;
 }
 // 到達予想時刻の欄（Q-TO-EEW-6）: 主要動の到達と PLUM は Condition を短くして出す。
-function eewArrival(condition: string | null, arrivalRaw: string | null): Seg | null {
+// 電文の確かさを変えずに出す（Q-TO3-MEANING）。発表時刻より前の到達予想時刻は到達と推測と同じ警報の字（P3-TL2-AC07 (2)）。
+function eewArrival(condition: string | null, arrivalRaw: string | null, reportRaw: string | null): Seg | null {
   const text = condition == null ? "" : condition.normalize("NFKC").replace(/\s+/g, "");
-  if (text.includes("既に主要動到達")) return seg("到達済み", "arrived");
+  if (text.includes("既に主要動到達")) return seg("到達と推測", "arrived");
   if (text.includes("PLUM法")) return seg("PLUM法で推定");
   const at = clockOf(arrivalRaw);
-  return at != null ? seg(at) : text === "" ? null : seg(text);
+  return at != null ? seg(at, arrivalRaw != null && reportRaw != null && Date.parse(arrivalRaw) < Date.parse(reportRaw) ? "arrived" : null) : text === "" ? null : seg(text);
 }
 // 見出し文の地方名を太字にする（spec §5.1 の表）。全角の空白で区切られた部分が地方名で、先頭が震源の文のままのときは先頭だけ地方名でない。
 function headlineSegs(headline: string, regions: boolean): Seg[] {
@@ -514,25 +576,30 @@ function headlineSegs(headline: string, regions: boolean): Seg[] {
 
 // 前の報の覚え（P3-TL-AC05）。鍵は operation・family・EventID。仮定の震源（PLUM）の報は M と深さを覚えない。
 type Remembered = Readonly<{ max: string; name: string | null; time: string | null; mag: string | null; depth: string | null; lg: string | null }>;
-type Memory = Map<string, Remembered>;
+// 同じ地震の報の重なり（AC10）と同時に進む EEW（AC11）の覚え。鍵は operation・EventID（family をまたぐ）。
+type Event = Readonly<{ seen45: boolean; cancelShown: boolean; ended: boolean; lastMs: number; name: string | null }>;
+// follow は続報の比べ、events は EEW の重なりと同時進行、tsunami は VTSE41 の区分（地域名→区分の重さ）。どれも EventID ごとで 64 件まで。
+type Memory = Readonly<{ follow: Map<string, Remembered>; events: Map<string, Event>; tsunami: Map<string, ReadonlyMap<string, number>> }>;
+const ACTIVE_MS = 10 * 60_000;
 // P3-TO-RET-01: EventID ごとの覚えは 64 件、古い順に捨てる（保存しない）。
 // 鍵に operation を入れないと同じ EventID の訓練の報が通常の報の覚えを上書きする。family を入れないと VXSE43 と VXSE45 が別の番号で並走して比べ違える（P3-TL-D-FOLLOW-KEY）。
-function remember(memory: Memory, key: string, entry: Remembered): void {
+function remember<T>(memory: Map<string, T>, key: string, entry: T): void {
   memory.delete(key);
   memory.set(key, entry);
   if (memory.size > MEMORY_LIMIT) memory.delete(memory.keys().next().value!);
 }
 // P3-TO-D-CANCEL-PHRASE: 覚えがあれば前の報の震源名と発表時刻、無ければ EventID の時刻（検知時刻）。文は spec §5.1 の図の字。
-function cancelPhrase(memory: Memory, key: string | null, eventId: string | null): string | null {
+function cancelPhrase(memory: ReadonlyMap<string, Remembered>, key: string | null, eventId: string | null): string | null {
   const known = key == null ? undefined : memory.get(key);
   if (known?.name != null) return known.time == null ? `取り消したのは${known.name}の地震です` : `取り消したのは ${known.time} 発表の${known.name}の地震です`;
   const detected = /^\d{8}(\d{2})(\d{2})\d{2}$/.exec(eventId ?? "");
   return detected == null ? null : `取り消したのは ${detected[1]}:${detected[2]} 頃に検知した地震です`;
 }
 // 旧の値と矢印は補足の薄い字（値が変わったときだけ）。
-const was = (old: string | null | undefined, now: string): Seg[] => old != null && old !== now ? [seg(`${old} → `, "dim")] : [];
+const was = (old: string | null | undefined, now: string): Seg[] => old != null && old !== now ? [seg(`${old} →  `, "dim")] : [];
 
-function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx): Rendered {
+// null は畳む報（P3-TL2-AC10）。畳んでも覚えは更新する（取消の 3 行目の震源名と、AC11 の最後の時刻に要る）。
+function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): Rendered | null {
   const facts = subject.facts, report = record(facts.report);
   const family = string(facts.family) ?? subject.source?.family ?? "VXSE", eventId = string(facts.eventId);
   const warning = facts.warningClass === "warning", cancel = subject.informationType === "取消";
@@ -540,15 +607,25 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx): Rendered {
   const serial = typeof facts.serial === "number" ? facts.serial : null;
   const title = `緊急地震速報（${warning ? "警報" : "予報"}）${status == null ? "" : `（${status}）`}${cancel ? " 取消" : `${serial == null ? "" : ` 第${serial}報`}${facts.terminal === true ? " 最終報" : ""}`}`;
   const time = clockOf(subject.source?.reportDateTimeRaw), key = eventId == null ? null : `${subject.operation}/${family}/${eventId}`;
-  const roles = BAND_ROLES[cancel ? "cancel" : warning ? "warning" : "caution"], bandLines = band(title, roles, time, ctx), tail = footer(family, eventId);
-  const headline = string(report?.headline) ?? "";
-  if (cancel) {
-    const phrase = cancelPhrase(memory, key, eventId);
-    const summary = [...textLines(headline === "" ? string(report?.cancelText) : headline, ctx.body), ...phrase == null ? [] : [line(seg(phrase))]];
-    return compose(bandLines, roles, { summary, tables: [], supplement: [], tail, recap: [] }, ctx);
-  }
   const prediction = record(facts.prediction), max = forecastLabel(prediction?.maximum) ?? "不明";
-  const previous = key == null ? undefined : memory.get(key);
+  // 最大予測震度の字に 7 を含む報（7、7程度以上、6強〜7）は最も重い段（P3-TL2-AC01）。
+  const roles = BAND_ROLES[cancel ? "cancel" : max.includes("7") ? "top" : warning ? "warning" : "caution"], bandLines = band(title, roles, time, ctx), tail = footer(family, eventId);
+  const headline = string(report?.headline) ?? "";
+  // 同じ operation・EventID で VXSE45 を受けた後の VXSE43 と、2 通目以降の取消を畳む（旧築 eew-tracker の hasSeen45、P3-TL2-AC10）。
+  const eventKey = eventId == null ? null : `${subject.operation}/${eventId}`, known = eventKey == null ? undefined : memory.events.get(eventKey);
+  const fold = cancel ? known?.cancelShown === true : family === "VXSE43" && known?.seen45 === true;
+  const settle = (name: string | null): void => {
+    if (eventKey == null) return;
+    remember(memory.events, eventKey, { seen45: known?.seen45 === true || family === "VXSE45", cancelShown: known?.cancelShown === true || (cancel && !fold),
+      ended: known?.ended === true || cancel || facts.terminal === true, lastMs: nowMs, name: name ?? known?.name ?? null });
+  };
+  if (cancel) {
+    const phrase = cancelPhrase(memory.follow, key, eventId);
+    const summary = [...textLines(headline === "" ? string(report?.cancelText) : headline, ctx.body), ...phrase == null ? [] : [line(seg(phrase))]];
+    settle(null);
+    return fold ? null : compose(bandLines, roles, { summary, tables: [], supplement: [], tail, recap: [] }, ctx);
+  }
+  const previous = key == null ? undefined : memory.follow.get(key);
   const areas = list(report?.areas), predicted = list(prediction?.areas);
   const topNames = areas.flatMap((value, index) => forecastLabel(record(record(predicted[index])?.intensity)) === max ? [string(record(value)?.name) ?? ""] : []);
   const name = string(report?.hypocenter), assumed = report?.isAssumedHypocenter === true, lg = lgLabel(report?.maxLgInt);
@@ -556,36 +633,44 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx): Rendered {
   // 長周期階級 0 と無い報は項目を出さない。旧か新が 0 か無いときは矢印を付けない（旧の覚えも 0・無しは null で持つ）。
   const shownLg = lg == null || lg === "0" ? null : lg;
   const compared = assumed || previous == null ? null : previous;
-  const lgSegs = shownLg == null ? [] : [seg(" ・ 長周期階級 "), ...was(compared?.lg, shownLg), seg(shownLg, lgRole(shownLg))];
+  const lgItem = shownLg == null ? [] : [[seg("長周期階級 "), ...was(compared?.lg, shownLg), seg(shownLg, lgRole(shownLg))]];
   // 仮定の震源（PLUM）は M と深さを出さず、その報の震源の行に矢印を付けない（旧築と同じ、P3-TL-AC05 (6)）。
   const numeric = /^M[0-9.]+$/;
   const magSegs = compared?.mag != null && numeric.test(mag) && numeric.test(compared.mag)
     ? [seg("M"), ...was(compared.mag.slice(1), mag.slice(1)), seg(mag.slice(1))] : [...was(compared?.mag, mag), seg(mag)];
-  const hypocenter = assumed ? line(seg(`震源: ${name ?? "不明"}（仮定の震源、PLUM法で推定）`), ...lgSegs)
-    : line(seg("震源: "), ...name == null ? [] : was(compared?.name, name), seg(name ?? "不明"), seg(" ・ "), ...magSegs,
-      seg(" ・ 深さ"), ...was(compared?.depth, depth), seg(depth), ...lgSegs);
+  const hypocenter = assumed ? joined([[seg(`震源: ${name ?? "不明"}（仮定の震源、PLUM法で推定）`)], ...lgItem], ctx.body)
+    : joined([[seg("震源: "), ...name == null ? [] : was(compared?.name, name), seg(name ?? "不明")], magSegs, [seg("深さ"), ...was(compared?.depth, depth), seg(depth)], ...lgItem], ctx.body);
   // 見出し文の先頭が「<震源名>で地震」のときだけ外す（震源の行と重なる、P3-TL-AC04 (2)）。
   const cut = name != null && headline.startsWith(`${name}で地震`) ? headline.slice(`${name}で地震`.length).replace(/^　+/, "") : null;
   const rest = cut ?? headline;
+  // 行動の文は言い換えずに太字で見出し文の下へ（Q-TO3-ACTION）。
+  const action = textLines(string(report?.warningComment), ctx.body, true);
+  // 別の EventID の EEW が進んでいる間は要点の最後に件数（訓練と通常は別、最終報・取消を受けた地震と 10 分を過ぎた地震は数えない、P3-TL2-AC11）。
+  const active = [...memory.events].filter(([other, item]) => other !== eventKey && other.startsWith(`${subject.operation}/`) && !item.ended && nowMs - item.lastMs <= ACTIVE_MS);
+  const others = active.length === 0 ? []
+    : [line(seg(`ほかに ${active.length} 件の緊急地震速報${active.length === 1 && active[0][1].name != null ? `（${active[0][1].name}）` : ""}`))];
   const summary = [maxLine("最大予測震度 ", max, previous != null && previous.max !== max ? previous.max : null, topNames, ctx),
-    ...rest === "" ? [] : [line(...headlineSegs(rest, cut != null))], hypocenter];
+    ...rest === "" ? [] : [line(...headlineSegs(rest, cut != null))], ...action, ...hypocenter, ...others];
   const tables: Line[][] = [];
+  const labels = areas.map((_, index) => forecastLabel(record(record(predicted[index])?.intensity)));
   const rows = areas.map((value, index): Cell[] => {
     const area = record(value), intensity = record(record(predicted[index])?.intensity);
-    const label = forecastLabel(intensity), areaLg = lgLabel(area?.lgInt);
-    return [label == null ? null : seg(label, intensityRole(label)), seg(string(area?.name) ?? string(area?.code) ?? ""),
-      eewArrival(string(intensity?.condition), string(area?.arrivalTimeRaw)), areaLg == null || areaLg === "0" ? null : seg(`階級${areaLg}`, lgRole(areaLg))];
+    const label = labels[index], areaLg = lgLabel(area?.lgInt);
+    return [label == null ? null : seg(solid(label, ctx), intensityRole(label)), seg(string(area?.name) ?? string(area?.code) ?? ""),
+      eewArrival(string(intensity?.condition), string(area?.arrivalTimeRaw), subject.source?.reportDateTimeRaw ?? null), areaLg == null || areaLg === "0" ? null : seg(`階級${areaLg}`, lgRole(areaLg))];
   });
   // 地域が 1 つで到達も長周期階級も無い報は、表が要点の行の繰り返しになるので出さない（P3-TL-AC04 (3)）。
-  const repeated = rows.length === 1 && rows[0][0]?.text === max && rows[0][2] == null && rows[0][3] == null;
+  const repeated = rows.length === 1 && labels[0] === max && rows[0][2] == null && rows[0][3] == null;
   if (rows.length > 0 && !repeated) {
     tables.push(rowTable([{ header: "予測震度", min: 12 }, { header: "地域", min: 14 }, { header: "到達予想時刻", short: "到達", min: 14 },
       { header: "長周期階級", short: "長周期", min: 0 }], rows, 1, ctx.body));
   }
-  const stamp = recapStamp(time, status);
-  const recap = stamp === "" ? [] : [maxLine("最大予測震度 ", max, null, topNames, ctx, [seg(stamp, "dim")])];
-  if (key != null) remember(memory, key, { max, name, time, mag: assumed ? null : mag, depth: assumed ? null : depth, lg: shownLg });
-  return compose(bandLines, roles, { summary, tables, supplement: textLines(string(report?.nextAdvisory), ctx.body), tail, recap }, ctx);
+  // 再掲: 最大の行と行動の文（発表時刻つき）。行動の文が無い報は最大の行に発表時刻（P3-TL2-AC05 (3)）。
+  const stamp = recapStamp(time, status), topLine = (suffix: readonly Seg[]) => maxLine("最大予測震度 ", max, null, topNames, ctx, suffix);
+  const recap = stamp === "" ? [] : action.length === 0 ? [topLine([seg(stamp, "dim")])] : [topLine([]), ...stampLast(action, stamp)];
+  if (key != null) remember(memory.follow, key, { max, name, time, mag: assumed ? null : mag, depth: assumed ? null : depth, lg: shownLg });
+  settle(name);
+  return fold ? null : compose(bandLines, roles, { summary, tables, supplement: textLines(string(report?.nextAdvisory), ctx.body), tail, recap }, ctx);
 }
 
 // ---- 短い形（AC09、spec §5.4）と処理できなかった報（P3-TO-D-UNREADABLE） ----
@@ -594,13 +679,14 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
   const base = (head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
   const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${report.target == null || report.target === "" ? "" : ` ${report.target}`}`;
-  // 最も重い段は縦線を紫、帯の字を白の地に黒で塗る（Q-TO-S-2）。
-  const roles: BandRoles = report.level === "purple" ? { band: "bandPurpleShort", rule: "rulePurple", bar: "barPurple", fill: true } : BAND_ROLES[report.level];
+  const roles = BAND_ROLES[report.level];
   // 見出し文は省略せず、電文の改行は空白 1 つにする（spec §5.4 の図）。
   const headline = head.headline?.trim().replace(/\n+/g, " ") ?? "";
+  // 警報以上の段を決めた Kind の名前（P3-TL2-AC08）。見出し文か帯の題名に同じ字があるときは出さない。
+  const reason = report.reason == null || headline.includes(report.reason) || title.includes(report.reason) ? [] : [line(seg(report.reason, null, true))];
   const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: textLines(headline, ctx.body), tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: [...reason, ...textLines(headline, ctx.body)], tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };
@@ -707,7 +793,9 @@ function paintBlock(block: Rendered, ctx: Ctx, paint: Paint): string {
 // 1 つの端末の整形。EventID ごとの覚え（AC05 (3)(4)）は worker の中だけに持つ。
 function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBatch): string }> {
   const paint = painter(level);
-  const memory: Memory = new Map();
+  // 畳んだ EEW の直後の debug の行は「出した」でなく「出さない・畳んだ」と書く。debug は次のバッチに回ることがあるので render をまたいで持つ。
+  let folded = false;
+  const memory: Memory = { follow: new Map(), events: new Map(), tsunami: new Map() };
   // prompt があれば、電文を書く前に入力の行を消し、書いた後に書き直す。
   const emit = (text: string, prompt: string | null): string => `${prompt == null ? "" : "\r\x1b[K"}${text}\n${prompt ?? ""}`;
   return {
@@ -716,18 +804,31 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
       const total = Math.min(Math.max(1, batch.columns), RULE_LIMIT), bar = level > 0 && total >= BAR_MIN;
       const ctx: Ctx = { total, body: bar ? total - 2 : total, bar, color: level > 0 };
       let out = batch.dropped === 0 ? "" : `${paint("dim", `（表示が間に合わなかったため、${batch.dropped} 件の表示を省きました）`)}\n`;
+      // 落とした単位があるとき、畳んだ報の debug の行は落ちている（旗は別の入力のものになる）。
+      if (batch.dropped > 0) folded = false;
       for (const unit of batch.units) {
+        const afterFold = folded;
+        folded = false;
         switch (unit.kind) {
           case "echo": out += unit.text; break;
           case "line": out += `${unit.text}\n`; break;
-          case "eew": out += emit(paintBlock(eew(unit.subject, memory, ctx), ctx, paint), unit.prompt); break;
+          case "eew": {
+            const block = eew(unit.subject, memory, ctx, unit.nowMs);
+            folded = block == null;
+            if (block != null) out += emit(paintBlock(block, ctx, paint), unit.prompt);
+            break;
+          }
           case "report": {
             const { report } = unit;
-            out += emit(paintBlock(report.kind === "seismic" ? seismic(report, ctx) : report.kind === "tsunami" ? tsunami(report, ctx) : shortForm(report, ctx), ctx, paint), unit.prompt);
+            out += emit(paintBlock(report.kind === "seismic" ? seismic(report, ctx) : report.kind === "tsunami" ? tsunami(report, memory, ctx) : shortForm(report, ctx), ctx, paint), unit.prompt);
             break;
           }
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;
-          case "notice": out += emit(paintLines(notice(unit.notice, ctx), ctx, paint), unit.prompt); break;
+          case "notice": {
+            const shown = afterFold && unit.notice.kind === "debug" ? { ...unit.notice, text: unit.notice.text.replace("、出した）", "、出さない・畳んだ）") } : unit.notice;
+            out += emit(paintLines(notice(shown, ctx), ctx, paint), unit.prompt);
+            break;
+          }
           default: { const unknown: never = unit; throw new Error(`unknown terminal unit ${String(unknown)}`); }
         }
       }

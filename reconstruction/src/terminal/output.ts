@@ -338,7 +338,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         if (unit !== "U-E" || outcome.kind !== "accepted" || outcome.change === "deliveryOnly") continue;
         for (const subject of outcome.subjects) {
           if (subject.facts.report == null) continue;
-          push({ kind: "eew", subject, prompt });
+          push({ kind: "eew", subject, prompt, nowMs });
           shown = { unit, headType: typeof subject.facts.family === "string" ? subject.facts.family : subject.source?.family ?? "VXSE" };
           count(unit, shown.headType, null, nowMs);
           eewLog?.record(subject);

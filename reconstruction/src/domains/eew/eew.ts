@@ -825,7 +825,7 @@ function eewReportFacts(body: XmlElement, headline: XmlElement | null, earthquak
       code: text(item, "Code")?.trim() ?? "", name: text(item, "Name"), lgInt: lgInt(item), arrivalTimeRaw: text(item, "ArrivalTime"),
     })),
     nextAdvisory: text(body, "NextAdvisory"),
-    cancelText: cancelled ? text(body, "Text") : null,
+    cancelText: cancelled ? text(body, "Text") : null, warningComment: text(first(first(body, "Comments") ?? body, "WarningComment"), "Text"),
   };
 }
 

@@ -81,10 +81,11 @@ export type TerminalReport =
       text: string | null;
       omitted: number;
     }>
-  | Readonly<{ kind: "short"; unit: RuntimeUnitId; head: TerminalHead; target: string | null; level: TerminalBandLevel }>;
+  // reason は警報以上の段を決めた Kind（U-N は InfoSerial）の名前（P3-TL2-AC08）。帯の下に太字で 1 行出す材料で、保存しない。
+  | Readonly<{ kind: "short"; unit: RuntimeUnitId; head: TerminalHead; target: string | null; level: TerminalBandLevel; reason: string | null }>;
 
-// 帯の段（spec §3、Q-TO-S-2）。重い順。
-export type TerminalBandLevel = "purple" | "warning" | "caution" | "plain" | "cancel";
+// 帯の段（spec §3、Q-TO-S-2、Q-TO3-TOP）。重い順に 最も重い・紫・警報・注意・普通と取消。
+export type TerminalBandLevel = "top" | "purple" | "warning" | "caution" | "plain" | "cancel";
 
 // C18 の発注 3 が REPL の入口から呼ぶ口（P3-TO-AC16）。値の検査と保存は C18、効き先は C19。
 export type TerminalControl = Readonly<{

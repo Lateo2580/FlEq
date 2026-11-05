@@ -6,7 +6,10 @@ import { eewUnits, plain, reportOf, reportUnit, terminal } from "./terminal-fixt
 describe("P3-TL-T07 末尾の再掲", () => {
   it("地域 44 の EEW は最後の 24 行の中に最大予測震度の行が残る", () => {
     const [big] = eewUnits(["77_01_26_240613_VXSE45.xml"]);
-    expect(terminal()(big).slice(-24)).toContain("最大予測震度 6弱  愛媛県南予（23:15:38 発表）");
+    const tail = terminal()(big).slice(-24);
+    // 再掲は最大の行と、行動の文（発表時刻つき、P3-TL2-AC05 (3)）。
+    expect(tail).toContain("最大予測震度 6弱  愛媛県南予");
+    expect(tail).toContain("強い揺れに警戒してください。（23:15:38 発表）");
   });
 
   it("帯から末尾の行までが 19 行の報には出ず 20 行の報に出る（空行は数えない）。訓練の報の括弧には印が付く", () => {

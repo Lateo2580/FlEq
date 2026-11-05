@@ -48,7 +48,7 @@ function eewUnits(inputs: readonly EewInput[]): TerminalUnit[][] {
     const material = typeof input === "string" ? decodeFixture(input) : decodeFixture(input.path, "replay", input.transform);
     const step = reduceEewUnit(state, { kind: "receive", material, clock: { wallTimeMs: RECEIVED, monotonicMs: 0 } });
     state = step.state;
-    return step.outcomes.flatMap((outcome) => outcome.kind === "accepted" ? outcome.subjects.map((subject): TerminalUnit => ({ kind: "eew", subject, prompt: null })) : []);
+    return step.outcomes.flatMap((outcome) => outcome.kind === "accepted" ? outcome.subjects.map((subject): TerminalUnit => ({ kind: "eew", subject, prompt: null, nowMs: RECEIVED })) : []);
   });
 }
 

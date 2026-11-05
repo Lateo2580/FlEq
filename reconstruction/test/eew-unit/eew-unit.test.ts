@@ -1755,7 +1755,7 @@ describe("P3 EEW report facts", () => {
   };
   const empty = { headline: null, hypocenter: null, landOrSea: null, originTimeRaw: null, arrivalTimeRaw: null,
     coordinate: null, magnitude: null, accuracy: null, isAssumedHypocenter: false, maxIntChangeReasonRaw: null,
-    maxLgInt: null, areas: [], nextAdvisory: null, cancelText: null };
+    maxLgInt: null, areas: [], nextAdvisory: null, cancelText: null, warningComment: null };
 
   // 受入条件 P3-EWF-AC01・AC02 / corpus 履歴（fixture→期待状態）。
   it("P3-EWF-T01 acceptance / AC01,AC02: reads the report facts of the adopted report from four fixtures", () => {
@@ -1780,7 +1780,7 @@ describe("P3 EEW report facts", () => {
         { code: "622", name: "愛媛県南予", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: null },
         { code: "632", name: "高知県西部", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: "2024-04-17T23:15:02+09:00" },
       ],
-      nextAdvisory: null, cancelText: null,
+      nextAdvisory: null, cancelText: null, warningComment: "強い揺れに警戒してください。",
     });
 
     const cancelled = subjectOf(stepAt(warned.state, "37_01_03_240613_VXSE43", "VXSE43"));

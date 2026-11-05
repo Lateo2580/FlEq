@@ -37,4 +37,6 @@ export type EewReportFacts = Readonly<{
   nextAdvisory: string | null;
   // 取消の報の Body/Text。取消でない報は null。
   cancelText: string | null;
+  // Body/Comments/WarningComment/Text（行動の文、P3-TL2-AC04）。文の無い報は null。
+  warningComment: string | null;
 }>;

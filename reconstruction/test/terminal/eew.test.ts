@@ -10,19 +10,20 @@ describe("P3-TL-T01 緊急地震速報（spec §5.1 の図）", () => {
     const [first, second, cancel] = eewUnits(["37_01_01_240613_VXSE43.xml", "37_01_02_240613_VXSE43.xml", "37_01_03_240613_VXSE43.xml"]);
     print(first);
     const lines = print(second);
-    expect(lines.slice(0, 10)).toEqual([
+    expect(lines.slice(0, 11)).toEqual([
       "",
       band("緊急地震速報（警報） 第2報", "23:15:10"),
-      "最大予測震度 5弱 → 6弱  愛媛県南予",
+      "最大予測震度 5弱 →  6弱  愛媛県南予",
       "四国　九州　中国で強い揺れ",
-      "震源: 豊後水道 ・ M5.8 → 6.6 ・ 深さ30km → 40km ・ 長周期階級 1 → 2",
+      "強い揺れに警戒してください。",
+      "震源: 豊後水道 ・ M5.8 →  6.6 ・ 深さ30km →  40km ・ 長周期階級 1 →  2",
       rule(),
       "予測震度    地域              到達予想時刻  長周期階級",
       "6弱         愛媛県南予        23:15:04      階級1",
       "5強         高知県西部        23:15:05      階級1",
-      "5弱         大分県南部        到達済み      階級1",
+      "5弱         大分県南部        到達と推測    階級1",
     ]);
-    expect(lines.slice(-3)).toEqual([rule(), "最大予測震度 6弱  愛媛県南予（23:15:10 発表）", "VXSE43 ・ ID 20240417231454"]);
+    expect(lines.slice(-4)).toEqual([rule(), "最大予測震度 6弱  愛媛県南予", "強い揺れに警戒してください。（23:15:10 発表）", "VXSE43 ・ ID 20240417231454"]);
     expect(print(cancel)).toEqual(["", band("緊急地震速報（警報） 取消", "23:17:00"), "緊急地震速報（警報）を取り消します。",
       "取り消したのは 23:15:10 発表の豊後水道の地震です", "VXSE43 ・ ID 20240417231454"]);
     // 覚えの無い端末（37_01_03 だけ）は図の 3 行目（EventID の時刻＝検知時刻）。
@@ -37,7 +38,7 @@ describe("P3-TL-T01 緊急地震速報（spec §5.1 の図）", () => {
       rule(), "この情報をもって、緊急地震速報：最終報とします。", "VXSE45 ・ ID 20260101120000"]);
     expect(terminal()(eewUnits(["77_02_01_260101_VXSE45_PLUM.xml"])[0])).toEqual([
       "", band("緊急地震速報（予報） 第3報", "09:00:10"), "最大予測震度 5弱  石川県能登", "震源: 石川県能登地方（仮定の震源、PLUM法で推定）", rule(),
-      "予測震度    地域          到達予想時刻", "5弱         石川県能登    PLUM法で推定", "4           富山県東部    到達済み", rule(),
+      "予測震度    地域          到達予想時刻", "5弱         石川県能登    PLUM法で推定", "4           富山県東部    到達と推測", rule(),
       "VXSE45 ・ ID 20260101090005"]);
   });
 
@@ -56,8 +57,8 @@ describe("P3-TL-T02 続報の変化", () => {
     const [third, fourth, fifth] = eewUnits(["77_01_03_240613_VXSE45.xml", "77_01_04_240613_VXSE45.xml", "77_01_05_240613_VXSE45.xml"]);
     print(third);
     const four = print(fourth), five = print(fifth);
-    expect(four.slice(2, 5)).toEqual(["最大予測震度 4 → 5弱  愛媛県南予", "四国　九州　中国で強い揺れ", "震源: 豊後水道 ・ M5.1 → 5.8 ・ 深さ30km ・ 長周期階級 1"]);
-    expect(five.slice(2, 5)).toEqual(["最大予測震度 5弱  愛媛県南予", "四国　九州　中国で強い揺れ", "震源: 豊後水道 ・ M5.8 → 5.9 ・ 深さ30km → 40km ・ 長周期階級 1"]);
+    expect(four.slice(2, 6)).toEqual(["最大予測震度 4 →  5弱  愛媛県南予", "四国　九州　中国で強い揺れ", "強い揺れに警戒してください。", "震源: 豊後水道 ・ M5.1 →  5.8 ・ 深さ30km ・ 長周期階級 1"]);
+    expect(five.slice(2, 6)).toEqual(["最大予測震度 5弱  愛媛県南予", "四国　九州　中国で強い揺れ", "強い揺れに警戒してください。", "震源: 豊後水道 ・ M5.8 →  5.9 ・ 深さ30km →  40km ・ 長周期階級 1"]);
     expect([...four, ...five].filter((text) => /同じ|件/.test(text))).toEqual([]);
   });
 
@@ -70,7 +71,7 @@ describe("P3-TL-T02 続報の変化", () => {
     const plum = terminal();
     const [assumed, mixed] = eewUnits(["77_02_01_260101_VXSE45_PLUM.xml", "77_02_02_260101_VXSE45_MIXED.xml"]);
     plum(assumed);
-    expect(plum(mixed).slice(2, 4)).toEqual(["最大予測震度 5弱 → 6弱  石川県能登", "震源: 石川県能登地方 ・ M6.5 ・ 深さ10km"]);
+    expect(plum(mixed).slice(2, 4)).toEqual(["最大予測震度 5弱 →  6弱  石川県能登", "震源: 石川県能登地方 ・ M6.5 ・ 深さ10km"]);
   });
 
   it("PLUM の次の報で震源の名前が変わったら名前に矢印が付く（M と深さは覚えが無いので付かない）", () => {
@@ -78,7 +79,7 @@ describe("P3-TL-T02 続報の変化", () => {
     const renamed = { path: "77_02_02_260101_VXSE45_MIXED.xml", transform: (xml: string) => xml.replace(/<Name>石川県能登地方<\/Name>/g, "<Name>能登半島沖</Name>") };
     const [assumed, mixed] = eewUnits(["77_02_01_260101_VXSE45_PLUM.xml", renamed]);
     print(assumed);
-    expect(print(mixed)[3]).toBe("震源: 石川県能登地方 → 能登半島沖 ・ M6.5 ・ 深さ10km");
+    expect(print(mixed)[3]).toBe("震源: 石川県能登地方 →  能登半島沖 ・ M6.5 ・ 深さ10km");
   });
 
   it("PLUM の次の報の長周期階級は、PLUM の報の階級からの矢印が付く", () => {
@@ -86,7 +87,7 @@ describe("P3-TL-T02 続報の変化", () => {
     const print = terminal();
     const [assumed, mixed] = eewUnits([{ path: "77_02_01_260101_VXSE45_PLUM.xml", transform: lg("2") }, { path: "77_02_02_260101_VXSE45_MIXED.xml", transform: lg("3") }]);
     print(assumed);
-    expect(print(mixed)[3]).toBe("震源: 石川県能登地方 ・ M6.5 ・ 深さ10km ・ 長周期階級 2 → 3");
+    expect(print(mixed)[3]).toBe("震源: 石川県能登地方 ・ M6.5 ・ 深さ10km ・ 長周期階級 2 →  3");
   });
 
   it("改行の入った見出し文でも例外にならず、改行は全角の空白になる", () => {
