@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "b824673e34d4b03ecc92396bf942c7e48f9e71aa",
-    "sha256": "b56c22526cc026b7bf0c7e32be429222691091333da8e42e4afebae8c1fa3103",
+    "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
+    "sha256": "30d717f5e345cde188abe0b845d79552a83415051d901a871d3aaad8b58086aa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -31,14 +31,47 @@
       },
       {
         "id": "P3-TL2-D-LEVEL-RANGE",
-        "kind": "統合担当",
-        "A": "気象・土砂・洪水を公式の色相へ 1 段上げ、竜巻注意情報と記録的短時間大雨情報も L3 と同じ段のまま上げる。噴火警戒レベルと南海トラフは据え置く",
-        "B": "全部の分野を上げる",
+        "kind": "作者",
+        "A": "気象・土砂・洪水を公式の色相へ合わせ、L2 は黄の字、竜巻注意は朱、記録的短時間大雨は紫にする。噴火警戒レベルと南海トラフは据え置く",
+        "B": "竜巻注意と記録的短時間大雨を 2 つとも朱か黄にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（統合担当、2026-11-05 起草、作者へ報告済み）",
+        "status": "確定（作者、2026-11-05）",
+        "ruling": "A（D9・D10 の作者裁定）",
+        "reason": "竜巻注意は配色指針で赤の発生確度 2 で出る。記録的短時間大雨はキキクルの危険（紫）の出現が発表の条件"
+      },
+      {
+        "id": "P3-TL2-D-NANKAI-REASON",
+        "kind": "作者",
+        "A": "南海トラフは InfoSerial の名前を段の理由の行に出す",
+        "B": "出さない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-05）",
+        "ruling": "A（D11 の作者裁定）",
+        "reason": "帯に一番知りたい字が入っていない"
+      },
+      {
+        "id": "P3-TL2-D-SHORT-HEAD",
+        "kind": "統合担当",
+        "A": "高さの列の短い見出しを「予想」にする",
+        "B": "「予想高」にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-05 r0）",
         "ruling": "起草時に推奨で確定（統合担当）",
-        "reason": "公式の警戒レベルの配色の対象は気象・土砂・洪水"
+        "reason": "「予想高」は 1 桁増えて 32-39_11_11 が 56 桁で 2 行の形に落ちる（レビュー r0 の実物の確かめ）"
+      },
+      {
+        "id": "P3-TL2-D-WARNING-COMMENT",
+        "kind": "統合担当",
+        "A": "VTSE51 の WarningComment は補足に出す",
+        "B": "要点に出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-05 r0）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "実物は 3 文 117 字のものがある。末尾なら流れ終わった画面に残る"
       },
       {
         "id": "P3-TL2-D-EEW7",
@@ -111,8 +144,9 @@
       "reconstruction/src/terminal/material.ts",
       "reconstruction/src/terminal/output.ts",
       "reconstruction/contracts/p3-terminal-output.types.ts（段と short の欄だけ）",
-      "reconstruction/contracts/p3-eew-facts.types.ts（WarningComment の欄 1 つだけ）",
-      "reconstruction/src/domains/eew/eew.ts（eewReportFacts の欄 1 つだけ）",
+      "reconstruction/contracts/p3-eew-facts.types.ts（WarningComment の欄 1 つだけ。型の末尾に足す）",
+      "reconstruction/test/eew-unit/eew-unit.test.ts（facts.report の期待の欄だけ）",
+      "reconstruction/src/domains/eew/eew.ts（eewReportFacts の欄 1 つだけ。cancelText の行の末尾に同じ行で足し、行を増やさない。p3-eew-facts.json が eew.ts の行番号を引くため）",
       "reconstruction/contracts/p3-terminal-layout2.json（本契約の «» の付け直しと meta.sha256 だけ）",
       "reconstruction/test/terminal/**"
     ],
@@ -148,6 +182,8 @@
     "fixtureIds": [
       "test__fixtures__16_00_01_260603_VXKO70_kozagawa_l5",
       "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_downgrade",
+      "test__fixtures__19_01_01_091210_VPHW50",
       "test__fixtures__32-35_01_02_240613_VXSE52",
       "test__fixtures__32-35_01_03_240613_VXSE53",
       "test__fixtures__32-35_03_02_240613_VXSE61",
@@ -173,6 +209,7 @@
       "test__fixtures__77_01_30_260101_VXSE45_FINAL",
       "test__fixtures__77_02_01_260101_VXSE45_PLUM",
       "test__fixtures__77_02_02_260101_VXSE45_MIXED",
+      "test__fixtures__phase6b_VPOA50_JPTC202608211633_202608211633",
       "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
       "test__fixtures__selected_xml__78_01_01_240613_VXSE62",
       "test__fixtures__synthetic_phase4a_VXSE51_special",
@@ -211,26 +248,26 @@
       "津波情報に前の報の避難の文を引き継ぐこと（D1 で持つ）",
       "EEW の地域の表の増減の印",
       "長周期の要点の 2 行の形（作者が過剰と判断）",
-      "受信・書き出しの列・worker・落とす規則の変更",
+      "受信・書き出しの列・worker・落とす規則の変更（eew の単位に現在時刻を載せることを除く）",
       "EEW ログの書式",
       "spec 本体の編集（起草で済ませた）"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-TL2-AC01",
-        "requirement": "段と帯（Q-TO3-TOP・Q-TO3-LEVEL）: (1) TerminalBandLevel に最も重い段を足し、段を重い順に 最も重い・紫・警報・注意・普通と取消にする (2) 最も重い段の帯は白の地に黒の太字、縦線は紫の字の色。当たるのは大津波警報を含む報、最大震度 7 の地震の報、最大予測震度 7 の EEW、spec §5.4 の表の最も重い行 (3) 紫の段は #b23ab2 の地に白の太字で、spec §5.4 の表の紫の行に当てる (4) 短い形の段を spec §5.4 の表へ改める。気象・土砂・洪水は L5・L4・L3・L2 を最も重い・紫・警報・注意にし、竜巻注意情報と記録的短時間大雨情報は警報にする。噴火警戒レベルと南海トラフは今の段のまま (5) 色を付けないときの帯の形（Q-TO2-NOCOLOR）は全部の段で ━ のまま",
+        "requirement": "段と帯（Q-TO3-TOP・Q-TO3-LEVEL）: (1) TerminalBandLevel に最も重い段を足し、段を重い順に 最も重い・紫・警報・注意・普通と取消にする (2) 最も重い段の帯は白の地に黒の太字、縦線は紫の字の色。当たるのは大津波警報を含む報、最大震度 7 の地震の報、最大予測震度の字に 7 を含む EEW（7、7程度以上、6強〜7）、spec §5.4 の表の最も重い行 (3) 紫の段は #b23ab2 の地に白の太字で、spec §5.4 の表の紫の行に当てる (4) 短い形の段を spec §5.4 の表へ改める。気象・土砂・洪水は L5・L4・L3・L2 を最も重い・紫・警報・注意にし、気象防災速報（竜巻注意・竜巻目撃、U-M の VPHW50・51）は警報、気象防災速報（記録的短時間大雨、U-B の VPOA50 と EventID が K の VPBS50）は紫にする。噴火警戒レベルと南海トラフは今の段のまま (5) 色を付けないときの帯の形（Q-TO2-NOCOLOR）は全部の段で ━ のまま",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:37 «b7d8e41faaed7e62»",
           "docs/specs/cli-terminal-output.md:35 «930927e748991f1b»",
           "docs/specs/cli-terminal-output.md:46 «ee9e9e12d6e69f44»",
           "docs/specs/cli-terminal-output.md:50 «4c7209669f1508c6»",
           "docs/specs/cli-terminal-output.md:390 «ab33eabde89f446c»",
-          "docs/specs/cli-terminal-output.md:498 «d8654378e356f57e»"
+          "docs/specs/cli-terminal-output.md:503 «d8654378e356f57e»"
         ]
       },
       {
         "id": "P3-TL2-AC02",
-        "requirement": "字と縦線の色（Q-TO3-COLOR）: (1) 震度 3 を #3193db、震度 6 弱を #e56910 にする (2) 罫線・到達の字・津波警報の区分の字を #e56910、最も重い段の区分の字と罫線を #c46bde にする (3) 縦線は、警報を #e56910、紫と最も重い段を #c46bde にする (4) 帯と 6 強・長周期階級 4 の面は #d55e00 のまま (5) 震度 7 の塗りは白の地に黒の太字で、前後に空白を足して 3 桁にする。表の地域の列を揃える",
+        "requirement": "字と縦線の色（Q-TO3-COLOR）: (1) 震度 3 を #3193db、震度 6 弱を #e56910 にする (2) 罫線・到達の字・津波警報の区分の字を #e56910、最も重い段の区分の字と罫線を #c46bde にする (3) 縦線は、警報を #e56910、紫と最も重い段を #c46bde にする (4) 帯と 6 強・長周期階級 4 の面は #d55e00 のまま (5) 震度 7 の塗りは白の地に黒の太字で、色を付けるときだけ前後に空白を足して 3 桁にする。要点の最大の行と表の両方に当てる",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:48 «1659b37f9ada2df9»",
           "docs/specs/cli-terminal-output.md:51 «3d491604d4377c59»",
@@ -241,19 +278,19 @@
       },
       {
         "id": "P3-TL2-AC03",
-        "requirement": "確かさ（Q-TO3-MEANING）: (1) 電文の「既に主要動到達と推測」を「到達と推測」と出す (2) 見出しを短くする形の高さの列を「予想高」にする (3) 震源の要素が無い報は「震源: 調査中」と書かず、発生の時刻だけの行にする。発生の時刻も無ければ行を出さない",
+        "requirement": "確かさ（Q-TO3-MEANING）: (1) 電文の「既に主要動到達と推測」を「到達と推測」と出す (2) 見出しを短くする形の高さの列を「予想」にする（今の「高さ」と同じ 4 桁で、列の幅を変えない） (3) 震源の要素が無い報は「震源: 調査中」と書かず、発生の時刻だけの行にする。発生の時刻も無ければ行を出さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:155 «7792b24d6524a072»",
-          "docs/specs/cli-terminal-output.md:82 «e82e181994ff197b»",
+          "docs/specs/cli-terminal-output.md:82 «a8e55629cd091a19»",
           "docs/specs/cli-terminal-output.md:290 «93cfafdfd248389b»"
         ]
       },
       {
         "id": "P3-TL2-AC04",
-        "requirement": "行動の文（Q-TO3-ACTION）: (1) EEW の facts.report に電文の Comments の WarningComment の文の欄を足す (2) 文のある EEW は、要点の見出し文の下に太字で出す (3) VTSE51 の WarningComment を、要点の区分の行の下に太字で出す。VTSE52 の補足の扱いは今のまま (4) 文は言い換えない。文の無い報には足さない",
+        "requirement": "行動の文（Q-TO3-ACTION）: (1) EEW の facts.report に電文の Comments の WarningComment の文の欄を足す (2) 文のある EEW は、要点の見出し文の下に太字で出す (3) VTSE51 の WarningComment を、補足のまとまりに太字で出す（複数の文は文ごとの行）。VTSE52 の補足の扱いは今のまま (4) 文は言い換えない。文の無い報には足さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:157 «ba33522f26ab0f39»",
-          "docs/specs/cli-terminal-output.md:427 «0871f942c645b922»"
+          "docs/specs/cli-terminal-output.md:429 «972e7477569564a4»"
         ]
       },
       {
@@ -266,12 +303,12 @@
       },
       {
         "id": "P3-TL2-AC06",
-        "requirement": "折り返し（Q-TO3-WRAP）: (1) 震源の行は「・」の境で折り、語の途中で折らない (2) 震度と長周期階級の一覧は折り返した行にも段の字を出す (3) 満潮時刻の各行の観測点の前に「満潮」を付ける",
+        "requirement": "折り返し（Q-TO3-WRAP）: (1) 震源の行は「 ・ 」の境で折る。折り目の「 ・ 」は出さず、続きの行を 2 字下げる。1 項目が幅を超えるときだけ字の境目で折る (2) 震度と長周期階級の一覧は折り返した行にも段の字を出す (3) 満潮時刻の各行（折り返した行も）の観測点の前に「満潮」を付ける",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:85 «ca662ba555cbe3eb»",
+          "docs/specs/cli-terminal-output.md:85 «529822a6141ffcf5»",
           "docs/specs/cli-terminal-output.md:87 «02ee9a609c3acf74»",
           "docs/specs/cli-terminal-output.md:241 «5b5cabd37e49f3bf»",
-          "docs/specs/cli-terminal-output.md:428 «4764e032e9a4d6e8»"
+          "docs/specs/cli-terminal-output.md:430 «8dd67513ffc9b0f4»"
         ]
       },
       {
@@ -284,31 +321,31 @@
       },
       {
         "id": "P3-TL2-AC08",
-        "requirement": "短い形の段の理由（Q-TO3-REASON）: (1) 警報以上の段（最も重い・紫・警報）の報は、帯の直下に段を決めた Kind の名前を太字で 1 行出す (2) 見出し文に同じ字があるときは出さない (3) 注意より軽い段には足さない。TerminalReport の short に欄を 1 つ足して material.ts で読む",
+        "requirement": "短い形の段の理由（Q-TO3-REASON）: (1) 警報以上の段（最も重い・紫・警報）の U-W・U-L・U-R・U-V の報は、帯の直下に段を決めた Kind の名前（同じ段が複数なら電文の最初の 1 つ）を太字で 1 行出す (2) U-N は InfoSerial の名前を同じ形で出す (3) 見出し文か帯の題名に同じ字があるときは出さない (4) U-M・U-B と、注意より軽い段には足さない。TerminalReport の short に欄を 1 つ足して material.ts で読む（heaviest は段だけを返すので、名前を一緒に返す形に改める）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:458 «fc9be00de26c3c82»",
-          "docs/specs/cli-terminal-output.md:509 «e8af1e67c8b50f0f»"
+          "docs/specs/cli-terminal-output.md:460 «fc9be00de26c3c82»",
+          "docs/specs/cli-terminal-output.md:515 «7ecec3e21746c070»"
         ]
       },
       {
         "id": "P3-TL2-AC09",
-        "requirement": "津波の続報（Q-TO3-TSUNAMI-FOLLOW）: (1) 同じ operation・EventID の前の VTSE41 と比べ、区分が上がった地域を要点に「<区分>に引き上げ  <地域名>」の形で区分ごとに、重い順に出す (2) 下がった地域は「<区分>に引き下げ  <地域名>」の形で出す (3) 入らない地域は「ほか n 地域」と書く (4) 覚えの無い報には出さない。覚えは保存しない",
+        "requirement": "津波の続報（Q-TO3-TSUNAMI-FOLLOW）: (1) 同じ operation・EventID の前の VTSE41 と比べ、区分が上がった地域を要点に「<区分>に引き上げ  <地域名>」の形で区分ごとに、重い順に出す。区分の順は大津波警報、津波警報、津波注意報、それ以外（津波予報、解除、前の報に無い地域）で、「それ以外」への変化は出さない (2) 入らない地域は「ほか n 地域」と書く (3) VTSE41 の報にだけ出し、覚えも VTSE41 でだけ更新する。覚えの無い報には出さない。取消で覚えを消す。覚えは保存しない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:385 «25e6008cf3cb37b1»"
+          "docs/specs/cli-terminal-output.md:385 «0c3dfe36e9c5d7fc»"
         ]
       },
       {
         "id": "P3-TL2-AC10",
-        "requirement": "同じ地震の報の重なり（Q-TO3-EEW-FOLD）: 同じ operation・EventID で VXSE45 を受けた後の VXSE43・VXSE44 の報を端末に出さない。ただし、その地震の最初の取消は種類によらず出す。定期要約の数え方と EEW ログは変えない",
+        "requirement": "同じ地震の報の重なり（Q-TO3-EEW-FOLD）: 同じ operation・EventID で VXSE45 を受けた後の VXSE43 の報を端末に出さない。取消は種類によらず最初の 1 通だけ出す。畳むのは format.ts の eew() で、null を返して emit を飛ばす（空行も入力の行の書き直しも出さない）。畳んだ報でも覚えは更新する（取消の 3 行目の震源名と、AC11 の最後の時刻に要る）。定期要約の数え方と EEW ログは変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:164 «9b7f433d4e0fe6cd»"
+          "docs/specs/cli-terminal-output.md:164 «3e1599a3502970ca»"
         ]
       },
       {
         "id": "P3-TL2-AC11",
-        "requirement": "同時に進む EEW（Q-TO3-EEW-OTHERS）: (1) 別の EventID の EEW が進んでいる間は、要点の最後に「ほかに 1 件の緊急地震速報（<震源名>）」、2 件以上は「ほかに 2 件の緊急地震速報」と出す (2) 最終報か取消を受けた地震は数えない (3) 最後の報から 10 分を過ぎた地震は数えない (4) 訓練と通常は別に数える。覚えは保存しない",
+        "requirement": "同時に進む EEW（Q-TO3-EEW-OTHERS）: (1) 別の EventID の EEW が進んでいる間は、取消を除く報の要点の最後に「ほかに 1 件の緊急地震速報（<震源名>）」、2 件以上は「ほかに 2 件の緊急地震速報」と出す。震源名が無ければ括弧を付けない (2) 最終報か取消を受けた地震は数えない。終わった印を EventID ごとに残し、後から別の種類の報が来ても数えに戻さない (3) 受け取ってから 10 分を過ぎた地震は数えない。時計は output.ts の nowMs で、eew の単位に載せて worker へ渡す。電文の時刻で測らない (4) 訓練と通常は別に数える。覚えは保存しない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:165 «364e2feb0fcc822e»"
+          "docs/specs/cli-terminal-output.md:165 «a22408ab2e9901b2»"
         ]
       }
     ],
@@ -320,7 +357,7 @@
           "P3-TL2-AC01",
           "P3-TL2-AC02"
         ],
-        "behavior": "受入条件。色 3 で、大津波警報の VTSE41、最大震度 7 に値を書き換えた VXSE53、特別警報の VPWW55 の帯が白の地に黒で、縦線が #c46bde。VPWW55 の危険警報が紫の地、警報が朱の地、注意報が黄の字。噴火警戒レベルと南海トラフの段が変わらない。色 0 で全部の段の帯が ━"
+        "behavior": "受入条件。色 3 で、大津波警報の VTSE41、最大震度 7 に値を書き換えた VXSE53、特別警報の VPWW55 の帯が白の地に黒で、縦線が #c46bde。18_00_01 fukui_downgrade の危険警報が紫の地、警報が朱の地、注意報が黄の字。VPOA50 が紫の地、VPHW50 が朱の地。噴火警戒レベルと南海トラフの段が変わらない。色 0 で全部の段の帯が ━"
       },
       {
         "testId": "P3-TL2-T02",
@@ -328,7 +365,7 @@
         "referenceIds": [
           "P3-TL2-AC02"
         ],
-        "behavior": "契約境界。color.ts の字の役目が Nightfox の地と 4.5 以上、面の役目が 3 以上、面の上の字が 4.5 以上。震度 7 の塗りが 3 桁で、表の地域の列が 6 強の行と揃う"
+        "behavior": "契約境界。色 3 の整形結果の字の色が spec §3.1 の値で、Nightfox の地と 4.5 以上。帯の面が 3 以上、面の上の字が 4.5 以上。震度 7 の塗りが色 3 で 3 桁、色 0 で 1 桁"
       },
       {
         "testId": "P3-TL2-T03",
@@ -336,7 +373,7 @@
         "referenceIds": [
           "P3-TL2-AC03"
         ],
-        "behavior": "受入条件（実不具合）。77_01_04 に「到達済み」が無く「到達と推測」があり、56 桁の 32-39_11_11 の見出しが「予想高」で、VXSE51 に「調査中」が無い"
+        "behavior": "受入条件（実不具合）。77_01_04 に「到達済み」が無く「到達と推測」があり、56 桁の 32-39_11_11 の見出しが「予想」で 1 地域 1 行のままで、VXSE51 に「調査中」が無い"
       },
       {
         "testId": "P3-TL2-T04",
@@ -344,7 +381,7 @@
         "referenceIds": [
           "P3-TL2-AC04"
         ],
-        "behavior": "受入条件。37_01_01 の要点に「強い揺れに警戒してください。」が太字で出て、文の無い 77_01_03 に出ない。32-39_11_03 の要点に「津波と満潮が重なると」の文が出る"
+        "behavior": "受入条件。37_01_01 の要点に「強い揺れに警戒してください。」が太字で出て、文の無い 77_01_03 に出ない。32-39_11_03 の補足に「津波と満潮が重なると」の文が太字で出る"
       },
       {
         "testId": "P3-TL2-T05",
@@ -352,7 +389,7 @@
         "referenceIds": [
           "P3-TL2-AC05"
         ],
-        "behavior": "受入条件（第 2 回の批評）。32-39_11_11 を 40 行で切った末尾に大津波警報の 6 地域の名前と避難の文があり、56 桁では入らない地域が「ほか n 地域」になる。77_01_26 の末尾に行動の文がある"
+        "behavior": "受入条件（第 2 回の批評）。32-39_11_11 を 100 桁で 40 行に切った末尾に大津波警報の 6 地域の名前と避難の文があり、56 桁では入らない地域が「ほか n 地域」になる。77_01_26 の末尾に行動の文がある"
       },
       {
         "testId": "P3-TL2-T06",
@@ -360,7 +397,7 @@
         "referenceIds": [
           "P3-TL2-AC06"
         ],
-        "behavior": "受入条件（実不具合）。56 桁の 77_01_05 の続報で「長周」と「期階級」が別の行に割れない。56 桁の VXSE53 の震度の折り返しの行に段の字がある。VXSE62 の階級も同じ。32-39_11_03 の満潮の全部の行に「満潮」がある"
+        "behavior": "受入条件（実不具合）。56 桁の 77_01_05 の続報で「長周期階級」が 1 行の中にある。56 桁の VXSE53 の震度の折り返しの行に段の字がある。VXSE62 の階級も同じ。32-39_11_03 の満潮の全部の行に「満潮」がある"
       },
       {
         "testId": "P3-TL2-T07",
@@ -376,7 +413,7 @@
         "referenceIds": [
           "P3-TL2-AC08"
         ],
-        "behavior": "受入条件。44_01_01 VFVO51 に「レベル５（避難）」の行が出る。見出し文に同じ字のある報と、注意以下の報に出ない"
+        "behavior": "受入条件。44_01_01 VFVO51 に「レベル５（避難）」、45_01_01 VFVO50 に「レベル３（入山規制）」、VXKO70 に「レベル５氾濫特別警報」、VYSE50 に「調査中」の行が出る。見出し文か題名に同じ字のある報、VPHW50、VPOA50、注意以下の報に出ない"
       },
       {
         "testId": "P3-TL2-T09",
@@ -384,7 +421,7 @@
         "referenceIds": [
           "P3-TL2-AC09"
         ],
-        "behavior": "受入条件。32-39_11_02 に続けて 32-39_11_11 を流すと「大津波警報に引き上げ」に青森県太平洋沿岸・茨城県・千葉県九十九里・外房が出る。transform で下げた報に「引き下げ」が出る。覚えの無い端末では出ない"
+        "behavior": "受入条件。32-39_11_02 に続けて 32-39_11_11 を流すと「大津波警報に引き上げ」に青森県太平洋沿岸・茨城県・千葉県九十九里・外房が出る。VTSE51 に出ない。覚えの無い端末と取消の後に出ない"
       },
       {
         "testId": "P3-TL2-T10",
@@ -392,7 +429,7 @@
         "referenceIds": [
           "P3-TL2-AC10"
         ],
-        "behavior": "受入条件（実不具合）。77_01_04（VXSE45）の後の 37_01_01（VXSE43）が出ない。VXSE45 を受けた地震の VXSE43 の取消は最初の 1 通が出る。VXSE43 が先なら続く VXSE45 も出る"
+        "behavior": "受入条件（実不具合）。77_01_04（VXSE45）の後の 37_01_01（VXSE43）が出ない。VXSE43 の取消の後の VXSE45 の取消が出ない。VXSE43 が先なら続く VXSE45 も出る。畳んだ後の取消の 3 行目に震源名がある"
       },
       {
         "testId": "P3-TL2-T11",
@@ -400,7 +437,7 @@
         "referenceIds": [
           "P3-TL2-AC11"
         ],
-        "behavior": "受入条件。37_01_01 と 77_02_01 を流すと 2 通目の要点に「ほかに 1 件の緊急地震速報」が出て、取消・最終報・10 分の後に消える。訓練の報は通常の報の数に入らない"
+        "behavior": "受入条件。37_01_01 と 77_02_01 を単位の時刻を指定して流すと 2 通目の要点に「ほかに 1 件の緊急地震速報」が出て、取消・最終報・10 分の後に消える。最終報の後に別の種類の報が来ても数えに戻らない。訓練の報は通常の報の数に入らない"
       },
       {
         "testId": "P3-TL2-T12",
@@ -481,8 +518,7 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
-      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。reconstruction/test/terminal の既存の期待は、spec の図が変わった分だけ本契約の範囲で変えてよい（図の形の移行）。図の変更で説明できない期待の変更が要るなら、変える前に試験名・旧の期待・理由を報告して止める",
-      "旧の narrow の分岐・fit・RULE_LIMIT の 80 など、新しい形で要らなくなったコードを残さない（足す前に引く）。旧の試験の NARROW_HEADERS も同じ",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。reconstruction/test/terminal の既存の期待は、spec の図と本契約の条文が変えた分だけ変えてよい（eew.test.ts の VXSE45 の後の VXSE43 を表示する期待は AC10 で改める）。それで説明できない期待の変更が要るなら、変える前に試験名・旧の期待・理由を報告して止める",
       "新しい «» が要るなら本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は付け直さない（要るなら止めて報告する）"
     ],
     "unresolvedQuestions": []
