@@ -173,6 +173,21 @@ function monthlyTable(body: XmlElement | null): NonNullable<Extract<TerminalRepo
   }
   return { rows, others: others + budget.omitted };
 }
+// 噴火速報（Q-TO5-FLASH）の活動の文と対象の市町村。Areas は codeType が市町村等のものだけを全 VolcanoInfo から電文の順に読み、AREA_LIMIT は読む前に全 Area で数える。
+// 無いと市町村等でない Areas が数に混ざり、上限の境界（256 件は「ほか」なし、257 件は 1）がずれる。
+function flashBody(body: XmlElement | null): NonNullable<Extract<TerminalReport, { kind: "short" }>["flash"]> {
+  const budget: Budget = { left: AREA_LIMIT, omitted: 0 }, towns: string[] = [];
+  for (const info of children(body, "VolcanoInfo")) for (const item of children(info, "Item")) {
+    const lists = children(item, "Areas").filter((node) => attribute(node, "codeType") === "気象・地震・火山情報／市町村等");
+    for (const area of lists.flatMap((node) => children(node, "Area"))) {
+      if (!take(budget)) continue;
+      const name = read(area, "Name");
+      if (name == null || name === "") budget.omitted += 1;
+      else towns.push(name);
+    }
+  }
+  return { activity: read(first(body, "VolcanoInfoContent"), "VolcanoActivity"), towns, others: budget.omitted };
+}
 function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | null): TerminalReport {
   const heading = head(material), found = scan(body);
   const cancel = heading.infoType === "取消";
@@ -181,7 +196,8 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   const { level, name } = cancel ? { level: "cancel" as const, name: null } : monthly ? { level: "plain" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
   return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
     // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
-    cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null };
+    cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null,
+    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。
@@ -202,6 +218,8 @@ function inputTerminal(result: ParserMailboxResult, outcomes: readonly RuntimePu
   if (result.kind !== "decoded") return null;
   const route = classifyHeadType(result.material.headType);
   if (route.status !== "ready") return null;
+  // Q-TO5-VPNO50: 報知は発表も切替も出さない（本文は VPWW の報で出る）。U-W の state の処理は reducer の側で変えない。
+  if (result.material.headType === "VPNO50") return null;
   const taken = outcomes.some(({ unit, outcome }) => unit === route.unit && outcome.kind === "accepted" && outcome.change !== "deliveryOnly");
   return taken ? terminalReport(result.material, route.unit) : null;
 }

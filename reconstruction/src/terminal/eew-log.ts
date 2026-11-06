@@ -18,7 +18,7 @@ const RANKS = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
 
 type Json = JsonValue | undefined;
 // 同じ EventID・同じ種類（VXSE43・VXSE45）の前の報の値（旧築の差分は同じ種類の続報の間だけ）。
-type Previous = Readonly<{ magnitude: string | null; depth: string | null; max: Forecast | null; name: string | null }>;
+type Previous = Readonly<{ magnitude: string | null; depth: string | null; max: Forecast | null; name: string | null; assumed: boolean }>;
 type Entry = { path: string; previous: Map<string, Previous> };
 type Write = Readonly<{ path: string; data: string }>;
 type Forecast = Readonly<{ label: string; rank: number | null; upper: boolean }>;
@@ -99,10 +99,10 @@ function createEewLog(options: Readonly<{ directory: string; enabled: boolean; f
     const magnitude = magnitudeValue == null ? null : magnitudeText(magnitudeValue);
     const depth = coordinate == null ? null : depthText(coordinate);
     const max = maximum(prediction);
-    const next: Previous = { magnitude, depth, max, name };
+    const assumed = report?.isAssumedHypocenter === true;
+    const next: Previous = { magnitude, depth, max, name, assumed };
     // AC15 (4)・Q-TO-L-1: 取消は取消の文だけ（震源も仮定震源の印も書かない）。
     if (cancelled) return { text: [...lines, "この地震についての緊急地震速報は取り消されました。", ""].join("\n"), next };
-    const assumed = report?.isAssumedHypocenter === true;
     if (name != null || coordinate != null || magnitudeValue != null) {
       if (has("hypocenter")) lines.push(`震源: ${name ?? ""}`);
       const origin = jsonString(report?.originTimeRaw);
@@ -118,8 +118,11 @@ function createEewLog(options: Readonly<{ directory: string; enabled: boolean; f
         if (has("magnitude")) lines.push(depth == null ? magnitude ?? "M不明" : `${magnitude ?? "M不明"}  深さ${depth}`);
         if (has("diff") && previous != null) {
           const parts: string[] = [];
-          if (previous.magnitude !== magnitude) parts.push(`${previous.magnitude ?? "—"}→${magnitude ?? "—"}`);
-          if (previous.depth !== depth) parts.push(`${previous.depth ?? "—"}→${depth ?? "—"}`);
+          // Q-TO5-LOG: 仮定の震源の M と深さは仮の値なので、前の報が仮定のときは比べない（無いと確定の報に仮の値からの矢印が出る）。
+          if (!previous.assumed) {
+            if (previous.magnitude !== magnitude) parts.push(`${previous.magnitude ?? "—"}→${magnitude ?? "—"}`);
+            if (previous.depth !== depth) parts.push(`${previous.depth ?? "—"}→${depth ?? "—"}`);
+          }
           // 最大予測震度は、段が変わり、今の値が上がったか上限の分かる値のときだけ（旧築 computeDiff。下がった「程度以上」で書き換えない）。
           // shortcut: 旧築が覚える「これまでの最大の段」は持たず、前の報の段と比べる。
           if (previous.max != null && max?.rank != null && previous.max.rank !== max.rank && (previous.max.rank == null || max.rank > previous.max.rank || max.upper)) {

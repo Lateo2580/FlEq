@@ -699,8 +699,13 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   const tables = monthly == null ? [] : [[...listTable(null, monthly.rows.map((row) => ({ label: seg(row.label.split("（")[0]), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
     ...monthly.others === 0 ? [] : [line(seg(`ほか ${monthly.others} 火山`, "dim"))]]];
   const supplement = monthly == null ? [] : [line(seg("月間火山概況・火山活動解説資料（気象庁ホームページ）")), { segs: [seg(MONTHLY_URL)], url: true as const }];
+  // 噴火速報（Q-TO5-FLASH）: 見出し文の下に活動の文、その下に罫線と対象の市町村の表。表の下に罫線は足さない（spec の図）ので supplement に置く。
+  const { flash } = report;
+  const activity = flash == null ? [] : textLines(shortSentence(flash.activity), ctx.body);
+  const towns = flash == null || flash.towns.length === 0 ? [] : [...listTable(null, [{ label: seg("対象の市町村"), items: flash.towns.map((town) => [seg(town)]) }], 0, ctx.body),
+    ...flash.others === 0 ? [] : [line(seg(`ほか ${flash.others} 市町村`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: [...reason, ...textLines(headline, ctx.body)], tables, supplement, tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: [...reason, ...textLines(headline, ctx.body), ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };
