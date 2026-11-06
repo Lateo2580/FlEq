@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "ce957c4b1c3afeb3f4348e2f73027957d7137d972f1d35e6d281db7fe84d8f9e",
+    "sha256": "ee2adb607005bda1947bd22df3f850b86c4d1c50b5564739f1ae88cb5f0a6f3d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -122,9 +122,9 @@
       },
       {
         "id": "Q-TL2-DELIVERY",
-        "status": "open",
+        "status": "closed",
         "source": "2026-11-05 起草",
-        "closed": "実装（Sonnet の子、worktree）。レビューは r0 がヘルツ NO-GO・契約適合 条件付き GO、r1 が契約適合 NO-GO（統合担当の debug の指示の誤り）・ヘルツ GO、相談役を経て r2 が両方 GO。残りの P3 は 1 MiB を超える単位が畳みと debug の間に入る場合の debug の字だけで、直さない。Mac mini のゲート 11 本は最終の patch で全部 rc 0（ログ tl2-r2）、commit は固定した patch と同じ byte。足した試験は直しを戻すと落ちることを確かめた。remaining: 作者の実端末の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。レビューは r0 がヘルツ NO-GO・契約適合 条件付き GO、r1 が契約適合 NO-GO（統合担当の debug の指示の誤り）・ヘルツ GO、相談役を経て r2 が両方 GO。残りの P3 は 1 MiB を超える単位が畳みと debug の間に入る場合の debug の字だけで、直さない。Mac mini のゲート 11 本は最終の patch で全部 rc 0（ログ tl2-r2）、commit は固定した patch と同じ byte。足した試験は直しを戻すと落ちることを確かめた。2026-11-06 に作者が実端末の目視を OK とし、雷注意報なども黄の字にしたことと線状降水帯発生を今の段のままにしたことも確かめた。ba7361d7 まで push、CI run 42190019182 success。remaining なし"
       }
     ],
     "operationContract": {
