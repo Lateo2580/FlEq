@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "e9e095c1fa1cf9358d1eb81a913eae2725f686fd430ad219227b3817ebebd82d",
+    "sha256": "832e1d51223446a50d08010e7a3955d57d224410576d28af2e08448402cf6ba7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -61,6 +61,39 @@
         "status": "確定（統合担当、2026-11-06 レビュー）",
         "ruling": "レビューの指摘を受けて推奨で確定（統合担当）",
         "reason": "右の列が空の行は読み手に意味が無い。実物に例は無い"
+      },
+      {
+        "id": "P3-TL3-D-CANCEL-TEXT",
+        "kind": "作者",
+        "A": "短い形の取消の報は Body の直下の Text を見出し文の代わりに出す。無ければ見出し文",
+        "B": "見出し文も残し、下に取消の文を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「どちらもAでお願いします」）",
+        "reason": "作者が写しの取消の報で「本文が取り消しを表していない」と指摘した。実物 43_03_01 VFVO52 は「現象：噴火」、32-35_09_02 VXSE56 は「発表します」のままで、文だけ読むと発表に見える"
+      },
+      {
+        "id": "P3-TL3-D-PLACE",
+        "kind": "作者",
+        "A": "取消の文の直しを本契約に入れて一緒に push する",
+        "B": "本契約を先に push し、別の契約にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「どちらもAでお願いします」）",
+        "reason": "同じ短い形の処理で、本契約はまだ push していない"
+      },
+      {
+        "id": "P3-TL3-D-SPACE",
+        "kind": "作者",
+        "A": "短い形の文の組版の空白（字下げ、文の途中の改行、均等割付、句読点の直前の空白）を除く。区切りの全角空白は残す",
+        "B": "電文の字のまま出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「電文中の不自然なスペースは消すようにしてください」）",
+        "reason": "「概況（ 平成」の空白は電文に無く、端末が改行を空白に替えて作っていた"
       }
     ],
     "questionResolutions": [
@@ -68,7 +101,7 @@
         "id": "Q-TL3-DELIVERY",
         "status": "open",
         "source": "2026-11-06 起草",
-        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。remaining: 作者の実端末の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。2026-11-06 に作者の裁定で AC05・AC06 を足した（P3-TL3-D-CANCEL-TEXT、P3-TL3-D-SPACE）。remaining: AC05・AC06 の実装、レビュー、ゲート、作者の実端末の目視と push"
       }
     ],
     "operationContract": {
@@ -167,7 +200,7 @@
       },
       {
         "id": "P3-TL3-AC02",
-        "requirement": "文（Q-TO4-MONTHLY）: 見出し文は 1 字も変えず、今の短い形と同じ行の分け方で出す。「その概要は以下のとおりです。」を落とさない",
+        "requirement": "文（Q-TO4-MONTHLY）: 見出し文は言い換えず、AC06 の空白のほかは 1 字も変えず、今の短い形と同じ行の分け方で出す。「その概要は以下のとおりです。」を落とさない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:537 «8f243166e3ca7a5d»",
           "docs/specs/cli-terminal-output.md:490 «fd60700b6ab030a4»"
@@ -187,7 +220,23 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:537 «8f243166e3ca7a5d»",
           "docs/specs/cli-terminal-output.md:490 «fd60700b6ab030a4»",
-          "docs/specs/cli-terminal-output.md:739 «af348735afc8259a»"
+          "docs/specs/cli-terminal-output.md:741 «af348735afc8259a»"
+        ]
+      },
+      {
+        "id": "P3-TL3-AC05",
+        "requirement": "取消の文（Q-TO4-CANCEL）: (1) 短い形の取消の報は、Body の直下の最初の Text があれば見出し文の代わりに出す。VolcanoInfo など Body の下の要素の中の Text は読まない (2) Text が無いか空なら見出し文を出す (3) 見出し文も Text も無ければ文の行を出さない (4) 取消でない報は Body の Text を読まない (5) 文字数の上限は material の既存の read による",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:538 «6c7ab8968ce91344»",
+          "docs/specs/cli-terminal-output.md:742 «bf5e2c75f76ded6e»"
+        ]
+      },
+      {
+        "id": "P3-TL3-AC06",
+        "requirement": "空白（Q-TO4-SPACE）: 短い形の文（見出し文と取消の文）について (1) 各行の前後の半角・全角の空白を除く (2) 前の行の末尾が文字か開き括弧で、次の行が「項目：」の形でない改行は字を入れずに継ぐ (3) ほかの改行は空白 1 つにする (4) 行頭の項目名の均等割付（1 字、全角か半角の空白、1 字、：）を詰める (5) 句読点の直前の空白を除く (6) 行の途中の区切りの全角空白は残す (7) 短い形でない報の文は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:539 «d2ad9f5976facb80»",
+          "docs/specs/cli-terminal-output.md:743 «df37600a1855d371»"
         ]
       }
     ],
@@ -227,6 +276,22 @@
           "P3-TL3-AC03"
         ],
         "behavior": "契約境界。VolcanoInfo を 2 本に分けた報は分ける前と同じ表と数になる。火山名でない codeType の Areas は表にも数にも入らない。留意の Area 256 個の後ろの火山は読まず「ほか 257 火山」になる。留意の Item が無い報に「ほか」の行は無い"
+      },
+      {
+        "testId": "P3-TL3-T05",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL3-AC05"
+        ],
+        "behavior": "受入条件。43_03_01 VFVO52 は「22日14時39分発表の噴火に関する火山観測報を取り消します。」が出て「現象：噴火」が出ない。32-35_09_02 VXSE56 は取り消しますの文が出て「発表します」が出ない。67_01_04 VFVO56 は Body の文が出る。Body に Text が無い取消の fixture は見出し文が出る。Body に Text があっても取消でない報は見出し文のまま"
+      },
+      {
+        "testId": "P3-TL3-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL3-AC06"
+        ],
+        "behavior": "受入条件。44_01_01 は「概況（平成２７年９月）」と「詳しくは月間火山概況」になる。44_02_01 は「継続＞ 白根山」になる（全角の字下げが残らない）。43_01_01 VFVO52 は「火山：浅間山 日時：」と継がれ、項目の間の空白が残る。45_01_01 VFVO50 は「警戒してください。」になる。32-39 の訓練の見出し文の「＊＊＊これは訓練です＊＊＊」の後ろは継がれない形を、短い形の報の transform で確かめる。行の途中の全角空白は残る"
       }
     ],
     "requiredCommands": [
@@ -297,7 +362,7 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
-      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、44_01_01 を噴火警戒レベル 5 の例に使う layout2.test.ts と short.test.ts の 3 か所だけで、45_01_01 VFVO50 の Kind の Code と Name を書き換えた報に置き換えて段と理由の行の確かめを残す。それ以外の期待の変更が要るなら、変える前に試験名・旧の期待・理由を報告して止める",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、44_01_01 を噴火警戒レベル 5 の例に使う layout2.test.ts と short.test.ts の 3 か所（45_01_01 VFVO50 の Kind の Code と Name を書き換えた報に置き換えて段と理由の行の確かめを残す）と、AC05・AC06 で短い形の文の字が変わる期待だけ。それ以外の期待の変更が要るなら、変える前に試験名・旧の期待・理由を報告して止める",
       "新しい «» が要るなら本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は付け直さない（要るなら止めて報告する）"
     ],
     "unresolvedQuestions": []
