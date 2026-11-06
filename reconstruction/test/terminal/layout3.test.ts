@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { classifyHeadType } from "../../src/runtime/unit-coverage";
 import { reportOf, reportUnit, terminal } from "./terminal-fixture";
 
 // P3-TERMINAL-LAYOUT-003（Q-TO4-MONTHLY）の試験。期待の字は docs/specs/cli-terminal-output.md §5.4 の「全国の月間火山概況」の図。
@@ -15,9 +16,9 @@ describe("P3-TL3-T01 帯と文", () => {
     const lines = flat(MONTHLY, 100);
     expect(lines[1]).toMatch(/^━ 火山の状況に関する解説情報 全国の活火山 ━+ 16:00:00 発表 ━$/);
     expect(lines.slice(2, 5)).toEqual([
-      "本日、全国の活火山の活動状況や警戒事項を取りまとめた月間火山概況（ 平成２７年９月）を発表しました。",
+      "本日、全国の活火山の活動状況や警戒事項を取りまとめた月間火山概況（平成２７年９月）を発表しました。",
       "その概要は以下のとおりです。",
-      "詳しくは 月間火山概況及び火山活動解説資料を参照ください。"]);
+      "詳しくは月間火山概況及び火山活動解説資料を参照ください。"]);
     const other = reportOf("44_02_01_200522_VFVO51.xml", "U-V");
     expect(other.kind === "short" ? [other.target, other.level, other.monthly] : other.kind).toEqual(["草津白根山（白根山（湯釜付近））", "caution", null]);
     expect(flat("44_02_01_200522_VFVO51.xml", 100).join("\n")).not.toContain("monthly_vact");
@@ -93,5 +94,60 @@ describe("P3-TL3-T04 読む範囲と上限の境界", () => {
     const none = inBody((body) => body.replace(/<Item>(?:(?!<\/Item>)[\s\S])*<\/Item>/g, (whole) => whole.includes("活火山であることに留意") ? "" : whole));
     expect(monthlyOf(none).others).toBe(0);
     expect(flat(MONTHLY, 100, none).join("\n")).not.toMatch(/ほか \d+ 火山/);
+  });
+});
+
+// P3-TL3-AC05（Q-TO4-CANCEL）: 取消の報は Body 直下の最初の Text を見出し文の代わりに出す。
+describe("P3-TL3-T05 取消の文", () => {
+  const unitOf = (path: string) => {
+    const route = classifyHeadType(/(V[A-Z]{3}\d\d)/.exec(path)![1]);
+    if (route.status !== "ready" || route.unit === "U-E" || route.unit === "U-Q" || route.unit === "U-T") throw new Error(`not a short unit: ${path}`);
+    return route.unit;
+  };
+  const shown = (path: string, transform?: (xml: string) => string): string => terminal(200)([reportUnit(reportOf(path, unitOf(path), transform))]).join("\n");
+  it("43_03_01・32-35_09_02・67_01_04 は Body の取消の文が出て、見出し文は出ない", () => {
+    const volcano = shown("43_03_01_200522_VFVO52.xml");
+    expect(volcano).toContain("22日14時39分発表の噴火に関する火山観測報を取り消します。");
+    expect(volcano).not.toContain("現象：噴火");
+    const seismic = shown("32-35_09_02_220316_VXSE56.xml");
+    expect(seismic).toContain("１６日１３時３０分に発表した「伊豆東部の地震活動の見通しに関する情報」は誤りですので取り消します。");
+    expect(seismic).not.toContain("発表します");
+    const eruption = shown("67_01_04_140927_VFVO56.xml");
+    expect(eruption).toContain("平成２６年９月２７日１２時００分に発表した御嶽山の噴火速報を取り消します。");
+    expect(eruption.split("\n")).not.toContain("噴火速報を取り消します。");
+  });
+  it("Body に Text が無い取消の報は見出し文が出る", () => {
+    const text = shown("43_03_01_200522_VFVO52.xml", (xml) => xml.replace(/<Text>22日14時39分[^<]*<\/Text>/, ""));
+    expect(text).toContain("火山：浅間山 日時：");
+  });
+  it("Body に Text があっても取消でない報は見出し文のままで、Body の Text を読まない", () => {
+    const edit = (xml: string) => xml.replace("<InfoType>取消", "<InfoType>発表");
+    const report = reportOf("67_01_04_140927_VFVO56.xml", "U-V", edit);
+    expect(report.kind === "short" ? report.cancelText : report.kind).toBeNull();
+    const text = shown("67_01_04_140927_VFVO56.xml", edit);
+    expect(text).toContain("噴火速報を取り消します。");
+    expect(text).not.toContain("御嶽山の噴火速報を取り消します。");
+  });
+});
+
+// P3-TL3-AC06（Q-TO4-SPACE）: 短い形の文の組版の空白。
+describe("P3-TL3-T06 短い形の文の空白", () => {
+  const shown = (path: string, unit: "U-V", transform?: (xml: string) => string): string => terminal(200)([reportUnit(reportOf(path, unit, transform))]).join("\n");
+  const headline = (text: string) => (xml: string) => xml.replace(/(<Headline>\s*<Text>)[\s\S]*?(<\/Text>)/, `$1${text}$2`);
+  it("実物: 字下げ・均等割付・句読点の前の空白が消え、項目の間の空白は残る", () => {
+    expect(shown("44_02_01_200522_VFVO51.xml", "U-V")).toContain("継続＞ 白根山");
+    expect(shown("43_01_01_200522_VFVO52.xml", "U-V")).toContain("火山：浅間山 日時：");
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V")).toMatch(/警戒してください。\n＜噴火/);
+  });
+  it("文字で終わる行の改行は継ぎ、記号で終わる行と「項目：」の前の改行は空白 1 つになる（訓練の見出し文は継がない）", () => {
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("＊＊＊これは訓練です＊＊＊\n東日本"))).toContain("＊＊＊これは訓練です＊＊＊ 東日本");
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("詳しくは\n月間（\n平成"))).toContain("詳しくは月間（平成");
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("切替〔\n警戒"))).toContain("切替〔警戒");
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("発生しているおそれ\n氾濫のおそれがある区間：最上川"))).toContain("発生しているおそれ 氾濫のおそれがある区間：最上川");
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("明日\n１２：００に発表"))).toContain("明日１２：００に発表");
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("山頂火口\n\n概ね"))).toContain("山頂火口 概ね");
+  });
+  it("行の途中の区切りの全角空白は残る", () => {
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V", headline("長野県　北部では"))).toContain("長野県　北部では");
   });
 });

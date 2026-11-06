@@ -180,7 +180,8 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   const monthly = material.headType === "VFVO51" && heading.title?.includes("全国の活火山") === true;
   const { level, name } = cancel ? { level: "cancel" as const, name: null } : monthly ? { level: "plain" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
   return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
-    monthly: monthly && !cancel ? monthlyTable(body) : null };
+    // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
+    cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。

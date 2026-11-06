@@ -81,8 +81,8 @@ export type TerminalReport =
       text: string | null;
       omitted: number;
     }>
-  // reason は警報以上の段を決めた Kind（U-N は InfoSerial）の名前（P3-TL2-AC08）。帯の下に太字で 1 行出す材料で、保存しない。monthly は全国の月間火山概況の表（P3-TL3-AC03、rows は電文の順の Item で label は Kind の Name の生の字、others は「ほか n 火山」の n）で、取消と他の報は null。
-  | Readonly<{ kind: "short"; unit: RuntimeUnitId; head: TerminalHead; target: string | null; level: TerminalBandLevel; reason: string | null; monthly: Readonly<{ rows: readonly Readonly<{ label: string; areas: readonly string[] }>[]; others: number }> | null }>;
+  // reason は警報以上の段を決めた Kind（U-N は InfoSerial）の名前（P3-TL2-AC08）。帯の下に太字で 1 行出す材料で、保存しない。cancelText は取消の報の Body 直下の最初の Text（電文の取消の文、P3-TL3-AC05。取消でない報と Text の無い報は null）。monthly は全国の月間火山概況の表（P3-TL3-AC03、rows は電文の順の Item で label は Kind の Name の生の字、others は「ほか n 火山」の n）で、取消と他の報は null。
+  | Readonly<{ kind: "short"; unit: RuntimeUnitId; head: TerminalHead; target: string | null; level: TerminalBandLevel; reason: string | null; cancelText: string | null; monthly: Readonly<{ rows: readonly Readonly<{ label: string; areas: readonly string[] }>[]; others: number }> | null }>;
 
 // 帯の段（spec §3、Q-TO-S-2、Q-TO3-TOP）。重い順に 最も重い・紫・警報・注意・普通と取消。
 export type TerminalBandLevel = "top" | "purple" | "warning" | "caution" | "plain" | "cancel";

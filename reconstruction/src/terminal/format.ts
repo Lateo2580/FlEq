@@ -675,14 +675,22 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): 
 
 // ---- 短い形（AC09、spec §5.4）と処理できなかった報（P3-TO-D-UNREADABLE） ----
 const MONTHLY_URL = "https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php";
+// 短い形の文の組版の空白（P3-TL3-AC06、Q-TO4-SPACE）。端末の側の整形で、material は生の字を写す。
+// 無いと電文の字下げと折り返しがそのまま出て「（ 平成」「詳しくは 月間」のように語の途中に空白が入る。短い形でない報の textLines は変えない。
+const SENTENCE_ITEM = /^[^\s：:。、]*[^\s：:。、0-9０-９][：:]/, SENTENCE_JOIN = /[\p{L}\p{N}\p{Ps}]$/u;
+function shortSentence(raw: string | null): string {
+  const rows = (raw ?? "").split(/\n/).map((row) => row.trim().replace(/^(\S)[ 　]+(\S)(?=[：:])/, "$1$2"));
+  return rows.reduce((sentence, row, index) => row === "" ? sentence : sentence === "" ? row : `${sentence}${SENTENCE_JOIN.test(rows[index - 1]) && !SENTENCE_ITEM.test(row) ? "" : " "}${row}`, "")
+    .replace(/[ 　]+(?=[、。])/g, "");
+}
 function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx): Rendered {
   const { head } = report;
   // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
   const base = (head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
   const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${report.target == null || report.target === "" ? "" : ` ${report.target}`}`;
   const roles = BAND_ROLES[report.level];
-  // 見出し文は省略せず、電文の改行は空白 1 つにする（spec §5.4 の図）。
-  const headline = head.headline?.trim().replace(/\n+/g, " ") ?? "";
+  // 見出し文は省略しない（spec §5.4 の図）。取消の報は Body の取消の文を代わりに出す（Q-TO4-CANCEL。空は無いものとして見出し文）。
+  const headline = shortSentence(report.cancelText == null || report.cancelText === "" ? head.headline : report.cancelText);
   // 警報以上の段を決めた Kind の名前（P3-TL2-AC08）。見出し文か帯の題名に同じ字があるときは出さない。
   const reason = report.reason == null || headline.includes(report.reason) || title.includes(report.reason) ? [] : [line(seg(report.reason, null, true))];
   const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
