@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "863fe4762a938d5d88d87750e8ef705c061dc61f",
-    "sha256": "3421ef6043495f6a53288d44992f1bab627aa8a4234e4631dcbc4031cfe34f00",
+    "sha256": "423ad27076f12fcc1f7e0e7e48ae444260954506cac2fed8ac74cb99d2702f08",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -37,7 +37,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-005",
     "mode": "implementation",
     "objective": "満潮時刻だけの VTSE51 が本物の経路で端末に 0 行になっている。spec の Q-TO-T-4（観測点ごとの満潮時刻は出す）を実現する。整形は描けるので、門だけを開ける",
-    "baseOid": "unassigned",
+    "baseOid": "35fd182b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
