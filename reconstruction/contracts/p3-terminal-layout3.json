@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "832e1d51223446a50d08010e7a3955d57d224410576d28af2e08448402cf6ba7",
+    "sha256": "b8754ae840d6cddadd78ccc1bf603f1379c5599a16a3d4ca8331fe7e98ff4455",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -101,7 +101,7 @@
         "id": "Q-TL3-DELIVERY",
         "status": "open",
         "source": "2026-11-06 起草",
-        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。2026-11-06 に作者の裁定で AC05・AC06 を足した（P3-TL3-D-CANCEL-TEXT、P3-TL3-D-SPACE）。remaining: AC05・AC06 の実装、レビュー、ゲート、作者の実端末の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。2026-11-06 に作者の裁定で AC05・AC06 を足した（P3-TL3-D-CANCEL-TEXT、P3-TL3-D-SPACE）。r2 は契約適合 GO・ヘルツ NO-GO（「項目：」の 8 字の上限）、r3 で上限を外し、コロンの直前が数字の形を項目としないことと空行の後を継がないことと括弧の列を足して、ヘルツ GO。Mac mini のゲート 11 本は r3 で全部 rc 0（ログ layout3-r3）、commit 765f99a4 は固定した patch と同じ byte。本物の取消（43_03_01、32-35_09_02、67_01_04）の写しを pty の 100 桁と 56 桁で撮った。remaining: 作者の実端末の目視と push"
       }
     ],
     "operationContract": {
@@ -159,9 +159,13 @@
       "既存の依存だけ（chalk 4.1.2 と node の標準）。文節の分割の依存は足さない"
     ],
     "fixtureIds": [
+      "test__fixtures__32-35_09_02_220316_VXSE56",
+      "test__fixtures__43_01_01_200522_VFVO52",
+      "test__fixtures__43_03_01_200522_VFVO52",
       "test__fixtures__44_01_01_151008_VFVO51",
       "test__fixtures__44_02_01_200522_VFVO51",
-      "test__fixtures__45_01_01_200522_VFVO50"
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__67_01_04_140927_VFVO56"
     ],
     "sequenceIds": [
       "O02",
@@ -179,7 +183,7 @@
       "なし"
     ],
     "nonPersistedFields": [
-      "TerminalReport の short の表の欄（返信の中だけ）"
+      "TerminalReport の short の表の欄と取消の文（返信の中だけ）"
     ],
     "outOfScope": [
       "解説情報の本文（VolcanoActivity）を端末やディスプレイへ出すこと（view と snapshot が見出しだけなのは P3-C9-SNAPSHOT=A の裁定）",
@@ -233,7 +237,7 @@
       },
       {
         "id": "P3-TL3-AC06",
-        "requirement": "空白（Q-TO4-SPACE）: 短い形の文（見出し文と取消の文）について (1) 各行の前後の半角・全角の空白を除く (2) 前の行の末尾が文字か開き括弧で、次の行が「項目：」の形でない改行は字を入れずに継ぐ (3) ほかの改行は空白 1 つにする (4) 行頭の項目名の均等割付（1 字、全角か半角の空白、1 字、：）を詰める (5) 句読点の直前の空白を除く (6) 行の途中の区切りの全角空白は残す (7) 短い形でない報の文は変えない",
+        "requirement": "空白（Q-TO4-SPACE）: 短い形の文（見出し文と取消の文）について (1) 各行の前後の半角・全角の空白を除く (2) 前の行の末尾が文字か開き括弧で、次の行が「項目：」の形（コロンの直前が数字でないもの）でない改行は字を入れずに継ぐ (3) ほかの改行は空白 1 つにする (4) 行頭の項目名の均等割付（1 字、全角か半角の空白、1 字、：）を詰める (5) 句読点の直前の空白を除く (6) 行の途中の区切りの全角空白は残す (7) 短い形でない報の文は変えない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:539 «d2ad9f5976facb80»",
           "docs/specs/cli-terminal-output.md:743 «df37600a1855d371»"
