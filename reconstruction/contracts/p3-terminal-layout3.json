@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "9f62e4d6adf446a2f2f5e4fa76518848b8bd051d096b9d98374c1cb7ae399d8b",
+    "sha256": "d418d4d92c1453e0a6b5699d822e7cd4042797ec174253fa3b58604f4a96424c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -198,7 +198,7 @@
         "id": "P3-TL3-AC01",
         "requirement": "帯と段（Q-TO4-MONTHLY）: (1) 全国の月間火山概況の報は、Head の Title に「全国の活火山」を含む VFVO51 とする (2) 帯の対象は Body の最初の Area でなく「全国の活火山」にする (3) 段は Kind によらず普通にし、段の理由の行を出さない (4) 取消の報は段を取消のまま、対象だけ「全国の活火山」にする (5) 全国の活火山を含まない VFVO51 と、他の種類の報の対象・段・理由の行は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:549 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:549 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:491 «fd60700b6ab030a4»"
         ]
       },
@@ -206,7 +206,7 @@
         "id": "P3-TL3-AC02",
         "requirement": "文（Q-TO4-MONTHLY）: 見出し文は言い換えず、AC06 の空白のほかは 1 字も変えず、今の短い形と同じ行の分け方で出す。「その概要は以下のとおりです。」を落とさない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:549 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:549 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:491 «fd60700b6ab030a4»"
         ]
       },
@@ -214,7 +214,7 @@
         "id": "P3-TL3-AC03",
         "requirement": "表（Q-TO4-MONTHLY）: (1) 見出し文の下に、Body の Item を電文の順に 1 行ずつ出す。左の列は Kind の Name の全角の「（」より前、右の列はその Item の Area の Name (2) Kind の Name に「活火山であることに留意」を含む Item は行にせず、Area の数の合計を「ほか n 火山」の 1 行にする。0 なら行を出さない (3) 右の列が入らないときは名前の境で折り、折り返した行にも左の列を出す（P3-TL2-AC06 (2) と同じ flow の形）。列の見出しの行は出さない (4) 読む Area は material の既存の上限（AREA_LIMIT）までで、越えた分は「ほか n 火山」に足す (5) 取消の報には表を出さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:549 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:549 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:491 «fd60700b6ab030a4»"
         ]
       },
@@ -222,7 +222,7 @@
         "id": "P3-TL3-AC04",
         "requirement": "行き先（Q-TO4-MONTHLY、Q-TO-Q-5）: 取消でない全国の月間火山概況の報は、補足のまとまりに「月間火山概況・火山活動解説資料（気象庁ホームページ）」の 1 行と、折らない URL の 1 行（url: true）を出す。URL は https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php の固定の字",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:549 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:549 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:491 «fd60700b6ab030a4»",
           "docs/specs/cli-terminal-output.md:756 «af348735afc8259a»"
         ]

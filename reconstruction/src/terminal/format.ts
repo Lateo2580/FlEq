@@ -179,13 +179,13 @@ function rowTable(allColumns: readonly Column[], allRows: readonly (readonly Cel
 }
 
 // 段ごとに地域を 1 行にまとめる表（地震の震度・長周期階級）。2 行目からは段の欄の幅で字下げする。
-function listTable(headers: readonly [string, string] | null, rows: readonly Readonly<{ label: Seg; items: readonly (readonly Seg[])[] }>[],
+function listTable(headers: readonly [string, string] | null, rows: readonly Readonly<{ label: Seg; rest?: Seg; items: readonly (readonly Seg[])[] }>[],
   min: number, cols: number): Line[] {
   const size = Math.max(min, headers == null ? 0 : width(headers[0]) + 2, ...rows.map((row) => width(row.label.text) + 2));
   return [...headers == null ? [] : [line(seg(pad(headers[0], size) + headers[1], "dim"))],
     ...rows.flatMap((row) => {
-      const lead = [row.label, seg(" ".repeat(size - width(row.label.text)))];
-      return flow(lead, row.items, cols, size, lead);
+      const gap = seg(" ".repeat(size - width(row.label.text))), lead = [row.label, gap];
+      return flow(lead, row.items, cols, size, row.rest == null ? lead : [row.rest, gap]);
     })];
 }
 
@@ -697,7 +697,7 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
   // 全国の月間火山概況（Q-TO4-MONTHLY）: 「以下」の指す火山の表（見出し無し）と、「参照ください」の行き先。URL は電文に無いので固定の字（無いと文だけが残り行き先が画面に無い）。
   const { monthly } = report;
-  const tables = monthly == null ? [] : [[...listTable(null, monthly.rows.map((row) => ({ label: seg(row.label.split("（")[0]), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
+  const tables = monthly == null ? [] : [[...listTable(null, monthly.rows.map((row) => { const name = row.label.split("（")[0]; return { label: seg(name), rest: seg(name, "dim"), items: row.areas.map((area) => [seg(area)]) }; }), 0, ctx.body),
     ...monthly.others === 0 ? [] : [line(seg(`ほか ${monthly.others} 火山`, "dim"))]]];
   const supplement = monthly == null ? [] : [line(seg("月間火山概況・火山活動解説資料（気象庁ホームページ）")), { segs: [seg(MONTHLY_URL)], url: true as const }];
   // 噴火速報（Q-TO5-FLASH）: 見出し文の下に活動の文、その下に罫線と対象の市町村の表。表の下に罫線は足さない（spec の図）ので supplement に置く。

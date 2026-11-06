@@ -74,6 +74,16 @@ describe("P3-TL4-T05 EEW ログの仮定の震源", () => {
   });
 });
 
+describe("P3-TL4-T07 全国の月間火山概況の表の続きの行", () => {
+  it("56 桁のレベル２は 1 行目だけ濃く、折り返した行の左の列は薄い字になる", () => {
+    const rows = terminal(56, 3)([reportUnit(reportOf("44_01_01_151008_VFVO51.xml", "U-V"))]).filter((row) => row.includes("レベル２"));
+    const dim = /\x1b\[38;2;\d+;\d+;\d+mレベル２/;
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows[0]).not.toMatch(dim);
+    for (const row of rows.slice(1)) expect(row).toMatch(dim);
+  });
+});
+
 describe("P3-TL4-T06 VPNO50 の報知", () => {
   const decode = (name: string, headType: string): DecodedMaterial => {
     const entered = ingestXmlData({ inputId: name, inputSequence: 1, receivedAt: 1_800_000_000_000, origin: "replay", kind: "replay",

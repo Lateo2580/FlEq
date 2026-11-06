@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
-    "sha256": "cef5603eccd36c1ee7896a5503a8c063264e591d719f79ccde4d9fb47467899f",
+    "sha256": "c1e68361a175f72644726d1d898485a8e4fa724c967fcaed831c0728420414d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -51,6 +51,18 @@
         "status": "確定（統合担当、2026-11-06 起草のレビュー）",
         "ruling": "起草のレビュー r1 の後に推奨で確定（統合担当）",
         "reason": "ヘルツの起草のレビューが 2 巡 NO-GO で、指摘は全部満潮の報の重複の門に集まった。門の置き場は作者の裁定の案件で、ほかの 3 つは閉じている"
+      },
+      {
+        "id": "P3-TL4-D-MONTHLY-ROW",
+        "kind": "作者",
+        "A": "折り返した行の左の列を薄い字で出す",
+        "B": "今のまま濃い字で繰り返す",
+        "C": "字下げにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者の案「濃色→ 淡色→」）",
+        "reason": "途中から読んでも段が分かる役目を残し、1 種類だと目で読める。地震の震度の表は色に意味があるので今回は変えない"
       }
     ],
     "questionResolutions": [
@@ -174,6 +186,14 @@
           "docs/specs/cli-terminal-output.md:553 «c6d0cf90e3f2c91a»",
           "docs/specs/cli-terminal-output.md:761 «ff9842c57a3737f7»"
         ]
+      },
+      {
+        "id": "P3-TL4-AC05",
+        "requirement": "全国の月間火山概況の表（Q-TO5-MONTHLY-ROW）: 折り返した行の左の列を薄い字で出す。1 行目の左の列は今のまま。地震の震度の表など listTable のほかの使い方は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:763 «ca1a91d458f00c23»",
+          "docs/specs/cli-terminal-output.md:549 «ecbcd59bd24b1841»"
+        ]
       }
     ],
     "testMapping": [
@@ -208,6 +228,14 @@
           "P3-TL4-AC04"
         ],
         "behavior": "契約境界。VPNO50 の発表の報（_issue）も切替の報（_switch）も端末に出ない。_switch の U-W の state の変化は今のまま"
+      },
+      {
+        "testId": "P3-TL4-T07",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL4-AC05"
+        ],
+        "behavior": "受入条件。56 桁の 44_01_01 のレベル２は 1 行目が濃く、折り返した行の左の列が薄い字になる"
       }
     ],
     "requiredCommands": [
