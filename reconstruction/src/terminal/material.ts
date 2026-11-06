@@ -153,10 +153,34 @@ function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string 
     default: { const unknown: never = unit; throw new Error(`unknown short unit ${String(unknown)}`); }
   }
 }
+// 全国の月間火山概況（Q-TO4-MONTHLY）の表。Body の全 VolcanoInfo の Item を電文の順に行にし、「活火山であることに留意」の Item と AREA_LIMIT を越えた火山は others に数える。
+// 火山名の Areas だけを読む（volcano.ts の volcanoItems・volcanoAreas と同じ絞り方。対象市町村等の Areas が混ざる報がある）。
+// AREA_LIMIT は読む前に全 Area で数える（AC03 (4)）。無いと留意の Area が多い報で、後ろの火山が表に出てしまう。
+function monthlyTable(body: XmlElement | null): NonNullable<Extract<TerminalReport, { kind: "short" }>["monthly"]> {
+  const rows: { label: string; areas: string[] }[] = [];
+  const budget: Budget = { left: AREA_LIMIT, omitted: 0 };
+  let others = 0;
+  for (const info of children(body, "VolcanoInfo")) for (const item of children(info, "Item")) {
+    const kind = read(first(item, "Kind"), "Name") ?? "", areas: string[] = [];
+    const lists = children(item, "Areas").filter((node) => attribute(node, "codeType") === "火山名");
+    for (const area of lists.flatMap((node) => children(node, "Area"))) {
+      if (!take(budget)) continue;
+      const name = read(area, "Name");
+      if (name == null || kind.includes("活火山であることに留意")) others += 1;
+      else areas.push(name);
+    }
+    if (areas.length > 0) rows.push({ label: kind, areas });
+  }
+  return { rows, others: others + budget.omitted };
+}
 function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | null): TerminalReport {
   const heading = head(material), found = scan(body);
-  const cancel = heading.infoType === "取消", { level, name } = cancel ? { level: "cancel" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
-  return { kind: "short", unit, head: heading, target: unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null };
+  const cancel = heading.infoType === "取消";
+  // Head の Title に全国の活火山を含む VFVO51。EventID 900 は「その他の火山」の番号でもあるので使わない（P3-TL3-D-DETECT）。
+  const monthly = material.headType === "VFVO51" && heading.title?.includes("全国の活火山") === true;
+  const { level, name } = cancel ? { level: "cancel" as const, name: null } : monthly ? { level: "plain" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
+  return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
+    monthly: monthly && !cancel ? monthlyTable(body) : null };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。

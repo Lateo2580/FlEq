@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type { TerminalBandLevel } from "../../contracts/p3-terminal-output.types";
-import { band, filled, plain, reportOf, reportUnit, terminal } from "./terminal-fixture";
+import { band, filled, levelFive, plain, reportOf, reportUnit, terminal } from "./terminal-fixture";
 
-const short = (path: string, unit: RuntimeUnitId) => {
-  const report = reportOf(path, unit);
+const short = (path: string, unit: RuntimeUnitId, transform?: (xml: string) => string) => {
+  const report = reportOf(path, unit, transform);
   if (report.kind !== "short") throw new Error(report.kind);
   return report;
 };
@@ -63,13 +63,13 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
   });
 
   // Q-TO3-LEVEL の表の各行の例（警戒レベル 5・4・3・2 が top・purple・warning・caution）。段の無い行（U-L の purple・caution など）は corpus に例が無い。
-  const examples: readonly (readonly [RuntimeUnitId, string, TerminalBandLevel])[] = [
+  const examples: readonly (readonly [RuntimeUnitId, string, TerminalBandLevel, ((xml: string) => string)?])[] = [
     ["U-W", "18_00_01_260830_VPWW55_fukui_L5.xml", "top"], ["U-W", "15_16_02_251222_VPWW57.xml", "purple"],
     ["U-W", "15_16_04_251222_VPWW58.xml", "warning"], ["U-W", "15_16_07_250825_VPWW61.xml", "caution"],
     ["U-L", "15_16_01_241031_VPWW56.xml", "purple"], ["U-L", "18_00_01_260603_VPWW56_kagawa_release.xml", "plain"], ["U-L", "synthetic_VPWW56_cancel.xml", "cancel"],
     ["U-R", "16_00_01_260603_VXKO70_kozagawa_l5.xml", "top"], ["U-R", "16_06_01_220728_VXKO50.xml", "purple"],
     ["U-R", "16_02_01_220728_VXKO50.xml", "warning"], ["U-R", "16_01_01_220728_VXKO50.xml", "caution"],
-    ["U-V", "44_01_01_151008_VFVO51.xml", "top"], ["U-V", "67_01_01_140927_VFVO56.xml", "top"], ["U-V", "45_01_01_200522_VFVO50.xml", "warning"],
+    ["U-V", "45_01_01_200522_VFVO50.xml", "top", levelFive], ["U-V", "67_01_01_140927_VFVO56.xml", "top"], ["U-V", "45_01_01_200522_VFVO50.xml", "warning"],
     ["U-V", "44_02_01_200522_VFVO51.xml", "caution"], ["U-V", "42_02_01_071130_VZVO40.xml", "plain"], ["U-V", "43_03_01_200522_VFVO52.xml", "cancel"],
     ["U-N", "selected_xml/74_01_04_200512_VYSE50.xml", "top"], ["U-N", "selected_xml/74_01_01_200512_VYSE50.xml", "warning"],
     ["U-N", "selected_xml/74_01_07_200512_VYSE50.xml", "plain"],
@@ -79,7 +79,7 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
     ["U-F", "81_01_01_260129_VPWP50.xml", "plain"], ["U-Y", "10_04_03_170913_VPTW60.xml", "plain"],
   ];
   it("AC09 (2) の表の各行の例の fixture の帯の段が表のとおり", () => {
-    expect(examples.map(([unit, path]) => [unit, path, short(path, unit).level])).toEqual(examples);
+    expect(examples.map(([unit, path, , transform]) => [unit, path, short(path, unit, transform).level])).toEqual(examples.map(([unit, path, level]) => [unit, path, level]));
   });
 
   it("処理できなかった報は帯と 1 行で出す（P3-TO-D-UNREADABLE、作者裁定 A）。発表時刻が無ければ受信の時刻と「受信」", () => {

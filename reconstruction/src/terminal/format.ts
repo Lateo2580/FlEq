@@ -179,10 +179,10 @@ function rowTable(allColumns: readonly Column[], allRows: readonly (readonly Cel
 }
 
 // 段ごとに地域を 1 行にまとめる表（地震の震度・長周期階級）。2 行目からは段の欄の幅で字下げする。
-function listTable(headers: readonly [string, string], rows: readonly Readonly<{ label: Seg; items: readonly (readonly Seg[])[] }>[],
+function listTable(headers: readonly [string, string] | null, rows: readonly Readonly<{ label: Seg; items: readonly (readonly Seg[])[] }>[],
   min: number, cols: number): Line[] {
-  const size = Math.max(min, width(headers[0]) + 2, ...rows.map((row) => width(row.label.text) + 2));
-  return [line(seg(pad(headers[0], size) + headers[1], "dim")),
+  const size = Math.max(min, headers == null ? 0 : width(headers[0]) + 2, ...rows.map((row) => width(row.label.text) + 2));
+  return [...headers == null ? [] : [line(seg(pad(headers[0], size) + headers[1], "dim"))],
     ...rows.flatMap((row) => {
       const lead = [row.label, seg(" ".repeat(size - width(row.label.text)))];
       return flow(lead, row.items, cols, size, lead);
@@ -674,6 +674,7 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): 
 }
 
 // ---- 短い形（AC09、spec §5.4）と処理できなかった報（P3-TO-D-UNREADABLE） ----
+const MONTHLY_URL = "https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php";
 function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx): Rendered {
   const { head } = report;
   // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
@@ -685,8 +686,13 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 警報以上の段を決めた Kind の名前（P3-TL2-AC08）。見出し文か帯の題名に同じ字があるときは出さない。
   const reason = report.reason == null || headline.includes(report.reason) || title.includes(report.reason) ? [] : [line(seg(report.reason, null, true))];
   const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
+  // 全国の月間火山概況（Q-TO4-MONTHLY）: 「以下」の指す火山の表（見出し無し）と、「参照ください」の行き先。URL は電文に無いので固定の字（無いと文だけが残り行き先が画面に無い）。
+  const { monthly } = report;
+  const tables = monthly == null ? [] : [[...listTable(null, monthly.rows.map((row) => ({ label: seg(row.label.split("（")[0]), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
+    ...monthly.others === 0 ? [] : [line(seg(`ほか ${monthly.others} 火山`, "dim"))]]];
+  const supplement = monthly == null ? [] : [line(seg("月間火山概況・火山活動解説資料（気象庁ホームページ）")), { segs: [seg(MONTHLY_URL)], url: true as const }];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: [...reason, ...textLines(headline, ctx.body)], tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: [...reason, ...textLines(headline, ctx.body)], tables, supplement, tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };

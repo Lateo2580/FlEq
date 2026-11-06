@@ -29,8 +29,8 @@ function decodeFixture(path: string, origin: "live" | "replay" | "recovery" = "r
   return decoded.material;
 }
 
-function reportOf(path: string, unit: RuntimeUnitId): TerminalReport {
-  const report = terminalReport(decodeFixture(path), unit);
+function reportOf(path: string, unit: RuntimeUnitId, transform?: (xml: string) => string): TerminalReport {
+  const report = terminalReport(decodeFixture(path, "replay", transform), unit);
   if (report == null) throw new Error(`no terminal report for ${path}`);
   return report;
 }
@@ -39,6 +39,9 @@ function emptyEew(): EewUnitState {
   return { schemaVersion: "p2-eew-unit-v5", contentRevision: 0, current: [], gates: [], intents: [], notices: [], unreadableNotices: [],
     persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } };
 }
+
+// 噴火警戒レベル 5 の例（45_01_01 VFVO50 の Kind の Code と Name を書き換えた報）。44_01_01 は月間火山概況で段が普通になったため。
+const levelFive = (xml: string): string => xml.replace(/<Code>13<\/Code>/g, "<Code>15</Code>").replace(/レベル３（入山規制）/g, "レベル５（避難）");
 
 // 同じ EEW の unit に順に通し、受信の outcome（facts.report を持つ subject）を端末の単位にする。
 type EewInput = string | Readonly<{ path: string; transform: (xml: string) => string }>;
@@ -109,4 +112,4 @@ function harness(options: TerminalOptions = {}, initial: Partial<HostStatus> = {
 // 地方時の 2026-11-03 の時刻（spec の図の場面の時刻）。
 const at = (hours: number, minutes: number, seconds = 0): number => new Date(2026, 10, 3, hours, minutes, seconds).getTime();
 
-export { allThirteen, at, band, decodeFixture, eewOutcome, eewUnits, filled, harness, inputDoneOf, plain, reportOf, reportUnit, rule, terminal };
+export { allThirteen, at, band, decodeFixture, eewOutcome, eewUnits, filled, harness, inputDoneOf, levelFive, plain, reportOf, reportUnit, rule, terminal };

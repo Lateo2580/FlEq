@@ -6,7 +6,7 @@ import type { Role } from "../../src/terminal/color";
 import type { TerminalUnit } from "../../src/terminal/format";
 import { createRenderer, width } from "../../src/terminal/format";
 import { terminalReport } from "../../src/terminal/material";
-import { decodeFixture, eewUnits, plain, reportOf, reportUnit, terminal } from "./terminal-fixture";
+import { decodeFixture, eewUnits, levelFive, plain, reportOf, reportUnit, terminal } from "./terminal-fixture";
 
 // P3-TERMINAL-LAYOUT-002（Q-TO3-*）の試験。期待の字は docs/specs/cli-terminal-output.md の §3〜§5 の図と表。
 const unitOf = (path: string, unit: RuntimeUnitId, transform?: (xml: string) => string): TerminalUnit => {
@@ -35,7 +35,7 @@ describe("P3-TL2-T01 段と帯", () => {
       ["L3 の警報", unitOf("15_16_04_251222_VPWW58.xml", "U-W"), "warning"],
       ["注意報（レベルなし）", unitOf("15_16_07_250825_VPWW61.xml", "U-W"), "caution"],
       ["洪水 L5", unitOf("16_00_01_260603_VXKO70_kozagawa_l5.xml", "U-R"), "top"],
-      ["噴火警戒レベル 5", unitOf("44_01_01_151008_VFVO51.xml", "U-V"), "top"],
+      ["噴火警戒レベル 5", unitOf("45_01_01_200522_VFVO50.xml", "U-V", levelFive), "top"],
       ["噴火警戒レベル 3", unitOf("45_01_01_200522_VFVO50.xml", "U-V"), "warning"],
       ["巨大地震警戒", unitOf("selected_xml/74_01_04_200512_VYSE50.xml", "U-N"), "top"],
       ["記録的短時間大雨", unitOf("phase6b_VPOA50_JPDE202608201757_202608201757.xml", "U-B"), "purple"],
@@ -178,10 +178,11 @@ describe("P3-TL2-T07 発表より前の到達予想時刻", () => {
 });
 
 describe("P3-TL2-T08 段の理由", () => {
-  const second = (path: string, unit: RuntimeUnitId) => terminal()([unitOf(path, unit)])[2];
+  const second = (path: string, unit: RuntimeUnitId, transform?: (xml: string) => string) => terminal()([unitOf(path, unit, transform)])[2];
   it("警報以上の VFVO51・VFVO50・VXKO70・VYSE50 に Kind か InfoSerial の名前が 1 行出る", () => {
-    expect(second("44_01_01_151008_VFVO51.xml", "U-V")).toBe("レベル５（避難）");
+    expect(second("45_01_01_200522_VFVO50.xml", "U-V", levelFive)).toBe("レベル５（避難）");
     expect(second("45_01_01_200522_VFVO50.xml", "U-V")).toBe("レベル３（入山規制）");
+    expect(second("44_02_01_200522_VFVO51.xml", "U-V", (xml) => xml.replace(/<Code>12<\/Code>/g, "<Code>13</Code>").replace(/レベル２（火口周辺規制）/g, "レベル３（入山規制）").replace(/<Headline>[\s\S]*?<\/Headline>/, "<Headline><Text>見出し</Text></Headline>"))).toBe("レベル３（入山規制）");
     expect(second("16_00_01_260603_VXKO70_kozagawa_l5.xml", "U-R")).toBe("レベル５氾濫特別警報");
     expect(second("selected_xml/74_01_01_200512_VYSE50.xml", "U-N")).toBe("調査中");
   });
