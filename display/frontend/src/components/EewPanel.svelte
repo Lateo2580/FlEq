@@ -346,9 +346,10 @@
         {/if}
         {#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}
       </div>{/if}
-      <NumericSemanticLegend semantics={[input.magnitudeSemantic, input.depthSemantic]} />
+      <NumericSemanticLegend semantics={input.isAssumedHypocenter ? [] : [input.magnitudeSemantic, input.depthSemantic]} />
     </div>
     <div class="tile-stats">
+      {#if !input.isAssumedHypocenter}
       <div class="tile stat-tile">
         <span class="stat-label">{magnitude.numericValue != null ? "M" : "規模"}</span>
         <span class="stat-value" title={magnitude.tooltip ?? undefined} aria-label={magnitude.ariaLabel}>
@@ -360,7 +361,8 @@
           {#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}
         </span>
       </div>
-      {#if input.depthSemantic != null ? depth.render : input.depth != null}
+      {/if}
+      {#if !input.isAssumedHypocenter && (input.depthSemantic != null ? depth.render : input.depth != null)}
         <div class="tile stat-tile">
           <span class="stat-label">深さ</span>
           <span class="stat-value" title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{#if input.depthSemantic == null}<RollingNumber value={input.depth ?? ""} />{:else if depth.numericValue != null}<RollingNumber value={depth.label} />{:else}{depth.label}{/if}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</span>

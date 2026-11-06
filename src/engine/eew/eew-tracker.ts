@@ -494,7 +494,9 @@ function computeDiff(
     ?? magnitudeValueFromLegacyScalar(prev.earthquake?.magnitude ?? null);
   const currMagnitudeValue = curr.earthquake?.magnitudeValue
     ?? magnitudeValueFromLegacyScalar(curr.earthquake?.magnitude ?? null);
-  if (!specialValueCanonicalEquals(prevMagnitudeValue, currMagnitudeValue)) {
+  // 仮定震源 (PLUM 法) の M・深さは仮の値なので、どちらかの報が仮定なら差分にしない
+  const bothConfirmed = !prev.isAssumedHypocenter && !curr.isAssumedHypocenter;
+  if (bothConfirmed && !specialValueCanonicalEquals(prevMagnitudeValue, currMagnitudeValue)) {
     diff.previousMagnitude = prev.earthquake?.magnitude;
     diff.previousMagnitudeValue = prevMagnitudeValue;
     diff.currentMagnitudeValue = currMagnitudeValue;
@@ -506,7 +508,7 @@ function computeDiff(
     ?? depthValueFromLegacyScalar(prev.earthquake?.depth ?? null);
   const currDepthValue = curr.earthquake?.depthValue
     ?? depthValueFromLegacyScalar(curr.earthquake?.depth ?? null);
-  if (!specialValueCanonicalEquals(prevDepthValue, currDepthValue)) {
+  if (bothConfirmed && !specialValueCanonicalEquals(prevDepthValue, currDepthValue)) {
     diff.previousDepth = prev.earthquake?.depth;
     diff.previousDepthValue = prevDepthValue;
     diff.currentDepthValue = currDepthValue;

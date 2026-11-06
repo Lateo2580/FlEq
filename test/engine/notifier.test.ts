@@ -665,6 +665,14 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
+  it("仮定震源の報の通知本文に M を入れず、確定の報には入れる", () => {
+    const notifier = new Notifier();
+    notifier.notifyEew(makeEewInfo({ eventId: "EVT-P", isAssumedHypocenter: true }), makeResult({ isNew: true }));
+    expect(notifyMock.mock.calls[0][0].message).not.toContain("M5.0");
+    notifier.notifyEew(makeEewInfo({ eventId: "EVT-Q" }), makeResult({ isNew: true }));
+    expect(notifyMock.mock.calls[1][0].message).toContain("M5.0");
+  });
+
   it("isNew=true でも firstReportSignal=false なら第1報を導出しない", () => {
     const notifier = new Notifier();
     notifier.notifyEew(

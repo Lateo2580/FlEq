@@ -847,6 +847,20 @@ describe("EewTracker", () => {
       expect(result.diff!.previousMagnitude).toBe("5.0");
     });
 
+    it("仮定震源の報の次の確定の報では M と深さの差分を作らない", () => {
+      const assumed = createEewInfo({ serial: "1", eventId: "event-plum", isAssumedHypocenter: true });
+      const confirmed = createEewInfo({
+        serial: "2",
+        eventId: "event-plum",
+        earthquake: { originTime: "2026-01-01T00:00:00+09:00", hypocenterName: "福島県中通り", latitude: "N37.0", longitude: "E140.0", depth: "10km", magnitude: "5.8" },
+      });
+      tracker.update(assumed);
+      const result = tracker.update(confirmed);
+      expect(result.diff?.previousMagnitude).toBeUndefined();
+      expect(result.diff?.currentMagnitudeValue).toBeUndefined();
+      expect(result.diff?.currentDepthValue).toBeUndefined();
+    });
+
     it("深さ変化を検出する", () => {
       const info1 = createEewInfo({
         serial: "1",

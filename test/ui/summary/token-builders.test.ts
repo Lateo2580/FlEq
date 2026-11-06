@@ -118,6 +118,14 @@ describe("buildSummaryTokens", () => {
       expect(kindToken.text).toBe("EEW取消");
     });
 
+    it("EEW 仮定震源: 一行要約に M と深さの token が無い", () => {
+      const { tokens, event, model } = makeTokens(FIXTURE_VXSE45_S1, "eew", makeDeps());
+      expect(ids(tokens)).toContain("magnitude");
+      const assumed = buildSummaryTokens({ ...event, isAssumedHypocenter: true }, model);
+      expect(ids(assumed)).not.toContain("magnitude");
+      expect(ids(assumed)).not.toContain("depth");
+    });
+
     it("EEW: serial token は drop mode", () => {
       const deps = makeDeps();
       const { tokens } = makeTokens(FIXTURE_VXSE45_S1, "eew", deps);

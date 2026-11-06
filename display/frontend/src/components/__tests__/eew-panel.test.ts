@@ -64,6 +64,17 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(container.textContent).not.toContain("~10km");
   });
 
+  it("仮定震源では M と深さのタイルを描かず仮定震源の印を残す。確定の報には出す", () => {
+    const assumed = render(EewPanel, { input: eewInput({ isAssumedHypocenter: true }) });
+    expect(assumed.container.querySelector(".assumed-chip")?.textContent).toBe("仮定震源");
+    expect(assumed.container.textContent).not.toContain("深さ");
+    expect(assumed.container.querySelector('.stat-value [data-value="6.1"]')).toBeNull();
+    assumed.unmount();
+    const confirmed = render(EewPanel, { input: eewInput() });
+    expect(confirmed.container.querySelector('.stat-value [data-value="6.1"]')).toBeTruthy();
+    expect(confirmed.container.textContent).toContain("深さ");
+  });
+
   it("originTime があるときだけ発生時刻を表示する", () => {
     const { container } = render(EewPanel, { input: eewInput({ originTime: "2026-07-07T09:17:18+09:00" }) });
     expect(screen.getByText("発生時刻")).toBeTruthy();

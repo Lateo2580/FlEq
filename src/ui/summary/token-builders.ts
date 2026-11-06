@@ -98,13 +98,12 @@ function buildEewTokens(event: PresentationEvent, model: SummaryModel): SummaryT
     tokens.push(token("maxLgInt", model.maxLgInt, 2, "drop"));
   }
 
-  // magnitude
-  if (model.magnitude) {
+  // 仮定震源 (PLUM 法) の M・深さは気象庁の仮の値なので出さない
+  if (model.magnitude && !event.isAssumedHypocenter) {
     tokens.push(token("magnitude", model.magnitude, 2, "shorten", model.magnitude));
   }
 
-  // depth
-  if (model.depth) {
+  if (model.depth && !event.isAssumedHypocenter) {
     tokens.push(token("depth", `深さ${model.depth}`, 3, "drop"));
   }
 
