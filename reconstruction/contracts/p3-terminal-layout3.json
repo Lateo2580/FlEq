@@ -1,0 +1,286 @@
+{
+  "meta": {
+    "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
+    "sha256": "03b18e5a5b5645044de0c18dd50ee1ebb966bd4397869b964f099d490963a52f",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL3-D-CONTRACT",
+        "kind": "統合担当",
+        "A": "閉じた P3-TERMINAL-LAYOUT-002 に発注を足さず、新しい契約にする",
+        "B": "002 の発注 2 にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-06 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "002 は配送を閉じた"
+      },
+      {
+        "id": "P3-TL3-D-SHAPE",
+        "kind": "作者",
+        "A": "文は電文のまま残し、下にレベルごとの火山の表と気象庁のページの URL を足す",
+        "B": "「その概要は以下のとおりです。」の 1 文を落とす",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「それで進めてみてください」）",
+        "reason": "1 文を落とすと「参照ください」の行き先が無いままになる（作者の指摘）。電文に URL が無く、Pi の画面にも本文は届かない"
+      },
+      {
+        "id": "P3-TL3-D-DETECT",
+        "kind": "統合担当",
+        "A": "Head の Title に「全国の活火山」を含む VFVO51 で見分ける",
+        "B": "EventID 900 で見分ける",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-06 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "900 は「その他の火山」の番号でもある（42_02_01 VZVO40 の本文）。Title は帯に出す字と同じ"
+      },
+      {
+        "id": "P3-TL3-D-OTHERS",
+        "kind": "統合担当",
+        "A": "「活火山であることに留意」の Item は行にせず数だけ出す",
+        "B": "全部の火山を行にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-06 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "実物で 98 火山あり、表が画面を埋める。図で作者に見せた形"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL3-DELIVERY",
+        "status": "open",
+        "source": "2026-11-06 起草",
+        "closed": "remaining: 実装、レビュー、ゲート、作者の目視と push"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-003",
+    "mode": "implementation",
+    "objective": "全国の月間火山概況の報（VFVO51）が、先頭の火山の名前とレベルを帯に出して「口永良部島で避難」のように読め、「以下」の指す本文も「参照ください」の行き先も画面に無い。作者の裁定（Q-TO4-MONTHLY、2026-11-06）の形を reconstruction/src/terminal に作る",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout3.json",
+      "reconstruction/contracts/p3-terminal-layout2.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/test/terminal/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/contracts/p3-terminal-output.types.ts（short の欄だけ）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout3.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-002",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（createRenderer、TerminalControl.promptLabel のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（chalk 4.1.2 と node の標準）。文節の分割の依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__44_01_01_151008_VFVO51",
+      "test__fixtures__44_02_01_200522_VFVO51",
+      "test__fixtures__45_01_01_200522_VFVO50"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "TerminalReport の short の表の欄（返信の中だけ）"
+    ],
+    "outOfScope": [
+      "解説情報の本文（VolcanoActivity）を端末やディスプレイへ出すこと（view と snapshot が見出しだけなのは P3-C9-SNAPSHOT=A の裁定）",
+      "全国の活火山を含まない VFVO51 の形",
+      "起動時のダイジェストと通知の扱い",
+      "表の字の色",
+      "受信・書き出しの列・worker・落とす規則の変更",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL3-AC01",
+        "requirement": "帯と段（Q-TO4-MONTHLY）: (1) 全国の月間火山概況の報は、Head の Title に「全国の活火山」を含む VFVO51 とする (2) 帯の対象は Body の最初の Area でなく「全国の活火山」にする (3) 段は Kind によらず普通にし、段の理由の行を出さない (4) 取消の報は段を取消のまま、対象だけ「全国の活火山」にする (5) 全国の活火山を含まない VFVO51 と、他の種類の報の対象・段・理由の行は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:537 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:490 «fd60700b6ab030a4»"
+        ]
+      },
+      {
+        "id": "P3-TL3-AC02",
+        "requirement": "文（Q-TO4-MONTHLY）: 見出し文は 1 字も変えず、今の短い形と同じ行の分け方で出す。「その概要は以下のとおりです。」を落とさない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:537 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:490 «fd60700b6ab030a4»"
+        ]
+      },
+      {
+        "id": "P3-TL3-AC03",
+        "requirement": "表（Q-TO4-MONTHLY）: (1) 見出し文の下に、Body の Item を電文の順に 1 行ずつ出す。左の列は Kind の Name の全角の「（」より前、右の列はその Item の Area の Name (2) Kind の Name に「活火山であることに留意」を含む Item は行にせず、Area の数の合計を「ほか n 火山」の 1 行にする。0 なら行を出さない (3) 右の列が入らないときは名前の境で折り、折り返した行にも左の列を出す（P3-TL2-AC06 (2) と同じ flow の形）。列の見出しの行は出さない (4) 読む Area は material の既存の上限（AREA_LIMIT）までで、越えた分は「ほか n 火山」に足す (5) 取消の報には表を出さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:537 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:490 «fd60700b6ab030a4»"
+        ]
+      },
+      {
+        "id": "P3-TL3-AC04",
+        "requirement": "行き先（Q-TO4-MONTHLY、Q-TO-Q-5）: 取消でない全国の月間火山概況の報は、補足のまとまりに「月間火山概況・火山活動解説資料（気象庁ホームページ）」の 1 行と、折らない URL の 1 行（url: true）を出す。URL は https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php の固定の字",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:537 «8f243166e3ca7a5d»",
+          "docs/specs/cli-terminal-output.md:490 «fd60700b6ab030a4»",
+          "docs/specs/cli-terminal-output.md:739 «af348735afc8259a»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL3-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL3-AC01",
+          "P3-TL3-AC02"
+        ],
+        "behavior": "受入条件。44_01_01 VFVO51 の帯が「火山の状況に関する解説情報 全国の活火山」で段が普通、帯の直下に「レベル５（避難）」の行が無く、見出し文の 3 文（「その概要は以下のとおりです。」を含む）がある。44_02_01 VFVO51 は対象が草津白根山のまま、段が注意のまま、表も URL も無い"
+      },
+      {
+        "testId": "P3-TL3-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL3-AC03",
+          "P3-TL3-AC04"
+        ],
+        "behavior": "受入条件。44_01_01 の 100 桁に spec の図の 6 行と「ほか 98 火山」があり、Item の順が電文のまま。56 桁のレベル２の折り返した行にも「レベル２」がある。URL の行が 56 桁でも 1 行で、その上に「気象庁ホームページ」の行がある"
+      },
+      {
+        "testId": "P3-TL3-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL3-AC01",
+          "P3-TL3-AC03",
+          "P3-TL3-AC04"
+        ],
+        "behavior": "契約境界。44_01_01 の InfoType を取消に書き換えた報は段が取消で対象が全国の活火山、表も URL の行も無い"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列・覚え・module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、44_01_01 を噴火警戒レベル 5 の例に使う layout2.test.ts と short.test.ts の 3 か所だけで、45_01_01 VFVO50 の Kind の Code と Name を書き換えた報に置き換えて段と理由の行の確かめを残す。それ以外の期待の変更が要るなら、変える前に試験名・旧の期待・理由を報告して止める",
+      "新しい «» が要るなら本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は付け直さない（要るなら止めて報告する）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
