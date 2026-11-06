@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "03b18e5a5b5645044de0c18dd50ee1ebb966bd4397869b964f099d490963a52f",
+    "sha256": "3bc663cd0e34e65ff76759fd65d853bb777b1d0892ef899585bb9b9f787d3f9c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -69,7 +69,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-003",
     "mode": "implementation",
     "objective": "全国の月間火山概況の報（VFVO51）が、先頭の火山の名前とレベルを帯に出して「口永良部島で避難」のように読め、「以下」の指す本文も「参照ください」の行き先も画面に無い。作者の裁定（Q-TO4-MONTHLY、2026-11-06）の形を reconstruction/src/terminal に作る",
-    "baseOid": "unassigned",
+    "baseOid": "07ae74f4aa9d599165fb18664c53b312ff1e9c28",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
