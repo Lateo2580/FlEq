@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "3bc663cd0e34e65ff76759fd65d853bb777b1d0892ef899585bb9b9f787d3f9c",
+    "sha256": "e9e095c1fa1cf9358d1eb81a913eae2725f686fd430ad219227b3817ebebd82d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -50,6 +50,17 @@
         "status": "確定（統合担当、2026-11-06 起草）",
         "ruling": "起草時に推奨で確定（統合担当）",
         "reason": "実物で 98 火山あり、表が画面を埋める。図で作者に見せた形"
+      },
+      {
+        "id": "P3-TL3-D-EMPTY-ITEM",
+        "kind": "統合担当",
+        "A": "Area が 0 件の Item は行を出さない",
+        "B": "左の列だけの行を出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-06 レビュー）",
+        "ruling": "レビューの指摘を受けて推奨で確定（統合担当）",
+        "reason": "右の列が空の行は読み手に意味が無い。実物に例は無い"
       }
     ],
     "questionResolutions": [
@@ -57,7 +68,7 @@
         "id": "Q-TL3-DELIVERY",
         "status": "open",
         "source": "2026-11-06 起草",
-        "closed": "remaining: 実装、レビュー、ゲート、作者の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。remaining: 作者の実端末の目視と push"
       }
     ],
     "operationContract": {
@@ -208,6 +219,14 @@
           "P3-TL3-AC04"
         ],
         "behavior": "契約境界。44_01_01 の InfoType を取消に書き換えた報は段が取消で対象が全国の活火山、表も URL の行も無い"
+      },
+      {
+        "testId": "P3-TL3-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL3-AC03"
+        ],
+        "behavior": "契約境界。VolcanoInfo を 2 本に分けた報は分ける前と同じ表と数になる。火山名でない codeType の Areas は表にも数にも入らない。留意の Area 256 個の後ろの火山は読まず「ほか 257 火山」になる。留意の Item が無い報に「ほか」の行は無い"
       }
     ],
     "requiredCommands": [
