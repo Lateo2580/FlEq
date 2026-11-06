@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
-    "sha256": "18e36e30aa45484ac7dc7b51741b9f5553dfc55e2cb101e89e8c2f5ed2924f78",
+    "sha256": "0ddec8e1b82045cc818dfe20be52d0b88a1fda4e65b3582aa205bc34314b4f6f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -70,7 +70,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-004",
     "mode": "implementation",
     "objective": "電文にあるのに端末に出ない噴火速報の活動の文と対象の市町村を出す。あわせて、EEW ログが仮定の震源の報の M と深さを前の値として次の確定の報の矢印に出す穴をふさぎ、VPNO50 の報知を端末に出さない",
-    "baseOid": "unassigned",
+    "baseOid": "0bce56c8",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
