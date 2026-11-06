@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "aaa3b2d3d3cf4c6a492c475e9d78fe7e86fa181b",
-    "sha256": "9d9f8729e24a3a416ce24a35d68f48a278aa0e46be963fb5806f0ece072d7f44",
+    "sha256": "11e6dfdae9b3b1510c93c95a64f032b6dc2db8608002a7d2ed57a2548c7dd735",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -764,8 +764,8 @@
           "docs/specs/reconstruction-p0-contracts.md:974 «5e4b6abaa9ac7542»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
           "src/engine/presentation/level-helpers.ts:311 «353366078841131c»",
-          "src/engine/notification/notifier.ts:490 «96449cac8ab4d9fe»",
-          "src/engine/notification/notifier.ts:495 «c86b4551af858fe5»",
+          "src/engine/notification/notifier.ts:489 «96449cac8ab4d9fe»",
+          "src/engine/notification/notifier.ts:494 «c86b4551af858fe5»",
           "src/engine/messages/message-router.ts:534 «73bb268f8eb5e064»"
         ]
       },

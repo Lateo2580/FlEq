@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "5483fb215d5a8707a2e16a8e9b6c2827f67172a8e20444d5e72d0b15f62926f8",
+    "sha256": "3911d5283d588dff64cf2f82cfd3907a773c5a620e65c9a6f480ca00e69b8c85",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -573,8 +573,8 @@
           "reconstruction/contracts/p3-unit-write-right.json:318 «9e629e374a548141»",
           "reconstruction/contracts/p3-execution-split.json:101 «190e19f50d0dfb4c»",
           "reconstruction/contracts/p3-execution-split.json:661 «2a18ac2c08cf011c»",
-          "src/engine/notification/notifier.ts:1149 «531975c6e68bd97d»",
-          "src/engine/notification/notifier.ts:1181 «4fdf5ba8d3e6bdef»"
+          "src/engine/notification/notifier.ts:1148 «531975c6e68bd97d»",
+          "src/engine/notification/notifier.ts:1180 «4fdf5ba8d3e6bdef»"
         ]
       },
       {
@@ -614,7 +614,7 @@
           "reconstruction/contracts/p3-currency-coverage.json:34 «77264aaea2922beb»",
           "reconstruction/contracts/p3-order-plan.md:442 «13b37fbd2c0f1292»",
           "reconstruction/contracts/p3-order-plan.md:484 «afce2a57bc11abf4»",
-          "src/engine/notification/notifier.ts:1201 «65ce7494290d13cc»"
+          "src/engine/notification/notifier.ts:1200 «65ce7494290d13cc»"
         ]
       },
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "0f9f48b6d0e56bc7b110a496411665619821655c56014f20c1aa2b8a67e71e69",
+    "sha256": "68ae544661b5704203da7b754c76fe67a1451004796e6ea5c5336362cc82172f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1148,10 +1148,10 @@
           "src/types.ts:422 «455c90d1e15c1a6d»",
           "src/types.ts:432 «3bca4aa576e1a8e5»",
           "src/engine/messages/message-router.ts:552 «2b9942107bfd124a»",
-          "src/engine/notification/notifier.ts:574 «36c29d500c61717e»",
-          "src/engine/notification/notifier.ts:1118 «cd109a52523523e7»",
-          "src/engine/notification/notifier.ts:1150 «0e506d6a3591bed4»",
-          "src/engine/notification/notifier.ts:1151 «43ec74da6ebebd85»",
+          "src/engine/notification/notifier.ts:573 «36c29d500c61717e»",
+          "src/engine/notification/notifier.ts:1117 «cd109a52523523e7»",
+          "src/engine/notification/notifier.ts:1149 «0e506d6a3591bed4»",
+          "src/engine/notification/notifier.ts:1150 «43ec74da6ebebd85»",
           "reconstruction/src/runtime/composition-root.ts:127 «5e3b7949f688d630»",
           "reconstruction/src/runtime/composition-root.ts:452 «cd16aa4dc0715d5e»",
           "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
@@ -1198,7 +1198,7 @@
           "docs/specs/reconstruction-p0-contracts.md:3110 «31c477a837bd1503»",
           "src/engine/notification/notifier.ts:292 «4531eeeea5caec09»",
           "src/engine/notification/notifier.ts:303 «50f0136479cf2343»",
-          "src/engine/notification/notifier.ts:1151 «43ec74da6ebebd85»"
+          "src/engine/notification/notifier.ts:1150 «43ec74da6ebebd85»"
         ]
       },
       {
@@ -1226,7 +1226,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:487 «26bc9d04f32b86e9»",
           "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»",
-          "src/engine/notification/notifier.ts:1188 «707de79a13635576»",
+          "src/engine/notification/notifier.ts:1187 «707de79a13635576»",
           "reconstruction/src/cli/settings.ts",
           "reconstruction/contracts/p3-cli-repl.types.ts"
         ]

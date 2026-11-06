@@ -401,8 +401,7 @@ export class Notifier {
     const body = info.earthquake
       ? [
           info.earthquake.hypocenterName,
-          // 仮定震源 (PLUM 法) の M は気象庁の仮の値なので出さない
-          info.isAssumedHypocenter ? null : notificationMagnitude(info.earthquake),
+          info.isAssumedHypocenter ? null : notificationMagnitude(info.earthquake), // 仮定震源 (PLUM 法) の M は気象庁の仮の値なので出さない
           `最大予測震度${maxInt}`,
         ].filter((part): part is string => part != null).join(" / ")
       : title;
