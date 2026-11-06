@@ -1,0 +1,314 @@
+{
+  "meta": {
+    "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
+    "sha256": "0d2a432942520d7922e9de5f08e94bf0efbfefc2d4af2e5c63710e6ce4b992d9",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL4-D-CONTRACT",
+        "kind": "作者",
+        "A": "003 を先に push し、別の契約にする",
+        "B": "003 に入れる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「どちらもAで進めてください」）",
+        "reason": "003 は 2 回広げていて、旧築の配送がその後ろで待っていた"
+      },
+      {
+        "id": "P3-TL4-D-FLASH",
+        "kind": "作者",
+        "A": "見出し文の下に活動の文、その下に対象の市町村の表",
+        "B": "活動の文を見出し文の代わりに出す",
+        "C": "発生の時刻と市町村を項目の行で出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「どちらもAで進めてください」）",
+        "reason": "どの字も電文のままで、「したもよう」の確かさも残る。作者が「＜御嶽山で噴火が発生＞」だけでは質素と指摘した"
+      },
+      {
+        "id": "P3-TL4-D-VPNO50",
+        "kind": "作者",
+        "A": "VPNO50 の報知は端末に出さない",
+        "B": "出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「VPNO50の報知は出さなくともいいですよ」）",
+        "reason": "本文は VPWW の報で出るので、同じ特別警報が 2 回出る形を避ける"
+      },
+      {
+        "id": "P3-TL4-D-TIDE-GATE",
+        "kind": "統合担当",
+        "A": "owner-host の inputTerminal で、観測の無い VTSE51 を accepted の outcome なしで通す",
+        "B": "U-T に outcome を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-06 起草）",
+        "ruling": "起草時に推奨で確定（統合担当）",
+        "reason": "U-T の Q-ENUM の VTSE51.legalMissing は state も outcome も作らないと決めている。保存と通知に触らずに済む"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL4-DELIVERY",
+        "status": "open",
+        "source": "2026-11-06 起草",
+        "closed": "remaining: 実装、レビュー、ゲート、作者の目視と push"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-004",
+    "mode": "implementation",
+    "objective": "電文にあるのに端末に出ない情報を出す。満潮時刻だけの VTSE51 は本物の経路で 0 行、噴火速報は見出し文だけで帯の言い直しになっている。あわせて、EEW ログが仮定の震源の報の M と深さを前の値として次の確定の報の矢印に出す穴をふさぐ",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout4.json",
+      "reconstruction/contracts/p3-terminal-layout3.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/**",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/domains/tsunami/tsunami.ts",
+      "reconstruction/test/terminal/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/runtime/owner-host.ts（inputTerminal の呼び出しの引数だけ）",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/terminal/eew-log.ts",
+      "reconstruction/contracts/p3-terminal-output.types.ts（short の欄だけ）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout4.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-003",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（createRenderer、TerminalControl.promptLabel のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（chalk 4.1.2 と node の標準）。文節の分割の依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_03_250206_VTSE51",
+      "test__fixtures__38-39_02_02_250206_VTSE51",
+      "test__fixtures__67_01_01_140927_VFVO56",
+      "test__fixtures__67_01_02_140927_VFVO56",
+      "test__fixtures__67_01_04_140927_VFVO56",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "TerminalReport の short の噴火速報の欄（返信の中だけ）"
+    ],
+    "outOfScope": [
+      "U-T の state・outcome・通知（観測の無い VTSE51 は今のまま鳴らさない）",
+      "解説情報の本文を Pi の経路へ運ぶこと",
+      "噴火速報のほかの火山の報の内容",
+      "VPNO50 の扱いの変更（今も端末に出ていない）",
+      "受信・書き出しの列・worker・落とす規則の変更",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL4-AC01",
+        "requirement": "満潮の報（Q-TO5-TIDE）: (1) owner-host の入力の処理は、Body/Tsunami に Observation の無い VTSE51 で、unit がその報を拒否しなかったとき、accepted の outcome が無くても terminalReport の報を返信に載せる（P3-TO-AC01 (2) の例外） (2) origin が recovery の報は今のまま端末に出さない (3) U-T の state・watermark・intent・outcome は変えず、鳴らさない (4) 拒否された報は今のまま読めなかった報のカードになる (5) Observation のある VTSE51 と他の種類の報の門は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:431 «d55e011eb7354825»",
+          "docs/specs/cli-terminal-output.md:759 «2514224901172570»"
+        ]
+      },
+      {
+        "id": "P3-TL4-AC02",
+        "requirement": "噴火速報（Q-TO5-FLASH）: (1) 取消でない VFVO56 は、見出し文の下に VolcanoInfoContent の VolcanoActivity の文を出す。文は短い形の文と同じ整形を通す（Q-TO4-SPACE） (2) その下に区切りの罫線と「対象の市町村」の表を出す。市町村は Body の VolcanoInfo の codeType「気象・地震・火山情報／市町村等」の Areas の Area の Name を電文の順に並べ、折り返した行にも左の列を出す (3) 読む Area は material の既存の上限（AREA_LIMIT）までで、越えた分は表の下に「ほか n 市町村」の 1 行にする。0 なら行を出さない (4) 活動の文が無ければ文の行を出さず、市町村が無ければ表を出さない (5) 取消の報は P3-TL3-AC05 のまま足さない (6) VFVO56 のほかの報は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:552 «ff7e3647fcfaf153»",
+          "docs/specs/cli-terminal-output.md:760 «31283857ccab5685»",
+          "docs/specs/cli-terminal-output.md:512 «c9e604a44bdfad03»"
+        ]
+      },
+      {
+        "id": "P3-TL4-AC03",
+        "requirement": "EEW ログ（Q-TO5-LOG）: (1) 前の報か今の報が仮定の震源のとき、変化の行に M と深さの変化を書かない (2) 確定、仮定、確定の 3 報でも、3 報目は 1 報目の値と比べない (3) 最大予測震度の変化と震源変更の字は今のまま (4) 仮定の報の本文の行は今のまま",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:690 «fa2620896ea18591»",
+          "docs/specs/cli-terminal-output.md:762 «d58bb56a89cd138b»"
+        ]
+      },
+      {
+        "id": "P3-TL4-AC04",
+        "requirement": "VPNO50（Q-TO5-VPNO50）: VPNO50 の発表の報知（18_00_01_260830_VPNO50_issue）は今のまま端末に出ない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:761 «54b9d90a26b0a020»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL4-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL4-AC01"
+        ],
+        "behavior": "受入条件。32-39_11_03 VTSE51 と 38-39_02_02 VTSE51 を unit と owner の判定に通すと端末の報が返り、「満潮」の行が出る。outcome と intent は増えず、state は変わらない"
+      },
+      {
+        "testId": "P3-TL4-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL4-AC01"
+        ],
+        "behavior": "契約境界。origin が recovery の同じ報は端末に出ない。拒否された VTSE51 は今の形のまま。Observation のある VTSE51 の門は変わらない"
+      },
+      {
+        "testId": "P3-TL4-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL4-AC02"
+        ],
+        "behavior": "受入条件。67_01_01 に spec の図の行が出る。67_01_02 は「噴火が発生したもよう。」が出て字下げの空白が残らない。56 桁で市町村の折り返した行にも左の列が出る"
+      },
+      {
+        "testId": "P3-TL4-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL4-AC02"
+        ],
+        "behavior": "契約境界。67_01_04 の取消に活動の文も表も無い。市町村の Area を上限より増やした報に「ほか n 市町村」が出る。活動の文の無い報に文の行が無い"
+      },
+      {
+        "testId": "P3-TL4-T05",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL4-AC03"
+        ],
+        "behavior": "受入条件。仮定の報の次の確定の報のログの変化の行に M と深さの変化が無く、最大予測震度の変化は残る。確定、仮定、確定の 3 報でも同じ"
+      },
+      {
+        "testId": "P3-TL4-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL4-AC04"
+        ],
+        "behavior": "契約境界。VPNO50 の発表の報知は端末に出ない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列・覚え・module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、AC01〜AC03 で字が変わる期待だけ。変える前に試験名・旧の期待・理由を報告する",
+      "新しい «» が要るなら本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は付け直さない（要るなら止めて報告する）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
