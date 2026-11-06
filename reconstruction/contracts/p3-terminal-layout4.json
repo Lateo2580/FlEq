@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
-    "sha256": "0d2a432942520d7922e9de5f08e94bf0efbfefc2d4af2e5c63710e6ce4b992d9",
+    "sha256": "664c29a5d3699e53d3aac9d96e8bc1d4c67a9083e8ce6a213509796ea9f85b80",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -63,7 +63,7 @@
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "運用区分の扱いを変えない。端末は unit が採った報だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報と、P3-TL4-AC01 の取消でない観測の無い VTSE51 だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
     }
   },
   "contract": {
@@ -92,6 +92,7 @@
       "reconstruction/src/terminal/material.ts",
       "reconstruction/src/terminal/eew-log.ts",
       "reconstruction/contracts/p3-terminal-output.types.ts（short の欄だけ）",
+      "reconstruction/contracts/p3-terminal-output.json（owner-host.ts の inputTerminal の呼び出しの行を引く «» 1 件と meta.sha256 だけ）",
       "reconstruction/test/terminal/**"
     ],
     "allowedGitCommands": [
@@ -121,8 +122,11 @@
       "既存の依存だけ（chalk 4.1.2 と node の標準）。文節の分割の依存は足さない"
     ],
     "fixtureIds": [
+      "test__fixtures__18_00_01_260830_VPNO50_issue",
+      "test__fixtures__18_00_01_260830_VPNO50_switch",
       "test__fixtures__32-39_11_03_250206_VTSE51",
       "test__fixtures__38-39_02_02_250206_VTSE51",
+      "test__fixtures__38-39_03_03_210805_VTSE51",
       "test__fixtures__67_01_01_140927_VFVO56",
       "test__fixtures__67_01_02_140927_VFVO56",
       "test__fixtures__67_01_04_140927_VFVO56",
@@ -150,31 +154,30 @@
       "U-T の state・outcome・通知（観測の無い VTSE51 は今のまま鳴らさない）",
       "解説情報の本文を Pi の経路へ運ぶこと",
       "噴火速報のほかの火山の報の内容",
-      "VPNO50 の扱いの変更（今も端末に出ていない）",
       "受信・書き出しの列・worker・落とす規則の変更",
       "spec 本体の編集（起草で済ませた）"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-TL4-AC01",
-        "requirement": "満潮の報（Q-TO5-TIDE）: (1) owner-host の入力の処理は、Body/Tsunami に Observation の無い VTSE51 で、unit がその報を拒否しなかったとき、accepted の outcome が無くても terminalReport の報を返信に載せる（P3-TO-AC01 (2) の例外） (2) origin が recovery の報は今のまま端末に出さない (3) U-T の state・watermark・intent・outcome は変えず、鳴らさない (4) 拒否された報は今のまま読めなかった報のカードになる (5) Observation のある VTSE51 と他の種類の報の門は変えない",
+        "requirement": "満潮の報（Q-TO5-TIDE）: (1) 対象は、InfoType が取消でなく、Body/Tsunami があり、Tsunami の直下に Observation の要素が 1 つも無い VTSE51 で、unit が拒否しなかった入力。空の Observation の要素がある報は対象でない。拒否は owner が残す confirmationEvidence の unreadableReport で見分け、inputTerminal の呼び出しの引数で渡す (2) 対象の報は accepted の outcome が無くても terminalReport の報を返信に載せる（P3-TO-AC01 (2) の例外） (3) origin が recovery の報は今のまま端末に出さない (4) 端末の覚え（format.ts の Memory、既存の上限つきの remember）に operation と EventID ごとの発表時刻を置き、同じか古い発表時刻の対象の報は出さない。InfoType が訂正の報は同じ発表時刻でも出す。覚えは再起動で消えてよい (5) U-T の state・watermark・intent・outcome は変えず、鳴らさない (6) 拒否された報は今のまま読めなかった報のカードになる (7) 取消、Observation のある VTSE51、他の種類の報の門は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:431 «d55e011eb7354825»",
+          "docs/specs/cli-terminal-output.md:431 «0187e72d0b88692a»",
           "docs/specs/cli-terminal-output.md:759 «2514224901172570»"
         ]
       },
       {
         "id": "P3-TL4-AC02",
-        "requirement": "噴火速報（Q-TO5-FLASH）: (1) 取消でない VFVO56 は、見出し文の下に VolcanoInfoContent の VolcanoActivity の文を出す。文は短い形の文と同じ整形を通す（Q-TO4-SPACE） (2) その下に区切りの罫線と「対象の市町村」の表を出す。市町村は Body の VolcanoInfo の codeType「気象・地震・火山情報／市町村等」の Areas の Area の Name を電文の順に並べ、折り返した行にも左の列を出す (3) 読む Area は material の既存の上限（AREA_LIMIT）までで、越えた分は表の下に「ほか n 市町村」の 1 行にする。0 なら行を出さない (4) 活動の文が無ければ文の行を出さず、市町村が無ければ表を出さない (5) 取消の報は P3-TL3-AC05 のまま足さない (6) VFVO56 のほかの報は変えない",
+        "requirement": "噴火速報（Q-TO5-FLASH）: (1) 取消でない VFVO56（訂正を含む）は、見出し文の下に Body/VolcanoInfoContent/VolcanoActivity の文を出す。文は短い形の文と同じ整形を通す（Q-TO4-SPACE） (2) その下に区切りの罫線と「対象の市町村」の表を出す。市町村は全部の Body/VolcanoInfo/Item/Areas のうち codeType が「気象・地震・火山情報／市町村等」のものの Area の Name を電文の順に並べ、折り返した行にも左の列を出す (3) 読む Area はこの Areas の Area だけを数えて material の既存の上限（AREA_LIMIT）まで。256 件は「ほか」の行なし、257 件は表の下に「ほか 1 市町村」 (4) 活動の文が無ければ文の行を出さず、市町村が無ければ表を出さない (5) 取消の報は電文に活動の文や市町村があっても足さない (6) VFVO56 のほかの報は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:552 «ff7e3647fcfaf153»",
+          "docs/specs/cli-terminal-output.md:552 «b3f1a95320b04c12»",
           "docs/specs/cli-terminal-output.md:760 «31283857ccab5685»",
           "docs/specs/cli-terminal-output.md:512 «c9e604a44bdfad03»"
         ]
       },
       {
         "id": "P3-TL4-AC03",
-        "requirement": "EEW ログ（Q-TO5-LOG）: (1) 前の報か今の報が仮定の震源のとき、変化の行に M と深さの変化を書かない (2) 確定、仮定、確定の 3 報でも、3 報目は 1 報目の値と比べない (3) 最大予測震度の変化と震源変更の字は今のまま (4) 仮定の報の本文の行は今のまま",
+        "requirement": "EEW ログ（Q-TO5-LOG）: (1) 前の報か今の報が仮定の震源のとき、変化の行に M と深さの変化を書かない。eew-log.ts の Previous に仮定かどうかを足し、毎報更新する (2) 確定、仮定、確定の 3 報でも、3 報目は 1 報目の値と比べない (3) 最大予測震度の変化と震源変更の字は今のまま (4) 仮定の報の本文の行は今のまま",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:690 «fa2620896ea18591»",
           "docs/specs/cli-terminal-output.md:762 «d58bb56a89cd138b»"
@@ -182,9 +185,10 @@
       },
       {
         "id": "P3-TL4-AC04",
-        "requirement": "VPNO50（Q-TO5-VPNO50）: VPNO50 の発表の報知（18_00_01_260830_VPNO50_issue）は今のまま端末に出ない",
+        "requirement": "VPNO50（Q-TO5-VPNO50）: VPNO50 の報は発表も切替も端末に出さない。inputTerminal の門で止める。U-W の state の処理（Code 00 の tombstone）は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:761 «54b9d90a26b0a020»"
+          "docs/specs/cli-terminal-output.md:553 «c6d0cf90e3f2c91a»",
+          "docs/specs/cli-terminal-output.md:761 «ff9842c57a3737f7»"
         ]
       }
     ],
@@ -195,7 +199,7 @@
         "referenceIds": [
           "P3-TL4-AC01"
         ],
-        "behavior": "受入条件。32-39_11_03 VTSE51 と 38-39_02_02 VTSE51 を unit と owner の判定に通すと端末の報が返り、「満潮」の行が出る。outcome と intent は増えず、state は変わらない"
+        "behavior": "受入条件。32-39_11_03 VTSE51 と 38-39_02_02 VTSE51 を unit と owner の判定に通すと端末の報が返り、「満潮」の行が出る。outcome と intent は増えず、state は変わらない。同じ報をもう 1 度通すと出ず、古い発表時刻の報も出ず、訂正の報は出る"
       },
       {
         "testId": "P3-TL4-T02",
@@ -203,7 +207,7 @@
         "referenceIds": [
           "P3-TL4-AC01"
         ],
-        "behavior": "契約境界。origin が recovery の同じ報は端末に出ない。拒否された VTSE51 は今の形のまま。Observation のある VTSE51 の門は変わらない"
+        "behavior": "契約境界。origin が recovery の同じ報、取消の報（38-39_03_03）、拒否された VTSE51、空の Observation のある報は今の形のまま。Observation のある VTSE51 の門は変わらない"
       },
       {
         "testId": "P3-TL4-T03",
@@ -219,7 +223,7 @@
         "referenceIds": [
           "P3-TL4-AC02"
         ],
-        "behavior": "契約境界。67_01_04 の取消に活動の文も表も無い。市町村の Area を上限より増やした報に「ほか n 市町村」が出る。活動の文の無い報に文の行が無い"
+        "behavior": "契約境界。67_01_01 の InfoType を取消に書き換えた報に活動の文も表も無い。市町村の Area が 256 件の報に「ほか」の行が無く、257 件の報に「ほか 1 市町村」が出る。活動の文の無い報に文の行が無い"
       },
       {
         "testId": "P3-TL4-T05",
@@ -235,7 +239,7 @@
         "referenceIds": [
           "P3-TL4-AC04"
         ],
-        "behavior": "契約境界。VPNO50 の発表の報知は端末に出ない"
+        "behavior": "契約境界。VPNO50 の発表の報（_issue）も切替の報（_switch）も端末に出ない。_switch の U-W の state の変化は今のまま"
       }
     ],
     "requiredCommands": [
@@ -306,8 +310,8 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
-      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、AC01〜AC03 で字が変わる期待だけ。変える前に試験名・旧の期待・理由を報告する",
-      "新しい «» が要るなら本契約の中だけ付け直し、meta.sha256 を取り直す。他の契約の «» は付け直さない（要るなら止めて報告する）"
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、AC01〜AC04 で字が変わるか出なくなる期待だけ。変える前に試験名・旧の期待・理由を報告する",
+      "新しい «» が要るなら本契約の中と allowedPaths の 1 件だけ付け直し、meta.sha256 を取り直す。ほかの契約の «» は付け直さない（要るなら止めて報告する）。行を足した src の file を引く契約が落ちたら止めて報告する"
     ],
     "unresolvedQuestions": []
   }
