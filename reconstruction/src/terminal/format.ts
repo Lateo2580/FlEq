@@ -674,6 +674,7 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): 
 }
 
 // ---- 短い形（AC09、spec §5.4）と処理できなかった報（P3-TO-D-UNREADABLE） ----
+const TOWN_LABEL = "対象の市町村  ";
 const MONTHLY_URL = "https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php";
 // 短い形の文の組版の空白（P3-TL3-AC06、Q-TO4-SPACE）。端末の側の整形で、material は生の字を写す。
 // 無いと電文の字下げと折り返しがそのまま出て「（ 平成」「詳しくは 月間」のように語の途中に空白が入る。短い形でない報の textLines は変えない。
@@ -702,7 +703,8 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 噴火速報（Q-TO5-FLASH）: 見出し文の下に活動の文、その下に罫線と対象の市町村の表。表の下に罫線は足さない（spec の図）ので supplement に置く。
   const { flash } = report;
   const activity = flash == null ? [] : textLines(shortSentence(flash.activity), ctx.body);
-  const towns = flash == null || flash.towns.length === 0 ? [] : [...listTable(null, [{ label: seg("対象の市町村"), items: flash.towns.map((town) => [seg(town)]) }], 0, ctx.body),
+  // 市町村は 1 つのまとまりなので、折り返した行に左の列を繰り返さない（繰り返すと別の区分に読める。作者の目視）。
+  const towns = flash == null || flash.towns.length === 0 ? [] : [...flow([seg(TOWN_LABEL)], flash.towns.map((town) => [seg(town)]), ctx.body, width(TOWN_LABEL)),
     ...flash.others === 0 ? [] : [line(seg(`ほか ${flash.others} 市町村`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
     { summary: [...reason, ...textLines(headline, ctx.body), ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);

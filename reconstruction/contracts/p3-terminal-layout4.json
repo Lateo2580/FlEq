@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
-    "sha256": "c5dc4d14bf8316477defe69b67d47dc00d63d2ad21fcd7826df421d664fdcd73",
+    "sha256": "cef5603eccd36c1ee7896a5503a8c063264e591d719f79ccde4d9fb47467899f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -28,7 +28,7 @@
         "provisional": "A",
         "status": "確定（作者、2026-11-06）",
         "ruling": "A（作者「どちらもAで進めてください」）",
-        "reason": "どの字も電文のままで、「したもよう」の確かさも残る。作者が「＜御嶽山で噴火が発生＞」だけでは質素と指摘した"
+        "reason": "どの字も電文のままで、「したもよう」の確かさも残る。作者が「＜御嶽山で噴火が発生＞」だけでは質素と指摘した。2026-11-06 作者の目視で、折り返した行に左の列を繰り返すと別の区分に読めると指摘があり、字下げにした"
       },
       {
         "id": "P3-TL4-D-VPNO50",
@@ -152,9 +152,9 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL4-AC02",
-        "requirement": "噴火速報（Q-TO5-FLASH）: (1) 取消でない VFVO56（訂正を含む）は、見出し文の下に Body/VolcanoInfoContent/VolcanoActivity の文を出す。文は短い形の文と同じ整形を通す（Q-TO4-SPACE） (2) その下に区切りの罫線と「対象の市町村」の表を出す。市町村は全部の Body/VolcanoInfo/Item/Areas のうち codeType が「気象・地震・火山情報／市町村等」のものの Area の Name を電文の順に並べ、折り返した行にも左の列を出す (3) 読む Area はこの Areas の Area だけを数えて material の既存の上限（AREA_LIMIT）まで。256 件は「ほか」の行なし、257 件は表の下に「ほか 1 市町村」 (4) 活動の文が無ければ文の行を出さず、市町村が無ければ表を出さない (5) 取消の報は電文に活動の文や市町村があっても足さない (6) VFVO56 のほかの報は変えない",
+        "requirement": "噴火速報（Q-TO5-FLASH）: (1) 取消でない VFVO56（訂正を含む）は、見出し文の下に Body/VolcanoInfoContent/VolcanoActivity の文を出す。文は短い形の文と同じ整形を通す（Q-TO4-SPACE） (2) その下に区切りの罫線と「対象の市町村」の表を出す。市町村は全部の Body/VolcanoInfo/Item/Areas のうち codeType が「気象・地震・火山情報／市町村等」のものの Area の Name を電文の順に並べ、折り返した行は左の列を繰り返さず字下げする (3) 読む Area はこの Areas の Area だけを数えて material の既存の上限（AREA_LIMIT）まで。256 件は「ほか」の行なし、257 件は表の下に「ほか 1 市町村」 (4) 活動の文が無ければ文の行を出さず、市町村が無ければ表を出さない (5) 取消の報は電文に活動の文や市町村があっても足さない (6) VFVO56 のほかの報は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:552 «a9bdbaedb3972154»",
+          "docs/specs/cli-terminal-output.md:552 «87b98d2ac4456b51»",
           "docs/specs/cli-terminal-output.md:760 «31283857ccab5685»",
           "docs/specs/cli-terminal-output.md:512 «c9e604a44bdfad03»"
         ]
@@ -183,7 +183,7 @@
         "referenceIds": [
           "P3-TL4-AC02"
         ],
-        "behavior": "受入条件。67_01_01 に spec の図の行が出る。67_01_02 は「噴火が発生したもよう。」が出て字下げの空白が残らない。56 桁で市町村の折り返した行にも左の列が出る"
+        "behavior": "受入条件。67_01_01 に spec の図の行が出る。67_01_02 は「噴火が発生したもよう。」が出て字下げの空白が残らない。56 桁で市町村の折り返した行は左の列を繰り返さず字下げする"
       },
       {
         "testId": "P3-TL4-T04",

@@ -29,12 +29,13 @@ describe("P3-TL4-T03 噴火速報の活動の文と対象の市町村", () => {
     expect(text).toContain("御嶽山で、平成２６年９月２７日１１時５３分頃、噴火が発生したもよう。");
     expect(text).not.toMatch(/^\s+御嶽山で、/m);
   });
-  it("56 桁では市町村が折り返し、折り返した行にも左の列が出る", () => {
+  it("56 桁では市町村が折り返し、折り返した行は左の列を繰り返さず字下げする", () => {
     const lines = flat(FLASH, 56, withTowns(12));
     const at = lines.findIndex((row) => row.startsWith("対象の市町村"));
     const table = lines.slice(at, lines.indexOf("VFVO56 ・ 気象庁"));
     expect(table.length).toBeGreaterThan(1);
-    expect(table.every((row) => row.startsWith("対象の市町村  "))).toBe(true);
+    expect(table.slice(1).every((row) => row.startsWith(" ".repeat(14)))).toBe(true);
+    expect(table.filter((row) => row.includes("対象の市町村"))).toHaveLength(1);
   });
 });
 
