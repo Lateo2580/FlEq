@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "b8754ae840d6cddadd78ccc1bf603f1379c5599a16a3d4ca8331fe7e98ff4455",
+    "sha256": "a3e79ac7194d34499e4cb01c165b51f5463e678f28b36043f0aa8fe95847167c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -99,9 +99,9 @@
     "questionResolutions": [
       {
         "id": "Q-TL3-DELIVERY",
-        "status": "open",
+        "status": "closed",
         "source": "2026-11-06 起草",
-        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。2026-11-06 に作者の裁定で AC05・AC06 を足した（P3-TL3-D-CANCEL-TEXT、P3-TL3-D-SPACE）。r2 は契約適合 GO・ヘルツ NO-GO（「項目：」の 8 字の上限）、r3 で上限を外し、コロンの直前が数字の形を項目としないことと空行の後を継がないことと括弧の列を足して、ヘルツ GO。Mac mini のゲート 11 本は r3 で全部 rc 0（ログ layout3-r3）、commit 765f99a4 は固定した patch と同じ byte。本物の取消（43_03_01、32-35_09_02、67_01_04）の写しを pty の 100 桁と 56 桁で撮った。remaining: 作者の実端末の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・品質 GO・ヘルツ NO-GO（VolcanoInfo と Areas を最初の 1 本しか読まない、AREA_LIMIT が読んだ Area の数になっていない）、r1 でヘルツ GO。r1 は codeType「火山名」の Areas を全部辿り、take で読む前に数える。「（」で切る処理は format.ts へ移した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout3-r1）、commit cbb01a6c は固定した patch と同じ byte。T04 の 3 件は r0 の実装で落ちることを確かめた。本物の経路の写しは Mac mini の pty の 100 桁と 56 桁で撮った。残りの証拠不足は、実配信の取消の報の Title に「全国の活火山」が残るか（corpus に実物が無い）と、今の配信の全国の報の形（実物は 2015 年の 1 本だけ）。2026-11-06 に作者の裁定で AC05・AC06 を足した（P3-TL3-D-CANCEL-TEXT、P3-TL3-D-SPACE）。r2 は契約適合 GO・ヘルツ NO-GO（「項目：」の 8 字の上限）、r3 で上限を外し、コロンの直前が数字の形を項目としないことと空行の後を継がないことと括弧の列を足して、ヘルツ GO。Mac mini のゲート 11 本は r3 で全部 rc 0（ログ layout3-r3）、commit 765f99a4 は固定した patch と同じ byte。本物の取消（43_03_01、32-35_09_02、67_01_04）の写しを pty の 100 桁と 56 桁で撮った。2026-11-06 に作者が 003 を先に push する案を選び、5ec97ce1 まで push、CI run 42212342078 success（02d957c9 の run 42211581729 は、旧築の行の増加で列の台帳の照合が落ちた赤で、5ec97ce1 で直した）。噴火速報の内容は別の契約にする。remaining なし"
       }
     ],
     "operationContract": {
