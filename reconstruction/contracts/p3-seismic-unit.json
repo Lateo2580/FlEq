@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "8e1f07098a37b263fbbd625e7568a8fad3bfd2ceff62745a79fa168c0ec53e6f",
+    "sha256": "a93df9ee67e6195d3b334d298ca1e7dda24c7a82a8017b3b94e32b6a717f4c41",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -847,8 +847,8 @@
           "docs/specs/reconstruction-p0-contracts.md:944 «1cc5cadfeb9a2665»",
           "docs/specs/reconstruction-p0-contracts.md:973 «fafb3542a1028174»",
           "docs/specs/reconstruction-p0-contracts.md:981 «f6dbd4291d01e07b»",
-          "src/engine/notification/notifier.ts:417 «b709723f7c56f967»",
-          "src/engine/notification/notifier.ts:511 «88062e8fe6c1c4ed»",
+          "src/engine/notification/notifier.ts:418 «b709723f7c56f967»",
+          "src/engine/notification/notifier.ts:512 «88062e8fe6c1c4ed»",
           "src/engine/presentation/level-helpers.ts:288 «8490a6e6e35b6b82»",
           "src/engine/presentation/level-helpers.ts:319 «0159a79fdeb3b09a»"
         ]

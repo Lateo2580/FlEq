@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "e1020f2ac201dc64f735d596a02270db6bc4c98d792defd3c11159d189879a66",
+    "sha256": "cf7458cd50d9dea2dd3f2fd3ba9909da1d71f5580a02d47508240990e1ce4113",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -317,7 +317,7 @@
         "timing": "createdAt=nextAttemptAt=採用のClockReading.wallTimeMs。expiresAtはsound=createdAt+60000、desktop=createdAt+180000（spec:973・:974）。期限は再起動・再試行で延ばさない（soundの1回の鳴らし直しを除く、P3-NOTICE-LEDGER-001のP3-NL-AC06の(2)）",
         "replacement": "P3-C14-REPLACEMENT=A",
         "intentUpdate": "C13のQ-NOTICE.intentUpdateと同じ（既存idだけを更新、未知id・同値はno-op、更新で増えるbyteは予約の内側、台帳73）",
-        "payload": "typeRef reconstruction/contracts/p3-typhoon-unit.types.ts#TyphoonNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-Y.boundsで切った値）。名前の札: numberがあれば「台風第{numberの下2桁を数にした値}号」と、nameがあれば「（{name}）」、numberが無ければ「熱帯低気圧（{EventID}）」（旧築のnotifyTyphoonAnalysis、src/engine/notification/notifier.ts:972 «7560be2051a3676a»と同じ向き）。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」。解析は「{札} {実況のcategory・intensity・size・locationのnullでないものを空白でつなぐ}」、Terminalは「{札} {remark}」。確率は「{札} 最大 {maxFiveDay}%（{府県予報区等名}/{地域名}）」（地域はdaily[4]がmaxFiveDayの最初の地域、codeの順）、Zeroは「{札} 暴風域に入る確率1%以上の地域なし」（旧築の文と同じ）。訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、接頭辞は切る範囲の外に置く（K5のF15の型）（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
+        "payload": "typeRef reconstruction/contracts/p3-typhoon-unit.types.ts#TyphoonNotificationPayload。titleはoperationPrefix（normalは空、trainingは【訓練】、testは【試験】）＋訂正は「[訂正] 」・取消は「[取消] 」＋Head/Title（I-U-Y.boundsで切った値）。名前の札: numberがあれば「台風第{numberの下2桁を数にした値}号」と、nameがあれば「（{name}）」、numberが無ければ「熱帯低気圧（{EventID}）」（旧築のnotifyTyphoonAnalysis、src/engine/notification/notifier.ts:973 «7560be2051a3676a»と同じ向き）。bodyは取消なら「HH:MM 発表の<種類>を取り消しました」。解析は「{札} {実況のcategory・intensity・size・locationのnullでないものを空白でつなぐ}」、Terminalは「{札} {remark}」。確率は「{札} 最大 {maxFiveDay}%（{府県予報区等名}/{地域名}）」（地域はdaily[4]がmaxFiveDayの最初の地域、codeの順）、Zeroは「{札} 暴風域に入る確率1%以上の地域なし」（旧築の文と同じ）。訂正は冒頭に「訂正: 」。titleは160文字・bodyは512文字でコードポイントの境界で切り、接頭辞は切る範囲の外に置く（K5のF15の型）（P3-NOTICE-LEDGER-001で改訂: 取消のtitleは「[取消] <種類>（HH:MM 発表）」、bodyは「HH:MM 発表の<種類>を取り消しました」。<種類>は取消の報のHead/Title〔末尾の「の取消」は除く〕、HH:MMは取り消した記録のsourceのReportDateTimeのJST。訓練・試験の接頭辞は今どおり先、文字数の切り詰めの規則は変えない、H16、P3-NL-AC10）",
         "capacity": "C13のQ-NOTICE.capacityと同じ: pending 128件かつ「pendingごとのJSON UTF-8 byte＋予約」の和131,072 byte以内（spec:981、U-Yの2つのsliceで1つの予算）。予約はreconstruction/src/notification-delivery/delivery-growth.tsのdeliveryGrowthで数え、受理とdecodeで同じ関数を使う（式の真実源はP3-INTENT-UPDATE-RESERVE-001）。終端記録は98,304 byteを超える分を最古からexpiresAtの前に回収、「pendingの実byte＋予約＋終端記録」≤229,376 byte（P3-NOTICE-LEDGER-001で改訂: 終端のintentは残さない。pendingでなくなったintentはintentsから外し、結果は系列の印に残す〔P3-NL-AC05〕。終端記録とその回収・予算と、終端記録を足した和の検査は無くなった）",
         "recovery": "origin=recoveryの入力は適用しない（P3-C14-N2）",
         "restart": "復元でintentを新しく作らない。pendingは元のcreatedAt/expiresAtで再試行対象に戻る（spec:997）（P3-NOTICE-LEDGER-001: lastAttemptがstartedのpendingは復元でintentsから外して通知したか不明にし、系列の印をunknownにしてnotificationOutcomeUnknownを出す。再試行しない、P3-NL-AC08）",
@@ -1088,8 +1088,8 @@
           "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
           "src/engine/presentation/level-helpers.ts:555 «224f024b82b45754»",
           "src/engine/presentation/level-helpers.ts:574 «bb6a28d6db1c5427»",
-          "src/engine/notification/notifier.ts:972 «7560be2051a3676a»",
-          "src/engine/notification/notifier.ts:1007 «d03daa4075b48b0c»",
+          "src/engine/notification/notifier.ts:973 «7560be2051a3676a»",
+          "src/engine/notification/notifier.ts:1008 «d03daa4075b48b0c»",
           "reconstruction/contracts/p3-order-plan.md:368 «125e18c065822856»"
         ]
       },
