@@ -1,0 +1,219 @@
+{
+  "meta": {
+    "draftedFromOid": "863fe4762a938d5d88d87750e8ef705c061dc61f",
+    "sha256": "3421ef6043495f6a53288d44992f1bab627aa8a4234e4631dcbc4031cfe34f00",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL5-D-GATE",
+        "kind": "作者",
+        "A": "重複の門を作らず、届いたものを出す",
+        "B": "U-T に満潮の報の専用の記録を足す",
+        "C": "端末の覚えで止める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-06）",
+        "ruling": "A（作者「判断事項についてはAでお願いします」）",
+        "reason": "鳴らない報で発表時刻も帯に出る。C は起草のレビュー 2 巡で穴が残り、U-T の版の記録の共有は後着の観測を落とす（ヘルツの確かめ）。今は 0 行で、出ないことの方が大きい"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL5-DELIVERY",
+        "status": "open",
+        "source": "2026-11-06 起草",
+        "closed": "remaining: 実装、レビュー、ゲート、作者の目視と push"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報と、P3-TL5-AC01 の取消でない観測の無い VTSE51 だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-005",
+    "mode": "implementation",
+    "objective": "満潮時刻だけの VTSE51 が本物の経路で端末に 0 行になっている。spec の Q-TO-T-4（観測点ごとの満潮時刻は出す）を実現する。整形は描けるので、門だけを開ける",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout5.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/domains/tsunami/tsunami.ts",
+      "reconstruction/test/terminal/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/runtime/owner-host.ts（inputTerminal の呼び出しの引数だけ）",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/contracts/p3-terminal-output.json（owner-host.ts の inputTerminal の呼び出しの行を引く «» 1 件と meta.sha256 だけ）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout5.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-004",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（createRenderer、TerminalControl.promptLabel のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（chalk 4.1.2 と node の標準）。文節の分割の依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_03_250206_VTSE51",
+      "test__fixtures__38-39_02_02_250206_VTSE51",
+      "test__fixtures__38-39_03_03_210805_VTSE51"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "U-T の state・watermark・outcome・intent・通知（観測の無い VTSE51 は今のまま鳴らさない）",
+      "同じ報や古い報の重複の門（作者裁定 A で作らない）",
+      "整形（format.ts は今の形で描ける）",
+      "受信・書き出しの列・worker・落とす規則の変更",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL5-AC01",
+        "requirement": "満潮の報（Q-TO5-TIDE）: (1) 対象は、InfoType が取消でなく、Body/Tsunami があり、Tsunami の直下に Observation の要素が 1 つも無い VTSE51 で、unit が拒否しなかった入力。空の Observation の要素がある報は対象でない。拒否は owner が残す confirmationEvidence の unreadableReport で見分け、inputTerminal の呼び出しの引数で渡す (2) 対象の報は accepted の outcome が無くても terminalReport の報を返信に載せる（P3-TO-AC01 (2) の例外） (3) origin が recovery の報は今のまま端末に出さない (4) U-T の state・watermark・intent・outcome は変えず、鳴らさない (5) 拒否された報は今のまま読めなかった報のカードになる (6) 取消、Observation のある VTSE51、他の種類の報の門は変えない (7) 同じ報が 2 度届くと 2 度出る（作者裁定 A）。覚えは足さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:431 «c14a9c90bb8488a5»",
+          "docs/specs/cli-terminal-output.md:759 «3dc2819a8a1d4808»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL5-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL5-AC01"
+        ],
+        "behavior": "受入条件。32-39_11_03 VTSE51 と 38-39_02_02 VTSE51 を unit と owner の判定に通すと端末の報が返り、「満潮」の行が出る。outcome と intent は増えず、state は変わらない"
+      },
+      {
+        "testId": "P3-TL5-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL5-AC01"
+        ],
+        "behavior": "契約境界。origin が recovery の同じ報、取消の報（38-39_03_03）、拒否された VTSE51、空の Observation のある報は今の形のまま。Observation のある VTSE51 の門は変わらない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列・覚え・module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、AC01 で端末に出るようになる期待だけ。変える前に試験名・旧の期待・理由を報告する",
+      "新しい «» が要るなら本契約の中と allowedPaths の 1 件だけ付け直し、meta.sha256 を取り直す。ほかの契約の «» は付け直さない（要るなら止めて報告する）。付け直しの後は check-contract と check-sequences の両方を回す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
