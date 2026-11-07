@@ -19,7 +19,7 @@ const ROLES = {
   // 帯の下の縦線（地の色で塗った空白 1 桁、P3-TL-AC03 (3)）。
   barPurple: { bg: PURPLE_LIFT }, barWarning: { bg: VERMILLION_LIFT }, barCaution: { bg: YELLOW }, barPlain: { bg: GRAY }, barCancel: { bg: RASPBERRY },
   connLost: { fg: CREAM }, connRestored: { fg: LIGHT_GREEN },
-  arrived: { fg: VERMILLION_LIFT }, dim: { fg: GRAY }, strong: { bold: true },
+  arrived: { fg: VERMILLION_LIFT }, slightForecast: { fg: SKY }, dim: { fg: GRAY }, strong: { bold: true },
   int1: { fg: GRAY }, int2: { fg: SKY }, int3: { fg: BLUE }, int4: { fg: BLUE_GREEN }, int5Lower: { fg: YELLOW }, int5Upper: { fg: ORANGE },
   int6Lower: { fg: VERMILLION_LIFT, bold: true }, int6Upper: { bg: VERMILLION, fg: BLACK, bold: true }, int7: { bg: WHITE, fg: BLACK, bold: true },
   lg0: { fg: GRAY }, lg1: { fg: SKY }, lg2: { fg: YELLOW }, lg3: { fg: ORANGE }, lg4: { bg: VERMILLION, fg: BLACK, bold: true },
