@@ -322,7 +322,8 @@ export class QuakeExtremeStore {
     if (invalidatesRecord) {
       changed = this.records.delete(input.groupKey);
     } else if (preservesObservedIntensity && previous != null) {
-      const originTime = input.originTime ?? previous.originTime;
+      // OriginTime の欠けた報は空文字で届くので ?? では落ちない。
+      const originTime = input.originTime || previous.originTime;
       // 発生時刻が同じなら期限は単調時計のまま動かさない。壁時計の補正を続報で持ち込まない。
       const remainingMs = originTime === previous.originTime ? null : remainingHoldMs(originTime, nowMs);
       if (originTime !== previous.originTime && remainingMs == null) {
@@ -350,7 +351,7 @@ export class QuakeExtremeStore {
           expiresAtMonotonicMs,
         });
       }
-    } else if (input.maxIntRank === QUAKE_EXTREME_RANK && input.originTime != null) {
+    } else if (input.maxIntRank === QUAKE_EXTREME_RANK && input.originTime) {
       if (
         previous?.originTime !== input.originTime
         || !previous.sourceTypes.includes(input.type)

@@ -296,6 +296,29 @@ describe("QuakeExtremeStore", () => {
     expect(store.hasActive(T0 + 60 * 60_000)).toBe(false);
   });
 
+  it("OriginTime の欠けた続報は空文字で届いても震度7の保持を外さない", () => {
+    const store = new QuakeExtremeStore();
+    store.applyDto(quake(9, { type: "VXSE53", serial: "1" }), T0);
+    const missing = { raw: null, value: null, condition: null, description: null, presence: "missing" } as const;
+    const event = {
+      domain: "earthquake",
+      type: "VXSE61",
+      infoType: "発表",
+      eventId: "Q1",
+      serial: null,
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+      originTime: "",
+      maxInt: null,
+      maxIntValue: missing,
+      maxIntRank: null,
+      areaItems: [],
+      raw: {} as PresentationEvent["raw"],
+    } as unknown as PresentationEvent;
+    store.applyPresentationEvent(event, T0 + 60_000);
+    expect(store.hasActive(T0 + 60_000)).toBe(true);
+    expect(store.export().records[0]?.originTime).toBe(originTime);
+  });
+
   it("同一 EventID の取消は source type をまたいで震度7記録を解除する", () => {
     const store = new QuakeExtremeStore();
     store.applyDto(quake(9, { type: "VXSE53", serial: "1" }), T0);
