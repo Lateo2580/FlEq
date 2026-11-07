@@ -1,0 +1,504 @@
+{
+  "meta": {
+    "draftedFromOid": "08e00fdc4b6a4070c186f56253c3522050461051",
+    "sha256": "244f2d8a2d7252a0eb5196327d3215d448811c73e103336d6b08c1d5de9a38fe",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-VAT-D-Q1",
+        "kind": "作者",
+        "A": "津波の警告の文と EEW の地域ごとの到達予想・長周期階級を、Pi へ渡す view に足す",
+        "B": "端末だけのまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者、判断カード 2026-11-08 の問い 1、推奨どおり）",
+        "reason": "鳴った瞬間に Pi の画面で読めるようにする。view に欄が無いと P4 で画面を足すだけでは出せない。描き方は P4 で決める"
+      },
+      {
+        "id": "P3-VAT-D-RAW",
+        "kind": "作者",
+        "A": "字はそのまま運ぶ。言い換え・要約・値の読み替えをしない",
+        "B": "view で整形した字にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「電文の本質・値・意味を変えない」。線引きは気象庁の留意事項 §3）",
+        "reason": "津波の文は端末と同じ読み（前後の空白の trim だけ）で、EEW の区域は facts.report の生の字のまま。整形は読み手の P4 の側に置く"
+      },
+      {
+        "id": "P3-VAT-D-EEW-PLACE",
+        "kind": "統合担当",
+        "A": "EewCurrent に reportAreas を足し、値は EewReportArea（facts.report.areas と同じ形）にする。prediction は変えない",
+        "B": "prediction.areas の各要素に足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B は prediction の比べ（isDeepStrictEqual、predictionKey の sha256、同じ版の比べ）に入り、到達時刻だけの差が中身の差になって版の判断が変わる。prediction は view の中で current と subjects の 2 か所と retainedPrediction にあるので byte も重なる。A は同じ並びの別の欄で、版の判断と通知に触らない"
+      },
+      {
+        "id": "P3-VAT-D-EEW-NAME",
+        "kind": "統合担当",
+        "A": "区域の名前も運ぶ（EewReportArea の name）",
+        "B": "code だけにして名前は画面の表で引く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "chrome-eew に code から名前を引く表は無く（geometry は 9 区域の矩形だけ）、code だけでは「自分の地域に何秒」が読めない。EewReportArea をそのまま使えば型を増やさない。188 区域で約 6 KB。今の画面は読まないので画面は P4 まで変わらない"
+      },
+      {
+        "id": "P3-VAT-D-EEW-READ",
+        "kind": "統合担当",
+        "A": "eew.ts:466 の 1 行で eewReportFacts を呼んで areas を取る（取消・終端でない候補の全部で版の判断の前に 1 回、採った報は :726 でもう 1 回読む）",
+        "B": "報を 1 回だけ読み、:726 の行も変える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B は eew.ts:726 の中身が変わり、p3-eew-facts.json の evidenceRefs 4 件の «» の付け直しと閉じた契約の hash の取り直しが要る。A の増えは局所の測定で 44 区域 +13 µs、188 区域 +50 µs（Mac、reduce p50 の比較。E01 は未確認）。duplicate・stale・capacityExceeded の報でも 1 回走るが、その重さは同じ報に validateCandidate が既に当てている Area の線形と同じ程度。:466 の位置を後ろへ動かすと changed(previous, projected) に渡る値と current が食い違い、view-projector の byte の照合が落ちるので動かさない。行の数も変わらない"
+      },
+      {
+        "id": "P3-VAT-D-EEW-SLIM",
+        "kind": "統合担当",
+        "A": "足す前に引く: view の subjects[].facts から prediction・retainedPrediction を除く（current に同じ値がある）",
+        "B": "subjects はそのままで足すだけ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08）",
+        "ruling": "A（統合担当、今の画面を保つ側。ヘルツの起草レビューで案 A の成立を確かめた）",
+        "reason": "Q-VAT-MEASURE の手順の 188 区域の報 1 本（retainedPrediction=null）の包装込みの分野の byte: 今 63,044、足すだけ 85,283（65,536 を越える）、A 54,771。全体が 1 MiB を越える日に、この報は今は full のまま、足すだけなら要約に落ちてカードと地図が消える（P3-DC-D-SUMMARY=A' の Fail の側）。保持値のある続報と 2 本の形でも A は今より小さい。view の subjects の facts を読む所は無い（chrome-eew は current、端末と EEW ログは受信の outcome の facts を読む）"
+      },
+      {
+        "id": "P3-VAT-D-T-FAMILY",
+        "kind": "統合担当",
+        "A": "足すのは VTSE41 の文だけ。VTSE51・52 の文は足さない",
+        "B": "VTSE51・52 の文も観測の記録に足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "判断カードの場面は大津波警報の画面。旧築の Pi の津波パネルの文も VTSE41 の分（TsunamiPanel.svelte の warningComment、保存も VTSE41 の記録）。B は fragment の合成と期限切れの形にも欄が要る。観測の文は端末の補足に出ている（Q-TO3-ACTION）。P4 で観測の画面を決めるときに足せる"
+      },
+      {
+        "id": "P3-VAT-D-T-SAVE",
+        "kind": "統合担当",
+        "A": "文を予報の記録と一緒に保存する。再起動の後も、次の報まで同じ文を view に出す",
+        "B": "保存しない。再起動の後は区域だけ戻り、文は次の報まで消える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）。問い 2 の「再起動の後は読めない形でよい」は火山と南海トラフの解説の裁定で、津波の警報には当てない",
+        "reason": "旧築は active の VTSE41 の warningComment を保存している（standby-persistence.ts の isPersistedTsunamiActive は文字列を必須にする）。保存の前提の表は「守る範囲は EEW・津波の全部」。VTSE41 の active には時間の期限が無く（P3-C5-RETENTION=A）、再起動の取り直しでは同じ版が duplicate になるので、保存しないと文の無い大津波警報が次の報まで続く。B は encode で欄を外す処理を足すので A より長い"
+      },
+      {
+        "id": "P3-VAT-D-T-SCHEMA",
+        "kind": "統合担当",
+        "A": "文のある記録だけが鍵を持つ形（warningComment?: string）にして、schemaVersion は v9 のままにする",
+        "B": "必須の欄にして v10 へ上げる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "鍵の無い旧い保存は「文なし」と同じ意味で、読み替えが要らない。B は版の文字が 12 か所（測定の test/eew-e01/tsunami.mjs を含む）と開発機の保存を消す手順（P3-MIG-AC02 (2)）が増え、無いと壊れるものが無い。印の欄（notice・unreadable）の鍵の形と同じ。v9 への引上げは unreadableNotices という必須の配列を足したためで、今回は旧い保存が項目ごとの読みでそのまま読め、上げると開発機の U-T が空から始まるだけなので上げない"
+      },
+      {
+        "id": "P3-VAT-D-T-LIMIT",
+        "kind": "統合担当",
+        "A": "文は 4,096 字まで。越えたら頭から 4,095 字に … を付ける",
+        "B": "上限を置かない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "文は急ぐ文から並ぶ（東日本大震災クラス、ただちに避難、区分ごとの解説の順）ので頭を残す。端末と同じ上限と形（P3-TO の RES-02）で、端末と Pi の字が揃う。切る位置が上位サロゲートのときだけ、端末より 1 字短くなる（題の切り方と同じ）。実物の最大は 691 字・2,017 byte で、切れることは実物では起きない。無いと 10 MiB まで受ける XML の文 1 つが分野の 65,536 byte と保存の世代の上限を占める"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-VAT-MEASURE",
+        "status": "closed",
+        "source": "2026-11-07 起草、2026-11-08 ヘルツの起草レビューの条件付き GO を受けて測り直した",
+        "closed": "(1) 起草の base 08e00fdc（aa065d79 からの製品の差は U-Q の 1 行だけ）、Mac。(2) 合成の手順: 77_01_26 の Forecast の中の Area のうち ArrivalTime のある最初の 1 件を写し、Code を 700 からの通し番号、Name を和歌山県南部沿岸にして、最後の Area の後ろへ足して 188 件にする。VXSE43 の 2 本目は 37_01_02 を同じ手順で増やす。全区域不明の続報は同じ報の Serial を 1 進め、Control/DateTime を 1 秒進め、From・To を全部「不明」にする。製品の経路は snapshot-sse の projection-fixture の startup・step と projectSnapshot で、入力 ID は fixture の名前（入力 ID の長さで数十 byte 変わる）。「足すだけ」と「削る」は、この view に同じ報の facts.report.areas を足し、subjects の facts から鍵を除いて数えた値。(3) 分野の byte（包装込み、domains.eew.utf8Bytes。括弧は view 単体）、今 → 足すだけ → 足して削る: 188 区域の報 1 本（retainedPrediction=null）63,044（62,165）→ 85,283（84,404）→ 54,771（53,892）。同じ報の後の全区域不明の続報（retainedPrediction あり）120,280（119,401）→ 144,399（143,520）→ 85,252（84,373）。VXSE45 と VXSE43 の 2 本 123,590（122,711）→ 170,658（169,779）→ 110,392（109,513）。包装は 879 byte。ヘルツの別の入力の測定でも、案 A の全区域不明の続報は view 単体で 84,535 byte だった。(4) 分野が 65,536 byte に収まる区域の数、今 → 足すだけ → 足して削る: 報 1 本 約 196 → 約 143 → 226。全区域不明の続報 約 97 → 約 81 → 約 142。2 本 約 95 → 約 70 → 約 110。報 1 本の 226 と続報の 142 は 5 件刻みの実測の間を比例で埋めた値で、ほかも比例の見積り。どの形でも今より要約に落ちにくい。188 は細分区域の数で受理の上限ではなく、1,001 区域の報も受理する（P2-A4-T11）ので、収まることの保証ではない。(5) 津波の view: 32-39_12_02 の 66 区域 20,163 → 21,881（文 573 字）、32-39_11_11 の 51 区域 16,123 → 18,188（文 691 字・2,017 byte、実物の最大）、32-39_11_02 の 43 区域 13,195 → 15,033。文が足す byte は 1 報 1,700〜2,100。(6) 津波の保存: GENERATION_LIMIT は今 11,354,432 byte。32-39_12_02 の 66 区域の記録（通知の印を含めて 19,580 byte）を eventId だけ替えて通知待ちなしで decode すると、文なしでも約 2,100 byte の文ありでも件数の上限 512 件まで restored。文が全部 4,096 字（約 12,300 byte）の上界では 350 件が restored、355 件が invalid。(7) 局所の測定（Mac、3,000 回の p50）: EEW の reduce は今 251 µs（44 区域）・943 µs（188 区域）で、:466 で読むと 260 µs・972 µs。view の stringify は 188 区域で 100 → 81 µs、parse は 163 → 118 µs。津波の view は stringify 21.3 → 21.9 µs、parse 29.1 → 29.9 µs。これは関数単位の測定で、T0→T6 の p99 の目標 250 ms に対する E01 は未確認。Pi でも測っていない。(8) 正式の測定: 凍結の manifest と結果は変えない。本契約の配送の条件に E01 の再測定を入れず、画面の描き方が変わる P4 の契約で新しい manifest を凍結して測る。凍結の manifest の hash は、調べた 4 本（p3-sp-e01・p3-th-e01t・p3-sp-e05np・p3-c4-formal）で今の契約と一致していないが、これは凍結物を動かさない事情で、性能の根拠にはしない。schemaVersion を変えないので test/eew-e01/tsunami.mjs も変わらない。",
+        "remaining": "なし",
+        "reason": "欄の形と分岐を数字で決めた記録"
+      },
+      {
+        "id": "Q-VAT-READERS",
+        "status": "closed",
+        "source": "2026-11-07 起草",
+        "closed": "作り手と読み手の型の対応。(1) EEW: eewReportFacts（eew.ts:783）が今も採った報ごとに区域の名前・長周期階級・到達時刻を読み、facts.report にだけ載せている。端末は受信の outcome を読むので material.ts に U-E の分は無い（terminalReport の case U-E は null）。EewCurrent は toEewView の current: state.current と RuntimeDisplaySubject の current でそのまま view と mirror と snapshot へ渡る。view-projector は utf8(current) で byte を数えるだけで欄を選ばない。isCurrent（pure.ts）は読む欄だけを確かめるので足した欄を弾かない。(2) 津波: 端末は material.ts:102 で電文から直に読み、U-T の domain は Comments を読まない。TsunamiForecastSubject は toTsunamiView の shown() で印だけが外れて view へ渡る。型は MarkViewed<TsunamiForecastSubject> で、足した欄は DisplaySnapshot に型のまま届く。(3) よって domain に足すのは津波だけで、view-projector・pure・client・http-sse・mirror の変更は無い。画面は読まないので今の画面は変わらない (4) reportAreas を必須の欄にしたときの型検査を起草時に試すと、tsconfig.test.json で落ちるのは eew.ts:462 の 1 か所だけで、試験の file は落ちない",
+        "remaining": "なし",
+        "reason": "作り手と読み手の型の対応の結論"
+      },
+      {
+        "id": "Q-VAT-OVERRIDE",
+        "status": "closed",
+        "source": "2026-11-07 起草",
+        "closed": "本契約が上書きする先の条文: P3-EWF-D-PLACE=A のうち「EewCurrent に材料を持たない」、P3-EWF-AC02 (3) の「report を EewCurrent・view に入れない」、P3-EWF-AC05 の「SSE に出さない」、outOfScope の view・EewCurrent の行は、区域の 4 欄（code・name・lgInt・arrivalTimeRaw）についてだけ本契約に置き換わる。report の他の欄は今のまま。閉じた契約の原文は書き換えず、型の説明の 1 行（p3-eew-facts.types.ts:4）だけを実装で直す。P3-EWF-RES-01 の「Area の線形 1 回」と「unchanged では読まない」は、取消・終端でない候補の全部で版の判断の前に 1 回、採った報でさらに 1 回（P3-VAT-D-EEW-READ=A）に置き換わる",
+        "remaining": "なし",
+        "reason": "後の裁定で前の契約の前提が変わる所を先に書く"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。training・test の報も同じ欄を持ち、見分けは今の operation の欄のまま。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-VIEW-ALERT-TEXT-001",
+    "mode": "implementation",
+    "objective": "津波の警告の文（VTSE41 の WarningComment）と、EEW の地域ごとの到達予想・長周期階級を、Pi へ渡す view に足す。23:14:59 に EEW の音で振り返った人が自分の地域に揺れが届くまでの時間を、14:49 に大津波警報の画面を見た人が「東日本大震災クラスの津波が来襲します」の文を、P4 の画面で読めるようにするための土台。字は電文のまま運び、画面の描き方は P4 で決める。EEW の view は足す前に subjects の重なりを引き、今より小さくする",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-view-alert-text.json",
+      "reconstruction/contracts/p3-eew-facts.json",
+      "reconstruction/contracts/p3-eew-facts.types.ts",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/src/domains/tsunami/tsunami.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/notice-mark.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-fixture.ts",
+      "reconstruction/test/snapshot-sse/projection-fixture.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p2-eew-unit.types.ts（:17 と :47 の末尾だけ。行の数を変えない）",
+      "reconstruction/contracts/p3-eew-facts.types.ts（:4 の説明だけ）",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts（TsunamiForecastSubject の欄だけ）",
+      "reconstruction/src/domains/eew/eew.ts（:466 の行だけ）",
+      "reconstruction/src/units/eew/eew-unit.ts（:267 の行だけ）",
+      "reconstruction/src/domains/tsunami/tsunami.ts（文の読みと ForecastCandidate の欄だけ。行の数を変えない）",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts（:414、:468、:1103〜:1106 だけ。行の数を変えない）",
+      "reconstruction/test/view-alert-text/view-alert-text.test.ts（新設）",
+      "reconstruction/test/eew-unit/eew-unit.test.ts（P3-EWF-T02 の期待の書き換えだけ。行の数を変えない）",
+      "docs/specs/reconstruction-p0-contracts.md（統合担当が起草で書いた。実装では変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-view-alert-text.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M01",
+      "M04",
+      "B08"
+    ],
+    "integrationContractIds": [
+      "I-U-E",
+      "I-U-T"
+    ],
+    "dependsOnContractIds": [
+      "P2-EEW-UNIT-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P3-EEW-FACTS-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewCurrent",
+      "reconstruction/contracts/p3-eew-facts.types.ts#EewReportArea",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiForecastSubject"
+    ],
+    "publicFunctions": [
+      "関数の形は変えない（reduceEewUnit、toEewView、parseTsunami、reduceTsunamiUnit、toTsunamiView、projectSnapshot のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__77_01_30_260101_VXSE45_FINAL",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__32-39_13_07_250206_VTSE41",
+      "test__fixtures__synthetic_VTSE41_cancel",
+      "test__fixtures__synthetic_VTSE41_e01_311major"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-VAT-RES-01",
+        "target": "津波の文（warningComment）",
+        "limit": "4,096 字。越えたら頭の 4,095 字に …。実物の最大は 691 字・2,017 byte",
+        "unit": "VTSE41 の記録 1 件",
+        "scope": "端末と同じ上限（material.ts の TEXT_LIMIT）。保存の世代の上限（今 11,354,432 byte）と分野の 65,536 byte の中に数える",
+        "source": "P3-VAT-D-T-LIMIT"
+      },
+      {
+        "id": "P3-VAT-RES-02",
+        "target": "EEW の reportAreas",
+        "limit": "上限を足さない。件数は prediction.areas と同じで、字は電文の字。188 は細分区域の数で受理の上限ではない（1,001 区域の報も受理する）。current は保存せず、件数は family ごとの subject 512 のまま",
+        "unit": "EewCurrent 1 件",
+        "scope": "越えたときの欠けは分野ごとで、全体が 1 MiB を越え包装込みの分野が 65,536 byte を越えると分野が要約に落ち、到達予想も区域も全部落ちる（AC03 (4)）。収まる区域の数は報 1 本で 226、全区域不明の続報で約 142、VXSE43 と VXSE45 の 2 本で約 110（Q-VAT-MEASURE (4)、合成の報の値で保証ではない）",
+        "source": "Q-VAT-MEASURE"
+      },
+      {
+        "id": "P3-VAT-RES-03",
+        "target": "受信経路で足す処理",
+        "limit": "EEW は取消・終端でない候補の全部で Forecast/Pref/Area の線形を版の判断の前に 1 回足す（採った報は今の :726 と合わせて 2 回。44 区域 +13 µs、188 区域 +50 µs）、津波は Comments の子を辿るだけ。全件走査・全体の直列化を足さない",
+        "unit": "1 受信",
+        "scope": "AGENTS.md の受信経路の計算量。値は局所の測定で、T0→T6 の p99 の目標 250 ms に対する E01 は未確認（P4 の測定で確かめる）",
+        "source": "Q-VAT-MEASURE"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-T"
+    ],
+    "persistedFields": [
+      "TsunamiForecastSubject.warningComment（鍵は文のある active の記録だけ。schemaVersion は p3-tsunami-unit-v9 のまま）"
+    ],
+    "nonPersistedFields": [
+      "EewCurrent.reportAreas（current は保存しない。再起動の後の EEW は 0 件）"
+    ],
+    "outOfScope": [
+      "画面の描き方（chrome-eew の pure・client・index.html）。P4 の契約が読む",
+      "VTSE51・52 の文（P3-VAT-D-T-FAMILY）と、FreeFormComment（［予想される津波の高さの解説］）。端末も FreeFormComment は出さない",
+      "EEW の WarningComment と報全体の maxLgInt。判断カードの問い 1 の範囲の外で、今は端末だけが読む",
+      "火山と南海トラフの解説の本文の API（問い 2）、火山の防災事項と洪水の浸水想定地区（問い 3）、震度 7 の色（問い 4・5）",
+      "分野の要約の条件と H37（EEW・地震・津波を要約に落とさない）",
+      "旧築からの移行の道具（reconstruction/tools/migration/）が保存の warningComment を移すこと。切替の瞬間に active の VTSE41 がある場面だけに効き、次の報で文が入る",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-VAT-AC01",
+        "requirement": "EEW の欄（P3-VAT-D-Q1・D-EEW-PLACE・D-EEW-NAME・D-RAW）: (1) EewCurrent に reportAreas: readonly EewReportArea[] を足す。値は同じ報の facts.report.areas と同じ（code・name・lgInt・arrivalTimeRaw、読み方は P3-EWF-AC01 のまま、字は電文のまま）。順と件数は prediction.areas と同じで、読み手は同じ添字で対応させる (2) 到達の条件（既に主要動到達と推測、ＰＬＵＭ法で推定）は今も prediction.areas[n].intensity.condition にあるので足さない (3) 区域の無い報は [] (4) eew.ts の変更は :466 の行だけで、行の末尾に reportAreas: eewReportFacts(body, headline, earthquake, forecast, candidate.cancelled, assumed).areas, を足す（P3-VAT-D-EEW-READ=A）。ほかの行は中身も数も変えない (5) toEewView・view-projector・chrome-eew（pure・client）・http-sse・mirror は変えない。足した欄は今の経路で snapshot まで届き、画面は読まない。無いと: Pi の view に到達予想と長周期階級が無く、P4 で画面を足しても出せない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:783 «f21f9cdc18539ad5»",
+          "reconstruction/src/domains/eew/eew.ts:824 «9adcb650e1983598»",
+          "reconstruction/src/domains/eew/eew.ts:119 «99008412fd2440fc»",
+          "reconstruction/src/units/eew/eew-unit.ts:281 «90f7c1708cc5536d»",
+          "docs/specs/reconstruction-p0-contracts.md:1325 «cd7e2f14baa74a92»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC02",
+        "requirement": "EEW の置き換わりと消え方: (1) 採った続報で current の作り直しと一緒に置き換わる。到達時刻だけが違う続報は decision の change が revisionOnly のままで、view の reportAreas は新しい報の値になり contentRevision が進む (2) reportAreas は同じ版の比べ・predictionKey・predictionChanged・通知の判断に入れない (3) 取消・最終報・期限・容量の退去で current と一緒に消え、残らない (4) 保存しない。eewUnitCodec と schemaVersion（p2-eew-unit-v5）は変えず、decode の後の current は今のまま [] (5) retainedPrediction の報の区域は持たない（reportAreas は常に最新の報）。無いと: 取り消した EEW の到達予想が画面に残るか、到達時刻の差で版の判断が変わる",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:462 «f5f2e5ec7fb6673e»",
+          "reconstruction/src/units/eew/eew-unit.ts:292 «643fa9ad24425a2b»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC03",
+        "requirement": "足す前に引く（P3-VAT-D-EEW-SLIM）: (1) currentSubject の facts から prediction・retainedPrediction を除く（eew-unit.ts:267 の行を閉じ括弧だけにする。行の数は変えない） (2) EewCurrent の prediction・retainedPrediction と、受信の outcome の facts.prediction（eew.ts:405）は変えない (3) Q-VAT-MEASURE の手順の 188 区域の報 1 本（retainedPrediction=null）の包装込みの分野の byte は 54,771（view 単体 53,892）で、今の 63,044 より小さい。これは指定の合成の報の測定値で、収まることの保証ではない。188 は受理の上限でなく（1,001 区域の報も受理する）、既知の報の後の全区域不明の続報は retainedPrediction の分だけ大きく、同じ 188 区域で 85,252 byte になる（今は 120,280）。新しい制限は足さない (4) 分野が要約に落ちる条件（全体が 1 MiB を越え、かつ包装込みの分野が 65,536 byte を越える）と要約の形は変えない。要約に落ちると reportAreas も区域も全部落ち、残るのは件数・最上階級・区域数・時刻だけ。分野の中で欄だけを先に落とす段は作らない（報 1 本・保持値のある続報・2 本のどの形でも、収まる区域の数は今より増える）。H37（EEW・地震・津波を要約に落とさない）はまだ配送されておらず、配送の後は増えた byte が全体 1 MiB の内訳に効く。無いと: 指定の合成の 188 区域の報 1 本が 85,283 byte になり、全体が 1 MiB を越える日に今は full の EEW のカードと地図が消える",
+        "evidenceRefs": [
+          "reconstruction/src/units/eew/eew-unit.ts:273 «38da221ecff47ec9»",
+          "reconstruction/src/domains/eew/eew.ts:405 «a9e40c8bd99e9e4f»",
+          "reconstruction/src/view-projector/view-projector.ts:483 «0923a1c0e02a37e8»",
+          "reconstruction/src/view-projector/view-projector.ts:904 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:906 «c42a191089542248»",
+          "docs/specs/reconstruction-p0-contracts.md:3064 «79084e1c731015a0»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:339 «b6beb45ee009c3f1»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC04",
+        "requirement": "津波の欄（P3-VAT-D-Q1・D-RAW・D-T-FAMILY・D-T-LIMIT）: (1) TsunamiForecastSubject に warningComment?: string を足す。文のある active の記録だけが鍵を持つ (2) parseTsunami が VTSE41 の発表・訂正で Body/Comments/WarningComment/Text を端末と同じ読み（最初の要素、前後の空白の trim）で読み、ForecastCandidate に載せる。文の字は改行・全角の空白を含めて変えない (3) 空か、要素が無いか、Text が子要素を持つときは文なしで、報は断らず診断も足さない（端末も出さない） (4) 4,096 字を越えたら頭から 4,095 字に … を付ける。切った位置が上位サロゲートなら、その 1 字も落とす (5) 取消の候補の文は null (6) VTSE51・52 は変えない (7) toTsunamiView・shown・view-projector・chrome-eew は変えない。鍵は今の経路で snapshot まで届き、画面は読まない。無いと: 14:49 の大津波警報で「東日本大震災クラスの津波が来襲します」の文が view に無く、P4 で画面を足しても出せない",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/material.ts:102 «d3926b31bdc6c931»",
+          "reconstruction/src/units/notice-mark.ts:164 «dd4ef5d14d102b12»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:947 «6334142030400210»",
+          "display/frontend/src/components/TsunamiPanel.svelte:610 «6765b5826b4a56c4»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC05",
+        "requirement": "津波の置き換わりと消え方: (1) receiveForecast は next が active のときだけ鍵を置く（tsunami-unit.ts:414 の行）。採った続報で文は置き換わり、文の無い続報では鍵が無くなる (2) 解除（released）と取消の記録は鍵を持たない。解除の報の文（32-39_13_07 の「現在、大津波警報・津波警報・津波注意報を発表している沿岸はありません。」）も持たない (3) 文だけが違う続報は semantic にする（:468 の式に比べを足す。無いと outcome が revisionOnly になり、内容が変わった報が版だけの更新に見える） (4) 同じ版の比べには入れない。同じ版で文だけが違う報は今のまま先着を残す (5) 容量で断った報の印（unavailable）と未確認の印の記録は手元の文のまま（区域と同じ）。無いと: 解除の後も避難を促す文が記録に残るか、続報の文に変わらない",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:412 «0661a8bf0d125d0a»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:947 «6334142030400210»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC06",
+        "requirement": "津波の保存（P3-VAT-D-T-SAVE・D-T-SCHEMA）: (1) 文は記録と一緒に保存する。encode は変えない (2) schemaVersion は p3-tsunami-unit-v9 のまま。鍵の無い保存は文なしと同じ意味で読め、移行も開発機の保存を消す手順も要らない (3) forecastSubject（codec）は鍵があるとき、文字列で、空でなく、4,096 字以下で、effective が active であることを確かめ、確かめた値を項目として組み立てる。外れたら記録は null（payload 全体が invalid）(4) GENERATION_LIMIT（今 11,354,432 byte）と件数の上限の値は変えない。byte は generationBytes の中で subjectBytes がそのまま数える。66 区域の記録は通知待ちなしで、文なしでも実物の大きさの文ありでも件数の上限 512 件まで収まり、文が全部 4,096 字の上界なら約 350 件で byte の上限に当たる（Q-VAT-MEASURE (6)。印・intent・予約が増えればその分だけ減る）。上限では文だけを落とさない。退去の順は P3-C5-CAPACITY のままで、収まらなければ報ごと断る (5) 再起動の後、取り直しの同じ版は duplicate で、文は保存した値のまま。旧築からの移行の道具は文を移さない（outOfScope）。無いと: 再起動の後に文の無い大津波警報が次の報まで続く",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1085 «4c2febd7762cd119»",
+          "src/engine/display/standby-persistence.ts:5739 «7e91b610d408fd1a»",
+          "reconstruction/contracts/p3-persist-premises.md:20 «26bffafeb63439f5»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC07",
+        "requirement": "触る行と anchor: (1) 行の数を変えない file: eew.ts・eew-unit.ts・tsunami.ts・tsunami-unit.ts・p2-eew-unit.types.ts・p3-eew-facts.types.ts。既存の行の末尾か空行に書き、reanchor-target.py は使わない（eew.ts:N の正規表現が process-eew.ts:N にも当たる）(2) 中身を変えてよい行: eew.ts:466、eew-unit.ts:267、p2-eew-unit.types.ts:17（末尾に EewReportArea の import type）・:47（末尾に欄）、p3-eew-facts.types.ts:4（view の説明を本契約に合わせる）、tsunami-unit.ts:414・:468・:1103〜:1106、tsunami.ts の «» に引かれていない行。«» に引かれた行は変えない (3) eew-unit.ts:267 を引く «» は p3-replay-watch-002.json の P3-RW2-AC11 の 1 件だけ。統合担当が配送の commit で eew.ts:405 へ替え、その契約の meta.sha256 を取り直す。その行を引く契約は無い (4) p3-tsunami-unit.types.ts は «» に引かれていない。無いと: 他の契約の «» が崩れて check-contract が落ちる",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:405 «a9e40c8bd99e9e4f»",
+          "reconstruction/contracts/p3-replay-watch-002.json:534 «9eef5aea1b23cb9f»"
+        ]
+      },
+      {
+        "id": "P3-VAT-AC08",
+        "requirement": "dmdata の規約: reportAreas は EEW の内容で、既にある prediction と同じ経路（host の表示の server から作者の Pi の Chrome へ）にだけ載る。公開の API・file・通知の payload・診断には出さない。試験は気象庁の公開サンプルと自作の fixture だけを使う。無いと: 利用規約 15 項の EEW の第三者への表示の線を、足した欄が越えたかどうかを確かめられない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:783 «f21f9cdc18539ad5»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-VAT-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-VAT-AC01"
+        ],
+        "behavior": "受入条件。37_01_01 の VXSE43 で view.current[0].reportAreas の code の列が prediction.areas と同じで、到達時刻のある区域の name・lgInt・arrivalTimeRaw が電文の字。最初の区域は到達時刻が null で prediction.areas[0].intensity.condition が「既に主要動到達と推測」。77_01_01 の区域の無い報は []"
+      },
+      {
+        "testId": "P3-VAT-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-VAT-AC02"
+        ],
+        "behavior": "受入条件。到達時刻だけを書き換えた次の Serial の報で change が revisionOnly、reportAreas が新しい値、contentRevision が進む。取消（37_01_03）と最終報（77_01_30）で current が空。eewUnitCodec.encode の JSON に区域の名前が無い"
+      },
+      {
+        "testId": "P3-VAT-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-VAT-AC03"
+        ],
+        "behavior": "契約境界。Q-VAT-MEASURE の手順の 188 区域の報 1 本を projectSnapshot へ通し、包装込みの state.domains.eew.utf8Bytes が JSON の実際の byte と同じで 65,536 以下。view の subjects の facts に prediction・retainedPrediction の鍵が無く、受信の outcome の facts.prediction は残る。同じ報の後の全区域不明の続報では current.retainedPrediction が残り、包装込みの byte が 65,536 を越え、全体が 1 MiB を越える入力で eew が summary になる"
+      },
+      {
+        "testId": "P3-VAT-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-VAT-AC04"
+        ],
+        "behavior": "受入条件。32-39_11_11 の view.forecasts[0].warningComment が電文の Text の trim と同じ 691 字で、改行が残る。文の無い synthetic_VTSE41_e01_311major は鍵が無い"
+      },
+      {
+        "testId": "P3-VAT-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-VAT-AC04"
+        ],
+        "behavior": "契約境界。4,096 字の文はそのまま、4,097 字は 4,095 字と …、切る位置の前が上位サロゲートのときは 4,094 字と …。Text が子要素を持つ報は採られて鍵が無い"
+      },
+      {
+        "testId": "P3-VAT-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-VAT-AC05"
+        ],
+        "behavior": "受入条件。文のある報の後に文の違う次の報で文が置き換わり change が semantic。文の無い次の報で鍵が無くなる。32-39_13_07 の解除と synthetic_VTSE41_cancel の取消で記録に鍵が無い"
+      },
+      {
+        "testId": "P3-VAT-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-VAT-AC06"
+        ],
+        "behavior": "契約境界。文のある active の記録が encode→JSON→decode で同じ値に戻る。鍵の無い payload は読める。released の記録に鍵がある・空の文・4,097 字・文字列でない payload は invalid"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07・O09 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。eew-unit.ts:267 の付け直しの後も全部の «» が通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew が足した型で通ること"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（保存の形に触るため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の期待を変えてよいのは P3-EWF-T02 だけ。区域の名前（高知県西部）と到達時刻は state.current と view に出るようになり、震源の座標（+33.2+132.4-30000/）は今のまま出ない形に直す。ほかの期待が落ちたら、変える前に試験名・旧の期待・理由を報告する",
+      "export の形は既存のまま（P1-T04 が export function・const を数える）。新しい export を足さない",
+      "ほかの契約の «» は付け直さない。eew-unit.ts:267 の 1 件は統合担当が配送の commit で直す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
