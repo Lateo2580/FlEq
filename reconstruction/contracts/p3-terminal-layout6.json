@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f954231206e1e01a382d1e218aea8e4c3277e61",
-    "sha256": "c497ea9e10abb7bc74e3b464a6f7f150b9f9149ba84013e83b2e435b6282eedd",
+    "sha256": "a4aae73337e64f91fb7dc08d811499e566186da933afbe6ecdf210b116d15e1b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -196,7 +196,7 @@
         "id": "P3-TL6-AC04",
         "requirement": "禁則（Q-TO7-KINSOKU）: (1) wrapChars が行頭に置かない字を「、。，．）」』］】〉》)]！？ーぁぃぅぇぉっゃゅょァィゥェォッャュョ」にする (2) 行頭に置かない字が続くとき（「）。」「っ。」）は、続きの全部と、その前の 1 字をまとめて次の行へ送り、行頭に句読点が戻らないようにする (3) 送ると字下げと送る字が幅に入らないときと、行の中身が字下げだけになるときは送らず、今の形で折る。行は幅を超えない (4) 電文の字を足さず消さない。行頭の字下げと折り目のほかは同じ字の列のまま (5) 空白で折った直後の句読点の送り（今の分岐）も同じ字の集合で動く (6) 塗る帯と URL は今のまま折らない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:87 «2ba0f7feb796174a»",
+          "docs/specs/cli-terminal-output.md:87 «92a8bdfca2603b73»",
           "docs/specs/cli-terminal-output.md:782 «15837d334e2534a1»"
         ]
       }

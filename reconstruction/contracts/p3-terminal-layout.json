@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "2a01c4da0dd76472a82115d1bf01ae7346b7c8ea9fbf5f7165471255f585c61a",
+    "sha256": "42641f4c89a3c204a4c00f8a3e3959649382d1a63b40edf568780eb23e87f1e0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -303,7 +303,7 @@
         "id": "P3-TL-AC09",
         "requirement": "文の折り返し: 電文の文は 1 行に入ればそのまま出す。入らなければ句点で分け、それでも入らない文は字の境目で折って 2 字下げる。行頭に句読点を置かない。URL は折らない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:87 «2ba0f7feb796174a»"
+          "docs/specs/cli-terminal-output.md:87 «92a8bdfca2603b73»"
         ]
       },
       {

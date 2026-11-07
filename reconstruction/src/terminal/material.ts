@@ -143,10 +143,12 @@ function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string 
     // 指定河川洪水予報（flood.ts の LEVELS: 51・53 L5、40・41 L4、30・31 L3、20〜22 L2）。
     case "U-R": return ranked((code) => byLevel(floodLevel(code)));
     // 噴火警戒レベルの Kind/Code（11〜15 がレベル 1〜5）。噴火速報（VFVO56）は最も重い段で、段を電文の種類で決めるので理由の名前は無い。
+    // レベルの無い火山は P3-TL6-D-CRATER=A・D-SOUND=A で 24・25 が top、23 が warning、22・36 が caution（P3-C9-NOTICE-LEVELS=C と同じ重さ）。
     case "U-V": return headType === "VFVO56" ? { level: "top", name: null }
-      : ranked((code) => code === "15" || code === "14" ? "top" : code === "13" ? "warning" : code === "12" ? "caution" : "plain");
+      : ranked((code) => code === "15" || code === "14" || code === "24" || code === "25" ? "top" : code === "13" || code === "23" ? "warning" : code === "12" || code === "22" || code === "36" ? "caution" : "plain");
     // 南海トラフ地震臨時情報の InfoSerial/Name。解説情報（VYSE51・52）と調査終了は plain。
-    case "U-N": return { level: found.serialName === "巨大地震警戒" ? "top" : found.serialName === "巨大地震注意" || found.serialName === "調査中" ? "warning" : "plain", name: found.serialName };
+    // VYSE60 は InfoSerial の有無によらず警報の段で、段を電文の種類で決めるので理由の名前は無い（P3-TL6-D-VYSE60=A）。
+    case "U-N": return headType === "VYSE60" ? { level: "warning", name: null } : { level: found.serialName === "巨大地震警戒" ? "top" : found.serialName === "巨大地震注意" || found.serialName === "調査中" ? "warning" : "plain", name: found.serialName };
     // 気象防災速報（竜巻注意・竜巻目撃、VPHW50・51）は警報。
     case "U-M": return { level: headType === "VPHW50" || headType === "VPHW51" ? "warning" : "plain", name: null };
     // 気象防災速報（記録的短時間大雨、VPOA50 と、その対応報で EventID が K の VPBS50。notification-gate の categoryOf と同じ読み）は紫。

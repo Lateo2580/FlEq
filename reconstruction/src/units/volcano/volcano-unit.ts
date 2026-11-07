@@ -220,10 +220,10 @@ const activeKind = (kind: VolcanoKind): boolean => !INACTIVE_KINDS.has(kind.code
 function levelOf(code: string): 2 | 3 | 4 | 5 | null {
   return code === "12" ? 2 : code === "13" ? 3 : code === "14" ? 4 : code === "15" ? 5 : null;
 }
-// P3-C9-NOTICE-LEVELS=C: 通知の段階のレベル（11〜15 は 1〜5、22→2・23→3・36→2、表に無い code は 2）。
+// P3-C9-NOTICE-LEVELS=C、P3-TL6-D-SOUND=A: 通知の段階のレベル（11〜15 は 1〜5、22→2・23→3・24→4・25→5・36→2、表に無い code は 2）。
 function noticeLevel(code: string): number {
   const numeric = /^1[1-5]$/.test(code) ? Number(code) - 10 : null;
-  return numeric ?? (code === "23" ? 3 : code === "21" || code === "35" ? 1 : 2);
+  return numeric ?? (code === "25" ? 5 : code === "24" ? 4 : code === "23" ? 3 : code === "21" || code === "35" ? 1 : 2);
 }
 const ALERT_FIELDS = ["effective", "volcanoName", "kind", "lastKind", "level", "headline", "municipalities", "marineAreas", "coordinate"] as const;
 const ERUPTION_FIELDS = ["effective", "volcanoName", "flash", "phenomenon", "eventDateTimeRaw", "craterName", "plumeAboveCrater",

@@ -551,11 +551,11 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
 
   // acceptance: Q-NOTICE の火山分（AC09）。
   it("P3-C9-T07 acceptance / AC09: opportunities, the NOTICE-LEVELS=C table, replacement, title/body, intentUpdate, training and restart", () => {
-    // 警報の段階: 引上げのレベル 4 以上 critical・2 以上 warning、非数値の区分（22→2・23→3・36→2）と表に無い code は warning。
+    // 警報の段階: 引上げのレベル 4 以上 critical・2 以上 warning、非数値の区分（22→2・23→3・24→4・25→5・36→2、P3-TL6-T03）と表に無い code（99）は warning。
     const raise = (code: string, condition = "引上げ") => levels(send(emptyState(), F.a306, (xml) => xml.replaceAll("<Code>13</Code>",
       `<Code>${code}</Code>`).replaceAll("<Condition>引上げ</Condition>", `<Condition>${condition}</Condition>`)))[0];
-    expect(["15", "14", "13", "12", "22", "23", "36", "99"].map((code) => raise(code))).toEqual(["desktop:critical", "desktop:critical",
-      ...Array(6).fill("desktop:warning")]);
+    expect(["15", "14", "24", "25", "13", "12", "22", "23", "36", "99"].map((code) => raise(code))).toEqual(
+      Array(4).fill("desktop:critical").concat(Array(6).fill("desktop:warning")));
     expect([raise("13", "継続"), raise("11", "引下げ"), raise("11", "継続"), raise("21", "発表")]).toEqual(["desktop:normal", "desktop:normal",
       "desktop:info", "desktop:info"]);
     expect(levels(send(emptyState(), F.marine))).toEqual(["desktop:warning", "sound:warning"]);

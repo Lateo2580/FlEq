@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "ed2bca24f1baef0d26f1b2ee87835f6a152df6d67157b401e19c6b2cac26f4ec",
+    "sha256": "d7e046d273abc2d5e432d6140c8673dd4f5018ee69cedcf7d2a4a72d46b0081d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -556,7 +556,7 @@
         "requirement": "【発注 1】幅（Q-TO-W-1）: (1) 桁数は main が列に積む時ではなく worker へ送る時に process.stdout.columns を読み（無ければ 80）、送る単位ごとに worker へ渡す。途中で端末の大きさが変われば次の送りから合う (2) 桁の数え方: 全角（Unicode の East Asian Width が W か F）を 2 桁、ほかを 1 桁（罫線の ━ と ─ は 1 桁。spec の図の幅の数え方と同じ）。依存を足さず、範囲の表を持つ小さい関数 1 つ（shortcut のコメントで、表に無い字を 1 桁に数えること） (3) 60 桁以上は spec の図の形。罫線は min(桁数, 80) まで伸ばす。60 桁未満は、見出しの罫線から発表時刻を外して次の行に出し、表の 1 行を地域の行と値の行の 2 行に分ける (4) どちらの形でも、電文の文（見出し文・本文の引用）は桁数で折り返して字下げし、URL は折らずに 1 行で出す。地域の一覧は桁数で折り返し、2 行目から地域の列の位置まで字下げする。表の列は、足りなければ地域名の列だけを詰め（末尾を … にする）、震度・階級・高さ・時刻の列は詰めない。地域名を詰めても入らなければ、その表を 60 桁未満の形で出す (5) どの桁数でも、出す行は桁数を越えない（URL の行を除く）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:75 «75e2b0ba668251dc»",
-          "docs/specs/cli-terminal-output.md:87 «2ba0f7feb796174a»",
+          "docs/specs/cli-terminal-output.md:87 «92a8bdfca2603b73»",
           "docs/specs/cli-terminal-output.md:88 «02ee9a609c3acf74»",
           "docs/specs/cli-terminal-output.md:83 «a8e55629cd091a19»",
           "docs/specs/cli-terminal-output.md:91 «3df1432fba45cd3f»"

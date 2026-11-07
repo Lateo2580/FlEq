@@ -19,8 +19,8 @@ import { reduceEewUnit } from "../../src/units/eew/eew-unit";
 const RECEIVED = 1_713_363_299_001;
 
 // transform は本文を書き換えて別の報にする（訓練の報など）。
-function decodeFixture(path: string, origin: "live" | "replay" | "recovery" = "replay", transform: (xml: string) => string = (xml) => xml): DecodedMaterial {
-  const headType = /(V[A-Z]{3}\d\d)/.exec(path)![1];
+function decodeFixture(path: string, origin: "live" | "replay" | "recovery" = "replay", transform: (xml: string) => string = (xml) => xml,
+  headType: string = /(V[A-Z]{3}\d\d)/.exec(path)![1]): DecodedMaterial {
   const entered = ingestXmlData({ inputId: `terminal-${path.replace(/\W/g, "")}`, inputSequence: 1, receivedAt: RECEIVED, origin,
     kind: "replay", body: Buffer.from(transform(readFileSync(`test/fixtures/${path}`, "utf8"))), headType });
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);

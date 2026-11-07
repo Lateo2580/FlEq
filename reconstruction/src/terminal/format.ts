@@ -67,8 +67,8 @@ const line = (...segs: Seg[]): Line => ({ segs });
 const segsWidth = (segs: readonly Seg[]): number => segs.reduce((total, part) => total + width(part.text), 0);
 const pad = (text: string, size: number): string => text + " ".repeat(Math.max(0, size - width(text)));
 
-// 行頭に置かない字（P3-TL-AC09）。次の行へ送る時は、行の最後の字をいっしょに送る。
-const NO_HEAD = "、。，．";
+// 行頭に置かない字（P3-TL-AC09、P3-TL6-AC04 (1)）。次の行へ送る時は、行末の NO_HEAD の字の続きの全部とその前の 1 字をいっしょに送る。
+const NO_HEAD = "、。，．）」』］】〉》)]！？ーぁぃぅぇぉっゃゅょァィゥェォッャュョ";
 // 字の境目で折り返し、2 行目から indent で字下げする（電文の文・ほかの行の止め、AC04 (4)(5)）。
 function wrapChars(segs: readonly Seg[], cols: number, indent: string): Seg[][] {
   const lead = width(indent) + 2 <= cols ? indent : "";
@@ -80,34 +80,37 @@ function wrapChars(segs: readonly Seg[], cols: number, indent: string): Seg[][] 
     else current.push(seg(char, role, bold));
     used += charWidth(char);
   };
-  // 行末の空白を捨てて最後の字を取り出す（行頭に句読点を置かないため次の行へ送る）。行の中身が lead だけになるなら取り出さない。
-  const popChar = (target: readonly Seg[], next: string): { rest: Seg[]; char: Seg } | null => {
-    const rest = [...target];
-    while (rest.length > 0) {
-      const tail = rest.at(-1)!, trimmed = tail.text.replace(/[ 　]+$/, "");
-      if (trimmed === "") rest.pop(); else { rest[rest.length - 1] = seg(trimmed, tail.role, tail.bold); break; }
+  // 行末の空白を捨て、NO_HEAD の字の続きの全部とその前の 1 字を取り出す（role と bold は字ごとに保つ）。
+  // 送った後の行（字下げ・送る字・next）が cols に入らないとき、行の中身が lead だけになるときは取り出さない。
+  // 無いと「…）。」で。の前に折るとき行頭に。が出る（続きの全部を送らないと、）だけ送って。が行頭に残る）。
+  const popChars = (target: readonly Seg[], next: string): { rest: Seg[]; chars: Seg[] } | null => {
+    const all = target.flatMap((part) => [...part.text].map((char) => seg(char, part.role, part.bold)));
+    while (all.length > 0 && /[ 　]/.test(all.at(-1)!.text)) all.pop();
+    let take = all.length;
+    while (take > 0 && (NO_HEAD.includes(all[take - 1].text) || /[ 　]/.test(all[take - 1].text))) take -= 1;
+    if (take > 0) take -= 1;
+    const chars = all.slice(take), rest: Seg[] = [];
+    for (const item of all.slice(0, take)) {
+      const last = rest.at(-1);
+      if (last != null && last.role === item.role && last.bold === item.bold) rest[rest.length - 1] = seg(last.text + item.text, item.role, item.bold);
+      else rest.push(item);
     }
-    const tail = rest.at(-1);
-    if (tail == null) return null;
-    const char = [...tail.text].at(-1)!, left = tail.text.slice(0, -char.length);
-    if (left === "") rest.pop(); else rest[rest.length - 1] = seg(left, tail.role, tail.bold);
-    // 送る字も句読点なら送らない。送った後の行（字下げ・送る字・句読点）が cols に入らなくても送らない。
-    return segsWidth(rest) > width(lead) && !NO_HEAD.includes(char) && width(lead) + charWidth(char) + charWidth(next) <= cols ? { rest, char: seg(char, tail.role, tail.bold) } : null;
+    return chars.length > 0 && segsWidth(rest) > width(lead) && width(lead) + segsWidth(chars) + charWidth(next) <= cols ? { rest, chars } : null;
   };
   for (const part of segs) for (const char of part.text) {
     const head = NO_HEAD.includes(char);
     if (used + charWidth(char) > cols && used > width(lead)) {
-      const carry = head ? popChar(current, char) : null;
+      const carry = head ? popChars(current, char) : null;
       if (carry != null) current = carry.rest;
       lines.push(current);
       current = lead === "" ? [] : [seg(lead)];
       used = width(lead);
-      if (carry != null) append(carry.char.text, carry.char.role, carry.char.bold);
+      if (carry != null) for (const item of carry.chars) append(item.text, item.role, item.bold);
       else if (char === " " || char === "　") continue;
     } else if (head && lines.length > 0 && used === width(lead)) {
       // 空白で折って捨てた直後の句読点: 前の行の最後の字を送る。
-      const carry = popChar(lines.at(-1)!, char);
-      if (carry != null) { lines[lines.length - 1] = carry.rest; append(carry.char.text, carry.char.role, carry.char.bold); }
+      const carry = popChars(lines.at(-1)!, char);
+      if (carry != null) { lines[lines.length - 1] = carry.rest; for (const item of carry.chars) append(item.text, item.role, item.bold); }
     }
     append(char, part.role, part.bold);
   }
