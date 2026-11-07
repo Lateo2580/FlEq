@@ -1248,7 +1248,7 @@ function writeSealed(path, object, field) {
 }
 const pathRef = (path) => (relative(REPO, path).startsWith("..") ? path : relative(REPO, path));
 const UF_NOTE = "ufNotWithinAllowance(別条件。試行単位は run-record の ufAllowance)";
-
+const fileSafe = (name) => name.replace(/:/g, "_"); // Windows は ":" を含む path を checkout できない。id と母集団名の ":" は意味のデータなので、file 名・dir 名を作るときだけ通す。
 // E01 の判定（summarizeP3E01 に渡した run を一度に判定する）。U-F が許容範囲を外れた正式 run は Pass を主張しない（AC01）。
 // assembled は e01-assembled.json の中身（rawDir・recordRef 付き）。無い run（Blocked・未実施）は summarizeP3E01 が Blocked（投入記録なし）として扱う。
 // EEW 同時の EEW の参考値（P3-C6-EEW-ORDER=A）: 正式の試行の全体（warm-up を外す）の分布と欠落の理由。試行別の値は run-record の eewReference。
@@ -1316,13 +1316,13 @@ function e01Window(spec, ctx) {
         return { status: "Blocked", reason: `stopCondition reached: ${result.stopped.reason} (attempts ${result.stopped.attempts}, established ${result.stopped.established})`, resultFiles: [] };
       }
       const run = judgeE01(ctx.manifest, [assembled]).runs.find((r) => r.population === spec.population && r.run === spec.run);
-      const file = join(w.dir, `result-${run.scope}-${run.population}-run${run.run}.json`);
+      const file = join(w.dir, fileSafe(`result-${run.scope}-${run.population}-run${run.run}.json`));
       writeSealed(file, { ...run, clockProbeIntervals: result.record.clockProbeIntervals }, "resultSha256");
       // AC15: publish の回数・配送 JSON byte・直列化時間を E01 の各窓でも PublishCostReport として報告する（E15 も同梱）。
       if (spec.tsunami != null) return { status: run.status, resultFiles: [file] };
       const reports = hostReportsOf(join(w.dir, "host-obs.jsonl"), id, result.placeOf);
       return { status: run.status, byteViolations: reports.byteViolations, byteViolationsNote: reports.byteViolationsNote,
-        resultFiles: [file, sealAux(w.dir, `aux-${id}.json`, ctx.manifest, { window: id, status: run.status, ...reports })] };
+        resultFiles: [file, sealAux(w.dir, fileSafe(`aux-${id}.json`), ctx.manifest, { window: id, status: run.status, ...reports })] };
     },
   };
 }
@@ -1354,7 +1354,7 @@ export function readRawJson(w, file) {
 }
 
 // ── 窓ループ（WP3c §2） ──
-const windowName = (id, attempt) => (attempt === 1 ? id : `${id}-attempt${attempt}`);
+const windowName = (id, attempt) => fileSafe(attempt === 1 ? id : `${id}-attempt${attempt}`);
 // 窓記録は manifest ごとの dir に置き、manifestSha256 が一致するものだけを読む（別 manifest の記録を合算・再実行判定に混ぜない）。
 const readWindowRecords = (dir, manifestSha256) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8"))).filter((r) => r.manifestSha256 === manifestSha256) : []);
@@ -1795,7 +1795,7 @@ async function main(argv) {
     current = scope;
     let result;
     try {
-      result = await executeRun(spec, { ...ctxFor(spec), scope }, join(outDir, `${spec.population}-run${spec.run}`));
+      result = await executeRun(spec, { ...ctxFor(spec), scope }, join(outDir, fileSafe(`${spec.population}-run${spec.run}`)));
     } finally {
       await scope.close();
       current = root;

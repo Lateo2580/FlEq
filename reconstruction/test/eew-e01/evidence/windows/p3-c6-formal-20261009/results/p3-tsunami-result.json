@@ -2,7 +2,7 @@
   "schemaVersion": "p3-c6-result-v1",
   "manifestId": "p3-c6-formal-20261009",
   "manifestSha256": "416d23a5928c8e9ddeb00531a4837505d2179270c7905c1def08bf5093e35e59",
-  "resultSha256": "26f67de40ca7d2bcb7e4b08fcf1ff4bb4ee527d977b7041e85e5bb6a102f187f",
+  "resultSha256": "33fa4803bd3b904ee284aeb5dc09f23e2ac7e88c0d76a24d3c40ab203b401acf",
   "e01": {
     "verdict": {
       "label": "P3 tsunami E01",
@@ -260,7 +260,7 @@
         "maxLowerMs": 59.29533306425437,
         "maxUpperMs": 59.871542025264354,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_fixedBacklog-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run1/e01-assembled.json"
         ]
@@ -334,7 +334,7 @@
         "maxLowerMs": 56.46812502222601,
         "maxUpperMs": 57.02191697435919,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_fixedBacklog-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2/e01-assembled.json"
         ]
@@ -408,7 +408,7 @@
         "maxLowerMs": 55.567625057860276,
         "maxUpperMs": 56.18737598673906,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_fixedBacklog-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3/e01-assembled.json"
         ]
@@ -482,7 +482,7 @@
         "maxLowerMs": 45.93991595469415,
         "maxUpperMs": 46.97591597996652,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxVpws50ParseStarted-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run1/e01-assembled.json"
         ]
@@ -556,7 +556,7 @@
         "maxLowerMs": 45.73695901953615,
         "maxUpperMs": 46.85104202353396,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxVpws50ParseStarted-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2/e01-assembled.json"
         ]
@@ -630,7 +630,7 @@
         "maxLowerMs": 45.06645799484104,
         "maxUpperMs": 46.088374932669105,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxVpws50ParseStarted-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3/e01-assembled.json"
         ]
@@ -704,7 +704,7 @@
         "maxLowerMs": 57.48187606045976,
         "maxUpperMs": 58.543042060825975,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxWeatherCheckpointEncodeStarted-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run1/e01-assembled.json"
         ]
@@ -778,7 +778,7 @@
         "maxLowerMs": 58.91979205966927,
         "maxUpperMs": 59.73541607023217,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxWeatherCheckpointEncodeStarted-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run2/e01-assembled.json"
         ]
@@ -852,7 +852,7 @@
         "maxLowerMs": 57.636208058777264,
         "maxUpperMs": 58.25783397096675,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxWeatherCheckpointEncodeStarted-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run3/e01-assembled.json"
         ]
@@ -926,7 +926,7 @@
         "maxLowerMs": 67.71462401727914,
         "maxUpperMs": 68.31920794824836,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_eewTogether-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run1/e01-assembled.json"
         ]
@@ -1000,7 +1000,7 @@
         "maxLowerMs": 65.69812501760899,
         "maxUpperMs": 66.24637498947558,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_eewTogether-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run2/e01-assembled.json"
         ]
@@ -1074,7 +1074,7 @@
         "maxLowerMs": 63.806792058376594,
         "maxUpperMs": 64.58941704235039,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_eewTogether-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run3/e01-assembled.json"
         ]
@@ -1139,7 +1139,7 @@
         "maxLowerMs": 47.75120801918674,
         "maxUpperMs": 48.23045893900562,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_fixedBacklog-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1/e01-assembled.json"
         ]
@@ -1204,7 +1204,7 @@
         "maxLowerMs": 51.18120793646667,
         "maxUpperMs": 51.66887497252319,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_fixedBacklog-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run2/e01-assembled.json"
         ]
@@ -1269,7 +1269,7 @@
         "maxLowerMs": 51.27662603612989,
         "maxUpperMs": 51.830501017533244,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_fixedBacklog-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run3/e01-assembled.json"
         ]
@@ -1334,7 +1334,7 @@
         "maxLowerMs": 42.41799893402494,
         "maxUpperMs": 43.18304205769673,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxVpws50ParseStarted-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1/e01-assembled.json"
         ]
@@ -1399,7 +1399,7 @@
         "maxLowerMs": 43.23312499755993,
         "maxUpperMs": 43.93974993461743,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxVpws50ParseStarted-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run2/e01-assembled.json"
         ]
@@ -1464,7 +1464,7 @@
         "maxLowerMs": 43.94491701256484,
         "maxUpperMs": 44.740457953326406,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxVpws50ParseStarted-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3/e01-assembled.json"
         ]
@@ -1529,7 +1529,7 @@
         "maxLowerMs": 42.97479191641323,
         "maxUpperMs": 43.532332881493495,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxWeatherCheckpointEncodeStarted-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run1/e01-assembled.json"
         ]
@@ -1594,7 +1594,7 @@
         "maxLowerMs": 43.18879208047874,
         "maxUpperMs": 43.71687505920418,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxWeatherCheckpointEncodeStarted-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2/e01-assembled.json"
         ]
@@ -1659,7 +1659,7 @@
         "maxLowerMs": 43.94116601566784,
         "maxUpperMs": 44.89174990276806,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxWeatherCheckpointEncodeStarted-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run3/e01-assembled.json"
         ]
@@ -1724,7 +1724,7 @@
         "maxLowerMs": 53.71699999986449,
         "maxUpperMs": 54.310999039991295,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:eewTogether-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_eewTogether-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run1/e01-assembled.json"
         ]
@@ -1789,7 +1789,7 @@
         "maxLowerMs": 53.40212503271177,
         "maxUpperMs": 53.92575000124052,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:eewTogether-run2.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_eewTogether-run2.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run2/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run2/e01-assembled.json"
         ]
@@ -1854,7 +1854,7 @@
         "maxLowerMs": 60.52962504150346,
         "maxUpperMs": 61.4325830292888,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:eewTogether-run3.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_eewTogether-run3.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run3/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run3/e01-assembled.json"
         ]
@@ -1986,8 +1986,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:eewTogether-run1.json",
-          "sha256": "7522185b983d23fa8744c9c916120352eed13118b7f38b5c9a95741782717820"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_eewTogether-run1.json",
+          "sha256": "d8a8c06ed0ad35eaac3a1ade069e0c1dd68e7ede8af459729d3d0af0d371ea28"
         }
       ],
       "liveness": {
@@ -2108,8 +2108,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:eewTogether-run2.json",
-          "sha256": "a470f8425e8c490d79ed740f5ee1af92817517337147556b43043a3464f949b8"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_eewTogether-run2.json",
+          "sha256": "af689e42eab2040baf05c25196fad4e6d90d207fab31faceff6bd1a23646d4f1"
         }
       ],
       "liveness": {
@@ -2230,8 +2230,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:eewTogether-run3.json",
-          "sha256": "670bc613009c6fbe619742aff509b285a55393e837a2c5d06522bab0134ca903"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_eewTogether-run3.json",
+          "sha256": "c3822b25950d6956a2e5d6af5970567f7f45011509817287104abaa7bea8f389"
         }
       ],
       "liveness": {
@@ -2352,8 +2352,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:fixedBacklog-run1.json",
-          "sha256": "0aa34d6217ea8a1a52e878671fec66bba723c8515df735dd4f21403adf06632d"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_fixedBacklog-run1.json",
+          "sha256": "5f20bb1bfc48a3c58e7accb95dbe15bb7227778d0d71efce39a1058c201bcee3"
         }
       ],
       "liveness": {
@@ -2474,8 +2474,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:fixedBacklog-run2.json",
-          "sha256": "552cf966adbc8c0eff15992a6e96e61c67ea37958fbc62457acdf8cbb3cbe144"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_fixedBacklog-run2.json",
+          "sha256": "0a600266ea28004483427a86722330fc3de4b6af606b33cba3522d3114fb07a2"
         }
       ],
       "liveness": {
@@ -2596,8 +2596,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:fixedBacklog-run3.json",
-          "sha256": "efecbfff3f7c87b81a0069e37905c7bc74c2f930bf886011cd9d03023e744e4d"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_fixedBacklog-run3.json",
+          "sha256": "617dc169f6a63926e06f4966118c6f6d60d0307e19ff00d74b9ec6255ad5ebb4"
         }
       ],
       "liveness": {
@@ -2718,8 +2718,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxVpws50ParseStarted-run1.json",
-          "sha256": "fdd8b9ba9d337e1d3517f365956a28ab8b190c129fcbe625df0a59f3801c6682"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_maxVpws50ParseStarted-run1.json",
+          "sha256": "53f6c90d297415254ae11cee29203005cbd87364efc95ebdfc4757e4fb5e08b6"
         }
       ],
       "liveness": {
@@ -2865,8 +2865,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxVpws50ParseStarted-run2.json",
-          "sha256": "b497a38672cc3d92566472635f16d99106f2a65af7c4077edcdee347ad1f6f25"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_maxVpws50ParseStarted-run2.json",
+          "sha256": "88b045c4aa4e7225427d3fb8316526e0d35096e4b7ffbf3667508302855449c6"
         }
       ],
       "liveness": {
@@ -3012,8 +3012,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxVpws50ParseStarted-run3.json",
-          "sha256": "b9b0986539250ee02f6b6a5c1ae9602aef1b6d05a05a12deb053dc7d16bc8633"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_maxVpws50ParseStarted-run3.json",
+          "sha256": "8922fb4ac58f488fdcda02bb3636481ec2413967ae5b34a660d5fa720752a53f"
         }
       ],
       "liveness": {
@@ -3159,8 +3159,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxWeatherCheckpointEncodeStarted-run1.json",
-          "sha256": "8c34061f004145a097428f160b94b1773a60b6f645a45a13d1be3dee0221ee1f"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_maxWeatherCheckpointEncodeStarted-run1.json",
+          "sha256": "3bd1d43ed7d5333bfe35f53367b517935b1b6ed3c5d041e033d29e732d9335d2"
         }
       ],
       "liveness": {
@@ -3291,8 +3291,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxWeatherCheckpointEncodeStarted-run2.json",
-          "sha256": "621c7eb23dd392615eb13aabbd19f9b67b293552902c3011e693f143fa2cce86"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_maxWeatherCheckpointEncodeStarted-run2.json",
+          "sha256": "b1a374523a618dc85f7668b65f0bb97679ef535b2bb025cb66ecffe7b5aa1081"
         }
       ],
       "liveness": {
@@ -3423,8 +3423,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation:maxWeatherCheckpointEncodeStarted-run3.json",
-          "sha256": "904f34b90977cad8bee650defe301ae36ba9bb021fa29868bf3a78b1b8f93f48"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-deescalation_maxWeatherCheckpointEncodeStarted-run3.json",
+          "sha256": "fb2d2445d67e6f07c8b711f32041f05a7a5a683020d89239f1a9006e4195022f"
         }
       ],
       "liveness": {
@@ -3555,8 +3555,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:eewTogether-run1.json",
-          "sha256": "3c600244b2cd9b640ce802bc631cc1d3d8d72bc3195aa5046806bb1fafe2197b"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_eewTogether-run1.json",
+          "sha256": "89546113e3be857ce5463ad55981292fc59bf4cf544b7e8ab4b1b14d390ec5ff"
         }
       ],
       "liveness": {
@@ -3677,8 +3677,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:eewTogether-run2.json",
-          "sha256": "a4add64a39a5bc96ce9b2a2948490c0f8028eaf8fe9ae303b966c54475d8b2f0"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_eewTogether-run2.json",
+          "sha256": "552e00af3e98e55d79c3c76e623357dfd6df4ea69544d8130160cd4acaf26815"
         }
       ],
       "liveness": {
@@ -3799,8 +3799,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:eewTogether-run3.json",
-          "sha256": "145a498f3e366ddb6333ad50a2c2c5efed25cbd7ef3024586d3a3073b920c62f"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_eewTogether-run3.json",
+          "sha256": "d06f7db8f8fac6f628a01ab43c883a35540ac891ae2310afed5c756a5bfdf889"
         }
       ],
       "liveness": {
@@ -3921,8 +3921,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:fixedBacklog-run1.json",
-          "sha256": "2410d14b80df904f9b44dc0fd93578b74670e679fb13f0134e96acd070815988"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_fixedBacklog-run1.json",
+          "sha256": "8cce34b8295ab04f913fe75f5b0fbff17eda81686ba99f1cf9ccfdaaef854b32"
         }
       ],
       "liveness": {
@@ -4043,8 +4043,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:fixedBacklog-run2.json",
-          "sha256": "a3ff1a800d2b690e4659992e69475f9745d4fb257c781660569c29767ea0f036"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_fixedBacklog-run2.json",
+          "sha256": "1018f375a94065624a839991c30dfac57afe6335357d19e2147c2c87888240f6"
         }
       ],
       "liveness": {
@@ -4165,8 +4165,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:fixedBacklog-run3.json",
-          "sha256": "0e810f7b7ca09a30ec4f64aebb75163447e8847b25f88aa02b4e3d083dd2edf6"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_fixedBacklog-run3.json",
+          "sha256": "fcc50dc97293735ccc8d78e1ea607cc7c786dbabbd728403f3ff89f7a637a6b0"
         }
       ],
       "liveness": {
@@ -4287,8 +4287,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxVpws50ParseStarted-run1.json",
-          "sha256": "e26c3c42f4b9fde9364ccc6559bac25256a977ea7e652406b9824f6f7aeeaee4"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_maxVpws50ParseStarted-run1.json",
+          "sha256": "5a9394b6852cd350d24a45abee71be626b130f6b692888e3006dfdda215c1182"
         }
       ],
       "liveness": {
@@ -4454,8 +4454,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxVpws50ParseStarted-run2.json",
-          "sha256": "74402efa294be01525e578f3c9ce3380b07043c59af094d4bf6824b717b17aa3"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_maxVpws50ParseStarted-run2.json",
+          "sha256": "9059d99d7accfea6f7bab7d16f78c1ccd12da409fe6acf5c91071408e2183f30"
         }
       ],
       "liveness": {
@@ -4621,8 +4621,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxVpws50ParseStarted-run3.json",
-          "sha256": "6b9159d278b5d3e425401ec3f98159875e149af78ff7485b5f8247a86fea57ef"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_maxVpws50ParseStarted-run3.json",
+          "sha256": "401ac958753de8ad8e134ba41419f043537ee5506163fb18b3e0cafc0b94ca4e"
         }
       ],
       "liveness": {
@@ -4793,8 +4793,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxWeatherCheckpointEncodeStarted-run1.json",
-          "sha256": "a4311791ab109c74538f29c12f1d1106f9045f7396303b3876700dd307df9362"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_maxWeatherCheckpointEncodeStarted-run1.json",
+          "sha256": "855fd01ffa6c8f8bd6104d48d8e4a00b7b0b2a1c106f0956def28f8e53d40940"
         }
       ],
       "liveness": {
@@ -4930,8 +4930,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxWeatherCheckpointEncodeStarted-run2.json",
-          "sha256": "b3896fb90ee634d7aa68371ac92d5790d37c09dd28c607cf9fbd3690fb1faf0b"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_maxWeatherCheckpointEncodeStarted-run2.json",
+          "sha256": "d5bfa20085c7639e8ce4cf0b9ac7a1d2f716c90fcf9510277fc7acf5012f7084"
         }
       ],
       "liveness": {
@@ -5067,8 +5067,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation:maxWeatherCheckpointEncodeStarted-run3.json",
-          "sha256": "944c5bdbccca27d3874a1bbabea8c42c04109da718a3bc09c1024a29a84fe323"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/results/result-formal-escalation_maxWeatherCheckpointEncodeStarted-run3.json",
+          "sha256": "4844d2f532740648e85a3a59d293788ae908384b84d8a0d584ad125e8a489523"
         }
       ],
       "liveness": {

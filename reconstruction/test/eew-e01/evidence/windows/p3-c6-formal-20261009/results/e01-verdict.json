@@ -255,7 +255,7 @@
       "maxLowerMs": 59.29533306425437,
       "maxUpperMs": 59.871542025264354,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_fixedBacklog-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run1/e01-assembled.json"
       ]
@@ -329,7 +329,7 @@
       "maxLowerMs": 56.46812502222601,
       "maxUpperMs": 57.02191697435919,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_fixedBacklog-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run2/e01-assembled.json"
       ]
@@ -403,7 +403,7 @@
       "maxLowerMs": 55.567625057860276,
       "maxUpperMs": 56.18737598673906,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_fixedBacklog-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:fixedBacklog-run3/e01-assembled.json"
       ]
@@ -477,7 +477,7 @@
       "maxLowerMs": 45.93991595469415,
       "maxUpperMs": 46.97591597996652,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxVpws50ParseStarted-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run1/e01-assembled.json"
       ]
@@ -551,7 +551,7 @@
       "maxLowerMs": 45.73695901953615,
       "maxUpperMs": 46.85104202353396,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxVpws50ParseStarted-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run2/e01-assembled.json"
       ]
@@ -625,7 +625,7 @@
       "maxLowerMs": 45.06645799484104,
       "maxUpperMs": 46.088374932669105,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxVpws50ParseStarted-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxVpws50ParseStarted-run3/e01-assembled.json"
       ]
@@ -699,7 +699,7 @@
       "maxLowerMs": 57.48187606045976,
       "maxUpperMs": 58.543042060825975,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxWeatherCheckpointEncodeStarted-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run1/e01-assembled.json"
       ]
@@ -773,7 +773,7 @@
       "maxLowerMs": 58.91979205966927,
       "maxUpperMs": 59.73541607023217,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxWeatherCheckpointEncodeStarted-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run2/e01-assembled.json"
       ]
@@ -847,7 +847,7 @@
       "maxLowerMs": 57.636208058777264,
       "maxUpperMs": 58.25783397096675,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_maxWeatherCheckpointEncodeStarted-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:maxWeatherCheckpointEncodeStarted-run3/e01-assembled.json"
       ]
@@ -921,7 +921,7 @@
       "maxLowerMs": 67.71462401727914,
       "maxUpperMs": 68.31920794824836,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_eewTogether-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run1/e01-assembled.json"
       ]
@@ -995,7 +995,7 @@
       "maxLowerMs": 65.69812501760899,
       "maxUpperMs": 66.24637498947558,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_eewTogether-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run2/e01-assembled.json"
       ]
@@ -1069,7 +1069,7 @@
       "maxLowerMs": 63.806792058376594,
       "maxUpperMs": 64.58941704235039,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation:eewTogether-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-escalation_eewTogether-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-escalation:eewTogether-run3/e01-assembled.json"
       ]
@@ -1134,7 +1134,7 @@
       "maxLowerMs": 47.75120801918674,
       "maxUpperMs": 48.23045893900562,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_fixedBacklog-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run1/e01-assembled.json"
       ]
@@ -1199,7 +1199,7 @@
       "maxLowerMs": 51.18120793646667,
       "maxUpperMs": 51.66887497252319,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_fixedBacklog-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run2/e01-assembled.json"
       ]
@@ -1264,7 +1264,7 @@
       "maxLowerMs": 51.27662603612989,
       "maxUpperMs": 51.830501017533244,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_fixedBacklog-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:fixedBacklog-run3/e01-assembled.json"
       ]
@@ -1329,7 +1329,7 @@
       "maxLowerMs": 42.41799893402494,
       "maxUpperMs": 43.18304205769673,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxVpws50ParseStarted-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run1/e01-assembled.json"
       ]
@@ -1394,7 +1394,7 @@
       "maxLowerMs": 43.23312499755993,
       "maxUpperMs": 43.93974993461743,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxVpws50ParseStarted-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run2/e01-assembled.json"
       ]
@@ -1459,7 +1459,7 @@
       "maxLowerMs": 43.94491701256484,
       "maxUpperMs": 44.740457953326406,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxVpws50ParseStarted-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxVpws50ParseStarted-run3/e01-assembled.json"
       ]
@@ -1524,7 +1524,7 @@
       "maxLowerMs": 42.97479191641323,
       "maxUpperMs": 43.532332881493495,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxWeatherCheckpointEncodeStarted-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run1/e01-assembled.json"
       ]
@@ -1589,7 +1589,7 @@
       "maxLowerMs": 43.18879208047874,
       "maxUpperMs": 43.71687505920418,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxWeatherCheckpointEncodeStarted-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run2/e01-assembled.json"
       ]
@@ -1654,7 +1654,7 @@
       "maxLowerMs": 43.94116601566784,
       "maxUpperMs": 44.89174990276806,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_maxWeatherCheckpointEncodeStarted-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:maxWeatherCheckpointEncodeStarted-run3/e01-assembled.json"
       ]
@@ -1719,7 +1719,7 @@
       "maxLowerMs": 53.71699999986449,
       "maxUpperMs": 54.310999039991295,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:eewTogether-run1.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_eewTogether-run1.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run1/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run1/e01-assembled.json"
       ]
@@ -1784,7 +1784,7 @@
       "maxLowerMs": 53.40212503271177,
       "maxUpperMs": 53.92575000124052,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:eewTogether-run2.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_eewTogether-run2.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run2/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run2/e01-assembled.json"
       ]
@@ -1849,7 +1849,7 @@
       "maxLowerMs": 60.52962504150346,
       "maxUpperMs": 61.4325830292888,
       "evidenceRefs": [
-        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation:eewTogether-run3.json",
+        "reconstruction/test/eew-e01/evidence/windows/p3-c6-formal-20261009/e01-deescalation_eewTogether-run3.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run3/run-record.json",
         "/Users/tallplain/dev/fleq-a10-runs/p3-c6-formal-20261009/e01-deescalation:eewTogether-run3/e01-assembled.json"
       ]

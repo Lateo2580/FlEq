@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -200,4 +200,11 @@ describe("P3-PH-AC02 remote openPage (品質レビュー P2-1・P2-2 の再現)"
     const cdp = await mockCdp({ upgrade: false });
     await expect(openPage("http://127.0.0.1/", null, { cdp: cdp.endpoint })).rejects.toThrow("Opening handshake has timed out");
   }, 45_000);
+});
+
+describe("Windows の checkout", () => {
+  // 実不具合（2026-10-29 の試しの workflow、run 40799545140）: ":" を含む path が 1 つでもあると Windows の git checkout が落ちる。
+  it("evidence の file 名・dir 名に ':' が無い", () => {
+    expect(readdirSync("reconstruction/test/eew-e01/evidence", { recursive: true }).filter((path) => String(path).includes(":"))).toEqual([]);
+  });
 });

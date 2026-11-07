@@ -2,7 +2,7 @@
   "schemaVersion": "p3-c6-result-v1",
   "manifestId": "p3-th-e01t-20261027",
   "manifestSha256": "c3ae6e01f1003199a40c32fe7f5037228960229502cb62c8b95e51f5f5550946",
-  "resultSha256": "339bccc7a73b888a2e667587c4dde00da1213ae23ad7a4935a49c628a5672496",
+  "resultSha256": "291fb1d2dad3db792de93eadd113313da74bf8ccab59afed7e34befa85c3d983",
   "e01": {
     "verdict": {
       "label": "P3 tsunami E01",
@@ -1054,7 +1054,7 @@
         "maxLowerMs": 60.17016601432115,
         "maxUpperMs": 60.62662501204759,
         "evidenceRefs": [
-          "reconstruction/test/eew-e01/evidence/windows/p3-th-e01t-20261027/e01-escalation:maxVxse53Received-run1.json",
+          "reconstruction/test/eew-e01/evidence/windows/p3-th-e01t-20261027/e01-escalation_maxVxse53Received-run1.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-th-e01t-20261027/e01-escalation:maxVxse53Received-run1/run-record.json",
           "/Users/tallplain/dev/fleq-a10-runs/p3-th-e01t-20261027/e01-escalation:maxVxse53Received-run1/e01-assembled.json"
         ]
@@ -1107,8 +1107,8 @@
       "status": "Pass",
       "resultFiles": [
         {
-          "path": "reconstruction/test/eew-e01/evidence/windows/p3-th-e01t-20261027/results/result-reference-escalation:maxVxse53Received-run1.json",
-          "sha256": "f3a6ba3f88439d5f9f936d8c8745515cf36117090bc85915994264fc2680a114"
+          "path": "reconstruction/test/eew-e01/evidence/windows/p3-th-e01t-20261027/results/result-reference-escalation_maxVxse53Received-run1.json",
+          "sha256": "f4791d3dfacaa65365923b9978efbb6374894dd831737567b4d66976c3b5604f"
         }
       ],
       "liveness": {
