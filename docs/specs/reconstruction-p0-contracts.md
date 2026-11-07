@@ -134,7 +134,7 @@ J1〜J3、津波 T1〜T3・片側への集約、見出し帯 48px、snapshot 超
 
 「シンプルで堅牢」「型で守る」「足す前に引く」を適用する。この checkout の `CLAUDE.md` に後二者の本文がないことは、適用しない理由にならない。
 
-根拠: `agenda-v2.md:32`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）、`plan-hertz.md:11`（Vault To-Claude/2026-09-10-Astra_Codex_max_reconstruction.md）、`CLAUDE.md:35`。
+根拠: `agenda-v2.md:32`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）、`plan-hertz.md:11`（Vault To-Claude/Archive/2026-09-10-Astra_Codex_max_reconstruction.md）、`CLAUDE.md:35`。
 
 ### 1.2 再構成範囲
 
@@ -167,7 +167,7 @@ J1〜J3、津波 T1〜T3・片側への集約、見出し帯 48px、snapshot 超
 - 最初の display 検収端末は開発機の Chrome。Pi にブラウザを追加することは本 spec の前提にしない。
 - Q5 は未決のまま保持する。Q7 は 2026-09-14 に裁定済み（§11）。
 
-根拠: `agenda-v2.md:36`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）、`agenda-v2.md:106`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）。
+根拠: `agenda-v2.md:36`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）、`agenda-v2.md:106`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）。
 
 ### 1.4 非目標
 
@@ -322,7 +322,7 @@ J1-B では、次の追加負担を受け入れる。
 - 意味モジュールは純関数群だ。状態参照の交換は runtime だけが行う。
 - 保存単位内の複数モジュールを、別 owner の同期問題にしない。
 
-根拠: `plan-hertz.md:46`（Vault To-Claude/2026-09-10-Astra_Codex_max_reconstruction.md）、`plan-chatgpt.md:126`（Vault To-Claude/FlEq_Reconstruction_Simple_Robust_2026-09-10.md）、`agenda-v2.md:253`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）。
+根拠: `plan-hertz.md:46`（Vault To-Claude/Archive/2026-09-10-Astra_Codex_max_reconstruction.md）、`plan-chatgpt.md:126`（Vault To-Claude/Archive/FlEq_Reconstruction_Simple_Robust_2026-09-10.md）、`agenda-v2.md:253`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）。
 
 ### 3.2 共通の公開契約
 
@@ -1750,7 +1750,7 @@ LOD の選定は次を満たす。
 
 旧築と一致しただけでは合格ではない。新築の出力をそのままgoldenへ保存して正解を作ることも禁止する。
 
-根拠: `plan-chatgpt.md:513`（Vault To-Claude/FlEq_Reconstruction_Simple_Robust_2026-09-10.md）。
+根拠: `plan-chatgpt.md:513`（Vault To-Claude/Archive/FlEq_Reconstruction_Simple_Robust_2026-09-10.md）。
 
 ### 9.2 比較単位
 
@@ -1965,7 +1965,7 @@ hash一致は、このcheckoutのbytesを固定する証拠だ。配信原本で
 
 `phase0-manifest.ts` の `source` 表記は39件で、repo28・weathercw7・synthetic4だった。全236 XMLの来歴表ではない。
 
-根拠: `test/engine/telegram-foundation/phase0-manifest.ts:82`、`test/engine/telegram-foundation/phase0-manifest.ts:584`、`agenda-v2.md:208`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）。
+根拠: `test/engine/telegram-foundation/phase0-manifest.ts:82`、`test/engine/telegram-foundation/phase0-manifest.ts:584`、`agenda-v2.md:208`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）。
 
 ### 9.7 旧テストの移植
 
@@ -2431,7 +2431,7 @@ areaCount, tsunamiKinds
 - 最新overlayの差分全体。
 - 新築と組み合わせた実性能。
 
-根拠: `agenda-v2.md:207`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）。
+根拠: `agenda-v2.md:207`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）。
 
 ### 12.2 main の拡張点と公開結果
 
@@ -2641,7 +2641,7 @@ P1を最初の費用測定単位にする。
 
 一工程のtokenだけで1サイクルの費用としない。P1の実費からP3以降の係数を更新する。両案のLOC見積もりの平均を、確定費用へ置き換えない。
 
-根拠: `agenda-v2.md:162`（Vault Artifacts/2026-09-10-fleq-reconstruction-agenda-v2.md）。
+根拠: `agenda-v2.md:162`（Vault Artifacts/FlEq/資料/2026-09-10-fleq-reconstruction-agenda-v2.md）。
 
 ### 13.3 一保存単位を閉じる条件
 
@@ -2834,7 +2834,7 @@ read-only契約でgit禁止なら実行しない。
 配送・公開・統合は、その作業契約で明示された担当が行う。
 ````
 
-停止条件の出典: `plan-chatgpt.md:841`（Vault To-Claude/FlEq_Reconstruction_Simple_Robust_2026-09-10.md）。四点の出典: `plan-hertz.md:40`（Vault To-Claude/2026-09-10-Astra_Codex_max_reconstruction.md）。
+停止条件の出典: `plan-chatgpt.md:841`（Vault To-Claude/Archive/FlEq_Reconstruction_Simple_Robust_2026-09-10.md）。四点の出典: `plan-hertz.md:40`（Vault To-Claude/Archive/2026-09-10-Astra_Codex_max_reconstruction.md）。
 
 ### 14.1 作業契約の型
 
