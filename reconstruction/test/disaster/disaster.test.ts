@@ -244,9 +244,9 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     const t0 = Date.parse("2026-06-26T00:00:00+09:00");
     const frames = synthesize("N1", 1, { t0Ms: t0 });
     const quake = Buffer.from(frames.filter((item) => item.headType === "VXSE53").reduce((a, b) => b.body.byteLength > a.body.byteLength ? b : a).body).toString("utf8");
-    const forecast = Buffer.from(frames.find((item) => item.headType === "VTSE41")!.body).toString("utf8");
+    const forecast = Buffer.from(frames.find((item) => item.headType === "VTSE41")!.body).toString("utf8").replace(/<Comments>[\s\S]*?<\/Comments>/, "");
     const swap = (xml: string, index: number) => xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${20260626000100 + index}</EventID>`);
-    // U-Q の view 3 件（1 件約 330 KB）と U-T の view 4 件（1 件約 20 KB、計 64 KiB 超）で全体が 1 MiB を越える。
+    // U-Q の view 3 件（1 件約 330 KB）と U-T の view 4 件（1 件約 20 KB、計 64 KiB 超）で全体が 1 MiB を越える。警告の文（1 件 1,718 byte、P3-VAT-AC04）は抜く。あると 3 件目の U-Q で天気の分を含めた total だけが 1 MiB を越える。
     const inputs = [0, 1, 2, 3].flatMap((index) => [...index < 3 ? [frame(t0 + index * MINUTE, "VXSE53", swap(quake, index))] : [],
       frame(t0 + index * MINUTE + 1_000, "VTSE41", swap(forecast, index))]);
     const { result } = await runStage1(ready("T09a", inputs, t0 + 10 * MINUTE));
