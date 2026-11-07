@@ -4,7 +4,7 @@ import { Worker } from "node:worker_threads";
 
 import chalk from "chalk";
 
-import type { ClockReading, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, RuntimeUnitId, RuntimeUnitView } from "../../contracts/p2-shared-runtime.types";
 import type { EewLogField, HostCommandPort, HostStatus } from "../../contracts/p3-cli-repl.types";
 import type { DmdataConnectFailure } from "../../contracts/p3-dmdata-connect.types";
 import type { OwnerReply } from "../../contracts/p3-execution-split.types";
@@ -17,6 +17,8 @@ import { colorLevel } from "./color";
 import { createEewLog } from "./eew-log";
 import { intensityLabel, intensityRank, localClock } from "./format";
 import type { SummaryCounts, TerminalBatch, TerminalNotice, TerminalUnit } from "./format";
+import { currentItems, promptFrame } from "./prompt-current";
+import type { PromptItem, PromptMirror } from "./prompt-current";
 import { createTipShuffler } from "./tips";
 import { checkForUpdate } from "./update-check";
 import type { UpdateCheck } from "./update-check";
@@ -32,7 +34,8 @@ const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
 
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
-type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; digest(view: RecoveryDigestView | null): void }>;
+// mirror は参照を置き換えるだけ（P3-TP-AC06 (3)）。項目は promptLabel の中で作る。
+type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void }>;
 // AC02 (5): 試験で差し替える writer。done を呼ぶまで次を送らない。
 type TerminalWriter = (batch: TerminalBatch, done: () => void) => void;
 type TerminalOutput = Readonly<{
@@ -273,6 +276,10 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     if (tipMs > 0 && now.monotonicMs - lastOutputMs >= tipMs) notice({ kind: "tip", text: tips.next() });
   };
 
+  // ---- 入力の行の現況（P3-TERMINAL-PROMPT-001）: 最新の mirror の参照と、それから作った項目。受信の数によらず promptLabel の回数でだけ作り直す ----
+  let mirror: PromptMirror | null = null, itemsMirror: PromptMirror | null = null, items: readonly string[] = [];
+  const itemMemo = new WeakMap<RuntimeUnitView, readonly PromptItem[]>();
+
   const eewLog = options.eewLog == null ? null : createEewLog({ ...options.eewLog, clock });
   const control: TerminalControl = {
     // 次の区切りから効く。止まっている間に入れたら今から数え始める。
@@ -309,13 +316,19 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       if (status == null) return "FlEq> ";
       const now = clock(), mute = settings?.mute;
       const muted = settings != null && mute != null && muteActive(settings, now.monotonicMs);
-      if (down) return `FlEq [${lostFrom == null ? "--:--:--" : localClock(lostFrom)} から 切断中・${muted ? "ミュート中" : `繋ぎ直し ${status.failedAttempts} 回目`}]> `;
+      if (mirror != null && mirror !== itemsMirror) { itemsMirror = mirror; items = currentItems(mirror, itemMemo); }
+      const columns = process.stdout.columns || 80;
+      if (down) {
+        const from = lostFrom == null ? "--:--:--" : localClock(lostFrom), state = muted ? "ミュート中" : `繋ぎ直し ${status.failedAttempts} 回目`;
+        return promptFrame(items, { full: `${from} から 切断中・${state}`, narrow: "切断中", spare: `切断中 ${from} から・${state}`, bare: null }, columns, now.wallTimeMs);
+      }
       const until = muted && mute.endsAtMonotonicMs != null ? ` ${localClock(now.wallTimeMs + (mute.endsAtMonotonicMs - now.monotonicMs)).slice(0, 5)} まで` : "";
       const mark = muted ? ` ミュート中${mute.rules.length > 0 ? "（条件つき）" : ""}${until}` : "";
       const connected = status.connection === "connected";
-      if (mode === "uptime") return `FlEq [${connected ? "●" : "○"} ${uptime(process.uptime() * 1000)}${mark}]> `;
-      if (!connected && !received) return `FlEq [○ --:--:--${mark}]> `;
-      return `FlEq [● ${mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs))}${mark}]> `;
+      const dot = connected || (mode !== "uptime" && received) ? "●" : "○";
+      const time = mode === "uptime" ? uptime(process.uptime() * 1000) : dot === "○" ? "--:--:--"
+        : mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs));
+      return promptFrame(items, { full: `${dot} ${time}${mark}`, narrow: `${dot} ${time}`, spare: muted ? `${dot} ${time}${mark}` : null, bare: dot }, columns, now.wallTimeMs);
     },
   };
 
@@ -366,7 +379,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       if (digestShown || view == null) return;
       digestShown = true;
       notice({ kind: "digest", digest: view });
-    } },
+    }, mirror(views) { mirror = views; } },
     output,
     control,
     line: (text) => { push({ kind: "line", text }); },

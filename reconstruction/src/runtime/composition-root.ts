@@ -143,7 +143,7 @@ type CompositionOptions = Readonly<{
     publish: (snapshot: DisplaySnapshot) => void;
     onMarker?: (marker: Readonly<{ point: "T3"; clock: "node"; monotonicMs: number }>, version: DisplayVersion) => void;
     // Keeps /healthz and heartbeat on the same worker view as the snapshot (P2-A8-AC04).
-    setWorker?: (worker: DisplayWorkerView) => void;
+    setWorker?: (worker: DisplayWorkerView) => void; mirror?: (mirror: RuntimeMirror) => void; // P3-TP-AC06 (2): 表示の予算の影響を受けない view の口（入力の行の現況）
   }>;
 }>;
 
@@ -989,7 +989,7 @@ class RuntimeCompositionRoot {
     if (display != null) {
       // A display callback failure surfaces like a notification dispatch failure, after state is adopted.
       const guard = (call: () => void) => { try { call(); } catch (error) { void Promise.reject(error); } };
-      if (stopped) guard(() => display.setWorker?.(worker));
+      if (stopped) guard(() => display.setWorker?.(worker)); guard(() => display.mirror?.(state.mirror));
       if (result.kind === "projected") {
         const { streamId, semanticRevision, sequence } = result.snapshot;
         guard(() => display.onMarker?.({ point: "T3", clock: "node", monotonicMs: performance.now() },

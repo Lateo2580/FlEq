@@ -45,7 +45,7 @@ function bodyWarning(xml: string): string {
 }
 const compose = (...steps: ((xml: string) => string)[]) => (xml: string) => steps.reduce((value, step) => step(value), xml);
 // 公開形の比べ（版と復元の印の数は除く）。
-const comparable = (state: WeatherCurrentUnitState) => weatherCurrentAreas(state).map(({ revision: _revision, restoredCellCount: _restored, ...rest }) => rest)
+const comparable = (state: WeatherCurrentUnitState) => weatherCurrentAreas(state).map(({ revision: _revision, restoredCellCount: _restored, names: _names, ...rest }) => rest)
   .sort((left, right) => left.subject < right.subject ? -1 : 1);
 function rows(state: WeatherCurrentUnitState, prefecture: string, operationValue: Operation = "normal") {
   const area = weatherCurrentAreas(state).find((item) => item.prefecture === prefecture && item.operation === operationValue);
@@ -182,7 +182,7 @@ describe("P3-UWC-T05 contractBoundary (AC05): the view carries public forms only
     const view = toWeatherCurrentView(first.state);
     expect(JSON.stringify([view, first.displayChanges]).includes("phenomena")).toBe(false);
     const area = view.areas.find((item) => item.prefecture === "18")!;
-    expect(Object.keys(area).sort()).toEqual(["areas", "cellCount", "codes", "id", "operation", "prefecture", "restoredCellCount", "revision", "source", "subject"]);
+    expect(Object.keys(area).sort()).toEqual(["areas", "cellCount", "codes", "id", "names", "operation", "prefecture", "restoredCellCount", "revision", "source", "subject"]);
     const active = rows(first.state, "18")!.filter((row) => row[2] != null && row[2] !== "00" && row[3] !== "解除" && row[3] !== "発表警報・注意報はなし");
     expect(Object.values(area.codes).reduce((sum, value) => sum + value, 0)).toBe(new Set(active.map((row) => `${row[0]}|${row[1]}|${row[2]}`)).size);
     expect(area.areas.length).toBe(new Set(active.map((row) => `${row[0]}|${row[1]}`)).size);

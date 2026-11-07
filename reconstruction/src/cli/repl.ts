@@ -429,16 +429,16 @@ function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promis
   // P3-CLI-AC23 (1): TTY なら時計と切断の印の入った文字（C19 の promptLabel）、そうでなければ『FlEq> 』。
   const tty = "isTTY" in options.terminal.output && options.terminal.output.isTTY === true;
   const label = () => tty ? control.promptLabel(values.clock) : "FlEq> ";
-  // written は前に readline.prompt() で書いた文字、running は受けてから prompt を呼ぶまでの行の数（AC23 (3) の (a)(b)）。
-  let written = "", running = 0;
-  const prompt = () => { written = label(); readline.setPrompt(written); readline.prompt(); };
+  // written は前に readline.prompt() で書いた文字、running は受けてから prompt を呼ぶまでの行の数（AC23 (3) の (a)(b)）。owed は字が変わったのに書き直しを見送った印（P3-TERMINAL-PROMPT-001）: 電文の後の入力の行が見送った字を画面に書くので、字が written へ戻っても消さない。
+  let written = "", running = 0, owed = false;
+  const prompt = () => { written = label(); owed = false; readline.setPrompt(written); readline.prompt(); };
   // AC23 (3)・P3-CLI-RES-05: 1 秒ごとに文字を当て、書き直しは文字が変わり・command が走っていず・入力中の文字が空で・書き出しが終わったときだけ。
   // setPrompt は入力中でも当てる（電文のブロックの後に端末が書き直す入力の行は getPrompt を読む）。unref して process の終わりを延ばさない。
   const ticker = tty ? setInterval(() => {
     if (closed) return;
     const text = label();
-    readline.setPrompt(text);
-    if (text !== written && running === 0 && readline.line === "" && options.drained()) { written = text; readline.prompt(); }
+    readline.setPrompt(text); owed ||= text !== written;
+    if (owed && running === 0 && readline.line === "" && options.drained()) { written = text; owed = false; readline.prompt(); }
   }, 1_000) : null;
   ticker?.unref();
 

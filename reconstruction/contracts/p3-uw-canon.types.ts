@@ -24,6 +24,8 @@ export type WeatherCurrentPublicArea = Readonly<{
   areas: readonly (readonly [system: DisplayAreaSystem, code: string])[];
   // active の行の Kind/Code ごとの区域の数（areas と同じ行から数える）。
   codes: Readonly<Record<string, number>>;
+  // P3-TP-AC09: active の行の Kind/Code ごとの電文の Kind/Name（最初に見つけた空でない字のまま）。名前の無い Code は鍵を作らない。
+  names: Readonly<Record<string, string>>;
   // 勝った行の数（解除の行と復元して未確認の報の行を含む）。詳細の pageCount の元。
   cellCount: number;
   // 勝った行のうち、復元して未確認の報（restoredUnconfirmed）の行の数。

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "d6cc085e9e4ef166ac94b677586633be3ce5297dd8b70f63da364fc88155bf69",
+    "sha256": "299aa39dd31c83342bf111fd2b071fc179cda9670cce95b82c0c375285639e07",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -880,7 +880,7 @@
       {
         "id": "P3-CLI-RES-05",
         "target": "【発注 3】入力の行の書き直し",
-        "limit": "1 秒に 1 回、promptLabel 1 回（O(1)。host.status() は C19 の tick が読んだ値）と drained() 1 回（O(1)）と文字の比較 1 回。書き直しは drained() が true のときだけで、1 回の書き直しで列に積む echo の単位は readline の 1 回の prompt が書く数（cursor の移動・画面の下の消去・prompt・入力中の文字など。Node 26 で 4 つ、品質レビュー r0 で測った）。drained() が false の間は書き直さないので、列に積まれる書き直しは同時に 1 回分まで",
+        "limit": "1 秒に 1 回、promptLabel 1 回（host.status() は C19 の tick が読んだ値。P3-TERMINAL-PROMPT-001 の現況の項目は変わった view と項目の数に線形で、1 秒に 1 回まで）と drained() 1 回（O(1)）と文字の比較 1 回。書き直しは drained() が true のときだけで、1 回の書き直しで列に積む echo の単位は readline の 1 回の prompt が書く数（cursor の移動・画面の下の消去・prompt・入力中の文字など。Node 26 で 4 つ、品質レビュー r0 で測った）。drained() が false の間は書き直さないので、列に積まれる書き直しは同時に 1 回分まで",
         "unit": "回/秒",
         "scope": "REPL の 1 回の起動（TTY のときだけ）",
         "source": "P3-CLI-D-O3-PROMPT、P3-TO-D-DROP、AGENTS.md の受信経路の計算量"

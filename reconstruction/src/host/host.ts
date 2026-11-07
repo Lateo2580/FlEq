@@ -177,7 +177,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
       send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis: (at) => { const basis = wallBasis(at); return deadlineMissed ? "unverified" : basis; }, measure: config.observe == null ? undefined : emit,
       contentBasis: wallBasis, // P3-EF-AC01: 締切の印を反映しない生の状態
       notificationAdapter: config.notificationGate == null ? undefined : gatedAdapter(config.notificationGate), display: { publish: publishDisplay, setWorker: setDisplayWorker,
-        onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }) },
+        onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }), mirror: (mirror) => { config.terminal?.mirror(mirror); } }, // P3-TP-AC06 (2)
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },
       onInputDone: (reply) => {
         const { inputId } = reply.settlement;

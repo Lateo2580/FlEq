@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c48d43917901c71a308643a0d7dda28fc1c05e33",
-    "sha256": "ed8eb66012dbd48bb6db0c13ead97c1e508a56579ed929b210312833b757c369",
+    "sha256": "b67bde9fef34bf2f1af9688c8960e1a4da16838d232b7a96bb1f10cac8d4bcb9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -194,6 +194,7 @@
     ],
     "allowedPaths": [
       "reconstruction/src/terminal/prompt-current.ts（新設。view から項目を作り、段と並びと回す枠を決める純粋な関数。export は末尾の export { } の形）",
+      "reconstruction/src/cli/repl.ts（1 秒の ticker の、見送った書き直しの覚えだけ）",
       "reconstruction/src/terminal/output.ts（TerminalSink の mirror と promptLabel だけ）",
       "reconstruction/src/runtime/composition-root.ts（CompositionOptions の display の setWorker の行と、project の if (stopped) guard の行へ足すだけ。後者は if (stopped) の外の文として同じ行に足す。行を足さない）",
       "reconstruction/src/host/host.ts（display の onMarker の行の中へ足すだけ。行を足さない）",
@@ -289,7 +290,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TP-AC01",
-        "requirement": "載せるもの（Q-TO6-PROMPT、spec §9.2 の表）。今も有効かは view の値だけで決め、operation が normal の値だけを読む。(1) 津波: U-T の forecasts の areas と unkeyedAreas。区分は areas の areaClass、unkeyedAreas は domains/tsunami の KIND_CLASS で読み（表を写さない）、majorWarning が最も重い段、warning と unknown が警報の段、advisory が注意の段で、ほかの区分は項目にしない。字は「区分 地域名」で、区分は kindName の「：」より前（format.ts の kindOf と同じ） (2) 南海トラフ: U-N の currents の line が nankai のもの。status が megaquakeWarning なら最も重い段で「南海トラフ地震臨時情報（巨大地震警戒）」、megaquakeAdvisory なら警報の段で「…（巨大地震注意）」、investigating なら警報の段で「…（調査中）」。title と infoSerial は読まない（7 日の移行で status だけが変わる）。line が VYSE60 の現況は警報の段で、字は title のまま（status は subsequentAdvisory の 1 値で移行が無く、title は電文の Head/Title）。U-N の項目は line が nankai のものを先に置く (3) 火山: U-V の alerts の kind か landKind の code が 14（レベル４）、15（レベル５）、24（山麓厳重警戒）、25（居住地域厳重警戒）のもの。kind だけを読むと、45_02_01 の kind 15 の後に VFSV（36）が来て kind=36・landKind=15 になったときに Lv5 が解除の前に消える。24・25 はレベルの無い火山の噴火警報で level は null なので、level でなく code で読む。Code の出どころは作者の手元のコード表（気象庁の地震火山関連コード表）で、この repo に原本は無い。最も重い段で字はその code を持つ側の「name volcanoName」で、両方が当たれば kind の側。eruptions は読まず、噴火速報は載せない (4) 気象: U-W の areas の codes の鍵のうち /^3\\d$/（material.ts の特別警報の読みと同じ）。最も重い段で字は names[code]（P3-TP-AC09） (5) 洪水: U-R の currents の kinds の level が 5 のまとまりの rivers ごと。最も重い段で字は「group.name river.name」。rivers が空か name が空なら「group.name areaName」 (6) 土砂: U-L の currents の kinds の level が 5 のまとまり。最も重い段で字は group.name。level が null のまとまりは項目にしない (7) 洪水と土砂の group.name が空なら、区分の字は units/unreadable.ts の UNREAD_TEXT（「（読めず）」、P3-UM の作者裁定の言い方）を import して使い、字を写さない。空文字のまま項目にしない",
+        "requirement": "載せるもの（Q-TO6-PROMPT、spec §9.2 の表）。今も有効かは view の値だけで決め、operation が normal の値だけを読む。(1) 津波: U-T の forecasts の areas と unkeyedAreas。区分は areas の areaClass、unkeyedAreas は domains/tsunami の KIND_CLASS で読み（表を写さない）、majorWarning が最も重い段、warning と unknown が警報の段、advisory が注意の段で、ほかの区分は項目にしない。字は「区分 地域名」で、区分は kindName の「：」より前（format.ts の kindOf と同じ） (2) 南海トラフ: U-N の currents の line が nankai のもの。status が megaquakeWarning なら最も重い段で「南海トラフ地震臨時情報（巨大地震警戒）」、megaquakeAdvisory なら警報の段で「…（巨大地震注意）」、investigating なら警報の段で「…（調査中）」。title と infoSerial は読まない（7 日の移行で status だけが変わる）。line が VYSE60 の現況は警報の段で、字は title のまま（status は subsequentAdvisory の 1 値で移行が無く、title は電文の Head/Title）。U-N の項目は line が nankai のものを先に置く (3) 火山: U-V の alerts の kind か landKind の code が 14（レベル４）、15（レベル５）、24（山麓厳重警戒）、25（居住地域厳重警戒）のもの。kind だけを読むと、45_02_01 の kind 15 の後に VFSV（36）が来て kind=36・landKind=15 になったときに Lv5 が解除の前に消える。24・25 はレベルの無い火山の噴火警報で level は null なので、level でなく code で読む。Code の出どころは作者の手元のコード表（気象庁の地震火山関連コード表）で、この repo に原本は無い。最も重い段で字はその code を持つ側の「name volcanoName」で、両方が当たれば kind の側。eruptions は読まず、噴火速報は載せない (4) 気象: U-W の areas の codes の鍵のうち /^3\\d$/（material.ts の特別警報の読みと同じ）。最も重い段で字は names[code]（P3-TP-AC09） (5) 洪水: U-R の currents の kinds の level が 5 のまとまりの rivers ごと。最も重い段で字は「group.name river.name」。rivers が空か name が空なら「group.name areaName」 (6) 土砂: U-L の currents の kinds の level が 5 のまとまり。最も重い段で字は group.name。level が null のまとまりは項目にしない (7) 津波の区分と地域名、火山の kind.name と volcanoName、洪水と土砂の group.name が空なら、その字は units/unreadable.ts の UNREAD_TEXT（「（読めず）」、P3-UM の作者裁定の言い方）を import して使い、字を写さない。空文字のまま項目にしない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:769 «757d3e9fb7292434»",
           "docs/specs/cli-terminal-output.md:772 «34e17d3b45672e48»",
@@ -323,7 +324,7 @@
       },
       {
         "id": "P3-TP-AC03",
-        "requirement": "回り方（Q-TO6-ROTATE）: (1) 枠の位置は promptLabel の中で clock() の wallTimeMs から Math.floor(wallTimeMs / 5000) % 枠の数で計算する。タイマーと位置の覚えを足さず、Date.now() を足さない (2) 枠の数が変わった直後の位置の飛びは許す (3) repl.ts は変えない。字の再計算は 1 秒ごと（ticker の label と setPrompt）で、実際の再描画は今の条件（字が変わり、command が走っていず、入力中の文字が空で、書き出しが終わったとき）のときだけ",
+        "requirement": "回り方（Q-TO6-ROTATE）: (1) 枠の位置は promptLabel の中で clock() の wallTimeMs から Math.floor(wallTimeMs / 5000) % 枠の数で計算する。タイマーと位置の覚えを足さず、Date.now() を足さない (2) 枠の数が変わった直後の位置の飛びは許す (3) 字の再計算は 1 秒ごと（ticker の label と setPrompt）で、実際の再描画は今の条件（字が変わり、command が走っていず、入力中の文字が空で、書き出しが終わったとき）のときだけ。条件が揃わず見送った変更は覚え、条件が揃ったら最新の字を 1 度書く。時計を外した固定の字では、A→B→A と戻ると見送りが消えて取消済みの字が画面に残るため",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:842 «86ea79de3f0c5896»",
           "docs/specs/cli-terminal-output.md:843 «621252f0e7f0ef2a»"
@@ -485,6 +486,14 @@
           "P3-TP-AC08"
         ],
         "behavior": "受入条件。origin が recovery の取消を recoveryDone まで通すと、root の mirror から sink を通って promptLabel の字が変わり、端末の列に報の本文が積まれない"
+      },
+      {
+        "testId": "P3-TP-T12",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TP-AC03"
+        ],
+        "behavior": "実不具合の再発防止。時計を外した固定の字で、出力待ちの間に字が A→B→A と変わっても、出力が空いた後に最新の字が画面に書かれる"
       }
     ],
     "requiredCommands": [
@@ -555,7 +564,7 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
-      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、uw-canon-unit.test.ts の公開形の欄の一覧に names を足すことだけ。ほかを変える前に試験名・旧の期待・理由を報告する",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、uw-canon-unit.test.ts の公開形の欄の一覧に names を足すことと、comparable から names を除くことだけ。ほかを変える前に試験名・旧の期待・理由を報告する",
       "試験の中で書き換えた報は配信原本でないと分かる名にし、fixture を増やさない。試験は設定を一時の場所へ隔離する",
       "他の契約の «» が赤になるなら止めて報告する（本契約の中の «» だけ付け直してよい）。付け直しの後は check-contract と check-sequences の両方を回す"
     ],

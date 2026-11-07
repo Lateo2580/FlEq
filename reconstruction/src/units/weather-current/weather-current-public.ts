@@ -106,7 +106,7 @@ const activeCell = (cell: Cell) => !cell.restored && cell.code != null && cell.c
 
 // P3-UWC-AC05 (3): 公開形。前の object と勝った行の列・欄が同じなら前の object を使い回す（Q-UWC-MERGE-TIE (3)）。
 function publicArea(operation: Operation, prefecture: string, cells: readonly Cell[], revision: string, previous: Entry | undefined): Entry {
-  const areas = new Map<string, readonly [DisplayAreaSystem, string]>(), regions = new Map<string, Set<string>>();
+  const areas = new Map<string, readonly [DisplayAreaSystem, string]>(), regions = new Map<string, Set<string>>(), names = new Map<string, string>();
   let source: ReportRef | null = null, restoredCellCount = 0;
   for (const cell of cells) {
     if (source == null || compareVersion(source, cell.source) === "newer") source = cell.source;
@@ -115,12 +115,12 @@ function publicArea(operation: Operation, prefecture: string, cells: readonly Ce
     areas.set(`${cell.type}\u0000${cell.areaCode}`, [AREA_SYSTEMS[cell.type], cell.areaCode]);
     const seen = regions.get(cell.code!) ?? new Set<string>();
     seen.add(regionKey(cell));
-    regions.set(cell.code!, seen);
+    regions.set(cell.code!, seen); if (cell.name != null && cell.name !== "" && !names.has(cell.code!)) names.set(cell.code!, cell.name); // P3-TP-AC09: 空の字は名前なし
   }
   const subject = `${operation}/area/${prefecture}`;
   const fields = { subject, operation, prefecture, id: sha256(["U-W", operation, subject]), source: source!,
     areas: [...areas.values()].sort((left, right) => compareText(left[0], right[0]) || compareText(left[1], right[1])),
-    codes: Object.fromEntries([...regions].sort(([left], [right]) => compareText(left, right)).map(([code, seen]) => [code, seen.size])),
+    codes: Object.fromEntries([...regions].sort(([left], [right]) => compareText(left, right)).map(([code, seen]) => [code, seen.size])), names: Object.fromEntries(names),
     cellCount: cells.length, restoredCellCount };
   if (previous != null && previous.cells.length === cells.length && isDeepStrictEqual({ ...previous.area, revision: "" }, { ...fields, revision: "" })
     && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return previous;
