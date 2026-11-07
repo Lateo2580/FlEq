@@ -16,8 +16,8 @@ const put = (key: "columns" | "isTTY", value: number | boolean) => { Object.defi
 const restore = (key: "columns" | "isTTY", saved: PropertyDescriptor | undefined) => {
   if (saved == null) Reflect.deleteProperty(process.stdout, key); else Object.defineProperty(process.stdout, key, saved);
 };
-beforeEach(() => { put("columns", 56); put("isTTY", true); });
-afterEach(() => { vi.useRealTimers(); restore("columns", stdoutColumns); restore("isTTY", stdoutTty); });
+beforeEach(() => { put("columns", 56); put("isTTY", true); vi.stubEnv("NO_COLOR", "1"); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); restore("columns", stdoutColumns); restore("isTTY", stdoutTty); });
 
 // 字の違う 2 つの現況。56 桁では時計が外れるので、字は時刻で変わらない。
 async function mirrors(): Promise<readonly [advisory: RuntimeMirror, warning: RuntimeMirror]> {

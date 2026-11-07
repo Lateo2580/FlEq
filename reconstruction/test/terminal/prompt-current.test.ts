@@ -1,15 +1,17 @@
+import chalk from "chalk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RuntimeUnitView, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
 import type { NotificationSettings } from "../../src/cli/notification-gate";
+import { painter } from "../../src/terminal/color";
 import { walkStart } from "../../src/recovery/recovery";
 import type { RuntimeMirror } from "../../src/runtime/shared-runtime";
 import { localClock, width } from "../../src/terminal/format";
 import { currentItems, itemsOf } from "../../src/terminal/prompt-current";
 import { replaceTag } from "../volcano-unit/volcano-fixture";
 import { MemoryFiles, fixture, reportMs, world } from "./prompt-fixture";
-import { at, harness, levelFive } from "./terminal-fixture";
+import { at, harness, levelFive, plain } from "./terminal-fixture";
 
 const TSUNAMI = "32-39_11_02_250206_VTSE41";
 const WARNING = "selected_xml/74_01_04_200512_VYSE50", INVESTIGATING = "selected_xml/74_01_01_200512_VYSE50", ENDED = "selected_xml/74_01_07_200512_VYSE50";
@@ -109,13 +111,13 @@ describe("P3-TP-T02 受入条件 手作りの mirror の順と段", () => {
         { ...forecast, subject: "normal/VTSE41/a", areas: [place("甲地域", "大津波警報：発表", "majorWarning"), place("軽い地域", "津波注意報：発表", "advisory")],
           unkeyedAreas: [{ name: "無鍵地域", kindCode: "52", kindName: "大津波警報：発表" }] }] },
     ]);
-    expect(currentItems(top, new WeakMap())).toEqual(["大津波警報 甲地域", "大津波警報 無鍵地域", "大津波警報 丙地域", MEGA,
+    expect(currentItems(top, new WeakMap()).map((item) => item.text)).toEqual(["大津波警報 甲地域", "大津波警報 無鍵地域", "大津波警報 丙地域", MEGA,
       "レベル４（高齢者等避難） 甲", "海の字 乙", "レベル５（避難） 丙", "レベル５大雨特別警報", "洪水 A 奈良", "洪水 B 和歌山", "洪水 B 川", "土砂 A", "土砂 B"]);
     const warning = mirrorOfViews(base, [
       { ...nankai, currents: [later60, { ...megaquake, status: "investigating" }] },
       { ...tsunami, forecasts: [{ ...forecast, areas: [place("未知地域", "未知の区分：発表", "unknown"), place("注意地域", "津波注意報：発表", "advisory")], unkeyedAreas: [{ name: "無鍵地域", kindCode: "99", kindName: "表に無い区分" }] }] },
     ]);
-    expect(currentItems(warning, new WeakMap())).toEqual(["未知の区分 未知地域", "表に無い区分 無鍵地域", "南海トラフ地震臨時情報（調査中）", "北海道・三陸沖後発地震注意情報"]);
+    expect(currentItems(warning, new WeakMap()).map((item) => item.text)).toEqual(["未知の区分 未知地域", "表に無い区分 無鍵地域", "南海トラフ地震臨時情報（調査中）", "北海道・三陸沖後発地震注意情報"]);
   });
 });
 
@@ -396,6 +398,74 @@ describe("P3-TP-T07 受入条件 入らない幅", () => {
     t.h.output.sink.mirror(narrowed(mirror, 2));
     expect(t.h.output.control.promptLabel("clock")).toBe("FlEq [切断中 大津波警報 宮城県 2/2]> ");
     await t.h.output.close();
+  });
+});
+
+describe("P3-TP-T13 受入条件 入力の行の色（Q-TO6-COLOR）", () => {
+  const paint = painter(3), level = chalk.level, tty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  const color = (on: boolean) => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true, writable: true });
+    chalk.level = 3;
+    vi.stubEnv("NO_COLOR", on ? "" : "1");
+  };
+  afterEach(() => {
+    chalk.level = level;
+    vi.unstubAllEnvs();
+    if (tty == null) Reflect.deleteProperty(process.stdout, "isTTY"); else Object.defineProperty(process.stdout, "isTTY", tty);
+  });
+  it("項目は段の色、番号は dim、切断の字は connLost で、時計・回線の印・ミュートの字は色なし", async () => {
+    const tsunami = await mirrorOf(TSUNAMI), subsequent = await mirrorOf(SUBSEQUENT), { view } = tsunami["U-T"];
+    if (view.unit !== "U-T") throw new Error("U-T");
+    const advisory: RuntimeMirror = { ...tsunami, "U-T": { ...tsunami["U-T"], view: { ...view, forecasts: view.forecasts.map((item) => ({ ...item, areas: item.areas.filter((area) => area.areaClass === "advisory").slice(0, 1) })) } } };
+    const shown = advisory["U-T"].view.unit === "U-T" ? advisory["U-T"].view.forecasts[0].areas[0] : null;
+    color(true);
+    const top = fakeTerminal(tsunami);
+    expect(top.after(3, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${paint("rulePurple", "大津波警報 岩手県")} ${paint("dim", "1/3")}]> `);
+    await top.h.output.close();
+    const warning = fakeTerminal(subsequent);
+    expect(warning.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${paint("ruleWarning", "北海道・三陸沖後発地震注意情報")}]> `);
+    await warning.h.output.close();
+    const caution = fakeTerminal(advisory, muted());
+    expect(caution.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ミュート中 21:50 まで ${paint("ruleCaution", `津波注意報 ${shown?.name}`)}]> `);
+    await caution.h.output.close();
+    const down = fakeTerminal(tsunami, undefined, DOWN);
+    expect(down.after(3, 0)).toBe(`FlEq [${paint("connLost", "21:03:12 から 切断中・繋ぎ直し 3 回目")} ${paint("rulePurple", "大津波警報 岩手県")} ${paint("dim", "1/3")}]> `);
+    columns(56);
+    expect(down.after(4, 1)).toBe(`FlEq [${paint("connLost", "切断中")} ${paint("rulePurple", "大津波警報 宮城県")} ${paint("dim", "2/3")}]> `);
+    expect(down.after(4, 3)).toBe(`FlEq [${paint("connLost", "切断中 21:03:12 から・繋ぎ直し 3 回目")}]> `);
+    await down.h.output.close();
+    const none = fakeTerminal({ ...tsunami, "U-T": { ...tsunami["U-T"], view: { ...view, forecasts: [] } } }, undefined, DOWN);
+    expect(none.after(1, 0)).toBe(`FlEq [${paint("connLost", "21:03:12 から 切断中・繋ぎ直し 3 回目")}]> `);
+    await none.h.output.close();
+  });
+  it("NO_COLOR と TTY でない端末では色の符号が 1 つも入らない", async () => {
+    const mirror = await mirrorOf(TSUNAMI);
+    color(false);
+    const off = fakeTerminal(mirror, undefined, DOWN);
+    expect(off.after(3, 0)).toBe("FlEq [21:03:12 から 切断中・繋ぎ直し 3 回目 大津波警報 岩手県 1/3]> ");
+    await off.h.output.close();
+    color(true);
+    if (tty == null) Reflect.deleteProperty(process.stdout, "isTTY"); else Object.defineProperty(process.stdout, "isTTY", tty);
+    const pipe = fakeTerminal(mirror, undefined, DOWN);
+    expect(pipe.after(3, 0)).toBe("FlEq [21:03:12 から 切断中・繋ぎ直し 3 回目 大津波警報 岩手県 1/3]> ");
+    await pipe.h.output.close();
+  });
+  it("幅の境界で色の有無で枠が変わらない", async () => {
+    const mirror = await mirrorOf(WARNING);
+    const full = `FlEq [● 21:40:05 ${MEGA}]> `;
+    for (const size of [width(full), width(full) + 1]) {
+      columns(size);
+      color(true);
+      const painted = fakeTerminal(mirror);
+      const text = painted.after(1, 0), now = Date.now();
+      await painted.h.output.close();
+      color(false);
+      const bare = fakeTerminal(mirror);
+      vi.setSystemTime(now);
+      expect(plain(text)).toBe(bare.h.output.control.promptLabel("clock"));
+      expect(text).toContain("\x1b[");
+      await bare.h.output.close();
+    }
   });
 });
 

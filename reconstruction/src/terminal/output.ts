@@ -13,7 +13,7 @@ import type { TerminalControl, TerminalReport } from "../../contracts/p3-termina
 import { muteActive } from "../cli/notification-gate";
 import type { NotificationSettings } from "../cli/notification-gate";
 import { desktopNotice, resolveRepoPath } from "../notification-delivery/adapter";
-import { colorLevel } from "./color";
+import { colorLevel, painter } from "./color";
 import { createEewLog } from "./eew-log";
 import { intensityLabel, intensityRank, localClock } from "./format";
 import type { SummaryCounts, TerminalBatch, TerminalNotice, TerminalUnit } from "./format";
@@ -109,6 +109,7 @@ const uptime = (ms: number): string => {
 function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   const tty = process.stdout.isTTY === true;
   const clock = options.clock ?? (() => ({ wallTimeMs: Date.now(), monotonicMs: performance.now() }));
+  const level = colorLevel(process.env.NO_COLOR, tty, chalk.level);
   // 送った・落とした枠は undefined にして単位の参照を残さない（残すと送り終えた材料が列の配列に溜まる）。
   const queue: ({ unit: TerminalUnit; bytes: number } | undefined)[] = [];
   let head = 0, bytes = 0, dropped = 0, inFlight = false, failed = false;
@@ -130,7 +131,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   };
   if (options.write == null) {
     worker = new Worker(resolveRepoPath("reconstruction/dist/src/terminal/writer-worker.js"),
-      { workerData: { level: colorLevel(process.env.NO_COLOR, tty, chalk.level) } });
+      { workerData: { level } });
     worker.unref();
     worker.on("message", () => { const done = pending; pending = null; done?.(); });
     worker.on("error", fail);
@@ -277,7 +278,9 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   };
 
   // ---- 入力の行の現況（P3-TERMINAL-PROMPT-001）: 最新の mirror の参照と、それから作った項目。受信の数によらず promptLabel の回数でだけ作り直す ----
-  let mirror: PromptMirror | null = null, itemsMirror: PromptMirror | null = null, items: readonly string[] = [];
+  let mirror: PromptMirror | null = null, itemsMirror: PromptMirror | null = null, items: readonly PromptItem[] = [];
+  // Q-TO6-COLOR: 色の水準は writer と同じ。TTY でなければ字を変えない。
+  const paint = painter(tty ? level : 0);
   const itemMemo = new WeakMap<RuntimeUnitView, readonly PromptItem[]>();
 
   const eewLog = options.eewLog == null ? null : createEewLog({ ...options.eewLog, clock });
@@ -310,7 +313,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     setEewLog(enabled, fields) { eewLog?.set(enabled, fields); },
     // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
     clear() { push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
-    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。色と点滅は付けない。
+    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。点滅は付けない。色は現況の項目と番号と切断の字だけ（Q-TO6-COLOR）。
+    // readline は prompt の幅を制御の字を除いて数えるので、色の符号でカーソルはずれない。
     // P3-TL-AC10: ミュート中は後ろに足す（期限は repl.ts の muteStartLine と同じ換算）。切断中は 56 桁に入るよう繋ぎ直しの回数と期限と条件を外す。
     promptLabel(mode) {
       if (status == null) return "FlEq> ";
@@ -320,7 +324,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       const columns = process.stdout.columns || 80;
       if (down) {
         const from = lostFrom == null ? "--:--:--" : localClock(lostFrom), state = muted ? "ミュート中" : `繋ぎ直し ${status.failedAttempts} 回目`;
-        return promptFrame(items, { full: `${from} から 切断中・${state}`, narrow: "切断中", spare: `切断中 ${from} から・${state}`, bare: null }, columns, now.wallTimeMs);
+        return promptFrame(items, { full: `${from} から 切断中・${state}`, narrow: "切断中", spare: `切断中 ${from} から・${state}`, bare: null, role: "connLost" }, columns, now.wallTimeMs, paint);
       }
       const until = muted && mute.endsAtMonotonicMs != null ? ` ${localClock(now.wallTimeMs + (mute.endsAtMonotonicMs - now.monotonicMs)).slice(0, 5)} まで` : "";
       const mark = muted ? ` ミュート中${mute.rules.length > 0 ? "（条件つき）" : ""}${until}` : "";
@@ -328,7 +332,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       const dot = connected || (mode !== "uptime" && received) ? "●" : "○";
       const time = mode === "uptime" ? uptime(process.uptime() * 1000) : dot === "○" ? "--:--:--"
         : mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs));
-      return promptFrame(items, { full: `${dot} ${time}${mark}`, narrow: `${dot} ${time}`, spare: muted ? `${dot} ${time}${mark}` : null, bare: dot }, columns, now.wallTimeMs);
+      return promptFrame(items, { full: `${dot} ${time}${mark}`, narrow: `${dot} ${time}`, spare: muted ? `${dot} ${time}${mark}` : null, bare: dot, role: null }, columns, now.wallTimeMs, paint);
     },
   };
 

@@ -4,6 +4,8 @@ import type { NankaiCurrentStatus } from "../../contracts/p3-nankai-unit.types";
 import type { TsunamiAreaClass } from "../../contracts/p3-tsunami-unit.types";
 import { KIND_CLASS } from "../domains/tsunami/tsunami";
 import { UNREAD_TEXT } from "../units/unreadable";
+import { BAND_ROLES } from "./color";
+import type { Paint, Role } from "./color";
 import { width } from "./format";
 
 // P3-TERMINAL-PROMPT-001: 入力の行の現況。今も有効かは view の値だけで決める（時計で判定しない、AC08 (2)）。
@@ -13,7 +15,8 @@ type PromptUnit = "U-T" | "U-N" | "U-V" | "U-W" | "U-R" | "U-L";
 // AC01: 載せる 6 unit だけを読む（U-E・U-Q は型でも読めない）。
 type PromptMirror = Readonly<Record<PromptUnit, Readonly<{ view: RuntimeUnitView }>>>;
 // 括弧の中の字。full は今の字、narrow は入らないときの項目の枠の頭、spare は足す最後の 1 枠、bare は時計を外した頭（切断中は外さないので null）。
-type PromptForms = Readonly<{ full: string; narrow: string; spare: string | null; bare: string | null }>;
+// role はこの字の色（Q-TO6-COLOR: 切断の字は connLost、時計・回線の印・ミュートの字は色なし）。
+type PromptForms = Readonly<{ full: string; narrow: string; spare: string | null; bare: string | null; role: Role | null }>;
 
 // AC02 (2): 段の中の分野の順。
 const UNITS: readonly PromptUnit[] = ["U-T", "U-N", "U-V", "U-W", "U-R", "U-L"];
@@ -76,7 +79,7 @@ function itemsOf(view: RuntimeUnitView): readonly PromptItem[] {
 }
 
 // AC06 (4)(5): view の参照が同じ unit は memo の項目を使い、読まない。AC02: 最も重い段だけを、同じ字をまとめて返す。
-function currentItems(mirror: PromptMirror, memo: WeakMap<RuntimeUnitView, readonly PromptItem[]>): readonly string[] {
+function currentItems(mirror: PromptMirror, memo: WeakMap<RuntimeUnitView, readonly PromptItem[]>): readonly PromptItem[] {
   const items = UNITS.flatMap((unit) => {
     const { view } = mirror[unit];
     const known = memo.get(view);
@@ -86,20 +89,26 @@ function currentItems(mirror: PromptMirror, memo: WeakMap<RuntimeUnitView, reado
     return built;
   });
   const band = BANDS.find((candidate) => items.some((item) => item.band === candidate));
-  return [...new Set(items.filter((item) => item.band === band).map((item) => item.text))];
+  return [...new Map(items.filter((item) => item.band === band).map((item) => [item.text, item])).values()];
 }
 
+const noPaint: Paint = (_role, text) => text;
+
 // AC03・AC04・AC05: 位置は時計の値から計算する（タイマーと位置の覚えを持たない）。
-function promptFrame(items: readonly string[], forms: PromptForms, columns: number, wallTimeMs: number): string {
+function promptFrame(items: readonly PromptItem[], forms: PromptForms, columns: number, wallTimeMs: number, paint: Paint): string {
   const wrap = (inner: string): string => `FlEq [${inner}]> `;
-  if (items.length === 0) return wrap(forms.full);
-  const framed = (head: string, index: number): string => wrap(`${head} ${items[index]}${items.length > 1 ? ` ${index + 1}/${items.length}` : ""}`);
-  const fits = (head: string): boolean => items.every((_, index) => width(framed(head, index)) < columns);
+  if (items.length === 0) return wrap(paint(forms.role, forms.full));
+  const framed = (ink: Paint, head: string, index: number): string => {
+    const { band, text } = items[index];
+    return wrap(`${ink(forms.role, head)} ${ink(BAND_ROLES[band].rule, text)}${items.length > 1 ? ` ${ink("dim", `${index + 1}/${items.length}`)}` : ""}`);
+  };
+  // 幅は色の符号を含まない字で数える（Q-TO6-COLOR）。
+  const fits = (head: string): boolean => items.every((_, index) => width(framed(noPaint, head, index)) < columns);
   const wide = fits(forms.full);
   const head = wide ? forms.full : forms.bare == null || fits(forms.narrow) ? forms.narrow : forms.bare;
   const spare = wide ? null : forms.spare;
   const index = Math.floor(wallTimeMs / ROTATE_MS) % (items.length + (spare == null ? 0 : 1));
-  return spare != null && index === items.length ? wrap(spare) : framed(head, index);
+  return spare != null && index === items.length ? wrap(paint(forms.role, spare)) : framed(paint, head, index);
 }
 
 export { currentItems, itemsOf, promptFrame };

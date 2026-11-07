@@ -67,7 +67,7 @@ async function world(options: WorldOptions = {}) {
     h, t, snapshots, get now() { return now; }, moveTo,
     mirror: (): RuntimeMirror => h.root.state.mirror,
     label: (mode: "clock" | "elapsed" | "uptime" = "clock") => t.output.control.promptLabel(mode),
-    items: () => currentItems(h.root.state.mirror, new WeakMap()),
+    items: () => currentItems(h.root.state.mirror, new WeakMap()).map((item) => item.text),
     // 報の時刻の 1 秒後に受ける（時計より前の報でも時計は戻さない）。
     async send(path: string, transform: (xml: string) => string = same, headType = /(V[A-Z]{3}\d\d)/.exec(path)![1]) {
       const xml = transform(fixture(path));
