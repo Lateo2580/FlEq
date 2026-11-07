@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "024a8de5e3e0e25ce1562a9204a9f842f7af6ca4",
-    "sha256": "9c914fccfb1f01ca43de30978d26d2d22f1268e954c0c7a2f612ed21e27e1309",
+    "sha256": "a022d955a1d2f24b7f5ce21f4600e4768291f9dec524a43c705900d8af9d4e16",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -92,7 +92,7 @@
     "contractId": "P3-EEW-DROP43-001",
     "mode": "implementation",
     "objective": "eew.forecast を受けている dmdata の接続では、VXSE43 を host で捨てて U-E に渡さない。同じ地震の警報は VXSE45 の警報地域と見出しのコード 31 で読む。eew.warning だけの接続と区分の読めない起動では VXSE43 を今のまま使う",
-    "baseOid": "unassigned",
+    "baseOid": "71906e67",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
