@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "e74ceccaa5caa9f390e18c7c0ecc5db9bc8c8620b1e92b867fd537090edc125c",
+    "sha256": "67ee27121d24b1dd0495ee60b31272731e9cacff930b30e2469b316f66ebb563",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -271,7 +271,7 @@
         "id": "P3-TW-AC06",
         "requirement": "親の main の端末の API（P3-TW-D-EXIT・D-MAIN-CONSOLE）: (1) reconstruction/cli/fleq.mjs は win32 なら空 write をせず process.exit(code) する（win32 の実行は Q-TW-WINDOWS-CI の P3-TO-T07 が通すので、試験を足さない） (2) 受信の開始の後に main が process.stdout と process.stderr へ書く行を新しく足さない (3) P3-TW-D-MAIN-CONSOLE の【残存リスク】(e)〜(l) の行は変えない",
         "evidenceRefs": [
-          "reconstruction/cli/fleq.mjs:21 «35f85fde5f5d2ad4»",
+          "reconstruction/cli/fleq.mjs:22 «35f85fde5f5d2ad4»",
           "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
           "docs/specs/cli-terminal-output.md:900 «eaf0b3ac6104f64f»",
           "docs/specs/cli-terminal-output.md:901 «679940c9ca375597»"
