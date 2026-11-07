@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "024a8de5e3e0e25ce1562a9204a9f842f7af6ca4",
-    "sha256": "a022d955a1d2f24b7f5ce21f4600e4768291f9dec524a43c705900d8af9d4e16",
+    "sha256": "4f7201ba46b9d7572c8beaefca9b2edcf0e83287148afdf1ccad71545957d045",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -27,7 +27,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-11-08 起草）",
         "ruling": "A（統合担当）",
-        "reason": "設定は要求で、契約に無い区分は start frame から外れる（dmdataSubscriptionNarrowed）。設定で読むと、eew.forecast を要求したが契約が eew.warning だけの人で VXSE43 を捨て、VXSE45 も届かないので警報が 1 つも出ない。start frame は接続ごとに来るので、接続し直しで区分が変わっても追いつく"
+        "reason": "設定は要求で、契約に無い区分は start frame から外れる（dmdataSubscriptionNarrowed）。設定で読むと、eew.forecast を要求したが契約が eew.warning だけの人で VXSE43 を捨て、VXSE45 も届かないので警報が 1 つも出ない。start frame は接続ごとに来るので、接続し直しで区分が変わっても追いつく。新しい接続を開いたら前の接続の区分は捨て、その接続の start frame まで捨てない（ヘルツの総合レビューの P2: 持ち越すと、新しい start frame より前の VXSE43 を古い区分で捨てた）"
       },
       {
         "id": "P3-ED43-D-UNKNOWN",
@@ -54,7 +54,7 @@
       {
         "id": "P3-ED43-D-TRACE",
         "kind": "統合担当",
-        "A": "捨てた報の跡を残さない（端末・EEW ログ・定期要約・診断に出さない）",
+        "A": "捨てた報は U-E・mailbox・端末・EEW ログ・定期要約・診断に残さない。受信の数・input-N・最終受信時刻・observe の T0 の印は残る（AC03）",
         "B": "端末の debug の行か診断を出す",
         "recommended": "A",
         "provisional": "A",
@@ -68,7 +68,7 @@
         "id": "Q-ED43-FACTS",
         "status": "closed",
         "source": "2026-11-08 起草（main 024a8de5 の木を読んだ）",
-        "closed": "(1) dmdata は VXSE43 を eew.warning、VXSE44・VXSE45 を eew.forecast で配る（docs/specs/dmdata.md の isWarning 判定の節） (2) 新築は VXSE43 の family、VXSE45 の警報地域、見出しのコード 31 のどれかで警報と読む (3) 実物 20240417231454: VXSE43 第 1 報（37_01_01）と警報のコード 31 を持つ VXSE45 第 4 報（77_01_04）は ReportDateTime がどちらも 23:14:59、Control/DateTime がどちらも 14:14:59Z。取消（37_01_03・77_01_33）はどちらも 23:17:00 (4) 取り直し: U-E は辿りの順（recovery.ts の WALK_ORDER）に無く、EEW は取り直さない。U-E は origin=recovery の入力を記録も判定もしない（eew.ts の reduceEew の入口）。取り直しの経路で VXSE43 は U-E に届かないので、取り直しに捨てる処理は足さない (5) 両方の種類を流す試験（P2-A8-T05、corpus.test.ts の 20240417231454、eew-unit の試験）は host を通らないので変わらない。host を通り、dmdata の設定で起動して eew.forecast の start frame の後に VXSE43 を流す試験は 3 本（P3-C2-T01、P3-REC-T08、P3-REC-T01）"
+        "closed": "(1) dmdata は VXSE43 を eew.warning、VXSE44・VXSE45 を eew.forecast で配る（docs/specs/dmdata.md の isWarning 判定の節） (2) 新築は VXSE43 の family、VXSE45 の警報地域、見出しのコード 31 のどれかで警報と読む (3) 実物 20240417231454: VXSE43 第 1 報（37_01_01）と警報のコード 31 を持つ VXSE45 第 4 報（77_01_04）は ReportDateTime がどちらも 23:14:59、Control/DateTime がどちらも 14:14:59Z。取消（37_01_03・77_01_33）はどちらも 23:17:00 (4) 取り直し: U-E は辿りの順（recovery.ts の WALK_ORDER）に無く、EEW は取り直さない。U-E は origin=recovery の入力を記録も判定もしない（eew.ts の reduceEew の入口）。取り直しの経路で VXSE43 は U-E に届かないので、取り直しに捨てる処理は足さない (5) 両方の種類を流す試験（P2-A8-T05、corpus.test.ts の 20240417231454、eew-unit の試験）は host を通らないので変わらない。host を通り、dmdata の設定で起動して eew.forecast の start frame の後に VXSE43 を流す試験は 4 本（P3-C2-T01、P3-C2-T05、P3-REC-T08、P3-REC-T01）"
       },
       {
         "id": "Q-ED43-DELAY",
@@ -180,7 +180,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-ED43-AC01",
-        "requirement": "捨てる規則（P3-ED43-D-DROP・D-SOURCE・D-PLACE）: (1) host は dmdata の設定で起動したときだけ、接続ごとの start frame の classifications に eew.forecast があるかを覚える（forecastGranted、非保存。次の start frame で読み直す） (2) data frame が ingress を通り head.type が VXSE43 で forecastGranted なら、mailbox に入れずに終える。運用区分（通常・訓練・試験）を問わない (3) 受信の数（recordInput）と入力の番号（input-N）は数えたまま。U-E の state・view・intent・保存世代と mailbox は変わらない (4) VXSE45 はそのまま U-E に渡り、警報は警報地域と見出しのコード 31 で読む",
+        "requirement": "捨てる規則（P3-ED43-D-DROP・D-SOURCE・D-PLACE）: (1) host は dmdata の設定で起動したときだけ、接続ごとの start frame の classifications に eew.forecast があるかを覚える（forecastGranted、非保存）。新しい接続を開いたら false に戻し、前の接続の区分を持ち越さない（その接続の start frame を受けるまで捨てない） (2) data frame が ingress を通り head.type が VXSE43 で forecastGranted なら、mailbox に入れずに終える。運用区分（通常・訓練・試験）を問わない (3) 捨てた報で残るもの・残らないものは AC03 (4) VXSE45 はそのまま U-E に渡り、警報は警報地域と見出しのコード 31 で読む",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:594 «bd66953e4b06338e»",
           "docs/specs/dmdata.md:508 «859866c3af59bd46»",
@@ -198,7 +198,7 @@
       },
       {
         "id": "P3-ED43-AC03",
-        "requirement": "捨てた報の跡（P3-ED43-D-TRACE）: 端末・EEW ログ・定期要約・診断に出さない。取り直し（Q-ED43-FACTS の (4)）には捨てる処理を足さない",
+        "requirement": "捨てた報の跡（P3-ED43-D-TRACE）: (1) 残るもの: 受信の数（recordInput）、入力の番号（input-N）、最終受信時刻（recordFrame）、observe の T0 の印（計測の観測） (2) 残らないもの: U-E の state・view・intent・保存世代、mailbox（優先の eewCandidate も）、端末、EEW ログ、定期要約、診断 (3) 取り直し（Q-ED43-FACTS の (4)）には捨てる処理を足さない",
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:16 «397c7c64d9eb1670»"
         ]
@@ -221,6 +221,14 @@
           "P3-ED43-AC02"
         ],
         "behavior": "契約境界。既存の試験で確かめる: P3-C2-T01（start frame が eew.warning だけの接続で VXSE43 が snapshot に届く）と P2-A10-T06（{ wsUrl } の起動で eew.forecast の start frame の後の VXSE43 が snapshot に届く）"
+      },
+      {
+        "testId": "P3-ED43-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-ED43-AC01"
+        ],
+        "behavior": "実不具合（ヘルツの総合レビューの P2）。eew.forecast の start frame を受けた接続が切れ、接続し直した新しい接続で start frame より前に VXSE43 が届くと使われ、snapshot の EEW は highestSeverity warning"
       }
     ],
     "requiredCommands": [
@@ -292,10 +300,10 @@
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
       "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
-      "既存の試験の期待は変えない。入力の前提だけを変える試験は 3 本: P3-C2-T01 の start frame の区分を eew.forecast から eew.warning へ（VXSE43 を使う接続で snapshot に届くことを確かめる試験のため）、P3-REC-T08 と P3-REC-T01 の購読の eew.forecast を eew.warning へ（live の VXSE43 が届くことを確かめる試験のため）",
+      "既存の試験の期待は変えない。入力の前提だけを変える試験は 4 本: P3-C2-T01 の start frame の区分を eew.forecast から eew.warning へ（VXSE43 を使う接続で snapshot に届くことを確かめる試験のため）、P3-C2-T05 の start frame を eew.forecast と eew.warning から eew.warning だけへ（秘密が漏れない試験で、VXSE43 を data の経路に通すため。snapshot の EEW の行は current が無くても出るので、変えないと捨てたまま通っていた）、P3-REC-T08 と P3-REC-T01 の購読の eew.forecast を eew.warning へ（live の VXSE43 が届くことを確かめる試験のため）",
       "host.ts の行の位置を変えず、ほかの契約の «» は付け直さない。check-contract が落ちたら止めて報告する",
-      "配送で統合担当が原文を改訂する: (1) P2-SNAPSHOT-SSE-001 の P2-A8-AC09 の「VXSE45→VXSE43同event」に「両方の family が U-E に届くのは区分の読めない起動と unit の試験だけ。eew.forecast を受けている dmdata の接続では VXSE43 を host で捨てる（P3-EEW-DROP43-001）。eew.warning だけの接続では VXSE43 をそのまま使う」を足し、P2-A8-T05 の検収にも同じ前提を足す (2) P2-EEW-UNIT-001 の generationRule の「VXSE45を意味受理した後の同event VXSE43は通知候補外」に同じ前提を足す (3) P3-DMDATA-CONNECT-001 の P3-C2-T01 の「続くVXSE43のdata」に「start frame の区分は eew.warning（P3-EEW-DROP43-001）」を足す (4) P3-RECOVERY-001 の P3-REC-T08・T01 の live の EEW に「購読は eew.warning」を足す",
-      "残存リスク: (1) eew.forecast と eew.warning の両方を契約した人で VXSE43 が VXSE45 より先に届くと、警報の表示と音は警報を読める VXSE45 まで遅れる。実物の 20240417231454 では発表時刻が同じ秒（23:14:59）で、届いた順と時刻の差は測っていない（Q-ED43-DELAY） (2) 区分の読めない起動（{ wsUrl }）と unit の試験では両方の種類が U-E に届き、取消が pending のまま別の種類の取消を採ると音が 0 回になる欠陥と、取消の後に別の種類の報が戻る件が残る（Q-ED43-ENDED-DEFECT） (3) 接続し直しで区分が変わった直後、新しい start frame より前の data frame は無い（dmdata の手順）ので、区分の読みの遅れは無い前提。偽の dmdata の手順の差は確かめていない"
+      "配送で統合担当が原文を改訂する: (1) P2-SNAPSHOT-SSE-001 の P2-A8-AC09 の「VXSE45→VXSE43同event」に「両方の family が U-E に届くのは区分の読めない起動と unit の試験だけ。eew.forecast を受けている dmdata の接続では VXSE43 を host で捨てる（P3-EEW-DROP43-001）。eew.warning だけの接続では VXSE43 をそのまま使う」を足し、P2-A8-T05 の検収にも同じ前提を足す (2) P2-EEW-UNIT-001 の generationRule の「VXSE45を意味受理した後の同event VXSE43は通知候補外」に同じ前提を足す (3) P3-DMDATA-CONNECT-001 の P3-C2-T01 の「続くVXSE43のdata」に「start frame の区分は eew.warning（P3-EEW-DROP43-001）」を足す (4) P3-RECOVERY-001 の P3-REC-T08・T01 の live の EEW に「購読は eew.warning」を足す (5) P2-SNAPSHOT-SSE-001 の P2-A8-NOTICE.eew の「既存forecastへVXSE43警報ならeewWarning」 (6) P2-EEW-UNIT-001 の Q-NOTICE の hazardIncrease の「VXSE45採用後のVXSE43候補除外」 (7) P3-NOTICE-LEDGER-001 の P3-NL-AC04 の (4) の vxse45Accepted (8) docs/specs/cli-terminal-output.md の Q-TO3-EEW-FOLD（:165 の本文と :757 の表の行）。(5)〜(8) のどれにも (1) と同じ前提（区分を読めた接続で eew.forecast を受けていれば VXSE43 は U-E に届かない、P3-EEW-DROP43-001）を足す",
+      "残存リスク: (1) eew.forecast と eew.warning の両方を契約した人では、警報の表示と音は警報を読める VXSE45 が届くまで出ず、届かなければ出ない。実物の 20240417231454 では発表時刻が同じ秒（23:14:59）で、届いた順と時刻の差は測っていない（Q-ED43-DELAY） (2) 区分の読めない起動（{ wsUrl }）と unit の試験では両方の種類が U-E に届き、取消が pending のまま別の種類の取消を採ると音が 0 回になる欠陥と、取消の後に別の種類の報が戻る件が残る（Q-ED43-ENDED-DEFECT） (3) 接続し直しで区分が変わった直後、新しい start frame より前の data frame は無い（dmdata の手順）ので、区分の読みの遅れは無い前提。偽の dmdata の手順の差は確かめていない (4) 作者へ見せる: 両方を契約した人の EEW ログから VXSE43 の行が消える（旧築は抑止した VXSE43 も EEW ログに書いていた。同じ地震の VXSE45 の行は残る）"
     ],
     "unresolvedQuestions": []
   }

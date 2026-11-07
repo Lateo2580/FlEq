@@ -405,7 +405,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
       // The URL may carry a credential: nothing here keeps it.
       try { ws = new WebSocket(url, [...protocols], { handshakeTimeout: HANDSHAKE_MS }); } catch { settle("retrySoon"); return; }
       let opened = false;
-      socket = ws;
+      socket = ws; forecastGranted = false; // P3-ED43-AC01 (1): 前の接続の区分は持ち越さない。この接続の start frame まで捨てない
       ws.on("open", () => { opened = true; lastFrameAt = clock().monotonicMs; if (config.dmdata == null) { retries = 0; lastFailure = null; establishedAt = lastFrameAt; } settle("opened"); }); // P3-DC2-AC02 (2)・AC03 (4)・AC09 (2): { wsUrl } は start が来ない接続先もあるので open で確立
       ws.on("message", (raw) => { if (socket === ws) onFrame(ws, raw); });
       ws.on("error", () => { /* close follows */ });

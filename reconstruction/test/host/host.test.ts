@@ -692,7 +692,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     const host = await startP2Host({ dmdata, ...dirs, displayPort: 0, clock, observe: (o) => { observations.push(o); } });
     cleanups.push(() => host.stop().then(() => {}, () => {}));
     await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
-    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 71, classifications: ["eew.forecast", "eew.warning"], time: startTime() }));
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 71, classifications: ["eew.warning"], time: startTime() }));
     server.sockets[0].send(dataFrame("VXSE43", vxse43));
     await until(async () => (await snapshot(host.displayPort)).current.eew.items.length > 0);
     // An error frame (close flag recorded), a failed DELETE of the listed own socket, then an uncertain start.
@@ -1753,5 +1753,25 @@ describe("P3-EEW-DROP43-001 the host does not use VXSE43 while eew.forecast is g
     await until(async () => (await snapshot(host.displayPort)).current.eew.items.some((item) => item.activeCount > 0));
     expect((await snapshot(host.displayPort)).current.eew.items.find((item) => item.activeCount > 0))
       .toMatchObject({ activeCount: 1, highestSeverity: "forecast" });
+  });
+
+  it("P3-ED43-T03 regression / AC01 (1): a reconnect does not carry the previous start frame's eew.forecast; a VXSE43 before the new start is used", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    rest.list = listing([]);
+    rest.start = opened(server.url, 44);
+    rest.close = async () => ({ kind: "ok" });
+    const host = await startDmdata(dirs);
+    await until(() => server.sockets.length === 1 && server.sockets[0].readyState === 1);
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 44, classifications: ["eew.forecast", "eew.warning"], time: startTime() }));
+    await firstLine(dirs.diagnosticDirectory, "dmdataSocketStarted");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await lose(host.displayPort, server.sockets[0]);
+    vi.advanceTimersByTime(5_000);
+    await until(() => server.sockets.length === 2 && server.sockets[1].readyState === 1);
+    server.sockets[1].send(dataFrame("VXSE43", vxse43));
+    await until(async () => (await snapshot(host.displayPort)).current.eew.items.some((item) => item.activeCount > 0));
+    expect((await snapshot(host.displayPort)).current.eew.items.find((item) => item.activeCount > 0))
+      .toMatchObject({ activeCount: 1, highestSeverity: "warning" });
   });
 });
