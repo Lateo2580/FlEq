@@ -46,7 +46,7 @@
   --c-vermillion: #d55e00;
   --c-vermillion-lift: #e56910; /* vermillion の黒背景テキスト用リフト (面には使わない)。int-7 の surface-highest 上コントラスト救済用に明度を上げた明色 (spec §6) */
   --c-raspberry: #cc79a7;
-  --c-dark-red: #7a1e00; /* 面 (bg) 専用。黒背景の文字色には使わない */
+  --c-dark-red: #7a1e00; /* 面 (bg) 専用。黒背景の文字色には使わない。今は未参照で、Pi の実機で震度 7 の白の面をやめるときに戻す値 (P3-I7-D-KEEP-PRIMITIVE) */
 
   /* ── JMA 標準 (津波) ── */
   --c-tsunami-purple: #c46bde;      /* テキスト用 */
@@ -74,7 +74,7 @@
   --role-muted: var(--c-gray-lift); /* --c-gray (#84919e) の無彩色相を維持し明度のみ上げた --c-gray-lift。overlay 合成でのコントラスト救済 (spec §6)。--c-gray / --fg-faint 自体は他消費者のため変更しない */
 
   /* ── 震度 rank (1..9 = 震度1..4, 5弱, 5強, 6弱, 6強, 7) → テキスト色。
-        CLI intensity ロールと同構造: rank8 は vermillion 面, rank9 は darkRed 面 ── */
+        CLI intensity ロールと同構造: rank8 は vermillion 面, rank9 は白の面 ── */
   --int-1: var(--c-gray);
   --int-2: var(--c-sky);
   --int-3: var(--c-blue-lift);
@@ -83,9 +83,9 @@
   --int-6: var(--c-orange);
   --int-7: var(--c-vermillion-lift); /* CUD 朱 --c-vermillion (#d55e00, hue 26°) の色相を維持し明度のみ上げた --c-vermillion-lift (surface-highest 上のコントラスト救済、spec §6) */
   --int-8-bg: var(--c-vermillion); /* 6強: 面+黒文字 */
-  --int-9-bg: var(--c-dark-red);   /* 7: 面+白文字 */
+  --int-9-bg: #ffffff;   /* 7: 白の面+黒文字。端末の int7 と同じ (P3-INT7-COLOR-001、Pi の実機で確定) */
   --int-8-on: #000; /* int-8-bg (vermillion) 面上の文字色 */
-  --int-9-on: #fff; /* int-9-bg (dark-red) 面上の文字色 */
+  --int-9-on: #000000; /* int-9-bg (白) 面上の文字色 */
 
   /* ── ヘッダ標準 (M3E): 意味色 container 面 + 明るい on-container 文字 + 下端 CUD 色帯 ──
      mock D 列 (.m3e-cud-container) で確定。EEW赤茶/気象特別警報紫の 2 ペアが視覚検証済み、

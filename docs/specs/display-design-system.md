@@ -370,7 +370,7 @@ fluid clamp や container query で、同一トークンが画面幅次第で小
 | `--c-vermillion` | `#d55e00` | `#d55e00` |  |
 | `--c-vermillion-lift` | `#e56910` | `#e56910` | vermillion の黒背景テキスト用リフト (面には使わない)。int-7 の surface-highest 上コントラスト救済用に明度を上げた明色 (spec §6) |
 | `--c-raspberry` | `#cc79a7` | `#cc79a7` |  |
-| `--c-dark-red` | `#7a1e00` | `#7a1e00` | 面 (bg) 専用。黒背景の文字色には使わない |
+| `--c-dark-red` | `#7a1e00` | `#7a1e00` | 面 (bg) 専用。黒背景の文字色には使わない。今は未参照で、Pi の実機で震度 7 の白の面をやめるときに戻す値 (P3-I7-D-KEEP-PRIMITIVE) |
 
 #### JMA 標準 (津波)
 
@@ -410,9 +410,9 @@ fluid clamp や container query で、同一トークンが画面幅次第で小
 | `--int-6` | `var(--c-orange)` | `#e69f00` |  |
 | `--int-7` | `var(--c-vermillion-lift)` | `#e56910` | CUD 朱 --c-vermillion (#d55e00, hue 26°) の色相を維持し明度のみ上げた --c-vermillion-lift (surface-highest 上のコントラスト救済、spec §6) |
 | `--int-8-bg` | `var(--c-vermillion)` | `#d55e00` | 6強: 面+黒文字 |
-| `--int-9-bg` | `var(--c-dark-red)` | `#7a1e00` | 7: 面+白文字 |
+| `--int-9-bg` | `#ffffff` | `#ffffff` | 7: 白の面+黒文字。端末の int7 と同じ (P3-INT7-COLOR-001、Pi の実機で確定) |
 | `--int-8-on` | `#000` | `#000` | int-8-bg (vermillion) 面上の文字色 |
-| `--int-9-on` | `#fff` | `#fff` | int-9-bg (dark-red) 面上の文字色 |
+| `--int-9-on` | `#000000` | `#000000` | int-9-bg (白) 面上の文字色 |
 
 #### ヘッダ標準 (M3E): 意味色 container 面 + 明るい on-container 文字 + 下端 CUD 色帯
 
@@ -829,7 +829,7 @@ fluid clamp や container query で、同一トークンが画面幅次第で小
 | int---int-7-on---surface-high | 2 震度rank文字 | base | `--int-7` | `--surface-high` | 5.52:1 | 4.5:1 | PASS |
 | int---int-7-on---surface-highest | 2 震度rank文字 | base | `--int-7` | `--surface-highest` | 5.05:1 | 4.5:1 | PASS |
 | int8 | 3 震度rank面 | base | `--int-8-on` | `--int-8-bg` | 5.43:1 | 4.5:1 | PASS |
-| int9 | 3 震度rank面 | base | `--int-9-on` | `--int-9-bg` | 10.43:1 | 4.5:1 | PASS |
+| int9 | 3 震度rank面 | base | `--int-9-on` | `--int-9-bg` | 21.00:1 | 4.5:1 | PASS |
 | role-critical-on---bg | 4 role文字色 | base | `--role-critical` | `--bg` | 5.43:1 | 4.5:1 | PASS |
 | role-critical-on---surface-high | 4 role文字色 | base | `--role-critical` | `--surface-high` | 4.71:1 | 4.5:1 | PASS |
 | role-critical-on---surface-panel | 4 role文字色 | base | `--role-critical` | `--surface-panel` | 4.98:1 | 4.5:1 | PASS |

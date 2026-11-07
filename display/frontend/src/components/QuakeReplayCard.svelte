@@ -138,7 +138,7 @@
   }
   .int-r9 {
     background: var(--int-9-bg);
-    color: #fff;
+    color: var(--int-9-on);
   }
   .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
   .int-chip.special-unknown,

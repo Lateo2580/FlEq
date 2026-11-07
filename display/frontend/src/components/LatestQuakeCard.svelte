@@ -398,7 +398,7 @@
   }
   .int-r9 {
     background: var(--int-9-bg);
-    color: #fff;
+    color: var(--int-9-on);
   }
   .int-chip.special-unknown,
   .g-int.special-unknown { color: var(--role-cancel); border-color: currentColor; }

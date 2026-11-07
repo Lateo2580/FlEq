@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildTokenMap, parseTokens, resolveValue } from "../../../../scripts/generate-design-docs.mjs";
 
 const css = readFileSync(join(__dirname, "..", "theme.css"), "utf-8");
 
@@ -59,5 +60,18 @@ describe("theme.css トークン定義 (Phase A2)", () => {
   });
   it("ticker-label のパディングが instrument 化で 0.9em に更新されている", () => {
     hasToken("ticker-label-pad", "0.9em");
+  });
+});
+
+// P3-I7-T01: 色の値は書かない（Pi の実機で白をやめるときに試験を変えずに戻せる、P3-I7-AC05）。smoke は 7 を踏まないので写しのずれはここで見る。
+describe("震度 7 の面 (P3-INT7-COLOR-001)", () => {
+  it("index.html の写しは theme.css の解決した値と同じで、4 つのカードの 7 の字は --int-9-on を読む", () => {
+    const map = buildTokenMap(parseTokens(css));
+    const html = readFileSync(join(__dirname, "..", "..", "..", "..", "..", "reconstruction", "src", "display", "chrome-eew", "index.html"), "utf-8");
+    for (const name of ["--int-9-bg", "--int-9-on"]) expect(html).toContain(`${name}: ${resolveValue(`var(${name})`, map)};`);
+    for (const card of ["LatestQuakeCard", "RecentQuakes", "QuakeReplayCard", "QuakePanel"]) {
+      const source = readFileSync(join(__dirname, "..", "..", "components", `${card}.svelte`), "utf-8");
+      expect(source, `${card} の .int-r9`).toMatch(/\.int-r9\s*\{[^}]*color:\s*var\(--int-9-on\);/);
+    }
   });
 });
