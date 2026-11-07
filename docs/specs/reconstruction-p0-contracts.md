@@ -591,7 +591,7 @@ P3 の追加実装で新しい横断不変条件を発見した場合は、Q13 �
 
 | 統合契約 | 組み立てる意味モジュール | 単位内で一緒に確定するもの |
 |---|---|---|
-| I-U-E | M01 | 実行中 EEW と期限付き intent の区別。保存から active EEW を作らない |
+| I-U-E | M01 | 実行中 EEW と期限付き intent の区別。保存から active EEW を作らない。eew.forecast を受けている dmdata の接続では、VXSE43 を host で捨て U-E に渡さない（`P3-EEW-DROP43-001`） |
 | I-U-Q | M02・M03 | 地震・長周期の関連付け、取消、保持根拠、履歴、intent |
 | I-U-T | M04 | 警報、独立した観測系列、station、取消・復元の coverage |
 | I-U-N | M05 | 現況と説明報の区別、現況取消、intent |
