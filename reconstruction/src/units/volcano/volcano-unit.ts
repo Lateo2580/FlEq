@@ -1700,13 +1700,13 @@ function undecided<T extends VolcanoAlert | VolcanoAshfall>(applied: Applied, ca
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4a、P3-REC-AC10・P3-REC-D-N2-RAISE=A） ----
 
-// H27 の段は警報のレベル（P3-C9-NOTICE-LEVELS=C の対応の後）。active でない火山と記録の無い火山はレベル 1 と読む。
-const raiseLevel = (value: VolcanoAlert | undefined): number => value?.effective === "active" ? noticeLevel(value.kind.code) : 1;
+// H27 の段は警報のレベル（P3-C9-NOTICE-LEVELS=C の対応の後）で、kind と active な landKind の高い方（P3-VR-AC01。VFSV の 36 は kind だけを替える）。active でない火山と記録の無い火山はレベル 1 と読む。
+const raiseLevel = (value: VolcanoAlert | undefined): number => value?.effective === "active" ? Math.max(noticeLevel(value.kind.code), value.landKind != null && activeKind(value.landKind) ? noticeLevel(value.landKind.code) : 1) : 1;
 
 /**
  * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
- * candidate は採用する state。陸上の警報のレベルが open より上がり、いまも active な火山のうちレベルの最も高い 1 件に info を 1 回（取り直し 1 回で
- * unit に 1 件）。降灰は鳴らさない。通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
+ * candidate は採用する state。警報の段（raiseLevel）が open より上がり、いまも active な火山のうちレベルの最も高い 1 件に info を 1 回（取り直し 1 回で
+ * unit に 1 件）。本文は段を決めた Kind を読む（P3-VR-D-BODY=A）。降灰は鳴らさない。通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
 function recoveryNotices(open: VolcanoUnitState, candidate: VolcanoUnitState, clock: ClockReading): VolcanoUnitState {
   const now = clock.wallTimeMs, before = new Map(open.alerts.map((item) => [item.subject, item]));
@@ -1718,12 +1718,12 @@ function recoveryNotices(open: VolcanoUnitState, candidate: VolcanoUnitState, cl
     if (best == null || level > best.level) best = { alert, source: alert.source, level };
   }
   if (best == null) return candidate;
-  const { alert, source } = best, version = versionDigest(source);
+  const { alert, source, level } = best, version = versionDigest(source);
   const at = new Date(reportMs(source) + 32_400_000).toISOString().slice(11, 16);
-  const lv = /^1[1-5]$/.test(alert.kind.code) ? `Lv${Number(alert.kind.code) - 10}` : null;
+  const kind = noticeLevel(alert.kind.code) < level && alert.landKind != null ? alert.landKind : alert.kind, lv = /^1[1-5]$/.test(kind.code) ? `Lv${Number(kind.code) - 10}` : null;
   const notice: Notice = { subject: alert.subject, series: "", operation: alert.operation, source, transition: "updated",
     payload: { domain: "volcano", level: "info", title: `${PREFIX[alert.operation]}噴火警報・予報（${at} 発表）`,
-      body: join([alert.volcanoName, lv, alert.kind.name]), reportDateTime: source.reportDateTimeRaw, recovered: true } };
+      body: join([alert.volcanoName, lv, kind.name]), reportDateTime: source.reportDateTimeRaw, recovered: true } };
   const notices = admit(candidate.intents, intentsFor(notice, now, alert.notice, version), new Set());
   if (notices.admitted.length === 0) return candidate;
   // P3-NL-AC02 (3): 引上げの版と種類を陸上の系列の印に足す。

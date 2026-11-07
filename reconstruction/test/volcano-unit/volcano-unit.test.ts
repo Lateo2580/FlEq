@@ -1280,3 +1280,41 @@ describe("P3-REC-T19 regression (U-V): a recovered alert withdraws the pending i
     expect([state.intents.length, live.intents.length, recovery.state.intents, recovery.intents]).toEqual([2, 2, [], []]);
   });
 });
+
+// P3-VOLCANO-RAISE-001: H27 の段は kind と active な landKind の高い方（台帳 111）。VFSV は取り直しで適用されないので、起点は live で作り、候補だけ origin=recovery で当てる。
+describe("P3-VOLCANO-RAISE-001: the H27 level reads kind and the active landKind", () => {
+  const now = clock(at("2020-05-22T14:00:00+09:00"));
+  const control = (value: string) => (xml: string) => xml.replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${value}</DateTime>`);
+  const coded = (code: string) => (xml: string) => xml.replaceAll("<Code>13</Code>", `<Code>${code}</Code>`);
+  const condition = (value: string) => (xml: string) => xml.replaceAll("<Condition>継続</Condition>", `<Condition>${value}</Condition>`);
+  const sea = (state: VolcanoUnitState) => send(state, F.marine, (xml) => control("2020-05-22T04:10:00Z")(retime("2020-05-22T13:10:00+09:00")(xml))
+    .replaceAll("<Code>506</Code>", "<Code>306</Code>")).state;
+  const recovered = (state: VolcanoUnitState, transform: (xml: string) => string) =>
+    receive(state, decodeXml(transform(retime("2020-05-22T13:30:00+09:00")(fixtureXml(F.continuation))), "VFVO50", "rec-land", "recovery"), now).state;
+  const raised = (open: VolcanoUnitState, candidate: VolcanoUnitState) => recoveryNotices(open, candidate, now).intents
+    .filter((item) => item.payload.recovered === true).map((item) => [item.channel, item.payload.level, item.payload.body]);
+  const twice = (body: string) => ["desktop", "sound"].map((channel) => [channel, "info", body]);
+
+  it("P3-VR-T01 regression / AC01: a continuation after the sea report over Lv5 or Code 25 is no raise", () => {
+    for (const code of ["25", "15"]) {
+      const open = sea(send(emptyState(), F.a306, coded(code)).state);
+      expect(alertOf(open, "306")).toMatchObject({ kind: { code: "36" }, landKind: { code } });
+      const candidate = recovered(open, coded(code));
+      expect(alertOf(candidate, "306")).toMatchObject({ kind: { code } });
+      expect(recoveryNotices(open, candidate, now)).toBe(candidate);
+    }
+  });
+
+  it("P3-VR-T02 acceptance / AC02: real raises still sound, with kind 36 on top and over a released landKind", () => {
+    const open = sea(send(emptyState(), F.a306).state);
+    expect(raised(open, recovered(open, (xml) => condition("引上げ")(coded("15")(xml))))).toEqual(twice("浅間山 / Lv5 / レベル３（入山規制）"));
+    // VFSV より Control/DateTime が古い VFVO50 は kind を替えず landKind だけを上げる。本文は段を決めた landKind を読む（P3-VR-D-BODY=A）。
+    const under = recovered(open, (xml) => control("2020-05-22T04:05:00Z")(condition("引上げ")(coded("15")(xml))));
+    expect(alertOf(under, "306")).toMatchObject({ kind: { code: "36" }, landKind: { code: "15" } });
+    expect(raised(open, under)).toEqual(twice("浅間山 / Lv5 / レベル３（入山規制）"));
+    // 解除の landKind は読まない（読むと起点が 3 になり、この引上げが消える）。
+    const released = sea(send(emptyState(), F.a306, (xml) => xml.replaceAll("<Condition>引上げ</Condition>", "<Condition>解除</Condition>")).state);
+    expect(alertOf(released, "306")).toMatchObject({ effective: "active", kind: { code: "36" }, landKind: { code: "13", condition: "解除" } });
+    expect(raised(released, recovered(released, condition("引上げ")))).toEqual(twice("浅間山 / Lv3 / レベル３（入山規制）"));
+  });
+});
