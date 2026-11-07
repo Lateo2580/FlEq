@@ -542,7 +542,7 @@ K9 は 1187c2d4 で配送した。§0〜§13 の行は他の契約から引か�
 
 ## 17. K10 の発注 1 の配送で変わる読み（2026-10-25 統合担当、`P3-EXPIRY-FORM-001` の AC14 の (17)）
 
-- §3.5 の K10 の行（:237）と §8 の表の K10 の行（:437）: 版を上げるのは L・R・B・T・V・Y・M・N・F の 9 unit（P3-EF-AC10 の (1)）で、U-W・U-E・U-Q は入力の型だけが変わり版を上げない。変える契約は P3-EF-AC14 の (1)〜(14) と (19)（`P3-CLOCK-CHECK-001`・`P3-EXECUTION-SPLIT-001`・`P2-SHARED-RUNTIME-001`・`P3-UNIT-L-001`・`P3-UNIT-R-001`・`P3-UNIT-B-001`・`P3-TSUNAMI-UNIT-001`・`P3-UNIT-M-001`・`P3-UNIT-V-001`・`P3-UNIT-Y-001`・`P2-EEW-UNIT-001`・`P3-UNIT-Q-001`・`P3-UNIT-N-001`・`P2-WEATHER-CURRENT-UNIT-001`・`P2-WEATHER-TIMESERIES-UNIT-001`・`P3-NOTICE-LEDGER-001`）。U-Q・U-N・U-E は根拠の当て方だけで、期限切れの形は K11・K13・EEW の閉じ方のまま（Q-EF-SCOPE）。
+- §3.5 の K10 の行（:237）と §8 の表の K10 の行（:437）: 版を上げるのは L・R・B・T・V・Y・M・N・F の 9 unit（P3-EF-AC10 の (1)）で、U-W・U-E・U-Q は入力の型だけが変わり版を上げない（U-Q はその後 `P3-SEISMIC-EXPIRY-VIEW-001` で保留の印を足し、`p3-seismic-unit-v8` へ上げた）。変える契約は P3-EF-AC14 の (1)〜(14) と (19)（`P3-CLOCK-CHECK-001`・`P3-EXECUTION-SPLIT-001`・`P2-SHARED-RUNTIME-001`・`P3-UNIT-L-001`・`P3-UNIT-R-001`・`P3-UNIT-B-001`・`P3-TSUNAMI-UNIT-001`・`P3-UNIT-M-001`・`P3-UNIT-V-001`・`P3-UNIT-Y-001`・`P2-EEW-UNIT-001`・`P3-UNIT-Q-001`・`P3-UNIT-N-001`・`P2-WEATHER-CURRENT-UNIT-001`・`P2-WEATHER-TIMESERIES-UNIT-001`・`P3-NOTICE-LEDGER-001`）。U-Q・U-N・U-E は根拠の当て方だけで、期限切れの形は K11・K13・EEW の閉じ方のまま（Q-EF-SCOPE）。
 - §5 の段 3 の順（:347・:444）: K11・K13 は K10 の後（seismic-unit.ts・nankai-unit.ts の期限と退去の関数を両方が触る）。③ は U-W の期限を K10 が触らないので起草は待たず、入力の型の合流だけ K10 の後。K12 は U-T の同じ関数を触るので K10 の後（Q-EF-SCOPE）。
 
 ## 18. K11 の配送で変わる読み（2026-10-25 統合担当、`P3-UNIT-Q-CAPACITY-001` の AC14 の (8)）

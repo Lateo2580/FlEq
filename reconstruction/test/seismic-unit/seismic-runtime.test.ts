@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import type { ClockReading, NotificationIntent } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, NotificationIntent, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAttempt, NotificationDeliveryState } from "../../contracts/p2-notification-delivery.types";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import { CheckpointCoordinator } from "../../src/checkpoint/checkpoint";
@@ -79,6 +79,49 @@ it("P3-QC-T07 contractBoundary / P3-QC-AC13 (4): a U-Q generation with a seismic
   coordinator.ended(output.result, false);
   const restored = coordinator.restoreUnit("U-Q");
   expect(restored.kind === "restored" ? restored.envelope.losses : restored.kind).toEqual(losses);
+});
+
+describe("P3-SEISMIC-EXPIRY-VIEW-001 through the seismic owner", () => {
+  // 受入条件（AC08 の場面 E、台帳 109）: 保存した地震を 25 時間後に起動し、確かめられない間に snapshot から消え、確かめた後に無音で記憶へ移る。
+  // verified の復元は recoveryApplied の subjects に expired を載せるので、publisher が空でない subjects を受ける経路も通す。
+  it("P3-SEV-T06 acceptance / AC01,AC08: a saved quake leaves the snapshot on unverified and goes to the memory silently on verified", async () => {
+    const HOUR = 3_600_000, reported = Date.parse(/<ReportDateTime>([^<]*)/.exec(readFileSync(`test/fixtures/${S53A}.xml`, "utf8"))![1]);
+    const at = (offset: number, monotonicMs: number) => ({ wallTimeMs: reported + offset, monotonicMs });
+    const files = new MemoryFiles();
+    let now = at(1_000, 1);
+    const snapshots: Parameters<NonNullable<NonNullable<Parameters<typeof harnessedRoot>[2]>["display"]>["publish"]>[0][] = [];
+    const wired = (basis: { value: WallBasis } | null) => harnessedRoot(config, linkedUnitCodecs, { clock: () => now, checkpointFileSystem: files,
+      diagnosticFileSystem: new MemoryDiagnostics(), notificationAdapter: recordingNotificationAdapter(), display: { publish: (snapshot) => { snapshots.push(snapshot); } },
+      ...basis == null ? {} : { wallBasis: () => basis.value, contentBasis: () => basis.value } });
+    const tick = async (h: Harness, clock: ClockReading) => { now = clock; h.root.mailbox.recordWorkerResponse(clock.monotonicMs); h.root.tick(clock); await h.settle(); };
+    const save = async (h: Harness) => { await h.root.driveCheckpoint(); await h.settle(); await h.root.diagnostics.flush(); };
+    const active = () => snapshots.at(-1)?.current.earthquake.items.reduce((sum, item) => sum + item.activeCount, 0);
+    const first = wired(null);
+    await startHarness(first, "sev-1", now, false);
+    await report(first, S53A, now);
+    await save(first);
+    const known = new Set(first.unit("U-Q").intents.map((item) => item.id));
+    const basis = { value: "awaiting" as WallBasis };
+    now = at(25 * HOUR, 0);
+    const second = wired(basis);
+    await startHarness(second, "sev-2", now, false);
+    await tick(second, at(25 * HOUR, 1_000));
+    expect(active()).toBe(1);
+    basis.value = "unverified";
+    await tick(second, at(25 * HOUR, 2_000));
+    const held = second.unit("U-Q");
+    const view = second.root.state.mirror["U-Q"].view;
+    expect([active(), held.earthquakes[0].expiryPending, view.unit === "U-Q" && view.daily.normal.count]).toEqual([0, true, 1]);
+    await save(second);
+    // 確かめた時計で復元: 記憶へ移り、見えないまま、新しい通知を作らない。
+    basis.value = "verified";
+    now = at(26 * HOUR, 0);
+    const third = wired(basis);
+    await startHarness(third, "sev-3", now, false);
+    await tick(third, at(26 * HOUR, 1_000));
+    expect([third.unit("U-Q").earthquakes[0].contributions.map((item) => item.effective), active(), third.unit("U-Q").intents.filter((item) => !known.has(item.id)),
+      snapshots.at(-1)?.recovery.restoration["U-Q"]]).toEqual([["expired"], 0, [], { kind: "restored" }]);
+  });
 });
 
 describe("P3-UNIT-Q-001 U-Q through the composition root", () => {

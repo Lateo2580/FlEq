@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "d163bdf20e731507a2e8164d88632bd6e026001150b0626a4c6cfbc29f544895",
+    "sha256": "627a803713721a1c9980beb1418ec192d4b78cf8f7ea6969f0fd5bedd4360763",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -515,7 +515,7 @@
           "reconstruction/src/units/unreadable.ts:78 «0af6ef3947ad1c91»",
           "reconstruction/src/decode-material/xml-read.ts:42 «f6750367c3eb6039»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:309 «0945856dde68b769»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:267 «22d0c9f83deb6a55»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:277 «22d0c9f83deb6a55»",
           "docs/specs/reconstruction-p0-contracts.md:649 «bcc7fbb79d790552»",
           "reconstruction/contracts/p3-terminal-output.types.ts",
           "reconstruction/contracts/p3-eew-facts.types.ts"

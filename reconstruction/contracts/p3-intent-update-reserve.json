@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "96ec6796ee5edf6bd5bd0193c4c9b7e01c5f215e66e9f95eb8b6d0820a36c185",
+    "sha256": "1c0e01a5d0ffa14c40f3ab51891b5908acace33619c9025f094072b88267bbf7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -192,7 +192,7 @@
       {
         "id": "P3-IUR-RES-02",
         "target": "intentを含む世代の計量（U-T・U-Q generationBytes、U-W reservedGenerationBytes・encodedValue・persistedValue、U-F measure）",
-        "limit": "4,194,304（U-T・U-Q）・16,777,216（U-W）・33,554,432（U-F）（今の器は U-T 11,354,432・U-Q 15,499,497・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "limit": "4,194,304（U-T・U-Q）・16,777,216（U-W）・33,554,432（U-F）（今の器は U-T 11,354,432・U-Q 15,515,625・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "unit": "bytes（今の計量＋pendingごとの予約の和）",
         "scope": "受理の退去とdecode・encodeが同じ式で数える。U-E・U-Nの世代の計量は変えない（P3-IUR-GENERATION=A）",
         "source": "P3-IUR-GENERATION=A"
@@ -244,7 +244,7 @@
       },
       {
         "id": "P3-IUR-AC02",
-        "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する（今の器は U-T 11,354,432・U-Q 15,499,497・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "intentを含む世代の計量も予約込み（P3-IUR-GENERATION=A、P3-IUR-RES-02）: U-T・U-QのgenerationBytes（受理のfitとdecodeが共有）、U-WのreservedGenerationBytes（受理のfitNormalByByte）・encodedValue・persistedValue、U-Fのmeasure（受理のfits・evict、encode・decodeが共有）に、pendingの予約の和を足す。退去の手順・順・capacityExceededの条件は変えず、数える値だけが変わる。U-QのP3-C7-CAPACITY-BUDGETの同時最大状態（3,979,110 byte。K7の発注2aの後の器は5,270,185 byte）はdecodeが受けたまま（予約はpendingの131,072の内側）。U-E・U-Nの世代は変えない。無いと: 世代の上限の手前（最大5,376 byte以内）のstateが配送の更新で上限を越え、U-T・U-Qはdecodeが、U-W・U-Fはencodeが拒否する（今の器は U-T 11,354,432・U-Q 15,515,625・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-tsunami-unit.json:265 «84ef9e9e865185da»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «74bda80810e85121»",
@@ -271,7 +271,7 @@
       },
       {
         "id": "P3-IUR-AC05",
-        "requirement": "既存の約束の読み替え（本契約に記録し、他の契約の条文は編集しない。統合担当が計画§9と台帳73に記録する、Q-IUR-BASE）: (1) P2-EEW-UNIT-001のQ-NOTICE.capacityの「pendingを128件/131072 byte以内」、P2-NOTIFICATION-DELIVERY-001の「U-E/U-W/U-Fそれぞれ128件/128KiB」のU-E、P3-TSUNAMI-UNIT-001のQ-NOTICE.capacityとI-U-T.decode、P3-UNIT-Q-001のI-U-Q.decode、P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001のpendingの128件/131,072 byte（U-W・U-F）は、予約込みと読む (2) U-T・U-Qのdecodeの「encode後の世代≤4 MiB」、U-Wの16 MiB、U-Fの32 MiBの世代の上限は予約込みと読む (3) P3-UNIT-Q-001のI-U-Q.capacityReserveの「intentの上限は262,144 byte＝pending 131,072＋終端記録131,072」は変えない（pendingは予約込みで131,072、更新の後は終端が131,072を一時超えても和は262,144以下）。既存試験の期待値の変更（変更前の理由の報告を兼ねる）: eew-unit.test.tsのP2-A4-T11（受理のpendingを実byteでちょうど131,072にして+0は採用・+1は不採用）とP2-A4-T03（encodeのpendingを実byteでちょうど131,072）、weather-current-unit.test.tsのP3-WL1-T06（encodeのpendingを実byteでちょうど131,072にしてdecodeがrestored・+1はthrow）の3本は、境界を「実byte＋予約＝131,072」に置き直す（paddingから予約の和を引く）。+0は採用・+1は不採用という期待の形は変えない。無いと: 他の契約の条文と本契約が同じ境界について違うことを言い、既存試験が実byteの境界で落ちる（今の器は U-T 11,354,432・U-Q 15,499,497・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "既存の約束の読み替え（本契約に記録し、他の契約の条文は編集しない。統合担当が計画§9と台帳73に記録する、Q-IUR-BASE）: (1) P2-EEW-UNIT-001のQ-NOTICE.capacityの「pendingを128件/131072 byte以内」、P2-NOTIFICATION-DELIVERY-001の「U-E/U-W/U-Fそれぞれ128件/128KiB」のU-E、P3-TSUNAMI-UNIT-001のQ-NOTICE.capacityとI-U-T.decode、P3-UNIT-Q-001のI-U-Q.decode、P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001のpendingの128件/131,072 byte（U-W・U-F）は、予約込みと読む (2) U-T・U-Qのdecodeの「encode後の世代≤4 MiB」、U-Wの16 MiB、U-Fの32 MiBの世代の上限は予約込みと読む (3) P3-UNIT-Q-001のI-U-Q.capacityReserveの「intentの上限は262,144 byte＝pending 131,072＋終端記録131,072」は変えない（pendingは予約込みで131,072、更新の後は終端が131,072を一時超えても和は262,144以下）。既存試験の期待値の変更（変更前の理由の報告を兼ねる）: eew-unit.test.tsのP2-A4-T11（受理のpendingを実byteでちょうど131,072にして+0は採用・+1は不採用）とP2-A4-T03（encodeのpendingを実byteでちょうど131,072）、weather-current-unit.test.tsのP3-WL1-T06（encodeのpendingを実byteでちょうど131,072にしてdecodeがrestored・+1はthrow）の3本は、境界を「実byte＋予約＝131,072」に置き直す（paddingから予約の和を引く）。+0は採用・+1は不採用という期待の形は変えない。無いと: 他の契約の条文と本契約が同じ境界について違うことを言い、既存試験が実byteの境界で落ちる（今の器は U-T 11,354,432・U-Q 15,515,625・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-unit.json:188 «96f780f26ae0d2f6»",
           "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
@@ -347,7 +347,7 @@
           "P3-IUR-AC02",
           "P3-IUR-AC06"
         ],
-        "behavior": "decodeの境界の行を既存のdecodeの表に足す（新しいitは作らない）: U-T（P3-C5-T05）とU-Q（P3-C7-T06）に「実byteは131,072以下で予約を足すと超えるpending」と「実byteは4,194,304以下で予約を足すと超える世代」の2行ずつ、U-E（P2-A4-T03）に前者の1行、U-W（P3-WL1-T06）とU-F（P2-A6-T03）に前者と「予約を足すと超える世代」の2行ずつ、U-Fにはさらに「attemptsが安全な整数でない」「nextAttemptAtが有限でない」の2行（AC06）。どれもinvalid（U-Wのencodeはthrow）。あわせてAC05の既存3本の境界を予約込みに置き直す（今の器は U-T 11,354,432・U-Q 15,499,497 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）"
+        "behavior": "decodeの境界の行を既存のdecodeの表に足す（新しいitは作らない）: U-T（P3-C5-T05）とU-Q（P3-C7-T06）に「実byteは131,072以下で予約を足すと超えるpending」と「実byteは4,194,304以下で予約を足すと超える世代」の2行ずつ、U-E（P2-A4-T03）に前者の1行、U-W（P3-WL1-T06）とU-F（P2-A6-T03）に前者と「予約を足すと超える世代」の2行ずつ、U-Fにはさらに「attemptsが安全な整数でない」「nextAttemptAtが有限でない」の2行（AC06）。どれもinvalid（U-Wのencodeはthrow）。あわせてAC05の既存3本の境界を予約込みに置き直す（今の器は U-T 11,354,432・U-Q 15,515,625 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）"
       }
     ],
     "requiredCommands": [

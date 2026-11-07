@@ -1,0 +1,442 @@
+{
+  "meta": {
+    "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
+    "sha256": "ae287087f94339a87c2bd3a7c835dfa0b73262eb8b8a22b55a5d9313bdb1a342",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-SEV-D-FORM",
+        "kind": "作者",
+        "A": "時計を確かめられない間は、事実と守りの状態を保ったまま、表示だけを期限切れの扱いにする（expiryPending の形）。当日の履歴は残す",
+        "B": "collect を unverified でも丸ごと動かす（事実を捨て、当日の履歴も空にする）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者の裁定、2026-11-07 夜。判断カード「画面・音に効く小さい判断 4 件」の 1、台帳 109）",
+        "reason": "昨日の夜の地震を見ていた作者が翌朝に Pi の画面を見ると、時計を確かめられない間は昨日の地震が消えずに残り、今の地震に見える。誤った時計で事実を捨てると生きている情報が消え、当日の履歴まで消える。保留の印の形は U-F など 9 分野に既にある"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-SEV-SOURCES",
+        "status": "closed",
+        "source": "2026-11-07 起草。base 8644ab3a のコードの読み合わせ（seismic-unit.ts、expiry.ts、9 分野の unit、host.ts、owner-runtime.ts）、ヘルツの調査 X1（2026-11-06）",
+        "closed": "今の U-Q: collect は basis が verified でなければ入口で戻る。P3-EF-AC04 と P3-QC-AC08 (1) のとおりで、契約違反ではない。ほかの 9 分野は unverified で保留の印を付けるので、期限切れの前回の情報が見えるのは起動の 30 秒までで終わる。U-Q だけは続報・容量の退去が無ければ時間の経過で消えない（X1 の場面: 11/5 19:00 が最終報の地震を 11/6 08:00 に保存し 20:00 に再起動すると、20:00:31 の後も翌朝 08:00 の後も active のまま view と snapshot に載る）。写す形: (1) 印 expiryPending?: true は表示の期限を持つ記録の欄で 21 byte（expiry.ts の PENDING_MARK_BYTES） (2) collect の分け方は landslide・flood・nankai の 3 行の形: shows＝awaiting でなく表示の最小が来た、recalls＝verified で回収の最小が来たか保留の記録がある。どちらも無ければ同じ参照 (3) 最小は cachedMin で種類ごとに別の cache を持つ (4) verified は保留の記録を wall によらず記憶へ移す (5) 器いっぱいまで実測で受ける unit（U-T・U-F）は、見えて印の無い記録 1 件に 21 byte の予約を受理と復元の両方で数える（P3-EF-AC10 (5)）。U-Q の fit と decode も同じ generationBytes で器いっぱいまで受けるので、同じ予約が要る (6) 版の扱いは P3-MIG-AC02 (2) の後の形（一覧に足さない）",
+        "remaining": "なし",
+        "reason": "写す先の形を実物で確かめた"
+      },
+      {
+        "id": "Q-SEV-BASIS",
+        "status": "closed",
+        "source": "host.ts の wallBasis、P3-EF-AC01・AC02",
+        "closed": "根拠は host の生の確かめの状態から要求ごとに unit の入力へ届く。verified＝接続先の時刻と手元の時計が 5 秒の内で合った。awaiting＝まだ合わず、起動から 30 秒の内。unverified＝まだ合わず、起動から 30 秒を過ぎた。run の中で verified から戻らない。本契約が効くのは unverified と、verified に替わった後だけ。awaiting は今どおり何も当てない（P3-EF-AC02 (1)。起動の 30 秒の待ちは全分野で同じなので変えない）",
+        "remaining": "なし",
+        "reason": "裁定が効く根拠を確かめた"
+      },
+      {
+        "id": "Q-SEV-OUTCOME",
+        "status": "closed",
+        "source": "tsunami-unit.ts・volcano-unit.ts・nankai-unit.ts の deadlineStep、P3-QC-AC08 (2)",
+        "closed": "印を付ける step は outcome を出さない（3 分野とも同じ）。保留から記憶へ移るときの expired の outcome は分野で分かれている: U-T は出す、U-V・U-N は前が見えない記録なので出さない。U-Q は P3-QC-AC08 (2) が期限切れの outcome を定めるので U-T の形にする。expired の outcome は 1 つの寄与と長周期に 1 回で、verified の変換のときだけ。今の restore は subjects が空なので、保留を保存して verified で復元すると 0 回になる（ヘルツの起草レビュー P2、2026-11-07）。U-Q の restore は collect の expired を subjects に載せる",
+        "remaining": "なし",
+        "reason": "二重に出さず、落としもしない"
+      },
+      {
+        "id": "Q-SEV-PLACE",
+        "status": "closed",
+        "source": "P3-SP-AC02、composition-root.ts の places、owner-runtime.ts の deadlineOwner・applyDeadlines",
+        "closed": "U-Q の場所は seismic のまま。期限の要求と根拠の切替えの評価は places と placeUnits の全部に効くので、seismic の owner は今の口で deadline の入力を受ける。本契約が変えるのは unit の中だけで、実行場所・mailbox・host・publisher に触れない。P3-SP の「U-Q の状態の規則・保存の形を変えない」はその契約の範囲の約束で、本契約を止めない",
+        "remaining": "なし",
+        "reason": "場所の規則に触れないことを確かめた"
+      },
+      {
+        "id": "Q-SEV-DECODE",
+        "status": "closed",
+        "source": "P3-EF-AC05 (1)、seismic-unit.ts の event・longPeriod の decode",
+        "closed": "P3-EF-AC05 (1) の「印のある記録の表示の期限が式と合う」は U-Q に足さない。U-Q の decode は effective によらず retainUntil の等式を持たず、印のある記録だけに足しても守るものが無い（表示の期限を持たない記録が U-Q には無い）",
+        "remaining": "なし",
+        "reason": "足す前に引く"
+      },
+      {
+        "id": "Q-SEV-CANCEL-ROW",
+        "status": "closed",
+        "source": "P3-QC-AC07 (4)、listed の条件",
+        "closed": "取り消した地震の一覧の行（cancelledSummary）は印の対象にしない。行は震度を持たず取消を示すだけで、unverified の間は retainUntil を過ぎても残り、verified で今どおり消える。印を取消の記録へ広げると decode の不変条件と保留からの戻し方が増える",
+        "remaining": "作者の確認を待たずに起草は閉じた。画面の出方に効くので統合担当が作者へ伝える（行を消す側を望むなら別の契約にする）",
+        "reason": "最小の形。残存リスク (3)"
+      },
+      {
+        "id": "Q-SEV-CANCEL-DUE",
+        "status": "closed",
+        "source": "ヘルツの起草レビュー P2（2026-11-07）、統合担当の決定",
+        "closed": "通知済みの報を R＋25 時間の unverified で保留にし、元報と同じ時刻の取消が届くと、期限は R＋24 時間のままで今の due が通知を止める。先に verified で記憶へ移すと期限は R＋30 時間で同じ取消が鳴る。保留の記録への取消は due より heard を優先して通知する。あわせて全 family の取消の retainUntil を記憶へ移ったときと同じ値にするので、記憶の期限より前の取消はどちらの順でも同じ結果になる（AC04 (5)(6)）",
+        "remaining": "なし",
+        "reason": "元の報を通知した取消を鳴らし損ねない（H19）"
+      },
+      {
+        "id": "Q-SEV-AFTER-VERIFIED",
+        "status": "closed",
+        "source": "ヘルツの起草レビュー（2026-11-07）、統合担当の決定、P3-EF-AC02 (3)",
+        "closed": "裁定の「事実と守りの状態を保つ」は時計を確かめられない間の話で、verified の後は保たない。保留の記録は wall によらず記憶へ移り、事実・strongHold・守りの on を失う。時計が進んでいた場合は、まだ期限の内の地震にも当たる。ほかの 9 分野と同じ形のまま進める",
+        "remaining": "作者への確認は統合担当が行う（残存リスク (1)）",
+        "reason": "表示だけの扱いの境界を書いた"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。normal・training・test の記録に同じ印の規則を当てる。training/test の記録は guard を持たないので守らない記録の段に入り、training/test の受理で normal を畳まず退去しないのは今どおり"
+    }
+  },
+  "contract": {
+    "contractId": "P3-SEISMIC-EXPIRY-VIEW-001",
+    "mode": "implementation",
+    "objective": "U-Q の時計未確認の間の表示の期限切れ（台帳 109、作者裁定 P3-SEV-D-FORM=A）。11/5 19:00 が最終報の地震は 11/6 19:00 に表示の期限が来る。時計を確かめられないまま翌朝になっても、今はその震源と震度が view と snapshot に残り、今の地震に見える。これを、事実・守りの状態・当日の履歴を残したまま view から外す。U-F など 9 分野の expiryPending の形を、地震の event と長周期の 2 種へそのまま当てる。時計を確かめたら今の collect どおり期限切れの記憶へ移り、そのときに音は鳴らず、期限切れの outcome は 1 回だけ出る",
+    "baseOid": "e19d6cff",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-seismic-expiry-view.json",
+      "reconstruction/contracts/p3-expiry-form.json",
+      "reconstruction/contracts/p3-unit-q-capacity.json",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-seismic-place.json",
+      "reconstruction/contracts/p3-migration.json",
+      "reconstruction/contracts/p3-persist-premises.md",
+      "reconstruction/contracts/*.types.ts",
+      "reconstruction/src/units/expiry.ts",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/notice-mark.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/test/seismic-unit/**",
+      "reconstruction/test/expiry-form/**",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/contracts/p3-seismic-unit.types.ts（EarthquakeEvent・LongPeriodSubject の expiryPending の欄と schemaVersion の字だけ）",
+      "reconstruction/src/runtime/owner-runtime.ts（U-Q の初期 state の版の字だけ）",
+      "reconstruction/test/seismic-unit/**",
+      "reconstruction/test/expiry-form/expiry-form.test.ts（P3-EF-T02 の U-Q の行だけ）",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts（U-Q の版の字だけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-seismic-expiry-view.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M02",
+      "M03"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-UNIT-Q-001",
+      "P3-UNIT-Q-CAPACITY-001",
+      "P3-EXPIRY-FORM-001",
+      "P3-SEISMIC-PLACE-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-MIGRATION-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-seismic-unit.types.ts#EarthquakeEvent",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#LongPeriodSubject",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicUnitState",
+      "reconstruction/contracts/p3-seismic-unit.types.ts#PersistedSeismicUnit"
+    ],
+    "publicFunctions": [
+      "口は変えない（reduceSeismicUnit・toSeismicView・seismicUnitCodec・recoveryChanges の signature のまま。seismic-unit.ts の export を増やさない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。expiry.ts の PENDING_MARK_BYTES・cachedMin を import する。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__32-35_04_03_240613_VXSE52",
+      "test__fixtures__selected_xml__78_01_01_240613_VXSE62",
+      "test__fixtures__synthetic_VXSE53_cancel"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-SEV-RES-01",
+        "target": "U-Q encoded generation（器 L）",
+        "limit": "15,499,497＋768×21＝15,515,625（event 512・長周期 256 の全部に印が付く最悪の分だけ広げる。作者裁定 P3-NL-D-CAPACITY=A と同じ向き。base の値は seismicUnitCodec.maxEnvelopeBytes の実値）",
+        "unit": "UTF-8 bytes",
+        "source": "P3-EF-AC10 (5) の形、P3-SEV-AC06"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-Q"
+    ],
+    "persistedFields": [
+      "event と長周期の expiryPending?: true（期限切れの保留の印、21 byte。active の寄与を持つ記録だけが持つ）",
+      "schemaVersion p3-seismic-unit-v8（一覧に足さない、P3-MIG-AC02 (2)）"
+    ],
+    "nonPersistedFields": [
+      "入力の basis（要求ごと、保存しない。P3-EF-AC01 のまま）",
+      "21 byte の予約（世代の byte の数え方で、保存の形に出ない）"
+    ],
+    "outOfScope": [
+      "awaiting の扱い（P3-EF-AC02 (1) のまま。起動の 30 秒の待ちは全分野で同じ）",
+      "当日の履歴の切替えと強震保持の解除の時計の条件（verified の時計でだけ当てる。P3-EF-AC04 のまま。当日の履歴は作者裁定で残す）",
+      "取り消した地震の一覧の行の時間の扱い（Q-SEV-CANCEL-ROW）",
+      "到着の時点で期限を過ぎた、記録の無い subject の報を配列へ入れない今の道（P3-FINAL-AC01）",
+      "期限切れ・時計未確認の印を画面へ送る口と描画（H17・H23 の見せ方、段 4・P4）",
+      "実行場所・mailbox・host・publisher・owner の期限の評価（Q-SEV-PLACE）",
+      "記憶の長さ・守る線の 24 時間・容量の段の順序の変更（P3-QC のまま。保留の記録の置き場だけを本契約が決める）",
+      "sequences.json・manifest.json の変更、新しい fixture file",
+      "他の契約の本文・spec・計画・設計メモの編集（AC09 の改訂と «» の付け直しは配送の commit で統合担当）",
+      "package.json・package-lock.json・tsconfig・vitest config、新しい npm 依存、旧築 src/**"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-SEV-AC01",
+        "requirement": "印と表示（作者裁定 P3-SEV-D-FORM=A、Q-EF-RECALL の形）: (1) 欄: EarthquakeEvent と LongPeriodSubject に expiryPending?: true を足す。印は event の単位で、寄与には足さない（表示の期限 retainUntil が event に 1 つなので） (2) \"awaiting\" は今どおり何も当てない (3) \"unverified\": active の寄与を持ち印の無い記録のうち retainUntil が手元の wall 以下のものに印を付ける。event も長周期も同じ。deadline・restore・shutdown の入力と、受信の reduce の中の collect の全部 (4) 印を付けても変えないもの: 寄与と長周期の事実（震源・震度・観測点・津波のコメント）、strongHold、guard、notice、unconfirmed、unavailable、folded、unreadable、retainUntil (5) 印のある記録は view の earthquakes・longPeriods・subjects と semanticRevision から外れる。印を付けた step の displayChanges は after が null の変化で、contentRevision が進む。snapshot は view の写しなので別の直しを足さない (6) 当日の履歴 daily（dayKey・count・maxInt・counted・recent）は変えない。日の切替え・強震保持の解除・失敗の印の回収・intent の失効は今どおり verified でだけ当てる（P3-EF-AC04） (7) 印を付ける step は intent も outcome も作らない（強震保持の解除の outcome も出さない） (8) nextDeadline は根拠によらず今の全部の最小のまま（印のある記録は元の retainUntil の値）。当てるものが無い入力は同じ state の参照を返し世代を進めない。unverified の毎秒の期限要求は、当てる表示の期限が来ていなければ配列を作り直さない（P3-EF-AC02 (6)・AC11 (2)）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3050 «d0abeaaf28be0863»",
+          "reconstruction/contracts/p3-persist-premises.md:219 «097c4e992b73935b»",
+          "reconstruction/contracts/p3-expiry-form.json",
+          "reconstruction/src/units/seismic/seismic-unit.ts"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC02",
+        "requirement": "保留の間に変わるのは表示の判定だけ（裁定の「守りの状態を保つ」）: (1) 印のある記録は、view・displayChanges・restore の coverage・容量不足の印の置き先・通知の判定（取消の wasActive、事実の変化）では見えない記録として扱う (2) 印のある記録は、守りの判定、RESERVE の数え方、容量の段、当日の履歴では、印の無い active の記録と同じに扱う。記憶ではない (3) 無いと: 事実の byte が RESERVE に入って復元が断られる、守りの根拠が消えて相手の記録の守りも落ちる、当日の履歴の行が cancelled: true に化ける (4) 同じ報の受け直しは印の有無によらず duplicate になる（印は版の比べの中身に入らない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-expiry-form.json",
+          "reconstruction/contracts/p3-unit-q-capacity.json",
+          "reconstruction/src/units/seismic/seismic-unit.ts"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC03",
+        "requirement": "verified への遷移（P3-EF-AC02 (3)(4)(7)、P3-QC-AC08）: (1) verified の deadline・restore の入力は、印のある記録を retainUntil と手元の wall の比べによらず今の期限切れの記憶の形へ移す。印は記憶に残さない (2) retainUntil が手元の wall 以下の記録では、移った結果は印を付けずに同じ wall の verified で collect を当てたときと同じ state（persistence と contentRevision を除く）。記憶の retainUntil は元の retainUntil＋6 時間で、それが手元の wall 以下なら同じ回で消える (3) expired の outcome（P3-QC-AC08 (2)）は記録を記憶へ移す step で、active の寄与と長周期につき 1 回だけ出す。印を付ける step では出さない。deadline・shutdown の入力は今の deadlineApplied・batchCompleted に載せ、restore の入力は recoveryApplied の subjects に載せる（今は空。印の無い期限切れの記録を restore で移したときも同じ。直後の期限要求では active の寄与が無いので重ならない）。受信の前の回収は deadline の入力なので同じに出す。adopt の中の collect は今どおり outcome に載せない（owner の経路では受信の前に回収が済む）(4) 移る step は intent を作らない。音も desktop も鳴らない（H23 の expiry は通知しない、Q-NOTICE.generationTable） (5) 印のある記録は見えていないので、移るだけの step の displayChanges は空で contentRevision を進めない（同じ step で日の切替えが当たれば今どおり進む）。保存の世代は進む (6) 根拠が verified に替わった最初の要求の評価は P3-EF-AC02 (7) の今の口のまま（足さない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:223 «973ddc0f21f6d14e»",
+          "reconstruction/contracts/p3-expiry-form.json",
+          "reconstruction/contracts/p3-unit-q-capacity.json",
+          "reconstruction/src/units/landslide/landslide-unit.ts"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC04",
+        "requirement": "印のある記録への報（P3-EF-AC02 (2)(4)(5)、P3-EF-AC05 (7)(8)、P3-QC-AC08 (4) の表と同じ向き）: 事実を持つので版の比べは今の active の記録の比べのまま。通知の判定では見えない記録として扱う。| 受けた報 | 結果 | 同じ版・同じ中身 | duplicate。印のまま | 古い版 | stale。印のまま | 同じ版で中身が違う・比べる時刻を欠く | 今の held。印のまま | 取消でない新しい版で、採用後の retainUntil が手元の wall より後 | 採用して印を外し、見える記録に戻る。fields は前を無いものとして比べ、transition は activated、通知は今の規則（H19 の照合のまま） | 取消でない報で、採用後の retainUntil が手元の wall 以下（別 family の遅着、進んだ時計） | 採用して印を残す。鳴らない（今の due）。verified なら同じ reduce の collect で記憶へ移る。awaiting でも印を残す（無いと: 復元した印のある記録が遅着で見える状態に戻る、§7 の 8） | 取消で active の寄与が残る（event の 1 family） | 採用して印を残す。ほかの family の事実を見える状態に戻さない。通知は (5) | 取消で active の寄与が無くなる | 印を外して今の取消記憶にする。retainUntil は記憶へ移ったときと同じ値（元の retainUntil＋6 時間と取消の報＋24 時間の遅い方）。cancelledSummary は持っている事実から作る。件数と最大震度は P3-QC-AC07 のとおり。通知は (5) | 補足: (1) 見える記録へ戻る長周期の採用は、事実が同じでも revisionOnly にしない (2) 印のある記録は wasActive が偽なので、取消の通知は P3-NL-AC09 の印の証拠で決まる (3) 容量で断られた報の印（refuse）は見える記録にだけ置く。印のある記録へは置かず unit の未確認へ寄せる（P3-CC-AC03 の「view に出ている記録だけ」） (4) 当日の履歴は印の有無によらず今の nextHistory のまま動く (5) 取消の通知（統合担当の決定、Q-SEV-CANCEL-DUE）: 印のある記録への取消は、heard なら採用後の retainUntil と手元の wall の比べ（今の due）によらず通知する。heard でなければ鳴らない。event も長周期も同じ (6) 順序の差: 取消が記憶の期限（元の retainUntil＋6 時間）より前に届くなら、保留のまま受けても、先に verified で記憶へ移してから受けても、通知の有無と、全 family の取消の effective と retainUntil は同じになる。例: 通知済みの報 R、R＋25 時間の unverified で印、元報と同じ時刻の取消で、どちらの順でも heard で 1 回鳴り retainUntil は R＋30 時間。違うのは一覧の行と通知の本文の震源名の有無だけ（残存リスク (7)）。記憶の期限より後の取消は、記憶の順では記憶が回収されて鳴らず、保留では鳴る（鳴らし損ねない側に倒す）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-expiry-form.json",
+          "reconstruction/contracts/p3-unit-q-capacity.json",
+          "reconstruction/contracts/p3-notice-ledger.json",
+          "reconstruction/src/units/volcano/volcano-unit.ts"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC05",
+        "requirement": "容量の段（P3-EF-AC03、P3-QC-AC02、裁定の「守りの状態を保つ」）: (1) guard は印で変えず、quakesOf は印のある記録も数える。unverified の守りの判定（from＋24 時間を過ぎても期限の内）は今どおり (2) 件数の超過: 印のある記録のうち守らないものは期限切れの記憶と同じ段（古い順、P3-EF-AC03 の見えない記録の段）、守るものは守る段のまま。判定の順は第 1・2 段、期限切れの記憶（3）、取消記憶（5）、守る（段に入らない）、印のある記録（3）、残り（4）で、段の番号は今のまま (3) byte の超過: 印のある記録は事実を持つので今の visible の記録の段（畳み→退去、守る記録は畳み→第 6 段）に入る。記憶の「byte の超過で退去しない」には入らない（事実の byte は RESERVE の式に無い） (4) 第 1 段は今どおり verified のときだけ (5) 畳みは印を外さず、畳んだ長周期の変化は表示の変化にならない（listed で落ちる）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
+          "reconstruction/contracts/p3-expiry-form.json",
+          "reconstruction/contracts/p3-unit-q-capacity.json"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC06",
+        "requirement": "byte（P3-EF-AC10 (5)・AC11 の形、AGENTS.md の受信経路の計算量）: (1) 予約: 見えていて印の無い記録 1 件につき PENDING_MARK_BYTES を世代の byte に足す。受理と復元は同じ数え方を通る。印のある記録は実 byte（印の 21 byte を含む）で、予約は足さない。記憶と取消の記録には足さない（RESERVE は変えない） (2) 保存の上限を P3-SEV-RES-01 の値にする (3) 1 件の数えた byte は印の付け外しで同じ。退去は予約ごと引かれる（無いと: 退去した記録の予約が残り、余分な退去か拒否になる。P3-EF-AC10 (5) の U-T と同じ） (4) 印を付ける回に state 全体の直列化と全件の再計量を足さない。長周期を直列化し直さず、event は寄与の byte を数え直さない。印を付ける回は event 512・長周期 256 の線形 1 回（上限のある稀な一括処理、件数の上限は保持と decode の両方で効く）。当てる期限の無い毎秒の期限要求は O(1) (5) 無いと: 保存の上限いっぱいの状態で印が付くと、入力なしで世代が上限を越え、保存と復元が断られる",
+        "evidenceRefs": [
+          "reconstruction/src/units/expiry.ts:15 «ceb1febbfae1ab06»",
+          "reconstruction/contracts/p3-expiry-form.json",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC07",
+        "requirement": "保存の形と版（P3-EF-AC10、P3-MIG-AC02 (2)、作者裁定「P5 の前は初期化してよい」）: (1) schemaVersion を p3-seismic-unit-v8 に上げる（seismic-unit.ts、型の 3 か所、owner-runtime.ts の U-Q の初期 state、試験の 3 か所）。discardableSchemaVersions に足さず、旧い形を読む移行を作らない (2) decode は expiryPending の欄があれば true だけを許し、event は active の寄与を持つこと、長周期は effective active を確かめる。それ以外は invalid。項目ごとに組み立てて返す今の形のまま（確かめた後に全体を as で言い換えない） (3) retainUntil の等式は足さない（Q-SEV-DECODE） (4) 印のある記録は encode→JSON→decode で同じ state になり、次の deadline の結果も同じ",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-migration.json",
+          "reconstruction/contracts/p3-expiry-form.json"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC08",
+        "requirement": "順序の組み合わせ（1 日 10:00 の VXSE53 の event、retainUntil は 2 日 10:00）。| 場面 | 経過 | 結果 | A 未確認の間に期限→続報→確認 | 2 日 10:00 unverified で印、view から消える。11:00 に新しい版で印が外れ retainUntil は 3 日 11:00、activated で鳴る。12:00 に verified | verified では記録に何も当てない（日の切替えは今どおり当たる）。3 日 11:00 に記憶へ移り expired の outcome が 1 回 | B 未確認の間に取消→期限 | 1 日 15:00 に見える event の全 family が取消。今の取消で鳴り、一覧の行が出る。期限が来ても印は付かない | 取消記憶は unverified の間は残り、verified で今どおり消える。expired の outcome は無い | C 未確認の間に期限→取消 | 2 日 10:00 に印。11:00 に全 family の取消 | 印が外れて取消記憶。一覧の行は持っていた事実で出る。heard のときだけ due によらず鳴る。元報と同じ時刻の取消でも、先に verified で記憶へ移した順でも同じ。今日の件数は今どおり引く | D 1 family だけの取消 | 2 family の event に印の後、1 family の取消 | 印は残り、もう 1 つの family は見えない。verified で active の寄与だけ expired になり outcome はその分だけ | E 確認に戻らず再起動 | 2 日 10:00 に印、保存、12:00 に再起動 | awaiting の restore でも印は残り view に出ない。印の無かった期限切れの記録は最長 30 秒 view に載り、unverified の deadline で印が付く。verified なら restore で記憶へ移る | F 時計が後ろへ直る | 進んだ時計の unverified で印、retainUntil より前の wall の verified | wall によらず記憶へ移る（P3-EF-AC02 (3)。見える状態に戻さない、§7 の 8）。音は鳴らない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-expiry-form.json",
+          "reconstruction/contracts/p3-unit-q-capacity.json"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC09",
+        "requirement": "配送の commit で統合担当が当てる原文の改訂（実装はしない）: (1) P3-EF-AC04 の U-Q の文（unverified では当てない）に、表示の期限切れだけは本契約で当てると注記 (2) P3-EF-AC10 (3) と Q-EF-RECALL・Q-EF-SCOPE・Q-EF-FORM の「U-Q は保存の形を変えない・印の 9 unit」に注記 (3) P3-QC-AC08 (1) の「時計を確かめるまで」に、確かめるまでの表示は本契約と注記 (4) p3-persist-premises.md の K10 の版の行（U-Q は入力の型だけが変わり版を上げない、の所）に注記 (5) 本契約の配送の手順に、開発機の新築の stateDirectory の U-Q の slot のうち版の違うものを作者の了承を得て消す手順を書く（P3-MIG-AC02 (2)。Pi は旧築なので消さない） (6) 台帳 109 に解消と本契約の ID を書く",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-migration.json",
+          "reconstruction/contracts/p3-persist-premises.md"
+        ]
+      },
+      {
+        "id": "P3-SEV-AC10",
+        "requirement": "最小実装・最小テスト: (1) 足す仕組みは expiryPending の欄、表示に出るかの述語、保留と表示の最小の cachedMin、21 byte の予約だけ。ほかの型・層・helper・設定を足さない (2) 試験は testMapping の P3-SEV-T01〜T06 と、P3-EF-T02 の U-Q の行の書き換えに限る。新しい fixture file を足さない（変えた報は試験の中で inline に作る） (3) reconstruction のゲート一式を通す",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "reconstruction/src/units/expiry.ts:15 «ceb1febbfae1ab06»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-SEV-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-SEV-AC01",
+          "P3-SEV-AC02"
+        ],
+        "behavior": "受入条件。32-35_04_04 の VXSE53 と 78_01_01 の VXSE62 を受け、retainUntil を過ぎた unverified の deadline で両方が view から消え、state の震源・震度・guard・notice と daily の recent・count が同じで、displayChanges の after が null、outcome と intent が空。続けて同じ入力は同じ参照。awaiting は同じ参照"
+      },
+      {
+        "testId": "P3-SEV-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-SEV-AC03",
+          "P3-SEV-AC08"
+        ],
+        "behavior": "受入条件。印の後の verified の deadline の state が、印を付けずに当てた verified の state と同じで（persistence と contentRevision を除く）、expired の outcome が寄与と長周期につき 1 回、intent が空、displayChanges が空。retainUntil より前の wall の verified でも記憶へ移る（場面 F）。印のある記録を保存して verified で restore すると、recoveryApplied の subjects に expired が寄与と長周期につき 1 回載り、続く deadline では出ない"
+      },
+      {
+        "testId": "P3-SEV-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-SEV-AC04",
+          "P3-SEV-AC08"
+        ],
+        "behavior": "受入条件。AC04 の表と場面 A〜D を 1 行ずつ。同じ版は duplicate で印のまま、新しい版で見える記録に戻り鳴る、synthetic_VXSE53_cancel の全 family の取消で一覧の行が出る、VXSE52 と VXSE53 の event の 1 family の取消で印が残る。印の残る採用の後も daily の recent の行が cancelled にならない。awaiting の遅着で印が残る。通知済みの報に R＋25 時間の unverified で印を付け、元報と同じ時刻の取消を受けると heard で 1 回鳴り、先に verified で記憶へ移した順と通知の数・effective・retainUntil が同じ。heard でない報への同じ取消は鳴らない"
+      },
+      {
+        "testId": "P3-SEV-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-SEV-AC05"
+        ],
+        "behavior": "契約境界。件数の超過で、印のある守らない記録が守らない normal より先に退去し、印のある守る記録は残る。byte の超過で印のある記録が畳まれ退去でき、RESERVE に数えられない。守る地震の event に印が付いても相手の長周期の守りが落ちない"
+      },
+      {
+        "testId": "P3-SEV-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-SEV-AC06",
+          "P3-SEV-AC07"
+        ],
+        "behavior": "契約境界。器の境界いっぱい（予約を含む）まで見える記録を埋め、受信なしで全部を unverified で保留にし、verified で記憶に移し、そのたびに保存して復元できる（P3-EF-T09 の形）。印の無い見える記録の退去は予約ごと引かれ、ちょうど L の世代を採り L＋1 を断る（P3-QC-T02 の形）。印のある記録の encode→JSON→decode が同じ state で、expiryPending が false の保存、記憶と取消の記録に印を持つ保存は invalid"
+      },
+      {
+        "testId": "P3-SEV-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-SEV-AC01",
+          "P3-SEV-AC08"
+        ],
+        "behavior": "受入条件（場面 E、台帳 109 の場面）。seismic の owner を通す harness で VXSE53 を保存し、最終報の 25 時間後の時計で起動する。awaiting の snapshot には載り、unverified の deadline の後の snapshot の earthquake から消えて当日の履歴は残り、verified の後も音が鳴らない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O07 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の patch では seismic-unit.ts の行が動くので FAIL が出る。付け直しは配送の統合担当（AC09 (6)）で、実装の子は FAIL の一覧を報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示（U-Q の型を変えるので壊れないことを確かめる）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えても緑（記録ごとの cache は WeakMap のまま、module スコープに状態を置かない）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の期待を変えてよいのは次だけで、変える前に試験名・旧の期待・理由を報告する: P3-EF-T02 の U-Q の行（標準の行へ）、seismic-capacity.test.ts と seismic-unit.test.ts の generation の数え方（予約を足す）、seismic-unit.test.ts の HOLD_GROWTH の逆算（新しい器の項を引く）、版の字、U-Q の restore の subjects を空と読む期待。件数の退去の順と容量の裁定の期待が変わるときは止めて報告する",
+      "配送の手順（P3-MIG-AC02 (2)）: 開発機の新築の stateDirectory の U-Q-A.json・U-Q-B.json のうち、slot の schemaVersion が p3-seismic-unit-v8 でないものを、統合担当が作者の了承を得て消す。今の版の slot は消さない。Pi は旧築なので消さない",
+      "引用の維持（受入条件ではなく配送の手順）: ほかの契約が «» で引く seismic-unit.ts の行は、なるべく中身を変えない。GENERATION_LIMIT の宣言の最初の行（足しは続きの行へ）、visible・memoryOnly の宣言、early と safe の宣言、collect の記憶の削除の行と強震保持の行、receiveEarthquake の notify の行（判定の変更はその前の due の行で行う）。動くだけの行は統合担当が配送で reanchor-target.py で付け直す。中身の変わる引用の行は toSeismicView の行と owner-runtime.ts の U-Q の初期 state の行の 2 行だけのはずで、道具が直せないので統合担当が先に手で anchor を取り直す。増えたら報告する",
+      "実装の覚え（条文ではない、AC02・AC03・AC06 の落とし穴）: (1) visible の意味は変えず「active の寄与を持つ記録」のままにし、visible かつ印が無いことを問う述語を 1 つ足す。名前は notice-mark の shown と衝突させない (2) 足した述語を使う所: listed、toSeismicView の長周期、restore の coverage、refuse の印の置き先（event・長周期）、receiveEarthquake の fields の判定と wasActive、receiveLongPeriod の wasActive、adopt の due の semantic。visible のまま: memoryOnly・expiredMemory・RESERVE の数え方、quakesOf、fit の段（ranked・aged・elders）、event の lost、nextHistory の active、collect の記憶の削除 (3) longPeriodWithoutMarks から expiryPending を外す。長周期の factsChanged は印のある前の記録で真にする (4) deadlineStep は collect の change の after の event を強震保持の解除として outcome にするので、印を付けた change を外す (5) 到来の判定の入口と配列ごとの門は保留の記録があれば通す。今の deadlineAt・minOf の比べだけでは時計が後ろへ直った記録が止まる。minOf は配列だけを鍵に cache するので、同じ配列に別の式を当てず expiry.ts の cachedMin を使う (6) 予約は shownBytes の返り値に足し、byteCache の値には入れない（foldedBytes が実 byte を読む）。印を付けた長周期は前の実 byte＋PENDING_MARK_BYTES を byteCache へ直接書く（foldLongPeriod の形）",
+      "残存リスク: (1)【今の新築との差】事実と守りを保つのは確かめられない間だけ。手元の時計が 24 時間以上進んだまま確かめられないと、期限の内の地震が見えなくなり、確かめた後は時計が後ろへ直っても事実・strongHold・守りの on を失って記憶へ移る。今の新築は確かめた後も事実が残る。ほかの 9 分野と同じ形で、作者裁定 §7 の 8 の「戻さない」の形に揃える（Q-SEV-AFTER-VERIFIED。この損失までを作者が了承済みとは読まず、統合担当が確認する） (2) 長く確かめられないと保留の記録が回収されず件数と器を使う。守る地震は見えないまま守られ、守らない新しい報が断られうる（P3-QC-D-SMALL-PUSH=B のまま。H39 に数える） (3) 取り消した地震の一覧の行は unverified の間は時間で消えない（Q-SEV-CANCEL-ROW） (4) 当日の履歴の recent は unverified の間は日をまたいでも残る（作者裁定で残す。view に前日の震源と震度の行が残る） (5) 新しい版で戻ると、保留の間の別 family の古い事実も一緒に見える（期限の内に続報が来たときと同じ。記憶からの戻りでは事実が無い） (6) 保留の event に新しい版が届くと、事実が同じでも activated として鳴る（見えない記録への報の扱い。同じ版は照合で鳴らない） (7) 保留から取消になった一覧の行と取消の通知の本文は震源名と発生時刻を持つ（記憶からの取消は null、P3-QC-AC07 (4)） (8) 記憶の期限より後の保留への取消は鳴り、記憶の順では鳴らない（AC04 (6)）。1 family の取消の後の記憶の retainUntil は順で 6 時間の内の差が出る"
+    ],
+    "unresolvedQuestions": []
+  }
+}

@@ -118,6 +118,7 @@ export type EarthquakeEvent = Readonly<{
   unavailable?: readonly SubjectUnavailable[];
   guard?: SeismicGuard;
   cancelledSummary?: CancelledSummary;
+  expiryPending?: true; // P3-SEV-AC01: 時計を確かめられない間に表示の期限が来た印。active の寄与を持つ event だけが持つ
 }>;
 
 // VXSE62。subject = `${operation}/VXSE62/${eventId}`。retainUntil = 最新の採用報の ReportDateTime + 36 時間。
@@ -139,6 +140,7 @@ export type LongPeriodSubject = Readonly<{
   folded?: string;
   guard?: SeismicGuard;
   unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印。active の記録だけが持つ
+  expiryPending?: true; // P3-SEV-AC01: 時計を確かめられない間に表示の期限が来た印。active の記録だけが持つ
 }>;
 
 // 当日地震履歴（operation ごと。日の基準は P3-C7-DAILY-BASIS）。件数と最大震度は全体の震度が既知の段階（I-U-Q.intensityScale）の
@@ -175,7 +177,7 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v7";
+  schemaVersion: "p3-seismic-unit-v8";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
@@ -187,7 +189,7 @@ export type SeismicUnitState = Readonly<{
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v7";
+  schemaVersion: "p3-seismic-unit-v8";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
@@ -251,5 +253,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v7";
+  schemaVersion: "p3-seismic-unit-v8";
 }>;

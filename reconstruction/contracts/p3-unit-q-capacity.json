@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "6e38064f82d9b4f6d0de7d66a9715d0cb989855081fbdcc380aa1b2f6c0c446b",
+    "sha256": "8964fcbce19509f733ad6ef39017f209d73f7e1d5139c5bdde56b4d8d38fefce",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -359,8 +359,8 @@
           "reconstruction/contracts/p3-persist-premises.md:262 «3b01d87726b3ad30»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "docs/specs/reconstruction-p0-contracts.md:3062 «78dec9004c9496aa»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:67 «04b5e98ae1630102»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:646 «4550121a84059a8f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:69 «04b5e98ae1630102»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:656 «4550121a84059a8f»",
           "reconstruction/contracts/p3-seismic-unit.json:298 «fe843e506b18c741»"
         ]
       },
@@ -372,11 +372,11 @@
           "reconstruction/contracts/p3-persist-premises.md:265 «056aac105c2fef5b»",
           "reconstruction/contracts/p3-persist-premises.md:266 «dfc7cff63767ab46»",
           "reconstruction/contracts/p3-persist-premises.md:387 «75dc1fda22982fcd»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:668 «05763e314fcd9fc5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:652 «6a59a402161e8896»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:671 «ea8d6da6d7e5bf3f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:791 «9379000288c0b994»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1055 «70a64289aaf69c2d»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:678 «05763e314fcd9fc5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:662 «6a59a402161e8896»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:681 «ea8d6da6d7e5bf3f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:801 «9379000288c0b994»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1076 «70a64289aaf69c2d»",
           "reconstruction/contracts/p3-currency-coverage.json:431 «26d09c4135af20b9»"
         ]
       },
@@ -386,7 +386,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:406 «bf5612e2a207109f»",
           "reconstruction/contracts/p3-persist-premises.md:408 «166e4756485b6b36»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:245 «3458e4d4e2aa9395»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:255 «3458e4d4e2aa9395»",
           "docs/specs/reconstruction-p0-contracts.md:3066 «35e93a2c45a24cc6»",
           "reconstruction/contracts/p3-notice-ledger.json:669 «58e4094ff585a1a5»",
           "reconstruction/contracts/p3-seismic-unit.json:194 «95a9ce1b29076de8»"
@@ -411,8 +411,8 @@
           "reconstruction/contracts/p3-persist-premises.md:321 «ce49b308a6174a68»",
           "reconstruction/contracts/p3-order-plan.md:556 «88c712cf529c65ed»",
           "reconstruction/contracts/p3-order-plan.md:558 «73c4395164a3713f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:62 «112e2504d3fb418f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1592 «8f65a5c445bc7355»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1640 «8f65a5c445bc7355»"
         ]
       },
       {
@@ -422,8 +422,8 @@
           "docs/specs/reconstruction-p0-contracts.md:3035 «cffe9b9877228250»",
           "reconstruction/contracts/p3-seismic-unit.json:12 «6414c1e18a42d0ba»",
           "reconstruction/contracts/p3-seismic-unit.json:221 «76d82ded54e3861b»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:506 «836d766c19ad2d52»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:512 «8490a6e6e35b6b82»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:516 «836d766c19ad2d52»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:522 «8490a6e6e35b6b82»",
           "reconstruction/contracts/p3-notice-ledger.json:304 «53e23ab43883d1e3»"
         ]
       },
@@ -435,20 +435,20 @@
           "reconstruction/contracts/p3-persist-premises.md:268 «552fb20e493cab11»",
           "reconstruction/contracts/p3-seismic-unit.json:40 «5d8e8b6985ec454b»",
           "reconstruction/contracts/p3-seismic-unit.json:95 «c419416bf6380b24»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:443 «bff83e12b1de22ae»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:453 «bff83e12b1de22ae»",
           "src/engine/messages/daily-quake-counter.ts:60 «946667da9de79247»",
           "reconstruction/src/view-projector/view-projector.ts:324 «f8ade7bb60c20f4e»"
         ]
       },
       {
         "id": "P3-QC-AC08",
-        "requirement": "H23（spec:3050、設計メモ :227）: (1) event の retainUntil（最後の報＋24 時間）が来たら、記録ごと消さず、active の寄与を effective \"expired\" にして事実を捨てる（取消の寄与と同じく source・notice だけを残し、title は空文字、ほかは null。unconfirmed・unavailable・folded は外す。unconfirmed を期限で外すのは K7 が期限での解除を認めているため〔r2、D12〕。その後の undecidable で付く印は (4) の表のとおり容量の検査で扱う）。event の strongHold を外し、guard は on を 0 にして from を残す（r1 の O8・r2 の D11。decode の不変条件として active の寄与の無い記録は strongHold・unavailable を持たず、guard の on は 0）。event の retainUntil を6 時間（P3-QC-D-EXPIRED-MEMORY=A）先に延ばし、そこで記憶ごと消す。長周期も同じ（effective \"expired\"、最後の報＋36 時間で記憶に）。取消記憶だけの event・長周期は今どおり retainUntil で消す。時計を確かめるまで記憶への変換と記憶の回収を止める条件は、長さとは別に、先に配送される K10 が入れる。本契約はその条件の下で変換する（設計メモ :524、P3-CK-AC08 の (6)。Q-QC-DECIDED の (5)） (2) 期限切れの理由と最終更新の時刻: 理由は effective \"expired\"、最終更新の時刻はその寄与・長周期の source.reportDateTimeRaw（新しい欄を足さない。U-T の期限切れの観測と同じ形、K10 とそろえる、Q-QC-DECIDED の (5)）。期限の入力の step の outcome（deadlineApplied）に、期限切れにした寄与と長周期の SubjectOutcome（transition \"expired\"、source は最終更新の報）を載せる。通知は今どおり作らない（Q-NOTICE.generationTable の expiry） (3) 期限切れの記憶は view に載せない（見せ方は P4。H17 は段 4） (4) 記憶への報の遷移（r1、D4。受けた報を expired の寄与・長周期の source と K7 の compareVersion で比べる）: | 比べた結果 | 受けた報が取消でない | 受けた報が取消 | same | duplicate（記憶は事実を持たないので中身を比べない） | 採用して cancelled にする（同じ時刻の取消は取消でない報に勝つ、作者裁定 2026-10-21 昼。duplicate で遮らない）。H19 の取消の通知は印の証拠で決める | older | stale | stale | newer | 採用し、寄与は active に戻る（event は生きている記録に戻り retainUntil を最後の報＋24 時間で数え直す） | 採用して cancelled（H19 の取消の通知は印の証拠で決める） | undecidable（比べる時刻を欠く報） | K7 どおり手元の版を残して未確認の印を付ける（held）。印の byte は RESERVE に数え、越えれば印を置かず unit の未確認へ寄せる（今の holdVersion の fit） | 同じ | (5) 通知の印は記憶と同じに生きる（§7 の 1(c)）。記憶の間に届いた取消は、印の証拠が possible か unknown なら通知する（P3-NL-AC09、H19） (6) 当日履歴と期限の最小の cache は今どおり。期限切れにした変化は displayChanges（view から消える）に出る 【気象庁の資料との照合（2026-10-25、Q-QC-JMA）】地震の報は失効時刻を持たない（manual/地震火山関連_解説資料.txt:227〜:228）ので、24 時間・36 時間・6 時間は資料に記述なし。記憶への報の比べは Control/DateTime（manual/地震火山関連_解説資料.txt:118〜:120・:272〜:273）",
+        "requirement": "H23（spec:3050、設計メモ :227）: (1) event の retainUntil（最後の報＋24 時間）が来たら、記録ごと消さず、active の寄与を effective \"expired\" にして事実を捨てる（取消の寄与と同じく source・notice だけを残し、title は空文字、ほかは null。unconfirmed・unavailable・folded は外す。unconfirmed を期限で外すのは K7 が期限での解除を認めているため〔r2、D12〕。その後の undecidable で付く印は (4) の表のとおり容量の検査で扱う）。event の strongHold を外し、guard は on を 0 にして from を残す（r1 の O8・r2 の D11。decode の不変条件として active の寄与の無い記録は strongHold・unavailable を持たず、guard の on は 0）。event の retainUntil を6 時間（P3-QC-D-EXPIRED-MEMORY=A）先に延ばし、そこで記憶ごと消す。長周期も同じ（effective \"expired\"、最後の報＋36 時間で記憶に）。取消記憶だけの event・長周期は今どおり retainUntil で消す。時計を確かめるまで記憶への変換と記憶の回収を止める条件は、長さとは別に、先に配送される K10 が入れる。本契約はその条件の下で変換する（設計メモ :524、P3-CK-AC08 の (6)。Q-QC-DECIDED の (5)） (2) 期限切れの理由と最終更新の時刻: 理由は effective \"expired\"、最終更新の時刻はその寄与・長周期の source.reportDateTimeRaw（新しい欄を足さない。U-T の期限切れの観測と同じ形、K10 とそろえる、Q-QC-DECIDED の (5)）。期限の入力の step の outcome（deadlineApplied）に、期限切れにした寄与と長周期の SubjectOutcome（transition \"expired\"、source は最終更新の報）を載せる。通知は今どおり作らない（Q-NOTICE.generationTable の expiry） (3) 期限切れの記憶は view に載せない（見せ方は P4。H17 は段 4） (4) 記憶への報の遷移（r1、D4。受けた報を expired の寄与・長周期の source と K7 の compareVersion で比べる）: | 比べた結果 | 受けた報が取消でない | 受けた報が取消 | same | duplicate（記憶は事実を持たないので中身を比べない） | 採用して cancelled にする（同じ時刻の取消は取消でない報に勝つ、作者裁定 2026-10-21 昼。duplicate で遮らない）。H19 の取消の通知は印の証拠で決める | older | stale | stale | newer | 採用し、寄与は active に戻る（event は生きている記録に戻り retainUntil を最後の報＋24 時間で数え直す） | 採用して cancelled（H19 の取消の通知は印の証拠で決める） | undecidable（比べる時刻を欠く報） | K7 どおり手元の版を残して未確認の印を付ける（held）。印の byte は RESERVE に数え、越えれば印を置かず unit の未確認へ寄せる（今の holdVersion の fit） | 同じ | (5) 通知の印は記憶と同じに生きる（§7 の 1(c)）。記憶の間に届いた取消は、印の証拠が possible か unknown なら通知する（P3-NL-AC09、H19） (6) 当日履歴と期限の最小の cache は今どおり。期限切れにした変化は displayChanges（view から消える）に出る 【気象庁の資料との照合（2026-10-25、Q-QC-JMA）】地震の報は失効時刻を持たない（manual/地震火山関連_解説資料.txt:227〜:228）ので、24 時間・36 時間・6 時間は資料に記述なし。記憶への報の比べは Control/DateTime（manual/地震火山関連_解説資料.txt:118〜:120・:272〜:273） 【2026-11-07、P3-SEISMIC-EXPIRY-VIEW-001 の配送により統合担当が改訂】(1) の時計を確かめるまでの間、期限の来た記録は事実と守りを残したまま保留の印で view から外す（P3-SEV-AC01）。(1) の記憶への変換は verified のまま",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:3050 «91b2a9c9fb01efa9»",
+          "docs/specs/reconstruction-p0-contracts.md:3050 «d0abeaaf28be0863»",
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
           "reconstruction/contracts/p3-seismic-unit.json:67 «daf91d68a98a2560»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1151 «e85cf715bf3ed3e2»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1194 «e85cf715bf3ed3e2»"
         ]
       },
       {
@@ -470,10 +470,10 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:309 «072a7927898ff921»",
           "reconstruction/contracts/p3-persist-premises.md:438 «0b572eb74bd511a1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1601 «71786c518c236331»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1649 «71786c518c236331»",
           "reconstruction/contracts/p3-seismic-unit.json:304 «22e37753670cc27f»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «74bda80810e85121»",
-          "reconstruction/src/runtime/owner-runtime.ts:84 «690467f202287bdb»"
+          "reconstruction/src/runtime/owner-runtime.ts:84 «2c4ca5bcec0e58ad»"
         ]
       },
       {
@@ -492,7 +492,7 @@
           "reconstruction/contracts/p3-order-plan.md:559 «036a201be6bf98eb»",
           "reconstruction/test/disaster/runner.ts:194 «b67f7948980756a4»",
           "reconstruction/test/disaster/runner.ts:32 «0549d7e3c3222352»",
-          "reconstruction/contracts/p3-disaster-capacity.json:406 «7df77bebc485efb2»"
+          "reconstruction/contracts/p3-disaster-capacity.json:406 «bce8780d918f793f»"
         ]
       },
       {
@@ -500,8 +500,8 @@
         "requirement": "影響の範囲（最小）: (1) 公開の型の変更は p3-seismic-unit.types.ts（EarthquakeContribution と LongPeriodSubject の effective に \"expired\" と folded?、EarthquakeEvent と LongPeriodSubject の guard?、EarthquakeEvent と EarthquakeEventView の cancelledSummary?、SeismicDailyHistory の counted〔P3-QC-D-DAILY-MAX=A〕、schemaVersion v5）と、p2-shared-runtime.types.ts の DiagnosticReason と LossReason の union に seismicStationsFolded の 1 語（r1、D9）だけ (2) 足すものは「無いと何が壊れるか」を成果物に 1 行で書く。新しい helper は作らず、cut・boundTime・knownStage・safetyRank・lgRank・STAGE_LABEL・factsOf・indexOf・shownBytes・listBytes・compareVersion と今の fit の段の作りを使う (3) U-Q 以外の unit の reduce・codec・版は変えない (4) H39 の保存と読み戻しの境界: envelope の losses に seismicStationsFolded の行を持つ U-Q の世代の encode→decode と、LOSS_TALLY_MAX_BYTES が変わらないこと（7 語の最長の組に入らない）を確かめる",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:92 «89e1a77f78dbf9da»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:606 «c3904969d4614e9c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:96 «89e1a77f78dbf9da»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:616 «c3904969d4614e9c»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:547 «5664a1747994b0b2»"
         ]
       },

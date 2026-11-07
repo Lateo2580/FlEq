@@ -33,7 +33,7 @@ const HOUR = 3_600_000;
 // ＋P3-UNIT-Q-CAPACITY-001 の増え（cancelledSummary 512×372・counted 3×2048×4・記憶の guard 768×50、P3-QC-AC05）。
 const MARK = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = 512 * 4 * MARK, NOTICE_GROWTH = CONTRIBUTION_MARKS + 256 * MARK;
 const MEMORY_GROWTH = 512 * 372 + 3 * 2048 * 4 + 768 * 50;
-const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072 - MEMORY_GROWTH;
+const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072 - MEMORY_GROWTH - 768 * 21;
 const RESERVE_BYTES = 1_470_281 + NOTICE_GROWTH + MEMORY_GROWTH;
 const ORIGIN = Date.parse("2026-07-28T16:27:00+09:00");
 const decision = (step: SeismicUnitStep) => step.decisions[0];
@@ -536,7 +536,8 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const withPad = (pad: number) => ({ ...value, intents: [live], earthquakes: [{ ...quake, contributions: contributions.map((item) => item === active
       ? { ...item, title: `${String(item.title)}${"x".repeat(pad)}` } : item) }, ...value.earthquakes.slice(1)] });
     const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0, capturedAt: 0,
-      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
+      payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES
+      + (value.earthquakes.length + value.longPeriods.length) * 21; // 見えて印の無い記録の予約（P3-SEV-AC06）
     const limit = seismicUnitCodec.maxEnvelopeBytes!;
     const generationPad = limit - generation(0);
     expect(generation(generationPad)).toBe(limit);

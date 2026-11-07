@@ -81,7 +81,7 @@ const initialUnits: RuntimeUnitStates = {
     tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], persistence: cleanPersistence },
   "U-F": { schemaVersion: "p2-weather-timeseries-unit-v8", contentRevision: 0, subjects: [], gates: [], intents: [], persistence: cleanPersistence },
   "U-T": { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: cleanPersistence },
-  "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [],
+  "U-Q": { schemaVersion: "p3-seismic-unit-v8", contentRevision: 0, earthquakes: [], longPeriods: [],
     daily: { normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: cleanPersistence },
   "U-N": { schemaVersion: "p3-nankai-unit-v8", contentRevision: 0, currents: [], information: [], intents: [], persistence: cleanPersistence },
   "U-V": { schemaVersion: "p3-volcano-unit-v7", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
