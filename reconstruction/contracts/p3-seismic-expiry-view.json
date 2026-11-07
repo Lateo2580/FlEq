@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "4e79fbb019c1a38005685d934feb6591666283d88fd25fd0e112a997d3a4f84a",
+    "sha256": "ae287087f94339a87c2bd3a7c835dfa0b73262eb8b8a22b55a5d9313bdb1a342",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -432,6 +432,7 @@
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
       "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
       "既存の期待を変えてよいのは次だけで、変える前に試験名・旧の期待・理由を報告する: P3-EF-T02 の U-Q の行（標準の行へ）、seismic-capacity.test.ts と seismic-unit.test.ts の generation の数え方（予約を足す）、seismic-unit.test.ts の HOLD_GROWTH の逆算（新しい器の項を引く）、版の字、U-Q の restore の subjects を空と読む期待。件数の退去の順と容量の裁定の期待が変わるときは止めて報告する",
+      "配送の手順（P3-MIG-AC02 (2)）: 開発機の新築の stateDirectory の U-Q-A.json・U-Q-B.json のうち、slot の schemaVersion が p3-seismic-unit-v8 でないものを、統合担当が作者の了承を得て消す。今の版の slot は消さない。Pi は旧築なので消さない",
       "引用の維持（受入条件ではなく配送の手順）: ほかの契約が «» で引く seismic-unit.ts の行は、なるべく中身を変えない。GENERATION_LIMIT の宣言の最初の行（足しは続きの行へ）、visible・memoryOnly の宣言、early と safe の宣言、collect の記憶の削除の行と強震保持の行、receiveEarthquake の notify の行（判定の変更はその前の due の行で行う）。動くだけの行は統合担当が配送で reanchor-target.py で付け直す。中身の変わる引用の行は toSeismicView の行と owner-runtime.ts の U-Q の初期 state の行の 2 行だけのはずで、道具が直せないので統合担当が先に手で anchor を取り直す。増えたら報告する",
       "実装の覚え（条文ではない、AC02・AC03・AC06 の落とし穴）: (1) visible の意味は変えず「active の寄与を持つ記録」のままにし、visible かつ印が無いことを問う述語を 1 つ足す。名前は notice-mark の shown と衝突させない (2) 足した述語を使う所: listed、toSeismicView の長周期、restore の coverage、refuse の印の置き先（event・長周期）、receiveEarthquake の fields の判定と wasActive、receiveLongPeriod の wasActive、adopt の due の semantic。visible のまま: memoryOnly・expiredMemory・RESERVE の数え方、quakesOf、fit の段（ranked・aged・elders）、event の lost、nextHistory の active、collect の記憶の削除 (3) longPeriodWithoutMarks から expiryPending を外す。長周期の factsChanged は印のある前の記録で真にする (4) deadlineStep は collect の change の after の event を強震保持の解除として outcome にするので、印を付けた change を外す (5) 到来の判定の入口と配列ごとの門は保留の記録があれば通す。今の deadlineAt・minOf の比べだけでは時計が後ろへ直った記録が止まる。minOf は配列だけを鍵に cache するので、同じ配列に別の式を当てず expiry.ts の cachedMin を使う (6) 予約は shownBytes の返り値に足し、byteCache の値には入れない（foldedBytes が実 byte を読む）。印を付けた長周期は前の実 byte＋PENDING_MARK_BYTES を byteCache へ直接書く（foldLongPeriod の形）",
       "残存リスク: (1)【今の新築との差】事実と守りを保つのは確かめられない間だけ。手元の時計が 24 時間以上進んだまま確かめられないと、期限の内の地震が見えなくなり、確かめた後は時計が後ろへ直っても事実・strongHold・守りの on を失って記憶へ移る。今の新築は確かめた後も事実が残る。ほかの 9 分野と同じ形で、作者裁定 §7 の 8 の「戻さない」の形に揃える（Q-SEV-AFTER-VERIFIED。この損失までを作者が了承済みとは読まず、統合担当が確認する） (2) 長く確かめられないと保留の記録が回収されず件数と器を使う。守る地震は見えないまま守られ、守らない新しい報が断られうる（P3-QC-D-SMALL-PUSH=B のまま。H39 に数える） (3) 取り消した地震の一覧の行は unverified の間は時間で消えない（Q-SEV-CANCEL-ROW） (4) 当日の履歴の recent は unverified の間は日をまたいでも残る（作者裁定で残す。view に前日の震源と震度の行が残る） (5) 新しい版で戻ると、保留の間の別 family の古い事実も一緒に見える（期限の内に続報が来たときと同じ。記憶からの戻りでは事実が無い） (6) 保留の event に新しい版が届くと、事実が同じでも activated として鳴る（見えない記録への報の扱い。同じ版は照合で鳴らない） (7) 保留から取消になった一覧の行と取消の通知の本文は震源名と発生時刻を持つ（記憶からの取消は null、P3-QC-AC07 (4)） (8) 記憶の期限より後の保留への取消は鳴り、記憶の順では鳴らない（AC04 (6)）。1 family の取消の後の記憶の retainUntil は順で 6 時間の内の差が出る"

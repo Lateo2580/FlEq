@@ -5,6 +5,7 @@ import type { JsonValue, WallBasis } from "../../contracts/p2-shared-runtime.typ
 import type { EarthquakeEvent, LongPeriodSubject, SeismicUnitState, SeismicUnitStep } from "../../contracts/p3-seismic-unit.types";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, lossReasons, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
+import { PENDING_MARK_BYTES } from "../../src/units/expiry";
 import { FAILURE_MARKS_MAX_BYTES, noticeMarkBytes } from "../../src/units/notice-mark";
 import { unreadableMarkBytes } from "../../src/units/unreadable";
 import { longestMarks } from "../unreadable-mark/longest-mark";
@@ -33,11 +34,13 @@ const at = (material: DecodedMaterial) => clock(Date.parse(material.reportDateTi
 const step = (state: SeismicUnitState, material: DecodedMaterial, basis: WallBasis = "verified", now = at(material)) =>
   reduceSeismicUnit(state, { kind: "receive", material, clock: now, basis });
 
-// seismic-unit.ts の世代の数え方（envelope・inputBoundary と losses の最大・世代の桁の 62・pending の配送の予約）。
+// seismic-unit.ts の世代の数え方（envelope・inputBoundary と losses の最大・世代の桁の 62・pending の配送の予約・見えて印の無い記録の予約）。
+const unmarked = (state: SeismicUnitState) => state.earthquakes.filter((item) => item.expiryPending !== true && item.contributions.some((entry) => entry.effective === "active")).length
+  + state.longPeriods.filter((item) => item.expiryPending !== true && item.effective === "active").length;
 function generation(state: SeismicUnitState): number {
-  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v7", unit: "U-Q", generation: 0, capturedAt: 0,
+  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v8", unit: "U-Q", generation: 0, capturedAt: 0,
     payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
-    + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
+    + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0) + unmarked(state) * PENDING_MARK_BYTES;
 }
 // fixture の報の全時刻を atMs へ平行移動し、EventID を替え、運用を通常にする（送信の時刻 Control/DateTime も同じだけ動く）。
 function report(file: string, atMs: number, eventId: string, transform: (xml: string) => string = (xml) => xml): DecodedMaterial {
@@ -106,7 +109,7 @@ function foldedForm(record: EarthquakeEvent | LongPeriodSubject): unknown {
   return has(record.intensity) ? { ...record, intensity: items(record.intensity), folded: "0".repeat(16) } : record;
 }
 const foldSave = (record: EarthquakeEvent | LongPeriodSubject) => sizeOf(record) - sizeOf(foldedForm(record));
-const evictSave = (record: EarthquakeEvent | LongPeriodSubject) => sizeOf(foldedForm(record)) + 1;
+const evictSave = (record: EarthquakeEvent | LongPeriodSubject) => sizeOf(foldedForm(record)) + 1 + PENDING_MARK_BYTES;
 const isFolded = (record: EarthquakeEvent | LongPeriodSubject | undefined) => record != null
   && ("contributions" in record ? record.contributions.some((item) => item.folded != null) : record.folded != null);
 
@@ -123,6 +126,64 @@ function quakeWorld(): SeismicUnitState {
   return { ...state, longPeriods: state.longPeriods.map((item) => ({ ...item, guard: { from: item.guard!.from, on: 0 as const } })) };
 }
 const PAD_AT = T + 5 * HOUR;
+
+describe("P3-SEISMIC-EXPIRY-VIEW-001 the pending mark in the capacity", () => {
+  const AT = Date.parse("2099-02-01T00:00:00+09:00");
+  const eventRow = (id: string, atMs: number, on: 0 | 1, retainUntil = atMs + 24 * HOUR): EarthquakeEvent => {
+    const base = pad(0, atMs);
+    return { ...base, eventId: id, retainUntil, guard: { from: atMs, on }, contributions: base.contributions.map((item) =>
+      ({ ...item, source: { ...item.source, subject: `normal/VXSE52/${id}` } })) };
+  };
+  const longRow = (id: string, atMs: number, retainUntil: number): LongPeriodSubject => {
+    const source = pad(0, atMs).contributions[0].source;
+    return { subject: `normal/VXSE62/${id}`, eventId: id, operation: "normal", source: { ...source, family: "VXSE62", subject: `normal/VXSE62/${id}` },
+      effective: "active", title: "t", headline: null, hypocenter: null, intensity: null, retainUntil, guard: { from: atMs, on: 0 } };
+  };
+
+  it("P3-SEV-T04 contractBoundary / AC05: a count overflow takes the unguarded pending record first and keeps the guarded one", () => {
+    const loose: EarthquakeEvent = { ...eventRow("P", AT - 2 * HOUR, 0), expiryPending: true }, guardedRow: EarthquakeEvent = { ...eventRow("G", AT - 30 * HOUR, 1), expiryPending: true };
+    const state = { ...emptyState(), earthquakes: [guardedRow, ...Array.from({ length: 510 }, (_, index) => eventRow(`N${index}`, AT - 3 * HOUR, 0)), loose] };
+    const arrived = step(state, quake("NEW", AT, { maxInt: "3" }), "unverified", clock(AT)).state;
+    expect([eventOf(arrived, "P"), eventOf(arrived, "G")?.expiryPending, arrived.earthquakes.length]).toEqual([undefined, true, 512]);
+  });
+
+  it("P3-SEV-T04 contractBoundary / AC05: a pending record is folded and evicted by bytes and stays out of the reserve", () => {
+    const fed = feed(emptyState(), quake("A", AT, { maxInt: "3", big: 400_000 }));
+    const marked = reduceSeismicUnit(fed, { kind: "deadline", clock: clock(AT + 25 * HOUR), basis: "unverified" }).state;
+    const saved = roundTrip(marked);
+    expect([eventOf(marked, "A")?.expiryPending, saved.kind === "restored" && eventOf(saved.state, "A")?.expiryPending]).toEqual([true, true]);
+    const pressedOut = pressed(marked, quake("X", AT + 26 * HOUR, { maxInt: "3", big: 400_000 }), 300_000, AT + 26 * HOUR, "unverified").step;
+    expect([decision(pressedOut).decision, eventOf(pressedOut.state, "A")]).toEqual(["changed", undefined]);
+    // 事実の byte は RESERVE（1,958,729）に入らない。
+    const large = roundTrip({ ...emptyState(), earthquakes: [{ ...pad(2_500_000, AT), expiryPending: true }] });
+    expect(large.kind === "restored" && eventOf(large.state, "PAD")?.expiryPending).toBe(true);
+  });
+
+  it("P3-SEV-T05 contractBoundary / AC06,AC07: at the limit the marks and the memories save and restore; the mark is checked on decode", () => {
+    const until = AT + 36 * HOUR, size = (state: SeismicUnitState) => generation(state);
+    const rows = { ...emptyState(), earthquakes: Array.from({ length: 511 }, (_, index) => eventRow(`E${index}`, AT, 0, until)),
+      longPeriods: Array.from({ length: 256 }, (_, index) => longRow(`L${index}`, AT, until)) };
+    const filled = (extra: number) => { const bare = { ...rows, earthquakes: [...rows.earthquakes, { ...pad(0, AT), retainUntil: until }] };
+      return { ...rows, earthquakes: [...rows.earthquakes, { ...pad(L + extra - size(bare), AT), retainUntil: until }] }; };
+    const full = filled(0), over = filled(1);
+    expect([L, size(full), roundTrip(full).kind, roundTrip(over).kind]).toEqual([15_515_625, L, "restored", "invalid"]);
+    const marked = reduceSeismicUnit(full, { kind: "deadline", clock: clock(until), basis: "unverified" }).state;
+    const memory = reduceSeismicUnit(marked, { kind: "deadline", clock: clock(until + 1), basis: "verified" }).state;
+    const saved = roundTrip(marked);
+    expect([size(marked), saved.kind, saved.kind === "restored" && saved.state.earthquakes[0], toSeismicView(marked).earthquakes, roundTrip(memory).kind, memory.earthquakes.length,
+      memory.longPeriods.length]).toEqual([L, "restored", marked.earthquakes[0], [], "restored", 512, 256]);
+    // 欄は true だけで、active の記録だけが持つ。
+    const first = memory.earthquakes[0], long = memory.longPeriods[0], decoded = (state: SeismicUnitState) => roundTrip(state).kind;
+    const live = eventRow("V", AT, 0), liveLong = longRow("V", AT, until);
+    const badFlag = JSON.parse(JSON.stringify(seismicUnitCodec.encode({ ...emptyState(), earthquakes: [{ ...live, expiryPending: true }] }))) as { earthquakes: { expiryPending: unknown }[] };
+    badFlag.earthquakes[0].expiryPending = false;
+    const badLong = JSON.parse(JSON.stringify(seismicUnitCodec.encode({ ...emptyState(), longPeriods: [{ ...liveLong, expiryPending: true }] }))) as { longPeriods: { expiryPending: unknown }[] };
+    badLong.longPeriods[0].expiryPending = "true";
+    expect([seismicUnitCodec.decode(badFlag as unknown as JsonValue).kind, seismicUnitCodec.decode(badLong as unknown as JsonValue).kind,
+      decoded({ ...emptyState(), earthquakes: [{ ...first, expiryPending: true }] }), decoded({ ...emptyState(), longPeriods: [{ ...long, expiryPending: true }] })])
+      .toEqual(["invalid", "invalid", "invalid", "invalid"]);
+  });
+});
 
 describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
   it("P3-QC-T01 acceptance / P3-QC-AC01・AC02・AC03: fold the unguarded, evict the unguarded, fold the guarded, evict the oldest guarded quake", () => {
@@ -215,7 +276,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const own = { ...world, longPeriods: [{ ...lp, guard: { from: lp.guard!.from, on: 0 as const } }] };
     expect([lp.guard?.from, eventOf(own, "A")?.guard?.from, eventOf(own, "A")?.retainUntil]).toEqual([D(20), D(20), D(24)]);
     const x = quake(ID.X, D(25), { originMs: D(24.9), big: 400_000 });
-    const overdue = sizeOf(eventOf(own, "A")) + 1;
+    const overdue = sizeOf(eventOf(own, "A")) + 1 + PENDING_MARK_BYTES;
     // 確かめた時計: 第 1 段で A の event が消え、守りを失った A の長周期が B より先に畳まれる。
     const verified = pressed(own, x, overdue + 1, D(30)).step;
     expect([eventOf(verified.state, "A") == null, isFolded(longOf(verified.state, "A")), isFolded(eventOf(verified.state, "B"))])
@@ -223,6 +284,11 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     // K10 の保留（確かめていない時計）: 第 1 段は止まり、A の event は active のまま A の長周期を守る。守る記録として古い順に畳む。
     const held = pressed(own, x, overdue + 1, D(30), "unverified").step;
     expect([isFolded(eventOf(held.state, "A")), isFolded(eventOf(held.state, "B"))]).toEqual([true, true]);
+    // P3-SEV-T04（AC05 (1)）: A の event に保留の印が付いても守りは落ちず、同じ順で畳む（印の分だけ足りない byte が増える）。
+    const pendingOwn = { ...own, earthquakes: own.earthquakes.map((item) => item.eventId === "A" ? { ...item, expiryPending: true as const } : item) };
+    const marked = pressed(pendingOwn, x, overdue + 1, D(30), "unverified").step;
+    expect([isFolded(eventOf(marked.state, "A")), eventOf(marked.state, "A")?.expiryPending, longOf(marked.state, "A") != null, isFolded(eventOf(marked.state, "B"))])
+      .toEqual([true, true, true, true]);
   });
 
   // 実不具合の再発防止（K11 r2 の品質レビュー P2）: 配列の最後の記録を退去しても区切りのカンマは無いので、ちょうど L の世代は採り、L＋1 は断る
@@ -339,7 +405,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const MARK = noticeMarkBytes("notice"), NOTICE_GROWTH = 512 * 4 * MARK + 256 * MARK;
     const RESERVE = 1_470_281 + NOTICE_GROWTH + 512 * 372 + 3 * 2048 * 4 + 768 * 50;
     // P3-UM-RES-09: 前の器＋記録の上限（寄与 512×4＋長周期 256）×印 1 件＋原文の予算＋カード。
-    expect([L, RESERVE]).toEqual([5_627_794 + 2304 * unreadableMarkBytes("unreadable") + 131_072 + UNREADABLE_CARDS_MAX_BYTES, 1_958_729]);
+    expect([L, RESERVE]).toEqual([5_627_794 + 2304 * unreadableMarkBytes("unreadable") + 131_072 + UNREADABLE_CARDS_MAX_BYTES + 768 * PENDING_MARK_BYTES, 1_958_729]);
     // N_guard の式（P3-QC-AC04 (1)）。S は最大の実例の守る地震（VXSE51＋53＋61 の event と VXSE62）の観測点つき、S_f は畳んだ後、
     // T_f は最大の実例を守らない報として受けて畳んだ後（event 1 件）。
     const EVENT = "20260728162718";

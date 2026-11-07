@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "299aa39dd31c83342bf111fd2b071fc179cda9670cce95b82c0c375285639e07",
+    "sha256": "ac3f616ec00a4003a710fd214d895d285f4909cc2c9c60949598840bd4701715",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1132,9 +1132,9 @@
           "reconstruction/contracts/p3-order-plan.md:85 «16463eb15ec276c9»",
           "reconstruction/src/domains/seismic/seismic.ts:219 «c0c6f6c7489d9b53»",
           "reconstruction/src/domains/seismic/seismic.ts:234 «34777d82d4574d59»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:545 «9b34d3e53816eb8f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:552 «a02b22933ee3d597»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1076 «e17fbd47d314a2ce»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:555 «9b34d3e53816eb8f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:562 «a02b22933ee3d597»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1097 «e17fbd47d314a2ce»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:25 «aea36a2bad7fb179»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:127 «3db61e7c93ccd4ce»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:128 «59a8f74c639a5a62»",

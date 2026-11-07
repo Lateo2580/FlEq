@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "3911d5283d588dff64cf2f82cfd3907a773c5a620e65c9a6f480ca00e69b8c85",
+    "sha256": "75e3934bc6643382dd903ebdfcf2e70f11619825454c17b1e3a5e43e86d0c154",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -500,7 +500,7 @@
           "reconstruction/contracts/p3-unit-table.types.ts:30 «247e5eb77fe63e12»",
           "reconstruction/src/runtime/owner-runtime.ts:558 «1bb3f6cd2b8f47c5»",
           "reconstruction/src/units/eew/eew-unit.ts:338 «973323028dc564f5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:66 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
           "reconstruction/contracts/p3-unit-table.json:262 «266f4c49ce4f4492»"
         ]
@@ -609,7 +609,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3043 «25cb6d35dc4ddee7»",
           "reconstruction/src/domains/eew/eew.ts:620 «90c93f2cfd91be75»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:520 «766fd07f63db2e36»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:530 «766fd07f63db2e36»",
           "reconstruction/contracts/p2-eew-unit.json:191 «095cf6adda999792»",
           "reconstruction/contracts/p3-currency-coverage.json:34 «77264aaea2922beb»",
           "reconstruction/contracts/p3-order-plan.md:442 «13b37fbd2c0f1292»",
@@ -694,7 +694,7 @@
           "reconstruction/contracts/p3-persist-premises.md:436 «f9154f6ac083aed7»",
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:37 «632cae790ef4aa0a»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:64 «e03057af8e6a011b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:66 «e03057af8e6a011b»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:56 «e03057af8e6a011b»",
           "reconstruction/src/units/eew/eew-unit.ts:21 «00295ab2ac3e2d56»"
         ]

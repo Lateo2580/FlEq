@@ -71,7 +71,7 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       // U-T, U-Q, U-N, U-V and U-L stay clean here: these cases describe the three earlier units (P3-C5-AC14, P3-C7, P3-C8, P3-C9 and P3-C10
       // add their rows only).
       "U-T": { schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [], failureMarks: [], unreadableNotices: [], persistence: savedProgress },
-      "U-Q": { schemaVersion: "p3-seismic-unit-v7", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
+      "U-Q": { schemaVersion: "p3-seismic-unit-v8", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: savedProgress },
       "U-N": { schemaVersion: "p3-nankai-unit-v8", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
       "U-V": { schemaVersion: "p3-volcano-unit-v7", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],

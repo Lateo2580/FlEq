@@ -25,6 +25,7 @@ import {
   raiseEvidence, readFailureMarks, readIntentState, readNoticeMark, restoreStarted, shown, updateEvidence,
   versionDigest,
 } from "../notice-mark";
+import { PENDING_MARK_BYTES, cachedMin } from "../expiry";
 import {
   RAW_BUDGET, droppedIn, fitRawBudget, markView, rawTotal, rawTotalBy, readUnreadableMark, recordRawBytes, stripRaw, unreadableMarkBytes,
 } from "../unreadable";
@@ -32,7 +33,7 @@ import type { RawPlan } from "../unreadable";
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v7" as const;
+const SCHEMA = "p3-seismic-unit-v8" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
 const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256;
@@ -58,9 +59,10 @@ const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.000001234567890
 const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
   + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * GUARD_BYTES;
 // 4 MiB に、同時最大状態の Control/DateTime と印の分（121,513）と強震保持の増え分を足す。Q-QC-DECIDED (1): 退去できない記録の増えと同じ分だけ広げる。
-// P3-UM-RES-09: 読めない所の印（寄与 512×4 と長周期 256 の全部）・原文の予算・カードの分も足す。
+// P3-UM-RES-09: 読めない所の印（寄与 512×4 と長周期 256 の全部）・原文の予算・カードの分も足す。P3-SEV-RES-01: 全部の記録に付く保留の印の分も足す。
 const GENERATION_LIMIT = 4_194_304 + 121_513 + HOLD_GROWTH + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
-  + (EVENT_LIMIT * EARTHQUAKE_FAMILIES.length + LONG_PERIOD_LIMIT) * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
+  + (EVENT_LIMIT * EARTHQUAKE_FAMILIES.length + LONG_PERIOD_LIMIT) * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES
+  + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * PENDING_MARK_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // I-U-Q.capacityReserve: 取消・期限切れの記憶だけの記録と当日履歴の上限。P3-VM-AC08: 取消記憶の ReportRef（512×4＋256 件）に
 // controlDateTimeRaw の 49 byte を足した予約。
@@ -88,6 +90,8 @@ const keyOf = (value: Shown): string => isEvent(value) ? eventKey(value.operatio
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
 const visible = (value: Shown | null): boolean => value != null
   && (isEvent(value) ? value.contributions.some((item) => item.effective === "active") : value.effective === "active");
+// P3-SEV-AC02: 保留の印のある記録は表示に出ない。守り・RESERVE・容量の段・当日の履歴は visible（active の寄与を持つ記録）で読む。
+const onScreen = (value: Shown | null): boolean => visible(value) && value?.expiryPending !== true;
 // 取消・期限切れの記憶だけの記録（P3-C7-CAPACITY の (4)。byte の超過では退去しない）。
 const memoryOnly = (value: Shown): boolean => !visible(value);
 // P3-QC-AC08: 期限切れの記憶（件数の超過で取消記憶より先に退去する、Q-QC-DECIDED (9)）。
@@ -96,7 +100,7 @@ const expiredMemory = (value: Shown): boolean => !visible(value)
 // P3-QC-AC07 (1): 取り消された地震（寄与が全部 cancelled）。件数を引く・一覧の印・decode の条件はこの 1 つ。
 const allCancelled = (value: EarthquakeEvent): boolean => value.contributions.every((item) => item.effective === "cancelled");
 // view の earthquakes に載る記録（active か取り消した地震の一覧の印を持つ、P3-QC-AC07 (4)）。
-const listed = (value: Shown | null): boolean => value != null && (visible(value) || isEvent(value) && value.cancelledSummary != null);
+const listed = (value: Shown | null): boolean => value != null && (onScreen(value) || isEvent(value) && value.cancelledSummary != null);
 
 // ---- byte の加算（I-U-Q.computation。受信 1 回で state 全体を直列化しない） ----
 
@@ -108,7 +112,7 @@ function bytes(value: object): number {
 }
 const commas = (length: number) => Math.max(length - 1, 0);
 // event は寄与ごとの加算（311 KB の寄与を持つ event の続報で全寄与を直列化し直さない）。
-function shownBytes(value: Shown): number {
+function contentBytes(value: Shown): number {
   if (!isEvent(value)) return bytes(value);
   let size = byteCache.get(value);
   if (size == null) {
@@ -118,6 +122,9 @@ function shownBytes(value: Shown): number {
   }
   return size;
 }
+// P3-SEV-AC06: 見えて印の無い記録は入力なしで付く印の分を予約に含める（受理の fit と decode の上限、退去の引き算が同じ和を読む）。
+// byteCache は実 byte のまま（foldedBytes が読む）。
+const shownBytes = (value: Shown): number => contentBytes(value) + (onScreen(value) ? PENDING_MARK_BYTES : 0);
 const sumCache = new WeakMap<readonly unknown[], number>();
 function listBytes<T>(values: readonly T[], size: (value: T) => number): number {
   let total = sumCache.get(values);
@@ -179,6 +186,9 @@ function minOf<T extends object>(values: readonly T[], at: (value: T) => number)
   return min;
 }
 const eventDeadline = (value: EarthquakeEvent) => Math.min(value.retainUntil, value.strongHold?.until ?? Infinity);
+// P3-EF-AC11 (2): 根拠で当てない種類を比べないよう、表示の期限と保留の記録の最小を別の cache で持つ（minOf は配列だけが鍵）。
+const displayMin = cachedMin<Shown>((item) => onScreen(item) ? item.retainUntil : Infinity);
+const pendingMin = cachedMin<Shown>((item) => item.expiryPending === true ? 0 : Infinity);
 // JST の暦日。dayKey の次の JST 0 時で当日履歴を空へ戻す（P3-C7-SEM-04）。
 const JST_MS = 32_400_000;
 function dayKeyOf(ms: number): string {
@@ -654,7 +664,7 @@ function fit(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly Long
     const quakes = quakesOf([...earthquakes, ...longPeriods]);
     const safe = (item: Shown) => guarded(quakes.get(quakeKey(item)), now, verified);
     for (const item of ranked(targetIsEvent ? earthquakes : longPeriods, (item) =>
-      early(item) ?? (expiredMemory(item) ? 3 : !visible(item) ? 5 : safe(item) ? null : 4))) {
+      early(item) ?? (expiredMemory(item) ? 3 : !visible(item) ? 5 : safe(item) ? null : item.expiryPending === true ? 3 : 4))) {
       if (!countOver()) break;
       remove(item);
     }
@@ -744,7 +754,7 @@ const withoutSource = ({ unconfirmed: _mark, notice: _notice, folded: _folded, u
 const eventWithoutMarks = ({ unavailable: _marks, ...rest }: EarthquakeEvent): EarthquakeEvent => rest;
 // 守りの欄と畳んだ印は長周期の事実でない（P3-QC-AC01・AC03）。
 const longPeriodWithoutMarks = ({ unavailable: _mark, unconfirmed: _unconfirmed, notice: _notice, guard: _guard, folded: _folded,
-  unreadable: _unreadable, ...rest }: LongPeriodSubject): LongPeriodSubject => rest;
+  unreadable: _unreadable, expiryPending: _pending, ...rest }: LongPeriodSubject): LongPeriodSubject => rest;
 // P3-CC-D-PENDING=A・D-FAILNOTICE=A の文面の時刻（報の ReportDateTime を JST の HH:MM に）。
 const jstClock = (raw: string): string => new Date(Date.parse(raw) + JST_MS).toISOString().slice(11, 16);
 const FAIL_BODY = "容量の上限のため、この報を処理できていません。";
@@ -826,6 +836,7 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
   const index = indexOf(state.earthquakes, eventKey(candidate.operation, candidate.eventId));
   const existing = index == null ? null : state.earthquakes[index];
   const prior = existing?.contributions.find((item) => item.family === candidate.family) ?? null;
+  const wasPending = existing?.expiryPending === true;
   // P3-QC-AC08 (4): 期限切れの記憶は事実を持たないので、同じ版の取消でない報は中身を比べず duplicate（同じ版の取消は ends で勝つ）。
   // P3-QC-AC03 (3)(b): 畳んだ寄与は観測点を除いた中身と観測点の列の指紋で比べる。
   const version = stepVersion(prior == null ? null : { version: prior.source, source: prior.source, cancelled: prior.effective === "cancelled" },
@@ -844,14 +855,18 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
     .sort((left, right) => FAMILY_ORDER[left.family] - FAMILY_ORDER[right.family]);
   // P3-QC-AC08 (4): 記憶に届いた取消は記憶の期限まで残す（同じ時刻の取消で期限を戻すと、同じ reduce で回収されて取消を通知できない）。
   const latest = contributions.reduce((max, item) => Math.max(max, reportMs(item.source)), -Infinity) + EVENT_RETAIN_MS;
-  const retainUntil = contributions.some((item) => item.effective === "active") || existing == null ? latest : Math.max(latest, existing.retainUntil);
+  // P3-SEV-AC04 (6): 保留の記録の取消は、先に記憶へ移った順と同じ期限にする。
+  const active = contributions.some((item) => item.effective === "active");
+  const retainUntil = active || existing == null ? latest : Math.max(latest, existing.retainUntil + (wasPending ? MEMORY_MS : 0));
   // P3-CC-AC03(3): この family の印は印の版以上の採用で消え、古い報の採用では残る。ほかの family の印は残る。
   const marks = existing?.unavailable?.filter((item) => item.source.family !== candidate.family
     || compareVersion(item.source, candidate.source) === "older");
   const kept = marks?.length === existing?.unavailable?.length ? existing?.unavailable : marks;
   const draft: EarthquakeEvent = { eventId: candidate.eventId, operation: candidate.operation, contributions,
     strongHold: existing?.strongHold ?? null, retainUntil, ...existing?.guard == null ? {} : { guard: existing.guard },
-    ...existing?.cancelledSummary == null ? {} : { cancelledSummary: existing.cancelledSummary }, ...kept == null || kept.length === 0 ? {} : { unavailable: kept } };
+    ...existing?.cancelledSummary == null ? {} : { cancelledSummary: existing.cancelledSummary }, ...kept == null || kept.length === 0 ? {} : { unavailable: kept },
+    // P3-SEV-AC04: 印を外すのは見える期限の内へ戻る取消でない報だけ（1 family の取消でほかの事実を戻さない、§7 の 8）。
+    ...wasPending && active && (candidate.cancelled || retainUntil <= now) ? { expiryPending: true } : {} };
   const hold = holdOf(existing?.strongHold ?? null, factsOf(draft), candidate, now);
   const held: EarthquakeEvent = hold === draft.strongHold ? draft : { ...draft, strongHold: hold };
   // (4): 取消記憶だけになった event は印を持たない（RESERVE_BYTES の式に入れない）。外した印は unit の未確認へ移す。
@@ -863,12 +878,14 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
   const refolded = prior?.folded != null && !candidate.cancelled && refolds(prior.folded, candidate.contribution.intensity)
     ? factsOf({ ...next, contributions: next.contributions.map((item) => item === adopted ? { ...item, intensity: withoutStations(item.intensity) } : item) })
     : after;
-  const fields = visible(next) || visible(existing) ? changedFacts(visible(existing) ? before : null, refolded) : [];
-  const wasActive = prior?.effective === "active";
+  const fields = onScreen(next) || onScreen(existing) ? changedFacts(onScreen(existing) ? before : null, refolded) : [];
+  // P3-EF-AC02 (2): 保留の記録は通知の判定では見えない記録として扱う。
+  const wasActive = prior?.effective === "active" && !wasPending;
   // 事実の同じ遅着の報（例: VXSE53 の後の古い VXSE51）は revisionOnly。active だった family の取消は事実が同じでも semantic。
   // 印の付け外しも公開の意味の変化（P3-CC-AC03）。
   const semantic = fields.length !== 0 || wasActive && candidate.cancelled || existing?.unavailable !== next.unavailable;
-  const due = next.retainUntil <= now;
+  // Q-SEV-CANCEL-DUE: 保留の記録への取消は期限より通知の証拠を優先する（同じ時刻の取消は元の期限のままなので、ここで止めると鳴らし損ねる）。
+  const due = next.retainUntil <= now && !(wasPending && candidate.cancelled);
   // Q-NOTICE.generationTable: 公開事実の変わった採用・訂正・取消の前に active だったか印に通知の証拠のある family の取消（P3-NL-AC09）。
   // 期限で回収される報では作らない。
   const notify = !due && (candidate.cancelled ? wasActive || heard(prior?.notice) : candidate.infoRank === 2 || fields.length !== 0);
@@ -888,11 +905,13 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
 function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandidate, clock: ClockReading, basis: WallBasis): Result {
   const index = indexOf(state.longPeriods, candidate.subject);
   const existing = index == null ? null : state.longPeriods[index];
+  const wasPending = existing?.expiryPending === true;
   let next: LongPeriodSubject = { subject: candidate.subject, eventId: candidate.eventId, operation: candidate.operation,
     source: candidate.source, effective: candidate.cancelled ? "cancelled" : "active", title: candidate.cancelled ? "" : candidate.title,
     headline: candidate.cancelled ? null : candidate.headline, hypocenter: candidate.hypocenter, intensity: candidate.intensity,
-    // P3-QC-AC08 (4): receiveEarthquake と同じく、記憶に届いた取消は記憶の期限まで残す。
-    retainUntil: Math.max(candidate.reportDateTimeMs + LONG_PERIOD_RETAIN_MS, candidate.cancelled && existing != null ? existing.retainUntil : -Infinity),
+    // P3-QC-AC08 (4)・P3-SEV-AC04 (6): receiveEarthquake と同じく、記憶に届いた取消は記憶の期限まで残す。
+    retainUntil: Math.max(candidate.reportDateTimeMs + LONG_PERIOD_RETAIN_MS,
+      candidate.cancelled && existing != null ? existing.retainUntil + (wasPending ? MEMORY_MS : 0) : -Infinity),
     ...candidate.cancelled || candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
   // P3-QC-AC08 (4)・AC03 (3)(b): receiveEarthquake と同じ比べ方。
   const version = stepVersion(existing == null ? null : { version: existing.source, source: existing.source,
@@ -910,6 +929,8 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
   if (version.mark != null) next = { ...next, unconfirmed: version.mark };
   // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
   if (existing?.notice != null) next = { ...next, notice: existing.notice };
+  // P3-SEV-AC04: 見える期限の内へ戻らない採用は印を残す（§7 の 8）。
+  if (wasPending && !candidate.cancelled && next.retainUntil <= clock.wallTimeMs) next = { ...next, expiryPending: true };
   const draft = next;
   const guard = guardOf(candidate.operation, existing?.guard, partnerFrom(state, candidate.operation, candidate.eventId, false),
     candidate.hypocenter?.originTimeRaw ?? null, candidate.reportDateTimeMs, (on) => longPeriodOn(on, draft));
@@ -917,15 +938,15 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
   const notice = { mark: existing?.notice, version: versionDigest(candidate.source) };
   const lost = keep && next.effective !== "active";
   const now = clock.wallTimeMs;
-  const wasActive = existing?.effective === "active";
+  const wasActive = existing?.effective === "active" && !wasPending;
   // P3-QC-AC03 (3)(c): 畳んだ記録の新しい版は、指紋が一致すれば観測点を除いて比べる。
   const compared = existing?.folded != null && !candidate.cancelled && refolds(existing.folded, next.intensity)
     ? { ...next, intensity: withoutStations(next.intensity) } : next;
-  const factsChanged = existing == null || !isDeepStrictEqual({ ...longPeriodWithoutMarks(existing), source: null, retainUntil: 0 },
+  const factsChanged = existing == null || wasPending || !isDeepStrictEqual({ ...longPeriodWithoutMarks(existing), source: null, retainUntil: 0 },
     { ...longPeriodWithoutMarks(compared), source: null, retainUntil: 0 });
   // 通知は事実の変化だけで決める（印の付け外しで鳴らさない、P3-CC-AC10(9)）。
   const semantic = factsChanged || existing?.unavailable !== next.unavailable;
-  const due = next.retainUntil <= now;
+  const due = next.retainUntil <= now && !(wasPending && candidate.cancelled); // Q-SEV-CANCEL-DUE
   const notify = !due && (candidate.cancelled ? wasActive || heard(existing?.notice) : candidate.infoRank === 2 || factsChanged);
   const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated", now, notice,
     existing == null ? null : { at: existing.source.reportDateTimeRaw, name: existing.hypocenter?.name ?? null }) : [];
@@ -996,7 +1017,7 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   const next = collected?.state ?? adopted;
   // 結果は回収の後の state で決める（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。期限を過ぎた報の記録は最終の state に残らないので
   // accepted に載せず currentEstablished も null、change は前の表示が消えたかで決める。
-  const semantic = due ? visible(before) : proposal.semantic;
+  const semantic = due ? onScreen(before) : proposal.semantic;
   const change = semantic || fitted.evicted.length !== 0 ? "semantic" as const : "revisionOnly" as const;
   // P3-VM-D-MISSING=A の (2): 手元の版の無い比べる時刻を欠く報は採って WARN を添える。
   const diagnostics: DiagnosticDetails[] = proposal.missing ? [{ level: "WARN", component: "seismic", reason: "requiredStructureMissing",
@@ -1047,7 +1068,7 @@ function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: Clo
   if (candidate.kind === "earthquake") {
     const found = state.earthquakes[indexOf(state.earthquakes, eventKey(operation, candidate.eventId)) ?? -1];
     const old = found?.unavailable?.find((item) => item.source.family === candidate.family);
-    if (found != null && visible(found)) {
+    if (found != null && onScreen(found)) {
       record = found;
       if (old != null && ["older", "same"].includes(compareVersion(old.source, candidate.source))) covered = true;
       else {
@@ -1058,7 +1079,7 @@ function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: Clo
     }
   } else {
     const found = state.longPeriods[indexOf(state.longPeriods, candidate.subject) ?? -1];
-    if (found != null && visible(found)) {
+    if (found != null && onScreen(found)) {
       record = found;
       if (found.unavailable != null && ["older", "same"].includes(compareVersion(found.unavailable.source, candidate.source))) covered = true;
       else {
@@ -1135,11 +1156,33 @@ function expireLongPeriod(item: LongPeriodSubject): LongPeriodSubject {
     ...item.notice == null ? {} : { notice: item.notice }, ...asleep(item.guard) };
 }
 
+// P3-SEV-AC01: unverified は表示の期限の来た見える記録に印を付けるだけ。事実・守り・当日の履歴に触れず、outcome も通知も作らない。
+function markPending(state: SeismicUnitState, clock: ClockReading): Readonly<{ state: SeismicUnitState; changes: readonly Change[] }> {
+  const now = clock.wallTimeMs, changes: Change[] = [];
+  const lapsed = (item: Shown) => onScreen(item) && item.retainUntil <= now;
+  const note = <T extends Shown>(item: T, after: T): T => {
+    // P3-SEV-AC06 (4): 長周期は実 byte を足して覚える（event は寄与の byte の cache をそのまま使う）。
+    if (!isEvent(after)) byteCache.set(after, bytes(item) + PENDING_MARK_BYTES);
+    changes.push([item, after]);
+    return after;
+  };
+  const earthquakes = displayMin(state.earthquakes) > now ? state.earthquakes
+    : state.earthquakes.map((item) => lapsed(item) ? note<EarthquakeEvent>(item, { ...item, expiryPending: true }) : item);
+  const longPeriods = displayMin(state.longPeriods) > now ? state.longPeriods
+    : state.longPeriods.map((item) => lapsed(item) ? note<LongPeriodSubject>(item, { ...item, expiryPending: true }) : item);
+  return changes.length === 0 ? { state, changes }
+    : { state: { ...state, earthquakes, longPeriods, persistence: dirty(state.persistence, clock.monotonicMs) }, changes };
+}
+
 // expired は期限切れの記憶にした寄与と長周期の outcome（transition "expired"、source は最終更新の報、P3-QC-AC08 (2)）。
 function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis): Readonly<{ state: SeismicUnitState; changes: readonly Change[];
   expiredIntents: number; expired: readonly SubjectOutcome[] }> {
   const now = clock.wallTimeMs;
-  if (basis !== "verified" || deadlineAt(state) > now) return { state, changes: [], expiredIntents: 0, expired: [] };
+  if (basis === "awaiting") return { state, changes: [], expiredIntents: 0, expired: [] };
+  if (basis === "unverified") return { ...markPending(state, clock), expiredIntents: 0, expired: [] };
+  // P3-EF-AC02 (3): 保留の記録は wall によらず記憶へ移す（時計が後ろへ直った記録を到来の判定で止めない）。
+  const heldEvents = pendingMin(state.earthquakes) === 0, heldPeriods = pendingMin(state.longPeriods) === 0;
+  if (deadlineAt(state) > now && !heldEvents && !heldPeriods) return { state, changes: [], expiredIntents: 0, expired: [] };
   const changes: Change[] = [], expired: SubjectOutcome[] = [];
   // 生きている記録は期限で記憶にし（記憶の期限がもう来ていれば同じ回で消す）、記憶だけの記録は期限で消す。
   const keep = <T extends Shown>(before: T, after: T | null): T[] => {
@@ -1147,9 +1190,9 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
     return after != null && after.retainUntil > now ? [after] : [];
   };
   // ponytail: event 512・長周期 256 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-  const earthquakes = minOf(state.earthquakes, eventDeadline) > now ? state.earthquakes : state.earthquakes.flatMap((item) => {
+  const earthquakes = minOf(state.earthquakes, eventDeadline) > now && !heldEvents ? state.earthquakes : state.earthquakes.flatMap((item) => {
     if (item.retainUntil <= now && !visible(item)) return keep(item, null);
-    if (item.retainUntil <= now) {
+    if (item.retainUntil <= now || item.expiryPending === true) {
       const after = expireEvent(item);
       item.contributions.forEach((entry, at) => { if (entry.effective === "active") expired.push(contributionOutcome(after, after.contributions[at])); });
       return keep(item, after);
@@ -1159,9 +1202,9 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
     changes.push([item, after]);
     return [after];
   });
-  const longPeriods = minOf(state.longPeriods, (item) => item.retainUntil) > now ? state.longPeriods
+  const longPeriods = minOf(state.longPeriods, (item) => item.retainUntil) > now && !heldPeriods ? state.longPeriods
     : state.longPeriods.flatMap((item) => {
-      if (item.retainUntil > now) return [item];
+      if (item.retainUntil > now && item.expiryPending !== true) return [item];
       if (!visible(item)) return keep(item, null);
       const after = expireLongPeriod(item);
       expired.push(longPeriodOutcome(after));
@@ -1185,7 +1228,7 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
 
 function deadlineStep(state: SeismicUnitState, clock: ClockReading, basis: WallBasis, shutdown: boolean): Result {
   const applied = collect(state, clock, basis);
-  const subjects = [...applied.changes.flatMap(([, after]) => after == null || !isEvent(after) ? [] : shownOutcomes(after)
+  const subjects = [...applied.changes.flatMap(([, after]) => after == null || !isEvent(after) || !onScreen(after) ? [] : shownOutcomes(after)
     .map((item) => ({ ...item, facts: eventView(after), changedFields: ["strongHold"] }))), ...applied.expired];
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "seismic",
     reason: "notificationExpired", unit: "U-Q", count: applied.expiredIntents }];
@@ -1257,14 +1300,15 @@ function restore(state: SeismicUnitState, persisted: PersistedSeismicUnit, clock
   const base = { ...raiseNotices(decoded.state, new Map(restored.started.map((item) => [item.subject, "unknown" as const]))),
     intents: restored.intents, persistence: restored.started.length === 0 ? state.persistence : dirty(state.persistence, clock.monotonicMs) };
   const applied = collect(base, clock, basis);
-  const active: Shown[] = [...applied.state.earthquakes, ...applied.state.longPeriods].filter(visible);
+  const active: Shown[] = [...applied.state.earthquakes, ...applied.state.longPeriods].filter(onScreen);
   const shownAfter: Shown[] = [...applied.state.earthquakes, ...applied.state.longPeriods].filter(listed);
   const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "seismic",
     reason: "notificationExpired", unit: "U-Q", count: applied.expiredIntents }];
   if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "notificationOutcomeUnknown",
     unit: "U-Q", count: restored.started.length });
   return { changes: shownAfter.map((item): Change => [null, item]), step: { ...idle(applied.state),
-    outcomes: [{ kind: "recoveryApplied", scope: ["U-Q"], coverage: active.map(keyOf), subjects: [] }], diagnostics } };
+    // P3-SEV-AC03 (3): 復元で記憶へ移した記録の expired はここで 1 回出す（直後の期限要求では active の寄与が無い）。
+    outcomes: [{ kind: "recoveryApplied", scope: ["U-Q"], coverage: active.map(keyOf), subjects: applied.expired }], diagnostics } };
 }
 
 function receive(state: SeismicUnitState, input: Extract<SeismicInput, { kind: "receive" }>): Result {
@@ -1318,7 +1362,7 @@ function reduceSeismicUnit(state: SeismicUnitState, input: SeismicInput): Seismi
 }
 
 function toSeismicView(state: SeismicUnitState): SeismicUnitView {
-  const shownEvents = state.earthquakes.filter(listed), longPeriods = state.longPeriods.filter(visible);
+  const shownEvents = state.earthquakes.filter(listed), longPeriods = state.longPeriods.filter(onScreen);
   // 確認の subjects は active の寄与だけ（取り消した地震の一覧の印は shownOutcomes が空、P3-QC-AC07 (4)）。
   const subjects = [...shownEvents, ...longPeriods].flatMap(shownOutcomes);
   return { unit: "U-Q", semanticRevision: [...subjects.map((item) => `${item.subject}:${item.source?.reportDateTimeRaw}:`
@@ -1486,13 +1530,16 @@ function event(value: unknown): EarthquakeEvent | null {
     || marks.some((entry) => familyOf(entry.source.family) == null
       || entry.source.subject !== `${operation}/${entry.source.family}/${row.eventId}`)
     || !active)) return null;
+  // P3-SEV-AC07 (2): 保留の印は true だけで、active の寄与を持つ記録だけが持つ。
+  if ("expiryPending" in row && (row.expiryPending !== true || !active)) return null;
   // P3-QC-AC10 (2): active の寄与の無い記録は強震保持を持たない。取り消した地震の印は寄与が全部 cancelled の event だけが持つ。
   const guard = guardFor(row, operation, active);
   const summary = "cancelledSummary" in row ? summaryRow(row.cancelledSummary) : undefined;
   if (guard == null || !active && hold != null || summary === null
     || summary != null && !contributions.every((entry) => entry.effective === "cancelled")) return null;
   return { eventId: row.eventId, operation, contributions, strongHold: hold, retainUntil: row.retainUntil,
-    ...marks == null ? {} : { unavailable: marks }, ...guard, ...summary == null ? {} : { cancelledSummary: summary } };
+    ...marks == null ? {} : { unavailable: marks }, ...guard, ...summary == null ? {} : { cancelledSummary: summary },
+    ...row.expiryPending === true ? { expiryPending: true } : {} };
 }
 function longPeriod(value: unknown): LongPeriodSubject | null {
   const row = record(value);
@@ -1513,10 +1560,11 @@ function longPeriod(value: unknown): LongPeriodSubject | null {
   const folded = foldedOf(row, effective, facts.intensity), guard = guardFor(row, operation, effective === "active");
   const unreadable = unreadableOf(row, effective);
   if (unconfirmed === null || notice === null || folded === null || guard == null || unreadable === null || unconfirmed != null && (unconfirmed.subject !== row.subject
-    || unconfirmed.operation !== operation)) return null;
+    || unconfirmed.operation !== operation) || "expiryPending" in row && (row.expiryPending !== true || effective !== "active")) return null;
   return { subject: row.subject, eventId: row.eventId, operation, source, effective, title: row.title, headline: row.headline,
     hypocenter: facts.hypocenter, intensity: facts.intensity, retainUntil: row.retainUntil, ...mark == null ? {} : { unavailable: mark },
-    ...unconfirmed == null ? {} : { unconfirmed }, ...notice == null ? {} : { notice }, ...folded == null ? {} : { folded }, ...guard, ...unreadable };
+    ...unconfirmed == null ? {} : { unconfirmed }, ...notice == null ? {} : { notice }, ...folded == null ? {} : { folded }, ...guard, ...unreadable,
+    ...row.expiryPending === true ? { expiryPending: true } : {} };
 }
 // 当日履歴の文字列の上限（SeismicRecentQuake の注記）。
 function boundedValue(value: MaterialValue): boolean {

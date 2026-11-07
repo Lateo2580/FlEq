@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "0886ced5efc5a9aa14bb1b466970ee312ace22bfd1a25c310c64beacdb872624",
+    "sha256": "ca33f5847daaa1c73b7d0c3fa328bf2cb8d0224d1d3cad886f90f94c80e21418",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -631,7 +631,7 @@
           "reconstruction/contracts/p2-weather-current-unit.json:306 «76ccbb8bfd08eba1»",
           "reconstruction/contracts/p2-weather-current-unit.json:44 «d70b79fb94372372»",
           "reconstruction/contracts/p3-uf-public.json:135 «4128f5771e2533d4»",
-          "reconstruction/contracts/p3-disaster-capacity.json:406 «7df77bebc485efb2»",
+          "reconstruction/contracts/p3-disaster-capacity.json:406 «bce8780d918f793f»",
           "docs/specs/reconstruction-p0-contracts.md:374 «0001ae85cb1f8266»",
           "docs/specs/reconstruction-p0-contracts.md:1782 «233501e14a6d6ba2»",
           "reconstruction/contracts/p2-weather-current-unit.json:314 «cf21153acb0fdb94»",

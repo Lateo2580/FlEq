@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "b5a83f5ddfe8540fdf278dfd246649766ff528c208b655666e0b7672ba44d450",
+    "sha256": "2255050b0f52410437a172d71957b2c8a785d07cef5056a3f93b95e4f8886f53",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -605,7 +605,7 @@
           "docs/specs/reconstruction-p0-contracts.md:2188 «10164d7d353e227e»",
           "reconstruction/contracts/p3-volcano-unit.types.ts:193 «a2cbfe068aa0f1ae»",
           "reconstruction/contracts/p3-volcano-unit.json:50 «3d8273d87f00f4fd»",
-          "reconstruction/contracts/p3-seismic-unit.types.ts:159 «79798bbdfd67032b»",
+          "reconstruction/contracts/p3-seismic-unit.types.ts:161 «79798bbdfd67032b»",
           "src/engine/messages/daily-quake-counter.ts:20 «703355c248f94155»",
           "reconstruction/src/recovery/recovery.ts:31 «3305cb6ac92408f9»"
         ]
