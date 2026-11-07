@@ -1121,10 +1121,11 @@ describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved bounda
     server.sockets[1].send(frame("VPWP50", text("81_04_01_260605_VPWP50_cancel"), "id-f2"));
     // U-W stops before its refused input; U-F, which lost nothing itself, stops at the disconnect.
     await until(async () => (await saved(dirs, "U-W"))?.oldestHole === "refused" && (await saved(dirs, "U-F"))?.oldestHole === "disconnected", 10_000);
-    const refused = await saved(dirs, "U-W");
-    expect(refused?.dmdataId).toMatch(/^id-junk-/);
     expect(await saved(dirs, "U-F")).toMatchObject({ dmdataId: "id-f1" });
     await first.stop();
+    // 最後の境界は stop の後に読む。途中の保存は id-junk-118 で止まっていることがある（処理中の入力も 120 件に数えるので、断られるのは id-junk-120）。
+    const refused = await saved(dirs, "U-W");
+    expect(refused).toMatchObject({ dmdataId: "id-junk-119", oldestHole: "refused" });
     const restored = (await newest(dirs, "U-W"))!.generation;
     // The next run starts behind the restored boundary and does not pass it.
     await start(server.url, dirs);

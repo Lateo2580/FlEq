@@ -73,7 +73,8 @@ vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
 
 // The injected clock moves only with skew, so the 5-tick boundaries do not depend on real time (setTimeout stays real).
 const EEW_AT = 1_713_363_299_001;
-const base = performance.now();
+// 端数のある base だと base+skew の差が 4999.999999999999 になり、5,000 ms の判定を 1 tick 外して次の tick を待ち続ける（CI で 4 回落ちた）。
+const base = Math.trunc(performance.now());
 const skew = { ms: 0 };
 const clock = () => ({ wallTimeMs: EEW_AT + skew.ms, monotonicMs: base + skew.ms });
 const cleanups: (() => Promise<void> | void)[] = [];
