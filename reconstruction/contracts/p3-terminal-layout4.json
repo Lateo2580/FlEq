@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
-    "sha256": "436e68b688021333d2be7913a1ec1de8e40c690f653afa01a2ef23d001c4159e",
+    "sha256": "7869c6d332ddd799b777078a3d6ddd1cbc6d56fe3d59d0f0944f977bd80a2f6c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -68,9 +68,9 @@
     "questionResolutions": [
       {
         "id": "Q-TL4-DELIVERY",
-        "status": "open",
+        "status": "closed",
         "source": "2026-11-06 起草",
-        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・ヘルツ GO で P3 だけ。r1 で深さの試験（3 報目を 77_01_05）、字下げの試験、名前の無い Area の数え方を直した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout4-r1）、commit 863fe476 は固定した patch と同じ byte。本物の経路の写しを pty の 100 桁と 56 桁で撮った。残りの P3 は --debug で VPNO50 が「採らなかった」と出る字（output.ts、範囲の外）。remaining: 作者の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。レビューは r0 が契約適合 GO・ヘルツ GO で P3 だけ。r1 で深さの試験（3 報目を 77_01_05）、字下げの試験、名前の無い Area の数え方を直した。Mac mini のゲート 11 本は r1 で全部 rc 0（ログ layout4-r1）、commit 863fe476 は固定した patch と同じ byte。本物の経路の写しを pty の 100 桁と 56 桁で撮った。残りの P3 は --debug で VPNO50 が「採らなかった」と出る字（output.ts、範囲の外）。作者の目視の指摘で 281e2c32（噴火速報の市町村の折り返した行を字下げ）と 548af5e2（月間火山概況の折り返した行の左の列を薄い字、AC05・T07）を足した。Mac mini のゲート l5-base-415a5b42 は 11 本 rc 0。2026-11-07 に作者が写しの目視を OK とした。944b400c まで push、CI run 42345186625 success。remaining なし"
       }
     ],
     "operationContract": {

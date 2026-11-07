@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "863fe4762a938d5d88d87750e8ef705c061dc61f",
-    "sha256": "49cfd9a162213afce909b3b653446182ecb5f5795632d43734cdfde8e3a5c841",
+    "sha256": "ef843a538592095230ea080dbb06de8b9d4ef9b6e8cab5ac339921087378a5d0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -46,9 +46,9 @@
     "questionResolutions": [
       {
         "id": "Q-TL5-DELIVERY",
-        "status": "open",
+        "status": "closed",
         "source": "2026-11-06 起草",
-        "closed": "remaining: 実装、レビュー、ゲート、作者の目視と push"
+        "closed": "実装（Sonnet の子、worktree）。r0 はヘルツ NO-GO（取消の読みが U-T と違う）、契約適合 条件付き GO（試験の不足）。r1 はヘルツ NO-GO（head.infoType が門と違う値を読み、取消の表示で満潮の表が消える）、契約適合 GO。r2 で head の infoType を material.infoTypeRaw.trim() へ替え、読めた fixture 291 通で新旧の値の一致を確かめ、ヘルツ GO。Mac mini のゲート l5-r2 は 11 本 rc 0（commit aa5b3c8a は patch と同じ byte）。8b25e212 で例外を条文 6 箇所へ書き足した。作者の目視の指摘で AC02（満潮の字を全部薄く）と AC03（津波予報の見出しを空色）を足した。この 2 件はレビューを回さず、変異で試験の効きを確かめ、ゲート l5-r4 は 11 本 rc 0（commit 944b400c は patch と同じ byte）。2026-11-07 に作者が写しの目視を OK とした。944b400c まで push、CI run 42345186625 success。remaining なし"
       }
     ],
     "operationContract": {
