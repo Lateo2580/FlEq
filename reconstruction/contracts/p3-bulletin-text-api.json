@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e340e4c8aa03de71a4373e38284ca954555ee6db",
-    "sha256": "c596dacba95355b5ed4c088b21a1cac60055a63c205f7d3bbca5694780f143fb",
+    "sha256": "18ebfd6725711d1a7b6d81c4dc13069f94290e9f108cf25b5f27e347662f9de5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -128,7 +128,7 @@
     "contractId": "P3-BULLETIN-TEXT-API-001",
     "mode": "implementation",
     "objective": "火山の解説と南海トラフの情報の本文を、要求があったときだけ owner から読んで返す HTTP の API を足す。16:30 に南海トラフ地震臨時情報が届いたとき、Pi の画面のプログラムが snapshot の見出しの subject と source の版で GET すると、本文の全文が 2 秒の内に返る。snapshot・view・保存の形は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "72876e4a",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
