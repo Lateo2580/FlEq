@@ -1,0 +1,303 @@
+{
+  "meta": {
+    "draftedFromOid": "8644ab3aa6c29ccc2b928df8d72d7b3d5b1efa1f",
+    "sha256": "efcbc21fff7dcb37d8c94ed28326da06d75e6ff510d18647f5b184a5d3095de2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-I7-D-FACE",
+        "kind": "作者",
+        "A": "震度 7 を白 #ffffff の面に黒い字にする（面と黒い地 21.00、面と #171f25 16.68、字と面 21.00、面と 6 強の面 3.87）",
+        "B": "明るい赤紫 #ff5ca8 の面に黒い字（面と 6 強の面 1.35）",
+        "C": "明るい赤 #ff453a の面に黒い字（面と 6 強の面 1.14）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者の裁定、2026-11-07 夜。判断カード 2026-11-08-P4の入口-本文とD7 の問 4）。値の確定は Pi の実機で一度見てから",
+        "reason": "今の暗い赤 #7a1e00 は黒い地との差が 2.01 で 6 強の 5.43 より沈む。白は端末の int7 と帯の最も重い段に揃う。地図の面が広く白くなるので夜の部屋で強く光るが、これは数値で決まらない"
+      },
+      {
+        "id": "P3-I7-D-LEGACY",
+        "kind": "作者",
+        "A": "旧築のディスプレイにも入れる",
+        "B": "新築だけ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者の裁定、2026-11-07 夜。同じカードの問 5）",
+        "reason": "新築だけでは切替まで今の Pi の画面に暗い赤が残る"
+      },
+      {
+        "id": "P3-I7-D-KEEP-PRIMITIVE",
+        "kind": "統合担当",
+        "A": "--c-dark-red を未参照のまま残す。Pi の確認で白に確定したら別の commit で消す",
+        "B": "いま消す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "戻すときに --int-9-bg を var(--c-dark-red) へ書き戻すだけで済む。消すと theme.css の 49 行より後の行がずれ、p3-tsunami-e01.json の «» と index.html の theme.css の行のコメントが全部ずれる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-I7-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-07 起草（base 8644ab3a の木）",
+        "closed": "(1) hash の対象か: 対象でない。index.html と theme.css の file の sha256 は git の追跡下のどこにも書かれていない（git grep 0 件）。凍結の manifest が縛るのは契約の sha・trial setup・smoke 条件・fixture・geometry で、測定の dist の木（run.mjs の DIST_TREES）に index.html は入らない（tsc の出力だけ。host.ts は src の index.html を配る）。p2-chrome-eew.json を変えないので manifest の contractSha256 も変わらない (2) «» : index.html を引くのは 7・32・93・94 行、theme.css は 25・32・33・43・53・55・65〜67・105〜107 行で、変える行は無い。行の数を変えない (3) --c-dark-red の参照は theme.css の --int-9-bg だけ (4) 地図: QuakeMap.svelte の .quake-map-rank-9、QuakeMapScreen.svelte の .int-r9、quake-map-colors.ts は token を読むので値の変更は要らない。区域の線は --surface-lowest、バッジは自分の円を持つので、白の面でも境とバッジは読める (5) smoke.mjs の色の照合は paintExpectations の 4 と 5 弱だけで、7 を踏まない。index.html の写しのずれは smoke では落ちないので P3-I7-T01 で見る (6) 生成器を theme.css の新しい値で手元のメモリの上で回し、int9 の行は 21.00:1 PASS、auditGate と validateAllowlist は 0 件だった (7) EewPanel.svelte は int-r{rank} を付けるが、同じ file に .int-r* の規則が無い。Svelte の style は file ごとなので、EEW の区域の震度の字は全 rank で段の色が付かない。今回の範囲の外で、実機の確認の材料"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。色の値だけを変える"
+    }
+  },
+  "contract": {
+    "contractId": "P3-INT7-COLOR-001",
+    "mode": "implementation",
+    "objective": "ディスプレイの震度 7 を白の面に黒い字にする。23:15 に震度 7 の報が届いたとき、7 の面が 6 強より暗く沈まず、端末の震度 7 と同じ形で最も重く読める。切替を待たず今の Pi の画面にも入る",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/display-design-system.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-int7-color.json",
+      "reconstruction/src/display/chrome-eew/index.html",
+      "reconstruction/src/terminal/color.ts",
+      "display/frontend/src/lib/theme.css",
+      "display/frontend/src/lib/quake-map-colors.ts",
+      "display/frontend/src/lib/__tests__/**",
+      "display/frontend/src/components/**",
+      "display/scripts/generate-design-docs.mjs"
+    ],
+    "allowedPaths": [
+      "display/frontend/src/lib/theme.css（--c-dark-red のコメント、震度 rank の説明の 2 行目、--int-9-bg、--int-9-on の 4 行だけ。行の数を変えない）",
+      "reconstruction/src/display/chrome-eew/index.html（--int-9-bg と --int-9-on の 2 行の値とコメントだけ。行の数を変えない）",
+      "display/frontend/src/components/LatestQuakeCard.svelte（.int-r9 の color だけ）",
+      "display/frontend/src/components/RecentQuakes.svelte（.int-r9 の color だけ）",
+      "display/frontend/src/components/QuakeReplayCard.svelte（.int-r9 の color だけ）",
+      "display/frontend/src/components/QuakePanel.svelte（.int-r9 の color だけ）",
+      "display/frontend/src/lib/__tests__/theme-tokens.test.ts",
+      "docs/specs/display-design-system.md（GENERATED の区間だけ。npm run docs:design の出力。本文は統合担当が起草で書いた）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-int7-color.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "D07"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P2-CHROME-EEW-001",
+      "P3-TSUNAMI-E01-001",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+    ],
+    "publicFunctions": [
+      "口は変えない（色の token の値だけ）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "旧築の端末の src/ui/theme.ts の intensity7（darkRed の地のまま。裁定はディスプレイの面）",
+      "--int-8-on の直書きの #000（同じ 4 つの .svelte。値は変わらない）",
+      "EewPanel.svelte の int-r の色の規則（Q-I7-DRAFT-FACTS (7)）",
+      "--background-tone-quakeExtreme の地の色",
+      "smoke.mjs の paintExpectations に 7 を足すこと（凍結の条件に触る）",
+      "--c-dark-red の削除（P3-I7-D-KEEP-PRIMITIVE）",
+      "docs/specs/cli-terminal-output.md の暗い赤の説明（端末の帯の話で、変えない）",
+      "新築の P4 の画面",
+      "Pi への配送（統合担当が fleq-legacy-deliver の手順で行う）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-I7-AC01",
+        "requirement": "値（P3-I7-D-FACE=A）: (1) theme.css の --int-9-bg を #ffffff、--int-9-on を #000000 にする (2) --int-9-bg と --int-9-on のコメント、震度 rank の説明の「rank9 は darkRed 面」を白の面に直す (3) --c-dark-red は消さず、今は未参照で Pi の確認で戻す値だとコメントに書く (4) 6 強以下の token は変えない (5) theme.css の行の数を変えない",
+        "evidenceRefs": [
+          "docs/specs/display-design-system.md:90 «836353ef93f2ebb5»",
+          "reconstruction/src/terminal/color.ts:24 «53c4f9f1a6c4c602»",
+          "docs/specs/cli-terminal-output.md:60 «6966554ac2cf3c1e»"
+        ]
+      },
+      {
+        "id": "P3-I7-AC02",
+        "requirement": "新築の写し: (1) index.html の --int-9-bg を #ffffff、--int-9-on を #000000 にする (2) --int-9-bg のコメントを theme.css の 86 行だけにする (3) .int-9 の規則と EEW の区域の面の規則は変えない。地図の塗り、card の枠、区域の面は --sev を読む (4) index.html の行の数を変えない",
+        "evidenceRefs": [
+          "reconstruction/src/display/chrome-eew/index.html:7 «29450dc31fc2cee4»",
+          "reconstruction/src/display/chrome-eew/index.html:36 «10c2d0c5759f7e05»",
+          "reconstruction/src/display/chrome-eew/index.html:57 «4b93744aac129337»"
+        ]
+      },
+      {
+        "id": "P3-I7-AC03",
+        "requirement": "面の上の字: (1) LatestQuakeCard、RecentQuakes、QuakeReplayCard、QuakePanel の .int-r9 の color を var(--int-9-on) にする。1 か所でも #fff が残ると 7 のチップの字が白の面で消える (2) QuakeMapScreen.svelte、QuakeMap.svelte、quake-map-colors.ts は token を読むので変えない",
+        "evidenceRefs": [
+          "display/frontend/src/components/QuakeMapScreen.svelte:291 «416ba52fea0b897f»",
+          "display/frontend/src/components/QuakeMap.svelte:229 «4b1778dd335634a3»",
+          "display/frontend/src/lib/quake-map-colors.ts:35 «079ebcf4ceb7c764»"
+        ]
+      },
+      {
+        "id": "P3-I7-AC04",
+        "requirement": "文書: (1) display-design-system.md の値と比の表は npm run docs:design で作り直し、手で書かない (2) int9 の行は 21.00:1 で PASS (3) docs:design:check と design-docs-sync の試験が通る",
+        "evidenceRefs": [
+          "docs/specs/display-design-system.md:41 «bb483aa59f6212b9»"
+        ]
+      },
+      {
+        "id": "P3-I7-AC05",
+        "requirement": "戻せる形: (1) 確定は配送の後に作者が Pi の実機で一度見てから (2) 白をやめるときに変えるのは theme.css の --int-9-bg と --int-9-on、index.html の同じ 2 行、display-design-system.md の震度 rank の説明の一文、docs:design の再生成だけで済む形を保つ (3) 試験に色の値を書かない",
+        "evidenceRefs": [
+          "docs/specs/display-design-system.md:90 «836353ef93f2ebb5»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-I7-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-I7-AC02",
+          "P3-I7-AC03",
+          "P3-I7-AC05"
+        ],
+        "behavior": "受入条件。theme-tokens.test.ts に 1 件。index.html の --int-9-bg・--int-9-on が theme.css の解決した値（generate-design-docs.mjs の parseTokens・buildTokenMap・resolveValue）と同じで、4 つの .svelte の .int-r9 の規則の color が var(--int-9-on)。色の値は書かない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "npm ci --ignore-scripts --prefix display",
+        "cwd": ".",
+        "target": "display/",
+        "stage": "preparation",
+        "purpose": "worktree に display/node_modules が無いとき。lockfile が本体と同じなら cp -cR で写してよい"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること"
+      },
+      {
+        "command": "npm run docs:design --prefix display",
+        "cwd": ".",
+        "target": "docs/specs/display-design-system.md",
+        "stage": "implementation",
+        "purpose": "GENERATED の区間の再生成"
+      },
+      {
+        "command": "npm run docs:design:check --prefix display",
+        "cwd": ".",
+        "target": "docs/specs/display-design-system.md",
+        "stage": "implementation",
+        "purpose": "生成物と theme.css の乖離"
+      },
+      {
+        "command": "npm run typecheck --prefix display",
+        "cwd": ".",
+        "target": "display/",
+        "stage": "implementation",
+        "purpose": "svelte-check"
+      },
+      {
+        "command": "npm test --prefix display",
+        "cwd": ".",
+        "target": "display/",
+        "stage": "implementation",
+        "purpose": "ディスプレイの全試験（design-docs-sync を含む）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "試験が読む dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/chrome-eew",
+        "cwd": ".",
+        "target": "reconstruction/test/chrome-eew/",
+        "stage": "implementation",
+        "purpose": "chrome-eew の試験（期待は変えない）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。src/ は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "display の規範の先読み: display-design-system.md と theme.css を読み、使う token の file:line を実装の前に申告する",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件）を 1 行",
+      "既存の試験の期待は変えない。変える必要が出たら止めて報告する",
+      "theme.css と index.html の行の数を変えない。ほかの契約の «» は付け直さない（要るなら止めて報告する）"
+    ],
+    "unresolvedQuestions": []
+  }
+}

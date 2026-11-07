@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "draftedFromOid": "8644ab3aa6c29ccc2b928df8d72d7b3d5b1efa1f",
+    "sha256": "f104875de0e0de0bed818213ccb2b50059d1eaf8b89261510e17a9c7e8634a56",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-VR-D-RAISE",
+        "kind": "作者",
+        "A": "raiseLevel が landKind も読むように直す",
+        "B": "今のまま残す（鳴るのは info の 1 件で、警報の取りこぼしではない）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者の裁定、2026-11-07 夜「4 件とも推奨どおり」。判断カード 2026-11-08-小さい判断-4件 の問 3、台帳 111）",
+        "reason": "入力の行の prompt-current.ts は kind と landKind の両方を読むので、Lv5 の後の VFSV の 36 でも解除の前に消えない。raiseLevel だけが kind を読み、同じ記録を 2 と読む。P3-REC-D-N2-RAISE=A の「警報の段」は、本契約から kind と active な landKind の高い方を指す"
+      },
+      {
+        "id": "P3-VR-D-BOTH-SIDES",
+        "kind": "統合担当",
+        "A": "起点（open）と候補の両方を同じ読みで比べる",
+        "B": "起点の側だけ landKind を読む",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B では起点 kind 36・landKind 13 に、VFSV より Control/DateTime が古い VFVO50 の Code 25 を当てた候補が kind 36 のままなので 2 と読まれ、本当の引上げが鳴らない。これは今の動きでもある（起草の実走で 0 件を確かめた、Q-VR-DRAFT-FACTS）。AC10 の「いまも有効な引上げ」に反するので、同じ読みで一緒に直す"
+      },
+      {
+        "id": "P3-VR-D-BODY",
+        "kind": "統合担当",
+        "A": "H27 の本文の Lv と区分の名前は段を決めた Kind から読む。kind と landKind が同じ段なら kind（今のまま）",
+        "B": "今の alert.kind のまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "P3-VR-D-BOTH-SIDES=A で kind 36 のまま landKind が上がった候補も鳴る。B の本文は「周辺海域警戒」で、Lv5 に上がった通知なのに Lv が出ない。title の発表時刻は陸上の source から読むので、本文だけが海上の区分になる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-VR-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-07 起草（base 8644ab3a の木で一時の試験を走らせ、試験の file は消した）",
+        "closed": "(1) 再現: 45_01_01 の Code を 25 と 15 に替えた VFVO50 の後に 46_01_01 の VFSV（13:10）を live で受けると kind 36・landKind 25 と 15 になり、synthetic_VFVO50_continuation の同じ Code の継続（13:30、origin=recovery）を当てた候補で recoveryNotices は info を desktop と sound に 1 件ずつ作る (2) 本当の引上げの取りこぼし: 起点 kind 36・landKind 13（VFSV の Control/DateTime 04:10Z）に、Control/DateTime 04:05Z の VFVO50 の Code 25 を当てると候補は kind 36・landKind 25 で、intent は 0 件 (3) 解除の landKind: Code 13 の解除の後に VFSV の 36 を受けると active・kind 36・landKind 13（解除）で、Code 13 の引上げを当てると今は info が出る。landKind を条件なしに読むと起点が 3 になり、この本当の引上げが消えるので activeKind を通す (4) VFSV は取り直しで適用されない（volcano-unit.ts の origin=recovery の入口、P3-C9-N2）ので、試験の起点は live で作り、候補だけ origin=recovery で当てる (5) 他の契約の volcano-unit.ts の «» は 57 件で最大 1494 行。raiseLevel と recoveryNotices の行を引く契約は無い。行の数は変えない (6) 保存の形・codec・view は変わらない（landKind は既存の欄）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。H27 の比べは今どおり subject（運用区分を含む）ごと"
+    }
+  },
+  "contract": {
+    "contractId": "P3-VOLCANO-RAISE-001",
+    "mode": "implementation",
+    "objective": "U-V の H27 の段を kind と active な landKind の高い方で読む。Lv5 の火山に 13:10 の海上警報が来た後、切断の間に何も上がっていないのに 13:30 の取り直しで info が鳴ることが無くなり、本当に上がった火山は kind が海上の 36 のままでも info が鳴る",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-volcano-raise.json",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/src/terminal/prompt-current.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/test/volcano-unit/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/volcano/volcano-unit.ts（raiseLevel とそのコメント、recoveryNotices の本文の読みだけ。行の数を変えない）",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-volcano-raise.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M14",
+      "M15",
+      "M16"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-UNIT-V-001",
+      "P3-RECOVERY-001",
+      "P3-TERMINAL-PROMPT-001",
+      "P3-TERMINAL-LAYOUT-006"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoAlert",
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoUnitState"
+    ],
+    "publicFunctions": [
+      "口は変えない（recoveryNotices のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__46_01_01_170103_VFSVii",
+      "test__fixtures__synthetic_VFVO50_continuation"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "noticeLevel の表（P3-TL6-AC03 のまま）",
+      "live の alertLevel（VFVO50 の継続が before.kind を読むので、Lv5 の後の VFSV の 36 の後の live の継続は info でなく normal で鳴る。起草の実走で確かめた。裁定の外）",
+      "VFSV を取り直すこと（P3-C9-N2 のまま）",
+      "U-V の state・保存の形式・codec・view",
+      "入力の行（prompt-current.ts）",
+      "ほかの unit の H27",
+      "spec 本体の編集（H27 の行は変えない）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-VR-AC01",
+        "requirement": "H27 の段の読み（P3-REC-AC10、P3-REC-D-N2-RAISE=A の「警報の段」）: (1) raiseLevel は active な記録を kind と landKind の両方で読み、noticeLevel の高い方を段にする (2) landKind は null でなく activeKind のときだけ読む（解除の landKind は読まない） (3) active でない火山と記録の無い火山はレベル 1 のまま (4) 起点は open のまま（P3-REC-D-RAISE-BASIS=A）で、起点と候補を同じ読みで比べる (5) Lv5 か Code 25 の VFVO50 の後に VFSV の Code 36 が来て kind が 36・landKind が 15 か 25 の記録へ、取り直しで同じ Code の VFVO50 の継続を採用しても、引上げでないので intent を作らず、candidate をそのまま返す",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»",
+          "reconstruction/contracts/p3-recovery.json",
+          "reconstruction/src/terminal/prompt-current.ts:65 «a18a61ecf1d2d070»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:219 «1e8aa9b9af265d27»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:300 «901ec78b58e8f9a8»"
+        ]
+      },
+      {
+        "id": "P3-VR-AC02",
+        "requirement": "本当の引上げ: (1) AC01 の読みで段が起点より上がり、いまも active な火山は今までどおり unit に 1 件の info を desktop と sound に出す (2) kind が 36 のまま landKind だけが上がった候補も引上げと読む（起点 kind 36・landKind 13 に、VFSV より Control/DateTime が古い VFVO50 の Code 15 を当てた候補） (3) 解除の landKind が残る記録（起点 kind 36・landKind 13 の解除）に Code 13 の引上げを当てた候補は今までどおり出る (4) 本文の Lv と区分の名前は段を決めた Kind から読み、kind と landKind が同じ段なら kind を読む（P3-VR-D-BODY=A） (5) 発表時刻、source、K8 の印の読みは変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:219 «1e8aa9b9af265d27»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:300 «901ec78b58e8f9a8»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-VR-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-VR-AC01"
+        ],
+        "behavior": "実不具合の再発防止（台帳 111）。45_01_01 の Code を 25 と 15 に替えた VFVO50、46_01_01 の VFSV（火山コード 306、13:10）を live で受けた起点に、synthetic_VFVO50_continuation の同じ Code の継続（13:30）を origin=recovery で当てる。候補の kind は 25 と 15 で、recoveryNotices は candidate を同じ参照で返す"
+      },
+      {
+        "testId": "P3-VR-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-VR-AC02"
+        ],
+        "behavior": "受入条件。(a) 起点 kind 36・landKind 13 に Code 15 の新しい VFVO50 を当てると info が desktop と sound に 1 件ずつ (b) VFSV の Control/DateTime を 04:10Z、VFVO50 の Code 15 を 04:05Z にすると候補は kind 36・landKind 15 で、info が 1 件ずつ出て、本文に Lv5 が入る (c) Code 13 の解除の後に VFSV の 36 を受けた起点に Code 13 の引上げを当てると info が 1 件ずつ出る"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（recovery-projection の U-V の行を含む）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・実不具合）を 1 行",
+      "既存の試験の期待は変えない。変える必要が出たら止めて報告する",
+      "volcano-unit.ts の行の数を変えない。ほかの契約の «» は付け直さない（要るなら止めて報告する）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
