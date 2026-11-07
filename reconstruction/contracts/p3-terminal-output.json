@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "f57c2428d29ccaf543b8b51415c0ec2bef1d235e0fe72d821762f2fb1be84b11",
+    "sha256": "a251fed139752dd3e1b73d85bb3d37ae7185c56c0a8b70729dd88f3f6b9d7a42",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -33,7 +33,7 @@
       {
         "id": "P3-TO-D-EXTRACT-PATH",
         "kind": "統合担当",
-        "A": "TerminalReport は端末の有無によらず、origin が live か replay の採った報（その unit の outcome に kind accepted かつ change が semantic か revisionOnly のものがある入力。deliveryOnly と、duplicate・stale で outcome の無い入力は作らない）で毎回作る。製品の経路を 1 つにする",
+        "A": "TerminalReport は端末の有無によらず、origin が live か replay の採った報（その unit の outcome に kind accepted かつ change が semantic か revisionOnly のものがある入力。deliveryOnly と、duplicate・stale で outcome の無い入力は作らない）で毎回作る。例外は 2 つで、P3-TL5-AC01 の満潮の報は outcome が無くても作り、P3-TL4-AC04 の VPNO50 は採っても作らない。製品の経路を 1 つにする",
         "B": "OwnerStartData に印を足し、端末を持たない起動（測定の runner・試験）では作らない",
         "recommended": "A",
         "provisional": "A",
@@ -44,7 +44,7 @@
       {
         "id": "P3-TO-D-ORIGIN",
         "kind": "統合担当",
-        "A": "端末に出すのは origin が live か replay の採った報だけ。取り直し（origin recovery、owner-host の recoveryInput）の報と、起動の復元の outcome は出さない。止まっていた間の分は起動時のまとめ（AC14）で出す",
+        "A": "端末に出すのは origin が live か replay の採った報と、P3-TL5-AC01 の満潮の報だけ。取り直し（origin recovery、owner-host の recoveryInput）の報と、起動の復元の outcome は出さない。止まっていた間の分は起動時のまとめ（AC14）で出す",
         "B": "取り直しの報も 1 報ずつ出す",
         "recommended": "A",
         "provisional": "A",
@@ -154,7 +154,7 @@
       {
         "id": "P3-TO-D-SUMMARY",
         "kind": "統合担当",
-        "A": "定期要約の件数は、その時間の中に端末へ渡した報の数（採った報 1 つで 1 件、分野は spec の §6.2 の 6 つ）。地震の「最大震度」は、その時間の地震の報の最大震度（MaxInt）の最大。数えるのは AC01 の口を通った報だけ（取り直しは数えない）。区切りは interval の分の境目（例 10 分なら 21:20・21:30）で、起動の後の最初の区切りまでは起動の時刻から",
+        "A": "定期要約の件数は、その時間の中に端末へ渡した報の数（渡した報 1 つで 1 件で、P3-TL5-AC01 の満潮の報も数え、同じ報が 2 度届けば 2 件、分野は spec の §6.2 の 6 つ）。地震の「最大震度」は、その時間の地震の報の最大震度（MaxInt）の最大。数えるのは AC01 の口を通った報だけ（取り直しは数えない）。区切りは interval の分の境目（例 10 分なら 21:20・21:30）で、起動の後の最初の区切りまでは起動の時刻から",
         "B": "EEW は EventID の数で数える",
         "recommended": "A",
         "provisional": "A",
@@ -292,7 +292,7 @@
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "運用区分の扱いを変えない。端末は unit が採った報だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+      "rule": "運用区分の扱いを変えない。端末は unit が採った報と、P3-TL5-AC01 の取消でない観測の無い VTSE51 だけを出し、訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
     }
   },
   "contract": {
@@ -501,7 +501,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TO-AC01",
-        "requirement": "【発注 1】置き場と材料の口（P3-TO-D-MATERIAL・D-EXTRACT-PATH・D-ORIGIN・D-LINES）: (1) 新設の reconstruction/src/terminal/ と reconstruction/test/terminal/ を本契約が持つ。型は reconstruction/contracts/p3-terminal-output.types.ts (2) owner の側: terminal/material.ts に export function terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): TerminalReport | null を置き、owner-host.ts の input の場合で、返信に載せる output の outcomes に、その入力の unit の kind accepted で change が semantic か revisionOnly の outcome があり（内容の同じ続報も旧築と同じく 1 報として出す。tsunami-unit・seismic-unit は内容の同じ報を revisionOnly にする）、material.origin が live か replay のときだけ 1 回呼ぶ。U-E は呼ばず null。結果は inputDone の返信の新しい欄 terminal: TerminalReport | null に載せる（p3-execution-split.types.ts の inputDone の型。recoveryInput の返信は null） (3) 読む要素（どれも XML の生の文字、無ければ null）: Head と Control の共通（TerminalHead: Control/Title・Head/Title・Head/Headline/Text・ReportDateTime・InfoType・Control/Status・EventID・Serial・Control/PublishingOffice）。地震（U-Q）: Body/Earthquake の Hypocenter/Area/Name と座標と Magnitude（description・condition 属性）、Body/Intensity/Observation の MaxInt・MaxLgInt と Pref/Area の Name・MaxInt・MaxLgInt（区域の段、市町村と観測点は読まない）、Comments/ForecastComment/Text、Comments/URI、Body/Text。津波（U-T）: Body/Earthquake の震源、Tsunami/Forecast/Item（Area/Name・Category/Kind/Name・FirstHeight の ArrivalTime と Condition・MaxHeight の TsunamiHeight と Condition・Station の Name と HighTideDateTime）、Tsunami/Observation/Item/Station（Name・FirstHeight の ArrivalTime・Initial・Condition・MaxHeight の DateTime・TsunamiHeight・Condition）、Tsunami/Estimation/Item（沖合の情報の沿岸で推定される津波）、Comments/WarningComment/Text、Body/Text。短い形（ほかの 9 unit）: 共通の欄と、対象（target）＝Body の文書の順で最初の Area/Name（南海トラフは null）と、帯の段（level、AC09）。読み方は decode-material/xml-read.ts の関数（P3-XML-READERS-001 の集約）を使い、新しい読み取りの関数の写しを作らない (4) publisher の側: host の config に欄 terminal?: TerminalSink を 1 つ足し（host.ts:44 の行の中身）、onInputDone（host.ts:182〜:193）で返信を渡す呼び出しを 1 つ足す（:192 の行の中身）。TerminalSink は返信を受けて O(1) で列に積むだけ（AC08）。端末が渡すのは返信の terminal と、output の outcomes のうち unit U-E の outcome（facts.report を持つもの）と、output の units の view の unreadableCards のうち inputId がその入力のカード（P3-TO-D-UNREADABLE、作者裁定 A。発注 2） (5) 無いと: 地震・津波・短い形の端末の行に見出し文・震源・満潮時刻・発表した官署が出せない（Q-TO-FACTS）",
+        "requirement": "【発注 1】置き場と材料の口（P3-TO-D-MATERIAL・D-EXTRACT-PATH・D-ORIGIN・D-LINES）: (1) 新設の reconstruction/src/terminal/ と reconstruction/test/terminal/ を本契約が持つ。型は reconstruction/contracts/p3-terminal-output.types.ts (2) owner の側: terminal/material.ts に export function terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): TerminalReport | null を置き、owner-host.ts の input の場合で、返信に載せる output の outcomes に、その入力の unit の kind accepted で change が semantic か revisionOnly の outcome があり（内容の同じ続報も旧築と同じく 1 報として出す。tsunami-unit・seismic-unit は内容の同じ報を revisionOnly にする）、material.origin が live か replay のときだけ 1 回呼ぶ（例外: P3-TL5-AC01 の満潮の報は outcome が無くても呼ぶ）。U-E は呼ばず null。結果は inputDone の返信の新しい欄 terminal: TerminalReport | null に載せる（p3-execution-split.types.ts の inputDone の型。recoveryInput の返信は null） (3) 読む要素（どれも XML の生の文字、無ければ null）: Head と Control の共通（TerminalHead: Control/Title・Head/Title・Head/Headline/Text・ReportDateTime・InfoType・Control/Status・EventID・Serial・Control/PublishingOffice）。地震（U-Q）: Body/Earthquake の Hypocenter/Area/Name と座標と Magnitude（description・condition 属性）、Body/Intensity/Observation の MaxInt・MaxLgInt と Pref/Area の Name・MaxInt・MaxLgInt（区域の段、市町村と観測点は読まない）、Comments/ForecastComment/Text、Comments/URI、Body/Text。津波（U-T）: Body/Earthquake の震源、Tsunami/Forecast/Item（Area/Name・Category/Kind/Name・FirstHeight の ArrivalTime と Condition・MaxHeight の TsunamiHeight と Condition・Station の Name と HighTideDateTime）、Tsunami/Observation/Item/Station（Name・FirstHeight の ArrivalTime・Initial・Condition・MaxHeight の DateTime・TsunamiHeight・Condition）、Tsunami/Estimation/Item（沖合の情報の沿岸で推定される津波）、Comments/WarningComment/Text、Body/Text。短い形（ほかの 9 unit）: 共通の欄と、対象（target）＝Body の文書の順で最初の Area/Name（南海トラフは null）と、帯の段（level、AC09）。読み方は decode-material/xml-read.ts の関数（P3-XML-READERS-001 の集約）を使い、新しい読み取りの関数の写しを作らない (4) publisher の側: host の config に欄 terminal?: TerminalSink を 1 つ足し（host.ts:44 の行の中身）、onInputDone（host.ts:182〜:193）で返信を渡す呼び出しを 1 つ足す（:192 の行の中身）。TerminalSink は返信を受けて O(1) で列に積むだけ（AC08）。端末が渡すのは返信の terminal と、output の outcomes のうち unit U-E の outcome（facts.report を持つもの）と、output の units の view の unreadableCards のうち inputId がその入力のカード（P3-TO-D-UNREADABLE、作者裁定 A。発注 2） (5) 無いと: 地震・津波・短い形の端末の行に見出し文・震源・満潮時刻・発表した官署が出せない（Q-TO-FACTS）",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-host.ts:121 «8f7955f32d3a74cf»",
           "reconstruction/src/runtime/owner-host.ts:134 «da44b8a4aa43cad1»",

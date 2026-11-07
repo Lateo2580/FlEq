@@ -124,7 +124,7 @@ export type OwnerReply =
         xmlParseEndedMonotonicMs: number | null }> | null; heap: OwnerHeap | null;
       // P3-C4-AC13(3)②（工程2c）: この入力の採用で世代が上がった unit と、返信の時点の currentGeneration（RuntimeStep.generationInputIds に
       // この入力 ID を持つ unit だけ。入力の前の期限回収だけで上がった世代は入らない）。印が無いと null。
-      inputGenerations: Readonly<Partial<Record<RuntimeUnitId, number>>> | null; terminal: TerminalReport | null; // P3-TO-AC01 (2): 端末の材料（recoveryInput と、採らなかった入力は null）
+      inputGenerations: Readonly<Partial<Record<RuntimeUnitId, number>>> | null; terminal: TerminalReport | null; // P3-TO-AC01 (2): 端末の材料（recoveryInput と、採らなかった入力は null。例外は P3-TL5-AC01 の満潮の報で、outcome が無くても載る）
       // P3-UWR-AC08（台帳68）: 入力の適用で state が決まった後・view の射影の前に owner が読んだ測定時刻。印が無いと null。
       generationRaisedMs: number | null; output: OwnerOutput }>
   // heap は deadlineDone では measured のとき、inputDone では measured と inputHeap の両方のときだけ値を持つ。
