@@ -924,9 +924,11 @@ export class DisplayStateStore {
   private applyLatestQuake(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
     // 表示の期限を過ぎた地震の続報は、日次履歴の震度を借りて alert のカードを作り直さない。
     // 本番では recent が続報で先に更新されるので、recent の報時刻でなく発生時刻で比べる。
+    // OriginTime の欠けた報は空文字で届く（?? では落ちない）。
     const baseline = this.latestQuake == null ? this.restoredLatestBaseline(input) : null;
     const baselineFresh = baseline != null
-      && nowMs - Date.parse(input.originTime ?? baseline.reportDateTime) <= quakeCardTtlMs(quakeCardRank(baseline));
+      && nowMs - Date.parse(input.originTime || baseline.originTime || baseline.reportDateTime)
+        <= quakeCardTtlMs(quakeCardRank(baseline));
     const existing = this.latestQuake ?? (baselineFresh ? baseline : null);
     const meta = quakeObservationMetaOf(input);
     if (meta != null && hasResolvedQuakeCancellation(meta)) {

@@ -681,6 +681,39 @@ describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
     expect(snapshot.recentQuakes[0]).toMatchObject({ maxInt: "5強", maxIntRank: 6 });
   });
 
+  it("再起動の後の OriginTime の欠けた VXSE61 も、保持内なら日次履歴の震度を借りる", () => {
+    const magnitude: SpecialValue<number> = { raw: "5.0", value: 5, condition: null, description: null, presence: "value" };
+    const depth: SpecialValue<number> = { raw: "-10000", value: 10, condition: null, description: null, presence: "value" };
+    const observed = quakePresentation(
+      "VXSE53",
+      "2026-07-06T21:00:00+09:00",
+      { raw: "5+", value: "5+", condition: null, description: null, presence: "value" },
+      magnitude,
+      depth,
+    );
+    const updated: PresentationEvent = {
+      ...quakePresentation(
+        "VXSE61",
+        "2026-07-06T21:01:00+09:00",
+        { raw: null, value: null, condition: null, description: null, presence: "missing" },
+        magnitude,
+        depth,
+      ),
+      originTime: "",
+    };
+    const at = Date.parse(observed.reportDateTime);
+    const later = Date.parse(updated.reportDateTime);
+    const daily = new DailyQuakeCounter(at);
+    daily.recordRecentQuake(projectRecentQuake(observed), at);
+    const store = new DisplayStateStore(undefined, undefined, undefined, () => daily.getRecentQuakes(later));
+
+    daily.recordRecentQuake(projectRecentQuake(updated), later);
+    const command = projectQuakeMapCommand(updated, later);
+    store.applyEvent(projectDisplayEvent(updated, "test", command), later, null, command);
+
+    expect(store.snapshot(1, later).latestQuake).toMatchObject({ maxInt: "5強", maxIntRank: 6 });
+  });
+
   it("VXSE53→VXSE61→VXSE53 の下方修正は再起動の後も古い地図の震度を戻さない", () => {
     const magnitude: SpecialValue<number> = { raw: "5.0", value: 5, condition: null, description: null, presence: "value" };
     const depth: SpecialValue<number> = { raw: "-10000", value: 10, condition: null, description: null, presence: "value" };
