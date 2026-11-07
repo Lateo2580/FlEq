@@ -1,0 +1,564 @@
+{
+  "meta": {
+    "draftedFromOid": "c48d43917901c71a308643a0d7dda28fc1c05e33",
+    "sha256": "2ad0015e2578f35609719d155b0f940b87e6b46c0e80ebe1a358bf73e3027a76",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TP-D-SCOPE",
+        "kind": "作者",
+        "A": "津波（注意報以上）、緊急地震速報、南海トラフ、火山の噴火警報以上、気象・洪水・土砂の特別警報とレベル 5",
+        "B": "全分野の警報以上",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード D1 の問い 1、推奨どおり）。緊急地震速報は後の裁定 P3-TP-D-EEW で外した",
+        "reason": "2026-10-30〜11-07 の 9 日間は毎日、全国のどこかに警報の電文が出ていた。全分野の警報以上では行がほぼいつも埋まり、本当に重い情報が目に入らない"
+      },
+      {
+        "id": "P3-TP-D-ROTATE",
+        "kind": "作者",
+        "A": "いちばん重い段の中だけを 5 秒ごとに回し、1/3 の形で何番目かを付ける。軽い段は回さない。1 件なら番号を付けない。段の中は分野の決まった順",
+        "B": "分野の決まった順で 1 件と「ほか n 件」",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード D1 の問い 2、作者の案）",
+        "reason": "軽い段を回さないのは、顔を上げた瞬間に軽い字が見えないようにするため"
+      },
+      {
+        "id": "P3-TP-D-DRILL",
+        "kind": "作者",
+        "A": "訓練・試験は載せない（運用区分が normal のものだけ）",
+        "B": "「訓練」の字を付けて載せる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード D1 の問い 3、推奨どおり）",
+        "reason": "訓練の情報が今も有効な危険に見える"
+      },
+      {
+        "id": "P3-TP-D-NARROW",
+        "kind": "作者",
+        "A": "入らないときは切断中の字だけ常に残し、切断の時刻とミュート中の字を現況と一緒に回す",
+        "B": "時刻を外して現況を残す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード D1 の問い 4、作者の案）",
+        "reason": "切断が見えなくなる瞬間を作らず、重さと場所も読める"
+      },
+      {
+        "id": "P3-TP-D-ACTION",
+        "kind": "作者",
+        "A": "行動の文を行に出さない",
+        "B": "契約で決めた短い文か、原文の保存",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード D1 の問い 5、推奨どおり）",
+        "reason": "短い文は電文に無い字になり、原文の保存は保存の形式を変える"
+      },
+      {
+        "id": "P3-TP-D-MATERIAL",
+        "kind": "作者",
+        "A": "案 A: unit の state・保存の形式・codec を変えない",
+        "B": "案 B: 行動の文と地名を保存する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード D1 の問い 6、推奨どおり）",
+        "reason": "案 B は unit の state と codec に広く触る。案 A の字の出し方は後から替えられる"
+      },
+      {
+        "id": "P3-TP-D-VOLCANO",
+        "kind": "作者",
+        "A": "Lv4 以上: Kind の Code 14・15 と、レベルの無い火山の噴火警報 24・25。段は最も重い",
+        "B": "火口周辺警報（12・13・22・23）も載せる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「Lv4 以上」）",
+        "reason": "B では 2015 の全国の報の 14 火山のように行がほぼいつも埋まる。Code の出どころは作者の手元のコード表（気象庁の地震火山関連コード表）で、この repo に原本は無い"
+      },
+      {
+        "id": "P3-TP-D-FLASH",
+        "kind": "作者",
+        "A": "噴火速報を載せない",
+        "B": "載せる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者）",
+        "reason": "裁定の語は噴火警報以上で、警報の Code の線で足りる"
+      },
+      {
+        "id": "P3-TP-D-VYSE60",
+        "kind": "作者",
+        "A": "VYSE60（北海道・三陸沖後発地震注意情報）を載せる。段は警報、字は view の title のまま",
+        "B": "載せない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者）",
+        "reason": "view の status は 1 値で移行が無く、title は電文の Head/Title のままで古くならない。南海トラフの status から字を作る形は要らない"
+      },
+      {
+        "id": "P3-TP-D-EEW",
+        "kind": "作者",
+        "A": "入力の行に緊急地震速報を出さない。U-E を対象外にする",
+        "B": "載せる（判断カード D1 の問い 1 の裁定の字）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「入力行に EEW は出さないようにしましょう」）。判断カード D1 の問い 1 の裁定の字（緊急地震速報を載せる）を上書きした",
+        "reason": "EEW は通知と報の本文が役目を担い、VXSE43 に最終報が無いので最終報の後も字が 10 分残る"
+      },
+      {
+        "id": "P3-TP-D-RECOVERY",
+        "kind": "作者",
+        "A": "取り直しに失敗して解除を受け損ねたとき、次の報まで字が残ることを残存として認める。印は足さない",
+        "B": "字に未確認の印を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者）",
+        "reason": "切断中に解除され、再接続の取り直しが失敗すると、U-T に時間の期限が無いので字が残る。U-V・U-W も同じ。安全側の誤り"
+      },
+      {
+        "id": "P3-TP-D-CLOCK",
+        "kind": "作者",
+        "A": "時計と長い字が幅に入らないときは時計を外す。切断中の字を常に残す規則はそのまま",
+        "B": "折り返す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者）",
+        "reason": "56 桁で南海トラフの字が時計つき 58 桁になる。項目の字は切り詰めない"
+      },
+      {
+        "id": "P3-TP-D-UW-NAMES",
+        "kind": "統合担当",
+        "A": "U-W の公開形に names 欄を足す（P3-TP-AC09）",
+        "B": "Code から字を引く固定の表",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07、作者へ報告済み）",
+        "ruling": "A（統合担当）",
+        "reason": "cell.name の写しで state・保存の形式・codec は変えず、電文の字のまま出せる"
+      }
+    ],
+    "questionResolutions": [],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "入力の行の現況は operation が normal の view の値だけを読む。training と test は載せない（P3-TP-D-DRILL）。origin=replay を operation:test と同一視しない（spec:651）。replay で受けた normal の報は載る"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-PROMPT-001",
+    "mode": "implementation",
+    "objective": "入力の行に、今も有効な最も重い情報を出す。21:03 の大津波警報の表が流れた後も、21:40 に端末へ戻った人が、続いていることを入力の行で読める。解除・取消・期限切れは unit の view に従って消える",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-prompt.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p3-uw-canon.types.ts",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-flood-unit.types.ts",
+      "reconstruction/contracts/p3-landslide-unit.types.ts",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/cli/repl.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/domains/tsunami/tsunami.ts",
+      "reconstruction/src/units/unreadable.ts",
+      "reconstruction/src/units/weather-current/weather-current-public.ts",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/cli/prompt.test.ts",
+      "reconstruction/test/uw-canon/uw-canon-unit.test.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/prompt-current.ts（新設。view から項目を作り、段と並びと回す枠を決める純粋な関数。export は末尾の export { } の形）",
+      "reconstruction/src/terminal/output.ts（TerminalSink の mirror と promptLabel だけ）",
+      "reconstruction/src/runtime/composition-root.ts（CompositionOptions の display の setWorker の行と、project の if (stopped) guard の行へ足すだけ。後者は if (stopped) の外の文として同じ行に足す。行を足さない）",
+      "reconstruction/src/host/host.ts（display の onMarker の行の中へ足すだけ。行を足さない）",
+      "reconstruction/src/units/weather-current/weather-current-public.ts（publicArea の names だけ。行を足さない）",
+      "reconstruction/contracts/p3-uw-canon.types.ts（WeatherCurrentPublicArea に names を足すだけ）",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/uw-canon/uw-canon-unit.test.ts（公開形の欄の一覧に names を足すことと、restored と state を比べる comparable の分割代入から names を除くことだけ）",
+      "reconstruction/test/**（TerminalSink の double に mirror を足すだけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-prompt.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-005",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-CLI-REPL-001",
+      "P3-UW-CANON-001",
+      "P3-EXPIRY-FORM-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalControl",
+      "reconstruction/contracts/p3-uw-canon.types.ts#WeatherCurrentPublicArea",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitView"
+    ],
+    "publicFunctions": [
+      "TerminalControl.promptLabel の引数と返り値の型は変えない",
+      "TerminalSink に mirror(views) を足す（型は output.ts）",
+      "CompositionOptions の display に mirror を足す"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。新しい package を足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__synthetic_VTSE41_cancel",
+      "test__fixtures__synthetic_VTSE41_e01_311major",
+      "test__fixtures__synthetic_VTSE41_e01_released",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_downgrade",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__16_00_01_260603_VXKO70_kozagawa_l5",
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__45_02_01_200522_VFVO50",
+      "test__fixtures__synthetic_VFVO50_cancel",
+      "test__fixtures__selected_xml__74_01_01_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_07_200512_VYSE50",
+      "test__fixtures__selected_xml__80_01_01_240821_VYSE60",
+      "test__fixtures__67_01_01_140927_VFVO56",
+      "test__fixtures__46_01_01_170103_VFSVii"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O03",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "端末の現況の写し（最新の mirror の参照と、unit ごとの view の参照と項目。プロセスの中だけ）"
+    ],
+    "outOfScope": [
+      "unit の state・reducer・codec・保存の形式（P3-TP-D-MATERIAL）。U-W の公開形の names は cell の name の写しで、state と保存は変えない",
+      "緊急地震速報（U-E、P3-TP-D-EEW）、地震（U-Q）、気象の時系列（U-F）、竜巻と記録的短時間大雨など（U-M）、台風（U-Y）、気象解説（U-B）を載せること。U-Q の active は過去の地震の保持で、継続中の危険ではない",
+      "津波の観測（U-T の observations）、噴火（U-V の eruptions）、降灰（ashfalls）、解説と情報の見出し（bulletins、information）",
+      "行動の文（P3-TP-D-ACTION）",
+      "入力の行の色と点滅（P3-TO-D-PROMPT）",
+      "入力中の字の書き直しの条件と 1 秒の ticker（repl.ts は変えない）",
+      "Pi の画面、通知、定期要約。snapshot の形は U-W の names だけ増える",
+      "owner が止まった unit（P3-C3B-OWNER-STOP）。その unit の view は最後の値のままで、入力の行もその値を出す",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TP-AC01",
+        "requirement": "載せるもの（Q-TO6-PROMPT、spec §9.2 の表）。今も有効かは view の値だけで決め、operation が normal の値だけを読む。(1) 津波: U-T の forecasts の areas と unkeyedAreas。区分は areas の areaClass、unkeyedAreas は domains/tsunami の KIND_CLASS で読み（表を写さない）、majorWarning が最も重い段、warning と unknown が警報の段、advisory が注意の段で、ほかの区分は項目にしない。字は「区分 地域名」で、区分は kindName の「：」より前（format.ts の kindOf と同じ） (2) 南海トラフ: U-N の currents の line が nankai のもの。status が megaquakeWarning なら最も重い段で「南海トラフ地震臨時情報（巨大地震警戒）」、megaquakeAdvisory なら警報の段で「…（巨大地震注意）」、investigating なら警報の段で「…（調査中）」。title と infoSerial は読まない（7 日の移行で status だけが変わる）。line が VYSE60 の現況は警報の段で、字は title のまま（status は subsequentAdvisory の 1 値で移行が無く、title は電文の Head/Title）。U-N の項目は line が nankai のものを先に置く (3) 火山: U-V の alerts の kind か landKind の code が 14（レベル４）、15（レベル５）、24（山麓厳重警戒）、25（居住地域厳重警戒）のもの。kind だけを読むと、45_02_01 の kind 15 の後に VFSV（36）が来て kind=36・landKind=15 になったときに Lv5 が解除の前に消える。24・25 はレベルの無い火山の噴火警報で level は null なので、level でなく code で読む。Code の出どころは作者の手元のコード表（気象庁の地震火山関連コード表）で、この repo に原本は無い。最も重い段で字はその code を持つ側の「name volcanoName」で、両方が当たれば kind の側。eruptions は読まず、噴火速報は載せない (4) 気象: U-W の areas の codes の鍵のうち /^3\\d$/（material.ts の特別警報の読みと同じ）。最も重い段で字は names[code]（P3-TP-AC09） (5) 洪水: U-R の currents の kinds の level が 5 のまとまりの rivers ごと。最も重い段で字は「group.name river.name」。rivers が空か name が空なら「group.name areaName」 (6) 土砂: U-L の currents の kinds の level が 5 のまとまり。最も重い段で字は group.name。level が null のまとまりは項目にしない (7) 洪水と土砂の group.name が空なら、区分の字は units/unreadable.ts の UNREAD_TEXT（「（読めず）」、P3-UM の作者裁定の言い方）を import して使い、字を写さない。空文字のまま項目にしない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:769 «757d3e9fb7292434»",
+          "docs/specs/cli-terminal-output.md:772 «34e17d3b45672e48»",
+          "docs/specs/cli-terminal-output.md:773 «ffff1bd6561aabce»",
+          "docs/specs/cli-terminal-output.md:774 «ddfafe5f941996b9»",
+          "docs/specs/cli-terminal-output.md:775 «b68af0f5f671daf0»",
+          "docs/specs/cli-terminal-output.md:814 «a56586e6815ca93e»",
+          "docs/specs/cli-terminal-output.md:821 «c3672fea44faef98»",
+          "docs/specs/cli-terminal-output.md:822 «cd8b072be0938fc2»",
+          "docs/specs/cli-terminal-output.md:823 «90b7044a5d86bbc3»",
+          "docs/specs/cli-terminal-output.md:824 «030bdac87384152d»",
+          "docs/specs/cli-terminal-output.md:831 «22094bbd7e30052e»",
+          "docs/specs/cli-terminal-output.md:825 «520224a9516e75d1»",
+          "docs/specs/cli-terminal-output.md:826 «24c758ce71fe4cb8»",
+          "docs/specs/cli-terminal-output.md:827 «204f39dfc568a681»",
+          "docs/specs/cli-terminal-output.md:832 «f36eb6f9a8e624fe»",
+          "docs/specs/cli-terminal-output.md:833 «16b1ce939043699d»",
+          "docs/specs/cli-terminal-output.md:829 «79046a6696735dff»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC02",
+        "requirement": "並び（Q-TO6-ROTATE）: (1) 出すのは最も重い段の項目だけ。段の重さは top > warning > caution (2) 段の中の並びは 津波、南海トラフ、火山、気象、洪水、土砂 の順。同じ分野の中は subject の昇順、1 つの subject の中は電文の順（配列の順） (3) 字がまったく同じ項目は最初の 1 つにまとめ、数えない (4) 項目が 2 件以上なら字の後ろに「 1/3」の形で番号を付け、1 件なら付けない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:770 «0573cba0c7f60935»",
+          "docs/specs/cli-terminal-output.md:838 «5f9592b4fe6b9f08»",
+          "docs/specs/cli-terminal-output.md:839 «f7a7ba32fe8c77e7»",
+          "docs/specs/cli-terminal-output.md:840 «6224fe149cf6d306»",
+          "docs/specs/cli-terminal-output.md:841 «5006ddccf1810bcc»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC03",
+        "requirement": "回り方（Q-TO6-ROTATE）: (1) 枠の位置は promptLabel の中で clock() の wallTimeMs から Math.floor(wallTimeMs / 5000) % 枠の数で計算する。タイマーと位置の覚えを足さず、Date.now() を足さない (2) 枠の数が変わった直後の位置の飛びは許す (3) repl.ts は変えない。字の再計算は 1 秒ごと（ticker の label と setPrompt）で、実際の再描画は今の条件（字が変わり、command が走っていず、入力中の文字が空で、書き出しが終わったとき）のときだけ",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:842 «86ea79de3f0c5896»",
+          "docs/specs/cli-terminal-output.md:843 «621252f0e7f0ef2a»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC04",
+        "requirement": "形（spec §9.1）: (1) 項目が無いとき、promptLabel の返す字は今のまま 1 字も変えない（P3-TL-T09 ほか既存の試験の期待を変えない） (2) 項目があるときは今の字の閉じ括弧の前に「 字 番号」を足す。「FlEq [● 21:40:05 大津波警報 岩手県 1/3]> 」「FlEq [● 21:40:05 ミュート中 21:30 まで 大津波警報 岩手県 1/3]> 」「FlEq [21:03:12 から 切断中・ミュート中 大津波警報 岩手県 1/3]> 」。clock・elapsed・uptime の 3 つの形で同じ (3) status が null の間は今のまま「FlEq> 」 (4) 色の制御の字を付けない (5) TTY でないときは repl.ts が promptLabel を呼ばず、現況の項目を作らない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:799 «b08aa30016a21d10»",
+          "docs/specs/cli-terminal-output.md:807 «a9a06705457979b4»",
+          "docs/specs/cli-terminal-output.md:808 «db69f1cf5dfe2d48»",
+          "docs/specs/cli-terminal-output.md:809 «e179c51970ef66e8»",
+          "docs/specs/cli-terminal-output.md:810 «56e6c1f375496ff2»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC05",
+        "requirement": "入らないとき（Q-TO6-NARROW）: (1) 桁数は process.stdout.columns || 80。「収まる」は、全部の項目の AC04 (2) の形の字の幅（format.ts の width）が桁数より小さいこと。全部が収まらなければ次の形にする (2) 切断中: 項目の枠は「FlEq [切断中 字 番号]> 」、最後の 1 枠は「FlEq [切断中 21:03:12 から・ミュート中]> 」か「FlEq [切断中 21:03:12 から・繋ぎ直し 3 回目]> 」。切断の時刻が無ければ --:--:-- (3) 繋がっている間でミュート中: 項目の枠はミュートの字を除いた「FlEq [● 21:40:05 字 番号]> 」、最後の 1 枠は今の字の形 (4) 回す位置の分母は枠の数。枠の数は (2)(3) のときだけ項目の数に 1 を足し、繋がっていてミュートでないときは項目の数のまま。「1/3」の番号は項目の数え方のままで、足した枠には番号を付けない。項目が 1 件で枠が 2 つのときは番号を付けない (5) どの瞬間の字にも、切れている間は「切断中」が入る (6) 項目の字を切り詰めない (7) 繋がっている間（○ の形を含む）で、(1) の形にしても (3) の形にしてもなお時計つきの項目の枠が全部は収まらないときは、全部の項目の枠で時計の値を外す。「FlEq [● 南海トラフ地震臨時情報（巨大地震警戒）]> 」。回線の印は残し、clock・elapsed・uptime の 3 つの形で同じ。ミュートの枠の字は今のまま (8) 切断中の項目の枠に時計は無く、切断中の字を外さない。それでも入らなければ行は折り返す。繋がっている間も、時計を外してなお入らなければ行は折り返す (9) 残存: 折り返すと、createRenderer の emit が報の前に 1 行しか消さないので、報のたびに 1 行目の字が画面に残る。56 桁・切断中・南海トラフの字を含む 2 件で起きる形（58 桁）。本契約では直さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:771 «4c9f52d62d21d9d6»",
+          "docs/specs/cli-terminal-output.md:777 «96a2dd7cebc5cf0e»",
+          "docs/specs/cli-terminal-output.md:848 «7d16f07e0e2a7a9e»",
+          "docs/specs/cli-terminal-output.md:857 «3fc4c589acb68f8b»",
+          "docs/specs/cli-terminal-output.md:858 «568ad2c47817dabe»",
+          "docs/specs/cli-terminal-output.md:859 «5819c723efc8fa83»",
+          "docs/specs/cli-terminal-output.md:860 «2e99793dd30dadca»",
+          "docs/specs/cli-terminal-output.md:861 «2e5568a2c1a34a6b»",
+          "docs/specs/cli-terminal-output.md:867 «694c7e55e8304e47»",
+          "docs/specs/cli-terminal-output.md:868 «da1bc75f2bb6514e»",
+          "docs/specs/cli-terminal-output.md:869 «61a2b72090434083»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC06",
+        "requirement": "受け渡しと計算量（AGENTS.md の受信経路の計算量）: (1) view は publisher の state.mirror から取る。snapshot の view は読まない（表示の予算で delivery が summary になると view が無いため。mirror は予算の影響を受けない） (2) composition-root の project は display.mirror?.(state.mirror) を if (stopped) の外の文として guard の中で呼び、host は terminal の sink の mirror へ渡す。project は 1 秒の tick と owner の返信ごとに走る (3) sink の mirror は参照を 1 つ置き換えるだけで O(1)。受信 1 回の仕事を足さない (4) 項目を作るのは promptLabel の中だけで、mirror の参照が変わったときに、view の参照が変わった unit の項目だけを作り直す。回数は入力の行の字を作る回数（1 秒に 1 回と command の後）までで、受信の数に比例しない (5) 作り直しは変わった unit の view を 1 回なめる線形で、全件×全件と state・view の直列化（JSON.stringify）をしない。U-T の上限は forecasts 512 件 (6) host.ts・composition-root.ts・weather-current-public.ts は他の契約の «» が行で引くので、行を足さない（P3-TO-D-LINES と同じ形）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:814 «a56586e6815ca93e»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC07",
+        "requirement": "起動（spec §9.5）: (1) startRuntime の最後の project が復元の後の mirror を渡すので、runRepl の最初の prompt の字に復元した項目が載る。REPL の開始を待つ仕組みを足さない (2) 気象は復元して未確認の行が codes に入らないので、確かめる報が来るまで項目にならない。端末で補わない (3) 時計の確かめの前（basis が awaiting、起動から最長 30 秒）は owner が期限の切れた値を view に残す。入力の行は view に従い、端末で期限を照合しない。basis が unverified か verified になった最初の deadline で view から外れ、項目も消える（U-R は restore が collect を呼ばないが、owner-host の restore が続けて deadlineOwner を当てるので同じ）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:875 «18499e77d4abf5a0»",
+          "docs/specs/cli-terminal-output.md:876 «2532d507c7c8094c»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC08",
+        "requirement": "消えるとき（spec §9.5）: (1) 解除、取消、期限切れ、レベルの引下げで view から外れたら、次の promptLabel の字から消える。字の再計算は 1 秒ごとで、再描画は AC03 (3) の条件のとき (2) 端末は時計で有効かを判定しない。時計が unverified の間も view に従う。U-R・U-L・U-N・U-V は unverified の間、期限の来た値を unit が expiryPending にして view から外す。U-T の予報、U-V の警報、U-W に時間の期限は無い (3) origin が recovery の入力は端末の報にならないが、recoveryDone の output が mirror を変えるので項目は変わる (4) 切断中も最新の view に従う。受信では変わらないが、host の 1 秒の tick は回線によらず owner へ deadline を送るので、U-R・U-N などの値は期限で変わる。期限の無い値は切断の前のまま残る (5) 残存（Q-TO6-RECOVERY）: 切断中に解除され、再接続の取り直しが失敗すると、次の報まで字が残る。U-T に時間の期限が無い。U-V・U-W も同じ。安全側の誤りで、印は足さない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:776 «271903caf8b2cc2b»",
+          "docs/specs/cli-terminal-output.md:873 «6ab77fcc38916252»",
+          "docs/specs/cli-terminal-output.md:874 «8f9f31af3798500f»",
+          "docs/specs/cli-terminal-output.md:878 «eda127085efb122c»",
+          "docs/specs/cli-terminal-output.md:879 «07ea6f63c10961b3»",
+          "docs/specs/cli-terminal-output.md:877 «7b6e5efb07abacb7»"
+        ]
+      },
+      {
+        "id": "P3-TP-AC09",
+        "requirement": "U-W の区分名: 公開形の codes は Code と区域の数だけで字を持たないので、WeatherCurrentPublicArea に names: Readonly<Record<string, string>> を足す。publicArea の active の行の cell.name（電文の Kind/Name）を、その Code で最初に見つけた空でない字のまま写す。非空の字は加工しない。name が null か空文字（`<Name/>` は \"\" で受理される）の行は名前なしとして扱い、名前の無い Code は鍵を作らず、入力の行の字は「特別警報」にする（電文に無い字だが、Kind/Name の無い報で特別警報が行から消えないようにする逃げ）。state・保存の形式・codec・詳細の口は変えない。Code から字を引く固定の表は作らない（corpus で字を確かめられるのは Code 33 だけで、その字も VPWW55 の「レベル５大雨特別警報」と VPWS50 の synthetic の「大雨特別警報」で違う。表にすると電文の字でなくなる）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:825 «520224a9516e75d1»",
+          "docs/specs/cli-terminal-output.md:778 «4bfc1fc51cd02ae1»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TP-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC01",
+          "P3-TP-AC02"
+        ],
+        "behavior": "受入条件。32-39_11_02 を U-T に通すと項目は「大津波警報 岩手県」「大津波警報 宮城県」「大津波警報 福島県」の 3 件で、津波警報と津波注意報の地域は出ない。字に「：発表」が入らない"
+      },
+      {
+        "testId": "P3-TP-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC01"
+        ],
+        "behavior": "受入条件。分野ごとの段と字: 74_01_04（巨大地震警戒）、80_01_01（警報の段で字は北海道・三陸沖後発地震注意情報）、45_02_01（レベル５（避難） 箱根山）、45_02_01 の Code を 24 と 25 へ、字を山麓厳重警戒と居住地域厳重警戒へ書き換えた報（最も重い段。配信原本でない）、fukui_L5（レベル５大雨特別警報）、kozagawa_l5（レベル５氾濫特別警報 古座川）、15_16_01 の 49 を 39 とレベル５の字へ書き換えた報（レベル５土砂災害特別警報。配信原本でない）"
+      },
+      {
+        "testId": "P3-TP-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TP-AC01"
+        ],
+        "behavior": "契約境界。項目にならない: 32-39_11_02 の Status を訓練へ書き換えた報、15_16_01 のまま（レベル 4 まで）、45_01_01（レベル 3）、67_01_01（噴火速報）。U-Q と U-E の view は読まない（mirror の U-Q・U-E を Proxy で数える）。kozagawa_l5 と 15_16_01 の L5 の Kind の名前を空にした報（配信原本でない）は「（読めず）」が字になり、空文字の項目が無い"
+      },
+      {
+        "testId": "P3-TP-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC08"
+        ],
+        "behavior": "受入条件。消える: 32-39_11_02→synthetic_VTSE41_cancel、synthetic_VTSE41_e01_311major→e01_released（released の ReportDateTime と Control/DateTime を 311major より後へ書き換える。そのままの時刻は stale で採られない）、fukui_L5→fukui_downgrade（33 が消える）→fukui_release、kozagawa_l5 に InfoType 取消と後の時刻を当てた報（配信原本でない）、45_01_01 の Kind をレベル５へ書き換えた報（配信原本でない）→synthetic_VFVO50_cancel、74_01_01（調査中）→74_01_07（調査終了）、80_01_01 の validUntil の deadline、kozagawa_l5 の 36 時間の deadline"
+      },
+      {
+        "testId": "P3-TP-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TP-AC01"
+        ],
+        "behavior": "契約境界。74_01_04 に warningUntil の後の deadline を当てると、status は巨大地震注意へ移り、字も段も「巨大地震注意」と警報の段になる（infoSerial と title は巨大地震警戒のまま）。45_02_01 の後に 46_01_01 の VFSV（火山コードと時刻を書き換え、headType は VFSV50。配信原本でない）を通すと kind=36・landKind=15 になり、項目「レベル５（避難） 箱根山」が残る"
+      },
+      {
+        "testId": "P3-TP-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC02",
+          "P3-TP-AC03",
+          "P3-TP-AC04"
+        ],
+        "behavior": "受入条件。偽の時計で 5 秒ごとに 1/3、2/3、3/3、1/3 と回り、4.9 秒では回らない。1 件なら番号が無い。ミュート・切断・clock・elapsed・uptime の形が AC04 の字のとおりで、色の制御の字が無い。段の違う項目が混ざると軽い段が一度も出ない。項目が無いと今の字と同じ"
+      },
+      {
+        "testId": "P3-TP-T07",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC05"
+        ],
+        "behavior": "受入条件。56 桁で切断中・ミュート中の 3 件: 4 枠を回し、全部の枠の字に「切断中」が入り、最後の枠は番号が無く「切断中 21:03:12 から・ミュート中」。100 桁では §9.1 の形。繋がっている間のミュートの枠の字。56 桁で 74_01_04 の字は時計が外れて「FlEq [● 南海トラフ地震臨時情報（巨大地震警戒）]> 」になり、同じ幅の切断中は「切断中」が残る。項目 1 件の入らない幅は枠 2 つで全周期を回し番号が無い。繋がっていてミュートでないときは枠が増えない。幅の境界（字の幅が桁数より 1 小さいと収まり、等しいと収まらない）。枠の数が変わった直後の字と番号"
+      },
+      {
+        "testId": "P3-TP-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TP-AC06"
+        ],
+        "behavior": "契約境界。sink.mirror を 1 万回呼んでも view の値を読まない（Proxy で数える）。promptLabel を続けて呼んでも、view の参照が変わらない unit の項目を作り直さない。mirror の参照だけが変わり U-T の view が同じなら U-T を読まない"
+      },
+      {
+        "testId": "P3-TP-T09",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC06",
+          "P3-TP-AC07"
+        ],
+        "behavior": "受入条件。本物の経路: root の project から host の sink を通って promptLabel の字に載る。active の洪水を保存して復元すると最初の字に載り、basis が awaiting の間は retainUntil の後も残り、unverified の deadline で消える。切断中でも kozagawa_l5 の 36 時間の deadline で項目が消え、切断中の字は残る。snapshot の U-T が delivery summary でも mirror の項目が字に出て、その後の取消で消える"
+      },
+      {
+        "testId": "P3-TP-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC09"
+        ],
+        "behavior": "受入条件。fukui_L5 の公開形の names が 33 の「レベル５大雨特別警報」を持ち、fukui_release で空になる。復元して未確認の行は names に入らない。Code 33 の Kind/Name を空にした報（配信原本でない）は names に鍵が無く、入力の行の字は「特別警報」で、空文字の項目が無い"
+      },
+      {
+        "testId": "P3-TP-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TP-AC08"
+        ],
+        "behavior": "受入条件。origin が recovery の取消を recoveryDone まで通すと、root の mirror から sink を通って promptLabel の字が変わり、端末の列に報の本文が積まれない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O03・O09 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（覚えと module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行。既存の期待を変えてよいのは、uw-canon-unit.test.ts の公開形の欄の一覧に names を足すことだけ。ほかを変える前に試験名・旧の期待・理由を報告する",
+      "試験の中で書き換えた報は配信原本でないと分かる名にし、fixture を増やさない。試験は設定を一時の場所へ隔離する",
+      "他の契約の «» が赤になるなら止めて報告する（本契約の中の «» だけ付け直してよい）。付け直しの後は check-contract と check-sequences の両方を回す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
