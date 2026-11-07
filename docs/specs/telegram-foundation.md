@@ -850,7 +850,7 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 
 現行 `quake-observation-merge` の baseline を共通 state 更新後も維持する。
 
-- 同一の非空 EventID について、VXSE51 で取得済みの観測震度があり、後続 VXSE52／VXSE61 の震度要素が構造的に `missing` の場合だけ、既存 `maxInt`、`maxIntRank`、`intensityGroups` を保持する。
+- 同一の非空 EventID について、VXSE51／VXSE53 で取得済みの観測震度があり、後続 VXSE52／VXSE61 の震度要素が構造的に `missing` の場合だけ、既存 `maxInt`、`maxIntRank`、`intensityGroups` を保持する。VXSE61 は顕著な地震で VXSE53 の後に来るのが通常の順で、VXSE51 だけを保持の出典にすると震度が消える（2026-11-08 静岡県西部の実配信）。
 - 震源名、発生時刻、Magnitude、Depth などの震源諸元は後続 VXSE52／VXSE61 の値を採用する。
 - `unknown`、`empty`、`qualitative` は `missing` とみなさない。電文が明示した状態として置換し、前回の観測値を自動維持しない。
 - `InfoType=訂正` で震度要素が明示された場合は、通常の訂正規約に従って置換する。取消は観測値保持を行わず、cancellation policy に従う。
@@ -872,7 +872,7 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 - Condition が数値本文、From／To、Description と矛盾する場合は §3.5 の優先順位と diagnostics に従う。既知 Condition を無視せず、未知語から値の無効化を推定しない。
 - Area／City／IntensityStation の provenance と code を相互に畳み込まない。地図キーは code とし、名称から code を推定しない。
 - qualifier は parser → presentation → CLI／通知 → ticker → display protocol／地図／カード → daily persistence の各境界を通過する。旧 scalar は互換 adapter に限り、severity、色、badge、通知 gate、永続化の真実源にしない。
-- `unknown`／`qualitative` は構造的 `missing` ではない。§7.4 の VXSE51→VXSE52／VXSE61 観測値保持を誤発火させず、同一 EventID の明示状態として置換する。
+- `unknown`／`qualitative` は構造的 `missing` ではない。§7.4 の VXSE51／VXSE53→VXSE52／VXSE61 観測値保持を誤発火させず、同一 EventID の明示状態として置換する。
 - exact 震度、EEW、長周期地震動、Magnitude／Depth、取消・訂正・revision gate の現行挙動は、本項で明示した差分以外変更しない。
 
 #### 7.5.2 現状調査と基盤との差分
@@ -940,7 +940,7 @@ fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤�
 6. **状態・永続化**: §7.4 merge、daily recent history、live／restart 同値を実 fixture 起点で固定する（`src/engine/display/quake-observation-merge.ts`、`src/engine/display/state-store.ts`、`src/engine/messages/daily-quake-counter.ts`、`src/engine/messages/daily-quake-persistence.ts`、`test/engine/display/quake-observation-merge.test.ts`、`test/engine/display/standby-state-store.test.ts`、`test/engine/messages/daily-quake-counter.test.ts`、`test/engine/messages/daily-quake-persistence.test.ts`）。
 7. **端到端・production-shaped 検証**: 実 fixture を router の parser → presentation → notifier → ticker → quake map → latest／recent card → persistence／restore に通す。加えて同じ実 shape の値だけを最小加工した all-unknown 検証を synthetic と明記して置き、新規 all-unknown と既知 emergency→unknown 続報を別 test に固定する。`nonExact` remove、normal への暗黙降格、rank 0、qualifier 消失がないことを固定する（`test/engine/telegram-foundation/phase4a-contract.test.ts`、`test/engine/presentation/level-helpers.test.ts`、`test/engine/presentation/events/from-earthquake.test.ts`、`test/engine/display/project-event.test.ts`、`test/engine/display/quake-map-state.test.ts`、`test/engine/display/quake-observation-merge.test.ts`、`test/engine/messages/daily-quake-counter.test.ts`、`display/frontend/src/components/__tests__/quake-map.test.ts`、`display/frontend/src/components/__tests__/latest-quake-card.test.ts`、`display/frontend/src/components/__tests__/recent-quakes.test.ts`）。
 
-実装完了条件は、両特殊語について Pref／Area／City／IntensityStation の実在する階層ごとに上表の到達点が固定され、overall frame／sound／通知実文字列／cadence、ticker 実文字列、map command、unknown sentinel／host／TTL、unknown／`≥` badge、latest／recent、daily round-trip の具体値が一本の実 fixture 系列で固定されることとする。frontend host 選択は known host 優先、unknownHost の5分有効・期限切れ後の非選択、largeQuake 中の unknownHost 非選択を `derive.test.ts` で固定する。新規 all-unknown と既知 emergency→unknown 続報は別 test とし、exact 震度4と §7.4 の VXSE51→VXSE52／VXSE61 保持が回帰しないことを要する。
+実装完了条件は、両特殊語について Pref／Area／City／IntensityStation の実在する階層ごとに上表の到達点が固定され、overall frame／sound／通知実文字列／cadence、ticker 実文字列、map command、unknown sentinel／host／TTL、unknown／`≥` badge、latest／recent、daily round-trip の具体値が一本の実 fixture 系列で固定されることとする。frontend host 選択は known host 優先、unknownHost の5分有効・期限切れ後の非選択、largeQuake 中の unknownHost 非選択を `derive.test.ts` で固定する。新規 all-unknown と既知 emergency→unknown 続報は別 test とし、exact 震度4と §7.4 の VXSE51／VXSE53→VXSE52／VXSE61 保持が回帰しないことを要する。
 
 必須検証コマンド:
 

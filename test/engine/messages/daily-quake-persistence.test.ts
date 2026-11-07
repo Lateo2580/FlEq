@@ -120,11 +120,14 @@ describe("DailyQuakePersistence", () => {
     expect(restored.getRecentQuakes(T0 + 20).map((q) => q.eventId)).toEqual(["Q5", "Q4", "Q3", "Q2", "Q1"]);
   });
 
-  it("観測済み震度を restore 後の震度なし続報でも保持し、実ファイル round-trip する", () => {
+  it.each([
+    ["VXSE51", "VXSE52"],
+    ["VXSE53", "VXSE61"],
+  ])("%s の観測済み震度を restore 後の %s でも保持し、実ファイル round-trip する", (observedType, followupType) => {
     const file = filePath();
     const source = new DailyQuakeCounter(T0);
     const observed = event({
-      type: "VXSE51",
+      type: observedType,
       eventId: "Q1",
       reportDateTime: new Date(T0).toISOString(),
       originTime: new Date(T0).toISOString(),
@@ -150,7 +153,7 @@ describe("DailyQuakePersistence", () => {
       depthSemantic: { presence: "value", value: 10 },
     });
     const followup = projectRecentQuake(event({
-      type: "VXSE52",
+      type: followupType,
       eventId: "Q1",
       reportDateTime: new Date(T0 + 60_000).toISOString(),
       originTime: new Date(T0).toISOString(),
@@ -185,8 +188,8 @@ describe("DailyQuakePersistence", () => {
       intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
     });
     expect(quakeObservationMetaOf(restored.getRecentQuakes(T0 + 60_002)[0]!)).toMatchObject({
-      sourceType: "VXSE52",
-      observationSourceType: "VXSE51",
+      sourceType: followupType,
+      observationSourceType: observedType,
       maxIntValue: { presence: "value", value: "4", raw: "4" },
     });
   });

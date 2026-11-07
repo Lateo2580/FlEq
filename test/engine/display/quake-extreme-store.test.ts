@@ -271,16 +271,14 @@ describe("QuakeExtremeStore", () => {
     expect(store.hasActive(T0)).toBe(false);
   });
 
-  it("VXSE51 provenance のない構造的 missing は旧震度7を解除し、type 別 watermark は独立する", () => {
+  it("VXSE53 の震度7は構造的 missing の続報で解除しない", () => {
     const store = new QuakeExtremeStore();
     store.applyDto(quake(9, { type: "VXSE53", serial: "1" }), T0);
     expect(store.applyDto(displayEventDto({
       domain: "earthquake", type: "VXSE52", groupKey: "quake:Q1",
       reportDateTime: originTime, serial: "99", latestQuake: null,
     }), T0 + 1)).toBe(true);
-    expect(store.hasActive(T0 + 1)).toBe(false);
-    expect(store.applyDto(quake(8, { type: "VXSE53", serial: "2" }), T0 + 2)).toBe(false);
-    expect(store.hasActive(T0 + 2)).toBe(false);
+    expect(store.hasActive(T0 + 1)).toBe(true);
   });
 
   it("同一 EventID の取消は source type をまたいで震度7記録を解除する", () => {

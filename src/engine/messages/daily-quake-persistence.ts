@@ -495,7 +495,7 @@ function isValidObservationProvenance(observation: QuakeObservationMeta): boolea
   }
   if (current === observed) return true;
   return (current === "VXSE52" || current === "VXSE61")
-    && observed === "VXSE51"
+    && (observed === "VXSE51" || observed === "VXSE53")
     && !observation.intensityStructureMissing
     && observation.maxIntValue.presence === "value";
 }

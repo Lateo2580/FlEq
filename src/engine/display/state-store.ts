@@ -47,7 +47,7 @@ import {
   hasResolvedQuakeCancellation,
   quakeObservationBridgeOf,
   quakeObservationMetaOf,
-  shouldPreserveVxse51Observation,
+  shouldPreserveObservedIntensity,
   shouldRetainKnownQuakeSafety,
   withQuakeObservationMeta,
 } from "./quake-observation-merge";
@@ -507,7 +507,7 @@ export class DisplayStateStore {
     const preservedStructuralObservation = command.kind === "remove"
       && command.reason === "structuralMissing"
       && previousEffective != null
-      && shouldPreserveVxse51Observation({
+      && shouldPreserveObservedIntensity({
         previousObservationSourceType: previousEffective.sourceType,
         previousMaxIntPresence: "value",
         previousCancellationResolved: false,
@@ -950,7 +950,7 @@ export class DisplayStateStore {
       inputMeta == null
       || recent == null
       || recentMeta == null
-      || !shouldPreserveVxse51Observation({
+      || !shouldPreserveObservedIntensity({
         previousObservationSourceType: recentMeta.observationSourceType,
         previousMaxIntPresence: recentMeta.maxIntValue.presence,
         previousCancellationResolved: hasResolvedQuakeCancellation(recentMeta),

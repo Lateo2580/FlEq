@@ -14,7 +14,7 @@ import type {
 export interface QuakeObservationMeta {
   /** この projection を生成した電文 type。旧 persistence からの移行時だけ null。 */
   sourceType: string | null;
-  /** 現在の観測震度の出典。missing projection では null、保持時は VXSE51 を維持する。 */
+  /** 現在の観測震度の出典。missing projection では null、保持時は VXSE51／VXSE53 を維持する。 */
   observationSourceType: string | null;
   infoType: string | null;
   resolvedTrigger: CancellationTrigger | null;
@@ -74,13 +74,13 @@ export interface QuakeObservationPreservationContext {
   nextCancellationResolved: boolean;
 }
 
-/** §7.4 の VXSE51 観測保持可否。EventID 一致は各 holder がこの helper の外側で確認する。 */
-export function shouldPreserveVxse51Observation(
+/** §7.4 の観測震度の保持可否。EventID 一致は各 holder がこの helper の外側で確認する。 */
+export function shouldPreserveObservedIntensity(
   context: QuakeObservationPreservationContext,
 ): boolean {
   return !context.nextCancellationResolved
     && !context.previousCancellationResolved
-    && context.previousObservationSourceType === "VXSE51"
+    && (context.previousObservationSourceType === "VXSE51" || context.previousObservationSourceType === "VXSE53")
     && context.previousMaxIntPresence === "value"
     && (context.nextSourceType === "VXSE52" || context.nextSourceType === "VXSE61")
     && context.nextMaxIntPresence === "missing"
@@ -150,7 +150,7 @@ function shouldPreserveObservation(
     && nextMeta != null
     && nonEmptyEventId(previous.eventId)
     && previous.eventId === next.eventId
-    && shouldPreserveVxse51Observation({
+    && shouldPreserveObservedIntensity({
       previousObservationSourceType: previousMeta.observationSourceType,
       previousMaxIntPresence: previousMeta.maxIntValue.presence,
       previousCancellationResolved: hasResolvedQuakeCancellation(previousMeta),
@@ -205,7 +205,7 @@ function preservedMeta(
 }
 
 /**
- * VXSE51 の観測値を、同一 EventID の VXSE52/61 が構造的 missing の場合だけ保持する。
+ * VXSE51／VXSE53 の観測値を、同一 EventID の VXSE52/61 が構造的 missing の場合だけ保持する。
  * 震源諸元と報時刻は常に next を採用する。
  */
 export function mergeLatestQuakeObservation(

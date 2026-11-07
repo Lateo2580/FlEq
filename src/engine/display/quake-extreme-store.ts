@@ -27,7 +27,7 @@ import {
   isQuakeIntensityStructureMissing,
   quakeObservationBridgeOf,
   quakeObservationMetaOf,
-  shouldPreserveVxse51Observation,
+  shouldPreserveObservedIntensity,
   shouldRetainKnownQuakeSafety,
 } from "./quake-observation-merge";
 
@@ -291,8 +291,8 @@ export class QuakeExtremeStore {
     }
 
     const previous = this.records.get(input.groupKey);
-    const preservesVxse51Observation = previous != null
-      && shouldPreserveVxse51Observation({
+    const preservesObservedIntensity = previous != null
+      && shouldPreserveObservedIntensity({
         previousObservationSourceType: previous.observationSourceType,
         previousMaxIntPresence: "value",
         previousCancellationResolved: false,
@@ -309,7 +309,7 @@ export class QuakeExtremeStore {
       input.maxIntPresence === "missing"
       && input.intensityStructureMissing
       && previous != null
-      && !preservesVxse51Observation;
+      && !preservesObservedIntensity;
     const invalidatesRecord =
       input.cancellationResolved
       || !input.retainKnownSafety && (
@@ -321,7 +321,7 @@ export class QuakeExtremeStore {
     let changed = false;
     if (invalidatesRecord) {
       changed = this.records.delete(input.groupKey);
-    } else if (preservesVxse51Observation && previous != null) {
+    } else if (preservesObservedIntensity && previous != null) {
       const originTime = input.originTime ?? previous.originTime;
       const remainingMs = remainingHoldMs(originTime, nowMs);
       if (remainingMs == null) {

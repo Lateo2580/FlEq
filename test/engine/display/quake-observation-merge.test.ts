@@ -224,7 +224,7 @@ describe("quake-observation-merge SpecialValue contract", () => {
   it.each([
     ["EventID 不一致", { eventId: "Q2" }, "VXSE51", "VXSE52"],
     ["EventID 欠落", { eventId: null }, "VXSE51", "VXSE52"],
-    ["前報 source が VXSE51 以外", {}, "VXSE53", "VXSE52"],
+    ["前報 source が震度を持つ報でない", {}, "VXSE52", "VXSE52"],
     ["後報 source が VXSE52/61 以外", {}, "VXSE51", "VXSE53"],
   ] as const)("%s では観測値を持ち越さない", (_label, overrides, previousType, nextType) => {
     const merged = mergeRecentQuakeObservation(
@@ -253,7 +253,7 @@ describe("quake-observation-merge SpecialValue contract", () => {
     });
   });
 
-  it("VXSE51 provenance は複数の missing VXSE52/61 をまたいで維持する", () => {
+  it("VXSE51 の出典は複数の missing VXSE52/61 をまたいで維持する", () => {
     const first = recent("VXSE51", special("value"));
     const second = mergeRecentQuakeObservation(first, recent("VXSE52", special("missing")));
     const third = mergeRecentQuakeObservation(second, recent("VXSE61", special("missing")));
@@ -261,6 +261,25 @@ describe("quake-observation-merge SpecialValue contract", () => {
     expect(quakeObservationMetaOf(third)).toMatchObject({
       sourceType: "VXSE61",
       observationSourceType: "VXSE51",
+      maxIntValue: { presence: "value" },
+    });
+  });
+
+  // 2026-11-08 静岡県西部: VXSE53（震度5強）の 2 時間後の VXSE61 で待機画面の震度チップが消えた。
+  it.each(["VXSE52", "VXSE61"])("VXSE53→%s は観測震度を持ち越し、震源諸元だけ更新する", (nextType) => {
+    const merged = mergeRecentQuakeObservation(
+      recent("VXSE53", special("value")),
+      recent(nextType, special("missing"), { hypocenterName: "更新震源" }),
+    );
+    expect(merged).toMatchObject({
+      hypocenterName: "更新震源",
+      maxInt: "4",
+      maxIntRank: 4,
+      intensityGroups: [{ intensity: "4", areas: ["地域A"] }],
+    });
+    expect(quakeObservationMetaOf(merged)).toMatchObject({
+      sourceType: nextType,
+      observationSourceType: "VXSE53",
       maxIntValue: { presence: "value" },
     });
   });

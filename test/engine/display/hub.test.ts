@@ -612,11 +612,15 @@ describe("sweepTicker: 優先度別 TTL (spec §3-1)", () => {
 });
 
 describe("InfoDisplayHub: state debounce", () => {
-  it.each(["VXSE52", "VXSE61"] as const)(
-    "VXSE51→%s は最新・履歴の観測震度と地図を保持し、震源諸元だけ更新する",
-    (followupType) => {
+  it.each([
+    ["VXSE51", "VXSE52"],
+    ["VXSE51", "VXSE61"],
+    ["VXSE53", "VXSE61"],
+  ] as const)(
+    "%s→%s は最新・履歴の観測震度と地図を保持し、震源諸元だけ更新する",
+    (initialType, followupType) => {
       const { hub } = makeHub();
-      hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      hub.ingest(quakeSequenceEvent(initialType, "2026-07-06T21:00:00+09:00", {
         maxInt: "4",
         maxIntRank: 4,
         areaItems: [{ name: "茨城県北部", code: "440", maxInt: "4" }],
@@ -663,12 +667,9 @@ describe("InfoDisplayHub: state debounce", () => {
     },
   );
 
-  it.each([
-    ["VXSE51", true],
-    ["VXSE53", false],
-  ] as const)(
+  it.each(["VXSE51", "VXSE53"] as const)(
     "%s exact 震度7→VXSE52 structural missing は §7.4 provenance に全 projection を揃える",
-    (initialType, preserved) => {
+    (initialType) => {
       const { hub } = makeHub();
       hub.ingest(quakeSequenceEvent(initialType, "2026-07-06T21:00:00+09:00", {
         maxInt: "7",
@@ -688,12 +689,12 @@ describe("InfoDisplayHub: state debounce", () => {
       }));
 
       const snapshot = hub.buildSnapshot();
-      expect(snapshot.latestQuake?.maxInt).toBe(preserved ? "7" : null);
-      expect(snapshot.recentQuakes[0]?.maxInt).toBe(preserved ? "7" : null);
-      expect(snapshot.mapLayers?.quake?.events ?? []).toHaveLength(preserved ? 1 : 0);
-      expect(snapshot.largeQuakes).toHaveLength(preserved ? 1 : 0);
-      expect(snapshot.severityTier).toBe(preserved ? "alert" : "calm");
-      expect(snapshot.backgroundTone).toBe(preserved ? "quakeExtreme" : "calm");
+      expect(snapshot.latestQuake?.maxInt).toBe("7");
+      expect(snapshot.recentQuakes[0]?.maxInt).toBe("7");
+      expect(snapshot.mapLayers?.quake?.events ?? []).toHaveLength(1);
+      expect(snapshot.largeQuakes).toHaveLength(1);
+      expect(snapshot.severityTier).toBe("alert");
+      expect(snapshot.backgroundTone).toBe("quakeExtreme");
     },
   );
 
