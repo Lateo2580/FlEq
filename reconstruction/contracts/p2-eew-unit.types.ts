@@ -14,7 +14,7 @@ import type {
   RuntimeUnitDeadline,
   UnitCodec,
   UnitView as SharedUnitView, UnreadableNoticeMark,
-} from "./p2-shared-runtime.types";
+} from "./p2-shared-runtime.types"; import type { EewReportArea } from "./p3-eew-facts.types";
 
 export type EewPredictionIntensity = Readonly<{
   from: MaterialValue;
@@ -44,7 +44,7 @@ export type EewCurrent = Readonly<{
   serial: number;
   terminal: boolean;
   prediction: EewPrediction;
-  isAssumedHypocenter: boolean;
+  isAssumedHypocenter: boolean; reportAreas: readonly EewReportArea[]; // P3-VAT-AC01: 最新の報の区域。prediction.areas と同じ順・件数で、同じ添字で対応する
   // Non-durable evidence from one report; prediction/source above remain the latest report.
   retainedPrediction: Readonly<{ prediction: EewPrediction; source: ReportRef }> | null;
 }>;

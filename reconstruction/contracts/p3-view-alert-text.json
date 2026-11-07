@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "08e00fdc4b6a4070c186f56253c3522050461051",
-    "sha256": "451b983d309f308d134f235e4588f9de43b174edc4bf9648e59440832902e51c",
+    "sha256": "8141cf5d6695996cf6e4469d6ba7a22694d5312e2ed646cde08e457b319ddbb5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -357,7 +357,7 @@
         "requirement": "触る行と anchor: (1) 行の数を変えない file: eew.ts・eew-unit.ts・tsunami.ts・tsunami-unit.ts・p2-eew-unit.types.ts・p3-eew-facts.types.ts。既存の行の末尾か空行に書き、reanchor-target.py は使わない（eew.ts:N の正規表現が process-eew.ts:N にも当たる）(2) 中身を変えてよい行: eew.ts:466、eew-unit.ts:267、p2-eew-unit.types.ts:17（末尾に EewReportArea の import type）・:47（末尾に欄）、p3-eew-facts.types.ts:4（view の説明を本契約に合わせる）、tsunami-unit.ts:414・:468・:1103〜:1106、tsunami.ts の «» に引かれていない行。«» に引かれた行は変えない (3) eew-unit.ts:267 を引く «» は p3-replay-watch-002.json の P3-RW2-AC11 の 1 件だけ。統合担当が配送の commit で eew.ts:405 へ替え、その契約の meta.sha256 を取り直す。その行を引く契約は無い (4) p3-tsunami-unit.types.ts は «» に引かれていない。無いと: 他の契約の «» が崩れて check-contract が落ちる",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:405 «a9e40c8bd99e9e4f»",
-          "reconstruction/contracts/p3-replay-watch-002.json:534 «9eef5aea1b23cb9f»"
+          "reconstruction/contracts/p3-replay-watch-002.json:534 «3761580199f5f07d»"
         ]
       },
       {

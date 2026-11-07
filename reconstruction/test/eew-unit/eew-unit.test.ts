@@ -1812,8 +1812,8 @@ describe("P3 EEW report facts", () => {
   it("P3-EWF-T02 contractBoundary / AC02 (3): report-only text stays out of every other surface of the step", () => {
     const step = stepAt(emptyState(), "37_01_01_240613_VXSE43", "VXSE43");
     expect(JSON.stringify(subjectOf(step).facts)).toContain("高知県西部");
-    const others = JSON.stringify([step.state.current, step.state.gates, toEewView(step.state), eewUnitCodec.encode(step.state),
-      step.intents, step.diagnostics, step.displayChanges]);
+    const others = JSON.stringify([step.state.gates, eewUnitCodec.encode(step.state), step.intents, step.diagnostics]), shown = JSON.stringify([step.state.current, toEewView(step.state), step.displayChanges]);
     for (const text of ["高知県西部", "2024-04-17T23:15:02+09:00", "+33.2+132.4-30000/"]) expect(others).not.toContain(text);
+    expect(shown).not.toContain("+33.2+132.4-30000/"); // P3-VAT-AC01: 区域の名前と到達時刻だけが current と view へ渡る
   });
 });

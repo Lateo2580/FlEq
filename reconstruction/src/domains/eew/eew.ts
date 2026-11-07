@@ -463,7 +463,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
     eventId, warningClass,
     source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
-    isAssumedHypocenter: assumed,
+    isAssumedHypocenter: assumed, reportAreas: eewReportFacts(body, headline, earthquake, forecast, candidate.cancelled, assumed).areas,
   };
   // P3-VM-AC03・AC04: gate と Control/DateTime で比べ、同じ秒なら Serial の大きい方を新しい版とする（P3-VM-D-SAMETIME=A の EEW の例外）。
   // P3-NL-AC04 (3): gate の無い報（再起動・退去の後）は、その EventID・family の印の記録を手元の版として同じ規則で比べる。

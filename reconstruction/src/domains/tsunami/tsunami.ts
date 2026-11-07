@@ -6,7 +6,7 @@ import type {
   TsunamiAreaClass, TsunamiEstimation, TsunamiForecastArea, TsunamiHeight, TsunamiObservationFamily, TsunamiStation,
   TsunamiUnkeyedArea, TsunamiUnreadableSite,
 } from "../../../contracts/p3-tsunami-unit.types";
-import { attribute, blank, children, leafValues, localName, scalar } from "../../decode-material/xml-read";
+import { attribute, blank, children, first, leafValues, localName, scalar, text as firstText } from "../../decode-material/xml-read";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 import { unreadableNotes } from "../../units/unreadable";
 
@@ -29,7 +29,7 @@ type Revision = Pick<ReportRef, "reportDateTimeRaw" | "serialRaw" | "infoTypeRaw
 type Common = Readonly<{ operation: Operation; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
   infoRank: number; cancelled: boolean; headline: string | null; title: string | null; unreadable: UnreadableMark | null }>;
 type ForecastCandidate = Common & Readonly<{ kind: "forecast"; family: "VTSE41";
-  areas: readonly TsunamiForecastArea[]; unkeyedAreas: readonly TsunamiUnkeyedArea[] }>;
+  areas: readonly TsunamiForecastArea[]; unkeyedAreas: readonly TsunamiUnkeyedArea[]; warningComment: string | null }>;
 type ObservationCandidate = Common & Readonly<{ kind: "observation"; family: TsunamiObservationFamily;
   stations: readonly TsunamiStation[]; estimations: readonly TsunamiEstimation[] }>;
 type TsunamiCandidate = ForecastCandidate | ObservationCandidate;
@@ -194,7 +194,7 @@ function observationBody(body: XmlElement, family: TsunamiObservationFamily, rev
 function diagnostic(material: DecodedMaterial, reason: RejectionReason): DiagnosticDetails {
   return { level: "WARN", component: "tsunami", reason, inputId: material.inputId, unit: "U-T" };
 }
-
+function readWarningComment(body: XmlElement): string | null { const value = blank(firstText(first(first(body, "Comments"), "WarningComment"), "Text")); return value == null || value.length <= 4096 ? value : `${value.slice(0, 4095).replace(/[\ud800-\udbff]$/, "")}…`; } // P3-VAT-AC04: 端末と同じ読みと上限。文は急ぐ文から並ぶので頭を残す
 // Q-ENUM.priorityRule の順に最初の一 RejectionReason を返す。識別できない拒否の subject は空文字（P3-TSUNAMI-UNIT-001 の artifactRequirements）。
 function parseTsunami(material: DecodedMaterial): ParseResult {
   const common = validateSemanticEnvelope(material);
@@ -243,7 +243,7 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
     // 取消は Body が Text だけでよい（38-39_03_01・38-39_03_03）。
     const body = single(material.xml, "Body");
     if (cancelled) return { kind: "accepted", diagnostics: report(), candidate: family === "VTSE41"
-      ? { ...base, headline, kind: "forecast", family, areas: [], unkeyedAreas: [], unreadable: notes.mark(material.xml) }
+      ? { ...base, headline, kind: "forecast", family, areas: [], unkeyedAreas: [], warningComment: null, unreadable: notes.mark(material.xml) }
       : { ...base, headline, kind: "observation", family, stations: [], estimations: [], unreadable: notes.mark(material.xml) } };
     // Q-ENUM の VTSE51.legalMissing: Observation の無い報（満潮時刻・到達予想時刻の情報）は合法で、state を変えない。
     if (family === "VTSE51" && children(single(body, "Tsunami"), "Observation").length === 0)
@@ -251,7 +251,7 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
     const values = leafValues(material);
     if (family === "VTSE41") {
       const forecast = forecastBody(body, values, warn);
-      return { kind: "accepted", diagnostics: report(), candidate: { ...base, headline, kind: "forecast", family, ...forecast,
+      return { kind: "accepted", diagnostics: report(), candidate: { ...base, headline, kind: "forecast", family, ...forecast, warningComment: readWarningComment(body),
         unreadable: notes.mark(material.xml) } };
     }
     const revision = { reportDateTimeRaw: material.reportDateTimeRaw, serialRaw, infoTypeRaw: material.infoTypeRaw };

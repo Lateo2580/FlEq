@@ -264,7 +264,7 @@ function currentSubject(current: EewUnitState["current"][number]): SubjectOutcom
     source: current.source,
     facts: { family: current.family, serial: current.serial,
       eventId: current.eventId, warningClass: current.warningClass,
-      prediction: current.prediction, retainedPrediction: current.retainedPrediction },
+    },
     changedFields: [],
   };
 }

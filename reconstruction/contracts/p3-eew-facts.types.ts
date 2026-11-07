@@ -1,7 +1,7 @@
 // P3-EEW-FACTS-001（台帳 106）: U-E が受信の outcome の facts.report に載せる、1 報分の材料。
 // 互換必須の EEW ログファイル（spec §11.4）と C19（P3-TERMINAL-OUTPUT-001）の端末が使う値で、今の facts から作れないものだけ。
 // 値は XML の生の文字（scalar の文字そのまま、正規化しない）。要素が無ければ null、要素が空なら ""。整形・特殊値の読みは C19 が持つ。
-// 受信の記憶にだけ持つ。state・codec・view・診断・通知の payload に入れない（dmdata 規約 15 項、EEW は personal 限定）。
+// 受信の記憶にだけ持つ。areas だけは EewCurrent.reportAreas として view へも渡す（P3-VIEW-ALERT-TEXT-001）。ほかの欄は state・codec・view・診断・通知の payload に入れない（dmdata 規約 15 項、EEW は personal 限定）。
 
 // ForecastLgInt の From・To の生の文字（P3-EWF-AC01 の maxLgInt と areas[].lgInt）。
 export type EewLgIntRaw = Readonly<{ from: string | null; to: string | null }>;

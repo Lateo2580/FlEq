@@ -74,6 +74,7 @@ export type TsunamiForecastSubject = Readonly<{
   unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。印のある記録だけが鍵を持つ
   notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。印のある記録だけが鍵を持ち、表示には出さない
   unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は TsunamiUnreadableSite）。取消の記録は持たない
+  warningComment?: string; // P3-VAT-AC04: 最新の報の Comments/WarningComment/Text。文のある active の記録だけが鍵を持つ
 }>;
 
 // P3-UM-AC01 (2): 印の site の表（domain の warn の所の名）。codec は表の外の site を読まない。

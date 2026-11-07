@@ -411,7 +411,7 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
     next = { subject: candidate.subject, eventId: candidate.eventId, operation: candidate.operation, source: candidate.source,
       effective: active ? "active" : "released", areas: candidate.areas, unkeyedAreas: candidate.unkeyedAreas,
       retainUntil: active ? null : existing?.effective === "released" && existing.retainUntil != null ? existing.retainUntil : now + RETAIN_MS, ...kept,
-      ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable } };
+      ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable }, ...active && candidate.warningComment != null ? { warningComment: candidate.warningComment } : {} };
   }
   // P3-CC-AC03(3)(4): 印は印の版以上の採用で消える。古い報の採用では active の記録へ引き継ぎ、active でなければ外して unit の未確認へ移す。
   const mark = existing?.unavailable;
@@ -465,7 +465,7 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
   }
   changes.push([existing, next]);
   const forecasts = index < 0 ? [...state.forecasts, next] : state.forecasts.map((item, at) => at === index ? next : item);
-  const semantic = existing == null || existing.effective !== next.effective || observationsChanged || existing.unavailable !== next.unavailable
+  const semantic = existing == null || existing.effective !== next.effective || observationsChanged || existing.unavailable !== next.unavailable || existing.warningComment !== next.warningComment
     || !isDeepStrictEqual(existing.areas, next.areas) || !isDeepStrictEqual(existing.unkeyedAreas, next.unkeyedAreas);
   const result = adopt(state, candidate, clock, basis, { forecasts, observations, fresh, cancelSubject: candidate.cancelled ? candidate.subject : null,
     semantic, changes, target: next, facts: { areaTransitions: transitions, series }, missing: version.missing, notice,
@@ -1100,10 +1100,10 @@ function forecastSubject(value: unknown): TsunamiForecastSubject | null {
     || mark.source.operation !== operation || mark.source.family !== "VTSE41")) return null;
   const unconfirmed = unconfirmedOf(row, row.subject, operation);
   const notice = "notice" in row ? readNoticeMark(row.notice) : undefined;
-  const unreadable = unreadableOf(row, effective !== "cancelled");
-  if (unconfirmed === "invalid" || notice === null || unreadable == null) return null;
+  const unreadable = unreadableOf(row, effective !== "cancelled"), comment = row.warningComment;
+  if (unconfirmed === "invalid" || notice === null || unreadable == null || comment !== undefined && (typeof comment !== "string" || comment === "" || comment.length > 4096 || effective !== "active")) return null;
   return { subject: row.subject, eventId: row.eventId, operation, source, effective, areas, unkeyedAreas, retainUntil: row.retainUntil,
-    ...mark == null ? {} : { unavailable: mark }, ...unconfirmed == null ? {} : { unconfirmed }, ...notice == null ? {} : { notice }, ...unreadable };
+    ...mark == null ? {} : { unavailable: mark }, ...unconfirmed == null ? {} : { unconfirmed }, ...notice == null ? {} : { notice }, ...unreadable, ...comment === undefined ? {} : { warningComment: comment } };
 }
 function station(value: unknown): TsunamiStation | null {
   const row = record(value), first = record(row?.firstHeight), max = record(row?.maxHeight), revision = record(row?.revision);
