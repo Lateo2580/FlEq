@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "69a553b0307d38519e977dfc30965b8bf06c6ddd85610157b5ebf9beccdad628",
+    "sha256": "d6f34a1cfb8b8bb314a0e3fe1f991caed7f9bf34f638a2f7d8965abfec3115bf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -505,7 +505,7 @@
           "reconstruction/src/domains/seismic/seismic.ts:63 «c200b4f7c1ed4c6e»",
           "reconstruction/contracts/p3-authority-evidence.json:29 «303af67ab4a3f92f»",
           "reconstruction/contracts/p3-tsunami-unit.json:94 «5aba6d9878988b1f»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «928a66e22f46a6ec»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «aef5d3cad15b6dce»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1178 «1a4d8ab82201bf92»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1614 «2ea0d161656b57fe»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1382 «3374b7a5c60a993b»"

@@ -1138,7 +1138,7 @@ function refuse(state: SeismicUnitState, candidate: SeismicCandidate, clock: Clo
 
 // ---- 期限（I-U-Q.deadlines。到来分だけを回収する） ----
 
-// P3-EF-AC04: U-Q の期限は全部が回収（記録・失敗の印・intent）か、強震保持の解除と当日の履歴の切替えなので、verified の入力でだけ当てる。
+// P3-EF-AC04・P3-SEV-AC01: 回収（記録・失敗の印・intent）、強震保持の解除、当日の履歴の切替えは verified の入力でだけ当て、unverified は保留の印だけを付ける。
 // 当てるものが無ければ同じ参照を返す（P3-EF-AC11 (2)）。
 // P3-QC-AC08 (1): 期限切れの記憶にする。事実と印を捨てて source・notice だけを残し、強震保持を外し、守りの on を 0 にして from を残す。
 function forget(item: EarthquakeContribution): EarthquakeContribution {
