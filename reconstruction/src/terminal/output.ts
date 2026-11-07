@@ -1,3 +1,5 @@
+import { fork, spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import type { Interface } from "node:readline";
 import { Writable } from "node:stream";
 import { Worker } from "node:worker_threads";
@@ -31,6 +33,7 @@ const QUEUE_BYTES = 1024 * 1024, SEND_BYTES = 64 * 1024, CLOSE_MS = 1_000;
 // DLV-01: 回線の状態を 1 秒ごとに読む（変化を知らせる口は無い、P3-DC2-AC08 (7)）。要約の区切りと tips の待ちも同じ tick で見る。
 // Q-TO-C-3: 30 分で 3 回切れたら「回線が不安定です」にまとめ、30 分続けて繋がるまで切断の通知を出さない。
 const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
+const CHILD_LOST = "端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません";
 
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
@@ -115,7 +118,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   let head = 0, bytes = 0, dropped = 0, inFlight = false, failed = false;
   let readline: Interface | null = null, idle: (() => void) | null = null, closing: Promise<void> | null = null;
   let pending: (() => void) | null = null;
-  let worker: Worker | null = null;
+  let worker: Worker | null = null, child: ChildProcess | null = null;
+  let post: (batch: TerminalBatch) => void = () => {};
   let lastOutputMs = clock().monotonicMs;
   const fail = () => {
     if (failed) return;
@@ -129,15 +133,44 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     bytes = 0;
     idle?.();
   };
-  if (options.write == null) {
-    worker = new Worker(resolveRepoPath("reconstruction/dist/src/terminal/writer-worker.js"),
+  const reply = () => { const done = pending; pending = null; done?.(); };
+  // P3-TW-AC04: 起動の失敗・途中の消滅・IPC の切断をここに集める。知らせを main が書くと字の選択の WriteConsoleW で受信が止まり、
+  // 切れた pipe の error で main が落ちるので、1 回限りの別の子に書かせる。
+  const lostChild = () => {
+    if (failed) return;
+    fail();
+    child?.kill();
+    if (closing != null) return;
+    try {
+      spawn(process.execPath, ["-e", "process.stderr.write(process.argv[1])", `${CHILD_LOST}\n`], { stdio: ["ignore", "ignore", "inherit"] })
+        .on("error", () => {}).unref();
+    } catch { /* 諦める。知らせなしになる（P3-TW-D-FAIL） */ }
+  };
+  if (options.write == null && process.platform === "win32") {
+    // P3-TW-D-WRITER・D-NONTTY: Windows は fd 1 が何でも子が書く（worker の fs.writeSync だと pipe で終われず、TTY は日本語が化ける）。
+    try {
+      const started = fork(resolveRepoPath("reconstruction/dist/src/terminal/writer-child.js"), [String(level)],
+        { stdio: ["ignore", "inherit", "ignore", "ipc"], serialization: "advanced" });
+      child = started;
+      started.unref();
+      started.channel?.unref();
+      started.on("message", reply);
+      started.on("error", lostChild);
+      started.on("exit", lostChild);
+      started.on("disconnect", lostChild);
+      post = (batch) => { started.send(batch, (error) => { if (error != null) lostChild(); }); };
+    } catch { lostChild(); }
+  } else if (options.write == null) {
+    const started = new Worker(resolveRepoPath("reconstruction/dist/src/terminal/writer-worker.js"),
       { workerData: { level } });
-    worker.unref();
-    worker.on("message", () => { const done = pending; pending = null; done?.(); });
-    worker.on("error", fail);
-    worker.on("exit", fail);
+    worker = started;
+    started.unref();
+    started.on("message", reply);
+    started.on("error", fail);
+    started.on("exit", fail);
+    post = (batch) => { started.postMessage(batch); };
   }
-  const write: TerminalWriter = options.write ?? ((batch, done) => { pending = done; worker!.postMessage(batch); });
+  const write: TerminalWriter = options.write ?? ((batch, done) => { pending = done; post(batch); });
   // 頭の index で読み、半分を越えて読んだら詰める（落とす・送るたびに配列の先頭を消すと全件の移し替えになる）。
   const compact = () => {
     if (head > 1024 && head * 2 > queue.length) { queue.splice(0, head); head = 0; }
@@ -425,6 +458,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           queue.length = 0;
           head = 0;
           bytes = 0;
+          // P3-TW-D-CLOSE: 子の消滅を待たない（Windows の仕様が時刻を保証しない）。
+          if (child != null) { child.kill(); resolve(); return; }
           if (worker == null) { resolve(); return; }
           worker.off("exit", fail);
           if (finished) { worker.terminate().then(() => resolve(), () => resolve()); return; }

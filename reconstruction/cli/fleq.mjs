@@ -18,5 +18,6 @@ if (process.argv[1] != null && realpathSync(process.argv[1]) === import.meta.fil
     const { runCli } = await import("../dist/src/cli/cli.js");
     code = await runCli(argv);
   }
+  if (process.platform === "win32") process.exit(code); // P3-TW-D-EXIT: Windows の stdout は書く動作が呼び出しの中で終わるので待つ相手が無く、pipe の 0 byte の書き込みは止まらない保証が無い
   process.stdout.write("", () => process.exit(code));
 }
