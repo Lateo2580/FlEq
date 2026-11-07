@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c48d43917901c71a308643a0d7dda28fc1c05e33",
-    "sha256": "380f58051a6659887e2d0692a96444416e42065ccc062472338fce30827ddebf",
+    "sha256": "b8718a28d5f0aa21a3628efcbe8bf6bd11e922a746a1aa5df3e28bc7dd75ab91",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -162,7 +162,14 @@
         "reason": "番号は何を指すかが分かりにくいので薄くする。段の色は帯の左の縦線と同じ字の色を使う。P3-TO-D-PROMPT の「色を付けない」をこの 3 つだけ改める"
       }
     ],
-    "questionResolutions": [],
+    "questionResolutions": [
+      {
+        "id": "Q-TP-DELIVERY",
+        "status": "closed",
+        "source": "2026-11-07 起草",
+        "closed": "起草はヘルツ 2 巡（条件付き GO）と Opus 1 巡（条件付き GO）の指摘を当てた。実装（Opus の子、worktree）。r0 は契約適合 Opus GO、品質ヘルツ NO-GO（見送った書き直しで取消済みの字が残る）。r1 で repl.ts の見送りの覚え、空の字の「（読めず）」、並びの試験を足し、ヘルツ GO。目視の指摘で色（Q-TO6-COLOR）と区分の太字を足した。この 2 件はレビューを回さず、変異で試験の効きを確かめた。Mac mini のゲート d1-r3 は 11 本 rc 0（commit a2b5af87 は patch と同じ byte）。Node 22.23.3 の pty で色の有無のカーソルの一致を確かめた。2026-11-07 に作者が写しの目視を OK とした。a2b5af87 まで push、CI run 42366305826 success。remaining なし"
+      }
+    ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
       "rule": "入力の行の現況は operation が normal の view の値だけを読む。training と test は載せない（P3-TP-D-DRILL）。origin=replay を operation:test と同一視しない（spec:651）。replay で受けた normal の報は載る"
