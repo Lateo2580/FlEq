@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8644ab3aa6c29ccc2b928df8d72d7b3d5b1efa1f",
-    "sha256": "f104875de0e0de0bed818213ccb2b50059d1eaf8b89261510e17a9c7e8634a56",
+    "sha256": "2ddd22f3a72a24850cf94c2b2ad04f5b1df76b89fc878c8290fb9cebd8ff8ddc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -58,7 +58,7 @@
     "contractId": "P3-VOLCANO-RAISE-001",
     "mode": "implementation",
     "objective": "U-V の H27 の段を kind と active な landKind の高い方で読む。Lv5 の火山に 13:10 の海上警報が来た後、切断の間に何も上がっていないのに 13:30 の取り直しで info が鳴ることが無くなり、本当に上がった火山は kind が海上の 36 のままでも info が鳴る",
-    "baseOid": "unassigned",
+    "baseOid": "568795fb",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",

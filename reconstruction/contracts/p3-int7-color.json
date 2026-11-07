@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8644ab3aa6c29ccc2b928df8d72d7b3d5b1efa1f",
-    "sha256": "efcbc21fff7dcb37d8c94ed28326da06d75e6ff510d18647f5b184a5d3095de2",
+    "sha256": "bcb8597184acbf0b21d04400496ed6fe74aa9c06cdb500745248077e7cace3b9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -59,7 +59,7 @@
     "contractId": "P3-INT7-COLOR-001",
     "mode": "implementation",
     "objective": "ディスプレイの震度 7 を白の面に黒い字にする。23:15 に震度 7 の報が届いたとき、7 の面が 6 強より暗く沈まず、端末の震度 7 と同じ形で最も重く読める。切替を待たず今の Pi の画面にも入る",
-    "baseOid": "unassigned",
+    "baseOid": "568795fb",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
