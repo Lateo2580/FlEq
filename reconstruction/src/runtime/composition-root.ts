@@ -27,7 +27,7 @@ import type {
   ShutdownSummary, WallBasis, DiagnosticReason,
 } from "../../contracts/p2-shared-runtime.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
-import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types";
+import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types"; import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types"; import type { BulletinTextRequest, BulletinTextResponse } from "../../contracts/p3-bulletin-text-api.types";
 import type {
   ExecutionPlace, OwnerOutput, OwnerReply, OwnerRequest, OwnerUnitDelta, ParserEnvelope, WriteCounts,
 } from "../../contracts/p3-execution-split.types";
@@ -2377,7 +2377,7 @@ type Freshness = {
 };
 
 const DETAIL_LIMIT = 8;
-const DETAIL_MS = 2_000; type DetailRequest = WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest; type DetailResponse = WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse;
+const DETAIL_MS = 2_000; type DetailRequest = WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest; type DetailResponse = WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse;
 type DetailEntry = { place: ExecutionPlace; request: DetailRequest; resolve: (response: DetailResponse) => void;
   due: number; timer: NodeJS.Timeout; settled: boolean; released: boolean };
 

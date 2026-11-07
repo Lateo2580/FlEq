@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d07d5ac73a2453c4f8475e39cf76afc98ba2c2d0",
-    "sha256": "a2bd1a1eda26f37d1c67d62a1768ed345f4fef2431821870fffc112777883dc0",
+    "sha256": "7af0b0787861a490e84f9fbbdc2adffc62fb422680e061fb8bd5e9ae4c5372d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -541,7 +541,7 @@
         "target": "outstanding requests per owner",
         "limit": 1,
         "unit": "outstanding request per kind per owner, except intentUpdate at most 2 per notification channel (one reservation and one result update) and checkpointGrant at most 1 per unit of the owner (P3-UNIT-WRITE-RIGHT-001; previously one in the whole process and 9 per owner), so at most 8 per owner plus the owner's unit count, plus one detail request for the deferred and weatherCurrent owners (one in flight across them; P3-UF-PUBLIC-001 and P3-UW-CANON-001, revised at their delivery)",
-        "scope": "inputはmailboxのin-flight（RES-01）。deadlineは未完了1件で、未完了の間のtickは送らず、次のtickで最新の時計を送る（合流）。checkpointGrantはそのownerのunitごとに1件（RES-03。P3-UNIT-WRITE-RIGHT-001で全体1件から改訂）。restore・shutdownInput・finalizeは各1回。detail（U-F・U-Wの詳細の1ページ）はdeferredとweatherCurrentのownerに合わせて未完了1件（P3-UF-PUBLIC-001のRES-06・P3-UW-CANON-001で改訂）。ownerが止まっても要求は増えない",
+        "scope": "inputはmailboxのin-flight（RES-01）。deadlineは未完了1件で、未完了の間のtickは送らず、次のtickで最新の時計を送る（合流）。checkpointGrantはそのownerのunitごとに1件（RES-03。P3-UNIT-WRITE-RIGHT-001で全体1件から改訂）。restore・shutdownInput・finalizeは各1回。detail（U-F・U-Wの詳細の1ページとU-V・U-Nの本文）はdeferred・weatherCurrent・urgentのownerに合わせて未完了1件（P3-UF-PUBLIC-001のRES-06・P3-UW-CANON-001・P3-BULLETIN-TEXT-API-001で改訂）。ownerが止まっても要求は増えない",
         "source": "独立レビュー（2026-10-01）P1-3"
       }
     ],
@@ -746,7 +746,7 @@
       },
       {
         "id": "P3-C3A-AC15",
-        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantはそのownerのunitごとに1件（P3-UNIT-WRITE-RIGHT-001で全体1件から改訂）。detailはdeferredとweatherCurrentのownerに合わせて未完了1件まで（P3-UF-PUBLIC-001・P3-UW-CANON-001で改訂）。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）。ただし非緊急のownerへは、publisherがそのownerのunitの保存中の留保（P3-UWR-AC04、1,000msまで）の間だけ次のparser入力を送らない（urgentは留保しない。P3-UNIT-WRITE-RIGHT-001のAC10(3)で改訂）。recovery〔open・adopt・discard〕はownerごとに未完了1件で、1要求に返信recoveryDoneが1つ〔opened・discarded・adopted・generationConflict・unsatisfied〕。publisherは返信を受けてから同じownerに次のrecoveryを送る（P3-RECOVERY-001の発注3、P3-REC-AC05により統合担当が改訂）",
+        "requirement": "owner宛て要求の有界性（RES-09）: owner宛てのcontrol要求はmailboxに数えず、種別ごとの固定上限で有界にする。deadlineは未完了1件までで、未完了の間のtickは送らず、次のtickで最新の時計を送る。intentUpdateはchannelごとに予約1件と結果の更新1件まで。checkpointGrantはそのownerのunitごとに1件（P3-UNIT-WRITE-RIGHT-001で全体1件から改訂）。detailはdeferred・weatherCurrent・urgentのownerに合わせて未完了1件まで（P3-UF-PUBLIC-001・P3-UW-CANON-001・P3-BULLETIN-TEXT-API-001で改訂）。ownerが返信しなくなっても要求は増えない。ownerはcheckpointのI/Oの完了を待つ間も後続の要求（入力・期限・intent更新）を処理する（checkpointDoneは操作が終わった時点の適用順で送る）。ただし非緊急のownerへは、publisherがそのownerのunitの保存中の留保（P3-UWR-AC04、1,000msまで）の間だけ次のparser入力を送らない（urgentは留保しない。P3-UNIT-WRITE-RIGHT-001のAC10(3)で改訂）。recovery〔open・adopt・discard〕はownerごとに未完了1件で、1要求に返信recoveryDoneが1つ〔opened・discarded・adopted・generationConflict・unsatisfied〕。publisherは返信を受けてから同じownerに次のrecoveryを送る（P3-RECOVERY-001の発注3、P3-REC-AC05により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1056 «5a36cc2957d9d9a9»",
           "docs/specs/reconstruction-p0-contracts.md:676 «2a94f20f4e770c22»",

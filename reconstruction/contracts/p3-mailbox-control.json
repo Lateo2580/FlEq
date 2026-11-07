@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6e152f854c4e2545d3a7fddd1a4a0bec964e60be",
-    "sha256": "197ce6e9edd37c35a24fc057837fb37e1350870f6ca58ec08965d65573604567",
+    "sha256": "ee9e8da58a7dc734d467af51d5bdc242df1c06a78d863177929138c1c19f89d9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -162,8 +162,8 @@
           "reconstruction/src/host/host.ts:329 «5b89989a2cbeec6d»",
           "reconstruction/src/host/host.ts:336 «ebafe9ce4f4258a4»",
           "reconstruction/src/runtime/composition-root.ts:848 «74a333b1aa9739cc»",
-          "reconstruction/contracts/p3-execution-split.json:749 «6c024fec33426979»",
-          "reconstruction/contracts/p3-execution-split.json:544 «f72484d727734623»",
+          "reconstruction/contracts/p3-execution-split.json:749 «7d09c9ca24642b28»",
+          "reconstruction/contracts/p3-execution-split.json:544 «0b59dd2d94d77761»",
           "reconstruction/contracts/p3-execution-boundary.md:24 «778675a95e83f912»"
         ]
       },
@@ -181,7 +181,7 @@
         "requirement": "共有型から消すもの（P3-MC-D-TYPES=A）: p2-shared-runtime.types.ts の MailboxControl、MailboxEnvelope と MailboxCompletion の control の variant、MailboxPriorityReason の \"control\"（parser の variant の priorityReason は Exclude をやめて MailboxPriorityReason そのものにする）、MailboxStats の inFlightControlMessageIds と nextDeadlineMonotonicMs。ほかの型・ほかの行は触らない（行のずれは統合担当が他の契約の anchor を引き直す。artifactRequirements の改訂の項）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-mailbox.json:382 «c0e422b70ffefdfc»",
-          "reconstruction/contracts/p3-execution-split.json:749 «6c024fec33426979»"
+          "reconstruction/contracts/p3-execution-split.json:749 «7d09c9ca24642b28»"
         ]
       },
       {

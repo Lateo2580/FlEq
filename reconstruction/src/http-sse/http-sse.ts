@@ -16,7 +16,7 @@ import type {
   SseEvent,
   SseTransition,
 } from "../../contracts/p2-snapshot-sse.types";
-import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types";
+import type { WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../contracts/p2-weather-timeseries-unit.types"; import type { WeatherCurrentDetailRequest, WeatherCurrentDetailResponse } from "../../contracts/p3-uw-canon.types"; import type { BulletinTextRequest, BulletinTextResponse } from "../../contracts/p3-bulletin-text-api.types"; import { validInputId } from "../contracts-revision/version";
 
 // P2-SNAPSHOT-SSE-001 RES-02, DLV-01, DLV-02.
 const CLIENT_LIMIT = 8;
@@ -32,8 +32,8 @@ const DETAIL_URL_BYTES = 1_024;
 const DETAIL_MS = 2_000;
 const DETAIL_STATUS = { ok: 200, invalidRequest: 400, versionChanged: 409, busy: 429, unavailable: 503, timeout: 504 } as const;
 
-type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest }>) =>
-  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse>; done: () => void }>;
+type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest }>) =>
+  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse>; done: () => void }>;
 
 // 欄は項目ごとに確かめて組み立てる。重複・欠け・形の違いは invalid。
 function parseDetail(url: string): Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }> | null {
@@ -57,7 +57,7 @@ function sendJson(response: ServerResponse, status: number, body: string): void 
 
 function serveDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, response: ServerResponse): void {
   const admitted = performance.now();
-  const parsed = ((request.url ?? "").split("?")[0] === WEATHER_DETAIL_PATH ? parseWeatherDetail : parseDetail)(request.url ?? ""); // P3-UWC-AC07 (4)
+  const url = request.url ?? "", path = url.split("?")[0], unit = BULLETIN_TEXT_UNITS.get(path), parsed = unit != null ? parseBulletinText(url, unit) : (path === WEATHER_DETAIL_PATH ? parseWeatherDetail : parseDetail)(url); // P3-UWC-AC07 (4)・P3-BT-AC01
   if (parsed == null) return sendJson(response, 400, JSON.stringify({ kind: "error", reason: "invalidRequest", revision: null }));
   const { response: pending, done } = detail(parsed);
   let ended = false, answered = false;
@@ -79,7 +79,7 @@ function serveDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, 
     if (ended || answered || response.destroyed) return;
     answered = true;
     // 書き出しの時点で期限を過ぎていれば、答えの中身にかかわらず timeout を書く。
-    const answer: WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse = performance.now() - admitted >= DETAIL_MS
+    const answer: WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse = performance.now() - admitted >= DETAIL_MS
       ? { kind: "error", reason: "timeout", revision: null } : result;
     sendJson(response, DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason], JSON.stringify({ streamId: parsed.streamId, ...answer }));
   });
@@ -205,7 +205,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
       const result = handleSnapshot(latest);
       return json(response, result.status, result.status === 200 ? latestJson : JSON.stringify(result.body));
     }
-    if ((path === DETAIL_PATH || path === WEATHER_DETAIL_PATH) && options.detail != null) return serveDetail(options.detail, request, response);
+    if ((path === DETAIL_PATH || path === WEATHER_DETAIL_PATH || BULLETIN_TEXT_UNITS.has(path ?? "")) && options.detail != null) return serveDetail(options.detail, request, response);
     if (path !== "/events") return json(response, 404, JSON.stringify({ reason: "notFound" }));
     if (clients.size >= CLIENT_LIMIT) return json(response, 503, JSON.stringify({ reason: "clientLimit" }));
     response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store",
@@ -266,11 +266,17 @@ async function startDisplayServer(options: DisplayServerOptions) {
 // P3-UWC-AC07 (4): U-W の詳細の経路。要求の上限・stream の照合・誤りの本文は U-F の口と同じで、part と id の形だけが違う
 // （part=index か、part=areas|lastKnown と id）。欄は項目ごとに確かめて組み立て、重複・欠け・形の違いは invalid。
 const WEATHER_DETAIL_PATH = "/api/display/domains/U-W/detail";
-function parseWeatherDetail(url: string): Readonly<{ streamId: string; detail: WeatherCurrentDetailRequest }> | null {
+// P3-BT-AC01 (6): 要求の読み取りの先頭。U-W と U-V・U-N で共用する（U-F の parseDetail は他の契約が行を引くので別のまま）。
+function detailQuery(url: string): Readonly<{ params: URLSearchParams; one: (name: string) => string | null }> | null {
   if (Buffer.byteLength(url) > DETAIL_URL_BYTES) return null;
   let params: URLSearchParams;
   try { params = new URL(url, "http://localhost").searchParams; } catch { return null; }
-  const one = (name: string): string | null => { const all = params.getAll(name); return all.length === 1 ? all[0] : null; };
+  return { params, one: (name) => { const all = params.getAll(name); return all.length === 1 ? all[0] : null; } };
+}
+function parseWeatherDetail(url: string): Readonly<{ streamId: string; detail: WeatherCurrentDetailRequest }> | null {
+  const query = detailQuery(url);
+  if (query == null) return null;
+  const { params, one } = query;
   const streamId = one("streamId"), part = one("part"), revision = one("revision"), page = one("page"), id = one("id");
   if (streamId == null || !/^[\w-]{1,64}$/.test(streamId) || page == null || !/^\d{1,9}$/.test(page) || revision == null || !/^\d{1,16}$/.test(revision)) return null;
   if (part === "index")
@@ -278,6 +284,25 @@ function parseWeatherDetail(url: string): Readonly<{ streamId: string; detail: W
   if ((part === "areas" || part === "lastKnown") && id != null && /^[0-9a-f]{64}$/.test(id))
     return { streamId, detail: { unit: "U-W", part, id, revision, page: Number(page) } };
   return null;
+}
+
+// P3-BT-AC01: 火山の解説と南海トラフの情報の本文の経路。答えと期限は serveDetail のまま。id は view の subject で、unit と family の組は owner の探索が決める。
+const BULLETIN_TEXT_UNITS: ReadonlyMap<string, BulletinTextRequest["unit"]> = new Map([["/api/display/domains/U-V/detail", "U-V"], ["/api/display/domains/U-N/detail", "U-N"]]);
+const BULLETIN_SUBJECT = /^(?:normal|training|test)\/(?:VFVO51|VFVO60|VZVO40|VYSE50|VYSE51|VYSE52|VYSE60)\/[\x21\x23-\x2e\x30-\x5b\x5d-\x7e]{1,64}$/;
+// revision は view の source の inputId・reportDateTimeRaw・controlDateTimeRaw の JSON 配列（P3-BT-D-KEY）。一致は owner が見るので、ここは形だけ確かめる。
+function bulletinRevision(raw: string): boolean {
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { return false; }
+  if (!Array.isArray(value) || value.length !== 3) return false;
+  const [inputId, report, control]: readonly unknown[] = value;
+  return typeof inputId === "string" && validInputId(inputId) && typeof report === "string" && report.length <= 40 && typeof control === "string" && control.length <= 40;
+}
+function parseBulletinText(url: string, unit: BulletinTextRequest["unit"]): Readonly<{ streamId: string; detail: BulletinTextRequest }> | null {
+  const query = detailQuery(url);
+  if (query == null) return null;
+  const streamId = query.one("streamId"), part = query.one("part"), id = query.one("id"), revision = query.one("revision");
+  if (streamId == null || !/^[\w-]{1,64}$/.test(streamId) || part !== "text" || id == null || !BULLETIN_SUBJECT.test(id) || revision == null || !bulletinRevision(revision)) return null;
+  return { streamId, detail: { unit, part, id, revision } };
 }
 
 export { handleHealth, handleSnapshot, handleSse, serveDetail, startDisplayServer };

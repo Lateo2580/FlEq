@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e340e4c8aa03de71a4373e38284ca954555ee6db",
-    "sha256": "18ebfd6725711d1a7b6d81c4dc13069f94290e9f108cf25b5f27e347662f9de5",
+    "sha256": "76b0c75bbe57d73f65c4c1e7b3f400f178eb74c6115259939c9ffa4c7eaa783a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -110,7 +110,7 @@
         "id": "Q-BT-RESIDUAL",
         "status": "closed",
         "source": "2026-11-08 ヘルツの再レビューと統合担当の決定",
-        "closed": "U-N の復元の後に容量の退去を挟むと、同じ stream の中で A の鍵に B の本文が返る列が残る（P3-BT-D-KEY）。統合担当の決定で仕組みを足さず残存リスクとして残す。同じ subject で両方の時刻が同じ報は同じ電文の再送で、返るのはその subject の最新の本文だから"
+        "closed": "U-N の復元の後に容量の退去を挟むと、同じ stream の中で A の鍵に B の本文が返る列が残る（P3-BT-D-KEY）。統合担当の決定で仕組みを足さず残存リスクとして残す。同じ subject で両方の時刻が同じ報は同じ電文の再送で、返るのはその subject の最新の本文だから。もう 1 つの残存リスク: EEW の入力が続いて urgent の返信待ちが切れないと、待ち行列の先頭の U-V・U-N の要求が最長 2 秒止まり、後ろの U-F・U-W の要求も timeout しうる（P3-BT-D-LINE=A の範囲で、コードは変えない）"
       },
       {
         "id": "Q-BT-NOT-CARRIED",
@@ -504,7 +504,7 @@
       "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
       "P3-BT-RES-06 の測定の p99 と最大、測った機械",
       "check-contract の FAIL の一覧（P3-BT-AC06 (5) の 6 件と一致すること）",
-      "残存リスクに P3-BT-D-KEY の退去を挟む列を書く",
+      "残存リスクに P3-BT-D-KEY の退去を挟む列と、urgent の返信待ちが続くと待ち行列の先頭の要求が最長 2 秒止まり後ろの U-F・U-W も timeout しうることを書く",
       "既存の試験の絞り込みを足したときは、試験名と足した理由。期待は変えない"
     ],
     "unresolvedQuestions": []
