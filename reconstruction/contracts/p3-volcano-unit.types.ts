@@ -58,7 +58,7 @@ type VolcanoAlertFacts = Readonly<{
   lastKind: Readonly<{ code: string; name: string }> | null;
   // 11〜15 の code だけが数値の level を持つ。非数値の区分（22・23・36 など）は null。
   level: 2 | 3 | 4 | 5 | null;
-  headline: string | null;
+  headline: string | null; prevention?: string; // P3-RDT-AC01: VFVO50 の防災事項（電文の字のまま、字のある記録だけが鍵を持つ）
   municipalities: readonly VolcanoAreaGroup[];
   marineAreas: readonly VolcanoAreaGroup[];
   coordinate: string | null;

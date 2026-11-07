@@ -144,7 +144,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect(mark).toEqual({ parts: [{ site: "series", reason: "requiredStructureInvalid", scope: station.code,
       raw: "<jmx_eb:WaterLevel type=\"水位\" refID=\"2\">abc</jmx_eb:WaterLevel>" }], headline: headlineOf(R.fixtureXml("16_02_01_220728_VXKO50")) });
     const restored = floodUnitCodec.decode(json(floodUnitCodec.encode(broken.state)));
-    expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(broken.state.currents);
+    expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(floodUnitCodec.encode(broken.state).currents);
     expectView(toFloodView(broken.state).currents[0], mark!);
     await rejectsPrevious("U-R", "p3-flood-unit-v7");
   });
@@ -375,7 +375,7 @@ describe("P3-UNREADABLE-MARK-001 order 1", () => {
     expect(before.effective === "active" && after.effective === "active" ? [after.basisReportDateTimeRaw != null, after.stations, after.unreadable]
       : null).toEqual([true, before.effective === "active" ? before.stations : null, before.effective === "active" ? before.unreadable : null]);
     const restored = floodUnitCodec.decode(json(floodUnitCodec.encode(second.state)));
-    expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(second.state.currents);
+    expect(restored.kind === "restored" ? restored.state.currents : null).toEqual(floodUnitCodec.encode(second.state).currents);
   });
 
   // regression: r1 ヘルツ P2-2（AC03 (4)）。原文が予算ちょうどの normal の官署 512 件に、原文を持つ 513 件目の官署の報: 仮の state では

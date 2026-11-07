@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "9c9fc3d3a68bcda9c39f7685ca7422257e71deee4a55033ecaadef8067d6fa2f",
+    "sha256": "9138f7d0e9d87afcbf117d7d68065b8b0cd74939c101c523bfa6ece3009c0a6a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -213,7 +213,7 @@
         "target": "U-Vのdecoder形状の静的上界",
         "limit": 5180592,
         "unit": "JSON UTF-8 byte、envelopeと配送予約込み",
-        "scope": "K5のRES-04の4,753,484に警報128件×164 byte（landEventId・marineEventId各64字）を足す。世代の上限5,242,880は変えない（余り468,404）。K7の発注2aでControl/DateTimeと系列ごとの未確認の印を足して5,180,592（余り62,288、Q-VM-IMPL-2A）（今の器は U-V 9,178,967 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "scope": "K5のRES-04の4,753,484に警報128件×164 byte（landEventId・marineEventId各64字）を足す。世代の上限5,242,880は変えない（余り468,404）。K7の発注2aでControl/DateTimeと系列ごとの未確認の印を足して5,180,592（余り62,288、Q-VM-IMPL-2A）（今の器は U-V 9,967,447 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-RESTORE-DROPPED-TEXT-001 の AC03 で広げた）",
         "source": "P3-CODEC-RES-04・Q-AUTH-BOUND"
       },
       {
@@ -327,7 +327,7 @@
       },
       {
         "id": "P3-AUTH-AC06",
-        "requirement": "保存の形・上界・移行（永続schemaの変更は旧データの移行と復元試験の1セット、P3-X-C4）: (1) 新しい鍵を足し、encodeは常に新しい鍵を書く。版と旧保存はP3-VERSION-MATERIAL-001のAC05・AC08で置き換えた（P3-VM-AC09(6)により統合担当が改訂）: schemaVersionはp3-nankai-unit-v3・p3-volcano-unit-v3で、旧い版は捨ててよい版として初期化し、鍵の無いpayload（U-Nのevidence、U-Vの警報のlandEventId・marineEventIdの鍵が無い形）はinvalid。(2) 移行A1は消した（旧保存を読まない）。(3) 上界: U-NはRES-01（証拠64件の上界12,045 byteを足して273,259、上限294,912）（P3-UNIT-N-SERIES-001 で情報系列を全文で保存し、上限は 2,621,440 byte、P3-NS-RES-01）、U-VはRES-02（4,774,476、上限5 MiBのまま）。K7の発注2aの後はU-N 280,060・U-V 5,180,592（Q-VM-IMPL-2A）。K5の方式（decoderの許す範囲をJSONエスケープ後のUTF-8 byteで数え、envelope・配送の予約を足す）で、試験は新しいfieldをdecoderの許す最長（EventID 64字）で埋めた状態でencode→decodeがrestoredかつ上界以内であることを確かめる。U-Wは形を変えないので上界と移行は無い。(4) codec・stateの外へ新しいcache・帳簿を足さない（記録ごとのbyte cacheと証拠の射影のcacheだけ）。（今の器は U-N 3,139,385・U-V 9,178,967 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "保存の形・上界・移行（永続schemaの変更は旧データの移行と復元試験の1セット、P3-X-C4）: (1) 新しい鍵を足し、encodeは常に新しい鍵を書く。版と旧保存はP3-VERSION-MATERIAL-001のAC05・AC08で置き換えた（P3-VM-AC09(6)により統合担当が改訂）: schemaVersionはp3-nankai-unit-v3・p3-volcano-unit-v3で、旧い版は捨ててよい版として初期化し、鍵の無いpayload（U-Nのevidence、U-Vの警報のlandEventId・marineEventIdの鍵が無い形）はinvalid。(2) 移行A1は消した（旧保存を読まない）。(3) 上界: U-NはRES-01（証拠64件の上界12,045 byteを足して273,259、上限294,912）（P3-UNIT-N-SERIES-001 で情報系列を全文で保存し、上限は 2,621,440 byte、P3-NS-RES-01）、U-VはRES-02（4,774,476、上限5 MiBのまま）。K7の発注2aの後はU-N 280,060・U-V 5,180,592（Q-VM-IMPL-2A）。K5の方式（decoderの許す範囲をJSONエスケープ後のUTF-8 byteで数え、envelope・配送の予約を足す）で、試験は新しいfieldをdecoderの許す最長（EventID 64字）で埋めた状態でencode→decodeがrestoredかつ上界以内であることを確かめる。U-Wは形を変えないので上界と移行は無い。(4) codec・stateの外へ新しいcache・帳簿を足さない（記録ごとのbyte cacheと証拠の射影のcacheだけ）。（今の器は U-N 3,139,385・U-V 9,967,447 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-RESTORE-DROPPED-TEXT-001 の AC03 で広げた）",
         "evidenceRefs": [
           "reconstruction/src/units/nankai/nankai-unit.ts:833 «00a726d0e7e3b6c3»",
           "reconstruction/src/units/nankai/nankai-unit.ts:77 «b4c21dc55c5ac2eb»",
@@ -361,7 +361,7 @@
           "docs/specs/reconstruction-p0-contracts.md:477 «ccaa9bd541ce098b»",
           "docs/specs/reconstruction-p0-contracts.md:512 «956efb4bb14e96b6»",
           "reconstruction/contracts/p3-volcano-unit.json:96 «a23cec5f9c0eabb9»",
-          "reconstruction/contracts/p3-volcano-unit.json:350 «e46e1b02cca1b3a3»",
+          "reconstruction/contracts/p3-volcano-unit.json:350 «cd817be1c2319471»",
           "reconstruction/contracts/p3-volcano-unit.json:355 «f0faebbc97be833b»",
           "reconstruction/contracts/p3-volcano-unit.json:372 «ba21c2d0b72625b5»",
           "reconstruction/contracts/p3-volcano-unit.json:349 «9cee635bf52371e1»",
@@ -375,7 +375,7 @@
       },
       {
         "id": "P3-AUTH-AC08",
-        "requirement": "既存試験の期待値の変更（起草時の試作で確かめた全部。理由はどれもD-EVIDENCE=Aで証拠を保存すること）: nankai-unit.test.ts (1) P3-C8-T05（payloadの鍵にevidenceが入る、decode・restoreの後のinformationが空でなく証拠だけの記録になる）、(2) P3-C8-T06 regression（情報だけのrevisionOnly・期限の回収で保存世代が進む）、(3) P3-C8-T08 corpusHistory（O07:38の復元の後のinformationが証拠だけの記録。O07の決定は変わらない）、(4) P3-CODEC-T02（上界の比較を証拠64件を足した273,259へ。K7の発注2aで280,060）。volcano-unit.test.ts (5) P3-CODEC-T01（f08Stateの開始の件数を109から108へ: 新fieldで開始が4 MiBを超えるため。開始≤4 MiB・1報後＞4 MiBという試験の意味は同じ）、(6) P3-CODEC-T02（decoderMaxでlandEventId・marineEventIdを64字まで埋め、上界の比較を4,774,476へ。AC07の計測のstaticBoundの記録も同じ値へ。K7の発注2aで5,180,592）。これ以外の期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。試験の型の絞り込み（NankaiInformationの変種で.sourceを読む3箇所）は期待値の変更でない。weather-current-unit.test.tsの既存試験は無変更で通った（Q-AUTH-PROTOTYPE）。（今の器は U-N 3,139,385・U-V 9,178,967 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "既存試験の期待値の変更（起草時の試作で確かめた全部。理由はどれもD-EVIDENCE=Aで証拠を保存すること）: nankai-unit.test.ts (1) P3-C8-T05（payloadの鍵にevidenceが入る、decode・restoreの後のinformationが空でなく証拠だけの記録になる）、(2) P3-C8-T06 regression（情報だけのrevisionOnly・期限の回収で保存世代が進む）、(3) P3-C8-T08 corpusHistory（O07:38の復元の後のinformationが証拠だけの記録。O07の決定は変わらない）、(4) P3-CODEC-T02（上界の比較を証拠64件を足した273,259へ。K7の発注2aで280,060）。volcano-unit.test.ts (5) P3-CODEC-T01（f08Stateの開始の件数を109から108へ: 新fieldで開始が4 MiBを超えるため。開始≤4 MiB・1報後＞4 MiBという試験の意味は同じ）、(6) P3-CODEC-T02（decoderMaxでlandEventId・marineEventIdを64字まで埋め、上界の比較を4,774,476へ。AC07の計測のstaticBoundの記録も同じ値へ。K7の発注2aで5,180,592）。これ以外の期待値・入力の変更が要ると分かったら、変えずに止めて差と理由を統合担当へ報告する（AGENTS.md）。試験の型の絞り込み（NankaiInformationの変種で.sourceを読む3箇所）は期待値の変更でない。weather-current-unit.test.tsの既存試験は無変更で通った（Q-AUTH-PROTOTYPE）。（今の器は U-N 3,139,385・U-V 9,967,447 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-RESTORE-DROPPED-TEXT-001 の AC03 で広げた）",
         "evidenceRefs": [
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:317 «12eb6da146797fd0»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:318 «ee3cb32cb0a583b3»",

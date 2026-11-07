@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "f1a8cc1444ab040a608e1225c0752320c68d0556deb48e219d75b4b01c08cb5d",
+    "sha256": "90877266f533f6f7cb7e156f04319eaf1f08b567ab562477477c6d31165294e0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -555,7 +555,7 @@
           "reconstruction/contracts/p3-eew-gate-evict.json:219 «e50c23af5cc04e51»",
           "reconstruction/contracts/p3-tsunami-unit.json:67 «355aee4c18970504»",
           "reconstruction/contracts/p3-local-bulletins-unit.json:128 «07cdd9586dbaddfd»",
-          "reconstruction/contracts/p3-authority-evidence.json:330 «b4315d3b04c4a2de»",
+          "reconstruction/contracts/p3-authority-evidence.json:330 «a9935dee3adaa308»",
           "reconstruction/contracts/p3-authority-evidence.json:448 «153fac1d89de1f21»",
           "reconstruction/contracts/p3-currency-coverage.json:114 «2494236b0bc1412e»",
           "reconstruction/contracts/p3-currency-coverage.json:497 «a0322c8f49a7e7c6»",

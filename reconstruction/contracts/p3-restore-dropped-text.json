@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "62100aa73e18ead2e116f1493e902317671d81a4",
-    "sha256": "7704da30204781349f3f077403cda380e809acd74160bcbb284f04e4cfebec2e",
+    "sha256": "026aa3cb677ccaa5fc9fb740e7968bd72d9655ee30b09be07b66332eef994a83",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -425,7 +425,7 @@
       },
       {
         "id": "P3-RDT-AC10",
-        "requirement": "原文への注記（統合担当が配送の commit で当て、当てた契約の meta.sha256 を取り直す。閉じた契約の裁定の字は書き換えず、各項の末尾に括弧で足す）: (1) p3-volcano-unit.json の legalMissing の「VolcanoActivity・VolcanoPreventionは状態に入れず」の項、I-U-V.view、nonPersistedFields の同じ字の行: 「（VFVO50 の VolcanoPrevention は警報の記録の prevention に持つ、P3-RESTORE-DROPPED-TEXT-001）」 (2) 同 file の persistedFields の警報の行に prevention、I-U-V.bounds に prevention 1,024 (3) 同 file の P3-C9-RES-01 の limit 9178967、I-U-V.decode と P3-C9-CAPACITY の U-V の値 9,178,967、p3-codec-closure.json の RES-04 と AC03 の同じ字、p3-unreadable-mark.json の RES-09 の U-V の値: 9,967,447 へ（128 × 6,160 を足した）と注記する (4) p3-flood-unit.json の P3-C11-FACTS の A と reason、P3-C11-HANDOFF の C19 の行、nonPersistedFields の「Body/Warning（主文・浸水想定地区）」の行、outOfScope の「雨量・浸水想定地区・氾濫水の予報の端末出力」の行: 「（浸水想定地区は view に持ち保存しない、P3-RESTORE-DROPPED-TEXT-001）」 (5) 同 file の I-U-R.currentSemantics (4) の公開事実の列に inundation (6) spec §7 の full の行は統合担当が起草の commit で足した（P3-VIEW-ALERT-TEXT-001 の evidenceRefs の anchor を付け直した）。無いと: 閉じた契約が「状態に入れず」「読まない」のまま残り、次の起草が古い前提で読む",
+        "requirement": "原文への注記（統合担当が配送の commit で当て、当てた契約の meta.sha256 を取り直す。閉じた契約の裁定の字は書き換えず、各項の末尾に括弧で足す）: (1) p3-volcano-unit.json の legalMissing の「VolcanoActivity・VolcanoPreventionは状態に入れず」の項、I-U-V.view、nonPersistedFields の同じ字の行: 「（VFVO50 の VolcanoPrevention は警報の記録の prevention に持つ、P3-RESTORE-DROPPED-TEXT-001）」 (2) 同 file の persistedFields の警報の行に prevention、I-U-V.bounds に prevention 1,024 (3) 世代の上限の今の値は本契約の実装の commit で 9,967,447 へ揃えた: p3-codec-closure.json 12 か所、p3-volcano-unit.json 4 か所と P3-C9-RES-01 の limit の数値と unit の説明、p3-authority-evidence.json 3 か所。p3-unreadable-mark.json の 2 か所（RES-09 の 5,242,880→9,178,967 と発注 3 の配送の記録）は歴史の記録なので値を残す (4) p3-flood-unit.json の P3-C11-FACTS の A と reason、P3-C11-HANDOFF の C19 の行、nonPersistedFields の「Body/Warning（主文・浸水想定地区）」の行、outOfScope の「雨量・浸水想定地区・氾濫水の予報の端末出力」の行: 「（浸水想定地区は view に持ち保存しない、P3-RESTORE-DROPPED-TEXT-001）」 (5) 同 file の I-U-R.currentSemantics (4) の公開事実の列に inundation (6) spec §7 の full の行は統合担当が起草の commit で足した（P3-VIEW-ALERT-TEXT-001 の evidenceRefs の anchor を付け直した） (7) 注記: VFSV の報も同じ読みの行を通るので、VFSV の outcome の volcanoPrevention も 1,024 字を越えると末尾に … が付く。無いと: 閉じた契約が「状態に入れず」「読まない」のまま残り、次の起草が古い前提で読む",
         "evidenceRefs": [
           "reconstruction/contracts/p3-volcano-unit.json:30 «35b1f75eaa50e2b7»",
           "reconstruction/contracts/p3-flood-unit.json:54 «30e452ef75a33c6b»",

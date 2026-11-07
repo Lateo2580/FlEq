@@ -55,7 +55,7 @@ function cut(value: string, limit: number): string {
   if (value.length <= limit) return value;
   const head = value.slice(0, limit);
   return /[\ud800-\udbff]$/.test(head) ? head.slice(0, -1) : head;
-}
+} const ellipsis = (value: string | null, limit: number): string | null => value == null || value.length <= limit ? value : `${cut(value, limit - 1)}…`; // P3-RDT-D-V-LIMIT: truncated は同じ版の比べに残るので、切ったことは字の末尾で見せる
 
 class Rejected extends Error {
   constructor(readonly reason: RejectionReason) { super(reason); }
@@ -342,7 +342,7 @@ function parseVolcano(material: DecodedMaterial): ParseResult {
         headline: headline(), municipalities: municipalities.groups, marineAreas: marine.groups,
         coordinate: coordinate != null && asciiCode(coordinate, LIMITS.coordinate) ? coordinate : null, marineCodes: marine.codes,
         activity: cut(blank(text(content, "VolcanoActivity")) ?? "", BOUNDS.activity) || null,
-        prevention: cut(blank(text(content, "VolcanoPrevention")) ?? "", BOUNDS.prevention) || null };
+        prevention: ellipsis(blank(text(content, "VolcanoPrevention")), BOUNDS.prevention) };
       return accepted({ ...base(volcanoCode), truncated, slice: "alert", facts });
     }
     if (family === "VFVO52" || family === "VFVO56") {

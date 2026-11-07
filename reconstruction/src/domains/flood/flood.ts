@@ -1,6 +1,6 @@
 import type { DecodedMaterial, Operation, XmlElement } from "../../../contracts/p1-parser-boundary.types";
 import type { DiagnosticDetails, RejectionReason, ReportRef, UnreadableMark } from "../../../contracts/p2-shared-runtime.types";
-import type { FloodCriteria, FloodKindGroup, FloodRiver, FloodStation, FloodUnreadableSite } from "../../../contracts/p3-flood-unit.types";
+import type { FloodCriteria, FloodInundationArea, FloodInundationGroup, FloodKindGroup, FloodRiver, FloodStation, FloodUnreadableSite } from "../../../contracts/p3-flood-unit.types";
 import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { controlDateTimeOf } from "../../contracts-revision/version";
 import { unreadableNotes } from "../../units/unreadable"; import { attribute, children, localName, scalar } from "../../decode-material/xml-read";
 
@@ -20,7 +20,7 @@ const CRITERIA: readonly (readonly [keyof FloodCriteria, RegExp])[] = [["level4P
 // 観測所の名前は (code, name) の identity なので切らない。上限を超えた名前の観測所はその観測所だけを捨てる（外部監査 F13、統合担当の決定）。
 const BOUNDS = { title: 128, areaName: 64, name: 32, stationName: 48, headline: 256 } as const;
 const LIMITS = { reportDateTime: 40, controlDateTime: 40, infoType: 8, eventId: 40, riverCode: 16, stationCode: 20, groups: 16, rivers: 32,
-  stations: 20, points: 40, sections: 4 } as const;
+  stations: 20, points: 40, sections: 4, inundationBytes: 32_768, inundationGroups: 2, inundationText: 256 } as const;
 
 const validHeadType = (value: string): boolean => /^(?:VXKO[5-8]\d|VXSU5\d)$/.test(value);
 const validEventId = (value: string): boolean => value.length <= LIMITS.eventId && /^[\x21-\x7e]+$/.test(value);
@@ -57,7 +57,7 @@ function cut(value: string, limit: number): string {
 type FloodCandidate = Readonly<{
   operation: Operation; headType: string; eventId: string; subject: string; source: ReportRef; reportDateTimeMs: number;
   infoRank: number; cancelled: boolean; title: string; areaName: string; headline: string | null; kinds: readonly FloodKindGroup[];
-  times: readonly string[]; stations: readonly FloodStation[]; truncated: boolean; unreadable: UnreadableMark | null;
+  times: readonly string[]; stations: readonly FloodStation[]; inundation: readonly FloodInundationGroup[]; truncated: boolean; unreadable: UnreadableMark | null;
   // P3-UM-AC05 (1)（保存しない）: 現況の観測レベルの最大を確定できない版（観測所を丸ごと除いたか、現況のレベル・時刻が読めない）。
   observedUnknown: boolean;
 }>;
@@ -125,7 +125,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
   const cancelled = infoRank === 3;
 
   let areaName = "", headline: string | null = null;
-  let kinds: FloodKindGroup[] = [], times: string[] = [], stations: FloodStation[] = [];
+  let kinds: FloodKindGroup[] = [], times: string[] = [], stations: FloodStation[] = [], inundation: FloodInundationGroup[] = [];
   // 取消は Body と Headline を読まない（Q-ENUM.familyTable.legalMissing）。
   if (!cancelled) {
     const headlineNode = children(head, "Headline")[0] ?? null;
@@ -322,7 +322,7 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     if (built.length > LIMITS.stations) truncated = true;
     stations = (built.length <= LIMITS.stations ? built : [...built]
       .sort((left, right) => observed(right.station) - observed(left.station) || left.order - right.order)
-      .slice(0, LIMITS.stations).sort((left, right) => left.order - right.order)).map((item) => item.station);
+      .slice(0, LIMITS.stations).sort((left, right) => left.order - right.order)).map((item) => item.station); inundation = inundationOf(body);
   }
   if (missing) return reject("requiredStructureMissing", subject);
   if (invalid || infoRank == null || titleText == null) return reject("requiredStructureInvalid", subject);
@@ -330,7 +330,51 @@ function parseFlood(material: DecodedMaterial): ParseResult {
     source: { inputId: material.inputId, origin: material.origin, operation: material.operation, family: headType, subject,
       reportDateTimeRaw: material.reportDateTimeRaw, controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw, LIMITS.controlDateTime), serialRaw, infoTypeRaw },
     reportDateTimeMs: common.envelope.reportDateTimeMs, infoRank, cancelled, title: bound(titleText, BOUNDS.title), areaName, headline,
-    kinds, times, stations, truncated, unreadable: notes.mark(material.xml), observedUnknown } };
+    kinds, times, stations, inundation, truncated, unreadable: notes.mark(material.xml), observedUnknown } };
+}
+
+// P3-RDT-AC04・AC05: 浸水想定地区（旧築の flood-inundation-parser.ts と同じ Kind/Name の判定）。
+const INUNDATION_KINDS: ReadonlySet<string> = new Set(["浸水想定地区", "浸水想定地区（氾濫発生情報）"]);
+const leafText = (parent: XmlElement | null, name: string): string => {
+  const node = children(parent, name)[0];
+  return node == null ? "" : scalar(node) ?? "";
+};
+const encoder = new TextEncoder();
+const jsonBytes = (value: unknown): number => encoder.encode(JSON.stringify(value)).byteLength;
+// 区域は電文順の頭から入れ、入らなくなったら後ろは丸ごと数えるだけにする（字を途中で切ると地区の一覧が欠けても区域が残る）。
+// byte は要素ごとの加算（配列の括弧 2、group ごとに区切り 1 と omittedAreaCount の 10 桁の分 9、区域ごとに区切り 1）。
+function inundationOf(body: XmlElement | null): FloodInundationGroup[] {
+  const groups: (FloodInundationGroup & { areas: FloodInundationArea[]; omittedAreaCount: number })[] = [];
+  let used = 2, full = false;
+  for (const item of children(body, "Warning").flatMap((warning) => children(warning, "Item"))) {
+    const kind = children(item, "Kind")[0] ?? null, kindName = leafText(kind, "Name");
+    if (!INUNDATION_KINDS.has(kindName)) continue;
+    const text = leafText(children(kind, "Property")[0] ?? null, "Text");
+    const opened = { kindName, text: text.length <= LIMITS.inundationText ? text : `${cut(text, LIMITS.inundationText - 1)}…`,
+      areas: [] as FloodInundationArea[], omittedAreaCount: 0 };
+    const header = jsonBytes(opened) + 10;
+    if (groups.length < LIMITS.inundationGroups && used + header <= LIMITS.inundationBytes) {
+      groups.push(opened);
+      used += header;
+    } else full = true;
+    const group = groups.at(-1);
+    if (group == null) continue;
+    for (const list of children(item, "Areas")) for (const area of children(list, "Area")) {
+      const read: FloodInundationArea = { name: leafText(area, "Name"),
+        stationCode: (attribute(area, "codeType") ?? attribute(list, "codeType")) === "水位観測所" ? leafText(area, "Code") || null : null,
+        prefecture: leafText(area, "Prefecture"), city: leafText(area, "City"), cityCode: leafText(area, "CityCode") || null,
+        subCities: leafText(area, "SubCityList") };
+      const size = jsonBytes(read) + 1;
+      if (full || used + size > LIMITS.inundationBytes) {
+        full = true;
+        group.omittedAreaCount++;
+      } else {
+        used += size;
+        group.areas.push(read);
+      }
+    }
+  }
+  return groups;
 }
 
 export { BOUNDS, INFO_RANK, LIMITS, cut, infoRankOf, levelOf, loneSurrogate, parseFlood, validEventId, validHeadType, validKindCode, validName,
