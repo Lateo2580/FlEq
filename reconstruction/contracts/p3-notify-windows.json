@@ -1,0 +1,421 @@
+{
+  "meta": {
+    "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
+    "sha256": "293c349c010e5a6c8d05b0258bc9781aa2cd96b7f0e1b22edec83f0c138faced",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:378 «9810b84e5384590d»",
+    "decisionBranches": [
+      {
+        "id": "P3-NW-D-SENDER",
+        "kind": "作者",
+        "A": "toast の送り主に、Windows が持っている Windows PowerShell の AppUserModelID（{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe）を使う。通知の見出しの上の送り主は「Windows PowerShell」になり、アイコンも PowerShell のものになる見込み。FlEq は何も登録しない",
+        "B": "FlEq の AppUserModelID を持つ Start メニューの shortcut を作り、送り主を「FlEq」にする。shortcut を作る処理と消す手順が要る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者の裁定待ち）",
+        "ruling": "未決",
+        "reason": "デスクトップのアプリは CreateToastNotifier(appID) に AppUserModelID を渡す必要があり、有効な shortcut が Start メニューに無いと toast を出せない（Microsoft の文書）。FlEq は npm の CLI で installer が無い。B は初回の起動で利用者の Start メニューへ file を書き、shortcut へ AppUserModelID を付ける処理（WScript.Shell の CreateShortcut では付けられず、IPropertyStore の呼び出しが要る）と、uninstall で残る file の扱いを持ち込む。旧築は node-notifier の SnoreToast に appID「FlEq」と分野のアイコンを渡すので、A は旧築と見た目が変わる。アイコンは R30=A で持ち込まないと決まっている。同居人が見たときに「Windows PowerShell」と出るのを受け入れるかは作者の判断"
+      },
+      {
+        "id": "P3-NW-D-NO-DEVICE",
+        "kind": "作者",
+        "A": "音は SoundPlayer.PlaySync のままにする。音声デバイスが無い PC でも exit 0 で終わる見込みで、probe は idle、試行は delivered になり、音が出ていないのに鳴った記録が残る",
+        "B": "音だけ Add-Type で PlaySound を直に呼び、戻り値が FALSE なら exit 1 にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未決（作者の裁定待ち）",
+        "ruling": "未決",
+        "reason": "公開されている .NET の SoundPlayer.cs は PlaySound の戻り値を見ていない（.NET Framework 4.8 の source は取れず、同じかは未確認）。P2-A7-ADAPTER は「無音 probe は実可聴保証ではない」と決めていて、旧築の checkSoundBackend も win32 は無条件に ok で、A はそれと同じ。B は音の試行のたびに C# を compile するので鳴るまでが遅くなり、ConstrainedLanguage では Add-Type が使えず、音が全部止まる。音声デバイスの無い Windows の PC で FlEq を使う場面が薄いので A を推奨にする"
+      },
+      {
+        "id": "P3-NW-D-DESKTOP",
+        "kind": "統合担当",
+        "A": "powershell.exe（Windows PowerShell 5.1）から [Windows.UI.Notifications] の ToastNotificationManager で toast を 1 件出して終わる",
+        "B": "NotifyIcon.ShowBalloonTip／BurntToast／node-notifier（SnoreToast）／pwsh（PowerShell 7）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "A は OS に入っている物だけで動き、Show の後に process が終わるので、R30=A の「投稿後終了」と adapter の close の扱いのままで足りる。NotifyIcon は表示の時間を OS が最短 10 秒に揃え、同時に 1 つしか出せず、icon を持つ process が生きている間しか出ないので、desktop の 5 秒の試行の期限（ATTEMPT_TIMEOUT_MS）と合わない。BurntToast は標準に無い module。node-notifier の notify() は ChildProcess を持てない（P2-A7-ADAPTER）うえ、依存を新築に足す。SnoreToast の exe を直に呼ぶ形も第三者の binary を実行する。pwsh は .NET 5 で WinRT の組み込みの対応が消えたので A の型を読めず、Windows の標準でもない。残存: AppLocker・WDAC の PC は PowerShell が ConstrainedLanguage になり .NET と WinRT の呼び出しが止まる。existsSync の probe は idle のままで、試行は毎回 exit 1 の failed/adapterRejected になる（再試行は今の TTL の内で有限。macOS の通知の許可が無いときと同じく、起動時には分からない）"
+      },
+      {
+        "id": "P3-NW-D-SOUND",
+        "kind": "統合担当",
+        "A": "powershell.exe から System.Media.SoundPlayer の PlaySync で WAV を鳴らし、鳴り終わって終わる",
+        "B": "WPF の MediaPlayer／Add-Type の mciSendString（旧築）／Console.Beep／常駐の PowerShell 1 本に送る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "A は SND_SYNC で鳴り終わるまで戻らないので、afplay と同じく close が鳴り終わりを意味する。20 本の WAV は全部 PCM 16 bit mono 44.1 kHz（起草時に読んだ）で SoundPlayer が読める。System.dll の型なので読み込みの処理を足さない。MediaPlayer は読み込みと再生が非同期で、終わりを待つ処理が要る。mciSendString は旧築が mp3 のために使った形で、新築の資材は WAV だけなので Add-Type の compile の分だけ損になる。Console.Beep は資材を鳴らさず、分野と段階の音の区別が消える。常駐は起動の時間を消せるが、close を停止の証拠にする規則（P2-A7-ADAPTER の stopEvidence）と「二channelの現在process handleだけを持つ」を崩す。起動の時間を実機で測って困ったときに別の契約で考える"
+      },
+      {
+        "id": "P3-NW-D-TEXT",
+        "kind": "統合担当",
+        "A": "script は固定の文字列にして -Command に渡し、題・本文・WAV のパスは環境変数で渡す。script の中では $env: で読む",
+        "B": "-File <ps1> で argv に渡す／-EncodedCommand に値を埋め込む／-Command の文へ値を埋め込む",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "題と本文は電文から作る文字列で、-Command の後に続く引数はコマンド文字列に連結される（about_PowerShell_exe）ので、argv に置くと本文がコードになる。A なら値は script の文字列に入らず、引用符の規則を考えなくてよい。libuv は CREATE_UNICODE_ENVIRONMENT で環境を渡すので、日本語は UTF-16 のまま届き、code page を通らない。-File は Windows クライアントの既定の実行ポリシー Restricted で script file が止まり（about_Execution_Policies）、-ExecutionPolicy Bypass を足しても Group Policy の設定には勝てない。.ps1 の資材の配送と BOM の無い file の読みの問題（about_Character_Encoding）も増える。-EncodedCommand は値の埋め込みの処理が要り、ASR の難読化の規則に当たるかが確かめられない。A の費用は commands の戻りに spawn の option を足すことだけで、これは P3-NW-D-HIDE にも要る"
+      },
+      {
+        "id": "P3-NW-D-HIDE",
+        "kind": "統合担当",
+        "A": "win32 の spawn と desktopNotice の execFile に windowsHide: true を付ける。commands の組の 3 番目の要素で渡し、darwin と linux の組は変えない",
+        "B": "付けない／全部の OS で無条件に付ける",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "libuv は stdio が継承でないとき windowsHide で CREATE_NO_WINDOW を付け、powershell.exe は親の console を共有しなくなる。無いと: Ctrl+C の CTRL_C_EVENT が通知の子にも届いて音が途中で切れ、親の console のない起動では黒い画面が一瞬出る。P3-TW-D-MAIN-CONSOLE の console の待ちの範囲に別の process も増やさない。無条件に付けると adapter.test.ts の完全一致の期待（{ shell: false, stdio: \"ignore\" }）が変わるので、win32 の組だけに持たせる"
+      },
+      {
+        "id": "P3-NW-D-REPLAY",
+        "kind": "統合担当",
+        "A": "replay.mjs の spawn の差し替えの行を変えず、その次に win32 のときだけ差し替え先を process.execPath の -e \"\" にする 1 行を足す",
+        "B": "コメントだけ直し、Windows の replay の結果の違いを残す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "本契約で win32 の desktop が idle になる。差し替えのままだと /usr/bin/true が Windows に無いので spawn が ENOENT になり、音は probe で unavailable、desktop は intent ごとに failed/notStarted と再試行になる。今は unavailable で静かなので、本契約が作る後退にあたる。replay.mjs の差し替えの行は 2 つの契約の «» が引くので中身を変えない。host-launcher.mjs の同じ差し替えは Mac と Pi の測定の道具で Windows で走らないので変えない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NW-DRAFT",
+        "status": "closed",
+        "source": "2026-11-08 起草（4241a02d から）",
+        "closed": "起草の時に読んだ物: adapter.ts、notification-delivery.ts:25（sound 10 秒、desktop 5 秒）、composition-root.ts の probe（weather-info.wav の data を 0 で埋めた無音の WAV）、host.ts:543（probe は await せず受信を止めない）、音の資材 20 本の形式と長さ（PCM 16 bit mono 44.1 kHz、0.56〜0.93 秒）、試験の mock（host の試験は probe と run を差し替えているので、windows-latest でも PowerShell を起こさない）。Windows の実機はここに無く、本契約の 2 本の script は 1 度も走らせていない（P2-A7 では起草時に spawn しなかった backend が 2 本とも実機で動かなかった）。最初の spawn は Q-NW-WINDOWS-CI で、toast と音の実物は Q-NW-DEVICE で確かめる"
+      },
+      {
+        "id": "Q-NW-SOURCES",
+        "status": "closed",
+        "source": "2026-11-08 起草の一次資料（curl で本文を読んだ）",
+        "closed": "PowerShell の引数・exit code: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe?view=powershell-5.1 ／実行ポリシー: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_execution_policies?view=powershell-5.1 ／ConstrainedLanguage: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_modes?view=powershell-5.1 ／文字コード: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-5.1 ／CreateToastNotifier: https://learn.microsoft.com/en-us/uwp/api/windows.ui.notifications.toastnotificationmanager.createtoastnotifier?view=winrt-26100 ／GetTemplateContent: https://learn.microsoft.com/en-us/uwp/api/windows.ui.notifications.toastnotificationmanager.gettemplatecontent?view=winrt-26100 ／ToastTemplateType: https://learn.microsoft.com/en-us/uwp/api/windows.ui.notifications.toasttemplatetype?view=winrt-26100 ／toast の audio: https://learn.microsoft.com/en-us/uwp/schemas/tiles/toastschema/element-audio ／AppUserModelID と shortcut: https://learn.microsoft.com/en-us/windows/win32/shell/enable-desktop-toast-with-appusermodelid ／FOLDERID_System: https://learn.microsoft.com/en-us/windows/win32/shell/knownfolderid ／Get-StartApps: https://learn.microsoft.com/en-us/windows/configuration/store/find-aumid ／.NET 5 の WinRT: https://learn.microsoft.com/en-us/dotnet/core/compatibility/interop/5.0/built-in-support-for-winrt-removed ／NotifyIcon: https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.notifyicon.showballoontip?view=netframework-4.8.1 ／SoundPlayer.PlaySync: https://learn.microsoft.com/en-us/dotnet/api/system.media.soundplayer.playsync?view=netframework-4.8.1 ／PlaySound: https://learn.microsoft.com/en-us/previous-versions/dd743680(v=vs.85) ／Console.Beep: https://learn.microsoft.com/en-us/dotnet/api/system.console.beep?view=netframework-4.8.1 ／.NET の SoundPlayer.cs: https://github.com/dotnet/runtime/blob/main/src/libraries/System.Windows.Extensions/src/System/Media/SoundPlayer.cs ／Node の windowsHide と kill: https://nodejs.org/docs/latest-v22.x/api/child_process.html ／libuv: https://github.com/libuv/libuv/blob/v1.x/src/win/process.c 。文書で言えないこと: PowerShell の Start メニューの shortcut の AppUserModelID がこの文字列であること（GUID が System32 を指すことと ID の形までが文書で、文字列は Q-NW-DEVICE の Get-StartApps で確かめる）、powershell.exe の起動の時間（公的な数字が無い）、.NET Framework の SoundPlayer が PlaySound の戻り値を見ないこと（referencesource の file が取れなかった）。HKCU の AppUserModelId を登録する形は Microsoft の文書の URL が 404 で読めず、P3-NW-D-SENDER の候補に入れていない"
+      },
+      {
+        "id": "Q-NW-LEGACY",
+        "status": "closed",
+        "source": "2026-11-08 起草（旧築の src/engine/notification/ を読んだ）",
+        "closed": "旧築の Windows: (1) 通知は node-notifier（同梱の SnoreToast）に appID「FlEq」・分野のアイコン・sound:false を渡す（notifier.ts:1165） (2) 効果音は powershell の -Command で Add-Type して mciSendString で再生、パスは script の文へ '' で埋める（sound-player.ts の launchCustomSoundWindows） (3) 効果音の file が無いとき %SYSTEMROOT%\\Media の wav を SoundPlayer.PlaySync で鳴らす (4) 実行ファイルは裸の powershell で PATH から探す (5) checkSoundBackend は win32 なら何も確かめず ok。新築との差: 依存なしの toast、送り主（P3-NW-D-SENDER）、アイコンなし（R30=A）、環境変数で値を渡す、絶対パス、system の音への後退なし（資材の 20 本だけ）、音の probe は実際に無音の WAV を鳴らす。docs/specs/engine.md:993 の「WPF MediaPlayer」は今の sound-player.ts の mciSendString と合っていない（旧築の spec の古い記述。本契約では直さない）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。backend の起動だけの変更で、training・test の sound を選ばない規則も、origin=replay を operation:test と同一視しない規則もそのまま"
+    }
+  },
+  "contract": {
+    "contractId": "P3-NOTIFY-WINDOWS-001",
+    "mode": "implementation",
+    "objective": "Windows の新築で通知と音を出す。12:00:00 に EEW の intent が選ばれたら、PowerShell の子が toast を 1 件出して終わり、別の子が資材の WAV を鳴らし終えて終わる。12:05:00 に回線が切れたら音なしの切断の通知を出す。依存を足さず、macOS と Linux の動きは変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-notify-windows.json",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p3-notice-ledger.json",
+      "reconstruction/contracts/p3-terminal-windows.json",
+      "reconstruction/src/notification-delivery/adapter.ts",
+      "reconstruction/src/notification-delivery/notification-delivery.ts",
+      "reconstruction/cli/replay.mjs",
+      "reconstruction/test/notification-delivery/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/notification-delivery/adapter.ts",
+      "reconstruction/cli/replay.mjs（AC05 の 2 行だけ）",
+      "reconstruction/test/notification-delivery/adapter.test.ts（末尾に足すだけ）",
+      "reconstruction/test/notification-delivery/windows-backend.test.ts（新規）",
+      "reconstruction/contracts/p2-notification-delivery.json（統合担当が P2-A7-ADAPTER の backendTable に Windows の desktop と sound の 2 行を足し、meta.sha256 を取り直す）",
+      "reconstruction/contracts/p3-cli-repl.json・p3-notice-ledger.json・p3-replay-cli.json・p3-replay-watch.json・p3-replay-watch-002.json・p3-terminal-output.json・p3-notify-windows.json（統合担当が «» の行の番号、変わった spawn の行の anchor、meta.sha256 だけを直す）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-notify-windows.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B09"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-TERMINAL-WINDOWS-001",
+      "P3-REPLAY-CLI-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationChannel",
+      "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationAttempt"
+    ],
+    "publicFunctions": [
+      "公開の関数は変えない（runNotificationAttempt・abortNotificationAttempt・probeDesktopBackend・probeSoundBackend・desktopNotice の引数と戻りのまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。npm の依存と PowerShell の module を足さず、package.json と package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-NW-RES-01",
+        "target": "通知と音の子プロセス（win32）",
+        "limit": "最大 3 本（desktop と sound で 1 本ずつ、切断の通知で 1 本）。試行のたびに起こして終わらせ、常駐させない。1 本のメモリと起動の時間は未測定（Q-NW-DEVICE）",
+        "unit": "本",
+        "scope": "win32 の 1 run",
+        "source": "P3-NW-D-SOUND"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "macOS と Linux の backend",
+      "通知の門、intent、文言、優先の順、再試行、保存（P3-CLI-REPL-001・P3-NOTICE-LEDGER-001 のまま）",
+      "EEW の toast を応答不可の設定の上に出す形（toast の scenario）。他の OS にも無く、backend の既定に揃える",
+      "toast のアイコン・クリックの動作（R30=A）",
+      "reconstruction/test/eew-e01/host-launcher.mjs の spawn の差し替え（Mac と Pi の測定の道具）",
+      "real-backend.test.ts の C2 の Windows の追加（正式の OS は Linux Pi と macOS のまま）",
+      "root の package.json の files（reconstruction/assets が入っていないのは新築の配布全体の宿題で、P5 で扱う）",
+      "旧築（src/）と docs/specs/engine.md"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-NW-AC01",
+        "requirement": "win32 の desktop（P3-NW-D-DESKTOP・D-TEXT・D-HIDE）: (1) commands の desktop は win32 のとき 1 本の組を返す。実行ファイルは process.env.SystemRoot ?? \"C:\\\\Windows\" の後ろに \"\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" を文字列として繋いだ絶対パス（path.join を使わない。T01 が macOS で走るので、join だと区切りが / になり Windows の実物と違う） (2) argv は [\"-NoProfile\", \"-NonInteractive\", \"-Command\", script] で、script は次の固定の文字列を基にする: $ErrorActionPreference='Stop';$m=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];$x=$m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);$t=$x.GetElementsByTagName('text');[void]$t.Item(0).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_TITLE));[void]$t.Item(1).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_BODY));$a=$x.CreateElement('audio');$a.SetAttribute('silent','true');[void]$x.DocumentElement.AppendChild($a);$m::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new($x)) (3) spawn の option に windowsHide: true と env: { ...process.env, FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body } を足す。題と本文は argv と script の文字列に入れない (4) script の中に二重引用符を書かない（Node が argv を引用符で包むため） (5) toast の audio は silent にする。音は sound の channel が鳴らす。無いと: Windows の既定の通知音と WAV が重なり、音を切った設定でも通知音が鳴る (6) payload の検査（:33 の題と本文の非空）は今のまま。無いと: Windows で電文の通知が 1 件も出ない",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/adapter.ts:37 «1953e59f083b2b32»",
+          "reconstruction/src/notification-delivery/adapter.ts:47 «868895550f04402f»"
+        ]
+      },
+      {
+        "id": "P3-NW-AC02",
+        "requirement": "win32 の sound（P3-NW-D-SOUND・D-TEXT・D-HIDE）: (1) commands の sound は win32 のとき AC01 と同じ実行ファイルの 1 本の組を返す (2) argv は [\"-NoProfile\", \"-NonInteractive\", \"-Command\", script] で、script は次の固定の文字列: $ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync() (3) env に FLEQ_NOTIFY_WAV: wav（resolveRepoPath の結果か probe の無音の WAV）を足し、windowsHide: true を付ける (4) 列は 1 本なので soundBackend の index は常に 0 で、同時に鳴らさない規則（active の 1 channel 1 process、A1 の選択）は変えない。無いと: Windows で音が出ない",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/adapter.ts:42 «39ece06a2d7a7fd7»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:25 «89875591234e0881»"
+        ]
+      },
+      {
+        "id": "P3-NW-AC03",
+        "requirement": "結果の読み替えを足さない（P2-A7-ADAPTER）: (1) 2 本の script は最初に $ErrorActionPreference='Stop' を置く。.NET の例外を script を止める error にして exit 1 にする。無いと: 失敗しても exit 0 の delivered になりうる (2) exit 0 は delivered、exit 0 以外は failed/adapterRejected、spawn の ENOENT は failed/notStarted で、今の分岐のまま (3) 中断は今の child.kill(\"SIGTERM\") で、Windows では強制終了になり、close を停止の証拠にする規則も今のまま。投稿した toast は取り消さない (4) 試行の期限（desktop 5 秒、sound 10 秒、probe 5 秒）を win32 で延ばさない。PowerShell の起動が期限を越える PC では timeout になる（Q-NW-DEVICE で測る） (5) OS の設定で通知が切られている、応答不可の設定で toast が通知センターへ直に入るときは検知しない（macOS の通知の許可・集中モードと同じ）",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
+          "reconstruction/src/notification-delivery/adapter.ts:137 «8aa1f556b7d3759e»",
+          "reconstruction/src/notification-delivery/adapter.ts:169 «5c80a17684f383e0»"
+        ]
+      },
+      {
+        "id": "P3-NW-AC04",
+        "requirement": "probe と切断の通知: (1) probeDesktopBackend は win32 のとき AC01 の実行ファイルの existsSync で決める（見える通知を出さない。無ければ unavailable/backendMissing。R34） (2) probeSoundBackend は変えない。commands の win32 の組が無音の WAV を鳴らし、起動の時に 1 回 PowerShell が走る。host は probe を待たずに受信へ進む (3) desktopNotice は win32 でも AC01 と同じ組を使い、10 秒の timeout を保ち、音を付けず、backend が無いときと起動の失敗は何もしない (4) :202 の export に名前を足さない。無いと: Windows で回線の切断の通知だけ出ない",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/adapter.ts:179 «5ecf50df3ab82a44»",
+          "reconstruction/src/notification-delivery/adapter.ts:180 «7dd3fb09f5003c05»",
+          "reconstruction/src/runtime/composition-root.ts:488 «709181cb515a96f9»",
+          "reconstruction/src/host/host.ts:543 «60adca15b67ad766»"
+        ]
+      },
+      {
+        "id": "P3-NW-AC05",
+        "requirement": "replay の無音（P3-NW-D-REPLAY）: (1) reconstruction/cli/replay.mjs の shortcut のコメントを、win32 の差し替え先の理由の 1 行に置き換える（行の数を変えない） (2) 差し替えの行の中身を変えず、その次に process.platform が win32 のときだけ差し替え先を spawn(process.execPath, [\"-e\", \"\"], options) にする 1 行を足す (3) Windows の replay でも OS の通知と音を出さず、子の生成と close の流れは製品のまま通す。無いと: Windows の replay の desktop が intent ごとに failed/notStarted になる",
+        "evidenceRefs": [
+          "reconstruction/cli/replay.mjs:90 «e02f05c4847f1a67»"
+        ]
+      },
+      {
+        "id": "P3-NW-AC06",
+        "requirement": "darwin と linux を変えない: (1) 2 つの OS の実行ファイル・argv・spawn の option は今のまま（adapter.test.ts の完全一致の期待を変えない） (2) adapter.ts の変える行は commands の型・組を受ける行・spawn の行・:178・desktopNotice の中だけにし、他の契約の «» が引く行の中身を変えない。spawn の行だけは中身が変わるので、統合担当が anchor を取り直す (3) 新しい export、file、npm の依存を足さない。無いと: Pi と Mac の通知が巻き添えで変わる",
+        "evidenceRefs": [
+          "reconstruction/test/notification-delivery/adapter.test.ts:85 «4c25abfa1693b08c»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-NW-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-NW-AC01",
+          "P3-NW-AC02",
+          "P3-NW-AC03"
+        ],
+        "behavior": "受入条件。adapter.test.ts の末尾に足す。process.platform を win32 に差し替え、spawn の mock で確かめる。題に引用符と山括弧を含めた desktop の試行で、実行ファイルが powershell.exe の絶対パス、argv に題と本文が無く、env に題と本文があり、windowsHide が true。sound の試行で env に WAV のパスがある。close の code 0 は delivered、code 1 は failed/adapterRejected、pid の無い error は failed/notStarted"
+      },
+      {
+        "testId": "P3-NW-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-NW-AC04"
+        ],
+        "behavior": "契約境界。adapter.test.ts の末尾に足す。process.platform を win32 に差し替え、powershell.exe が無いとき probeDesktopBackend が unavailable/backendMissing を返し、desktopNotice が何も起動せずに resolve する"
+      },
+      {
+        "testId": "P3-NW-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-NW-AC01",
+          "P3-NW-AC02",
+          "P3-NW-AC03",
+          "P3-NW-AC04",
+          "P3-NW-AC05"
+        ],
+        "behavior": "受入条件。reconstruction/test/notification-delivery/windows-backend.test.ts を足す。win32 でだけ走り、他の OS では skip する（skip は Pass に数えない）。本物の powershell.exe で spawn し、spawn を包んで stdio だけ pipe にして exit code・標準エラー・spawn から close までの ms を log へ出す。(a) probeDesktopBackend が idle (b) probeSoundBackend の無音の WAV と (c) 資材の WAV の sound の試行は kind を記録し、標準エラーに script の構文の error が無い（音声デバイスの無い runner で delivered になるかは P3-NW-D-NO-DEVICE の前提の確かめなので、kind を合否にしない） (d) 題に '; New-Item <試験の一時 file> # を含む desktop の試行の後に、その file ができていない。kind は記録し、標準エラーに script の構文の error が無い（CI の session に対話のデスクトップが無く Show が失敗しうるので、kind を合否にしない） (e) desktopNotice が 10 秒以内に resolve する (f) fleq.mjs replay に本契約の fixture を渡すと rc 0 で、diagnosticDirectory に notification の failed/notStarted が無い"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。adapter.ts と replay.mjs の行を変えた後に reanchor-target.py を回し、spawn の行は anchor.py で hash を取り直して、«» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（replay.mjs と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の試験の期待を変えない。変える必要が出たら止めて報告する",
+      "試験で本物の通知と音を出さない（Mac と Pi では T01・T02 が spawn を mock する）",
+      "Windows の実機で確かめていないことを成功と書かない。macOS の試験は argv と option の形だけを確かめ、PowerShell の script が動くことを確かめない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-NW-SENDER",
+        "owner": "user",
+        "blocks": [
+          "baseOid の割り当て"
+        ],
+        "resolveBy": "作者の裁定（P3-NW-D-SENDER。推奨 A: 送り主は Windows PowerShell のままにする）",
+        "requiredEvidence": [
+          "A か B の裁定",
+          "B のときは shortcut を作る時と消す時の裁定"
+        ]
+      },
+      {
+        "id": "Q-NW-NO-DEVICE",
+        "owner": "user",
+        "blocks": [
+          "baseOid の割り当て"
+        ],
+        "resolveBy": "作者の裁定（P3-NW-D-NO-DEVICE。推奨 A: 音声デバイスの無い PC では鳴らずに delivered が残るのを受け入れる）",
+        "requiredEvidence": [
+          "A か B の裁定"
+        ]
+      },
+      {
+        "id": "Q-NW-WINDOWS-CI",
+        "owner": "integrator",
+        "blocks": [
+          "P3-NOTIFY-WINDOWS-001 の配送の閉じ"
+        ],
+        "resolveBy": "配送の push の後に gh workflow run test-windows.yml で確かめる。ここが 2 本の script の最初の spawn になる",
+        "requiredEvidence": [
+          "windows-latest の run で P3-NW-T03 と全 reconstruction 試験が通る。run の ID",
+          "toast の script の exit code と標準エラー。Show が session の理由で失敗したら、型の読み込みまで届いたかを標準エラーから読み、AC を変えずに Q-NW-DEVICE へ送る",
+          "音の script の kind。音声デバイスの無い runner で failed なら、P3-NW-D-NO-DEVICE の前提（鳴らずに delivered）が .NET Framework では違うので、作者へ報告し直す",
+          "spawn から close までの ms（冷えた runner の最初の 1 回と 2 回目）"
+        ]
+      },
+      {
+        "id": "Q-NW-DEVICE",
+        "owner": "user",
+        "blocks": [
+          "新築の Windows の利用の案内（P5 の切替）"
+        ],
+        "resolveBy": "P5 の切替の前に Q-TW-DEVICE と同じ機会で確かめる",
+        "requiredEvidence": [
+          "Get-StartApps で Windows PowerShell の AppUserModelID が本契約の文字列と一致する",
+          "Windows 10 と 11 で toast が出る。題と本文の日本語、送り主の表示、既定の通知音が鳴らないこと",
+          "WAV が聞こえる。音声デバイスが無い PC と出力を切った PC の試行の結果",
+          "powershell.exe の起動の時間: 起動の直後の 1 回目と 2 回目の spawn から toast の表示・音の鳴り始めまで。desktop 5 秒・sound 10 秒・probe 5 秒の期限に対して足りるか",
+          "desktop と sound を同時に起こしたときのメモリと時間",
+          "Ctrl+C と quit で通知の子が巻き込まれず、REPL の入力と字の色が乱れない",
+          "AppLocker・WDAC の PC があれば ConstrainedLanguage での結果"
+        ]
+      }
+    ]
+  }
+}
