@@ -10,7 +10,8 @@ import { width } from "./format";
 
 // P3-TERMINAL-PROMPT-001: 入力の行の現況。今も有効かは view の値だけで決める（時計で判定しない、AC08 (2)）。
 type Band = "top" | "warning" | "caution";
-type PromptItem = Readonly<{ band: Band; text: string }>;
+// text は行の字の全部、kind はその頭の区分の字（太字にする所）。同じ字のまとめは text で比べる。
+type PromptItem = Readonly<{ band: Band; kind: string; text: string }>;
 type PromptUnit = "U-T" | "U-N" | "U-V" | "U-W" | "U-R" | "U-L";
 // AC01: 載せる 6 unit だけを読む（U-E・U-Q は型でも読めない）。
 type PromptMirror = Readonly<Record<PromptUnit, Readonly<{ view: RuntimeUnitView }>>>;
@@ -24,11 +25,12 @@ const BANDS: readonly Band[] = ["top", "warning", "caution"];
 const ROTATE_MS = 5_000;
 const TSUNAMI_BANDS: ReadonlyMap<TsunamiAreaClass, Band> = new Map<TsunamiAreaClass, Band>([
   ["majorWarning", "top"], ["warning", "warning"], ["unknown", "warning"], ["advisory", "caution"]]);
+const item = (band: Band, kind: string, place = ""): PromptItem => ({ band, kind, text: place === "" ? kind : `${kind} ${place}` });
 // AC01 (2): status から書く（title と infoSerial は 7 日の移行で報の字のまま残る）。
 const NANKAI_ITEMS: Readonly<Record<NankaiCurrentStatus, PromptItem>> = {
-  megaquakeWarning: { band: "top", text: "南海トラフ地震臨時情報（巨大地震警戒）" },
-  megaquakeAdvisory: { band: "warning", text: "南海トラフ地震臨時情報（巨大地震注意）" },
-  investigating: { band: "warning", text: "南海トラフ地震臨時情報（調査中）" },
+  megaquakeWarning: item("top", "南海トラフ地震臨時情報（巨大地震警戒）"),
+  megaquakeAdvisory: item("warning", "南海トラフ地震臨時情報（巨大地震注意）"),
+  investigating: item("warning", "南海トラフ地震臨時情報（調査中）"),
 };
 // AC01 (3): 24・25 は level が null なので level でなく Code で読む。
 const VOLCANO_CODES: ReadonlySet<string> = new Set(["14", "15", "24", "25"]);
@@ -36,7 +38,6 @@ const SPECIAL_WARNING = /^3\d$/;
 // P3-TP-AC09: Kind/Name の無い報で特別警報が行から消えないようにする逃げ。
 const UNNAMED_SPECIAL = "特別警報";
 
-const top = (text: string): PromptItem => ({ band: "top", text });
 const kindText = (name: string): string => name === "" ? UNREAD_TEXT : name;
 function normalRows<T extends Readonly<{ subject: string; operation: Operation }>>(rows: readonly T[]): T[] {
   return rows.filter((row) => row.operation === "normal").sort((left, right) => left.subject < right.subject ? -1 : left.subject > right.subject ? 1 : 0);
@@ -44,7 +45,7 @@ function normalRows<T extends Readonly<{ subject: string; operation: Operation }
 // 区分は「：」より前（format.ts の kindOf と同じ、AC01 (1)）。
 function tsunamiItem(areaClass: TsunamiAreaClass, area: Readonly<{ name: string; kindName: string }>): readonly PromptItem[] {
   const band = TSUNAMI_BANDS.get(areaClass);
-  return band == null ? [] : [{ band, text: `${kindText(area.kindName.split("：")[0])} ${kindText(area.name)}` }];
+  return band == null ? [] : [item(band, kindText(area.kindName.split("：")[0]), kindText(area.name))];
 }
 
 function itemsOf(view: RuntimeUnitView): readonly PromptItem[] {
@@ -56,23 +57,23 @@ function itemsOf(view: RuntimeUnitView): readonly PromptItem[] {
     case "U-N": {
       const rows = normalRows(view.currents);
       return [...rows.flatMap((row) => row.line === "nankai" ? [NANKAI_ITEMS[row.status]] : []),
-        ...rows.flatMap((row): readonly PromptItem[] => row.line === "VYSE60" ? [{ band: "warning", text: row.title }] : [])];
+        ...rows.flatMap((row): readonly PromptItem[] => row.line === "VYSE60" ? [item("warning", row.title)] : [])];
     }
     case "U-V":
       // kind だけを読むと、Lv5 の後の VFSV で kind が 36 に替わったときに解除の前に消える（AC01 (3)）。
       return normalRows(view.alerts).flatMap((alert) => {
-        const kind = [alert.kind, alert.landKind].find((item) => item != null && VOLCANO_CODES.has(item.code));
-        return kind == null ? [] : [top(`${kindText(kind.name)} ${kindText(alert.volcanoName)}`)];
+        const kind = [alert.kind, alert.landKind].find((candidate) => candidate != null && VOLCANO_CODES.has(candidate.code));
+        return kind == null ? [] : [item("top", kindText(kind.name), kindText(alert.volcanoName))];
       });
     case "U-W":
       return normalRows(view.areas).flatMap((area) => Object.keys(area.codes).filter((code) => SPECIAL_WARNING.test(code))
-        .map((code) => top(area.names[code] ?? UNNAMED_SPECIAL)));
+        .map((code) => item("top", area.names[code] ?? UNNAMED_SPECIAL)));
     case "U-R":
       return normalRows(view.currents).flatMap((current) => current.kinds.filter((group) => group.level === 5).flatMap((group) =>
         (group.rivers.length === 0 ? [current.areaName] : group.rivers.map((river) => river.name === "" ? current.areaName : river.name))
-          .map((place) => top([kindText(group.name), place].filter((part) => part !== "").join(" ")))));
+          .map((place) => item("top", kindText(group.name), place))));
     case "U-L":
-      return normalRows(view.currents).flatMap((current) => current.kinds.filter((group) => group.level === 5).map((group) => top(kindText(group.name))));
+      return normalRows(view.currents).flatMap((current) => current.kinds.filter((group) => group.level === 5).map((group) => item("top", kindText(group.name))));
     case "U-E": case "U-F": case "U-Q": case "U-B": case "U-M": case "U-Y":
       return [];
   }
@@ -80,7 +81,7 @@ function itemsOf(view: RuntimeUnitView): readonly PromptItem[] {
 
 // AC06 (4)(5): view の参照が同じ unit は memo の項目を使い、読まない。AC02: 最も重い段だけを、同じ字をまとめて返す。
 function currentItems(mirror: PromptMirror, memo: WeakMap<RuntimeUnitView, readonly PromptItem[]>): readonly PromptItem[] {
-  const items = UNITS.flatMap((unit) => {
+  const rows = UNITS.flatMap((unit) => {
     const { view } = mirror[unit];
     const known = memo.get(view);
     if (known != null) return known;
@@ -88,8 +89,8 @@ function currentItems(mirror: PromptMirror, memo: WeakMap<RuntimeUnitView, reado
     memo.set(view, built);
     return built;
   });
-  const band = BANDS.find((candidate) => items.some((item) => item.band === candidate));
-  return [...new Map(items.filter((item) => item.band === band).map((item) => [item.text, item])).values()];
+  const band = BANDS.find((candidate) => rows.some((row) => row.band === candidate));
+  return [...new Map(rows.filter((row) => row.band === band).map((row) => [row.text, row])).values()];
 }
 
 const noPaint: Paint = (_role, text) => text;
@@ -99,10 +100,10 @@ function promptFrame(items: readonly PromptItem[], forms: PromptForms, columns: 
   const wrap = (inner: string): string => `FlEq [${inner}]> `;
   if (items.length === 0) return wrap(paint(forms.role, forms.full));
   const framed = (ink: Paint, head: string, index: number): string => {
-    const { band, text } = items[index];
-    return wrap(`${ink(forms.role, head)} ${ink(BAND_ROLES[band].rule, text)}${items.length > 1 ? ` ${ink("dim", `${index + 1}/${items.length}`)}` : ""}`);
+    const { band, kind, text } = items[index], role = BAND_ROLES[band].rule;
+    return wrap(`${ink(forms.role, head)} ${ink("strong", ink(role, kind))}${ink(role, text.slice(kind.length))}${items.length > 1 ? ` ${ink("dim", `${index + 1}/${items.length}`)}` : ""}`);
   };
-  // 幅は色の符号を含まない字で数える（Q-TO6-COLOR）。
+  // 幅は色と太字の符号を含まない字で数える（Q-TO6-COLOR）。
   const fits = (head: string): boolean => items.every((_, index) => width(framed(noPaint, head, index)) < columns);
   const wide = fits(forms.full);
   const head = wide ? forms.full : forms.bare == null || fits(forms.narrow) ? forms.narrow : forms.bare;

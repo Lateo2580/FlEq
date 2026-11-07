@@ -5,6 +5,7 @@ import type { RuntimeUnitView, WallBasis } from "../../contracts/p2-shared-runti
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
 import type { NotificationSettings } from "../../src/cli/notification-gate";
 import { painter } from "../../src/terminal/color";
+import type { Role } from "../../src/terminal/color";
 import { walkStart } from "../../src/recovery/recovery";
 import type { RuntimeMirror } from "../../src/runtime/shared-runtime";
 import { localClock, width } from "../../src/terminal/format";
@@ -76,7 +77,7 @@ describe("P3-TP-T02 受入条件 分野ごとの段と字", () => {
   ] as const)("%s %s", async (unit, path, transform, band, text) => {
     const w = await open();
     await w.send(path, transform);
-    expect(itemsOf(unitView(w, unit))).toContainEqual({ band, text });
+    expect(itemsOf(unitView(w, unit))).toContainEqual(expect.objectContaining({ band, text }));
     expect(w.items()).toEqual([text]);
   });
 });
@@ -234,7 +235,7 @@ describe("P3-TP-T05 契約境界 移行と海上の報", () => {
     await w.tick(reportMs(fixture(WARNING)) + 7 * DAY + 1);
     const view = unitView(w, "U-N");
     if (view.unit !== "U-N") throw new Error("U-N");
-    expect(itemsOf(view)).toEqual([{ band: "warning", text: "南海トラフ地震臨時情報（巨大地震注意）" }]);
+    expect(itemsOf(view)).toEqual([expect.objectContaining({ band: "warning", text: "南海トラフ地震臨時情報（巨大地震注意）" })]);
     expect(view.currents[0].title).toContain("巨大地震警戒");
   });
   it("Lv5 の後の VFSV で kind=36・landKind=15 になっても項目が残る", async () => {
@@ -402,7 +403,7 @@ describe("P3-TP-T07 受入条件 入らない幅", () => {
 });
 
 describe("P3-TP-T13 受入条件 入力の行の色（Q-TO6-COLOR）", () => {
-  const paint = painter(3), level = chalk.level, tty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  const paint = painter(3), strong = (role: Role, kind: string, rest = "") => `${paint("strong", paint(role, kind))}${paint(role, rest)}`, level = chalk.level, tty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
   const color = (on: boolean) => {
     Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true, writable: true });
     chalk.level = 3;
@@ -420,23 +421,36 @@ describe("P3-TP-T13 受入条件 入力の行の色（Q-TO6-COLOR）", () => {
     const shown = advisory["U-T"].view.unit === "U-T" ? advisory["U-T"].view.forecasts[0].areas[0] : null;
     color(true);
     const top = fakeTerminal(tsunami);
-    expect(top.after(3, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${paint("rulePurple", "大津波警報 岩手県")} ${paint("dim", "1/3")}]> `);
+    expect(top.after(3, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${strong("rulePurple", "大津波警報", " 岩手県")} ${paint("dim", "1/3")}]> `);
     await top.h.output.close();
     const warning = fakeTerminal(subsequent);
-    expect(warning.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${paint("ruleWarning", "北海道・三陸沖後発地震注意情報")}]> `);
+    expect(warning.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${strong("ruleWarning", "北海道・三陸沖後発地震注意情報")}]> `);
     await warning.h.output.close();
     const caution = fakeTerminal(advisory, muted());
-    expect(caution.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ミュート中 21:50 まで ${paint("ruleCaution", `津波注意報 ${shown?.name}`)}]> `);
+    expect(caution.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ミュート中 21:50 まで ${strong("ruleCaution", "津波注意報", ` ${shown?.name}`)}]> `);
     await caution.h.output.close();
     const down = fakeTerminal(tsunami, undefined, DOWN);
-    expect(down.after(3, 0)).toBe(`FlEq [${paint("connLost", "21:03:12 から 切断中・繋ぎ直し 3 回目")} ${paint("rulePurple", "大津波警報 岩手県")} ${paint("dim", "1/3")}]> `);
+    expect(down.after(3, 0)).toBe(`FlEq [${paint("connLost", "21:03:12 から 切断中・繋ぎ直し 3 回目")} ${strong("rulePurple", "大津波警報", " 岩手県")} ${paint("dim", "1/3")}]> `);
     columns(56);
-    expect(down.after(4, 1)).toBe(`FlEq [${paint("connLost", "切断中")} ${paint("rulePurple", "大津波警報 宮城県")} ${paint("dim", "2/3")}]> `);
+    expect(down.after(4, 1)).toBe(`FlEq [${paint("connLost", "切断中")} ${strong("rulePurple", "大津波警報", " 宮城県")} ${paint("dim", "2/3")}]> `);
     expect(down.after(4, 3)).toBe(`FlEq [${paint("connLost", "切断中 21:03:12 から・繋ぎ直し 3 回目")}]> `);
     await down.h.output.close();
     const none = fakeTerminal({ ...tsunami, "U-T": { ...tsunami["U-T"], view: { ...view, forecasts: [] } } }, undefined, DOWN);
     expect(none.after(1, 0)).toBe(`FlEq [${paint("connLost", "21:03:12 から 切断中・繋ぎ直し 3 回目")}]> `);
     await none.h.output.close();
+  });
+  it("太字の符号は区分の字にだけ付く（津波は区分だけ、南海トラフは全体）", async () => {
+    const tsunami = await mirrorOf(TSUNAMI), nankai = await mirrorOf(WARNING), volcano = await seen(VOLCANO_L5), flood = await seen(FLOOD);
+    const bold = (label: string) => [...label.matchAll(/\x1b\[1m(.*?)\x1b\[22m/g)].map((match) => plain(match[1]));
+    color(true);
+    const area = fakeTerminal(tsunami);
+    expect(bold(area.after(3, 0))).toEqual(["大津波警報"]);
+    await area.h.output.close();
+    const whole = fakeTerminal(nankai);
+    expect(bold(whole.after(1, 0))).toEqual([MEGA]);
+    await whole.h.output.close();
+    expect(itemsOf(unitView(volcano, "U-V"))).toEqual([{ band: "top", kind: "レベル５（避難）", text: "レベル５（避難） 箱根山" }]);
+    expect(itemsOf(unitView(flood, "U-R"))).toEqual([{ band: "top", kind: "レベル５氾濫特別警報", text: "レベル５氾濫特別警報 古座川" }]);
   });
   it("NO_COLOR と TTY でない端末では色の符号が 1 つも入らない", async () => {
     const mirror = await mirrorOf(TSUNAMI);

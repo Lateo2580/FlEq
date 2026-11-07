@@ -313,7 +313,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     setEewLog(enabled, fields) { eewLog?.set(enabled, fields); },
     // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
     clear() { push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
-    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。点滅は付けない。色は現況の項目と番号と切断の字だけ（Q-TO6-COLOR）。
+    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。点滅は付けない。色は現況の項目と番号と切断の字だけで、太字は項目の区分の字だけ（Q-TO6-COLOR）。
     // readline は prompt の幅を制御の字を除いて数えるので、色の符号でカーソルはずれない。
     // P3-TL-AC10: ミュート中は後ろに足す（期限は repl.ts の muteStartLine と同じ換算）。切断中は 56 桁に入るよう繋ぎ直しの回数と期限と条件を外す。
     promptLabel(mode) {
