@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "923d2a6e1db588f171b6da980f9b10958c5a64a2",
-    "sha256": "75e3934bc6643382dd903ebdfcf2e70f11619825454c17b1e3a5e43e86d0c154",
+    "sha256": "aaecef392dd63f604d1dafe23c744a34b8058fb641eab4523972e900a5fc16c3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -18,7 +18,7 @@
       },
       {
         "id": "P3-NL-D-CAPACITY",
-        "A": "器を印の最悪の分だけ広げる: 静的な上界で守る U-Q・U-M は「今の器－外す終端 intent の予算＋印の最悪の分」が今の器を越える分（見積もり U-Q＋103,936、U-M＋19,200）、U-T は 4 MiB に印（予報 512＋観測 1,024、fragment の鍵 16 件）と失敗の印の最悪の分（見積もり＋482,304）を足す。ほかの unit は終端 intent の予算を外す分の方が大きいので器を変えない。U-E は AC04 の (8)（今の器は U-T 11,354,432・U-Q 15,499,497・U-M 15,691,423 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "A": "器を印の最悪の分だけ広げる: 静的な上界で守る U-Q・U-M は「今の器－外す終端 intent の予算＋印の最悪の分」が今の器を越える分（見積もり U-Q＋103,936、U-M＋19,200）、U-T は 4 MiB に印（予報 512＋観測 1,024、fragment の鍵 16 件）と失敗の印の最悪の分（見積もり＋482,304）を足す。ほかの unit は終端 intent の予算を外す分の方が大きいので器を変えない。U-E は AC04 の (8)（今の器は U-T 11,354,432・U-Q 15,515,625・U-M 15,691,423 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "B": "どの器も変えない。印は今の器の中で中身と取り合い、器が埋まった日は今の退去の順で古い記録が早く押し出される",
         "recommended": "A",
         "provisional": "A",

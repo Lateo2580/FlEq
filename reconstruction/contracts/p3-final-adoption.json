@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "f98c47328986f645986004f743f08a6a02316359b942dbc04660bcff1ba327a1",
+    "sha256": "4ee5bb6912092a3acc4c71595063a249b331e735aa7e2a53c3715f1f2354cdc1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -256,7 +256,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:1095 «5ff3e954504ea98f»",
           "reconstruction/src/units/landslide/landslide-unit.ts:305 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-landslide-unit.json:88 «c629cbaaa6776c3c»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «928a66e22f46a6ec»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «aef5d3cad15b6dce»",
           "reconstruction/contracts/p3-nankai-unit.json:93 «384c9aa7a276b940»",
           "reconstruction/contracts/p3-volcano-unit.json:132 «6ab45782ccc77b0c»",
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
@@ -338,7 +338,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:72 «dad13f72955b6839»",
           "reconstruction/contracts/p3-seismic-unit.json:1007 «a561ed4e064feda2»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «928a66e22f46a6ec»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «aef5d3cad15b6dce»",
           "reconstruction/contracts/p3-seismic-unit.json:228 «6d9cc710a984a7cb»",
           "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»",
           "reconstruction/contracts/p3-nankai-unit.json:84 «d9d7f65ed0015f7a»",
