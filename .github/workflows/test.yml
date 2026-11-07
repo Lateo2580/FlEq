@@ -26,7 +26,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [engine, engine-shuffle, engine-strict, display, reconstruction]
+        # reconstruction は通常の順とシャッフルを別の job にして、それぞれ 2 分割する（直列で 1 run 約 12 分だったので並列化、2026-11-07 作者裁定 B）
+        suite: [engine, engine-shuffle, engine-strict, display, reconstruction-1, reconstruction-2, reconstruction-shuffle-1, reconstruction-shuffle-2]
         # Pi は Node 22（保守は 2027-04 まで）、release は 24。両方で通ることを確かめる
         node: [22, 24]
     name: test (${{ matrix.suite }}, node ${{ matrix.node }})
@@ -34,7 +35,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           # reconstruction: check-contract.mjs が契約の baseOid（発注 OID）を git cat-file で検証するので履歴が要る
-          fetch-depth: ${{ matrix.suite == 'reconstruction' && '0' || '1' }}
+          fetch-depth: ${{ startsWith(matrix.suite, 'reconstruction') && '0' || '1' }}
 
       - uses: actions/setup-node@v5
         with:
@@ -71,14 +72,19 @@ jobs:
             engine-strict) FLEQ_STANDBY_SWEEP_STRICT=1 npm test ;;
             display) npm test --prefix display ;;
             # reconstruction: 新築 P1 の契約 checker 3 本と専用 tsc/vitest (2026-09-16)。root の build/test には含まれない
-            reconstruction)
-              node reconstruction/tools/corpus/check-manifest.mjs
-              node reconstruction/tools/corpus/check-sequences.mjs
-              node reconstruction/contracts/check-contract.mjs
+            reconstruction-*)
+              suite="${{ matrix.suite }}"
+              # checker は分割によらないので 1 本だけで回す
+              if [ "$suite" = reconstruction-1 ]; then
+                node reconstruction/tools/corpus/check-manifest.mjs
+                node reconstruction/tools/corpus/check-sequences.mjs
+                node reconstruction/contracts/check-contract.mjs
+              fi
               ./node_modules/.bin/tsc --project reconstruction/tsconfig.json
               ./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json
               # C6 の runner（test/eew-e01/tsunami.mjs）が chrome-eew の dist を import するので、vitest より先に作る
               ./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json
-              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts
-              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --sequence.shuffle ;;
+              shuffle=""
+              case "$suite" in *shuffle*) shuffle="--sequence.shuffle" ;; esac
+              ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --shard="${suite##*-}/2" $shuffle ;;
           esac
