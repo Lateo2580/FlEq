@@ -96,9 +96,9 @@ describe("P3-TL4-T06 VPNO50 の報知", () => {
   // U-W が採った報として通す（owner の publisher の outcome の代わり）。
   const taken = [{ unit: "U-W" as const, outcome: { kind: "accepted" as const, change: "semantic" as const, subjects: [] } }];
   it("発表の報も切替の報も、U-W が採っても端末に出ない。同じ outcome で VPWW の報は出る。切替の報は U-W の state を今までどおり変える", () => {
-    expect(inputTerminal({ kind: "decoded", material: decode("18_00_01_260830_VPWW55_fukui_L5", "VPWW55") }, taken)).not.toBeNull();
+    expect(inputTerminal({ kind: "decoded", material: decode("18_00_01_260830_VPWW55_fukui_L5", "VPWW55") }, taken, false)).not.toBeNull();
     for (const name of ["18_00_01_260830_VPNO50_issue", "18_00_01_260830_VPNO50_switch"]) {
-      expect(inputTerminal({ kind: "decoded", material: decode(name, "VPNO50") }, taken)).toBeNull();
+      expect(inputTerminal({ kind: "decoded", material: decode(name, "VPNO50") }, taken, false)).toBeNull();
     }
     const step = reduceWeatherCurrentUnit(initialUnits["U-W"], { kind: "receive", material: decode("18_00_01_260830_VPNO50_switch", "VPNO50"),
       clock: { wallTimeMs: 1_800_000_000_000, monotonicMs: 0 } });

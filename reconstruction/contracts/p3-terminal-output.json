@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "84b1cca5a43d0f318870d31875df5fa34d72f41b33e4eab7a8c3c9dbfb41ee83",
+    "sha256": "f57c2428d29ccaf543b8b51415c0ec2bef1d235e0fe72d821762f2fb1be84b11",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -504,7 +504,7 @@
         "requirement": "【発注 1】置き場と材料の口（P3-TO-D-MATERIAL・D-EXTRACT-PATH・D-ORIGIN・D-LINES）: (1) 新設の reconstruction/src/terminal/ と reconstruction/test/terminal/ を本契約が持つ。型は reconstruction/contracts/p3-terminal-output.types.ts (2) owner の側: terminal/material.ts に export function terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): TerminalReport | null を置き、owner-host.ts の input の場合で、返信に載せる output の outcomes に、その入力の unit の kind accepted で change が semantic か revisionOnly の outcome があり（内容の同じ続報も旧築と同じく 1 報として出す。tsunami-unit・seismic-unit は内容の同じ報を revisionOnly にする）、material.origin が live か replay のときだけ 1 回呼ぶ。U-E は呼ばず null。結果は inputDone の返信の新しい欄 terminal: TerminalReport | null に載せる（p3-execution-split.types.ts の inputDone の型。recoveryInput の返信は null） (3) 読む要素（どれも XML の生の文字、無ければ null）: Head と Control の共通（TerminalHead: Control/Title・Head/Title・Head/Headline/Text・ReportDateTime・InfoType・Control/Status・EventID・Serial・Control/PublishingOffice）。地震（U-Q）: Body/Earthquake の Hypocenter/Area/Name と座標と Magnitude（description・condition 属性）、Body/Intensity/Observation の MaxInt・MaxLgInt と Pref/Area の Name・MaxInt・MaxLgInt（区域の段、市町村と観測点は読まない）、Comments/ForecastComment/Text、Comments/URI、Body/Text。津波（U-T）: Body/Earthquake の震源、Tsunami/Forecast/Item（Area/Name・Category/Kind/Name・FirstHeight の ArrivalTime と Condition・MaxHeight の TsunamiHeight と Condition・Station の Name と HighTideDateTime）、Tsunami/Observation/Item/Station（Name・FirstHeight の ArrivalTime・Initial・Condition・MaxHeight の DateTime・TsunamiHeight・Condition）、Tsunami/Estimation/Item（沖合の情報の沿岸で推定される津波）、Comments/WarningComment/Text、Body/Text。短い形（ほかの 9 unit）: 共通の欄と、対象（target）＝Body の文書の順で最初の Area/Name（南海トラフは null）と、帯の段（level、AC09）。読み方は decode-material/xml-read.ts の関数（P3-XML-READERS-001 の集約）を使い、新しい読み取りの関数の写しを作らない (4) publisher の側: host の config に欄 terminal?: TerminalSink を 1 つ足し（host.ts:44 の行の中身）、onInputDone（host.ts:182〜:193）で返信を渡す呼び出しを 1 つ足す（:192 の行の中身）。TerminalSink は返信を受けて O(1) で列に積むだけ（AC08）。端末が渡すのは返信の terminal と、output の outcomes のうち unit U-E の outcome（facts.report を持つもの）と、output の units の view の unreadableCards のうち inputId がその入力のカード（P3-TO-D-UNREADABLE、作者裁定 A。発注 2） (5) 無いと: 地震・津波・短い形の端末の行に見出し文・震源・満潮時刻・発表した官署が出せない（Q-TO-FACTS）",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-host.ts:121 «8f7955f32d3a74cf»",
-          "reconstruction/src/runtime/owner-host.ts:134 «3672af603dd40ba8»",
+          "reconstruction/src/runtime/owner-host.ts:134 «da44b8a4aa43cad1»",
           "reconstruction/src/runtime/owner-host.ts:193 «23accdf9096d56f5»",
           "reconstruction/contracts/p3-execution-split.types.ts:122 «60744ac6cfe7149f»",
           "reconstruction/src/runtime/composition-root.ts:138 «d2cdbb29215723fd»",

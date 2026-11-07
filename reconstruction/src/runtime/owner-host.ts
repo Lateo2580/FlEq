@@ -131,7 +131,7 @@ class OwnerHost {
         decode: { startedMonotonicMs: decodeStarted, endedMonotonicMs: decodeEnded, xmlParseStartedMonotonicMs: this.threadToMeasured(parseTimes?.startedMs),
           xmlParseEndedMonotonicMs: this.threadToMeasured(parseTimes?.endedMs) },
         heap: this.options.start.measured && this.options.start.inputHeap ? threadHeap() : null,
-        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, generationRaisedMs, terminal: inputTerminal(result, step.outcomes),
+        inputGenerations: this.options.start.measured ? this.inputGenerations(step, item.inputId) : null, generationRaisedMs, terminal: inputTerminal(result, step.outcomes, step.confirmationEvidence.some(({ source }) => source === "unreadableReport")),
         output: this.output(forced == null ? [step] : [forced, step]) });
         return;
       }

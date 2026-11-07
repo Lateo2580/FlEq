@@ -19,9 +19,9 @@ function config() {
     legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") } as const;
 }
 // owner-harness の envelope と同じ形で、取得の origin を選べるもの。
-function input(headType: string, inputId: string, path: string, origin: AcquisitionOrigin, sequence: number, clock: ClockReading): ParserEnvelope {
+function input(headType: string, inputId: string, path: string, origin: AcquisitionOrigin, sequence: number, clock: ClockReading, rewrite: (xml: string) => string = (xml) => xml): ParserEnvelope {
   const entered = ingestXmlData({ kind: "replay", inputId, inputSequence: sequence, receivedAt: clock.wallTimeMs, origin, headType,
-    body: readFileSync(`test/fixtures/${path}`) });
+    body: Buffer.from(rewrite(readFileSync(`test/fixtures/${path}`, "utf8"))) });
   if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
   return { messageId: inputId, runId: "run-terminal", t0MonotonicMs: clock.monotonicMs, enqueuedMonotonicMs: clock.monotonicMs,
     priorityReason: headType === "VXSE45" ? "eewCandidate" : "normal", payload: { kind: "parser", item: entered.item } };
@@ -40,5 +40,18 @@ describe("P3-TO-T08 材料を作る入力（AC01 (2)）", () => {
     const terminals = new Map(h.delivered.flatMap(({ reply }) => reply.kind === "inputDone" ? [[reply.settlement.inputId, reply.terminal] as const] : []));
     expect(terminals.get("quake-1")?.kind).toBe("seismic");
     expect([...terminals].filter(([id]) => id !== "quake-1")).toEqual([["quake-2", null], ["eew-1", null], ["recovered-1", null]]);
+  });
+});
+
+describe("P3-TL5-T02 owner-host の満潮の報と拒否の報", () => {
+  it("満潮の報は reply.terminal が tsunami、U-T が拒否する報（EventID なし）は null", async () => {
+    const clock: ClockReading = { wallTimeMs: Date.parse("2011-03-11T14:50:00+09:00"), monotonicMs: 1 };
+    const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => clock });
+    await startHarness(h, "run-terminal");
+    const tide = "32-39_11_03_250206_VTSE51.xml";
+    await submit(h, input("VTSE51", "tide-ok", tide, "live", 1, clock));
+    await submit(h, input("VTSE51", "tide-rejected", tide, "live", 2, clock, (xml) => xml.replace(/<EventID>.*<\/EventID>/, "")));
+    const terminals = new Map(h.delivered.flatMap(({ reply }) => reply.kind === "inputDone" ? [[reply.settlement.inputId, reply.terminal?.kind ?? null] as const] : []));
+    expect([...terminals]).toEqual([["tide-ok", "tsunami"], ["tide-rejected", null]]);
   });
 });

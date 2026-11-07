@@ -34,7 +34,9 @@ function head(material: DecodedMaterial): TerminalHead {
   const control = first(material.xml, "Control"), heading = first(material.xml, "Head");
   return {
     headType: material.headType, controlTitle: read(control, "Title"), title: read(heading, "Title"),
-    headline: read(first(heading, "Headline"), "Text"), reportDateTimeRaw: read(heading, "ReportDateTime"), infoType: read(heading, "InfoType"),
+    headline: read(first(heading, "Headline"), "Text"), reportDateTimeRaw: read(heading, "ReportDateTime"),
+    // P3-TL5-AC01: 門（tideOnly）と同じ値を読む。x:InfoType を混ぜた電文で、門は発表と読み、表示が取消になって満潮の表が消えた。
+    infoType: clip(material.infoTypeRaw.trim()),
     status: read(control, "Status"), eventId: read(heading, "EventID"), serial: read(heading, "Serial"),
     publishingOffice: read(control, "PublishingOffice"),
   };
@@ -212,16 +214,24 @@ function terminalReport(material: DecodedMaterial, unit: RuntimeUnitId): Termina
   }
 }
 
+// P3-TL5-AC01 (1): 満潮時刻だけの VTSE51（取消でなく、Body/Tsunami の直下に Observation の要素が 1 つも無い）。空の Observation の要素がある報は対象でない。
+function tideOnly(material: DecodedMaterial): boolean {
+  const root = first(first(material.xml, "Body"), "Tsunami");
+  return material.headType === "VTSE51" && root != null && children(root, "Observation").length === 0 && material.infoTypeRaw.trim() !== "取消";
+}
+
 // P3-TO-AC01 (2)・D-EXTRACT-PATH: その入力の unit が採った報（accepted で semantic か revisionOnly）だけに 1 回呼ぶ。
 // 無いと deliveryOnly・duplicate・stale の入力でも端末に同じ報が出る。
-function inputTerminal(result: ParserMailboxResult, outcomes: readonly RuntimePublishedOutcome[]): TerminalReport | null {
+// P3-TL5-AC01 (2): 観測の無い VTSE51 は U-T が outcome を出さない（state を変えず鳴らさない）ので、unit が拒否しなかった（rejected=false）入力だけ例外で通す。
+// 無いと満潮時刻の報が端末に 0 行になる。rejected は owner の confirmationEvidence の unreadableReport（拒否された報は読めなかった報のカードの側）。
+function inputTerminal(result: ParserMailboxResult, outcomes: readonly RuntimePublishedOutcome[], rejected: boolean): TerminalReport | null {
   if (result.kind !== "decoded") return null;
   const route = classifyHeadType(result.material.headType);
   if (route.status !== "ready") return null;
   // Q-TO5-VPNO50: 報知は発表も切替も出さない（本文は VPWW の報で出る）。U-W の state の処理は reducer の側で変えない。
   if (result.material.headType === "VPNO50") return null;
   const taken = outcomes.some(({ unit, outcome }) => unit === route.unit && outcome.kind === "accepted" && outcome.change !== "deliveryOnly");
-  return taken ? terminalReport(result.material, route.unit) : null;
+  return taken || (!rejected && tideOnly(result.material)) ? terminalReport(result.material, route.unit) : null;
 }
 
 export { inputTerminal, terminalReport };
