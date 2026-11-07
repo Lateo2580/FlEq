@@ -281,6 +281,21 @@ describe("QuakeExtremeStore", () => {
     expect(store.hasActive(T0 + 1)).toBe(true);
   });
 
+  it("発生時刻の同じ構造的 missing の続報は単調時計の期限を動かさない", () => {
+    let monotonicMs = 0;
+    const store = new QuakeExtremeStore({ monotonicNow: () => monotonicMs });
+    store.applyDto(quake(9, { type: "VXSE53", serial: "1" }), T0);
+    monotonicMs += 2 * 60 * 60_000;
+    // 実経過 2 時間で壁時計だけが 1 時間遅れている。
+    store.applyDto(displayEventDto({
+      domain: "earthquake", type: "VXSE61", groupKey: "quake:Q1",
+      reportDateTime: new Date(T0 + 60 * 60_000).toISOString(), serial: null, latestQuake: null,
+    }), T0 + 60 * 60_000);
+    expect(store.hasActive(T0 + 60 * 60_000)).toBe(true);
+    monotonicMs = QUAKE_EXTREME_HOLD_MS;
+    expect(store.hasActive(T0 + 60 * 60_000)).toBe(false);
+  });
+
   it("同一 EventID の取消は source type をまたいで震度7記録を解除する", () => {
     const store = new QuakeExtremeStore();
     store.applyDto(quake(9, { type: "VXSE53", serial: "1" }), T0);

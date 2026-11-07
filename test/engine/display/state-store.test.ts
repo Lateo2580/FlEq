@@ -68,7 +68,7 @@ function quakeDto(over: Partial<{ eventId: string; maxInt: string; maxIntRank: n
 }
 
 function quakePresentation(
-  type: "VXSE51" | "VXSE52" | "VXSE61",
+  type: "VXSE51" | "VXSE52" | "VXSE53" | "VXSE61",
   reportDateTime: string,
   maxIntValue: SpecialValue<JmaIntensity>,
   magnitudeValue: SpecialValue<number>,
@@ -641,6 +641,40 @@ describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
       }
     },
   );
+
+  it("VXSE53→VXSE61→VXSE53 の下方修正は再起動の後も古い地図の震度を戻さない", () => {
+    const magnitude: SpecialValue<number> = { raw: "5.0", value: 5, condition: null, description: null, presence: "value" };
+    const depth: SpecialValue<number> = { raw: "-10000", value: 10, condition: null, description: null, presence: "value" };
+    const intensity = (raw: "5+" | "4"): SpecialValue<JmaIntensity> =>
+      ({ raw, value: raw, condition: null, description: null, presence: "value" });
+    const observed = (raw: "5+" | "4", maxIntRank: number, reportDateTime: string): PresentationEvent => ({
+      ...quakePresentation("VXSE53", reportDateTime, intensity(raw), magnitude, depth),
+      maxInt: raw,
+      maxIntRank,
+      quakeIntensity: {
+        localAreas: [{ name: "地域A", code: "440", maxInt: raw, maxIntRank }],
+        municipalities: [],
+      },
+    });
+    const events = [
+      observed("5+", 6, "2026-07-06T21:00:00+09:00"),
+      quakePresentation("VXSE61", "2026-07-06T21:01:00+09:00",
+        { raw: null, value: null, condition: null, description: null, presence: "missing" }, magnitude, depth),
+      observed("4", 4, "2026-07-06T21:02:00+09:00"),
+    ];
+    const store = new DisplayStateStore();
+    for (const item of events) {
+      const at = Date.parse(item.reportDateTime);
+      const command = projectQuakeMapCommand(item, at);
+      store.applyEvent(projectDisplayEvent(item, "test", command), at, null, command);
+    }
+    const now = Date.parse("2026-07-06T21:03:00+09:00");
+    const restored = new DisplayStateStore();
+    restored.restoreQuakeLifecycle(store.exportQuakeLifecycle(), now);
+    for (const snapshot of [store.snapshot(1, now), restored.snapshot(1, now)]) {
+      expect(snapshot.mapLayers?.quake?.events.flatMap((event) => event.localAreas)).toEqual([{ code: "440", rank: 4 }]);
+    }
+  });
 
   it("LARGE_QUAKE_HOLD_MIN 経過で sweep が largeQuakes から除去する (recentQuakes には残る)", () => {
     const store = new DisplayStateStore();

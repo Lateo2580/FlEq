@@ -323,12 +323,15 @@ export class QuakeExtremeStore {
       changed = this.records.delete(input.groupKey);
     } else if (preservesObservedIntensity && previous != null) {
       const originTime = input.originTime ?? previous.originTime;
-      const remainingMs = remainingHoldMs(originTime, nowMs);
-      if (remainingMs == null) {
+      // 発生時刻が同じなら期限は単調時計のまま動かさない。壁時計の補正を続報で持ち込まない。
+      const remainingMs = originTime === previous.originTime ? null : remainingHoldMs(originTime, nowMs);
+      if (originTime !== previous.originTime && remainingMs == null) {
         changed = this.records.delete(input.groupKey);
       } else {
         const sourceTypes = [...new Set([...previous.sourceTypes, input.type])];
-        const expiresAtMonotonicMs = this.monotonicNow() + remainingMs;
+        const expiresAtMonotonicMs = remainingMs == null
+          ? previous.expiresAtMonotonicMs
+          : this.monotonicNow() + remainingMs;
         changed = previous.originTime !== originTime
           || previous.expiresAtMonotonicMs !== expiresAtMonotonicMs
           || !previous.sourceTypes.includes(input.type);
@@ -390,7 +393,7 @@ export class QuakeExtremeStore {
         }
       }
     }
-    // 構造的 missing は VXSE51→VXSE52/61 の契約を証明できる場合だけ保持する。
+    // 構造的 missing は VXSE51／VXSE53→VXSE52/61 の契約を証明できる場合だけ保持する。
     // view が変わらなくても revision tombstone は永続化する。
     const durability = invalidatesRecord
       ? "immediate"

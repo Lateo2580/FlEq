@@ -273,7 +273,11 @@ export class DisplayStateStore {
 
     for (const event of state.contributions) {
       const bySource = this.quakeMapContributions.get(event.eventKey) ?? new Map();
-      bySource.set(event.sourceType, structuredClone(event));
+      // 旧版の保存は同じ出典を 2 件持つことがある（続報の type を鍵にしていた）。新しい報を残す。
+      const kept = bySource.get(event.sourceType);
+      if (kept == null || kept.revision.reportTimeMs <= event.revision.reportTimeMs) {
+        bySource.set(event.sourceType, structuredClone(event));
+      }
       this.quakeMapContributions.set(event.eventKey, bySource);
     }
     for (const entry of state.largeQuakes) {
@@ -560,7 +564,8 @@ export class DisplayStateStore {
       && previousEffective != null
     ) {
       const bySource = this.quakeMapContributions.get(eventKey) ?? new Map();
-      bySource.set(command.sourceType, {
+      // 鍵は観測の出典にする。続報の type を鍵にすると、同じ出典の後の報が古い震度を置き換えられない。
+      bySource.set(previousEffective.sourceType, {
         ...previousEffective,
         ...command.eventUpdate,
         sourceType: previousEffective.sourceType,
