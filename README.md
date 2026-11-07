@@ -5,6 +5,8 @@
 npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 
 > [!NOTE]
+> ![再構成の進捗 42%](https://img.shields.io/badge/%E5%86%8D%E6%A7%8B%E6%88%90%E3%81%AE%E9%80%B2%E6%8D%97-42%25-blue)
+>
 > FlEq は現在、内部構造の全面再構成を進めています。現行の v4 系は引き続き npm で配布し、不具合修正も続けています。
 > 新しい実装はリポジトリ内の [`reconstruction/`](reconstruction/) で開発中で、npm パッケージにはまだ含まれていません。
 
