@@ -1,0 +1,580 @@
+{
+  "meta": {
+    "draftedFromOid": "62100aa73e18ead2e116f1493e902317671d81a4",
+    "sha256": "026aa3cb677ccaa5fc9fb740e7968bd72d9655ee30b09be07b66332eef994a83",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-RDT-D-Q3",
+        "kind": "作者",
+        "A": "裁定で落とした本文 4 種のうち、火山の防災事項と洪水の浸水想定地区だけを Pi へ渡す view に戻す。土砂の補足と熱中症は落としたまま",
+        "B": "全部戻す",
+        "C": "全部落としたまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者、判断カード 2026-11-08 の問い 3、推奨どおり）",
+        "reason": "「火口から約 4 km」のような範囲と、自分の地区が想定に入るかは、その報だけの事実で、Pi で読めないと困る。土砂の補足と熱中症の fixture の本文は、その報だけの地名や数字が無い一般的な行動の文だった。洪水の雨量は裁定に入っていないので読まないまま"
+      },
+      {
+        "id": "P3-RDT-D-RAW",
+        "kind": "作者",
+        "A": "字はそのまま運ぶ。言い換え・要約・値の読み替えをしない",
+        "B": "view で整形した字にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「電文の本質・値・意味を変えない」。線引きは気象庁の留意事項 §3）",
+        "reason": "防災事項は今の読み（前後の空白の trim だけ）のまま。SubCityList は空白で分けず、「-」も読み替えず、生の字で運ぶ。整形は読み手の P4 の側に置く"
+      },
+      {
+        "id": "P3-RDT-D-NOTICE",
+        "kind": "統合担当",
+        "A": "防災事項の字だけ、または浸水想定地区だけが違う通常の発表の続報では通知を作らない。訂正の報は今の規則（採用した訂正は通知を作る）のまま。今の動きのまま",
+        "B": "発表の続報でも字だけの違いで通知を作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08）",
+        "ruling": "A（統合担当、今の動きを保つ側）",
+        "reason": "火山は noticeChange が fieldsOf を読むので、ALERT_FIELDS に足すと継続の報で音が鳴り始める。洪水の通知は河川の段階と観測の最大だけを比べるので今も鳴らない。B は音が増えるので採らない。P4 の画面の起草で「続報で範囲が変わった」を知らせる要否を決められる"
+      },
+      {
+        "id": "P3-RDT-D-V-SCOPE",
+        "kind": "統合担当",
+        "A": "戻す防災事項は VFVO50 の VolcanoPrevention だけ。警報の記録の陸上の側に持つ。VFSV・VFVO51・VFVO53〜55 の VolcanoPrevention は持たない",
+        "B": "VFSV の分も marinePrevention として持つ",
+        "C": "VFVO51 の解説の字も view に足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "VFSV は旧築で一度も動いていない（P3-C9-MARINE）ので落とした本文に当たらず、46_01_01 の字は 22 字の「沿岸部に噴火の影響が及ぶおそれ　周辺海域警戒」で区分の名前と同じ内容。VFSV の字で同じ欄を上書きすると陸上の範囲が消えるので、海上の採用では手元の字を保つ。VFVO51 の字（44_02_01 の「湯釜火口から概ね１ｋｍ」）は解説の報の字で、本契約の範囲の外とする。降灰の字は定型の行動の文で、旧築も読んでいない（parseVolcanoAlert の 1 か所だけ）。VFVO50 の字は旧築の端末にも出ていなかった（volcano-formatter.ts は isMarine のときだけ出す）が、裁定の理由は「Pi で読めないと困る」なので戻す"
+      },
+      {
+        "id": "P3-RDT-D-V-ACTIVITY",
+        "kind": "統合担当",
+        "A": "VolcanoActivity は足さない。採用時の outcome の facts のまま",
+        "B": "VFVO50 の VolcanoActivity も view に足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）。判断カードの表の行は「活動・防災事項」だが、問い 3 の推奨と裁定の字は「防災事項」だけ",
+        "reason": "洪水の雨量と同じく裁定の字に無いものは足さない。活動の文は 45_03_01 で 403 字（同じ報の防災事項は 146 字）ある。B は問い 3 を広げる判断で、足すなら作者の裁定が要る"
+      },
+      {
+        "id": "P3-RDT-D-V-PLACE",
+        "kind": "統合担当",
+        "A": "容量は持つので view に載せる（VolcanoAlert の prevention?: string）",
+        "B": "本文を返す API（P3-BULLETIN-TEXT-API-001）へ回す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "Q-RDT-MEASURE (3): 14 件の active の警報の view は 25,622 → 32,979 byte で、分野の 65,536 byte に収まる件数は 35 → 27。全国の active の最大は 14 火山（P3-C9-ALERT-ACTIVE の 44_01_01）。P3-C9-SNAPSHOT=A の理由の合法最大の view 約 3.4 MB は今も要約に落ちる形で、足しても約 3.8 MB で扱いは変わらない。API に回すと報の到着の瞬間の警報の範囲が取得待ちになる（spec の「危険区域の必須事実まで取得待ちにしない」）"
+      },
+      {
+        "id": "P3-RDT-D-V-SAVE",
+        "kind": "統合担当",
+        "A": "防災事項を警報の記録と一緒に保存する。鍵のある記録だけが欄を持つ形で、schemaVersion は p3-volcano-unit-v7 のまま",
+        "B": "保存しない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）。問い 2 の「再起動の後は読めない形でよい」は解説の裁定で、警報には当てない（P3-VAT-D-T-SAVE=A と同じ読み）",
+        "reason": "警報の active には時間の期限が無く（alertDeadline が Infinity）、再起動の取り直しでは同じ版が duplicate になるので、保存しないと範囲の無い入山規制が解除の報まで何か月も続く。鍵の無い保存は「防災事項なし」と同じ意味で読め、版を上げる理由が無い"
+      },
+      {
+        "id": "P3-RDT-D-V-LIMIT",
+        "kind": "統合担当",
+        "A": "防災事項は今の 1,024 字のまま。越えたら頭の 1,023 字に … を付ける（P3-VAT-D-T-LIMIT と同じ形）。truncated は変えない",
+        "B": "cut を bound に替え、切った報の記録の truncated を立てる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "文は範囲と行動を先に書く順なので頭を残す。fixture の最大は 199 字。今の式は切っても印が残らず、view に出す字が途中で切れたことを読み手が知れない。B は truncated が同じ版の比べ（withoutSource）に残るので、同じ版で字だけが 1,024 → 1,025 字になった報と、鍵の無い保存への同じ長文の再送が duplicate でなく held になる（ヘルツの起草レビューの P2）。A は切り詰めの差が比べに入らない。他の欄の truncated は比べに残す"
+      },
+      {
+        "id": "P3-RDT-D-F-SHAPE",
+        "kind": "統合担当",
+        "A": "Kind ごとの group に Kind の Name と Property の Text、Area ごとに name・stationCode・prefecture・city・cityCode・subCities を持つ",
+        "B": "旧築どおり空白で分けた配列と axis・variant の推定を持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "Property の Text は「坂東大橋地点からの氾濫による…」で、どの地点の氾濫かはこの字にしか無い。観測所の Name と Code は FloodStation の (code, name) と同じ鍵で引ける（16 区域の 16_10_01 で 16 件全部）。B は字を読み替える（D-RAW）。PrefectureCode は持たない（cityCode の頭の 2 桁と同じ内容で、区域ごとの byte を増やすだけ）"
+      },
+      {
+        "id": "P3-RDT-D-F-LIMIT",
+        "kind": "統合担当",
+        "A": "1 報の地区は JSON で 32,768 byte まで。電文順の頭から入るだけ入れ、入らない区域は丸ごと落として omittedAreaCount に数える",
+        "B": "上限を置かない",
+        "C": "字数で切る（区域の字が途中で切れ、地区の一覧が欠けても区域としては残る）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "無いと 10 MiB まで受ける XML の地区が 1 報で分野の 65,536 byte を占める。区域の途中で字を切らないので、載った区域の地区の一覧は全部ある。実配信の 138 本の最大は 80 区域・11,574 byte（1 区域の最大 1,394 byte、SubCityList の最大 440 字）で、切り捨ては 0 本。上限はその約 2.8 倍。自分の地区が落ちた区域にあっても画面が「想定なし」と読まないよう、落とした件数を欄に残す（P4 は件数を出す）"
+      },
+      {
+        "id": "P3-RDT-D-F-SAVE",
+        "kind": "統合担当",
+        "A": "浸水想定地区は保存しない。encode で鍵を外し、再起動の後は次の報まで view に出ない",
+        "B": "保存する（U-R の 1 世代の上限に 512 × 32,768 byte 足す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）。問い 2 の「再起動の後は読めない形でよい」は解説の裁定で、それを洪水の地区へ広げた統合担当の判断。作者へ報告する",
+        "reason": "U-R の上界の余りは 122,528 byte（I-U-R.capacityReserve）で、1 記録あたり 239 byte しか無い。地区は 1 報で 352〜4,615 byte（fixture）なので、保存すると作者裁定 P3-C11-BOUNDS=B の U-R の単位の予算 16 MiB を改めることになり、P3-C11-FACTS=A が地区を落とした理由そのものを押し上げる。洪水の active は 36 時間で消え（P3-C11-ACTIVE-EXPIRY=D）、続報で入り直す点が期限の無い津波と火山の警報と違う。旧築も保存していない。代償: 再起動の後、取り直しの同じ版は duplicate なので、次の報まで（長くて 36 時間）地区が読めない。鍵が無いことを「想定地区なし」と読まない（AC07 (4)）"
+      },
+      {
+        "id": "P3-RDT-D-F-PLACE",
+        "kind": "統合担当",
+        "A": "view に載せる（裁定どおり）。実配信の 5 日の最大で分野の 65,536 byte に収まる。分野の予算を越える日の扱いは変えない",
+        "B": "本文を返す API へ回し、view には件数だけを置く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）。B は実装の測り直しで 65,536 byte を越えたときに作者へ返す",
+        "reason": "判断の根拠は「要約に落ちて今の河川の表示が消える日を増やさない」。Q-RDT-CORPUS: 実配信の 5 日の包装込みの分野の最大は 2026-06-26 の 10 EventID で 26,211 → 49,967 byte、同時最大の 2026-06-03 の 13 EventID で 26,950 → 42,160 byte で、全部 65,536 に収まる（余り 15,569 byte）。全体が 1 MiB を越えた日も、この 5 日の分野は要約に落ちないので、要約の日は増えない。1 件平均で数えると収まる件数は約 24 → 約 12 で、これを越える日は河川の段階ごと分野が要約に落ちる。今の画面に洪水は無いので今の動きは変わらない。B は地区を取得待ちにする代わりに分野の byte が今のままになる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-RDT-MEASURE",
+        "status": "closed",
+        "source": "2026-11-08 起草",
+        "closed": "(1) 起草の base e340e4c8、Mac。製品に当てない使い捨ての試作（欄の形と条文どおりの実装）を worktree の外に出さず作り、ingestXmlData → decodeMaterial → reduce → toView の製品の経路で数えた。view の byte は unit の view の JSON（包装は含まない）で、分野の判定には P3-VAT の測定の包装 879 byte を足して見た。(2) 防災事項の実物（fixture、trim の前の字数）: VFVO50 は 45_01_01 199 字・45_02_01 145 字・45_03_01 146 字、VFSV は 46_01_01 22 字、VFVO51 は 125〜126 字、VFVO53〜55 は 49〜97 字。corpus に VFVO50 は 0 本で実配信の最大は分からない（近い字は VFVO51 5 本 130〜195 字、VFVO53 144 本 94〜125 字）。JSON の鍵込みで 45_01_01 605 byte、45_02_01 446 byte。(3) 火山の view: 警報 1 件 1,959 → 2,405、14 件 25,622 → 32,979、20 件 36,542 → 47,052、30 件 54,742 → 70,507 byte（45_01_01 と 45_02_01 を交互に火山コードを替えて採った）。分野の 65,536 byte に収まる件数 35 → 27。(4) 火山の保存: 足す上界は 128 ×（鍵 16＋1,024 字 × 6 byte）＝ 788,480 byte で、世代の上限 9,178,967 → 9,967,447。上界と上限に同じ額を足すので P3-CODEC-RES-04 の余りは変わらない。(5) 洪水の地区の JSON: 16_10_01 16 区域 3,189、16_11_01 11 区域 2,299、16_12_01 33 区域 4,615、16_14_01 5 区域 2,015、16_00_01 3 区域 694 byte。1 区域は 135〜812 byte（812 は SubCityList 277 字）。view: 記録 1 件 2,683 → 5,886 byte（16_10_01）。16_10_01・16_11_01・16_12_01・16_00_01 を順に EventID を替えて並べると、10 件 25,139 → 52,361、13 件 31,934 → 67,696 byte で、分野に収まる件数は 26 → 12。16_10_01 だけなら 24 → 11、16_12_01 だけなら 29 → 9。(6) 上限の確かめ: 16_10_01 の区域を 5 回繰り返した 80 区域は 15,449 byte で落ちない。16_14_01 の区域を 20 回繰り返した 100 区域は 87 区域が入り 13 区域を落として 32,758 byte。(7) 受信の処理（Mac、3,000 回の p50、reduce だけ）: 洪水 33 区域 27.9 → 66.4 µs、80 区域 38.1 → 169.8 µs、火山 19.3 → 20.0 µs。区域の数に比例し、全件の走査と state 全体の直列化は無い。Pi と E01 では測っていない。(8) 実配信（corpus の 5 日の VXKO 138 本、dmdata の採取なので本文は貼らない。試作の製品の経路で日ごとに ReportDateTime の順に deadline と receive を当てた）: 全部 decode に通った。地区の Item は全報にあり（通常 137、氾濫発生情報 1、1 報に 1 個）、active の記録は 92 本。地区の JSON は p50 806・p90 7,823・最大 11,574 byte、区域の最大 80、1 区域の最大 1,394 byte、SubCityList の最大 440 字、Property の Text の最大 38 字、落とした区域 0。観測所の軸の 1,086 区域は全部 stations の (code, name) に結び付いた。日ごとの view の最大（地区なし → あり、記録の数）: 2025-08-10 14,604 → 24,978（7）、2025-09-05 6,100 → 10,361（3）、2026-06-03 26,931 → 42,141（13）、2026-06-26 25,999 → 49,755（10）、2026-09-21 11,992 → 23,298（6）。前の日から続く記録は含まない。",
+        "remaining": "VFVO50 の実配信の字数だけが分からない。1,024 字は既存の上限で、越えても末尾の … で分かるので発注を止めない",
+        "reason": "欄の形と分岐を数字で決めた記録"
+      },
+      {
+        "id": "Q-RDT-CORPUS",
+        "status": "closed",
+        "source": "2026-11-08 起草、統合担当の許可で corpus を読んだ（件数と字数だけで本文は貼らない）",
+        "closed": "実配信（corpus の 5 日の VXKO 138 本）の最大: 1 報の区域 80、1 区域の SubCityList 440 字、地区の JSON 11,574 byte、同時の洪水の EventID 13（2026-06-03）。防災事項: corpus に VFVO50 は 0 本で、実配信の字数は数えられない。近い字は VFVO51 5 本の 130〜195 字、VFVO53 144 本の 94〜125 字。上限の根拠: 32,768 byte は実配信の最大の約 2.8 倍で、切り捨ては 0 本。1,024 字は既存の上限で fixture の最大 199 字の約 5 倍で、越えても末尾の … で分かる。分野の容量（試作の製品の経路で projectSnapshot を増分で回し、state.domains.flood.utf8Bytes が JSON の実際の byte と一致することを確かめた。地区なしは同じ時点の値から地区の byte を引いた値）: 2025-08-10 15,002 → 25,376、2025-09-05 6,759 → 11,020、2026-06-03 26,950 → 42,160、2026-06-26 26,211 → 49,967、2026-09-21 12,452 → 23,758 byte。全部 65,536 byte 以下なので、全体が 1 MiB を越えた日も要約に落ちない。よって地区は view のまま（P3-RDT-D-F-PLACE=A）。前の日から続く記録は含まない。",
+        "remaining": "VFVO50 の実配信の字数だけが数えられない。発注は止めない",
+        "reason": "上限と view の判断を実配信で確かめた記録"
+      },
+      {
+        "id": "Q-RDT-READERS",
+        "status": "closed",
+        "source": "2026-11-08 起草",
+        "closed": "作り手と読み手の型の対応。(1) 火山: parseVolcano が今も prevention を AlertFacts に読み、receiveAlert が outcome の extra の volcanoPrevention にだけ渡す。VolcanoAlert は shown で印だけが外れて view と RuntimeDisplaySubject へ渡る。factsOf は rest を全部 outcome へ出すので、外さないと outcome の facts に同じ字が 2 つ載る。(2) 洪水: 読む所は無く、FloodCurrent の active は viewed で印だけが外れて view へ渡る。factsOf は欄を列挙するので outcome へは出ない。(3) 端末は電文から直に読む（material.ts）ので変わらない。terminal の taken は change が deliveryOnly でないことだけを見るので、semantic と revisionOnly の差で出方は変わらない。(4) view-projector は utf8(current) で byte を数えるだけで欄を選ばない。chrome-eew は U-V・U-R を読まない。よって view-projector・pure・client・http-sse・mirror の変更は無い。(5) 旧築の保存に防災事項も地区も無い（preventionText は parser と formatter だけ）ので、移行の道具に写すものは無い。",
+        "remaining": "なし",
+        "reason": "作り手と読み手の型の対応の結論"
+      },
+      {
+        "id": "Q-RDT-PROBE",
+        "status": "closed",
+        "source": "2026-11-08 起草時の試作",
+        "closed": "起草時に試作して確かめたこと。(1) 行の数を変えずに書けるのは volcano.ts・volcano-unit.ts・p3-volcano-unit.types.ts・flood-unit.ts。flood.ts は parseFlood の後ろに読みの関数を足し、その前の行の数は変えない（他の契約が引く flood.ts の行は全部 283 行目より前）。(2) tsconfig.json と tsconfig.test.json は通る。(3) 全 reconstruction 試験で本契約が落とすのは AC11 の 5 本だけ（試作の中で確かめた。P3-CODEC-T01 は AC11 の直しで開始 4,193,970 byte に戻り 32 本全部通る）。(4) 試作の中の P3-DC-T09 の失敗は本契約と関係なく、62100aa7 で直った（view の文の分の前提のずれ）。(5) 字だけ・地区だけが違う続報は試作で change が semantic、displayChanges 1 件、contentRevision が 1 進み、intent 0 件で、view が新しい値になった。volcano-unit.ts の settle の change の決め直しは回収で記録が変わった受理だけの経路で、active の警報には効かない。(6) 試作で、1,024 字の報の後の同じ版の 1,025 字の報と、鍵の無い保存への同じ版の再送はどちらも unchanged/duplicate。字だけ・地区だけが違う訂正の報は semantic で intent 2 件（desktop と sound、今の規則）。(7) 試作は製品に入れていない。",
+        "remaining": "なし",
+        "reason": "既存の期待の変更と行の条件を起草時に確かめた記録"
+      },
+      {
+        "id": "Q-RDT-OVERRIDE",
+        "status": "closed",
+        "source": "2026-11-08 起草",
+        "closed": "本契約が上書きする先の条文: P3-C9 の legalMissing「VolcanoActivity・VolcanoPreventionは状態に入れず」と nonPersistedFields の同じ字は、VFVO50 の VolcanoPrevention についてだけ本契約に置き換わる（VolcanoActivity と VFSV の分は今のまま）。P3-C11-FACTS=A の「Body/Warning（主文・浸水想定地区）は読まない」と I-U-R の outOfScope は、浸水想定地区についてだけ本契約に置き換わる（主文・雨量・氾濫水の予報は今のまま）。P3-C9-SNAPSHOT=A の「view に本文を載せない」は解説の話で変わらない。保存の上限と上界の数字は AC10 の注記で読み替える",
+        "remaining": "なし",
+        "reason": "後の裁定で前の契約の前提が変わる所を先に書く"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。training・test の報も同じ欄を持ち、見分けは今の operation の欄のまま。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-RESTORE-DROPPED-TEXT-001",
+    "mode": "implementation",
+    "objective": "裁定で落とした本文のうち、火山の防災事項（VFVO50 の VolcanoPrevention）と洪水の浸水想定地区を Pi へ渡す view に戻す。13:03 に入山規制の画面を見た人が「山頂火口から概ね４ｋｍの範囲」を、02:40 に氾濫危険情報を見た人が自分の校区が想定に入るかを、P4 の画面で読めるようにするための土台。字は電文のまま運び、画面の描き方は P4 で決める。端末の短い形と音は変えない。防災事項は警報の記録と一緒に保存し、地区は保存しない",
+    "baseOid": "aa4ab72b",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-restore-dropped-text.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-flood-unit.json",
+      "reconstruction/contracts/p3-flood-unit.types.ts",
+      "reconstruction/contracts/p3-codec-closure.json",
+      "reconstruction/contracts/p3-view-alert-text.json",
+      "reconstruction/src/domains/volcano/volcano.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/domains/flood/flood.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "src/dmdata/flood-inundation-parser.ts",
+      "src/dmdata/volcano-parser.ts",
+      "reconstruction/src/units/codec-base.ts",
+      "reconstruction/src/decode-material/xml-read.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/volcano-unit/volcano-fixture.ts",
+      "reconstruction/test/flood-unit/flood-unit.test.ts",
+      "reconstruction/test/flood-unit/flood-fixture.ts",
+      "reconstruction/test/unreadable-mark/unreadable-mark.test.ts",
+      "reconstruction/test/expiry-form/expiry-form-h51.test.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p3-volcano-unit.types.ts（VolcanoAlertFacts の headline の行の末尾だけ。行の数を変えない）",
+      "reconstruction/contracts/p3-flood-unit.types.ts（FloodInundationArea・FloodInundationGroup と FloodCurrent の active の欄だけ）",
+      "reconstruction/src/domains/volcano/volcano.ts（:58・:345 の行だけ。行の数を変えない）",
+      "reconstruction/src/units/volcano/volcano-unit.ts（AC09 (2) の行だけ。行の数を変えない）",
+      "reconstruction/src/domains/flood/flood.ts（AC09 (3) の行と、parseFlood の後ろの関数だけ）",
+      "reconstruction/src/units/flood/flood-unit.ts（:153・:174・:181・:748 だけ。行の数を変えない）",
+      "reconstruction/test/restore-dropped-text/restore-dropped-text.test.ts（新設）",
+      "reconstruction/test/flood-unit/flood-unit.test.ts（P3-C11-T05 の比べの相手だけ。行の数を変えない）",
+      "reconstruction/test/unreadable-mark/unreadable-mark.test.ts（:147・:378 の比べの相手だけ）",
+      "reconstruction/test/expiry-form/expiry-form-h51.test.ts（U-R の 2 行の比べの相手だけ）",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts（budgetState と f08State の seed の報だけ。行の数を変えない）",
+      "docs/specs/reconstruction-p0-contracts.md（統合担当が起草で書いた。実装では変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-restore-dropped-text.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M13",
+      "M14",
+      "B08"
+    ],
+    "integrationContractIds": [
+      "I-U-V",
+      "I-U-R"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-V-001",
+      "P3-UNIT-R-001",
+      "P2-SNAPSHOT-SSE-001",
+      "P3-VIEW-ALERT-TEXT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoAlert",
+      "reconstruction/contracts/p3-flood-unit.types.ts#FloodCurrent"
+    ],
+    "publicFunctions": [
+      "関数の形は変えない（parseVolcano、reduceVolcanoUnit、toVolcanoView、parseFlood、reduceFloodUnit、toFloodView、projectSnapshot のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__45_02_01_200522_VFVO50",
+      "test__fixtures__45_03_01_200731_VFVO50",
+      "test__fixtures__synthetic_VFVO50_continuation",
+      "test__fixtures__synthetic_VFVO50_cancel",
+      "test__fixtures__46_01_01_170103_VFSVii",
+      "test__fixtures__44_02_01_200522_VFVO51",
+      "test__fixtures__16_10_01_260312_VXKO50",
+      "test__fixtures__16_12_01_260312_VXKO50",
+      "test__fixtures__16_14_01_251222_VXKO50",
+      "test__fixtures__16_05_01_210630_VXKO50",
+      "test__fixtures__synthetic_VXKO50_cancel",
+      "test__fixtures__91_01_01_241031_VXSU50"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-RDT-RES-01",
+        "target": "火山の防災事項（prevention）",
+        "limit": "1,024 字。越えたら頭の 1,023 字に …。fixture の最大は 199 字で、corpus に VFVO50 は無い",
+        "unit": "警報の記録 1 件",
+        "scope": "保存の世代の上限に 128 件分を足す（9,178,967 → 9,967,447 byte）。越えたときの欠けは文の末尾だけ",
+        "source": "P3-RDT-D-V-LIMIT"
+      },
+      {
+        "id": "P3-RDT-RES-02",
+        "target": "洪水の地区（inundation）",
+        "limit": "JSON の UTF-8 で 32,768 byte、group 2 個、text 256 字。実配信の最大は 11,574 byte・1 個・38 字",
+        "unit": "1 報",
+        "scope": "保存しない。越えたときの欠けは電文順の後ろの区域で、丸ごと落として omittedAreaCount に数える。view の中で分野の 65,536 byte に数える",
+        "source": "P3-RDT-D-F-LIMIT"
+      },
+      {
+        "id": "P3-RDT-RES-03",
+        "target": "受信経路で足す処理",
+        "limit": "洪水は Warning の Item と Area の線形を 1 回（33 区域 +38 µs、80 区域 +132 µs、Mac の reduce の p50）、火山は字の比べ 1 つ。全件走査・state 全体の直列化を足さない",
+        "unit": "1 受信",
+        "scope": "AGENTS.md の受信経路の計算量。値は局所の測定で、T0→T6 の p99 と Pi は測っていない",
+        "source": "Q-RDT-MEASURE"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-V"
+    ],
+    "persistedFields": [
+      "VolcanoAlert.prevention（鍵は字のある active の記録だけ。schemaVersion は p3-volcano-unit-v7 のまま）"
+    ],
+    "nonPersistedFields": [
+      "FloodCurrent.inundation（encode で外す。再起動の後は次の報まで無い）",
+      "VolcanoActivity と VFSV・VFVO51〜56 の VolcanoPrevention（今のまま採用時の outcome だけか、読まない）"
+    ],
+    "outOfScope": [
+      "画面の描き方（P4）。防災事項と地区の並べ方、「ほか N 区域」の字、再起動の後の見せ方",
+      "VolcanoActivity、VFSV・VFVO51・VFVO53〜55 の VolcanoPrevention（P3-RDT-D-V-SCOPE・D-V-ACTIVITY）",
+      "洪水の雨量・氾濫水の予報・主文、土砂の補足、熱中症の予防行動（裁定で落としたまま）",
+      "端末の短い形と音。通知の判断の比べ",
+      "分野の要約の条件と H37",
+      "旧築からの移行の道具（旧築の保存に字が無い）",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-RDT-AC01",
+        "requirement": "火山の欄（P3-RDT-D-Q3・D-RAW・D-V-SCOPE・D-V-ACTIVITY・D-V-PLACE）: (1) VolcanoAlert の active の事実に prevention?: string を足す。VFVO50 の発表・訂正で採った報の Body/VolcanoInfoContent/VolcanoPrevention に字があるときだけ鍵を持つ (2) 読みは今の式のまま（最初の要素、前後の空白の trim）で、改行・全角の空白を含めて字を変えない (3) 1,024 字を越えた字は頭の 1,023 字に … を付ける（P3-RDT-D-V-LIMIT。切る位置は cut でサロゲートの対を割らない）。truncated は変えない。outcome の volcanoPrevention も同じ値になる (4) outcome の facts は今のまま: factsOf で prevention を外し、extra の volcanoPrevention と volcanoActivity は変えない (5) VFSV の報の字は記録に置かない。VFVO51・VFVO52〜56 は変えない (6) toVolcanoView・shown・view-projector・chrome-eew は変えない。鍵は今の経路で snapshot まで届き、画面は読まない。無いと: 13:03 に浅間山の入山規制が出ても「山頂火口から概ね４ｋｍの範囲では…」の防災事項が view に無く、P4 で画面を足しても出せない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/volcano/volcano.ts:344 «8e10b68f4876538a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:747 «256fe126ee9477a7»",
+          "src/dmdata/volcano-parser.ts:476 «040991c8dab823b5»",
+          "src/ui/volcano-formatter.ts:567 «35e32ab82f442ed3»",
+          "reconstruction/contracts/p3-volcano-unit.json:167 «91ee9c8e55ae9333»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC02",
+        "requirement": "火山の置き換わりと消え方: (1) 採った VFVO50 の報で字は置き換わり、要素の無い報では鍵が無くなる。陸上の新しい active の枝と、kind を採らない陸上の枝（!takeKind）の両方で同じにする (2) VFSV の採用（海上の新しい active の枝、!takeKind の枝）と VFSV の部分の取消、VFVO51 の同じ区分の継続は手元の鍵を保つ (3) VFVO51 の区分の変化は鍵を持たない（headline・municipalities を消す枝と同じ。前の区分の範囲を残さない） (4) 解除・inactive の区分・取消で記録の事実ごと消える。45_03_01 の解除の報の字（「湯釜火口から概ね５００ｍの範囲では…」）も ended の記録には残らない (5) 字だけが違う続報は semantic にする（place の changed の一覧に足す。ALERT_FIELDS の行は変えない） (6) noticeChange の比べには入れず、字だけが違う発表の続報で通知を作らない。採用した訂正の報は今の規則のまま通知を作る（P3-RDT-D-NOTICE=A） (7) 同じ版の比べには入れない（withoutSource に prevention: null を足す）。同じ版で字だけが違う報は今のまま duplicate で、字が 1,024 → 1,025 字になった報も切り詰めの差が比べに入らず duplicate。他の欄の truncated は今のまま比べに残す。無いと: 解除の後も立入を禁じる文が残るか、海上の報で陸上の範囲が消えるか、字が違うだけの継続の報で音が鳴る",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:228 «2e15b935659e2c2f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:274 «e19f284760535f3d»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:104 «ee67c3c47e745e7e»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC03",
+        "requirement": "火山の保存（P3-RDT-D-V-SAVE）: (1) 字は記録と一緒に保存する。encode は変えない (2) schemaVersion は p3-volcano-unit-v7 のまま。鍵の無い保存は防災事項なしと同じ意味で読め、移行も開発機の保存を消す手順も要らない (3) alertRecord は鍵があるとき、文字列で、空でなく、1,024 字以下で、記録が active で、source が null でないことを確かめ、確かめた値を項目として組み立てる。外れたら payload 全体が invalid。ALERT_FACT_KEYS に足す (4) GENERATION_LIMIT に 128 ×（16＋1,024 × 6）＝ 788,480 byte を足す（9,178,967 → 9,967,447）。無いと、上界の破れとして reduceVolcanoUnit が報を断る行に、合法な状態で当たりうる (5) 再起動の後、取り直しの同じ版は duplicate で、字は保存した値のまま。鍵の無い保存への同じ版の再送も、字が長くても duplicate で鍵は無いまま。旧築の保存に字が無いので、切替の瞬間に active の警報は次の VFVO50 まで字が無い（Q-RDT-READERS (5)）。無いと: 再起動の後、範囲の字の無い入山規制が解除の報まで続く",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:1352 «81d58ed359a4fbdd»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:104 «ee67c3c47e745e7e»",
+          "reconstruction/contracts/p3-codec-closure.json:182 «da66206c5b29e26f»",
+          "reconstruction/contracts/p3-view-alert-text.json:88 «871b901e51b3d2d2»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC04",
+        "requirement": "洪水の欄（P3-RDT-D-Q3・D-RAW・D-F-SHAPE）: (1) p3-flood-unit.types.ts に FloodInundationArea（name・stationCode: string | null・prefecture・city・cityCode: string | null・subCities）と FloodInundationGroup（kindName・text・areas・omittedAreaCount）を足し、FloodCurrent の active の事実に inundation?: readonly FloodInundationGroup[] を足す。読めた group が 1 つ以上あるときだけ鍵を持つ (2) 読むのは Body/Warning/Item のうち Kind/Name が「浸水想定地区」か「浸水想定地区（氾濫発生情報）」のものだけ（旧築の flood-inundation-parser.ts と同じ判定）で、主文の Item は読まない。雨量・氾濫水の予報は読まない (3) kindName は Kind/Name、text は Kind/Property/Text、Area は Name・Prefecture・City・SubCityList の字、cityCode は CityCode（空は null）、stationCode は codeType（Area か親の Areas）が水位観測所のときの Code（空は null）。どれも scalar の trim で、字を変えない。SubCityList は空白で分けず「-」も読み替えない。同じ内容の Area も除かない（16_11_02） (4) 観測所の軸の区域は (stationCode, name) が stations の (code, name) と同じ鍵で、河川は station の riverCodes から引く。氾濫発生情報の区域は stationCode が null で、name は「茨城県古河市」の形 (5) 読めない Area の欄（子要素を持つ・要素が無い）は空の字か null にして、報は断らず診断も足さない (6) 新しい読みは parseFlood の後ろの関数に置き、Body を読める所（取消でない報）から 1 回呼ぶ。VXSU は要素が無いので鍵が無い (7) toFloodView・viewed・view-projector・chrome-eew は変えない。factsOf に足さず、outcome の facts は今のまま。無いと: 02:40 に氾濫危険情報が出ても、自分の校区が想定に入るかが view に無く、P4 で画面を足しても出せない",
+        "evidenceRefs": [
+          "src/dmdata/flood-inundation-parser.ts:36 «94a8b4ae64da06a1»",
+          "src/dmdata/flood-inundation-parser.ts:37 «d3924f732c641921»",
+          "reconstruction/contracts/p3-flood-unit.json:54 «30e452ef75a33c6b»",
+          "docs/specs/reconstruction-p0-contracts.md:485 «ba2a41e3a4d013e4»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC05",
+        "requirement": "洪水の上限と欠け（P3-RDT-D-F-LIMIT）: (1) 1 報の inundation の JSON の UTF-8 byte は 32,768 以下（LIMITS.inundationBytes）。byte は group の包装・区切り・件数の桁を含めて要素ごとに加算する。group は 2 個まで (2) 電文順の頭から区域を入れ、次の区域が入らなければそこから後ろの区域は全部入れず omittedAreaCount に数える。3 個目より後の Item の区域は最後の group の omittedAreaCount に足す (3) 区域の途中で字を切らない。1 区域が 32,768 byte を越えるときも丸ごと落とす (4) omittedAreaCount は落としたときだけ 0 でなく、group には常に欄がある。truncated は変えない（河川・観測所の切り捨ての印のまま） (5) 上限は保存しない欄の上限なので、保存の上限と件数の上限には足さない (6) text は 256 字を越えたら頭の 255 字に … を付ける。欠けの見え方は text の末尾の … だけで、omittedAreaCount と truncated には出ない。実配信の最大は 38 字。P4 はこの … を消さずに出す（P4 への申し送り）。無いと: 10 MiB まで受ける XML の地区が分野の 65,536 byte を 1 報で越え、落ちたことも読み手に分からない",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/view-projector.ts:906 «c42a191089542248»",
+          "reconstruction/contracts/p3-flood-unit.json:72 «3d5716d9f33c57ca»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC06",
+        "requirement": "洪水の置き換わりと消え方: (1) 採った続報で事実と一緒に全部置き換わる。地区の無い続報では鍵が無くなる（前の報の地区を残さない。報は EventID の全河川を載せる、I-U-R.currentSemantics (1)） (2) 河川の段階を読めない報（kinds が空、P3-C11-UNKNOWN=A）は手元の鍵を保つ (3) 全河川が解除（ended）・取消（cancelled）・期限切れ（expired）は事実ごと消える。16_14_01 の解除の報は地区 5 区域を持つが ended の記録には残らない。VXKO の解除の報の字を残さない (4) 地区だけが違う続報は semantic（FIELDS に足す）。FACTS には足さず、同じ版の比べには入れない。同じ版で地区だけが違う報は今のまま duplicate (5) 通知の判断は河川の段階と観測の最大のままで、発表の続報は地区の違いで通知を作らない。採用した訂正の報は今の規則のまま通知を作る（P3-RDT-D-NOTICE=A）。無いと: 解除した河川の地区が残るか、地区の差で版の判断が変わる",
+        "evidenceRefs": [
+          "reconstruction/src/units/flood/flood-unit.ts:152 «68a063f0e5d5b81c»",
+          "reconstruction/src/units/flood/flood-unit.ts:142 «169f3b6c42c0b0b2»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC07",
+        "requirement": "洪水は保存しない（P3-RDT-D-F-SAVE）: (1) floodUnitCodec.encode は active の記録から inundation の鍵を外す。鍵の無い記録は同じ object を返す (2) schemaVersion は p3-flood-unit-v9 のまま。decode・generationBytes・保存の上限（今 19,388,503 byte）・P3-C11-BOUNDS=B は変えない (3) 再起動の後の view に鍵は無く、取り直しの同じ版は今のまま duplicate で入り直さない。次に採った報で入る（長くて記録の 36 時間） (4) 鍵が無いことは「読めない」で、「想定地区なし」ではない（再起動の後と、地区の無い報を view では見分けない）。P4 は鍵の無い記録に「想定なし」と書かない。無いと: 512 記録の上界が P3-C11-BOUNDS=B の U-R の単位の予算 16 MiB を越える（全体の合算の上限ではない）",
+        "evidenceRefs": [
+          "reconstruction/src/units/flood/flood-unit.ts:747 «3e9fb0127ddca335»",
+          "reconstruction/contracts/p3-flood-unit.json:72 «3d5716d9f33c57ca»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC08",
+        "requirement": "view の容量（P3-RDT-D-V-PLACE・D-F-PLACE）: (1) 分野が要約に落ちる条件（全体が 1 MiB を越え、かつ包装込みの分野が 65,536 byte を越える）と要約の形は変えない。要約に落ちると防災事項も地区も、警報も河川も全部落ちる。分野の中で欄だけを先に落とす段は作らない (2) 分野に収まる件数は火山の active の警報 35 → 27（実際の最大 14 火山、fixture の形）、洪水の EventID 約 24 → 約 12（実配信の 2026-06-26 の 1 件平均）。実配信の 5 日の包装込みの分野 flood の最大は 49,967 byte で収まる。見積りで保証ではない (3) 統合担当は配送の前に、実装の view で実配信の 5 日の包装込みの分野 flood の byte の最大を測る。65,536 byte を越えたら配送の前に作者へ報告し、P3-RDT-D-F-PLACE の B（API へ回す）を選び直す（P3-C11-AC06 と同じ線） (4) 実装の完了の報告に、fixture で (2) の件数を測り直した値を書く。無いと: 大雨の日に地区の分だけ洪水の分野が要約に落ち、河川の段階まで画面から消えることを配送の前に知れない",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/view-projector.ts:904 «0f29de6d3afeedc3»",
+          "reconstruction/src/view-projector/view-projector.ts:906 «c42a191089542248»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC09",
+        "requirement": "触る行と anchor: (1) 行の数を変えない file: volcano.ts・volcano-unit.ts・p3-volcano-unit.types.ts・flood-unit.ts。既存の行の末尾に書き、reanchor-target.py は使わない (2) 中身を変えてよい行: volcano.ts:345・:58（cut の閉じ括弧の後ろに切り詰めの helper）、volcano-unit.ts:39（式の末尾に足す）・:212・:292（必要なら末尾に helper）・:384・:385・:401・:405・:603・:697・:1446・:1514・:1516、p3-volcano-unit.types.ts の VolcanoAlertFacts の headline の行、flood-unit.ts:153・:174・:181・:748 (3) flood.ts は :3・:23・:60・:128・:325・:333 の中身と、parseFlood の閉じ括弧の後ろへの関数の追加だけ。他の契約が引く flood.ts の行（:28〜:283）を動かさない (4) p3-flood-unit.types.ts は «» に引かれていないので行を足してよい。volcano-unit.ts の «» に引かれた行は変えない（:228 を含む）。無いと: 他の契約の «» が崩れて check-contract が落ちる",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:228 «2e15b935659e2c2f»",
+          "reconstruction/src/domains/flood/flood.ts:283 «71688b19a0252b64»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC10",
+        "requirement": "原文への注記（統合担当が配送の commit で当て、当てた契約の meta.sha256 を取り直す。閉じた契約の裁定の字は書き換えず、各項の末尾に括弧で足す）: (1) p3-volcano-unit.json の legalMissing の「VolcanoActivity・VolcanoPreventionは状態に入れず」の項、I-U-V.view、nonPersistedFields の同じ字の行: 「（VFVO50 の VolcanoPrevention は警報の記録の prevention に持つ、P3-RESTORE-DROPPED-TEXT-001）」 (2) 同 file の persistedFields の警報の行に prevention、I-U-V.bounds に prevention 1,024 (3) 世代の上限の今の値は本契約の実装の commit で 9,967,447 へ揃えた: p3-codec-closure.json 12 か所、p3-volcano-unit.json 4 か所と P3-C9-RES-01 の limit の数値と unit の説明、p3-authority-evidence.json 3 か所。p3-unreadable-mark.json の 2 か所（RES-09 の 5,242,880→9,178,967 と発注 3 の配送の記録）は歴史の記録なので値を残す (4) p3-flood-unit.json の P3-C11-FACTS の A と reason、P3-C11-HANDOFF の C19 の行、nonPersistedFields の「Body/Warning（主文・浸水想定地区）」の行、outOfScope の「雨量・浸水想定地区・氾濫水の予報の端末出力」の行: 「（浸水想定地区は view に持ち保存しない、P3-RESTORE-DROPPED-TEXT-001）」 (5) 同 file の I-U-R.currentSemantics (4) の公開事実の列に inundation (6) spec §7 の full の行は統合担当が起草の commit で足した（P3-VIEW-ALERT-TEXT-001 の evidenceRefs の anchor を付け直した） (7) 注記: VFSV の報も同じ読みの行を通るので、VFSV の outcome の volcanoPrevention も 1,024 字を越えると末尾に … が付く。無いと: 閉じた契約が「状態に入れず」「読まない」のまま残り、次の起草が古い前提で読む",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-volcano-unit.json:30 «35b1f75eaa50e2b7»",
+          "reconstruction/contracts/p3-flood-unit.json:54 «30e452ef75a33c6b»",
+          "reconstruction/contracts/p3-codec-closure.json:182 «da66206c5b29e26f»"
+        ]
+      },
+      {
+        "id": "P3-RDT-AC11",
+        "requirement": "既存の試験の期待の変更（試作で確かめた全部。これ以外が落ちたら変える前に報告する）: (1) flood-unit.test.ts の P3-C11-T05、unreadable-mark.test.ts の P3-UM-T01・T09（:147）と P3-UM-T01 regression（:378）、expiry-form-h51.test.ts の P3-EF-T08 の U-R の 2 行は、復元した記録を保存の前の state と比べる。地区は保存しないので、比べる相手を floodUnitCodec.encode の currents に替える（印と事実の比べの意味は同じ） (2) volcano-unit.test.ts の P3-CODEC-T01: budgetState と f08State の sparse の seed の報から VolcanoPrevention の要素を除き、開始の byte を今の 4,193,970 に戻す。開始の件数 107 と式の期待は変えない。無いと: 保存しない欄が round trip の失敗に見え、F08 の境界の開始が 4 MiB を越えて試験の意味が変わる",
+        "evidenceRefs": [
+          "reconstruction/test/flood-unit/flood-unit.test.ts:423 «29a364d56f5d47b7»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:782 «4b975cbe4846cfac»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-RDT-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RDT-AC01"
+        ],
+        "behavior": "受入条件。45_01_01 の view.alerts[0].prevention が電文の VolcanoPrevention の trim と同じ字で改行が残る。outcome の facts に prevention の鍵が無く volcanoPrevention は同じ字。synthetic_VFVO50_cancel の取消の記録に鍵が無い"
+      },
+      {
+        "testId": "P3-RDT-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RDT-AC02"
+        ],
+        "behavior": "受入条件。字だけを替えた次の VFVO50 の発表で change が semantic、displayChanges が 1 件で contentRevision が進み、view の字が新しい値になり、intent が増えない。字だけを替えた訂正の報は今どおり intent ができる。要素を除いた次の報で鍵が無くなる。46_01_01 の VFSV の後も VFVO51 の同じ区分の継続の後も鍵が残り、VFVO51 の区分の変化で無くなる。45_03_01 の解除で ended の記録に鍵が無い。同じ版で字だけが違う報は duplicate で、1,024 字の報の後の同じ版の 1,025 字の報も duplicate"
+      },
+      {
+        "testId": "P3-RDT-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RDT-AC01",
+          "P3-RDT-AC03"
+        ],
+        "behavior": "契約境界。1,024 字はそのまま、1,025 字は 1,023 字と … で、どちらも truncated false。鍵の無い保存への同じ版の 1,025 字の再送は duplicate で鍵は無いまま。文のある記録が encode→JSON→decode で同じ値に戻り、鍵の無い payload も読める。空・1,025 字・文字列でない・ended に鍵がある・source が null の payload は invalid。volcanoUnitCodec.maxEnvelopeBytes が 9,967,447"
+      },
+      {
+        "testId": "P3-RDT-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RDT-AC04"
+        ],
+        "behavior": "受入条件。16_10_01 の view.currents[0].inundation[0] の 16 区域の順と字が電文のままで、各区域の (stationCode, name) が stations の (code, name) にある。16_12_01 の group の text が「坂東大橋地点からの…」で stationCode が null、subCities が「-」。16_05_01 と 91_01_01 は鍵が無い"
+      },
+      {
+        "testId": "P3-RDT-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RDT-AC05"
+        ],
+        "behavior": "契約境界。16_14_01 の段を解除でない code にして区域を 20 回繰り返した 100 区域の報で、JSON が 32,768 byte 以下、areas は電文順の頭、areas と omittedAreaCount の和が 100。80 区域（16_10_01 の 5 回）は落ちない。text が 256 字はそのまま、257 字は 255 字と …"
+      },
+      {
+        "testId": "P3-RDT-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-RDT-AC06"
+        ],
+        "behavior": "受入条件。地区を替えた次の発表の報で置き換わり change が semantic、displayChanges が 1 件で contentRevision が進み、intent が増えない。地区を替えた訂正の報は今どおり intent ができる。地区の無い次の報で鍵が無くなる。河川の段階の無い報は鍵を保つ。全河川の解除と synthetic_VXKO50_cancel の取消の記録に鍵が無い。同じ版で地区だけが違う報は duplicate"
+      },
+      {
+        "testId": "P3-RDT-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RDT-AC07"
+        ],
+        "behavior": "契約境界。encode の JSON に地区の字が無く schemaVersion が v9。decode の後の view に鍵が無く、次に採った報で入る。鍵の無い記録は encode で同じ object"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O07 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。行の数を変えないことで全部の «» が通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist（試験が import する）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（保存の形に触るため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の期待を変えてよいのは AC11 の 5 本だけ。ほかの期待が落ちたら、変える前に試験名・旧の期待・理由を報告する",
+      "実装の view の byte で AC08 (2) の件数を測り直した値",
+      "新しい export は末尾の export { … } の形に足す（P1-T04 が export function・const を数える）。volcano.ts・flood.ts の既存の export は変えない",
+      "試験の設定は既存の fixture の helper を使い、作者の本物の設定に触らない",
+      "ほかの契約の «» は付け直さない。原文の注記は統合担当が配送の commit で当てる（AC10）"
+    ],
+    "unresolvedQuestions": []
+  }
+}

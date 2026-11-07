@@ -1095,7 +1095,7 @@ function budgetState(bounded: boolean): VolcanoUnitState {
     origin: "live" as const, operation, family, subject, reportDateTimeRaw: bounded ? "2020-05-22T15:00:00.00000000000000+09:00" : iso(time),
     controlDateTimeRaw: bounded ? "2020-05-22T15:00:00.00000000000000+09:00" : iso(time),
     serialRaw: bounded ? "1234567890" : "1", infoTypeRaw: "発表" });
-  const alertSeed = alertOf(send(emptyState(), F.a350, (xml) => xml.replaceAll("<Code>11</Code>", "<Code>13</Code>")).state, "350")!;
+  const alertSeed = alertOf(send(emptyState(), F.a350, (xml) => xml.replaceAll("<Code>11</Code>", "<Code>13</Code>").replace(/<VolcanoPrevention>[\s\S]*?<\/VolcanoPrevention>/, "")).state, "350")!;
   const eruptionSeed = send(emptyState(), F.plume).state.eruptions[0], ashfallSeed = send(emptyState(), F.rapid).state.ashfalls[0];
   if (alertSeed.effective !== "active" || eruptionSeed.effective !== "active" || ashfallSeed.effective !== "active") throw new Error("inactive seed");
   const real = { alert: alertSeed, eruption: eruptionSeed, ashfall: ashfallSeed };
@@ -1182,7 +1182,7 @@ function f08State(escaped: number, sparse: boolean, max = false): VolcanoUnitSta
   const ashfalls = bound.ashfalls.map((item, index) => item.effective !== "active" || index >= escaped ? item
     : { ...item, groups: item.groups.map((group) => ({ ...group, topAreas: group.topAreas.map((area) => ({ ...area, code: slash })) })) });
   if (sparse) {
-    const seed = alertOf(send(emptyState(), F.a350, (xml) => xml.replaceAll("<Code>11</Code>", "<Code>13</Code>")).state, "350")!;
+    const seed = alertOf(send(emptyState(), F.a350, (xml) => xml.replaceAll("<Code>11</Code>", "<Code>13</Code>").replace(/<VolcanoPrevention>[\s\S]*?<\/VolcanoPrevention>/, "")).state, "350")!;
     const [first] = alerts;
     alerts[0] = { ...seed, subject: first.subject, operation: first.operation, volcanoCode: first.volcanoCode, eventId: first.eventId,
       source: first.source, retainUntil: first.retainUntil, marineSource: null };

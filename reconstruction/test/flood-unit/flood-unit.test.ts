@@ -421,7 +421,7 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     state = send(state, F.cancel, eventId("123456789014"), T0 + 2_000).state;
     const payload = JSON.parse(JSON.stringify(floodUnitCodec.encode(state))) as JsonValue;
     expect(Object.keys(payload as object).sort()).toEqual(["currents", "intents", "schemaVersion"]);
-    expect(floodUnitCodec.decode(payload)).toEqual({ kind: "restored", state: { ...state, contentRevision: 0,
+    expect(floodUnitCodec.decode(payload)).toEqual({ kind: "restored", state: { ...state, currents: floodUnitCodec.encode(state).currents, contentRevision: 0,
       persistence: { kind: "saved", currentGeneration: 0, savedGeneration: 0, savedCapturedAt: null, savedAckAt: null, dirtySince: null } } });
     type Row = Record<string, unknown>;
     const value = payload as { currents: Row[]; intents: Row[] };
@@ -508,7 +508,7 @@ describe("P3-UNIT-R-001 U-R reducer", () => {
     // 復元で intent を作らず、pending の期限を延ばさない（期限を過ぎた intent と記録は復元の後の最初の期限処理で回収する）。
     const restoredAt = T0 + 61_000;
     const restored = reduceFloodUnit(emptyState(), { kind: "restore", persisted: floodUnitCodec.encode(state), clock: clock(restoredAt) });
-    expect([restored.intents, restored.state.intents, restored.state.currents]).toEqual([[], state.intents, state.currents]);
+    expect([restored.intents, restored.state.intents, restored.state.currents]).toEqual([[], state.intents, floodUnitCodec.encode(state).currents]);
     expect(tick(restored.state, restoredAt).state.intents).toEqual(state.intents.filter((item) => item.expiresAt > restoredAt));
     expect(restored.outcomes).toMatchObject([{ kind: "recoveryApplied", scope: ["U-R"], coverage: [SUBJECT] }]);
   });

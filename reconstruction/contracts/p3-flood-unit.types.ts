@@ -28,6 +28,24 @@ import type {
 // 上限は P3-C11-BOUNDS=B（作者裁定 2026-10-10 朝）: group 16・河川の延べ 32。超えた分は捨てて truncated（group は段階の低い方から）。
 export type FloodRiver = Readonly<{ code: string; name: string }>;
 
+// 浸水想定地区（P3-RDT-AC04）。字は電文のままで、subCities は SubCityList を分けず「-」も読み替えない。
+// 観測所の軸の区域は (stationCode, name) が FloodStation の (code, name) と同じ鍵。氾濫発生情報の区域は stationCode が null。
+export type FloodInundationArea = Readonly<{
+  name: string;
+  stationCode: string | null;
+  prefecture: string;
+  city: string;
+  cityCode: string | null;
+  subCities: string;
+}>;
+// omittedAreaCount は 1 報の上限で落とした区域の数（P3-RDT-AC05）。落とした区域に自分の地区があるかは分からない。
+export type FloodInundationGroup = Readonly<{
+  kindName: string;
+  text: string;
+  areas: readonly FloodInundationArea[];
+  omittedAreaCount: number;
+}>;
+
 export type FloodKindGroup = Readonly<{
   code: string;
   name: string;
@@ -72,6 +90,7 @@ type FloodCurrentFacts = Readonly<{
   kinds: readonly FloodKindGroup[];
   times: readonly string[];
   stations: readonly FloodStation[];
+  inundation?: readonly FloodInundationGroup[]; // 保存しない（P3-RDT-D-F-SAVE）。鍵が無いのは「読めない」で「想定地区なし」ではない
   basisReportDateTimeRaw: string | null;
   truncated: boolean;
   expiryPending?: true; // P3-EF-AC05 (1): 時計を確かめる前に表示の期限が来た印（view から外し、事実と通知の印は残す）

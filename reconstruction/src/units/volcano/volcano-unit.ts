@@ -36,7 +36,7 @@ const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT
 // P3-UM-RES-09: 器は保存する記録の印（警報は陸と海の 2 つで一覧の欄 municipalities・marineAreas、噴火は municipalities、降灰は欄なし）と
 // 原文の予算とカードの分だけ広げる。解説は保存しないので数えない。
 const GENERATION_LIMIT = 5_242_880 + SLICE_LIMIT * (unreadableMarkBytes("unreadable", 2) + unreadableMarkBytes("marineUnreadable", 2))
-  + SLICE_LIMIT * unreadableMarkBytes("unreadable", 1) + SLICE_LIMIT * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES;
+  + SLICE_LIMIT * unreadableMarkBytes("unreadable", 1) + SLICE_LIMIT * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES + SLICE_LIMIT * (`,"prevention":""`.length + BOUNDS.prevention * 6); // P3-RDT-AC03 (4): 防災事項は 1 単位 6 byte まで
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C9-SEM-01〜07（元報の ReportDateTime からの絶対の長さ、P3-C9-RETENTION=A。batch は単調時計）。
 const DAY_MS = 86_400_000;
@@ -209,7 +209,7 @@ const sameAshfallReport = (ref: ReportRef, source: ReportRef): boolean => ref.fa
   && reportMs(ref) === reportMs(source) && ref.infoTypeRaw === source.infoTypeRaw;
 // 通知の印（P3-NL-AC02）も中身の比べに入れない。読めない所の印（P3-UM-AC01）も入れない（原文の予算で原文を外した記録を同じ版の再送で食い違いにしない）。
 const withoutSource = (value: Shown) => ({ ...value, source: null, marineSource: null, retainUntil: 0, unconfirmed: null, marineUnconfirmed: null,
-  notice: null, marineNotice: null, expiryPending: null, unreadable: null, marineUnreadable: null });
+  notice: null, marineNotice: null, expiryPending: null, unreadable: null, marineUnreadable: null, prevention: null }); // P3-RDT-AC02 (7): 防災事項も入れない
 type Held = Readonly<{ mark: ReportRef | null; missing: boolean }>;
 
 // ---- 警報（I-U-V.alertSemantics、P3-C9-ALERT-ACTIVE=A・P3-C9-MARINE=A） ----
@@ -289,7 +289,7 @@ function noticeChange<T extends Shown>(before: T | null, after: T, marine = fals
 const named = (value: string | null, mark: UnreadableMark | null, scope: string): string | null =>
   value === "" && hasPart(mark ?? undefined, "name", (item) => item === scope) ? UNREAD_TEXT : value;
 
-const inactive = (value: VolcanoAlert | null): "ended" | "cancelled" => value?.effective === "cancelled" ? "cancelled" : "ended";
+const inactive = (value: VolcanoAlert | null): "ended" | "cancelled" => value?.effective === "cancelled" ? "cancelled" : "ended"; const preventionKey = (value: string | null | undefined) => value == null ? {} : { prevention: value }; const withoutPrevention = ({ prevention: _text, ...facts }: ActiveAlert) => facts;
 type AlertVerdict = Readonly<{ kind: "adopt"; next: VolcanoAlert; conflict: boolean; missing: boolean }>
   | Readonly<{ kind: "unchanged"; reason: "duplicate" | "stale" | "noChange"; held: Held | null }>;
 function alertBase(candidate: VolcanoCandidate, subject: string, code: string, existing: VolcanoAlert | null, eventId: string,
@@ -381,8 +381,8 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     // kind は先着（か新しい別 family）のまま。active なら自分の field だけを当てる。
     next = before == null ? { ...base, effective: inactive(existing) } : entry != null ? { ...before, ...base }
       : marine ? { ...before, ...base, marineAreas: facts!.marineAreas, truncated: before.truncated || candidate.truncated }
-      : { ...before, ...base, volcanoName: facts!.volcanoName, headline: facts!.headline, municipalities: facts!.municipalities,
-        coordinate: facts!.coordinate, truncated: before.truncated || candidate.truncated };
+      : { ...withoutPrevention(before), ...base, volcanoName: facts!.volcanoName, headline: facts!.headline, municipalities: facts!.municipalities,
+        coordinate: facts!.coordinate, truncated: before.truncated || candidate.truncated, ...preventionKey(facts!.prevention) };
   } else if (kind == null || !activeKind(kind)) {
     // inactive の区分・解除。記録の無い VFVO51 の entry は解除・引下げのときだけ ended を作る（P3-C9-ALERT-ACTIVE=A）。
     if (existing == null && entry != null && !/解除|引下げ/.test(kind?.condition ?? ""))
@@ -398,11 +398,11 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     next = { ...base, effective: "active", volcanoName: before?.volcanoName ?? facts!.volcanoName, kind, lastKind: facts!.lastKind,
       level: levelOf(kind.code), headline: before?.headline ?? null, municipalities: before?.municipalities ?? [],
       marineAreas: facts!.marineAreas, coordinate: before?.coordinate ?? facts!.coordinate,
-      truncated: (before?.truncated ?? false) || candidate.truncated };
+      truncated: (before?.truncated ?? false) || candidate.truncated, ...preventionKey(before?.prevention) };
   } else {
     next = { ...base, effective: "active", volcanoName: facts!.volcanoName, kind, lastKind: facts!.lastKind, level: levelOf(kind.code),
       headline: facts!.headline, municipalities: facts!.municipalities, marineAreas: before?.marineAreas ?? [],
-      coordinate: facts!.coordinate, truncated: candidate.truncated };
+      coordinate: facts!.coordinate, truncated: candidate.truncated, ...preventionKey(facts!.prevention) };
   }
   // 旧保存で分からない identity（null）は同じ版の再送で埋まっても食い違いにしない。分かっている identity どうしの違いは食い違い（P3-AUTH-AC06(2)）。
   return settle(next, crossConflict, () => existing != null && own?.infoTypeRaw === ref.infoTypeRaw && isDeepStrictEqual(withoutSource(existing),
@@ -600,7 +600,7 @@ function factsOf(value: Shown): Readonly<Record<string, JsonValue>> {
   if (value.effective !== "active") return { eventId: value.eventId, effective: value.effective, volcanoCode: value.volcanoCode };
   // 通知の印（P3-NL-AC02）は outcome の事実に出さない。
   // 読めない所の印（P3-UM-AC01）も出さない（原文の本文を outcome に載せない、P3-UM-D-VIEW）。
-  if (isAlert(value)) { const { source: _source, marineSource: _marine, notice: _notice, marineNotice: _sea, unreadable: _land, marineUnreadable: _marineMark,
+  if (isAlert(value)) { const { source: _source, marineSource: _marine, notice: _notice, marineNotice: _sea, unreadable: _land, marineUnreadable: _marineMark, prevention: _text,
     ...rest } = value; return rest; }
   const { source: _source, notice: _notice, ...rest } = value;
   if (!("unreadable" in rest)) return rest;
@@ -694,7 +694,7 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
       currentEstablished: null });
     return false;
   }
-  const fields = changed(before, after, fieldsOf(after));
+  const fields = changed(before, after, isAlert(after) ? [...ALERT_FIELDS, "prevention"] : fieldsOf(after)); // P3-RDT-AC02 (5)(6): 版は進めるが、noticeChange が読む ALERT_FIELDS には足さない
   const semantic = fields.length !== 0 || candidate.cancelled && before?.effective === "active";
   if (placed.evicted != null) applied.evicted++;
   applied.state = store(placed.values);
@@ -1443,7 +1443,7 @@ function materialRecord(value: unknown): MaterialValue | null {
     return { kind: "range", bound: row.bound, value: row.value, raw: row.raw };
   return null;
 }
-const ALERT_FACT_KEYS = ["volcanoName", "kind", "lastKind", "level", "headline", "municipalities", "marineAreas", "coordinate", "truncated",
+const ALERT_FACT_KEYS = ["prevention", "volcanoName", "kind", "lastKind", "level", "headline", "municipalities", "marineAreas", "coordinate", "truncated",
   "unreadable", "marineUnreadable"];
 const ERUPTION_FACT_KEYS = ["volcanoName", "flash", "phenomenon", "eventDateTimeRaw", "craterName", "plumeAboveCrater", "plumeAboveSeaLevel",
   "plumeDirection", "headline", "municipalities", "truncated", "validUntil", "expiryPending", "unreadable"];
@@ -1511,9 +1511,9 @@ function alertRecord(value: unknown): VolcanoAlert | null {
   if (kind == null || !activeKind(kind) || row.level !== level || level === undefined || lastKind === undefined || municipalities == null
     || marineAreas == null || !bounded(row.volcanoName, BOUNDS.volcanoName) || !boundedOrNull(row.headline, BOUNDS.headline)
     || !(row.coordinate === null || ascii(row.coordinate, LIMITS.coordinate)) || typeof row.truncated !== "boolean"
-    || landUnreadable == null || seaUnreadable == null) return null;
+    || landUnreadable == null || seaUnreadable == null || "prevention" in row && (source == null || !bounded(row.prevention, BOUNDS.prevention) || row.prevention === "")) return null;
   return { ...base, effective: "active", volcanoName: row.volcanoName, kind, lastKind, level, headline: row.headline, municipalities,
-    marineAreas, coordinate: row.coordinate, truncated: row.truncated, ...landUnreadable,
+    marineAreas, coordinate: row.coordinate, truncated: row.truncated, ...landUnreadable, ...isText(row.prevention) ? { prevention: row.prevention } : {},
     ...seaUnreadable.unreadable == null ? {} : { marineUnreadable: seaUnreadable.unreadable } };
 }
 function eruptionRecord(value: unknown): VolcanoEruption | null {

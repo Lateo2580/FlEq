@@ -150,7 +150,7 @@ function judge(existing: FloodCurrent | null, built: FloodCurrent, candidate: Fl
 
 // 同じ版の重複の判定は公開事実、semantic の判定はそれに basisReportDateTimeRaw を足す（Q-ENUM.revisionOrder・currentSemantics(4)）。
 const FACTS = ["effective", "title", "areaName", "kinds", "times", "stations"] as const;
-const FIELDS = [...FACTS, "basisReportDateTimeRaw"] as const;
+const FIELDS = [...FACTS, "basisReportDateTimeRaw", "inundation"] as const; // P3-RDT-AC06 (4): 地区は semantic だけで、同じ版の比べ（FACTS）に入れない
 function changed(before: FloodCurrent | null, after: FloodCurrent, fields: readonly string[] = FIELDS): string[] {
   const read = (value: FloodCurrent | null, field: string): unknown => value == null ? null
     : Object.getOwnPropertyDescriptor(value, field)?.value ?? null;
@@ -171,14 +171,14 @@ function currentOf(candidate: FloodCandidate, existing: FloodCurrent | null): Fl
   if (candidate.kinds.length === 0 && visible(existing))
     return { ...base, effective: "active", title: existing.title, areaName: existing.areaName, kinds: existing.kinds, times: existing.times,
       stations: existing.stations, basisReportDateTimeRaw: existing.basisReportDateTimeRaw ?? existing.source.reportDateTimeRaw,
-      truncated: existing.truncated, ...keptMark(existing.unreadable, candidate.unreadable),
+      truncated: existing.truncated, ...keptMark(existing.unreadable, candidate.unreadable), ...existing.inundation == null ? {} : { inundation: existing.inundation },
       ...existing.observedCompare == null ? {} : { observedCompare: existing.observedCompare } };
   // P3-C11-ACTIVE-LEVEL=A: level が 0 でない group（表に無い code を含む）が 1 つでもあれば active、全部 0 なら ended。
   if (candidate.kinds.length !== 0 && candidate.kinds.every((group) => group.level === 0)) return { ...base, effective: "ended" };
   // P3-UM-AC05 (1): 現況の観測レベルの最大を確定できない版は、比べの観測の最大を前の記録の値以上に保つ。
   const observed = candidate.stations.reduce((max, station) => Math.max(max, station.levels[0] ?? -1), -1);
   return { ...base, effective: "active", title: candidate.title, areaName: candidate.areaName, kinds: candidate.kinds, times: candidate.times,
-    stations: candidate.stations, basisReportDateTimeRaw: null, truncated: candidate.truncated,
+    stations: candidate.stations, basisReportDateTimeRaw: null, truncated: candidate.truncated, ...candidate.inundation.length === 0 ? {} : { inundation: candidate.inundation },
     ...candidate.unreadable == null ? {} : { unreadable: candidate.unreadable },
     ...candidate.observedUnknown ? { observedCompare: Math.max(observed, visible(existing) ? compareMax(existing) : -1) } : {} };
 }
@@ -745,7 +745,7 @@ const cleanPersistence: PersistenceStatus = { kind: "saved", currentGeneration: 
 const floodUnitCodec: FloodUnitCodec = {
   schemaVersion: SCHEMA, get maxEnvelopeBytes() { return generationLimitOf(); }, // P3-VM-AC05・AC06（修正波 3）: 保存 1 世代の上限。旧い版の一覧は持たない（P3-MIG-AC01・AC02: 版を上げても一覧に足さず、開発機の保存を消す）
   // contentRevision・persistence は保存しない（I-U-R.persisted）。
-  encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents, intents: state.intents }),
+  encode: (state) => ({ schemaVersion: SCHEMA, currents: state.currents.map((item) => { if (item.effective !== "active" || item.inundation == null) return item; const { inundation: _areas, ...kept } = item; return kept; }), intents: state.intents }), // P3-RDT-D-F-SAVE: 地区は保存しない
   decode(payload) {
     const value = persisted(payload);
     return value == null ? { kind: "invalid", reason: `invalid ${SCHEMA} payload` }
