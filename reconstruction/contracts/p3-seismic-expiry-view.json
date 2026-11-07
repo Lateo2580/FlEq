@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "1757466d5dca5a922d3547d48d2ed2b32fec4d15f556ab6271913b9431846e87",
+    "sha256": "4e79fbb019c1a38005685d934feb6591666283d88fd25fd0e112a997d3a4f84a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -94,7 +94,7 @@
     "contractId": "P3-SEISMIC-EXPIRY-VIEW-001",
     "mode": "implementation",
     "objective": "U-Q の時計未確認の間の表示の期限切れ（台帳 109、作者裁定 P3-SEV-D-FORM=A）。11/5 19:00 が最終報の地震は 11/6 19:00 に表示の期限が来る。時計を確かめられないまま翌朝になっても、今はその震源と震度が view と snapshot に残り、今の地震に見える。これを、事実・守りの状態・当日の履歴を残したまま view から外す。U-F など 9 分野の expiryPending の形を、地震の event と長周期の 2 種へそのまま当てる。時計を確かめたら今の collect どおり期限切れの記憶へ移り、そのときに音は鳴らず、期限切れの outcome は 1 回だけ出る",
-    "baseOid": "unassigned",
+    "baseOid": "e19d6cff",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
