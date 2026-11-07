@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f954231206e1e01a382d1e218aea8e4c3277e61",
-    "sha256": "115a327fb9354d01f526d674d51a88f85d68e72cd4afe331a8de2fb65ceb50f2",
+    "sha256": "c497ea9e10abb7bc74e3b464a6f7f150b9f9149ba84013e83b2e435b6282eedd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -73,7 +73,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-006",
     "mode": "implementation",
     "objective": "帯の段を入力の行と音の段に揃え、字の境目で折るときに閉じ括弧などを行頭に置かない。16:30 に後発地震注意情報が届いたときの帯が普通の報に見えず、レベルの無い火山の居住地域厳重警戒が最も重い帯と音で出て、読み手が「（Ｍｗ／）７．７」の折り目で止まらない",
-    "baseOid": "unassigned",
+    "baseOid": "ec5ec898",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
