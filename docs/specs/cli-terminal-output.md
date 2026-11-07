@@ -18,7 +18,7 @@ R10①（2026-09-19 作者）の「CLI 表示設計 spec」で、C19 `P3-TERMINA
 | 表まで出す | 緊急地震速報（eew）、地震（seismic: 震度速報、震源、震源・震度、顕著な地震の震源要素更新、長周期地震動の観測）、津波（tsunami） |
 | 短い形 | 気象警報（weather-current）、気象の時系列（weather-timeseries）、土砂災害（landslide）、洪水（flood）、竜巻と記録的短時間大雨など（local-bulletins）、台風（typhoon）、気象解説（briefing）、火山（volcano）、南海トラフ（nankai） |
 
-短い形の分野の本文は、端末に出さず Pi の画面で読む。南海トラフの情報と火山の解説（VFVO51・VFVO60・VZVO40）の本文は、本文を返す API（`P3-BULLETIN-TEXT-API-001`）で Pi の画面のプログラムへ届き、それを描く画面は P4 で作る。噴火警報の文（VFVO50 の活動と防災事項）は unit の state に持たないので、この API では読めない。
+短い形の分野の本文は、端末に出さず Pi の画面で読む。南海トラフの情報と火山の解説（VFVO51・VFVO60・VZVO40）の本文は、本文を返す API（`P3-BULLETIN-TEXT-API-001`）で Pi の画面のプログラムへ届き、それを描く画面は P4 で作る。噴火警報の防災事項（VFVO50）は alerts の view で届く（`P3-RESTORE-DROPPED-TEXT-001`）。噴火警報の活動の文は unit の state に持たないので、view でもこの API でも読めない。
 
 ## 2. 全体の約束
 

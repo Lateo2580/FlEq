@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "04fd2fb12c1e0650bf0d50145c3ea465d3f1c38d",
-    "sha256": "0479f0e791050eb2c55c500b05f691c8550d4e2073532d120cc9c749235f7467",
+    "sha256": "4477d83993bf9d6d57bdc30f10a6e93b8f33e5baec085eb0d9d392fe2f5fc0b5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -52,7 +52,7 @@
       },
       {
         "id": "P3-C11-FACTS",
-        "A": "事実はHead/Headlineの「（河川）」で終わるtypeのInformationの各Itemから取り、Kind（codeとname）ごとのgroupに河川のArea（codeとname）を電文順に持つ。areaNameは「（予報区域）」か「（発表区間）」で終わるtypeの最初のInformationの最初のArea/Name。観測所はP3-C11-STATIONS。府県予報区等のInformation、Body/Warning（主文・浸水想定地区）、雨量情報、氾濫水の予報、OfficeInfo、Notice、TargetDateTimeは読まない",
+        "A": "事実はHead/Headlineの「（河川）」で終わるtypeのInformationの各Itemから取り、Kind（codeとname）ごとのgroupに河川のArea（codeとname）を電文順に持つ。areaNameは「（予報区域）」か「（発表区間）」で終わるtypeの最初のInformationの最初のArea/Name。観測所はP3-C11-STATIONS。府県予報区等のInformation、Body/Warning（主文・浸水想定地区）、雨量情報、氾濫水の予報、OfficeInfo、Notice、TargetDateTimeは読まない（浸水想定地区は view に持ち保存しない。雨量は読まないまま。P3-RESTORE-DROPPED-TEXT-001）",
         "B": "旧築どおり雨量の要約・浸水想定地区・氾濫水の予報も持つ（types.ts:2595のParsedFloodForecastInfo）",
         "recommended": "A",
         "provisional": "A",

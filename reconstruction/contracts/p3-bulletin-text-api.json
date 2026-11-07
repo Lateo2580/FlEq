@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e340e4c8aa03de71a4373e38284ca954555ee6db",
-    "sha256": "76b0c75bbe57d73f65c4c1e7b3f400f178eb74c6115259939c9ffa4c7eaa783a",
+    "sha256": "bcf1811f5cdf549f0a692a36e626e6556ebff87e5a9c0b7e3230c35a7624c2e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -385,7 +385,7 @@
         "id": "P3-BT-AC06",
         "requirement": "変えないものと行の制約: (1) snapshot・view の型と値、保存の形式と schemaVersion、codec、通知、端末の出力、host.ts を変えない（host.ts は detail の型を推論する） (2) http-sse.ts は :258 以前に行を足さず（:19・:35・:36・:60・:82・:208 の中身だけ。validInputId の import も :19 の行の末尾に足す。:30・:84 の中身は変えない）、新しい読み取りと parseWeatherDetail から括った関数は file の末尾に置く。composition-root.ts は行の数を変えない（:2381 の中身も変えない）。owner-runtime.ts は :736 より前に行を足さない。owner-host.ts は変えない（:163 は request.detail をそのまま渡す）。p3-execution-split.types.ts は行の数を変えない (3) src に新しい export を足さない。試験は startDisplayServer と detailOwner と requestDetail を通す (4) 既存の U-F・U-W の試験の期待を変えない (5) 中身が変わる引かれた行は次の 6 件で、実装の後の check-contract はこの 6 件だけ FAIL になる: p3-uw-canon.json の http-sse.ts:82・:208、owner-runtime.ts:736、p3-execution-split.types.ts:73・:142、p3-expiry-form.json の p3-execution-split.types.ts:142。統合担当が配送の commit で新しい anchor に付け直し meta.sha256 を取り直す。実装では付け直さない。ほかの FAIL は想定外として報告する",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:21 «769733a86d9059cf»",
+          "docs/specs/cli-terminal-output.md:21 «6e2d277636488687»",
           "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»"
         ]
       }
