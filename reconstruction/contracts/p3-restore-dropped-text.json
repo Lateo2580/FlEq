@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "62100aa73e18ead2e116f1493e902317671d81a4",
-    "sha256": "d93eebacd5e5e882aa73130a4a82209797b934a2da617f5f958ba5fa5f9d75bd",
+    "sha256": "7704da30204781349f3f077403cda380e809acd74160bcbb284f04e4cfebec2e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -194,7 +194,7 @@
     "contractId": "P3-RESTORE-DROPPED-TEXT-001",
     "mode": "implementation",
     "objective": "裁定で落とした本文のうち、火山の防災事項（VFVO50 の VolcanoPrevention）と洪水の浸水想定地区を Pi へ渡す view に戻す。13:03 に入山規制の画面を見た人が「山頂火口から概ね４ｋｍの範囲」を、02:40 に氾濫危険情報を見た人が自分の校区が想定に入るかを、P4 の画面で読めるようにするための土台。字は電文のまま運び、画面の描き方は P4 で決める。端末の短い形と音は変えない。防災事項は警報の記録と一緒に保存し、地区は保存しない",
-    "baseOid": "unassigned",
+    "baseOid": "aa4ab72b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
