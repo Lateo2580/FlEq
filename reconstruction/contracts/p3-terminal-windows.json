@@ -1,0 +1,421 @@
+{
+  "meta": {
+    "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
+    "sha256": "97fcc7bfc05187f83a0d79cec2eccf58346be2863984ffca2539fd1bae7043f5",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TW-D-WRITER",
+        "kind": "作者",
+        "A": "案 B: Windows では書き込み専用の子プロセスを 1 本立てる。親の fd 1 を子へ継承し、子が process.stdout.write() で書く。親は子の出力を受けて転送しない。main の有界の列、古い単位を落とす規則、1 バッチの完了の返事を待って次を送る形は共通のまま",
+        "B": "案 A: main が process.stdout.write で書く／案 D: worker が tty.WriteStream(1) で書く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者、判断カード 2026-11-08 の問い 1 が推奨どおり）",
+        "reason": "案 A は libuv の uv__tty_write が main のスレッドで WriteConsoleW を呼ぶので、conhost の字の選択で main が止まる。案 D は uv_tty_output_lock がプロセスで共通で、端末の大きさの取得と入力の mode の変更で main が巻き込まれる。子プロセスならロックも process も分かれる。無いと: Windows の対話端末で電文も REPL の返事も全部捨てられ、警告も出ない（今の worker は /proc と /dev/tty を開けずに broken になる）"
+      },
+      {
+        "id": "P3-TW-D-CLOSE",
+        "kind": "作者",
+        "A": "親は最長 1 秒待って子を終わらせ、親の終了を待たせない。子の消滅の時刻は保証しない",
+        "B": "実機で測ってから時間の保証を書く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者、判断カード 2026-11-08 の問い 2 が推奨どおり）",
+        "reason": "Windows の TerminateProcess は保留の I/O の完了か取消を要し、子が 1 秒以内に消えるとは仕様が保証しない。親の側は kill の呼び出しの後に何も待たないので、親の終わりだけを約束できる"
+      },
+      {
+        "id": "P3-TW-D-NONTTY",
+        "kind": "統合担当",
+        "A": "process.platform が win32 なら fd 1 が TTY・pipe・file のどれでも子へ回す",
+        "B": "TTY だけ子へ回し、pipe と file は今の worker の fs.writeSync(1) のままにして残存リスクと書く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "Node の文書は Windows の pipe の書き込みを同期とし（process.md の A note on process I/O）、libuv の UV_HANDLE_BLOCKING_WRITES の経路は WriteFile の完了を WaitForSingleObject(INFINITE) で待つ。worker がそこで止まると worker.terminate() では抜けられず、process.exit が worker を join して終われない（W1 の 4）。今の worker のコメントと AC02 の「pipe は libuv が非 blocking にした fd」は Windows では成り立たない。A なら分岐は platform の 1 つで、B より条件が少ない。さらに stall.test.ts（P3-TO-T07）が windows-latest の pipe でそのまま子の経路を通す。B だと CI は子を 1 度も通らない。作者の裁定は TTY を言っているので、広げた範囲は作者へ報告する"
+      },
+      {
+        "id": "P3-TW-D-FAIL",
+        "kind": "統合担当",
+        "A": "子が起動できない・途中で消えた・IPC が切れたときは今の fail と同じく列を捨てて数えるだけにし、受信を止めない。子を立て直さず、標準エラーへの知らせを 1 回だけ試す。知らせは main が書かず、1 回限りの別の子に書かせる。試みが失敗すると知らせなしになりうる",
+        "B": "子を立て直す／知らせは main が process.stderr.write で書き、字の選択中はそこで待つことを残存リスクにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "P3-TO-AC02 (2) の worker が落ちたときの形と揃える（立て直さない）。worker の fd が開けないときの警告（作者裁定 Q-TO-IMPL-1 (1)）と同じく「黙って捨て続けない」。main が process.stderr.write で書くと、conhost の字の選択で WriteConsoleW の中で止まり（受信が止まる）、標準エラーの pipe の読み手が消えていれば error event で main が落ちる。1 回限りの別の子ならどちらも main に及ばない。failed の印で 1 run に 1 回なので process は増え続けない。desktopNotice は win32 の backend が無く何もしないので使えない。資源が足りず writer の子も知らせの子も起動できないとき、標準エラーの行き先が切れているときは、知らせなしで捨て続ける列が残る"
+      },
+      {
+        "id": "P3-TW-D-SIGINT",
+        "kind": "統合担当",
+        "A": "子は SIGINT に空の listener を付ける",
+        "B": "付けない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "REPL の raw mode の外（startP2Host の途中、readline.close の後）の Ctrl+C は console の全 process に CTRL_C_EVENT が届き、listener の無い Node は終わる。無いと: 親の 1 秒の書き残しの前に子が消え、ただの Ctrl+C に AC04 の警告が出る。子の終わりは親の kill か IPC の切断だけで決める"
+      },
+      {
+        "id": "P3-TW-D-SERIAL",
+        "kind": "統合担当",
+        "A": "fork の serialization は advanced にする",
+        "B": "既定の json",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "JSON による値の変換（undefined の欄が消える、NaN が null になる）を避ける。今の TerminalBatch で表示が変わる例は確かめていないが、option 1 つで済む"
+      },
+      {
+        "id": "P3-TW-D-EXIT",
+        "kind": "統合担当",
+        "A": "fleq.mjs は win32 なら空 write をせず process.exit(code) する",
+        "B": "空 write の callback 待ちを Windows でも残す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "libuv の pipe の経路は 0 byte の要求にも早い戻りが無く、WriteFile の完了を INFINITE で待つ。pipe が満杯で読み手が止まったとき 0 byte の書き込みが返るかは資料で確かめられなかった。止まると main の終わりが止まる。Windows の stdout は file・pipe が同期で、TTY も書く動作は呼び出しの中で終わる（tty.c の uv__tty_write）ので、空 write で待つ相手が無く、消しても config show などの出力は欠けない"
+      },
+      {
+        "id": "P3-TW-D-MAIN-CONSOLE",
+        "kind": "統合担当",
+        "A": "親の main が端末の API に触る箇所を次の 3 つに分ける。【触らない】(a) 電文・返事・echo・prompt の書き出し（列と子を通す）(b) process.stdout.columns・rows の読み（tty.WriteStream が持つ値で API を呼ばない）(c) fleq.mjs の空 write（P3-TW-D-EXIT）(d) 子の失敗の知らせ（P3-TW-D-FAIL）。【順序を変える】無し。readline.close を terminal.close の後へ回しても、1 秒のタイマーを先に作っても、main が API の中で待てばタイマーの callback が動かないので効かない（W1 の 2）。【残存リスク】(e) 起動の時に 1 回: process.stdout の生成（uv_tty_init、getWindowSize）。受信の前 (f) 起動の時に 1 回: createInterface の setRawMode(true)（SetConsoleMode） (g) 端末の大きさが変わったとき: Node の内部の SIGWINCH→_refreshSize→GetConsoleScreenBufferInfo（resize の listener を外しても消えない） (h) キー入力の読み（ReadConsoleInputW） (i) 停止の時: readline.close の setRawMode(false)（SetConsoleMode）。(e)〜(i) は同じ process に書き手がいないので uv_tty_output_lock の待ちは起きない。残るのは ConPTY の読み手が止まったときの console の待ちで、確信度は中（Q-TW-DEVICE で確かめる） (j) 受信の最中の標準エラー: composition-root.ts の reportFailure の既定（診断の保存の失敗と溢れ）。字の選択中に当たると選択を解くまで main が止まり、受信も止まる (k) 停止の中と後の標準エラー: host.ts の dmdata socket close failed、cli.ts の保存を確かめられない行。受信は止まっているが、字の選択中に当たると terminal.close の 1 秒の期限へ届かず、選択を解くまで終わらない (l) Node 自身の warning と捕まえていない例外の標準エラー。(j)(k) は spec §10 の受信と終わりの約束の例外で、標準エラーの pipe の読み手が消えていれば未処理の error event で親が終わる列も同じ",
+        "B": "(j) を host から reportFailure を渡して別の子に書かせる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "(j) の待ちは確かに起きるが、診断の保存の失敗か溢れと字の選択が重なったときだけで、待ちは選択を解くまで。B は失敗のたびに node の process を起こすので、字の選択が続くと止まった子が失敗の数だけ増える。1 本に絞るには仕組みが要る。composition-root.ts の既定の行は他の契約の «» が引いている。macOS と Linux の書き方も変えない。(j)(k) の範囲を作者へ残存リスクとして見せる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TW-DRAFT-REVIEW",
+        "status": "closed",
+        "source": "2026-11-07 起草のレビュー（ヘルツ Astra、読むだけ）",
+        "closed": "条件付き GO、P1 なし。P2 4 件と P3 を当てた: AC05 (4) 子の失敗は出力の側だけ完了の扱い、§10 の受信と終わりの約束に (j)(k) の例外を明記、AC04 (4) は 1 回だけ試す、T02 は各単位を上限の内にして総量で pipe を満たす、AC06 (1) の編集の形を artifactRequirements へ、AC02 (5) に Job Object、D-SERIAL は JSON の値の変換を避ける。分岐 D-NONTTY・D-FAIL (4)・(j)・実機の時期・§10 の置き場は推奨のまま（統合担当、2026-11-07）。(j)(k) の残存の作者への確認は統合担当が行う"
+      },
+      {
+        "id": "Q-TW-DRAFT",
+        "status": "closed",
+        "source": "2026-11-07 起草（8644ab3a から）",
+        "closed": "起草の時に macOS（Node 26.12.1）で本契約の形の子を実際に fork して確かめた。(1) 読み手のいない pty を fd 1 にして 4,000 行を送ると、子の isTTY は true、完了の返事は 1 秒で 0 件、親の 10 ms の timer の最大の間隔は 13 ms、child.kill() の呼び出しは 0.17 ms、親は起動から 1.18 秒で終わった (2) 親が process.exit すると子は残らず消えた (3) 読み手の閉じた pipe で子は exit 1 (4) process.platform を Object.defineProperty で win32 に替えても fork は動いた (5) 費用: 子の ready まで 66〜69 ms、子の RSS 約 44 MiB。worker は 8 ms、+約 10 MiB。Windows の実機は無く、ここは POSIX の写しで、WriteConsoleW の待ちは試していない。libuv の読みは Node v22.23.4 の deps/uv/src/win/tty.c・pipe.c・process.c（ヘルツ W1 の読みと照合）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。書き出しの経路だけの変更で、報の字は Windows でも同じ。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-WINDOWS-001",
+    "mode": "implementation",
+    "objective": "Windows で新築の電文と REPL の出力を標準出力へ出す。12:00 に PowerShell の字を選択したまま席を立っても、12:10 に解くまでの受信を止めず、解くと残りの報と省いた件数の行が出て、quit と Ctrl+C の終わりが固まらない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-windows.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/terminal/writer-worker.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/color.ts",
+      "reconstruction/src/cli/cli.ts",
+      "reconstruction/src/cli/repl.ts",
+      "reconstruction/cli/fleq.mjs",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/terminal/writer-child.ts（新規）",
+      "reconstruction/cli/fleq.mjs（AC06 (1) の 1 行を足すだけ。:21 の行の中身は変えない）",
+      "reconstruction/contracts/p3-terminal-output.json・reconstruction/contracts/p3-terminal-windows.json（fleq.mjs の «» の行の番号の付け直しと meta.sha256 だけ。統合担当が reanchor-target.py で行う）",
+      "reconstruction/test/terminal/**",
+      "docs/specs/cli-terminal-output.md（統合担当が起草で書いた。実装では変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-windows.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-CLI-REPL-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "公開の関数は変えない（createTerminalOutput の引数と戻りのまま）。writer-child.ts は export を持たない。platform の引数を足さない（試験は process.platform を差し替える）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。output.ts に node:child_process（fork・spawn）を足す。npm の依存を足さず、package.json と package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [
+      {
+        "id": "P3-TW-DLV-01",
+        "target": "停止の時の書き残しと子の終わり",
+        "limit": "close の開始から最長 1 秒で child.kill() を呼び、exit を待たずに resolve する（AC05、P3-TO-DLV-02 と同じ CLOSE_MS）。子の消滅の時刻は保証しない",
+        "unit": "秒",
+        "scope": "win32 の通常起動の終わり",
+        "source": "P3-TW-D-CLOSE"
+      }
+    ],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-TW-RES-01",
+        "target": "書き込みの子プロセス（win32 だけ）",
+        "limit": "常に 1 本。1 run に 1 回だけ起こし、立て直さない。子への送りは 1 回分（P3-TO-RES-01 の 64 KiB、1 単位がそれより大きければその 1 単位で最大 1 MiB）だけが IPC の上にある。失敗の知らせの別の子は 1 run に最大 1 本",
+        "unit": "本・bytes",
+        "scope": "端末の 1 run",
+        "source": "P3-TW-D-WRITER"
+      },
+      {
+        "id": "P3-TW-RES-02",
+        "target": "子プロセスのメモリと起動の時間の見積もり",
+        "limit": "上限ではなく見積もり。macOS の実測で子の RSS 約 44 MiB・ready まで 66〜69 ms、worker は +約 10 MiB・8 ms。Windows は worker を作らないので差し引き +約 35 MiB、起動は数十〜数百 ms と見込む（Windows は未測定、Q-TW-DEVICE で測る）。ready までの送りは IPC に溜まり、main も受信も待たない。Pi と Mac は worker のままで増えない",
+        "unit": "MiB・ms",
+        "scope": "win32 の通常起動",
+        "source": "Q-TW-DRAFT の測定"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "macOS と Linux の書き方（writer-worker.ts は変えない）",
+      "Windows の通知: adapter.ts の commands と desktopNotice に win32 の backend が無く、Windows では電文の通知も音も切断の通知も出ない。本契約では足さない",
+      "P3-TW-D-MAIN-CONSOLE の残存リスク (e)〜(l) の行（cli.ts・repl.ts・host.ts・composition-root.ts を変えない）",
+      "子の立て直し（P3-TW-D-FAIL）",
+      "起動の前の出力、init、config の下位コマンドの main の直接の書き込み（P3-TO-D-WRITER の例外のまま）",
+      "replay.mjs の空 write（開発者向けの道具）",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TW-AC01",
+        "requirement": "書き先の振り分け（P3-TW-D-WRITER・D-NONTTY・D-SERIAL）: (1) createTerminalOutput は process.platform が win32 のとき Worker を作らず、node:child_process の fork で子を 1 本立てる。win32 以外は今の worker のまま (2) fork の引数は resolveRepoPath(\"reconstruction/dist/src/terminal/writer-child.js\")、[String(level)]、{ stdio: [\"ignore\", \"inherit\", \"ignore\", \"ipc\"], serialization: \"advanced\" }。detached と windowsHide を付けない（同じ console に繋ぐ。子の標準入力を開くとキー入力を親と取り合う） (3) fd 1 が TTY・pipe・file のどれでも同じ形で、親は子の標準出力を受けない (4) 作った直後に child.unref() と child.channel?.unref() を呼び、子が親の process の終わりを延ばさない (5) options.write を渡したときは子を立てない。無いと: Windows の標準出力に何も出ない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:894 «1ca49eade00f86a1»",
+          "docs/specs/cli-terminal-output.md:895 «8601a7daa86eaa13»",
+          "docs/specs/cli-terminal-output.md:899 «6f757692c0f69a76»"
+        ]
+      },
+      {
+        "id": "P3-TW-AC02",
+        "requirement": "子（reconstruction/src/terminal/writer-child.ts、P3-TW-D-WRITER・D-SIGINT）: (1) 親から受けた TerminalBatch を argv の色の水準の createRenderer で整形し、process.stdout.write(text, callback) で書き、callback の中で process.send(\"done\") を返す。write の戻り値や drain で返事をしない (2) 文字が空か整形の例外のときは書かずに返事だけを返す（worker と同じ） (3) SIGINT に空の listener を付ける (4) process.stdout の error event と callback の error は process.exit(1) にする（AC04 の exit に畳む） (5) 親が消えて IPC が切れたら、disconnect を処理できた子は終わる。書き込みの中で止まった子は JS を実行できないので、親の死亡の時は libuv の Job Object（KILL_ON_JOB_CLOSE。detached を付けないので子が入る）が終わらせる (6) 標準入力を読まず、標準エラーへ書かない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:894 «1ca49eade00f86a1»",
+          "reconstruction/src/cli/cli.ts:337 «87bb62722e92f7e8»"
+        ]
+      },
+      {
+        "id": "P3-TW-AC03",
+        "requirement": "列（P3-TO-AC02 (3)(5)、D-DROP、RES-01 を win32 でも変えない）: (1) writer の既定を child.send(batch, callback) にする。列の頭からまとめて 1 回送り、\"done\" を受けて次を送る (2) 子が書き込みの中で止まっている間、main は積むだけで、上限を越えたら種類によらず古い単位から落とし、進み始めた最初に省いた件数の行を出す (3) 受信 1 回の main の仕事は増やさない。直列化は送り 1 回につき 1 回で、その大きさは RES-01 の範囲 (4) 桁数は今と同じく main が送る時に読む",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:28 «11fd6bdc660dca4c»",
+          "docs/specs/cli-terminal-output.md:896 «1009bc0762e2ca69»"
+        ]
+      },
+      {
+        "id": "P3-TW-AC04",
+        "requirement": "子の失敗（P3-TW-D-FAIL）: (1) 起動の失敗（fork の同期の例外、error event）、途中の消滅（exit event）、IPC の切断（disconnect event、child.send の callback の error）を 1 つの処理に集める (2) 列は今の fail と同じ: 残りを捨てて数え、以後は積まずに数えるだけ。受信・通知の試行・REPL の入力を止めず、process を落とさない (3) 子が生きていれば child.kill() を呼ぶ (4) 1 run に 1 回だけ、標準エラーへ「端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません」の 1 行を書く試みをする。main は書かず、spawn(process.execPath, [\"-e\", \"process.stderr.write(process.argv[1])\", 文字], { stdio: [\"ignore\", \"ignore\", \"inherit\"] }) に error の listener と unref を付けて書かせる。spawn の同期の例外は諦める。試みが失敗すると知らせなしになる (5) close の開始の後は知らせない (6) 子を立て直さない。無いと: 列が黙って止まり、以後の出力が理由もなく消える",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:897 «08df5c5d828bb620»"
+        ]
+      },
+      {
+        "id": "P3-TW-AC05",
+        "requirement": "終わり（P3-TW-D-CLOSE、P3-TW-DLV-01）: (1) close は今と同じく列の残りと EEW ログの書き終わりを最長 1 秒待つ (2) 揃ったときも 1 秒が過ぎたときも child.kill() を呼び、exit を待たずに resolve する。子が既に消えていても throw しない (3) 親の終わりは子の消滅を待たない。子の消滅の時刻を試験でも約束しない (4) 1 秒の待ちの間に子が落ちたら、出力の側だけを完了の扱いにし、EEW ログの書き終わりか当初の 1 秒の期限まで待つ",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:892 «90183c02ceb02ae1»",
+          "docs/specs/cli-terminal-output.md:898 «e73c59cfcda78971»"
+        ]
+      },
+      {
+        "id": "P3-TW-AC06",
+        "requirement": "親の main の端末の API（P3-TW-D-EXIT・D-MAIN-CONSOLE）: (1) reconstruction/cli/fleq.mjs は win32 なら空 write をせず process.exit(code) する（win32 の実行は Q-TW-WINDOWS-CI の P3-TO-T07 が通すので、試験を足さない） (2) 受信の開始の後に main が process.stdout と process.stderr へ書く行を新しく足さない (3) P3-TW-D-MAIN-CONSOLE の【残存リスク】(e)〜(l) の行は変えない",
+        "evidenceRefs": [
+          "reconstruction/cli/fleq.mjs:21 «35f85fde5f5d2ad4»",
+          "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
+          "docs/specs/cli-terminal-output.md:900 «eaf0b3ac6104f64f»",
+          "docs/specs/cli-terminal-output.md:901 «679940c9ca375597»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TW-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TW-AC01",
+          "P3-TW-AC02",
+          "P3-TW-AC03"
+        ],
+        "behavior": "受入条件。別の process の harness が process.platform を Object.defineProperty で win32 に替えてから dist の createTerminalOutput を呼ぶ。line の行と報の材料が子を通って harness の標準出力（試験が読む pipe）に積んだ順で出る。Worker を作らない"
+      },
+      {
+        "testId": "P3-TW-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TW-AC03",
+          "P3-TW-AC05"
+        ],
+        "behavior": "受入条件。同じ harness の標準出力の pipe を読まずに、各単位は 1 MiB の上限の内で、総量で pipe を満たすまで積む（上限より大きい 1 単位は送る前に捨てられて詰まりにならない）。drained() が false で未完了のバッチがある状態を確かめてから close を測る。積む呼び出しは同期で戻り、harness の timer は 1 秒より長く止まらず、close は 3 秒以内に resolve し（期限は 1 秒で、残りは CI の余裕）、harness は子を待たずに終わる。子の消滅の時刻は確かめない。windows-latest でも同じ形で走る"
+      },
+      {
+        "testId": "P3-TW-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TW-AC04",
+          "P3-TW-AC05"
+        ],
+        "behavior": "契約境界。fork を包んだ vi.mock で (a) 子を外から kill する (b) fork が同期で投げる (c) 子が生きたまま disconnect する (d) send の callback が error を返す。どれでも drained() が true になり、以後の積みが例外を出さず、知らせの spawn は 1 回で、(c) は kill が呼ばれる。close の後の exit では知らせない。EEW ログの書き終わりを待たせた close の間に子が落ちても、ログが終わるまで resolve しない"
+      },
+      {
+        "testId": "P3-TW-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TW-AC02"
+        ],
+        "behavior": "契約境界。dist の writer-child.js を試験が直に fork する。報と字の空の batch のどちらにも \"done\" が返る。SIGINT を送っても次の \"done\" が返る（win32 では kill が強制終了なので skip）。読み手の閉じた pipe で exit 1。親が disconnect すると終わる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。fleq.mjs の行を足した後に reanchor-target.py を回し、«» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列と子の状態を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の試験の期待を変えない。変える必要が出たら止めて報告する",
+      "fleq.mjs の AC06 (1) は :21 の行の前に 1 行足す形にし、:21 の行の中身を変えない（anchor の hash を変えず、統合担当が reanchor-target.py で行の番号だけを付け直す）",
+      "Windows の実機で確かめていないことを成功と書かない。macOS の試験は子の経路の写しで、WriteConsoleW の待ちを確かめない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-TW-WINDOWS-CI",
+        "owner": "integrator",
+        "blocks": [
+          "P3-TERMINAL-WINDOWS-001 の配送の閉じ"
+        ],
+        "resolveBy": "配送の push の後に gh workflow run test-windows.yml で確かめる（file 名の \":\" の直しは 862be443 で済んだ）",
+        "requiredEvidence": [
+          "windows-latest の run で P3-TO-T07（stall.test.ts）・P3-TW-T01・T02・T03・T04 が通る。pipe の経路の子の起動、受信の継続、1 秒の終わりの証拠",
+          "run の ID"
+        ]
+      },
+      {
+        "id": "Q-TW-DEVICE",
+        "owner": "user",
+        "blocks": [
+          "新築の Windows の利用の案内（P5 の切替）"
+        ],
+        "resolveBy": "P5 の切替の前（C22 の時に Windows の実機があれば C22 で）",
+        "requiredEvidence": [
+          "conhost: 字の選択の間に受信が続き、解くと省いた件数の行が出る。選択のまま別の経路で止めたときの終わりの時間",
+          "Windows Terminal: 同じ操作で親が止まらない。ConPTY の読み手が止まったときの親の setRawMode と端末の大きさの取得（P3-TW-D-MAIN-CONSOLE の (e)〜(i)）",
+          "子の isTTY、日本語の字（CP932 でも化けない）、色（24 bit の色が出る）、幅と大きさの変更、Ctrl+C と quit の終わり",
+          "子の起動の時間とメモリ（P3-TW-RES-02 の見積もりの測り直し）"
+        ]
+      }
+    ]
+  }
+}
