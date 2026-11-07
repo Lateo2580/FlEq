@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f954231206e1e01a382d1e218aea8e4c3277e61",
-    "sha256": "fdef195f7b42376f881001ce4f3a37671a4772d9779605846b1ca87d880aaa45",
+    "sha256": "0961d23c4a33cfb5eaaf9bd99b49f69c4524f4f0b05bcc5df2cf0ccbb0fd9cf7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -74,7 +74,14 @@
         "reason": "作者の端末では太字と普通の太さの差が小さく、理由の行と見出し文の境が読めない"
       }
     ],
-    "questionResolutions": [],
+    "questionResolutions": [
+      {
+        "id": "Q-TL6-DELIVERY",
+        "status": "closed",
+        "source": "2026-11-07 起草",
+        "closed": "実装（Sonnet の子、worktree）。統合担当が検収で T02 の書き換えの空振りと、送る字に空白が混ざる所を直して r0 に固定した。r0 は品質 ヘルツ GO（P3 1 件、T04 の catch）、契約適合 Opus 条件付き GO（P2 1 件、T05 が幅の条件を踏まない）。r1 で試験と spec の字を直し、製品のコードは変えなかった。作者の目視の指摘で AC05（見出し文の段下げ）を足した。この 1 件はレビューを回さず、変異で試験の効きを確かめた。Mac mini のゲート tl6-r0・r1・r2 は 11 本 rc 0（r2 は commit dcee64ca）。本物の経路の写し 6 通を 80 桁と 56 桁で撮り、2026-11-07 に作者が目視を OK とした。dcee64ca まで push、CI run 42374654791 success。残存: 閉じ括弧などの前の全角の空白は折り目で消える（空白の整形。実物の候補 3 か所は端末に出ない本文）。句点で文を分ける所の「。）」は対象外（全 fixture で 0 件）。Code 24・25 の実物の電文は無い。H27 の穴は台帳 111。remaining なし"
+      }
+    ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
       "rule": "運用区分の扱いを変えない。段は運用区分によらず今の読み方のまま。訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
