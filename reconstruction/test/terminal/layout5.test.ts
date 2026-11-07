@@ -76,3 +76,18 @@ describe("P3-TL5-T02 満潮の報の境界", () => {
     expect(gate(OBSERVED)).toBeNull();
   });
 });
+
+describe("P3-TL5-T03 満潮の字の濃さ", () => {
+  it("満潮時刻の表の先頭の行の「満潮 」だけが濃く、100 桁でも 56 桁の続きの行でも、ほかの行は薄い字になる", () => {
+    const { report } = through(TIDE_A);
+    if (report == null) throw new Error("no report");
+    const dim = /\x1b\[38;2;\d+;\d+;\d+m満潮 /;
+    const rows = [100, 56].map((columns) => terminal(columns, 3)([reportUnit(report)]).filter((row) => row.includes("満潮 ")));
+    for (const lines of rows) {
+      expect(lines.length).toBeGreaterThan(1);
+      expect(lines[0]).not.toMatch(dim);
+      for (const row of lines.slice(1)) expect(row).toMatch(dim);
+    }
+    expect(rows[1].length).toBeGreaterThan(rows[0].length);
+  });
+});

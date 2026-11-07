@@ -497,13 +497,13 @@ function tsunami(report: Extract<TerminalReport, { kind: "tsunami" }>, memory: M
   const tides = report.areas.filter((area) => area.stations.length > 0);
   if (tides.length > 0) {
     const size = Math.max(22, ...tides.map((area) => width(area.name) + 2));
-    // 各行（折り返した行も）の観測点の前に「満潮」を付ける（P3-TL2-AC06 (3)）。見出しが流れると到達の時刻と読み違えるため。
-    const tide = seg("満潮 ");
-    tables.push([line(seg("満潮時刻")), ...tides.flatMap((area) => {
-      const items = area.stations.map((station) => [seg(`${station.name} ${minuteOf(station.highTideDateTimeRaw) ?? ""}`.trimEnd())]);
+    // 各行（折り返した行も）の観測点の前に「満潮」を付ける（P3-TL2-AC06 (3)）。見出しが流れると到達の時刻と読み違えるため。1 行目のほかは薄い字（Q-TO5-TIDE-ROW）。
+    const tide = seg("満潮 "), rest = seg("満潮 ", "dim");
+    tables.push([line(seg("満潮時刻")), ...tides.flatMap((area, index) => {
+      const lead = index === 0 ? tide : rest, items = area.stations.map((station) => [seg(`${station.name} ${minuteOf(station.highTideDateTimeRaw) ?? ""}`.trimEnd())]);
       // 観測点の 1 組が地域の欄の後ろに入らないときだけ、地域の行と観測点の行に分ける。
-      return items.some((item) => size + segsWidth([tide]) + segsWidth(item) > ctx.body) ? [line(seg(area.name)), ...flow([seg("  "), tide], items, ctx.body, 2, [seg("  "), tide])]
-        : flow([seg(pad(area.name, size)), tide], items, ctx.body, size, [seg(" ".repeat(size)), tide]);
+      return items.some((item) => size + segsWidth([tide]) + segsWidth(item) > ctx.body) ? [line(seg(area.name)), ...flow([seg("  "), lead], items, ctx.body, 2, [seg("  "), rest])]
+        : flow([seg(pad(area.name, size)), lead], items, ctx.body, size, [seg(" ".repeat(size)), rest]);
     })]);
   }
   if (report.stations.length > 0) {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "863fe4762a938d5d88d87750e8ef705c061dc61f",
-    "sha256": "423ad27076f12fcc1f7e0e7e48ae444260954506cac2fed8ac74cb99d2702f08",
+    "sha256": "3ebff861541f9a38d6c7c056358b2d893ace03651a37caaa197b516880ee8e00",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -18,6 +18,18 @@
         "status": "確定（作者、2026-11-06）",
         "ruling": "A（作者「判断事項についてはAでお願いします」）",
         "reason": "鳴らない報で発表時刻も帯に出る。C は起草のレビュー 2 巡で穴が残り、U-T の版の記録の共有は後着の観測を落とす（ヘルツの確かめ）。今は 0 行で、出ないことの方が大きい"
+      },
+      {
+        "id": "P3-TL5-D-TIDE-ROW",
+        "kind": "作者",
+        "A": "表の 1 行目のほかの「満潮」を薄い字で出す",
+        "B": "今のまま全部の行を同じ濃さで出す",
+        "C": "1 行目のほかは「満潮」を消す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者の目視「1行目のほかは淡い表示にしましょう」）",
+        "reason": "全部の行に同じ濃さで並ぶと観測点と時刻が読みにくい。字は残すので、途中から読んでも到達の時刻と読み違えない（Q-TO3-WRAP の役目は保つ）"
       }
     ],
     "questionResolutions": [
@@ -45,6 +57,7 @@
       "reconstruction/contracts/p3-terminal-layout5.json",
       "reconstruction/contracts/p3-terminal-output.json",
       "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/src/terminal/format.ts",
       "reconstruction/src/terminal/material.ts",
       "reconstruction/src/runtime/owner-host.ts",
       "reconstruction/src/runtime/owner-runtime.ts",
@@ -55,9 +68,11 @@
     ],
     "allowedPaths": [
       "reconstruction/src/runtime/owner-host.ts（inputTerminal の呼び出しの引数だけ）",
+      "reconstruction/src/terminal/format.ts（満潮時刻の表の字の濃さだけ、P3-TL5-AC02）",
       "reconstruction/src/terminal/material.ts",
       "reconstruction/contracts/p3-terminal-output.json（owner-host.ts の inputTerminal の呼び出しの行を引く «» 1 件と meta.sha256 だけ）",
-      "reconstruction/test/terminal/**"
+      "reconstruction/test/terminal/**",
+      "docs/specs/cli-terminal-output.md（統合担当が Q-TO5-TIDE-ROW を足す）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -111,7 +126,7 @@
     "outOfScope": [
       "U-T の state・watermark・outcome・intent・通知（観測の無い VTSE51 は今のまま鳴らさない）",
       "同じ報や古い報の重複の門（作者裁定 A で作らない）",
-      "整形（format.ts は今の形で描ける）",
+      "整形（format.ts は今の形で描ける。P3-TL5-AC02 の満潮の字の濃さのほかは変えない）",
       "受信・書き出しの列・worker・落とす規則の変更",
       "spec 本体の編集（起草で済ませた）"
     ],
@@ -121,7 +136,15 @@
         "requirement": "満潮の報（Q-TO5-TIDE）: (1) 対象は、InfoType が取消でなく、Body/Tsunami があり、Tsunami の直下に Observation の要素が 1 つも無い VTSE51 で、unit が拒否しなかった入力。空の Observation の要素がある報は対象でない。拒否は owner が残す confirmationEvidence の unreadableReport で見分け、inputTerminal の呼び出しの引数で渡す (2) 対象の報は accepted の outcome が無くても terminalReport の報を返信に載せる（P3-TO-AC01 (2) の例外） (3) origin が recovery の報は今のまま端末に出さない (4) U-T の state・watermark・intent・outcome は変えず、鳴らさない (5) 拒否された報は今のまま読めなかった報のカードになる (6) 取消、Observation のある VTSE51、他の種類の報の門は変えない (7) 同じ報が 2 度届くと 2 度出る（作者裁定 A）。覚えは足さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:431 «c14a9c90bb8488a5»",
-          "docs/specs/cli-terminal-output.md:759 «3dc2819a8a1d4808»"
+          "docs/specs/cli-terminal-output.md:760 «3dc2819a8a1d4808»"
+        ]
+      },
+      {
+        "id": "P3-TL5-AC02",
+        "requirement": "満潮の字（Q-TO5-TIDE-ROW）: 満潮時刻の表の先頭の行の「満潮」は今の字のまま、ほかの全部の行（折り返した行を含む）の「満潮」を薄い字で出す。字と幅は変えず、ほかの表は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:433 «a15d75c38467a25a»",
+          "docs/specs/cli-terminal-output.md:765 «83bd49a91c0eef36»"
         ]
       }
     ],
@@ -141,6 +164,14 @@
           "P3-TL5-AC01"
         ],
         "behavior": "契約境界。origin が recovery の同じ報、取消の報（38-39_03_03）、拒否された VTSE51、空の Observation のある報は今の形のまま。Observation のある VTSE51 の門は変わらない"
+      },
+      {
+        "testId": "P3-TL5-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL5-AC02"
+        ],
+        "behavior": "受入条件。32-39_11_03 の 100 桁と 56 桁で、満潮時刻の表の先頭の行の「満潮」は薄い字でなく、ほかの全部の行は薄い字になる"
       }
     ],
     "requiredCommands": [
