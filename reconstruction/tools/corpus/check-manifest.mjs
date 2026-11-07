@@ -26,7 +26,7 @@ const read = (path) => readFileSync(fileURLToPath(new URL(path, root)));
 const fixtureId = (path) => path.replace(/\//g, '__').replace(/\.(xml|json)$/, '');
 const files = readdirSync(new URL('test/fixtures/', root), { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile() && /\.(xml|json)$/.test(entry.name))
-  .map((entry) => join(entry.parentPath ?? entry.path, entry.name).slice(fileURLToPath(root).length))
+  .map((entry) => join(entry.parentPath ?? entry.path, entry.name).slice(fileURLToPath(root).length).replaceAll('\\', '/'))
   .sort();
 
 try {
