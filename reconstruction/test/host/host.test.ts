@@ -466,8 +466,8 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     expect(rest.subscriptions).toEqual([subscription]);
     await until(() => server.sockets.length === 1);
     expect(server.sockets[0].protocol).toBe("dmdata.v2");
-    // dmdata granted eew.forecast only: eew.warning is narrowed away.
-    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.forecast"], time: startTime() }));
+    // dmdata granted eew.warning only: eew.forecast is narrowed away, so the VXSE43 below is used (P3-ED43-AC01).
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 41, classifications: ["eew.warning"], time: startTime() }));
     expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSubscriptionNarrowed"), "WARN");
     expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataSocketStarted"))
       .toEqual([expect.objectContaining({ level: "INFO", count: 41 })]);
@@ -1734,5 +1734,24 @@ describe("P3-DMDATA-CONNECT-002 繋ぎ直しの待ち・繋がらない理由・
     await accepted(3);
     await lose(host.displayPort, server.sockets[3]);
     expect(lost()).toBe(3);
+  });
+});
+
+describe("P3-EEW-DROP43-001 the host does not use VXSE43 while eew.forecast is granted", () => {
+  it("P3-ED43-T01 acceptance / AC01: with eew.forecast in the start frame a VXSE43 frame is not used and the VXSE45 after it is", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    rest.list = listing([]);
+    rest.start = opened(server.url, 43);
+    rest.close = async () => ({ kind: "ok" });
+    const host = await startDmdata(dirs);
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 43, classifications: ["eew.forecast", "eew.warning"], time: startTime() }));
+    await firstLine(dirs.diagnosticDirectory, "dmdataSocketStarted");
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    server.sockets[0].send(dataFrame("VXSE45", readFileSync("test/fixtures/77_01_01_240613_VXSE45.xml", "utf8")));
+    await until(async () => (await snapshot(host.displayPort)).current.eew.items.some((item) => item.activeCount > 0));
+    expect((await snapshot(host.displayPort)).current.eew.items.find((item) => item.activeCount > 0))
+      .toMatchObject({ activeCount: 1, highestSeverity: "forecast" });
   });
 });

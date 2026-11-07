@@ -111,7 +111,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     ending ??= Promise.all([...workers.values()].map((worker) => worker.terminate())).then(() => {});
     return ending;
   };
-  let started = false;
+  let started = false, forecastGranted = false; // P3-ED43-AC01: 今の接続の start frame が eew.forecast を含み、dmdata の設定で起動した
   // P3-C3B-OWNER-STOP (A): an owner's error, or an exit before endOwners, stops that owner only; the process goes on.
   // Before the runtime has started, the recorded stop rejects startRuntime (and so startP2Host) instead.
   // root is unassigned only if its constructor threw; the catch below then ends the owners.
@@ -281,7 +281,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     const { socketId, classifications } = head;
     if (typeof socketId !== "number" || !Number.isInteger(socketId) || !isStrings(classifications)) return false;
     note("INFO", "dmdataSocketStarted", socketId);
-    if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed");
+    if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed"); forecastGranted = config.dmdata != null && classifications.includes("eew.forecast");
     root.recordConnected(wallTimeMs); // P3-REC-AC14 (1): 札の終わりは新しい WS の最初の frame の wall
     emit({ kind: "controlFrame", frameType: "start", monotonicMs: t0, errorClose: null });
     lastFailure = null; establishedAt = lastFrameAt; return true; // P3-DC2-AC03 (4)・AC09 (2): onFrame がこの frame の entry の monotonic を lastFrameAt に書いた直後なので同じ時計の同じ読み
@@ -323,7 +323,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     const ingressed = ingestXmlData({ inputId, inputSequence: lastSequence, receivedAt: entry.wallTimeMs,
       origin: config.origin ?? "live", kind: "ws", frame: bytes, parsed });
     if (ingressed.kind === "rejected") { recordRejected(ingressed.diagnostic, entry.wallTimeMs); return; }
-    const { item } = ingressed;
+    const { item } = ingressed; if (item.headType === "VXSE43" && forecastGranted) return; // P3-ED43-AC01: 同じ地震の警報は VXSE45 が運ぶので VXSE43 は使わない（作者裁定 2026-11-08）。区分の読めない {wsUrl} の起動は捨てない
     // The priority reason is the validated outer shape only; meaning stays with parser and units.
     const envelope: MailboxEnvelope = { messageId: inputId, runId, t0MonotonicMs: entry.monotonicMs,
       enqueuedMonotonicMs: clock().monotonicMs, payload: { kind: "parser", item },

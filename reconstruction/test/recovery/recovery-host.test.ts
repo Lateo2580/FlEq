@@ -137,7 +137,7 @@ async function diagnostics(dir: string): Promise<string> {
   const names = await fileSystem.readdir(dir).catch(() => [] as string[]);
   return (await Promise.all(names.map((name) => fileSystem.readFile(join(dir, name), "utf8")))).join("");
 }
-const liveEew = () => JSON.stringify({ type: "data", version: "2.0", classification: "eew.forecast", id: "id", format: "xml",
+const liveEew = () => JSON.stringify({ type: "data", version: "2.0", classification: "eew.warning", id: "id", format: "xml",
   encoding: "utf-8", compression: null, head: { type: "VXSE43", author: "JMA", time: "2024-06-13T00:00:00Z", test: false, xml: true },
   xmlReport: { control: { status: "通常" } }, body: vxse43 });
 
@@ -158,7 +158,7 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
       if (types === "VXSE56,VXSE60,VZSE40") return page([item("VXSE56", startedAt - DAY, "長周期"), item("VXSE60", startedAt - 8 * DAY, "古い")], "x");
       return page([]);
     };
-    const { host, sockets, dirs } = await start(["telegram.earthquake", "eew.forecast"]);
+    const { host, sockets, dirs } = await start(["telegram.earthquake", "eew.warning"]);
     await until(async () => (await snapshot(host.displayPort)).recovery.digest != null);
     const first = await snapshot(host.displayPort);
     const digest = first.recovery.digest!;
@@ -203,7 +203,7 @@ describe("P3-REC-T08 acceptance: the startup digest reaches the snapshot (AC15, 
 describe("P3-REC-T01 contractBoundary (host side): a list 401/403 does not reach the connection (AC03 (3))", () => {
   it("every unit is authRejected, one recoveryAuthRejected, no dmdataAuthRejected; the WebSocket stays and live is received", async () => {
     https.handle = () => ({ status: 403 });
-    const { host, sockets, dirs } = await start(["telegram.volcano", "eew.forecast"]);
+    const { host, sockets, dirs } = await start(["telegram.volcano", "eew.warning"]);
     await until(async () => (await snapshot(host.displayPort)).recovery.digest != null);
     expect((await snapshot(host.displayPort)).recovery.digest!.units.map((unit) => [unit.unit, unit.kind === "unsatisfied" && unit.reason]))
       .toEqual([["U-V", "authRejected"]]);
