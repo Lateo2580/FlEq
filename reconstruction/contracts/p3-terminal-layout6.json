@@ -1,0 +1,320 @@
+{
+  "meta": {
+    "draftedFromOid": "8f954231206e1e01a382d1e218aea8e4c3277e61",
+    "sha256": "115a327fb9354d01f526d674d51a88f85d68e72cd4afe331a8de2fb65ceb50f2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL6-D-VYSE60",
+        "kind": "作者",
+        "A": "VYSE60 の帯を警報の段にする。理由の行は足さない",
+        "B": "今の地の色なしのまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「すべてAでお願いします」。写しの目視の後）",
+        "reason": "入力の行は警報の段で載せている（P3-TP-D-VYSE60）。帯だけが普通の報に見えるのは食い違い"
+      },
+      {
+        "id": "P3-TL6-D-SOUND",
+        "kind": "作者",
+        "A": "Code 24・25 の通知の段階のレベルを 4・5 に読む",
+        "B": "表に無い code のレベル 2 のまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「すべてAでお願いします」）",
+        "reason": "P3-C9-NOTICE-LEVELS=C の表に無い code の扱いは「表を直すまでは warning」の仮置き。帯が最も重い段なのに音が 1 段軽いままになる"
+      },
+      {
+        "id": "P3-TL6-D-CRATER",
+        "kind": "作者",
+        "A": "Code 22・36 を注意、23 を警報の帯にする（P3-C9-NOTICE-LEVELS=C の 22→2、23→3、36→2 と同じ重さ）",
+        "B": "今の地の色なしのまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者「すべてAでお願いします」）",
+        "reason": "同じ重さの噴火警戒レベル 2・3 が注意と警報の帯なので、レベルの無い火山の報だけが軽く見える"
+      },
+      {
+        "id": "P3-TL6-D-KINSOKU",
+        "kind": "作者",
+        "A": "字の境目で折る行の行頭に、句読点に加えて閉じ括弧、感嘆符と疑問符、小書きの仮名、長音を置かない",
+        "B": "今の句読点だけのまま",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の案、2026-11-07）",
+        "ruling": "A（作者「電文に対して禁則処理を行ってもいいかもしれませんね」。VYSE60 の写しの「（Ｍｗ／）７．７」の折り目から）",
+        "reason": "実物の 260 報を 56・80・100 桁で色ありの幅に描くと 10 行が当たる。電文の字は変えず、改行の位置だけを変えるので、気象庁の留意事項 §3 の線の内側"
+      },
+      {
+        "id": "P3-TL6-D-TAIL",
+        "kind": "統合担当",
+        "A": "行末の開き括弧の禁則を作らない",
+        "B": "作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-07 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "同じ測定で 0 件。無いと壊れるものが無い"
+      }
+    ],
+    "questionResolutions": [],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。段は運用区分によらず今の読み方のまま。訓練・試験の印は P3-TO-D-STATUS-MARK の裁定に従う。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-006",
+    "mode": "implementation",
+    "objective": "帯の段を入力の行と音の段に揃え、字の境目で折るときに閉じ括弧などを行頭に置かない。16:30 に後発地震注意情報が届いたときの帯が普通の報に見えず、レベルの無い火山の居住地域厳重警戒が最も重い帯と音で出て、読み手が「（Ｍｗ／）７．７」の折り目で止まらない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout6.json",
+      "reconstruction/contracts/p3-terminal-prompt.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/terminal/prompt-current.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/material.ts（shortLevel の U-V と U-N の段の読みだけ）",
+      "reconstruction/src/terminal/format.ts（NO_HEAD と wrapChars の送りだけ）",
+      "reconstruction/src/units/volcano/volcano-unit.ts（noticeLevel の中とそのコメントだけ。行の数を変えない。この file の行を他の契約が «» で引いている）",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "docs/specs/cli-terminal-output.md（統合担当が起草で書いた。実装では変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout6.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13",
+      "M14",
+      "M15",
+      "M16"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-PROMPT-001",
+      "P3-TERMINAL-LAYOUT-005",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-UNIT-V-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（createRenderer、terminalReport のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。文節の分割の依存は足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__selected_xml__80_01_01_240821_VYSE60",
+      "test__fixtures__45_02_01_200522_VFVO50",
+      "test__fixtures__46_01_01_170103_VFSVii",
+      "test__fixtures__44_01_01_151008_VFVO51",
+      "test__fixtures__16_11_01_260312_VXKO50",
+      "test__fixtures__19_03_01_130906_VPHW50"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "行末の開き括弧の禁則（P3-TL6-D-TAIL）",
+      "数字や単位の途中の折り",
+      "入力の行の字と段（P3-TERMINAL-PROMPT-001 のまま）",
+      "U-V の state・保存の形式・codec・view の level（level は Lv の値で、24・25 は null のまま）",
+      "表に無い code の通知の段階（2 のまま）",
+      "ディスプレイの重さの表（P4 の D07）",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL6-AC01",
+        "requirement": "火山の帯（Q-TO7-BAND）: (1) U-V の Kind の Code が 24・25 の報は最も重い段、23 は警報、22・36 は注意にする (2) 11〜15 の段と、表にない code の地の色なしは変えない (3) 同じ報に複数の Code があれば最も重い段で、理由の行は段を決めた Kind の名前（今の読み方のまま）(4) 全国の月間火山概況の報は普通の段のまま、取消は取消の段のまま (5) 段の表は Status の読みを含めて今の ranked の形を使う",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:543 «dd754edbd7f3536e»",
+          "docs/specs/cli-terminal-output.md:545 «8e50fa2078ddde1d»",
+          "docs/specs/cli-terminal-output.md:546 «5902d4229bad53d2»",
+          "docs/specs/cli-terminal-output.md:780 «fa1a2c976abd7072»"
+        ]
+      },
+      {
+        "id": "P3-TL6-AC02",
+        "requirement": "VYSE60 の帯（Q-TO7-BAND）: (1) 電文の種類が VYSE60 の報は InfoSerial の有無によらず警報の段にする（unit の P3-C8-VYSE60=A と同じ） (2) 理由の行は出さない（name は null） (3) 取消は取消の段のまま (4) VYSE50〜52 の段は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:545 «8e50fa2078ddde1d»",
+          "docs/specs/cli-terminal-output.md:551 «3d07ba5ab2e6198e»",
+          "docs/specs/cli-terminal-output.md:780 «fa1a2c976abd7072»",
+          "docs/specs/cli-terminal-output.md:833 «61ce3565fb469ee2»"
+        ]
+      },
+      {
+        "id": "P3-TL6-AC03",
+        "requirement": "音（Q-TO7-SOUND）: (1) noticeLevel は 24 を 4、25 を 5 に読む (2) その結果 VFVO50 の引上げと発表は critical になる (3) 継続・引下げ・解除の読みと、表に無い code の 2 は変えない (4) noticeLevel を読む H27 の段も同じ値になる（別の直しを足さない）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:781 «07af7fd68dcec1a8»"
+        ]
+      },
+      {
+        "id": "P3-TL6-AC04",
+        "requirement": "禁則（Q-TO7-KINSOKU）: (1) wrapChars が行頭に置かない字を「、。，．）」』］】〉》)]！？ーぁぃぅぇぉっゃゅょァィゥェォッャュョ」にする (2) 行頭に置かない字が続くとき（「）。」「っ。」）は、続きの全部と、その前の 1 字をまとめて次の行へ送り、行頭に句読点が戻らないようにする (3) 送ると字下げと送る字が幅に入らないときと、行の中身が字下げだけになるときは送らず、今の形で折る。行は幅を超えない (4) 電文の字を足さず消さない。行頭の字下げと折り目のほかは同じ字の列のまま (5) 空白で折った直後の句読点の送り（今の分岐）も同じ字の集合で動く (6) 塗る帯と URL は今のまま折らない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:87 «2ba0f7feb796174a»",
+          "docs/specs/cli-terminal-output.md:782 «15837d334e2534a1»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL6-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL6-AC01"
+        ],
+        "behavior": "受入条件。45_02_01 の Code を書き換えた 24・25 が top、23 が warning、22 が caution、46_01_01 の VFSV の 36 が caution で、45_01_01 の 13 と 44_01_01 の月間火山概況は今の段"
+      },
+      {
+        "testId": "P3-TL6-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL6-AC02"
+        ],
+        "behavior": "受入条件。80_01_01 の VYSE60 が warning で、帯の直下に理由の行が無い。InfoSerial を足した報も warning で、取消の報は取消の段"
+      },
+      {
+        "testId": "P3-TL6-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL6-AC03"
+        ],
+        "behavior": "受入条件。volcano-unit.test.ts の引上げの表に 24・25 を足すと critical で、99 は今の warning"
+      },
+      {
+        "testId": "P3-TL6-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL6-AC04"
+        ],
+        "behavior": "受入条件。読めた全 fixture を 56・80・100 桁の色ありで描くと、折った行の行頭に AC04 (1) の字が無い。80_01_01 の 80 桁で「（Ｍｗ）７．７」の折り目が閉じ括弧の前でない"
+      },
+      {
+        "testId": "P3-TL6-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL6-AC04"
+        ],
+        "behavior": "契約境界。「）。」と「っ。」が幅の境に来る文で行頭に句読点が来ない。字下げと送る字が幅に入らない細い幅でも行が幅を超えない。空白を除いた字の列が元の文と同じ"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02・O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。共有 file の行の中身を変えた後も、他の契約の «» が全部通ること（P3-TO-D-LINES）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（writer の worker と試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（列・覚え・module の変数を持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の期待を変えてよいのは、AC01〜AC04 で段か折り目が変わる期待だけ。変える前に試験名・旧の期待・理由を報告する",
+      "volcano-unit.ts の行の数を変えない。ほかの契約の «» は付け直さない（要るなら止めて報告する）"
+    ],
+    "unresolvedQuestions": []
+  }
+}

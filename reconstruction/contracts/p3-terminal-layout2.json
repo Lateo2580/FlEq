@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "72e6986cf980f170718d032ee139e1d0a6786c272f3760b64617e2dd40001a1f",
+    "sha256": "64a8f6c9e5308c1b2e58ab91d4ddd810d3097a9ebd5073fc37364a66d0e81f62",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -344,7 +344,7 @@
         "requirement": "短い形の段の理由（Q-TO3-REASON）: (1) 警報以上の段（最も重い・紫・警報）の U-W・U-L・U-R・U-V の報は、帯の直下に段を決めた Kind の名前（同じ段が複数なら電文の最初の 1 つ）を太字で 1 行出す (2) U-N は InfoSerial の名前を同じ形で出す (3) 見出し文か帯の題名に同じ字があるときは出さない (4) U-M・U-B、VFVO56（段を電文の種類で決める報）と、注意より軽い段には足さない。TerminalReport の short に欄を 1 つ足して material.ts で読む（heaviest は段だけを返すので、名前を一緒に返す形に改める）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:464 «fc9be00de26c3c82»",
-          "docs/specs/cli-terminal-output.md:551 «2a2ed500e3dc0092»"
+          "docs/specs/cli-terminal-output.md:551 «3d07ba5ab2e6198e»"
         ]
       },
       {
