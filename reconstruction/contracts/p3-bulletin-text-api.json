@@ -1,0 +1,512 @@
+{
+  "meta": {
+    "draftedFromOid": "e340e4c8aa03de71a4373e38284ca954555ee6db",
+    "sha256": "c596dacba95355b5ed4c088b21a1cac60055a63c205f7d3bbca5694780f143fb",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:380 «3310d34e8ebde856»",
+    "decisionBranches": [
+      {
+        "id": "P3-BT-D-BODY",
+        "kind": "作者",
+        "A": "火山と南海トラフの解説の本文を、本文を返す HTTP の API で Pi の画面のプログラムへ届ける。snapshot は見出しと識別子のまま変えない",
+        "B": "spec を実態に合わせ、本文は読めないと書く",
+        "C": "view に全文を載せる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（判断カード 2026-11-08-P4の入口-本文とD7 の問い 2 の案 2。作者「問い 1〜5 は全部推奨どおり」）。再起動の後は読めない形でよい。報の到着時に自動で出すか、クリックで出すかは P4 の画面の起草で決める",
+        "reason": "B は旧築で読めた本文を失う。C は全体が 1 MiB を超え分野が 65,536 byte を超えると分野ごと要約に落ちる（P3-C9-SNAPSHOT=A・P3-C8-SNAPSHOT=A の理由）"
+      },
+      {
+        "id": "P3-BT-D-KEY",
+        "kind": "統合担当",
+        "A": "要求の鍵は view に載っている値にする。id は subject、revision は source の inputId・reportDateTimeRaw・controlDateTimeRaw を順に並べた JSON 配列の文字列",
+        "B": "U-F・U-W と同じ sha256 の id と part=index の索引を足す",
+        "C": "revision に unit の contentRevision を使う",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "snapshot を変えない裁定なので、hex の id を載せる欄が無い。B は 1 件の本文に 2 往復かかるか、snapshot に欄が要る。C は同じ分野の別の報でも contentRevision が進むので、関係の無い報の到着で 409 になる。inputId だけでは足りない。host.ts の採番は起動ごとに 0 へ戻るので、復元した U-N の報 A の input-1 と、再起動の後に届いた訂正 B の input-1 が同じ鍵になる（ヘルツのレビューの P1）。active の記録が別の active の記録へ置き換わるのは stepVersion が newer を返したときだけで、このとき reportDateTimeRaw か controlDateTimeRaw の字が必ず違う（同じ時刻で中身の違う報は held で手元の版を残す）ので、記録が直に置き換わる列は再起動を越えても鍵が分かれる。inputId は、記録が消えた後に同じ時刻の別の報が来た列を、復元の無い同じ run の中で分ける。dmdataId は ReportRef にも view にも無く、使うには snapshot を変えることになる。この鍵は版の取り違えを全く無くすものではない。残存リスク: 同じ stream の中でも鍵が重なる列が 1 つある。U-N の 64 件を復元して A（旧 input-2）を公開した後、新しい入力の 1 件目で A が容量で退去し、2 件目に同じ subject で両方の時刻が同じ B が届くと、記録が無いので B が採用され、A の鍵で B の本文が返る（ヘルツの再レビュー）。仕組みを足さず残存リスクとして残す。同じ subject で両方の時刻が同じ報は同じ電文の再送で、返るのはその subject の最新の本文だから。inputId に起動固有の値を入れる案は host の採番と全部の試験に効くので採らない"
+      },
+      {
+        "id": "P3-BT-D-VISIBLE",
+        "kind": "統合担当",
+        "A": "答えるのは view に載っている記録だけ（effective が active で expiryPending でない）",
+        "B": "state に本文があれば、期限の保留の記録にも答える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "画面の見出しに無い報の本文を返す理由が無い。view と同じ条件なら、見えない報が API で見えることが起きない"
+      },
+      {
+        "id": "P3-BT-D-LINE",
+        "kind": "統合担当",
+        "A": "U-F・U-W の詳細と同じ待ちと数えを共用する（受け付け 8 件、owner へ 1 件、受付から 2,000 ms はすべて合算）",
+        "B": "U-V・U-N 用の待ちと数えを別に持つ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当。P3-UWC-D-DETAIL-PATH=A と同じ）",
+        "reason": "spec §7.10 の要求総数 8 件と in-flight 1 件は分野を分けていない。B は main の応答の保持が §7.10 の 512 KiB を越える"
+      },
+      {
+        "id": "P3-BT-D-URGENT",
+        "kind": "統合担当",
+        "A": "U-V・U-N は place urgent のまま、要求が来たときだけ urgent の owner に問う",
+        "B": "受信のたびに本文を main へ送り、main が持って答える",
+        "C": "U-V・U-N を別の place へ移す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "詳細が urgent の owner へ行くのはこれが初めて（U-F は deferred、U-W は weatherCurrent）。ただし足す仕事は 64 件以下の探索と本文 1 件の clone だけで、入力の返信待ちがあるときは送らない。B は受信の経路が太り、main に全文を持つので §8.1 の『main は full view を保持せず』に反する。C は P3-EXECUTION-SPLIT-001 の割り当てを変える"
+      },
+      {
+        "id": "P3-BT-D-NOPAGE",
+        "kind": "統合担当",
+        "A": "page を持たない。1 要求で本文 1 件を全文返す",
+        "B": "U-F・U-W と同じ page と pageCount を持ち、値は常に 0 と 1 にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "1 件の応答は最悪でも 28,283 byte で 65,536 byte に入る（P3-BT-RES-01）。B の欄は値が変わらない。要求の欄の名前（streamId・part・id・revision）と誤りの本文は U-F・U-W のまま"
+      },
+      {
+        "id": "P3-BT-D-NANKAI-SAVED",
+        "kind": "統合担当",
+        "A": "保存の形を変えない。U-V の解説は再起動の後に読めず、U-N の情報は保存しているので再起動の後も読める",
+        "B": "U-N も再起動の後は答えないように揃える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "作者の裁定は『読めない形でよい』で、読めることを禁じていない。U-N の情報系列は全文を保存している（P3-NS-AC01、nankai-unit.ts:854）。B は保存している本文を捨てる処理を足すことになる"
+      },
+      {
+        "id": "P3-BT-D-SUMMARY",
+        "kind": "統合担当",
+        "A": "索引を作らない。分野が要約に落ちている間は、画面が subject を持たないので本文を要求できない",
+        "B": "U-F と同じ part=index を足し、要約だけを受けた画面も本文へ届くようにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08）",
+        "ruling": "A（統合担当）",
+        "reason": "要約は snapshot 全体が 1 MiB を超え、分野が 65,536 byte を超えたときだけ起きる（P3-C9-SNAPSHOT=A では通常の状態の火山は約 20 KB）。要約の間は見出しも画面に無いので、本文だけ届いても読み手が報を選べない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-BT-MEASURE",
+        "status": "closed",
+        "source": "2026-11-08 起草",
+        "closed": "対象の 22 fixture の XML の要素の長さを測った（空白を含む生の字数）。VolcanoActivity の最大 3,017 字（44_01_01 VFVO51）、Text の最大 1,434 字（75_01_04 VYSE52）、NextAdvisory の最大 105 字。4,096 字と 512 字を越えるものは無く、corpus では本文は切れない。VFVO60（79_01_01）は本文の要素が無く text は null。同じ機械の MessageChannel で 4,096＋512 字の応答の clone を 5,000 回測り、p50 0.0014 ms、p99 0.024 ms、最大 0.17 ms（MacBook、参考値。正式の値は P3-BT-RES-06）"
+      },
+      {
+        "id": "Q-BT-RESIDUAL",
+        "status": "closed",
+        "source": "2026-11-08 ヘルツの再レビューと統合担当の決定",
+        "closed": "U-N の復元の後に容量の退去を挟むと、同じ stream の中で A の鍵に B の本文が返る列が残る（P3-BT-D-KEY）。統合担当の決定で仕組みを足さず残存リスクとして残す。同じ subject で両方の時刻が同じ報は同じ電文の再送で、返るのはその subject の最新の本文だから"
+      },
+      {
+        "id": "Q-BT-NOT-CARRIED",
+        "status": "closed",
+        "source": "2026-11-08 起草",
+        "closed": "state に無いのでこの API で返らない欄を確かめた。VFVO51 の VolcanoPrevention（44_03_01 で 126 字）、VYSE5x・VYSE60 の Appendix（「参考」の解説、最大 1,329 字）、VFVO50 の活動と防災事項。本契約は parser と state を変えない。VFVO50 の活動と防災事項、VFVO51 の VolcanoPrevention は別の契約 P3-RESTORE-DROPPED-TEXT-001 が扱う。VYSE の Appendix は裁定の文に無いので範囲の外"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "subject に operation が入るので、training・test の報は id で分かれる。運用区分で答えを変えない。訓練・試験の報の見せ方は画面（P4）で決める"
+    }
+  },
+  "contract": {
+    "contractId": "P3-BULLETIN-TEXT-API-001",
+    "mode": "implementation",
+    "objective": "火山の解説と南海トラフの情報の本文を、要求があったときだけ owner から読んで返す HTTP の API を足す。16:30 に南海トラフ地震臨時情報が届いたとき、Pi の画面のプログラムが snapshot の見出しの subject と source の版で GET すると、本文の全文が 2 秒の内に返る。snapshot・view・保存の形は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-bulletin-text-api.json",
+      "reconstruction/contracts/p3-bulletin-text-api.types.ts",
+      "reconstruction/contracts/p3-uf-public.json",
+      "reconstruction/contracts/p3-uw-canon.json",
+      "reconstruction/contracts/p3-uw-canon.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-nankai-unit.json",
+      "reconstruction/contracts/p3-nankai-unit.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/src/http-sse/http-sse.ts",
+      "reconstruction/src/runtime/**",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/domains/volcano/volcano.ts",
+      "reconstruction/src/domains/nankai/nankai.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/test/uf-public/**",
+      "reconstruction/test/uw-canon/**",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts",
+      "reconstruction/test/nankai-unit/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/http-sse/http-sse.ts（AC01 と AC06 (2) の範囲だけ）",
+      "reconstruction/src/runtime/composition-root.ts（:30 の import と :2380 の型の別名だけ）",
+      "reconstruction/src/runtime/owner-runtime.ts（:33 の import の行、detailOwner、その近くの新しい関数 1 つだけ）",
+      "reconstruction/contracts/p3-execution-split.types.ts（:73 と :142 の中身だけ）",
+      "reconstruction/test/bulletin-text/**",
+      "reconstruction/test/uf-public/**（requestDetail の応答の型が広がって型検査が止まるときの絞り込みだけ。期待は変えない）",
+      "reconstruction/test/uw-canon/**（同上）",
+      "reconstruction/contracts/p3-bulletin-text-api.types.ts（統合担当が起草で書いた。実装では変えない）",
+      "docs/specs/cli-terminal-output.md（統合担当が起草で書いた。実装では変えない）",
+      "docs/specs/reconstruction-p0-contracts.md（統合担当が起草で書いた。実装では変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-bulletin-text-api.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M05",
+      "M14",
+      "B02",
+      "B11"
+    ],
+    "integrationContractIds": [
+      "I-U-V",
+      "I-U-N"
+    ],
+    "dependsOnContractIds": [
+      "P2-SNAPSHOT-SSE-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-UF-PUBLIC-001",
+      "P3-UW-CANON-001",
+      "P3-UNIT-N-001",
+      "P3-UNIT-V-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-bulletin-text-api.types.ts#BulletinTextRequest",
+      "reconstruction/contracts/p3-bulletin-text-api.types.ts#BulletinTextResponse"
+    ],
+    "publicFunctions": [
+      "RuntimeCompositionRoot.requestDetail（引数の detail と戻り値の response に BulletinTextRequest と BulletinTextResponse が足される。done の約束は今どおり）",
+      "owner-runtime.ts の detailOwner（同じ和）",
+      "startDisplayServer の options.detail の型（同じ和）。ほかの公開の関数の signature は変えず、新しい export を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__44_01_01_151008_VFVO51",
+      "test__fixtures__42_02_01_071130_VZVO40",
+      "test__fixtures__79_01_01_210527_VFVO60",
+      "test__fixtures__selected_xml__80_01_01_240821_VYSE60",
+      "test__fixtures__selected_xml__75_01_04_200512_VYSE52",
+      "test__fixtures__selected_xml__74_03_01_220318_VYSE50"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O09",
+      "O11"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-BT-RES-01",
+        "target": "本文の 1 応答（HTTP の本文、wrapper 込み）",
+        "limit": 65536,
+        "unit": "UTF-8 JSON bytes",
+        "scope": "1 件は text 4,096・nextAdvisory 512 の UTF-16 単位まで。JSON で 1 単位が最も伸びるのは制御文字の 6 byte で、(4,096＋512)×6＝27,648。wrapper は欄の名前と記号 91、streamId 64、id 80、revision 400 の 635 で、最悪 28,283 byte。revision は JSON の中の JSON で二重に伸びる。U-N の復元は reportDateTimeRaw を長さ 40 字と Date.parse だけで受けるので、制御文字が内側で \\u000b の 6 字、外側で 7 byte になる。内訳は inputId 64、reportDateTimeRaw 40×7＝280、controlDateTimeRaw 40（inputId と control は jsonText の字で伸びない）、配列の記号 16。XML から読める字（漢字は 3 byte）の本文なら 14,459 byte 以下。上限の内側に常に入るので、切り詰めと計量のコードを足さない",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（応答 byte）"
+      },
+      {
+        "id": "P3-BT-RES-02",
+        "target": "受け付けた詳細の要求（U-F・U-W・U-V・U-N、全 client の合計）",
+        "limit": 8,
+        "unit": "requests",
+        "scope": "P3-UFP-RES-04 のまま。受付から HTTP の応答の完了か切断まで数える。9 件目は busy（429）。本文の応答だけなら main の保持は 8×28,283 byte 以下で、§7.10 の 512 KiB の内側",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（要求総数・main の応答保持）"
+      },
+      {
+        "id": "P3-BT-RES-03",
+        "target": "owner へ送り済みの詳細",
+        "limit": 1,
+        "unit": "outstanding detail request",
+        "scope": "P3-UFP-RES-06 のまま。全 place の合計で 1 件。urgent に入力か期限の返信待ちがあるときは送らない",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（worker 内の射影）"
+      },
+      {
+        "id": "P3-BT-RES-04",
+        "target": "本文の要求の期限（受付から HTTP の応答の完了か切断まで）",
+        "limit": 2000,
+        "unit": "ms",
+        "scope": "P3-UFP-RES-07 のまま",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（timeout）"
+      },
+      {
+        "id": "P3-BT-RES-05",
+        "target": "本文の 1 要求（HTTP の request.url）",
+        "limit": 1024,
+        "unit": "UTF-8 bytes",
+        "scope": "P3-UFP-RES-05 のまま。正しい要求の URL は最大 1,015 byte。内訳は path と欄の名前 65、streamId 36（通る streamId は randomUUID の 36 字。37 字以上は 409 になる要求）、id 212（eventId の 64 字を全部 % で符号化）、revision 702（配列の記号 30、inputId 192、reportDateTimeRaw 360〔復元で受ける 3 byte の字が 1 字 9 byte〕、controlDateTimeRaw 120）",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（要求 byte）"
+      },
+      {
+        "id": "P3-BT-RES-06",
+        "target": "urgent の owner が本文の要求 1 件で占める区間（detailOwner の呼び出しと返信の postMessage）",
+        "limit": 1,
+        "unit": "ms (p99)",
+        "scope": "§7.10 が『開始済み射影の非中断区間も E01 の負荷条件に含め』と書く区間。本文が 4,096＋512 字の記録が 64 件ある state の最後の記録で測り、5,000 回の p99 と最大を成果物に貼る。1 ms の判定は p99 に当てる。Mac mini の p99 が 1 ms を越えたら止めて報告する。これは最大の待ち時間の保証ではない。urgent の占有と EEW の遅れは、この Mac mini の測定と P5 の E01 の負荷条件で確かめる項とする",
+        "source": "docs/specs/reconstruction-p0-contracts.md §7.10（本文の『非中断区間』の段落）・P3-BT-D-URGENT"
+      },
+      {
+        "id": "P3-BT-RES-07",
+        "target": "本文の API の誤りの本文（HTTP の本文、streamId 込み）",
+        "limit": 534,
+        "unit": "UTF-8 JSON bytes",
+        "scope": "上界は 409 の本文の 534 byte（欄の名前と記号 70、streamId 64、revision 400。revision の内訳は P3-BT-RES-01）。復元で受ける字の実例は reportDateTimeRaw が「49」と U+000B 38 字のときの 522 byte。P3-UFP-RES-09 の 256 byte は revision が短い版である前提の値で、U-V・U-N の 409 の revision は欄を 3 つ持つので当てない。U-F・U-W の上限は変えない",
+        "source": "P3-BT-D-KEY"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形を変えない）"
+    ],
+    "nonPersistedFields": [
+      "応答の本文（owner の state を読むだけで、main にも client ごとにも持たない）"
+    ],
+    "outOfScope": [
+      "画面の呼び出しの条件（報の到着時に自動か、クリックか）と本文を描く画面。P4 で決める",
+      "client の動き（同時の取得は 1 件、自動の再試行の回数、409 の後に次の snapshot を待つこと）。§7.10 と §8.1 の 5・7 に従って P4 で作る",
+      "要約に落ちている間の索引（P3-BT-D-SUMMARY）",
+      "U-V の解説の保存（解説は今のまま保存しない）",
+      "VFVO50 の活動と防災事項、VFVO51 の VolcanoPrevention（state に無い。別の契約 P3-RESTORE-DROPPED-TEXT-001 が扱う）",
+      "VYSE の Appendix（state に無く、裁定の文に無いので範囲の外）",
+      "津波の警告の文と EEW の到達予想（判断カードの問い 1）",
+      "parser・unit の reduce・view・snapshot・codec・通知・端末の出力",
+      "HTTP の認証（/snapshot と同じ境界のまま。P4）",
+      "旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-BT-AC01",
+        "requirement": "HTTP（P3-BT-D-KEY・P3-BT-D-NOPAGE）: (1) 既存の表示の server に GET /api/display/domains/U-V/detail?streamId&part&id&revision と、同じ query の /api/display/domains/U-N/detail を足す。options.detail が無ければ U-F・U-W と同じく 404 (2) 次の要求は 400 invalidRequest にして root へ渡さない: request.url が 1,024 byte を越える、streamId・part・id・revision のどれかが欠けるか重複する、streamId が ^[\\w-]{1,64}$ でない、part が text でない、id が operation／family／eventId の形でない（operation は normal・training・test、family は VFVO51・VFVO60・VZVO40・VYSE50・VYSE51・VYSE52・VYSE60、eventId は volcano.ts と nankai.ts の validEventId と同じ字で 1〜64 字）、revision が 3 つの文字列の JSON 配列でない（順に source の inputId・reportDateTimeRaw・controlDateTimeRaw で、0 番は validInputId を通り、1 番と 2 番は 40 字以下。client は JSON.stringify で作り、余白を入れない）。欄は項目ごとに確かめて組み立てる（as で言い換えない）。path の unit と family の組は読み取りでは見ない（違えば owner に記録が無く AC03 (2) の答えになる） (3) id と revision は URLSearchParams が復号した後の値で確かめる。eventId に + や % が、revision に「\"」と + が入りうるので、client は URL の符号化をする (4) 200 の本文は { streamId, kind: ok, part: text, id, revision, text, nextAdvisory }。誤りの本文、状態 code、cache-control は U-F・U-W と同じ（400 は streamId なし、versionChanged 409・busy 429・unavailable 503・timeout 504、no-store）。誤りの本文の上限だけ P3-BT-RES-07 による (5) 応答は serveDetail をそのまま通す。期限、504 の書き出し、送り切れないときの切断、finish か close で done を 1 回呼ぶことは P3-UFP-AC08 のまま。snapshot の配送は本文の完了を待たない (6) 読み取りの先頭の処理（url の長さの確かめ、URL の解析、欄を 1 つ取る関数）は parseWeatherDetail から file の末尾の関数へ括り、新しい読み取りと共用する。同じ 3 行を 3 つ目に増やさない。parseDetail は :45 が引かれているので変えない。無いと壊れるもの: 新しい読み取りは U-V・U-N の 1 関数で、これが無いと本文へ届かない",
+        "evidenceRefs": [
+          "reconstruction/src/http-sse/http-sse.ts:64 «95fb9f569bf5943c»",
+          "reconstruction/src/http-sse/http-sse.ts:71 «5faef3b5e0c5654a»",
+          "reconstruction/src/http-sse/http-sse.ts:84 «b34c52a947c2f525»",
+          "reconstruction/src/contracts-revision/version.ts:51 «85908b610f7c4927»",
+          "docs/specs/reconstruction-p0-contracts.md:1273 «70a78ec97aee3f74»",
+          "docs/specs/reconstruction-p0-contracts.md:1281 «ec12dd2ecfa47a0c»",
+          "docs/specs/reconstruction-p0-contracts.md:1282 «cd9f953a6efb121c»",
+          "docs/specs/reconstruction-p0-contracts.md:1339 «222c77ca310e714d»"
+        ]
+      },
+      {
+        "id": "P3-BT-AC02",
+        "requirement": "publisher の経路（P3-BT-D-LINE・P3-BT-D-URGENT）: (1) requestDetail は BulletinTextRequest を受ける。行き先は今の式（:1844）のまま executionPlaces で引き、U-V・U-N は urgent になる。composition-root.ts の振る舞いのコードは変えない (2) 受け付け 8 件、owner への 1 件、受付から 2,000 ms は U-F・U-W と合算する (3) 送るのは pump の後で、urgent に入力の返信待ちも期限の返信待ちも無いときだけ（:1901 のまま）。EEW・津波の入力が続く間は送らず、期限が来たら timeout。本文の要求のために入力を遅らせない (4) urgent の owner が止まれば、そこ行きの要求だけ unavailable。shutdown に入れば全部 unavailable（P3-UWC-AC07 (2) のまま） (5) server は client ごとの状態を持たない。client が切断すれば done で受け付けの数が戻る。SSE を張り直した後（streamId は同じ）の要求は、切断の前と同じ答えになる。再起動の後は streamId が変わるので、古い streamId の要求は owner へ行かず versionChanged（revision null）で、画面は次に受けた snapshot の streamId で要求し直す",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:1840 «1a9c6ba4309647d8»",
+          "reconstruction/src/runtime/composition-root.ts:1844 «b744bc1129d09536»",
+          "reconstruction/src/runtime/composition-root.ts:1845 «21453d3b24b884a2»",
+          "reconstruction/src/runtime/composition-root.ts:1846 «4359182d286770de»",
+          "reconstruction/src/runtime/composition-root.ts:1901 «12dac58ad787345a»",
+          "reconstruction/src/runtime/composition-root.ts:1905 «715200ba0dadd1f3»",
+          "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»",
+          "docs/specs/reconstruction-p0-contracts.md:1272 «41f5a81e741937a4»",
+          "docs/specs/reconstruction-p0-contracts.md:1274 «68581c201d0982b4»",
+          "docs/specs/reconstruction-p0-contracts.md:1277 «15449f76c878590f»",
+          "docs/specs/reconstruction-p0-contracts.md:1278 «919fba1f20a47f31»",
+          "docs/specs/reconstruction-p0-contracts.md:1279 «b3ceaa3218ec4aaa»",
+          "docs/specs/reconstruction-p0-contracts.md:1280 «8008034665199229»"
+        ]
+      },
+      {
+        "id": "P3-BT-AC03",
+        "requirement": "owner の答え（P3-BT-D-VISIBLE・P3-BT-D-NANKAI-SAVED）: (1) detailOwner は unit が U-V なら state の bulletins、U-N なら state の information を、owner-runtime.ts の 1 つの関数で読む。volcano-unit.ts と nankai-unit.ts は変えない (2) id と同じ subject の記録が無い（retainUntil で消えた、件数の上限で退去した、U-V の再起動の後）、effective が active でない（取消、U-N の expired）、expiryPending が true のときは { kind: error, reason: versionChanged, revision: null } (3) 記録はあるが、その source の 3 つの欄を AC01 (2) の順で JSON.stringify した revision が要求と違う（同じ subject が新しい報で置き換えられた）ときは versionChanged に今の revision を載せる。再起動の後に採番が戻って inputId が同じでも、記録が置き換わったのなら時刻の欄が違うので一致しない。退去を挟む列は P3-BT-D-KEY の残存リスクのとおり (4) 一致すれば ok で、id は subject、revision は今の revision。電文に欄が無ければ text・nextAdvisory は null のまま ok (5) owner の state に unit が無ければ unavailable (6) 読むだけで、state も期限も動かさない (7) 答えを ok にする記録は toVolcanoView と toNankaiView が見出しを載せる記録と同じ。見出しに無い報の本文を返さない (8) U-V の解説は復元の後に空から始まるので、再起動の前の id は (2) の答えになる。U-N の情報は保存していて復元の後も source と本文が同じなので、新しい streamId で要求すれば ok になる",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:446 «ee055f152374fab0»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:454 «52be15e3cf8aa683»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1382 «d21b32282c450b63»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1388 «808b37e928868216»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1657 «87066b4bdc56185a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1663 «f59b36c8d845381f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:55 «e78bb12f2fff1eaf»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:188 «c34b58ff911b7de5»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:196 «52be15e3cf8aa683»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:712 «d008ed1cf2f5b814»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:854 «2f8337cdc2b62e0e»",
+          "docs/specs/reconstruction-p0-contracts.md:1339 «222c77ca310e714d»"
+        ]
+      },
+      {
+        "id": "P3-BT-AC04",
+        "requirement": "電文の字と byte（作者裁定「電文の本質・値・意味を変えない」）: (1) 応答の text と nextAdvisory は state の字のまま返す。trim、空白の整形、改行の置き換え、句点での分割、禁則をしない。整形は画面の側（P4）で、気象庁の留意事項 §3 の線の内側で行う (2) state の字は parser が読んだ字のままで、要素の値の前後の空白だけが除かれている。4,096 字と 512 字を越えた分は parser が切り、view の見出しの truncated が true になる（今の動き。本契約は変えず、応答に欄を足さない。corpus では切れない、Q-BT-MEASURE） (3) 1 応答は P3-BT-RES-01 の 65,536 byte の内側に常に入る。JSON を途中で切らず、page も omitted も持たない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/volcano/volcano.ts:22 «e7d3d754717f3e32»",
+          "reconstruction/src/domains/volcano/volcano.ts:428 «0cb3b0e6e6f76850»",
+          "reconstruction/src/domains/volcano/volcano.ts:429 «ab82043ae8d77035»",
+          "reconstruction/src/domains/nankai/nankai.ts:22 «ac6cdc44fc68e2a4»",
+          "reconstruction/src/domains/nankai/nankai.ts:141 «f4c1bc3d2cba0671»",
+          "docs/specs/reconstruction-p0-contracts.md:1275 «39ddc0cb323ce0e4»",
+          "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»"
+        ]
+      },
+      {
+        "id": "P3-BT-AC05",
+        "requirement": "受信の経路と直列化（AGENTS.md の受信経路の計算量）: (1) 受信の経路に処理を足さない。U-V・U-N の reduce、toView、snapshot の直列化、保存は変えず、本文は要求が無ければ owner の外へ出ない (2) 要求 1 件が owner の境界を越える直列化は 3 回まで: main から owner への要求の clone 1 回（数百 byte）、owner から main への返信の clone 1 回（本文 1 件）、http-sse.ts:84 の JSON.stringify 1 回。owner の中で本文を含む JSON.stringify と byte の計量をしない（revision の 3 つの短い字の JSON.stringify だけはする） (3) owner の処理は 64 件以下の線形の探索 1 回で、記録の複製や全件の配列を作らない (4) urgent の owner が占める区間を P3-BT-RES-06 のとおり測り、成果物に貼る",
+        "evidenceRefs": [
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "reconstruction/src/http-sse/http-sse.ts:84 «b34c52a947c2f525»",
+          "docs/specs/reconstruction-p0-contracts.md:1276 «d10bb784033b3676»",
+          "docs/specs/reconstruction-p0-contracts.md:1288 «e5ce19b30d03f206»",
+          "docs/specs/reconstruction-p0-contracts.md:1342 «f794c600962d2878»"
+        ]
+      },
+      {
+        "id": "P3-BT-AC06",
+        "requirement": "変えないものと行の制約: (1) snapshot・view の型と値、保存の形式と schemaVersion、codec、通知、端末の出力、host.ts を変えない（host.ts は detail の型を推論する） (2) http-sse.ts は :258 以前に行を足さず（:19・:35・:36・:60・:82・:208 の中身だけ。validInputId の import も :19 の行の末尾に足す。:30・:84 の中身は変えない）、新しい読み取りと parseWeatherDetail から括った関数は file の末尾に置く。composition-root.ts は行の数を変えない（:2381 の中身も変えない）。owner-runtime.ts は :736 より前に行を足さない。owner-host.ts は変えない（:163 は request.detail をそのまま渡す）。p3-execution-split.types.ts は行の数を変えない (3) src に新しい export を足さない。試験は startDisplayServer と detailOwner と requestDetail を通す (4) 既存の U-F・U-W の試験の期待を変えない (5) 中身が変わる引かれた行は次の 6 件で、実装の後の check-contract はこの 6 件だけ FAIL になる: p3-uw-canon.json の http-sse.ts:82・:208、owner-runtime.ts:736、p3-execution-split.types.ts:73・:142、p3-expiry-form.json の p3-execution-split.types.ts:142。統合担当が配送の commit で新しい anchor に付け直し meta.sha256 を取り直す。実装では付け直さない。ほかの FAIL は想定外として報告する",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:21 «769733a86d9059cf»",
+          "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-BT-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-BT-AC01"
+        ],
+        "behavior": "受入条件。startDisplayServer に偽の detail を渡す。U-V と U-N の経路で、URL の符号化をした subject（eventId に + と % を含む）と revision が復号されて unit つきで渡り、200 の本文に streamId が付く。欠け、重複、part=index、id の形の違い、revision の形の違い（配列でない、要素が 2 つ、0 番に空白、1 番が 41 字）、1,025 byte は 400 で渡らない。409・429・503・504 の状態 code。detail が無ければ 404"
+      },
+      {
+        "testId": "P3-BT-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-BT-AC03",
+          "P3-BT-AC04"
+        ],
+        "behavior": "受入条件。fixture を unit に通した state を detailOwner で読む。44_01_01 VFVO51 の text が XML の VolcanoActivity の前後の空白を除いた字と同じ（途中の全角の空白と改行が残る）。42_02_01 VZVO40 は Body の Text。75_01_04 VYSE52 と 80_01_01 VYSE60 は EarthquakeInfo の Text。79_01_01 VFVO60 は text が null で ok"
+      },
+      {
+        "testId": "P3-BT-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-BT-AC03"
+        ],
+        "behavior": "契約境界。無い id は versionChanged で revision null。同じ subject の新しい報の後に古い revision で要求すると、今の revision の versionChanged。復元した U-N の報 A と同じ inputId で時刻の欄だけ新しい訂正 B を受けた state に、A の revision で要求すると、B の本文を返さず B の revision の versionChanged で、B の revision なら ok。74_03_01 の取消、expiryPending の印の付いた記録は revision null。どの段でも ok になるのは view の見出しに subject がある記録だけ。U-V は codec の往復の後に revision null、U-N は往復の後も同じ本文で ok"
+      },
+      {
+        "testId": "P3-BT-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-BT-AC02"
+        ],
+        "behavior": "契約境界。harness で U-V の要求が urgent へ送られ、urgent の入力の返信を止めている間は送られず、返信の後に送られて ok。U-F と合わせて 9 件目は busy。urgent の owner が止まると unavailable。古い streamId は versionChanged で owner へ送らない"
+      },
+      {
+        "testId": "P3-BT-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-BT-AC04"
+        ],
+        "behavior": "契約境界。text 4,096 字・nextAdvisory 512 字（漢字と「\"」「\\」と改行を混ぜる）、64 字の eventId、64 字の streamId の応答が 65,536 byte 以下で、JSON.parse の後の字が state と同じ"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07・O09・O11 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の後は P3-BT-AC06 (5) の 6 件の FAIL だけが想定内で、統合担当が配送の commit で付け直す"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（parser-boundary の P1-T04 を含む）。--sequence.shuffle を付けた回も 1 回通す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "P3-BT-RES-06 の測定の p99 と最大、測った機械",
+      "check-contract の FAIL の一覧（P3-BT-AC06 (5) の 6 件と一致すること）",
+      "残存リスクに P3-BT-D-KEY の退去を挟む列を書く",
+      "既存の試験の絞り込みを足したときは、試験名と足した理由。期待は変えない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
