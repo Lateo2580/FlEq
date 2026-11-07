@@ -67,7 +67,7 @@ describe("P3-TL6 帯の段と禁則", () => {
       if (report == null) continue;
       read += 1;
       for (const columns of [56, 80, 100]) {
-        for (const text of terminal(columns, 3)([reportUnit(report)]).map(plain)) if (/^ {2,4}\S/.test(text) && NO_HEAD.includes(text.trim()[0])) bad.push(`${columns} ${path}: ${text}`);
+        for (const text of terminal(columns, 3)([reportUnit(report)]).map(plain)) if (/^ {2,6}\S/.test(text) && NO_HEAD.includes(text.trim()[0])) bad.push(`${columns} ${path}: ${text}`);
       }
     }
     expect(read).toBeGreaterThan(200);
@@ -85,10 +85,19 @@ describe("P3-TL6 帯の段と禁則", () => {
     for (const sentence of sentences) for (const columns of [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30, 40]) {
       const lines = drawn(sentence, columns);
       for (const text of lines) expect(width(text.trimEnd())).toBeLessThanOrEqual(columns);
-      for (const text of lines.filter((item) => /^ {2,4}\S/.test(item))) expect(NO_HEAD.includes(text.trim()[0])).toBe(false);
+      for (const text of lines.filter((item) => /^ {2,6}\S/.test(item))) expect(NO_HEAD.includes(text.trim()[0])).toBe(false);
       expect(lines.join("").replace(/\s/g, "")).toContain(sentence.replace(/\s/g, ""));
     }
     // 送ると幅を超える文（AC04 (3)）。送らないので行頭の字は問わず、幅だけを見る。
     for (const columns of [14, 15, 16, 17, 18, 19, 20, 21, 22]) for (const text of drawn("abcあ））））））。", columns)) expect(width(text.trimEnd())).toBeLessThanOrEqual(columns);
+  });
+
+  // P3-TL6-T06 / AC05
+  it("T06 理由の行がある報の見出し文は 2 桁下がり、折り返した行は 4 桁で、理由の行が無い報は下がらない", () => {
+    const shown = (path: string, unit: RuntimeUnitId, columns = 80) => terminal(columns)([reportUnit(terminalReport(decodeFixture(path), unit)!)]).map(plain);
+    expect(shown("45_01_01_200522_VFVO50.xml", "U-V").slice(2, 5).map((text) => /^ */.exec(text)![0].length)).toEqual([0, 2, 4]);
+    expect(shown("selected_xml/80_01_01_240821_VYSE60.xml", "U-N")[2]).toMatch(/^本日/);
+    expect(shown("18_00_01_260830_VPWW55_fukui_L5.xml", "U-W")[2]).toMatch(/^【特別警報/);
+    for (const columns of [56, 80, 100]) for (const text of shown("45_01_01_200522_VFVO50.xml", "U-V", columns)) expect(width(text.trimEnd())).toBeLessThanOrEqual(columns);
   });
 });

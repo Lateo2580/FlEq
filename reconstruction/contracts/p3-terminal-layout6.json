@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f954231206e1e01a382d1e218aea8e4c3277e61",
-    "sha256": "a4aae73337e64f91fb7dc08d811499e566186da933afbe6ecdf210b116d15e1b",
+    "sha256": "fdef195f7b42376f881001ce4f3a37671a4772d9779605846b1ca87d880aaa45",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -61,6 +61,17 @@
         "status": "確定（統合担当、2026-11-07 起草）",
         "ruling": "A（統合担当）",
         "reason": "同じ測定で 0 件。無いと壊れるものが無い"
+      },
+      {
+        "id": "P3-TL6-D-REASON-INDENT",
+        "kind": "作者",
+        "A": "理由の行がある報は見出し文を 2 桁下げる",
+        "B": "今のまま同じ位置に並べる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-07）",
+        "ruling": "A（作者の写しの目視「見出しから本文を1段下げた方がいいかもしれません」）",
+        "reason": "作者の端末では太字と普通の太さの差が小さく、理由の行と見出し文の境が読めない"
       }
     ],
     "questionResolutions": [],
@@ -91,7 +102,7 @@
     ],
     "allowedPaths": [
       "reconstruction/src/terminal/material.ts（shortLevel の U-V と U-N の段の読みだけ）",
-      "reconstruction/src/terminal/format.ts（NO_HEAD と wrapChars の送りだけ）",
+      "reconstruction/src/terminal/format.ts（NO_HEAD と wrapChars の送り、shortForm の見出し文の字下げだけ）",
       "reconstruction/src/units/volcano/volcano-unit.ts（noticeLevel の中とそのコメントだけ。行の数を変えない。この file の行を他の契約が «» で引いている）",
       "reconstruction/test/terminal/**",
       "reconstruction/test/volcano-unit/volcano-unit.test.ts",
@@ -180,9 +191,9 @@
         "requirement": "VYSE60 の帯（Q-TO7-BAND）: (1) 電文の種類が VYSE60 の報は InfoSerial の有無によらず警報の段にする（unit の P3-C8-VYSE60=A と同じ） (2) 理由の行は出さない（name は null） (3) 取消は取消の段のまま (4) VYSE50〜52 の段は変えない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:545 «8e50fa2078ddde1d»",
-          "docs/specs/cli-terminal-output.md:551 «3d07ba5ab2e6198e»",
+          "docs/specs/cli-terminal-output.md:551 «ab2218d4a63a6607»",
           "docs/specs/cli-terminal-output.md:780 «fa1a2c976abd7072»",
-          "docs/specs/cli-terminal-output.md:833 «61ce3565fb469ee2»"
+          "docs/specs/cli-terminal-output.md:834 «61ce3565fb469ee2»"
         ]
       },
       {
@@ -198,6 +209,14 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:87 «92a8bdfca2603b73»",
           "docs/specs/cli-terminal-output.md:782 «15837d334e2534a1»"
+        ]
+      },
+      {
+        "id": "P3-TL6-AC05",
+        "requirement": "見出し文の段下げ（Q-TO7-REASON-INDENT）: (1) 段の理由の行を出す報は、見出し文の各行を 2 桁下げ、折り返した行はさらに 2 桁下げる (2) 理由の行が無い報（見出し文に同じ字がある報、警報より軽い段、VYSE60、噴火速報、取消）は下げない (3) 行は幅を超えない (4) 帯、理由の行、末尾の行の位置は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:551 «ab2218d4a63a6607»",
+          "docs/specs/cli-terminal-output.md:783 «f1c0a37b2f0e1517»"
         ]
       }
     ],
@@ -241,6 +260,14 @@
           "P3-TL6-AC04"
         ],
         "behavior": "契約境界。「）。」と「っ。」が幅の境に来る文で行頭に句読点が来ない。字下げと送る字が幅に入らない細い幅でも行が幅を超えない。空白を除いた字の列が元の文と同じ"
+      },
+      {
+        "testId": "P3-TL6-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL6-AC05"
+        ],
+        "behavior": "受入条件。45_01_01 の VFVO50 の見出し文が理由の行から 2 桁下がり、折り返した行は 4 桁下がる。VYSE60 と Kind の名前が見出し文にある報は下がらない。56・80・100 桁で幅を超えない"
       }
     ],
     "requiredCommands": [

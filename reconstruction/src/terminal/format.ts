@@ -709,8 +709,11 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 市町村は 1 つのまとまりなので、折り返した行に左の列を繰り返さない（繰り返すと別の区分に読める。作者の目視）。
   const towns = flash == null || flash.towns.length === 0 ? [] : [...flow([seg(TOWN_LABEL)], flash.towns.map((town) => [seg(town)]), ctx.body, width(TOWN_LABEL)),
     ...flash.others === 0 ? [] : [line(seg(`ほか ${flash.others} 市町村`, "dim"))]];
+  // 理由の行がある報は見出し文を 2 桁下げる（Q-TO7-REASON-INDENT）。太字の差だけでは理由の行と本文の境が読めないため。折り返した行はさらに 2 桁下げる。
+  const sentences = reason.length === 0 ? textLines(headline, ctx.body)
+    : textLines(headline, ctx.body - 2).flatMap((item) => wrapChars([seg("  "), ...item.segs], ctx.body, "    ").map((segs) => ({ segs })));
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: [...reason, ...textLines(headline, ctx.body), ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: [...reason, ...sentences, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };
