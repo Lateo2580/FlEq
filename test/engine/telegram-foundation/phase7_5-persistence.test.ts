@@ -96,6 +96,8 @@ describe("§7.5 unit 6: real fixture persistence", () => {
 
     const liveStore = new DisplayStateStore();
     applyToDisplay(liveStore, first);
+    // 本番は 5 秒ごとに sweep する。約 4 時間後の VXSE61 の前に、最新地震カードは期限で消えている。
+    liveStore.sweep(followupNowMs - 1);
     applyToDisplay(liveStore, followup);
 
     const restartedStore = new DisplayStateStore(
