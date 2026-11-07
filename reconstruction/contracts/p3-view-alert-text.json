@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "08e00fdc4b6a4070c186f56253c3522050461051",
-    "sha256": "244f2d8a2d7252a0eb5196327d3215d448811c73e103336d6b08c1d5de9a38fe",
+    "sha256": "451b983d309f308d134f235e4588f9de43b174edc4bf9648e59440832902e51c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -153,7 +153,7 @@
     "contractId": "P3-VIEW-ALERT-TEXT-001",
     "mode": "implementation",
     "objective": "津波の警告の文（VTSE41 の WarningComment）と、EEW の地域ごとの到達予想・長周期階級を、Pi へ渡す view に足す。23:14:59 に EEW の音で振り返った人が自分の地域に揺れが届くまでの時間を、14:49 に大津波警報の画面を見た人が「東日本大震災クラスの津波が来襲します」の文を、P4 の画面で読めるようにするための土台。字は電文のまま運び、画面の描き方は P4 で決める。EEW の view は足す前に subjects の重なりを引き、今より小さくする",
-    "baseOid": "unassigned",
+    "baseOid": "a2d4805e",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
