@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "fc7e9bd3ca31255d4a2550507e4401fe7a9046b6cef7abe30e5c164592febd80",
+    "sha256": "69879414bfc04f766bfb0d504aa1bdf3500b0f110cbd82d9c299f19214aa5fcc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -137,7 +137,7 @@
           },
           {
             "opportunity": "hazardIncrease",
-            "condition": "warningNotified=trueの非取消警報で、最大予測震度階級が通知済み最大を超えるか、Kind Code 10〜19の警報区域に通知済み集合にない区域が加わった場合。下がって戻る・同区域の再出現では生成しない。VXSE45採用後のVXSE43候補除外と他機会との一報一組を守る",
+            "condition": "warningNotified=trueの非取消警報で、最大予測震度階級が通知済み最大を超えるか、Kind Code 10〜19の警報区域に通知済み集合にない区域が加わった場合。下がって戻る・同区域の再出現では生成しない。VXSE45採用後のVXSE43候補除外（区分を読めた dmdata の接続で eew.forecast を受けていれば、VXSE43 は host で捨てて U-E に届かない。eew.warning だけの接続と区分の読めない起動では今のまま。P3-EEW-DROP43-001）と他機会との一報一組を守る",
             "normalChannels": [
               "desktop",
               "sound"
@@ -186,7 +186,7 @@
         ],
         "overlap": "一つの受理報が複数機会を満たしても各channel最大1 intentとする。取消を優先し、それ以外はpayloadRulesの訂正接頭辞を適用する。",
         "capacity": "保存世代採用前にQ-NOTICE.generationTableの置換と新intent集合を合わせた候補を作り、三区分・両channelのpendingをJSON UTF-8で128件/131072 byte以内にする。上位新intentの収容に必要なら下位群をA7選択順の逆順で必要分だけ退去する。同群以上を退去しない。通常機会は対象channel集合を全採用できた場合だけ置換/退去を確定し、未採用なら古いpendingを維持する。有効取消による両channelのsupersededは収容可否と独立に確定する。退去はnotificationCapacityEvictedと件数を返し、意味取消/R20正常採用根拠にしない。終端の記録は持たない（pendingでなくなったintentはintentsから外し、結果はEventIDごとの印に残す）。世代の上限は2,097,152 byte（P3-NOTICE-LEDGER-001のP3-NL-AC04・AC05）。（今の器は U-E 2,190,935 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
-        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外。通常の続報が通知機会を満たさなければ既存pendingを維持する。origin=recoveryの入力はP3の候補採用実装まではcurrent/gate/latch/intent/records/persistenceへ適用しない。意味検証後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空で未適用を返す。recoveryの適用はP3の候補採用契約で行う。。intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形（JSON.stringify([unit, subject, 系列, 版の鍵, 遷移, channel])。系列は空文字、版の鍵はversionKeyでSerialを含む）で保存の世代番号を含まない",
+        "generationRule": "EventIDはA4が意味境界で検証した14桁eventIdを使う。operation＋eventIdはfamilyを含むsubjectとは別keyで、両familyの通知を束ねる。VXSE45を意味受理した後の同event VXSE43は通知候補外（区分を読めた dmdata の接続で eew.forecast を受けていれば、VXSE43 は host で捨てて U-E に届かない。eew.warning だけの接続と区分の読めない起動では今のまま。P3-EEW-DROP43-001）。通常の続報が通知機会を満たさなければ既存pendingを維持する。origin=recoveryの入力はP3の候補採用実装まではcurrent/gate/latch/intent/records/persistenceへ適用しない。意味検証後にstate同一参照、decision=unchanged/reason=noChange、intents/outcomes空で未適用を返す。recoveryの適用はP3の候補採用契約で行う。。intentのIDはP3-NOTICE-LEDGER-001のP3-NL-AC01の形（JSON.stringify([unit, subject, 系列, 版の鍵, 遷移, channel])。系列は空文字、版の鍵はversionKeyでSerialを含む）で保存の世代番号を含まない",
         "replacementRationale": "統合担当決定: 旧築は即時送信で待ち行列を持たず、15秒TTL内に古い予報を遅れて鳴らす価値はないため、各channelの最新採用一件を残す。通知機会のない続報はこの決定の対象外。",
         "payloadRules": {
           "typeRef": "reconstruction/contracts/p2-eew-unit.types.ts#EewNotificationPayload",

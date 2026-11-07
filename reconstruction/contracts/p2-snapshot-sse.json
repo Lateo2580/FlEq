@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "24aa4ec6dce68e0d31f08e42e95fe5cb5fcec455efbbec97d8cc5dc669fd3ec1",
+    "sha256": "9fd1cb38179f84ed9f639bce27405a00e5967c5b641dd9918c7f4023bc6b2461",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -80,7 +80,7 @@
         "reason": "P2-A8-AC08/09/R40: 有界出典と意味上の回収規則が無いと、長い官署名で合法入力を拒否し、取消済み/回復済みの危険noticeを残す。 notice時計とTTL加算結果の範囲検査が無いと日時17文字の上界が成立しない。",
         "owner": "A8がRuntimePublishedOutcome accepted/semanticと同じstepのRuntimeDisplayChangeを使う。A1は最終採用結果を供給し、A4のwarningClassをそのまま使う。A7 intent/latch/attempt/disposition/配送成功を生成・置換・回収の根拠にしない。起動/復元/再接続の既存currentから新着noticeを生成しない。 （normal公開maskの規則はP3-CURRENCY-COVERAGE-001でmaskごと廃止。U-Eのnoticeの生成は公開maskを見ない、P3-CC-AC01(4)、配送のcommitでP3-CC-AC09により統合担当が改訂）",
         "identity": "targetId=SHA256(UTF8(JSON.stringify([unit,operation,key])))の小文字hex64。U-E keyはA4検証済みEventID(両family共通)、U-W/U-F keyは検証済みsubject。id=SHA256(UTF8(JSON.stringify([targetId,kind,sourceId])))のhex64、sourceId=SHA256(UTF8(JSON.stringify([unit,ReportRef.operation,ReportRef.family,ReportRef.subject,ReportRef.inputId])))のhex64。原文の区切り文字連結を使わず、短縮前の検証済み識別子を使う。同じtargetIdの旧noticeを新しい一件で置換する。",
-        "eew": "A4はEewCurrent.eventIdとwarningClass(forecast|warning)、accepted subject outcomeのfacts.eventId/facts.warningClassを公開する。警報区分変化は予想震度不変でもsemanticかつcontentRevision更新。各stepの変更前後で同一operation/EventIDの両familyを一組とし、非終端currentが無い→ある場合eewNew、既存非終端eventの集約区分がforecast→warningならeewWarning。初報が警報ならeewNew一件だけ。既存warningへ別family警報が来てもnew/upgradeを出さない。既存forecastへVXSE43警報ならeewWarning。warning→forecastは新noticeなし。A8はfamily名/震度/本文から警報判定を推測しない。 A8のU-E射影だけにoperation/EventID別のforecast/warning参照件数を保持し、同stepのbefore/after差分を全て反映してから判定する。零件keyを消し最大1024 event以下、全EEW subjectの検索をしない。",
+        "eew": "A4はEewCurrent.eventIdとwarningClass(forecast|warning)、accepted subject outcomeのfacts.eventId/facts.warningClassを公開する。警報区分変化は予想震度不変でもsemanticかつcontentRevision更新。各stepの変更前後で同一operation/EventIDの両familyを一組とし、非終端currentが無い→ある場合eewNew、既存非終端eventの集約区分がforecast→warningならeewWarning。初報が警報ならeewNew一件だけ。既存warningへ別family警報が来てもnew/upgradeを出さない。既存forecastへVXSE43警報ならeewWarning（区分を読めた dmdata の接続で eew.forecast を受けていれば、VXSE43 は host で捨てて U-E に届かない。eew.warning だけの接続と区分の読めない起動では今のまま。P3-EEW-DROP43-001）。warning→forecastは新noticeなし。A8はfamily名/震度/本文から警報判定を推測しない。 A8のU-E射影だけにoperation/EventID別のforecast/warning参照件数を保持し、同stepのbefore/after差分を全て反映してから判定する。零件keyを消し最大1024 event以下、全EEW subjectの検索をしない。",
         "weather": "U-W/U-Fは変更前にactiveであったtargetに利用不能recordが新しく生じた場合のみunavailableを生成する。同targetの理由だけの変更は既存noticeを置換するが、元のexpiresAtを延長しない。理由の同値更新/鮮度疑いだけ/拒否/保存/通知結果は生成しない。対象を最小化する理由: EEWの発生・警報化と現況/時系列の利用不能化の見落としは旧状態の誤信を招く。気象危険度上昇noticeは作らない（Q-NOTICE-UX=A、2026-09-24作者裁定、R40.remaining参照）。",
         "invalidate": "TTLより先に意味上の失効を適用する。U-Eの同eventの採用取消または終端はfamilyをまたいで対応noticeを全て除去する。同stepで失効と生成条件が競合したら失効を優先する。新しい取消noticeはP2対象外。U-Wは同targetのunavailableが正常採用/有効な包含確認によって全て解消した時、U-Fは正常採用active/noActiveItems/cancelledで利用不能が解消した時に旧noticeを除去する。scopeの一部しか回復していなければ残す。対象の削除/退去でも回収し、次報が同一family継続中なら別family一件退去だけでevent noticeを消さない。期限/回復による削除はoutcomeが無くてもdisplayChangesから反映する。",
         "ttl": "採用したClockReading.wallTimeMsをnowMsとしU-E=nowMs+15000、U-W/U-F=nowMs+60000。nowMs>=expiresAtで回収する。固定textはeewNew=緊急地震速報を確認、eewWarning=緊急地震速報が警報に変わりました、U-W unavailable=気象警報の現況を確認できません、U-F unavailable=気象時系列情報を確認できません。A3が次expiresAtを既存tickへ予約する(実配線はA8配送後)。",
@@ -458,7 +458,7 @@
       },
       {
         "id": "P2-A8-AC09",
-        "requirement": "P2-A8-NOTICEに従い生成/置換/失効する。A4 warningClass/eventId公開と意味版更新をA8発注前の必須先行修正とする。予想震度同値のforecast→warning、VXSE45→VXSE43同event、既存warningへのfamily追加、取消/終端、W/F正常回復、容量下のnormal優先をassertする。取消noticeは生成0、A7試行履歴を一切参照しない。理由: 誤った新規判定と解消済み危険表示を防ぐ。",
+        "requirement": "P2-A8-NOTICEに従い生成/置換/失効する。A4 warningClass/eventId公開と意味版更新をA8発注前の必須先行修正とする。予想震度同値のforecast→warning、VXSE45→VXSE43同event（区分を読めた dmdata の接続で eew.forecast を受けていれば、VXSE43 は host で捨てて U-E に届かない。eew.warning だけの接続と区分の読めない起動では今のまま。P3-EEW-DROP43-001）、既存warningへのfamily追加、取消/終端、W/F正常回復、容量下のnormal優先をassertする。取消noticeは生成0、A7試行履歴を一切参照しない。理由: 誤った新規判定と解消済み危険表示を防ぐ。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1409 «7802ae6efd045690»"
         ]
@@ -550,7 +550,7 @@
           "P2-A8-AC07",
           "P2-A8-AC09"
         ],
-        "behavior": "expected:O02:2(VPWP50 high_severity,U-F active)、expected:O02:14(VPWP50,U-F)、expected:O06:10(VPWW57,U-W)、expected:O07:16(VXSE43,U-E)、expected:O09:12(VXSE45,U-E)を各stepRefs/fixtureIdsの採用集合と同一にし、所有unitで採用→view→snapshotを対応させる。WはR39 Code階級、FはQ-VALUES、EEWはA4 warningClassをassert。T4 markerとnotice生成対象も検収する（T3はA3がprojected返却直後に記録するため、A8配送後のA3結線で検収する）。unmet:O06:2-8は正式Passに数えない。"
+        "behavior": "expected:O02:2(VPWP50 high_severity,U-F active)、expected:O02:14(VPWP50,U-F)、expected:O06:10(VPWW57,U-W)、expected:O07:16(VXSE43,U-E)、expected:O09:12(VXSE45,U-E)を各stepRefs/fixtureIdsの採用集合と同一にし、所有unitで採用→view→snapshotを対応させる。WはR39 Code階級、FはQ-VALUES、EEWはA4 warningClassをassert。T4 markerとnotice生成対象も検収する（T3はA3がprojected返却直後に記録するため、A8配送後のA3結線で検収する）。unmet:O06:2-8は正式Passに数えない。。両方の family を流す O07・O09 と 20240417231454 の列は区分の読めない経路（unit・projection の試験）の検収（区分を読めた dmdata の接続で eew.forecast を受けていれば、VXSE43 は host で捨てて U-E に届かない。eew.warning だけの接続と区分の読めない起動では今のまま。P3-EEW-DROP43-001）"
       },
       {
         "testId": "P2-A8-T06",

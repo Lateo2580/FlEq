@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "024a8de5e3e0e25ce1562a9204a9f842f7af6ca4",
-    "sha256": "4f7201ba46b9d7572c8beaefca9b2edcf0e83287148afdf1ccad71545957d045",
+    "sha256": "409ccb1a5c083d806cf723a165dd8650785d9281ebabe4874ff8d35151a70e2c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -303,7 +303,8 @@
       "既存の試験の期待は変えない。入力の前提だけを変える試験は 4 本: P3-C2-T01 の start frame の区分を eew.forecast から eew.warning へ（VXSE43 を使う接続で snapshot に届くことを確かめる試験のため）、P3-C2-T05 の start frame を eew.forecast と eew.warning から eew.warning だけへ（秘密が漏れない試験で、VXSE43 を data の経路に通すため。snapshot の EEW の行は current が無くても出るので、変えないと捨てたまま通っていた）、P3-REC-T08 と P3-REC-T01 の購読の eew.forecast を eew.warning へ（live の VXSE43 が届くことを確かめる試験のため）",
       "host.ts の行の位置を変えず、ほかの契約の «» は付け直さない。check-contract が落ちたら止めて報告する",
       "配送で統合担当が原文を改訂する: (1) P2-SNAPSHOT-SSE-001 の P2-A8-AC09 の「VXSE45→VXSE43同event」に「両方の family が U-E に届くのは区分の読めない起動と unit の試験だけ。eew.forecast を受けている dmdata の接続では VXSE43 を host で捨てる（P3-EEW-DROP43-001）。eew.warning だけの接続では VXSE43 をそのまま使う」を足し、P2-A8-T05 の検収にも同じ前提を足す (2) P2-EEW-UNIT-001 の generationRule の「VXSE45を意味受理した後の同event VXSE43は通知候補外」に同じ前提を足す (3) P3-DMDATA-CONNECT-001 の P3-C2-T01 の「続くVXSE43のdata」に「start frame の区分は eew.warning（P3-EEW-DROP43-001）」を足す (4) P3-RECOVERY-001 の P3-REC-T08・T01 の live の EEW に「購読は eew.warning」を足す (5) P2-SNAPSHOT-SSE-001 の P2-A8-NOTICE.eew の「既存forecastへVXSE43警報ならeewWarning」 (6) P2-EEW-UNIT-001 の Q-NOTICE の hazardIncrease の「VXSE45採用後のVXSE43候補除外」 (7) P3-NOTICE-LEDGER-001 の P3-NL-AC04 の (4) の vxse45Accepted (8) docs/specs/cli-terminal-output.md の Q-TO3-EEW-FOLD（:165 の本文と :757 の表の行）。(5)〜(8) のどれにも (1) と同じ前提（区分を読めた接続で eew.forecast を受けていれば VXSE43 は U-E に届かない、P3-EEW-DROP43-001）を足す",
-      "残存リスク: (1) eew.forecast と eew.warning の両方を契約した人では、警報の表示と音は警報を読める VXSE45 が届くまで出ず、届かなければ出ない。実物の 20240417231454 では発表時刻が同じ秒（23:14:59）で、届いた順と時刻の差は測っていない（Q-ED43-DELAY） (2) 区分の読めない起動（{ wsUrl }）と unit の試験では両方の種類が U-E に届き、取消が pending のまま別の種類の取消を採ると音が 0 回になる欠陥と、取消の後に別の種類の報が戻る件が残る（Q-ED43-ENDED-DEFECT） (3) 接続し直しで区分が変わった直後、新しい start frame より前の data frame は無い（dmdata の手順）ので、区分の読みの遅れは無い前提。偽の dmdata の手順の差は確かめていない (4) 作者へ見せる: 両方を契約した人の EEW ログから VXSE43 の行が消える（旧築は抑止した VXSE43 も EEW ログに書いていた。同じ地震の VXSE45 の行は残る）"
+      "残存リスク: (1) eew.forecast と eew.warning の両方を契約した人では、警報の表示と音は警報を読める VXSE45 が届くまで出ず、届かなければ出ない。実物の 20240417231454 では発表時刻が同じ秒（23:14:59）で、届いた順と時刻の差は測っていない（Q-ED43-DELAY） (2) 区分の読めない起動（{ wsUrl }）と unit の試験では両方の種類が U-E に届き、取消が pending のまま別の種類の取消を採ると音が 0 回になる欠陥と、取消の後に別の種類の報が戻る件が残る（Q-ED43-ENDED-DEFECT） (3) 接続し直しで区分が変わった直後、新しい start frame より前の data frame は無い（dmdata の手順）ので、区分の読みの遅れは無い前提。偽の dmdata の手順の差は確かめていない (4) 作者へ見せる: 両方を契約した人の EEW ログから VXSE43 の行が消える（旧築は抑止した VXSE43 も EEW ログに書いていた。同じ地震の VXSE45 の行は残る）",
+      "配送の commit で (1)〜(8) を当てた（2026-11-08、統合担当の依頼）: (1) p2-snapshot-sse.json:461（P2-A8-AC09）と :553（P2-A8-T05）、(2) p2-eew-unit.json:189（generationRule）、(3) p3-dmdata-connect.json:434（P3-C2-T01）、(4) p3-recovery.json:1207（P3-REC-T01）と :1269（P3-REC-T08）、(5) p2-snapshot-sse.json:83（P2-A8-NOTICE.eew）、(6) p2-eew-unit.json:140（hazardIncrease）、(7) p3-notice-ledger.json:468（P3-NL-AC04 の (4)）、(8) docs/specs/cli-terminal-output.md:165 と :757（Q-TO3-EEW-FOLD）。どれも行の中に書き足し、行の数は変えていない。中身の変わった行を引く «» は cli-terminal-output.md:165 の 1 か所（p3-terminal-layout2.json）を付け直した"
     ],
     "unresolvedQuestions": []
   }

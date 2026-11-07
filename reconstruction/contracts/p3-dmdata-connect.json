@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "1b4b681cf27fba1aedf09ab92f77c691c93825cffbeb40eedbe4877c939a22f4",
+    "sha256": "401ce7107754c50cb42fb144f5d9c17fb9dc37e2c52bc7d070c4b16f2066b9d3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -431,7 +431,7 @@
           "P3-C2-AC05",
           "P3-C2-AC07"
         ],
-        "behavior": "dmdata-rest.tsをmockし、socket startがローカルWS server（subprotocol dmdata.v2を受ける）のURLを返す。startP2Host({ dmdata })が一覧→startの順で呼び、startのbodyがclassifications・test=no・appName・formatMode=rawである。WSが要求したsubprotocolで開き、server のstart（socketId付き）でdmdataSocketStartedが1行、要求区分の欠けでdmdataSubscriptionNarrowedが入る。続くVXSE43のdata frameはobserveのT0がdecode開始より前に出てsnapshotへ届く。区分の不正（0件・重複・未知区分）と空のapiKeyは表示serverもRESTも起動せずrejectし、appName \"fleq\"はRESTを呼ばずにrejectして開いた表示serverを閉じる"
+        "behavior": "dmdata-rest.tsをmockし、socket startがローカルWS server（subprotocol dmdata.v2を受ける）のURLを返す。startP2Host({ dmdata })が一覧→startの順で呼び、startのbodyがclassifications・test=no・appName・formatMode=rawである。WSが要求したsubprotocolで開き、server のstart（socketId付き）でdmdataSocketStartedが1行、要求区分の欠けでdmdataSubscriptionNarrowedが入る。続くVXSE43のdata frame（start frame の区分は eew.warning。P3-EEW-DROP43-001 で eew.forecast を受けている接続の VXSE43 は捨てる）はobserveのT0がdecode開始より前に出てsnapshotへ届く。区分の不正（0件・重複・未知区分）と空のapiKeyは表示serverもRESTも起動せずrejectし、appName \"fleq\"はRESTを呼ばずにrejectして開いた表示serverを閉じる"
       },
       {
         "testId": "P3-C2-T02",

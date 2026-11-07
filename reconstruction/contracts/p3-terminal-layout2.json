@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "b7187bb758918fd9fa18d6bf82f7ffa77eeca25ab4ea08647e8aa42f6829effa",
+    "sha256": "24800c473d594fdf2830e6c4041ff9563d0e2af89433ab42806f0ec0b6502237",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -358,7 +358,7 @@
         "id": "P3-TL2-AC10",
         "requirement": "同じ地震の報の重なり（Q-TO3-EEW-FOLD）: 同じ operation・EventID で VXSE45 を受けた後の VXSE43 の報を端末に出さない。取消は種類によらず最初の 1 通だけ出す。畳むのは format.ts の eew() で、null を返して emit を飛ばす（空行も入力の行の書き直しも出さない）。畳んだ報でも覚えは更新する（取消の 3 行目の震源名と、AC11 の最後の時刻に要る）。定期要約の数え方と EEW ログは変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:165 «ffb777c12f6032f7»"
+          "docs/specs/cli-terminal-output.md:165 «e03918c3778cd95d»"
         ]
       },
       {

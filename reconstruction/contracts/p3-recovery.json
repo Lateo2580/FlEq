@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "19aa3f57e8b4572a9055ea9e961a43494c7c80f9820f4c006794b34b4ecb9736",
+    "sha256": "6dedad1326b7f2fb4e3e77fc4d53b3569b607fd7430550b6b379ec0c16045d05",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1204,7 +1204,7 @@
           "P3-REC-AC02",
           "P3-REC-AC03"
         ],
-        "behavior": "【発注 1】mock の REST で、ページの連なり・同じ nextToken の再来・止める時刻の手前で終わる一覧・ページの上限・束に無い head.type・head.test が true の item・401/403・429（Retry-After あり／なし／残りの期限を越える）を返し、401/403 で host の接続が止まらず、範囲の止まり方と理由付きの未充足が決まった語になり、要求の間隔が 500 ms を下回らず、429 の後は Retry-After か倍々の待ちを守る。API キーと応答本文が診断に出ない"
+        "behavior": "【発注 1】mock の REST で、ページの連なり・同じ nextToken の再来・止める時刻の手前で終わる一覧・ページの上限・束に無い head.type・head.test が true の item・401/403・429（Retry-After あり／なし／残りの期限を越える）を返し、401/403 で host の接続が止まらず、範囲の止まり方と理由付きの未充足が決まった語になり、要求の間隔が 500 ms を下回らず、429 の後は Retry-After か倍々の待ちを守る。API キーと応答本文が診断に出ない。live の VXSE43 を流す回の購読は eew.warning（P3-EEW-DROP43-001: eew.forecast を受けている接続では VXSE43 を捨てる）"
       },
       {
         "testId": "P3-REC-T02",
@@ -1266,7 +1266,7 @@
           "P3-REC-AC15",
           "P3-REC-AC04"
         ],
-        "behavior": "【発注 1】起動時に mock の一覧で、境界の前後の item・RES-04 を超える件数・途中でページの上限に当たる束を返し、snapshot の recovery の digest に境界より後の頭だけが載り、超えた分は型ごとの件数になり、上限より後ろの unit は recoveryLimit と「件数不明」で載る。7 日より前か起点不明の unit に印が付く。256 byte を超える見出しを多数持たせても digest は RES-06 の枠の内で、ORDER-AND-LIMIT の順の前の unit の見出しが残り、その後も live の返信の採用で snapshot が公開される（受入条件、レビュー R2）。一覧の頭は mailbox へ入れない（【発注 3】で起動の辿りが起動の取り直しになり、U-T の本文は mailbox に入る。recovery-host.test.ts の T08 は本文 1 件を数える形に期待を改めた〔accepted 0→1、live の後 1→2〕。2026-10-28 発注 3 の配送）。【発注 2】P3-REC-D-DIGEST-BUDGET=D: 1 つの分野（U-V）に見出しが偏った一覧（表題と見出しを 256 byte 近くにして 30 件。1 件は約 650 byte で、A の順なら U-V だけで RES-06 の枠が尽きる件数）と、順の後ろの分野（U-Q）の見出し 2 件を返し、U-V は新しい 3 件だけが見出しになって残りは型ごとの件数（合計は U-V の件数と同じ）、U-Q の 2 件も見出しで載る（A の順では U-Q の見出しが 0 件になる形）。9 分野以上に各 3 件以上・約 650 byte の見出し（合計で 16,384 byte を越える）を持たせると、前の分野は 3 件ずつ見出しになり、後ろの分野は件数だけで、型ごとの件数を足した合計は返した件数と同じに保たれ、digest は 16,384 byte 以内。発注 1 の T08 の既存の試験 2 本（reconstruction/test/recovery/recovery.test.ts:273 の U-V の見出し 0 件〔heads: []、omitted: { VFVO50: 1 }〕と、reconstruction/test/recovery/recovery-host.test.ts:167 の U-M の見出し 0 件〔local.heads が []〕）は、D で見出しが載る側に期待を改める。理由は P3-REC-D-DIGEST-BUDGET=D（AGENTS.md の「既存テストの期待値を変える前に理由を報告」の理由をここで先に与える） 【印の直し】やり直しの印（最初の start）が U-T の採用より前に付く順を固定し（本文の応答を start の処理の後まで返さない）、採用の直後に U-T の進み具合が running であることを即時に確かめる（e3b13518 の待つ形を戻す。回帰の検出は T16 の印の直しの (a)。Q-REC-PRECHECK-9 の N4） 【節目の直し】保存なしの起動で U-B の一覧に 8 時間前と 1 日前の報（subject の違う 2 件）があると、ダイジェストの U-B に 2 件とも載り（見出しか型ごとの件数）、本文は 8 時間前の 1 件だけを取りに行く（旧コードでは 1 日前の報が載らずに落ちる。Q-REC-PRECHECK-10 の N4 の (b)。test/recovery/ の file の末尾に足す）"
+        "behavior": "【発注 1】起動時に mock の一覧で、境界の前後の item・RES-04 を超える件数・途中でページの上限に当たる束を返し、snapshot の recovery の digest に境界より後の頭だけが載り、超えた分は型ごとの件数になり、上限より後ろの unit は recoveryLimit と「件数不明」で載る。7 日より前か起点不明の unit に印が付く。256 byte を超える見出しを多数持たせても digest は RES-06 の枠の内で、ORDER-AND-LIMIT の順の前の unit の見出しが残り、その後も live の返信の採用で snapshot が公開される（受入条件、レビュー R2）。一覧の頭は mailbox へ入れない（【発注 3】で起動の辿りが起動の取り直しになり、U-T の本文は mailbox に入る。recovery-host.test.ts の T08 は本文 1 件を数える形に期待を改めた〔accepted 0→1、live の後 1→2〕。2026-10-28 発注 3 の配送）。【発注 2】P3-REC-D-DIGEST-BUDGET=D: 1 つの分野（U-V）に見出しが偏った一覧（表題と見出しを 256 byte 近くにして 30 件。1 件は約 650 byte で、A の順なら U-V だけで RES-06 の枠が尽きる件数）と、順の後ろの分野（U-Q）の見出し 2 件を返し、U-V は新しい 3 件だけが見出しになって残りは型ごとの件数（合計は U-V の件数と同じ）、U-Q の 2 件も見出しで載る（A の順では U-Q の見出しが 0 件になる形）。9 分野以上に各 3 件以上・約 650 byte の見出し（合計で 16,384 byte を越える）を持たせると、前の分野は 3 件ずつ見出しになり、後ろの分野は件数だけで、型ごとの件数を足した合計は返した件数と同じに保たれ、digest は 16,384 byte 以内。発注 1 の T08 の既存の試験 2 本（reconstruction/test/recovery/recovery.test.ts:273 の U-V の見出し 0 件〔heads: []、omitted: { VFVO50: 1 }〕と、reconstruction/test/recovery/recovery-host.test.ts:167 の U-M の見出し 0 件〔local.heads が []〕）は、D で見出しが載る側に期待を改める。理由は P3-REC-D-DIGEST-BUDGET=D（AGENTS.md の「既存テストの期待値を変える前に理由を報告」の理由をここで先に与える） 【印の直し】やり直しの印（最初の start）が U-T の採用より前に付く順を固定し（本文の応答を start の処理の後まで返さない）、採用の直後に U-T の進み具合が running であることを即時に確かめる（e3b13518 の待つ形を戻す。回帰の検出は T16 の印の直しの (a)。Q-REC-PRECHECK-9 の N4） 【節目の直し】保存なしの起動で U-B の一覧に 8 時間前と 1 日前の報（subject の違う 2 件）があると、ダイジェストの U-B に 2 件とも載り（見出しか型ごとの件数）、本文は 8 時間前の 1 件だけを取りに行く（旧コードでは 1 日前の報が載らずに落ちる。Q-REC-PRECHECK-10 の N4 の (b)。test/recovery/ の file の末尾に足す）。live の VXSE43 を流す回の購読は eew.warning（P3-EEW-DROP43-001: eew.forecast を受けている接続では VXSE43 を捨てる）"
       },
       {
         "testId": "P3-REC-T09",
