@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
-    "sha256": "fcaa77ec5a13f94f391f42696199a812576d4c097c70e2a667334c48ddbf45d9",
+    "sha256": "9ce0ce20267b37c53b8eea24bd51561412738c44321ced4b3a59289433decbc3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -36,7 +36,7 @@
     "contractId": "P3-SEISMIC-TEST-FILL-001",
     "mode": "implementation",
     "objective": "U-Q の試験 P3-C7-T05 の byte の超過の下準備で、境界の件数を heavy 1 件の byte から見積もり、decode は n で restored・n+1 で invalid の確かめだけにする。今は 1 件足すごとに state 全体を encode と decode し、Windows の CI で 33 秒かかって testTimeout 30 秒を越える。試験の名前・数・期待は変えず、古い「4 MiB」の注を今の器の出どころに直す",
-    "baseOid": "unassigned",
+    "baseOid": "576ec72b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
