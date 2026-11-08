@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "5f774829b0edf77d4889e3eb8b80ab58e42eda4f295442cc56a250659eda1f44",
+    "sha256": "fb816b049134c481aa8ca11c007c68c21367df1bd12e442670204b332c02ea9e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -536,7 +536,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»",
           "docs/specs/reconstruction-p0-contracts.md:1198 «45d7a5dc731dd19b»",
           "reconstruction/contracts/p2-mailbox.json:391 «356baf60631ee8a5»",
-          "reconstruction/contracts/p2-snapshot-sse.json:475 «ce8b49f171fdb7b8»"
+          "reconstruction/contracts/p2-snapshot-sse.json:475 «f0a8f1d35f2b7323»"
         ]
       },
       {
