@@ -1,7 +1,7 @@
 import fs, { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BriefingCriticalPersistenceInvariantError,
@@ -2103,7 +2103,7 @@ describe("StandbyPersistence", () => {
     const raw = Buffer.from(`${JSON.stringify({ ...state(), heat: [{ key: "broken" }] })}\n`, "utf8");
     writeFileSync(path, raw);
     const timestamp = new Date(T0).toISOString().replace(/[:.]/g, "-");
-    const collided = join(dirname(path), `${path.split("/").at(-1)}.${timestamp}.0.salvage-backup`);
+    const collided = join(dirname(path), `${basename(path)}.${timestamp}.0.salvage-backup`);
     writeFileSync(collided, "collision", "utf8");
 
     const persistence = new StandbyPersistence(path, 0);
@@ -2113,10 +2113,10 @@ describe("StandbyPersistence", () => {
 
     const backups = readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"));
     expect(backups).toEqual([
-      `${path.split("/").at(-1)}.${timestamp}.0.salvage-backup`,
-      `${path.split("/").at(-1)}.${timestamp}.1.salvage-backup`,
+      `${basename(path)}.${timestamp}.0.salvage-backup`,
+      `${basename(path)}.${timestamp}.1.salvage-backup`,
     ]);
-    expect(readFileSync(join(dirname(path), `${path.split("/").at(-1)}.${timestamp}.1.salvage-backup`)))
+    expect(readFileSync(join(dirname(path), `${basename(path)}.${timestamp}.1.salvage-backup`)))
       .toEqual(raw);
   });
 
