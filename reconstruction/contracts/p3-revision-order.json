@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2a7c78b7029dfe83d4eeb4c0d5f6f1b314eb8536",
-    "sha256": "0838559b57e294ec971c8044b710c3ec043745aac32cc2d48fcc3023ae9b3595",
+    "sha256": "a9d00067ba7dd3b744b6d1b5dc7c72135b2989df0e662094968f3ad0ffa2dffd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -249,7 +249,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:995 «1f79d53059304ab0»",
           "reconstruction/src/units/landslide/landslide-unit.ts:279 «bc430b5ab35af311»",
           "reconstruction/test/landslide-unit/landslide-unit.test.ts:157 «1b1c845eee1163d4»",
-          "reconstruction/test/seismic-unit/seismic-unit.test.ts:855 «9c3c11847056966a»",
+          "reconstruction/test/seismic-unit/seismic-unit.test.ts:860 «9c3c11847056966a»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:144 «c4d8df60945ee861»",
           "reconstruction/src/domains/seismic/seismic.ts:63 «c200b4f7c1ed4c6e»",
           "reconstruction/src/domains/nankai/nankai.ts:33 «c200b4f7c1ed4c6e»",

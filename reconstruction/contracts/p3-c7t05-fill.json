@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
-    "sha256": "9ce0ce20267b37c53b8eea24bd51561412738c44321ced4b3a59289433decbc3",
+    "sha256": "b48183f63d22383597a1152f86abe2a97a35e23cabc9f8021233e5af031172b2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -25,6 +25,12 @@
         "status": "closed",
         "source": "2026-11-08 夜の起草レビュー r0（Opus、GO、P3 4 件。HEAD 3bc13d72）",
         "closed": "4 件とも当てた。(1) AC01 (1) の walk と「loop は残さない」の食い違い → 1 件目から積む loop を残さない（見積もりから始める walk はよい）とし、walk の最後の 2 回の decode を (2) の expect に兼ねさせて同じ約 15 MB の decode を重ねない (2) 見積もりの式は generationBytes の上乗せ（emptyEnvelopeBytes の INPUT_BOUNDARY_MAX_BYTES・LOSS_TALLY_MAX_BYTES・UNREADABLE_CARDS_MAX_BYTES）を数えない → 見積もりは出発点で境界は decode が決め、見積もり＝境界を expect にしない（統合担当の決め） (3) sequenceIds の O07 は本契約の fixture を含まない → bf35e8ea1825 を含む O01 に替え、check-sequences の purpose も合わせた（synthetic_phase4a_VXSE62_special はどの列にも無い） (4) AC02 (3) は括弧の根拠を外すに決めた（統合担当の決め）"
+      },
+      {
+        "id": "Q-STF-DELIVERY",
+        "status": "closed",
+        "source": "2026-11-08 夜の統合担当の配送（実装 1dac04a3、ローカル main に載せる。push は作者の許可待ち）",
+        "closed": "(1) レビュー: 契約適合 Opus GO（P3 1 件）、品質 Opus GO（P3 1 件）。記録は ~/dev/fleq-vault-archive/2026-11-08-evening/c7t05-impl-* (2) 両レビューの P3（減らす walk に下限が無く、lp(0) だけの state が invalid に化けると止まり方が分かりにくい）を当て、while に limit > 0 を足した。下限で止まれば walk の後の expect で赤になる (3) ゲート: Mac mini で全 reconstruction 試験・順を変えた回・旧築の build と test が緑、check-contract の FAIL は p3-revision-order.json の seismic-unit.test.ts:855 の 1 件だけで、配送で 860 へ付け直した (4) 所要: P3-C7-T05 は手元 4.55→0.56 秒、レビューの実測 485ms・581ms。見積もり 49＝境界 49、decode 2 回 (5) Q-STF-WINDOWS-RUN は開いたまま（配送の後に Windows の run で確かめる）"
       }
     ],
     "operationContract": {

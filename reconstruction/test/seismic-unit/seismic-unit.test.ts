@@ -470,7 +470,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const kind = (count: number) => kinds.get(count) ?? kinds.set(count,
       seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(filled(count)))) as JsonValue).kind).get(count)!;
     let limit = Math.floor((seismicUnitCodec.maxEnvelopeBytes! - bytes(filled(0))) / (bytes(filled(2)) - bytes(filled(1))));
-    while (kind(limit) !== "restored") limit--;
+    while (limit > 0 && kind(limit) !== "restored") limit--;
     while (kind(limit + 1) === "restored") limit++;
     expect([kind(limit), kind(limit + 1)]).toEqual(["restored", "invalid"]);
     const probe = filled(limit);
