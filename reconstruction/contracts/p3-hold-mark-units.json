@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "19ead65f31aaa4fd0851c4e4d480ee739367d8512e723fcf33c43d3e7b7c0f55",
+    "sha256": "f3054a0346052b6bb7c0e22c8d84607b15d369a1837c3956dd7e7078febafd47",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -13,6 +13,13 @@
         "status": "closed",
         "source": "2026-11-08 夜 起草（base a90a284e）。P3-TSUNAMI-HOLD-MARK-001 の Q-THM-FAMILY が「同じ形」と記録した 6 unit を実物で読み直した",
         "closed": "実物で読んだこと: (1) 6 unit とも、版の比べ（stepVersion）が held を返す枝で、印を記録の unconfirmed に入れた state を作り、changes を空で返す。U-R flood-unit.ts:339〜341、U-L landslide-unit.ts:282〜285、U-B briefing-unit.ts:407〜409、U-M local-bulletins-unit.ts:427〜429（unchanged の helper〔:408〕が changes を空にする）、U-Y typhoon-unit.ts:364〜366（unchangedStep〔:341〕が changes を空にする）、U-N nankai-unit.ts の holdState（:336〜343）を呼ぶ 2 か所（:368〜372 と :375〜377）。U-T の hold（P3-TSUNAMI-HOLD-MARK-001 の前、退去の分だけを返した）と同じく、印を付けた記録の [before, after] を changes に積まない (2) 6 unit とも reduce が changes を subject ごとに最初の before と最後の after へまとめ、visible の記録だけを displaySubject で表示差分にし、表示差分が 1 件以上なら contentRevision を 1 進める（flood-unit.ts:564〜583、landslide-unit.ts:502〜521、briefing-unit.ts:703〜722、local-bulletins-unit.ts:697〜717、typhoon-unit.ts:617〜637、nankai-unit.ts:688〜707）。changes が空なので hold の受信は表示差分も contentRevision の前進も無く、owner は U-T と同じく view を出し直さない（owner-runtime.ts:307・:312） (3) view の形: 6 unit とも view と displaySubject は shown（notice-mark.ts:164。notice と unreadable の印を外すだけ）を通し、unconfirmed はそのまま載る。U-R は viewed で observedCompare も外すが unconfirmed は残る（flood-unit.ts:310〜314）。U-N の情報 subject は headingOf で text と nextAdvisory を外した見出しで、unconfirmed は残る。view の形は足さなくてよい (4) 保存→再起動: 印は 6 unit の codec が保存して読み戻し（P3-VM-AC04）、restore の step は見える記録の全部を [null, item] で changes に積む（flood-unit.ts:547、landslide-unit.ts:487、briefing-unit.ts:688、local-bulletins-unit.ts:679、typhoon-unit.ts:599、nankai-unit.ts:659）ので、再起動の後の view に初めて印が載る (5) 取り直し: 6 unit とも origin=recovery の held は印を置く前に noChange で返す（U-L は :281、ほかは held の枝の 2 行目、U-N は held == null || recovering）。この形は変えない (6) 画面: Chrome（display/chrome-eew）は EEW と津波だけを描き、6 分野を読まない。端末で 6 分野の view を読むのは prompt-current.ts（U-N・U-R・U-L）で、unconfirmed を読まない（reconstruction/src/terminal と display に unconfirmed を読む所は、件数の未確認の欄を除いて 0 件）。だから本契約で画面の文字と色は変わらない (7) U-N だけ 2 系列: 現況に効く報（訂正は現況の source と同じ headType・EventID のとき、affectsCurrent）を情報 subject で残したときは、情報 subject と現況の両方に印を付ける（nankai-unit.ts:364〜372）。両方が見えれば表示差分は 2 件 (8) 別の扱い（本契約に入れない）: U-Q の holdVersion はコメントで意図して積まない。U-E・U-F の印は gate、U-W の印は unconfirmed の一覧で、記録の欄ではない（Q-THM-FAMILY の記録のとおり。起草では読み直していない） (9) 既存の試験: 6 unit の unit・runtime・corpus の試験と version-material・expiry-form の試験で、hold を通る受信の displayChanges や contentRevision を断言している所は、読んだ限りで 0 件（hold の試験は shape・diagnostics・記録・印の inputId だけを見る。typhoon-unit.test.ts の END の contentRevision 0 は採用で、hold を通らない）。試験はこの起草では走らせていない (10) 用語の区別: U-B の effective: \"held\"（VPOA50 の保留の記録、briefing-unit.ts:86）は本契約の hold（版の比べの held の枝で印を付けること）と別のもの。本契約は前者に触らない"
+      },
+      {
+        "id": "Q-HMU-R0",
+        "status": "closed",
+        "source": "2026-11-08 夜 起草レビュー r0（Opus xhigh、4e610f89）: 条件付き GO（P2 1 件・P3 4 件）。写しで直しを当てて実測し、6 unit とも hold に入って displayChanges が 0→1（U-N は 2）、既存の期待の変更 0 件（862 件緑）",
+        "closed": "P2-1: AC01・AC02 の evidenceRefs が直す行そのもの（flood:339〜341、landslide:282・284、briefing:407・409、local-bulletins:408・427・428、typhoon:341・342・364・366、nankai:336・339・342・368・370・375・376）を引き、実装の後に本契約だけ FAIL になる → P3-TSUNAMI-HOLD-MARK-001 に倣い、変わらない隣の行（held の判定・recovering の行・warn・holdState の前のコメントと最後の行・呼ぶ所の if）に引き直した。引き直せない行は無い / P3-1: 後着を 1 分後でなく 1 ms 後に受ける形に AC01・T01・T06・T07 (1) を揃え、T07 (1) で比べるのを記録の配列と contentRevision にした（60 秒後だと通知の期限が 1 件来る） / P3-2: AC02 (1) に、現況に効く報で情報 subject は adopt・現況は held のとき（nankai:364 の onInfo=false）は現況だけに印を付けて 1 件だけ積む場合を足した / P3-3: AC04 の触らない行に nankai:355（p3-final-adoption が 2 回引く）を足した / P3-4: check-sequences の根拠を、fixture を参照しているだけで同じ時刻で hold に入る step は O01・O08 に無い、に書き換えた",
+        "remaining": "なし"
       },
       {
         "id": "Q-HMU-SHOW",
@@ -174,29 +181,24 @@
     "acceptanceChecks": [
       {
         "id": "P3-HMU-AC01",
-        "requirement": "hold の表示差分（U-R・U-L・U-B・U-M・U-Y の 5 unit、同じ形）。場面は 5 unit とも「手元の版と同じ Control/DateTime で InfoType を訂正にした写し（中身が違う）が 1 分後に届く」（取消だと newer で採られて hold に入らないので訂正で受ける。P3-THM-AC01 と同じ形）。表: | unit | 手元の版（fixture の時刻で受ける） | 印の付く記録 | 直す行 | / | U-R | 2019-05-27 09:00 の指定河川洪水予報 VXKO50（16_02_01） | EventID の記録 | flood-unit.ts:339〜341 | / | U-L | 2020-06-22 23:00 の土砂災害警戒情報 VPWW56（15_16_01、稚内） | 官署の記録 | landslide-unit.ts:282〜285 | / | U-B | 2026-08-22 17:09 の東京都気象防災速報（記録的短時間大雨）VPBS50（phase6b の KJPTK） | 系列の記録 | briefing-unit.ts:407〜409 | / | U-M | 2024-08-11 05:00 の熱中症警戒情報 VPFT50（57_03_01、埼玉県） | heat の記録 | local-bulletins-unit.ts:427〜429（と unchanged の :408〜409） | / | U-Y | 2020-09-28 15:50 の台風解析 VPTW60（10_05_01） | analysis の記録 | typhoon-unit.ts:364〜366（と unchangedStep の :341〜342） |。手元の版は変わらず、後着の報の ReportRef が記録の unconfirmed に入る（P3-VM-AC03・AC04 のまま）。今は held の枝が changes を空で返すので、displayChanges が空で contentRevision が進まず、owner が view を出し直さない。印は state と保存には入るが、公開の view に載るのは保存→再起動の後になる。(1) held の枝は、印を付けた記録の [before, after] を changes に積む。before は印を付ける前の記録（existing・found.value・values[at]）、after は印を付けた記録（state に入れた object と同じ参照）。U-M・U-Y は unchanged・unchangedStep が changes を空にするので、helper に changes を渡せる形にするか、held の枝で結果を組む（helper を使うほかの呼び手の changes は空のまま） (2) 表示の判定は各 unit の reduce の今の式のまま。見える記録なら displayChanges が 1 件、contentRevision が 1 進み、owner が同じ受信の views にその unit の view を載せる。見えない記録（記憶・取消・期限切れ・expiryPending・U-Y の ended と zero・U-M の evidence など、各 unit の visible が外すもの）は before も after も見えないので displayChanges を出さず、contentRevision も進まない。印は state と保存に今どおり入る (3) 同じ印の再送（existing.unconfirmed === version.mark）と、版の比べが duplicate・older の受信は、今どおり changes が空で contentRevision も state も変わらない（U-L は :282 の 1 つの式が held 以外も通るので、held で印が変わったときだけ積む） (4) origin=recovery の held は今どおり印を置く前に noChange で返し、changes も空 (5) as は足さない。無いと: 印の付いた記録が view に載らないまま表示が続き、次の採用で view-projector のその unit の byte の積み上げが印の分だけ少なくなる（各 unit の tally の bytes は utf8(current) で印を含み、before の記録には印があるが、足した時の after には無かった。view-projector.ts の floodTally・landslideTally・briefingTally・localBulletinsTally・typhoonTally）",
+        "requirement": "hold の表示差分（U-R・U-L・U-B・U-M・U-Y の 5 unit、同じ形）。場面は 5 unit とも「手元の版と同じ Control/DateTime で InfoType を訂正にした写し（中身が違う）が届く」。試験では後着を手元の版の 1 ms 後に受ける（60 秒後だと通知の期限が 1 件来て、hold と別の変化が混ざる）（取消だと newer で採られて hold に入らないので訂正で受ける。P3-THM-AC01 と同じ形）。表: | unit | 手元の版（fixture の時刻で受ける） | 印の付く記録 | 直す行 | / | U-R | 2019-05-27 09:00 の指定河川洪水予報 VXKO50（16_02_01） | EventID の記録 | flood-unit.ts:339〜341 | / | U-L | 2020-06-22 23:00 の土砂災害警戒情報 VPWW56（15_16_01、稚内） | 官署の記録 | landslide-unit.ts:282〜285 | / | U-B | 2026-08-22 17:09 の東京都気象防災速報（記録的短時間大雨）VPBS50（phase6b の KJPTK） | 系列の記録 | briefing-unit.ts:407〜409 | / | U-M | 2024-08-11 05:00 の熱中症警戒情報 VPFT50（57_03_01、埼玉県） | heat の記録 | local-bulletins-unit.ts:427〜429（と unchanged の :408〜409） | / | U-Y | 2020-09-28 15:50 の台風解析 VPTW60（10_05_01） | analysis の記録 | typhoon-unit.ts:364〜366（と unchangedStep の :341〜342） |。手元の版は変わらず、後着の報の ReportRef が記録の unconfirmed に入る（P3-VM-AC03・AC04 のまま）。今は held の枝が changes を空で返すので、displayChanges が空で contentRevision が進まず、owner が view を出し直さない。印は state と保存には入るが、公開の view に載るのは保存→再起動の後になる。(1) held の枝は、印を付けた記録の [before, after] を changes に積む。before は印を付ける前の記録（existing・found.value・values[at]）、after は印を付けた記録（state に入れた object と同じ参照）。U-M・U-Y は unchanged・unchangedStep が changes を空にするので、helper に changes を渡せる形にするか、held の枝で結果を組む（helper を使うほかの呼び手の changes は空のまま） (2) 表示の判定は各 unit の reduce の今の式のまま。見える記録なら displayChanges が 1 件、contentRevision が 1 進み、owner が同じ受信の views にその unit の view を載せる。見えない記録（記憶・取消・期限切れ・expiryPending・U-Y の ended と zero・U-M の evidence など、各 unit の visible が外すもの）は before も after も見えないので displayChanges を出さず、contentRevision も進まない。印は state と保存に今どおり入る (3) 同じ印の再送（existing.unconfirmed === version.mark）と、版の比べが duplicate・older の受信は、今どおり changes が空で contentRevision も state も変わらない（U-L は :282 の 1 つの式が held 以外も通るので、held で印が変わったときだけ積む） (4) origin=recovery の held は今どおり印を置く前に noChange で返し、changes も空 (5) as は足さない。無いと: 印の付いた記録が view に載らないまま表示が続き、次の採用で view-projector のその unit の byte の積み上げが印の分だけ少なくなる（各 unit の tally の bytes は utf8(current) で印を含み、before の記録には印があるが、足した時の after には無かった。view-projector.ts の floodTally・landslideTally・briefingTally・localBulletinsTally・typhoonTally）",
         "evidenceRefs": [
           "reconstruction/src/units/flood/flood-unit.ts:336 «a97fbb338a0767bc»",
-          "reconstruction/src/units/flood/flood-unit.ts:339 «4434601ee8c6527a»",
-          "reconstruction/src/units/flood/flood-unit.ts:340 «89cd778555d1816f»",
-          "reconstruction/src/units/flood/flood-unit.ts:341 «02c0416a1f9ccf42»",
+          "reconstruction/src/units/flood/flood-unit.ts:338 «1178aaec7786bb53»",
           "reconstruction/src/units/flood/flood-unit.ts:575 «d6d6a7911c263667»",
           "reconstruction/src/units/flood/flood-unit.ts:547 «16dc400cb23f95f4»",
           "reconstruction/src/units/landslide/landslide-unit.ts:281 «34b730bd22154525»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:282 «aa093bb034c311ca»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:284 «22f73316b11d0996»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:280 «738f2cb9bf8dadfc»",
           "reconstruction/src/units/landslide/landslide-unit.ts:513 «d6d6a7911c263667»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:407 «24618b005c7e1ecd»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:409 «02c0416a1f9ccf42»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:404 «a97fbb338a0767bc»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:406 «1178aaec7786bb53»",
           "reconstruction/src/units/briefing/briefing-unit.ts:714 «8f687a1804015c76»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:408 «05e4b470525b8615»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:427 «57e99fbcc07034d1»",
-          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:428 «3a43f5059f4e24f9»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:410 «db96286a9db52d58»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:424 «a97fbb338a0767bc»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:426 «1178aaec7786bb53»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:709 «8f687a1804015c76»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:341 «ca982824e450a44b»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:342 «3d6e32481d2676c3»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:364 «ad55a0ae7c0a269e»",
-          "reconstruction/src/units/typhoon/typhoon-unit.ts:366 «b02819f4073b61f4»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:361 «72cffd5f385426d3»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:363 «3d457a5b7d5c9c5c»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:629 «8f687a1804015c76»",
           "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
           "reconstruction/src/runtime/owner-runtime.ts:307 «25365ae90f8fc771»",
@@ -210,18 +212,14 @@
       },
       {
         "id": "P3-HMU-AC02",
-        "requirement": "U-N の hold の表示差分（同じ形で、記録が 2 系列）。場面: 2020-05-12 16:32 の南海トラフ地震臨時情報（巨大地震注意、VYSE50 74_01_05）を手元に持ち、16:33 に同じ Control/DateTime で InfoType を訂正にした写しが届く。訂正は現況の source と同じ headType・EventID なので現況に効き（affectsCurrent）、情報 subject の版の比べが held で、現況にも同じ報の印を付ける（nankai-unit.ts:364〜372 の onInfo）。今は holdState が state だけを返し、呼ぶ 2 か所が changes を空で返す。(1) 印を付けた各記録（現況と情報 subject）の [before, after] を changes に積む。holdState に積む先を渡して :339 の replaceAt の所で積む形でも、呼ぶ所で印の前後を組む形でもよい。現況に効かない報（:374〜377）は情報 subject の 1 件だけ (2) 見える記録ごとに displayChanges が 1 件（この場面は現況と情報 subject の 2 件）、contentRevision は 1 進む。情報 subject の after の current は headingOf の見出しで、unconfirmed が載る (3) AC01 の (2)〜(5) を U-N にも当てる（見えない記録は出さない、同じ印の再送は空、recovering は今どおり、as は足さない。tally は view-projector.ts の nankaiTally）",
+        "requirement": "U-N の hold の表示差分（同じ形で、記録が 2 系列）。場面: 2020-05-12 16:32 の南海トラフ地震臨時情報（巨大地震注意、VYSE50 74_01_05）を手元に持ち、16:33 に同じ Control/DateTime で InfoType を訂正にした写しが届く。訂正は現況の source と同じ headType・EventID なので現況に効き（affectsCurrent）、情報 subject の版の比べが held で、現況にも同じ報の印を付ける（nankai-unit.ts:364〜372 の onInfo）。今は holdState が state だけを返し、呼ぶ 2 か所が changes を空で返す。(1) 印を付けた各記録（現況と情報 subject）の [before, after] を changes に積む。holdState に積む先を渡して :339 の replaceAt の所で積む形でも、呼ぶ所で印の前後を組む形でもよい。現況に効かない報（:374〜377）は情報 subject の 1 件だけ。現況に効く報で、情報 subject の版の比べは adopt でも現況の比べが held のとき（:364 の onInfo=false）は、今どおり現況だけに印を付けて情報 subject も採らずに返すので、積むのは現況の 1 件だけ (2) 見える記録ごとに displayChanges が 1 件（この場面は現況と情報 subject の 2 件）、contentRevision は 1 進む。情報 subject の after の current は headingOf の見出しで、unconfirmed が載る (3) AC01 の (2)〜(5) を U-N にも当てる（見えない記録は出さない、同じ印の再送は空、recovering は今どおり、as は足さない。tally は view-projector.ts の nankaiTally）",
         "evidenceRefs": [
           "reconstruction/src/units/nankai/nankai-unit.ts:328 «31c85086d3f81b5e»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:336 «d98faef0126d35f4»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:339 «ad44993680c165e9»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:342 «75632490de8cfe1d»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:335 «5ad7ef7dede7b744»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:343 «bcfc62dc9ad5a6c7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:364 «1d77795439554fc9»",
           "reconstruction/src/units/nankai/nankai-unit.ts:366 «073887bec72c92a1»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:368 «796e2a36c6193b0c»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:370 «ff465d493bfed1ba»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:375 «6cdc79db4fa326d5»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:376 «f8f0865688af3590»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:374 «1531743acb359938»",
           "reconstruction/src/units/nankai/nankai-unit.ts:699 «d6d6a7911c263667»",
           "reconstruction/src/units/nankai/nankai-unit.ts:717 «c18721f1f1905b1a»",
           "reconstruction/src/view-projector/view-projector.ts:334 «7609c0151da188e2»"
@@ -245,7 +243,7 @@
       },
       {
         "id": "P3-HMU-AC04",
-        "requirement": "行の数と «»: 6 file とも行の数を変えない（後ろの行を他の契約が «» で引いている: flood-unit.ts は 7 契約、landslide-unit.ts は 8、briefing-unit.ts は 5、local-bulletins-unit.ts は 4、typhoon-unit.ts は 7、nankai-unit.ts は 13）。書き換えるのは allowedPaths の行だけで、U-T・U-V と同じく行の中に足す。直す行の近くで他の契約が引いている行は触らない: flood-unit.ts:328・:354、landslide-unit.ts:279・:293、briefing-unit.ts:421、local-bulletins-unit.ts:419、typhoon-unit.ts:337・:352・:357、nankai-unit.ts:335・:343（holdState の最後の行）・:361・:362・:383・:384。書き換えた行が他の行と同じ字にならないこと（«» は 1 行だけに当たる必要がある）。統合担当の見込みでは、この形で割れる他の契約の «» は 0 件（起草の調べ: 直す行を «» で引く契約は無い）",
+        "requirement": "行の数と «»: 6 file とも行の数を変えない（後ろの行を他の契約が «» で引いている: flood-unit.ts は 7 契約、landslide-unit.ts は 8、briefing-unit.ts は 5、local-bulletins-unit.ts は 4、typhoon-unit.ts は 7、nankai-unit.ts は 13）。書き換えるのは allowedPaths の行だけで、U-T・U-V と同じく行の中に足す。直す行の近くで他の契約が引いている行は触らない: flood-unit.ts:328・:354、landslide-unit.ts:279・:293、briefing-unit.ts:421、local-bulletins-unit.ts:419、typhoon-unit.ts:337・:352・:357、nankai-unit.ts:335・:343（holdState の最後の行）・:355・:361・:362・:383・:384。書き換えた行が他の行と同じ字にならないこと（«» は 1 行だけに当たる必要がある）。統合担当の見込みでは、この形で割れる他の契約の «» は 0 件（起草の調べ: 直す行を «» で引く契約は無い）",
         "evidenceRefs": [
           "reconstruction/src/units/flood/flood-unit.ts:328 «b6870a370007c3eb»",
           "reconstruction/src/units/flood/flood-unit.ts:354 «db818200ef8649bd»",
@@ -258,6 +256,7 @@
           "reconstruction/src/units/typhoon/typhoon-unit.ts:357 «3ca4da5b4c8b2813»",
           "reconstruction/src/units/nankai/nankai-unit.ts:335 «5ad7ef7dede7b744»",
           "reconstruction/src/units/nankai/nankai-unit.ts:343 «bcfc62dc9ad5a6c7»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:355 «f6b2a70cafbf10da»",
           "reconstruction/src/units/nankai/nankai-unit.ts:361 «df2f67d5a94d5fc7»",
           "reconstruction/src/units/nankai/nankai-unit.ts:362 «3341be4f50c52f0e»",
           "reconstruction/src/units/nankai/nankai-unit.ts:383 «f8fa899c41ba5f9f»",
@@ -273,7 +272,7 @@
           "P3-HMU-AC01",
           "P3-HMU-AC03"
         ],
-        "behavior": "U-R の受入。receiveOwner を owner(\"deferred\") で通す（手本は tsunami-hold-mark.test.ts の P3-THM-T01。U-R の実行場所は unit-coverage.ts の deferred）。16_02_01 の VXKO50 を fixture の時刻（ReportDateTime から 36 時間の内）で受けた後、同じ Control/DateTime で InfoType を訂正にした写しを受けると、unit の決定は unchanged・stale、intents と outcomes は 0 件、displayChanges は 1 件で before は直前の採用の after、after の current の unconfirmed が後着の inputId、contentRevision が 1 進み、同じ受信の views の U-R の currents に同じ印が出る。T02〜T05 も同じ断言を各 unit の fixture と view の欄で当てる"
+        "behavior": "U-R の受入。receiveOwner を owner(\"deferred\") で通す（手本は tsunami-hold-mark.test.ts の P3-THM-T01。U-R の実行場所は unit-coverage.ts の deferred）。16_02_01 の VXKO50 を fixture の時刻（ReportDateTime から 36 時間の内）で受けた後、同じ Control/DateTime で InfoType を訂正にした写しを 1 ms 後に受けると、unit の決定は unchanged・stale、intents と outcomes は 0 件、displayChanges は 1 件で before は直前の採用の after、after の current の unconfirmed が後着の inputId、contentRevision が 1 進み、同じ受信の views の U-R の currents に同じ印が出る。T02〜T05 も同じ断言を各 unit の fixture と view の欄で当てる"
       },
       {
         "testId": "P3-HMU-T02",
@@ -313,7 +312,7 @@
         "referenceIds": [
           "P3-HMU-AC02"
         ],
-        "behavior": "U-N の受入。owner(\"urgent\")、selected_xml の 74_01_05 の VYSE50（巨大地震注意）を fixture の時刻で受けた後に InfoType を訂正にした写し。決定は 2 件とも unchanged・stale、intents と outcomes は 0 件、displayChanges は現況と情報 subject の 2 件で、どちらも after の current の unconfirmed が後着の inputId、contentRevision が 1 進み、同じ受信の views の U-N の currents と information に同じ印が出る"
+        "behavior": "U-N の受入。owner(\"urgent\")、selected_xml の 74_01_05 の VYSE50（巨大地震注意）を fixture の時刻で受けた後に InfoType を訂正にした写しを 1 ms 後に受ける。決定は 2 件とも unchanged・stale、intents と outcomes は 0 件、displayChanges は現況と情報 subject の 2 件で、どちらも after の current の unconfirmed が後着の inputId、contentRevision が 1 進み、同じ受信の views の U-N の currents と information に同じ印が出る"
       },
       {
         "testId": "P3-HMU-T07",
@@ -322,7 +321,7 @@
           "P3-HMU-AC01",
           "P3-HMU-AC02"
         ],
-        "behavior": "契約の境界。(1) T01〜T06 の 6 unit で、同じ後着の写しをもう 1 度受けると displayChanges が空で、contentRevision もその unit の state も変わらない（表で回してよい） (2) 10_05_05 の VPTW61（初めから ended で view に出ない記録、P3-C14-T05 の endConflict と同じ記録）に InfoType を訂正にした写しを受けると、state に印が入り、displayChanges は空で contentRevision は据え置き、views に U-Y は載らない"
+        "behavior": "契約の境界。(1) T01〜T06 の 6 unit で、同じ後着の写しをさらに 1 ms 後にもう 1 度受けると displayChanges が空で、その unit の記録の配列と contentRevision が変わらない（比べるのは記録の配列と contentRevision で、state 全体ではない。表で回してよい） (2) 10_05_05 の VPTW61（初めから ended で view に出ない記録、P3-C14-T05 の endConflict と同じ記録）に InfoType を訂正にした写しを受けると、state に印が入り、displayChanges は空で contentRevision は据え置き、views に U-Y は載らない"
       }
     ],
     "requiredCommands": [
@@ -338,7 +337,7 @@
         "cwd": ".",
         "target": "reconstruction/tools/corpus/sequences.json",
         "stage": "contract",
-        "purpose": "O01・O08 の参照（O01 は版の順の列で P3-VERSION-MATERIAL-001 と同じ、O08 は U-M の試験の 57_03_01 の VPFT50 を含む。本契約は sequences を変えない）"
+        "purpose": "O01・O08 の参照。本契約の試験の fixture（O01 の版の順の列と、O08 の 57_03_01 の VPFT50）を参照しているだけで、同じ時刻で hold に入る step は O01・O08 に無い。本契約は sequences を変えない"
       },
       {
         "command": "node reconstruction/contracts/check-contract.mjs",
