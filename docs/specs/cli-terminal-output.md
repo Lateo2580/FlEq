@@ -705,7 +705,7 @@ telegram.weather は未契約のため受信できません
 テスト電文: no
 リアルタイム受信中...
 help でコマンド一覧を表示（終了は quit か Ctrl+C）
-FlEq [● 00:00:01]>
+FlEq [● 00:00:02]>
 ```
 
 - 帯の行は旧築と同じく、空行の後に空色 #56b4e9 の地に黒の太字で出し、後ろに空行を 1 行置く。appName は dmdata の接続名（設定の appName）、版は root の package.json の version（P3-CLI-D-VERSION と同じ 1 つ）。帯は host を起こす前に出す（旧築も契約の確かめの前に出した）。
