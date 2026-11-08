@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "08f3ddeb1b86d2ff43efe88316720dd21c7553e35bad29343fc469b2f025e1c2",
+    "sha256": "57e19d0baf00a0fd9a63599dd6d9b3ac7652f78e05586501addb236aa5951e3e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -131,6 +131,13 @@
         "status": "closed",
         "source": "2026-11-08 r0 の中間レビュー（契約適合 Opus 条件付き GO・P2 2 件、品質 Opus 条件付き GO・P2 1 件）",
         "closed": "直したもの（統合担当の指示）: (1) 契約適合 P2: U-F（VPWP50）がまとめで「その他」になる → 表に VPWP50「気象警報・注意報時系列情報」（fixture の Control の Title）を足し、AC01 (4) と T02 から U-F の除外を外した (2) 契約適合 P2: 閉じた契約の原文の改訂 4 件を artifactRequirements に足した (3) 品質 P3: 繋ぎ直しで前の接続の区分が残る → 接続を張るときに HostStatus.classifications を null に戻す（AC04 (6) を改めた） (4) 契約適合 P3: spec の入力の行の図のうち奇数の秒の ●（§6.1 の 00:00:05 の 2 行、§9.1 の :05・:15 の 3 行と §9.4 の 1 行）を ○ にした。94be4923 は §6.7 の図だけを偶数の秒にしたが、図の時刻を変えずに規則の字形にそろえるのが正しい（同じ規則を前からの図にも当てた） (5) 品質 P3: TTY の端末の題名（OSC 2）の付け・戻しの試験を startup.test.ts に足した。作者の判断待ちだった 2 件は A（作者、2026-11-08）: (a) 全部の分野が 0 件のまとめは帯ごと出さない（AC02 (6)） (b) 処理できなかった電文の帯のコードは残す（outOfScope）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL7-TEXT-REVISIONS",
+        "status": "closed",
+        "source": "artifactRequirements の原文の改訂（統合担当、2026-11-08 配送の前）",
+        "closed": "配送の commit で当てた（各条文の行の中に【P3-TERMINAL-LAYOUT-007 で改めた（配送の commit で当てた）】を書き足し、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout.json:229 の P3-TL-AC02 (8) (2) reconstruction/contracts/p3-terminal-output.json:684 の P3-TO-AC14 (2) (3) reconstruction/contracts/p3-terminal-prompt.json:416 の P3-TP-AC10 (4) reconstruction/contracts/p3-cli-repl.json:1246 の P3-CLI-AC19 (3) (5) reconstruction/contracts/p3-cli-repl.json:1003 の P3-CLI-AC05 (6)。書き換えた 5 行を «» で引く契約は無く、付け直しは 0 件。4 file の meta.sha256 を取り直した",
         "remaining": "なし"
       }
     ],
