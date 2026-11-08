@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "627a803713721a1c9980beb1418ec192d4b78cf8f7ea6969f0fd5bedd4360763",
+    "sha256": "a3dadf3597d62d6b2f7bc32239b2d781b926ea9540fd62be971fe486ef37c035",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -684,10 +684,10 @@
         "requirement": "【発注 2】起動時のまとめ（spec の §6.6、Q-TO-D-1、P3-TO-D-DIGEST）: (1) host の publishDisplay（host.ts:591 の行の中身）で、snapshot.recovery.digest が null でない最初の 1 回だけ端末へ渡す (2) 形は spec の図（分野の順は digest の units の順〔P3-REC-D-ORDER-AND-LIMIT=A の U-T → U-V → U-Q → … → U-Y〕、分野ごとに件数、新しい順の見出し 3 件、「ほか <種類のコード> n 件」。種類のコードは omitted の key〔headType〕のまま、2 つ以上なら全角の空白で並べる。題名を引く表は足さない〔作者裁定 Q-TO-D-2、2026-11-03〕）。unsatisfied の分野は「取り直せませんでした」で 0 件と書かない。beforeWindow なら見出しの罫線の下に「7 日より前の情報は取り直していません」を薄い字で。時刻は reportDateTime、無ければ receivedAt (3) digest が作られない起動（{ wsUrl }、telegram.* を購読しない）では何も出さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:666 «f16f012995b53ec2»",
-          "docs/specs/cli-terminal-output.md:682 «e354158a3dc76602»",
-          "docs/specs/cli-terminal-output.md:683 «77e948d5933bdd50»",
-          "docs/specs/cli-terminal-output.md:684 «c68738b24a4bed31»",
-          "docs/specs/cli-terminal-output.md:685 «3e9467ef9bb2c3e7»",
+          "docs/specs/cli-terminal-output.md:684 «e354158a3dc76602»",
+          "docs/specs/cli-terminal-output.md:685 «77e948d5933bdd50»",
+          "docs/specs/cli-terminal-output.md:686 «c68738b24a4bed31»",
+          "docs/specs/cli-terminal-output.md:687 «3e9467ef9bb2c3e7»",
           "reconstruction/src/host/host.ts:591 «57bcacc5289ac442»",
           "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
           "reconstruction/contracts/p3-recovery.types.ts:70 «d16fb1cb758aa091»"
@@ -697,8 +697,8 @@
         "id": "P3-TO-AC15",
         "requirement": "【発注 2】EEW ログ（spec の §7、P3-TO-D-LOGDIR、P3-EWF-AC05 の申し送り）: (1) 材料は U-E の outcome の facts.report。置き場は settingsPaths().directory の下の eew-logs、file の名前・見出し（「=== 緊急地震速報 EventID: <EventID> ===」と「記録開始: …」）・1 報のブロック・差分・取消のブロック・記録終了の行（「--- 記録終了 (<理由>) HH:MM:SS ---」）は旧築の eew-logger.ts（file 名 eew_<EventID>_<時刻>.log、buildReportBlock、closeEvent）の写し。閉じるきっかけは旧築と同じく、取消の報（理由「取消」）・最終報（「最終報」）・停止（「シャットダウン」。AC02 (6) の close の中で、開いている EventID を全部閉じ、同じ 1 秒の内で書き終わりを待つ）。旧築の「タイムアウト」（message-router.ts の EEW の追跡の期限）に当たる知らせは端末の口に無い（U-E の期限切れの outcome は deadlineDone の返信で、inputDone を通らない）ので、期限では閉じない。閉じたらその EventID を表から外し、その後の続報は旧築どおり見出しから書く。記録する欄は設定の eewLogFields（C18 の EewLogField の 12 個） (2) 既定は off。設定の eewLog が true のときと、TerminalControl.setEewLog(true, …) の後だけ書く (3) 書き込みは fs.promises.appendFile（追記で開き、無ければ作る）だけで、main を止めない。file を作り直さず、名前に接尾辞を足さない（旧築も報ごとに追記していたので書式は互換）。書き込みの鎖は全体で 1 本で、appendFile は一度に 1 つ、受けた順に走らせる（EventID ごとの順もこれで守る）。始めていない書き込みは 64 件までで、越えたら最も古い始めていない書き込みを捨てて数える。始めた appendFile は取り消せないので最後まで走らせる。捨てるのは EventID を問わず最も古い書き込みなので、見出しや記録終了の行が捨てられたときは、その後の続報が見出しの無いまま同じ file に続く（書き込みが 64 件を越えて詰まったときだけ。Q-TO-IMPL-2 (2)）。EventID → path の表は 64 件まで（古い順に外す。旧築は上限なし）。閉じた EventID と表から外した EventID の続報は、旧築どおり見出しから、旧築の命名（eew_<EventID>_<秒までの時刻>.log）の path に書く。同じ秒で同じ path になるときは、旧築と同じく同じ file に追記で見出しから続く。(4) 取消の報は取消の文だけを書き、震源も仮定震源の印も書かない（Q-TO-L-1） (5) dmdata の規約で EEW は personal 限定。書くのは利用者の設定の場所だけで、repo・診断・標準出力の外へ写さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:690 «1897c3a144684fd5»",
-          "docs/specs/cli-terminal-output.md:692 «9bdf2bf317349f96»",
+          "docs/specs/cli-terminal-output.md:721 «1897c3a144684fd5»",
+          "docs/specs/cli-terminal-output.md:723 «9bdf2bf317349f96»",
           "docs/specs/reconstruction-p0-contracts.md:2375 «1f2661ac116d42b6»",
           "src/engine/eew/eew-logger.ts:22 «91d4fda9dcaffb04»",
           "src/engine/eew/eew-logger.ts:122 «a39558e208338732»",
