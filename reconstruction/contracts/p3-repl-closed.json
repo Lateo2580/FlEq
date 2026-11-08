@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "0c29f22a47f4df1e0d0d0e08d5f6c6960a256840b944aa36254d8a3aa264d20d",
+    "sha256": "7b26d27f7203a82a5647208093b6b54e4e92500f12c16769efe9a961bbf9a6be",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -16,7 +16,7 @@
         "provisional": "A",
         "status": "未決（作者の裁定待ち）",
         "ruling": "未決",
-        "reason": "今は同じ場面の 23:10:00.200 に、終了の途中の端末（標準出力、REPL の返事の列）へ「  設定ファイル /home/pi/.config/fleq-next/config.json を書けません（ENOSPC）。この変更は今の実行にだけ効いています」が出て、code は 0。終了の後には「今の実行」が無いので文が成り立たず、REPL は閉じているので返事として出す場所でもない（C18 発注 3 の不変条件「閉じた REPL は出力もしない」）。A と B の違いは code だけで、端末の字は同じ。A は、保存が 5 秒の期限までに終わらなかったときの今の扱い（P3-CLI-AC18 (3): 標準エラーに『設定ファイル <path> に最後の変更を保存できたか確かめられません』を出し、0 を 1 にする）に揃う。確かめられないだけで 1 にしているので、失敗したと分かったときも 1 にするのが筋。code が見えるのは、シェルで続けて打つ「fleq && 次のコマンド」が止まる・echo $? が 1 になる所で、画面の行は変わらない。B は、受信は正常に止まったのに code が 1 になるのを避けたい場合"
+        "reason": "今は同じ場面の 23:10:00.200 に、終了の途中の端末（標準出力、REPL の返事の列）へ「  設定ファイル /home/pi/.config/fleq-next/config.json を書けません（ENOSPC）。この変更は今の実行にだけ効いています」が出て、code は 0。終了の後には「今の実行」が無いので文が成り立たず、REPL は閉じているので返事として出す場所でもない（C18 発注 3 の不変条件「閉じた REPL は出力もしない」）。A と B の違いは code だけで、端末の字は同じ。A は、保存が 5 秒の期限までに終わらなかったときの今の扱い（P3-CLI-AC18 (3): 標準エラーに『設定ファイル <path> に最後の変更を保存できたか確かめられません』を出し、0 を 1 にする）に揃う。確かめられないだけで 1 にしているので、失敗したと分かったときも 1 にするのが筋。code が見えるのは、シェルで続けて打つ「fleq && 次のコマンド」が止まる・echo $? が 1 になる所で、画面の行は変わらない。B は、受信は正常に止まったのに code が 1 になるのを避けたい場合。A の code には非対称がある: quit の前に失敗が返事の 1 行で出ていれば（閉じる前に分かった失敗）、終了の診断は出さず code は 0 のまま。1 になるのは、まだ画面に見せていない失敗（閉じた後に分かったもの）だけ。同じ契約で、Ctrl+C の直前に打った config の一覧も出なくなる（P3-RC-D-CONFIG）"
       },
       {
         "id": "P3-RC-D-PLACE",
@@ -61,8 +61,15 @@
         "id": "Q-RC-ANCHORS",
         "status": "closed",
         "source": "起草（統合担当、2026-11-08 夜）。全契約・計画・spec の «» を path ごとに grep した",
-        "closed": "他の契約が引く行: repl.ts は :68・:282・:425×2（p3-terminal-output.json）、:425（p3-terminal-windows.json）、:171・:255・:321（p3-replay-watch-002.json）。settings.ts は :37×2・:46・:115・:152（p3-replay-watch-002.json）、:46（p3-replay-watch.json）、:309（p3-windows-ci.json）。cli.ts は :90・:307・:320・:357・:362（p3-terminal-output.json）、:322・:337×2・:344（p3-replay-watch.json）、:337（p3-terminal-windows.json）。試験は repl.test.ts:182（p3-weather-notice.json）だけで、cli.test.ts は 0 件。本契約が中身を変える repl.ts の :285〜:286・:290〜:291・:375 はどれも引かれず、行を足さない。settings.ts の createSettingsSaver（:378〜:398）は引かれる最後の :309 より後、cli.ts の :366〜:374 は引かれる最後の :362 より後なので、行を足しても他の契約の «» は動かない（P3-RC-AC04）。原文の改訂を当てる p3-cli-repl.json の :703・:1164・:1225・:1236・:1349 は、他の契約が引く p3-cli-repl.json の行（:187・:384・:655・:1113・:1206・:1255・:1480）に入らない。行の中に書き足すので行の数は変わらず、取り直すのは p3-cli-repl.json の meta.sha256 だけ",
+        "closed": "他の契約が引く行: repl.ts は :68・:282・:425×2（p3-terminal-output.json）、:425（p3-terminal-windows.json）、:171・:255・:321（p3-replay-watch-002.json）。settings.ts は :37×2・:46・:115・:152（p3-replay-watch-002.json）、:46（p3-replay-watch.json）、:309（p3-windows-ci.json）。cli.ts は :90・:307・:320・:357・:362（p3-terminal-output.json）、:322・:337×2・:344（p3-replay-watch.json）、:337（p3-terminal-windows.json）。試験は repl.test.ts:182（p3-weather-notice.json）だけで、cli.test.ts は 0 件。本契約が中身を変える repl.ts の :285〜:286・:290〜:291・:375 はどれも引かれず、行を足さない。settings.ts の createSettingsSaver（:378〜:398）は引かれる最後の :309 より後、cli.ts の :366〜:374 は引かれる最後の :362 より後なので、行を足しても他の契約の «» は動かない（P3-RC-AC04）。原文の改訂を当てる p3-cli-repl.json の :703・:1164・:1225・:1236・:1349 は、他の契約が引く p3-cli-repl.json の行（:187・:384・:655・:1113・:1206・:1255・:1480）に入らない。行の中に書き足すので行の数は変わらず、取り直すのは p3-cli-repl.json の meta.sha256 だけ。r0 で足した原文の改訂 (6) は spec cli-terminal-output.md:992（引くのは p3-terminal-windows.json:277 の 1 件で、これが割れる）と p3-terminal-windows.json:90（行を引く契約は 0 件）",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-RC-R0",
+        "status": "closed",
+        "source": "起草のレビュー r0（2026-11-08 夜、dd346bdb）。品質 ヘルツ（Astra high、新しい read-only）条件付き GO・P2 1、契約適合 Opus（xhigh）条件付き GO・P2 2・P3 4。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/replclosed-draft-quality-r0-hertz.md・replclosed-draft-contract-r0.md",
+        "closed": "当てたもの: (1) ヘルツ P2・Opus P3-3: 最後の 1 回の結果を選ぶ試験が無い → 契約境界の試験 P3-RC-T03（閉じた後の 1 回目の失敗→予約済みの 2 回目の成功→idle が null で何も出さない、AC03 (2)）と P3-RC-T04（5 秒の期限切れ→遅れて失敗→期限の診断だけ、AC03 (4)）を足し、allowedPaths と requiredCommands に書いた。T02 に 2 行を同じ tick で流すことを明記した (2) Opus P2-1: 停止の中と後に親が標準エラーへ直に書く行の列挙（spec cli-terminal-output.md:992、p3-terminal-windows.json の P3-TW-D-MAIN-CONSOLE の (k)）に新しい行が漏れる → 原文の改訂 (6) に足し、割れる p3-terminal-windows.json:277 «679940c9ca375597» を見込みに書いた (3) Opus P2-2: P3-RC-D-END の A の reason に、閉じる前に見せた失敗は code 0 のまま、1 になるのはまだ見せていない失敗だけ、の非対称を書いた (4) Opus P3-1: AC02 (5) を「createSettingsSaver と repl.ts は process.stderr を持たない」にした（settings.ts の commitSettings は移行の 1 行を標準エラーへ書く） (5) Opus P3-2: repl.ts は行を足さない（:425 より後に足すと本契約の :524・:540 がずれる）に絞った (6) Opus P3-4: P3-RC-D-END の reason の末尾に、Ctrl+C の直前の config の一覧も出なくなることを書いた。P3-RC-D-CONFIG は分けたまま",
+        "remaining": "P3-RC-D-END の作者の裁定（Q-RC-END）"
       }
     ],
     "operationContract": {
@@ -94,11 +101,11 @@
       "reconstruction/vitest.config.ts"
     ],
     "allowedPaths": [
-      "reconstruction/src/cli/repl.ts（次の行の中身だけ: :285〜:286 の runRepl の説明と戻りの型、:290〜:291 の保存の列を作る行〔閉じたかを読む口を渡す〕、:375 の config の読みの行〔同じ行の中で読みの後に closed を見る〕。行を足すのは :425 より後だけ。«» で引かれる :68・:171・:255・:282・:321・:425 の中身は変えない。行の決まりは P3-RC-AC04）",
+      "reconstruction/src/cli/repl.ts（次の行の中身だけ: :285〜:286 の runRepl の説明と戻りの型、:290〜:291 の保存の列を作る行〔閉じたかを読む口を渡す〕、:375 の config の読みの行〔同じ行の中で読みの後に closed を見る〕。行は足さない〔:425 より後も。本契約の «» の :524・:540 をずらさない〕。«» で引かれる :68・:171・:255・:282・:321・:425 の中身は変えない。行の決まりは P3-RC-AC04）",
       "reconstruction/src/cli/settings.ts（createSettingsSaver〔:378〜:398〕の中だけ。説明のコメント :378〜:379 の書き直しを含む。行を足してよい）",
       "reconstruction/src/cli/cli.ts（終了の経路の :366〜:374 の中だけ。行を足してよい）",
-      "reconstruction/test/cli/repl.test.ts（末尾への P3-RC-T01 の追加と、node:fs/promises の readFile を止める vi.hoisted・vi.mock の末尾への追加だけ。止めが無いときは素通し。既存の行を変えない）",
-      "reconstruction/test/cli/cli.test.ts（末尾への P3-RC-T02 の追加だけ。既存の行を変えない）"
+      "reconstruction/test/cli/repl.test.ts（末尾への P3-RC-T01・T03 の追加と、node:fs/promises の readFile を 1 回ずつ止めて外せる vi.hoisted・vi.mock の末尾への追加だけ。止めが無いときは素通し。既存の行を変えない）",
+      "reconstruction/test/cli/cli.test.ts（末尾への P3-RC-T02・T04 の追加だけ。既存の writes の止め〔:36〜:49〕はそのまま使い、既存の行を変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -179,7 +186,7 @@
       },
       {
         "id": "P3-RC-AC02",
-        "requirement": "閉じた後に分かった保存の失敗は、REPL の返事に出さず、終了の診断に渡す（P3-RC-D-PLACE=A、code は P3-RC-D-END）。場面: 23:10:00.000「notify eew off」と Enter → 端末に『  緊急地震速報 (eew): OFF』、保存の列が設定 file の読み直しを始める → 続けて「quit」と Enter → REPL が閉じ、host の stop が始まる → 23:10:00.200 一時 file の書き込みが ENOSPC で失敗する → 今は終了の途中の端末に『  設定ファイル /home/pi/.config/fleq-next/config.json を書けません（ENOSPC）。この変更は今の実行にだけ効いています』が出て code 0。直した後は 23:10:00.200 に何も出さず、stop と保存の列を待った後、標準エラーに『設定ファイル /home/pi/.config/fleq-next/config.json に最後の変更を保存できませんでした（ENOSPC）』を出す: (1) createSettingsSaver は REPL が閉じたかを読む口（() => boolean、3 つ目の引数）を受ける。1 回の保存が読めない・書けないで終わったとき、REPL が開いていれば今どおり返事の口に P3-CLI-AC17 (5) の文を出し、閉じていれば出さずに終了の診断の 1 行を持つ: 書けないとき『設定ファイル <path> に最後の変更を保存できませんでした（<code>）』、読めない・検査に通らないとき『設定ファイル <path> を読めないので、最後の変更を保存できませんでした』（先頭に空白を置かない。P3-CLI-AC18 (3) の 1 行と同じ書き方） (2) 持つのは最後の 1 回の保存の結果だけ。1 回の保存の始めで消し、成功した保存は何も持たない (3) idle() は列が空になった後に、持っている 1 行か null を返す。runRepl の返す idle も同じ (4) cli.ts の終了の経路: stop() の後の保存の待ち（5 秒）の内に idle が 1 行を返したら、fail で標準エラーに 1 行出し、code は P3-RC-D-END に従う（provisional A: 0 なら 1、0 以外はそのまま。B なら host の code のまま）。null なら今どおり host の code (5) 標準エラーへ書くのは cli.ts だけ。settings.ts と repl.ts は process.stderr を持たない",
+        "requirement": "閉じた後に分かった保存の失敗は、REPL の返事に出さず、終了の診断に渡す（P3-RC-D-PLACE=A、code は P3-RC-D-END）。場面: 23:10:00.000「notify eew off」と Enter → 端末に『  緊急地震速報 (eew): OFF』、保存の列が設定 file の読み直しを始める → 続けて「quit」と Enter → REPL が閉じ、host の stop が始まる → 23:10:00.200 一時 file の書き込みが ENOSPC で失敗する → 今は終了の途中の端末に『  設定ファイル /home/pi/.config/fleq-next/config.json を書けません（ENOSPC）。この変更は今の実行にだけ効いています』が出て code 0。直した後は 23:10:00.200 に何も出さず、stop と保存の列を待った後、標準エラーに『設定ファイル /home/pi/.config/fleq-next/config.json に最後の変更を保存できませんでした（ENOSPC）』を出す: (1) createSettingsSaver は REPL が閉じたかを読む口（() => boolean、3 つ目の引数）を受ける。1 回の保存が読めない・書けないで終わったとき、REPL が開いていれば今どおり返事の口に P3-CLI-AC17 (5) の文を出し、閉じていれば出さずに終了の診断の 1 行を持つ: 書けないとき『設定ファイル <path> に最後の変更を保存できませんでした（<code>）』、読めない・検査に通らないとき『設定ファイル <path> を読めないので、最後の変更を保存できませんでした』（先頭に空白を置かない。P3-CLI-AC18 (3) の 1 行と同じ書き方） (2) 持つのは最後の 1 回の保存の結果だけ。1 回の保存の始めで消し、成功した保存は何も持たない (3) idle() は列が空になった後に、持っている 1 行か null を返す。runRepl の返す idle も同じ (4) cli.ts の終了の経路: stop() の後の保存の待ち（5 秒）の内に idle が 1 行を返したら、fail で標準エラーに 1 行出し、code は P3-RC-D-END に従う（provisional A: 0 なら 1、0 以外はそのまま。B なら host の code のまま）。null なら今どおり host の code (5) 閉じた後の失敗を標準エラーへ書くのは cli.ts だけ。createSettingsSaver と repl.ts は process.stderr を持たない（settings.ts の commitSettings の移行の 1 行は変えない）",
         "evidenceRefs": [
           "reconstruction/src/cli/settings.ts:387 «310a92f1feb8a73d»",
           "reconstruction/src/cli/settings.ts:389 «8d71b51878f99940»",
@@ -203,7 +210,7 @@
       },
       {
         "id": "P3-RC-AC04",
-        "requirement": "行の決まり（他の契約の «» を割らない、Q-RC-ANCHORS）: (1) repl.ts で中身を変えるのは :285〜:286・:290〜:291・:375 だけで、:425 より前に行を足さない（:425 は 3 件に引かれる）。«» で引かれる :68・:171・:255・:282・:321・:425 の中身は変えない (2) settings.ts は createSettingsSaver（:378〜:398）の中だけ。引かれる最後の :309 より後なので行を足してよい (3) cli.ts は :366〜:374 の中だけ。引かれる最後の :362 より後なので行を足してよい (4) 試験は repl.test.ts と cli.test.ts の末尾に足すだけ（repl.test.ts:182 が引かれる） (5) ほかの行を変える必要が出たら、変える前にその行と、その行を引く契約を報告する",
+        "requirement": "行の決まり（他の契約の «» を割らない、Q-RC-ANCHORS）: (1) repl.ts で中身を変えるのは :285〜:286・:290〜:291・:375 だけで、行は足さない（:425 は 3 件に引かれ、:425 より後に足すと本契約の :524・:540 がずれる）。«» で引かれる :68・:171・:255・:282・:321・:425 の中身は変えない (2) settings.ts は createSettingsSaver（:378〜:398）の中だけ。引かれる最後の :309 より後なので行を足してよい (3) cli.ts は :366〜:374 の中だけ。引かれる最後の :362 より後なので行を足してよい (4) 試験は repl.test.ts と cli.test.ts の末尾に足すだけ（repl.test.ts:182 が引かれる） (5) ほかの行を変える必要が出たら、変える前にその行と、その行を引く契約を報告する",
         "evidenceRefs": [
           "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
           "reconstruction/src/cli/settings.ts:309 «5a6124299ca400a2»",
@@ -218,7 +225,7 @@
         "referenceIds": [
           "P3-RC-AC01"
         ],
-        "behavior": "repl.test.ts の末尾（設定の場所は既存の beforeEach が XDG_CONFIG_HOME を一時 directory に向けている）。node:fs/promises の readFile を止める vi.hoisted・vi.mock を末尾に足す（止めが無いときは actual をそのまま返し、止めた読みが actual の結果を返し終えた印を持つ）。設定 file に { region: \"栃木県宇都宮市\" } を書き、runRepl を起こす → 止めを入れて「config」を流し、読みが止めに届くのを待つ → 標準出力を空にして repl.close() → 止めを外し、読みが返り終えた印を待ってから数 turn 待つ → 標準出力が空。直す前は『Config: <path>』で始まる行が出て落ちる"
+        "behavior": "repl.test.ts の末尾（設定の場所は既存の beforeEach が XDG_CONFIG_HOME を一時 directory に向けている）。node:fs/promises の readFile を止める vi.hoisted・vi.mock を末尾に足す（止めが入っている間は呼ばれるたびに 1 回ずつ止め、試験が 1 回ずつ外す。止めが無いときは actual をそのまま返す。止めた読みが actual の結果を返し終えた印を持つ。T03 も使う）。設定 file に { region: \"栃木県宇都宮市\" } を書き、runRepl を起こす → 止めを入れて「config」を流し、読みが止めに届くのを待つ → 標準出力を空にして repl.close() → 止めを外し、読みが返り終えた印を待ってから数 turn 待つ → 標準出力が空。直す前は『Config: <path>』で始まる行が出て落ちる"
       },
       {
         "testId": "P3-RC-T02",
@@ -227,7 +234,23 @@
           "P3-RC-AC02",
           "P3-RC-AC03"
         ],
-        "behavior": "cli.test.ts の末尾、describe の外（設定の場所は既存の beforeEach が一時 directory に向けている。fakeHost と startRepl は describe の中にあって使えないので、host の偽物〔stop は code 0〕と起動〔runCli([]) を呼び attached を待つ〕をその場に書く）。(a) 有効な設定で起動した後、設定 file を『{』に書き換え、「notify eew off」と「quit」を続けて流す → runCli が P3-RC-D-END の裁定の code（A なら 1、B なら 0）を返し、標準エラーが『設定ファイル <configFile()> を読めないので、最後の変更を保存できませんでした\\n』と一致し、標準出力に『読めないので』を含まず、file は『{』のまま (b) 同じく『{』に書き換えて「notify eew off」だけを流し、標準出力に P3-CLI-AC17 (5) の読めないときの 1 行が出るのを待ってから「quit」→ runCli が 0、標準エラーは空。(a) は直す前に標準出力へ返事の 1 行が出て code 0 で落ちる。読めない側で確かめるのは、Windows の CI でも権限に頼らず起こせるため（書けない側は同じ道の別の文）"
+        "behavior": "cli.test.ts の末尾、describe の外（設定の場所は既存の beforeEach が一時 directory に向けている。fakeHost と startRepl は describe の中にあって使えないので、host の偽物〔stop は code 0〕と起動〔runCli([]) を呼び attached を待つ〕をその場に書く）。(a) 有効な設定で起動した後、設定 file を『{』に書き換え、「notify eew off」と「quit」の 2 行を同じ tick で続けて流す（間で待たない。notify の保存の読みが返る前に quit が閉じる）→ runCli が P3-RC-D-END の裁定の code（A なら 1、B なら 0）を返し、標準エラーが『設定ファイル <configFile()> を読めないので、最後の変更を保存できませんでした\\n』と一致し、標準出力に『読めないので』を含まず、file は『{』のまま (b) 同じく『{』に書き換えて「notify eew off」だけを流し、標準出力に P3-CLI-AC17 (5) の読めないときの 1 行が出るのを待ってから「quit」→ runCli が 0、標準エラーは空。(a) は直す前に標準出力へ返事の 1 行が出て code 0 で落ちる。読めない側で確かめるのは、Windows の CI でも権限に頼らず起こせるため（書けない側は同じ道の別の文）"
+      },
+      {
+        "testId": "P3-RC-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RC-AC03"
+        ],
+        "behavior": "repl.test.ts の末尾（T01 の readFile の止めを使う）。AC03 (2): 閉じた後に 1 回目の保存が失敗し、予約済みの 2 回目が成功したら何も持たない。設定 file を『{』にして runRepl を起こし、止めを入れて「notify eew off」を流す → 1 回目の読みが止めに届いたら「notify eew on」を流して「もう 1 回要る」の印を立てる → 標準出力を空にして repl.close() → 1 回目の読みを外す（『{』で読めない）→ 2 回目の読みが止めに届いたら設定 file を有効な JSON に書き戻して外す → idle() が null を返し、標準出力が空、設定 file の notify.eew が true。1 回の保存の始めで持つ行を消さない実装は、idle が読めない側の 1 行を返して落ちる"
+      },
+      {
+        "testId": "P3-RC-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RC-AC03"
+        ],
+        "behavior": "cli.test.ts の末尾、describe の外（起動は T02 と同じくその場に書く）。AC03 (4): 5 秒の期限を過ぎてから分かった失敗は、期限の診断のほかに何も出さない。既存の writes の止め（stall \"write\"）で一時 file の書き込みを止め、既存の期限の試験と同じ形で fake の timer を進めて、runCli が 1 を返し標準エラーが『設定ファイル <configFile()> に最後の変更を保存できたか確かめられません\\n』になるのを確かめる → 設定 file を消して同じ名前の空でない directory（config.json/x）を作り、止めを外す → rename が失敗して保存の列が終わる（一時 file が消えるのを待つ）→ 標準エラーは上の 1 行のまま、標準出力に『書けません』を含まない。rename を空でない directory へ向けるのは、Windows でも権限に頼らず書き込みを失敗させられるため"
       }
     ],
     "requiredCommands": [
@@ -278,7 +301,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "全 reconstruction 試験（parser-boundary を含む全件。readFile の mock が repl.test.ts の他の試験の保存を変えないことも含む。設定 file と環境変数を触るので --sequence.shuffle を付けた回も 1 回通す）"
+        "purpose": "全 reconstruction 試験（parser-boundary を含む全件。readFile の mock が repl.test.ts の他の試験の保存を変えないこと、T04 の止めと directory が後の試験に残らないことも含む。設定 file と環境変数を触るので --sequence.shuffle を付けた回も 1 回通す）"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -298,11 +321,11 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行: config の closed の検査（AC01、閉じた後に一覧が出る）、保存の列が閉じたかを読む口（AC02 (1)、閉じた後の失敗を返事に出すか持つかを決められない）、1 回の保存ごとに持つ行を消すこと（AC03 (2)、2 回目が成功したのに『保存できませんでした』と code 1 を出す）、idle の戻りの 1 行（AC02 (3)、終了の経路へ届かない）、cli.ts の fail（AC02 (4)、終了の診断が出ない）。新しい型・class・設定の欄・reason・export は作らない",
-      "追加した試験ごとに対応を 1 行（T01・T02 とも実不具合の再発防止）。既存試験の期待は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
-      "git diff で repl.ts の中身が変わったのが :285〜:286・:290〜:291・:375 と :425 より後に足した行だけであること、settings.ts は createSettingsSaver の中だけ、cli.ts は :366〜:374 の中だけ、試験 2 file は末尾に足しただけであることを示す",
+      "追加した試験ごとに対応を 1 行（T01・T02 は実不具合の再発防止、T03・T04 は契約境界）。既存試験の期待は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "git diff で repl.ts の中身が変わったのが :285〜:286・:290〜:291・:375 の行だけで行の数が変わらないこと、settings.ts は createSettingsSaver の中だけ、cli.ts は :366〜:374 の中だけ、試験 2 file は末尾に足しただけであることを示す",
       "AGENTS.md の最小実装・最小テスト・受信経路の計算量を守る。コメントは「なぜ」だけを契約 ID で書く",
       "残存リスク: (1) 書けないときの終了の 1 行は試験で確かめない（T02 は読めない側。持つ・渡す道は同じで文だけが違う） (2) 標準エラーの 1 行と、端末の出力の close が最長 1 秒書かせる標準出力の残りの前後は保証しない（P3-CLI-AC18 (3) の 1 行と同じ） (3) Ctrl+C の直前に打った config は何も見せずに終わる。見るには次の起動の config か fleq config show (4) 閉じた後の失敗を持つのは保存の列が期限の内に終わったときだけで、期限を過ぎてから分かった失敗はどこにも出ない（『確かめられません』の 1 行がその場合を覆う）",
-      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 5 行とも他の契約の «» に引かれていないことを grep で確かめた、Q-RC-ANCHORS）: (1) reconstruction/contracts/p3-cli-repl.json:703 の Q-CLI-O3-DELIVERY の (6a)「残した P3 2 件（…）はバックログ」の後に「（P3-REPL-CLOSED-001 で直した。配送 <commit>）」 (2) 同 :1164 の P3-CLI-AC14 (4) の config の句に「読み終える前に REPL が閉じたら一覧も読めない 1 行も出さない（P3-REPL-CLOSED-001）」 (3) 同 :1225 の P3-CLI-AC17 (5) の 2 つの文の後に「（REPL が閉じた後に分かった失敗は返事に出さず、AC18 (3) の終了の診断に渡す。P3-REPL-CLOSED-001）」 (4) 同 :1236 の P3-CLI-AC18 (3) の末尾に「期限の内に保存の列が終わり、REPL が閉じた後に分かった失敗があれば、標準エラーに P3-RC-AC02 (1) の 1 行を出し、code は <裁定の中身: A なら「0 なら 1、0 以外はそのまま」、B なら「host の code のまま」>（P3-REPL-CLOSED-001）」。分岐の名前でなく裁定の中身を直に書く (5) 同 :1349 の P3-CLI-AC26 (5) に「（閉じる前に分かった失敗だけ。P3-REPL-CLOSED-001）」。当てた後に p3-cli-repl.json の meta.sha256 を取り直す。作業ノート（repo 外）のバックログの 2 件も完了へ送る"
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に (1)〜(5) の 5 行は他の契約の «» に引かれていないことを grep で確かめた。(6) の spec:992 だけは p3-terminal-windows.json:277 が引く、Q-RC-ANCHORS）: (1) reconstruction/contracts/p3-cli-repl.json:703 の Q-CLI-O3-DELIVERY の (6a)「残した P3 2 件（…）はバックログ」の後に「（P3-REPL-CLOSED-001 で直した。配送 <commit>）」 (2) 同 :1164 の P3-CLI-AC14 (4) の config の句に「読み終える前に REPL が閉じたら一覧も読めない 1 行も出さない（P3-REPL-CLOSED-001）」 (3) 同 :1225 の P3-CLI-AC17 (5) の 2 つの文の後に「（REPL が閉じた後に分かった失敗は返事に出さず、AC18 (3) の終了の診断に渡す。P3-REPL-CLOSED-001）」 (4) 同 :1236 の P3-CLI-AC18 (3) の末尾に「期限の内に保存の列が終わり、REPL が閉じた後に分かった失敗があれば、標準エラーに P3-RC-AC02 (1) の 1 行を出し、code は <裁定の中身: A なら「0 なら 1、0 以外はそのまま」、B なら「host の code のまま」>（P3-REPL-CLOSED-001）」。分岐の名前でなく裁定の中身を直に書く (5) 同 :1349 の P3-CLI-AC26 (5) に「（閉じる前に分かった失敗だけ。P3-REPL-CLOSED-001）」。(6) 停止の中と後に親が標準エラーへ直に書く行の列挙に、閉じた後に分かった設定の保存の失敗の行を足す: docs/specs/cli-terminal-output.md:992 の「設定の保存を確かめられない行」の後に「と、REPL が閉じた後に分かった設定の保存の失敗の行（P3-REPL-CLOSED-001）」、reconstruction/contracts/p3-terminal-windows.json:90 の P3-TW-D-MAIN-CONSOLE の (k)「cli.ts の保存を確かめられない行」の後に「と、REPL が閉じた後に分かった保存の失敗の行（P3-REPL-CLOSED-001）」。spec:992 の中身が変わるので、それを引く p3-terminal-windows.json:277 «679940c9ca375597» が割れる（spec:992 を引くのはこの 1 件だけ。p3-terminal-windows.json の行を引く契約は 0 件）。統合担当が付け直す。当てた後に p3-cli-repl.json と p3-terminal-windows.json の meta.sha256 を取り直す。作業ノート（repo 外）のバックログの 2 件も完了へ送る"
     ],
     "unresolvedQuestions": [
       {
