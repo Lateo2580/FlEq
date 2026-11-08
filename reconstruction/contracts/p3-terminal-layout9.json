@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "dbd3af6c7649a53ed618c2a6fa6811333d45be799338f39cb819c55916958435",
+    "sha256": "4cbd6f7bf295c31a8bc8b24f4c3061b3b33763fe3f19b6d4d684756c70c253c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -14,8 +14,8 @@
         "B": "同じ 09:00:10 の報で、震源の行の下に薄い字の「PLUM法による予測震度変化」が足され、PLUM法の字が震源の行・この行・到達予想時刻の欄の 3 か所になる。震源が決まっているかによらず、気象庁が予測震度を変えた理由として PLUM法を挙げた報には全部出す（旧築と同じ。最大予測震度が実際には変わらなかった報にも出る）。識別子: MaxIntChangeReason が 9 の報に出す",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者の裁定待ち（起草の仮は A）",
-        "ruling": "未裁定",
+        "status": "確定（作者の裁定、2026-11-08 夜。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-08 夜）",
         "reason": "画面の出る・出ないが変わる。仮定の震源の報は、震源の行と到達予想時刻の欄で既に PLUM法と書いているので、B は同じ報で PLUM法の字を 3 か所にし、作者が確かめた PLUM の図に 1 行足す。A で行が出るのは震源の決まった地震の報で、気象庁が予測震度を変えた理由として PLUM法を挙げたときで、行が無いと予測震度が上がった理由を M か震源の変化と読む。A も B も、最大予測震度が実際に変わったか（電文の別の欄）は見ないので、変わらなかった報にも行が出る（端末の材料はその欄を持たない）。旧築は仮定の震源かによらず出していた。根拠と識別子: 理由の欄は Forecast/Appendix/MaxIntChangeReason で、9 を PLUM法と読むのは旧築と新築の仮定の震源の判定だけ、気象庁の資料はこの repo に無い（Q-TO-EEW-6、src/ui/eew-formatter.ts:498、eew.ts の isAssumedHypocenter と maxIntChangeReasonRaw）。repo で理由が 9 の報は作者が作った合成の 77_02_01 の 1 本だけで、仮定の震源の報で MaxIntChange は 0（気象庁サンプルの緊急地震速報 8 本は MaxIntChange も理由も 0）"
       },
       {
@@ -126,6 +126,13 @@
         "status": "closed",
         "source": "2026-11-08 夜の再確認 r1（Opus、条件付き GO。r0 の当て込みは全部合っていた。文の P2 2 件・P3 2 件。c468d46b）",
         "closed": "全部当てた。P2: (1) spec の §5.2 の取消の項と §8 の Q-TO10-QUAKE-CANCEL の行の「一部の報の取消は震源名を書かない」を、残った報に震源が無いときだけと条件付きに直した（震源名は active な VXSE61・VXSE53・VXSE52 の一番新しい報から取る、seismic-unit.ts の factsOf。VXSE52→VXSE53→VXSE53 の取消なら VXSE52 の震源名が残る）。AC02 (5)・D-CANCEL-SOURCE・Q-TL9-CANCEL-FACTS も合わせた (2) D-PLUM-ASSUMED の A を「震源の決まった報で理由が 9 なら出す（変化 0 でも出る）、仮定の震源の報には出さない」に直し、reason から B だけの欠点の書き方（予測震度の変わらない報に行が出る）を外して A・B 共通の性質として書いた。A・B の作者向けの文は時刻つきの場面と画面を先に置き、理由 9 を「気象庁が予測震度を変えた理由として PLUM法を挙げた」と言葉で書き、識別子を末尾へ。AC03 (1) に MaxIntChange を見ない旨を足した。P3: (1) reason の 77_02_01・MaxIntChange を末尾へ (2) AC02 (3) と spec §5.2 の項に、記録の発生時刻が読めないとき（arrivalText が null）も報の時刻、それも無ければ EventID の時刻へ移る旨を書いた。spec の中身を変えた 3 行は本契約だけが引くので本契約の «» を取り直し、meta.sha256 を取り直した（行の数は変わらず、他の契約の «» は動かない）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL9-PLUM-ASSUMED",
+        "status": "closed",
+        "source": "P3-TL9-D-PLUM-ASSUMED の作者の裁定（A か B）",
+        "closed": "作者が A で裁定した（2026-11-08 夜、推奨どおり。仮定の震源の報には「PLUM法による予測震度変化」の行を足さない）。spec §5.1 の PLUM法の項と §8 の Q-TO10-PLUM の行の「作者の裁定待ち」を裁定の記録に書き換え（本契約だけが引く 2 行なので本契約の «» を取り直した）、AC03 (2) を確定の文にし、B のときの原文の改訂の項を外した",
         "remaining": "なし"
       }
     ],
@@ -304,10 +311,10 @@
       },
       {
         "id": "P3-TL9-AC03",
-        "requirement": "緊急地震速報の PLUM法の行（Q-TO10-PLUM、P3-TL9-D-PLUM-ASSUMED・D-PLUM-PLACE）。場面: 震源の決まった地震の緊急地震速報で、M と深さは変わらないのに第 3 報の最大予測震度が 4 から 5弱 に上がる（PLUM法の予測で上がった報、最大予測震度の変化の理由 9）と、今は「最大予測震度 4 →  5弱」だけで、上がった理由が画面に無い（旧築は「PLUM法 による予測震度変化」を出していた）: (1) U-E の outcome の facts.report.maxIntChangeReasonRaw（eew.ts が Forecast/Appendix/MaxIntChangeReason を trim して写す）が「9」の取消でない報は、要点の震源の行の下（「ほかに n 件の緊急地震速報」の行がある報はその上）に補足の薄い字で「PLUM法による予測震度変化」の 1 行を出す。最大予測震度が変わったか（MaxIntChange）は facts に無いので見ず、変化が 0 の報にも出る (2) facts.report.isAssumedHypocenter が true の報（仮定の震源）には出さない（P3-TL9-D-PLUM-ASSUMED の仮 A。作者が B に裁定したら (2) を外し、spec §5.1 の PLUM の図に行を足す） (3) 再掲（P3-TL-AC08）に写さない。前の報の覚え（P3-TL-AC05）に入れない (4) 理由が 9 でない報と欄の無い報は今のまま。畳む報（P3-TL2-AC10）は今のまま畳む (5) EEW のログ（spec §7）は変えない",
+        "requirement": "緊急地震速報の PLUM法の行（Q-TO10-PLUM、P3-TL9-D-PLUM-ASSUMED・D-PLUM-PLACE）。場面: 震源の決まった地震の緊急地震速報で、M と深さは変わらないのに第 3 報の最大予測震度が 4 から 5弱 に上がる（PLUM法の予測で上がった報、最大予測震度の変化の理由 9）と、今は「最大予測震度 4 →  5弱」だけで、上がった理由が画面に無い（旧築は「PLUM法 による予測震度変化」を出していた）: (1) U-E の outcome の facts.report.maxIntChangeReasonRaw（eew.ts が Forecast/Appendix/MaxIntChangeReason を trim して写す）が「9」の取消でない報は、要点の震源の行の下（「ほかに n 件の緊急地震速報」の行がある報はその上）に補足の薄い字で「PLUM法による予測震度変化」の 1 行を出す。最大予測震度が変わったか（MaxIntChange）は facts に無いので見ず、変化が 0 の報にも出る (2) facts.report.isAssumedHypocenter が true の報（仮定の震源）には出さない（P3-TL9-D-PLUM-ASSUMED=A、2026-11-08 夜の作者の裁定） (3) 再掲（P3-TL-AC08）に写さない。前の報の覚え（P3-TL-AC05）に入れない (4) 理由が 9 でない報と欄の無い報は今のまま。畳む報（P3-TL2-AC10）は今のまま畳む (5) EEW のログ（spec §7）は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:236 «95364caa1f76bdb8»",
-          "docs/specs/cli-terminal-output.md:855 «0d733c34dd70d626»",
+          "docs/specs/cli-terminal-output.md:236 «bec487c01e7542f0»",
+          "docs/specs/cli-terminal-output.md:855 «4ac7be31ff239f0c»",
           "reconstruction/src/domains/eew/eew.ts:822 «7769773ce82bfcd9»",
           "src/ui/eew-formatter.ts:498 «be7a9bca1c4ac05d»",
           "src/ui/eew-formatter.ts:503 «7cc1cbd51eaaf14c»"
@@ -341,7 +348,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:584 «48d901d65d97cbc5»",
           "docs/specs/cli-terminal-output.md:316 «f9aa8ca85c5cff0c»",
-          "docs/specs/cli-terminal-output.md:236 «95364caa1f76bdb8»",
+          "docs/specs/cli-terminal-output.md:236 «bec487c01e7542f0»",
           "docs/specs/cli-terminal-output.md:585 «4bc9de7d19861115»",
           "docs/specs/cli-terminal-output.md:586 «9e6a5c764cd322c6»",
           "AGENTS.md"
@@ -466,20 +473,8 @@
       "配送の順: P3-TERMINAL-LAYOUT-010（branch draft/tl10、06e8d6d4 で起草中）は、output.ts の inputDone・format.ts の TerminalUnit・p3-terminal-output.json の :504・:606 の改訂・spec の行と «» が本契約と重なる。配送は本契約を先にし、P3-TERMINAL-LAYOUT-010 は本契約の配送の後の木で行・«»・原文の改訂を付け直す",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 地震の取消の行は U-Q が取消を採った返信の outcome を読むので、U-Q が取消を duplicate や stale で採らなかった入力は端末にも出ない（今と同じ） (2) 一部の報の取消（場面: 16:31 VXSE51、16:35 VXSE53、16:36 VXSE53 の取消）では、残った VXSE51 に震源が無いので（VXSE52 か VXSE61 が残れば震源名は書ける）端末は震源名を書かず「取り消したのは 16:27ころ発生の地震の情報です」になり、取消の通知の本文（取消の前の記録の震源名）と字が揃わない (3) 記録のある長周期地震動に関する観測情報（VXSE62）の取消では、U-Q の記録の事実が null なので、端末は震源名も発生時刻も書かず EventID の「取り消したのは 16:27ころの地震の情報です」になる。取消の通知の本文は震源名を書く (4) 熱帯低気圧が 2 つ同時に進むと、どちらの報も帯が「台風発生予想」で区別できない（旧築と同じ。EventID は短い形で出さない） (5) PLUM法の行の 9 の読み方は旧築と仮定の震源の判定に頼り、気象庁の資料で確かめていない (6) 竜巻注意情報の段は Body の Kind だけで決め、U-M は Head/Headline の Information を先に読む（local-bulletins.ts の Information の読み）。Headline に発表の区域があり Body が全部なしの報では、U-M は発表として鳴らし端末の帯は普通の段のまま。実物（19_01_01・19_03_01）は両方が同じ区域と発表を持ち、起きるかは証拠不足 (7) 作者への申し送り: 緊急地震速報の取消の 3 行目は「23:14 頃に検知した」の「頃」（P3-TO-D-CANCEL-PHRASE）、地震の取消の行は §5.2 の発生の行に揃えた「16:27ころ」で、同じ画面に書き方の違う 2 つが出うる",
-      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に契約の 6 行（p3-terminal-output.json の 5 行と p3-terminal-layout2.json:278）とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (3) の短い形の target「Body の文書の順で最初の Area/Name」に、台風（U-Y）は最初の台風呼称から作る字（P3-TL9-AC05）の旨と、(4) の「端末が渡すのは」に、地震の取消の報では同じ返信の U-Q の outcome から取った震源名と発生時刻（P3-TL9-AC02）の旨 (2) 同 :567 の P3-TO-AC05 (2) の図の行の決まりに、最大予測震度の変化の理由 9 の PLUM法の行（P3-TL9-AC03）の旨 (3) 同 :581 の P3-TO-AC06 (1) の図の 5 つに、取消の報の 3 行目（P3-TL9-AC02、§5.2 の取消の図）の旨 (4) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字を取ること（P3-TL9-AC06 (3)） (5) 同 :615 の P3-TO-AC09 (1) の帯の題名「Control/Title から…」に、VPFT50・VPAW51・VPWP50 は Head/Title で対象を付けない旨（P3-TL9-AC01）と、(2) の竜巻注意情報に、区域が全部なしの解除の報は plain の旨（P3-TL9-AC04） (6) reconstruction/contracts/p3-terminal-layout2.json:278 の P3-TL2-AC01 (4) の「気象防災速報（竜巻注意・竜巻目撃、U-M の VPHW50・51）は警報」に、Body の Kind が 1〜255 個で全部が Code「0」か Name「なし」の解除の報は普通の段の旨（P3-TL9-AC04） (7) P3-TL9-D-PLUM-ASSUMED の作者の裁定を spec に当てる: A なら §5.1 の PLUM法の項と §8 の Q-TO10-PLUM の行の「作者の裁定待ち」を裁定の記録（日付と A）に書き換える。B なら §5.1 の PLUM の図に「PLUM法による予測震度変化」の行を足し、その 2 行の「仮定の震源の報には出さない」を外す。どちらも行の中身が変わるので、本契約の AC03 が引く 2 つの «» を取り直し、本契約の meta.sha256 を取り直す（ほかの契約はこの 2 行を引いていない）。B なら、spec §5.1 の PLUM の図を引く p3-terminal-layout.json:256（P3-TL-AC04 (4)）と :335 の試験の期待（eew.test.ts の 77_02_01 の図の行）が図に合わせて変わるので、実装は既存の試験の期待を変える前の報告（本契約の既存の試験の項）に当たり、:256・:335 の文は図を指すだけなので改めない"
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に契約の 6 行（p3-terminal-output.json の 5 行と p3-terminal-layout2.json:278）とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (3) の短い形の target「Body の文書の順で最初の Area/Name」に、台風（U-Y）は最初の台風呼称から作る字（P3-TL9-AC05）の旨と、(4) の「端末が渡すのは」に、地震の取消の報では同じ返信の U-Q の outcome から取った震源名と発生時刻（P3-TL9-AC02）の旨 (2) 同 :567 の P3-TO-AC05 (2) の図の行の決まりに、最大予測震度の変化の理由 9 の PLUM法の行（P3-TL9-AC03）の旨 (3) 同 :581 の P3-TO-AC06 (1) の図の 5 つに、取消の報の 3 行目（P3-TL9-AC02、§5.2 の取消の図）の旨 (4) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字を取ること（P3-TL9-AC06 (3)） (5) 同 :615 の P3-TO-AC09 (1) の帯の題名「Control/Title から…」に、VPFT50・VPAW51・VPWP50 は Head/Title で対象を付けない旨（P3-TL9-AC01）と、(2) の竜巻注意情報に、区域が全部なしの解除の報は plain の旨（P3-TL9-AC04） (6) reconstruction/contracts/p3-terminal-layout2.json:278 の P3-TL2-AC01 (4) の「気象防災速報（竜巻注意・竜巻目撃、U-M の VPHW50・51）は警報」に、Body の Kind が 1〜255 個で全部が Code「0」か Name「なし」の解除の報は普通の段の旨（P3-TL9-AC04）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-TL9-PLUM-ASSUMED",
-        "owner": "user",
-        "blocks": [
-          "P3-TL9-AC03"
-        ],
-        "resolveBy": "発注前点検（baseOid を割り当てる前）",
-        "requiredEvidence": [
-          "P3-TL9-D-PLUM-ASSUMED の作者の裁定（A: 仮定の震源の報には出さない／B: 理由 9 なら常に出す）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
