@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "07e0550b1b47a542224431325394ecc18514836f6e6c48d2d77b74e57de5df61",
+    "sha256": "bdffa3ff80ec9dbf22b8e6f71d5486f146d1fc029c314779cc4c107eae1095be",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -179,7 +179,7 @@
     "contractId": "P3-NOTIFY-WINDOWS-001",
     "mode": "implementation",
     "objective": "Windows の新築で通知と音を出す。12:00:00 に EEW の intent が選ばれたら、PowerShell の子が toast を 1 件出して終わり、別の子が資材の WAV を鳴らし終えて終わる。12:05:00 に回線が切れたら音なしの切断の通知を出す。依存を足さず、macOS と Linux の動きは変えない",
-    "baseOid": "unassigned",
+    "baseOid": "60beeb48",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",

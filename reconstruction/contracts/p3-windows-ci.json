@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "bab0fa17a7f5c4ab6ec4dda9d61809640a2df54771f07a00581c7a1e8ecb5ea4",
+    "sha256": "d96aabe4a8ccab5e48c1ad7e65861c01eb6a70e25a9079fbc3749bb4e62adb7e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -125,6 +125,13 @@
         "source": "配送の後、test-windows.yml を main で手で起動し（gh workflow run、workflow_dispatch）、test-windows (reconstruction, node 22) の job で新築の試験が全部通る（failed 0）ことを確かめる。engine・display の job は旧築の失敗で落ちるので見ない",
         "closed": "配送の後に test-windows.yml を main 03366097 で手で起動し、run 42459791315 で reconstruction・engine・display の 3 job とも success（新築の失敗 49 件→0 件、2026-11-08 夕）。CI run 42459474160（Linux）も success。P3-WINDOWS-CI-001 の配送を閉じる",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-WCI-NW-SKIP",
+        "status": "closed",
+        "source": "P3-NOTIFY-WINDOWS-001 の発注前点検で、win32 の desktop の backend を足した後に adapter.test.ts の :22 の it（T02 regression: kill and exit alone…）の win32 の skip を外せるか（spawn の mock で kill が呼ばれるか）を確かめ、外すなら NW の allowedPaths に :22 の it の行を足す",
+        "closed": "P3-NOTIFY-WINDOWS-001 の発注前点検（Q-NW-PRECHECK）で :22 の it の win32 の skip を外すと決め、NW の allowedPaths に :22 の行を足した（P3-NW-T05）",
+        "remaining": "なし（windows-latest の run で :22 が skip でなく通ることは NW の Q-NW-WINDOWS-CI で確かめる）"
       }
     ],
     "operationContract": {
@@ -401,18 +408,6 @@
       "配送で統合担当が原文を改訂する（どれも行の中に書き足し、行の数を変えない。触った契約の meta.sha256 を取り直す）: (1) P3-CHECKPOINT-STEP1-001 の P3-C1-AC04 の requirement に「win32 では nodeCheckpointFileSystem の syncDirectory が directory を開かずに解決する（P3-CLI-D-WRITE と同じ、P3-WINDOWS-CI-001）。呼出しの順と結果の種別は OS によらない」を足す (2) 同じ契約の P3-C1-S5 の A に「Windows では rename の後の directory の永続化を OS に任せる（directory の fsync は win32 以外。syncDirectory の呼出しの順は OS によらない、P3-WINDOWS-CI-001）」を足す (3) 同じ契約の P3-C1-VERIFY の A に「win32 の根拠は file sync→rename の完了（directory sync は開かずに解決する、P3-WINDOWS-CI-001）」を足す (4) P3-EXECUTION-SPLIT-001 の P3-C3A-AC02 の「ackAtはdirectory syncの完了後にackを決めた時刻」に「（win32 では syncDirectory が開かずに解決した後、P3-WINDOWS-CI-001）」を足す (5) 同じ契約の P3-C3A-AC05 の「C1と同じ順（tmp回収→open→write→sync→close→rename→syncDirectory）」に「（win32 の syncDirectory は開かずに解決する、P3-WINDOWS-CI-001）」を足す。この行は p3-unit-write-right.json が 3 か所で «030aa868c8894f85» で引くので、改めた行の anchor に付け直し、p3-unit-write-right.json の meta.sha256 も取り直す (6) P3-MIGRATION-001 の P3-MIG-D-OUTPUT の A の「親 directory を fsync する」に「（win32 では作業用 directory と親 directory の fsync を飛ばす、P3-WINDOWS-CI-001）」を足す (7) 同じ契約の P3-MIG-AC04 の「rename の後に親 directory を fsync する（checkpoint.ts の書き込みと同じ順）」に同じ 1 文を足す。(6)(7) の移行器は起草時の木に無く、発注 2 で作るときの決まりになる (8) P2-CHECKPOINT-SHUTDOWN-001 の P2-A3-AC07 の「各段階reason」に「（段の失敗と成否不明の診断は、errno の名前が取れれば component を checkpoint.<名前> にする、P3-WINDOWS-CI-001）」を足す (9) P3-CLI-REPL-001 の P3-CLI-T12 の behavior の「(e) rename の後の directory の sync で止める差し替え」に「（win32 では directory を sync しないので行わない、P3-CLI-D-WRITE・P3-WINDOWS-CI-001）」を足す (10) P2-NOTIFICATION-DELIVERY-001 の P2-A7-T02 の behavior に「adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）だけは、win32 では desktop の backend が無く spawn しないので飛ばす（P3-WINDOWS-CI-001。P3-NOTIFY-WINDOWS-001 で戻す）」を足す (11) P3-E05P-CLASSIFY-001 の P3-E05C-T02 の behavior（p3-e05p-classify.json:387）に「win32 では飛ばす（process.kill の SIGUSR2 が Windows に無く、区切りの GC の子が落ちる。P3-WINDOWS-CI-001）」を足す。中身の変わる行を引く «» は (5) の 1 行（3 か所）だけ（起草と r0 の後の点検）",
       "残存リスク: (1) 作者へ見せる: Windows では rename の後の directory の永続化を OS に任せるので、電源断や OS の停止の直後に最後の保存が失われ、もう一方の slot の前回の保存から復元しうる。前回の slot も保証されず、両方の slot を失う場合（起動で empty か unavailable）を排除しない（Windows の実際の filesystem が電源断で何を残すかは確かめていない）。新築の設定の保存と同じ扱い（P3-CLI-D-WRITE） (2) この直しの後は Windows の今の失敗が起きないので、errno の名前はこの失敗では出ない（推定の EPERM は確かめないまま）。errno は他の OS・他の失敗（ENOSPC・EIO など）の診断に使う (3) A の 43 件のうち host・weather・execution-split などは保存の uncertain の連鎖と読んだ推定で、直しの後に別の原因の失敗が残りうる（Q-WCI-WINDOWS-RUN で確かめる） (4) Windows では P3-E05C-T02 を飛ばすので、強制 GC の道具（probe-preload.mjs）の Windows での動きは確かめない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-WCI-NW-SKIP",
-        "owner": "integrator",
-        "blocks": [
-          "P3-NOTIFY-WINDOWS-001 の発注"
-        ],
-        "resolveBy": "P3-NOTIFY-WINDOWS-001 の発注前点検で、win32 の desktop の backend を足した後に adapter.test.ts の :22 の it（T02 regression: kill and exit alone…）の win32 の skip を外せるか（spawn の mock で kill が呼ばれるか）を確かめ、外すなら NW の allowedPaths に :22 の it の行を足す",
-        "requiredEvidence": [
-          "NW の発注前点検の記録（T02 を win32 で通すか、skip を残すか）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
