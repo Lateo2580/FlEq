@@ -35,10 +35,10 @@ export type ListQuery =
 
 export type ListPage =
   // rawCount・oldest/latestRawReceivedAtMs は濾す前の item で数える（dmdata の時刻）。満杯・遡りの止めどころ・位置はこの生の値で決める（P3-REC-AC13 (2)）。
-  // refused は本文を流す型の item を境界の検査（url・id の文字）で捨てた unit（その回は fetchFailed、H41 ではその周期に突き合わせない、P3-REC-AC01）。
+  // refused は本文を流す型の item を境界の検査（url・id の文字）か xmlReport の無い item（P3-RR-AC01）で捨てた unit（その回は fetchFailed、H41 ではその周期に突き合わせず WARN、P3-REC-AC01）。
   | Readonly<{ kind: "ok"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null; nextPoolingInterval: number | null;
       rawCount: number; oldestRawReceivedAtMs: number | null; latestRawReceivedAtMs: number | null; refused: readonly RuntimeUnitId[] }>
-  | Readonly<{ kind: "failed" }>
+  | Readonly<{ kind: "failed" }> | Readonly<{ kind: "rejected" }> // rejected は再試行しない決定的な失敗（2xx の形の不一致、401・403・408・429 以外の 4xx、P3-RR-AC02）
   | Readonly<{ kind: "authRejected" }>
   | Readonly<{ kind: "throttled"; retryAfterMs: number | null }>;
 
@@ -74,8 +74,8 @@ export type PoolPosition = Readonly<{ token: string | null; latestRawReceivedAtM
 
 // seeded は位置を作っただけで比べない回。unmatched は位置を進めず、その区分の unit をその周期「突き合わせできなかった」にする（P3-REC-AC13 (1)(2)(7)）。
 export type PollResult =
-  | Readonly<{ kind: "seeded"; position: PoolPosition }>
-  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; position: PoolPosition }>
+  | Readonly<{ kind: "seeded"; position: PoolPosition; refused?: readonly RuntimeUnitId[] }> // refused は refused の unit があるときだけ（P3-RR-AC01 (3)）
+  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; position: PoolPosition; refused?: readonly RuntimeUnitId[] }>
   | Readonly<{ kind: "unmatched"; reason: "fetchFailed" | "authRejected" | "pageLimit" | "throttled" }>;
 
 // 切れていた間の EEW の札（H28）。両端は host の wall（P3-REC-AC14 (1)）。
@@ -91,6 +91,6 @@ export type BodyResult =
 
 // 【発注 3】unit ごとの取り直しの進み具合（P3-REC-AC11）。reason は unsatisfied のときだけ。
 export type RecoveryUnsatisfiedReason = "fetchFailed" | "baseMissing" | "clockEvidenceMissing" | "generationConflict" | "recoveryLimit" | "authRejected"
-  | "ownerStopped";
+  | "ownerStopped" | "notAdopted";
 export type RecoveryProgressUnit = Readonly<{ unit: RuntimeUnitId; state: "running" | "recovered" | "notRecovered" }>
   | Readonly<{ unit: RuntimeUnitId; state: "unsatisfied"; reason: RecoveryUnsatisfiedReason }>;

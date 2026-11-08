@@ -208,6 +208,42 @@ describe("P3-REC-T05 acceptance (publisher): the H41 cycle on the existing tick 
   });
 });
 
+describe("P3-RR-T02 contractBoundary (publisher): the H41 refused units (AC01 (3)(4))", () => {
+  const recoveryLines = async (lines: () => Promise<Record<string, unknown>[]>) =>
+    (await lines()).filter((line) => line.component === "recovery").map(({ level, reason, unit }) => [level, reason, unit]);
+
+  it("(b) an ok with refused [U-T] gives one WARN recoveryFetchFailed (U-T) and moves the position; no recovery is asked", async () => {
+    const { root, now, tick, lines } = await publisher();
+    const calls: (PoolPosition | null)[] = [];
+    const answers: PollResult[] = [{ kind: "seeded", position: { token: "p1", latestRawReceivedAtMs: 10 } },
+      { kind: "ok", heads: [], position: { token: "p2", latestRawReceivedAtMs: 20 }, refused: ["U-T"] },
+      { kind: "ok", heads: [], position: { token: "p3", latestRawReceivedAtMs: 30 } }];
+    root.watchFreshness([EQ]);
+    root.startFreshness(async (_classification, position) => { calls.push(position); return answers.shift()!; });
+    root.recordConnected(now.wallTimeMs);
+    await tick();
+    await tick(10 * MINUTE);
+    await tick(10 * MINUTE);
+    expect(calls).toEqual([null, { token: "p1", latestRawReceivedAtMs: 10 }, { token: "p2", latestRawReceivedAtMs: 20 }]);
+    expect(await recoveryLines(lines)).toEqual([["WARN", "recoveryFetchFailed", "U-T"]]);
+    expect(root.state.confirmation.units["U-T"].normal.counts).not.toHaveProperty("freshnessSuspect");
+  });
+
+  it("(c) a seeded cycle with refused [U-T] gives one WARN and makes the position without a compare", async () => {
+    const { root, now, tick, lines } = await publisher();
+    const calls: (PoolPosition | null)[] = [];
+    const answers: PollResult[] = [{ kind: "seeded", position: { token: "p1", latestRawReceivedAtMs: 10 }, refused: ["U-T"] },
+      { kind: "ok", heads: [], position: { token: "p2", latestRawReceivedAtMs: 20 } }];
+    root.watchFreshness([EQ]);
+    root.startFreshness(async (_classification, position) => { calls.push(position); return answers.shift()!; });
+    root.recordConnected(now.wallTimeMs);
+    await tick();
+    await tick(10 * MINUTE);
+    expect(calls).toEqual([null, { token: "p1", latestRawReceivedAtMs: 10 }]);
+    expect(await recoveryLines(lines)).toEqual([["WARN", "recoveryFetchFailed", "U-T"]]);
+  });
+});
+
 describe("P3-REC-T09 acceptance (publisher): the card in the snapshot and the history line (AC14 (1)(2)(5)(6))", () => {
   it("the card from the last frame (wall kept through a 1 h wall jump) to the new start reaches the snapshot; no EEW notice; out after 10 min with one WARN", async () => {
     const { root, published, now, tick, lines } = await publisher();

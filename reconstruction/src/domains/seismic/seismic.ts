@@ -157,7 +157,7 @@ function hypocenterOf(earthquake: XmlElement, values: Values): SeismicHypocenter
   const parsed = coordinateRaw == null ? null : COORDINATE.exec(coordinateRaw);
   const absent = (): MaterialValue => coordinate == null ? { kind: "missing" } : { kind: "unknown", raw: coordinateRaw ?? "" };
   // 桁の多い座標は Number() が Infinity になる。有限でなければ unknown（P3-C7-VALUE-UNKNOWN=A。JSON では null になり復元できない）。
-  const number = (raw: string, value: number): MaterialValue => Number.isFinite(value) ? { kind: "number", value, raw } : { kind: "unknown", raw };
+  const number = (raw: string, value: number): MaterialValue => Number.isFinite(value) ? { kind: "number", value: value + 0, raw } : { kind: "unknown", raw }; // + 0 で -0 を 0 に（保存の JSON の往復で同じ報が別の中身にならない、P3-RR-AC05）
   let depthKm: MaterialValue = parsed == null ? absent() : parsed[3] == null ? { kind: "missing" }
     : number(parsed[3], -Number(parsed[3]) / 1000);
   let depthConflict = false;

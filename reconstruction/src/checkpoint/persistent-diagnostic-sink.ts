@@ -62,7 +62,7 @@ const diagnosticReasons = [
   "dmdataErrorFrame", "connectionLivenessExpired", "ownerStopped",
   "eewHorizonStale", "hostClockAhead", "hostClockBehind", "hostClockUnverified", "capacityRejected",
   "weatherTimeseriesElementSkipped", "weatherTimeseriesScopeUnclear", "unreadableDropped", "unreadableReport", "recoveryFetchFailed", "recoveryLimit", "recoveryAuthRejected", "eewWindowUnverified",
-  "recoveryGenerationConflict", "recoveryBaseMissing", "recoveryClockEvidenceMissing", "recoveryOwnerStopped",
+  "recoveryGenerationConflict", "recoveryBaseMissing", "recoveryClockEvidenceMissing", "recoveryOwnerStopped", "recoveryNotAdopted",
 ] satisfies readonly DiagnosticReason[];
 
 function lineFor(source: DiagnosticEvent, occurrences = 1): QueueEntry {

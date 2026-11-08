@@ -116,7 +116,7 @@ async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: Re
     async warnings() {
       await h.root.diagnostics.flush();
       return [...diagnostics.lines.values()].join("").split("\n").filter((line) => line.includes('"component":"recovery"'))
-        .map((line) => JSON.parse(line)).map(({ reason, unit }: { reason: string; unit?: string }) => [reason, unit]);
+        .map((line) => JSON.parse(line)).map(({ reason, unit, count }: { reason: string; unit?: string; count?: number }) => count == null ? [reason, unit] : [reason, unit, count]);
     },
   };
   return t;
@@ -154,10 +154,10 @@ describe("P3-REC-T15 acceptance: the adopt step (AC06 (a)(b), AC07, AC10)", () =
       `U-T:normal/unreadable:recovery:${adopted.recoveryId}:sound`]);
     expect(info.map((intent) => [intent.payload.level, intent.payload.title, intent.priorityGroup]))
       .toEqual([["info", "津波の情報（読めない報）を受信", "other"], ["info", "津波の情報（読めない報）を受信", "other"]]);
-    expect([t.whole("U-T"), t.progress()]).toEqual(["unreadableReport", { unit: "U-T", state: "unsatisfied", reason: "fetchFailed" }]);
+    expect([t.whole("U-T"), t.progress()]).toEqual(["unreadableReport", { unit: "U-T", state: "unsatisfied", reason: "notAdopted" }]);
     expect(tsunamiUnitCodec.decode(tsunamiUnitCodec.encode(t.h.unit("U-T")))).toMatchObject({ kind: "restored",
       state: { intents: t.h.unit("U-T").intents } });
-    expect(await t.warnings()).toContainEqual(["recoveryFetchFailed", "U-T"]);
+    expect(await t.warnings()).toContainEqual(["recoveryNotAdopted", "U-T", 2]);
   });
 
   // P3-UNREADABLE-MARK-001 の P3-UM-T12（AC12 (10)）: 候補の step は読めない報の通知の入力を渡さない（渡すと候補の U-T に基点に無い intent ができ、

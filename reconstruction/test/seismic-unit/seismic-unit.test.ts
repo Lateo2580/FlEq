@@ -1287,3 +1287,16 @@ describe("P3-REC-T22 acceptance (U-Q): the daily count of recovered reports", ()
       .toMatchObject({ count: 1, maxInt: { value: 3 }, counted: [[OTHER, 3]] });
   });
 });
+
+// P3-RECOVERY-READ-001 の P3-RR-T06（実不具合、2026-11-08 実配信の VXSE53 20261108023143）: 深さ +0 は -Number で -0 になり、保存の JSON が 0 と書くので、
+// 復元の後に届いた同じ報を違う中身と見て held にした。
+describe("P3-RR-T06 regression: a depth of +0 survives the save (P3-RR-AC05)", () => {
+  it("a VXSE53 at +41.9+140.7+0/ applied again to the state after encode, JSON and decode is a duplicate", () => {
+    const shallow = (xml: string) => xml.replace(/<jmx_eb:Coordinate description="[^"]*">[^<]*<\/jmx_eb:Coordinate>/,
+      "<jmx_eb:Coordinate description=\"北緯４１．９度　東経１４０．７度　ごく浅い\">+41.9+140.7+0/</jmx_eb:Coordinate>");
+    const first = send(emptyState(), "32-35_01_03_240613_VXSE53", shallow);
+    const restored = seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(first.state))));
+    if (restored.kind !== "restored") throw new Error("restored expected");
+    expect(decision(send(restored.state, "32-35_01_03_240613_VXSE53", shallow))).toMatchObject({ decision: "unchanged", reason: "duplicate" });
+  });
+});

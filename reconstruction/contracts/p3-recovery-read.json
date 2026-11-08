@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "d6d3a40a06b5dea16203646cc4e713de073925aea1680a83becb2291c73c0f57",
+    "sha256": "7eea6916001f0c2f10cfb83b2b1409379cfb592d01f1ef7b5ac49949491a72d2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -244,12 +244,12 @@
         "id": "P3-RR-AC01",
         "requirement": "一覧の非 XML の item（依頼の (a)、P3-RR-D-WANTED-NOXML）: (1) headOf は、item の format が \"xml\" でないか xmlReport が record でないとき、その item に receivedTime（生の数のため）と head.type（濾しのため）だけを求め、id・head.test の欠けや形の違いでは invalid にしない（採った 6 件は id と head.test を持つが、その外の非 XML の型は見ていない。残存リスク (1)）。濾し（head.test が true でない・unit 表の ready・束の型か区分〔U-E を除く〕）を通らない型と、head.type の読めない item は head:null で、生の数（rawCount・oldestRawReceivedAtMs・latestRawReceivedAtMs）には入れる（P3-REC-AC13 (2)） (2) 濾しを通る型の item で format が xml でないか xmlReport が無いものは refused（その unit）で、ページは failed にしない。起動の辿りと run の中の取り直しではその unit を fetchFailed にする（本文の url の検査と同じ扱い） (3) H41: pollClassification は、refused の unit があるとき ok と seeded の結果にその unit を載せる（PollResult の ok と seeded の refused?: readonly RuntimeUnitId[]、無いときは欄が無い。seeded は最初のページの refused）。その周期のその unit は今のまま突き合わせず（seeded の照合は増やさない）、位置も今のまま進める。publisher は ok と seeded の共通で、refused の unit ごとに WARN recoveryFetchFailed（unit つき）を 1 件出す（owner の止まった unit は出さない。区分の失敗の WARN を run で 1 回にする freshness.warned には入れない。無いと: 欲しい型の報を H41 で突き合わせないまま痕跡が残らない）。取り直しは予約しない（欠けは残存リスク (4)）。p3-recovery.types.ts の ListPage の refused のコメント（:38）は、xmlReport の無い item と H41 の WARN を足して行の中だけ直す (4) WARN の数え方: refused の unit を読み取って ok か seeded で終えた周期ごと・unit ごとに 1 件。同じ item を後の周期でもう一度読めば（満杯の遡りは位置より前の item も読む。時刻で外すのは heads だけ）、その周期にも 1 件出る。重複の管理は足さない。unmatched で終えた周期は出さない (5) receivedTime の読めない item と、format が xml で xmlReport のある item の id・head・head.test・control の崩れは今のまま invalid（その応答は AC02 の決定的な失敗） (6) 起動の辿り・run の中の取り直し（walkList）と H41（pollClassification）は同じ headOf を通るので、どちらも同じ扱いになる。辿りは type= で XML の型を名指すので、実配信では非 XML の item は返らない (7) 1 ページの読みは item ごとに 1 回の検査で、全件×全件の走査をしない",
         "evidenceRefs": [
-          "reconstruction/src/recovery/recovery.ts:62 «e8dcb2a128b1465e»",
-          "reconstruction/src/recovery/recovery.ts:74 «e003a78207cd16d4»",
-          "reconstruction/src/recovery/recovery.ts:103 «d472fe820241975c»",
-          "reconstruction/src/recovery/recovery.ts:436 «c5f8c9dea7151305»",
+          "reconstruction/src/recovery/recovery.ts:69 «8df4e840a4b2eef9»",
+          "reconstruction/src/recovery/recovery.ts:79 «e003a78207cd16d4»",
+          "reconstruction/src/recovery/recovery.ts:117 «0fb2f6cbb6a918ce»",
+          "reconstruction/src/recovery/recovery.ts:452 «98009cff1dd311a3»",
           "reconstruction/src/runtime/composition-root.ts:2027 «0f0df422509b23a3»",
-          "reconstruction/contracts/p3-recovery.types.ts:38 «b989caf4509e1ef7»",
+          "reconstruction/contracts/p3-recovery.types.ts:38 «edd0e39e9d547982»",
           "reconstruction/src/runtime/composition-root.ts:2017 «69bd5fd8e820fc9f»",
           "reconstruction/test/recovery/telegram-list-nonxml-real.json"
         ]
@@ -258,16 +258,16 @@
         "id": "P3-RR-AC02",
         "requirement": "決定的な失敗は取り直さない（依頼の (e)、P3-RR-D-DETERMINISTIC）: (1) listTelegramPage は、2xx の応答の形の不一致（JSON でない、status が ok でない、items・nextToken・nextPooling・nextPoolingInterval の形、invalid の item）と、401・403・408・429 以外の 4xx を、ListPage の新しい kind \"rejected\" で返す（無いと: send が一時的な失敗と区別できず、同じ答えを 3 回取り直して dmdata の枠と 30 秒を使う） (2) send は rejected を受けたら再試行せず { kind: \"failed\" } を返す。呼び手（walkList・pollClassification）とその結果（unit の fetchFailed、unmatched の fetchFailed）は変えない。その要求の試行の数（pages.sent）は 1 (3) 届かなかった要求（exchange の lost・notSent）、1 MiB を越える応答（exchange の tooLarge。status と Retry-After が残らず、503 などの一時的な失敗と分けられない）、5xx、408、429 の取り直しは今のまま（P3-REC-AC03 (3)(4)） (4) ListRequestLane の待ち（前の要求の終わり＋ 500 ms）は rejected にも効く",
         "evidenceRefs": [
-          "reconstruction/src/recovery/recovery.ts:89 «3d199599d5cbaa7c»",
-          "reconstruction/src/recovery/recovery.ts:92 «d7492418bf0c5ad7»",
-          "reconstruction/src/recovery/recovery.ts:348 «69e92e6dc014c872»"
+          "reconstruction/src/recovery/recovery.ts:101 «3d199599d5cbaa7c»",
+          "reconstruction/src/recovery/recovery.ts:106 «d7492418bf0c5ad7»",
+          "reconstruction/src/recovery/recovery.ts:363 «69e92e6dc014c872»"
         ]
       },
       {
         "id": "P3-RR-AC03",
         "requirement": "最初の接続の 2 巡目（依頼の (c)、P3-RR-D-SECOND-ROUND=A、統合担当が 2026-11-08 午後に確定）: (1) 確かめた事実は Q-RR-SECOND-ROUND。2 巡目は、起動の辿りの各 unit の最初の一覧の要求から最初の start frame までに出た報（一覧にも live にも無い）を埋め、起動の取り直しを recovered で終えなかった unit の唯一のやり直しになる (2) firstConnectWanted と recordConnected の requestRecovery は変えない。recordConnected の冒頭のコメント（:1031）を「最初の接続も、一覧を引き始めた後に繋がるので 1 回辿る（firstConnectWanted）」の文に直す（行の中だけ） (3) B（最初の要求の時刻で unit を絞る）と C（satisfied の unit を外す）は採らない。C は穴のある unit を外す",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:1031 «936b9e3be2137af7»",
+          "reconstruction/src/runtime/composition-root.ts:1031 «3876cf0bfc5ca5ac»",
           "reconstruction/src/runtime/composition-root.ts:1039 «838835ae670bbb95»",
           "reconstruction/src/runtime/composition-root.ts:2055 «27e7b98545a1330a»",
           "reconstruction/src/runtime/composition-root.ts:2072 «712afcf072fc7cc8»",
@@ -280,18 +280,18 @@
         "id": "P3-RR-AC04",
         "requirement": "adopted でない本文の語（依頼の (d)、P3-RR-D-NOT-ADOPTED）: (1) recoveryAdopted は送った本文（本文の表）のうち結果が adopted でない件数を数え、epoch が同じで 1 件以上なら recoveryUnsatisfied(unit, \"notAdopted\") にする。語は RecoveryUnsatisfiedReason の notAdopted、診断は WARN recoveryNotAdopted（unit ごとに 1 件、count にその件数）、進み具合は unsatisfied・reason notAdopted（無いと: 本文を取れたのに取得の失敗の語が出て、調べの向きを誤らせる） (2) 本文の取得の失敗（discard）・一覧の失敗・採用の返信が adopted でない（generationConflict ほか）は今の語のまま (3) DiagnosticReason と A3 永続 sink の固定の allowlist に recoveryNotAdopted を足し、unsatisfiedWords に notAdopted → recoveryNotAdopted を足す (4) 負の証拠（capacityExceeded・unreadableReport）・coverageVerified・境界の解決は変えない (5) progress の上界（1 件約 70 byte、P3-REC-AC11）は、語が既存の最長（clockEvidenceMissing）より短いので変わらない (6) count は adopted でなかった本文の件数で、sink は count のある行を反復件数としてまとめない。P3-C2-AC05 の「WARN・ERROR の診断に count を入れない」（sink は count を反復件数に使う）の規則から外れる（前例は eewWindowUnverified の count 1）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:2294 «95c8192a6063f93b»",
-          "reconstruction/src/runtime/composition-root.ts:2309 «d19bf92ac6985029»",
+          "reconstruction/src/runtime/composition-root.ts:2294 «0d57880e2f8fd4a3»",
+          "reconstruction/src/runtime/composition-root.ts:2309 «01724d3dcaa0cfb2»",
           "reconstruction/contracts/p3-recovery.types.ts:93 «c39c7ac3b2fa0983»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:329 «069ada26aad6e60b»",
-          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:65 «7d0da1b1335e5854»"
+          "reconstruction/contracts/p2-shared-runtime.types.ts:329 «c20e3c5fb49dc6f0»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:65 «1d315c2090d11b0e»"
         ]
       },
       {
         "id": "P3-RR-AC05",
         "requirement": "深さ 0 の地震の -0（統合担当の追加の (f)、P3-RR-D-NEGZERO）: (1) seismic.ts の number の助け手（:160）は value + 0 で -0 を 0 にそろえる（typhoon.ts の point と同じ形）。depthKm（:162）・latitude（:175）・longitude（:176）がここを通る。raw は変えない（無いと: 深さ +0 の報は保存の後に届いた同じ報が held になり、取り直しが adopted で終わらない） (2) description の「以上・未満・以下」の範囲は number の値を写すので、同じく 0 (3) 保存の形・codec・比べ（seismic-unit.ts の sameContent）は変えない (4) 同じ形で値を作る所はほかの parser に無い（Q-RR-NEGZERO の (3)）",
         "evidenceRefs": [
-          "reconstruction/src/domains/seismic/seismic.ts:160 «9c661f3356693f62»",
+          "reconstruction/src/domains/seismic/seismic.ts:160 «79c9bda5fb7bfdc6»",
           "reconstruction/src/domains/seismic/seismic.ts:162 «1c5fb3558f4df0f5»",
           "reconstruction/src/domains/seismic/seismic.ts:175 «fd69e381c36600a5»",
           "reconstruction/src/domains/typhoon/typhoon.ts:93 «75e73e365f1cb173»",

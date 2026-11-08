@@ -326,7 +326,7 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   | "routeIgnored" | "routeNotPorted" | "routeUnlisted" | "ownerReplyLate"
   | "eewWindowUnverified" // P3-REC-AC14 (5): 切れていた間の EEW の窓。札を外す時か停止の開始に 1 件
   // P3-REC-AC11: 取り直しの未充足の理由（DiagnosticDetails に理由の欄が無いので語で分ける、unit ごとに 1 件）。
-  | "recoveryGenerationConflict" | "recoveryBaseMissing" | "recoveryClockEvidenceMissing" | "recoveryOwnerStopped"
+  | "recoveryGenerationConflict" | "recoveryBaseMissing" | "recoveryClockEvidenceMissing" | "recoveryOwnerStopped" | "recoveryNotAdopted"
   // P3-CC-AC07: one per input a unit could not make current because of its capacity. P3-WS-AC02: U-F が受理した報の読み飛ばし（INFO）と外の階層の知らない子（WARN）を報ごとに 1 件。P3-UM-AC03 (4): 原文を外した記録の数。P3-REC-AC03・AC04: 取り直しの一覧の失敗と量の上限（unit ごと）、401/403（1 回の辿りに 1 件）。
   | "capacityRejected" | "weatherTimeseriesElementSkipped" | "weatherTimeseriesScopeUnclear" | "unreadableDropped" | "unreadableReport" | "recoveryFetchFailed" | "recoveryLimit" | "recoveryAuthRejected";
 

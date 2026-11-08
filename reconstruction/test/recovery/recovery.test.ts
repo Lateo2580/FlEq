@@ -513,3 +513,76 @@ describe("P3-REC-T24 contractBoundary: the U-W bodies (AC12, AC02)", () => {
     expect(pick("U-F", [{ ...head("f1", "VPWP50", 1, "宇都宮地方気象台"), unit: "U-F" }])).toEqual([]);
   });
 });
+
+// P3-RECOVERY-READ-001: 2026-11-08 Mac mini の実配信で採った xmlReport の無い item（採ったままの bytes、Q-RR-RAW-ITEMS）。
+const nonXml: readonly Readonly<{ classification: string; item: unknown }>[] = JSON.parse(readFileSync("reconstruction/test/recovery/telegram-list-nonxml-real.json", "utf8"));
+const withoutXmlReport = (type: string, receivedAtMs: number) => {
+  const { xmlReport: _dropped, ...rest } = item(type, receivedAtMs);
+  return rest;
+};
+const pollAt = async (classification: "telegram.earthquake" | "telegram.weather", from: PoolPosition | null): Promise<PollResult> => {
+  vi.useFakeTimers({ now: NOW });
+  const polling = pollClassification(new ListRequestLane(), API_KEY, classification, from, new AbortController().signal, now);
+  await vi.runAllTimersAsync();
+  return polling;
+};
+
+describe("P3-RR-T01 regression: non-XML items on the H41 list (AC01, 2026-11-08 Mac mini)", () => {
+  it("raw 100 with the 5 real non-XML earthquake items pages back on the raw count without a retry: ok, no non-XML head; WTJP31 on weather is ok", async () => {
+    const earthquake = nonXml.filter((entry) => entry.classification === "telegram.earthquake").map((entry) => entry.item);
+    const xml = Array.from({ length: 95 }, (_, index) => item("VTSE41", NOW - index * 1_000));
+    const position: PoolPosition = { token: "pool0", latestRawReceivedAtMs: NOW - 10 * MINUTE };
+    https.handle = (url) => url.searchParams.get("cursorToken") === "pool0" ? page([...earthquake, ...xml], "older") : page([item("VXSE53", NOW - 11 * MINUTE)]);
+    const result = await pollAt("telegram.earthquake", position);
+    expect([earthquake.length, https.requests.map(({ url }) => url.searchParams.get("cursorToken"))]).toEqual([5, ["pool0", "older"]]);
+    if (result.kind !== "ok") throw new Error("ok expected");
+    expect([result.heads.map((head) => head.id), "refused" in result]).toEqual([xml.map((entry) => entry.id), false]);
+    vi.useRealTimers();
+    https.requests.length = 0;
+    const weather = nonXml.filter((entry) => entry.classification === "telegram.weather").map((entry) => entry.item);
+    const warning = item("VPWS50", NOW - MINUTE);
+    https.handle = () => page([...weather, warning]);
+    expect([weather.length, await pollAt("telegram.weather", position), https.requests.length]).toEqual([1,
+      { kind: "ok", heads: [expect.objectContaining({ id: warning.id })], position: { token: "pool", latestRawReceivedAtMs: expect.any(Number) } }, 1]);
+  });
+});
+
+describe("P3-RR-T02 contractBoundary: a wanted type without xmlReport (AC01 (2)(3))", () => {
+  it("(a) the startup walk: a VTSE41 without xmlReport makes U-T fetchFailed with one WARN, the page is not failed, the next unit is walked", async () => {
+    https.handle = (url) => url.searchParams.get("type") === "VTSE41" ? page([withoutXmlReport("VTSE41", NOW - MINUTE)]) : page([item("VXSE53", NOW - MINUTE)]);
+    const results = await walk([{ unit: "U-T", bundles: [["VTSE41"]], fetchFromMs: NOW - DAY, stopAtId: null },
+      { unit: "U-Q", bundles: [["VXSE53"]], fetchFromMs: NOW - DAY, stopAtId: null }]);
+    expect(results.map((result) => result.kind === "listed" ? [result.unit, "listed"] : [result.unit, result.reason, result.listedPages]))
+      .toEqual([["U-T", "fetchFailed", 1], ["U-Q", "listed"]]);
+    expect([https.requests.length, walkDiagnostics(results)]).toEqual([2, [{ level: "WARN", component: "recovery", reason: "recoveryFetchFailed", unit: "U-T" }]]);
+  });
+
+  it("(b) H41 from t100: an unreceived X at t110 and Y without xmlReport at t120 give ok, refused [U-T], X not compared, the position at t120", async () => {
+    const x = item("VTSE41", NOW - 5 * MINUTE), y = withoutXmlReport("VTSE41", NOW - MINUTE);
+    https.handle = () => page([y, x]);
+    expect(await pollAt("telegram.earthquake", { token: "pool0", latestRawReceivedAtMs: NOW - 10 * MINUTE }))
+      .toEqual({ kind: "ok", heads: [], position: { token: "pool", latestRawReceivedAtMs: NOW - MINUTE }, refused: ["U-T"] });
+  });
+
+  it("(c) a cycle without a position whose first page has a VTSE41 without xmlReport seeds with refused [U-T]", async () => {
+    https.handle = () => page([withoutXmlReport("VTSE41", NOW - MINUTE)]);
+    expect(await pollAt("telegram.earthquake", null)).toEqual({ kind: "seeded", position: { token: "pool", latestRawReceivedAtMs: NOW - MINUTE }, refused: ["U-T"] });
+  });
+});
+
+describe("P3-RR-T03 regression: deterministic list failures are not retried (AC02)", () => {
+  it("a 200 whose items is not an array and a 400 send one request each and leave U-T fetchFailed; a 503 over 1 MiB still gets three retries", async () => {
+    const tsunami: UnitWalk[] = [{ unit: "U-T", bundles: [["VTSE41"]], fetchFromMs: NOW - DAY, stopAtId: null }];
+    const replies: Reply[] = [{ status: 200, body: { status: "ok", items: {}, nextPooling: "pool" } }, { status: 400, body: { status: "error" } },
+      { status: 503, raw: Buffer.alloc(1024 * 1024 + 1, 0x20) }];
+    const outcomes: unknown[] = [];
+    for (const reply of replies) {
+      https.handle = () => reply;
+      const [result] = await walk(tsunami);
+      outcomes.push([result.kind === "listed" ? "listed" : result.reason, https.requests.length]);
+      https.requests.length = 0;
+      vi.useRealTimers();
+    }
+    expect(outcomes).toEqual([["fetchFailed", 1], ["fetchFailed", 1], ["fetchFailed", 4]]);
+  });
+});

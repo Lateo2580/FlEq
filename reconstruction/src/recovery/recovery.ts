@@ -57,17 +57,22 @@ function parse(text: string): unknown {
 
 // item を項目ごとに確かめて頭を組む。束・区分に無い型と test の item は head が null（捨てる）、形の壊れた item は invalid（そのページを failed）。
 // receivedAtMs は濾す前の生の受信時刻（満杯・遡り・位置を生の値で決める、P3-REC-AC13 (2)）。refused は本文を流す型の item の url・id が合わない
-// unit（その item は捨て、ページは failed にしない、P3-REC-AC01）。
+// unit と、濾しを通る型で XML でない item の unit（その item は捨て、ページは failed にしない、P3-REC-AC01・P3-RR-AC01）。
 function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | null; receivedAtMs: number; refused?: RuntimeUnitId }> | "invalid" {
-  if (!isRecord(item) || !isRecord(item.head) || !isRecord(item.xmlReport)) return "invalid";
+  if (!isRecord(item) || !isRecord(item.head)) return "invalid";
   const { id, receivedTime } = item;
   const { type, test } = item.head;
   const receivedAtMs = typeof receivedTime === "string" ? Date.parse(receivedTime) : NaN;
-  if (typeof id !== "string" || id === "" || typeof type !== "string" || typeof test !== "boolean" || !Number.isFinite(receivedAtMs)) return "invalid";
-  // 1 型の束は前方一致で返る（P3-REC-D-LIST-QUERY）。test 区分は購読しない（operationContract）。区分の一覧は U-E を除く（P3-REC-AC13 (6)）。
-  const row = classifyHeadType(type);
-  if (test || row.status !== "ready" || ("types" in query ? !query.types.includes(type)
-    : row.unit === "U-E" || familyFor(type) !== query.classification)) return { head: null, receivedAtMs };
+  if (!Number.isFinite(receivedAtMs)) return "invalid";
+  // P3-RR-AC01 (1)(2): XML でない item は receivedTime と head.type だけを求める（採った 6 件の外の型の形は見ていない）。読めない型と濾しを通らない
+  // 型は捨て、通る型は本文を取れないので refused（ページを failed にすると区分の全 unit の周期が止まる）。
+  if (item.format !== "xml" || !isRecord(item.xmlReport)) {
+    const row = typeof type === "string" ? passed(type, test, query) : null;
+    return row == null ? { head: null, receivedAtMs } : { head: null, receivedAtMs, refused: row.unit };
+  }
+  if (typeof id !== "string" || id === "" || typeof type !== "string" || typeof test !== "boolean") return "invalid";
+  const row = passed(type, test, query);
+  if (row == null) return { head: null, receivedAtMs };
   const report = item.xmlReport.head, control = item.xmlReport.control;
   const operation: Operation | undefined = isRecord(control) ? operationOf(control.status) : undefined;
   if (!isRecord(report) || !isRecord(control) || typeof report.title !== "string" || typeof control.status !== "string" || operation == null) return "invalid";
@@ -76,6 +81,13 @@ function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | nu
     reportDateTime: textOrNull(report.reportDateTime), infoType: textOrNull(report.infoType), serial: textOrNull(report.serial),
     eventId: textOrNull(report.eventId), controlDateTime: textOrNull(control.dateTime), controlStatus: control.status, test,
     editorialOffice: textOrNull(control.editorialOffice) } };
+}
+
+// 濾しを通る型の ready の行。1 型の束は前方一致で返る（P3-REC-D-LIST-QUERY）。test 区分は購読しない（operationContract）。区分の一覧は U-E を除く（P3-REC-AC13 (6)）。
+function passed(type: string, test: unknown, query: ListQuery) {
+  const row = classifyHeadType(type);
+  return test === true || row.status !== "ready" || ("types" in query ? !query.types.includes(type)
+    : row.unit === "U-E" || familyFor(type) !== query.classification) ? null : row;
 }
 
 /**
@@ -89,18 +101,20 @@ async function listTelegramPage(apiKey: string, query: ListQuery, signal: AbortS
   if (answer.kind !== "answered") return { kind: "failed" };
   if (answer.status === 401 || answer.status === 403) return { kind: "authRejected" };
   if (answer.status === 429) return { kind: "throttled", retryAfterMs: answer.retryAfter };
+  // P3-RR-AC02 (1): 2xx の形の不一致と 401・403・408・429 以外の 4xx は同じ要求に同じ答えが返るので rejected（send は再試行しない）。
+  if (answer.status >= 400 && answer.status < 500 && answer.status !== 408) return { kind: "rejected" };
   if (answer.status < 200 || answer.status >= 300) return { kind: "failed" };
   const body = parse(answer.text);
   if (!isRecord(body) || body.status !== "ok" || !Array.isArray(body.items) || !optionalText(body.nextToken) || !optionalText(body.nextPooling))
-    return { kind: "failed" };
+    return { kind: "rejected" };
   const interval = body.nextPoolingInterval;
-  if (interval != null && (typeof interval !== "number" || !Number.isFinite(interval) || interval < 0)) return { kind: "failed" };
+  if (interval != null && (typeof interval !== "number" || !Number.isFinite(interval) || interval < 0)) return { kind: "rejected" };
   const heads: ListHead[] = [];
   const refused = new Set<RuntimeUnitId>();
   let oldest: number | null = null, latest: number | null = null;
   for (const item of body.items) {
     const read = headOf(item, query);
-    if (read === "invalid") return { kind: "failed" };
+    if (read === "invalid") return { kind: "rejected" };
     if (read.head != null) heads.push(read.head);
     if (read.refused != null) refused.add(read.refused);
     oldest = Math.min(oldest ?? Infinity, read.receivedAtMs);
@@ -321,7 +335,7 @@ async function fetchBody(lane: BodyRequestLane, apiKey: string, head: ListHead, 
  * "limit" はページの上限、"ended" は 429 が尽きたか Retry-After が残りの期限を越えたか停止。
  */
 async function send(lane: ListRequestLane, apiKey: string, query: ListQuery, signal: AbortSignal, now: () => number,
-  pages: { sent: number; readonly limit: number }): Promise<Exclude<ListPage, { kind: "throttled" }> | "limit" | "ended"> {
+  pages: { sent: number; readonly limit: number }): Promise<Exclude<ListPage, { kind: "throttled" | "rejected" }> | "limit" | "ended"> {
   const started = now();
   // 合計 30 秒は試行の中の要求にも効かせる（exchange の 15 秒の timeout だけだと 30 秒を越える、レビュー r0 ヘルツ P2）。
   // 期限は停止と同じく待ちと exchange を壊し、期限の後に揃った応答は採らない。
@@ -343,6 +357,7 @@ async function send(lane: ListRequestLane, apiKey: string, query: ListQuery, sig
       if (signal.aborted) return "ended";
       if (expired()) return throttled || page.kind === "throttled" ? "ended" : { kind: "failed" };
       if (page.kind === "ok" || page.kind === "authRejected") return page;
+      if (page.kind === "rejected") return { kind: "failed" }; // P3-RR-AC02 (2): 決定的な失敗は取り直さない
       throttled ||= page.kind === "throttled";
       // 次の試行の待ち（lane の notBefore）が残りの期限を越えるなら待たずに終える（P3-REC-AC03 (3)）。
       if (retry === RETRY_LIMIT || lane.notBeforeMonotonicMs - started > RETRY_BUDGET_MS) return page.kind === "throttled" ? "ended" : page;
@@ -417,7 +432,8 @@ async function pollClassification(lane: ListRequestLane, apiKey: string, classif
   const first = await send(lane, apiKey, { classification, cursorToken: position?.token ?? null }, signal, now, pages);
   if (first === "limit" || first === "ended" || first.kind !== "ok") return unmatched(first);
   const reached = { token: first.nextPooling, latestRawReceivedAtMs: first.latestRawReceivedAtMs ?? position?.latestRawReceivedAtMs ?? null };
-  if (position?.token == null) return { kind: "seeded", position: reached };
+  // P3-RR-AC01 (3): refused の unit は publisher が WARN で知らせる（無いときは欄を載せない）。
+  if (position?.token == null) return { kind: "seeded", position: reached, ...(first.refused.length === 0 ? {} : { refused: first.refused }) };
   const since = position.latestRawReceivedAtMs;
   // 境界の検査で item を捨てた unit は、その周期は突き合わせない（P3-REC-AC01）。
   const refused = new Set(first.refused);
@@ -433,7 +449,8 @@ async function pollClassification(lane: ListRequestLane, apiKey: string, classif
     for (const unit of next.refused) refused.add(unit);
     page = next;
   }
-  return { kind: "ok", heads: heads.filter((head) => (since == null || head.receivedAtMs > since) && !refused.has(head.unit)), position: reached };
+  return { kind: "ok", heads: heads.filter((head) => (since == null || head.receivedAtMs > since) && !refused.has(head.unit)), position: reached,
+    ...(refused.size === 0 ? {} : { refused: [...refused] }) };
 }
 
 /** 辿れなかった unit ごとの WARN と、401/403 の 1 件（P3-REC-AC03 (3)(4)・AC04）。API キーと応答本文は載せない。 */

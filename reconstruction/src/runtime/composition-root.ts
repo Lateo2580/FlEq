@@ -1028,7 +1028,7 @@ class RuntimeCompositionRoot {
   // P3-C2-AC06: a well-formed start on the current WS ends reconnecting without waiting for data; confirmation state stays.
   // P3-REC-AC14 (1)・AC13 (1): start の frame の wall が札の終わりの正本（inputDone の reconnected は処理の完了の時刻で遅い）。H41 の周期を許す。
   recordConnected(firstFrameWallMs: number): void {
-    // P3-REC-AC02 (1): 切れた後の繋がり直し（穴 c）は取り直しのきっかけ。起動の最初の接続は起動の辿りが覆う。
+    // P3-REC-AC02 (1): 切れた後の繋がり直し（穴 c）は取り直しのきっかけ。最初の接続も、一覧を引き始めた後に繋がるので 1 回辿る（firstConnectWanted、P3-RR-AC03）。
     const reconnected = this.disconnectedAt != null && !this.socketStarted;
     this.lostThroughSequence = null;
     this.socketStarted = true;
@@ -2023,7 +2023,7 @@ class RuntimeCompositionRoot {
         freshness.stopped = true;
         return;
       }
-      if (result.kind === "ok") freshness.ledger.compare(classification, result.heads, epoch, cycleStartMs, this.clock().monotonicMs);
+      if (result.kind === "ok") freshness.ledger.compare(classification, result.heads, epoch, cycleStartMs, this.clock().monotonicMs); for (const unit of result.refused ?? []) if (!this.stoppedUnit(unit)) this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "recoveryFetchFailed", unit }, this.clock(), this.state.runId)); // P3-RR-AC01 (3)(4): 突き合わせない unit を周期ごとに知らせる（warned に入れない）
       freshness.positions.set(classification, result.position);
     }
   }
@@ -2276,13 +2276,13 @@ class RuntimeCompositionRoot {
       return;
     }
     const results = new Map(result.inputs.map((item) => [item.inputSequence, item.result]));
-    let complete = true;
+    let notAdopted = 0; // P3-RR-AC04: adopted でなかった本文の数（WARN の count）
     for (const [sequence, operation] of table) {
       const seen = results.get(sequence);
-      if (seen !== "adopted") complete = false;
+      if (seen !== "adopted") notAdopted += 1;
       if (seen === "capacityExceeded" || seen === "unreadableReport") this.noteNegative(unit, operation, sequence);
     }
-    const clock = this.clock();
+    const clock = this.clock(), complete = notAdopted === 0;
     const same = this.state.confirmation.epoch === run.epoch;
     if (complete && same) {
       // AC19 (2)(5): 覆った区間の終わりは一覧を引き始めた時点の番号と、最後に一覧で見た item の dmdata 時刻と電文 id。
@@ -2291,7 +2291,7 @@ class RuntimeCompositionRoot {
       this.checkpoint.boundaries.resolve(unit, run.listSequence, { receivedAt: null, dmdataTime: newest?.receivedAtMs ?? null, dmdataId: newest?.id ?? null });
       this.uncovered.delete(unit);
       this.setProgress(unit, { unit, state: "recovered" });
-    } else if (same) this.recoveryUnsatisfied(unit, "fetchFailed");
+    } else if (same) this.recoveryUnsatisfied(unit, "notAdopted", notAdopted); // P3-RR-AC04: 本文は取れたので取得の失敗の語にしない
     // 解決の後にも穴（取り直しの間に断った入力ほか）が残る unit には確認を出さない（統合担当の決め、r0 Opus (C)）。
     const scopes = complete && same && !this.checkpoint.boundaries.hasHole(unit)
       ? recoveredOperations.filter((operation) => (this.negatives.get(`${unit}/${operation}`) ?? -Infinity) <= run.listSequence)
@@ -2303,10 +2303,10 @@ class RuntimeCompositionRoot {
   }
 
   // 未充足（AC11）: 進み具合と、unit ごとに WARN を 1 件（DiagnosticDetails に理由の欄が無いので語で分ける）。停止の帳簿の unit は WARN も止める（N2）。
-  private recoveryUnsatisfied(unit: RuntimeUnitId, reason: RecoveryUnsatisfiedReason): void {
+  private recoveryUnsatisfied(unit: RuntimeUnitId, reason: RecoveryUnsatisfiedReason, count?: number): void {
     this.setProgress(unit, { unit, state: "unsatisfied", reason });
     if (this.current == null || this.runStopped?.has(unit) === true) return;
-    this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: unsatisfiedWords[reason], unit }, this.clock(), this.state.runId));
+    this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: unsatisfiedWords[reason], unit, ...(count == null ? {} : { count }) }, this.clock(), this.state.runId));
   }
 
   private setProgress(unit: RuntimeUnitId, item: RecoveryProgressUnit): void {
@@ -2351,7 +2351,7 @@ const confirmedOperations = ["normal", "training"] as const;
 const recoveredOperations = ["normal"] as const;
 const unsatisfiedWords: Readonly<Record<RecoveryUnsatisfiedReason, DiagnosticReason>> = { fetchFailed: "recoveryFetchFailed", recoveryLimit: "recoveryLimit",
   authRejected: "recoveryAuthRejected", generationConflict: "recoveryGenerationConflict", baseMissing: "recoveryBaseMissing",
-  clockEvidenceMissing: "recoveryClockEvidenceMissing", ownerStopped: "recoveryOwnerStopped" };
+  clockEvidenceMissing: "recoveryClockEvidenceMissing", ownerStopped: "recoveryOwnerStopped", notAdopted: "recoveryNotAdopted" };
 type RecoveryDone = Extract<OwnerReply, { kind: "recoveryDone" }>;
 // host が渡す取り直しの口（apiKey は host にしか無い）。notBefore は一覧と本文の待ちの遅い方（AC03 (9)）。
 type RecoveryIo = Readonly<{
