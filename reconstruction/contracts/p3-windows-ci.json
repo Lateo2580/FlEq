@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "165cb142e30ac652533bd0fe429bbab744722f151e3f6a1728001b114e5d4d4f",
+    "sha256": "d7850e0d33346dffe05e881f0b459d9e4774f532d67061dec91c87d1e6f5e949",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -111,6 +111,13 @@
         "status": "closed",
         "source": "2026-11-08 起草レビュー r0（品質: ヘルツ gpt-6-astra high・read-only、thread 01a1b9a5、条件付き GO。契約適合: Opus、条件付き GO。HEAD c1b8dbd5）",
         "closed": "全部を当てた。P2: (1) T01 の後半は windows-latest では戻した値が win32 で落ちる → 後半も linux に差し替えて ENOENT を確かめ、finally で戻す (2) D-CARRY の reason に実行境界メモ §7 の C1 の 2 と p3-version-material.json:503 の「型を変えない」との関係を足した（C1・C2 とその発注の制約で、任意の文字列の欄は素のデータのまま） (3) p3-checkpoint-step1.json の objective・AC01・AC02 は、win32 でも syncDirectory の呼出しは解決してから ack するので Q-WCI-UNCHANGED の (5) に理由つきで書いた（改訂は VERIFY・S5 の 1 か所）。P3: (4) 改訂 (2) を「directory の fsync は win32 以外（syncDirectory の呼出しの順は OS によらない）」に (5) adapter.test.ts の T02 regression は :22・:76・:91 の 3 本で、飛ばすのは :22（kill and exit alone…）だけと title で名指した。改訂 (10) も同じ (6) T02 (a) を保存の done() の 1 件ずつ（attemptId が結果と同じ）に絞り、10 秒の監視（attemptId は grantId）は照らさない。reconcile の catch は T02 (d) で確かめる (7) Q-WCI-OVERLAP の出典を night-h 5a9a7792 にし、NW の :14 の vi.mock と :85 の «» とぶつからないことを書いた (8) diagnostic.test.ts の allowedPaths に :90〜:92 の期待を足した (9) --sequence.shuffle の回を requiredCommands の独立の行にした (10) D-SPEC に p3-order-plan.md:197 も改めないと足した (11) AC02 の正規表現は文字列の全体の一致と書き、m の旗を付けないことを足した。JavaScript の $ は m の旗が無ければ入力の終わりにだけ合い、node -e で /^E[A-Z0-9]{1,31}$/ が \"EPERM\" に true、末尾に改行を持つ値に false を確かめたので、式は変えない。T02 (c) に末尾に改行を持つ値を足した (12) 残存リスク (1) に、前回の slot も保証されず両方の slot を失う場合を排除しないことを足した (13) hashRaw は実 OS の区切り（sep）だけを / に置き換え、POSIX の名前の中の逆斜線は置き換えない (14) run.mjs の hostClockCounts は本契約に入れた（AC03 の (7)）: hashRaw と同じ file・同じ族で、Windows では窓の記録の時計の診断を 0 件と書き、0 件を確かめに使う値なので確かめが偽って通る。行の中の 1 か所で済む。r0 の品質の証拠不足の項（p3.test.ts の SIGUSR2）から P3-WCI-D-E05C を足し、P3-E05C-T02 は URL を直さず win32 で飛ばすことにした（改訂 (11)、残存リスク (4)）"
+      },
+      {
+        "id": "Q-WCI-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-08 午後）",
+        "closed": "起草の base 55e91587 から main まで reconstruction/src・reconstruction/test の差は 0（間の commit は旧築の 0ca0c149 と P3-TSUNAMI-HOLD-MARK-001 の契約だけ）。作者の分岐 3 本と統合担当の分岐 4 本は確定、check-contract rc 0。baseOid を 2a4f72a3 に割り当てた",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -122,7 +129,7 @@
     "contractId": "P3-WINDOWS-CI-001",
     "mode": "implementation",
     "objective": "新築（reconstruction/）が Windows の CI（test-windows.yml）で通るようにする。win32 では checkpoint の保存の directory の fsync を飛ばし（P3-CLI-D-WRITE と同じ扱い）、保存の失敗と成否不明の診断に errno の名前を残し、Windows で落ちた試験の側を期待を変えずに直すか win32 で飛ばす（AC03）。ほかの OS の保存の順序と uncertain の扱いは変えない",
-    "baseOid": "unassigned",
+    "baseOid": "2a4f72a3",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
