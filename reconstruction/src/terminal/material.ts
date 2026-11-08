@@ -108,13 +108,15 @@ type ShortUnit = Exclude<RuntimeUnitId, "U-E" | "U-Q" | "U-T">;
 type Kind = Readonly<{ name: string | null; code: string | null; status: string | null }>;
 // Body を文書の順に 1 回だけ辿り、最初の Area/Name（対象）と、Kind（LastKind は名前が違うので入らない）と InfoSerial/Name を集める（AC08 (2)）。
 // Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
-function scan(body: XmlElement | null): { target: string | null; kinds: Kind[]; serialName: string | null } {
-  const found: { target: string | null; kinds: Kind[]; serialName: string | null } = { target: null, kinds: [], serialName: null };
+// typhoon は文書の順で最初の台風呼称（P3-TL9-AC05。同じ辿りの中で覚え、新しい辿りを足さない）。
+function scan(body: XmlElement | null): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null } {
+  const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null } = { target: null, kinds: [], serialName: null, typhoon: null };
   const visit = (node: XmlElement): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
     else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
     else if (name === "InfoSerial" && found.serialName == null) found.serialName = read(node, "Name");
+    else if (name === "TyphoonNamePart" && found.typhoon == null) found.typhoon = node;
     for (const child of children(node)) visit(child);
   };
   if (body != null) visit(body);
@@ -151,8 +153,10 @@ function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string 
     // 南海トラフ地震臨時情報の InfoSerial/Name。解説情報（VYSE51・52）と調査終了は plain。
     // VYSE60 は InfoSerial の有無によらず警報の段で、段を電文の種類で決めるので理由の名前は無い（P3-TL6-D-VYSE60=A）。
     case "U-N": return headType === "VYSE60" ? { level: "warning", name: null } : { level: found.serialName === "巨大地震警戒" ? "top" : found.serialName === "巨大地震注意" || found.serialName === "調査中" ? "warning" : "plain", name: found.serialName };
-    // 気象防災速報（竜巻注意・竜巻目撃、VPHW50・51）は警報。
-    case "U-M": return { level: headType === "VPHW50" || headType === "VPHW51" ? "warning" : "plain", name: null };
+    // 気象防災速報（竜巻注意・竜巻目撃、VPHW50・51）は警報。Body の Kind が 1〜255 個で全部が Code「0」か Name「なし」の解除の報は普通（P3-TL9-AC04、
+    // U-M の P3-C13-TORNADO-FACTS と同じ規則）。256 に届いた報は読まなかった Kind に発表がありうるので警報のまま。
+    case "U-M": return { level: headType !== "VPHW50" && headType !== "VPHW51" ? "plain"
+      : kinds.length > 0 && kinds.length < AREA_LIMIT && kinds.every(({ name, code }) => code === "0" || name === "なし") ? "plain" : "warning", name: null };
     // 気象防災速報（記録的短時間大雨、VPOA50 と、その対応報で EventID が K の VPBS50。notification-gate の categoryOf と同じ読み）は紫。
     case "U-B": return { level: headType === "VPOA50" || (headType === "VPBS50" && eventId?.startsWith("K") === true) ? "purple" : "plain", name: null };
     case "U-F": case "U-Y": return { level: "plain", name: null };
@@ -220,6 +224,12 @@ function nationalTable(layer: XmlElement): { level: TerminalBandLevel; national:
     .map(([, row]) => ({ label: row.label, areas: level === "caution" ? [] : row.areas }));
   return { level, national: { rows, others: budget.omitted } };
 }
+// P3-TL9-AC05・D-TYPHOON-LABEL: 台風の帯の対象。番号（半角 4 桁）があれば通知の題（typhoon-unit.ts の labelOf）と同じ形、無ければ Remark、どちらも無ければ null（最初の Area）。
+function typhoonLabel(part: XmlElement | null): string | null {
+  const number = read(part, "Number"), name = read(part, "Name"), remark = read(part, "Remark");
+  if (number != null && /^[0-9]{4}$/.test(number)) return `台風第${Number(number.slice(-2))}号${name == null || name === "" ? "" : `（${name}）`}`;
+  return remark == null || remark === "" ? null : remark;
+}
 function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | null): TerminalReport {
   const heading = head(material);
   const cancel = heading.infoType === "取消";
@@ -234,7 +244,7 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   // Head の Title に全国の活火山を含む VFVO51。EventID 900 は「その他の火山」の番号でもあるので使わない（P3-TL3-D-DETECT）。
   const monthly = material.headType === "VFVO51" && heading.title?.includes("全国の活火山") === true;
   const { level, name } = cancel ? { level: "cancel" as const, name: null } : monthly ? { level: "plain" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
-  return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : nationwide ? "全国" : unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
+  return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : nationwide ? "全国" : unit === "U-N" ? null : (unit === "U-Y" ? typhoonLabel(found.typhoon) : null) ?? found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
     // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
     cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null,
     flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null };

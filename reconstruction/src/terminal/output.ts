@@ -17,7 +17,7 @@ import type { NotificationSettings } from "../cli/notification-gate";
 import { desktopNotice, resolveRepoPath } from "../notification-delivery/adapter";
 import { colorLevel, painter } from "./color";
 import { createEewLog } from "./eew-log";
-import { intensityLabel, intensityRank, localClock } from "./format";
+import { intensityLabel, intensityRank, jsonRecord, jsonString, localClock } from "./format";
 import type { SummaryCounts, TerminalBatch, TerminalNotice, TerminalUnit } from "./format";
 import { currentItems, promptFrame } from "./prompt-current";
 import type { PromptItem, PromptMirror } from "./prompt-current";
@@ -83,6 +83,24 @@ function sameNational(before: ShortReport, now: ShortReport): boolean {
 // P3-TL8-AC04 (3): その入力が U-W の通知の intent を作ったか（返信の U-W の pendingIntents は 128 件まで）。鳴ったのに画面に何も出ない列を作らない。
 const rang = (reply: InputDone): boolean =>
   reply.output.units.find((delta) => delta.unit === "U-W")?.pendingIntents?.some((intent) => intent.source.inputId === reply.settlement.inputId) === true;
+// P3-TL9-AC02 (2)・D-CANCEL-SOURCE: 地震の取消の報だけ、同じ返信の U-Q の accepted の outcome から取り消した地震の震源名と発生時刻を取る（outcomes の数に比例、AC06 (3)）。
+// 無いと worker は U-Q の記録を読めず、取消の行に震源名を書けない。facts は丸ごと積まず 2 つの字だけにする。
+type Cancelled = Extract<TerminalUnit, { kind: "report" }>["cancelled"];
+function cancelledOf(reply: InputDone, report: TerminalReport): Cancelled {
+  const eventId = report.kind === "seismic" && report.head.infoType === "取消" ? report.head.eventId?.trim() : undefined;
+  if (eventId == null) return undefined;
+  for (const { unit, outcome } of reply.output.outcomes) {
+    if (unit !== "U-Q" || outcome.kind !== "accepted") continue;
+    const facts = outcome.subjects.find((subject) => jsonString(subject.facts.eventId) === eventId)?.facts;
+    if (facts == null) continue;
+    const summary = jsonRecord(facts.cancelledSummary), hypocenter = jsonRecord(facts.hypocenter);
+    // U-Q の cancelledSummary と同じ切り方（64 字、サロゲート対を割らない）。
+    const name = jsonString(summary?.hypocenterName) ?? jsonString(hypocenter?.name), head = name?.slice(0, 64) ?? null;
+    return { name: head != null && /[\ud800-\udbff]$/.test(head) ? head.slice(0, -1) : head,
+      originTimeRaw: jsonString(summary?.originTimeRaw) ?? jsonString(facts.originTimeRaw) ?? jsonString(hypocenter?.originTimeRaw) };
+  }
+  return undefined;
+}
 
 // 【発注 2】の口。どれも省けば出さない（試験と測定の起動）。cli.ts は起動の時に読んだ値を渡す。
 type TerminalOptions = Readonly<{
@@ -420,7 +438,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         if (nationwide != null && national != null && sameNational(national, nationwide) && !rang(reply)) repeated = taken;
         else {
           if (nationwide != null) national = nationwide.national == null ? null : nationwide;
-          push({ kind: "report", report, prompt });
+          const cancelled = cancelledOf(reply, report);
+          push({ kind: "report", report, prompt, ...cancelled == null ? {} : { cancelled } });
           shown = taken;
         }
         count(taken.unit, taken.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null, nowMs);

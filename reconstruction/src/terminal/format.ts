@@ -12,8 +12,9 @@ import type { BandRoles, ColorLevel, Paint, Role } from "./color";
 
 // main が列に積む単位（AC02 (3)）。prompt は電文のブロックを書いた後に書き直す prompt と入力中の文字（readline が無ければ null）。
 // line は数える出力（REPL の返事・起動の行）、echo は readline が書く echo と prompt（D-DROP で数えない）。
+// cancelled は地震の取消の報だけに sink が添える、同じ返信の U-Q の記録の震源名と発生時刻（P3-TL9-AC02 (2)。worker は U-Q の記録を読めない）。
 type TerminalUnit =
-  | Readonly<{ kind: "report"; report: TerminalReport; prompt: string | null }>
+  | Readonly<{ kind: "report"; report: TerminalReport; prompt: string | null; cancelled?: Readonly<{ name: string | null; originTimeRaw: string | null }> }>
   // nowMs は受信した時刻（wall の ms）。同時に進む EEW の 10 分の期限を電文の時刻でなく端末の時計で測る（P3-TL2-AC11）。
   | Readonly<{ kind: "eew"; subject: SubjectOutcome; prompt: string | null; nowMs: number }>
   | Readonly<{ kind: "line"; text: string }>
@@ -365,12 +366,25 @@ function grouped<T>(items: readonly T[], label: (item: T) => string): { label: s
 }
 const omittedLine = (omitted: number): Line[] => omitted === 0 ? [] : [line(seg(`ほか ${omitted} 件`, "dim"))];
 
-function seismic(report: Extract<TerminalReport, { kind: "seismic" }>, ctx: Ctx): Rendered {
+// P3-TL9-AC02 (3)(4)・D-CANCEL-WORDS: 取り消した地震の行。記録の発生時刻、読めなければ報の発生時刻（VXSE51 の TargetDateTime）を「発生」と書き、
+// それも無ければ EventID の時と分を「発生」と書かずに使う（遠地地震の EventID は発生時刻とずれる）。時刻も震源名も無ければ行を出さない。
+function quakeCancelPhrase(report: Extract<TerminalReport, { kind: "seismic" }>, cancelled: Extract<TerminalUnit, { kind: "report" }>["cancelled"]): string | null {
+  const reportRaw = report.head.reportDateTimeRaw, origin = arrivalText(cancelled?.originTimeRaw ?? null, reportRaw) ?? arrivalText(report.originDateTimeRaw, reportRaw);
+  const detected = /^(\d{8})(\d{2})(\d{2})\d{2}$/.exec(report.head.eventId?.trim() ?? "");
+  const day = detected == null || reportRaw == null || detected[1] === reportRaw.slice(0, 10).replace(/-/g, "") ? "" : `${Number(detected[1].slice(6))}日 `;
+  const time = origin != null ? ` ${origin}ころ発生の` : detected != null ? ` ${day}${detected[2]}:${detected[3]}ころの` : "";
+  const name = cancelled?.name ?? "";
+  return time === "" && name === "" ? null : `取り消したのは${time}${name === "" ? "" : `${name}の`}地震の情報です`;
+}
+
+function seismic(report: Extract<TerminalReport, { kind: "seismic" }>, ctx: Ctx, cancelled?: Extract<TerminalUnit, { kind: "report" }>["cancelled"]): Rendered {
   const { head } = report, cancel = head.infoType === "取消", level = seismicLevel(report), roles = BAND_ROLES[level];
   const title = `${head.controlTitle ?? head.title ?? head.headType}${statusMark(head.status)}${cancel ? " 取消" : ""}`;
   const time = clockOf(head.reportDateTimeRaw), bandLines = band(title, roles, time, ctx), tail = footer(head.headType, head.eventId);
   if (cancel) {
-    const summary = [...textLines(head.headline, ctx.body), ...head.headline == null || head.headline === "" ? textLines(report.text, ctx.body) : []];
+    const phrase = quakeCancelPhrase(report, cancelled);
+    const summary = [...textLines(head.headline, ctx.body), ...head.headline == null || head.headline === "" ? textLines(report.text, ctx.body) : [],
+      ...phrase == null ? [] : [line(seg(phrase))]];
     return compose(bandLines, roles, { summary, tables: [], supplement: [], tail, recap: [] }, ctx);
   }
   const longPeriod = head.headType === "VXSE62";
@@ -655,8 +669,11 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): 
   const active = [...memory.events].filter(([other, item]) => other !== eventKey && other.startsWith(`${subject.operation}/`) && !item.ended && nowMs - item.lastMs <= ACTIVE_MS);
   const others = active.length === 0 ? []
     : [line(seg(`ほかに ${active.length} 件の緊急地震速報${active.length === 1 && active[0][1].name != null ? `（${active[0][1].name}）` : ""}`))];
+  // P3-TL9-AC03・D-PLUM-ASSUMED=A: 最大予測震度の変化の理由が 9（PLUM法）の報は震源の行の下に薄い字で 1 行。仮定の震源の報は震源の行に PLUM法が出ているので出さない。
+  // MaxIntChange は facts に無いので見ない（変化 0 の報にも出る）。再掲と覚えに入れない。
+  const plum = !assumed && string(report?.maxIntChangeReasonRaw) === "9" ? [line(seg("PLUM法による予測震度変化", "dim"))] : [];
   const summary = [maxLine("最大予測震度 ", max, previous != null && previous.max !== max ? previous.max : null, topNames, ctx),
-    ...rest === "" ? [] : [line(...headlineSegs(rest, cut != null))], ...action, ...hypocenter, ...others];
+    ...rest === "" ? [] : [line(...headlineSegs(rest, cut != null))], ...action, ...hypocenter, ...plum, ...others];
   const tables: Line[][] = [];
   const labels = areas.map((_, index) => forecastLabel(record(record(predicted[index])?.intensity)));
   const rows = areas.map((value, index): Cell[] => {
@@ -692,9 +709,13 @@ function shortSentence(raw: string | null): string {
 }
 function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx): Rendered {
   const { head } = report;
+  // P3-TL9-AC01・D-HEAD-TITLE: 熱中症警戒アラート・早期天候情報・気象警報・注意報時系列情報は、県・現象・地方を持つ Head/Title を題名にして対象を付けない
+  // （Control/Title は種類の一般の名前だけで、Body の最初の Area は報の全体の対象と違う）。Head/Title が空か無い報は今の形。
+  const own = (head.headType === "VPFT50" || head.headType === "VPAW51" || head.headType === "VPWP50") && head.title != null && head.title !== "" ? head.title : null;
+  const target = own == null ? report.target : null;
   // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
-  const base = (head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
-  const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${report.target == null || report.target === "" ? "" : ` ${report.target}`}`;
+  const base = (own ?? head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
+  const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${target == null || target === "" ? "" : ` ${target}`}`;
   const roles = BAND_ROLES[report.level];
   // 見出し文は省略しない（spec §5.4 の図）。取消の報は Body の取消の文を代わりに出す（Q-TO4-CANCEL。空は無いものとして見出し文）。
   const headline = shortSentence(report.cancelText == null || report.cancelText === "" ? head.headline : report.cancelText);
@@ -887,7 +908,7 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
           }
           case "report": {
             const { report } = unit;
-            out += emit(paintBlock(report.kind === "seismic" ? seismic(report, ctx) : report.kind === "tsunami" ? tsunami(report, memory, ctx) : shortForm(report, ctx), ctx, paint), unit.prompt);
+            out += emit(paintBlock(report.kind === "seismic" ? seismic(report, ctx, unit.cancelled) : report.kind === "tsunami" ? tsunami(report, memory, ctx) : shortForm(report, ctx), ctx, paint), unit.prompt);
             break;
           }
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;
