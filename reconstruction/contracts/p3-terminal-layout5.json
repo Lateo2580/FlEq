@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "863fe4762a938d5d88d87750e8ef705c061dc61f",
-    "sha256": "e82cc95a955c8fa53a904cc07994e4f5c0bf9338ee40f839efc27250acb06e5a",
+    "sha256": "55bc1d5efa0d860d308217c7970e05dd41bd0d2c7e1ea45cdaac2a04dfe7dff6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -148,24 +148,24 @@
         "id": "P3-TL5-AC01",
         "requirement": "満潮の報（Q-TO5-TIDE）: (1) 対象は、InfoType が取消でなく、Body/Tsunami があり、Tsunami の直下に Observation の要素が 1 つも無い VTSE51 で、unit が拒否しなかった入力。空の Observation の要素がある報は対象でない。拒否は owner が残す confirmationEvidence の unreadableReport で見分け、inputTerminal の呼び出しの引数で渡す (2) 対象の報は accepted の outcome が無くても terminalReport の報を返信に載せる（P3-TO-AC01 (2) の例外） (3) origin が recovery の報は今のまま端末に出さない (4) U-T の state・watermark・intent・outcome は変えず、鳴らさない (5) 拒否された報は今のまま読めなかった報のカードになる (6) 取消、Observation のある VTSE51、他の種類の報の門は変えない (7) 同じ報が 2 度届くと 2 度出る（作者裁定 A）。覚えは足さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:433 «c14a9c90bb8488a5»",
-          "docs/specs/cli-terminal-output.md:806 «3dc2819a8a1d4808»"
+          "docs/specs/cli-terminal-output.md:446 «c14a9c90bb8488a5»",
+          "docs/specs/cli-terminal-output.md:822 «3dc2819a8a1d4808»"
         ]
       },
       {
         "id": "P3-TL5-AC02",
         "requirement": "満潮の字（Q-TO5-TIDE-ROW）: 満潮時刻の表の全部の行（折り返した行を含む）の「満潮」を薄い字で出す。字と幅は変えず、ほかの表は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:435 «5767cf8ee9bb3608»",
-          "docs/specs/cli-terminal-output.md:811 «fee62f7ae0dafcc0»"
+          "docs/specs/cli-terminal-output.md:448 «5767cf8ee9bb3608»",
+          "docs/specs/cli-terminal-output.md:827 «fee62f7ae0dafcc0»"
         ]
       },
       {
         "id": "P3-TL5-AC03",
         "requirement": "津波予報の見出し（Q-TO5-SLIGHT）: 津波予報（若干の海面変動）の表の見出しを空色 #56b4e9 の字で出す。地域の名前の字と、ほかの区分の見出しは変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:390 «7f12191f6874689e»",
-          "docs/specs/cli-terminal-output.md:812 «23d646ed3fe84bbc»"
+          "docs/specs/cli-terminal-output.md:403 «7f12191f6874689e»",
+          "docs/specs/cli-terminal-output.md:828 «23d646ed3fe84bbc»"
         ]
       }
     ],

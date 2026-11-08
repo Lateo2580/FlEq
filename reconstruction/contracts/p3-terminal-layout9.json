@@ -1,0 +1,461 @@
+{
+  "meta": {
+    "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
+    "sha256": "1811a1bb97238a53e65a61bea420e087640cf5d493f341a0eca921b22a6ef7c4",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL9-D-PLUM-ASSUMED",
+        "kind": "作者",
+        "A": "最大予測震度の変化の理由が 9 の報でも、仮定の震源の報（facts.report.isAssumedHypocenter が true）には「PLUM法による予測震度変化」の行を出さない。震源の決まった報だけに出す",
+        "B": "理由が 9 なら仮定の震源の報にも出す（旧築と同じ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者の裁定待ち（起草の仮は A）",
+        "ruling": "未裁定",
+        "reason": "画面の出る・出ないが変わる。repo の理由 9 の報は 77_02_01（PLUM）の 1 本だけで、仮定の震源の報。この報は震源の行に「（仮定の震源、PLUM法で推定）」、到達予想時刻の欄に「PLUM法で推定」が出ており、B は同じ報に PLUM法の字が 3 か所になり、作者が確かめた PLUM の図（Q-TO-EEW-6、spec §5.1）に 1 行足す。A で行が出るのは震源の決まった地震の報で PLUM法の予測が最大予測震度を変えたとき（震源の行の M・深さに矢印が無いのに最大予測震度が上がる報）で、行が無いと上がった理由を M か震源の変化と読む。旧築は仮定の震源かによらず出していた（src/ui/eew-formatter.ts:498）。9 を PLUM法と読む根拠は旧築と新築の仮定の震源の判定（eew.ts の isAssumedHypocenter）だけで、気象庁の資料はこの repo に無い"
+      },
+      {
+        "id": "P3-TL9-D-HEAD-TITLE",
+        "kind": "統合担当",
+        "A": "VPFT50・VPAW51・VPWP50 は帯の題名を Head/Title にし、対象（target）を付けない",
+        "B": "題名は Control/Title のまま、対象に Head/Title から切り出した県・地方（VPFT50 は「熱中症警戒アラート」の前、VPWP50 は「警戒・注意事項時系列情報」の前）を入れる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "3 つとも Control/Title は種類の一般の名前だけで、県・現象・地方は Head/Title にある（57_03_01「埼玉県熱中症警戒アラート」、72_03_01「大雪に関する早期天候情報（東北地方）」、81_01_01「宗谷地方警戒・注意事項時系列情報」）。A は電文の字を切らずに 1 つで全部が入る。B は VPAW51 で現象か地方の片方が落ち、VPFT50 の Head/Title に「特別警戒」が載ったとき（P3-C13-HEAT-SPECIAL=A の代償の「Title は電文のまま見える」）に「熱中症特別警戒アラート」で切り出しが外れて対象が無くなる。A の最長は 72_05_01・72_07_01 の 42 桁で、56 桁では帯の規則で時刻が次の行になる"
+      },
+      {
+        "id": "P3-TL9-D-CANCEL-SOURCE",
+        "kind": "統合担当",
+        "A": "取り消した地震の震源名と発生時刻は、同じ入力の返信の U-Q の accepted の outcome の facts（取消を採った後の地震の view）から sink が取る",
+        "B": "端末（renderer）が覚えた前の地震の報から取る（EEW の取消の 3 行目、P3-TO-D-CANCEL-PHRASE と同じ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "取消の報は EventID と取消の文しか持たない（実物の取消の VXSE51・52・53・61。発生時刻は VXSE51 の Head/TargetDateTime だけ）。U-Q は取消を採った outcome の facts に eventView(next) を載せ、全部の寄与が取消になった地震は cancelledSummary（震源名・発生時刻、seismic-unit.ts の summaryOf）、一部の取消は残った寄与の事実を持つ（seismic-capacity.test.ts の P3-QC-T04 が view の cancelledSummary を確かめている）。通知の本文の震源名（P3-NL-D-CANCEL-EPICENTER=A）も同じ記録から取るので、通知と端末の字が揃う。B は再起動の後や地震の報の表示を落とした後の取消で震源名が出ない。A の手間は、sink が既に U-E を探すために見ている同じ返信の outcomes を地震の取消の報のときだけ見ることと、worker へ 2 つの字を渡すことだけ"
+      },
+      {
+        "id": "P3-TL9-D-CANCEL-WORDS",
+        "kind": "統合担当",
+        "A": "「取り消したのは 16:27ころ発生の熊本県熊本地方の地震の情報です」。発生時刻が記録に無ければ EventID の時と分で「16:27ころの」（「発生」と書かない）、震源名が無ければ省く",
+        "B": "旧築の字のまま「取り消した情報: 16:27 頃発生の熊本県熊本地方の地震」",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "EEW の取消の 3 行目（「取り消したのは … の地震です」、spec §5.1）と書き出しを揃える。地震の情報の取消は報の取消で、一部の取消では同じ地震のほかの報が残るので「地震の情報」と書く。「ころ」は §5.2 の「発生 13:45ころ」に揃える。EventID を発生と書かないのは旧築と同じ（遠地地震の EventID は発生時刻とずれる、src/utils/cancel-target-phrase.ts:59）"
+      },
+      {
+        "id": "P3-TL9-D-PLUM-PLACE",
+        "kind": "統合担当",
+        "A": "要点の震源の行の下（「ほかに n 件の緊急地震速報」の行の上）に補足の薄い字で 1 行",
+        "B": "最大予測震度の行の直下か、旧築と同じ帯の直下",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B は顔を上げて読む要点（重さ・場所・行動、Q-TO2-ROOT）の見出し文と行動の文を 1 行押し下げる。理由は最大予測震度の変化の補足で、M・震源・深さの変化の矢印が並ぶ震源の行の下に置くと「震源は変わらず PLUM法の予測で上がった」と並べて読める。薄い字は前の報の値と矢印と同じ補足の字（spec §5.1 の表）"
+      },
+      {
+        "id": "P3-TL9-D-TYPHOON-LABEL",
+        "kind": "統合担当",
+        "A": "最初の TyphoonNamePart の Number が 4 桁なら「台風第N号（Name）」、無ければ Remark の字、それも無ければ今の形（最初の Area/Name）",
+        "B": "番号が無ければ「熱帯低気圧（EventID）」（台風の通知の題、typhoon-unit.ts の labelOf と同じ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "repo の台風解析・予報情報の気象庁サンプル 7 本（10_04_03・10_05_01〜06）のうち 6 本は番号が無く、Remark（「台風発生予想」「台風発生の可能性が小さくなった」）を持つ。Remark はその報の要点（台風になる見込みか、見込みが小さくなったか）で、旧築も名前の無い報は Remark を出していた（src/ui/typhoon-analysis-formatter.ts:96）。EventID（TC2001）は短い形で出さない値（Q-TO-S-1）。番号のある形は通知の題と同じで、Name はローマ字（通知と同じ。旧築の確率の報はカナを添えていた、src/ui/typhoon-probability-formatter.ts:51）"
+      },
+      {
+        "id": "P3-TL9-D-RELEASE",
+        "kind": "統合担当",
+        "A": "material の scan が集めた Body の Kind が 1 つ以上 256 未満で、全部が Code「0」か Name「なし」なら plain",
+        "B": "U-M の読み取り（local-bulletins.ts）の解除の判定を material から呼ぶ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "A は U-M の解除の規則（P3-C13-TORNADO-FACTS。Kind/Code が「0」か Kind/Name が「なし」ならなし、全部なしなら解除）を、材料が既に 1 回辿る scan の Kind で行う。B は Body をもう 1 回辿り、端末の材料が unit の読み取りに依存する。U-M は Headline の Information を先に読むが、repo の実物 19_01_01・19_03_01 はどちらも Body に Headline と同じ発表の Kind を持つ。Kind が 256 に届いた報は読まなかった Kind に発表がありうるので警報のまま、Kind の無い報も警報のまま（U-M は requiredStructureMissing で拒否するので端末に来ない）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL9-SCOPE",
+        "status": "closed",
+        "source": "2026-11-08 夜の旧築との棚卸し（~/dev/fleq-vault-archive/2026-11-08-evening/gap-seismic.md・gap-volcano-weather.md）と統合担当の依頼",
+        "closed": "1 報の字の作り方で直る欠けを本契約に入れた: 地震の D1（取消の行）→ AC02、D3（PLUM法の行）→ AC03、D4（VXSE53 の長周期階級）→ Q-TL9-LGINT53 で outOfScope、火山・気象の D1（VPFT50 の県）→ AC01、D3（見出し文の空の報の帯の対象）→ AC01（VPAW51・VPWP50）と AC05（VPTA50・VPTW60）、D4（竜巻の解除の段）→ AC04。地震の D2（EEW の色分け）と火山・気象の D2・D5（記録的短時間大雨の重複）、VFVO53 のまとめは P3-TERMINAL-LAYOUT-010 で別に起草する。依頼の「AC08 (2) の帯の対象」の規則は p3-terminal-output.json の P3-TO-AC01 (3)（:504）と P3-TO-AC09 (1)（:615）にある（棚卸しの「:615 AC08 (2)」は AC09 の行）。材料の XML は旧築の formatter の行と fixture の実物で確かめ直した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL9-LGINT53",
+        "status": "closed",
+        "source": "棚卸しの地震の D4（VXSE53 に長周期階級が載ると帯が警報の色になるのに本文に階級が無い）",
+        "closed": "実物の VXSE53 は MaxLgInt を持たない。気象庁サンプル（2026-09-17 の zip と全 bytes 一致）の VXSE53 4 本（32-35_01_03_100514・32-35_01_03_240613・32-35_04_04_240613・32-39_05_12_100915）と、dmdata で採った 2026-07-28 の熊本の地震（最大震度 7）の VXSE53 2 本（telegram-foundation/phase7_5_VXSE53_…99e82c812e72・…bf35e8ea1825）のどれにも LgInt の要素が 0 個。同じ地震の VXSE62（phase7_5_VXSE62_…f9786edc27df）は MaxLgInt 4 を持ち LgInt の要素が 492 個ある。MaxLgInt を持つ VXSE53 は合成の synthetic_phase4a_VXSE53_special だけ。気象庁の電文の仕様書は repo に無い。よって本文に階級の行を足さず outOfScope に送る（format.ts の seismicLevel の MaxLgInt による警報の段は VXSE62 の H08 のために残り、VXSE53 では実物で起きない）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL9-CANCEL-FACTS",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-08）。依頼の「取消の報の中にその地震を特定できる情報が何を持つかを fixture で確かめ、無ければ U-Q の state から引けるかを見る」",
+        "closed": "取消の報の実物 4 本（32-35_06_02 VXSE52・32-35_10_01 VXSE51・32-39_05_12 VXSE53・32-35_06_10 VXSE61）と synthetic_VXSE53_cancel は、Head の EventID・Title・Headline と Body/Text だけを持ち、震源名と OriginTime を持たない。VXSE51 の取消だけ Head/TargetDateTime が発生時刻（32-35_10_01 は 2022-05-09T15:23、発表は 05-10 18:10）。U-Q は取消を採ると outcome の subjects に facts=eventView(next) を載せ（seismic-unit.ts の receiveEarthquake）、寄与が全部取消になり前に記録のあった地震は cancelledSummary { hypocenterName（64 字で切る）, originTimeRaw } を持ち事実は null、一部の取消（例 VXSE51 が残る）は残った active の寄与の事実（newest は active の寄与だけを見る）を持つ。前に記録の無い取消は採られ change が revisionOnly（semantic にならない）で、端末の材料は作られ（inputTerminal は deliveryOnly だけを落とす）、facts は事実も cancelledSummary も持たない。よって AC02 は記録の字を先に、無ければ EventID の時刻にした",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL9-SPEC-LINES",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-08）",
+        "closed": "spec に §5.1 の 1 項、§5.2 の取消の図（4 行）と 2 項、§5.4 の 3 項、§8 の 5 行（Q-TO10-HEAD-TITLE・TYPHOON・TORNADO-RELEASE・QUAKE-CANCEL・PLUM）を足した。既存の行の中身は変えていない。行を足して動いた他の契約の «» は reanchor-target.py で行の番号だけを付け直した（p3-cli-repl・p3-terminal-layout〜layout8・p3-terminal-output・p3-terminal-prompt・p3-terminal-windows の 12 file、meta.sha256 を取り直した）",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。地震の取消の行は同じ入力の返信の U-Q の outcome（同じ運用区分の subject）だけを読む"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-009",
+    "mode": "implementation",
+    "objective": "旧築にあって新築の端末に無い表示の欠けのうち、1 報の字の作り方で直るものを直す（2026-11-08 夜の棚卸し）。熱中症警戒アラート・早期天候情報・気象警報・注意報時系列情報の帯を Head/Title にして県・現象・地方を出し、地震の情報の取消に取り消した地震の発生時刻と震源名の 1 行を足し、緊急地震速報に「PLUM法による予測震度変化」の行を戻し、竜巻注意情報の解除の報を普通の段にし、台風の情報の帯の対象を台風の番号と名前にする。VXSE53 の長周期階級の行は実物に MaxLgInt が無いので作らない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout9.json",
+      "reconstruction/contracts/p3-terminal-layout8.json",
+      "reconstruction/contracts/p3-terminal-layout2.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/contracts/p3-seismic-unit.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/src/terminal/**",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/units/typhoon/typhoon-unit.ts",
+      "reconstruction/src/domains/local-bulletins/local-bulletins.ts",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/test/terminal/**",
+      "reconstruction/test/seismic-unit/seismic-capacity.test.ts",
+      "src/ui/earthquake-info-formatter.ts",
+      "src/utils/cancel-target-phrase.ts",
+      "src/ui/eew-formatter.ts",
+      "src/ui/typhoon-analysis-formatter.ts",
+      "src/ui/typhoon-probability-formatter.ts",
+      "src/ui/heat-alert-formatter.ts",
+      "src/ui/early-weather-formatter.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/material.ts（scan の TyphoonNamePart と U-Y の対象、shortLevel の U-M の行だけ。他の契約が引く :102 の行の中身は変えない。:271 の行の中身も変えない〔番号のずれは配送で統合担当が付け直す〕）",
+      "reconstruction/src/terminal/format.ts（TerminalUnit の report の欄 1 つ、地震の取消の行、EEW の PLUM法の行、短い形の帯の題名だけ）",
+      "reconstruction/src/terminal/output.ts（sink の inputDone で地震の取消の報に U-Q の outcome の 2 つの字を添える行だけ）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout9.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-008",
+      "P3-TERMINAL-LAYOUT-002",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-UNIT-Q-001",
+      "P3-UNIT-M-001",
+      "P3-UNIT-Y-001",
+      "P3-EEW-FACTS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__57_03_01_240401_VPFT50",
+      "test__fixtures__synthetic_VPFT50_cancel",
+      "test__fixtures__synthetic_VPFT50_title_escalation",
+      "test__fixtures__72_03_01_190327_VPAW51",
+      "test__fixtures__72_05_01_190327_VPAW51",
+      "test__fixtures__81_01_01_260129_VPWP50",
+      "test__fixtures__81_09_01_260605_VPWP50",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE51_20260728162718_059a2b392646",
+      "test__fixtures__synthetic_VXSE53_cancel",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_02_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM",
+      "test__fixtures__synthetic_VPHW50_tokyo_release",
+      "test__fixtures__synthetic_VPHW50_tokyo_empty",
+      "test__fixtures__synthetic_VPHW50_tokyo_cancel",
+      "test__fixtures__19_01_01_091210_VPHW50",
+      "test__fixtures__19_03_01_130906_VPHW50",
+      "test__fixtures__76_01_01_200630_VPTA50",
+      "test__fixtures__76_01_02_260531_VPTA50",
+      "test__fixtures__10_04_03_170913_VPTW60",
+      "test__fixtures__10_05_01_200826_VPTW60",
+      "test__fixtures__10_05_05_200826_VPTW61",
+      "test__fixtures__synthetic_VPTA50_cancel"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07",
+      "O08"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "format.ts の TerminalUnit の report に足す地震の取消の欄（震源名と発生時刻の 2 つの字。main から worker への列の中だけ）"
+    ],
+    "outOfScope": [
+      "VXSE53 の長周期階級の行（Q-TL9-LGINT53。実物の VXSE53 6 本に MaxLgInt が 0 個、同じ地震の VXSE62 は MaxLgInt 4。合成の synthetic_phase4a_VXSE53_special だけが持つ）",
+      "VFVO53 のまとめ、記録的短時間大雨の重複（VPOA50 と VPBS50）、並走する EEW の帯の色分けは P3-TERMINAL-LAYOUT-010（別に起草中）",
+      "地震の解説（VXSE56・VXSE60・VZSE40）の本文と、南海トラフ・火山の本文は P4",
+      "ディスプレイ（P4）と view・snapshot",
+      "通知（音・デスクトップ）の文面と門。地震の取消の通知の震源名（P3-NL-D-CANCEL-EPICENTER=A）は今のまま",
+      "U-Q・U-M・U-Y・U-F・U-E の unit・state・保存の形式・codec（端末は返信の outcome と材料を読むだけ）",
+      "EEW の取消の 3 行目（P3-TO-D-CANCEL-PHRASE）と EEW のログ（spec §7）",
+      "VPTA50 の府県ごとの確率の表（旧築の上位 24 行）。短い形は表を出さない（Q-TO-ROOT の案 C）",
+      "番号のある台風の Remark（台風消滅など）を帯に出すこと（旧築も名前を先にした）",
+      "竜巻注意情報（VPHW50・51）の帯の対象（最初の Area/Name）",
+      "台風解析・予報情報の帯の題名に残る版の印「（Ｈ３０）」（短い形の帯は Q-TO-S-1 で「（Ｒ０６）」の形だけを除く。起動時のまとめの名前は Q-TO8-NO-CODE で両方を除く）。除くなら Q-TO-S-1 の改訂として別に諮る",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL9-AC01",
+        "requirement": "帯の題名を Head/Title にする報（Q-TO10-HEAD-TITLE、P3-TL9-D-HEAD-TITLE）。場面: 2024-08-10 17:00 に埼玉県など 5 県の熱中症警戒アラート（VPFT50）が届くと、今は「熱中症警戒アラート」の帯が 5 つ並び、どの県の報か読めない（Control/Title は県を持たず、Body に Area が無いので対象も空）: (1) headType が VPFT50・VPAW51・VPWP50 の短い形の報は、帯の題名を Control/Title でなく Head/Title にし（版の印「（Ｒ０６）」を除く規則は今と同じ）、対象（target）を帯に付けない。例: 57_03_01 は「埼玉県熱中症警戒アラート」、72_03_01 は「大雪に関する早期天候情報（東北地方）」（今は「早期天候情報 東北日本海側」）、81_01_01 は「宗谷地方警戒・注意事項時系列情報」（今は「気象警報・注意報時系列情報 稚内市」） (2) 訓練・試験の印と「 取消」は今と同じく題名の後ろ（例 synthetic_VPFT50_cancel は「埼玉県熱中症警戒アラート 取消」） (3) 字は電文の Head/Title のまま（切り出し・言い換えをしない。synthetic_VPFT50_title_escalation は「埼玉県熱中症特別警戒アラート」） (4) Head/Title が無いか空の報は今の形（Control/Title と対象） (5) 段・理由の行・見出し文・末尾の行と、ほかの種類の帯は変えない。material は変えない（head.title は既に読んでいる。format.ts の shortForm の題名だけ）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:583 «48d901d65d97cbc5»",
+          "docs/specs/cli-terminal-output.md:850 «2a4c771496da41a2»",
+          "docs/specs/cli-terminal-output.md:560 «ac0d75ec8384aca1»",
+          "test/fixtures/57_03_01_240401_VPFT50.xml:11 «ea661e88e8f7eb17»",
+          "test/fixtures/72_03_01_190327_VPAW51.xml:11 «c40b893a9a8fb573»",
+          "test/fixtures/81_01_01_260129_VPWP50.xml:11 «4bce9eb55ce49339»",
+          "src/dmdata/heat-alert-parser.ts:36 «55861ef51223df5b»",
+          "src/ui/early-weather-formatter.ts:31 «88af58b572a344f5»"
+        ]
+      },
+      {
+        "id": "P3-TL9-AC02",
+        "requirement": "地震の情報の取消で取り消した地震を書く（Q-TO10-QUAKE-CANCEL、P3-TL9-D-CANCEL-SOURCE・D-CANCEL-WORDS）。場面: 13:50 に駿河湾の地震（13:45 発生）の震源・震度に関する情報が出て、14:05 にその取消が届くと、今は帯と「震源・震度情報を取り消します。」だけで、どの地震の取消か読めない（旧築は「取り消した情報: 13:45 頃発生の駿河湾の地震」を出していた）: (1) 地震（U-Q）の取消の報（InfoType 取消）は、取消の文（今の要点の行）の下に「取り消したのは <時刻><震源名>の地震の情報です」の 1 行を普通の字で出す (2) 震源名と発生時刻: 同じ入力の返信の output の outcomes のうち unit が U-Q で kind が accepted の outcome の subjects から、facts の eventId がその報の EventID（前後の空白を除く）と同じものを 1 つ取り、facts.cancelledSummary の hypocenterName・originTimeRaw を先に、無ければ facts.hypocenter.name と facts.originTimeRaw（無ければ facts.hypocenter.originTimeRaw）を使う。値は文字列かを確かめて読み、文字列でなければ無いものとする。取るのは sink（output.ts の inputDone）で、worker へは report の単位に足した欄（2 つの字か null）だけを渡す（facts を丸ごと積まない） (3) 時刻: 発生時刻があれば「16:27ころ発生の」、無ければ EventID（14 桁の数字）の時と分で「16:27ころの」（「発生」と書かない）、どちらも無ければ時刻を書かない。時刻が取消の報の発表の日と違う日なら日を添える（「28日 16:27ころ」。§5.2 の発生の行と同じ決まり） (4) 震源名が無ければ震源名を省く（「16:27ころ発生の地震の情報です」）。時刻も震源名も無ければ行を出さない (5) 例: phase7_5 bf35 の VXSE53（熊本県熊本地方、16:27 発生）を U-Q が採った後の synthetic_VXSE53_cancel は「取り消したのは 16:27ころ発生の熊本県熊本地方の地震の情報です」（spec §5.2 の図）。VXSE51（phase7_5 059a2b）と VXSE53 を採った後の VXSE53 の取消は、残った VXSE51 に震源が無いので「取り消したのは 16:27ころ発生の地震の情報です」。U-Q に記録の無い取消は「取り消したのは 16:27ころの地震の情報です」 (6) 帯・段・取消の文・末尾の行は変えない。EEW の取消の 3 行目（P3-TO-D-CANCEL-PHRASE）と U-Q・通知は変えない (7) 行が幅に入らなければ今の文の折り返し（P3-TL-AC09）で折る",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:312 «b644f9e88160e76d»",
+          "docs/specs/cli-terminal-output.md:316 «9617ef6f11842783»",
+          "docs/specs/cli-terminal-output.md:317 «38cdcb215e18bfbd»",
+          "docs/specs/cli-terminal-output.md:853 «37af98e0dc69da35»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:900 «e969d2903578cd2e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:832 «a9ee37a35aefc96d»",
+          "test/fixtures/32-35_10_01_220510_VXSE51.xml:13 «709d509a595a10fb»",
+          "src/ui/earthquake-info-formatter.ts:220 «37669a4a0e71ec10»",
+          "src/utils/cancel-target-phrase.ts:59 «be503dd406fc97a1»"
+        ]
+      },
+      {
+        "id": "P3-TL9-AC03",
+        "requirement": "緊急地震速報の PLUM法の行（Q-TO10-PLUM、P3-TL9-D-PLUM-ASSUMED・D-PLUM-PLACE）。場面: 震源の決まった地震の緊急地震速報で、M と深さは変わらないのに第 3 報の最大予測震度が 4 から 5弱 に上がる（PLUM法の予測で上がった報、最大予測震度の変化の理由 9）と、今は「最大予測震度 4 →  5弱」だけで、上がった理由が画面に無い（旧築は「PLUM法 による予測震度変化」を出していた）: (1) U-E の outcome の facts.report.maxIntChangeReasonRaw（eew.ts が Forecast/Appendix/MaxIntChangeReason を trim して写す）が「9」の取消でない報は、要点の震源の行の下（「ほかに n 件の緊急地震速報」の行がある報はその上）に補足の薄い字で「PLUM法による予測震度変化」の 1 行を出す (2) facts.report.isAssumedHypocenter が true の報（仮定の震源）には出さない（P3-TL9-D-PLUM-ASSUMED の仮 A。作者が B に裁定したら (2) を外し、spec §5.1 の PLUM の図に行を足す） (3) 再掲（P3-TL-AC08）に写さない。前の報の覚え（P3-TL-AC05）に入れない (4) 理由が 9 でない報と欄の無い報は今のまま。畳む報（P3-TL2-AC10）は今のまま畳む (5) EEW のログ（spec §7）は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:236 «95364caa1f76bdb8»",
+          "docs/specs/cli-terminal-output.md:854 «0d733c34dd70d626»",
+          "reconstruction/src/domains/eew/eew.ts:822 «7769773ce82bfcd9»",
+          "src/ui/eew-formatter.ts:498 «be7a9bca1c4ac05d»",
+          "src/ui/eew-formatter.ts:503 «7cc1cbd51eaaf14c»"
+        ]
+      },
+      {
+        "id": "P3-TL9-AC04",
+        "requirement": "竜巻注意情報の解除の報の段（Q-TO10-TORNADO-RELEASE、P3-TL9-D-RELEASE）。場面: 13:50 に東京都竜巻注意情報の区域が全部「なし」の報（解除）が届くと、今は発表と同じ警報の色の帯で出て、竜巻注意情報が続いているように読める（spec §5.4 の表で解除は普通）: (1) headType が VPHW50・VPHW51 の取消でない報は、material の scan が集めた Body の Kind が 1 つ以上 256 未満で、全部が Code「0」か Name「なし」なら段を plain にする（U-M の解除の判定 P3-C13-TORNADO-FACTS と同じ規則） (2) Kind が 1 つも無い報と、集めた Kind が 256 に届いた報は今のまま warning（読まなかった Kind に発表がありうる） (3) 取消は今のまま cancel。理由の行は今のまま無い (4) 帯の対象・見出し文・末尾の行は変えない (5) 例: synthetic_VPHW50_tokyo_release は plain、19_01_01・19_03_01 は warning、synthetic_VPHW50_tokyo_empty は warning",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:585 «ba07008bc9913340»",
+          "docs/specs/cli-terminal-output.md:852 «0e7f131dc19eaef0»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:231 «5efa981d01d5ed0e»",
+          "reconstruction/src/domains/local-bulletins/local-bulletins.ts:267 «e2337b897e0cdba7»"
+        ]
+      },
+      {
+        "id": "P3-TL9-AC05",
+        "requirement": "台風の情報の帯の対象（Q-TO10-TYPHOON、P3-TL9-D-TYPHOON-LABEL）。場面: 16:55 に台風第1号の暴風域に入る確率（VPTA50）が届くと、今は帯が「台風の暴風域に入る確率 宗谷北部」（375 地域の先頭、確率 0% でも）で、宗谷北部が暴風域に入るように読める。台風解析・予報情報（VPTW60）は「台風」「熱帯低気圧」で、どの台風の報か読めない: (1) unit が U-Y（VPTW60〜65・VPTA50〜55）の報（取消を含む）の対象（target）は、Body の文書の順で最初の TyphoonNamePart から作る。scan の 1 回の辿りの中で最初の 1 つを覚える (2) その Number が半角の 4 桁なら「台風第<下 2 桁を数にした字>号」とし、Name が空でなければ続けて「（<Name>）」（台風の通知の題 typhoon-unit.ts の labelOf と同じ形）。例: 76_01_01 は「台風第1号（DAMREY）」、10_04_03 は「台風第18号（TALIM）」 (3) Number が 4 桁でなく Remark が空でなければ Remark の字のまま。例: 10_05_01 は「台風発生予想」、10_05_05 は「台風発生の可能性が小さくなった」 (4) どちらも無いか TyphoonNamePart が無ければ今の形（Body の最初の Area/Name。例 synthetic_VPTA50_cancel は対象なし） (5) 段・見出し文・末尾の行は変えない。番号のある台風の Remark（台風消滅など）は帯に出さない（旧築も名前を先にした）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:584 «4bc9de7d19861115»",
+          "docs/specs/cli-terminal-output.md:851 «a16e134191b148ae»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:174 «9e329ba36327340b»",
+          "src/ui/typhoon-analysis-formatter.ts:96 «ce33e0017551e164»",
+          "src/ui/typhoon-probability-formatter.ts:51 «10646b2ced584ed4»"
+        ]
+      },
+      {
+        "id": "P3-TL9-AC06",
+        "requirement": "幅と計算量（P3-TO-AC04 (5)・AC08、AGENTS.md の受信経路の計算量）: (1) AC01〜AC05 の報（T01〜T05 の fixture と書き換えた報）を 56・80・100 桁で描くと、どの行も桁数を越えない。帯は今の band の規則で時刻を次の行に送るか題名を字の境で折る（最長は 10_05_05 の「台風解析・予報情報（５日予報）（Ｈ３０） 台風発生の可能性が小さくなった」の 71 桁で、56 桁では題名が折れ、80 桁では時刻が次の行。VPAW51 の 72_05_01・72_07_01 は 42 桁）。取消の行と PLUM法の行は今の文の折り返し（P3-TL-AC09）で折る (2) owner の terminalReport は decode 済みの tree を今と同じく 1 回だけ辿る。TyphoonNamePart は scan の visit の中で見つけ、解除の判定は scan が集めた 256 までの Kind を 1 回見るだけ。新しい辿りと JSON.stringify をしない (3) main の sink は、地震の取消の報のときだけ、同じ返信の outcomes（U-E を探すのと同じ列。その返信の outcomes の数に比例）を 1 回見て U-Q の subject の facts から 2 つの字を取る。ほかの報の sink の仕事は変えない。列に積む単位はその 2 つの字の分だけ大きくなり、byte は今の estimate で積む時に 1 回見積もる (4) renderer の仕事は行が 1 つ増えるだけ (5) P3-TO-AC08 (3) の材料の時間を 76_01_01 VPTA50（1.8 MB、台風の最大）と 19_01_01 VPHW50 で変える前と後に測り、成果物に表で書く。変える前との差が 5 ms を越えたら配送の前に止めて報告する",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:583 «48d901d65d97cbc5»",
+          "docs/specs/cli-terminal-output.md:316 «9617ef6f11842783»",
+          "docs/specs/cli-terminal-output.md:236 «95364caa1f76bdb8»",
+          "docs/specs/cli-terminal-output.md:584 «4bc9de7d19861115»",
+          "docs/specs/cli-terminal-output.md:585 «ba07008bc9913340»",
+          "AGENTS.md"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL9-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL9-AC01"
+        ],
+        "behavior": "実不具合（2026-11-08 夜の旧築との棚卸し。熱中症警戒アラートの帯に県が出ない）。57_03_01 VPFT50 の帯の題名が「埼玉県熱中症警戒アラート」で対象が付かず、synthetic_VPFT50_cancel が「埼玉県熱中症警戒アラート 取消」、synthetic_VPFT50_title_escalation が「埼玉県熱中症特別警戒アラート」。72_03_01 VPAW51 が「大雪に関する早期天候情報（東北地方）」で帯に「東北日本海側」が無い。81_01_01 VPWP50 が「宗谷地方警戒・注意事項時系列情報」で帯に「稚内市」が無く、81_09_01 が「長野県警戒・注意事項時系列情報」。Head/Title を消した 57_03_01 は今の形（「熱中症警戒アラート」）"
+      },
+      {
+        "testId": "P3-TL9-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL9-AC02"
+        ],
+        "behavior": "実不具合（同じ棚卸し。地震の取消でどの地震の取消か読めない）。U-Q の reducer（reduceSeismicUnit）に phase7_5 bf35 の VXSE53 と synthetic_VXSE53_cancel を順に渡した本物の outcome（facts を手で作らない。U-Q の facts の形が変わったら落ちるように）を inputDoneOf に載せて harness の sink に渡すと、取消のブロックの「震源・震度情報を取り消します。」の下が「取り消したのは 16:27ころ発生の熊本県熊本地方の地震の情報です」。phase7_5 059a2b の VXSE51 と VXSE53 を採った後の VXSE53 の取消は「取り消したのは 16:27ころ発生の地震の情報です」。空の state に取消だけを渡した outcome は「取り消したのは 16:27ころの地震の情報です」。取消の報の ReportDateTime を翌日に替えた report（outcome は記録のあるもの）は「取り消したのは 28日 16:27ころ発生の…」。U-Q の outcome の無い返信は EventID の行。EEW の取消（37_01_03）の 3 行目は今のまま"
+      },
+      {
+        "testId": "P3-TL9-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL9-AC03"
+        ],
+        "behavior": "実不具合（同じ棚卸し。PLUM法の行が無い）。eewUnits に 37_01_01 と、MaxIntChangeReason を 9 に替えた 37_01_02 を順に渡すと、第 2 報の要点の震源の行の直下に薄い字の「PLUM法による予測震度変化」があり、再掲に無い。替えない 37_01_02（理由 0）と 77_02_01（仮定の震源で理由 9、D-PLUM-ASSUMED=A）と取消（37_01_03）には無い"
+      },
+      {
+        "testId": "P3-TL9-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL9-AC04"
+        ],
+        "behavior": "実不具合（同じ棚卸し。竜巻注意情報の解除が警報の段）。synthetic_VPHW50_tokyo_release の段が plain、19_01_01・19_03_01 が warning、synthetic_VPHW50_tokyo_empty（Kind が無い）が warning、synthetic_VPHW50_tokyo_cancel が cancel。19_01_01 の Body の発表の Kind を 1 つだけ残してほかを Code 0・Name なしにした報は warning"
+      },
+      {
+        "testId": "P3-TL9-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL9-AC05"
+        ],
+        "behavior": "実不具合（同じ棚卸し。台風の帯の対象が「宗谷北部」「熱帯低気圧」）。対象が 76_01_01 VPTA50「台風第1号（DAMREY）」、76_01_02「台風第6号（JANGMI）」、10_04_03 VPTW60「台風第18号（TALIM）」、10_05_01「台風発生予想」、10_05_05 VPTW61「台風発生の可能性が小さくなった」、synthetic_VPTA50_cancel は対象なし。10_04_03 の Number を空にした報は Remark も空なので今の形（「熱帯低気圧」）"
+      },
+      {
+        "testId": "P3-TL9-T06",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL9-AC06"
+        ],
+        "behavior": "契約境界。T01〜T05 の報を 56・80・100 桁と色の水準 3 で描くと、どの行も桁数を越えない（72_05_01 の帯は 56 桁で時刻が次の行、10_05_05 の帯は 56 桁で題名が折れる）。layout6.test.ts の T04（読めた全 fixture の描画）がそのまま通る"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O07・O08 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。spec の行を足した後も他の契約の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（例: report の単位の取消の欄が無いと、worker は U-Q の記録を読めず取消の行に震源名を書けない）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待は変えない（short.test.ts の AC09 (2) の表の 19_01_01 warning・81_01_01 plain・10_04_03 plain はそのまま）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "AC06 (5) の材料の時間の表（変える前と後）",
+      "配送で統合担当が付け直す: material.ts・format.ts の行がずれたら、p3-tsunami-hold-mark.json の material.ts:271 «2be327932f009c34» と p3-recovery-boundary.json の format.ts:784 «06806f691eb3af93» の行の番号を中身の anchor が一致する行へ付け直し、meta.sha256 を取り直して check-contract を通す（material.ts は reanchor-target.py が「material.ts:」の手前を区切らず decode-material.ts: にも当たるので手で付け直す。p3-view-alert-text.json の material.ts:102 は変更より上の行なので動かない見込み。2 契約の json は allowedPaths に入れない）",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 地震の取消の行は U-Q が取消を採った返信の outcome を読むので、U-Q が取消を duplicate や stale で採らなかった入力は端末にも出ない（今と同じ） (2) 一部の取消（同じ地震のほかの報が残る）の行は残った報の事実で書くので、取り消された報の方が新しい震源名を持っていても、残った報の震源名か発生時刻だけになる (3) 熱帯低気圧が 2 つ同時に進むと、どちらの報も帯が「台風発生予想」で区別できない（旧築と同じ。EventID は短い形で出さない） (4) PLUM法の行の 9 の読み方は旧築と仮定の震源の判定に頼り、気象庁の資料で確かめていない",
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 6 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (3) の短い形の target「Body の文書の順で最初の Area/Name」に、台風（U-Y）は最初の台風呼称から作る字（P3-TL9-AC05）の旨と、(4) の「端末が渡すのは」に、地震の取消の報では同じ返信の U-Q の outcome から取った震源名と発生時刻（P3-TL9-AC02）の旨 (2) 同 :567 の P3-TO-AC05 (2) の図の行の決まりに、最大予測震度の変化の理由 9 の PLUM法の行（P3-TL9-AC03）の旨 (3) 同 :581 の P3-TO-AC06 (1) の図の 5 つに、取消の報の 3 行目（P3-TL9-AC02、§5.2 の取消の図）の旨 (4) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字を取ること（P3-TL9-AC06 (3)） (5) 同 :615 の P3-TO-AC09 (1) の帯の題名「Control/Title から…」に、VPFT50・VPAW51・VPWP50 は Head/Title で対象を付けない旨（P3-TL9-AC01）と、(2) の竜巻注意情報に、区域が全部なしの解除の報は plain の旨（P3-TL9-AC04） (6) P3-TL9-D-PLUM-ASSUMED の作者の裁定を spec に当てる: A なら §5.1 の PLUM法の項と §8 の Q-TO10-PLUM の行の「作者の裁定待ち」を裁定の記録（日付と A）に書き換える。B なら §5.1 の PLUM の図に「PLUM法による予測震度変化」の行を足し、その 2 行の「仮定の震源の報には出さない」を外す。どちらも行の中身が変わるので、本契約の AC03 が引く 2 つの «» を取り直し、本契約の meta.sha256 を取り直す（ほかの契約はこの 2 行を引いていない）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-TL9-PLUM-ASSUMED",
+        "owner": "user",
+        "blocks": [
+          "P3-TL9-AC03"
+        ],
+        "resolveBy": "発注前点検（baseOid を割り当てる前）",
+        "requiredEvidence": [
+          "P3-TL9-D-PLUM-ASSUMED の作者の裁定（A: 仮定の震源の報には出さない／B: 理由 9 なら常に出す）"
+        ]
+      }
+    ]
+  }
+}
