@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "bdffa3ff80ec9dbf22b8e6f71d5486f146d1fc029c314779cc4c107eae1095be",
+    "sha256": "96eb323cf4e8a4b7a80eaa3784b2116d685c5c690fdf6518703c588409fb88ec",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -287,15 +287,15 @@
         "id": "P3-NW-AC01",
         "requirement": "win32 の desktop（P3-NW-D-DESKTOP・D-TEXT・D-HIDE）: (1) commands の desktop は win32 のとき 1 本の組を返す。実行ファイルは process.env.SystemRoot ?? \"C:\\\\Windows\" の後ろに \"\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" を文字列として繋いだ絶対パスで、process.platform と同じく呼ぶたびに読む（module の読み込みの時に定数へ固めない。T02・T04 が試験の中で SystemRoot を替える）（path.join を使わない。T01 が macOS で走るので、join だと区切りが / になり Windows の実物と違う） (2) argv は [\"-NoProfile\", \"-NonInteractive\", \"-Command\", script] で、script は次の固定の文字列（一字も変えない）: $ErrorActionPreference='Stop';$m=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];$x=$m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);$t=$x.GetElementsByTagName('text');[void]$t.Item(0).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_TITLE));[void]$t.Item(1).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_BODY));$a=$x.CreateElement('audio');$a.SetAttribute('silent','true');[void]$x.DocumentElement.AppendChild($a);$m::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new($x)) (3) spawn の option に windowsHide: true と env: { ...process.env, FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body } を足す。題と本文は argv と script の文字列に入れない (4) script の中に二重引用符を書かない（Node が argv を引用符で包むため） (5) toast の audio は silent にする。音は sound の channel が鳴らす。無いと: Windows の既定の通知音と WAV が重なり、音を切った設定でも通知音が鳴る (6) payload の検査（:33 の題と本文の非空）は今のまま。無いと: Windows で電文の通知が 1 件も出ない",
         "evidenceRefs": [
-          "reconstruction/src/notification-delivery/adapter.ts:37 «1953e59f083b2b32»",
-          "reconstruction/src/notification-delivery/adapter.ts:47 «868895550f04402f»"
+          "reconstruction/src/notification-delivery/adapter.ts:61 «1953e59f083b2b32»",
+          "reconstruction/src/notification-delivery/adapter.ts:73 «868895550f04402f»"
         ]
       },
       {
         "id": "P3-NW-AC02",
         "requirement": "win32 の sound（P3-NW-D-SOUND・D-TEXT・D-HIDE）: (1) commands の sound は win32 のとき AC01 と同じ実行ファイルの 1 本の組を返す (2) argv は [\"-NoProfile\", \"-NonInteractive\", \"-Command\", script] で、script は次の固定の文字列: $ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync() (3) env に FLEQ_NOTIFY_WAV: wav（resolveRepoPath の結果か probe の無音の WAV）を足し、windowsHide: true を付ける (4) 列は 1 本なので soundBackend の index は常に 0 で、同時に鳴らさない規則（active の 1 channel 1 process、A1 の選択）は変えない。無いと: Windows で音が出ない",
         "evidenceRefs": [
-          "reconstruction/src/notification-delivery/adapter.ts:42 «39ece06a2d7a7fd7»",
+          "reconstruction/src/notification-delivery/adapter.ts:67 «39ece06a2d7a7fd7»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:25 «89875591234e0881»"
         ]
       },
@@ -303,17 +303,17 @@
         "id": "P3-NW-AC03",
         "requirement": "結果の読み替えを足さない（P2-A7-ADAPTER）: (1) 2 本の script は最初に $ErrorActionPreference='Stop' を置く。.NET の例外を script を止める error にして exit 1 にする。無いと: 失敗しても exit 0 の delivered になりうる (2) exit 0 は delivered、exit 0 以外は failed/adapterRejected、spawn の ENOENT は failed/notStarted で、今の分岐のまま (3) 中断は今の child.kill(\"SIGTERM\") で、Windows では強制終了になり、close を停止の証拠にする規則も今のまま。投稿した toast は取り消さない (4) 試行の期限（desktop 5 秒、sound 10 秒、probe 5 秒）を win32 で延ばさない。PowerShell の起動が期限を越える PC では timeout になる（Q-NW-DEVICE で測る）。起動の時の音の probe（Windows では最初の powershell.exe）が 5 秒を越えると sound は unavailable になり、R34 で run の間やり直さないので、その run の間ずっと音が出ない。この状態は 表示の画面（chrome-eew）にしか出ず、端末だけで使う人には見えない。冷えた runner の時間で判断する線は Q-NW-WINDOWS-CI に置く (5) OS の設定で通知が切られている、応答不可の設定で toast が通知センターへ直に入るときは検知しない（macOS の通知の許可・集中モードと同じ）",
         "evidenceRefs": [
-          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
-          "reconstruction/src/notification-delivery/adapter.ts:137 «8aa1f556b7d3759e»",
-          "reconstruction/src/notification-delivery/adapter.ts:169 «5c80a17684f383e0»"
+          "reconstruction/src/notification-delivery/adapter.ts:157 «e42e16db6d76a6d5»",
+          "reconstruction/src/notification-delivery/adapter.ts:163 «8aa1f556b7d3759e»",
+          "reconstruction/src/notification-delivery/adapter.ts:195 «5c80a17684f383e0»"
         ]
       },
       {
         "id": "P3-NW-AC04",
         "requirement": "probe と切断の通知: (1) probeDesktopBackend は win32 のとき AC01 の実行ファイルの existsSync で決める（見える通知を出さない。無ければ unavailable/backendMissing。R34） (2) probeSoundBackend は変えない。commands の win32 の組が無音の WAV を鳴らし、起動の時に 1 回 PowerShell が走る。host は probe を待たずに受信へ進む (3) desktopNotice は win32 でも AC01 と同じ組を使い、10 秒の timeout を保ち、音を付けず、backend が無いときと起動の失敗は何もしない。execFile の引数は AC01 の実行ファイルと argv、env に FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY、windowsHide: true、timeout: 10_000 で、P3-NW-T04 が確かめる (4) :202 の export に名前を足さない。無いと: Windows で回線の切断の通知だけ出ない",
         "evidenceRefs": [
-          "reconstruction/src/notification-delivery/adapter.ts:179 «5ecf50df3ab82a44»",
-          "reconstruction/src/notification-delivery/adapter.ts:180 «7dd3fb09f5003c05»",
+          "reconstruction/src/notification-delivery/adapter.ts:205 «5ecf50df3ab82a44»",
+          "reconstruction/src/notification-delivery/adapter.ts:206 «7dd3fb09f5003c05»",
           "reconstruction/src/runtime/composition-root.ts:488 «709181cb515a96f9»",
           "reconstruction/src/host/host.ts:543 «60adca15b67ad766»"
         ]

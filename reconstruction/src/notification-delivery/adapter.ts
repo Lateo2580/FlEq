@@ -27,7 +27,31 @@ type Active = {
 };
 const active: Record<NotificationChannel, Active | null> = { desktop: null, sound: null };
 
-function commands(attempt: NotificationAttempt, probeWav?: string): readonly (readonly [string, readonly string[]])[] {
+// P3-NW-D-HIDE: 3 番目は win32 の組だけが持つ spawn の option（darwin と linux の組は 2 つのまま）。
+type Backend = readonly [executable: string, argv: readonly string[], options?: Readonly<{ windowsHide: true; env: NodeJS.ProcessEnv }>];
+
+// P3-NW-AC01 (1): 試験が SystemRoot を替えるので platform と同じく呼ぶたびに読む。path.join は macOS で / を挟むので文字列で繋ぐ。
+function powerShellPath(): string {
+  return `${process.env.SystemRoot ?? "C:\\Windows"}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+}
+// P3-NW-D-TEXT: 題・本文・WAV は env で渡す（-Command の後ろの引数は script に繋がってコードになる）。script に二重引用符を書かない（Node が
+// argv を引用符で包む）。P3-NW-D-HIDE: windowsHide が無いと親の console を共有し、Ctrl+C が子にも届いて音が途中で切れる。
+function powerShell(script: string, values: Readonly<Record<string, string>>): Backend {
+  return [powerShellPath(), ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, env: { ...process.env, ...values } }];
+}
+// P3-NW-AC01 (2)・AC02 (2) の固定の文字列（一字も変えない）。先頭の Stop は .NET の例外を exit 1 にする（AC03 (1)）。toast の audio を silent に
+// するのは、Windows の既定の通知音と WAV が重ならないため（AC01 (5)）。送り主は Windows PowerShell の AppUserModelID（P3-NW-D-SENDER=A）。
+const toastScript = "$ErrorActionPreference='Stop';"
+  + "$m=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];"
+  + "[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];"
+  + "$x=$m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);$t=$x.GetElementsByTagName('text');"
+  + "[void]$t.Item(0).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_TITLE));[void]$t.Item(1).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_BODY));"
+  + "$a=$x.CreateElement('audio');$a.SetAttribute('silent','true');[void]$x.DocumentElement.AppendChild($a);"
+  + "$m::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe')"
+  + ".Show([Windows.UI.Notifications.ToastNotification]::new($x))";
+const soundScript = "$ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync()";
+
+function commands(attempt: NotificationAttempt, probeWav?: string): readonly Backend[] {
   if (attempt.channel === "desktop") {
     const { title, body } = attempt.payload;
     if (typeof title !== "string" || typeof body !== "string" || title.length === 0 || body.length === 0)
@@ -35,6 +59,7 @@ function commands(attempt: NotificationAttempt, probeWav?: string): readonly (re
     if (process.platform === "darwin") return [["/usr/bin/osascript", ["-e", "on run argv", "-e",
       "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", "--", title, body]]];
     if (process.platform === "linux") return [["/usr/bin/notify-send", ["--expire-time=10000", "--", title, body]]];
+    if (process.platform === "win32") return [powerShell(toastScript, { FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body })];
   } else {
     if (attempt.soundAsset == null) throw new RangeError("missing sound asset");
     const wav = resolveRepoPath(probeWav ?? attempt.soundAsset);
@@ -43,6 +68,7 @@ function commands(attempt: NotificationAttempt, probeWav?: string): readonly (re
       ["/usr/bin/ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet", wav]],
       ["/usr/bin/paplay", [wav]], ["/usr/bin/aplay", ["-q", wav]],
     ];
+    if (process.platform === "win32") return [powerShell(soundScript, { FLEQ_NOTIFY_WAV: wav })];
   }
   throw new RangeError("unsupported notification backend");
 }
@@ -100,12 +126,12 @@ function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, pro
       finish({ ...base(adapterCalledAt), kind: "failed", reason: "notStarted" });
       return;
     }
-    const [executable, argv] = backends[index];
+    const [executable, argv, options] = backends[index];
     context.child = null;
     context.closed = false;
     context.noChild = true;
     let child: childProcess.ChildProcess;
-    try { child = childProcess.spawn(executable, [...argv], { shell: false, stdio: "ignore" }); }
+    try { child = childProcess.spawn(executable, [...argv], { ...options, shell: false, stdio: "ignore" }); }
     catch {
       // spawn の同期の失敗は子が無いことの証拠で、close は来ない。
       if (next()) launch(offset + 1);
@@ -175,7 +201,7 @@ function abortNotificationAttempt(request: NotificationAbortRequest, stopByMonot
 
 // R34: startup calls once; missing desktop must not become a per-intent spawn/retry loop.
 function probeDesktopBackend(): Extract<NotificationChannelState, { kind: "idle" | "unavailable" }> {
-  const executable = process.platform === "darwin" ? "/usr/bin/osascript"
+  const executable = process.platform === "win32" ? powerShellPath() : process.platform === "darwin" ? "/usr/bin/osascript"
     : process.platform === "linux" ? "/usr/bin/notify-send" : null;
   return executable != null && existsSync(executable) ? { kind: "idle" }
     : { kind: "unavailable", reason: "backendMissing" };
@@ -205,11 +231,12 @@ export type { SoundBackend };
 // P3-TO-D-CONN-NOTIFY-PATH: 回線の切断の通知（端末の出力の側、C19）。intent・保存・通知の門を通らず、音は付けない。
 // 起動と終わりを待たない（10 秒で止める）。backend の無い環境と起動の失敗は何もしない（R34 と同じく再試行しない）。
 function desktopNotice(title: string, body: string): Promise<void> {
-  const command = process.platform === "darwin" ? ["/usr/bin/osascript", ["-e", "on run argv", "-e",
-    "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", "--", title, body]] as const
-    : process.platform === "linux" ? ["/usr/bin/notify-send", ["--expire-time=10000", "--", title, body]] as const : null;
+  const command: Backend | null = process.platform === "darwin" ? ["/usr/bin/osascript", ["-e", "on run argv", "-e",
+    "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run", "--", title, body]]
+    : process.platform === "linux" ? ["/usr/bin/notify-send", ["--expire-time=10000", "--", title, body]]
+    : process.platform === "win32" ? powerShell(toastScript, { FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body }) : null;
   if (command == null || !existsSync(command[0])) return Promise.resolve();
   return new Promise((done) => {
-    try { childProcess.execFile(command[0], command[1], { timeout: 10_000 }, () => done()).unref(); } catch { done(); }
+    try { childProcess.execFile(command[0], command[1], { ...command[2], timeout: 10_000 }, () => done()).unref(); } catch { done(); }
   });
 }

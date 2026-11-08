@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "589d33cf0265f4afc927833eb6911da9e3dd5ecc95745e7d313573d531ae6836",
+    "sha256": "c62a968cf8e6293d77c914e68cf4926fe1517f3d325663d2f9f873593af2a889",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1075,9 +1075,9 @@
           "docs/specs/reconstruction-p0-contracts.md:2408 «9c48ecb7e519afd2»",
           "reconstruction/src/host/host.ts:42 «a43e972375d56f84»",
           "reconstruction/src/runtime/composition-root.ts:452 «cd16aa4dc0715d5e»",
-          "reconstruction/src/notification-delivery/adapter.ts:108 «df73017f36be6be6»",
+          "reconstruction/src/notification-delivery/adapter.ts:134 «1e6a88a225ee9eb6»",
           "reconstruction/cli/replay.mjs:90 «e02f05c4847f1a67»",
-          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
+          "reconstruction/src/notification-delivery/adapter.ts:157 «e42e16db6d76a6d5»",
           "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»"
         ]
       },
@@ -1154,7 +1154,7 @@
           "src/engine/notification/notifier.ts:1150 «43ec74da6ebebd85»",
           "reconstruction/src/runtime/composition-root.ts:127 «5e3b7949f688d630»",
           "reconstruction/src/runtime/composition-root.ts:452 «cd16aa4dc0715d5e»",
-          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
+          "reconstruction/src/notification-delivery/adapter.ts:157 «e42e16db6d76a6d5»",
           "reconstruction/src/units/notice-mark.ts:77 «2a6c914488ce9228»",
           "reconstruction/contracts/p2-notification-delivery.types.ts:14 «e5078eba5e68adce»"
         ]
@@ -1254,7 +1254,7 @@
         "id": "P3-CLI-AC20",
         "requirement": "【発注 2】配送の手順（統合担当）: (1) 黙るのをやめる配送（本発注の配送）では、発注 1 の fleq を動かした端末の新築の <dir>/state を作り直す（統合担当が中身を見てから作者に消すことを頼む。設定 config.json と diag、旧築の保存〔cwd の data/runtime〕と旧築の設定は触らない）。理由: 発注 1 の間に adapter が delivered と記録した通知（adapter.ts:131、spawn の差し替えで /usr/bin/true が exit 0）は印の evidence が possible で、黙るのをやめた後も同じ版は出し直されない。新築の保存は P5 の前は初期化してよい（計画:498 の作者裁定） (2) anchor の付け直しと原文の改訂: P3-CLI-D-O2-HOST-LINES の host.ts の 5 件。DiagnosticReason に 1 語を足すので、p2-shared-runtime.json:522 の「計105種」を「計106種」に直し、足した語と出どころ（P3-CLI-REPL-001 発注 2）をその文に足し、その行を «» で引く 1 件（p3-currency-coverage.json:567）を付け直す（前例 51b21455。p3-notice-ledger.json:116・p3-recovery.json:609・:649 は地の文で付け直さない）。計 6 件。語を足す行（p2-shared-runtime.types.ts:324・persistent-diagnostic-sink.ts:58）は引かれていない。実装が変える cli.ts・settings.ts・fleq.mjs を行で引く参照は、発注 2 の条文には無い（path だけで引く） (3) P3-CLI-D-O2-WEATHER-NOW が B なら、weather の既定を on に替える仕事を C20 の起草に渡す（C20 の契約に書いてから、本契約の記録に移管を書く）→ P3-WEATHER-NOTICE-001 の P3-WN-AC10 が受けた (4) 配送の後の確かめ（作者の手元）: 新しい fleq で notify all:off・sound off を打って、旧築の切替の手順（spec:2408）と同じく新築の側の通知と音が止まること",
         "evidenceRefs": [
-          "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
+          "reconstruction/src/notification-delivery/adapter.ts:157 «e42e16db6d76a6d5»",
           "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»",
           "docs/specs/reconstruction-p0-contracts.md:2408 «9c48ecb7e519afd2»",
           "reconstruction/src/units/notice-mark.ts:77 «2a6c914488ce9228»"

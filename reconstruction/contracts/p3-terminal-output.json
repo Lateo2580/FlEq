@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "636071d6c459a8d1848d9254280936195aa7c58c5d0bc25c9e393ea836ccbb5e",
+    "sha256": "1bd6c29a4968266cf65948e9bf2eb6998749c7ae716ae68f8ae97d1f13f79c9c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -637,7 +637,7 @@
           "docs/specs/reconstruction-p0-contracts.md:3132 «e5a25ca549961227»",
           "reconstruction/src/host/host.ts:653 «9531ba1e392e2c62»",
           "reconstruction/src/cli/cli.ts:320 «af49fbae123bea1e»",
-          "reconstruction/src/notification-delivery/adapter.ts:202 «51a3dfe295040a9b»",
+          "reconstruction/src/notification-delivery/adapter.ts:228 «51a3dfe295040a9b»",
           "reconstruction/contracts/p3-dmdata-connect-002.json",
           "reconstruction/src/host/host.ts:234 «12503cfd5b79b4ea»",
           "reconstruction/src/host/host.ts:295 «dd330d17bbf6c7c8»",

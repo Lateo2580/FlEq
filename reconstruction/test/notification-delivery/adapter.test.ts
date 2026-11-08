@@ -11,7 +11,7 @@ import { harnessedRoot, seeded, startHarness } from "../execution-split/owner-ha
 import { calls, notice } from "./delivery-fixture";
 import type { NotificationAbortRequest, NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 
-vi.mock("node:child_process", () => ({ spawn: vi.fn() }));
+vi.mock("node:child_process", () => ({ spawn: vi.fn(), execFile: vi.fn() }));
 beforeEach(() => { vi.resetModules(); vi.useFakeTimers(); });
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 const child = (pid: number | undefined = 12345) => Object.assign(new EventEmitter(), { pid, kill: vi.fn(() => true) }) as unknown as ChildProcess;
@@ -19,7 +19,7 @@ const attempt: NotificationAttempt = { attemptId: "one", intentId: "one", unit: 
   operation: "normal", channel: "desktop", priorityGroup: "other", payload: { title: "-title", body: "\"body\"\n$(unchanged)" },
   soundAsset: null, selectedAtMonotonicMs: 0, timeoutAtMonotonicMs: 5_000, expiresAt: 15_000 };
 
-it.skipIf(process.platform === "win32")("T02 regression: kill and exit alone do not confirm stop; late close cannot deliver or allow overlap", async () => { // shortcut: win32 には desktop の backend が無く spawn しない、P3-NOTIFY-WINDOWS-001 が backend を足したら外す（P3-WINDOWS-CI-001）
+it("T02 regression: kill and exit alone do not confirm stop; late close cannot deliver or allow overlap", async () => {
   const { abortNotificationAttempt, runNotificationAttempt } = await import("../../src/notification-delivery/adapter");
   const handle = child();
   vi.mocked(childProcess.spawn).mockReturnValue(handle);
@@ -145,4 +145,91 @@ it("P3-NL-T08 contractBoundary / AC06: notStarted, no fallback after a launch, p
   last.emit("close", 1);
   await wrap;
   expect([spawn.mock.calls.map(([exe]) => exe), backend.index]).toEqual([["/usr/bin/aplay"], 0]);
+});
+
+// P3-NW-AC01 (2)・AC02 (2) の文字列を契約から写した期待（adapter の定数を import しない）。
+const toastScript = "$ErrorActionPreference='Stop';$m=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];"
+  + "[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];$x=$m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);"
+  + "$t=$x.GetElementsByTagName('text');[void]$t.Item(0).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_TITLE));[void]$t.Item(1).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_BODY));"
+  + "$a=$x.CreateElement('audio');$a.SetAttribute('silent','true');[void]$x.DocumentElement.AppendChild($a);"
+  + "$m::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new($x))";
+const soundScript = "$ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync()";
+const powerShellArgv = (script: string) => ["-NoProfile", "-NonInteractive", "-Command", script];
+const powerShellPath = (root: string) => `${root}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
+// adapter は SystemRoot を呼ぶたびに読む（P3-NW-AC01 (1)）。元が無ければ消し、有れば戻す（順序を変えても他の試験へ漏らさない）。
+async function withSystemRoot(value: string, body: () => Promise<void>): Promise<void> {
+  const saved = process.env.SystemRoot;
+  process.env.SystemRoot = value;
+  try { await body(); } finally { if (saved == null) delete process.env.SystemRoot; else process.env.SystemRoot = saved; }
+}
+
+// P3-NW-T01 受入条件（AC01・AC02・AC03 (2)・AC06 (1) は darwin と linux の既存の期待がそのまま通ること）
+it("P3-NW-T01 acceptance: win32 spawns powershell.exe with the fixed scripts, values only in env, windowsHide, and the same result mapping", async () => {
+  vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+  await withSystemRoot("C:\\Windows", async () => {
+    const { resolveRepoPath, runNotificationAttempt } = await import("../../src/notification-delivery/adapter");
+    const now = { wallTimeMs: 0, monotonicMs: 0 };
+    const exe = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+    const title = "\"引用\" <山括弧> 'single'", body = "本文\n$(unchanged)";
+    const delivered = child(), rejected = child(), missing = child();
+    Object.defineProperty(missing, "pid", { value: undefined });
+    const spawn = vi.mocked(childProcess.spawn).mockReset().mockReturnValueOnce(delivered).mockReturnValueOnce(rejected).mockReturnValueOnce(missing);
+    const desktop = runNotificationAttempt({ ...attempt, payload: { title, body } }, () => now);
+    delivered.emit("close", 0);
+    expect(await desktop).toMatchObject({ kind: "delivered" });
+    const sound: NotificationAttempt = { ...attempt, attemptId: "sound", channel: "sound", soundAsset: "reconstruction/assets/sounds/weather-info.wav" };
+    const played = runNotificationAttempt(sound, () => now);
+    rejected.emit("close", 1);
+    expect(await played).toMatchObject({ kind: "failed", reason: "adapterRejected" });
+    const notStarted = runNotificationAttempt({ ...attempt, attemptId: "missing" }, () => now);
+    missing.emit("error", new Error("ENOENT"));
+    missing.emit("close", null);
+    expect(await notStarted).toMatchObject({ kind: "failed", reason: "notStarted" });
+    const options = (env: Record<string, string>) => ({ shell: false, stdio: "ignore", windowsHide: true, env: { ...process.env, ...env } });
+    expect(spawn.mock.calls.slice(0, 2)).toEqual([
+      [exe, powerShellArgv(toastScript), options({ FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body })],
+      [exe, powerShellArgv(soundScript), options({ FLEQ_NOTIFY_WAV: resolveRepoPath("reconstruction/assets/sounds/weather-info.wav") })],
+    ]);
+  });
+});
+
+// P3-NW-T02 契約境界（AC04 (1)(3)）: 実在しない SystemRoot で powershell.exe の無い状態を OS に頼らずに作る。
+it("P3-NW-T02 contractBoundary: without powershell.exe the desktop probe is unavailable and desktopNotice starts nothing", async () => {
+  vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+  const directory = mkdtempSync(join(tmpdir(), "fleq-nw-t02-"));
+  try {
+    await withSystemRoot(join(directory, "root"), async () => {
+      const { desktopNotice, probeDesktopBackend } = await import("../../src/notification-delivery/adapter");
+      const execFile = vi.mocked(childProcess.execFile).mockReset();
+      expect(probeDesktopBackend()).toEqual({ kind: "unavailable", reason: "backendMissing" });
+      await desktopNotice("回線が切れました", "再接続を待っています");
+      expect(execFile).not.toHaveBeenCalled();
+    });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+// P3-NW-T04 受入条件（AC04 (3)）
+it("P3-NW-T04 acceptance: desktopNotice on win32 runs the toast script through execFile with env, windowsHide and the 10 s timeout", async () => {
+  vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const { dirname } = await import("node:path");
+  const directory = mkdtempSync(join(tmpdir(), "fleq-nw-t04-"));
+  const root = join(directory, "root");
+  try {
+    await withSystemRoot(root, async () => {
+      // macOS では \ を含む 1 つの file 名になり、一時 dir の中に収まる。
+      mkdirSync(dirname(powerShellPath(root)), { recursive: true });
+      writeFileSync(powerShellPath(root), "");
+      const { desktopNotice, probeDesktopBackend } = await import("../../src/notification-delivery/adapter");
+      expect(probeDesktopBackend()).toEqual({ kind: "idle" }); // AC04 (1) の有る側（無い側は T02）
+      const execFile = vi.mocked(childProcess.execFile).mockReset().mockReturnValue(Object.assign(child(), { unref: vi.fn() }));
+      const sent = desktopNotice("回線が切れました", "再接続を待っています");
+      expect(execFile).toHaveBeenCalledTimes(1);
+      const [file, argv, options, callback] = execFile.mock.calls[0];
+      expect([file, argv, options]).toEqual([powerShellPath(root), powerShellArgv(toastScript), { windowsHide: true, timeout: 10_000,
+        env: { ...process.env, FLEQ_NOTIFY_TITLE: "回線が切れました", FLEQ_NOTIFY_BODY: "再接続を待っています" } }]);
+      callback?.(null, "", "");
+      await sent;
+    });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });

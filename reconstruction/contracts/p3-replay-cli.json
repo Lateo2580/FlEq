@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b8ca889b4e0dfe8e816ae0fc99dc2778a9788c97",
-    "sha256": "50c951611e9ea7b7429657367f2297d48ef7444b17582ef6747fe7c3c8e83e0e",
+    "sha256": "79e1693c584c721fb511c2a23982b10078ada9afba73e24964b7fb1f02d6197a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -317,8 +317,8 @@
           "reconstruction/test/eew-e01/host-launcher.mjs:19 «9aaf79e548eb638c»",
           "reconstruction/test/eew-e01/t05-corpus-replay.test.ts:55 «46cb0cf3ffa223ee»",
           "docs/specs/reconstruction-p0-contracts.md:650 «5cea4232ff600572»",
-          "reconstruction/src/notification-delivery/adapter.ts:35 «cbdc7e3ea56c2064»",
-          "reconstruction/src/notification-delivery/adapter.ts:179 «5ecf50df3ab82a44»"
+          "reconstruction/src/notification-delivery/adapter.ts:59 «cbdc7e3ea56c2064»",
+          "reconstruction/src/notification-delivery/adapter.ts:205 «5ecf50df3ab82a44»"
         ]
       },
       {

@@ -85,9 +85,10 @@ export async function runReplay(argv) {
   else if (!isDirectory(outDirectory)) mkdirSync(outDirectory);
 
   // 通知を実物のまま使うと OS の通知と音が出る。spawn の相手だけ /usr/bin/true に替える（子の生成と close の流れは製品のまま）。
-  // shortcut: darwin・linux の backend の spawn だけを止める（win32 では adapter が spawn しない）、Windows の通知の口ができたらそこで見直す。
+  // win32 には /usr/bin/true が無いので、差し替えの次の行で win32 だけ差し替え先を node の -e "" にする（P3-NW-D-REPLAY）。
   const spawn = childProcess.spawn;
   childProcess.spawn = (_executable, _argv, options) => spawn("/usr/bin/true", [], options);
+  if (process.platform === "win32") childProcess.spawn = (_executable, _argv, options) => spawn(process.execPath, ["-e", ""], options);
   try {
     // 静的 import にしない（spawn の差し替えより先に host.js が読まれるため）。
     const { startP2Host } = await import("../dist/src/host/host.js");
