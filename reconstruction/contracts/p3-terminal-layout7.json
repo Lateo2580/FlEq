@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "82c99d20af6f8679776c1a65aeae4dfe484d7d3a140668039f46fb91a2ea4322",
+    "sha256": "0d2cee766259aa9d0a9c66a10b6ce354bc3cf7b38f9dce6cdc8238cd3653be2c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -114,7 +114,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-007",
     "mode": "implementation",
     "objective": "起動時のまとめと起動画面と入力の行を、作者が実配信で見た指摘に合わせる。07:00 に起動して止まっていた間のまとめを見た人が「ほか VFVO53 301 件」でなく「ほか 降灰予報（定時） 301 件」を読み、2184 件の見出し文の折り返しと内部の印に邪魔されず、起動画面でソフト名と版と繋がった区分が分かり、入力の行の ● が 1 秒ごとに瞬いて動いていると分かる",
-    "baseOid": "unassigned",
+    "baseOid": "ac422e52",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
