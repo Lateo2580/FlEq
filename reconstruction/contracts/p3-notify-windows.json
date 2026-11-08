@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "db74a5af6fdea6d445136d7f161d660e5a9f62d748d7994b959cab193eb549e2",
+    "sha256": "475059680bb3649a6ea344e251186f76137cb39d04ec652161e7ed62d0b455da",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -141,6 +141,19 @@
         "notApplied": [
           "契約適合 P2-6（Windows の CI を発注前に branch で回す）: GitHub の Ruleset restrict-non-main-branches で main 以外の branch を push できず、test-windows.yml を branch で回せない。代わりに Q-NW-ORDER（P3-WINDOWS-CI-001 を先に配送）を置き、Q-NW-WINDOWS-CI に今の Windows は通知も音も 0 で悪くならない理由と、script が動かなければ run の結果で作者へ戻すことを書いた。P3-WINDOWS-CI-001 はまだ contracts/ に無く dependsOnContractIds に入れられないので unresolvedQuestions に置いた"
         ]
+      },
+      {
+        "id": "Q-NW-REVIEW-R1",
+        "status": "closed",
+        "source": "再確認 r1（契約適合・品質とも条件付き GO、base be992e7b、2026-11-08）",
+        "closed": "指摘 5 件を当てた",
+        "applied": [
+          "P2 T03(e): snapshot の channels の値は \"checking\"・\"available\"・\"unavailable\"・\"isolated\"（p2-snapshot-sse.types.ts の DisplayChannelView）なので「desktop と sound が \"available\"」に直し、probe を待たない snapshot で \"checking\" が出ても落ちる側なので受け入れる、と書いた",
+          "P3 T04・T02: SystemRoot を join(mkdtemp の dir, \"root\") にし、macOS で \\ を含む名が一時 dir の外に作られないようにした",
+          "P3 T02・AC01 (1): 今の adapter.ts は process.platform を commands と probe の呼び出しのたびに読むので、それに揃えて SystemRoot も呼ぶたびに読むことを AC01 (1) の性質として書き、T02 はそれを引いた",
+          "P3 AC03 (4): 「watch の画面」を「表示の画面」にした",
+          "P3 Q-NW-WINDOWS-CI: 2.5 秒の線は T03 の中での最初の 1 回（runner の冷えた最初とは限らず、緩い側へずれうる）と書き直した"
+        ]
       }
     ],
     "operationContract": {
@@ -254,7 +267,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-NW-AC01",
-        "requirement": "win32 の desktop（P3-NW-D-DESKTOP・D-TEXT・D-HIDE）: (1) commands の desktop は win32 のとき 1 本の組を返す。実行ファイルは process.env.SystemRoot ?? \"C:\\\\Windows\" の後ろに \"\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" を文字列として繋いだ絶対パス（path.join を使わない。T01 が macOS で走るので、join だと区切りが / になり Windows の実物と違う） (2) argv は [\"-NoProfile\", \"-NonInteractive\", \"-Command\", script] で、script は次の固定の文字列（一字も変えない）: $ErrorActionPreference='Stop';$m=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];$x=$m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);$t=$x.GetElementsByTagName('text');[void]$t.Item(0).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_TITLE));[void]$t.Item(1).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_BODY));$a=$x.CreateElement('audio');$a.SetAttribute('silent','true');[void]$x.DocumentElement.AppendChild($a);$m::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new($x)) (3) spawn の option に windowsHide: true と env: { ...process.env, FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body } を足す。題と本文は argv と script の文字列に入れない (4) script の中に二重引用符を書かない（Node が argv を引用符で包むため） (5) toast の audio は silent にする。音は sound の channel が鳴らす。無いと: Windows の既定の通知音と WAV が重なり、音を切った設定でも通知音が鳴る (6) payload の検査（:33 の題と本文の非空）は今のまま。無いと: Windows で電文の通知が 1 件も出ない",
+        "requirement": "win32 の desktop（P3-NW-D-DESKTOP・D-TEXT・D-HIDE）: (1) commands の desktop は win32 のとき 1 本の組を返す。実行ファイルは process.env.SystemRoot ?? \"C:\\\\Windows\" の後ろに \"\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" を文字列として繋いだ絶対パスで、process.platform と同じく呼ぶたびに読む（module の読み込みの時に定数へ固めない。T02・T04 が試験の中で SystemRoot を替える）（path.join を使わない。T01 が macOS で走るので、join だと区切りが / になり Windows の実物と違う） (2) argv は [\"-NoProfile\", \"-NonInteractive\", \"-Command\", script] で、script は次の固定の文字列（一字も変えない）: $ErrorActionPreference='Stop';$m=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];[void][Windows.UI.Notifications.ToastNotification,Windows.UI.Notifications,ContentType=WindowsRuntime];$x=$m::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);$t=$x.GetElementsByTagName('text');[void]$t.Item(0).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_TITLE));[void]$t.Item(1).AppendChild($x.CreateTextNode($env:FLEQ_NOTIFY_BODY));$a=$x.CreateElement('audio');$a.SetAttribute('silent','true');[void]$x.DocumentElement.AppendChild($a);$m::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show([Windows.UI.Notifications.ToastNotification]::new($x)) (3) spawn の option に windowsHide: true と env: { ...process.env, FLEQ_NOTIFY_TITLE: title, FLEQ_NOTIFY_BODY: body } を足す。題と本文は argv と script の文字列に入れない (4) script の中に二重引用符を書かない（Node が argv を引用符で包むため） (5) toast の audio は silent にする。音は sound の channel が鳴らす。無いと: Windows の既定の通知音と WAV が重なり、音を切った設定でも通知音が鳴る (6) payload の検査（:33 の題と本文の非空）は今のまま。無いと: Windows で電文の通知が 1 件も出ない",
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/adapter.ts:37 «1953e59f083b2b32»",
           "reconstruction/src/notification-delivery/adapter.ts:47 «868895550f04402f»"
@@ -270,7 +283,7 @@
       },
       {
         "id": "P3-NW-AC03",
-        "requirement": "結果の読み替えを足さない（P2-A7-ADAPTER）: (1) 2 本の script は最初に $ErrorActionPreference='Stop' を置く。.NET の例外を script を止める error にして exit 1 にする。無いと: 失敗しても exit 0 の delivered になりうる (2) exit 0 は delivered、exit 0 以外は failed/adapterRejected、spawn の ENOENT は failed/notStarted で、今の分岐のまま (3) 中断は今の child.kill(\"SIGTERM\") で、Windows では強制終了になり、close を停止の証拠にする規則も今のまま。投稿した toast は取り消さない (4) 試行の期限（desktop 5 秒、sound 10 秒、probe 5 秒）を win32 で延ばさない。PowerShell の起動が期限を越える PC では timeout になる（Q-NW-DEVICE で測る）。起動の時の音の probe（Windows では最初の powershell.exe）が 5 秒を越えると sound は unavailable になり、R34 で run の間やり直さないので、その run の間ずっと音が出ない。この状態は watch の画面（chrome-eew）にしか出ず、端末だけで使う人には見えない。冷えた runner の時間で判断する線は Q-NW-WINDOWS-CI に置く (5) OS の設定で通知が切られている、応答不可の設定で toast が通知センターへ直に入るときは検知しない（macOS の通知の許可・集中モードと同じ）",
+        "requirement": "結果の読み替えを足さない（P2-A7-ADAPTER）: (1) 2 本の script は最初に $ErrorActionPreference='Stop' を置く。.NET の例外を script を止める error にして exit 1 にする。無いと: 失敗しても exit 0 の delivered になりうる (2) exit 0 は delivered、exit 0 以外は failed/adapterRejected、spawn の ENOENT は failed/notStarted で、今の分岐のまま (3) 中断は今の child.kill(\"SIGTERM\") で、Windows では強制終了になり、close を停止の証拠にする規則も今のまま。投稿した toast は取り消さない (4) 試行の期限（desktop 5 秒、sound 10 秒、probe 5 秒）を win32 で延ばさない。PowerShell の起動が期限を越える PC では timeout になる（Q-NW-DEVICE で測る）。起動の時の音の probe（Windows では最初の powershell.exe）が 5 秒を越えると sound は unavailable になり、R34 で run の間やり直さないので、その run の間ずっと音が出ない。この状態は 表示の画面（chrome-eew）にしか出ず、端末だけで使う人には見えない。冷えた runner の時間で判断する線は Q-NW-WINDOWS-CI に置く (5) OS の設定で通知が切られている、応答不可の設定で toast が通知センターへ直に入るときは検知しない（macOS の通知の許可・集中モードと同じ）",
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/adapter.ts:131 «e42e16db6d76a6d5»",
           "reconstruction/src/notification-delivery/adapter.ts:137 «8aa1f556b7d3759e»",
@@ -320,7 +333,7 @@
         "referenceIds": [
           "P3-NW-AC04"
         ],
-        "behavior": "契約境界。adapter.test.ts の末尾に足す。process.platform を win32 に差し替え、process.env.SystemRoot を実在しない一時 dir の path に替えて試験の後に戻す（元が無ければ delete、有れば元の値）。adapter は呼ぶたびに SystemRoot を読むので、powershell.exe の path が無い状態を OS に頼らずに作れる（windows-latest には本物が有る）。existsSync は mock しない（adapter.ts の repoRoot まで巻き込むため）。probeDesktopBackend が unavailable/backendMissing を返し、desktopNotice が何も起動せずに resolve する"
+        "behavior": "契約境界。adapter.test.ts の末尾に足す。process.platform を win32 に差し替え、process.env.SystemRoot を join(mkdtemp の dir, \"root\")（作らないので実在しない）に替えて試験の後に戻す（元が無ければ delete、有れば元の値）。adapter は呼ぶたびに SystemRoot を読む（AC01 (1)）ので、powershell.exe の path が無い状態を OS に頼らずに作れる（windows-latest には本物が有る）。existsSync は mock しない（adapter.ts の repoRoot まで巻き込むため）。probeDesktopBackend が unavailable/backendMissing を返し、desktopNotice が何も起動せずに resolve する"
       },
       {
         "testId": "P3-NW-T03",
@@ -332,7 +345,7 @@
           "P3-NW-AC04",
           "P3-NW-AC05"
         ],
-        "behavior": "受入条件。reconstruction/test/notification-delivery/windows-backend.test.ts を足す。win32 でだけ走り、他の OS では skip する（skip は Pass に数えない）。本物の powershell.exe で spawn し、spawn を包んで stdio を [\"ignore\", \"pipe\", \"pipe\"]（製品の stdin は ignore のまま）にして exit code・標準エラー・spawn から close までの ms を log へ出す。(a) probeDesktopBackend が idle (b) probeSoundBackend の無音の WAV と (c) 資材の WAV の sound の試行は kind を記録し、標準エラーに script の構文の error が無い（音声デバイスの無い runner で delivered になるかは P3-NW-D-NO-DEVICE の前提の確かめなので、kind を合否にしない） (d) 題に '; New-Item <試験の一時 file> # を含む desktop の試行の後に、その file ができていない。kind は記録し、標準エラーに script の構文の error が無い（CI の session に対話のデスクトップが無く Show が失敗しうるので、kind を合否にしない） (e) fleq.mjs replay に本契約の fixture を渡すと rc 0 で、diagnosticDirectory に notificationAttemptFailed が 0 件で、stdout の snapshot の通知の channels（desktop と sound）が idle（本物の音の script の spawn と exit 0 は (c) が見る。replay は別のプロセスで spawn の相手を差し替えるので、ここでは数えない）。fixture の VXSE43 はそのまま使う: P3-EEW-DROP43-001 は dmdata の設定で起動した接続でだけ VXSE43 を捨て（P3-ED43-AC01 (1)）、replay は startP2Host を { wsUrl } で起動するので捨てない（baseOid は drop43 を含む main から割り当てる前提）"
+        "behavior": "受入条件。reconstruction/test/notification-delivery/windows-backend.test.ts を足す。win32 でだけ走り、他の OS では skip する（skip は Pass に数えない）。本物の powershell.exe で spawn し、spawn を包んで stdio を [\"ignore\", \"pipe\", \"pipe\"]（製品の stdin は ignore のまま）にして exit code・標準エラー・spawn から close までの ms を log へ出す。(a) probeDesktopBackend が idle (b) probeSoundBackend の無音の WAV と (c) 資材の WAV の sound の試行は kind を記録し、標準エラーに script の構文の error が無い（音声デバイスの無い runner で delivered になるかは P3-NW-D-NO-DEVICE の前提の確かめなので、kind を合否にしない） (d) 題に '; New-Item <試験の一時 file> # を含む desktop の試行の後に、その file ができていない。kind は記録し、標準エラーに script の構文の error が無い（CI の session に対話のデスクトップが無く Show が失敗しうるので、kind を合否にしない） (e) fleq.mjs replay に本契約の fixture を渡すと rc 0 で、diagnosticDirectory に notificationAttemptFailed が 0 件で、stdout の snapshot の通知の channels の desktop と sound が \"available\"（中の idle は view-projector で \"available\" に写る。replay は最後の入力の直後に snapshot を取り、host は probe を待たないので、遅い Windows では \"checking\" が出うるが、落ちる側に出るので受け入れる。本物の音の script の spawn と exit 0 は (c) が見る。replay は別のプロセスで spawn の相手を差し替えるので、ここでは数えない）。fixture の VXSE43 はそのまま使う: P3-EEW-DROP43-001 は dmdata の設定で起動した接続でだけ VXSE43 を捨て（P3-ED43-AC01 (1)）、replay は startP2Host を { wsUrl } で起動するので捨てない（baseOid は drop43 を含む main から割り当てる前提）"
       },
       {
         "testId": "P3-NW-T04",
@@ -340,7 +353,7 @@
         "referenceIds": [
           "P3-NW-AC04"
         ],
-        "behavior": "受入条件。adapter.test.ts の末尾に足す（:14 の vi.mock に execFile: vi.fn() を足し、戻りは unref を持つ物にする）。process.platform を win32 に、process.env.SystemRoot を一時 dir に替え、AC01 (1) の文字列の path に空の file を置く（親は dirname で recursive に作る。macOS では \\ を含む 1 つの file 名になる）。試験の後に元へ戻す。desktopNotice の execFile の呼び出しが 1 回で、実行ファイルと argv が AC01 (1)(2) と完全一致し、option の env に FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY、windowsHide: true、timeout: 10_000 があり、callback を呼ぶと resolve する"
+        "behavior": "受入条件。adapter.test.ts の末尾に足す（:14 の vi.mock に execFile: vi.fn() を足し、戻りは unref を持つ物にする）。process.platform を win32 に、process.env.SystemRoot を join(mkdtemp の dir, \"root\") に替え、AC01 (1) の文字列の path に空の file を置く（親は dirname で recursive に作る。macOS では mkdtemp の dir の中に \\ を含む 1 つの file 名になり、一時 dir の外に作らない）。試験の後に元へ戻す。desktopNotice の execFile の呼び出しが 1 回で、実行ファイルと argv が AC01 (1)(2) と完全一致し、option の env に FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY、windowsHide: true、timeout: 10_000 があり、callback を呼ぶと resolve する"
       }
     ],
     "requiredCommands": [
@@ -439,7 +452,7 @@
           "windows-latest の run で P3-NW-T03 と全 reconstruction 試験が通る。run の ID",
           "toast の script の exit code と標準エラー。Show が session の理由で失敗したら、型の読み込みまで届いたかを標準エラーから読み、AC を変えずに Q-NW-DEVICE へ送る",
           "音の script の kind。音声デバイスの無い runner で failed なら、P3-NW-D-NO-DEVICE の前提（鳴らずに delivered）が .NET Framework では違うので、作者へ報告し直す",
-          "spawn から close までの ms（冷えた runner の最初の 1 回と 2 回目）。最初の 1 回が 2.5 秒を越えたら配送を閉じずに作者へ戻す（win32 の probe の期限を延ばす別の契約の候補。probe の期限は 5 秒で、越えると run の間ずっと音が出ない、AC03 (4)）"
+          "spawn から close までの ms（T03 の中での最初の 1 回と 2 回目。vitest は file を並べて走らせ、本物の host を起こす試験も win32 で powershell.exe を起こすので、runner の冷えた最初とは限らず、緩い側へずれうる）。T03 の中での最初の 1 回が 2.5 秒を越えたら配送を閉じずに作者へ戻す（win32 の probe の期限を延ばす別の契約の候補。probe の期限は 5 秒で、越えると run の間ずっと音が出ない、AC03 (4)）"
         ]
       },
       {
