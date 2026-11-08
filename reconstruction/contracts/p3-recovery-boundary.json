@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "123521dddab9cf0b6343e2a33ca79b90ce1bcef7a20d3ccde4582f5ecf3f6f5f",
+    "sha256": "b068bfd1773b6201d9a7ae87f652a7f3bb8c9d1d7701f654245356ce7e1bff95",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -331,7 +331,7 @@
           "reconstruction/src/checkpoint/checkpoint.ts:866 «bf9fe14b10009a9c»",
           "reconstruction/src/checkpoint/checkpoint.ts:870 «654d1e4782bc97ae»",
           "test/fixtures/rest/telegram-list-vtse41-real.json:3 «eb01879b421a4f7b»",
-          "reconstruction/src/terminal/format.ts:805 «06806f691eb3af93»",
+          "reconstruction/src/terminal/format.ts:832 «06806f691eb3af93»",
           "reconstruction/contracts/p3-recovery.json:1189 «aba3753376487fbf»",
           "reconstruction/src/recovery/recovery.ts:406 «9739389e01fc2f4a»",
           "reconstruction/src/recovery/recovery.ts:186 «fc1f9388e0ced6af»",

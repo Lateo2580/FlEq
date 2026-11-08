@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "3ea57241452e2604c5547c98e2d2caad827fa3b07aa77c20ddebc6cf5e34ad02",
+    "sha256": "b299427a3555bd1e20d15abe705b79651a37aa77bf311359565420b822ff6e1b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -116,7 +116,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が起草で確定（spec:582の互換開始値、spec:503・:405の「54/55割込み時の無音flush」、spec:884の「VFVO53は終了理由付きの無音flush」、O08の期待）",
-        "reason": "Bでは定時の降灰予報の通知が、同じ8秒の間に届いた無関係な噴火観測報や解説で黙って消える。spec:503は無音flushを54/55の割込みに限って書く。終了時の通知はspec:884が無音と定めるので旧築（dispose時に通知）と違う。単調時計にするのは、時計の逆行（O08:13）で待ちが無期限にならないため（spec:1784）。batchの通知が1件だけのときの形は旧築と同じく単発の形（Q-NOTICE.payload）"
+        "reason": "Bでは定時の降灰予報の通知が、同じ8秒の間に届いた無関係な噴火観測報や解説で黙って消える。spec:503は無音flushを54/55の割込みに限って書く。終了時の通知はspec:884が無音と定めるので旧築（dispose時に通知）と違う。単調時計にするのは、時計の逆行（O08:13）で待ちが無期限にならないため（spec:1784）。batchの通知が1件だけのときの形は旧築と同じく単発の形（Q-NOTICE.payload）。端末（P3-TL10-AC01）は batch の区切りを受けず、同じ 8 秒・90 秒・20 件と、Control/Status の同じ VFVO54/55 の前の割り込みで、端末の中で束ねる（P3-TL10-D-ASH-WHERE）"
       },
       {
         "id": "P3-C9-ASHFALL-PROJECTION",

@@ -8,6 +8,7 @@ import { painter } from "../../src/terminal/color";
 import type { Role } from "../../src/terminal/color";
 import { createRenderer, width } from "../../src/terminal/format";
 import type { TerminalUnit } from "../../src/terminal/format";
+import { terminalReport } from "../../src/terminal/material";
 import { createTerminalOutput } from "../../src/terminal/output";
 import type { TerminalOptions } from "../../src/terminal/output";
 import { reduceBriefingUnit } from "../../src/units/briefing/briefing-unit";
@@ -134,8 +135,10 @@ describe("P3-TL10 降灰予報（定時）のまとめ", () => {
     send("g3", ashOf("霧島山（新燃岳）", "551"));
     const [eew] = eewUnits(["37_01_01_240613_VXSE43.xml"]).flat();
     if (eew.kind !== "eew") throw new Error("not eew");
-    // VPWS50 の代わりに火山でない短い形の報（VPOA50、U-B の記録なしで今のとおり出る）を渡す（15_18_01 は 4.5 MB）。
-    const weather = reportOf("phase6b_VPOA50_JPTC202608211633_202608211633.xml", "U-B"), cancel = ashOf("桜島", "506", cancelled);
+    // 小さい VPWS50（府県予報区等の層の無い合成の報。15_18_01 は 4.5 MB）。全国の集約通報の判定は通るが、層が無いので「前と同じ」の比べには入らない。
+    const weather = terminalReport(decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before.xml", "replay", undefined, "VPWS50"), "U-W");
+    if (weather?.kind !== "short" || weather.head.headType !== "VPWS50") throw new Error("not VPWS50");
+    const cancel = ashOf("桜島", "506", cancelled);
     send("x1", null, [eewOutcome(eew.subject)]);
     send("x2", weather);
     send("g4", cancel);
@@ -212,10 +215,14 @@ describe("P3-TL10 同時に進む EEW の帯の濃さ", () => {
     expect(filledBy("bandWarning3")(draw([retarget(warning, "D")]))).toBe(true);
     expect(filledBy("bandWarning")(draw([retarget(warning, "E")]))).toBe(true);
     // 最も重い段（最大予測震度 7）と取消は段によらず同じ。
+    // 縦線は帯の下の行の頭（地の色の空白 1 桁）。2 段目の警報も 1 段目と同じ縦線。
+    const barred = (role: Role, lines: readonly string[]) => lines.slice(2).every((text) => text.startsWith(`${paint(role, " ")} `));
+    expect(barred("barWarning", draw([retarget(warning, "B")]))).toBe(true);
     const top = eewOf("37_01_01_240613_VXSE43.xml", (xml) => xml.replace("<ForecastInt><From>5-</From><To>5-</To></ForecastInt>", "<ForecastInt><From>7</From><To>7</To></ForecastInt>"));
-    expect(filledBy("bandTop")(draw([retarget(top, "F")]))).toBe(true);
-    const cancel = eewOf("37_01_03_240613_VXSE43.xml");
-    expect(filledBy("bandCancel")(draw([retarget(cancel, "D")]))).toBe(true);
+    const topLines = draw([retarget(top, "F")]);
+    expect([filledBy("bandTop")(topLines), barred("barPurple", topLines)]).toEqual([true, true]);
+    const cancel = eewOf("37_01_03_240613_VXSE43.xml"), cancelLines = draw([retarget(cancel, "D")]);
+    expect([filledBy("bandCancel")(cancelLines), barred("barCancel", cancelLines)]).toEqual([true, true]);
 
     const ended = terminal(80, 3);
     ended([warning]);

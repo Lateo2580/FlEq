@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "99440740a4d62226772084ba7d31e94a34adda181fe17190dbe79d24ce41aabe",
+    "sha256": "fd58b15cb457171ad761e5afc16a23cbab9c510e9e41e1ba9e5a1fd768df5a2b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -240,7 +240,7 @@
       },
       {
         "id": "P3-TL-AC03",
-        "requirement": "線と色（Q-TO2-STYLE・Q-TO2-NOCOLOR）: (1) 帯は警報以上と取消を幅いっぱいに地の色で塗る（時刻も帯の字）。注意は黄の太字と黄の罫線、普通は今の形。短い形の最も重い段は白の地に黒で塗る (2) 警報の帯は朱 #d55e00 の地に黒の太字、震度 7 は紫の地に白の太字。暗い赤の役目を除く (3) 帯の下の行に段の色の縦線を通す（地の色の空白 1 桁と空白 1 桁。本文の幅は 2 桁減る） (4) 色の level が 0 のとき（NO_COLOR、パイプ、ファイル）は帯を塗らず ━ の形にし、縦線を出さない。字下げの 2 桁も出さない。60 桁未満も字下げの 2 桁を出さない (5) 塗る帯の右端の空白を trimEnd で消さない",
+        "requirement": "線と色（Q-TO2-STYLE・Q-TO2-NOCOLOR）: (1) 帯は警報以上と取消を幅いっぱいに地の色で塗る（時刻も帯の字）。注意は黄の太字と黄の罫線、普通は今の形。短い形の最も重い段は白の地に黒で塗る (2) 警報の帯は朱 #d55e00 の地に黒の太字、震度 7 は紫の地に白の太字。暗い赤の役目を除く。同時に進む EEW の 2・3 段目の帯（(1) の注意の黄の字と罫線、(2) の警報の朱の地）は P3-TL10-AC02 の色にする (3) 帯の下の行に段の色の縦線を通す（地の色の空白 1 桁と空白 1 桁。本文の幅は 2 桁減る） (4) 色の level が 0 のとき（NO_COLOR、パイプ、ファイル）は帯を塗らず ━ の形にし、縦線を出さない。字下げの 2 桁も出さない。60 桁未満も字下げの 2 桁を出さない (5) 塗る帯の右端の空白を trimEnd で消さない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:36 «51107f93a2bcfafd»",
           "docs/specs/cli-terminal-output.md:47 «443d461044b2d725»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f219134a012165f26ceb71584a11a15146acb608",
-    "sha256": "6f4ff3bae98a90498865494001bee0fc864e7c1a34f4e44c58031c7ee48ee0e1",
+    "sha256": "6c7b127e9fee46e5933326cd4eeb6bfe7411c0a088a5d4a191224e92bb434a80",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -485,7 +485,7 @@
         "status": "frozen（他の契約・段への申し送り。C12の範囲には入れない）",
         "items": [
           "P4（表示）: BriefingCardの見せ方（旧築の作者裁定2026-08-27の地域表示＝県名＋地域名、種別ごとの定型の要点、headline全文はtickerだけ）、観測の雨量の表示（spec:1465「雨量と発表官署」）、VPOA50のreleasedの「対応電文未確認」の見せ方、snapshotのdomain briefingがsummaryに落ちるsubjectの数（AC06の報告）はP4の表示の契約で決める",
-          "C19（端末出力）: 旧築のCLIの速報の表示（src/ui/briefing-formatter.ts・legacy-counterpart-formatter.ts）は重さの根拠や要約も出す。新築のU-Bはそれらを保存しない（P3-C12-FACTS）ので、端末に出すなら採用時のoutcomeのfactsへ足す要否をC19で決める",
+          "C19（端末出力）: 旧築のCLIの速報の表示（src/ui/briefing-formatter.ts・legacy-counterpart-formatter.ts）は重さの根拠や要約も出す。新築のU-Bはそれらを保存しない（P3-C12-FACTS）ので、端末に出すなら採用時のoutcomeのfactsへ足す要否をC19で決める（P3-TL10-AC03: 端末は短い形〔material.ts〕のままで U-B の facts を足さず、VPOA50 は返信の U-B の accepted の自分の記録の held・aliased で出すかを決める）",
           "C15（移行）: P3-C12-MIGRATION",
           "VPBS51: P3-C12-VPBS51",
           "C4・C22（測定）: P3のE01の負荷にVPBS50・VPOA50が入っていれば、C12の配送の後はnotPortedの経路でなくU-Bの受理になり、deferredの負荷が変わる。凍結した版付きの結果は書き換えず、C22の確認でこの差を記録する（負荷に入っているかは確かめていない）"
