@@ -1,0 +1,348 @@
+{
+  "meta": {
+    "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
+    "sha256": "0d838b4d83f3976147eec9087d602be7f3ff7cd5e6df1a5763fb7e9ed24d2e8c",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-UV2-D-WITHDRAW",
+        "kind": "作者",
+        "A": "VFVO51 の火山 entry の採用が active の警報を active でない記録（ended）にするとき、到着の時点で期限を過ぎていなくても、その subject の pending を全部（両 channel）撤回する（applyEntries の撤回の条件に「次が active でない」を足す）",
+        "B": "今のまま（撤回は期限を過ぎた採用だけ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-10-10）",
+        "ruling": "A（K3 の契約適合レビュー Opus の P3-2 に、作者が「次に U-V を触る契約で直す」と裁定。2026-10-10）",
+        "reason": "単独の VFVO50 の解除は新しい intent が同じ subject・channel の pending を置き換えるので古い警報の通知が残らないが、VFVO51 は解説の subject（`normal/VFVO51/<火山>`）にだけ intent を作り、警報の subject の pending を置き換えない。起草の実走（Q-UV2-DRAFT-FACTS (1)）で、引下げの後に前の引上げの warning が desktop・sound に残った"
+      },
+      {
+        "id": "P3-UV2-D-LAND-CANCEL",
+        "kind": "作者",
+        "A": "P3-AUTH-D-LAND-CANCEL=A のまま（VFVO50 の取消は警報全体を cancelled）",
+        "B": "VFVO50 の取消は陸の部分だけを取り消し、海上（VFSV）の区分が active を支えるなら active を保つ（VFSV の取消の扱いと対称）。海上の区分を marineKind として記録に持つ",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "確定（作者の再裁定、2026-10-11 朝）",
+        "ruling": "B（2026-10-11 朝、作者の再裁定。出典は作業ノート（repo 外）の全面再構成の進捗ノート:202「F1（陸の取消で海上の警報も表示から消える、K2 (5)）は B に再裁定: P3-AUTH-D-LAND-CANCEL の B（VFVO50 の取消は陸の部分だけを取り消し、海上の区分を別に持つ marineKind を足す）。P3-C9-MARINE=A の再裁定になるので、U-V を次に触る契約（VFVO51 の pending の直しと同じ契約）に入れる。」。残存リスク一覧:99 の F1 の確かめ方は「VFVO50 の取消を受けた火山で、有効な海上警報の表示が消えたか」）",
+        "reason": "A では、海上警報がまだ有効でも VFVO50 の取消で警報全体が画面から消え、次の VFSV まで戻らない（P3-AUTH の残存リスク (5)）。B は VFSV の取消の分岐（陸の区分 landKind が支えれば active を保つ）の鏡で、規則が陸と海で揃う"
+      },
+      {
+        "id": "P3-UV2-D-LAND-FACTS",
+        "kind": "統合担当",
+        "A": "陸の部分だけの取消で残す事実は、海上の区分（kind＝marineKind・level）と、両 family が書く volcanoName・coordinate・marineAreas・truncated。VFVO50 だけが書く headline・municipalities・prevention と、前の区分の説明 lastKind は消す。landKind は null（P3-C9-MARINE の「VFVO50 の取消で null」のまま）",
+        "B": "headline・municipalities を残す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-09 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "headline・municipalities・prevention は取り消した VFVO50 の内容で、B では取り消した報の見出しと対象市町村が海上警報の記録に残る。lastKind は画面・入力の行に出ない（reconstruction/src/terminal・display は読まない）ので消しても見え方は変わらず、VFVO51 の区分の変化で前の区分の説明を消す規則（I-U-V.alertSemantics (2)）と同じ向き"
+      },
+      {
+        "id": "P3-UV2-D-UNSUPPORTED",
+        "kind": "統合担当",
+        "A": "海上が支えない（marineSource が無い、記録が active でない、marineKind が null か activeKind でない）VFVO50 の取消は、今どおり警報全体を cancelled にする",
+        "B": "VFSV の取消の鏡（volcano-unit.ts の VFSV の取消の分岐の支えない側）に揃えて ended にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-09 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "再裁定 B が変えるのは海上が支える場合だけ。B は画面（どちらも view に出ない）と通知（取消の通知は今どおり）を変えず、outcome の transition だけを cancelled から ended に替えるので、裁定の外の変更になる"
+      },
+      {
+        "id": "P3-UV2-D-WITHDRAW-SIDE",
+        "kind": "統合担当",
+        "A": "陸の部分だけの取消は、その subject の陸（VFVO50・VFVO51）の pending だけを撤回し、取消の intent が置き換えるのも陸の pending だけ。VFSV の pending は残す",
+        "B": "今どおり subject の全 pending を撤回する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-09 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "海上の部分だけの取消が VFSV の pending だけを置き換える規則（Q-C9-IMPL-AMEND(9)、volcano-unit.ts の MARINE_PART）の鏡。B では画面に残る海上警報の未配送の通知が、陸の取消で消える。通知の文面は今の取消の文面のまま（海上の部分だけの取消の通知も、残る陸の区分を述べない）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-UV2-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-09 起草（base a90a284e の木で、一時の試験を .dr-tmp に置いて走らせ、消した）",
+        "closed": "(1) pending の撤回: 45_01_01_200522_VFVO50（浅間山 306、Lv3 引上げ、13:03 発表）を時計 2020-05-22T13:55:30+09:00 で受けると desktop・sound の warning「噴火警報（火口周辺）」が pending。44_02_01_200522_VFVO51（13:56:00）の 350 を 306 に、Code 12 を 11 に、Condition 継続を引下げに替えた報を受けると警報は ended だが、VFVO50 の warning 2 本が残り、VFVO51 の解説の info 2 本が足される。Condition を継続のまま（Lv1 継続）でも同じ。比べ: 45_03_01_200731_VFVO50 の解除（306 に替えた報）は同じ subject・channel の置換で warning が消える。applyEntries の撤回の行に「次が active でない」を足した一時の木では warning 2 本が外れ、volcano-unit・notice-ledger・recovery の試験は dist を要る recovery-host.test.ts（dist の無い木で全部落ちる）を除いて全部通った（期待の変わる既存の試験なし）。行は元に戻した (2) 実 fixture の対: VFVO51 の火山 entry が active の警報を inactive にする対は corpus に無い（44_02_01・44_03_01 は 350 の Lv2 継続、全国の 44_01_01 の Lv1・21・35 の火山は VFVO50 の fixture の 306・315・350・506 と重ならない）。試験は P3-FINAL-T04 が既に使う変換（350→306、Code 12→11、継続→引下げ）を使う (3) 今の陸の取消: P3-AUTH-T03 の三報（land A 10:00:00、marine B 10:00:01、火山コードの無い取消 10:00:02）で、marine B の後の記録は active・kind 13・marineAreas「海上警報（噴火警報）5200」、pending は VFVO50 と VFSV50 の warning 各 2 本。取消の後は cancelled で view の alerts が空、pending は 4 本とも外れて取消の 2 本「[取消] 噴火警報（火口周辺）（浅間山 10:00 発表）」だけ (4) 他の契約の volcano-unit.ts の «» は 79 件。実装が中身を変える見込みの行のうち引かれているのは :33・:309・:379・:1301・:1494（P3-AUTHORITY-EVIDENCE-001）、:300（P3-VOLCANO-RAISE-001）、:571（P3-FINAL-ADOPTION-001）。p3-volcano-unit.types.ts は :76・:193 だけが引かれ、marineKind を足す :85 は引かれていない。原文の改訂を書き足す行（p3-volcano-unit.json :91・:154・:339・:955、p3-authority-evidence.json :40・:247・:286・:304・:349・:530）はどれも他の契約に引かれていない"
+      },
+      {
+        "id": "Q-UV2-RULING-SOURCE",
+        "status": "closed",
+        "source": "統合担当（2026-11-09）。作業ノート（repo 外）の全面再構成の進捗ノート:202、残存リスク一覧:99",
+        "closed": "F1 の再裁定の原文（2026-10-11 朝、作者）:「F1（陸の取消で海上の警報も表示から消える、K2 (5)）は B に再裁定: P3-AUTH-D-LAND-CANCEL の B（VFVO50 の取消は陸の部分だけを取り消し、海上の区分を別に持つ marineKind を足す）。P3-C9-MARINE=A の再裁定になるので、U-V を次に触る契約（VFVO51 の pending の直しと同じ契約）に入れる。」。repo の上では P3-AUTH-D-LAND-CANCEL（p3-authority-evidence.json）と P3-C9-MARINE（p3-volcano-unit.json）の ruling が A のままなので、本契約の原文の改訂（artifactRequirements の 6 番目、:40 と :91）で両方を B に改める（P3-C9-MARINE は VFVO50 の取消の効き方だけ）"
+      },
+      {
+        "id": "Q-UV2-T01-REWRITE",
+        "status": "closed",
+        "source": "統合担当の決め（2026-11-09）",
+        "closed": "T01 の VFVO51 は P3-FINAL-T04 の前例と同じ書き換え（350→306、Code 12→11、継続→引下げ）を試験の中で写しに当て、fixture の file は変えない。表示の字を変える書き換えではなく、VFVO51 の entry が active の警報を inactive にする組が corpus に無いため（Q-UV2-DRAFT-FACTS (2)）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。撤回と陸の部分だけの取消は今どおり subject（運用区分を含む）ごと"
+    }
+  },
+  "contract": {
+    "contractId": "P3-UNIT-V-002",
+    "mode": "implementation",
+    "objective": "U-V の残りの裁定 2 つを入れる。(1) VFVO51 の火山 entry が active の警報を ended にしたら、その警報の未配送の通知（pending）を撤回し、引下げの後に前の引上げの音が鳴らないようにする (2) VFVO50 の取消は陸の部分だけを取り消し、海上警報（VFSV）の区分が残るなら警報を active のまま画面に残す（F1 の再裁定 B）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-volcano-unit-002.json",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-volcano-unit.types.ts",
+      "reconstruction/contracts/p3-authority-evidence.json",
+      "reconstruction/contracts/p3-final-adoption.json",
+      "reconstruction/contracts/p3-volcano-raise.json",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/terminal/prompt-current.ts",
+      "reconstruction/test/volcano-unit/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/volcano/volcano-unit.ts（applyEntries の撤回の行とそのコメント、alertBase・judgeAlert の VFVO50 の取消、receiveAlert の取消の撤回の鍵、MARINE_PART の行・admit・finish の admit の呼び出し、SCHEMA、GENERATION_LIMIT、codec の marineKind、復旧不足の解決で ended にする所。行の数を変えない）",
+      "reconstruction/contracts/p3-volcano-unit.types.ts（VolcanoAlert の marineKind とその上のコメント、schemaVersion の字 3 か所。行の数を変えない）",
+      "reconstruction/src/runtime/owner-runtime.ts（U-V の初期 state の版の字だけ）",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts（末尾に試験を足す。P3-AUTH-T03 の effective の 1 行、版の字、budgetState・decoderMax の marineKind、P3-CODEC-T01 の開始の件数は行の数を変えずに直す）",
+      "reconstruction/test/volcano-unit/volcano-fixture.ts（版の字だけ）",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts（版の字だけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-volcano-unit-002.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M14",
+      "M15",
+      "M16"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-UNIT-V-001",
+      "P3-AUTHORITY-EVIDENCE-001",
+      "P3-FINAL-ADOPTION-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-VOLCANO-RAISE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoAlert",
+      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoUnitState"
+    ],
+    "publicFunctions": [
+      "口は変えない（reduceVolcanoUnit・volcanoUnitCodec・toVolcanoView のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__44_02_01_200522_VFVO51",
+      "test__fixtures__46_01_01_170103_VFSVii",
+      "test__fixtures__synthetic_VFVO50_cancel"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-UV2-RES-01",
+        "target": "U-V encoded generation（GENERATION_LIMIT）",
+        "limit": "9,967,447 ＋ 128 × marineKind 1 件の上界（実装で算出して報告する）",
+        "unit": "UTF-8 bytes。marineKind は landKind と同じ値域と上限（code は ASCII 8 字、name・condition は kind と同じ BOUNDS）で、警報 1 件の合法最大は landKind 1 つ分と鍵の byte だけ増える",
+        "scope": "GENERATION_LIMIT と静的上界（I-U-V.capacityReserve の式）の両方に SLICE_LIMIT × marineKind の上界を同じ式で足す（P3-RDT-AC03 の防災事項と同じ足し方）。実装の報告に 1 件の上界・足した後の GENERATION_LIMIT・P3-C9-T05 の boundPayload を書く",
+        "source": "P3-C9-RES-01・P3-RDT-AC03"
+      },
+      {
+        "id": "P3-UV2-RES-02",
+        "target": "受信 1 回の計算量",
+        "limit": "記録・entry ごとの定数（全件×全件の走査と state・intent 全体の直列化を足さない）",
+        "unit": "操作",
+        "scope": "撤回は採用した entry ごとに Set へ 1 回足すだけ（全国の VFVO51 の 128 entry でも entry ごとの定数）。陸の部分だけの取消は記録 1 件の組み立てと撤回の鍵 1 つ。admit は今どおり pending（上限 128）を 1 回走査する。P3-C9-T05 の「受信 1 回は記録単位の加算だけ」の試験（JSON.stringify の spy）が通ること",
+        "source": "AGENTS.md の受信経路の計算量"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-V"
+    ],
+    "persistedFields": [
+      "U-V の警報の marineKind（VolcanoKind か null。schemaVersion p3-volcano-unit-v8）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "解除・引下げ（取消でない inactive の区分）が警報全体を ended にする規則（I-U-V.alertSemantics (3) のまま。VFVO50・VFSV・VFVO51 のどれでも、もう一方の側が active でも ended。再裁定 B は取消だけ）",
+      "VFVO51 の火山 entry が active のまま区分を下げたとき（Lv3 から Lv2 など）の前の pending（撤回は active でない記録に落ちるときだけ、P3-UV2-D-WITHDRAW の裁定の範囲）",
+      "VFSV の取消の効き方（P3-C9-MARINE=A・Q-C9-IMPL-AMEND(9)(a) のまま）と、火山コードの無い取消の結び付け（P3-AUTH-AC03 (3) のまま）",
+      "取消の通知の文面・level（今の cancelText と cancelledOf のまま）",
+      "H27（raiseLevel）・入力の行（prompt-current.ts）・view の形（marineKind は landKind と同じく記録の欄として view に載る）",
+      "旧い保存の移行（版を上げて捨てる。P5 の前は初期化してよい作者裁定）",
+      "spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-UV2-AC01",
+        "requirement": "pending の撤回（P3-UV2-D-WITHDRAW=A）: (1) VFVO51 の火山 entry の採用が、採用の前に active だった警報を active でない記録にするとき、到着の時点で期限を過ぎていなくても、その警報の subject の pending を全部（両 channel・両 family）撤回する（取消と同じ置換、P3-C9-REPLACEMENT=A）。期限を過ぎた採用の撤回（P3-FINAL-AC04）は今のまま (2) 場面: 2020-05-22 13:55:30、13:03 発表の VFVO50（浅間山 306、Lv3 引上げ）を受け、warning「噴火警報（火口周辺）」が desktop（寿命 180 秒）と sound（60 秒）に pending。13:56:00 に VFVO51 の 306 の entry が Lv1 引下げで届く。今は警報が ended になっても warning 2 本が残り、配送されると引下げの後に Lv3 の警報の音と通知が出る。直した後は warning 2 本が外れ、残るのは VFVO51 の解説の info 2 本だけ (3) VFVO51 の解説の通知、entry の採否（P3-C9-VFVO51-ATOMIC）、記録の値は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:987 «15ba9cf67c2cb520»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1043 «379e066bb9e1e4c3»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1051 «ae07edca1c824ac2»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1054 «3fd120ece2699029»",
+          "reconstruction/contracts/p3-volcano-unit.json:149 «99d740e631cc2a3b»",
+          "reconstruction/contracts/p3-final-adoption.json:303 «82a8e70383a8667a»"
+        ]
+      },
+      {
+        "id": "P3-UV2-AC02",
+        "requirement": "陸の部分だけの取消（P3-UV2-D-LAND-CANCEL=B）: (1) VFVO50 の報（取消を除く）は marineKind を保ち、VFSV の報は取消でなければ marineKind をその報の区分にし、VFSV の取消で null にする（landKind の鏡、P3-C9-MARINE=A） (2) VFVO50 の取消（火山コードの無い取消を landEventId で結び付けたものを含む）は、marineSource があり、採用の前の記録が active で、marineKind が null でなく activeKind なら、警報を active のまま残し、kind を marineKind・level をその区分の段にする。残す事実と消す事実は P3-UV2-D-LAND-FACTS=A。source・landEventId は取消の版と EventID に進み、landKind は null。海上の印（marineUnconfirmed・marineNotice・marineUnreadable）は保ち、陸の印は取消の版で置き換える（警報全体の取消ではないので両側の印を外さない） (3) 海上が支えないときは今どおり警報全体を cancelled（P3-UV2-D-UNSUPPORTED=A） (4) pending: 陸の部分だけの取消は、その subject の VFVO50・VFVO51 の pending だけを撤回し、取消の intent が置き換えるのも陸の pending だけ。VFSV の pending は残る（P3-UV2-D-WITHDRAW-SIDE=A）。取消の通知の文面と level は今のまま (5) 場面（P3-AUTH-T03 の三報）: 2026-01-01 10:00:00 の VFVO50（land A、浅間山 Lv3）で warning 2 本、10:00:01 の VFSV50（marine B、周辺海域警戒 36、海上警報 5200）で warning「噴火警報｜浅間山 / 周辺海域警戒」2 本、10:00:02 に EventID A の火山コードの無い VFVO50 の取消。今は警報が cancelled で画面から消え、pending は 4 本とも外れて「[取消] 噴火警報（火口周辺）（浅間山 10:00 発表）」の 2 本だけになる。直した後は警報が active・kind 周辺海域警戒（36）・marineAreas 5200 で画面に残り（見出しと対象市町村は消える）、pending は VFSV の warning 2 本と取消の 2 本 (6) その後に EventID B の火山コードの無い VFSV の取消が来ると、今の海上の部分だけの取消の分岐で ended になる（陸の区分が null なので支えない） (7) 取消の後に復元を挟んでも同じ（marineKind は保存され、復元で戻る）",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:371 «10f908b8191cbb83»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:374 «7dad4b406a595387»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:375 «dc341d2e69ab640f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:753 «fa298f72575b1598»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:757 «a5d9d0a2fce8b0d3»",
+          "reconstruction/contracts/p3-authority-evidence.json:36 «55d0572fd1a81d3c»",
+          "reconstruction/contracts/p3-authority-evidence.json:38 «41729f6066497cd1»",
+          "reconstruction/contracts/p3-volcano-unit.json:86 «e1091dd290294fea»"
+        ]
+      },
+      {
+        "id": "P3-UV2-AC03",
+        "requirement": "保存と codec: (1) VolcanoAlert に marineKind（VolcanoKind | null）を足し、schemaVersion を p3-volcano-unit-v8 に上げる（旧い版は今どおり捨てる、P3-MIG-AC01・AC02） (2) decode は marineKind を landKind と同じ値域で確かめ、marineSource が null なのに marineKind が非 null の記録、上限を超える code・name・condition を invalid にする。確かめた値を項目ごとに組み立てる（as で言い換えない） (3) 復旧不足の解決で ended にする記録も marineKind を保つ（landKind・identity と同じ、P3-AUTH-AC03 (5)） (4) 容量は P3-UV2-RES-01",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:1482 «099cbda0f875cc38»",
+          "reconstruction/contracts/p3-volcano-unit.types.ts:76 «0939fb8dbfe1e419»",
+          "reconstruction/contracts/p3-volcano-unit.json:338 «05090e9b0d48c6bf»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-UV2-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-UV2-AC01"
+        ],
+        "behavior": "実不具合の再発防止（K3 の契約適合レビューの P3-2）。45_01_01_200522_VFVO50 を時計 2020-05-22T13:55:30+09:00 で受け、44_02_01_200522_VFVO51 を P3-FINAL-T04 と同じ変換（350→306、Code 12→11、継続→引下げ。試験の中の写しに当て fixture の file は変えない、Q-UV2-T01-REWRITE）で報の時刻のまま受ける。警報 306 は ended、pending は VFVO51 の info の desktop・sound だけで、VFVO50 の warning が無い。直す前に落ちることを確かめる"
+      },
+      {
+        "testId": "P3-UV2-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-UV2-AC02"
+        ],
+        "behavior": "受入条件。P3-AUTH-T03 の三報（landA・marineB・codeless の helper）を各報の時刻の時計で受ける。取消の後は active・kind code 36・landKind null・marineKind code 36・marineAreas の 5200 が残り、headline null・municipalities 空、pending は VFSV50 の warning 2 本と取消の 2 本。復元を挟んでも同じ。続く EventID B の火山コードの無い VFSV の取消（headType VFSV50、10:00:03）で ended"
+      },
+      {
+        "testId": "P3-UV2-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-UV2-AC03"
+        ],
+        "behavior": "契約境界。marineSource が null で marineKind が非 null の警報と、marineKind の code が 9 文字の警報を decode が invalid にする。T02 の取消の後の state は保存して復元すると同じ値（marineKind を含む）に戻る"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O07 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。volcano-unit.ts の行の中身を変えた後に割れる «» は artifactRequirements の見込みの行だけであること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "npm run test:shuffle",
+        "cwd": ".",
+        "target": "旧築と共有の順序",
+        "stage": "implementation",
+        "purpose": "保存の形を変えるので順序を変えても緑か（AGENTS.md）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（marineKind: 無いと陸の取消の後に残す区分が分からない。陸の撤回の鍵: 無いと陸の取消が VFSV の pending を消す）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待で変えてよいのは 3 つだけ: P3-AUTH-T03 の取消の後の effective（cancelled → active。再裁定 B で 46_01_01 の 36 が支える）、版の字（v7 → v8）、P3-CODEC-T01 の開始の件数（警報が marineKind の分だけ大きくなるので、開始 ≤ 4 MiB・1 報後 > 4 MiB の意味を保つ件数へ）。ほかの期待が変わるなら止めて報告する",
+      "volcano-unit.ts と p3-volcano-unit.types.ts の行の数を変えない。実装で割れる見込みの他の契約の «»（統合担当が配送で付け直す）: volcano-unit.ts:33・:309・:379・:1301・:1494（P3-AUTHORITY-EVIDENCE-001）、:300（P3-VOLCANO-RAISE-001。marineKind を同じ行に書くとき）、:571（P3-FINAL-ADOPTION-001。admit の撤回の条件）。これ以外が割れたら止めて報告する",
+      "原文の改訂（統合担当が配送で、行の中に書き足す。どの行も他の契約に引かれていない）: p3-authority-evidence.json の :40（P3-AUTH-D-LAND-CANCEL の ruling を B に改める:「→ 2026-10-11 朝の作者の再裁定で B（出典は進捗ノート）、P3-UNIT-V-002 で実装」）・:247（outOfScope の「Vの陸の取消の効き方の変更」に「P3-UNIT-V-002 で変えた」）・:286（AC03 の (5) に「P3-UNIT-V-002 で、海上が支えるなら active を保つ」）・:304（AC04 の期待に「P3-UNIT-V-002 で effective は active・kind 36 と読み替える」）・:349（AC07 の (5) の「P3-C9-MARINE=AはD-LAND-CANCEL=Aにより変えない」に「P3-UNIT-V-002 で B」）・:530（残存リスク (5) に「P3-UNIT-V-002 で解消」）。p3-volcano-unit.json の :91（P3-C9-MARINE の ruling を改める:「→ VFVO50 の取消の効き方は 2026-10-11 朝の作者の再裁定（P3-AUTH-D-LAND-CANCEL=B、出典は進捗ノート）で陸の部分だけ、P3-UNIT-V-002 で実装。ほかは A のまま」）・:154（P3-C9-REPLACEMENT の ruling に「陸の部分だけの取消は陸の pending だけ、VFVO51 の entry が active を ended にする採用も撤回する、P3-UNIT-V-002」）・:339（I-U-V の status に「alertSemantics (4) と decode と capacityReserve は P3-UNIT-V-002 で marineKind と陸の部分だけの取消を足した、版 v8」）・:955（persistedFields の警報に marineKind）。改訂した 2 契約の sha256 を作り直す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
