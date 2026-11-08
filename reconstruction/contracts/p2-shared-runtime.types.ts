@@ -582,8 +582,8 @@ export type PendingCheckpointAttempt = CheckpointCapture & Readonly<{
 
 export type CheckpointResult =
   | Readonly<{ kind: "acknowledged"; attemptId: string; unit: UnitId; generation: number; ackAt: number; encodedByteLength: number }>
-  | Readonly<{ kind: "failed"; attemptId: string; unit: UnitId; generation: number; failedAt: number; stage: SaveFailureStage; reason: string; encodedByteLength: number }>
-  | Readonly<{ kind: "uncertain"; attemptId: string; unit: UnitId; generation: number; observedAt: number; stage: "rename" | "directorySync" | "ack"; encodedByteLength: number }>;
+  | Readonly<{ kind: "failed"; attemptId: string; unit: UnitId; generation: number; failedAt: number; stage: SaveFailureStage; reason: string; encodedByteLength: number; errorCode?: string }>
+  | Readonly<{ kind: "uncertain"; attemptId: string; unit: UnitId; generation: number; observedAt: number; stage: "rename" | "directorySync" | "ack"; encodedByteLength: number; errorCode?: string }>;
 
 export type RestoreUnitResult =
   | Readonly<{ kind: "restored"; envelope: CheckpointEnvelope; slot: "A" | "B" }>

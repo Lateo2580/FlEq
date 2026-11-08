@@ -758,3 +758,74 @@ it("P3-NL-T07 contractBoundary / AC15: every unit reads a slot of its previous s
       { kind: "unavailable", reason: "unknownSchema" }, false, ["checkpointRestoreRejected"]]);
   }
 });
+
+// P3-WCI-T01 受入条件（AC01）: platform を差し替えて win32 とほかの OS の両方を確かめる（windows-latest では元の値が win32）。
+it("P3-WCI-T01 acceptance / AC01: on win32 syncDirectory resolves without opening the directory; elsewhere it still opens it", async () => {
+  const missing = join(await directory(), "missing");
+  const real = Object.getOwnPropertyDescriptor(process, "platform");
+  if (real == null) throw new Error("process.platform has no own descriptor");
+  try {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    await expect(nodeCheckpointFileSystem().syncDirectory(missing)).resolves.toBeUndefined();
+    Object.defineProperty(process, "platform", { value: "linux" });
+    await expect(nodeCheckpointFileSystem().syncDirectory(missing)).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    Object.defineProperty(process, "platform", real);
+  }
+});
+
+// P3-WCI-T02 受入条件（AC02）: 段の失敗と成否不明の診断の component に errno の名前が付き、message の path は載らない。
+class CodedFailureFileSystem extends MemoryCheckpointFileSystem {
+  thrown: Readonly<{ at: "open" | "syncDirectory"; error: unknown }> | null = null;
+  override async open(path: string): Promise<WritableCheckpoint> {
+    if (this.thrown?.at === "open") throw this.thrown.error;
+    return super.open(path);
+  }
+  override async syncDirectory(): Promise<void> {
+    if (this.thrown?.at === "syncDirectory") throw this.thrown.error;
+  }
+}
+
+it("P3-WCI-T02 acceptance / AC02: an errno-shaped code names the save's stage and uncertain diagnostics without the message", async () => {
+  const windowsPath = "C:\\Users\\someone\\AppData\\Local\\fleq-p2\\state";
+  const coded = (code?: unknown) => Object.assign(new Error(`operation not permitted, open '${windowsPath}'`), code === undefined ? {} : { code });
+  const save = async (at: "open" | "syncDirectory", error: unknown) => {
+    const path = await directory();
+    const adapter = new CodedFailureFileSystem();
+    adapter.thrown = { at, error };
+    const clock = { wallTimeMs: 1_000, monotonicMs: 1 };
+    const { h, driver } = wired(path, { "U-F": codec("U-F") }, () => clock, adapter);
+    await driver.update(h, pending({ "U-F": { value: "payload" } }, { "U-F": { kind: "pending",
+      currentGeneration: 1, savedGeneration: null, savedCapturedAt: null, savedAckAt: null, dirtySince: 0 } }, "errno"),
+    clock, { "U-F": correlation.inputIds });
+    const results = (await granted(h)).map((reply) => reply.result);
+    const records = (await h.root.readDiagnostics({ limit: 256 })).records;
+    await h.root.diagnostics.flush();
+    const attemptId = results[0]?.attemptId;
+    return { results, records, own: records.filter((event) => event.attemptId === attemptId).map((event) => [event.component, event.reason]) };
+  };
+
+  // (a)(d): 保存の directory sync と、続く照合（mode reconcile）の directory sync が EPERM。再試行の診断は今の component のまま。
+  const eperm = await save("syncDirectory", coded("EPERM"));
+  expect(eperm.results).toMatchObject([{ kind: "uncertain", stage: "directorySync", errorCode: "EPERM" },
+    { kind: "uncertain", stage: "directorySync", errorCode: "EPERM" }]);
+  expect(eperm.own).toEqual([
+    ["checkpoint.EPERM", "checkpointDirectorySyncFailed"], ["checkpoint.EPERM", "checkpointUncertain"],
+    ["checkpoint", "checkpointRetryScheduled"], ["checkpoint.EPERM", "checkpointDirectorySyncFailed"], ["checkpoint.EPERM", "checkpointUncertain"],
+  ]);
+  expect(JSON.stringify(eperm.records)).not.toContain("someone");
+  expect(JSON.stringify(eperm.records)).not.toContain("not permitted");
+
+  // (b): open の ENOSPC は write の段の failed。
+  const enospc = await save("open", coded("ENOSPC"));
+  expect(enospc.results).toMatchObject([{ kind: "failed", stage: "write", errorCode: "ENOSPC" }]);
+  expect(enospc.own).toContainEqual(["checkpoint.ENOSPC", "checkpointWriteFailed"]);
+
+  // (c): code の無い error と errno の形でない code は欄を作らず、component は checkpoint のまま。
+  for (const error of [coded(), coded("EPERM\n"), coded("ERR_INVALID_ARG_TYPE"), coded(13)]) {
+    const other = await save("syncDirectory", error);
+    for (const result of other.results) expect(result).not.toHaveProperty("errorCode");
+    expect(other.own.map(([component]) => component).every((component) => component === "checkpoint")).toBe(true);
+    expect(other.own).toContainEqual(["checkpoint", "checkpointDirectorySyncFailed"]);
+  }
+});

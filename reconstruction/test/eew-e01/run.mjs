@@ -34,7 +34,7 @@ import { createHash } from "node:crypto";
 import { appendFileSync, closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { get as httpGet } from "node:http";
 import { arch, cpus, homedir, release, totalmem } from "node:os";
-import { basename, join, relative } from "node:path";
+import { basename, join, relative, sep } from "node:path";
 import { WebSocketServer } from "ws";
 
 import { analyzeTrace, assembleP3Trials, assembleTsunamiTrials, buildHostIndex, correspondences, probeIntervalBlocked, probeIntervals, rejectionReasons, versionKey } from "./analysis.mjs";
@@ -1364,7 +1364,7 @@ export const latestById = (records) => [...records.reduce((m, r) => (m.has(r.id)
 // 除くのは state/（どの深さでも）だけ: checkpoint の slot で、測定中に上書きされ続ける作業領域（集計が読むのは充填時点の中身で、
 // その結果は指紋表として結果ファイルに封印済み）。一時 profile（Chrome の user-data-dir・E12 旧側の作業 dir）は os.tmpdir() に作って
 // 消すので窓 dir に現れない（chrome.mjs・e12-legacy-launcher.mjs）。
-export const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map(String).sort()
+export const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll(sep, "/")).sort()
   .filter((f) => !f.split("/").includes("state") && statSync(join(dir, f)).isFile()).map((f) => {
     const bytes = readFileSync(join(dir, f));
     return { file: f, bytes: bytes.length, sha256: sha256Hex(bytes) };
@@ -1374,7 +1374,7 @@ export const hashRaw = (dir) => readdirSync(dir, { recursive: true }).map(String
 const HOST_CLOCK_REASONS = ["hostClockUnverified", "hostClockAhead", "hostClockBehind"];
 export function hostClockCounts(dir) {
   const counts = Object.fromEntries(HOST_CLOCK_REASONS.map((reason) => [reason, 0]));
-  for (const file of readdirSync(dir, { recursive: true }).map(String).filter((f) => f.split("/").includes("diagnostics") && f.endsWith(".jsonl"))) {
+  for (const file of readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll(sep, "/")).filter((f) => f.split("/").includes("diagnostics") && f.endsWith(".jsonl"))) {
     for (const line of readFileSync(join(dir, file), "utf8").split("\n")) {
       let row = null;
       try { row = line.trim() === "" ? null : JSON.parse(line); } catch { /* 読めない行は readDiagnosticsStrict の側の問題として数えない */ }

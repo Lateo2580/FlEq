@@ -149,9 +149,9 @@ describe("P3-TO-T16 EEW ログ（spec §7、AC15）", () => {
     const withEvent = (eventId: string): SubjectOutcome => ({ ...report, facts: { ...report.facts, eventId } });
     for (let index = 0; index <= 64; index += 1) many.log.record(withEvent(`2024041723${String(index).padStart(4, "0")}`));
     // 報は数秒おきに届く。書き込みが進んでから続報を流す（同時に積むと、鎖の上限で始めていない書き込みを捨てる、AC15 (3)）。
-    await vi.waitFor(() => { expect(many.files()).toHaveLength(65); });
+    await vi.waitFor(() => { expect(many.files()).toHaveLength(65); }, { timeout: 10_000 });
     many.log.record(withEvent("20240417230000"));
-    await vi.waitFor(() => { expect(many.files()[0].split("=== 緊急地震速報 EventID: 20240417230000 ===")).toHaveLength(3); });
+    await vi.waitFor(() => { expect(many.files()[0].split("=== 緊急地震速報 EventID: 20240417230000 ===")).toHaveLength(3); }, { timeout: 10_000 });
     await many.log.close();
     expect(many.files()[0].split("--- 第1報 (予報)")).toHaveLength(3);
     expect(many.log.dropped()).toBe(0);

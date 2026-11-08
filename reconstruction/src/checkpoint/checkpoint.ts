@@ -113,7 +113,7 @@ const failureReasons = {
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 512) : "checkpoint operation failed";
 }
-
+function errnoField(error: unknown): Readonly<{ errorCode?: string }> { const code = typeof error === "object" && error != null && "code" in error ? error.code : null; return typeof code === "string" && /^E[A-Z0-9]{1,31}$/.test(code) ? { errorCode: code } : {}; } // P3-WCI-AC02: 診断に載せるのは errno の名前だけ（message は path を含む、P2-A3-AC07）。m の旗が無いので末尾に改行を持つ値は合わない
 // P3-C3A-WRITE-RIGHT: the owner's side of checkpointing. It captures, encodes, hashes, writes and reconciles the
 // owner's own units, remembers their valid slot (C1) and keeps a failed generation's bytes for a same-generation
 // retry. When to save and how long to wait after a failure is the publisher's (CheckpointWriter below).
@@ -355,9 +355,9 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       if (uncertain) this.knowledge.delete(request.unit);
       return { result: uncertain
         ? { kind: "uncertain", attemptId: request.attemptId, unit: request.unit, generation: request.generation,
-            observedAt: now.wallTimeMs, stage: stage === "verify" ? "ack" : stage as "rename" | "directorySync", encodedByteLength: byteLength }
+            observedAt: now.wallTimeMs, stage: stage === "verify" ? "ack" : stage as "rename" | "directorySync", encodedByteLength: byteLength, ...errnoField(error) }
         : { kind: "failed", attemptId: request.attemptId, unit: request.unit, generation: request.generation,
-            failedAt: now.wallTimeMs, stage, reason: errorMessage(error), encodedByteLength: byteLength }, measurements };
+            failedAt: now.wallTimeMs, stage, reason: errorMessage(error), encodedByteLength: byteLength, ...errnoField(error) }, measurements };
     } finally {
       attempt.phase = "ended";
     }
@@ -415,8 +415,8 @@ class CheckpointCoordinator<UnitStates extends RuntimeUnitStates = RuntimeUnitSt
       this.knowledge.delete(unit); // AC02(4): only a successful reconciliation keeps the memory restoreUnit just set.
       measure("failed");
       return { result: stage === "directorySync"
-        ? { ...identity, kind: "uncertain", observedAt: this.readClock().wallTimeMs, stage }
-        : { ...identity, kind: "failed", failedAt: this.readClock().wallTimeMs, stage, reason: errorMessage(error) }, measurements };
+        ? { ...identity, kind: "uncertain", observedAt: this.readClock().wallTimeMs, stage, ...errnoField(error) }
+        : { ...identity, kind: "failed", failedAt: this.readClock().wallTimeMs, stage, reason: errorMessage(error), ...errnoField(error) }, measurements };
     } finally {
       attempt.phase = "ended";
     }
@@ -582,8 +582,8 @@ class CheckpointWriter {
       this.declined.set(grant.unit, grant.generation);
       return true;
     }
-    const diagnostics: DiagnosticEvent[] = [];
-    const failedStage = [...measurements].reverse().find((item) => item.outcome === "failed")?.stage ?? null;
+    const diagnostics: DiagnosticEvent[] = []; // P3-WCI-AC02(2): この保存の段の失敗と成否不明の診断だけ、errno の名前を component に付ける
+    const component = result.kind === "acknowledged" || result.errorCode == null ? "checkpoint" : `checkpoint.${result.errorCode}`; const failedStage = [...measurements].reverse().find((item) => item.outcome === "failed")?.stage ?? null;
     if (grant.mode === "reconcile" && result.kind !== "acknowledged")
       diagnostics.push(this.scheduleRetry(grant, result, clock, "ackUncertain"));
     if (result.kind === "acknowledged") {
@@ -591,17 +591,17 @@ class CheckpointWriter {
       // P3-UWR-AC06: 古い世代の ack では、より新しい世代の overdue の記録を消さない（同じ世代の WARN を再び出さない）。
       if ((this.overdue.get(result.unit) ?? Infinity) <= result.generation) this.overdue.delete(result.unit);
     } else if (result.kind === "failed") {
-      diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
+      diagnostics.push(completeDiagnostic({ level: "ERROR", component,
         reason: failureReasons[result.stage], unit: result.unit, generation: result.generation,
         attemptId: result.attemptId }, clock, grant.runId));
       if (grant.mode === "save") diagnostics.push(this.scheduleRetry(grant, result, clock,
         previous.kind === "uncertain" ? "ackUncertain" : "saveFailed"));
     } else {
       const stage = failedStage ?? (result.stage === "ack" ? null : result.stage);
-      if (stage != null && stage !== "encode") diagnostics.push(completeDiagnostic({ level: "ERROR", component: "checkpoint",
+      if (stage != null && stage !== "encode") diagnostics.push(completeDiagnostic({ level: "ERROR", component,
         reason: failureReasons[stage], unit: result.unit, generation: result.generation,
         attemptId: result.attemptId }, clock, grant.runId));
-      diagnostics.push(completeDiagnostic({ level: "WARN", component: "checkpoint",
+      diagnostics.push(completeDiagnostic({ level: "WARN", component,
         reason: "checkpointUncertain", unit: result.unit, generation: result.generation,
         attemptId: result.attemptId }, clock, grant.runId));
     }

@@ -275,8 +275,8 @@ function nodeCheckpointFileSystem(): CheckpointFileSystem {
       };
     },
     async rename(from, to) { await fileSystem.rename(from, to); },
-    async syncDirectory(path) {
-      const handle = await fileSystem.open(path, "r");
+    async syncDirectory(path) { // P3-WCI-AC01: Windows は directory を開いた handle の fsync が失敗するので開かない（P3-CLI-D-WRITE と同じ）。platform は呼ぶたびに読む
+      if (process.platform === "win32") return; const handle = await fileSystem.open(path, "r");
       try { await handle.sync(); } finally { await handle.close(); }
     },
   };

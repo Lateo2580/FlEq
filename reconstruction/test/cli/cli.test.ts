@@ -254,7 +254,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
   });
 
   it("保存が期限までに終わらなければ、stop の後 5 秒で確かめられない旨を出し、code 0 を 1 にする", async () => {
-    for (const stall of ["write", "directorySync"] as const) {
+    for (const stall of (["write", "directorySync"] as const).filter((item) => item === "write" || process.platform !== "win32")) { // win32 の設定の保存は directory を開かない（P3-CLI-D-WRITE、P3-WINDOWS-CI-001）
       writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
       writes.stall = stall;
       writes.reached = false;

@@ -79,7 +79,7 @@ describe("P2 persistent diagnostic sink", () => {
       async files() { return [
         { name: "diagnostics-1970-01-01.jsonl", size: 1, mtimeMs: 8 * 24 * 60 * 60 * 1000 },
         { name: "diagnostics-1970-01-09.jsonl", size: 101 * 1024 * 1024, mtimeMs: 0 },
-      ].filter((file) => !removed.includes(`/retention/${file.name}`)); },
+      ].filter((file) => !removed.includes(join("/retention", file.name))); },
       async unlink(path) { removed.push(path); },
     };
     const retention = new PersistentDiagnosticSink("/retention", retained,
@@ -88,7 +88,7 @@ describe("P2 persistent diagnostic sink", () => {
       reason: "shutdownStarted", runId: "run" });
     await retention.flush();
     expect(removed).toEqual([
-      "/retention/diagnostics-1970-01-01.jsonl", "/retention/diagnostics-1970-01-09.jsonl",
+      join("/retention", "diagnostics-1970-01-01.jsonl"), join("/retention", "diagnostics-1970-01-09.jsonl"),
     ]);
 
     let appends = 0;
