@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "c1246f65b426051a2e4012f932e0b181009624b3aa84bedac03b979bd6300cff",
+    "sha256": "a6e3fd8aa68bad560c8603de17f45a908b81c5a0ee512c79e344f3b01719674c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -281,8 +281,8 @@
           "docs/specs/cli-terminal-output.md:35 «930927e748991f1b»",
           "docs/specs/cli-terminal-output.md:46 «ee9e9e12d6e69f44»",
           "docs/specs/cli-terminal-output.md:50 «4c7209669f1508c6»",
-          "docs/specs/cli-terminal-output.md:405 «ab33eabde89f446c»",
-          "docs/specs/cli-terminal-output.md:564 «d8654378e356f57e»"
+          "docs/specs/cli-terminal-output.md:407 «ab33eabde89f446c»",
+          "docs/specs/cli-terminal-output.md:578 «d8654378e356f57e»"
         ]
       },
       {
@@ -300,72 +300,72 @@
         "id": "P3-TL2-AC03",
         "requirement": "確かさ（Q-TO3-MEANING）: (1) 電文の「既に主要動到達と推測」を「到達と推測」と出す (2) 見出しを短くする形の高さの列を「予想」にする（今の「高さ」と同じ 4 桁で、列の幅を変えない） (3) 震源の要素が無い報は「震源: 調査中」と書かず、発生の時刻だけの行にする。発生の時刻も無ければ行を出さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:156 «7792b24d6524a072»",
-          "docs/specs/cli-terminal-output.md:83 «a8e55629cd091a19»",
-          "docs/specs/cli-terminal-output.md:292 «93cfafdfd248389b»"
+          "docs/specs/cli-terminal-output.md:157 «7792b24d6524a072»",
+          "docs/specs/cli-terminal-output.md:84 «a8e55629cd091a19»",
+          "docs/specs/cli-terminal-output.md:294 «93cfafdfd248389b»"
         ]
       },
       {
         "id": "P3-TL2-AC04",
         "requirement": "行動の文（Q-TO3-ACTION）: (1) EEW の facts.report に電文の Comments の WarningComment の文の欄を足す (2) 文のある EEW は、要点の見出し文の下に太字で出す (3) VTSE51 の WarningComment を、補足のまとまりに太字で出す（複数の文は文ごとの行）。VTSE52 の補足の扱いは今のまま (4) 文は言い換えない。文の無い報には足さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:158 «ba33522f26ab0f39»",
-          "docs/specs/cli-terminal-output.md:444 «972e7477569564a4»"
+          "docs/specs/cli-terminal-output.md:159 «ba33522f26ab0f39»",
+          "docs/specs/cli-terminal-output.md:446 «972e7477569564a4»"
         ]
       },
       {
         "id": "P3-TL2-AC05",
         "requirement": "場所（Q-TO3-RECAP）: (1) 津波の要点の区分の行を、最も重い区分の地域数と地域名の行、残りの区分の数の行の 2 行にする。入らない地域は「ほか n 地域」と書く (2) 津波の再掲も同じ 2 行に「避難」の文（発表時刻つき）を続ける (3) EEW の再掲は最大予測震度の行と、行動の文（発表時刻つき）にする。行動の文が無い報は最大の行に発表時刻を付ける (4) 再掲の出る条件（20 行以上）は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:117 «39fe6a4aa1c20b55»",
-          "docs/specs/cli-terminal-output.md:398 «b74c1bbcc5675e11»"
+          "docs/specs/cli-terminal-output.md:118 «39fe6a4aa1c20b55»",
+          "docs/specs/cli-terminal-output.md:400 «b74c1bbcc5675e11»"
         ]
       },
       {
         "id": "P3-TL2-AC06",
         "requirement": "折り返し（Q-TO3-WRAP）: (1) 震源の行は「 ・ 」の境で折る。折り目の「 ・ 」は出さず、続きの行を 2 字下げる。1 項目が幅を超えるときだけ字の境目で折る (2) 震度と長周期階級の一覧は折り返した行にも段の字を出す (3) 満潮時刻の各行（折り返した行も）の観測点の前に「満潮」を付ける",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:86 «529822a6141ffcf5»",
-          "docs/specs/cli-terminal-output.md:88 «02ee9a609c3acf74»",
-          "docs/specs/cli-terminal-output.md:243 «5b5cabd37e49f3bf»",
-          "docs/specs/cli-terminal-output.md:445 «8dd67513ffc9b0f4»"
+          "docs/specs/cli-terminal-output.md:87 «529822a6141ffcf5»",
+          "docs/specs/cli-terminal-output.md:89 «02ee9a609c3acf74»",
+          "docs/specs/cli-terminal-output.md:245 «5b5cabd37e49f3bf»",
+          "docs/specs/cli-terminal-output.md:447 «8dd67513ffc9b0f4»"
         ]
       },
       {
         "id": "P3-TL2-AC07",
         "requirement": "EEW の時刻と矢印: (1) 矢印の後ろの空白を 2 つにする（Q-TO3-ARROW） (2) 発表時刻より前の到達予想時刻を警報の字で出す",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:159 «4f34ebbe0f83a759»",
-          "docs/specs/cli-terminal-output.md:157 «f78c8d10610d6c9f»"
+          "docs/specs/cli-terminal-output.md:160 «4f34ebbe0f83a759»",
+          "docs/specs/cli-terminal-output.md:158 «f78c8d10610d6c9f»"
         ]
       },
       {
         "id": "P3-TL2-AC08",
         "requirement": "短い形の段の理由（Q-TO3-REASON）: (1) 警報以上の段（最も重い・紫・警報）の U-W・U-L・U-R・U-V の報は、帯の直下に段を決めた Kind の名前（同じ段が複数なら電文の最初の 1 つ）を太字で 1 行出す（府県予報区等の層を持つ VPWS50 は表の左の列が兼ねるので出さない、P3-TL8-AC01 (4)） (2) U-N は InfoSerial の名前を同じ形で出す (3) 見出し文か帯の題名に同じ字があるときは出さない (4) U-M・U-B、VFVO56（段を電文の種類で決める報）と、注意より軽い段には足さない。TerminalReport の short に欄を 1 つ足して material.ts で読む（heaviest は段だけを返すので、名前を一緒に返す形に改める）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:477 «fc9be00de26c3c82»",
-          "docs/specs/cli-terminal-output.md:576 «ab2218d4a63a6607»"
+          "docs/specs/cli-terminal-output.md:479 «fc9be00de26c3c82»",
+          "docs/specs/cli-terminal-output.md:590 «ab2218d4a63a6607»"
         ]
       },
       {
         "id": "P3-TL2-AC09",
         "requirement": "津波の続報（Q-TO3-TSUNAMI-FOLLOW）: (1) 同じ operation・EventID の前の VTSE41 と比べ、区分が上がった地域を要点に「<区分>に引き上げ  <地域名>」の形で区分ごとに、重い順に出す。区分の順は大津波警報、津波警報、津波注意報、それ以外（津波予報、解除、前の報に無い地域）で、「それ以外」への変化は出さない (2) 入らない地域は「ほか n 地域」と書く (3) VTSE41 の報にだけ出し、覚えも VTSE41 でだけ更新する。覚えの無い報には出さない。取消で覚えを消す。覚えは保存しない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:399 «0c3dfe36e9c5d7fc»"
+          "docs/specs/cli-terminal-output.md:401 «0c3dfe36e9c5d7fc»"
         ]
       },
       {
         "id": "P3-TL2-AC10",
         "requirement": "同じ地震の報の重なり（Q-TO3-EEW-FOLD）: 同じ operation・EventID で VXSE45 を受けた後の VXSE43 の報を端末に出さない。取消は種類によらず最初の 1 通だけ出す。畳むのは format.ts の eew() で、null を返して emit を飛ばす（空行も入力の行の書き直しも出さない）。畳んだ報でも覚えは更新する（取消の 3 行目の震源名と、AC11 の最後の時刻に要る）。定期要約の数え方と EEW ログは変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:165 «e03918c3778cd95d»"
+          "docs/specs/cli-terminal-output.md:166 «e03918c3778cd95d»"
         ]
       },
       {
         "id": "P3-TL2-AC11",
         "requirement": "同時に進む EEW（Q-TO3-EEW-OTHERS）: (1) 別の EventID の EEW が進んでいる間は、取消を除く報の要点の最後に「ほかに 1 件の緊急地震速報（<震源名>）」、2 件以上は「ほかに 2 件の緊急地震速報」と出す。震源名が無ければ括弧を付けない (2) 最終報か取消を受けた地震は数えない。終わった印を EventID ごとに残し、後から別の種類の報が来ても数えに戻さない (3) 最後の報を受け取ってから 10 分を過ぎた地震は数えない。時計は output.ts の nowMs で、eew の単位に載せて worker へ渡す。電文の時刻で測らない (4) 訓練と通常は別に数える。覚えは保存しない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:166 «fa54ac6f188b61a4»"
+          "docs/specs/cli-terminal-output.md:167 «fa54ac6f188b61a4»"
         ]
       }
     ],

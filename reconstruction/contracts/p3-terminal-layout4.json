@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d222c38a6304b4dc7cb0b15fb397303f5be47ed8",
-    "sha256": "85302adc445f3892833f49842d574e0d7700c5e985888009f85848c7323f7246",
+    "sha256": "23ff498021879778012aeca29f29aa043f339cc5e7270b5b641133b238a72d7c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -166,33 +166,33 @@
         "id": "P3-TL4-AC02",
         "requirement": "噴火速報（Q-TO5-FLASH）: (1) 取消でない VFVO56（訂正を含む）は、見出し文の下に Body/VolcanoInfoContent/VolcanoActivity の文を出す。文は短い形の文と同じ整形を通す（Q-TO4-SPACE） (2) その下に区切りの罫線と「対象の市町村」の表を出す。市町村は全部の Body/VolcanoInfo/Item/Areas のうち codeType が「気象・地震・火山情報／市町村等」のものの Area の Name を電文の順に並べ、折り返した行は左の列を繰り返さず字下げする (3) 読む Area はこの Areas の Area だけを数えて material の既存の上限（AREA_LIMIT）まで。256 件は「ほか」の行なし、257 件は表の下に「ほか 1 市町村」 (4) 活動の文が無ければ文の行を出さず、市町村が無ければ表を出さない (5) 取消の報は電文に活動の文や市町村があっても足さない (6) VFVO56 のほかの報は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:580 «87b98d2ac4456b51»",
-          "docs/specs/cli-terminal-output.md:824 «31283857ccab5685»",
-          "docs/specs/cli-terminal-output.md:528 «c9e604a44bdfad03»"
+          "docs/specs/cli-terminal-output.md:594 «87b98d2ac4456b51»",
+          "docs/specs/cli-terminal-output.md:840 «31283857ccab5685»",
+          "docs/specs/cli-terminal-output.md:530 «c9e604a44bdfad03»"
         ]
       },
       {
         "id": "P3-TL4-AC03",
         "requirement": "EEW ログ（Q-TO5-LOG）: (1) 前の報か今の報が仮定の震源のとき、変化の行に M と深さの変化を書かない。eew-log.ts の Previous に仮定かどうかを足し、毎報更新する (2) 確定、仮定、確定の 3 報でも、3 報目は 1 報目の値と比べない (3) 最大予測震度の変化と震源変更の字は今のまま (4) 仮定の報の本文の行は今のまま。ログを off にしている間の報は覚えも更新しない（off の前の確定の値と比べることがあるが、出るのは確定の値どうしで仮の値は出ない）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:754 «fa2620896ea18591»",
-          "docs/specs/cli-terminal-output.md:826 «d58bb56a89cd138b»"
+          "docs/specs/cli-terminal-output.md:770 «fa2620896ea18591»",
+          "docs/specs/cli-terminal-output.md:842 «d58bb56a89cd138b»"
         ]
       },
       {
         "id": "P3-TL4-AC04",
         "requirement": "VPNO50（Q-TO5-VPNO50）: VPNO50 の報は発表も切替も端末に出さない。inputTerminal の門で止める。U-W の state の処理（Code 00 の tombstone）は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:581 «c6d0cf90e3f2c91a»",
-          "docs/specs/cli-terminal-output.md:825 «ff9842c57a3737f7»"
+          "docs/specs/cli-terminal-output.md:595 «c6d0cf90e3f2c91a»",
+          "docs/specs/cli-terminal-output.md:841 «ff9842c57a3737f7»"
         ]
       },
       {
         "id": "P3-TL4-AC05",
         "requirement": "全国の月間火山概況の表（Q-TO5-MONTHLY-ROW）: 折り返した行の左の列を薄い字で出す。1 行目の左の列は今のまま。地震の震度の表など listTable のほかの使い方は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:827 «ca1a91d458f00c23»",
-          "docs/specs/cli-terminal-output.md:577 «ecbcd59bd24b1841»"
+          "docs/specs/cli-terminal-output.md:843 «ca1a91d458f00c23»",
+          "docs/specs/cli-terminal-output.md:591 «ecbcd59bd24b1841»"
         ]
       }
     ],

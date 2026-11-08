@@ -1,0 +1,489 @@
+{
+  "meta": {
+    "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
+    "sha256": "9140ce23d04d6799f5e50c13b0423c71662f9f1283994e65ccbf0777213b7977",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL10-D-VFVO53",
+        "kind": "作者",
+        "A": "降灰予報（定時）のまとめは短い形で 1 ブロック。帯は「降灰予報（定時） N火山」、その下に火山を 1 行ずつ（旧築の表の列〔最大降灰・注目地域・時間帯数〕は出さない）",
+        "B": "旧築の表（火山・最大降灰・注目地域・時間帯数の列）の 1 枠にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 夜）",
+        "ruling": "A（作者。1 件だけのときの形、束ね方、束の途中の割り込み、取消、起動直後の取り直しの報は起草で決めて根拠を書く）",
+        "reason": "2026-11-08 17:00 に Mac mini の新築の端末で、5 火山分が 4 行のブロック（帯・見出し文・末尾）5 つで並んだ。旧築は volcano-vfvo53-aggregator.ts で束ね、volcano-formatter.ts の displayVolcanoAshfallBatch の 1 枠の表で出していた。新築は U-V の flushBatch で通知だけを 1 件にし、端末の材料は採った入力ごとに 1 報（material.ts の inputTerminal）"
+      },
+      {
+        "id": "P3-TL10-D-EEW-COLOR",
+        "kind": "作者",
+        "A": "同時に進む EEW の帯を、地震ごとに同じ段の色の濃さを変えて見分ける",
+        "B": "今のまま帯は報の種類で 1 色にし、「ほかに n 件の緊急地震速報」の行だけで見分ける",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 夜）",
+        "ruling": "A（作者。何色を何段で使うか、割り当ての寿命、色の無い端末での扱い、役目の名前は起草で決める。濃さの値は案を作者に図で見せる）",
+        "reason": "旧築は eew-formatter.ts の getEewBannerStyle と eew-tracker.ts の nextColorIndex で地震ごとに帯の色を変えていた（警報 5 色・予報 5 色、別々の色相）。新築は報の種類で 1 色で、捨てた裁定も後で入れる記録も無い（2026-11-08 夜の棚卸し）"
+      },
+      {
+        "id": "P3-TL10-D-ASH-WHERE",
+        "kind": "統合担当",
+        "A": "端末の sink（createTerminalOutput の inputDone）で束ねる。数は U-V と同じ 8 秒・90 秒・20 件で、区切りは今ある 1 秒の tick で見る",
+        "B": "U-V の batch の区切り（batchCompleted の outcome）を端末も受けて、その区切りで出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "束ね方は何ブロックに分けるかの表示の都合で、状態の判定ではない（判定の要る記録的短時間大雨は U-B の判定を使う、D-RAIN-JUDGE）。B は 17:00 の普通の場面（最後の報から 8 秒）の flush が U-V の deadlineStep に載り、その返信 deadlineDone は端末へ届かない（端末の口は host.ts の onInputDone だけで、composition-root.ts の deadlineDone の場合は ownerOutput を呼ぶだけ）。届けるには runtime の 2 file に口を足す要があり、composition-root.ts は 35 契約から 147、host.ts は 25 契約から 171 の «» 付きの参照で引かれている。さらに B でも、名の無い interrupted と、採られたが予報が終わっていて batch に入らない報（volcano-unit.ts の dueAt）が端末の手元に残るので、端末の側に期限の掃除が要り、端末の時計は無くならない。A は output.ts の中で閉じる。束は多くの場合に U-V と同じになるが、8 秒・90 秒の境目（U-V と端末の時計の数 ms の差と、tick の 1 秒の粒）と dueAt の報の数え方で、区切りも数も違いうる（残存 (1)）。境目の差を小さくするため、端末も U-V と同じく報を足す前に期限を見る（AC01 (4)）"
+      },
+      {
+        "id": "P3-TL10-D-ASH-SINGLE",
+        "kind": "統合担当",
+        "A": "1 報だけのまとまりは今の 1 報の形（帯の対象が火山名、見出し文あり）で出す",
+        "B": "1 報でも「降灰予報（定時） 1火山」と火山の 1 行で出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "旧築（flush の items.length === 1 で emitSingle）も U-V の通知（1 件は単発の形、volcano-unit.ts の flushBatch）も 1 件を単発にしている。作者の裁定の「N火山」は束の形で、1 件は束でない。A はその火山の噴火警戒レベルと降灰の向きの見出し文を残す"
+      },
+      {
+        "id": "P3-TL10-D-ASH-INTERRUPT",
+        "kind": "統合担当",
+        "A": "降灰予報（速報・詳細）（VFVO54・VFVO55）を積む前にだけ、Control/Status の同じまとまりを先に出す。ほかの報は待たずに出し、まとまりはその下に出る",
+        "B": "どの報でも、積む前にまとまりを先に出す（画面の順を受けた順に保つ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "P3-C9-BATCH=A は「ほかの火山の報（警報・噴火・解説）は batch を止めない」で、U-V は VFVO54/55 の採用でだけ無音で flush する（volcano-unit.ts の interrupted）。A なら端末の火山の数は多くの場合に通知の「N火山」と同じになる（区切りの端で違いうる、残存 (1)）。B は無関係な報（10 分ごとの VPWS50、EEW）が 8 秒の間に入るたびに束が割れ、通知と数が食い違う。A で束が後の報の下に出ても、出るのは最後の降灰予報から 8 秒の内"
+      },
+      {
+        "id": "P3-TL10-D-ASH-CANCEL",
+        "kind": "統合担当",
+        "A": "降灰予報（定時）の取消は待たずに出し、まとめている同じ火山の報を束から外す",
+        "B": "取消の前にまとまりを先に出し、取消はその後に出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "旧築（removeCancelled の後に即時表示）と U-V（取消は batch から対象を外す、P3-C9-BATCH）と同じ。B だと取り消した火山が取消のブロックの後の束にも並び、有効な予報に読める"
+      },
+      {
+        "id": "P3-TL10-D-SHADES",
+        "kind": "統合担当",
+        "A": "濃さを変えるのは警報と予報の帯だけで、各 3 段（1 段目は今の色）。警報は朱の地を白で薄め、予報は黄の字と帯の罫線を黒で沈める。最も重い段・取消の帯と縦線は変えない",
+        "B": "旧築どおり 5 段",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草。値は Q-TL10-SHADES=A の作者の裁定、2026-11-08 夜）",
+        "ruling": "A（統合担当）",
+        "reason": "同じ色相の濃さで、§3.1 の下限（面と地 3、面の上の字 4.5、地に置く字 4.5）を守って見分けられる段は片側に 3 つほど。朱を暗くすると黒の字が 4.5 を割り（10% で 4.54、15% で 4.11）、黄を 40% 沈めると Nightfox の地と 4.38 になる。黄を明るくすると切れた回線の行のクリームに近づく。4 つ目の同時の地震は 1 段目に戻る（字で見分けられる、D-SHADE-NOCOLOR）。最も重い段は「画面で最も明るい帯」の 1 つの意味を保つ（Q-TO3-TOP）。取消は地震を終える報で、取消の文が地震を名指す"
+      },
+      {
+        "id": "P3-TL10-D-SHADE-LIFE",
+        "kind": "統合担当",
+        "A": "段は地震の最初の報で決めて worker の覚え（format.ts の memory.events、64 件）に持ち、その地震が終わるまで変えない（後から先の地震が終わっても、続報の段はそのまま）。最初の報の時にほかに進む地震が無ければ 1 段目。最終報・取消・最後の報から 10 分で、その段を次の地震に使える（「ほかに」で数える条件と同じ）",
+        "B": "報ごとに、今進んでいる地震の順で段を振り直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B は先の地震が終わると、後の地震の帯の色が報の途中で変わる。A は旧築の nextColorIndex（取消・最終報でない地震が使う段を避けた最も若い段）と同じ。条件を「ほかに」と揃えるので、最初の報の時に「ほかに」の行が出ない地震は 1 段目で、地震が 1 つの日の帯は今と同じ"
+      },
+      {
+        "id": "P3-TL10-D-SHADE-NOCOLOR",
+        "kind": "統合担当",
+        "A": "色の水準が 3 でなければ濃さを変えず、字も足さない",
+        "B": "色の無い端末では帯に地震の番号の字を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "§3.2 の「色だけで区別する部分を作らない」は、震源の行・末尾の EventID・「ほかに」の行の字で満たしている。16 色・256 色では近い色に丸められて別の色相（薄い朱が黄に寄るなど）になり、予報の黄と取り違える。端末の 1・2 は colorLevel が 3 に上げるので、当たるのは端末でない出力だけ"
+      },
+      {
+        "id": "P3-TL10-D-RAIN-JUDGE",
+        "kind": "統合担当",
+        "A": "VPOA50 を端末に出すかを U-B の判定で決める。返信の U-B の accepted の subjects のうち source.inputId がその入力のもの（自分の記録）の transition が aliased なら出さず、held なら受けてから単調時計で 60 秒（U-B の HOLD_MS と同じ値）待ち、後の返信でその subject が held でなくなったら出さずに捨てる。読むのは output.ts で、material.ts は変えない",
+        "B": "端末が旧築の legacy-counterpart-registry のように、EventID の組を自分で探して 60 秒待つ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "組と待つ期限は U-B が決めて持つ（briefing-unit.ts の nextOf の aliased・held と HOLD_MS）。端末が自分で組を探すと U-B の通知と食い違う。U-B の解放（collect）は返信に outcome を載せず（deadlineStep の outcomes は空）、held の outcome の facts にも holdUntil は無い（factsOf は保存の欄の holdUntil を写さない）ので、端末は受けた時刻から U-B と同じ 60 秒を数える（U-B の holdUntil は受けた時の壁時計 + HOLD_MS で、端末は単調時計で数える。壁時計が動かなければ差は返信の届く時間だけだが、壁時計が補正されると端末と通知の時刻と数がずれうる〔残存 (11)〕。T05 は 2 つの長さを結ぶだけ）。U-B を変えて facts に holdUntil を足すのは、U-B の outcome と view の予算に触れるので採らない。読むのを material.ts でなく output.ts にするのは、出さない報も定期要約に数え、--debug に理由を書くため（material.ts で材料を null にすると「採らなかった」に見える）。material.ts を引く 2 契約の «» も動かない"
+      },
+      {
+        "id": "P3-TL10-D-RAIN-ALONE",
+        "kind": "作者",
+        "A": "場面: 16:33:05 に記録的短時間大雨の速報が届き、本報が来ない。端末は 16:34:05 まで何も出さず、16:34:05 に紫のブロックを 1 つ出す（ふつうは通知が鳴るのと同じ時刻）。16:33:30 に本報が来れば、出るのは本報の 1 ブロックだけ。例外: 待っている速報が 256 件を越えて古いものを先に出したときと、待っている間に機械の時計が直されて端末が先に出したときは、後から本報が来ると 2 つ出る。待っている間に速報の取消が来たら、速報も取消も出さない。待っている間に FlEq を終了したら、終える前に出す。待っている間に FlEq が落ちる（kill・停電）と、端末にも通知にも出ない（通知の側も待ちを保存しないため）。（識別子: 速報 VPOA50、本報 VPBS50、60 秒は U-B の HOLD_MS、held）",
+        "B": "場面: 16:33:05 に速報が届いたら、その場で紫のブロックを出す（今の形）。16:33:30 に本報が来ると、本報の紫のブロックがもう 1 つ出る（今日 16:33 に出た形）。速報の通知は 16:34:05 に鳴るので、画面は鳴る 60 秒前に出る。待ちが無いので、落ちても終了しても出し損ねない。（識別子: VPOA50、VPBS50）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-08 夜。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-08 夜）",
+        "reason": "前提: 速報と本報が両方届いたら、端末は速報を出さず本報だけを出す（Q-TO11-RECORD-RAIN、統合担当の決め）。ここで作者に決めてもらうのは、速報が先に届いたときに本報を待つかどうか。速報（記録的短時間大雨情報）は前からある電文で、本報（気象防災速報）は 2026 年 5 月からの電文。同じ大雨に両方が出て、どちらが先に届くかは決まっていない（16:33 は 7 ms 差）。FlEq は速報を受けてから 60 秒本報を待ち、来なければ「（対応電文未確認）」を付けて通知する。A は端末を、ふつうは通知と同じ時刻に出す（待ちが満杯のときと時計が直されたときを除く）。旧築の端末も 60 秒待った。A で失うのは、速報だけの日に端末に出るのが 60 秒遅れることと、待つ 60 秒の間に FlEq が落ちると出ないこと（通知も出ない）。（識別子: P3-TL10-AC03、briefing-unit.ts の nextOf と collect、旧築 LEGACY_SOURCE_HOLDBACK_MS）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL10-RECHECK",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-08 夜）。調べの報告 gap-seismic.md・gap-volcano-weather.md と VFVO53 の調べの要点を実物で確かめ直した",
+        "closed": "旧築: volcano-vfvo53-aggregator.ts の quiet 8 秒・最大 90 秒・20 件、鍵は reportDateTime と isTest、取消は対象を外して即時表示、VFVO53 以外の火山の報で無音 flush。表は volcano-formatter.ts の displayVolcanoAshfallBatch（題「降灰予報（定時） N火山」）。EEW は eew-formatter.ts の getEewBannerStyle（palette[colorIndex % 5]）と eew-tracker.ts の nextColorIndex（取消・最終報でない地震の使う番号を避けた最も若い番号）。記録的短時間大雨は legacy-counterpart-registry.ts の 60 秒の holdback と VPBS50 の EventID の K を外した突き合わせ。新築: U-V の flushBatch（quiet・maxWait は deadlineStep、20 件と鍵の切替と VFVO54/55 の interrupted は入力の返信）、取り直しの VFVO53 は U-V で idle で材料も作らない（material.ts の origin recovery）。U-B は VPOA50 を aliased・held にし、どちらも accepted を返し（自分の記録が見えないので change は revisionOnly）、端末の門（material.ts の taken）は deliveryOnly だけを落とす。VPBS50 の採用は held の VPOA50 を aliased に替え、その subject を自分の accepted の subjects に載せる。held の解放は collect で、deadlineStep の outcomes は空。held の outcome の facts（factsOf）に holdUntil は無い（holdUntil は保存の欄 BRANCH_KEYS だけ）。端末の sink は inputDone だけを受ける",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-ORDER-1633",
+        "status": "closed",
+        "source": "2026-11-08 16:33 の実配信（棚卸しの報告。7 ms 差で紫のブロックが 2 つ）",
+        "closed": "2 報の届いた順は記録に無い。どちらの順でも 1 ブロックになるよう AC03 を書いた（VPBS50 が先なら VPOA50 は aliased、VPOA50 が先なら held で待つ）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-SPEC-LINES",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-08 夜）",
+        "closed": "spec に §3.1 の 1 項、§5.1 の 1 項、§5.4 の図（12 行）と 2 項、§8 の 3 行を足した（19 行。今ある行の中身は変えていない）。行を足して動いた他の契約の «» は reanchor-target.py で行の番号だけを付け直した（p3-cli-repl・p3-terminal-layout・p3-terminal-layout2〜layout8・p3-terminal-output・p3-terminal-prompt・p3-terminal-windows の 12 file、meta.sha256 を取り直した）。009 が先に配送されるので、本契約を載せる時にこの付け直しを 009 の後の spec と契約でやり直す（artifactRequirements の配送の順）。009 の上への積み直し（2026-11-08 夜、branch draft/tl10b、main d2ce7158＝009 の起草と baseOid 04a64b17 の割当の上）でやり直した: 統合担当が spec の本契約の 19 行を 3way で当て（§5.4 と §8 は 009 の行の後ろ）、行のずれた 13 契約（p3-cli-repl・p3-terminal-layout・p3-terminal-layout2〜layout9・p3-terminal-output・p3-terminal-prompt・p3-terminal-windows）の «» を reanchor-target.py で行の番号だけ付け直して sha を取り直した。本契約の spec の evidenceRefs は :552→:565、:584→:601、:585→:602、:850→:872、:851→:873、:852→:874 で、:63・:70・:83・:167・:168 は動かず、どの行も中身は同じ（anchor が一致）。本契約が引く src・reconstruction/src の行（material.ts・format.ts・output.ts・color.ts・volcano-unit.ts・briefing-unit.ts・旧築）は 8da5dd73 から変わっていない。原文の改訂の 9 行も同じ行にあり、他の契約の «» に引かれていない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-REVIEW-R0",
+        "status": "closed",
+        "source": "2026-11-08 夜の起草レビュー r0（品質 ヘルツ Astra high 条件付き GO・P2 4、契約適合 Opus 条件付き GO・P2 3 と P3）。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/tl10-draft-quality-r0-hertz.md・tl10-draft-contract-r0.md",
+        "closed": "全部当てた（統合担当の決めどおり）。P2: (1) 両方: EEW の段の寿命を「最初の報の時に決め、その地震が終わるまで変えない。最初の報の時にほかに進む地震が無ければ 1 段目」に揃えた（AC02 (2)(6)、spec §5.1、D-SHADE-LIFE）。T03 に A の最終報の後の B の続報が 2 段目のままの場面を足した (2) ヘルツ: 待ちの表に端末自身の上限 256 を置き、満杯で 257 件目を置く時は最も古い待ちを出してから外す（AC03 (3)。U-B の容量の退去は accepted に載らず端末に届かない）。期限は単調時計にし（壁時計の巻き戻りで延びない）、tick が止まっている間は出ないことを例外として書いた（AC03 (4)）。表は置いた順が期限の順なので先頭から見る（AC04 (2)）。T04 (g)(h) (3) ヘルツ: 束に足す前と inputDone の初めに期限を見て、過ぎていれば先に出す（AC01 (4)、U-V の入力の前の期限と同じ順）。残る差（時計の数 ms と tick の 1 秒の粒、dueAt）を残存 (1) に書き、「通知と同数」を「多くの場合に同数、区切りの端で違いうる」に直した（D-ASH-WHERE・D-ASH-INTERRUPT、spec §5.4）。T02 (k) (4) ヘルツ: T01 で各火山の Head/EventID も替える (5) Opus: 原文の改訂に p3-terminal-layout.json:243 の P3-TL-AC03 (1)(2) と p3-terminal-layout2.json:290 の (4) を足した（(8)(9)） (6) Opus: 待つ 60 秒の間に落ちると端末にも通知にも出ないこと、降灰のまとまりも同じことを残存 (7) と D-RAIN-ALONE の A に書いた。P3: (a) D-RAIN-ALONE の文を、場面と A・B の画面を先に、速報・本報・60 秒を言葉で、識別子を末尾にして書き直し、前提の行と、B のときの直しの一覧（Q-TL10-RAIN-ALONE）を足した (c) U-B の期限処理と端末の期限の差の間に取消が届く場合は、端末も inputDone の初めに期限を見るので差は数 ms に縮み、残りを残存 (8) にした (d) 取り直しの VPBS50 の aliased が端末に届かない場合を残存 (9)（証拠不足）にした (e) 009 との重なりは配送を 009 が先、本契約が後にし、後で付け直す手順を artifactRequirements に足した (f) color.ts:36 を :34・:35 に、「133・139」を 147・171 に、P3-TL2-T11 の理由を「ほかに」の行だけを見るに、spec §5.4 の割り込みに「Control/Status が同じ」を足した (g) Q-TL10-SHADES に予報の 2 段目を離した別案 #f0e442・#bbb233・#97902a（Nightfox の地と 12.0・7.2・4.8、隣どうしの比 1.67・1.50。元の案は 1.40・1.47）と、取消の帯と最も重い段の帯を並べることを足した。spec は本契約が足した 4 行（§3.1・§5.1・§5.4 の 2 項）の中身だけを変え、行の数は変えていない（他の契約はこの 4 行を引いていないことを grep で確かめた）。本契約の spec の «» と meta.sha256 を取り直した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-REVIEW-R1",
+        "status": "closed",
+        "source": "2026-11-08 夜の起草レビュー r1（品質 ヘルツ resume、条件付き GO。r0 の P2 4 件は解消、文の P2 2 件）。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/tl10-draft-quality-r1-hertz.md",
+        "closed": "両方当てた（統合担当の決めどおり）。(1) 単調時計はそのまま、「通知と同時」「差は返信の届く時間だけ」の保証を撤回した（D-RAIN-JUDGE の reason、D-RAIN-ALONE の A と reason、AC03 (4)、残存 (8)、spec §5.4）。壁時計が補正されたときに端末と通知の時刻と数がずれうることを残存 (11) に書き、T04 (h) に壁時計を 1 時間戻して 70 秒に VPBS50 が来る場面（端末 2 ブロック、通知は VPBS50 だけ）を足した (2) 満杯の時の早出しはそのまま、1 ブロックの約束の例外に「容量で先に出した報は、後で本報が来ると 2 ブロックになる」を書き（AC03 (3)、D-RAIN-ALONE の A、spec §5.4、残存 (12)）、T04 (g) に後の VPBS50 まで含めた。spec は本契約の §5.4 の雨の項の中身だけを変え、行の数は変えていない。本契約の spec の «» と meta.sha256 を取り直した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-SHADES",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-08 夜、推奨どおり。図 eew-shades-r1.png で、取消の帯 #cc79a7 と最も重い段の白の帯と並べて見た）",
+        "closed": "A: 段は 3 つ。警報の帯の面 #d55e00・#e08640・#eaaf80（黒の字と 5.4・7.7・10.9、Nightfox の地と 4.1・5.8・8.3）、予報の帯の字と罫線 #f0e442・#bbb233・#97902a（Nightfox の地と 12.0・7.2・4.8、隣どうしの比 1.67・1.50）。AC02 (1) と spec §3.1 をこの 6 色に揃えた。経緯: 起草の案の予報 #ccc238・#a8a02e（12.0・8.6・5.8、隣どうしの比 1.40・1.47）は 2 段目が 1 段目と取り違えやすく、r0 で 2 段目を離した案を足した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-RAIN-ALONE",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-08 夜、推奨どおり）",
+        "closed": "P3-TL10-D-RAIN-ALONE=A: VPOA50 だけが届いたら、受けて 60 秒後に端末に出す（VPBS50 が 60 秒の内に来れば VPBS50 の 1 ブロックだけ）。AC03 (3)(4)(6) と T04 の待ちの場面のまま進める",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL10-RESTACK",
+        "status": "closed",
+        "source": "統合担当の積み直し（2026-11-08 夜、009 を先に配送する順に合わせて branch draft/tl10b へ）",
+        "closed": "spec の «» の付け直しは Q-TL10-SPEC-LINES に記録した。p3-terminal-output.json の :504・:606 の改訂を 009 の文と読み合わせた: :504 は 009 が (3) の短い形の target（台風）と (4) の端末が渡すもの（地震の取消の震源名と時刻）、本契約が (2) の内容の同じ続報の句の後（VFVO53 と VPOA50 の積む時）で、別の句。:606 は両方が (1) の publisher の受信 1 回の仕事の列挙に 1 項ずつ足し（009 は同じ返信の U-Q の facts を取る、本契約はまとまりと待ちの表に置く・外す）、どちらも返信の outcomes を 1 回見る範囲で計算量の約束も食い違わない。矛盾は無い。009 の配送（実装 1403fcda・原文の改訂 3705c761）の後の木へ積み直した（2026-11-08 夜、branch draft/tl10c）: spec は 009 の配送で変わっておらず 19 行はそのまま当たり、13 契約の spec の «» は draft/tl10b と同じ番号。本契約が引く src の «» は 009 の実装で動いた material.ts（:245→:255、:271→:281）・output.ts（:408→:426、:337→:355）・format.ts（:586→:600、:655→:669）を付け直し、artifactRequirements の format.ts:784 を :805 にした（p3-recovery-boundary.json は 009 の配送で :805）。原文の改訂の 9 行は同じ行にあり他の契約の «» に引かれていない。009 が :504 に足したのは (3)(4)、:606 は (1) の列挙の 1 項で、本契約の改訂の当たる句（:504 の (2) の内容の同じ続報の句、:606 の (1) の列挙）はそのまま残る",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。降灰のまとまりの鍵に Control/Status を含め、EEW の段の割り当ては運用区分ごと（「ほかに」の数えと同じ）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-010",
+    "mode": "implementation",
+    "objective": "旧築にあって新築の端末に無かった、複数の報をまたいで束ねる・畳む・見分ける 3 つを直す。降灰予報（定時）が何火山分も届いたとき 1 つのブロックにまとめ（作者の裁定 P3-TL10-D-VFVO53=A）、同時に進む EEW の帯を地震ごとに同じ段の濃さで見分け（P3-TL10-D-EEW-COLOR=A）、記録的短時間大雨の VPOA50 と同じ事象の VPBS50 を U-B の判定（held・aliased）で 1 ブロックにする（P3-TL10-D-RAIN-JUDGE。VPOA50 だけのときは D-RAIN-ALONE=A〔作者の裁定〕で、受けてから U-B と同じ 60 秒で出す）。形は reconstruction/src/terminal の output.ts・format.ts・color.ts の中で作る",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout10.json",
+      "reconstruction/contracts/p3-terminal-layout8.json",
+      "reconstruction/contracts/p3-terminal-layout2.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-volcano-unit.json",
+      "reconstruction/contracts/p3-briefing-unit.json",
+      "reconstruction/src/terminal/**",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/briefing/briefing-unit.ts",
+      "reconstruction/test/terminal/**",
+      "src/engine/messages/volcano-vfvo53-aggregator.ts",
+      "src/ui/volcano-formatter.ts",
+      "src/ui/eew-formatter.ts",
+      "src/engine/eew/eew-tracker.ts",
+      "src/engine/messages/legacy-counterpart-registry.ts",
+      "test/fixtures/66_01_01_210517_VFVO53.xml",
+      "test/fixtures/66_01_03_210514_VFVO55.xml",
+      "test/fixtures/phase6b_VPOA50_JPTC202608211633_202608211633.xml",
+      "test/fixtures/phase6b_VPBS50_KJPTC202608211633_202608211633.xml",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/77_01_30_260101_VXSE45_FINAL.xml",
+      "test/fixtures/37_01_03_240613_VXSE43.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/output.ts（sink の inputDone の分け方、降灰のまとまりと待ちの表の閉包の変数と出す・捨てる helper、tick と close の出す行、--debug の字だけ）",
+      "reconstruction/src/terminal/format.ts（TerminalUnit に束の単位を 1 つ足すこととその描画、EEW の Event の段の番号と帯の役目の選びだけ。他の契約が引く行の中身は変えない）",
+      "reconstruction/src/terminal/color.ts（濃さの役目と、段ごとの帯の役目の表だけ。他の契約が引く行の中身は変えない）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout10.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-008",
+      "P3-TERMINAL-LAYOUT-002",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-B-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま。TerminalSink に口を足さない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__66_01_01_210517_VFVO53",
+      "test__fixtures__66_01_03_210514_VFVO55",
+      "test__fixtures__phase6b_VPOA50_JPTC202608211633_202608211633",
+      "test__fixtures__phase6b_VPBS50_KJPTC202608211633_202608211633",
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__77_01_30_260101_VXSE45_FINAL"
+    ],
+    "sequenceIds": [
+      "O08",
+      "O01"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "降灰のまとまり（報の参照の並び 20 まで・鍵・最初と最後に置いた時刻。createTerminalOutput の閉包の変数、run の中だけ）",
+      "記録的短時間大雨の待ちの表（subject → 報の参照と期限〔受けた単調時計 + 60 秒〕の Map。createTerminalOutput の閉包、run の中だけ、端末の上限 256）",
+      "EEW の地震ごとの段の番号（format.ts の memory.events の Event の欄。worker の中、64 件）"
+    ],
+    "outOfScope": [
+      "1 報の字の直し（P3-TERMINAL-LAYOUT-009 で別に起草中。熱中症警戒アラートの県、見出し文の空の報の帯の対象、竜巻注意情報の解除の段、地震の取消の行、PLUM 法の行など）",
+      "ディスプレイ（P4）と view・snapshot の扱い",
+      "通知（U-V の batch の通知、U-B の通知、音）の門と文面。U-V・U-B の unit・state・保存の形式・codec",
+      "runtime（composition-root.ts・host.ts）に deadlineDone の返信を端末へ渡す口を足すこと（P3-TL10-D-ASH-WHERE で採らなかった）",
+      "material.ts（端末の材料の作り方と門。U-B の判定は output.ts が返信の outcomes から読む）",
+      "降灰予報（速報・詳細）（VFVO54・VFVO55）の形、VPBS51（notPorted）",
+      "EEW のログファイル（§7）と入力の行の現況（Q-TO6-EEW で EEW を載せない）",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL10-AC01",
+        "requirement": "降灰予報（定時）のまとめ（Q-TO11-VFVO53、P3-TL10-D-VFVO53=A・D-ASH-WHERE・D-ASH-SINGLE・D-ASH-INTERRUPT・D-ASH-CANCEL）: (1) 対象は返信の terminal が短い形で unit が U-V、headType が VFVO53、InfoType が取消でない報。createTerminalOutput の sink の inputDone はこれを列に積まず、閉包の変数 1 つの「降灰のまとまり」（報の参照の並び〔20 まで〕・鍵〔ReportDateTime の生の字と Control/Status〕・最初と最後に置いた時刻〔clock の monotonic〕）に置く (2) 同じ火山（head.eventId が同じ）の報が並びにあれば前の報を外し、新しい報を並びの最後に置く（U-V の「同じ火山は置き換え」と同じ並び） (3) 鍵の違う報が来たら、今のまとまりを先に出してから新しいまとまりを始める (4) 出す時: 並びが 20 になったらその入力の中で。1 秒の tick と inputDone の初め（その返信の報をまとまりに足す・積む前。U-V が入力の前に期限を当てる順と同じ）で、最後に置いてから 8,000 ms 以上か、最初に置いてから 90,000 ms 以上のとき。返信の terminal が headType VFVO54・VFVO55 で Control/Status が鍵と同じ報を積む前（その報より先に）。close() で列の残りを書かせる前。ほかの報（火山のほかの報・ほかの unit・EEW・読めなかった報のカード）はまとまりを出さずに今のとおり積み、まとまりは後でその下に出る (5) 出す形: 1 報だけなら、その報を今の 1 報の形（kind report）で積む。2 報以上は 1 つの単位で積み、spec §5.4 の図の形にする: 帯は 1 報目の Control/Title（版の印を除く）と Control/Status の印と「 N火山」、時刻は 1 報目の ReportDateTime、段は報の段のうち最も重い段（VFVO53 の Kind の Code は U-V の段の読み方のどれにも当たらず、実物では普通）。帯の下に各報の対象（Body の最初の Area/Name。無ければ Head/Title）を並びの順に 1 行ずつ、最後に末尾の行（「VFVO53 ・ <1 報目の PublishingOffice>」）。見出し文・段の理由の行・区切りの罫線は出さない (6) 取消の報は待たずに今のとおり積み、まとまりを出さない。並びに同じ火山（head.eventId）で Control/Status の同じ報があれば外す（空になったらまとまりを無くす） (7) 取り直しの VFVO53 は端末の材料が null で（material.ts の origin recovery）U-V も束に入れない（volcano-unit.ts の origin recovery の idle）ので、決まりを足さない (8) 数え方: まとまりに置いた入力は届いた時に定期要約に数える（今のとおり）。tips の待ちの起点（lastOutputMs）は置いた時に動かす（ブロックは 90 秒の内に出る）。入力の行の経過の時刻（lastReportWallMs）はブロックを積んだ時に動かす。読めなかった報のカードは探さない。--debug の行は置いた時に「debug: VFVO53 <入力 ID>（U-V、まとめて出す）」 (9) まとまりの寿命と消す道: 最初の報を置いた時にでき、(3)(4) で出した時と (6) で空になった時に無くなる。保存しない。回線の切断と回復・取り直し・control.clear() では消さない。tick は attach() で始まるので、attach の前に置いた報は attach の後の最初の tick で期限を見る。場面: 17:00:01 から 17:00:03 に阿蘇山・桜島・薩摩硫黄島・諏訪之瀬島・霧島山（新燃岳）の 5 報（ReportDateTime 17:00:00、通常）が届くと、端末は 17:00:10 まで何も出さず、最後の報から 8 秒を過ぎた最初の tick（17:00:11）に、60 桁では spec §5.4 の図の 7 行のブロックを 1 つ出す",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:565 «f874613a720d04ef»",
+          "docs/specs/cli-terminal-output.md:601 «5768731f8619d84e»",
+          "docs/specs/cli-terminal-output.md:872 «9064de7d37656074»",
+          "src/engine/messages/volcano-vfvo53-aggregator.ts:40 «7d9b02001a5573c5»",
+          "src/engine/messages/volcano-vfvo53-aggregator.ts:85 «3a44c9b3dd8ce77c»",
+          "src/ui/volcano-formatter.ts:983 «41b96c9d715cf4ad»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:44 «798cb8a56fce32b3»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:848 «8d86bd7c75be7386»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:946 «f23179083a311f59»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1150 «569df56fdc9b65a9»",
+          "reconstruction/src/terminal/material.ts:255 «744087a2cd4e4fc9»",
+          "reconstruction/src/terminal/output.ts:426 «df18802267659c7f»",
+          "reconstruction/src/terminal/output.ts:355 «2e886d21d6e2c58f»"
+        ]
+      },
+      {
+        "id": "P3-TL10-AC02",
+        "requirement": "同時に進む EEW の帯の濃さ（Q-TO11-EEW-SHADE、P3-TL10-D-EEW-COLOR=A・D-SHADES・D-SHADE-LIFE・D-SHADE-NOCOLOR）: (1) color.ts に段ごとの帯の役目を足す。警報の帯の面は 1 段目 bandWarning（今の #d55e00）、2 段目 #e08640、3 段目 #eaaf80 で、どれも黒の太字。予報の帯は 1 段目 bandCaution・ruleCaution（今の #f0e442）、2 段目 #bbb233、3 段目 #97902a の字（題名は太字）と帯の罫線。縦線（bar）と、警報の帯の罫線の役目は段によらず今のまま。値は作者が図で選んだ 6 色（Q-TL10-SHADES=A、2026-11-08 夜）。整形は役目の名前で引き、RGB を format.ts に書かない (2) format.ts の EEW の覚え（memory.events の Event、鍵は運用区分と EventID）に段の番号を 1 つ足す。その鍵の最初の報で、同じ運用区分のほかの地震のうち終わっておらず（最終報・取消を受けていない）最後の報から 10 分（ACTIVE_MS）の内のものが使っている番号を避けた最も小さい 0 以上の番号を当て、帯はその番号を段の数で割った余りの段にする。番号はその地震が終わるまで変えない。続報（VXSE43 と VXSE45 をまたぐ）も、後から先の地震が終わった後の続報も、覚えた番号のまま (3) 濃さを変えるのは、取消でなく最大予測震度の字に 7 を含まない報の、警報と予報の帯だけ。最も重い段と取消の帯は今のまま (4) 番号の寿命と消す道: Event の覚え（worker の中、64 件で古い順に捨てる、保存しない）と同じ。地震が最終報か取消を受けるか、最後の報から 10 分を過ぎると、その番号は次の地震の割り当てで避けられなくなる。終わった地震に後から報が来ても覚えた番号のまま。起動し直すと覚えは空で、最初の地震は 1 段目 (5) renderer の色の水準が 3 のときだけ濃さを変える。0（NO_COLOR・パイプ・ファイル）と 1・2（端末でない出力で chalk が 16 色・256 色と判定したとき）は今の 1 色で、字は足さない (6) 最初の報の時にほかに進む地震が無ければ 1 段目で、帯は今と同じ字と色（地震が 1 つの日は今と同じ）。場面: 23:14:59 に豊後水道の警報（EventID A）が届き、23:15:20 に石川県能登地方の警報（EventID B）が届くと、B の帯の面は 2 段目の色で、A の続報の帯は 1 段目のまま。23:16:00 に A が最終報を受けた後も、23:16:30 の B の続報の帯は 2 段目のまま。23:17:00 に新しい地震 C の警報が届くと、C の帯は 1 段目（B が 2 段目を使っている）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:63 «5d5f2fdff48cbfdd»",
+          "docs/specs/cli-terminal-output.md:168 «1f3b76a9c5621b14»",
+          "docs/specs/cli-terminal-output.md:873 «6576c08f63e8eb38»",
+          "docs/specs/cli-terminal-output.md:167 «fa54ac6f188b61a4»",
+          "docs/specs/cli-terminal-output.md:70 «0769597b7fd4a016»",
+          "src/ui/eew-formatter.ts:133 «a2698aebde1c37e9»",
+          "src/engine/eew/eew-tracker.ts:1071 «afa75198108bcd46»",
+          "reconstruction/src/terminal/format.ts:600 «c9958cf64cd5232a»",
+          "reconstruction/src/terminal/format.ts:669 «9b48a3baea15eff3»",
+          "reconstruction/src/terminal/color.ts:34 «fcd8624aec378975»",
+          "reconstruction/src/terminal/color.ts:35 «a5b0ef697126e052»"
+        ]
+      },
+      {
+        "id": "P3-TL10-AC03",
+        "requirement": "記録的短時間大雨の VPOA50 と VPBS50（Q-TO11-RECORD-RAIN、P3-TL10-D-RAIN-JUDGE・D-RAIN-ALONE=A〔作者の裁定、2026-11-08 夜〕）: (1) 自分の記録: 返信の output の outcomes の U-B の accepted の subjects のうち、source.inputId がその返信の settlement.inputId のもの。返信の terminal が短い形で unit が U-B、headType が VPOA50 の報について、自分の記録の transition で分ける (2) aliased（VPBS50 が先に採られていた）: 列に積まない。定期要約に数え、入力の行の経過の時刻と tips の待ちの起点は動かさない。--debug の行は「（U-B、出さない・対応報あり）」 (3) held（D-RAIN-ALONE=A）: 列に積まず、閉包の「待ちの表」（Map、subject → 報の参照と期限）に置く。期限は受けた時の単調時計（clock の monotonicMs。今の端末の tick と同じ時計で、壁時計の巻き戻りで待ちが延びない）+ 60,000 ms（U-B の HOLD_MS と同じ値。held の outcome の facts に holdUntil は無い）。表は端末自身の上限 256 を持ち、満杯で 257 件目を置く時は、最も古い待ち（表の先頭）を積んで外してから置く（出さずに捨てない。U-B の容量の退去は accepted に載らず (5) に届かないため）。こうして先に出した報は、後でその VPBS50 が来ると端末に 2 ブロックになる（1 ブロックの約束の例外、残存 (12)）。同じ subject が表にあれば報だけを新しいものに替え、期限は最初のまま（U-B も最初の holdUntil を保つ、P3-C12-VPOA.holdRules (4)）。定期要約に数え、tips の待ちの起点は置いた時に動かし、入力の行の経過の時刻は積んだ時に動かす。--debug の行は「（U-B、対応報を待つ）」 (4) 出す時: 1 秒の tick と inputDone の初め（その返信を扱う前）で、単調時計が期限以上になった表の報を積んで表から外す（壁時計が補正されなければ、U-B もこの時刻に held を released にして「（対応電文未確認）」の通知を作る。補正されると U-B の解放と時刻がずれる、残存 (11)。U-B の解放は返信に outcome を載せないので、端末が解放を知る道は期限だけ）。close() では表の残りを積んでから列を書かせる。例外: tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出す (5) 捨てる時: 表が空でないとき、どの inputDone でも U-B の accepted の subjects を 1 回見て、表にある subject で transition が held でないもの（VPBS50 の採用で aliased、取消で cancelled など）を積まずに表から外す。その返信が VPOA50 の取消で、自分の記録が表にあった（端末に出していない）なら、その取消の報も積まない（U-B も鳴らさない）。--debug の行は「（U-B、出さない・待っていた報の取消）」 (6) 表の寿命と消す道: 置いてから 60 秒（briefing-unit.ts の HOLD_MS と同じ）か (5) まで。件数は端末の上限 256 を越えない（(3) の満杯の時の決まり）。保存しない。回線の切断と回復・取り直し・control.clear() では消さない (7) VPBS50 と、VPOA50 の active・released・cancelled（表に無いもの）と、ほかの U-B の報は今のとおり (8) 場面: (a) 16:33:05.000 に VPBS50（EventID KJPTC…）、16:33:05.007 に同じ事象の VPOA50 が届くと、VPOA50 は aliased で、端末は VPBS50 の 1 ブロックだけ (b) 16:33:05.000 に VPOA50（held、U-B の holdUntil と端末の期限は 16:34:05）、16:33:05.007 に VPBS50 が届くと、VPBS50 の返信の subjects に VPOA50 の subject が aliased で載り、端末は VPBS50 の 1 ブロックだけで、16:34:05 を過ぎても何も出ない (c) VPOA50 だけが届くと、16:34:05 までは何も出ず、16:34:05 を過ぎた最初の tick に紫のブロックが 1 つ出る",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:602 «40be8a63ec3c23fc»",
+          "docs/specs/cli-terminal-output.md:874 «5f7cc149b7050ad7»",
+          "src/engine/messages/legacy-counterpart-registry.ts:7 «a0685e8949e7dd10»",
+          "src/engine/messages/legacy-counterpart-registry.ts:141 «ba293fb74ee83ed7»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:277 «2a1593363fbdf910»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:279 «f7fea7ef44a0919d»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:478 «302ebec755e0209b»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:538 «3c915558c3eb15ad»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:365 «9cf672a4298629da»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:596 «da0ed3f167a5cdf9»",
+          "reconstruction/src/terminal/material.ts:281 «2be327932f009c34»"
+        ]
+      },
+      {
+        "id": "P3-TL10-AC04",
+        "requirement": "計算量・口・幅（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) main の受信 1 回の仕事に足すのは、降灰のまとまりに置くこと（同じ火山を 20 件までの並びで探す・鍵を比べる）と、返信の U-B の accepted の subjects を 1 回見て待ちの表（Map）を引くこと（表が空なら見ない）だけ。JSON.stringify・列の走査・ほかの unit の走査をしない。束の単位の byte は積む時に estimate で 1 回だけ見積もる（報 20 まで） (2) 1 秒の tick と inputDone の初めに足すのは、まとまりの期限の比べ 1 回と、待ちの表の先頭から期限の過ぎた分を出すことだけ（表は置いた順が期限の順。期限は 60 秒で一定で、置き換えは最初の期限と表の位置を保つ。件数は端末の上限 256） (3) worker の EEW の段の割り当ては、新しい地震の最初の報で memory.events（64 件まで）を 1 回見るだけ (4) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink と TerminalReport の型。material.ts と runtime（host.ts・composition-root.ts）と U-V・U-B を変えない。format.ts の内側の型 TerminalUnit に束の単位を 1 つ足す (5) 束のブロックは 56・80・100 桁のどれでも行が桁数を越えず（P3-TO-AC04 (5)）、帯は 1 行、火山の名前は途中で折れない。色を付けないときは帯を塗らず ━ の形（Q-TO2-NOCOLOR）、縦線は色のある 60 桁以上だけ（今のとおり）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:83 «acd70b64750d0720»",
+          "docs/specs/cli-terminal-output.md:565 «f874613a720d04ef»",
+          "reconstruction/src/terminal/output.ts:426 «df18802267659c7f»",
+          "reconstruction/src/terminal/format.ts:669 «9b48a3baea15eff3»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL10-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL10-AC01",
+          "P3-TL10-AC04"
+        ],
+        "behavior": "実不具合（2026-11-08 17:00、Mac mini の新築の端末で、5 火山の降灰予報（定時）が 4 行のブロック 5 つで並んだ）。harness（偽の時計、attach 済み、--debug なし）に、66_01_01 の VFVO53 の火山名を阿蘇山・桜島・薩摩硫黄島・諏訪之瀬島・霧島山（新燃岳）に、Area/Code と Head/EventID を火山ごとに別の値に、ReportDateTime を 17:00:00 に替えた 5 報（fixture は桜島の 1 本だけなので書き換えて作る。EventID が 5 報とも 506 のままだと AC01 (2) で 1 報に置き換わる）を 17:00:01〜17:00:03 に渡すと、17:00:10 までは何も出ず、最後の報から 8 秒を過ぎた最初の tick に、60 桁では spec §5.4 の図の 7 行のブロックが 1 つだけ出る。定期要約の火山の件数は 5"
+      },
+      {
+        "testId": "P3-TL10-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL10-AC01",
+          "P3-TL10-AC04"
+        ],
+        "behavior": "受入条件。(a) 1 報だけ: 8 秒の後に今の 1 報の形（帯「降灰予報（定時） 桜島」と見出し文） (b) 20 報目でその場で出る (c) 5 秒ごとに届き続けると、最初の報から 90 秒を過ぎた最初の tick で出る (d) ReportDateTime か Control/Status の違う報が来ると、前のまとまりが先に出る (e) 同じ火山の 2 報目は 1 行だけで、並びの最後 (f) Control/Status が同じ 66_01_03 の VFVO55 の返信では、まとまりがその報のブロックより先に出る（Control/Status の違う VFVO55 では出ない）。VPWS50 と EEW の返信はまとまりを出さずにすぐ出て、まとまりは後でその下に出る (g) InfoType を取消にした報はすぐ出て、まとめていた同じ火山の行が束から消える (h) close() で残りが出る (i) --debug の行は置いた時に「（U-V、まとめて出す）」、入力の行の経過の時刻はブロックを積んだ時刻から数え、tips の待ちの起点は置いた時に動く (j) 2 火山と 20 火山の束を 56・80・100 桁、色 0 と 3 で描くと、どの行も桁数を越えず、帯は 1 行、名前は途中で折れず、色 0 の帯は ━ の形 (k) 17:00:00.1 に A、tick の前の 17:00:08.5 に同じ鍵の B が届くと、A を 1 報の形で先に出し、B は新しいまとまりに入る（inputDone の初めの期限）"
+      },
+      {
+        "testId": "P3-TL10-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL10-AC02",
+          "P3-TL10-AC04"
+        ],
+        "behavior": "実不具合（旧築にあった地震ごとの帯の色分けが新築に無い、2026-11-08 夜の棚卸し）。色 3 の renderer で、37_01_01（警報、EventID A）の後に EventID を B に替えた警報を描くと、A の帯の面は 1 段目、B は 2 段目の色。77_01_01（予報）と EventID を替えた予報では、2 つ目の帯の題名と罫線が 2 段目の黄。A に取消（37_01_03）か最終報（77_01_30 の EventID を A に替えた報）を渡した後、または A の最後の報から 10 分を過ぎた後の新しい地震 C は 1 段目。3 つが進む間の 4 つ目は 1 段目に戻る。B の続報（同じ EventID の別の報）は 2 段目のままで、A が最終報を受けた後の B の続報も 2 段目のまま。最大予測震度に 7 を含む報と取消の帯と縦線は、段によらず同じ。色 0 の描画は濃さによらず今と同じ字。地震が 1 つのときの帯は今の色（既存の色の試験がそのまま通る）"
+      },
+      {
+        "testId": "P3-TL10-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL10-AC03"
+        ],
+        "behavior": "実不具合（2026-11-08 16:33、記録的短時間大雨の VPOA50 と VPBS50 が 7 ms 差で届き、紫のブロックが 2 つ出た）。harness に phase6b JPTC202608211633 の組の材料と、U-B の accepted の outcome（自分の記録の source.inputId と transition。形は T05 で U-B から取ったものに合わせる）を載せた返信を渡す。(a) VPBS50 の後の aliased の VPOA50 は出ず、VPBS50 の 1 ブロックだけ (b) held の VPOA50 の 7 ms 後の VPBS50（subjects に VPOA50 の subject が aliased で載る）では VPBS50 の 1 ブロックだけで、60 秒を過ぎても何も出ない (c) held の VPOA50 だけでは受けてから 60 秒の前は何も出ず、過ぎた最初の tick に紫のブロックが 1 つ。30 秒後に同じ subject の held の訂正が来ても、出るのは最初の報から 60 秒 (d) held の VPOA50 の後のその取消では何も出ない (e) held のまま close() すると出る (f) --debug の行は (a)「出さない・対応報あり」(b)(c)「対応報を待つ」(d)「出さない・待っていた報の取消」で、aliased の報も定期要約の件数に入る (g) 待ちが 256 件の時に 257 件目の held が来ると、最も古い待ちがその場で出て、表は 256 件のまま。その後、先に出した報の VPBS50（subjects にその VPOA50 の subject が aliased）が来ると VPBS50 も出て、その事象は累計 2 ブロック（例外） (h) 待っている間に壁時計を 1 時間戻しても、受けてから単調時計で 60 秒で出る。その後の 70 秒に VPBS50（subjects に aliased）が来ても出した報は消えず、VPBS50 も出て累計 2 ブロック（U-B は held のまま aliased にするので通知は VPBS50 だけ、残存 (11)）。60 秒を過ぎて tick の前に別の入力が来ると、その入力を扱う前に出る"
+      },
+      {
+        "testId": "P3-TL10-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL10-AC03"
+        ],
+        "behavior": "契約境界（端末が頼る U-B の outcome の形）。U-B の reducer（briefing-unit.ts）に phase6b JPTC202608211633 の VPOA50 を渡すと、accepted の subjects に source.inputId がその入力のものがあり、transition が held。期限の処理を受けた時刻の壁時計 + 59,999 ms で当てると held のまま、+ 60,000 ms で当てると released になる（端末の 60 秒と U-B の HOLD_MS を結ぶ）。別に、受けた直後に同じ組の VPBS50 を渡すと、その accepted の subjects に先の VPOA50 の subject が transition aliased で載る。順を逆にすると、後の VPOA50 の自分の記録の transition が aliased"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O08・O01 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。spec の行を足した後も他の契約の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（端末と worker の覚えを持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（降灰のまとまり: 無いと 17:00 の 5 火山が 4 行のブロック 5 つで並ぶ。待ちの表: 無いと VPOA50 が先に届いた時に紫のブロックが 2 つ出るか、VPOA50 だけの日に端末に出ない。段の番号: 無いと同時に進む 2 つの地震の帯が同じ色になる）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待は変えない（EEW の色の試験は地震 1 つの色 3 で、同時に進む EEW の試験 P3-TL2-T11 は「ほかに」の行だけを見る（色 0 でもある）ので変わらない。VFVO53・VPOA50 を描く既存の試験は renderer に直に渡し sink を通らない）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "配送で統合担当が付け直す: format.ts・color.ts を変えて行がずれたら、p3-recovery-boundary.json の format.ts:805 «06806f691eb3af93» と p3-int7-color.json の color.ts:24 «53c4f9f1a6c4c602» の行の番号を、中身の anchor が一致する行へ配送の commit で付け直し、2 契約の meta.sha256 を取り直して check-contract を通す（実装は 2 行の中身を変えない。2 契約の json は allowedPaths に入れない）",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 端末の束は多くの場合に U-V の通知の束と同じだが、8 秒・90 秒の境目（U-V の要求の時計と端末の時計の数 ms の差、tick の 1 秒の粒）と、予報の終わった VFVO53（U-V は batch に入れず数えない、volcano-unit.ts の dueAt）を端末だけが束に入れる点で、区切りも数も違いうる (2) 束の 8 秒の間に届いた火山でない報は束より上に出る（D-ASH-INTERRUPT=A） (3) U-B の解放が受けてから 60 秒より遅れたとき（壁時計の根拠が awaiting、締切の処理の遅れ）と、U-B が容量で held の記録を外したときも、端末は 60 秒で VPOA50 を出す（U-B は鳴らさないか遅れて鳴らす）。U-B の HOLD_MS を変えるときは端末の 60 秒も変える（T05 が落ちて知らせる） (4) VPBS50 の取消で aliased の VPOA50 が無音で released になっても端末には出さない（U-B も鳴らさない）。aliased だった VPOA50 の取消は今のとおり取消のブロックが出る (5) 60 秒の後に VPBS50 が届くと（U-B が先に released にした後の alias）、端末も U-B の通知も 2 つ出る (6) 終わった地震の段は、そのブロックが画面に残っていても次の地震に使われる（旧築も同じ）。4 つ以上同時に進むと段が重なる (7) held の VPOA50 を待つ 60 秒の間に FlEq が落ちる（kill・停電）と、待ちの表は保存せず、U-B は起動の restore で held を無音で released にするので、端末にも通知にも出ない（D-RAIN-ALONE の A の文にも書いた）。降灰のまとまり（最長 90 秒）も同じで、落ちると端末に出ず、U-V の batch も保存しないので通知も出ない (8) U-B の期限処理と端末の期限の差（壁時計が動かなければ、端末も inputDone の初めに期限を見るので数 ms。補正されると広がる、(11)）の間に VPOA50 の取消が届くと、端末には報も取消も出ない（U-B は解放と取消を鳴らす） (9) 取り直しの VPBS50 が held の VPOA50 を aliased にしても、その返信（recoveryDone）は端末に届かず、端末は 60 秒で VPOA50 を出す（証拠不足） (10) tick が止まっている間（event loop が詰まる、機械が眠る）は、降灰のまとまりも待ちも出ない（止まった後の最初の tick か inputDone で出る） (11) 壁時計が補正されると（NTP の補正、手で時刻を変える）、端末の期限（単調時計）と U-B の期限（壁時計）がずれ、端末と通知の時刻と数がずれうる。例: 速報を受けた後に壁時計が 1 時間戻ると、端末は 60 秒で速報を出して待ちを外すが、U-B は held のまま。70 秒に本報が来ると U-B は aliased にして通知は本報だけ、端末は 2 ブロック。進むと逆に、U-B が先に解放を鳴らし、端末は 60 秒まで出さない (12) 待ちが 256 件で満杯のときに先に出した速報は、後で本報が来ると端末に 2 ブロックになる（1 ブロックの約束の例外。U-B は held のままなので通知は本報だけ）",
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 9 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-volcano-unit.json:119 の P3-C9-BATCH の reason に、端末（P3-TL10-AC01）は batch の区切りを受けず、同じ 8 秒・90 秒・20 件と VFVO54/55 の前の割り込みで端末の中で束ねる旨 (2) reconstruction/contracts/p3-briefing-unit.json:488 の C19 の申し送りに、端末は短い形（material.ts）のままで U-B の facts を足さず、VPOA50 は U-B の held・aliased で出すかを決める旨（P3-TL10-AC03） (3) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (2) の内容の同じ続報の句の後に、U-V の VFVO53 と U-B の VPOA50 は材料を作り定期要約に数えるが、端末の列に積む時を P3-TL10 で決める旨（まとめて出す・対応報を待つ・出さない） (4) reconstruction/contracts/p3-terminal-output.json:606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、降灰のまとまりと記録的短時間大雨の待ちの表に置く・外すこと（P3-TL10-AC04 (1)） (5) reconstruction/contracts/p3-terminal-output.json:661 の P3-TO-AC12 (2) の「何かを出した」に、まとまりと待ちの表に置いた報も数える旨（P3-TL10-AC01 (8)・AC03 (3)） (6) reconstruction/contracts/p3-terminal-output.json:726 の P3-TO-AC17 (1) の出さない理由と出した形に「まとめて出す」「対応報を待つ」「出さない・対応報あり」「出さない・待っていた報の取消」を足す旨 (7) reconstruction/contracts/p3-terminal-layout2.json:366 の P3-TL2-AC11 に、同時に進む地震の帯の濃さを P3-TL10-AC02 で地震ごとに変える旨 (8) reconstruction/contracts/p3-terminal-layout.json:243 の P3-TL-AC03 (1)(2)（注意は黄の太字と黄の罫線、警報の帯は朱 #d55e00 の地）に、同時に進む EEW の 2・3 段目の帯は P3-TL10-AC02 の色にする旨 (9) reconstruction/contracts/p3-terminal-layout2.json:290 の (4)（帯の面は #d55e00 のまま）に、同時に進む EEW の 2・3 段目の帯の面は P3-TL10-AC02 の色にする旨",
+      "配送の順（r0 の決め、009 の r1 で確かめた）: P3-TERMINAL-LAYOUT-009（branch draft/tl9）を先に配送し、本契約はその後に載せる。009 と spec の挿入位置・付け直す 12 の契約の «»（Q-TL10-SPEC-LINES の 12 file）・format.ts:805（p3-recovery-boundary.json が引く）・format.ts の TerminalUnit と eew()・output.ts の sink の inputDone が重なるので、本契約を載せる時に、spec の 19 行を 009 の後の spec に足し直し、12 の契約の «» を reanchor-target.py で付け直し、format.ts の行を引く «» を付け直し、Q-TL10-SPEC-LINES と本契約の spec の evidenceRefs をやり直す（実装の baseOid は 009 の配送の後に割り当てる）。積み直しは 2026-11-08 夜に済ませた（Q-TL10-SPEC-LINES）。009 の実装の配送で material.ts・format.ts・output.ts の行が動いたら、発注の前に本契約が引く «» を同じ手順で付け直す。p3-terminal-output.json の :504・:606 は 009 も改訂する: :504 は 009 が (3)(4)、本契約が (2) に書き足し、:606 は (1) の publisher の仕事の列挙にそれぞれ 1 項を足すので、文は食い違わない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
