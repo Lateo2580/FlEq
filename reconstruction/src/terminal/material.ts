@@ -129,6 +129,9 @@ const heaviest = (items: readonly Ranked[]): Ranked =>
   items.reduce<Ranked>((best, item) => RANK[item.level] > RANK[best.level] ? item : best, { level: "plain", name: null });
 // Q-TO-S-2 と Q-TO3-LEVEL の表を unit ごとの読み方で段にする。警戒レベル 5・4・3・2 が 最も重い・紫・警報・注意、それより下は plain。
 const byLevel = (level: number | null): TerminalBandLevel => level === 5 ? "top" : level === 4 ? "purple" : level === 3 ? "warning" : level === 2 ? "caution" : "plain";
+// 気象警報（2026 年の新しい区分）の Kind/Code: 十の位 3 が特別警報（L5）、4 が危険警報（L4）、0 が警報（L3、00 は解除）。1・2 は注意報で、レベルの付かないものも注意の段（Q-TO3-LEVEL）。
+// 全国の集約通報の表も同じ読み方で段にする（P3-TL8-AC01 (3)）。
+const weatherLevel = (code: string): TerminalBandLevel => /^3\d$/.test(code) ? "top" : /^4\d$/.test(code) ? "purple" : /^0[1-9]$/.test(code) ? "warning" : /^[12]\d$/.test(code) ? "caution" : "plain";
 function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string | null, found: ReturnType<typeof scan>): Ranked {
   const { headType } = material;
   // 洪水予報の段は Head/Headline の「（河川）」の Information の Kind にある（flood.ts と同じ在りか。Body の Kind は文の種類）。
@@ -136,8 +139,7 @@ function shortLevel(unit: ShortUnit, material: DecodedMaterial, eventId: string 
   const current = kinds.flatMap(({ name, code, status }) => code != null && (status == null || !NOT_CURRENT.has(status)) ? [{ name, code }] : []);
   const ranked = (level: (code: string) => TerminalBandLevel): Ranked => heaviest(current.map(({ name, code }) => ({ level: level(code), name })));
   switch (unit) {
-    // 気象警報（2026 年の新しい区分）の Kind/Code: 十の位 3 が特別警報（L5）、4 が危険警報（L4）、0 が警報（L3、00 は解除）。1・2 は注意報で、レベルの付かないものも注意の段（Q-TO3-LEVEL）。
-    case "U-W": return ranked((code) => /^3\d$/.test(code) ? "top" : /^4\d$/.test(code) ? "purple" : /^0[1-9]$/.test(code) ? "warning" : /^[12]\d$/.test(code) ? "caution" : "plain");
+    case "U-W": return ranked(weatherLevel);
     // 土砂災害（landslide.ts の LEVELS: 39 L5・49 L4・09 L3・29 L2）。
     case "U-L": return ranked((code) => byLevel(landslideLevel(code)));
     // 指定河川洪水予報（flood.ts の LEVELS: 51・53 L5、40・41 L4、30・31 L3、20〜22 L2）。
@@ -192,16 +194,50 @@ function flashBody(body: XmlElement | null): NonNullable<Extract<TerminalReport,
   }
   return { activity: read(first(body, "VolcanoInfoContent"), "VolcanoActivity"), towns, others: budget.omitted };
 }
+// 全国の集約通報（VPWS50）の区域の層（P3-TL8-D-LAYER）。全国 64 の予報区で、細かい層は段ごとの Kind が同じで名前が増えるだけなので読まない。
+const PREFECTURE_LAYER = "気象警報・注意報（府県予報区等）";
+// P3-TL8-AC01 (3)・AC02・AC03・AC05 (1): 層の Item を AREA_LIMIT まで 1 回辿り、今の Kind の最も重い段と、その段の Kind の Code ごとの行を作る。
+// 行は Code の昇順（電文の順だと予報区の出入りで並びが入れ替わり、端末の比べ〔AC04〕で出し直しになる）。注意報だけの段は予報区を持たない（AC03 (1)）。
+function nationalTable(layer: XmlElement): { level: TerminalBandLevel; national: NonNullable<Extract<TerminalReport, { kind: "short" }>["national"]> } {
+  const budget: Budget = { left: AREA_LIMIT, omitted: 0 };
+  const byCode = new Map<string, { label: string; level: TerminalBandLevel; areas: string[]; item: XmlElement | null }>();
+  let level: TerminalBandLevel = "plain";
+  for (const item of children(layer, "Item")) {
+    if (!take(budget)) continue;
+    const area = read(first(item, "Area"), "Name");
+    for (const kind of children(item, "Kind")) {
+      const code = read(kind, "Code"), status = read(kind, "Status");
+      const rank = code == null || (status != null && NOT_CURRENT.has(status)) ? "plain" : weatherLevel(code);
+      if (code == null || rank === "plain") continue;
+      let row = byCode.get(code);
+      if (row == null) { row = { label: read(kind, "Name") ?? "", level: rank, areas: [], item: null }; byCode.set(code, row); }
+      // 1 つの Item が同じ Code の Kind を 2 つ持っても予報区は 1 回（AC02 (2)）。
+      if (area != null && row.item !== item) { row.item = item; row.areas.push(area); }
+      if (RANK[rank] > RANK[level]) level = rank;
+    }
+  }
+  const rows = [...byCode].filter(([, row]) => row.level === level).sort(([left], [right]) => left < right ? -1 : 1)
+    .map(([, row]) => ({ label: row.label, areas: level === "caution" ? [] : row.areas }));
+  return { level, national: { rows, others: budget.omitted } };
+}
 function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | null): TerminalReport {
-  const heading = head(material), found = scan(body);
+  const heading = head(material);
   const cancel = heading.infoType === "取消";
+  // P3-TL8-AC01: 全国の集約通報は対象を「全国」にする（Body の最初の Area/Name は使わない）。府県予報区等の層がある取消でない報は、段と表を層だけから決めて scan を省く（AC05 (1)）。
+  const nationwide = unit === "U-W" && material.headType === "VPWS50";
+  const layer = nationwide && !cancel ? children(body, "Warning").find((node) => attribute(node, "type") === PREFECTURE_LAYER) ?? null : null;
+  if (layer != null) {
+    const table = nationalTable(layer);
+    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national };
+  }
+  const found = scan(body);
   // Head の Title に全国の活火山を含む VFVO51。EventID 900 は「その他の火山」の番号でもあるので使わない（P3-TL3-D-DETECT）。
   const monthly = material.headType === "VFVO51" && heading.title?.includes("全国の活火山") === true;
   const { level, name } = cancel ? { level: "cancel" as const, name: null } : monthly ? { level: "plain" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
-  return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
+  return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : nationwide ? "全国" : unit === "U-N" ? null : found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
     // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
     cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null,
-    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null };
+    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。

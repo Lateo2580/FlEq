@@ -715,8 +715,14 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 理由の行がある報は見出し文を 2 桁下げる（Q-TO7-REASON-INDENT）。太字の差だけでは理由の行と本文の境が読めないため。折り返した行はさらに 2 桁下げる。
   const sentences = reason.length === 0 ? textLines(headline, ctx.body)
     : textLines(headline, ctx.body - 2).flatMap((item) => wrapChars([seg("  "), ...item.segs], ctx.body, "    ").map((segs) => ({ segs })));
+  // 全国の集約通報（P3-TL8-AC02・AC03）: 表は要点のまとまりに置き（罫線なし）、理由の行と見出し文の行は出さない。警報以上は Code ごとの行で折り返した行にも左の列を薄い字、
+  // 注意報だけの報は Kind の名前の並び（続きの行は字下げしない）、今の Kind の無い報は行なし。読まなかった予報区は段によらず薄い字の 1 行。
+  const { national } = report;
+  const nationwide = national == null ? null : [...report.level === "caution" ? flow([], national.rows.map((row) => [seg(row.label)]), ctx.body, 0)
+    : listTable(null, national.rows.map((row) => ({ label: seg(row.label), rest: seg(row.label, "dim"), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
+    ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: [...reason, ...sentences, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: nationwide ?? [...reason, ...sentences, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };

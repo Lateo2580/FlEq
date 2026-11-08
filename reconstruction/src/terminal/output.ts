@@ -69,6 +69,20 @@ function estimate(value: unknown): number {
   return total;
 }
 const counted = (unit: TerminalUnit): boolean => unit.kind !== "echo";
+type ShortReport = Extract<TerminalReport, { kind: "short" }>;
+// P3-TL8-AC04 (1)・AC05 (2): 全国の集約通報の帯と表に出す値（段・Control/Status・表の行・読まなかった予報区の数）が同じか。行と名前の数に比例するだけ。
+// 注意報だけの報は行の予報区が空なので Kind の名前の並びだけを比べる（AC03 (1)）。
+function sameNational(before: ShortReport, now: ShortReport): boolean {
+  const left = before.national, right = now.national;
+  return left != null && right != null && before.level === now.level && before.head.status === now.head.status && left.others === right.others
+    && left.rows.length === right.rows.length && left.rows.every((row, index) => {
+      const other = right.rows[index];
+      return row.label === other.label && row.areas.length === other.areas.length && row.areas.every((name, at) => name === other.areas[at]);
+    });
+}
+// P3-TL8-AC04 (3): その入力が U-W の通知の intent を作ったか（返信の U-W の pendingIntents は 128 件まで）。鳴ったのに画面に何も出ない列を作らない。
+const rang = (reply: InputDone): boolean =>
+  reply.output.units.find((delta) => delta.unit === "U-W")?.pendingIntents?.some((intent) => intent.source.inputId === reply.settlement.inputId) === true;
 
 // 【発注 2】の口。どれも省けば出さない（試験と測定の起動）。cli.ts は起動の時に読んだ値を渡す。
 type TerminalOptions = Readonly<{
@@ -123,6 +137,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   let worker: Worker | null = null, child: ChildProcess | null = null;
   let post: (batch: TerminalBatch) => void = () => {};
   let lastOutputMs = clock().monotonicMs;
+  // P3-TL8-AC04 (4)(7)・D-MEMORY: 最後に積んだ全国の集約通報の参照（保存しない）。push の前に置き、push がその単位を落としたら消す。
+  let national: ShortReport | null = null;
   const fail = () => {
     if (failed) return;
     // AC02 (2): worker が落ちても process は落とさず、受信も止めない。以後は積まずに数えるだけ。
@@ -207,8 +223,9 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     // P3-CLI-AC27 (2): tips の待ちの起点は数える単位だけが動かす（入力の echo と入力の行の書き直しは「何かを出した」に数えない）。
     if (counted(unit)) lastOutputMs = clock().monotonicMs;
     const size = failed ? 0 : estimate(unit);
-    if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; return; }
-    while (bytes + size > QUEUE_BYTES) if (counted(take().unit)) dropped += 1;
+    // P3-TL8-AC04 (6): 覚えた全国の集約通報の単位を落としたら覚えを消す（参照の比べ 1 回）。無いと画面に無い報と比べて次の同じ報を出さない。
+    if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; if (unit.kind === "report" && unit.report === national) national = null; return; }
+    while (bytes + size > QUEUE_BYTES) { const old = take().unit; if (counted(old)) dropped += 1; if (old.kind === "report" && old.report === national) national = null; }
     queue.push({ unit, bytes: size });
     bytes += size;
     compact();
@@ -354,8 +371,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     },
     setTipInterval(minutes) { tipMs = minutes * 60_000; },
     setEewLog(enabled, fields) { eewLog?.set(enabled, fields); },
-    // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
-    clear() { push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
+    // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。画面から消えた全国の集約通報の覚えも消す（P3-TL8-AC04 (6)）。
+    clear() { national = null; push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
     // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。色は現況の項目と番号と切断の字と回線の印（Q-TO8-PULSE）で、太字は項目の区分の字だけ（Q-TO6-COLOR）。
     // readline は prompt の幅を制御の字を除いて数えるので、色の符号でカーソルはずれない。
     // P3-TL-AC10: ミュート中は後ろに足す（期限は repl.ts の muteStartLine と同じ換算）。切断中は 56 桁に入るよう繋ぎ直しの回数と期限と条件を外す。
@@ -394,12 +411,19 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       const nowMs = clock().wallTimeMs;
       roll(nowMs);
       const prompt = promptOf();
-      let shown: { unit: RuntimeUnitId; headType: string } | null = null;
+      let shown: { unit: RuntimeUnitId; headType: string } | null = null, repeated: { unit: RuntimeUnitId; headType: string } | null = null;
       if (reply.terminal != null) {
-        const report = reply.terminal;
-        push({ kind: "report", report, prompt });
-        shown = { unit: unitOf(report), headType: report.head.headType };
-        count(shown.unit, shown.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null, nowMs);
+        const report = reply.terminal, taken = { unit: unitOf(report), headType: report.head.headType };
+        // P3-TL8-AC04: 全国の集約通報は最後に積んだ報と同じなら積まない（(3) その入力が通知の intent を作ったら比べない）。
+        // 積む報は push の前に覚えにし（(7)）、取消と層の無い報は覚えを消す（(6)）。積まなかった報も定期要約に数える（(8)）。
+        const nationwide = report.kind === "short" && report.head.headType === "VPWS50" ? report : null;
+        if (nationwide != null && national != null && sameNational(national, nationwide) && !rang(reply)) repeated = taken;
+        else {
+          if (nationwide != null) national = nationwide.national == null ? null : nationwide;
+          push({ kind: "report", report, prompt });
+          shown = taken;
+        }
+        count(taken.unit, taken.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null, nowMs);
       }
       for (const { unit, outcome } of reply.output.outcomes) {
         if (unit !== "U-E" || outcome.kind !== "accepted" || outcome.change === "deliveryOnly") continue;
@@ -414,18 +438,18 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       const { inputId } = reply.settlement;
       // P3-TO-D-UNREADABLE（作者裁定 A）: 何も出さなかった入力だけ、その入力の unreadable・unidentified のカードを返信の view から探す（views は変わった unit だけ）。
       let card: Readonly<{ unit: RuntimeUnitId; headType: string }> | null = null;
-      if (shown == null) {
+      if (shown == null && repeated == null) {
         for (const delta of reply.output.units) {
           const found = delta.view?.unreadableCards?.find((item) => item.inputId === inputId && item.kind !== "unknownType");
           if (found != null) { push({ kind: "unreadable", card: found, prompt }); card = { unit: delta.unit, headType: found.headType }; break; }
         }
       }
       if (shown != null) lastReportWallMs = nowMs;
-      // AC17 (1): 出さない理由は取り直し（owner の recoveryInput は decode を持たない返信）か採らなかったの 2 つ。
+      // AC17 (1): 出さない理由は取り直し（owner の recoveryInput は decode を持たない返信）か採らなかったか、全国の集約通報の前と同じ（P3-TL8-AC04 (8)）。
       if (options.debug === true) {
         // 返信が種類のコードを持たない入力（採らなかった入力・取り直し）は、種類のコードと unit を書かない（「不明」とは出さない）。
-        const known = shown ?? card;
-        const result = shown != null ? "出した" : `出さない・${reply.decode == null ? "取り直し" : "採らなかった"}`;
+        const known = shown ?? repeated ?? card;
+        const result = shown != null ? "出した" : repeated != null ? "出さない・前と同じ" : `出さない・${reply.decode == null ? "取り直し" : "採らなかった"}`;
         notice({ kind: "debug", text: known == null ? `debug: ${inputId}（${result}）` : `debug: ${known.headType} ${inputId}（${known.unit}、${result}）` });
       }
     }, digest(view) {

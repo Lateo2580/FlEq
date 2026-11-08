@@ -75,6 +75,25 @@ describe("P3-TO-T06 列の上限（O02、AC02 (3)・AC08 (1)）", () => {
   });
 });
 
+// P3-TL8-T04 acceptance (AC04 (6)): 落とす場面は共通の harness（write がその場で done）では作れないので、ここの heldWriter で作る。
+describe("P3-TL8-T04 列が覚えた全国の集約通報の単位を落とした後", () => {
+  it("書き出し中に積んだ VPWS50 の単位が、合わせて 1 MiB を越える数える単位に押し出されると、次の同じ報は出る", async () => {
+    const writer = heldWriter();
+    const terminal = createTerminalOutput({ write: writer.write });
+    const report = reportOf("15_18_01_250630_VPWS50.xml", "U-W");
+    terminal.line("a");
+    terminal.sink.inputDone(inputDone(report));
+    // 見積もりがちょうど 1 MiB の行（kind・text の鍵と入れ物で 20 byte）。積むには前の VPWS50 の単位を落とす。
+    terminal.line("y".repeat(MIB - 20));
+    writer.release();
+    writer.release();
+    terminal.sink.inputDone(inputDone(report));
+    writer.release();
+    expect(writer.batches.map((batch) => [batch.dropped, batch.units.map((unit) => unit.kind)])).toEqual([[0, ["line"]], [1, ["line"]], [0, ["report"]]]);
+    await terminal.close();
+  });
+});
+
 // P3-CLI-T19 contractBoundary (P3-CLI-AC27 (2)(3)・AC23)
 describe("P3-CLI-T19 入力の行の書き直しと tips・drained", () => {
   it("入力の行を 1 秒ごとに書き直しても tips の待ちは延びず、drained は worker の書き込みが終わるまで false", async () => {
