@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "93e457847b9fca3c7e0d362c6edefd0ceccda5500c2ed1766461d698d6705aa3",
+    "sha256": "e6a41dbc72fdc733dfe9605a227764c8da20cc7c6033fc9d83581993725da7c9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -165,7 +165,7 @@
     "contractId": "P3-RECOVERY-BOUNDARY-001",
     "mode": "implementation",
     "objective": "取り直し（C16）の resolve で進んだ境界を必ず保存に載せ、一覧が空でも一覧を見た時刻まで境界を進め、本文を取らない unit（U-F・U-E）の穴と初回の起動の窓を閉じて、再起動のたびに 7 日分のまとめと本文の取り直しをやり直す族を直す",
-    "baseOid": "unassigned",
+    "baseOid": "0df5b82a",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
