@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "401ce7107754c50cb42fb144f5d9c17fb9dc37e2c52bc7d070c4b16f2066b9d3",
+    "sha256": "37d83bdd7290bc9c7f84fb52d3ba9c56d3f20cf809bbfdcaeef4e1d008a0972b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -304,7 +304,7 @@
       "購読区分の拡大（R54）",
       "REST回復・電文一覧・本文取得（C16）",
       "契約一覧（GET /v2/contract）と配送capabilityの追跡（旧築delivery-capabilities）",
-      "endpointの選択・地域切替（旧築EndpointSelector）。socket startが返したURLをそのまま使う",
+      "endpointの選択・地域切替（旧築EndpointSelector）。socket startが返したURLをそのまま使う（P3-DMDATA-ENDPOINT-001 へ送った: 最後に失敗した WS の host 名を次の start が返したら、host 名だけを反対の地域の入口 ws-tokyo・ws-osaka へ替える。P3-C2-ENTRY の new WebSocket(url, …) の url もその書き換えの後のもの）",
       "jitter・REST 再試行（P3-C2-RETRY）。間隔を延ばすのは P3-DMDATA-CONNECT-002",
       "mailbox・worker・publisherの境界とJSON parseの位置（C3a）",
       "通常終了の段の順序と期限（C3b）",
