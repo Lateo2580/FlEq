@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "b349668e2b69c69cdafad7a716a5baa0c5a6f118433759dde78d80843143c776",
+    "sha256": "c709365c98a4e9976d5a3726424e1c0826ffd6f806d273740f387cc4e76db08f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -124,7 +124,7 @@
         "status": "closed",
         "source": "2026-11-08 作者（Mac mini で 10 秒ほど止めて起動し直すと、最初の起動と同じ 7 日分のまとめと「7 日より前の情報は取り直していません」がもう一度出た）",
         "closed": "読みで原因を確かめた（統合担当、2026-11-08）。C16 の取り直しと保存の境界の組み合わせの穴で、この契約では直さない。経路: (1) 起動の起点は owner の restored の返信の境界（composition-root.ts の restoredBoundaries）で、walkStart は restored かつ境界の dmdataTime か verified の受信時刻があるときだけ前回の位置を使い、無ければ 7 日と beforeWindow にする (2) 境界は保存の権を出す時（checkpoint.ts の next の inputBoundary: this.boundaries.boundary(unit)）にだけ envelope に書かれ、保存は世代が変わったとき（saveDue の currentGeneration ≠ savedGeneration）だけ走る (3) 取り直しの入力（origin=recovery）は InputBoundaries の列に入らない（routed）ので、取り直しの本文で state が変わった保存の権は、初めての起動なら境界 null、2 回目からは restarted の穴の before（前回の null）を書く (4) 取り直しが終わると recoveryAdopted が boundaries.resolve で末尾を一覧の最新の dmdata 時刻にするが、これは世代を変えないので保存が走らない。10 秒の run では live の電文で世代が変わる前に止まり、envelope の境界は null のまま残る (5) 次の起動は restored・境界 null で known が null になり、7 日のまとめと印が毎回出る。本文の取り直しも N2 の窓の全部をやり直す。直し方の候補は、resolve で境界が進んだ unit を世代を変えずに保存する口か、停止の最終保存で境界だけを書き直す口で、どちらも C16 と checkpoint（P3-VM）の保存の約束に触る。端末の契約の範囲で小さく直せないので残す",
-        "remaining": "C16（P3-RECOVERY-001）と checkpoint の契約で直す。作者へ報告し、台帳に載せる"
+        "remaining": "P3-RECOVERY-BOUNDARY-001 で直す"
       },
       {
         "id": "Q-TL7-REVIEW-R1",

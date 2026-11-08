@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "e6a41dbc72fdc733dfe9605a227764c8da20cc7c6033fc9d83581993725da7c9",
+    "sha256": "21e0acf13437a2a5cfd17ebedb349fd6d10747a588f9bb4321b93ea851866358",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -154,6 +154,19 @@
         "source": "発注前点検（統合担当の子、2026-11-08 夕）。起草では unresolvedQuestions（owner integrator、blocks 実装の着手）",
         "closed": "P3-RECOVERY-READ-001 → 本契約の順は満たした: READ-001 を先に配送し（e721cd29・ddb18012・03366097）、本契約を main 03366097 の上へ置いて «» を取り直した（Q-RB-PRECHECK、ずれ 0 件）。READ-001 は最初の接続の 2 巡目を残す（D-SECOND-ROUND=A）ので AC07 の接続のある回はある。baseOid の割当は統合担当がこの点検の commit に当てる次の手順で、割当までは check-contract の unassigned の WARN が実装の着手を止める。割当の時点で check-contract の本契約のずれ 0 件を確かめる",
         "remaining": "baseOid の割当（統合担当。この点検の時点では unassigned）"
+      },
+      {
+        "id": "Q-RB-EXISTING-TESTS",
+        "status": "closed",
+        "source": "起草では unresolvedQuestions（owner implementer、blocks「期待値を変える既存の試験の変更」、resolveBy「実装の途中、変える前に報告」）。実装 c2ca5c85 とその品質レビュー r0 で閉じた（統合担当の配送、2026-11-08 夜）",
+        "closed": "期待の値を変えた既存の試験は artifactRequirements の 4 番目の (1) の host.test.ts の P3-VM-T06 の U-F の行（:1122〜:1124。U-F が切断を越えて id-f2・oldestHole null）だけ。(2) の P3-REC-T06 の 2 本は t.startup の前に recordConnected を置いた前提の変更だけで期待は変えていない。(3) の savedGeneration の行は変わらなかった。ほかに期待の変わる試験は出なかった（品質 r0 の記録 ~/dev/fleq-vault-archive/2026-11-08-evening/rb-impl-quality-r0-hertz.md の試験の節が同じ読み）"
+      },
+      {
+        "id": "Q-RB-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-08 夜。実装は baseOid 0df5b82a の木で c2ca5c85、main 5da2d8d1 の上の配送の木 ~/dev/fleq-deliver の branch deliver/1108 へ載せ替えて a42bfcd9）",
+        "closed": "レビュー r0: 契約適合 Opus GO・品質 ヘルツ（gpt-6-astra high、read-only）GO（P1・P2 なし。P3 は 2 束の境界を採用→保存→復元まで通す試験が薄い、判定には使わない）。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/rb-impl-*。ゲート: Mac mini で新築の全試験・shuffle・旧築の build と test が緑。原文の改訂（artifactRequirements の 6 番目の 13 項目を全部、どれも行の中に書き足し行の数は変えない）: (1)〜(4)・(8)・(9)・(12) は p3-recovery.json（P3-REC-AC19 の (2)(3)(5)・AC02 の (2)(7)・AC07・AC09 の (3)・D-UF-BASE の ruling・D-HOLE-AFTER-START の A・publicFunctions の 2・3・15 番目）、(5)・(10)・(11) は p3-version-material.json（P3-VM-AC07・P3-VM-T06・Q-VM-IMPL-1）、(6) は p3-unit-write-right.json（P3-UWR-AC02）、(7) は p3-terminal-layout7.json（Q-TL7-RESTART-DIGEST の remaining を「P3-RECOVERY-BOUNDARY-001 で直す」に）、(13) は p3-recovery-read.json（outOfScope の 1 番目）。改訂で中身の変わった行を引く «» は本契約の 4 件（p3-recovery.json:1018・:1189、p3-version-material.json:523、p3-unit-write-right.json:327）だけで、repo の他の file からは 0 件。5 本の meta.sha256 を取り直した。付け直した本契約の «»: 37 件（実装で中身の変わった行 13・行のずれ 20・原文の改訂 4）。中身の変わった 13 行の付け先と主張: owner-runtime.ts :692→:692（世代を必ず 1 つ進める Math.max、AC01 (2)）・:701→:702（進めた世代に候補の inputIds を結ぶ、AC01 (2)）、composition-root.ts :652→:652（返信の反映の前に同期で穴を解くコメント、AC02 (1)）・:2211→:2220（askRecovery に settle を渡し反映の前に settleAdopted を当てる。返信の後の recoveryAdopted の行は :2222）・:2291→:2298（settleAdopted の中の resolve、AC02 (1)）・:2248→:2261（adopt を送る時に adoptWaiting を立てる、AC02 (2)）・:2123→:2131（run に connected を控える、AC07 (1)）、recovery.ts :415→:419（listed に listedThroughMs を付ける、AC03 (2)）、p3-recovery.types.ts :39・:49（responseTimeMs・listedThroughMs?、AC03 (1)(2)）、checkpoint.ts :857→:870（両方 null なら末尾が無いときだけ解いた穴の before を末尾に残す、AC03 (4)）・:862→:887（hasHole は印の穴を数えない、AC07 (3)）、host.test.ts:1123（U-F が切断を越えて id-f2、AC04）。どれも条文の主張が新しい中身で成り立つ。artifactRequirements の 5 番目の (b) の行の番号の列は起草の時の番号のまま残した（checkpoint.ts:854 は中身が変わらず :866 へずれただけ、recovery.ts:108 は動かない）",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -279,14 +292,14 @@
         "id": "P3-RB-AC01",
         "requirement": "不変条件と世代（P3-RB-D-RAISE=A）: (1) 不変条件: unit の境界が取り直しの解決（InputBoundaries.resolve）で進んだら、その位置は次の書込み権で envelope の inputBoundary に載る。載る形は次の起動の walkStart が読む形（dmdataTime か dmdataId を持つ位置、AC03）。穴が解けたのに境界が null に落ちる形を作らない（AC03 (4)）。接続の無い間に引いた一覧の採用は穴を残して before を進める（AC07） (2) 世代: owner は採用の step（adoptRecoveryOwner）で、候補が世代を進めていなければ 1 つ進める（raised。noticed と同じ形で、noticed はその後で二重に進めない）。進めた世代に候補の inputIds を結ぶ（空の候補は空の列。P2-A3-AC10 の明示値。無いと owner-host の台帳がその unit を unavailable にし、保存を断り続ける）。checkpointAttempts の postCaptureDirtySince も進めた世代で今と同じ規則で立てる（P3-UWR-AC06）。採用の結果（全部 adopted か）と epoch は問わない (3) 壊さない約束: 境界だけが変わった保存も新しい世代で書くので、同世代異 hash（P3-C1-AC02 (2)）は起きない。世代を変えずに書き直す口と、停止の最終保存で境界だけを書く口は作らない。採用の step は返信より前に owner の state に入り、書込み権は parser 入力の処理中には出ないので、解決の位置（一覧を引き始めた時点の inputSequence まで）までの入力の効果はその世代に入る（P3-VM-AC07。処理待ちの live の入力があれば、境界は今どおりその前で止まる） (4) 場面: 11-08 12:25:00 に起動。U-T の保存の境界は {dmdataTime 11-06 19:53, dmdataId X}。起動の辿りの U-T の一覧に VTSE41 Y（11-08 09:00）が 1 件あり、本文は手元と同じ版で adopted（state は変わらない）。採用で U-T の世代が g から g+1 へ進み、AC03 の位置で保存される。12:26 に通常の停止 → 12:26:10 の起動で restored の U-T の境界はその位置、walkStart の beforeWindow は false で、U-T の本文は取らない。g+1 の保存の ack の後の kill -9 でも同じ。ack の前の kill -9 では前の保存の境界（11-06 19:53）から辿り直す（null に落ちず、取りこぼさない） (5) 計算量: 採用 1 回に定数の追加。受信ごとの処理は変えない",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-runtime.ts:692 «ff25bfcc4e584d9a»",
-          "reconstruction/src/runtime/owner-runtime.ts:701 «18707b7d78364023»",
-          "reconstruction/src/runtime/owner-runtime.ts:731 «7cf9246543d289aa»",
-          "reconstruction/src/checkpoint/checkpoint.ts:534 «4b28d44d34128fa9»",
-          "reconstruction/src/checkpoint/checkpoint.ts:568 «eaa2fd6b76f2bc0d»",
+          "reconstruction/src/runtime/owner-runtime.ts:692 «9892d107bc6120b4»",
+          "reconstruction/src/runtime/owner-runtime.ts:702 «e8d78337ed4982da»",
+          "reconstruction/src/runtime/owner-runtime.ts:732 «7cf9246543d289aa»",
+          "reconstruction/src/checkpoint/checkpoint.ts:536 «4b28d44d34128fa9»",
+          "reconstruction/src/checkpoint/checkpoint.ts:570 «eaa2fd6b76f2bc0d»",
           "reconstruction/src/runtime/owner-host.ts:376 «1541e2f448d45301»",
           "reconstruction/contracts/p3-checkpoint-step1.json:255 «da92e41f9e9eb3d6»",
-          "reconstruction/contracts/p3-version-material.json:523 «eb677cd053df249b»",
+          "reconstruction/contracts/p3-version-material.json:523 «61a1a494d98f9954»",
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»"
         ]
       },
@@ -294,15 +307,15 @@
         "id": "P3-RB-AC02",
         "requirement": "順序を仕組みで固定する（P3-RB-D-ORDER=A）: (1) publisher は採用の返信（recoveryDone の adopted）を受けた同期の処理の中で、その返信の output を反映する（ownerOutput）前に、送った本文の表と返信の結果を突き合わせ（complete、P3-REC-AC06 (b)）、epoch が始めた時と同じなら resolve を当てる。resolve を recoverUnit の await の続き（microtask）に置かない。進み具合・WARN・coverageVerified・投影は反映の後でよい（今の recoveryAdopted の残り） (2) adopt の要求を送ってから返信を反映するまで、その unit に保存の権を出さない（reevaluate の除外。1 回に候補は全体で 1 unit なので除外は高々 1 unit で、費用は定数）。無いと、その間に出た権を owner は adopt の後に処理し、上がった世代を古い境界で書き、その ack で savedGeneration が追いつく。返信待ちの印を外すのは、返信の反映と owner の停止（recoveryOwnerStopped が待ちを null で終える）の 2 つだけ。epoch の変更（切断）では外さない: owner は adopt を処理してから後の要求を処理するので、切断の後でも返信の前に出した権は上がった世代を古い境界で書く。返信の来ないまま owner が止まらない間は（待ちに期限は無く、監視は WARN だけ）、その owner は後の要求（権を含む）も処理しないので、除外で失う保存は無い (3) 停止の最終保存の段は finalize の返信の後で、owner は要求の順に返信するので、その段では adopt の返信は着いている（段に除外を足さない） (4) こうすると、上がった世代を見る書込み権は、tick の driveCheckpoint・返信ごとの reevaluate・停止の最終保存のどれで出ても解決した境界を運び、順序は microtask と macrotask の関係に頼らない",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:652 «45417dfed7081d96»",
-          "reconstruction/src/runtime/composition-root.ts:2211 «779ad88f327906d5»",
-          "reconstruction/src/runtime/composition-root.ts:2291 «d8856de1e9bd0b4a»",
+          "reconstruction/src/runtime/composition-root.ts:652 «06dd721d9b6c6082»",
+          "reconstruction/src/runtime/composition-root.ts:2220 «afa25e864ecea661»",
+          "reconstruction/src/runtime/composition-root.ts:2298 «7618483483d301e9»",
           "reconstruction/src/runtime/composition-root.ts:1500 «ea8c5532f5fbc061»",
           "reconstruction/test/execution-split/owner-harness.ts:136 «fca98e460fe957e0»",
-          "reconstruction/contracts/p3-unit-write-right.json:327 «e4601fb0fa9fecd9»",
+          "reconstruction/contracts/p3-unit-write-right.json:327 «ecf60d93b7c7ffcd»",
           "reconstruction/contracts/p3-recovery.json:1065 «4ed6f38bf560f37e»",
-          "reconstruction/src/runtime/composition-root.ts:2248 «0bb288fe13b048e4»",
-          "reconstruction/src/runtime/composition-root.ts:2257 «d0b84092361d7e66»"
+          "reconstruction/src/runtime/composition-root.ts:2261 «b6e7df4e38b51604»",
+          "reconstruction/src/runtime/composition-root.ts:2271 «d0b84092361d7e66»"
         ]
       },
       {
@@ -310,18 +323,18 @@
         "requirement": "一覧を見た時刻と空の一覧（P3-RB-D-QUIET=A・P3-RB-D-ID=A。N2）: (1) listTelegramPage は応答の responseTime（ISO 8601 の文字列）を Date.parse で読み、有限なら ListPage の ok に responseTimeMs として載せる。無いか Date.parse が NaN を返すときは null で、ページを failed にも rejected にもしない（ListPage は ok のまま、responseTimeMs が null なだけ。今の検査を変えない） (2) walkList は unit の listed の結果に listedThroughMs を付ける: その unit の各束の最初の ok のページの responseTimeMs のうち最も早いもの（束の最初のページより新しい報はその束の辿りに無く、束は順に引くので、全部の束に共通する到達の時刻はその最も早いもの）。どれかの束の最初のページが null なら付けない（共通の到達の時刻が分からない）。UnitWalkResult の listed の欄は省略できる形にし、付けないときは欄を置かない（undefined を入れない）。既存の試験の listed の literal と toEqual を変えない (3) 解決の位置: listedThroughMs があれば { receivedAt: null, dmdataTime: listedThroughMs, dmdataId: null }（共通の到達の時刻より新しい item の id は止めどころにしない。次の辿りは第 2 束以降で id に当たると stopAtMs を置き、全部の束に効くフィルタ〔recovery.ts の walkList〕で早い束の頭を除くため。D-ID）。無ければ、その unit の辿りの束が 1 つなら { receivedAt: null, dmdataTime: 最後に一覧で見た item の receivedAtMs, dmdataId: その id }（今の形。1 つの束は新しい方から 1 回で辿る）、束が 2 つ以上なら両方 null（(4) で境界を進めない）。束の数は recoveryPlan と同じ数え方（購読している区分の unit の型を 5 つずつ）で publisher が回の中で数える。walkStart（recovery.ts）は変えず、dmdataTime から余白 60 秒を引いて辿り、ダイジェストは dmdataTime より後の頭を出す (4) InputBoundaries.resolve は、位置の dmdataTime と dmdataId が両方 null で受信末尾が null のときだけ、解いた穴の before を受信末尾にする（末尾があれば末尾を残す: 再接続の取り直しでは一覧を引き始める前に受けた live の入力が末尾にあり、穴の before はそれより古いので、置き換えると境界が処理済みの入力より前へ戻る。P3-VM-AC07。before も null なら何もしない）。穴を消して境界を null に落とさない (5) 場面（一覧 0 件）: U-T の保存の境界は 11-06 19:53。11-08 12:25 の起動の U-T の一覧は空で responseTime は 12:25:01。空の候補の採用で世代が進み、境界は {receivedAt: null, dmdataTime: 12:25:01, dmdataId: null}（起動の辿りは接続の前なので穴は残る、AC07。接続の後の回の採用で oldestHole も null になる） (6) 場面（静かな unit が 7 日を越える）: 11-06 19:53 の後に VTSE41 が来ない。11-10 に 1 回起動し、11-14 10:00 に 10 秒止めて起動し直すと、U-T の起点は 11-10 の responseTime で beforeWindow は false。U-T で「7 日より前の情報は取り直していません」は立たない (7) 場面（2 束の unit、品質 r0 の P1-2）: U-W の第 1 束（VPWS50〜VPWW59）の最初のページを T0（responseTime T0）に、第 2 束（VPWW60〜）を T0+3 秒（responseTime T0+3 秒）に引き、その間に VPWW55 の a が T0+1 秒、VPWW60 の b が T0+2 秒に届く。一覧には b だけが載り、位置は {dmdataTime: T0, dmdataId: null}。次の辿りは T0 − 60 秒から時刻だけで止まり、a と b の両方を取る (8) P3-RECOVERY-READ-001 との境目: READ-001 は最初の接続の 2 巡目を残す（D-SECOND-ROUND=A）。2 巡目は (3) の位置（dmdataId null）から dmdataTime − 60 秒の時刻だけで止まる（stopAtId なし）",
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:108 «14a986ac561166de»",
-          "reconstruction/src/recovery/recovery.ts:415 «f770be4cb4389213»",
-          "reconstruction/src/recovery/recovery.ts:135 «c1d19cb78f926bce»",
-          "reconstruction/src/recovery/recovery.ts:142 «3238ee319748f347»",
-          "reconstruction/contracts/p3-recovery.types.ts:39 «d4696cc557f8b3c6»",
-          "reconstruction/contracts/p3-recovery.types.ts:49 «8f3afa9c481c9e97»",
-          "reconstruction/src/checkpoint/checkpoint.ts:854 «bf9fe14b10009a9c»",
-          "reconstruction/src/checkpoint/checkpoint.ts:857 «9b2e680fe90b75e4»",
+          "reconstruction/src/recovery/recovery.ts:419 «ccdf4f37dd311dd5»",
+          "reconstruction/src/recovery/recovery.ts:136 «c1d19cb78f926bce»",
+          "reconstruction/src/recovery/recovery.ts:143 «3238ee319748f347»",
+          "reconstruction/contracts/p3-recovery.types.ts:39 «b5b6bc67f828eef0»",
+          "reconstruction/contracts/p3-recovery.types.ts:49 «6788077b490f7b3a»",
+          "reconstruction/src/checkpoint/checkpoint.ts:866 «bf9fe14b10009a9c»",
+          "reconstruction/src/checkpoint/checkpoint.ts:870 «654d1e4782bc97ae»",
           "test/fixtures/rest/telegram-list-vtse41-real.json:3 «eb01879b421a4f7b»",
           "reconstruction/src/terminal/format.ts:778 «06806f691eb3af93»",
-          "reconstruction/contracts/p3-recovery.json:1189 «2c56740a06163dc5»",
-          "reconstruction/src/recovery/recovery.ts:402 «9739389e01fc2f4a»",
-          "reconstruction/src/recovery/recovery.ts:185 «fc1f9388e0ced6af»",
+          "reconstruction/contracts/p3-recovery.json:1189 «aba3753376487fbf»",
+          "reconstruction/src/recovery/recovery.ts:406 «9739389e01fc2f4a»",
+          "reconstruction/src/recovery/recovery.ts:186 «fc1f9388e0ced6af»",
           "reconstruction/src/runtime/unit-coverage.ts:25 «f3ef07edf14f1a53»",
           "reconstruction/src/runtime/unit-coverage.ts:30 «bf4b85116b89cbd6»"
         ]
@@ -332,33 +345,33 @@
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:16 «397c7c64d9eb1670»",
           "reconstruction/src/recovery/recovery.ts:31 «3305cb6ac92408f9»",
-          "reconstruction/src/checkpoint/checkpoint.ts:813 «94434eb0356061b4»",
-          "reconstruction/src/checkpoint/checkpoint.ts:834 «51f4e59b5b7ee5a2»",
-          "reconstruction/src/checkpoint/checkpoint.ts:877 «f34c57c08414c0ec»",
+          "reconstruction/src/checkpoint/checkpoint.ts:821 «94434eb0356061b4»",
+          "reconstruction/src/checkpoint/checkpoint.ts:845 «51f4e59b5b7ee5a2»",
+          "reconstruction/src/checkpoint/checkpoint.ts:903 «f34c57c08414c0ec»",
           "reconstruction/contracts/p3-recovery.json:413 «d3f7895cdfbb1f93»",
-          "reconstruction/test/host/host.test.ts:1123 «3f6c93dc95dbf78b»"
+          "reconstruction/test/host/host.test.ts:1123 «4592ded7ec5b30f4»"
         ]
       },
       {
         "id": "P3-RB-AC05",
         "requirement": "初回の起動の窓（P3-RB-D-FIRST=A）: (1) attachRecovery は、起動の取り直しの範囲に入れた unit（starts にあり RECOVERABLE_UNITS の unit）のうち restoration が empty の unit に、before が null の restarted の穴を置く（unavailable と同じ形）。InputBoundaries.restarted の empty の行は変えない（P3-REC-AC02 がその行を引き、取り直しの無い起動の挙動を保つ） (2) その unit の境界は起動の取り直しが採用で進めるまで null で、live の入力で受信末尾へ進まない（起動の辿りは接続の前なので、採用の後は穴が残って before が解決の位置になる、AC07）。その間の保存は null を書き、次の起動はその unit の N2 の窓と 7 日のまとめを辿り直して beforeWindow を立てる（初めての起動と同じ） (3) 取り直しの無い起動（{ wsUrl }・replay・E01 の道具、telegram.* を購読しない起動）と範囲に入らない unit は今どおり（穴なし、最初の live の入力で末尾へ進む。P3-VM-T06 の host の (6) と recovery.test.ts の restored の試験を変えない） (4) 場面: 初めての起動 12:00:00。12:01:10 の live の VPWW54 が U-W の state を変え、保存の U-W の境界は null。12:02 に止め（通常の停止でも kill -9 でも）、12:05 の起動は U-W の 24 時間（N2 の窓）の本文と 7 日のまとめを取り直す。U-W の取り直しが 12:01:40 に採用で終わっていれば、境界はその解決の位置（AC03）で保存される（穴は接続の後の回まで残る、AC07）",
         "evidenceRefs": [
-          "reconstruction/src/checkpoint/checkpoint.ts:821 «774a76496d710579»",
+          "reconstruction/src/checkpoint/checkpoint.ts:829 «774a76496d710579»",
           "reconstruction/src/runtime/composition-root.ts:557 «a00a3c150980c288»",
-          "reconstruction/src/runtime/composition-root.ts:2075 «397533e2c87aad15»",
+          "reconstruction/src/runtime/composition-root.ts:2079 «397533e2c87aad15»",
           "reconstruction/src/host/host.ts:564 «f1dca50b63703d46»",
           "reconstruction/src/host/host.ts:133 «c974d51b9612a8f2»",
           "reconstruction/test/host/host.test.ts:1110 «3f6e520f1f84f036»",
           "reconstruction/test/recovery/recovery.test.ts:254 «c39d7ce679f3adc7»",
-          "reconstruction/contracts/p3-recovery.json:1018 «bb452599e804e030»"
+          "reconstruction/contracts/p3-recovery.json:1018 «eae8581c6c57beda»"
         ]
       },
       {
         "id": "P3-RB-AC06",
         "requirement": "採用にならない本文（P3-RB-D-HELD=A）: (1) 送った本文に adopted でない結果（held・unreadable・unreadableReport・capacityExceeded、返信に無い番号）が 1 つでもある採用は、今どおり resolve しない（P3-REC-AC06 (b)・AC19 (4) を変えない）。境界は進まないので、不変条件（AC01 (1)）で保存するものは無い (2) D-RAISE=A で世代は上がり、保存は前と同じ境界（穴の before。AC03 (4)・AC04 で null に落ちない）を書く (3) 次の起動は同じ穴の before から辿り、同じ本文を取り直して held になる。止むのは、その subject の新しい版が採られて本文が古い報（adopted）になるか、本文がその unit の N2 の窓を出たとき。その間に穴の before が 7 日より古くなると beforeWindow が立つ（窓が 30 日の U-V・U-N で起こりうる） (4) 深さ -0 で同じ版の VXSE53 が held に落ちた件（Q-RB-UNADOPTED）は P3-RECOVERY-READ-001 で直す",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:2294 «0d57880e2f8fd4a3»",
-          "reconstruction/src/runtime/composition-root.ts:2296 «58ad689b9235c638»",
+          "reconstruction/src/runtime/composition-root.ts:2318 «0d57880e2f8fd4a3»",
+          "reconstruction/src/runtime/composition-root.ts:2320 «58ad689b9235c638»",
           "reconstruction/contracts/p3-recovery.json:1065 «4ed6f38bf560f37e»"
         ]
       },
@@ -366,14 +379,14 @@
         "id": "P3-RB-AC07",
         "requirement": "接続の無い間に引いた一覧（P3-RB-D-GAP=A、品質 r0 の P1-1）: (1) publisher は取り直しの回を始める時（conduct の始め、epoch と一覧を引き始めた番号を控える所）に、その run の WS の start の frame を受けて切れていないか（socketStarted）も控える。控えが false の回（起動の辿り〔host は socket より前に一覧を引く〕と、切断の間に始めた回）の一覧は、一覧の終わりから次の接続までの報を覆わない (2) その回の採用が complete で epoch が同じなら、InputBoundaries は穴を解かない: 最古の穴を残し（種類と from は変えない）、その before を解決の位置（AC03 (3)）へ進める（位置が両方 null なら before を変えない）。その回を始めた後に開いた穴（afterStart）は捨てる（残した穴の方が古く、境界を止める）。受信末尾の扱いは今どおり。uncovered を外し、進み具合は recovered (3) 残した穴には、その回を始めた後に穴が開いていなければ「確認を止めない」印を付ける。hasHole はこの印の穴を数えない（hasHole の呼び手は recoveryAdopted の確認の判定だけ）。C16 の確認の出し方（起動の辿りの採用で確認し、その回の間に穴が開けば止める）をそのまま保つための印で、boundary() は印を問わず残した穴の before を返す。後で開く穴は ??= で残した穴の後ろになり、次の回が覆う (4) 残した穴を解くのは、控えが true の回（最初の start の取り直し〔P3-REC-AC02 (1)〕と再接続の取り直し）の採用で、その回は残した穴の before から辿る（AC03 (3) の位置なら dmdataTime − 60 秒、stopAtId なし） (5) 不変条件: 境界は state に入った位置より先へ進まない。解決の位置までの本文はその回の採用で世代に入っている（AC01 (3)）ので、before をそこへ進めても越えない (6) 場面: 保存の無い起動 12:00:00。U-Q に before null の穴（AC05）。一覧を 12:00:01 に引き（responseTime 12:00:01）、12:00:03 に地震 A を dmdata が受け、12:00:05 に接続し、12:00:20 に live の地震 B を処理する。12:00:40 に U-Q の候補を採用すると、穴は残って before が 12:00:01 になり、保存の境界は {receivedAt: null, dmdataTime: 12:00:01, dmdataId: null, oldestHole: restarted}（B の位置ではない）。12:01 に止める（2 巡目の前）と、次の起動は 12:00:01 の 60 秒前から辿って A を取る。止めなければ 12:01:40 頃に始まる 2 巡目が 12:00:01 の 60 秒前から辿って穴を解く (7) 計算量: 回ごとに定数",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:2054 «70727f6919ef7de0»",
-          "reconstruction/src/runtime/composition-root.ts:2055 «27e7b98545a1330a»",
-          "reconstruction/src/runtime/composition-root.ts:2072 «712afcf072fc7cc8»",
-          "reconstruction/src/runtime/composition-root.ts:2123 «d68d0816c091b1e7»",
+          "reconstruction/src/runtime/composition-root.ts:2058 «70727f6919ef7de0»",
+          "reconstruction/src/runtime/composition-root.ts:2059 «27e7b98545a1330a»",
+          "reconstruction/src/runtime/composition-root.ts:2076 «712afcf072fc7cc8»",
+          "reconstruction/src/runtime/composition-root.ts:2131 «10a9f391b2fa48a2»",
           "reconstruction/src/runtime/composition-root.ts:1034 «de62211d044c4849»",
           "reconstruction/src/runtime/composition-root.ts:1971 «1f661f939bb60414»",
-          "reconstruction/src/runtime/composition-root.ts:2292 «db54277d4a0d7ea5»",
-          "reconstruction/src/checkpoint/checkpoint.ts:862 «fbade3e804effbde»",
+          "reconstruction/src/runtime/composition-root.ts:2316 «db54277d4a0d7ea5»",
+          "reconstruction/src/checkpoint/checkpoint.ts:887 «35c2c57940b79b84»",
           "reconstruction/test/recovery/recovery-host.test.ts:180 «21b470c5b280c428»",
           "reconstruction/test/recovery/recovery-host.test.ts:185 «51a5a996d5fc9053»",
           "reconstruction/src/display/chrome-eew/client.ts:155 «7526900a5990a6d8»"
@@ -523,18 +536,6 @@
       "配送で統合担当が原文を改訂する（どれも行の中に書き足し、行の数を変えない）: (1) P3-RECOVERY-001 の P3-REC-AC19 の (2) の覆った区間の終わり「最後に一覧で見た item の dmdata 時刻と電文 id」に「一覧の応答の responseTime があればその時刻で電文 id は null。無ければ束が 1 つの unit だけ最後の item の時刻と id、2 つ以上なら進めない。解決は採用の返信の同期の処理で、その返信の output を反映する前に当てる。一覧を引き始めた時に接続の無かった回は穴を解かず、最古の穴の before を覆った区間の終わりへ進める（P3-RECOVERY-BOUNDARY-001 の AC02・AC03・AC07）」を足し、(5) の「両方 null の境界は無い」に「両方 null で受信末尾が null のときだけ、解いた穴の before を受信末尾に残す（末尾があれば末尾を残す）」を足す (2) P3-REC-AC02 の「restoration が empty の unit は restarted() が穴を置かず」に「（起動の取り直しに入る unit には attachRecovery が before null の穴を置く、P3-RECOVERY-BOUNDARY-001）」を足し、(2) の「dmdataTime は取り直しで進めた境界（AC19 の (5)）にだけあり」に「値は一覧の応答の responseTime（無ければ 1 束の unit の最後の item の時刻）」を足す (3) P3-REC-AC07 の「同じなら候補を一回の状態遷移として採用し」に「採用は state が変わらなくても世代を 1 つ進める（境界を保存に載せる、P3-RECOVERY-BOUNDARY-001）」を足す (4) P3-REC-D-UF-BASE の ruling に「U-F には穴を置かない（P3-RECOVERY-BOUNDARY-001 の AC04）」を足す (5) P3-VERSION-MATERIAL-001 の P3-VM-AC07 の (b)〜(d) に「本文を取り直す unit（RECOVERABLE_UNITS）だけ。U-E・U-F は穴を置かず受信末尾で進み（断った入力も越える。この 2 unit の境界 B は受信した入力の位置）、再起動では復元した境界を受信末尾の材料にする（P3-RECOVERY-BOUNDARY-001）」を足す (6) P3-UNIT-WRITE-RIGHT-001 の P3-UWR-AC02 に「取り直しの adopt の要求を送ってから返信を反映するまで、その unit に権を出さない（P3-RECOVERY-BOUNDARY-001 の AC02）」を足す (7) P3-TERMINAL-LAYOUT-007 の Q-TL7-RESTART-DIGEST の remaining を「P3-RECOVERY-BOUNDARY-001 で直す」に改める (8) P3-RECOVERY-001 の publicFunctions の 2 番目（型の一覧）の UnitWalkResult の listed に「listedThroughMs?: number」、3 番目（listTelegramPage）の ListPage の ok に「responseTimeMs: number | null」を足す（P3-RECOVERY-BOUNDARY-001 の AC03） (9) P3-REC-AC09 の (3) の「restoration が empty の unit は穴が無い（checkpoint.ts の restarted）」と AC02 の (7) の「restoration が empty・unavailable で穴の無い unit」に「（起動の取り直しに入る empty の unit には attachRecovery が穴を置く、P3-RECOVERY-BOUNDARY-001 の AC05）」を足す (10) P3-VERSION-MATERIAL-001 の P3-VM-T06 の behavior の (2) に「本文を取り直す unit で（U-E・U-F は穴を置かず進む、P3-RECOVERY-BOUNDARY-001）」を足す (11) P3-VERSION-MATERIAL-001 の Q-VM-IMPL-1 の remaining の「C16 への申し送り: 捨てた旧い版から empty で始まった unit と、保存の前に落ちた unit は、穴の無いまま境界が進む」に「（起動の取り直しに入る unit は P3-RECOVERY-BOUNDARY-001 の AC05 で閉じた）」を足す (12) P3-RECOVERY-001 の publicFunctions の 15 番目の (b) の「hasHole(unit): boolean（解決の後にも穴が残る unit には確認を出さない、AC09）」、P3-REC-AC19 の (3)、P3-REC-D-HOLE-AFTER-START の A の「取り直しを始めた後に開いた穴があればそれを最古の穴に繰り上げる」の 3 か所に「一覧を引き始めた時に接続の無かった回の採用は、穴を残して確認を止めない印を付け、afterStart は捨てる（P3-RECOVERY-BOUNDARY-001 の AC07）」を足す (13) P3-RECOVERY-READ-001 の outOfScope の 1 番目の「2 巡目は境界 − 60 秒と止める id で止まる」を「2 巡目は境界の dmdataTime − 60 秒の時刻だけで止まる（一覧の応答の responseTime の位置は dmdataId が null、P3-RECOVERY-BOUNDARY-001 の AC03 (3)(8)）」に改める",
       "残存リスク: (1) dmdata の一覧に載るのが受信から 60 秒より遅れた報は、AC03 の位置からの次の辿りで拾わない（今の dmdataTime の位置と同じ余白。responseTime を使うと、最後の item より後の 60 秒より前の区間にこの遅れが効くようになる） (2) live の受信で末尾が進んでも state が変わらない unit は保存されず、7 日を越えて再接続も再起動も無い run の後の起動で、その unit の beforeWindow が 1 回立つ（outOfScope） (3) D-RAISE=A は境界の進まない採用（incomplete・epoch 違い）でも 1 世代分の保存を書く (4) 採用の後・保存の ack の前の kill -9 は前の保存の境界から辿り直す（取りこぼさないが本文を取り直す） (5) U-F の境界は live の受信時刻で、時計の確かめが済む前（awaiting・unverified）の位置は次の起動で使えない（P3-REC-AC02 (2) の今の規則） (6) 接続の前に引いた一覧の採用で確認（coverageVerified）が出るのは C16 のまま（AC07 (3)。一覧の終わりから接続までの報は接続の後の回が埋める。今の画面は U-E の確認しか描かない） (7) responseTime が一覧の完全性を保証する時刻か（その時刻までに dmdata が受けた報が全部一覧に載っているか）と、掲載の遅れが必ず 60 秒以内かは、checkout の資料では確かめられない（品質 r0 の証拠不足。遅れて載る報は (1) と同じく拾わない） (8) adopt 待ちの除外は返信の反映と owner の停止でだけ外れ、epoch の変更では外れない。返信の来ないまま止まらない owner の unit は除外が続くが、その owner は権も処理しないので失う保存は無い（品質 r0 の証拠不足に AC02 (2) で理由を書いた） (9) responseTime の無い応答では、束が 2 つ以上の unit の境界を進めない（偽の dmdata だけ。実物の一覧には responseTime がある） (10) 接続のある回（2 巡目・再接続の回）が失敗し続けると、残した穴の before から同じ範囲を回ごとに取り直す。穴の before がその unit の N2 の窓より古くなると、窓の外の未回収の報は本文を取らない（ダイジェストの 7 日と beforeWindow の印だけが知らせる。品質 r1 の残存リスク）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-RB-EXISTING-TESTS",
-        "owner": "implementer",
-        "blocks": [
-          "期待値を変える既存の試験の変更"
-        ],
-        "resolveBy": "実装の途中、変える前に報告",
-        "requiredEvidence": [
-          "artifactRequirements の 4 番目に並べた試験以外に期待の変わる試験の名前と理由（起草の見込みでは、採用の後の世代や保存の回数を数える試験と、接続の無い回の後の境界を見る試験は P3-REC-T06 の 2 本のほかに見つからなかった）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

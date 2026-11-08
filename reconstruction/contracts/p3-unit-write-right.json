@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "49d745eff613131fa6b0e3681d019a389d13cd1f",
-    "sha256": "7437e01b799872f8c9ab17e601599a2ddbec5287397501c5779800ae989938d5",
+    "sha256": "8d86e38dc3e5ef45ba3dbf7af6f532c4170a2a8037ad9d805c77344ab85e9e5f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -324,7 +324,7 @@
       },
       {
         "id": "P3-UWR-AC02",
-        "requirement": "処理中のownerに権を預けない（unitごと）: 送出済みでinputDoneが未着のparser入力を持つ実行場所のunitには権を出さない（delayedInputsにあって未送出の入力は処理中に数えない）。そのinputDoneの反映の後、次の入力を送る前に、そのunitの権を出す（AC03の順番）。urgentにも同じ規則を当てる（EEWの入力は短く、他unitの権には影響しない）。無いと: 権がownerの処理中の入力（Piの最大VPWS50 約2.3秒）の後ろで待ち、その間に上がった世代の分だけdirty→ackが伸びる",
+        "requirement": "処理中のownerに権を預けない（unitごと）: 送出済みでinputDoneが未着のparser入力を持つ実行場所のunitには権を出さない（delayedInputsにあって未送出の入力は処理中に数えない）。そのinputDoneの反映の後、次の入力を送る前に、そのunitの権を出す（AC03の順番）。urgentにも同じ規則を当てる（EEWの入力は短く、他unitの権には影響しない）。取り直しの adopt の要求を送ってから返信を反映するまで、その unit に権を出さない（P3-RECOVERY-BOUNDARY-001 の AC02）。無いと: 権がownerの処理中の入力（Piの最大VPWS50 約2.3秒）の後ろで待ち、その間に上がった世代の分だけdirty→ackが伸びる",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:862 «b7be10b70d398bbf»",
           "reconstruction/contracts/p3-execution-split.json:636 «a14d0f1c2197eedc»"

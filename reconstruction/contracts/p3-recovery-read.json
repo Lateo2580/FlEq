@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "ecf05357fd04dad2daab1d0876a37a870c5eb9da5443b22a45fec724f72bc7e7",
+    "sha256": "f619cf3039451b6da5fa4be6c48da8b92991736608dccdad78e98f575cf610e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -229,7 +229,7 @@
       "取り直しの進み具合の reason notAdopted（snapshot の recovery.progress、run の中だけ）"
     ],
     "outOfScope": [
-      "保存の境界・世代・resolve（頭 0 件の resolve が境界を null にする件）・U-F の穴・初回の窓: P3-RECOVERY-BOUNDARY-001。最初の接続の 2 巡目を安くするのはその契約の直しで、受入に「頭 0 件の resolve の後も境界が残り、2 巡目は境界 − 60 秒と止める id で止まる」を入れるよう申し送る（Q-RR-SECOND-ROUND の (4)）。境目: resolve を呼ぶ所（composition-root.ts の recoveryAdopted の :2287〜:2291）は本契約が直す recoveryAdopted の中にあるので、配送は本契約を先にし、P3-RECOVERY-BOUNDARY-001 は本契約の配送の後の main から baseOid を取る",
+      "保存の境界・世代・resolve（頭 0 件の resolve が境界を null にする件）・U-F の穴・初回の窓: P3-RECOVERY-BOUNDARY-001。最初の接続の 2 巡目を安くするのはその契約の直しで、受入に「頭 0 件の resolve の後も境界が残り、2 巡目は境界の dmdataTime − 60 秒の時刻だけで止まる（一覧の応答の responseTime の位置は dmdataId が null、P3-RECOVERY-BOUNDARY-001 の AC03 (3)(8)）」を入れるよう申し送る（Q-RR-SECOND-ROUND の (4)）。境目: resolve を呼ぶ所（composition-root.ts の recoveryAdopted の :2287〜:2291）は本契約が直す recoveryAdopted の中にあるので、配送は本契約を先にし、P3-RECOVERY-BOUNDARY-001 は本契約の配送の後の main から baseOid を取る",
       "最初の接続の 2 巡目の範囲と回数（P3-RR-D-SECOND-ROUND=A なら変えない）",
       "本文の取得（fetchBody）の再試行の規則（failed は既に取り直さない）",
       "生の文字そのものが -0 の値（decode-material.ts の MaterialValue の数、flood.ts、briefing.ts）: 別の族で、fixture にも実配信にも無い（Q-RR-NEGZERO の (4)）",
