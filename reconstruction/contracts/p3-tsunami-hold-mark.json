@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "0e35ba0eb5a7091b3c706560dba882c514f464e925f54a89f1c159d2a71d3d37",
+    "sha256": "a767bdc7a8df58f0da9ece2d2dc1027c34a2ecffe6a1278575bfb7bfef5a50bd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -39,6 +39,13 @@
         "source": "2026-11-08 午後 起草レビュー r0（base 143739c0）: 品質 GO（P3 4 件）、契約適合 条件付き GO（P2 2 件・P3 6 件・参考 1 件）",
         "closed": "適合 P2-1: P3-TSUNAMI-HARNESS-001 が同じ接頭の受入 AC01〜05・試験 T01/T02・問い BASE を既に使っていて衝突するので、本契約の接頭を P3-THM-AC・P3-THM-T・P3-THM-D-・Q-THM- に替えた（ほかの契約・コードは触らない） / 適合 P2-2: AC01 に (7) 原文の改訂（配送で P3-VM-AC04 の注に本契約で直した旨を当てる）を足した / 適合 P3-3: T01 の referenceIds に AC03 を足し、AC03 (2) は表示側なので unit の試験を置かないと書いた / 適合 P3-4: 裁定後に残る条件文（AC03 の「A のとき」、outOfScope[0] の「B のときだけ」）を外した / 適合 P3-5・品質 4: artifactRequirements の 3 番目の変えてよい期待に、owner 出力の views・snapshot の sequence・Chrome の描き直しの回数を足した / 適合 P3-6: T01 に、観測は 24 時間を過ぎると late で見えないので fixture の時刻の時計で受ける（P3-C5-T03 と同じ）と足した / 適合 P3-7: readPaths に version.ts・p3-recovery.json・p3-tsunami-unit.types.ts・ingress.ts・decode-material.ts を足した / 適合 P3-8・品質 3: AC01 の場面・T01・T02 の写しを「InfoType を訂正にした写し」に揃えた（取消だと newer で hold に入らない） / 適合 参考: AC03 に、測定 e01 は tsunamiRevisionConflict のある窓を未確認にするので結果が変わらない旨を足した / 品質 1: AC01 (1)・AC02 (7) で、after を .find し直す形と、U-V と同じく作った object を積む形の両方を許した / 品質 2: T01 の encode→decode と v9 の確かめを削った（本契約が触らない codec で対応先が無い）",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-THM-BASE",
+        "status": "closed",
+        "source": "Q-THM-SHOW の裁定の後、発注前の点検で baseOid を割り当てる",
+        "closed": "発注前点検（統合担当、2026-11-08 午後）: 起草の base 4241a02d から main まで tsunami-unit.ts と units・domains・runtime・contracts-revision の差は 0、hold の行と «» は起草のまま。作者の分岐は全部確定、本契約を引く他の契約は 0 件。baseOid を 1d5dcac4 に割り当てた",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -50,7 +57,7 @@
     "contractId": "P3-TSUNAMI-HOLD-MARK-001",
     "mode": "implementation",
     "objective": "U-T の hold で付けた未確認の印を、付けた受信の表示差分に載せる。10:02 に同じ Control/DateTime で中身の違う VTSE41 が届いて 10:00 の版に印が付いたとき、今は snapshot の view に印が載るのが保存→再起動の後になる。直すと 10:02 の受信の返信で view に載る。U-V は K14 の発注 4（P3-UM-AC19 の (1)）で同じ直しを済ませた",
-    "baseOid": "unassigned",
+    "baseOid": "1d5dcac4",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -294,17 +301,6 @@
           "推奨: 本契約の発注は止めず、同じ形の 6 unit を別の 1 本でまとめて閉じる",
           "同じ形（印を state に入れ、changes か表示差分を積まない）: flood-unit.ts・landslide-unit.ts・briefing-unit.ts・local-bulletins-unit.ts・typhoon-unit.ts の held の分岐と nankai-unit.ts の holdState。view は shown か MarkViewed の型で印を通す",
           "別の扱い: U-Q の holdVersion はコメントで意図して積まない。U-E と U-F の印は gate、U-W の印は unconfirmed の一覧で、記録の欄ではない"
-        ]
-      },
-      {
-        "id": "Q-THM-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "実装の着手"
-        ],
-        "resolveBy": "Q-THM-SHOW の裁定の後、発注前の点検で baseOid を割り当てる",
-        "requiredEvidence": [
-          "起草の base 4241a02d からの tsunami-unit.ts の差を見て、hold の行と «» を確かめ直す"
         ]
       },
       {
