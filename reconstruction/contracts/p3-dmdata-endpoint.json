@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
-    "sha256": "3e765e73d54ac89f5ed45a301c53bc52c312fbb91190b4a04c9d26e4d0c21d07",
+    "sha256": "6f354ab579c2e7d14832bb3fa24f79aa9391be2b1f0066ea97ea9b70854bb7b6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -27,7 +27,7 @@
         "provisional": "A",
         "status": "確定（統合担当の裁定、2026-11-08 夜。推奨どおり）",
         "ruling": "A（統合担当）",
-        "reason": "B は reason の union（reconstruction/contracts/p2-shared-runtime.types.ts の InfrastructureDiagnosticReason）と保存の sink の reason の一覧（reconstruction/src/checkpoint/persistent-diagnostic-sink.ts の 60 行）の 2 file を allowedPaths に足す。今は host を表示も記録もしておらず（host.ts:405 の約束で URL を持たない）、行を読む人もいない。書き換えが起きたかは試験（P3-DE-T01〜T04）で確かめる。実機で見たくなったら別の契約で足す"
+        "reason": "B は reason の union（reconstruction/contracts/p2-shared-runtime.types.ts の InfrastructureDiagnosticReason）と保存の sink の reason の一覧（reconstruction/src/checkpoint/persistent-diagnostic-sink.ts の 60 行）の 2 file を allowedPaths に足す。今は host を表示も記録もしておらず（host.ts:405 の約束で URL を持たない）、行を読む人もいない。書き換えが起きたかは試験（P3-DE-T01〜T05）で確かめる。実機で見たくなったら別の契約で足す"
       }
     ],
     "questionResolutions": [
@@ -56,7 +56,7 @@
         "id": "Q-DE-ANCHORS",
         "status": "closed",
         "source": "起草（統合担当、2026-11-08）。全契約の host.ts と host.test.ts の «» を grep した",
-        "closed": "host.ts で他の契約が引く行のうち connect() の周りは :395（P3-REPLAY-CLI-001）、:406（P3-CLOCK-CHECK-001・P3-DMDATA-CONNECT-002・P3-REPLAY-WATCH-001・P3-REPLAY-WATCH-002）、:409・:413・:414・:418（P3-DMDATA-CONNECT-002）、状態の let は :210（P3-DMDATA-CONNECT-002）、末尾は :664（P3-DMDATA-CONNECT-002）。どの契約も引かない :212・:401・:412・:665 より後ろに置き場を寄せると（AC06）、行が増えるのは :665 の後ろだけで、他の契約の «» は 1 つも割れない。host.test.ts で引かれる行は :443〜:1123（P3-DMDATA-CONNECT-002・P3-RECOVERY-BOUNDARY-001）で、試験を末尾に足せばずれない（vitest は vi.mock と vi.hoisted を file の先頭へ hoist するので、ws の mock も末尾に書ける）",
+        "closed": "host.ts で他の契約が引く行のうち connect() の周りは :395（P3-REPLAY-CLI-001）、:406（P3-CLOCK-CHECK-001・P3-DMDATA-CONNECT-002・P3-REPLAY-WATCH-001・P3-REPLAY-WATCH-002）、:409・:413・:414・:418（P3-DMDATA-CONNECT-002）、状態の let は :210（P3-DMDATA-CONNECT-002）、末尾は :664（P3-DMDATA-CONNECT-002）。どの契約も引かない :212・:394・:401・:412・:665 より後ろに置き場を寄せると（AC06）、行が増えるのは :665 の後ろだけで、他の契約の «» は 1 つも割れない。host.test.ts で引かれる行は :443〜:1123（P3-DMDATA-CONNECT-002・P3-RECOVERY-BOUNDARY-001）で、試験を末尾に足せばずれない（vitest は vi.mock と vi.hoisted を file の先頭へ hoist するので、ws の mock も末尾に書ける）",
         "remaining": "なし"
       },
       {
@@ -70,7 +70,7 @@
         "id": "Q-DE-R0",
         "status": "closed",
         "source": "起草 r0 のレビュー（32a10ea1、2026-11-08 22:3x）: 契約適合 Opus xhigh 条件付き GO（P2 2・P3 3）、品質 ヘルツ Astra high 条件付き GO（P2 2）。~/dev/fleq-vault-archive/2026-11-08-evening/endpoint-draft-contract-r0.md・endpoint-draft-quality-r0-hertz.md",
-        "closed": "全部当てた。ヘルツ P2-1 → T05 を足し（ws003 の失敗 → ws001 が開く → mailbox の溢れ → start の ws003 は書き換えない）、T01 の URL に非既定の port と追加の query を入れて AC01 の (3) も見る。記録は向け直す前の constructor の引数、製品は :401 で選んだ host 名を :394 の変数に持って close で覚える形を AC06 に書いた。ヘルツ P2-2 → AC02 の (2)(3)（constructor の例外では消去を取り消さず新しい host も覚えない、解析できない URL でも消す）。Opus P2-1 → 残存 (5)（旧築の INFO の行を出さない）。Opus P2-2 → artifactRequirements に p3-dmdata-connect.json の 307 行の原文の改訂。Opus P3 → AC06 の (5)（P3-DMDATA-NO-CONTRACT-001 との行の重なりは後に入る側が付け直す）、Q-DE-SOURCE（AC02 は旧築を越える）、publicFunctions（export は試験が直に呼ぶ必要が出たときだけ）",
+        "closed": "全部当てた。ヘルツ P2-1 → T05 を足し（ws003 の失敗 → ws001 が開く → mailbox の溢れ → start の ws003 は書き換えない）、T01 の URL に非既定の port と追加の query を入れて AC01 の (3) も見る。記録は向け直す前の constructor の引数、製品は :401 で選んだ host 名を :394 の変数に持って close で覚える形を AC06 に書いた。ヘルツ P2-2 → AC02 の (2)(3)（constructor の例外では消去を取り消さず新しい host も覚えない、解析できない URL でも消す）。Opus P2-1 → 残存 (5)（旧築の INFO の行を出さない）。Opus P2-2 → artifactRequirements に p3-dmdata-connect.json の 307 行の原文の改訂。Opus P3 → AC06 の (5)（P3-DMDATA-NO-CONTRACT-001 との行の重なりは後に入る側が付け直す）、Q-DE-SOURCE（AC02 は旧築を越える）、publicFunctions（export は試験が直に呼ぶ必要が出たときだけ）。再確認 r1（ヘルツ、672464d7）: 旧 P2 は 2 つとも閉じた。新しい P2 1 つ（allowedPaths が旧のままで host.ts の :394 と T05 が許可の外）→ allowedPaths に :394 と T01〜T05 を書き、AC06・testMapping と allowedPaths・artifactRequirements（無いと壊れるの行に :394 の変数、ws の横取りを T01〜T05）・Q-DE-ANCHORS（:394）・P3-DE-D-REASON の reason（試験を T01〜T05）を照らして揃えた",
         "remaining": "なし"
       }
     ],
@@ -103,8 +103,8 @@
       "src/dmdata/ws-client.ts"
     ],
     "allowedPaths": [
-      "reconstruction/src/host/host.ts（次の 4 か所だけ: :212 の let の行の末尾に覚えの変数 1 つ、:401 の start の URL を受ける行の中で覚えを読んで消し書き換える、:412 の close の handler の頭の行の中で覚える、:665 の閉じ括弧と :667 の export の間に入口の表と書き換えの関数。行の決まりは AC06）",
-      "reconstruction/test/host/host.test.ts（末尾への P3-DE-T01〜T04 の追加と、ws の WebSocket を横取りする vi.hoisted・vi.mock の末尾への追加だけ。既存の行を変えない）"
+      "reconstruction/src/host/host.ts（次の 5 か所だけ: :212 の let の行の末尾に覚えの変数 1 つ、:394 の connect の let の行の末尾にこの試行で選んだ host 名の変数 1 つ、:401 の start の URL を受ける行の中で覚えを読んで消し書き換え、選んだ host 名を :394 の変数に入れる、:412 の close の handler の頭の行の中で :394 の host 名を覚える、:665 の閉じ括弧と :667 の export の間に入口の表と書き換えの関数。行の決まりは AC06）",
+      "reconstruction/test/host/host.test.ts（末尾への P3-DE-T01〜T05 の追加と、ws の WebSocket を横取りする vi.hoisted・vi.mock の末尾への追加だけ。既存の行を変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -342,7 +342,7 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "足した仕組みごとに「無いと何が壊れるか」を 1 行: 覚えの変数（AC01・AC02、切れた host を次の start で見分けられない）、入口の表と書き換えの関数（AC01、反対の地域の入口を引けない）、ws の横取り（T01〜T04、書き換えた先が本物の dmdata の host なので 127.0.0.1 へ向け直さないと試験が外へ繋ぐ）。帳簿・class・設定の欄・reason は作らない",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行: 覚えの変数（AC01・AC02、切れた host を次の start で見分けられない）、試行で選んだ host 名の変数（AC06 の (1)、close の handler で URL を解析し直さず ticket も持たずに覚える）、入口の表と書き換えの関数（AC01、反対の地域の入口を引けない）、ws の横取り（T01〜T05、書き換えた先が本物の dmdata の host なので 127.0.0.1 へ向け直さないと試験が外へ繋ぐ）。帳簿・class・設定の欄・reason は作らない",
       "追加した試験ごとに対応を 1 行（T01・T02 受入条件、T03・T04・T05 契約境界）。既存試験の期待は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
       "git diff で host.ts の中身が変わったのが :212・:394・:401・:412 の 4 行と、:665 と :667 の間に足した行だけであること（本契約の «» で割れるのは :212・:401・:412 と、ずれる :667 だけ）、host.test.ts は末尾に足しただけであることを示す",
       "AGENTS.md の最小実装・最小テスト・受信経路の計算量を守る。onFrame に何も足さない（AC05 の (3)）",
