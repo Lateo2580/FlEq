@@ -1,0 +1,395 @@
+{
+  "meta": {
+    "draftedFromOid": "fd1d82c2af1ddce7c7a692bfeb75491626f424fb",
+    "sha256": "09b27258760b66e064e6c2ed42d011dc137a2a471169462df7fda344e6018e15",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL8-D-TARGET",
+        "kind": "作者",
+        "A": "VPWS50 の帯の対象を「全国」にし、帯の直下に最も重い段とその区域を並べる（全国の活火山の VFVO51 と同じ扱い）",
+        "B": "今のまま Body の最初の Area/Name を対象にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 午後）",
+        "ruling": "A（作者。例「波浪警報  網走・北見・紋別地方、根室地方」。区域の粒度と並べる上限・折り返しは起草で決める）",
+        "reason": "Mac mini の実配信で、帯の「宗谷地方」（Body の最初の Area）と本文の「波浪警報」（全区域で最も重い段の Kind）が電文の別々の区域から取られ、宗谷地方に波浪警報が出ているように読めた。15:00 の報で波浪警報は網走・北見・紋別地方と根室地方だけで、宗谷地方は強風注意報と波浪注意報"
+      },
+      {
+        "id": "P3-TL8-D-REPEAT",
+        "kind": "作者",
+        "A": "前の VPWS50 と段と区域が同じなら端末に出さず、変わったときだけ出す",
+        "B": "今のまま 10 分ごとに毎回出す（P3-TO-AC01 (2) の内容の同じ続報も出す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 午後）",
+        "ruling": "A（作者。比べ方と、起動・取り直し・切断の後の最初の 1 通の扱いは起草で決める）",
+        "reason": "11:30 から 15:00 まで同じ 3 行（宗谷地方・波浪警報・VPWS50）が 10 分ごとに積もっていた"
+      },
+      {
+        "id": "P3-TL8-D-CAUTION",
+        "kind": "作者",
+        "A": "注意報だけの報も警報と同じく、注意報の Kind ごとに予報区を並べる（裁定 1 の字のとおり）",
+        "B": "注意報だけの報は予報区を並べず、注意報の Kind の名前だけを 1 行に並べる",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "確定（作者の裁定、2026-11-08 夕。推奨どおり）",
+        "ruling": "B（作者の裁定、2026-11-08 夕）",
+        "reason": "多くの日は全国が注意報だけで、2026-11-08 午後は 39〜40 予報区に注意報が出ていた（旧築の写しの「注40」「注39」）。A は 4 種の注意報で約 40 の名前、80 桁で 10 行ほどになり、1 つの予報区が注意報を得るか失うたびに出し直す（同じ午後に 13:30 と 14:40 の 2 回）。各府県の注意報は VPWW55〜61 の報で 1 つずつ端末に出ている。B は種類が全国で増えるか減るときだけ出す"
+      },
+      {
+        "id": "P3-TL8-D-LAYER",
+        "kind": "統合担当",
+        "A": "区域は Body の Warning のうち type が「気象警報・注意報（府県予報区等）」の Item の Area の Name（全国 64 の予報区）",
+        "B": "一次細分区域等か市町村等の層（142・1,772 の Item）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "作者の例の名前（網走・北見・紋別地方、根室地方）がこの層の名前。15_18_01 では 4 つの層の段ごとの Kind の名前の集まりが同じで、細かい層は名前が増えるだけ。この層は北海道を地方ごと、鹿児島と沖縄を地方に分けた全国 64 で、AREA_LIMIT（256）に届かない。旧築もこの層を使い（src/ui/weather-formatter-vpws50.ts の buildVpws50DisplayGroups）、2026-11-08 の実配信で「◆波浪 / 網走・北見・紋別地方 / 根室地方」を出していたので、今の配信の電文にこの層がある"
+      },
+      {
+        "id": "P3-TL8-D-ROWS",
+        "kind": "統合担当",
+        "A": "最も重い段の Kind を Code ごとに 1 行（Code の昇順）、左の列は Kind の Name、右の列は予報区を全角の空白で区切り、折り返した行にも左の列を薄い字で出す（format.ts の listTable）",
+        "B": "作者の例の字面のとおり読点で区切り、折り返した行に左の列を出さない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当。作者への報告で例の読点を全角の空白にしたことを書く）",
+        "reason": "地域の区切りは作者の裁定 Q-TO-Q-1 で読点をやめて全角の空白にしている。行が段の中の種類で分かれる表は全国の月間火山概況と同じ形で、折り返しの左の列は作者の案 Q-TO5-MONTHLY-ROW。旧築も Kind の Code ごとに 1 行（buildVpws50DisplayGroups の byKindCode）。行の数は段の Code の数で上限がある"
+      },
+      {
+        "id": "P3-TL8-D-COMPARE",
+        "kind": "統合担当",
+        "A": "帯と表に出す値（段・Control/Status・表の行・読まなかった Item の数）で比べる",
+        "B": "全区域の全段（電文の中身の全部）で比べる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B は表に出ない注意報の出入りでも出し、14:40 の報（栃木県などの強風注意報の解除で予報区が 40 から 39）でも出る。出さなかった報は、画面の最後の全国の集約通報と時刻のほかは同じ字になるので、出さなくても読み手が失うものが無い"
+      },
+      {
+        "id": "P3-TL8-D-MEMORY",
+        "kind": "統合担当",
+        "A": "比べる相手は最後に出した 1 つだけを覚え、保存しない。回線が戻った後と取り直しの後も消さない",
+        "B": "回線が戻った後の最初の 1 通は比べずに出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "VPWS50 は全国の今の状態を 10 分ごとに丸ごと送る定時の報なので、切断の後の最初の報が前に出した報と同じなら、画面の最後の報が今も正しい。切断は回線の行（§6.1）が知らせる。取り直しの報は端末の材料を作らない（material.ts の origin recovery）。起動した後は画面に前の報が無いので最初の 1 通が出る。保存すると端末の表示のために保存の単位と移行が要る。P3-TL5-D-GATE（作者、2026-11-06）は満潮の報の重複を端末の覚えで止める案 C を退けたが、あれは同じ報かどうかを覚えで決める門で、覚えの穴が後着の観測を落とす恐れがあった。ここは画面に出す字が最後に出した報と同じかで決めるので、止めた報の字は画面に既にあって落ちる中身が無く、鳴った報（AC04 (3)）と clear・落とした後（AC04 (6)）は比べずに出す"
+      },
+      {
+        "id": "P3-TL8-D-WHERE",
+        "kind": "統合担当",
+        "A": "比べは createTerminalOutput の sink（inputDone）で、列に積む前にする",
+        "B": "renderer（format.ts、writer の worker）で描く時に出さない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "B は積んだ単位が tips の待ちの起点（push の lastOutputMs）を動かすので、VPWS50 が 10 分ごとに来る間は 30 分の tips が出ない。入力の行の経過の時刻（lastReportWallMs）と --debug の行の「出した」も sink の側にある"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL8-MISMATCH",
+        "status": "closed",
+        "source": "2026-11-08 午後の外見の写しの試し（Mac mini の新築と Pi の旧築の同じ時間の写し）と Opus の子の読み",
+        "closed": "原因は契約の穴で、コードは契約の字面どおり。新築の帯の対象は material.ts の scan() が Body の文書の順で最初の Area/Name を取り（P3-TO-AC01 (3)）、本文の太字の行は heaviest が全区域で最も重い段の電文で最初の Kind の名前を取る（P3-TL2-AC08、Q-TO3-REASON）。VPWS50 の Body の最初の Area は府県予報区等の層の先頭の宗谷地方で、2 つの字は別々の区域から来る。P3-TO-001 の残存リスク (7) が予見していた。電文（Pi の旧築の記録、XML の原文は残っていない）は 15:00 の報で警報を含むのが斜里町・小清水町（網走・北見・紋別地方）の波浪警報と羅臼町（根室地方）の波浪警報だけ",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL8-SPEC-LINES",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-08）",
+        "closed": "spec §5.4 に図（11 行）と 2 項、§8 に Q-TO9-VPWS50-TARGET と Q-TO9-VPWS50-REPEAT の 2 行を足した。行を足して動いた他の契約の «» は reanchor-target.py で行の番号だけを付け直した（p3-cli-repl・p3-terminal-layout〜layout7・p3-terminal-output・p3-terminal-prompt・p3-terminal-windows の 11 file、meta.sha256 を取り直した。中身を変えた行は無い）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL8-CAUTION",
+        "status": "closed",
+        "source": "P3-TL8-D-CAUTION の作者の裁定（A か B）",
+        "closed": "作者が P3-TL8-D-CAUTION を B（注意報だけの報は Kind の名前だけを並べる）で裁定した（2026-11-08 夕）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL8-REVIEW-R0",
+        "status": "closed",
+        "source": "2026-11-08 夕の起草レビュー r0（契約適合 Opus 条件付き GO、品質 Opus 条件付き GO）",
+        "closed": "全部当てた。P2: (1) 契約適合: material.ts を引く 2 契約（p3-tsunami-hold-mark.json の :235、p3-view-alert-text.json の :102）を readPaths に足し、配送で統合担当が «» を付け直すことを artifactRequirements に足した（行の数を縛るより小さい） (2) 両方: 注意報だけの報は Kind の名前の並びで比べて予報区を比べない、並びはどの段も Code の昇順、plain の報は段と Control/Status で比べる、types の注釈に欄の非 null の約束（AC01 (8)・AC02 (1)・AC03 (1)・AC04 (1)）。spec の 569 行の「表の無い報」を「府県予報区等の Warning を持たない報（層の無い報）」に直した (3) 品質: clear の後も覚えが残り、画面に全国の報が無いまま同じ報が出ない → control.clear() で覚えを消す（AC04 (6)） (4) 統合担当の決め（品質の証拠不足から）: その入力が U-W の通知の intent を作ったら比べずに出す（AC04 (3)。鳴ったのに画面に何も出ない列を塞ぐ）。P3: (a) push の落とす道で覚えた報を落としたら覚えを消す（AC04 (6)。残存の D-DROP を外した） (b) 層のある報で scan() を省いてよい（AC05 (1)） (c) 前と同じで積まなかった入力を 3 つ目の状態にした（AC04 (8)） (d) T04 に切断と回復、recoveryInput の返信、入力の行の経過の時刻、clear、通知、落とした後を足した (e) AC05 を T05 に結び、(3) の 5 ms を変える前との差にした (f) T03 の Code を危険警報と警報（4x・0x）にした (g) 覚えの置き場（閉包の変数 1 つ、TerminalReport の参照）、注意報の並びの続きの行（字下げしない）、「ほか n」の行（段によらず n > 0 で出す）を決めた (h) objective に D-CAUTION=B、D-MEMORY の reason に P3-TL5-D-GATE との違いを書いた。残存に「表は最も重い段だけ」を足した。spec の 568・569 行の中身を変え、この 2 行を引くのは本契約だけなので本契約の «» を取り直した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL8-REVIEW-R1",
+        "status": "closed",
+        "source": "2026-11-08 夕の起草の再確認 r1（Opus、条件付き GO、P1・P2 なし、P3 が 6 件と試験の注記 1 件）",
+        "closed": "全部当てた。(1) --debug の行は数える単位で tips の起点を動かす（output.ts の counted）ので、AC04 (8) にそう書き、T04 の tips の確かめは --debug なしの harness で行うと書いた (2) AC04 (7) に「覚えは push の前に置き、push がその単位を落としたら (6) で消す」を足した（上限より大きくて積まなかった報が覚えに残らない） (3) allowedPaths の output.ts の項に覚えの閉包の変数 1 つの宣言と比べの helper を足した（nonPersistedFields と合わせた） (4) 残存 (3) に Ctrl+L が control.clear() を通らないことを足した（直すには allowedPaths の外の repl.ts が要る） (5) T04 の「列が覚えた報の単位を落とした後」を output.test.ts の heldWriter で書くと改めた（terminal-fixture.ts の write はその場で done() するので落ちない） (6) 残存 (4) に、列に残った A の間に同じ A' を省き、その後 A が落ちると最長 10 分全国の報が無いことを足した。試験の注記: T04 の取消の項に AC01 (5) の確かめを足し、T04 の referenceIds に AC01 を足した",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。比べは Control/Status を値に含めるだけで、運用区分ごとに覚えを分けない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-008",
+    "mode": "implementation",
+    "objective": "全国の集約通報（VPWS50）が、帯の「宗谷地方」と本文の「波浪警報」を電文の別々の区域から取って宗谷地方に波浪警報が出ているように読める形をやめる。帯の対象を「全国」にして直下に最も重い段の Kind とその予報区を並べ、10 分ごとに同じ報を積まず、変わったときだけ出す。注意報だけの報は予報区を並べず注意報の種類だけを並べる。作者の裁定（P3-TL8-D-TARGET=A・D-REPEAT=A、2026-11-08 午後。D-CAUTION=B、同日夕）の形を reconstruction/src/terminal に作る",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout8.json",
+      "reconstruction/contracts/p3-terminal-layout3.json",
+      "reconstruction/contracts/p3-terminal-layout2.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/contracts/p3-tsunami-hold-mark.json",
+      "reconstruction/contracts/p3-view-alert-text.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/src/terminal/**",
+      "reconstruction/src/cli/repl.ts",
+      "reconstruction/src/units/weather-current/weather-current-notice.ts",
+      "reconstruction/test/terminal/**",
+      "src/ui/weather-formatter-vpws50.ts",
+      "test/fixtures/15_18_01_250630_VPWS50.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/material.ts（他の契約が引く :102 と :235 の行の中身は変えない。行の番号のずれは配送で統合担当が付け直す）",
+      "reconstruction/src/terminal/format.ts（短い形の全国の表だけ）",
+      "reconstruction/src/terminal/output.ts（sink の inputDone の比べと --debug の字、push の落とす道と control.clear で覚えを消す行、覚えの閉包の変数 1 つの宣言と比べの helper だけ）",
+      "reconstruction/contracts/p3-terminal-output.types.ts（short に欄を 1 つ足すことと、その注釈の行だけ）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout8.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-007",
+      "P3-TERMINAL-LAYOUT-003",
+      "P3-TERMINAL-LAYOUT-002",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "TerminalReport の short の全国の表の欄（返信の中だけ）",
+      "端末が最後に積んだ全国の集約通報の TerminalReport の参照（createTerminalOutput の閉包の変数 1 つ、run の中だけ）"
+    ],
+    "outOfScope": [
+      "VPWS50 以外の気象の報（VPWW55〜61・VPWP50 など）の続報の扱い。VPWS50 以外の報では、内容の同じ続報を出すこと（P3-TO-AC01 (2)）はそのまま",
+      "ディスプレイ（P4）と view・snapshot の VPWS50 の扱い",
+      "通知（音・デスクトップ）の門で VPWS50 が鳴るか（notification の契約）",
+      "入力の行の現況（Q-TO6-PROMPT。U-W の state から作る）",
+      "U-W の unit・state・保存の形式・codec（比べは端末の中だけで持つ）",
+      "起動時のまとめ（Q-TO8-DIGEST）",
+      "旧築（src/）。旧築の 14:40 の報の「変化なし」の疑い（vpws50-state.ts の computeDiff）は旧築の側の調べ",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL8-AC01",
+        "requirement": "帯の対象と段（Q-TO9-VPWS50-TARGET、P3-TL8-D-LAYER）: (1) 全国の集約通報は headType が VPWS50 の U-W の報とする。府県予報区等の層は Body の直下の Warning のうち type 属性が「気象警報・注意報（府県予報区等）」のもの (2) 取消でなく府県予報区等の層がある報は、帯の対象（target）を「全国」にする。Body の最初の Area/Name は使わない (3) 帯の段（level）は、層の Item の Kind のうち Code があり Status が解除・「発表警報・注意報はなし」でないもの（今の Kind）を、今の U-W の Code の読み方（material.ts の shortLevel の U-W の式。写しを作らず 1 つを共有する）で段にした最も重い段。今の Kind が無ければ plain (4) 段の理由の行（reason）は null にする（表の左の列が兼ねる。P3-TL2-AC08 の例外） (5) 取消の報は段を取消のまま、対象だけ「全国」にし、表を出さない (6) 府県予報区等の層の無い報は、対象を「全国」にし、段と理由の行は今の読み方（scan の Kind）のまま、表を出さない（層が無いのに警報・注意報が無いと読ませないため） (7) VPWS50 でない報（全国の活火山の VFVO51 を含む）の対象・段・理由の行・表は変えない (8) short の全国の表の欄は、層があり取消でない VPWS50 で必ず非 null（行が 0 の plain の報も）、ほかの報で null。types の注釈にこの約束を書く（AC04 の比べるかどうかはこの欄の有無で決まる）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:568 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:832 «82873419456eaaaf»",
+          "src/ui/weather-formatter-vpws50.ts:503 «d23f368c503a058b»"
+        ]
+      },
+      {
+        "id": "P3-TL8-AC02",
+        "requirement": "表（Q-TO9-VPWS50-TARGET、P3-TL8-D-ROWS）: (1) 段が警報以上（warning・purple・top）の報は、帯の直下（要点のまとまり。VPWS50 の見出し文は空）に、その段の今の Kind を Code ごとに 1 行ずつ、Code の昇順に出す（層で出た順にすると予報区の出入りで並びが入れ替わり、AC04 の比べで出し直しになる） (2) 左の列はその Code の最初の Kind の Name（電文の字のまま）、右の列はその Code の今の Kind を持つ Item の Area の Name を電文の順に並べる（同じ Item は 1 回） (3) 右の列は全角の空白で区切り（Q-TO-Q-1）、入らなければ名前の境で折り、折り返した行にも左の列を薄い字で出す（Q-TO5-MONTHLY-ROW。format.ts の listTable の形） (4) 表の上下に罫線を足さない。段の理由の行と見出し文の行は出さない (5) 56・80・100 桁で、どの行も桁数を越えない（P3-TO-AC04 (5)）。15_18_01 の 60 桁の行は spec §5.4 の図のとおり (6) Item は層の電文の順に AREA_LIMIT（256）まで読み、越えた Item は段にも表にも入れず、その数 n を表の下（表の無い注意報だけの報と plain の報では帯の直下の並びの下）に薄い字の「ほか n 予報区は読んでいません」の 1 行で出す。段によらず n > 0 なら出す（全国の府県予報区等は 64 で、実物では出ない）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:568 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:536 «953e49bd94938d6b»",
+          "docs/specs/cli-terminal-output.md:539 «8a6837fce6a437b9»",
+          "docs/specs/cli-terminal-output.md:752 «772b201ed3b03572»",
+          "docs/specs/cli-terminal-output.md:810 «ca1a91d458f00c23»"
+        ]
+      },
+      {
+        "id": "P3-TL8-AC03",
+        "requirement": "警報の無い報と特別警報（P3-TL8-D-CAUTION=B、2026-11-08 夕の作者の裁定）: (1) 段が注意（caution）の報は、帯の直下に注意報の今の Kind の Name を Code ごとに 1 つ、Code の昇順に全角の空白で区切って並べる（名前の境で折り、続きの行は字下げしない〔format.ts の flow の indent 0〕。左の列は無い）。予報区は出さず、material はこの報の行の予報区を空にする（AC04 (1) の比べが予報区を見ないため） (2) 段が plain（今の Kind が 1 つも無い）の報は、帯と末尾の行だけにする（AC02 (6) の行は n > 0 なら出す。「ありません」の文を足さない。spec §5.4 の見出し文が空の報と同じ） (3) 段が最も重い（特別警報、Code 3x）報はその段の Kind だけを表にし、ほかの段の Kind は出さない。紫（危険警報、Code 4x）も同じ",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:568 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:549 «6f2e5004dc154f6f»"
+        ]
+      },
+      {
+        "id": "P3-TL8-AC04",
+        "requirement": "同じ報を出さない（Q-TO9-VPWS50-REPEAT、P3-TL8-D-COMPARE・D-MEMORY・D-WHERE）: (1) createTerminalOutput の sink の inputDone は、返信の terminal が全国の表の欄を持つ VPWS50 の報のとき、覚えた報（最後に積んだ全国の集約通報の TerminalReport の参照。createTerminalOutput の閉包の変数 1 つ）と、段・Control/Status・表の行・読まなかった Item の数がすべて同じなら列に積まない（端末に何も出さない）。表の行の比べは、警報以上の報では行ごとの左の列の字と右の列の名前とその並び、注意報だけの報では注意報の Kind の名前の並びだけ（予報区は比べない。AC03 (1) で行の予報区は空）、今の Kind の無い報では行が無いので段と Control/Status だけになる。行の並びはどの段も Code の昇順（AC02 (1)・AC03 (1)） (2) 予報区の数が変わっても表の行が同じなら出さない (3) その入力の返信の U-W の pendingIntents（OwnerUnitDelta。null でないとき）に source.inputId がその入力の intent があれば、比べずに積む（weather-current-notice.ts の L4・L5 の上がりの通知。鳴って顔を上げたときに重さと場所が画面にあるように、Q-TO2-ROOT） (4) 覚えは保存しない。起動した後の最初の 1 通は出る (5) 回線が切れて戻った後と、取り直し（recoveryInput の返信）の後も覚えを消さない (6) 取消の報と府県予報区等の層の無い報は比べずに積み、覚えを消す。control.clear()（REPL の clear）も覚えを消す。push が覚えた報の単位を落としたとき（上限より大きい 1 単位を積まないときと、古い単位から落とす道。落とした単位の report が覚えと同じ参照かを 1 回比べる）も覚えを消す。どれも次の全国の集約通報は出る (7) 積んだ全国の表を持つ報（(3) で比べずに積んだ報を含む）を覚えにする。覚えは push の前に置き、push がその単位を落としたら（上限より大きくて積まなかったときを含む）(6) で消す (8) 前と同じで積まなかった入力は、出した・出さない（採らなかった・取り直し）のほかの 3 つ目の状態にする: 定期要約の件数に数える（P3-TO-AC11 (3)）。読めなかった報のカードを探さない（P3-TO-D-UNREADABLE。採った報なので）。入力の行の経過の時刻（lastReportWallMs）と tips の待ちの起点（lastOutputMs）を動かさない。--debug の行は「debug: VPWS50 <入力 ID>（U-W、出さない・前と同じ）」。--debug の行は数える単位なので、今までどおり tips の待ちの起点を動かす（output.ts の counted） (9) VPWS50 でない報の積み方と --debug の字は変えない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:569 «a110380e037e0744»",
+          "docs/specs/cli-terminal-output.md:833 «180a997ce85fcccd»"
+        ]
+      },
+      {
+        "id": "P3-TL8-AC05",
+        "requirement": "計算量と上限（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) owner の terminalReport は、VPWS50 の府県予報区等の層を 1 回だけ辿る（Item は AREA_LIMIT まで、Item の中の Kind は全部）。層のある取消でない VPWS50 では scan() を省いてよい（対象も段も層から決まる）。表の行の数はその段の Code の数（U-W の読み方で特別警報 10・危険警報 10・警報 9・注意報 20）を越えず、行ごとの名前は読んだ Item の数を越えない (2) main の比べは今の報と覚えた 1 つの報の表を要素ごとに見るだけで（行と名前の数に比例）、通知の有無は U-W の pendingIntents（128 件まで、P2-A7-RES-01）を 1 回見るだけ、落とした単位の確かめは参照の比べ 1 回。JSON.stringify・列の走査・ほかの単位の走査をしない (3) P3-TO-AC08 (3) の材料の時間を 15_18_01 VPWS50 で変える前と後に測り、成果物に表で書く。変える前との差が 5 ms を越えたら配送の前に止めて報告する",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:568 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:569 «a110380e037e0744»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL8-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL8-AC01",
+          "P3-TL8-AC02"
+        ],
+        "behavior": "実不具合（2026-11-08 Mac mini の実配信。帯の「宗谷地方」と本文の「波浪警報」が別々の区域から来て、宗谷地方に波浪警報が出ているように読めた）。15_18_01 VPWS50 の帯が「気象警報・注意報（集約通報） 全国」で段が purple、帯の直下が spec §5.4 の図の 4 行（60 桁）で、どの行にも「宗谷地方」が無く、段の理由の行が無い。Body を 2026-11-08 15:00 の形（層の先頭が宗谷地方で強風注意報・波浪注意報、網走・北見・紋別地方と根室地方に波浪警報と強風注意報）に置き換えた報は、帯が全国で段が warning、直下が「波浪警報  網走・北見・紋別地方　根室地方」の 1 行"
+      },
+      {
+        "testId": "P3-TL8-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL8-AC02"
+        ],
+        "behavior": "受入条件。15_18_01 を 56・80・100 桁と色の水準 3 で描くと、どの行も桁数を越えず、表の行は名前の途中で折れず、折り返した行の左の列が薄い字で、表の上下に罫線が無い"
+      },
+      {
+        "testId": "P3-TL8-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL8-AC03"
+        ],
+        "behavior": "受入条件。層の危険警報と警報（4x・0x）の Code を注意報の Code に替えた報は段が caution で、帯の直下が注意報の Kind の名前の並びだけ（Code の昇順、予報区の名前が無い、続きの行は字下げしない）。層の全部の Kind の Status を解除にした報は、帯と末尾の行だけ。1 つの Item の Code を 33（大雨特別警報）にした報は段が top で、表がその 1 行だけ"
+      },
+      {
+        "testId": "P3-TL8-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL8-AC01",
+          "P3-TL8-AC04"
+        ],
+        "behavior": "受入条件。harness の sink に、ReportDateTime だけを 11:50 から 10 分ずつ替えた同じ報 15 通を渡すと、出るブロックは最初の 1 つ（報は 1 回 decode して ReportDateTime の欄だけを替えてよい）。注意報だけの Item を 1 つ解除にした報（予報区が減って表が同じ）は出ず、レベル４土砂災害危険警報（Code 49）を持つ Item を 1 つ増やした報は出て、同じ報をもう 1 通渡すと出ない。注意報だけの報（T03 と同じ書き換え）は、予報区を 1 つ解除しても注意報の種類が同じなら出ず、注意報の Kind の電文で出た順が入れ替わる報（ある Kind を持つ先頭の Item だけを解除し、その Kind が後ろの Item に残る報）も出ず、注意報の Kind が 1 種減ると出る。U-W の pendingIntents にその入力の intent を載せた返信は、前と同じでも出る。回線を lost にして connected に戻した後と、recoveryInput の返信（decode も terminal も null）の後も、前と同じ報は出ない。clear の後と、列が覚えた報の単位を落とした後は、前と同じ報が出る（落とす場面は共通の harness〔terminal-fixture.ts、write がその場で done()〕では書けないので、output.test.ts の書き出しを止めておく writer〔heldWriter〕を使い、先に 1 単位を書き出し中にし、VPWS50 の単位を列に積んでから 1 MiB を越える数える単位を積んで落とす）。取消の報は出て（対象が「全国」で表が無い、AC01 (5)）、その後の前と同じ報も出る。新しい harness（起動し直し）では最初の 1 通が出る。出さなかった報は定期要約の件数に入り、入力の行の elapsed の時刻を戻さず、tips の間隔を過ぎると tips が出る（tips の確かめは --debug なしの harness で行う。--debug の行は数える単位で tips の起点を動かすため）。--debug の行が「出さない・前と同じ」で、読めなかった報のカードは出ない"
+      },
+      {
+        "testId": "P3-TL8-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL8-AC01",
+          "P3-TL8-AC02",
+          "P3-TL8-AC04",
+          "P3-TL8-AC05"
+        ],
+        "behavior": "契約境界。府県予報区等の Warning の type を書き換えた報（層が無い）は対象が全国で表が無く段の理由の行が今のまま出て、2 通続けても 2 通とも出る。層の Item を 257 にした報は「ほか 1 予報区は読んでいません」の行が出て、段と表は先頭の 256 の Item だけで決まる。1 つの Item に同じ Code の Kind を 2 つ持たせた報も行は 1 つで、その予報区は 1 回"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。spec の行を足した後も他の契約の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す（端末の覚えを持つため）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待は変えない（VPWS50 を描く既存の端末の試験は無い。layout6.test.ts の T04 の全 fixture の描画は 15_18_01 を含めて通ること）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "AC05 (3) の材料の時間の表（変える前と後）",
+      "配送で統合担当が付け直す: material.ts を変えて行がずれたら、p3-tsunami-hold-mark.json の material.ts:235 «2be327932f009c34» と p3-view-alert-text.json の material.ts:102 «d3926b31bdc6c931» の行の番号を、中身の anchor が一致する行へ配送の commit で付け直し、2 契約の meta.sha256 を取り直して check-contract を通す（実装は 2 行の中身を変えない。2 契約の json は allowedPaths に入れない）",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 訓練・試験の VPWS50 が通常の報の間に入ると、その次の通常の報は前と同じでも出る（覚えは 1 つで、Control/Status を値に含む） (2) 表は最も重い段だけ（P3-TL8-D-TARGET=A の裁定どおり、AC03 (3)）。特別警報の日に危険警報が広がっても、紫の日に警報が広がっても、全国の集約通報には出ない（旧築は警報と注意報を両方出していた。2026-11-08 午後の Pi の旧築の写しの 10〜14 行）。作者に見せる項目 (3) readline の Ctrl+L は control.clear() を通らない（repl.ts の createInterface が自分で画面を消す）ので、Ctrl+L で画面を消すと覚えが残り、次の同じ VPWS50 は出ず、中身が変わるまで画面に全国の報が無い。直すには allowedPaths の外の repl.ts で keypress を拾う要がある (4) 覚えた報 A が列に残っている間に同じ A' が来て出さずに済ませ、その後 A が列から落ちると、画面に全国の報が無いまま次の報まで最長 10 分空く（落とした件数の行は出る）",
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 5 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (2) の「内容の同じ続報も旧築と同じく 1 報として出す」に、VPWS50 は材料を作り定期要約に数えるが、前に出した報と同じなら端末の列に積まない旨（P3-TL8-AC04）と、同じ行の (3) の短い形の target「Body の文書の順で最初の Area/Name」に、VPWS50 は「全国」にする旨（P3-TL8-AC01） (2) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、全国の集約通報の表を覚えた 1 つと比べること（P3-TL8-AC04・AC05 (2)） (3) 同 :726 の P3-TO-AC17 (1) の「出さない理由は採らなかったか取り直しの 2 つだけ」に「前と同じ」を足す旨（P3-TL8-AC04 (8)） (4) 同 :977 の残存リスク (7) に、VPWS50 は P3-TL8 で全国にした旨 (5) reconstruction/contracts/p3-terminal-layout2.json:344 の P3-TL2-AC08 (1) に、府県予報区等の層を持つ VPWS50 は表の左の列が兼ねるので理由の行を出さない旨（P3-TL8-AC01 (4)）"
+    ],
+    "unresolvedQuestions": []
+  }
+}

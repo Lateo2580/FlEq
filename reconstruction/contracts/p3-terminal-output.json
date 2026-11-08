@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "ae1949285f6d59b1c6211e35b914866add2d4a27cbc6f1f1cd59dcde33e2eec9",
+    "sha256": "636071d6c459a8d1848d9254280936195aa7c58c5d0bc25c9e393ea836ccbb5e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -615,21 +615,21 @@
         "requirement": "【発注 2】短い形（spec の §5.4、Q-TO-S-1〜3）と処理できなかった報: (1) 9 unit（weather-current・weather-timeseries・landslide・flood・local-bulletins・typhoon・briefing・volcano・nankai）は帯の行・見出し文・末尾の行の 3 つ。帯は Control/Title から「（Ｒ」と全角数字と「）」の版の印を除いた題名と、対象（AC01 (3) の target）と発表時刻。末尾は種類のコードと PublishingOffice のまま（電文の空白も電文のまま。VXKO70 は半角の空白で連名）。見出し文が空の報は見出し文の行を出さない。EventID は出さない (2) 帯の段は Q-TO-S-2 の表を、owner の terminalReport が unit ごとの読み方で level にする（特別警報・警戒レベル 5 相当・噴火警戒レベル 4・5 と噴火速報・巨大地震警戒は purple、危険警報・警戒レベル 4 相当・土砂災害の危険警報・噴火警戒レベル 3・巨大地震注意と調査中は warning、警報・警戒レベル 3 相当・噴火警戒レベル 2・竜巻注意情報・記録的短時間大雨情報は caution、注意報・解除・気象解説・台風・噴火予報・南海トラフ地震関連解説情報は plain、取消は cancel）。unit ごとに読む要素（Kind の Code・Name、噴火警戒レベルの Code、情報の種類）を表にして成果物に書き、表の各行に fixture の例を 1 つ当てる。purple の帯は罫線を紫、帯の文字を白の地に黒にする (3) 図の 4 つ（VPWW55 福井・VXKO70 古座川・VFVO50 浅間山・VYSE50）の行に合わせる (4) P3-TO-D-UNREADABLE（作者裁定 A）: 返信の unit の view の unreadableCards のうち inputId がその入力のカードを、帯「━ 処理できなかった電文 <種類のコード> ━…━ HH:MM:SS 発表 ━」（発表時刻が無ければ「受信」、帯は地の色なし）と「<題名> を処理できませんでした。」（題名が無ければ種類のコード）の 2 行で出す (5) P3-TO-D-STATUS-MARK（作者裁定 A）: Control/Status が通常でない報（EEW は outcome の subject の operation が normal でない報）の帯の題名の後ろに「（訓練）」「（試験）」を付ける",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:464 «fc9be00de26c3c82»",
-          "docs/specs/cli-terminal-output.md:536 «ac0d75ec8384aca1»",
-          "docs/specs/cli-terminal-output.md:537 «fb2f76a5d5321701»",
-          "docs/specs/cli-terminal-output.md:538 «6f2e5004dc154f6f»",
-          "docs/specs/cli-terminal-output.md:539 «d8654378e356f57e»"
+          "docs/specs/cli-terminal-output.md:547 «ac0d75ec8384aca1»",
+          "docs/specs/cli-terminal-output.md:548 «fb2f76a5d5321701»",
+          "docs/specs/cli-terminal-output.md:549 «6f2e5004dc154f6f»",
+          "docs/specs/cli-terminal-output.md:550 «d8654378e356f57e»"
         ]
       },
       {
         "id": "P3-TO-AC10",
         "requirement": "【発注 2】回線（spec の §6.1、Q-TO-C-1〜4、H24・H25・H29、P3-DC2-AC08 (7)）: (1) 端末は 1 秒ごとに host.status() を 1 回読み、前に読んだ値と比べる（変化を知らせる口は無い）。読む仕事は O(1) (2) 切れた: lostConnections が前の値より増えたら、増えた数だけ、spec の図の「━ 回線が切れました ━…━ HH:MM:SS ━」と「HH:MM:SS から受信できていません。自動で繋ぎ直しています。」を出す。時刻は HostStatus の新しい欄 lastLossFrameWallMs（切断の時点の最後の受信の wall。ping を含む）で、気付いた時刻は帯の右。lastFrameWallMs は読む前に新しい接続の frame で上書きされうる（切断の直後に手で retry した場合、host.ts:234 → :649 → :295）ので使わない。lastLossFrameWallMs は host の dispatchLost（host.ts:234 の行の中身）で lostConnections を増やすときに root.lastReceivedWallMs を写して固め、次の切断まで変えない（変数は :216 の行の中身に宣言、status() の戻りは :655 の行の中身に足す。型は p3-cli-repl.types.ts の HostStatus の :90 の行の中身に lastLossFrameWallMs: number | null）。2 回以上の切断が 1 回の読みの間に起きたら、行は増えた数だけ出し、時刻は最後の切断のもの (3) 戻った: connection が connected になり、前に切れた行を出していたら「── 回線が戻りました ── HH:MM:SS から HH:MM:SS まで（m 分 s 秒）受信できていませんでした ──」を 1 行 (4) デスクトップ通知: 切れるたびに「回線が切れました（HH:MM:SS から受信できていません）」を、音なしで adapter の desktopNotice（P3-TO-D-CONN-NOTIFY-PATH）で出す。30 分の中で 3 回目の切断は「回線が不安定です（30 分で 3 回切れました）」にし、その後 30 分続けて繋がるまで切断の通知を出さない（端末の行は切れるたびに出す）。覚える切断の時刻は直近 3 つだけ。止めるのは P3-TO-D-CONN-NOTIFY（作者裁定 A）のとおり、分野 connection が off のときと mute が効いている間（mute の rules の有無によらない）。分野 connection の key は C18 の発注 3 が足すので、それが配送されるまで（FleqSettings.notify は旧築の 18 分野の閉じた union で connection を持たない）は on として扱う。読むのは cli.ts が起動の時に作り通知の門と REPL に渡している通知の設定の object（notificationSettingsFrom の戻り、cli.ts:320）と同じもので、createTerminalOutput がその参照を受け、通知を出す時に O(1) で読む（設定 file を読み直さない、値の出どころを 2 つにしない） (5) 一度も繋がらない: 起動から lastFrameWallMs が null のまま lastFailure が null でない値になったら、spec の表の理由 5 種の文を出す。同じ理由は続けて出さず、理由が変わったときだけ出す。最初に受信したら以後出さない (6) 入力の行の印（切断中・繋ぎ直しの回数）は TerminalControl.promptLabel が作る（P3-TO-D-PROMPT）。繋ぎ直しの回数は failedAttempts をそのまま使う（P3-DC2-AC02 (2)。C18 の status の表示と同じ数）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:569 «bfaf727f08ae9815»",
-          "docs/specs/cli-terminal-output.md:601 «e474b4a8e6a9575c»",
-          "docs/specs/cli-terminal-output.md:602 «b08e97c95a7cfea1»",
-          "docs/specs/cli-terminal-output.md:603 «262ab433019143b1»",
-          "docs/specs/cli-terminal-output.md:605 «a9149cb5b7f8c5bb»",
+          "docs/specs/cli-terminal-output.md:582 «bfaf727f08ae9815»",
+          "docs/specs/cli-terminal-output.md:614 «e474b4a8e6a9575c»",
+          "docs/specs/cli-terminal-output.md:615 «b08e97c95a7cfea1»",
+          "docs/specs/cli-terminal-output.md:616 «262ab433019143b1»",
+          "docs/specs/cli-terminal-output.md:618 «a9149cb5b7f8c5bb»",
           "docs/specs/reconstruction-p0-contracts.md:3051 «59cd1745f08d91fb»",
           "docs/specs/reconstruction-p0-contracts.md:3052 «d186ebc6e48c2d73»",
           "docs/specs/reconstruction-p0-contracts.md:3056 «ac7133d4f617fb1e»",
@@ -649,10 +649,10 @@
         "id": "P3-TO-AC11",
         "requirement": "【発注 2】定期要約（spec の §6.2、Q-TO-R-1、P3-TO-D-SUMMARY）: (1) 1 行だけ「── HH:MM〜HH:MM の受信 ── EEW n件 ・ 地震 n件（最大震度 x） ・ 津波 n件 ・ 南海トラフ n件 ・ 火山 n件 ・ 気象 n件」。0 件の分野は出さず、全部 0 件なら「受信なし」。sparkline は出さない (2) 間隔の初めの値は起動の summaryInterval（--summary-interval と設定、cli.ts の resolved）で、0 か無しなら出さない。変えるのは TerminalControl.setSummaryInterval（C18 の発注 3） (3) 数えるのは AC01 の口を通った報だけで、持つのは分野ごとの件数と最大震度の 7 つの数（受信 1 回で O(1)）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:632 «740944585e241d7d»",
-          "docs/specs/cli-terminal-output.md:633 «0ccafd77bb11b150»",
-          "docs/specs/cli-terminal-output.md:634 «237b4283b3ac2f74»",
-          "docs/specs/cli-terminal-output.md:635 «b074478f0d03b3a5»",
+          "docs/specs/cli-terminal-output.md:645 «740944585e241d7d»",
+          "docs/specs/cli-terminal-output.md:646 «0ccafd77bb11b150»",
+          "docs/specs/cli-terminal-output.md:647 «237b4283b3ac2f74»",
+          "docs/specs/cli-terminal-output.md:648 «b074478f0d03b3a5»",
           "docs/specs/reconstruction-p0-contracts.md:2373 «ac89d7c7db5a4eba»"
         ]
       },
@@ -660,9 +660,9 @@
         "id": "P3-TO-AC12",
         "requirement": "【発注 2】待機 tips（spec の §6.4）: (1) 旧築の src/tips/ の知識の tips を terminal/ の下へ写す（reconstruction の tsc の rootDir の外を import しない）。コマンドの tips（commands-basic・commands-advanced）は新築の REPL にある入口の分だけ残し、廃止した入口（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）の分を除く。旧築の中の仕組みを説明する tool-internals の分野は、新築では正しくない文（再接続の待ち・通知の分野の数など）を含むので写さない（Q-TO-IMPL-2 (4)） (2) 補足の薄い字で、先頭を 2 字下げて 1 行。既定の間隔は 30 分（設定の waitTipIntervalMin があればその値、0 は出さない）。最後に何かを出してから間隔の分だけ何も出していないときに 1 つ出す（入力の echo と入力の行の書き直しは「何かを出した」に数えない。C18 の発注 3 が入力の行を 1 秒ごとに書き直すため、P3-CLI-D-O3-PROMPT）。選び方は旧築の tip-shuffler の写し (3) 変えるのは TerminalControl.setTipInterval（C18 の発注 3）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:651 «6b6b55310a9e6fb3»",
-          "docs/specs/cli-terminal-output.md:652 «822124990edfc1bc»",
-          "docs/specs/cli-terminal-output.md:653 «2395fc891b7f9e24»",
+          "docs/specs/cli-terminal-output.md:664 «6b6b55310a9e6fb3»",
+          "docs/specs/cli-terminal-output.md:665 «822124990edfc1bc»",
+          "docs/specs/cli-terminal-output.md:666 «2395fc891b7f9e24»",
           "docs/specs/reconstruction-p0-contracts.md:2376 «38c375fdf78cd4ba»",
           "src/tips/waiting-tips.ts:63 «c129b2195f56d66e»",
           "src/tips/waiting-tips.ts:104 «2bb919e5bf3db43f»"
@@ -672,8 +672,8 @@
         "id": "P3-TO-AC13",
         "requirement": "【発注 2】起動時の update check（spec の §6.5、Q-TO-R-2）: (1) 確かめ方は旧築の update-checker の写し（npm の registry、失敗したら GitHub、24 時間の cache、環境変数 FLEQ_NO_UPDATE_CHECK で止める）。cache の置き場は settingsPaths().directory の下 (2) host の起動の後に非同期で 1 回だけ。起動と受信を待たせず、失敗は何も出さない (3) 新しい版があれば「新しい版があります: v<今> → v<新>  npm install -g <package.json の name>@latest」（コマンドの部分は補足の薄い字） (4) 環境変数 FLEQ_WS_URL がある起動（watch の子）では確かめない（試験と watch がネットに出ない）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:661 «1f3e79b4a3236e21»",
-          "docs/specs/cli-terminal-output.md:662 «948a0ce7ad8a6faa»",
+          "docs/specs/cli-terminal-output.md:674 «1f3e79b4a3236e21»",
+          "docs/specs/cli-terminal-output.md:675 «948a0ce7ad8a6faa»",
           "docs/specs/reconstruction-p0-contracts.md:2381 «bea5f823f929910d»",
           "src/engine/startup/update-checker.ts:13 «96fa8de862d6018a»",
           "src/engine/startup/update-checker.ts:28 «d6ab3a08b43214de»"
@@ -683,11 +683,11 @@
         "id": "P3-TO-AC14",
         "requirement": "【発注 2】起動時のまとめ（spec の §6.6、Q-TO-D-1、P3-TO-D-DIGEST）: (1) host の publishDisplay（host.ts:591 の行の中身）で、snapshot.recovery.digest が null でない最初の 1 回だけ端末へ渡す (2) 形は spec の図（分野の順は digest の units の順〔P3-REC-D-ORDER-AND-LIMIT=A の U-T → U-V → U-Q → … → U-Y〕、分野ごとに件数、新しい順の見出し 3 件、「ほか <種類のコード> n 件」。種類のコードは omitted の key〔headType〕のまま、2 つ以上なら全角の空白で並べる。題名を引く表は足さない〔作者裁定 Q-TO-D-2、2026-11-03〕）。unsatisfied の分野は「取り直せませんでした」で 0 件と書かない。beforeWindow なら見出しの罫線の下に「7 日より前の情報は取り直していません」を薄い字で。時刻は reportDateTime、無ければ receivedAt (3) digest が作られない起動（{ wsUrl }、telegram.* を購読しない）では何も出さない 【P3-TERMINAL-LAYOUT-007 で改めた（配送の commit で当てた）】(2) の「ほか <種類のコード> n 件」は種類の題名にする（同じ題名は件数を足して多い順、表に無い種類は「その他」）。見出しの行は時刻と題名だけで見出し文を出さず、題名の末尾の [truncated:fieldLimit] は … にする。分野の名前は太字、件数は右揃え、0 件の分野は出さず、全部 0 件なら帯ごと出さない（Q-TO-D-2 の改め・Q-TO8-NO-CODE・Q-TO8-DIGEST、P3-TL7-AC01・AC02）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:666 «f16f012995b53ec2»",
-          "docs/specs/cli-terminal-output.md:684 «e354158a3dc76602»",
-          "docs/specs/cli-terminal-output.md:685 «77e948d5933bdd50»",
-          "docs/specs/cli-terminal-output.md:686 «ade324e936478549»",
-          "docs/specs/cli-terminal-output.md:687 «3e9467ef9bb2c3e7»",
+          "docs/specs/cli-terminal-output.md:679 «f16f012995b53ec2»",
+          "docs/specs/cli-terminal-output.md:697 «e354158a3dc76602»",
+          "docs/specs/cli-terminal-output.md:698 «77e948d5933bdd50»",
+          "docs/specs/cli-terminal-output.md:699 «ade324e936478549»",
+          "docs/specs/cli-terminal-output.md:700 «3e9467ef9bb2c3e7»",
           "reconstruction/src/host/host.ts:591 «57bcacc5289ac442»",
           "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
           "reconstruction/contracts/p3-recovery.types.ts:70 «d16fb1cb758aa091»"
@@ -697,8 +697,8 @@
         "id": "P3-TO-AC15",
         "requirement": "【発注 2】EEW ログ（spec の §7、P3-TO-D-LOGDIR、P3-EWF-AC05 の申し送り）: (1) 材料は U-E の outcome の facts.report。置き場は settingsPaths().directory の下の eew-logs、file の名前・見出し（「=== 緊急地震速報 EventID: <EventID> ===」と「記録開始: …」）・1 報のブロック・差分・取消のブロック・記録終了の行（「--- 記録終了 (<理由>) HH:MM:SS ---」）は旧築の eew-logger.ts（file 名 eew_<EventID>_<時刻>.log、buildReportBlock、closeEvent）の写し。閉じるきっかけは旧築と同じく、取消の報（理由「取消」）・最終報（「最終報」）・停止（「シャットダウン」。AC02 (6) の close の中で、開いている EventID を全部閉じ、同じ 1 秒の内で書き終わりを待つ）。旧築の「タイムアウト」（message-router.ts の EEW の追跡の期限）に当たる知らせは端末の口に無い（U-E の期限切れの outcome は deadlineDone の返信で、inputDone を通らない）ので、期限では閉じない。閉じたらその EventID を表から外し、その後の続報は旧築どおり見出しから書く。記録する欄は設定の eewLogFields（C18 の EewLogField の 12 個） (2) 既定は off。設定の eewLog が true のときと、TerminalControl.setEewLog(true, …) の後だけ書く (3) 書き込みは fs.promises.appendFile（追記で開き、無ければ作る）だけで、main を止めない。file を作り直さず、名前に接尾辞を足さない（旧築も報ごとに追記していたので書式は互換）。書き込みの鎖は全体で 1 本で、appendFile は一度に 1 つ、受けた順に走らせる（EventID ごとの順もこれで守る）。始めていない書き込みは 64 件までで、越えたら最も古い始めていない書き込みを捨てて数える。始めた appendFile は取り消せないので最後まで走らせる。捨てるのは EventID を問わず最も古い書き込みなので、見出しや記録終了の行が捨てられたときは、その後の続報が見出しの無いまま同じ file に続く（書き込みが 64 件を越えて詰まったときだけ。Q-TO-IMPL-2 (2)）。EventID → path の表は 64 件まで（古い順に外す。旧築は上限なし）。閉じた EventID と表から外した EventID の続報は、旧築どおり見出しから、旧築の命名（eew_<EventID>_<秒までの時刻>.log）の path に書く。同じ秒で同じ path になるときは、旧築と同じく同じ file に追記で見出しから続く。(4) 取消の報は取消の文だけを書き、震源も仮定震源の印も書かない（Q-TO-L-1） (5) dmdata の規約で EEW は personal 限定。書くのは利用者の設定の場所だけで、repo・診断・標準出力の外へ写さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:721 «1897c3a144684fd5»",
-          "docs/specs/cli-terminal-output.md:723 «9bdf2bf317349f96»",
+          "docs/specs/cli-terminal-output.md:734 «1897c3a144684fd5»",
+          "docs/specs/cli-terminal-output.md:736 «9bdf2bf317349f96»",
           "docs/specs/reconstruction-p0-contracts.md:2375 «1f2661ac116d42b6»",
           "src/engine/eew/eew-logger.ts:22 «91d4fda9dcaffb04»",
           "src/engine/eew/eew-logger.ts:122 «a39558e208338732»",
@@ -741,7 +741,7 @@
           "reconstruction/contracts/p3-order-plan.md:84 «cd7824517f8b7547»",
           "reconstruction/contracts/p3-order-plan.md:637 «c518f6ebf619e10f»",
           "reconstruction/contracts/p3-order-plan.md:647 «c7641c333f63618c»",
-          "docs/specs/cli-terminal-output.md:635 «b074478f0d03b3a5»",
+          "docs/specs/cli-terminal-output.md:648 «b074478f0d03b3a5»",
           "docs/specs/reconstruction-p0-contracts.md:3181 «a830d43064124352»",
           "reconstruction/contracts/p3-cli-repl.json"
         ]
