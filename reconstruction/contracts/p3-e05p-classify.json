@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d458fbfc4c126e18cd1881cf4a5cc1832b1a78a",
-    "sha256": "efbde6aa4ef569d9565d0d22138ad054a755fa200f81693154392b2e3ec9d21e",
+    "sha256": "98ec9fb6f1cfb3bfab6d670d6f57ba88f1fb518e24ac9542691ec0595cfea776",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -384,7 +384,7 @@
           "P3-E05C-AC01",
           "P3-E05C-AC02"
         ],
-        "behavior": "process.execPathで--expose-gcと--import probe-preload.mjsの子を起動し、Worker（workerData.place）を1本持たせる。FLEQ_MEM_OUTだけなら、2 threadの行（rss・heapUsed・heapTotal・external・arrayBuffers・place・時刻）とgcの行とgcAvailable（真）が出て、forcedGcの行は0。FLEQ_MEM_GCの閾値を1 byteにすると、区切りのGC（SIGUSR2）を2回受けるまでは閾値を越えた行があっても閾値のGCは出ず、2回受けた後に閾値のGCが2 threadで1回ずつ（rearmに下がらないので2回目は無い）before・afterRegular・afterLastResortの3点付きで出る（Q-E05C-GC-ARM）。子のWorkerで数十MiBのobjectを作って参照を捨ててから最初の強制GCを受けさせると、afterLastResortのrssがbeforeのrssより下がる（last-resortがRSSを返すことの境界）。SIGUSR2で区切りのGCが2 thread分出て、閾値を十分大きくすると基準のGCが出る。どちらのenvも無ければfileを作らない"
+        "behavior": "process.execPathで--expose-gcと--import probe-preload.mjsの子を起動し、Worker（workerData.place）を1本持たせる。FLEQ_MEM_OUTだけなら、2 threadの行（rss・heapUsed・heapTotal・external・arrayBuffers・place・時刻）とgcの行とgcAvailable（真）が出て、forcedGcの行は0。FLEQ_MEM_GCの閾値を1 byteにすると、区切りのGC（SIGUSR2）を2回受けるまでは閾値を越えた行があっても閾値のGCは出ず、2回受けた後に閾値のGCが2 threadで1回ずつ（rearmに下がらないので2回目は無い）before・afterRegular・afterLastResortの3点付きで出る（Q-E05C-GC-ARM）。子のWorkerで数十MiBのobjectを作って参照を捨ててから最初の強制GCを受けさせると、afterLastResortのrssがbeforeのrssより下がる（last-resortがRSSを返すことの境界）。SIGUSR2で区切りのGCが2 thread分出て、閾値を十分大きくすると基準のGCが出る。どちらのenvも無ければfileを作らない。win32 では飛ばす（process.kill の SIGUSR2 が Windows に無く、区切りの GC の子が落ちる。P3-WINDOWS-CI-001）"
       },
       {
         "testId": "P3-E05C-T03",

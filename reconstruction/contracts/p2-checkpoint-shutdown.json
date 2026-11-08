@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3095a6c21caa96e06fc3b3a6d2f906534ef5441b",
-    "sha256": "4e72172952fa79b662b5a54f3a4a6982e0af9b63d2c0706e985e8f5d15b858c2",
+    "sha256": "f636b2eb706dc9d7c8c0395416d6ac448e3bdcff99855e5a63acd9b375e5e968",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -418,7 +418,7 @@
       },
       {
         "id": "P2-A3-AC07",
-        "requirement": "E23: 診断queue・一行・保持上限を守り、同じ障害の初回＋反復件数への集約は一つの有界なqueue受付区間だけ、日別ファイルへの保存は追記だけ、7日または100MiBの回収は古い日別ファイル単位にする。保存済みファイルの再解析・反復集約・一時ファイル置換・置換残骸処理は要求しない。再起動後読取可能、秘密値露出0、sink失敗時の再帰増殖0にする。DiagnosticReadQuery/Resultのfilter・不正query・件数/byte上限を検収する。A1 InfrastructureDiagnosticReasonの保存11種・終了2種・sink2種を同じDiagnosticEventで配送し、checkpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailedの各段階reason、checkpointOverdueの未保存年齢3秒超、再試行・成否不明・復元拒否・終了未保存・sink故障・queue超過を検収する",
+        "requirement": "E23: 診断queue・一行・保持上限を守り、同じ障害の初回＋反復件数への集約は一つの有界なqueue受付区間だけ、日別ファイルへの保存は追記だけ、7日または100MiBの回収は古い日別ファイル単位にする。保存済みファイルの再解析・反復集約・一時ファイル置換・置換残骸処理は要求しない。再起動後読取可能、秘密値露出0、sink失敗時の再帰増殖0にする。DiagnosticReadQuery/Resultのfilter・不正query・件数/byte上限を検収する。A1 InfrastructureDiagnosticReasonの保存11種・終了2種・sink2種を同じDiagnosticEventで配送し、checkpointEncodeFailed／checkpointWriteFailed／checkpointFileSyncFailed／checkpointCloseFailed／checkpointRenameFailed／checkpointDirectorySyncFailed／checkpointVerifyFailedの各段階reason（段の失敗と成否不明の診断は、errno の名前が取れれば component を checkpoint.<名前> にする、P3-WINDOWS-CI-001）、checkpointOverdueの未保存年齢3秒超、再試行・成否不明・復元拒否・終了未保存・sink故障・queue超過を検収する",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1217 «accefa759151aa6f»",
           "docs/specs/reconstruction-p0-contracts.md:1218 «afc48304933f4bac»",

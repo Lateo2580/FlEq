@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "64aa67f6f42557a86eb8e1d6a1b4ea114d30091ef0cc60b5c1fa6d7e60aa7f24",
+    "sha256": "c7ba2d824ff4b67d30ba6c611b1ed271af2a286289c936d0bef8e7fda06938f5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1484,7 +1484,7 @@
           "P3-CLI-AC19",
           "P3-CLI-AC05"
         ],
-        "behavior": "【発注 2】reconstruction/test/cli/cli.test.ts の T04 の期待を改め（理由: AC19 の (2)(3)。displayPort が 0 から null、起動の 1 行の文）、cli.test.ts の node:readline の mock（今は createInterface が question と close だけを持つ fake を返す、cli.test.ts:13）を、on・prompt・setPrompt も持つ fake を返す形に広げ（T07 の question の答え方はそのまま）、足す: その mock のまま通常起動すると、startP2Host に displayPort null と関数の notificationGate が渡り、起動の 1 行に『help でコマンドの一覧』がある。(a) 行 quit を流すと stop が 1 回呼ばれ runCli の戻り値が要約の code (b) readline の close を起こした後に CLI が足した SIGINT の listener を呼んでも stop は 1 回のまま (c) notify eew off の保存が終わる前に quit を流すと、runCli は保存の rename の後に戻り、file に notify { eew: false } がある (d) 保存が終わらない差し替え（試験の中で設定の書き込みを止める）のまま quit を流すと、stop の後 5 秒で標準エラーに AC18 の (3) の文が出て、戻り値が 1（要約の code が 0 のとき） (e) rename の後の directory の sync で止める差し替えでも (d) と同じ文と戻り値で、文が次の起動の値を言い切らない（設定 file は新しい中身）"
+        "behavior": "【発注 2】reconstruction/test/cli/cli.test.ts の T04 の期待を改め（理由: AC19 の (2)(3)。displayPort が 0 から null、起動の 1 行の文）、cli.test.ts の node:readline の mock（今は createInterface が question と close だけを持つ fake を返す、cli.test.ts:13）を、on・prompt・setPrompt も持つ fake を返す形に広げ（T07 の question の答え方はそのまま）、足す: その mock のまま通常起動すると、startP2Host に displayPort null と関数の notificationGate が渡り、起動の 1 行に『help でコマンドの一覧』がある。(a) 行 quit を流すと stop が 1 回呼ばれ runCli の戻り値が要約の code (b) readline の close を起こした後に CLI が足した SIGINT の listener を呼んでも stop は 1 回のまま (c) notify eew off の保存が終わる前に quit を流すと、runCli は保存の rename の後に戻り、file に notify { eew: false } がある (d) 保存が終わらない差し替え（試験の中で設定の書き込みを止める）のまま quit を流すと、stop の後 5 秒で標準エラーに AC18 の (3) の文が出て、戻り値が 1（要約の code が 0 のとき） (e) rename の後の directory の sync で止める差し替え（win32 では directory を sync しないので行わない、P3-CLI-D-WRITE・P3-WINDOWS-CI-001）でも (d) と同じ文と戻り値で、文が次の起動の値を言い切らない（設定 file は新しい中身）"
       },
       {
         "testId": "P3-CLI-T13",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "762e6fcbdcef1582bb2c2cf16f0fd80439c088263978f47bcd5a1a2c019a3553",
+    "sha256": "2259c40d0d7651b582b5b3f3cfa5660cf5de350c3ffb24ed7e49ef09d57fb576",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -157,7 +157,7 @@
       {
         "id": "P3-MIG-D-OUTPUT",
         "kind": "技術",
-        "A": "出力は新しい空の directory に unit ごとの A の slot（${unit}-A.json、generation 1）だけを書く。payload は各 unit の codec の encode で作り、同じ codec の decode に通して元の state と同じでなければその unit を拒否にする。envelope は checkpoint.ts の hashEnvelope・serializedEnvelope で作り、losses・unreadable の欄は書かない。書いた directory を CheckpointCoordinator で restoreUnit して restored になることを移行器の最後に確かめる。書く先は移行先の隣の作業用 directory（移行先の名前＋\".partial\"）で、全 unit を書き、encode→decode と restoreUnit の確かめを作業用 directory で済ませ、file と directory を fsync してから、作業用 directory を移行先の名前へ 1 回の rename で公開し、親 directory を fsync する。移行先が既にあれば何もせずに止める（公開は完走した結果だけ）。前の実行が途中で止まって作業用 directory が残っていれば、それを消してから最初からやり直す（作業用 directory は移行器だけが作り、新築の runtime は読まない）",
+        "A": "出力は新しい空の directory に unit ごとの A の slot（${unit}-A.json、generation 1）だけを書く。payload は各 unit の codec の encode で作り、同じ codec の decode に通して元の state と同じでなければその unit を拒否にする。envelope は checkpoint.ts の hashEnvelope・serializedEnvelope で作り、losses・unreadable の欄は書かない。書いた directory を CheckpointCoordinator で restoreUnit して restored になることを移行器の最後に確かめる。書く先は移行先の隣の作業用 directory（移行先の名前＋\".partial\"）で、全 unit を書き、encode→decode と restoreUnit の確かめを作業用 directory で済ませ、file と directory を fsync してから、作業用 directory を移行先の名前へ 1 回の rename で公開し、親 directory を fsync する（win32 では作業用 directory と親 directory の fsync を飛ばす、P3-WINDOWS-CI-001）。移行先が既にあれば何もせずに止める（公開は完走した結果だけ）。前の実行が途中で止まって作業用 directory が残っていれば、それを消してから最初からやり直す（作業用 directory は移行器だけが作り、新築の runtime は読まない）",
         "B": "移行器が envelope を自前で直列化する",
         "recommended": "A",
         "provisional": "A",
@@ -529,7 +529,7 @@
       },
       {
         "id": "P3-MIG-AC04",
-        "requirement": "【発注 2】出力の checkpoint（spec:2172、P3-MIG-D-OUTPUT=A・P3-MIG-D-BOUNDARY=A・P3-MIG-D-CLOCK=A）: 移行先の隣の作業用 directory（P3-MIG-D-OUTPUT=A の \".partial\"）に、移せた unit ごとに ${unit}-A.json を 1 つ書く。移行先が既にあれば何も書かずに止め、残っていた作業用 directory は消してからやり直す。envelope は schemaVersion（その unit の codec の今の版）・unit・generation 1・capturedAt（入力の取得時刻）・payload（codec の encode）・\"inputBoundary\": null・sha256 で、hashEnvelope・serializedEnvelope で作る。encode→decode で元の state と同じにならない unit は書かずに拒否にする。最後に作業用 directory で CheckpointCoordinator の restoreUnit を各 unit に当てて restored と generation 1 を確かめ、fsync の後に 1 回の rename で移行先へ公開し、rename の後に親 directory を fsync する（checkpoint.ts の書き込みと同じ順）。試験: 1 つ目の unit を書いた後で止めた実行（試験から差し込む失敗）の後に移行先が無いこと、同じ入力で再実行した移行先が止めずに走らせた結果と bytes で同じこと（T18）。旧 schema へ戻す tool は作らない（spec:2201）。無いと: 新築が読めない・読み戻しで拒否される checkpoint を作り、起動で unit が unavailable になる。途中で止まると一部の unit だけが公開され、欠けた unit を新築が empty と読む（checkpoint.ts の restoreUnit）",
+        "requirement": "【発注 2】出力の checkpoint（spec:2172、P3-MIG-D-OUTPUT=A・P3-MIG-D-BOUNDARY=A・P3-MIG-D-CLOCK=A）: 移行先の隣の作業用 directory（P3-MIG-D-OUTPUT=A の \".partial\"）に、移せた unit ごとに ${unit}-A.json を 1 つ書く。移行先が既にあれば何も書かずに止め、残っていた作業用 directory は消してからやり直す。envelope は schemaVersion（その unit の codec の今の版）・unit・generation 1・capturedAt（入力の取得時刻）・payload（codec の encode）・\"inputBoundary\": null・sha256 で、hashEnvelope・serializedEnvelope で作る。encode→decode で元の state と同じにならない unit は書かずに拒否にする。最後に作業用 directory で CheckpointCoordinator の restoreUnit を各 unit に当てて restored と generation 1 を確かめ、fsync の後に 1 回の rename で移行先へ公開し、rename の後に親 directory を fsync する（checkpoint.ts の書き込みと同じ順）（win32 では作業用 directory と親 directory の fsync を飛ばす、P3-WINDOWS-CI-001）。試験: 1 つ目の unit を書いた後で止めた実行（試験から差し込む失敗）の後に移行先が無いこと、同じ入力で再実行した移行先が止めずに走らせた結果と bytes で同じこと（T18）。旧 schema へ戻す tool は作らない（spec:2201）。無いと: 新築が読めない・読み戻しで拒否される checkpoint を作り、起動で unit が unavailable になる。途中で止まると一部の unit だけが公開され、欠けた unit を新築が empty と読む（checkpoint.ts の restoreUnit）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2172 «642a6151291713a9»",
           "docs/specs/reconstruction-p0-contracts.md:2201 «633ebff43b1bf757»",

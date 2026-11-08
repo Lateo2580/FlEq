@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "b8ea5339961ac38e7638a1986c7b241a15094df244d6d772a515096be7500aa1",
+    "sha256": "20215da9ce9b2d2f36bcaeeccceea716a8d78330eae09d951440767aa7329e80",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -510,7 +510,7 @@
         "referenceIds": [
           "P2-A7-AC03"
         ],
-        "behavior": "新設するabort無視/遅い成功系列でtimeout causeと意味上のsuperseded causeをA3へ渡し、abortは停止確認だけ、runからterminal一件だけを返すことを確認する。close未確認の隔離/重ね呼出し0/遅い成功の無効化を実行backendと照合する"
+        "behavior": "新設するabort無視/遅い成功系列でtimeout causeと意味上のsuperseded causeをA3へ渡し、abortは停止確認だけ、runからterminal一件だけを返すことを確認する。close未確認の隔離/重ね呼出し0/遅い成功の無効化を実行backendと照合する。adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）だけは、win32 では desktop の backend が無く spawn しないので飛ばす（P3-WINDOWS-CI-001。P3-NOTIFY-WINDOWS-001 で戻す）"
       },
       {
         "testId": "P2-A7-T03",

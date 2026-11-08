@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "d2a53e3da7df463ba82ffb0e022a6683a2fc51e0e9dca1bc58f5f5517baaec9c",
+    "sha256": "2c2bd233b40a1be680783620e5b33eb7b3f438f0a8102b362a70fad05003895c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -18,7 +18,7 @@
       },
       {
         "id": "P3-C1-VERIFY",
-        "A": "書込後の読み直し（verify段）を定常経路から外し、保存完了の根拠をfile sync→rename→directory syncの完了だけにする",
+        "A": "書込後の読み直し（verify段）を定常経路から外し、保存完了の根拠をfile sync→rename→directory syncの完了だけにする。win32 の根拠は file sync→rename の完了（directory sync は開かずに解決する、P3-WINDOWS-CI-001）",
         "B": "書込後の読み直しを残す（OSのcacheから返るため永続の証明にならない）",
         "recommended": "A",
         "provisional": "A",
@@ -27,7 +27,7 @@
       },
       {
         "id": "P3-C1-S5",
-        "A": "約束は「保存の途中で止まっても前回の保存は壊れない」まで。検証はプロセス停止試験とfsync→rename→ディレクトリsyncの手順確認",
+        "A": "約束は「保存の途中で止まっても前回の保存は壊れない」まで。検証はプロセス停止試験とfsync→rename→ディレクトリsyncの手順確認。Windows では rename の後の directory の永続化を OS に任せる（directory の fsync は win32 以外。syncDirectory の呼出しの順は OS によらない、P3-WINDOWS-CI-001）",
         "B": "使い捨て媒体での実電源断試験まで行う",
         "recommended": "A",
         "provisional": "A",
@@ -273,7 +273,7 @@
       },
       {
         "id": "P3-C1-AC04",
-        "requirement": "S5の手順確認: 定常保存1回のfilesystem呼出しは、自単位のtmp回収（unlink、既存）→open(tmp)→write→sync→close→rename(tmp, 反対側slot)→syncDirectory(保存ディレクトリ)の順で、syncDirectoryの完了前にacknowledgedを返さない。readFileは0回。故障時の結果種別はP2どおり（rename前はfailed、rename・directory syncはuncertain）",
+        "requirement": "S5の手順確認: 定常保存1回のfilesystem呼出しは、自単位のtmp回収（unlink、既存）→open(tmp)→write→sync→close→rename(tmp, 反対側slot)→syncDirectory(保存ディレクトリ)の順で、syncDirectoryの完了前にacknowledgedを返さない。readFileは0回。故障時の結果種別はP2どおり（rename前はfailed、rename・directory syncはuncertain）。win32 では nodeCheckpointFileSystem の syncDirectory が directory を開かずに解決する（P3-CLI-D-WRITE と同じ、P3-WINDOWS-CI-001）。呼出しの順と結果の種別は OS によらない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:197 «addac0c4fbd103a1»",
           "docs/specs/reconstruction-p0-contracts.md:828 «57be50f487f27de7»",
