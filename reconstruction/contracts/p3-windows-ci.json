@@ -1,0 +1,417 @@
+{
+  "meta": {
+    "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
+    "sha256": "165cb142e30ac652533bd0fe429bbab744722f151e3f6a1728001b114e5d4d4f",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-WCI-D-DIRSYNC",
+        "kind": "作者",
+        "A": "Windows では checkpoint の保存の directory の fsync を飛ばす（P3-CLI-D-WRITE の設定の保存と同じ扱い）。P3-C1 の保存の約束（P3-C1-AC04・S5・VERIFY、P3-C3A-AC02・AC05、P3-MIG-AC04・P3-MIG-D-OUTPUT）に win32 の 1 行を足す",
+        "B": "Windows でも directory を開いて fsync し続ける（Windows の CI は保存が uncertain のままで通らない）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 午後）",
+        "ruling": "A（作者、2026-11-08 午後）",
+        "reason": "Windows では directory を開いた handle の fsync が失敗し（推定 EPERM、旧築の同じ open→fsync の形で EPERM）、新築の保存が毎回 uncertain になる（run 42415679389 の 43 件）。新築の設定の保存は既に win32 で directory を sync しない（settings.ts の writeSettings、P3-CLI-D-WRITE）"
+      },
+      {
+        "id": "P3-WCI-D-ERRNO",
+        "kind": "作者",
+        "A": "保存の失敗（failed）と成否不明（uncertain）の診断に errno の名前（error の code）を残す",
+        "B": "今のまま段の reason だけを残す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 午後）",
+        "ruling": "A（作者、2026-11-08 午後）",
+        "reason": "Windows の CI の 43 件は診断に checkpointDirectorySyncFailed・checkpointUncertain の段しか残らず、errno（EPERM の推定）を確かめられなかった（checkpoint.ts の uncertain の結果は段だけを持つ）"
+      },
+      {
+        "id": "P3-WCI-D-TESTS",
+        "kind": "作者",
+        "A": "Windows で落ちた試験の側の 6 件（区切り 2、ESM の URL 1、Windows に無い backend と設定の directory の sync 2、waitFor の時間 1）も同じ契約に入れる",
+        "B": "別の契約にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08 午後）",
+        "ruling": "A（作者、2026-11-08 午後）",
+        "reason": "test-windows.yml の reconstruction の job を 1 回の配送で緑にするため"
+      },
+      {
+        "id": "P3-WCI-D-PLACE",
+        "kind": "統合担当",
+        "A": "node の adapter（nodeCheckpointFileSystem の syncDirectory）で、win32 なら directory を開かずに解決する",
+        "B": "CheckpointCoordinator が win32 で syncDirectory を呼ばない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "1 か所で coordinator の 3 つの呼出し（定常の保存、同じ世代の slot の確かめ、uncertain の照合）に効く。呼出しの順（P3-C1-AC04）・directorySync の段の計測・試験の偽の fs・process-stop の子の beforeSyncDirectory の境界（試験側の包みで、製品の adapter の前）を変えない。置き場は settings.ts の writeSettings と同じ node の fs を呼ぶ所。B は coordinator に platform を持ち込み、AC04 の順と計測の段が OS で変わる"
+      },
+      {
+        "id": "P3-WCI-D-CARRY",
+        "kind": "統合担当",
+        "A": "CheckpointResult の failed・uncertain に任意の欄 errorCode を足し、owner の catch（executeCheckpoint・reconcile）で error の code が errno の形のときだけ入れる。publisher の done() が result から作る診断の component を checkpoint.<errorCode> にする（無ければ今の checkpoint）。DiagnosticDetails・診断の file の形・sink の許可の欄は変えない",
+        "B": "DiagnosticDetails に code の欄を足す（型、boundDiagnosticDetails、sink の lineFor・parsedEvent の許可の欄、診断の file の 1 行の形）",
+        "C": "owner の側の coordinator が段の診断を出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "段の診断は publisher（main）の done() が owner の返信の result から作り、owner の catch の error は main に届かないので、result が運ぶ。component に字を足すのは既存の形（checkpoint.<版>、owner.<場所>）で、component で絞る処理は src に無い。error の message（errorMessage）は path を含むので診断に載せない（P2-A3-AC07 の秘密値の露出 0、今の診断は自由文を載せない）。sink の failureKey は component を含むので、違う errno は別の障害として集約する（受け入れる）。C は診断の出し手が publisher から owner へ移り、P3-C3A-AC05 の「publisher が診断を持つ」と変わる。実行境界メモ §7 の C1 の 2（p3-execution-boundary.md:64「CheckpointResult… は素のデータのまま、型を変えない」）と P3-VERSION-MATERIAL-001 の発注 1（p3-version-material.json:503「CheckpointResult… の型は変えない」）は、C1・C2 とその発注の範囲で境界を越える値を素のデータに保つための制約。本契約は任意の文字列の欄を 1 つ足すだけで、owner の返信は構造化複製できる素のデータのまま（P3-C3A-AC02）なので、両方の原文は改めない"
+      },
+      {
+        "id": "P3-WCI-D-SPEC",
+        "kind": "統合担当",
+        "A": "Windows の扱いは契約の条文だけに書き、spec 本体（§5.7 の保存の順）は改めない",
+        "B": "spec §5.7 にも Windows の 1 文を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "spec に Windows・win32 の記述は無く、P3-CLI-D-WRITE も spec を改めていない。§5.7 の表（directory sync の失敗は保存完了と扱わない）は sync を行う OS でそのまま成り立つ。:850 を変えると P3-C1-AC05 の «» の付け直しが要る。発注計画の p3-order-plan.md:197（S5 の行の「fsync→rename→ディレクトリ sync の手順の確認」）も改めない（配送済みの C1 の計画の記録で、win32 の扱いは P3-C1-S5 の改訂 (2) に書く）"
+      },
+      {
+        "id": "P3-WCI-D-E05C",
+        "kind": "統合担当",
+        "A": "p3.test.ts の P3-E05C-T02 の it を win32 で飛ばす（--import の path は直さない）",
+        "B": "--import に渡す path を pathToFileURL(...).href にする（起草 r0 の形）",
+        "C": "A と B の両方",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 起草レビュー r0 の後）",
+        "ruling": "A（統合担当）",
+        "reason": "この it の 4 つの子のうち閾値と区切りの 2 つは、子が process.kill(process.pid, \"SIGUSR2\") で区切りの GC を起こす（probe-preload.mjs は FLEQ_MEM_GC のときだけ SIGUSR2 を受ける）。Node の文書（Signal events）のとおり Windows は signal を持たず、process.kill が模すのは 0・SIGINT・SIGTERM・SIGKILL だけなので、B だけでは URL の誤りの次に SIGUSR2 で落ちる見込み（品質レビュー r0 の証拠不足の項）。強制 GC の計測は Pi・Mac で使う道具で、Windows の値は要らない。A なら skip だけで足り、URL の直しは skip の下で効かないので足さない（C は使われない直しを足す）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-WCI-FACTS",
+        "status": "closed",
+        "source": "2026-11-08 起草（main 55e91587 の木と、gh run view 42415679389 --log-failed の reconstruction の job）",
+        "closed": "(1) reconstruction の job は Tests 49 failed・1371 passed・28 skipped（22 file）。族分け: A 43 件（保存が uncertain。checkpoint.test・tsunami-unit などは expected 'uncertain' to be 'acknowledged'、watch.test・replay-cli・unit-wiring などは終了 code の expected 2 to be +0）、B 2 件（diagnostic.test の P2-A3-T07 は製品の path が逆斜線の区切り、run.test の P2-A10-T01 の runner の側は hashRaw が full と state を逆斜線の区切りで返して state を外せない）、C 1 件（p3.test の P3-E05C-T02、--import の path で ERR_UNSUPPORTED_ESM_URL_SCHEME、protocol 'd:'）、D 2 件（adapter.test の :22 の T02 regression は kill が 0 回、cli.test の保存の期限の it は 30 秒切れ）、E 1 件（eew-log.test の P3-TO-T16、65 件待ちで 42 件） (2) 製品: composition-root.ts の nodeCheckpointFileSystem の syncDirectory が open(path, \"r\")→sync→close。呼び手は checkpoint.ts の定常の保存・同じ世代の slot の確かめ・reconcile の 3 か所。file の fsync は \"w\" の handle で Windows でも失敗していない (3) uncertain の結果（p2-shared-runtime.types.ts の CheckpointResult）は段だけを持ち、publisher の done() の診断は failed でも result.reason（errorMessage）を載せない (4) 新築の設定の保存は win32 で directory を sync しない（settings.ts の writeSettings）。そのため cli.test の directorySync の差し替え（flag \"r\" の open の sync）は win32 で呼ばれず、届かない待ちの loop で 30 秒切れになる (5) win32 の desktop の backend は無い（adapter.ts の probeDesktopBackend が darwin・linux だけ）"
+      },
+      {
+        "id": "Q-WCI-UNCHANGED",
+        "status": "closed",
+        "source": "2026-11-08 起草",
+        "closed": "改訂の要らない条文: (1) P3-C1-AC05・T05（process-stop）: 止める境界 beforeSyncDirectory は試験側の包み（process-stop-child.cjs）で製品の adapter の前にあり、win32 でも同じに止まる。止めた後の世代 2 の復元もそのまま (2) P3-C3A-T12: ackAt は syncDirectory の呼出しが解決した後で、win32 でも成り立つ (3) P3-C1-T04: 記録用の fs の呼出しの順と、syncDirectory を止めている間は解決しないことは、偽の fs なので OS によらない (4) 試験の側の 6 件の試験の条文（P2-A3-T07、P2-A10-T01、P3-TO-T16）は振る舞いが変わらない（path の組み方と待ちの時間だけ）。P3-CLI-T12・P2-A7-T02・P3-E05C-T02 は win32 で行わない部分ができるので改める（artifactRequirements の改訂の (9)(10)(11)） (5) P3-CHECKPOINT-STEP1-001 の objective・P3-C1-AC01・P3-C1-AC02 の「file sync→rename→directory sync の完了で ack」「同世代同 hash は directory sync と照合だけで ack」: win32 でも coordinator は syncDirectory を呼び、その解決の後に ack する（P3-WCI-D-PLACE）ので文面のまま成り立つ。Windows で根拠の意味が変わることは P3-C1-VERIFY・S5 の改訂 (2)(3) の 1 か所に書き、同じ注を 3 か所に繰り返さない"
+      },
+      {
+        "id": "Q-WCI-OVERLAP",
+        "status": "closed",
+        "source": "2026-11-08 起草（branch night-h の 5a9a7792 の p3-notify-windows.json を読んだ）",
+        "closed": "P3-NOTIFY-WINDOWS-001（未発注、baseOid unassigned）の adapter.test.ts の範囲は、:14 の vi.mock に execFile を足す 1 か所と末尾に足す試験で、:85 を «4c25abfa1693b08c» で引く。本契約は adapter.ts を変えず、adapter.test.ts は :22 の it（T02 regression: kill and exit alone…）の行の中だけを変える（行の数を変えない）ので、:14 の変更とも :85 の «» ともぶつからない。dependsOnContractIds には入れない（この木に無い）"
+      },
+      {
+        "id": "Q-WCI-REVIEW-R0",
+        "status": "closed",
+        "source": "2026-11-08 起草レビュー r0（品質: ヘルツ gpt-6-astra high・read-only、thread 01a1b9a5、条件付き GO。契約適合: Opus、条件付き GO。HEAD c1b8dbd5）",
+        "closed": "全部を当てた。P2: (1) T01 の後半は windows-latest では戻した値が win32 で落ちる → 後半も linux に差し替えて ENOENT を確かめ、finally で戻す (2) D-CARRY の reason に実行境界メモ §7 の C1 の 2 と p3-version-material.json:503 の「型を変えない」との関係を足した（C1・C2 とその発注の制約で、任意の文字列の欄は素のデータのまま） (3) p3-checkpoint-step1.json の objective・AC01・AC02 は、win32 でも syncDirectory の呼出しは解決してから ack するので Q-WCI-UNCHANGED の (5) に理由つきで書いた（改訂は VERIFY・S5 の 1 か所）。P3: (4) 改訂 (2) を「directory の fsync は win32 以外（syncDirectory の呼出しの順は OS によらない）」に (5) adapter.test.ts の T02 regression は :22・:76・:91 の 3 本で、飛ばすのは :22（kill and exit alone…）だけと title で名指した。改訂 (10) も同じ (6) T02 (a) を保存の done() の 1 件ずつ（attemptId が結果と同じ）に絞り、10 秒の監視（attemptId は grantId）は照らさない。reconcile の catch は T02 (d) で確かめる (7) Q-WCI-OVERLAP の出典を night-h 5a9a7792 にし、NW の :14 の vi.mock と :85 の «» とぶつからないことを書いた (8) diagnostic.test.ts の allowedPaths に :90〜:92 の期待を足した (9) --sequence.shuffle の回を requiredCommands の独立の行にした (10) D-SPEC に p3-order-plan.md:197 も改めないと足した (11) AC02 の正規表現は文字列の全体の一致と書き、m の旗を付けないことを足した。JavaScript の $ は m の旗が無ければ入力の終わりにだけ合い、node -e で /^E[A-Z0-9]{1,31}$/ が \"EPERM\" に true、末尾に改行を持つ値に false を確かめたので、式は変えない。T02 (c) に末尾に改行を持つ値を足した (12) 残存リスク (1) に、前回の slot も保証されず両方の slot を失う場合を排除しないことを足した (13) hashRaw は実 OS の区切り（sep）だけを / に置き換え、POSIX の名前の中の逆斜線は置き換えない (14) run.mjs の hostClockCounts は本契約に入れた（AC03 の (7)）: hashRaw と同じ file・同じ族で、Windows では窓の記録の時計の診断を 0 件と書き、0 件を確かめに使う値なので確かめが偽って通る。行の中の 1 か所で済む。r0 の品質の証拠不足の項（p3.test.ts の SIGUSR2）から P3-WCI-D-E05C を足し、P3-E05C-T02 は URL を直さず win32 で飛ばすことにした（改訂 (11)、残存リスク (4)）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。保存の手順（win32 の directory の sync）・保存の診断の component・試験の側だけの変更で、電文の受理・表示・通知は変わらない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-WINDOWS-CI-001",
+    "mode": "implementation",
+    "objective": "新築（reconstruction/）が Windows の CI（test-windows.yml）で通るようにする。win32 では checkpoint の保存の directory の fsync を飛ばし（P3-CLI-D-WRITE と同じ扱い）、保存の失敗と成否不明の診断に errno の名前を残し、Windows で落ちた試験の側を期待を変えずに直すか win32 で飛ばす（AC03）。ほかの OS の保存の順序と uncertain の扱いは変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-windows-ci.json",
+      "reconstruction/contracts/p3-checkpoint-step1.json",
+      "reconstruction/contracts/p2-checkpoint-shutdown.json",
+      "reconstruction/contracts/p3-execution-split.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/runtime-diagnostic.ts",
+      "reconstruction/src/cli/settings.ts",
+      "reconstruction/src/notification-delivery/adapter.ts",
+      "reconstruction/test/checkpoint-shutdown/checkpoint.test.ts",
+      "reconstruction/test/checkpoint-shutdown/diagnostic.test.ts",
+      "reconstruction/test/checkpoint-shutdown/process-stop-child.cjs",
+      "reconstruction/test/eew-e01/run.mjs",
+      "reconstruction/test/eew-e01/run.test.ts",
+      "reconstruction/test/eew-e01/p3.test.ts",
+      "reconstruction/test/notification-delivery/adapter.test.ts",
+      "reconstruction/test/cli/cli.test.ts",
+      "reconstruction/test/terminal/eew-log.test.ts",
+      ".github/workflows/test-windows.yml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/runtime/composition-root.ts（nodeCheckpointFileSystem の syncDirectory の行の中だけ。行の数を変えない: 他の契約が «» で引く）",
+      "reconstruction/src/checkpoint/checkpoint.ts（errno の名前の取り出し、executeCheckpoint と reconcile の catch、CheckpointWriter の done() の段の診断と checkpointUncertain の component だけ。行の数を変えない: 他の契約が «» で引く）",
+      "reconstruction/contracts/p2-shared-runtime.types.ts（CheckpointResult の failed と uncertain の 2 行の中に errorCode?: string を足すだけ。行の数を変えない）",
+      "reconstruction/test/checkpoint-shutdown/checkpoint.test.ts（末尾に T01・T02 を足す。test の中の MemoryCheckpointFileSystem に code 付きの失敗を足してよい）",
+      "reconstruction/test/checkpoint-shutdown/diagnostic.test.ts（P2-A3-T07 の保持の偽の fs の path と、:90〜:92 の removed の期待だけ）",
+      "reconstruction/test/eew-e01/run.mjs（hashRaw と hostClockCounts の行の中と、node:path の import の行に sep を足すだけ。行の数を変えない）",
+      "reconstruction/test/eew-e01/p3.test.ts（P3-E05C-T02 の it の行の中だけ。行の数を変えない）",
+      "reconstruction/test/notification-delivery/adapter.test.ts（:22 の it〔T02 regression: kill and exit alone…〕の行の中だけ。:76・:91 の T02 regression は変えない。行の数を変えない）",
+      "reconstruction/test/cli/cli.test.ts（保存の期限の it の for の行だけ）",
+      "reconstruction/test/terminal/eew-log.test.ts（P3-TO-T16 の 65 件の it の 2 つの vi.waitFor だけ）",
+      "reconstruction/contracts/p3-windows-ci.json（統合担当が起草と配送で書く。実装では変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-windows-ci.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B07",
+      "B15"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P2-CHECKPOINT-SHUTDOWN-001",
+      "P3-CHECKPOINT-STEP1-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-CLI-REPL-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#CheckpointResult",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticDetails"
+    ],
+    "publicFunctions": [
+      "公開の関数は変えない（nodeCheckpointFileSystem・CheckpointCoordinator・CheckpointWriter のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__81_04_01_260605_VPWP50_cancel"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の envelope と診断の file の 1 行の欄は変えない。診断の component の字に errno の名前が入る）"
+    ],
+    "nonPersistedFields": [
+      "CheckpointResult の errorCode（owner の返信で publisher へ渡り、診断の component を作るだけ）"
+    ],
+    "outOfScope": [
+      "旧築（src/）の Windows の失敗（standby-persistence.ts の一時 file と backup の directory の fsync、replay-isolation.test.ts の区切り）と display の 4 件: 別の直し",
+      "Windows の通知と音の backend（P3-NOTIFY-WINDOWS-001、branch night-h、未発注）: adapter.ts は変えず、adapter.test.ts の :22 の T02 regression の it（kill and exit alone…）だけを win32 で飛ばす。backend ができたら NW の配送で skip を外せるか見る（Q-WCI-NW-SKIP）",
+      "CheckpointCoordinator の保存の順・段・結果の種別・照合の手順（win32 でも同じ呼出しをする）",
+      "DiagnosticDetails の欄・診断の file の 1 行の形・sink の許可の欄・failed.reason の中身",
+      "spec 本体（§5.7）の編集（P3-WCI-D-SPEC）",
+      "移行器（reconstruction/tools/migration、P3-MIGRATION-001 の発注 2）の実装: 条文の改訂だけ",
+      "test-windows.yml の変更と、push で回る CI への Windows の追加"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-WCI-AC01",
+        "requirement": "win32 の directory の sync（P3-WCI-D-DIRSYNC・D-PLACE）: (1) nodeCheckpointFileSystem() の syncDirectory は、process.platform が win32 なら directory を開かず fsync せずに解決する。platform は呼ぶたびに読む（module の読み込み時に定数にしない。試験の差し替えを効かせるため、settings.ts の writeSettings と同じ） (2) CheckpointCoordinator は変えない: 定常の保存（tmp 回収→open→write→sync→close→rename→syncDirectory）、同じ世代の slot を見つけた時の確かめ、uncertain の照合の 3 か所は win32 でも syncDirectory を呼び、その解決の後に acknowledged を返す。directorySync の段の計測も残る (3) win32 以外は今の open(path, \"r\")→sync→close のままで、directory の sync の失敗は今のとおり uncertain（stage directorySync）、照合の中の失敗も今のとおり (4) 無いと: Windows では directory を開いた handle の fsync が失敗し、保存が毎回 uncertain になって ack されない（run 42415679389 の 43 件）",
+        "evidenceRefs": [
+          "reconstruction/src/cli/settings.ts:309 «5a6124299ca400a2»",
+          "reconstruction/contracts/p3-cli-repl.json:187 «bc69665ca014f6b7»",
+          "reconstruction/contracts/p3-checkpoint-step1.json:275 «d3fd5bb549959c37»",
+          "reconstruction/test/checkpoint-shutdown/process-stop-child.cjs:20 «6e5f0fd52993948c»",
+          "reconstruction/src/runtime/composition-root.ts"
+        ]
+      },
+      {
+        "id": "P3-WCI-AC02",
+        "requirement": "保存の診断の errno（P3-WCI-D-ERRNO・D-CARRY）: (1) CheckpointResult の failed と uncertain に任意の欄 errorCode?: string を足す（p2-shared-runtime.types.ts の 2 行の中）。CheckpointCoordinator の executeCheckpoint と reconcile の catch は、投げられた値の code が文字列で、文字列の全体が /^E[A-Z0-9]{1,31}$/ に一致するときだけ、それを errorCode に入れる（合わない・無いときは欄を作らない）。JavaScript の RegExp に m の旗を付けない（$ は入力の終わりにだけ合い、末尾に改行を持つ値は合わない。起草で node により確かめた）。capture の encode の失敗には足さない (2) CheckpointWriter の done() が result から作る診断（failed の段の 1 件、uncertain の段の 1 件と checkpointUncertain の 1 件。attemptId は結果の attemptId）は、errorCode があれば component を checkpoint.<errorCode> にし、無ければ今の checkpoint のまま。再試行の checkpointRetryScheduled、10 秒の監視の checkpointUncertain（CheckpointWriter.next の中、attemptId は権の grantId）、checkpointOverdue は変えない (3) 診断に載せるのは errno の名前だけ。error の message（path を含む）・path・API キーは診断に載せない（P2-A3-AC07 の秘密値の露出 0）。DiagnosticDetails・診断の file の 1 行の形・sink の許可の欄は変えない。failed.reason は今のまま (4) 正規表現が無いと: fs 以外の error の code（任意の字）が診断の file に入る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:420 «ea56ddbd2df0a2e6»",
+          "reconstruction/src/checkpoint/checkpoint.ts:183 «ed69e5fc79560d62»",
+          "reconstruction/src/runtime/composition-root.ts:707 «a2c99f9d7827e668»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:102 «075b2c29abb7ed03»",
+          "reconstruction/src/runtime/runtime-diagnostic.ts:41 «85ab01a2e8e7c833»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts"
+        ]
+      },
+      {
+        "id": "P3-WCI-AC03",
+        "requirement": "試験の側の 6 件（P3-WCI-D-TESTS）と同じ族の 1 か所を、期待（値・件数・文）を変えずに直す: (1) diagnostic.test.ts の P2-A3-T07 の保持の偽の fs: 比べる path と :90〜:92 の removed の期待を join(\"/retention\", name) で組む（製品は join で組み、win32 では区切りが逆斜線） (2) run.mjs の hashRaw: readdirSync の相対 path の実 OS の区切り（node:path の sep）だけを / に置き換えてから並べ、state の除外も / で分ける。POSIX では sep が / なので何も置き換えず、名前の中の逆斜線もそのまま。macOS・Linux の出力は byte で同じで、封印済みの記録は変わらない。run.test.ts の P2-A10-T01 の runner の側の期待はそのまま (3) p3.test.ts の P3-E05C-T02 の it を it.skipIf(process.platform === \"win32\") で飛ばし、同じ行の末尾に shortcut: のコメント（win32 では process.kill の SIGUSR2 が無く、区切りの GC の子が落ちる。強制 GC の計測は Pi・Mac で使う）。--import の path は直さない（P3-WCI-D-E05C） (4) adapter.test.ts の :22 の it（T02 regression: kill and exit alone do not confirm stop…、P2-A7-T02）だけを it.skipIf(process.platform === \"win32\") で飛ばし、同じ行の末尾に shortcut: のコメント（win32 には desktop の backend が無く spawn しない。P3-NOTIFY-WINDOWS-001 が backend を足したら外す）。:76・:91 の T02 regression の it は飛ばさない（Windows の CI で通っている） (5) cli.test.ts の保存の期限の it（P3-CLI-T12 の (d)(e)）: win32 では directorySync の差し替えを回さず write だけにする（win32 の設定の保存は directory を開かない、P3-CLI-D-WRITE） (6) eew-log.test.ts の P3-TO-T16 の 65 件の it: 2 つの vi.waitFor に timeout 10_000 を渡す（既定は 1 秒） (7) 同じ族（品質レビュー r0 で見つけた。試験は落ちていない）: run.mjs の hostClockCounts の diagnostics の判定も、(2) と同じく sep だけを / に置き換えてから / で分ける。無いと: Windows では readdirSync が逆斜線の区切りを返し、diagnostics の下の file を 1 つも数えず、窓の記録の時計の診断を 0 件と書く（0 件は「start の time が効いた」の確かめに使う値なので、確かめが偽って通る）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-cli-repl.json:1480 «fc797add941fd04c»",
+          "reconstruction/contracts/p2-notification-delivery.json:508 «736b0273c2361824»",
+          "reconstruction/contracts/p3-e05p-classify.json:381 «b62a166b6473636d»",
+          "reconstruction/test/checkpoint-shutdown/diagnostic.test.ts",
+          "reconstruction/test/eew-e01/run.mjs",
+          "reconstruction/test/eew-e01/p3.test.ts",
+          "reconstruction/test/notification-delivery/adapter.test.ts",
+          "reconstruction/test/cli/cli.test.ts",
+          "reconstruction/test/terminal/eew-log.test.ts"
+        ]
+      },
+      {
+        "id": "P3-WCI-AC04",
+        "requirement": "確かめ方: (1) macOS の開発機: requiredCommands を全部通す。win32 の分岐は T01（process.platform の差し替え）、errno は T02 で確かめる。AC03 の試験は macOS では今も通り、win32 の経路は通らない（hostClockCounts の (7) は試験を足さず、macOS の出力が同じことだけを見る） (2) Windows: 配送の後に統合担当が test-windows.yml を main で手で起動し、reconstruction の job の新築の試験が全部通ることを確かめる（Q-WCI-WINDOWS-RUN）。engine・display の job は旧築の失敗で落ちるので見ない",
+        "evidenceRefs": [
+          ".github/workflows/test-windows.yml:5 «e02400c51488e536»",
+          ".github/workflows/test-windows.yml:50 «4c67892215369479»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-WCI-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-WCI-AC01"
+        ],
+        "behavior": "受入条件。checkpoint.test.ts の末尾。process.platform を Object.defineProperty で差し替え、finally で元の記述子に戻す。(a) win32 に差し替えると nodeCheckpointFileSystem().syncDirectory(<一時 directory の下の無い名前>) が解決する (b) linux に差し替えると同じ呼出しが ENOENT で reject する（win32 以外は今のまま開く）。(b) も差し替えで行い、元の platform に戻した値では確かめない（windows-latest では元の値が win32 なので）"
+      },
+      {
+        "testId": "P3-WCI-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-WCI-AC02"
+        ],
+        "behavior": "受入条件。checkpoint.test.ts の末尾。P2-A3-T07 の harness（wired と MemoryCheckpointFileSystem）で、(a) syncDirectory が code EPERM で message に Windows の絶対 path を持つ error を投げると、保存の結果は uncertain・errorCode EPERM で、その保存の done() が出す checkpointDirectorySyncFailed と checkpointUncertain（attemptId が結果の attemptId の 1 件ずつ）の component が checkpoint.EPERM。10 秒の監視の checkpointUncertain（attemptId が権の grantId）は照らさない。readDiagnostics の記録のどこにも message の path が無い (b) open が code ENOSPC を投げると failed・errorCode ENOSPC で、checkpointWriteFailed の component が checkpoint.ENOSPC (c) code の無い error と、code が errno の形でない error（末尾に改行を持つ \"EPERM\" を含む）では errorCode が無く、component は checkpoint (d) reconcile の catch: (a) の続きの照合（mode reconcile）で syncDirectory がまた EPERM を投げると、照合の結果も uncertain・errorCode EPERM で、その done() の checkpointDirectorySyncFailed の component も checkpoint.EPERM"
+      },
+      {
+        "testId": "P3-WCI-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-WCI-AC01",
+          "P3-WCI-AC02"
+        ],
+        "behavior": "契約境界。既存の試験を期待を変えずに通す: P3-C1-T04（定常保存の呼出しの順と、syncDirectory を止めている間は解決しない）、P2-A3-T07 の段ごとの reason（偽の error は code を持たず component は checkpoint のまま）、P3-C1-T05（process-stop、beforeSyncDirectory の境界）"
+      },
+      {
+        "testId": "P3-WCI-T04",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-WCI-AC03"
+        ],
+        "behavior": "実不具合（run 42415679389）。AC03 の (1)〜(6) の試験そのもの（P2-A3-T07、P2-A10-T01 の runner の側、P3-E05C-T02〔win32 で飛ばす〕、P2-A7-T02〔:22 の it を win32 で飛ばす〕、P3-CLI-T12、P3-TO-T16）。macOS では期待を変えずに通り、Windows では Q-WCI-WINDOWS-RUN で確かめる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。行の数を変えない file の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（process-stop の子が dist の nodeCheckpointFileSystem を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えた回を 1 回（T01 は process.platform という process の共有の値を差し替える）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test -- --maxWorkers=2",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（win32 の分岐は AC01 の (4)、errno の形の確かめは AC02 の (4)）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待は変えない。変える必要が出たら変える前に止めて報告し、allowedPaths の外で要るときは変えずに blocked とする（起草時の grep: code 付きの error を差し込む既存の試験は lifecycle.test.ts の ENOSPC の 2 か所で、診断の component は照らさない）",
+      "行の数を変えない file: checkpoint.ts・composition-root.ts・p2-shared-runtime.types.ts・run.mjs・p3.test.ts・adapter.test.ts（他の契約、または P3-NOTIFY-WINDOWS-001 が «» で引く。新しい import は既存の import の行の中に足す）。check-contract が落ちたら止めて報告する",
+      "配送で統合担当が原文を改訂する（どれも行の中に書き足し、行の数を変えない。触った契約の meta.sha256 を取り直す）: (1) P3-CHECKPOINT-STEP1-001 の P3-C1-AC04 の requirement に「win32 では nodeCheckpointFileSystem の syncDirectory が directory を開かずに解決する（P3-CLI-D-WRITE と同じ、P3-WINDOWS-CI-001）。呼出しの順と結果の種別は OS によらない」を足す (2) 同じ契約の P3-C1-S5 の A に「Windows では rename の後の directory の永続化を OS に任せる（directory の fsync は win32 以外。syncDirectory の呼出しの順は OS によらない、P3-WINDOWS-CI-001）」を足す (3) 同じ契約の P3-C1-VERIFY の A に「win32 の根拠は file sync→rename の完了（directory sync は開かずに解決する、P3-WINDOWS-CI-001）」を足す (4) P3-EXECUTION-SPLIT-001 の P3-C3A-AC02 の「ackAtはdirectory syncの完了後にackを決めた時刻」に「（win32 では syncDirectory が開かずに解決した後、P3-WINDOWS-CI-001）」を足す (5) 同じ契約の P3-C3A-AC05 の「C1と同じ順（tmp回収→open→write→sync→close→rename→syncDirectory）」に「（win32 の syncDirectory は開かずに解決する、P3-WINDOWS-CI-001）」を足す。この行は p3-unit-write-right.json が 3 か所で «030aa868c8894f85» で引くので、改めた行の anchor に付け直し、p3-unit-write-right.json の meta.sha256 も取り直す (6) P3-MIGRATION-001 の P3-MIG-D-OUTPUT の A の「親 directory を fsync する」に「（win32 では作業用 directory と親 directory の fsync を飛ばす、P3-WINDOWS-CI-001）」を足す (7) 同じ契約の P3-MIG-AC04 の「rename の後に親 directory を fsync する（checkpoint.ts の書き込みと同じ順）」に同じ 1 文を足す。(6)(7) の移行器は起草時の木に無く、発注 2 で作るときの決まりになる (8) P2-CHECKPOINT-SHUTDOWN-001 の P2-A3-AC07 の「各段階reason」に「（段の失敗と成否不明の診断は、errno の名前が取れれば component を checkpoint.<名前> にする、P3-WINDOWS-CI-001）」を足す (9) P3-CLI-REPL-001 の P3-CLI-T12 の behavior の「(e) rename の後の directory の sync で止める差し替え」に「（win32 では directory を sync しないので行わない、P3-CLI-D-WRITE・P3-WINDOWS-CI-001）」を足す (10) P2-NOTIFICATION-DELIVERY-001 の P2-A7-T02 の behavior に「adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）だけは、win32 では desktop の backend が無く spawn しないので飛ばす（P3-WINDOWS-CI-001。P3-NOTIFY-WINDOWS-001 で戻す）」を足す (11) P3-E05P-CLASSIFY-001 の P3-E05C-T02 の behavior（p3-e05p-classify.json:387）に「win32 では飛ばす（process.kill の SIGUSR2 が Windows に無く、区切りの GC の子が落ちる。P3-WINDOWS-CI-001）」を足す。中身の変わる行を引く «» は (5) の 1 行（3 か所）だけ（起草と r0 の後の点検）",
+      "残存リスク: (1) 作者へ見せる: Windows では rename の後の directory の永続化を OS に任せるので、電源断や OS の停止の直後に最後の保存が失われ、もう一方の slot の前回の保存から復元しうる。前回の slot も保証されず、両方の slot を失う場合（起動で empty か unavailable）を排除しない（Windows の実際の filesystem が電源断で何を残すかは確かめていない）。新築の設定の保存と同じ扱い（P3-CLI-D-WRITE） (2) この直しの後は Windows の今の失敗が起きないので、errno の名前はこの失敗では出ない（推定の EPERM は確かめないまま）。errno は他の OS・他の失敗（ENOSPC・EIO など）の診断に使う (3) A の 43 件のうち host・weather・execution-split などは保存の uncertain の連鎖と読んだ推定で、直しの後に別の原因の失敗が残りうる（Q-WCI-WINDOWS-RUN で確かめる） (4) Windows では P3-E05C-T02 を飛ばすので、強制 GC の道具（probe-preload.mjs）の Windows での動きは確かめない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-WCI-WINDOWS-RUN",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の完了"
+        ],
+        "resolveBy": "配送の後、test-windows.yml を main で手で起動し（gh workflow run、workflow_dispatch）、test-windows (reconstruction, node 22) の job で新築の試験が全部通る（failed 0）ことを確かめる。engine・display の job は旧築の失敗で落ちるので見ない",
+        "requiredEvidence": [
+          "run の ID と headSha（配送の commit）",
+          "reconstruction の job の Test Files と Tests の行（failed 0）",
+          "失敗が残ったときは族分けと、本契約の範囲か（AC01〜AC03）別の原因か"
+        ]
+      },
+      {
+        "id": "Q-WCI-NW-SKIP",
+        "owner": "integrator",
+        "blocks": [
+          "P3-NOTIFY-WINDOWS-001 の発注"
+        ],
+        "resolveBy": "P3-NOTIFY-WINDOWS-001 の発注前点検で、win32 の desktop の backend を足した後に adapter.test.ts の :22 の it（T02 regression: kill and exit alone…）の win32 の skip を外せるか（spawn の mock で kill が呼ばれるか）を確かめ、外すなら NW の allowedPaths に :22 の it の行を足す",
+        "requiredEvidence": [
+          "NW の発注前点検の記録（T02 を win32 で通すか、skip を残すか）"
+        ]
+      }
+    ]
+  }
+}
