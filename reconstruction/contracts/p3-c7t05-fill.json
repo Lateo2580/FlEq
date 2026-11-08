@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
-    "sha256": "fbaf0894378f86ca61ce6766c49d30c73402b93ecb47b45440d3a0ba2e734ae4",
+    "sha256": "fcaa77ec5a13f94f391f42696199a812576d4c097c70e2a667334c48ddbf45d9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -19,6 +19,12 @@
         "status": "closed",
         "source": "2026-11-08 夜の起草（p3-seismic-unit.json の P3-C7-AC05 と testMapping の P3-C7-T05）",
         "closed": "P3-UNIT-Q-001 の P3-C7-T05 の behavior は境界入力の作り方（byte は bf35e8ea1825 の寄与を複製して作る）と今の器の出どころまでで、下準備の回し方に触れない。P3-C7-AC05 の「最大正常と +1 の境界入力（Q-LIMIT）で確かめる」は本契約の後も n と n+1 で成り立つ。原文の改訂は要らない"
+      },
+      {
+        "id": "Q-STF-R0",
+        "status": "closed",
+        "source": "2026-11-08 夜の起草レビュー r0（Opus、GO、P3 4 件。HEAD 3bc13d72）",
+        "closed": "4 件とも当てた。(1) AC01 (1) の walk と「loop は残さない」の食い違い → 1 件目から積む loop を残さない（見積もりから始める walk はよい）とし、walk の最後の 2 回の decode を (2) の expect に兼ねさせて同じ約 15 MB の decode を重ねない (2) 見積もりの式は generationBytes の上乗せ（emptyEnvelopeBytes の INPUT_BOUNDARY_MAX_BYTES・LOSS_TALLY_MAX_BYTES・UNREADABLE_CARDS_MAX_BYTES）を数えない → 見積もりは出発点で境界は decode が決め、見積もり＝境界を expect にしない（統合担当の決め） (3) sequenceIds の O07 は本契約の fixture を含まない → bf35e8ea1825 を含む O01 に替え、check-sequences の purpose も合わせた（synthetic_phase4a_VXSE62_special はどの列にも無い） (4) AC02 (3) は括弧の根拠を外すに決めた（統合担当の決め）"
       }
     ],
     "operationContract": {
@@ -78,7 +84,7 @@
       "test__fixtures__synthetic_phase4a_VXSE62_special"
     ],
     "sequenceIds": [
-      "O07"
+      "O01"
     ],
     "expectedDecisions": [],
     "expectationEvidence": [],
@@ -106,7 +112,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-STF-AC01",
-        "requirement": "byte の超過の下準備: (1) 境界の件数 n は、heavy(1) の state と heavy(1)〜heavy(2) の state の encode の byte の差（区切りを含む heavy 1 件分）から floor((seismicUnitCodec.maxEnvelopeBytes − lp(0) だけの state の byte) / 1 件分) で見積もり、そこから decode で restored なら 1 ずつ増やし invalid なら 1 ずつ減らして決める（二分探索でもよい）。heavy を 1 件ずつ足して毎回 state 全体を encode・decode する loop は残さない。起草の計測では見積もり 49＝境界 49 で、decode は境界の確かめを含めて数回 (2) heavy(1)〜heavy(n) と lp(0) の state の decode が restored、heavy(1)〜heavy(n+1) と lp(0) の state の decode が invalid であることを expect で確かめる（今の loop の break の条件を明示の assert にする） (3) probe は heavy(1)〜heavy(n) と lp(0) の withEvents のまま残す（後続の byBytes〔heavy(1) の VXSE53 が畳まれる〕・trainingGiant・受信 1 回の直列化 0 の確かめが probe を使う） (4) P3-C7-T05 の後続の expect と、ほかの it は変えない。試験の名前と数は同じ (5) 下準備の encode・decode は JSON.stringify の spy の前に済ませ、spy の確かめ（受信 1 回で state 全体を直列化しない）の対象に入れない",
+        "requirement": "byte の超過の下準備: (1) 境界の件数 n は、heavy(1) の state と heavy(1)〜heavy(2) の state の encode の byte の差（区切りを含む heavy 1 件分）から floor((seismicUnitCodec.maxEnvelopeBytes − lp(0) だけの state の byte) / 1 件分) で見積もり、そこから decode で restored なら 1 ずつ増やし invalid なら 1 ずつ減らして境界を決める（二分探索でもよい）。1 件目から heavy を積んで毎回 state 全体を encode・decode する loop は残さない（見積もりから始める walk はよい）。見積もりは出発点で、境界を決めるのは decode。式は decode の上乗せ（seismic-unit.ts の generationBytes の emptyEnvelopeBytes に入る INPUT_BOUNDARY_MAX_BYTES・LOSS_TALLY_MAX_BYTES・UNREADABLE_CARDS_MAX_BYTES）を数えないので、見積もり＝境界を expect にしない。起草の計測では見積もり 49＝境界 49 で、decode は境界の確かめを含めて数回 (2) heavy(1)〜heavy(n) と lp(0) の state の decode が restored、heavy(1)〜heavy(n+1) と lp(0) の state の decode が invalid であることを expect で確かめる（今の loop の break の条件を明示の assert にする）。walk の最後の 2 回の decode（n と n+1）の結果をこの expect に兼ねさせ、同じ約 15 MB の state の decode を重ねない (3) probe は heavy(1)〜heavy(n) と lp(0) の withEvents のまま残す（後続の byBytes〔heavy(1) の VXSE53 が畳まれる〕・trainingGiant・受信 1 回の直列化 0 の確かめが probe を使う） (4) P3-C7-T05 の後続の expect と、ほかの it は変えない。試験の名前と数は同じ (5) 下準備の encode・decode は JSON.stringify の spy の前に済ませ、spy の確かめ（受信 1 回で state 全体を直列化しない）の対象に入れない",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:378 «b7d0d2e24c68e688»",
           "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
@@ -115,7 +121,7 @@
       },
       {
         "id": "P3-STF-AC02",
-        "requirement": "注の上限の出どころ: P3-C7-T05 の it の中の「4 MiB」の 3 か所を今の器に合わせる。器の大きさは定数の名前（seismicUnitCodec.maxEnvelopeBytes＝seismic-unit.ts の GENERATION_LIMIT。P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）で書き、byte の数を書かない（器が広がるたびに注が古くなったのが今回の原因の 1 つ）。(1) byte の超過の下準備の注（「byte の超過（4 MiB）では…」）は器の名前に替える (2) 件数の境界の注（「32-35_04_04（寄与 約 38 KB）の 512 件は 4 MiB を超え…」）は今の器でも成り立つ（Q-STF-DRAFT-FACTS の (4)）ので「4 MiB」を器の名前に替える (3) 長周期の注（「f9786edc27df の 256 件は 4 MiB を超える」）は今の器では成り立たない（256 件で約 4.5 MB）。小さい合成の報で数える理由を今の事実に合う形に直すか、括弧の根拠を外す。嘘の根拠を残さない",
+        "requirement": "注の上限の出どころ: P3-C7-T05 の it の中の「4 MiB」の 3 か所を今の器に合わせる。器の大きさは定数の名前（seismicUnitCodec.maxEnvelopeBytes＝seismic-unit.ts の GENERATION_LIMIT。P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）で書き、byte の数を書かない（器が広がるたびに注が古くなったのが今回の原因の 1 つ）。(1) byte の超過の下準備の注（「byte の超過（4 MiB）では…」）は器の名前に替える (2) 件数の境界の注（「32-35_04_04（寄与 約 38 KB）の 512 件は 4 MiB を超え…」）は今の器でも成り立つ（Q-STF-DRAFT-FACTS の (4)）ので「4 MiB」を器の名前に替える (3) 長周期の注（「f9786edc27df の 256 件は 4 MiB を超える」）は今の器では成り立たない（256 件で約 4.5 MB）。括弧の根拠（「f9786edc27df の 256 件は 4 MiB を超える」）を外す（統合担当の決め、起草レビュー r0。今の器では f9786edc27df でも数えられるので、別の根拠を書き足さない）",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:378 «b7d0d2e24c68e688»",
           "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
@@ -157,7 +163,7 @@
         "cwd": ".",
         "target": "reconstruction/tools/corpus/sequences.json",
         "stage": "contract",
-        "purpose": "O07（U-Q の phase7_5 の地震）の参照（本契約は sequences を変えない）"
+        "purpose": "O01（bf35e8ea1825 を含む U-Q の列）の参照（本契約は sequences を変えない）"
       },
       {
         "command": "node reconstruction/contracts/check-contract.mjs",
