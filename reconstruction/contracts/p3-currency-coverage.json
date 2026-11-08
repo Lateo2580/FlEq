@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "a7890d41e927b91f7ab6ffb860ec43825744bd5f3191bb84fdf3c3c5fcc40084",
+    "sha256": "910499b41900c783b4c6a6d8922d50429ce4cfc085f9d370b52f6ed879deac7c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -543,7 +543,7 @@
           "reconstruction/test/execution-split/owner-harness.ts:19 «18884b6990f833a7»",
           "reconstruction/contracts/p3-tsunami-unit.json:23 «9581ab14cf176cf9»",
           "reconstruction/contracts/p2-shared-runtime.json:196 «79777113531dd359»",
-          "reconstruction/src/checkpoint/checkpoint.ts:539 «a23f12fa904e1b83»",
+          "reconstruction/src/checkpoint/checkpoint.ts:541 «a23f12fa904e1b83»",
           "reconstruction/src/runtime/composition-root.ts:1384 «e3dfa141be792522»",
           "reconstruction/src/runtime/composition-root.ts:1223 «c1316ed7219f7ac9»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:501 «390aea3ad8550a22»",

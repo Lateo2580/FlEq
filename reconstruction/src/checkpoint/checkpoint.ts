@@ -506,12 +506,14 @@ class CheckpointWriter {
   private readonly held = new Map<UnitId, CheckpointGrant & { monitored: boolean }>();
   private sequence = 0;
   // P3-VM-AC07: 書込み権に載せる境界の材料（unit ごとの未解決の列）。
-  readonly boundaries = new InputBoundaries();
+  readonly boundaries: InputBoundaries;
 
+  // holeUnits: 穴を持つ unit（本文を取り直す unit、P3-RB-AC04 (2)。recovery.ts を import すると循環しうるので呼び手が渡す）。
   constructor(
     private readonly saves: (unit: RuntimeUnitId) => boolean,
     private readonly emitDiagnostic: (event: DiagnosticEvent) => void,
-  ) {}
+    holeUnits: readonly UnitId[],
+  ) { this.boundaries = new InputBoundaries(holeUnits); }
 
   grantOf(unit: UnitId): CheckpointGrant | null { return this.held.get(unit) ?? null; }
 
@@ -785,14 +787,20 @@ function readBoundary(record: Readonly<Record<string, unknown>>): Readonly<{ inp
 // 優先度で後着を先に処理しても、先着の処理待ちが残る間は境界はその前で止まる（メモ §2.4 の受信順 10 と 11）。
 type MailboxItem = import("../../contracts/p1-parser-boundary.types").ParserMailboxItem;
 type BoundaryPosition = Omit<InputBoundary, "oldestHole">;
-type OldestHole = Readonly<{ from: number; kind: InputHole; before: BoundaryPosition | null }>;
+// confirmable: 接続の無い回の採用で残した穴で、確認を止めない印（P3-RB-AC07 (3)。境界は止める）。
+type OldestHole = Readonly<{ from: number; kind: InputHole; before: BoundaryPosition | null; confirmable?: true }>;
 // recovering・afterStart（P3-REC-D-HOLE-AFTER-START=A）: 取り直しを始めた印と、始めた後に開いた最古の穴（run の中だけ、envelope の形は変えない）。
+// holes: 穴を持つ unit か（P3-RB-D-UF=B。U-E・U-F は本文を取り直さず穴を解く口が無いので、穴を置くと境界が run をまたいで止まる）。
 type UnitInputs = { tail: Readonly<{ sequence: number; position: BoundaryPosition }> | null;
-  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null; recovering: boolean; afterStart: OldestHole | null };
+  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null; recovering: boolean; afterStart: OldestHole | null; readonly holes: boolean };
 
 class InputBoundaries {
-  private readonly units = new Map<UnitId, UnitInputs>(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), oldestHole: null,
-    recovering: false, afterStart: null }]));
+  private readonly units: Map<UnitId, UnitInputs>;
+
+  constructor(holeUnits: readonly UnitId[]) {
+    this.units = new Map(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), oldestHole: null, recovering: false, afterStart: null,
+      holes: holeUnits.includes(unit) }]));
+  }
 
   // mailbox が受けた入力。basis は host が frame の entry を読んだ時点の根拠で、受信時刻と一緒に運ぶ（K9 の前は null、AC06）。
   queued(item: MailboxItem, basis: WallBasis | null): void {
@@ -820,7 +828,10 @@ class InputBoundaries {
   restarted(unit: UnitId, restoration: "restored" | "empty" | "unavailable", restored: InputBoundary | null): void {
     if (restoration === "empty") return;
     const before = restored == null ? null : { receivedAt: restored.receivedAt, dmdataTime: restored.dmdataTime, dmdataId: restored.dmdataId };
-    this.units.get(unit)!.oldestHole ??= { from: 0, kind: restored?.oldestHole ?? "restarted", before };
+    const record = this.units.get(unit)!;
+    // P3-RB-AC04 (1): 穴を持たない unit は復元した位置を受信末尾の材料にする（最初の live の入力までの保存も null に落とさない）。
+    if (!record.holes) { if (before != null) record.tail = { sequence: 0, position: before }; return; }
+    record.oldestHole ??= { from: 0, kind: restored?.oldestHole ?? "restarted", before };
   }
 
   // owner が処理を終えた入力（decode で拒否した入力も処理済み）。
@@ -851,15 +862,29 @@ class InputBoundaries {
   resolve(unit: UnitId, throughSequence: number, position: BoundaryPosition): void {
     const record = this.units.get(unit)!;
     if (!record.recovering) return;
+    const solved = record.oldestHole?.before ?? null;
     record.oldestHole = record.afterStart;
     record.recovering = false;
     record.afterStart = null;
-    if (position.dmdataTime == null && position.dmdataId == null) return;
+    // P3-RB-AC03 (4): 位置が両方 null なら、末尾が無いときだけ解いた穴の before を末尾に残す（穴を消して境界を null に落とさない。末尾は処理済みの入力なので戻さない）。
+    if (position.dmdataTime == null && position.dmdataId == null) { if (record.tail == null && solved != null) record.tail = { sequence: throughSequence, position: solved }; return; }
     if (record.tail == null || record.tail.sequence <= throughSequence) record.tail = { sequence: throughSequence, position };
   }
 
-  // P3-REC-AC19・AC09（統合担当の決め）: 解決の後にも穴が残る unit には確認を出さない（境界の位置が null でも穴を見る）。
-  hasHole(unit: UnitId): boolean { return this.units.get(unit)!.oldestHole != null; }
+  // P3-RB-AC07 (2)(3)・D-GAP=A: 一覧を引き始めた時に接続の無かった回の採用。一覧の終わりから接続までの報を覆わないので最古の穴を残し、before だけを
+  // 解決の位置へ進める（位置が両方 null なら変えない）。始めた後に開いた穴は残した穴より新しいので捨て、無ければ確認を止めない印を付ける（C16 の確認の時刻のまま）。
+  advanceHole(unit: UnitId, position: BoundaryPosition): void {
+    const record = this.units.get(unit)!;
+    if (!record.recovering) return;
+    const hole = record.oldestHole, confirmable = record.afterStart == null;
+    record.recovering = false;
+    record.afterStart = null;
+    if (hole != null) record.oldestHole = { from: hole.from, kind: hole.kind, before: position.dmdataTime == null && position.dmdataId == null ? hole.before : position,
+      ...confirmable ? { confirmable: true } : {} };
+  }
+
+  // P3-REC-AC19・AC09（統合担当の決め）: 解決の後にも穴が残る unit には確認を出さない（境界の位置が null でも穴を見る）。印の穴は数えない（P3-RB-AC07 (3)）。
+  hasHole(unit: UnitId): boolean { const hole = this.units.get(unit)!.oldestHole; return hole != null && hole.confirmable !== true; }
 
   // 振り分け先の無い入力（ignored・notPorted・unlisted）と取り直しの入力（origin=recovery）は列に入れない。
   private routed(item: MailboxItem): UnitInputs | null {
@@ -873,6 +898,7 @@ class InputBoundaries {
   }
 
   private hole(record: UnitInputs, sequence: number, kind: InputHole): void {
+    if (!record.holes) return; // P3-RB-AC04 (1): 断った入力・切断でも穴を開かない（refused は受信末尾を進める）
     const opened = { from: sequence, kind, before: record.tail?.position ?? null };
     record.oldestHole ??= opened;
     if (record.recovering) record.afterStart ??= opened;

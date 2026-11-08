@@ -107,7 +107,7 @@ async function listTelegramPage(apiKey: string, query: ListQuery, signal: AbortS
   const body = parse(answer.text);
   if (!isRecord(body) || body.status !== "ok" || !Array.isArray(body.items) || !optionalText(body.nextToken) || !optionalText(body.nextPooling))
     return { kind: "rejected" };
-  const interval = body.nextPoolingInterval;
+  const interval = body.nextPoolingInterval, responseTimeMs = typeof body.responseTime === "string" ? Date.parse(body.responseTime) : NaN;
   if (interval != null && (typeof interval !== "number" || !Number.isFinite(interval) || interval < 0)) return { kind: "rejected" };
   const heads: ListHead[] = [];
   const refused = new Set<RuntimeUnitId>();
@@ -121,6 +121,7 @@ async function listTelegramPage(apiKey: string, query: ListQuery, signal: AbortS
     latest = Math.max(latest ?? -Infinity, read.receivedAtMs);
   }
   return { kind: "ok", heads, nextToken: body.nextToken ?? null, nextPooling: body.nextPooling ?? null, nextPoolingInterval: interval ?? null,
+    responseTimeMs: Number.isFinite(responseTimeMs) ? responseTimeMs : null,
     rawCount: body.items.length, oldestRawReceivedAtMs: oldest, latestRawReceivedAtMs: latest, refused: [...refused] };
 }
 
@@ -384,6 +385,8 @@ async function walkList(lane: ListRequestLane, apiKey: string, plan: readonly Un
     const heads: ListHead[] = [];
     const seen = new Set<string>();
     let listedPages = 0, stopAtMs = -Infinity;
+    // P3-RB-AC03 (2)・D-ID: 束は順に引くので、束の最初のページより新しい報はその束の辿りに無い。全部の束に共通する到達の時刻は最初のページの時刻の最も早いもの。
+    let through: number | null | undefined;
     let failed: "recoveryLimit" | "fetchFailed" | "authRejected" | null = null;
     bundles: for (const types of walk.bundles) {
       const tokens = new Set<string>();
@@ -396,6 +399,7 @@ async function walkList(lane: ListRequestLane, apiKey: string, plan: readonly Un
         }
         if (page.kind === "failed") { failed = "fetchFailed"; break bundles; }
         listedPages += 1;
+        if (cursorToken == null) through = through === null || page.responseTimeMs == null ? null : Math.min(through ?? Infinity, page.responseTimeMs);
         if (page.refused.includes(unit)) { failed = "fetchFailed"; break bundles; }
         let reached = false;
         for (const head of page.heads) {
@@ -412,7 +416,7 @@ async function walkList(lane: ListRequestLane, apiKey: string, plan: readonly Un
     }
     // 途中まで取れた unit も部分的に済みにしない（P3-REC-D-ORDER-AND-LIMIT、spec:2222）。境界の id の item より古い頭は、
     // どの束で見つけたかを問わず unit の全部の束から除く（P3-REC-AC15、統合担当の決め r1）。
-    results.push(failed == null ? { unit, kind: "listed", heads: heads.filter((head) => head.receivedAtMs >= stopAtMs) }
+    results.push(failed == null ? { unit, kind: "listed", heads: heads.filter((head) => head.receivedAtMs >= stopAtMs), ...through == null ? {} : { listedThroughMs: through } }
       : { unit, kind: "unsatisfied", reason: failed, listedPages });
   }
   return results;

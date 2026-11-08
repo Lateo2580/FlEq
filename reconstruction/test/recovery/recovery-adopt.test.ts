@@ -8,7 +8,7 @@ import type { OwnerReply } from "../../contracts/p3-execution-split.types";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../../src/mailbox/mailbox";
-import { walkStart } from "../../src/recovery/recovery";
+import { walkStart, windowOf } from "../../src/recovery/recovery";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { envelope, harnessedRoot, idleChannels, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
@@ -65,8 +65,8 @@ const report = (eventId: string, atMs: number, areas: readonly Area[], operation
 // 試験の root と host の口。bodies は一覧の id → 本文、listed は run の中のきっかけの一覧の答え。
 // files は owner の保存の file system（保存の ack を止める試験が門を置く）、seeds は U-T の state を置く行（seeded()）。
 async function setup(files: CheckpointFileSystem = new MemoryFiles(), seeds?: ReturnType<typeof seeded>, probe = true,
-  classifications: readonly DmdataClassification[] = ["telegram.earthquake"]) {
-  let now: ClockReading = { wallTimeMs: T0, monotonicMs: 1_000 };
+  classifications: readonly DmdataClassification[] = ["telegram.earthquake"], startMs = T0) {
+  let now: ClockReading = { wallTimeMs: startMs, monotonicMs: 1_000 };
   const snapshots: DisplaySnapshot[] = [];
   const diagnostics = new MemoryDiagnostics(), notification = manualAdapter();
   const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: notification.adapter,
@@ -582,6 +582,7 @@ describe("P3-REC-T13・T06 (r1): the first start after the startup list, and a h
 describe("P3-REC-T06 contractBoundary: holes and the boundary (AC02, AC19)", () => {
   it("a refused input starts a recovery that resolves its hole; a hole opened during it is promoted; recovery inputs are not in the list", async () => {
     const t = await setup();
+    t.h.root.recordConnected(t.now.wallTimeMs); // 接続のある回（接続の無い回は穴を残す、P3-RB-AC07。製品では断った入力は接続中にしか来ない）
     await t.startup([]);
     const boundaries = t.h.root.checkpoint.boundaries;
     const item = (sequence: number) => envelope(t.h.root.state.runId, "VTSE41", `input-${sequence}`,
@@ -616,6 +617,7 @@ describe("P3-REC-T06 contractBoundary: holes and the boundary (AC02, AC19)", () 
 
   it("without a disconnect the adopted recovery resolves the hole to the newest list item", async () => {
     const t = await setup();
+    t.h.root.recordConnected(t.now.wallTimeMs); // 接続のある回（接続の無い回は穴を残す、P3-RB-AC07。製品では断った入力は接続中にしか来ない）
     await t.startup([]);
     const boundaries = t.h.root.checkpoint.boundaries;
     const item = (sequence: number) => envelope(t.h.root.state.runId, "VTSE41", `input-${sequence}`,
@@ -1198,5 +1200,178 @@ describe("P3-REC-T26 regression: bodies are taken in the fixed order (AC04, RES-
         { unit: "U-Q", kind: "listed", heads: [{ ...head("q1", "E2", T0 - MINUTE), unit: "U-Q", headType: "VXSE53" }] }]));
     await t.drive();
     expect(t.fetched).toEqual(["q1", "n1"]);
+  });
+});
+
+// P3-RECOVERY-BOUNDARY-001: 取り直しで進んだ境界を保存に載せ、次の起動の起点にする。保存は MemoryFiles の世代の最も大きい slot を読む（次の起動が復元するもの）。
+describe("P3-RECOVERY-BOUNDARY-001: the boundary a recovery advances reaches the save", () => {
+  const DAY = 24 * 60 * MINUTE;
+  const saved = (files: MemoryFiles, unit: RuntimeUnitId = "U-T") => {
+    let best: { generation: number; inputBoundary: unknown } | null = null;
+    for (const [path, bytes] of files.files) if (path.endsWith(`${unit}-A.json`) || path.endsWith(`${unit}-B.json`)) {
+      const slot: { generation: number; inputBoundary: unknown } = JSON.parse(Buffer.from(bytes).toString("utf8"));
+      if (best == null || slot.generation > best.generation) best = slot;
+    }
+    return best;
+  };
+  const save = async (t: Awaited<ReturnType<typeof setup>>) => { const done = t.h.root.driveCheckpoint(); await t.drive(); await done; };
+  const listing = (heads: readonly ListHead[], listedThroughMs?: number): Promise<readonly UnitWalkResult[]> =>
+    Promise.resolve([{ unit: "U-T", kind: "listed", heads, ...listedThroughMs == null ? {} : { listedThroughMs } }]);
+  const body = (eventId: string, atMs: number, kind = "62") => xml(report(eventId, atMs, [{ code: "311", name: "a", kind }]));
+  // host と同じく mailbox が受けた live の入力を境界の列へ入れてから owner へ渡す。
+  const liveQueued = async (t: Awaited<ReturnType<typeof setup>>, text: string) => {
+    const at = t.next();
+    const input = envelope(t.h.root.state.runId, "VTSE41", `input-${at}`, Buffer.from(text), t.now, at);
+    t.h.root.checkpoint.boundaries.queued(input.payload.item, "verified");
+    await submit(t.h, input);
+  };
+
+  it("P3-RB-T01 acceptance / AC01・AC03・AC07: the listed-through time is saved, kept as the hole's before until the connected round, and starts the next runs", async () => {
+    const files = new MemoryFiles();
+    // (a) 保存の無い起動。接続の前の起動の取り直し（a1 は state を変える）→ 穴は残り、before が一覧の時刻 T1。
+    const t1 = T0 - MINUTE;
+    const a = await setup(files, undefined, false); // 通知の試行を始めない（停止の段が通知の確定を待たない）
+    a.bodies.set("a1", body("20991231000701", T0 - 2 * MINUTE));
+    a.h.root.attachRecovery(a.io, { "U-T": walkStart(null, "empty", a.now.wallTimeMs) }, listing([head("a1", "20991231000701", T0 - 2 * MINUTE)], t1));
+    await a.drive();
+    await save(a);
+    expect(saved(files)?.inputBoundary).toEqual({ receivedAt: null, dmdataTime: t1, dmdataId: null, oldestHole: "restarted" });
+    // 最初の接続の 2 巡目は T1 − 60 秒から時刻だけで止まり、空の一覧の時刻 T1' で穴を解く。
+    a.h.root.recordConnected(a.now.wallTimeMs);
+    const t1b = T0 + MINUTE / 2;
+    a.listed = (plan) => plan.map(({ unit }) => ({ unit, kind: "listed", heads: [], listedThroughMs: t1b }));
+    a.advance(60_000);
+    a.h.root.tick(a.now);
+    await a.drive();
+    expect(a.walks.map((plan) => plan.map((walk) => [walk.unit, walk.fetchFromMs, walk.stopAtId]))).toEqual([[["U-T", t1 - MINUTE, null]]]);
+    await save(a);
+    expect(saved(files)?.inputBoundary).toEqual({ receivedAt: null, dmdataTime: t1b, dmdataId: null, oldestHole: null });
+    expect((await a.h.root.shutdownRuntime(a.sequence, a.now)).code).toBe(0);
+    // (b) 6 日後の起動。空の一覧の採用で世代が 1 つ進み、境界は一覧の時刻 T2（接続の前なので穴は残る）。
+    const b = await setup(files, undefined, true, ["telegram.earthquake"], t1b + 6 * DAY);
+    const restored = b.h.root.restoredBoundaries["U-T"]!;
+    expect(restored).toEqual({ restoration: "restored", boundary: { receivedAt: null, dmdataTime: t1b, dmdataId: null, oldestHole: null } });
+    const generation = b.h.unit("U-T").persistence.currentGeneration, t2 = b.now.wallTimeMs + 1_000;
+    b.h.root.attachRecovery(b.io, { "U-T": walkStart(restored.boundary, restored.restoration, b.now.wallTimeMs, windowOf("U-T")) }, listing([], t2));
+    await b.drive();
+    expect(b.h.unit("U-T").persistence.currentGeneration).toBe(generation + 1);
+    await save(b);
+    expect(saved(files)?.inputBoundary).toEqual({ receivedAt: null, dmdataTime: t2, dmdataId: null, oldestHole: "restarted" });
+    // (c) 保存の ack の後、停止を通さずに 8 日後の起動: T2 から辿り、「7 日より前」の印は立たない。
+    const c = await setup(files, undefined, true, ["telegram.earthquake"], t1b + 8 * DAY);
+    const back = c.h.root.restoredBoundaries["U-T"]!;
+    expect(back.boundary).toEqual({ receivedAt: null, dmdataTime: t2, dmdataId: null, oldestHole: "restarted" });
+    expect(walkStart(back.boundary, back.restoration, c.now.wallTimeMs, windowOf("U-T"))).toMatchObject({ beforeWindow: false, fetchFromMs: t2 - MINUTE, stopAtId: null });
+  });
+
+  it("P3-RB-T02 contractBoundary / AC02: no grant for the unit while its adopt reply waits; a grant right after the reply carries the resolved boundary", async () => {
+    const files = new MemoryFiles();
+    const open = files.open.bind(files);
+    let failing = true;
+    files.open = async (path) => { if (failing) { failing = false; throw new Error("EIO"); } return open(path); };
+    const t = await setup(files);
+    await liveQueued(t, report("20991231000702", T0 - 3 * MINUTE, [{ code: "311", name: "a", kind: "62" }]));
+    expect(t.h.root.checkpoint.retryAfter("U-T")).toBe(t.now.monotonicMs + 1_000);
+    // 採用の返信から後の同じ owner の返信を全部止める（返信の順を入れ替えない）。owner は採用を終えている。
+    let holding: string | null = null;
+    t.h.hold((place, reply) => { if (reply.kind === "recoveryDone" && reply.result.kind === "adopted") holding = place; return place === holding; });
+    t.bodies.set("b2", body("20991231000703", T0 - 2 * MINUTE));
+    await t.startup([head("b2", "20991231000703", T0 - 2 * MINUTE)]);
+    expect(t.h.held.map(({ reply }) => reply.kind)).toEqual(["recoveryDone"]);
+    const from = t.h.sent.length;
+    const grants = () => t.h.sent.slice(from).flatMap(({ request }) => request.kind === "checkpointGrant" && request.unit === "U-T" ? [request] : []);
+    t.advance(1_000);
+    t.h.root.tick(t.now);
+    void t.h.root.driveCheckpoint();
+    await t.drive();
+    expect(grants()).toEqual([]);
+    t.h.release();
+    void t.h.root.driveCheckpoint();
+    const resolved = { receivedAt: null, dmdataTime: T0 - 2 * MINUTE, dmdataId: "b2", oldestHole: "restarted" };
+    expect(grants().map((grant) => grant.inputBoundary)).toEqual([resolved]);
+    await t.drive();
+    expect(saved(files)).toMatchObject({ generation: t.h.unit("U-T").persistence.currentGeneration, inputBoundary: resolved });
+  });
+
+  it("P3-RB-T04 regression / AC03 (4): a connected recovery with no list head keeps the restored boundary instead of null (2026-11-08 Mac mini, U-Q round 1)", async () => {
+    const files = new MemoryFiles();
+    const first = await setup(files);
+    first.h.root.recordConnected(first.now.wallTimeMs);
+    first.bodies.set("r1", body("20991231000704", T0 - 2 * MINUTE));
+    await first.startup([head("r1", "20991231000704", T0 - 2 * MINUTE)]);
+    await save(first);
+    const restored = { receivedAt: null, dmdataTime: T0 - 2 * MINUTE, dmdataId: "r1", oldestHole: null };
+    const second = await setup(files);
+    expect(second.h.root.restoredBoundaries["U-T"]).toEqual({ restoration: "restored", boundary: restored });
+    const before = saved(files)!.generation;
+    second.h.root.recordConnected(second.now.wallTimeMs);
+    await second.startup([]);
+    expect(second.h.root.checkpoint.boundaries.boundary("U-T")).toEqual(restored);
+    await save(second);
+    expect(saved(files)).toMatchObject({ generation: second.h.unit("U-T").persistence.currentGeneration, inputBoundary: restored });
+    expect(saved(files)!.generation).toBeGreaterThan(before);
+    const third = await setup(files);
+    const back = third.h.root.restoredBoundaries["U-T"]!;
+    expect(walkStart(back.boundary, back.restoration, third.now.wallTimeMs, windowOf("U-T"))).toMatchObject({ fetchFromMs: T0 - 3 * MINUTE, stopAtId: "r1" });
+  });
+
+  it("P3-RB-T06 acceptance / AC05・AC07: before the startup adopt the first run saves null; after it, before round 2, the listed-through time and not the live B", async () => {
+    // 保存の無い起動で、本文を止めている間に接続と live B が U-T を変えて保存する。
+    const connectedBeforeAdopt = async (files: MemoryFiles) => {
+      const t = await setup(files);
+      let release!: () => void;
+      t.bodies.set("l1", () => new Promise((done) => { release = () => done(body("20991231000705", T0 - 2 * MINUTE)); }));
+      t.h.root.attachRecovery(t.io, { "U-T": walkStart(null, "empty", t.now.wallTimeMs) }, listing([head("l1", "20991231000705", T0 - 2 * MINUTE)], T0 - MINUTE));
+      await t.drive();
+      t.h.root.recordConnected(t.now.wallTimeMs);
+      t.advance(20_000);
+      await liveQueued(t, report("20991231000706", t.now.wallTimeMs, [{ code: "312", name: "b", kind: "62" }]));
+      expect(saved(files)?.inputBoundary).toBeNull();
+      return { t, release };
+    };
+    const stopped = new MemoryFiles();
+    await connectedBeforeAdopt(stopped);
+    const next = await setup(stopped, undefined, true, ["telegram.earthquake"], T0 + 5 * MINUTE);
+    const empty = next.h.root.restoredBoundaries["U-T"]!;
+    expect(empty).toEqual({ restoration: "restored", boundary: null });
+    expect(walkStart(empty.boundary, empty.restoration, next.now.wallTimeMs, windowOf("U-T"))).toMatchObject({ beforeWindow: true,
+      fetchFromMs: next.now.wallTimeMs - 7 * DAY });
+    // 別の列（品質 r0 の P1-1）: 採用が終わった後、2 巡目の前に止める。
+    const adopted = new MemoryFiles();
+    const { t, release } = await connectedBeforeAdopt(adopted);
+    release();
+    await t.drive();
+    await save(t);
+    expect(saved(adopted)?.inputBoundary).toEqual({ receivedAt: null, dmdataTime: T0 - MINUTE, dmdataId: null, oldestHole: "restarted" });
+    const after = await setup(adopted, undefined, true, ["telegram.earthquake"], T0 + 5 * MINUTE);
+    const back = after.h.root.restoredBoundaries["U-T"]!;
+    expect(walkStart(back.boundary, back.restoration, after.now.wallTimeMs, windowOf("U-T"))).toMatchObject({ fetchFromMs: T0 - 2 * MINUTE, stopAtId: null });
+  });
+
+  it("P3-RB-T07 contractBoundary / AC06: a held body keeps the hole and its before, raises one generation, and the next start fetches it again", async () => {
+    const files = new MemoryFiles();
+    const series = "20991231000707";
+    const first = await setup(files);
+    first.h.root.recordConnected(first.now.wallTimeMs);
+    first.bodies.set("v1", body(series, T0 - 3 * MINUTE));
+    await first.startup([head("v1", series, T0 - 3 * MINUTE)]);
+    await save(first);
+    const second = await setup(files);
+    const generation = second.h.unit("U-T").persistence.currentGeneration;
+    // 手元と同じ版（同じ EventID・ReportDateTime）で中身の違う本文。
+    const changed = head("v2", series, T0 - 2 * MINUTE);
+    second.bodies.set("v2", body(series, T0 - 3 * MINUTE, "51"));
+    await second.startup([changed]);
+    const [reply] = second.recoveryReplies().filter((item) => item.result.kind === "adopted");
+    expect(reply?.result.kind === "adopted" && reply.result.inputs.map((item) => item.result)).toEqual(["held"]);
+    expect([second.h.root.checkpoint.boundaries.hasHole("U-T"), second.h.unit("U-T").persistence.currentGeneration]).toEqual([true, generation + 1]);
+    await save(second);
+    expect(saved(files)?.inputBoundary).toEqual({ receivedAt: null, dmdataTime: T0 - 3 * MINUTE, dmdataId: "v1", oldestHole: "restarted" });
+    const third = await setup(files);
+    const back = third.h.root.restoredBoundaries["U-T"]!;
+    third.bodies.set("v2", body(series, T0 - 3 * MINUTE, "51"));
+    third.h.root.attachRecovery(third.io, { "U-T": walkStart(back.boundary, back.restoration, third.now.wallTimeMs, windowOf("U-T")) }, listing([changed]));
+    await third.drive();
+    expect(third.fetched).toEqual(["v2"]);
   });
 });

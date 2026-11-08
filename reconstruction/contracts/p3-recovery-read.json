@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "7eea6916001f0c2f10cfb83b2b1409379cfb592d01f1ef7b5ac49949491a72d2",
+    "sha256": "ecf05357fd04dad2daab1d0876a37a870c5eb9da5443b22a45fec724f72bc7e7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -247,7 +247,7 @@
           "reconstruction/src/recovery/recovery.ts:69 «8df4e840a4b2eef9»",
           "reconstruction/src/recovery/recovery.ts:79 «e003a78207cd16d4»",
           "reconstruction/src/recovery/recovery.ts:117 «0fb2f6cbb6a918ce»",
-          "reconstruction/src/recovery/recovery.ts:452 «98009cff1dd311a3»",
+          "reconstruction/src/recovery/recovery.ts:456 «98009cff1dd311a3»",
           "reconstruction/src/runtime/composition-root.ts:2027 «0f0df422509b23a3»",
           "reconstruction/contracts/p3-recovery.types.ts:38 «edd0e39e9d547982»",
           "reconstruction/src/runtime/composition-root.ts:2017 «69bd5fd8e820fc9f»",
@@ -260,7 +260,7 @@
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:101 «3d199599d5cbaa7c»",
           "reconstruction/src/recovery/recovery.ts:106 «d7492418bf0c5ad7»",
-          "reconstruction/src/recovery/recovery.ts:363 «69e92e6dc014c872»"
+          "reconstruction/src/recovery/recovery.ts:364 «69e92e6dc014c872»"
         ]
       },
       {
@@ -269,8 +269,8 @@
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:1031 «3876cf0bfc5ca5ac»",
           "reconstruction/src/runtime/composition-root.ts:1039 «838835ae670bbb95»",
-          "reconstruction/src/runtime/composition-root.ts:2055 «27e7b98545a1330a»",
-          "reconstruction/src/runtime/composition-root.ts:2072 «712afcf072fc7cc8»",
+          "reconstruction/src/runtime/composition-root.ts:2059 «27e7b98545a1330a»",
+          "reconstruction/src/runtime/composition-root.ts:2076 «712afcf072fc7cc8»",
           "reconstruction/src/host/host.ts:564 «f1dca50b63703d46»",
           "reconstruction/src/host/host.ts:579 «ef97415fc6486b6f»",
           "reconstruction/test/recovery/recovery-adopt.test.ts:546 «713ca56ba3315c68»"
@@ -280,8 +280,8 @@
         "id": "P3-RR-AC04",
         "requirement": "adopted でない本文の語（依頼の (d)、P3-RR-D-NOT-ADOPTED）: (1) recoveryAdopted は送った本文（本文の表）のうち結果が adopted でない件数を数え、epoch が同じで 1 件以上なら recoveryUnsatisfied(unit, \"notAdopted\") にする。語は RecoveryUnsatisfiedReason の notAdopted、診断は WARN recoveryNotAdopted（unit ごとに 1 件、count にその件数）、進み具合は unsatisfied・reason notAdopted（無いと: 本文を取れたのに取得の失敗の語が出て、調べの向きを誤らせる） (2) 本文の取得の失敗（discard）・一覧の失敗・採用の返信が adopted でない（generationConflict ほか）は今の語のまま (3) DiagnosticReason と A3 永続 sink の固定の allowlist に recoveryNotAdopted を足し、unsatisfiedWords に notAdopted → recoveryNotAdopted を足す (4) 負の証拠（capacityExceeded・unreadableReport）・coverageVerified・境界の解決は変えない (5) progress の上界（1 件約 70 byte、P3-REC-AC11）は、語が既存の最長（clockEvidenceMissing）より短いので変わらない (6) count は adopted でなかった本文の件数で、sink は count のある行を反復件数としてまとめない。P3-C2-AC05 の「WARN・ERROR の診断に count を入れない」（sink は count を反復件数に使う）の規則から外れる（前例は eewWindowUnverified の count 1）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:2294 «0d57880e2f8fd4a3»",
-          "reconstruction/src/runtime/composition-root.ts:2309 «01724d3dcaa0cfb2»",
+          "reconstruction/src/runtime/composition-root.ts:2318 «0d57880e2f8fd4a3»",
+          "reconstruction/src/runtime/composition-root.ts:2333 «01724d3dcaa0cfb2»",
           "reconstruction/contracts/p3-recovery.types.ts:93 «c39c7ac3b2fa0983»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:329 «c20e3c5fb49dc6f0»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:65 «1d315c2090d11b0e»"

@@ -595,3 +595,32 @@ describe("P3-RR-T03 regression: deterministic list failures are not retried (AC0
     expect(outcomes).toEqual([["fetchFailed", 1], ["fetchFailed", 1], ["fetchFailed", 4]]);
   });
 });
+
+// P3-RECOVERY-BOUNDARY-001: 一覧の応答の時刻（responseTime）を一覧を見た時刻として運ぶ（P3-RB-D-QUIET=A・D-ID=A）。
+const realList = JSON.parse(readFileSync("test/fixtures/rest/telegram-list-vtse41-real.json", "utf8"));
+describe("P3-RB-T03 acceptance: the list's response time is the listed-through time (AC03)", () => {
+  it("an empty walk carries responseTime; without it or unparsable the page stays ok; two bundles take the earliest and the next walk keeps both", async () => {
+    https.handle = () => ({ status: 200, body: realList });
+    expect(await walk([{ unit: "U-T", bundles: [["VTSE41"]], fetchFromMs: 0, stopAtId: realList.items[0].id }]))
+      .toEqual([{ unit: "U-T", kind: "listed", heads: [], listedThroughMs: Date.parse(realList.responseTime) }]);
+    vi.useRealTimers();
+    for (const responseTime of [undefined, "not-a-date"]) {
+      https.handle = () => ({ status: 200, body: { status: "ok", items: [], ...(responseTime == null ? {} : { responseTime }) } });
+      expect(await walk([{ unit: "U-T", bundles: [["VTSE41"]], fetchFromMs: 0, stopAtId: null }])).toEqual([{ unit: "U-T", kind: "listed", heads: [] }]);
+      vi.useRealTimers();
+    }
+    // AC03 (7): 第 1 束を T に引いた後に a（第 1 束の型、T+1 秒）と b（第 2 束の型、T+2 秒）が届き、第 2 束を T+3 秒に引く。
+    const at = NOW - 10 * MINUTE, a = item("VPWW55", at + 1_000), b = item("VPWW60", at + 2_000);
+    const bundles = [["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59"], ["VPWW60", "VPWW61", "VPNO50"]];
+    const first = (url: URL) => url.searchParams.get("type") === bundles[0].join(",");
+    https.handle = (url) => ({ status: 200, body: first(url) ? { status: "ok", items: [], responseTime: new Date(at).toISOString() }
+      : { status: "ok", items: [b], responseTime: new Date(at + 3_000).toISOString() } });
+    const [listed] = await walk([{ unit: "U-W", bundles, fetchFromMs: NOW - DAY, stopAtId: null }]);
+    expect(listed.kind === "listed" && [ids(listed.heads), listed.listedThroughMs]).toEqual([[b.id], at]);
+    vi.useRealTimers();
+    const start = walkStart({ receivedAt: null, dmdataTime: at, dmdataId: null, oldestHole: null }, "restored", NOW, windowOf("U-W"));
+    https.handle = (url) => page(first(url) ? [a] : [b]);
+    const [next] = await walk([{ unit: "U-W", bundles, fetchFromMs: start.fetchFromMs, stopAtId: start.stopAtId }]);
+    expect(next.kind === "listed" && ids(next.heads)).toEqual([a.id, b.id]);
+  });
+});

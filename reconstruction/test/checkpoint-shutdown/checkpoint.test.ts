@@ -8,6 +8,7 @@ import type {
 } from "../../contracts/p2-shared-runtime.types";
 import { CheckpointCoordinator, INPUT_BOUNDARY_MAX_BYTES, InputBoundaries, dmdataIdOf, hashEnvelope, serializedEnvelope } from "../../src/checkpoint/checkpoint";
 import { ingestXmlData } from "../../src/ingress/ingress";
+import { RECOVERABLE_UNITS } from "../../src/recovery/recovery";
 import type { CheckpointFileSystem, CodecMap, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import { linkedUnitCodecs, nodeCheckpointFileSystem } from "../../src/runtime/composition-root";
 import { harnessedRoot, startHarness } from "../execution-split/owner-harness";
@@ -696,7 +697,7 @@ describe("P3-VM K7 order 1: the restore entrance and the input boundary", () => 
     dmdataTime: null, dmdataId: `id-${sequence}`, oldestHole });
 
   it("P3-VM-T06 contractBoundary / AC07 (1)(3)(4)(6): the boundary stops before the oldest unresolved input of its unit", () => {
-    const boundaries = new InputBoundaries();
+    const boundaries = new InputBoundaries(RECOVERABLE_UNITS);
     expect(boundaries.boundary("U-T")).toBeNull();
     boundaries.queued(wsItem(9, "VTSE51", "id-9"), null);
     boundaries.completed(9);
@@ -828,4 +829,26 @@ it("P3-WCI-T02 acceptance / AC02: an errno-shaped code names the save's stage an
     expect(other.own.map(([component]) => component).every((component) => component === "checkpoint")).toBe(true);
     expect(other.own).toContainEqual(["checkpoint", "checkpointDirectorySyncFailed"]);
   }
+});
+
+// P3-RB-T05（P3-RECOVERY-BOUNDARY-001 の AC04、P3-RB-D-UF=B）: 本文を取り直さない unit（U-E・U-F）は穴を持たず、復元した位置と受信末尾で進む。
+it("P3-RB-T05 contractBoundary / AC04: U-F and U-E hold no hole; refused and disconnected inputs pass them while U-T stops at its hole", () => {
+  const boundaries = new InputBoundaries(RECOVERABLE_UNITS);
+  const restored: InputBoundary = { receivedAt: { wallTimeMs: 500, basis: "verified" }, dmdataTime: null, dmdataId: "id-b", oldestHole: "restarted" };
+  for (const unit of ["U-F", "U-E", "U-T"] as const) boundaries.restarted(unit, "restored", restored);
+  const at = (unit: UnitId) => boundaries.boundary(unit);
+  expect([at("U-F"), at("U-E"), at("U-T")]).toEqual([{ ...restored, oldestHole: null }, { ...restored, oldestHole: null }, restored]);
+  const item = (inputSequence: number, headType: string) => {
+    const frame = Buffer.from(JSON.stringify({ type: "data", id: `id-${inputSequence}`, format: "xml", encoding: "utf-8", compression: null,
+      head: { type: headType, test: false }, body: "<Report/>" }));
+    const entered = ingestXmlData({ kind: "ws", inputId: `in-${inputSequence}`, inputSequence, receivedAt: 1_000 + inputSequence, origin: "live", frame });
+    if (entered.kind !== "accepted") throw new Error(entered.diagnostic.reason);
+    return entered.item;
+  };
+  const position = (sequence: number) => ({ receivedAt: { wallTimeMs: 1_000 + sequence, basis: "verified" }, dmdataTime: null, dmdataId: `id-${sequence}`, oldestHole: null });
+  ["VPWP50", "VXSE43", "VTSE41"].forEach((headType, index) => boundaries.refused(item(index + 1, headType), "verified"));
+  boundaries.disconnected(3);
+  expect([at("U-F"), at("U-E"), at("U-T")]).toEqual([position(1), position(2), restored]);
+  ["VPWP50", "VXSE43", "VTSE41"].forEach((headType, index) => { boundaries.queued(item(index + 4, headType), "verified"); boundaries.completed(index + 4); });
+  expect([at("U-F"), at("U-E"), at("U-T")]).toEqual([position(4), position(5), restored]);
 });

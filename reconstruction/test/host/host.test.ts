@@ -1119,9 +1119,9 @@ describe("P3-VERSION-MATERIAL-001 the host lists its inputs for the saved bounda
     await until(() => server.sockets[1].readyState === 1);
     server.sockets[1].send(frame("VPWW58", text("15_16_04_251222_VPWW58"), "id-w2"));
     server.sockets[1].send(frame("VPWP50", text("81_04_01_260605_VPWP50_cancel"), "id-f2"));
-    // U-W stops before its refused input; U-F, which lost nothing itself, stops at the disconnect.
-    await until(async () => (await saved(dirs, "U-W"))?.oldestHole === "refused" && (await saved(dirs, "U-F"))?.oldestHole === "disconnected", 10_000);
-    expect(await saved(dirs, "U-F")).toMatchObject({ dmdataId: "id-f1" });
+    // U-W stops before its refused input; U-F holds no hole (its bodies are not recovered, P3-RB-AC04) and passes the disconnect.
+    await until(async () => (await saved(dirs, "U-W"))?.oldestHole === "refused" && (await saved(dirs, "U-F"))?.dmdataId === "id-f2", 10_000);
+    expect(await saved(dirs, "U-F")).toMatchObject({ dmdataId: "id-f2", oldestHole: null });
     await first.stop();
     // 最後の境界は stop の後に読む。途中の保存は id-junk-118 で止まっていることがある（処理中の入力も 120 件に数えるので、断られるのは id-junk-120）。
     const refused = await saved(dirs, "U-W");

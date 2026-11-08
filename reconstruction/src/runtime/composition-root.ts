@@ -461,7 +461,7 @@ class RuntimeCompositionRoot {
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory, this.measuring == null ? diagnosticFileSystem
       : countedDiagnosticFileSystem(diagnosticFileSystem, this.measuring.publisher), () => this.clock().wallTimeMs,
       options.reportFailure ?? ((event) => { process.stderr.write(`${JSON.stringify(event)}\n`); }), this.measuring == null ? undefined : (bytes) => this.measureSummary(bytes));
-    this.checkpoint = new CheckpointWriter((unit) => codecs[unit] != null, (event) => { this.diagnostics.enqueueDiagnostic(event); });
+    this.checkpoint = new CheckpointWriter((unit) => codecs[unit] != null, (event) => { this.diagnostics.enqueueDiagnostic(event); }, RECOVERABLE_UNITS);
   }
 
   get state(): PublisherState {
@@ -649,11 +649,11 @@ class RuntimeCompositionRoot {
         break;
       case "intentUpdateDone": this.intentUpdateDone(place, reply); break; case "detailDone": this.detailDone(place, reply); break;
       case "recoveryDone": {
-        // P3-REC-AC05: 返信の output（採用の mirror・負の証拠・診断）を反映してから、待っている取り直しへ渡す。
-        this.ownerOutput(place, reply.output, null);
+        // P3-REC-AC05: 返信の output（採用の mirror・負の証拠・診断）を反映してから待っている取り直しへ渡す。P3-RB-AC02: 採用の返信は反映の前に同期で穴を解き（反映の後の権が上がった世代を解決の前の境界で書かないように。microtask の順に頼らない）、権の除外は反映の後に外す。
         const waiting = this.recoveryReplies.get(reply.recoveryId);
-        this.recoveryReplies.delete(reply.recoveryId);
-        waiting?.done(reply);
+        this.recoveryReplies.delete(reply.recoveryId); waiting?.settle?.(reply);
+        this.ownerOutput(place, reply.output, null);
+        if (waiting?.settle != null) this.adoptWaiting = null; waiting?.done(reply);
         break;
       }
       case "checkpointDone": this.checkpointDone(place, reply); break;
@@ -1499,7 +1499,7 @@ class RuntimeCompositionRoot {
     if (state.shutdown.stage !== "running") return [];
     const busy = (place: ExecutionPlace) => this.monitors[place].stopped || this.inFlightInputs.has(place) && !this.delayedInputs.has(place);
     const grants = this.checkpoint.next(this.persistence(), clock, state.runId,
-      { excluded: new Set(runtimeUnits.filter((unit) => busy(executionPlaces[unit]))) });
+      { excluded: new Set(runtimeUnits.filter((unit) => busy(executionPlaces[unit]) || unit === this.adoptWaiting)) }); // adoptWaiting: P3-RB-AC02 (2)
     for (const grant of grants) this.postGrant(grant);
     return grants;
   }
@@ -2045,7 +2045,11 @@ class RuntimeCompositionRoot {
   private readonly uncovered = new Map<RuntimeUnitId, WalkStart>();
   // unit×operation ごとの最後の負の証拠の入力番号（AC09 (1)(2)）。
   private readonly negatives = new Map<string, number>();
-  private readonly recoveryReplies = new Map<string, Readonly<{ place: ExecutionPlace; done: (reply: RecoveryDone | null) => void }>>();
+  // settle は adopt の返信を反映する前に同期で当てる口（P3-RB-AC02 (1)）。
+  private readonly recoveryReplies = new Map<string, Readonly<{ place: ExecutionPlace; done: (reply: RecoveryDone | null) => void; settle?: (reply: RecoveryDone) => void }>>();
+  // P3-RB-AC02 (2): adopt を送ってから返信を反映するまでの unit（候補は全体で 1 つ）。その間は権を出さない（無いと owner が上がった世代を古い境界で書き、
+  // その ack で savedGeneration が追いつく）。外すのは返信の反映と owner の停止だけ（切断では外さない: owner は adopt の後に権を処理する）。
+  private adoptWaiting: RuntimeUnitId | null = null;
   // 本文の表（AC05）: mailbox に入れた本文の入力番号 → unit と枠。終わり（inputDone・owner の停止）で消して枠を返す。
   private readonly bodies = new Map<number, Body>();
   private slotsHeld = 0;
@@ -2073,6 +2077,9 @@ class RuntimeCompositionRoot {
     this.progress = new Map(runtimeUnits.filter((unit) => starts[unit] != null).map((unit) => [unit, { unit, state: "notRecovered" }]));
     const units = RECOVERABLE_UNITS.filter((unit) => starts[unit] != null);
     for (const unit of units) this.uncovered.set(unit, starts[unit]!);
+    // P3-RB-AC05（D-FIRST=A）: 保存の無い unit にも、起動の取り直しが進めるまで before が null の穴を置く（unavailable の穴と同じ形）。無いと採用の前の
+    // live の入力で境界が受信末尾へ進み、その保存の後に止めると次の起動が N2 の窓と 7 日のまとめを辿らない。
+    for (const unit of units) if (this.state.restoration[unit].kind === "empty") this.checkpoint.boundaries.restarted(unit, "unavailable", null);
     void this.conduct(units, listed, new Map());
   }
 
@@ -2120,7 +2127,8 @@ class RuntimeCompositionRoot {
     const io = this.recoveryIo!;
     this.runStopped = new Set();
     // recoveryId に結ぶ epoch と範囲の終わり（一覧を引き始めた時点の番号、AC07・AC09 (1)・AC19 (2)）。
-    const run = { epoch: this.state.confirmation.epoch, listSequence: this.currentSequence() };
+    // connected（P3-RB-AC07 (1)）: 一覧を引き始めた時に start を受けて切れていないか。false の回の一覧は一覧の終わりから接続までの報を覆わない。
+    const run = { epoch: this.state.confirmation.epoch, listSequence: this.currentSequence(), connected: this.socketStarted };
     const units: RuntimeUnitId[] = []; let passed = 0; // passed は catch の帳簿（N3）: loop の 1 回分を正常に抜けた unit の数
     for (const unit of WALK_ORDER.filter((item) => requested.includes(item))) { // Q-REC-PRECHECK-8 N7: 本文と RES-03 を P3-REC-D-ORDER-AND-LIMIT=A の固定順で数える
       if (this.stoppedUnit(unit)) { this.recoveryUnsatisfied(unit, "ownerStopped"); continue; }
@@ -2131,7 +2139,9 @@ class RuntimeCompositionRoot {
     if (units.length !== 0) this.project([], [], this.clock());
     try {
       const starts = Object.fromEntries(units.map((unit) => [unit, this.recoveryStartOf(unit, wanted.get(unit))]));
-      const results = listed != null ? await listed : units.length === 0 ? [] : await io.walk(recoveryPlan(io.classifications, starts, units));
+      // 起動の辿り（host の startupPlan）も同じ購読の区分で束を作るので、束の数はこの計画で数える（P3-RB-AC03 (3)）。
+      const plan = recoveryPlan(io.classifications, starts, units);
+      const results = listed != null ? await listed : units.length === 0 ? [] : await io.walk(plan);
       // 起動の辿りの WARN はダイジェストの側が出した（showRecoveryDigest）。owner の止まった unit の WARN は出さない（N2、作者裁定 A）。
       if (listed == null && this.recovering())
         for (const details of walkDiagnostics(results)) if (details.unit == null || !this.stoppedUnit(details.unit)) this.enqueueDiagnostic(completeDiagnostic(details, this.clock(), this.state.runId));
@@ -2152,7 +2162,7 @@ class RuntimeCompositionRoot {
         const heads = bodiesFor(unit, result.heads.filter((head) => head.receivedAtMs >= starts[unit].fetchFromMs)); // Q-REC-PRECHECK-10 N3: 本文は N2 の窓の内だけ（起動の一覧は 7 日まで辿る）
         if (heads.length > budget) { ended = "recoveryLimit"; this.recoveryUnsatisfied(unit, ended); continue; }
         budget -= heads.length;
-        const stopped = await this.recoverUnit(io, run, unit, heads, result.heads);
+        const stopped = await this.recoverUnit(io, run, unit, heads, resolvedPosition(result, plan.find((walk) => walk.unit === unit)?.bundles.length ?? 0));
         if (stopped != null) ended = stopped;
       }
     } catch {
@@ -2173,8 +2183,8 @@ class RuntimeCompositionRoot {
    * 1 unit の候補（AC05〜AC07）。open → 本文を 1 件ずつ取って mailbox へ（枠は RES-01 の 2 件）→ 表の本文が全部終わってから adopt（失敗なら discard）。
    * 戻り値は残りの unit を止める理由（401/403 は authRejected、429 の尽きは fetchFailed、AC03 (3)(4)）。
    */
-  private async recoverUnit(io: RecoveryIo, run: Readonly<{ epoch: number; listSequence: number }>, unit: RuntimeUnitId, heads: readonly ListHead[],
-    listed: readonly ListHead[]): Promise<RecoveryUnsatisfiedReason | null> {
+  private async recoverUnit(io: RecoveryIo, run: RecoveryRun, unit: RuntimeUnitId, heads: readonly ListHead[],
+    position: ResolvedPosition): Promise<RecoveryUnsatisfiedReason | null> {
     const place = executionPlaces[unit];
     const recoveryId = `${run.epoch}/${++this.recoveryCount}`;
     if (await this.askRecovery(place, recoveryId, unit, "open") == null) { this.recoveryUnsatisfied(unit, "ownerStopped"); return null; }
@@ -2206,9 +2216,10 @@ class RuntimeCompositionRoot {
       this.recoveryUnsatisfied(unit, failure === "authRejected" ? "authRejected" : "fetchFailed");
       return failure === "fetchFailed" ? null : failure === "authRejected" ? "authRejected" : "fetchFailed";
     }
-    const reply = await this.askRecovery(place, recoveryId, unit, "adopt");
+    const settled: { outcome: AdoptOutcome | null } = { outcome: null };
+    const reply = await this.askRecovery(place, recoveryId, unit, "adopt", (done) => { settled.outcome = this.settleAdopted(run, unit, done, table, position); });
     if (reply == null) { this.recoveryUnsatisfied(unit, "ownerStopped"); return null; }
-    this.recoveryAdopted(run, unit, reply, table, listed);
+    this.recoveryAdopted(run, unit, reply, settled.outcome);
     return null;
   }
 
@@ -2242,10 +2253,12 @@ class RuntimeCompositionRoot {
     this.releaseSlot(body.slot);
   }
 
-  private askRecovery(place: ExecutionPlace, recoveryId: string, unit: RuntimeUnitId, phase: "open" | "adopt" | "discard"): Promise<RecoveryDone | null> {
+  private askRecovery(place: ExecutionPlace, recoveryId: string, unit: RuntimeUnitId, phase: "open" | "adopt" | "discard",
+    settle?: (reply: RecoveryDone) => void): Promise<RecoveryDone | null> {
     if (this.monitors[place].stopped) return Promise.resolve(null);
     return new Promise((done) => {
-      this.recoveryReplies.set(recoveryId, { place, done });
+      this.recoveryReplies.set(recoveryId, { place, done, settle });
+      if (settle != null) this.adoptWaiting = unit;
       this.post(place, { kind: "recovery", recoveryId, unit, phase });
     });
   }
@@ -2254,6 +2267,7 @@ class RuntimeCompositionRoot {
   private recoveryOwnerStopped(units: readonly RuntimeUnitId[]): void {
     for (const [recoveryId, waiting] of this.recoveryReplies) if (placeUnits(waiting.place).some((unit) => units.includes(unit))) {
       this.recoveryReplies.delete(recoveryId);
+      if (waiting.settle != null) this.adoptWaiting = null;
       waiting.done(null);
     }
     for (const [sequence, body] of this.bodies) if (units.includes(body.unit)) this.endBody(sequence, body);
@@ -2265,16 +2279,13 @@ class RuntimeCompositionRoot {
   }
 
   /**
-   * 採用の返信（AC06 (b)・AC07・AC09・AC19）。送った本文が全部 adopted で、epoch が始めた時と同じときだけ、範囲の後に負の証拠の無い normal・training に
-   * coverageVerified を出し、穴を解く。容量・読めない報の結果は負の証拠の台帳に入れる（確認を止める）。
+   * 採用の返信を反映する前の同期の段（P3-RB-AC02 (1)）。送った本文の表と返信の結果を突き合わせ（AC06 (b)）、容量・読めない報の結果は負の証拠の台帳に
+   * 入れる（確認を止める）。全部 adopted で epoch が始めた時と同じなら穴を解く（接続の無い回は穴を残して before を進める、P3-RB-AC07）。adopted でない返信は null。
    */
-  private recoveryAdopted(run: Readonly<{ epoch: number; listSequence: number }>, unit: RuntimeUnitId, reply: RecoveryDone, table: ReadonlyMap<number, Operation>,
-    listed: readonly ListHead[]): void {
+  private settleAdopted(run: RecoveryRun, unit: RuntimeUnitId, reply: RecoveryDone, table: ReadonlyMap<number, Operation>,
+    position: ResolvedPosition): AdoptOutcome | null {
     const { result } = reply;
-    if (result.kind !== "adopted") {
-      this.recoveryUnsatisfied(unit, result.kind === "generationConflict" ? "generationConflict" : result.kind === "unsatisfied" ? result.reason : "fetchFailed");
-      return;
-    }
+    if (result.kind !== "adopted") return null;
     const results = new Map(result.inputs.map((item) => [item.inputSequence, item.result]));
     let notAdopted = 0; // P3-RR-AC04: adopted でなかった本文の数（WARN の count）
     for (const [sequence, operation] of table) {
@@ -2282,13 +2293,26 @@ class RuntimeCompositionRoot {
       if (seen !== "adopted") notAdopted += 1;
       if (seen === "capacityExceeded" || seen === "unreadableReport") this.noteNegative(unit, operation, sequence);
     }
-    const clock = this.clock(), complete = notAdopted === 0;
     const same = this.state.confirmation.epoch === run.epoch;
+    if (notAdopted === 0 && same) {
+      if (run.connected) this.checkpoint.boundaries.resolve(unit, run.listSequence, position);
+      else this.checkpoint.boundaries.advanceHole(unit, position);
+    }
+    return { notAdopted, same };
+  }
+
+  /**
+   * 採用の返信（AC06 (b)・AC07・AC09・AC19）の反映の後の段。送った本文が全部 adopted で、epoch が始めた時と同じときだけ、範囲の後に負の証拠の無い normal に
+   * coverageVerified を出す。outcome は反映の前に settleAdopted が出した突き合わせ（null は adopted でない返信）。
+   */
+  private recoveryAdopted(run: RecoveryRun, unit: RuntimeUnitId, reply: RecoveryDone, outcome: AdoptOutcome | null): void {
+    const { result } = reply;
+    if (result.kind !== "adopted" || outcome == null) {
+      this.recoveryUnsatisfied(unit, result.kind === "generationConflict" ? "generationConflict" : result.kind === "unsatisfied" ? result.reason : "fetchFailed");
+      return;
+    }
+    const { notAdopted, same } = outcome, clock = this.clock(), complete = notAdopted === 0;
     if (complete && same) {
-      // AC19 (2)(5): 覆った区間の終わりは一覧を引き始めた時点の番号と、最後に一覧で見た item の dmdata 時刻と電文 id。
-      let newest: ListHead | null = null;
-      for (const head of listed) if (newest == null || head.receivedAtMs > newest.receivedAtMs) newest = head;
-      this.checkpoint.boundaries.resolve(unit, run.listSequence, { receivedAt: null, dmdataTime: newest?.receivedAtMs ?? null, dmdataId: newest?.id ?? null });
       this.uncovered.delete(unit);
       this.setProgress(unit, { unit, state: "recovered" });
     } else if (same) this.recoveryUnsatisfied(unit, "notAdopted", notAdopted); // P3-RR-AC04: 本文は取れたので取得の失敗の語にしない
@@ -2353,6 +2377,18 @@ const unsatisfiedWords: Readonly<Record<RecoveryUnsatisfiedReason, DiagnosticRea
   authRejected: "recoveryAuthRejected", generationConflict: "recoveryGenerationConflict", baseMissing: "recoveryBaseMissing",
   clockEvidenceMissing: "recoveryClockEvidenceMissing", ownerStopped: "recoveryOwnerStopped", notAdopted: "recoveryNotAdopted" };
 type RecoveryDone = Extract<OwnerReply, { kind: "recoveryDone" }>;
+// 1 回の取り直し: recoveryId に結ぶ epoch、範囲の終わり（一覧を引き始めた番号）、一覧を引き始めた時に接続があったか（P3-RB-AC07 (1)）。
+type RecoveryRun = Readonly<{ epoch: number; listSequence: number; connected: boolean }>;
+type ResolvedPosition = Readonly<{ receivedAt: null; dmdataTime: number | null; dmdataId: string | null }>;
+type AdoptOutcome = Readonly<{ notAdopted: number; same: boolean }>;
+// P3-RB-AC03 (3)・D-ID=A: 取り直しの解決の位置。一覧の応答の時刻があればその時刻（共通の到達の時刻より新しい item の id は、次の辿りの束をまたぐ
+// フィルタで早い束の頭を除くので止めどころにしない）。無ければ 1 つの束の unit だけ最後に一覧で見た item の時刻と id、2 束以上は両方 null（進めない）。
+function resolvedPosition(result: Extract<UnitWalkResult, { kind: "listed" }>, bundles: number): ResolvedPosition {
+  if (result.listedThroughMs != null) return { receivedAt: null, dmdataTime: result.listedThroughMs, dmdataId: null };
+  let newest: ListHead | null = null;
+  if (bundles === 1) for (const head of result.heads) if (newest == null || head.receivedAtMs > newest.receivedAtMs) newest = head;
+  return { receivedAt: null, dmdataTime: newest?.receivedAtMs ?? null, dmdataId: newest?.id ?? null };
+}
 // host が渡す取り直しの口（apiKey は host にしか無い）。notBefore は一覧と本文の待ちの遅い方（AC03 (9)）。
 type RecoveryIo = Readonly<{
   classifications: readonly DmdataClassification[];

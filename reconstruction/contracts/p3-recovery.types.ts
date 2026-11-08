@@ -36,7 +36,7 @@ export type ListQuery =
 export type ListPage =
   // rawCount・oldest/latestRawReceivedAtMs は濾す前の item で数える（dmdata の時刻）。満杯・遡りの止めどころ・位置はこの生の値で決める（P3-REC-AC13 (2)）。
   // refused は本文を流す型の item を境界の検査（url・id の文字）か xmlReport の無い item（P3-RR-AC01）で捨てた unit（その回は fetchFailed、H41 ではその周期に突き合わせず WARN、P3-REC-AC01）。
-  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null; nextPoolingInterval: number | null;
+  | Readonly<{ kind: "ok"; heads: readonly ListHead[]; nextToken: string | null; nextPooling: string | null; nextPoolingInterval: number | null; responseTimeMs: number | null; /* 応答の responseTime（無いか読めなければ null、P3-RB-AC03 (1)） */
       rawCount: number; oldestRawReceivedAtMs: number | null; latestRawReceivedAtMs: number | null; refused: readonly RuntimeUnitId[] }>
   | Readonly<{ kind: "failed" }> | Readonly<{ kind: "rejected" }> // rejected は再試行しない決定的な失敗（2xx の形の不一致、401・403・408・429 以外の 4xx、P3-RR-AC02）
   | Readonly<{ kind: "authRejected" }>
@@ -46,7 +46,7 @@ export type ListPage =
 export type UnitWalk = Readonly<{ unit: RuntimeUnitId; bundles: readonly (readonly string[])[]; fetchFromMs: number; stopAtId: string | null }>;
 
 export type UnitWalkResult =
-  | Readonly<{ unit: RuntimeUnitId; kind: "listed"; heads: readonly ListHead[] }>
+  | Readonly<{ unit: RuntimeUnitId; kind: "listed"; heads: readonly ListHead[]; listedThroughMs?: number }> // listedThroughMs: 全部の束に共通する一覧の到達の時刻（どれかの束で分からなければ欄を置かない、P3-RB-AC03 (2)）
   | Readonly<{ unit: RuntimeUnitId; kind: "unsatisfied"; reason: "recoveryLimit" | "fetchFailed" | "authRejected"; listedPages: number }>;
 
 // ダイジェストの 1 件。文字列は 256 byte に切る（P3-REC-RES-06）。receivedAt は dmdata の受信時刻。

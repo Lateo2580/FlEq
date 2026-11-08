@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "c534f2d45c1b6f54b529f099f20d5a9d5f167e768c9ded65bff2387ec3e8e633",
+    "sha256": "f6dfa070da559a16e15c8b6f53580af79dadfab5fb58da2307728752c8dfc3df",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1022,7 +1022,7 @@
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
           "src/engine/startup/volcano-initializer.ts:61 «ee7e02d3c61c25ff»",
           "reconstruction/contracts/p3-execution-split.types.ts:117 «af3e82512c61ef88»",
-          "reconstruction/src/checkpoint/checkpoint.ts:821 «774a76496d710579»",
+          "reconstruction/src/checkpoint/checkpoint.ts:829 «774a76496d710579»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:633 «63409c8d5e8c3c17»"
         ]
       },
@@ -1191,7 +1191,7 @@
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
           "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
           "reconstruction/src/runtime/composition-root.ts:150 «d515e86c34a64341»",
-          "reconstruction/src/checkpoint/checkpoint.ts:877 «f34c57c08414c0ec»"
+          "reconstruction/src/checkpoint/checkpoint.ts:903 «f34c57c08414c0ec»"
         ]
       }
     ],

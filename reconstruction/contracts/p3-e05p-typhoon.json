@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f130ed396687593783f92e10757ef9863dea0bc2",
-    "sha256": "3ca63c5b60272e01bcd83e091dfcdb02e4e1fbcd3155511ede9e29ddb0083328",
+    "sha256": "8b1f3052956bb2e1800b9202612a3e951c1afb91c41fac8f8a47431a3472593b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -259,7 +259,7 @@
           "reconstruction/src/host/host.ts:344 «4e59b32fa47cec3d»",
           "reconstruction/src/host/host.ts:166 «b747b81e2514721e»",
           "reconstruction/src/host/host.ts:167 «e110b2548c865519»",
-          "reconstruction/src/runtime/composition-root.ts:2404 «89d351c384d4c301»",
+          "reconstruction/src/runtime/composition-root.ts:2440 «89d351c384d4c301»",
           "reconstruction/contracts/p3-typhoon-unit.json:435 «35816c13f4204db8»"
         ]
       },
@@ -313,7 +313,7 @@
         "evidenceRefs": [
           "reconstruction/test/eew-e01/windows.mjs:323 «78045dc3d8f5cae9»",
           "reconstruction/src/host/host.ts:187 «8eccbc77af0cc99f»",
-          "reconstruction/src/runtime/composition-root.ts:2404 «89d351c384d4c301»",
+          "reconstruction/src/runtime/composition-root.ts:2440 «89d351c384d4c301»",
           "reconstruction/test/eew-e01/run.mjs:1742 «adc008712a5092a6»",
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-wyl-e05p.json:158 «b9e1362e4009ebe0»"
         ]

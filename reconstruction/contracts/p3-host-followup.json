@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3bf28220324183175ffc82e04420a6ccef24ef6e",
-    "sha256": "005d565bbb3fab96694182eb2b723dea9212e7b0503e31618dbe1696a314a33e",
+    "sha256": "5372585799f1e4bbcfe6a55898a514010032fdc91449dfacb158ee5175175038",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -241,7 +241,7 @@
           "reconstruction/test/local-bulletins-unit/local-bulletins-host.test.ts:337 «4c30ccd004880ff3»",
           "reconstruction/src/runtime/owner-runtime.ts:507 «63adcad8d045ce86»",
           "reconstruction/src/runtime/owner-runtime.ts:509 «7820be847bd9d157»",
-          "reconstruction/src/runtime/composition-root.ts:2401 «a8e36100fe204f8f»"
+          "reconstruction/src/runtime/composition-root.ts:2437 «a8e36100fe204f8f»"
         ]
       },
       {

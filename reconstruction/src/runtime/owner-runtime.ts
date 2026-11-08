@@ -687,18 +687,19 @@ function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeU
   const before = new Set(ownUnit(live, unit).intents.map((intent) => intent.id));
   if (ownUnit(shadow, unit).intents.some((intent) => !before.has(intent.id))) return null;
   const work = session(live, units, clock, basis);
-  // 保存の進み具合は live の最新を保ち、候補が進めた世代だけを載せる。capture の後なら次の dirty の区間を始める（reduceUnit と同じ）。
-  const current = ownUnit(live, unit).persistence, generation = ownUnit(shadow, unit).persistence.currentGeneration;
-  const persistence = generation > current.currentGeneration ? { ...raised(current, clock.monotonicMs), currentGeneration: generation } : current;
+  // 保存の進み具合は live の最新を保ち、候補が進めた世代を載せる。capture の後なら次の dirty の区間を始める（reduceUnit と同じ）。
+  // P3-RB-AC01（D-RAISE=A）: 候補が世代を進めていなくても 1 つ進める。無いと state の変わらない取り直しで resolve した境界が保存に載らない。
+  const current = ownUnit(live, unit).persistence, generation = Math.max(ownUnit(shadow, unit).persistence.currentGeneration, current.currentGeneration + 1);
+  const persistence = { ...raised(current, clock.monotonicMs), currentGeneration: generation };
   const attempt = live.checkpointAttempts[unit];
-  const attempts = attempt != null && attempt.postCaptureDirtySince == null && generation > current.currentGeneration && generation > attempt.generation
+  const attempts = attempt != null && attempt.postCaptureDirtySince == null && generation > attempt.generation
     ? { ...live.checkpointAttempts, [unit]: { ...attempt, postCaptureDirtySince: clock.monotonicMs } } : live.checkpointAttempts;
   let adopted: OwnerState = { ...live, units: { ...live.units, [unit]: { ...ownUnit(shadow, unit), persistence } },
     unreadable: { ...live.unreadable, [unit]: shadow.unreadable[unit] }, losses: { ...live.losses, [unit]: shadow.losses[unit] },
     checkpointAttempts: attempts, deadlines: { ...live.deadlines, [unit]: shadow.deadlines[unit] } };
   // P3-REC-AC12（発注 4a）: 採用の step の音（H27 と U-T の読めない報の info）は unit の行の recoveryNotices が作る（owner-runtime は unit を import しない、台帳 104 の循環）。
   work.state = adopted = noticed(units, unit, { live, open, adopted, recoveryId, inputIds, clock, basis });
-  if (ownUnit(adopted, unit).persistence.currentGeneration > ownUnit(live, unit).persistence.currentGeneration) work.generationInputIds[unit] = inputIds;
+  work.generationInputIds[unit] = inputIds; // 採用は必ず世代を進めるので、その世代に候補の入力を結ぶ（空の候補は空の列、P2-A3-AC10）
   work.changed(unit);
   work.viewed(unit);
   // U-R の期限は基点（採用の直前の live）でその subject が見えていなかった記録の intent を作らない（候補を作る間の回収と同じ規則、P3-REC-AC12・Q-REC-IMPL-4b-1 (b)）。
