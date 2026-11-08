@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "9140ce23d04d6799f5e50c13b0423c71662f9f1283994e65ccbf0777213b7977",
+    "sha256": "d560aec4cfe88b47c8bf5d4e0ff2e360e5e9157c7e922f03f021d2b11ceef8b4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -196,7 +196,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-010",
     "mode": "implementation",
     "objective": "旧築にあって新築の端末に無かった、複数の報をまたいで束ねる・畳む・見分ける 3 つを直す。降灰予報（定時）が何火山分も届いたとき 1 つのブロックにまとめ（作者の裁定 P3-TL10-D-VFVO53=A）、同時に進む EEW の帯を地震ごとに同じ段の濃さで見分け（P3-TL10-D-EEW-COLOR=A）、記録的短時間大雨の VPOA50 と同じ事象の VPBS50 を U-B の判定（held・aliased）で 1 ブロックにする（P3-TL10-D-RAIN-JUDGE。VPOA50 だけのときは D-RAIN-ALONE=A〔作者の裁定〕で、受けてから U-B と同じ 60 秒で出す）。形は reconstruction/src/terminal の output.ts・format.ts・color.ts の中で作る",
-    "baseOid": "unassigned",
+    "baseOid": "0d3c09e4",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
