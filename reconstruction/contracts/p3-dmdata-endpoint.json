@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
-    "sha256": "6f354ab579c2e7d14832bb3fa24f79aa9391be2b1f0066ea97ea9b70854bb7b6",
+    "sha256": "ea791a76a7d60d22c73be8540d716282c95a26edd24bb5a25d3a626190e58e4d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -83,7 +83,7 @@
     "contractId": "P3-DMDATA-ENDPOINT-001",
     "mode": "implementation",
     "objective": "新築の dmdata の WebSocket が切れた・開けなかった後、次の socket start が同じ host を返したら、反対の地域の入口（ws-tokyo.api.dmdata.jp・ws-osaka.api.dmdata.jp）へ繋ぐ（2026-11-08 夜の旧築との欠けの調べの「1」）。host.ts の connect が最後に失敗した WS の host 名を 1 つだけプロセスの中で覚え、start の URL の host がそれと同じで表（ws001・ws002 → ws-osaka、ws003・ws004 → ws-tokyo）にあれば host 名だけを替える。ticket・path・query・protocol は start の返事のまま。旧築の停止時間の帳簿（120〜900 秒）は持ち込まない。画面・通知の字、HostStatus、診断、永続 schema は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "5c5c6bdf",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
