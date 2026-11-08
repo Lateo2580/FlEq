@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "0d2cee766259aa9d0a9c66a10b6ce354bc3cf7b38f9dce6cdc8238cd3653be2c",
+    "sha256": "f3f5b0821b43db898191eebcee4049ec6b2f539dca6cdeec2ccdfacda84ba856",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -103,6 +103,13 @@
         "source": "2026-11-08 作者（Mac mini で 10 秒ほど止めて起動し直すと、最初の起動と同じ 7 日分のまとめと「7 日より前の情報は取り直していません」がもう一度出た）",
         "closed": "読みで原因を確かめた（統合担当、2026-11-08）。C16 の取り直しと保存の境界の組み合わせの穴で、この契約では直さない。経路: (1) 起動の起点は owner の restored の返信の境界（composition-root.ts の restoredBoundaries）で、walkStart は restored かつ境界の dmdataTime か verified の受信時刻があるときだけ前回の位置を使い、無ければ 7 日と beforeWindow にする (2) 境界は保存の権を出す時（checkpoint.ts の next の inputBoundary: this.boundaries.boundary(unit)）にだけ envelope に書かれ、保存は世代が変わったとき（saveDue の currentGeneration ≠ savedGeneration）だけ走る (3) 取り直しの入力（origin=recovery）は InputBoundaries の列に入らない（routed）ので、取り直しの本文で state が変わった保存の権は、初めての起動なら境界 null、2 回目からは restarted の穴の before（前回の null）を書く (4) 取り直しが終わると recoveryAdopted が boundaries.resolve で末尾を一覧の最新の dmdata 時刻にするが、これは世代を変えないので保存が走らない。10 秒の run では live の電文で世代が変わる前に止まり、envelope の境界は null のまま残る (5) 次の起動は restored・境界 null で known が null になり、7 日のまとめと印が毎回出る。本文の取り直しも N2 の窓の全部をやり直す。直し方の候補は、resolve で境界が進んだ unit を世代を変えずに保存する口か、停止の最終保存で境界だけを書き直す口で、どちらも C16 と checkpoint（P3-VM）の保存の約束に触る。端末の契約の範囲で小さく直せないので残す",
         "remaining": "C16（P3-RECOVERY-001）と checkpoint の契約で直す。作者へ報告し、台帳に載せる"
+      },
+      {
+        "id": "Q-TL7-REVIEW-R1",
+        "status": "closed",
+        "source": "2026-11-08 r0 の中間レビュー（契約適合 Opus 条件付き GO・P2 2 件、品質 Opus 条件付き GO・P2 1 件）",
+        "closed": "直したもの（統合担当の指示）: (1) 契約適合 P2: U-F（VPWP50）がまとめで「その他」になる → 表に VPWP50「気象警報・注意報時系列情報」（fixture の Control の Title）を足し、AC01 (4) と T02 から U-F の除外を外した (2) 契約適合 P2: 閉じた契約の原文の改訂 4 件を artifactRequirements に足した (3) 品質 P3: 繋ぎ直しで前の接続の区分が残る → 接続を張るときに HostStatus.classifications を null に戻す（AC04 (6) を改めた） (4) 契約適合 P3: spec の入力の行の図のうち奇数の秒の ●（§6.1 の 00:00:05 の 2 行、§9.1 の :05・:15 の 3 行と §9.4 の 1 行）を ○ にした。94be4923 は §6.7 の図だけを偶数の秒にしたが、図の時刻を変えずに規則の字形にそろえるのが正しい（同じ規則を前からの図にも当てた） (5) 品質 P3: TTY の端末の題名（OSC 2）の付け・戻しの試験を startup.test.ts に足した",
+        "remaining": "作者の判断待ち: 全部の分野が 0 件のときのまとめ（品質 P2-1）、処理できなかった電文の帯のコード"
       }
     ],
     "operationContract": {
@@ -223,7 +230,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL7-AC01",
-        "requirement": "まとめの「ほか」の題名（Q-TO8-NO-CODE）: (1) omitted の種類のコードを題名の表で引き、「ほか <題名> <件数> 件」にする。同じ題名の種類は件数を足し、2 つ以上なら件数の多い順（同じ件数は omitted の順）に全角の空白で並べる (2) 題名は実物の電文の Control の Title から（Ｒ０６）・（Ｈ３０）と末尾の a を除いた名前。VXKO・VFSV・VPTW・VPTA は先頭 4 字で 1 つの名前にする (3) 表に無い種類は「その他」にまとめ、コードを出さない (4) まとめに載る分野（unit 表の ready の行のうち U-E と U-F を除いた unit）の型は、どれも「その他」にならない (5) 短い形の末尾と緊急地震速報の末尾は変えない",
+        "requirement": "まとめの「ほか」の題名（Q-TO8-NO-CODE）: (1) omitted の種類のコードを題名の表で引き、「ほか <題名> <件数> 件」にする。同じ題名の種類は件数を足し、2 つ以上なら件数の多い順（同じ件数は omitted の順）に全角の空白で並べる (2) 題名は実物の電文の Control の Title から（Ｒ０６）・（Ｈ３０）と末尾の a を除いた名前。VXKO・VFSV・VPTW・VPTA は先頭 4 字で 1 つの名前にする (3) 表に無い種類は「その他」にまとめ、コードを出さない (4) まとめに載る分野（unit 表の ready の行のうち U-E を除いた unit。U-F は本文を取り直さないが一覧はまとめに載る、recovery.ts の WALK_ORDER と P3-REC-D-UF-BASE=C）の型は、どれも「その他」にならない (5) 短い形の末尾と緊急地震速報の末尾は変えない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:683 «e91ad6d5e73242ec»",
           "docs/specs/cli-terminal-output.md:758 «bf7fd3d7c230ca5d»",
@@ -250,7 +257,7 @@
       },
       {
         "id": "P3-TL7-AC04",
-        "requirement": "起動画面（Q-TO8-BANNER）: (1) createTerminalOutput の options.startup（appName・version・testMode・classifications）があれば、作った時に空行、「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」を空色の地に黒の太字、空行を積む (2) 標準出力が端末なら端末の題名を「<appName> v<version>」にし、close で空に戻す (3) classifications が null でなければ、回線の読みで最初に connection が connected で socketId と HostStatus.classifications が null でないときに 1 回だけ、求めた区分のうち start の区分に無いものを求めた順に「<区分> は未契約のため受信できません」（黄）、「セッション開始: socketId=<n>」「区分: [<start の区分を , で>]」「テスト電文: <testMode>」、「リアルタイム受信中...」（明るい緑）、「help でコマンド一覧を表示（終了は quit か Ctrl+C）」（薄い字）を出す (4) 繋ぎ直しでは出さない (5) cli.ts は通常の起動で「受信を始めました…」の行を出さず、版は packageVersion() の値を渡す。偽の dmdata（FLEQ_WS_URL）では classifications を null にし、今の 1 行を出す (6) HostStatus.classifications は最後に受理した start の区分（形の正しい start の受理で入れる。無ければ null）",
+        "requirement": "起動画面（Q-TO8-BANNER）: (1) createTerminalOutput の options.startup（appName・version・testMode・classifications）があれば、作った時に空行、「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」を空色の地に黒の太字、空行を積む (2) 標準出力が端末なら端末の題名を「<appName> v<version>」にし、close で空に戻す (3) classifications が null でなければ、回線の読みで最初に connection が connected で socketId と HostStatus.classifications が null でないときに 1 回だけ、求めた区分のうち start の区分に無いものを求めた順に「<区分> は未契約のため受信できません」（黄）、「セッション開始: socketId=<n>」「区分: [<start の区分を , で>]」「テスト電文: <testMode>」、「リアルタイム受信中...」（明るい緑）、「help でコマンド一覧を表示（終了は quit か Ctrl+C）」（薄い字）を出す (4) 繋ぎ直しでは出さない (5) cli.ts は通常の起動で「受信を始めました…」の行を出さず、版は packageVersion() の値を渡す。偽の dmdata（FLEQ_WS_URL）では classifications を null にし、今の 1 行を出す (6) HostStatus.classifications は今の接続で受理した start の区分（新しい接続を張ると null に戻し、形の正しい start の受理で入れる。forecastGranted と同じ扱い）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:711 «cb681df6bd63628f»",
           "docs/specs/cli-terminal-output.md:712 «f833f80cc50ad88e»",
@@ -361,7 +368,8 @@
       "足した仕組みごとに「無いと何が壊れるか」を 1 行",
       "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
       "既存の期待を変えてよいのは、AC01〜AC04 で字か行が変わる期待だけ（digest.test.ts の図の行、cli.test.ts の「受信を始めました」を待つ所、時計の秒で ● が ○ になる入力の行の期待）。変える前に試験名・旧の期待・理由を報告する",
-      "旧築（src/）を変えない。変えないので旧築の build と test は要らない"
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない）: (1) p3-terminal-layout.json の P3-TL-AC02 (8)「回線の行と起動時のまとめは色と字を変えず」に、起動時のまとめの分野の名前の太字は Q-TO8-DIGEST（P3-TL7-AC02）で改めた旨 (2) p3-terminal-output.json の P3-TO-AC14 (2) の「ほか <種類のコード> n 件」と見出し文を、P3-TL7-AC01・AC02 の題名・時刻と題名だけの形に改めた旨 (3) p3-terminal-prompt.json の P3-TP-AC10 の「時計、回線の印、ミュートの字は色なし」の回線の印を、Q-TO8-PULSE（P3-TL7-AC03）で空色の ● と灰の ○ の 1 秒ごとの入れ替えに改めた旨 (4) p3-cli-repl.json の P3-CLI-AC19 (3) と AC05 (6) の『受信を始めました（区分: …、テスト電文: …）…』の 1 行を、§6.7 の起動画面（P3-TL7-AC04。偽の dmdata の 1 行は今のまま）に改めた旨"
     ],
     "unresolvedQuestions": []
   }

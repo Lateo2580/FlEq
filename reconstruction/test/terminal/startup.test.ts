@@ -31,6 +31,18 @@ describe("P3-TL7-T04 起動画面", () => {
     expect(h.lines.some((line) => line.startsWith("━ 回線が戻りました"))).toBe(true);
     await h.output.close();
   });
+  it("端末なら帯の前に端末の題名を付け、close で空に戻す（端末でなければ付けない、上の試験の BANNER）", async () => {
+    const saved = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true, writable: true });
+    try {
+      const h = harness({ startup: startup(null) });
+      await h.output.close();
+      const text = h.lines.join("\n"), set = text.indexOf("\x1b]2;fleq-next v4.1.0\x07"), reset = text.lastIndexOf("\x1b]2;\x07");
+      expect([set >= 0 && set < text.indexOf(BANNER[1]), reset > text.indexOf(BANNER[1])]).toEqual([true, true]);
+    } finally {
+      if (saved == null) Reflect.deleteProperty(process.stdout, "isTTY"); else Object.defineProperty(process.stdout, "isTTY", saved);
+    }
+  });
   it("偽の dmdata（classifications が null）は帯だけで、区分の行を出さない", async () => {
     const h = harness({ startup: startup(null) }, { classifications: ["eew.forecast"] });
     h.attach();

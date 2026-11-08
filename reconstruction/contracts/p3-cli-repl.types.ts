@@ -89,7 +89,7 @@ export type HostStatus = Readonly<{
   // 確立した接続（start を受理した。{ wsUrl } は open した）を失った数。run の中で 0 から増えるだけ（P3-DC2-AC09）。
   lostConnections: number; lastLossFrameWallMs: number | null; // P3-TO-AC10 (2): 確立した接続を最後に失った時点の lastFrameWallMs（切断の後に上書きされない）
   display: Readonly<{ port: number; clients: number }> | null;
-  // P3-TL7-AC04 (6): 最後に受理した start の区分（dmdata の順のまま）。start を受理していなければ null（{ wsUrl } は start が無いので null のまま）。
+  // P3-TL7-AC04 (6): 今の接続で受理した start の区分（dmdata の順のまま）。新しい接続を張ると null に戻り、その接続の start の受理で入る（{ wsUrl } は start が無いので null のまま）。
   classifications: readonly string[] | null;
 }>;
 

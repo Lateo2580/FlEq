@@ -54,7 +54,7 @@ describe("P3-TO-T15 起動時のまとめ（spec §6.6、AC14）", () => {
 // P3-TL7-T02（契約境界 P3-TL7-AC01）
 describe("P3-TL7-T02 まとめの題名の表", () => {
   it("まとめに載る分野の ready の型は全部表で引け、実物の電文の Control の Title から版の印と末尾の a を除いた名前と一致する", () => {
-    const listed = [...rowsByHeadType].filter(([, row]) => row.status === "ready" && row.unit !== "U-E" && row.unit !== "U-F").map(([type]) => type);
+    const listed = [...rowsByHeadType].filter(([, row]) => row.status === "ready" && row.unit !== "U-E").map(([type]) => type);
     expect(listed.filter((type) => typeName(type) === "その他")).toEqual([]);
     const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? files(join(dir, entry.name)) : [join(dir, entry.name)]);
     let compared = 0;

@@ -111,7 +111,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     ending ??= Promise.all([...workers.values()].map((worker) => worker.terminate())).then(() => {});
     return ending;
   };
-  let started = false, forecastGranted = false, startClassifications: readonly string[] | null = null; // P3-ED43-AC01: 今の接続の start frame が eew.forecast を含み、dmdata の設定で起動した。P3-TL7-AC04 (6): 最後に受理した start の区分
+  let started = false, forecastGranted = false, startClassifications: readonly string[] | null = null; // P3-ED43-AC01: 今の接続の start frame が eew.forecast を含み、dmdata の設定で起動した。P3-TL7-AC04 (6): 今の接続で受理した start の区分
   // P3-C3B-OWNER-STOP (A): an owner's error, or an exit before endOwners, stops that owner only; the process goes on.
   // Before the runtime has started, the recorded stop rejects startRuntime (and so startP2Host) instead.
   // root is unassigned only if its constructor threw; the catch below then ends the owners.
@@ -405,7 +405,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
       // The URL may carry a credential: nothing here keeps it.
       try { ws = new WebSocket(url, [...protocols], { handshakeTimeout: HANDSHAKE_MS }); } catch { settle("retrySoon"); return; }
       let opened = false;
-      socket = ws; forecastGranted = false; // P3-ED43-AC01 (1): 前の接続の区分は持ち越さない。この接続の start frame まで捨てない
+      socket = ws; forecastGranted = false; startClassifications = null; // P3-ED43-AC01 (1)・P3-TL7-AC04 (6): 前の接続の区分は持ち越さない。この接続の start frame まで捨てない
       ws.on("open", () => { opened = true; lastFrameAt = clock().monotonicMs; if (config.dmdata == null) { retries = 0; lastFailure = null; establishedAt = lastFrameAt; } settle("opened"); }); // P3-DC2-AC02 (2)・AC03 (4)・AC09 (2): { wsUrl } は start が来ない接続先もあるので open で確立
       ws.on("message", (raw) => { if (socket === ws) onFrame(ws, raw); });
       ws.on("error", () => { /* close follows */ });
