@@ -1775,3 +1775,164 @@ describe("P3-EEW-DROP43-001 the host does not use VXSE43 while eew.forecast is g
       .toMatchObject({ activeCount: 1, highestSeverity: "warning" });
   });
 });
+
+// P3-DE-T01〜T05: host が new WebSocket に渡した URL と protocol を向け直す前の constructor の引数で記録し、127.0.0.1 の試験の server へ向け直す。
+// 書き換えた先は本物の dmdata の host なので、向け直さないと試験が外へ繋ぐ（P3-C2-AC09）。指定の無い試験では素通しで、記録もしない。
+const wsRoute = vi.hoisted(() => ({ to: null as ((url: string) => string) | null, calls: [] as { url: string; protocols: unknown }[] }));
+vi.mock("ws", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ws")>();
+  class WebSocket extends actual.WebSocket {
+    constructor(...args: ConstructorParameters<typeof actual.WebSocket>) {
+      const [address, ...rest] = args;
+      if (wsRoute.to != null) wsRoute.calls.push({ url: String(address), protocols: rest[0] });
+      super(wsRoute.to == null ? address : wsRoute.to(String(address)), ...rest);
+    }
+  }
+  return { ...actual, WebSocket };
+});
+
+describe("P3-DMDATA-ENDPOINT-001 切れた WS の host を次の start が返したら反対の地域の入口へ繋ぐ", () => {
+  type Host = Awaited<ReturnType<typeof startDmdata>>;
+  type Server = Awaited<ReturnType<typeof localServer>>;
+  const dmdataUrl = (host: string, ticket: string, extra = "") => `wss://${host}/v2/websocket?ticket=${ticket}${extra}`;
+  const urls = () => wsRoute.calls.map((call) => call.url);
+  // 向け直しは host より先に cleanups へ積み、host の stop の後に戻す（戻した後に試行が残ると本物の host へ繋ぐ）。
+  const begin = async (server: Server, first: string, to: (url: string) => string = () => server.url) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    wsRoute.to = to;
+    cleanups.push(() => { wsRoute.to = null; wsRoute.calls.length = 0; });
+    rest.list = listing([]);
+    rest.close = async () => ({ kind: "ok" });
+    rest.start = opened(first, 95);
+    return startDmdata(await directories());
+  };
+  // index 番目の WS が開いて start を受理するまで待つ（status の区分は WS ごとに null から始まる）。
+  const accepted = async (host: Host, server: Server, index: number) => {
+    await until(() => server.sockets.length === index + 1 && server.sockets[index].readyState === 1);
+    server.sockets[index].send(JSON.stringify({ type: "start", socketId: 95, classifications: subscription.classifications, time: startTime() }));
+    await until(() => host.status().classifications != null);
+  };
+  // dmdata が閉じた接続を host が失ったと数えるまで待つ。繋ぎ直しの timer は同じ close の handler の中で張られる。
+  const closedByDmdata = async (host: Host, ws: WebSocket) => {
+    const before = host.status().lostConnections;
+    ws.close(4503);
+    await until(() => host.status().lostConnections === before + 1);
+  };
+  // 次の試行を起こし、その WS の constructor まで待つ。
+  const nextWs = async (waitMs: number) => {
+    const before = wsRoute.calls.length;
+    vi.advanceTimersByTime(waitMs);
+    await until(() => wsRoute.calls.length === before + 1);
+  };
+  // 失敗した試行が決着し、次の timer が張られるまで待つ（timer は試行の then の次の then で張られる）。
+  const failedAttempt = async (host: Host) => {
+    await until(() => host.status().connection === "disconnected");
+    await turn();
+  };
+
+  it("P3-DE-T01 acceptance / AC01: 開いた後に 4503 で切れた ws003 を次の start が返すと、port・path・query と protocol を保って ws-tokyo へ繋ぐ", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws003.api.dmdata.jp:8443", "T1", "&extra=1"));
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp:8443", "T2", "&extra=1"), 95);
+    await nextWs(5_000);
+    expect(wsRoute.calls).toEqual([
+      { url: "wss://ws003.api.dmdata.jp:8443/v2/websocket?ticket=T1&extra=1", protocols: ["dmdata.v2"] },
+      { url: "wss://ws-tokyo.api.dmdata.jp:8443/v2/websocket?ticket=T2&extra=1", protocols: ["dmdata.v2"] },
+    ]);
+  });
+
+  it("P3-DE-T02 acceptance / AC02: 起動の最初の ws001 が開く前に拒まれると、5 秒後の start の ws001 は ws-osaka へ繋ぐ", async () => {
+    const server = await localServer();
+    await begin(server, dmdataUrl("ws001.api.dmdata.jp", "T1"), (url) => url.includes("ticket=T1") ? "ws://127.0.0.1:1/" : server.url);
+    rest.start = opened(dmdataUrl("ws001.api.dmdata.jp", "T2"), 95);
+    await nextWs(5_000);
+    expect(urls()).toEqual(["wss://ws001.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws-osaka.api.dmdata.jp/v2/websocket?ticket=T2"]);
+  });
+
+  it("P3-DE-T03 (a) contractBoundary / AC03 (1): ws003 が切れた後の start が ws004 を返すと ws004 のまま（host 単位）", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws003.api.dmdata.jp", "T1"));
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.start = opened(dmdataUrl("ws004.api.dmdata.jp", "T2"), 95);
+    await nextWs(5_000);
+    expect(urls()).toEqual(["wss://ws003.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws004.api.dmdata.jp/v2/websocket?ticket=T2"]);
+  });
+
+  it("P3-DE-T03 (b) contractBoundary / AC03 (2): 表に無い ws.api.dmdata.jp が切れた後の start がまた ws.api.dmdata.jp を返すとそのまま", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws.api.dmdata.jp", "T1"));
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.start = opened(dmdataUrl("ws.api.dmdata.jp", "T2"), 95);
+    await nextWs(5_000);
+    expect(urls()).toEqual(["wss://ws.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws.api.dmdata.jp/v2/websocket?ticket=T2"]);
+  });
+
+  it("P3-DE-T03 (c) contractBoundary / AC03 (5): ws003 が切れた後の一覧の失敗は覚えを変えず、10 秒後の start の ws003 は ws-tokyo", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws003.api.dmdata.jp", "T1"));
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.list = failed;
+    vi.advanceTimersByTime(5_000);
+    await failedAttempt(host);
+    expect(rest.calls.filter((call) => call === "start")).toHaveLength(1);
+    rest.list = listing([]);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp", "T3"), 95);
+    await nextWs(10_000);
+    expect(urls()).toEqual(["wss://ws003.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws-tokyo.api.dmdata.jp/v2/websocket?ticket=T3"]);
+  });
+
+  it("P3-DE-T04 (a) contractBoundary / AC04 (1): 書き換えた ws-tokyo が開いて start を受け、60 秒を過ぎて切れると、次の start の ws003 はそのまま", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws003.api.dmdata.jp", "T1"));
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp", "T2"), 95);
+    await nextWs(5_000);
+    await accepted(host, server, 1);
+    skew.ms += 60_000;
+    await closedByDmdata(host, server.sockets[1]);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp", "T3"), 95);
+    await nextWs(5_000); // 60 秒以上続いた接続なので待ちは 5 秒から（P3-DC2-D-RESET）
+    expect(urls()).toEqual(["wss://ws003.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws-tokyo.api.dmdata.jp/v2/websocket?ticket=T2",
+      "wss://ws003.api.dmdata.jp/v2/websocket?ticket=T3"]);
+  });
+
+  it("P3-DE-T04 (b) contractBoundary / AC04 (2): 書き換えた ws-tokyo の WS が拒まれると、10 秒後の start の ws003 はそのまま", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws003.api.dmdata.jp", "T1"), (url) => url.includes("ws-tokyo") ? "ws://127.0.0.1:1/" : server.url);
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp", "T2"), 95);
+    await nextWs(5_000);
+    await failedAttempt(host);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp", "T3"), 95);
+    await nextWs(10_000);
+    expect(urls()).toEqual(["wss://ws003.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws-tokyo.api.dmdata.jp/v2/websocket?ticket=T2",
+      "wss://ws003.api.dmdata.jp/v2/websocket?ticket=T3"]);
+  });
+
+  it("P3-DE-T05 contractBoundary / AC04 (1)・AC03 (4): 比べた時に覚えを消すので、ws001 の後に host が溢れで自分から切った後の start の ws003 はそのまま（D-FORGET=B）", async () => {
+    const server = await localServer();
+    const host = await begin(server, dmdataUrl("ws003.api.dmdata.jp", "T1"));
+    await accepted(host, server, 0);
+    await closedByDmdata(host, server.sockets[0]);
+    rest.start = opened(dmdataUrl("ws001.api.dmdata.jp", "T2"), 95);
+    await nextWs(5_000);
+    await accepted(host, server, 1);
+    // 容量の拒否の試験と同じ手: owner の返信を止めて 120 件の普通の列を溢れさせ、host が自分の接続を切ったところで返信を流す。
+    owners.hold = true;
+    for (let index = 0; index < 130; index++) server.sockets[1].send(junk());
+    await until(() => server.sockets[1].readyState === 3);
+    rest.start = opened(dmdataUrl("ws003.api.dmdata.jp", "T3"), 95);
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
+    await until(() => wsRoute.calls.length === 3);
+    expect(urls()).toEqual(["wss://ws003.api.dmdata.jp/v2/websocket?ticket=T1", "wss://ws001.api.dmdata.jp/v2/websocket?ticket=T2",
+      "wss://ws003.api.dmdata.jp/v2/websocket?ticket=T3"]);
+  });
+});

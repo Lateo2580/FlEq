@@ -209,7 +209,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   // The attempt in flight (or the last one); stop() lets it settle before releasing the own dmdata socket.
   let attempt: Promise<Attempt> | null = null, attempting = false, retries = 0, lastFailure: HostStatus["lastFailure"] = null, lostConnections = 0, establishedAt: number | null = null; // P3-CLI-AC16 (6)・P3-DC2-AC02・AC03・AC09: 試みの最中か、繋ぎ直しの数 n（timer を張った数）、最後の失敗の理由、確立した接続を失った数、確立した時刻（monotonic）
   // The id a successful POST returned to this process, until a DELETE succeeds or a list no longer has it (RES-02).
-  let ownSocketId: number | null = null;
+  let ownSocketId: number | null = null; let failedHost: string | null = null; // P3-DE-AC01・AC05: 最後に失敗した WS の host 名だけ（URL・ticket は持たず、保存も表示もしない）
   // Aborted at the stop request + 30 s: every dmdata REST still in flight is destroyed and none starts (RES-07).
   const halt = new AbortController();
   // Monotonic time of the current WS's open or last frame (P3-C2-LIVENESS).
@@ -391,14 +391,14 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
 
   async function connect(): Promise<Attempt> {
     let url: string;
-    let protocols: readonly string[] = [];
+    let protocols: readonly string[] = []; let wsHost: string | null = null; // P3-DE-AC06 (1): この試行で選んだ host 名（close で覚える。URL を解析し直さない）
     if (config.dmdata == null) { url = config.wsUrl; startAsked = clock(); }
     else {
       const target = await startDmdataSocket(config.dmdata);
       if (typeof target === "string" || !("url" in target)) return target;
       // stop() may have begun in the turn between that check and this one.
       if (stopping != null) return "stopped";
-      ({ url, protocol: protocols } = target);
+      ({ url, protocol: protocols } = target); ({ url, host: wsHost } = endpointAvoiding(url, failedHost)); failedHost = null; // P3-DE-D-FORGET=B: 覚えは比べた後に消す（書き換えたかによらず）
     }
     return new Promise<Attempt>((settle) => {
       let ws: WebSocket;
@@ -409,7 +409,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
       ws.on("open", () => { opened = true; lastFrameAt = clock().monotonicMs; if (config.dmdata == null) { retries = 0; lastFailure = null; establishedAt = lastFrameAt; } settle("opened"); }); // P3-DC2-AC02 (2)・AC03 (4)・AC09 (2): { wsUrl } は start が来ない接続先もあるので open で確立
       ws.on("message", (raw) => { if (socket === ws) onFrame(ws, raw); });
       ws.on("error", () => { /* close follows */ });
-      ws.on("close", () => {
+      ws.on("close", () => { if (stopping == null && socket === ws) failedHost = wsHost; // P3-DE-AC01 (1)・AC02 (1)・AC03 (4): 溢れ（socket を先に外す）と停止の後の close は覚えない
         if (!opened) { if (socket === ws) socket = null; settle(stopping != null ? "stopped" : "retrySoon"); return; }
         if (socket !== ws) return;
         socket = null;
@@ -662,6 +662,23 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     return n > 4 + CAPPED_RETRIES ? LONG_RETRY_MS : Math.min(RECONNECT_MS * 2 ** (n - 1), BACKOFF_CAP_MS);
   }
   return { displayPort: server?.port ?? null, stop, reconnect, openDisplay, closeDisplay, status };
+}
+
+// P3-DE-AC01 (2): dmdata の文書の地域の入口（ws001・ws002 は東京、ws003・ws004 は大阪）。切れた host の反対の地域を指す。
+const OPPOSITE_ENTRY = new Map([
+  ["ws001.api.dmdata.jp", "ws-osaka.api.dmdata.jp"], ["ws002.api.dmdata.jp", "ws-osaka.api.dmdata.jp"],
+  ["ws003.api.dmdata.jp", "ws-tokyo.api.dmdata.jp"], ["ws004.api.dmdata.jp", "ws-tokyo.api.dmdata.jp"],
+]);
+
+// P3-DE-AC01・AC02 (3): start の URL の host が最後に失敗した host と同じで表にあれば、host 名だけを替える（scheme・port・path・query は保つ）。
+// 解析できない URL は投げずにそのまま返す。host は null になり、その試行の失敗は覚えに残らない（host 名を読めない）。
+function endpointAvoiding(url: string, failed: string | null): Readonly<{ url: string; host: string | null }> {
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return { url, host: null }; }
+  const entry = parsed.hostname === failed ? OPPOSITE_ENTRY.get(parsed.hostname) : undefined;
+  if (entry == null) return { url, host: parsed.hostname };
+  parsed.hostname = entry;
+  return { url: parsed.href, host: entry };
 }
 
 export { startP2Host };
