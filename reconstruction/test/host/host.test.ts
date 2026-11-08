@@ -471,7 +471,7 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataSubscriptionNarrowed"), "WARN");
     expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataSocketStarted"))
       .toEqual([expect.objectContaining({ level: "INFO", count: 41 })]);
-    expect(observations.filter((o) => o.kind === "controlFrame")).toEqual([expect.objectContaining({ frameType: "start", errorClose: null })]);
+    expect(observations.filter((o) => o.kind === "controlFrame")).toEqual([expect.objectContaining({ frameType: "start", errorClose: null })]); expect(host.status().classifications).toEqual(["eew.warning"]); // P3-TL7-T04: 起動画面の区分の行は受理した start の区分を status から読む
     server.sockets[0].send(dataFrame("VXSE43", vxse43));
     // Wait for the owner's decode as well: the snapshot may already list EEW rows before this input is applied.
     await until(async () => observations.some((o) => o.kind === "decode")

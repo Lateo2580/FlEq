@@ -88,6 +88,8 @@ type TerminalOptions = Readonly<{
   eewLog?: Readonly<{ directory: string; enabled: boolean; fields: Readonly<Partial<Record<EewLogField, boolean>>> }>;
   // AC13: 無しは確かめない。
   updateCheck?: Omit<UpdateCheck, "now">;
+  // P3-TL7-AC04: 起動画面（spec §6.7）。classifications は求めた区分で、偽の dmdata（FLEQ_WS_URL）では null（区分の行を出さない）。
+  startup?: Readonly<{ appName: string; version: string; testMode: string; classifications: readonly string[] | null }>;
 }>;
 
 // AC11 (3)・P3-TO-D-SUMMARY: 分野は §6.2 の 6 つ。U-M の地震の解説（VXSE56・VXSE60・VZSE40）は地震に数える。
@@ -259,6 +261,9 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   const settings = options.notification;
   const notify = options.notify ?? desktopNotice;
   let host: Pick<HostCommandPort, "status"> | null = null, status: HostStatus | null = null, timer: NodeJS.Timeout | null = null, closed = false;
+  // P3-TL7-D-SESSION-ONCE: 区分の行は最初の確立で 1 回だけ。繋ぎ直しは §6.1 の回線の行が受け持つ。
+  let sessionShown = false;
+  const titled = tty && options.startup != null;
   let seenLost = 0, down = false, lostFrom: number | null = null, shownFailure: DmdataConnectFailure | null = null, received = false;
   let unstable = false, upSince: number | null = null, lastReportWallMs: number | null = null, attachedWallMs = created.wallTimeMs;
   // RET-02: 覚える切断の時刻は直近 3 つ（monotonic）。
@@ -283,6 +288,11 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     if (host == null) return;
     const next = host.status();
     status = next;
+    const { startup } = options, granted = next.classifications;
+    if (!sessionShown && startup?.classifications != null && next.connection === "connected" && next.socketId != null && granted != null) {
+      sessionShown = true;
+      notice({ kind: "session", socketId: next.socketId, classifications: granted, missing: startup.classifications.filter((name) => !granted.includes(name)), testMode: startup.testMode });
+    }
     // AC10 (5): 一度も受信していない間だけ、理由が変わったときに 1 回出す。
     if (next.lastFrameWallMs != null) received = true;
     else if (!received && next.lastFailure != null && next.lastFailure !== shownFailure) {
@@ -346,7 +356,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     setEewLog(enabled, fields) { eewLog?.set(enabled, fields); },
     // 画面を消す制御の列も同じ書き出しの列に積む（直に書くと列の順を追い越す）。
     clear() { push({ kind: "echo", text: "\x1b[2J\x1b[H" }); },
-    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。点滅は付けない。色は現況の項目と番号と切断の字だけで、太字は項目の区分の字だけ（Q-TO6-COLOR）。
+    // P3-TO-D-PROMPT: 文字を作るだけ（readline の prompt に当てるのは C18 の発注 3）。色は現況の項目と番号と切断の字と回線の印（Q-TO8-PULSE）で、太字は項目の区分の字だけ（Q-TO6-COLOR）。
     // readline は prompt の幅を制御の字を除いて数えるので、色の符号でカーソルはずれない。
     // P3-TL-AC10: ミュート中は後ろに足す（期限は repl.ts の muteStartLine と同じ換算）。切断中は 56 桁に入るよう繋ぎ直しの回数と期限と条件を外す。
     promptLabel(mode) {
@@ -357,18 +367,25 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       const columns = process.stdout.columns || 80;
       if (down) {
         const from = lostFrom == null ? "--:--:--" : localClock(lostFrom), state = muted ? "ミュート中" : `繋ぎ直し ${status.failedAttempts} 回目`;
-        return promptFrame(items, { full: `${from} から 切断中・${state}`, narrow: "切断中", spare: `切断中 ${from} から・${state}`, bare: null, role: "connLost" }, columns, now.wallTimeMs, paint);
+        return promptFrame(items, { full: `${from} から 切断中・${state}`, narrow: "切断中", spare: `切断中 ${from} から・${state}`, bare: null, role: "connLost", mark: null }, columns, now.wallTimeMs, paint);
       }
       const until = muted && mute.endsAtMonotonicMs != null ? ` ${localClock(now.wallTimeMs + (mute.endsAtMonotonicMs - now.monotonicMs)).slice(0, 5)} まで` : "";
       const mark = muted ? ` ミュート中${mute.rules.length > 0 ? "（条件つき）" : ""}${until}` : "";
-      const connected = status.connection === "connected";
-      const dot = connected || (mode !== "uptime" && received) ? "●" : "○";
-      const time = mode === "uptime" ? uptime(process.uptime() * 1000) : dot === "○" ? "--:--:--"
+      // live は印が ● の形（繋がっているか、時計の形で受信がある）。時刻を --:--:-- にするかはこれで決め、字形では決めない（P3-TL7-AC03 (2)）。
+      const live = status.connection === "connected" || (mode !== "uptime" && received);
+      const time = mode === "uptime" ? uptime(process.uptime() * 1000) : !live ? "--:--:--"
         : mode === "clock" ? localClock(now.wallTimeMs) : hms(now.wallTimeMs - (lastReportWallMs ?? attachedWallMs));
-      return promptFrame(items, { full: `${dot} ${time}${mark}`, narrow: `${dot} ${time}`, spare: muted ? `${dot} ${time}${mark}` : null, bare: dot, role: null }, columns, now.wallTimeMs, paint);
+      // Q-TO8-PULSE: 旧築の 1 秒の tick の入れ替えを、時計の秒の偶奇で決める（タイマーと状態を持たない。入力の行の書き直しは repl.ts の 1 秒ごと）。
+      const on = live && Math.floor(now.wallTimeMs / 1000) % 2 === 0, dot = on ? "●" : "○";
+      return promptFrame(items, { full: `${dot} ${time}${mark}`, narrow: `${dot} ${time}`, spare: muted ? `${dot} ${time}${mark}` : null, bare: dot, role: null, mark: on ? "pulse" : "dim" }, columns, now.wallTimeMs, paint);
     },
   };
 
+  // P3-TL7-AC04 (1)(2): 帯は host を起こす前に出す（旧築も契約の確かめの前）。端末の題名は旧築 src/ui/terminal-title.ts の OSC 2 で、close で戻す。
+  if (options.startup != null) {
+    if (titled) push({ kind: "echo", text: `\x1b]2;${options.startup.appName} v${options.startup.version}\x07` });
+    notice({ kind: "banner", appName: options.startup.appName, version: options.startup.version });
+  }
   let digestShown = false;
   return {
     sink: { inputDone(reply) {
@@ -444,6 +461,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     // AC02 (6): 列の残りを最長 1 秒書かせる。返事が来なければ（worker が同期の write(2) の中で止まっている）待たずに終える。
     close() {
       closing ??= new Promise<void>((resolve) => {
+        if (titled) push({ kind: "echo", text: "\x1b]2;\x07" });
         closed = true;
         if (timer != null) clearInterval(timer);
         process.stdout.off("resize", resize);

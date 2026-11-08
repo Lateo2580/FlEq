@@ -263,7 +263,9 @@ function fakeTerminal(mirror: RuntimeMirror, settings?: NotificationSettings, st
   h.attach();
   h.output.sink.mirror(mirror);
   const after = (frames: number, slot: number, mode: "clock" | "elapsed" | "uptime" = "clock") => {
-    vi.setSystemTime(slotAt(Date.now() + 1, frames, slot));
+    // 回線の印の入れ替え（Q-TO8-PULSE）は偶数の秒が ●。同じ 5 秒の枠のまま偶数の秒に寄せる（入れ替えは P3-TL7-T03 が見る）。
+    const ms = slotAt(Date.now() + 1, frames, slot);
+    vi.setSystemTime(Math.floor(ms / 1000) % 2 === 0 ? ms : ms + 1000);
     return h.output.control.promptLabel(mode);
   };
   return { h, after, mode: (mode: "clock" | "elapsed" | "uptime") => h.output.control.promptLabel(mode) };
@@ -281,9 +283,10 @@ describe("P3-TP-T06 受入条件 回り方と形", () => {
       vi.setSystemTime(start + step * 5_000);
       seen.push(label());
       vi.setSystemTime(start + step * 5_000 + 4_900);
-      expect(label().replace(/\d\d:\d\d:\d\d/, "")).toBe(seen[step].replace(/\d\d:\d\d:\d\d/, ""));
+      expect(label().replace(/\d\d:\d\d:\d\d/, "").replace("○", "●")).toBe(seen[step].replace(/\d\d:\d\d:\d\d/, "").replace("○", "●"));
     }
-    expect(seen.map((text) => text.replace(/\d\d:\d\d:\d\d /, ""))).toEqual([
+    // 5 秒ごとの時刻は秒の偶奇が入れ替わるので、回線の印の字形（P3-TL7-T03）を除いて比べる。
+    expect(seen.map((text) => text.replace(/\d\d:\d\d:\d\d /, "").replace("○", "●"))).toEqual([
       "FlEq [● 大津波警報 岩手県 1/3]> ", "FlEq [● 大津波警報 宮城県 2/3]> ", "FlEq [● 大津波警報 福島県 3/3]> ", "FlEq [● 大津波警報 岩手県 1/3]> "]);
     await t.h.output.close();
   });
@@ -414,20 +417,20 @@ describe("P3-TP-T13 受入条件 入力の行の色（Q-TO6-COLOR）", () => {
     vi.unstubAllEnvs();
     if (tty == null) Reflect.deleteProperty(process.stdout, "isTTY"); else Object.defineProperty(process.stdout, "isTTY", tty);
   });
-  it("項目は段の色、番号は dim、切断の字は connLost で、時計・回線の印・ミュートの字は色なし", async () => {
+  it("項目は段の色、番号は dim、切断の字は connLost、回線の印 ● は pulse（Q-TO8-PULSE）で、時計・ミュートの字は色なし", async () => {
     const tsunami = await mirrorOf(TSUNAMI), subsequent = await mirrorOf(SUBSEQUENT), { view } = tsunami["U-T"];
     if (view.unit !== "U-T") throw new Error("U-T");
     const advisory: RuntimeMirror = { ...tsunami, "U-T": { ...tsunami["U-T"], view: { ...view, forecasts: view.forecasts.map((item) => ({ ...item, areas: item.areas.filter((area) => area.areaClass === "advisory").slice(0, 1) })) } } };
     const shown = advisory["U-T"].view.unit === "U-T" ? advisory["U-T"].view.forecasts[0].areas[0] : null;
     color(true);
     const top = fakeTerminal(tsunami);
-    expect(top.after(3, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${strong("rulePurple", "大津波警報", " 岩手県")} ${paint("dim", "1/3")}]> `);
+    expect(top.after(3, 0)).toBe(`FlEq [${paint("pulse", "●")} ${localClock(Date.now())} ${strong("rulePurple", "大津波警報", " 岩手県")} ${paint("dim", "1/3")}]> `);
     await top.h.output.close();
     const warning = fakeTerminal(subsequent);
-    expect(warning.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ${strong("ruleWarning", "北海道・三陸沖後発地震注意情報")}]> `);
+    expect(warning.after(1, 0)).toBe(`FlEq [${paint("pulse", "●")} ${localClock(Date.now())} ${strong("ruleWarning", "北海道・三陸沖後発地震注意情報")}]> `);
     await warning.h.output.close();
     const caution = fakeTerminal(advisory, muted());
-    expect(caution.after(1, 0)).toBe(`FlEq [● ${localClock(Date.now())} ミュート中 21:50 まで ${strong("ruleCaution", "津波注意報", ` ${shown?.name}`)}]> `);
+    expect(caution.after(1, 0)).toBe(`FlEq [${paint("pulse", "●")} ${localClock(Date.now())} ミュート中 21:50 まで ${strong("ruleCaution", "津波注意報", ` ${shown?.name}`)}]> `);
     await caution.h.output.close();
     const down = fakeTerminal(tsunami, undefined, DOWN);
     expect(down.after(3, 0)).toBe(`FlEq [${paint("connLost", "21:03:12 から 切断中・繋ぎ直し 3 回目")} ${strong("rulePurple", "大津波警報", " 岩手県")} ${paint("dim", "1/3")}]> `);
@@ -451,6 +454,22 @@ describe("P3-TP-T13 受入条件 入力の行の色（Q-TO6-COLOR）", () => {
     await whole.h.output.close();
     expect(itemsOf(unitView(volcano, "U-V"))).toEqual([{ band: "top", kind: "レベル５（避難）", text: "レベル５（避難） 箱根山" }]);
     expect(itemsOf(unitView(flood, "U-R"))).toEqual([{ band: "top", kind: "レベル５氾濫特別警報", text: "レベル５氾濫特別警報 古座川" }]);
+  });
+  // P3-TL7-T03（受入条件 P3-TL7-AC03）
+  it("回線の印は偶数の秒に空色の ●、奇数の秒に灰の ○ で、どちらも時刻を出す。--:--:-- は灰の ○ のまま。NO_COLOR は字だけ入れ替わる", async () => {
+    const empty = await mirrorOf();
+    const label = (t: ReturnType<typeof fakeTerminal>, second: number) => { vi.setSystemTime(at(21, 40, second)); return t.mode("clock"); };
+    color(true);
+    const live = fakeTerminal(empty);
+    expect([label(live, 2), label(live, 3)]).toEqual([`FlEq [${paint("pulse", "●")} 21:40:02]> `, `FlEq [${paint("dim", "○")} 21:40:03]> `]);
+    await live.h.output.close();
+    const waiting = fakeTerminal(empty, undefined, { connection: "connecting" });
+    expect([label(waiting, 2), label(waiting, 3)]).toEqual([`FlEq [${paint("dim", "○")} --:--:--]> `, `FlEq [${paint("dim", "○")} --:--:--]> `]);
+    await waiting.h.output.close();
+    color(false);
+    const plain = fakeTerminal(empty);
+    expect([label(plain, 2), label(plain, 3)]).toEqual(["FlEq [● 21:40:02]> ", "FlEq [○ 21:40:03]> "]);
+    await plain.h.output.close();
   });
   it("NO_COLOR と TTY でない端末では色の符号が 1 つも入らない", async () => {
     const mirror = await mirrorOf(TSUNAMI);

@@ -111,7 +111,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     ending ??= Promise.all([...workers.values()].map((worker) => worker.terminate())).then(() => {});
     return ending;
   };
-  let started = false, forecastGranted = false; // P3-ED43-AC01: 今の接続の start frame が eew.forecast を含み、dmdata の設定で起動した
+  let started = false, forecastGranted = false, startClassifications: readonly string[] | null = null; // P3-ED43-AC01: 今の接続の start frame が eew.forecast を含み、dmdata の設定で起動した。P3-TL7-AC04 (6): 最後に受理した start の区分
   // P3-C3B-OWNER-STOP (A): an owner's error, or an exit before endOwners, stops that owner only; the process goes on.
   // Before the runtime has started, the recorded stop rejects startRuntime (and so startP2Host) instead.
   // root is unassigned only if its constructor threw; the catch below then ends the owners.
@@ -281,7 +281,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     const { socketId, classifications } = head;
     if (typeof socketId !== "number" || !Number.isInteger(socketId) || !isStrings(classifications)) return false;
     note("INFO", "dmdataSocketStarted", socketId);
-    if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed"); forecastGranted = config.dmdata != null && classifications.includes("eew.forecast");
+    if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed"); forecastGranted = config.dmdata != null && classifications.includes("eew.forecast"); startClassifications = classifications;
     root.recordConnected(wallTimeMs); // P3-REC-AC14 (1): 札の終わりは新しい WS の最初の frame の wall
     emit({ kind: "controlFrame", frameType: "start", monotonicMs: t0, errorClose: null });
     lastFailure = null; establishedAt = lastFrameAt; return true; // P3-DC2-AC03 (4)・AC09 (2): onFrame がこの frame の entry の monotonic を lastFrameAt に書いた直後なので同じ時計の同じ読み
@@ -652,7 +652,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   }
   function status(): HostStatus {
     return { connection: socket?.readyState === WebSocket.OPEN ? "connected" : attempting ? "connecting" : "disconnected", socketId: ownSocketId, failedAttempts: establishedAt == null ? retries : 0, lastFailure, lastFrameWallMs: root.lastReceivedWallMs, lostConnections, // P3-DC2-AC02 (2'): 確立している間は 0
-      display: server == null ? null : { port: server.port, clients: server.clientCount() }, lastLossFrameWallMs };
+      display: server == null ? null : { port: server.port, clients: server.clientCount() }, lastLossFrameWallMs, classifications: startClassifications };
   }
   // P3-DC2-AC01: { dmdata } は n ≤ 14 で min(5 秒×2^(n−1), 60 秒)、n ≥ 15 で 120 秒。Retry-After があれば式の代わりに 5 秒〜setTimeout の最大に収めて使う（recovery の lane と同じ上書き）。
   function reconnectDelay(n: number, retryAfterMs: number | null): number {

@@ -42,7 +42,7 @@ afterEach(() => {
 });
 
 const STATUS: HostStatus = { connection: "connected", socketId: 1, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0,
-  lastLossFrameWallMs: null, display: null };
+  lastLossFrameWallMs: null, display: null, classifications: null };
 // isTTY の output と、試験が替える promptLabel の文字・drained の真偽で REPL を起こす。
 function start(tty: boolean) {
   const state = { label: "FlEq [● 00:00:01]> ", drained: true, labels: [] as string[] };

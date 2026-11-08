@@ -8,8 +8,9 @@ import { createTerminalOutput } from "../../src/terminal/output";
 import { world } from "./prompt-fixture";
 import { inputDoneOf, reportOf } from "./terminal-fixture";
 
-const STATUS: HostStatus = { connection: "connected", socketId: 1, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0,
-  lastLossFrameWallMs: null, display: null };
+// 繋ぎ始め（○ の形）にして、回線の印の 1 秒ごとの入れ替え（Q-TO8-PULSE）で字が変わらないようにする（この試験は現況の字の戻りを見る）。
+const STATUS: HostStatus = { connection: "connecting", socketId: 1, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0,
+  lastLossFrameWallMs: null, display: null, classifications: null };
 const WARNING_TEXT = "南海トラフ地震臨時情報（巨大地震警戒）", ADVISORY_TEXT = "南海トラフ地震臨時情報（巨大地震注意）";
 const stdoutColumns = Object.getOwnPropertyDescriptor(process.stdout, "columns"), stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
 const put = (key: "columns" | "isTTY", value: number | boolean) => { Object.defineProperty(process.stdout, key, { value, configurable: true, writable: true }); };
@@ -32,7 +33,7 @@ async function mirrors(): Promise<readonly [advisory: RuntimeMirror, warning: Ru
 describe("P3-TP-T12 受入条件 見送った書き直し", () => {
   it("待機する writer の間に積んだ字が画面に出た後、字が前の字へ戻っても次の 1 秒で書き直す", async () => {
     const [advisory, warning] = await mirrors();
-    const before = `FlEq [● ${ADVISORY_TEXT}]> `, shown = `FlEq [● ${WARNING_TEXT}]> `;
+    const before = `FlEq [○ ${ADVISORY_TEXT}]> `, shown = `FlEq [○ ${WARNING_TEXT}]> `;
     vi.useFakeTimers();
     const renderer = createRenderer(0), waiting: (() => void)[] = [];
     let screen = "";

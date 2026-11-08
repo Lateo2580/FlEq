@@ -16,8 +16,8 @@ type PromptUnit = "U-T" | "U-N" | "U-V" | "U-W" | "U-R" | "U-L";
 // AC01: 載せる 6 unit だけを読む（U-E・U-Q は型でも読めない）。
 type PromptMirror = Readonly<Record<PromptUnit, Readonly<{ view: RuntimeUnitView }>>>;
 // 括弧の中の字。full は今の字、narrow は入らないときの項目の枠の頭、spare は足す最後の 1 枠、bare は時計を外した頭（切断中は外さないので null）。
-// role はこの字の色（Q-TO6-COLOR: 切断の字は connLost、時計・回線の印・ミュートの字は色なし）。
-type PromptForms = Readonly<{ full: string; narrow: string; spare: string | null; bare: string | null; role: Role | null }>;
+// role はこの字の色（Q-TO6-COLOR: 切断の字は connLost、時計・ミュートの字は色なし）。mark は先頭の 1 字（回線の印）の色で、無ければ null（Q-TO8-PULSE）。
+type PromptForms = Readonly<{ full: string; narrow: string; spare: string | null; bare: string | null; role: Role | null; mark: Role | null }>;
 
 // AC02 (2): 段の中の分野の順。
 const UNITS: readonly PromptUnit[] = ["U-T", "U-N", "U-V", "U-W", "U-R", "U-L"];
@@ -98,10 +98,12 @@ const noPaint: Paint = (_role, text) => text;
 // AC03・AC04・AC05: 位置は時計の値から計算する（タイマーと位置の覚えを持たない）。
 function promptFrame(items: readonly PromptItem[], forms: PromptForms, columns: number, wallTimeMs: number, paint: Paint): string {
   const wrap = (inner: string): string => `FlEq [${inner}]> `;
-  if (items.length === 0) return wrap(paint(forms.role, forms.full));
+  // どの形の字も先頭は回線の印（切断中は mark が null）。
+  const lead = (ink: Paint, text: string): string => forms.mark == null ? ink(forms.role, text) : `${ink(forms.mark, text.slice(0, 1))}${ink(forms.role, text.slice(1))}`;
+  if (items.length === 0) return wrap(lead(paint, forms.full));
   const framed = (ink: Paint, head: string, index: number): string => {
     const { band, kind, text } = items[index], role = BAND_ROLES[band].rule;
-    return wrap(`${ink(forms.role, head)} ${ink("strong", ink(role, kind))}${ink(role, text.slice(kind.length))}${items.length > 1 ? ` ${ink("dim", `${index + 1}/${items.length}`)}` : ""}`);
+    return wrap(`${lead(ink, head)} ${ink("strong", ink(role, kind))}${ink(role, text.slice(kind.length))}${items.length > 1 ? ` ${ink("dim", `${index + 1}/${items.length}`)}` : ""}`);
   };
   // 幅は色と太字の符号を含まない字で数える（Q-TO6-COLOR）。
   const fits = (head: string): boolean => items.every((_, index) => width(framed(noPaint, head, index)) < columns);
@@ -109,7 +111,7 @@ function promptFrame(items: readonly PromptItem[], forms: PromptForms, columns: 
   const head = wide ? forms.full : forms.bare == null || fits(forms.narrow) ? forms.narrow : forms.bare;
   const spare = wide ? null : forms.spare;
   const index = Math.floor(wallTimeMs / ROTATE_MS) % (items.length + (spare == null ? 0 : 1));
-  return spare != null && index === items.length ? wrap(paint(forms.role, spare)) : framed(paint, head, index);
+  return spare != null && index === items.length ? wrap(lead(paint, spare)) : framed(paint, head, index);
 }
 
 export { currentItems, itemsOf, promptFrame };

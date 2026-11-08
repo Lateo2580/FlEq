@@ -323,7 +323,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   // host が自分で止まったまま正常に戻る（P3-CLI-D-SIGNAL）。無いと: 終了 code が要約の code にならず、待ちが終わらない。
   type Host = Awaited<ReturnType<typeof startP2Host>>;
   let host: Host | null = null;
-  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput({ clock, notification, summaryInterval: summaryInterval.value, tipInterval: settings.waitTipIntervalMin, debug: options.debug === true, eewLog: { directory: join(paths.directory, "eew-logs"), enabled: settings.eewLog === true, fields: settings.eewLogFields ?? {} }, updateCheck: { directory: paths.directory, env: process.env } }); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）。【発注 2】AC10 (4)・AC11 (2)・AC12 (2)・AC13・AC15・AC17 の値
+  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput({ clock, notification, summaryInterval: summaryInterval.value, tipInterval: settings.waitTipIntervalMin, debug: options.debug === true, eewLog: { directory: join(paths.directory, "eew-logs"), enabled: settings.eewLog === true, fields: settings.eewLogFields ?? {} }, updateCheck: { directory: paths.directory, env: process.env }, startup: { appName, version: packageVersion(), testMode: resolved.testMode, classifications: process.env.FLEQ_WS_URL ? null : resolved.classifications } }); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）。【発注 2】AC10 (4)・AC11 (2)・AC12 (2)・AC13・AC15・AC17 の値
   let stopping: ReturnType<Host["stop"]> | null = null;
   let wake: () => void = () => {};
   const asked = new Promise<void>((resolve) => { wake = resolve; });
@@ -355,8 +355,8 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     if (requested) stopping ??= host.stop();
     else {
       terminal.attach(host); if (resolved.display) terminal.line(`情報ディスプレイ: http://127.0.0.1:${host.displayPort}/`);
-      // P3-RW2-AUTHOR-POLISH: FLEQ_WS_URL が空でなく host が起きたなら replayWsFor が返した場合だけ（断れば Refusal で起動しない）。使っていない区分を出して dmdata と誤解させない。
-      terminal.line(process.env.FLEQ_WS_URL ? "偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C" : `受信を始めました（区分: ${resolved.classifications.join(",")}、テスト電文: ${resolved.testMode}）。help でコマンドの一覧、終了は quit か Ctrl+C`);
+      // P3-RW2-AUTHOR-POLISH: FLEQ_WS_URL が空でなく host が起きたなら replayWsFor が返した場合だけ（断れば Refusal で起動しない）。使っていない区分を出して dmdata と誤解させない。通常の起動の区分の行は、端末の出力が最初の接続の確立で出す（P3-TL7-AC04 (3)(5)）。
+      if (process.env.FLEQ_WS_URL) terminal.line("偽の dmdata（npm run watch）から受信を始めました。help でコマンドの一覧、終了は quit か Ctrl+C");
       const muted = muteStartLine(notification, clock);
       if (muted != null) terminal.line(muted);
       repl = runRepl({ host, settings: notification, savedMute: settings.mute, displayPort: resolved.port, clock, onClose: onSignal, terminal, control: terminal.control, drained: terminal.drained, initial: { summaryMinutes: summaryInterval.value ?? 0, tipMinutes: settings.waitTipIntervalMin ?? 30, clock: settings.promptClock ?? "elapsed", eewLog: settings.eewLog === true, eewLogFields: settings.eewLogFields ?? {} } }); // 【発注 3】AC26 (1)(2): 初めの値は端末の出力に渡した起動の値と同じ（tips は旧築の既定 30 分、時計は elapsed）

@@ -1,6 +1,6 @@
 import type { JsonValue, RuntimeUnitId, SubjectOutcome, UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataConnectFailure } from "../../contracts/p3-dmdata-connect.types";
-import type { RecoveryDigestView } from "../../contracts/p3-recovery.types";
+import type { RecoveryDigestUnit, RecoveryDigestView } from "../../contracts/p3-recovery.types";
 import type {
   TerminalBandLevel, TerminalHypocenter, TerminalReport, TerminalTsunamiArea, TerminalValue,
 } from "../../contracts/p3-terminal-output.types";
@@ -31,7 +31,10 @@ type TerminalNotice =
   | Readonly<{ kind: "tip"; text: string }>
   | Readonly<{ kind: "update"; current: string; latest: string; packageName: string }>
   | Readonly<{ kind: "digest"; digest: RecoveryDigestView }>
-  | Readonly<{ kind: "debug"; text: string }>;
+  | Readonly<{ kind: "debug"; text: string }>
+  // Q-TO8-BANNER（spec §6.7）: 起動の帯と、最初の接続の確立で 1 回の区分の行。missing は求めて start に無かった区分。
+  | Readonly<{ kind: "banner"; appName: string; version: string }>
+  | Readonly<{ kind: "session"; socketId: number; classifications: readonly string[]; missing: readonly string[]; testMode: string }>;
 // worker への 1 回の送り。columns は送る時に読んだ端末の桁数（AC04 (1)）、dropped はその前に落とした単位の数（AC02 (3)）。
 type TerminalBatch = Readonly<{ columns: number; dropped: number; units: readonly TerminalUnit[] }>;
 
@@ -739,22 +742,46 @@ const UNIT_NAMES: Readonly<Record<RuntimeUnitId, string>> = {
   "U-E": "緊急地震速報", "U-W": "気象警報", "U-F": "気象の時系列", "U-T": "津波", "U-Q": "地震", "U-N": "南海トラフ", "U-V": "火山",
   "U-L": "土砂災害", "U-R": "洪水", "U-B": "気象解説", "U-M": "地方の情報", "U-Y": "台風",
 };
+// Q-TO8-NO-CODE: まとめの「ほか」の題名。実物の電文の Control の Title から（Ｒ０６）・（Ｈ３０）と末尾の a を除いた名前。
+// 4 字の鍵は番号が河川・海域・台風の割当で種類の違いでない型（VXKO50〜89、VXSU50〜59 など）。まとめに載る unit の ready の型を全部覆う（P3-TL7-T02）。
+const TYPE_NAMES: Readonly<Record<string, string>> = {
+  VTSE41: "津波警報・注意報・予報", VTSE51: "津波情報", VTSE52: "沖合の津波観測に関する情報",
+  VXSE51: "震度速報", VXSE52: "震源に関する情報", VXSE53: "震源・震度に関する情報", VXSE61: "顕著な地震の震源要素更新のお知らせ", VXSE62: "長周期地震動に関する観測情報",
+  VXSE56: "地震の活動状況等に関する情報", VXSE60: "地震回数に関する情報", VZSE40: "地震・津波に関するお知らせ",
+  VYSE50: "南海トラフ地震臨時情報", VYSE51: "南海トラフ地震関連解説情報", VYSE52: "南海トラフ地震関連解説情報", VYSE60: "北海道・三陸沖後発地震注意情報",
+  VFVO50: "噴火警報・予報", VFVO51: "火山の状況に関する解説情報", VFVO52: "噴火に関する火山観測報", VFVO53: "降灰予報（定時）", VFVO54: "降灰予報（速報）",
+  VFVO55: "降灰予報（詳細）", VFVO56: "噴火速報", VFVO60: "推定噴煙流向報", VFSV: "火山現象に関する海上警報・海上予報", VZVO40: "火山に関するお知らせ",
+  VPWS50: "気象警報・注意報（集約通報）", VPWW55: "気象警報・注意報（大雨）", VPWW56: "気象警報・注意報（土砂）", VPWW57: "気象警報・注意報（高潮）",
+  VPWW58: "気象警報・注意報（暴風）", VPWW59: "気象警報・注意報（波浪）", VPWW60: "気象警報・注意報（大雪）", VPWW61: "気象警報・注意報（その他注意報）",
+  VPNO50: "気象特別警報報知", VXKO: "指定河川洪水予報", VXSU: "水位周知河川に関する情報", VPOA50: "記録的短時間大雨情報", VPBS50: "府県気象防災速報",
+  VPZJ51: "全般気象解説情報", VPCJ51: "地方気象解説情報", VPFJ51: "府県気象解説情報", VMCJ53: "全般気象解説情報（潮位）", VMCJ54: "地方気象解説情報（潮位）",
+  VMCJ55: "府県気象解説情報（潮位）", VPZI50: "全般天候情報", VPCI50: "地方天候情報", VPAW51: "早期天候情報", VPHW50: "竜巻注意情報",
+  VPHW51: "竜巻注意情報（目撃情報付き）", VPFT50: "熱中症警戒アラート", VPTW: "台風解析・予報情報（５日予報）", VPTA: "台風の暴風域に入る確率",
+};
+// 表に無い種類はコードを出さず「その他」にまとめる（P3-TL7-D-UNKNOWN）。
+const typeName = (headType: string): string => TYPE_NAMES[headType] ?? TYPE_NAMES[headType.slice(0, 4)] ?? "その他";
+// 取り直しの 256 バイトの上限の印（recovery.ts の TRUNCATED_MARKER）は端末に出さず、切れたことだけを … で示す（P3-TL7-D-TRUNCATED）。
+const TRUNCATED = "[truncated:fieldLimit]";
+const untruncated = (text: string): string => text.endsWith(TRUNCATED) ? `${text.slice(0, -TRUNCATED.length)}…` : text;
 function digest(view: RecoveryDigestView, ctx: Ctx): Line[] {
   const lines: Line[] = [...band("止まっていた間に出た情報（7 日前まで）", BAND_ROLES.plain, null, ctx)];
   if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は取り直していません", "dim")));
-  const size = Math.max(11, ...view.units.map((unit) => width(UNIT_NAMES[unit.unit]) + 3));
-  for (const unit of view.units) {
-    const name = pad(UNIT_NAMES[unit.unit], size);
-    if (unit.kind === "unsatisfied") { lines.push(line(seg(`${name}取り直せませんでした`))); continue; }
-    const omitted = Object.entries(unit.omitted);
-    lines.push(line(seg(`${name}${unit.heads.length + omitted.reduce((total, [, count]) => total + count, 0)} 件`)));
-    const titles = Math.max(0, ...unit.heads.map((head) => width(head.title)));
-    for (const head of unit.heads) {
-      const at = minuteOf(head.reportDateTime) ?? localClock(head.receivedAt).slice(0, 5);
-      lines.push(line(seg(`  ${at}  ${pad(head.title, titles)}  ${head.headline ?? ""}`)));
-    }
-    // 残りは種類のコードと件数（Q-TO-D-2）。種類が 2 つ以上なら全角の空白で並べる。
-    if (omitted.length > 0) lines.push(line(seg(`  ほか ${omitted.map(([type, count]) => `${type} ${count} 件`).join("　")}`)));
+  // Q-TO8-DIGEST: 0 件の分野は出さない。「ほか」は同じ題名の件数を足し、多い順（同じ件数は omitted の順、sort は安定）。
+  const units = view.units.flatMap((unit): { unit: RecoveryDigestUnit; total: number | null; rest: (readonly [string, number])[] }[] => {
+    if (unit.kind === "unsatisfied") return [{ unit, total: null, rest: [] }];
+    const rest = new Map<string, number>();
+    for (const [type, count] of Object.entries(unit.omitted)) rest.set(typeName(type), (rest.get(typeName(type)) ?? 0) + count);
+    const total = unit.heads.length + [...rest.values()].reduce((sum, count) => sum + count, 0);
+    return total === 0 ? [] : [{ unit, total, rest: [...rest].sort((left, right) => right[1] - left[1]) }];
+  });
+  const size = Math.max(11, ...units.map(({ unit }) => width(UNIT_NAMES[unit.unit]) + 3));
+  const digits = Math.max(0, ...units.map(({ total }) => total == null ? 0 : String(total).length));
+  for (const { unit, total, rest } of units) {
+    const name = seg(UNIT_NAMES[unit.unit], null, true), gap = seg(" ".repeat(size - width(UNIT_NAMES[unit.unit])));
+    if (unit.kind === "unsatisfied" || total == null) { lines.push(line(name, gap, seg("取り直せませんでした"))); continue; }
+    lines.push(line(name, gap, seg(`${String(total).padStart(digits)} 件`)));
+    for (const head of unit.heads) lines.push(line(seg(`  ${minuteOf(head.reportDateTime) ?? localClock(head.receivedAt).slice(0, 5)}  ${untruncated(head.title)}`)));
+    if (rest.length > 0) lines.push(line(seg(`  ほか ${rest.map(([title, count]) => `${title} ${count} 件`).join("　")}`)));
   }
   return lines;
 }
@@ -768,7 +795,7 @@ function summary(fromMs: number, toMs: number, counts: SummaryCounts): string {
   const shown = parts.filter(([, count]) => count > 0).map(([name, count, extra]) => `${name} ${count}件${extra}`);
   return `── ${localClock(fromMs).slice(0, 5)}〜${localClock(toMs).slice(0, 5)} の受信 ── ${shown.length === 0 ? "受信なし" : shown.join(" ・ ")}`;
 }
-// 回線の行と起動時のまとめは色と字を変えず、線の上限と時刻の置き方だけ電文に合わせる（P3-TL-AC02 (8)）。空行も縦線も足さない。
+// 回線の行と起動時のまとめは線の上限と時刻の置き方だけ電文に合わせる（P3-TL-AC02 (8)。まとめの分野の名前の太字は Q-TO8-DIGEST）。空行も縦線も足さない。
 function notice(item: TerminalNotice, ctx: Ctx): Line[] {
   switch (item.kind) {
     case "lost": {
@@ -790,6 +817,11 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
     case "update": return [line(seg(`新しい版があります: v${item.current.replace(/^v/, "")} → v${item.latest.replace(/^v/, "")}  `), seg(`npm install -g ${item.packageName}@latest`, "dim"))];
     case "digest": return digest(item.digest, ctx);
     case "debug": return [line(seg(item.text, "dim"))];
+    // 旧築 src/engine/cli/cli-run.ts の帯（前後に空行）と、src/dmdata/ws-client.ts・src/engine/monitor/monitor.ts の接続の行の形（spec §6.7）。
+    case "banner": return [line(), line(seg(`${item.appName} v${item.version} — Project DM-D.S.S リアルタイム地震・津波情報モニター`, "banner")), line()];
+    case "session": return [...item.missing.map((name) => line(seg(`${name} は未契約のため受信できません`, "warn"))),
+      line(seg(`セッション開始: socketId=${item.socketId}`)), line(seg(`区分: [${item.classifications.join(", ")}]`)), line(seg(`テスト電文: ${item.testMode}`)),
+      line(seg("リアルタイム受信中...", "connRestored")), line(seg("help でコマンド一覧を表示（終了は quit か Ctrl+C）", "dim"))];
     default: { const unknown: never = item; throw new Error(`unknown terminal notice ${String(unknown)}`); }
   }
 }
@@ -866,6 +898,6 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
 
 export {
   createRenderer, depthText, intensityLabel, intensityRank, list as jsonList, localClock, magnitudeText, rawValue, record as jsonRecord, seismicLevel,
-  string as jsonString, tsunamiLevel, width,
+  string as jsonString, tsunamiLevel, typeName, width,
 };
 export type { SummaryCounts, TerminalBatch, TerminalNotice, TerminalUnit };

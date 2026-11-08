@@ -8,13 +8,13 @@ import type { HostCommandPort } from "../../contracts/p3-cli-repl.types";
 import { runCli } from "../../src/cli/cli";
 
 type FakeReadline = { line(text: string): void; close(): void };
-const mocks = vi.hoisted(() => ({ startP2Host: vi.fn(), exchange: vi.fn(), answers: [] as (string | (() => string))[], readline: null as FakeReadline | null }));
+const mocks = vi.hoisted(() => ({ startP2Host: vi.fn(), exchange: vi.fn(), answers: [] as (string | (() => string))[], readline: null as FakeReadline | null, attached: false, startup: undefined as unknown }));
 vi.mock("../../src/host/host", () => ({ startP2Host: mocks.startP2Host }));
 vi.mock("../../src/host/dmdata-rest", () => ({ exchange: mocks.exchange }));
-// P3-TO-AC02 の移行: 端末の列（writer の worker）の代わりに、行を同期で process.stdout へ書く（この file の期待は標準出力の文字）。
-vi.mock("../../src/terminal/output", () => ({ createTerminalOutput: () => ({
-  sink: { inputDone: () => {} }, output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {}, attach: () => {}, close: async () => {}, drained: () => true,
-  control: { setSummaryInterval: () => {}, summaryNow: () => {}, setTipInterval: () => {}, setEewLog: () => {}, clear: () => {}, promptLabel: () => "FlEq> " } }) }));
+// P3-TO-AC02 の移行: 端末の列（writer の worker）の代わりに、行を同期で process.stdout へ書く（この file の期待は標準出力の文字）。起動画面の行は本物の端末の出力が出す（P3-TL7、startup.test.ts）ので、渡した startup と attach の呼び出しだけを見る。
+vi.mock("../../src/terminal/output", () => ({ createTerminalOutput: (options: { startup?: unknown }) => { mocks.startup = options.startup; return {
+  sink: { inputDone: () => {} }, output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {}, attach: () => { mocks.attached = true; }, close: async () => {}, drained: () => true,
+  control: { setSummaryInterval: () => {}, summaryNow: () => {}, setTipInterval: () => {}, setEewLog: () => {}, clear: () => {}, promptLabel: () => "FlEq> " } }; } }));
 // T07 の question の答え方はそのまま。REPL（T12）が使う on・setPrompt・prompt と、行と close を試験から起こす口を足した。
 vi.mock("node:readline", () => ({
   createInterface: () => {
@@ -61,7 +61,7 @@ const configFile = () => join(tmp, "fleq-next", "config.json");
 const legacyDirectory = () => join(tmp, "fleq");
 const readConfig = (): Record<string, unknown> => JSON.parse(readFileSync(configFile(), "utf8"));
 const writeAt = (directory: string, value: unknown) => { mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, "config.json"), JSON.stringify(value)); };
-const clear = () => { stdout = ""; stderr = ""; };
+const clear = () => { stdout = ""; stderr = ""; mocks.attached = false; };
 const sigintListeners = () => process.listeners("SIGINT");
 // CLI が足した listener だけを直接呼ぶ（process.emit は vitest の handler も起こす）。
 const fire = (before: readonly unknown[]) => sigintListeners().filter((listener) => !before.includes(listener)).forEach((listener) => listener("SIGINT"));
@@ -171,7 +171,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
       mocks.startP2Host.mockResolvedValue({ displayPort: 12345, stop });
       const before = sigintListeners();
       const result = runCli(argv);
-      await vi.waitFor(() => expect(stdout).toContain("受信を始めました"));
+      await vi.waitFor(() => expect(mocks.attached).toBe(true));
       for (let count = 0; count < requests; count += 1) fire(before);
       return result;
     };
@@ -192,7 +192,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     resolveHost({ displayPort: 12345, stop });
     expect(await early).toBe(3);
     expect(stop).toHaveBeenCalledTimes(1);
-    expect(stdout).not.toContain("受信を始めました");
+    expect(mocks.attached).toBe(false);
     // (b) 戻った後は 2 回呼んでも stop は 1 回
     stop.mockClear();
     requests = 2;
@@ -216,14 +216,14 @@ describe("P3-CLI-REPL-001 発注 1", () => {
   // stop は要約の code だけを返す（T04 と同じ）。
   const fakeHost = (stop: () => Promise<{ code: number }>): Omit<HostCommandPort, "stop"> & { stop: () => Promise<{ code: number }> } => ({
     displayPort: null, stop, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
-    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null }) });
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
   const startRepl = async (code: number) => {
     clear();
     const stop = vi.fn(async () => ({ code }));
     mocks.startP2Host.mockResolvedValue(fakeHost(stop));
     const before = sigintListeners();
     const result = runCli([]);
-    await vi.waitFor(() => expect(stdout).toContain("受信を始めました"));
+    await vi.waitFor(() => expect(mocks.attached).toBe(true));
     return { stop, result, before };
   };
 
@@ -233,7 +233,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     let { stop, result, before } = await startRepl(3);
     expect(mocks.startP2Host.mock.calls[0][0]).toMatchObject({ displayPort: null });
     expect(typeof mocks.startP2Host.mock.calls[0][0].notificationGate).toBe("function");
-    expect(stdout).toContain("help でコマンドの一覧");
+    expect(mocks.startup).toEqual({ appName: "fleq-new-test", version: JSON.parse(readFileSync("package.json", "utf8")).version, testMode: "no", classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"] });
     // (a) quit は stop を 1 回呼び、要約の code で戻る
     mocks.readline!.line("quit");
     expect(await result).toBe(3);
@@ -343,7 +343,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
       clear();
       mocks.startP2Host.mockResolvedValue(fakeHost(async () => ({ code: 0 })));
       const result = runCli([...argv]);
-      await vi.waitFor(() => expect(stdout).toContain("受信を始めました"));
+      await vi.waitFor(() => expect(mocks.attached).toBe(true));
       for (const line of ["summary", "tipinterval", "eewlog", "quit"]) mocks.readline!.line(line);
       expect(await result).toBe(0);
       for (const expected of [summary, "  待機中ヒント間隔: 5分", "  EEW ログ記録: ON"]) expect(stdout.split("\n"), expected).toContain(expected);

@@ -99,7 +99,7 @@ const eewOutcome = (subject: SubjectOutcome): RuntimePublishedOutcome => ({ unit
 
 // 偽の時計（vi.useFakeTimers の Date）で動く端末と、偽の host・通知の口。書き出しは色 0 の行にして lines に積む。
 const CONNECTED: HostStatus = { connection: "connected", socketId: 1, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0,
-  lastLossFrameWallMs: null, display: null };
+  lastLossFrameWallMs: null, display: null, classifications: null };
 function harness(options: TerminalOptions = {}, initial: Partial<HostStatus> = {}) {
   const renderer = createRenderer(0), lines: string[] = [], notices: string[] = [];
   let status: HostStatus = { ...CONNECTED, ...initial };
