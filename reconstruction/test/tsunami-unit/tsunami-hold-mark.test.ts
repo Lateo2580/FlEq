@@ -53,6 +53,8 @@ describe("P3-TSUNAMI-HOLD-MARK-001", () => {
       expect([held.outcomes.filter((item) => item.unit === "U-T"), unitT(held).intents.length]).toEqual([[], unitT(before).intents.length]);
       expect(held.diagnostics).toMatchObject([{ level: "WARN", reason: "tsunamiRevisionConflict", unit: "U-T" }]);
       expect(held.displayChanges).toHaveLength(1);
+      // before は印を付ける前の記録（直前の採用の after）。[null, 印つき] を積む実装を落とす。
+      expect(held.displayChanges[0].before).toEqual(before.displayChanges[0].after);
       const after = held.displayChanges[0].after;
       expect(after != null && after.unit === "U-T" && after.current?.unconfirmed?.inputId).toBe(lateInput.inputId);
       expect(unitT(held).contentRevision).toBe(unitT(before).contentRevision + 1);
