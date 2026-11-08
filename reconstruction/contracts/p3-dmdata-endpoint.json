@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
-    "sha256": "40670e486d2a01609ebfea777c24ba9ea1ab5700a65761e8395c70b38224bb41",
+    "sha256": "3e765e73d54ac89f5ed45a301c53bc52c312fbb91190b4a04c9d26e4d0c21d07",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -35,7 +35,7 @@
         "id": "Q-DE-SOURCE",
         "status": "closed",
         "source": "統合担当の依頼（2026-11-08 夜）と調べの報告 ~/dev/fleq-vault-archive/2026-11-08-evening/conn-gap-probe-report.md の「1」、~/dev/fleq-conn-probe/v2_websocket.html（https://dmdata.jp/docs/reference/api/v2/websocket の生の HTML、2026-11-08 夜に採取）",
-        "closed": "dmdata の文書の写し（採取した HTML の行）: 22 行「複数のサーバーを含エンドポイントは死活監視しており、正常なサーバーにランダムに振り分けします。」、23 行「（※60秒の DNS TTL が存在するため、即座の切り替えを保証するものではありません。）」、24 行「地理・冗長化を目的として、Socket Start の URL情報 を使用せず下記の エンドポイントを使用することができます。」、26 行 ws.api.dmdata.jp（東京・大阪のレイテンシ分配）、28〜31 行 ws-tokyo.api.dmdata.jp（ws001・ws002）、34〜37 行 ws-osaka.api.dmdata.jp（ws003・ws004）、44 行 月 1 回の再起動は 1 台ずつで 2 台以上が同時に再起動することはない。依頼文の「40〜53 行」は公開の頁の行で、採取した HTML では 22〜44 行にある。旧築（src/dmdata/endpoint-selector.ts）は開いた host を覚え、切断で 120 秒止め、10 分以内の再切断で 2.5 倍・上限 900 秒にし、start の host が止めている最中か直前に開いた host なら反対の地域の入口へ書き換える（表に無い host は東京扱い）。新築（host.ts の connect）は start の URL をそのまま new WebSocket に渡し、切り替えが無い",
+        "closed": "dmdata の文書の写し（採取した HTML の行）: 22 行「複数のサーバーを含エンドポイントは死活監視しており、正常なサーバーにランダムに振り分けします。」、23 行「（※60秒の DNS TTL が存在するため、即座の切り替えを保証するものではありません。）」、24 行「地理・冗長化を目的として、Socket Start の URL情報 を使用せず下記の エンドポイントを使用することができます。」、26 行 ws.api.dmdata.jp（東京・大阪のレイテンシ分配）、28〜31 行 ws-tokyo.api.dmdata.jp（ws001・ws002）、34〜37 行 ws-osaka.api.dmdata.jp（ws003・ws004）、44 行 月 1 回の再起動は 1 台ずつで 2 台以上が同時に再起動することはない。依頼文の「40〜53 行」は公開の頁の行で、採取した HTML では 22〜44 行にある。旧築（src/dmdata/endpoint-selector.ts）は開いた host を覚え、切断で 120 秒止め、10 分以内の再切断で 2.5 倍・上限 900 秒にし、start の host が止めている最中か直前に開いた host なら反対の地域の入口へ書き換える（表に無い host は東京扱い）。新築（host.ts の connect）は start の URL をそのまま new WebSocket に渡し、切り替えが無い。開く前に失敗した host を覚える AC02 は旧築を越える（旧築は開いた host だけを recordConnected で覚え、拒まれた host は覚えない）",
         "remaining": "なし"
       },
       {
@@ -64,6 +64,13 @@
         "status": "closed",
         "source": "P3-DE-D-FORGET の統合担当の裁定（A か B）",
         "closed": "統合担当が B で裁定した（2026-11-08 夜、推奨どおり。start の URL を読んだその場で比べてから消す）。AC04 を確定の文にし、unresolvedQuestions から外した。P3-DE-D-REASON も A で確定（統合担当）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DE-R0",
+        "status": "closed",
+        "source": "起草 r0 のレビュー（32a10ea1、2026-11-08 22:3x）: 契約適合 Opus xhigh 条件付き GO（P2 2・P3 3）、品質 ヘルツ Astra high 条件付き GO（P2 2）。~/dev/fleq-vault-archive/2026-11-08-evening/endpoint-draft-contract-r0.md・endpoint-draft-quality-r0-hertz.md",
+        "closed": "全部当てた。ヘルツ P2-1 → T05 を足し（ws003 の失敗 → ws001 が開く → mailbox の溢れ → start の ws003 は書き換えない）、T01 の URL に非既定の port と追加の query を入れて AC01 の (3) も見る。記録は向け直す前の constructor の引数、製品は :401 で選んだ host 名を :394 の変数に持って close で覚える形を AC06 に書いた。ヘルツ P2-2 → AC02 の (2)(3)（constructor の例外では消去を取り消さず新しい host も覚えない、解析できない URL でも消す）。Opus P2-1 → 残存 (5)（旧築の INFO の行を出さない）。Opus P2-2 → artifactRequirements に p3-dmdata-connect.json の 307 行の原文の改訂。Opus P3 → AC06 の (5)（P3-DMDATA-NO-CONTRACT-001 との行の重なりは後に入る側が付け直す）、Q-DE-SOURCE（AC02 は旧築を越える）、publicFunctions（export は試験が直に呼ぶ必要が出たときだけ）",
         "remaining": "なし"
       }
     ],
@@ -120,7 +127,7 @@
       "reconstruction/contracts/p3-cli-repl.types.ts#HostStatus"
     ],
     "publicFunctions": [
-      "口は変えない（startP2Host の signature、HostStatus の欄、dmdata-rest.ts の startSocket の返事の形のまま）。書き換えの関数を試験から直に呼ぶために export するなら、末尾の export { … } に並べる（P1-T04 が src の export function・export const を数える）"
+      "口は変えない（startP2Host の signature、HostStatus の欄、dmdata-rest.ts の startSocket の返事の形のまま）。書き換えの関数は export しない。試験が直に呼ぶ必要が出たときだけ、末尾の export { … } に並べる（P1-T04 が src の export function・export const を数える）"
     ],
     "allowedDependencies": [
       "既存の依存だけ（ws と node の URL）。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
@@ -178,7 +185,7 @@
       },
       {
         "id": "P3-DE-AC02",
-        "requirement": "開く前に失敗した WS の host も避ける。場面: 21:00:00 起動の最初の start が wss://ws001.api.dmdata.jp/v2/websocket?ticket=T1 を返し、接続が拒まれる（open の前の close） → 21:00:05 の start が wss://ws001.api.dmdata.jp/v2/websocket?ticket=T2 を返す → host は wss://ws-osaka.api.dmdata.jp/v2/websocket?ticket=T2 に繋ぐ: (1) open の前の close（拒否・handshake の 15 秒の時間切れ・101 以外の返事）も、その WS に使った URL の host 名を覚える (2) new WebSocket が投げた試行は覚えを変えない（close が無い）",
+        "requirement": "開く前に失敗した WS の host も避ける。場面: 21:00:00 起動の最初の start が wss://ws001.api.dmdata.jp/v2/websocket?ticket=T1 を返し、接続が拒まれる（open の前の close） → 21:00:05 の start が wss://ws001.api.dmdata.jp/v2/websocket?ticket=T2 を返す → host は wss://ws-osaka.api.dmdata.jp/v2/websocket?ticket=T2 に繋ぐ: (1) open の前の close（拒否・handshake の 15 秒の時間切れ・101 以外の返事）も、その WS に使った URL の host 名を覚える (2) new WebSocket が投げた試行（例: start の URL が fragment を持つ）では、:401 で比べた時の消去を取り消さず、新しい失敗の host も覚えない（close が無い）。覚えは null のまま次の start へ進む (3) start の URL を解析できないときも、比べた時に覚えを消し、書き換えずにそのまま渡す（AC01 の (4)）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
           "reconstruction/src/host/host.ts:413 «6b3cd7da512a7baa»",
@@ -215,7 +222,7 @@
       },
       {
         "id": "P3-DE-AC06",
-        "requirement": "行の決まり（他の契約の «» を割らない、Q-DE-ANCHORS）: (1) host.ts で中身を変える行は :212（let の行の末尾に覚えの変数を並べる）・:401（start の URL を受けた後に覚えを読んで消し、書き換えた URL を url に入れる）・:412（close の handler の頭で、停止中でなく socket がその WS のときだけ覚える）の 3 行だけ (2) 行を足すのは :665（startP2Host の閉じ括弧）と :667（export）の間だけ（入口の表と書き換えの関数。module の評価が終わってから connect が走るので、ここの const も使える） (3) host.test.ts は末尾に足すだけ。ws の WebSocket は actual を継承した class で横取りし（node:worker_threads の mock と同じ形）、host が渡した URL を記録して 127.0.0.1 の試験の server へ向け直す。向け直しの指定が無い試験では素通しにし、他の試験の接続先を変えない。どの試験も 127.0.0.1 以外へ通信しない（P3-C2-AC09） (4) ほかの行を変える必要が出たら、変える前にその行と、その行を引く契約を報告する",
+        "requirement": "行の決まり（他の契約の «» を割らない、Q-DE-ANCHORS）: (1) host.ts で中身を変える行は :212（let の行の末尾に覚えの変数を並べる）・:394（connect の let の行の末尾に、この試行で選んだ host 名の変数を並べる）・:401（start の URL を受けた後に覚えを読んで消し、書き換えた URL を url に、選んだ host 名を :394 の変数に入れる）・:412（close の handler の頭で、停止中でなく socket がその WS のときだけ、:394 の host 名を覚えに入れる。URL を解析し直さず ticket も持たない）の 4 行だけ (2) 行を足すのは :665（startP2Host の閉じ括弧）と :667（export）の間だけ（入口の表と書き換えの関数。module の評価が終わってから connect が走るので、ここの const も使える） (3) host.test.ts は末尾に足すだけ。ws の WebSocket は actual を継承した class で横取りし（node:worker_threads の mock と同じ形）、host が渡した URL を向け直す前の constructor の引数で記録し（向け直した実体の ws.url は 127.0.0.1 になる）、127.0.0.1 の試験の server へ向け直す。向け直しの指定と記録は試験ごとの後片付けで戻す。向け直しの指定が無い試験では素通しにし、他の試験の接続先を変えない。どの試験も 127.0.0.1 以外へ通信しない（P3-C2-AC09） (4) ほかの行を変える必要が出たら、変える前にその行と、その行を引く契約を報告する (5) 兄弟の起草 P3-DMDATA-NO-CONTRACT-001 も host.test.ts の末尾に試験を足し、host.ts の :664 の前に行を足す（その場合 :665・:667 がずれる）。行が重なったら、後に配送される側が自分の行と «» を付け直す",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:212 «2ff2aa73351812e0»",
           "reconstruction/src/host/host.ts:401 «202d7a73cce5de12»",
@@ -232,7 +239,7 @@
         "referenceIds": [
           "P3-DE-AC01"
         ],
-        "behavior": "rest.start が wss://ws003.api.dmdata.jp/v2/websocket?ticket=T1 を返し、横取りした WebSocket を手元の server へ向け直して開き、start の frame を送ってから server が 4503 で閉じる。5 秒進めた後の start が …ws003…?ticket=T2 を返すと、host が渡した URL が wss://ws-tokyo.api.dmdata.jp/v2/websocket?ticket=T2 で protocol が [\"dmdata.v2\"]"
+        "behavior": "rest.start が wss://ws003.api.dmdata.jp:8443/v2/websocket?ticket=T1&extra=1 を返し、横取りした WebSocket を手元の server へ向け直して開き、start の frame を送ってから server が 4503 で閉じる。5 秒進めた後の start が wss://ws003.api.dmdata.jp:8443/v2/websocket?ticket=T2&extra=1 を返すと、向け直す前の constructor の引数が wss://ws-tokyo.api.dmdata.jp:8443/v2/websocket?ticket=T2&extra=1（port・path・query を保つ、AC01 の (3)）で protocol が [\"dmdata.v2\"]"
       },
       {
         "testId": "P3-DE-T02",
@@ -257,6 +264,15 @@
           "P3-DE-AC04"
         ],
         "behavior": "(a) ws003 が切れて ws-tokyo へ書き換えた接続が開いて start を受け、その後 60 秒を過ぎて切れると、次の start の ws003 はそのまま (b) 書き換えた ws-tokyo の WS が拒まれると、10 秒後の start の ws003 はそのまま"
+      },
+      {
+        "testId": "P3-DE-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DE-AC04",
+          "P3-DE-AC03"
+        ],
+        "behavior": "P3-DE-D-FORGET=B を見分ける。ws003 の接続が切れる → 次の start が ws001 を返し、開いて start の frame を受ける → 既存の容量の拒否の試験と同じ手（owners.hold で返信を止め、120 件の普通の列を溢れさせる）で host が自分から WS を切る → 片付けの後の start が ws003 を返すと、向け直す前の constructor の引数が ws003 のまま（比べた時に消していない実装、A の実装では ws-tokyo になって落ちる）"
       }
     ],
     "requiredCommands": [
@@ -327,10 +343,11 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みごとに「無いと何が壊れるか」を 1 行: 覚えの変数（AC01・AC02、切れた host を次の start で見分けられない）、入口の表と書き換えの関数（AC01、反対の地域の入口を引けない）、ws の横取り（T01〜T04、書き換えた先が本物の dmdata の host なので 127.0.0.1 へ向け直さないと試験が外へ繋ぐ）。帳簿・class・設定の欄・reason は作らない",
-      "追加した試験ごとに対応を 1 行（T01・T02 受入条件、T03・T04 契約境界）。既存試験の期待は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
-      "git diff で host.ts の中身が変わったのが :212・:401・:412 の 3 行と、:665 と :667 の間に足した行だけであること（本契約の «» で割れるのはこの 3 行と、ずれる :667 だけ）、host.test.ts は末尾に足しただけであることを示す",
+      "追加した試験ごとに対応を 1 行（T01・T02 受入条件、T03・T04・T05 契約境界）。既存試験の期待は変えない。変える必要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+      "git diff で host.ts の中身が変わったのが :212・:394・:401・:412 の 4 行と、:665 と :667 の間に足した行だけであること（本契約の «» で割れるのは :212・:401・:412 と、ずれる :667 だけ）、host.test.ts は末尾に足しただけであることを示す",
       "AGENTS.md の最小実装・最小テスト・受信経路の計算量を守る。onFrame に何も足さない（AC05 の (3)）",
-      "残存リスク: (1) host 単位なので、ws-tokyo の入口で失敗した後の start が ws001 を返しても書き換えない（入口の先が ws001 だったかは読めない） (2) 書き換えた先が失敗すると、次は start が返す host（さっき切れた ws003 でありうる）へ戻る。帳簿が無いので、ws003 が長く落ちている間は 1 回おきに ws003 を試し、その分だけ繋がるのが待ち 1 回分遅れる (3) 入口で start の ticket が使えることは dmdata の文書（24 行）が根拠で、実機では確かめていない（P3-C2-AC09） (4) 入口は DNS の TTL が 60 秒で、すぐに切り替わることは保証されない（文書 23 行）"
+      "原文の改訂（配送の commit で統合担当が当てる）: reconstruction/contracts/p3-dmdata-connect.json の 307 行の outOfScope「endpointの選択・地域切替（旧築EndpointSelector）。socket startが返したURLをそのまま使う」に、本契約（P3-DMDATA-ENDPOINT-001）へ送った旨を足す。他の契約が引く行なら «» を付け直す",
+      "残存リスク: (1) host 単位なので、ws-tokyo の入口で失敗した後の start が ws001 を返しても書き換えない（入口の先が ws001 だったかは読めない） (2) 書き換えた先が失敗すると、次は start が返す host（さっき切れた ws003 でありうる）へ戻る。帳簿が無いので、ws003 が長く落ちている間は 1 回おきに ws003 を試し、その分だけ繋がるのが待ち 1 回分遅れる (3) 入口で start の ticket が使えることは dmdata の文書（24 行）が根拠で、実機では確かめていない（P3-C2-AC09） (4) 入口は DNS の TTL が 60 秒で、すぐに切り替わることは保証されない（文書 23 行） (5) 旧築は切り替えのたびに INFO の行を端末に出していた（endpoint-selector.ts の「120秒間クールダウン」「回避 → 差し替え」、logger の既定は INFO）が、新築は出さない（P3-DE-D-REASON=A）。画面に行を足すのは作者の裁定が要るので今は足さない"
     ],
     "unresolvedQuestions": []
   }
