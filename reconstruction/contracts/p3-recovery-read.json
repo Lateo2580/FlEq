@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "ab898f37c090f5ed2569265bb730954760eb7c84a74a4766f70644022eae0a89",
+    "sha256": "d6d3a40a06b5dea16203646cc4e713de073925aea1680a83becb2291c73c0f57",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -114,6 +114,13 @@
         "status": "closed",
         "source": "2026-11-08 午後、再確認 r2（契約適合: Opus GO、品質: ヘルツ 条件付き GO、HEAD 91b3fe19）",
         "closed": "全部当てた: (1) 品質 P2: seeded の周期では pollClassification が refused を渡さず（recovery.ts:420）、WARN は ok の枝だけなので、位置が進んで知らされない → seeded にも省略可の refused を載せ、ok と seeded の共通で WARN を出す。seeded の照合は増やさない（AC01 (3)、T02 (c)） (2) 品質 P3・契約適合 P3-2 の後半: 満杯の遡りは位置より前の refused も読み直す（recovery.ts:428〜433、時刻で外すのは heads だけ）ので、AC01 (4) の数え方を「refused の unit を読み取って ok か seeded で終えた周期ごと・unit ごとに 1 件、重複の管理は足さない、unmatched の周期は出さない」の 1 文にした (3) 契約適合 P3-1: P3-REC-AC13 (7) の「診断は run で 1 回の WARN に限る」の外であることを改訂 (3) の原文の側の文に書いた (4) 契約適合 P3-2 の前半・品質の残存リスク: H41 だけで起きるのは WARN だけで、進み具合の unsatisfied は次の取り直しの回（切断・再起動）で付く、と残存リスク (4) と outOfScope を直した"
+      },
+      {
+        "id": "Q-RR-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-08 夕）",
+        "closed": "起草の base 55e91587 から main までの reconstruction/src の変更は P3-TSUNAMI-HOLD-MARK-001（tsunami-unit.ts の 1 行）と P3-WINDOWS-CI-001（composition-root.ts の syncDirectory・checkpoint.ts の errnoField と done()、行の数は変えない）だけで、本契約の «» は全部通る（check-contract rc 0）。分岐は全部確定、unresolvedQuestions 0。P3-RECOVERY-BOUNDARY-001 は本契約の配送の後の main から baseOid を取る。baseOid を b911507f に割り当てた",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -125,7 +132,7 @@
     "contractId": "P3-RECOVERY-READ-001",
     "mode": "implementation",
     "objective": "取り直し（P3-RECOVERY-001）の読み側の不具合を直す。(a) 一覧の非 XML の item でページを failed にしない (e) 一覧の決定的な失敗を取り直さない (d) 本文が adopted でない回を取得の失敗と区別できる語で残す (f) 深さ 0 の地震の -0 を 0 にそろえ、保存の後に届いた同じ報を duplicate にする。(c) 最初の接続の 2 巡目は確かめた結果、穴埋めを担うので残す（P3-RR-D-SECOND-ROUND）",
-    "baseOid": "unassigned",
+    "baseOid": "b911507f",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
