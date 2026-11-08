@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "f3f5b0821b43db898191eebcee4049ec6b2f539dca6cdeec2ccdfacda84ba856",
+    "sha256": "08f3ddeb1b86d2ff43efe88316720dd21c7553e35bad29343fc469b2f025e1c2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -94,6 +94,28 @@
         "status": "確定（統合担当、2026-11-08 起草）",
         "ruling": "A（統合担当）",
         "reason": "端末は回線の状態を 1 秒ごとに読む形（P3-DC2-AC08 (7)）で、socketId もそこにある。B は host から端末への口が 1 つ増える"
+      },
+      {
+        "id": "P3-TL7-D-DIGEST-EMPTY",
+        "kind": "作者",
+        "A": "全部の分野が 0 件のまとめは帯ごと出さない（7 日より前の印だけのときも）",
+        "B": "帯と 7 日より前の行だけを出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08）",
+        "ruling": "A（作者、2026-11-08）",
+        "reason": "C16 の不具合（Q-TL7-RESTART-DIGEST）で再起動のたびに beforeWindow が立ち、B では帯と 1 行が毎回出る。取り直せなかった分野が 1 つでもあれば今までどおり出す"
+      },
+      {
+        "id": "P3-TL7-D-UNREADABLE-CODE",
+        "kind": "作者",
+        "A": "処理できなかった電文の帯のコードを残す",
+        "B": "題名にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-08）",
+        "ruling": "A（作者、2026-11-08）",
+        "reason": "読めなかった報は題名を引けないことがあり、開発者に伝えるための表示でもある"
       }
     ],
     "questionResolutions": [
@@ -108,8 +130,8 @@
         "id": "Q-TL7-REVIEW-R1",
         "status": "closed",
         "source": "2026-11-08 r0 の中間レビュー（契約適合 Opus 条件付き GO・P2 2 件、品質 Opus 条件付き GO・P2 1 件）",
-        "closed": "直したもの（統合担当の指示）: (1) 契約適合 P2: U-F（VPWP50）がまとめで「その他」になる → 表に VPWP50「気象警報・注意報時系列情報」（fixture の Control の Title）を足し、AC01 (4) と T02 から U-F の除外を外した (2) 契約適合 P2: 閉じた契約の原文の改訂 4 件を artifactRequirements に足した (3) 品質 P3: 繋ぎ直しで前の接続の区分が残る → 接続を張るときに HostStatus.classifications を null に戻す（AC04 (6) を改めた） (4) 契約適合 P3: spec の入力の行の図のうち奇数の秒の ●（§6.1 の 00:00:05 の 2 行、§9.1 の :05・:15 の 3 行と §9.4 の 1 行）を ○ にした。94be4923 は §6.7 の図だけを偶数の秒にしたが、図の時刻を変えずに規則の字形にそろえるのが正しい（同じ規則を前からの図にも当てた） (5) 品質 P3: TTY の端末の題名（OSC 2）の付け・戻しの試験を startup.test.ts に足した",
-        "remaining": "作者の判断待ち: 全部の分野が 0 件のときのまとめ（品質 P2-1）、処理できなかった電文の帯のコード"
+        "closed": "直したもの（統合担当の指示）: (1) 契約適合 P2: U-F（VPWP50）がまとめで「その他」になる → 表に VPWP50「気象警報・注意報時系列情報」（fixture の Control の Title）を足し、AC01 (4) と T02 から U-F の除外を外した (2) 契約適合 P2: 閉じた契約の原文の改訂 4 件を artifactRequirements に足した (3) 品質 P3: 繋ぎ直しで前の接続の区分が残る → 接続を張るときに HostStatus.classifications を null に戻す（AC04 (6) を改めた） (4) 契約適合 P3: spec の入力の行の図のうち奇数の秒の ●（§6.1 の 00:00:05 の 2 行、§9.1 の :05・:15 の 3 行と §9.4 の 1 行）を ○ にした。94be4923 は §6.7 の図だけを偶数の秒にしたが、図の時刻を変えずに規則の字形にそろえるのが正しい（同じ規則を前からの図にも当てた） (5) 品質 P3: TTY の端末の題名（OSC 2）の付け・戻しの試験を startup.test.ts に足した。作者の判断待ちだった 2 件は A（作者、2026-11-08）: (a) 全部の分野が 0 件のまとめは帯ごと出さない（AC02 (6)） (b) 処理できなかった電文の帯のコードは残す（outOfScope）",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -225,7 +247,8 @@
       "入力の行の現況の項目・回り方・幅の規則（P3-TERMINAL-PROMPT-001 のまま）",
       "旧築の起動の行のうち、求めた区分・音の再生の確かめ・新築に無い設定の行",
       "旧築（src/）",
-      "spec 本体の編集（起草で済ませた）"
+      "spec 本体の編集（起草で済ませた）",
+      "処理できなかった電文の帯「処理できなかった電文 <コード>」のコード（作者裁定 A、2026-11-08: コードのまま残す。読めなかった報は題名を引けないことがあり、開発者に伝える表示でもある）"
     ],
     "acceptanceChecks": [
       {
@@ -234,16 +257,16 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:683 «e91ad6d5e73242ec»",
           "docs/specs/cli-terminal-output.md:758 «bf7fd3d7c230ca5d»",
-          "docs/specs/cli-terminal-output.md:815 «f942eca403526dc5»"
+          "docs/specs/cli-terminal-output.md:815 «b46a434035ba0432»"
         ]
       },
       {
         "id": "P3-TL7-AC02",
-        "requirement": "まとめの行（Q-TO8-DIGEST）: (1) 分野の名前を太字にする（取り直せなかった分野も） (2) 見出しの行は「  HH:MM  <題名>」だけで、見出し文を出さない。題名の末尾の [truncated:fieldLimit] は … にする (3) listed で見出しも omitted も無い分野は出さない。取り直せなかった分野は今のまま「取り直せませんでした」 (4) 件数は出す分野の件数の最大の桁に右で揃える (5) 帯の行、7 日より前の行、時刻の決め方、最初の digest だけを出すことは変えない",
+        "requirement": "まとめの行（Q-TO8-DIGEST）: (1) 分野の名前を太字にする（取り直せなかった分野も） (2) 見出しの行は「  HH:MM  <題名>」だけで、見出し文を出さない。題名の末尾の [truncated:fieldLimit] は … にする (3) listed で見出しも omitted も無い分野は出さない。取り直せなかった分野は今のまま「取り直せませんでした」 (4) 件数は出す分野の件数の最大の桁に右で揃える (5) 帯の行、7 日より前の行、時刻の決め方、最初の digest だけを出すことは変えない (6) 出す分野が 1 つも無い（全部 0 件で、取り直せなかった分野も無い）ときは、7 日より前の印があっても帯ごと何も出さない（作者裁定 A、2026-11-08。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため。Q-TL7-RESTART-DIGEST）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:683 «e91ad6d5e73242ec»",
           "docs/specs/cli-terminal-output.md:684 «e354158a3dc76602»",
-          "docs/specs/cli-terminal-output.md:816 «ab05732db8ed0d74»"
+          "docs/specs/cli-terminal-output.md:816 «850230eac0477005»"
         ]
       },
       {
@@ -278,7 +301,7 @@
           "P3-TL7-AC01",
           "P3-TL7-AC02"
         ],
-        "behavior": "受入条件。digest.test.ts の図の値に、0 件の分野と、同じ題名の 2 つの VXKO と表に無い種類と、[truncated:fieldLimit] の題名を足した digest を harness（本物の列と render）に通すと、図の形の行（見出し文なし・件数右揃え・ほかの題名が多い順・その他・…）になり、色の水準 3 の render で分野の名前が太字"
+        "behavior": "受入条件。digest.test.ts の図の値に、0 件の分野と、同じ題名の 2 つの VXKO と表に無い種類と、[truncated:fieldLimit] の題名を足した digest を harness（本物の列と render）に通すと、図の形の行（見出し文なし・件数右揃え・ほかの題名が多い順・その他・…）になり、色の水準 3 の render で分野の名前が太字。全部 0 件の digest（7 日より前の印つき）は何も出さず、取り直せなかった分野を 1 つ足すと帯から出る"
       },
       {
         "testId": "P3-TL7-T02",

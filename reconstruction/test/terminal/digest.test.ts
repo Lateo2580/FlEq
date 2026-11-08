@@ -49,6 +49,19 @@ describe("P3-TO-T15 起動時のまとめ（spec §6.6、AC14）", () => {
     const strong = painter(3)("strong", "地震");
     expect(createRenderer(3).render({ columns: 80, dropped: 0, units: [{ kind: "notice", notice: { kind: "digest", digest: DIGEST }, prompt: null }] })).toContain(strong);
   });
+  // 受入条件（作者裁定 A、2026-11-08）: 全部 0 件なら 7 日より前の印があっても帯ごと出さない。取り直せなかった分野があれば出す。
+  it("全部の分野が 0 件のまとめは何も出さず、取り直せなかった分野が 1 つあれば帯から出す", async () => {
+    const empty: RecoveryDigestView = { units: [{ unit: "U-Q", beforeWindow: true, kind: "listed", heads: [], omitted: {} },
+      { unit: "U-W", beforeWindow: true, kind: "listed", heads: [], omitted: {} }] };
+    const quiet = harness();
+    quiet.output.sink.digest(empty);
+    expect(quiet.lines.join("")).toBe("");
+    await quiet.output.close();
+    const failed = harness();
+    failed.output.sink.digest({ units: [...empty.units, { unit: "U-T", beforeWindow: false, kind: "unsatisfied", reason: "fetchFailed" }] });
+    expect(failed.lines).toEqual([`━ 止まっていた間に出た情報（7 日前まで） ${"━".repeat(80 - 38 - 3)}`, "7 日より前の情報は取り直していません", "津波       取り直せませんでした"]);
+    await failed.output.close();
+  });
 });
 
 // P3-TL7-T02（契約境界 P3-TL7-AC01）

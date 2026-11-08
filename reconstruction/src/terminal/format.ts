@@ -764,8 +764,6 @@ const typeName = (headType: string): string => TYPE_NAMES[headType] ?? TYPE_NAME
 const TRUNCATED = "[truncated:fieldLimit]";
 const untruncated = (text: string): string => text.endsWith(TRUNCATED) ? `${text.slice(0, -TRUNCATED.length)}…` : text;
 function digest(view: RecoveryDigestView, ctx: Ctx): Line[] {
-  const lines: Line[] = [...band("止まっていた間に出た情報（7 日前まで）", BAND_ROLES.plain, null, ctx)];
-  if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は取り直していません", "dim")));
   // Q-TO8-DIGEST: 0 件の分野は出さない。「ほか」は同じ題名の件数を足し、多い順（同じ件数は omitted の順、sort は安定）。
   const units = view.units.flatMap((unit): { unit: RecoveryDigestUnit; total: number | null; rest: (readonly [string, number])[] }[] => {
     if (unit.kind === "unsatisfied") return [{ unit, total: null, rest: [] }];
@@ -774,6 +772,10 @@ function digest(view: RecoveryDigestView, ctx: Ctx): Line[] {
     const total = unit.heads.length + [...rest.values()].reduce((sum, count) => sum + count, 0);
     return total === 0 ? [] : [{ unit, total, rest: [...rest].sort((left, right) => right[1] - left[1]) }];
   });
+  // 全部 0 件なら帯ごと出さない（作者裁定 A。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため）。
+  if (units.length === 0) return [];
+  const lines: Line[] = [...band("止まっていた間に出た情報（7 日前まで）", BAND_ROLES.plain, null, ctx)];
+  if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は取り直していません", "dim")));
   const size = Math.max(11, ...units.map(({ unit }) => width(UNIT_NAMES[unit.unit]) + 3));
   const digits = Math.max(0, ...units.map(({ total }) => total == null ? 0 : String(total).length));
   for (const { unit, total, rest } of units) {
@@ -885,7 +887,9 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;
           case "notice": {
             const shown = afterFold && unit.notice.kind === "debug" ? { ...unit.notice, text: unit.notice.text.replace("、出した）", "、出さない・畳んだ）") } : unit.notice;
-            out += emit(paintLines(notice(shown, ctx), ctx, paint), unit.prompt);
+            // 行の無い知らせ（全部 0 件のまとめ）は空行も入力の行の書き直しも出さない。
+            const lines = notice(shown, ctx);
+            if (lines.length > 0) out += emit(paintLines(lines, ctx, paint), unit.prompt);
             break;
           }
           default: { const unknown: never = unit; throw new Error(`unknown terminal unit ${String(unknown)}`); }
