@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd1d82c2af1ddce7c7a692bfeb75491626f424fb",
-    "sha256": "9dbd10f3373cf13cd7fb44431c56e6a7e57f16c277883a15787da60e1ce08d33",
+    "sha256": "f1b1ecb940784c69e4a1594f5e694fd707f4f2e0feba8289c91ef1611024c4c3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -130,6 +130,13 @@
         "status": "closed",
         "source": "2026-11-08 夕の起草の再確認 r1（Opus、条件付き GO、P1・P2 なし、P3 が 6 件と試験の注記 1 件）",
         "closed": "全部当てた。(1) --debug の行は数える単位で tips の起点を動かす（output.ts の counted）ので、AC04 (8) にそう書き、T04 の tips の確かめは --debug なしの harness で行うと書いた (2) AC04 (7) に「覚えは push の前に置き、push がその単位を落としたら (6) で消す」を足した（上限より大きくて積まなかった報が覚えに残らない） (3) allowedPaths の output.ts の項に覚えの閉包の変数 1 つの宣言と比べの helper を足した（nonPersistedFields と合わせた） (4) 残存 (3) に Ctrl+L が control.clear() を通らないことを足した（直すには allowedPaths の外の repl.ts が要る） (5) T04 の「列が覚えた報の単位を落とした後」を output.test.ts の heldWriter で書くと改めた（terminal-fixture.ts の write はその場で done() するので落ちない） (6) 残存 (4) に、列に残った A の間に同じ A' を省き、その後 A が落ちると最長 10 分全国の報が無いことを足した。試験の注記: T04 の取消の項に AC01 (5) の確かめを足し、T04 の referenceIds に AC01 を足した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL8-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-08 夜。実装は baseOid a14d4e54 の木で b3b7e9d5、配送の木 ~/dev/fleq-deliver の branch deliver/1108 へ衝突なしで載せ替えて e6e48699）",
+        "closed": "レビュー r0: 契約適合 Opus GO・品質 Opus GO。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/tl8-impl-*。ゲート: Mac mini で b3b7e9d5 の新築の全試験・shuffle・旧築の build と test が緑。AC05 (3) の材料の時間（15_18_01 VPWS50、Mac）: 変える前の中央値 11.39〜11.94 ms、後 0.24 ms（層のある取消でない VPWS50 で scan() を省いたため）。P3-TL8-D-ROWS=A: 作者の例の読点は、予報区の区切りを全角の空白にした（Q-TO-Q-1 の裁定に合わせた）。原文の改訂（artifactRequirements の 9 番目の 5 項目を全部、行の中に書き足し行の数は変えない）: (1) p3-terminal-output.json の P3-TO-AC01 (2) の内容の同じ続報の句と (3) の短い形の対象 (2) 同 P3-TO-AC08 (1) の publisher の仕事の列挙 (3) 同 P3-TO-AC17 (1) の出さない理由に「前と同じ」 (4) 同 残存リスク (7) (5) p3-terminal-layout2.json の P3-TL2-AC08 (1)。改訂した 5 行を «» で引く file は 0 件。レビューの字句: P3-TL8-T04 の behavior の落とす場面と届かない道の 1 句、artifactRequirements の残存に (5) を足した。付け直した «»: 実装で行がずれ中身は同じ 3 件（p3-tsunami-hold-mark.json と本契約の artifactRequirements の material.ts:235→:271、p3-recovery-boundary.json の format.ts:778→:784）。p3-view-alert-text.json の material.ts:102 はずれも中身の変化も無い。中身の変わった行を引く «» は 0 件",
         "remaining": "なし"
       }
     ],
@@ -307,7 +314,7 @@
           "P3-TL8-AC01",
           "P3-TL8-AC04"
         ],
-        "behavior": "受入条件。harness の sink に、ReportDateTime だけを 11:50 から 10 分ずつ替えた同じ報 15 通を渡すと、出るブロックは最初の 1 つ（報は 1 回 decode して ReportDateTime の欄だけを替えてよい）。注意報だけの Item を 1 つ解除にした報（予報区が減って表が同じ）は出ず、レベル４土砂災害危険警報（Code 49）を持つ Item を 1 つ増やした報は出て、同じ報をもう 1 通渡すと出ない。注意報だけの報（T03 と同じ書き換え）は、予報区を 1 つ解除しても注意報の種類が同じなら出ず、注意報の Kind の電文で出た順が入れ替わる報（ある Kind を持つ先頭の Item だけを解除し、その Kind が後ろの Item に残る報）も出ず、注意報の Kind が 1 種減ると出る。U-W の pendingIntents にその入力の intent を載せた返信は、前と同じでも出る。回線を lost にして connected に戻した後と、recoveryInput の返信（decode も terminal も null）の後も、前と同じ報は出ない。clear の後と、列が覚えた報の単位を落とした後は、前と同じ報が出る（落とす場面は共通の harness〔terminal-fixture.ts、write がその場で done()〕では書けないので、output.test.ts の書き出しを止めておく writer〔heldWriter〕を使い、先に 1 単位を書き出し中にし、VPWS50 の単位を列に積んでから 1 MiB を越える数える単位を積んで落とす）。取消の報は出て（対象が「全国」で表が無い、AC01 (5)）、その後の前と同じ報も出る。新しい harness（起動し直し）では最初の 1 通が出る。出さなかった報は定期要約の件数に入り、入力の行の elapsed の時刻を戻さず、tips の間隔を過ぎると tips が出る（tips の確かめは --debug なしの harness で行う。--debug の行は数える単位で tips の起点を動かすため）。--debug の行が「出さない・前と同じ」で、読めなかった報のカードは出ない"
+        "behavior": "受入条件。harness の sink に、ReportDateTime だけを 11:50 から 10 分ずつ替えた同じ報 15 通を渡すと、出るブロックは最初の 1 つ（報は 1 回 decode して ReportDateTime の欄だけを替えてよい）。注意報だけの Item を 1 つ解除にした報（予報区が減って表が同じ）は出ず、レベル４土砂災害危険警報（Code 49）を持つ Item を 1 つ増やした報は出て、同じ報をもう 1 通渡すと出ない。注意報だけの報（T03 と同じ書き換え）は、予報区を 1 つ解除しても注意報の種類が同じなら出ず、注意報の Kind の電文で出た順が入れ替わる報（ある Kind を持つ先頭の Item だけを解除し、その Kind が後ろの Item に残る報）も出ず、注意報の Kind が 1 種減ると出る。U-W の pendingIntents にその入力の intent を載せた返信は、前と同じでも出る。回線を lost にして connected に戻した後と、recoveryInput の返信（decode も terminal も null）の後も、前と同じ報は出ない。clear の後と、列が覚えた報の単位を落とした後は、前と同じ報が出る（落とす場面は共通の harness〔terminal-fixture.ts、write がその場で done()〕では書けないので、output.test.ts の書き出しを止めておく writer〔heldWriter〕を使い、先に 1 単位を書き出し中にし、VPWS50 の単位を列に積んでから 合わせて 1 MiB を越える数える単位を積んで、覚えた報の単位を古い単位から落とす。VPWS50 の単位そのものが上限を越えて積まれない道〔output.ts の push の 1 つ目の道〕は、実データの上限で届かないので試験で通らない）。取消の報は出て（対象が「全国」で表が無い、AC01 (5)）、その後の前と同じ報も出る。新しい harness（起動し直し）では最初の 1 通が出る。出さなかった報は定期要約の件数に入り、入力の行の elapsed の時刻を戻さず、tips の間隔を過ぎると tips が出る（tips の確かめは --debug なしの harness で行う。--debug の行は数える単位で tips の起点を動かすため）。--debug の行が「出さない・前と同じ」で、読めなかった報のカードは出ない"
       },
       {
         "testId": "P3-TL8-T05",
@@ -385,9 +392,9 @@
       "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
       "既存の試験の期待は変えない（VPWS50 を描く既存の端末の試験は無い。layout6.test.ts の T04 の全 fixture の描画は 15_18_01 を含めて通ること）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "AC05 (3) の材料の時間の表（変える前と後）",
-      "配送で統合担当が付け直す: material.ts を変えて行がずれたら、p3-tsunami-hold-mark.json の material.ts:235 «2be327932f009c34» と p3-view-alert-text.json の material.ts:102 «d3926b31bdc6c931» の行の番号を、中身の anchor が一致する行へ配送の commit で付け直し、2 契約の meta.sha256 を取り直して check-contract を通す（実装は 2 行の中身を変えない。2 契約の json は allowedPaths に入れない）",
+      "配送で統合担当が付け直す: material.ts を変えて行がずれたら、p3-tsunami-hold-mark.json の material.ts:271 «2be327932f009c34» と p3-view-alert-text.json の material.ts:102 «d3926b31bdc6c931» の行の番号を、中身の anchor が一致する行へ配送の commit で付け直し、2 契約の meta.sha256 を取り直して check-contract を通す（実装は 2 行の中身を変えない。2 契約の json は allowedPaths に入れない）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 訓練・試験の VPWS50 が通常の報の間に入ると、その次の通常の報は前と同じでも出る（覚えは 1 つで、Control/Status を値に含む） (2) 表は最も重い段だけ（P3-TL8-D-TARGET=A の裁定どおり、AC03 (3)）。特別警報の日に危険警報が広がっても、紫の日に警報が広がっても、全国の集約通報には出ない（旧築は警報と注意報を両方出していた。2026-11-08 午後の Pi の旧築の写しの 10〜14 行）。作者に見せる項目 (3) readline の Ctrl+L は control.clear() を通らない（repl.ts の createInterface が自分で画面を消す）ので、Ctrl+L で画面を消すと覚えが残り、次の同じ VPWS50 は出ず、中身が変わるまで画面に全国の報が無い。直すには allowedPaths の外の repl.ts で keypress を拾う要がある (4) 覚えた報 A が列に残っている間に同じ A' が来て出さずに済ませ、その後 A が列から落ちると、画面に全国の報が無いまま次の報まで最長 10 分空く（落とした件数の行は出る）",
+      "残存として成果物に書く: (1) 訓練・試験の VPWS50 が通常の報の間に入ると、その次の通常の報は前と同じでも出る（覚えは 1 つで、Control/Status を値に含む） (2) 表は最も重い段だけ（P3-TL8-D-TARGET=A の裁定どおり、AC03 (3)）。特別警報の日に危険警報が広がっても、紫の日に警報が広がっても、全国の集約通報には出ない（旧築は警報と注意報を両方出していた。2026-11-08 午後の Pi の旧築の写しの 10〜14 行）。作者に見せる項目 (3) readline の Ctrl+L は control.clear() を通らない（repl.ts の createInterface が自分で画面を消す）ので、Ctrl+L で画面を消すと覚えが残り、次の同じ VPWS50 は出ず、中身が変わるまで画面に全国の報が無い。直すには allowedPaths の外の repl.ts で keypress を拾う要がある (4) 覚えた報 A が列に残っている間に同じ A' が来て出さずに済ませ、その後 A が列から落ちると、画面に全国の報が無いまま次の報まで最長 10 分空く（落とした件数の行は出る） (5) 書き出しの整形が例外を投げると、writer はそのバッチ全体を空の字にして返すが、覚えは残るので、表が変わるか clear・取消が来るまで同じ報が出ない（writer の返事に成否を足す要があり allowedPaths の外。発生は証拠不足）",
       "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 5 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (2) の「内容の同じ続報も旧築と同じく 1 報として出す」に、VPWS50 は材料を作り定期要約に数えるが、前に出した報と同じなら端末の列に積まない旨（P3-TL8-AC04）と、同じ行の (3) の短い形の target「Body の文書の順で最初の Area/Name」に、VPWS50 は「全国」にする旨（P3-TL8-AC01） (2) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、全国の集約通報の表を覚えた 1 つと比べること（P3-TL8-AC04・AC05 (2)） (3) 同 :726 の P3-TO-AC17 (1) の「出さない理由は採らなかったか取り直しの 2 つだけ」に「前と同じ」を足す旨（P3-TL8-AC04 (8)） (4) 同 :977 の残存リスク (7) に、VPWS50 は P3-TL8 で全国にした旨 (5) reconstruction/contracts/p3-terminal-layout2.json:344 の P3-TL2-AC08 (1) に、府県予報区等の層を持つ VPWS50 は表の左の列が兼ねるので理由の行を出さない旨（P3-TL8-AC01 (4)）"
     ],
     "unresolvedQuestions": []
