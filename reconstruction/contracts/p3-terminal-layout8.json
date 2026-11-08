@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd1d82c2af1ddce7c7a692bfeb75491626f424fb",
-    "sha256": "09b27258760b66e064e6c2ed42d011dc137a2a471169462df7fda344e6018e15",
+    "sha256": "9dbd10f3373cf13cd7fb44431c56e6a7e57f16c277883a15787da60e1ce08d33",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -142,7 +142,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-008",
     "mode": "implementation",
     "objective": "全国の集約通報（VPWS50）が、帯の「宗谷地方」と本文の「波浪警報」を電文の別々の区域から取って宗谷地方に波浪警報が出ているように読める形をやめる。帯の対象を「全国」にして直下に最も重い段の Kind とその予報区を並べ、10 分ごとに同じ報を積まず、変わったときだけ出す。注意報だけの報は予報区を並べず注意報の種類だけを並べる。作者の裁定（P3-TL8-D-TARGET=A・D-REPEAT=A、2026-11-08 午後。D-CAUTION=B、同日夕）の形を reconstruction/src/terminal に作る",
-    "baseOid": "unassigned",
+    "baseOid": "a14d4e54",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
