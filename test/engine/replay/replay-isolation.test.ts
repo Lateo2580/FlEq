@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, rmSync, statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canonicalJson,
@@ -58,7 +58,7 @@ describe("Phase 1 replay isolation", () => {
       }
     };
     visit(resolve("src/engine/cli/cli.ts"));
-    const relativeModules = [...visited].map((path) => path.slice(resolve(".").length + 1));
+    const relativeModules = [...visited].map((path) => relative(resolve("."), path).split(sep).join("/"));
     expect(relativeModules).toContain("src/engine/cli/cli-replay.ts");
     expect(relativeModules).not.toContain("src/engine/replay/vpbs50-runner.ts");
     expect(relativeModules).not.toContain("src/dmdata/rest-client.ts");

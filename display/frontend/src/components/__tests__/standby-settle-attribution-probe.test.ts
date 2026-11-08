@@ -36,7 +36,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative as relativePath, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import StandbyScreen from "../StandbyScreen.svelte";
 import { baseSnapshot } from "../../lib/__tests__/fixtures";
@@ -390,7 +390,7 @@ describe("A13: 段階 2' の識別子が production パスへ漏れていない"
 
     const offenders: string[] = [];
     for (const file of files) {
-      const relative = file.slice(SOURCE_ROOT.length);
+      const relative = relativePath(SOURCE_ROOT, file).split(sep).join("/");
       if (ALLOWED.includes(relative)) continue;
       const text = readFileSync(file, "utf8");
       for (const identifier of NEW_IDENTIFIERS) {

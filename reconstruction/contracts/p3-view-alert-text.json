@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "08e00fdc4b6a4070c186f56253c3522050461051",
-    "sha256": "45c802bdde64408de8df2ceaca8bce27576bf6bd0544e9b56d6d5aeab64af0c1",
+    "sha256": "7da7c501bc67c8158cbcdccaee23c9a34822672775a1796fd93ebebbd9b3dec1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -348,7 +348,7 @@
         "requirement": "津波の保存（P3-VAT-D-T-SAVE・D-T-SCHEMA）: (1) 文は記録と一緒に保存する。encode は変えない (2) schemaVersion は p3-tsunami-unit-v9 のまま。鍵の無い保存は文なしと同じ意味で読め、移行も開発機の保存を消す手順も要らない (3) forecastSubject（codec）は鍵があるとき、文字列で、空でなく、4,096 字以下で、effective が active であることを確かめ、確かめた値を項目として組み立てる。外れたら記録は null（payload 全体が invalid）(4) GENERATION_LIMIT（今 11,354,432 byte）と件数の上限の値は変えない。byte は generationBytes の中で subjectBytes がそのまま数える。66 区域の記録は通知待ちなしで、文なしでも実物の大きさの文ありでも件数の上限 512 件まで収まり、文が全部 4,096 字の上界なら約 350 件で byte の上限に当たる（Q-VAT-MEASURE (6)。印・intent・予約が増えればその分だけ減る）。上限では文だけを落とさない。退去の順は P3-C5-CAPACITY のままで、収まらなければ報ごと断る (5) 再起動の後、取り直しの同じ版は duplicate で、文は保存した値のまま。旧築からの移行の道具は文を移さない（outOfScope）。無いと: 再起動の後に文の無い大津波警報が次の報まで続く",
         "evidenceRefs": [
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1085 «4c2febd7762cd119»",
-          "src/engine/display/standby-persistence.ts:5739 «7e91b610d408fd1a»",
+          "src/engine/display/standby-persistence.ts:5745 «7e91b610d408fd1a»",
           "reconstruction/contracts/p3-persist-premises.md:20 «26bffafeb63439f5»"
         ]
       },

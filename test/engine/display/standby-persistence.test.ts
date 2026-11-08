@@ -6600,6 +6600,30 @@ describe("StandbyPersistence の書き込み順序", () => {
     expect(persistence.lastFailure()).toBeNull();
   });
 
+  // Windows の CI run 42415679389 で、ディレクトリの fsync の EPERM により保存が全て失敗した再発防止
+  it("directory fsync の EPERM は win32 だけ無視し、ほかの OS では失敗として返す", () => {
+    const realFsync = fs.fsyncSync.bind(fs);
+    const fsync = vi.spyOn(fs, "fsyncSync").mockImplementation((fd) => {
+      if (fs.fstatSync(fd).isDirectory()) {
+        throw Object.assign(new Error("EPERM: operation not permitted, fsync"), { code: "EPERM" });
+      }
+      realFsync(fd);
+    });
+    const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+    try {
+      for (const os of ["win32", "linux", "darwin"] as const) {
+        Object.defineProperty(process, "platform", { ...platform, value: os });
+        const persistence = new StandbyPersistence(tempPath(), 10_000);
+        const result = persistence.save(state({ savedAt: os }));
+        if (os === "win32") expect(result, os).toMatchObject({ kind: "written" });
+        else expect(result, os).toMatchObject({ kind: "failed", stage: "directoryFsync" });
+      }
+    } finally {
+      Object.defineProperty(process, "platform", platform);
+      fsync.mockRestore();
+    }
+  });
+
   it("追い越された書き込みは rename しない (同期保存が後勝ちされない)", async () => {
     const path = tempPath();
     const persistence = new StandbyPersistence(path, 10_000);

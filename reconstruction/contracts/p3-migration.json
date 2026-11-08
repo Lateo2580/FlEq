@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "2255050b0f52410437a172d71957b2c8a785d07cef5056a3f93b95e4f8886f53",
+    "sha256": "762e6fcbdcef1582bb2c2cf16f0fd80439c088263978f47bcd5a1a2c019a3553",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -556,7 +556,7 @@
           "src/dmdata/telegram-meta.ts:61 «f0708cf2315d9a35»",
           "src/dmdata/rest-client.ts:530 «c66e19b29d19178a»",
           "src/engine/messages/message-router.ts:1692 «f26b6c8f49001403»",
-          "src/engine/display/standby-persistence.ts:5747 «e55bf424fd6baf4c»"
+          "src/engine/display/standby-persistence.ts:5753 «e55bf424fd6baf4c»"
         ]
       },
       {

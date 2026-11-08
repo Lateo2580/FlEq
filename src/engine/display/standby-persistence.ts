@@ -2226,13 +2226,14 @@ export class StandbyPersistence {
     catch (cause) { return failure("mkdir", cause); }
     try {
       fs.writeFileSync(v2TmpPath, v2Bytes);
-      const fd = fs.openSync(v2TmpPath, "r");
+      // Windows の fsync（FlushFileBuffers）は書ける handle でないと EPERM になるので "r+" で開く
+      const fd = fs.openSync(v2TmpPath, "r+");
       try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
     }
     catch (cause) { return failure("writeV2Temp", cause); }
     try {
       fs.writeFileSync(v1TmpPath, v1Bytes);
-      const fd = fs.openSync(v1TmpPath, "r");
+      const fd = fs.openSync(v1TmpPath, "r+");
       try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
     } catch (cause) { return failure("writeV1Temp", cause); }
     if (seq < this.renamedSeq) {
@@ -2354,13 +2355,14 @@ export class StandbyPersistence {
       stage = "writeV2Temp";
       await fs.promises.writeFile(v2TmpPath, v2Bytes);
       {
-        const fd = fs.openSync(v2TmpPath, "r");
+        // Windows の fsync（FlushFileBuffers）は書ける handle でないと EPERM になるので "r+" で開く
+        const fd = fs.openSync(v2TmpPath, "r+");
         try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
       }
       stage = "writeV1Temp";
       await fs.promises.writeFile(v1TmpPath, v1Bytes);
       {
-        const fd = fs.openSync(v1TmpPath, "r");
+        const fd = fs.openSync(v1TmpPath, "r+");
         try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
       }
       // ここから rename までは await を挟まない。await で中断すると、guard 通過後・rename 完了前に
@@ -2642,7 +2644,11 @@ export class StandbyPersistence {
       this.directoryFsyncSupported = true;
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code;
-      if (code === "EINVAL" || code === "ENOTSUP" || code === "EOPNOTSUPP") {
+      // Windows はディレクトリを書ける handle で開けず、読む handle の fsync は EPERM になる
+      if (
+        code === "EINVAL" || code === "ENOTSUP" || code === "EOPNOTSUPP"
+        || (code === "EPERM" && process.platform === "win32")
+      ) {
         if (this.directoryFsyncSupported == null) {
           log.debug("[standby-persistence] directory fsync is not supported on this platform");
         }
