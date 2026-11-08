@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "7b26d27f7203a82a5647208093b6b54e4e92500f12c16769efe9a961bbf9a6be",
+    "sha256": "484e0bd137f004f004427c628bf40f6cb3e72c82dbaccdc81687bd517b598f5f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -68,7 +68,7 @@
         "id": "Q-RC-R0",
         "status": "closed",
         "source": "起草のレビュー r0（2026-11-08 夜、dd346bdb）。品質 ヘルツ（Astra high、新しい read-only）条件付き GO・P2 1、契約適合 Opus（xhigh）条件付き GO・P2 2・P3 4。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/replclosed-draft-quality-r0-hertz.md・replclosed-draft-contract-r0.md",
-        "closed": "当てたもの: (1) ヘルツ P2・Opus P3-3: 最後の 1 回の結果を選ぶ試験が無い → 契約境界の試験 P3-RC-T03（閉じた後の 1 回目の失敗→予約済みの 2 回目の成功→idle が null で何も出さない、AC03 (2)）と P3-RC-T04（5 秒の期限切れ→遅れて失敗→期限の診断だけ、AC03 (4)）を足し、allowedPaths と requiredCommands に書いた。T02 に 2 行を同じ tick で流すことを明記した (2) Opus P2-1: 停止の中と後に親が標準エラーへ直に書く行の列挙（spec cli-terminal-output.md:992、p3-terminal-windows.json の P3-TW-D-MAIN-CONSOLE の (k)）に新しい行が漏れる → 原文の改訂 (6) に足し、割れる p3-terminal-windows.json:277 «679940c9ca375597» を見込みに書いた (3) Opus P2-2: P3-RC-D-END の A の reason に、閉じる前に見せた失敗は code 0 のまま、1 になるのはまだ見せていない失敗だけ、の非対称を書いた (4) Opus P3-1: AC02 (5) を「createSettingsSaver と repl.ts は process.stderr を持たない」にした（settings.ts の commitSettings は移行の 1 行を標準エラーへ書く） (5) Opus P3-2: repl.ts は行を足さない（:425 より後に足すと本契約の :524・:540 がずれる）に絞った (6) Opus P3-4: P3-RC-D-END の reason の末尾に、Ctrl+C の直前の config の一覧も出なくなることを書いた。P3-RC-D-CONFIG は分けたまま",
+        "closed": "当てたもの: (1) ヘルツ P2・Opus P3-3: 最後の 1 回の結果を選ぶ試験が無い → 契約境界の試験 P3-RC-T03（閉じた後の 1 回目の失敗→予約済みの 2 回目の成功→idle が null で何も出さない、AC03 (2)）と P3-RC-T04（5 秒の期限切れ→遅れて失敗→期限の診断だけ、AC03 (4)）を足し、allowedPaths と requiredCommands に書いた。T02 に 2 行を同じ tick で流すことを明記した (2) Opus P2-1: 停止の中と後に親が標準エラーへ直に書く行の列挙（spec cli-terminal-output.md:992、p3-terminal-windows.json の P3-TW-D-MAIN-CONSOLE の (k)）に新しい行が漏れる → 原文の改訂 (6) に足し、割れる p3-terminal-windows.json:277 «679940c9ca375597» を見込みに書いた (3) Opus P2-2: P3-RC-D-END の A の reason に、閉じる前に見せた失敗は code 0 のまま、1 になるのはまだ見せていない失敗だけ、の非対称を書いた (4) Opus P3-1: AC02 (5) を「createSettingsSaver と repl.ts は process.stderr を持たない」にした（settings.ts の commitSettings は移行の 1 行を標準エラーへ書く） (5) Opus P3-2: repl.ts は行を足さない（:425 より後に足すと本契約の :524・:540 がずれる）に絞った (6) Opus P3-4: P3-RC-D-END の reason の末尾に、Ctrl+C の直前の config の一覧も出なくなることを書いた。P3-RC-D-CONFIG は分けたまま (7) r1（ヘルツ、P2 1、e0cc9761）: T04 が一時 file の消滅で保存の列の終わりを待つと、unlink の後に失敗の扱いへ進む前に無出力の検査が通りうる → cli.ts が呼んだ repl.idle() の Promise を試験側の mock で捕まえて完了を await する形にし、その mock を allowedPaths に書いた",
         "remaining": "P3-RC-D-END の作者の裁定（Q-RC-END）"
       }
     ],
@@ -105,7 +105,7 @@
       "reconstruction/src/cli/settings.ts（createSettingsSaver〔:378〜:398〕の中だけ。説明のコメント :378〜:379 の書き直しを含む。行を足してよい）",
       "reconstruction/src/cli/cli.ts（終了の経路の :366〜:374 の中だけ。行を足してよい）",
       "reconstruction/test/cli/repl.test.ts（末尾への P3-RC-T01・T03 の追加と、node:fs/promises の readFile を 1 回ずつ止めて外せる vi.hoisted・vi.mock の末尾への追加だけ。止めが無いときは素通し。既存の行を変えない）",
-      "reconstruction/test/cli/cli.test.ts（末尾への P3-RC-T02・T04 の追加だけ。既存の writes の止め〔:36〜:49〕はそのまま使い、既存の行を変えない）"
+      "reconstruction/test/cli/cli.test.ts（末尾への P3-RC-T02・T04 の追加と、T04 が cli.ts の呼んだ repl.idle() の Promise を捕まえる vi.hoisted・vi.mock〔../../src/cli/repl を actual のまま返し、runRepl の戻りの idle だけを包んで呼ばれた Promise を記録する〕の末尾への追加だけ。既存の writes の止め〔:36〜:49〕はそのまま使い、既存の行を変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -250,7 +250,7 @@
         "referenceIds": [
           "P3-RC-AC03"
         ],
-        "behavior": "cli.test.ts の末尾、describe の外（起動は T02 と同じくその場に書く）。AC03 (4): 5 秒の期限を過ぎてから分かった失敗は、期限の診断のほかに何も出さない。既存の writes の止め（stall \"write\"）で一時 file の書き込みを止め、既存の期限の試験と同じ形で fake の timer を進めて、runCli が 1 を返し標準エラーが『設定ファイル <configFile()> に最後の変更を保存できたか確かめられません\\n』になるのを確かめる → 設定 file を消して同じ名前の空でない directory（config.json/x）を作り、止めを外す → rename が失敗して保存の列が終わる（一時 file が消えるのを待つ）→ 標準エラーは上の 1 行のまま、標準出力に『書けません』を含まない。rename を空でない directory へ向けるのは、Windows でも権限に頼らず書き込みを失敗させられるため"
+        "behavior": "cli.test.ts の末尾、describe の外（起動は T02 と同じくその場に書く）。AC03 (4): 5 秒の期限を過ぎてから分かった失敗は、期限の診断のほかに何も出さない。既存の writes の止め（stall \"write\"）で一時 file の書き込みを止め、既存の期限の試験と同じ形で fake の timer を進めて、runCli が 1 を返し標準エラーが『設定ファイル <configFile()> に最後の変更を保存できたか確かめられません\\n』になるのを確かめる → 設定 file を消して同じ名前の空でない directory（config.json/x）を作り、止めを外す → cli.ts が呼んだ repl.idle() の Promise（試験側の mock が記録したもの）の完了を await する（一時 file の消滅では待たない。unlink の後に失敗の扱いへ進む順があり、保存の列の終わりを保証しない）→ 標準エラーは上の 1 行のまま、標準出力に『書けません』を含まない。rename を空でない directory へ向けるのは、Windows でも権限に頼らず書き込みを失敗させられるため"
       }
     ],
     "requiredCommands": [
