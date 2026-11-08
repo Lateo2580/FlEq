@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "d7850e0d33346dffe05e881f0b459d9e4774f532d67061dec91c87d1e6f5e949",
+    "sha256": "bab0fa17a7f5c4ab6ec4dda9d61809640a2df54771f07a00581c7a1e8ecb5ea4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -117,6 +117,13 @@
         "status": "closed",
         "source": "発注前点検（統合担当、2026-11-08 午後）",
         "closed": "起草の base 55e91587 から main まで reconstruction/src・reconstruction/test の差は 0（間の commit は旧築の 0ca0c149 と P3-TSUNAMI-HOLD-MARK-001 の契約だけ）。作者の分岐 3 本と統合担当の分岐 4 本は確定、check-contract rc 0。baseOid を 2a4f72a3 に割り当てた",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-WCI-WINDOWS-RUN",
+        "status": "closed",
+        "source": "配送の後、test-windows.yml を main で手で起動し（gh workflow run、workflow_dispatch）、test-windows (reconstruction, node 22) の job で新築の試験が全部通る（failed 0）ことを確かめる。engine・display の job は旧築の失敗で落ちるので見ない",
+        "closed": "配送の後に test-windows.yml を main 03366097 で手で起動し、run 42459791315 で reconstruction・engine・display の 3 job とも success（新築の失敗 49 件→0 件、2026-11-08 夕）。CI run 42459474160（Linux）も success。P3-WINDOWS-CI-001 の配送を閉じる",
         "remaining": "なし"
       }
     ],
@@ -395,19 +402,6 @@
       "残存リスク: (1) 作者へ見せる: Windows では rename の後の directory の永続化を OS に任せるので、電源断や OS の停止の直後に最後の保存が失われ、もう一方の slot の前回の保存から復元しうる。前回の slot も保証されず、両方の slot を失う場合（起動で empty か unavailable）を排除しない（Windows の実際の filesystem が電源断で何を残すかは確かめていない）。新築の設定の保存と同じ扱い（P3-CLI-D-WRITE） (2) この直しの後は Windows の今の失敗が起きないので、errno の名前はこの失敗では出ない（推定の EPERM は確かめないまま）。errno は他の OS・他の失敗（ENOSPC・EIO など）の診断に使う (3) A の 43 件のうち host・weather・execution-split などは保存の uncertain の連鎖と読んだ推定で、直しの後に別の原因の失敗が残りうる（Q-WCI-WINDOWS-RUN で確かめる） (4) Windows では P3-E05C-T02 を飛ばすので、強制 GC の道具（probe-preload.mjs）の Windows での動きは確かめない"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-WCI-WINDOWS-RUN",
-        "owner": "integrator",
-        "blocks": [
-          "本契約の完了"
-        ],
-        "resolveBy": "配送の後、test-windows.yml を main で手で起動し（gh workflow run、workflow_dispatch）、test-windows (reconstruction, node 22) の job で新築の試験が全部通る（failed 0）ことを確かめる。engine・display の job は旧築の失敗で落ちるので見ない",
-        "requiredEvidence": [
-          "run の ID と headSha（配送の commit）",
-          "reconstruction の job の Test Files と Tests の行（failed 0）",
-          "失敗が残ったときは族分けと、本契約の範囲か（AC01〜AC03）別の原因か"
-        ]
-      },
       {
         "id": "Q-WCI-NW-SKIP",
         "owner": "integrator",
