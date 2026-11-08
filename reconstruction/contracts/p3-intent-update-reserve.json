@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "4b7f652ed03c30e6d1c14925cd7c28811caca9a68f4865b48f8e6a64debcd378",
+    "sha256": "76fb59a2d69b2f94f84fc3b2609879eed06dc0da48221e6826774f717e928188",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -274,7 +274,7 @@
         "requirement": "既存の約束の読み替え（本契約に記録し、他の契約の条文は編集しない。統合担当が計画§9と台帳73に記録する、Q-IUR-BASE）: (1) P2-EEW-UNIT-001のQ-NOTICE.capacityの「pendingを128件/131072 byte以内」、P2-NOTIFICATION-DELIVERY-001の「U-E/U-W/U-Fそれぞれ128件/128KiB」のU-E、P3-TSUNAMI-UNIT-001のQ-NOTICE.capacityとI-U-T.decode、P3-UNIT-Q-001のI-U-Q.decode、P2-WEATHER-CURRENT-UNIT-001・P2-WEATHER-TIMESERIES-UNIT-001のpendingの128件/131,072 byte（U-W・U-F）は、予約込みと読む (2) U-T・U-Qのdecodeの「encode後の世代≤4 MiB」、U-Wの16 MiB、U-Fの32 MiBの世代の上限は予約込みと読む (3) P3-UNIT-Q-001のI-U-Q.capacityReserveの「intentの上限は262,144 byte＝pending 131,072＋終端記録131,072」は変えない（pendingは予約込みで131,072、更新の後は終端が131,072を一時超えても和は262,144以下）。既存試験の期待値の変更（変更前の理由の報告を兼ねる）: eew-unit.test.tsのP2-A4-T11（受理のpendingを実byteでちょうど131,072にして+0は採用・+1は不採用）とP2-A4-T03（encodeのpendingを実byteでちょうど131,072）、weather-current-unit.test.tsのP3-WL1-T06（encodeのpendingを実byteでちょうど131,072にしてdecodeがrestored・+1はthrow）の3本は、境界を「実byte＋予約＝131,072」に置き直す（paddingから予約の和を引く）。+0は採用・+1は不採用という期待の形は変えない。無いと: 他の契約の条文と本契約が同じ境界について違うことを言い、既存試験が実byteの境界で落ちる（今の器は U-T 11,354,432・U-Q 15,515,625・U-W 16,870,999・U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-unit.json:188 «96f780f26ae0d2f6»",
-          "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
+          "reconstruction/contracts/p2-notification-delivery.json:478 «4fba6740a3879e38»",
           "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
           "reconstruction/contracts/p3-tsunami-unit.json:265 «84ef9e9e865185da»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «99a2d51d0362ebe1»",
@@ -285,7 +285,7 @@
         "id": "P3-IUR-AC06",
         "requirement": "本契約が触る関数のasの言い換えをやめる（P3-IUR-WEATHER=A、AGENTS.mdの外部データと保存データの読み戻し、Q-IUR-AS-SCOPE）。要素の同一性は保つ: U-Fのmeasureは要素のbyteをobjectの同一性でcacheし、persistedはencodeも通るので、要素を作り直すとcheckpointのencodeのたびに全要素（最大32 MiB）をstringifyし直す後退になる（今の試験では検出されない）。(1) weather-timeseries-unit.tsのpersisted: 組み立てるのは外側のobject（schemaVersion・subjects・gates・intentsの配列）だけ。subjects・gatesは今の確かめ（順序・内容とも変えない）を型の述語（value is …）の形にして通し、要素はそのまま使う（subjects・gatesの配列のas Record<string, unknown>[]とrow全体のasをやめる）。intentsもU-Wのintent()と同じ確かめの型の述語で通し、要素はそのまま使う（作り直すとsubjectsと同じ後退になる）: idが文字列、unitがU-F、subjectは文字列であることだけ（subjectsの`<operation>/VPWP50/…`の形で縛らない。shared-runtime.test.tsのP2-A1-T12がU-Fのintentを別の形のsubjectでencode→decodeする）、operation、sourceがReportRefでsubject・operationが一致、transition、channel、payloadがJSONの値のobject、createdAt・expiresAt・nextAttemptAtが有限の数でexpiresAt≥createdAt、attemptsが0以上の安全な整数、configRevisionが文字列、dispositionが4値。payloadの確かめのためにU-W（weather-current-unit.ts）のjson()の写しを1つweather-timeseries-unit.tsに置いてよい（artifactRequirementsの「helperを足さない」の例外） (2) weather-current-unit.tsのpersistedValue: national・ownershipの外側のrecordを、operationの鍵ごとにsnapshotの述語を通った値・値が文字列の鍵から組み立て、asをやめる。nationalのsnapshotの値はそのまま使う。persistedValueはdecodeだけが通り（encodeはencodedValue、P3-WL1-AC05。今asは無く、確かめの順はpersistedValueとそろえたまま）、外側のrecordを作り直してもencodeの計量のcacheは崩れない。受ける保存物の範囲は(1)のintentsのattempts・nextAttemptAtなどの確かめが増える分だけ狭まり、ほかは変えない。既存試験は期待値を変えずに緑の見込み（P2-A6-T03・A8-COSTのintentと、allowedPathsの外のshared-runtime.test.tsのP2-A1-T12のU-W・U-Fのintent［pending 128＋delivered 4,000をencode→decode］は(1)の確かめを満たす。U-W・U-Fのdecodeの表とroundtripの値は今の確かめを通る。起草時に読んだ。変える必要が出たら変更の前に理由を報告する）。触らない関数のasは扱わない。無いと: attemptsやnextAttemptAtが数でない保存物で予約の式（JSON.stringifyの長さ）が例外かでたらめな値になり、型に欄を足したときに確かめの足し忘れをコンパイラが止められない（今の器は U-F 36,851,287 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-notification-delivery.json:464 «4fba6740a3879e38»",
+          "reconstruction/contracts/p2-notification-delivery.json:478 «4fba6740a3879e38»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
         ]
       }

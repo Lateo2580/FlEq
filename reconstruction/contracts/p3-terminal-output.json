@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "1bd6c29a4968266cf65948e9bf2eb6998749c7ae716ae68f8ae97d1f13f79c9c",
+    "sha256": "592083f89bf9fb65e952ec6a45b99c2419410089b94dd6840effd1e38cf9ad7f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -121,7 +121,7 @@
       {
         "id": "P3-TO-D-LINES",
         "kind": "統合担当",
-        "A": "共有 file は行の数を変えない（既存の行の中身に書き足す）か、その file の anchor の最大の行より後にだけ足す。host.ts は :12（import type）・:44（config の欄）・:192（onInputDone の中の 1 呼び出し）・:216（lastLossFrameWallMs の宣言）・:234（dispatchLost で固める）・:591（publishDisplay の中の 1 呼び出し）・:655（status() の欄）の 7 行の中身だけ。p3-cli-repl.types.ts は :90 の中身。owner-host.ts は import の 1 行と :134（返信の inputGenerations の行）・:193 の中身。p3-execution-split.types.ts は :127（inputGenerations の行の後ろに欄）と :2（import）の中身。cli.ts は :13（import）・:326（変数）・:345（config の欄）・:357〜:362（起動の後の行を列へ）の中身と、他の契約の «» が引く最後の :344 より後（終わりの片付け）。repl.ts は :68（out）・:282（options の欄）・:425（readline の output）の中身だけ。adapter.ts は :202 の export の後に関数を 1 つ足す。試験の 2 本（repl.test.ts・cli.test.ts）の HostStatus の literal は行の中身に欄を足すだけ",
+        "A": "共有 file は行の数を変えない（既存の行の中身に書き足す）か、その file の anchor の最大の行より後にだけ足す。host.ts は :12（import type）・:44（config の欄）・:192（onInputDone の中の 1 呼び出し）・:216（lastLossFrameWallMs の宣言）・:234（dispatchLost で固める）・:591（publishDisplay の中の 1 呼び出し）・:655（status() の欄）の 7 行の中身だけ。p3-cli-repl.types.ts は :90 の中身。owner-host.ts は import の 1 行と :134（返信の inputGenerations の行）・:193 の中身。p3-execution-split.types.ts は :127（inputGenerations の行の後ろに欄）と :2（import）の中身。cli.ts は :13（import）・:326（変数）・:345（config の欄）・:357〜:362（起動の後の行を列へ）の中身と、他の契約の «» が引く最後の :344 より後（終わりの片付け）。repl.ts は :68（out）・:282（options の欄）・:425（readline の output）の中身だけ。adapter.ts は :228 の export の後に関数を 1 つ足す。試験の 2 本（repl.test.ts・cli.test.ts）の HostStatus の literal は行の中身に欄を足すだけ",
         "B": "行を足し、ずれた他の契約の anchor を配送の commit で付け直す",
         "recommended": "A",
         "provisional": "A",
@@ -340,7 +340,7 @@
       "reconstruction/src/cli/cli.ts（【発注 1】直列合流。:13・:326・:345・:357〜:362 の行の中身と、:344 より後の行の追加〔終わりの片付け〕。344 行より前に行を足さない、P3-RW2-D-CLI-LINES。【発注 2】:326 の中身〔createTerminalOutput の options〕と :357 の中身〔先頭に terminal.attach(host)〕、Q-TO-IMPL-2 (1)）",
       "reconstruction/src/cli/repl.ts（【発注 1】直列合流。:68・:282・:425 の行の中身だけ。行を足さない）",
       "reconstruction/contracts/p3-cli-repl.types.ts（【発注 2】直列合流。HostStatus の :90 の行の中身に lastLossFrameWallMs を足すだけ、AC10 (2)）",
-      "reconstruction/src/notification-delivery/adapter.ts（【発注 2】:202 の後に desktopNotice を 1 つ足し、:202 の export に名前を足す）",
+      "reconstruction/src/notification-delivery/adapter.ts（【発注 2】:228 の後に desktopNotice を 1 つ足し、:228 の export に名前を足す）",
       "reconstruction/test/execution-split/execution-split.test.ts（【発注 1】:105 の返信の key の一覧の inputDone に \"terminal\" を足す形の移行と、inputDone の literal の欄だけ）",
       "reconstruction/test/cli/repl.test.ts（【発注 1】:109・:201 の runRepl の options に terminal を足す形の移行。【発注 2】:67 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行。ほかは変えない）",
       "reconstruction/test/cli/cli.test.ts（【発注 1】runRepl・createTerminalOutput の mock を足す形の移行。【発注 2】:219 の HostStatus の literal に lastLossFrameWallMs: null を足す形の移行〔発注 1 の mock で :215 から動いた〕と、:16 の mock に attach を足す形の移行〔cli.ts の attach の呼び出しのため、Q-TO-IMPL-2 (1)〕。ほかは変えない）"

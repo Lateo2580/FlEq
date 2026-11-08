@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "a216de8f407de732ace3108db8bf2b352a9ce9adb53b00c3710366e660973210",
+    "sha256": "4e67336e23a809415b985e53a9e69404a48dcbd9f3c653601030478da4108b8d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -722,7 +722,7 @@
         "id": "P3-WN-AC11",
         "requirement": "E21 の気象分（P2-A7-E21-LOAD-v1 の人工の U-W intent の置き換え）。本物の電文（18_00_01_260830_VPWW55_fukui_L5）を U-W の reduce に通して作った desktop と sound の intent を、通常運用の EEW と津波緊急の intent と同じ A7 の選択に入れ、選ばれる順が U-E（normalEew）→ U-T（normalTsunamiEmergency）→ U-W（other）で、走っている津波緊急の試行を U-W の critical が中断しない（先例 landslide-runtime.test.ts:74 の P3-C10-T07）。試験は公開の CI で回す（test/fixtures の公開の電文だけを使う。private corpus は使わない）。凍結した E21 の harness・証拠は変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-notification-delivery.json:145 «3a059d6494463640»",
+          "reconstruction/contracts/p2-notification-delivery.json:159 «3a059d6494463640»",
           "reconstruction/test/landslide-unit/landslide-runtime.test.ts:74 «3ef080a20e035371»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:18 «2e47c82d3355225b»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»"
@@ -782,8 +782,8 @@
           "reconstruction/contracts/p3-notice-ledger.json:443 «33fff820a4d62b0b»",
           "reconstruction/contracts/p3-notice-ledger.json:691 «acea9611b9f902d4»",
           "reconstruction/contracts/p3-cli-repl.json:655 «649a15e39c3f1d83»",
-          "reconstruction/contracts/p3-cli-repl.json:1255 «ea1fff6e2ac50293»",
-          "reconstruction/contracts/p2-notification-delivery.json:145 «3a059d6494463640»",
+          "reconstruction/contracts/p3-cli-repl.json:1255 «050a296f79107fa9»",
+          "reconstruction/contracts/p2-notification-delivery.json:159 «3a059d6494463640»",
           "reconstruction/contracts/p2-weather-current-unit.json:381 «33381152f78f4cab»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «8bdd44bcb281344a»",
           "reconstruction/contracts/p3-recovery.json:1120 «198ebeaaf97bcbb8»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "20215da9ce9b2d2f36bcaeeccceea716a8d78330eae09d951440767aa7329e80",
+    "sha256": "a7d8808137816dac0386a69c8db088e26c2c12c3fca7d79b49a98e5f5a7e7753",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -131,6 +131,20 @@
             "executable": "/usr/bin/afplay",
             "argv": "wavPath",
             "condition": "音声deviceが利用可能。"
+          },
+          {
+            "os": "Windows",
+            "channel": "desktop",
+            "executable": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe（process.env.SystemRoot ?? \"C:\\Windows\" に文字列で繋いだ絶対パス）",
+            "argv": "-NoProfile -NonInteractive -Command script。script は P3-NOTIFY-WINDOWS-001 の AC01 (2) の固定の文字列で、ToastNotificationManager から ToastText02 の toast を audio silent で 1 件出して終わる。題と本文は env の FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY で渡し、argv と script に入れない。windowsHide: true、shell=false。",
+            "condition": "toast を出せるログイン session と、Windows PowerShell の AppUserModelID の Start メニューの shortcut（送り主は Windows PowerShell、P3-NW-D-SENDER=A）。R34: 起動時に powershell.exe の実在を 1 回確かめ、無ければ desktop channel を unavailable とする。ConstrainedLanguage の PC では試行が毎回 exit 1 になる。"
+          },
+          {
+            "os": "Windows",
+            "channel": "sound",
+            "executable": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe（process.env.SystemRoot ?? \"C:\\Windows\" に文字列で繋いだ絶対パス）",
+            "argv": "-NoProfile -NonInteractive -Command $ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync()。wavPath は env の FLEQ_NOTIFY_WAV で渡す。windowsHide: true、shell=false。probe も同じ。",
+            "condition": "音声 device が利用可能。無い PC でも exit 0 の delivered になりうる（P3-NW-D-NO-DEVICE=A）。"
           }
         ],
         "unavailable": "R34（2026-09-23 ご主人裁定）: backend probeで使えないchannelはunavailableとする。起動時の初期化順序・入力型・probe完了までは選択しない規則はp2-shared-runtime.json questionResolutions[P2-A1-PROBE]を唯一の正本とする。A7はunavailable channelを選択せず、そのchannelのintentを試行せず元のTTLでexpiredとして回収する（新しいdispositionを作らない）。診断は起動時に1件だけで、既存の永続sink allowlistのreasonを再利用し追加しない。probe関数は既存A7 adapter、呼出しとA1入力の結線はA3が所有する。無音probeは実可聴保証ではない。",
@@ -510,7 +524,7 @@
         "referenceIds": [
           "P2-A7-AC03"
         ],
-        "behavior": "新設するabort無視/遅い成功系列でtimeout causeと意味上のsuperseded causeをA3へ渡し、abortは停止確認だけ、runからterminal一件だけを返すことを確認する。close未確認の隔離/重ね呼出し0/遅い成功の無効化を実行backendと照合する。adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）だけは、win32 では desktop の backend が無く spawn しないので飛ばす（P3-WINDOWS-CI-001。P3-NOTIFY-WINDOWS-001 で戻す）"
+        "behavior": "新設するabort無視/遅い成功系列でtimeout causeと意味上のsuperseded causeをA3へ渡し、abortは停止確認だけ、runからterminal一件だけを返すことを確認する。close未確認の隔離/重ね呼出し0/遅い成功の無効化を実行backendと照合する。adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）は、P3-WINDOWS-CI-001 で win32 だけ飛ばし、P3-NOTIFY-WINDOWS-001 で win32 の desktop の backend を足して win32 でも走らせる"
       },
       {
         "testId": "P2-A7-T03",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b8ca889b4e0dfe8e816ae0fc99dc2778a9788c97",
-    "sha256": "79e1693c584c721fb511c2a23982b10078ada9afba73e24964b7fb1f02d6197a",
+    "sha256": "ec4f665c3896a471df5ca39a0021f4b62b91933ded6d874da55886e1d16dc9c7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -310,7 +310,7 @@
       },
       {
         "id": "P3-RP-AC05",
-        "requirement": "通知を止めることと保存先（D-SILENT・D-STATE）: hostのmoduleを読み込む前に（静的importにせず、差し替えの後のdynamic importで）node:child_processのspawnを、spawn(\"/usr/bin/true\", [], options)を呼ぶ関数へ替える（host-launcher.mjs:14〜:17と同じ）。そこにshortcut:のコメントを1行: darwin・linuxのbackendのspawnだけを止める（win32ではadapterがspawnしない）、Windowsの通知の口ができたらそこで見直す。保存先は--outがあればそれ（無ければmkdirSyncで作る。recursiveにしない）、無ければmkdtempSync(join(tmpdir(), \"fleq-replay-\"))。その下にstate/とdiag/を使い、終わっても消さない",
+        "requirement": "通知を止めることと保存先（D-SILENT・D-STATE）: hostのmoduleを読み込む前に（静的importにせず、差し替えの後のdynamic importで）node:child_processのspawnを、spawn(\"/usr/bin/true\", [], options)を呼ぶ関数へ替える（host-launcher.mjs:14〜:17と同じ）。そこにコメントを1行: win32 には /usr/bin/true が無いので、差し替えの次の行で win32 だけ差し替え先を node の -e \"\" にする（P3-NOTIFY-WINDOWS-001）。保存先は--outがあればそれ（無ければmkdirSyncで作る。recursiveにしない）、無ければmkdtempSync(join(tmpdir(), \"fleq-replay-\"))。その下にstate/とdiag/を使い、終わっても消さない",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/host-launcher.mjs:14 «720f7a3b15c43a9d»",
           "reconstruction/test/eew-e01/host-launcher.mjs:16 «e02f05c4847f1a67»",

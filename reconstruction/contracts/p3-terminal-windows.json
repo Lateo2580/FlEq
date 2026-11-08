@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "29eb7f11d1c7f4bd73c690c4666c8ac9bfb5a80db5600ad814974dfacf5a01ac",
+    "sha256": "87579443275ce94083ee1a33748a98eb61c84d61a1d317eb73441d5132061145",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -218,7 +218,7 @@
     ],
     "outOfScope": [
       "macOS と Linux の書き方（writer-worker.ts は変えない）",
-      "Windows の通知: adapter.ts の commands と desktopNotice に win32 の backend が無く、Windows では電文の通知も音も切断の通知も出ない。本契約では足さない",
+      "Windows の通知: adapter.ts の commands と desktopNotice の win32 の backend は P3-NOTIFY-WINDOWS-001 で足す（それより前は、Windows では電文の通知も音も切断の通知も出なかった）。本契約では足さない",
       "P3-TW-D-MAIN-CONSOLE の残存リスク (e)〜(l) の行（cli.ts・repl.ts・host.ts・composition-root.ts を変えない）",
       "子の立て直し（P3-TW-D-FAIL）",
       "起動の前の出力、init、config の下位コマンドの main の直接の書き込み（P3-TO-D-WRITER の例外のまま）",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "d96aabe4a8ccab5e48c1ad7e65861c01eb6a70e25a9079fbc3749bb4e62adb7e",
+    "sha256": "2ad25d574f35909111423db447549c23315fb4866fa3119973ce331e9781579e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -273,7 +273,7 @@
         "requirement": "試験の側の 6 件（P3-WCI-D-TESTS）と同じ族の 1 か所を、期待（値・件数・文）を変えずに直す: (1) diagnostic.test.ts の P2-A3-T07 の保持の偽の fs: 比べる path と :90〜:92 の removed の期待を join(\"/retention\", name) で組む（製品は join で組み、win32 では区切りが逆斜線） (2) run.mjs の hashRaw: readdirSync の相対 path の実 OS の区切り（node:path の sep）だけを / に置き換えてから並べ、state の除外も / で分ける。POSIX では sep が / なので何も置き換えず、名前の中の逆斜線もそのまま。macOS・Linux の出力は byte で同じで、封印済みの記録は変わらない。run.test.ts の P2-A10-T01 の runner の側の期待はそのまま (3) p3.test.ts の P3-E05C-T02 の it を it.skipIf(process.platform === \"win32\") で飛ばし、同じ行の末尾に shortcut: のコメント（win32 では process.kill の SIGUSR2 が無く、区切りの GC の子が落ちる。強制 GC の計測は Pi・Mac で使う）。--import の path は直さない（P3-WCI-D-E05C） (4) adapter.test.ts の :22 の it（T02 regression: kill and exit alone do not confirm stop…、P2-A7-T02）だけを it.skipIf(process.platform === \"win32\") で飛ばし、同じ行の末尾に shortcut: のコメント（win32 には desktop の backend が無く spawn しない。P3-NOTIFY-WINDOWS-001 が backend を足したら外す）。:76・:91 の T02 regression の it は飛ばさない（Windows の CI で通っている） (5) cli.test.ts の保存の期限の it（P3-CLI-T12 の (d)(e)）: win32 では directorySync の差し替えを回さず write だけにする（win32 の設定の保存は directory を開かない、P3-CLI-D-WRITE） (6) eew-log.test.ts の P3-TO-T16 の 65 件の it: 2 つの vi.waitFor に timeout 10_000 を渡す（既定は 1 秒） (7) 同じ族（品質レビュー r0 で見つけた。試験は落ちていない）: run.mjs の hostClockCounts の diagnostics の判定も、(2) と同じく sep だけを / に置き換えてから / で分ける。無いと: Windows では readdirSync が逆斜線の区切りを返し、diagnostics の下の file を 1 つも数えず、窓の記録の時計の診断を 0 件と書く（0 件は「start の time が効いた」の確かめに使う値なので、確かめが偽って通る）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-cli-repl.json:1480 «fc797add941fd04c»",
-          "reconstruction/contracts/p2-notification-delivery.json:508 «736b0273c2361824»",
+          "reconstruction/contracts/p2-notification-delivery.json:522 «736b0273c2361824»",
           "reconstruction/contracts/p3-e05p-classify.json:381 «b62a166b6473636d»",
           "reconstruction/test/checkpoint-shutdown/diagnostic.test.ts",
           "reconstruction/test/eew-e01/run.mjs",

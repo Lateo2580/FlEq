@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "21e0acf13437a2a5cfd17ebedb349fd6d10747a588f9bb4321b93ea851866358",
+    "sha256": "0d4c17ddd11729b74157d78581dd3139d59d41ee81a7a276f58b1ebdffd6c88c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -164,7 +164,7 @@
       {
         "id": "Q-RB-DELIVERY",
         "status": "closed",
-        "source": "統合担当の配送（2026-11-08 夜。実装は baseOid 0df5b82a の木で c2ca5c85、main 5da2d8d1 の上の配送の木 ~/dev/fleq-deliver の branch deliver/1108 へ載せ替えて a42bfcd9）",
+        "source": "統合担当の配送（2026-11-08 夜。実装は baseOid 0df5b82a の木で c2ca5c85（載せ替えで bce21952、配送の木 ~/dev/fleq-deliver の branch deliver/1108））",
         "closed": "レビュー r0: 契約適合 Opus GO・品質 ヘルツ（gpt-6-astra high、read-only）GO（P1・P2 なし。P3 は 2 束の境界を採用→保存→復元まで通す試験が薄い、判定には使わない）。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/rb-impl-*。ゲート: Mac mini で新築の全試験・shuffle・旧築の build と test が緑。原文の改訂（artifactRequirements の 6 番目の 13 項目を全部、どれも行の中に書き足し行の数は変えない）: (1)〜(4)・(8)・(9)・(12) は p3-recovery.json（P3-REC-AC19 の (2)(3)(5)・AC02 の (2)(7)・AC07・AC09 の (3)・D-UF-BASE の ruling・D-HOLE-AFTER-START の A・publicFunctions の 2・3・15 番目）、(5)・(10)・(11) は p3-version-material.json（P3-VM-AC07・P3-VM-T06・Q-VM-IMPL-1）、(6) は p3-unit-write-right.json（P3-UWR-AC02）、(7) は p3-terminal-layout7.json（Q-TL7-RESTART-DIGEST の remaining を「P3-RECOVERY-BOUNDARY-001 で直す」に）、(13) は p3-recovery-read.json（outOfScope の 1 番目）。改訂で中身の変わった行を引く «» は本契約の 4 件（p3-recovery.json:1018・:1189、p3-version-material.json:523、p3-unit-write-right.json:327）だけで、repo の他の file からは 0 件。5 本の meta.sha256 を取り直した。付け直した本契約の «»: 37 件（実装で中身の変わった行 13・行のずれ 20・原文の改訂 4）。中身の変わった 13 行の付け先と主張: owner-runtime.ts :692→:692（世代を必ず 1 つ進める Math.max、AC01 (2)）・:701→:702（進めた世代に候補の inputIds を結ぶ、AC01 (2)）、composition-root.ts :652→:652（返信の反映の前に同期で穴を解くコメント、AC02 (1)）・:2211→:2220（askRecovery に settle を渡し反映の前に settleAdopted を当てる。返信の後の recoveryAdopted の行は :2222）・:2291→:2298（settleAdopted の中の resolve、AC02 (1)）・:2248→:2261（adopt を送る時に adoptWaiting を立てる、AC02 (2)）・:2123→:2131（run に connected を控える、AC07 (1)）、recovery.ts :415→:419（listed に listedThroughMs を付ける、AC03 (2)）、p3-recovery.types.ts :39・:49（responseTimeMs・listedThroughMs?、AC03 (1)(2)）、checkpoint.ts :857→:870（両方 null なら末尾が無いときだけ解いた穴の before を末尾に残す、AC03 (4)）・:862→:887（hasHole は印の穴を数えない、AC07 (3)）、host.test.ts:1123（U-F が切断を越えて id-f2、AC04）。どれも条文の主張が新しい中身で成り立つ。artifactRequirements の 5 番目の (b) の行の番号の列は起草の時の番号のまま残した（checkpoint.ts:854 は中身が変わらず :866 へずれただけ、recovery.ts:108 は動かない）",
         "remaining": "なし"
       }
