@@ -157,7 +157,7 @@ describe("P3-REC-T15 acceptance: the adopt step (AC06 (a)(b), AC07, AC10)", () =
     expect([t.whole("U-T"), t.progress()]).toEqual(["unreadableReport", { unit: "U-T", state: "unsatisfied", reason: "notAdopted" }]);
     expect(tsunamiUnitCodec.decode(tsunamiUnitCodec.encode(t.h.unit("U-T")))).toMatchObject({ kind: "restored",
       state: { intents: t.h.unit("U-T").intents } });
-    expect(await t.warnings()).toContainEqual(["recoveryNotAdopted", "U-T", 2]);
+    expect((await t.warnings()).filter(([, unit]) => unit === "U-T")).toEqual([["recoveryNotAdopted", "U-T", 2]]); // recoveryFetchFailed は並ばない
   });
 
   // P3-UNREADABLE-MARK-001 の P3-UM-T12（AC12 (10)）: 候補の step は読めない報の通知の入力を渡さない（渡すと候補の U-T に基点に無い intent ができ、

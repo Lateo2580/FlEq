@@ -564,6 +564,15 @@ describe("P3-RR-T02 contractBoundary: a wanted type without xmlReport (AC01 (2)(
       .toEqual({ kind: "ok", heads: [], position: { token: "pool", latestRawReceivedAtMs: NOW - MINUTE }, refused: ["U-T"] });
   });
 
+  it("(d) a non-XML item without a head object leaves the page ok and is counted in the raw numbers", async () => {
+    const headless = { id: "x", receivedTime: new Date(NOW - MINUTE).toISOString(), format: "binary", head: "IXAC41" };
+    const warning = item("VXSE53", NOW - 2 * MINUTE);
+    https.handle = () => page([headless, warning]);
+    expect(await pollAt("telegram.earthquake", { token: "pool0", latestRawReceivedAtMs: NOW - 10 * MINUTE }))
+      .toEqual({ kind: "ok", heads: [expect.objectContaining({ id: warning.id })], position: { token: "pool", latestRawReceivedAtMs: NOW - MINUTE } });
+    expect(https.requests).toHaveLength(1);
+  });
+
   it("(c) a cycle without a position whose first page has a VTSE41 without xmlReport seeds with refused [U-T]", async () => {
     https.handle = () => page([withoutXmlReport("VTSE41", NOW - MINUTE)]);
     expect(await pollAt("telegram.earthquake", null)).toEqual({ kind: "seeded", position: { token: "pool", latestRawReceivedAtMs: NOW - MINUTE }, refused: ["U-T"] });

@@ -213,7 +213,7 @@ describe("P3-RR-T02 contractBoundary (publisher): the H41 refused units (AC01 (3
     (await lines()).filter((line) => line.component === "recovery").map(({ level, reason, unit }) => [level, reason, unit]);
 
   it("(b) an ok with refused [U-T] gives one WARN recoveryFetchFailed (U-T) and moves the position; no recovery is asked", async () => {
-    const { root, now, tick, lines } = await publisher();
+    const { root, published, now, tick, lines } = await publisher();
     const calls: (PoolPosition | null)[] = [];
     const answers: PollResult[] = [{ kind: "seeded", position: { token: "p1", latestRawReceivedAtMs: 10 } },
       { kind: "ok", heads: [], position: { token: "p2", latestRawReceivedAtMs: 20 }, refused: ["U-T"] },
@@ -222,11 +222,13 @@ describe("P3-RR-T02 contractBoundary (publisher): the H41 refused units (AC01 (3
     root.startFreshness(async (_classification, position) => { calls.push(position); return answers.shift()!; });
     root.recordConnected(now.wallTimeMs);
     await tick();
+    const progress = published.at(-1)!.recovery.progress;
     await tick(10 * MINUTE);
     await tick(10 * MINUTE);
     expect(calls).toEqual([null, { token: "p1", latestRawReceivedAtMs: 10 }, { token: "p2", latestRawReceivedAtMs: 20 }]);
     expect(await recoveryLines(lines)).toEqual([["WARN", "recoveryFetchFailed", "U-T"]]);
     expect(root.state.confirmation.units["U-T"].normal.counts).not.toHaveProperty("freshnessSuspect");
+    expect(published.at(-1)!.recovery.progress).toEqual(progress); // H41 の WARN だけで進み具合は変えない（残存リスク (4)）
   });
 
   it("(c) a seeded cycle with refused [U-T] gives one WARN and makes the position without a compare", async () => {

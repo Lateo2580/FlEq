@@ -59,9 +59,9 @@ function parse(text: string): unknown {
 // receivedAtMs は濾す前の生の受信時刻（満杯・遡り・位置を生の値で決める、P3-REC-AC13 (2)）。refused は本文を流す型の item の url・id が合わない
 // unit と、濾しを通る型で XML でない item の unit（その item は捨て、ページは failed にしない、P3-REC-AC01・P3-RR-AC01）。
 function headOf(item: unknown, query: ListQuery): Readonly<{ head: ListHead | null; receivedAtMs: number; refused?: RuntimeUnitId }> | "invalid" {
-  if (!isRecord(item) || !isRecord(item.head)) return "invalid";
+  if (!isRecord(item)) return "invalid";
   const { id, receivedTime } = item;
-  const { type, test } = item.head;
+  const { type, test } = isRecord(item.head) ? item.head : { type: undefined, test: undefined }; // 非 XML の item は head の形を求めない（P3-RR-AC01 (1)）
   const receivedAtMs = typeof receivedTime === "string" ? Date.parse(receivedTime) : NaN;
   if (!Number.isFinite(receivedAtMs)) return "invalid";
   // P3-RR-AC01 (1)(2): XML でない item は receivedTime と head.type だけを求める（採った 6 件の外の型の形は見ていない）。読めない型と濾しを通らない
