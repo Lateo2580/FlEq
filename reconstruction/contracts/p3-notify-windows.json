@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "475059680bb3649a6ea344e251186f76137cb39d04ec652161e7ed62d0b455da",
+    "sha256": "07e0550b1b47a542224431325394ecc18514836f6e6c48d2d77b74e57de5df61",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -154,6 +154,20 @@
           "P3 AC03 (4): 「watch の画面」を「表示の画面」にした",
           "P3 Q-NW-WINDOWS-CI: 2.5 秒の線は T03 の中での最初の 1 回（runner の冷えた最初とは限らず、緩い側へずれうる）と書き直した"
         ]
+      },
+      {
+        "id": "Q-NW-ORDER",
+        "status": "closed",
+        "source": "unresolvedQuestions から移した（発注前点検、2026-11-08 夜）。resolveBy: P3-WINDOWS-CI-001 を本契約より先に配送し、contracts/ に入ったら dependsOnContractIds へ移す",
+        "closed": "P3-WINDOWS-CI-001 は配送済み（実装 7d406d82、原文の改訂 5d9a509e、閉じ 5da2d8d1）。test-windows.yml を main 03366097 で手で起動した run 42459791315 で reconstruction・engine・display の 3 job とも success（新築の失敗 49 件→0 件）。dependsOnContractIds に P3-WINDOWS-CI-001 を足した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-NW-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当の依頼で Opus の子、2026-11-08 夜）。起草の base 4241a02d の 4 commit を main 5da2d8d1 の上に積み直した eb58da01 で読んだ",
+        "closed": "(1) 4241a02d..5da2d8d1 の 39 commit（P3-EEW-DROP43-001、P3-TERMINAL-LAYOUT-007、P3-TSUNAMI-HOLD-MARK-001、P3-WINDOWS-CI-001、P3-RECOVERY-READ-001、P3-RECOVERY-BOUNDARY-001 の起草、旧築と display の直し）で、adapter.ts・notification-delivery.ts・reconstruction/cli/ は差分なし。adapter.test.ts は :22 の行の中だけ（P3-WINDOWS-CI-001 の skip、行の数は同じ）。本契約の «» は全部通り、行の意味も変わっていない: composition-root.ts:488 は音の probe の delivered で idle、host.ts:543 は probe を await しない呼び出し、replay.mjs:88・:90 は shortcut のコメントと /usr/bin/true の差し替え、adapter.test.ts:85 は darwin の完全一致の期待、p0-contracts.md:378 は B09 (2) P3-WINDOWS-CI-001 との食い違いはない: その outOfScope[1] は adapter.ts を変えず :22 だけを win32 で飛ばすで、本契約の allowedPaths（adapter.ts、:14 と末尾）とぶつからない。Q-WCI-OVERLAP の本契約の範囲の記述は配送の時の記録として残す。test-windows.yml は workflow_dispatch のままで、Q-NW-WINDOWS-CI の gh workflow run と合う (3) Q-WCI-NW-SKIP: :22 の skip を外す（P3-NW-T05、allowedPaths と AC06 (3) に足し、他の契約の文面は AC06 (4)(d)(e) に書いた）。windows-ci-classify.md の族 D が根拠に挙げた adapter.ts:178〜:179・:208〜:210（probe と desktopNotice）はこの it の経路ではなく、落ちた経路は :47 の throw→:78〜:79 の notStarted→:154 の kill なしの返り (4) T03 (e) の前提（drop43 を含む main から割り当てる）は満たされた。host.ts:284 の forecastGranted は config.dmdata が要り、:326 で捨てるのは forecastGranted のときだけなので、replay.mjs:115 の { wsUrl } の起動は VXSE43 を捨てない (5) 本契約が «» の行の番号と anchor を直す契約（p3-cli-repl・p3-notice-ledger・p3-replay-cli・p3-replay-watch・p3-terminal-output）の外に、新しく adapter.ts・replay.mjs・adapter.test.ts を «» で引く契約は入っていない。並走の P3-RECOVERY-BOUNDARY-001（baseOid 0df5b82a）とは allowedPaths が重ならない (6) 作者の分岐 2 本と統合担当の分岐 5 本は確定のまま。baseOid は unassigned のまま（統合担当が割り当てる）",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -182,14 +196,17 @@
       "reconstruction/src/runtime/composition-root.ts",
       "reconstruction/src/host/host.ts",
       "reconstruction/src/terminal/output.ts",
-      "reconstruction/test/replay-cli/**"
+      "reconstruction/test/replay-cli/**",
+      "reconstruction/contracts/p3-windows-ci.json",
+      "reconstruction/test/execution-split/owner-harness.ts"
     ],
     "allowedPaths": [
       "reconstruction/src/notification-delivery/adapter.ts",
       "reconstruction/cli/replay.mjs（AC05 の 2 行だけ）",
-      "reconstruction/test/notification-delivery/adapter.test.ts（:14 の vi.mock に execFile を足す 1 か所と、末尾に足す試験だけ。既存の試験の期待は変えない）",
+      "reconstruction/test/notification-delivery/adapter.test.ts（:14 の vi.mock に execFile を足す 1 か所、:22 の it〔T02 regression: kill and exit alone…〕の行の中で it.skipIf(process.platform === \"win32\") を it に戻し行の末尾の shortcut: のコメントを消す 1 か所（P3-NW-T05、行の数を変えない）、末尾に足す試験だけ。既存の試験の期待は変えない）",
       "reconstruction/test/notification-delivery/windows-backend.test.ts（新規）",
-      "reconstruction/contracts/p2-notification-delivery.json（統合担当が P2-A7-ADAPTER の backendTable に Windows の desktop と sound の 2 行を AC06 (4)(c) の文面で足し、meta.sha256 を取り直す）",
+      "reconstruction/contracts/p2-notification-delivery.json（統合担当が P2-A7-ADAPTER の backendTable に Windows の desktop と sound の 2 行を AC06 (4)(c) の文面で足し、P2-A7-T02 の behavior の 1 文を AC06 (4)(d) の文面に替え、meta.sha256 を取り直す）",
+      "reconstruction/contracts/p3-windows-ci.json（統合担当が発注の時に Q-WCI-NW-SKIP を AC06 (4)(e) のとおり questionResolutions へ移し、meta.sha256 を取り直す）",
       "reconstruction/contracts/p3-terminal-windows.json（統合担当が outOfScope[1] を AC06 (4)(b) の文面に替え、meta.sha256 を取り直す）",
       "reconstruction/contracts/p3-replay-cli.json（統合担当が P3-RP-AC05 の shortcut のコメントの文を AC06 (4)(a) の文面に替え、«» の行の番号と meta.sha256 を直す）",
       "reconstruction/contracts/p3-cli-repl.json・p3-notice-ledger.json・p3-replay-watch.json・p3-terminal-output.json・p3-notify-windows.json（統合担当が «» の行の番号、変わった spawn の行の anchor、meta.sha256 だけを直す）"
@@ -212,7 +229,8 @@
       "P3-NOTICE-LEDGER-001",
       "P3-TERMINAL-OUTPUT-001",
       "P3-TERMINAL-WINDOWS-001",
-      "P3-REPLAY-CLI-001"
+      "P3-REPLAY-CLI-001",
+      "P3-WINDOWS-CI-001"
     ],
     "publicTypes": [
       "reconstruction/contracts/p2-notification-delivery.types.ts#NotificationChannel",
@@ -309,7 +327,7 @@
       },
       {
         "id": "P3-NW-AC06",
-        "requirement": "darwin と linux を変えない: (1) 2 つの OS の実行ファイル・argv・spawn の option は今のまま（adapter.test.ts の完全一致の期待を変えない） (2) adapter.ts の変える行は commands の型・commands の win32 の分岐と組を作る helper（desktopNotice と共用してよい）・組を受ける行・spawn の行・:178 の先頭への win32 の判定・desktopNotice の中だけにする。:179（p3-replay-cli の AC05 と本契約の AC04 が引く）と :35・:37・:42・:47 など、他の契約と本契約の «» が引く行の中身を変えない。spawn の行だけは中身が変わるので、統合担当が anchor を取り直す (3) 新しい export、src の file、npm の依存を足さない。試験の file は windows-backend.test.ts だけを足し、adapter.test.ts は :14 の vi.mock に execFile を足す 1 か所と末尾の試験だけを変える。無いと: Pi と Mac の通知が巻き添えで変わる (4) 原文の改訂（統合担当が配送で当てる）: (a) p3-replay-cli.json の P3-RP-AC05 の「そこにshortcut:のコメントを1行: darwin・linuxのbackendのspawnだけを止める（win32ではadapterがspawnしない）、Windowsの通知の口ができたらそこで見直す。」を「そこにコメントを1行: win32 には /usr/bin/true が無いので、差し替えの次の行で win32 だけ差し替え先を node の -e \"\" にする（P3-NOTIFY-WINDOWS-001）。」に替える。replay.mjs:88 のコメントは「// win32 には /usr/bin/true が無いので、差し替えの次の行で win32 だけ差し替え先を node の -e \"\" にする（P3-NW-D-REPLAY）。」にする (b) p3-terminal-windows.json の outOfScope[1] を「Windows の通知: adapter.ts の commands と desktopNotice の win32 の backend は P3-NOTIFY-WINDOWS-001 で足す（それより前は、Windows では電文の通知も音も切断の通知も出なかった）。本契約では足さない」に替える (c) p2-notification-delivery.json の P2-A7-ADAPTER の backendTable に 2 行を足す。desktop: os「Windows」、executable「%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe（process.env.SystemRoot ?? \"C:\\Windows\" に文字列で繋いだ絶対パス）」、argv「-NoProfile -NonInteractive -Command script。script は P3-NOTIFY-WINDOWS-001 の AC01 (2) の固定の文字列で、ToastNotificationManager から ToastText02 の toast を audio silent で 1 件出して終わる。題と本文は env の FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY で渡し、argv と script に入れない。windowsHide: true、shell=false。」、condition「toast を出せるログイン session と、Windows PowerShell の AppUserModelID の Start メニューの shortcut（送り主は Windows PowerShell、P3-NW-D-SENDER=A）。R34: 起動時に powershell.exe の実在を 1 回確かめ、無ければ desktop channel を unavailable とする。ConstrainedLanguage の PC では試行が毎回 exit 1 になる。」。sound: os「Windows」、executable は desktop と同じ、argv「-NoProfile -NonInteractive -Command $ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync()。wavPath は env の FLEQ_NOTIFY_WAV で渡す。windowsHide: true、shell=false。probe も同じ。」、condition「音声 device が利用可能。無い PC でも exit 0 の delivered になりうる（P3-NW-D-NO-DEVICE=A）。」。理由文（p3-replay-cli の D-SILENT、p3-replay-watch の D-NOTIFY、p3-cli-repl の D-SILENT と AC11）にある Windows で通知が出ない旨の記述は、本契約の前の歴史として書き換えない。無いと: 他の契約の原文が本契約の後の動きと食い違う",
+        "requirement": "darwin と linux を変えない: (1) 2 つの OS の実行ファイル・argv・spawn の option は今のまま（adapter.test.ts の完全一致の期待を変えない） (2) adapter.ts の変える行は commands の型・commands の win32 の分岐と組を作る helper（desktopNotice と共用してよい）・組を受ける行・spawn の行・:178 の先頭への win32 の判定・desktopNotice の中だけにする。:179（p3-replay-cli の AC05 と本契約の AC04 が引く）と :35・:37・:42・:47 など、他の契約と本契約の «» が引く行の中身を変えない。spawn の行だけは中身が変わるので、統合担当が anchor を取り直す (3) 新しい export、src の file、npm の依存を足さない。試験の file は windows-backend.test.ts だけを足し、adapter.test.ts は :14 の vi.mock に execFile を足す 1 か所、:22 の it の win32 の skip を外す 1 か所（P3-NW-T05）と末尾の試験だけを変える。無いと: Pi と Mac の通知が巻き添えで変わる (4) 原文の改訂（統合担当が配送で当てる）: (a) p3-replay-cli.json の P3-RP-AC05 の「そこにshortcut:のコメントを1行: darwin・linuxのbackendのspawnだけを止める（win32ではadapterがspawnしない）、Windowsの通知の口ができたらそこで見直す。」を「そこにコメントを1行: win32 には /usr/bin/true が無いので、差し替えの次の行で win32 だけ差し替え先を node の -e \"\" にする（P3-NOTIFY-WINDOWS-001）。」に替える。replay.mjs:88 のコメントは「// win32 には /usr/bin/true が無いので、差し替えの次の行で win32 だけ差し替え先を node の -e \"\" にする（P3-NW-D-REPLAY）。」にする (b) p3-terminal-windows.json の outOfScope[1] を「Windows の通知: adapter.ts の commands と desktopNotice の win32 の backend は P3-NOTIFY-WINDOWS-001 で足す（それより前は、Windows では電文の通知も音も切断の通知も出なかった）。本契約では足さない」に替える (c) p2-notification-delivery.json の P2-A7-ADAPTER の backendTable に 2 行を足す。desktop: os「Windows」、executable「%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe（process.env.SystemRoot ?? \"C:\\Windows\" に文字列で繋いだ絶対パス）」、argv「-NoProfile -NonInteractive -Command script。script は P3-NOTIFY-WINDOWS-001 の AC01 (2) の固定の文字列で、ToastNotificationManager から ToastText02 の toast を audio silent で 1 件出して終わる。題と本文は env の FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY で渡し、argv と script に入れない。windowsHide: true、shell=false。」、condition「toast を出せるログイン session と、Windows PowerShell の AppUserModelID の Start メニューの shortcut（送り主は Windows PowerShell、P3-NW-D-SENDER=A）。R34: 起動時に powershell.exe の実在を 1 回確かめ、無ければ desktop channel を unavailable とする。ConstrainedLanguage の PC では試行が毎回 exit 1 になる。」。sound: os「Windows」、executable は desktop と同じ、argv「-NoProfile -NonInteractive -Command $ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync()。wavPath は env の FLEQ_NOTIFY_WAV で渡す。windowsHide: true、shell=false。probe も同じ。」、condition「音声 device が利用可能。無い PC でも exit 0 の delivered になりうる（P3-NW-D-NO-DEVICE=A）。」 (d) p2-notification-delivery.json の P2-A7-T02 の behavior の「adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）だけは、win32 では desktop の backend が無く spawn しないので飛ばす（P3-WINDOWS-CI-001。P3-NOTIFY-WINDOWS-001 で戻す）」を「adapter.test.ts の T02 regression のうち kill and exit alone do not confirm stop… の it（:22）は、P3-WINDOWS-CI-001 で win32 だけ飛ばし、P3-NOTIFY-WINDOWS-001 で win32 の desktop の backend を足して win32 でも走らせる」に替える (e) p3-windows-ci.json の unresolvedQuestions の Q-WCI-NW-SKIP を、本契約の発注の時（baseOid の割り当てと同じ commit）に meta.questionResolutions へ移し、status を closed、closed を「P3-NOTIFY-WINDOWS-001 の発注前点検（Q-NW-PRECHECK）で :22 の it の win32 の skip を外すと決め、NW の allowedPaths に :22 の行を足した（P3-NW-T05）」、remaining を「なし（windows-latest の run で :22 が skip でなく通ることは NW の Q-NW-WINDOWS-CI で確かめる）」にする。p3-windows-ci の outOfScope[1]・AC03 (4)・Q-WCI-OVERLAP は配送の時の記録として書き換えない。理由文（p3-replay-cli の D-SILENT、p3-replay-watch の D-NOTIFY、p3-cli-repl の D-SILENT と AC11）にある Windows で通知が出ない旨の記述は、本契約の前の歴史として書き換えない。無いと: 他の契約の原文が本契約の後の動きと食い違う",
         "evidenceRefs": [
           "reconstruction/test/notification-delivery/adapter.test.ts:85 «4c25abfa1693b08c»"
         ]
@@ -354,6 +372,15 @@
           "P3-NW-AC04"
         ],
         "behavior": "受入条件。adapter.test.ts の末尾に足す（:14 の vi.mock に execFile: vi.fn() を足し、戻りは unref を持つ物にする）。process.platform を win32 に、process.env.SystemRoot を join(mkdtemp の dir, \"root\") に替え、AC01 (1) の文字列の path に空の file を置く（親は dirname で recursive に作る。macOS では mkdtemp の dir の中に \\ を含む 1 つの file 名になり、一時 dir の外に作らない）。試験の後に元へ戻す。desktopNotice の execFile の呼び出しが 1 回で、実行ファイルと argv が AC01 (1)(2) と完全一致し、option の env に FLEQ_NOTIFY_TITLE・FLEQ_NOTIFY_BODY、windowsHide: true、timeout: 10_000 があり、callback を呼ぶと resolve する"
+      },
+      {
+        "testId": "P3-NW-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-NW-AC03",
+          "P3-NW-AC06"
+        ],
+        "behavior": "実不具合の再発防止（P2-A7-T02 の既存の it を win32 に戻す。新しい試験は足さない）。adapter.test.ts:22 の it（T02 regression: kill and exit alone…）の it.skipIf(process.platform === \"win32\") を it に戻し、行の末尾の shortcut: のコメントを消す（期待と行の数は変えない）。この it は platform を差し替えないので、win32 では本契約の前は commands が adapter.ts:47 で throw し、runAttempt の catch（:78〜:79）が failed/notStarted で終えて active を空にし、abortNotificationAttempt が :154 で kill を呼ばずに返して :51 の kill(\"SIGTERM\") の期待が落ちていた（Windows の CI run 42415679389 の族 D）。本契約の後は win32 でも commands が組を返し、:14 の vi.mock の spawn が handle を返すので :169 で kill が呼ばれ、darwin・linux と同じ経路で AC03 (3) の中断と close を停止の証拠にする規則を win32 の組で確かめる。commands は existsSync を見ないので runner に powershell.exe が要らず、harness は idleChannels を dispatch して本物の probe を呼ばない（owner-harness.ts:216〜:220）。win32 で通ることは Q-NW-WINDOWS-CI の run で確かめる"
       }
     ],
     "requiredCommands": [
@@ -431,17 +458,6 @@
     ],
     "unresolvedQuestions": [
       {
-        "id": "Q-NW-ORDER",
-        "owner": "integrator",
-        "blocks": [
-          "P3-NOTIFY-WINDOWS-001 の配送"
-        ],
-        "resolveBy": "P3-WINDOWS-CI-001（新築の Windows の保存と試験の直し、起草中）を本契約より先に配送する。その契約が contracts/ に入ったら dependsOnContractIds へ移す（check-contract は実在しない ID を dependsOnContractIds に受けない）",
-        "requiredEvidence": [
-          "P3-WINDOWS-CI-001 の配送の commit と、その後の test-windows.yml の run の ID と結果（本契約の配送の前に、Windows の CI が P3-WINDOWS-CI-001 の分で赤でないこと）"
-        ]
-      },
-      {
         "id": "Q-NW-WINDOWS-CI",
         "owner": "integrator",
         "blocks": [
@@ -450,6 +466,8 @@
         "resolveBy": "Q-NW-ORDER の後（P3-WINDOWS-CI-001 が先に配送され、Windows の CI がその分で赤でない状態で）、配送の push の後に gh workflow run test-windows.yml で確かめる。ここが 2 本の script の最初の spawn になる。発注前に branch で回さないのは、GitHub の Ruleset restrict-non-main-branches で main 以外の branch を push できず、test-windows.yml を branch で回せないため。今の Windows は通知も音も 0 なので、main に入ってから確かめても今より悪くならない。script が動かなかったら（構文の error、型の読み込みの失敗、音の failed）、配送を閉じずにその run の結果で作者へ戻す",
         "requiredEvidence": [
           "windows-latest の run で P3-NW-T03 と全 reconstruction 試験が通る。run の ID",
+          "adapter.test.ts:22 の it（P3-NW-T05）が win32 で skip でなく pass に数えられる。落ちたら skip を戻さずに作者へ戻す（skip を外すと決めたのは読みだけで、win32 の実走はこの run が最初）",
+          "本物の host を起こす試験（prompt-host.test.ts は startP2Host に notificationGate を渡さず、本物の adapter と probe が走る。Q-NW-DRAFT の「host の試験は probe と run を差し替えている」は全部ではない）が win32 で powershell.exe を起こしても、結果が変わらず時間が延びない（file ごとの時間を本契約の前の run 42459791315 と比べる）",
           "toast の script の exit code と標準エラー。Show が session の理由で失敗したら、型の読み込みまで届いたかを標準エラーから読み、AC を変えずに Q-NW-DEVICE へ送る",
           "音の script の kind。音声デバイスの無い runner で failed なら、P3-NW-D-NO-DEVICE の前提（鳴らずに delivered）が .NET Framework では違うので、作者へ報告し直す",
           "spawn から close までの ms（T03 の中での最初の 1 回と 2 回目。vitest は file を並べて走らせ、本物の host を起こす試験も win32 で powershell.exe を起こすので、runner の冷えた最初とは限らず、緩い側へずれうる）。T03 の中での最初の 1 回が 2.5 秒を越えたら配送を閉じずに作者へ戻す（win32 の probe の期限を延ばす別の契約の候補。probe の期限は 5 秒で、越えると run の間ずっと音が出ない、AC03 (4)）"
