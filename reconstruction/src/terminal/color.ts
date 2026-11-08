@@ -23,6 +23,9 @@ const ROLES = {
   int1: { fg: GRAY }, int2: { fg: SKY }, int3: { fg: BLUE }, int4: { fg: BLUE_GREEN }, int5Lower: { fg: YELLOW }, int5Upper: { fg: ORANGE },
   int6Lower: { fg: VERMILLION_LIFT, bold: true }, int6Upper: { bg: VERMILLION, fg: BLACK, bold: true }, int7: { bg: WHITE, fg: BLACK, bold: true },
   lg0: { fg: GRAY }, lg1: { fg: SKY }, lg2: { fg: YELLOW }, lg3: { fg: ORANGE }, lg4: { bg: VERMILLION, fg: BLACK, bold: true },
+  // P3-TL10-AC02 (1)・Q-TL10-SHADES=A: 同時に進む EEW の 2・3 段目。警報は朱の地を白で薄め、予報は黄の字と罫線を黒で沈める（spec §3.1）。
+  bandWarning2: { bg: "#e08640", fg: BLACK, bold: true }, bandWarning3: { bg: "#eaaf80", fg: BLACK, bold: true },
+  bandCaution2: { fg: "#bbb233", bold: true }, ruleCaution2: { fg: "#bbb233" }, bandCaution3: { fg: "#97902a", bold: true }, ruleCaution3: { fg: "#97902a" },
 } as const satisfies Record<string, Style>;
 type Role = keyof typeof ROLES;
 
@@ -35,6 +38,11 @@ const BAND_ROLES: Readonly<Record<TerminalBandLevel, BandRoles>> = {
   caution: { band: "bandCaution", rule: "ruleCaution", bar: "barCaution", fill: false },
   plain: { band: "bandPlain", rule: "rulePlain", bar: "barPlain", fill: false },
   cancel: { band: "bandCancel", rule: "ruleCancel", bar: "barCancel", fill: true },
+};
+// P3-TL10-AC02 (1)・D-SHADES: 段ごとの EEW の帯（1 段目は今の色）。縦線と警報の帯の罫線は段によらない。
+const EEW_SHADES: Readonly<Record<"warning" | "caution", readonly BandRoles[]>> = {
+  warning: [BAND_ROLES.warning, { ...BAND_ROLES.warning, band: "bandWarning2" }, { ...BAND_ROLES.warning, band: "bandWarning3" }],
+  caution: [BAND_ROLES.caution, { ...BAND_ROLES.caution, band: "bandCaution2", rule: "ruleCaution2" }, { ...BAND_ROLES.caution, band: "bandCaution3", rule: "ruleCaution3" }],
 };
 const INTENSITY_ROLES: Readonly<Record<string, Role>> = {
   1: "int1", 2: "int2", 3: "int3", 4: "int4", "5弱": "int5Lower", "5強": "int5Upper", "6弱": "int6Lower", "6強": "int6Upper", 7: "int7",
@@ -68,5 +76,5 @@ function painter(level: ColorLevel): Paint {
   };
 }
 
-export { BAND_ROLES, INTENSITY_ROLES, LG_ROLES, colorLevel, painter };
+export { BAND_ROLES, EEW_SHADES, INTENSITY_ROLES, LG_ROLES, colorLevel, painter };
 export type { BandRoles, ColorLevel, Paint, Role };

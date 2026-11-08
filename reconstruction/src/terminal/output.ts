@@ -6,7 +6,7 @@ import { Worker } from "node:worker_threads";
 
 import chalk from "chalk";
 
-import type { ClockReading, RuntimeUnitId, RuntimeUnitView } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, RuntimeUnitId, RuntimeUnitView, SubjectOutcome } from "../../contracts/p2-shared-runtime.types";
 import type { EewLogField, HostCommandPort, HostStatus } from "../../contracts/p3-cli-repl.types";
 import type { DmdataConnectFailure } from "../../contracts/p3-dmdata-connect.types";
 import type { OwnerReply } from "../../contracts/p3-execution-split.types";
@@ -34,6 +34,10 @@ const QUEUE_BYTES = 1024 * 1024, SEND_BYTES = 64 * 1024, CLOSE_MS = 1_000;
 // Q-TO-C-3: 30 分で 3 回切れたら「回線が不安定です」にまとめ、30 分続けて繋がるまで切断の通知を出さない。
 const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
 const CHILD_LOST = "端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません";
+// P3-TL10-AC01 (4): 降灰予報（定時）のまとまりの区切り（U-V の通知のまとめ P3-C9-BATCH と同じ数）。
+const ASH_QUIET_MS = 8_000, ASH_MAX_MS = 90_000, ASH_LIMIT = 20;
+// P3-TL10-AC03 (3): VPOA50 の待ち。60 秒は briefing-unit.ts の HOLD_MS と同じ値（T05 が結ぶ）。256 は端末自身の上限。
+const RAIN_HOLD_MS = 60_000, RAIN_LIMIT = 256;
 
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
@@ -157,6 +161,10 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   let lastOutputMs = clock().monotonicMs;
   // P3-TL8-AC04 (4)(7)・D-MEMORY: 最後に積んだ全国の集約通報の参照（保存しない）。push の前に置き、push がその単位を落としたら消す。
   let national: ShortReport | null = null;
+  // P3-TL10-AC01 (1)(9): 降灰予報（定時）のまとまり（保存しない。回線・取り直し・clear では消さない）。鍵は ReportDateTime の生の字と Control/Status、時刻は monotonic。
+  let ash: { reports: ShortReport[]; reportDateTimeRaw: string | null; status: string | null; firstMs: number; lastMs: number } | null = null;
+  // P3-TL10-AC03 (3)(6): held の VPOA50 の待ちの表（subject → 報と期限〔monotonic〕）。置いた順が期限の順で、置き換えは位置と期限を保つ（Map.set）。
+  const rain = new Map<string, { report: ShortReport; dueMs: number }>();
   const fail = () => {
     if (failed) return;
     // AC02 (2): worker が落ちても process は落とさず、受信も止めない。以後は積まずに数えるだけ。
@@ -288,6 +296,33 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     if (unit === "U-Q" && label != null && intensityRank(label) > (counts.maxInt == null ? -1 : intensityRank(counts.maxInt))) counts.maxInt = label;
   };
 
+  // ---- まとめて出す・待って出す（P3-TL10-AC01・AC03） ----
+  // 積んだ時に入力の行の経過の時刻を動かす（AC01 (8)・AC03 (3)）。
+  const release = (unit: TerminalUnit): void => {
+    push(unit);
+    lastReportWallMs = clock().wallTimeMs;
+  };
+  const flushAsh = (): void => {
+    if (ash == null) return;
+    const { reports } = ash;
+    ash = null;
+    release(reports.length === 1 ? { kind: "report", report: reports[0], prompt: promptOf() } : { kind: "ashfall", reports, prompt: promptOf() });
+  };
+  // tick と inputDone の初めに見る（U-V が入力の前に期限を当てる順と同じ、AC01 (4)・AC03 (4)）。表は先頭から期限の過ぎた分だけ。
+  const expire = (nowMono: number): void => {
+    if (ash != null && (nowMono - ash.lastMs >= ASH_QUIET_MS || nowMono - ash.firstMs >= ASH_MAX_MS)) flushAsh();
+    for (const [subject, item] of rain) {
+      if (nowMono < item.dueMs) break;
+      rain.delete(subject);
+      release({ kind: "report", report: item.report, prompt: promptOf() });
+    }
+  };
+  const flushAll = (): void => {
+    flushAsh();
+    for (const item of rain.values()) release({ kind: "report", report: item.report, prompt: promptOf() });
+    rain.clear();
+  };
+
   // ---- tips（AC12） ----
   let tipMs = (options.tipInterval ?? DEFAULT_TIP_MINUTES) * 60_000;
   const tips = createTipShuffler(options.random);
@@ -351,6 +386,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     const now = clock();
     read(now);
     roll(now.wallTimeMs);
+    expire(now.monotonicMs);
     // AC12 (2): 最後に何かを出してから間隔の分だけ何も出していないときに 1 つ。
     if (tipMs > 0 && now.monotonicMs - lastOutputMs >= tipMs) notice({ kind: "tip", text: tips.next() });
   };
@@ -426,16 +462,72 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     sink: { inputDone(reply) {
       // AC08 (1): 返信の terminal の参照と、その返信の outcomes のうち U-E のもの（facts.report を持つ）を積み、地震の取消の報では同じ outcomes の U-Q の facts から震源名と発生時刻の字を読む（P3-TL9-AC06 (3)）だけ。
       // P3-CLI-AC27 (1): 区切りを過ぎていれば、前の時間の要約を報より先に積む。時刻はこの 1 回だけ読む。
-      const nowMs = clock().wallTimeMs;
+      const now = clock(), nowMs = now.wallTimeMs;
       roll(nowMs);
+      expire(now.monotonicMs);
       const prompt = promptOf();
+      const { inputId } = reply.settlement;
       let shown: { unit: RuntimeUnitId; headType: string } | null = null, repeated: { unit: RuntimeUnitId; headType: string } | null = null;
+      // P3-TL10: まとまりか待ちの表に置いた報と、U-B の判定で出さない報（result は --debug の字、AC01 (8)・AC03 (2)(3)(5)）。
+      let held: { unit: RuntimeUnitId; headType: string; result: string } | null = null;
+      // P3-TL10-AC03 (1)(5): 返信の U-B の accepted の subjects を 1 回見て、自分の記録を取り、表の subject で held でなくなったものを積まずに外す。
+      const short = reply.terminal?.kind === "short" && reply.terminal.unit === "U-B" ? reply.terminal : null;
+      const rainReport = short?.head.headType === "VPOA50" ? short : null;
+      let own: SubjectOutcome | null = null, waited = false;
+      if (rain.size > 0 || rainReport != null) {
+        for (const { unit, outcome } of reply.output.outcomes) {
+          if (unit !== "U-B" || outcome.kind !== "accepted") continue;
+          for (const subject of outcome.subjects) {
+            const mine = subject.source?.inputId === inputId;
+            if (mine) own ??= subject;
+            if (subject.transition !== "held" && rain.delete(subject.subject) && mine) waited = true;
+          }
+        }
+      }
       if (reply.terminal != null) {
         const report = reply.terminal, taken = { unit: unitOf(report), headType: report.head.headType };
         // P3-TL8-AC04: 全国の集約通報は最後に積んだ報と同じなら積まない（(3) その入力が通知の intent を作ったら比べない）。
         // 積む報は push の前に覚えにし（(7)）、取消と層の無い報は覚えを消す（(6)）。積まなかった報も定期要約に数える（(8)）。
         const nationwide = report.kind === "short" && report.head.headType === "VPWS50" ? report : null;
+        // P3-TL10-AC01: 対象の降灰予報（定時）。取消は (6) で別に扱う。
+        const volcano = report.kind === "short" && report.unit === "U-V" ? report : null;
+        const ashfall = volcano?.head.headType === "VFVO53" ? volcano : null;
+        if (ashfall != null && ashfall.head.infoType === "取消") {
+          // (6): 同じ火山・同じ Control/Status の報を並びから外す（20 までの並び）。
+          if (ash != null && ash.status === ashfall.head.status) {
+            ash.reports = ash.reports.filter((item) => item.head.eventId !== ashfall.head.eventId);
+            if (ash.reports.length === 0) ash = null;
+          }
+        } else if (volcano != null && ash != null && (volcano.head.headType === "VFVO54" || volcano.head.headType === "VFVO55") && volcano.head.status === ash.status) {
+          // (4)・D-ASH-INTERRUPT=A: 鍵と同じ Control/Status の降灰予報（速報・詳細）の前にまとまりを出す。
+          flushAsh();
+        }
         if (nationwide != null && national != null && sameNational(national, nationwide) && !rang(reply)) repeated = taken;
+        else if (ashfall != null && ashfall.head.infoType !== "取消") {
+          // (1)〜(4): 鍵が違えば先に出し、同じ火山は前の報を外して最後に置き、20 になったらその場で出す。tips の待ちの起点は置いた時に動かす（(8)）。
+          if (ash != null && (ash.reportDateTimeRaw !== ashfall.head.reportDateTimeRaw || ash.status !== ashfall.head.status)) flushAsh();
+          if (ash == null) ash = { reports: [], reportDateTimeRaw: ashfall.head.reportDateTimeRaw, status: ashfall.head.status, firstMs: now.monotonicMs, lastMs: now.monotonicMs };
+          ash.reports = [...ash.reports.filter((item) => item.head.eventId !== ashfall.head.eventId), ashfall];
+          ash.lastMs = now.monotonicMs;
+          lastOutputMs = now.monotonicMs;
+          held = { ...taken, result: "まとめて出す" };
+          if (ash.reports.length >= ASH_LIMIT) flushAsh();
+        } else if (rainReport != null && own?.transition === "aliased") held = { ...taken, result: "出さない・対応報あり" };
+        else if (rainReport != null && own?.transition === "held") {
+          // AC03 (3): 置き換えは報だけ（期限と位置は最初のまま）。満杯なら最も古い待ちを積んでから置く（出さずに捨てない）。
+          const before = rain.get(own.subject);
+          if (before != null) before.report = rainReport;
+          else {
+            if (rain.size >= RAIN_LIMIT) {
+              const [oldest, item] = rain.entries().next().value!;
+              rain.delete(oldest);
+              release({ kind: "report", report: item.report, prompt });
+            }
+            rain.set(own.subject, { report: rainReport, dueMs: now.monotonicMs + RAIN_HOLD_MS });
+          }
+          lastOutputMs = now.monotonicMs;
+          held = { ...taken, result: "対応報を待つ" };
+        } else if (rainReport != null && waited && rainReport.head.infoType === "取消") held = { ...taken, result: "出さない・待っていた報の取消" };
         else {
           if (nationwide != null) national = nationwide.national == null ? null : nationwide;
           const cancelled = cancelledOf(reply, report);
@@ -454,10 +546,9 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           eewLog?.record(subject);
         }
       }
-      const { inputId } = reply.settlement;
       // P3-TO-D-UNREADABLE（作者裁定 A）: 何も出さなかった入力だけ、その入力の unreadable・unidentified のカードを返信の view から探す（views は変わった unit だけ）。
       let card: Readonly<{ unit: RuntimeUnitId; headType: string }> | null = null;
-      if (shown == null && repeated == null) {
+      if (shown == null && repeated == null && held == null) {
         for (const delta of reply.output.units) {
           const found = delta.view?.unreadableCards?.find((item) => item.inputId === inputId && item.kind !== "unknownType");
           if (found != null) { push({ kind: "unreadable", card: found, prompt }); card = { unit: delta.unit, headType: found.headType }; break; }
@@ -467,8 +558,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       // AC17 (1): 出さない理由は取り直し（owner の recoveryInput は decode を持たない返信）か採らなかったか、全国の集約通報の前と同じ（P3-TL8-AC04 (8)）。
       if (options.debug === true) {
         // 返信が種類のコードを持たない入力（採らなかった入力・取り直し）は、種類のコードと unit を書かない（「不明」とは出さない）。
-        const known = shown ?? repeated ?? card;
-        const result = shown != null ? "出した" : repeated != null ? "出さない・前と同じ" : `出さない・${reply.decode == null ? "取り直し" : "採らなかった"}`;
+        const known = shown ?? repeated ?? held ?? card;
+        const result = shown != null ? "出した" : repeated != null ? "出さない・前と同じ" : held != null ? held.result : `出さない・${reply.decode == null ? "取り直し" : "採らなかった"}`;
         notice({ kind: "debug", text: known == null ? `debug: ${inputId}（${result}）` : `debug: ${known.headType} ${inputId}（${known.unit}、${result}）` });
       }
     }, digest(view) {
@@ -504,6 +595,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     // AC02 (6): 列の残りを最長 1 秒書かせる。返事が来なければ（worker が同期の write(2) の中で止まっている）待たずに終える。
     close() {
       closing ??= new Promise<void>((resolve) => {
+        // P3-TL10-AC01 (4)・AC03 (4): まとまりと待ちの表の残りを、列の残りを書かせる前に積む。
+        flushAll();
         if (titled) push({ kind: "echo", text: "\x1b]2;\x07" });
         closed = true;
         if (timer != null) clearInterval(timer);

@@ -4,7 +4,7 @@ import type { RecoveryDigestUnit, RecoveryDigestView } from "../../contracts/p3-
 import type {
   TerminalBandLevel, TerminalHypocenter, TerminalReport, TerminalTsunamiArea, TerminalValue,
 } from "../../contracts/p3-terminal-output.types";
-import { BAND_ROLES, INTENSITY_ROLES, LG_ROLES, painter } from "./color";
+import { BAND_ROLES, EEW_SHADES, INTENSITY_ROLES, LG_ROLES, painter } from "./color";
 import type { BandRoles, ColorLevel, Paint, Role } from "./color";
 
 // P3-TO-AC03〜AC07 と P3-TL-AC01〜AC11: worker が書く文字を作る。見た目と文面の真実源は docs/specs/cli-terminal-output.md（§3〜§5）。
@@ -21,7 +21,9 @@ type TerminalUnit =
   | Readonly<{ kind: "echo"; text: string }>
   // 【発注 2】処理できなかった報（P3-TO-D-UNREADABLE）と、電文以外の出力（AC10〜AC14・AC17）。時刻は wall の ms で、worker が地方時の字にする。
   | Readonly<{ kind: "unreadable"; card: UnreadableCardView; prompt: string | null }>
-  | Readonly<{ kind: "notice"; notice: TerminalNotice; prompt: string | null }>;
+  | Readonly<{ kind: "notice"; notice: TerminalNotice; prompt: string | null }>
+  // P3-TL10-AC01 (5): 2 報以上の降灰予報（定時）のまとまり（並びの順、20 まで）。1 報だけのまとまりは kind report で積む。
+  | Readonly<{ kind: "ashfall"; reports: readonly Extract<TerminalReport, { kind: "short" }>[]; prompt: string | null }>;
 // 定期要約の数（AC11 (3)）。maxInt は地震の報の最大震度の字（無ければ null）。
 type SummaryCounts = Readonly<{ eew: number; quake: number; maxInt: string | null; tsunami: number; nankai: number; volcano: number; weather: number }>;
 type TerminalNotice =
@@ -597,7 +599,8 @@ function headlineSegs(headline: string, regions: boolean): Seg[] {
 // 前の報の覚え（P3-TL-AC05）。鍵は operation・family・EventID。仮定の震源（PLUM）の報は M と深さを覚えない。
 type Remembered = Readonly<{ max: string; name: string | null; time: string | null; mag: string | null; depth: string | null; lg: string | null }>;
 // 同じ地震の報の重なり（AC10）と同時に進む EEW（AC11）の覚え。鍵は operation・EventID（family をまたぐ）。
-type Event = Readonly<{ seen45: boolean; cancelShown: boolean; ended: boolean; lastMs: number; name: string | null }>;
+// shade は同時に進む EEW の段の番号（P3-TL10-AC02 (2)。最初の報で決め、その地震の覚えが消えるまで変えない）。
+type Event = Readonly<{ seen45: boolean; cancelShown: boolean; ended: boolean; lastMs: number; name: string | null; shade: number }>;
 // follow は続報の比べ、events は EEW の重なりと同時進行、tsunami は VTSE41 の区分（地域名→区分の重さ）。どれも EventID ごとで 64 件まで。
 type Memory = Readonly<{ follow: Map<string, Remembered>; events: Map<string, Event>; tsunami: Map<string, ReadonlyMap<string, number>> }>;
 const ACTIVE_MS = 10 * 60_000;
@@ -607,6 +610,14 @@ function remember<T>(memory: Map<string, T>, key: string, entry: T): void {
   memory.delete(key);
   memory.set(key, entry);
   if (memory.size > MEMORY_LIMIT) memory.delete(memory.keys().next().value!);
+}
+// P3-TL10-AC02 (2)・D-SHADE-LIFE: 新しい地震に、同じ運用区分の進んでいるほかの地震（「ほかに」で数える条件と同じ）が使っていない最も小さい番号を当てる。
+function freeShade(events: ReadonlyMap<string, Event>, eventKey: string, operation: string, nowMs: number): number {
+  const used = new Set<number>();
+  for (const [other, item] of events) if (other !== eventKey && other.startsWith(`${operation}/`) && !item.ended && nowMs - item.lastMs <= ACTIVE_MS) used.add(item.shade);
+  let shade = 0;
+  while (used.has(shade)) shade += 1;
+  return shade;
 }
 // P3-TO-D-CANCEL-PHRASE: 覚えがあれば前の報の震源名と発表時刻、無ければ EventID の時刻（検知時刻）。文は spec §5.1 の図の字。
 function cancelPhrase(memory: ReadonlyMap<string, Remembered>, key: string | null, eventId: string | null): string | null {
@@ -619,7 +630,8 @@ function cancelPhrase(memory: ReadonlyMap<string, Remembered>, key: string | nul
 const was = (old: string | null | undefined, now: string): Seg[] => old != null && old !== now ? [seg(`${old} →  `, "dim")] : [];
 
 // null は畳む報（P3-TL2-AC10）。畳んでも覚えは更新する（取消の 3 行目の震源名と、AC11 の最後の時刻に要る）。
-function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): Rendered | null {
+// shaded は色の水準が 3 のときだけ（P3-TL10-D-SHADE-NOCOLOR。16 色・256 色では近い色に丸められて予報の黄と取り違える）。
+function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number, shaded: boolean): Rendered | null {
   const facts = subject.facts, report = record(facts.report);
   const family = string(facts.family) ?? subject.source?.family ?? "VXSE", eventId = string(facts.eventId);
   const warning = facts.warningClass === "warning", cancel = subject.informationType === "取消";
@@ -628,16 +640,19 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number): 
   const title = `緊急地震速報（${warning ? "警報" : "予報"}）${status == null ? "" : `（${status}）`}${cancel ? " 取消" : `${serial == null ? "" : ` 第${serial}報`}${facts.terminal === true ? " 最終報" : ""}`}`;
   const time = clockOf(subject.source?.reportDateTimeRaw), key = eventId == null ? null : `${subject.operation}/${family}/${eventId}`;
   const prediction = record(facts.prediction), max = forecastLabel(prediction?.maximum) ?? "不明";
-  // 最大予測震度の字に 7 を含む報（7、7程度以上、6強〜7）は最も重い段（P3-TL2-AC01）。
-  const roles = BAND_ROLES[cancel ? "cancel" : max.includes("7") ? "top" : warning ? "warning" : "caution"], bandLines = band(title, roles, time, ctx), tail = footer(family, eventId);
+  const eventKey = eventId == null ? null : `${subject.operation}/${eventId}`, known = eventKey == null ? undefined : memory.events.get(eventKey);
+  const shade = known?.shade ?? (eventKey == null ? 0 : freeShade(memory.events, eventKey, subject.operation, nowMs));
+  // 最大予測震度の字に 7 を含む報（7、7程度以上、6強〜7）は最も重い段（P3-TL2-AC01）。濃さを変えるのは警報と予報の帯だけ（P3-TL10-AC02 (3)）。
+  const level = cancel ? "cancel" : max.includes("7") ? "top" : warning ? "warning" : "caution";
+  const roles = shaded && (level === "warning" || level === "caution") ? EEW_SHADES[level][shade % EEW_SHADES[level].length] : BAND_ROLES[level];
+  const bandLines = band(title, roles, time, ctx), tail = footer(family, eventId);
   const headline = string(report?.headline) ?? "";
   // 同じ operation・EventID で VXSE45 を受けた後の VXSE43 と、2 通目以降の取消を畳む（旧築 eew-tracker の hasSeen45、P3-TL2-AC10）。
-  const eventKey = eventId == null ? null : `${subject.operation}/${eventId}`, known = eventKey == null ? undefined : memory.events.get(eventKey);
   const fold = cancel ? known?.cancelShown === true : family === "VXSE43" && known?.seen45 === true;
   const settle = (name: string | null): void => {
     if (eventKey == null) return;
     remember(memory.events, eventKey, { seen45: known?.seen45 === true || family === "VXSE45", cancelShown: known?.cancelShown === true || (cancel && !fold),
-      ended: known?.ended === true || cancel || facts.terminal === true, lastMs: nowMs, name: name ?? known?.name ?? null });
+      ended: known?.ended === true || cancel || facts.terminal === true, lastMs: nowMs, name: name ?? known?.name ?? null, shade });
   };
   if (cancel) {
     const phrase = cancelPhrase(memory.follow, key, eventId);
@@ -744,6 +759,18 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
     ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
     { summary: nationwide ?? [...reason, ...sentences, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+}
+// P3-TL10-AC01 (5)・spec §5.4 の図: 降灰予報（定時）のまとまり。帯は 1 報目の題名と印と「 N火山」、段は最も重い段、帯の下に各報の対象を 1 行ずつと末尾の行。
+// 見出し文・段の理由の行・区切りの罫線は出さない。
+const LEVEL_ORDER: readonly TerminalBandLevel[] = ["plain", "caution", "warning", "purple", "top"];
+function ashfall(reports: readonly Extract<TerminalReport, { kind: "short" }>[], ctx: Ctx): Rendered {
+  const { head } = reports[0];
+  const level = reports.reduce<TerminalBandLevel>((top, report) => LEVEL_ORDER.indexOf(report.level) > LEVEL_ORDER.indexOf(top) ? report.level : top, "plain");
+  const roles = BAND_ROLES[level];
+  const title = `${(head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "")}${statusMark(head.status)} ${reports.length}火山`;
+  const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
+  const names = reports.map((report) => line(seg(report.target == null || report.target === "" ? report.head.title ?? report.head.headType : report.target)));
+  return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles, { summary: names, tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };
@@ -901,7 +928,7 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
           case "echo": out += unit.text; break;
           case "line": out += `${unit.text}\n`; break;
           case "eew": {
-            const block = eew(unit.subject, memory, ctx, unit.nowMs);
+            const block = eew(unit.subject, memory, ctx, unit.nowMs, level === 3);
             folded = block == null;
             if (block != null) out += emit(paintBlock(block, ctx, paint), unit.prompt);
             break;
@@ -912,6 +939,7 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
             break;
           }
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;
+          case "ashfall": out += emit(paintBlock(ashfall(unit.reports, ctx), ctx, paint), unit.prompt); break;
           case "notice": {
             const shown = afterFold && unit.notice.kind === "debug" ? { ...unit.notice, text: unit.notice.text.replace("、出した）", "、出さない・畳んだ）") } : unit.notice;
             // 行の無い知らせ（全部 0 件のまとめ）は空行も入力の行の書き直しも出さない。
