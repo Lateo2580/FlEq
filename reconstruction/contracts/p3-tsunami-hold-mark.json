@@ -1,0 +1,323 @@
+{
+  "meta": {
+    "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
+    "sha256": "0e35ba0eb5a7091b3c706560dba882c514f464e925f54a89f1c159d2a71d3d37",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-THM-D-SHOW",
+        "kind": "作者",
+        "A": "本契約は snapshot の view に印が載る時刻だけを直す。端末と Chrome の文字と色は変えず、印を描くのは P4（K7 の outOfScope のまま）",
+        "B": "本契約で Chrome の津波のカードにも未確認の行を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-08 午後。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-08 午後）",
+        "reason": "今の新築は津波の未確認の印を画面のどこにも描いていない。buildTsunamiPaint も端末も unconfirmed を読まないので、保存→再起動の後でも画面には出ず、snapshot の JSON に載るだけ。A で見た目が変わるのは、印の付いた受信で Chrome の津波が 1 回描き直され、海岸線の点滅の位相が 1 回戻ることだけ。B は U-T だけにカードの行が増えて他の分野と見え方が揃わず、文言も新しく決めることになる。P4 で全分野の印を 1 度に決めるほうが食い違わない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-THM-DRAFT-READ",
+        "status": "closed",
+        "source": "2026-11-08 起草（base 4241a02d）",
+        "closed": "実物で読んだこと: (1) U-V との差: U-V の hold は K14 の発注 4 で [found, marked] を applied.changes に積む形になった（volcano-unit.ts、P3-UM-AC19 の (1)）。U-T の hold は退去の分だけを changes に返す。K14 の Q-UM の配送の remaining の (2) が、この差を別の契約へ送っている (2) 印の出方: 印は shown がそのまま通すので view の形は足さなくてよい。無いのは表示差分と contentRevision の前進で、owner は displayChanges か contentRevision の変化が無いと view を出し直さない。保存→再起動の後は起動の step が全部の記録を載せるので印も載る (3) 画面: 印を描く所は Chrome にも端末にも無い（display と terminal と view-projector の unconfirmed は、件数の未確認の欄で別のもの）。依頼の「印が再起動の前に出る」は snapshot の JSON の話で、見た目の話ではない (4) 取り直し: 型は VTSE41 だけで、VTSE51・VTSE52 の観測は取り直さないので、観測の hold に origin=recovery の分岐は要らない（P3-RECOVERY-001 の U-T の N2） (5) 既存の試験: hold を通る試験（P3-C5-T03、P3-VM-T03、expiry-form-h51、eew-e01 の tsunami.test）は displayChanges の空を断言していない。tsunami-unit.test.ts の displayChanges の空の断言は、容量の拒否と解除の後の観測で hold を通らない"
+      },
+      {
+        "id": "Q-THM-SHOW",
+        "status": "closed",
+        "source": "発注の前に作者が P3-THM-D-SHOW を裁定する",
+        "closed": "作者が P3-THM-D-SHOW を A（snapshot の view に印が載る時刻だけを直し、描くのは P4）で裁定した（2026-11-08 午後）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-THM-REVIEW-R0",
+        "status": "closed",
+        "source": "2026-11-08 午後 起草レビュー r0（base 143739c0）: 品質 GO（P3 4 件）、契約適合 条件付き GO（P2 2 件・P3 6 件・参考 1 件）",
+        "closed": "適合 P2-1: P3-TSUNAMI-HARNESS-001 が同じ接頭の受入 AC01〜05・試験 T01/T02・問い BASE を既に使っていて衝突するので、本契約の接頭を P3-THM-AC・P3-THM-T・P3-THM-D-・Q-THM- に替えた（ほかの契約・コードは触らない） / 適合 P2-2: AC01 に (7) 原文の改訂（配送で P3-VM-AC04 の注に本契約で直した旨を当てる）を足した / 適合 P3-3: T01 の referenceIds に AC03 を足し、AC03 (2) は表示側なので unit の試験を置かないと書いた / 適合 P3-4: 裁定後に残る条件文（AC03 の「A のとき」、outOfScope[0] の「B のときだけ」）を外した / 適合 P3-5・品質 4: artifactRequirements の 3 番目の変えてよい期待に、owner 出力の views・snapshot の sequence・Chrome の描き直しの回数を足した / 適合 P3-6: T01 に、観測は 24 時間を過ぎると late で見えないので fixture の時刻の時計で受ける（P3-C5-T03 と同じ）と足した / 適合 P3-7: readPaths に version.ts・p3-recovery.json・p3-tsunami-unit.types.ts・ingress.ts・decode-material.ts を足した / 適合 P3-8・品質 3: AC01 の場面・T01・T02 の写しを「InfoType を訂正にした写し」に揃えた（取消だと newer で hold に入らない） / 適合 参考: AC03 に、測定 e01 は tsunamiRevisionConflict のある窓を未確認にするので結果が変わらない旨を足した / 品質 1: AC01 (1)・AC02 (7) で、after を .find し直す形と、U-V と同じく作った object を積む形の両方を許した / 品質 2: T01 の encode→decode と v9 の確かめを削った（本契約が触らない codec で対応先が無い）",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。印は operation ごとの記録に付き、normal・training・test で同じ形。origin=replay を operation:test と同一視しない（spec:651）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TSUNAMI-HOLD-MARK-001",
+    "mode": "implementation",
+    "objective": "U-T の hold で付けた未確認の印を、付けた受信の表示差分に載せる。10:02 に同じ Control/DateTime で中身の違う VTSE41 が届いて 10:00 の版に印が付いたとき、今は snapshot の view に印が載るのが保存→再起動の後になる。直すと 10:02 の受信の返信で view に載る。U-V は K14 の発注 4（P3-UM-AC19 の (1)）で同じ直しを済ませた",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-tsunami-hold-mark.json",
+      "reconstruction/contracts/p3-unreadable-mark.json",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/notice-mark.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/shared-runtime.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/test/tsunami-unit/**",
+      "reconstruction/test/unreadable-mark/unreadable-order4.test.ts",
+      "test/fixtures/**",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/src/ingress/ingress.ts",
+      "reconstruction/src/decode-material/decode-material.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/tsunami/tsunami-unit.ts（hold の marked の行と return の行だけ。行の数を変えない。この file の後ろの行を他の契約が «» で引いている）",
+      "reconstruction/test/tsunami-unit/tsunami-hold-mark.test.ts（新しい file）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-tsunami-hold-mark.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M04"
+    ],
+    "integrationContractIds": [
+      "I-U-T"
+    ],
+    "dependsOnContractIds": [
+      "P3-TSUNAMI-UNIT-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-UNREADABLE-MARK-001",
+      "P2-SNAPSHOT-SSE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiUnitStep",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiUnitView"
+    ],
+    "publicFunctions": [
+      "reduceTsunamiUnit と toTsunamiView の型は変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-39_11_09_250206_VTSE41",
+      "test__fixtures__32-39_13_07_250206_VTSE41",
+      "test__fixtures__synthetic_VTSE51_fragmentA",
+      "test__fixtures__synthetic_VTSE51_fragmentB"
+    ],
+    "sequenceIds": [
+      "O05",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-T"
+    ],
+    "persistedFields": [
+      "変えない（p3-tsunami-unit-v9 のまま）"
+    ],
+    "nonPersistedFields": [
+      "contentRevision（今どおり保存しない）"
+    ],
+    "outOfScope": [
+      "印を画面に描くこと（見せ方は P4。P3-THM-D-SHOW=A の裁定でカードの行は足さない）",
+      "U-T のほかの unit の hold（Q-THM-FAMILY）",
+      "版の比べ・印の付け外し（P3-VERSION-MATERIAL-001 のまま）",
+      "U-T の保存の形式・codec・保存の上限",
+      "取り直し（観測は取り直さない。VTSE41 の版の決まらない本文は今どおり印を置かない）",
+      "旧築（src/）",
+      "spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-THM-AC01",
+        "requirement": "hold の表示差分。場面: 10:00 の VTSE41 を手元に持ち、10:02 に同じ Control/DateTime で InfoType を訂正にした写し（中身が違う）が届く（取消だと newer で採られて hold に入らないので訂正で受ける。unreadable-order4.test.ts の K7 の hold の列と同じ形）。手元の版は変わらず、後着の報の ReportRef が記録の unconfirmed に入る（P3-VM-AC03・AC04 のまま）。今は hold が退去の分だけを changes に返すので、displayChanges が空で contentRevision が進まず、owner が view を出し直さない。印は state と保存には入るが、公開の view に載るのは保存→再起動の後になる。(1) hold は印を付けた記録の [before, after] を changes に積む。before は印を付ける前の記録、after は印を付けた記録（fit は target を退去しないので、fit の返した配列の同じ subject の記録と同じ object）。fit の配列から .find し直して積む形でも、U-V の hold（volcano-unit.ts:490）と同じく作った object をそのまま積む形でもよい。退去の [item, null] は今どおり続けて積む (2) 呼び手は 3 つ（予報の版、観測の版、観測の fragment の食い違い）で、全部 hold を通るので直すのは hold の 1 か所 (3) 表示の判定は reduceTsunamiUnit の今の式のまま。見える記録なら displayChanges が 1 件、contentRevision が 1 進み、owner が同じ受信の views に U-T の view を載せる。見えない記録（解除・取消・forecastEnded・期限切れの保留の観測）は before も after も見えないので displayChanges を出さず、contentRevision も進まない。印は state と保存に今どおり入る (4) 同じ印の再送（found.unconfirmed === mark）は今どおり changes が空で、contentRevision も state も変わらない (5) 容量で fit が null のときは今どおり印を置かず uncovered (6) 書き換えるのは hold の marked の行と return の行だけで、tsunami-unit.ts の行の数を変えない。hold の中の行を引く «» は他の契約に無く、後ろの行は 13 の契約が引いている。volcano-unit.ts の hold と同じく行の中に足す。as は足さない。無いと: 印の付いた記録が view に載らないまま表示が続き、次の採用で view-projector の U-T の byte の積み上げが印の分だけ少なくなる（tsunamiTally の bytes は印を含み、before の記録には印があるが、足した時の after には無かった）。 (7) 原文の改訂: 配送で統合担当が P3-VM-AC04 の注（p3-version-material.json:475 の「U-T の hold〔tsunami-unit.ts〕は同じ形のまま（本契約の範囲で別に直す）」）に、本契約（P3-TSUNAMI-HOLD-MARK-001）で U-T の hold も [before, after] を積む形に直した旨を当てる。:475 を «» で引く契約は無いので行の中の書き換えで済む。K14 の Q-UM-IMPL-4 の remaining (2) は記録なので書き換えない",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:326 «ec41e8012bcc4dde»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:332 «2ea73e2f02471c34»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:338 «148cfd9a667f1b6d»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:276 «33b6c1d1890320dc»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:382 «0462df3e207f7c49»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:510 «1703a782dad88467»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:542 «bdb7633bb66e721b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:130 «06ac885d3f2af355»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:928 «d6d6a7911c263667»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:943 «f02fc080d0e3651a»",
+          "reconstruction/src/runtime/owner-runtime.ts:307 «25365ae90f8fc771»",
+          "reconstruction/src/runtime/owner-runtime.ts:312 «be3f4e972d8f8f84»",
+          "reconstruction/src/view-projector/view-projector.ts:285 «f7871bc3b24b07a6»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:490 «e13060a8df0a2ece»",
+          "reconstruction/contracts/p3-unreadable-mark.json"
+        ]
+      },
+      {
+        "id": "P3-THM-AC02",
+        "requirement": "変えないこと: (1) 通知: hold の intents と outcomes は今どおり 0 件で鳴らさない。決定は unchanged・stale、診断は今の WARN のまま (2) 版の比べ: stepVersion・compareVersion・nextMark と印の外し方を変えない (3) 保存: schemaVersion は p3-tsunami-unit-v9 のまま、encode・decode・GENERATION_LIMIT を変えない。contentRevision は今どおり保存しないので、開発機の保存の初期化は要らない (4) view の形: semanticRevision は印を含まないので変わらない。印は shown がそのまま通すので toTsunamiView を変えない (5) 確認の状態: addedScopes は before と after の eventId が同じなので scope を足さない。retireConfirmation と retiredEvents は after が null のときだけ動く (6) 端末: inputTerminal は accepted の outcome で決まるので行が増えない (7) 受信経路の計算量: hold は今も記録の一覧を 1 回なめて fit を通す。足すのは同じ subject を 1 回引く分（作った object を積む形なら引かない）と表示差分 1 件で、view の出し直しと tally は採用の受信と同じ経路の記録 1 件ごと。全件×全件の走査も state 全体の直列化も足さない。印の変わらない再送は AC01 の (4) の早期の戻りで通らない",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:31 «9990a6c0103131f7»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:947 «6334142030400210»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:950 «783c1876ed348553»",
+          "reconstruction/src/units/notice-mark.ts:164 «dd4ef5d14d102b12»",
+          "reconstruction/src/contracts-revision/version.ts:105 «a9f7735039cb2773»",
+          "reconstruction/src/runtime/shared-runtime.ts:384 «fddd47d7bf303a78»",
+          "reconstruction/src/runtime/shared-runtime.ts:391 «dcf54628cb4076c1»",
+          "reconstruction/src/terminal/material.ts:235 «2be327932f009c34»"
+        ]
+      },
+      {
+        "id": "P3-THM-AC03",
+        "requirement": "見え方（P3-THM-D-SHOW=A の裁定）: 端末と Chrome の文字と色は変わらない。buildTsunamiPaint は unconfirmed を読まない。変わるのは (1) snapshot の current.tsunami の view の JSON に、印の付いた受信で unconfirmed が載る (2) contentRevision が進むので tsunamiContentChanged が真になり、Chrome が津波のカードと海岸線を 1 回作り直す。同じ中身で作り直すので、見て分かるのは大津波警報の海岸線の点滅（tsu-blink）の位相が 1 回戻ることだけ。ふつうの続報の受信と同じ動き。(2) は表示側の動きなので unit の試験は置かない（P3-THM-T01 は (1) を受ける）。測定 e01 では tsunamiRevisionConflict が 1 件でもある窓は判定の段で未確認になる（judge.ts の TSUNAMI_STATE_BREAKS と窓ごとの broken）ので、hold で印が view に載っても測定の結果は変わらない",
+        "evidenceRefs": [
+          "reconstruction/src/display/chrome-eew/pure.ts:265 «cff67546f26ea7b1»",
+          "reconstruction/src/display/chrome-eew/pure.ts:30 «2bb50705f07625a8»",
+          "reconstruction/src/display/chrome-eew/index.html:83 «3f71e4c05d0f5fcb»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-THM-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-THM-AC01",
+          "P3-THM-AC02",
+          "P3-THM-AC03"
+        ],
+        "behavior": "受入。receiveOwner を通す（手本は unreadable-order4.test.ts の K7 の hold の列）。32-39_11_09 の VTSE41 を受けた後、同じ Control/DateTime で InfoType を訂正にした写し（AC01 の場面）を受けると、決定は unchanged・stale、intents と outcomes は 0 件、displayChanges は 1 件で after の current の unconfirmed が後着の inputId、contentRevision が 1 進み、同じ受信の views の U-T の forecasts に同じ印が出る。synthetic_VTSE51_fragmentA・B（P3-C5-T03 の同じ報の食い違い）で observations も同じ。観測は ReportDateTime から 24 時間を過ぎると late で見えない記録になる（visible）ので、P3-C5-T03 と同じく fixture の時刻の時計で受ける。AC03 は (1) の view の JSON に印が載ることだけを受け、(2) の Chrome の描き直しは表示側なので unit の試験を置かない"
+      },
+      {
+        "testId": "P3-THM-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-THM-AC01",
+          "reconstruction/test/unreadable-mark/unreadable-order4.test.ts:261 «6a955250f05d8029»"
+        ],
+        "behavior": "契約の境界。同じ後着の写しの再送は displayChanges が空で contentRevision も state も変わらない。32-39_13_07 の VTSE41（初めから released で view に出ない記録、P3-C5 の解除の試験と同じ fixture）に同じ Control/DateTime で InfoType を訂正にした写しを受けると、state に印が入り、displayChanges は空で contentRevision は据え置き、views に U-T は載らない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O05・O09 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。tsunami-unit.ts の行の数を変えていないこと（他の契約の «» が全部通ること）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist の生成"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "追加した試験ごとに対応（受入条件・契約境界）を 1 行",
+      "既存の期待を変えてよいのは、印の付く hold の受信の displayChanges・contentRevision・owner 出力の views（同じ受信に U-T の view が載る）・snapshot の sequence・Chrome の描き直しの回数の期待だけ。変える前に試験名・旧の期待・理由を報告する",
+      "tsunami-unit.ts の行の数を変えない。ほかの契約の «» は付け直さない（要るなら止めて報告する）",
+      "試験は XDG_CONFIG_HOME を一時のディレクトリへ向けて回し、作者の設定に書かない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-THM-FAMILY",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の閉鎖の記録"
+        ],
+        "resolveBy": "本契約の配送まで",
+        "requiredEvidence": [
+          "推奨: 本契約の発注は止めず、同じ形の 6 unit を別の 1 本でまとめて閉じる",
+          "同じ形（印を state に入れ、changes か表示差分を積まない）: flood-unit.ts・landslide-unit.ts・briefing-unit.ts・local-bulletins-unit.ts・typhoon-unit.ts の held の分岐と nankai-unit.ts の holdState。view は shown か MarkViewed の型で印を通す",
+          "別の扱い: U-Q の holdVersion はコメントで意図して積まない。U-E と U-F の印は gate、U-W の印は unconfirmed の一覧で、記録の欄ではない"
+        ]
+      },
+      {
+        "id": "Q-THM-BASE",
+        "owner": "integrator",
+        "blocks": [
+          "実装の着手"
+        ],
+        "resolveBy": "Q-THM-SHOW の裁定の後、発注前の点検で baseOid を割り当てる",
+        "requiredEvidence": [
+          "起草の base 4241a02d からの tsunami-unit.ts の差を見て、hold の行と «» を確かめ直す"
+        ]
+      },
+      {
+        "id": "Q-THM-EXISTING-TESTS",
+        "owner": "implementer",
+        "blocks": [
+          "配送"
+        ],
+        "resolveBy": "実装のゲートで既存の試験の期待が変わったら、変える前に報告する",
+        "requiredEvidence": [
+          "起草で読んだ限りでは 0 件（Q-THM-DRAFT-READ の (5)）。試験はこの起草では走らせていない"
+        ]
+      }
+    ]
+  }
+}
