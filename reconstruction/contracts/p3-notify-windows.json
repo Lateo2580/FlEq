@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "293c349c010e5a6c8d05b0258bc9781aa2cd96b7f0e1b22edec83f0c138faced",
+    "sha256": "7192ea0b22f897ed0f0d0a08a8b70ed6b38653c8ce5adec964fd414d2dba434f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -14,8 +14,8 @@
         "B": "FlEq の AppUserModelID を持つ Start メニューの shortcut を作り、送り主を「FlEq」にする。shortcut を作る処理と消す手順が要る",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者の裁定待ち）",
-        "ruling": "未決",
+        "status": "確定（作者の裁定、2026-11-08 午後。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-08 午後）",
         "reason": "デスクトップのアプリは CreateToastNotifier(appID) に AppUserModelID を渡す必要があり、有効な shortcut が Start メニューに無いと toast を出せない（Microsoft の文書）。FlEq は npm の CLI で installer が無い。B は初回の起動で利用者の Start メニューへ file を書き、shortcut へ AppUserModelID を付ける処理（WScript.Shell の CreateShortcut では付けられず、IPropertyStore の呼び出しが要る）と、uninstall で残る file の扱いを持ち込む。旧築は node-notifier の SnoreToast に appID「FlEq」と分野のアイコンを渡すので、A は旧築と見た目が変わる。アイコンは R30=A で持ち込まないと決まっている。同居人が見たときに「Windows PowerShell」と出るのを受け入れるかは作者の判断"
       },
       {
@@ -25,8 +25,8 @@
         "B": "音だけ Add-Type で PlaySound を直に呼び、戻り値が FALSE なら exit 1 にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "未決（作者の裁定待ち）",
-        "ruling": "未決",
+        "status": "確定（作者の裁定、2026-11-08 午後。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-08 午後）",
         "reason": "公開されている .NET の SoundPlayer.cs は PlaySound の戻り値を見ていない（.NET Framework 4.8 の source は取れず、同じかは未確認）。P2-A7-ADAPTER は「無音 probe は実可聴保証ではない」と決めていて、旧築の checkSoundBackend も win32 は無条件に ok で、A はそれと同じ。B は音の試行のたびに C# を compile するので鳴るまでが遅くなり、ConstrainedLanguage では Add-Type が使えず、音が全部止まる。音声デバイスの無い Windows の PC で FlEq を使う場面が薄いので A を推奨にする"
       },
       {
@@ -103,6 +103,20 @@
         "status": "closed",
         "source": "2026-11-08 起草（旧築の src/engine/notification/ を読んだ）",
         "closed": "旧築の Windows: (1) 通知は node-notifier（同梱の SnoreToast）に appID「FlEq」・分野のアイコン・sound:false を渡す（notifier.ts:1165） (2) 効果音は powershell の -Command で Add-Type して mciSendString で再生、パスは script の文へ '' で埋める（sound-player.ts の launchCustomSoundWindows） (3) 効果音の file が無いとき %SYSTEMROOT%\\Media の wav を SoundPlayer.PlaySync で鳴らす (4) 実行ファイルは裸の powershell で PATH から探す (5) checkSoundBackend は win32 なら何も確かめず ok。新築との差: 依存なしの toast、送り主（P3-NW-D-SENDER）、アイコンなし（R30=A）、環境変数で値を渡す、絶対パス、system の音への後退なし（資材の 20 本だけ）、音の probe は実際に無音の WAV を鳴らす。docs/specs/engine.md:993 の「WPF MediaPlayer」は今の sound-player.ts の mciSendString と合っていない（旧築の spec の古い記述。本契約では直さない）"
+      },
+      {
+        "id": "Q-NW-SENDER",
+        "status": "closed",
+        "source": "作者の裁定（P3-NW-D-SENDER。推奨 A: 送り主は Windows PowerShell のままにする）",
+        "closed": "作者が P3-NW-D-SENDER を A（送り主は Windows PowerShell のまま）で裁定した（2026-11-08 午後）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-NW-NO-DEVICE",
+        "status": "closed",
+        "source": "作者の裁定（P3-NW-D-NO-DEVICE。推奨 A: 音声デバイスの無い PC では鳴らずに delivered が残るのを受け入れる）",
+        "closed": "作者が P3-NW-D-NO-DEVICE を A（音声デバイスの無い PC では鳴らずに delivered が残るのを受け入れる）で裁定した（2026-11-08 午後）",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -362,29 +376,6 @@
       "Windows の実機で確かめていないことを成功と書かない。macOS の試験は argv と option の形だけを確かめ、PowerShell の script が動くことを確かめない"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-NW-SENDER",
-        "owner": "user",
-        "blocks": [
-          "baseOid の割り当て"
-        ],
-        "resolveBy": "作者の裁定（P3-NW-D-SENDER。推奨 A: 送り主は Windows PowerShell のままにする）",
-        "requiredEvidence": [
-          "A か B の裁定",
-          "B のときは shortcut を作る時と消す時の裁定"
-        ]
-      },
-      {
-        "id": "Q-NW-NO-DEVICE",
-        "owner": "user",
-        "blocks": [
-          "baseOid の割り当て"
-        ],
-        "resolveBy": "作者の裁定（P3-NW-D-NO-DEVICE。推奨 A: 音声デバイスの無い PC では鳴らずに delivered が残るのを受け入れる）",
-        "requiredEvidence": [
-          "A か B の裁定"
-        ]
-      },
       {
         "id": "Q-NW-WINDOWS-CI",
         "owner": "integrator",
