@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "4cbd6f7bf295c31a8bc8b24f4c3061b3b33763fe3f19b6d4d684756c70c253c8",
+    "sha256": "f84ae4139effa12c0efa26e07ee55cd3138b32a2ec002307d2a8990ca213e621",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -145,7 +145,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-009",
     "mode": "implementation",
     "objective": "旧築にあって新築の端末に無い表示の欠けのうち、1 報の字の作り方で直るものを直す（2026-11-08 夜の棚卸し）。熱中症警戒アラート・早期天候情報・気象警報・注意報時系列情報の帯を Head/Title にして県・現象・地方を出し、地震の情報の取消に取り消した地震の発生時刻と震源名の 1 行を足し、緊急地震速報に「PLUM法による予測震度変化」の行を戻し、竜巻注意情報の解除の報を普通の段にし、台風の情報の帯の対象を台風の番号と名前にする。VXSE53 の長周期階級の行は実物に MaxLgInt が無いので作らない",
-    "baseOid": "unassigned",
+    "baseOid": "04a64b17",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
