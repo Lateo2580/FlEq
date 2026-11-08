@@ -338,7 +338,7 @@ function hold(state: TsunamiUnitState, candidate: ForecastCandidate | Observatio
   if (fitted == null) return { changes: [], step, uncovered: true };
   const next: TsunamiUnitState = { ...state, forecasts: fitted.forecasts, observations: fitted.observations,
     persistence: dirty(state.persistence, clock.monotonicMs) };
-  return { changes: fitted.evicted.map((item): Change => [item, null]), step: { ...step, state: next, nextDeadline: nextDeadline(next),
+  return { changes: [...(candidate.kind === "forecast" ? fitted.forecasts : fitted.observations).filter((item) => item.subject === candidate.subject).map((item): Change => [found, item]), ...fitted.evicted.map((item): Change => [item, null])], step: { ...step, state: next, nextDeadline: nextDeadline(next), // P3-THM-AC01 (1): 印も表示差分に積む（無いと再起動まで view に出ない）。fit は target を退去しないので after は 1 件
     diagnostics: [...step.diagnostics, ...fitted.evicted.length === 0 ? [] : [{ level: "INFO" as const, component: "tsunami",
       reason: "tsunamiCapacityEvicted" as const, unit: "U-T" as const, count: fitted.evicted.length }]] } };
 }
