@@ -1,0 +1,110 @@
+[
+  {
+    "classification": "telegram.earthquake",
+    "item": {
+      "serial": 55036417,
+      "id": "80cc285c272a772c8f398f00bd73dc19838fb37bb5a2d17a698039d16e9bb414781b2e63a097a091022f0062eb511295",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "IXAC41",
+        "author": "RJTD",
+        "time": "2026-11-07T16:13:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-11-07T16:13:50.383Z",
+      "format": "binary",
+      "url": "https://data.api.dmdata.jp/v1/80cc285c272a772c8f398f00bd73dc19838fb37bb5a2d17a698039d16e9bb414781b2e63a097a091022f0062eb511295"
+    }
+  },
+  {
+    "classification": "telegram.earthquake",
+    "item": {
+      "serial": 55036361,
+      "id": "a5880c125925de6de6e64d3be9bbf92fdfb00335c09f5c6cec81e569cd0c323af59cd56f22fb107b3501c8cb74708922",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "IXAC41",
+        "author": "RJTD",
+        "time": "2026-11-07T16:09:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-11-07T16:09:28.693Z",
+      "format": "binary",
+      "url": "https://data.api.dmdata.jp/v1/a5880c125925de6de6e64d3be9bbf92fdfb00335c09f5c6cec81e569cd0c323af59cd56f22fb107b3501c8cb74708922"
+    }
+  },
+  {
+    "classification": "telegram.earthquake",
+    "item": {
+      "serial": 54969977,
+      "id": "d480680984140983600a5499ba93aed2573a6d9fdc575aacca430dc6f7e5592434daa83945b40c3d4df83158b64d9004",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "WEPA60",
+        "author": "RJTD",
+        "time": "2026-11-05T00:00:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-11-05T00:00:14.935Z",
+      "format": "a/n",
+      "url": "https://data.api.dmdata.jp/v1/d480680984140983600a5499ba93aed2573a6d9fdc575aacca430dc6f7e5592434daa83945b40c3d4df83158b64d9004"
+    }
+  },
+  {
+    "classification": "telegram.earthquake",
+    "item": {
+      "serial": 54804949,
+      "id": "a2c62dea30e6289b11de2d230a0463e0d995465d5234aa2b9cee1c038f2078aa54ca48d601b89c316d09d9d7db1ad564",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "IXAC41",
+        "author": "RJTD",
+        "time": "2026-10-28T15:16:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-10-28T15:16:42.077Z",
+      "format": "binary",
+      "url": "https://data.api.dmdata.jp/v1/a2c62dea30e6289b11de2d230a0463e0d995465d5234aa2b9cee1c038f2078aa54ca48d601b89c316d09d9d7db1ad564"
+    }
+  },
+  {
+    "classification": "telegram.earthquake",
+    "item": {
+      "serial": 54804921,
+      "id": "4d2f83d984636812818fbbd2b327bcfeb9ba3e6c97fdb0666c030920c4dbdc81a273fd790e08ef19e5735ebf666e70bd",
+      "classification": "telegram.earthquake",
+      "head": {
+        "type": "IXAC41",
+        "author": "RJTD",
+        "time": "2026-10-28T15:12:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-10-28T15:13:00.976Z",
+      "format": "binary",
+      "url": "https://data.api.dmdata.jp/v1/4d2f83d984636812818fbbd2b327bcfeb9ba3e6c97fdb0666c030920c4dbdc81a273fd790e08ef19e5735ebf666e70bd"
+    }
+  },
+  {
+    "classification": "telegram.weather",
+    "item": {
+      "serial": 55049077,
+      "id": "14db1917e1136a8d6a17e7dd722cfea97ba334f75ca027e1510fc51b2a372273db910bcdaf0d6b07953a087a1347aa88",
+      "classification": "telegram.weather",
+      "head": {
+        "type": "WTJP31",
+        "author": "RJTD",
+        "time": "2026-11-08T03:00:00.000Z",
+        "designation": null,
+        "test": false
+      },
+      "receivedTime": "2026-11-08T03:40:16.081Z",
+      "format": "a/n",
+      "url": "https://data.api.dmdata.jp/v1/14db1917e1136a8d6a17e7dd722cfea97ba334f75ca027e1510fc51b2a372273db910bcdaf0d6b07953a087a1347aa88"
+    }
+  }
+]

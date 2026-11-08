@@ -1,0 +1,424 @@
+{
+  "meta": {
+    "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
+    "sha256": "ab898f37c090f5ed2569265bb730954760eb7c84a74a4766f70644022eae0a89",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-RR-D-SECOND-ROUND",
+        "kind": "統合担当",
+        "A": "最初の接続の 2 巡目（firstConnectWanted と recordConnected の requestRecovery）を残し、コードは変えない。recordConnected の冒頭のコメント（「起動の最初の接続は起動の辿りが覆う」）だけを firstConnectWanted の決めに合わせて直す",
+        "B": "起動の辿りで一覧の最初の要求を最初の start frame より前に送った unit と、起動の取り直しを recovered で終えなかった unit にだけ 2 巡目を出す（unit ごとの最初の要求の時刻を walkList から root へ渡す欄を足す）",
+        "C": "起動の辿りが satisfied の unit には 2 巡目を出さない（依頼の形）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 午後）",
+        "ruling": "A（統合担当、2026-11-08 午後）",
+        "reason": "起動の辿りは接続を待たずに始まり（host.ts の walkList は startAttempt より前）、unit ごとの一覧はその unit の最初の要求の時刻までしか無い。その時刻から最初の start frame までに出た報は一覧にも live にも無く、埋めるのは 2 巡目だけ（composition-root.ts の firstConnectWanted の決め、発注 3 の r0 Opus P2-1、P3-RECOVERY-001 の publicFunctions の (g)、P3-REC-T13）。H41 は辿りの後の最初の周期で位置を作るだけ（seeded）で、その前の報を突き合わせない。穴があるのは WALK_ORDER の前の方の、たいてい satisfied で終わる unit なので、C は穴のある所の 2 巡目を消し、穴の無い unsatisfied の unit にだけ残す。B は穴に合うが unit ごとの時刻を運ぶ欄が要り、省けるのは後ろの unit の 1 束 1 ページ程度（P3-RECOVERY-BOUNDARY-001 の後）。実配信の 2 巡目が約 3 分かかったのは 2 巡目そのものでなく、1 巡目の U-Q の頭 0 件の resolve が境界を null にし（checkpoint.ts の resolve、調べ② の 2）、2 巡目が now − 42 時間から辿ったため。境界が残れば 2 巡目は境界 − 60 秒から止める id までの 1 束 1 ページになる（recoveryStart、P3-REC-AC02 (2)(3)）"
+      },
+      {
+        "id": "P3-RR-D-WANTED-NOXML",
+        "kind": "統合担当",
+        "A": "濾し（test・unit 表の ready・束の型か区分）を通る型の item で、format が xml でないか xmlReport が無いものは refused（その item を捨て、起動の辿り・run の中の取り直しではその unit を fetchFailed、H41 ではその周期にその unit を突き合わせず、位置を進めた上で WARN recoveryFetchFailed（unit つき）を出す）。ページは failed にしない",
+        "B": "その item も head:null で黙って飛ばす",
+        "C": "今のまま invalid（ページを failed）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 午後。r0 で H41 の予約を足し、r1 で外して WARN にした）",
+        "ruling": "A（統合担当、2026-11-08 午後）",
+        "reason": "濾しを通る型（unit 表の ready の型）は全部 XML の型で、実配信の一覧で濾しを通る型の xmlReport の無い item は無かった。B だと、来たときにその報を本文で取らないまま unit が listed になり、採用で確認済みになる（仕様どおりの欠け）。C は 1 件で区分の全 unit の周期を止める（今回の不具合の形）。A は本文の url の検査（recovery.ts の refused、P3-REC-AC01）と同じ扱い"
+      },
+      {
+        "id": "P3-RR-D-DETERMINISTIC",
+        "kind": "統合担当",
+        "A": "再試行しない失敗は、2xx の応答の形の不一致（JSON でない、status が ok でない、items・nextToken・nextPooling・nextPoolingInterval の形、invalid の item）と、401・403・408・429 以外の 4xx（ListPage の kind \"rejected\"）。再試行するのは今のまま、届かなかった要求（exchange の lost・notSent）・1 MiB を越える応答（exchange の tooLarge）・5xx・408・429",
+        "B": "2xx の応答の形の不一致だけを再試行しない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 午後。r0 の品質の P2 で tooLarge を、証拠不足の指摘で 408 を再試行の側へ移した）",
+        "ruling": "A（統合担当、2026-11-08 午後）",
+        "reason": "依頼の「一時的な失敗（ネットワーク・5xx・429）」の外は、同じ要求に同じ答えが返る。4xx は実配信で見ていないが、再試行の 3 回は dmdata の枠と 30 秒を使う。408 は一時的な失敗なので再試行する。tooLarge は status と Retry-After を残さず（dmdata-rest.ts の exchange は上限を越えた所で読むのを止める）、503 などの一時的な失敗と分けられないので再試行する"
+      },
+      {
+        "id": "P3-RR-D-NOT-ADOPTED",
+        "kind": "統合担当",
+        "A": "新しい語 notAdopted（RecoveryUnsatisfiedReason）と診断 recoveryNotAdopted（WARN、unit ごとに 1 件、count に adopted でなかった本文の数）",
+        "B": "結果の種類ごとに語を分ける（held・unreadable・capacityExceeded・unreadableReport の 4 語）",
+        "C": "語は fetchFailed のまま count だけ足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-08 午後）",
+        "ruling": "A（統合担当、2026-11-08 午後）",
+        "reason": "DiagnosticDetails は固定の欄だけを持ち（P2-A1-AC05、追加の欄を禁じる）、種類ごとの件数を載せる欄は無い。count は既にある欄で、数を運ぶ使い方に前例がある（notificationSuppressed の止めた段、mailbox の拒否の番号）。種類は owner の返信の inputs に残り、capacityExceeded・unreadableReport は負の証拠とカードで別に残る。C は取得の失敗と区別できない（今回の取り違え）"
+      },
+      {
+        "id": "P3-RR-D-NEGZERO",
+        "kind": "統合担当",
+        "A": "値を作る側で -0 を 0 にそろえる（seismic.ts の number の助け手で value + 0。typhoon.ts の point と同じ形）",
+        "B": "比べる側（seismic-unit.ts の sameContent）を -0 と 0 を同じと見る比べにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-08 の依頼）",
+        "ruling": "A（統合担当）",
+        "reason": "B は比べの全部の欄に効き、保存の JSON が -0 を 0 に書く食い違いはほかの比べ（codec の往復）にも残る。A は値の出どころ 1 か所で、raw は変えない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-RR-FACTS",
+        "status": "closed",
+        "source": "2026-11-08 起草（main 55e91587 の木と、Mac mini の実配信の調べ recovery-fetch-failed.md を突き合わせた）",
+        "closed": "(1) headOf は xmlReport の無い item を濾しの前に invalid にし（recovery.ts:62）、listTelegramPage はページ全体を failed にし（:103）、send は failed を再試行の 3 回まで取り直す（:348）。実配信の telegram.earthquake は 200（96,425 byte）でも 100 件中 5 件（IXAC41 format=binary 4、WEPA60 format=a/n 1）に xmlReport が無く、telegram.weather は WTJP31（a/n）1 件で同じ。H41 は毎周期 unmatched の fetchFailed で、WARN は run で 1 回（composition-root.ts:2017 と freshness.warned） (2) 起動の辿り・run の中の取り直し（walkList）と H41（pollClassification）はどちらも send → ListRequestLane → listTelegramPage → headOf を通るので、直しは両方に効く。辿りは type= で XML の型を名指すので、実配信では非 XML の item は返らなかった (3) 本文の取得（fetchBody）は failed を取り直さない（lost は 1 回、429 は 3 回だけ）ので (e) は一覧だけ (4) recoveryAdopted は、送った本文の 1 件でも結果が adopted でない（held・unreadable・capacityExceeded・unreadableReport・返信に無い）と fetchFailed の語にする（composition-root.ts:2294）。P3-REC-AC05 (a) がこの語を書いている"
+      },
+      {
+        "id": "Q-RR-SECOND-ROUND",
+        "status": "closed",
+        "source": "2026-11-08 起草（依頼の「止める前に必ず確かめる」）",
+        "closed": "(1) きっかけ: attachRecovery が最初の接続の前なら firstConnectWanted を立て（composition-root.ts:2072）、最初の start frame で recordConnected が辿る unit の全部に requestRecovery(…, null) を出す（:1039）。起動の取り直しの回が終わってから 60 秒と待ちの後に 1 本で走る（startWantedRecovery、P3-REC-D-COALESCE） (2) 担っている穴: (a) 起動の辿りは接続を待たずに始まり（host.ts:564 の walkList は :579 の startAttempt より前）、各 unit の一覧はその unit の最初の要求の時刻までしか無い。その時刻から最初の start frame までに出た報は一覧にも live にも無い（:2054〜2055 の決め、P3-RECOVERY-001 の publicFunctions の (g)）。試験は P3-REC-T13（recovery-adopt.test.ts:546、境界 − 60 秒から 1 回辿る）と P3-REC-T08（recovery-host.test.ts の最初の start の印を待つ所）。H41 は辿りの後の最初の周期で位置を作るだけなので、この穴を覆わない (b) 起動の辿りが unsatisfied（401/403・fetchFailed・recoveryLimit）か、本文の失敗・adopted でない結果で終わった unit は uncovered が残り、2 巡目は起動の範囲からやり直す。次のきっかけ（切断・断った入力・鮮度の差）が来ない限り、これが唯一のやり直し (c) 起動の辿りが接続より後に終わっても、2 巡目は起動の取り直しの回の終わりを待つ（runStopped が null になるまで起こさない）ので、範囲と順は変わらない (3) recordConnected の冒頭のコメント（:1031「起動の最初の接続は起動の辿りが覆う」）は :2054 の決めより前の文で、調べ② の 1 の読み違いの元 (4) 実配信の約 3 分は、1 巡目の頭 0 件の resolve が境界を null にしたため（checkpoint.ts:857、P3-RECOVERY-BOUNDARY-001 で直す）"
+      },
+      {
+        "id": "Q-RR-NEGZERO",
+        "status": "closed",
+        "source": "2026-11-08 起草（統合担当の追加の依頼、実配信の 2 巡目の U-Q の held 1 件）",
+        "closed": "(1) seismic.ts:162 の -Number(\"+0\") / 1000 は -0。保存の JSON は 0 と書き（JSON.stringify(-0) は \"0\"）、復元すると +0。seismic-unit.ts:844 の isDeepStrictEqual は原始値を Object.is で比べ（node で isDeepStrictEqual(-0, 0) が false を確かめた）、同じ版・同じ中身の報を違う中身と見て version.ts:102 の held、取り直しの本文は noChange、owner-runtime.ts:673 の held、composition-root.ts:2294 の incomplete。実配信は VXSE53 20261108023143（+41.9+140.7+0/） (2) 同じ形の値: seismic.ts の number の助け手（:160）が depthKm（:162）・latitude（:175）・longitude（:176）を作る。緯度・経度も生の文字が -0.0 なら -0 (3) 確かめて直さない所: eew.ts:256 は Math.abs で -0 にならず保存もしない、eew.ts の座標は生の文字のまま（rawOf）、terminal/format.ts:332 は Math.abs で表示だけ、typhoon.ts:93〜94 は既に + 0、volcano の座標は文字、tsunami.ts に数の読みは無い、旧築（src/）に -Number( は無い (4) 別の族: decode-material.ts:390・:394（MaterialValue の数）、flood.ts:266・:302、briefing.ts:203 は生の文字そのものが -0 のときだけ -0 になる。test/fixtures の値に -0 は 0 件"
+      },
+      {
+        "id": "Q-RR-SECOND-ROUND-FORM",
+        "status": "closed",
+        "source": "2026-11-08 午後、統合担当",
+        "closed": "統合担当が A で決めた（2026-11-08 午後）。2 巡目は起動の辿りの要求から最初の start frame までの隙間を埋め、unsatisfied の unit の唯一の再試行。Mac mini の約 3 分は一覧 0 件の resolve が境界を null にした結果で、P3-RECOVERY-BOUNDARY-001 が直す"
+      },
+      {
+        "id": "Q-RR-RAW-ITEMS",
+        "status": "closed",
+        "source": "2026-11-08 午後、統合担当が Mac mini で一覧を 1 回引いて採った（API キーは含まない）",
+        "closed": "生の item 6 件を reconstruction/test/recovery/telegram-list-nonxml-real.json に写した（採ったままの bytes。telegram.earthquake の IXAC41 format=binary 4・WEPA60 format=a/n 1、telegram.weather の WTJP31 format=a/n 1）。どれも xmlReport が無く、欄は classification・format・head・id・receivedTime・serial・url。head は type・author・time・designation・test を持つ。test/fixtures の外に置くので corpus の manifest は変えない（check-manifest は test/fixtures だけを数える）"
+      },
+      {
+        "id": "Q-RR-REVIEW-R0",
+        "status": "closed",
+        "source": "2026-11-08 午後、起草レビュー r0（品質: ヘルツ 条件付き GO、契約適合: Opus 条件付き GO、HEAD 7195a717）",
+        "closed": "全部当てた: (1) 品質 P2: H41 で refused の unit の正しい未受信の報が heads から外れたまま位置が進む穴（recovery.ts:436、composition-root.ts:2026〜2027、watch.ts の compare・expire）→ r0 では旧位置からの取り直しの予約を足したが、r1 で統合担当が外した（Q-RR-REVIEW-R1）。H41 の refused は位置を進めた上で WARN recoveryFetchFailed（unit つき）で知らせ、欠けは残存リスク (4) に書く（AC01 (3)、T02 (b)） (2) 品質 P2: 1 MiB を越える 503 の応答が tooLarge で再試行されなくなる → tooLarge は今どおり再試行（AC02 (3)、T03 の交差）。証拠不足の 408 も再試行の側へ (3) 契約適合 P2: 本契約の «» は実装が書き換える行を引くので、allowedPaths に本契約（«» の付け直しと meta.sha256 だけ）を足し、止める条件を他の契約の赤に絞り、例外を recovery.ts:243〜:245 のずれ（p3-dmdata-connect-002）にした。試験は seismic-unit.test.ts の :855 より後ろ（p3-revision-order.json）に足す (4) 改訂の漏れ（P3-REC-AC06 (b)、P3-REC-T15、publicFunctions の 7 語、P2-A8-AC11 の 7 語と 2 件の付け直し）を改訂の (7)〜(10) に足した (5) ListPage の新しい kind を \"rejected\" に決め、P3-REC-AC01・publicTypes・listTelegramPage の列挙を改訂の (11) に、p3-recovery.types.ts:38 のコメントを allowedPaths の行の中の直しにした (6) T05 の既存の試験を P3-REC-T16 (c) に直した (7) AC01 (1) の理由を採った 6 件の外の型に直した (8) AC04 に count と P3-C2-AC05 の規則の外れを書いた (9) P3-RECOVERY-BOUNDARY-001 との境目と配送の順を outOfScope に書いた (10) 生の -0 の残り（MaterialValue の経路と U-Q の magnitude）を残存リスク (3) に書いた。magnitude は seismic.ts:160 の number を通らない"
+      },
+      {
+        "id": "Q-RR-REVIEW-R1",
+        "status": "closed",
+        "source": "2026-11-08 午後、再確認 r1（品質: ヘルツ 条件付き GO、契約適合: Opus 条件付き GO、HEAD 0e8bf3e2）と統合担当の決め",
+        "closed": "統合担当が H41 の refused による取り直しの予約を外した。理由: 予約した取り直しも walkList を通り、recovery.ts:384 で refused の unit を fetchFailed にして heads を捨てるので、欲しい型で xmlReport の無い item Y が窓に残る間は X を取れない（契約適合 P2-A）。予約は開始で wanted から消え、失敗しても古い起点を覚えておけない（品質 P2、composition-root.ts:2102・checkpoint.ts:842〜846）。実配信で見た xmlReport の無い 6 件は全部欲しくない型で、欲しい型の欠けは観測が 0 件。当てた形: (1) AC01 (3) は、H41 で欲しい型の item が refused になったら、その unit の位置を今のまま進めた上で WARN recoveryFetchFailed（unit つき）を出す。publisher がどの unit かを知るため PollResult の ok に refused を残すが、refused の unit があるときだけ載せる欄にし（無いときは欄が無い）、既存の試験（recovery.test.ts の P3-REC-T05 の期待、watch.test.ts の入力）は変えない (2) 欠けを残存リスク (4) に例つきで書いた（作者に見せる項目） (3) T02 (b) を、pollClassification の返す形は recovery.test.ts、publisher 側は watch.test.ts で startFreshness に PollResult を直接渡す形に分けた (4) 品質 P3（予約の頻度の上限）は予約を外したので当たらず、AC01 (4) を WARN の回数の文に替えた (5) 契約適合 P2-B（新しいきっかけを P3-REC-AC02 (1)(7)・AC11 に）は、きっかけを足さないので当たらない。P3-a は改訂 (11) の PollResult の行を :839 に直した。P3-b（予約の digestAfterMs）は予約を外したので当たらない"
+      },
+      {
+        "id": "Q-RR-REVIEW-R2",
+        "status": "closed",
+        "source": "2026-11-08 午後、再確認 r2（契約適合: Opus GO、品質: ヘルツ 条件付き GO、HEAD 91b3fe19）",
+        "closed": "全部当てた: (1) 品質 P2: seeded の周期では pollClassification が refused を渡さず（recovery.ts:420）、WARN は ok の枝だけなので、位置が進んで知らされない → seeded にも省略可の refused を載せ、ok と seeded の共通で WARN を出す。seeded の照合は増やさない（AC01 (3)、T02 (c)） (2) 品質 P3・契約適合 P3-2 の後半: 満杯の遡りは位置より前の refused も読み直す（recovery.ts:428〜433、時刻で外すのは heads だけ）ので、AC01 (4) の数え方を「refused の unit を読み取って ok か seeded で終えた周期ごと・unit ごとに 1 件、重複の管理は足さない、unmatched の周期は出さない」の 1 文にした (3) 契約適合 P3-1: P3-REC-AC13 (7) の「診断は run で 1 回の WARN に限る」の外であることを改訂 (3) の原文の側の文に書いた (4) 契約適合 P3-2 の前半・品質の残存リスク: H41 だけで起きるのは WARN だけで、進み具合の unsatisfied は次の取り直しの回（切断・再起動）で付く、と残存リスク (4) と outOfScope を直した"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。一覧の test の item を捨てる規則と、本文の入力の根拠（head.test・control.status）は今のまま"
+    }
+  },
+  "contract": {
+    "contractId": "P3-RECOVERY-READ-001",
+    "mode": "implementation",
+    "objective": "取り直し（P3-RECOVERY-001）の読み側の不具合を直す。(a) 一覧の非 XML の item でページを failed にしない (e) 一覧の決定的な失敗を取り直さない (d) 本文が adopted でない回を取得の失敗と区別できる語で残す (f) 深さ 0 の地震の -0 を 0 にそろえ、保存の後に届いた同じ報を duplicate にする。(c) 最初の接続の 2 巡目は確かめた結果、穴埋めを担うので残す（P3-RR-D-SECOND-ROUND）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-recovery-read.json",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p2-shared-runtime.json",
+      "reconstruction/contracts/p3-recovery.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/src/recovery/recovery.ts",
+      "reconstruction/src/recovery/watch.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/host/dmdata-rest.ts",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/src/domains/seismic/seismic.ts",
+      "reconstruction/src/domains/typhoon/typhoon.ts",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/test/recovery/telegram-list-nonxml-real.json",
+      "reconstruction/test/recovery/**",
+      "reconstruction/test/seismic-unit/**",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/recovery/recovery.ts（headOf・listTelegramPage・send・pollClassification。他の契約の «» が引く :16・:31・:243〜:245 の中身は変えない。行の数は変わってよく、:243〜:245 のずれは統合担当が配送で reanchor-target.py reconstruction/src/recovery/recovery.ts を回して付け直す）",
+      "reconstruction/contracts/p3-recovery.types.ts（ListPage に kind \"rejected\"、PollResult の ok と seeded に refused（refused の unit があるときだけ載せる欄）、RecoveryUnsatisfiedReason に notAdopted。:38 の refused のコメントは行の中だけ直す。:70 を引く «» があるので行の数を変えない）",
+      "reconstruction/src/runtime/composition-root.ts（freshnessCycle の ok と seeded の枝〔:2026、refused の unit に WARN を出してから今のまま位置を進める〕、recoveryAdopted の数え方と :2294、recoveryUnsatisfied に count を渡す所、unsatisfiedWords、:1031 のコメント。他の契約の «» が引くので行の数を変えず、:1030・:1032・:1039 の中身は変えない）",
+      "reconstruction/contracts/p2-shared-runtime.types.ts（:329 の行の中に recoveryNotAdopted を足す。行の数を変えない）",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（:65 の行の中に recoveryNotAdopted を足す。行の数を変えない）",
+      "reconstruction/src/domains/seismic/seismic.ts（:160 の number の行の中だけ。行の数を変えない）",
+      "reconstruction/test/recovery/recovery.test.ts",
+      "reconstruction/test/recovery/recovery-adopt.test.ts（P3-REC-T15 の 2 本目の期待の語だけ。本契約が引く :546 を動かさない）",
+      "reconstruction/test/recovery/watch.test.ts（P3-RR-T02 (b)(c) の publisher 側を足す。既存の試験の入力は変えない）",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts（P3-RR-T06 は :855 より後ろに足す。p3-revision-order.json の «» を動かさない）",
+      "reconstruction/contracts/p3-recovery-read.json（本契約の «» の付け直しと meta.sha256 だけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-recovery-read.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B03",
+      "B15",
+      "M02"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P2-SHARED-RUNTIME-001",
+      "P3-UNIT-Q-001",
+      "P3-RECOVERY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-recovery.types.ts#ListPage",
+      "reconstruction/contracts/p3-recovery.types.ts#PollResult",
+      "reconstruction/contracts/p3-recovery.types.ts#RecoveryUnsatisfiedReason",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#DiagnosticReason"
+    ],
+    "publicFunctions": [
+      "公開の関数は変えない（listTelegramPage・walkList・pollClassification の形と、send が呼び手へ返す型のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__rest__telegram-list-vtse41-real",
+      "test__fixtures__32-35_01_03_240613_VXSE53"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形と codec は変えない。U-Q の depthKm・latitude・longitude は -0 も 0 も JSON では 0 なので、保存済みの値の移行は要らない）"
+    ],
+    "nonPersistedFields": [
+      "一覧の頭と ListPage（run の中だけ）",
+      "取り直しの進み具合の reason notAdopted（snapshot の recovery.progress、run の中だけ）"
+    ],
+    "outOfScope": [
+      "保存の境界・世代・resolve（頭 0 件の resolve が境界を null にする件）・U-F の穴・初回の窓: P3-RECOVERY-BOUNDARY-001。最初の接続の 2 巡目を安くするのはその契約の直しで、受入に「頭 0 件の resolve の後も境界が残り、2 巡目は境界 − 60 秒と止める id で止まる」を入れるよう申し送る（Q-RR-SECOND-ROUND の (4)）。境目: resolve を呼ぶ所（composition-root.ts の recoveryAdopted の :2287〜:2291）は本契約が直す recoveryAdopted の中にあるので、配送は本契約を先にし、P3-RECOVERY-BOUNDARY-001 は本契約の配送の後の main から baseOid を取る",
+      "最初の接続の 2 巡目の範囲と回数（P3-RR-D-SECOND-ROUND=A なら変えない）",
+      "本文の取得（fetchBody）の再試行の規則（failed は既に取り直さない）",
+      "生の文字そのものが -0 の値（decode-material.ts の MaterialValue の数、flood.ts、briefing.ts）: 別の族で、fixture にも実配信にも無い（Q-RR-NEGZERO の (4)）",
+      "EEW・津波・火山・台風の座標と深さ: -0 を作らないか、既に 0 にそろえている（Q-RR-NEGZERO の (3)）",
+      "旧築（src/）: -Number( は無く、切替で消える",
+      "H41 の WARN を run で 1 回にする規則（freshness.warned）と周期",
+      "表示（端末・chrome-eew）: progress の reason は snapshot に載るが、今は描かない",
+      "H41 で refused になった unit の未受信の報を埋める取り直し（r0 の予約）は作らない。欲しい型で xmlReport の無い item は観測が 0 件で、黙って欠けず H41 の WARN で知らせる（進み具合の unsatisfied は次の取り直しの回で付く）（Q-RR-REVIEW-R1、残存リスク (4)）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-RR-AC01",
+        "requirement": "一覧の非 XML の item（依頼の (a)、P3-RR-D-WANTED-NOXML）: (1) headOf は、item の format が \"xml\" でないか xmlReport が record でないとき、その item に receivedTime（生の数のため）と head.type（濾しのため）だけを求め、id・head.test の欠けや形の違いでは invalid にしない（採った 6 件は id と head.test を持つが、その外の非 XML の型は見ていない。残存リスク (1)）。濾し（head.test が true でない・unit 表の ready・束の型か区分〔U-E を除く〕）を通らない型と、head.type の読めない item は head:null で、生の数（rawCount・oldestRawReceivedAtMs・latestRawReceivedAtMs）には入れる（P3-REC-AC13 (2)） (2) 濾しを通る型の item で format が xml でないか xmlReport が無いものは refused（その unit）で、ページは failed にしない。起動の辿りと run の中の取り直しではその unit を fetchFailed にする（本文の url の検査と同じ扱い） (3) H41: pollClassification は、refused の unit があるとき ok と seeded の結果にその unit を載せる（PollResult の ok と seeded の refused?: readonly RuntimeUnitId[]、無いときは欄が無い。seeded は最初のページの refused）。その周期のその unit は今のまま突き合わせず（seeded の照合は増やさない）、位置も今のまま進める。publisher は ok と seeded の共通で、refused の unit ごとに WARN recoveryFetchFailed（unit つき）を 1 件出す（owner の止まった unit は出さない。区分の失敗の WARN を run で 1 回にする freshness.warned には入れない。無いと: 欲しい型の報を H41 で突き合わせないまま痕跡が残らない）。取り直しは予約しない（欠けは残存リスク (4)）。p3-recovery.types.ts の ListPage の refused のコメント（:38）は、xmlReport の無い item と H41 の WARN を足して行の中だけ直す (4) WARN の数え方: refused の unit を読み取って ok か seeded で終えた周期ごと・unit ごとに 1 件。同じ item を後の周期でもう一度読めば（満杯の遡りは位置より前の item も読む。時刻で外すのは heads だけ）、その周期にも 1 件出る。重複の管理は足さない。unmatched で終えた周期は出さない (5) receivedTime の読めない item と、format が xml で xmlReport のある item の id・head・head.test・control の崩れは今のまま invalid（その応答は AC02 の決定的な失敗） (6) 起動の辿り・run の中の取り直し（walkList）と H41（pollClassification）は同じ headOf を通るので、どちらも同じ扱いになる。辿りは type= で XML の型を名指すので、実配信では非 XML の item は返らない (7) 1 ページの読みは item ごとに 1 回の検査で、全件×全件の走査をしない",
+        "evidenceRefs": [
+          "reconstruction/src/recovery/recovery.ts:62 «e8dcb2a128b1465e»",
+          "reconstruction/src/recovery/recovery.ts:74 «e003a78207cd16d4»",
+          "reconstruction/src/recovery/recovery.ts:103 «d472fe820241975c»",
+          "reconstruction/src/recovery/recovery.ts:436 «c5f8c9dea7151305»",
+          "reconstruction/src/runtime/composition-root.ts:2027 «0f0df422509b23a3»",
+          "reconstruction/contracts/p3-recovery.types.ts:38 «b989caf4509e1ef7»",
+          "reconstruction/src/runtime/composition-root.ts:2017 «69bd5fd8e820fc9f»",
+          "reconstruction/test/recovery/telegram-list-nonxml-real.json"
+        ]
+      },
+      {
+        "id": "P3-RR-AC02",
+        "requirement": "決定的な失敗は取り直さない（依頼の (e)、P3-RR-D-DETERMINISTIC）: (1) listTelegramPage は、2xx の応答の形の不一致（JSON でない、status が ok でない、items・nextToken・nextPooling・nextPoolingInterval の形、invalid の item）と、401・403・408・429 以外の 4xx を、ListPage の新しい kind \"rejected\" で返す（無いと: send が一時的な失敗と区別できず、同じ答えを 3 回取り直して dmdata の枠と 30 秒を使う） (2) send は rejected を受けたら再試行せず { kind: \"failed\" } を返す。呼び手（walkList・pollClassification）とその結果（unit の fetchFailed、unmatched の fetchFailed）は変えない。その要求の試行の数（pages.sent）は 1 (3) 届かなかった要求（exchange の lost・notSent）、1 MiB を越える応答（exchange の tooLarge。status と Retry-After が残らず、503 などの一時的な失敗と分けられない）、5xx、408、429 の取り直しは今のまま（P3-REC-AC03 (3)(4)） (4) ListRequestLane の待ち（前の要求の終わり＋ 500 ms）は rejected にも効く",
+        "evidenceRefs": [
+          "reconstruction/src/recovery/recovery.ts:89 «3d199599d5cbaa7c»",
+          "reconstruction/src/recovery/recovery.ts:92 «d7492418bf0c5ad7»",
+          "reconstruction/src/recovery/recovery.ts:348 «69e92e6dc014c872»"
+        ]
+      },
+      {
+        "id": "P3-RR-AC03",
+        "requirement": "最初の接続の 2 巡目（依頼の (c)、P3-RR-D-SECOND-ROUND=A、統合担当が 2026-11-08 午後に確定）: (1) 確かめた事実は Q-RR-SECOND-ROUND。2 巡目は、起動の辿りの各 unit の最初の一覧の要求から最初の start frame までに出た報（一覧にも live にも無い）を埋め、起動の取り直しを recovered で終えなかった unit の唯一のやり直しになる (2) firstConnectWanted と recordConnected の requestRecovery は変えない。recordConnected の冒頭のコメント（:1031）を「最初の接続も、一覧を引き始めた後に繋がるので 1 回辿る（firstConnectWanted）」の文に直す（行の中だけ） (3) B（最初の要求の時刻で unit を絞る）と C（satisfied の unit を外す）は採らない。C は穴のある unit を外す",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:1031 «936b9e3be2137af7»",
+          "reconstruction/src/runtime/composition-root.ts:1039 «838835ae670bbb95»",
+          "reconstruction/src/runtime/composition-root.ts:2055 «27e7b98545a1330a»",
+          "reconstruction/src/runtime/composition-root.ts:2072 «712afcf072fc7cc8»",
+          "reconstruction/src/host/host.ts:564 «f1dca50b63703d46»",
+          "reconstruction/src/host/host.ts:579 «ef97415fc6486b6f»",
+          "reconstruction/test/recovery/recovery-adopt.test.ts:546 «713ca56ba3315c68»"
+        ]
+      },
+      {
+        "id": "P3-RR-AC04",
+        "requirement": "adopted でない本文の語（依頼の (d)、P3-RR-D-NOT-ADOPTED）: (1) recoveryAdopted は送った本文（本文の表）のうち結果が adopted でない件数を数え、epoch が同じで 1 件以上なら recoveryUnsatisfied(unit, \"notAdopted\") にする。語は RecoveryUnsatisfiedReason の notAdopted、診断は WARN recoveryNotAdopted（unit ごとに 1 件、count にその件数）、進み具合は unsatisfied・reason notAdopted（無いと: 本文を取れたのに取得の失敗の語が出て、調べの向きを誤らせる） (2) 本文の取得の失敗（discard）・一覧の失敗・採用の返信が adopted でない（generationConflict ほか）は今の語のまま (3) DiagnosticReason と A3 永続 sink の固定の allowlist に recoveryNotAdopted を足し、unsatisfiedWords に notAdopted → recoveryNotAdopted を足す (4) 負の証拠（capacityExceeded・unreadableReport）・coverageVerified・境界の解決は変えない (5) progress の上界（1 件約 70 byte、P3-REC-AC11）は、語が既存の最長（clockEvidenceMissing）より短いので変わらない (6) count は adopted でなかった本文の件数で、sink は count のある行を反復件数としてまとめない。P3-C2-AC05 の「WARN・ERROR の診断に count を入れない」（sink は count を反復件数に使う）の規則から外れる（前例は eewWindowUnverified の count 1）",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:2294 «95c8192a6063f93b»",
+          "reconstruction/src/runtime/composition-root.ts:2309 «d19bf92ac6985029»",
+          "reconstruction/contracts/p3-recovery.types.ts:93 «c39c7ac3b2fa0983»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:329 «069ada26aad6e60b»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:65 «7d0da1b1335e5854»"
+        ]
+      },
+      {
+        "id": "P3-RR-AC05",
+        "requirement": "深さ 0 の地震の -0（統合担当の追加の (f)、P3-RR-D-NEGZERO）: (1) seismic.ts の number の助け手（:160）は value + 0 で -0 を 0 にそろえる（typhoon.ts の point と同じ形）。depthKm（:162）・latitude（:175）・longitude（:176）がここを通る。raw は変えない（無いと: 深さ +0 の報は保存の後に届いた同じ報が held になり、取り直しが adopted で終わらない） (2) description の「以上・未満・以下」の範囲は number の値を写すので、同じく 0 (3) 保存の形・codec・比べ（seismic-unit.ts の sameContent）は変えない (4) 同じ形で値を作る所はほかの parser に無い（Q-RR-NEGZERO の (3)）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/seismic/seismic.ts:160 «9c661f3356693f62»",
+          "reconstruction/src/domains/seismic/seismic.ts:162 «1c5fb3558f4df0f5»",
+          "reconstruction/src/domains/seismic/seismic.ts:175 «fd69e381c36600a5»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:93 «75e73e365f1cb173»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:844 «58d2e9f57f3b0ae4»",
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
+          "reconstruction/src/runtime/owner-runtime.ts:673 «405ce7ccfe4b8a37»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-RR-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-RR-AC01"
+        ],
+        "behavior": "実不具合（2026-11-08 Mac mini の実配信）。H41 の telegram.earthquake の位置のある周期で、最初のページが生の 100 件、うち 5 件が reconstruction/test/recovery/telegram-list-nonxml-real.json の telegram.earthquake の実 item（IXAC41 format binary 4・WEPA60 format a/n 1、どれも xmlReport 無し）を写したまま、残り 95 件は test/fixtures/rest/telegram-list-vtse41-real.json の実 item の写し: 要求は再試行されず、満杯の判定は生の 100 件で遡り、結果は ok で非 XML の item は heads に無い。telegram.weather で同じ file の WTJP31（a/n、xmlReport 無し）を含むページも ok"
+      },
+      {
+        "testId": "P3-RR-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RR-AC01"
+        ],
+        "behavior": "契約境界。(a) 起動の辿りで、濾しを通る型（VTSE41）の item に xmlReport が無いページは failed にならず、U-T だけが fetchFailed（WARN 1 件）で、後ろの unit は辿られる（P3-REC-T12 の url の検査の試験と同じ形、recovery.test.ts） (b) H41 の refused: pollClassification の返す形（recovery.test.ts）は、位置 t100 → 正しい未受信の VTSE41 X（t110）と xmlReport の無い VTSE41 Y（t120）のページで ok・refused [U-T]・X は heads に無い・位置は t120。publisher 側（watch.test.ts、startFreshness に PollResult を直接渡す）は、refused [U-T] の ok で WARN recoveryFetchFailed（U-T）が 1 件、位置は進み、取り直しの予約も X の本文の要求も無い (c) seeded の列: 位置の無い（token の無い）周期の最初のページに xmlReport の無い VTSE41 があると、pollClassification（recovery.test.ts）は seeded・refused [U-T] を返し、publisher（watch.test.ts）は WARN recoveryFetchFailed（U-T）を 1 件出し、照合はせず位置を作る"
+      },
+      {
+        "testId": "P3-RR-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-RR-AC02"
+        ],
+        "behavior": "実不具合（同じ応答を 4 回取り直した）。200 で items が配列でない応答と 400 は、どちらも要求 1 本でその unit が fetchFailed。上限との交差: 1 MiB を越える応答（503 の大きな本文を含む）は要求 1 ＋再試行 3 のまま。500 の 1 ＋再試行 3 は既存の P3-REC-T01（recovery.test.ts の a repeated nextToken and failures after three retries）が確かめる"
+      },
+      {
+        "testId": "P3-RR-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-RR-AC03"
+        ],
+        "behavior": "契約境界。A では既存の試験で確かめ、足さない: P3-REC-T13（recovery-adopt.test.ts の the first start after a startup recovery that listed before it、境界 − 60 秒から 1 回辿り、2 回目の start は通常の再接続のきっかけ）と P3-REC-T08（recovery-host.test.ts、最初の start の印が採用より前に付く）"
+      },
+      {
+        "testId": "P3-RR-T05",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-RR-AC04"
+        ],
+        "behavior": "実不具合（adopted でない本文が fetchFailed の語）。既存の P3-REC-T15 の 2 本目（読めない VTSE41 の本文 2 件）の期待の語を変える: 進み具合は reason notAdopted、WARN は recoveryNotAdopted（count 2）。本文の取得の失敗は既存の P3-REC-T16 の (c)（recovery-adopt.test.ts の one fetchFailed WARN）が recoveryFetchFailed のまま確かめる"
+      },
+      {
+        "testId": "P3-RR-T06",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-RR-AC05"
+        ],
+        "behavior": "実不具合（実配信の VXSE53 20261108023143）。32-35_01_03_240613_VXSE53 の Coordinate を +41.9+140.7+0/（description「北緯４１．９度　東経１４０．７度　ごく浅い」）に替えた報を U-Q に当て、state を seismicUnitCodec で encode → JSON の往復 → decode した state に同じ報をもう一度当てると duplicate（直す前は held）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "列の台帳（本契約は列を使わない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。行の数を変えない file の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。--sequence.shuffle を付けた回も 1 回通す"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test -- --maxWorkers=2",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（ListPage の新しい kind、notAdopted の語）",
+      "追加・変更した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待を変えるのは P3-REC-T15 の 2 本目（recovery-adopt.test.ts の進み具合の reason fetchFailed → notAdopted と WARN recoveryFetchFailed → recoveryNotAdopted）だけ。理由: 本文を取れて adopted でなかった回は取得の失敗ではない（P3-RR-AC04）。PollResult の ok の refused は refused の unit があるときだけ載せるので、既存の試験の期待と入力は変えない。ほかの期待が変わるなら止めて報告する",
+      "行の数: composition-root.ts・seismic.ts・p2-shared-runtime.types.ts・persistent-diagnostic-sink.ts・p3-recovery.types.ts は変えない。試験は seismic-unit.test.ts の :855 より後ろに足す。本契約の «» は実装が書き換える行（composition-root.ts の :1031・:2027・:2294・:2309、p2-shared-runtime.types.ts:329、persistent-diagnostic-sink.ts:65、seismic.ts:160、p3-recovery.types.ts の :38・:93、recovery.ts の :62・:74・:89・:92・:103・:348・:436 ほか）を引くので、本契約の中だけ付け直して meta.sha256 を取り直す（allowedPaths）。他の契約の «» が赤になったら止めて報告する。例外は recovery.ts の :243〜:245 のずれ（p3-dmdata-connect-002 が引く）で、統合担当が配送で付け直す",
+      "reconstruction/test/recovery/telegram-list-nonxml-real.json は統合担当が起草で置いた実物の写し（Q-RR-RAW-ITEMS）で、実装では変えない。試験はこの file を読み、item を書き換えない",
+      "配送で統合担当が原文を改訂する: (1) P3-RECOVERY-001 の P3-REC-AC05 (a) の「その unit は adopted でない結果があるので fetchFailed の unsatisfied のまま確認されない」を notAdopted の unsatisfied（WARN recoveryNotAdopted、P3-RECOVERY-READ-001）へ (2) P3-REC-AC11 の理由の固定の語を 7 語から 8 語へ（notAdopted を足し、DiagnosticReason に足す語の列に recoveryNotAdopted） (3) P3-REC-AC13 (6) の一覧の口に「format が xml でない item・xmlReport の無い item は、濾しを通らない型なら head:null で生の数に入れ、通る型なら refused。H41 は refused の unit をその周期に突き合わせず、位置を進めた上で WARN recoveryFetchFailed（unit つき）を出す。この WARN は (7) の「診断は run で 1 回の WARN に限る」の外で、読み取った周期ごと・unit ごとに 1 件（P3-RECOVERY-READ-001）」を足す (4) P3-REC-AC03 (4) の「ほかの失敗はその unit だけを fetchFailed」に「2xx の形の不一致と 401・403・408・429 以外の 4xx は再試行しない。1 MiB 超は再試行する（P3-RECOVERY-READ-001）」を足す (5) P2-SHARED-RUNTIME-001 の P2-A1-AC05（p2-shared-runtime.json:522）の DiagnosticReason の数に recoveryNotAdopted を足し、A3 永続 sink の固定 allowlist にも足したと書き、型の実物を数え直す（今は計 106 種と書いてある） (6) P3-UNIT-Q-001 の P3-C7-VALUE-UNKNOWN の A の「保存し（書き換えない）」に「数の -0 は 0 にそろえる。raw は変えない（P3-RECOVERY-READ-001）」を足す (7) P3-REC-AC06 (b)（p3-recovery.json:1065）の「その unit は fetchFailed の unsatisfied のまま」を notAdopted へ (8) P3-REC-T15 の behavior（p3-recovery.json:1330）の 2 か所の「U-T は fetchFailed の unsatisfied のまま」を notAdopted へ (9) publicFunctions の DisplayRecoveryView（p3-recovery.json:837）の「P3-REC-AC11 の 7 語」を 8 語へ (10) P2-SNAPSHOT-SSE-001 の P2-A8-AC11（p2-snapshot-sse.json:475）の「reason: 7語」を 8 語へ。この行は p2-chrome-eew.json と p2-eew-e01.json が «» で引くので、2 件を付け直す (11) P3-REC-AC01 の境界の検査で捨てる列挙（p3-recovery.json:1006 の〔url の不一致・id の文字〕と H41 の扱い）、publicTypes の ListPage（:830）、listTelegramPage（:831）、pollClassification の PollResult（:839）に、濾しを通る型で format が xml でない・xmlReport の無い item の refused、H41 の refused の unit の WARN、ListPage の kind \"rejected\"、PollResult の ok と seeded の refused?（refused の unit があるときだけ）を足す。(1)〜(11) は行の中に書き足して行の数を変えず、中身の変わった行を引く «» を付け直し、触った契約の sha を取り直す",
+      "残存リスク: (1) 非 XML の item は 2026-11-08 の 1 回の採取の 6 件（IXAC41・WEPA60・WTJP31）で、ほかの非 XML の型の形は見ていない (2) P3-RR-D-SECOND-ROUND=A なので、P3-RECOVERY-BOUNDARY-001 が配送されるまで、頭 0 件の resolve の後の 2 巡目は unit の窓（U-Q は 42 時間）から辿る (3) 生の -0 は MaterialValue の経路（decode-material.ts:390〜:395）に残り、U-Q の magnitude（seismic.ts:177 の materialOf）もそこを通る（seismic.ts:160 の number は通らない）。AC05 は保存する数の全部を 0 にそろえることを保証しない (4) 作者に見せる（仕様どおりに欠ける所）: 欲しい型の item が xmlReport を欠いて一覧に載ると（実配信の観測は 0 件）、その unit は H41 でも取り直しでも埋まらない。例: U-T の VTSE41 の Y が xmlReport を欠いて載り、同じ頃に出た津波予報の VTSE41 の X を live で受け損ねていると、H41 はその周期に U-T を突き合わせず位置だけ進めるので X は保留にも疑いにもならず、取り直しも起きない。次の切断・再起動の取り直しも、Y が U-T の窓（7 日）にある間は U-T を fetchFailed にするので X は取れない。H41 で知らせるのは WARN recoveryFetchFailed（U-T）だけで、進み具合は変わらない（unsatisfied が付くのは次の切断・再起動の取り直しの回） (5) dmdata が 408 や、HTTP として完結した不完全な JSON を返すかは確かめていない（r0 の品質の証拠不足）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
