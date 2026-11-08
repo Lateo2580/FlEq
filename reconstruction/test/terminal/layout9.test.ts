@@ -115,11 +115,10 @@ describe("P3-TL9 1 報の字の欠け", () => {
   // P3-TL9-T05 / AC05（実不具合: 台風の帯の対象が「宗谷北部」「熱帯低気圧」）
   it("T05 台風の帯の対象は最初の台風呼称の番号と名前、番号が無ければ Remark、どちらも無ければ今の形", () => {
     const target = (path: string, transform?: (xml: string) => string) => short(path, "U-Y", transform).target;
-    expect([["76_01_01_200630_VPTA50.xml", "台風第1号（DAMREY）"], ["76_01_02_260531_VPTA50.xml", "台風第6号（JANGMI）"], ["10_04_03_170913_VPTW60.xml", "台風第18号（TALIM）"],
-      ["10_05_01_200826_VPTW60.xml", "台風発生予想"], ["10_05_05_200826_VPTW61.xml", "台風発生の可能性が小さくなった"], ["synthetic_VPTA50_cancel.xml", null],
-      ["synthetic_VPTW60_cancel.xml", "台風発生予想"]].map(([path]) => [path, target(path!)])).toEqual([["76_01_01_200630_VPTA50.xml", "台風第1号（DAMREY）"],
-      ["76_01_02_260531_VPTA50.xml", "台風第6号（JANGMI）"], ["10_04_03_170913_VPTW60.xml", "台風第18号（TALIM）"], ["10_05_01_200826_VPTW60.xml", "台風発生予想"],
-      ["10_05_05_200826_VPTW61.xml", "台風発生の可能性が小さくなった"], ["synthetic_VPTA50_cancel.xml", null], ["synthetic_VPTW60_cancel.xml", "台風発生予想"]]);
+    const cases: [string, string | null][] = [["76_01_01_200630_VPTA50.xml", "台風第1号（DAMREY）"], ["76_01_02_260531_VPTA50.xml", "台風第6号（JANGMI）"],
+      ["10_04_03_170913_VPTW60.xml", "台風第18号（TALIM）"], ["10_05_01_200826_VPTW60.xml", "台風発生予想"], ["10_05_05_200826_VPTW61.xml", "台風発生の可能性が小さくなった"],
+      ["synthetic_VPTA50_cancel.xml", null], ["synthetic_VPTW60_cancel.xml", "台風発生予想"]];
+    for (const [path, expected] of cases) expect(target(path), path).toBe(expected);
     expect(bandLine(short("synthetic_VPTW60_cancel.xml", "U-Y"))).toMatch(/^━ 台風解析・予報情報（５日予報）（Ｈ３０） 取消 台風発生予想 ━/);
     expect(target("10_04_03_170913_VPTW60.xml", changed("<Number>1718</Number>", "<Number/>"))).toBe("熱帯低気圧");
   });

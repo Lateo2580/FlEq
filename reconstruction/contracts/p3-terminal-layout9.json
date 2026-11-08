@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "f84ae4139effa12c0efa26e07ee55cd3138b32a2ec002307d2a8990ca213e621",
+    "sha256": "b8ba93002ba2ef4175e40fb4ad9bf84ca36e4425c1b0d5e5d97ab4fb64f6ba08",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -133,6 +133,13 @@
         "status": "closed",
         "source": "P3-TL9-D-PLUM-ASSUMED の作者の裁定（A か B）",
         "closed": "作者が A で裁定した（2026-11-08 夜、推奨どおり。仮定の震源の報には「PLUM法による予測震度変化」の行を足さない）。spec §5.1 の PLUM法の項と §8 の Q-TO10-PLUM の行の「作者の裁定待ち」を裁定の記録に書き換え（本契約だけが引く 2 行なので本契約の «» を取り直した）、AC03 (2) を確定の文にし、B のときの原文の改訂の項を外した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL9-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-08 夜。実装は baseOid d2ce7158 の木で 1403fcda、ローカル main に載せる。push は作者の許可待ち）",
+        "closed": "レビュー r0: 契約適合 Opus GO・P3 2 件、品質 Opus GO・P3 1 件。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/tl9-impl-*。ゲート: Mac mini で 1403fcda の新築の全試験・shuffle・旧築の build と test が緑、check-contract の赤は付け直しの 2 件だけ。AC06 (5) の材料の時間（契約適合レビューの実測、20 回の中央値）: 76_01_01 VPTA50 前 1.700 ms・後 1.656 ms・差 -0.044 ms、19_01_01 VPHW50 前 0.070 ms・後 0.070 ms・差 0（どちらも 5 ms の内）。原文の改訂（artifactRequirements の 10 番目の 6 項目を全部、行の中に書き足し行の数は変えない）: (1) p3-terminal-output.json の P3-TO-AC01 (3) の target に台風〔U-Y〕の字（P3-TL9-AC05）、(4) の端末が渡すものに地震の取消の報の震源名と発生時刻（P3-TL9-AC02） (2) 同 P3-TO-AC05 (2) に理由 9 の PLUM法の行（P3-TL9-AC03） (3) 同 P3-TO-AC06 (1) に取消の報の 3 行目（P3-TL9-AC02） (4) 同 P3-TO-AC08 (1) の publisher の仕事に U-Q の facts の 2 つの字を取ること（P3-TL9-AC06 (3)）。合わせて output.ts の inputDone の AC08 (1) のコメントに U-Q の取消の字を読む旨を足した（契約適合の P3-1、行の数は変えない） (5) 同 P3-TO-AC09 (1) の帯の題名に VPFT50・VPAW51・VPWP50 の Head/Title（P3-TL9-AC01）、(2) の竜巻注意情報に区域が全部なしの解除の報は plain（P3-TL9-AC04） (6) p3-terminal-layout2.json の P3-TL2-AC01 (4) の竜巻注意・竜巻目撃に解除の報は普通の段（P3-TL9-AC04）。付け直した «»: 実装で行がずれ中身は同じ 2 件（p3-recovery-boundary.json の format.ts:784→:805、p3-tsunami-hold-mark.json の material.ts:271→:281。本契約の artifactRequirements の同じ 2 つの番号も合わせた）。P3 の扱い: 契約適合の P3-1 は当てた（上の (4)）。P3-2（output.ts の取消の字を取る照合が subject の operation を見ない）は（output.ts:94 は eventId だけで照合し、訓練・試験の subject と通常の subject が同じ EventID を持つと取り違えうる）は、契約適合レビューの見立てどおり今の実コードでは起きないので残す。品質の P3（T05 の表が期待値を捨てて toEqual に同じ値を書き直していた）は [path, expected] の表 1 本と toBe に直した（試験の数・名前・確かめる中身は同じ）。allowedPaths の注記: output.ts の helper（output.ts:86-103）と import は inputDone の行のための手段として許容",
         "remaining": "なし"
       }
     ],
@@ -469,7 +476,7 @@
       "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
       "既存の試験の期待は変えない（short.test.ts の AC09 (2) の表の 19_01_01 warning・81_01_01 plain・10_04_03 plain はそのまま）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "AC06 (5) の材料の時間の表（変える前と後）",
-      "配送で統合担当が付け直す: material.ts・format.ts の行がずれたら、p3-tsunami-hold-mark.json の material.ts:271 «2be327932f009c34» と p3-recovery-boundary.json の format.ts:784 «06806f691eb3af93» の行の番号を中身の anchor が一致する行へ付け直し、meta.sha256 を取り直して check-contract を通す（material.ts は reanchor-target.py が「material.ts:」の手前を区切らず decode-material.ts: にも当たるので手で付け直す。p3-view-alert-text.json の material.ts:102 は変更より上の行なので動かない見込み。2 契約の json は allowedPaths に入れない）",
+      "配送で統合担当が付け直す: material.ts・format.ts の行がずれたら、p3-tsunami-hold-mark.json の material.ts:281 «2be327932f009c34» と p3-recovery-boundary.json の format.ts:805 «06806f691eb3af93» の行の番号を中身の anchor が一致する行へ付け直し、meta.sha256 を取り直して check-contract を通す（material.ts は reanchor-target.py が「material.ts:」の手前を区切らず decode-material.ts: にも当たるので手で付け直す。p3-view-alert-text.json の material.ts:102 は変更より上の行なので動かない見込み。2 契約の json は allowedPaths に入れない）",
       "配送の順: P3-TERMINAL-LAYOUT-010（branch draft/tl10、06e8d6d4 で起草中）は、output.ts の inputDone・format.ts の TerminalUnit・p3-terminal-output.json の :504・:606 の改訂・spec の行と «» が本契約と重なる。配送は本契約を先にし、P3-TERMINAL-LAYOUT-010 は本契約の配送の後の木で行・«»・原文の改訂を付け直す",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 地震の取消の行は U-Q が取消を採った返信の outcome を読むので、U-Q が取消を duplicate や stale で採らなかった入力は端末にも出ない（今と同じ） (2) 一部の報の取消（場面: 16:31 VXSE51、16:35 VXSE53、16:36 VXSE53 の取消）では、残った VXSE51 に震源が無いので（VXSE52 か VXSE61 が残れば震源名は書ける）端末は震源名を書かず「取り消したのは 16:27ころ発生の地震の情報です」になり、取消の通知の本文（取消の前の記録の震源名）と字が揃わない (3) 記録のある長周期地震動に関する観測情報（VXSE62）の取消では、U-Q の記録の事実が null なので、端末は震源名も発生時刻も書かず EventID の「取り消したのは 16:27ころの地震の情報です」になる。取消の通知の本文は震源名を書く (4) 熱帯低気圧が 2 つ同時に進むと、どちらの報も帯が「台風発生予想」で区別できない（旧築と同じ。EventID は短い形で出さない） (5) PLUM法の行の 9 の読み方は旧築と仮定の震源の判定に頼り、気象庁の資料で確かめていない (6) 竜巻注意情報の段は Body の Kind だけで決め、U-M は Head/Headline の Information を先に読む（local-bulletins.ts の Information の読み）。Headline に発表の区域があり Body が全部なしの報では、U-M は発表として鳴らし端末の帯は普通の段のまま。実物（19_01_01・19_03_01）は両方が同じ区域と発表を持ち、起きるかは証拠不足 (7) 作者への申し送り: 緊急地震速報の取消の 3 行目は「23:14 頃に検知した」の「頃」（P3-TO-D-CANCEL-PHRASE）、地震の取消の行は §5.2 の発生の行に揃えた「16:27ころ」で、同じ画面に書き方の違う 2 つが出うる",

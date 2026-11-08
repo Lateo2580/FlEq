@@ -424,7 +424,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   let digestShown = false;
   return {
     sink: { inputDone(reply) {
-      // AC08 (1): 返信の terminal の参照と、その返信の outcomes のうち U-E のもの（facts.report を持つ）を積むだけ。
+      // AC08 (1): 返信の terminal の参照と、その返信の outcomes のうち U-E のもの（facts.report を持つ）を積み、地震の取消の報では同じ outcomes の U-Q の facts から震源名と発生時刻の字を読む（P3-TL9-AC06 (3)）だけ。
       // P3-CLI-AC27 (1): 区切りを過ぎていれば、前の時間の要約を報より先に積む。時刻はこの 1 回だけ読む。
       const nowMs = clock().wallTimeMs;
       roll(nowMs);

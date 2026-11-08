@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "77e2ee7b4b93c2fdf0d5c2b8ae52722d0f4a8dd08f3a5f93421522b05201a667",
+    "sha256": "c1246f65b426051a2e4012f932e0b181009624b3aa84bedac03b979bd6300cff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -275,7 +275,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL2-AC01",
-        "requirement": "段と帯（Q-TO3-TOP・Q-TO3-LEVEL）: (1) TerminalBandLevel に最も重い段を足し、段を重い順に 最も重い・紫・警報・注意・普通と取消にする (2) 最も重い段の帯は白の地に黒の太字、縦線は紫の字の色。当たるのは大津波警報を含む報、最大震度 7 の地震の報、最大予測震度の字に 7 を含む EEW（7、7程度以上、6強〜7）、spec §5.4 の表の最も重い行 (3) 紫の段は #b23ab2 の地に白の太字で、spec §5.4 の表の紫の行に当てる (4) 短い形の段を spec §5.4 の表へ改める。気象・土砂・洪水は L5・L4・L3・L2 を最も重い・紫・警報・注意にする。U-W の Kind/Code の十の位 1・2 の注意報は、レベルの付かないものも全部注意の段にする（配色指針 表 1-1 の注）。気象防災速報（竜巻注意・竜巻目撃、U-M の VPHW50・51）は警報、気象防災速報（記録的短時間大雨、U-B の VPOA50 と EventID が K の VPBS50）は紫にする。噴火警戒レベルと南海トラフは今の段のまま (5) 色を付けないときの帯の形（Q-TO2-NOCOLOR）は全部の段で ━ のまま",
+        "requirement": "段と帯（Q-TO3-TOP・Q-TO3-LEVEL）: (1) TerminalBandLevel に最も重い段を足し、段を重い順に 最も重い・紫・警報・注意・普通と取消にする (2) 最も重い段の帯は白の地に黒の太字、縦線は紫の字の色。当たるのは大津波警報を含む報、最大震度 7 の地震の報、最大予測震度の字に 7 を含む EEW（7、7程度以上、6強〜7）、spec §5.4 の表の最も重い行 (3) 紫の段は #b23ab2 の地に白の太字で、spec §5.4 の表の紫の行に当てる (4) 短い形の段を spec §5.4 の表へ改める。気象・土砂・洪水は L5・L4・L3・L2 を最も重い・紫・警報・注意にする。U-W の Kind/Code の十の位 1・2 の注意報は、レベルの付かないものも全部注意の段にする（配色指針 表 1-1 の注）。気象防災速報（竜巻注意・竜巻目撃、U-M の VPHW50・51）は警報〔取消でない報で、Body の Kind が 1〜255 個で全部が Code「0」か Name「なし」の解除の報は普通の段、P3-TL9-AC04〕、気象防災速報（記録的短時間大雨、U-B の VPOA50 と EventID が K の VPBS50）は紫にする。噴火警戒レベルと南海トラフは今の段のまま (5) 色を付けないときの帯の形（Q-TO2-NOCOLOR）は全部の段で ━ のまま",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:37 «b7d8e41faaed7e62»",
           "docs/specs/cli-terminal-output.md:35 «930927e748991f1b»",
