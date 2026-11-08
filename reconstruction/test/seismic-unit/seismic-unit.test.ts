@@ -377,7 +377,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
   // contractBoundary: P3-C7-CAPACITY=A・P3-C7-CAPACITY-BUDGET=A と受信 1 回の費用（AC05）。
   it("P3-C7-T05 contractBoundary / AC05: 511/512/513 events, 255/256/257 subjects, the budget state +1, eviction order and no whole encode", () => {
     const now = Date.parse("2099-01-01T09:00:00+09:00");
-    // 件数の境界は同じ地震の VXSE52（32-35_04_03）の EventID を替えて作る。32-35_04_04（寄与 約 38 KB）の 512 件は 4 MiB を超え、
+    // 件数の境界は同じ地震の VXSE52（32-35_04_03）の EventID を替えて作る。32-35_04_04（寄与 約 38 KB）の 512 件は器（seismicUnitCodec.maxEnvelopeBytes）を超え、
     // 件数より先に byte の上限に当たる。
     const seed = eventOf(send(emptyState(), "32-35_04_03_240613_VXSE52").state, "20100125161517")!;
     const iso = (offsetMs: number) => new Date(now - offsetMs).toISOString();
@@ -442,7 +442,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(quakeIn.state.earthquakes.some((item) => item.eventId === memory(1).eventId)).toBe(false);
     expect(quakeIn.state.earthquakes.filter((item) => item.guard?.on === 1)).toHaveLength(510);
     // 長周期 255/256/257。
-    // 長周期も小さい合成の報（synthetic_phase4a_VXSE62_special）で数える（f9786edc27df の 256 件は 4 MiB を超える）。
+    // 長周期も小さい合成の報（synthetic_phase4a_VXSE62_special）で数える。
     const lpSeed = send(emptyState(), "synthetic_phase4a_VXSE62_special").state.longPeriods[0];
     const lp = (index: number, patch: Partial<LongPeriodSubject> = {}): LongPeriodSubject => {
       const eventId = `L${String(index).padStart(13, "0")}`, operation = patch.operation ?? "normal";
@@ -458,17 +458,22 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(lgPushed.state.longPeriods).toHaveLength(256);
     expect(lgPushed.state.longPeriods.some((item) => item.subject === lp(0).subject)).toBe(false);
 
-    // byte の超過（4 MiB）では event と長周期の両方が候補。最大の寄与（bf35e8ea1825）を複製して作る。
+    // byte の超過（器＝seismicUnitCodec.maxEnvelopeBytes、seismic-unit.ts の GENERATION_LIMIT）では event と長周期の両方が候補。
+    // 最大の寄与（bf35e8ea1825）を複製して作る。
     const giant = eventOf(send(emptyState(), F.s53b).state)!;
     const heavy = (index: number) => clone(index, {}, giant);
-    const fill: EarthquakeEvent[] = [];
-    let probe = withEvents([], [lp(0)]);
-    for (let index = 1; ; index++) {
-      const next = withEvents([...fill, heavy(index)], [lp(0)]);
-      if (seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(next))) as JsonValue).kind !== "restored") break;
-      fill.push(heavy(index));
-      probe = next;
-    }
+    const filled = (count: number) => withEvents(Array.from({ length: count }, (_, index) => heavy(index + 1)), [lp(0)]);
+    const bytes = (state: SeismicUnitState) => Buffer.byteLength(JSON.stringify(seismicUnitCodec.encode(state)));
+    // 境界は heavy 1 件分の byte から見積もり decode で決める（P3-STF-AC01。見積もりは generationBytes の上乗せを数えない）。
+    // kinds は同じ件数の decode を 2 度しないための控え（walk の最後の 2 回を下の expect に兼ねさせる）。
+    const kinds = new Map<number, string>();
+    const kind = (count: number) => kinds.get(count) ?? kinds.set(count,
+      seismicUnitCodec.decode(JSON.parse(JSON.stringify(seismicUnitCodec.encode(filled(count)))) as JsonValue).kind).get(count)!;
+    let limit = Math.floor((seismicUnitCodec.maxEnvelopeBytes! - bytes(filled(0))) / (bytes(filled(2)) - bytes(filled(1))));
+    while (kind(limit) !== "restored") limit--;
+    while (kind(limit + 1) === "restored") limit++;
+    expect([kind(limit), kind(limit + 1)]).toEqual(["restored", "invalid"]);
+    const probe = filled(limit);
     // P3-QC-AC02 (1): 退去の前に、守らない記録の観測点を古い順に畳む（最古の長周期は観測点を持たない）。
     const byBytes = receive(probe, decodeFixture(F.s53b, (xml) => replaceTag("EventID", "N0008")(xml).replace(/2026-07-28T16:35:00\+09:00/g, iso(0))), at);
     expect(decision(byBytes).decision).toBe("changed");
