@@ -1,0 +1,249 @@
+{
+  "meta": {
+    "draftedFromOid": "d2ce7158a4fef9be0ca2fef71077cc56b73beb23",
+    "sha256": "fbaf0894378f86ca61ce6766c49d30c73402b93ecb47b45440d3a0ba2e734ae4",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [],
+    "questionResolutions": [
+      {
+        "id": "Q-STF-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-08 夜の起草（base d2ce7158 の木で一時の試験を走らせ、試験の file は消した）と、同じ夜の調べ（写し ~/dev/fleq-win-probe/repo、Opus）",
+        "closed": "(1) 所要: P3-C7-T05 は手元 4,819ms、Linux の CI の reconstruction の job 12,780〜14,102ms・shuffle の job 12,144〜20,060ms、Windows の CI 33,260ms・33,724ms で、vitest の testTimeout 30 秒（reconstruction/vitest.config.ts）を越える。windows-backend.test.ts（PowerShell）とは 6 分離れていて、並列の取り合いではない (2) 時間の 96%（4,584ms 中 4,395ms）は試験の下準備の byte 埋めの loop（for (let index = 1; ; index++)）。1 回ごとに heavy を 1 件足した state 全体を encode→JSON.stringify→JSON.parse→decode し、k 回で O(k²)。器を広げた 4ce51531 以降で回数が伸びた (3) 起草の計測: lp(0) だけの state の encode は 1,908 byte、heavy 1 件の増えは 311,799 byte（heavy 1 件と 2 件の差、区切りを含む）、器（seismicUnitCodec.maxEnvelopeBytes＝GENERATION_LIMIT）は 15,515,625 byte。見積もり floor((15,515,625−1,908)/311,799)＝49 は loop の結果 49 と同じ。heavy 49 件は 15,280,058 byte で restored、50 件は 15,591,857 byte（器を越える）で invalid。線形の loop は 4,406ms (4) 試験の注の「4 MiB」の 3 か所: 32-35_04_04 の event は 1 件 38,386 byte で 512 件は約 19.7 MB（今の器でも越える）、f9786edc27df の長周期は 1 件 17,745 byte で 256 件は約 4.5 MB（今の器の内。注は器が 4 MiB だった頃の事実） (5) reducer の受信経路に規約違反は無い（generationBytes は cache の和、memoryBytes は WeakMap、fit の並べ替えは退去の時だけ）。製品を変える理由は無い (6) 他の契約が seismic-unit.test.ts の行を «» で引くのは p3-revision-order.json の :855 の 1 本だけ。sequences.json・manifest.json は引かない"
+      },
+      {
+        "id": "Q-STF-UQ-TEXT",
+        "status": "closed",
+        "source": "2026-11-08 夜の起草（p3-seismic-unit.json の P3-C7-AC05 と testMapping の P3-C7-T05）",
+        "closed": "P3-UNIT-Q-001 の P3-C7-T05 の behavior は境界入力の作り方（byte は bf35e8ea1825 の寄与を複製して作る）と今の器の出どころまでで、下準備の回し方に触れない。P3-C7-AC05 の「最大正常と +1 の境界入力（Q-LIMIT）で確かめる」は本契約の後も n と n+1 で成り立つ。原文の改訂は要らない"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。試験の下準備とその注だけの変更で、電文の受理・表示・通知・保存は変わらない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-SEISMIC-TEST-FILL-001",
+    "mode": "implementation",
+    "objective": "U-Q の試験 P3-C7-T05 の byte の超過の下準備で、境界の件数を heavy 1 件の byte から見積もり、decode は n で restored・n+1 で invalid の確かめだけにする。今は 1 件足すごとに state 全体を encode と decode し、Windows の CI で 33 秒かかって testTimeout 30 秒を越える。試験の名前・数・期待は変えず、古い「4 MiB」の注を今の器の出どころに直す",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-c7t05-fill.json",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-unit-q-capacity.json",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts",
+      "reconstruction/test/seismic-unit/seismic-fixture.ts",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts（P3-C7-T05 の it の中だけ: byte の超過の下準備〔fill と probe を作る loop〕と、その it の中の「4 MiB」の注 3 か所。後続の expect と他の it は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-c7t05-fill.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M02",
+      "M03"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-UNIT-Q-001",
+      "P3-UNIT-Q-CAPACITY-001",
+      "P3-WINDOWS-CI-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicUnitState"
+    ],
+    "publicFunctions": [
+      "口は変えない（試験だけの変更）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825",
+      "test__fixtures__synthetic_phase4a_VXSE62_special"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "P3-C7-T05 だけ testTimeout を延ばす案（調べの直し方 (a)）: 伸びを隠すだけで、器が広がるたびに loop の回数と所要が伸びる（Linux の shuffle の job で既に 20 秒）",
+      "Windows の job の maxWorkers を絞る案（調べの直し方 (c)）: Windows の runner は試験によらず一様に約 7 倍遅く（C5-T04 8.4 倍、C9-T05 7.2 倍、C7-T05 6.9 倍）、C7-T05 の 96% は試験自身の下準備なので効きが小さい",
+      "製品のコード（seismic-unit.ts の reducer・codec・GENERATION_LIMIT とその式）: 受信経路に規約違反は無い（Q-STF-DRAFT-FACTS の (5)）",
+      "reconstruction/vitest.config.ts の testTimeout と .github/workflows/ の workflow",
+      "seismic-unit.test.ts の冒頭の HOLD_GROWTH・RESERVE_BYTES の注（「器は 4 MiB＋…」は GENERATION_LIMIT の式の項の説明で、今も正しい）",
+      "Windows で約 7 倍遅いほかの試験（30 秒の内に収まっている）",
+      "P3-UNIT-Q-001 の条文（Q-STF-UQ-TEXT のとおり改訂は要らない）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-STF-AC01",
+        "requirement": "byte の超過の下準備: (1) 境界の件数 n は、heavy(1) の state と heavy(1)〜heavy(2) の state の encode の byte の差（区切りを含む heavy 1 件分）から floor((seismicUnitCodec.maxEnvelopeBytes − lp(0) だけの state の byte) / 1 件分) で見積もり、そこから decode で restored なら 1 ずつ増やし invalid なら 1 ずつ減らして決める（二分探索でもよい）。heavy を 1 件ずつ足して毎回 state 全体を encode・decode する loop は残さない。起草の計測では見積もり 49＝境界 49 で、decode は境界の確かめを含めて数回 (2) heavy(1)〜heavy(n) と lp(0) の state の decode が restored、heavy(1)〜heavy(n+1) と lp(0) の state の decode が invalid であることを expect で確かめる（今の loop の break の条件を明示の assert にする） (3) probe は heavy(1)〜heavy(n) と lp(0) の withEvents のまま残す（後続の byBytes〔heavy(1) の VXSE53 が畳まれる〕・trainingGiant・受信 1 回の直列化 0 の確かめが probe を使う） (4) P3-C7-T05 の後続の expect と、ほかの it は変えない。試験の名前と数は同じ (5) 下準備の encode・decode は JSON.stringify の spy の前に済ませ、spy の確かめ（受信 1 回で state 全体を直列化しない）の対象に入れない",
+        "evidenceRefs": [
+          "reconstruction/test/seismic-unit/seismic-unit.test.ts:378 «b7d0d2e24c68e688»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1649 «71786c518c236331»"
+        ]
+      },
+      {
+        "id": "P3-STF-AC02",
+        "requirement": "注の上限の出どころ: P3-C7-T05 の it の中の「4 MiB」の 3 か所を今の器に合わせる。器の大きさは定数の名前（seismicUnitCodec.maxEnvelopeBytes＝seismic-unit.ts の GENERATION_LIMIT。P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）で書き、byte の数を書かない（器が広がるたびに注が古くなったのが今回の原因の 1 つ）。(1) byte の超過の下準備の注（「byte の超過（4 MiB）では…」）は器の名前に替える (2) 件数の境界の注（「32-35_04_04（寄与 約 38 KB）の 512 件は 4 MiB を超え…」）は今の器でも成り立つ（Q-STF-DRAFT-FACTS の (4)）ので「4 MiB」を器の名前に替える (3) 長周期の注（「f9786edc27df の 256 件は 4 MiB を超える」）は今の器では成り立たない（256 件で約 4.5 MB）。小さい合成の報で数える理由を今の事実に合う形に直すか、括弧の根拠を外す。嘘の根拠を残さない",
+        "evidenceRefs": [
+          "reconstruction/test/seismic-unit/seismic-unit.test.ts:378 «b7d0d2e24c68e688»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1649 «71786c518c236331»"
+        ]
+      },
+      {
+        "id": "P3-STF-AC03",
+        "requirement": "所要: (1) 手元で P3-C7-T05 が 1.5 秒未満を目安にする（起草の手元 4,819ms、うち下準備 4,395ms）。requiredCommands の verbose の回の所要を前と後で成果物に書く。1.5 秒に届かなければ、所要の内訳（下準備・後続の確かめ）を添えて報告する (2) 全 reconstruction 試験と、順を変えた回（--sequence.shuffle）が緑 (3) Windows の CI（test-windows.yml の test-windows (reconstruction, node 22)）の job が success（統合担当が配送で確かめる。unresolvedQuestions の Q-STF-WINDOWS-RUN）",
+        "evidenceRefs": [
+          "reconstruction/test/seismic-unit/seismic-unit.test.ts:378 «b7d0d2e24c68e688»",
+          ".github/workflows/test-windows.yml",
+          "reconstruction/vitest.config.ts"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-C7-T05",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-STF-AC01",
+          "P3-STF-AC02",
+          "P3-STF-AC03"
+        ],
+        "behavior": "既存の試験の下準備だけを変え、試験を足さない。byte の境界 n を heavy 1 件の byte から見積もり、n で restored・n+1 で invalid を expect で確かめ、probe（heavy(1)〜heavy(n)＋lp(0)）を後続の確かめに渡す。後続の期待（P3-UNIT-Q-001 の P3-C7-T05 の behavior）は変えない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07（U-Q の phase7_5 の地震）の参照（本契約は sequences を変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。試験の行の数が変わると p3-revision-order.json の seismic-unit.test.ts:855 の «» が FAIL する（artifactRequirements の付け直しは統合担当）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/seismic-unit/seismic-unit.test.ts -t P3-C7-T05 --reporter=verbose",
+        "cwd": ".",
+        "target": "reconstruction/test/seismic-unit/seismic-unit.test.ts",
+        "stage": "implementation",
+        "purpose": "P3-C7-T05 の所要（AC03 (1)）。変更の前と後に 1 回ずつ"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "順を変えた回を 1 回（AC03 (2)）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test -- --maxWorkers=2",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "P3-C7-T05 の所要（verbose の回）を変更の前と後で 1 行ずつ。見積もりの n と、境界を決めるまでの decode の回数を 1 行",
+      "足した helper ごとに「無いと何が壊れるか」を 1 行。試験は足さない",
+      "既存の試験の期待は変えない。変える必要が出たら止めて報告する",
+      "seismic-unit.test.ts の行の数は変わってよい。p3-revision-order.json の seismic-unit.test.ts:855 の «» は実装では変えず、統合担当が配送で ~/dev/fleq-vault-archive/tools/reanchor-target.py で付け直し（同じ契約の meta.sha256 も取り直す）、check-contract と check-sequences を回す（原文の改訂）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-STF-WINDOWS-RUN",
+        "owner": "integrator",
+        "blocks": [
+          "本契約の完了"
+        ],
+        "resolveBy": "配送の後、test-windows.yml を main で手で起動し（gh workflow run、workflow_dispatch）、test-windows (reconstruction, node 22) の job が success で、P3-C7-T05 が testTimeout 30 秒の内に通ることを確かめる",
+        "requiredEvidence": [
+          "run の ID と headSha（配送の commit）",
+          "reconstruction の job の Test Files と Tests の行（failed 0）",
+          "P3-C7-T05 の所要（job の log の verbose の行か、vitest の出力の所要）"
+        ]
+      }
+    ]
+  }
+}
