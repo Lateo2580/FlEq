@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "5b4ec3398d147173bce5dffa62e96f0937f979bf596115a615b0a8459f0037b9",
+    "sha256": "532e3b4ab70a8acbec6f8290bdce28de2af8f8049db8ad728acf516ee1c1cddb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -111,7 +111,7 @@
       "reconstruction/src/terminal/format.ts（P3-TL15-AC01 の 737 行の正規表現と 733〜736 行のコメント〔行の数は変えない〕、P3-TL15-AC03 の tipLines とその上のコメントだけ。他の契約が引く 738〜741 行と 900 行の中身は変えない）",
       "reconstruction/src/terminal/output.ts（P3-TL15-AC02 の 39・40・336 行だけ。行を足さない）",
       "reconstruction/test/terminal/layout15.test.ts（新しい file。P3-TL15-T01〜T05）",
-      "reconstruction/test/terminal/layout11.test.ts（P3-TL15-AC02 (4) の時刻の値と it の名前だけ）"
+      "reconstruction/test/terminal/layout11.test.ts（P3-TL15-AC02 (4) の T02 (c) の報の数・期待の件数・it の名前だけ）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
