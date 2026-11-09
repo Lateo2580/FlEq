@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "38e88172dde0991a2ac3b61c62ade939699ae3e9a6e559f65c6a919a8c5135f0",
+    "sha256": "27c1c8fbab6b7090f30570e5a4d3ecf5ef026f4cae0432af1259a0b29ba71e0c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -58,7 +58,7 @@
     "contractId": "P3-SEISMIC-HOST-EXPIRY-001",
     "mode": "implementation",
     "objective": "P3-SEISMIC-PLACE-001 の AC07 で「未確認」と記録した一括の期限回収（event 512・長周期 256）の場面を、期限切れの記憶への一括の変換（P3-QC-AC08）に当たるように、seismic-host.test.ts の bulk の it だけを直す。試験の投入側が start の制御 frame を送らないため、host の時計が確かめられず、U-Q の期限の要求が awaiting（起動から 30 秒）と unverified（その後）の根拠で届き、回収しない経路を測っていた（Q-SHE-CAUSE）。bulk の it で start を送って時計を verified にし（AC01）、試行ごとに対の要求の basis と期限切れの件数（768）を確かめて、外れたら数字を出さずに止める（AC02）。src は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "c1d51385",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
