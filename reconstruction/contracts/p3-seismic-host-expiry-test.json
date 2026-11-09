@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "7479fb453690d39e704d7d0cb527907f961953555d07a64247342cc1d4f37881",
+    "sha256": "38e88172dde0991a2ac3b61c62ade939699ae3e9a6e559f65c6a919a8c5135f0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -23,7 +23,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当の決め（2026-11-10）A。本契約の目的は場面が回収に当たることを試験で保証することで、報告だけでは当たらない回帰を止められない",
-        "reason": "今回の抜けは、時間の数字だけを見て場面が成り立ったと読んだこと。unverified の期限の要求は markPending で 768 件に印を付けて回り、時間と返信の byte が一括の回収と同じ大きさになる（起草の確かめで deadlineMs 13.34 ms・返信 1.57 MB、期限切れは 0 件）ので、時間では見分けられない。B では同じ形で再発する"
+        "reason": "今回の抜けは、時間の数字だけを見て場面が成り立ったと読んだこと。unverified の期限の要求は markPending で 768 件に印を付けて回り、時間と返信の byte が一括の回収と同じ大きさになる（起草の確かめで deadlineMs 13.34 ms・unverified の markPending の返信 1.57 MB、期限切れは 0 件）ので、時間では見分けられない。B では同じ形で再発する"
       }
     ],
     "questionResolutions": [
@@ -38,7 +38,7 @@
         "id": "Q-SHE-CAUSE",
         "status": "closed",
         "source": "起草の確かめ（2026-11-10、MacBook、作業の木 05f7ebab、未追跡の写しの試験 file に印を入れて bulk の it を走らせた。写しは確かめの後に消した）",
-        "closed": "原因は試験の時計の根拠。試験の投入側（WS server）は start の制御 frame を送らないので、host は時計を確かめず（wsUrl では start.time だけが確かめの材料、host.ts の :304・:357・:395）、U-Q の期限の要求の basis は起動から 30 秒は awaiting、その後は unverified になる（host.ts:133、composition-root.ts:499 で要求に載る）。seismic-unit.ts の collect は awaiting なら何もせず（:1181）、unverified なら markPending で表示の印を付けるだけ（:1182）で、期限切れの記憶への一括の変換（P3-QC-AC08）に入らない。実測（修正前、2 試行）: 1 回目は basis awaiting・返信 108 byte・期限切れ 0 件・deadlineMs 0.6 ms、2 回目は basis unverified・返信 1.57 MB・期限切れ 0 件・deadlineMs 13.34 ms（markPending の印付け）。P3-SEISMIC-PLACE-001 の測定の時（85c4c74e）の collect は basis !== \"verified\" で何もしない形だったので、記録の「対の返信まで約 0.2 ms」と AC07 の表の一括の期限回収の値（EEW の T0→T2 0.08／1.36 ms・津波 0.13／0.17 ms）は回収しない経路の値。src は P3-CLOCK-CHECK-001・P3-SEISMIC-EXPIRY-VIEW-001 の設計どおりで、直す要は無い",
+        "closed": "原因は試験の時計の根拠。試験の投入側（WS server）は start の制御 frame を送らないので、host は時計を確かめず（wsUrl では start.time だけが確かめの材料、host.ts の :304・:357・:395）、U-Q の期限の要求の basis は起動から 30 秒は awaiting、その後は unverified になる（host.ts:133、composition-root.ts:499 で要求に載る）。seismic-unit.ts の collect は awaiting なら何もせず（:1181）、unverified なら markPending で表示の印を付けるだけ（:1182）で、期限切れの記憶への一括の変換（P3-QC-AC08）に入らない。実測（修正前、2 試行）: 1 回目は basis awaiting・返信 108 byte・期限切れ 0 件・deadlineMs 0.6 ms、2 回目は basis unverified・返信 1.57 MB（markPending の印付けの返信）・期限切れ 0 件・deadlineMs 13.34 ms（markPending の印付け）。P3-SEISMIC-PLACE-001 の測定の時（85c4c74e）の collect は basis !== \"verified\" で何もしない形だったので、記録の「対の返信まで約 0.2 ms」と AC07 の表の一括の期限回収の値（EEW の T0→T2 0.08／1.36 ms・津波 0.13／0.17 ms）は回収しない経路の値。verified で回収した返信は約 1.9 MB（起草の確かめで 1.91〜1.93 MB）。src は P3-CLOCK-CHECK-001・P3-SEISMIC-EXPIRY-VIEW-001 の設計どおりで、直す要は無い",
         "remaining": "なし"
       },
       {
@@ -145,7 +145,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-SHE-AC01",
-        "requirement": "時計を verified にする（P3-SHE-D-START の決めに従う。A なら bulk の it の中だけ）: host() を呼んだ後、記録を組む前に、投入側から dmdata の start の制御 frame（type \"start\"、整数の socketId、文字列の配列の classifications、time は startP2Host に渡したのと同じ clock() の wallTimeMs を小数つきの ISO 8601 にしたもの）を 1 つ送り、host の観測に controlFrame の frameType \"start\" が出るまで待つ。host は wsUrl の接続では WebSocket を作る直前の読みを startAsked にし（host.ts:395）、start を受けたその場で start.time と比べて確かめる（:304・:357）。確かめが無いと期限の要求の根拠は 30 秒の間 awaiting、その後 unverified（:126・:133）で、seismic-unit.ts の collect は回収しない（:1181・:1182）。start の frame の形は recovery-host.test.ts:122 と同じ。bulk の it の頭の注釈（:406〜:408）に、start を送る理由（期限を回収するのは verified の要求だけ、P3-CLOCK-CHECK-001）を足す",
+        "requirement": "時計を verified にする（P3-SHE-D-START の決めに従う。A なら bulk の it の中だけ）: host() を呼んだ直後、記録を組む前に（host は WebSocket を作る直前の読み〔host.ts:395〕から start を受けた読みまでの開きを gap とし、5 秒〔CLOCK_TOLERANCE_MS、:126〕を越えると確かめにならない〔:142・:143〕。time を小数つきにすると 1 秒の上乗せも掛からない。768 件の記録を組んだ後では 5 秒を越えうる）、投入側から dmdata の start の制御 frame（type \"start\"、整数の socketId、文字列の配列の classifications、time は startP2Host に渡したのと同じ clock() の wallTimeMs を小数つきの ISO 8601 にしたもの）を 1 つ送り、host の観測に controlFrame の frameType \"start\" が出るまで待つ。host は wsUrl の接続では WebSocket を作る直前の読みを startAsked にし（host.ts:395）、start を受けたその場で start.time と比べて確かめる（:304・:357）。確かめが無いと期限の要求の根拠は 30 秒の間 awaiting、その後 unverified（:126・:133）で、seismic-unit.ts の collect は回収しない（:1181・:1182）。start の frame の形は recovery-host.test.ts:122 と同じ。bulk の it の頭の注釈に、start を送る理由（期限を回収するのは verified の要求だけ、P3-CLOCK-CHECK-001）を足す。足すのは :408 の行の中にし、:406 と :409 を動かさない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:395 «4302f01a45d8e2c9»",
           "reconstruction/src/host/host.ts:304 «d3f9f559ebe2eb0a»",
@@ -155,12 +155,14 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:1181 «0b625370dc798d71»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1182 «54aece613204d8ca»",
           "reconstruction/test/recovery/recovery-host.test.ts:122 «6af60a5a76274aeb»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:406 «44350a1c363962d0»"
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:406 «44350a1c363962d0»",
+          "reconstruction/src/host/host.ts:142 «c9fb04b510eaf8ff»",
+          "reconstruction/src/host/host.ts:143 «8a542ef2f9c8202d»"
         ]
       },
       {
         "id": "P3-SHE-AC02",
-        "requirement": "場面の成立を確かめる（P3-SHE-D-GUARD の決めに従う。A なら次のとおり）: 試行ごとに (1) EEW・津波を投入する対の期限の要求（onDeadline が投入を起こした要求）の basis が \"verified\" であること。basis は publisher が要求に載せる欄（composition-root.ts:499）で、Worker の postMessage の差し替え（:48）から onDeadline に渡す (2) 対の deadlineDone の返信の output.outcomes（RuntimePublishedOutcome の配列、{ unit, outcome }）のうち outcome.kind が \"deadlineApplied\" のものの subjects で transition が \"expired\" のものが 768 件（寄与 512＋長周期 256）であること。返信は emit の差し替え（:54）で deadlineDone に output ごと記録し、数えるのは T2 と対の返信を待った後（測る区間の外）にする。構造を辿って数え、JSON.stringify で直列化しない（約 1.9 MB の返信を publisher の thread で直列化すると、EEW の T2→T4 を遅らせうる） (3) (1)(2) のどちらかが外れたら、その試行の行を足す前に、basis と件数を入れた Error を投げる（数字を出さずに止める。record の measurement not established と同じ扱い）。件数は試行の行に expired として載せる",
+        "requirement": "場面の成立を確かめる（P3-SHE-D-GUARD の決めに従う。A なら次のとおり）: 試行ごとに (1) EEW・津波を投入する対の期限の要求（onDeadline が投入を起こした要求）の basis が \"verified\" であること。basis と要求の時計（clock.wallTimeMs）は publisher が要求に載せる欄（composition-root.ts:499）で、Worker の postMessage の差し替え（:48）から onDeadline に渡す。onDeadline が投入を起こすかの判定（:440 の due との比べ）は、要求を投げた後に読む clock() ではなく、この要求の clock.wallTimeMs で行う（tick は投げる前に時計を読む〔composition-root.ts:950・:966〕ので、due の直前に読んだ要求を投げた後の clock() が due を越えると、回収しない要求と対になり (3) が誤った Error を出す） (2) 対の deadlineDone の返信の output.outcomes（RuntimePublishedOutcome の配列、{ unit, outcome }）のうち outcome.kind が \"deadlineApplied\" のものの subjects で transition が \"expired\" のものが 768 件（寄与 512＋長周期 256）であること。返信は emit の差し替え（:54）で deadlineDone に output ごと記録し、数えるのは T2 と対の返信を待った後（測る区間の外）にする。構造を辿って数え、JSON.stringify で直列化しない（verified の回収の返信は約 1.9 MB〔起草の確かめで 1.91〜1.93 MB〕で、publisher の thread で直列化すると EEW の T2→T4 を遅らせうる）。数え終えたら、その試行の deadlineDone の要素の output を null にする（owners.deadlineDone は afterEach で空にされず、約 1.9 MB×10 試行が heap に残ると後の試行の T2→T4 に GC が掛かりうる） (3) (1)(2) のどちらかが外れたら、その試行の行を足す前に、basis と件数を入れた Error を投げる（数字を出さずに止める。record の measurement not established と同じ扱い）。件数は試行の行に expired として載せる",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:499 «3224ac866c2cf7a7»",
           "reconstruction/src/runtime/owner-host.ts:139 «0b9748c1a6a5c28c»",
@@ -169,7 +171,9 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:1237 «9c2bde3f1231cf57»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:48 «82f53a336a367765»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:54 «c5d29572b571e505»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:440 «3f4aff19f4313f3d»"
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:440 «3f4aff19f4313f3d»",
+          "reconstruction/src/runtime/composition-root.ts:950 «71f3e73d73b564c2»",
+          "reconstruction/src/runtime/composition-root.ts:966 «8ae52d9d693e7af3»"
         ]
       },
       {
@@ -183,7 +187,7 @@
       },
       {
         "id": "P3-SHE-AC04",
-        "requirement": "配送（統合担当）: (1) 直した bulk の it を、P3-SP-AC07 の表を取ったのと同じ機械で 1 回走らせ（FLEQ_C7_AC12=1、-t \"bulk deadline\"、既定の 10 試行）、EEW・津波の deadlineMs・投入→T0・T0→T2・T2→T4 の中央・最大と expired の件数を報告する。T0→T2 の最大が約 40 ms を越えたら作者へ報告する（P3-SP-AC07 と同じ引き金、合格条件ではない） (2) 原文の改訂（行を足さない）: p3-seismic-place.json の :140 の「AC07 の一括の期限回収（event 512・長周期 256）の場面は、対になる期限の返信までが約 0.2 ms で、512・256 件の一括の回収に当たっていない（base の試し走らせでも 0.2 ms）。この場面は未確認で、場面の組み方は P3-UNIT-Q-CAPACITY-001 の範囲（やりたいことリストへ送る）」の後に、原因（Q-SHE-CAUSE: start を送らず根拠が awaiting・unverified、AC07 の表の一括の期限回収の値は回収しない経路の値）と本契約の値を〔P3-SEISMIC-HOST-EXPIRY-001 で …〕の形で添え、:141 の remaining の「AC07 の一括の期限回収の場面（未確認）はやりたいことリストへ」に本契約で閉じたことを添える。改訂で中身の変わる行を引く anchor を付け直し、改訂した契約の sha256 を作り直す (3) やりたいことリストの項を完了へ送り、構造的欠陥台帳の 100 の AC07 の場面に解消と日付を残す",
+        "requirement": "配送（統合担当）: (1) 直した bulk の it を、P3-SP-AC07 の表を取ったのと同じ機械で 1 回走らせ（FLEQ_C7_AC12=1、-t \"bulk deadline\"、既定の 10 試行）、EEW・津波の deadlineMs・投入→T0・T0→T2・T2→T4 の中央・最大と expired の件数を報告する。T0→T2 の最大が約 40 ms を越えたら作者へ報告する（P3-SP-AC07 と同じ引き金、合格条件ではない） (2) 原文の改訂（行を足さない）: p3-seismic-place.json の :140 の「AC07 の一括の期限回収（event 512・長周期 256）の場面は、対になる期限の返信までが約 0.2 ms で、512・256 件の一括の回収に当たっていない（base の試し走らせでも 0.2 ms）。この場面は未確認で、場面の組み方は P3-UNIT-Q-CAPACITY-001 の範囲（やりたいことリストへ送る）」の後に、原因（Q-SHE-CAUSE: start を送らず根拠が awaiting・unverified、AC07 の表の一括の期限回収の値は回収しない経路の値）と本契約の値を〔P3-SEISMIC-HOST-EXPIRY-001 で …〕の形で添え、:141 の remaining の「AC07 の一括の期限回収の場面（未確認）はやりたいことリストへ」に本契約で閉じたことを添える。改訂で中身の変わる行を引く anchor を付け直し、改訂した契約の sha256 を作り直す。本契約の «» は、実装で中身が変わるかずれる seismic-host.test.ts の :48・:54・:440・:452 と、この改訂で中身の変わる p3-seismic-place.json の :140・:141 を付け直し、本契約の sha256 を取り直す (3) やりたいことリストの項を完了へ送り、構造的欠陥台帳の 100 の AC07 の場面に解消と日付を残す",
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-place.json:140 «ae9fabc0eb3f8c4f»",
           "reconstruction/contracts/p3-seismic-place.json:141 «3feed63e78d78ba3»"
@@ -221,7 +225,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。p3-seismic-place.json の seismic-host.test.ts の 4 件の anchor が PASS のままであること"
+        "purpose": "全契約の検査。実装の後に FAIL になるのは本契約の «» のうち seismic-host.test.ts の :48・:54（行の中を変える）・:440（中身を変え、前に行が増える）・:452（前に行が増えてずれる）だけの想定で、:406・:409 は注釈を :408 の行の中に足せば動かない（AC01）。配送で p3-seismic-place.json の :140・:141 を改訂すると、本契約のその 2 件も FAIL になる。どちらも配送で統合担当が付け直す（AC04 (2)）。p3-seismic-place.json が引く seismic-host.test.ts の :141・:218・:242・:373 は PASS のまま（AC03 (1)）。他の契約の FAIL は想定外として報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
