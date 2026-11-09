@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "0bad78723083f463b38a47a59a31b6a33c935496309e60b8653297065ed581a9",
+    "sha256": "521bedebf2801f031601e6b086b38080b9ef762811901760f89bbce7bd385431",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -88,7 +88,7 @@
     "contractId": "P3-REPL-CLOSED-001",
     "mode": "implementation",
     "objective": "閉じた新築の REPL が、閉じる前に始めた仕事の結果を出す残りの 2 つの経路を止める（C18 発注 3 の品質レビュー r2 の P3 2 件、Q-CLI-O3-DELIVERY の (6a)）。(1) config の読みの最中に REPL が閉じたら、読み終えても一覧を出さない（P3-RC-D-CONFIG=A） (2) 閉じた後に分かった設定の保存の失敗は、REPL の返事の列に出さず、cli.ts の終了の診断（P3-CLI-AC18 (3) の待ちの後、標準エラー）へ 1 行で渡す（P3-RC-D-PLACE=A、code は作者の裁定 P3-RC-D-END=A で 0 なら 1）。閉じる前に分かった失敗の返事の文、成功のときの無言、閉じる前に要求した保存を最後まで待つこと、期限切れの 1 行は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "bcb88f32",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
