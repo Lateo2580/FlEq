@@ -737,8 +737,8 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   const vpww = /^VPWW(5[5-9]|6[01])$/.test(head.headType);
   const own = (head.headType === "VPFT50" || head.headType === "VPAW51" || head.headType === "VPWP50" || vpww) && head.title != null && head.title !== "" ? head.title : null;
   const target = own == null && !vpww ? report.target : null;
-  // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
-  const base = (own ?? head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
+  // 版の印「（Ｒ０６）」「（Ｈ３０）」は題名から除く（Q-TO-S-1、P3-TL13-AC01）。
+  const base = (own ?? head.controlTitle ?? head.title ?? head.headType).replace(/（[ＲＨ][０-９]+）/g, "");
   const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${target == null || target === "" ? "" : ` ${target}`}`;
   const roles = BAND_ROLES[report.level];
   // 見出し文は省略しない（spec §5.4 の図）。取消の報は Body の取消の文を代わりに出す（Q-TO4-CANCEL。空は無いものとして見出し文）。
@@ -879,7 +879,7 @@ function summary(fromMs: number, toMs: number, counts: SummaryCounts): string {
   const shown = parts.filter(([, count]) => count > 0).map(([name, count, extra]) => `${name} ${count}件${extra}`);
   return `── ${localClock(fromMs).slice(0, 5)}〜${localClock(toMs).slice(0, 5)} の受信 ── ${shown.length === 0 ? "受信なし" : shown.join(" ・ ")}`;
 }
-// 回線の行と起動時のまとめは線の上限と時刻の置き方だけ電文に合わせる（P3-TL-AC02 (8)。まとめの分野の名前の太字は Q-TO8-DIGEST）。空行も縦線も足さない。
+// 回線の行と起動時のまとめは線の上限と時刻の置き方だけ電文に合わせる（P3-TL-AC02 (8)。まとめの分野の名前の太字は Q-TO8-DIGEST）。縦線は足さず、空行は tips の前だけに置く（P3-TL13-AC03）。
 function notice(item: TerminalNotice, ctx: Ctx): Line[] {
   switch (item.kind) {
     case "lost": {
@@ -897,7 +897,7 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
     }
     case "failure": return [line(seg(FAILURE_TEXT[item.reason]))];
     case "summary": return [line(seg(summary(item.fromWallMs, item.toWallMs, item.counts)))];
-    case "tip": return [line(seg(`  ${item.text}`, "dim"))];
+    case "tip": return [line(), ...tipLines(item.text, ctx.total)];
     case "update": return [line(seg(`新しい版があります: v${item.current.replace(/^v/, "")} → v${item.latest.replace(/^v/, "")}  `), seg(`npm install -g ${item.packageName}@latest`, "dim"))];
     case "digest": return digest(item.digest, ctx);
     case "debug": return [line(seg(item.text, "dim"))];
@@ -910,6 +910,29 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
   }
 }
 
+// P3-TL13-AC03・D-TIP-WRAP=A: tips は縦線を持たないので端末の幅から頭の 2 桁を引いた幅で句点で分け、まだ入らない文は幅の中の最後の読点の後で折り、続きの行を 4 桁下げる。
+// 幅の中に読点が無ければ残りを wrapChars で字の境目で折る。無いと幅を越える文が字の境目で折れる（写しの「計／算されます。」）。電文の文（textLines）の折り方は変えない。
+function tipLines(text: string, total: number): Line[] {
+  return textLines(text, total - 2).flatMap((sentence) => {
+    const lines: Line[] = [];
+    let rest = sentence.segs[0].text, lead = "  ";
+    while (width(lead) + width(rest) > total) {
+      // 1 文を 1 回なぞり、幅に入る範囲の最後の読点を探す（30 分ごとの 1 件で受信の経路ではない）。
+      let used = width(lead), at = 0, cut = 0;
+      for (const char of rest) {
+        used += charWidth(char);
+        if (used > total) break;
+        at += char.length;
+        if (char === "、") cut = at;
+      }
+      if (cut === 0) break;
+      lines.push(line(seg(lead + rest.slice(0, cut), "dim")));
+      rest = rest.slice(cut);
+      lead = "    ";
+    }
+    return [...lines, ...wrapChars([seg(lead + rest, "dim")], total, "    ").map((segs) => ({ segs }))];
+  });
+}
 // ---- 書き出す文字 ----
 function trimEnd(segs: readonly Seg[]): Seg[] {
   const kept = [...segs];

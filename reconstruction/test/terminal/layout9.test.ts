@@ -119,7 +119,7 @@ describe("P3-TL9 1 報の字の欠け", () => {
       ["10_04_03_170913_VPTW60.xml", "台風第18号（TALIM）"], ["10_05_01_200826_VPTW60.xml", "台風発生予想"], ["10_05_05_200826_VPTW61.xml", "台風発生の可能性が小さくなった"],
       ["synthetic_VPTA50_cancel.xml", null], ["synthetic_VPTW60_cancel.xml", "台風発生予想"]];
     for (const [path, expected] of cases) expect(target(path), path).toBe(expected);
-    expect(bandLine(short("synthetic_VPTW60_cancel.xml", "U-Y"))).toMatch(/^━ 台風解析・予報情報（５日予報）（Ｈ３０） 取消 台風発生予想 ━/);
+    expect(bandLine(short("synthetic_VPTW60_cancel.xml", "U-Y"))).toMatch(/^━ 台風解析・予報情報（５日予報） 取消 台風発生予想 ━/);
     expect(target("10_04_03_170913_VPTW60.xml", changed("<Number>1718</Number>", "<Number/>"))).toBe("熱帯低気圧");
   });
 
@@ -141,6 +141,6 @@ describe("P3-TL9 1 報の字の欠け", () => {
     const narrow = (path: string, unit: RuntimeUnitId) => terminal(56, 3)([reportUnit(short(path, unit))]).map(plain);
     expect(narrow("72_05_01_190327_VPAW51.xml", "U-M")[2]).toBe("14:30:00 発表");
     const folded = narrow("10_05_05_200826_VPTW61.xml", "U-Y");
-    expect(`${folded[1]}${folded[2]}`).toBe("台風解析・予報情報（５日予報）（Ｈ３０） 台風発生の可能性が小さくなった");
+    expect(`${folded[1]}${folded[2]}`).toBe("台風解析・予報情報（５日予報） 台風発生の可能性が小さくなった");
   });
 });
