@@ -41,17 +41,21 @@ const muroran = both(replaced(/<Title>宗谷地方波浪警報・注意報<\/Tit
 // 福井の解除の区域の層を n 個の Item に増やした報（どれも同じ解除の Kind）。
 const many = (count: number) => areasLayer(...Array.from({ length: count }, (_, index) => item(`区域${index + 1}`, kind("レベル２大雨注意報", "10", "解除"))));
 const released = (report: Short) => report.released;
+// 区域の層の Kind の Status を全部「解除」にする（P3-TL12-T02 (c)）。
+const allReleased = (xml: string): string => {
+  const next = xml.replace(AREAS, (layer) => layer.replace(/<Status>[^<]*<\/Status>/g, "<Status>解除</Status>"));
+  expect(next).not.toBe(xml);
+  return next;
+};
 
 describe("P3-TL12 気象警報・注意報の帯の題名と解除の行", () => {
   // P3-TL12-T01 regression / AC01・AC03（2026-11-08 21:49 Mac mini の新築の端末）
   it("T01 室蘭の解除の報は帯が Head/Title で、見出し文の下に解除の行、どの行にも「胆振地方」が無い", () => {
-    const lines = render(short(HIGH_WAVE, "U-W", muroran));
-    expect(lines).toEqual(["", band("胆振・日高地方波浪警報・注意報", "21:49:00"), "注意報を解除します。", "波浪注意報 解除  日高東部", "VPWW59 ・ 室蘭地方気象台"]);
-    expect(lines.some((text) => text.includes("胆振地方"))).toBe(false);
+    expect(render(short(HIGH_WAVE, "U-W", muroran))).toEqual(["", band("胆振・日高地方波浪警報・注意報", "21:49:00"), "注意報を解除します。", "波浪注意報 解除  日高東部", "VPWW59 ・ 室蘭地方気象台"]);
   });
 
   // P3-TL12-T02 contractBoundary / AC02
-  it("T02 released は市町村等をまとめた地域等の層の解除の Kind を Code ごとの行にし、取消と他の報は null", () => {
+  it("T02 (a) released は市町村等をまとめた地域等の層の解除の Kind を Code ごとの行にし、取消と他の報は null", () => {
     const cases: readonly (readonly [string, RuntimeUnitId])[] = [[RELEASE, "U-W"], [SHIMANE, "U-W"], ["18_00_01_260603_VPWW56_kagawa_release.xml", "U-L"], [VPWW61, "U-W"],
       [L5, "U-W"], ["15_18_01_250630_VPWS50.xml", "U-W"], ["synthetic_VPWW56_cancel.xml", "U-L"]];
     expect(cases.map(([path, unit]) => released(short(path, unit)))).toEqual([
@@ -59,18 +63,23 @@ describe("P3-TL12 気象警報・注意報の帯の題名と解除の行", () =>
       { rows: [{ label: "レベル２大雨注意報", areas: ["隠岐"] }], others: 0 },
       { rows: [{ label: "レベル２土砂災害注意報", areas: ["高松地域"] }], others: 0 },
       { rows: [], others: 0 }, { rows: [], others: 0 }, null, null]);
+  });
+
+  // P3-TL12-T02 contractBoundary / AC02
+  it("T02 (b) 257 Item の報は 256 区域を載せ、others 1", () => {
     const over = released(short(RELEASE, "U-W", many(257)));
     expect([over?.rows.length, over?.rows[0].areas.length, over?.rows[0].areas.at(-1), over?.others]).toEqual([1, 256, "区域256", 1]);
-    // 複数種類の同時解除: 3 Item に Code の違う Kind が 9 個（行の数が区域の数を越える）。
-    const allReleased = (xml: string): string => {
-      const next = xml.replace(AREAS, (layer) => layer.replace(/<Status>[^<]*<\/Status>/g, "<Status>解除</Status>"));
-      expect(next).not.toBe(xml);
-      return next;
-    };
+  });
+
+  // P3-TL12-T02 contractBoundary / AC02
+  it("T02 (c) 複数種類の同時解除: 3 Item に Code の違う Kind が 9 個で 9 行（行の数が区域の数を越える）", () => {
     const nine = released(short(VPWW61, "U-W", allReleased));
     expect(nine).toEqual({ rows: [["雷注意報", "宗谷北部"], ["融雪注意報", "宗谷北部"], ["低温注意報", "宗谷北部"], ["濃霧注意報", "宗谷南部"], ["乾燥注意報", "宗谷南部"],
       ["なだれ注意報", "宗谷南部"], ["霜注意報", "利尻・礼文"], ["着氷注意報", "利尻・礼文"], ["着雪注意報", "利尻・礼文"]].map(([label, area]) => ({ label, areas: [area] })), others: 0 });
-    // 延べの境界: 171 Item × Code の違う解除の Kind 3 つ = 513。512 を載せ、171 個目の Item の 3 つ目だけ載らない。
+  });
+
+  // P3-TL12-T02 contractBoundary / AC02
+  it("T02 (d) 延べの境界: 171 Item × 3 = 513 で 512 を載せ、171 個目の Item の 3 つ目だけ載らない", () => {
     const total = released(short(RELEASE, "U-W", areasLayer(...Array.from({ length: 171 }, (_, index) => item(`区域${index + 1}`,
       kind("レベル２大雨注意報", "10", "解除"), kind("強風注意報", "15", "解除"), kind("波浪注意報", "16", "解除"))))));
     expect([total?.rows.map((row) => [row.label, row.areas.length]), total?.rows[2].areas.at(-1), total?.others])
@@ -78,30 +87,68 @@ describe("P3-TL12 気象警報・注意報の帯の題名と解除の行", () =>
   });
 
   // P3-TL12-T03 acceptance / AC01・AC03・AC04
-  it("T03 理由の行は見出し文とだけ突き合わせ、解除の行は理由の行の下で 2 桁下がり、取消と題名の欠けた報は対象を付けない", () => {
-    // (a) D-REASON-MATCH=A: 題名「宗谷地方波浪警報・注意報」に「波浪警報」の字があっても理由の行を出す。
+  it("T03 (a) D-REASON-MATCH=A: 題名に「波浪警報」の字があっても見出し文とだけ突き合わせて理由の行を出す", () => {
     expect(render(short(HIGH_WAVE, "U-W"))).toEqual(["", band("宗谷地方波浪警報・注意報", "23:00:00"), "波浪警報", "  宗谷地方では、高波に警戒してください。",
       "VPWW59 ・ 稚内地方気象台"]);
-    // (b) 警報が続く島根県: 見出し文と解除の行がどちらも 2 桁下がる。
+  });
+
+  // P3-TL12-T03 acceptance / AC01・AC03・AC04
+  it("T03 (b) 警報が続く島根県は見出し文と解除の行がどちらも 2 桁下がる", () => {
     const shimane = render(short(SHIMANE, "U-W"));
     expect([shimane[2], shimane.at(-2)]).toEqual(["レベル３大雨警報", "  レベル２大雨注意報 解除  隠岐"]);
     expect(shimane.slice(3, -1).every((text) => text.startsWith("  "))).toBe(true);
-    // (c) 取消の報は帯が Head/Title と「 取消」で、解除の行は無い。
+  });
+
+  // P3-TL12-T03 acceptance / AC01・AC03・AC04
+  it("T03 (c) 取消の報は帯が Head/Title と「 取消」で、解除の行は無い", () => {
     const cancel = render(short("synthetic_VPWW56_cancel.xml", "U-L"));
     expect(cancel[1].startsWith("━ 宗谷地方土砂災害警報・注意報 取消 ━")).toBe(true);
     expect(cancel.some((text) => text.includes(" 解除  "))).toBe(false);
-    // (d) Head/Title を空にした福井の L5 は Control/Title の種類の名前だけで「福井県」を付けない。
+  });
+
+  // P3-TL12-T03 acceptance / AC01・AC03・AC04
+  it("T03 (d) Head/Title を空にした福井の L5 は Control/Title の種類の名前だけで「福井県」を付けない", () => {
     const untitled = render(short(L5, "U-W", replaced(/<Title>福井県大雨警報・注意報<\/Title>/, "<Title></Title>")));
     expect(untitled[1]).toBe(band("気象警報・注意報（大雨）", "06:51:00"));
-    // (e) 257 区域の報は解除の行の最後に薄い字の「ほか 1 区域は読んでいません」。
-    const over = short(RELEASE, "U-W", many(257));
-    expect(render(over).at(-2)).toBe("ほか 1 区域は読んでいません");
-    // (f) 56・80・100 桁、色 0 と 3 で、どの行も桁数を越えず、区域の名前が途中で折れない。
-    for (const report of [short(VPWW61, "U-W"), short(RELEASE, "U-W"), over]) for (const columns of [56, 80, 100]) for (const level of [0, 3] as const) {
+  });
+
+  // P3-TL12-T03 acceptance / AC01・AC03・AC04
+  it("T03 (e) 257 区域の報は解除の行の最後に薄い字の「ほか 1 区域は読んでいません」", () => {
+    expect(render(short(RELEASE, "U-W", many(257))).at(-2)).toBe("ほか 1 区域は読んでいません");
+  });
+
+  // P3-TL12-T03 acceptance / AC01・AC03・AC04
+  it("T03 (f) 56・80・100 桁、色 0 と 3 で、どの行も桁数を越えず、区域の名前が途中で折れない", () => {
+    for (const report of [short(VPWW61, "U-W"), short(RELEASE, "U-W"), short(RELEASE, "U-W", many(257))]) for (const columns of [56, 80, 100]) for (const level of [0, 3] as const) {
       const lines = render(report, columns, level).map(plain);
       for (const text of lines) expect(width(text.trimEnd())).toBeLessThanOrEqual(columns);
       const shown = new Set(lines.flatMap((text) => text.trim().split(/[　 ]+/)));
       for (const area of report.released?.rows.flatMap((row) => row.areas) ?? []) expect(shown.has(area)).toBe(true);
     }
+  });
+});
+
+describe("P3-TL14 解除の材料の境界", () => {
+  // P3-TL14-T01 contractBoundary / AC01（P3-TL12-AC02 (3) の名前の 32 字）
+  it("T01 区域と解除の Kind の Name は 32 字なら載り、33 字なら載らずに others に数える", () => {
+    const [a, i, u, e, o] = ["あ".repeat(32), "い".repeat(33), "う".repeat(33), "え".repeat(32), "お".repeat(33)];
+    expect(released(short(RELEASE, "U-W", areasLayer(item(a, kind("レベル２大雨注意報", "10", "解除")), item(i, kind("レベル２大雨注意報", "10", "解除")), item(u, NONE),
+      item("区域4", kind(e, "15", "解除")), item("区域5", kind(o, "16", "解除")))))).toEqual({ rows: [{ label: "レベル２大雨注意報", areas: [a] }, { label: e, areas: ["区域4"] }], others: 2 });
+  });
+
+  // P3-TL14-T02 contractBoundary / AC01（P3-TL12-AC02 (3) の 2 桁の数字の Code）
+  it("T02 解除の Kind の Code が 2 桁の半角の数字でなければ載らず、Item ごとに others に 1 つ数える", () => {
+    expect(released(short(RELEASE, "U-W", areasLayer(
+      item("区域1", kind("レベル２大雨注意報", "10", "解除"), kind("強風注意報", "1", "解除"), kind("波浪注意報", "100", "解除")),
+      item("区域2", kind("雷注意報", "１６", "解除")),
+      item("区域3", "<Kind><Name>濃霧注意報</Name><Status>解除</Status></Kind>"),
+      item("区域4", kind("強風注意報", "1", "継続")))))).toEqual({ rows: [{ label: "レベル２大雨注意報", areas: ["区域1"] }], others: 3 });
+  });
+
+  // P3-TL14-T03 contractBoundary / AC01（P3-TL12-AC02 (2) の同じ Item の重複）
+  it("T03 1 つの Item が同じ Code の解除の Kind を 2 つ持っても区域は 1 回で、others に数えない", () => {
+    expect(released(short(RELEASE, "U-W", areasLayer(item("区域1", kind("レベル２大雨注意報", "10", "解除"), kind("レベル２大雨注意報", "10", "解除")),
+      item("区域2", kind("レベル２大雨注意報", "10", "解除"), kind("強風注意報", "15", "解除"), kind("レベル２大雨注意報", "10", "解除"))))))
+      .toEqual({ rows: [{ label: "レベル２大雨注意報", areas: ["区域1", "区域2"] }, { label: "強風注意報", areas: ["区域2"] }], others: 0 });
   });
 });
