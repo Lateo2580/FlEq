@@ -37,7 +37,7 @@ function head(material: DecodedMaterial): TerminalHead {
     headline: read(first(heading, "Headline"), "Text"), reportDateTimeRaw: read(heading, "ReportDateTime"),
     // P3-TL5-AC01: 門（tideOnly）と同じ値を読む。x:InfoType を混ぜた電文で、門は発表と読み、表示が取消になって満潮の表が消えた。
     infoType: clip(material.infoTypeRaw.trim()),
-    status: read(control, "Status"), eventId: read(heading, "EventID"), serial: read(heading, "Serial"),
+    status: read(control, "Status"), operation: material.operation, eventId: read(heading, "EventID"), serial: read(heading, "Serial"),
     publishingOffice: read(control, "PublishingOffice"),
   };
 }

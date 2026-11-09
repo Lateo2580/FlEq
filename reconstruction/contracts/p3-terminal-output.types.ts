@@ -3,6 +3,7 @@
 // 整形・特殊値の読み・半角への寄せは端末の側（reconstruction/src/terminal/）が持つ。
 // TerminalReport は owner が decode した報から作り、inputDone の返信で publisher へ運ぶ（P3-TO-D-MATERIAL）。state・codec・view・診断・通知の payload に入れない。
 
+import type { Operation } from "./p1-parser-boundary.types";
 import type { EewLogField } from "./p3-cli-repl.types";
 import type { RuntimeUnitId } from "./p2-shared-runtime.types";
 
@@ -15,6 +16,7 @@ export type TerminalHead = Readonly<{
   reportDateTimeRaw: string | null;
   infoType: string | null;
   status: string | null;
+  operation: Operation; // 生の字でなく decode が確かめた運用区分。容量で退去した待ちの突き合わせに使う（P3-TRE-AC01）
   eventId: string | null;
   serial: string | null;
   publishingOffice: string | null;

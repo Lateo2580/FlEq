@@ -373,3 +373,78 @@ describe("P3-TL10 記録的短時間大雨の VPOA50 と VPBS50", () => {
     expect(subjects(reversed).find((subject) => subject.source?.inputId === rain.inputId)?.transition).toBe("aliased");
   });
 });
+
+// ---- 容量で退去した訓練の VPOA50（P3-TERMINAL-RAIN-EVICT-001） ----
+// U-B が受けた取消・訂正の記録自身を容量で退去した返信（accepted・revisionOnly・subjects=[]、briefing-unit.ts の自身の退去）。
+describe("P3-TRE 容量で退去した速報の取消・訂正", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(16, 33, 5)); });
+  afterEach(() => { vi.useRealTimers(); });
+  // 訂正の版は見出しの雨量も替える（版の違いをブロックの字で見分けるため）。
+  const corrected = (xml: string): string => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>").replace("約１１０ミリ", "約１２０ミリ");
+  const drill = shortOf(reportOf(OA, "U-B", training)), drillCancel = shortOf(reportOf(OA, "U-B", (xml) => cancelled(training(xml))));
+  const drillFix = shortOf(reportOf(OA, "U-B", (xml) => corrected(training(xml))));
+  const oa = shortOf(reportOf(OA, "U-B"));
+  const blockOf = (report: Short): string[] => terminal()([reportUnit(report)]);
+  const shown = (lines: readonly string[]): string[] => lines.filter((text) => !text.startsWith("debug: "));
+
+  // P3-TRE-T01 regression / P3-TRE-AC01（2026-11-08 夜の総合レビューの P3、容量で退去した訓練の速報が取消の後に出る）
+  it("T01 自分の記録の無い訓練の取消は、同じ運用区分と EventID の待ちを外し、取消も 60 秒の後の速報も出さない", () => {
+    const t = sink(80, { debug: true });
+    t.attach();
+    t.output.sink.inputDone(inputDoneOf("a1", drill, [ub(ubSubject(P, "a1", "held"))]));
+    vi.advanceTimersByTime(10_000);
+    t.output.sink.inputDone(inputDoneOf("c1", drillCancel, [ub()]));
+    expect(t.lines).toEqual(["debug: VPOA50 a1（U-B、対応報を待つ）", "debug: VPOA50 c1（U-B、出さない・待っていた報の取消）"]);
+    vi.advanceTimersByTime(61_000);
+    expect(shown(t.lines)).toEqual([]);
+  });
+
+  // P3-TRE-T02 regression / P3-TRE-AC01（同じ経路の訂正で新しい版の後に古い版が出る、Q-TRE-NEIGHBOR）
+  it("T02 自分の記録の無い訓練の訂正は待ちの報を替え、最初の報から 60,000 ms の tick に訂正の版だけが 1 つ出る", () => {
+    expect(blockOf(drillFix)).not.toEqual(blockOf(drill));
+    const t = sink(80, { debug: true });
+    t.attach();
+    t.output.sink.inputDone(inputDoneOf("a1", drill, [ub(ubSubject(P, "a1", "held"))]));
+    vi.advanceTimersByTime(30_000);
+    t.output.sink.inputDone(inputDoneOf("f1", drillFix, [ub()]));
+    expect(t.lines).toEqual(["debug: VPOA50 a1（U-B、対応報を待つ）", "debug: VPOA50 f1（U-B、対応報を待つ）"]);
+    vi.advanceTimersByTime(29_999);
+    expect(shown(t.lines)).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(shown(t.lines)).toEqual(blockOf(drillFix));
+    vi.advanceTimersByTime(60_000);
+    expect(shown(t.lines)).toEqual(blockOf(drillFix));
+  });
+
+  // P3-TRE-T03 contractBoundary / P3-TRE-AC01（突き合わせの鍵は decode の運用区分と EventID）
+  it("T03 通常の待ちは同じ EventID の訓練の取消で外れず、取消が出て 60 秒で速報も出る。head の operation は Control/Status の字でなく運用区分", () => {
+    expect([oa.head.operation, drill.head.operation, shortOf(reportOf(OA, "U-B", (xml) => xml.replace("<Status>通常</Status>", "<Status>training</Status>"))).head.operation])
+      .toEqual(["normal", "training", "training"]);
+    const t = sink();
+    t.attach();
+    t.output.sink.inputDone(inputDoneOf("a1", oa, [ub(ubSubject(P, "a1", "held"))]));
+    t.output.sink.inputDone(inputDoneOf("c1", drillCancel, [ub()]));
+    expect(shown(t.lines)).toEqual(blockOf(drillCancel));
+    vi.advanceTimersByTime(60_000);
+    expect(shown(t.lines)).toEqual([...blockOf(drillCancel), ...blockOf(oa)]);
+  });
+
+  // P3-TRE-T04 acceptance / P3-TRE-AC01（期限の前の close）
+  it("T04 期限の前の close で、取消で外した待ちは出ず、訂正で替えた待ちは訂正の版が 1 つ出る", async () => {
+    const c = sink();
+    c.attach();
+    c.output.sink.inputDone(inputDoneOf("a1", drill, [ub(ubSubject(P, "a1", "held"))]));
+    c.output.sink.inputDone(inputDoneOf("c1", drillCancel, [ub()]));
+    vi.advanceTimersByTime(10_000);
+    await c.output.close();
+    expect(shown(c.lines)).toEqual([]);
+
+    const f = sink();
+    f.attach();
+    f.output.sink.inputDone(inputDoneOf("a1", drill, [ub(ubSubject(P, "a1", "held"))]));
+    f.output.sink.inputDone(inputDoneOf("f1", drillFix, [ub()]));
+    vi.advanceTimersByTime(10_000);
+    await f.output.close();
+    expect(shown(f.lines)).toEqual(blockOf(drillFix));
+  });
+});

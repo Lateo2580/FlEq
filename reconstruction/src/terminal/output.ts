@@ -512,6 +512,17 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           }
         }
       }
+      // P3-TRE-AC01: U-B が受けた記録自身を容量で退去すると（遅着も）subjects に自分の記録が無い。運用区分と EventID の同じ待ちを引き、
+      // 取消なら外し、訂正・続報なら報だけ替える（期限と位置は最初のまま）。無いと退去した訓練の速報が取消・訂正の後に出る。
+      let refreshed = false;
+      if (rainReport != null && own == null) {
+        for (const [subject, item] of rain) {
+          if (item.report.head.operation !== rainReport.head.operation || item.report.head.eventId !== rainReport.head.eventId) continue;
+          if (rainReport.head.infoType === "取消") waited = rain.delete(subject);
+          else { item.report = rainReport; refreshed = true; }
+          break;
+        }
+      }
       if (reply.terminal != null) {
         const report = reply.terminal, taken = { unit: unitOf(report), headType: report.head.headType };
         // P3-TL8-AC04: 全国の集約通報は最後に積んだ報と同じなら積まない（(3) その入力が通知の intent を作ったら比べない）。
@@ -577,6 +588,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           lastOutputMs = now.monotonicMs;
           held = { ...taken, result: "対応報を待つ" };
         } else if (rainReport != null && waited && rainReport.head.infoType === "取消") held = { ...taken, result: "出さない・待っていた報の取消" };
+        else if (refreshed) { lastOutputMs = now.monotonicMs; held = { ...taken, result: "対応報を待つ" }; }
         else {
           if (nationwide != null) national = nationwide.national == null ? null : nationwide;
           const cancelled = cancelledOf(reply, report);
