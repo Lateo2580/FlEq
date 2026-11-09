@@ -16,7 +16,7 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
   it("図の 4 つの報が図の行になり、帯の段は VPWW55・VXKO70 が top、VFVO50・VYSE50 が warning", () => {
     expect(print("18_00_01_260830_VPWW55_fukui_L5.xml", "U-W")).toEqual([
       "",
-      band("気象警報・注意報（大雨） 福井県", "06:51:00"),
+      band("福井県大雨警報・注意報", "06:51:00"),
       "【特別警報（大雨）】嶺北北部、奥越にレベル５大雨特別警報を発表しています。",
       "低い土地の浸水や河川の増水に最大級の警戒をしてください。",
       "VPWW55 ・ 福井地方気象台",
@@ -56,7 +56,7 @@ describe("P3-TL-T10 短い形（spec §5.4 の図、AC09）", () => {
   it("最も重い段の帯は白の地に黒で幅いっぱいに塗り、縦線は紫。警報の段は朱の地（色 3）", () => {
     const purple = terminal(80, 3)([reportUnit(short("18_00_01_260830_VPWW55_fukui_L5.xml", "U-W"))]);
     expect(purple[1]).toContain("\x1b[48;2;255;255;255m");
-    expect(plain(purple[1])).toBe(filled("気象警報・注意報（大雨） 福井県", "06:51:00"));
+    expect(plain(purple[1])).toBe(filled("福井県大雨警報・注意報", "06:51:00"));
     expect(purple[2].startsWith("\x1b[48;2;196;107;222m \x1b[49m ")).toBe(true);
     const warning = terminal(80, 3)([reportUnit(short("45_01_01_200522_VFVO50.xml", "U-V"))]);
     expect(warning[1]).toContain("\x1b[48;2;213;94;0m");

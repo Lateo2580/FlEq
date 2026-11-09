@@ -732,8 +732,11 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   const { head } = report;
   // P3-TL9-AC01・D-HEAD-TITLE: 熱中症警戒アラート・早期天候情報・気象警報・注意報時系列情報は、県・現象・地方を持つ Head/Title を題名にして対象を付けない
   // （Control/Title は種類の一般の名前だけで、Body の最初の Area は報の全体の対象と違う）。Head/Title が空か無い報は今の形。
-  const own = (head.headType === "VPFT50" || head.headType === "VPAW51" || head.headType === "VPWP50") && head.title != null && head.title !== "" ? head.title : null;
-  const target = own == null ? report.target : null;
+  // 気象警報・注意報（VPWW55〜61）も Head/Title を題名にする（P3-TL12-AC01 (1)・D-BAND-TITLE=A）。最初の Area は府県予報区等の層の最初の Item で
+  // 北海道では一部の地方になるので、Head/Title が空か無い報でも対象を付けない。
+  const vpww = /^VPWW(5[5-9]|6[01])$/.test(head.headType);
+  const own = (head.headType === "VPFT50" || head.headType === "VPAW51" || head.headType === "VPWP50" || vpww) && head.title != null && head.title !== "" ? head.title : null;
+  const target = own == null && !vpww ? report.target : null;
   // 版の印「（Ｒ０６）」は題名から除く（Q-TO-S-1）。
   const base = (own ?? head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "");
   const title = `${base}${statusMark(head.status)}${head.infoType === "取消" ? " 取消" : ""}${target == null || target === "" ? "" : ` ${target}`}`;
@@ -741,7 +744,8 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 見出し文は省略しない（spec §5.4 の図）。取消の報は Body の取消の文を代わりに出す（Q-TO4-CANCEL。空は無いものとして見出し文）。
   const headline = shortSentence(report.cancelText == null || report.cancelText === "" ? head.headline : report.cancelText);
   // 警報以上の段を決めた Kind の名前（P3-TL2-AC08）。見出し文か帯の題名に同じ字があるときは出さない。
-  const reason = report.reason == null || headline.includes(report.reason) || title.includes(report.reason) ? [] : [line(seg(report.reason, null, true))];
+  // Head/Title を題名にした報は見出し文とだけ突き合わせる（P3-TL12-D-REASON-MATCH=A。「波浪警報・注意報」は種類の総称で、「波浪警報」が出ているとは言っていない）。
+  const reason = report.reason == null || headline.includes(report.reason) || (own == null && title.includes(report.reason)) ? [] : [line(seg(report.reason, null, true))];
   const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
   // 全国の月間火山概況（Q-TO4-MONTHLY）: 「以下」の指す火山の表（見出し無し）と、「参照ください」の行き先。URL は電文に無いので固定の字（無いと文だけが残り行き先が画面に無い）。
   const { monthly } = report;
@@ -757,6 +761,12 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 理由の行がある報は見出し文を 2 桁下げる（Q-TO7-REASON-INDENT）。太字の差だけでは理由の行と本文の境が読めないため。折り返した行はさらに 2 桁下げる。
   const sentences = reason.length === 0 ? textLines(headline, ctx.body)
     : textLines(headline, ctx.body - 2).flatMap((item) => wrapChars([seg("  "), ...item.segs], ctx.body, "    ").map((segs) => ({ segs })));
+  // 解除の行（P3-TL12-AC03）: 見出し文の下に全国の集約通報の表と同じ形で、左の列は「<Kind の Name> 解除」（Kind の Name だけだと発表の行と読める）。
+  // 理由の行がある報は見出し文と同じく 2 桁下げる（Q-TO7-REASON-INDENT）。
+  const { released } = report, shift = reason.length === 0 ? "" : "  ";
+  const releases = released == null ? [] : [...listTable(null, released.rows.map((row) => ({ label: seg(`${row.label} 解除`), rest: seg(`${row.label} 解除`, "dim"),
+    items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body - width(shift)), ...released.others === 0 ? [] : [line(seg(`ほか ${released.others} 区域は読んでいません`, "dim"))]]
+    .map((item) => shift === "" ? item : { ...item, segs: [seg(shift), ...item.segs] });
   // 全国の集約通報（P3-TL8-AC02・AC03）: 表は要点のまとまりに置き（罫線なし）、理由の行と見出し文の行は出さない。警報以上は Code ごとの行で折り返した行にも左の列を薄い字、
   // 注意報だけの報は Kind の名前の並び（続きの行は字下げしない）、今の Kind の無い報は行なし。読まなかった予報区は段によらず薄い字の 1 行。
   const { national } = report;
@@ -764,7 +774,7 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
     : listTable(null, national.rows.map((row) => ({ label: seg(row.label), rest: seg(row.label, "dim"), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
     ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: nationwide ?? [...reason, ...sentences, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: nationwide ?? [...reason, ...sentences, ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 // P3-TL10-AC01 (5)・spec §5.4 の図: 降灰予報（定時）のまとまり。帯は 1 報目の題名と印と「 N火山」、段は最も重い段、帯の下に各報の対象を 1 行ずつと末尾の行。
 // 見出し文・段の理由の行・区切りの罫線は出さない。
