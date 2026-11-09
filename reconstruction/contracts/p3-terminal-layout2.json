@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "b54ce99da741e1ace3650e655616a2d23a3e4dd5f77eebdc249f802f810823f3",
+    "sha256": "dd1d087e841dba109480ed10faf12e4aa8f0198ecae50b9c717bffbdff08bd3f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -343,7 +343,7 @@
         "id": "P3-TL2-AC08",
         "requirement": "短い形の段の理由（Q-TO3-REASON）: (1) 警報以上の段（最も重い・紫・警報）の U-W・U-L・U-R・U-V の報は、帯の直下に段を決めた Kind の名前（同じ段が複数なら電文の最初の 1 つ）を太字で 1 行出す（府県予報区等の層を持つ VPWS50 は表の左の列が兼ねるので出さない、P3-TL8-AC01 (4)） (2) U-N は InfoSerial の名前を同じ形で出す (3) 見出し文か帯の題名に同じ字があるときは出さない（Head/Title を題名にした報は見出し文とだけ突き合わせる、P3-TL12-D-REASON-MATCH） (4) U-M・U-B、VFVO56（段を電文の種類で決める報）と、注意より軽い段には足さない。TerminalReport の short に欄を 1 つ足して material.ts で読む（heaviest は段だけを返すので、名前を一緒に返す形に改める）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:480 «fc9be00de26c3c82»",
+          "docs/specs/cli-terminal-output.md:480 «0f85d26fa32288ec»",
           "docs/specs/cli-terminal-output.md:600 «ab2218d4a63a6607»"
         ]
       },
