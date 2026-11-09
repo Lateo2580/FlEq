@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "db60edd843b1559f384507685089e55dc7d1d0a42c2703099d6749540e6c5980",
+    "sha256": "0924751d398c2d257beca2b5c7d751df7a1e8b573e231af86a221b516ca19cb3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -87,7 +87,7 @@
       {
         "id": "P3-TW-D-MAIN-CONSOLE",
         "kind": "統合担当",
-        "A": "親の main が端末の API に触る箇所を次の 3 つに分ける。【触らない】(a) 電文・返事・echo・prompt の書き出し（列と子を通す）(b) process.stdout.columns・rows の読み（tty.WriteStream が持つ値で API を呼ばない）(c) fleq.mjs の空 write（P3-TW-D-EXIT）(d) 子の失敗の知らせ（P3-TW-D-FAIL）。【順序を変える】無し。readline.close を terminal.close の後へ回しても、1 秒のタイマーを先に作っても、main が API の中で待てばタイマーの callback が動かないので効かない（W1 の 2）。【残存リスク】(e) 起動の時に 1 回: process.stdout の生成（uv_tty_init、getWindowSize）。受信の前 (f) 起動の時に 1 回: createInterface の setRawMode(true)（SetConsoleMode） (g) 端末の大きさが変わったとき: Node の内部の SIGWINCH→_refreshSize→GetConsoleScreenBufferInfo（resize の listener を外しても消えない） (h) キー入力の読み（ReadConsoleInputW） (i) 停止の時: readline.close の setRawMode(false)（SetConsoleMode）。(e)〜(i) は同じ process に書き手がいないので uv_tty_output_lock の待ちは起きない。残るのは ConPTY の読み手が止まったときの console の待ちで、確信度は中（Q-TW-DEVICE で確かめる） (j) 受信の最中の標準エラー: composition-root.ts の reportFailure の既定（診断の保存の失敗と溢れ）。字の選択中に当たると選択を解くまで main が止まり、受信も止まる (k) 停止の中と後の標準エラー: host.ts の dmdata socket close failed、cli.ts の保存を確かめられない行。受信は止まっているが、字の選択中に当たると terminal.close の 1 秒の期限へ届かず、選択を解くまで終わらない (l) Node 自身の warning と捕まえていない例外の標準エラー。(j)(k) は spec §10 の受信と終わりの約束の例外で、標準エラーの pipe の読み手が消えていれば未処理の error event で親が終わる列も同じ",
+        "A": "親の main が端末の API に触る箇所を次の 3 つに分ける。【触らない】(a) 電文・返事・echo・prompt の書き出し（列と子を通す）(b) process.stdout.columns・rows の読み（tty.WriteStream が持つ値で API を呼ばない）(c) fleq.mjs の空 write（P3-TW-D-EXIT）(d) 子の失敗の知らせ（P3-TW-D-FAIL）。【順序を変える】無し。readline.close を terminal.close の後へ回しても、1 秒のタイマーを先に作っても、main が API の中で待てばタイマーの callback が動かないので効かない（W1 の 2）。【残存リスク】(e) 起動の時に 1 回: process.stdout の生成（uv_tty_init、getWindowSize）。受信の前 (f) 起動の時に 1 回: createInterface の setRawMode(true)（SetConsoleMode） (g) 端末の大きさが変わったとき: Node の内部の SIGWINCH→_refreshSize→GetConsoleScreenBufferInfo（resize の listener を外しても消えない） (h) キー入力の読み（ReadConsoleInputW） (i) 停止の時: readline.close の setRawMode(false)（SetConsoleMode）。(e)〜(i) は同じ process に書き手がいないので uv_tty_output_lock の待ちは起きない。残るのは ConPTY の読み手が止まったときの console の待ちで、確信度は中（Q-TW-DEVICE で確かめる） (j) 受信の最中の標準エラー: composition-root.ts の reportFailure の既定（診断の保存の失敗と溢れ）。字の選択中に当たると選択を解くまで main が止まり、受信も止まる (k) 停止の中と後の標準エラー: host.ts の dmdata socket close failed、cli.ts の保存を確かめられない行と、REPL が閉じた後に分かった保存の失敗の行（P3-REPL-CLOSED-001）。受信は止まっているが、字の選択中に当たると terminal.close の 1 秒の期限へ届かず、選択を解くまで終わらない (l) Node 自身の warning と捕まえていない例外の標準エラー。(j)(k) は spec §10 の受信と終わりの約束の例外で、標準エラーの pipe の読み手が消えていれば未処理の error event で親が終わる列も同じ",
         "B": "(j) を host から reportFailure を渡して別の子に書かせる",
         "recommended": "A",
         "provisional": "A",
@@ -274,7 +274,7 @@
           "reconstruction/cli/fleq.mjs:22 «35f85fde5f5d2ad4»",
           "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
           "docs/specs/cli-terminal-output.md:1005 «eaf0b3ac6104f64f»",
-          "docs/specs/cli-terminal-output.md:1006 «679940c9ca375597»"
+          "docs/specs/cli-terminal-output.md:1006 «095fec5220f7cce8»"
         ]
       }
     ],

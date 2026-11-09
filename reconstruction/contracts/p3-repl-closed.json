@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "521bedebf2801f031601e6b086b38080b9ef762811901760f89bbce7bd385431",
+    "sha256": "777a20a90a3ce166263beda41500396635f834b2336897d47ee5cf25d0e8e6ef",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -184,7 +184,7 @@
         "id": "P3-RC-AC01",
         "requirement": "閉じた REPL は config の一覧を出さない（P3-RC-D-CONFIG=A）。場面: 23:10:00.000「config」と Enter → 設定 file の非同期の読みが始まる → 23:10:00.010 Ctrl+C（readline の close）→ REPL が閉じ、終了の要求（host の stop）が始まる → 23:10:00.030 読みが終わる → 今は終了の途中の端末に『Config: /home/pi/.config/fleq-next/config.json』と欄ごとの 2 行（『apiKey = abcd****wxyz』『# dmdata.jp APIキー』…）が出る。直した後は何も出さない: (1) config は設定の読み（rereadSettings）を待った後、REPL が閉じていれば一覧も読めないときの 1 行も出さずに戻る。C18 発注 3 の display の返事と同じ形の closed の検査を、:375 の行の中に置く (2) 読みは止めない（読むだけで副作用が無い、P3-CLI-AC14 (4)） (3) 閉じる前に読み終えた一覧と読めないときの 1 行は今どおり出す",
         "evidenceRefs": [
-          "reconstruction/src/cli/repl.ts:375 «ca7e37af0a75b10f»",
+          "reconstruction/src/cli/repl.ts:375 «8f9921f37b1351fc»",
           "reconstruction/src/cli/repl.ts:376 «60d8184fb26d32ef»",
           "reconstruction/src/cli/repl.ts:364 «6443899fa1427f1b»",
           "reconstruction/src/cli/repl.ts:524 «dffc0844dde886a2»",
@@ -195,24 +195,24 @@
         "id": "P3-RC-AC02",
         "requirement": "閉じた後に分かった保存の失敗は、REPL の返事に出さず、終了の診断に渡す（P3-RC-D-PLACE=A、code は P3-RC-D-END=A）。場面: 23:10:00.000「notify eew off」と Enter → 端末に『  緊急地震速報 (eew): OFF』、保存の列が設定 file の読み直しを始める → 続けて「quit」と Enter → REPL が閉じ、host の stop が始まる → 23:10:00.200 一時 file の書き込みが ENOSPC で失敗する → 今は終了の途中の端末に『  設定ファイル /home/pi/.config/fleq-next/config.json を書けません（ENOSPC）。この変更は今の実行にだけ効いています』が出て code 0。直した後は 23:10:00.200 に何も出さず、stop と保存の列を待った後、標準エラーに『設定ファイル /home/pi/.config/fleq-next/config.json に最後の変更を保存できませんでした（ENOSPC）』を出す: (1) createSettingsSaver は REPL が閉じたかを読む口（() => boolean、3 つ目の引数）を受ける。1 回の保存が読めない・書けないで終わったとき、REPL が開いていれば今どおり返事の口に P3-CLI-AC17 (5) の文を出し、閉じていれば出さずに終了の診断の 1 行を持つ: 書けないとき『設定ファイル <path> に最後の変更を保存できませんでした（<code>）』、読めない・検査に通らないとき『設定ファイル <path> を読めないので、最後の変更を保存できませんでした』（先頭に空白を置かない。P3-CLI-AC18 (3) の 1 行と同じ書き方） (2) 持つのは最後の 1 回の保存の結果だけ。1 回の保存の始めで消し、成功した保存は何も持たない (3) idle() は列が空になった後に、持っている 1 行か null を返す。runRepl の返す idle も同じ (4) cli.ts の終了の経路: stop() の後の保存の待ち（5 秒）の内に idle が 1 行を返したら、fail で標準エラーに 1 行出し、code は 0 なら 1、0 以外はそのまま（P3-RC-D-END=A、2026-11-09 の作者の裁定）。null なら今どおり host の code (5) 閉じた後の失敗を標準エラーへ書くのは cli.ts だけ。createSettingsSaver と repl.ts は process.stderr を持たない（settings.ts の commitSettings の移行の 1 行は変えない）",
         "evidenceRefs": [
-          "reconstruction/src/cli/settings.ts:387 «310a92f1feb8a73d»",
-          "reconstruction/src/cli/settings.ts:389 «8d71b51878f99940»",
-          "reconstruction/src/cli/settings.ts:397 «e1f8cb40e2e5757c»",
-          "reconstruction/src/cli/repl.ts:290 «058761edebc3ceab»",
+          "reconstruction/src/cli/settings.ts:391 «ea61ca9006dde32e»",
+          "reconstruction/src/cli/settings.ts:393 «926c62ad774faa67»",
+          "reconstruction/src/cli/settings.ts:401 «acd9a90d14e14341»",
+          "reconstruction/src/cli/repl.ts:290 «45fbf9e03360dc13»",
           "reconstruction/src/cli/repl.ts:540 «bc471d05d8045968»",
           "reconstruction/src/cli/cli.ts:34 «217f54f11f8cb9eb»",
-          "reconstruction/src/cli/cli.ts:369 «95e37de4cb91f61d»",
-          "reconstruction/src/cli/cli.ts:374 «3500973c5041ae4a»"
+          "reconstruction/src/cli/cli.ts:369 «9e814ba6be570a8b»",
+          "reconstruction/src/cli/cli.ts:376 «3500973c5041ae4a»"
         ]
       },
       {
         "id": "P3-RC-AC03",
         "requirement": "変えない所と境: (1) 閉じる前に分かった失敗は返事に出たので、終了の診断にもう一度出さない。場面: 23:10:00.000「notify eew off」→ 23:10:00.200 読み直しが読めない → 端末に『  設定ファイル <path> を読めないので、この変更は保存しません（今の実行には効いています）』→ 23:10:05「quit」→ 標準エラーは空、code は host の code (2) 閉じた後に 1 回目の保存が失敗し、「もう 1 回要る」の印で走った 2 回目が成功したら何も出さない（最後の変更は保存できた） (3) 閉じた REPL は新しい保存を要求しない（C18 発注 3）。閉じる前に要求した保存は閉じた後も最後まで走り、終了がそれを待つ（P3-CLI-AC18 (3)） (4) 保存の列が 5 秒の期限までに終わらなければ、今どおり『設定ファイル <path> に最後の変更を保存できたか確かめられません』と code（0 なら 1）だけ。持っている 1 行は出さない (5) 成功のときは何も出さない（P3-CLI-AC17 (5)）。起動の後の、過ぎた mute の欄を消す保存（runRepl の末尾）も同じ扱い",
         "evidenceRefs": [
-          "reconstruction/src/cli/settings.ts:394 «82fabcb5b81e23dd»",
+          "reconstruction/src/cli/settings.ts:398 «82fabcb5b81e23dd»",
           "reconstruction/src/cli/repl.ts:306 «ff03e1ff9226f46b»",
-          "reconstruction/src/cli/cli.ts:371 «fab94c37e644e238»",
-          "reconstruction/src/cli/cli.ts:373 «341aa9d2306d9933»"
+          "reconstruction/src/cli/cli.ts:373 «fab94c37e644e238»",
+          "reconstruction/src/cli/cli.ts:375 «341aa9d2306d9933»"
         ]
       },
       {
