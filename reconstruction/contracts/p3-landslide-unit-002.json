@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "a37ba979bc3a961a6990b63330d2ee44a70bc20415d6e6464756845c619a9d29",
+    "draftedFromOid": "ce8f17b9b1be08ae5a4d3032f65f208202da88d3",
+    "sha256": "25e1ca58d8334578026b51400455234421395028b94a9d0a568f6dfb80f1e0bc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -10,95 +10,86 @@
       {
         "id": "P3-UL2-D-GAMMA",
         "kind": "作者",
-        "A": "取り直しの中で L5→L4→L5 と動いた官署を、採用の step で鳴らす。取り直しの候補（shadow）の間だけ、官署ごとに区域の段の最低を持ち（保存しない・採用で外す・候補の破棄で残らない）、H27 の比べを open でなくこの最低と比べる。pending（landslide-unit.ts の段の外しと取消の置換）には触らない。最低の欄の無い官署（取り直しの本文が duplicate・stale で記録が変わらなかったなど）は、採用の直前の live（at.live）の記録と比べる（ヘルツの補修）",
-        "B": "δ・β（採用の時点で残る pending だけを救う。期限の過ぎた採用・配信済み・取消→新しい L5 は救わない）",
+        "A": "取り直しの候補の間、官署ごとに区域の段の最低を持ち、H27 をその最低と比べる（取り直しの中で L5→L4→L5 と動いた官署を採用で鳴らす）",
+        "B": "δ・β（採用の時点で残る pending だけを救う）",
         "C": "残存のまま記録する",
         "recommended": "A",
-        "provisional": "A",
-        "status": "確定（作者の裁定、2026-11-10。推奨どおり）",
-        "ruling": "A（作者の裁定、2026-11-10。下調べの報告の問い 1。ヘルツの補修〔最低の欄が無いときは at.live と比べる〕を含む）",
-        "reason": "下調べの表で、r3 の 2 つの欠け（取り消された報の info、古い取消の音）を生まず、期限の後の採用（S1late）・配信済み（S1heard）・取消→新しい L5（S2）まで覆うのは γ だけ。ヘルツの独立の確かめで γ の二重鳴り（当て直しで duplicate の官署が open と比べられる）が見つかり、at.live を比べ先にする補修で 0 になった"
-      },
-      {
-        "id": "P3-UL2-D-LEVEL",
-        "kind": "作者",
-        "A": "そのとき鳴らす 1 回は info（desktop＋音。training・test は desktop だけ）。今の H27 と同じ intent の形",
-        "B": "critical（live の順で C が鳴らすはずだった L5 の音）",
-        "recommended": "A",
-        "provisional": "A",
-        "status": "確定（作者の裁定、2026-11-10。推奨どおり）",
-        "ruling": "A（作者の裁定、2026-11-10。下調べの報告の問い 2）",
-        "reason": "取り直しで拾ったものは軽い音（P3-REC-D-RAISE-SOUND=A）。P3-WN-D-H27-L4=A（L4 も L5 も info）と揃う"
+        "provisional": "C",
+        "status": "確定（作者の再裁定、2026-11-10 朝）",
+        "ruling": "C（作者が 2026-11-10 朝に再裁定: γ は入れない。到達の事実 P3-UL2-D-REACH を見て。最初の裁定〔2026-11-10、A〕を置き換える）",
+        "reason": "同じ官署の L4 と L5 が 1 つの候補に並ぶのは一覧の頭に EditorialOffice が無いときだけ（Q-UL2-REACH）。残存は Q-UL2-RESIDUAL"
       },
       {
         "id": "P3-UL2-D-REACH",
         "kind": "作者",
-        "A": "裁定どおり γ（段の最低）と at.live の補修の両方を入れる",
-        "B": "at.live の補修だけを入れ、γ は「一覧の頭に官署の無い本文が同じ官署に 2 本以上並ぶ場合の残存」として記録する",
+        "A": "γ（段の最低）と at.live の比べの両方を入れる",
+        "B": "at.live の比べだけを入れ、切断中の L5→L4→L5 が鳴らないことを残存として記録する",
         "recommended": "A",
-        "provisional": "A",
-        "status": "起草案（統合担当、2026-11-10 起草。作者の裁定待ち）",
-        "ruling": "未裁定",
-        "reason": "起草で見つけた到達の事実（Q-UL2-REACH）: 取り直しは U-L の本文を官署ごとに受けた時刻の最も新しい 1 件だけ取る（recovery.ts の N2 で U-L は latest、鍵は運用区分・型・Control/EditorialOffice、bodiesFor が鍵ごとに 1 件に絞る）。場面: 23:00 に稚内で L5（desktop の通知が失敗して再試行待ち、音は 23:00 に鳴った）、23:01 の L4（B）と 23:02 の L5（C）を切断で取り逃し、23:02:30 に再接続。一覧は B・C の 2 件を返すが、本文にするのは C だけ。shadow には C だけが当たり、A と C はどちらも L5 なので A の critical の desktop は外れず、再試行で 23:03:00 まで配られる（今のコードでも欠けない）。B と C が同じ shadow に並ぶのは、一覧の頭の EditorialOffice が空で鍵が作れず絞らないときだけ（下調べ・ヘルツはどちらも shadow に手で 2 本を当てていて、この絞り込みを通していない）。一方、ヘルツの二重鳴りは絞り込みを通っても起きる今のコードの欠け（C だけを取り、live が動いたので当て直しで duplicate、open=L4 と比べて info がもう一度鳴る。起草の写しで今のコードの info 2 本を確かめた、Q-UL2-DRAFT-FACTS (2)）で、A でも B でも at.live の補修で直る。A を推す理由: 欠けたときは L5 のカードが出るのに音も desktop も出ない（安全の側の欠け）。足すのは state の省略可能な欄 1 つと helper 2 つ（起草の写しで約 15 行）。鍵の作れない頭が実際に来るか（dmdata の一覧が EditorialOffice を欠くか）は確かめられていない。B は行が少なく、今の一覧の形で届く欠けは全部直る"
+        "provisional": "B",
+        "status": "確定（作者の裁定、2026-11-10 07:3x）",
+        "ruling": "B（作者の裁定、2026-11-10 07:3x。「at.live だけ入れる」）",
+        "reason": "at.live の比べは、一覧の絞り込みを通っても起きる今のコードの二重鳴り（Q-UL2-DRAFT-FACTS (1)）を直す。γ が覆う列は一覧の頭に官署が無いときだけ届く"
       },
       {
-        "id": "P3-UL2-D-FLOOR-PLACE",
+        "id": "P3-UL2-D-LIVE-ONLY",
         "kind": "統合担当",
-        "A": "最低の欄は LandslideUnitState の省略可能な欄 recoveryFloors（官署 → 区域 → 段）に置く。codec の encode は書かず（保存されない）、採用の step（recoveryNotices）が鍵ごと消し、live の state は持たない",
-        "B": "state の外（module の WeakMap など、state か currents の参照に結び付けた表）に置く",
+        "A": "H27 の比べの基準は採用の直前の live（at.live）だけ。open は使わない",
+        "B": "U-W の P3-WN-AC12 と同じく open と at.live の両方と比べ、どちらかでその段以上なら作らない",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-10 起草）",
-        "ruling": "A（統合担当）",
-        "reason": "B は採用で欄が届かない: adoptRecoveryOwner は shadow の欄を `{ ...ownUnit(shadow, unit), persistence }` で新しい object に写してから recoveryNotices に渡す（owner-runtime.ts の採用の step）ので、state の参照に結び付けた表は引けない。currents の参照に結び付けると、期限の step・原文の予算の外し・退去で currents が作り直されるたびに表を付け替える必要があり、採用の後に live の currents に表が残る（次の取り直しの最初の受信が古い最低を読む）のを防ぐには module の表を書き換える副作用が要る。A は spread で受信・期限の step を自然に通り、型で見え、encode が欄を列挙して書く（landslide-unit.ts の codec の encode）ので保存に漏れない。下調べの「本実装では state の外」は T15 の赤を避ける意図だったが、T15 の赤は置き場でなく比べ先の裁定から来る（Q-UL2-T15）"
-      },
-      {
-        "id": "P3-UL2-D-FLOOR-STEPS",
-        "kind": "統合担当",
-        "A": "最低は reduce の 1 step の正味の変化（reduceLandslideUnit がまとめる官署ごとの最初の before と最後の after）から進め、進めるのは入力が origin=recovery の受信か、state がすでに欄を持つとき（＝shadow の期限の step・受信の中の回収・退去を含む）。見えなくなった記録（解除・取消・期限・回収・退去）の区域は最低から外す（その区域の段は無い）",
-        "B": "下調べの γ の写しどおり、取り直しの受信の採用の行（landslide-unit.ts の adopted を組む行）で、受けた官署だけを next から進める",
-        "recommended": "A",
-        "provisional": "A",
-        "status": "確定（統合担当、2026-11-10 起草）",
-        "ruling": "A（統合担当）",
-        "reason": "裁定の字は「区域の段の最低」。B は (a) 到着の時点で期限を過ぎて同じ reduce で回収される報（due）を回収の前の next で数え、(b) shadow の期限の step で見えなくなった記録を数えない。どちらも、その官署に後から同じ取り直しで L4・L5 が当たったとき鳴らない（live の順なら、回収・期限の後の L5 は critical で鳴る）。A は 1 か所（reduceLandslideUnit）で受信・期限の step・回収・退去を覆い、行の数は B と同じ程度。違いが出るのは、同じ取り直しの中で同じ官署に本文が 2 本以上当たり、その間に記録が回収されたときだけで、D-REACH の到達条件（鍵の作れない頭）の内側。起草の写しでは A で下調べの表の γ の列と同じ結果になった（Q-UL2-DRAFT-FACTS (1)）"
+        "ruling": "A（統合担当。作者の裁定の字「比べの基準に at.live」どおり）",
+        "reason": "A と B が分かれるのは、候補の間に live が動き、live の官署の段が open より低くなった（live で引下げ・取消・期限）後に、それより新しい L4・L5 の本文を取り直しが拾ったときだけ（P3-UL2-AC01 (3)(4)(5)）。場面: 23:00 に稚内で L5（音は鳴った）、23:05 の切断から 23:06 の再接続で取り直しが開く（open=L5）。23:06:20 に live で L4 への引下げ（通知なし）、取り直しの一覧が 23:06:30 の L5 を拾う。A は live=L4 と比べて info を 1 回、B は open=L5 で作らない。live の順なら L4 の後の L5 は critical で鳴るので、A がそれに近い。live が動かなければ live の U-L の state は open と同じ（owner-runtime.ts の sameBase）なので A も B も今と同じ。A は unit の行の 1 行で済む"
       }
     ],
     "questionResolutions": [
       {
         "id": "Q-UL2-RULING-SOURCE",
         "status": "closed",
-        "source": "統合担当の起草依頼（2026-11-10）。材料: 作業ノート（repo 外）の 2026-11-09 の夜の写し ul-probe-report.md（子の下調べ、イベント列 S1〜S4、候補 r3・δ・β・γ の表）と ul-hertz.md（ヘルツ gpt-6-astra high、read-only、thread 01a1c0e9-44bb-7a91-9280-d3492a5b6ef3）",
-        "closed": "作者の裁定（2026-11-10）: 問い 1 = A（γ。ヘルツの補修〔最低の欄が無いときの比べの基準に at.live〕を含む）、問い 2 = A（info）。P3-REC-D-RAISE-BASIS=A（open と比べる）の U-L での読み替えになるので、元の契約の文の改訂を artifactRequirements の原文の改訂に書く"
+        "source": "統合担当の起草依頼（2026-11-10）と作者の裁定の伝達（2026-11-10 07:3x）。材料: 作業ノート（repo 外）の 2026-11-09 の夜の写し ul-probe-report.md（子の下調べ）と ul-hertz.md（ヘルツ gpt-6-astra high、read-only、thread 01a1c0e9-44bb-7a91-9280-d3492a5b6ef3）",
+        "closed": "最初の裁定（2026-11-10）: 問い 1=A（γ＋ヘルツの補修）、問い 2=A（info）。起草 ce8f17b9 で到達の事実（Q-UL2-REACH）を示し、作者が再裁定: P3-UL2-D-REACH=B（at.live だけ入れる）、γ は入れず残存として書く。問い 2（info）は γ で鳴らす 1 回の段だったので分岐から外した。at.live の比べは新しい通知を作らず、今の H27 の段（P3-WN-D-H27-L4=A の info）を変えない"
       },
       {
         "id": "Q-UL2-REACH",
         "status": "closed",
-        "source": "2026-11-10 起草（base 05f7ebab の木を読んだ）",
-        "closed": "取り直しの本文の選び方: recovery.ts の N2 で U-L は latest（:35）、bodyKey は U-L の鍵を「運用区分/型/Control/EditorialOffice」にし、EditorialOffice が空なら null（:198）、bodiesFor は鍵ごとに receivedAtMs の最も新しい 1 件だけ残す（:223・:226、鍵が null の頭は絞らない）。recovery.test.ts:479 の試験が同じ官署の l1・l2 から l2 だけを残すことを固定している。よって S1・S2 の「同じ官署の B と C が 1 つの shadow に並ぶ」列は、一覧の頭の EditorialOffice が空のときだけ届く。S3（取り直しが 2 回）とヘルツの二重鳴り（C だけを取り、当て直しで duplicate）は絞り込みを通っても届く。この事実で作者の裁定の前提が変わりうるので P3-UL2-D-REACH を作者に諮る（unresolvedQuestions の Q-UL2-REACH-RULING）"
+        "source": "2026-11-10 起草（base 05f7ebab の木を読んだ。ce8f17b9 は契約 file を足しただけで src は同じ）",
+        "closed": "取り直しの本文の選び方: recovery.ts の N2 で U-L は latest（:35）、bodyKey は U-L の鍵を「運用区分/型/Control/EditorialOffice」にし、EditorialOffice が空なら null（:198）、bodiesFor は鍵ごとに receivedAtMs の最も新しい 1 件だけ残す（:223・:226、鍵が null の頭は絞らない）。recovery.test.ts:479 が同じ官署の l1・l2 から l2 だけを残すことを固定している。下調べの S1・S2 は同じ官署の 2 本を候補に手で当てた列で、一覧の頭に官署が無いときだけ届く。ヘルツの二重鳴りは本文が 1 本でも起きる"
       },
       {
-        "id": "Q-UL2-T15",
+        "id": "Q-UL2-RESIDUAL",
         "status": "closed",
-        "source": "2026-11-10 起草（起草の写しで P3-REC-T15 が 1 件赤、Q-UL2-DRAFT-FACTS (3)）",
-        "closed": "landslide-unit.test.ts:501 の 1 つ目の組 `recoveryNotices(raised, raised, now)` は「取り直しで受けた候補 raised を比べ先（open）にも渡すと何も作らない」を見ている。本契約で比べ先は「欄があれば段の最低、無ければ採用の直前の live」に変わり、raised は取り直しの受信で最低の欄（稚内は空、記録の無い官署から始まったため）を持つので、raised を比べ先に渡しても稚内は上がったと読まれる。live は欄を持たないので、この入力は製品の経路では起きない（欄は採用で消え、live の受信は欄を作らない）。置き場を state の外にしても同じ（比べ先が最低になるため）。期待を変える: 1 つ目の組を、live で受けた同じ報の state（欄の無い state、例 send(emptyState(), F.soya).state）を live と候補の両方に渡す形にし、期待はその state のまま（同じ段なら何も作らない、の意味を保つ）。行の数は変えない"
+        "source": "作者の裁定（2026-11-10 07:3x、P3-UL2-D-REACH=B）",
+        "closed": "残存として記録する（直さない）",
+        "remaining": "切断中の同じ官署の L5→L4→L5 は鳴らない。場面: 23:00 に稚内で L5（desktop の通知が失敗して再試行待ち、音は 23:00 に鳴った）、23:01 の L4 と 23:02 の L5 を切断で取り逃し、23:02:30 に再接続。取り直しは官署ごとに最新 1 件（23:02 の L5）だけを取るので、23:00 の L5 の critical の desktop は外れずに 23:03:00 まで再試行され、23:02 の L5 は 23:00 と同じ段なので H27 も出ない（L5 のカードは出る）。live の順なら 23:02 に critical が鳴る。一覧の頭に EditorialOffice が無く 23:01 の L4 と 23:02 の L5 が両方候補に当たるときは、L4 の採用が 23:00 の critical の pending を外し、23:02 の L5 は取り直しなので通知を作らず、採用で live=L5 と比べて H27 も出ないので、通知が 1 つも出ない（この場合も含めて残す）。P3-WEATHER-NOTICE-001 の Q-WN-DELIVERY の残存の 1 つ目を、この形で置き換える（原文の改訂 (3)）"
       },
       {
         "id": "Q-UL2-DRAFT-FACTS",
         "status": "closed",
-        "source": "2026-11-10 起草（~/dev/fleq-ul-draft の .dr-tmp に base 05f7ebab の木を CoW で写し、A の形を当てて試し、消した）",
-        "closed": "(1) 写しに当てた形: LandslideUnitState に recoveryFloors?、reduceLandslideUnit の戻りで P3-UL2-D-FLOOR-STEPS=A の最低を進める helper、raisedRank を区域 → 段の Map と比べる形、recoveryNotices の 1 つ目を live にして欄があれば最低・無ければ live の記録と比べ、欄を鍵ごと消して返す、unit の行で at.live を渡す。下調べの probe（ul-gap-probe.test.ts、unit の段で採用を写すもの）で S1・S1late・S1heard・S2 は info の desktop＋sound の 1 組、S3 の #2 と S4 の L3 は pending 無し、S4 の L5 は info の 1 組（下調べの表の γ の列と同じ） (2) ヘルツの二重鳴りの列（open=A/L4 → live B/L5〔pending を配ったものとして空に〕→ live C/L5 → 取り直しの C を最新の live に当てて duplicate → 行の recoveryNotices に live を渡す）: 写しでは shadow は live と同じ object のまま、pending 無し、欄無し。base の木の写しで同じ列を回すと info の desktop＋sound の 1 組がもう一度できた（今のコードの欠け） (3) 写しの landslide-unit・weather-notice・recovery・execution-split の試験: 1 件赤（P3-REC-T15、Q-UL2-T15）・222 件緑。T15 の 1 つ目の組を Q-UL2-T15 の形に替えると landslide-unit の試験は全部緑。T15 を替えた写しの reconstruction 全体（tsconfig.json と tsconfig.test.json の tsc は rc 0、chrome-eew の tsc は回していない）: 1,447 件緑・0 件赤、file 6 本（eew-e01 の 5 本と seismic-host）は chrome-eew の dist が無く読み込めなかった（写しで tsc の手順を 1 つ省いたため） (4) 他の契約の «» が引く landslide-unit.ts の行のうち、実装が中身を変える見込みは :654（raisedRank の署名）・:671（recoveryNotices の署名）で、どちらも P3-WEATHER-NOTICE-001 が引く。:333（段の外し）・:340（取消の置換、P3-OPERATION-CAPACITY-001 が引く）・:357 は変えない。p3-landslide-unit.types.ts と landslide-unit.test.ts を引く «» は 0 件 (5) 原文の改訂を書く行（p3-recovery.json:47・:391、p3-weather-notice.json:400・:686、p3-persist-premises.md:373）はどれも他の契約に引かれていない。同じ趣旨の p3-recovery.json:1104（P3-REC-AC10、3 件）・p3-persist-premises.md:138（1 件）・spec:3054（H27、6 件）は引かれているので改訂しない（AC10 は比べ方を P3-REC-D-RAISE-BASIS に預けており、spec:3054 は比べ先を C16 で決めると書くだけで比べ先そのものを書いていない）"
+        "source": "2026-11-10 起草（~/dev/fleq-ul-draft の .dr-tmp に base の木を CoW で写し、試験と直しを当てて回した）",
+        "closed": "(1) 写しに P3-UL2-T01・T02 の形の試験を recovery-adopt.test.ts の末尾に足し（harness の setup・startup、本文の取得を Promise で止め、その間に live の VPWW56 を submit、本文を返して採用）、直す前に回すと T01 は赤: 採用の後の U-L の intents は recovered の info の desktop・sound の 2 件で、live の 23:01 の L5（B）の critical の pending 2 件を同じ subject・channel の置換で外していた（二重に鳴るうえに L5 の音が info に替わる）。T02 は直す前も緑 (2) 直し（unit の行で at.live を渡す、recoveryNotices の 1 つ目の名を live に、JSDoc の 2 行。行の数は同じ）の後、tsconfig.json と tsconfig.test.json の tsc は rc 0、landslide-unit・weather-notice・recovery・execution-split の試験は 220 件緑・0 件赤（T01・T02 を含む。P3-REC-T15 は変えずに緑） (3) 他の契約の «» が引く landslide-unit.ts の行のうち、直しが中身を変えるのは :671（recoveryNotices の署名、P3-WEATHER-NOTICE-001 が引く）だけ。:646・:666・:667・:672 は引かれていない (4) 原文の改訂を書く行（p3-recovery.json:47・:391、p3-weather-notice.json:400・:686、p3-persist-premises.md:373）はどれも他の契約に引かれていない。同じ趣旨の p3-recovery.json:1104（P3-REC-AC10、3 件）・p3-persist-premises.md:138（1 件）・spec:3054（H27、6 件）は引かれているので改訂しない（AC10 は比べ方を P3-REC-D-RAISE-BASIS に預け、spec:3054 は比べ先を C16 で決めると書くだけ）"
+      },
+      {
+        "id": "Q-UL2-RAISE-BASIS",
+        "status": "closed",
+        "source": "2026-11-10 起草（統合担当）",
+        "closed": "P3-REC-D-RAISE-BASIS=A の読み替えになる。A は「取り直しを始めた時点で画面に出ていた状態と比べる」で、本契約は U-L について時点を「採用の直前に画面に出ている状態（live）」に移す。候補の間に live が動かなければ同じ state なので、A の ifNotChosen の場面（注意報が画面に出ていたが音が鳴らなかったとき、取り直しで同じ注意報なら鳴らさない）はそのまま成り立つ。B（最後に通知した段と比べる）には寄せていない（比べるのは画面の state で、通知の記録ではない）。原文の改訂 (1)・(5) に書く"
+      },
+      {
+        "id": "Q-UL2-EXISTING-TESTS",
+        "status": "closed",
+        "source": "2026-11-10 起草（統合担当）",
+        "closed": "pending の段の外し（landslide-unit.ts:333）・取消と期限の置換（:340）・回収（:357）は変えないので、r3 の 2 つの欠け（S3・S4）は生まれず、試験を足さない。今の振る舞いは P3-WN-T08（landslide-unit.test.ts、全解除・引下げ・取り直しの shadow の pending）・P3-C10-T10（取り直しの入口）・recovery-projection.test.ts:226 の U-L の行（live が動かない取り直しで H27 の info が desktop・sound に 1 件ずつ）が留める。live が動かない場合の「正しい引上げは鳴る」はこの行と P3-REC-T15 が見ており、T02 は live が動いて当て直す場合を足す"
       }
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "運用区分の扱いを変えない。最低は subject（運用区分を含む官署）ごと、H27 は今どおり operation ごとに 1 組"
+      "rule": "運用区分の扱いを変えない。比べは subject（運用区分を含む官署）ごと、H27 は今どおり operation ごとに 1 組"
     }
   },
   "contract": {
     "contractId": "P3-UNIT-L-002",
     "mode": "implementation",
-    "objective": "U-L の取り直しの H27 の比べ先を改める（作者裁定 2026-11-10）。(1) 取り直しの候補の間、官署ごとに区域の段の最低を持ち、採用で最低より上がった L4・L5 の区域があれば info を 1 回鳴らす（取り直しの中で L5→L4→L5 と動いた官署の通知が作られない欠けを直す） (2) 最低の無い官署は採用の直前の live と比べ、当て直しで同じ報を受け直した官署が info をもう一度鳴らす今のコードの欠けを直す。pending の段の外しと取消の置換は変えない",
+    "objective": "U-L の取り直しの H27 の比べの基準を、取り直しを始めた時の state（open）から採用の直前の live（at.live）に改める（作者裁定 2026-11-10）。取り直しの間に live で知らせた L5 を、当て直しで受け直した同じ報が info でもう一度鳴らし、live の critical の pending まで置き換える今のコードの欠けを直す。切断中の L5→L4→L5 は残存として記録する（直さない）",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -106,7 +97,6 @@
       "docs/specs/reconstruction-p0-contracts.md",
       "reconstruction/contracts/p3-landslide-unit-002.json",
       "reconstruction/contracts/p3-landslide-unit.json",
-      "reconstruction/contracts/p3-landslide-unit.types.ts",
       "reconstruction/contracts/p3-weather-notice.json",
       "reconstruction/contracts/p3-recovery.json",
       "reconstruction/contracts/p3-unit-table.types.ts",
@@ -120,11 +110,8 @@
       "test/fixtures/**"
     ],
     "allowedPaths": [
-      "reconstruction/contracts/p3-landslide-unit.types.ts（LandslideUnitState に省略可能な欄 recoveryFloors と、その上の 1 行のコメントだけ。行を足してよい）",
-      "reconstruction/src/units/landslide/landslide-unit.ts（reduceLandslideUnit の戻りの state の組み方とそのコメント、unit の行の recoveryNotices、raisedRank とその上のコメント、recoveryNotices とその上の JSDoc。helper は recoveryChanges の後・export の前に足してよい。:1〜:697 の行の数を変えない。levelFor・receiveCandidate（段の外しと取消の置換を含む）・collect・codec は変えない）",
-      "reconstruction/test/landslide-unit/landslide-unit.test.ts（P3-REC-T15 の :501 の 1 つ目の組を Q-UL2-T15 の形に替える〔行の数を変えない〕。末尾に試験を足す）",
-      "reconstruction/test/landslide-unit/landslide-recovery.test.ts（新しい file。owner の採用の経路を通す試験）",
-      "reconstruction/test/recovery/recovery-adopt.test.ts（末尾に試験を足すだけ。既存の行は変えない）"
+      "reconstruction/src/units/landslide/landslide-unit.ts（unit の行の recoveryNotices〔at.live を渡す〕、recoveryNotices の 1 つ目の引数の名とそれを読む行、その上の JSDoc の open の字だけ。行の数を変えない）",
+      "reconstruction/test/recovery/recovery-adopt.test.ts（末尾に試験と、その試験だけが使う helper・import を足す。既存の行は変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -151,14 +138,13 @@
       "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitState"
     ],
     "publicFunctions": [
-      "口の数は変えない（reduceLandslideUnit・landslideUnitCodec・recoveryNotices・recoveryChanges・toLandslideView）。export の recoveryNotices の 1 つ目の引数は open から採用の直前の live に読み替える（unit の行は at.live を渡す）"
+      "口は変えない（型も引数の数も同じ）。export の recoveryNotices の 1 つ目の引数は open から採用の直前の live に読み替え、unit の行は at.live を渡す（U-W の行が at.live を渡すのと同じ口、weather-current-unit.ts:836）"
     ],
     "allowedDependencies": [
       "既存の依存だけ"
     ],
     "fixtureIds": [
-      "test__fixtures__15_16_01_241031_VPWW56",
-      "test__fixtures__synthetic_VPWW56_cancel"
+      "test__fixtures__15_16_01_241031_VPWW56"
     ],
     "sequenceIds": [
       "O01",
@@ -172,10 +158,10 @@
     "resourceLimits": [
       {
         "id": "P3-UL2-RES-01",
-        "target": "受信・期限の step 1 回と採用 1 回の計算量",
-        "limit": "step 1 回は、その step で変わった官署ごとの区域の数の和＋最低の表の官署の数（Map を写す分）。採用 1 回は、候補の官署の数＋その区域の数の和（今の recoveryNotices と同じ）。全官署×全官署の走査と、state・intent 全体の直列化を足さない",
+        "target": "採用 1 回の計算量",
+        "limit": "今の recoveryNotices と同じ（live の記録の Map を 1 回作り、候補の官署の数＋その区域の数の和）",
         "unit": "操作",
-        "scope": "最低を進めるのは reduceLandslideUnit がまとめた変化（merged）の官署だけ。最低の表の官署の数は、shadow で変わった官署の数（記録の上限 128 と、退去・回収された官署の分）を超えない。live の step（欄の無い state への origin=live の入力）は欄を見るだけで何も足さない。P3-C10-T05 など既存の「受信 1 回は記録単位の加算だけ」の試験が通ること",
+        "scope": "比べる state を open から live に替えるだけで、走査も直列化も足さない",
         "source": "AGENTS.md の受信経路の計算量"
       }
     ],
@@ -187,62 +173,50 @@
       "なし（保存の形と版 p3-landslide-unit-v8 を変えない）"
     ],
     "nonPersistedFields": [
-      "U-L の LandslideUnitState.recoveryFloors（取り直しの候補の間だけ持つ官署 → 区域 → 段の最低。codec の encode は書かない）"
+      "なし"
     ],
     "outOfScope": [
-      "pending の段の外し（landslide-unit.ts:333）と取消・期限の採用の置換（:340）。r3 の 2 つの欠けを生まないため（P3-UL2-AC03）",
-      "取り直しの本文の選び方（recovery.ts の bodiesFor・bodyKey、官署ごとに最新の 1 件）。到達の事実は Q-UL2-REACH、扱いは P3-UL2-D-REACH",
-      "取り直しの中で外れた pending・作られなかった通知の欠けを notificationCapacityEvicted などに数えること（P3-WEATHER-NOTICE-001 の Q-WN-DELIVERY の残存 (c) のまま）",
-      "取り直しの取消の通知（取り直しは今どおり intent を作らない、P3-REC-D-UNIT-ENTRANCE=A）",
-      "ほかの unit の H27 の比べ先（U-T・U-N・U-V・U-R は open、U-W は open と at.live の両方）。同じ形の欠け・二重鳴りがあるかは調べていない",
-      "H27 の段・選び方・payload・channel（P3-WN-AC08 の (6) のまま）",
+      "切断中の同じ官署の L5→L4→L5（一覧の頭に官署が無く両方が候補に当たる場合を含む）。作者の裁定で残存（Q-UL2-RESIDUAL）",
+      "取り直しの本文の選び方（recovery.ts の bodiesFor・bodyKey、官署ごとに最新の 1 件）",
+      "pending の段の外し（landslide-unit.ts:333）・取消と期限の置換（:340）・回収（:357）。r3 の 2 つの欠けを生まないため変えない（Q-UL2-EXISTING-TESTS）",
+      "H27 の段・選び方・印の除外・payload・channel（P3-WN-AC08 の (6)・P3-WN-D-H27-L4=A のまま）",
+      "取り直しの中で外れた pending・作られなかった通知の欠けを notificationCapacityEvicted などに数えること（Q-WN-DELIVERY の残存 (c) のまま）",
+      "ほかの unit の H27 の比べ先（U-T・U-N・U-V・U-R は open、U-W は open と at.live の両方）。同じ形の二重鳴りがあるかは調べていない",
       "spec 本体の編集"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-UL2-AC01",
-        "requirement": "段の最低（P3-UL2-D-GAMMA=A・P3-UL2-D-FLOOR-STEPS=A・P3-UL2-D-LEVEL=A）: (1) LandslideUnitState に省略可能な欄 recoveryFloors（subject → 区域の code → 段）を持つ。段は levelFor と同じ rankOf (2) reduceLandslideUnit は、入力が origin=recovery の receive か、渡された state がすでに欄を持つとき、その step の正味の変化（同じ subject の最初の before と最後の after）の官署ごとに最低を進める: 前の最低（無ければ before の見える記録の区域の段）と、after の見える記録の区域の段の両方にある区域を min で残し、after に無い区域は外す。変化の無い step は欄も state も同じ参照のまま返す (3) recoveryNotices(live, candidate, clock) は、候補の見える記録ごとに、欄にその官署があれば最低と、無ければ live の同じ官署の記録の区域の段と比べ（P3-UL2-AC02）、上がった L4・L5 の区域の段で今どおり選ぶ（operation ごとに 1 組、info、normal は desktop＋sound、印の除外は今のまま） (4) 場面 S1: 2020-06-22 23:00:00 に稚内（宗谷地方）で L5 の報 A を live で受け、critical の desktop＋sound ができる。sound は配られ、desktop は配送に失敗して再試行待ち（期限 23:03:00）。23:01 の L4（B）と 23:02 の L5（C）を切断で取り逃し、23:02:30 の取り直しの候補に B・C の順で当たる。今は B の段の外しで A の desktop が外れ、C は取り直しなので通知を作らず、採用で open=L5・C=L5 なので H27 も出ず、C のカードだけが出る。直した後は、採用の step で「宗谷地方土砂災害警報・注意報（23:02 発表）」の info が desktop と sound に 1 件ずつでき、critical は残らない (5) S1late（採用 23:04:00、A の desktop は期限切れ）・S1heard（A の通知は配り終えて pending 無し）・S2（候補に A の取消、続けて 23:02 の新しい L5 D）も info の desktop＋sound の 1 組だけ",
+        "requirement": "H27 の比べの基準（P3-UL2-D-REACH=B・P3-UL2-D-LIVE-ONLY=A）: 採用の step で、候補の見える記録（採用の時点で期限前）ごとに、採用の直前の live（at.live）の同じ subject の記録と区域の段を比べ、上がった L4・L5 の区域があれば今どおり選ぶ（operation ごとに段の最も高い 1 件、通知済みの版〔K8 の印〕は除く、info、normal は desktop＋sound）。open は比べに使わない。場面ごとの基準: (1) 候補の間に live が動かない: owner-runtime の sameBase が通り、live の U-L の state は open と同じ欄を持つので、結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live で L5 を知らせた（配った・配る途中の pending・容量で落とした のどれでも）官署に、取り直しの本文がその報と同じか古ければ duplicate か stale で候補の記録は live と同じになり、上がらないので作らない (3) live が open より上げて L5 を知らせた後、live でまた L4 に下がり、取り直しの本文がその L4 の報より新しい L5 なら、live=L4 と比べて info を作る。L4 の報より古い本文は stale で作らない (4) live で取消を受けて記録が cancelled（見えない）なら、live の記録の段は無いとして比べる（取消より新しい本文の L4・L5 は info、古い本文は stale で作らない） (5) live で期限が来て記録が expired か回収済みなら (4) と同じ (6) live に官署の記録が無い（open にも無い、または live で退去した）なら、候補の L4・L5 の区域は全部上がった扱い（今と同じ） (7) 候補の記録が見えないか期限を過ぎていれば今どおり選ばない",
         "evidenceRefs": [
-          "reconstruction/src/units/landslide/landslide-unit.ts:173 «7083fb2ba7973602»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:333 «b080829dbfe7f323»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:505 «b0fd89ba3da2f689»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:520 «f02fc080d0e3651a»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:654 «f23946afe530ea53»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:646 «3904016492697d0a»",
           "reconstruction/src/units/landslide/landslide-unit.ts:671 «7edc4188cf34004e»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:676 «3856f21e6da02e27»",
-          "reconstruction/contracts/p3-recovery.json:37 «068c7a8178ee75e7»",
-          "reconstruction/contracts/p3-weather-notice.json:400 «ba6c0391548752f7»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:672 «fea261c738b1cc8f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:675 «1276c38ca832db78»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:677 «d01743aa0609acec»",
+          "reconstruction/src/runtime/owner-runtime.ts:663 «01831e52d61d5093»",
+          "reconstruction/src/runtime/owner-runtime.ts:728 «eb52ec474d2a07e2»",
+          "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
+          "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:836 «fbd4b4a95ca7460b»",
+          "reconstruction/contracts/p3-recovery.json:37 «068c7a8178ee75e7»"
         ]
       },
       {
         "id": "P3-UL2-AC02",
-        "requirement": "最低の無い官署の比べ先（ヘルツの補修）: (1) unit の行の recoveryNotices は at.live（採用の直前の live）を 1 つ目に渡す（open は使わない。U-W の行が at.live を渡す先例と同じ口） (2) 場面（ヘルツの列）: 23:00 に稚内で L4 の報 A（live）を受けた後に取り直しが始まる（open=A/L4）。候補が本文を取る間に、live で 23:01 の L5（B、critical を配る）と 23:02 の L5（C、B と同じ段なので通知なし、印は B の版のまま）を受ける。採用のとき基点が変わったので、owner-host が候補の本文 C を最新の live に当て直し、C は duplicate で記録が変わらない。今は open=L4 と C=L5 を比べて info の desktop＋sound がもう一度できる（B の critical の後に、同じ L5 で 2 回目）。直した後は C の官署に最低が無く、live の C=L5 と比べて上がらないので作らない",
+        "requirement": "二重鳴りを直す（ヘルツの列）: 2026-10-28 11:57 に稚内で L4 の報 A を live で受け（warning の desktop）、取り直しが開く（open=A/L4）。一覧は 11:59 の L5 の報 C だけを返し、本文を取る間に live で 11:58 の L5（B、critical の desktop＋sound）と C（B と同じ段なので通知なし、印は B の版のまま）を受ける。採用のとき基点が変わったので候補の本文 C を最新の live に当て直し、C は duplicate。今は open=L4 と C=L5 を比べて info の desktop＋sound を作り、B の critical の pending 2 件を同じ subject・channel の置換で外す。直した後は H27 を作らず、B の critical の pending 2 件が残る",
         "evidenceRefs": [
           "reconstruction/src/units/landslide/landslide-unit.ts:646 «3904016492697d0a»",
-          "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
           "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
-          "reconstruction/src/runtime/owner-runtime.ts:728 «eb52ec474d2a07e2»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:836 «fbd4b4a95ca7460b»"
+          "reconstruction/contracts/p3-weather-notice.json:400 «ba6c0391548752f7»"
         ]
       },
       {
         "id": "P3-UL2-AC03",
-        "requirement": "r3 の欠けを生まない（pending に触らない）: (1) 段の外し（:333）・取消と期限の採用の置換（:340）・回収（:357）は今のまま (2) 場面 S3: 17:00 に稚内の L4 の記録（配り終え）。23:30 の取り直し #1 が 17:20 の L5 を拾い H27 の info（期限 23:33）ができて採用される。23:31 の取り直し #2 が 17:20 の報の取消を拾い、取消の記録は 17:20＋6 時間を過ぎていて同じ reduce で回収される。採用の後に pending は無い（取り消された報の info は出ない） (3) 場面 S4: 23:00 に L5、23:01:20 に live で取消（取消の desktop＋sound が再試行待ち）、23:01:50 の取り直しが 23:01:30 の L3 を拾う。採用の後に pending は無い（古い取消の通知と音は出ない）。23:01:30 の報が L5 なら info の desktop＋sound の 1 組だけ",
+        "requirement": "正しい引上げは鳴る（基準を替えても鳴らなくならない）: 稚内で 11:57 の L4 の報 A を live で受けた後に取り直しが開き（open=L4）、一覧が 11:59 の L5 の報 C を返す。本文を取る間に live で 11:58 の L4 の報 D（A と同じ段、通知なし）を受け、基点が変わったので C を最新の live に当て直す。採用で live=D/L4 と C=L5 を比べ、「宗谷地方土砂災害警報・注意報（…発表）」の info を desktop と sound に 1 件ずつ作る（今のコードでも同じ）。live が動かない場合（open=live=L4、取り直しで L5）は既存の recovery-projection.test.ts:226 の U-L の行が留める",
         "evidenceRefs": [
-          "reconstruction/src/units/landslide/landslide-unit.ts:333 «b080829dbfe7f323»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:340 «ce29a5800c15e237»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:357 «9ee851f159aa71c4»"
-        ]
-      },
-      {
-        "id": "P3-UL2-AC04",
-        "requirement": "欄の寿命（P3-UL2-D-FLOOR-PLACE=A）: (1) 欄を持つのは取り直しの候補（shadow）だけ。origin=live の入力は欄の無い state に欄を足さない (2) codec の encode は欄を書かない（保存の形と版は変えない、:630 の encode のまま）。欄を持つ state の encode→decode は欄の無い state に戻る (3) recoveryNotices は欄を持つ candidate を受けたら、H27 を作らないときも、欄を鍵ごと消した新しい state を返す（undefined を入れず、live の U-L の state に欄の鍵を残さない）。欄が無く intents も変わらなければ candidate をそのまま返す（今のまま）。adoptRecoveryOwner の後の live の U-L の state に recoveryFloors の鍵が無い (4) 候補の破棄（discard・停止・generationConflict）は shadow ごと捨てるので live に欄は残らない（owner-host.ts の今の動き、変えない）。当て直しは最新の live（欄無し）から shadow を作り直すので、前の shadow の最低を持ち越さない (5) origin=recovery の本文で記録が変わらない受信（duplicate・stale・版の決まらない noChange）は、欄を足さず同じ state の参照を返す（P3-C10-T10 の `unsure.state === state` のまま）",
-        "evidenceRefs": [
-          "reconstruction/src/units/landslide/landslide-unit.ts:630 «82776f4eaa666a13»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:281 «34b730bd22154525»",
-          "reconstruction/src/runtime/owner-runtime.ts:697 «76715ea9f77277ba»",
-          "reconstruction/src/runtime/owner-host.ts:222 «92e243f7072eb483»",
-          "reconstruction/test/landslide-unit/landslide-unit.test.ts:489 «39bc14077f812d55»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:677 «d01743aa0609acec»",
+          "reconstruction/test/recovery/recovery-projection.test.ts:226 «8daf82671a198252»"
         ]
       }
     ],
@@ -251,41 +225,17 @@
         "testId": "P3-UL2-T01",
         "purpose": "regression",
         "referenceIds": [
-          "P3-UL2-AC01"
+          "P3-UL2-AC02"
         ],
-        "behavior": "実不具合の再発防止（P3-WEATHER-NOTICE-001 の Q-WN-DELIVERY の残存、S1）。landslide-recovery.test.ts で、owner-runtime の restoreOwner・receiveOwner（live の A、候補は origin=recovery の completion で B・C）・adoptRecoveryOwner（owner-host.ts の採用が呼ぶのと同じ関数、open と live は A の後の state）を通す。A の pending は配らずに残す（段の外しと取消の置換は attempts を読まないので、配送の失敗を当てなくても同じ）。採用の後の U-L の intents は recovered の info の desktop・sound の 2 件だけで、critical が無い。同じ官署の B・C を 2 本当てるのは、一覧の頭に EditorialOffice が無い場面（Q-UL2-REACH）に当たると試験のコメントに 1 行書く。直す前に落ちることを確かめる"
+        "behavior": "実不具合の再発防止（ヘルツの二重鳴り）。recovery-adopt.test.ts の末尾に、:197 の「a live VTSE41 during the candidate changes the base」と同じ形で owner-host の当て直しを通す: setup()、live の VPWW56 を envelope と submit で入れる helper、一覧の頭は unit U-L・headType VPWW56・EditorialOffice「稚内地方気象台」、本文の取得を Promise で止める。live で A/L4（T0−3 分）→ startup（本文 C/L5、T0−1 分）→ live で B/L5（T0−2 分）と C → 本文を返す → 採用。U-L の progress が recovered、U-L の intents が critical の desktop・sound の 2 件だけで recovered の payload が無い。本文は 15_16_01_241031_VPWW56 の ReportDateTime と稚内の区域の Kind を替えた写し（landslide-fixture の SOYA・areas・retime。fixture の file は変えない）。直す前に落ちることを確かめる（今は recovered の info 2 件だけになる）"
       },
       {
         "testId": "P3-UL2-T02",
         "purpose": "acceptance",
         "referenceIds": [
-          "P3-UL2-AC01"
-        ],
-        "behavior": "受入条件 (5)。T01 と同じ経路で、S1late（採用の時計 23:04:00）・S1heard（A の pending を配り終えた live）・S2（候補に A の取消〔synthetic_VPWW56_cancel を A の時刻に〕、続けて 23:02 の L5）の 3 列を表で回し、どれも recovered の info の desktop＋sound の 1 組だけ"
-      },
-      {
-        "testId": "P3-UL2-T03",
-        "purpose": "contractBoundary",
-        "referenceIds": [
           "P3-UL2-AC03"
         ],
-        "behavior": "契約境界（pending に触らない）。T01 と同じ経路で S3（2 回の取り直し）と S4（L3 と L5 の 2 列）を回す。S3 の #2 と S4 の L3 は採用の後の pending が空、S4 の L5 は info の 1 組だけ"
-      },
-      {
-        "testId": "P3-UL2-T04",
-        "purpose": "regression",
-        "referenceIds": [
-          "P3-UL2-AC02"
-        ],
-        "behavior": "実不具合の再発防止（ヘルツの二重鳴り、今のコードで起きる）。recovery-adopt.test.ts の「a live VTSE41 during the candidate changes the base」（:197）の型で、owner-host の当て直しを通す: live で A/L4 → 取り直しを開き本文 C の取得を止める → live で B/L5・C/L5 → 本文を返して採用。一覧の頭は EditorialOffice 付き（鍵で絞られて C だけ）。U-L は weather の区分で一覧を答える。採用の後の U-L の intents に payload.recovered の info が無い（今は desktop・sound の 2 件）。直す前に落ちることを確かめる"
-      },
-      {
-        "testId": "P3-UL2-T05",
-        "purpose": "contractBoundary",
-        "referenceIds": [
-          "P3-UL2-AC04"
-        ],
-        "behavior": "契約境界（欄の寿命）。landslide-unit.test.ts の末尾に 1 本: origin=recovery の受信で欄ができること、その state の encode に欄の鍵が無く encode→decode で欄の無い state に戻ること、recoveryNotices が H27 を作らない入力でも欄を鍵ごと消して返すこと（'recoveryFloors' in 結果 が false）、欄の無い state への origin=live の受信が欄を足さないこと。採用の後の live に欄が無いことは T01 の中で 1 行見る"
+        "behavior": "受入条件（基準を替えても正しい引上げは鳴る）。T01 と同じ形で、live で A/L4 → startup（本文 C/L5）→ live で D/L4（T0−2 分）→ 本文を返す → 採用。U-L の intents のうち recovered の payload を持つものが info の desktop・sound の 1 件ずつ"
       }
     ],
     "requiredCommands": [
@@ -308,7 +258,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。landslide-unit.ts の行を変えた後に割れる «» は artifactRequirements の見込みの 2 行だけであること"
+        "purpose": "全契約。landslide-unit.ts を変えた後に割れる «» は artifactRequirements の見込みの 1 行だけであること"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -355,27 +305,13 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "足した仕組みごとに「無いと何が壊れるか」を 1 行（recoveryFloors: 無いと取り直しの中で L4 を挟んだ官署の L5 が鳴らない。at.live の比べ: 無いと当て直しで受け直した官署の L5 が 2 回鳴る。欄を鍵ごと消す: 無いと live に欄が残り、次の取り直しの最初の受信が古い最低を読む）",
-      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行。T01 と T04 は直す前に落ちたことを書く",
-      "既存の試験の期待で変えてよいのは P3-REC-T15（landslide-unit.test.ts:501）の 1 つ目の組だけ（Q-UL2-T15 の形。行の数を変えない）。ほかの期待が変わるなら止めて報告する",
-      "landslide-unit.ts の :1〜:697 の行の数を変えない。実装で割れる見込みの他の契約の «»（統合担当が配送で付け直す）: landslide-unit.ts:654（raisedRank の署名）・:671（recoveryNotices の署名。1 つ目の引数の名を live に）、どちらも P3-WEATHER-NOTICE-001。これ以外が割れたら止めて報告する",
-      "原文の改訂（統合担当が配送で、行の中に書き足す。どの行も他の契約に引かれていない、Q-UL2-DRAFT-FACTS (5)）: (1) p3-recovery.json:47（P3-REC-D-RAISE-BASIS の ruling）の末尾に「。U-L は 2026-11-10 の作者裁定で読み替えた（P3-UNIT-L-002）: 取り直しの中で記録が変わった官署は、取り直しの間の区域の段の最低と比べ、変わらなかった官署は採用の直前の live と比べる」 (2) p3-recovery.json:391（P3-REC-D-N2-RAISE-4B の ruling。:386 の A の本文は書き換えない）の末尾に「。U-L の比べ先は P3-UNIT-L-002（取り直しの間の段の最低か、採用の直前の live）」 (3) p3-weather-notice.json:400（Q-WN-DELIVERY の remaining）の「（C22 か後の契約で）」の後に「→ P3-UNIT-L-002 で直した（作者裁定 2026-11-10。取り直しの間の段の最低と比べ、最低の無い官署は at.live と比べる）」 (4) p3-weather-notice.json:686（P3-WN-AC08）の (6) の末尾の「保存の形は変えない（p3-landslide-unit-v8 のまま）」の後に「。比べ先は P3-UNIT-L-002 で、open から取り直しの間の段の最低（無ければ採用の直前の live）に改めた」 (5) p3-persist-premises.md:373 の末尾に「（U-L は 2026-11-10 の作者裁定で、取り直しの間の段の最低か採用の直前の live と比べる。P3-UNIT-L-002）」。改訂した 3 file のうち 2 つの契約（p3-recovery.json・p3-weather-notice.json）の sha256 を作り直す。p3-recovery.json:1104（AC10）・p3-persist-premises.md:138・spec:3054 は引かれているので改訂しない",
+      "足した仕組みは無い（比べる state を替えるだけ）。替えないと何が壊れるかを 1 行（当て直しで受け直した L5 が info でもう一度鳴り、live の critical の pending を置き換える）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行。T01 は直す前に落ちたことを書く",
+      "既存の試験の期待は変えない（P3-REC-T15 を含む）。変わるなら止めて報告する",
+      "landslide-unit.ts の行の数を変えない。実装で割れる見込みの他の契約の «»（統合担当が配送で付け直す）: landslide-unit.ts:671（recoveryNotices の署名、1 つ目の引数の名を live に。P3-WEATHER-NOTICE-001）。これ以外が割れたら止めて報告する",
+      "原文の改訂（統合担当が配送で、行の中に書き足す。どの行も他の契約に引かれていない、Q-UL2-DRAFT-FACTS (4)）: (1) p3-recovery.json:47（P3-REC-D-RAISE-BASIS の ruling）の末尾に「。U-L は 2026-11-10 の作者裁定（P3-UNIT-L-002）で、比べる状態の時点を「取り直しを始めた時点」から「採用の直前に画面に出ている状態（live）」に読み替えた。候補の間に live が動かなければ同じ state で、動いたときは当て直した候補と live を比べ、取り直しの間に live で知らせた引上げを二度鳴らさない」 (2) p3-recovery.json:391（P3-REC-D-N2-RAISE-4B の ruling。:386 の A の本文は書き換えない）の末尾に「。U-L の比べの基準は採用の直前の live（P3-UNIT-L-002）」 (3) p3-weather-notice.json:400（Q-WN-DELIVERY の remaining）の「（C22 か後の契約で）」の後に「→ 作者裁定（2026-11-10、P3-UNIT-L-002 の P3-UL2-D-REACH=B）で残存として確定: 取り直しは官署ごとに最新 1 件しか取らないので、切断中の L5→L4→L5 は鳴らない（一覧の頭に官署が無く両方が候補に当たるときも含めて残す）。当て直しで受け直した L5 が info でもう一度鳴る欠けは P3-UNIT-L-002 で直した（比べの基準を at.live に）」 (4) p3-weather-notice.json:686（P3-WN-AC08）の (6) の末尾の「保存の形は変えない（p3-landslide-unit-v8 のまま）」の後に「。比べの基準は P3-UNIT-L-002 で取り直しを始めた時の state から採用の直前の live（at.live）に改めた」 (5) p3-persist-premises.md:373 の末尾に「（U-L は 2026-11-10 の作者裁定で、採用の直前に画面に出ている状態と比べる。P3-UNIT-L-002）」。改訂した 2 つの契約（p3-recovery.json・p3-weather-notice.json）の sha256 を作り直す。p3-recovery.json:1104（AC10）・p3-persist-premises.md:138・spec:3054 は引かれているので改訂しない",
       "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の U-L の slot は消さない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-UL2-REACH-RULING",
-        "owner": "user",
-        "blocks": [
-          "baseOid の割当",
-          "P3-UL2-AC01・AC03・AC04 の範囲（B なら recoveryFloors と T01〜T03・T05 を外し、AC02・T04 だけが残る）"
-        ],
-        "resolveBy": "作者の裁定（P3-UL2-D-REACH）",
-        "requiredEvidence": [
-          "Q-UL2-REACH の到達の事実（同じ官署の 2 本が 1 つの shadow に並ぶのは一覧の頭に EditorialOffice が無いときだけ）を作者に示した記録",
-          "A か B の裁定"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
