@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "37421c7429984f4296cfa037efbb320e2b1e953904f7f8765d694829a5e77519",
+    "sha256": "cdd8e49f133a3a9be99b1b3a21654602313fafa836fb1adc2b7a1bff717fa8c7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -45,6 +45,13 @@
         "status": "closed",
         "source": "Q-THM-SHOW の裁定の後、発注前の点検で baseOid を割り当てる",
         "closed": "発注前点検（統合担当、2026-11-08 午後）: 起草の base 4241a02d から main まで tsunami-unit.ts と units・domains・runtime・contracts-revision の差は 0、hold の行と «» は起草のまま。作者の分岐は全部確定、本契約を引く他の契約は 0 件。baseOid を 1d5dcac4 に割り当てた",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-THM-FAMILY",
+        "status": "closed",
+        "source": "U-T のほかの unit の hold（同じ形の 6 unit）",
+        "closed": "P3-HOLD-MARK-UNITS-001 で U-R・U-L・U-B・U-M・U-Y・U-N の 6 unit を 1 本で直した（印を付けた記録の [before, after] を changes に積む形）。U-Q の holdVersion と U-E・U-F・U-W の印は記録の欄でないので別の扱いのまま",
         "remaining": "なし"
       }
     ],
@@ -290,19 +297,6 @@
       "試験は XDG_CONFIG_HOME を一時のディレクトリへ向けて回し、作者の設定に書かない"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-THM-FAMILY",
-        "owner": "integrator",
-        "blocks": [
-          "本契約の閉鎖の記録"
-        ],
-        "resolveBy": "本契約の配送まで",
-        "requiredEvidence": [
-          "推奨: 本契約の発注は止めず、同じ形の 6 unit を別の 1 本でまとめて閉じる",
-          "同じ形（印を state に入れ、changes か表示差分を積まない）: flood-unit.ts・landslide-unit.ts・briefing-unit.ts・local-bulletins-unit.ts・typhoon-unit.ts の held の分岐と nankai-unit.ts の holdState。view は shown か MarkViewed の型で印を通す",
-          "別の扱い: U-Q の holdVersion はコメントで意図して積まない。U-E と U-F の印は gate、U-W の印は unconfirmed の一覧で、記録の欄ではない"
-        ]
-      },
       {
         "id": "Q-THM-EXISTING-TESTS",
         "owner": "implementer",
