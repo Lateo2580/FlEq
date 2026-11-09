@@ -333,10 +333,10 @@ function heldDiagnostic(candidate: NankaiCandidate, missing: boolean): Diagnosti
     inputId: candidate.source.inputId, unit: "U-N" };
 }
 // 印を記録に当てる。現況と情報 subject の印は保存するので、保存世代を一度だけ進める（P3-VM-AC04・P3-NS-AC02）。
-function holdState(state: NankaiUnitState, clock: ClockReading, marks: readonly (readonly [subject: string, mark: ReportRef | null])[]): NankaiUnitState {
-  const marked = <T extends Shown>(values: readonly T[]): readonly T[] => marks.reduce((next, [subject, mark]) => {
-    const at = indexOf(next, subject), found = next[at ?? -1];
-    return found == null || mark == null || found.unconfirmed === mark ? next : replaceAt(next, at, { ...found, unconfirmed: mark });
+function holdState(state: NankaiUnitState, clock: ClockReading, marks: readonly (readonly [subject: string, mark: ReportRef | null])[], changes: Change[]): NankaiUnitState {
+  const marked = <T extends Shown>(values: readonly T[]): readonly T[] => marks.reduce((next, [subject, mark]) => { // P3-HMU-AC02 (1): 印を付けた記録ごとに前後を changes へ積む（他の契約が引く戻りの行を変えないため、戻り値でなく引数で返す。P3-HMU-AC04）
+    const at = indexOf(next, subject), found = next[at ?? -1], after = found == null || mark == null || found.unconfirmed === mark ? null : { ...found, unconfirmed: mark };
+    if (after == null) return next; changes.push([found, after]); return replaceAt(next, at, after);
   }, values);
   const currents = marked(state.currents), information = marked(state.information);
   return currents === state.currents && information === state.information ? state : { ...state, currents, information,
@@ -365,15 +365,15 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
     const held = currentVerdict.held, onInfo = currentVerdict === infoVerdict;
     const currentMark = !onInfo ? held?.mark ?? null : held?.mark == null || current == null ? null
       : nextMark(current.unconfirmed ?? null, { ...candidate.source, subject: candidate.currentSubject });
-    const marked = held == null || recovering ? state : holdState(state, clock, [...onInfo ? [[candidate.subject, held.mark] as const] : [],
-      [candidate.currentSubject, currentMark] as const]);
-    return { changes: [], step: { ...idle(marked),
+    const changes: Change[] = [], marked = held == null || recovering ? state : holdState(state, clock, [...onInfo ? [[candidate.subject, held.mark] as const] : [],
+      [candidate.currentSubject, currentMark] as const], changes);
+    return { changes, step: { ...idle(marked),
       decisions: [decision(candidate.currentSubject, currentVerdict, "revisionOnly"), decision(candidate.subject, currentVerdict, "revisionOnly")],
       diagnostics: held == null || recovering ? [] : [heldDiagnostic(candidate, held.missing)] } };
   }
   if (currentVerdict == null && infoVerdict.kind === "unchanged") {
-    const held = infoVerdict.held, marked = held == null || recovering ? state : holdState(state, clock, [[candidate.subject, held.mark]]);
-    return { changes: [], step: { ...idle(marked), decisions: [decision(candidate.subject, infoVerdict, "revisionOnly")],
+    const held = infoVerdict.held, changes: Change[] = [], marked = held == null || recovering ? state : holdState(state, clock, [[candidate.subject, held.mark]], changes);
+    return { changes, step: { ...idle(marked), decisions: [decision(candidate.subject, infoVerdict, "revisionOnly")],
       diagnostics: held == null || recovering ? [] : [heldDiagnostic(candidate, held.missing)] } };
   }
 

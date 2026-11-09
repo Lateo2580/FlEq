@@ -405,7 +405,7 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   // P3-UM-AC04: 通知の判定の比べ。compare・compareKeys は候補の印に書いて記録へ移す。
   const compared = noticeChange(existing, first.record);
   const built = compared.mark == null || compared.mark === markOf(first.record) ? first : lane.build({ ...candidate, unreadable: compared.mark }, now, basis);
-  const unchanged = (reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = [], kept = state): Result => ({ changes: [],
+  const unchanged = (reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = [], kept = state, changes: readonly Change[] = []): Result => ({ changes,
     step: { ...idle(kept), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
   const warn = (missing: boolean): DiagnosticDetails => ({ level: "WARN", component: "localBulletins", inputId: candidate.source.inputId, unit: "U-M",
     reason: missing ? "requiredStructureMissing" : "localBulletinsRevisionConflict" });
@@ -424,9 +424,9 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
     if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
     // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
     if (recovering) return unchanged("noChange");
-    return unchanged("stale", [warn(version.missing)], existing == null || version.mark == null || existing.unconfirmed === version.mark ? state
-      : { ...lane.write(state, values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)),
-        persistence: dirty(state.persistence, clock.monotonicMs) });
+    const change: readonly [T, T] | null = existing == null || version.mark == null || existing.unconfirmed === version.mark ? null : [existing, { ...existing, unconfirmed: version.mark }];
+    return unchanged("stale", [warn(version.missing)], change == null ? state : { ...lane.write(state, values.map((item, position) => position === at ? change[1] : item)),
+        persistence: dirty(state.persistence, clock.monotonicMs) }, change == null ? [] : [change]); // P3-HMU-AC01 (1): 印も表示差分に積む（無いと再起動まで view に出ない）
   }
   const mark = version == null ? existing?.unconfirmed : version.mark;
   const lapsed = pairLate && existing?.effective === "active" && existing.expiryPending === true && built.record.effective === "active"

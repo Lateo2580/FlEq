@@ -279,9 +279,9 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   if (version.kind !== "adopt") {
     // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
     if (version.kind === "held" && recovering) return { changes: [], step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason: "noChange" }] } };
-    const marked = version.kind !== "held" || existing == null || version.mark == null || existing.unconfirmed === version.mark ? state
-      : { ...state, currents: replaceAt(state.currents, index, { ...existing, unconfirmed: version.mark }), persistence: dirty(state.persistence, clock.monotonicMs) };
-    return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: version.kind === "duplicate" ? "duplicate" : "stale" }],
+    const after = version.kind !== "held" || existing == null || version.mark == null || existing.unconfirmed === version.mark ? null : { ...existing, unconfirmed: version.mark };
+    const marked = after == null ? state : { ...state, currents: replaceAt(state.currents, index, after), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return { changes: after == null ? [] : [[existing, after]], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: version.kind === "duplicate" ? "duplicate" : "stale" }], // P3-HMU-AC01 (1)(3): held で印が変わったときだけ表示差分に積む
       diagnostics: version.kind === "held" ? [warn(version.missing)] : [] } };
   }
   // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。

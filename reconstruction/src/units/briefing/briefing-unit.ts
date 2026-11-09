@@ -404,9 +404,9 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
     if (version.kind !== "held") return unchanged(version.kind === "duplicate" ? "duplicate" : "stale");
     // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
     if (recovering) return unchanged("noChange");
-    const marked = found == null || version.mark == null || found.value.unconfirmed === version.mark ? state : { ...state,
-      currents: state.currents.map((item, at) => at === found.at ? { ...item, unconfirmed: version.mark! } : item), persistence: dirty(state.persistence, clock.monotonicMs) };
-    return { changes: [], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } };
+    const after = found == null || version.mark == null || found.value.unconfirmed === version.mark ? null : { ...found.value, unconfirmed: version.mark };
+    const marked = after == null || found == null ? state : { ...state, currents: state.currents.map((item, at) => at === found.at ? after : item), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return { changes: after == null ? [] : [[existing, after]], step: { ...idle(marked), decisions: [{ subject, operation, decision: "unchanged", reason: "stale" }], diagnostics: [warn(version.missing)] } }; // P3-HMU-AC01 (1): 印も表示差分に積む（無いと再起動まで view に出ない）
   }
   if (version.mark != null) next = { ...next, unconfirmed: version.mark };
   // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。

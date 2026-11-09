@@ -338,8 +338,8 @@ const probabilityLane: Lane<Probability, ProbabilityCandidate> = {
   },
 };
 
-const unchangedStep = (state: State, subject: string, operation: Operation, reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = []): Result =>
-  ({ changes: [], step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
+const unchangedStep = (state: State, subject: string, operation: Operation, reason: "duplicate" | "stale" | "noChange", diagnostics: readonly DiagnosticDetails[] = [], changes: readonly Change[] = []): Result =>
+  ({ changes, step: { ...idle(state), decisions: [{ subject, operation, decision: "unchanged", reason }], diagnostics } });
 
 function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>, state: State, candidate: C, clock: ClockReading, basis: WallBasis): Result {
   const now = clock.wallTimeMs, recovering = candidate.source.origin === "recovery";
@@ -361,9 +361,9 @@ function receiveWith<T extends Rec, C extends TyphoonCandidate>(lane: Lane<T, C>
     if (version.kind !== "held") return unchangedStep(state, subject, operation, version.kind === "duplicate" ? "duplicate" : "stale");
     // P3-REC-AC12（C16 発注 4b-1）: 取り直しの版の決まらない本文は印も WARN も置かずに noChange（owner が held と読む、P3-REC-AC05 の (a)）。
     if (recovering) return unchangedStep(state, subject, operation, "noChange");
-    const marked = existing == null || version.mark == null || existing.unconfirmed === version.mark ? state : { ...lane.write(state,
-      values.map((item, position) => position === at ? { ...item, unconfirmed: version.mark } : item)), persistence: dirty(state.persistence, clock.monotonicMs) };
-    return unchangedStep(marked, subject, operation, "stale", [warn(version.missing)]);
+    const change: readonly [T, T] | null = existing == null || version.mark == null || existing.unconfirmed === version.mark ? null : [existing, { ...existing, unconfirmed: version.mark }];
+    const marked = change == null ? state : { ...lane.write(state, values.map((item, position) => position === at ? change[1] : item)), persistence: dirty(state.persistence, clock.monotonicMs) };
+    return unchangedStep(marked, subject, operation, "stale", [warn(version.missing)], change == null ? [] : [change]); // P3-HMU-AC01 (1): 印も表示差分に積む（無いと再起動まで view に出ない）
   }
   const unmarked = version.mark == null ? built.record : { ...built.record, unconfirmed: version.mark };
   // P3-NL-AC02 (2)(4): 通知の印は記録へ引き継ぐ。
