@@ -288,8 +288,14 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
   it("T03 81_02_01 は type ごとに最も重い 2 組（Name と type は電文の字）", () => {
     expect(shortOf(reportOf(TS, "U-F")).risks).toEqual(expected);
   });
-  // 不変条件: 祖先に Addition を持つ Significancy は risks に入らない（U-F は Addition を部分木ごと読み飛ばす）。置き場所は 81_02_01 の最初の Base の中。
-  it("T03 付加事項 Addition の子孫の Significancy は、Addition の置き場所によらず入れない（r0・r1 ヘルツ P2）", () => {
+  // 不変条件: 正規の道 Property/SignificancyPart/Base（/Local）の外の Significancy は risks に入らない（作者の裁定 2026-11-09 夕）。
+  // 置き場所は 81_02_01 の最初の Base の中、WindSpeedPart は最初の Property の中。
+  const inProperty = (inserted: string) => (xml: string): string => {
+    const next = xml.replace("<SignificancyPart>", `${inserted}<SignificancyPart>`);
+    expect(next).not.toBe(xml);
+    return next;
+  };
+  it("T03 正規の道の外の Significancy は、Addition・未知の要素・ほかの Part の下のどれでも入れない（r0〜r2 ヘルツ P2）", () => {
     const placements = [
       ["Base/Addition/Significancy（r0 の再現）", `<Addition>${WIND}</Addition>`],
       ["Base/Addition/Base/Significancy（r0 ヘルツ P2）", `<Addition><Base>${WIND}</Base></Addition>`],
@@ -297,8 +303,13 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
       ["Base/Addition/SignificancyPart/Base/Significancy（r1 ヘルツ P2）", `<Addition><SignificancyPart><Base>${WIND}</Base></SignificancyPart></Addition>`],
       ["Base/Local/Addition/Significancy", `<Local><Addition>${WIND}</Addition></Local>`],
       ["Base/Addition/Addition/Base/Significancy", `<Addition><Addition><Base>${WIND}</Base></Addition></Addition>`],
+      ["Base/Unknown/SignificancyPart/Base/Significancy（r2 ヘルツ P2）", `<Unknown><SignificancyPart><Base>${WIND}</Base></SignificancyPart></Unknown>`],
     ] as const;
     for (const [where, inserted] of placements) expect(shortOf(reportOf(TS, "U-F", inBase(inserted))).risks, where).toEqual(expected);
+    // 契約の制限: SignificancyPart 以外の Part の下は U-F が読んでも採らない。
+    expect(shortOf(reportOf(TS, "U-F", inProperty(`<WindSpeedPart><Base>${WIND}</Base></WindSpeedPart>`))).risks, "Property/WindSpeedPart/Base/Significancy").toEqual(expected);
+    // 対照: 道の上の Base/Local の直下は入る（全部を外して通っていないことの確かめ）。
+    expect(shortOf(reportOf(TS, "U-F", inBase(`<Local>${WIND}</Local>`))).risks).toEqual([{ type: "風危険度", name: "特別警報級", code: "50" }, ...expected]);
   });
   it("T03 81_01_01（Code が 00・01・11 だけ）は空の並び、81_04_01（取消）と VFVO53 は null", () => {
     expect(shortOf(reportOf("81_01_01_260129_VPWP50.xml", "U-F")).risks).toEqual([]);

@@ -110,13 +110,14 @@ type Kind = Readonly<{ name: string | null; code: string | null; status: string 
 // Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
 // typhoon は文書の順で最初の台風呼称（P3-TL9-AC05。同じ辿りの中で覚え、新しい辿りを足さない）。
 // risks は withRisks（取消でない VPWP50）のときだけ作る Significancy の type → 組の表（P3-TL11-AC02 (2)(3)。同じ辿りの中で type ごとに 1 回引く）。
-// 読むのは SignificancyPart/Base と その Local の直下だけ（U-F が予報の値として読む階層）。place はその階層の印で、ほかの要素を通ると消える。
-// excluded は戻らない印で、祖先に付加事項 Addition がある部分木では place を付けない（U-F は Addition を部分木ごと読み飛ばす。r0・r1 ヘルツ P2）。辿り自体は止めない。
+// 読むのは正規の道 Property/SignificancyPart/Base（/Local）の直下の Significancy だけ（作者の裁定 2026-11-09 夕。U-F が予報の値として読む道と同じ）。place は道の上の位置の印。
+// excluded は戻らない印で、Addition か、道に入った後で道の次でない要素（未知の要素を含む）を通った部分木では place を付けない（U-F はそれらを部分木ごと読み飛ばす。r0〜r2 ヘルツ P2）。
+// shortcut: SignificancyPart 以外の Part の下の Significancy は U-F が読んでも採らない（契約の対象は SignificancyPart だけ。repo の VPWP50 の Significancy は全部この道の下）。辿り自体は止めない。
 type Risk = NonNullable<Extract<TerminalReport, { kind: "short" }>["risks"]>[number];
 const RISK_LIMIT = 32;
 function scan(body: XmlElement | null, withRisks = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } {
   const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null };
-  const visit = (node: XmlElement, place: "part" | "base" | "local" | null, excluded: boolean): void => {
+  const visit = (node: XmlElement, place: "property" | "part" | "base" | "local" | null, excluded: boolean): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
     else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
@@ -130,9 +131,10 @@ function scan(body: XmlElement | null, withRisks = false): { target: string | nu
         if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code });
       }
     }
-    const hidden = excluded || name === "Addition";
-    const next = hidden ? null : name === "SignificancyPart" ? "part" : name === "Base" && place === "part" ? "base" : name === "Local" && place === "base" ? "local" : null;
-    for (const child of children(node)) visit(child, next, hidden);
+    const next = place == null ? (name === "Property" ? "property" : null) : place === "property" && name === "SignificancyPart" ? "part"
+      : place === "part" && name === "Base" ? "base" : place === "base" && name === "Local" ? "local" : null;
+    const hidden = excluded || name === "Addition" || (place != null && next == null);
+    for (const child of children(node)) visit(child, hidden ? null : next, hidden);
   };
   if (body != null) visit(body, null, false);
   return found;
