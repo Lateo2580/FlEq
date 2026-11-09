@@ -110,13 +110,13 @@ type Kind = Readonly<{ name: string | null; code: string | null; status: string 
 // Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
 // typhoon は文書の順で最初の台風呼称（P3-TL9-AC05。同じ辿りの中で覚え、新しい辿りを足さない）。
 // risks は withRisks（取消でない VPWP50）のときだけ作る Significancy の type → 組の表（P3-TL11-AC02 (2)(3)。同じ辿りの中で type ごとに 1 回引く）。
-// 読むのは SignificancyPart/Base と その Local の直下だけ（U-F が予報の値として読む階層）。place はその階層の印で、ほかの要素（付加事項 Addition を含む）を通ると消えるので、
-// Addition の子孫の Base・Local の中は読まない（r0 ヘルツ P2）。
+// 読むのは SignificancyPart/Base と その Local の直下だけ（U-F が予報の値として読む階層）。place はその階層の印で、ほかの要素を通ると消える。
+// excluded は戻らない印で、祖先に付加事項 Addition がある部分木では place を付けない（U-F は Addition を部分木ごと読み飛ばす。r0・r1 ヘルツ P2）。辿り自体は止めない。
 type Risk = NonNullable<Extract<TerminalReport, { kind: "short" }>["risks"]>[number];
 const RISK_LIMIT = 32;
 function scan(body: XmlElement | null, withRisks = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } {
   const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null };
-  const visit = (node: XmlElement, place: "part" | "base" | "local" | null): void => {
+  const visit = (node: XmlElement, place: "part" | "base" | "local" | null, excluded: boolean): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
     else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
@@ -130,10 +130,11 @@ function scan(body: XmlElement | null, withRisks = false): { target: string | nu
         if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code });
       }
     }
-    const next = name === "SignificancyPart" ? "part" : name === "Base" && place === "part" ? "base" : name === "Local" && place === "base" ? "local" : null;
-    for (const child of children(node)) visit(child, next);
+    const hidden = excluded || name === "Addition";
+    const next = hidden ? null : name === "SignificancyPart" ? "part" : name === "Base" && place === "part" ? "base" : name === "Local" && place === "base" ? "local" : null;
+    for (const child of children(node)) visit(child, next, hidden);
   };
-  if (body != null) visit(body, null);
+  if (body != null) visit(body, null, false);
   return found;
 }
 // 気象・土砂で今の段に数えない Kind/Status（weather-current-notice.ts の NOT_CURRENT と同じ 2 つ）。

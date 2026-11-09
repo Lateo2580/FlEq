@@ -288,10 +288,17 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
   it("T03 81_02_01 は type ごとに最も重い 2 組（Name と type は電文の字）", () => {
     expect(shortOf(reportOf(TS, "U-F")).risks).toEqual(expected);
   });
-  it("T03 付加事項 Addition の中の Significancy は、直下でも Addition/Base や Addition/Base/Local の中でも入れない（r0 ヘルツ P2）", () => {
-    expect(shortOf(reportOf(TS, "U-F", inBase(`<Addition>${WIND}</Addition>`))).risks).toEqual(expected);
-    expect(shortOf(reportOf(TS, "U-F", inBase(`<Addition><Base>${WIND}</Base></Addition>`))).risks).toEqual(expected);
-    expect(shortOf(reportOf(TS, "U-F", inBase(`<Addition><Base><Local>${WIND}</Local></Base></Addition>`))).risks).toEqual(expected);
+  // 不変条件: 祖先に Addition を持つ Significancy は risks に入らない（U-F は Addition を部分木ごと読み飛ばす）。置き場所は 81_02_01 の最初の Base の中。
+  it("T03 付加事項 Addition の子孫の Significancy は、Addition の置き場所によらず入れない（r0・r1 ヘルツ P2）", () => {
+    const placements = [
+      ["Base/Addition/Significancy（r0 の再現）", `<Addition>${WIND}</Addition>`],
+      ["Base/Addition/Base/Significancy（r0 ヘルツ P2）", `<Addition><Base>${WIND}</Base></Addition>`],
+      ["Base/Addition/Base/Local/Significancy", `<Addition><Base><Local>${WIND}</Local></Base></Addition>`],
+      ["Base/Addition/SignificancyPart/Base/Significancy（r1 ヘルツ P2）", `<Addition><SignificancyPart><Base>${WIND}</Base></SignificancyPart></Addition>`],
+      ["Base/Local/Addition/Significancy", `<Local><Addition>${WIND}</Addition></Local>`],
+      ["Base/Addition/Addition/Base/Significancy", `<Addition><Addition><Base>${WIND}</Base></Addition></Addition>`],
+    ] as const;
+    for (const [where, inserted] of placements) expect(shortOf(reportOf(TS, "U-F", inBase(inserted))).risks, where).toEqual(expected);
   });
   it("T03 81_01_01（Code が 00・01・11 だけ）は空の並び、81_04_01（取消）と VFVO53 は null", () => {
     expect(shortOf(reportOf("81_01_01_260129_VPWP50.xml", "U-F")).risks).toEqual([]);
