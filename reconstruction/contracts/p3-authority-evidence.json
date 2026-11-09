@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4e8e3ab8b58b7cbf8fe7c653767d6633cb51fe2",
-    "sha256": "9138f7d0e9d87afcbf117d7d68065b8b0cd74939c101c523bfa6ece3009c0a6a",
+    "sha256": "10130818a6c47468f6f6e5f5092872978e7ed002463eaffb7039fe80d0baf02a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -37,7 +37,7 @@
         "A": "P3-C9-MARINE=Aを保つ: VFVO50の取消（火山コードの無い取消をlandEventIdで結び付けたものを含む）は警報全体をcancelledにする。marineSource・marineEventId（海上の版と取消のidentity）は記録に残し、後から届く古いVFSVはmarineSourceと比べてstale、火山コードの無いVFSVの取消はmarineEventIdで結び付く。",
         "B": "VFVO50の取消は陸の部分だけを取り消し、海上（VFSV）が支える区分が残ればactiveを保つ（VFSVの取消の扱いと対称）。海上の区分を別に持つ（marineKind）fieldが要る。",
         "recommended": "A",
-        "ruling": "作者裁定（2026-10-10）: A。計画の受入条件案「marine Bの独立した証拠を壊さない」は「marineの版とidentityを記録に残す」と読む。",
+        "ruling": "作者裁定（2026-10-10）: A。計画の受入条件案「marine Bの独立した証拠を壊さない」は「marineの版とidentityを記録に残す」と読む。→ 2026-10-11 朝の作者の再裁定で B（出典は進捗ノート）、P3-UNIT-V-002 で実装",
         "reason": "F07の不具合は取消が結び付かない（identityMissing）ことで、取消の効き方はP3-C9-MARINE=A（作者裁定2026-10-09）が決めている。Aはその裁定を変えずに結び付きだけを直す。起草時の試作（scratchpadの複製）でF07の三報は、Aではchanged/semantic・cancelledになり、landEventId A・marineEventId B・marineSourceが残った。Bは海上警報の区分を別に保存する新しいfield（1件最大約100 byte）と、陸の取消で区分を海上へ戻す規則が要り、P3-C9-MARINEの再裁定になる。"
       }
     ],
@@ -213,7 +213,7 @@
         "target": "U-Vのdecoder形状の静的上界",
         "limit": 5180592,
         "unit": "JSON UTF-8 byte、envelopeと配送予約込み",
-        "scope": "K5のRES-04の4,753,484に警報128件×164 byte（landEventId・marineEventId各64字）を足す。世代の上限5,242,880は変えない（余り468,404）。K7の発注2aでControl/DateTimeと系列ごとの未確認の印を足して5,180,592（余り62,288、Q-VM-IMPL-2A）（今の器は U-V 9,967,447 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-RESTORE-DROPPED-TEXT-001 の AC03 で広げた）",
+        "scope": "K5のRES-04の4,753,484に警報128件×164 byte（landEventId・marineEventId各64字）を足す。世代の上限5,242,880は変えない（余り468,404）。K7の発注2aでControl/DateTimeと系列ごとの未確認の印を足して5,180,592（余り62,288、Q-VM-IMPL-2A）。P3-UNIT-V-002 で marineKind 128 件分を足して静的上界 5,219,760、世代の上限 10,006,615（今の器は U-V 9,967,447 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-RESTORE-DROPPED-TEXT-001 の AC03 で広げた）",
         "source": "P3-CODEC-RES-04・Q-AUTH-BOUND"
       },
       {
@@ -244,7 +244,7 @@
       "U-Vの降灰（VFVO54・VFVO55は1つの版の系列）・定時の降灰の火山コードの無い取消のidentity（1記録1 identityのまま）",
       "U-Wのunavailableの解除の規則、coverageConfirmedによる疑義の解除（既存の包含coverageの規則のまま）、U-Wのcodec・予算（形を変えないので変更なし）",
       "checkpoint.ts・owner-runtime.ts・p2-shared-runtime.types.tsの変更（P3-AUTH-D-SCHEMA=Aにより不要）",
-      "K3〜K6（最終採用・退去の適格性・寿命）、Vの陸の取消の効き方の変更（P3-AUTH-D-LAND-CANCEL=Aにより変えない）",
+      "K3〜K6（最終採用・退去の適格性・寿命）、Vの陸の取消の効き方の変更（P3-AUTH-D-LAND-CANCEL=Aにより変えない。P3-UNIT-V-002 で変えた）",
       "C12（U-B）のC4/2MiBの閉包の確認（C12の再開条件で扱う。K2/K5の方式を使う）",
       "実装担当によるspec本文・計画本文・旧契約本文の変更（spec:477の予算の改訂とanchor・digestの機械同期は統合担当が起草のcommitで済ませた）",
       "監査用の未追跡audit-verify/*.cjsと結果、起草時の試作・計算scriptを製品・契約の成果物としてcommitすること"
@@ -283,16 +283,16 @@
       },
       {
         "id": "P3-AUTH-AC03",
-        "requirement": "U-Vのfamilyごとの取消のidentity（D-EVIDENCE=A）: (1) VolcanoAlertにlandEventId（sourceと組、VFVO50・VFVO51の側）とmarineEventId（marineSourceと組、VFSVの側）を足す。null（その側が無いか、旧保存で分からない）でなければsource・marineSourceが非null。(2) 書き方: VFVO50の報（取消を含む）はlandEventIdを報のEventIDにする。VFSVの報（取消を含む）はmarineEventIdを報のEventIDにし、landEventIdを保つ。VFVO51のentryは既存の記録にlandEventIdがあれば保ち、無ければ報のEventID（今のeventIdの規則のland側の写し）。(3) 火山コードの無い取消（P3-C9-CANCEL-SCOPE=Aの(2)）は、警報sliceではVFVO50の取消をlandEventIdで、VFSVの取消をmarineEventIdで、運用区分ごとに一致する記録が1つだけのとき結び付ける（eventMatchesの鍵をfamilyの側ごとにする）。噴火・降灰・定時は今のeventIdのまま。(4) 表示・outcomeのeventId（記録の最新の書き手のEventID）は今の規則のまま変えない。(5) 取消の効き方はP3-AUTH-D-LAND-CANCEL=AによりP3-C9-MARINE=Aのまま: VFVO50の取消は警報全体をcancelled、marineSource・marineEventIdは記録に残る。clearCurrent（shortfallの解決）でendedにするときもidentityを保つ。",
+        "requirement": "U-Vのfamilyごとの取消のidentity（D-EVIDENCE=A）: (1) VolcanoAlertにlandEventId（sourceと組、VFVO50・VFVO51の側）とmarineEventId（marineSourceと組、VFSVの側）を足す。null（その側が無いか、旧保存で分からない）でなければsource・marineSourceが非null。(2) 書き方: VFVO50の報（取消を含む）はlandEventIdを報のEventIDにする。VFSVの報（取消を含む）はmarineEventIdを報のEventIDにし、landEventIdを保つ。VFVO51のentryは既存の記録にlandEventIdがあれば保ち、無ければ報のEventID（今のeventIdの規則のland側の写し）。(3) 火山コードの無い取消（P3-C9-CANCEL-SCOPE=Aの(2)）は、警報sliceではVFVO50の取消をlandEventIdで、VFSVの取消をmarineEventIdで、運用区分ごとに一致する記録が1つだけのとき結び付ける（eventMatchesの鍵をfamilyの側ごとにする）。噴火・降灰・定時は今のeventIdのまま。(4) 表示・outcomeのeventId（記録の最新の書き手のEventID）は今の規則のまま変えない。(5) 取消の効き方はP3-AUTH-D-LAND-CANCEL=AによりP3-C9-MARINE=Aのまま: VFVO50の取消は警報全体をcancelled、marineSource・marineEventIdは記録に残る。clearCurrent（shortfallの解決）でendedにするときもidentityを保つ。（P3-UNIT-V-002 で、海上が支えるなら active を保つ）",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:154 «563fc06041606774»",
           "reconstruction/src/units/volcano/volcano-unit.ts:158 «33dfada096768ace»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:309 «d7cb8a9d170d69ce»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:309 «87565b4ceb3d5f09»",
           "reconstruction/src/units/volcano/volcano-unit.ts:369 «027881b3274601ad»",
           "reconstruction/src/units/volcano/volcano-unit.ts:722 «71d1e5d6acccf04c»",
           "reconstruction/src/units/volcano/volcano-unit.ts:729 «709a512117afd511»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:379 «44d45d65bf78673b»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1301 «a5cd6f76762c505f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:379 «74907245797fe959»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1301 «c6bf341af9b8e551»",
           "reconstruction/contracts/p3-volcano-unit.types.ts:76 «0939fb8dbfe1e419»",
           "reconstruction/contracts/p3-volcano-unit.json:96 «a23cec5f9c0eabb9»",
           "reconstruction/contracts/p3-volcano-unit.json:87 «bf19e9ee43b8d1a6»",
@@ -301,11 +301,11 @@
       },
       {
         "id": "P3-AUTH-AC04",
-        "requirement": "F07の閉鎖: 45_01_01_200522_VFVO50のReportDateTimeを2026-01-01T10:00:00+09:00・EventIDをAにした報（land A）、46_01_01_170103_VFSViiのCode 506を306・ReportDateTimeを10:00:01・EventIDをBにした報（VFSV50として投入、marine B）、synthetic_VFVO50_cancelのReportDateTimeを10:00:02・EventIDをAにした火山コードの無い取消を、各報の時刻の時計で順に受ける（audit-verify/core.cjsのF07と同じ入力）。取消はrejected/identityMissingでなく火山306の警報に結び付き、D-LAND-CANCEL=Aによりchanged/semantic・effective cancelled、landEventId A・marineEventId B・marineSource（10:00:01）が残り、取消のdesktop・soundのpendingが出る。逆の順（marine B→land A→EventID Bの火山コードの無いVFSVの取消）も結び付く。取消の前に復元を挟んでも同じ。取消の後に届くmarine Bより古いVFSVはstale。修正前の観測（cancel rejected/identityMissing・after active）の反転を正式試験で示す。",
+        "requirement": "F07の閉鎖: 45_01_01_200522_VFVO50のReportDateTimeを2026-01-01T10:00:00+09:00・EventIDをAにした報（land A）、46_01_01_170103_VFSViiのCode 506を306・ReportDateTimeを10:00:01・EventIDをBにした報（VFSV50として投入、marine B）、synthetic_VFVO50_cancelのReportDateTimeを10:00:02・EventIDをAにした火山コードの無い取消を、各報の時刻の時計で順に受ける（audit-verify/core.cjsのF07と同じ入力）。取消はrejected/identityMissingでなく火山306の警報に結び付き、D-LAND-CANCEL=Aによりchanged/semantic・effective cancelled、landEventId A・marineEventId B・marineSource（10:00:01）が残り、取消のdesktop・soundのpendingが出る。逆の順（marine B→land A→EventID Bの火山コードの無いVFSVの取消）も結び付く。取消の前に復元を挟んでも同じ。取消の後に届くmarine Bより古いVFSVはstale。修正前の観測（cancel rejected/identityMissing・after active）の反転を正式試験で示す。（P3-UNIT-V-002 で effective は active・kind 36 と読み替える）",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:722 «71d1e5d6acccf04c»",
           "reconstruction/src/units/volcano/volcano-unit.ts:154 «563fc06041606774»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:309 «d7cb8a9d170d69ce»"
+          "reconstruction/src/units/volcano/volcano-unit.ts:309 «87565b4ceb3d5f09»"
         ]
       },
       {
@@ -334,8 +334,8 @@
           "reconstruction/src/units/nankai/nankai-unit.ts:33 «5799687c870a8850»",
           "reconstruction/src/units/nankai/nankai-unit.ts:27 «849d86138314169a»",
           "reconstruction/contracts/p3-nankai-unit.types.ts:123 «6354aa850ef74bba»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1494 «5f59bc69aea62f5e»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:33 «925e45d3b9f4d9e1»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1494 «73bc57a2691edf1b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:33 «122d96f27f561650»",
           "reconstruction/src/checkpoint/checkpoint.ts:462 «b6fdb65e4e225b7d»",
           "reconstruction/src/runtime/owner-runtime.ts:410 «890b0a8cddc63328»",
           "reconstruction/contracts/p3-codec-closure.json:182 «da66206c5b29e26f»",
@@ -346,7 +346,7 @@
       },
       {
         "id": "P3-AUTH-AC07",
-        "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P3-UNIT-N-001のI-U-N.persisted「information…は保存しない」とI-U-N.decode「情報系列は復元で空」を、情報の事実は保存せず証拠（AC01）は保存し復元すると読み替える。（P3-UNIT-N-SERIES-001 で情報の事実も全文で保存する、P3-NS-AC01）spec:512の「情報系列N」は事実とviewの話として残る。(2) I-U-N.capacityReserve・P3-C8-CAPACITY=A・P3-C8-RES-01の「1世代262,144」と上界258,489、K5のRES-05の261,214は、RES-01の294,912・273,259（K7の発注2aの後は280,060）へ（spec:477の予算は統合担当が起草のcommitで改訂済み）。（P3-UNIT-N-SERIES-001 で 2,621,440、P3-NS-RES-01）(3) Q-NOTICE.restartとQ-C8-IMPL-AMEND(3)(5)はAC01の(3)〜(5)で読み替える。（P3-UNIT-N-SERIES-001 では現況と情報の見える形の差で読む、P3-NS-AC01 の (3)）(4) P3-C8-MIGRATION「C8の中で旧データの移行は要らない」は、K2の追加の鍵についてAC06(2)のA1の規則を足す（A1はP3-VERSION-MATERIAL-001で消した）（C15の旧築からの移行は変えない）。(5) P3-UNIT-V-001のP3-C9-CANCEL-SCOPE=Aの(2)「eventIdが一致する記録」を、警報sliceではfamilyの側ごとのidentity（AC03(3)）と読み替える。I-U-V.decodeにAC03(1)の検査とAC06(2)の移行を足す。I-U-V.capacityReserveとK5のRES-04の4,753,484はRES-02の4,774,476（K7の発注2aの後は5,180,592）へ。P3-C9-MARINE=AはD-LAND-CANCEL=Aにより変えない。P3-C9-MIGRATIONにAC06(2)を足す。(6) P2-WEATHER-CURRENT-UNIT-001のfreshnessRule.record「newerの非採用はsuspectedSource=候補」を「既存の上限より新しい候補だけ」に、transitionRule・AC「同じscopeの後続正常採用…だけが解除」を「上限以上の版の採用…だけが解除」に読み替える。(7) P3-ORDER（K1）のAC06の「Nの情報系列の証拠はK2の範囲」はこの契約で閉じる。（今の器は U-N 3,139,385 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
+        "requirement": "既存条文の読み替え（旧契約の本文は変えない）: (1) P3-UNIT-N-001のI-U-N.persisted「information…は保存しない」とI-U-N.decode「情報系列は復元で空」を、情報の事実は保存せず証拠（AC01）は保存し復元すると読み替える。（P3-UNIT-N-SERIES-001 で情報の事実も全文で保存する、P3-NS-AC01）spec:512の「情報系列N」は事実とviewの話として残る。(2) I-U-N.capacityReserve・P3-C8-CAPACITY=A・P3-C8-RES-01の「1世代262,144」と上界258,489、K5のRES-05の261,214は、RES-01の294,912・273,259（K7の発注2aの後は280,060）へ（spec:477の予算は統合担当が起草のcommitで改訂済み）。（P3-UNIT-N-SERIES-001 で 2,621,440、P3-NS-RES-01）(3) Q-NOTICE.restartとQ-C8-IMPL-AMEND(3)(5)はAC01の(3)〜(5)で読み替える。（P3-UNIT-N-SERIES-001 では現況と情報の見える形の差で読む、P3-NS-AC01 の (3)）(4) P3-C8-MIGRATION「C8の中で旧データの移行は要らない」は、K2の追加の鍵についてAC06(2)のA1の規則を足す（A1はP3-VERSION-MATERIAL-001で消した）（C15の旧築からの移行は変えない）。(5) P3-UNIT-V-001のP3-C9-CANCEL-SCOPE=Aの(2)「eventIdが一致する記録」を、警報sliceではfamilyの側ごとのidentity（AC03(3)）と読み替える。I-U-V.decodeにAC03(1)の検査とAC06(2)の移行を足す。I-U-V.capacityReserveとK5のRES-04の4,753,484はRES-02の4,774,476（K7の発注2aの後は5,180,592）へ。P3-C9-MARINE=AはD-LAND-CANCEL=Aにより変えない（P3-UNIT-V-002 で B）。P3-C9-MIGRATIONにAC06(2)を足す。(6) P2-WEATHER-CURRENT-UNIT-001のfreshnessRule.record「newerの非採用はsuspectedSource=候補」を「既存の上限より新しい候補だけ」に、transitionRule・AC「同じscopeの後続正常採用…だけが解除」を「上限以上の版の採用…だけが解除」に読み替える。(7) P3-ORDER（K1）のAC06の「Nの情報系列の証拠はK2の範囲」はこの契約で閉じる。（今の器は U-N 3,139,385 byte、P3-UNREADABLE-MARK-001 の RES-09 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-nankai-unit.json:255 «af69b024226772ad»",
           "reconstruction/contracts/p3-nankai-unit.json:256 «621cac76797558d7»",
@@ -384,8 +384,8 @@
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:521 «e64832ead2a8a9db»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:651 «fc6f34d38b7ead56»",
           "reconstruction/test/nankai-unit/nankai-unit.test.ts:573 «7d1d1ac492655966»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:772 «c06887d9db8ef6ec»",
-          "reconstruction/test/volcano-unit/volcano-unit.test.ts:815 «4b7c73ddb3e66a26»"
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:772 «65a8441335682cee»",
+          "reconstruction/test/volcano-unit/volcano-unit.test.ts:815 «432b0bfff9ea8ef5»"
         ]
       },
       {
@@ -527,7 +527,7 @@
       "規模の見積もり（起草時の試作から）: 製品のTSは5 file・約120〜160行（N約90〜110、V約30、W約6、型約15）、試験は4 file・約150〜220行（T01〜T05、既存試験の書き換えAC08の6群、型の絞り込み3箇所）。計画の見積もり180〜360行・2〜3人日に対し、合計270〜380行・1.5〜2.5人日。実績と差があれば理由を書く。",
       "本契約ファイルの実装時の編集権はevidenceRefのanchorと自己digestの同期だけに限り、受入条件・裁定値を実装後に変えない。",
       "spec §4.2のU-Nの行（spec:477）の予算は、統合担当が起草のcommitで「288 KiB（2026-10-10 作者裁定 P3-AUTH-D-N-BUDGET=A、K2。当初 256 KiB）」へ改訂した（K5のspec:484、C11のspec:485と同じ形）。同じcommitで、spec:477を引くp3-nankai-unit.jsonの3参照・sequences.jsonの4参照・本契約の参照を新anchorへ、sequences.jsonの自己digestとそれを引く全契約のsequencesSha256・自己digestを機械同期した（期待値・旧契約の本文は変えていない）。実装担当はspecを変えず、定数（GENERATION_LIMIT）とdecodeの世代検査を294,912に揃える。",
-      "残存リスク（作者承認済み（2026-10-10））: (1) A1の移行: K2より前の保存物ではU-Nの証拠が0件で、旧保存からの最初の復元ではF03が閉じない（新しい報で証拠ができるまで）。U-Vの両側のある警報はfamilyごとのidentityが分からず、そのfamilyの新しい報が来るまで火山コードの無い取消がidentityMissingのまま。U-Wのすでに後退した疑義は直らない。(2) 証拠は64件・7日（情報系列と同じ）で、退去・期限の後の古報はP3-LIFE-D-HORIZON=Aの保証外で新規に受理しうる。(3) 復元した証拠は事実を持たないので、復元の後の同じ版の再送は事実を比べずduplicate（食い違いのWARNが出ない、expiredと同じ）。復元の後の情報のviewは空のまま（本文を保存しない裁定）。(4) U-Nの保存の回数が増える（情報だけの報・情報の期限の回収で保存世代が進む）。(5) D-LAND-CANCEL=Aでは、VFVO50の取消で警報全体がcancelledになり、海上の警報がまだ有効でも新しいVFSVが来るまで表示から消える（P3-C9-MARINE=Aの既存の挙動）。(6) U-Wの疑義は上限以上の正常報の採用かcoverageConfirmedまで残るので、不正報の後に配信元が上限以上の正常報を出さないと疑義の表示が続く（単調にした代償）。clearMonitoringはVPNO50の終了でも通る（weather-current.ts:580）ので、上限より古い終了でも疑義の表示が残る。(7) 取消先着・land/marineの混在・不正報の後の古い正常報の実配信の頻度は未集計。(8) D-SCHEMA=Aでは、schemaVersionの文字列が保存の形を区別せず、新しい鍵の有無が旧保存の印になる（U-Nはevidenceの鍵、U-Vはpayloadの警報の全部が鍵を持つか全部持たないかで見分け、混在は拒否する）。"
+      "残存リスク（作者承認済み（2026-10-10））: (1) A1の移行: K2より前の保存物ではU-Nの証拠が0件で、旧保存からの最初の復元ではF03が閉じない（新しい報で証拠ができるまで）。U-Vの両側のある警報はfamilyごとのidentityが分からず、そのfamilyの新しい報が来るまで火山コードの無い取消がidentityMissingのまま。U-Wのすでに後退した疑義は直らない。(2) 証拠は64件・7日（情報系列と同じ）で、退去・期限の後の古報はP3-LIFE-D-HORIZON=Aの保証外で新規に受理しうる。(3) 復元した証拠は事実を持たないので、復元の後の同じ版の再送は事実を比べずduplicate（食い違いのWARNが出ない、expiredと同じ）。復元の後の情報のviewは空のまま（本文を保存しない裁定）。(4) U-Nの保存の回数が増える（情報だけの報・情報の期限の回収で保存世代が進む）。(5) D-LAND-CANCEL=Aでは、VFVO50の取消で警報全体がcancelledになり、海上の警報がまだ有効でも新しいVFSVが来るまで表示から消える（P3-C9-MARINE=Aの既存の挙動。P3-UNIT-V-002 で解消）。(6) U-Wの疑義は上限以上の正常報の採用かcoverageConfirmedまで残るので、不正報の後に配信元が上限以上の正常報を出さないと疑義の表示が続く（単調にした代償）。clearMonitoringはVPNO50の終了でも通る（weather-current.ts:580）ので、上限より古い終了でも疑義の表示が残る。(7) 取消先着・land/marineの混在・不正報の後の古い正常報の実配信の頻度は未集計。(8) D-SCHEMA=Aでは、schemaVersionの文字列が保存の形を区別せず、新しい鍵の有無が旧保存の印になる（U-Nはevidenceの鍵、U-Vはpayloadの警報の全部が鍵を持つか全部持たないかで見分け、混在は拒否する）。"
     ],
     "unresolvedQuestions": [
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "b299427a3555bd1e20d15abe705b79651a37aa77bf311359565420b822ff6e1b",
+    "sha256": "8df66785e500be661abc1f8765ca869efce9133a752ac2419458f4bb350ea80b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -88,7 +88,7 @@
         "B": "VFSVもVFVO50も事実を全面置換し、watermarkは1つ（source）、同じ版ではheadTypeで順を決める（VFVO50をVFSVより後とし、後着のVFSVはstale）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-09夜、ご主人）、推奨どおり",
+        "ruling": "作者裁定A（2026-10-09夜、ご主人）、推奨どおり → VFVO50 の取消の効き方は 2026-10-11 朝の作者の再裁定（P3-AUTH-D-LAND-CANCEL=B、出典は進捗ノート）で陸の部分だけ、P3-UNIT-V-002 で実装。ほかは A のまま",
         "reason": "見え方の違い（corpusの45_xx（VFVO50）と46_01_01（VFSV、桜島、周辺海域警戒36、九州南方海上及び日向灘）を同じ火山に当てた場合。実際の対は無い）: VFSVは対象火山と対象海上予報区だけを持ち、VFVO50は海上予報区を持たない。Bでは、VFSVの後のVFVO50が海上予報区を消し、VFVO50の後のVFSVが対象市町村とHeadlineを消す。watermarkが1つなので、VFVO50(T)の後に遅れて届いたVFSV(T−1)はstaleで、消えた海上予報区が戻らない。どちらもSerialは空なので、同じReportDateTimeで両方が出ると片方が捨てられる。Aは両方の事実を保つ。Aの代償: (1) 警報の記録にReportRefが1つ増え、合法最大が1件562 byte増える（I-U-V.capacityReserve） (2) 対象火山のKindが2つの報で違うと、新しい版のKindを採り、VFVO50のHeadline・対象市町村は前のKindの説明のまま残る。旧築との差: 旧築のgateのfamily表はheadTypeの文字列「VFSVii」だけを持ち（revision-family-registry.ts:655）、配信されるVFSV50〜61はpolicyが無いのでraw（message-router.ts:1761〜:1765）へ落ち、見出しの表示だけで通知もstateも無い（:605〜:606）。旧築の試験はfile名から「VFSVii」を補って緑だった（test-samples.ts:116）。dmdataの電文一覧はVFSVii（ii=50〜61）"
       },
       {
@@ -151,7 +151,7 @@
         "B": "置き換えずに全部残す",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が起草で確定（P2-A4 Q-NOTICEの最新一件の置換、C8のP3-C8-REPLACEMENTと同じ）",
+        "ruling": "統合担当が起草で確定（P2-A4 Q-NOTICEの最新一件の置換、C8のP3-C8-REPLACEMENTと同じ）。陸の部分だけの取消の撤回は陸の pending だけ（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09 の作者の裁定）、VFVO51 の entry が active を ended にする採用も撤回する、P3-UNIT-V-002",
         "reason": "Bでは引上げの通知が未配送のうちに次の引上げが来ると、古い段階の音も後から鳴る"
       },
       {
@@ -336,7 +336,7 @@
       },
       {
         "id": "I-U-V",
-        "status": "frozen（P3-C9-ERUPTION-SUBJECT=A・P3-C9-ALERT-ACTIVE=A・P3-C9-BULLETIN=A・P3-C9-SHORTFALL=A・P3-C9-MARINE=A、作者裁定 2026-10-09夜）",
+        "status": "frozen（P3-C9-ERUPTION-SUBJECT=A・P3-C9-ALERT-ACTIVE=A・P3-C9-BULLETIN=A・P3-C9-SHORTFALL=A・P3-C9-MARINE=A、作者裁定 2026-10-09夜）。alertSemantics (4) と decode と capacityReserve は P3-UNIT-V-002 で marineKind と陸の部分だけの取消を足した、版 v8",
         "subjects": "P3-C9-SUBJECTS=A。一入力は、その報のsliceのsubjectだけを変える",
         "alertSemantics": "(1) VFVO50・VFSV（対象火山のItemの先頭1件）: activeの区分なら、P3-C9-MARINE=Aのとおりその報のfamilyが持つfieldだけを置き換え、他を保ち、自分のfamilyのwatermark（sourceかmarineSource）を進める（記録が無ければ持たないfieldはnullか空、VFSVのvolcanoName・coordinateは記録が無いときだけ埋める）。municipalitiesはBody/VolcanoInfo（typeに「対象市町村等」を含む）のItemのKindの名前ごとのArea/Code、marineAreasは「対象海上予報区」の同じ形 (2) VFVO51の火山entry: activeの区分で、採用前の記録がactiveで区分のcodeとlevelが同じなら、unchanged/noChange（記録とwatermarkを変えない。VFVO50の事実を保つ）。区分が違えばkind・levelを置き換え、前の区分の説明であるheadline・lastKind・municipalitiesを消し、volcanoName・coordinate・marineAreasは保つ (3) inactiveの区分・解除: 記録がactiveならeffective=endedにして事実を捨て、sourceを進める。記録がinactiveならwatermarkの比較で新しければrevisionOnly。記録が無ければ、単独のVFVO50・VFSVはendedの記録を作り（watermarkだけでviewは変わらないのでchanged/revisionOnly、通知はQ-NOTICE.generationTableのinactiveAdoption）、VFVO51のentryは解除・引下げのときだけendedの記録を作り、ほかは記録を作らずunchanged/noChange（P3-C9-ALERT-ACTIVE=A） (4) 取消はP3-C9-CANCEL-SCOPE (5) inactiveの記録はretainUntil（sourceとmarineSourceの新しい方のReportDateTime+30日）の到来で除く。activeの記録は期限で消えない。changeは公開事実（effectiveとactiveの事実）が変わればsemantic、watermarkだけが進めばrevisionOnly",
         "eruptionSemantics": "発表・訂正はsubject（EventID）の事実を置き換える（flash=VFVO56、phenomenon、eventDateTimeRaw、craterName、噴煙の高さ2つ、plumeDirection、headline、対象市町村のcode）。validUntil=ReportDateTime+1日の到来でexpired（事実を捨てる、通知しない）、retainUntil=+2日で除く。取消はcancelled。VFVO52とVFVO56は同じsubjectの名前空間を使い、版の比較だけで並ぶ",
@@ -952,7 +952,7 @@
       "U-V"
     ],
     "persistedFields": [
-      "警報: subject・operation・volcanoCode・eventId・source・marineSource・landKind・retainUntil・effective・volcanoName・kind・lastKind・level・headline・municipalities・marineAreas・coordinate・truncated（active以外は事実を持たない）",
+      "警報: subject・operation・volcanoCode・eventId・source・marineSource・marineKind・landKind・retainUntil・effective・volcanoName・kind・lastKind・level・headline・municipalities・marineAreas・coordinate・truncated（active以外は事実を持たない）",
       "噴火: subject・operation・eventId・volcanoCode・source・retainUntil・effective・volcanoName・flash・phenomenon・eventDateTimeRaw・craterName・plumeAboveCrater・plumeAboveSeaLevel・plumeDirection・headline・municipalities・truncated・validUntil",
       "降灰（VFVO54/55）: subject・operation・volcanoCode・eventId・source・retainUntil・effective・volcanoName・variant・headline・forecastStartsAt・forecastEndsAt・groups・omittedGroupCount・truncated",
       "復旧不足: id・operation・slice・scope・volcanoCode・lastKnown・reason（P3-C9-SHORTFALL=A）",
