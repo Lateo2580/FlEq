@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "a45aead9019ded5dc7c581509cf0b27ac1c43cc21f955f41a03afba680e5ceeb",
+    "sha256": "c9c26908e84cfdc33c7609cf8b9724d8fe4f50c563663cc01d9b7c1e4fba3cfd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -69,6 +69,13 @@
         "source": "2026-11-09 の起草レビュー r0（品質 ヘルツ Astra high 条件付き GO・P2 1・P3 1、契約適合 Opus 条件付き GO・P2 2・P3 2）。記録 ~/dev/fleq-vault-archive/2026-11-09-snap/rainevict-draft-quality-r0-hertz.md",
         "closed": "全部当てた（統合担当の決めどおり）。(1) ヘルツ P2: 突き合わせの鍵を生の head.status から、decode が確かめた運用区分（material.operation）に替えた。生の Control/Status は「訓練」と「training」が同じ区分で字が違い（外し損ね）、別の名前空間の Status を前に置くと decode（decode-material.ts の child は完全名）と端末（xml-read.ts の localName の先頭）で読む Status が違う（別 subject の誤削除）。端末の材料の head に operation を 1 欄足す（D-KEY、AC01 (1)、allowedPaths に material.ts と p3-terminal-output.types.ts）。EventID は U-B も端末も同じ localName の読みで、U-B は 1 個だけを受け 40 字以内（clip の 4,096 に届かない）なので同じ値 (2) Opus P2-1: 訂正・続報は待ちを外して即出すのでなく、待ちの報を新しい版に差し替えて期限は最初のまま（spec:612 の「数え始めは最初の報のまま」、P3-TL10-AC03 (3) と同じ）。U-B が自身を退去したかで見た目が分かれない (3) Opus P2-2・ヘルツ P3: 「status だけ違う組は作れない」は誤り（normal 255＋normal の held の P のとき、同じ EventID の訓練の取消で evictOne が null）。試験を T01〜T04 の独立の場面に分け、期限前の close を独立に置いた (4) Opus P3-1: 配送の順の項を、先に載る側の配送の commit の中で相手の «» を付け直す形に書き直し、011・012 の名前と本契約の引く行を並べた (5) Opus P3-2: lateRule（visible な記録への遅着で subjects=[]）も AC01 に入ることを Q-TRE-SCENE と AC01 (1) に書き、壁時計の補正の場面を残存 (3) に足した (6) D-WHERE の「holdUntil を足さない」の出どころを P3-TL10-AC03 (3) に直した。spec は変えていない",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-TRE-REVIEW-R1",
+        "status": "closed",
+        "source": "2026-11-09 の起草レビュー r1（ヘルツ・Opus とも GO、Opus の P3 1 件）",
+        "closed": "当てた（統合担当の決めどおり）。p3-terminal-output.types.ts の冒頭の注釈は値を電文の生の文字（正規化しない）とするので、欄 operation には欄と同じ行の末尾になぜの注釈を書くと allowedPaths に明記した。足す行は 2 行のままで、011・012 の付け直しのずれも 2 行のまま",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -102,7 +109,7 @@
     "allowedPaths": [
       "reconstruction/src/terminal/output.ts（sink の inputDone で、U-B の accepted の subjects を見た後の 1 か所だけ。他の契約が引く行の中身は変えない）",
       "reconstruction/src/terminal/material.ts（head() の返す欄に operation: material.operation を足すことだけ。足すのは :40 の行の中で、行の数を変えない）",
-      "reconstruction/contracts/p3-terminal-output.types.ts（TerminalHead に欄 operation を 1 つ足すことだけ。型は p1-parser-boundary.types の Operation。足す行は TerminalHead の中と import の 2 行まで）",
+      "reconstruction/contracts/p3-terminal-output.types.ts（TerminalHead に欄 operation を 1 つ足すことだけ。型は p1-parser-boundary.types の Operation。足す行は TerminalHead の中と import の 2 行まで。冒頭の注釈〔値は電文の生の文字、正規化しない〕に当たらない欄なので、なぜを 1 行、欄と同じ行の末尾に書く〔decode が確かめた運用区分で、待ちの突き合わせに使う、P3-TRE-AC01〕）",
       "reconstruction/test/terminal/**"
     ],
     "allowedGitCommands": [
