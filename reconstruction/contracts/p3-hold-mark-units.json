@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "3adfbac6b294a26a07ba3d2b488647a4df4be8260c84d9ca5f036c85056322ba",
+    "sha256": "cf99685466b420aa106030df0e4b10797f6be3bfc22c4296c3b037dd91a21f97",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -44,7 +44,7 @@
     "contractId": "P3-HOLD-MARK-UNITS-001",
     "mode": "implementation",
     "objective": "U-R・U-L・U-B・U-M・U-Y・U-N の hold で付けた未確認の印を、付けた受信の表示差分に載せる。例: 2019-05-27 09:00 の指定河川洪水予報（VXKO50）を手元に持ち、09:01 に同じ Control/DateTime で InfoType を訂正にした写しが届くと、手元の版は変わらず記録に印が付くが、今は snapshot の view に印が載るのが保存→再起動の後になる。直すと 09:01 の受信の返信で view に載る。U-V は K14 の発注 4（P3-UM-AC19 の (1)）、U-T は P3-TSUNAMI-HOLD-MARK-001 で同じ直しを済ませた",
-    "baseOid": "unassigned",
+    "baseOid": "210f8b0b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
