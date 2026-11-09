@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "2ac229985144de4259a47704b4c394d3a2c7b2d2e3df762d7cf86a7104df6efb",
+    "sha256": "420c73e6e0661a928a682d7101e13c418baa64fe2177b39f30ec468f83b7ba2f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -169,7 +169,7 @@
         "id": "Q-TL11-DELIVERY",
         "status": "closed",
         "source": "配送（統合担当、2026-11-09）",
-        "closed": "impl/tl11 を main 9c348402 の上に載せ直し、artifactRequirements の付け直し（recovery-boundary・layout10・tsunami-hold-mark と本契約の src の «»）と原文の改訂 (1)〜(5)（p3-terminal-output.json の P3-TO-AC08 (1)・AC09 (1)・AC12 (2)、p3-terminal-layout9.json の P3-TL9-AC01、p3-terminal-layout.json の P3-TL-AC05、どれも行の中に書き足し行の数は変えない）を当てた。AC02 (2) の採る範囲を実装どおりの字に直した。ゲート: ",
+        "closed": "impl/tl11 を main 9c348402 の上に載せ直し、artifactRequirements の付け直し（recovery-boundary・layout10・tsunami-hold-mark と本契約の src の «»）と原文の改訂 (1)〜(5)（p3-terminal-output.json の P3-TO-AC08 (1)・AC09 (1)・AC12 (2)、p3-terminal-layout9.json の P3-TL9-AC01、p3-terminal-layout.json の P3-TL-AC05、どれも行の中に書き足し行の数は変えない）を当てた。AC02 (2) の採る範囲を実装どおりの字に直した。ゲート: Mac mini の全体のゲート（2026-11-09 19:4x、impl/tl11 90c1cc6e）: tsc 3 本・vitest 1510 件・shuffle・manifest・sequences・check-contract・旧築 build/test すべて rc 0",
         "remaining": "なし"
       }
     ],
