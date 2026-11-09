@@ -70,7 +70,7 @@ type VolcanoAlertFacts = Readonly<{
 // 警報だけは watermark を family ごとに持つ（P3-C9-MARINE=A）: source は VFVO50・VFVO51、marineSource は VFSV。
 // 少なくとも一方は非 null で、retainUntil は新しい方の ReportDateTime から数える。
 // landKind は source の family（VFVO50・VFVO51）が最後に伝えた区分（source が null か、VFVO50 の取消の後は null）。VFSV の取消の後に
-// active が残るかを、残る family が自分の区分で支えるかで決める（Q-C9-IMPL-AMEND(9)(a)）。
+// active が残るかを、残る family が自分の区分で支えるかで決める（Q-C9-IMPL-AMEND(9)(a)）。marineKind はその鏡で marineSource の family（VFSV）が最後に伝えた区分（marineSource が null か、VFSV の取消の後は null）。VFVO50 の取消の後に active が残るかを決める（P3-UV2-D-LAND-CANCEL=B）。
 // eventId は記録の最新の書き手の EventID（表示・outcome）。landEventId（source と組）・marineEventId（marineSource と組）は
 // family ごとの取消の identity で、火山コードの無い取消はこれで結び付く。null はその側が無いか、旧保存で分からない（P3-AUTH-AC03・AC06）。
 export type VolcanoAlert = Readonly<{
@@ -82,7 +82,7 @@ export type VolcanoAlert = Readonly<{
   marineSource: ReportRef | null;
   landEventId: string | null;
   marineEventId: string | null;
-  landKind: VolcanoKind | null;
+  landKind: VolcanoKind | null; marineKind: VolcanoKind | null;
   retainUntil: number; unconfirmed?: ReportRef; marineUnconfirmed?: ReportRef; // P3-VM-AC04: 陸上・海上の系列ごとの未確認の印
   notice?: NoticeMark; marineNotice?: NoticeMark; // P3-NL-AC02: 陸上・海上の系列ごとの通知の印（その側の版がある側だけ）。表示には出さない
 }> & (
@@ -213,7 +213,7 @@ type VolcanoPayloadBase = Readonly<{
 export type VolcanoIntent = NotificationIntent & Readonly<{ payload: VolcanoNotificationPayload }>;
 
 export type VolcanoUnitState = Readonly<{
-  schemaVersion: "p3-volcano-unit-v7";
+  schemaVersion: "p3-volcano-unit-v8";
   contentRevision: number;
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
@@ -229,7 +229,7 @@ export type VolcanoUnitState = Readonly<{
 }>;
 
 export type PersistedVolcanoUnit = Readonly<{
-  schemaVersion: "p3-volcano-unit-v7";
+  schemaVersion: "p3-volcano-unit-v8";
   alerts: readonly VolcanoAlert[];
   eruptions: readonly VolcanoEruption[];
   ashfalls: readonly VolcanoAshfall[];
@@ -275,5 +275,5 @@ export type VolcanoUnitStep = Readonly<{
 }>;
 
 export type VolcanoUnitCodec = UnitCodec<VolcanoUnitState, PersistedVolcanoUnit> & Readonly<{
-  schemaVersion: "p3-volcano-unit-v7";
+  schemaVersion: "p3-volcano-unit-v8";
 }>;

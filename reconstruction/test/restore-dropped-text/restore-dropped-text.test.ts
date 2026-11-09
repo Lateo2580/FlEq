@@ -96,7 +96,7 @@ describe("P3-RESTORE-DROPPED-TEXT-001 volcano", () => {
     const key = json(volcanoUnitCodec.encode(ended)) as { alerts: Row[] };
     key.alerts[0].prevention = "残った字";
     expect(volcanoUnitCodec.decode(key as JsonValue).kind).toBe("invalid");
-    expect(volcanoUnitCodec.maxEnvelopeBytes).toBe(9_967_447);
+    expect(volcanoUnitCodec.maxEnvelopeBytes).toBe(10_006_615);
   });
 });
 

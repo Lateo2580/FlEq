@@ -74,7 +74,7 @@ function initialState(progress: PersistenceStatus = savedProgress): RuntimeState
       "U-Q": { schemaVersion: "p3-seismic-unit-v8", contentRevision: 0, earthquakes: [], longPeriods: [], daily: {
         normal: noHistory, training: noHistory, test: noHistory }, intents: [], failureMarks: [], persistence: savedProgress },
       "U-N": { schemaVersion: "p3-nankai-unit-v8", contentRevision: 0, currents: [], information: [], intents: [], persistence: savedProgress },
-      "U-V": { schemaVersion: "p3-volcano-unit-v7", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
+      "U-V": { schemaVersion: "p3-volcano-unit-v8", contentRevision: 0, alerts: [], eruptions: [], ashfalls: [], shortfalls: [],
         scheduledAshfalls: [], batch: null, bulletins: [], intents: [], persistence: savedProgress },
       "U-L": { schemaVersion: "p3-landslide-unit-v8", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },
       "U-R": { schemaVersion: "p3-flood-unit-v9", contentRevision: 0, currents: [], intents: [], persistence: savedProgress },

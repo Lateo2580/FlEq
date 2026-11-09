@@ -30,13 +30,13 @@ import type { CompareColumn } from "../unreadable";
 
 // P3-UNIT-V-001（C9、I-U-V）: U-V の三 slice・定時・batch・解説・復旧不足・通知・容量・codec・射影。
 
-const SCHEMA = "p3-volcano-unit-v7" as const;
+const SCHEMA = "p3-volcano-unit-v8" as const;
 // P3-C9-CAPACITY=A・P3-C9-RES-01・RET-01〜06。世代の上限は P3-CODEC-D-LIMIT=A（K5、当初 4 MiB）。
 const SLICE_LIMIT = 128, BULLETIN_LIMIT = 64, SHORTFALL_LIMIT = 128, BATCH_LIMIT = 20;
 // P3-UM-RES-09: 器は保存する記録の印（警報は陸と海の 2 つで一覧の欄 municipalities・marineAreas、噴火は municipalities、降灰は欄なし）と
 // 原文の予算とカードの分だけ広げる。解説は保存しないので数えない。
-const GENERATION_LIMIT = 5_242_880 + SLICE_LIMIT * (unreadableMarkBytes("unreadable", 2) + unreadableMarkBytes("marineUnreadable", 2))
-  + SLICE_LIMIT * unreadableMarkBytes("unreadable", 1) + SLICE_LIMIT * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES + SLICE_LIMIT * (`,"prevention":""`.length + BOUNDS.prevention * 6); // P3-RDT-AC03 (4): 防災事項は 1 単位 6 byte まで
+const GENERATION_LIMIT = 5_242_880 + SLICE_LIMIT * (unreadableMarkBytes("unreadable", 2) + unreadableMarkBytes("marineUnreadable", 2)) + SLICE_LIMIT * (`,"marineKind":{"code":"","name":"","condition":""}`.length + LIMITS.code * 2 + (BOUNDS.kindName + BOUNDS.condition) * 6)
+  + SLICE_LIMIT * unreadableMarkBytes("unreadable", 1) + SLICE_LIMIT * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES + SLICE_LIMIT * (`,"prevention":""`.length + BOUNDS.prevention * 6); // P3-RDT-AC03 (4): 防災事項は 1 単位 6 byte まで。P3-UV2-RES-01: 警報の marineKind は code が引用符・バックスラッシュで 1 字 2 byte、名前と Condition は 1 単位 6 byte まで
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
 // P3-C9-SEM-01〜07（元報の ReportDateTime からの絶対の長さ、P3-C9-RETENTION=A。batch は単調時計）。
 const DAY_MS = 86_400_000;
@@ -296,8 +296,8 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
   kind: VolcanoKind | null) {
   const ref = { ...candidate.source, subject };
   const marine = isMarine(candidate.family);
-  // landKind は VFVO50・VFVO51 の報だけが書く（VFVO50 の取消で null）。
-  const landKind = marine ? existing?.landKind ?? null : candidate.cancelled ? null : kind;
+  // landKind は VFVO50・VFVO51 の報だけが書く（VFVO50 の取消で null）。marineKind はその鏡で VFSV の報だけが書く（VFSV の取消で null、P3-UV2-AC02 (1)）。
+  const landKind = marine ? existing?.landKind ?? null : candidate.cancelled ? null : kind, marineKind = marine ? candidate.cancelled ? null : kind : existing?.marineKind ?? null;
   const source = marine ? existing?.source ?? null : ref, marineSource = marine ? ref : existing?.marineSource ?? null;
   // 取消の identity は版と組で family の側ごとに書く。VFVO51 の entry は既存の land 側を保つ（P3-AUTH-AC03(2)）。
   const landEventId = marine ? existing?.landEventId ?? null : candidate.family === "VFVO51" ? existing?.landEventId ?? candidate.eventId
@@ -306,7 +306,7 @@ function alertBase(candidate: VolcanoCandidate, subject: string, code: string, e
   const retainUntil = Math.max(source == null ? -Infinity : reportMs(source), marineSource == null ? -Infinity : reportMs(marineSource))
     + ALERT_RETAIN_MS;
   // P3-NL-AC02 (2)(4): 陸上・海上の通知の印は記録へ引き継ぐ。
-  return { subject, operation: candidate.operation, volcanoCode: code, eventId, source, marineSource, landKind, landEventId, marineEventId,
+  return { subject, operation: candidate.operation, volcanoCode: code, eventId, source, marineSource, landKind, marineKind, landEventId, marineEventId,
     retainUntil, ...existing?.notice == null ? {} : { notice: existing.notice },
     ...existing?.marineNotice == null ? {} : { marineNotice: existing.marineNotice } };
 }
@@ -375,8 +375,8 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     next = before != null && land != null && activeKind(land) ? { ...before, ...base, kind: land, level: levelOf(land.code), marineAreas: [] }
       : { ...base, effective: before != null ? "ended" : inactive(existing) };
   } else if (candidate.cancelled) {
-    // VFVO50 の取消と、VFSV だけの記録への VFSV の取消は警報全体を cancelled にする。
-    next = { ...base, effective: "cancelled" };
+    // VFVO50 の取消は、残る VFSV が自分の区分（marineKind）で支えるなら陸の部分だけを取り消し、VFVO50 だけが書く事実と lastKind を消す（P3-UV2-D-LAND-CANCEL=B・D-LAND-FACTS=A）。支えない VFVO50 の取消と、VFSV だけの記録への VFSV の取消は警報全体を cancelled にする（D-UNSUPPORTED=A）。
+    const sea = marine || existing?.marineSource == null ? null : existing.marineKind; next = before != null && sea != null && activeKind(sea) ? { ...withoutPrevention(before), ...base, kind: sea, lastKind: null, level: levelOf(sea.code), headline: null, municipalities: [] } : { ...base, effective: "cancelled" };
   } else if (!takeKind) {
     // kind は先着（か新しい別 family）のまま。active なら自分の field だけを当てる。
     next = before == null ? { ...base, effective: inactive(existing) } : entry != null ? { ...before, ...base }
@@ -559,18 +559,18 @@ function remark(state: VolcanoUnitState, subject: string, marine: boolean,
 function a7Order(left: VolcanoIntent, right: VolcanoIntent): number {
   return left.expiresAt - right.expiresAt || left.createdAt - right.createdAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
 }
-// 海上の部分だけの取消の鍵（`${subject}\nVFSV`）。その subject の VFSV の pending だけを置き換える。
-const MARINE_PART = "VFSV";
+// 部分だけの取消の鍵（`${subject}\n${側}`）。その subject のその側（海上は VFSV、陸は VFVO50・VFVO51）の pending だけを置き換える。
+const MARINE_PART = "VFSV", LAND_PART = "VFVO50";
 // Q-NOTICE.capacity と P3-C9-REPLACEMENT=A。新しい intent は同じ subject・channel の pending を、取消は対象 subject の全 pending を置き換える。
-// 海上の部分だけの取消（marinePart）の通知は、同じ subject の VFSV の pending だけを置き換える（統合担当の決定、Q-C9-IMPL-AMEND(9)）。
-function admit(current: readonly VolcanoIntent[], fresh: readonly VolcanoIntent[], cancelled: ReadonlySet<string>, marinePart = false, replacing: readonly VolcanoIntent[] = fresh):
+// 部分だけの取消（part）の通知は、同じ subject のその側の pending だけを置き換える（海上は Q-C9-IMPL-AMEND(9)、陸は P3-UV2-D-WITHDRAW-SIDE=A）。
+function admit(current: readonly VolcanoIntent[], fresh: readonly VolcanoIntent[], cancelled: ReadonlySet<string>, part: string | null = null, replacing: readonly VolcanoIntent[] = fresh):
   Readonly<{ intents: readonly VolcanoIntent[]; admitted: readonly VolcanoIntent[]; dropped: number }> {
   const superseded = new Set<VolcanoIntent>();
   const replaced = new Set(replacing.map((intent) => `${intent.subject}\n${intent.channel}`));
-  for (const item of current)
-    if (cancelled.has(item.subject) || (!marinePart || isMarine(item.source.family))
-      && replaced.has(`${item.subject}\n${item.channel}`) || isMarine(item.source.family) && cancelled.has(`${item.subject}\n${MARINE_PART}`))
-      superseded.add(item);
+  for (const item of current) {
+    const side = isMarine(item.source.family) ? MARINE_PART : LAND_PART;
+    if (cancelled.has(item.subject) || cancelled.has(`${item.subject}\n${side}`) || (part == null || part === side) && replaced.has(`${item.subject}\n${item.channel}`)) superseded.add(item);
+  }
   if (superseded.size === 0 && fresh.length === 0) return { intents: current, admitted: [], dropped: 0 };
   const pool = [...current.filter((item) => !superseded.has(item)), ...fresh];
   const out = new Set<VolcanoIntent>();
@@ -759,7 +759,7 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
     return applied;
   }
   if (candidate.cancelled) {
-    applied.cancelled.add(subject);
+    applied.cancelled.add(next.effective === "active" ? `${subject}\n${LAND_PART}` : subject); // 陸の部分だけの取消は陸の pending だけ（P3-UV2-D-WITHDRAW-SIDE=A）
     const cancelled = isMarine(candidate.family) ? cancelledOf(existing, existing?.marineSource ?? null, existing?.marineNotice)
       : cancelledOf(existing, existing?.source ?? null, existing?.notice);
     if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
@@ -1049,8 +1049,8 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     const next = verdict.next;
     const fields = changed(existing, next, ALERT_FIELDS);
     applied.changes.push([existing, next]);
-    // 到着の時点で期限を過ぎた採用が前の active を置き換えるなら、単独の警報と同じく pending を撤回する（D-WITHDRAW=A、P3-FINAL-AC04）。
-    if (existing?.effective === "active" && dueAt(next, now)) applied.cancelled.add(subject);
+    // 前の active を期限を過ぎた採用が置き換えるか active でない記録にするなら pending を撤回する（P3-FINAL-AC04、P3-UV2-D-WITHDRAW=A: 解説の intent は警報の subject の pending を置き換えない）。
+    if (existing?.effective === "active" && (dueAt(next, now) || next.effective !== "active")) applied.cancelled.add(subject);
     applied.subjects.push(outcomeOf(next, fields));
     applied.semantic ||= fields.length !== 0;
     decide(applied, candidate, subject, { kind: "adopt" }, fields.length !== 0);
@@ -1070,7 +1070,7 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, 
   const version = notice == null ? "" : versionDigest(notice.source), marine = notice?.series === "marine";
   const fresh = notice == null ? [] : intentsFor(notice, now, seriesMark(applied.state, notice.subject, marine), version);
   const notices = admit(applied.state.intents, recovering ? [] : fresh, applied.cancelled,
-    [...applied.cancelled].some((key) => key.endsWith(`\n${MARINE_PART}`)), fresh);
+    [...applied.cancelled].find((key) => key.includes("\n"))?.split("\n")[1] ?? null, fresh);
   // P3-NL-AC02 (3): admit を通った版と種類を系列の記録の印に足す（全 channel が断られた版は入れない）。
   const marked = notice == null || notices.admitted.length === 0 ? applied.state
     : remark(applied.state, notice.subject, marine, (mark) => markNotice(mark, version, noticeKind(notice.transition)));
@@ -1298,7 +1298,7 @@ function resolveShortfall(state: VolcanoUnitState, input: Extract<VolcanoInput, 
       ...isAlert(item) && item.marineNotice != null ? { marineNotice: item.marineNotice } : {} });
     if (found.slice === "alert") next = { ...next, alerts: end<VolcanoAlert>(state.alerts, (item) => ({ subject: item.subject,
       operation: item.operation, volcanoCode: item.volcanoCode, eventId: item.eventId, source: item.source, marineSource: item.marineSource,
-      landKind: item.landKind, landEventId: item.landEventId, marineEventId: item.marineEventId,
+      landKind: item.landKind, marineKind: item.marineKind, landEventId: item.landEventId, marineEventId: item.marineEventId,
       retainUntil: item.retainUntil, effective: "ended", ...marks(item) })) };
     if (found.slice === "eruption") next = { ...next, eruptions: end<VolcanoEruption>(state.eruptions, (item) => ({ subject: item.subject,
       operation: item.operation, eventId: item.eventId, source: item.source, retainUntil: item.retainUntil, volcanoCode: item.volcanoCode,
@@ -1476,9 +1476,9 @@ function alertRecord(value: unknown): VolcanoAlert | null {
     return null;
   const latest = Math.max(source == null ? -Infinity : reportMs(source), marineSource == null ? -Infinity : reportMs(marineSource));
   if (row.retainUntil !== latest + ALERT_RETAIN_MS) return null;
-  // landKind は source の family の区分で、source が null なら null（値域と上限は kind と同じ）。
-  const landKind = row.landKind === null ? null : kindRecord(row.landKind);
-  if (landKind == null && row.landKind !== null || source == null && landKind != null) return null;
+  // landKind・marineKind は source・marineSource の family の区分で、その側が null なら null（値域と上限は kind と同じ、P3-UV2-AC03 (2)）。
+  const landKind = row.landKind === null ? null : kindRecord(row.landKind), marineKind = row.marineKind === null ? null : kindRecord(row.marineKind);
+  if (landKind == null && row.landKind !== null || source == null && landKind != null || marineKind == null && row.marineKind !== null || marineSource == null && marineKind != null) return null;
   // identity の鍵の無い警報は invalid（移行 A1 の旧保存は版で捨てる、P3-VM-AC08）。
   const land = row.landEventId, marine = row.marineEventId;
   const landEventId = land === null ? null : source != null && isText(land) && validEventId(land) ? land : undefined;
@@ -1491,7 +1491,7 @@ function alertRecord(value: unknown): VolcanoAlert | null {
   const notice = "notice" in row ? source == null ? null : readNoticeMark(row.notice) : undefined;
   const marineNotice = "marineNotice" in row ? marineSource == null ? null : readNoticeMark(row.marineNotice) : undefined;
   if (landMark === undefined || seaMark === undefined || notice === null || marineNotice === null) return null;
-  const base = { subject, operation, volcanoCode: row.volcanoCode, eventId: row.eventId, source, marineSource, landKind, landEventId,
+  const base = { subject, operation, volcanoCode: row.volcanoCode, eventId: row.eventId, source, marineSource, landKind, marineKind, landEventId,
     marineEventId, retainUntil: row.retainUntil, ...landMark == null ? {} : { unconfirmed: landMark },
     ...seaMark == null ? {} : { marineUnconfirmed: seaMark }, ...notice == null ? {} : { notice },
     ...marineNotice == null ? {} : { marineNotice } };
