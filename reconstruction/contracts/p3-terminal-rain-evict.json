@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "5f23e0bf7cf94802b8a0002d74f202a58cf81cc06b44b0877371fb60907b2478",
+    "sha256": "e5fa9e90833ca1a35f1f5486664915e63ea8fad066d59455bcdcfd505352ba44",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -190,7 +190,7 @@
           "reconstruction/src/units/briefing/briefing-unit.ts:449 «9566e8304fd3ab0f»",
           "reconstruction/src/units/briefing/briefing-unit.ts:503 «c4001093f7d24beb»",
           "reconstruction/src/units/briefing/briefing-unit.ts:538 «3c915558c3eb15ad»",
-          "reconstruction/src/terminal/material.ts:303 «2be327932f009c34»",
+          "reconstruction/src/terminal/material.ts:333 «2be327932f009c34»",
           "reconstruction/src/terminal/output.ts:339 «1cbad544ef8d1adf»",
           "reconstruction/src/terminal/output.ts:346 «da2499732129eee5»",
           "reconstruction/src/terminal/output.ts:499 «83cb5a60d5f90392»",

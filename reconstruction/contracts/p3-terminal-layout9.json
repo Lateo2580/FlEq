@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "7bc8afc6b4e042cebd0bcb688db965569bed1f8d59b340b9dceb34d16c0f3651",
+    "sha256": "63b148231d91466c7cdaba72be08ea32d8b64f22ec8c76fe1f1151c8b8148498",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -286,12 +286,12 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL9-AC01",
-        "requirement": "帯の題名を Head/Title にする報（Q-TO10-HEAD-TITLE、P3-TL9-D-HEAD-TITLE）。場面: 2024-08-10 17:00 に埼玉県など 5 県の熱中症警戒アラート（VPFT50）が届くと、今は「熱中症警戒アラート」の帯が 5 つ並び、どの県の報か読めない（Control/Title は県を持たず、Body に Area が無いので対象も空）: (1) headType が VPFT50・VPAW51・VPWP50 の短い形の報は、帯の題名を Control/Title でなく Head/Title にし（版の印「（Ｒ０６）」を除く規則は今と同じ）、対象（target）を帯に付けない。例: 57_03_01 は「埼玉県熱中症警戒アラート」、72_03_01 は「大雪に関する早期天候情報（東北地方）」（今は「早期天候情報 東北日本海側」）、81_01_01 は「宗谷地方警戒・注意事項時系列情報」（今は「気象警報・注意報時系列情報 稚内市」）。VPWP50 の同じ便の 2 件以上は P3-TL11 のまとめで、帯の題名を Control/Title から版の印を除いた題名と「 N件」にする（P3-TL11-AC01・AC03） (2) 訓練・試験の印と「 取消」は今と同じく題名の後ろ（例 synthetic_VPFT50_cancel は「埼玉県熱中症警戒アラート 取消」） (3) 字は電文の Head/Title のまま（切り出し・言い換えをしない。synthetic_VPFT50_title_escalation は「埼玉県熱中症特別警戒アラート」） (4) Head/Title が無いか空の報は今の形（Control/Title と対象） (5) 段・理由の行・見出し文・末尾の行と、ほかの種類の帯は変えない。material は変えない（head.title は既に読んでいる。format.ts の shortForm の題名だけ）",
+        "requirement": "帯の題名を Head/Title にする報（Q-TO10-HEAD-TITLE、P3-TL9-D-HEAD-TITLE）。場面: 2024-08-10 17:00 に埼玉県など 5 県の熱中症警戒アラート（VPFT50）が届くと、今は「熱中症警戒アラート」の帯が 5 つ並び、どの県の報か読めない（Control/Title は県を持たず、Body に Area が無いので対象も空）: (1) headType が VPFT50・VPAW51・VPWP50 の短い形の報は、帯の題名を Control/Title でなく Head/Title にし（版の印「（Ｒ０６）」を除く規則は今と同じ）、対象（target）を帯に付けない。例: 57_03_01 は「埼玉県熱中症警戒アラート」、72_03_01 は「大雪に関する早期天候情報（東北地方）」（今は「早期天候情報 東北日本海側」）、81_01_01 は「宗谷地方警戒・注意事項時系列情報」（今は「気象警報・注意報時系列情報 稚内市」）。VPWP50 の同じ便の 2 件以上は P3-TL11 のまとめで、帯の題名を Control/Title から版の印を除いた題名と「 N件」にする（P3-TL11-AC01・AC03）。VPWW55〜61 も帯の題名を Head/Title にして対象を付けない（Head/Title が無いか空の報も対象を付けない、P3-TL12-AC01） (2) 訓練・試験の印と「 取消」は今と同じく題名の後ろ（例 synthetic_VPFT50_cancel は「埼玉県熱中症警戒アラート 取消」） (3) 字は電文の Head/Title のまま（切り出し・言い換えをしない。synthetic_VPFT50_title_escalation は「埼玉県熱中症特別警戒アラート」） (4) Head/Title が無いか空の報は今の形（Control/Title と対象） (5) 段・理由の行・見出し文・末尾の行と、ほかの種類の帯は変えない。material は変えない（head.title は既に読んでいる。format.ts の shortForm の題名だけ）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
           "docs/specs/cli-terminal-output.md:878 «c5a8febece3d2b10»",
           "docs/specs/cli-terminal-output.md:584 «ac0d75ec8384aca1»",
-          "docs/specs/cli-terminal-output.md:585 «9d863739372721b3»",
+          "docs/specs/cli-terminal-output.md:585 «9d92ce801461b498»",
           "test/fixtures/57_03_01_240401_VPFT50.xml:11 «ea661e88e8f7eb17»",
           "test/fixtures/72_03_01_190327_VPAW51.xml:11 «c40b893a9a8fb573»",
           "test/fixtures/81_01_01_260129_VPWP50.xml:11 «4bce9eb55ce49339»",
@@ -343,7 +343,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:609 «4bc9de7d19861115»",
           "docs/specs/cli-terminal-output.md:879 «a16e134191b148ae»",
-          "docs/specs/cli-terminal-output.md:585 «9d863739372721b3»",
+          "docs/specs/cli-terminal-output.md:585 «9d92ce801461b498»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:174 «9e329ba36327340b»",
           "src/ui/typhoon-analysis-formatter.ts:96 «ce33e0017551e164»",
           "src/ui/typhoon-probability-formatter.ts:51 «10646b2ced584ed4»"

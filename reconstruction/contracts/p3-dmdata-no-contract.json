@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5f3095d7e324384b93ee126181d6d8cbac9cb9dc",
-    "sha256": "0cf3ee9e17025e5695deeb1202f19dd7c0031da1efe2860a91025e125ce8a5e1",
+    "sha256": "2456d2e9f3537859597d5c7cfdfe859a5a41a9fb88461c0ddcae1c24d3879d1c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -269,7 +269,7 @@
           "reconstruction/src/cli/cli.ts:326 «b9c492f5da23e6e8»",
           "reconstruction/src/cli/cli.ts:342 «5b5e166acabcf934»",
           "reconstruction/src/terminal/output.ts:386 «d8d3a650b9e35ea3»",
-          "reconstruction/src/terminal/format.ts:895 «1bb65f57e524c4f2»",
+          "reconstruction/src/terminal/format.ts:905 «1bb65f57e524c4f2»",
           "reconstruction/cli/watch.mjs:318 «7b4b0a91805fa29d»",
           "src/engine/cli/cli-run.ts:66 «6cf3457473eb270c»",
           "src/engine/cli/cli-run.ts:75 «8f91e1c2976b90a9»",
@@ -283,11 +283,11 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:239 «741773806b2db564»",
           "reconstruction/contracts/p3-dmdata-connect.types.ts:24 «2504649bbed3ff75»",
-          "reconstruction/src/terminal/format.ts:802 «eaaa9074375c6393»",
-          "reconstruction/src/terminal/format.ts:807 «52b0a698c38ab469»",
+          "reconstruction/src/terminal/format.ts:812 «eaaa9074375c6393»",
+          "reconstruction/src/terminal/format.ts:817 «52b0a698c38ab469»",
           "reconstruction/src/host/host.ts:418 «1bdbd2fc0594394f»",
           "reconstruction/src/terminal/output.ts:392 «567038c0b62d350b»",
-          "reconstruction/src/terminal/format.ts:801 «31c3b1398e75cf7a»",
+          "reconstruction/src/terminal/format.ts:811 «31c3b1398e75cf7a»",
           "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
           "reconstruction/src/host/host.ts:587 «98104048db3c9a8c»"
         ]
@@ -298,7 +298,7 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:249 «fab504201225d15f»",
           "reconstruction/src/terminal/output.ts:392 «567038c0b62d350b»",
-          "reconstruction/src/terminal/format.ts:806 «41c70bdfbc884764»",
+          "reconstruction/src/terminal/format.ts:816 «41c70bdfbc884764»",
           "reconstruction/src/terminal/output.ts:361 «13ac734c1605a676»",
           "reconstruction/src/terminal/output.ts:391 «9adea79d2deb1ecb»"
         ]
@@ -327,7 +327,7 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:364 «cb9be8e27616c714»",
           "reconstruction/src/host/host.ts:583 «4af6c88c69026a5e»",
-          "reconstruction/src/terminal/format.ts:895 «1bb65f57e524c4f2»",
+          "reconstruction/src/terminal/format.ts:905 «1bb65f57e524c4f2»",
           "docs/specs/cli-terminal-output.md:771 «ffa349145b446270»"
         ]
       }

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86bb360c4e857d340f328644b670bead0b03474f",
-    "sha256": "8d1378f6e59f39cc10305b1ca6d9a3c0a80037af772c119f08b1232e4b2e501f",
+    "sha256": "7eea6dd3b255ab321a8526f640be48e2cc50300bef0c4f2ef353a0b330db9b04",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -150,9 +150,9 @@
           "docs/specs/cli-terminal-output.md:805 «9383fe75b8e1aedc»",
           "docs/specs/cli-terminal-output.md:872 «b46a434035ba0432»",
           "docs/specs/cli-terminal-output.md:609 «4bc9de7d19861115»",
-          "reconstruction/src/terminal/format.ts:737 «4e30f90d234b6ce0»",
-          "reconstruction/src/terminal/format.ts:738 «4f518744b44af17c»",
-          "reconstruction/src/terminal/format.ts:816 «52ceff2b61bef634»",
+          "reconstruction/src/terminal/format.ts:740 «4e30f90d234b6ce0»",
+          "reconstruction/src/terminal/format.ts:741 «4f518744b44af17c»",
+          "reconstruction/src/terminal/format.ts:826 «52ceff2b61bef634»",
           "test/fixtures/synthetic_VPTW60_cancel.xml:4 «8134ee3e92a22164»",
           "reconstruction/contracts/p3-terminal-layout9.json:282 «7c153a3780435319»"
         ]
@@ -179,9 +179,9 @@
           "docs/specs/cli-terminal-output.md:88 «92a8bdfca2603b73»",
           "reconstruction/src/terminal/format.ts:237 «e776e32870e86512»",
           "reconstruction/src/terminal/format.ts:238 «c6e6f460a0ff2fe9»",
-          "reconstruction/src/terminal/format.ts:759 «434d49a755e2dd35»",
-          "reconstruction/src/terminal/format.ts:871 «61efe2b362e065f9»",
-          "reconstruction/src/terminal/format.ts:889 «37884765432f1a5e»",
+          "reconstruction/src/terminal/format.ts:763 «434d49a755e2dd35»",
+          "reconstruction/src/terminal/format.ts:881 «61efe2b362e065f9»",
+          "reconstruction/src/terminal/format.ts:899 «37884765432f1a5e»",
           "reconstruction/src/terminal/output.ts:415 «2e886d21d6e2c58f»"
         ]
       }
