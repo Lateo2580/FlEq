@@ -101,17 +101,17 @@ describe("P3-TL11 気象警報・注意報時系列情報のまとめ", () => {
   });
 
   // P3-TL11-T02 acceptance / AC01 (4)
-  it("T02 (c) 5 秒ごとに届き続けると、最初の報から 90 秒を過ぎた最初の tick で出る", async () => {
+  it("T02 (c) 5 秒ごとに届き続けると、最初の報から 180 秒を過ぎた最初の tick で出る", async () => {
     const s = sink();
     s.attach();
-    for (let index = 0; index < 18; index += 1) {
+    for (let index = 0; index < 36; index += 1) {
       if (index > 0) vi.advanceTimersByTime(5_000);
       send(s, `s${index}`, tsOf(`地方${index}`), `normal/VPWP50/地方${index}地方気象台`);
     }
     vi.advanceTimersByTime(4_999);
     expect(s.lines).toEqual([]);
     vi.advanceTimersByTime(1);
-    expect(heads(s.lines)).toEqual([band(`${TS_TITLE} 18件`, "11:00:00")]);
+    expect(heads(s.lines)).toEqual([band(`${TS_TITLE} 36件`, "11:00:00")]);
     await s.output.close();
   });
 

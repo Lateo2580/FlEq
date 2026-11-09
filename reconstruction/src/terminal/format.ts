@@ -732,9 +732,9 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   const { head } = report;
   // P3-TL9-AC01・D-HEAD-TITLE: 熱中症警戒アラート・早期天候情報・気象警報・注意報時系列情報は、県・現象・地方を持つ Head/Title を題名にして対象を付けない
   // （Control/Title は種類の一般の名前だけで、Body の最初の Area は報の全体の対象と違う）。Head/Title が空か無い報は今の形。
-  // 気象警報・注意報（VPWW55〜61）も Head/Title を題名にする（P3-TL12-AC01 (1)・D-BAND-TITLE=A）。最初の Area は府県予報区等の層の最初の Item で
-  // 北海道では一部の地方になるので、Head/Title が空か無い報でも対象を付けない。
-  const vpww = /^VPWW(5[5-9]|6[01])$/.test(head.headType);
+  // 気象警報・注意報（VPWW55〜61）と気象解説情報（VPZJ51・VPCJ51・VPFJ51、P3-TL15-AC01）も Head/Title を題名にする（P3-TL12-AC01 (1)・D-BAND-TITLE=A）。最初の Area は
+  // VPWW では府県予報区等の層の最初の Item、気象解説では報の一部の区域で、どちらも報の対象でないので、Head/Title が空か無い報でも対象を付けない。
+  const vpww = /^(VPWW(5[5-9]|6[01])|VP[ZCF]J51)$/.test(head.headType);
   const own = (head.headType === "VPFT50" || head.headType === "VPAW51" || head.headType === "VPWP50" || vpww) && head.title != null && head.title !== "" ? head.title : null;
   const target = own == null && !vpww ? report.target : null;
   // 版の印「（Ｒ０６）」「（Ｈ３０）」は題名から除く（Q-TO-S-1、P3-TL13-AC01）。
@@ -913,6 +913,13 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
 // P3-TL13-AC03・D-TIP-WRAP=A: tips は縦線を持たないので端末の幅から頭の 2 桁を引いた幅で句点で分け、まだ入らない文は幅の中の最後の読点の後で折り、続きの行を 4 桁下げる。
 // 幅の中に読点が無ければ残りを wrapChars で字の境目で折る。無いと幅を越える文が字の境目で折れる（写しの「計／算されます。」）。電文の文（textLines）の折り方は変えない。
 function tipLines(text: string, total: number): Line[] {
+  // P3-TL15-AC03 (2): 並びの字。英数字、両側が英数字の「.,-_/:〜」、数字の直後の「℃％%」。
+  const alnum = (char: string | undefined): boolean => char != null && /[A-Za-z0-9]/.test(char);
+  const inRun = (rest: string, at: number): boolean => {
+    const char = rest[at];
+    return alnum(char) || (char != null && ".,-_/:〜".includes(char) && alnum(rest[at - 1]) && alnum(rest[at + 1]))
+      || (char != null && "℃％%".includes(char) && /[0-9]/.test(rest[at - 1] ?? ""));
+  };
   return textLines(text, total - 2).flatMap((sentence) => {
     const lines: Line[] = [];
     let rest = sentence.segs[0].text, lead = "  ";
@@ -930,7 +937,31 @@ function tipLines(text: string, total: number): Line[] {
       rest = rest.slice(cut);
       lead = "    ";
     }
-    return [...lines, ...wrapChars([seg(lead + rest, "dim")], total, "    ").map((segs) => ({ segs }))];
+    // P3-TL15-AC03・D-TIP-DIGITS=A: 字の境目の折れ目が半角の英数字の並び（直前の開き括弧を含む）の途中なら、並びの手前で折って並びを続きの行へ送り、残りを折り直す。
+    // 行の頭が並びのときと、並びが続きの行（幅から 4 桁）に入らないときは送らない。無いと「おおむね3／5℃」のように割れる。折り直しは 1 文の行数の回数まで。
+    for (;;) {
+      const rows = wrapChars([seg(lead + rest, "dim")], total, "    "), texts = rows.map((segs) => segs.map((part) => part.text).join(""));
+      let start = rest.length - rest.trimStart().length, cut = -1, row = 0;
+      for (; row < rows.length - 1; row += 1) {
+        // wrapChars は折れ目の空白を捨てるので、次の行の字下げの後は rest の続きにある。空白の消えた行（NO_HEAD の送り）で見つからなければ今の折りのまま。
+        const next = rest.indexOf(texts[row + 1].trimStart(), start + texts[row].trimStart().length);
+        if (next < 0) break;
+        let from = next, end = next;
+        // 折れ目の両側が並びのときだけ（並びの手前の開き括弧の後で折れた所は今のまま、Q-TL15-TIP-COUNT）。
+        if (inRun(rest, next) && inRun(rest, next - 1)) {
+          while (inRun(rest, from - 1)) from -= 1;
+          if ("（(「『［[".includes(rest[from - 1] ?? "\n")) from -= 1;
+          while (inRun(rest, end)) end += 1;
+        }
+        if (from < next && from > start && width(rest.slice(from, end)) <= total - 4) { cut = from; break; }
+        start = next;
+      }
+      if (cut < 0) return [...lines, ...rows.map((segs) => ({ segs }))];
+      const indent = texts[row].slice(0, texts[row].length - texts[row].trimStart().length), body = rest.slice(start, cut).trimEnd();
+      lines.push(...rows.slice(0, row).map((segs) => ({ segs })), row === 0 ? line(seg(indent + body, "dim")) : line(...indent === "" ? [] : [seg(indent)], seg(body, "dim")));
+      rest = rest.slice(cut);
+      lead = "    ";
+    }
   });
 }
 // ---- 書き出す文字 ----

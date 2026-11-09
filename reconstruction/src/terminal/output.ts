@@ -36,8 +36,8 @@ const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
 const CHILD_LOST = "端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません";
 // P3-TL10-AC01 (4): 降灰予報（定時）のまとまりの区切り（U-V の通知のまとめ P3-C9-BATCH と同じ数）。
 const ASH_QUIET_MS = 8_000, ASH_MAX_MS = 90_000, ASH_LIMIT = 20;
-// P3-TL11-AC01 (4)・D-TS-LIMIT=A: 気象警報・注意報時系列情報のまとまりの上限（全国 64 の府県予報区等）。区切りの 8 秒・90 秒は降灰と同じ数を使う。
-const SERIES_LIMIT = 64, RISK_LIMIT = 32;
+// P3-TL11-AC01 (4)・D-TS-LIMIT=A: 気象警報・注意報時系列情報のまとまりの上限（全国 64 の府県予報区等）。最後の報から 8 秒は降灰と同じ。最初の報からは 180 秒（実測の 31 便の幅が 119〜144 秒で 90 秒では割れる、Q-TL15-TS-INTERVAL）。
+const SERIES_LIMIT = 64, RISK_LIMIT = 32, SERIES_MAX_MS = 180_000;
 // P3-TL10-AC03 (3): VPOA50 の待ち。60 秒は briefing-unit.ts の HOLD_MS と同じ値（T05 が結ぶ）。256 は端末自身の上限。
 const RAIN_HOLD_MS = 60_000, RAIN_LIMIT = 256;
 
@@ -333,7 +333,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   // tick と inputDone の初めに見る（U-V が入力の前に期限を当てる順と同じ、AC01 (4)・AC03 (4)）。表は先頭から期限の過ぎた分だけ。時系列のまとまりは降灰の後（P3-TL11-AC01 (4)）。
   const expire = (nowMono: number): void => {
     if (ash != null && (nowMono - ash.lastMs >= ASH_QUIET_MS || nowMono - ash.firstMs >= ASH_MAX_MS)) flushAsh();
-    if (series != null && (nowMono - series.lastMs >= ASH_QUIET_MS || nowMono - series.firstMs >= ASH_MAX_MS)) flushSeries();
+    if (series != null && (nowMono - series.lastMs >= ASH_QUIET_MS || nowMono - series.firstMs >= SERIES_MAX_MS)) flushSeries();
     for (const [subject, item] of rain) {
       if (nowMono < item.dueMs) break;
       rain.delete(subject);
