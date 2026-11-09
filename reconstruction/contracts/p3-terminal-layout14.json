@@ -1,0 +1,254 @@
+{
+  "meta": {
+    "draftedFromOid": "876e4fdf85b222a620429037d34584b2cbfe2830",
+    "sha256": "ddf0b937fd8857baa20ffbfaee36a8b9a45203416c01f97272667ed0ea416bbc",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [],
+    "questionResolutions": [
+      {
+        "id": "Q-TL14-BOUNDARY",
+        "status": "closed",
+        "source": "2026-11-09 夜の P3-TERMINAL-LAYOUT-012 の実装レビュー（ヘルツの品質レビュー、P3）。起草で p3-terminal-layout12.json の AC02 と material.ts の release を読んだ",
+        "closed": "指摘の 3 つの境界は、どれも 012 の AC02 の字にある。(a) 名前 32 字・33 字: AC02 (3)「Area の Name が無いか空か 32 字を越える Item で解除の Kind を持つもの」「Name が無いか空か 32 字を越えるもの」。material.ts の RELEASE_NAME と fits（区域と Kind の Name で同じ関数） (b) 不正な Code: AC02 (3)「Code が 2 桁の数字でない」。release の /^[0-9]{2}$/ (c) 同じ Item の中の重複: AC02 (2)「1 つの Item が同じ鍵の Kind を 2 つ持っても区域は 1 回」。release の row.item の比べで、延べ 512 の比べより前にあるので、重複は延べにも others にも数えない。今の layout12.test.ts の T02 は fixture の形・257 Item・9 行の同時解除・延べ 513 だけで、3 つとも試験が無い。名前が無いか空の場合は fits の同じ分岐なので足さない。T02・T03 の振る舞いの混ざりと T01 の重ねた否定の検査も同じレビューの指摘で、P3-TL14-AC02 で閉じる",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL14-SPEC480",
+        "status": "closed",
+        "source": "2026-11-09 夜のバックログ（012 の実装レビューで見つけた spec の古い文）。起草で spec §5.4 の 600〜613 行を読んだ",
+        "closed": "docs/specs/cli-terminal-output.md:480 の「表は出さない」は、後の契約で §5.4 に足した項と合わない: 601（全国の月間火山概況の表、Q-TO4-MONTHLY）、604（噴火速報の活動の文と市町村の表、Q-TO5-FLASH）、606（全国の集約通報の表、Q-TO9-VPWS50-TARGET）、608（気象警報・注意報の解除の行、Q-TO13-RELEASED、P3-TERMINAL-LAYOUT-012）、611（降灰予報（定時）のまとめ、Q-TO11-VFVO53、P3-TERMINAL-LAYOUT-010）、613（気象警報・注意報時系列情報のまとめ、Q-TO12-VPWP50、P3-TERMINAL-LAYOUT-011）。1 行のまま、基本の 4 つの行を残して「表は出さない」を除き、足す行とまとめの形を下の項へ案内する文にした（原文の改訂 (1)）。§8 の Q-TO-S-1 の行は後の行を既に書き足してあるので変えない",
+        "remaining": "p3-terminal-layout.json の P3-TL-AC11「見出し文のほかに要点の行を足さない（Q-TO-S-3）」も後の契約と合わない（閉じた契約。spec:480 を引くが、文の改訂は本契約の範囲外として統合担当に報告した）"
+      },
+      {
+        "id": "Q-TL14-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-09 夜）",
+        "closed": "統合担当の指示は baseOid 876e4fdf のままだったが、check-contract.mjs は baseOid の木に契約の file があるか（git cat-file -e <baseOid>:reconstruction/contracts/p3-terminal-layout14.json）を確かめるので、本契約が無い 876e4fdf では落ちる。起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける",
+        "remaining": "発注の時の baseOid（統合担当）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない（コードを変えない）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-014",
+    "mode": "implementation",
+    "objective": "2026-11-09 夜の P3-TERMINAL-LAYOUT-012 の実装レビューの P3 を閉じる。layout12.test.ts に 012 の解除の材料（P3-TL12-AC02 (2)(3)）の境界の試験を 3 つ足し（名前 32 字・33 字、2 桁の数字でない Code、同じ Item の同じ Code の重複）、P3-TL12-T02・T03 を振る舞いごとの it に分け、T01 の重ねた否定の検査を除く。spec §5.4 の短い形の総則の文（cli-terminal-output.md:480 の「表は出さない」）を、後の契約で足した行を指す文に直す（原文の改訂、統合担当が配送で当てる）。コードは変えず、画面も変わらない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-terminal-layout14.json",
+      "reconstruction/contracts/p3-terminal-layout12.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/test/terminal/layout12.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts",
+      "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/terminal/layout12.test.ts（P3-TL14-T01〜T03 の追加、P3-TL12-T02・T03 の it の分割、T01 の重ねた否定の検査の削除だけ。ほかの試験 file と src は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout14.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-012"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（src を変えない。試験は terminalReport と createRenderer を今の形で呼ぶ）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_16_05_241226_VPWW59",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__18_00_01_260603_VPWW56_kagawa_release",
+      "test__fixtures__15_16_07_250825_VPWW61",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__synthetic_VPWW56_cancel"
+    ],
+    "sequenceIds": [
+      "O03"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし（src を変えない）"
+    ],
+    "outOfScope": [
+      "reconstruction/src/ の変更（material.ts の release と format.ts の解除の行は今のまま。足した試験が今のコードで落ちたら、直さずに止めて報告する）",
+      "012 の境界のうち、既存の試験が見ているもの（257 Item、延べ 513、取消と VPWS50 の null）の試験を足すこと",
+      "名前が無いか空の区域・Kind の試験（fits の同じ分岐で、P3-TL14-T01 の 32 字・33 字が見る）",
+      "閉じた契約 p3-terminal-layout.json の P3-TL-AC11 の「見出し文のほかに要点の行を足さない」の文（後の契約と合わないが、本契約では改めない）",
+      "spec の §8 の Q-TO-S-1〜3 の行と §5.4 のほかの行（原文の改訂は 480 行の 1 行だけ）",
+      "runtime・unit・ディスプレイ（P4）・旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL14-AC01",
+        "requirement": "解除の材料の境界の試験（P3-TL12-AC02 (2)(3) の境界。material.ts の release の今の動きを試験で留める。コードは変えない）: (1) 名前の長さ: 区域（市町村等をまとめた地域等の層の Item の Area の Name）と解除の Kind の Name は、32 字なら載り、33 字なら載らずにその Item を others に 1 つ数える（RELEASE_NAME と fits は区域と Kind の Name で同じ）。Area の Name が 33 字でも解除の Kind を持たない Item は数えない (2) Code: 解除の Kind の Code が 2 桁の半角の数字でないもの（1 桁、3 桁、全角の数字、Code の要素が無い）は載らず、その Item を others に 1 つだけ数える（同じ Item に不正な Kind が 2 つあっても 1）。同じ Item の正しい解除の Kind は載る。Status が解除でない Kind は Code を見ない (3) 重複: 1 つの Item が同じ Code の解除の Kind を 2 つ持っても、その行の areas に区域は 1 回。間に別の Code の解除の Kind を挟んでも同じ。重複は others に数えない（重複の比べは延べ 512 の比べより前）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-terminal-layout12.json:252 «4988fc3ae8e071eb»",
+          "reconstruction/src/terminal/material.ts:126 «3051b6e5fcd87918»",
+          "reconstruction/src/terminal/material.ts:127 «c57cc149cef4bb8c»",
+          "reconstruction/src/terminal/material.ts:129 «4b173fd78591e700»",
+          "reconstruction/src/terminal/material.ts:130 «dcf663029486bd13»",
+          "reconstruction/src/terminal/material.ts:136 «32fe4bdb644e4444»",
+          "reconstruction/src/terminal/material.ts:137 «03988ebbf992905d»",
+          "reconstruction/src/terminal/material.ts:138 «1a3b7871c316e8d6»",
+          "reconstruction/src/terminal/material.ts:140 «6eae464aac848eca»",
+          "reconstruction/src/terminal/material.ts:141 «4fb60d40fd781311»",
+          "reconstruction/src/terminal/material.ts:142 «5f5996169d90966f»",
+          "reconstruction/src/terminal/material.ts:147 «9d604e783f18b077»",
+          "reconstruction/test/terminal/terminal-fixture.ts:33 «84fe7dd94f75b609»"
+        ]
+      },
+      {
+        "id": "P3-TL14-AC02",
+        "requirement": "layout12.test.ts の形（012 の実装レビューの P3。期待の値は変えない）: (1) P3-TL12-T02 を 4 つの it に分ける: (a) 7 本の報の released の形 (b) 257 Item で areas 256・others 1 (c) 15_16_07 の VPWW61 の Status を全部解除にした報の 9 行 (d) 171 Item × 3 の延べ 513 で 512 を載せ others 1 (2) P3-TL12-T03 を (a)〜(f) の 6 つの it に分ける。(e)(f) が使う 257 区域の報は、その it の中で作る (3) 分けた it の expect の値は今のまま。it の名前は「T02 (a) …」の形にし、各 it の上にコメントの testId（「P3-TL12-T02 contractBoundary / AC02」など）を残す。分けるために要る helper（allReleased）は it の外へ出してよい (4) T01 の 2 つ目の検査（どの行にも「胆振地方」が無い）を除く。直前の全行一致が 5 行の字を固定し、その 5 行に「胆振地方」は無いので、同じことを 2 回見ている。P3-TL12-T01 の behavior の「どの行にも「胆振地方」の字が無い」は全行一致で見る（原文の改訂 (2) で書き足す）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-terminal-layout12.json:296 «da3ced7bd2cd3499»",
+          "reconstruction/contracts/p3-terminal-layout12.json:305 «70835a8cbbb03aa2»",
+          "reconstruction/contracts/p3-terminal-layout12.json:313 «3de7483da908a1fe»"
+        ]
+      },
+      {
+        "id": "P3-TL14-AC03",
+        "requirement": "spec §5.4 の短い形の総則の文（原文の改訂 (1)。統合担当が配送の commit で当てる。実装はしない）: docs/specs/cli-terminal-output.md:480 の 1 行を、基本の 4 つの行（帯・段の理由・見出し文・末尾）を残し、「表は出さない」を除き、後の契約で足した行（全国の月間火山概況の表・噴火速報の活動の文と市町村の表・全国の集約通報の表・解除の行）とまとめの形（降灰予報（定時）・時系列情報）を §5.4 の下の項へ案内する文に替える。行の数は変えない。見た目は変わらない（文を実装に合わせるだけ）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:601 «ecbcd59bd24b1841»",
+          "docs/specs/cli-terminal-output.md:604 «87b98d2ac4456b51»",
+          "docs/specs/cli-terminal-output.md:606 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:611 «5768731f8619d84e»",
+          "docs/specs/cli-terminal-output.md:613 «fb3b8f31164e2e41»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL14-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL14-AC01"
+        ],
+        "behavior": "契約境界（P3-TL12-AC02 (3) の名前の 32 字）。18_00_01 の福井の解除（U-W）の市町村等をまとめた地域等の層を 5 Item に替えた報（既存の areasLayer・item・kind で作る）: 区域「あ」32 字にレベル２大雨注意報（Code 10・解除）、区域「い」33 字に同じ Kind、区域「う」33 字に「発表警報・注意報はなし」の Kind だけ、区域「区域4」に Name「え」32 字の Kind（Code 15・解除）、区域「区域5」に Name「お」33 字の Kind（Code 16・解除）。released は rows が [レベル２大雨注意報: [「あ」32 字], 「え」32 字: [区域4]] で others 2"
+      },
+      {
+        "testId": "P3-TL14-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL14-AC01"
+        ],
+        "behavior": "契約境界（P3-TL12-AC02 (3) の 2 桁の数字の Code）。同じく 4 Item に替えた報: 区域1 にレベル２大雨注意報（Code 10・解除）・強風注意報（Code「1」・解除）・波浪注意報（Code「100」・解除）、区域2 に雷注意報（Code「１６」全角・解除）、区域3 に濃霧注意報（Code の要素が無い・解除。この Kind だけ試験の中で字で書く）、区域4 に強風注意報（Code「1」・Status「継続」）。released は rows が [レベル２大雨注意報: [区域1]] で others 3（区域1 は不正な Kind が 2 つでも 1、区域4 は数えない）"
+      },
+      {
+        "testId": "P3-TL14-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL14-AC01"
+        ],
+        "behavior": "契約境界（P3-TL12-AC02 (2) の同じ Item の重複）。同じく 2 Item に替えた報: 区域1 にレベル２大雨注意報（Code 10・解除）を 2 つ、区域2 にレベル２大雨注意報（Code 10・解除）・強風注意報（Code 15・解除）・レベル２大雨注意報（Code 10・解除）の順。released は rows が [レベル２大雨注意報: [区域1, 区域2], 強風注意報: [区域2]] で others 0"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O03 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 仕組み（型・層・抽象・設定・helper）を足すときは無いと何が壊れるかを 1 行で示す（本契約は src を変えない。試験は既存の short・released・areasLayer・item・kind・NONE を使い、新しい helper を作らない。Code の要素の無い Kind だけは試験の中で字で書く）。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各試験がどれに対応するかを成果物に 1 行で書く（P3-TL14-T01〜T03 はどれも契約境界で、T01・T02 は P3-TL12-AC02 (3)、T03 は P3-TL12-AC02 (2)）",
+      "既存の試験の期待（expect の値）は変えない。変わるのは P3-TL12-T02・T03 の it の区切りと名前と、T01 の重ねた否定の検査 1 つ（P3-TL14-AC02 (4)）だけ。layout12.test.ts の it の数は 3 から 14（T01 が 1、T02 が 4、T03 が 6、P3-TL14 が 3）になったことを書く。ほかの期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "足した試験の期待は、起草で material.ts の release を読んで出し、試しの試験 file（起草の後に消した）で今のコード（876e4fdf）に当てて 3 つとも通ることを確かめた。今のコードで落ちたら src を直さず、試験名・契約の期待・実際の値を報告して止める",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: 境界の試験は fixture を写して作った報で、32 字を越える区域や 2 桁でない Code を持つ実の VPWW は repo に無い",
+      "原文の改訂（統合担当が配送の commit で当てる。行の数は変えない）: (1) docs/specs/cli-terminal-output.md:480 の 1 行を次の文に替える: 「短い形は、帯の行、段の理由の行（警報以上だけ）、見出し文、末尾の行を基本にする。報によって足す行と、何報かを 1 つにまとめる形は下の各項に書く（全国の月間火山概況の表 Q-TO4-MONTHLY、噴火速報の活動の文と市町村の表 Q-TO5-FLASH、全国の集約通報の表 Q-TO9-VPWS50-TARGET、気象警報・注意報の解除の行 Q-TO13-RELEASED、降灰予報（定時）と気象警報・注意報時系列情報のまとめ Q-TO11-VFVO53・Q-TO12-VPWP50）。空行と左の縦線は §5.0 と同じ。」。この行は p3-terminal-layout.json:320・p3-terminal-layout2.json:346・p3-terminal-output.json:617 が «fc9be00de26c3c82» で引くので、同じ commit で 3 本の «» を新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式。前後の空白を除いた行の UTF-8 の sha256 の先頭 16 桁。python3 ~/dev/fleq-vault-archive/tools/anchor.py docs/specs/cli-terminal-output.md:480 で出る）に手で替え、3 本の meta.sha256 を取り直してから check-contract を通す。reanchor-target.py は同じ anchor を持つ行へ番号を付け直す道具で、中身の変わった行では「0 行」で止まるので、この行には使わない。行の数は変わらないので spec のほかの «» は動かない。本契約は spec:480 を «» で引いていない (2) reconstruction/contracts/p3-terminal-layout12.json の testMapping の behavior の行の末尾に書き足す: :302（P3-TL12-T01）に「（「胆振地方」の字が無いことは 5 行の全行一致で見る。P3-TERMINAL-LAYOUT-014 で重ねた否定の検査を除いた）」、:310（P3-TL12-T02）に「（P3-TERMINAL-LAYOUT-014 で、7 本の形・257 Item・9 行・延べ 513 の 4 つを別の it に分けた。名前の 32 字・33 字、2 桁の数字でない Code、同じ Item の同じ Code の重複の境界は P3-TL14-T01〜T03）」、:320（P3-TL12-T03）に「（P3-TERMINAL-LAYOUT-014 で (a)〜(f) を別の it に分けた）」。そのあと layout12.json の meta.sha256 を取り直す。起草の時に、他の契約が p3-terminal-layout12.json の行を «» で引いていないことを grep で確かめた（0 件）。本契約が引く layout12.json の行（:252・:296・:305・:313）は書き足す 3 行と別の行で、行の数も変わらないので動かない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
