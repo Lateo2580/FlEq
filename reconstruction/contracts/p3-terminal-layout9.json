@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "b632b6ef3f4d88919576631797037dba1e4fb7e10908d9380cf7e9bba1d75d1a",
+    "sha256": "acaad72f0a0f767946b49a10bc8f1d079eabd83352adbc82e80ab51f2f980873",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -291,7 +291,7 @@
           "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
           "docs/specs/cli-terminal-output.md:879 «c5a8febece3d2b10»",
           "docs/specs/cli-terminal-output.md:584 «ac0d75ec8384aca1»",
-          "docs/specs/cli-terminal-output.md:585 «9d92ce801461b498»",
+          "docs/specs/cli-terminal-output.md:585 «611771927b6a834e»",
           "test/fixtures/57_03_01_240401_VPFT50.xml:11 «ea661e88e8f7eb17»",
           "test/fixtures/72_03_01_190327_VPAW51.xml:11 «c40b893a9a8fb573»",
           "test/fixtures/81_01_01_260129_VPWP50.xml:11 «4bce9eb55ce49339»",
@@ -343,7 +343,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:609 «4bc9de7d19861115»",
           "docs/specs/cli-terminal-output.md:880 «a16e134191b148ae»",
-          "docs/specs/cli-terminal-output.md:585 «9d92ce801461b498»",
+          "docs/specs/cli-terminal-output.md:585 «611771927b6a834e»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:174 «9e329ba36327340b»",
           "src/ui/typhoon-analysis-formatter.ts:96 «ce33e0017551e164»",
           "src/ui/typhoon-probability-formatter.ts:51 «10646b2ced584ed4»"
