@@ -617,16 +617,16 @@ describe("P3-UNIT-V-001 U-V reducer", () => {
     expect([marked.displayChanges.length !== 0, unsure.state.alerts === state.alerts, unsure.decisions.map((item) => item.decision === "unchanged" ? item.reason : item.decision), unsure.displayChanges, unsure.diagnostics]).toEqual([true, true, ["noChange"], [], []]);
   });
 
-  // 実不具合の再発防止（K7 発注 2a の品質レビュー P1）: 時刻の無い海上警報（VFSV 36）の後の VFVO50 の取消は陸だけを取り消す（P3-AUTH-D-LAND-CANCEL=B、P3-UNIT-V-002）。
-  // 海上が支えて active のまま海上の印が残り、decode が印付きの記録を拒まず復元できる（P3-VM-AC04）。
-  it("P3-VM-T03 regression / AC04: a land-only cancel after an untimed marine alert keeps it active with the marine mark and round-trips", () => {
+  // 実不具合の再発防止（K7 発注 2a の品質レビュー P1）: 時刻の無い海上警報（VFSV 36）の後の陸だけの取消でも active のまま（P3-AUTH-D-LAND-CANCEL=B、P3-UNIT-V-002）。
+  // 続報で付いた海上の印は次の陸の取消でも保たれ、印付きの記録を decode が拒まず復元できる（P3-VM-AC04）。
+  it("P3-VM-T03 regression / AC04: a land-only cancel after an untimed marine alert keeps it active, and the mark set by a later report survives the next land cancel and round-trips", () => {
     const control = (iso: string) => (xml: string) => xml.replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${iso}</DateTime>`);
     const asMarine = (xml: string) => retime("2020-05-22T13:03:00+09:00")(xml).replaceAll("<Code>506</Code>", "<Code>306</Code>");
     const untimed = send(emptyState(), F.marine, (xml) => control("")(asMarine(xml))).state;
     const cancelled = send(untimed, F.a306, (xml) => control("2020-05-22T04:20:00Z")(replaceTag("InfoType", "取消")(xml))).state;
     const late = send(cancelled, F.marine, (xml) => control("2020-05-22T04:10:00Z")(asMarine(xml))).state;
-    const alert = alertOf(late, "306")!;
-    expect([alert.effective, alert.unconfirmed, alert.marineUnconfirmed?.family, roundTrip(late).kind]).toEqual(["active", undefined, "VFSV50", "restored"]);
+    const again = send(late, F.a306, (xml) => control("2020-05-22T04:21:00Z")(replaceTag("InfoType", "取消")(xml))).state, alert = alertOf(again, "306")!;
+    expect([alert.effective, alert.unconfirmed, alert.marineUnconfirmed?.family, roundTrip(again).kind, alert.marineUnconfirmed]).toEqual(["active", undefined, "VFSV50", "restored", alertOf(late, "306")!.marineUnconfirmed]);
   });
 
   // 実不具合の再発防止（K7 発注 2a の見直し P2）: 失効の後に時刻の無い報で印の付いた記録も、元の版と同じ秒の取消が勝って印を外す（P3-VM-AC04、
