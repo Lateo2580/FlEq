@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "238f3cc9b9f42df46c228e31e26a7bf679226f95",
-    "sha256": "462a5e43c32bada778324b6473dd1f88fff02453c8d19a665c42c7553b903f00",
+    "draftedFromOid": "0b4185c8ed55b69994f6079c490f3fdf736df60a",
+    "sha256": "c20117c429c1d83cb022ce087e52f37c57802734f885921823cc07632d00baca",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -90,7 +90,7 @@
     "contractId": "P3-UNIT-L-002",
     "mode": "implementation",
     "objective": "U-L の取り直しの H27 の比べの基準を、取り直しを始めた時の state（open）から採用の直前の live（at.live）に改める（作者裁定 2026-11-10）。取り直しの間に live で知らせた L5 を、当て直しで受け直した同じ報が info でもう一度鳴らし、live の critical の pending まで置き換える今のコードの欠けを直す。切断中の L5→L4→L5 は残存として記録する（直さない）",
-    "baseOid": "unassigned",
+    "baseOid": "65d99240",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
