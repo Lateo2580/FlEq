@@ -643,13 +643,13 @@ const landslideUnit = {
   persistence: { kind: "durable", codec: landslideUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
-  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock),
+  recoveryNotices: (_open, adopted, at) => recoveryNotices(at.live, adopted, at.clock), // P3-UL2-D-LIVE-ONLY=A（比べの基準は at.live だけ）
   recoveryChanges,
 } satisfies UnitModule<"U-L">;
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4b-1、P3-REC-AC10・P3-REC-D-N2-RAISE-4B=A） ----
 
-// H27 の段は live の levelFor と同じ区域ごとの rank。open より上がった区域のうちレベル 4・5（表に無い code の十の位の読みを含む）の段の最大で、
+// H27 の段は live の levelFor と同じ区域ごとの rank。live より上がった区域のうちレベル 4・5（表に無い code の十の位の読みを含む）の段の最大で、
 // 上がった区域が無ければ null（P3-WN-AC08 (6)。レベル 2・3 と fail-bright の code は数えない）。
 function raisedRank(before: LandslideCurrent | null, after: Active): number | null {
   const previous = new Map<string, number>();
@@ -663,13 +663,13 @@ function raisedRank(before: LandslideCurrent | null, after: Active): number | nu
 }
 
 /**
- * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
- * candidate は採用する state。区域の段が open より上がり、いまも見える官署のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で operation ごとに 1 件。
+ * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。live は採用の直前に画面に出ている state（P3-UNIT-L-002、
+ * 候補の間に live が動けば candidate は当て直し済み）、candidate は採用する state。区域の段が live より上がり、いまも見える官署のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で operation ごとに 1 件。
  * normal は desktop＋sound、training・test は desktop だけ。統合担当の決め 2026-11-01、P3-WEATHER-NOTICE-001 の r1）。
  * 通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
-function recoveryNotices(open: LandslideUnitState, candidate: LandslideUnitState, clock: ClockReading): LandslideUnitState {
-  const now = clock.wallTimeMs, before = new Map(open.currents.map((item) => [item.subject, item]));
+function recoveryNotices(live: LandslideUnitState, candidate: LandslideUnitState, clock: ClockReading): LandslideUnitState {
+  const now = clock.wallTimeMs, before = new Map(live.currents.map((item) => [item.subject, item]));
   const best = new Map<Operation, Readonly<{ current: Active; rank: number }>>();
   for (const current of candidate.currents) {
     if (!visible(current) || current.retainUntil <= now) continue;

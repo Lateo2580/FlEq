@@ -1375,3 +1375,63 @@ describe("P3-RECOVERY-BOUNDARY-001: the boundary a recovery advances reaches the
     expect(third.fetched).toEqual(["v2"]);
   });
 });
+
+// P3-UNIT-L-002: U-L の取り直しの H27 は採用の直前の live（at.live）と比べる（P3-UL2-D-REACH=B・P3-UL2-D-LIVE-ONLY=A）。
+// 本文は 15_16_01 の VPWW56 の稚内市の Kind と ReportDateTime を替えた写し（49 = レベル 4、39 = レベル 5）。
+import { areas as landslideAreas, fixtureXml as landslideXml, retime as landslideRetime } from "../landslide-unit/landslide-fixture";
+
+const jst = (ms: number) => `${new Date(ms + 9 * 3_600_000).toISOString().slice(0, 19)}+09:00`;
+const soya = (atMs: number, kind: "49" | "39") =>
+  landslideRetime(jst(atMs))(landslideAreas([{ code: "0121400", kind }])(landslideXml("15_16_01_241031_VPWW56")));
+const ulHead = (id: string, receivedAtMs: number): ListHead => ({ ...uwHead(id, "VPWW56", receivedAtMs, "稚内地方気象台"), unit: "U-L" });
+// 本文の取得を止めて取り直しを開く（release で本文を返す）。
+async function heldStartup(t: Awaited<ReturnType<typeof setup>>, text: string) {
+  let release!: () => void;
+  t.bodies.set("l1", () => new Promise((done) => { release = () => done(xml(text)); }));
+  void t.startup([ulHead("l1", T0 - MINUTE)], "U-L");
+  await t.drive();
+  return async () => { release(); await t.drive(); };
+}
+const ulRecovered = (t: Awaited<ReturnType<typeof setup>>) => t.h.unit("U-L").intents
+  .filter((intent) => "recovered" in intent.payload).map((intent) => [intent.channel, intent.payload.level]);
+
+describe("P3-UNIT-L-002: the U-L recovery H27 compares with at.live", () => {
+  it("P3-UL2-T01 regression / AC02: an L5 taken live during the candidate is not rung again as info and keeps its critical pending", async () => {
+    const t = await setup();
+    const c = soya(T0 - MINUTE, "39");
+    await uwLive(t, "VPWW56", soya(T0 - 3 * MINUTE, "49"));
+    const adopt = await heldStartup(t, c);
+    await uwLive(t, "VPWW56", soya(T0 - 2 * MINUTE, "39"));
+    await uwLive(t, "VPWW56", c);
+    await adopt();
+    expect(t.progress("U-L")).toEqual({ unit: "U-L", state: "recovered" });
+    expect(ulRecovered(t)).toEqual([]);
+    expect(t.h.unit("U-L").intents.map((intent) => [intent.channel, intent.payload.level])).toEqual([["desktop", "critical"], ["sound", "critical"]]);
+  });
+
+  it("P3-UL2-T02 acceptance / AC03: a recovered L4→L5 raise still makes one info pair, with and without a live L4 during the candidate", async () => {
+    const still = await setup();
+    await uwLive(still, "VPWW56", soya(T0 - 3 * MINUTE, "49"));
+    still.bodies.set("l1", xml(soya(T0 - MINUTE, "39")));
+    await still.startup([ulHead("l1", T0 - MINUTE)], "U-L");
+    const moved = await setup();
+    await uwLive(moved, "VPWW56", soya(T0 - 3 * MINUTE, "49"));
+    const adopt = await heldStartup(moved, soya(T0 - MINUTE, "39"));
+    await uwLive(moved, "VPWW56", soya(T0 - 2 * MINUTE, "49"));
+    await adopt();
+    for (const t of [still, moved]) {
+      expect(t.progress("U-L")).toEqual({ unit: "U-L", state: "recovered" });
+      expect(ulRecovered(t)).toEqual([["desktop", "info"], ["sound", "info"]]);
+    }
+  });
+
+  it("P3-UL2-T03 contractBoundary / AC01 (3): after a live L5→L4 during the candidate, a newer recovered L5 is compared with live L4, not open L5", async () => {
+    const t = await setup();
+    await uwLive(t, "VPWW56", soya(T0 - 4 * MINUTE, "39"));
+    const adopt = await heldStartup(t, soya(T0 - MINUTE, "39"));
+    await uwLive(t, "VPWW56", soya(T0 - 2 * MINUTE, "49"));
+    await adopt();
+    expect(t.progress("U-L")).toEqual({ unit: "U-L", state: "recovered" });
+    expect(ulRecovered(t)).toEqual([["desktop", "info"], ["sound", "info"]]);
+  });
+});
