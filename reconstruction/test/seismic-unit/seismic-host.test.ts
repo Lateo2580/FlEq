@@ -22,9 +22,9 @@ const owners = vi.hoisted(() => ({ live: new Set<{ terminate(): Promise<number> 
   // 返信が publisher の thread に届いた時刻（複製の復元の後）と owner の区分の印。inputDone は入力 ID で、deadlineDone は届いた順。
   arrivals: new Map<string, { at: number; decodeStarted: number; xmlParseStarted: number | null; xmlParseEnded: number | null;
     decodeEnded: number; raised: number | null }>(),
-  deadlineDone: [] as { place: string; at: number }[],
-  // 期限の要求を送った瞬間に呼ぶ（一括回収の最中に EEW を投入するため）。
-  onDeadline: null as ((place: string) => void) | null,
+  deadlineDone: [] as { place: string; at: number; output: unknown }[], // output は返信の output（P3-SHE-AC02 の期限切れの数え。数えたら null にする）
+  // 期限の要求を送った瞬間に呼ぶ（一括回収の最中に EEW を投入するため）。request は要求そのもの（P3-SHE-AC02 の basis と clock を読む）。
+  onDeadline: null as ((place: string, request: object | null) => void) | null,
   // 書込み権を送った瞬間に呼ぶ（encode の最中に EEW を投入するため。権は返信の直後とは限らないので、返信を見てからでは遅れうる）。
   onGrant: null as ((place: string, unit: string) => void) | null }));
 vi.mock("node:worker_threads", async (importOriginal) => {
@@ -45,13 +45,13 @@ vi.mock("node:worker_threads", async (importOriginal) => {
         && "messageId" in request.envelope && typeof request.envelope.messageId === "string" ? request.envelope.messageId : null;
       owners.posted.push({ place: this.place, kind, inputId: envelope, at: performance.now() });
       super.postMessage(value, transfer);
-      if (kind === "deadline") owners.onDeadline?.(this.place);
+      if (kind === "deadline") owners.onDeadline?.(this.place, request);
       if (kind === "checkpointGrant" && request != null && "unit" in request && typeof request.unit === "string") owners.onGrant?.(this.place, request.unit);
     }
     override emit(event: string | symbol, ...args: unknown[]): boolean {
       const reply = args[0];
       if (event === "message" && reply != null && typeof reply === "object" && "kind" in reply) {
-        if (reply.kind === "deadlineDone") owners.deadlineDone.push({ place: this.place, at: performance.now() });
+        if (reply.kind === "deadlineDone") owners.deadlineDone.push({ place: this.place, at: performance.now(), output: "output" in reply ? reply.output : null });
         if (reply.kind === "inputDone" && "settlement" in reply && "decode" in reply && "generationRaisedMs" in reply) {
           const settlement = reply.settlement as { inputId: string };
           const decode = reply.decode as { startedMonotonicMs: number; endedMonotonicMs: number; xmlParseStartedMonotonicMs: number | null;
@@ -405,10 +405,27 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
 
   // (4) 一括の期限回収（event 512・長周期 256 が同じ時刻に期限）: 空の state の host で組み、U-Q の場所へ期限の要求を送った瞬間に EEW
   // （試行の半分は津波）を投入する。対象処理の区間は期限の要求の送出から期限の処理の返信（deadlineDone）まで。P3-QC-AC11 (3): K11 からは期限切れの記憶への
-  // 一括の変換（P3-QC-AC08）を測る。
+  // 一括の変換（P3-QC-AC08）を測る。P3-SHE-AC01: 期限を回収するのは verified の要求だけ（P3-CLOCK-CHECK-001）なので、記録を組む前に start を送って時計を確かめさせる。
   it("measures the bulk deadline of 512 events and 256 long-period subjects and the EEW wait behind it", async () => {
     const observations: P2HostObservation[] = [];
     const h = await host(observations);
+    // WebSocket を作る直前の読みから 5 秒の内に届くよう、host() の直後に送る。time は小数つきにして 1 秒の上乗せを掛けない。
+    await h.sender.send([JSON.stringify({ type: "start", socketId: 7, classifications: ["telegram.earthquake"],
+      time: new Date(clock().wallTimeMs).toISOString() })]);
+    await until(() => observations.some((o) => o.kind === "controlFrame" && o.frameType === "start"));
+    // P3-SHE-AC02 (2): 対の返信の期限切れを構造で数える（回収の返信は約 1.9 MB なので JSON.stringify で直列化しない）。
+    const expiredOf = (output: unknown): number => {
+      const outcomes: readonly unknown[] = output != null && typeof output === "object" && "outcomes" in output && Array.isArray(output.outcomes)
+        ? output.outcomes : [];
+      let count = 0;
+      for (const item of outcomes) {
+        const outcome = item != null && typeof item === "object" && "outcome" in item ? item.outcome : null;
+        if (outcome == null || typeof outcome !== "object" || !("kind" in outcome) || outcome.kind !== "deadlineApplied" || !("subjects" in outcome)) continue;
+        const subjects: readonly unknown[] = Array.isArray(outcome.subjects) ? outcome.subjects : [];
+        for (const subject of subjects) if (subject != null && typeof subject === "object" && "transition" in subject && subject.transition === "expired") count++;
+      }
+      return count;
+    };
     const m = measurer(observations);
     let sequence = 0;
     const rows: Record<keyof typeof probes, Record<string, number | null>[]> = { eew: [], tsunami: [] };
@@ -436,8 +453,13 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       const doneOf = () => owners.deadlineDone.filter((item) => item.place === seismicPlace);
       let doneBefore = 0;
       let injected: Promise<readonly number[]> | null = null;
-      owners.onDeadline = (place) => {
-        if (place !== seismicPlace || injected != null || clock().wallTimeMs < due) return;
+      let basis: unknown = null;
+      owners.onDeadline = (place, request) => {
+        // due との比べは要求に載った時計で行う（投げた後の clock() は due を越えうるので、回収しない要求と対になる）。
+        const wallTimeMs = request != null && "clock" in request && request.clock != null && typeof request.clock === "object"
+          && "wallTimeMs" in request.clock && typeof request.clock.wallTimeMs === "number" ? request.clock.wallTimeMs : -Infinity;
+        if (place !== seismicPlace || injected != null || wallTimeMs < due) return;
+        basis = request != null && "basis" in request ? request.basis : null;
         doneBefore = doneOf().length;
         const deadlinePosted = performance.now();
         injected = h.sender.send([probes[probe]()]).then((at) => [deadlinePosted, ...at]);
@@ -446,8 +468,12 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       const [deadlinePosted, injectedAt] = await injected!;
       owners.onDeadline = null;
       await until(() => m.processingOf(eew) != null && doneOf().length > doneBefore);
-      const deadlineDone = doneOf()[doneBefore].at;
-      rows[probe].push(m.row(eew, injectedAt, { start: deadlinePosted, end: deadlineDone }, { deadlineMs: deadlineDone - deadlinePosted }));
+      const done = doneOf()[doneBefore], deadlineDone = done.at, expired = expiredOf(done.output);
+      // owners.deadlineDone は afterEach で空にされないので、約 1.9 MB の返信を試行ごとに離す。
+      done.output = null;
+      // P3-SHE-AC02 (3): 場面が回収に当たらなければ数字を出さずに止める。
+      if (basis !== "verified" || expired !== 768) throw new Error(`bulk deadline not collected (trial ${trial}): basis ${String(basis)}, expired ${expired}/768`);
+      rows[probe].push(m.row(eew, injectedAt, { start: deadlinePosted, end: deadlineDone }, { deadlineMs: deadlineDone - deadlinePosted, expired }));
     }
     m.record("bulkDeadline512And256", rows.eew, Math.ceil(bulkRuns / 4));
     m.record("bulkDeadline512And256Tsunami", rows.tsunami, Math.ceil(bulkRuns / 4));
