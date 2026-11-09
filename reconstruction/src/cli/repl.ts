@@ -282,12 +282,12 @@ type ReplOptions = Readonly<{
   onClose: () => void; terminal: Pick<import("../terminal/output").TerminalOutput, "output" | "line" | "bind">; // P3-TO-AC02 (4): 返事・echo・prompt を端末の列に通す
 }>;
 
-/** REPL を起こす。close は readline を閉じ（以後の行は実行しない）、idle は保存の列が空になるのを待つ。 */
-function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promise<void> }> {
+/** REPL を起こす。close は readline を閉じ（以後の行は実行しない）、idle は保存の列が空になるのを待ち、閉じた後に分かった保存の失敗の 1 行か null を返す（P3-RC-AC02 (3)）。 */
+function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promise<string | null> }> {
   const { host, settings, clock } = options;
   // AC17 (5): この起動で REPL が変えた欄だけを保存で重ねる。
   const changed: { notify: Partial<Record<NotifyCategory, boolean>>; eewLogFields: Partial<Record<EewLogField, boolean>>; sound?: boolean; mute?: PersistedMute | null; waitTipIntervalMin?: number; promptClock?: TerminalValues["clock"]; eewLog?: boolean } = { notify: {}, eewLogFields: {} };
-  const saver = createSettingsSaver(() => changed, options.terminal.line);
+  const saver = createSettingsSaver(() => changed, options.terminal.line, () => closed);
   let closed = false;
   let chain: Promise<void> = Promise.resolve();
   // AC15 (1): mute ごとに世代を進め、古い timer は今の mute を解かない。
@@ -372,7 +372,7 @@ function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promis
       case "status": statusLines(host.status(), muteNow()).forEach(out); return;
       case "config": {
         // AC14 (4): 読むだけで、移行も書き込みも起こさない。
-        const read = await rereadSettings();
+        const read = await rereadSettings(); if (closed) return; // P3-RC-D-CONFIG=A: 閉じた後に読み終えた一覧は出さない
         if (read.kind === "unreadable") out(read.message); else showLines(read.settings ?? {}).forEach(out);
         return;
       }

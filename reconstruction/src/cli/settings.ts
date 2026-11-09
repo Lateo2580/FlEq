@@ -376,17 +376,21 @@ function overlaid(base: FleqSettings, overlay: ReplOverlay): FleqSettings {
 }
 
 /** 保存は 1 本の列で直列にし、走っている間の要求は「もう 1 回要る」の印に寄せる。終わった後に最新のメモリの値で 1 回だけ書く。
- * reply は REPL の返事と同じ端末の列（P3-CLI-AC26 (5)。直に標準出力へ書くと、詰まった端末で main の write が止まる）。 */
-function createSettingsSaver(overlay: () => ReplOverlay, reply: (line: string) => void): Readonly<{ request(): void; idle(): Promise<void> }> {
+ * reply は REPL の返事と同じ端末の列（P3-CLI-AC26 (5)。直に標準出力へ書くと、詰まった端末で main の write が止まる）。
+ * REPL が閉じた後に分かった失敗は返事に出さず、idle が終了の診断の 1 行として返す（P3-RC-D-PLACE=A。閉じた REPL は出力しない）。 */
+function createSettingsSaver(overlay: () => ReplOverlay, reply: (line: string) => void, closed: () => boolean): Readonly<{ request(): void; idle(): Promise<string | null> }> {
   let running: Promise<void> | null = null;
   let again = false;
+  let afterClose: string | null = null;
+  const report = (open: string, shut: string) => { if (closed()) afterClose = shut; else reply(open); };
   // 読み直して重ねるのは、別の端末の config set の欄を REPL の古い中身で消さないため。読めない・書けないときもメモリの値は戻さない。
   const once = async () => {
+    afterClose = null; // P3-RC-AC03 (2): 最後の 1 回の結果だけを持つ（閉じた後の 1 回目が失敗しても、2 回目が成功すれば出さない）
     const { file } = settingsPaths();
     const read = await rereadSettings();
-    if (read.kind === "unreadable") { reply(`  設定ファイル ${file} を読めないので、この変更は保存しません（今の実行には効いています）`); return; }
+    if (read.kind === "unreadable") { report(`  設定ファイル ${file} を読めないので、この変更は保存しません（今の実行には効いています）`, `設定ファイル ${file} を読めないので、最後の変更を保存できませんでした`); return; }
     const failed = await writeSettings(overlaid(read.settings ?? {}, overlay()));
-    if (failed != null) reply(`  設定ファイル ${file} を書けません（${failed}）。この変更は今の実行にだけ効いています`);
+    if (failed != null) report(`  設定ファイル ${file} を書けません（${failed}）。この変更は今の実行にだけ効いています`, `設定ファイル ${file} に最後の変更を保存できませんでした（${failed}）`);
   };
   const request = () => {
     if (running != null) { again = true; return; }
@@ -394,7 +398,7 @@ function createSettingsSaver(overlay: () => ReplOverlay, reply: (line: string) =
       try { do { again = false; await once(); } while (again); } finally { running = null; }
     })();
   };
-  return { request, idle: async () => { while (running != null) await running; } };
+  return { request, idle: async () => { while (running != null) await running; return afterClose; } };
 }
 
 export { appNameProblem, CLASSIFICATIONS, checkSettings, commitSettings, createContext, createSettingsSaver, EEW_LOG_FIELDS, fieldOf, loadSettings, mask,

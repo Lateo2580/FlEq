@@ -350,3 +350,74 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     }
   });
 });
+
+// P3-RC-T04: cli.ts が呼んだ repl.idle() の Promise を記録する（保存の列の終わりを一時 file の消滅で待たない。unlink の後に失敗の扱いが続く）。
+const idles = vi.hoisted(() => ({ calls: [] as Promise<string | null>[] }));
+vi.mock("../../src/cli/repl", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/cli/repl")>();
+  return { ...actual, runRepl: (...args: Parameters<typeof actual.runRepl>) => {
+    const repl = actual.runRepl(...args);
+    return { ...repl, idle: () => { const pending = repl.idle(); idles.calls.push(pending); return pending; } };
+  } };
+});
+
+// describe の中の fakeHost・startRepl は使えないので、host の偽物（stop は code 0）と起動をここに書く。
+const startCli = async (): Promise<{ result: Promise<number> }> => {
+  clear();
+  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop: async () => ({ code: 0 }), reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
+  const result = runCli([]);
+  await vi.waitFor(() => expect(mocks.attached).toBe(true));
+  return { result }; // 包むのは、async の戻りに Promise を返すと runCli の終わりまで待ってしまうため
+};
+
+// P3-RC-T02 regression (AC02・AC03 (1)): 実不具合の再発防止。閉じた後に分かった保存の失敗が、終了の途中の端末に返事として出て code 0 だった。
+it("閉じた後に分かった保存の失敗は返事に出さず標準エラーへ 1 行で code 1、閉じる前に見せた失敗は code 0 のまま", async () => {
+  // (a) 2 行を同じ tick で流す（notify の保存の読みが返る前に quit が閉じる）
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+  let { result } = await startCli();
+  writeFileSync(configFile(), "{");
+  mocks.readline!.line("notify eew off");
+  mocks.readline!.line("quit");
+  expect(await result).toBe(1);
+  expect(stderr).toBe(`設定ファイル ${configFile()} を読めないので、最後の変更を保存できませんでした\n`);
+  expect(stdout).not.toContain("読めないので");
+  expect(readFileSync(configFile(), "utf8")).toBe("{");
+  // (b) 返事の 1 行が出てから quit
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+  ({ result } = await startCli());
+  writeFileSync(configFile(), "{");
+  mocks.readline!.line("notify eew off");
+  await vi.waitFor(() => expect(stdout).toContain(`  設定ファイル ${configFile()} を読めないので、この変更は保存しません（今の実行には効いています）\n`));
+  mocks.readline!.line("quit");
+  expect(await result).toBe(0);
+  expect(stderr).toBe("");
+});
+
+// P3-RC-T04 contractBoundary (AC03 (4)): 期限を過ぎてから分かった失敗は、期限の診断のほかに何も出さない。
+it("5 秒の期限を過ぎてから分かった保存の失敗は、確かめられない旨の 1 行だけで終わる", async () => {
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+  writes.stall = "write";
+  writes.reached = false;
+  writes.gate = new Promise<void>((done) => { writes.release = done; });
+  idles.calls.length = 0;
+  const { result } = await startCli();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  mocks.readline!.line("notify eew off");
+  mocks.readline!.line("quit");
+  while (!writes.reached || vi.getTimerCount() === 0) await new Promise((done) => setImmediate(done));
+  vi.advanceTimersByTime(5_000);
+  expect(await result).toBe(1);
+  const deadline = `設定ファイル ${configFile()} に最後の変更を保存できたか確かめられません\n`;
+  expect(stderr).toBe(deadline);
+  // rename を空でない directory へ向けて、Windows でも権限に頼らず書き込みを失敗させる。
+  rmSync(configFile());
+  mkdirSync(join(configFile(), "x"), { recursive: true });
+  writes.release();
+  writes.stall = null;
+  vi.useRealTimers();
+  expect(idles.calls).toHaveLength(1);
+  expect(await idles.calls[0]).toMatch(/に最後の変更を保存できませんでした（E[A-Z]+）$/);
+  expect(stderr).toBe(deadline);
+  expect(stdout).not.toContain("書けません");
+});

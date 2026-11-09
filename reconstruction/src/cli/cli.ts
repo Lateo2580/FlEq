@@ -366,8 +366,10 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     const { code } = await stopping;
     // AC18 (3): stop() の後も保存の列が終わっていなければ 5 秒まで待つ。期限の内は rename の前の保存を残して終えない。
     let timer: NodeJS.Timeout | undefined;
-    const saved = repl == null || await Promise.race([repl.idle().then(() => true), new Promise<false>((done) => { timer = setTimeout(() => done(false), SAVE_WAIT_MS); })]);
+    const saved = repl == null || await Promise.race([repl.idle().then((line) => line ?? true), new Promise<false>((done) => { timer = setTimeout(() => done(false), SAVE_WAIT_MS); })]);
     clearTimeout(timer);
+    // P3-RC-D-END=A: 閉じた後に分かった保存の失敗はまだ画面に出していないので、ここで 1 行出し、code は 0 なら 1。
+    if (typeof saved === "string") { fail(saved); return code === 0 ? 1 : code; }
     if (saved) return code;
     // rename の後の directory の sync だけが残っていることもあるので、次の起動の状態を言い切らない。
     fail(`設定ファイル ${paths.file} に最後の変更を保存できたか確かめられません`);

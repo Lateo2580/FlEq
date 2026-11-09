@@ -464,3 +464,59 @@ it("閉じた REPL は、復元した mute の期限を過ぎても保存を要�
   await repl.idle();
   expect(readFileSync(configFile()).equals(before)).toBe(true);
 });
+
+// P3-RC-T01・T03: node:fs/promises の readFile を 1 回ずつ止める（止めが無いときは素通し）。returned は止めた読みが返り終えた数。
+const reads = vi.hoisted(() => ({ stall: false, waiting: [] as (() => void)[], returned: 0 }));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  const readFile = async (...args: Parameters<typeof actual.readFile>): ReturnType<typeof actual.readFile> => {
+    if (!reads.stall) return actual.readFile(...args);
+    await new Promise<void>((done) => { reads.waiting.push(done); });
+    try { return await actual.readFile(...args); } finally { reads.returned += 1; }
+  };
+  return { ...actual, readFile };
+});
+
+describe("P3-REPL-CLOSED-001 閉じた REPL の残りの出力", () => {
+  afterEach(() => { reads.stall = false; reads.waiting.splice(0).forEach((go) => { go(); }); reads.returned = 0; });
+  const start = () => runRepl({ host: fakeHost(), settings: settingsOf(), savedMute: undefined, displayPort: 7789, clock: fakeClock().clock, onClose: () => {},
+    terminal: { output: process.stdout, line: (text: string) => { process.stdout.write(`${text}\n`); }, bind: () => {} }, ...terminalOptions() });
+  const reached = async () => { while (reads.waiting.length === 0) await turn(); };
+
+  // P3-RC-T01 regression (AC01): 実不具合の再発防止。閉じた後に読み終えた config の一覧が終了の途中の端末に出ていた。
+  it("config の読みの最中に閉じた REPL は、読み終えても一覧を出さない", async () => {
+    writeConfig({ region: "栃木県宇都宮市" });
+    const repl = start();
+    reads.stall = true;
+    mocks.readline!.line("config");
+    await reached();
+    stdout = "";
+    repl.close();
+    reads.stall = false;
+    reads.waiting.shift()!();
+    while (reads.returned === 0) await turn();
+    for (let index = 0; index < 20; index++) await turn();
+    expect(stdout).toBe("");
+  });
+
+  // P3-RC-T03 contractBoundary (AC03 (2)): 持つのは最後の 1 回の保存の結果だけ。
+  it("閉じた後の 1 回目の保存が失敗し、予約済みの 2 回目が成功したら、idle は null で何も出さない", async () => {
+    mkdirSync(join(tmp, "fleq-next"), { recursive: true });
+    writeFileSync(configFile(), "{");
+    const repl = start();
+    reads.stall = true;
+    mocks.readline!.line("notify eew off");
+    await reached();
+    await type("notify eew on");
+    stdout = "";
+    repl.close();
+    reads.waiting.shift()!();
+    await reached();
+    writeConfig({ region: "栃木県宇都宮市" });
+    reads.stall = false;
+    reads.waiting.shift()!();
+    expect(await repl.idle()).toBeNull();
+    expect(stdout).toBe("");
+    expect(readConfig()).toEqual({ region: "栃木県宇都宮市", notify: { eew: true } });
+  });
+});
