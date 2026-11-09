@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "f3054a0346052b6bb7c0e22c8d84607b15d369a1837c3956dd7e7078febafd47",
+    "sha256": "3adfbac6b294a26a07ba3d2b488647a4df4be8260c84d9ca5f036c85056322ba",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -27,6 +27,12 @@
         "source": "P3-TSUNAMI-HOLD-MARK-001 の P3-THM-D-SHOW（作者の裁定、2026-11-08 午後）",
         "closed": "作者の裁定 P3-THM-D-SHOW=A（snapshot の view に印が載る時刻だけを直し、印を描くのは P4）を 6 unit にもそのまま当てる。6 分野は Chrome に描く所が無く、端末の prompt-current も unconfirmed を読まないので、A のままで画面は変わらない。新しい作者の分岐は無い",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-HMU-BASE",
+        "status": "closed",
+        "source": "2026-11-09 夕 発注前の点検（統合担当）",
+        "closed": "起草の base a90a284e から main（417afb1e）まで reconstruction/src の差は 0 行（git diff a90a284e main -- reconstruction/src）なので、allowedPaths の行と AC04 の触らない行の «» は付け直し不要。baseOid は次の commit で割り当てる"
       }
     ],
     "operationContract": {
@@ -407,18 +413,6 @@
         "resolveBy": "実装のゲートで既存の試験の期待が変わったら、変える前に報告する",
         "requiredEvidence": [
           "起草で読んだ限りでは 0 件（Q-HMU-DRAFT-READ の (9)）。runtime の試験（*-runtime.test.ts）は displayChanges を積んで snapshot の byte を測るので、hold を通る受信があれば積む件数が変わりうる。試験はこの起草では走らせていない"
-        ]
-      },
-      {
-        "id": "Q-HMU-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "発注"
-        ],
-        "resolveBy": "発注前の点検",
-        "requiredEvidence": [
-          "起草の base a90a284e から main まで、6 file の allowedPaths の行と AC04 の触らない行の差が 0 であること（差があれば行番号と «» を付け直す）",
-          "baseOid の割り当て"
         ]
       }
     ]
