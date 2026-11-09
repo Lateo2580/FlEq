@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e53b60cff971e8c18e10398b40584cbaac396b9c",
-    "sha256": "8e60fe1f22c0828ce536b6b85fc1d953c3c585f4c44295b9fb648f46335e5130",
+    "sha256": "81b1ef75d847e3f6a51dfab818e467cf8c5cdd2db331f84d97ebfc2a7cefd784",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -124,7 +124,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-012",
     "mode": "implementation",
     "objective": "気象警報・注意報（VPWW55〜61）の短い形で、帯が報の一部の地方だけを言い、解除の報が何をどこで解除したか読めない欠けを直す（2026-11-09 の旧築と新築の写しの突き合わせの (a)-1 と (c)-1）。帯の題名は Head/Title にし（P3-TL12-D-BAND-TITLE=A、2026-11-09 の作者の裁定）、Status が解除の Kind を区域つきで見出し文の下に出す（P3-TL12-D-RELEASED=A、2026-11-09 の作者の裁定）。形は reconstruction/src/terminal の material.ts・format.ts と p3-terminal-output.types.ts の中で作る",
-    "baseOid": "unassigned",
+    "baseOid": "05f3694b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",

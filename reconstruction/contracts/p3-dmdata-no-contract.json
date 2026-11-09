@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5f3095d7e324384b93ee126181d6d8cbac9cb9dc",
-    "sha256": "3e83e6ef8024f6f09ee35fa6cd065aa0622310b8e0552c092f5f4d686c779099",
+    "sha256": "0cf3ee9e17025e5695deeb1202f19dd7c0031da1efe2860a91025e125ce8a5e1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -150,7 +150,7 @@
     "contractId": "P3-DMDATA-NO-CONTRACT-001",
     "mode": "implementation",
     "objective": "dmdata の契約が無い区分で新築を起こすと、今は区分が未設定なら 5 区分を申し込み、socket.start の 402（No contract）を dmdata の一時の不調と同じに扱って「dmdata.jp が接続を受け付けませんでした。しばらくしてから自動で繋ぎ直します。」を出し、120 秒おきに永久に繋ぎ直す（2026-11-08 夜の旧築との棚卸し、接続の欠けの 2）。作者の裁定 C（2026-11-09 夕）で、起動の時点で契約の無い区分を申し込む場面を無くす: 区分が引数にも設定ファイルにも無ければ fleq init を案内して断り、起動のたびに契約の一覧（GET /contract）を取って契約の無い区分を外して申し込み、外した後が 0 件なら旧築の字で断る（一覧の失敗は旧築と同じく設定の区分のまま繋ぐ）。402 は契約が無いことの理由（DmdataConnectFailure の noContract）として分け、起動の最初の試行でも動いている途中でも繋ぎ直しを続けて、理由を端末に 1 回出す（受信の後も出す）",
-    "baseOid": "unassigned",
+    "baseOid": "05f3694b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
