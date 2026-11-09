@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "238f3cc9b9f42df46c228e31e26a7bf679226f95",
-    "sha256": "fcf092340d29f8434db90a1d425c32e6d300acc3ecf22c078697bb59db15e61a",
+    "sha256": "462a5e43c32bada778324b6473dd1f88fff02453c8d19a665c42c7553b903f00",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -187,7 +187,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-UL2-AC01",
-        "requirement": "H27 の比べの基準（P3-UL2-D-REACH=B・P3-UL2-D-LIVE-ONLY=A）: 採用の step で、候補の見える記録（採用の時点で期限前）ごとに、採用の直前の live（at.live）の同じ subject の記録と区域の段を比べ、上がった L4・L5 の区域があれば今どおり選ぶ（operation ごとに段の最も高い 1 件、通知済みの版〔K8 の印〕は除く、info、normal は desktop＋sound）。open は比べに使わない。場面ごとの基準: (1) 候補の間に live が動かない: owner-runtime の sameBase が通り、live の U-L の state は open と同じ欄を持つので、結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live で L5 を知らせた（配った・配る途中の pending・容量で落とした のどれでも）官署に、取り直しの本文がその報と同じか古ければ duplicate か stale で候補の記録は live と同じになり、上がらないので作らない (3) live が open より上げて L5 を知らせた後、live でまた L4 に下がり、取り直しの本文がその L4 の報より新しい L5 なら、live=L4 と比べて info を作る。L4 の報より古い本文は stale で作らない (4) live で取消を受けて記録が cancelled（見えない）なら、live の記録の段は無いとして比べる（取消より新しい本文の L4・L5 は info、古い本文は stale で作らない） (5) live で期限が来て記録が expired か回収済みなら (4) と同じ (6) live に官署の記録が無いなら、候補の L4・L5 の区域は全部上がった扱い（open に記録が有っても同じ。open にも無ければ今と同じ。live で normal の記録が退去するのは 128 件がすべて normal のときだけで、実際には起きない） (7) 候補の記録が見えないか期限を過ぎていれば今どおり選ばない",
+        "requirement": "H27 の比べの基準（P3-UL2-D-REACH=B・P3-UL2-D-LIVE-ONLY=A）: 採用の step で、候補の見える記録（採用の時点で期限前）ごとに、採用の直前の live（at.live）の同じ subject の記録と区域の段を比べ、上がった L4・L5 の区域があれば今どおり選ぶ（operation ごとに段の最も高い 1 件、通知済みの版〔K8 の印〕は除く、info、normal は desktop＋sound）。open は比べに使わない。場面ごとの基準: (1) 候補の間に live が動かない: owner-runtime の sameBase が通り、live の U-L の state は open と同じ欄を持つので、結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live で L5 を知らせた（配った・配る途中の pending・容量で落とした のどれでも）官署に、取り直しの本文がその報と同じか古ければ duplicate か stale で候補の記録は live と同じになり、上がらないので作らない (3) live が open より上げて L5 を知らせた後、live でまた L4 に下がり、取り直しの本文がその L4 の報より新しい L5 なら、live=L4 と比べて info を作る。L4 の報より古い本文は stale で作らない (4) live で取消を受けて記録が cancelled（見えない）なら、live の記録の段は無いとして比べる（取消より新しい本文の L4・L5 は info、古い本文は stale で作らない） (5) live で期限が来て記録が expired か回収済みなら (4) と同じ (6) live に官署の記録が無いなら、候補の L4・L5 の区域は全部上がった扱い（open に記録が有っても同じ。open にも無ければ今と同じ。live の記録が容量の退去で消えた場合も含む。r1 でヘルツが確かめた: normal の取消の記録 1 件と training の active 127 件の後に normal を受けると、取消の記録が training より先に退去する） (7) 候補の記録が見えないか期限を過ぎていれば今どおり選ばない",
         "evidenceRefs": [
           "reconstruction/src/units/landslide/landslide-unit.ts:646 «3904016492697d0a»",
           "reconstruction/src/units/landslide/landslide-unit.ts:671 «7edc4188cf34004e»",
