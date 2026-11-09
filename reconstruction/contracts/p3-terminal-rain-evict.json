@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "c49581689a5885f5743ee4ecb2bcd168600fc7e7ba849d8b2aa643de58dad947",
+    "sha256": "5f23e0bf7cf94802b8a0002d74f202a58cf81cc06b44b0877371fb60907b2478",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -94,7 +94,7 @@
     "contractId": "P3-TERMINAL-RAIN-EVICT-001",
     "mode": "implementation",
     "objective": "U-B が容量で退去した訓練・試験の記録的短時間大雨の速報（VPOA50）が、その取消を端末に出した後に端末へ出る不具合（2026-11-08 夜の総合レビューの P3）を直す。その取消・訂正・続報を受けた U-B が受けた記録自身も容量で退去し、返信の accepted の subjects が空になったとき、端末の待ちの表の同じ報（運用区分と EventID が同じ）を引き、取消なら外して P3-TL10-D-RAIN-ALONE=A どおり速報も取消も出さず、訂正・続報なら待ちの報を新しい版に差し替えて期限は最初のまま（spec §5.4、P3-TL10-AC03 (3)）にする。形は reconstruction/src/terminal/output.ts で作り、端末の材料の head に運用区分を 1 欄足す。U-B は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "aa302518",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",

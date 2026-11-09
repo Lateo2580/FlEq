@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86bb360c4e857d340f328644b670bead0b03474f",
-    "sha256": "a518ee098a23752eb2d6634641fd76fc84cfd1f4f743736052b8fb606b6ba47d",
+    "sha256": "8d1378f6e59f39cc10305b1ca6d9a3c0a80037af772c119f08b1232e4b2e501f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -65,7 +65,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-013",
     "mode": "implementation",
     "objective": "2026-11-09 の旧築と新築の写しの突き合わせの (c)-2〜(c)-4 を、作者の裁定（2026-11-09 夕、どれも推奨どおり）で閉じる。短い形の帯の題名から版の印「（Ｈ３０）」も除く（Q-TO-S-1 の改訂）。種類の分からない電文を端末に出さない今の動きを条文に書き留める（コードは変えない）。待機中の tips の前に空行を置き、幅に入らない tips を句点と読点で折る（spec §6.4 の改訂）。形は reconstruction/src/terminal の format.ts の中で作る",
-    "baseOid": "unassigned",
+    "baseOid": "aa302518",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
