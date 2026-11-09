@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "6b3563ee1009aaa97775c4d816c3f20affae6966f4ee7ee40ba95b408823eaf9",
+    "sha256": "973e532a1d694e53972f1ffb098499cbca61ced9bc4051f2a16d24e56737f049",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -262,41 +262,41 @@
         "id": "P3-TL7-AC01",
         "requirement": "まとめの「ほか」の題名（Q-TO8-NO-CODE）: (1) omitted の種類のコードを題名の表で引き、「ほか <題名> <件数> 件」にする。同じ題名の種類は件数を足し、2 つ以上なら件数の多い順（同じ件数は omitted の順）に全角の空白で並べる (2) 題名は実物の電文の Control の Title から（Ｒ０６）・（Ｈ３０）と末尾の a を除いた名前。VXKO・VFSV・VPTW・VPTA は先頭 4 字で 1 つの名前にする (3) 表に無い種類は「その他」にまとめ、コードを出さない (4) まとめに載る分野（unit 表の ready の行のうち U-E を除いた unit。U-F は本文を取り直さないが一覧はまとめに載る、recovery.ts の WALK_ORDER と P3-REC-D-UF-BASE=C）の型は、どれも「その他」にならない (5) 短い形の末尾と緊急地震速報の末尾は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:740 «e91ad6d5e73242ec»",
-          "docs/specs/cli-terminal-output.md:815 «bf7fd3d7c230ca5d»",
-          "docs/specs/cli-terminal-output.md:872 «b46a434035ba0432»"
+          "docs/specs/cli-terminal-output.md:741 «e91ad6d5e73242ec»",
+          "docs/specs/cli-terminal-output.md:816 «bf7fd3d7c230ca5d»",
+          "docs/specs/cli-terminal-output.md:873 «b46a434035ba0432»"
         ]
       },
       {
         "id": "P3-TL7-AC02",
         "requirement": "まとめの行（Q-TO8-DIGEST）: (1) 分野の名前を太字にする（取り直せなかった分野も） (2) 見出しの行は「  HH:MM  <題名>」だけで、見出し文を出さない。題名の末尾の [truncated:fieldLimit] は … にする (3) listed で見出しも omitted も無い分野は出さない。取り直せなかった分野は今のまま「取り直せませんでした」 (4) 件数は出す分野の件数の最大の桁に右で揃える (5) 帯の行、7 日より前の行、時刻の決め方、最初の digest だけを出すことは変えない (6) 出す分野が 1 つも無い（全部 0 件で、取り直せなかった分野も無い）ときは、7 日より前の印があっても帯ごと何も出さない（作者裁定 A、2026-11-08。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため。Q-TL7-RESTART-DIGEST）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:740 «e91ad6d5e73242ec»",
-          "docs/specs/cli-terminal-output.md:741 «e354158a3dc76602»",
-          "docs/specs/cli-terminal-output.md:873 «850230eac0477005»"
+          "docs/specs/cli-terminal-output.md:741 «e91ad6d5e73242ec»",
+          "docs/specs/cli-terminal-output.md:742 «e354158a3dc76602»",
+          "docs/specs/cli-terminal-output.md:874 «850230eac0477005»"
         ]
       },
       {
         "id": "P3-TL7-AC03",
         "requirement": "入力の行の回線の印（Q-TO8-PULSE）: (1) 印が ● の形（繋がっているか、時計の形で受信がある）のとき、時計の秒（Math.floor(wallTimeMs / 1000)）が偶数なら空色の ●、奇数なら灰の ○ にする (2) 字を ○ に替えた秒も時刻は今のまま出す（--:--:-- にしない）。印の真偽と字形を分ける (3) 印が ○ の形（時刻が --:--:--）のときは灰の ○ のまま (4) 切断中の字、ミュートの字、現況の項目と回り方、幅の決め方は変えない（● と ○ は同じ 1 桁） (5) NO_COLOR と色の水準 0 では色を付けず、字の ● と ○ だけを入れ替える",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:920 «1cab28285e3321e9»",
+          "docs/specs/cli-terminal-output.md:921 «1cab28285e3321e9»",
           "docs/specs/cli-terminal-output.md:56 «0bc9080a99f5b5bf»",
-          "docs/specs/cli-terminal-output.md:874 «6dcce3a1dfc7802e»"
+          "docs/specs/cli-terminal-output.md:875 «6dcce3a1dfc7802e»"
         ]
       },
       {
         "id": "P3-TL7-AC04",
         "requirement": "起動画面（Q-TO8-BANNER）: (1) createTerminalOutput の options.startup（appName・version・testMode・classifications）があれば、作った時に空行、「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」を空色の地に黒の太字、空行を積む (2) 標準出力が端末なら端末の題名を「<appName> v<version>」にし、close で空に戻す (3) classifications が null でなければ、回線の読みで最初に connection が connected で socketId と HostStatus.classifications が null でないときに 1 回だけ、求めた区分のうち start の区分に無いものを求めた順に「<区分> は未契約のため受信できません」（黄）、「セッション開始: socketId=<n>」「区分: [<start の区分を , で>]」「テスト電文: <testMode>」、「リアルタイム受信中...」（明るい緑）、「help でコマンド一覧を表示（終了は quit か Ctrl+C）」（薄い字）を出す (4) 繋ぎ直しでは出さない (5) cli.ts は通常の起動で「受信を始めました…」の行を出さず、版は packageVersion() の値を渡す。偽の dmdata（FLEQ_WS_URL）では classifications を null にし、今の 1 行を出す (6) HostStatus.classifications は今の接続で受理した start の区分（新しい接続を張ると null に戻し、形の正しい start の受理で入れる。forecastGranted と同じ扱い）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:768 «cb681df6bd63628f»",
-          "docs/specs/cli-terminal-output.md:769 «f833f80cc50ad88e»",
-          "docs/specs/cli-terminal-output.md:770 «355213680537aea1»",
-          "docs/specs/cli-terminal-output.md:771 «ffa349145b446270»",
-          "docs/specs/cli-terminal-output.md:772 «166ef6583ccb6ea7»",
-          "docs/specs/cli-terminal-output.md:773 «dbc234ef9401180b»",
+          "docs/specs/cli-terminal-output.md:769 «cb681df6bd63628f»",
+          "docs/specs/cli-terminal-output.md:770 «f833f80cc50ad88e»",
+          "docs/specs/cli-terminal-output.md:771 «355213680537aea1»",
+          "docs/specs/cli-terminal-output.md:772 «f6b0c61fc02c92e4»",
+          "docs/specs/cli-terminal-output.md:773 «166ef6583ccb6ea7»",
+          "docs/specs/cli-terminal-output.md:774 «dbc234ef9401180b»",
           "docs/specs/cli-terminal-output.md:55 «946b3dee8140cad8»",
-          "docs/specs/cli-terminal-output.md:875 «88ed1a874beaba13»"
+          "docs/specs/cli-terminal-output.md:876 «88ed1a874beaba13»"
         ]
       }
     ],

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "3acd2b526e9f8ab8ca94376b41486fa2ce7572d0808f7c1a139bf051541d9c37",
+    "sha256": "d09000915be81fb32d08f28684d45f882a085eab1480edaccabd2eeb08e3db1a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -318,7 +318,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
           "docs/specs/cli-terminal-output.md:611 «5768731f8619d84e»",
-          "docs/specs/cli-terminal-output.md:883 «9064de7d37656074»",
+          "docs/specs/cli-terminal-output.md:884 «9064de7d37656074»",
           "src/engine/messages/volcano-vfvo53-aggregator.ts:40 «7d9b02001a5573c5»",
           "src/engine/messages/volcano-vfvo53-aggregator.ts:85 «3a44c9b3dd8ce77c»",
           "src/ui/volcano-formatter.ts:983 «41b96c9d715cf4ad»",
@@ -327,8 +327,8 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:946 «f23179083a311f59»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1150 «569df56fdc9b65a9»",
           "reconstruction/src/terminal/material.ts:307 «744087a2cd4e4fc9»",
-          "reconstruction/src/terminal/output.ts:486 «df18802267659c7f»",
-          "reconstruction/src/terminal/output.ts:415 «2e886d21d6e2c58f»"
+          "reconstruction/src/terminal/output.ts:490 «df18802267659c7f»",
+          "reconstruction/src/terminal/output.ts:419 «2e886d21d6e2c58f»"
         ]
       },
       {
@@ -337,7 +337,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:63 «5d5f2fdff48cbfdd»",
           "docs/specs/cli-terminal-output.md:169 «1f3b76a9c5621b14»",
-          "docs/specs/cli-terminal-output.md:884 «6576c08f63e8eb38»",
+          "docs/specs/cli-terminal-output.md:885 «6576c08f63e8eb38»",
           "docs/specs/cli-terminal-output.md:168 «fa54ac6f188b61a4»",
           "docs/specs/cli-terminal-output.md:70 «0769597b7fd4a016»",
           "src/ui/eew-formatter.ts:133 «a2698aebde1c37e9»",
@@ -353,7 +353,7 @@
         "requirement": "記録的短時間大雨の VPOA50 と VPBS50（Q-TO11-RECORD-RAIN、P3-TL10-D-RAIN-JUDGE・D-RAIN-ALONE=A〔作者の裁定、2026-11-08 夜〕）: (1) 自分の記録: 返信の output の outcomes の U-B の accepted の subjects のうち、source.inputId がその返信の settlement.inputId のもの。返信の terminal が短い形で unit が U-B、headType が VPOA50 の報について、自分の記録の transition で分ける (2) aliased（VPBS50 が先に採られていた）: 列に積まない。定期要約に数え、入力の行の経過の時刻と tips の待ちの起点は動かさない。--debug の行は「（U-B、出さない・対応報あり）」 (3) held（D-RAIN-ALONE=A）: 列に積まず、閉包の「待ちの表」（Map、subject → 報の参照と期限）に置く。期限は受けた時の単調時計（clock の monotonicMs。今の端末の tick と同じ時計で、壁時計の巻き戻りで待ちが延びない）+ 60,000 ms（U-B の HOLD_MS と同じ値。held の outcome の facts に holdUntil は無い）。表は端末自身の上限 256 を持ち、満杯で 257 件目を置く時は、最も古い待ち（表の先頭）を積んで外してから置く（出さずに捨てない。U-B の容量の退去は accepted に載らず (5) に届かないため）。こうして先に出した報は、後でその VPBS50 が来ると端末に 2 ブロックになる（1 ブロックの約束の例外、残存 (12)）。同じ subject が表にあれば報だけを新しいものに替え、期限は最初のまま（U-B も最初の holdUntil を保つ、P3-C12-VPOA.holdRules (4)）。定期要約に数え、tips の待ちの起点は置いた時に動かし、入力の行の経過の時刻は積んだ時に動かす。--debug の行は「（U-B、対応報を待つ）」 (4) 出す時: 1 秒の tick と inputDone の初め（その返信を扱う前）で、単調時計が期限以上になった表の報を積んで表から外す（壁時計が補正されなければ、U-B もこの時刻に held を released にして「（対応電文未確認）」の通知を作る。補正されると U-B の解放と時刻がずれる、残存 (11)。U-B の解放は返信に outcome を載せないので、端末が解放を知る道は期限だけ）。close() では表の残りを積んでから列を書かせる。例外: tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出す (5) 捨てる時: 表が空でないとき、どの inputDone でも U-B の accepted の subjects を 1 回見て、表にある subject で transition が held でないもの（VPBS50 の採用で aliased、取消で cancelled など）を積まずに表から外す。その返信が VPOA50 の取消で、自分の記録が表にあった（端末に出していない）なら、その取消の報も積まない（U-B も鳴らさない）。--debug の行は「（U-B、出さない・待っていた報の取消）」 (6) 表の寿命と消す道: 置いてから 60 秒（briefing-unit.ts の HOLD_MS と同じ）か (5) まで。件数は端末の上限 256 を越えない（(3) の満杯の時の決まり）。保存しない。回線の切断と回復・取り直し・control.clear() では消さない (7) VPBS50 と、VPOA50 の active・released・cancelled（表に無いもの）と、ほかの U-B の報は今のとおり (8) 場面: (a) 16:33:05.000 に VPBS50（EventID KJPTC…）、16:33:05.007 に同じ事象の VPOA50 が届くと、VPOA50 は aliased で、端末は VPBS50 の 1 ブロックだけ (b) 16:33:05.000 に VPOA50（held、U-B の holdUntil と端末の期限は 16:34:05）、16:33:05.007 に VPBS50 が届くと、VPBS50 の返信の subjects に VPOA50 の subject が aliased で載り、端末は VPBS50 の 1 ブロックだけで、16:34:05 を過ぎても何も出ない (c) VPOA50 だけが届くと、16:34:05 までは何も出ず、16:34:05 を過ぎた最初の tick に紫のブロックが 1 つ出る",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:612 «40be8a63ec3c23fc»",
-          "docs/specs/cli-terminal-output.md:885 «5f7cc149b7050ad7»",
+          "docs/specs/cli-terminal-output.md:886 «5f7cc149b7050ad7»",
           "src/engine/messages/legacy-counterpart-registry.ts:7 «a0685e8949e7dd10»",
           "src/engine/messages/legacy-counterpart-registry.ts:141 «ba293fb74ee83ed7»",
           "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
@@ -372,7 +372,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:83 «acd70b64750d0720»",
           "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
-          "reconstruction/src/terminal/output.ts:486 «df18802267659c7f»",
+          "reconstruction/src/terminal/output.ts:490 «df18802267659c7f»",
           "reconstruction/src/terminal/format.ts:690 «9b48a3baea15eff3»"
         ]
       }

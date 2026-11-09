@@ -2285,7 +2285,7 @@ rollback条件:
 | `config path` | 設定path | `cli.ts:137–142` | 互換必須（2026-09-14 作者） |
 | `config keys` | 設定key一覧 | `cli.ts:144–149` | 互換必須（2026-09-14 作者） |
 | `-k / --api-key`、環境変数 | 認証入力 | `cli.ts:28–31` | 互換必須（2026-09-14 作者） |
-| `-c / --classifications` | 5区分を既定購読 | `cli.ts:32–35`、`types.ts:404` | 互換必須（2026-09-14 作者） |
+| `-c / --classifications` | 5区分を既定購読 | `cli.ts:32–35`、`types.ts:404` | 互換必須（2026-09-14 作者）→ 2026-11-09 作者の裁定で、区分が無ければ fleq init を案内して断る（P3-DMDATA-NO-CONTRACT-001） |
 | `--test` | `no / including / only`、既定no | `cli.ts:36–39` | 互換必須（2026-09-14 作者）。音の扱いは Q7 と別に R28＝A（2026-09-23）で決まり、training／test の電文は区分付きの desktop 通知だけで音を鳴らさない（P2-A4-D07＝A・P2-A7-D07＝A、§5.1） |
 | `--keep-existing` | 互換option、既定true | `cli.ts:40–43` | 廃止可（2026-09-14 作者） |
 | `--close-others` | 接続整理。説明と実装のappName範囲を揃える必要あり | `cli.ts:44–47`、`rest-client.ts:585` | 廃止可（2026-09-14 作者） |

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "e4ac285d3eb6537d4ef59a2a248d31ceaf29f566812b795af8f4eb6ead820562",
+    "sha256": "07062da2efce3fe004007108d2b398d2c5956b7fdb4c7a3cba2a339d43ec1e2a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -224,7 +224,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:601 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:510 «fd60700b6ab030a4»",
-          "docs/specs/cli-terminal-output.md:847 «af348735afc8259a»"
+          "docs/specs/cli-terminal-output.md:848 «af348735afc8259a»"
         ]
       },
       {
@@ -232,7 +232,7 @@
         "requirement": "取消の文（Q-TO4-CANCEL）: (1) 短い形の取消の報は、Body の直下の最初の Text があれば見出し文の代わりに出す。VolcanoInfo など Body の下の要素の中の Text は読まない (2) Text が無いか空なら見出し文を出す (3) 見出し文も Text も無ければ文の行を出さない (4) 取消でない報は Body の Text を読まない (5) 文字数の上限は material の既存の read による",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:602 «6c7ab8968ce91344»",
-          "docs/specs/cli-terminal-output.md:848 «bf5e2c75f76ded6e»"
+          "docs/specs/cli-terminal-output.md:849 «bf5e2c75f76ded6e»"
         ]
       },
       {
@@ -240,7 +240,7 @@
         "requirement": "空白（Q-TO4-SPACE）: 短い形の文（見出し文と取消の文）について (1) 各行の前後の半角・全角の空白を除く (2) 前の行の末尾が文字か開き括弧で、次の行が「項目：」の形（コロンの直前が数字でないもの）でない改行は字を入れずに継ぐ (3) ほかの改行は空白 1 つにする (4) 行頭の項目名の均等割付（1 字、全角か半角の空白、1 字、：）を詰める (5) 句読点の直前の空白を除く (6) 行の途中の区切りの全角空白は残す (7) 短い形でない報の文は変えない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:603 «d2ad9f5976facb80»",
-          "docs/specs/cli-terminal-output.md:849 «df37600a1855d371»"
+          "docs/specs/cli-terminal-output.md:850 «df37600a1855d371»"
         ]
       }
     ],

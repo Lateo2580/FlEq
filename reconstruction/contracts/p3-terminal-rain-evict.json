@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "e5fa9e90833ca1a35f1f5486664915e63ea8fad066d59455bcdcfd505352ba44",
+    "sha256": "08cc055b4ba9f76c1421286ac750366db25ec15c89ca4de62609150908673276",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -193,15 +193,15 @@
           "reconstruction/src/terminal/material.ts:333 «2be327932f009c34»",
           "reconstruction/src/terminal/output.ts:339 «1cbad544ef8d1adf»",
           "reconstruction/src/terminal/output.ts:346 «da2499732129eee5»",
-          "reconstruction/src/terminal/output.ts:499 «83cb5a60d5f90392»",
-          "reconstruction/src/terminal/output.ts:507 «48303698d24448e9»",
-          "reconstruction/src/terminal/output.ts:571 «50da46d9f73a81ee»",
-          "reconstruction/src/terminal/output.ts:575 «c164c53e8e357801»",
-          "reconstruction/src/terminal/output.ts:579 «8eaf35e37d01bde6»",
-          "reconstruction/src/terminal/output.ts:644 «1efcca7a47fc5697»",
+          "reconstruction/src/terminal/output.ts:503 «83cb5a60d5f90392»",
+          "reconstruction/src/terminal/output.ts:511 «48303698d24448e9»",
+          "reconstruction/src/terminal/output.ts:575 «50da46d9f73a81ee»",
+          "reconstruction/src/terminal/output.ts:579 «c164c53e8e357801»",
+          "reconstruction/src/terminal/output.ts:583 «8eaf35e37d01bde6»",
+          "reconstruction/src/terminal/output.ts:648 «1efcca7a47fc5697»",
           "reconstruction/src/units/briefing/briefing-unit.ts:422 «0573d48dbb3021a5»",
           "reconstruction/src/units/briefing/briefing-unit.ts:430 «891ecfe0c9984d70»",
-          "reconstruction/src/terminal/output.ts:564 «54f2348cc3d31d82»",
+          "reconstruction/src/terminal/output.ts:568 «54f2348cc3d31d82»",
           "reconstruction/src/terminal/material.ts:40 «93adbb33f3a311ae»",
           "reconstruction/src/decode-material/decode-material.ts:365 «01e9c87cb03feddb»",
           "reconstruction/src/decode-material/decode-material.ts:473 «3df2eaec74aa3821»",
@@ -214,8 +214,8 @@
         "id": "P3-TRE-AC02",
         "requirement": "計算量と口（AGENTS.md の受信経路の計算量）: (1) 足す走査は AC01 (1) の条件（VPOA50 で、自分の記録が返信に無い）を満たす入力でだけ、待ちの表（端末の上限 256、P3-TL10-AC03 (3)）を 1 回なぞる。この条件は U-B の自身の退去（training/test の報だけ）と遅着の経路でしか起きない稀な分岐で、ほかの受信には足さない。JSON.stringify・列の走査・ほかの unit の走査をしない (2) 口は変えない: terminalReport・inputTerminal・createTerminalOutput・TerminalSink。型は TerminalHead に欄 operation を 1 つ足すだけ（material.ts は head() の 1 行の中、types.ts は TerminalHead の中と import）。runtime・U-B・format.ts を変えない。材料の byte は欄 1 つ分（運用区分の字）だけ増える",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:499 «83cb5a60d5f90392»",
-          "reconstruction/src/terminal/output.ts:507 «48303698d24448e9»"
+          "reconstruction/src/terminal/output.ts:503 «83cb5a60d5f90392»",
+          "reconstruction/src/terminal/output.ts:511 «48303698d24448e9»"
         ]
       }
     ],

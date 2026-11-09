@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "d77c28bc3f3a985b09912bb5fb72bd51d50abdc11c1887f07b9bf02b928417af",
+    "sha256": "2eb50b5f93a9cab07a25a9ccef15169a0ae9dc371be6cc33b838f9d8cc0891c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -291,12 +291,12 @@
         "requirement": "時系列情報のまとめ（Q-TO12-VPWP50、P3-TL11-D-TS-IDENTITY・D-TS-LIMIT・D-TS-SINGLE、前例 P3-TL10-AC01）: (1) 対象は返信の terminal が短い形で unit が U-F、headType が VPWP50、InfoType が取消でない報。createTerminalOutput の sink の inputDone はこれを列に積まず、閉包の変数 1 つの「時系列のまとまり」（subject → 報の参照の Map〔挿入順、64 まで〕・鍵〔ReportDateTime の生の字と Control/Status〕・最初と最後に置いた時刻〔clock の monotonic〕）に置く。降灰のまとまり（P3-TL10-AC01）とは別の変数で、2 つは同時にありうる (2) Map の鍵は、その返信の output の outcomes の U-F の accepted の subjects のうち source.inputId がその返信の settlement.inputId のもの（自分の記録）の subject（U-F の系列の鍵「<運用区分>/VPWP50/<EditorialOffice>」、D-TS-IDENTITY=A）。同じ subject の報が Map にあれば前の報を消し、新しい報を最後に置く。題名が同じで EditorialOffice の違う報は別の鍵で、どちらも残る。返信の outcomes を見るのは VPWP50 の返信だけ。自分の記録の subject が返信に無いとき（端末の門 taken が U-F の accepted を要るので起きない）は、まとまりに置かず今のとおりすぐ積む (3) 鍵の違う報が来たら、今のまとまりを先に出してから新しいまとまりを始める (4) 出す時: 64 件になったらその入力の中で。1 秒の tick と inputDone の初め（その返信の報を扱う前。降灰のまとまりの期限と同じ場所で、降灰の後に見る）で、最後に置いてから 8,000 ms 以上か、最初に置いてから 90,000 ms 以上のとき。close() で列の残りを書かせる前（降灰のまとまりと記録的短時間大雨の待ちと同じ flushAll）。ほかの報（ほかの unit・EEW・読めなかった報のカード・VFVO53）はまとまりを出さずに今のとおり扱い、まとまりは後でその下に出る (5) 出す形: 1 件だけなら、その報を今の 1 報の形（kind report）で積む。2 件以上は 1 つの単位（AC03 (1)）で積む。単位を作る時に、Map の報の risks を Map の順につなぎ、type ごとに Code の数が最も大きい組を 1 つ残す（同じ数なら先に現れた組、type の並びは先に現れた順、32 種類まで）。同じ回で、Map の報の PublishingOffice の字（空と無いものを除く）を Set に入れて異なる数を数え、単位に数だけを持たせる（D-TS-FOOTER=B。Map に残った報だけを数えるので、同じ subject の置き換えで外した前の報と、取消で外した報は数えない）。これは束 1 つに 1 回の上限のある一括の処理（報 64 × 組 32 = 2,048 回と官署 64 回まで） (6) VPWP50 の取消の報は待たずに今のとおり積み、まとまりを出さない。Map に取消の自分の記録と同じ subject の報があれば外す（空になったらまとまりを無くす） (7) 取り直しの VPWP50 は端末の材料が null で（material.ts の origin recovery）、決まりを足さない (8) 数え方: まとまりに置いた入力は届いた時に定期要約に数える（今のとおり）。tips の待ちの起点（lastOutputMs）は置いた時に動かす。入力の行の経過の時刻（lastReportWallMs）はブロックを積んだ時に動かす。--debug の行は置いた時に「debug: VPWP50 <入力 ID>（U-F、まとめて出す）」（P3-TO-AC17 の「まとめて出す」の字、P3-TL10 が足した） (9) まとまりの寿命と消す道: 最初の報を置いた時にでき、(3)(4) で出した時と (6) で空になった時に無くなる。保存しない。回線の切断と回復・取り直し・control.clear() では消さない。tick は attach() で始まるので、attach の前に置いた報は attach の後の最初の tick で期限を見る。場面: 11:00:00 の便の 58 件（58 の気象台、subject が全部違う、通常）が 8 秒未満の間隔で、最初の報から 90 秒の内に届くと、端末は最後の報から 8 秒を過ぎた最初の tick に AC03 のブロックを 1 つ出す（今は空行・帯・末尾の 3 行のブロックが 58 個で 174 行）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:613 «fb3b8f31164e2e41»",
-          "docs/specs/cli-terminal-output.md:886 «c1954268c1b8eb25»",
+          "docs/specs/cli-terminal-output.md:887 «c1954268c1b8eb25»",
           "docs/specs/cli-terminal-output.md:611 «5768731f8619d84e»",
           "reconstruction/src/terminal/output.ts:38 «97b5147c5d2bf7ab»",
           "reconstruction/src/terminal/output.ts:310 «5b067329afa793ce»",
           "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
-          "reconstruction/src/terminal/output.ts:540 «9adf0ae5f749e324»",
+          "reconstruction/src/terminal/output.ts:544 «9adf0ae5f749e324»",
           "reconstruction/src/terminal/material.ts:213 «ebb86d4fb6943021»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:85 «6482a5ef855183e0»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:212 «f9e340690c98b51c»"
@@ -312,7 +312,7 @@
           "reconstruction/src/terminal/material.ts:284 «32f2cccc604c620d»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:15 «19a724da7c71f265»",
           "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml:39 «436cce9fa5e3b8dc»",
-          "docs/specs/cli-terminal-output.md:887 «d1f1b6799dc1c82b»",
+          "docs/specs/cli-terminal-output.md:888 «d1f1b6799dc1c82b»",
           "src/dmdata/weather-warning-timeseries-significancy.ts:199 «d11158fbd7f0bf5d»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:257 «081dcdc8e65dc574»"
         ]
@@ -335,7 +335,7 @@
         "requirement": "緊急地震速報の震源の名前（Q-TO12-EEW-EPICENTER、P3-TL11-D-EEW-EPICENTER=A、2026-11-09 の作者の裁定）: (1) format.ts の eew() の震源の行で、震源の名前（facts.report の hypocenter の字）の seg を、その報の帯の役目（roles、濃さの段を当てた後のもの）の rule の役目と太字で描く。警報は 1〜3 段目とも ruleWarning #e56910（Nightfox の地と 4.8。D-SHADES で警報の罫線は段によらない）、予報は 1 段目 ruleCaution #f0e442（12.0）・2 段目 ruleCaution2 #bbb233（7.2）・3 段目 ruleCaution3 #97902a（4.8）、最大予測震度に 7 を含む報は rulePurple #c46bde（4.9）。どれも spec §3.1 の地に置く字の下限 4.5 を越える。色の役目と値を足さない（color.ts を変えない） (2) 名前が無い報の「不明」は色も太字も付けない。前の報の名前と矢印（was の薄い字「旧 →」）は今のまま薄い字で、新しい名前だけに色と太字 (3) 仮定の震源の報（isAssumedHypocenter）は名前だけに色と太字を付け、「震源: 」と「（仮定の震源、PLUM法で推定）」は今の字。M と深さを出さない決めは変えない (4) 「震源: 」、M、深さ、長周期階級、矢印の形（「M3.6 →  3.8」、2026-11-04 の作者の裁定）、要点の並び、再掲は変えない。取消の報には震源の行が無い（今のまま） (5) 色の水準 0 では字も見た目も今と同じ（色も太字も付かない）。字は変わらないので幅と折り返しは今と同じ。色の水準 1・2 では濃さの段は 1 段目（P3-TL10-D-SHADE-NOCOLOR）の rule の役目 (6) 地震の情報の震源の行（hypocenterLines）は変えない。場面: 2026-11-09 11:12:40 の奄美大島北東沖の予報（第1報、注意の段）は「震源: 」の後の「奄美大島北東沖」が黄 #f0e442 の太字で、「 ・ M3.6 ・ 深さ60km」は今の字。11:12:45 の第3報の「M3.6 →  3.8」の矢印は今のまま",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:154 «b31d9b4196ccd2ac»",
-          "docs/specs/cli-terminal-output.md:888 «a943a6892ca1edcd»",
+          "docs/specs/cli-terminal-output.md:889 «a943a6892ca1edcd»",
           "docs/specs/cli-terminal-output.md:48 «1659b37f9ada2df9»",
           "docs/specs/cli-terminal-output.md:49 «c568f6835afbc5d2»",
           "docs/specs/cli-terminal-output.md:51 «3d491604d4377c59»",

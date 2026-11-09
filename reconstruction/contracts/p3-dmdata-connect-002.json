@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "dbb76fd2a799f60658c5ddf08fafe1272cbd2e749fe3c64fb799cba1cb083950",
+    "sha256": "ae21188ce5419ff74c04ade83230b756c5f87f06cbde4090ec7ed2598ab5e750",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -44,7 +44,7 @@
       {
         "id": "P3-DC2-D-REASON",
         "kind": "統合担当",
-        "A": "HostStatus に lastFailure: DmdataConnectFailure | null を 1 つ足す（型は p3-dmdata-connect.types.ts）。最後に終わった接続の失敗の理由で、start の受理で null（{ wsUrl } は open でも null）。値は 5 つ: authRejected（REST の 401・403）、capacity（容量超過、:384）、startUncertain（start の結果不明）、dmdata（dmdata が答えたが受け付けなかった: 401・403 以外の非 2xx〔429・5xx を含む〕・応答の形の不正・本文の上限越え）、network（答えが来なかった: 要求の前の失敗・送った後に答えが無い・timeout、と WS の段の全部）。dmdata と network を分けるため、dmdata-rest.ts の RestRefusal の failed に answered: boolean と retryAfterMs: number | null を足す（answered は exchange の終わりが answered か tooLarge なら true。retryAfterMs は answered のときだけ exchange の retryAfter、ほかは null）",
+        "A": "HostStatus に lastFailure: DmdataConnectFailure | null を 1 つ足す（型は p3-dmdata-connect.types.ts）。最後に終わった接続の失敗の理由で、start の受理で null（{ wsUrl } は open でも null）。値は 6 つ: authRejected（REST の 401・403）、capacity（容量超過、:384）、startUncertain（start の結果不明）、dmdata（dmdata が答えたが受け付けなかった: 401・402・403 以外の非 2xx〔429・5xx を含む〕・応答の形の不正・本文の上限越え）、network（答えが来なかった: 要求の前の失敗・送った後に答えが無い・timeout、と WS の段の全部）、noContract（REST の 402。有効な契約が無い、P3-DMDATA-NO-CONTRACT-001）。dmdata と network を分けるため、dmdata-rest.ts の RestRefusal の failed に answered: boolean と retryAfterMs: number | null を足す（answered は exchange の終わりが answered か tooLarge なら true。retryAfterMs は answered のときだけ exchange の retryAfter、ほかは null）",
         "B": "SocketListResult・SocketCloseResult に { kind: \"unreachable\" } を足す（host の refused の分岐が 1 つ増える）",
         "recommended": "A",
         "provisional": "A",
@@ -295,14 +295,14 @@
         "requirement": "繋がらない理由（P3-DC2-D-REASON、H29）: (1) 型: p3-dmdata-connect.types.ts の DmdataConnectFailure（本契約の起草で足した）を HostStatus.lastFailure: DmdataConnectFailure | null の型にする（欄を足すのは実装） (2) dmdata-rest.ts: RestRefusal（:15）の failed を Readonly<{ kind: \"failed\"; answered: boolean; retryAfterMs: number | null }> にする。answered は exchange の終わりが answered か tooLarge なら true、notSent か lost なら false。retryAfterMs は answered のときの exchange の retryAfter（:67）、ほかは null。一覧（:93 と応答の形の不正）・DELETE（:112 と形の不正）・start（:124 の notSent は answered false、:126 の非 2xx は true）の failed を全部この形にする。authRejected と uncertain は変えない。exchange・recovery の呼び出しは変えない (3) host: 試行が失敗で終わるたびに lastFailure を書く。authRejected（REST の 401・403）、capacity（:384）、startUncertain（結果不明）、REST の failed で answered が true なら dmdata・false なら network、WS の段（new WebSocket の失敗・handshake の失敗・open の前の close・open の後の close・生存監視の切断・connect() の予期しない reject〔:239〕）は network。一覧 2 本の片方が authRejected なら authRejected（今の :372 の順）、どちらも failed なら片方でも answered false があれば network。停止の後は書かない (4) null に戻すのは形の正しい start の受理（acceptStart、:285 と同じ時。{ wsUrl } は open） (5) 診断の WARN・ERROR の語と行の数（P3-C2-AC02）は変えない。H29 の文・手引き・『一度も繋がらない』の判定（例: lastFrameWallMs が null）は C19 が決める",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3056 «ac7133d4f617fb1e»",
-          "reconstruction/src/host/dmdata-rest.ts:15 «1d9bfd2e3360bbb4»",
+          "reconstruction/src/host/dmdata-rest.ts:15 «eebe2e6a549e8499»",
           "reconstruction/src/host/dmdata-rest.ts:67 «c0e0358fc4f7611b»",
-          "reconstruction/src/host/dmdata-rest.ts:81 «adcc06618ba41006»",
+          "reconstruction/src/host/dmdata-rest.ts:81 «d62c6e6692600344»",
           "reconstruction/src/host/dmdata-rest.ts:124 «8b52bcc714cc2e94»",
           "reconstruction/src/host/host.ts:239 «741773806b2db564»",
-          "reconstruction/src/host/host.ts:363 «63cd9a9470615edb»",
+          "reconstruction/src/host/host.ts:363 «17dd220688acc103»",
           "reconstruction/src/host/host.ts:365 «5c396e09f02ca876»",
-          "reconstruction/src/host/host.ts:366 «c06312b0f0c69766»",
+          "reconstruction/src/host/host.ts:366 «3ca67678bb8158a8»",
           "reconstruction/src/host/host.ts:384 «4496984067609dbc»",
           "reconstruction/src/host/host.ts:406 «99d0301e5b61f93b»",
           "reconstruction/src/host/host.ts:413 «6b3cd7da512a7baa»",

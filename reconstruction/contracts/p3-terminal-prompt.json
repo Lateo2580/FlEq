@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c48d43917901c71a308643a0d7dda28fc1c05e33",
-    "sha256": "f25436861ab0aec829f13f35a08706b5d1acb88361b0083c5a059c73a007f6c6",
+    "sha256": "4fa4fff1c4dec2eb39bb42d3cb36925bd338e1304cfca1a852475a3e45f9bd1e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -310,113 +310,113 @@
         "id": "P3-TP-AC01",
         "requirement": "載せるもの（Q-TO6-PROMPT、spec §9.2 の表）。今も有効かは view の値だけで決め、operation が normal の値だけを読む。(1) 津波: U-T の forecasts の areas と unkeyedAreas。区分は areas の areaClass、unkeyedAreas は domains/tsunami の KIND_CLASS で読み（表を写さない）、majorWarning が最も重い段、warning と unknown が警報の段、advisory が注意の段で、ほかの区分は項目にしない。字は「区分 地域名」で、区分は kindName の「：」より前（format.ts の kindOf と同じ） (2) 南海トラフ: U-N の currents の line が nankai のもの。status が megaquakeWarning なら最も重い段で「南海トラフ地震臨時情報（巨大地震警戒）」、megaquakeAdvisory なら警報の段で「…（巨大地震注意）」、investigating なら警報の段で「…（調査中）」。title と infoSerial は読まない（7 日の移行で status だけが変わる）。line が VYSE60 の現況は警報の段で、字は title のまま（status は subsequentAdvisory の 1 値で移行が無く、title は電文の Head/Title）。U-N の項目は line が nankai のものを先に置く (3) 火山: U-V の alerts の kind か landKind の code が 14（レベル４）、15（レベル５）、24（山麓厳重警戒）、25（居住地域厳重警戒）のもの。kind だけを読むと、45_02_01 の kind 15 の後に VFSV（36）が来て kind=36・landKind=15 になったときに Lv5 が解除の前に消える。24・25 はレベルの無い火山の噴火警報で level は null なので、level でなく code で読む。Code の出どころは作者の手元のコード表（気象庁の地震火山関連コード表）で、この repo に原本は無い。最も重い段で字はその code を持つ側の「name volcanoName」で、両方が当たれば kind の側。eruptions は読まず、噴火速報は載せない (4) 気象: U-W の areas の codes の鍵のうち /^3\\d$/（material.ts の特別警報の読みと同じ）。最も重い段で字は names[code]（P3-TP-AC09） (5) 洪水: U-R の currents の kinds の level が 5 のまとまりの rivers ごと。最も重い段で字は「group.name river.name」。rivers が空か name が空なら「group.name areaName」 (6) 土砂: U-L の currents の kinds の level が 5 のまとまり。最も重い段で字は group.name。level が null のまとまりは項目にしない (7) 津波の区分と地域名、火山の kind.name と volcanoName、洪水と土砂の group.name が空なら、その字は units/unreadable.ts の UNREAD_TEXT（「（読めず）」、P3-UM の作者裁定の言い方）を import して使い、字を写さない。空文字のまま項目にしない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:857 «757d3e9fb7292434»",
-          "docs/specs/cli-terminal-output.md:860 «34e17d3b45672e48»",
-          "docs/specs/cli-terminal-output.md:861 «ffff1bd6561aabce»",
-          "docs/specs/cli-terminal-output.md:862 «ddfafe5f941996b9»",
-          "docs/specs/cli-terminal-output.md:863 «b68af0f5f671daf0»",
-          "docs/specs/cli-terminal-output.md:926 «a56586e6815ca93e»",
-          "docs/specs/cli-terminal-output.md:933 «c3672fea44faef98»",
-          "docs/specs/cli-terminal-output.md:934 «cd8b072be0938fc2»",
-          "docs/specs/cli-terminal-output.md:935 «90b7044a5d86bbc3»",
-          "docs/specs/cli-terminal-output.md:936 «030bdac87384152d»",
-          "docs/specs/cli-terminal-output.md:943 «22094bbd7e30052e»",
-          "docs/specs/cli-terminal-output.md:937 «520224a9516e75d1»",
-          "docs/specs/cli-terminal-output.md:938 «24c758ce71fe4cb8»",
-          "docs/specs/cli-terminal-output.md:939 «204f39dfc568a681»",
-          "docs/specs/cli-terminal-output.md:944 «f36eb6f9a8e624fe»",
-          "docs/specs/cli-terminal-output.md:945 «16b1ce939043699d»",
-          "docs/specs/cli-terminal-output.md:941 «61ce3565fb469ee2»"
+          "docs/specs/cli-terminal-output.md:858 «757d3e9fb7292434»",
+          "docs/specs/cli-terminal-output.md:861 «34e17d3b45672e48»",
+          "docs/specs/cli-terminal-output.md:862 «ffff1bd6561aabce»",
+          "docs/specs/cli-terminal-output.md:863 «ddfafe5f941996b9»",
+          "docs/specs/cli-terminal-output.md:864 «b68af0f5f671daf0»",
+          "docs/specs/cli-terminal-output.md:927 «a56586e6815ca93e»",
+          "docs/specs/cli-terminal-output.md:934 «c3672fea44faef98»",
+          "docs/specs/cli-terminal-output.md:935 «cd8b072be0938fc2»",
+          "docs/specs/cli-terminal-output.md:936 «90b7044a5d86bbc3»",
+          "docs/specs/cli-terminal-output.md:937 «030bdac87384152d»",
+          "docs/specs/cli-terminal-output.md:944 «22094bbd7e30052e»",
+          "docs/specs/cli-terminal-output.md:938 «520224a9516e75d1»",
+          "docs/specs/cli-terminal-output.md:939 «24c758ce71fe4cb8»",
+          "docs/specs/cli-terminal-output.md:940 «204f39dfc568a681»",
+          "docs/specs/cli-terminal-output.md:945 «f36eb6f9a8e624fe»",
+          "docs/specs/cli-terminal-output.md:946 «16b1ce939043699d»",
+          "docs/specs/cli-terminal-output.md:942 «61ce3565fb469ee2»"
         ]
       },
       {
         "id": "P3-TP-AC02",
         "requirement": "並び（Q-TO6-ROTATE）: (1) 出すのは最も重い段の項目だけ。段の重さは top > warning > caution (2) 段の中の並びは 津波、南海トラフ、火山、気象、洪水、土砂 の順。同じ分野の中は subject の昇順、1 つの subject の中は電文の順（配列の順） (3) 字がまったく同じ項目は最初の 1 つにまとめ、数えない (4) 項目が 2 件以上なら字の後ろに「 1/3」の形で番号を付け、1 件なら付けない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:858 «0573cba0c7f60935»",
-          "docs/specs/cli-terminal-output.md:950 «5f9592b4fe6b9f08»",
-          "docs/specs/cli-terminal-output.md:951 «f7a7ba32fe8c77e7»",
-          "docs/specs/cli-terminal-output.md:952 «6224fe149cf6d306»",
-          "docs/specs/cli-terminal-output.md:953 «5006ddccf1810bcc»"
+          "docs/specs/cli-terminal-output.md:859 «0573cba0c7f60935»",
+          "docs/specs/cli-terminal-output.md:951 «5f9592b4fe6b9f08»",
+          "docs/specs/cli-terminal-output.md:952 «f7a7ba32fe8c77e7»",
+          "docs/specs/cli-terminal-output.md:953 «6224fe149cf6d306»",
+          "docs/specs/cli-terminal-output.md:954 «5006ddccf1810bcc»"
         ]
       },
       {
         "id": "P3-TP-AC03",
         "requirement": "回り方（Q-TO6-ROTATE）: (1) 枠の位置は promptLabel の中で clock() の wallTimeMs から Math.floor(wallTimeMs / 5000) % 枠の数で計算する。タイマーと位置の覚えを足さず、Date.now() を足さない (2) 枠の数が変わった直後の位置の飛びは許す (3) 字の再計算は 1 秒ごと（ticker の label と setPrompt）で、実際の再描画は今の条件（字が変わり、command が走っていず、入力中の文字が空で、書き出しが終わったとき）のときだけ。条件が揃わず見送った変更は覚え、条件が揃ったら最新の字を 1 度書く。時計を外した固定の字では、A→B→A と戻ると見送りが消えて取消済みの字が画面に残るため",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:954 «86ea79de3f0c5896»",
-          "docs/specs/cli-terminal-output.md:955 «621252f0e7f0ef2a»"
+          "docs/specs/cli-terminal-output.md:955 «86ea79de3f0c5896»",
+          "docs/specs/cli-terminal-output.md:956 «621252f0e7f0ef2a»"
         ]
       },
       {
         "id": "P3-TP-AC04",
         "requirement": "形（spec §9.1）: (1) 項目が無いとき、promptLabel の返す字は今のまま 1 字も変えない（P3-TL-T09 ほか既存の試験の期待を変えない） (2) 項目があるときは今の字の閉じ括弧の前に「 字 番号」を足す。「FlEq [● 21:40:05 大津波警報 岩手県 1/3]> 」「FlEq [● 21:40:05 ミュート中 21:30 まで 大津波警報 岩手県 1/3]> 」「FlEq [21:03:12 から 切断中・ミュート中 大津波警報 岩手県 1/3]> 」。clock・elapsed・uptime の 3 つの形で同じ (3) status が null の間は今のまま「FlEq> 」 (4) 色の制御の字を付けない (5) TTY でないときは repl.ts が promptLabel を呼ばず、現況の項目を作らない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:911 «b08aa30016a21d10»",
-          "docs/specs/cli-terminal-output.md:919 «a9a06705457979b4»",
-          "docs/specs/cli-terminal-output.md:920 «1cab28285e3321e9»",
-          "docs/specs/cli-terminal-output.md:921 «e179c51970ef66e8»",
-          "docs/specs/cli-terminal-output.md:922 «56e6c1f375496ff2»"
+          "docs/specs/cli-terminal-output.md:912 «b08aa30016a21d10»",
+          "docs/specs/cli-terminal-output.md:920 «a9a06705457979b4»",
+          "docs/specs/cli-terminal-output.md:921 «1cab28285e3321e9»",
+          "docs/specs/cli-terminal-output.md:922 «e179c51970ef66e8»",
+          "docs/specs/cli-terminal-output.md:923 «56e6c1f375496ff2»"
         ]
       },
       {
         "id": "P3-TP-AC05",
         "requirement": "入らないとき（Q-TO6-NARROW）: (1) 桁数は process.stdout.columns || 80。「収まる」は、全部の項目の AC04 (2) の形の字の幅（format.ts の width）が桁数より小さいこと。全部が収まらなければ次の形にする (2) 切断中: 項目の枠は「FlEq [切断中 字 番号]> 」、最後の 1 枠は「FlEq [切断中 21:03:12 から・ミュート中]> 」か「FlEq [切断中 21:03:12 から・繋ぎ直し 3 回目]> 」。切断の時刻が無ければ --:--:-- (3) 繋がっている間でミュート中: 項目の枠はミュートの字を除いた「FlEq [● 21:40:05 字 番号]> 」、最後の 1 枠は今の字の形 (4) 回す位置の分母は枠の数。枠の数は (2)(3) のときだけ項目の数に 1 を足し、繋がっていてミュートでないときは項目の数のまま。「1/3」の番号は項目の数え方のままで、足した枠には番号を付けない。項目が 1 件で枠が 2 つのときは番号を付けない (5) どの瞬間の字にも、切れている間は「切断中」が入る (6) 項目の字を切り詰めない (7) 繋がっている間（○ の形を含む）で、(1) の形にしても (3) の形にしてもなお時計つきの項目の枠が全部は収まらないときは、全部の項目の枠で時計の値を外す。「FlEq [● 南海トラフ地震臨時情報（巨大地震警戒）]> 」。回線の印は残し、clock・elapsed・uptime の 3 つの形で同じ。ミュートの枠の字は今のまま (8) 切断中の項目の枠に時計は無く、切断中の字を外さない。それでも入らなければ行は折り返す。繋がっている間も、時計を外してなお入らなければ行は折り返す (9) 残存: 折り返すと、createRenderer の emit が報の前に 1 行しか消さないので、報のたびに 1 行目の字が画面に残る。56 桁・切断中・南海トラフの字を含む 2 件で起きる形（58 桁）。本契約では直さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:859 «4c9f52d62d21d9d6»",
-          "docs/specs/cli-terminal-output.md:866 «96a2dd7cebc5cf0e»",
-          "docs/specs/cli-terminal-output.md:960 «7d16f07e0e2a7a9e»",
-          "docs/specs/cli-terminal-output.md:969 «3fc4c589acb68f8b»",
-          "docs/specs/cli-terminal-output.md:970 «ea12835cd5d8128c»",
-          "docs/specs/cli-terminal-output.md:971 «5819c723efc8fa83»",
-          "docs/specs/cli-terminal-output.md:972 «2e99793dd30dadca»",
-          "docs/specs/cli-terminal-output.md:973 «2e5568a2c1a34a6b»",
-          "docs/specs/cli-terminal-output.md:979 «694c7e55e8304e47»",
-          "docs/specs/cli-terminal-output.md:980 «da1bc75f2bb6514e»",
-          "docs/specs/cli-terminal-output.md:981 «61a2b72090434083»"
+          "docs/specs/cli-terminal-output.md:860 «4c9f52d62d21d9d6»",
+          "docs/specs/cli-terminal-output.md:867 «96a2dd7cebc5cf0e»",
+          "docs/specs/cli-terminal-output.md:961 «7d16f07e0e2a7a9e»",
+          "docs/specs/cli-terminal-output.md:970 «3fc4c589acb68f8b»",
+          "docs/specs/cli-terminal-output.md:971 «ea12835cd5d8128c»",
+          "docs/specs/cli-terminal-output.md:972 «5819c723efc8fa83»",
+          "docs/specs/cli-terminal-output.md:973 «2e99793dd30dadca»",
+          "docs/specs/cli-terminal-output.md:974 «2e5568a2c1a34a6b»",
+          "docs/specs/cli-terminal-output.md:980 «694c7e55e8304e47»",
+          "docs/specs/cli-terminal-output.md:981 «da1bc75f2bb6514e»",
+          "docs/specs/cli-terminal-output.md:982 «61a2b72090434083»"
         ]
       },
       {
         "id": "P3-TP-AC06",
         "requirement": "受け渡しと計算量（AGENTS.md の受信経路の計算量）: (1) view は publisher の state.mirror から取る。snapshot の view は読まない（表示の予算で delivery が summary になると view が無いため。mirror は予算の影響を受けない） (2) composition-root の project は display.mirror?.(state.mirror) を if (stopped) の外の文として guard の中で呼び、host は terminal の sink の mirror へ渡す。project は 1 秒の tick と owner の返信ごとに走る (3) sink の mirror は参照を 1 つ置き換えるだけで O(1)。受信 1 回の仕事を足さない (4) 項目を作るのは promptLabel の中だけで、mirror の参照が変わったときに、view の参照が変わった unit の項目だけを作り直す。回数は入力の行の字を作る回数（1 秒に 1 回と command の後）までで、受信の数に比例しない (5) 作り直しは変わった unit の view を 1 回なめる線形で、全件×全件と state・view の直列化（JSON.stringify）をしない。U-T の上限は forecasts 512 件 (6) host.ts・composition-root.ts・weather-current-public.ts は他の契約の «» が行で引くので、行を足さない（P3-TO-D-LINES と同じ形）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:926 «a56586e6815ca93e»"
+          "docs/specs/cli-terminal-output.md:927 «a56586e6815ca93e»"
         ]
       },
       {
         "id": "P3-TP-AC07",
         "requirement": "起動（spec §9.5）: (1) startRuntime の最後の project が復元の後の mirror を渡すので、runRepl の最初の prompt の字に復元した項目が載る。REPL の開始を待つ仕組みを足さない (2) 気象は復元して未確認の行が codes に入らないので、確かめる報が来るまで項目にならない。端末で補わない (3) 時計の確かめの前（basis が awaiting、起動から最長 30 秒）は owner が期限の切れた値を view に残す。入力の行は view に従い、端末で期限を照合しない。basis が unverified か verified になった最初の deadline で view から外れ、項目も消える（U-R は restore が collect を呼ばないが、owner-host の restore が続けて deadlineOwner を当てるので同じ）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:987 «18499e77d4abf5a0»",
-          "docs/specs/cli-terminal-output.md:988 «2532d507c7c8094c»"
+          "docs/specs/cli-terminal-output.md:988 «18499e77d4abf5a0»",
+          "docs/specs/cli-terminal-output.md:989 «2532d507c7c8094c»"
         ]
       },
       {
         "id": "P3-TP-AC08",
         "requirement": "消えるとき（spec §9.5）: (1) 解除、取消、期限切れ、レベルの引下げで view から外れたら、次の promptLabel の字から消える。字の再計算は 1 秒ごとで、再描画は AC03 (3) の条件のとき (2) 端末は時計で有効かを判定しない。時計が unverified の間も view に従う。U-R・U-L・U-N・U-V は unverified の間、期限の来た値を unit が expiryPending にして view から外す。U-T の予報、U-V の警報、U-W に時間の期限は無い (3) origin が recovery の入力は端末の報にならないが、recoveryDone の output が mirror を変えるので項目は変わる (4) 切断中も最新の view に従う。受信では変わらないが、host の 1 秒の tick は回線によらず owner へ deadline を送るので、U-R・U-N などの値は期限で変わる。期限の無い値は切断の前のまま残る (5) 残存（Q-TO6-RECOVERY）: 切断中に解除され、再接続の取り直しが失敗すると、次の報まで字が残る。U-T に時間の期限が無い。U-V・U-W も同じ。安全側の誤りで、印は足さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:864 «271903caf8b2cc2b»",
-          "docs/specs/cli-terminal-output.md:985 «6ab77fcc38916252»",
-          "docs/specs/cli-terminal-output.md:986 «8f9f31af3798500f»",
-          "docs/specs/cli-terminal-output.md:990 «eda127085efb122c»",
-          "docs/specs/cli-terminal-output.md:991 «07ea6f63c10961b3»",
-          "docs/specs/cli-terminal-output.md:989 «7b6e5efb07abacb7»"
+          "docs/specs/cli-terminal-output.md:865 «271903caf8b2cc2b»",
+          "docs/specs/cli-terminal-output.md:986 «6ab77fcc38916252»",
+          "docs/specs/cli-terminal-output.md:987 «8f9f31af3798500f»",
+          "docs/specs/cli-terminal-output.md:991 «eda127085efb122c»",
+          "docs/specs/cli-terminal-output.md:992 «07ea6f63c10961b3»",
+          "docs/specs/cli-terminal-output.md:990 «7b6e5efb07abacb7»"
         ]
       },
       {
         "id": "P3-TP-AC09",
         "requirement": "U-W の区分名: 公開形の codes は Code と区域の数だけで字を持たないので、WeatherCurrentPublicArea に names: Readonly<Record<string, string>> を足す。publicArea の active の行の cell.name（電文の Kind/Name）を、その Code で最初に見つけた空でない字のまま写す。非空の字は加工しない。name が null か空文字（`<Name/>` は \"\" で受理される）の行は名前なしとして扱い、名前の無い Code は鍵を作らず、入力の行の字は「特別警報」にする（電文に無い字だが、Kind/Name の無い報で特別警報が行から消えないようにする逃げ）。state・保存の形式・codec・詳細の口は変えない。Code から字を引く固定の表は作らない（corpus で字を確かめられるのは Code 33 だけで、その字も VPWW55 の「レベル５大雨特別警報」と VPWS50 の synthetic の「大雨特別警報」で違う。表にすると電文の字でなくなる）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:937 «520224a9516e75d1»",
-          "docs/specs/cli-terminal-output.md:867 «4bfc1fc51cd02ae1»"
+          "docs/specs/cli-terminal-output.md:938 «520224a9516e75d1»",
+          "docs/specs/cli-terminal-output.md:868 «4bfc1fc51cd02ae1»"
         ]
       },
       {
         "id": "P3-TP-AC10",
         "requirement": "色（Q-TO6-COLOR）: 現況の項目の字は段の字の色（top は rulePurple、warning は ruleWarning、caution は ruleCaution）で、区分の字だけ太字（津波・火山・洪水は区分、南海トラフ・VYSE60・気象・土砂は字全体）、番号は dim、切断の字は connLost で出す。時計、回線の印、ミュートの字は色なし。NO_COLOR と端末でないときは字を変えない。幅の判定は色の符号を含まない字で行う 【P3-TERMINAL-LAYOUT-007 で改めた（配送の commit で当てた）】回線の印は色なしでなく、● の形の間は時計の秒が偶数なら空色の ●、奇数なら灰の ○ にし、○ の形（--:--:--）は灰の ○ のまま。NO_COLOR と端末でないときは色を付けず、字の ● と ○ だけを入れ替える（Q-TO8-PULSE、P3-TL7-AC03）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:919 «a9a06705457979b4»",
-          "docs/specs/cli-terminal-output.md:865 «79aedcfddd72f136»"
+          "docs/specs/cli-terminal-output.md:920 «a9a06705457979b4»",
+          "docs/specs/cli-terminal-output.md:866 «79aedcfddd72f136»"
         ]
       }
     ],
