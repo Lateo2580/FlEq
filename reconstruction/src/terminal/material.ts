@@ -6,7 +6,7 @@ import type {
 import { attribute, children, first, localName, scalar, text } from "../decode-material/xml-read";
 import { levelOf as floodLevel } from "../domains/flood/flood";
 import { levelOf as landslideLevel } from "../domains/landslide/landslide";
-import { classifyHeadType } from "../runtime/unit-coverage";
+import { classifyHeadType } from "../runtime/unit-coverage"; import { controlDateTimeOf } from "../contracts-revision/version";
 
 // P3-TO-AC01 (3)・RES-02: 端末の材料を owner の worker で 1 報に 1 回だけ作る。XML の生の文字を写すだけで、整形は端末の側。
 // 件数の上限は細分区域 188・津波予報区 66・観測点 1,024 の上に置く（RES-02）。無いと 1 報の材料が publisher の列を埋める。
@@ -34,7 +34,7 @@ function head(material: DecodedMaterial): TerminalHead {
   const control = first(material.xml, "Control"), heading = first(material.xml, "Head");
   return {
     headType: material.headType, controlTitle: read(control, "Title"), title: read(heading, "Title"),
-    headline: read(first(heading, "Headline"), "Text"), reportDateTimeRaw: read(heading, "ReportDateTime"),
+    headline: read(first(heading, "Headline"), "Text"), reportDateTimeRaw: read(heading, "ReportDateTime"), controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw),
     // P3-TL5-AC01: 門（tideOnly）と同じ値を読む。x:InfoType を混ぜた電文で、門は発表と読み、表示が取消になって満潮の表が消えた。
     infoType: clip(material.infoTypeRaw.trim()),
     status: read(control, "Status"), operation: material.operation, eventId: read(heading, "EventID"), serial: read(heading, "Serial"),

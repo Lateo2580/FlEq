@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "08cc055b4ba9f76c1421286ac750366db25ec15c89ca4de62609150908673276",
+    "sha256": "e5e8d9220630730a18d8f4b04d49561af13c0cb1cf88b8a5d0b28042bd983923",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -114,9 +114,9 @@
       "test/fixtures/phase6b_VPOA50_JPTC202608211633_202608211633.xml"
     ],
     "allowedPaths": [
-      "reconstruction/src/terminal/output.ts（sink の inputDone で、U-B の accepted の subjects を見た後の 1 か所だけ。他の契約が引く行の中身は変えない）",
-      "reconstruction/src/terminal/material.ts（head() の返す欄に operation: material.operation を足すことだけ。足すのは :40 の行の中で、行の数を変えない）",
-      "reconstruction/contracts/p3-terminal-output.types.ts（TerminalHead に欄 operation を 1 つ足すことだけ。型は p1-parser-boundary.types の Operation。足す行は TerminalHead の中と import の 2 行まで。冒頭の注釈〔値は電文の生の文字、正規化しない〕に当たらない欄なので、なぜを 1 行、欄と同じ行の末尾に書く〔decode が確かめた運用区分で、待ちの突き合わせに使う、P3-TRE-AC01〕）",
+      "reconstruction/src/terminal/output.ts（sink の inputDone で、U-B の accepted の subjects を見た後の 1 か所と、連なりの held の判定の後の 1 行（訂正・続報を積まずに対応報を待つ。1 か所では最後の else の push を止められない、2026-11-09 夜の契約適合レビューの判定）。待ちの報の置き換えは版が新しいときだけ（version.ts の compareVersion、品質レビュー P2 の旧版の再送）。version.ts の import は既存の import の行の末尾に足し、行の数を増やさない。他の契約が引く行の中身は変えない）",
+      "reconstruction/src/terminal/material.ts（head() の返す欄に operation: material.operation を足すことだけ。と、版の比べの controlDateTimeRaw: controlDateTimeOf(material.controlDateTimeRaw)〔U-B の briefing.ts と同じ形〕を足すことだけ。足すのは :39・:40 の行の中と、既存の import の行の末尾で、行の数を変えない）",
+      "reconstruction/contracts/p3-terminal-output.types.ts（TerminalHead に欄 operation を 1 つ足すことだけ。型は p1-parser-boundary.types の Operation。足す行は TerminalHead の中と import の 2 行と、版の比べの欄 controlDateTimeRaw の 1 行まで〔U-B と同じ controlDateTimeOf の形、容量で退去した待ちの版の比べに使う、P3-TRE-AC01、品質レビュー P2〕。冒頭の注釈〔値は電文の生の文字、正規化しない〕に当たらない欄なので、なぜを 1 行、欄と同じ行の末尾に書く〔decode が確かめた運用区分で、待ちの突き合わせに使う、P3-TRE-AC01〕）",
       "reconstruction/test/terminal/**"
     ],
     "allowedGitCommands": [

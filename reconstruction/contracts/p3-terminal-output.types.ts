@@ -14,6 +14,7 @@ export type TerminalHead = Readonly<{
   title: string | null;
   headline: string | null;
   reportDateTimeRaw: string | null;
+  controlDateTimeRaw: string; // 生の字でなく U-B と同じ controlDateTimeOf の形。容量で退去した待ちの版の比べに使う（P3-TRE-AC01）
   infoType: string | null;
   status: string | null;
   operation: Operation; // 生の字でなく decode が確かめた運用区分。容量で退去した待ちの突き合わせに使う（P3-TRE-AC01）

@@ -379,8 +379,9 @@ describe("P3-TL10 記録的短時間大雨の VPOA50 と VPBS50", () => {
 describe("P3-TRE 容量で退去した速報の取消・訂正", () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(16, 33, 5)); });
   afterEach(() => { vi.useRealTimers(); });
-  // 訂正の版は見出しの雨量も替える（版の違いをブロックの字で見分けるため）。
-  const corrected = (xml: string): string => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>").replace("約１１０ミリ", "約１２０ミリ");
+  // 訂正の版は Control/DateTime を進め（U-B と同じ比べで新しい版）、見出しの雨量も替える（版の違いをブロックの字で見分けるため）。
+  const corrected = (xml: string): string => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>").replace("約１１０ミリ", "約１２０ミリ")
+    .replace("<DateTime>2026-08-21T07:33:19Z</DateTime>", "<DateTime>2026-08-21T07:40:00Z</DateTime>");
   const drill = shortOf(reportOf(OA, "U-B", training)), drillCancel = shortOf(reportOf(OA, "U-B", (xml) => cancelled(training(xml))));
   const drillFix = shortOf(reportOf(OA, "U-B", (xml) => corrected(training(xml))));
   const oa = shortOf(reportOf(OA, "U-B"));
@@ -411,6 +412,21 @@ describe("P3-TRE 容量で退去した速報の取消・訂正", () => {
     vi.advanceTimersByTime(29_999);
     expect(shown(t.lines)).toEqual([]);
     vi.advanceTimersByTime(1);
+    expect(shown(t.lines)).toEqual(blockOf(drillFix));
+    vi.advanceTimersByTime(60_000);
+    expect(shown(t.lines)).toEqual(blockOf(drillFix));
+  });
+
+  // P3-TRE-T05 regression / P3-TRE-AC01（2026-11-09 の品質レビューの P2、訂正の後の旧版の再送が待ちを旧版に戻し訂正が失われる）
+  it("T05 退去の後の訂正で替えた待ちは、同じ EventID の旧版の再送で戻らず、60 秒で訂正の版だけが 1 つ出る", () => {
+    const t = sink(80, { debug: true });
+    t.attach();
+    t.output.sink.inputDone(inputDoneOf("a1", drill, [ub(ubSubject(P, "a1", "held"))]));
+    t.output.sink.inputDone(inputDoneOf("f1", drillFix, [ub()]));
+    vi.advanceTimersByTime(10_000);
+    t.output.sink.inputDone(inputDoneOf("r1", drill, [ub()]));
+    expect(t.lines.at(-1)).toBe("debug: VPOA50 r1（U-B、対応報を待つ）");
+    vi.advanceTimersByTime(50_000);
     expect(shown(t.lines)).toEqual(blockOf(drillFix));
     vi.advanceTimersByTime(60_000);
     expect(shown(t.lines)).toEqual(blockOf(drillFix));

@@ -13,7 +13,7 @@ import type { OwnerReply } from "../../contracts/p3-execution-split.types";
 import type { RecoveryDigestView } from "../../contracts/p3-recovery.types";
 import type { TerminalControl, TerminalReport } from "../../contracts/p3-terminal-output.types";
 import { muteActive } from "../cli/notification-gate";
-import type { NotificationSettings } from "../cli/notification-gate";
+import type { NotificationSettings } from "../cli/notification-gate"; import { compareVersion } from "../contracts-revision/version";
 import { desktopNotice, resolveRepoPath } from "../notification-delivery/adapter";
 import { colorLevel, painter } from "./color";
 import { createEewLog } from "./eew-log";
@@ -513,13 +513,14 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         }
       }
       // P3-TRE-AC01: U-B が受けた記録自身を容量で退去すると（遅着も）subjects に自分の記録が無い。運用区分と EventID の同じ待ちを引き、
-      // 取消なら外し、訂正・続報なら報だけ替える（期限と位置は最初のまま）。無いと退去した訓練の速報が取消・訂正の後に出る。
+      // 取消なら外し、訂正・続報は U-B と同じ比べ方で新しい版のときだけ報を替える（期限と位置は最初のまま。同じ・古い版の再送で戻さない）。無いと退去した訓練の速報が取消・訂正の後に出る。
       let refreshed = false;
       if (rainReport != null && own == null) {
+        const version = ({ head }: ShortReport) => ({ family: head.headType, reportDateTimeRaw: head.reportDateTimeRaw ?? "", controlDateTimeRaw: head.controlDateTimeRaw, serialRaw: head.serial ?? "" });
         for (const [subject, item] of rain) {
           if (item.report.head.operation !== rainReport.head.operation || item.report.head.eventId !== rainReport.head.eventId) continue;
           if (rainReport.head.infoType === "取消") waited = rain.delete(subject);
-          else { item.report = rainReport; refreshed = true; }
+          else { if (compareVersion(version(item.report), version(rainReport)) === "newer") item.report = rainReport; refreshed = true; }
           break;
         }
       }
