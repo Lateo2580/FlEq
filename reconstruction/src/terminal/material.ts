@@ -110,18 +110,19 @@ type Kind = Readonly<{ name: string | null; code: string | null; status: string 
 // Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
 // typhoon は文書の順で最初の台風呼称（P3-TL9-AC05。同じ辿りの中で覚え、新しい辿りを足さない）。
 // risks は withRisks（取消でない VPWP50）のときだけ作る Significancy の type → 組の表（P3-TL11-AC02 (2)(3)。同じ辿りの中で type ごとに 1 回引く）。
-// 親が Base か Local のものだけを読む（U-F が予報の値として読む階層。付加事項 Addition の中は親が Addition なので入らない）。
+// 読むのは SignificancyPart/Base と その Local の直下だけ（U-F が予報の値として読む階層）。place はその階層の印で、ほかの要素（付加事項 Addition を含む）を通ると消えるので、
+// Addition の子孫の Base・Local の中は読まない（r0 ヘルツ P2）。
 type Risk = NonNullable<Extract<TerminalReport, { kind: "short" }>["risks"]>[number];
 const RISK_LIMIT = 32;
 function scan(body: XmlElement | null, withRisks = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } {
   const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null };
-  const visit = (node: XmlElement, parent: string | null): void => {
+  const visit = (node: XmlElement, place: "part" | "base" | "local" | null): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
     else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
     else if (name === "InfoSerial" && found.serialName == null) found.serialName = read(node, "Name");
     else if (name === "TyphoonNamePart" && found.typhoon == null) found.typhoon = node;
-    else if (name === "Significancy" && found.risks != null && (parent === "Base" || parent === "Local")) {
+    else if (name === "Significancy" && found.risks != null && (place === "base" || place === "local")) {
       // Code は並べるかと並べる順だけに使い、出す字は電文の type と Name のまま（D-TS-KINDS=A）。同じ Code なら電文で先の組を残す。
       const type = attribute(node, "type"), label = read(node, "Name"), code = read(node, "Code");
       if (type != null && type !== "" && type.length <= RISK_LIMIT && label != null && label !== "" && label.length <= RISK_LIMIT && code != null && /^[2-5][0-9]$/.test(code)) {
@@ -129,7 +130,8 @@ function scan(body: XmlElement | null, withRisks = false): { target: string | nu
         if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code });
       }
     }
-    for (const child of children(node)) visit(child, name);
+    const next = name === "SignificancyPart" ? "part" : name === "Base" && place === "part" ? "base" : name === "Local" && place === "base" ? "local" : null;
+    for (const child of children(node)) visit(child, next);
   };
   if (body != null) visit(body, null);
   return found;

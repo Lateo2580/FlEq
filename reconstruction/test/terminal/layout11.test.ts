@@ -67,113 +67,165 @@ describe("P3-TL11 気象警報・注意報時系列情報のまとめ", () => {
     await s.output.close();
   });
 
-  // P3-TL11-T02 acceptance / AC01・AC03
-  it("T02 (a) 1 件は今の形 (b) 64 件目でその場、65 件目は次 (c) 5 秒ごとなら最初から 90 秒 (k) tick の前の入力の初めに期限を見る (h) close で出る", async () => {
-    const send = (s: ReturnType<typeof sink>, id: string, report: Short, office: string) => { s.output.sink.inputDone(inputDoneOf(id, report, [uf(`normal/VPWP50/${office}`, id)])); };
-    const one = sink();
-    one.attach();
-    const soya = tsOf("宗谷", "稚内地方気象台");
-    send(one, "a", soya, "稚内地方気象台");
-    vi.advanceTimersByTime(7_000);
-    expect(one.lines).toEqual([]);
-    vi.advanceTimersByTime(1_000);
-    expect(one.lines).toEqual(terminal()([reportUnit(soya)]));
-    expect([one.lines[1], one.lines.at(-1)]).toEqual([band("宗谷地方警戒・注意事項時系列情報", "11:00:00"), "VPWP50 ・ 稚内地方気象台"]);
+  // 返信 1 つ（報と U-F の自分の記録の subject）を端末に渡す。
+  const send = (s: ReturnType<typeof sink>, id: string, report: TerminalReport, subject: string) => { s.output.sink.inputDone(inputDoneOf(id, report, [uf(subject, id)])); };
+  const block = (s: ReturnType<typeof sink>) => s.lines.slice(s.lines.lastIndexOf("") + 1);
+  const cancel = reportOf("81_04_01_260605_VPWP50_cancel.xml", "U-F");
 
-    const many = sink();
-    for (let index = 0; index < 64; index += 1) {
-      expect(many.lines).toEqual([]);
-      send(many, `m${index}`, tsOf(`地方${index}`), `地方${index}地方気象台`);
-    }
-    expect(heads(many.lines)).toEqual([band(`${TS_TITLE} 64件`, "11:00:00")]);
-    send(many, "m64", tsOf("地方64"), "地方64地方気象台");
-    expect(heads(many.lines)).toHaveLength(1);
-    await many.output.close();
-    expect(heads(many.lines).at(-1)).toBe(band("地方64地方警戒・注意事項時系列情報", "11:00:00"));
-
-    const slow = sink();
-    slow.attach();
-    for (let index = 0; index < 18; index += 1) {
-      if (index > 0) vi.advanceTimersByTime(5_000);
-      send(slow, `s${index}`, tsOf(`地方${index}`), `地方${index}地方気象台`);
-    }
-    vi.advanceTimersByTime(4_999);
-    expect(slow.lines).toEqual([]);
-    vi.advanceTimersByTime(1);
-    expect(heads(slow.lines)).toEqual([band(`${TS_TITLE} 18件`, "11:00:00")]);
-
-    const edge = sink();
-    edge.attach();
-    vi.advanceTimersByTime(100);
-    send(edge, "ka", tsOf("上川"), "上川地方気象台");
-    vi.advanceTimersByTime(8_400);
-    expect(edge.lines).toEqual([]);
-    send(edge, "kb", tsOf("宗谷"), "宗谷地方気象台");
-    expect(heads(edge.lines)).toEqual([band("上川地方警戒・注意事項時系列情報", "11:00:00")]);
-    for (const s of [one, slow, edge]) await s.output.close();
-    expect(heads(edge.lines).at(-1)).toBe(band("宗谷地方警戒・注意事項時系列情報", "11:00:00"));
-  });
-
-  // P3-TL11-T02 acceptance / AC01 (2)(3)(5)(6)・AC03 (4)
-  it("T02 (d) 発表時刻か Control/Status の違う報で先に出る (e) 同じ subject は件数を増やさず後の risks (f) 題名が同じで官署の違う 2 報は 2 件 (g) 取消はすぐ出て束から外す (l) 官署の数", async () => {
+  // P3-TL11-T02 acceptance / AC01 (4)(5)・D-TS-SINGLE
+  it("T02 (a) 1 件だけなら 8 秒後に今の 1 報の形（帯の題名が Head/Title、末尾の行に官署）", async () => {
     const s = sink();
     s.attach();
-    const send = (id: string, report: TerminalReport, subject: string) => { s.output.sink.inputDone(inputDoneOf(id, report, [uf(subject, id)])); };
-    const block = () => s.lines.slice(s.lines.lastIndexOf("") + 1);
-    send("d1", tsOf("上川"), "normal/VPWP50/上川地方気象台");
-    send("d2", tsOf("宗谷"), "normal/VPWP50/宗谷地方気象台");
-    send("d3", tsOf("網走", undefined, undefined, "17:00:00"), "normal/VPWP50/網走地方気象台");
+    const soya = tsOf("宗谷", "稚内地方気象台");
+    send(s, "a", soya, "normal/VPWP50/稚内地方気象台");
+    vi.advanceTimersByTime(7_000);
+    expect(s.lines).toEqual([]);
+    vi.advanceTimersByTime(1_000);
+    expect(s.lines).toEqual(terminal()([reportUnit(soya)]));
+    expect([s.lines[1], s.lines.at(-1)]).toEqual([band("宗谷地方警戒・注意事項時系列情報", "11:00:00"), "VPWP50 ・ 稚内地方気象台"]);
+    await s.output.close();
+  });
+
+  // P3-TL11-T02 acceptance / AC01 (4)・D-TS-LIMIT
+  it("T02 (b) 64 件目でその場で出て、65 件目は新しいまとまりに入り close で出る", async () => {
+    const s = sink();
+    for (let index = 0; index < 64; index += 1) {
+      expect(s.lines).toEqual([]);
+      send(s, `m${index}`, tsOf(`地方${index}`), `normal/VPWP50/地方${index}地方気象台`);
+    }
+    expect(heads(s.lines)).toEqual([band(`${TS_TITLE} 64件`, "11:00:00")]);
+    send(s, "m64", tsOf("地方64"), "normal/VPWP50/地方64地方気象台");
+    expect(heads(s.lines)).toHaveLength(1);
+    await s.output.close();
+    expect(heads(s.lines).at(-1)).toBe(band("地方64地方警戒・注意事項時系列情報", "11:00:00"));
+  });
+
+  // P3-TL11-T02 acceptance / AC01 (4)
+  it("T02 (c) 5 秒ごとに届き続けると、最初の報から 90 秒を過ぎた最初の tick で出る", async () => {
+    const s = sink();
+    s.attach();
+    for (let index = 0; index < 18; index += 1) {
+      if (index > 0) vi.advanceTimersByTime(5_000);
+      send(s, `s${index}`, tsOf(`地方${index}`), `normal/VPWP50/地方${index}地方気象台`);
+    }
+    vi.advanceTimersByTime(4_999);
+    expect(s.lines).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(heads(s.lines)).toEqual([band(`${TS_TITLE} 18件`, "11:00:00")]);
+    await s.output.close();
+  });
+
+  // P3-TL11-T02 acceptance / AC01 (4)
+  it("T02 (k)(h) 期限を過ぎて tick の前に同じ鍵の報が来ると前のまとまりを先に出し、新しいまとまりは close で出る", async () => {
+    const s = sink();
+    s.attach();
+    vi.advanceTimersByTime(100);
+    send(s, "ka", tsOf("上川"), "normal/VPWP50/上川地方気象台");
+    vi.advanceTimersByTime(8_400);
+    expect(s.lines).toEqual([]);
+    send(s, "kb", tsOf("宗谷"), "normal/VPWP50/宗谷地方気象台");
+    expect(heads(s.lines)).toEqual([band("上川地方警戒・注意事項時系列情報", "11:00:00")]);
+    await s.output.close();
+    expect(heads(s.lines).at(-1)).toBe(band("宗谷地方警戒・注意事項時系列情報", "11:00:00"));
+  });
+
+  // P3-TL11-T02 acceptance / AC01 (3)
+  it("T02 (d) 発表時刻か Control/Status の違う報が来ると、前のまとまりが先に出る", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "d1", tsOf("上川"), "normal/VPWP50/上川地方気象台");
+    send(s, "d2", tsOf("宗谷"), "normal/VPWP50/宗谷地方気象台");
+    send(s, "d3", tsOf("網走", undefined, undefined, "17:00:00"), "normal/VPWP50/網走地方気象台");
     expect(heads(s.lines)).toEqual([band(`${TS_TITLE} 2件`, "11:00:00")]);
-    send("d4", tsOf("網走", undefined, undefined, "17:00:00", training), "training/VPWP50/網走地方気象台");
+    send(s, "d4", tsOf("網走", undefined, undefined, "17:00:00", training), "training/VPWP50/網走地方気象台");
     expect(heads(s.lines).at(-1)).toBe(band("網走地方警戒・注意事項時系列情報", "17:00:00"));
     vi.advanceTimersByTime(8_000);
     expect(heads(s.lines).at(-1)).toBe(band("網走地方警戒・注意事項時系列情報（訓練）", "17:00:00"));
+    await s.output.close();
+  });
 
-    // (e): 同じ subject の 2 報目は前の報を外して最後に置く。種類の行は残った報の risks から作る。
-    const wind: readonly Risk[] = [{ type: "風危険度", name: "注意報級", code: "20" }];
-    send("e1", { ...tsOf("上川"), risks: [{ type: "風危険度", name: "警報級", code: "30" }] }, "normal/VPWP50/上川地方気象台");
-    send("e2", { ...tsOf("宗谷"), risks: [] }, "normal/VPWP50/宗谷地方気象台");
-    send("e3", { ...tsOf("上川"), risks: wind }, "normal/VPWP50/上川地方気象台");
+  // P3-TL11-T02 acceptance / AC01 (2)(5)
+  it("T02 (e) 同じ subject の 2 報目は件数を増やさず、種類の行は 2 報目の risks で作られる", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "e1", { ...tsOf("上川"), risks: [{ type: "風危険度", name: "警報級", code: "30" }] }, "normal/VPWP50/上川地方気象台");
+    send(s, "e2", { ...tsOf("宗谷"), risks: [] }, "normal/VPWP50/宗谷地方気象台");
+    send(s, "e3", { ...tsOf("上川"), risks: [{ type: "風危険度", name: "注意報級", code: "20" }] }, "normal/VPWP50/上川地方気象台");
     vi.advanceTimersByTime(8_000);
-    expect(block()).toEqual([band(`${TS_TITLE} 2件`, "11:00:00"), "風危険度（注意報級）", "VPWP50 ・ 2 官署"]);
+    expect(block(s)).toEqual([band(`${TS_TITLE} 2件`, "11:00:00"), "風危険度（注意報級）", "VPWP50 ・ 2 官署"]);
+    await s.output.close();
+  });
 
-    // (f): Head/Title が同じで EditorialOffice と PublishingOffice だけ違う 2 報（U-F は別の subject で採る）は置き換えない。
-    send("f1", tsOf("宗谷", "稚内地方気象台"), "normal/VPWP50/稚内地方気象台");
-    send("f2", tsOf("宗谷", "旭川地方気象台"), "normal/VPWP50/旭川地方気象台");
+  // P3-TL11-T02 acceptance / AC01 (2)・D-TS-IDENTITY（r0 の実不具合の芽）
+  it("T02 (f) Head/Title が同じで EditorialOffice と PublishingOffice だけ違う 2 報は置き換えずに 2 件", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "f1", tsOf("宗谷", "稚内地方気象台"), "normal/VPWP50/稚内地方気象台");
+    send(s, "f2", tsOf("宗谷", "旭川地方気象台"), "normal/VPWP50/旭川地方気象台");
     vi.advanceTimersByTime(8_000);
-    expect(block()).toEqual([band(`${TS_TITLE} 2件`, "11:00:00"), KINDS_80, "VPWP50 ・ 2 官署"]);
+    expect(block(s)).toEqual([band(`${TS_TITLE} 2件`, "11:00:00"), KINDS_80, "VPWP50 ・ 2 官署"]);
+    await s.output.close();
+  });
 
-    // (g): 81_04_01（稚内地方気象台の取消）はすぐ出て、まとめている同じ subject の報を外す。
-    const cancel = reportOf("81_04_01_260605_VPWP50_cancel.xml", "U-F");
-    send("g1", tsOf("宗谷", "稚内地方気象台"), "normal/VPWP50/稚内地方気象台");
-    send("g2", tsOf("上川"), "normal/VPWP50/上川地方気象台");
-    send("g3", tsOf("網走"), "normal/VPWP50/網走地方気象台");
-    send("g4", cancel, "normal/VPWP50/稚内地方気象台");
-    expect(heads(s.lines).at(-1)).toBe(terminal()([reportUnit(cancel)])[1]);
+  // P3-TL11-T02 acceptance / AC01 (6)
+  it("T02 (g) 81_04_01（取消）はすぐ出て、まとめていた同じ subject の報が束から消える", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "g1", tsOf("宗谷", "稚内地方気象台"), "normal/VPWP50/稚内地方気象台");
+    send(s, "g2", tsOf("上川"), "normal/VPWP50/上川地方気象台");
+    send(s, "g3", tsOf("網走"), "normal/VPWP50/網走地方気象台");
+    send(s, "g4", cancel, "normal/VPWP50/稚内地方気象台");
+    expect(heads(s.lines)).toEqual([terminal()([reportUnit(cancel)])[1]]);
     vi.advanceTimersByTime(8_000);
-    expect(block()).toEqual([band(`${TS_TITLE} 2件`, "11:00:00"), KINDS_80, "VPWP50 ・ 2 官署"]);
+    expect(block(s)).toEqual([band(`${TS_TITLE} 2件`, "11:00:00"), KINDS_80, "VPWP50 ・ 2 官署"]);
+    await s.output.close();
+  });
 
-    // (l): 同じ PublishingOffice は 1 つ、置き換えで外した報と取消で外した報の官署は数えない、どれも空なら種類のコードだけ。
-    send("l1", tsOf("上川", "上川地方気象台", "札幌管区気象台"), "normal/VPWP50/上川地方気象台");
-    send("l2", tsOf("宗谷", "宗谷地方気象台", "札幌管区気象台"), "normal/VPWP50/宗谷地方気象台");
-    send("l3", tsOf("網走", "網走地方気象台", "網走地方気象台"), "normal/VPWP50/網走地方気象台");
+  // P3-TL11-T02 acceptance / AC01 (5)・AC03 (4)・D-TS-FOOTER
+  it("T02 (l) 官署の数: 同じ PublishingOffice は 1 つ", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "l1", tsOf("上川", "上川地方気象台", "札幌管区気象台"), "normal/VPWP50/上川地方気象台");
+    send(s, "l2", tsOf("宗谷", "宗谷地方気象台", "札幌管区気象台"), "normal/VPWP50/宗谷地方気象台");
+    send(s, "l3", tsOf("網走", "網走地方気象台", "網走地方気象台"), "normal/VPWP50/網走地方気象台");
     vi.advanceTimersByTime(8_000);
-    expect(block().at(-1)).toBe("VPWP50 ・ 2 官署");
-    send("l4", tsOf("上川", "上川地方気象台", "旭川地方気象台"), "normal/VPWP50/上川地方気象台");
-    send("l5", tsOf("宗谷", "宗谷地方気象台", "宗谷地方気象台"), "normal/VPWP50/宗谷地方気象台");
-    send("l6", tsOf("上川", "上川地方気象台", "宗谷地方気象台"), "normal/VPWP50/上川地方気象台");
+    expect(block(s).at(-1)).toBe("VPWP50 ・ 2 官署");
+    await s.output.close();
+  });
+
+  // P3-TL11-T02 acceptance / AC01 (5)・D-TS-FOOTER
+  it("T02 (l) 官署の数: 同じ subject の置き換えで外した報の官署は数えない", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "l4", tsOf("上川", "上川地方気象台", "旭川地方気象台"), "normal/VPWP50/上川地方気象台");
+    send(s, "l5", tsOf("宗谷", "宗谷地方気象台", "宗谷地方気象台"), "normal/VPWP50/宗谷地方気象台");
+    send(s, "l6", tsOf("上川", "上川地方気象台", "宗谷地方気象台"), "normal/VPWP50/上川地方気象台");
     vi.advanceTimersByTime(8_000);
-    expect(block().at(-1)).toBe("VPWP50 ・ 1 官署");
-    send("l7", tsOf("宗谷", "稚内地方気象台", "稚内地方気象台"), "normal/VPWP50/稚内地方気象台");
-    send("l8", tsOf("上川", "上川地方気象台", "旭川地方気象台"), "normal/VPWP50/上川地方気象台");
-    send("l9", tsOf("網走", "網走地方気象台", "旭川地方気象台"), "normal/VPWP50/網走地方気象台");
-    send("l10", cancel, "normal/VPWP50/稚内地方気象台");
+    expect(block(s).at(-1)).toBe("VPWP50 ・ 1 官署");
+    await s.output.close();
+  });
+
+  // P3-TL11-T02 acceptance / AC01 (5)(6)・D-TS-FOOTER
+  it("T02 (l) 官署の数: 取消で外した報の官署は数えない", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "l7", tsOf("宗谷", "稚内地方気象台", "稚内地方気象台"), "normal/VPWP50/稚内地方気象台");
+    send(s, "l8", tsOf("上川", "上川地方気象台", "旭川地方気象台"), "normal/VPWP50/上川地方気象台");
+    send(s, "l9", tsOf("網走", "網走地方気象台", "旭川地方気象台"), "normal/VPWP50/網走地方気象台");
+    send(s, "l10", cancel, "normal/VPWP50/稚内地方気象台");
     vi.advanceTimersByTime(8_000);
-    expect(block().at(-1)).toBe("VPWP50 ・ 1 官署");
-    send("l11", tsOf("上川", "上川地方気象台", ""), "normal/VPWP50/上川地方気象台");
-    send("l12", tsOf("宗谷", "宗谷地方気象台", ""), "normal/VPWP50/宗谷地方気象台");
+    expect(block(s).at(-1)).toBe("VPWP50 ・ 1 官署");
+    await s.output.close();
+  });
+
+  // P3-TL11-T02 acceptance / AC03 (4)・D-TS-FOOTER
+  it("T02 (l) 官署の数: どの報も PublishingOffice が空なら種類のコードだけ", async () => {
+    const s = sink();
+    s.attach();
+    send(s, "l11", tsOf("上川", "上川地方気象台", ""), "normal/VPWP50/上川地方気象台");
+    send(s, "l12", tsOf("宗谷", "宗谷地方気象台", ""), "normal/VPWP50/宗谷地方気象台");
     vi.advanceTimersByTime(8_000);
-    expect(block().at(-1)).toBe("VPWP50");
+    expect(block(s).at(-1)).toBe("VPWP50");
     await s.output.close();
   });
 
@@ -226,22 +278,31 @@ describe("P3-TL11 気象警報・注意報時系列情報のまとめ", () => {
 
 describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
   // P3-TL11-T03 contractBoundary / AC02（TerminalReport の short の risks の形）
-  it("T03 81_02_01 は type ごとに最も重い 2 組、Addition の中は入れない、81_01_01 は空、81_04_01 と VFVO53 は null", () => {
-    const expected: readonly Risk[] = [{ type: "土砂災害危険度", name: "警戒レベル4相当", code: "41" }, { type: "大雨浸水危険度", name: "特別警報級", code: "50" }];
+  const expected: readonly Risk[] = [{ type: "土砂災害危険度", name: "警戒レベル4相当", code: "41" }, { type: "大雨浸水危険度", name: "特別警報級", code: "50" }];
+  const inBase = (inserted: string) => (xml: string): string => {
+    const next = xml.replace("<Base>", `<Base>${inserted}`);
+    expect(next).not.toBe(xml);
+    return next;
+  };
+  const WIND = "<Significancy refID=\"1\" type=\"風危険度\"><Name>特別警報級</Name><Code>50</Code></Significancy>";
+  it("T03 81_02_01 は type ごとに最も重い 2 組（Name と type は電文の字）", () => {
     expect(shortOf(reportOf(TS, "U-F")).risks).toEqual(expected);
-    const addition = (xml: string): string => {
-      const next = xml.replace("<Base>", "<Base><Addition><Significancy refID=\"1\" type=\"風危険度\"><Name>特別警報級</Name><Code>50</Code></Significancy></Addition>");
-      expect(next).not.toBe(xml);
-      return next;
-    };
-    expect(shortOf(reportOf(TS, "U-F", addition)).risks).toEqual(expected);
+  });
+  it("T03 付加事項 Addition の中の Significancy は、直下でも Addition/Base や Addition/Base/Local の中でも入れない（r0 ヘルツ P2）", () => {
+    expect(shortOf(reportOf(TS, "U-F", inBase(`<Addition>${WIND}</Addition>`))).risks).toEqual(expected);
+    expect(shortOf(reportOf(TS, "U-F", inBase(`<Addition><Base>${WIND}</Base></Addition>`))).risks).toEqual(expected);
+    expect(shortOf(reportOf(TS, "U-F", inBase(`<Addition><Base><Local>${WIND}</Local></Base></Addition>`))).risks).toEqual(expected);
+  });
+  it("T03 81_01_01（Code が 00・01・11 だけ）は空の並び、81_04_01（取消）と VFVO53 は null", () => {
     expect(shortOf(reportOf("81_01_01_260129_VPWP50.xml", "U-F")).risks).toEqual([]);
     expect(shortOf(reportOf("81_04_01_260605_VPWP50_cancel.xml", "U-F")).risks).toBeNull();
     expect(shortOf(reportOf("66_01_01_210517_VFVO53.xml", "U-V")).risks).toBeNull();
   });
 
   // P3-TL11-T04 acceptance / AC03・AC05
-  it("T04 (a) type ごとに最も重い 1 つを Code の大きい順 (b) 組が無ければ帯と末尾 (c) 帯の題名と印 (d) 幅 (e) 官署の数", async () => {
+  const base = tsOf("上川");
+  const unit = (count: number, offices: number, risks: readonly Risk[], report: Short = base): TerminalUnit => ({ kind: "timeseries", report, count, offices, risks, prompt: null });
+  it("T04 (a) 2 報を束ねると type ごとに最も重い 1 つを Code の大きい順に並べる", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(at(11, 0, 0));
     const s = sink();
@@ -251,17 +312,16 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
     await s.output.close();
     vi.useRealTimers();
     expect(s.lines.slice(2, -1)).toEqual(["風危険度（警報級）　波危険度（注意報級）"]);
-
-    const base = tsOf("上川");
-    const unit = (count: number, offices: number, risks: readonly Risk[], report: Short = base): TerminalUnit => ({ kind: "timeseries", report, count, offices, risks, prompt: null });
+  });
+  it("T04 (b) どの報も risks が空なら帯と末尾の行だけ", () => {
     expect(terminal()([unit(2, 2, [])])).toEqual(["", band(`${TS_TITLE} 2件`, "11:00:00"), "VPWP50 ・ 2 官署"]);
+  });
+  it("T04 (c) 帯は Control/Title から版の印を除いた題名と「 N件」、訓練は印、段は普通", () => {
     expect(terminal()([unit(2, 2, [], tsOf("上川", undefined, undefined, undefined, training))])[1]).toBe(band(`${TS_TITLE}（訓練） 2件`, "11:00:00"));
     const banded = terminal(80, 3)([unit(2, 2, [])])[1];
     expect(banded.startsWith(painter(3)("rulePlain", "━ ") + painter(3)("bandPlain", `${TS_TITLE} 2件`))).toBe(true);
-    expect(terminal()([unit(58, 58, [])]).at(-1)).toBe("VPWP50 ・ 58 官署");
-    expect(terminal()([unit(2, 0, [])]).at(-1)).toBe("VPWP50");
-
-    // (d): 32 組の長い名前で 2 件と 64 件の束を 56・80・100 桁、色 0 と 3 で描く。
+  });
+  it("T04 (d) 32 組の 2 件と 64 件の束を 56・80・100 桁、色 0 と 3 で描くと、桁数を越えず、帯は 1 行、組は折れず、色 0 の帯は ━ の形", () => {
     const risks: Risk[] = Array.from({ length: 32 }, (_, index) => ({ type: `大雨浸水危険度${index}`, name: index % 2 === 0 ? "警戒レベル４相当" : "特別警報級", code: String(20 + index) }));
     const pairs = new Set(risks.map((risk) => `${risk.type}（${risk.name}）`));
     for (const count of [2, 64]) for (const columns of [56, 80, 100]) for (const level of [0, 3] as const) {
@@ -272,6 +332,10 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
       const shown = lines.slice(2, -1).flatMap((text) => text.trim().split("　"));
       expect(new Set(shown)).toEqual(pairs);
     }
+  });
+  it("T04 (e) 末尾の行は官署の数 58 で「VPWP50 ・ 58 官署」、0 で「VPWP50」", () => {
+    expect(terminal()([unit(58, 58, [])]).at(-1)).toBe("VPWP50 ・ 58 官署");
+    expect(terminal()([unit(2, 0, [])]).at(-1)).toBe("VPWP50");
   });
 });
 
