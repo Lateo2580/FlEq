@@ -20,5 +20,5 @@ export type DmdataSubscription = Readonly<{
 export type DmdataTestMode = "no" | "including" | "only";
 
 // P3-DMDATA-CONNECT-002（P3-DC2-D-REASON）: 最後に終わった接続の失敗の理由。HostStatus.lastFailure に載せ、文と手引きは C19 が出す。
-// dmdata は dmdata が答えたが受け付けなかった（401・403 以外の非 2xx、形の不正）、network は答えが来なかった（WS の段の失敗を含む）。
-export type DmdataConnectFailure = "network" | "dmdata" | "authRejected" | "capacity" | "startUncertain";
+// dmdata は dmdata が答えたが受け付けなかった（401・402・403 以外の非 2xx、形の不正）、network は答えが来なかった（WS の段の失敗を含む）。noContract は 402（有効な契約が無い、P3-DMDATA-NO-CONTRACT-001）。
+export type DmdataConnectFailure = "network" | "dmdata" | "authRejected" | "capacity" | "startUncertain" | "noContract";

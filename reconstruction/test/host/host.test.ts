@@ -1936,3 +1936,83 @@ describe("P3-DMDATA-ENDPOINT-001 切れた WS の host を次の start が返し
       "wss://ws003.api.dmdata.jp/v2/websocket?ticket=T3"]);
   });
 });
+
+// P3-DMDATA-NO-CONTRACT-001: 402（有効な契約が無い）は noContract の理由で繋ぎ直しを続ける。試行は waiting の一覧で数える（時計の確かめは open だけを呼ぶ）。
+const noContractAttempts = () => rest.calls.filter((call) => call === "list:waiting").length;
+const noContractNextAttemptAfter = async (waitMs: number) => {
+  const before = noContractAttempts();
+  await turn();
+  vi.advanceTimersByTime(waitMs - 1);
+  await turn();
+  expect(noContractAttempts()).toBe(before);
+  vi.advanceTimersByTime(1);
+  await until(() => noContractAttempts() === before + 1);
+  await turn();
+};
+// 確立まで（host が open し、dmdata の start の frame を受けて lastFailure が null）を待つ。
+const noContractEstablished = async (host: Awaited<ReturnType<typeof startDmdata>>, server: Awaited<ReturnType<typeof localServer>>, index: number) => {
+  await until(() => server.sockets.length === index + 1 && server.sockets[index].readyState === 1);
+  server.sockets[index].send(JSON.stringify({ type: "start", socketId: 95, classifications: subscription.classifications, time: startTime() }));
+  await until(() => host.status().connection === "connected" && host.status().lastFailure === null);
+};
+
+// P3-NC-T02 acceptance (P3-NC-AC03 (6))
+it("P3-NC-T02: 最初の試行の start が noContract でも startP2Host は resolve し、WARN 1 行・lastFailure noContract で 5 秒後に次の試行", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const dirs = await directories();
+  rest.list = listing([]);
+  rest.start = async () => ({ kind: "noContract" });
+  const host = await startDmdata(dirs);
+  expect(host.status()).toMatchObject({ lastFailure: "noContract", connection: "disconnected", socketId: null });
+  const warned = async () => (await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataSocketStartFailed");
+  await until(async () => (await warned()).length === 1);
+  expectBare((await warned())[0], "WARN");
+  await noContractNextAttemptAfter(5_000);
+  expect(host.status().lastFailure).toBe("noContract");
+});
+
+// P3-NC-T04 acceptance (P3-NC-AC03・AC04 (1))
+it("P3-NC-T04: 確立の後に切れ、繋ぎ直しの start が noContract なら lastFailure noContract、式の待ちで次の試行、通れば connected・null", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const server = await localServer();
+  rest.list = listing([]);
+  rest.start = opened(server.url, 95);
+  rest.close = async () => ({ kind: "ok" });
+  const host = await startDmdata(await directories());
+  await noContractEstablished(host, server, 0);
+  await lose(host.displayPort, server.sockets[0]);
+  rest.start = async () => ({ kind: "noContract" });
+  await noContractNextAttemptAfter(5_000);
+  await until(() => host.status().lastFailure === "noContract");
+  rest.start = opened(server.url, 96);
+  await noContractNextAttemptAfter(10_000);
+  await noContractEstablished(host, server, 1);
+});
+
+// P3-NC-T06 contractBoundary (P3-NC-AC01 (3)(4))
+it("P3-NC-T06: 一覧の noContract は Retry-After を使わず式の待ち、authRejected は noContract より先", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const server = await localServer();
+  const dirs = await directories();
+  rest.list = listing([]);
+  rest.start = opened(server.url, 95);
+  rest.close = async () => ({ kind: "ok" });
+  const host = await startDmdata(dirs);
+  await noContractEstablished(host, server, 0);
+  await lose(host.displayPort, server.sockets[0]);
+  // (a) open が noContract、waiting が Retry-After 7 秒の failed: 次は 7 秒でなく式の 10 秒
+  rest.list = async (status) => status === "open" ? { kind: "noContract" } : { kind: "failed", answered: true, retryAfterMs: 7_000 };
+  await noContractNextAttemptAfter(5_000);
+  expect(host.status().lastFailure).toBe("noContract");
+  await noContractNextAttemptAfter(10_000);
+  // (b) open が authRejected、waiting が noContract: authRejected で繋ぎ直しを止める
+  rest.list = async (status) => status === "open" ? { kind: "authRejected" } : { kind: "noContract" };
+  await noContractNextAttemptAfter(20_000);
+  expect(host.status().lastFailure).toBe("authRejected");
+  expectBare(await firstLine(dirs.diagnosticDirectory, "dmdataAuthRejected"), "ERROR");
+  expect((await hostLines(dirs.diagnosticDirectory)).filter((line) => line.reason === "dmdataAuthRejected")).toHaveLength(1);
+  const calls = rest.calls.length;
+  vi.advanceTimersByTime(600_000);
+  await turn();
+  expect(rest.calls).toHaveLength(calls);
+});

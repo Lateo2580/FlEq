@@ -808,13 +808,14 @@ function unreadable(card: UnreadableCardView, ctx: Ctx): Rendered {
 }
 
 // ---- 電文以外の出力（spec §6） ----
-// Q-TO-C-4 の表の字（理由 5 種）。
+// Q-TO-C-4 の表の字（理由 6 種。noContract は P3-DMDATA-NO-CONTRACT-001）。
 const FAILURE_TEXT: Readonly<Record<DmdataConnectFailure, string>> = {
   network: "dmdata.jp に繋がりません。ネットワークの接続を確かめてください。繋がるまで自動で試し続けます。",
   authRejected: "API キーが dmdata.jp に受け付けられませんでした。fleq init か fleq config set apiKey <key> で設定し直してください。",
   capacity: "この API キーで開ける接続の数が上限に達しています。ほかのパソコンなどで動いている FlEq を止めるか、dmdata.jp の契約の接続数を確かめてください。",
   dmdata: "dmdata.jp が接続を受け付けませんでした。しばらくしてから自動で繋ぎ直します。",
   startUncertain: "接続を始められたか確かめられませんでした。自動で繋ぎ直します。",
+  noContract: "dmdata.jp に有効な契約がありません。dmdata.jp で区分を契約すると、自動で繋ぎ直して受信を始めます。",
 };
 const CONN_LOST: BandRoles = { band: "connLost", rule: "connLost", bar: "barPlain", fill: false };
 const CONN_RESTORED: BandRoles = { band: "connRestored", rule: "connRestored", bar: "barPlain", fill: false };

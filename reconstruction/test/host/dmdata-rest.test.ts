@@ -178,3 +178,10 @@ describe("P3-DC2-T02 (a) contractBoundary / AC03 (2): failed は dmdata が答�
     }
   });
 });
+
+// P3-NC-T01 contractBoundary (P3-NC-AC01): 402 は start でも一覧でも noContract（Retry-After と本文は読まない）。
+it("P3-NC-T01: 402 は startSocket でも listSockets でも noContract", async () => {
+  answer(402, json({ status: "error", error: { message: "No contract.", code: 402 } }), "end", { "retry-after": "7" });
+  expect(await startSocket(subscription)).toEqual({ kind: "noContract" });
+  expect(await listSockets(API_KEY, "open")).toEqual({ kind: "noContract" });
+});

@@ -75,6 +75,7 @@ beforeEach(() => {
   vi.spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => { stderr += String(chunk); return true; });
   mocks.startP2Host.mockReset();
   mocks.exchange.mockReset();
+  mocks.exchange.mockResolvedValue({ kind: "answered", status: 200, bytes: new Uint8Array(), date: null, retryAfter: null, contentType: "application/json", text: JSON.stringify({ items: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"].map((classification) => ({ classification, isValid: true })) }) }); // P3-NC-AC05 (5): 通常起動は契約の一覧（GET /contract）を取る
   mocks.answers.length = 0;
   writes.stall = null;
 });
@@ -161,7 +162,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
 
   // P3-CLI-T04 acceptance (AC05・AC06)
   it("通常起動は引数＞環境変数＞設定の順で host を起こし、終了の要求を code にする", async () => {
-    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", testMode: "only" });
+    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", testMode: "only", classifications: ["eew.forecast"] });
     vi.stubEnv("DMDATA_API_KEY", "k1");
     const stop = vi.fn(async () => ({ code: 3 }));
     const listeners = [sigintListeners().length, process.listenerCount("SIGTERM")];
@@ -228,7 +229,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
   };
 
   it("通常起動は門と displayPort null を渡して REPL を起こし、quit・close は 1 つの終了の要求で、保存を待って戻る", async () => {
-    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"] });
     const listeners = [sigintListeners().length, process.listenerCount("SIGTERM")];
     let { stop, result, before } = await startRepl(3);
     expect(mocks.startP2Host.mock.calls[0][0]).toMatchObject({ displayPort: null });
@@ -249,13 +250,13 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     mocks.readline!.line("notify eew off");
     mocks.readline!.line("quit");
     expect(await result).toBe(3);
-    expect(readConfig()).toEqual({ apiKey: "k0", appName: "fleq-new-test", notify: { eew: false } });
+    expect(readConfig()).toEqual({ apiKey: "k0", appName: "fleq-new-test", classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"], notify: { eew: false } });
     expect([sigintListeners().length, process.listenerCount("SIGTERM")]).toEqual(listeners);
   });
 
   it("保存が期限までに終わらなければ、stop の後 5 秒で確かめられない旨を出し、code 0 を 1 にする", async () => {
     for (const stall of (["write", "directorySync"] as const).filter((item) => item === "write" || process.platform !== "win32")) { // win32 の設定の保存は directory を開かない（P3-CLI-D-WRITE、P3-WINDOWS-CI-001）
-      writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+      writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"] });
       writes.stall = stall;
       writes.reached = false;
       writes.gate = new Promise<void>((done) => { writes.release = done; });
@@ -338,7 +339,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
 
   // P3-CLI-T21 acceptance (AC26)
   it("REPL の summary・tipinterval・eewlog は起動の値（引数＞設定）から始まる", async () => {
-    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", summaryInterval: 20, waitTipIntervalMin: 5, eewLog: true });
+    writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["eew.forecast"], summaryInterval: 20, waitTipIntervalMin: 5, eewLog: true });
     for (const [argv, summary] of [[[], "  定期要約: ON (20分間隔)"], [["--summary-interval", "0"], "  定期要約: OFF"]] as const) {
       clear();
       mocks.startP2Host.mockResolvedValue(fakeHost(async () => ({ code: 0 })));
@@ -374,7 +375,7 @@ const startCli = async (): Promise<{ result: Promise<number> }> => {
 // P3-RC-T02 regression (AC02・AC03 (1)): 実不具合の再発防止。閉じた後に分かった保存の失敗が、終了の途中の端末に返事として出て code 0 だった。
 it("閉じた後に分かった保存の失敗は返事に出さず標準エラーへ 1 行で code 1、閉じる前に見せた失敗は code 0 のまま", async () => {
   // (a) 2 行を同じ tick で流す（notify の保存の読みが返る前に quit が閉じる）
-  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["eew.forecast"] });
   let { result } = await startCli();
   writeFileSync(configFile(), "{");
   mocks.readline!.line("notify eew off");
@@ -384,7 +385,7 @@ it("閉じた後に分かった保存の失敗は返事に出さず標準エラ�
   expect(stdout).not.toContain("読めないので");
   expect(readFileSync(configFile(), "utf8")).toBe("{");
   // (b) 返事の 1 行が出てから quit
-  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["eew.forecast"] });
   ({ result } = await startCli());
   writeFileSync(configFile(), "{");
   mocks.readline!.line("notify eew off");
@@ -396,7 +397,7 @@ it("閉じた後に分かった保存の失敗は返事に出さず標準エラ�
 
 // P3-RC-T04 contractBoundary (AC03 (4)): 期限を過ぎてから分かった失敗は、期限の診断のほかに何も出さない。
 it("5 秒の期限を過ぎてから分かった保存の失敗は、確かめられない旨の 1 行だけで終わる", async () => {
-  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test" });
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["eew.forecast"] });
   writes.stall = "write";
   writes.reached = false;
   writes.gate = new Promise<void>((done) => { writes.release = done; });
@@ -420,4 +421,82 @@ it("5 秒の期限を過ぎてから分かった保存の失敗は、確かめ�
   expect(await idles.calls[0]).toMatch(/に最後の変更を保存できませんでした（E[A-Z]+）$/);
   expect(stderr).toBe(deadline);
   expect(stdout).not.toContain("書けません");
+});
+
+// P3-DMDATA-NO-CONTRACT-001: 起動の時点で契約の無い区分を申し込まない（AC02）。GET /contract の答えと、host を起こして SIGINT で終える口。
+const NC_KEY = "KEY-SECRET-NC";
+const contractList = (body: unknown) => ({ kind: "answered", status: 200, bytes: new Uint8Array(), date: null, retryAfter: null, contentType: "application/json", text: JSON.stringify(body) });
+const ncStart = async (): Promise<number> => {
+  clear();
+  mocks.startP2Host.mockClear();
+  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop: async () => ({ code: 0 }), reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
+  const before = sigintListeners();
+  const result = runCli([]);
+  const ended = await Promise.race([result.then(() => true), vi.waitFor(() => expect(mocks.attached).toBe(true)).then(() => false)]);
+  if (!ended) fire(before);
+  return result;
+};
+const ncClassifications = () => mocks.startP2Host.mock.calls[0][0].dmdata.classifications;
+
+// P3-NC-T03 acceptance (P3-NC-AC02 (1)〜(6))
+it("P3-NC-T03: 区分が無ければ断り、契約の一覧で外して申し込み、0 件なら断り、一覧の失敗は設定の区分のまま、一覧を待つ間の終了の要求で host を起こさない", async () => {
+  const both = ["telegram.earthquake", "eew.forecast"];
+  // (a) 区分が引数にも設定にも無い
+  writeAt(join(tmp, "fleq-next"), { apiKey: NC_KEY, appName: "fleq-new-test" });
+  mocks.exchange.mockClear();
+  expect(await ncStart()).toBe(1);
+  expect(stderr).toBe("受信区分が設定されていません。fleq init で設定してください\n");
+  expect([mocks.exchange.mock.calls.length, mocks.startP2Host.mock.calls.length]).toEqual([0, 0]);
+  expect(stdout + stderr).not.toContain(NC_KEY);
+  // (b) 契約に無い区分を外して host に渡し、端末の startup には外す前の区分
+  writeAt(join(tmp, "fleq-next"), { apiKey: NC_KEY, appName: "fleq-new-test", classifications: both });
+  mocks.exchange.mockClear();
+  mocks.exchange.mockResolvedValue(contractList({ items: [{ classification: "telegram.earthquake", isValid: false }, { classification: "eew.forecast", isValid: true }] }));
+  expect(await ncStart()).toBe(0);
+  expect(mocks.exchange.mock.calls.map(([method, path]) => `${method} ${path}`)).toEqual(["GET /contract"]);
+  expect(ncClassifications()).toEqual(["eew.forecast"]);
+  expect((mocks.startup as { classifications: unknown }).classifications).toEqual(both);
+  expect(stdout + stderr).not.toContain(NC_KEY);
+  // (c) 有効な区分が 0 件
+  mocks.exchange.mockResolvedValue(contractList({ items: [{ classification: "telegram.earthquake", isValid: false }, { classification: "eew.forecast", isValid: false }] }));
+  expect(await ncStart()).toBe(1);
+  expect(stderr).toBe("有効な契約区分がありません。dmdata.jp で区分を契約してください。\n");
+  expect(mocks.startP2Host).not.toHaveBeenCalled();
+  expect(stdout + stderr).not.toContain(NC_KEY);
+  // (d) 一覧の失敗は 2 行を出して設定の区分のまま
+  mocks.exchange.mockResolvedValue({ kind: "lost" });
+  expect(await ncStart()).toBe(0);
+  expect(stdout).toMatch(/契約状況の確認に失敗しました\n指定された区分のまま接続を試みます\n/);
+  expect(ncClassifications()).toEqual(both);
+  expect(stdout + stderr).not.toContain(NC_KEY);
+  // (e) 一覧の答えを待つ間の SIGINT
+  clear();
+  mocks.startP2Host.mockClear();
+  mocks.exchange.mockClear();
+  let answer: (value: unknown) => void = () => {};
+  mocks.exchange.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+  const before = sigintListeners();
+  const result = runCli([]);
+  await vi.waitFor(() => expect(mocks.exchange).toHaveBeenCalledTimes(1));
+  fire(before);
+  answer(contractList({ items: [{ classification: "eew.forecast", isValid: true }] }));
+  expect(await result).toBe(0);
+  expect(mocks.startP2Host).not.toHaveBeenCalled();
+  expect(stdout + stderr).not.toContain(NC_KEY);
+});
+
+// P3-NC-T07 contractBoundary (P3-NC-AC02 (7))
+it("P3-NC-T07: 形の不正な項目を含む一覧は一覧の失敗、正しい形の空の一覧だけが 0 件", async () => {
+  const both = ["telegram.earthquake", "eew.forecast"];
+  writeAt(join(tmp, "fleq-next"), { apiKey: NC_KEY, appName: "fleq-new-test", classifications: both });
+  for (const items of [[null], [{ classification: "eew.forecast", isValid: "true" }]]) {
+    mocks.exchange.mockResolvedValue(contractList({ items }));
+    expect(await ncStart(), JSON.stringify(items)).toBe(0);
+    expect(stdout).toMatch(/契約状況の確認に失敗しました\n指定された区分のまま接続を試みます\n/);
+    expect(ncClassifications()).toEqual(both);
+  }
+  mocks.exchange.mockResolvedValue(contractList({ items: [] }));
+  expect(await ncStart()).toBe(1);
+  expect(stderr).toBe("有効な契約区分がありません。dmdata.jp で区分を契約してください。\n");
 });

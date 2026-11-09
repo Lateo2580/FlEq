@@ -360,16 +360,16 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
   // spec §10.1 / P3-C2-AC02: list, release the own previous socket, check capacity, start. A failure leaves the WS closed.
   // Every await is followed by the stop check so a stopping host never opens a WS.
   async function startDmdataSocket(dmdata: DmdataSubscription): Promise<Readonly<{ url: string; protocol: readonly string[] }> | Attempt> {
-    const refused = (kind: "failed" | "authRejected" | "uncertain", reason: DiagnosticReason, answers: readonly Awaited<ReturnType<typeof listSockets | typeof closeSocket | typeof startSocket>>[] = []): Attempt => {
+    const refused = (kind: "failed" | "authRejected" | "noContract" | "uncertain", reason: DiagnosticReason, answers: readonly Awaited<ReturnType<typeof listSockets | typeof closeSocket | typeof startSocket>>[] = []): Attempt => {
       if (kind === "authRejected") { note("ERROR", "dmdataAuthRejected"); return "authRejected"; }
       note("WARN", kind === "uncertain" ? "dmdataSocketStartUncertain" : reason);
-      const failed = answers.flatMap((answer) => answer.kind === "failed" ? [answer] : []), hinted = Math.max(-1, ...failed.map((answer) => answer.retryAfterMs ?? -1)); return { kind: "retryLater", failure: kind === "uncertain" ? "startUncertain" : reason === "dmdataConnectionCapacityExceeded" ? "capacity" : failed.some((answer) => !answer.answered) ? "network" : "dmdata", retryAfterMs: hinted < 0 ? null : hinted }; // P3-DC2-AC03 (3): 答えの無い failed が 1 つでもあれば network。AC01: 一覧 2 本の Retry-After は大きい方
+      const failed = answers.flatMap((answer) => answer.kind === "failed" ? [answer] : []), hinted = Math.max(-1, ...failed.map((answer) => answer.retryAfterMs ?? -1)); return { kind: "retryLater", failure: kind === "uncertain" ? "startUncertain" : kind === "noContract" ? "noContract" : reason === "dmdataConnectionCapacityExceeded" ? "capacity" : failed.some((answer) => !answer.answered) ? "network" : "dmdata", retryAfterMs: hinted < 0 || kind === "noContract" ? null : hinted }; // P3-DC2-AC03 (3): 答えの無い failed が 1 つでもあれば network。AC01: 一覧 2 本の Retry-After は大きい方。noContract は待っても直らないので使わない（P3-NC-AC01 (4)）
     };
     const [open, waiting] = await Promise.all([listSockets(dmdata.apiKey, "open", halt.signal),
       listSockets(dmdata.apiKey, "waiting", halt.signal)]);
     if (stopping != null) return "stopped";
     if (open.kind !== "ok" || waiting.kind !== "ok")
-      return refused(open.kind === "authRejected" || waiting.kind === "authRejected" ? "authRejected" : "failed", "dmdataSocketListFailed", [open, waiting]);
+      return refused(open.kind === "authRejected" || waiting.kind === "authRejected" ? "authRejected" : open.kind === "noContract" || waiting.kind === "noContract" ? "noContract" : "failed", "dmdataSocketListFailed", [open, waiting]);
     const listed = [...open.sockets, ...waiting.sockets];
     let released: number | null = null;
     // Only the id this process got back is ever closed; every other socket is counted, never closed (P3-C2-OWNERSHIP).

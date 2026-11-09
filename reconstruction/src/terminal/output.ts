@@ -358,7 +358,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   // P3-TL7-D-SESSION-ONCE: 区分の行は最初の確立で 1 回だけ。繋ぎ直しは §6.1 の回線の行が受け持つ。
   let sessionShown = false;
   const titled = tty && options.startup != null;
-  let seenLost = 0, down = false, lostFrom: number | null = null, shownFailure: DmdataConnectFailure | null = null, received = false;
+  let seenLost = 0, down = false, lostFrom: number | null = null, shownFailure: DmdataConnectFailure | null = null, seenFailure: DmdataConnectFailure | null = null, received = false;
   let unstable = false, upSince: number | null = null, lastReportWallMs: number | null = null, attachedWallMs = created.wallTimeMs;
   // RET-02: 覚える切断の時刻は直近 3 つ（monotonic）。
   const losses: number[] = [];
@@ -389,7 +389,11 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     }
     // AC10 (5): 一度も受信していない間だけ、理由が変わったときに 1 回出す。
     if (next.lastFrameWallMs != null) received = true;
-    else if (!received && next.lastFailure != null && next.lastFailure !== shownFailure) {
+    // P3-NC-AC04 (2): noContract だけは受信の後も、直前の読みが noContract でなく今の読みが noContract のときに 1 回出す。
+    // shownFailure と比べないのは、402→network→402 や、繋がって null に戻った後の 2 回目の解約でも出すため。
+    const failureShown = !received ? next.lastFailure !== shownFailure : next.lastFailure === "noContract" && seenFailure !== "noContract";
+    seenFailure = next.lastFailure;
+    if (next.lastFailure != null && failureShown) {
       shownFailure = next.lastFailure;
       notice({ kind: "failure", reason: next.lastFailure });
     }

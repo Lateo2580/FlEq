@@ -191,9 +191,9 @@ async function contractedClassifications(apiKey: string): Promise<string[] | nul
   try { body = JSON.parse(answer.text); } catch { return null; }
   if (body == null || typeof body !== "object" || !("items" in body) || !Array.isArray(body.items)) return null;
   const valid: string[] = [];
-  for (const item of body.items) {
-    if (item != null && typeof item === "object" && "classification" in item && "isValid" in item && item.isValid === true
-      && typeof item.classification === "string") valid.push(item.classification);
+  for (const item of body.items) { // P3-NC-AC02 (7): 形の不正な項目が 1 つでもあれば一覧の失敗（確かめられない一覧を 0 件と取り違えない）
+    if (item == null || typeof item !== "object" || !("classification" in item) || !("isValid" in item) || typeof item.classification !== "string" || typeof item.isValid !== "boolean") return null;
+    if (item.isValid) valid.push(item.classification);
   }
   return valid;
 }
@@ -295,13 +295,13 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     throw new Refusal("dmdata の接続名（appName）を、今までの fleq やほかの端末と違う名前で設定してください: fleq config set appName <名前>");
   }
   const appName = settings.appName;
-  const classifications = pick(["引数", options.classifications], ["設定ファイル", settings.classifications]);
+  const classifications = pick(["引数", options.classifications], ["設定ファイル", settings.classifications]); if (!process.env.FLEQ_WS_URL && classifications.value == null) throw new Refusal("受信区分が設定されていません。fleq init で設定してください"); // P3-NC-AC02 (1): 5 区分の既定で契約の無い区分を申し込まない
   const testMode = pick(["引数", options.test], ["設定ファイル", settings.testMode]);
   const display = pick(["引数", options.display], ["設定ファイル", settings.display]);
   const displayPort = pick(["引数", options.displayPort], ["設定ファイル", settings.displayPort]);
   const summaryInterval = pick(["引数", options.summaryInterval === true ? DEFAULT_SUMMARY_MINUTES : options.summaryInterval], ["設定ファイル", settings.summaryInterval]);
   const resolved = {
-    classifications: classifications.value ?? CLASSIFICATIONS, testMode: testMode.value ?? "no", display: display.value === true,
+    classifications: classifications.value ?? [], testMode: testMode.value ?? "no", display: display.value === true,
     port: displayPort.value ?? DEFAULT_DISPLAY_PORT,
   };
   if (options.debug === true) {
@@ -338,8 +338,20 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   for (const signal of signals) process.on(signal, onSignal);
   try {
     try {
+      // P3-NC-AC02 (2)〜(5): 契約の一覧（起動の 1 回だけ）で契約の無い区分を外して申し込む。偽の dmdata（FLEQ_WS_URL）には申し込まないので取らない。
+      // 端末の startup には外す前の区分を渡したまま（外した区分は最初の確立の未契約の行で出る、P3-NC-D-SKIP-NOTICE）。
+      let subscribed = resolved.classifications;
+      if (!process.env.FLEQ_WS_URL) {
+        const contracted = await contractedClassifications(apiKey.value);
+        if (requested) return 0; // AC02 (5): 一覧を待つ間の終了の要求では host を起こさない
+        if (contracted == null) { terminal.line("契約状況の確認に失敗しました"); terminal.line("指定された区分のまま接続を試みます"); }
+        else {
+          subscribed = resolved.classifications.filter((item) => contracted.includes(item));
+          if (subscribed.length === 0) throw new Refusal("有効な契約区分がありません。dmdata.jp で区分を契約してください。");
+        }
+      }
       host = await startP2Host({
-        ...(replayWsFor(paths) ?? { dmdata: { apiKey: apiKey.value, appName, classifications: resolved.classifications, testMode: resolved.testMode } }),
+        ...(replayWsFor(paths) ?? { dmdata: { apiKey: apiKey.value, appName, classifications: subscribed, testMode: resolved.testMode } }),
         stateDirectory: paths.state, diagnosticDirectory: paths.diag,
         displayPort: resolved.display ? resolved.port : null, notificationGate: createNotificationGate(notification, clock),
         clock, observe: null, terminal: terminal.sink,

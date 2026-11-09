@@ -165,3 +165,20 @@ describe("P3-TL-T09 入力の行のミュート表示", () => {
     await h.output.close();
   });
 });
+
+// P3-NC-T05 acceptance (P3-NC-AC04 (2)): noContract だけは受信の後も、直前の読みが noContract でなく今の読みが noContract のときに 1 回出す。
+it("P3-NC-T05: 受信の後の noContract は 1 回出て、同じままなら増えず、network では出ず、noContract に戻るたびと null の後にまた出る", async () => {
+  const h = harness({}, { connection: "connecting" });
+  h.attach();
+  const NO_CONTRACT = "dmdata.jp に有効な契約がありません。dmdata.jp で区分を契約すると、自動で繋ぎ直して受信を始めます。";
+  const shown = () => h.lines.join("\n").replace(/\n {2}/g, "").split("\n").filter((line) => line === NO_CONTRACT).length;
+  h.set({ lastFrameWallMs: Date.now() });
+  vi.advanceTimersByTime(1_000);
+  for (const [lastFailure, count] of [["noContract", 1], ["noContract", 1], ["network", 1], ["noContract", 2], [null, 2], ["noContract", 3]] as const) {
+    h.set({ lastFailure });
+    vi.advanceTimersByTime(1_000);
+    expect(shown(), String(lastFailure)).toBe(count);
+  }
+  expect(h.lines.join("\n")).not.toContain("dmdata.jp に繋がりません");
+  await h.output.close();
+});

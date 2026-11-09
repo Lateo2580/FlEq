@@ -12,7 +12,7 @@ const BODY_LIMIT_BYTES = 1024 * 1024;
 
 type DmdataSocket = Readonly<{ id: number; appName: string | null; status: string; classifications: readonly string[] }>;
 // HTTP 401/403 stay apart from other failures: the host stops retrying on them (P3-C2-RETRY).
-type RestRefusal = Readonly<{ kind: "failed"; answered: boolean; retryAfterMs: number | null }> | Readonly<{ kind: "authRejected" }>; // answered: dmdata が答えた（P3-DC2-AC03 (2)、ネットの不調と分ける）
+type RestRefusal = Readonly<{ kind: "failed"; answered: boolean; retryAfterMs: number | null }> | Readonly<{ kind: "authRejected" }> | Readonly<{ kind: "noContract" }>; // answered: dmdata が答えた（P3-DC2-AC03 (2)、ネットの不調と分ける）
 type SocketListResult = Readonly<{ kind: "ok"; sockets: readonly DmdataSocket[]; date: string | null }> | RestRefusal; // date: 応答の Date ヘッダ（P3-CK-AC02）
 type SocketCloseResult = Readonly<{ kind: "ok" }> | RestRefusal;
 // uncertain: the POST was handed over but whether a socket was created cannot be told (P3-C2-START-UNCERTAIN).
@@ -78,7 +78,7 @@ function exchange(method: "GET" | "POST" | "DELETE", path: string, apiKey: strin
 }
 
 const success = (status: number) => status >= 200 && status < 300;
-const refusal = (answer: Exchange): RestRefusal => answer.kind === "answered" && (answer.status === 401 || answer.status === 403) ? { kind: "authRejected" } : { kind: "failed", answered: answer.kind === "answered" || answer.kind === "tooLarge", retryAfterMs: answer.kind === "answered" ? answer.retryAfter : null };
+const refusal = (answer: Exchange): RestRefusal => answer.kind === "answered" && (answer.status === 401 || answer.status === 403) ? { kind: "authRejected" } : answer.kind === "answered" && answer.status === 402 ? { kind: "noContract" } : { kind: "failed", answered: answer.kind === "answered" || answer.kind === "tooLarge", retryAfterMs: answer.kind === "answered" ? answer.retryAfter : null };
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
   value != null && typeof value === "object" && !Array.isArray(value);
 const isStrings = (value: unknown): value is readonly string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
