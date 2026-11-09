@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "4ef13aa4588c9ed8c5f06afa2eda0f04df2e6fe65e2f454bff47e76a4cd7befe",
+    "sha256": "963981d798b379cc503e8fc22c8cc36e4243f6d8df7a2c7902fba0fa0be1cdf4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -94,6 +94,12 @@
         "source": "作者の裁定（2026-11-09 夕）",
         "closed": "P3-UV2-D-WITHDRAW-SIDE=A（推奨どおり。陸の部分だけの取消は陸〔VFVO50・VFVO51〕の pending だけを撤回し、VFSV の pending は残す）。P3-UV2-AC02 の (4)・(5)、P3-UV2-T02 の pending、artifactRequirements の原文の改訂（p3-volcano-unit.json:154 の P3-C9-REPLACEMENT）を裁定の字にした（行の数は変えていない）。unresolvedQuestions から Q-UV2-WITHDRAW を外した",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-UV2-BASE",
+        "status": "closed",
+        "source": "2026-11-09 夕 発注前の点検（統合担当）",
+        "closed": "起草の base a90a284e から main まで reconstruction/src の差は 0 行（git diff a90a284e main -- reconstruction/src）なので、行の番号の照らし直しは不要。baseOid は次の commit で割り当てる"
       }
     ],
     "operationContract": {
@@ -361,18 +367,6 @@
       "原文の改訂（統合担当が配送で、行の中に書き足す。どの行も他の契約に引かれていない）: p3-authority-evidence.json の :40（P3-AUTH-D-LAND-CANCEL の ruling を B に改める:「→ 2026-10-11 朝の作者の再裁定で B（出典は進捗ノート）、P3-UNIT-V-002 で実装」）・:247（outOfScope の「Vの陸の取消の効き方の変更」に「P3-UNIT-V-002 で変えた」）・:286（AC03 の (5) に「P3-UNIT-V-002 で、海上が支えるなら active を保つ」）・:304（AC04 の期待に「P3-UNIT-V-002 で effective は active・kind 36 と読み替える」）・:349（AC07 の (5) の「P3-C9-MARINE=AはD-LAND-CANCEL=Aにより変えない」に「P3-UNIT-V-002 で B」）・:530（残存リスク (5) に「P3-UNIT-V-002 で解消」）・:216（P3-AUTH-RES-02 の scope に「P3-UNIT-V-002 で marineKind 128 件分を足して〔実装の値〕」）。p3-volcano-unit.json の :91（P3-C9-MARINE の ruling を改める:「→ VFVO50 の取消の効き方は 2026-10-11 朝の作者の再裁定（P3-AUTH-D-LAND-CANCEL=B、出典は進捗ノート）で陸の部分だけ、P3-UNIT-V-002 で実装。ほかは A のまま」）・:154（P3-C9-REPLACEMENT の ruling に「陸の部分だけの取消の撤回は陸の pending だけ（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09 の作者の裁定）、VFVO51 の entry が active を ended にする採用も撤回する、P3-UNIT-V-002」）・:339（I-U-V の status に「alertSemantics (4) と decode と capacityReserve は P3-UNIT-V-002 で marineKind と陸の部分だけの取消を足した、版 v8」）・:955（persistedFields の警報に marineKind）。改訂した 2 契約の sha256 を作り直す",
       "配送の手順（P3-MIG-AC02 (2)）: 開発機の新築の stateDirectory（Mac mini の ~/Library/Application Support/fleq-next/state/ ほか）の U-V-A.json・U-V-B.json のうち、slot の schemaVersion が p3-volcano-unit-v8 でないものを、統合担当が作者の了承を得て消す。今の版の slot は消さない。Pi は旧築なので消さない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-UV2-BASE",
-        "owner": "integrator",
-        "blocks": [
-          "baseOid の割当"
-        ],
-        "resolveBy": "baseOid の割当の前",
-        "requiredEvidence": [
-          "割当の時点の木で、evidenceRefs・割れる見込みの «» の行・原文の改訂の行の番号と中身を照らし直す（de96d6a9 の後に volcano-unit.ts・volcano-unit.test.ts・p3-volcano-unit.json・p3-authority-evidence.json を変える配送があれば番号を付け直す）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
