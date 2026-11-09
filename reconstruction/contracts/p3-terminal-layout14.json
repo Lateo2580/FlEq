@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "876e4fdf85b222a620429037d34584b2cbfe2830",
-    "sha256": "795194261088af6ca1365b0e286bb7aee68507de29ae65fce7a3e2951e9c03a8",
+    "sha256": "7265ea7105bea69cbe4182f6f26fe361fda0ae772c6f14d72cc9e7a7c2021552",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -39,7 +39,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-014",
     "mode": "implementation",
     "objective": "2026-11-09 夜の P3-TERMINAL-LAYOUT-012 の実装レビューの P3 を閉じる。layout12.test.ts に 012 の解除の材料（P3-TL12-AC02 (2)(3)）の境界の試験を 3 つ足し（名前 32 字・33 字、2 桁の数字でない Code、同じ Item の同じ Code の重複）、P3-TL12-T02・T03 を振る舞いごとの it に分け、T01 の重ねた否定の検査を除く。spec §5.4 の短い形の総則の文（cli-terminal-output.md:480 の「表は出さない」）を、後の契約で足した行を指す文に直す（原文の改訂、統合担当が配送で当てる）。コードは変えず、画面も変わらない",
-    "baseOid": "unassigned",
+    "baseOid": "08d4dbc9",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
