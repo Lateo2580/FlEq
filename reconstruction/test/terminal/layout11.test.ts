@@ -295,7 +295,7 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
     expect(next).not.toBe(xml);
     return next;
   };
-  it("T03 正規の道の外の Significancy は、Addition・未知の要素・ほかの Part の下のどれでも入れない（r0〜r2 ヘルツ P2）", () => {
+  it("T03 正規の道の外の Significancy は、Addition・未知の要素・ほかの Part の下・道の段に挟んだ未知の要素のどれでも入れない（r0〜r3 ヘルツ P2）", () => {
     const placements = [
       ["Base/Addition/Significancy（r0 の再現）", `<Addition>${WIND}</Addition>`],
       ["Base/Addition/Base/Significancy（r0 ヘルツ P2）", `<Addition><Base>${WIND}</Base></Addition>`],
@@ -306,6 +306,17 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
       ["Base/Unknown/SignificancyPart/Base/Significancy（r2 ヘルツ P2）", `<Unknown><SignificancyPart><Base>${WIND}</Base></SignificancyPart></Unknown>`],
     ] as const;
     for (const [where, inserted] of placements) expect(shortOf(reportOf(TS, "U-F", inBase(inserted))).risks, where).toEqual(expected);
+    // 道の上の段に未知の要素を挟み、その下に道の残りを置いた形（r3 ヘルツ P2 と同じ族）。
+    const rest = `<Property><Type>風</Type><SignificancyPart><Base>${WIND}</Base></SignificancyPart></Property>`;
+    const wrapped = [
+      ["Kind/Unknown/Property/SignificancyPart/Base/Significancy（r3 ヘルツ P2）", "<Kind>", `<Unknown>${rest}</Unknown>`],
+      ["Item/Unknown/Kind/Property/…/Significancy", "<Item>", `<Unknown><Kind>${rest}</Kind></Unknown>`],
+      ["TimeSeriesInfo/Unknown/Item/Kind/Property/…/Significancy", "<TimeSeriesInfo>", `<Unknown><Item><Kind>${rest}</Kind></Item></Unknown>`],
+    ] as const;
+    for (const [where, tag, inserted] of wrapped) {
+      const edit = (xml: string): string => { const next = xml.replace(tag, `${tag}${inserted}`); expect(next).not.toBe(xml); return next; };
+      expect(shortOf(reportOf(TS, "U-F", edit)).risks, where).toEqual(expected);
+    }
     // 契約の制限: SignificancyPart 以外の Part の下は U-F が読んでも採らない。
     expect(shortOf(reportOf(TS, "U-F", inProperty(`<WindSpeedPart><Base>${WIND}</Base></WindSpeedPart>`))).risks, "Property/WindSpeedPart/Base/Significancy").toEqual(expected);
     // 対照: 道の上の Base/Local の直下は入る（全部を外して通っていないことの確かめ）。

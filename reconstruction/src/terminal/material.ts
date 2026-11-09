@@ -110,14 +110,19 @@ type Kind = Readonly<{ name: string | null; code: string | null; status: string 
 // Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
 // typhoon は文書の順で最初の台風呼称（P3-TL9-AC05。同じ辿りの中で覚え、新しい辿りを足さない）。
 // risks は withRisks（取消でない VPWP50）のときだけ作る Significancy の type → 組の表（P3-TL11-AC02 (2)(3)。同じ辿りの中で type ごとに 1 回引く）。
-// 読むのは正規の道 Property/SignificancyPart/Base（/Local）の直下の Significancy だけ（作者の裁定 2026-11-09 夕。U-F が予報の値として読む道と同じ）。place は道の上の位置の印。
-// excluded は戻らない印で、Addition か、道に入った後で道の次でない要素（未知の要素を含む）を通った部分木では place を付けない（U-F はそれらを部分木ごと読み飛ばす。r0〜r2 ヘルツ P2）。
-// shortcut: SignificancyPart 以外の Part の下の Significancy は U-F が読んでも採らない（契約の対象は SignificancyPart だけ。repo の VPWP50 の Significancy は全部この道の下）。辿り自体は止めない。
+// 読むのは Body から各段の直下だけを辿る正規の道の Significancy だけ（作者の裁定 2026-11-09 夕。U-F の weather-timeseries.ts の inspect が予報の値として読む並びと同じ）。
+// place は道の上の段の印で、Body から始まり、道の次の段でない要素（Addition・未知の要素を含む）を通ると null になってその部分木では戻らない（r0〜r3 ヘルツ P2）。辿り自体は止めない。
+// shortcut: SignificancyPart 以外の Part の下の Significancy は U-F が読んでも採らない（契約の対象は SignificancyPart だけ。repo の VPWP50 の Significancy は全部この道の下）。
 type Risk = NonNullable<Extract<TerminalReport, { kind: "short" }>["risks"]>[number];
 const RISK_LIMIT = 32;
+// 段 → [次の段の要素名, 次の段]。MeteorologicalInfos は U-F の validContainers と同じく type が量的予想時系列（市町村等）のものだけ。
+const PATH = { root: ["Body", "body"], body: ["MeteorologicalInfos", "infos"], infos: ["TimeSeriesInfo", "series"], series: ["Item", "item"], item: ["Kind", "kind"],
+  kind: ["Property", "property"], property: ["SignificancyPart", "part"], part: ["Base", "base"], base: ["Local", "local"] } as const;
+type Place = keyof typeof PATH | "local";
+const TIMESERIES_TYPE = "量的予想時系列（市町村等）";
 function scan(body: XmlElement | null, withRisks = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } {
   const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null };
-  const visit = (node: XmlElement, place: "property" | "part" | "base" | "local" | null, excluded: boolean): void => {
+  const visit = (node: XmlElement, place: Place | null): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
     else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
@@ -131,12 +136,12 @@ function scan(body: XmlElement | null, withRisks = false): { target: string | nu
         if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code });
       }
     }
-    const next = place == null ? (name === "Property" ? "property" : null) : place === "property" && name === "SignificancyPart" ? "part"
-      : place === "part" && name === "Base" ? "base" : place === "base" && name === "Local" ? "local" : null;
-    const hidden = excluded || name === "Addition" || (place != null && next == null);
-    for (const child of children(node)) visit(child, hidden ? null : next, hidden);
+    // place は親の段。この要素が親の段の次の要素なら次の段、そうでなければ null（root 以外から道に入る道は無い）。
+    const step = found.risks == null || place == null || place === "local" ? null : PATH[place];
+    const next = step != null && name === step[0] && (place !== "body" || attribute(node, "type") === TIMESERIES_TYPE) ? step[1] : null;
+    for (const child of children(node)) visit(child, next);
   };
-  if (body != null) visit(body, null, false);
+  if (body != null) visit(body, "root");
   return found;
 }
 // 気象・土砂で今の段に数えない Kind/Status（weather-current-notice.ts の NOT_CURRENT と同じ 2 つ）。
