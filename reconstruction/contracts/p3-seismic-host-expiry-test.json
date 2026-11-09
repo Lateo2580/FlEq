@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "27c1c8fbab6b7090f30570e5a4d3ecf5ef026f4cae0432af1259a0b29ba71e0c",
+    "sha256": "047f0898d15fbb8229878cef927ec8ecb9fbc789aeed2828982795c159a7eefb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -169,9 +169,9 @@
           "reconstruction/src/runtime/owner-host.ts:140 «a36e13e3cdc3b833»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:172 «15274ed6cc0951df»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1237 «9c2bde3f1231cf57»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:48 «82f53a336a367765»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:54 «c5d29572b571e505»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:440 «3f4aff19f4313f3d»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:48 «019d2ed3ecba61b8»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:54 «e31d1d7adf3066c9»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:461 «ad9bd36ee57f950d»",
           "reconstruction/src/runtime/composition-root.ts:950 «71f3e73d73b564c2»",
           "reconstruction/src/runtime/composition-root.ts:966 «8ae52d9d693e7af3»"
         ]
@@ -181,7 +181,7 @@
         "requirement": "試験の形を保つ: (1) :1〜:405 は行の数を変えない（行の中だけを直す）。p3-seismic-place.json が «» で引く :141・:218・:242・:373 の 4 行を動かさないため (2) 既存の期待を変えない: record の名前（bulkDeadline512And256・bulkDeadline512And256Tsunami）と成立の件数（Math.ceil(bulkRuns / 4)）、console の印（P3-C7-AC12-BULK-RAW・P3-C7-AC12-BULK）、試行の数の既定（FLEQ_C7_AC12_BULK_RUNS 10）、記録の組み方（event 512・長周期 256、100 件ずつ送る） (3) ほかの 3 つの it は変えない",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-host.test.ts:409 «038c0a1bb1f91d34»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:452 «919a19ebad854334»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:478 «919a19ebad854334»",
           "reconstruction/contracts/p3-seismic-place.json:410 «c9557cf45189337f»"
         ]
       },
@@ -189,8 +189,8 @@
         "id": "P3-SHE-AC04",
         "requirement": "配送（統合担当）: (1) 直した bulk の it を、P3-SP-AC07 の表を取ったのと同じ機械で 1 回走らせ（FLEQ_C7_AC12=1、-t \"bulk deadline\"、既定の 10 試行）、EEW・津波の deadlineMs・投入→T0・T0→T2・T2→T4 の中央・最大と expired の件数を報告する。T0→T2 の最大が約 40 ms を越えたら作者へ報告する（P3-SP-AC07 と同じ引き金、合格条件ではない） (2) 原文の改訂（行を足さない）: p3-seismic-place.json の :140 の「AC07 の一括の期限回収（event 512・長周期 256）の場面は、対になる期限の返信までが約 0.2 ms で、512・256 件の一括の回収に当たっていない（base の試し走らせでも 0.2 ms）。この場面は未確認で、場面の組み方は P3-UNIT-Q-CAPACITY-001 の範囲（やりたいことリストへ送る）」の後に、原因（Q-SHE-CAUSE: start を送らず根拠が awaiting・unverified、AC07 の表の一括の期限回収の値は回収しない経路の値）と本契約の値を〔P3-SEISMIC-HOST-EXPIRY-001 で …〕の形で添え、:141 の remaining の「AC07 の一括の期限回収の場面（未確認）はやりたいことリストへ」に本契約で閉じたことを添える。改訂で中身の変わる行を引く anchor を付け直し、改訂した契約の sha256 を作り直す。本契約の «» は、実装で中身が変わるかずれる seismic-host.test.ts の :48・:54・:440・:452 と、この改訂で中身の変わる p3-seismic-place.json の :140・:141 を付け直し、本契約の sha256 を取り直す (3) やりたいことリストの項を完了へ送り、構造的欠陥台帳の 100 の AC07 の場面に解消と日付を残す",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-seismic-place.json:140 «ae9fabc0eb3f8c4f»",
-          "reconstruction/contracts/p3-seismic-place.json:141 «3feed63e78d78ba3»"
+          "reconstruction/contracts/p3-seismic-place.json:140 «c5a157e619bd40b3»",
+          "reconstruction/contracts/p3-seismic-place.json:141 «2a61afdfb41d51e5»"
         ]
       }
     ],
@@ -275,7 +275,7 @@
       "最小実装・最小テスト: 新しい helper file・型・共有の関数を足さない。期限切れを数える関数は bulk の it の中に置く（無いと AC02 (2) を確かめられない）。onDeadline に basis を渡す引数と deadlineDone の output の欄は、無いと AC02 (1)(2) の対の要求と返信を結べない。P3-SHE-T01 は実不具合の再発防止で、新しい it は足さない（既存の bulk の it に確かめを入れる）",
       "既存の試験の期待（record の名前・成立の件数・console の印・試行の数の既定）は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "起草の確かめ（2026-11-10、MacBook、05f7ebab、未追跡の写しの試験 file。確かめの後に消した）: AC01〜AC03 の形（:1〜:405 の行の数は不変、+19/−10 行の規模）を写しに当て、tsc の 3 本（test の型検査を含む）は rc 0、bulk の it を既定の 10 試行で rc 0。10 試行とも basis verified・期限切れ 768 件。値（中央／最大、ms）: deadlineMs は EEW 10.41／11.18・津波 10.61／10.98、T0→T2 は EEW 0.14／1.16・津波 0.20／0.22、投入→T2 は EEW 0.46／1.49・津波 0.54／0.59、T2→T4 は EEW 2.86／4.25・津波 3.70／12.34、成立は各 5/5、T4 の欠測 0。最初の写しは outcomes の要素を { unit, outcome } と読まずに数え、basis verified・0/768 で AC02 (3) の Error が出た（確かめが黙って通らないことの確かめにもなった）",
-      "残存として成果物に書く: (1) 同じ host に 10 試行を積むので、2 回目以降は前の試行の期限切れの記憶が新しい記録の受理で件数の超過として退去される（退去の第 3 段）。期限の回収は毎回 768 件（起草の確かめ） (2) unverified の間の markPending の一括の印付けも同じ大きさの時間（起草の確かめで 1 試行 13.34 ms）を seismic の owner で使うが、本契約では測らない（outOfScope） (3) start の制御 frame は試験の時計で作るので、本物の dmdata の start.time との差の扱い（P3-CLOCK-CHECK-001）は確かめない",
+      "残存として成果物に書く: (1) 同じ host に 10 試行を積むので、2 回目以降は前の試行の期限切れの記憶が新しい記録の受理で件数の超過として退去される（退去の第 3 段）。期限の回収は毎回 768 件（起草の確かめ） (2) unverified の間の markPending の一括の印付けも同じ大きさの時間（起草の確かめで 1 試行 13.34 ms）を seismic の owner で使うが、本契約では測らない（outOfScope） (3) start の制御 frame は試験の時計で作るので、本物の dmdata の start.time との差の扱い（P3-CLOCK-CHECK-001）は確かめない (4) due の数 ms 前に読まれた期限の要求が、転送の遅れで owner の側では due を越えて 768 件を回収すると、試験はその要求を対にせず次の回の要求（0 件）と対にして Error で止まる（偽の停止。数字を誤る向きではない。起きたら走らせ直す。実装レビューの証拠不足、配送で書き足した）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない"
     ],
     "unresolvedQuestions": []
