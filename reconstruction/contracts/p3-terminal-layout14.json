@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "876e4fdf85b222a620429037d34584b2cbfe2830",
-    "sha256": "ddf0b937fd8857baa20ffbfaee36a8b9a45203416c01f97272667ed0ea416bbc",
+    "sha256": "795194261088af6ca1365b0e286bb7aee68507de29ae65fce7a3e2951e9c03a8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -117,7 +117,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL14-AC01",
-        "requirement": "解除の材料の境界の試験（P3-TL12-AC02 (2)(3) の境界。material.ts の release の今の動きを試験で留める。コードは変えない）: (1) 名前の長さ: 区域（市町村等をまとめた地域等の層の Item の Area の Name）と解除の Kind の Name は、32 字なら載り、33 字なら載らずにその Item を others に 1 つ数える（RELEASE_NAME と fits は区域と Kind の Name で同じ）。Area の Name が 33 字でも解除の Kind を持たない Item は数えない (2) Code: 解除の Kind の Code が 2 桁の半角の数字でないもの（1 桁、3 桁、全角の数字、Code の要素が無い）は載らず、その Item を others に 1 つだけ数える（同じ Item に不正な Kind が 2 つあっても 1）。同じ Item の正しい解除の Kind は載る。Status が解除でない Kind は Code を見ない (3) 重複: 1 つの Item が同じ Code の解除の Kind を 2 つ持っても、その行の areas に区域は 1 回。間に別の Code の解除の Kind を挟んでも同じ。重複は others に数えない（重複の比べは延べ 512 の比べより前）",
+        "requirement": "解除の材料の境界の試験（P3-TL12-AC02 (2)(3) の境界。material.ts の release の今の動きを試験で留める。コードは変えない）: (1) 名前の長さ: 区域（市町村等をまとめた地域等の層の Item の Area の Name）と解除の Kind の Name は、32 字なら載り、33 字なら載らずにその Item を others に 1 つ数える（RELEASE_NAME と fits は区域と Kind の Name で同じ）。Area の Name が 33 字でも解除の Kind を持たない Item は数えない (2) Code: 解除の Kind の Code が 2 桁の半角の数字でないもの（1 桁、3 桁、全角の数字、Code の要素が無い）は載らず、その Item を others に 1 つだけ数える（同じ Item に不正な Kind が 2 つあっても 1）。同じ Item の正しい解除の Kind は載る。Status が解除でない Kind は Code を見ない (3) 重複: 1 つの Item が同じ Code の解除の Kind を 2 つ持っても、その行の areas に区域は 1 回。間に別の Code の解除の Kind を挟んでも同じ。重複は others に数えない（根拠: 重複の比べは延べ 512 の比べより前。この順は本試験の対象にしない、起草レビュー P3-1）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-terminal-layout12.json:252 «4988fc3ae8e071eb»",
           "reconstruction/src/terminal/material.ts:126 «3051b6e5fcd87918»",
