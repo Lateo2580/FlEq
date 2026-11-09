@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "69f8e668890a1cc40e7c0ffa03d263c82f26ad53eb966b0c68f04d905cc9650a",
+    "sha256": "358c82f5638289e64913cda4e56d676a85f2982755a8c13146d9e669b0926593",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -262,7 +262,7 @@
       },
       {
         "id": "P3-TL-AC05",
-        "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする。長周期階級は旧か新が 0 か無いときは矢印を付けない (2) 地域の増減の件数は出さない (3) 変わらなかった値には何も付けない。「同じです」のような比較の文は出さない（作者） (4) 覚えが無い報では矢印を出さない (5) 覚えの鍵を operation・family・EventID にする（今の鍵に family を足す。VXSE43 と VXSE45 は別の番号で並走し、版の比較も family ごと。取消の 3 行目の覚えも同じ鍵にする）。同じ family の古い報は unit が採らない (6) 仮定の震源の報（PLUM）は M と深さを覚えに書かず、その報の震源の行に矢印を付けない",
+        "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする。震源の名前の新の値は、その報の帯の段の罫線の役目の太字にする（P3-TL11-AC04）。長周期階級は旧か新が 0 か無いときは矢印を付けない (2) 地域の増減の件数は出さない (3) 変わらなかった値には何も付けない。「同じです」のような比較の文は出さない（作者） (4) 覚えが無い報では矢印を出さない (5) 覚えの鍵を operation・family・EventID にする（今の鍵に family を足す。VXSE43 と VXSE45 は別の番号で並走し、版の比較も family ごと。取消の 3 行目の覚えも同じ鍵にする）。同じ family の古い報は unit が採らない (6) 仮定の震源の報（PLUM）は M と深さを覚えに書かず、その報の震源の行に矢印を付けない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:161 «4f34ebbe0f83a759»",
           "docs/specs/cli-terminal-output.md:164 «83c2420add9b084c»",

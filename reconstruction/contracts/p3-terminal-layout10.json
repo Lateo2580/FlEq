@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "5cd7eca1ff8fb2b3876a36012d9bcc5cafff03e743a0b50c923368be26684af2",
+    "sha256": "883a70c49f389b895fb0a3cdfdd875978b9c7b6aa133b6dec14b2aa40b5bfb65",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -326,9 +326,9 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:848 «8d86bd7c75be7386»",
           "reconstruction/src/units/volcano/volcano-unit.ts:946 «f23179083a311f59»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1150 «569df56fdc9b65a9»",
-          "reconstruction/src/terminal/material.ts:255 «744087a2cd4e4fc9»",
-          "reconstruction/src/terminal/output.ts:462 «df18802267659c7f»",
-          "reconstruction/src/terminal/output.ts:391 «2e886d21d6e2c58f»"
+          "reconstruction/src/terminal/material.ts:277 «744087a2cd4e4fc9»",
+          "reconstruction/src/terminal/output.ts:486 «df18802267659c7f»",
+          "reconstruction/src/terminal/output.ts:415 «2e886d21d6e2c58f»"
         ]
       },
       {
@@ -342,8 +342,8 @@
           "docs/specs/cli-terminal-output.md:70 «0769597b7fd4a016»",
           "src/ui/eew-formatter.ts:133 «a2698aebde1c37e9»",
           "src/engine/eew/eew-tracker.ts:1071 «afa75198108bcd46»",
-          "reconstruction/src/terminal/format.ts:603 «87cf0d64405f3649»",
-          "reconstruction/src/terminal/format.ts:684 «9b48a3baea15eff3»",
+          "reconstruction/src/terminal/format.ts:607 «87cf0d64405f3649»",
+          "reconstruction/src/terminal/format.ts:690 «9b48a3baea15eff3»",
           "reconstruction/src/terminal/color.ts:37 «fcd8624aec378975»",
           "reconstruction/src/terminal/color.ts:38 «a5b0ef697126e052»"
         ]
@@ -363,7 +363,7 @@
           "reconstruction/src/units/briefing/briefing-unit.ts:538 «3c915558c3eb15ad»",
           "reconstruction/src/units/briefing/briefing-unit.ts:365 «9cf672a4298629da»",
           "reconstruction/src/units/briefing/briefing-unit.ts:596 «da0ed3f167a5cdf9»",
-          "reconstruction/src/terminal/material.ts:281 «2be327932f009c34»"
+          "reconstruction/src/terminal/material.ts:303 «2be327932f009c34»"
         ]
       },
       {
@@ -372,8 +372,8 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:83 «acd70b64750d0720»",
           "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
-          "reconstruction/src/terminal/output.ts:462 «df18802267659c7f»",
-          "reconstruction/src/terminal/format.ts:684 «9b48a3baea15eff3»"
+          "reconstruction/src/terminal/output.ts:486 «df18802267659c7f»",
+          "reconstruction/src/terminal/format.ts:690 «9b48a3baea15eff3»"
         ]
       }
     ],

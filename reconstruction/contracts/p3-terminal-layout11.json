@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "cd652d746ba9fdac24920e6815c158d1feeef3df8e16ad3507b6be102d4138e3",
+    "sha256": "2ac229985144de4259a47704b4c394d3a2c7b2d2e3df762d7cf86a7104df6efb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -157,6 +157,20 @@
         "source": "統合担当の決め（2026-11-09、発注前点検）",
         "closed": "artifactRequirements の残存 (1) へ移した（2026-11-09）。便の届く間隔は未確認のままで、8 秒を越える間が空くか最初の報から 90 秒を越えて届く便は複数のブロックに割れるが、各ブロックが件数と種類を出し欠けない。実配信の写しで便の間隔が分かれば見直す",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-TL11-IMPL-REVIEW",
+        "status": "closed",
+        "source": "2026-11-09 の実装レビュー r0〜r4（契約適合 Opus、品質 ヘルツ Astra high。記録 ~/dev/fleq-vault-archive/2026-11-09-snap/tl11-impl-quality-r0〜r2-hertz.md ほか）",
+        "closed": "r0 で契約適合 GO・品質 NO-GO、r4 で品質 GO（17 形で反例なし）。品質の P2 は 4 巡とも risks の採る階層の族だった: r0 は直親だけを見て Addition/Base/Significancy を拾い、r1 は SignificancyPart で道に戻って Base/Addition/SignificancyPart/Base を拾い、r2 は未知の要素を通っても戻って Base/Unknown/SignificancyPart/Base を拾い、r3 は道の入口 Property を Body から結んでおらず Kind/Unknown/Property/… を拾った。作者の裁定（2026-11-09 夕「正規の道だけ」）で、r4 は道を Body から各段の直下だけの表にし（AC02 (2)）、T03 に 11 形（Addition・未知の要素・ほかの Part・道の段に挟んだ未知の要素）と正規の Base・Local の対照を置いた。r0 の P3（期限・容量・取消・描画を 1 本に詰めた試験）は r1 で振る舞いごとの it に分けた（layout11 は 8 本から 24 本）。SignificancyPart 以外の Part を採らない制限は残存 (7)",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL11-DELIVERY",
+        "status": "closed",
+        "source": "配送（統合担当、2026-11-09）",
+        "closed": "impl/tl11 を main 9c348402 の上に載せ直し、artifactRequirements の付け直し（recovery-boundary・layout10・tsunami-hold-mark と本契約の src の «»）と原文の改訂 (1)〜(5)（p3-terminal-output.json の P3-TO-AC08 (1)・AC09 (1)・AC12 (2)、p3-terminal-layout9.json の P3-TL9-AC01、p3-terminal-layout.json の P3-TL-AC05、どれも行の中に書き足し行の数は変えない）を当てた。AC02 (2) の採る範囲を実装どおりの字に直した。ゲート: ",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -280,22 +294,22 @@
           "docs/specs/cli-terminal-output.md:886 «c1954268c1b8eb25»",
           "docs/specs/cli-terminal-output.md:611 «5768731f8619d84e»",
           "reconstruction/src/terminal/output.ts:38 «97b5147c5d2bf7ab»",
-          "reconstruction/src/terminal/output.ts:305 «5b067329afa793ce»",
-          "reconstruction/src/terminal/output.ts:312 «11805c7036c18003»",
-          "reconstruction/src/terminal/output.ts:506 «9adf0ae5f749e324»",
-          "reconstruction/src/terminal/material.ts:162 «ebb86d4fb6943021»",
+          "reconstruction/src/terminal/output.ts:310 «5b067329afa793ce»",
+          "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
+          "reconstruction/src/terminal/output.ts:540 «9adf0ae5f749e324»",
+          "reconstruction/src/terminal/material.ts:184 «ebb86d4fb6943021»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:85 «6482a5ef855183e0»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:212 «f9e340690c98b51c»"
         ]
       },
       {
         "id": "P3-TL11-AC02",
-        "requirement": "時系列情報の種類の材料（P3-TL11-D-TS-KINDS=A、2026-11-09 の作者の裁定）: (1) p3-terminal-output.types.ts の TerminalReport の short に欄 risks を 1 つ足す。形は読み取りだけの { type: string; name: string; code: string } の並びか null。unit が U-F で headType が VPWP50、InfoType が取消でない報では必ず非 null（並びが空のこともある）、ほかの報（VPWP50 の取消を含む）は null。注釈の行に意味を書く (2) 集め方: material.ts の scan の同じ辿りの中で、親の要素が Base か Local の Significancy（SignificancyPart の Base とその Local の直下。U-F が予報の値として読む階層、weather-timeseries.ts の visit。付加事項 Addition の中のものは親が Addition なので入らない）ごとに、type 属性の字（前後の空白を除く）と Name と Code の字（read の字）を組にし、Code が 2 桁の 20〜59 のものだけを集める。type ごとに Code の数が最も大きい組を 1 つ残し（同じ数なら電文で先の組。type ごとの Map で 1 回だけ引く）、type の並びは電文で先に現れた順。type か Name か Code が無いか空の要素と、type か Name が 32 字を越える要素は入れない。32 種類までで、越えた type は入れない（13 本の fixture を通した type は 15 種類、字の最長は「警戒レベル４相当」の 8 字）。Code を読むのは並べるかどうかだけで、出す字は電文の Name と type のまま（Code を名前に読み替えない） (3) 走査を増やさない: scan は今も Body の全部の要素を 1 回辿っている（Kind を集めるため）。Significancy を集めるのは unit が U-F で headType が VPWP50 のときだけ (4) 場面: 81_02_01（宗谷地方、17:00）の risks は 土砂災害危険度・警戒レベル4相当・41、大雨浸水危険度・特別警報級・50 の 2 組（電文に先に現れた type の順）。81_02_01 の Base に付加事項 Addition を足し、その中に風危険度・特別警報級・50 の Significancy を置いた報でも risks は同じ 2 組。81_01_01（Code が 00・01・11 だけ）は空の並び。81_04_01（取消）は null",
+        "requirement": "時系列情報の種類の材料（P3-TL11-D-TS-KINDS=A、2026-11-09 の作者の裁定）: (1) p3-terminal-output.types.ts の TerminalReport の short に欄 risks を 1 つ足す。形は読み取りだけの { type: string; name: string; code: string } の並びか null。unit が U-F で headType が VPWP50、InfoType が取消でない報では必ず非 null（並びが空のこともある）、ほかの報（VPWP50 の取消を含む）は null。注釈の行に意味を書く (2) 集め方: material.ts の scan の同じ辿りの中で、Body → MeteorologicalInfos（type が量的予想時系列〔市町村等〕のもの）→ TimeSeriesInfo → Item → Kind → Property → SignificancyPart → Base（→ Local）の各段の直下をたどった Significancy だけを採る。道を外れた要素（付加事項 Addition・未知の要素を含む）の下では採らない（U-F の weather-timeseries.ts の inspect の読み方と同じ。SignificancyPart 以外の Part の下は採らない、残存 (7)）。その Significancy ごとに、type 属性の字（前後の空白を除く）と Name と Code の字（read の字）を組にし、Code が 2 桁の 20〜59 のものだけを集める。type ごとに Code の数が最も大きい組を 1 つ残し（同じ数なら電文で先の組。type ごとの Map で 1 回だけ引く）、type の並びは電文で先に現れた順。type か Name か Code が無いか空の要素と、type か Name が 32 字を越える要素は入れない。32 種類までで、越えた type は入れない（13 本の fixture を通した type は 15 種類、字の最長は「警戒レベル４相当」の 8 字）。Code を読むのは並べるかどうかだけで、出す字は電文の Name と type のまま（Code を名前に読み替えない） (3) 走査を増やさない: scan は今も Body の全部の要素を 1 回辿っている（Kind を集めるため）。Significancy を集めるのは unit が U-F で headType が VPWP50 のときだけ (4) 場面: 81_02_01（宗谷地方、17:00）の risks は 土砂災害危険度・警戒レベル4相当・41、大雨浸水危険度・特別警報級・50 の 2 組（電文に先に現れた type の順）。81_02_01 の Base に付加事項 Addition を足し、その中に風危険度・特別警報級・50 の Significancy を置いた報でも risks は同じ 2 組。81_01_01（Code が 00・01・11 だけ）は空の並び。81_04_01（取消）は null",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-terminal-output.types.ts:85 «7bb6e816372ec824»",
-          "reconstruction/src/terminal/material.ts:112 «9a75b7fba98d7981»",
-          "reconstruction/src/terminal/material.ts:117 «14d9c5d94d4c84ec»",
-          "reconstruction/src/terminal/material.ts:233 «32f2cccc604c620d»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:85 «9ac2630f36e600d8»",
+          "reconstruction/src/terminal/material.ts:123 «5debc43eaed5c8fa»",
+          "reconstruction/src/terminal/material.ts:128 «14d9c5d94d4c84ec»",
+          "reconstruction/src/terminal/material.ts:255 «32f2cccc604c620d»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:15 «19a724da7c71f265»",
           "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml:39 «436cce9fa5e3b8dc»",
           "docs/specs/cli-terminal-output.md:887 «d1f1b6799dc1c82b»",
@@ -311,9 +325,9 @@
           "docs/specs/cli-terminal-output.md:586 «7703bab93e52b358»",
           "docs/specs/cli-terminal-output.md:613 «fb3b8f31164e2e41»",
           "docs/specs/cli-terminal-output.md:608 «6d2f8d86b668c7a2»",
-          "reconstruction/src/terminal/format.ts:26 «31f2348dabb04531»",
-          "reconstruction/src/terminal/format.ts:729 «e7ee619a4b3fb00c»",
-          "reconstruction/src/terminal/format.ts:766 «bc550fe8ae383851»"
+          "reconstruction/src/terminal/format.ts:30 «31f2348dabb04531»",
+          "reconstruction/src/terminal/format.ts:735 «e7ee619a4b3fb00c»",
+          "reconstruction/src/terminal/format.ts:772 «bc550fe8ae383851»"
         ]
       },
       {
@@ -327,9 +341,9 @@
           "docs/specs/cli-terminal-output.md:51 «3d491604d4377c59»",
           "docs/specs/cli-terminal-output.md:63 «5d5f2fdff48cbfdd»",
           "docs/specs/cli-terminal-output.md:172 «fb9b96e842fdb132»",
-          "reconstruction/src/terminal/format.ts:647 «54a327f91ca25d04»",
-          "reconstruction/src/terminal/format.ts:676 «3e925aee56b49d2a»",
-          "reconstruction/src/terminal/format.ts:677 «27a44450cbe05a43»",
+          "reconstruction/src/terminal/format.ts:651 «54a327f91ca25d04»",
+          "reconstruction/src/terminal/format.ts:682 «77bb380a447f2b47»",
+          "reconstruction/src/terminal/format.ts:683 «a21d4133bc0980c7»",
           "reconstruction/src/terminal/color.ts:15 «212369a305a9fa1e»",
           "reconstruction/src/terminal/color.ts:16 «cd36d8ef25ca945f»",
           "reconstruction/src/terminal/color.ts:45 «72639dcb6f152807»",
@@ -342,9 +356,9 @@
         "requirement": "計算量・口（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) main の受信 1 回の仕事に足すのは、VPWP50 の返信の outcomes から U-F の自分の記録の subject を取ること（その返信の outcomes の数に比例）と、時系列のまとまりの Map に置く・消す（subject で 1 回引く）ことと鍵の比べだけ。報の並びの走査・JSON.stringify・ほかの unit の走査をしない。種類の合わせと官署の数えは束を出す時に 1 回（AC01 (5)、報 64 × 組 32 = 2,048 回と、官署の Set への 64 回まで。毎受信ではなく、束を出す時だけ。64 件に達したときは受信の中で出す）。束の単位の byte は積む時に estimate で 1 回だけ見積もる。上限（estimate の数え方、output.ts の estimate: 文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte、鍵は鍵の byte）: risks の 1 組は入れ物 8 と type・name・code の鍵 12 と type と Name の 32 字ずつ（UTF-8 で 96 byte ずつ）と Code の 2 byte で 214 byte 以下、1 列は入れ物 8 と添字の鍵（2 byte まで）と 32 組で 8 + 32 × 216 = 6,920 byte 以下（7,680 byte 以下と書く）。1 報の材料は risks の 1 列の分だけ今より大きくなる（7,680 byte 以下）。束の単位は risks を 2 列持つ（1 報目の報の中の risks と、合わせた risks）ので、単位の見積もりは今の 1 報の見積もり（risks を除く）+ 7,680 + 7,680 + 単位の付加（kind と件数と官署の数と鍵、160 byte 以下）で、今の 1 報より 15,520 byte 以下だけ大きい（件数の 64 によらない。官署は集合を持たず数 1 つ）。1 回の送り 64 KiB は束ねる上限で、64 KiB を越える単位もその 1 単位だけで送られる（output.ts の kick）。列の上限 1 MiB（RES-01）に対しては、1 単位が今の 1 報より 15,520 byte 以下大きいだけ (2) 1 秒の tick と inputDone の初めに足すのは、時系列のまとまりの期限の比べ 1 回だけ (3) material.ts の Significancy の採取は scan の同じ辿りの中で、type ごとの Map で引く（走査を足さない。VPWP50 でない報では集めない） (4) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink の型。TerminalReport の short に欄 risks を 1 つ足す（publicTypes、P3-TERMINAL-LAYOUT-008 の national と同じ足し方）。runtime（host.ts・composition-root.ts）と U-F（weather-timeseries の unit と domain）を変えない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:613 «fb3b8f31164e2e41»",
-          "reconstruction/src/terminal/output.ts:312 «11805c7036c18003»",
-          "reconstruction/src/terminal/material.ts:112 «9a75b7fba98d7981»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:85 «7bb6e816372ec824»"
+          "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
+          "reconstruction/src/terminal/material.ts:123 «5debc43eaed5c8fa»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:85 «9ac2630f36e600d8»"
         ]
       }
     ],
@@ -458,7 +472,7 @@
       "既存の試験の期待は変えない（EEW の色の試験は帯と縦線の行か、色を除いた字を見ており、震源の行の色は見ていない。VPWP50 を描く既存の試験は 1 報の形）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "配送で統合担当が付け直す: material.ts・output.ts・format.ts・p3-terminal-output.types.ts を変えて行がずれたら、他の契約が引く «»（p3-terminal-layout10.json の material.ts:255・:281、output.ts:391・:462、format.ts:603・:684、p3-terminal-layout9.json の material.ts:66、p3-tsunami-hold-mark.json の material.ts:281、p3-view-alert-text.json の material.ts:102、p3-recovery-boundary.json の format.ts:832）と本契約の src の «» を、中身の anchor が一致する行へ配送の commit で付け直し、各契約の meta.sha256 を取り直して check-contract を通す（実装はそれらの行の中身を変えない。本契約の types.ts:85 は欄を足して中身が変わるので取り直す）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) VPWP50 の便の届く間隔は未確認で、8 秒を越える間が空くか、最初の報から 90 秒を越えて届く便は複数のブロックに割れ、各ブロックがそれぞれの件数と種類を出す（欠けない） (2) まとまりの 8 秒の間に届いたほかの報は束より上に出る (3) まとまりを待つ間（最長 90 秒）に FlEq が落ちる（kill・停電）と、まとめた報は端末に出ない（保存しない。降灰のまとまりと同じ） (4) 同じ便に 65 以上の Head/Title が来ると 2 つのブロックになる (5) tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出る (6) 種類の行は便の中で type ごとに最も重い 1 つだけで、どの予報区のどの時間帯かは出さない（作者の裁定「区域ごとの中身は出さない」）",
+      "残存として成果物に書く: (1) VPWP50 の便の届く間隔は未確認で、8 秒を越える間が空くか、最初の報から 90 秒を越えて届く便は複数のブロックに割れ、各ブロックがそれぞれの件数と種類を出す（欠けない） (2) まとまりの 8 秒の間に届いたほかの報は束より上に出る (3) まとまりを待つ間（最長 90 秒）に FlEq が落ちる（kill・停電）と、まとめた報は端末に出ない（保存しない。降灰のまとまりと同じ） (4) 同じ便に 65 以上の Head/Title が来ると 2 つのブロックになる (5) tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出る (6) 種類の行は便の中で type ごとに最も重い 1 つだけで、どの予報区のどの時間帯かは出さない（作者の裁定「区域ごとの中身は出さない」） (7) SignificancyPart 以外の Part（WindSpeedPart など）の下の Significancy は U-F が読んでも端末は採らない（契約の対象は SignificancyPart だけ。repo の VPWP50 の Significancy 17,331 個は全部 SignificancyPart/Base と SignificancyPart/Base/Local の下）",
       "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 5 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:615 の P3-TO-AC09 (1) の短い形の 3 つの行に、VPWP50 の 2 件以上の便は P3-TL11-AC01・AC03 のまとめの形にする旨 (2) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、時系列のまとまりに置く・外すこと（P3-TL11-AC05 (1)） (3) 同 :661 の P3-TO-AC12 (2) の「何かを出した」に、時系列のまとまりに置いた報も数える旨（P3-TL11-AC01 (8)） (4) reconstruction/contracts/p3-terminal-layout9.json:289 の P3-TL9-AC01 に、VPWP50 の 2 件以上の便は P3-TL11 のまとめで帯を Control/Title と件数にする旨 (5) reconstruction/contracts/p3-terminal-layout.json:265 の P3-TL-AC05 の震源の行に、震源の名前の色を P3-TL11-AC04 で付ける旨"
     ],
     "unresolvedQuestions": []
