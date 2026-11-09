@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "bdf24661f358061456070162ffc4b7c9b0ec2d8e14052d640707d14542348e1e",
+    "sha256": "5cd7eca1ff8fb2b3876a36012d9bcc5cafff03e743a0b50c923368be26684af2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -316,9 +316,9 @@
         "id": "P3-TL10-AC01",
         "requirement": "降灰予報（定時）のまとめ（Q-TO11-VFVO53、P3-TL10-D-VFVO53=A・D-ASH-WHERE・D-ASH-SINGLE・D-ASH-INTERRUPT・D-ASH-CANCEL）: (1) 対象は返信の terminal が短い形で unit が U-V、headType が VFVO53、InfoType が取消でない報。createTerminalOutput の sink の inputDone はこれを列に積まず、閉包の変数 1 つの「降灰のまとまり」（報の参照の並び〔20 まで〕・鍵〔ReportDateTime の生の字と Control/Status〕・最初と最後に置いた時刻〔clock の monotonic〕）に置く (2) 同じ火山（head.eventId が同じ）の報が並びにあれば前の報を外し、新しい報を並びの最後に置く（U-V の「同じ火山は置き換え」と同じ並び） (3) 鍵の違う報が来たら、今のまとまりを先に出してから新しいまとまりを始める (4) 出す時: 並びが 20 になったらその入力の中で。1 秒の tick と inputDone の初め（その返信の報をまとまりに足す・積む前。U-V が入力の前に期限を当てる順と同じ）で、最後に置いてから 8,000 ms 以上か、最初に置いてから 90,000 ms 以上のとき。返信の terminal が headType VFVO54・VFVO55 で Control/Status が鍵と同じ報を積む前（その報より先に）。close() で列の残りを書かせる前。ほかの報（火山のほかの報・ほかの unit・EEW・読めなかった報のカード）はまとまりを出さずに今のとおり積み、まとまりは後でその下に出る (5) 出す形: 1 報だけなら、その報を今の 1 報の形（kind report）で積む。2 報以上は 1 つの単位で積み、spec §5.4 の図の形にする: 帯は 1 報目の Control/Title（版の印を除く）と Control/Status の印と「 N火山」、時刻は 1 報目の ReportDateTime、段は報の段のうち最も重い段（VFVO53 の Kind の Code は U-V の段の読み方のどれにも当たらず、実物では普通）。帯の下に各報の対象（Body の最初の Area/Name。無ければ Head/Title、それも無ければ電文の種類のコード）を並びの順に 1 行ずつ、最後に末尾の行（「VFVO53 ・ <1 報目の PublishingOffice>」）。見出し文・段の理由の行・区切りの罫線は出さない (6) 取消の報は待たずに今のとおり積み、まとまりを出さない。並びに同じ火山（head.eventId）で Control/Status の同じ報があれば外す（空になったらまとまりを無くす） (7) 取り直しの VFVO53 は端末の材料が null で（material.ts の origin recovery）U-V も束に入れない（volcano-unit.ts の origin recovery の idle）ので、決まりを足さない (8) 数え方: まとまりに置いた入力は届いた時に定期要約に数える（今のとおり）。tips の待ちの起点（lastOutputMs）は置いた時に動かす（ブロックは 90 秒の内に出る）。入力の行の経過の時刻（lastReportWallMs）はブロックを積んだ時に動かす。読めなかった報のカードは探さない。--debug の行は置いた時に「debug: VFVO53 <入力 ID>（U-V、まとめて出す）」 (9) まとまりの寿命と消す道: 最初の報を置いた時にでき、(3)(4) で出した時と (6) で空になった時に無くなる。保存しない。回線の切断と回復・取り直し・control.clear() では消さない。tick は attach() で始まるので、attach の前に置いた報は attach の後の最初の tick で期限を見る。場面: 17:00:01 から 17:00:03 に阿蘇山・桜島・薩摩硫黄島・諏訪之瀬島・霧島山（新燃岳）の 5 報（ReportDateTime 17:00:00、通常）が届くと、端末は 17:00:10 まで何も出さず、最後の報から 8 秒を過ぎた最初の tick（17:00:11）に、60 桁では spec §5.4 の図の 7 行のブロックを 1 つ出す",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:565 «f874613a720d04ef»",
-          "docs/specs/cli-terminal-output.md:601 «5768731f8619d84e»",
-          "docs/specs/cli-terminal-output.md:872 «9064de7d37656074»",
+          "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
+          "docs/specs/cli-terminal-output.md:611 «5768731f8619d84e»",
+          "docs/specs/cli-terminal-output.md:883 «9064de7d37656074»",
           "src/engine/messages/volcano-vfvo53-aggregator.ts:40 «7d9b02001a5573c5»",
           "src/engine/messages/volcano-vfvo53-aggregator.ts:85 «3a44c9b3dd8ce77c»",
           "src/ui/volcano-formatter.ts:983 «41b96c9d715cf4ad»",
@@ -336,9 +336,9 @@
         "requirement": "同時に進む EEW の帯の濃さ（Q-TO11-EEW-SHADE、P3-TL10-D-EEW-COLOR=A・D-SHADES・D-SHADE-LIFE・D-SHADE-NOCOLOR）: (1) color.ts に段ごとの帯の役目を足す。警報の帯の面は 1 段目 bandWarning（今の #d55e00）、2 段目 #e08640、3 段目 #eaaf80 で、どれも黒の太字。予報の帯は 1 段目 bandCaution・ruleCaution（今の #f0e442）、2 段目 #bbb233、3 段目 #97902a の字（題名は太字）と帯の罫線。縦線（bar）と、警報の帯の罫線の役目は段によらず今のまま。値は作者が図で選んだ 6 色（Q-TL10-SHADES=A、2026-11-08 夜）。整形は役目の名前で引き、RGB を format.ts に書かない (2) format.ts の EEW の覚え（memory.events の Event、鍵は運用区分と EventID）に段の番号を 1 つ足す。その鍵の最初の報で、同じ運用区分のほかの地震のうち終わっておらず（最終報・取消を受けていない）最後の報から 10 分（ACTIVE_MS）の内のものが使っている番号を避けた最も小さい 0 以上の番号を当て、帯はその番号を段の数で割った余りの段にする。番号はその地震が終わるまで変えない。続報（VXSE43 と VXSE45 をまたぐ）も、後から先の地震が終わった後の続報も、覚えた番号のまま (3) 濃さを変えるのは、取消でなく最大予測震度の字に 7 を含まない報の、警報と予報の帯だけ。最も重い段と取消の帯は今のまま (4) 番号の寿命と消す道: Event の覚え（worker の中、64 件で古い順に捨てる、保存しない）と同じ。地震が最終報か取消を受けるか、最後の報から 10 分を過ぎると、その番号は次の地震の割り当てで避けられなくなる。終わった地震に後から報が来ても覚えた番号のまま。起動し直すと覚えは空で、最初の地震は 1 段目 (5) renderer の色の水準が 3 のときだけ濃さを変える。0（NO_COLOR・パイプ・ファイル）と 1・2（端末でない出力で chalk が 16 色・256 色と判定したとき）は今の 1 色で、字は足さない (6) 最初の報の時にほかに進む地震が無ければ 1 段目で、帯は今と同じ字と色（地震が 1 つの日は今と同じ）。場面: 23:14:59 に豊後水道の警報（EventID A）が届き、23:15:20 に石川県能登地方の警報（EventID B）が届くと、B の帯の面は 2 段目の色で、A の続報の帯は 1 段目のまま。23:16:00 に A が最終報を受けた後も、23:16:30 の B の続報の帯は 2 段目のまま。23:17:00 に新しい地震 C の警報が届くと、C の帯は 1 段目（B が 2 段目を使っている）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:63 «5d5f2fdff48cbfdd»",
-          "docs/specs/cli-terminal-output.md:168 «1f3b76a9c5621b14»",
-          "docs/specs/cli-terminal-output.md:873 «6576c08f63e8eb38»",
-          "docs/specs/cli-terminal-output.md:167 «fa54ac6f188b61a4»",
+          "docs/specs/cli-terminal-output.md:169 «1f3b76a9c5621b14»",
+          "docs/specs/cli-terminal-output.md:884 «6576c08f63e8eb38»",
+          "docs/specs/cli-terminal-output.md:168 «fa54ac6f188b61a4»",
           "docs/specs/cli-terminal-output.md:70 «0769597b7fd4a016»",
           "src/ui/eew-formatter.ts:133 «a2698aebde1c37e9»",
           "src/engine/eew/eew-tracker.ts:1071 «afa75198108bcd46»",
@@ -352,8 +352,8 @@
         "id": "P3-TL10-AC03",
         "requirement": "記録的短時間大雨の VPOA50 と VPBS50（Q-TO11-RECORD-RAIN、P3-TL10-D-RAIN-JUDGE・D-RAIN-ALONE=A〔作者の裁定、2026-11-08 夜〕）: (1) 自分の記録: 返信の output の outcomes の U-B の accepted の subjects のうち、source.inputId がその返信の settlement.inputId のもの。返信の terminal が短い形で unit が U-B、headType が VPOA50 の報について、自分の記録の transition で分ける (2) aliased（VPBS50 が先に採られていた）: 列に積まない。定期要約に数え、入力の行の経過の時刻と tips の待ちの起点は動かさない。--debug の行は「（U-B、出さない・対応報あり）」 (3) held（D-RAIN-ALONE=A）: 列に積まず、閉包の「待ちの表」（Map、subject → 報の参照と期限）に置く。期限は受けた時の単調時計（clock の monotonicMs。今の端末の tick と同じ時計で、壁時計の巻き戻りで待ちが延びない）+ 60,000 ms（U-B の HOLD_MS と同じ値。held の outcome の facts に holdUntil は無い）。表は端末自身の上限 256 を持ち、満杯で 257 件目を置く時は、最も古い待ち（表の先頭）を積んで外してから置く（出さずに捨てない。U-B の容量の退去は accepted に載らず (5) に届かないため）。こうして先に出した報は、後でその VPBS50 が来ると端末に 2 ブロックになる（1 ブロックの約束の例外、残存 (12)）。同じ subject が表にあれば報だけを新しいものに替え、期限は最初のまま（U-B も最初の holdUntil を保つ、P3-C12-VPOA.holdRules (4)）。定期要約に数え、tips の待ちの起点は置いた時に動かし、入力の行の経過の時刻は積んだ時に動かす。--debug の行は「（U-B、対応報を待つ）」 (4) 出す時: 1 秒の tick と inputDone の初め（その返信を扱う前）で、単調時計が期限以上になった表の報を積んで表から外す（壁時計が補正されなければ、U-B もこの時刻に held を released にして「（対応電文未確認）」の通知を作る。補正されると U-B の解放と時刻がずれる、残存 (11)。U-B の解放は返信に outcome を載せないので、端末が解放を知る道は期限だけ）。close() では表の残りを積んでから列を書かせる。例外: tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出す (5) 捨てる時: 表が空でないとき、どの inputDone でも U-B の accepted の subjects を 1 回見て、表にある subject で transition が held でないもの（VPBS50 の採用で aliased、取消で cancelled など）を積まずに表から外す。その返信が VPOA50 の取消で、自分の記録が表にあった（端末に出していない）なら、その取消の報も積まない（U-B も鳴らさない）。--debug の行は「（U-B、出さない・待っていた報の取消）」 (6) 表の寿命と消す道: 置いてから 60 秒（briefing-unit.ts の HOLD_MS と同じ）か (5) まで。件数は端末の上限 256 を越えない（(3) の満杯の時の決まり）。保存しない。回線の切断と回復・取り直し・control.clear() では消さない (7) VPBS50 と、VPOA50 の active・released・cancelled（表に無いもの）と、ほかの U-B の報は今のとおり (8) 場面: (a) 16:33:05.000 に VPBS50（EventID KJPTC…）、16:33:05.007 に同じ事象の VPOA50 が届くと、VPOA50 は aliased で、端末は VPBS50 の 1 ブロックだけ (b) 16:33:05.000 に VPOA50（held、U-B の holdUntil と端末の期限は 16:34:05）、16:33:05.007 に VPBS50 が届くと、VPBS50 の返信の subjects に VPOA50 の subject が aliased で載り、端末は VPBS50 の 1 ブロックだけで、16:34:05 を過ぎても何も出ない (c) VPOA50 だけが届くと、16:34:05 までは何も出ず、16:34:05 を過ぎた最初の tick に紫のブロックが 1 つ出る",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:602 «40be8a63ec3c23fc»",
-          "docs/specs/cli-terminal-output.md:874 «5f7cc149b7050ad7»",
+          "docs/specs/cli-terminal-output.md:612 «40be8a63ec3c23fc»",
+          "docs/specs/cli-terminal-output.md:885 «5f7cc149b7050ad7»",
           "src/engine/messages/legacy-counterpart-registry.ts:7 «a0685e8949e7dd10»",
           "src/engine/messages/legacy-counterpart-registry.ts:141 «ba293fb74ee83ed7»",
           "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
@@ -371,7 +371,7 @@
         "requirement": "計算量・口・幅（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) main の受信 1 回の仕事に足すのは、降灰のまとまりに置くこと（同じ火山を 20 件までの並びで探す・鍵を比べる）と、返信の U-B の accepted の subjects を 1 回見て待ちの表（Map）を引くこと（表が空なら見ない）だけ。JSON.stringify・列の走査・ほかの unit の走査をしない。束の単位の byte は積む時に estimate で 1 回だけ見積もる（報 20 まで） (2) 1 秒の tick と inputDone の初めに足すのは、まとまりの期限の比べ 1 回と、待ちの表の先頭から期限の過ぎた分を出すことだけ（表は置いた順が期限の順。期限は 60 秒で一定で、置き換えは最初の期限と表の位置を保つ。件数は端末の上限 256） (3) worker の EEW の段の割り当ては、新しい地震の最初の報で memory.events（64 件まで）を 1 回見るだけ (4) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink と TerminalReport の型。material.ts と runtime（host.ts・composition-root.ts）と U-V・U-B を変えない。format.ts の内側の型 TerminalUnit に束の単位を 1 つ足す (5) 束のブロックは 56・80・100 桁のどれでも行が桁数を越えず（P3-TO-AC04 (5)）、帯は 1 行、火山の名前は途中で折れない。色を付けないときは帯を塗らず ━ の形（Q-TO2-NOCOLOR）、縦線は色のある 60 桁以上だけ（今のとおり）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:83 «acd70b64750d0720»",
-          "docs/specs/cli-terminal-output.md:565 «f874613a720d04ef»",
+          "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
           "reconstruction/src/terminal/output.ts:462 «df18802267659c7f»",
           "reconstruction/src/terminal/format.ts:684 «9b48a3baea15eff3»"
         ]

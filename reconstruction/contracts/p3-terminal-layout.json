@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "fd58b15cb457171ad761e5afc16a23cbab9c510e9e41e1ba9e5a1fd768df5a2b",
+    "sha256": "69f8e668890a1cc40e7c0ffa03d263c82f26ad53eb966b0c68f04d905cc9650a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -255,40 +255,40 @@
         "id": "P3-TL-AC04",
         "requirement": "緊急地震速報: (1) 最大予測震度の行を要点の先頭に固定する（見出し文の有無で行を入れ替えない） (2) 見出し文の先頭が「<震源名>で地震」のときだけ外し、残りの「四国　九州　中国で強い揺れ」を要点の 2 行目に出す (3) 地域が 1 つで到達も長周期階級も無い報は表を出さない (4) 取消・最終報・PLUM は spec §5.1 の図のとおり",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:155 «a918d1bc96f8ed4e»",
-          "docs/specs/cli-terminal-output.md:156 «a71bac9ad80bfe83»",
-          "docs/specs/cli-terminal-output.md:165 «f44788c59b1a6593»"
+          "docs/specs/cli-terminal-output.md:156 «a918d1bc96f8ed4e»",
+          "docs/specs/cli-terminal-output.md:157 «a71bac9ad80bfe83»",
+          "docs/specs/cli-terminal-output.md:166 «f44788c59b1a6593»"
         ]
       },
       {
         "id": "P3-TL-AC05",
         "requirement": "続報の変化（Q-TO2-FOLLOW）: (1) 最大予測震度、震源の名前、M、深さ、長周期階級は、前の報から変わった値の場所に「旧の値 → 新の値」で出し、旧の値と矢印を補足の薄い字にする。長周期階級は旧か新が 0 か無いときは矢印を付けない (2) 地域の増減の件数は出さない (3) 変わらなかった値には何も付けない。「同じです」のような比較の文は出さない（作者） (4) 覚えが無い報では矢印を出さない (5) 覚えの鍵を operation・family・EventID にする（今の鍵に family を足す。VXSE43 と VXSE45 は別の番号で並走し、版の比較も family ごと。取消の 3 行目の覚えも同じ鍵にする）。同じ family の古い報は unit が採らない (6) 仮定の震源の報（PLUM）は M と深さを覚えに書かず、その報の震源の行に矢印を付けない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:160 «4f34ebbe0f83a759»",
-          "docs/specs/cli-terminal-output.md:163 «83c2420add9b084c»",
-          "docs/specs/cli-terminal-output.md:164 «652bae84c6b2e7f2»",
-          "docs/specs/cli-terminal-output.md:161 «c4a508d16ec76582»",
-          "docs/specs/cli-terminal-output.md:162 «830f7e48fcc16af2»"
+          "docs/specs/cli-terminal-output.md:161 «4f34ebbe0f83a759»",
+          "docs/specs/cli-terminal-output.md:164 «83c2420add9b084c»",
+          "docs/specs/cli-terminal-output.md:165 «652bae84c6b2e7f2»",
+          "docs/specs/cli-terminal-output.md:162 «c4a508d16ec76582»",
+          "docs/specs/cli-terminal-output.md:163 «830f7e48fcc16af2»"
         ]
       },
       {
         "id": "P3-TL-AC06",
         "requirement": "地震: (1) 最大震度の行、津波についての文、震源の行の順に出す。最大震度の無い報は震源の行、津波についての文の順 (2) 見出し文を表の下へ移す (3) 震度が 1 段だけで要点の行に全部の地域が入る報は表を出さない（VXSE62 は除く） (4) 発生の時刻を震源の行の末尾に「発生 13:45ころ」と出す。発表の日と違う日は「発生 11日 23:58ころ」。材料は TerminalReport の seismic に欄を 1 つ足し（Earthquake/OriginTime、無ければ VXSE51 だけ Head/TargetDateTime）、無い報は出さない。日の扱いは arrivalText を再利用する",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:244 «1628470c3d202452»",
-          "docs/specs/cli-terminal-output.md:295 «47747343fc7a48b6»",
-          "docs/specs/cli-terminal-output.md:296 «8b2e71f944250b19»",
-          "docs/specs/cli-terminal-output.md:297 «0113ada281257fac»"
+          "docs/specs/cli-terminal-output.md:245 «1628470c3d202452»",
+          "docs/specs/cli-terminal-output.md:296 «47747343fc7a48b6»",
+          "docs/specs/cli-terminal-output.md:297 «8b2e71f944250b19»",
+          "docs/specs/cli-terminal-output.md:298 «0113ada281257fac»"
         ]
       },
       {
         "id": "P3-TL-AC07",
         "requirement": "津波: (1) 区分の名前を全部の地域の行に出す (2) 要点を「＊＊＊これは訓練です＊＊＊」、「避難」を含む見出し文（太字）、区分ごとの地域数（太字。大津波警報・津波警報・津波注意報、解除は数えない）、残りの見出し文、震源の順にする。電文の文は言い換えない (3) 時刻の無い到達の文を警報の色の字にする。確かさの違う文をまとめない (4) 取消の行の並びは変えない（区切りの罫線は AC01）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:397 «99e4794d2e203257»",
-          "docs/specs/cli-terminal-output.md:398 «127cc61aaadfa8bc»",
-          "docs/specs/cli-terminal-output.md:399 «9086bc72e11fcfd8»",
-          "docs/specs/cli-terminal-output.md:402 «07ee79887fa5dc1d»",
+          "docs/specs/cli-terminal-output.md:398 «99e4794d2e203257»",
+          "docs/specs/cli-terminal-output.md:399 «127cc61aaadfa8bc»",
+          "docs/specs/cli-terminal-output.md:400 «9086bc72e11fcfd8»",
+          "docs/specs/cli-terminal-output.md:403 «07ee79887fa5dc1d»",
           "docs/specs/cli-terminal-output.md:30 «fc7492ead78deadf»"
         ]
       },
@@ -310,16 +310,16 @@
         "id": "P3-TL-AC10",
         "requirement": "入力の行（Q-TO2-MUTE）: ミュート中は入力の行に「ミュート中」を出す。期限があれば「ミュート中 21:30 まで」、条件つきは「ミュート中（条件つき）」、両方なら「ミュート中（条件つき） 21:30 まで」、切断中は「HH:MM:SS から 切断中・ミュート中」（繋ぎ直しの回数と期限と条件を外す）。●・○・uptime の形も同じ後ろに足す。output.ts の promptLabel の中だけで作る（options.notification は REPL と同じ object で、muteActive は読み込み済み。期限は repl.ts の muteStartLine と同じ換算）。引数も型も repl.ts も変えない。ミュートが切れたら次の書き直しで消える。TTY でないときは今の『FlEq> 』のまま",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:631 «39bd7df0b5b27b67»"
+          "docs/specs/cli-terminal-output.md:642 «39bd7df0b5b27b67»"
         ]
       },
       {
         "id": "P3-TL-AC11",
         "requirement": "短い形: 帯と末尾の行と空行・縦線と、見出し文の折り方（AC09）だけを変える。見出し文のほかに要点の行を足さない（Q-TO-S-3）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:479 «fc9be00de26c3c82»",
-          "docs/specs/cli-terminal-output.md:578 «d8654378e356f57e»",
-          "docs/specs/cli-terminal-output.md:590 «ab2218d4a63a6607»"
+          "docs/specs/cli-terminal-output.md:480 «fc9be00de26c3c82»",
+          "docs/specs/cli-terminal-output.md:588 «d8654378e356f57e»",
+          "docs/specs/cli-terminal-output.md:600 «ab2218d4a63a6607»"
         ]
       }
     ],
