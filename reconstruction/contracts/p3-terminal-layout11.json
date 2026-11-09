@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "8d0e1a18f052a2cacb9ebd4d7c12908c79a9c83a66b411c4f255c23201597598",
+    "sha256": "cd652d746ba9fdac24920e6815c158d1feeef3df8e16ad3507b6be102d4138e3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -168,7 +168,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-011",
     "mode": "implementation",
     "objective": "定時の便で全国の気象台から届く気象警報・注意報時系列情報（VPWP50）を、端末で同じ便ごとに 1 つのブロックにまとめ、件数と便に含まれる種類を出す（作者の裁定 2026-11-09 昼、Q-TO12-VPWP50。種類の出し方は P3-TL11-D-TS-KINDS=A で電文の字のまま、末尾の行は D-TS-FOOTER=B で官署の数、帯の段は D-TS-LEVEL=A で普通のまま）。緊急地震速報の震源の名前を色つきの太字にする（作者の案、D-EEW-EPICENTER=A でその報の帯と同じ段の字の色）。形は reconstruction/src/terminal の material.ts・output.ts・format.ts の中で作る",
-    "baseOid": "unassigned",
+    "baseOid": "5dccebcb",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
