@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "2eb50b5f93a9cab07a25a9ccef15169a0ae9dc371be6cc33b838f9d8cc0891c8",
+    "sha256": "dbb655bc0d22cd4f42f0896d554ba9d1880cc7f43525c97fc757e63fd8063ed5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -296,7 +296,7 @@
           "reconstruction/src/terminal/output.ts:38 «97b5147c5d2bf7ab»",
           "reconstruction/src/terminal/output.ts:310 «5b067329afa793ce»",
           "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
-          "reconstruction/src/terminal/output.ts:544 «9adf0ae5f749e324»",
+          "reconstruction/src/terminal/output.ts:556 «9adf0ae5f749e324»",
           "reconstruction/src/terminal/material.ts:213 «ebb86d4fb6943021»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:85 «6482a5ef855183e0»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:212 «f9e340690c98b51c»"
@@ -306,7 +306,7 @@
         "id": "P3-TL11-AC02",
         "requirement": "時系列情報の種類の材料（P3-TL11-D-TS-KINDS=A、2026-11-09 の作者の裁定）: (1) p3-terminal-output.types.ts の TerminalReport の short に欄 risks を 1 つ足す。形は読み取りだけの { type: string; name: string; code: string } の並びか null。unit が U-F で headType が VPWP50、InfoType が取消でない報では必ず非 null（並びが空のこともある）、ほかの報（VPWP50 の取消を含む）は null。注釈の行に意味を書く (2) 集め方: material.ts の scan の同じ辿りの中で、Body → MeteorologicalInfos（type が量的予想時系列〔市町村等〕のもの）→ TimeSeriesInfo → Item → Kind → Property → SignificancyPart → Base（→ Local）の各段の直下をたどった Significancy だけを採る。道を外れた要素（付加事項 Addition・未知の要素を含む）の下では採らない（U-F の weather-timeseries.ts の inspect の読み方と同じ。SignificancyPart 以外の Part の下は採らない、残存 (7)）。その Significancy ごとに、type 属性の字（前後の空白を除く）と Name と Code の字（read の字）を組にし、Code が 2 桁の 20〜59 のものだけを集める。type ごとに Code の数が最も大きい組を 1 つ残し（同じ数なら電文で先の組。type ごとの Map で 1 回だけ引く）、type の並びは電文で先に現れた順。type か Name か Code が無いか空の要素と、type か Name が 32 字を越える要素は入れない。32 種類までで、越えた type は入れない（13 本の fixture を通した type は 15 種類、字の最長は「警戒レベル４相当」の 8 字）。Code を読むのは並べるかどうかだけで、出す字は電文の Name と type のまま（Code を名前に読み替えない） (3) 走査を増やさない: scan は今も Body の全部の要素を 1 回辿っている（Kind を集めるため）。Significancy を集めるのは unit が U-F で headType が VPWP50 のときだけ (4) 場面: 81_02_01（宗谷地方、17:00）の risks は 土砂災害危険度・警戒レベル4相当・41、大雨浸水危険度・特別警報級・50 の 2 組（電文に先に現れた type の順）。81_02_01 の Base に付加事項 Addition を足し、その中に風危険度・特別警報級・50 の Significancy を置いた報でも risks は同じ 2 組。81_01_01（Code が 00・01・11 だけ）は空の並び。81_04_01（取消）は null",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-terminal-output.types.ts:85 «2d6542c32817fb06»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:88 «2d6542c32817fb06»",
           "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
           "reconstruction/src/terminal/material.ts:155 «14d9c5d94d4c84ec»",
           "reconstruction/src/terminal/material.ts:284 «32f2cccc604c620d»",
@@ -358,7 +358,7 @@
           "docs/specs/cli-terminal-output.md:613 «fb3b8f31164e2e41»",
           "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
           "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:85 «2d6542c32817fb06»"
+          "reconstruction/contracts/p3-terminal-output.types.ts:88 «2d6542c32817fb06»"
         ]
       }
     ],

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e53b60cff971e8c18e10398b40584cbaac396b9c",
-    "sha256": "aea0c3d62b0a9a1586b6abe596c756ce709075f7dfbf2e516abd076eb364cee0",
+    "sha256": "741f60a8180302182372a8c14fa42895ad6db5a2f6d08f210972ff67ddc8deda",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -254,8 +254,8 @@
           "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
           "docs/specs/cli-terminal-output.md:891 «fd770dad13ce7269»",
           "docs/specs/cli-terminal-output.md:606 «9c66f8919dbc34b0»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:84 «26ce92f9efa5e054»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:85 «2d6542c32817fb06»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:87 «26ce92f9efa5e054»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:88 «2d6542c32817fb06»",
           "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
           "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
           "reconstruction/src/terminal/material.ts:155 «14d9c5d94d4c84ec»",
@@ -287,7 +287,7 @@
         "evidenceRefs": [
           "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
           "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:85 «2d6542c32817fb06»"
+          "reconstruction/contracts/p3-terminal-output.types.ts:88 «2d6542c32817fb06»"
         ]
       }
     ],
