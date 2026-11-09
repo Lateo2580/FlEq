@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "30cdb9fddee9cd00e53d22159cc9a25161002fbe69395f05c0a1835f60f8eef3",
+    "sha256": "8d0e1a18f052a2cacb9ebd4d7c12908c79a9c83a66b411c4f255c23201597598",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -149,6 +149,13 @@
         "status": "closed",
         "source": "作者の裁定（2026-11-09 夕）",
         "closed": "P3-TL11-D-TS-KINDS=A（推奨どおり、本文はそのまま）。P3-TL11-D-TS-FOOTER=B（束の末尾の行を「VPWP50 ・ 58 官署」の形に）。AC01 (5)、AC03 (4)、AC05 (1)、T01・T02 (l)・T04 (e)、spec §5.4 の末尾の行の項（Q-TO-S-1 の例外の句）・図・時系列情報の項、§8 の Q-TO12-VPWP50 と Q-TO12-VPWP50-KINDS を裁定の字にした（行の数は変えていない）。unresolvedQuestions から Q-TL11-TS-KINDS と Q-TL11-TS-FOOTER を外した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL11-TS-INTERVAL",
+        "status": "closed",
+        "source": "統合担当の決め（2026-11-09、発注前点検）",
+        "closed": "artifactRequirements の残存 (1) へ移した（2026-11-09）。便の届く間隔は未確認のままで、8 秒を越える間が空くか最初の報から 90 秒を越えて届く便は複数のブロックに割れるが、各ブロックが件数と種類を出し欠けない。実配信の写しで便の間隔が分かれば見直す",
         "remaining": "なし"
       }
     ],
@@ -454,18 +461,6 @@
       "残存として成果物に書く: (1) VPWP50 の便の届く間隔は未確認で、8 秒を越える間が空くか、最初の報から 90 秒を越えて届く便は複数のブロックに割れ、各ブロックがそれぞれの件数と種類を出す（欠けない） (2) まとまりの 8 秒の間に届いたほかの報は束より上に出る (3) まとまりを待つ間（最長 90 秒）に FlEq が落ちる（kill・停電）と、まとめた報は端末に出ない（保存しない。降灰のまとまりと同じ） (4) 同じ便に 65 以上の Head/Title が来ると 2 つのブロックになる (5) tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出る (6) 種類の行は便の中で type ごとに最も重い 1 つだけで、どの予報区のどの時間帯かは出さない（作者の裁定「区域ごとの中身は出さない」）",
       "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない。起草の時に 5 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-output.json:615 の P3-TO-AC09 (1) の短い形の 3 つの行に、VPWP50 の 2 件以上の便は P3-TL11-AC01・AC03 のまとめの形にする旨 (2) 同 :606 の P3-TO-AC08 (1) の publisher の仕事の列挙に、時系列のまとまりに置く・外すこと（P3-TL11-AC05 (1)） (3) 同 :661 の P3-TO-AC12 (2) の「何かを出した」に、時系列のまとまりに置いた報も数える旨（P3-TL11-AC01 (8)） (4) reconstruction/contracts/p3-terminal-layout9.json:289 の P3-TL9-AC01 に、VPWP50 の 2 件以上の便は P3-TL11 のまとめで帯を Control/Title と件数にする旨 (5) reconstruction/contracts/p3-terminal-layout.json:265 の P3-TL-AC05 の震源の行に、震源の名前の色を P3-TL11-AC04 で付ける旨"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-TL11-TS-INTERVAL",
-        "owner": "integrator",
-        "blocks": [
-          "残存 (1) の見積もり（8 秒・90 秒の見直し。発注は止めない）"
-        ],
-        "resolveBy": "配送の後の最初の定時の便（--debug の行の時刻）",
-        "requiredEvidence": [
-          "1 つの便の VPWP50 が届いた間隔の最大と、最初から最後までの長さ（未確認。写し mini-new-full.txt に時刻が無い）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
