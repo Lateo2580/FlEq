@@ -36,6 +36,8 @@ const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
 const CHILD_LOST = "端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません";
 // P3-TL10-AC01 (4): 降灰予報（定時）のまとまりの区切り（U-V の通知のまとめ P3-C9-BATCH と同じ数）。
 const ASH_QUIET_MS = 8_000, ASH_MAX_MS = 90_000, ASH_LIMIT = 20;
+// P3-TL11-AC01 (4)・D-TS-LIMIT=A: 気象警報・注意報時系列情報のまとまりの上限（全国 64 の府県予報区等）。区切りの 8 秒・90 秒は降灰と同じ数を使う。
+const SERIES_LIMIT = 64, RISK_LIMIT = 32;
 // P3-TL10-AC03 (3): VPOA50 の待ち。60 秒は briefing-unit.ts の HOLD_MS と同じ値（T05 が結ぶ）。256 は端末自身の上限。
 const RAIN_HOLD_MS = 60_000, RAIN_LIMIT = 256;
 
@@ -165,6 +167,9 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   let ash: { reports: ShortReport[]; reportDateTimeRaw: string | null; status: string | null; firstMs: number; lastMs: number } | null = null;
   // P3-TL10-AC03 (3)(6): held の VPOA50 の待ちの表（subject → 報と期限〔monotonic〕）。置いた順が期限の順で、置き換えは位置と期限を保つ（Map.set）。
   const rain = new Map<string, { report: ShortReport; dueMs: number }>();
+  // P3-TL11-AC01 (1)(9): 気象警報・注意報時系列情報のまとまり（保存しない。降灰のまとまりと別で、同時にありうる）。reports は U-F の自分の記録の subject → 報で、
+  // 挿入順が束の並び。鍵は ReportDateTime の生の字と Control/Status、時刻は monotonic。
+  let series: { reports: Map<string, ShortReport>; reportDateTimeRaw: string | null; status: string | null; firstMs: number; lastMs: number } | null = null;
   const fail = () => {
     if (failed) return;
     // AC02 (2): worker が落ちても process は落とさず、受信も止めない。以後は積まずに数えるだけ。
@@ -308,9 +313,27 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     ash = null;
     release(reports.length === 1 ? { kind: "report", report: reports[0], prompt: promptOf() } : { kind: "ashfall", reports, prompt: promptOf() });
   };
-  // tick と inputDone の初めに見る（U-V が入力の前に期限を当てる順と同じ、AC01 (4)・AC03 (4)）。表は先頭から期限の過ぎた分だけ。
+  // P3-TL11-AC01 (5): 1 件はその報の今の形、2 件以上は束の単位。種類の合わせと官署の数えは束を出す時に 1 回だけ（報 64 × 組 32 と官署 64 まで、AC05 (1)）。
+  const flushSeries = (): void => {
+    if (series == null) return;
+    const reports = [...series.reports.values()];
+    series = null;
+    if (reports.length === 1) { release({ kind: "report", report: reports[0], prompt: promptOf() }); return; }
+    const risks = new Map<string, NonNullable<ShortReport["risks"]>[number]>(), offices = new Set<string>();
+    for (const report of reports) {
+      for (const risk of report.risks ?? []) {
+        const before = risks.get(risk.type);
+        if (before == null ? risks.size < RISK_LIMIT : Number(risk.code) > Number(before.code)) risks.set(risk.type, risk);
+      }
+      const office = report.head.publishingOffice;
+      if (office != null && office !== "") offices.add(office);
+    }
+    release({ kind: "timeseries", report: reports[0], count: reports.length, offices: offices.size, risks: [...risks.values()], prompt: promptOf() });
+  };
+  // tick と inputDone の初めに見る（U-V が入力の前に期限を当てる順と同じ、AC01 (4)・AC03 (4)）。表は先頭から期限の過ぎた分だけ。時系列のまとまりは降灰の後（P3-TL11-AC01 (4)）。
   const expire = (nowMono: number): void => {
     if (ash != null && (nowMono - ash.lastMs >= ASH_QUIET_MS || nowMono - ash.firstMs >= ASH_MAX_MS)) flushAsh();
+    if (series != null && (nowMono - series.lastMs >= ASH_QUIET_MS || nowMono - series.firstMs >= ASH_MAX_MS)) flushSeries();
     for (const [subject, item] of rain) {
       if (nowMono < item.dueMs) break;
       rain.delete(subject);
@@ -319,6 +342,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   };
   const flushAll = (): void => {
     flushAsh();
+    flushSeries();
     for (const item of rain.values()) release({ kind: "report", report: item.report, prompt: promptOf() });
     rain.clear();
   };
@@ -492,6 +516,16 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         // P3-TL10-AC01: 対象の降灰予報（定時）。取消は (6) で別に扱う。
         const volcano = report.kind === "short" && report.unit === "U-V" ? report : null;
         const ashfall = volcano?.head.headType === "VFVO53" ? volcano : null;
+        // P3-TL11-AC01 (2)・D-TS-IDENTITY=A: VPWP50 の返信だけ、U-F の accepted のうち自分の記録の subject を取る（その返信の outcomes の数に比例、AC05 (1)）。
+        const timeline = report.kind === "short" && report.unit === "U-F" && report.head.headType === "VPWP50" ? report : null;
+        let mine: string | null = null;
+        if (timeline != null) {
+          for (const { unit, outcome } of reply.output.outcomes) {
+            if (unit === "U-F" && outcome.kind === "accepted") mine ??= outcome.subjects.find((subject) => subject.source?.inputId === inputId)?.subject ?? null;
+          }
+          // (6): 取消は待たずに今のとおり積み、まとめている同じ subject の報を外す（空になったらまとまりを無くす）。
+          if (timeline.head.infoType === "取消" && series != null && mine != null && series.reports.delete(mine) && series.reports.size === 0) series = null;
+        }
         if (ashfall != null && ashfall.head.infoType === "取消") {
           // (6): 同じ火山・同じ Control/Status の報を並びから外す（20 までの並び）。
           if (ash != null && ash.status === ashfall.head.status) {
@@ -512,6 +546,17 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           lastOutputMs = now.monotonicMs;
           held = { ...taken, result: "まとめて出す" };
           if (ash.reports.length >= ASH_LIMIT) flushAsh();
+        } else if (timeline != null && timeline.head.infoType !== "取消" && mine != null) {
+          // P3-TL11-AC01 (2)〜(4): 鍵が違えば先に出し、同じ subject は前の報を外して最後に置き（Map.set は位置を保つので delete してから）、64 件でその場で出す。
+          // 自分の記録の subject が無い報（taken が U-F の accepted を要るので起きない）は下の else ですぐ積む。
+          if (series != null && (series.reportDateTimeRaw !== timeline.head.reportDateTimeRaw || series.status !== timeline.head.status)) flushSeries();
+          if (series == null) series = { reports: new Map(), reportDateTimeRaw: timeline.head.reportDateTimeRaw, status: timeline.head.status, firstMs: now.monotonicMs, lastMs: now.monotonicMs };
+          series.reports.delete(mine);
+          series.reports.set(mine, timeline);
+          series.lastMs = now.monotonicMs;
+          lastOutputMs = now.monotonicMs;
+          held = { ...taken, result: "まとめて出す" };
+          if (series.reports.size >= SERIES_LIMIT) flushSeries();
         } else if (rainReport != null && own?.transition === "aliased") held = { ...taken, result: "出さない・対応報あり" };
         else if (rainReport != null && own?.transition === "held") {
           // AC03 (3): 置き換えは報だけ（期限と位置は最初のまま）。満杯なら最も古い待ちを積んでから置く（出さずに捨てない）。

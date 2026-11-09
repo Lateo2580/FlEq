@@ -109,17 +109,29 @@ type Kind = Readonly<{ name: string | null; code: string | null; status: string 
 // Body を文書の順に 1 回だけ辿り、最初の Area/Name（対象）と、Kind（LastKind は名前が違うので入らない）と InfoSerial/Name を集める（AC08 (2)）。
 // Kind は 256 まで（RES-02 の区域と同じ上限。帯の段は最も重い段だけを使うので、越えた分を数えない）。
 // typhoon は文書の順で最初の台風呼称（P3-TL9-AC05。同じ辿りの中で覚え、新しい辿りを足さない）。
-function scan(body: XmlElement | null): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null } {
-  const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null } = { target: null, kinds: [], serialName: null, typhoon: null };
-  const visit = (node: XmlElement): void => {
+// risks は withRisks（取消でない VPWP50）のときだけ作る Significancy の type → 組の表（P3-TL11-AC02 (2)(3)。同じ辿りの中で type ごとに 1 回引く）。
+// 親が Base か Local のものだけを読む（U-F が予報の値として読む階層。付加事項 Addition の中は親が Addition なので入らない）。
+type Risk = NonNullable<Extract<TerminalReport, { kind: "short" }>["risks"]>[number];
+const RISK_LIMIT = 32;
+function scan(body: XmlElement | null, withRisks = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } {
+  const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null };
+  const visit = (node: XmlElement, parent: string | null): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
     else if (name === "Kind" && found.kinds.length < AREA_LIMIT) found.kinds.push({ name: read(node, "Name"), code: read(node, "Code"), status: read(node, "Status") });
     else if (name === "InfoSerial" && found.serialName == null) found.serialName = read(node, "Name");
     else if (name === "TyphoonNamePart" && found.typhoon == null) found.typhoon = node;
-    for (const child of children(node)) visit(child);
+    else if (name === "Significancy" && found.risks != null && (parent === "Base" || parent === "Local")) {
+      // Code は並べるかと並べる順だけに使い、出す字は電文の type と Name のまま（D-TS-KINDS=A）。同じ Code なら電文で先の組を残す。
+      const type = attribute(node, "type"), label = read(node, "Name"), code = read(node, "Code");
+      if (type != null && type !== "" && type.length <= RISK_LIMIT && label != null && label !== "" && label.length <= RISK_LIMIT && code != null && /^[2-5][0-9]$/.test(code)) {
+        const before = found.risks.get(type);
+        if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code });
+      }
+    }
+    for (const child of children(node)) visit(child, name);
   };
-  if (body != null) visit(body);
+  if (body != null) visit(body, null);
   return found;
 }
 // 気象・土砂で今の段に数えない Kind/Status（weather-current-notice.ts の NOT_CURRENT と同じ 2 つ）。
@@ -238,16 +250,16 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   const layer = nationwide && !cancel ? children(body, "Warning").find((node) => attribute(node, "type") === PREFECTURE_LAYER) ?? null : null;
   if (layer != null) {
     const table = nationalTable(layer);
-    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national };
+    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national, risks: null };
   }
-  const found = scan(body);
+  const found = scan(body, unit === "U-F" && material.headType === "VPWP50" && !cancel);
   // Head の Title に全国の活火山を含む VFVO51。EventID 900 は「その他の火山」の番号でもあるので使わない（P3-TL3-D-DETECT）。
   const monthly = material.headType === "VFVO51" && heading.title?.includes("全国の活火山") === true;
   const { level, name } = cancel ? { level: "cancel" as const, name: null } : monthly ? { level: "plain" as const, name: null } : shortLevel(unit, material, heading.eventId, found);
   return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : nationwide ? "全国" : unit === "U-N" ? null : (unit === "U-Y" ? typhoonLabel(found.typhoon) : null) ?? found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
     // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
     cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null,
-    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null };
+    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null, risks: found.risks == null ? null : [...found.risks.values()] };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。

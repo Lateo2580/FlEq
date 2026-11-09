@@ -22,6 +22,10 @@ type TerminalUnit =
   // 【発注 2】処理できなかった報（P3-TO-D-UNREADABLE）と、電文以外の出力（AC10〜AC14・AC17）。時刻は wall の ms で、worker が地方時の字にする。
   | Readonly<{ kind: "unreadable"; card: UnreadableCardView; prompt: string | null }>
   | Readonly<{ kind: "notice"; notice: TerminalNotice; prompt: string | null }>
+  // P3-TL11-AC03 (1): 2 件以上の気象警報・注意報時系列情報の便の束。report は 1 報目、count は報の数（2〜64）、offices は PublishingOffice の異なる数（0〜64）、
+  // risks は束の報の risks を type ごとに最も重い 1 つへ合わせたもの（32 組まで。worker は XML を持たないので main が束を出す時に 1 回作る）。
+  | Readonly<{ kind: "timeseries"; report: Extract<TerminalReport, { kind: "short" }>; count: number; offices: number;
+    risks: NonNullable<Extract<TerminalReport, { kind: "short" }>["risks"]>; prompt: string | null }>
   // P3-TL10-AC01 (5): 2 報以上の降灰予報（定時）のまとまり（並びの順、20 まで）。1 報だけのまとまりは kind report で積む。
   | Readonly<{ kind: "ashfall"; reports: readonly Extract<TerminalReport, { kind: "short" }>[]; prompt: string | null }>;
 // 定期要約の数（AC11 (3)）。maxInt は地震の報の最大震度の字（無ければ null）。
@@ -673,8 +677,10 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number, s
   const numeric = /^M[0-9.]+$/;
   const magSegs = compared?.mag != null && numeric.test(mag) && numeric.test(compared.mag)
     ? [seg("M"), ...was(compared.mag.slice(1), mag.slice(1)), seg(mag.slice(1))] : [...was(compared?.mag, mag), seg(mag)];
-  const hypocenter = assumed ? joined([[seg(`震源: ${name ?? "不明"}（仮定の震源、PLUM法で推定）`)], ...lgItem], ctx.body)
-    : joined([[seg("震源: "), ...name == null ? [] : was(compared?.name, name), seg(name ?? "不明")], magSegs, [seg("深さ"), ...was(compared?.depth, depth), seg(depth)], ...lgItem], ctx.body);
+  // P3-TL11-AC04・D-EEW-EPICENTER=A: 震源の名前だけをその報の帯の罫線の役目（濃さの段を当てた後）の太字にする。「不明」と前の名前の矢印は今のまま。
+  const place = name == null ? seg("不明") : seg(name, roles.rule, true);
+  const hypocenter = assumed ? joined([[seg("震源: "), place, seg("（仮定の震源、PLUM法で推定）")], ...lgItem], ctx.body)
+    : joined([[seg("震源: "), ...name == null ? [] : was(compared?.name, name), place], magSegs, [seg("深さ"), ...was(compared?.depth, depth), seg(depth)], ...lgItem], ctx.body);
   // 見出し文の先頭が「<震源名>で地震」のときだけ外す（震源の行と重なる、P3-TL-AC04 (2)）。
   const cut = name != null && headline.startsWith(`${name}で地震`) ? headline.slice(`${name}で地震`.length).replace(/^　+/, "") : null;
   const rest = cut ?? headline;
@@ -771,6 +777,17 @@ function ashfall(reports: readonly Extract<TerminalReport, { kind: "short" }>[],
   const office = head.publishingOffice == null || head.publishingOffice === "" ? head.headType : `${head.headType} ・ ${head.publishingOffice}`;
   const names = reports.map((report) => line(seg(report.target == null || report.target === "" ? report.head.title ?? report.head.headType : report.target)));
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles, { summary: names, tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
+}
+// P3-TL11-AC03・spec §5.4 の図: 気象警報・注意報時系列情報の便の束。帯は 1 報目の Control/Title と印と「 N件」で段は普通（D-TS-LEVEL=A）、
+// その下に種類の行（Code の大きい順、同じ Code は先に現れた順。sort は安定）を組の境で折り、末尾の行は官署の数（D-TS-FOOTER=B）。
+function timeseries(unit: Extract<TerminalUnit, { kind: "timeseries" }>, ctx: Ctx): Rendered {
+  const { head } = unit.report, roles = BAND_ROLES.plain;
+  const title = `${(head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "")}${statusMark(head.status)} ${unit.count}件`;
+  const kinds = [...unit.risks].sort((left, right) => Number(right.code) - Number(left.code));
+  // 組が無ければ行を出さない（flow は空の並びでも空の 1 行を返す）。
+  const summary = kinds.length === 0 ? [] : flow([], kinds.map((risk) => [seg(`${risk.type}（${risk.name}）`)]), ctx.body, 0);
+  const office = unit.offices === 0 ? head.headType : `${head.headType} ・ ${unit.offices} 官署`;
+  return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles, { summary, tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 const two = (value: number): string => String(value).padStart(2, "0");
 const localClock = (ms: number): string => { const at = new Date(ms); return `${two(at.getHours())}:${two(at.getMinutes())}:${two(at.getSeconds())}`; };
@@ -940,6 +957,7 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
           }
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;
           case "ashfall": out += emit(paintBlock(ashfall(unit.reports, ctx), ctx, paint), unit.prompt); break;
+          case "timeseries": out += emit(paintBlock(timeseries(unit, ctx), ctx, paint), unit.prompt); break;
           case "notice": {
             const shown = afterFold && unit.notice.kind === "debug" ? { ...unit.notice, text: unit.notice.text.replace("、出した）", "、出さない・畳んだ）") } : unit.notice;
             // 行の無い知らせ（全部 0 件のまとめ）は空行も入力の行の書き直しも出さない。
