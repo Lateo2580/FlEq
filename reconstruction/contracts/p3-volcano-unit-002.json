@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "963981d798b379cc503e8fc22c8cc36e4243f6d8df7a2c7902fba0fa0be1cdf4",
+    "sha256": "74431754ace687ff0eccd81001dc7e5af42cfa4df448d0f63236703274bc39e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -111,7 +111,7 @@
     "contractId": "P3-UNIT-V-002",
     "mode": "implementation",
     "objective": "U-V の残りの裁定 2 つを入れる。(1) VFVO51 の火山 entry が active の警報を ended にしたら、その警報の未配送の通知（pending）を撤回し、引下げの後に前の引上げの音が鳴らないようにする (2) VFVO50 の取消は陸の部分だけを取り消し、海上警報（VFSV）の区分が残るなら警報を active のまま画面に残す（F1 の再裁定 B）",
-    "baseOid": "unassigned",
+    "baseOid": "ccf6f5b2",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
