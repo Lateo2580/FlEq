@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "420c73e6e0661a928a682d7101e13c418baa64fe2177b39f30ec468f83b7ba2f",
+    "sha256": "55a72ff115818c240956dd21ec3958765595d8ec12fd1bd6730655b96f433746",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -324,7 +324,7 @@
           "docs/specs/cli-terminal-output.md:578 «a39df5a4e08de1a6»",
           "docs/specs/cli-terminal-output.md:586 «7703bab93e52b358»",
           "docs/specs/cli-terminal-output.md:613 «fb3b8f31164e2e41»",
-          "docs/specs/cli-terminal-output.md:608 «6d2f8d86b668c7a2»",
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
           "reconstruction/src/terminal/format.ts:30 «31f2348dabb04531»",
           "reconstruction/src/terminal/format.ts:735 «e7ee619a4b3fb00c»",
           "reconstruction/src/terminal/format.ts:772 «bc550fe8ae383851»"

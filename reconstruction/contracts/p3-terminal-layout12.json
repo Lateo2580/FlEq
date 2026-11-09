@@ -1,0 +1,405 @@
+{
+  "meta": {
+    "draftedFromOid": "e53b60cff971e8c18e10398b40584cbaac396b9c",
+    "sha256": "8e60fe1f22c0828ce536b6b85fc1d953c3c585f4c44295b9fb648f46335e5130",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL12-D-BAND-TITLE",
+        "kind": "作者",
+        "A": "気象警報・注意報（VPWW55〜61。VPWW56 は土砂災害で U-L、ほかは U-W）の帯の題名を、Control/Title「気象警報・注意報（波浪）」と Body の最初の Area の名前の組から、Head/Title の字に替え、対象を付けない（熱中症警戒アラート・早期天候情報・時系列情報の前例 Q-TO10-HEAD-TITLE と同じ形）。2026-11-08 21:49 の室蘭は「━ 胆振・日高地方波浪警報・注意報 ━」、19:49 の長崎県は「━ 長崎県乾燥注意報 ━」、21:34 の釧路は「━ 釧路・根室地方波浪警報・注意報 ━」になる（どれも旧築の写し pi-legacy-1335.txt の枠の題名と同じ字。8411・7961・8301 行）。Head/Title が欠けた報（U-W は受理する）は、対象を付けず種類の名前だけ（「━ 気象警報・注意報（波浪） ━」）",
+        "B": "Control/Title（版の印を除く）のまま、対象を Body の Warning のうち type が「気象警報・注意報（府県予報区等）」の層の Item の Area の Name を電文の順に全角の空白で並べた字にする（室蘭は「━ 気象警報・注意報（波浪） 胆振地方　日高地方 ━」）",
+        "C": "今のまま（Body の最初の Area の名前）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-09 夕。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-09）",
+        "reason": "今の帯の対象は material.ts の scan が拾う Body の最初の Area の名前で、VPWW では府県予報区等の層の最初の Item（北海道は地方ごと。15_18_01 の VPWS50 の層で胆振地方 015010・日高地方 015020 が別の Item）になる。1 つの官署が北海道の地方を 2 つ以上受け持つと、帯は受け持ちの一部の地方だけを言い、解除の報は見出し文が「注意報を解除します。」だけなので帯の地方が解除されたと読める（写し mini-new-1335.txt の 124 行「気象警報・注意報（波浪） 胆振地方」、解除は日高東部だけ。旭川 21:51・札幌 21:53・函館 00:57・札幌 04:11 も同じ）。A の Head/Title は電文の字そのもので、官署の受け持つ区域と現象を持つ（repo の VPWW の 13 本の fixture は全部「<区域><現象>警報・注意報」か「<区域><種類>注意報」の形。VPWW61 は「宗谷地方雷・融雪・濃霧・乾燥・なだれ・低温・霜・着雪・着氷注意報」のように種類を並べ、長崎県の解除の報は「長崎県乾燥注意報」で、帯の「（その他注意報）」で読めなかった種類も読める）。旧築は Head/Title を枠の題名にしていた（src/dmdata/weather-parser.ts の title、src/ui/weather-core-formatter.ts の題名の行）。A の副作用: 区域の字が Area の Name から Head/Title の字に変わる（鹿児島県は新 114 行「鹿児島県（奄美地方除く）」→ Head/Title「鹿児島県（奄美地方を除く）乾燥注意報」、旧 8343 行）。題名に「波浪警報・注意報」の総称が入るので、段の理由の行の突き合わせを見出し文だけにする（P3-TL12-D-REASON-MATCH）。B は帯で地方の全部を言えるが、並べるのは FlEq で、室蘭の VPWW59 が毎回 2 つの地方の Item を両方持つか（持たない地方を載せない報があるか）は未確認で、VPWW61 の帯は「（その他注意報）」のままで種類が読めない。C は (a)-1 の誤読が残る。A でも B でも、どこで何が解除されたかは帯だけでは読めない（P3-TL12-D-RELEASED）。B のときは AC01 の題名の項を B の字に替え、scan で層の名前を集める項を AC02 に足す"
+      },
+      {
+        "id": "P3-TL12-D-RELEASED",
+        "kind": "作者",
+        "A": "取消でない気象警報・注意報で Kind の Status が「解除」のものがあれば、見出し文の下に解除の行を出す。区域は Body の Warning のうち type が「気象警報・注意報（市町村等をまとめた地域等）」の層の Item の Area の Name（旧築の表と同じ区域）。Status が解除の Kind を Code ごとに 1 行にまとめ、左の列は「<Kind の Name> 解除」、右の列は区域を電文の順に全角の空白で並べる（全国の集約通報の表と同じ形）。行の並びは電文で先に現れた順（前例 P3-TL8 の集約通報の表は Code の昇順で、ここは違う。集約通報は前の報と比べて出し直しを省く〔P3-TL8-AC04〕ために並びを固定したが、解除の行は比べないので、電文の順のまま気象庁の並べた順に読める）。室蘭は「波浪注意報 解除  日高東部」、長崎県は「乾燥注意報 解除  島原半島　長崎地区　諫早・大村地区　…　下五島」の 11 区域で 100 桁なら 2 行",
+        "B": "A と同じ形で、区域を一次細分区域等の層（type「気象警報・注意報（一次細分区域等）」、見出し文が「後志地方では」「伊豆では」と言うのと同じ粒）にする。室蘭は「波浪注意報 解除  日高地方」になりうる、長崎県は数区域で 1 行",
+        "C": "足さない（見出し文のまま）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-09 夕。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-09）",
+        "reason": "写しの気象警報・注意報 82 件のうち 26 件は見出し文が「注意報を解除します。」だけで、何の注意報がどこで解除されたかが端末に無い（今の短い形は帯・見出し文・末尾の 3 行で、段の理由の行は警報以上だけ。Q-TO-S-1・Q-TO3-REASON）。旧築は解除の区域を表にしていた（pi-legacy-1335.txt の 8411〜8416 行「波浪注意報 日高東部 ▼解除」、7961〜7976 行の長崎県の 11 区域）。A の層は旧築の表と同じで、一部だけの解除も見える。B の一次細分区域等の層は Status が下の区域の変化を丸める: 15_18_01 の VPWS50 では奄美地方（一次細分区域等）の強風注意報が「継続」で、その下の市町村等をまとめた地域等の北部・南部は「解除」、日高地方（一次細分区域等）の濃霧注意報が「継続」で日高西部・中部は「発表」。B では一部だけの解除が出ないおそれがある（21:49 の室蘭は、旧築の要約の行 8408「波浪注意報　日高地方　解除 1」から一次細分区域等でも読めたと見られるが、Body は未確認）。C は (c)-1 が残る。P3-TL12-D-BAND-TITLE=A だけでも、その他注意報の種類は Head/Title で読めるようになる（「長崎県乾燥注意報」）。解除の行が足すのは「どこで」と、継続と解除が混ざる報（21:53 の札幌は見出し文「後志地方では、高波に注意してください。」、旧築の表で石狩北部が解除）。行の字は電文の Kind の Name と Status の字「解除」と Area の Name だけで、読み替えない。B のときは AC02 の層の type を一次細分区域等に替え、C のときは AC02・AC03 の解除の項と types.ts の欄を外す"
+      },
+      {
+        "id": "P3-TL12-D-REASON-MATCH",
+        "kind": "統合担当",
+        "A": "Head/Title を帯の題名にした報（P3-TL12-D-BAND-TITLE=A の気象警報・注意報と、前例の 3 種類）では、段の理由の行を見出し文とだけ突き合わせ、帯の題名とは突き合わせない",
+        "B": "今のとおり帯の題名とも突き合わせる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-09 起草）",
+        "ruling": "A（統合担当）",
+        "reason": "Q-TO3-REASON は「見出し文か帯の題名に同じ字があるときは出さない」で、字がもう画面にあるときに繰り返さないための決め。Head/Title の「宗谷地方波浪警報・注意報」は報の種類の総称で、「波浪警報」が出ているとは言っていないが、字としては Kind の名前「波浪警報」を含む。B のままだと 15_16_05 の VPWW59（波浪警報、警報の段）は理由の行が消え、帯の色と見出し文「高波に警戒してください。」だけになる（今は帯「気象警報・注意報（波浪） 宗谷地方」の下に「波浪警報」が出ている）。大雪（VPWW60「宗谷地方大雪警報・注意報」と「大雪警報」）も同じ。レベルの付く Kind（「レベル３大雨警報」）と暴風（「暴風（雪）警報・注意報」と「暴風警報」）は題名に含まれないので変わらない。前例の 3 種類は段が普通で理由の行が無いので、A で変わる報は無い"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL12-RECHECK",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-09）。報告 ~/dev/fleq-vault-archive/2026-11-09-snap/sweep/report.md、写し mini-new-1335.txt・pi-legacy-1335.txt、repo の VPWW の 13 本の fixture と 15_18_01 の VPWS50、新築と旧築の src を読み直した",
+        "closed": "帯の対象は material.ts の scan の「最初の Area/Name」（Body の文書の順）で、format.ts の shortForm が Control/Title の後ろに付ける。VPWW の Body は Warning が 4 層（府県予報区等・一次細分区域等・市町村等をまとめた地域等・市町村等）で、Head/Headline にも Information の層があるが scan は Body だけを辿る。Head/Title は 13 本とも区域と現象を持つ（Q-TL12-SCOPE）。旧築の枠の題名は Head/Title（weather-parser.ts の title、weather-core-formatter.ts の題名の行）で、写しの北海道の題名は「胆振・日高地方」「上川・留萌地方」「石狩・空知・後志地方」「渡島・檜山地方」「釧路・根室地方」「網走・北見・紋別地方」の組。Status が「解除」の Kind は repo の VPW の fixture を通して 214 個で、全部 Name を持つ（Name の無い Kind は Status が「発表警報・注意報はなし」のもの）。市町村等をまとめた地域等の層で Status が解除の Kind は、15_17_01（島根県、警報が続く報の隠岐）・18_00_01 の福井の解除（嶺北北部・嶺北南部・奥越）・香川の解除（高松地域）にある。21:49 の室蘭の電文そのものは repo に無い（Q-TL12-MURORAN-XML）",
+        "remaining": "室蘭の実 XML（Q-TL12-MURORAN-XML）"
+      },
+      {
+        "id": "Q-TL12-SCOPE",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-09）",
+        "closed": "対象は headType が VPWW55・VPWW56・VPWW57・VPWW58・VPWW59・VPWW60・VPWW61（unit-coverage.ts で VPWW56 は U-L、ほかは U-W。VPWW53・54 は ignored で端末に来ない）。unit でなく headType で決める（U-W には VPWS50 と VPNO50 があり、VPWS50 は Q-TO9-VPWS50-TARGET の「全国」と表のまま、VPNO50 は端末に出ない）。Head/Title が欠けた報は Control/Title の種類の名前だけで対象を付けない（U-W は受理するが U-L は拒否する。AC01 (1)）。取消の報も帯の題名は Head/Title（「宗谷地方土砂災害警報・注意報 取消」）で、解除の行は出さない（取消の報の Body は取消の文で、Kind は読まない。前例の月間火山概況・噴火速報・集約通報も取消には表を出さない）。訂正（synthetic_VPWW56_correction）は今のとおり印と同じ扱い",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-ROW-FORM",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-09）。前例 P3-TL8-AC02（全国の集約通報の表）",
+        "closed": "D-RELEASED=A の行の形は全国の集約通報の警報以上の表（listTable、左の列は Kind の Name、右の列は区域を全角の空白で並べ、折り返した行にも左の列を薄い字）と同じにし、左の列だけ「<Kind の Name> 解除」にする（Kind の Name だけだと発表の行と読める）。行は Code ごと（同じ Code の Kind は 1 行、Code が 2 桁の数字でない Kind は行にせず others に数える）、並びは電文で先に現れた順（集約通報は端末の比べ P3-TL8-AC04 のために Code の昇順にしたが、解除の行は比べない）。1 つの Item が同じ Code の解除の Kind を 2 つ持っても区域は 1 回（P3-TL8-AC02 (2) と同じ）。並びが前例の Code の昇順と違うことは作者の分岐 D-RELEASED の A に書いて一緒に見せる。区域の層の Item は AREA_LIMIT（256、RES-02）まで、行は 100 まで、延べは 512 まで読み（Item ごとに数える。Q-TL12-LIMIT）、越えた Item と、解除の Kind を持つのに Area の Name が無いか空の Item は others に数えて薄い字の「ほか n 区域は読んでいません」の 1 行（集約通報の「ほか n 予報区は読んでいません」と同じ）。行は要点のまとまりの見出し文の下に置き、罫線を引かない。段の理由の行がある報は、見出し文と同じく 2 桁下げる（Q-TO7-REASON-INDENT。太字の差だけでは理由の行と本文の境が読めないため）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-SPEC-LINES",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-09）",
+        "closed": "spec に足した行は §8 の 2 行（889・890 行、Q-TO13-VPWW-TITLE・Q-TO13-RELEASED。表の行は 1 問 1 行なので既存の行に畳めない）だけ。§5.4 の項は、前の起草で 614 行に新しい項として足していたのを、011 の配送の後の起草し直しで Head/Title の項（608 行、Q-TO10-HEAD-TITLE）の末尾に接いだ（新しい行を足すと、614 行以降を引く他の契約の «» 139 個がずれるため）。接いだ字は前の項のままで、前の 3 種類と分けて読めるように「は」を「も」に、「最初の Area は一部の地方になりうるため」を「上の 3 つと違って今の形にしないのは、最初の Area が一部の地方になりうるため」に、「上の熱中症警戒アラート・早期天候情報・時系列情報を含む」を「この項の 4 つ」に替えた 3 か所だけ。608 行は p3-terminal-layout9.json（2 個）と p3-terminal-layout11.json（1 個）が引くので、その 3 個の «» を新しい anchor に手で取り直し、2 つの契約の meta.sha256 を取り直した。今ある行で中身を変えたのはほかに、§5.4 の気象警報の図の帯の 1 行（486 行）と、§8 の Q-TO-S-1（806）・Q-TO-S-3（808）・Q-TO2-SHORT（834）の答えの括弧で、どれもどの契約も引いていない。§5.4 の「対象の例外」（585 行、layout9 が引く）と §8 の Q-TO10-HEAD-TITLE（878 行）は変えない（585 行は原文の改訂 (4)）。元の 889 行以降を引く他の契約の «» 54 個（p3-terminal-layout6・layout7・prompt・windows の 4 契約）は reanchor-target.py で +2 に付け直した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-LIMIT",
+        "status": "closed",
+        "source": "起草レビュー r0（Opus P3）。前例 P3-TL8-AC01 (3)（material.ts の nationalTable）",
+        "closed": "解除の行の上限 256 は、集約通報の前例どおり層の Item ごとに数える（nationalTable は Item ごとに take し、others は読まなかった Item の数）。区域は Item に 1 つなので、Item で数えると「ほか n 区域」の n がそのまま読まなかった区域の数になる。解除の Kind ごとや区域と Kind の組ごとに数えると、1 つの Item の区域が数の中で何度も数えられ、n が区域の数でなくなる。repo の VPWW の 13 本の市町村等をまとめた地域等の層の Item は 3〜7 個（全国の VPWS50 でも 375 個）で、1 つの官署の報で 256 に届く例は無い。起草レビュー r1（ヘルツ P2）で、Item の数・行の数・延べの数を分けた: 1 つの Item は解除の Kind の数だけ行に載るので、Item で数えると行の数と延べは Item の数に縛られない（15_16_07 の VPWW61 の層 476 行目からの 3 Item に Kind が 9 個）。行は鍵を 2 桁の Code にして 100 まで（repo の VPW の fixture の解除の Kind 214 個は全部 2 桁の Code と Name を持ち、Code は 6 種類）。延べは 512（1 つの官署の報の現実の延べは、層の Item 3〜7 個 × 1 Item の解除の Kind の数で数十。fixture の 1 Item の解除の Kind は 1 個）。名前は 32 字まで（区域の名前の最長は「佐世保・東彼地区」などの 8 字、Kind の Name は「レベル２土砂災害注意報」の 11 字）。この 3 つで 1 報の released の見積もりが 64 KiB 以下に決まる（AC04 (2)）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-REVIEW-R0",
+        "status": "closed",
+        "source": "2026-11-09 の起草レビュー r0（品質 ヘルツ 条件付き GO・P2 1 件、契約適合 Opus 条件付き GO・P2 2 件と P3 6 件）",
+        "closed": "全部当てた。(1) ヘルツ P2: Head/Title の欠けた VPWW55〜61 も対象を付けず Control/Title の種類の名前だけ（AC01 (1)、T03 (d)、spec 614・890） (2) Opus P2: spec §8 の Q-TO-S-3・Q-TO2-SHORT の答えに「Q-TO13-RELEASED でも改めた、起草の仮」、Q-TO13-RELEASED の答えに「Q-TO-S-3・Q-TO2-SHORT を改めた」 (3) Opus P2: 原文の改訂 (1) に P3-TO-AC09 の Head/Title の並びへ VPWW55〜61 を加える旨 (4) Opus P3: spec 614 の理由の行の突き合わせを Head/Title を題名にした報の全部に揃えた。spec 585 の対象の例外は原文の改訂 (4) に入れた (5) Opus P3: Q-TL12-ORDER-WITH-011 を手での取り直しに書き直した (6) Opus P3: 上限は Item ごと（Q-TL12-LIMIT、AC02 (3)） (7) Opus P3: 並びが前例と違うことを D-RELEASED の A と spec 614 に書いた (8) 旧築の行 8409 を 8408 に直した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-REVIEW-R1",
+        "status": "closed",
+        "source": "2026-11-09 の起草レビュー r1（契約適合 Opus GO・P3 1 件、品質 ヘルツ 条件付き GO・P2 1 件）",
+        "closed": "全部当てた。(1) ヘルツ P2: AC02 (3) の Item ごとの上限と AC04 の「行は区域より多くならない」が、複数種類の同時解除で両立しなかった。Item・行・延べの上限を分け（AC02 (3)、Q-TL12-LIMIT）、AC04 (2) の容量の見積もりを 64 KiB 以下に書き直し、T02 に VPWW61 の 9 種類の同時解除と延べの境界を足した。spec 614 の上限の句も合わせた (2) Opus P3: D-BAND-TITLE の A に題名の欠けた報の形を 1 文足した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-RULINGS",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-09 夕、推奨どおり）",
+        "closed": "P3-TL12-D-BAND-TITLE=A（帯の題名を Head/Title、対象を付けない）、P3-TL12-D-RELEASED=A（解除の行、区域は市町村等をまとめた地域等の層）。本文は起草の仮のまま変えず、AC01〜AC03・spec §5.4 の項と §8 の Q-TO-S-1・Q-TO-S-3・Q-TO2-SHORT・Q-TO13-VPWW-TITLE・Q-TO13-RELEASED を確定の字にし、unresolvedQuestions の Q-TL12-BAND-TITLE・Q-TL12-RELEASED を外した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-ORDER-WITH-011",
+        "status": "closed",
+        "source": "起草（統合担当、2026-11-09）",
+        "closed": "P3-TERMINAL-LAYOUT-011 は main に入った（e53b60cf）。本契約はその上で起草し直した（Q-TL12-REDRAFT-011）。011 と本契約は、どちらも material.ts の scan（011 は Significancy の道、本契約は解除の Kind）と、types.ts の short の注釈と型の行と、format.ts の shortForm を触る。本契約の実装は 011 の句を残して足す（AC02 (1)(4)、allowedPaths）。本契約の実装で中身が変わりうる行のうち、他の契約が引くのは 3 つ: types.ts:85 «9ac2630f36e600d8»（layout11 が 2 個、short の型の行に欄 released を足す）、material.ts:123 «5debc43eaed5c8fa»（layout11 が 2 個、scan の宣言に引数か返す型を足すとき）、format.ts:735 «e7ee619a4b3fb00c»（layout11 が 1 個、own の行に headType を足すとき）。この 3 つは reanchor-target.py では見つからないので、配送で統合担当が手で引き直し、layout11 の meta.sha256 を取り直す。行がずれるだけの «» は reanchor-target.py で付け直せるが、material.ts は basename が decode-material.ts にも当たるので手で付け直す",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL12-REDRAFT-011",
+        "status": "closed",
+        "source": "起草し直し（統合担当、2026-11-09）。前の起草は branch draft/tl12（459529a7、011 の配送の前の 7acded39 の上）で、011 の配送が同じ契約の «»・meta.sha256 と spec を変えたので rebase が衝突した",
+        "closed": "011 の配送の後に起草し直した（e53b60cf の上）。変えた所: (1) types.ts:84・:85 と material.ts:123 は 011 が中身を変えた（risks の句と欄、scan の withRisks と place）ので、本契約の «» を今の行で取り直し、AC02 (1)(4) と allowedPaths に「011 の句を残して後ろに足す」「place と別の引数で層を見分ける」「found.kinds の 256 と別に数える」を書いた (2) ほかの src の «» は中身が同じで行だけずれていた（format.ts は +4〜+6、material.ts は +11・+22）ので今の行に付け直した (3) spec の §5.4 の項は新しい行でなく 608 行の末尾に接いだ（Q-TL12-SPEC-LINES） (4) allowedPaths の「中身を変えない行」と、配送で取り直す行を今の番号で名指しした（Q-TL12-ORDER-WITH-011） (5) 作者の裁定（D-BAND-TITLE=A・D-RELEASED=A）・D-REASON-MATCH=A・起草レビュー r0 と r1 で当てた直しは変えていない（Q-TL12-REVIEW-R0・R1 の「spec 614」は今の 608 行、「890・891」は今の 889・890 行）",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。帯の題名の Control/Status の印（訓練・試験）は今のとおり Head/Title の後ろに付ける"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-012",
+    "mode": "implementation",
+    "objective": "気象警報・注意報（VPWW55〜61）の短い形で、帯が報の一部の地方だけを言い、解除の報が何をどこで解除したか読めない欠けを直す（2026-11-09 の旧築と新築の写しの突き合わせの (a)-1 と (c)-1）。帯の題名は Head/Title にし（P3-TL12-D-BAND-TITLE=A、2026-11-09 の作者の裁定）、Status が解除の Kind を区域つきで見出し文の下に出す（P3-TL12-D-RELEASED=A、2026-11-09 の作者の裁定）。形は reconstruction/src/terminal の material.ts・format.ts と p3-terminal-output.types.ts の中で作る",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout12.json",
+      "reconstruction/contracts/p3-terminal-layout11.json",
+      "reconstruction/contracts/p3-terminal-layout9.json",
+      "reconstruction/contracts/p3-terminal-layout8.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/**",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/test/terminal/**",
+      "src/dmdata/weather-parser.ts",
+      "src/ui/weather-core-formatter.ts",
+      "test/fixtures/15_16_05_241226_VPWW59.xml",
+      "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml",
+      "test/fixtures/15_17_01_251222_VPWW55.xml",
+      "test/fixtures/15_16_07_250825_VPWW61.xml",
+      "test/fixtures/15_18_01_250630_VPWS50.xml",
+      "test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml",
+      "test/fixtures/18_00_01_260603_VPWW56_kagawa_release.xml",
+      "test/fixtures/15_16_04_251222_VPWW58.xml",
+      "test/fixtures/synthetic_VPWW56_cancel.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p3-terminal-output.types.ts（TerminalReport の short に欄 released を 1 つ足すことと、その注釈の行だけ。84 行の注釈と 85 行の short の型は 011 が risks を足した行で、risks の文と欄を残してその後ろに足し、行を足さない。85 行は p3-terminal-layout11.json が引くので、配送で «» を取り直す）",
+      "reconstruction/src/terminal/material.ts（scan の同じ辿りで解除の Kind を集めることと、short の新しい欄だけ。scan の 011 の句〔withRisks・place・PATH・risks〕は働きを変えずに残す。他の契約が引く行のうち、p3-terminal-layout9.json の :66、p3-view-alert-text.json の :102、p3-terminal-layout11.json の :128・:184・:255、p3-terminal-layout10.json の :277・:303、p3-tsunami-hold-mark.json の :303 の行の中身は変えない。p3-terminal-layout11.json が引く :123〔scan の宣言〕は、引数か返す型を足すと中身が変わるので、配送で «» を取り直す〔番号は e53b60cf〕）",
+      "reconstruction/src/terminal/format.ts（shortForm の Head/Title の題名の headType と、段の理由の行の突き合わせと、解除の行の描画だけ。p3-terminal-layout11.json の :30・:651・:682・:683・:772、p3-terminal-layout10.json の :607・:690、p3-recovery-boundary.json の :849 の行の中身は変えない。p3-terminal-layout11.json が引く :735〔own の行〕は、headType を足すと中身が変わるので、配送で «» を取り直す〔番号は e53b60cf〕）",
+      "reconstruction/test/terminal/**"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout12.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-011",
+      "P3-TERMINAL-LAYOUT-009",
+      "P3-TERMINAL-LAYOUT-008",
+      "P3-TERMINAL-LAYOUT-002",
+      "P3-TERMINAL-OUTPUT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_16_05_241226_VPWW59",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__15_17_01_251222_VPWW55",
+      "test__fixtures__18_00_01_260603_VPWW56_kagawa_release",
+      "test__fixtures__15_16_07_250825_VPWW61",
+      "test__fixtures__15_16_04_251222_VPWW58",
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__synthetic_VPWW56_cancel"
+    ],
+    "sequenceIds": [
+      "O03"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "TerminalReport の short の released（端末の材料の欄、1 報に 1 回作り、保存しない）"
+    ],
+    "outOfScope": [
+      "全国の集約通報（VPWS50）の帯と表（Q-TO9-VPWS50-TARGET のまま）と、VPNO50",
+      "解除でない Kind（発表・継続・切替）の区域の行と、旧築の表の形（級・種別・地域・状態の列）。短い形は表を出さない（Q-TO-S-1）",
+      "Head/Headline の Information の層を読むこと",
+      "帯の題名の版の印「（Ｈ３０）」（写しの突き合わせの (c)-2）、unknownType の電文（(c)-3）、待機中の tips の空行（(c)-4）、起動時のまとめ",
+      "U-W・U-L（気象警報・土砂災害の unit）の判定・state・保存・通知、runtime（composition-root.ts・host.ts）",
+      "ディスプレイ（P4）と view・snapshot の扱い、通知の文面",
+      "旧築（src/）",
+      "spec 本体の編集（起草で済ませた）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL12-AC01",
+        "requirement": "気象警報・注意報の帯（Q-TO13-VPWW-TITLE、P3-TL12-D-BAND-TITLE=A・D-REASON-MATCH=A、前例 P3-TL9-AC01）: (1) format.ts の shortForm で、headType が VPWW55〜61 の報は、帯の題名を Head/Title にし、対象を付けない（熱中症警戒アラート・早期天候情報・時系列情報と同じ扱い。版の印の除き方・Control/Status の印・取消の「 取消」の付け方は今のとおり）。Head/Title が空か無い報は、Control/Title（版の印を除いた種類の名前）だけにして対象を付けない（前例の 3 種類は今の形〔Control/Title と最初の Area〕のまま）。最初の Area は府県予報区等の層の最初の Item で一部の地方になりうるので、題名の欠けた報でも付けない。U-W は Head/Title の無い報も受理する（owner-runtime.ts の validateSemanticEnvelope は Head の有無と ReportDateTime だけを見て、weather-current.ts の validateMaterial は題名を確かめない）。U-L は題名の欠けた報を拒否する（landslide.ts の requiredStructureMissing）ので VPWW56 では起きない (2) 段の理由の行は、Head/Title を題名にした報では見出し文とだけ突き合わせる（帯の題名に同じ字があっても出す）。ほかの報は今のとおり見出し文と帯の題名の両方と突き合わせる (3) material.ts の target（最初の Area の名前）の作り方は変えない（ほかの短い形と降灰のまとまりが使う） (4) VPWS50 は今のまま「全国」。場面: 2026-11-08 21:49 の室蘭の VPWW59（Head/Title「胆振・日高地方波浪警報・注意報」）の帯は「━ 胆振・日高地方波浪警報・注意報 ━━ 21:49:00 発表 ━」で、「胆振地方」の字は出ない。15_16_05 の VPWW59 は帯「宗谷地方波浪警報・注意報」の下に今のとおり太字の「波浪警報」の行が出る。18_00_01 の福井の L5 は帯「福井県大雨警報・注意報」で、理由の行は見出し文に字があるので今のとおり出ない",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:889 «bdfb07fd31cac44c»",
+          "docs/specs/cli-terminal-output.md:486 «7703ec7d8d04ce8e»",
+          "docs/specs/cli-terminal-output.md:600 «ab2218d4a63a6607»",
+          "docs/specs/cli-terminal-output.md:878 «c5a8febece3d2b10»",
+          "reconstruction/src/terminal/format.ts:735 «e7ee619a4b3fb00c»",
+          "reconstruction/src/terminal/format.ts:736 «f904478763c7a56e»",
+          "reconstruction/src/terminal/format.ts:744 «acf619a138b267bc»",
+          "reconstruction/src/terminal/material.ts:127 «350fb3f40599ad30»",
+          "reconstruction/src/runtime/owner-runtime.ts:118 «4b4c6774cb5a4b56»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:218 «a460947a42646b3f»",
+          "reconstruction/src/domains/landslide/landslide.ts:98 «5d7135dfff6248cd»",
+          "reconstruction/src/domains/landslide/landslide.ts:167 «c2338d6db9f17469»",
+          "test/fixtures/15_16_05_241226_VPWW59.xml:11 «9e2d1624f6233594»",
+          "test/fixtures/15_16_07_250825_VPWW61.xml:11 «9d22891b5cbe0fc6»",
+          "src/dmdata/weather-parser.ts:446 «b1640cb4b6448967»",
+          "src/ui/weather-core-formatter.ts:115 «9db8d60f116f5cdc»"
+        ]
+      },
+      {
+        "id": "P3-TL12-AC02",
+        "requirement": "解除の材料（Q-TO13-RELEASED、P3-TL12-D-RELEASED=A、Q-TL12-ROW-FORM）: (1) p3-terminal-output.types.ts の TerminalReport の short に欄 released を 1 つ足す（011 が足した欄 risks の後ろ。注釈の行も risks の文の後ろに足す）。形は national と同じ「読み取りだけの { rows: { label: string; areas: string[] }[]; others: number }」か null。headType が VPWW55〜61 で InfoType が取消でない報では必ず非 null（rows が空のこともある）、ほかの報（VPWW の取消、VPWS50、ほかの unit）は null。注釈の行に意味を書く (2) 集め方: material.ts の scan の同じ辿りの中で、Body の Warning のうち type 属性が「気象警報・注意報（市町村等をまとめた地域等）」のものの子の Item ごとに、Area の Name（read の字）と、子の Kind のうち Status の字が「解除」のものを見る。Kind の Code（2 桁の数字）ごとに行を 1 つ作り（label は最初の Kind の Name の字）、区域をその行の areas に電文の順に足す。1 つの Item が同じ鍵の Kind を 2 つ持っても区域は 1 回。行の並びは電文で先に現れた順 (3) 上限（Q-TL12-LIMIT）は 3 つを分けて数える。(a) Item: 層の Item を報の中で AREA_LIMIT（256）まで読む（解除の Kind の有無によらず Item ごとに 1 つ数える。集約通報の nationalTable の take と同じ） (b) 行: 鍵は 2 桁の数字の Code なので、行は 100 を越えない（数える仕組みを足さない） (c) 延べ: 各行の areas に載せる区域の延べ数は報の中で 512 まで。1 つの Item は解除の Kind の数だけ行に載る（同じ Item が複数の行に出る）ので、行の数は Item の数を越えうる（15_16_07 の VPWW61 の層は 3 Item に Code の違う Kind が 9 個）。others は「区域を全部は出せなかった Item」の数で、Item ごとに 1 回だけ数える: 読まなかった Item（257 個目から）、Area の Name が無いか空か 32 字を越える Item で解除の Kind を持つもの、解除の Kind のうち Code が 2 桁の数字でないか Name が無いか空か 32 字を越えるものを持つ Item、延べ 512 を越えて載せられなかった解除の Kind を持つ Item（載せられた分の行はそのまま）。行は区域を 1 つ載せた時に作る（区域の無い行は作らない） (4) 走査を増やさない: scan は今も Body の全部の要素を 1 回辿っている。解除の Kind を集めるのは headType が VPWW55〜61 のときだけで、今いる Warning の type を辿りの引数で子に渡して層を見分ける（市町村等の層と、ほかの 2 層の Item では集めない）。Item の子の Kind を見るのは Item ごとに 1 回で、鍵の行は Map で 1 回引く。visit には 011 が Significancy の道の印 place を渡している。place は risks を作らない報では null に落ちるので層の見分けに使わず、Warning の type は別の引数で渡す（place の働きと risks の結果を変えない）。解除の Kind は Item の要素のところで子の Kind を見て集め、found.kinds の 256 の上限（段を決める Kind の数）とは別に数える（found.kinds が 256 で止まった後の Item の解除も (3) の上限までは集める。repo の VPWW の fixture の Kind は多くて 74 個で、今はどちらの上限にも届かない） (5) 場面: 18_00_01 の福井の解除の released は rows「レベル２大雨注意報」・areas「嶺北北部・嶺北南部・奥越」、others 0（嶺南東部・嶺南西部は「発表警報・注意報はなし」で入らない）。15_17_01 の島根県（警報が続く）は「レベル２大雨注意報」・「隠岐」。18_00_01 の香川の解除（VPWW56、U-L）は「レベル２土砂災害注意報」・「高松地域」。15_16_07 の VPWW61 と 18_00_01 の福井の L5 は rows が空。15_18_01 の VPWS50 と synthetic_VPWW56_cancel は null",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:890 «fd770dad13ce7269»",
+          "docs/specs/cli-terminal-output.md:606 «9c66f8919dbc34b0»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:84 «cff8e39ae4d6e67d»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:85 «9ac2630f36e600d8»",
+          "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
+          "reconstruction/src/terminal/material.ts:123 «5debc43eaed5c8fa»",
+          "reconstruction/src/terminal/material.ts:128 «14d9c5d94d4c84ec»",
+          "reconstruction/src/terminal/material.ts:255 «32f2cccc604c620d»",
+          "reconstruction/src/terminal/material.ts:269 «2ea903faf02554fd»",
+          "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:20 «9650b5a64a4bf7f2»",
+          "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:273 «c27f48fb6f5a4878»",
+          "test/fixtures/15_17_01_251222_VPWW55.xml:431 «c27f48fb6f5a4878»",
+          "test/fixtures/15_18_01_250630_VPWS50.xml"
+        ]
+      },
+      {
+        "id": "P3-TL12-AC03",
+        "requirement": "解除の行の描画（spec §5.4 の項、P3-TL12-D-RELEASED=A）: (1) format.ts の shortForm で、released の rows を見出し文の行の下（噴火速報の活動の文より前。VPWW に活動の文は無い）に、要点のまとまりとして出す。各行は全国の集約通報の警報以上の表と同じ listTable の形で、左の列は「<label> 解除」、右の列は areas を全角の空白で並べ、折り返した行にも左の列を薄い字で出す。others が 0 でなければ薄い字の「ほか <others> 区域は読んでいません」の 1 行を足す。rows が空で others が 0 なら何も足さない (2) 段の理由の行がある報は、解除の行（「ほか」の行を含む）も見出し文と同じく頭に 2 桁の空白を置く (3) 罫線・見出しの行は足さない。末尾の行は今のとおり (4) 幅: 56・80・100 桁、色 0 と 3 で、どの行も桁数を越えない。区域の名前は 1 つの名前が本文の幅より長いときだけ名前の中で折る（flow の今の決まり）。場面: 2026-11-08 21:49 の室蘭の報は 80 桁で、空行・帯「胆振・日高地方波浪警報・注意報」・「注意報を解除します。」・「波浪注意報 解除  日高東部」・「VPWW59 ・ 室蘭地方気象台」。18_00_01 の福井の解除は「注意報を解除します。」の下に「レベル２大雨注意報 解除  嶺北北部　嶺北南部　奥越」。15_17_01 の島根県は太字の「レベル３大雨警報」、「  東部、西部では、…」、「  レベル２大雨注意報 解除  隠岐」",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:606 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:600 «ab2218d4a63a6607»",
+          "reconstruction/src/terminal/format.ts:195 «9459fdcf6cb53e57»",
+          "reconstruction/src/terminal/format.ts:757 «c70e1e6c94f17c1e»",
+          "reconstruction/src/terminal/format.ts:758 «f51d57435bfaae47»",
+          "reconstruction/src/terminal/format.ts:767 «50648e1af5c6eae4»",
+          "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:20 «9650b5a64a4bf7f2»"
+        ]
+      },
+      {
+        "id": "P3-TL12-AC04",
+        "requirement": "計算量・口（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) 足すのは scan の同じ辿りの中の Item ごとの Kind の確かめと、行の Map を鍵で 1 回引くことだけ。新しい辿り・JSON.stringify・報の並びの走査をしない (2) released の大きさ（output.ts の estimate の数え方: 文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte、鍵は鍵の byte）: label と区域の名前は 32 字まで（AC02 (3)、UTF-8 で 96 byte まで）。外側は入れ物 8 と鍵 rows・others の 10 と others の 8 と rows の列の 8 で 34 byte。1 行は添字の鍵 2 と入れ物 8 と鍵 label・areas の 10 と label 96 と areas の列 8 で 124 byte 以下、行は 100 まで（12,400 byte 以下）。区域の延べ 1 つは添字の鍵 3 と名前 96 で 99 byte 以下、512 まで（50,688 byte 以下）。合わせて 63,122 byte 以下（64 KiB 以下と書く）で、Item の数（256）によらない。受信 1 回の仕事は層の Item の数と Item の子の Kind の数に比例する加算で、全件×全件の走査は無い (3) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink の型。TerminalReport の short に欄 released を 1 つ足す（publicTypes、P3-TERMINAL-LAYOUT-008 の national と同じ足し方）。runtime と U-W・U-L を変えない",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
+          "reconstruction/src/terminal/material.ts:123 «5debc43eaed5c8fa»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:85 «9ac2630f36e600d8»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL12-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TL12-AC01",
+          "P3-TL12-AC03"
+        ],
+        "behavior": "実不具合（2026-11-08 21:49、Mac mini の新築の端末で、室蘭の VPWW59 の帯が「気象警報・注意報（波浪） 胆振地方」、見出し文が「注意報を解除します。」で、解除は日高東部だけだった）。実の XML は repo に無いので、試験の中で 15_16_05 の VPWW59 を写して作る: Head/Title を「胆振・日高地方波浪警報・注意報」、PublishingOffice を「室蘭地方気象台」、ReportDateTime を 2026-11-08T21:49:00+09:00、Head/Headline の Text を「注意報を解除します。」にし、Body の府県予報区等の層を Item「胆振地方」（Kind の Status「発表警報・注意報はなし」）と Item「日高地方」（波浪注意報・Code 16・解除）の順に、市町村等をまとめた地域等の層を Item「日高西部」（なし）と「日高東部」（波浪注意報・Code 16・解除）に替える（一次細分区域等と市町村等の層は同じ形で替える）。U-W の短い形を 80 桁・色 0 で描くと、空行・帯「胆振・日高地方波浪警報・注意報」（段は普通）・「注意報を解除します。」・「波浪注意報 解除  日高東部」・「VPWW59 ・ 室蘭地方気象台」の 5 行で、どの行にも「胆振地方」の字が無い。実 XML が取れたら（Q-TL12-MURORAN-XML）写しをそれに替える"
+      },
+      {
+        "testId": "P3-TL12-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL12-AC02"
+        ],
+        "behavior": "契約境界（端末の材料 TerminalReport の short の released の形）。terminalReport に渡すと、18_00_01 の福井の解除（U-W）・15_17_01（U-W）・18_00_01 の香川の解除（U-L）は AC02 (5) の行、15_16_07 の VPWW61 と福井の L5 は rows が空で others 0、15_18_01 の VPWS50 と synthetic_VPWW56_cancel（U-L）は null。福井の解除の市町村等をまとめた地域等の層の Item を 257 個に増やした報（どれも同じ解除の Kind）は areas が 256 個で others 1。複数種類の同時解除: 15_16_07 の VPWW61 の市町村等をまとめた地域等の層（3 Item に Code の違う Kind が計 9 個）の Status を全部「解除」にした報は、rows が 9 行（雷注意報・融雪注意報・低温注意報・濃霧注意報・乾燥注意報・なだれ注意報・霜注意報・着氷注意報・着雪注意報の電文の順）で、各行の areas は 1 つ（宗谷北部・宗谷北部・宗谷北部・宗谷南部・…・利尻・礼文）、others 0（行の数 9 が区域の数 3 を越える）。延べの境界: 層の Item 171 個にそれぞれ Code の違う解除の Kind を 3 つ置いた報（延べ 513）は、延べ 512 を載せ、171 個目の Item の 3 つ目だけ載らず others 1"
+      },
+      {
+        "testId": "P3-TL12-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL12-AC01",
+          "P3-TL12-AC03",
+          "P3-TL12-AC04"
+        ],
+        "behavior": "受入条件。(a) 15_16_05 の VPWW59 は帯「宗谷地方波浪警報・注意報」の下に太字の「波浪警報」の行が出る（D-REASON-MATCH=A） (b) 15_17_01 は太字の「レベル３大雨警報」の下の見出し文と解除の行がどちらも 2 桁下がる (c) synthetic_VPWW56_cancel は帯「宗谷地方土砂災害警報・注意報 取消」で、解除の行は無い (d) Head/Title を空にした福井の L5（U-W は受理する）は帯「気象警報・注意報（大雨）」で、「福井県」を付けない（起草 r0 で今の形から改めた。最初の Area は北海道では一部の地方になり、直したい誤読が題名の欠けた報に残るため。ヘルツの r0 P2） (e) T02 の 257 区域の報は最後に薄い字の「ほか 1 区域は読んでいません」 (f) 15_16_07 の VPWW61（Head/Title 32 字、56 桁では帯の題名が折れる）・福井の解除・T02 の 257 区域の報を 56・80・100 桁、色 0 と 3 で描くと、どの行も桁数を越えず、区域の名前が途中で折れない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O03 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。spec の行を足した後も他の契約の «» が全部通ること"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みごとに「無いと何が壊れるか」を 1 行（released の欄: 無いと解除の報が「注意報を解除します。」だけで何がどこで解除されたか読めない〔worker は XML を持たない〕。scan の層の見分け: 無いと 4 層の同じ解除が 4 回数えられ、市町村の名前まで並ぶ。Head/Title の題名: 足さない〔前例の headType の集合に足すだけ〕）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行",
+      "既存の試験の期待で変わるのは reconstruction/test/terminal/short.test.ts の「図の 4 つの報」の福井の帯と、紫の段を塗った帯の 2 か所だけ（「気象警報・注意報（大雨） 福井県」→「福井県大雨警報・注意報」、spec §5.4 の図に合わせる）。011 の reconstruction/test/terminal/layout11.test.ts は VPWW を使わず、時系列情報の報を terminalReport から作る（tsOf）ので、released を足しても期待も型も変わらない。ほかの既存の試験の期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "配送で統合担当が付け直す: material.ts・format.ts・p3-terminal-output.types.ts を変えて行がずれたら、他の契約が引く «»（allowedPaths に挙げた行）と本契約の src の «» を中身の anchor が一致する行へ配送の commit で付け直し、各契約の meta.sha256 を取り直して check-contract を通す。中身が変わりうる p3-terminal-layout11.json の 3 行（types.ts:85・material.ts:123・format.ts:735、番号は e53b60cf）は手で取り直す。material.ts の付け直しに reanchor-target.py を使わない（basename が decode-material.ts にも当たる）（Q-TL12-ORDER-WITH-011）",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 21:49 の室蘭の試験の電文は写しで作ったもので、実の Body の Item の集合と順は未確認 (2) 解除の行は市町村等をまとめた地域等の層の Status だけを見るので、その層を持たない VPWW（repo の 13 本には無い）は解除の行が出ない (3) 帯の区域の字は Head/Title の字になり、Area の Name と違う字の県がある（「鹿児島県（奄美地方を除く）」）",
+      "原文の改訂（統合担当が配送の commit で当てる。実装では閉じた契約の文を変えない。各条文の行の中に書き足し、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-output.json:615 の P3-TO-AC09 (1) の短い形の行に、VPWW55〜61 の解除の行（P3-TL12-AC03）の旨と、同じ条文の「VPFT50・VPAW51・VPWP50 は Head/Title …」の並びに VPWW55〜61 を加える旨（P3-TL12-AC01） (2) reconstruction/contracts/p3-terminal-layout9.json:289 の P3-TL9-AC01 に、VPWW55〜61 も Head/Title を題名にする旨（P3-TL12-AC01） (3) reconstruction/contracts/p3-terminal-layout2.json:344 の P3-TL2-AC08（短い形の段の理由）に、Head/Title を題名にした報は見出し文とだけ突き合わせる旨（P3-TL12-D-REASON-MATCH）。011 の配送の後の起草し直しの時に、3 行とも他の契約の «» に引かれていないことを grep で確かめた（行番号は HEAD e53b60cf） (4) docs/specs/cli-terminal-output.md:585 の「対象の例外」の並びに、気象警報・注意報（VPWW55〜61）は Head/Title を題名にする旨（Q-TO13-VPWW-TITLE。layout9 が引く行なので起草では触らず、配送で layout9 の «» と一緒に取り直す）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-TL12-MURORAN-XML",
+        "owner": "integrator",
+        "blocks": [
+          "P3-TL12-T01 の電文の写しを実物に替えること（発注は止めない）"
+        ],
+        "resolveBy": "発注前点検か配送の後",
+        "requiredEvidence": [
+          "2026-11-08 21:49 の室蘭の VPWW59 と 21:34 の釧路の VPWW59 の実 XML（Mac mini の受信の記録など。未確認）で、府県予報区等の層の Item の集合と順、市町村等をまとめた地域等の層の解除の Kind を確かめ、corpus に足すかを決める"
+        ]
+      }
+    ]
+  }
+}

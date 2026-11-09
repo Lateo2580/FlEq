@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "4d757c6528fbc11bd8100aa9609740c7cde8056b09c3d6e87cd078c5db24a3d5",
+    "sha256": "7bc8afc6b4e042cebd0bcb688db965569bed1f8d59b340b9dceb34d16c0f3651",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -288,7 +288,7 @@
         "id": "P3-TL9-AC01",
         "requirement": "帯の題名を Head/Title にする報（Q-TO10-HEAD-TITLE、P3-TL9-D-HEAD-TITLE）。場面: 2024-08-10 17:00 に埼玉県など 5 県の熱中症警戒アラート（VPFT50）が届くと、今は「熱中症警戒アラート」の帯が 5 つ並び、どの県の報か読めない（Control/Title は県を持たず、Body に Area が無いので対象も空）: (1) headType が VPFT50・VPAW51・VPWP50 の短い形の報は、帯の題名を Control/Title でなく Head/Title にし（版の印「（Ｒ０６）」を除く規則は今と同じ）、対象（target）を帯に付けない。例: 57_03_01 は「埼玉県熱中症警戒アラート」、72_03_01 は「大雪に関する早期天候情報（東北地方）」（今は「早期天候情報 東北日本海側」）、81_01_01 は「宗谷地方警戒・注意事項時系列情報」（今は「気象警報・注意報時系列情報 稚内市」）。VPWP50 の同じ便の 2 件以上は P3-TL11 のまとめで、帯の題名を Control/Title から版の印を除いた題名と「 N件」にする（P3-TL11-AC01・AC03） (2) 訓練・試験の印と「 取消」は今と同じく題名の後ろ（例 synthetic_VPFT50_cancel は「埼玉県熱中症警戒アラート 取消」） (3) 字は電文の Head/Title のまま（切り出し・言い換えをしない。synthetic_VPFT50_title_escalation は「埼玉県熱中症特別警戒アラート」） (4) Head/Title が無いか空の報は今の形（Control/Title と対象） (5) 段・理由の行・見出し文・末尾の行と、ほかの種類の帯は変えない。material は変えない（head.title は既に読んでいる。format.ts の shortForm の題名だけ）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:608 «6d2f8d86b668c7a2»",
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
           "docs/specs/cli-terminal-output.md:878 «c5a8febece3d2b10»",
           "docs/specs/cli-terminal-output.md:584 «ac0d75ec8384aca1»",
           "docs/specs/cli-terminal-output.md:585 «9d863739372721b3»",
@@ -353,7 +353,7 @@
         "id": "P3-TL9-AC06",
         "requirement": "幅と計算量（P3-TO-AC04 (5)・AC08、AGENTS.md の受信経路の計算量）: (1) AC01〜AC05 の報（T01〜T05 の fixture と書き換えた報）を 56・80・100 桁で描くと、どの行も桁数を越えない。帯は今の band の規則で時刻を次の行に送るか題名を字の境で折る（最長は 10_05_05 の「台風解析・予報情報（５日予報）（Ｈ３０） 台風発生の可能性が小さくなった」の 71 桁で、56 桁では題名が折れ、80 桁では時刻が次の行。VPAW51 の 72_05_01・72_07_01 は 42 桁）。取消の行と PLUM法の行は今の文の折り返し（P3-TL-AC09）で折る (2) owner の terminalReport は decode 済みの tree を今と同じく 1 回だけ辿る。TyphoonNamePart は scan の visit の中で見つけ、解除の判定は scan が集めた 256 までの Kind を 1 回見るだけ。新しい辿りと JSON.stringify をしない (3) main の sink は、地震の取消の報のときだけ、同じ返信の outcomes（U-E を探すのと同じ列。その返信の outcomes の数に比例）を 1 回見て U-Q の subject の facts から 2 つの字を取る。ほかの報の sink の仕事は変えない。列に積む単位はその 2 つの字の分だけ大きくなり、byte は今の estimate で積む時に 1 回見積もる (4) renderer の仕事は行が 1 つ増えるだけ (5) P3-TO-AC08 (3) の材料の時間を 76_01_01 VPTA50（1.8 MB、台風の最大）と 19_01_01 VPHW50 で、変える前と後にそれぞれ 20 回測った中央値で比べ、前・後・差を成果物に表で書く。後の値が P3-TO-AC08 (3) の 5 ms を越えたら配送の前に止めて報告する（変える前から越えていればそう書く）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:608 «6d2f8d86b668c7a2»",
+          "docs/specs/cli-terminal-output.md:608 «8ca3da5195503b92»",
           "docs/specs/cli-terminal-output.md:319 «f9aa8ca85c5cff0c»",
           "docs/specs/cli-terminal-output.md:239 «bec487c01e7542f0»",
           "docs/specs/cli-terminal-output.md:609 «4bc9de7d19861115»",
