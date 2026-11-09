@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5f3095d7e324384b93ee126181d6d8cbac9cb9dc",
-    "sha256": "82ac0445b89480a36d74151f9697807b8d505677540a22f8b290ff90780214ed",
+    "sha256": "ddda24eb37f90ed9eaee5515cc221c35687f74fa6c139d06ae0257efbaa7182d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -77,7 +77,7 @@
       {
         "id": "P3-NC-D-LIST-FAIL",
         "kind": "統合担当",
-        "A": "旧築と同じく、起動時の契約の一覧が失敗したら（答えが来ない、2xx でない、本文が読めない。cli.ts の contractedClassifications が null を返すとき）、設定の区分のまま host を起こし、端末に 2 行「契約状況の確認に失敗しました」「指定された区分のまま接続を試みます」を出す。旧築の 1 行目の「: <例外の文>」は付けない（contractedClassifications は答えの本文も例外も返さない。init の [3/5] と同じ、P3-CLI-AC07）",
+        "A": "旧築と同じく、起動時の契約の一覧が失敗したら（答えが来ない、2xx でない、本文が読めない、項目の形が不正〔AC02 (7)〕。cli.ts の contractedClassifications が null を返すとき）、設定の区分のまま host を起こし、端末に 2 行「契約状況の確認に失敗しました」「指定された区分のまま接続を試みます」を出す。旧築の 1 行目の「: <例外の文>」は付けない（contractedClassifications は答えの本文も例外も返さない。init の [3/5] と同じ、P3-CLI-AC07）",
         "B": "起動を断る（終了 code 1）",
         "recommended": "A",
         "provisional": "A",
@@ -118,6 +118,13 @@
         "source": "作者の裁定（2026-11-09 夕、~/Obsidian/Liebe/Artifacts/FlEq/判断カード/2026-11-09-昨夜の保留7件.md の 2＝C・3＝C、4〜7 は推奨）と統合担当の依頼（起草を C の形に書き直す）",
         "closed": "(1) P3-NC-D-STARTUP-REFUSE を C（起動の時点で契約の無い区分を申し込まない。(a) 区分が無ければ断る、(b) 起動時の契約の一覧で外す）で確定し、STARTUP-TEXT は A、RUNNING-LOSS は A で確定した (2) 消したもの: 起動の最初の 402 で host が reject する形（host.ts の :581・:583 と cli.ts の :352 の変更、allowedPaths の該当、publicFunctions の reject、旧 AC02、旧 T03 の reject の文、artifactRequirements の残存リスク (3)）、P3-NC-D-CLI-MATCH（cli.ts の message の照合が要らない）、RUNNING-LOSS の B のための allowedPaths の注・AC04 の【B のとき】・T04 と T05 の B、unresolvedQuestions の Q-NC-STARTUP-REFUSE・Q-NC-STARTUP-TEXT・Q-NC-RUNNING-LOSS、outOfScope の「契約の一覧で起動前に確かめる形」と「host の失敗を型にして cli.ts で見分けること」、AC05 の (4) の (c)（p3-dmdata-connect.json の初回の reject の改訂。402 で reject しないので要らない）と旧 (e)（p3-cli-repl.json の \"dmdata no contract\" の字） (3) 書き直したもの: AC02 を cli.ts の起動（区分の断り・契約の一覧・0 件の断り・一覧の失敗・問い合わせの間の Ctrl+C）にし、T03 をその試験にした。T02 は最初の試行の 402 で reject しない形にした（旧 D-STARTUP-REFUSE=B の形）。AC03 に (6)（最初の試行の 402 と Pi の場面）を足した。統合担当の分岐 P3-NC-D-LIST-FAIL（一覧の失敗は旧築と同じく設定の区分のまま繋ぐ）と P3-NC-D-SKIP-NOTICE（外した区分は今の未契約の行で知らせる）を足した (4) Q-NC-PARTIAL は起動時の場面が消えたが、3-3 の繋ぎ直しのうち一部の区分だけを解約した場面と、一覧が失敗して設定の区分のまま申し込んだ場面で、契約の無い区分を含む socket.start が残るので、発注を止めない問いとして unresolvedQuestions に残した (5) main 5f3095d7 の上に載せ直した後の行で «» を付け直した（output.ts は 53 行、format.ts は 48 行、spec cli-terminal-output.md は 27 行ずれていた）",
         "remaining": "Q-NC-PARTIAL（unresolvedQuestions、発注は止めない）"
+      },
+      {
+        "id": "Q-NC-R0-C",
+        "status": "closed",
+        "source": "起草 1ebfc61c のレビュー r0（2026-11-09）: 品質 ヘルツ Astra high 新規 read-only は条件付き GO（P2 1・P3 1、~/dev/fleq-vault-archive/2026-11-09-snap/nc-c-quality-r0-hertz.md）、契約適合 Opus は GO（P3 2）。統合担当の決め 4 項",
+        "closed": "(1) ヘルツ P2（contractedClassifications は 200 の {\"items\":[null]} のような不正な項目を読み飛ばして [] を返し、AC02 (3) が一覧を確かめられなかっただけで『有効な契約区分がありません』と断って終了 1 になる）: AC02 (7) を足し、同じ helper で項目ごとに型を確かめて不正なら null（一覧の失敗、P3-NC-D-LIST-FAIL）、正しい形の空の一覧なら [] に分けた。allowedPaths の cli.ts に :194〜:197 の中身を足し、AC06 (5) の init の『中身を変えない』を改め、契約境界の試験 P3-NC-T07 を足した。init の [3/5] の改訂を AC05 (4) の (e) に足した (2) ヘルツ P3: Q-NC-PARTIAL の手順の websocket.classifications を、応答の型（src/types.ts:536）どおり最上位の classifications に直し、blocks に『起動時の場面は消えたが、一覧の失敗の後の start は残る』を添えた (3) Opus P3: AC05 (4) の付け直しの一覧に、(f) の p3-terminal-output.json:626 を引く p3-cli-repl.json の :1320・:1332、(c) の p0:2288 を引く p3-cli-repl.json:944、(b) の spec :771 を引く p3-terminal-layout7.json:295 を足した (4) Opus P3: draftedFromOid は 011（P3-TERMINAL-LAYOUT-011）の実装の前なので、011 が先に配送されると allowedPaths の行番号がずれることを AC05 (6) の発注前点検の項に書いた",
+        "remaining": "Q-NC-PARTIAL（unresolvedQuestions、発注は止めない）"
       }
     ],
     "operationContract": {
@@ -157,13 +164,13 @@
     "allowedPaths": [
       "reconstruction/src/host/dmdata-rest.ts（RestRefusal の :15 と refusal の :81 の行の中身だけ。行の数を変えない。AC01）",
       "reconstruction/src/host/host.ts（refused の :363・:366 と一覧の判定の :372 の行の中身だけ。行を足さず消さない。AC01）",
-      "reconstruction/src/cli/cli.ts（:298 の行の末尾に AC02 (1) の断り、:304 の classifications の既定の中身、:342 の dmdata の classifications を外した後の区分にする中身、内側の try の行〔:340〕と startP2Host の呼び出し〔:341〕の間に AC02 (2)〜(5) の行を足してよい。ほかの行は変えない。AC02・AC05）",
+      "reconstruction/src/cli/cli.ts（contractedClassifications の項目の読み〔:194〜:197〕の中身〔行の数を変えない。AC02 (7)〕、:298 の行の末尾に AC02 (1) の断り、:304 の classifications の既定の中身、:342 の dmdata の classifications を外した後の区分にする中身、内側の try の行〔:340〕と startP2Host の呼び出し〔:341〕の間に AC02 (2)〜(5) の行を足してよい。ほかの行は変えない。AC02・AC05）",
       "reconstruction/src/terminal/format.ts（FAILURE_TEXT の startUncertain の行〔:790〕の後に noContract の 1 行と、:784 のコメントの中身だけ。AC03）",
       "reconstruction/src/terminal/output.ts（:337 の宣言の行〔直前に読んだ lastFailure の変数を足す〕と :367〜:371 の判定〔else を外して別の if に分けてよい、行を足してよい〕だけ。AC04）",
       "reconstruction/contracts/p3-dmdata-connect.types.ts（:24 の union に \"noContract\" を足す行の中身と、:22・:23 のコメントの中身だけ。AC03）",
       "reconstruction/test/host/dmdata-rest.test.ts（末尾に it を 1 つ。T01）",
       "reconstruction/test/host/host.test.ts（末尾に it を足す。T02・T04・T06）",
-      "reconstruction/test/cli/cli.test.ts（beforeEach の exchange の mockReset〔:77〕の後に既定の答えの 1 行、通常起動の既存の試験の設定〔:164・:231・:258・:341〕に classifications を足す、:252 の期待に classifications を足す、末尾に it を 1 つ。T03・AC05 (5)）",
+      "reconstruction/test/cli/cli.test.ts（beforeEach の exchange の mockReset〔:77〕の後に既定の答えの 1 行、通常起動の既存の試験の設定〔:164・:231・:258・:341〕に classifications を足す、:252 の期待に classifications を足す、末尾に it を 2 つ。T03・T07・AC05 (5)）",
       "reconstruction/test/terminal/connection.test.ts（末尾に it を 1 つ。T05）"
     ],
     "allowedGitCommands": [
@@ -240,7 +247,7 @@
       },
       {
         "id": "P3-NC-AC02",
-        "requirement": "起動の時点で契約の無い区分を申し込まない（P3-NC-D-STARTUP-REFUSE=C、作者の裁定）。どれも FLEQ_WS_URL が空でない起動（npm run watch の子。watch.mjs の設定には classifications が無い、reconstruction/cli/watch.mjs:318）では行わない（偽の dmdata には区分を申し込まない。cli.ts の startup の区分の扱いと同じ判定） (1) 区分の断り: 区分が引数（-c）にも設定ファイルにも無ければ、:298 の pick の直後に Refusal「受信区分が設定されていません。fleq init で設定してください」を投げる（標準エラーに 1 行、終了 code 1。末尾に「。」を付けないのは隣の断り〔appName の断り、cli.ts の Refusal〕と同じ）。設定ファイルの読み・鍵と appName の断りの後、debug の行と移行の書き込みの前で、dmdata にも host にも何も送らない。:304 の既定は 5 区分（CLASSIFICATIONS）でなくなる（FLEQ_WS_URL の起動の区分は使わないので空でよい）。場面: 09:00:00 に、fleq init をせずに鍵と接続名だけを fleq config set で入れた人が、区分を付けずに fleq を起こす。標準エラーに「受信区分が設定されていません。fleq init で設定してください」の 1 行が出て、終了 code 1 で終わる。dmdata には何も送らない。今までの fleq の設定から移した人も、旧築の設定に classifications が無ければ同じく断られる（旧築は 5 区分を契約の一覧で絞って繋いだ） (2) 契約の一覧: 端末の出力を作った後（起動の帯が先に出る）、startP2Host の前に、cli.ts の contractedClassifications（init の [3/5] と同じ GET /contract 1 回、:187）を呼び、設定の区分（引数＞設定ファイル）のうち一覧に有効で載っているものだけを、設定の順のまま host の dmdata.classifications に渡す（:342）。外した区分は P3-NC-D-SKIP-NOTICE=A のとおり、端末の startup.classifications に外す前の区分を今のまま渡して、最初の確立の未契約の行で出す（cli.ts:326 は変えない） (3) 0 件の断り: 外した後が 0 件なら、host を起こさずに Refusal「有効な契約区分がありません。dmdata.jp で区分を契約してください。」（P3-NC-D-STARTUP-TEXT=A、旧築 src/engine/cli/cli-run.ts:80）を投げ、終了 code 1。Refusal は終了の listener を外し端末の列を閉じる try の中で投げる（帯の後に標準エラーの 1 行が出る。try の外で投げると端末の列が閉じない） (4) 一覧の失敗: contractedClassifications が null なら、P3-NC-D-LIST-FAIL=A のとおり端末に「契約状況の確認に失敗しました」「指定された区分のまま接続を試みます」の 2 行を出し、設定の区分のまま host を起こす (5) 問い合わせの間の Ctrl+C: 契約の一覧を待っている間に終了の要求（SIGINT ほか、onSignal）が来たら、答えの後に host を起こさずに終了 code 0 で終える（無いと: 終了を頼んだ後に dmdata の接続を始め、最長で REST の 15 秒＋接続の試行だけ終わりが遅れる） (6) 鍵の字を標準出力・標準エラーに出さない。API キーと接続名の断り（:291〜:296）、debug の行、移行の書き込み、終了の listener、host の起動の順は今のまま",
+        "requirement": "起動の時点で契約の無い区分を申し込まない（P3-NC-D-STARTUP-REFUSE=C、作者の裁定）。どれも FLEQ_WS_URL が空でない起動（npm run watch の子。watch.mjs の設定には classifications が無い、reconstruction/cli/watch.mjs:318）では行わない（偽の dmdata には区分を申し込まない。cli.ts の startup の区分の扱いと同じ判定） (1) 区分の断り: 区分が引数（-c）にも設定ファイルにも無ければ、:298 の pick の直後に Refusal「受信区分が設定されていません。fleq init で設定してください」を投げる（標準エラーに 1 行、終了 code 1。末尾に「。」を付けないのは隣の断り〔appName の断り、cli.ts の Refusal〕と同じ）。設定ファイルの読み・鍵と appName の断りの後、debug の行と移行の書き込みの前で、dmdata にも host にも何も送らない。:304 の既定は 5 区分（CLASSIFICATIONS）でなくなる（FLEQ_WS_URL の起動の区分は使わないので空でよい）。場面: 09:00:00 に、fleq init をせずに鍵と接続名だけを fleq config set で入れた人が、区分を付けずに fleq を起こす。標準エラーに「受信区分が設定されていません。fleq init で設定してください」の 1 行が出て、終了 code 1 で終わる。dmdata には何も送らない。今までの fleq の設定から移した人も、旧築の設定に classifications が無ければ同じく断られる（旧築は 5 区分を契約の一覧で絞って繋いだ） (2) 契約の一覧: 端末の出力を作った後（起動の帯が先に出る）、startP2Host の前に、cli.ts の contractedClassifications（init の [3/5] と同じ GET /contract 1 回、:187）を呼び、設定の区分（引数＞設定ファイル）のうち一覧に有効で載っているものだけを、設定の順のまま host の dmdata.classifications に渡す（:342）。外した区分は P3-NC-D-SKIP-NOTICE=A のとおり、端末の startup.classifications に外す前の区分を今のまま渡して、最初の確立の未契約の行で出す（cli.ts:326 は変えない） (3) 0 件の断り: 外した後が 0 件なら、host を起こさずに Refusal「有効な契約区分がありません。dmdata.jp で区分を契約してください。」（P3-NC-D-STARTUP-TEXT=A、旧築 src/engine/cli/cli-run.ts:80）を投げ、終了 code 1。Refusal は終了の listener を外し端末の列を閉じる try の中で投げる（帯の後に標準エラーの 1 行が出る。try の外で投げると端末の列が閉じない） (4) 一覧の失敗: contractedClassifications が null なら、P3-NC-D-LIST-FAIL=A のとおり端末に「契約状況の確認に失敗しました」「指定された区分のまま接続を試みます」の 2 行を出し、設定の区分のまま host を起こす (5) 問い合わせの間の Ctrl+C: 契約の一覧を待っている間に終了の要求（SIGINT ほか、onSignal）が来たら、答えの後に host を起こさずに終了 code 0 で終える（無いと: 終了を頼んだ後に dmdata の接続を始め、最長で REST の 15 秒＋接続の試行だけ終わりが遅れる） (6) 鍵の字を標準出力・標準エラーに出さない。API キーと接続名の断り（:291〜:296）、debug の行、移行の書き込み、終了の listener、host の起動の順は今のまま (7) 一覧の形の確かめ（init と起動で同じ helper）: contractedClassifications は、2xx の本文の items の項目が 1 つでも、null でない object で classification が文字列、isValid が真偽値、の形でなければ null（一覧の失敗、(4) に進む）を返す。正しい形の項目だけなら今のとおり isValid が true の classification を返し、正しい形で 0 件（items が空、または isValid が全部 false）のときだけ [] を返す（(3) で断る）。無いと: {\"items\":[null]} のような確かめられない一覧で、契約が無いと断じて終了 1 になる。:194〜:197 の 4 行の中身で書き、行の数を変えない（後ろの :298 ほかの «» をずらさない）",
         "evidenceRefs": [
           "reconstruction/src/cli/cli.ts:298 «6128ce344741a5b5»",
           "reconstruction/src/cli/cli.ts:304 «341557bf1db97b0b»",
@@ -252,7 +259,8 @@
           "reconstruction/cli/watch.mjs:318 «7b4b0a91805fa29d»",
           "src/engine/cli/cli-run.ts:66 «6cf3457473eb270c»",
           "src/engine/cli/cli-run.ts:75 «8f91e1c2976b90a9»",
-          "src/engine/cli/cli-run.ts:80 «f3b21388fc7f41bf»"
+          "src/engine/cli/cli-run.ts:80 «f3b21388fc7f41bf»",
+          "reconstruction/src/cli/cli.ts:194 «2d916a0e4cf2660d»"
         ]
       },
       {
@@ -283,7 +291,7 @@
       },
       {
         "id": "P3-NC-AC05",
-        "requirement": "行の決まりと配送での改訂: (1) dmdata-rest.ts・host.ts・p3-dmdata-connect.types.ts は行を足さず消さず、中身だけを書き換える（types.ts の :9・:14 を P3-CLI-REPL-001 が引く）。cli.ts は :298・:304・:342 の中身と、:340 と :341 の間に足す行だけ。format.ts は :790 の後に 1 行を足し、:784 の中身を改める。output.ts は :337 と :367〜:371 で行を足してよい。試験は各 file の末尾に it を足す（host.test.ts は 10 行を他の契約が引く）。cli.test.ts は allowedPaths の行だけ（他の契約が引く行は 0） (2) 実装の後に割れる他の契約の «»（2026-11-09 に reconstruction/contracts/*.json を数えた）: 中身が変わる行は dmdata-rest.ts の :15・:81 と host.ts の :363・:366（P3-DMDATA-CONNECT-002）。行のずれは cli.ts の :344（P3-REPLAY-WATCH-001）・:357・:362（P3-TERMINAL-OUTPUT-001）、format.ts の :832（P3-RECOVERY-BOUNDARY-001）、output.ts の :391・:462（P3-TERMINAL-LAYOUT-010）・:506（P3-TERMINAL-LAYOUT-011。:337 か :367〜:371 で行を足したときだけ）。中身を変えない他の契約の行: host.ts の :364（P3-RECOVERY-001）・:365・:368・:579・:581・:583・:587・:589、cli.ts の :307・:320・:322・:337 (3) 本契約の «» で割れるもの: dmdata-rest.ts の :15・:81、host.ts の :363・:366・:372、cli.ts の :298・:304・:342（中身）、p3-dmdata-connect.types.ts の :24、format.ts の :784（中身）・:878（ずれ）、output.ts の :337・:367・:368（中身）と :362（行を足したときのずれ）、cli.test.ts の :236（ずれ）・:252（中身とずれ。beforeEach の行を足すため）、spec の :771（(4) の (b) の中身） (4) 配送で統合担当が当てる原文の改訂: (a) (2)(3) の付け直し（行のずれは reanchor-target.py、中身の変わった行は anchor を出し直して手で付け直し、各契約の sha を取り直す） (b) docs/specs/cli-terminal-output.md: §6.1 の理由の表の startUncertain の行（:670、表の最後。FAILURE_TEXT の並びと同じ）の後に noContract の行を足し、その文の後に「（受信の後も、noContract になったときに 1 回出す）」を添える（表の前の文 :662 は P3-TERMINAL-OUTPUT-001 が引くので変えない）。表の後ろの行を引く «» は、他の 13 契約の 122 か所（行と契約の組。P3-TERMINAL-PROMPT-001 50・P3-TERMINAL-OUTPUT-001 16・P3-TERMINAL-LAYOUT-007 14・P3-TERMINAL-WINDOWS-001 9・P3-TERMINAL-LAYOUT-004・006・009 各 5・P3-TERMINAL-LAYOUT-008 4・P3-TERMINAL-LAYOUT-003・005・010・011 各 3・P3-CLI-REPL-001 2）と本契約で、同じ道具で付け直す。§8 の Q-TO-C-4 の行（今の :811）の「理由 5 種」を 6 種にする（引く «» は行のずれだけ）。§6.7 の未契約の行の文（今の :771、P3-TERMINAL-LAYOUT-007 が引く）の末尾に「起動時は契約の一覧で契約の無い区分を外して start に送り、外した区分もこの行で出す（P3-DMDATA-NO-CONTRACT-001）」を書き足す（行は足さない） (c) docs/specs/reconstruction-p0-contracts.md:2288（-c の行「5区分を既定購読 … 互換必須（2026-09-14 作者）」、P3-CLI-REPL-001 が引く）の末尾の欄に「→ 2026-11-09 作者の裁定で、区分が無ければ fleq init を案内して断る（P3-DMDATA-NO-CONTRACT-001）」を書き足す（行は足さない） (d) p3-dmdata-connect-002.json: P3-DC2-D-REASON の A の「値は 5 つ」に noContract を足して 6 つにし、dmdata の定義「401・403 以外の非 2xx」を「401・402・403 以外の非 2xx」にする（p3-dmdata-connect.types.ts の :23 のコメントは実装が改める） (e) p3-cli-repl.json: P3-CLI-AC02 の (10) の「既定は設定ファイルの classifications、無ければ 5 区分（旧築 src/types.ts:404）」を「無ければ断る（P3-DMDATA-NO-CONTRACT-001 の AC02 (1)）」にし、P3-CLI-AC05 の (1) の順の startP2Host の前に「契約の一覧（同 AC02 (2)）」を、(3) の classifications に「契約の一覧で外した後」を足す (f) p3-terminal-output.json: P3-TO-AC10 (5) の「理由 5 種」と P3-TO-T11 の「5 種の理由の文」を 6 種にし、P3-TO-AC10 (5) に「noContract は P3-DMDATA-NO-CONTRACT-001 の AC04 (2) で受信の後も出す」を足す (5) 既存の試験の期待の変更（AGENTS.md の「変更前に理由を報告」を起草で先に書く）: 区分の無い設定は AC02 (1) で断るので、通常起動の既存の試験の設定（cli.test.ts の :164・:231・:258・:341）に classifications を足す。:231・:258 には 5 区分を CLASSIFICATIONS の順で入れ、:236 の startup の期待は変えない。beforeEach は exchange に 5 区分を有効で返す GET /contract の答えを既定で返させる（mockReset のままだと答えが undefined で AC02 (2) が投げる）。期待が変わるのは :252 の readConfig の toEqual に classifications が加わる 1 か所だけ",
+        "requirement": "行の決まりと配送での改訂: (1) dmdata-rest.ts・host.ts・p3-dmdata-connect.types.ts は行を足さず消さず、中身だけを書き換える（types.ts の :9・:14 を P3-CLI-REPL-001 が引く）。cli.ts は :194〜:197・:298・:304・:342 の中身と、:340 と :341 の間に足す行だけ。format.ts は :790 の後に 1 行を足し、:784 の中身を改める。output.ts は :337 と :367〜:371 で行を足してよい。試験は各 file の末尾に it を足す（host.test.ts は 10 行を他の契約が引く）。cli.test.ts は allowedPaths の行だけ（他の契約が引く行は 0） (2) 実装の後に割れる他の契約の «»（2026-11-09 に reconstruction/contracts/*.json を数えた）: 中身が変わる行は dmdata-rest.ts の :15・:81 と host.ts の :363・:366（P3-DMDATA-CONNECT-002）。行のずれは cli.ts の :344（P3-REPLAY-WATCH-001）・:357・:362（P3-TERMINAL-OUTPUT-001）、format.ts の :832（P3-RECOVERY-BOUNDARY-001）、output.ts の :391・:462（P3-TERMINAL-LAYOUT-010）・:506（P3-TERMINAL-LAYOUT-011。:337 か :367〜:371 で行を足したときだけ）。中身を変えない他の契約の行: host.ts の :364（P3-RECOVERY-001）・:365・:368・:579・:581・:583・:587・:589、cli.ts の :307・:320・:322・:337 (3) 本契約の «» で割れるもの: dmdata-rest.ts の :15・:81、host.ts の :363・:366・:372、cli.ts の :298・:304・:342（中身）、p3-dmdata-connect.types.ts の :24、format.ts の :784（中身）・:878（ずれ）、output.ts の :337・:367・:368（中身）と :362（行を足したときのずれ）、cli.test.ts の :236（ずれ）・:252（中身とずれ。beforeEach の行を足すため）、spec の :771（(4) の (b) の中身） (4) 配送で統合担当が当てる原文の改訂: (a) (2)(3) の付け直し（行のずれは reanchor-target.py、中身の変わった行は anchor を出し直して手で付け直し、各契約の sha を取り直す）。(b)(c)(f) の原文の改訂で中身の変わる行を引く他の契約の «» も同じく手で付け直す: (b) の spec :771 は P3-TERMINAL-LAYOUT-007（p3-terminal-layout7.json:295）、(c) の p0:2288 は P3-CLI-REPL-001（p3-cli-repl.json:944）、(f) の p3-terminal-output.json:626（P3-TO-AC10 の requirement の行、«0fd739941d818515»）は P3-CLI-REPL-001（p3-cli-repl.json の :1320・:1332） (b) docs/specs/cli-terminal-output.md: §6.1 の理由の表の startUncertain の行（:670、表の最後。FAILURE_TEXT の並びと同じ）の後に noContract の行を足し、その文の後に「（受信の後も、noContract になったときに 1 回出す）」を添える（表の前の文 :662 は P3-TERMINAL-OUTPUT-001 が引くので変えない）。表の後ろの行を引く «» は、他の 13 契約の 122 か所（行と契約の組。P3-TERMINAL-PROMPT-001 50・P3-TERMINAL-OUTPUT-001 16・P3-TERMINAL-LAYOUT-007 14・P3-TERMINAL-WINDOWS-001 9・P3-TERMINAL-LAYOUT-004・006・009 各 5・P3-TERMINAL-LAYOUT-008 4・P3-TERMINAL-LAYOUT-003・005・010・011 各 3・P3-CLI-REPL-001 2）と本契約で、同じ道具で付け直す。§8 の Q-TO-C-4 の行（今の :811）の「理由 5 種」を 6 種にする（引く «» は行のずれだけ）。§6.7 の未契約の行の文（今の :771、P3-TERMINAL-LAYOUT-007 が引く）の末尾に「起動時は契約の一覧で契約の無い区分を外して start に送り、外した区分もこの行で出す（P3-DMDATA-NO-CONTRACT-001）」を書き足す（行は足さない） (c) docs/specs/reconstruction-p0-contracts.md:2288（-c の行「5区分を既定購読 … 互換必須（2026-09-14 作者）」、P3-CLI-REPL-001 が引く）の末尾の欄に「→ 2026-11-09 作者の裁定で、区分が無ければ fleq init を案内して断る（P3-DMDATA-NO-CONTRACT-001）」を書き足す（行は足さない） (d) p3-dmdata-connect-002.json: P3-DC2-D-REASON の A の「値は 5 つ」に noContract を足して 6 つにし、dmdata の定義「401・403 以外の非 2xx」を「401・402・403 以外の非 2xx」にする（p3-dmdata-connect.types.ts の :23 のコメントは実装が改める） (e) p3-cli-repl.json: P3-CLI-AC02 の (10) の「既定は設定ファイルの classifications、無ければ 5 区分（旧築 src/types.ts:404）」を「無ければ断る（P3-DMDATA-NO-CONTRACT-001 の AC02 (1)）」にし、P3-CLI-AC05 の (1) の順の startP2Host の前に「契約の一覧（同 AC02 (2)）」を、(3) の classifications に「契約の一覧で外した後」を足す。P3-CLI-AC07 の [3/5] の『失敗は…で続け』に「items の項目の形が不正なときも失敗と同じ（P3-DMDATA-NO-CONTRACT-001 の AC02 (7)）」を足す (f) p3-terminal-output.json: P3-TO-AC10 (5) の「理由 5 種」と P3-TO-T11 の「5 種の理由の文」を 6 種にし、P3-TO-AC10 (5) に「noContract は P3-DMDATA-NO-CONTRACT-001 の AC04 (2) で受信の後も出す」を足す (5) 既存の試験の期待の変更（AGENTS.md の「変更前に理由を報告」を起草で先に書く）: 区分の無い設定は AC02 (1) で断るので、通常起動の既存の試験の設定（cli.test.ts の :164・:231・:258・:341）に classifications を足す。:231・:258 には 5 区分を CLASSIFICATIONS の順で入れ、:236 の startup の期待は変えない。beforeEach は exchange に 5 区分を有効で返す GET /contract の答えを既定で返させる（mockReset のままだと答えが undefined で AC02 (2) が投げる）。期待が変わるのは :252 の readConfig の toEqual に classifications が加わる 1 か所だけ (6) 発注前点検: draftedFromOid の 5f3095d7 は P3-TERMINAL-LAYOUT-011 の実装の前。011 が先に配送されると、allowedPaths・AC・試験の文の行番号（format.ts の :784・:790・:878、output.ts の :337・:362・:367〜:371）が、011 の足す行の分（r0 の Opus の見積もりで 17〜24 行）ずれる。発注前点検で本契約の «» と本文の行番号を、その時の base で付け直し、(2) の他の契約の行も数え直す",
         "evidenceRefs": [
           "reconstruction/src/host/dmdata-rest.ts:15 «1d9bfd2e3360bbb4»",
           "reconstruction/src/host/dmdata-rest.ts:81 «adcc06618ba41006»",
@@ -301,7 +309,7 @@
       },
       {
         "id": "P3-NC-AC06",
-        "requirement": "変えないもの: (1) 401・403 の扱い（最初の試行は Error(\"dmdata authentication rejected\") で reject、途中は繋ぎ直しを止める、host.ts:364・:581・:247-250）と文。起動の最初の試行で reject するのは今のとおり 401・403 だけ (2) { wsUrl }（npm run watch の偽の dmdata）の起動と繋ぎ直し。区分の断りも契約の一覧もしない（watch.test.ts・stall.test.ts は今のまま通る） (3) network・dmdata・capacity・startUncertain・authRejected の 5 種の文と出し方 (4) 未契約の区分の行（format.ts:878、求めた区分のうち start の区分に無いものを出す。spec §6.7）の出し方。dmdata が start を受け付けて一部の区分だけ返す場面は今のまま (5) init（cli.ts の runInit と contractedClassifications の中身） (6) 診断の語（P3-NC-D-DIAG）、通知、保存（永続 schema の変更なし）",
+        "requirement": "変えないもの: (1) 401・403 の扱い（最初の試行は Error(\"dmdata authentication rejected\") で reject、途中は繋ぎ直しを止める、host.ts:364・:581・:247-250）と文。起動の最初の試行で reject するのは今のとおり 401・403 だけ (2) { wsUrl }（npm run watch の偽の dmdata）の起動と繋ぎ直し。区分の断りも契約の一覧もしない（watch.test.ts・stall.test.ts は今のまま通る） (3) network・dmdata・capacity・startUncertain・authRejected の 5 種の文と出し方 (4) 未契約の区分の行（format.ts:878、求めた区分のうち start の区分に無いものを出す。spec §6.7）の出し方。dmdata が start を受け付けて一部の区分だけ返す場面は今のまま (5) init（cli.ts の runInit）。contractedClassifications は AC02 (7) の形の確かめだけを足し、正しい形の一覧の読みは今のまま（init で変わるのは、項目の形が不正な一覧が『契約済みの区分が見つかりません。』でなく『契約の確認ができませんでした。既定値を使います』になることだけ） (6) 診断の語（P3-NC-D-DIAG）、通知、保存（永続 schema の変更なし）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:364 «cb9be8e27616c714»",
           "reconstruction/src/host/host.ts:583 «4af6c88c69026a5e»",
@@ -360,6 +368,14 @@
           "P3-NC-AC01"
         ],
         "behavior": "host.test.ts の末尾に 1 つの it（fake timer、rest は既存の mock）。繋ぎ直しの試行（確立の後に切った後）の一覧 2 本で: (a) open が { kind: noContract }、waiting が { kind: failed, answered: true, retryAfterMs: 7000 } なら、status().lastFailure が noContract で、次の試行は 7 秒でなく P3-DC2-AC01 の式の待ち（境目の 1 ms 前に無く、境目で 1 回） (b) open が authRejected、waiting が noContract なら lastFailure が authRejected、ERROR dmdataAuthRejected が 1 行で、600 秒進めても rest の呼び出しが増えない。:372 の順の直し忘れ（一覧の noContract を failed に落とす）を止める"
+      },
+      {
+        "testId": "P3-NC-T07",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-NC-AC02"
+        ],
+        "behavior": "cli.test.ts の末尾に 1 つの it（host と exchange は既存の mock、設定の区分は telegram.earthquake・eew.forecast）: GET /contract が 200 で (a) {\"items\":[null]} (b) {\"items\":[{\"classification\":\"eew.forecast\",\"isValid\":\"true\"}]}（isValid が文字列）を返すと、どちらも runCli は 1 を返さず、標準出力に「契約状況の確認に失敗しました」「指定された区分のまま接続を試みます」があり、startP2Host の dmdata.classifications が設定の区分のまま。(c) {\"items\":[]} なら「有効な契約区分がありません。dmdata.jp で区分を契約してください。」で 1 を返す（不正な一覧を空の一覧と取り違える実装を止める）"
       }
     ],
     "requiredCommands": [
@@ -422,8 +438,8 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "足した仕組みごとに『無いと何が壊れるか』を 1 行: RestRefusal の noContract（AC01、402 を dmdata の一時の不調と分けられず、理由の分からない文で 120 秒おきに繋ぎ直す）、区分の断り（AC02 (1)、init をしていない人が 5 区分を申し込み、契約の無い区分を含む start になる）、契約の一覧と外し（AC02 (2)、init の後に契約を減らした人が契約の無い区分を申し込む）、0 件の断り（AC02 (3)、契約の無い鍵で起動が断られない）、一覧の失敗の 2 行（AC02 (4)、契約を確かめずに繋いだことが端末に出ない）、問い合わせの間の Ctrl+C（AC02 (5)）、FAILURE_TEXT の noContract（AC03、型が全部の理由に文を求める）、output.ts の判定の分けと直前の値の変数（AC04 (2)、受信の後の 402 の理由が画面に出ない）",
-      "追加した試験ごとに対応を 1 行（T01・T06 契約境界、T02〜T05 受入条件）。既存の試験の期待の変更は AC05 (5) の 1 か所だけ",
+      "足した仕組みごとに『無いと何が壊れるか』を 1 行: RestRefusal の noContract（AC01、402 を dmdata の一時の不調と分けられず、理由の分からない文で 120 秒おきに繋ぎ直す）、区分の断り（AC02 (1)、init をしていない人が 5 区分を申し込み、契約の無い区分を含む start になる）、契約の一覧と外し（AC02 (2)、init の後に契約を減らした人が契約の無い区分を申し込む）、0 件の断り（AC02 (3)、契約の無い鍵で起動が断られない）、一覧の失敗の 2 行（AC02 (4)、契約を確かめずに繋いだことが端末に出ない）、一覧の形の確かめ（AC02 (7)、確かめられない一覧で契約が無いと断じて終了する）、問い合わせの間の Ctrl+C（AC02 (5)）、FAILURE_TEXT の noContract（AC03、型が全部の理由に文を求める）、output.ts の判定の分けと直前の値の変数（AC04 (2)、受信の後の 402 の理由が画面に出ない）",
+      "追加した試験ごとに対応を 1 行（T01・T06・T07 契約境界、T02〜T05 受入条件）。既存の試験の期待の変更は AC05 (5) の 1 か所だけ",
       "git diff --stat と git diff で、dmdata-rest.ts・host.ts・p3-dmdata-connect.types.ts の行の数が変わらないこと、cli.ts の足した行が :340 と :341 の間だけにあること、AC05 の中身を変えない行が変わっていないことを示す",
       "AGENTS.md の最小実装・最小テスト・受信経路の計算量を守る。onFrame に何も足さない。契約の一覧は起動の 1 回だけで、繋ぎ直しでは取らない",
       "残存リスク: (1) 402 の返事は文書のエラー表だけで確かめ、実物は確かめていない（起草は dmdata の API を叩かない） (2) 契約が 0 件のときの GET /contract の返事の形は文書に無い。200 で isValid が全部 false なら AC02 (3) で断る。2xx でなければ一覧の失敗として設定の区分のまま繋ぎ（AC02 (4)）、start の 402 で noContract の文が出て繋ぎ直しを続ける（FlEq は終わらない） (3) 一部の区分だけ契約が無い start（outOfScope の 2 場面）に dmdata が 402 を返すなら、契約のある区分も受信せず、事実と違う noContract の文が出る（Q-NC-PARTIAL） (4) 契約が無い間、120 秒ごとに REST 3 本（1 日 2,160 本）を送り続ける（P3-DC2-D-BACKOFF の回線断と同じ数）"
@@ -433,11 +449,11 @@
         "id": "Q-NC-PARTIAL",
         "owner": "user",
         "blocks": [
-          "P3-NC-AC04 (2) の noContract の文が、一部の区分だけを解約した後の繋ぎ直しと、契約の一覧が失敗した後の start でも事実と合うか（発注は止めない。402 が返ると分かったら、繋ぎ直しの前に契約の一覧を取り直す契約か文の改訂を別に立てる）"
+          "P3-NC-AC04 (2) の noContract の文が、起動時の場面が消えた後も残る 2 場面〔一部の区分だけを解約した後の繋ぎ直しと、契約の一覧が失敗して〔答えが来ない・2xx でない・形が不正〕設定の区分のまま申し込んだ start〕でも事実と合うか（発注は止めない。402 が返ると分かったら、繋ぎ直しの前に契約の一覧を取り直す契約か文の改訂を別に立てる）"
         ],
         "resolveBy": "配送の前（Mac mini で新築を動かして確かめるときに、作者の鍵で 1 本）。作者の裁定 C で起動時の場面は無くなったので、発注前点検の条件にはしない",
         "requiredEvidence": [
-          "作者の鍵で socket.start を 1 本だけ送って確かめる。手順: (1) GET https://api.dmdata.jp/v2/contract で、items[].isValid が false の区分を 1 つ選ぶ（作者が 5 区分を全部契約していれば、5 区分の外の契約していない区分でよい） (2) GET /socket?status=open と waiting で、接続の上限（4）に 1 本の余りがあることを確かめる（Pi の旧築が同じ鍵で繋いでいる） (3) POST /socket に classifications＝[契約している区分 1 つ, (1) の区分]、test＝no、appName＝旧築・新築と重ならない名前（例 fleq-probe）、formatMode＝raw を送る (4) 返事の HTTP status と本文の error.code を記録し、2xx なら websocket.classifications を記録して、WebSocket は開かずに DELETE /socket/{id} で閉じる",
+          "作者の鍵で socket.start を 1 本だけ送って確かめる。手順: (1) GET https://api.dmdata.jp/v2/contract で、items[].isValid が false の区分を 1 つ選ぶ（作者が 5 区分を全部契約していれば、5 区分の外の契約していない区分でよい） (2) GET /socket?status=open と waiting で、接続の上限（4）に 1 本の余りがあることを確かめる（Pi の旧築が同じ鍵で繋いでいる） (3) POST /socket に classifications＝[契約している区分 1 つ, (1) の区分]、test＝no、appName＝旧築・新築と重ならない名前（例 fleq-probe）、formatMode＝raw を送る (4) 返事の HTTP status と本文の error.code を記録し、2xx なら 最上位の classifications（src/types.ts の SocketStartResponse:536）を記録して、WebSocket は開かずに DELETE /socket/{id} で閉じる",
           "記録: 402 が返ったか、2xx で契約の無い区分を外した classifications が返ったか（(1) の isValid の値と一緒に）"
         ]
       }
