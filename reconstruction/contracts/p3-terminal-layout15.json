@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "60b9b19f3ecb7d138f90282cdb36faf5690be464eb877cffcbe163638386813e",
+    "sha256": "3557d7615d09b8b4f0a1d9cdc2bccada140097eeecf4448cb562aabe2c461282",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -87,7 +87,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-015",
     "mode": "implementation",
     "objective": "2026-11-09 夜の旧築と新築の写しの突き合わせ 2 回目（~/dev/fleq-vault-archive/2026-11-09-snap/night/sweep/report.md）の (a)-1 と、P3-TERMINAL-LAYOUT-011 の残存 (1)（Q-TL11-TS-INTERVAL）と、P3-TERMINAL-LAYOUT-013 の tips の英数字の割れを閉じる。起草の時は作者の裁定の前で、3 つの分岐を推奨の A で書いた: 気象解説情報（VPZJ51・VPCJ51・VPFJ51）の短い形の帯の題名を Head/Title にする（P3-TL15-D-UM-TITLE）、気象警報・注意報時系列情報（VPWP50）のまとまりの上限を最初の報から 90 秒から 180 秒にする（最後の報から 8 秒は変えない。P3-TL15-D-TS-WINDOW）、待機中の tips を半角の英数字の並びの途中で折らない（P3-TL15-D-TIP-DIGITS）。3 つは互いに独立で、B（今のまま）を選んだ分岐の AC と試験と原文の改訂を外せば残りが成り立つ。あわせて、spec §5.4・§8 と閉じた契約 P3-TL-AC11 の短い形の古い文を、行の数を変えずに直す（原文の改訂。統合担当が配送で当てる）。形は reconstruction/src/terminal の format.ts と output.ts の中で作る",
-    "baseOid": "unassigned",
+    "baseOid": "03e6e4e7",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
