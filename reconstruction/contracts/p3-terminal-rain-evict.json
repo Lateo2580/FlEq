@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "c9c26908e84cfdc33c7609cf8b9724d8fe4f50c563663cc01d9b7c1e4fba3cfd",
+    "sha256": "c49581689a5885f5743ee4ecb2bcd168600fc7e7ba849d8b2aa643de58dad947",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -46,7 +46,7 @@
         "id": "Q-TRE-SCENE",
         "status": "closed",
         "source": "2026-11-08 夜の総合レビュー（ヘルツ Astra high、P3）。記録 ~/dev/fleq-vault-archive/2026-11-08-evening/night-total-hertz.md。起草（2026-11-09）で HEAD 1c1a582d の実コードを読み直した",
-        "closed": "場面は成立する。イベント列（HEAD 1c1a582d。src は a90a284e から変わっていない）: (段 0) U-B の currents は normal の active が 255 件で、retainUntil を過ぎた記録（evictOne の第 1 段）と記憶（replaced・aliased・cancelled、第 2 段）が無い。(段 1) t0 に訓練の VPOA50・P（EventID の全体が subject、対応報なし）を受ける。U-B は found=null・256 件目なので退去は起きず、nextOf が held にする（briefing-unit.ts:279）。held は visible でないので通知を作らない（briefing-unit.ts:503）。返信の accepted の subjects に自分の記録 P が held で載り、端末は待ちの表に P を置く（output.ts:526、期限 t0+60,000 ms の単調時計）。(段 2) t0+10 秒に別の事象の通常の報を受ける。257 件目なので evictOne が候補を選ぶ。受ける報が normal なので訓練の P も候補で、P は第 3 段（training/test の生きた記録）、normal の 255 件は第 4 段なので P が退去する（briefing-unit.ts:207・438・449）。退去した P は changes には載るが accepted の subjects（touched だけ、briefing-unit.ts:538）に載らず、端末の表の P は残る（output.ts:483 の delete に届かない）。currents は normal 256 件になる。(段 3) t0+20 秒に P の取消（訓練）を受ける。found=null・256 件で、受ける報が training なので normal はどの段でも候補にならず（briefing-unit.ts:210）、evicted=null で受けた記録自身を退去する（briefing-unit.ts:441・446）。返すのは accepted・revisionOnly・subjects=[]（briefing-unit.ts:417、P3-C12-CAPACITY=A の「自身の退去」）で、通知は作らない。端末の材料は accepted なので作られる（material.ts:281）。端末は subjects が空なので own=null・waited=false で、表の P を消さず、取消の報を積む（output.ts:483・530・534）。(段 4) t0+60 秒の tick で表の P の元の速報が出る（output.ts:316）。期限の前に終了しても close の flushAll が出す（output.ts:322・599）。U-B は P を退去したので P も取消も鳴らさない。端末だけが「取消の後に、取り消した速報」を出す。 成立の条件は、段 3 の時点で currents の 256 件が全部 normal であること（training/test の記録が 1 件でも残れば evictOne がそれを選び、取消は記憶として載って subjects に自分の記録が cancelled で出る）。段 2 で P の前に第 1・2 段の記録か、P より ReportDateTime の古い training/test の生きた記録があれば P は退去しない。返信に自分の記録が無い VPOA50 の取消は、この自身の退去（training/test の報だけで起きる）と、遅着の報の経路（briefing-unit.ts の lateRule。visible な記録〔released〕への遅着は採って subjects=[] を返す、briefing-unit.ts:430。visible でない記録への遅着は stale で端末の材料を作らない）だけ。取消でない訂正・続報も同じ 2 つの経路で subjects=[] になる",
+        "closed": "場面は成立する。イベント列（起草は HEAD 1c1a582d で読んだ。行番号は 2026-11-09 夜の載せ直しの後の木で、場面の引く行の中身は変わっていない）: (段 0) U-B の currents は normal の active が 255 件で、retainUntil を過ぎた記録（evictOne の第 1 段）と記憶（replaced・aliased・cancelled、第 2 段）が無い。(段 1) t0 に訓練の VPOA50・P（EventID の全体が subject、対応報なし）を受ける。U-B は found=null・256 件目なので退去は起きず、nextOf が held にする（briefing-unit.ts:279）。held は visible でないので通知を作らない（briefing-unit.ts:503）。返信の accepted の subjects に自分の記録 P が held で載り、端末は待ちの表に P を置く（output.ts:571、期限 t0+60,000 ms の単調時計）。(段 2) t0+10 秒に別の事象の通常の報を受ける。257 件目なので evictOne が候補を選ぶ。受ける報が normal なので訓練の P も候補で、P は第 3 段（training/test の生きた記録）、normal の 255 件は第 4 段なので P が退去する（briefing-unit.ts:207・438・449）。退去した P は changes には載るが accepted の subjects（touched だけ、briefing-unit.ts:538）に載らず、端末の表の P は残る（output.ts:507 の delete に届かない）。currents は normal 256 件になる。(段 3) t0+20 秒に P の取消（訓練）を受ける。found=null・256 件で、受ける報が training なので normal はどの段でも候補にならず（briefing-unit.ts:210）、evicted=null で受けた記録自身を退去する（briefing-unit.ts:441・446）。返すのは accepted・revisionOnly・subjects=[]（briefing-unit.ts:417、P3-C12-CAPACITY=A の「自身の退去」）で、通知は作らない。端末の材料は accepted なので作られる（material.ts:303）。端末は subjects が空なので own=null・waited=false で、表の P を消さず、取消の報を積む（output.ts:507・575・579）。(段 4) t0+60 秒の tick で表の P の元の速報が出る（output.ts:339）。期限の前に終了しても close の flushAll が出す（output.ts:346・644）。U-B は P を退去したので P も取消も鳴らさない。端末だけが「取消の後に、取り消した速報」を出す。 成立の条件は、段 3 の時点で currents の 256 件が全部 normal であること（training/test の記録が 1 件でも残れば evictOne がそれを選び、取消は記憶として載って subjects に自分の記録が cancelled で出る）。段 2 で P の前に第 1・2 段の記録か、P より ReportDateTime の古い training/test の生きた記録があれば P は退去しない。返信に自分の記録が無い VPOA50 の取消は、この自身の退去（training/test の報だけで起きる）と、遅着の報の経路（briefing-unit.ts の lateRule。visible な記録〔released〕への遅着は採って subjects=[] を返す、briefing-unit.ts:430。visible でない記録への遅着は stale で端末の材料を作らない）だけ。取消でない訂正・続報も同じ 2 つの経路で subjects=[] になる",
         "remaining": "なし"
       },
       {
@@ -60,7 +60,7 @@
         "id": "Q-TRE-NEIGHBOR",
         "status": "closed",
         "source": "起草（2026-11-09）",
-        "closed": "同じ経路で、段 3 が取消でなく P の訂正・続報（訓練の held）でも U-B は自身を退去し subjects=[] を返す（briefing-unit.ts:446）。端末は own=null なので訂正をその場で積み（output.ts:534）、表の P の元の報が 60 秒の後にも出る（新しい版の後に古い版）。起草で統合担当へ報告した。統合担当の決め（2026-11-09）で範囲に入れた: 足す構造は無く、AC01 の同じ突き合わせで、取消でない採用は表の同じ報を新しい版に差し替えて期限を保つ（r0 の Opus P2-1 で「外して即出す」から改めた。AC01 (2)、T02）",
+        "closed": "同じ経路で、段 3 が取消でなく P の訂正・続報（訓練の held）でも U-B は自身を退去し subjects=[] を返す（briefing-unit.ts:446）。端末は own=null なので訂正をその場で積み（output.ts:579）、表の P の元の報が 60 秒の後にも出る（新しい版の後に古い版）。起草で統合担当へ報告した。統合担当の決め（2026-11-09）で範囲に入れた: 足す構造は無く、AC01 の同じ突き合わせで、取消でない採用は表の同じ報を新しい版に差し替えて期限を保つ（r0 の Opus P2-1 で「外して即出す」から改めた。AC01 (2)、T02）",
         "remaining": "なし"
       },
       {
@@ -75,6 +75,13 @@
         "status": "closed",
         "source": "2026-11-09 の起草レビュー r1（ヘルツ・Opus とも GO、Opus の P3 1 件）",
         "closed": "当てた（統合担当の決めどおり）。p3-terminal-output.types.ts の冒頭の注釈は値を電文の生の文字（正規化しない）とするので、欄 operation には欄と同じ行の末尾になぜの注釈を書くと allowedPaths に明記した。足す行は 2 行のままで、011・012 の付け直しのずれも 2 行のまま",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRE-REBASE",
+        "status": "closed",
+        "source": "統合担当の依頼（2026-11-09 夜、branch draft/tl13 の 036c5f96 の木）",
+        "closed": "2026-11-09 夜、011・012 の起草し直し・P3-REPL-CLOSED-001・P3-HOLD-MARK-UNITS-001・P3-UNIT-V-002 の後の木へ載せ直し、行番号を付け直した。«» は中身の anchor が同じ行へ番号だけを付け直した（output.ts は 011 の時系列のまとまりの行で +23〜+45、material.ts:281 は 011 の scan で 303 へ。briefing-unit.ts・decode-material.ts・xml-read.ts・briefing.ts・spec は動いていない）。散文の行番号も同じ行へ直した（場面のイベント列、011 の output.ts:540 の «»、配送の順の項の行の並び、p3-terminal-layout10.json が引く output.ts:415・:486）。場面の引く行の中身は変わっておらず、011 が inputDone に足した時系列の分岐は U-F の VPWP50 だけで U-B の VPOA50 の道に入らないので、場面は成立のまま",
         "remaining": "なし"
       }
     ],
@@ -170,7 +177,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TRE-AC01",
-        "requirement": "容量で退去した速報の取消・訂正・続報（P3-TRE-D-WHERE=A・D-KEY=A・D-CANCEL-SHOWN=A）: (1) 対象は、返信の terminal が短い形で unit が U-B、headType が VPOA50 の報（InfoType を問わない）で、返信の U-B の accepted の subjects に source.inputId がその入力のもの（自分の記録、P3-TL10-AC03 (1)）が無いとき（U-B の自身の退去と、visible な記録への遅着〔lateRule〕で起きる）。端末の材料（material.ts の head()）は head に operation（decode が確かめた material.operation の値。TerminalHead のほかの欄と違い生の文字でない）を持つ。(2) そのとき待ちの表を 1 回見て、報の head の operation と eventId がその報の head の operation と eventId の両方と一致する待ちを選ぶ（1 つ見つけたら止める。同じ運用区分と EventID の VPOA50 は U-B の同じ subject）。その報が取消なら、選んだ待ちを積まずに表から外し、その取消は P3-TL10-AC03 (5) の「自分の記録が表にあった取消」と同じに扱い、取消の報も積まず、--debug の行は「（U-B、出さない・待っていた報の取消）」。一致する待ちが無ければ今のとおり取消の報を積む。取消でない報（訂正・続報）で待ちを選んだら、その待ちの報だけを新しい版に替え、期限と表の位置は最初のまま（P3-TL10-AC03 (3) の同じ subject の置き換えと同じ）にして、その場では積まない（--debug は「（U-B、対応報を待つ）」、定期要約に数え、tips の待ちの起点は置いた時に動かす）。選べなければ今のとおりその場で積む。(3) 自分の記録が subjects にある返信、VPBS50、ほかの unit の報は今のとおり（P3-TL10-AC03 (5) の subjects による外し方はそのまま先に行う）。operation か eventId の一方でも違う待ち（通常の速報と、同じ EventID の訓練の取消など）は選ばない。(4) 場面: イベント列（HEAD 1c1a582d。src は a90a284e から変わっていない）: (段 0) U-B の currents は normal の active が 255 件で、retainUntil を過ぎた記録（evictOne の第 1 段）と記憶（replaced・aliased・cancelled、第 2 段）が無い。(段 1) t0 に訓練の VPOA50・P（EventID の全体が subject、対応報なし）を受ける。U-B は found=null・256 件目なので退去は起きず、nextOf が held にする（briefing-unit.ts:279）。held は visible でないので通知を作らない（briefing-unit.ts:503）。返信の accepted の subjects に自分の記録 P が held で載り、端末は待ちの表に P を置く（output.ts:526、期限 t0+60,000 ms の単調時計）。(段 2) t0+10 秒に別の事象の通常の報を受ける。257 件目なので evictOne が候補を選ぶ。受ける報が normal なので訓練の P も候補で、P は第 3 段（training/test の生きた記録）、normal の 255 件は第 4 段なので P が退去する（briefing-unit.ts:207・438・449）。退去した P は changes には載るが accepted の subjects（touched だけ、briefing-unit.ts:538）に載らず、端末の表の P は残る（output.ts:483 の delete に届かない）。currents は normal 256 件になる。(段 3) t0+20 秒に P の取消（訓練）を受ける。found=null・256 件で、受ける報が training なので normal はどの段でも候補にならず（briefing-unit.ts:210）、evicted=null で受けた記録自身を退去する（briefing-unit.ts:441・446）。返すのは accepted・revisionOnly・subjects=[]（briefing-unit.ts:417、P3-C12-CAPACITY=A の「自身の退去」）で、通知は作らない。端末の材料は accepted なので作られる（material.ts:281）。端末は subjects が空なので own=null・waited=false で、表の P を消さず、取消の報を積む（output.ts:483・530・534）。(段 4) t0+60 秒の tick で表の P の元の速報が出る（output.ts:316）。期限の前に終了しても close の flushAll が出す（output.ts:322・599）。U-B は P を退去したので P も取消も鳴らさない。端末だけが「取消の後に、取り消した速報」を出す。 直した後は、段 3 で端末は表の P を外し、取消も出さず、段 4 の tick でも終了でも何も出ない（U-B の通知と揃う）。段 3 が取消でなく P の訂正（訓練、U-B は同じく自身を退去して subjects=[]、briefing-unit.ts:446）なら、端末は表の P の報を訂正の版に替え、段 3 では何も出さず、t0+60 秒の tick（か期限の前の close）に訂正の版のブロックを 1 つだけ出す",
+        "requirement": "容量で退去した速報の取消・訂正・続報（P3-TRE-D-WHERE=A・D-KEY=A・D-CANCEL-SHOWN=A）: (1) 対象は、返信の terminal が短い形で unit が U-B、headType が VPOA50 の報（InfoType を問わない）で、返信の U-B の accepted の subjects に source.inputId がその入力のもの（自分の記録、P3-TL10-AC03 (1)）が無いとき（U-B の自身の退去と、visible な記録への遅着〔lateRule〕で起きる）。端末の材料（material.ts の head()）は head に operation（decode が確かめた material.operation の値。TerminalHead のほかの欄と違い生の文字でない）を持つ。(2) そのとき待ちの表を 1 回見て、報の head の operation と eventId がその報の head の operation と eventId の両方と一致する待ちを選ぶ（1 つ見つけたら止める。同じ運用区分と EventID の VPOA50 は U-B の同じ subject）。その報が取消なら、選んだ待ちを積まずに表から外し、その取消は P3-TL10-AC03 (5) の「自分の記録が表にあった取消」と同じに扱い、取消の報も積まず、--debug の行は「（U-B、出さない・待っていた報の取消）」。一致する待ちが無ければ今のとおり取消の報を積む。取消でない報（訂正・続報）で待ちを選んだら、その待ちの報だけを新しい版に替え、期限と表の位置は最初のまま（P3-TL10-AC03 (3) の同じ subject の置き換えと同じ）にして、その場では積まない（--debug は「（U-B、対応報を待つ）」、定期要約に数え、tips の待ちの起点は置いた時に動かす）。選べなければ今のとおりその場で積む。(3) 自分の記録が subjects にある返信、VPBS50、ほかの unit の報は今のとおり（P3-TL10-AC03 (5) の subjects による外し方はそのまま先に行う）。operation か eventId の一方でも違う待ち（通常の速報と、同じ EventID の訓練の取消など）は選ばない。(4) 場面: イベント列（起草は HEAD 1c1a582d で読んだ。行番号は 2026-11-09 夜の載せ直しの後の木で、場面の引く行の中身は変わっていない）: (段 0) U-B の currents は normal の active が 255 件で、retainUntil を過ぎた記録（evictOne の第 1 段）と記憶（replaced・aliased・cancelled、第 2 段）が無い。(段 1) t0 に訓練の VPOA50・P（EventID の全体が subject、対応報なし）を受ける。U-B は found=null・256 件目なので退去は起きず、nextOf が held にする（briefing-unit.ts:279）。held は visible でないので通知を作らない（briefing-unit.ts:503）。返信の accepted の subjects に自分の記録 P が held で載り、端末は待ちの表に P を置く（output.ts:571、期限 t0+60,000 ms の単調時計）。(段 2) t0+10 秒に別の事象の通常の報を受ける。257 件目なので evictOne が候補を選ぶ。受ける報が normal なので訓練の P も候補で、P は第 3 段（training/test の生きた記録）、normal の 255 件は第 4 段なので P が退去する（briefing-unit.ts:207・438・449）。退去した P は changes には載るが accepted の subjects（touched だけ、briefing-unit.ts:538）に載らず、端末の表の P は残る（output.ts:507 の delete に届かない）。currents は normal 256 件になる。(段 3) t0+20 秒に P の取消（訓練）を受ける。found=null・256 件で、受ける報が training なので normal はどの段でも候補にならず（briefing-unit.ts:210）、evicted=null で受けた記録自身を退去する（briefing-unit.ts:441・446）。返すのは accepted・revisionOnly・subjects=[]（briefing-unit.ts:417、P3-C12-CAPACITY=A の「自身の退去」）で、通知は作らない。端末の材料は accepted なので作られる（material.ts:303）。端末は subjects が空なので own=null・waited=false で、表の P を消さず、取消の報を積む（output.ts:507・575・579）。(段 4) t0+60 秒の tick で表の P の元の速報が出る（output.ts:339）。期限の前に終了しても close の flushAll が出す（output.ts:346・644）。U-B は P を退去したので P も取消も鳴らさない。端末だけが「取消の後に、取り消した速報」を出す。 直した後は、段 3 で端末は表の P を外し、取消も出さず、段 4 の tick でも終了でも何も出ない（U-B の通知と揃う）。段 3 が取消でなく P の訂正（訓練、U-B は同じく自身を退去して subjects=[]、briefing-unit.ts:446）なら、端末は表の P の報を訂正の版に替え、段 3 では何も出さず、t0+60 秒の tick（か期限の前の close）に訂正の版のブロックを 1 つだけ出す",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:612 «40be8a63ec3c23fc»",
           "reconstruction/src/units/briefing/briefing-unit.ts:207 «294e8289c94fba9a»",
@@ -183,18 +190,18 @@
           "reconstruction/src/units/briefing/briefing-unit.ts:449 «9566e8304fd3ab0f»",
           "reconstruction/src/units/briefing/briefing-unit.ts:503 «c4001093f7d24beb»",
           "reconstruction/src/units/briefing/briefing-unit.ts:538 «3c915558c3eb15ad»",
-          "reconstruction/src/terminal/material.ts:281 «2be327932f009c34»",
-          "reconstruction/src/terminal/output.ts:316 «1cbad544ef8d1adf»",
-          "reconstruction/src/terminal/output.ts:322 «da2499732129eee5»",
-          "reconstruction/src/terminal/output.ts:475 «83cb5a60d5f90392»",
-          "reconstruction/src/terminal/output.ts:483 «48303698d24448e9»",
-          "reconstruction/src/terminal/output.ts:526 «50da46d9f73a81ee»",
-          "reconstruction/src/terminal/output.ts:530 «c164c53e8e357801»",
-          "reconstruction/src/terminal/output.ts:534 «8eaf35e37d01bde6»",
-          "reconstruction/src/terminal/output.ts:599 «1efcca7a47fc5697»",
+          "reconstruction/src/terminal/material.ts:303 «2be327932f009c34»",
+          "reconstruction/src/terminal/output.ts:339 «1cbad544ef8d1adf»",
+          "reconstruction/src/terminal/output.ts:346 «da2499732129eee5»",
+          "reconstruction/src/terminal/output.ts:499 «83cb5a60d5f90392»",
+          "reconstruction/src/terminal/output.ts:507 «48303698d24448e9»",
+          "reconstruction/src/terminal/output.ts:571 «50da46d9f73a81ee»",
+          "reconstruction/src/terminal/output.ts:575 «c164c53e8e357801»",
+          "reconstruction/src/terminal/output.ts:579 «8eaf35e37d01bde6»",
+          "reconstruction/src/terminal/output.ts:644 «1efcca7a47fc5697»",
           "reconstruction/src/units/briefing/briefing-unit.ts:422 «0573d48dbb3021a5»",
           "reconstruction/src/units/briefing/briefing-unit.ts:430 «891ecfe0c9984d70»",
-          "reconstruction/src/terminal/output.ts:519 «54f2348cc3d31d82»",
+          "reconstruction/src/terminal/output.ts:564 «54f2348cc3d31d82»",
           "reconstruction/src/terminal/material.ts:40 «93adbb33f3a311ae»",
           "reconstruction/src/decode-material/decode-material.ts:365 «01e9c87cb03feddb»",
           "reconstruction/src/decode-material/decode-material.ts:473 «3df2eaec74aa3821»",
@@ -207,8 +214,8 @@
         "id": "P3-TRE-AC02",
         "requirement": "計算量と口（AGENTS.md の受信経路の計算量）: (1) 足す走査は AC01 (1) の条件（VPOA50 で、自分の記録が返信に無い）を満たす入力でだけ、待ちの表（端末の上限 256、P3-TL10-AC03 (3)）を 1 回なぞる。この条件は U-B の自身の退去（training/test の報だけ）と遅着の経路でしか起きない稀な分岐で、ほかの受信には足さない。JSON.stringify・列の走査・ほかの unit の走査をしない (2) 口は変えない: terminalReport・inputTerminal・createTerminalOutput・TerminalSink。型は TerminalHead に欄 operation を 1 つ足すだけ（material.ts は head() の 1 行の中、types.ts は TerminalHead の中と import）。runtime・U-B・format.ts を変えない。材料の byte は欄 1 つ分（運用区分の字）だけ増える",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:475 «83cb5a60d5f90392»",
-          "reconstruction/src/terminal/output.ts:483 «48303698d24448e9»"
+          "reconstruction/src/terminal/output.ts:499 «83cb5a60d5f90392»",
+          "reconstruction/src/terminal/output.ts:507 «48303698d24448e9»"
         ]
       }
     ],
@@ -312,7 +319,7 @@
       "コメントは足した分岐に「なぜ」を 1 行（U-B の自身の退去で subjects が空になる、P3-TRE-AC01）。行番号は書かない",
       "残存として成果物に書く: (1) 取消も訂正も来ないまま容量で退去した held の速報は、今のとおり 60 秒で端末に出る（P3-TL10 の残存 (3)、U-B は鳴らさない） (2) 自身の退去で U-B が保存しない訂正・続報は、端末では 60 秒で出るが U-B は鳴らさない (3) 壁時計の補正で U-B が P を先に released にして「（対応電文未確認）」を鳴らした後も端末だけが P を待つとき（P3-TL10 の残存 (11)）、遅着の取消（lateRule、subjects=[]）が来ると端末は P を外して取消も出さない（U-B は遅着の取消を鳴らさない）。端末には P も取消も出ず、通知には P だけが出る",
       "原文の改訂（統合担当が配送の commit で当てる。各条文の行の中に書き足し、行の数は変えない。起草の時に 3 行とも他の契約の «» に引かれていないことを grep で確かめた）: (1) reconstruction/contracts/p3-terminal-layout10.json:353 の P3-TL10-AC03 (5) の取消の句の後に、自分の記録が返信に無い VPOA50（U-B の自身の退去と遅着）は、P3-TERMINAL-RAIN-EVICT-001 の AC01 で運用区分と EventID の同じ待ちを引き、取消なら外し、訂正・続報なら報を替えて期限を保つ旨 (2) 同 :490 の残存 (3) の後に、その速報の取消が来たときは P3-TERMINAL-RAIN-EVICT-001 で速報も取消も出さず、訂正・続報が来たときは新しい版を最初の期限で出す旨。(3) reconstruction/contracts/p3-terminal-output.json:504 の P3-TO-AC01 (3) の TerminalHead の読む要素の後に、head の operation は XML の字でなく decode が確かめた運用区分（material.operation）を写す旨（P3-TERMINAL-RAIN-EVICT-001。009・P3-TL10 の :504 の改訂とは別の句）。改訂の後に p3-terminal-layout10.json と p3-terminal-output.json の meta.sha256 を取り直す",
-      "配送の順と «» の付け直し: check-contract は起草中（baseOid unassigned）の契約の «» も確かめるので、本契約・P3-TERMINAL-LAYOUT-011・P3-TERMINAL-LAYOUT-012 のうち先に載る側の配送の commit の中で、後の側の契約の «» を reanchor-target.py で行の番号だけ付け直し、その meta.sha256 を取り直す（実装は相手の契約 file を触らない）。本契約が先なら: 011 の output.ts:506 «9adf0ae5f749e324»（足す場所より下）と、011・012 の p3-terminal-output.types.ts:84・:85（TerminalHead に行が入れば下へずれる）を付け直す。011・012 が先なら: 011 の allowedPaths は output.ts の expire と flushAll の出す行を変えうるので、本契約の引く output.ts の行（:316・:322・:475・:483・:519・:526・:530・:534・:599）と material.ts の行（:40・:281）を、その配送の commit で付け直す（012 は material.ts の scan の行を変える）。本契約の配送の commit では、実装で中身の変わる自分の «»（material.ts:40）を取り直す。p3-terminal-layout10.json が引く output.ts:391・:462 は足す場所より上で動かない",
+      "配送の順と «» の付け直し: check-contract は起草中（baseOid unassigned）の契約の «» も確かめるので、本契約・P3-TERMINAL-LAYOUT-011・P3-TERMINAL-LAYOUT-012 のうち先に載る側の配送の commit の中で、後の側の契約の «» を reanchor-target.py で行の番号だけ付け直し、その meta.sha256 を取り直す（実装は相手の契約 file を触らない）。本契約が先なら: 011 の output.ts:540 «9adf0ae5f749e324»（足す場所より下）と、011・012 の p3-terminal-output.types.ts:84・:85（TerminalHead に行が入れば下へずれる）を付け直す。011・012 が先なら: 011 の allowedPaths は output.ts の expire と flushAll の出す行を変えうるので、本契約の引く output.ts の行（:339・:346・:499・:507・:564・:571・:575・:579・:644）と material.ts の行（:40・:303）を、その配送の commit で付け直す（012 は material.ts の scan の行を変える）。本契約の配送の commit では、実装で中身の変わる自分の «»（material.ts:40）を取り直す。p3-terminal-layout10.json が引く output.ts:415・:486 は足す場所より上で動かない",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない"
     ],
     "unresolvedQuestions": []

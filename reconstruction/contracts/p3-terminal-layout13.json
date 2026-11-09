@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86bb360c4e857d340f328644b670bead0b03474f",
-    "sha256": "99f2d1e5dd16015b79090cf503f84c5f31237f3f676e216aed88df5ccd79e508",
+    "sha256": "a518ee098a23752eb2d6634641fd76fc84cfd1f4f743736052b8fb606b6ba47d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -45,8 +45,15 @@
         "id": "Q-TL13-SPEC-LINES",
         "status": "closed",
         "source": "起草（統合担当、2026-11-09）",
-        "closed": "spec の行は足していない。§6.4 の図の閉じの直後の空行（708 行）を tips の空行と折り方の項にし、§8 の Q-TO-S-1 の答え（806 行）に版の印を除く句を足した。どちらもどの契約も引いていない。§6.4 の最初の項（709 行「先頭を 2 字下げて 1 行出す」、p3-cli-repl.json と p3-terminal-output.json が引く）は変えず、新しい項から「1 行は幅に入る tips の形」と読ませる。他の契約の spec の «» は 1 つも落ちない。806 行は P3-TERMINAL-LAYOUT-012 の裁定の commit（459529a7）も中身を変えているので、載せ直しで同じ行がぶつかる（統合担当が両方の句を残して合わせる）",
-        "remaining": "載せ直しの時の 806 行の合わせ（統合担当）"
+        "closed": "spec の行は足していない。§6.4 の図の閉じの直後の空行（707 行）を tips の空行と折り方の項にし、§8 の Q-TO-S-1 の答え（805 行）に版の印を除く句を足した。どちらもどの契約も引いていない。§6.4 の最初の項（708 行「先頭を 2 字下げて 1 行出す」、p3-cli-repl.json と p3-terminal-output.json が引く）は変えず、新しい項から「1 行は幅に入る tips の形」と読ませる。他の契約の spec の «» は 1 つも落ちない。805 行は P3-TERMINAL-LAYOUT-012 の裁定の commit（459529a7）も中身を変えているので、載せ直しで同じ行がぶつかる（統合担当が両方の句を残して合わせる）",
+        "remaining": "載せ直しの時の 805 行の合わせ（統合担当）"
+      },
+      {
+        "id": "Q-TL13-REBASE",
+        "status": "closed",
+        "source": "統合担当の依頼（2026-11-09 夜、branch draft/tl13 の 036c5f96 の木）",
+        "closed": "2026-11-09 夜、011・012 の起草し直し・P3-REPL-CLOSED-001・P3-HOLD-MARK-UNITS-001・P3-UNIT-V-002 の後の木へ載せ直し、行番号を付け直した。«» は中身の anchor が同じ行へ番号だけを付け直した（format.ts は 011 の後で +4〜+17、output.ts は +24〜+45、spec は 012 の起草し直しが 608 行で 1 行減らした分の -1）。spec の Q-TO-S-1 の行は統合担当が 012 と本契約の句を残して合わせたので、AC01 の «» をその行（805）の新しい anchor で取り直した（載せ直しの直後は 806 の Q-TO-S-2 を指していた）。散文の行番号（Q-TL13-SPEC-LINES の 707・805・708 行、原文の改訂 (4) の spec:708）も同じ行へ直した",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -140,12 +147,12 @@
         "id": "P3-TL13-AC01",
         "requirement": "短い形の帯の題名の版の印（Q-TO-S-1 の改訂、2026-11-09 作者。P3-TERMINAL-LAYOUT-009 の outOfScope「除くなら Q-TO-S-1 の改訂として別に諮る」の改訂）: (1) format.ts の shortForm で、題名から「（Ｒ０６）」の形に加えて「（Ｈ３０）」の形（全角の Ｈ と全角の数字）も除く。除く位置・Control/Status の印・取消の「 取消」・対象の付け方は今のとおり (2) 起動時のまとめと降灰のまとまりの題名は変えない。場面: 写しの 2026-11-08 21:45 の VPTW60 の帯「台風解析・予報情報（５日予報）（Ｈ３０） 熱帯低気圧」は「台風解析・予報情報（５日予報） <対象>」になる（対象は P3-TL9-AC05 の台風の呼称）。synthetic_VPTW60_cancel は「━ 台風解析・予報情報（５日予報） 取消 台風発生予想 ━」",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:806 «9cdf21dc392a2a08»",
-          "docs/specs/cli-terminal-output.md:873 «b46a434035ba0432»",
+          "docs/specs/cli-terminal-output.md:805 «9383fe75b8e1aedc»",
+          "docs/specs/cli-terminal-output.md:872 «b46a434035ba0432»",
           "docs/specs/cli-terminal-output.md:609 «4bc9de7d19861115»",
-          "reconstruction/src/terminal/format.ts:731 «4e30f90d234b6ce0»",
-          "reconstruction/src/terminal/format.ts:732 «4f518744b44af17c»",
-          "reconstruction/src/terminal/format.ts:799 «52ceff2b61bef634»",
+          "reconstruction/src/terminal/format.ts:737 «4e30f90d234b6ce0»",
+          "reconstruction/src/terminal/format.ts:738 «4f518744b44af17c»",
+          "reconstruction/src/terminal/format.ts:816 «52ceff2b61bef634»",
           "test/fixtures/synthetic_VPTW60_cancel.xml:4 «8134ee3e92a22164»",
           "reconstruction/contracts/p3-terminal-layout9.json:282 «7c153a3780435319»"
         ]
@@ -154,28 +161,28 @@
         "id": "P3-TL13-AC02",
         "requirement": "種類の分からない電文（P3-TO-D-UNREADABLE の範囲を条文に書き留める。今の動きで、コードは変えない）: (1) unit の受け持ちの表に無い型（例 WTJP31・WTJP21。owner が U-M の view に置く unknownType のカード）は、端末に出さない。sink は返信の view の unreadableCards のうち kind が unreadable か unidentified のカードだけを「処理できなかった電文」の 2 行にし、unknownType のカードは選ばない (2) 出さない理由: unknownType は FlEq が扱わない種類（海上警報など、区分の契約で届く他の型）で、U-M が headType ごとに件数をまとめて持つ。出すと 6 時間ごとなどの定時の報が「処理できなかった電文 WTJP31」として電文の間に並ぶ（写しでは旧築が 6 回出した） (3) --debug の行と定期要約の数え方は今のとおり (4) 受け持ちの表で notPorted の型（VXSE47・VPBS51 など、unit がまだ受けない型）も、owner は routeNotPorted の unknownType のカードを U-M に置くので、同じく端末に出さない。届いたことを読む所は --debug の行と、routeNotPorted の INFO の記録",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:549 «11c98b66c886edc9»",
-          "reconstruction/src/terminal/output.ts:553 «a9fdf1f07ee9742b»",
+          "reconstruction/src/terminal/output.ts:594 «11c98b66c886edc9»",
+          "reconstruction/src/terminal/output.ts:598 «a9fdf1f07ee9742b»",
           "reconstruction/src/runtime/owner-runtime.ts:536 «c96480327a2ee170»",
           "reconstruction/src/runtime/owner-runtime.ts:537 «b1c66d2e0a2f144d»",
           "reconstruction/src/runtime/unit-coverage.ts:44 «f41d86dc1375f9a9»",
           "reconstruction/src/runtime/unit-coverage.ts:97 «716b75f53603c153»",
-          "docs/specs/cli-terminal-output.md:873 «b46a434035ba0432»"
+          "docs/specs/cli-terminal-output.md:872 «b46a434035ba0432»"
         ]
       },
       {
         "id": "P3-TL13-AC03",
         "requirement": "待機中の tips（spec §6.4 の改訂、2026-11-09 作者。P3-TL13-D-TIP-WRAP=A）: (1) format.ts の notice の tip は、前に空行を 1 行置く (2) tips の字を textLines で、端末の幅（ctx.total、100 桁まで）から頭の 2 桁を引いた幅に入るかを見て（tips は縦線を持たないので、電文の本文の幅 ctx.body から引かない）、入らなければ句点で分け、分けた各行を頭に 2 桁の空白を置いて薄い字で出す (3) 句点で分けた文がまだ入らないときは、その文の中で、行の幅（最初の行は端末の幅から 2 桁、続きの行は 4 桁を引いた幅）に入る範囲の最後の読点「、」の後で折り、続きの行を 4 桁下げる。残りがまだ入らなければ同じことを繰り返す。幅の中に読点が無いときは今の wrapChars で字の境目で折る（NO_HEAD の決まりも同じ）。読点を探すのはその 1 文の中を 1 回なぞるだけ（受信の経路ではなく、30 分ごとの tips の 1 件） (4) 幅に入る tips は今と同じ 1 行 (5) tips の待ちの起点（lastOutputMs）・間隔・選び方は変えない。場面: 100 桁で「Tip: 阪神・淡路大震災では、住民による救助や炊き出しが大きな役割を果たしました。公的支援が届くまで…」は、空行の後に句点の後ろで 2 行に分かれる。「Tip: WBGTは1954年に…3つの温度から計算されます。」（1 文で 110 桁）は、空行の後に「  Tip: WBGTは1954年にアメリカ軍が熱中症予防のために開発した指標で、」と「    乾球・湿球・黒球の3つの温度から計算されます。」の 2 行",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:708 «168010a45fa5ea5b»",
-          "docs/specs/cli-terminal-output.md:709 «6b6b55310a9e6fb3»",
+          "docs/specs/cli-terminal-output.md:707 «168010a45fa5ea5b»",
+          "docs/specs/cli-terminal-output.md:708 «6b6b55310a9e6fb3»",
           "docs/specs/cli-terminal-output.md:88 «92a8bdfca2603b73»",
-          "reconstruction/src/terminal/format.ts:233 «e776e32870e86512»",
-          "reconstruction/src/terminal/format.ts:234 «c6e6f460a0ff2fe9»",
-          "reconstruction/src/terminal/format.ts:753 «434d49a755e2dd35»",
-          "reconstruction/src/terminal/format.ts:854 «61efe2b362e065f9»",
-          "reconstruction/src/terminal/format.ts:872 «37884765432f1a5e»",
-          "reconstruction/src/terminal/output.ts:391 «2e886d21d6e2c58f»"
+          "reconstruction/src/terminal/format.ts:237 «e776e32870e86512»",
+          "reconstruction/src/terminal/format.ts:238 «c6e6f460a0ff2fe9»",
+          "reconstruction/src/terminal/format.ts:759 «434d49a755e2dd35»",
+          "reconstruction/src/terminal/format.ts:871 «61efe2b362e065f9»",
+          "reconstruction/src/terminal/format.ts:889 «37884765432f1a5e»",
+          "reconstruction/src/terminal/output.ts:415 «2e886d21d6e2c58f»"
         ]
       }
     ],
@@ -271,7 +278,7 @@
       "配送で統合担当が付け直す: format.ts を変えて行がずれたら、他の契約が引く format.ts の «» と本契約の src の «» を中身の anchor が一致する行へ付け直し、各契約の meta.sha256 を取り直して check-contract を通す",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 幅の中に読点の無い文を持つ tips（tips-data.ts の 2,238 件のうち、100 桁で 45 件・80 桁で 165 件・56 桁で 1,020 件）は、文の途中の字の境目で折れる（P3-TL13-D-TIP-WRAP=A） (2) 種類の分からない電文（notPorted の型を含む）は端末に出ないので、区分の契約で届く他の型が届いているかは端末では読めない（--debug の行と routeNotPorted の INFO で読む） (3) 幅の中の最後の読点が文の頭近くにあると、折った 1 行目が短くなる。句点で分けた文の最初の折り目の行が幅の 3 分の 1 未満になる tips は 100 桁で 30 件・80 桁で 91 件・56 桁で 97 件（起草の時に tips-data.ts で数えた。続きの行の折り目も含めると 30・93・204 件）。裁定「句読点で折る」の範囲の動きとして残す",
-      "原文の改訂（統合担当が配送の commit で当てる。各条文の行の中に書き足し、行の数は変えない。起草の時に 4 行とも他の契約の «» に引かれていないことを grep で確かめた。行番号は起草の時の HEAD 86bb360c）: (1) reconstruction/contracts/p3-terminal-layout9.json:282 の outOfScope に、P3-TL13-AC01 で除くことにした旨 (2) reconstruction/contracts/p3-terminal-output.json:615 の P3-TO-AC09 (4) の P3-TO-D-UNREADABLE の句に、unknownType のカードは出さない旨（P3-TL13-AC02） (3) 同 :661 の P3-TO-AC12 の tips の形に、前の空行と折り方（P3-TL13-AC03） (4) docs/specs/cli-terminal-output.md:709 の「1 行出す」に「幅に入る tips は」（p3-cli-repl.json と p3-terminal-output.json が引く行なので起草では触らず、配送でその «» と一緒に取り直す）"
+      "原文の改訂（統合担当が配送の commit で当てる。各条文の行の中に書き足し、行の数は変えない。起草の時に 4 行とも他の契約の «» に引かれていないことを grep で確かめた。行番号は 2026-11-09 夜の載せ直しの後の木）: (1) reconstruction/contracts/p3-terminal-layout9.json:282 の outOfScope に、P3-TL13-AC01 で除くことにした旨 (2) reconstruction/contracts/p3-terminal-output.json:615 の P3-TO-AC09 (4) の P3-TO-D-UNREADABLE の句に、unknownType のカードは出さない旨（P3-TL13-AC02） (3) 同 :661 の P3-TO-AC12 の tips の形に、前の空行と折り方（P3-TL13-AC03） (4) docs/specs/cli-terminal-output.md:708 の「1 行出す」に「幅に入る tips は」（p3-cli-repl.json と p3-terminal-output.json が引く行なので起草では触らず、配送でその «» と一緒に取り直す）"
     ],
     "unresolvedQuestions": [
       {
