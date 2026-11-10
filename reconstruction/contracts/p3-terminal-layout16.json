@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c0c478db56d3e99db6c0496ca402179338501ff6",
-    "sha256": "2d64aff29ae832242d743d41e94a697b54f9e927c75c5a9ab328085630447b64",
+    "sha256": "03f80916b1ee02ae000b23c0a782001cf1cbbfddab7a3419414df8de5afba7af",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -98,7 +98,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-016",
     "mode": "implementation",
     "objective": "2026-11-09 夜の旧築と新築の写しの突き合わせで残った 2 つを、作者の裁定（2026-11-10）のとおり閉じる: 台風の暴風域に入る確率（VPTA50〜55）の短い形に、帯の下の府県の行（最大の確率の高い順に、70% 以上の府県は全部・70% 未満は合計 5 行まで、府県名・最悪の地域・最大の確率・ピークの時刻。残りは「ほか n 府県」）を足す（P3-TL16-D-VPTA-ROWS=A'）。起動時のまとめの「ほか」の行を題名の途中で折らず「題名 n 件」の組の境で折る（P3-TL16-D-DIGEST-WRAP=A）。材料（material.ts）に短い形の欄 probability を 1 つ足し、整形（format.ts）で行にする。spec は起草で直した（§1・§5.4・§6.6・§8）。行の数の決め方（P3-TL16-D-TIE。70% 以上の府県は全部、70% 未満は合計 5 行まで）と、幅に入らないときの形（P3-TL16-D-NARROW。府県ごとに 2 行）は作者の裁定（2026-11-10）を当てた",
-    "baseOid": "unassigned",
+    "baseOid": "465706f0",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
