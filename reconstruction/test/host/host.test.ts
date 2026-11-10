@@ -2016,3 +2016,86 @@ it("P3-NC-T06: 一覧の noContract は Retry-After を使わず式の待ち、a
   await turn();
   expect(rest.calls).toHaveLength(calls);
 });
+
+// P3-TERMINAL-DEBUG-REJECT-001: host が入力 ID を振って owner に渡さなかった入力の --debug の行。import を file の頭に足さないのは、
+// 他の契約の «» が引く本 file の行を動かさないため（import は file のどこに置いても先に読まれる）。
+import { harness } from "../terminal/terminal-fixture";
+describe("P3-TERMINAL-DEBUG-REJECT-001 the --debug line of an input the host numbered but did not hand to an owner", () => {
+  // startP2Host を直に呼ぶ（P3-TP-T09 の形）。既存の start・startDmdata は terminal を渡さない。
+  async function debugHost(source: { wsUrl: string } | { dmdata: DmdataSubscription }, displayPort: number | null) {
+    const dirs = await directories();
+    const terminal = harness({ debug: true });
+    cleanups.push(() => terminal.output.close());
+    const host = await startP2Host({ ...source, ...dirs, displayPort, clock, observe: null, terminal: terminal.output.sink });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    return { host, dirs, lines: terminal.lines };
+  }
+
+  it("P3-TDR-T01 regression / AC01 (1): a format json frame ingress rejects gets its line, and the next input's reply line still follows", async () => {
+    const server = await localServer();
+    const { lines } = await debugHost({ wsUrl: server.url }, null);
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(JSON.stringify({ ...JSON.parse(dataFrame("WTJP21", "x")) as object, format: "json" }));
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    await until(() => lines.includes("debug: VXSE43 input-2（U-E、出した）"));
+    expect(lines).toContain("debug: input-1（出さない・断った formatUnsupported）");
+    expect(lines.indexOf("debug: input-1（出さない・断った formatUnsupported）")).toBeLessThan(lines.indexOf("debug: VXSE43 input-2（U-E、出した）"));
+  });
+
+  it("P3-TDR-T02 acceptance / AC01 (2): with eew.forecast in the start frame the dropped VXSE43 gets its line", async () => {
+    const server = await localServer();
+    rest.list = listing([]);
+    rest.start = opened(server.url, 43);
+    rest.close = async () => ({ kind: "ok" });
+    const { dirs, lines } = await debugHost({ dmdata: subscription }, null);
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 43, classifications: ["eew.forecast", "eew.warning"], time: startTime() }));
+    await firstLine(dirs.diagnosticDirectory, "dmdataSocketStarted");
+    server.sockets[0].send(dataFrame("VXSE43", vxse43));
+    await until(() => lines.includes("debug: VXSE43 input-1（出さない・捨てた）"));
+  });
+
+  it("P3-TDR-T03 contractBoundary / AC01 (3)・AC02 (3): an input refused for the unresponsive owner gets its line while the held input has none yet", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const server = await localServer();
+    const { host, lines } = await debugHost({ wsUrl: server.url }, 0);
+    if (host.displayPort == null) throw new Error("displayPort 0 opens the display server");
+    const stream = await events(host.displayPort);
+    await until(() => server.sockets.length === 1);
+    // 既存の stall の試験と同じ手順で weatherCurrent の owner を unresponsive にする。
+    owners.hold = true;
+    server.sockets[0].send(junk());
+    await until(() => owners.held.length === 1);
+    skew.ms += 5_000;
+    vi.advanceTimersByTime(1_000);
+    await until(() => stream.heartbeats.includes("unresponsive"));
+    server.sockets[0].send(junk());
+    await until(() => lines.includes("debug: VPWW57 input-2（出さない・断った ownerStopped）"));
+    expect(lines.filter((line) => line.includes("input-1"))).toEqual([]);
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
+  });
+
+  it("P3-TDR-T04 acceptance / AC01 (4): the input the mailbox refuses by itemLimit gets exactly one line", async () => {
+    const server = await localServer();
+    const { lines } = await debugHost({ wsUrl: server.url }, null);
+    await until(() => server.sockets.length === 1);
+    // 既存の容量の拒否の試験と同じ手順。溢れの後の frame は host が番号を振る前に捨てるので行も番号も無い。
+    owners.hold = true;
+    for (let index = 0; index < 130; index++) server.sockets[0].send(junk());
+    await until(() => server.sockets[0].readyState === 3);
+    const refused = () => lines.filter((line) => /^debug: VPWW57 input-\d+（出さない・断った itemLimit）$/.test(line));
+    await until(() => refused().length > 0);
+    expect(refused()).toHaveLength(1);
+    owners.hold = false;
+    for (const deliver of owners.held.splice(0)) deliver();
+  });
+
+  it("P3-TDR-T05 contractBoundary / AC02 (2): without --debug inputDropped writes nothing", () => {
+    const terminal = harness();
+    cleanups.push(() => terminal.output.close());
+    terminal.output.sink.inputDropped("input-1", null, { refused: "formatUnsupported" });
+    terminal.output.sink.inputDropped("input-2", "VXSE43", "discarded");
+    expect(terminal.lines).toEqual([]);
+  });
+});

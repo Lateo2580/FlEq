@@ -44,7 +44,7 @@ const RAIN_HOLD_MS = 60_000, RAIN_LIMIT = 256;
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
 // mirror は参照を置き換えるだけ（P3-TP-AC06 (3)）。項目は promptLabel の中で作る。
-type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void }>;
+type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; inputDropped(inputId: string, headType: string, reason: "discarded"): void; inputDropped(inputId: string, headType: string | null, reason: Readonly<{ refused: string }>): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void }>; // P3-TDR-AC02 (1): inputDropped は host が番号を振って owner に渡さなかった入力。捨てるのは種類のコードを読んだ後だけなので、種類のコードの無い「捨てた」は書けない形にする
 // AC02 (5): 試験で差し替える writer。done を呼ぶまで次を送らない。
 type TerminalWriter = (batch: TerminalBatch, done: () => void) => void;
 type TerminalOutput = Readonly<{
@@ -624,6 +624,10 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         const result = shown != null ? "出した" : repeated != null ? "出さない・前と同じ" : held != null ? held.result : `出さない・${reply.decode == null ? "取り直し" : "採らなかった"}`;
         notice({ kind: "debug", text: known == null ? `debug: ${inputId}（${result}）` : `debug: ${known.headType} ${inputId}（${known.unit}、${result}）` });
       }
+    }, inputDropped(inputId: string, headType: string | null, reason: "discarded" | Readonly<{ refused: string }>) {
+      // P3-TDR-AC01: owner の返信が来ないので、断った・捨てた時点に行を出す（入力 ID の抜けの行き先）。unit は決まっていないので書かない。
+      if (options.debug !== true) return;
+      notice({ kind: "debug", text: `debug: ${headType == null ? "" : `${headType} `}${inputId}（出さない・${reason === "discarded" ? "捨てた" : `断った ${reason.refused}`}）` });
     }, digest(view) {
       // P3-TO-D-DIGEST: null から値になった最初の 1 回だけ。
       if (digestShown || view == null) return;
