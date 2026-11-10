@@ -205,3 +205,23 @@ describe("P3-TL8-T04 前と同じ全国の集約通報を出さない", () => {
     await h.output.close();
   });
 });
+
+describe("P3-TDT-T01 --debug の行は tips の待ちの起点を動かさない", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(11, 50)); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("同じ全国の集約通報が 10 分ごとに届いても、--debug の起動で最初の報から 30 分に Tip が 1 つ出る", async () => {
+    const base = original();
+    const h = harness({ debug: true, tipInterval: 30 });
+    h.attach();
+    h.output.sink.inputDone(inputDoneOf("r0", base));
+    vi.advanceTimersByTime(10 * 60_000);
+    h.output.sink.inputDone(inputDoneOf("r1", base));
+    vi.advanceTimersByTime(10 * 60_000);
+    h.output.sink.inputDone(inputDoneOf("r2", base));
+    vi.advanceTimersByTime(10 * 60_000);
+    expect(h.lines.filter((text) => text.startsWith("debug: "))).toEqual(["debug: VPWS50 r0（U-W、出した）", "debug: VPWS50 r1（U-W、出さない・前と同じ）", "debug: VPWS50 r2（U-W、出さない・前と同じ）"]);
+    expect(h.lines.filter((text) => text.includes("Tip:"))).toHaveLength(1);
+    await h.output.close();
+  });
+});

@@ -251,8 +251,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   };
   // D-DROP: 越えたら種類によらず古い単位から丸ごと落とす。上限より大きい 1 単位は積まずに落とす。echo と prompt は数えない。
   const push = (unit: TerminalUnit): void => {
-    // P3-CLI-AC27 (2): tips の待ちの起点は数える単位だけが動かす（入力の echo と入力の行の書き直しは「何かを出した」に数えない）。
-    if (counted(unit)) lastOutputMs = clock().monotonicMs;
+    // P3-CLI-AC27 (2)・P3-TDT-AC01: tips の待ちの起点は数える単位だけが動かす（入力の echo・入力の行の書き直し・--debug の行は「何かを出した」に数えない。観察用の行が画面の出方を変えないため）。
+    if (counted(unit) && !(unit.kind === "notice" && unit.notice.kind === "debug")) lastOutputMs = clock().monotonicMs;
     const size = failed ? 0 : estimate(unit);
     // P3-TL8-AC04 (6): 覚えた全国の集約通報の単位を落としたら覚えを消す（参照の比べ 1 回）。無いと画面に無い報と比べて次の同じ報を出さない。
     if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; if (unit.kind === "report" && unit.report === national) national = null; return; }
