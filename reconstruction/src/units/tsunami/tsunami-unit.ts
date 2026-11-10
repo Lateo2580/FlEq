@@ -959,14 +959,14 @@ function toTsunamiView(state: TsunamiUnitState): TsunamiUnitView {
 const raiseSound = (to: TsunamiAreaClass): Exclude<Level, "cancel"> => to === "majorWarning" ? "critical" : to === "warning" ? "warning" : "info";
 
 /**
- * 候補の部分集合の検査の後に、採用の step で作る intent（P3-REC-AC06 (a)）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
+ * 候補の部分集合の検査の後に、採用の step で作る intent（P3-REC-AC06 (a)）。比べる予報は live（採用の直前、P3-H27-LIVE-UNITS-001）で、live に subject の記録が無いときだけ open（取り直しを始めた時の state、P3-H27L-D-EVICT=A）、
  * candidate は採用する state。(1) H27: いまも有効な引上げ（live の規則で段が上がる区域）を unit で 1 件（段の最も高い subject）、ID と重ねない照合は
  * K8 の印。(2) 取り直しで拾った読めない報のカードがあれば info を 1 件（P3-UM-AC12 の (3)(7)(10)）。(3) 採用の直前の live で保存待ちだった pending を候補の作成が引き下げで外したら、今の段の音を 1 件（loweredNotice、Q-REC-PRECHECK-6 の N4）。無ければ candidate をそのまま返す。
  */
 function recoveryNotices(open: TsunamiUnitState, candidate: TsunamiUnitState, recoveryId: string,
   unreadable: Readonly<{ operation: Operation | null; receivedAt: number; inputId: string; headType: string }> | null, clock: ClockReading, live: TsunamiUnitState): TsunamiUnitState {
   const now = clock.wallTimeMs;
-  const before = new Map(open.forecasts.map((item) => [item.subject, item]));
+  const before = new Map([...open.forecasts, ...live.forecasts].map((item) => [item.subject, item]));
   let best: Readonly<{ subject: TsunamiForecastSubject; level: Exclude<Level, "cancel">; names: string[]; kinds: string[] }> | null = null;
   for (const subject of candidate.forecasts) {
     if (subject.effective !== "active") continue;

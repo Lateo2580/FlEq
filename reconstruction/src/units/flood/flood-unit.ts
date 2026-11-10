@@ -761,19 +761,19 @@ const floodUnit = {
   persistence: { kind: "durable", codec: floodUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
-  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock),
+  recoveryNotices: (open, adopted, at) => recoveryNotices(at.live, adopted, at.clock, open),
   recoveryChanges,
 } satisfies UnitModule<"U-R">;
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 4b-1、P3-REC-AC10・P3-REC-D-N2-RAISE-4B=A） ----
 
 /**
- * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
- * candidate は採用する state。live の音の段（noticeOf）が open より上がり、いまも見える EventID のうち段の最も高い 1 件に info を 1 回
+ * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。live は採用の直前の state（P3-H27-LIVE-UNITS-001）で、live に subject の記録が無いときだけ open（取り直しを始めた時の state）と比べる（P3-H27L-D-EVICT=A）、
+ * candidate は採用する state。live の音の段（noticeOf）が比べる記録より上がり、いまも見える EventID のうち段の最も高い 1 件に info を 1 回
  * （取り直し 1 回で unit に 1 件）。通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
-function recoveryNotices(open: FloodUnitState, candidate: FloodUnitState, clock: ClockReading): FloodUnitState {
-  const now = clock.wallTimeMs, before = new Map(open.currents.map((item) => [item.subject, item]));
+function recoveryNotices(live: FloodUnitState, candidate: FloodUnitState, clock: ClockReading, open: FloodUnitState = live): FloodUnitState {
+  const now = clock.wallTimeMs, before = new Map([...open.currents, ...live.currents].map((item) => [item.subject, item]));
   let best: Readonly<{ current: Active; rank: number }> | null = null;
   for (const current of candidate.currents) {
     if (!visible(current) || current.retainUntil <= now) continue;

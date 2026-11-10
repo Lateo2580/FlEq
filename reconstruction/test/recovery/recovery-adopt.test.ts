@@ -1435,3 +1435,80 @@ describe("P3-UNIT-L-002: the U-L recovery H27 compares with at.live", () => {
     expect(ulRecovered(t)).toEqual([["desktop", "info"], ["sound", "info"]]);
   });
 });
+
+// P3-H27-LIVE-UNITS-001: U-T・U-N・U-V・U-R の取り直しの H27 も採用の直前の live（at.live）と比べる（P3-H27L-D-BASIS=A）。
+// 本文は unit ごとに低い段と引上げの段の写し（U-T は津波注意報 62→津波警報 51、U-N は巨大地震注意→巨大地震警戒、U-V は浅間山のレベル 2→3、U-R は code 30→40）。
+import { SAMPLE_RIVERS, rivers } from "../flood-unit/flood-fixture";
+import { fixtureXml as volcanoXml, followHead as volcanoFollow, retime as volcanoRetime } from "../volcano-unit/volcano-fixture";
+
+type H27Unit = "U-T" | "U-N" | "U-V" | "U-R";
+const ASAMA = volcanoXml("45_01_01_200522_VFVO50");
+const nankaiAt = (atMs: number, name: string) => { const original = nankaiXml(name); return volcanoFollow(original, nankaiRetime(jst(atMs))(original)); };
+const H27_ROWS: readonly Readonly<{ unit: H27Unit; headType: string; eventId: string; low: (atMs: number) => string; high: (atMs: number) => string; ring: string }>[] = [
+  { unit: "U-T", headType: "VTSE41", eventId: "20991231000601", ring: "warning",
+    low: (atMs) => report("20991231000601", atMs, [{ code: "311", name: "a", kind: "62" }]), high: (atMs) => report("20991231000601", atMs, [{ code: "311", name: "a", kind: "51" }]) },
+  { unit: "U-N", headType: "VYSE50", eventId: "20200512163200", ring: "info",
+    low: (atMs) => nankaiAt(atMs, "74_01_05_200512_VYSE50"), high: (atMs) => nankaiAt(atMs, "74_01_04_200512_VYSE50") },
+  { unit: "U-V", headType: "VFVO50", eventId: "306", ring: "info",
+    low: (atMs) => volcanoFollow(ASAMA, volcanoRetime(jst(atMs))(ASAMA.replaceAll("<Code>13</Code>", "<Code>12</Code>"))), high: (atMs) => volcanoFollow(ASAMA, volcanoRetime(jst(atMs))(ASAMA)) },
+  { unit: "U-R", headType: "VXKO50", eventId: "123456789012", ring: "info",
+    low: (atMs) => floodEventId("123456789012")(floodRetime(jst(atMs))(rivers([{ code: "30", rivers: SAMPLE_RIVERS }])(floodXml("16_02_01_220728_VXKO50")))),
+    high: (atMs) => floodEventId("123456789012")(floodRetime(jst(atMs))(rivers([{ code: "40", rivers: SAMPLE_RIVERS }])(floodXml("16_02_01_220728_VXKO50")))) },
+];
+// 本文の取得を止めて取り直しを開く（返り値で本文を返して採用まで回す）。
+async function h27Held(t: Awaited<ReturnType<typeof setup>>, row: (typeof H27_ROWS)[number], text: string) {
+  let release!: () => void;
+  t.bodies.set("h1", () => new Promise((done) => { release = () => done(xml(text)); }));
+  void t.startup([{ ...head("h1", row.eventId, T0 - MINUTE), unit: row.unit, headType: row.headType }], row.unit);
+  await t.drive();
+  return async () => { release(); await t.drive(); };
+}
+function h27Levels(t: Awaited<ReturnType<typeof setup>>, unit: H27Unit, recoveredOnly = false) {
+  const intents: readonly Readonly<{ channel: string; payload: Readonly<{ level: string }> }>[] = t.h.unit(unit).intents;
+  return intents.filter((intent) => !recoveredOnly || "recovered" in intent.payload).map((intent) => [intent.channel, intent.payload.level]);
+}
+const h27Recovered = (t: Awaited<ReturnType<typeof setup>>, unit: H27Unit) => h27Levels(t, unit, true);
+
+describe("P3-H27-LIVE-UNITS-001: the U-T・U-N・U-V・U-R recovery H27 compares with at.live", () => {
+  for (const row of H27_ROWS) {
+    it(`P3-H27L-T01 regression / AC02 (${row.unit}): a raise taken live during the candidate is not rung again at adoption and keeps its pending`, async () => {
+      for (const liveC of row.unit === "U-T" ? [false] : [false, true]) {
+        const t = await setup();
+        const c = row.high(T0 - MINUTE);
+        await uwLive(t, row.headType, row.low(T0 - 3 * MINUTE));
+        const adopt = await h27Held(t, row, c);
+        await uwLive(t, row.headType, row.high(T0 - 2 * MINUTE));
+        if (liveC) await uwLive(t, row.headType, c);
+        const before = h27Levels(t, row.unit);
+        await adopt();
+        expect([liveC, t.progress(row.unit)]).toEqual([liveC, { unit: row.unit, state: "recovered" }]);
+        expect([liveC, h27Recovered(t, row.unit), h27Levels(t, row.unit)]).toEqual([liveC, [], before]);
+      }
+    });
+
+    it(`P3-H27L-T02 acceptance / AC03 (${row.unit}): a raise first seen by the recovery still makes one recovered pair, with and without a live low report`, async () => {
+      const still = await setup();
+      await uwLive(still, row.headType, row.low(T0 - 3 * MINUTE));
+      await (await h27Held(still, row, row.high(T0 - MINUTE)))();
+      const moved = await setup();
+      await uwLive(moved, row.headType, row.low(T0 - 3 * MINUTE));
+      const adopt = await h27Held(moved, row, row.high(T0 - MINUTE));
+      await uwLive(moved, row.headType, row.low(T0 - 2 * MINUTE));
+      await adopt();
+      for (const t of [still, moved]) {
+        expect(t.progress(row.unit)).toEqual({ unit: row.unit, state: "recovered" });
+        expect(h27Recovered(t, row.unit)).toEqual([["desktop", row.ring], ["sound", row.ring]]);
+      }
+    });
+
+    it(`P3-H27L-T03 contractBoundary / AC04・AC01 (3) (${row.unit}): after a live lowering during the candidate, a newer recovered raise is compared with live, not open`, async () => {
+      const t = await setup();
+      await uwLive(t, row.headType, row.high(T0 - 4 * MINUTE));
+      const adopt = await h27Held(t, row, row.high(T0 - MINUTE));
+      await uwLive(t, row.headType, row.low(T0 - 2 * MINUTE));
+      await adopt();
+      expect(t.progress(row.unit)).toEqual({ unit: row.unit, state: "recovered" });
+      expect(h27Recovered(t, row.unit)).toEqual([["desktop", row.ring], ["sound", row.ring]]);
+    });
+  }
+});

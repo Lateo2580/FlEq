@@ -690,3 +690,23 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-L restores failed and null p
     restore: (state, at) => reduceLandslideUnit(emptyState(), { kind: "restore", persisted: landslideUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => state.currents.find((item) => item.subject === subject)?.notice });
 });
+
+// P3-H27L-AC05（P3-H27L-D-UL-GUARD=A）: 取り直しの間に live で取消版の記録が容量で退去した官署は、unit の行が渡す open の記録と比べる。
+it("P3-H27L-T04 regression / AC05: an office whose cancel was evicted during the candidate does not ring when its old L5 comes back at adoption", () => {
+  const l5 = areas([{ code: "0121400", kind: "39" }]);
+  const first = receive(emptyState(), decodeXml(l5(fixtureXml(F.soya))), clock(T0));
+  const seed = recordOf(first.state);
+  if (seed?.effective !== "active") throw new Error("稚内の L5 が active でない");
+  const fill = (index: number): LandslideCurrent => {
+    const name = `官署${String(index).padStart(3, "0")}`, subject = `normal/VPWW56/${name}`, reported = T0 - (200 - index) * 60_000;
+    return { ...seed, subject, office: name, notice: undefined, source: { ...seed.source, subject, reportDateTimeRaw: iso(reported) }, retainUntil: reported + 48 * HOUR };
+  };
+  const open: LandslideUnitState = { ...first.state, currents: [...Array.from({ length: 127 }, (_, index) => fill(index)), seed] };
+  const cancelled = receive(open, decodeFixture(F.cancel), clock(T0 + HOUR)).state;
+  const live = receive(cancelled, decodeFixture(F.soya, (xml) => office("官署B")(retime(iso(T0 + HOUR))(xml))), clock(T0 + HOUR)).state;
+  expect(recordOf(live)).toBeUndefined();
+  const candidate = receive(live, decodeXml(l5(fixtureXml(F.soya)), "rec-1", "recovery"), clock(T0 + HOUR)).state;
+  const adopted = linkedUnitTable["U-L"].recoveryNotices(open, candidate, { recoveryId: "r1", clock: clock(T0 + HOUR), basis: "verified", live, card: null });
+  expect(recordOf(candidate)?.effective).toBe("active");
+  expect(adopted.intents.filter((item) => "recovered" in item.payload)).toEqual([]);
+});

@@ -867,7 +867,7 @@ const nankaiUnit = {
   persistence: { kind: "durable", codec: nankaiUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
-  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock, at.basis),
+  recoveryNotices: (_open, adopted, at) => recoveryNotices(at.live, adopted, at.clock, at.basis),
   recoveryChanges,
 } satisfies UnitModule<"U-N">;
 
@@ -879,12 +879,12 @@ const RAISE_RANK: Readonly<Record<NankaiCurrentStatus | "subsequentAdvisory", nu
 const raiseRank = (value: Shown | null): number => value != null && "status" in value ? RAISE_RANK[value.status] : 0;
 
 /**
- * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
- * candidate は採用する state。現況の段が open より上がり、いまも見える現況のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で unit に 1 件）。
+ * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。live は採用の直前の state（P3-H27-LIVE-UNITS-001。現況は退去しないので open は読まない）、
+ * candidate は採用する state。現況の段が live より上がり、いまも見える現況のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で unit に 1 件）。
  * 通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
-function recoveryNotices(open: NankaiUnitState, candidate: NankaiUnitState, clock: ClockReading, basis: WallBasis): NankaiUnitState {
-  const now = clock.wallTimeMs, before = new Map(open.currents.map((item) => [item.subject, item]));
+function recoveryNotices(live: NankaiUnitState, candidate: NankaiUnitState, clock: ClockReading, basis: WallBasis): NankaiUnitState {
+  const now = clock.wallTimeMs, before = new Map(live.currents.map((item) => [item.subject, item]));
   let best: Readonly<{ current: ActiveCurrent; rank: number }> | null = null;
   for (const current of candidate.currents) {
     const rank = raiseRank(shownAt(current, now, basis));

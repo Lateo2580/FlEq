@@ -643,7 +643,7 @@ const landslideUnit = {
   persistence: { kind: "durable", codec: landslideUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
-  recoveryNotices: (_open, adopted, at) => recoveryNotices(at.live, adopted, at.clock), // P3-UL2-D-LIVE-ONLY=A（比べの基準は at.live だけ）
+  recoveryNotices: (open, adopted, at) => recoveryNotices(at.live, adopted, at.clock, open), // P3-UL2-D-LIVE-ONLY=A・P3-H27L-D-UL-GUARD=A（at.live、記録が無い官署だけ open）
   recoveryChanges,
 } satisfies UnitModule<"U-L">;
 
@@ -664,12 +664,12 @@ function raisedRank(before: LandslideCurrent | null, after: Active): number | nu
 
 /**
  * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。live は採用の直前に画面に出ている state（P3-UNIT-L-002、
- * 候補の間に live が動けば candidate は当て直し済み）、candidate は採用する state。区域の段が live より上がり、いまも見える官署のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で operation ごとに 1 件。
+ * 候補の間に live が動けば candidate は当て直し済み）、candidate は採用する state。区域の段が live（live に記録が無い官署は open、P3-H27L-D-UL-GUARD=A）より上がり、いまも見える官署のうち段の最も高い 1 件に info を 1 回（取り直し 1 回で operation ごとに 1 件。
  * normal は desktop＋sound、training・test は desktop だけ。統合担当の決め 2026-11-01、P3-WEATHER-NOTICE-001 の r1）。
  * 通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
-function recoveryNotices(live: LandslideUnitState, candidate: LandslideUnitState, clock: ClockReading): LandslideUnitState {
-  const now = clock.wallTimeMs, before = new Map(live.currents.map((item) => [item.subject, item]));
+function recoveryNotices(live: LandslideUnitState, candidate: LandslideUnitState, clock: ClockReading, open: LandslideUnitState = live): LandslideUnitState {
+  const now = clock.wallTimeMs, before = new Map([...open.currents, ...live.currents].map((item) => [item.subject, item]));
   const best = new Map<Operation, Readonly<{ current: Active; rank: number }>>();
   for (const current of candidate.currents) {
     if (!visible(current) || current.retainUntil <= now) continue;

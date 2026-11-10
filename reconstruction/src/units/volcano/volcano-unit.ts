@@ -1673,7 +1673,7 @@ const volcanoUnit = {
   persistence: { kind: "durable", codec: volcanoUnitCodec },
   confirmationScopeLimit: 512,
   reclaimDeadlineBeforeReceive: true,
-  recoveryNotices: (open, adopted, at) => recoveryNotices(open, adopted, at.clock),
+  recoveryNotices: (open, adopted, at) => recoveryNotices(at.live, adopted, at.clock, open),
   recoveryChanges,
 } satisfies UnitModule<"U-V">;
 
@@ -1704,12 +1704,12 @@ function undecided<T extends VolcanoAlert | VolcanoAshfall>(applied: Applied, ca
 const raiseLevel = (value: VolcanoAlert | undefined): number => value?.effective === "active" ? Math.max(noticeLevel(value.kind.code), value.landKind != null && activeKind(value.landKind) ? noticeLevel(value.landKind.code) : 1) : 1;
 
 /**
- * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。open は取り直しを始めた時の state（P3-REC-D-RAISE-BASIS=A）、
- * candidate は採用する state。警報の段（raiseLevel）が open より上がり、いまも active な火山のうちレベルの最も高い 1 件に info を 1 回（取り直し 1 回で
+ * 候補の部分集合の検査の後に、採用の step で作る H27 の intent（P3-REC-AC10）。live は採用の直前の state（P3-H27-LIVE-UNITS-001）で、live に subject の記録が無いときだけ open（取り直しを始めた時の state）と比べる（P3-H27L-D-EVICT=A）、
+ * candidate は採用する state。警報の段（raiseLevel）が比べる記録より上がり、いまも active な火山のうちレベルの最も高い 1 件に info を 1 回（取り直し 1 回で
  * unit に 1 件）。本文は段を決めた Kind を読む（P3-VR-D-BODY=A）。降灰は鳴らさない。通知済みの版（K8 の印）は選ぶ前に除く。無ければ candidate をそのまま返す。
  */
-function recoveryNotices(open: VolcanoUnitState, candidate: VolcanoUnitState, clock: ClockReading): VolcanoUnitState {
-  const now = clock.wallTimeMs, before = new Map(open.alerts.map((item) => [item.subject, item]));
+function recoveryNotices(live: VolcanoUnitState, candidate: VolcanoUnitState, clock: ClockReading, open: VolcanoUnitState = live): VolcanoUnitState {
+  const now = clock.wallTimeMs, before = new Map([...open.alerts, ...live.alerts].map((item) => [item.subject, item]));
   let best: Readonly<{ alert: ActiveAlert; source: ReportRef; level: number }> | null = null;
   for (const alert of candidate.alerts) {
     const level = raiseLevel(alert);
