@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "1f5461e312433f05534c380dbd616832d2f605179a79fdac3cc691355869eee8",
+    "sha256": "6299e13cff37b58345fee0fb195c9ce0d82db151f56461875bad6bfdd14b7dcc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -126,8 +126,8 @@
         "id": "P3-TDT-AC01",
         "requirement": "--debug の行は tips の待ちの起点を動かさない（統合担当の決め、2026-11-10）: (1) output.ts の push で lastOutputMs を今の時刻にする条件（:255）を「数える単位（counted）で、かつ notice の kind が debug でない」にする。--debug の行は inputDone の行（:625、P3-TO-AC17 (1)）と inputDropped の行（:630、P3-TDR-AC01）の 2 つで、どちらも notice（:274）を通るので、条件 1 つで両方が外れる (2) counted そのもの（:77）は変えない。列から落とした数（:258・:259、D-DROP）では --debug の行も今までどおり数える (3) tick（:419）の比べと間隔（既定 30 分〔:35〕、設定の値）、ほかの単位が起点を動かすこと、まとまりや待ちの表に置いた時の起点の代入は変えない (4) --debug でない起動では debug の notice を積まないので、振る舞いは何も変わらない（既存の tips の試験 layout8.test.ts:187 の後半と output.test.ts:99 の P3-CLI-T19 は変えない） (5) 受信経路の計算量（AGENTS.md）: push 1 回に比べが 1 つ増えるだけ。走査・直列化をしない",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:255 «7d06b6d5f9292ee9»",
-          "reconstruction/src/terminal/output.ts:254 «0e01ebf42cb0d286»",
+          "reconstruction/src/terminal/output.ts:255 «73710cfef527956a»",
+          "reconstruction/src/terminal/output.ts:254 «eb021cecfe47fa38»",
           "reconstruction/src/terminal/output.ts:77 «a6679ae6c4cc16e2»",
           "reconstruction/src/terminal/output.ts:258 «df6dcc1278732971»",
           "reconstruction/src/terminal/output.ts:274 «fa7f7ada4df17a32»",
@@ -143,10 +143,10 @@
         "id": "P3-TDT-AC02",
         "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装はしない。文は artifactRequirements の「原文の改訂」）: (1) P3-TO-AC12 (2)（p3-terminal-output.json:661）の除く項目に --debug の行を足す (2) P3-CLI-AC27 (2)（p3-cli-repl.json:1364）の動かさない単位に --debug の行を足す (3) P3-TL8-AC04 (8)（p3-terminal-layout8.json:269）の「--debug の行は数える単位なので、今までどおり tips の待ちの起点を動かす」を、動かさない文に替える（統合担当の決めと逆の文、Q-TDT-CLAUSES） (4) P3-TL8-T04 の behavior（p3-terminal-layout8.json:317）の括弧の理由「--debug の行は数える単位で tips の起点を動かすため」を、--debug の行の有無で tips の待ちが変わらない文に替える (5) spec は改めない（Q-TDT-SPEC。:645 は本契約の後も真で、--debug の節は spec に無い）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-terminal-output.json:661 «99fc20f719857507»",
-          "reconstruction/contracts/p3-cli-repl.json:1364 «80a5fcd24cccfc74»",
-          "reconstruction/contracts/p3-terminal-layout8.json:269 «2fe119b084b9f0f2»",
-          "reconstruction/contracts/p3-terminal-layout8.json:317 «74d02319197e17a9»",
+          "reconstruction/contracts/p3-terminal-output.json:661 «5edb4c3054283971»",
+          "reconstruction/contracts/p3-cli-repl.json:1364 «a0f944e143cf8c80»",
+          "reconstruction/contracts/p3-terminal-layout8.json:269 «07284db6fee041df»",
+          "reconstruction/contracts/p3-terminal-layout8.json:317 «dc55a3da88d56033»",
           "reconstruction/contracts/p3-terminal-output.json:726 «d23be8354654b982»",
           "docs/specs/cli-terminal-output.md:645 «a110380e037e0744»"
         ]

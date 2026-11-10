@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "22031968912e264abf798255f2b7977afcb8c4972ea7449b40945d7f2a774bce",
+    "sha256": "422defb33487c9b526652740aaab4093bf5841e44794750af01125fe28c1498b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -658,7 +658,7 @@
       },
       {
         "id": "P3-TO-AC12",
-        "requirement": "【発注 2】待機 tips（spec の §6.4）: (1) 旧築の src/tips/ の知識の tips を terminal/ の下へ写す（reconstruction の tsc の rootDir の外を import しない）。コマンドの tips（commands-basic・commands-advanced）は新築の REPL にある入口の分だけ残し、廃止した入口（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）の分を除く。旧築の中の仕組みを説明する tool-internals の分野は、新築では正しくない文（再接続の待ち・通知の分野の数など）を含むので写さない（Q-TO-IMPL-2 (4)） (2) 補足の薄い字で、先頭を 2 字下げて 1 行（幅に入る tips の形。前に空行を 1 行置き、幅に入らない tips は句点で分け、まだ入らない文は幅の中の最後の読点「、」の後で折って続きの行を 4 桁下げる。P3-TL13-AC03）。既定の間隔は 30 分（設定の waitTipIntervalMin があればその値、0 は出さない）。最後に何かを出してから間隔の分だけ何も出していないときに 1 つ出す（入力の echo と入力の行の書き直しは「何かを出した」に数えない。C18 の発注 3 が入力の行を 1 秒ごとに書き直すため、P3-CLI-D-O3-PROMPT）。降灰予報（定時）のまとまりと記録的短時間大雨の待ちの表に置いた報は、置いた時に「何かを出した」に数える（P3-TL10-AC01 (8)・AC03 (3)）。気象警報・注意報時系列情報のまとまりに置いた報も同じ（P3-TL11-AC01 (8)）。選び方は旧築の tip-shuffler の写し (3) 変えるのは TerminalControl.setTipInterval（C18 の発注 3）",
+        "requirement": "【発注 2】待機 tips（spec の §6.4）: (1) 旧築の src/tips/ の知識の tips を terminal/ の下へ写す（reconstruction の tsc の rootDir の外を import しない）。コマンドの tips（commands-basic・commands-advanced）は新築の REPL にある入口の分だけ残し、廃止した入口（history・mode・tablewidth・infotext・filter・focus・night・theme・layout・fold・limit・test・detail・colors・stats・contract・socket・backup）の分を除く。旧築の中の仕組みを説明する tool-internals の分野は、新築では正しくない文（再接続の待ち・通知の分野の数など）を含むので写さない（Q-TO-IMPL-2 (4)） (2) 補足の薄い字で、先頭を 2 字下げて 1 行（幅に入る tips の形。前に空行を 1 行置き、幅に入らない tips は句点で分け、まだ入らない文は幅の中の最後の読点「、」の後で折って続きの行を 4 桁下げる。P3-TL13-AC03）。既定の間隔は 30 分（設定の waitTipIntervalMin があればその値、0 は出さない）。最後に何かを出してから間隔の分だけ何も出していないときに 1 つ出す（入力の echo と入力の行の書き直しは「何かを出した」に数えない。C18 の発注 3 が入力の行を 1 秒ごとに書き直すため、P3-CLI-D-O3-PROMPT。--debug の行〔AC17〕も数えない。--debug は観察のための起動で、tips の出方を変えない。P3-TERMINAL-DEBUG-TIP-001）。降灰予報（定時）のまとまりと記録的短時間大雨の待ちの表に置いた報は、置いた時に「何かを出した」に数える（P3-TL10-AC01 (8)・AC03 (3)）。気象警報・注意報時系列情報のまとまりに置いた報も同じ（P3-TL11-AC01 (8)）。選び方は旧築の tip-shuffler の写し (3) 変えるのは TerminalControl.setTipInterval（C18 の発注 3）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:748 «5485498e6b19b2d9»",
           "docs/specs/cli-terminal-output.md:749 «822124990edfc1bc»",
