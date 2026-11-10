@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "2f24956956fb103c99038161171bf8f922eceabc5450e700f8f5fa515e7162f4",
+    "sha256": "fff433280bf80adc5a4358b7290c7f5b57691f4273a755d4f733e71f88e6d047",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -83,7 +83,7 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-09 起草）",
-        "ruling": "A（統合担当）",
+        "ruling": "A（統合担当）（P3-TERMINAL-LAYOUT-017 で、1 件の形の帯の下に束と同じ種類の行を足した。作者の裁定 P3-TL17-D-SINGLE-KINDS=B、2026-11-10）",
         "reason": "降灰予報の前例（P3-TL10-D-ASH-SINGLE=A）と同じ。作者の裁定の「件数と種類」は便の束の形で、1 件は束でない。写しの 2026-11-09 07:26・07:27 の VPWP50 は定時の便でない 1 件ずつで、A ならどの予報区の報か（Head/Title）と官署が今のとおり読める"
       }
     ],
@@ -279,7 +279,7 @@
     "outOfScope": [
       "EEW の発生時刻・緯度経度・精度の行（旧築にあり新築に無い。spec §5.1 の「旧築から外すもの」と Q-TO-EEW-2〔2026-11-01 作者〕で外すと決まっている。起草では足さない）",
       "EEW の M の色（旧築は黄。作者の言葉は震源の名前だけ）と、地震の情報（VXSE51〜53 など）の震源の行",
-      "VPWP50 の 1 件の形（P3-TL11-D-TS-SINGLE=A で今のまま）と、区域ごとの中身・時間帯・ピーク時刻",
+      "VPWP50 の 1 件の形（P3-TL11-D-TS-SINGLE=A で今のまま。帯の下の種類の行は P3-TERMINAL-LAYOUT-017 で足した）と、区域ごとの中身・時間帯・ピーク時刻",
       "U-F（weather-timeseries の unit）の判定・state・保存の形式・通知、runtime（composition-root.ts・host.ts）",
       "ディスプレイ（P4）と view・snapshot の扱い、通知の文面",
       "旧築（src/）",
