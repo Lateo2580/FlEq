@@ -9,10 +9,11 @@ import { decodeMaterial } from "../../src/decode-material/decode-material";
 import { ingestXmlData } from "../../src/ingress/ingress";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { placeUnits, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
+import { painter } from "../../src/terminal/color";
 import { createRenderer } from "../../src/terminal/format";
 import { inputTerminal, terminalReport } from "../../src/terminal/material";
 import { createTerminalOutput } from "../../src/terminal/output";
-import { decodeFixture, inputDoneOf, reportOf, reportUnit, terminal } from "./terminal-fixture";
+import { decodeFixture, inputDoneOf, plain, reportOf, reportUnit, terminal } from "./terminal-fixture";
 
 // P3-TERMINAL-LAYOUT-016 の試験（台風の暴風域に入る確率の府県の行・起動時のまとめの「ほか」の行の折り）。
 const JANGMI = "76_01_02_260531_VPTA50.xml", DAMREY = "76_01_01_200630_VPTA50.xml", ZERO = "76_01_03_260602_VPTA50.xml";
@@ -178,6 +179,18 @@ describe("P3-TL18 台風の暴風域に入る確率の見出しの行", () => {
   // P3-TL18-T04 contractBoundary / AC01 (3)(6)
   it("T04 値が見出しの語より短い報は、列が見出しの幅まで広がる", () => {
     expect(below(80, only({ 460041: 5 }), 2)).toEqual(["府県      最悪地域  確率  ピーク", "奄美地方  北部        5%  06/02 03時頃"]);
+    // 見出しの行だけが薄い字(AC01 (2))。値の行は役目なし。
+    const colored = terminal(80, 3)([only({ 460041: 5 })]).filter((text) => plain(text).includes("最悪地域") || plain(text).includes("奄美地方"));
+    expect(colored[0]).toContain(painter(3)("dim", "府県      最悪地域  確率  ピーク"));
+    expect(colored[1]).toContain(" 奄美地方  北部        5%  06/02 03時頃");
+  });
+
+  // P3-TL18-T05 contractBoundary / AC01 (4)（時刻の欄が全部空の報で、見出しの行だけが入らない桁）
+  it("T05 1 行に入るかは見出しの行も含めて測る(AC01 (4))", () => {
+    const flat = editItems("<TimeSeriesInfo>", "</TimeSeriesInfo>", (item) => item.includes("<Code>460041</Code>") ? setValues(item, "0") : item);
+    const unit = reportUnit(reportOf(JANGMI, "U-Y", (xml) => flat(fiveDay({ 460041: 5 })(xml))));
+    expect(below(80, unit, 2)).toEqual(["府県      最悪地域  確率  ピーク", "奄美地方  北部        5%"]);
+    expect(below(28, unit, terminal(28)([unit]).indexOf("09:55:00 発表") + 1)).toEqual(["府県", "  最悪地域  確率  ピーク", "奄美地方", "  北部        5%"]);
   });
 });
 

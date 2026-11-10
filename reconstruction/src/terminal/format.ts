@@ -980,9 +980,8 @@ function typhoonLines(probability: Extract<TerminalReport, { kind: "short" }>["p
   // 地域の欄が全部空なら地域の列を出さない。時刻の欄が空の行は行末の空白を書き出しで除く。
   const values = (row: (typeof rows)[number]): string => `${areaSize === 0 ? "" : pad(row.area, areaSize + 2)}${pad("", percentSize - width(row.percent))}${row.percent}  ${row.time}`;
   const single = rows.map((row) => `${pad(row.prefecture, prefectureSize + 2)}${values(row)}`.trimEnd());
-  const role = (index: number) => index === 0 ? "dim" : null;
-  const lines = single.every((text) => width(text) <= room) ? single.map((text, index) => line(seg(text, role(index))))
-    : rows.flatMap((row, index) => [line(seg(row.prefecture, role(index))), line(seg(`  ${values(row)}`, role(index)))]);
+  const lines = single.every((text) => width(text) <= room) ? single.map((text, index) => line(seg(text, index === 0 ? "dim" : null)))
+    : rows.flatMap((row, index) => [line(seg(row.prefecture, index === 0 ? "dim" : null)), line(seg(`  ${values(row)}`, index === 0 ? "dim" : null))]);
   return probability.others === 0 ? lines : [...lines, line(seg(`ほか ${probability.others} 府県`, "dim"))];
 }
 // P3-TL17-AC01・D-SINGLE-KINDS=B: 1 件の気象警報・注意報時系列情報の種類の行。無いと 1 件の便は帯と末尾の行だけで、何の危険度の報かが読めない。
