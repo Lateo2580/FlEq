@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b2fb21d6a5ae06de4e24ff038a26b3146227ff0",
-    "sha256": "426d3c93ad286c24a581d4e5561e1714513d9777869deb589c9707483de68a3c",
+    "sha256": "d0dce9c0882d307cbeb066228356060f6271b5192db8eb7c4262e9115249e509",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -120,7 +120,7 @@
     "contractId": "P3-H27-LIVE-UNITS-001",
     "mode": "implementation",
     "objective": "U-R・U-N・U-V・U-T の取り直しの H27（と U-L の守り） の比べの基準を、取り直しを始めた時の state（open）から採用の直前の live（at.live）に改める（作者裁定 2026-11-10、A。P3-UNIT-L-002 と同じ形）。取り直しの間に live で知らせた引上げを、当て直しで受け直した同じ段の報が採用でもう一度鳴らし、live の pending まで置き換える今のコードの欠けを直す。候補の間に live で段が下がった後の新しい引上げは、live と比べて 1 組鳴らす。live で subject の記録が消えた（容量の退去など）ときは、U-R・U-V・U-T・U-L は open の記録と比べ、本契約で鳴りを足さない（P3-H27L-D-EVICT=A）",
-    "baseOid": "unassigned",
+    "baseOid": "9b554ff1",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
