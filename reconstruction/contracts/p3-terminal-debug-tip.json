@@ -1,0 +1,235 @@
+{
+  "meta": {
+    "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
+    "sha256": "0c7cd3852c99b2bbdbf1951d66aa24e52e848a3c73a364f8c44c089d229b1a33",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [],
+    "questionResolutions": [
+      {
+        "id": "Q-TDT-CAUSE",
+        "status": "closed",
+        "source": "統合担当の調べ（2026-11-10。Mac mini の新築の写し）と、起草で output.ts を読み直したこと",
+        "closed": "Mac mini の新築は --debug で常に動いていて、2026-11-10 の写しで --debug の行が 339・Tip が 0 だった。--debug の行は notice（output.ts:274）の kind debug で、inputDone の行（:625、P3-TO-AC17 (1)）と inputDropped の行（:630、P3-TDR-AC01）の 2 つがある。notice は push を通り、push の頭の「if (counted(unit)) lastOutputMs = …」（:255）が tips の待ちの起点を今の時刻に戻す。counted（:77）は echo 以外を全部数えるので --debug の行も数える。tick（:419）は起点から間隔（既定 30 分、:35）が過ぎたときだけ tips を出す。全国の集約通報（VPWS50）は 10 分ごとに届き、前と同じで出さない報でも「debug: VPWS50 <入力 ID>（U-W、出さない・前と同じ）」の行が毎回起点を戻すので、tips が出ない。起草の写しで、--debug の harness に同じ VPWS50 を 10 分ごとに 3 回送ると、最初の報から 30 分で Tip が 0 だった（P3-TDT-T01 が今のコードで落ちる）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TDT-CLAUSES",
+        "status": "closed",
+        "source": "起草（2026-11-10）。reconstruction/contracts/*.json と docs/specs/cli-terminal-output.md で「tips の待ち」「何かを出し」「数える単位」「counted」を grep して読んだ",
+        "closed": "tips の待ちの起点を決める条文は 3 つ: (1) P3-TO-AC12 (2)（p3-terminal-output.json:661）「最後に何かを出してから間隔の分だけ何も出していないとき」、除くのは入力の echo と入力の行の書き直しだけ (2) P3-CLI-AC27 (2)（p3-cli-repl.json:1364）「数える単位（echo 以外）を積んだときだけ動かす」 (3) P3-TL8-AC04 (8)（p3-terminal-layout8.json:269）「--debug の行は数える単位なので、今までどおり tips の待ちの起点を動かす（output.ts の counted）」。(3) は統合担当の決めと逆の文なので、直さないと条文どうしがぶつかる。3 つとも原文の改訂で直す（P3-TDT-AC02）。ほかに読んだもの: P3-TL10-AC01 (8)・AC03 (3)、P3-TL11-AC01 (8)、rain-evict の待ちの表は「置いた時に何かを出したに数える」で、置いた時の起点の代入（output.ts の lastOutputMs = now.monotonicMs の 4 か所）は本契約で変えないので改めない。P3-TDR-AC02 (2) は --debug でないときの話で、本契約と合う。p3-cli-repl.json:468 は発注 3 の分岐の選択肢 A の記録（当時の決め）なので改めない。layout8.json:96 も分岐の理由の記録なので改めない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TDT-SPEC",
+        "status": "closed",
+        "source": "起草（2026-11-10）。docs/specs/cli-terminal-output.md を「debug」「tips の待ち」で grep し、:645 を引く «» を grep した",
+        "closed": "spec は改めない: (1) cli-terminal-output.md に「debug」の字は 0 件で、電文の --debug の行は P3-TO-AC17 (1) が決めている（P3-TDR-AC03 (4) と同じ理由） (2) :645 の「出さなかった報も定期要約の件数に数え、入力の行の経過の時刻と tips の待ちは動かさない」は出さなかった VPWS50 の報についての文で、本契約の後も真のまま。今は --debug の起動で同じ報の --debug の行が待ちを動かしていて、本契約でそれが無くなり :645 と合う (3) :645 を行の中で変えると p3-terminal-layout8.json:271・:280 の «» が切れ、行を足すと 646〜652・733・747 を引く layout12〜15・rain-evict・cli-repl の «» が動く。費用に見合う利点が無い",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TDT-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-10）",
+        "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にする。発注の時に統合担当が本契約を入れた commit を付ける",
+        "remaining": "発注の時の baseOid（統合担当）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない（tips の待ちの起点の条件を 1 つ変えるだけ）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-DEBUG-TIP-001",
+    "mode": "implementation",
+    "objective": "新築の端末を --debug で起動すると、待機中の tips が 1 本も出ない（2026-11-10 の Mac mini の新築の写しで --debug の行 339・Tip 0）のを直す。--debug の行は tips の待ちの起点を戻さないことにする（統合担当の決め、2026-11-10。--debug は観察のための起動で、画面の出方を変えない。spec cli-terminal-output.md:645 の「出さなかった VPWS50 の報は tips の待ちを動かさない」に揃う）。output.ts の push の 1 行の条件を「数える単位で、かつ --debug の notice でない」にするだけで、counted は変えない。--debug でない起動の振る舞いは何も変わらない。あわせて P3-TO-AC12 (2)、P3-CLI-AC27 (2)、P3-TL8-AC04 (8) を原文の改訂で揃える（統合担当が配送で当てる）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-terminal-debug-tip.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p3-terminal-layout8.json",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/test/terminal/layout8.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts",
+      "reconstruction/test/terminal/output.test.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/output.ts（P3-TDT-AC01 (1): 254 行〔push の頭のコメント〕と 255 行〔「if (counted(unit)) lastOutputMs = clock().monotonicMs;」〕の 2 行の中だけ。255 行の条件に「unit が notice で notice の kind が debug でない」を足し、254 行のコメントの除く項目に --debug の行と本契約の ID を足す。行を足さない・helper も足さない〔他の契約の «» が引く output.ts の行を動かさない〕。counted〔77 行〕と、落とした数を数える 258・259 行は変えない）",
+      "reconstruction/test/terminal/layout8.test.ts（P3-TDT-T01 の describe を 1 つ、file の末尾に足すことだけ。既存の it・helper は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-debug-tip.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-CLI-REPL-001",
+      "P3-TERMINAL-LAYOUT-008",
+      "P3-TERMINAL-DEBUG-REJECT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない（TerminalSink・TerminalControl・createTerminalOutput の形と、TerminalUnit・TerminalNotice の型は今のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし（端末の覚えに欄を足さない。lastOutputMs を動かす条件を変えるだけ）"
+    ],
+    "outOfScope": [
+      "counted（output.ts:77）そのものと、列から落とした数（D-DROP、:258・:259）。落とした数では --debug の行も今までどおり数える",
+      "ほかの単位が tips の待ちの起点を動かすこと（電文・処理できなかった報のカード・REPL の返事・summary・lost・restored・failure・update・digest・banner・session・tip 自身）と、まとまりや待ちの表に置いた時の起点の代入（P3-TL10・P3-TL11・rain-evict）",
+      "入力の行の経過の時刻（lastReportWallMs）: 元から --debug の行では動かない",
+      "--debug の行の字と出す時点（P3-TO-AC17 (1)・P3-TDR-AC01）、--debug の CLI 自身の標準エラーの行（P3-CLI-REPL-001）",
+      "tips の間隔・選び方・形（P3-TO-AC12 (1)(3)、P3-TL13・TL15）",
+      "spec の改訂（Q-TDT-SPEC）と、原文の改訂 (1)〜(3) のほかの閉じた契約の条文（p3-cli-repl.json:468 と p3-terminal-layout8.json:96 は分岐の記録なので改めない）",
+      "runtime・unit・ディスプレイ（P4）・旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TDT-AC01",
+        "requirement": "--debug の行は tips の待ちの起点を動かさない（統合担当の決め、2026-11-10）: (1) output.ts の push で lastOutputMs を今の時刻にする条件（:255）を「数える単位（counted）で、かつ notice の kind が debug でない」にする。--debug の行は inputDone の行（:625、P3-TO-AC17 (1)）と inputDropped の行（:630、P3-TDR-AC01）の 2 つで、どちらも notice（:274）を通るので、条件 1 つで両方が外れる (2) counted そのもの（:77）は変えない。列から落とした数（:258・:259、D-DROP）では --debug の行も今までどおり数える (3) tick（:419）の比べと間隔（既定 30 分〔:35〕、設定の値）、ほかの単位が起点を動かすこと、まとまりや待ちの表に置いた時の起点の代入は変えない (4) --debug でない起動では debug の notice を積まないので、振る舞いは何も変わらない（既存の tips の試験 layout8.test.ts:187 の後半と output.test.ts:99 の P3-CLI-T19 は変えない） (5) 受信経路の計算量（AGENTS.md）: push 1 回に比べが 1 つ増えるだけ。走査・直列化をしない",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/output.ts:255 «7d06b6d5f9292ee9»",
+          "reconstruction/src/terminal/output.ts:254 «0e01ebf42cb0d286»",
+          "reconstruction/src/terminal/output.ts:77 «a6679ae6c4cc16e2»",
+          "reconstruction/src/terminal/output.ts:258 «df6dcc1278732971»",
+          "reconstruction/src/terminal/output.ts:274 «fa7f7ada4df17a32»",
+          "reconstruction/src/terminal/output.ts:419 «2e886d21d6e2c58f»",
+          "reconstruction/src/terminal/output.ts:35 «5afebc6b307f2309»",
+          "reconstruction/src/terminal/output.ts:625 «6a7d0548989939da»",
+          "reconstruction/src/terminal/output.ts:630 «9fd0e91928b1ca47»",
+          "reconstruction/test/terminal/layout8.test.ts:187 «337943241e7c93ff»",
+          "reconstruction/test/terminal/output.test.ts:99 «fb4e5bdfc7d72692»"
+        ]
+      },
+      {
+        "id": "P3-TDT-AC02",
+        "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装はしない。文は artifactRequirements の「原文の改訂」）: (1) P3-TO-AC12 (2)（p3-terminal-output.json:661）の除く項目に --debug の行を足す (2) P3-CLI-AC27 (2)（p3-cli-repl.json:1364）の動かさない単位に --debug の行を足す (3) P3-TL8-AC04 (8)（p3-terminal-layout8.json:269）の「--debug の行は数える単位なので、今までどおり tips の待ちの起点を動かす」を、動かさない文に替える（統合担当の決めと逆の文、Q-TDT-CLAUSES） (4) spec は改めない（Q-TDT-SPEC。:645 は本契約の後も真で、--debug の節は spec に無い）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-terminal-output.json:661 «99fc20f719857507»",
+          "reconstruction/contracts/p3-cli-repl.json:1364 «80a5fcd24cccfc74»",
+          "reconstruction/contracts/p3-terminal-layout8.json:269 «2fe119b084b9f0f2»",
+          "reconstruction/contracts/p3-terminal-output.json:726 «d23be8354654b982»",
+          "docs/specs/cli-terminal-output.md:645 «a110380e037e0744»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TDT-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TDT-AC01"
+        ],
+        "behavior": "受入条件（AC01 (1)）。layout8.test.ts の末尾に describe を 1 つ足し、fake timers（vi.setSystemTime(at(11, 50))、T04 の describe と同じ beforeEach・afterEach）のもとで harness({ debug: true, tipInterval: 30 }) を attach し、original() の VPWS50 を r0 で送り、10 分ごとに同じ報を r1・r2 で送り、r0 から 30 分まで進める。--debug の行が「debug: VPWS50 r0（U-W、出した）」「debug: VPWS50 r1（U-W、出さない・前と同じ）」「debug: VPWS50 r2（U-W、出さない・前と同じ）」の 3 つで、「Tip:」を含む行がちょうど 1 つ。今のコード（584a4957）では r2 の --debug の行が起点を戻して Tip が 0 になり落ちる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 仕組みを足さない（条件 1 つ。新しい型・helper・file・設定・TerminalUnit の欄を作らない。counted を分けない〔落とした数では --debug の行も数えるので、分けると 258・259 行まで変わる〕）。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各試験がどれに対応するかを成果物に 1 行で書く（P3-TDT-T01 は受入条件）。test:shuffle は要らない（足す試験は module の範囲の cached を読むだけで、永続化・共有状態を書かない）",
+      "受信経路の計算量（AGENTS.md）: push 1 回に足すのは kind の比べ 1 つだけ",
+      "既存の試験の期待（expect の値）は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "起草の確かめ: 起草の写し（worktree の未追跡の .dr-tmp/、確かめた後に消す）で、P3-TDT-T01 を今のコード（584a4957）に当てると Tip が 0 で落ち（--debug の行の 3 つは期待どおり）、AC01 (1) の条件にした output.ts で reconstruction の tsc 2 本と reconstruction/test/terminal・cli・host の 40 file・390 試験が通ることを確かめた（P3-TL10-T02 (i)・P3-TL11-T02 (i) の「--debug で tips の待ちは置いた時に動く」も置いた時の代入で通る）。実装で字や数が期待と違えば、条文を外れる直しをせず、試験名・契約の期待・実際の値を報告して止める",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: --debug の起動でも、--debug でない起動でも、tips の待ちの起点は電文の報を積んだ時に戻るので、電文が 30 分より短い間隔で出続ける間は tips が出ない（AC12 (2) のとおりで、本契約では変えない）",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き換えで、行の数を変えない。起草の時に、書き換える 3 行を他の契約の «» が引いていないことを grep で確かめた〔p3-terminal-output.json:661、p3-cli-repl.json:1364、p3-terminal-layout8.json:269、どれも 0 件〕）: (1) reconstruction/contracts/p3-terminal-output.json:661 の P3-TO-AC12 (2) の「（入力の echo と入力の行の書き直しは「何かを出した」に数えない。C18 の発注 3 が入力の行を 1 秒ごとに書き直すため、P3-CLI-D-O3-PROMPT）」を「（入力の echo と入力の行の書き直しは「何かを出した」に数えない。C18 の発注 3 が入力の行を 1 秒ごとに書き直すため、P3-CLI-D-O3-PROMPT。--debug の行〔AC17〕も数えない。--debug は観察のための起動で、tips の出方を変えない。P3-TERMINAL-DEBUG-TIP-001）」に替える (2) reconstruction/contracts/p3-cli-repl.json:1364 の P3-CLI-AC27 (2) の「（readline の echo と入力の行の書き直しは動かさない。P3-TO-AC12 (2) の「最後に何かを出してから」の読み）」を「（readline の echo と入力の行の書き直しは動かさない。P3-TO-AC12 (2) の「最後に何かを出してから」の読み。--debug の行も動かさない〔P3-TERMINAL-DEBUG-TIP-001〕）」に替える (3) reconstruction/contracts/p3-terminal-layout8.json:269 の P3-TL8-AC04 (8) の「--debug の行は数える単位なので、今までどおり tips の待ちの起点を動かす（output.ts の counted）」を「--debug の行は tips の待ちの起点を動かさない（P3-TERMINAL-DEBUG-TIP-001。数える単位〔output.ts の counted〕のままで、列から落としたときの数には入る）」に替える (4) (1)〜(3) で変えた 3 本の契約の meta.sha256 を取り直してから check-contract を通す",
+      "«» の付け直し（統合担当が配送の commit で当てる。この順で）: (1) 本契約の «» を先に手で付け直し、本契約の meta.sha256 を取り直す: 中身の変わる output.ts の :254・:255 と、原文の改訂で中身の変わる p3-terminal-output.json:661・p3-cli-repl.json:1364・p3-terminal-layout8.json:269 の 5 つ。本契約が引くほかの行（output.ts の :35・:77・:258・:274・:419・:625・:630、p3-terminal-output.json:726、spec:645、layout8.test.ts:187、output.test.ts:99）は動かない (2) その後に確かめとして reanchor-target.py を原文の改訂の 3 本の target に当てる（変更 0・rc 0 の見込み。(1) より先に当てると本契約の 3 つの anchor が「0 行」で止まる）。他の契約の «» は動かない: output.ts は行を足さず、中身が変わる 254・255 行を他の契約の «» は引いていない（他の契約が引く output.ts の行は 38・47・274・310・334・339・346・361・386・391・394・419・490・503・511・556・580・587・591・596・611・615・621・625・636・665）。layout8.test.ts は末尾に足すだけで、引く «» も無い。原文の改訂の 3 行も引く «» が無い。起草の写しで、原文の改訂 (1)〜(3) と 255 行の直しを当て、(1)(2) の順で付け直すと、reanchor-target.py は 3 本とも変更 0・rc 0、check-contract は全契約 PASS だった"
+    ],
+    "unresolvedQuestions": []
+  }
+}
