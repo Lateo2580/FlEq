@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "894cea2dd27e4e4de26179649a6aaeba615230d8505ecc255de0b81a33560251",
+    "sha256": "57b6be1dd91fe631cf5aa2baa67b94e55e80d985b6c1984faf9cabfe37f268a0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -58,7 +58,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-017",
     "mode": "implementation",
     "objective": "作者の裁定（2026-11-10、P3-TL17-D-SINGLE-KINDS=B）のとおり、1 件だけで出る気象警報・注意報時系列情報（VPWP50）の短い形に、便の束（P3-TERMINAL-LAYOUT-011 の timeseries）と同じ種類の行を足す。帯・末尾の行・段は今の 1 件の形のまま。材料の risks（P3-TL11-AC02）は 1 件の報でも作ってあるので、整形（format.ts の shortForm）で描くだけ。spec は起草で直した（§5.4 の 480 行・652 行、§8 の 848 行と Q-TO17-VPWP50-SINGLE の 934 行）",
-    "baseOid": "unassigned",
+    "baseOid": "ddcdc905",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
