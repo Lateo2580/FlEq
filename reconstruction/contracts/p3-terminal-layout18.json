@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c5a15ffb15da81857b549ae38368673564ea1196",
-    "sha256": "b3decc0e4e984b488f6be11ca14a2059be93dfbf387706866b217ce6785c447d",
+    "sha256": "c09d7473d503faec5a0c48f0fcc5e4ed3e9495377a5fe2526785db5e43c1e240",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -270,20 +270,8 @@
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 時刻の欄が全部空の報でも「ピーク」の語を出す（Q-TL18-PEAK。fixture では起きない） (2) 値が見出しの語より短い報では、列が見出しの幅まで広がり、P3-TERMINAL-LAYOUT-016 の形より値の行の空白が増える。100% の府県が無い報は確率の列が 1 桁広がり、狭い端末では 1 行の形から 2 行の形に変わりうる（Q-TL18-WIDTH の例は色なしの 59 桁と縦線ありの 61 桁）。気象庁の fixture（76_01_01〜03）は 20〜100 桁で形が変わらない (3) 見出しの行の薄い字は色 0 の renderer の試験では見えない（T01〜T04 は字だけを見る。役目の字は「ほか n 府県」と同じ \"dim\"）",
       "原文の改訂（統合担当が配送の commit で当てる。既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout16.json:219 の P3-TL16-AC02 の (1) の「（各列の幅はその報の rows の中の最も長い字）」の後に「（P3-TERMINAL-LAYOUT-018 で、府県の行の上に薄い字の見出しの行「府県  最悪地域  確率  ピーク」を足し、各列の幅を見出しの語と値の長い方にした。作者の裁定 P3-TL18-D-HEADER=A、2026-11-10）」を書き足す。同じ行の P3-TL16-AC02 の (3) の「見出しの行は出さず、2 行目は揃える）。」の後に「（P3-TERMINAL-LAYOUT-018 で、府県の行の上に見出しの行を足し、2 行の形では見出しも「府県」と「  最悪地域  確率  ピーク」の 2 行にした）」を書き足す (2) 同じ file の testMapping の P3-TL16-T01（265 行）・T02（274 行）・T05（299 行）の behavior の末尾に、それぞれ「（P3-TERMINAL-LAYOUT-018 で、帯の下〔56 桁は時刻の行の下〕に見出しの行が入る。改めた期待は P3-TL18-T01・T02 と layout16.test.ts の T05）」を書き足す。(1)(2) の行は本契約の AC02 が 219 行を引くだけ（ほかの契約の «» は p3-terminal-layout16.json を引いていない）ので、219 行は新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で typhoonLines の中の行の数が変わると、format.ts の 985 行から後がずれる。format.ts の 985 行より後を引く «» は全部付け直す（起草の時は p3-terminal-layout17.json の 993 行と、P3-TERMINAL-LAYOUT-019 の起草が引く 987・990・991 行。019 を後に配送しても、先に配送しても、その時の木で 985 行より後を grep する）。969 行（typhoonLines の頭）と 974 行は動かない。中身の同じ行は reanchor-target.py reconstruction/src/terminal/format.ts で付け直し、本契約の 983 行（return の行）の中身を変えたときは新しい行の anchor を手で入れる。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
-      "配送の記録（統合担当、2026-11-10）: (1) 実装は cea8a4c7（format.ts の typhoonLines と layout16.test.ts）と 113a047a（レビューの P3: 見出しの行の薄い字と、見出しを含めて測る判定を試験で留める）。format.ts は typhoonLines の中で 2 行増えた（969〜986 行。起草の見込みどおり 1〜966 行は動かず、967・968 行のコメントは行の数を変えずに書き換えた）。985 行より後を引く «» は配送の commit で付け直した（p3-terminal-layout17.json の 993→995、本契約の 983→985、p3-terminal-layout19.json の 987→989・990→992・991→993） (2) 実装がレビューで契約から動いた所: testMapping に P3-TL18-T05 を足し、P3-TL18-T04 に薄い字の確かめを足した（どちらも上の testMapping に書いた） (3) 読みの記録: 試験の describe の中の 1 行の合成（only・below）は既存の helper（reportOf・reportUnit・fiveDay・terminal）を呼ぶだけで、AC01 (7) と allowedPaths の「新しい関数・helper」には当たらないと読む。format.ts の局所の関数 role は、レビューの指摘で外した（見出しの行の役目は行の中の式で書く） (4) レビューの結果: 整合 Opus GO（P3 1）、品質 Opus GO（P3 2）、比べの品質 Fable 5.2 GO（P3 1）。reconstruction の vitest は 143 file・1,593 本が緑（P3 を当てる前の commit で、整合のレビュー担当が実走） (5) 原文の改訂 (1)(2) は配送の commit で p3-terminal-layout16.json の 219 行（2 か所）・265・274・299 行に当て、本契約の AC02 の 219 行の anchor を手で付け直した"
+      "配送の記録（統合担当、2026-11-10）: (1) 実装は cea8a4c7（format.ts の typhoonLines と layout16.test.ts）と 113a047a（レビューの P3: 見出しの行の薄い字と、見出しを含めて測る判定を試験で留める）。format.ts は typhoonLines の中で 2 行増えた（969〜986 行。起草の見込みどおり 1〜966 行は動かず、967・968 行のコメントは行の数を変えずに書き換えた）。985 行より後を引く «» は配送の commit で付け直した（p3-terminal-layout17.json の 993→995、本契約の 983→985、p3-terminal-layout19.json の 987→989・990→992・991→993） (2) 実装がレビューで契約から動いた所: testMapping に P3-TL18-T05 を足し、P3-TL18-T04 に薄い字の確かめを足した（どちらも上の testMapping に書いた） (3) 読みの記録: 試験の describe の中の 1 行の合成（only・below）は既存の helper（reportOf・reportUnit・fiveDay・terminal）を呼ぶだけで、AC01 (7) と allowedPaths の「新しい関数・helper」には当たらないと読む。format.ts の局所の関数 role は、レビューの指摘で外した（見出しの行の役目は行の中の式で書く） (4) レビューの結果: 整合 Opus GO（P3 1）、品質 Opus GO（P3 2）、比べの品質 Fable 5.2 GO（P3 1）。reconstruction の vitest は 143 file・1,593 本が緑（P3 を当てる前の commit で、整合のレビュー担当が実走） (5) 原文の改訂 (1)(2) は配送の commit で p3-terminal-layout16.json の 219 行（2 か所）・265・274・299 行に当て、本契約の AC02 の 219 行の anchor を手で付け直した (6) 実配信での確かめ（Q-TL18-LIVE を閉じた。統合担当が Mac mini の新築の画面から読んだ。色つきの写しは repo の外）: Mac mini の新築を 2026-11-10 21:53 に cbc84d65 へ上げた（socketId 8964357、--debug）後の最初の入力の中に、気象庁の VPTA50（台風第32号 CEMPAKA、21:55:00 発表）があり、端末（130 桁、色つき）に「━ 台風の暴風域に入る確率 台風第32号（CEMPAKA） ━…━ 21:55:00 発表 ━」「府県    最悪地域    確率  ピーク」「東京都  小笠原諸島  100%  11/10 21時頃」「VPTA50 ・ 気象庁」の 4 行で出た。見出しの行は 1 行の形で、列は値の行と揃っている（府県 6 桁＋2、最悪地域 10 桁＋2、確率 4 桁）。府県は 1 つで「ほか」の行は無い。薄い字の見え方は作者が 21 時台に実端末の watch で目視して問題なしと言った。実配信でまだ見ていないもの: 2 行に折る形（56 桁）と、地域の列の無い報"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-TL18-LIVE",
-        "owner": "integrator",
-        "blocks": [
-          "実配信での確かめ（発注も配送も止めない）"
-        ],
-        "resolveBy": "配送の後の最初の台風の暴風域に入る確率の報",
-        "requiredEvidence": [
-          "Mac mini の新築の端末に出た見出しの行が、値の行と同じ列に揃うことを写しで 1 回見る"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
