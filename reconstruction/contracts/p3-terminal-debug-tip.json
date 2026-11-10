@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "72693f89ce67fbb597d87e447492b182077acfec5f83426ea1f96f8f5053f77e",
+    "sha256": "1f5461e312433f05534c380dbd616832d2f605179a79fdac3cc691355869eee8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -46,7 +46,7 @@
     "contractId": "P3-TERMINAL-DEBUG-TIP-001",
     "mode": "implementation",
     "objective": "新築の端末を --debug で起動すると、待機中の tips が 1 本も出ない（2026-11-10 の Mac mini の新築の写しで --debug の行 339・Tip 0）のを直す。--debug の行は tips の待ちの起点を戻さないことにする（統合担当の決め、2026-11-10。--debug は観察のための起動で、画面の出方を変えない。spec cli-terminal-output.md:645 の「出さなかった VPWS50 の報は tips の待ちを動かさない」に揃う）。output.ts の push の 1 行の条件を「数える単位で、かつ --debug の notice でない」にするだけで、counted は変えない。--debug でない起動の振る舞いは何も変わらない。あわせて P3-TO-AC12 (2)、P3-CLI-AC27 (2)、P3-TL8-AC04 (8) を原文の改訂で揃える（統合担当が配送で当てる）",
-    "baseOid": "unassigned",
+    "baseOid": "3e9345e1",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
