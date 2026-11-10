@@ -14,7 +14,7 @@ import { startP2Host } from "../../src/host/host";
 import { PersistentDiagnosticSink } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { RuntimeCompositionRoot } from "../../src/runtime/composition-root";
 
-// TEST-PATH (3) for P3-EXECUTION-LIFECYCLE-001: startP2Host with the three dist owner threads. The mock only watches
+// TEST-PATH (3) for P3-EXECUTION-LIFECYCLE-001: startP2Host with the four dist owner threads. The mock only watches
 // replies, can hold one owner's inputDone, and starts the deferred owner through the test-only blocking entry.
 const control = vi.hoisted(() => ({
   live: new Set<{ terminate(): Promise<number> }>(),
@@ -166,7 +166,7 @@ describe("P3-C3B owners as real threads (TEST-PATH (3))", () => {
     control.blockPlace = "deferred";
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const t = await setup();
-    const others = ["urgent", "weatherCurrent"] as const;
+    const others = ["urgent", "weatherCurrent", "seismic"] as const; // seismic の応答を待たずに時計を進めると 5 秒の無応答に見える
     await step([...others, "deferred"]);
     Atomics.store(control.block!, 0, 1);
     // The tick whose deadline request blocks the thread, then four more: still healthy.
@@ -211,11 +211,11 @@ describe("P3-C3B owners as real threads (TEST-PATH (3))", () => {
     const errors = () => t.lines().then((lines) => lines.filter((line) => line.reason === "ownerStopped" && line.level === "ERROR"));
     await until(async () => (await errors()).length === 1);
     expect(await errors()).toEqual([expect.objectContaining({ component: "owner.deferred", count: 1 })]);
-    await step(["urgent", "weatherCurrent"]);
+    await step(["urgent", "weatherCurrent", "seismic"]);
     await until(() => t.heartbeats.length === 1);
     expect(t.heartbeats).toEqual(["stopped"]);
     expect(await t.healthz()).toBe("stopped");
-    await step(["urgent", "weatherCurrent"]);
+    await step(["urgent", "weatherCurrent", "seismic"]);
     await until(async () => (await t.snapshot()).worker.state === "stopped");
     t.ws.send(dataFrame("VXSE43", fixtureText("37_01_01_240613_VXSE43")));
     await until(async () => (await t.snapshot()).current.eew.items.length > 0);
