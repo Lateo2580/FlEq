@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "286b2d58163c59976fc046cb11c1a2d396ff6cf5b0508e66ccd3df572a95f684",
+    "sha256": "549047f1b16a328b8af6058c03385011168a605869072fb44f3b85ee569d88e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -280,7 +280,7 @@
         "id": "P3-TL7-AC03",
         "requirement": "入力の行の回線の印（Q-TO8-PULSE）: (1) 印が ● の形（繋がっているか、時計の形で受信がある）のとき、時計の秒（Math.floor(wallTimeMs / 1000)）が偶数なら空色の ●、奇数なら灰の ○ にする (2) 字を ○ に替えた秒も時刻は今のまま出す（--:--:-- にしない）。印の真偽と字形を分ける (3) 印が ○ の形（時刻が --:--:--）のときは灰の ○ のまま (4) 切断中の字、ミュートの字、現況の項目と回り方、幅の決め方は変えない（● と ○ は同じ 1 桁） (5) NO_COLOR と色の水準 0 では色を付けず、字の ● と ○ だけを入れ替える",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:978 «1cab28285e3321e9»",
+          "docs/specs/cli-terminal-output.md:979 «1cab28285e3321e9»",
           "docs/specs/cli-terminal-output.md:56 «0bc9080a99f5b5bf»",
           "docs/specs/cli-terminal-output.md:927 «6dcce3a1dfc7802e»"
         ]
