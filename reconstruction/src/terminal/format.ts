@@ -965,21 +965,24 @@ function tipLines(text: string, total: number): Line[] {
   });
 }
 // P3-TL16-AC02・D-NARROW=A: 台風の暴風域に入る確率の府県の行。府県名と最悪の地域は左に、確率は右に揃え、列の間は 2 桁。
-// 無いと 5 行の列を揃えられない（rowTable は見出しの行を出し、入らないときの 2 行目を揃えない）。最も長い行が room に入らなければ全部の府県を 2 行にする。
+// 無いと 5 行の列を揃えられない（rowTable は入らないときの 2 行目を揃えない）。薄い字の見出しの行を表の先頭に並べて幅を測り、最も長い行が room に入らなければ全部を 2 行にする。
 function typhoonLines(probability: Extract<TerminalReport, { kind: "short" }>["probability"], room: number): Line[] {
   if (probability == null || probability.rows.length === 0) return [];
-  const rows = probability.rows.map((row) => {
+  const body = probability.rows.map((row) => {
     // 旧築の jstHourLabel と同じ形（生の字の月・日・時で、時刻帯を換算しない）。府県名と同じ字の地域（大東島地方）は地域の欄を空にする。
     const peak = /^\d{4}-(\d{2})-(\d{2})T(\d{2})/.exec(row.peakRaw ?? "");
     return { prefecture: row.prefecture, area: row.area === row.prefecture ? "" : row.area, percent: `${row.percent}%`, time: peak == null ? "" : `${peak[1]}/${peak[2]} ${peak[3]}時頃` };
   });
+  // P3-TL18-AC01: 見出しの行（旧築 FOUR_COL_DEF と同じ字）。地域の欄が全部空の報は「最悪地域」も出さない。
+  const rows = [{ prefecture: "府県", area: body.some((row) => row.area !== "") ? "最悪地域" : "", percent: "確率", time: "ピーク" }, ...body];
   const most = (pick: (row: (typeof rows)[number]) => string): number => Math.max(...rows.map((row) => width(pick(row))));
   const prefectureSize = most((row) => row.prefecture), areaSize = most((row) => row.area), percentSize = most((row) => row.percent);
   // 地域の欄が全部空なら地域の列を出さない。時刻の欄が空の行は行末の空白を書き出しで除く。
-  const values = (row: (typeof rows)[number]): string => `${areaSize === 0 ? "" : pad(row.area, areaSize + 2)}${row.percent.padStart(percentSize)}  ${row.time}`;
+  const values = (row: (typeof rows)[number]): string => `${areaSize === 0 ? "" : pad(row.area, areaSize + 2)}${pad("", percentSize - width(row.percent))}${row.percent}  ${row.time}`;
   const single = rows.map((row) => `${pad(row.prefecture, prefectureSize + 2)}${values(row)}`.trimEnd());
-  const lines = single.every((text) => width(text) <= room) ? single.map((text) => line(seg(text)))
-    : rows.flatMap((row) => [line(seg(row.prefecture)), line(seg(`  ${values(row)}`))]);
+  const role = (index: number) => index === 0 ? "dim" : null;
+  const lines = single.every((text) => width(text) <= room) ? single.map((text, index) => line(seg(text, role(index))))
+    : rows.flatMap((row, index) => [line(seg(row.prefecture, role(index))), line(seg(`  ${values(row)}`, role(index)))]);
   return probability.others === 0 ? lines : [...lines, line(seg(`ほか ${probability.others} 府県`, "dim"))];
 }
 // P3-TL17-AC01・D-SINGLE-KINDS=B: 1 件の気象警報・注意報時系列情報の種類の行。無いと 1 件の便は帯と末尾の行だけで、何の危険度の報かが読めない。

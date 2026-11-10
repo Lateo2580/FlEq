@@ -78,10 +78,10 @@ describe("P3-TL16 台風の暴風域に入る確率の府県の行", () => {
   it("T01 76_01_02 を owner の道と本物の出力の経路に通すと、100・80 桁で 70% 以上の 7 府県の 1 行と「ほか」、56 桁で府県ごとに 2 行", async () => {
     const wide = await owned(JANGMI, 100);
     expect(wide.lines).toEqual(["", "━ 台風の暴風域に入る確率 台風第6号（JANGMI） ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 09:55:00 発表 ━",
-      ...JANGMI_ROWS, "ほか 37 府県", "VPTA50 ・ 気象庁"]);
+      "府県                      最悪地域        確率  ピーク", ...JANGMI_ROWS, "ほか 37 府県", "VPTA50 ・ 気象庁"]);
     expect((await owned(JANGMI, 80)).lines.slice(2)).toEqual(wide.lines.slice(2));
     expect((await owned(JANGMI, 56)).lines).toEqual(["", "━ 台風の暴風域に入る確率 台風第6号（JANGMI） ━━━━━━━━━━━", "09:55:00 発表",
-      "奄美地方", "  北部            100%  06/02 03時頃", "沖縄本島地方", "  南部            100%  06/01 15時頃",
+      "府県", "  最悪地域        確率  ピーク", "奄美地方", "  北部            100%  06/02 03時頃", "沖縄本島地方", "  南部            100%  06/01 15時頃",
       "鹿児島県（奄美地方除く）", "  種子島地方       98%  06/02 12時頃", "宮崎県", "  日南・串間地区   83%  06/02 15時頃",
       "和歌山県", "  新宮・東牟婁     79%  06/03 03時頃", "東京都", "  三宅島           74%  06/03 12時頃",
       "三重県", "  紀勢・東紀州     73%  06/03 06時頃", "ほか 37 府県", "VPTA50 ・ 気象庁"]);
@@ -90,6 +90,7 @@ describe("P3-TL16 台風の暴風域に入る確率の府県の行", () => {
   // P3-TL16-T02 corpusHistory / AC01・AC02
   it("T02 76_01_01 は 70% 以上の 17 府県が全部出て、大東島地方は地域の欄が空", () => {
     expect(terminal(80)([reportUnit(reportOf(DAMREY, "U-Y"))]).slice(2, -1)).toEqual([
+      "府県                      最悪地域          確率  ピーク",
       "奄美地方                  北部              100%  10/01 18時頃",
       "沖縄本島地方              国頭地区          100%  10/01 18時頃",
       "大東島地方                                  100%  10/01 09時頃",
@@ -148,7 +149,7 @@ describe("P3-TL16 台風の暴風域に入る確率の府県の行", () => {
     const flat = editItems("<TimeSeriesInfo>", "</TimeSeriesInfo>", (item) => item.includes("<Code>460041</Code>") ? setValues(item, "0") : item);
     const report = reportOf(JANGMI, "U-Y", flat);
     expect(probabilityOf(report)?.rows[0]).toEqual({ prefecture: "奄美地方", area: "北部", percent: "100", peakRaw: null });
-    expect(terminal(80)([reportUnit(report)]).slice(2, -1)).toEqual(["奄美地方                  北部            100%", ...JANGMI_ROWS.slice(1), "ほか 37 府県"]);
+    expect(terminal(80)([reportUnit(report)]).slice(2, -1)).toEqual(["府県                      最悪地域        確率  ピーク", "奄美地方                  北部            100%", ...JANGMI_ROWS.slice(1), "ほか 37 府県"]);
   });
 
   // P3-TL16-T08 contractBoundary / AC01 (3)
@@ -161,6 +162,22 @@ describe("P3-TL16 台風の暴風域に入る確率の府県の行", () => {
       .toEqual({ rows: ["奄美地方", "宮崎県", "和歌山県", "東京都", "三重県"], others: 1 });
     expect(names({ 130032: 70, 300022: 70, 450012: 70, 460041: 70, 460031: 70, 471011: 70, 240022: 69 }))
       .toEqual({ rows: ["東京都", "和歌山県", "宮崎県", "奄美地方", "鹿児島県（奄美地方除く）", "沖縄本島地方"], others: 1 });
+  });
+});
+
+describe("P3-TL18 台風の暴風域に入る確率の見出しの行", () => {
+  const only = (table: Readonly<Record<string, number>>) => reportUnit(reportOf(JANGMI, "U-Y", fiveDay(table)));
+  const below = (columns: number, unit: ReturnType<typeof only>, skip: number) => terminal(columns)([unit]).slice(skip, -1);
+  // P3-TL18-T03 contractBoundary / AC01 (3)(4)
+  it("T03 地域の列を出さない報は「最悪地域」も出さず、2 行の形でも見出しの 2 行目に出さない", () => {
+    const unit = only({ 472000: 90 });
+    expect(below(80, unit, 2)).toEqual(["府県        確率  ピーク", "大東島地方   90%  06/01 21時頃"]);
+    expect(below(28, unit, terminal(28)([unit]).indexOf("09:55:00 発表") + 1)).toEqual(["府県", "  確率  ピーク", "大東島地方", "   90%  06/01 21時頃"]);
+  });
+
+  // P3-TL18-T04 contractBoundary / AC01 (3)(6)
+  it("T04 値が見出しの語より短い報は、列が見出しの幅まで広がる", () => {
+    expect(below(80, only({ 460041: 5 }), 2)).toEqual(["府県      最悪地域  確率  ピーク", "奄美地方  北部        5%  06/02 03時頃"]);
   });
 });
 
