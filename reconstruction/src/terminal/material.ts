@@ -146,9 +146,27 @@ function release(item: XmlElement, found: ReleaseRows): void {
   }
   if (lost) found.others += 1;
 }
-function scan(body: XmlElement | null, withRisks = false, withReleased = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null; released: ReleaseRows | null } {
-  const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, Risk> | null; released: ReleaseRows | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null,
+// P3-TL19-AC01: risks の組に、最悪の段階の時間帯と市町村等を積んだもの（risks と riskRows は辿りの後に同じ値から作る）。
+// times は最悪の段階を最初に持った TimeSeriesInfo の timeId → TimeDefine の位置（Q-TL19-DAILY）、slots はその段階の Significancy が指した位置 → Name。
+// seen は数えた Area/Code（Area/Code か名前の無い Item は Item そのもの。Q-TL19-OVERLAP）。
+type Times = Readonly<{ ids: Map<string, number>; names: readonly (string | null)[] }>;
+type RiskRow = Risk & { times: Times | null; slots: Map<number, string>; areas: string[]; others: number; seen: Set<string | XmlElement> };
+// Q-TL19-LIMIT (a): 十の位が 2・3 の種類の名前は 64 まで（無いと 1 報の材料が Item の数×種類の数で大きくなる）。十の位 4・5 の名前と時間帯は数で切らない（D-CAP=A）。
+const NAME_LIMIT = 64;
+// D-SPAN-GAP=A: 位置が隣どうしの時間帯を 1 つの帯（最初〜最後）にまとめ、電文の順に並べる。
+function spansOf(slots: ReadonlyMap<number, string>): { from: string; to: string }[] {
+  const spans: { from: string; to: string; last: number }[] = [];
+  for (const [at, name] of [...slots].sort(([left], [right]) => left - right)) {
+    const span = spans.at(-1);
+    if (span != null && span.last === at - 1) { span.to = name; span.last = at; } else spans.push({ from: name, to: name, last: at });
+  }
+  return spans.map(({ from, to }) => ({ from, to }));
+}
+function scan(body: XmlElement | null, withRisks = false, withReleased = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, RiskRow> | null; released: ReleaseRows | null } {
+  const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, RiskRow> | null; released: ReleaseRows | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null,
     released: withReleased ? { rows: new Map(), items: { left: AREA_LIMIT, omitted: 0 }, placed: 0, others: 0 } : null };
+  // 道の上で今いる TimeSeriesInfo の時間帯と Item の市町村等（深さ優先なので、Significancy に着いた時は祖先のもの）。
+  let times: Times | null = null, area: Readonly<{ node: XmlElement; name: string | null; code: string | null }> | null = null;
   const visit = (node: XmlElement, place: Place | null, layer: string | null): void => {
     const name = localName(node);
     if (name === "Area" && found.target == null) found.target = read(node, "Name");
@@ -161,12 +179,40 @@ function scan(body: XmlElement | null, withRisks = false, withReleased = false):
       const type = attribute(node, "type"), label = read(node, "Name"), code = read(node, "Code");
       if (type != null && type !== "" && type.length <= RISK_LIMIT && label != null && label !== "" && label.length <= RISK_LIMIT && code != null && /^[2-5][0-9]$/.test(code)) {
         const before = found.risks.get(type);
-        if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code });
+        // より重い Code は、それまでの時間帯・市町村等・others・印を捨ててこの Item から積み直す（AC01 (2)(c)）。
+        if (before == null ? found.risks.size < RISK_LIMIT : Number(code) > Number(before.code)) found.risks.set(type, { type, name: label, code, times, slots: new Map(), areas: [], others: 0, seen: new Set() });
+        const row = found.risks.get(type);
+        if (row != null && row.code === code) {
+          // 時間帯は最初の TimeSeriesInfo のものだけ合わせる（Q-TL19-DAILY）。
+          const ref = attribute(node, "refID"), at = ref == null || row.times !== times ? undefined : times?.ids.get(ref);
+          const slot = at == null ? undefined : times?.names[at];
+          if (at != null && slot != null) row.slots.set(at, slot);
+          const key = area == null ? null : area.name == null || area.code == null ? area.node : area.code;
+          if (area != null && key != null && !row.seen.has(key)) {
+            // 印は名前と上限を見る前に付ける（無いと別の TimeSeriesInfo の同じ市町村が others に二重に入る）。
+            row.seen.add(key);
+            if (area.name == null || (/^[23]/.test(code) && row.areas.length >= NAME_LIMIT)) row.others += 1;
+            else row.areas.push(area.name);
+          }
+        }
       }
     }
     // place は親の段。この要素が親の段の次の要素なら次の段、そうでなければ null（root 以外から道に入る道は無い）。
     const step = found.risks == null || place == null || place === "local" ? null : PATH[place];
     const next = step != null && name === step[0] && (place !== "body" || attribute(node, "type") === TIMESERIES_TYPE) ? step[1] : null;
+    // 道の上の TimeSeriesInfo は TimeDefine を電文の順に全部 1 回読み（同じ timeId は最初の 1 つ）、道の上の Item は Area を先に読む（Area は Kind の後ろにある）。
+    if (next === "series") {
+      const ids = new Map<string, number>(), names: (string | null)[] = [];
+      for (const define of children(first(node, "TimeDefines"), "TimeDefine")) {
+        const id = attribute(define, "timeId"), label = read(define, "Name");
+        if (id != null && !ids.has(id)) ids.set(id, names.length);
+        names.push(label == null || label === "" ? null : cut(label, BOUNDS.areaName));
+      }
+      times = { ids, names };
+    } else if (next === "item") {
+      const element = first(node, "Area"), label = read(element, "Name"), code = read(element, "Code");
+      area = { node, name: label == null || label === "" ? null : cut(label, BOUNDS.areaName), code: code === "" ? null : code };
+    }
     const inner = found.released != null && name === "Warning" ? attribute(node, "type") : null;
     for (const child of children(node)) visit(child, next, inner);
   };
@@ -289,7 +335,7 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   const layer = nationwide && !cancel ? children(body, "Warning").find((node) => attribute(node, "type") === PREFECTURE_LAYER) ?? null : null;
   if (layer != null) {
     const table = nationalTable(layer);
-    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national, risks: null, released: null, probability: null };
+    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national, risks: null, riskRows: null, released: null, probability: null };
   }
   const found = scan(body, unit === "U-F" && material.headType === "VPWP50" && !cancel, /^VPWW(5[5-9]|6[01])$/.test(material.headType) && !cancel);
   // Head の Title に全国の活火山を含む VFVO51。EventID 900 は「その他の火山」の番号でもあるので使わない（P3-TL3-D-DETECT）。
@@ -298,7 +344,8 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   return { kind: "short", unit, head: heading, target: monthly ? "全国の活火山" : nationwide ? "全国" : unit === "U-N" ? null : (unit === "U-Y" ? typhoonLabel(found.typhoon) : null) ?? found.target, level, reason: RANK[level] >= RANK.warning ? name : null,
     // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
     cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null,
-    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null, risks: found.risks == null ? null : [...found.risks.values()],
+    flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null, risks: found.risks == null ? null : [...found.risks.values()].map(({ type, name, code }) => ({ type, name, code })),
+    riskRows: found.risks == null ? null : [...found.risks.values()].map((row) => ({ type: row.type, name: row.name, code: row.code, spans: spansOf(row.slots), areas: row.areas, others: row.others })),
     released: found.released == null ? null : { rows: [...found.released.rows.values()].map(({ label, areas }) => ({ label, areas })), others: found.released.others + found.released.items.omitted }, probability: unit === "U-Y" && /^VPTA5[0-5]$/.test(material.headType) && !cancel ? typhoonRows(body) : null };
 }
 

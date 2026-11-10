@@ -774,7 +774,7 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
     : listTable(null, national.rows.map((row) => ({ label: seg(row.label), rest: seg(row.label, "dim"), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
     ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: nationwide ?? [...reason, ...sentences, ...riskLines(report.risks, ctx.body), ...typhoonLines(report.probability, ctx.body), ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: nationwide ?? [...reason, ...sentences, ...riskLines(report.riskRows, ctx.body), ...typhoonLines(report.probability, ctx.body), ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 // P3-TL10-AC01 (5)・spec §5.4 の図: 降灰予報（定時）のまとまり。帯は 1 報目の題名と印と「 N火山」、段は最も重い段、帯の下に各報の対象を 1 行ずつと末尾の行。
 // 見出し文・段の理由の行・区切りの罫線は出さない。
@@ -984,13 +984,52 @@ function typhoonLines(probability: Extract<TerminalReport, { kind: "short" }>["p
     : rows.flatMap((row, index) => [line(seg(row.prefecture, index === 0 ? "dim" : null)), line(seg(`  ${values(row)}`, index === 0 ? "dim" : null))]);
   return probability.others === 0 ? lines : [...lines, line(seg(`ほか ${probability.others} 府県`, "dim"))];
 }
-// P3-TL17-AC01・D-SINGLE-KINDS=B: 1 件の気象警報・注意報時系列情報の種類の行。無いと 1 件の便は帯と末尾の行だけで、何の危険度の報かが読めない。
-// 並べ替えと flow は束（timeseries）と同じ式で、関数を 1 つにしないのは他の契約が引く行をずらさないため（Q-TL17-SHARED）。束を変えるときは両方を直す。
-function riskLines(risks: Extract<TerminalReport, { kind: "short" }>["risks"], room: number): Line[] {
-  // 組が無い報（取消は null）は行を出さない（flow は空の並びでも空の 1 行を返す）。
-  if (risks == null || risks.length === 0) return [];
-  const kinds = [...risks].sort((left, right) => Number(right.code) - Number(left.code));
-  return flow([], kinds.map((risk) => [seg(`${risk.type}（${risk.name}）`)]), room, 0);
+// P3-TL19-AC02・D-SINGLE-ROWS=A: 1 件の気象警報・注意報時系列情報の種類ごとに、時間帯の行と 2 桁下げた市町村等の行。無いと 1 件の便は帯と末尾の行だけで、どの危険度がどこでいつかが読めない。
+// 並べ替えは束（timeseries）と同じ式で、関数を 1 つにしないのは他の契約が引く行をずらさないため（Q-TL17-SHARED）。束を変えるときは両方を直す。
+function riskLines(rows: Extract<TerminalReport, { kind: "short" }>["riskRows"], room: number): Line[] {
+  // 組が無い報（取消は null）は行を出さない。
+  if (rows == null || rows.length === 0) return [];
+  const kinds = [...rows].sort((left, right) => Number(right.code) - Number(left.code));
+  return kinds.flatMap((row) => [...spanLines(row, room), ...areaLines(row, room)]);
+}
+type RiskRow = NonNullable<Extract<TerminalReport, { kind: "short" }>["riskRows"]>[number];
+// AC02 (2): 「種類（段階）  時間帯」。帯は「・」でつなぎ、幅を越えたら帯の境で折って続きの行を 1 つ目の帯の位置まで下げる（入らなければ 2 桁。D-SPAN-GAP=A）。
+// 段階の名前と帯は nfkc で半角に読み替える（D-DIGITS=A・D-STAGE-NAME=A）。種類と最初の帯だけで幅を越える行は書き出しの physical が折る。
+function spanLines(row: RiskRow, room: number): Line[] {
+  const head = `${row.type}（${nfkc(row.name)}）`, indent = " ".repeat(width(head) + 2), texts: string[] = [];
+  let current = head;
+  row.spans.forEach(({ from, to }, index) => {
+    const span = from === to ? nfkc(from) : `${nfkc(from)}〜${nfkc(to)}`;
+    if (index === 0) current += `  ${span}`;
+    else if (width(current) + 2 + width(span) <= room) current += `・${span}`;
+    else { texts.push(current); current = width(indent) + width(span) <= room ? indent + span : `  ${span}`; }
+  });
+  return [...texts, current].map((text) => line(seg(text)));
+}
+// AC02 (3)(4): 2 桁下げて市町村等を「・」でつなぐ。十の位 4・5 は全部を名前の境で折り（続きも 2 桁下げ）、名前の無い数を最後に「 ほか n」。
+// ほかは 1 行に「 ほか n」の幅も含めて入るだけ並べる（D-FIT=A）。1 つ目の名前は入らなくても出す（書き出しの physical が折る）。
+function areaLines(row: RiskRow, room: number): Line[] {
+  const { areas, others } = row, total = areas.length + others;
+  const more = (shown: number): string => shown === total ? "" : `${shown === 0 ? "" : " "}ほか ${total - shown}`;
+  if (total === 0) return [];
+  if (/^[45]/.test(row.code)) {
+    const texts: string[] = [];
+    let current = "  ";
+    for (const area of areas) {
+      if (current === "  ") current += area;
+      else if (width(current) + 2 + width(area) <= room) current += `・${area}`;
+      else { texts.push(current); current = `  ${area}`; }
+    }
+    return [...texts, current + more(areas.length)].map((text) => line(seg(text)));
+  }
+  // 「 ほか n」は n の桁で幅が変わり、全部並べると消えるので、並べる数ごとに測って入る最大を採る。
+  let shown = Math.min(1, areas.length), used = 2 + (areas.length === 0 ? 0 : width(areas[0]));
+  for (let count = 2; count <= areas.length; count += 1) {
+    used += 2 + width(areas[count - 1]);
+    if (used > room) break;
+    if (used + width(more(count)) <= room) shown = count;
+  }
+  return [line(seg(`  ${areas.slice(0, shown).join("・")}${more(shown)}`))];
 }
 // ---- 書き出す文字 ----
 function trimEnd(segs: readonly Seg[]): Seg[] {
