@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "6e4b0e22c53c8f30be5f569144decc69fd47b760ae2e10ca977c25e03d3d1fed",
+    "sha256": "ea3513516455b375c197d941a716bfd2fc70212102f72e46667c65ed5677a615",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -153,8 +153,8 @@
           "reconstruction/src/terminal/material.ts:213 «ebb86d4fb6943021»",
           "reconstruction/src/terminal/output.ts:321 «f5001ae486d14f86»",
           "reconstruction/test/terminal/layout11.test.ts:327 «45adb05588b457d0»",
-          "docs/specs/cli-terminal-output.md:655 «a9ec9b5c367abcdf»",
-          "docs/specs/cli-terminal-output.md:937 «e1a435a4d8325aed»",
+          "docs/specs/cli-terminal-output.md:664 «910c5ab83f798f10»",
+          "docs/specs/cli-terminal-output.md:946 «e1a435a4d8325aed»",
           "AGENTS.md"
         ]
       },
@@ -163,9 +163,9 @@
         "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 480 行（§5.4 の総則の列挙に Q-TO17-VPWP50-SINGLE）、652 行（時系列情報の項の 1 件の形）、848 行（Q-TO-S-3 の足す行の列挙）、934 行（Q-TO17-VPWP50-SINGLE を 933 行の後に足した）。spec の行を引く契約の «» を同じ起草で付け直した（中身を変えた 480・652・848 行を引く 7 契約の 12 か所は新しい anchor を手で入れ、934 行から後の 1 行のずれは reanchor-target.py で 4 契約） (2) 閉じた契約の文 2 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)(2)。行の数は変えない）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
-          "docs/specs/cli-terminal-output.md:655 «a9ec9b5c367abcdf»",
-          "docs/specs/cli-terminal-output.md:851 «30158ec2a8f610b5»",
-          "docs/specs/cli-terminal-output.md:937 «e1a435a4d8325aed»",
+          "docs/specs/cli-terminal-output.md:664 «910c5ab83f798f10»",
+          "docs/specs/cli-terminal-output.md:860 «30158ec2a8f610b5»",
+          "docs/specs/cli-terminal-output.md:946 «e1a435a4d8325aed»",
           "reconstruction/contracts/p3-terminal-layout11.json:282 «2ec85c0ce69998ed»"
         ]
       }

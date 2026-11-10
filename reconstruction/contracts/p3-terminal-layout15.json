@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "07a42d02fa2cdfa15499767e6810f0ad94da524e3e2b1ed500da89990b0c106e",
+    "sha256": "6f81b7c9d366545ba0b129f6f03d81d8782d834cded03c4e2ef42a99cc93408b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -182,8 +182,8 @@
           "reconstruction/src/terminal/format.ts:738 «f21152385915a7df»",
           "reconstruction/src/terminal/format.ts:739 «b16b7a7ac73001ae»",
           "reconstruction/src/terminal/material.ts:154 «350fb3f40599ad30»",
-          "docs/specs/cli-terminal-output.md:626 «611771927b6a834e»",
-          "docs/specs/cli-terminal-output.md:933 «bdfb07fd31cac44c»",
+          "docs/specs/cli-terminal-output.md:635 «611771927b6a834e»",
+          "docs/specs/cli-terminal-output.md:942 «bdfb07fd31cac44c»",
           "test/fixtures/83_01_01_250630_VPZJ51.xml:11 «32d182df5931a146»",
           "test/fixtures/83_01_01_250630_VPZJ51.xml:94 «e363d5ef21daece3»",
           "test/fixtures/84_01_01_260129_VPCJ51.xml:11 «a63269454fce5792»",
@@ -197,9 +197,9 @@
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:38 «97b5147c5d2bf7ab»",
           "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
-          "docs/specs/cli-terminal-output.md:653 «5768731f8619d84e»",
-          "docs/specs/cli-terminal-output.md:655 «a9ec9b5c367abcdf»",
-          "docs/specs/cli-terminal-output.md:930 «e71e64be56479335»"
+          "docs/specs/cli-terminal-output.md:662 «5768731f8619d84e»",
+          "docs/specs/cli-terminal-output.md:664 «910c5ab83f798f10»",
+          "docs/specs/cli-terminal-output.md:939 «e71e64be56479335»"
         ]
       },
       {
@@ -208,14 +208,14 @@
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:83 «fb3b4d81c430efec»",
           "reconstruction/src/terminal/format.ts:900 «e05f03b9b4cacd1f»",
-          "docs/specs/cli-terminal-output.md:750 «00a1701c96c86dfd»"
+          "docs/specs/cli-terminal-output.md:759 «00a1701c96c86dfd»"
         ]
       },
       {
         "id": "P3-TL15-AC04",
         "requirement": "短い形の古い文（原文の改訂 (6)〜(8)。統合担当が配送の commit で当てる。実装はしない。分岐に依らない）: (1) spec §8 の Q-TO-S-3 の答え「足さない」を、§5.4 の総則（spec:480、P3-TERMINAL-LAYOUT-014 で直した）と同じく、報によって足す行と見出し文の代わりに表などを出す形を §5.4 へ案内する字にする (2) spec:481 の「見出し文は省略せず」を「切り詰めずに全文を出し」にし、全国の集約通報の表の形と、降灰予報（定時）・時系列情報の 2 件以上のまとめは見出し文を出さないことを下の各項へ案内する (3) 閉じた契約 p3-terminal-layout.json の P3-TL-AC11 の「見出し文のほかに要点の行を足さない（Q-TO-S-3）」に、後の契約で改めたことを書き足す。3 行とも行の数を変えず、どの契約も «» で引いていない。見た目は変わらない（文を実装に合わせるだけ）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:851 «30158ec2a8f610b5»",
+          "docs/specs/cli-terminal-output.md:860 «30158ec2a8f610b5»",
           "docs/specs/cli-terminal-output.md:481 «c058d592d569640f»",
           "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
           "reconstruction/src/terminal/format.ts:770 «103735192383710c»",

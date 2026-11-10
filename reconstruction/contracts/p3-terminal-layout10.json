@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "dbbcc2b9eb907fa0d019abde00bee99bbccd703a815a50b0afcae3b7a3686b9c",
+    "sha256": "206db31f183149de168a02b96b02560907282a22ef4600e4c4735af296657b76",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -317,8 +317,8 @@
         "requirement": "降灰予報（定時）のまとめ（Q-TO11-VFVO53、P3-TL10-D-VFVO53=A・D-ASH-WHERE・D-ASH-SINGLE・D-ASH-INTERRUPT・D-ASH-CANCEL）: (1) 対象は返信の terminal が短い形で unit が U-V、headType が VFVO53、InfoType が取消でない報。createTerminalOutput の sink の inputDone はこれを列に積まず、閉包の変数 1 つの「降灰のまとまり」（報の参照の並び〔20 まで〕・鍵〔ReportDateTime の生の字と Control/Status〕・最初と最後に置いた時刻〔clock の monotonic〕）に置く (2) 同じ火山（head.eventId が同じ）の報が並びにあれば前の報を外し、新しい報を並びの最後に置く（U-V の「同じ火山は置き換え」と同じ並び） (3) 鍵の違う報が来たら、今のまとまりを先に出してから新しいまとまりを始める (4) 出す時: 並びが 20 になったらその入力の中で。1 秒の tick と inputDone の初め（その返信の報をまとまりに足す・積む前。U-V が入力の前に期限を当てる順と同じ）で、最後に置いてから 8,000 ms 以上か、最初に置いてから 90,000 ms 以上のとき。返信の terminal が headType VFVO54・VFVO55 で Control/Status が鍵と同じ報を積む前（その報より先に）。close() で列の残りを書かせる前。ほかの報（火山のほかの報・ほかの unit・EEW・読めなかった報のカード）はまとまりを出さずに今のとおり積み、まとまりは後でその下に出る (5) 出す形: 1 報だけなら、その報を今の 1 報の形（kind report）で積む。2 報以上は 1 つの単位で積み、spec §5.4 の図の形にする: 帯は 1 報目の Control/Title（版の印を除く）と Control/Status の印と「 N火山」、時刻は 1 報目の ReportDateTime、段は報の段のうち最も重い段（VFVO53 の Kind の Code は U-V の段の読み方のどれにも当たらず、実物では普通）。帯の下に各報の対象（Body の最初の Area/Name。無ければ Head/Title、それも無ければ電文の種類のコード）を並びの順に 1 行ずつ、最後に末尾の行（「VFVO53 ・ <1 報目の PublishingOffice>」）。見出し文・段の理由の行・区切りの罫線は出さない (6) 取消の報は待たずに今のとおり積み、まとまりを出さない。並びに同じ火山（head.eventId）で Control/Status の同じ報があれば外す（空になったらまとまりを無くす） (7) 取り直しの VFVO53 は端末の材料が null で（material.ts の origin recovery）U-V も束に入れない（volcano-unit.ts の origin recovery の idle）ので、決まりを足さない (8) 数え方: まとまりに置いた入力は届いた時に定期要約に数える（今のとおり）。tips の待ちの起点（lastOutputMs）は置いた時に動かす（ブロックは 90 秒の内に出る）。入力の行の経過の時刻（lastReportWallMs）はブロックを積んだ時に動かす。読めなかった報のカードは探さない。--debug の行は置いた時に「debug: VFVO53 <入力 ID>（U-V、まとめて出す）」 (9) まとまりの寿命と消す道: 最初の報を置いた時にでき、(3)(4) で出した時と (6) で空になった時に無くなる。保存しない。回線の切断と回復・取り直し・control.clear() では消さない。tick は attach() で始まるので、attach の前に置いた報は attach の後の最初の tick で期限を見る。場面: 17:00:01 から 17:00:03 に阿蘇山・桜島・薩摩硫黄島・諏訪之瀬島・霧島山（新燃岳）の 5 報（ReportDateTime 17:00:00、通常）が届くと、端末は 17:00:10 まで何も出さず、最後の報から 8 秒を過ぎた最初の tick（17:00:11）に、60 桁では spec §5.4 の図の 7 行のブロックを 1 つ出す",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
-          "docs/specs/cli-terminal-output.md:653 «5768731f8619d84e»",
-          "docs/specs/cli-terminal-output.md:927 «9064de7d37656074»",
+          "docs/specs/cli-terminal-output.md:662 «5768731f8619d84e»",
+          "docs/specs/cli-terminal-output.md:936 «9064de7d37656074»",
           "src/engine/messages/volcano-vfvo53-aggregator.ts:40 «7d9b02001a5573c5»",
           "src/engine/messages/volcano-vfvo53-aggregator.ts:85 «3a44c9b3dd8ce77c»",
           "src/ui/volcano-formatter.ts:983 «41b96c9d715cf4ad»",
@@ -337,7 +337,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:63 «5d5f2fdff48cbfdd»",
           "docs/specs/cli-terminal-output.md:169 «1f3b76a9c5621b14»",
-          "docs/specs/cli-terminal-output.md:928 «6576c08f63e8eb38»",
+          "docs/specs/cli-terminal-output.md:937 «6576c08f63e8eb38»",
           "docs/specs/cli-terminal-output.md:168 «fa54ac6f188b61a4»",
           "docs/specs/cli-terminal-output.md:70 «0769597b7fd4a016»",
           "src/ui/eew-formatter.ts:133 «a2698aebde1c37e9»",
@@ -352,8 +352,8 @@
         "id": "P3-TL10-AC03",
         "requirement": "記録的短時間大雨の VPOA50 と VPBS50（Q-TO11-RECORD-RAIN、P3-TL10-D-RAIN-JUDGE・D-RAIN-ALONE=A〔作者の裁定、2026-11-08 夜〕）: (1) 自分の記録: 返信の output の outcomes の U-B の accepted の subjects のうち、source.inputId がその返信の settlement.inputId のもの。返信の terminal が短い形で unit が U-B、headType が VPOA50 の報について、自分の記録の transition で分ける (2) aliased（VPBS50 が先に採られていた）: 列に積まない。定期要約に数え、入力の行の経過の時刻と tips の待ちの起点は動かさない。--debug の行は「（U-B、出さない・対応報あり）」 (3) held（D-RAIN-ALONE=A）: 列に積まず、閉包の「待ちの表」（Map、subject → 報の参照と期限）に置く。期限は受けた時の単調時計（clock の monotonicMs。今の端末の tick と同じ時計で、壁時計の巻き戻りで待ちが延びない）+ 60,000 ms（U-B の HOLD_MS と同じ値。held の outcome の facts に holdUntil は無い）。表は端末自身の上限 256 を持ち、満杯で 257 件目を置く時は、最も古い待ち（表の先頭）を積んで外してから置く（出さずに捨てない。U-B の容量の退去は accepted に載らず (5) に届かないため）。こうして先に出した報は、後でその VPBS50 が来ると端末に 2 ブロックになる（1 ブロックの約束の例外、残存 (12)）。同じ subject が表にあれば報だけを新しいものに替え、期限は最初のまま（U-B も最初の holdUntil を保つ、P3-C12-VPOA.holdRules (4)）。定期要約に数え、tips の待ちの起点は置いた時に動かし、入力の行の経過の時刻は積んだ時に動かす。--debug の行は「（U-B、対応報を待つ）」 (4) 出す時: 1 秒の tick と inputDone の初め（その返信を扱う前）で、単調時計が期限以上になった表の報を積んで表から外す（壁時計が補正されなければ、U-B もこの時刻に held を released にして「（対応電文未確認）」の通知を作る。補正されると U-B の解放と時刻がずれる、残存 (11)。U-B の解放は返信に outcome を載せないので、端末が解放を知る道は期限だけ）。close() では表の残りを積んでから列を書かせる。例外: tick が止まっている間（event loop が詰まる、機械が眠る）は出ず、止まった後の最初の tick か inputDone で出す (5) 捨てる時: 表が空でないとき、どの inputDone でも U-B の accepted の subjects を 1 回見て、表にある subject で transition が held でないもの（VPBS50 の採用で aliased、取消で cancelled など）を積まずに表から外す。その返信が VPOA50 の取消で、自分の記録が表にあった（端末に出していない）なら、その取消の報も積まない（U-B も鳴らさない）。--debug の行は「（U-B、出さない・待っていた報の取消）」。自分の記録が返信に無い VPOA50（U-B の自身の退去と遅着）は、P3-TERMINAL-RAIN-EVICT-001 の AC01 で運用区分と EventID の同じ待ちを引き、取消なら外し、訂正・続報なら報を替えて期限を保つ (6) 表の寿命と消す道: 置いてから 60 秒（briefing-unit.ts の HOLD_MS と同じ）か (5) まで。件数は端末の上限 256 を越えない（(3) の満杯の時の決まり）。保存しない。回線の切断と回復・取り直し・control.clear() では消さない (7) VPBS50 と、VPOA50 の active・released・cancelled（表に無いもの）と、ほかの U-B の報は今のとおり (8) 場面: (a) 16:33:05.000 に VPBS50（EventID KJPTC…）、16:33:05.007 に同じ事象の VPOA50 が届くと、VPOA50 は aliased で、端末は VPBS50 の 1 ブロックだけ (b) 16:33:05.000 に VPOA50（held、U-B の holdUntil と端末の期限は 16:34:05）、16:33:05.007 に VPBS50 が届くと、VPBS50 の返信の subjects に VPOA50 の subject が aliased で載り、端末は VPBS50 の 1 ブロックだけで、16:34:05 を過ぎても何も出ない (c) VPOA50 だけが届くと、16:34:05 までは何も出ず、16:34:05 を過ぎた最初の tick に紫のブロックが 1 つ出る",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:654 «40be8a63ec3c23fc»",
-          "docs/specs/cli-terminal-output.md:929 «5f7cc149b7050ad7»",
+          "docs/specs/cli-terminal-output.md:663 «40be8a63ec3c23fc»",
+          "docs/specs/cli-terminal-output.md:938 «5f7cc149b7050ad7»",
           "src/engine/messages/legacy-counterpart-registry.ts:7 «a0685e8949e7dd10»",
           "src/engine/messages/legacy-counterpart-registry.ts:141 «ba293fb74ee83ed7»",
           "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8064e8f71becd8d692f698fab413e591aa5ca479",
-    "sha256": "4bdd3bddd552d1a2c9cd3ffca59fc7b94d22c7fd8b8ba344813acd889b9356e7",
+    "sha256": "ec989483f33e2daa648b3d60baf25bc3ac25cf4ca87cd39baf1404ed0b481d1d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -310,7 +310,7 @@
         "id": "P3-TL-AC10",
         "requirement": "入力の行（Q-TO2-MUTE）: ミュート中は入力の行に「ミュート中」を出す。期限があれば「ミュート中 21:30 まで」、条件つきは「ミュート中（条件つき）」、両方なら「ミュート中（条件つき） 21:30 まで」、切断中は「HH:MM:SS から 切断中・ミュート中」（繋ぎ直しの回数と期限と条件を外す）。●・○・uptime の形も同じ後ろに足す。output.ts の promptLabel の中だけで作る（options.notification は REPL と同じ object で、muteActive は読み込み済み。期限は repl.ts の muteStartLine と同じ換算）。引数も型も repl.ts も変えない。ミュートが切れたら次の書き直しで消える。TTY でないときは今の『FlEq> 』のまま",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:684 «39bd7df0b5b27b67»"
+          "docs/specs/cli-terminal-output.md:693 «39bd7df0b5b27b67»"
         ]
       },
       {
@@ -318,8 +318,8 @@
         "requirement": "短い形: 帯と末尾の行と空行・縦線と、見出し文の折り方（AC09）だけを変える。見出し文のほかに要点の行を足さない（Q-TO-S-3）（後の契約で改めた: 段の理由の行 P3-TERMINAL-LAYOUT-002、全国の月間火山概況の表 P3-TERMINAL-LAYOUT-003、噴火速報の活動の文と市町村の表 P3-TERMINAL-LAYOUT-004、全国の集約通報の表 P3-TERMINAL-LAYOUT-008、降灰予報（定時）のまとめ P3-TERMINAL-LAYOUT-010、時系列情報のまとめ P3-TERMINAL-LAYOUT-011、解除の行 P3-TERMINAL-LAYOUT-012、台風の暴風域に入る確率の府県の行 P3-TERMINAL-LAYOUT-016。spec §8 の Q-TO-S-3。P3-TERMINAL-LAYOUT-015 で書き足した）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
-          "docs/specs/cli-terminal-output.md:629 «d8654378e356f57e»",
-          "docs/specs/cli-terminal-output.md:641 «ab2218d4a63a6607»"
+          "docs/specs/cli-terminal-output.md:638 «d8654378e356f57e»",
+          "docs/specs/cli-terminal-output.md:650 «ab2218d4a63a6607»"
         ]
       }
     ],

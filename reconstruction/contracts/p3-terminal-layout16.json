@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c0c478db56d3e99db6c0496ca402179338501ff6",
-    "sha256": "1888f36c520b2b00da5d29e15c6f75c1186b129909130cccde6087b98ccb8a14",
+    "sha256": "7256b28db8444d710d0fe7aba2544e64a10e906743d0b590df1556f6a2525d9f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -206,8 +206,8 @@
           "test/fixtures/76_01_02_260531_VPTA50.xml:30066 «0096e17468c5d0db»",
           "test/fixtures/76_01_02_260531_VPTA50.xml:30068 «f26172191e99ef0e»",
           "src/engine/presentation/typhoon-probability-aggregate.ts:31 «4623deb03cee0cbe»",
-          "docs/specs/cli-terminal-output.md:651 «ba0db1209b763ce0»",
-          "docs/specs/cli-terminal-output.md:935 «13d5681e8e5accac»",
+          "docs/specs/cli-terminal-output.md:660 «ba0db1209b763ce0»",
+          "docs/specs/cli-terminal-output.md:944 «13d5681e8e5accac»",
           "AGENTS.md",
           "reconstruction/src/domains/typhoon/typhoon.ts:97 «d971cf72272e8022»",
           "reconstruction/src/domains/typhoon/typhoon.ts:333 «389a90baebdaf47b»",
@@ -223,8 +223,8 @@
           "reconstruction/src/terminal/format.ts:195 «9459fdcf6cb53e57»",
           "src/ui/typhoon-probability-formatter.ts:30 «7648326f4f743f8e»",
           "docs/specs/cli-terminal-output.md:21 «47bdfe11b415d2c1»",
-          "docs/specs/cli-terminal-output.md:590 «9b7241d7c276516d»",
-          "docs/specs/cli-terminal-output.md:651 «ba0db1209b763ce0»",
+          "docs/specs/cli-terminal-output.md:599 «9b7241d7c276516d»",
+          "docs/specs/cli-terminal-output.md:660 «ba0db1209b763ce0»",
           "reconstruction/src/terminal/format.ts:179 «22ca2c0bfd694529»"
         ]
       },
@@ -235,9 +235,9 @@
           "reconstruction/src/terminal/format.ts:868 «3f20a053ee1e4fb3»",
           "reconstruction/src/terminal/format.ts:133 «e5dc8ac892b86410»",
           "reconstruction/src/terminal/format.ts:83 «fb3b4d81c430efec»",
-          "docs/specs/cli-terminal-output.md:783 «e91ad6d5e73242ec»",
-          "docs/specs/cli-terminal-output.md:784 «6d7630714da9d71f»",
-          "docs/specs/cli-terminal-output.md:936 «66698ab0ef84af23»"
+          "docs/specs/cli-terminal-output.md:792 «e91ad6d5e73242ec»",
+          "docs/specs/cli-terminal-output.md:793 «6d7630714da9d71f»",
+          "docs/specs/cli-terminal-output.md:945 «66698ab0ef84af23»"
         ]
       },
       {
@@ -246,8 +246,8 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:21 «47bdfe11b415d2c1»",
           "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
-          "docs/specs/cli-terminal-output.md:851 «30158ec2a8f610b5»",
-          "docs/specs/cli-terminal-output.md:877 «cdd855d59ffbd66c»",
+          "docs/specs/cli-terminal-output.md:860 «30158ec2a8f610b5»",
+          "docs/specs/cli-terminal-output.md:886 «cdd855d59ffbd66c»",
           "reconstruction/contracts/p3-terminal-layout9.json:279 «61e036e50413d4ef»",
           "reconstruction/contracts/p3-terminal-layout.json:318 «6359e25f097fa58c»",
           "reconstruction/contracts/p3-terminal-output.json:470 «866561d019ee664a»"

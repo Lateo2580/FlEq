@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd1d82c2af1ddce7c7a692bfeb75491626f424fb",
-    "sha256": "cba5d94bc3bb38f2ec1ccd90bf9453545213d2ffd90b878cc71a598ea4dad9fb",
+    "sha256": "ef1196d97a238e5872330b2b53fe611ffaaa9d4eac9054acb45384ad6afc0592",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -240,8 +240,8 @@
         "id": "P3-TL8-AC01",
         "requirement": "帯の対象と段（Q-TO9-VPWS50-TARGET、P3-TL8-D-LAYER）: (1) 全国の集約通報は headType が VPWS50 の U-W の報とする。府県予報区等の層は Body の直下の Warning のうち type 属性が「気象警報・注意報（府県予報区等）」のもの (2) 取消でなく府県予報区等の層がある報は、帯の対象（target）を「全国」にする。Body の最初の Area/Name は使わない (3) 帯の段（level）は、層の Item の Kind のうち Code があり Status が解除・「発表警報・注意報はなし」でないもの（今の Kind）を、今の U-W の Code の読み方（material.ts の shortLevel の U-W の式。写しを作らず 1 つを共有する）で段にした最も重い段。今の Kind が無ければ plain (4) 段の理由の行（reason）は null にする（表の左の列が兼ねる。P3-TL2-AC08 の例外） (5) 取消の報は段を取消のまま、対象だけ「全国」にし、表を出さない (6) 府県予報区等の層の無い報は、対象を「全国」にし、段と理由の行は今の読み方（scan の Kind）のまま、表を出さない（層が無いのに警報・注意報が無いと読ませないため） (7) VPWS50 でない報（全国の活火山の VFVO51 を含む）の対象・段・理由の行・表は変えない (8) short の全国の表の欄は、層があり取消でない VPWS50 で必ず非 null（行が 0 の plain の報も）、ほかの報で null。types の注釈にこの約束を書く（AC04 の比べるかどうかはこの欄の有無で決まる）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:647 «9c66f8919dbc34b0»",
-          "docs/specs/cli-terminal-output.md:920 «82873419456eaaaf»",
+          "docs/specs/cli-terminal-output.md:656 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:929 «82873419456eaaaf»",
           "src/ui/weather-formatter-vpws50.ts:503 «d23f368c503a058b»"
         ]
       },
@@ -249,35 +249,35 @@
         "id": "P3-TL8-AC02",
         "requirement": "表（Q-TO9-VPWS50-TARGET、P3-TL8-D-ROWS）: (1) 段が警報以上（warning・purple・top）の報は、帯の直下（要点のまとまり。VPWS50 の見出し文は空）に、その段の今の Kind を Code ごとに 1 行ずつ、Code の昇順に出す（層で出た順にすると予報区の出入りで並びが入れ替わり、AC04 の比べで出し直しになる） (2) 左の列はその Code の最初の Kind の Name（電文の字のまま）、右の列はその Code の今の Kind を持つ Item の Area の Name を電文の順に並べる（同じ Item は 1 回） (3) 右の列は全角の空白で区切り（Q-TO-Q-1）、入らなければ名前の境で折り、折り返した行にも左の列を薄い字で出す（Q-TO5-MONTHLY-ROW。format.ts の listTable の形） (4) 表の上下に罫線を足さない。段の理由の行と見出し文の行は出さない (5) 56・80・100 桁で、どの行も桁数を越えない（P3-TO-AC04 (5)）。15_18_01 の 60 桁の行は spec §5.4 の図のとおり (6) Item は層の電文の順に AREA_LIMIT（256）まで読み、越えた Item は段にも表にも入れず、その数 n を表の下（表の無い注意報だけの報と plain の報では帯の直下の並びの下）に薄い字の「ほか n 予報区は読んでいません」の 1 行で出す。段によらず n > 0 なら出す（全国の府県予報区等は 64 で、実物では出ない）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:647 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:656 «9c66f8919dbc34b0»",
           "docs/specs/cli-terminal-output.md:552 «953e49bd94938d6b»",
           "docs/specs/cli-terminal-output.md:555 «8a6837fce6a437b9»",
-          "docs/specs/cli-terminal-output.md:840 «772b201ed3b03572»",
-          "docs/specs/cli-terminal-output.md:898 «ca1a91d458f00c23»"
+          "docs/specs/cli-terminal-output.md:849 «772b201ed3b03572»",
+          "docs/specs/cli-terminal-output.md:907 «ca1a91d458f00c23»"
         ]
       },
       {
         "id": "P3-TL8-AC03",
         "requirement": "警報の無い報と特別警報（P3-TL8-D-CAUTION=B、2026-11-08 夕の作者の裁定）: (1) 段が注意（caution）の報は、帯の直下に注意報の今の Kind の Name を Code ごとに 1 つ、Code の昇順に全角の空白で区切って並べる（名前の境で折り、続きの行は字下げしない〔format.ts の flow の indent 0〕。左の列は無い）。予報区は出さず、material はこの報の行の予報区を空にする（AC04 (1) の比べが予報区を見ないため） (2) 段が plain（今の Kind が 1 つも無い）の報は、帯と末尾の行だけにする（AC02 (6) の行は n > 0 なら出す。「ありません」の文を足さない。spec §5.4 の見出し文が空の報と同じ） (3) 段が最も重い（特別警報、Code 3x）報はその段の Kind だけを表にし、ほかの段の Kind は出さない。紫（危険警報、Code 4x）も同じ",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:647 «9c66f8919dbc34b0»",
-          "docs/specs/cli-terminal-output.md:628 «6f2e5004dc154f6f»"
+          "docs/specs/cli-terminal-output.md:656 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:637 «6f2e5004dc154f6f»"
         ]
       },
       {
         "id": "P3-TL8-AC04",
         "requirement": "同じ報を出さない（Q-TO9-VPWS50-REPEAT、P3-TL8-D-COMPARE・D-MEMORY・D-WHERE）: (1) createTerminalOutput の sink の inputDone は、返信の terminal が全国の表の欄を持つ VPWS50 の報のとき、覚えた報（最後に積んだ全国の集約通報の TerminalReport の参照。createTerminalOutput の閉包の変数 1 つ）と、段・Control/Status・表の行・読まなかった Item の数がすべて同じなら列に積まない（端末に何も出さない）。表の行の比べは、警報以上の報では行ごとの左の列の字と右の列の名前とその並び、注意報だけの報では注意報の Kind の名前の並びだけ（予報区は比べない。AC03 (1) で行の予報区は空）、今の Kind の無い報では行が無いので段と Control/Status だけになる。行の並びはどの段も Code の昇順（AC02 (1)・AC03 (1)） (2) 予報区の数が変わっても表の行が同じなら出さない (3) その入力の返信の U-W の pendingIntents（OwnerUnitDelta。null でないとき）に source.inputId がその入力の intent があれば、比べずに積む（weather-current-notice.ts の L4・L5 の上がりの通知。鳴って顔を上げたときに重さと場所が画面にあるように、Q-TO2-ROOT） (4) 覚えは保存しない。起動した後の最初の 1 通は出る (5) 回線が切れて戻った後と、取り直し（recoveryInput の返信）の後も覚えを消さない (6) 取消の報と府県予報区等の層の無い報は比べずに積み、覚えを消す。control.clear()（REPL の clear）も覚えを消す。push が覚えた報の単位を落としたとき（上限より大きい 1 単位を積まないときと、古い単位から落とす道。落とした単位の report が覚えと同じ参照かを 1 回比べる）も覚えを消す。どれも次の全国の集約通報は出る (7) 積んだ全国の表を持つ報（(3) で比べずに積んだ報を含む）を覚えにする。覚えは push の前に置き、push がその単位を落としたら（上限より大きくて積まなかったときを含む）(6) で消す (8) 前と同じで積まなかった入力は、出した・出さない（採らなかった・取り直し）のほかの 3 つ目の状態にする: 定期要約の件数に数える（P3-TO-AC11 (3)）。読めなかった報のカードを探さない（P3-TO-D-UNREADABLE。採った報なので）。入力の行の経過の時刻（lastReportWallMs）と tips の待ちの起点（lastOutputMs）を動かさない。--debug の行は「debug: VPWS50 <入力 ID>（U-W、出さない・前と同じ）」。--debug の行は tips の待ちの起点を動かさない（P3-TERMINAL-DEBUG-TIP-001。数える単位〔output.ts の counted〕のままで、列から落としたときの数には入る） (9) VPWS50 でない報の積み方と --debug の字は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:648 «a110380e037e0744»",
-          "docs/specs/cli-terminal-output.md:921 «180a997ce85fcccd»"
+          "docs/specs/cli-terminal-output.md:657 «a110380e037e0744»",
+          "docs/specs/cli-terminal-output.md:930 «180a997ce85fcccd»"
         ]
       },
       {
         "id": "P3-TL8-AC05",
         "requirement": "計算量と上限（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) owner の terminalReport は、VPWS50 の府県予報区等の層を 1 回だけ辿る（Item は AREA_LIMIT まで、Item の中の Kind は全部）。層のある取消でない VPWS50 では scan() を省いてよい（対象も段も層から決まる）。表の行の数はその段の Code の数（U-W の読み方で特別警報 10・危険警報 10・警報 9・注意報 20）を越えず、行ごとの名前は読んだ Item の数を越えない (2) main の比べは今の報と覚えた 1 つの報の表を要素ごとに見るだけで（行と名前の数に比例）、通知の有無は U-W の pendingIntents（128 件まで、P2-A7-RES-01）を 1 回見るだけ、落とした単位の確かめは参照の比べ 1 回。JSON.stringify・列の走査・ほかの単位の走査をしない (3) P3-TO-AC08 (3) の材料の時間を 15_18_01 VPWS50 で変える前と後に測り、成果物に表で書く。変える前との差が 5 ms を越えたら配送の前に止めて報告する",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:647 «9c66f8919dbc34b0»",
-          "docs/specs/cli-terminal-output.md:648 «a110380e037e0744»"
+          "docs/specs/cli-terminal-output.md:656 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:657 «a110380e037e0744»"
         ]
       }
     ],

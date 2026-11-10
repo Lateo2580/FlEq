@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c5a15ffb15da81857b549ae38368673564ea1196",
-    "sha256": "0621764d5c3671259730921700e8aa51921b9b00ab1045863d6057aeef48c762",
+    "sha256": "19b34b344c6e2d6b0a6f0932432af4886cf209600331d25a9fde1c0a641ee379",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -141,11 +141,11 @@
           "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
           "src/ui/typhoon-probability-formatter.ts:219 «bdac85dfcce36724»",
           "src/ui/typhoon-probability-formatter.ts:221 «301617438ccf5f3b»",
-          "docs/specs/cli-terminal-output.md:588 «e0c806e59421e79d»",
-          "docs/specs/cli-terminal-output.md:605 «8460b5bef8ae08db»",
-          "docs/specs/cli-terminal-output.md:606 «78954e33cf1d14a9»",
-          "docs/specs/cli-terminal-output.md:651 «ba0db1209b763ce0»",
-          "docs/specs/cli-terminal-output.md:938 «b89460fcf36fa8d3»",
+          "docs/specs/cli-terminal-output.md:597 «e0c806e59421e79d»",
+          "docs/specs/cli-terminal-output.md:614 «8460b5bef8ae08db»",
+          "docs/specs/cli-terminal-output.md:615 «78954e33cf1d14a9»",
+          "docs/specs/cli-terminal-output.md:660 «ba0db1209b763ce0»",
+          "docs/specs/cli-terminal-output.md:947 «b89460fcf36fa8d3»",
           "AGENTS.md"
         ]
       },
@@ -153,9 +153,9 @@
         "id": "P3-TL18-AC02",
         "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 588 行（80 桁の図の見出しの行）、605・606 行（56 桁の図の 2 行の見出し）、651 行（台風の暴風域に入る確率の項。見出しの行・列の幅・地域の列の無い報・2 行の形・rows が空の報）、938 行（Q-TO18-VPTA50-HEADER を Q-TO17-VPWP50-SINGLE の後に足した）。spec の行を引く契約の «» を同じ起草で付け直した（中身を変えた 648→651 行を引く p3-terminal-layout16.json の 2 か所は新しい anchor を手で入れ、図の 3 行と §8 の 1 行で後ろにずれた行は reanchor-target.py で 24 契約） (2) 閉じた契約の文 1 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)。行の数は変えない）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:588 «e0c806e59421e79d»",
-          "docs/specs/cli-terminal-output.md:651 «ba0db1209b763ce0»",
-          "docs/specs/cli-terminal-output.md:938 «b89460fcf36fa8d3»",
+          "docs/specs/cli-terminal-output.md:597 «e0c806e59421e79d»",
+          "docs/specs/cli-terminal-output.md:660 «ba0db1209b763ce0»",
+          "docs/specs/cli-terminal-output.md:947 «b89460fcf36fa8d3»",
           "reconstruction/contracts/p3-terminal-layout16.json:219 «967a413fad77e629»"
         ]
       }
@@ -257,7 +257,7 @@
       "最小実装・最小テスト: AC01 は typhoonLines の中の書き換えだけで、無いと府県の行の 4 つの列が何かを示す行が無い。新しい関数・export・設定・型の欄・file は作らない。既存の width・pad・line・seg を使う。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01・T02 は corpus 履歴、T03・T04 は契約境界。layout16.test.ts の T05 の期待の書き換えは AC01 (2) の見出しの行の足し）",
       "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は renderer の中で rows（96 まで）と見出しの 1 行の幅を 1 回測るだけで、受信の main（publisher・material）の仕事は変えない",
       "期待が変わる既存の試験（変える理由はどれも AC01 (2) の見出しの行。値の行の字は変わらない）: (1) layout16.test.ts の P3-TL16-T01: 100 桁の期待で帯の行と JANGMI_ROWS の間に \"府県                      最悪地域        確率  ピーク\"、56 桁の期待で \"09:55:00 発表\" と \"奄美地方\" の間に \"府県\"・\"  最悪地域        確率  ピーク\"（P3-TL18-T01） (2) 同じ file の P3-TL16-T02: slice(2, -1) の先頭に \"府県                      最悪地域          確率  ピーク\"（P3-TL18-T02） (3) 同じ file の P3-TL16-T05: slice(2, -1) の先頭に \"府県                      最悪地域        確率  ピーク\"（時刻の欄が空の行があっても見出しは変わらない）。ほかの期待（P3-TL16-T03・T04・T06〜T08、width.test.ts の P3-TL-T05 を含む）は変えない。ほかを変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
-      "起草の確かめ: P3-TL18-T01〜T04 の期待の字は、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し、AC01 を当てた typhoonLines（見出しの 1 行を rows と同じ表に並べて幅を測り、2 行の形でも同じ表から組む形）で、T01 は owner の道（layout16.test.ts の owned と同じ）、T02〜T04 は terminal-fixture の reportOf・terminal で描いて写した（vitest の中で行を出す使い捨ての試験 file。写しは消す）。同じ写しで terminal の試験 35 file を回し、落ちたのは Q-TL18-TESTS の 3 件だけだった。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
+      "起草の確かめ: P3-TL18-T01〜T04 の期待の字は、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し、AC01 を当てた typhoonLines（見出しの 1 行を rows と同じ表に並べて幅を測り、2 行の形でも同じ表から組む形）で、T01 は owner の道（layout16.test.ts の owned と同じ）、T02〜T04 は terminal-fixture の reportOf・terminal で描いて写した（vitest の中で行を出す使い捨ての試験 file。写しは worktree の未追跡の .dr-tmp/ に置いたまま、repo に入れない）。同じ写しで terminal の試験 35 file を回し、落ちたのは Q-TL18-TESTS の 3 件だけだった。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
       "本物の経路での写し（統合担当、配送の前）: 実装の後の木で、P3-TERMINAL-LAYOUT-016 の写しと同じ形（watch を COLUMNS を変えて起こし、/inject?type=VPTA50&retime=0 で fixture を入れる）で 76_01_02 を 56 桁と 100 桁で写し、P3-TL18-T01 と同じ行が出ることを見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 時刻の欄が全部空の報でも「ピーク」の語を出す（Q-TL18-PEAK。fixture では起きない） (2) 値が見出しの語より短い報（府県が少なく地域名・確率の字が短い報）では、列が見出しの幅まで広がり、P3-TERMINAL-LAYOUT-016 の形より値の行の空白が増える (3) 見出しの行の薄い字は色 0 の renderer の試験では見えない（T01〜T04 は字だけを見る。役目の字は「ほか n 府県」と同じ \"dim\"）",
