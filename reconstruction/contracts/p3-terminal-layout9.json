@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "8b841a925ea514a8ca54133d13db4f1abb6f5ec7740d15b91471cc1610a69b93",
+    "sha256": "46de704f6f7704e1c1820350a44bbb79d54f8be576b3fe902cb437d42516819a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -288,10 +288,10 @@
         "id": "P3-TL9-AC01",
         "requirement": "帯の題名を Head/Title にする報（Q-TO10-HEAD-TITLE、P3-TL9-D-HEAD-TITLE）。場面: 2024-08-10 17:00 に埼玉県など 5 県の熱中症警戒アラート（VPFT50）が届くと、今は「熱中症警戒アラート」の帯が 5 つ並び、どの県の報か読めない（Control/Title は県を持たず、Body に Area が無いので対象も空）: (1) headType が VPFT50・VPAW51・VPWP50 の短い形の報は、帯の題名を Control/Title でなく Head/Title にし（版の印「（Ｒ０６）」を除く規則は今と同じ）、対象（target）を帯に付けない。例: 57_03_01 は「埼玉県熱中症警戒アラート」、72_03_01 は「大雪に関する早期天候情報（東北地方）」（今は「早期天候情報 東北日本海側」）、81_01_01 は「宗谷地方警戒・注意事項時系列情報」（今は「気象警報・注意報時系列情報 稚内市」）。VPWP50 の同じ便の 2 件以上は P3-TL11 のまとめで、帯の題名を Control/Title から版の印を除いた題名と「 N件」にする（P3-TL11-AC01・AC03）。VPWW55〜61 も帯の題名を Head/Title にして対象を付けない（Head/Title が無いか空の報も対象を付けない、P3-TL12-AC01） (2) 訓練・試験の印と「 取消」は今と同じく題名の後ろ（例 synthetic_VPFT50_cancel は「埼玉県熱中症警戒アラート 取消」） (3) 字は電文の Head/Title のまま（切り出し・言い換えをしない。synthetic_VPFT50_title_escalation は「埼玉県熱中症特別警戒アラート」） (4) Head/Title が無いか空の報は今の形（Control/Title と対象） (5) 段・理由の行・見出し文・末尾の行と、ほかの種類の帯は変えない。material は変えない（head.title は既に読んでいる。format.ts の shortForm の題名だけ）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:640 «8ca3da5195503b92»",
-          "docs/specs/cli-terminal-output.md:913 «c5a8febece3d2b10»",
-          "docs/specs/cli-terminal-output.md:616 «ac0d75ec8384aca1»",
-          "docs/specs/cli-terminal-output.md:617 «611771927b6a834e»",
+          "docs/specs/cli-terminal-output.md:646 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:919 «c5a8febece3d2b10»",
+          "docs/specs/cli-terminal-output.md:622 «ac0d75ec8384aca1»",
+          "docs/specs/cli-terminal-output.md:623 «611771927b6a834e»",
           "test/fixtures/57_03_01_240401_VPFT50.xml:11 «ea661e88e8f7eb17»",
           "test/fixtures/72_03_01_190327_VPAW51.xml:11 «c40b893a9a8fb573»",
           "test/fixtures/81_01_01_260129_VPWP50.xml:11 «4bce9eb55ce49339»",
@@ -306,7 +306,7 @@
           "docs/specs/cli-terminal-output.md:315 «b644f9e88160e76d»",
           "docs/specs/cli-terminal-output.md:319 «f9aa8ca85c5cff0c»",
           "docs/specs/cli-terminal-output.md:320 «8544b04616a6a6fd»",
-          "docs/specs/cli-terminal-output.md:916 «423e85ef562f0456»",
+          "docs/specs/cli-terminal-output.md:922 «423e85ef562f0456»",
           "reconstruction/src/units/seismic/seismic-unit.ts:900 «e969d2903578cd2e»",
           "reconstruction/src/units/seismic/seismic-unit.ts:832 «a9ee37a35aefc96d»",
           "test/fixtures/32-35_10_01_220510_VXSE51.xml:13 «709d509a595a10fb»",
@@ -321,7 +321,7 @@
         "requirement": "緊急地震速報の PLUM法の行（Q-TO10-PLUM、P3-TL9-D-PLUM-ASSUMED・D-PLUM-PLACE）。場面: 震源の決まった地震の緊急地震速報で、M と深さは変わらないのに第 3 報の最大予測震度が 4 から 5弱 に上がる（PLUM法の予測で上がった報、最大予測震度の変化の理由 9）と、今は「最大予測震度 4 →  5弱」だけで、上がった理由が画面に無い（旧築は「PLUM法 による予測震度変化」を出していた）: (1) U-E の outcome の facts.report.maxIntChangeReasonRaw（eew.ts が Forecast/Appendix/MaxIntChangeReason を trim して写す）が「9」の取消でない報は、要点の震源の行の下（「ほかに n 件の緊急地震速報」の行がある報はその上）に補足の薄い字で「PLUM法による予測震度変化」の 1 行を出す。最大予測震度が変わったか（MaxIntChange）は facts に無いので見ず、変化が 0 の報にも出る (2) facts.report.isAssumedHypocenter が true の報（仮定の震源）には出さない（P3-TL9-D-PLUM-ASSUMED=A、2026-11-08 夜の作者の裁定） (3) 再掲（P3-TL-AC08）に写さない。前の報の覚え（P3-TL-AC05）に入れない (4) 理由が 9 でない報と欄の無い報は今のまま。畳む報（P3-TL2-AC10）は今のまま畳む (5) EEW のログ（spec §7）は変えない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:239 «bec487c01e7542f0»",
-          "docs/specs/cli-terminal-output.md:917 «4ac7be31ff239f0c»",
+          "docs/specs/cli-terminal-output.md:923 «4ac7be31ff239f0c»",
           "reconstruction/src/domains/eew/eew.ts:822 «7769773ce82bfcd9»",
           "src/ui/eew-formatter.ts:498 «be7a9bca1c4ac05d»",
           "src/ui/eew-formatter.ts:503 «7cc1cbd51eaaf14c»"
@@ -331,8 +331,8 @@
         "id": "P3-TL9-AC04",
         "requirement": "竜巻注意情報の解除の報の段（Q-TO10-TORNADO-RELEASE、P3-TL9-D-RELEASE）。場面: 13:50 に東京都竜巻注意情報の区域が全部「なし」の報（解除）が届くと、今は発表と同じ警報の色の帯で出て、竜巻注意情報が続いているように読める（spec §5.4 の表で解除は普通）: (1) headType が VPHW50・VPHW51 の取消でない報は、material の scan が集めた Body の Kind が 1 つ以上 256 未満で、全部が Code「0」か Name「なし」なら段を plain にする（U-M の解除の判定 P3-C13-TORNADO-FACTS と同じ規則） (2) Kind が 1 つも無い報と、集めた Kind が 256 に届いた報は今のまま warning（読まなかった Kind に発表がありうる） (3) 取消は今のまま cancel。理由の行は今のまま無い (4) 帯の対象・見出し文・末尾の行は変えない (5) 例: synthetic_VPHW50_tokyo_release は plain、19_01_01・19_03_01 は warning、synthetic_VPHW50_tokyo_empty は warning",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:643 «9e6a5c764cd322c6»",
-          "docs/specs/cli-terminal-output.md:915 «0e7f131dc19eaef0»",
+          "docs/specs/cli-terminal-output.md:649 «9e6a5c764cd322c6»",
+          "docs/specs/cli-terminal-output.md:921 «0e7f131dc19eaef0»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:231 «5efa981d01d5ed0e»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:267 «e2337b897e0cdba7»"
         ]
@@ -341,9 +341,9 @@
         "id": "P3-TL9-AC05",
         "requirement": "台風の情報の帯の対象（Q-TO10-TYPHOON、P3-TL9-D-TYPHOON-LABEL）。場面: 16:55 に台風第1号の暴風域に入る確率（VPTA50）が届くと、今は帯が「台風の暴風域に入る確率 宗谷北部」（375 地域の先頭、確率 0% でも）で、宗谷北部が暴風域に入るように読める。台風解析・予報情報（VPTW60）は「台風」「熱帯低気圧」で、どの台風の報か読めない: (1) unit が U-Y（VPTW60〜65・VPTA50〜55）の報（取消を含む）の対象（target）は、Body の文書の順で最初の TyphoonNamePart から作る。scan の 1 回の辿りの中で最初の 1 つを覚える (2) その Number が半角の 4 桁なら「台風第<下 2 桁を数にした字>号」とし、Name が空でなければ続けて「（<Name>）」（台風の通知の題 typhoon-unit.ts の labelOf と同じ形）。例: 76_01_01 は「台風第1号（DAMREY）」、10_04_03 は「台風第18号（TALIM）」 (3) Number が 4 桁でなく Remark が空でなければ Remark の字のまま。例: 10_05_01 は「台風発生予想」、10_05_05 は「台風発生の可能性が小さくなった」 (4) どちらも無いか TyphoonNamePart が無ければ今の形（Body の最初の Area/Name。例 synthetic_VPTA50_cancel は対象なし） (5) 段・見出し文・末尾の行は変えない。番号のある台風の Remark（台風消滅など）は帯に出さない（旧築も名前を先にした）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:641 «4bc9de7d19861115»",
-          "docs/specs/cli-terminal-output.md:914 «a16e134191b148ae»",
-          "docs/specs/cli-terminal-output.md:617 «611771927b6a834e»",
+          "docs/specs/cli-terminal-output.md:647 «4bc9de7d19861115»",
+          "docs/specs/cli-terminal-output.md:920 «a16e134191b148ae»",
+          "docs/specs/cli-terminal-output.md:623 «611771927b6a834e»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:174 «9e329ba36327340b»",
           "src/ui/typhoon-analysis-formatter.ts:96 «ce33e0017551e164»",
           "src/ui/typhoon-probability-formatter.ts:51 «10646b2ced584ed4»"
@@ -353,11 +353,11 @@
         "id": "P3-TL9-AC06",
         "requirement": "幅と計算量（P3-TO-AC04 (5)・AC08、AGENTS.md の受信経路の計算量）: (1) AC01〜AC05 の報（T01〜T05 の fixture と書き換えた報）を 56・80・100 桁で描くと、どの行も桁数を越えない。帯は今の band の規則で時刻を次の行に送るか題名を字の境で折る（最長は 10_05_05 の「台風解析・予報情報（５日予報）（Ｈ３０） 台風発生の可能性が小さくなった」の 71 桁で、56 桁では題名が折れ、80 桁では時刻が次の行。VPAW51 の 72_05_01・72_07_01 は 42 桁）。取消の行と PLUM法の行は今の文の折り返し（P3-TL-AC09）で折る (2) owner の terminalReport は decode 済みの tree を今と同じく 1 回だけ辿る。TyphoonNamePart は scan の visit の中で見つけ、解除の判定は scan が集めた 256 までの Kind を 1 回見るだけ。新しい辿りと JSON.stringify をしない (3) main の sink は、地震の取消の報のときだけ、同じ返信の outcomes（U-E を探すのと同じ列。その返信の outcomes の数に比例）を 1 回見て U-Q の subject の facts から 2 つの字を取る。ほかの報の sink の仕事は変えない。列に積む単位はその 2 つの字の分だけ大きくなり、byte は今の estimate で積む時に 1 回見積もる (4) renderer の仕事は行が 1 つ増えるだけ (5) P3-TO-AC08 (3) の材料の時間を 76_01_01 VPTA50（1.8 MB、台風の最大）と 19_01_01 VPHW50 で、変える前と後にそれぞれ 20 回測った中央値で比べ、前・後・差を成果物に表で書く。後の値が P3-TO-AC08 (3) の 5 ms を越えたら配送の前に止めて報告する（変える前から越えていればそう書く）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:640 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:646 «8ca3da5195503b92»",
           "docs/specs/cli-terminal-output.md:319 «f9aa8ca85c5cff0c»",
           "docs/specs/cli-terminal-output.md:239 «bec487c01e7542f0»",
-          "docs/specs/cli-terminal-output.md:641 «4bc9de7d19861115»",
-          "docs/specs/cli-terminal-output.md:643 «9e6a5c764cd322c6»",
+          "docs/specs/cli-terminal-output.md:647 «4bc9de7d19861115»",
+          "docs/specs/cli-terminal-output.md:649 «9e6a5c764cd322c6»",
           "AGENTS.md"
         ]
       }

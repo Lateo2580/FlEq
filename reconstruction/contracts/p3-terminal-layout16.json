@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c0c478db56d3e99db6c0496ca402179338501ff6",
-    "sha256": "77e8ffefba94ad3889e98ae9399a9eee7a72f2930ce19f0a75adf8ad3915f6dd",
+    "sha256": "1fc712c87d427de6ab778a7947ffda4993d3e2970868f86ae0bd04cd22777c1e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -10,7 +10,7 @@
       {
         "id": "P3-TL16-D-VPTA-ROWS",
         "kind": "作者",
-        "A": "台風の暴風域に入る確率（VPTA50〜55）の短い形の帯の下に、府県の行を最大の確率の高い順に 5 行まで出す。1 行は「府県名  最悪の地域  最大の確率  ピークの時刻」（旧築の表の 4 列。ピークの時刻つき）。6 府県目からは薄い字の「ほか n 府県」1 行。1% 以上の府県が無い報は今の 2 行のまま",
+        "A": "台風の暴風域に入る確率（VPTA50〜55）の短い形の帯の下に、府県の行を最大の確率の高い順に 5 行まで出す（行の数の決め方は P3-TL16-D-TIE で改めた）。1 行は「府県名  最悪の地域  最大の確率  ピークの時刻」（旧築の表の 4 列。ピークの時刻つき）。6 府県目からは薄い字の「ほか n 府県」1 行。1% 以上の府県が無い報は今の 2 行のまま",
         "B": "今のまま（帯と末尾の行の 2 行。府県ごとの確率は Pi の画面で読む）",
         "recommended": "A",
         "provisional": "A",
@@ -32,13 +32,13 @@
       {
         "id": "P3-TL16-D-TIE",
         "kind": "作者",
-        "A": "同じ確率の府県は PrefectureCode の小さい順（北から南。U-Y の地域の並びと同じ code の順）に並べ、5 行で切る。5 行目と同じ確率の府県が 6 行目以降にあっても「ほか n 府県」に入れる",
+        "A": "最大の確率が 70 以上の府県は 5 を越えても全部行にし、70 未満の府県は行の合計が 5 になるまで出す（70 以上が 5 府県以上あれば 70 未満は出さない）。並びは最大の確率の高い順、同じ確率は PrefectureCode の小さい順で、70 未満の同じ確率の府県が 5 行目を跨ぐときは PrefectureCode の順で切る。残りは薄い字の「ほか n 府県」。例: 5 位 80%・6 位 75%・7 位 40% なら 75% までの 6 行と「ほか」",
         "B": "5 行目と同じ確率の府県は全部出す（行が 5 を越えうる。上限は同じ確率の府県の数）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "未裁定（仮に A で起草した。B なら P3-TL16-AC01 (3) の切り方と材料の rows の上限、AC02 の図、T02 の期待、spec の 642 行の「5 行まで」の句を直す）",
-        "reason": "場面: 気象庁のサンプル 76_01_01（台風第1号 DAMREY、2020-09-30 16:55 の報）は 1% 以上が 45 府県で、100% が奄美地方・沖縄本島地方・大東島地方の 3 府県、99% が長崎県・熊本県・鹿児島県（奄美地方除く）の 3 府県。A では 5 行目が熊本県 99% で、鹿児島県（奄美地方除く）99%（最悪の地域 出水・伊佐、ピーク 10/02 21時頃。熊本県と同じ時刻）は「ほか 40 府県」に入る。B では 6 行になる。A の代わりに起きること: 同じ確率で時刻も同じ府県が、code の順だけで行に出るか「ほか」に入るかが分かれる。B の代わりに起きること: 大きな台風で 100% の府県が並ぶと（76_01_01 の 100% は 3 府県、76_01_02 は 2 府県）、ブロックの行の数が報ごとに変わり、56 桁の 2 行の形では倍になる。行の数を一定にし「ほか n 府県」で残りの数を示すことを推奨する。府県ごとの全部は Pi の画面で読める"
+        "status": "確定（作者の裁定、2026-11-10）",
+        "ruling": "A（作者の裁定、2026-11-10。作者案「5 位が 70% 以上なら 5 行で切らない」の読みを統合担当が確かめた形。起草の時の A〔同じ確率も 5 行で切る〕を改めた）",
+        "reason": "経緯: 作者は最初 B（5 位と同じ確率は全部）を選んだが、5 位が 1% だと 1% の府県が数十行並ぶ場面があるので、70 以上だけを全部出す形にした（2026-11-10）。場面: 気象庁のサンプル 76_01_01（台風第1号 DAMREY、2020-09-30 16:55 の報）は 1% 以上が 45 府県で、70 以上は奄美地方 100% から高知県 75% までの 17 府県。この形では 17 行と「ほか 28 府県」になり、起草の時の A で「ほか」に入った鹿児島県（奄美地方除く）99% も行に出る。76_01_02（台風第6号 JANGMI）は 70 以上が 7 府県（三重県 73% まで、次は奈良県 65%）で 7 行と「ほか 37 府県」。全部 0% の 76_01_03 は行なし。この形の代わりに起きること: 70 以上の府県が多い報はブロックが長くなる（76_01_01 は 80 桁で府県の行 17 行、56 桁の 2 行の形で 34 行。上限は府県 96）。70 未満の同じ確率の府県は、code の順だけで行に出るか「ほか」に入るかが分かれる"
       },
       {
         "id": "P3-TL16-D-NARROW",
@@ -47,9 +47,9 @@
         "B": "入らないときは最悪の地域の列を落として「府県名  確率  時刻」の 1 行にする（旧築の 3 列の形）。それでも入らなければ A",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": "未裁定（仮に A で起草した。B なら P3-TL16-AC02 (3)、T01 の 56 桁の期待、spec の 642 行の句と 56 桁の図を直す）",
-        "reason": "場面: 76_01_02（台風第6号 JANGMI、2026-05-31 09:55）の上位 5 府県は「鹿児島県（奄美地方除く）」（24 桁）と「日南・串間地区」（14 桁）を含み、揃えた 1 行は 60 桁で、56 桁の端末（縦線なし）にも 60 桁で色のある端末（縦線の分を引いて 58 桁）にも入らない。A では 56 桁で府県の行が 10 行になり（spec の 56 桁の図）、どの府県も地域・確率・時刻が読める。B では 5 行で済むが、56 桁で使うときだけ最悪の地域が消え、作者の裁定 A' の 4 つの欄の 1 つが幅で出たり出なかったりする。揃えた 1 行は最長 62 桁なので、80 桁以上ではどちらでも 1 行。作者の端末は 130 桁"
+        "status": "確定（作者の裁定、2026-11-10。推奨どおり）",
+        "ruling": "A（作者の裁定、2026-11-10）",
+        "reason": "場面: 76_01_02（台風第6号 JANGMI、2026-05-31 09:55）の上位 5 府県は「鹿児島県（奄美地方除く）」（24 桁）と「日南・串間地区」（14 桁）を含み、揃えた 1 行は 60 桁で、56 桁の端末（縦線なし）にも 60 桁で色のある端末（縦線の分を引いて 58 桁）にも入らない。A では 56 桁で府県の行が 7 府県の 14 行になり（spec の 56 桁の図。P3-TL16-D-TIE で 70 以上の 7 府県を出す）、どの府県も地域・確率・時刻が読める。B では 5 行で済むが、56 桁で使うときだけ最悪の地域が消え、作者の裁定 A' の 4 つの欄の 1 つが幅で出たり出なかったりする。揃えた 1 行は最長 62 桁なので、80 桁以上ではどちらでも 1 行。作者の端末は 130 桁"
       }
     ],
     "questionResolutions": [
@@ -90,7 +90,7 @@
   "contract": {
     "contractId": "P3-TERMINAL-LAYOUT-016",
     "mode": "implementation",
-    "objective": "2026-11-09 夜の旧築と新築の写しの突き合わせで残った 2 つを、作者の裁定（2026-11-10）のとおり閉じる: 台風の暴風域に入る確率（VPTA50〜55）の短い形に、帯の下の府県の行（最大の確率の高い順に 5 府県まで、府県名・最悪の地域・最大の確率・ピークの時刻。6 府県目からは「ほか n 府県」）を足す（P3-TL16-D-VPTA-ROWS=A'）。起動時のまとめの「ほか」の行を題名の途中で折らず「題名 n 件」の組の境で折る（P3-TL16-D-DIGEST-WRAP=A）。材料（material.ts）に短い形の欄 probability を 1 つ足し、整形（format.ts）で行にする。spec は起草で直した（§1・§5.4・§6.6・§8）。同じ確率の府県の切り方（P3-TL16-D-TIE）と、幅に入らないときの形（P3-TL16-D-NARROW）は作者の裁定の前で、推奨の A で書いた",
+    "objective": "2026-11-09 夜の旧築と新築の写しの突き合わせで残った 2 つを、作者の裁定（2026-11-10）のとおり閉じる: 台風の暴風域に入る確率（VPTA50〜55）の短い形に、帯の下の府県の行（最大の確率の高い順に、70% 以上の府県は全部・70% 未満は合計 5 行まで、府県名・最悪の地域・最大の確率・ピークの時刻。残りは「ほか n 府県」）を足す（P3-TL16-D-VPTA-ROWS=A'）。起動時のまとめの「ほか」の行を題名の途中で折らず「題名 n 件」の組の境で折る（P3-TL16-D-DIGEST-WRAP=A）。材料（material.ts）に短い形の欄 probability を 1 つ足し、整形（format.ts）で行にする。spec は起草で直した（§1・§5.4・§6.6・§8）。行の数の決め方（P3-TL16-D-TIE。70% 以上の府県は全部、70% 未満は合計 5 行まで）と、幅に入らないときの形（P3-TL16-D-NARROW。府県ごとに 2 行）は作者の裁定（2026-11-10）を当てた",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -112,7 +112,8 @@
       "test/fixtures/76_01_02_260531_VPTA50.xml",
       "test/fixtures/76_01_03_260602_VPTA50.xml",
       "test/fixtures/synthetic_VPTA50_cancel.xml",
-      "test/fixtures/10_04_03_170913_VPTW60.xml"
+      "test/fixtures/10_04_03_170913_VPTW60.xml",
+      "reconstruction/src/domains/flood/flood.ts"
     ],
     "allowedPaths": [
       "reconstruction/contracts/p3-terminal-output.types.ts（短い形の 88 行に欄 probability を足し、87 行と 88 行の間に欄の説明のコメントを 1 行足す。87 行の中身は変えない）",
@@ -145,7 +146,7 @@
       "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま）。TerminalReport の短い形に欄 probability を 1 つ足す"
     ],
     "allowedDependencies": [
-      "既存の依存だけ（material.ts から reconstruction/src/domains/typhoon/typhoon.ts の LIMITS を import する）"
+      "既存の依存だけ（material.ts から reconstruction/src/domains/typhoon/typhoon.ts の LIMITS・BOUNDS と reconstruction/src/domains/flood/flood.ts の cut・validReportDateTime を import する）"
     ],
     "fixtureIds": [
       "test__fixtures__76_01_01_200630_VPTA50",
@@ -175,7 +176,7 @@
     "outOfScope": [
       "80% 以上の府県の地域ごとの内訳（旧築の「高確率府県の内訳」）、最大の値を持つ時刻が 3 つ以上ある印（旧築の「*」）、確率 50% 以上の色（旧築の黄の太字）",
       "台風解析・予報情報（VPTW60〜65）の本文と、VPTA50〜55 の取消の報の行",
-      "U-Y の unit・parser（domains/typhoon/typhoon.ts）・state・通知の文面（端末は電文の XML から読むだけ。LIMITS の import のほかに触らない）",
+      "U-Y の unit・parser（domains/typhoon/typhoon.ts）・state・通知の文面（端末は電文の XML から読むだけ。LIMITS・BOUNDS・cut・validReportDateTime の import のほかに触らない）",
       "起動時のまとめの見出しの行の題名の形（写しの「火山名　霧島山（新燃岳）　降灰予報（定時）」）と、ほかの notice・電文の文の折り方",
       "spec の起草で直した行のほかの行、閉じた契約の原文の改訂 (1)〜(3) のほかの文",
       "ディスプレイ（P4）・runtime・旧築（src/）"
@@ -183,7 +184,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL16-AC01",
-        "requirement": "台風の暴風域に入る確率の府県の行の材料（P3-TL16-D-VPTA-ROWS=A'、作者の裁定 2026-11-10。spec の Q-TO16-VPTA50 と §5.4 の項）: (1) 短い形に欄 probability を足す。形は { rows: { prefecture; area; percent; peakRaw }[]; others } で、字は電文の生の字（read の 4,096 字まで）。unit が U-Y で headType が VPTA50〜55（50〜55 は同時に在る台風の枠で同じ形の報。typhoonLabel が対象を作る 6 種類と同じ）、InfoType が取消でない報では必ず非 null（rows が空のことも）、ほかの報（取消・VPTW60〜65・ほかの unit・全国の集約通報の早い return）は null (2) 定義（電文の要素名）: 府県は Body/MeteorologicalInfos/MeteorologicalInfo のうち type 属性が「台風の暴風域に入る確率（5日積算）」のものの Item の Area/PrefectureCode で分け、prefecture はその Item の Area/Prefecture の字。地域の値はその Item の Kind/Property/FiftyKtWindProbabilityPart/FiftyKtWindProbability の字で、半角の数字 1〜3 桁のものだけを数として比べる（ほかの字の Item と、Area の Code・PrefectureCode・Prefecture・Name のどれかが無い Item は読まない）。府県の最大の確率は府県の中の地域の値の最大で、percent はその字（「%」は端末が付ける）。最大が 1 以上の府県だけを行の候補にする（1% 以上）。最悪の地域（area）はその最大を持つ地域の Area/Name の字で、同じ値の地域が 2 つ以上なら電文で先の Item（旧築の aggregateByPrefecture の「>」の比べと同じ） (3) 並びと上限: 候補を最大の降順、同じ確率は PrefectureCode の字の昇順（P3-TL16-D-TIE=A の仮）に並べ、先頭の 5 府県を rows、残りの府県の数を others にする。読む Item は 384（U-Y の LIMITS.areas）まで、府県は 96（LIMITS.prefectures）まで（material.ts は domains/typhoon/typhoon.ts の LIMITS を import する）。AREA_LIMIT（256）を使わないのは、5日積算の Item は文書の順に北から並び、257 番目（76_01_02 で島根県の隠岐）からの中国・四国・九州・奄美・沖縄の地域が読まれず、台風の近い府県が行から消えるため（Q-TL16-RECHECK (3)） (4) ピーク（peakRaw）: rows の府県ごとに、Body/MeteorologicalInfos/TimeSeriesInfo の Item のうち Area/Code が最悪の地域の Area/Code と同じものの Kind/Property/FiftyKtWindProbabilityPart/FiftyKtWindProbability（3 時間ごと、refID 属性つき）を電文の順に見て、最大の値を持つ最初のものの refID と同じ timeId 属性の TimeSeriesInfo/TimeDefines/TimeDefine の DateTime の字。TimeDefine と値は 64（LIMITS.slots）まで読む。値が全部 0、その Code の Item が無い、同じ timeId の TimeDefine が無いときは null (5) 計算量（AGENTS.md の受信経路）: VPTA50〜55 の報だけ、scan の visit とは別に 5日積算の Item（384 まで）を 1 回、TimeSeriesInfo の TimeDefine（64 まで）を 1 回と Item を 1 回（各 Item は Area/Code だけ読み、rows の 5 つの Code に当たった Item だけ値を 64 まで見る）見る。並べ替えは府県（96 まで）の中だけ。全件×全件の走査と JSON.stringify をしない（P3-TL9-AC06 (2) の「tree を 1 回だけ辿る」はこの報だけ 2 つの節の Item の列を足して破る。理由は scan の visit の道の印〔place〕に 2 つの節を足すより短く、増える時間は (7) で測る）。材料の大きさは 5 行の 4 つの字（各 4,096 字まで）と数 1 つで、端末の列の見積もり（output.ts の estimate）の 1 MiB に対して小さい (6) 形は material.ts の short の中で作る。新しい関数は inputTerminal の後（export の前）に置き、292・302 行は object の末尾に欄を書き足し、import は 7〜9 行のどれかの末尾に同じ行で足す（他の契約が引く 1〜335 行の行の数を変えない）。U-Y の parser（parseTyphoon）は呼ばない（材料は電文の生の字を写す約束で〔types の頭のコメント〕、parser の候補は数と code の順の地域で、時刻の生の字を持たない） (7) 材料の時間（P3-TO-AC08 (3)）を 76_01_02 と 76_01_01 で、変える前と後にそれぞれ 20 回測った中央値で比べ、前・後・差を成果物に表で書く。後の値が 5 ms を越えたら配送の前に止めて報告する（起草の時の MacBook の目安は前 2.0 ms・後 2.6〜2.8 ms、ばらつきあり）。場面: 2026-11-09 21:55 の台風第32号（CEMPAKA）の報は、今は帯と末尾の 2 行だけ（写し mini-new-2305.txt の 2241〜2242 行）。A' で材料は rows が東京都の 1 行（最悪の地域 小笠原諸島・100・2026-11-10T21:00:00+09:00 の見込み。旧築の同じ報の表 pi-legacy-2305.txt の 22924 行から。電文は repo に無い）、others が 0 になる",
+        "requirement": "台風の暴風域に入る確率の府県の行の材料（P3-TL16-D-VPTA-ROWS=A'、作者の裁定 2026-11-10。spec の Q-TO16-VPTA50 と §5.4 の項）: (1) 短い形に欄 probability を足す。形は { rows: { prefecture; area; percent; peakRaw }[]; others } で、字は電文の生の字（read で読み、名前は (2) のとおり 24 字まで、時刻は (4) の検査に通るものだけ）。unit が U-Y で headType が VPTA50〜55（50〜55 は同時に在る台風の枠で同じ形の報。typhoonLabel が対象を作る 6 種類と同じ）、InfoType が取消でない報では必ず非 null（rows が空のことも）、ほかの報（取消・VPTW60〜65・ほかの unit・全国の集約通報の早い return）は null (2) 定義（電文の要素名）: 府県は Body/MeteorologicalInfos/MeteorologicalInfo のうち type 属性が「台風の暴風域に入る確率（5日積算）」のものの Item の Area/PrefectureCode で分け、prefecture はその Item の Area/Prefecture の字（U-Y と同じく 24 字〔BOUNDS.areaName、UTF-16〕までに domains/flood の cut で切る。area も同じ）。地域の値はその Item の Kind/Property/FiftyKtWindProbabilityPart/FiftyKtWindProbability の字で、半角の数字 1〜3 桁のものだけを数として比べる（ほかの字の Item と、Area の Code・PrefectureCode・Prefecture・Name のどれかが無い Item は読まない）。府県の最大の確率は府県の中の地域の値の最大で、percent はその字（「%」は端末が付ける）。最大が 1 以上の府県だけを行の候補にする（1% 以上）。最悪の地域（area）はその最大を持つ地域の Area/Name の字で、同じ値の地域が 2 つ以上なら電文で先の Item（旧築の aggregateByPrefecture の「>」の比べと同じ） (3) 並びと上限（P3-TL16-D-TIE=A、作者の裁定 2026-11-10）: 候補を最大の降順、同じ確率は PrefectureCode の字の昇順に並べる。最大が 70 以上の府県の数を h として、先頭の max(5, h) 府県を rows、残りの府県の数を others にする（70 以上は全部、70 未満は行の合計が 5 になるまで。h が 5 以上なら 70 未満は rows に入らない。70 未満の同じ確率の府県が 5 行目を跨ぐときは並びの順で切る）。rows の数の上限は max(5, h) で、h は府県の上限 96 を越えない。読む Item は 384（U-Y の LIMITS.areas）まで、府県は 96（LIMITS.prefectures）まで（material.ts は domains/typhoon/typhoon.ts の LIMITS を import する）。AREA_LIMIT（256）を使わないのは、5日積算の Item は文書の順に北から並び、257 番目（76_01_02 で島根県の隠岐）からの中国・四国・九州・奄美・沖縄の地域が読まれず、台風の近い府県が行から消えるため（Q-TL16-RECHECK (3)） (4) ピーク（peakRaw）: rows の府県ごとに、Body/MeteorologicalInfos/TimeSeriesInfo の Item のうち Area/Code が最悪の地域の Area/Code と同じものの Kind/Property/FiftyKtWindProbabilityPart/FiftyKtWindProbability（3 時間ごと、refID 属性つき）を電文の順に見て、最大の値を持つ最初のものの refID と同じ timeId 属性の TimeSeriesInfo/TimeDefines/TimeDefine の DateTime の字。U-Y が時間帯に当てるのと同じ検査（domains/flood の validReportDateTime。40 字まで）に通らない字は null。TimeDefine と値は 64（LIMITS.slots）まで読む。値が全部 0、その Code の Item が無い、同じ timeId の TimeDefine が無いときは null (5) 計算量（AGENTS.md の受信経路）: VPTA50〜55 の報だけ、scan の visit とは別に 5日積算の Item（384 まで）を 1 回、TimeSeriesInfo の TimeDefine（64 まで）を 1 回と Item を 1 回（各 Item は Area/Code だけ読み、rows の Code〔96 まで〕に当たった Item だけ値を 64 まで見る）見る。並べ替えは府県（96 まで）の中だけ。全件×全件の走査と JSON.stringify をしない（P3-TL9-AC06 (2) の「tree を 1 回だけ辿る」はこの報だけ 2 つの節の Item の列を足して破る。理由は scan の visit の道の印〔place〕に 2 つの節を足すより短く、増える時間は (7) で測る）。材料の大きさは rows（96 行まで）の 4 つの字（府県名・地域名 24 字、確率 3 字、時刻 40 字まで）と数 1 つで、1 報で約 8,700 字（UTF-8 で約 26 KB）まで。端末の列の見積もり（output.ts の estimate）の 1 MiB に対して小さい（名前を 24 字で切らないと、4,096 字の名前の報で 96 行が 1 MiB を越え、報ごと「表示を省きました」になりうる） (6) 形は material.ts の short の中で作る。新しい関数は inputTerminal の後（export の前）に置き、292・302 行は object の末尾に欄を書き足し、import は 7〜9 行の中で同じ行に足す（7 行の domains/flood の import に cut と validReportDateTime、domains/typhoon の LIMITS と BOUNDS）（他の契約が引く 1〜335 行の行の数を変えない）。U-Y の parser（parseTyphoon）は呼ばない（材料は電文の生の字を写す約束で〔types の頭のコメント〕、parser の候補は数と code の順の地域で、時刻の生の字を持たない） (7) 材料の時間（P3-TO-AC08 (3)）を 76_01_02 と 76_01_01 で、変える前と後にそれぞれ 20 回測った中央値で比べ、前・後・差を成果物に表で書く。後の値が 5 ms を越えたら配送の前に止めて報告する（起草の時の MacBook の目安は前 2.0 ms・後 2.6〜2.8 ms、ばらつきあり）。場面: 2026-11-09 21:55 の台風第32号（CEMPAKA）の報は、今は帯と末尾の 2 行だけ（写し mini-new-2305.txt の 2241〜2242 行）。A' で材料は rows が東京都の 1 行（最悪の地域 小笠原諸島・100・2026-11-10T21:00:00+09:00 の見込み。旧築の同じ報の表 pi-legacy-2305.txt の 22924 行から。電文は repo に無い）、others が 0 になる",
         "evidenceRefs": [
           "reconstruction/contracts/p3-terminal-output.types.ts:88 «2d6542c32817fb06»",
           "reconstruction/src/terminal/material.ts:279 «5515ed12492365a1»",
@@ -197,14 +198,14 @@
           "test/fixtures/76_01_02_260531_VPTA50.xml:30066 «0096e17468c5d0db»",
           "test/fixtures/76_01_02_260531_VPTA50.xml:30068 «f26172191e99ef0e»",
           "src/engine/presentation/typhoon-probability-aggregate.ts:31 «4623deb03cee0cbe»",
-          "docs/specs/cli-terminal-output.md:642 «9b434333d7135619»",
-          "docs/specs/cli-terminal-output.md:926 «0fbfadbdfa01eff8»",
+          "docs/specs/cli-terminal-output.md:648 «6960fac0fc48bfd3»",
+          "docs/specs/cli-terminal-output.md:932 «13d5681e8e5accac»",
           "AGENTS.md"
         ]
       },
       {
         "id": "P3-TL16-AC02",
-        "requirement": "府県の行の形（P3-TL16-D-VPTA-ROWS=A'、P3-TL16-D-NARROW=A の仮。spec §5.4 の台風の暴風域に入る確率の項と 2 つの図）: (1) probability の rows がある報は、短い形の要点のまとまりで見出し文の行の後に（理由の行・見出し文・府県の行・解除の行・活動の文の順。区切りの罫線は足さない）rows の順に 1 府県 1 行を出す。1 行は「府県名  最悪の地域  最大の確率%  ピークの時刻」で、列の間は空白 2 桁、府県名と最悪の地域は左に揃え、確率は右に揃える（各列の幅はその報の rows の中の最も長い字） (2) ピークの時刻は peakRaw の先頭の「YYYY-MM-DDTHH」から「MM/DD HH時頃」にした字（旧築 src/ui/typhoon-probability-formatter.ts の jstHourLabel と同じ形。生の字の月・日・時で、時刻帯の換算をしない）。peakRaw が null か形に合わなければ時刻の欄を空にする。最悪の地域が府県名と同じ字（大東島地方）なら地域の欄を空にする（旧築と同じ）。rows の全部で地域の欄が空なら地域の列を出さない (3) 揃えた行の最も長いものが本文の幅（縦線のある 60 桁以上は 2 桁引いた幅）に入らないときは、全部の府県を 2 行にする: 1 行目は府県名、2 行目は空白 2 桁の後に地域・確率・時刻を (1) と同じく揃えて並べる（P3-TL16-D-NARROW=A の仮。rowTable の入らないときの 2 行の形と同じ）。揃えた 1 行は最長でも 62 桁（府県名 24＋地域 16＋確率 4＋時刻 12＋列の間 6。名前の最長は Q-TL16-RECHECK (2)）、2 行の形は最長 38 桁なので、56 桁と 100 桁（作者の端末は 130 桁で 100 桁に止まる）では行が桁数を越えない。38 桁より狭い端末は今の physical の字の境目の折り (4) others が 1 以上なら、府県の行の下に薄い字で「ほか n 府県」の 1 行 (5) rows が空の報（1% 以上の府県が無い報。例 76_01_03）は行を足さず今の 2 行のまま（「ありません」と書かない。見出し文が空の報・全国の集約通報の今の Kind の無い報と同じ） (6) 帯・末尾の行・段（台風の情報は普通）・取消の形は変えない。形は format.ts の shortForm の 777 行の summary の並びに足し、新しい関数は tipLines の後（「---- 書き出す文字 ----」の前）に置く（他の契約が引く 1〜966 行の行の数を変えない）。renderer の仕事は rows の 5 行の幅を 1 回測るだけ。場面: 76_01_02（2026-05-31 09:55、台風第6号 JANGMI、1% 以上は 44 府県）は、80 桁で「奄美地方                  北部            100%  06/02 03時頃」から「和歌山県                  新宮・東牟婁     79%  06/03 03時頃」までの 5 行と「ほか 39 府県」。56 桁では「鹿児島県（奄美地方除く）」の行が 60 桁で入らないので府県ごとに 2 行（spec の 56 桁の図）",
+        "requirement": "府県の行の形（P3-TL16-D-VPTA-ROWS=A'、P3-TL16-D-NARROW=A。どちらも作者の裁定 2026-11-10。spec §5.4 の台風の暴風域に入る確率の項と 2 つの図）: (1) probability の rows がある報は、短い形の要点のまとまりで見出し文の行の後に（理由の行・見出し文・府県の行・解除の行・活動の文の順。区切りの罫線は足さない）rows の順に 1 府県 1 行を出す。1 行は「府県名  最悪の地域  最大の確率%  ピークの時刻」で、列の間は空白 2 桁、府県名と最悪の地域は左に揃え、確率は右に揃える（各列の幅はその報の rows の中の最も長い字） (2) ピークの時刻は peakRaw の先頭の「YYYY-MM-DDTHH」から「MM/DD HH時頃」にした字（旧築 src/ui/typhoon-probability-formatter.ts の jstHourLabel と同じ形。生の字の月・日・時で、時刻帯の換算をしない）。peakRaw が null か形に合わなければ時刻の欄を空にする。最悪の地域が府県名と同じ字（大東島地方）なら地域の欄を空にする（旧築と同じ）。rows の全部で地域の欄が空なら地域の列を出さない (3) 揃えた行の最も長いものが本文の幅（縦線のある 60 桁以上は 2 桁引いた幅）に入らないときは、全部の府県を 2 行にする: 1 行目は府県名、2 行目は空白 2 桁の後に地域・確率・時刻を (1) と同じく揃えて並べる（P3-TL16-D-NARROW=A。rowTable の入らないときの 2 行の形と同じ）。揃えた 1 行は最長でも 62 桁（府県名 24＋地域 16＋確率 4＋時刻 12＋列の間 6。名前の最長は Q-TL16-RECHECK (2)）、2 行の形は最長 38 桁なので、56 桁と 100 桁（作者の端末は 130 桁で 100 桁に止まる）では行が桁数を越えない。38 桁より狭い端末は今の physical の字の境目の折り。行の数は rows の数（1〜96）で、2 行の形ではその 2 倍（76_01_01 は 56 桁で 34 行）になるが、1 行の幅は府県の数によらず上の最長のまま（起草の時に 76_01_01・76_01_02 を 56・80・100 桁で描き、帯のほかの行の幅の最大は 56 桁で 38・80 と 100 桁で 62 だった） (4) others が 1 以上なら、府県の行の下に薄い字で「ほか n 府県」の 1 行 (5) rows が空の報（1% 以上の府県が無い報。例 76_01_03）は行を足さず今の 2 行のまま（「ありません」と書かない。見出し文が空の報・全国の集約通報の今の Kind の無い報と同じ） (6) 帯・末尾の行・段（台風の情報は普通）・取消の形は変えない。形は format.ts の shortForm の 777 行の summary の並びに足し、新しい関数は tipLines の後（「---- 書き出す文字 ----」の前）に置く（他の契約が引く 1〜966 行の行の数を変えない）。renderer の仕事は rows（96 行まで）の幅を 1 回測るだけ。場面: 76_01_02（2026-05-31 09:55、台風第6号 JANGMI、1% 以上は 44 府県）は、80 桁で「奄美地方                  北部            100%  06/02 03時頃」から「和歌山県                  新宮・東牟婁     79%  06/03 03時頃」を経て「三重県                    紀勢・東紀州     73%  06/03 06時頃」までの 7 行（70% 以上の 7 府県）と「ほか 37 府県」。56 桁では「鹿児島県（奄美地方除く）」の行が 60 桁で入らないので府県ごとに 2 行（spec の 56 桁の図）",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:777 «446785187ea8131d»",
           "reconstruction/src/terminal/format.ts:290 «eb8fe5a84378a787»",
@@ -212,7 +213,7 @@
           "src/ui/typhoon-probability-formatter.ts:30 «7648326f4f743f8e»",
           "docs/specs/cli-terminal-output.md:21 «47bdfe11b415d2c1»",
           "docs/specs/cli-terminal-output.md:589 «9b7241d7c276516d»",
-          "docs/specs/cli-terminal-output.md:642 «9b434333d7135619»"
+          "docs/specs/cli-terminal-output.md:648 «6960fac0fc48bfd3»"
         ]
       },
       {
@@ -222,19 +223,19 @@
           "reconstruction/src/terminal/format.ts:868 «b6f3ccfd01e746b0»",
           "reconstruction/src/terminal/format.ts:133 «e5dc8ac892b86410»",
           "reconstruction/src/terminal/format.ts:83 «fb3b4d81c430efec»",
-          "docs/specs/cli-terminal-output.md:774 «e91ad6d5e73242ec»",
-          "docs/specs/cli-terminal-output.md:775 «6d7630714da9d71f»",
-          "docs/specs/cli-terminal-output.md:927 «66698ab0ef84af23»"
+          "docs/specs/cli-terminal-output.md:780 «e91ad6d5e73242ec»",
+          "docs/specs/cli-terminal-output.md:781 «6d7630714da9d71f»",
+          "docs/specs/cli-terminal-output.md:933 «66698ab0ef84af23»"
         ]
       },
       {
         "id": "P3-TL16-AC04",
-        "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 21 行（§1 の例外）、480 行（§5.4 の総則の列挙）、584〜614 行（80 桁と 56 桁の図）、642 行（台風の暴風域に入る確率の項。定義・並び・上限・空の欄・幅に入らないときの形・出さないもの）、775 行（§6.6 の「ほか」の折り）、842 行（Q-TO-S-3）、868 行（Q-TO2-SHORT）、926〜927 行（Q-TO16-VPTA50・Q-TO16-DIGEST-WRAP）。spec の行を引く 22 契約の «» を同じ起草で付け直した（中身を変えた 21・480・808→842 行を引く 6 か所は新しい anchor を手で入れ、ほかは reanchor-target.py） (2) 閉じた契約の文 3 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)〜(3)。行の数は変えない） (3) P3-TL16-D-TIE か D-NARROW で B が選ばれたら、統合担当が baseOid を付ける前に spec の 642 行の該当の句と 56 桁の図（597〜614 行）を直し、«» を付け直す",
+        "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 21 行（§1 の例外）、480 行（§5.4 の総則の列挙）、584〜620 行（80 桁と 56 桁の図）、648 行（台風の暴風域に入る確率の項。定義・並び・上限・空の欄・幅に入らないときの形・出さないもの）、781 行（§6.6 の「ほか」の折り）、848 行（Q-TO-S-3）、874 行（Q-TO2-SHORT）、932〜933 行（Q-TO16-VPTA50・Q-TO16-DIGEST-WRAP）。spec の行を引く 22 契約の «» を同じ起草で付け直した（中身を変えた 21・480・808→842 行を引く 6 か所は新しい anchor を手で入れ、ほかは reanchor-target.py） (2) 閉じた契約の文 3 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)〜(3)。行の数は変えない） (3) 作者の裁定（2026-11-10、D-TIE=A の 70% の形・D-NARROW=A）を spec の 648 行・932 行と図（70% 以上の 7 府県の行）に当て、«» を付け直した",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:21 «47bdfe11b415d2c1»",
           "docs/specs/cli-terminal-output.md:480 «9ac547fca1c53d15»",
-          "docs/specs/cli-terminal-output.md:842 «20a9aa6500841e4e»",
-          "docs/specs/cli-terminal-output.md:868 «cdd855d59ffbd66c»",
+          "docs/specs/cli-terminal-output.md:848 «20a9aa6500841e4e»",
+          "docs/specs/cli-terminal-output.md:874 «cdd855d59ffbd66c»",
           "reconstruction/contracts/p3-terminal-layout9.json:279 «e0915c25b8020f12»",
           "reconstruction/contracts/p3-terminal-layout.json:318 «6aed7b5955104218»",
           "reconstruction/contracts/p3-terminal-output.json:470 «ab0a5c257f1846cc»"
@@ -249,7 +250,7 @@
           "P3-TL16-AC01",
           "P3-TL16-AC02"
         ],
-        "behavior": "corpus 履歴（76_01_02、台風第6号 JANGMI、2026-05-31 09:55、1% 以上 44 府県）。本物の経路: layout5.test.ts の through と同じく ingest→decode→restoreOwner（place \"deferred\"、空の state、時計は ReportDateTime の 60 秒後）→receiveOwner→inputTerminal（outcomes と unreadableReport）で材料を作り、createTerminalOutput の sink.inputDone（inputDoneOf、outcomes を載せる）に渡し、色 0 の renderer で書いた行を見る（整形の直呼びにしない。taken を通るかをこの試験で確かめる）。(a) 100 桁: [\"\", \"━ 台風の暴風域に入る確率 台風第6号（JANGMI） ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 09:55:00 発表 ━\", \"奄美地方                  北部            100%  06/02 03時頃\", \"沖縄本島地方              南部            100%  06/01 15時頃\", \"鹿児島県（奄美地方除く）  種子島地方       98%  06/02 12時頃\", \"宮崎県                    日南・串間地区   83%  06/02 15時頃\", \"和歌山県                  新宮・東牟婁     79%  06/03 03時頃\", \"ほか 39 府県\", \"VPTA50 ・ 気象庁\"]（80 桁も同じ本文の行で帯の罫線だけ短い） (b) 56 桁: [\"\", \"━ 台風の暴風域に入る確率 台風第6号（JANGMI） ━━━━━━━━━━━\", \"09:55:00 発表\", \"奄美地方\", \"  北部            100%  06/02 03時頃\", \"沖縄本島地方\", \"  南部            100%  06/01 15時頃\", \"鹿児島県（奄美地方除く）\", \"  種子島地方       98%  06/02 12時頃\", \"宮崎県\", \"  日南・串間地区   83%  06/02 15時頃\", \"和歌山県\", \"  新宮・東牟婁     79%  06/03 03時頃\", \"ほか 39 府県\", \"VPTA50 ・ 気象庁\"]（P3-TL16-D-NARROW=A の仮） (c) どの行も桁数を越えない。上位の 4 府県は 5日積算の 257 番目より後の Item から来るので、AREA_LIMIT で切る実装はこの試験で落ちる"
+        "behavior": "corpus 履歴（76_01_02、台風第6号 JANGMI、2026-05-31 09:55、1% 以上 44 府県）。本物の経路: layout5.test.ts の through と同じく ingest→decode→restoreOwner（place \"deferred\"、空の state、時計は ReportDateTime の 60 秒後）→receiveOwner→inputTerminal（outcomes と unreadableReport）で材料を作り、createTerminalOutput の sink.inputDone（inputDoneOf、outcomes を載せる）に渡し、色 0 の renderer で書いた行を見る（整形の直呼びにしない。taken を通るかをこの試験で確かめる）。(a) 100 桁: [\"\", \"━ 台風の暴風域に入る確率 台風第6号（JANGMI） ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 09:55:00 発表 ━\", \"奄美地方                  北部            100%  06/02 03時頃\", \"沖縄本島地方              南部            100%  06/01 15時頃\", \"鹿児島県（奄美地方除く）  種子島地方       98%  06/02 12時頃\", \"宮崎県                    日南・串間地区   83%  06/02 15時頃\", \"和歌山県                  新宮・東牟婁     79%  06/03 03時頃\", \"東京都                    三宅島           74%  06/03 12時頃\", \"三重県                    紀勢・東紀州     73%  06/03 06時頃\", \"ほか 37 府県\", \"VPTA50 ・ 気象庁\"]（80 桁も同じ本文の行で帯の罫線だけ短い。70% 以上の 7 府県が全部出て、65% の奈良県からは「ほか」） (b) 56 桁: [\"\", \"━ 台風の暴風域に入る確率 台風第6号（JANGMI） ━━━━━━━━━━━\", \"09:55:00 発表\", \"奄美地方\", \"  北部            100%  06/02 03時頃\", \"沖縄本島地方\", \"  南部            100%  06/01 15時頃\", \"鹿児島県（奄美地方除く）\", \"  種子島地方       98%  06/02 12時頃\", \"宮崎県\", \"  日南・串間地区   83%  06/02 15時頃\", \"和歌山県\", \"  新宮・東牟婁     79%  06/03 03時頃\", \"東京都\", \"  三宅島           74%  06/03 12時頃\", \"三重県\", \"  紀勢・東紀州     73%  06/03 06時頃\", \"ほか 37 府県\", \"VPTA50 ・ 気象庁\"]（P3-TL16-D-NARROW=A） (c) どの行も桁数を越えない。上位の 4 府県は 5日積算の 257 番目より後の Item から来るので、AREA_LIMIT で切る実装はこの試験で落ちる"
       },
       {
         "testId": "P3-TL16-T02",
@@ -258,7 +259,7 @@
           "P3-TL16-AC01",
           "P3-TL16-AC02"
         ],
-        "behavior": "corpus 履歴（76_01_01、気象庁のサンプル、台風第1号 DAMREY、1% 以上 45 府県、100% と 99% が 3 府県ずつ）。reportOf（U-Y）の短い形を 80 桁で描いた帯の下の行が [\"奄美地方      北部      100%  10/01 18時頃\", \"沖縄本島地方  国頭地区  100%  10/01 18時頃\", \"大東島地方              100%  10/01 09時頃\", \"長崎県        長崎地区   99%  10/02 21時頃\", \"熊本県        天草地方   99%  10/02 21時頃\", \"ほか 40 府県\"]（同じ確率は PrefectureCode の順で、鹿児島県（奄美地方除く）99% は行に出ない。P3-TL16-D-TIE=A の仮。大東島地方は地域の欄が空。どれも 1 行に入るので 56 桁でも同じ 6 行）"
+        "behavior": "corpus 履歴（76_01_01、気象庁のサンプル、台風第1号 DAMREY、1% 以上 45 府県、70% 以上 17 府県）。reportOf（U-Y）の短い形を 80 桁で描いた帯の下の行が [\"奄美地方                  北部              100%  10/01 18時頃\", \"沖縄本島地方              国頭地区          100%  10/01 18時頃\", \"大東島地方                                  100%  10/01 09時頃\", \"長崎県                    長崎地区           99%  10/02 21時頃\", \"熊本県                    天草地方           99%  10/02 21時頃\", \"鹿児島県（奄美地方除く）  出水・伊佐         99%  10/02 21時頃\", \"福岡県                    筑後南部           98%  10/03 00時頃\", \"佐賀県                    鹿島地区           98%  10/02 21時頃\", \"大分県                    日田玖珠           97%  10/03 00時頃\", \"山口県                    下関               95%  10/03 03時頃\", \"宮崎県                    小林・えびの地区   95%  10/02 21時頃\", \"島根県                    益田地区           92%  10/03 03時頃\", \"広島県                    広島・呉           91%  10/03 03時頃\", \"愛媛県                    南予北部           86%  10/03 00時頃\", \"鳥取県                    米子地区           79%  10/03 06時頃\", \"岡山県                    新見地域           77%  10/03 06時頃\", \"高知県                    幡多               75%  10/03 00時頃\", \"ほか 28 府県\"]（70% 以上が 5 を越えて全部出る。P3-TL16-D-TIE=A。同じ確率は PrefectureCode の順。大東島地方は地域の欄が空。65% の香川県からは「ほか」）。56 桁では揃えた行が 62 桁で入らず府県ごとに 2 行で、帯の下の府県の行が 34 行・どの行も 56 桁以内"
       },
       {
         "testId": "P3-TL16-T03",
@@ -274,7 +275,7 @@
         "referenceIds": [
           "P3-TL16-AC01"
         ],
-        "behavior": "契約境界（P3-TL16-AC01 (1)〜(4) の材料の値と null）。reportOf の短い形の probability が、76_01_02 は rows [{\"prefecture\": \"奄美地方\", \"area\": \"北部\", \"percent\": \"100\", \"peakRaw\": \"2026-06-02T03:00:00+09:00\"}, {\"prefecture\": \"沖縄本島地方\", \"area\": \"南部\", \"percent\": \"100\", \"peakRaw\": \"2026-06-01T15:00:00+09:00\"}, {\"prefecture\": \"鹿児島県（奄美地方除く）\", \"area\": \"種子島地方\", \"percent\": \"98\", \"peakRaw\": \"2026-06-02T12:00:00+09:00\"}, {\"prefecture\": \"宮崎県\", \"area\": \"日南・串間地区\", \"percent\": \"83\", \"peakRaw\": \"2026-06-02T15:00:00+09:00\"}, {\"prefecture\": \"和歌山県\", \"area\": \"新宮・東牟婁\", \"percent\": \"79\", \"peakRaw\": \"2026-06-03T03:00:00+09:00\"}]・others 39、76_01_03 は { rows: [], others: 0 }、synthetic_VPTA50_cancel（取消）と 10_04_03 VPTW60（U-Y の解析の報）は null"
+        "behavior": "契約境界（P3-TL16-AC01 (1)〜(4) の材料の値と null）。reportOf の短い形の probability が、76_01_02 は rows [{\"prefecture\": \"奄美地方\", \"area\": \"北部\", \"percent\": \"100\", \"peakRaw\": \"2026-06-02T03:00:00+09:00\"}, {\"prefecture\": \"沖縄本島地方\", \"area\": \"南部\", \"percent\": \"100\", \"peakRaw\": \"2026-06-01T15:00:00+09:00\"}, {\"prefecture\": \"鹿児島県（奄美地方除く）\", \"area\": \"種子島地方\", \"percent\": \"98\", \"peakRaw\": \"2026-06-02T12:00:00+09:00\"}, {\"prefecture\": \"宮崎県\", \"area\": \"日南・串間地区\", \"percent\": \"83\", \"peakRaw\": \"2026-06-02T15:00:00+09:00\"}, {\"prefecture\": \"和歌山県\", \"area\": \"新宮・東牟婁\", \"percent\": \"79\", \"peakRaw\": \"2026-06-03T03:00:00+09:00\"}, {\"prefecture\": \"東京都\", \"area\": \"三宅島\", \"percent\": \"74\", \"peakRaw\": \"2026-06-03T12:00:00+09:00\"}, {\"prefecture\": \"三重県\", \"area\": \"紀勢・東紀州\", \"percent\": \"73\", \"peakRaw\": \"2026-06-03T06:00:00+09:00\"}]・others 37、76_01_03 は { rows: [], others: 0 }、synthetic_VPTA50_cancel（取消）と 10_04_03 VPTW60（U-Y の解析の報）は null"
       },
       {
         "testId": "P3-TL16-T05",
@@ -300,6 +301,14 @@
           "P3-TL16-AC03"
         ],
         "behavior": "契約境界（P3-TL16-AC03 (3) の 1 つの組だけで幅を越えるとき）。omitted { VFSV50: 2, VFVO53: 1 } の U-V の digest（heads なし）を 30 桁で描くと、「ほか」の行が [\"  ほか 火山現象に関する海上警\", \"       報・海上予報 2 件\", \"       降灰予報（定時） 1 件\"]（組の中を字の境目で折り、続きの行も 7 桁下げる）。56 桁では [\"  ほか 火山現象に関する海上警報・海上予報 2 件\", \"       降灰予報（定時） 1 件\"]"
+      },
+      {
+        "testId": "P3-TL16-T08",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL16-AC01"
+        ],
+        "behavior": "契約境界（P3-TL16-AC01 (3) の 70 の境と 5 行目の切り方）。76_01_02 の 5日積算の MeteorologicalInfo の Item の値を、表に挙げた Area/Code のほかは全部 0 にした報（試験の中で XML を書き換える。時系列は書き換えない）の probability: (a) 70 未満の同じ確率が 5 行目を跨ぐ: 460041（奄美地方 北部）90・450012（宮崎県 日南・串間地区）60・300022（和歌山県 新宮・東牟婁）50・130032（東京都 三宅島）30・240022（三重県 紀勢・東紀州）30・290022（奈良県 南西部）30 では、rows の府県が奄美地方・宮崎県・和歌山県・東京都・三重県の 5 つ、others 1（30% の 3 府県は PrefectureCode の順で、290000 の奈良県が「ほか」） (b) 70 ちょうどは全部: 130032・300022・450012・460041・460031（鹿児島県（奄美地方除く） 種子島地方）・471011（沖縄本島地方 南部）を 70、240022 を 69 にすると、rows は 70 の 6 府県が PrefectureCode の順（東京都・和歌山県・宮崎県・奄美地方・鹿児島県（奄美地方除く）・沖縄本島地方）、others 1（69% の三重県は 70 以上が 5 以上なので出ない）"
       }
     ],
     "requiredCommands": [
@@ -362,15 +371,15 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 仕組みを足すときは無いと何が壊れるかを 1 行で示す（AC01 は材料の欄 1 つと関数 1 つで、無いと府県の値が端末へ届かない。U-Y の候補は inputDone の返信に載らない。AC02 は行を組む関数 1 つで、無いと 5 行の列を揃えられない。AC03 は仕組みを足さない。既存の flow を使う）。新しい export・設定・file（試験の 1 file のほか）は作らない。既存の read・first・children・attribute・scalar・width・pad・line・seg・flow を使う。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加した各試験がどれに対応するかを成果物に 1 行で書く（T01〜T03 は corpus 履歴、T04・T05・T07 は契約境界、T06 は実不具合）。試験は新しい file reconstruction/test/terminal/layout16.test.ts に置き、terminal-fixture.ts の既存の helper（reportOf・decodeFixture・harness・inputDoneOf・terminal・reportUnit）と、layout5.test.ts の through の形（owner の道）を使う",
-      "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は VPTA50〜55 の報だけ、2 つの節の Item の列を 1 回ずつ（384・375 まで）と、当たった 5 つの Item の値（64 まで）を見る。並べ替えは府県の数（96 まで）の中。AC02・AC03 は renderer の中で行の数に比例するだけで、受信の main（publisher）の仕事は変えない。AC01 (7) の材料の時間の表（76_01_02・76_01_01、前・後・差、Mac mini で）",
+      "最小実装・最小テスト: 仕組みを足すときは無いと何が壊れるかを 1 行で示す（AC01 は材料の欄 1 つと関数 1 つで、無いと府県の値が端末へ届かない。U-Y の候補は inputDone の返信に載らない。AC02 は行を組む関数 1 つで、無いと 5 行の列を揃えられない。AC03 は仕組みを足さない。既存の flow を使う）。新しい export・設定・file（試験の 1 file のほか）は作らない。既存の read・first・children・attribute・scalar・cut・validReportDateTime・width・pad・line・seg・flow を使う。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加した各試験がどれに対応するかを成果物に 1 行で書く（T01〜T03 は corpus 履歴、T04・T05・T07・T08 は契約境界、T06 は実不具合）。試験は新しい file reconstruction/test/terminal/layout16.test.ts に置き、terminal-fixture.ts の既存の helper（reportOf・decodeFixture・harness・inputDoneOf・terminal・reportUnit）と、layout5.test.ts の through の形（owner の道）を使う",
+      "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は VPTA50〜55 の報だけ、2 つの節の Item の列を 1 回ずつ（384・375 まで）と、当たった Item（rows の数、96 まで）の値（64 まで）を見る。並べ替えは府県の数（96 まで）の中。AC02・AC03 は renderer の中で行の数に比例するだけで、受信の main（publisher）の仕事は変えない。AC01 (7) の材料の時間の表（76_01_02・76_01_01、前・後・差、Mac mini で）",
       "既存の試験の期待は変えない（短い形を手で組む既存の試験は無い。Q-TL16-TEST-FILES。digest.test.ts の 80 桁の「ほか」の行は幅に入るので変わらない）。ほかの期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
-      "起草の確かめ: P3-TL16-T01〜T07 の期待は、起草の時に worktree の中の未追跡の場所に src の写しを置き、AC01〜AC03 を当て、esbuild で束ねて node で描いて出した（T01・T03 は owner の道、Q-TL16-TAKEN。写しは消す）。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
+      "起草の確かめ: P3-TL16-T01〜T08 の期待は、起草の時に worktree の中の未追跡の場所に src の写しを置き、AC01〜AC03 を当て（D-TIE の作者の裁定の後は 70% の形で描き直した）、esbuild で束ねて node で描いて出した（T01・T03 は owner の道、Q-TL16-TAKEN。写しは消す）。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
       "本物の経路での写し（統合担当、配送の前）: 実装の後の木で、~/dev/fleq-vpta-probe/.pr-tmp/cap.sh と同じ形（watch を COLUMNS を変えて起こし、/inject?type=VPTA50&retime=0 で fixture を入れる）で、76_01_02 と 76_01_03 を 56 桁と 100 桁（作者の端末の 130 桁は 100 桁に止まる）で写し、T01・T03 と同じ行が出ることを見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
-      "作者の裁定の後: P3-TL16-D-TIE か D-NARROW で B が選ばれたら、統合担当が baseOid を付ける前に、その分岐の ruling に書いた AC・試験・spec の行を直す（2 つは互いに独立で、D-TIE は AC01 (3) と T02、D-NARROW は AC02 (3) と T01 (b) だけに効く）",
+      "作者の裁定（2026-11-10）: P3-TL16-D-TIE=A（70% 以上の府県は全部、70% 未満は合計 5 行まで）と P3-TL16-D-NARROW=A（府県ごとに 2 行）を AC01 (3)・AC02 (3)・T01・T02・T04・T08 と spec の 648 行・932 行・図に当てた",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) AC01: 同じ確率の府県は PrefectureCode の順で 5 行目で切れる（76_01_01 の鹿児島県（奄美地方除く）99% は「ほか」に入る。D-TIE=A の仮） (2) AC01: ピークの時刻は最悪の地域の 3 時間ごとの値で最初に最大になる時刻で、同じ府県の別の地域がもっと早く暴風域に入りうることは書かない。最大の値が何個の時刻にあるか（76_01_01 の奄美地方は 6 個）も書かない (3) AC01: 端末は U-Y と別に XML を読む。U-Y は 24 字を越える地域名を切って受け入れるが、端末は 4,096 字まで写す（実物の名前は最長 12 字で起きない） (4) AC02: 56 桁で 1 行に入らない報（76_01_02）は府県の行が 10 行になる (5) AC01 (7) の材料の時間の増え",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout9.json:279 の outOfScope「VPTA50 の府県ごとの確率の表（旧築の上位 24 行）。短い形は表を出さない（Q-TO-ROOT の案 C）」の末尾に「（P3-TERMINAL-LAYOUT-016 で、帯の下に上位 5 府県の行を出すことにした。作者の裁定 A'、2026-11-10）」を書き足す（どの契約も «» で引いていない） (2) reconstruction/contracts/p3-terminal-output.json:470 の P3-TO-RES-02 の limit の末尾に「。台風の暴風域に入る確率の府県の行（P3-TERMINAL-LAYOUT-016）は、5日積算の地域 384・府県 96・時間帯 64 まで読み（U-Y の LIMITS と同じ）、行は 5 府県まで」を書き足す（引いている契約は無い） (3) reconstruction/contracts/p3-terminal-layout.json:318 の P3-TL-AC11 の「後の契約で改めた:」の列挙の「解除の行 P3-TERMINAL-LAYOUT-012」の後に「、台風の暴風域に入る確率の府県の行 P3-TERMINAL-LAYOUT-016」を書き足す。この行は p3-terminal-layout15.json:223 と本契約の AC04 が引くので、新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で中身の変わる行を引く契約は、p3-terminal-output.types.ts:88（p3-terminal-layout11.json の 2 か所・p3-terminal-layout12.json の 2 か所・本契約）と format.ts:777（p3-terminal-layout12.json・p3-terminal-layout15.json・本契約）で、新しい行の anchor を手で入れる（reanchor-target.py は同じ anchor の行が無いと止まる）。types.ts の 88 行は 87 行の後のコメントの 1 行で 89 行になる。material.ts の 292・302 行と format.ts の 868 行は本契約だけが引く。material.ts・format.ts の関数は他の契約の引く行より後に置くので、ほかの行の番号は動かない見込み。動いたら中身の同じ行は reanchor-target.py で付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
+      "残存として成果物に書く: (1) AC01: 70% 未満の同じ確率の府県は PrefectureCode の順で 5 行目で切れる。70% 以上の府県の多い報はブロックが長い（76_01_01 は 80 桁で府県の行 17 行、56 桁で 34 行。上限は府県 96） (2) AC01: ピークの時刻は最悪の地域の 3 時間ごとの値で最初に最大になる時刻で、同じ府県の別の地域がもっと早く暴風域に入りうることは書かない。最大の値が何個の時刻にあるか（76_01_01 の奄美地方は 6 個）も書かない (3) AC01: 端末は U-Y と別に XML を読む（名前の 24 字と時刻の検査は U-Y と同じ helper を使うが、5日積算の読み方は端末の側の写し） (4) AC02: 56 桁で 1 行に入らない報は府県の行が 2 倍になる（76_01_02 は 14 行） (5) AC01 (7) の材料の時間の増え",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout9.json:279 の outOfScope「VPTA50 の府県ごとの確率の表（旧築の上位 24 行）。短い形は表を出さない（Q-TO-ROOT の案 C）」の末尾に「（P3-TERMINAL-LAYOUT-016 で、帯の下に上位 5 府県の行を出すことにした。作者の裁定 A'、2026-11-10）」を書き足す（どの契約も «» で引いていない） (2) reconstruction/contracts/p3-terminal-output.json:470 の P3-TO-RES-02 の limit の末尾に「。台風の暴風域に入る確率の府県の行（P3-TERMINAL-LAYOUT-016）は、5日積算の地域 384・府県 96・時間帯 64 まで読み（U-Y の LIMITS と同じ）、行は 5 府県か最大の確率 70 以上の府県の数の多い方まで〔96 まで〕、府県名と地域名は 24 字まで」を書き足す（引いている契約は無い） (3) reconstruction/contracts/p3-terminal-layout.json:318 の P3-TL-AC11 の「後の契約で改めた:」の列挙の「解除の行 P3-TERMINAL-LAYOUT-012」の後に「、台風の暴風域に入る確率の府県の行 P3-TERMINAL-LAYOUT-016」を書き足す。この行は p3-terminal-layout15.json:223 と本契約の AC04 が引くので、新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で中身の変わる行を引く契約は、p3-terminal-output.types.ts:88（p3-terminal-layout11.json の 2 か所・p3-terminal-layout12.json の 2 か所・本契約）と format.ts:777（p3-terminal-layout12.json・p3-terminal-layout15.json・本契約）で、新しい行の anchor を手で入れる（reanchor-target.py は同じ anchor の行が無いと止まる）。types.ts の 88 行は 87 行の後のコメントの 1 行で 89 行になる。material.ts の 292・302 行と format.ts の 868 行は本契約だけが引く。material.ts・format.ts の関数は他の契約の引く行より後に置くので、ほかの行の番号は動かない見込み。動いたら中身の同じ行は reanchor-target.py で付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
     ],
     "unresolvedQuestions": [
       {

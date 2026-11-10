@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "876e4fdf85b222a620429037d34584b2cbfe2830",
-    "sha256": "bf06c6f9ec9134db4762f247513410b0f9cc5e268f19d86c51786c8cdc18bf3d",
+    "sha256": "d6a9028f7a6d900511521ef5080e824702e0156faf1b8f4b0a1bb8625a6ae949",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -147,12 +147,12 @@
         "id": "P3-TL14-AC03",
         "requirement": "spec §5.4 の短い形の総則の文（原文の改訂 (1)。統合担当が配送の commit で当てる。実装はしない）: docs/specs/cli-terminal-output.md:480 の 1 行を、基本の 4 つの行（帯・段の理由・見出し文・末尾）を残し、「表は出さない」を除き、後の契約で足した行（全国の月間火山概況の表・噴火速報の活動の文と市町村の表・全国の集約通報の表・解除の行）とまとめの形（降灰予報（定時）・時系列情報）を §5.4 の下の項へ案内する文に替える。行の数は変えない。見た目は変わらない（文を実装に合わせるだけ）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:633 «ecbcd59bd24b1841»",
-          "docs/specs/cli-terminal-output.md:636 «87b98d2ac4456b51»",
-          "docs/specs/cli-terminal-output.md:638 «9c66f8919dbc34b0»",
-          "docs/specs/cli-terminal-output.md:640 «8ca3da5195503b92»",
-          "docs/specs/cli-terminal-output.md:644 «5768731f8619d84e»",
-          "docs/specs/cli-terminal-output.md:646 «3b343d0f788686a8»"
+          "docs/specs/cli-terminal-output.md:639 «ecbcd59bd24b1841»",
+          "docs/specs/cli-terminal-output.md:642 «87b98d2ac4456b51»",
+          "docs/specs/cli-terminal-output.md:644 «9c66f8919dbc34b0»",
+          "docs/specs/cli-terminal-output.md:646 «8ca3da5195503b92»",
+          "docs/specs/cli-terminal-output.md:650 «5768731f8619d84e»",
+          "docs/specs/cli-terminal-output.md:652 «3b343d0f788686a8»"
         ]
       }
     ],

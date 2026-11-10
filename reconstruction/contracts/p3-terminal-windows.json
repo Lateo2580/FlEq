@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "abb24b70e0390f657033389040377fad38381d86ab24d38eaaf6e947796b64f2",
+    "sha256": "381b51a24590e44a6fcae9a8cacab66ef80ef1fbf0f475afca1b10f739bb1362",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -231,16 +231,16 @@
         "id": "P3-TW-AC01",
         "requirement": "書き先の振り分け（P3-TW-D-WRITER・D-NONTTY・D-SERIAL）: (1) createTerminalOutput は process.platform が win32 のとき Worker を作らず、node:child_process の fork で子を 1 本立てる。win32 以外は今の worker のまま (2) fork の引数は resolveRepoPath(\"reconstruction/dist/src/terminal/writer-child.js\")、[String(level)]、{ stdio: [\"ignore\", \"inherit\", \"ignore\", \"ipc\"], serialization: \"advanced\" }。detached と windowsHide を付けない（同じ console に繋ぐ。子の標準入力を開くとキー入力を親と取り合う） (3) fd 1 が TTY・pipe・file のどれでも同じ形で、親は子の標準出力を受けない (4) 作った直後に child.unref() と child.channel?.unref() を呼び、子が親の process の終わりを延ばさない (5) options.write を渡したときは子を立てない。無いと: Windows の標準出力に何も出ない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:1038 «1ca49eade00f86a1»",
-          "docs/specs/cli-terminal-output.md:1039 «8601a7daa86eaa13»",
-          "docs/specs/cli-terminal-output.md:1043 «6f757692c0f69a76»"
+          "docs/specs/cli-terminal-output.md:1044 «1ca49eade00f86a1»",
+          "docs/specs/cli-terminal-output.md:1045 «8601a7daa86eaa13»",
+          "docs/specs/cli-terminal-output.md:1049 «6f757692c0f69a76»"
         ]
       },
       {
         "id": "P3-TW-AC02",
         "requirement": "子（reconstruction/src/terminal/writer-child.ts、P3-TW-D-WRITER・D-SIGINT）: (1) 親から受けた TerminalBatch を argv の色の水準の createRenderer で整形し、process.stdout.write(text, callback) で書き、callback の中で process.send(\"done\") を返す。write の戻り値や drain で返事をしない (2) 文字が空か整形の例外のときは書かずに返事だけを返す（worker と同じ） (3) SIGINT に空の listener を付ける (4) process.stdout の error event と callback の error は process.exit(1) にする（AC04 の exit に畳む） (5) 親が消えて IPC が切れたら、disconnect を処理できた子は終わる。書き込みの中で止まった子は JS を実行できないので、親の死亡の時は libuv の Job Object（KILL_ON_JOB_CLOSE。detached を付けないので子が入る）が終わらせる (6) 標準入力を読まず、標準エラーへ書かない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:1038 «1ca49eade00f86a1»",
+          "docs/specs/cli-terminal-output.md:1044 «1ca49eade00f86a1»",
           "reconstruction/src/cli/cli.ts:337 «87bb62722e92f7e8»"
         ]
       },
@@ -249,22 +249,22 @@
         "requirement": "列（P3-TO-AC02 (3)(5)、D-DROP、RES-01 を win32 でも変えない）: (1) writer の既定を child.send(batch, callback) にする。列の頭からまとめて 1 回送り、\"done\" を受けて次を送る (2) 子が書き込みの中で止まっている間、main は積むだけで、上限を越えたら種類によらず古い単位から落とし、進み始めた最初に省いた件数の行を出す (3) 受信 1 回の main の仕事は増やさない。直列化は送り 1 回につき 1 回で、その大きさは RES-01 の範囲 (4) 桁数は今と同じく main が送る時に読む",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:28 «11fd6bdc660dca4c»",
-          "docs/specs/cli-terminal-output.md:1040 «1009bc0762e2ca69»"
+          "docs/specs/cli-terminal-output.md:1046 «1009bc0762e2ca69»"
         ]
       },
       {
         "id": "P3-TW-AC04",
         "requirement": "子の失敗（P3-TW-D-FAIL）: (1) 起動の失敗（fork の同期の例外、error event）、途中の消滅（exit event）、IPC の切断（disconnect event、child.send の callback の error）を 1 つの処理に集める (2) 列は今の fail と同じ: 残りを捨てて数え、以後は積まずに数えるだけ。受信・通知の試行・REPL の入力を止めず、process を落とさない (3) 子が生きていれば child.kill() を呼ぶ (4) 1 run に 1 回だけ、標準エラーへ「端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません」の 1 行を書く試みをする。main は書かず、spawn(process.execPath, [\"-e\", \"process.stderr.write(process.argv[1])\", 文字], { stdio: [\"ignore\", \"ignore\", \"inherit\"] }) に error の listener と unref を付けて書かせる。spawn の同期の例外は諦める。試みが失敗すると知らせなしになる (5) close の開始の後は知らせない (6) 子を立て直さない。無いと: 列が黙って止まり、以後の出力が理由もなく消える",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:1041 «08df5c5d828bb620»"
+          "docs/specs/cli-terminal-output.md:1047 «08df5c5d828bb620»"
         ]
       },
       {
         "id": "P3-TW-AC05",
         "requirement": "終わり（P3-TW-D-CLOSE、P3-TW-DLV-01）: (1) close は今と同じく列の残りと EEW ログの書き終わりを最長 1 秒待つ (2) 揃ったときも 1 秒が過ぎたときも child.kill() を呼び、exit を待たずに resolve する。子が既に消えていても throw しない (3) 親の終わりは子の消滅を待たない。子の消滅の時刻を試験でも約束しない (4) 1 秒の待ちの間に子が落ちたら、出力の側だけを完了の扱いにし、EEW ログの書き終わりか当初の 1 秒の期限まで待つ",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:1036 «90183c02ceb02ae1»",
-          "docs/specs/cli-terminal-output.md:1042 «e73c59cfcda78971»"
+          "docs/specs/cli-terminal-output.md:1042 «90183c02ceb02ae1»",
+          "docs/specs/cli-terminal-output.md:1048 «e73c59cfcda78971»"
         ]
       },
       {
@@ -273,8 +273,8 @@
         "evidenceRefs": [
           "reconstruction/cli/fleq.mjs:22 «35f85fde5f5d2ad4»",
           "reconstruction/src/cli/repl.ts:425 «be0a038c457c3de2»",
-          "docs/specs/cli-terminal-output.md:1044 «eaf0b3ac6104f64f»",
-          "docs/specs/cli-terminal-output.md:1045 «095fec5220f7cce8»"
+          "docs/specs/cli-terminal-output.md:1050 «eaf0b3ac6104f64f»",
+          "docs/specs/cli-terminal-output.md:1051 «095fec5220f7cce8»"
         ]
       }
     ],
