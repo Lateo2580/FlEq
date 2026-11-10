@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "3bb60bf3cbc181fd6ffe16377da86144c7111243385a1fd51b0a810149818e10",
+    "sha256": "a84571c0b57f8822bad1c4803e577172566a12bedcb17bf638c71a5c42d1e31b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -223,7 +223,7 @@
         "id": "Q-MIG-H27",
         "status": "closed",
         "source": "起草での読み（2026-10-30、152ba7fb）: reconstruction/src/contracts-revision/version.ts の compareVersion・stepVersion、P3-REC-D-RAISE-BASIS=A、P3-VM-D-MISSING=A",
-        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げ、A' に決めた（手元の版が M の間は compareVersion が ReportDateTime だけで比べ、M は印にならない。P3-MIG-D-MARK-CLEAR） (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
+        "closed": "(1) 手元の版の Control/DateTime が空なら、受けた報の Control/DateTime が読める限り newer（compareVersion。ReportDateTime で比べる種類は、ReportDateTime が新しいか同じときに newer、古ければ older）。移した記録は全部この形になる (2) newer の採用の後の印は、手元の版が時刻を持たなければその版の ReportRef（stepVersion）。作者の裁定 3 の文と食い違うので P3-MIG-D-MARK-CLEAR を作者に挙げ、A' に決めた（手元の版が M の間は compareVersion が ReportDateTime だけで比べ、M は印にならない。P3-MIG-D-MARK-CLEAR） (3) H27 の引上げは取り直しを始めた時点の状態（再起動なら復元した前回情報）と比べる（P3-REC-D-RAISE-BASIS=A）。U-T は P3-H27-LIVE-UNITS-001 で採用の直前の live と比べる（候補の間に live が動かなければ移した記録のまま）。移行の後の最初の起動では、移した記録がその前回情報になる。取り直しの報は (1) で移した記録を置き換え、区域ごとの区分が上がっていれば H27 の音が鳴る（大津波警報なら最も重い音）。これは C16 の裁定どおりで、移行で新しい出方は増えない。上がっていなければ鳴らない（取り直しは H27 以外の intent を作らない） (4) 移行器は過去の通知を移さない（spec:2196）ので、移した記録そのものからは音が出ない",
         "remaining": "なし",
         "reason": "下調べの未確認「H27 の引上げが移した記録との比べで起きるか」"
       },

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "fa949f944068f0a84eb7ececc80da5682a7dc12a2a62f4bebded2c722ace995a",
+    "sha256": "74338e6e5cf2a19ec81c702545507877a4a41e7b109f443e7080c43d5d4c61cd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -690,7 +690,7 @@
           "reconstruction/src/units/landslide/landslide-unit.ts:324 «643c72b839dd1af9»",
           "reconstruction/src/units/landslide/landslide-unit.ts:328 «6cd7691ce71518ea»",
           "reconstruction/src/units/landslide/landslide-unit.ts:654 «f23946afe530ea53»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:671 «c6b4f7a0852c3d4f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:671 «e72e89f20cb2a2eb»",
           "reconstruction/contracts/p3-landslide-unit.json:218 «d0840e9122c8992d»"
         ]
       },
@@ -733,7 +733,7 @@
         "requirement": "U-W の取り直しの H27（P3-WN-D-UW-H27=A、作者裁定 2026-11-01）。順序（品質 r2 の P2-1）: (1) 最終の candidate を作る（基点が変わっていれば、取り直しの本文を最新の live に当て直す。owner-host.ts:225 の分岐。候補を作る途中の step では P3-WN-AC06 の (2) の外す規則を当てない） (2) live 由来の pending（candidate の intents。部分集合の検査〔owner-runtime.ts:688〕を通ったもの）に、P3-WN-AC06 の (2) の外す規則を最終の candidate の合わせに対して 1 回だけ当てる (3) そのあと H27 の除外は下の at.live の規則だけ（生きている pending の target では除かない。古い desktop の L4 の target が H27 を抑えるため、品質 r3 の P2）。(2) と (3) は U-W の unit の行の recoveryNotices の中で行う（owner-runtime.ts の noticed が :725 で呼ぶ。owner-runtime.ts と owner-host.ts は変えない）。以下は (3) の H27 の作り方。U-W の unit の行に recoveryNotices を足す（owner-runtime.ts は units[unit].recoveryNotices を読むので変えない）。取り直しを始めた時の state（open）と採用する state（candidate）の合わせを全部の府県で比べ（取り直し 1 回に 1 回、O(前後の勝った行の和)）、AC02 の規則で上がった区域×現象のうち、採用の時点で active なものの最も重い段を 1 件選ぶ（同じ段は府県の Code の昇順）。その行の報の系列の印に同じ版の報があれば除いてから選ぶ。payload は level info、title「<Kind の名前>（HH:MM 発表）」、body「<Kind の名前> <区域の数>地域」、reportDateTime と recovered: true（U-L と同じ形。区域の名前は保存していないので数で書く）。channel は L4 も L5 も desktop＋sound（P3-WN-D-H27-L4=A、training・test は desktop）。取り直しの間の live の通知と重ねない: candidate の cell の段が、採用の直前の live（at.live）の合わせの同じ cell の段以下なら除く。P3-WN-AC06 の (2) により live の pending は系列の取消では消えないので、at.live でその段なら、配った・配る途中・容量で落とした（H39）のどれか（Q-WN-PENDING-TARGETS の 5）。H27 の intent の targets は、選んだ cell 1 つでなく、その取り直しで上がった cell 全部（土砂を除き、印と at.live の除外の後に残ったもの、全府県・全報）とし、P3-WN-AC06 の (2) の規則で外れる。intent は今どおり 1 組（作者裁定「取り直し 1 回で info 1 回」）。文面は今どおり代表の cell（最も重い段・府県の Code の昇順）で作り、代表が配る前に終わって他の cell が残るときの文面は Q-WN-PENDING-TARGETS の残存 (1) と同じ扱い（dot のモデル検査の I1 の反例、Q-WN-MODEL-CHECK）。H27 の targets の上界は 1 報の行の数でなく、その取り直しで上がった cell の数（合わせの L4・L5 の cell の数まで）。7 日の合わせの L4・L5 の cell の同時の最大は 38（起草の作業場所の h27_peak.py の出力「合わせの L4・L5 の cell の同時の最大 38 ('x-2026-06-26', '2026-06-26T07:58:00+09:00', 38) 、targets の JSON の上界の目安 912 byte」）。131,072 byte を越えれば（1 cell 約 25 byte で約 5,200 cell）admit で落ち、notificationCapacityEvicted として欠けに数える（P3-WN-AC01 の (5) と同じ）",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:726 «a087f7117133613b»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:671 «c6b4f7a0852c3d4f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:671 «e72e89f20cb2a2eb»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:829 «ddca12f199bf8601»",
           "reconstruction/contracts/p3-recovery.json:386 «58c04337850a479c»",
           "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b2fb21d6a5ae06de4e24ff038a26b3146227ff0",
-    "sha256": "d0dce9c0882d307cbeb066228356060f6271b5192db8eb7c4262e9115249e509",
+    "sha256": "ba66844b82c222834813c2f2e832ea935ad5136e485bd9064db754502be8448f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -258,19 +258,19 @@
         "id": "P3-H27L-AC01",
         "requirement": "H27 の比べの基準（P3-H27L-D-BASIS=A・P3-H27L-D-EVICT=A）: U-R・U-N・U-V・U-T・U-L の採用の step で、候補の記録ごとに採用の直前の live（at.live）の同じ subject の記録と段を比べ、上がったものだけを今どおり選ぶ（段の読み・通知済みの版〔K8 の印〕の除外・unit に 1 件〔U-L は operation ごと〕・payload・channel は変えない）。open は、live に subject の記録が無いときだけ比べに使う（(4)、U-N を除く）。場面ごとの基準: (1) 候補の間に live が動かない: sameBase が通り、live の state は open と同じ欄を持つので結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live の同じ subject の記録より上がる区域・河川・段が無い報は作らない（live で知らせた〔配った・配る途中の pending・容量で落とした のどれでも〕引上げと同じ段の報は、本文が新しくても古くても作らない。U-T は区域ごと、U-R は河川ごとに比べるので、新しい区域・河川を足した報は上がる） (3) live が open より下げた（引下げ・取消・期限）後に、それより新しい引上げの本文を拾ったら、下げた live と比べて 1 組作る (4) live の記録が見えない（取消・期限・終わり）なら、候補の引上げは全部上がった扱い。live に記録が無い（容量の退去・回収で消えた）なら、U-R・U-V・U-T・U-L は open の記録と比べ（P3-H27L-D-EVICT=A、今の振る舞いと同じ）、open にも無ければ全部上がった扱い。U-N は at.live だけ（現況が退去しない） (5) U-T では live で受けなかった同じ区分の続報は鳴らない（Q-H27L-UT-NORMAL）",
         "evidenceRefs": [
-          "reconstruction/src/units/flood/flood-unit.ts:764 «3904016492697d0a»",
-          "reconstruction/src/units/flood/flood-unit.ts:776 «fea261c738b1cc8f»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:870 «8dabf7a88f113098»",
-          "reconstruction/src/units/nankai/nankai-unit.ts:887 «fea261c738b1cc8f»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1676 «3904016492697d0a»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:1712 «ec0541763ed70126»",
+          "reconstruction/src/units/flood/flood-unit.ts:764 «05ac5759da19cdfb»",
+          "reconstruction/src/units/flood/flood-unit.ts:776 «6cf323096092df2e»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:870 «6f22170636ec858d»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:887 «95d178cb4e5bfd22»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1676 «05ac5759da19cdfb»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1712 «ec198804e4a53827»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:967 «1491cc784333a9f1»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:969 «e970995b4b292ecd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:969 «41ee49a509295b45»",
           "reconstruction/src/runtime/owner-runtime.ts:663 «01831e52d61d5093»",
           "reconstruction/src/runtime/owner-runtime.ts:729 «61454ecf7d8dcfd5»",
           "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
           "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:646 «a819a81885203d5d»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:646 «9e07a9a2c73978ca»",
           "reconstruction/contracts/p3-recovery.json:37 «068c7a8178ee75e7»"
         ]
       },
@@ -309,14 +309,14 @@
         "evidenceRefs": [
           "reconstruction/src/units/flood/flood-unit.ts:127 «4f6b9b5c694528bf»",
           "reconstruction/src/units/flood/flood-unit.ts:379 «51fc5ee0c300a65d»",
-          "reconstruction/src/units/flood/flood-unit.ts:776 «fea261c738b1cc8f»",
+          "reconstruction/src/units/flood/flood-unit.ts:776 «6cf323096092df2e»",
           "reconstruction/src/units/volcano/volcano-unit.ts:179 «dce1f66a9d48f994»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:248 «27ee60c18155c859»",
-          "reconstruction/src/units/tsunami/tsunami-unit.ts:969 «e970995b4b292ecd»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:969 «41ee49a509295b45»",
           "reconstruction/src/units/nankai/nankai-unit.ts:31 «de10a06bd1556940»",
           "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:671 «c6b4f7a0852c3d4f»",
-          "reconstruction/src/units/landslide/landslide-unit.ts:672 «95d178cb4e5bfd22»"
+          "reconstruction/src/units/landslide/landslide-unit.ts:671 «e72e89f20cb2a2eb»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:672 «6cf323096092df2e»"
         ]
       }
     ],

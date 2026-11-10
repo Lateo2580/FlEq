@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8644ab3aa6c29ccc2b928df8d72d7b3d5b1efa1f",
-    "sha256": "701507ba6d14397e576fcd0311f7f1591e18eec1a6a7003525c6752b919522a4",
+    "sha256": "859bc07f1088b749608232162b7e346089cd8b78f73dfaca2fecdcf7912b3e27",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -140,7 +140,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-VR-AC01",
-        "requirement": "H27 の段の読み（P3-REC-AC10、P3-REC-D-N2-RAISE=A の「警報の段」）: (1) raiseLevel は active な記録を kind と landKind の両方で読み、noticeLevel の高い方を段にする (2) landKind は null でなく activeKind のときだけ読む（解除の landKind は読まない） (3) active でない火山と記録の無い火山はレベル 1 のまま (4) 起点は open のまま（P3-REC-D-RAISE-BASIS=A）で、起点と候補を同じ読みで比べる (5) Lv5 か Code 25 の VFVO50 の後に VFSV の Code 36 が来て kind が 36・landKind が 15 か 25 の記録へ、取り直しで同じ Code の VFVO50 の継続を採用しても、引上げでないので intent を作らず、candidate をそのまま返す",
+        "requirement": "H27 の段の読み（P3-REC-AC10、P3-REC-D-N2-RAISE=A の「警報の段」）: (1) raiseLevel は active な記録を kind と landKind の両方で読み、noticeLevel の高い方を段にする (2) landKind は null でなく activeKind のときだけ読む（解除の landKind は読まない） (3) active でない火山と記録の無い火山はレベル 1 のまま (4) 起点は open のまま（P3-REC-D-RAISE-BASIS=A）〔P3-H27-LIVE-UNITS-001 で起点を採用の直前の live に改めた〕で、起点と候補を同じ読みで比べる (5) Lv5 か Code 25 の VFVO50 の後に VFSV の Code 36 が来て kind が 36・landKind が 15 か 25 の記録へ、取り直しで同じ Code の VFVO50 の継続を採用しても、引上げでないので intent を作らず、candidate をそのまま返す",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»",
           "reconstruction/contracts/p3-recovery.json",
@@ -151,7 +151,7 @@
       },
       {
         "id": "P3-VR-AC02",
-        "requirement": "本当の引上げ: (1) AC01 の読みで段が起点より上がり、いまも active な火山は今までどおり unit に 1 件の info を desktop と sound に出す (2) kind が 36 のまま landKind だけが上がった候補も引上げと読む（起点 kind 36・landKind 13 に、VFSV より Control/DateTime が古い VFVO50 の Code 15 を当てた候補） (3) 解除の landKind が残る記録（起点 kind 36・landKind 13 の解除）に Code 13 の引上げを当てた候補は今までどおり出る (4) 本文の Lv と区分の名前は段を決めた Kind から読み、kind と landKind が同じ段なら kind を読む（P3-VR-D-BODY=A） (5) 発表時刻、source、K8 の印の読みは変えない",
+        "requirement": "本当の引上げ: (1) AC01 の読みで段が起点（P3-H27-LIVE-UNITS-001 で採用の直前の live）より上がり、いまも active な火山は今までどおり unit に 1 件の info を desktop と sound に出す (2) kind が 36 のまま landKind だけが上がった候補も引上げと読む（起点 kind 36・landKind 13 に、VFSV より Control/DateTime が古い VFVO50 の Code 15 を当てた候補） (3) 解除の landKind が残る記録（起点 kind 36・landKind 13 の解除）に Code 13 の引上げを当てた候補は今までどおり出る (4) 本文の Lv と区分の名前は段を決めた Kind から読み、kind と landKind が同じ段なら kind を読む（P3-VR-D-BODY=A） (5) 発表時刻、source、K8 の印の読みは変えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»",
           "reconstruction/src/units/volcano/volcano-unit.ts:219 «1e8aa9b9af265d27»",

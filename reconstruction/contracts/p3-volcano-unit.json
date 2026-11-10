@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "8df66785e500be661abc1f8765ca869efce9133a752ac2419458f4bb350ea80b",
+    "sha256": "ff8892dd8406d5601ba321aa5414b316b95f45131cbe7c2eb48d9b88b6b31fff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1155,7 +1155,7 @@
       },
       {
         "id": "P3-C9-AC15",
-        "requirement": "E22のU-V範囲を「VFVO50の警報とVFVO54/55の降灰の火山ごとの最新状態だけ、候補採用はC16」として固定し（P3-C9-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）（P3-RECOVERY-001 の発注 4a で入口を置き換えた: 取り直しは VFVO50・VFVO54・VFVO55 だけを受け、ほかの型は noChange。origin=recovery は C16 の候補の作成のときだけ owner から届き、live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら置き換える古い pending を外す。4a の品質レビュー r0 の P2）。版の比べが決まらない本文は採らず、印も WARN も表示差分も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。取消の相手が 2 件以上〔P3-UM-AC19 の undecided〕も印を置かずに noChange、相手が 0 件の取消は手元に効く記録が無いので stale〔確認を止めない〕で、どちらも WARN を積まない〔4a の契約適合レビュー r0 の P2・P3〕。H27 は採用の step の recoveryNotices: 陸上の警報のレベル〔P3-C9-NOTICE-LEVELS=C の対応の後、active でない火山と記録の無い火山は 1〕が起点より上がり、いまも active な火山のうち最も高い 1 件に info を 1 回、降灰は鳴らさない〔P3-REC-D-N2-RAISE=A〕。payload の 2 欄は codec が対で読み、版は p3-volcano-unit-v7〔v6 は捨ててよい版〕。受入は P3-C9-T11・P3-REC-T15・P3-REC-T19。P3-REC-AC12 により統合担当が改訂）",
+        "requirement": "E22のU-V範囲を「VFVO50の警報とVFVO54/55の降灰の火山ごとの最新状態だけ、候補採用はC16」として固定し（P3-C9-N2）、origin=recoveryを適用しない（unchanged/noChange、state同一参照、intents/outcomes空）（P3-RECOVERY-001 の発注 4a で入口を置き換えた: 取り直しは VFVO50・VFVO54・VFVO55 だけを受け、ほかの型は noChange。origin=recovery は C16 の候補の作成のときだけ owner から届き、live と同じ意味を当てるが intent を作らない（live と同じに作った intent は置換の判定にだけ使い、live なら置き換える古い pending を外す。4a の品質レビュー r0 の P2）。版の比べが決まらない本文は採らず、印も WARN も表示差分も置かずに noChange（owner が held にする、P3-REC-AC05 の (a)）。取消の相手が 2 件以上〔P3-UM-AC19 の undecided〕も印を置かずに noChange、相手が 0 件の取消は手元に効く記録が無いので stale〔確認を止めない〕で、どちらも WARN を積まない〔4a の契約適合レビュー r0 の P2・P3〕。H27 は採用の step の recoveryNotices: 陸上の警報のレベル〔P3-C9-NOTICE-LEVELS=C の対応の後、active でない火山と記録の無い火山は 1〕が起点（P3-H27-LIVE-UNITS-001 で採用の直前の live）より上がり、いまも active な火山のうち最も高い 1 件に info を 1 回、降灰は鳴らさない〔P3-REC-D-N2-RAISE=A〕。payload の 2 欄は codec が対で読み、版は p3-volcano-unit-v7〔v6 は捨ててよい版〕。受入は P3-C9-T11・P3-REC-T15・P3-REC-T19。P3-REC-AC12 により統合担当が改訂）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2205 «48db9eb076ee4278»",
           "docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8»",
