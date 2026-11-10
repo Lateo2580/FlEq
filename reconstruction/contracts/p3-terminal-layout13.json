@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86bb360c4e857d340f328644b670bead0b03474f",
-    "sha256": "e13459edf47883ec45c6115c23b794189088f3eef276e773731aa159be23eb99",
+    "sha256": "5d3676844c01580e9f5ef454b274b785ade6a7e0055967ba49f5297ee3b2f295",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -147,9 +147,9 @@
         "id": "P3-TL13-AC01",
         "requirement": "短い形の帯の題名の版の印（Q-TO-S-1 の改訂、2026-11-09 作者。P3-TERMINAL-LAYOUT-009 の outOfScope「除くなら Q-TO-S-1 の改訂として別に諮る」の改訂）: (1) format.ts の shortForm で、題名から「（Ｒ０６）」の形に加えて「（Ｈ３０）」の形（全角の Ｈ と全角の数字）も除く。除く位置・Control/Status の印・取消の「 取消」・対象の付け方は今のとおり (2) 起動時のまとめと降灰のまとまりの題名は変えない。場面: 写しの 2026-11-08 21:45 の VPTW60 の帯「台風解析・予報情報（５日予報）（Ｈ３０） 熱帯低気圧」は「台風解析・予報情報（５日予報） <対象>」になる（対象は P3-TL9-AC05 の台風の呼称）。synthetic_VPTW60_cancel は「━ 台風解析・予報情報（５日予報） 取消 台風発生予想 ━」",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:846 «9383fe75b8e1aedc»",
-          "docs/specs/cli-terminal-output.md:913 «b46a434035ba0432»",
-          "docs/specs/cli-terminal-output.md:647 «4bc9de7d19861115»",
+          "docs/specs/cli-terminal-output.md:849 «9383fe75b8e1aedc»",
+          "docs/specs/cli-terminal-output.md:916 «b46a434035ba0432»",
+          "docs/specs/cli-terminal-output.md:650 «4bc9de7d19861115»",
           "reconstruction/src/terminal/format.ts:740 «5dc120d9d831d580»",
           "reconstruction/src/terminal/format.ts:741 «c0c88feb27c1040f»",
           "reconstruction/src/terminal/format.ts:827 «52ceff2b61bef634»",
@@ -167,15 +167,15 @@
           "reconstruction/src/runtime/owner-runtime.ts:537 «b1c66d2e0a2f144d»",
           "reconstruction/src/runtime/unit-coverage.ts:44 «f41d86dc1375f9a9»",
           "reconstruction/src/runtime/unit-coverage.ts:97 «716b75f53603c153»",
-          "docs/specs/cli-terminal-output.md:913 «b46a434035ba0432»"
+          "docs/specs/cli-terminal-output.md:916 «b46a434035ba0432»"
         ]
       },
       {
         "id": "P3-TL13-AC03",
         "requirement": "待機中の tips（spec §6.4 の改訂、2026-11-09 作者。P3-TL13-D-TIP-WRAP=A）: (1) format.ts の notice の tip は、前に空行を 1 行置く (2) tips の字を textLines で、端末の幅（ctx.total、100 桁まで）から頭の 2 桁を引いた幅に入るかを見て（tips は縦線を持たないので、電文の本文の幅 ctx.body から引かない）、入らなければ句点で分け、分けた各行を頭に 2 桁の空白を置いて薄い字で出す (3) 句点で分けた文がまだ入らないときは、その文の中で、行の幅（最初の行は端末の幅から 2 桁、続きの行は 4 桁を引いた幅）に入る範囲の最後の読点「、」の後で折り、続きの行を 4 桁下げる。残りがまだ入らなければ同じことを繰り返す。幅の中に読点が無いときは今の wrapChars で字の境目で折る（NO_HEAD の決まりも同じ）。読点の無い所で字の境目で折った後は、その文の残りも字の境目で折る（2026-11-09 夜の契約適合レビュー P2、統合担当の決め。行ごとに読点を探し直すと 56 桁で「と、」だけの短い行を持つ tips が 65 件から 150 件に増える。差が出るのは 56 桁 187 件・80 桁 5 件・100 桁 0 件）。読点を探すのはその 1 文の中を 1 回なぞるだけ（受信の経路ではなく、30 分ごとの tips の 1 件） (4) 幅に入る tips は今と同じ 1 行 (5) tips の待ちの起点（lastOutputMs）・間隔・選び方は変えない。場面: 100 桁で「Tip: 阪神・淡路大震災では、住民による救助や炊き出しが大きな役割を果たしました。公的支援が届くまで…」は、空行の後に句点の後ろで 2 行に分かれる。「Tip: WBGTは1954年に…3つの温度から計算されます。」（1 文で 110 桁）は、空行の後に「  Tip: WBGTは1954年にアメリカ軍が熱中症予防のために開発した指標で、」と「    乾球・湿球・黒球の3つの温度から計算されます。」の 2 行",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:747 «00a1701c96c86dfd»",
-          "docs/specs/cli-terminal-output.md:748 «5485498e6b19b2d9»",
+          "docs/specs/cli-terminal-output.md:750 «00a1701c96c86dfd»",
+          "docs/specs/cli-terminal-output.md:751 «5485498e6b19b2d9»",
           "docs/specs/cli-terminal-output.md:88 «92a8bdfca2603b73»",
           "reconstruction/src/terminal/format.ts:237 «e776e32870e86512»",
           "reconstruction/src/terminal/format.ts:238 «c6e6f460a0ff2fe9»",

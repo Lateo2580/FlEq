@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f954231206e1e01a382d1e218aea8e4c3277e61",
-    "sha256": "36420ebb86471453a6effe08444cf812763d1cb76dcc1011deb0f6fe09fb597c",
+    "sha256": "22df8efd1d6d41020e05c158f4783ca8d5f87cc56274d583f69bc085559b6d2f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -187,27 +187,27 @@
         "id": "P3-TL6-AC01",
         "requirement": "火山の帯（Q-TO7-BAND）: (1) U-V の Kind の Code が 24・25 の報は最も重い段、23 は警報、22・36 は注意にする (2) 11〜15 の段と、表にない code の地の色なしは変えない (3) 同じ報に複数の Code があれば最も重い段で、理由の行は段を決めた Kind の名前（今の読み方のまま）(4) 全国の月間火山概況の報は普通の段のまま、取消は取消の段のまま (5) 段の表は Status の読みを含めて今の ranked の形を使う",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:630 «dd754edbd7f3536e»",
-          "docs/specs/cli-terminal-output.md:632 «8e50fa2078ddde1d»",
-          "docs/specs/cli-terminal-output.md:633 «5902d4229bad53d2»",
-          "docs/specs/cli-terminal-output.md:909 «fa1a2c976abd7072»"
+          "docs/specs/cli-terminal-output.md:633 «dd754edbd7f3536e»",
+          "docs/specs/cli-terminal-output.md:635 «8e50fa2078ddde1d»",
+          "docs/specs/cli-terminal-output.md:636 «5902d4229bad53d2»",
+          "docs/specs/cli-terminal-output.md:912 «fa1a2c976abd7072»"
         ]
       },
       {
         "id": "P3-TL6-AC02",
         "requirement": "VYSE60 の帯（Q-TO7-BAND）: (1) 電文の種類が VYSE60 の報は InfoSerial の有無によらず警報の段にする（unit の P3-C8-VYSE60=A と同じ） (2) 理由の行は出さない（name は null） (3) 取消は取消の段のまま (4) VYSE50〜52 の段は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:632 «8e50fa2078ddde1d»",
-          "docs/specs/cli-terminal-output.md:638 «ab2218d4a63a6607»",
-          "docs/specs/cli-terminal-output.md:909 «fa1a2c976abd7072»",
-          "docs/specs/cli-terminal-output.md:985 «61ce3565fb469ee2»"
+          "docs/specs/cli-terminal-output.md:635 «8e50fa2078ddde1d»",
+          "docs/specs/cli-terminal-output.md:641 «ab2218d4a63a6607»",
+          "docs/specs/cli-terminal-output.md:912 «fa1a2c976abd7072»",
+          "docs/specs/cli-terminal-output.md:989 «61ce3565fb469ee2»"
         ]
       },
       {
         "id": "P3-TL6-AC03",
         "requirement": "音（Q-TO7-SOUND）: (1) noticeLevel は 24 を 4、25 を 5 に読む (2) その結果 VFVO50 の引上げと発表は critical になる (3) 継続・引下げ・解除の読みと、表に無い code の 2 は変えない (4) noticeLevel を読む H27 の段も同じ値になる（別の直しを足さない）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:910 «07af7fd68dcec1a8»"
+          "docs/specs/cli-terminal-output.md:913 «07af7fd68dcec1a8»"
         ]
       },
       {
@@ -215,15 +215,15 @@
         "requirement": "禁則（Q-TO7-KINSOKU）: (1) wrapChars が行頭に置かない字を「、。，．）」』］】〉》)]！？ーぁぃぅぇぉっゃゅょァィゥェォッャュョ」にする (2) 行頭に置かない字が続くとき（「）。」「っ。」）は、続きの全部と、その前の 1 字をまとめて次の行へ送り、行頭に句読点が戻らないようにする (3) 送ると字下げと送る字が幅に入らないときと、行の中身が字下げだけになるときは送らず、今の形で折る。行は幅を超えない (4) 電文の字を足さず消さない。行頭の字下げと折り目のほかは同じ字の列のまま (5) 空白で折った直後の句読点の送り（今の分岐）も同じ字の集合で動く (6) 塗る帯と URL は今のまま折らない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:88 «92a8bdfca2603b73»",
-          "docs/specs/cli-terminal-output.md:911 «15837d334e2534a1»"
+          "docs/specs/cli-terminal-output.md:914 «15837d334e2534a1»"
         ]
       },
       {
         "id": "P3-TL6-AC05",
         "requirement": "見出し文の段下げ（Q-TO7-REASON-INDENT）: (1) 段の理由の行を出す報は、見出し文の各行を 2 桁下げ、折り返した行はさらに 2 桁下げる (2) 理由の行が無い報（見出し文に同じ字がある報、警報より軽い段、VYSE60、噴火速報、取消）は下げない (3) 行は幅を超えない (4) 帯、理由の行、末尾の行の位置は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:638 «ab2218d4a63a6607»",
-          "docs/specs/cli-terminal-output.md:912 «f1c0a37b2f0e1517»"
+          "docs/specs/cli-terminal-output.md:641 «ab2218d4a63a6607»",
+          "docs/specs/cli-terminal-output.md:915 «f1c0a37b2f0e1517»"
         ]
       }
     ],

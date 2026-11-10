@@ -1,0 +1,280 @@
+{
+  "meta": {
+    "draftedFromOid": "c5a15ffb15da81857b549ae38368673564ea1196",
+    "sha256": "0621764d5c3671259730921700e8aa51921b9b00ab1045863d6057aeef48c762",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL18-D-HEADER",
+        "kind": "作者",
+        "A": "台風の暴風域に入る確率（VPTA50〜55）の府県の行の上に、薄い字の見出しの行「府県・最悪地域・確率・ピーク」を出す。揃えは値の行と同じ。地域の列を出さない報では「最悪地域」も出さない。2 行に折る形（P3-TL16-D-NARROW=A）では見出しも「府県」と「  最悪地域 … 確率  ピーク」の 2 行",
+        "B": "今のまま（見出しの行なし。P3-TERMINAL-LAYOUT-016 の形）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-10 19 時台。起草の前）",
+        "ruling": "A（作者の裁定、2026-11-10）",
+        "reason": "場面: P3-TERMINAL-LAYOUT-016 の府県の行は「奄美地方  北部  100%  06/02 03時頃」の 4 つの列だけで、どの列が最悪の地域・最大の確率・ピークの時刻かを示す行が無い（spec §5.4 の 80 桁の図）。旧築の同じ表は 4 列の見出し「府県・最悪地域・確率・ピーク」を持つ（src/ui/typhoon-probability-formatter.ts の FOUR_COL_DEF、219〜224 行。3 列の形 THREE_COL_DEF は「最悪地域」を持たない）。語は旧築の見出しのまま"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL18-WIDTH",
+        "status": "closed",
+        "source": "起草（2026-11-10）。裁定の「揃えは値の行と同じ」の読み",
+        "closed": "見出しの語を値の行と同じ列に置くので、各列の幅は見出しの語と値の最も長い字の大きい方にする（今の typhoonLines は値だけで測る）。「確率」は値と同じく右に揃え、「ピーク」は最後の列で詰めない。fixture では値の行の字は変わらない: 76_01_01・76_01_02 の府県名は 6 桁以上（「府県」4 桁）、地域名の最長は 16・14 桁（「最悪地域」8 桁）、確率の最長は「100%」4 桁（「確率」4 桁）。値が見出しの語より短い報（例: 1 府県だけで地域名が「北部」4 桁、確率が「5%」）では列が見出しの幅まで広がり、値の行の空白が今より増える（P3-TL18-T04）。1 行に入るかの判定は見出しの行も含めて測る（今の形では見出しの行が値の行より長くなるのは時刻の欄が全部空の報だけ）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL18-PEAK",
+        "status": "closed",
+        "source": "起草（2026-11-10）。時刻の欄が全部空の報で「ピーク」を出すか",
+        "closed": "出す（今の typhoonLines は時刻の欄が空でも列の間の 2 桁と時刻の欄を置き、行末の空白を書き出しで除くだけで、時刻の列を落とす分岐が無い。地域の列を落とす分岐〔areaSize === 0〕はある）。fixture で時刻の欄が全部空になる報は 0 本（76_01_01・76_01_02 は rows の全部に時刻があり、空の行は P3-TL16-T05 が時系列を書き換えて作る 1 行だけ）。起きない場面なので今の列の形のままにし、残存に書く",
+        "remaining": "なし（残存 (1)）"
+      },
+      {
+        "id": "Q-TL18-TESTS",
+        "status": "closed",
+        "source": "起草（2026-11-10）。期待が変わる既存の試験の数え",
+        "closed": "reconstruction/test を「時頃」で grep すると当たるのは layout16.test.ts だけ（28 行）。起草の写しで AC01 を当てて terminal の試験 35 file を回すと、落ちたのは layout16.test.ts の P3-TL16-T01・T02・T05 の 3 件だけ（ほかに写しに dist が無く動かない prompt-host・stall・windows の 3 file の 8 件。P3-TERMINAL-LAYOUT-017 の起草と同じ）。T03（rows が空）・T04（材料）・T06〜T08（「ほか」の行の折りと材料）は変わらない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL18-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-10）",
+        "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける（P3-TERMINAL-LAYOUT-017 と同じ）",
+        "remaining": "発注の時の baseOid（統合担当）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。見出しの行は運用区分によらず同じ形"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-018",
+    "mode": "implementation",
+    "objective": "作者の裁定（2026-11-10、P3-TL18-D-HEADER=A）のとおり、台風の暴風域に入る確率（VPTA50〜55）の短い形の府県の行（P3-TERMINAL-LAYOUT-016）の上に、薄い字の見出しの行「府県・最悪地域・確率・ピーク」を足す。材料（material.ts の probability）と型は変えず、整形（format.ts の typhoonLines）だけを改める。spec は起草で直した（§5.4 の図の 588・605・606 行と 651 行、§8 の Q-TO18-VPTA50-HEADER の 938 行）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout18.json",
+      "reconstruction/contracts/p3-terminal-layout16.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/test/terminal/**",
+      "src/ui/typhoon-probability-formatter.ts",
+      "test/fixtures/76_01_01_200630_VPTA50.xml",
+      "test/fixtures/76_01_02_260531_VPTA50.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/format.ts（P3-TL18-AC01 だけ。typhoonLines〔969〜984 行〕の中だけを変える。1〜968 行は変えない。typhoonLines の中で行が増えると 985 行から後〔riskLines・書き出す文字〕がずれるので、配送で «» を付け直す〔artifactRequirements の原文の改訂〕）",
+      "reconstruction/test/terminal/layout16.test.ts（P3-TL16-T01・T02・T05 の期待に見出しの行を足し〔P3-TL18-T01・T02 と、artifactRequirements の期待の変わる試験〕、P3-TL18-T03・T04 を末尾に新しい describe で足す。既存の helper〔owned・editItems・setValues・fiveDay〕を使う）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout18.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-016"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口も型も変えない（createRenderer・createTerminalOutput と TerminalReport のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（format.ts の中の width・pad・line・seg を使う。import を足さない）"
+    ],
+    "fixtureIds": [
+      "test__fixtures__76_01_01_200630_VPTA50",
+      "test__fixtures__76_01_02_260531_VPTA50"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O02"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし（材料の probability〔P3-TL16-AC01〕を描くだけで、欄を足さない）"
+    ],
+    "outOfScope": [
+      "材料（material.ts の typhoonRows）と型（p3-terminal-output.types.ts）、府県の行の数と並び（P3-TL16-D-TIE）、「ほか n 府県」の行",
+      "時刻の欄が全部空の報で「ピーク」の列を落とすこと（Q-TL18-PEAK）",
+      "旧築の 3 列の形（THREE_COL_DEF。狭い端末で「最悪地域」の列を落とす形）。新築の狭い端末は P3-TL16-D-NARROW=A の 2 行の形のまま",
+      "spec の起草で直した行のほかの行、閉じた契約の原文の改訂 (1) のほかの文",
+      "ディスプレイ（P4）・runtime・旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL18-AC01",
+        "requirement": "府県の行の見出しの行（P3-TL18-D-HEADER=A、作者の裁定 2026-11-10。spec §5.4 の 651 行・Q-TO18-VPTA50-HEADER）: (1) 対象は短い形で probability の rows が 1 つ以上ある報（今 typhoonLines が府県の行を出す報）。rows が空の報（76_01_03 など）と probability が null の報（取消・VPTW60〜65・ほかの報）は見出しの行も出さず、画面は変わらない (2) 置き場と字: 府県の行の先頭（rows の最初の行の上。見出し文の行の後で、府県の行の前に区切りの罫線は足さない）に 1 行。語は「府県」「最悪地域」「確率」「ピーク」（旧築 src/ui/typhoon-probability-formatter.ts の FOUR_COL_DEF の header と同じ字）で、薄い字（role \"dim\"。「ほか n 府県」と同じ） (3) 揃え（Q-TL18-WIDTH）: 見出しの語は値の行と同じ列に置く。各列の幅は見出しの語と値の最も長い字の大きい方（今の typhoonLines の most は値だけで測る。977 行）、列の間は空白 2 桁のまま。「府県」「最悪地域」は左に揃え、「確率」は値と同じく右に揃え（width で測って左に空白を足す。String の padStart は字の数で数えるので全角の語には使わない）、「ピーク」は最後の列で詰めない。地域の列を出さない報（rows の全部で地域の欄が空。今の areaSize === 0 の分岐）は「最悪地域」も出さず、「府県  確率  ピーク」の 3 つの語にする (4) 1 行に入るかは見出しの行も含めて測る（揃えた行の最も長いものが本文の幅に入らなければ 2 行の形。今の 981 行の判定に見出しの行を足す）。2 行の形（P3-TL16-D-NARROW=A）では見出しも 2 行で、1 行目は「府県」、2 行目は空白 2 桁の後に「最悪地域」「確率」「ピーク」を値の 2 行目と同じ列に揃える（どちらも薄い字。地域の列を出さない報では 2 行目は「確率  ピーク」だけ） (5) 時刻の欄が全部空の報でも「ピーク」を出す（Q-TL18-PEAK。今の形は時刻の列を落とさない） (6) 値の行・「ほか n 府県」の行・帯・末尾の行と、P3-TL16-D-TIE の行の数は変えない（見出しの行は rows に数えない）。値が見出しの語より短い報では、(3) の幅で値の行の空白が今より増える（P3-TL18-T04） (7) 形は format.ts の typhoonLines（969〜984 行）の中で作る。新しい関数・helper・定数は足さない（無いと壊れるものが無い。既存の width・pad・line・seg で足りる）。見出しの行を rows と同じ表に並べて幅を測ると、値の行と同じ式で組める (8) 計算量（AGENTS.md の受信経路）: renderer の中で rows（96 行まで）に見出しの 1 行を足して幅を 1 回測るだけで、受信の main（publisher・material）の仕事は変えない。場面: 76_01_02（2026-05-31 09:55、台風第6号 JANGMI）の 100 桁は、帯の下が「府県                      最悪地域        確率  ピーク」（薄い字）、「奄美地方                  北部            100%  06/02 03時頃」から「三重県                    紀勢・東紀州     73%  06/03 06時頃」の 7 行、「ほか 37 府県」になる（spec の 80 桁の図の 588 行）。56 桁は「府県」「  最悪地域        確率  ピーク」の 2 行の見出しの後に府県ごとの 2 行（同じ所の 605・606 行）",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:969 «74b467cab9954133»",
+          "reconstruction/src/terminal/format.ts:974 «67a48e1ba528e32b»",
+          "reconstruction/src/terminal/format.ts:983 «add890a2623178b4»",
+          "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
+          "src/ui/typhoon-probability-formatter.ts:219 «bdac85dfcce36724»",
+          "src/ui/typhoon-probability-formatter.ts:221 «301617438ccf5f3b»",
+          "docs/specs/cli-terminal-output.md:588 «e0c806e59421e79d»",
+          "docs/specs/cli-terminal-output.md:605 «8460b5bef8ae08db»",
+          "docs/specs/cli-terminal-output.md:606 «78954e33cf1d14a9»",
+          "docs/specs/cli-terminal-output.md:651 «ba0db1209b763ce0»",
+          "docs/specs/cli-terminal-output.md:938 «b89460fcf36fa8d3»",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "id": "P3-TL18-AC02",
+        "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 588 行（80 桁の図の見出しの行）、605・606 行（56 桁の図の 2 行の見出し）、651 行（台風の暴風域に入る確率の項。見出しの行・列の幅・地域の列の無い報・2 行の形・rows が空の報）、938 行（Q-TO18-VPTA50-HEADER を Q-TO17-VPWP50-SINGLE の後に足した）。spec の行を引く契約の «» を同じ起草で付け直した（中身を変えた 648→651 行を引く p3-terminal-layout16.json の 2 か所は新しい anchor を手で入れ、図の 3 行と §8 の 1 行で後ろにずれた行は reanchor-target.py で 24 契約） (2) 閉じた契約の文 1 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)。行の数は変えない）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:588 «e0c806e59421e79d»",
+          "docs/specs/cli-terminal-output.md:651 «ba0db1209b763ce0»",
+          "docs/specs/cli-terminal-output.md:938 «b89460fcf36fa8d3»",
+          "reconstruction/contracts/p3-terminal-layout16.json:219 «967a413fad77e629»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL18-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-TL18-AC01"
+        ],
+        "behavior": "corpus 履歴（76_01_02、台風第6号 JANGMI）。layout16.test.ts の P3-TL16-T01 の期待を改めて受け持つ（同じ owner の道と本物の出力の経路）。(a) 100 桁: 帯の行の後に \"府県                      最悪地域        確率  ピーク\" を足し、その後は今の JANGMI_ROWS の 7 行・\"ほか 37 府県\"・\"VPTA50 ・ 気象庁\" のまま。80 桁も同じ本文の行 (b) 56 桁: \"09:55:00 発表\" の後に \"府県\"・\"  最悪地域        確率  ピーク\" を足し、その後は今の府県ごとの 2 行のまま（2 行の見出しの 2 行目は値の 2 行目と同じ列）"
+      },
+      {
+        "testId": "P3-TL18-T02",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-TL18-AC01"
+        ],
+        "behavior": "corpus 履歴（76_01_01、気象庁のサンプル、台風第1号 DAMREY、17 府県で大東島地方の地域の欄が空）。layout16.test.ts の P3-TL16-T02 の期待を改めて受け持つ。80 桁の帯の下の行の先頭に \"府県                      最悪地域          確率  ピーク\" を足し、その後の 17 行と \"ほか 28 府県\" は今のまま（大東島地方だけ地域の欄が空でも、ほかの府県に地域があるので「最悪地域」は出す。地域の列の幅は「小林・えびの地区」の 16 桁）"
+      },
+      {
+        "testId": "P3-TL18-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL18-AC01"
+        ],
+        "behavior": "契約境界（P3-TL18-AC01 (3)(4) の地域の列を出さない報）。76_01_02 の 5日積算の値を Area/Code 472000（大東島地方。府県名と地域名が同じ）だけ 90 にしてほかを 0 にした報（layout16.test.ts の fiveDay で XML を書き換える。時系列は書き換えない）を reportOf（U-Y）で作り、terminal(80) と terminal(56) で描いた帯の下の行が、どちらも [\"府県        確率  ピーク\", \"大東島地方   90%  06/01 21時頃\"]（「最悪地域」の語が無く、確率は右に揃う。56 桁でも 1 行に入るので 2 行の形にならない）"
+      },
+      {
+        "testId": "P3-TL18-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL18-AC01"
+        ],
+        "behavior": "契約境界（P3-TL18-AC01 (3)(6) の列の幅が見出しの語で決まる報）。76_01_02 の 5日積算の値を Area/Code 460041（奄美地方 北部）だけ 5 にしてほかを 0 にした報（T03 と同じ書き換え）を terminal(80) で描いた帯の下の行が [\"府県      最悪地域  確率  ピーク\", \"奄美地方  北部        5%  06/02 03時頃\"]（地域の列は「最悪地域」の 8 桁、確率の列は「確率」の 4 桁で、値の行の空白が見出しの幅まで広がる）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O02 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: AC01 は typhoonLines の中の書き換えだけで、無いと府県の行の 4 つの列が何かを示す行が無い。新しい関数・export・設定・型の欄・file は作らない。既存の width・pad・line・seg を使う。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01・T02 は corpus 履歴、T03・T04 は契約境界。layout16.test.ts の T05 の期待の書き換えは AC01 (2) の見出しの行の足し）",
+      "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は renderer の中で rows（96 まで）と見出しの 1 行の幅を 1 回測るだけで、受信の main（publisher・material）の仕事は変えない",
+      "期待が変わる既存の試験（変える理由はどれも AC01 (2) の見出しの行。値の行の字は変わらない）: (1) layout16.test.ts の P3-TL16-T01: 100 桁の期待で帯の行と JANGMI_ROWS の間に \"府県                      最悪地域        確率  ピーク\"、56 桁の期待で \"09:55:00 発表\" と \"奄美地方\" の間に \"府県\"・\"  最悪地域        確率  ピーク\"（P3-TL18-T01） (2) 同じ file の P3-TL16-T02: slice(2, -1) の先頭に \"府県                      最悪地域          確率  ピーク\"（P3-TL18-T02） (3) 同じ file の P3-TL16-T05: slice(2, -1) の先頭に \"府県                      最悪地域        確率  ピーク\"（時刻の欄が空の行があっても見出しは変わらない）。ほかの期待（P3-TL16-T03・T04・T06〜T08、width.test.ts の P3-TL-T05 を含む）は変えない。ほかを変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "起草の確かめ: P3-TL18-T01〜T04 の期待の字は、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し、AC01 を当てた typhoonLines（見出しの 1 行を rows と同じ表に並べて幅を測り、2 行の形でも同じ表から組む形）で、T01 は owner の道（layout16.test.ts の owned と同じ）、T02〜T04 は terminal-fixture の reportOf・terminal で描いて写した（vitest の中で行を出す使い捨ての試験 file。写しは消す）。同じ写しで terminal の試験 35 file を回し、落ちたのは Q-TL18-TESTS の 3 件だけだった。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
+      "本物の経路での写し（統合担当、配送の前）: 実装の後の木で、P3-TERMINAL-LAYOUT-016 の写しと同じ形（watch を COLUMNS を変えて起こし、/inject?type=VPTA50&retime=0 で fixture を入れる）で 76_01_02 を 56 桁と 100 桁で写し、P3-TL18-T01 と同じ行が出ることを見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 時刻の欄が全部空の報でも「ピーク」の語を出す（Q-TL18-PEAK。fixture では起きない） (2) 値が見出しの語より短い報（府県が少なく地域名・確率の字が短い報）では、列が見出しの幅まで広がり、P3-TERMINAL-LAYOUT-016 の形より値の行の空白が増える (3) 見出しの行の薄い字は色 0 の renderer の試験では見えない（T01〜T04 は字だけを見る。役目の字は「ほか n 府県」と同じ \"dim\"）",
+      "原文の改訂（統合担当が配送の commit で当てる。既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout16.json:219 の P3-TL16-AC02 の (1) の「（各列の幅はその報の rows の中の最も長い字）」の後に「（P3-TERMINAL-LAYOUT-018 で、府県の行の上に薄い字の見出しの行「府県  最悪地域  確率  ピーク」を足し、各列の幅を見出しの語と値の長い方にした。作者の裁定 P3-TL18-D-HEADER=A、2026-11-10）」を書き足す。この行は本契約の AC02 だけが引く（ほかの契約の «» は p3-terminal-layout16.json を引いていない）ので、新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で typhoonLines の中の行の数が変わると、format.ts の 985 行から後がずれる。起草の時に format.ts の 969 行から後を引く «» は p3-terminal-layout17.json の 969・993 行と本契約の 969・974・983 行で、969 行（typhoonLines の頭）と 974 行は動かない。中身の同じ行は reanchor-target.py reconstruction/src/terminal/format.ts で付け直し、本契約の 983 行（return の行）の中身を変えたときは新しい行の anchor を手で入れる。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-TL18-LIVE",
+        "owner": "integrator",
+        "blocks": [
+          "実配信での確かめ（発注も配送も止めない）"
+        ],
+        "resolveBy": "配送の後の最初の台風の暴風域に入る確率の報",
+        "requiredEvidence": [
+          "Mac mini の新築の端末に出た見出しの行が、値の行と同じ列に揃うことを写しで 1 回見る"
+        ]
+      }
+    ]
+  }
+}

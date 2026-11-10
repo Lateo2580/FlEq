@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a1226f98113235605d840d21265f218189b9949c",
-    "sha256": "b7e89e5a7a144f4ca32e91833a40fb55370355a118f610cf3212484bad49678e",
+    "sha256": "5cf50be9420ddc70ff22db2bb8e4854865e9a53358b041bbad1893a79f40f216",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -198,7 +198,7 @@
         "id": "P3-TL3-AC01",
         "requirement": "帯と段（Q-TO4-MONTHLY）: (1) 全国の月間火山概況の報は、Head の Title に「全国の活火山」を含む VFVO51 とする (2) 帯の対象は Body の最初の Area でなく「全国の活火山」にする (3) 段は Kind によらず普通にし、段の理由の行を出さない (4) 取消の報は段を取消のまま、対象だけ「全国の活火山」にする (5) 全国の活火山を含まない VFVO51 と、他の種類の報の対象・段・理由の行は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:639 «ecbcd59bd24b1841»",
+          "docs/specs/cli-terminal-output.md:642 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:510 «fd60700b6ab030a4»"
         ]
       },
@@ -206,7 +206,7 @@
         "id": "P3-TL3-AC02",
         "requirement": "文（Q-TO4-MONTHLY）: 見出し文は言い換えず、AC06 の空白のほかは 1 字も変えず、今の短い形と同じ行の分け方で出す。「その概要は以下のとおりです。」を落とさない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:639 «ecbcd59bd24b1841»",
+          "docs/specs/cli-terminal-output.md:642 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:510 «fd60700b6ab030a4»"
         ]
       },
@@ -214,7 +214,7 @@
         "id": "P3-TL3-AC03",
         "requirement": "表（Q-TO4-MONTHLY）: (1) 見出し文の下に、Body の Item を電文の順に 1 行ずつ出す。左の列は Kind の Name の全角の「（」より前、右の列はその Item の Area の Name (2) Kind の Name に「活火山であることに留意」を含む Item は行にせず、Area の数の合計を「ほか n 火山」の 1 行にする。0 なら行を出さない (3) 右の列が入らないときは名前の境で折り、折り返した行にも左の列を出す（P3-TL2-AC06 (2) と同じ flow の形）。列の見出しの行は出さない (4) 読む Area は material の既存の上限（AREA_LIMIT）までで、越えた分は「ほか n 火山」に足す (5) 取消の報には表を出さない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:639 «ecbcd59bd24b1841»",
+          "docs/specs/cli-terminal-output.md:642 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:510 «fd60700b6ab030a4»"
         ]
       },
@@ -222,25 +222,25 @@
         "id": "P3-TL3-AC04",
         "requirement": "行き先（Q-TO4-MONTHLY、Q-TO-Q-5）: 取消でない全国の月間火山概況の報は、補足のまとまりに「月間火山概況・火山活動解説資料（気象庁ホームページ）」の 1 行と、折らない URL の 1 行（url: true）を出す。URL は https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php の固定の字",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:639 «ecbcd59bd24b1841»",
+          "docs/specs/cli-terminal-output.md:642 «ecbcd59bd24b1841»",
           "docs/specs/cli-terminal-output.md:510 «fd60700b6ab030a4»",
-          "docs/specs/cli-terminal-output.md:888 «af348735afc8259a»"
+          "docs/specs/cli-terminal-output.md:891 «af348735afc8259a»"
         ]
       },
       {
         "id": "P3-TL3-AC05",
         "requirement": "取消の文（Q-TO4-CANCEL）: (1) 短い形の取消の報は、Body の直下の最初の Text があれば見出し文の代わりに出す。VolcanoInfo など Body の下の要素の中の Text は読まない (2) Text が無いか空なら見出し文を出す (3) 見出し文も Text も無ければ文の行を出さない (4) 取消でない報は Body の Text を読まない (5) 文字数の上限は material の既存の read による",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:640 «6c7ab8968ce91344»",
-          "docs/specs/cli-terminal-output.md:889 «bf5e2c75f76ded6e»"
+          "docs/specs/cli-terminal-output.md:643 «6c7ab8968ce91344»",
+          "docs/specs/cli-terminal-output.md:892 «bf5e2c75f76ded6e»"
         ]
       },
       {
         "id": "P3-TL3-AC06",
         "requirement": "空白（Q-TO4-SPACE）: 短い形の文（見出し文と取消の文）について (1) 各行の前後の半角・全角の空白を除く (2) 前の行の末尾が文字か開き括弧で、次の行が「項目：」の形（コロンの直前が数字でないもの）でない改行は字を入れずに継ぐ (3) ほかの改行は空白 1 つにする (4) 行頭の項目名の均等割付（1 字、全角か半角の空白、1 字、：）を詰める (5) 句読点の直前の空白を除く (6) 行の途中の区切りの全角空白は残す (7) 短い形でない報の文は変えない",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:641 «d2ad9f5976facb80»",
-          "docs/specs/cli-terminal-output.md:890 «df37600a1855d371»"
+          "docs/specs/cli-terminal-output.md:644 «d2ad9f5976facb80»",
+          "docs/specs/cli-terminal-output.md:893 «df37600a1855d371»"
         ]
       }
     ],
