@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e53b60cff971e8c18e10398b40584cbaac396b9c",
-    "sha256": "9fd5d53b9289caee8458889ade3a9b1578d6ac54683a1579e603b9070aa246b1",
+    "sha256": "886359d504ce0121756371315cd5a14a9c6df10dc383780c4b5dc890ddc5b67c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -236,7 +236,7 @@
           "reconstruction/src/terminal/format.ts:738 «f21152385915a7df»",
           "reconstruction/src/terminal/format.ts:739 «b16b7a7ac73001ae»",
           "reconstruction/src/terminal/format.ts:748 «63ac2c731cfbd2c4»",
-          "reconstruction/src/terminal/material.ts:154 «350fb3f40599ad30»",
+          "reconstruction/src/terminal/material.ts:173 «350fb3f40599ad30»",
           "reconstruction/src/runtime/owner-runtime.ts:118 «4b4c6774cb5a4b56»",
           "reconstruction/src/domains/weather-current/weather-current.ts:218 «a460947a42646b3f»",
           "reconstruction/src/domains/landslide/landslide.ts:98 «5d7135dfff6248cd»",
@@ -255,12 +255,12 @@
           "docs/specs/cli-terminal-output.md:943 «fd770dad13ce7269»",
           "docs/specs/cli-terminal-output.md:656 «9c66f8919dbc34b0»",
           "reconstruction/contracts/p3-terminal-output.types.ts:87 «26ce92f9efa5e054»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:89 «6b99350529f98635»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:90 «d213b347f85de42b»",
           "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
-          "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
-          "reconstruction/src/terminal/material.ts:155 «14d9c5d94d4c84ec»",
-          "reconstruction/src/terminal/material.ts:284 «32f2cccc604c620d»",
-          "reconstruction/src/terminal/material.ts:298 «2ea903faf02554fd»",
+          "reconstruction/src/terminal/material.ts:166 «2520d8297f098019»",
+          "reconstruction/src/terminal/material.ts:174 «14d9c5d94d4c84ec»",
+          "reconstruction/src/terminal/material.ts:331 «32f2cccc604c620d»",
+          "reconstruction/src/terminal/material.ts:345 «2ea903faf02554fd»",
           "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:20 «9650b5a64a4bf7f2»",
           "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:273 «c27f48fb6f5a4878»",
           "test/fixtures/15_17_01_251222_VPWW55.xml:431 «c27f48fb6f5a4878»",
@@ -277,7 +277,7 @@
           "reconstruction/src/terminal/format.ts:195 «9459fdcf6cb53e57»",
           "reconstruction/src/terminal/format.ts:761 «c70e1e6c94f17c1e»",
           "reconstruction/src/terminal/format.ts:762 «f51d57435bfaae47»",
-          "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
+          "reconstruction/src/terminal/format.ts:777 «ce2bb7497bf5174d»",
           "test/fixtures/18_00_01_260830_VPWW55_fukui_release.xml:20 «9650b5a64a4bf7f2»"
         ]
       },
@@ -286,8 +286,8 @@
         "requirement": "計算量・口（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) 足すのは scan の同じ辿りの中の Item ごとの Kind の確かめと、行の Map を鍵で 1 回引くことだけ。新しい辿り・JSON.stringify・報の並びの走査をしない (2) released の大きさ（output.ts の estimate の数え方: 文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte、鍵は鍵の byte）: label と区域の名前は 32 字まで（AC02 (3)、UTF-8 で 96 byte まで）。外側は入れ物 8 と鍵 rows・others の 10 と others の 8 と rows の列の 8 で 34 byte。1 行は添字の鍵 2 と入れ物 8 と鍵 label・areas の 10 と label 96 と areas の列 8 で 124 byte 以下、行は 100 まで（12,400 byte 以下）。区域の延べ 1 つは添字の鍵 3 と名前 96 で 99 byte 以下、512 まで（50,688 byte 以下）。合わせて 63,122 byte 以下（64 KiB 以下と書く）で、Item の数（256）によらない。受信 1 回の仕事は層の Item の数と Item の子の Kind の数に比例する加算で、全件×全件の走査は無い (3) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink の型（TerminalSink はその配送の制約。後に P3-TERMINAL-DEBUG-REJECT-001 で inputDropped を足した）。TerminalReport の short に欄 released を 1 つ足す（publicTypes、P3-TERMINAL-LAYOUT-008 の national と同じ足し方）。runtime と U-W・U-L を変えない",
         "evidenceRefs": [
           "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
-          "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:89 «6b99350529f98635»"
+          "reconstruction/src/terminal/material.ts:166 «2520d8297f098019»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:90 «d213b347f85de42b»"
         ]
       }
     ],

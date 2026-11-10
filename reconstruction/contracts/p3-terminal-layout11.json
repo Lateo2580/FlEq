@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "3eb6f846e13ed03defc66e0b53a8aa09466c8edc68f5132fe2fdb6b33c0d4f7b",
+    "sha256": "52feede2c919220ba8e51b20747ad413f55b390ae62caa0401b07ee7e4043daa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -279,7 +279,7 @@
     "outOfScope": [
       "EEW の発生時刻・緯度経度・精度の行（旧築にあり新築に無い。spec §5.1 の「旧築から外すもの」と Q-TO-EEW-2〔2026-11-01 作者〕で外すと決まっている。起草では足さない）",
       "EEW の M の色（旧築は黄。作者の言葉は震源の名前だけ）と、地震の情報（VXSE51〜53 など）の震源の行",
-      "VPWP50 の 1 件の形（P3-TL11-D-TS-SINGLE=A で今のまま。帯の下の種類の行は P3-TERMINAL-LAYOUT-017 で足した）と、区域ごとの中身・時間帯・ピーク時刻",
+      "VPWP50 の 1 件の形（P3-TL11-D-TS-SINGLE=A で今のまま。帯の下の種類の行は P3-TERMINAL-LAYOUT-017 で足した。種類ごとの時間帯と市町村等は P3-TERMINAL-LAYOUT-019 で足した）と、区域ごとの中身・時間帯・ピーク時刻",
       "U-F（weather-timeseries の unit）の判定・state・保存の形式・通知、runtime（composition-root.ts・host.ts）",
       "ディスプレイ（P4）と view・snapshot の扱い、通知の文面",
       "旧築（src/）",
@@ -297,7 +297,7 @@
           "reconstruction/src/terminal/output.ts:310 «5b067329afa793ce»",
           "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
           "reconstruction/src/terminal/output.ts:556 «9adf0ae5f749e324»",
-          "reconstruction/src/terminal/material.ts:213 «ebb86d4fb6943021»",
+          "reconstruction/src/terminal/material.ts:260 «ebb86d4fb6943021»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:85 «6482a5ef855183e0»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:212 «f9e340690c98b51c»"
         ]
@@ -306,10 +306,10 @@
         "id": "P3-TL11-AC02",
         "requirement": "時系列情報の種類の材料（P3-TL11-D-TS-KINDS=A、2026-11-09 の作者の裁定）: (1) p3-terminal-output.types.ts の TerminalReport の short に欄 risks を 1 つ足す。形は読み取りだけの { type: string; name: string; code: string } の並びか null。unit が U-F で headType が VPWP50、InfoType が取消でない報では必ず非 null（並びが空のこともある）、ほかの報（VPWP50 の取消を含む）は null。注釈の行に意味を書く (2) 集め方: material.ts の scan の同じ辿りの中で、Body → MeteorologicalInfos（type が量的予想時系列〔市町村等〕のもの）→ TimeSeriesInfo → Item → Kind → Property → SignificancyPart → Base（→ Local）の各段の直下をたどった Significancy だけを採る。道を外れた要素（付加事項 Addition・未知の要素を含む）の下では採らない（U-F の weather-timeseries.ts の inspect の読み方と同じ。SignificancyPart 以外の Part の下は採らない、残存 (7)）。その Significancy ごとに、type 属性の字（前後の空白を除く）と Name と Code の字（read の字）を組にし、Code が 2 桁の 20〜59 のものだけを集める。type ごとに Code の数が最も大きい組を 1 つ残し（同じ数なら電文で先の組。type ごとの Map で 1 回だけ引く）、type の並びは電文で先に現れた順。type か Name か Code が無いか空の要素と、type か Name が 32 字を越える要素は入れない。32 種類までで、越えた type は入れない（13 本の fixture を通した type は 15 種類、字の最長は「警戒レベル４相当」の 8 字）。Code を読むのは並べるかどうかだけで、出す字は電文の Name と type のまま（Code を名前に読み替えない） (3) 走査を増やさない: scan は今も Body の全部の要素を 1 回辿っている（Kind を集めるため）。Significancy を集めるのは unit が U-F で headType が VPWP50 のときだけ (4) 場面: 81_02_01（宗谷地方、17:00）の risks は 土砂災害危険度・警戒レベル4相当・41、大雨浸水危険度・特別警報級・50 の 2 組（電文に先に現れた type の順）。81_02_01 の Base に付加事項 Addition を足し、その中に風危険度・特別警報級・50 の Significancy を置いた報でも risks は同じ 2 組。81_01_01（Code が 00・01・11 だけ）は空の並び。81_04_01（取消）は null",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-terminal-output.types.ts:89 «6b99350529f98635»",
-          "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
-          "reconstruction/src/terminal/material.ts:155 «14d9c5d94d4c84ec»",
-          "reconstruction/src/terminal/material.ts:284 «32f2cccc604c620d»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:90 «d213b347f85de42b»",
+          "reconstruction/src/terminal/material.ts:166 «2520d8297f098019»",
+          "reconstruction/src/terminal/material.ts:174 «14d9c5d94d4c84ec»",
+          "reconstruction/src/terminal/material.ts:331 «32f2cccc604c620d»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:15 «19a724da7c71f265»",
           "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml:39 «436cce9fa5e3b8dc»",
           "docs/specs/cli-terminal-output.md:940 «d1f1b6799dc1c82b»",
@@ -357,8 +357,8 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
           "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
-          "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",
-          "reconstruction/contracts/p3-terminal-output.types.ts:89 «6b99350529f98635»"
+          "reconstruction/src/terminal/material.ts:166 «2520d8297f098019»",
+          "reconstruction/contracts/p3-terminal-output.types.ts:90 «d213b347f85de42b»"
         ]
       }
     ],

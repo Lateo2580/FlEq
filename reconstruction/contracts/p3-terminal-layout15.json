@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "6429480d82ef03fe835e45c33e12241bc8790dc42cf73d023f196d694700c635",
+    "sha256": "51b3d310a74f7ad686c5791dac735f6dfeada6a9322d379093402442ac0d3942",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -181,7 +181,7 @@
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:738 «f21152385915a7df»",
           "reconstruction/src/terminal/format.ts:739 «b16b7a7ac73001ae»",
-          "reconstruction/src/terminal/material.ts:154 «350fb3f40599ad30»",
+          "reconstruction/src/terminal/material.ts:173 «350fb3f40599ad30»",
           "docs/specs/cli-terminal-output.md:635 «611771927b6a834e»",
           "docs/specs/cli-terminal-output.md:942 «bdfb07fd31cac44c»",
           "test/fixtures/83_01_01_250630_VPZJ51.xml:11 «32d182df5931a146»",
@@ -219,7 +219,7 @@
           "docs/specs/cli-terminal-output.md:481 «c058d592d569640f»",
           "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
           "reconstruction/src/terminal/format.ts:770 «103735192383710c»",
-          "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
+          "reconstruction/src/terminal/format.ts:777 «ce2bb7497bf5174d»",
           "reconstruction/contracts/p3-terminal-layout.json:318 «6359e25f097fa58c»"
         ]
       }

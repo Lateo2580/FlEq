@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "ec27f5af6d1eefb1347a9946471be00dd66bd53b779ebe361cc9b33b349b82b5",
+    "sha256": "d45c1dd41dcac1f1e5f5411d1a5714d8e5cb2441c198d8635c6f19034c3e4dc9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -16,7 +16,7 @@
         "provisional": "B",
         "status": "確定（作者の裁定、2026-11-10。起草の前）",
         "ruling": "B（作者の裁定、2026-11-10）",
-        "reason": "場面: 2026-11-10 14:41 に福井地方気象台の VPWP50 が 1 件だけの便で届き、Mac mini の新築の端末は帯「━ 福井県警戒・注意事項時系列情報 ━…━ 14:41:00 発表 ━」と末尾「VPWP50 ・ 福井地方気象台」の 2 行だけだった（写し ~/dev/fleq-vault-archive/2026-11-10-snap/mini-new-J.txt の 734〜735 行）。旧築は同じ報で「[霜 11]」と市町ごとの「霜注意報 @福井市　時刻枠: １１日」を出した（同じ所の pi-legacy-J.txt の 4269〜4297 行）。気象庁は VPWP50 の見出し文を書かない（repo の 81_01_01〜04 の 4 本は Headline/Text が空、Pi の 14:41 の報も headline null）ので、1 件の形は毎回 2 行で、何の危険度の報かが読めない。束の形（2 件以上）は同じ材料から種類の行を出している（同じ写しの 409〜413 行の 58 件の束に「霜危険度（注意報級）」）。P3-TL11-D-TS-SINGLE=A は統合担当の裁定で、作者は 1 件の形を裁定していなかった"
+        "reason": "場面: 2026-11-10 14:41 に福井地方気象台の VPWP50 が 1 件だけの便で届き、Mac mini の新築の端末は帯「━ 福井県警戒・注意事項時系列情報 ━…━ 14:41:00 発表 ━」と末尾「VPWP50 ・ 福井地方気象台」の 2 行だけだった（写し ~/dev/fleq-vault-archive/2026-11-10-snap/mini-new-J.txt の 734〜735 行）。旧築は同じ報で「[霜 11]」と市町ごとの「霜注意報 @福井市　時刻枠: １１日」を出した（同じ所の pi-legacy-J.txt の 4269〜4297 行）。気象庁は VPWP50 の見出し文を書かない（repo の 81_01_01〜04 の 4 本は Headline/Text が空、Pi の 14:41 の報も headline null）ので、1 件の形は毎回 2 行で、何の危険度の報かが読めない。束の形（2 件以上）は同じ材料から種類の行を出している（同じ写しの 409〜413 行の 58 件の束に「霜危険度（注意報級）」）。P3-TL11-D-TS-SINGLE=A は統合担当の裁定で、作者は 1 件の形を裁定していなかった（P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯と市町村等を足した）"
       }
     ],
     "questionResolutions": [
@@ -131,7 +131,7 @@
       "なし（risks は P3-TL11-AC02 の既存の端末の材料で、本契約は欄を足さない）"
     ],
     "outOfScope": [
-      "VPWP50 の区域ごとの中身・時間帯（旧築の「霜注意報 @福井市　時刻枠: １１日」）と、種類ごとの市町村の数（旧築の「[霜 11]」の 11）",
+      "VPWP50 の区域ごとの中身・時間帯（旧築の「霜注意報 @福井市　時刻枠: １１日」）と、種類ごとの市町村の数（旧築の「[霜 11]」の 11）（P3-TERMINAL-LAYOUT-019 で、種類ごとの最悪の段階の時間帯と市町村等を足した。市町村の数は「ほか n」の n のほかは出さない）",
       "1 件の形の帯の題名（Head/Title）・末尾の行（官署の名前）・段と、便の束（timeseries）の形とまとめ方（P3-TERMINAL-LAYOUT-011・015）",
       "材料の risks の作り方（material.ts。Code 20〜59・32 種類まで）と型（p3-terminal-output.types.ts。87 行のコメントの「端末が便の束の種類の行を作る材料」は 1 件の形にも使うことになるが、文は変えない）",
       "spec の起草で直した行のほかの行、閉じた契約の原文の改訂 (1)(2) のほかの文",
@@ -140,17 +140,17 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL17-AC01",
-        "requirement": "1 件の気象警報・注意報時系列情報の種類の行（P3-TL17-D-SINGLE-KINDS=B、作者の裁定 2026-11-10。spec §5.4 の 652 行・Q-TO17-VPWP50-SINGLE）: (1) 対象は短い形で risks が非 null かつ空でない報。material が risks を非 null にするのは unit が U-F・headType が VPWP50・InfoType が取消でない報だけ（P3-TL11-AC02、material.ts の 294・301 行）なので、ほかの報の画面は変わらない。時系列のまとまりが 1 件で出るとき（output.ts の flushSeries、最後の報から 8 秒か終了の時）も、まとまりを通らずに短い形で出るときも同じ形 (2) 置き場: shortForm の要点のまとまりで見出し文の行の後（理由の行・見出し文・種類の行・府県の行・解除の行・活動の文の順。区切りの罫線は足さない）。U-F の段は常に普通で理由の行は無い（material.ts の shortLevel）。見出し文が空の報（気象庁の実物の全部）は帯の直下になる (3) 形は便の束（format.ts の 796〜798 行の timeseries）と同じ: 1 つの組は「<type>（<Name>）」（電文の字のまま）、並びは Code の数の大きい順で同じ Code は risks の順（電文で先に現れた順。sort は安定）、組の間は全角の空白、幅（ctx.body。束と同じ）に入らなければ組の境で折り、続きの行は字下げしない（flow([], 組, ctx.body, 0)。1 つの組だけで幅を越えるときは flow の今の振る舞いのとおり組の中を字の境目で折る）。組の数は材料の 32 まで（RISK_LIMIT） (4) risks が空の報（Code 20〜59 の Significancy が無い報。例 81_01_01〜04）は行を足さず今の 2 行のまま（「ありません」と書かない。束の種類が 0 の便と同じ）。取消の報は risks が null なので出さない (5) 帯・末尾の行・段・見出し文の行と、便の束（timeseries、793〜800 行）・ほかの短い形の報は変えない (6) 形は format.ts の shortForm の 777 行の summary の並びに 1 つ足し、新しい関数は typhoonLines の後（「---- 書き出す文字 ----」の前）に置く（他の契約が引く 1〜984 行の行の数を変えない。束の timeseries と関数を 1 つにしないのは Q-TL17-SHARED のため） (7) 計算量（AGENTS.md の受信経路）: 受信の main（publisher・material）の仕事は変えない（risks は今も 1 報に 1 回作っている）。renderer が risks（32 まで）の写しを 1 回並べ替え、flow で組の数に比例して組むだけ。場面: 2026-11-10 14:41 の福井県の VPWP50（1 件だけの便）は、今は帯「福井県警戒・注意事項時系列情報」と末尾「VPWP50 ・ 福井地方気象台」の 2 行（写し ~/dev/fleq-vault-archive/2026-11-10-snap/mini-new-J.txt の 734〜735 行）。B では帯の直下に種類の行（旧築の同じ報の「[霜 11]」から「霜危険度（注意報級）」を含む見込み。電文は repo に無い）が出て、末尾の行は今のまま",
+        "requirement": "1 件の気象警報・注意報時系列情報の種類の行（P3-TL17-D-SINGLE-KINDS=B、作者の裁定 2026-11-10。spec §5.4 の 652 行・Q-TO17-VPWP50-SINGLE）: (1) 対象は短い形で risks が非 null かつ空でない報。material が risks を非 null にするのは unit が U-F・headType が VPWP50・InfoType が取消でない報だけ（P3-TL11-AC02、material.ts の 294・301 行）なので、ほかの報の画面は変わらない。時系列のまとまりが 1 件で出るとき（output.ts の flushSeries、最後の報から 8 秒か終了の時）も、まとまりを通らずに短い形で出るときも同じ形 (2) 置き場: shortForm の要点のまとまりで見出し文の行の後（理由の行・見出し文・種類の行・府県の行・解除の行・活動の文の順。区切りの罫線は足さない）。U-F の段は常に普通で理由の行は無い（material.ts の shortLevel）。見出し文が空の報（気象庁の実物の全部）は帯の直下になる (3) （P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯の 1 行と市町村等の行の 2 行にした。作者の裁定 P3-TL19-D-SINGLE-ROWS=A、2026-11-10）形は便の束（format.ts の 796〜798 行の timeseries）と同じ: 1 つの組は「<type>（<Name>）」（電文の字のまま）、並びは Code の数の大きい順で同じ Code は risks の順（電文で先に現れた順。sort は安定）、組の間は全角の空白、幅（ctx.body。束と同じ）に入らなければ組の境で折り、続きの行は字下げしない（flow([], 組, ctx.body, 0)。1 つの組だけで幅を越えるときは flow の今の振る舞いのとおり組の中を字の境目で折る）。組の数は材料の 32 まで（RISK_LIMIT） (4) risks が空の報（Code 20〜59 の Significancy が無い報。例 81_01_01〜04）は行を足さず今の 2 行のまま（「ありません」と書かない。束の種類が 0 の便と同じ）。取消の報は risks が null なので出さない (5) 帯・末尾の行・段・見出し文の行と、便の束（timeseries、793〜800 行）・ほかの短い形の報は変えない (6) 形は format.ts の shortForm の 777 行の summary の並びに 1 つ足し、新しい関数は typhoonLines の後（「---- 書き出す文字 ----」の前）に置く（他の契約が引く 1〜984 行の行の数を変えない。束の timeseries と関数を 1 つにしないのは Q-TL17-SHARED のため） (7) 計算量（AGENTS.md の受信経路）: 受信の main（publisher・material）の仕事は変えない（risks は今も 1 報に 1 回作っている）。renderer が risks（32 まで）の写しを 1 回並べ替え、flow で組の数に比例して組むだけ。場面: 2026-11-10 14:41 の福井県の VPWP50（1 件だけの便）は、今は帯「福井県警戒・注意事項時系列情報」と末尾「VPWP50 ・ 福井地方気象台」の 2 行（写し ~/dev/fleq-vault-archive/2026-11-10-snap/mini-new-J.txt の 734〜735 行）。B では帯の直下に種類の行（旧築の同じ報の「[霜 11]」から「霜危険度（注意報級）」を含む見込み。電文は repo に無い）が出て、末尾の行は今のまま",
         "evidenceRefs": [
-          "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
+          "reconstruction/src/terminal/format.ts:777 «ce2bb7497bf5174d»",
           "reconstruction/src/terminal/format.ts:796 «01945da95bbb1752»",
           "reconstruction/src/terminal/format.ts:798 «d9396eb663483691»",
           "reconstruction/src/terminal/format.ts:969 «74b467cab9954133»",
-          "reconstruction/src/terminal/format.ts:995 «5c2f568149d8c6bc»",
+          "reconstruction/src/terminal/format.ts:1036 «5c2f568149d8c6bc»",
           "reconstruction/src/terminal/format.ts:133 «e5dc8ac892b86410»",
-          "reconstruction/src/terminal/material.ts:294 «e379136426950870»",
-          "reconstruction/src/terminal/material.ts:301 «927eca2d0429624f»",
-          "reconstruction/src/terminal/material.ts:213 «ebb86d4fb6943021»",
+          "reconstruction/src/terminal/material.ts:341 «e379136426950870»",
+          "reconstruction/src/terminal/material.ts:348 «7e77bd3fa046ba06»",
+          "reconstruction/src/terminal/material.ts:260 «ebb86d4fb6943021»",
           "reconstruction/src/terminal/output.ts:321 «f5001ae486d14f86»",
           "reconstruction/test/terminal/layout11.test.ts:327 «45adb05588b457d0»",
           "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
@@ -166,7 +166,7 @@
           "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
           "docs/specs/cli-terminal-output.md:860 «30158ec2a8f610b5»",
           "docs/specs/cli-terminal-output.md:946 «976c86d1528b035f»",
-          "reconstruction/contracts/p3-terminal-layout11.json:282 «2ec85c0ce69998ed»"
+          "reconstruction/contracts/p3-terminal-layout11.json:282 «aa836b3a35ad49d8»"
         ]
       }
     ],
@@ -262,7 +262,7 @@
       "起草の確かめ: P3-TL17-T01〜T03 の期待は、起草の時に worktree の中の未追跡の場所に reconstruction の写しを置き、AC01 を当て（777 行の summary と typhoonLines の後の関数）、layout16.test.ts の owned の形で vitest に通して出した（写しの tsc --project reconstruction/tsconfig.json --noEmit も rc 0。写しは消す）。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
       "本物の経路での写し（統合担当、配送の前）: 実装の後の木で、P3-TERMINAL-LAYOUT-016 の写しと同じ形（watch を COLUMNS を変えて起こし、inject で fixture を入れる）で 81_09_01 と 81_01_01 を 1 件の便として入れ（8 秒の後に出る）、56 桁と 100 桁で写し、T01・T02 と同じ行が出ることを見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 種類の行は便の束と同じく種類と Name だけで、どの市町村か・いつか（旧築の「霜注意報 @福井市　時刻枠: １１日」）と市町村の数（「[霜 11]」）は出さない (2) 見出し文のある報（人工の fixture だけ）では見出し文の下に種類の行が並ぶ (3) 1 件の形と束の形で、並べ替えと flow の式を 2 か所に書く（Q-TL17-SHARED）。束の書き方を変える後の契約は両方を直す (4) types.ts の 87 行のコメントは risks を「端末が便の束の種類の行を作る材料」と書いたまま",
+      "残存として成果物に書く: (1) 種類の行は便の束と同じく種類と Name だけで、どの市町村か・いつか（旧築の「霜注意報 @福井市　時刻枠: １１日」）と市町村の数（「[霜 11]」）は出さない（P3-TERMINAL-LAYOUT-019 で、どの市町村か・いつかを出すようにした） (2) 見出し文のある報（人工の fixture だけ）では見出し文の下に種類の行が並ぶ (3) 1 件の形と束の形で、並べ替えと flow の式を 2 か所に書く（Q-TL17-SHARED）。束の書き方を変える後の契約は両方を直す (4) types.ts の 87 行のコメントは risks を「端末が便の束の種類の行を作る材料」と書いたまま",
       "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout11.json:86 の P3-TL11-D-TS-SINGLE の ruling「A（統合担当）」の末尾に「（P3-TERMINAL-LAYOUT-017 で、1 件の形の帯の下に束と同じ種類の行を足した。作者の裁定 P3-TL17-D-SINGLE-KINDS=B、2026-11-10）」を書き足す (2) reconstruction/contracts/p3-terminal-layout11.json:282 の outOfScope「VPWP50 の 1 件の形（P3-TL11-D-TS-SINGLE=A で今のまま）と、…」の「今のまま」の後に「。帯の下の種類の行は P3-TERMINAL-LAYOUT-017 で足した」を書き足す。(1)(2) の行はどの契約も «» で引いていない（layout11 を引く «» は 245・356 行だけ）が、本契約の AC02 が 282 行を引くので、新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で中身の変わる format.ts:777 を引く p3-terminal-layout12.json・p3-terminal-layout15.json・p3-terminal-layout16.json の 3 か所と本契約の AC01 は、新しい行の anchor を手で入れる（reanchor-target.py は同じ anchor の行が無いと止まる）。新しい関数は 984 行より後に入るので他の契約の引く行は動かない（format.ts の 985 行から後を引く «» は起草の時に 0 件）。本契約の format.ts:985 は新しい関数の後の行に付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
     ],
     "unresolvedQuestions": [

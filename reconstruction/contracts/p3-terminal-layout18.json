@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c5a15ffb15da81857b549ae38368673564ea1196",
-    "sha256": "71fc38dc19663817e715651cec89d7f917d5c3682d9c827bc505c64279eeff45",
+    "sha256": "b3decc0e4e984b488f6be11ca14a2059be93dfbf387706866b217ce6785c447d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -138,7 +138,7 @@
           "reconstruction/src/terminal/format.ts:969 «74b467cab9954133»",
           "reconstruction/src/terminal/format.ts:974 «67a48e1ba528e32b»",
           "reconstruction/src/terminal/format.ts:985 «add890a2623178b4»",
-          "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
+          "reconstruction/src/terminal/format.ts:777 «ce2bb7497bf5174d»",
           "src/ui/typhoon-probability-formatter.ts:219 «bdac85dfcce36724»",
           "src/ui/typhoon-probability-formatter.ts:221 «301617438ccf5f3b»",
           "docs/specs/cli-terminal-output.md:597 «e0c806e59421e79d»",
