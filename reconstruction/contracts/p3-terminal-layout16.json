@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c0c478db56d3e99db6c0496ca402179338501ff6",
-    "sha256": "9c3325dcdc91819d988984a1b7f446dc859f044030a8dfa654f34ce7ad806292",
+    "sha256": "2d64aff29ae832242d743d41e94a697b54f9e927c75c5a9ab328085630447b64",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -383,7 +383,7 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 仕組みを足すときは無いと何が壊れるかを 1 行で示す（AC01 は材料の欄 1 つと関数 1 つで、無いと府県の値が端末へ届かない。U-Y の候補は inputDone の返信に載らない。AC02 は行を組む関数 1 つで、無いと 5 行の列を揃えられない。AC03 は仕組みを足さない。既存の flow を使う）。新しい export・設定・file（試験の 1 file のほか）は作らない。既存の read・first・children・attribute・scalar・cut・validReportDateTime・width・pad・line・seg・flow を使う。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加した各試験がどれに対応するかを成果物に 1 行で書く（T01〜T03 は corpus 履歴、T04・T05・T07・T08 は契約境界、T06 は実不具合）。試験は新しい file reconstruction/test/terminal/layout16.test.ts に置き、terminal-fixture.ts の既存の helper（reportOf・decodeFixture・harness・inputDoneOf・terminal・reportUnit）と、layout5.test.ts の through の形（owner の道）を使う",
+      "最小実装・最小テスト: 仕組みを足すときは無いと何が壊れるかを 1 行で示す（AC01 は材料の欄 1 つと関数 1 つで、無いと府県の値が端末へ届かない。U-Y の候補は inputDone の返信に載らない。AC02 は行を組む関数 1 つで、無いと 5 行の列を揃えられない。AC03 は仕組みを足さない。既存の flow を使う）。新しい export・設定・file（試験の 1 file と typhoon.ts の末尾の halfWidth の export 1 行のほか）は作らない。既存の read・first・children・attribute・scalar・cut・validReportDateTime・halfWidth・width・pad・line・seg・flow を使う。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加した各試験がどれに対応するかを成果物に 1 行で書く（T01〜T03 は corpus 履歴、T04・T05・T07・T08 は契約境界、T06 は実不具合）。試験は新しい file reconstruction/test/terminal/layout16.test.ts に置き、terminal-fixture.ts の既存の helper（reportOf・decodeFixture・harness・inputDoneOf・terminal・reportUnit）と、layout5.test.ts の through の形（owner の道）を使う",
       "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は VPTA50〜55 の報だけ、2 つの節の Item の列を全部 1 回ずつ（件数に比例。実物は 375 ずつ）と、当たった Item（rows の数、96 まで）の値（64 まで）を見る。並べ替えは府県の数（96 まで）の中。AC02・AC03 は renderer の中で行の数に比例するだけで、受信の main（publisher）の仕事は変えない。AC01 (7) の材料の時間の表（76_01_02・76_01_01、前・後・差、Mac mini で）",
       "既存の試験の期待は変えない（短い形を手で組む既存の試験は無い。Q-TL16-TEST-FILES。digest.test.ts の 80 桁の「ほか」の行は幅に入るので変わらない）。ほかの期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "起草の確かめ: P3-TL16-T01〜T08 の期待は、起草の時に worktree の中の未追跡の場所に src の写しを置き、AC01〜AC03 を当て（D-TIE の作者の裁定の後は 70% の形で描き直した）、esbuild で束ねて node で描いて出した（T01・T03 は owner の道、Q-TL16-TAKEN。写しは消す）。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
