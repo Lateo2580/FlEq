@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "28f9e2cc32bebe36a4116bf8b9b6129274fe7c9a",
-    "sha256": "9b6fbcae84d93fc394b21cc5271fd77de0456cd572bf8d83e9090e59740cbe9a",
+    "sha256": "edd4bb94ebb28ecf6248cd0a86f35747b3c4545d7d18357a7b3130c58cb44f07",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -209,7 +209,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-019",
     "mode": "implementation",
     "objective": "作者の裁定（2026-11-10、P3-TL19-D-SINGLE-ROWS=A）のとおり、1 件だけで出る気象警報・注意報時系列情報（VPWP50）の短い形の種類の行（P3-TERMINAL-LAYOUT-017）を、種類ごとに 2 行（「種類（最悪の段階）  時間帯」〔続いている時間帯の帯を「・」でつなぐ。P3-TL19-D-SPAN-GAP=A〕と、2 桁下げたその段階の市町村等）にする。材料（material.ts の scan の 1 回の辿り）で種類ごとの最悪の段階の時間帯と市町村等を拾い、短い形に欄 riskRows を 1 つ足し、整形（format.ts の riskLines）で描く。便の束（timeseries）と材料の risks は変えない。spec は起草で直した（§5.4 の図の 584〜591 行と 664 行、§8 の Q-TO19-VPWP50-SINGLE-ROWS の 948 行）。P3-TL19-D-FIT は作者の裁定 A（2026-11-10、幅に入るだけ出す）を当てた。P3-TL19-D-DIGITS も作者の裁定 A（2026-11-10、時間帯の Name を半角に読み替える）を当てた。1 MiB を越える報の扱いは別の契約 P3-TERMINAL-OVERSIZE-001 に分け、本契約は output.ts を変えない（P3-TL19-D-OVERSIZE-SPLIT=A）",
-    "baseOid": "unassigned",
+    "baseOid": "099dd312",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
