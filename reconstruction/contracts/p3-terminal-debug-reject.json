@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7e9cfcf9960b02dc1423b8e030e3394165c4b6c8",
-    "sha256": "894c47623a8586cf37c9dafb4c9dbc743dc1ab3c518b6d178e4f3c483d169fca",
+    "sha256": "e00efd5a662b9142e7d0f24ddfea7e9a99c644bc87c06c84685d0f1008aac0f6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -66,7 +66,7 @@
       "test/fixtures/37_01_01_240613_VXSE43.xml"
     ],
     "allowedPaths": [
-      "reconstruction/src/terminal/output.ts（P3-TDR-AC02 (1)(2): 47 行の TerminalSink の型に inputDropped を足すこと〔行の中で。コメントを書くならこの行の末尾〕と、sink の object に inputDropped の本体を足すことだけ。本体を置くのは 626 行（inputDone の閉じの「}」）と 627 行（「}, digest(view) {」）の間か、632 行（「}, mirror(views) { mirror = views; } },」）の mirror の後だけで、そこでは行を足してよい（コメントは本体の中）。626 行より上には行を足さない〔他の契約の «» が引く output.ts の行は 38〜615 と 661 で、動くのを 661 だけにする〕）",
+      "reconstruction/src/terminal/output.ts（P3-TDR-AC02 (1)(2): 47 行の TerminalSink の型に inputDropped を足すこと〔行の中で。コメントを書くならこの行の末尾〕と、sink の object に inputDropped の本体を足すことだけ。本体を置くのは 626 行（inputDone の中の debug の if の閉じの「}」）と 627 行（「}, digest(view) {」）の間か、632 行（「}, mirror(views) { mirror = views; } },」）の mirror の後だけで、そこでは行を足してよい（コメントは本体の中）。626 行より上には行を足さない〔他の契約の «» が引く output.ts の行は 38〜615 と 661 で、動くのを 661 だけにする〕）",
       "reconstruction/src/host/host.ts（P3-TDR-AC02 (5): 325・326・334・339 の 4 行の中に inputDropped の呼び出しを足すことだけ。行を足さない）",
       "reconstruction/test/host/host.test.ts（P3-TDR-T01〜T05 の describe を 1 つ、file の末尾に足すことだけ。既存の it・helper・mock は変えない）"
     ],
