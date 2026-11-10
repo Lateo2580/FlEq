@@ -774,7 +774,7 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
     : listTable(null, national.rows.map((row) => ({ label: seg(row.label), rest: seg(row.label, "dim"), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
     ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: nationwide ?? [...reason, ...sentences, ...typhoonLines(report.probability, ctx.body), ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: nationwide ?? [...reason, ...sentences, ...riskLines(report.risks, ctx.body), ...typhoonLines(report.probability, ctx.body), ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 // P3-TL10-AC01 (5)・spec §5.4 の図: 降灰予報（定時）のまとまり。帯は 1 報目の題名と印と「 N火山」、段は最も重い段、帯の下に各報の対象を 1 行ずつと末尾の行。
 // 見出し文・段の理由の行・区切りの罫線は出さない。
@@ -981,6 +981,14 @@ function typhoonLines(probability: Extract<TerminalReport, { kind: "short" }>["p
   const lines = single.every((text) => width(text) <= room) ? single.map((text) => line(seg(text)))
     : rows.flatMap((row) => [line(seg(row.prefecture)), line(seg(`  ${values(row)}`))]);
   return probability.others === 0 ? lines : [...lines, line(seg(`ほか ${probability.others} 府県`, "dim"))];
+}
+// P3-TL17-AC01・D-SINGLE-KINDS=B: 1 件の気象警報・注意報時系列情報の種類の行。無いと 1 件の便は帯と末尾の行だけで、何の危険度の報かが読めない。
+// 並べ替えと flow は束（timeseries）と同じ式で、関数を 1 つにしないのは他の契約が引く行をずらさないため（Q-TL17-SHARED）。束を変えるときは両方を直す。
+function riskLines(risks: Extract<TerminalReport, { kind: "short" }>["risks"], room: number): Line[] {
+  // 組が無い報（取消は null）は行を出さない（flow は空の並びでも空の 1 行を返す）。
+  if (risks == null || risks.length === 0) return [];
+  const kinds = [...risks].sort((left, right) => Number(right.code) - Number(left.code));
+  return flow([], kinds.map((risk) => [seg(`${risk.type}（${risk.name}）`)]), room, 0);
 }
 // ---- 書き出す文字 ----
 function trimEnd(segs: readonly Seg[]): Seg[] {
