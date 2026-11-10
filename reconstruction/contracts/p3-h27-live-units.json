@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "53a4bf03fd4f003645aa0e5c20a92bfea2e2b43e",
-    "sha256": "9a6a3b2d98a1a695affc13b67c5d12d43175dfb2f6499d813fb1a78086f0244f",
+    "draftedFromOid": "6b2fb21d6a5ae06de4e24ff038a26b3146227ff0",
+    "sha256": "f86db6222423a7ef0a036c2b353d0476b6f45ef9009a3f437cc4bd7eee96a156",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -21,14 +21,14 @@
       },
       {
         "id": "P3-H27L-D-EVICT",
-        "kind": "作者",
+        "kind": "統合担当",
         "A": "守り: U-R・U-V・U-T（と P3-H27L-D-UL-GUARD=A で U-L）は、at.live に subject の記録が無いときだけ open の記録と比べる（live の記録が有れば at.live、無ければ open。比べる Map を open の記録の上に live の記録を重ねて 1 回作る）。live で記録が消えた subject の採用は今の振る舞い（open の比べ）と同じになり、本契約で鳴りが加わらない",
         "B": "状態が戻る道そのものを直す（ヘルツの案: 採用まで取消版を版判定に残す、保持上限のときは候補を捨てる）。owner-host の当て直しと各 unit の退去に触る",
         "C": "守らない（P3-UNIT-L-002 の P3-UL2-AC01 (6) と同じく、live に記録が無ければ全部上がった扱い）。取消した引上げの古い報が採用で info を 1 組鳴らす",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-10）",
-        "reason": "場面（U-R、起草の写しで再現した）: normal の有効な記録が 512 件で満杯。09:00 の A（code 40、warning を鳴らした）が画面に出ている。12:01 の切断から 12:02 の再接続で取り直しが開き（open に A）、一覧が 09:00 の A を返す。本文を待つ間に live で 12:00 発表の A の取消を受け（A は取消版の記録、音は取消）、続けて別の B を受けると、満杯なので非 active の A の取消版が最初に退去する（evictOne の段 1）。採用で本文 A を最新の live に当て直すと、A の記録が無いので 09:00 の A が active で戻る。C（at.live だけ）は live に A が無いので info を 1 組鳴らす。A（守り）は open の A と比べて鳴らさない（open の比べの今と同じ）。B は A が戻ること自体を止めるが、同じ戻り方は live でも起きる（取消版の退去の後に 09:00 の A が遅れて届くと、live は activated の warning を鳴らして A を戻す、写しで確かめた）ので、退去で版の記憶が消える問題（P3-C11-CAPACITY）として別の契約に送るのが釣り合う。A は unit ごとに 1〜2 行。U-N は H27 が読む現況が退去しない（CURRENT_LIMIT 6 は 2 つの線 × 3 運用区分で満杯にならず、退去するのは information だけ）ので入れない",
+        "reason": "場面（U-R、起草の写しで再現した）: normal の有効な記録が 512 件で満杯。09:00 の A（code 40、warning を鳴らした）が画面に出ている。12:01 の切断から 12:02 の再接続で取り直しが開き（open に A）、一覧が 09:00 の A を返す。本文を待つ間に live で 12:00 発表の A の取消を受け（A は取消版の記録、音は取消）、続けて別の B を受けると、満杯なので非 active の A の取消版が最初に退去する（evictOne の段 1）。採用で本文 A を最新の live に当て直すと、A の記録が無いので 09:00 の A が active で戻る。C（at.live だけ）は live に A が無いので info を 1 組鳴らす。A（守り）は open の A と比べて鳴らさない（open の比べの今と同じ）。B は A が戻ること自体を止めるが、同じ戻り方は live でも起きる（取消版の退去の後に 09:00 の A が遅れて届くと、live は activated の warning を鳴らして A を戻す、写しで確かめた）ので、退去で版の記憶が消える問題（P3-C11-CAPACITY）として別の契約に送るのが釣り合う。A は unit ごとに 1〜2 行。U-N は H27 が読む現況が退去しない（CURRENT_LIMIT 6 は 2 つの線 × 3 運用区分で満杯にならず、退去するのは information だけ）ので入れない。A は今の振る舞い（open の比べ）を保ち鳴りを足さないので、画面・音は今と変わらない（統合担当が決めた理由）",
         "ruling": "A（統合担当、2026-11-10。live で記録が消えた subject は今の open の比べのまま＝今の振る舞いと同じで、取消した報を鳴らす C は誤り。戻る道そのもの〔B〕は別の契約へ）"
       },
       {
@@ -47,11 +47,12 @@
         "kind": "統合担当",
         "A": "U-T の recoveryNotices は 1 つ目の引数 open を外し、今の 6 つ目の live（unit の行が at.live を渡している）で比べる。unit の行は open を渡さない（引数 6→5）",
         "B": "引数の形を保ち、unit の行が 1 つ目に at.live を渡す（6 つ目にも同じ at.live が渡る）。1 つ目の名を live にすると名が重なるので before などにする",
-        "recommended": "A",
-        "provisional": "A",
+        "recommended": "C",
+        "provisional": "C",
         "status": "確定（統合担当、2026-11-10）",
-        "reason": "U-T の recoveryNotices は loweredNotice（N4）のために at.live を 6 つ目で既に受けている。A は 1 つの state を 1 つの名で読む。export の recoveryNotices を呼ぶのは unit の行だけで、試験は直に呼ばない（reconstruction/test を grep、2026-11-10 起草）ので、引数の数が変わっても壊れるものが無い。B は U-R・U-N・U-V と引数の数を揃えるが、同じ state を 2 回渡す。起草の写しは A で当てて tsc 3 本と全 suite が緑（Q-H27L-DRAFT-FACTS (1)）",
-        "ruling": "署名も unit の行も変えず、:969 の比べる Map だけを open の上に live を重ねて作る形（統合担当、2026-11-10。p3-recovery.json:843 の改訂は要らない）。経緯: 統合担当が 2026-11-10 に A（open を外す）で確定したが、P3-H27L-D-EVICT=A で U-T が open と live の両方を読むので置き換えた"
+        "reason": "P3-H27L-D-EVICT=A の守りで U-T は open（live に記録の無い予報だけ）と live の両方を読む。今の recoveryNotices は open を 1 つ目、live を 6 つ目で既に受けているので、A（open を外す）は成り立たず、B（同じ live を 2 回渡す）も要らない。C は :969 の 1 行で済む",
+        "ruling": "C（統合担当、2026-11-10。p3-recovery.json:843 の 6 引数の形のまま、改訂は要らない）。経緯: 統合担当が 2026-11-10 に一度 A で確定したが、P3-H27L-D-EVICT=A で U-T が open と live の両方を読むので C に置き換えた",
+        "C": "署名も unit の行も変えない（:966・:967・:1255 はそのまま）。:969 の比べる Map だけを open の予報の上に live の予報を重ねて作る"
       },
       {
         "id": "P3-H27L-D-UNIT-WORDING",
@@ -94,20 +95,20 @@
         "id": "Q-H27L-DRAFT-FACTS",
         "status": "closed",
         "source": "2026-11-10 起草（作業の worktree の未追跡の .dr-tmp/ に c0c478db の木を CoW で写し、src は写しの中だけで変えて回した）",
-        "closed": "(1) 写しの 4 unit に直し（U-R・U-N・U-V は unit の行で at.live を渡し 1 つ目の引数を live に、U-T は P3-H27L-D-UT-SIGNATURE=A の形）を当て、tsc 3 本は rc 0。全 reconstruction 試験（調べの 20 本を足した）は 1580 緑・1 赤・30 skip で、赤は調べの U-L の採用の窓の 1 本だけ（直す前の木でも赤）。既存の試験は 1 本も期待が変わらない（recovery-adopt.test.ts の P3-REC-T15〔U-T の advisory→warning、:126〕・P3-REC-T18〔U-N の megaquake advisory、:829〕、unit の試験で recoveryNotices(open, …) を直に呼ぶ volcano・flood・nankai の列を含む。直に呼ぶ列は 1 つ目の引数の位置に state を渡すので、名の読み替えで期待は変わらない） (2) 写しに P3-H27L-T01〜T03 の形の試験 20 列を足し（4 unit × 二重 live c 無し・二重 live c 有り・初見 live 静止・初見 live 引下げ・逆向き）、直す前の木（4 file を c0c478db に戻して tsc し直した）では 11 列が赤: 二重 live c 無しの 4 unit、二重 live c 有りの U-N・U-V・U-R、逆向きの 4 unit。直した木では 20 列とも緑。初見の 8 列は直す前も緑 (3) 直す前の二重の列の intents: U-N は live の b の critical の pending 2 件が recovered の info 2 件に、U-V・U-R は warning の pending 2 件が info 2 件に、U-T は warning の pending 2 件が recovered の warning 2 件に、同じ subject・channel の置換で替わる。逆向きの列は直す前に採用の後の intents が 0 件（live の d の pending を候補の当て直しが外し、H27 も作らない）、直した後は H27 の 1 組だけが残る (4) 4 unit の file で直しが変える行（flood :764・:771・:772・:775・:776、nankai :870・:882・:883・:886・:887、volcano :1676・:1707・:1708・:1711・:1712、tsunami :962・:966・:969・:1255）を引く «» は他の契約に 0 件（nankai :869 を引く p3-operation-capacity-n.json の 1 件は行が変わらない）。今の木（53a4bf03）では 5 unit の file（landslide を含む）を引く «» の割れは 0 件（p3-briefing-unit.json の地の文の 4 件は 62e93993 で付け直し済み） (5) U-N の場面は advisory（74_01_05）→warning（74_01_04）で書く。調べの investigating（74_01_01）は EventID の違う報の information（subject normal/VYSE50/…）に入り、現況（normal/nankai/current）を下げないので、逆向きの列が成り立たなかった (6) 原文の改訂を書く行のうち、他の契約の «» に引かれているものは 0 件。p3-recovery.json:47・:391、p3-persist-premises.md:373 は P3-UNIT-L-002 の原文の改訂の項の地の文に出るだけ（«» ではない）。同じ趣旨の p3-recovery.json:1104（AC10、5 件）・p3-persist-premises.md:138（3 件）・spec:3054 は引かれているか比べ先を C16 に預けるだけなので改訂しない"
+        "closed": "(1) 写しの 4 unit に直し（U-R・U-N・U-V は unit の行で at.live を渡し 1 つ目の引数を live に、U-T は最初の写しでは open を外す形〔P3-H27L-D-UT-SIGNATURE の A〕、r1 からは :969 の Map だけの形〔C〕）を当て、tsc 3 本は rc 0。全 reconstruction 試験（調べの 20 本を足した）は 1580 緑・1 赤・30 skip で、赤は調べの U-L の採用の窓の 1 本だけ（直す前の木でも赤）。既存の試験は 1 本も期待が変わらない（recovery-adopt.test.ts の P3-REC-T15〔U-T の advisory→warning、:126〕・P3-REC-T18〔U-N の megaquake advisory、:829〕、unit の試験で recoveryNotices(open, …) を直に呼ぶ volcano・flood・nankai の列を含む。直に呼ぶ列は 1 つ目の引数の位置に state を渡すので、名の読み替えで期待は変わらない） (2) 写しに P3-H27L-T01〜T03 の形の試験 20 列を足し（4 unit × 二重 live c 無し・二重 live c 有り・初見 live 静止・初見 live 引下げ・逆向き）、直す前の木（4 file を c0c478db に戻して tsc し直した）では 11 列が赤: 二重 live c 無しの 4 unit、二重 live c 有りの U-N・U-V・U-R、逆向きの 4 unit。直した木では 20 列とも緑。初見の 8 列は直す前も緑 (3) 直す前の二重の列の intents: U-N は live の b の critical の pending 2 件が recovered の info 2 件に、U-V・U-R は warning の pending 2 件が info 2 件に、U-T は warning の pending 2 件が recovered の warning 2 件に、同じ subject・channel の置換で替わる。逆向きの列は直す前に採用の後の intents が 0 件（live の d の pending を候補の当て直しが外し、H27 も作らない）、直した後は H27 の 1 組だけが残る (4) 4 unit の file で直しが変える行（flood :764・:771・:772・:775・:776、nankai :870・:882・:883・:886・:887、volcano :1676・:1707・:1708・:1711・:1712、tsunami :962・:966・:969・:1255）を引く «» は他の契約に 0 件（nankai :869 を引く p3-operation-capacity-n.json の 1 件は行が変わらない）。今の木（53a4bf03）では 5 unit の file（landslide を含む）を引く «» の割れは 0 件（p3-briefing-unit.json の地の文の 4 件は 62e93993 で付け直し済み） (5) U-N の場面は advisory（74_01_05）→warning（74_01_04）で書く。調べの investigating（74_01_01）は EventID の違う報の information（subject normal/VYSE50/…）に入り、現況（normal/nankai/current）を下げないので、逆向きの列が成り立たなかった (6) 原文の改訂を書く行のうち、他の契約の «» に引かれているものは 0 件。p3-recovery.json:47・:391、p3-persist-premises.md:373 は P3-UNIT-L-002 の原文の改訂の項の地の文に出るだけ（«» ではない）。同じ趣旨の p3-recovery.json:1104（AC10、5 件）・p3-persist-premises.md:138（3 件）・spec:3054 は引かれているか比べ先を C16 に預けるだけなので改訂しない"
       },
       {
         "id": "Q-H27L-RESIDUAL",
         "status": "closed",
         "source": "2026-11-10 起草（統合担当の起草依頼の outOfScope）",
         "closed": "残存として記録する（直さない）",
-        "remaining": "(1) 採用の窓: 採用の時刻に at.live の記録の保持期限が過ぎているが期限の step（1 s の tick）がまだ走っていない間は、at.live の記録をまだ見えるものとして比べるので、その記録と同じ段の新しい報を取り直しが拾っても鳴らない（live で受ければ鳴る）。U-L で調べが確かめた。U-R（noticeOf が before の期限を見ない、:780）は同じ形（読みだけ）、U-V は raiseLevel が effective だけを見る（:1704、読みだけ）、U-T は prior.effective だけを見る（:974、読みだけ）。U-N は shownAt で期限を当ててから比べる（:891）。幅は最大約 1 秒。open の比べでは候補の間ずっと古い state と比べたので、窓は今より狭くなる (2) 切断中の同じ subject の X→Y→X: 取り直しが最新だけを取る unit（U-R・U-V）は、切断中に下がって戻った報の最新だけを拾い、at.live と同じ段なら鳴らない（Q-UL2-RESIDUAL と同じ形）。U-N は窓の中の報を全部取る（P3-C8-N2 の B）が、H27 は採用の state と at.live を比べるので同じ。(3) 容量の退去で取消版の記録と版の記憶が消えた subject に、取消より古い報が戻る（live の遅着でも、取り直しの当て直しでも起きる。live では activated の音も鳴る、Q-H27L-EVICT の (2)）。根は退去で版の記憶が消えること（P3-C11-CAPACITY と各 unit の同じ形の退去）で、本契約は採用の H27 で鳴りを足さない守りだけを持つ（P3-H27L-D-EVICT=A）。戻る道そのものは別の契約へ"
+        "remaining": "(1) 採用の窓: 採用の時刻に at.live の記録の保持期限が過ぎているが期限の step（1 s の tick）がまだ走っていない間は、at.live の記録をまだ見えるものとして比べるので、その記録と同じ段の新しい報を取り直しが拾っても鳴らない（live で受ければ鳴る）。U-L で調べが確かめた。U-R（noticeOf が before の期限を見ない、:780）は同じ形（読みだけ）、U-V は raiseLevel が effective だけを見る（:1704、読みだけ）、U-T は prior.effective だけを見る（:974、読みだけ）。U-N は shownAt で期限を当ててから比べる（:891）。幅は最大約 1 秒。open の比べでは候補の間ずっと古い state と比べたので、窓は今より狭くなる (2) 切断中の同じ subject の X→Y→X: 取り直しが最新だけを取る unit（U-R・U-V）は、切断中に下がって戻った報の最新だけを拾い、at.live と同じ段なら鳴らない（Q-UL2-RESIDUAL と同じ形）。U-N は窓の中の報を全部取る（P3-C8-N2 の B）が、H27 は採用の state と at.live を比べるので同じ。(3) 容量の退去で取消版の記録と版の記憶が消えた subject に、取消より古い報が戻る（live の遅着でも、取り直しの当て直しでも起きる。live では activated の音も鳴る、Q-H27L-EVICT の (2)）。根は退去で版の記憶が消えること（P3-C11-CAPACITY と各 unit の同じ形の退去）で、本契約は採用の H27 で鳴りを足さない守りだけを持つ（P3-H27L-D-EVICT=A）。戻る道そのものは別の契約へ。(4) 守りが今の open の比べを保つための欠け: 23:00 に稚内で L5（音は鳴った、open に L5）→ live で 23:30 の取消（取消の音）→ 容量で取消版が退去 → 取り直しが取消より新しい 23:40 の L5 を拾う → open の L5 と比べて無音（live の順なら記録の無い官署への受理で activated の critical が鳴る）。U-R・U-V・U-T・U-L で同じ形。今の振る舞い（open の比べ）と同じで、(3) の別の契約で取消版の記憶を退去の後も残せば消える"
       },
       {
         "id": "Q-H27L-EVICT",
         "status": "closed",
         "source": "起草レビュー r0（2026-11-10）の品質（ヘルツ gpt-6-astra high）の P2 と、写しでの再現（作業の worktree の未追跡の .dr-tmp/h27-evict-probe.test.ts）",
-        "closed": "(1) U-R で再現した（unit の reduce と recoveryNotices を直に回し、owner-host の当て直しは同じ reduce を最新の live に当てる形で写した）: 512 件の満杯で A（code 40、印つき）→ live で A の取消（取消版、効き cancelled）→ live で別 subject の B（A の取消版が退去、live に A なし）→ 取り直しの本文 A（origin recovery）を live に当てると changed・semantic で A が active に戻る。at.live だけの比べは info を desktop・sound に 1 件ずつ、open の比べと守り（P3-H27L-D-EVICT=A）は 0 件 (2) 同じ live の state に 09:00 の A を live で受けると、activated の warning を desktop・sound に作り A が戻る。戻る道は live にもあり（退去で版の記憶が消える）、本契約の外 (3) U-V: evictOne は効きが active でない警報と保留の印の記録を段 1 で先に退去する（volcano-unit.ts:179）ので、取消した警報で同じ形が起きうる（読みだけ） (4) U-T: fit は期限切れの非 active、最古の非 active の順に予報を退去する（tsunami-unit.ts:248）ので、取消した予報で同じ形が起きうる（読みだけ） (5) U-N: 現況の上限 6（nankai-unit.ts:31）は 2 つの線 × 3 運用区分で、退去は information だけ（H27 は現況を読む）。同じ形は起きない（読みだけ） (6) 守りの写し（U-R・U-V・U-T に当てた。U-L は (7)）で、tsc 3 本 rc 0、全 suite は調べと起草の試験を含めて 1601 緑・1 赤（調べの U-L の採用の窓、直す前も赤）。draft の 20 列と再現の 1 本は緑。(7) U-L: 写しに守り（unit の行 :646 で open を渡し、:671 に 4 つ目の open〔既定は live〕、:672 の Map）を当て、tsc 3 本 rc 0、全 suite は 1601 緑・1 赤（調べの U-L の採用の窓、直す前も赤）。P3-UL2-T01〜T03・P3-REC-T15（U-L の unit 試験を含む）は緑。U-L の試験は足さない: 守りは U-R と同じ 1 行の Map で、T04 がその形を留める。unit の行が open を渡し忘れると既定の live で守りが黙って外れる（U-R・U-V・U-L の 3 行）ので、レビューは diff の 3 行を見る"
+        "closed": "(1) U-R で再現した（unit の reduce と recoveryNotices を直に回し、owner-host の当て直しは同じ reduce を最新の live に当てる形で写した）: 512 件の満杯で A（code 40、印つき）→ live で A の取消（取消版、効き cancelled）→ live で別 subject の B（A の取消版が退去、live に A なし）→ 取り直しの本文 A（origin recovery）を live に当てると changed・semantic で A が active に戻る。at.live だけの比べは info を desktop・sound に 1 件ずつ、open の比べと守り（P3-H27L-D-EVICT=A）は 0 件 (2) 同じ live の state に 09:00 の A を live で受けると、activated の warning を desktop・sound に作り A が戻る。戻る道は live にもあり（退去で版の記憶が消える）、本契約の外 (3) U-V: evictOne は効きが active でない警報と保留の印の記録を段 1 で先に退去する（volcano-unit.ts:179）ので、取消した警報で同じ形が起きうる（読みだけ） (4) U-T: fit は期限切れの非 active、最古の非 active の順に予報を退去する（tsunami-unit.ts:248）ので、取消した予報で同じ形が起きうる（読みだけ） (5) U-N: 現況の上限 6（nankai-unit.ts:31）は 2 つの線 × 3 運用区分で、退去は information だけ（H27 は現況を読む）。同じ形は起きない（読みだけ） (6) 守りの写し（U-R・U-V・U-T に当てた。U-L は (7)）で、tsc 3 本 rc 0、全 suite は調べと起草の試験を含めて 1601 緑・1 赤（調べの U-L の採用の窓、直す前も赤）。draft の 20 列と再現の 1 本は緑。(7) U-L: 写しに守り（unit の行 :646 で open を渡し、:671 に 4 つ目の open〔既定は live〕、:672 の Map）を当て、tsc 3 本 rc 0、全 suite は 1601 緑・1 赤（調べの U-L の採用の窓、直す前も赤）。P3-UL2-T01〜T03・P3-REC-T15（U-L の unit 試験を含む）は緑。(8) r2: P3-H27L-T04 を U-L の unit の行（landslideUnit.recoveryNotices(open, candidate, { recoveryId, clock, basis, live, card })）の呼び出しで書いた下書き（作業の worktree の未追跡の .dr-tmp/h27-ul-t04.test.ts）を回した。128 件で満杯の U-L で稚内の L5 → live で取消（取消版）→ live で別の官署（取消版が退去、live に稚内なし）→ 本文の稚内の L5 を origin recovery で当て直すと active に戻る。今の main（P3-UNIT-L-002 の at.live だけ）では recovered の info が desktop・sound に 1 件ずつで落ち、守りを当てた写しでは 0 件で通る。unit の行の呼び出しなので、行が open を渡し忘れると既定の live で守りが外れて落ちる"
       }
     ],
     "operationContract": {
@@ -118,7 +119,7 @@
   "contract": {
     "contractId": "P3-H27-LIVE-UNITS-001",
     "mode": "implementation",
-    "objective": "U-R・U-N・U-V・U-T の取り直しの H27 の比べの基準を、取り直しを始めた時の state（open）から採用の直前の live（at.live）に改める（作者裁定 2026-11-10、A。P3-UNIT-L-002 と同じ形）。取り直しの間に live で知らせた引上げを、当て直しで受け直した同じ段の報が採用でもう一度鳴らし、live の pending まで置き換える今のコードの欠けを直す。候補の間に live で段が下がった後の新しい引上げは、live と比べて 1 組鳴らす。live で subject の記録が消えた（容量の退去など）ときは、U-R・U-V・U-T・U-L は open の記録と比べ、本契約で鳴りを足さない（P3-H27L-D-EVICT=A）",
+    "objective": "U-R・U-N・U-V・U-T の取り直しの H27（と U-L の守り） の比べの基準を、取り直しを始めた時の state（open）から採用の直前の live（at.live）に改める（作者裁定 2026-11-10、A。P3-UNIT-L-002 と同じ形）。取り直しの間に live で知らせた引上げを、当て直しで受け直した同じ段の報が採用でもう一度鳴らし、live の pending まで置き換える今のコードの欠けを直す。候補の間に live で段が下がった後の新しい引上げは、live と比べて 1 組鳴らす。live で subject の記録が消えた（容量の退去など）ときは、U-R・U-V・U-T・U-L は open の記録と比べ、本契約で鳴りを足さない（P3-H27L-D-EVICT=A）",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -143,7 +144,7 @@
       "reconstruction/test/volcano-unit/volcano-fixture.ts",
       "reconstruction/test/flood-unit/flood-fixture.ts",
       "test/fixtures/**",
-      "reconstruction/test/flood-unit/**"
+      "reconstruction/test/landslide-unit/**"
     ],
     "allowedPaths": [
       "reconstruction/src/units/flood/flood-unit.ts（unit の行 :764 で at.live を 1 つ目に、open を 4 つ目に渡す。recoveryNotices の 1 つ目の引数の名を live に、4 つ目に open〔既定は live。unit の試験が 3 引数で直に呼ぶため〕を足す :775、比べる Map を open の記録の上に live の記録を重ねて作る :776、その上の JSDoc :771・:772 の open の字だけ。行の数を変えない）",
@@ -152,7 +153,7 @@
       "reconstruction/src/units/tsunami/tsunami-unit.ts（:969 の比べる Map を open の予報の上に live の予報を重ねて作る、JSDoc :962 の open の字だけ。:966・:967・:1255 は変えない〔署名と unit の行は今のまま、P3-H27L-D-UT-SIGNATURE〕。行の数を変えない）",
       "reconstruction/src/units/landslide/landslide-unit.ts（P3-H27L-D-UL-GUARD=A: unit の行 :646 で open を渡す、recoveryNotices の :671 に 4 つ目の open〔既定は live〕、:672 の Map、JSDoc :667・:668。行の数を変えない）",
       "reconstruction/test/recovery/recovery-adopt.test.ts（末尾に試験と、その試験だけが使う helper・import を足す。既存の行は変えない）",
-      "reconstruction/test/flood-unit/flood-unit.test.ts（末尾に P3-H27L-T04 と、その試験だけが使う helper・import を足す。既存の行は変えない）"
+      "reconstruction/test/landslide-unit/landslide-unit.test.ts（末尾に P3-H27L-T04 と、その試験だけが使う helper・import を足す。既存の行は変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -187,7 +188,9 @@
       "P3-TSUNAMI-UNIT-001",
       "P3-UNIT-N-001",
       "P3-UNIT-V-001",
-      "P3-UNIT-R-001"
+      "P3-UNIT-R-001",
+      "P3-UNIT-L-001",
+      "P3-WEATHER-NOTICE-001"
     ],
     "publicTypes": [
       "reconstruction/contracts/p3-unit-table.types.ts#UnitModule"
@@ -217,7 +220,7 @@
       {
         "id": "P3-H27L-RES-01",
         "target": "採用 1 回の計算量",
-        "limit": "今の recoveryNotices と同じ桁（比べる Map を 1 回作る。守りのある unit は open と live の記録の数の和、ほかは live の記録の数。候補の記録の数〔U-T は区域の数の和〕だけ回る）",
+        "limit": "今の recoveryNotices と同じ桁（比べる Map を 1 回作る。守りのある unit〔U-R・U-V・U-T・U-L〕は open と live の記録の数の和、ほかは live の記録の数。候補の記録の数〔U-T は区域の数の和〕だけ回る）",
         "unit": "操作",
         "scope": "比べる state を替え、守りで open の記録を Map に先に入れるだけで、全件×全件の走査も直列化も足さない（open・at.live は owner-runtime が今も各行へ渡している）",
         "source": "AGENTS.md の受信経路の計算量"
@@ -232,7 +235,7 @@
       "U-L"
     ],
     "persistedFields": [
-      "なし（4 unit とも保存の形と版を変えない）"
+      "なし（5 unit とも保存の形と版を変えない）"
     ],
     "nonPersistedFields": [
       "なし"
@@ -251,7 +254,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-H27L-AC01",
-        "requirement": "H27 の比べの基準（P3-H27L-D-BASIS=A）: U-R・U-N・U-V・U-T の採用の step で、候補の記録ごとに採用の直前の live（at.live）の同じ subject の記録と段を比べ、上がったものだけを今どおり選ぶ（段の読み・通知済みの版〔K8 の印〕の除外・unit に 1 件・payload・channel は変えない）。open は比べに使わない。場面ごとの基準: (1) 候補の間に live が動かない: sameBase が通り、live の state は open と同じ欄を持つので結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live の同じ subject の記録より上がる区域・河川・段が無い報は作らない（live で知らせた〔配った・配る途中の pending・容量で落とした のどれでも〕引上げと同じ段の報は、本文が新しくても古くても作らない。U-T は区域ごと、U-R は河川ごとに比べるので、新しい区域・河川を足した報は上がる） (3) live が open より下げた（引下げ・取消・期限）後に、それより新しい引上げの本文を拾ったら、下げた live と比べて 1 組作る (4) live の記録が見えない（取消・期限・終わり）なら、候補の引上げは全部上がった扱い。live に記録が無い（容量の退去・回収で消えた）なら、U-R・U-V・U-T・U-L は open の記録と比べ（P3-H27L-D-EVICT=A、今の振る舞いと同じ）、open にも無ければ全部上がった扱い。U-N は at.live だけ（現況が退去しない） (5) U-T では live で受けなかった同じ区分の続報は鳴らない（Q-H27L-UT-NORMAL）",
+        "requirement": "H27 の比べの基準（P3-H27L-D-BASIS=A・P3-H27L-D-EVICT=A）: U-R・U-N・U-V・U-T・U-L の採用の step で、候補の記録ごとに採用の直前の live（at.live）の同じ subject の記録と段を比べ、上がったものだけを今どおり選ぶ（段の読み・通知済みの版〔K8 の印〕の除外・unit に 1 件〔U-L は operation ごと〕・payload・channel は変えない）。open は、live に subject の記録が無いときだけ比べに使う（(4)、U-N を除く）。場面ごとの基準: (1) 候補の間に live が動かない: sameBase が通り、live の state は open と同じ欄を持つので結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live の同じ subject の記録より上がる区域・河川・段が無い報は作らない（live で知らせた〔配った・配る途中の pending・容量で落とした のどれでも〕引上げと同じ段の報は、本文が新しくても古くても作らない。U-T は区域ごと、U-R は河川ごとに比べるので、新しい区域・河川を足した報は上がる） (3) live が open より下げた（引下げ・取消・期限）後に、それより新しい引上げの本文を拾ったら、下げた live と比べて 1 組作る (4) live の記録が見えない（取消・期限・終わり）なら、候補の引上げは全部上がった扱い。live に記録が無い（容量の退去・回収で消えた）なら、U-R・U-V・U-T・U-L は open の記録と比べ（P3-H27L-D-EVICT=A、今の振る舞いと同じ）、open にも無ければ全部上がった扱い。U-N は at.live だけ（現況が退去しない） (5) U-T では live で受けなかった同じ区分の続報は鳴らない（Q-H27L-UT-NORMAL）",
         "evidenceRefs": [
           "reconstruction/src/units/flood/flood-unit.ts:764 «3904016492697d0a»",
           "reconstruction/src/units/flood/flood-unit.ts:776 «fea261c738b1cc8f»",
@@ -300,7 +303,7 @@
       },
       {
         "id": "P3-H27L-AC05",
-        "requirement": "守り（P3-H27L-D-EVICT=A、起草レビュー r0 の P2）: U-R・U-V・U-T・U-L（P3-H27L-D-UL-GUARD=A）で、取り直しの間に live で記録が消えた subject の採用は鳴らさない（open の比べの今と同じ）。場面（U-R）: normal の有効な記録 512 件で満杯、A（code 40、通知済みの印）。open に A がある。取り直しの本文は A。本文を待つ間に live で A の取消（取消版の記録）→ 別 subject の B（A の取消版が退去）。当て直しで A が active に戻るが、採用で recovered の intent を作らない。at.live だけなら info を desktop・sound に 1 件ずつ作る（写しで確かめた、Q-H27L-EVICT）。A が active で戻ること自体は outOfScope",
+        "requirement": "守り（P3-H27L-D-EVICT=A、起草レビュー r0 の P2）: U-R・U-V・U-T・U-L（P3-H27L-D-UL-GUARD=A）で、取り直しの間に live で記録が消えた subject の採用は鳴らさない（open の比べの今と同じ）。場面（U-L、今の main で鳴る）: normal の有効な記録 128 件で満杯、稚内の L5（通知済み）。open に稚内がある。取り直しの本文は稚内の L5。本文を待つ間に live で稚内の取消（取消版の記録）→ 別の官署の報（稚内の取消版が退去）。当て直しで稚内が active に戻るが、採用で recovered の intent を作らない。今の main（P3-UNIT-L-002 の at.live だけ）は info を desktop・sound に 1 件ずつ作る（Q-H27L-EVICT の (8)）。U-R でも同じ形を写しで確かめた（512 件、Q-H27L-EVICT の (1)）。A が active で戻ること自体は outOfScope",
         "evidenceRefs": [
           "reconstruction/src/units/flood/flood-unit.ts:127 «4f6b9b5c694528bf»",
           "reconstruction/src/units/flood/flood-unit.ts:379 «51fc5ee0c300a65d»",
@@ -347,7 +350,7 @@
         "referenceIds": [
           "P3-H27L-AC05"
         ],
-        "behavior": "実不具合の再発防止（起草レビュー r0 の P2 の列。at.live だけの比べで起きる鳴りを守りが止める）。flood-unit.test.ts の末尾で、P3-C11-T04 と同じ作り方の記録 511 件と A（16_02_01 を rivers() で code 40、通知済み）で open を作り、live で synthetic_VXKO50_cancel → eventId を替えた B を受けて A の取消版を退去させ、本文 A を origin recovery で live に当て直した候補に recoveryNotices(live, candidate, clock, open) を当てる。A が active に戻ることと、recovered の payload を持つ intent が 0 件。U-V・U-T・U-L の守りは同じ 1 行の Map で、試験は U-R の 1 本（unit ごとに同じ形を写すと同じ分岐の言い換えになる。unit の行が open を渡すことはレビューで diff の 3 行を見る）。直す前の木（open の比べ）では鳴らないので落ちない（at.live だけの直しに対する回帰を留める。写しで at.live だけの形は info 2 件で落ちた）"
+        "behavior": "実不具合の再発防止（今の main の U-L で鳴る。起草レビュー r0 の P2 の列）。landslide-unit.test.ts の末尾で、P3-C10-T04 と同じ作り方の記録 127 件と稚内の L5（15_16_01 を areas で 0121400 の Kind 39 にした写し）で open を作り、live で synthetic_VPWW56_cancel → office を替えた報を受けて稚内の取消版を退去させ、本文の稚内の L5 を origin recovery で live に当て直した候補に、unit の行 landslideUnit.recoveryNotices(open, candidate, { recoveryId, clock, basis, live, card: null }) を当てる。稚内が active に戻ることと、recovered の payload を持つ intent が 0 件。直す前（今の main）に落ちることを確かめる（info 2 件）。unit の行を通すので、行が open を渡し忘れても落ちる。U-R・U-V・U-T の守りは同じ 1 行の Map で、unit ごとに同じ列を写すと同じ分岐の言い換えになるので試験は U-L の 1 本（今の main で落ちるのは U-L だけ。U-R・U-V・U-T は今 open で比べているので直す前に落ちない）。3 unit の行が open を渡すことは実装レビューで diff を見る"
       }
     ],
     "requiredCommands": [
@@ -370,7 +373,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。本契約自身の evidenceRefs のうち 4 unit の file の変える行（flood :764・:775・:776、nankai :870・:887、volcano :1676・:1711・:1712、tsunami :969）は実装で割れ、統合担当が配送で付け直す（tsunami :966・:967・:1255 は変わらない）。P3-H27L-D-UL-GUARD=A で landslide :646・:671・:672 を引く P3-UNIT-L-002 の 4 か所・P3-WEATHER-NOTICE-001 の 2 か所・本契約の 1 か所も割れる。それ以外の FAIL は止めて報告する。checker は契約ごとに最初の 1 件しか出さないので、実装担当は変えた行を引く «» を全契約から探し、行の trim の sha256 の先頭 16 桁で照らし直して報告する"
+        "purpose": "全契約。本契約自身の evidenceRefs のうち flood・nankai・volcano・tsunami の file の変える行（flood :764・:775・:776、nankai :870・:887、volcano :1676・:1711・:1712、tsunami :969）は実装で割れ、統合担当が配送で付け直す（tsunami :966・:967・:1255 は変わらない）。P3-H27L-D-UL-GUARD=A で landslide :646・:671・:672 を引く P3-UNIT-L-002 の 4 か所・P3-WEATHER-NOTICE-001 の 2 か所・本契約の 3 か所（AC01 の :646、AC05 の :671・:672）も割れる。それ以外の FAIL は止めて報告する。checker は契約ごとに最初の 1 件しか出さないので、実装担当は変えた行を引く «» を全契約から探し、行の trim の sha256 の先頭 16 桁で照らし直して報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -418,11 +421,11 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "足した仕組みは無い（比べる state を替え、守りのある unit は open の記録を Map に先に入れるだけ）。替えないと何が壊れるかを 1 行（取り直しの間に live で鳴らした引上げが採用でもう一度鳴り、live の pending を置き換える。live で下がった後の新しい引上げが鳴らない）。守りが無いと何が壊れるかを 1 行（live で取消版が退去した subject の古い報が採用で info を鳴らす）",
-      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行。T01・T03 は直す前に落ちた列を、T04 は at.live だけの形で落ちることを書く",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行。T01・T03 は直す前に落ちた列を、T04 は今の main で落ちたことを書く",
       "既存の試験の期待は変えない（P3-REC-T15・P3-REC-T18、volcano・flood・nankai の unit 試験で recoveryNotices を直に呼ぶ列を含む。起草の写しで全 suite が変わらないことを確かめた、Q-H27L-DRAFT-FACTS (1)）。変わるなら止めて報告する",
-      "4 unit の file の行の数を変えない。«» の見込み（統合担当が配送で付け直す）: 他の契約が 4 unit の file の変える行を引く «» は 0 件（Q-H27L-DRAFT-FACTS (4)）。P3-H27L-D-UL-GUARD=A で landslide-unit.ts の :646・:671・:672 を P3-UNIT-L-002（4 か所）と P3-WEATHER-NOTICE-001（2 か所、:671）が引くので割れる（requiredCommands の check-contract の purpose）。それ以外の FAIL は止めて報告する",
+      "5 unit の file（flood・nankai・volcano・tsunami・landslide）の行の数を変えない。«» の見込み（統合担当が配送で付け直す）: 他の契約が flood・nankai・volcano・tsunami の file の変える行を引く «» は 0 件（Q-H27L-DRAFT-FACTS (4)）。P3-H27L-D-UL-GUARD=A で landslide-unit.ts の :646・:671・:672 を P3-UNIT-L-002（4 か所）と P3-WEATHER-NOTICE-001（2 か所、:671）が引くので割れる（requiredCommands の check-contract の purpose）。それ以外の FAIL は止めて報告する",
       "原文の改訂（統合担当が配送で、行の中に書き足す。どの行も他の契約の «» に引かれていない、Q-H27L-DRAFT-FACTS (6)）: (1) p3-recovery.json:47（P3-REC-D-RAISE-BASIS の ruling）の末尾に「。U-R・U-N・U-V・U-T も 2026-11-10 の作者裁定（P3-H27-LIVE-UNITS-001）で同じく採用の直前の live と比べる（U-T では、live で受けなかった同じ区分の続報〔live なら normal の updated を作る〕も採用では鳴らない。取り直しは引上げだけを鳴らす）。U-W は open と at.live の両方（P3-WN-AC12）のまま」 (2) p3-recovery.json:365（P3-REC-D-N2-RAISE の ruling）の「A（作者の裁定、2026-10-28 夜）」の後に「。U-N・U-V の比べの基準は採用の直前の live（P3-H27-LIVE-UNITS-001）」 (3) p3-recovery.json:391（P3-REC-D-N2-RAISE-4B の ruling）の末尾に「。U-R も同じ（P3-H27-LIVE-UNITS-001）」 (4) p3-volcano-raise.json:143 の (4) の「（P3-REC-D-RAISE-BASIS=A）」の後に「〔P3-H27-LIVE-UNITS-001 で起点を採用の直前の live に改めた〕」 (5) p3-migration.json:226 の (3) の 1 文目（「…と比べる（P3-REC-D-RAISE-BASIS=A）。」）の後に「U-T は P3-H27-LIVE-UNITS-001 で採用の直前の live と比べる（候補の間に live が動かなければ移した記録のまま）。」 (6) p3-persist-premises.md:373 の末尾に「（U-R・U-N・U-V・U-T も同じ。P3-H27-LIVE-UNITS-001）」 (7) p3-landslide-unit-002.json:184（outOfScope の ほかの unit の行）の末尾に「→ P3-H27-LIVE-UNITS-001 で U-T・U-N・U-V・U-R も at.live に改めた」 (8)（P3-H27L-D-UNIT-WORDING=A、確定）p3-nankai-unit.json:826 の「取り直しの起点より上がった現況」、p3-flood-unit.json:956 の「取り直しの起点より上がり」、p3-volcano-unit.json:1158 の「が起点より上がり」、p3-volcano-raise.json:154 の (1) の「段が起点より上がり」の「起点」の後に「（P3-H27-LIVE-UNITS-001 で採用の直前の live）」 (9)（P3-H27L-D-EVICT=A、確定）(1) の書き足しの末尾に「。U-R・U-V・U-T・U-L は、live に subject の記録が無い（容量の退去など）ときだけ取り直しを始めた時点の記録と比べる」 (10)（P3-H27L-D-UL-GUARD=A、確定）p3-landslide-unit-002.json:190（P3-UL2-AC01）の (6) の末尾に「→ P3-H27-LIVE-UNITS-001（P3-H27L-D-UL-GUARD=A）で、live に記録が無く open に有る官署は open の記録と比べる（取消版が退去した官署の古い報で鳴らさない）」、p3-landslide-unit.json:822 の「取り直しの起点より上がった官署」の「起点」の後に「（P3-UNIT-L-002・P3-H27-LIVE-UNITS-001 で採用の直前の live、live に記録が無ければ起点）」。改訂した契約（p3-recovery.json・p3-volcano-raise.json・p3-migration.json・p3-landslide-unit-002.json・p3-nankai-unit.json・p3-flood-unit.json・p3-volcano-unit.json・p3-landslide-unit.json）の sha256 を作り直す。p3-recovery.json:1104（AC10）・p3-persist-premises.md:138・spec:3054、p3-recovery.json:452・:531（10-20 の裁定の閉じた記録）、p3-weather-notice.json:188・:352・:733（U-W）、p3-recovery.json:1120（p3-weather-notice.json:789 が «» で引く。:1104 と同じ扱い）、p3-recovery.json:665・:676（発注 4 の配送の閉じた記録）、p3-recovery.json:843（U-T の 6 引数の形。P3-H27L-D-UT-SIGNATURE の再確定のとおり署名を変えないので改訂が要らない）は改訂しない",
-      "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の 4 unit の slot は消さない"
+      "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の 5 unit（U-T・U-N・U-V・U-R・U-L）の slot は消さない"
     ],
     "unresolvedQuestions": []
   }
