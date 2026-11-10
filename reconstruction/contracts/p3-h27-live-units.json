@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6b2fb21d6a5ae06de4e24ff038a26b3146227ff0",
-    "sha256": "f86db6222423a7ef0a036c2b353d0476b6f45ef9009a3f437cc4bd7eee96a156",
+    "sha256": "426d3c93ad286c24a581d4e5561e1714513d9777869deb589c9707483de68a3c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -205,7 +205,9 @@
       "test__fixtures__16_02_01_220728_VXKO50",
       "test__fixtures__45_01_01_200522_VFVO50",
       "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
-      "test__fixtures__selected_xml__74_01_05_200512_VYSE50"
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50",
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__synthetic_VPWW56_cancel"
     ],
     "sequenceIds": [
       "O01",
