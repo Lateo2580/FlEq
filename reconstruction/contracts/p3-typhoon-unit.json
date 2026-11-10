@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "dcf8ea8c961e62549a537d72d5942394ebb2d6d2",
-    "sha256": "e1020f2ac201dc64f735d596a02270db6bc4c98d792defd3c11159d189879a66",
+    "sha256": "8688f1afaf5979253f5692c90f258af65f95c4f9144ce6ad00806ddc46844ce1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -64,7 +64,7 @@
         "B": "U-Yをweather Current（U-Wのworker）に置く",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が発注前点検で確定（2026-10-13、Q-C14-PRECHECK）: A（deferred）。起草の読みを変える材料は無い。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」とし、D-P3-1は急ぐunitと急がないunitを同居させない（reconstruction/contracts/p3-order-plan.md:198 «d33db641dfa15ff3»）。U-Yの通知の群はother（P3-C14-NOTICE-GROUP）で、EEW・津波緊急より先には選ばれない。AC12の待ちの線は、EEW（urgent）が約40 ms（E01の250 msを計画:239の速度差約6.3倍で割った値、C12・C13と同じ）で、超えたら配送の前に作者へ報告しPLACEを見直す。U-Yの待ちとU-Yの後ろの待ちは約160 ms（C12の(18)・C13の(21)の実測の線）で、超過はP3-C14-INTERFERENCE-OVER=A（作者裁定）により残存リスク(14)として承認済み、PiはC22へ。C10〜C13のPLACEと同じ読み",
+        "ruling": "統合担当が発注前点検で確定（2026-10-13、Q-C14-PRECHECK）: A（deferred）。起草の読みを変える材料は無い。根拠: spec:1027はdeferredを「U-Fなど急がないunitと、readyでないheadTypeの入力」とし、D-P3-1は急ぐunitと急がないunitを同居させない（reconstruction/contracts/p3-order-plan.md:198 «1b569de66cbf27e2»）。U-Yの通知の群はother（P3-C14-NOTICE-GROUP）で、EEW・津波緊急より先には選ばれない。AC12の待ちの線は、EEW（urgent）が約40 ms（E01の250 msを計画:239の速度差約6.3倍で割った値、C12・C13と同じ）で、超えたら配送の前に作者へ報告しPLACEを見直す。U-Yの待ちとU-Yの後ろの待ちは約160 ms（C12の(18)・C13の(21)の実測の線）で、超過はP3-C14-INTERFERENCE-OVER=A（作者裁定）により残存リスク(14)として承認済み、PiはC22へ。C10〜C13のPLACEと同じ読み",
         "reason": "今のVPTW60〜65・VPTA50〜55はnotPortedで、すでにdeferredで解凍・XML parseされている（spec:1027）。起草者が2026-10-13にMacで測った（reconstruction/distのdecodeMaterial、12回）: 1,849,665 byteのVPTA50（76_01_02）の解凍の手前からdecodeの終わりまで中央値36.1 ms・最大39.5 ms（76_01_01は中央値37.9・最大58.9 ms）、XML node 118,642（上限320,000）、生きた木は1通あたり8.8 MiB。57,369 byteのVPTW60は中央値1.1 ms・2,260 node。Pi（約6.3倍、計画:239）では確率の報のdecodeが約230 ms。deferredの最長はVPWP50（C13の実測で後ろの待ち最大161 ms、reconstruction/contracts/p3-local-bulletins-unit.json:449 «6226c642f75397d8»）で、確率の報はそれより短い見込み。Bの代償: U-Wの重い処理（VPWS50）と台風を同じ列に並べ、E05-PとU-Wの待ちに台風の1.85 MBが加わる"
       },
       {
