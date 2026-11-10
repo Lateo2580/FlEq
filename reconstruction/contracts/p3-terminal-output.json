@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "eb895399e5ce03e1677e439badd1f80e01e8073e2142d765ddf63199bce1b772",
+    "sha256": "946fc18e73c86a6dbaddae317b5f9086aee5ecad9f0505b43df6201fb8ca5b9d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -467,7 +467,7 @@
       {
         "id": "P3-TO-RES-02",
         "target": "TerminalReport の件数",
-        "limit": "地震の区域 256、津波の区域 256・観測点 1,024（満潮時刻を持つ予報の観測点と観測した観測点で分け合う）・推定区域 256、文字列は 1 つ 4,096 字（越えた分は … にして omitted に数えない）。越えた区域・観測点は omitted に数える",
+        "limit": "地震の区域 256、津波の区域 256・観測点 1,024（満潮時刻を持つ予報の観測点と観測した観測点で分け合う）・推定区域 256、文字列は 1 つ 4,096 字（越えた分は … にして omitted に数えない）。越えた区域・観測点は omitted に数える。台風の暴風域に入る確率の府県の行（P3-TERMINAL-LAYOUT-016）は、5日積算と時系列の地域は全部見て（件数に比例。U-Y も全部辿る）、府県は 96・時間帯は 64 まで（U-Y の LIMITS と同じ）、行は 5 府県か最大の確率 70 以上の府県の数の多い方まで〔96 まで〕、府県名と地域名は 24 字まで",
         "unit": "件・字",
         "scope": "1 報",
         "source": "細分区域 188・津波予報区 66・津波の観測点の上限 1,024（spec:575）の上に置く"
@@ -603,7 +603,7 @@
       },
       {
         "id": "P3-TO-AC08",
-        "requirement": "【発注 1】計算量と大きさ（AGENTS.md の受信経路の計算量、P3-TO-RES-01〜03）: (1) publisher（main）の 1 回の受信の仕事は、返信の terminal の参照を列に積むこと、output の outcomes のうち U-E のものを探すこと（その返信の outcomes の数に比例）、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字〔震源名と発生時刻〕を取ること（P3-TL9-AC06 (3)、U-E を探すのと同じ列を 1 回見る）、定期要約の数を 1 足すこと、全国の集約通報の表を覚えた 1 つと比べること（P3-TL8-AC04・AC05 (2)）、降灰予報（定時）のまとまり〔20 件までの並び〕と記録的短時間大雨の待ちの表〔Map、端末の上限 256〕に置く・外すこと（返信の U-B の accepted の subjects を 1 回見る。表が空で VPOA50 でもなければ見ない、P3-TL10-AC04 (1)）、気象警報・注意報時系列情報（VPWP50）のまとまり〔U-F の自分の記録の subject → 報の Map、64 件まで〕に置く・外すこと（VPWP50 の返信だけ、その返信の outcomes の U-F の accepted の subjects を 1 回見る。種類の合わせと官署の数えは束を出す時だけ、P3-TL11-AC05 (1)）だけで、整形・JSON.stringify・列全体の走査・全 unit の view の走査をしない。列の byte は積む時に 1 回だけ見積もる（TerminalReport は件数の上限があるので件数から見積もり、文字列の長さを足す。JSON にしない） (2) owner の terminalReport は decode 済みの tree を 1 回だけ線形に辿る。読む区域・観測点は P3-TO-RES-02 の件数まで（越えた数は omitted に数え、端末は「ほか N 件」の 1 行を出す） (3) 材料を作る時間を、配送の前に Mac で最も大きい fixture（VTSE41・VTSE51・VXSE53 と 18 の気象の最大）で測り、成果物に表で書く。どれかが 5 ms を越えたら配送の前に止めて報告する（owner の urgent の場所は津波を持つので、EEW の E01 の予算に効く）",
+        "requirement": "【発注 1】計算量と大きさ（AGENTS.md の受信経路の計算量、P3-TO-RES-01〜03）: (1) publisher（main）の 1 回の受信の仕事は、返信の terminal の参照を列に積むこと、output の outcomes のうち U-E のものを探すこと（その返信の outcomes の数に比例）、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字〔震源名と発生時刻〕を取ること（P3-TL9-AC06 (3)、U-E を探すのと同じ列を 1 回見る）、定期要約の数を 1 足すこと、全国の集約通報の表を覚えた 1 つと比べること（P3-TL8-AC04・AC05 (2)）、降灰予報（定時）のまとまり〔20 件までの並び〕と記録的短時間大雨の待ちの表〔Map、端末の上限 256〕に置く・外すこと（返信の U-B の accepted の subjects を 1 回見る。表が空で VPOA50 でもなければ見ない、P3-TL10-AC04 (1)）、気象警報・注意報時系列情報（VPWP50）のまとまり〔U-F の自分の記録の subject → 報の Map、64 件まで〕に置く・外すこと（VPWP50 の返信だけ、その返信の outcomes の U-F の accepted の subjects を 1 回見る。種類の合わせと官署の数えは束を出す時だけ、P3-TL11-AC05 (1)）だけで、整形・JSON.stringify・列全体の走査・全 unit の view の走査をしない。列の byte は積む時に 1 回だけ見積もる（TerminalReport は件数の上限があるので件数から見積もり、文字列の長さを足す。JSON にしない） (2) owner の terminalReport は decode 済みの tree を 1 回だけ線形に辿る。（台風の暴風域に入る確率の府県の行は、scan の後に 5日積算と時系列の 2 つの節の Item の列を 1 回ずつ見る。P3-TERMINAL-LAYOUT-016 の P3-TL16-AC01 (5)）読む区域・観測点は P3-TO-RES-02 の件数まで（越えた数は omitted に数え、端末は「ほか N 件」の 1 行を出す） (3) 材料を作る時間を、配送の前に Mac で最も大きい fixture（VTSE41・VTSE51・VXSE53 と 18 の気象の最大）で測り、成果物に表で書く。どれかが 5 ms を越えたら配送の前に止めて報告する（owner の urgent の場所は津波を持つので、EEW の E01 の予算に効く）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
           "reconstruction/src/host/host.ts:182 «26aeb254c6d4535e»",

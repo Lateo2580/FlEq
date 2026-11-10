@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "46de704f6f7704e1c1820350a44bbb79d54f8be576b3fe902cb437d42516819a",
+    "sha256": "8584e08154cea71b0110be70974d827504a82f39eb4bd47d65819339121c8db9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -276,7 +276,7 @@
       "通知（音・デスクトップ）の文面と門。地震の取消の通知の震源名（P3-NL-D-CANCEL-EPICENTER=A）は今のまま",
       "U-Q・U-M・U-Y・U-F・U-E の unit・state・保存の形式・codec（端末は返信の outcome と材料を読むだけ）",
       "EEW の取消の 3 行目（P3-TO-D-CANCEL-PHRASE）と EEW のログ（spec §7）",
-      "VPTA50 の府県ごとの確率の表（旧築の上位 24 行）。短い形は表を出さない（Q-TO-ROOT の案 C）",
+      "VPTA50 の府県ごとの確率の表（旧築の上位 24 行）。短い形は表を出さない（Q-TO-ROOT の案 C）（P3-TERMINAL-LAYOUT-016 で、帯の下に府県の行〔70% 以上は全部、70% 未満は合計 5 行まで〕を出すことにした。作者の裁定 A'・D-TIE=A、2026-11-10）",
       "番号のある台風の Remark（台風消滅など）を帯に出すこと（旧築も名前を先にした）",
       "竜巻注意情報（VPHW50・51）の帯の対象（最初の Area/Name）",
       "台風解析・予報情報の帯の題名に残る版の印「（Ｈ３０）」（短い形の帯は Q-TO-S-1 で「（Ｒ０６）」の形だけを除く。起動時のまとめの名前は Q-TO8-NO-CODE で両方を除く）。除くなら Q-TO-S-1 の改訂として別に諮る（2026-11-09 作者、P3-TERMINAL-LAYOUT-013 の P3-TL13-AC01 で短い形の帯の題名から「（Ｈ３０）」の形も除くことにした）",
