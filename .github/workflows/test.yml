@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # reconstruction: check-contract.mjs が契約の baseOid（発注 OID）を git cat-file で検証するので履歴が要る
+          # reconstruction: check-contract.mjs が契約の baseOid（発注 OID）を git cat-file と HEAD の祖先かで検証するので履歴が要る
           fetch-depth: ${{ startsWith(matrix.suite, 'reconstruction') && '0' || '1' }}
 
       - uses: actions/setup-node@v5

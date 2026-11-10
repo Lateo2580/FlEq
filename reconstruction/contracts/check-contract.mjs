@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { sha256, hashConvention, zeroHash, citedLine } from '../tools/corpus/check-manifest.mjs';
@@ -95,6 +95,9 @@ try {
       } else {
         assert.match(baseOid ?? '', /^[a-f0-9]{7,40}$/, `${name}: base OID must be an OID or unassigned`);
         execFileSync('git', ['cat-file', '-e', `${baseOid}:${path}`], { cwd: fileURLToPath(root), stdio: 'pipe' });
+        // cherry-pick で載せ直すと baseOid が履歴の外になり、元の commit を object に持つ手元だけ cat-file が通って PASS する
+        const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', baseOid, 'HEAD'], { cwd: fileURLToPath(root), stdio: 'pipe' });
+        assert.equal(ancestor.status, 0, `${name}: baseOid ${baseOid} is not an ancestor of HEAD (rebase・cherry-pick で載せ直したなら割り当て直す)`);
       }
       assert.equal(typeof contract.cleanTreeRequired, 'boolean', `${name}: cleanTreeRequired`);
       for (const field of [
