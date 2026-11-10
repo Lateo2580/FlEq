@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c5a15ffb15da81857b549ae38368673564ea1196",
-    "sha256": "1e4d79fc7427664a7d47cb6c9b86b238c09ad33c46bbde92f8c89caa176f0fa3",
+    "sha256": "b3aa566f707ca6edbd499de7ac6b9cc9c302c349b400fbc5bc4915a73cf721fe",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -58,7 +58,7 @@
     "contractId": "P3-TERMINAL-LAYOUT-018",
     "mode": "implementation",
     "objective": "作者の裁定（2026-11-10、P3-TL18-D-HEADER=A）のとおり、台風の暴風域に入る確率（VPTA50〜55）の短い形の府県の行（P3-TERMINAL-LAYOUT-016）の上に、薄い字の見出しの行「府県・最悪地域・確率・ピーク」を足す。材料（material.ts の probability）と型は変えず、整形（format.ts の typhoonLines）だけを改める。spec は起草で直した（§5.4 の図の 597・614・615 行と 660 行、§8 の Q-TO18-VPTA50-HEADER の 947 行）",
-    "baseOid": "unassigned",
+    "baseOid": "187db9a5",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
