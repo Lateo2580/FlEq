@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "c0c478db56d3e99db6c0496ca402179338501ff6",
-    "sha256": "fcd7c032291a18af2eda5a42e5b2542e12831629c5c28377201dea9a73e4f941",
+    "sha256": "f0272caf0d042467bbc000eba0005a906b681379afba568b0f3d1cb13b3ea398",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -245,8 +245,8 @@
         "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 21 行（§1 の例外）、480 行（§5.4 の総則の列挙）、584〜620 行（80 桁と 56 桁の図）、648 行（台風の暴風域に入る確率の項。定義・並び・上限・空の欄・幅に入らないときの形・出さないもの）、781 行（§6.6 の「ほか」の折り）、848 行（Q-TO-S-3）、874 行（Q-TO2-SHORT）、932〜933 行（Q-TO16-VPTA50・Q-TO16-DIGEST-WRAP）。spec の行を引く 22 契約の «» を同じ起草で付け直した（中身を変えた 21・480・808→848 行を引く 6 か所は新しい anchor を手で入れ、ほかは reanchor-target.py） (2) 閉じた契約の文 4 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)〜(4)。行の数は変えない） (3) 作者の裁定（2026-11-10、D-TIE=A の 70% の形・D-NARROW=A）を spec の 648 行・932 行と図（70% 以上の 7 府県の行）に当て、«» を付け直した",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:21 «47bdfe11b415d2c1»",
-          "docs/specs/cli-terminal-output.md:480 «9ac547fca1c53d15»",
-          "docs/specs/cli-terminal-output.md:848 «20a9aa6500841e4e»",
+          "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
+          "docs/specs/cli-terminal-output.md:848 «30158ec2a8f610b5»",
           "docs/specs/cli-terminal-output.md:874 «cdd855d59ffbd66c»",
           "reconstruction/contracts/p3-terminal-layout9.json:279 «61e036e50413d4ef»",
           "reconstruction/contracts/p3-terminal-layout.json:318 «6359e25f097fa58c»",
