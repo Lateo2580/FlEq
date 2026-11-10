@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "28f9e2cc32bebe36a4116bf8b9b6129274fe7c9a",
-    "sha256": "ed48a78ac4e3678272be12a6c647c38c16bacaa5c0629433d59c9c3056c344ab",
+    "sha256": "a293f24911a8adaedfd3241db87c5e535d279d9c39ec8557d6f71427bd27a839",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -51,6 +51,28 @@
         "status": "確定（作者の裁定、2026-11-10 20 時台。起草レビュー r0 の後）",
         "ruling": "A（作者の裁定、2026-11-10 20 時台「A で進めてください」）",
         "reason": "起草レビュー r0 の整合 P2-2: C（最初〜最後）は、あいだの時間帯も同じ段階に読める。fixture で飛び飛びになる行は 0（種類のある報の 7 行は全部続いている）。場面: 81_09_01 の小諸市の濃霧危険度の refID \"9\"（「０７日朝」）を注意報級・20 にした報は、A で「濃霧危険度（注意報級）  06日朝〜06日昼前・07日朝」、C では「06日朝〜07日朝」と 06日昼過ぎ〜07日明け方も注意報級に読める"
+      },
+      {
+        "id": "P3-TL19-D-CAP",
+        "kind": "作者",
+        "A": "危険警報級・特別警報級の種類の市町村等と、どの段階の時間帯（TimeDefine）も、端末の側の数で切らない。限りは既存の端末へ送る列の 1 単位 1 MiB（output.ts の QUEUE_BYTES）だけで、越えた報は丸ごと既存の省きの道（「（表示が間に合わなかったため、n 件の表示を省きました）」）を通る",
+        "B": "数の上限を置き、越えた分は「ほか n」（起草の r0 の形: 1 種類 256・TimeDefine 64。不採用）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-10 21 時台。起草レビュー r1 の後）",
+        "ruling": "A（作者の裁定、2026-11-10 21 時台「どちらも A で」）",
+        "reason": "起草レビュー r1 の品質（ヘルツ）が 2 巡続けて同じ形の列を成立させた: 1 種類 256 では特別警報級の市町村が 257 ある報で「ほか 1」、TimeDefine を 64 まで読むと 65 個目だけを指す特別警報級で時間帯が出ない。U-F（domains/weather-timeseries）は市町村の数にも TimeDefine の数にも上限を置かずに受け入れる（入口は ingress の 8 MiB だけ）ので、端末の側だけの数は、どれを置いても 1 つ多い入力で裁定「全部出す」が破れる"
+      },
+      {
+        "id": "P3-TL19-D-STAGE-NAME",
+        "kind": "作者",
+        "A": "1 行目の段階の名前（Significancy の Name）も時間帯と同じ nfkc を通す（「警戒レベル２相当」→「警戒レベル2相当」）",
+        "B": "段階の名前は電文の字のまま全角（不採用）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-10 21 時台。統合担当の r0 の決めを承認）",
+        "ruling": "A（作者の裁定、2026-11-10 21 時台「どちらも A で」）",
+        "reason": "時間帯だけを半角にすると、実物の報で「大雨浸水危険度（警戒レベル２相当）  06日夜のはじめ頃」と 1 行に全角と半角が混ざる（r0 の整合 P3。実物の段階の名前は全角の数字、81_09_01 の 107 行ほか）。束の形との食い違いは残る（Q-TL19-STAGE-NAME）"
       }
     ],
     "questionResolutions": [
@@ -65,7 +87,7 @@
         "id": "Q-TL19-SPAN-GAP",
         "status": "closed",
         "source": "依頼の分岐 1（最悪の段階の時間帯が飛び飛びのとき）、起草レビュー r0 の整合 P2-2、作者の裁定",
-        "closed": "作者の裁定 P3-TL19-D-SPAN-GAP=A（2026-11-10 20 時台）。「続いている」は、同じ TimeSeriesInfo の TimeDefines の中の電文の順の位置が隣どうし（位置の差が 1）のこと。日ごとの TimeSeriesInfo にも同じ規則（「０６日」「０７日」は隣どうし）。帯の数の上限は置かない: TimeDefine を TimeSeriesInfo ごとに 64（material が import 済みの LIMITS.slots と同じ値）まで読むので、帯は 1 つの種類で 32 まで（隣どうしでない位置の数）に収まる。起草の 256 から 64 に下げたのは、32 種類 × 128 帯 × 2 × 24 字（約 0.59 MB）が市町村等の 0.59 MB と合わせて列の 1 MiB を越えうるため。64 なら帯は 32 種類 × 32 帯 × 2 × 24 字 = 49,152 字（約 0.15 MB）で、市町村等と合わせて約 0.74 MB。落ちるもの: 65 番目からの TimeDefine を指す時間帯は帯に入らない（実物の TimeSeriesInfo の TimeDefine は 14 まで。81_09_01 の 1 つ目）。fixture で飛び飛びになる行は 0（7 行とも続いている）。起草の写しで、小諸市の濃霧の refID \"9\" を 20 にした報は spans が [「０６日朝」〜「０６日昼前」, 「０７日朝」]、100 桁・56 桁とも 1 行目が「濃霧危険度（注意報級）  06日朝〜06日昼前・07日朝」、40 桁で「濃霧危険度（注意報級）  06日朝〜06日昼前」と「                        07日朝」（24 桁下げ）",
+        "closed": "作者の裁定 P3-TL19-D-SPAN-GAP=A（2026-11-10 20 時台）。「続いている」は、同じ TimeSeriesInfo の TimeDefines の中の電文の順の位置が隣どうし（位置の差が 1）のこと。日ごとの TimeSeriesInfo にも同じ規則（「０６日」「０７日」は隣どうし）。帯の数の上限も TimeDefine を読む数の上限も置かない（作者の裁定 P3-TL19-D-CAP=A。r0 の 64 はやめた）。材料の大きさの限りは列の 1 単位 1 MiB だけ（P3-TL19-AC04）。fixture で飛び飛びになる行は 0（7 行とも続いている）。起草の写しで、小諸市の濃霧の refID \"9\" を 20 にした報は spans が [「０６日朝」〜「０６日昼前」, 「０７日朝」]、56 桁の 1 行目が「濃霧危険度（注意報級）  06日朝〜06日昼前・07日朝」、40 桁で「濃霧危険度（注意報級）  06日朝〜06日昼前」と「                        07日朝」（24 桁下げ）、24 桁で続きの行が「  07日朝」（2 桁下げ。r1 の品質 P2 の「入らない字下げが空の行になる」を直した形）",
         "remaining": "なし"
       },
       {
@@ -107,7 +129,7 @@
         "id": "Q-TL19-TESTS",
         "status": "closed",
         "source": "起草（2026-11-10）。期待が変わる既存の試験の数え",
-        "closed": "起草の写し（r0 の直しの後も同じ。P3-TERMINAL-LAYOUT-018 の AC01 を当てた写しにさらに本契約の AC01・AC02 を当てたもの）で、terminal の試験 32 file・263 件（dist の無い写しで動かない prompt-host・stall・windows の 3 file を除く）を回すと、落ちたのは layout17.test.ts の P3-TL17-T02・T03 と、TL18 の layout16.test.ts の 3 件だけ。layout11.test.ts（束と、1 件の束を 1 報の形と比べる T02 (a)）は通った。tsc の reconstruction/tsconfig.json（--noEmit）と tsconfig.test.json も rc 0",
+        "closed": "起草の写し（r0・r1 の直しの後も同じ。P3-TERMINAL-LAYOUT-018 の AC01 を当てた写しにさらに本契約の AC01・AC02 を当てたもの）で、terminal の試験 32 file・263 件（dist の無い写しで動かない prompt-host・stall・windows の 3 file を除く）を回すと、落ちたのは layout17.test.ts の P3-TL17-T02・T03 と、TL18 の layout16.test.ts の 3 件だけ。layout11.test.ts（束と、1 件の束を 1 報の形と比べる T02 (a)）は通った。tsc の reconstruction/tsconfig.json（--noEmit）と tsconfig.test.json も rc 0",
         "remaining": "なし"
       },
       {
@@ -121,22 +143,36 @@
         "id": "Q-TL19-LIMIT",
         "status": "closed",
         "source": "起草レビュー r0（品質 P1・整合 P2-1）と統合担当の決め（種類をまたぐ延べの上限をやめ、種類ごとに数える）",
-        "closed": "r0 の列: 81_09_01 の全部の Significancy を「特別警報級」「50」にした報は、起草の延べ 1,024 の上限に当たり、霜危険度の行で高山村〜栄村が落ちて「ほか 8」（合計 29）になった。裁定「危険警報級・特別警報級は全部出す」に反する。加えて、上限で落とした後に別の種類の積み直しで枠が空くと後ろの Item がまた入り、「後ろから順に落ちる」が成り立たなかった。改めた形: 上限を種類ごとに数える（無いと、重い段階の市町村が、軽い段階の種類が先に使った枠のせいで落ちる）。(a) Code の十の位が 2・3 の種類は名前を電文の順に K = 64 まで持ち、残りは数（others）だけ持つ。fixture の市町村等の名前の最短は 2 字（「原村」「栄村」など 95 個の名前で）なので、1 つの名前は「・」と合わせて 6 桁以上で、64 個を並べると字下げ込みで 2＋64×4＋63×2 = 384 桁。384 桁より狭い端末では幅で「ほか n」になる方が先で、K は出る字を変えない。384 桁以上の端末では幅より早く「ほか n」になる（残存） (b) 十の位が 4・5 の種類は全部の名前を持つ守りの上限を種類ごとに 256（材料の既存の AREA_LIMIT）にする。repo の最大は 81（81_09_01）で 3.2 倍。統合担当の目安の 1,024 にしなかった理由: 32 種類 × 1,024 × 24 字は約 786,000 字（UTF-8 で約 2.36 MB）で、端末の列の 1 MiB（output.ts の QUEUE_BYTES）を越え、その報が丸ごと「表示を省きました」になる。256 なら 32 × 256 × 24 字 = 196,608 字（約 0.59 MB）で 1 MiB に入る (c) 積み直し: その種類により重い Code が出たら、その種類の名前と others と既に数えた市町村等の印を捨てて、その Item から積む。種類をまたぐ枠が無いので、空いた枠への入れ直しは起きない (d) 最悪の量: 1 報の riskRows は全部の種類が十の位 4・5 で 256 件ずつのとき約 0.59 MB（時間帯の帯〔Q-TL19-SPAN-GAP の 0.15 MB まで〕と type・name を足して約 0.74 MB）。束を待つ main が 64 件の報を全部この形で持てば約 47 MB（実物の 81_09_01 は 11 名前、約 100 字）。受信 1 回の仕事は Significancy ごとに Map を 1 回と印の Set を 1 回引くだけで、Body の大きさに比例する (e) 起草の写しで確かめた: 全部を 50 にした 81_09_01 は 13 種類とも areas 81・others 0、濃霧の 20 を 1 つ目の TimeSeriesInfo の先頭 64 個の Item に置いた報は areas 64・others 0（64 個目は生坂村）、65 個なら areas 64・others 1",
-        "remaining": "なし（残存 (3)(6)）"
+        "closed": "r0 の列（全部の Significancy を「特別警報級」「50」にした 81_09_01 で、起草の延べ 1,024 の上限により霜危険度の行の高山村〜栄村が「ほか 8」）を受けて種類ごとに数える形にし、r1 の作者の裁定 P3-TL19-D-CAP=A で重い段階の数の上限もやめた。今の形: (a) Code の十の位が 2・3 の種類は名前を電文の順に 64 まで持ち、残りは others に数える（無いと 1 報の材料が Item の数×種類の数で大きくなる）。fixture の市町村等の名前の最短は 2 字（「原村」「栄村」など 95 個の名前で）なので、64 個を並べると字下げ込みで 2＋64×4＋63×2 = 384 桁。端末の本文は 100 桁まで（format.ts の RULE_LIMIT）なので、64 で「ほか n」が幅より早く出ることは起きない（r1 の整合 P3。r0 の「384 桁以上の端末では早く出る」は誤り） (b) 十の位が 4・5 の種類の名前と、どの段階の時間帯も数で切らない (c) 積み直し: その種類により重い Code が出たら、その種類の名前・others・帯・数えた印を捨てて、その Item から積む。種類をまたぐ枠が無いので、空いた枠への入れ直しは起きない (d) 限りは列の 1 単位 1 MiB だけ（P3-TL19-AC04）。estimate の式（output.ts の 70 行）で 1 報の単位が 1 MiB を越える名前の数: 81_09_01 の名前の長さ（平均 3.45 字）なら 68,927 個（81_09_01 の Item×種類の 1,053 の約 65 倍）、24 字の名前なら 13,753 個（約 13 倍）。81_09_01 の報の単位は 815 byte (e) 起草の写しで確かめた: 1 つ目の TimeSeriesInfo の Item を 4 回並べて先頭 257 個の濃霧を 50 にした報は areas 257・others 0 で、100 桁に「ほか」の行が無い。濃霧の 20 を先頭 64 個にした報は areas 64・others 0（64 個目は生坂村）、65 個なら areas 64・others 1",
+        "remaining": "なし（残存 (3)）"
       },
       {
         "id": "Q-TL19-OVERLAP",
         "status": "closed",
         "source": "起草レビュー r0 の整合 P3（同じ type が 2 つの TimeSeriesInfo に出ると同じ市町村が 2 回並ぶ）",
-        "closed": "fixture で 0 回（どの報も 3 時間ごとと日ごとの TimeSeriesInfo で type が分かれる）。ただし構造の上では起きうる（type 属性は TimeSeriesInfo を縛らず、material の道の検査も type を見ない。81 の Item は 3 つの TimeSeriesInfo に同じ Area の並びで出るので、起草の形〔Item ごとに 1 回〕では同じ市町村が 2 回入る）。条文にする: 1 つの種類の中で、同じ Area/Code の市町村等は最初の 1 回だけ数える（Area/Code の無い Item はその Item で 1 回）。起草の写しで、3 つ目の TimeSeriesInfo の佐久市・軽井沢町の霜の Significancy を濃霧危険度・20 に書き換えた報は、濃霧の areas が 11 のまま（佐久市・軽井沢町が 2 回入らない）で、時間帯は 1 つ目の TimeSeriesInfo の「０６日朝」〜「０６日昼前」のまま",
+        "closed": "fixture で 0 回（どの報も 3 時間ごとと日ごとの TimeSeriesInfo で type が分かれる）。ただし構造の上では起きうる（type 属性は TimeSeriesInfo を縛らず、material の道の検査も type を見ない。81 の Item は 3 つの TimeSeriesInfo に同じ Area の並びで出るので、起草の形〔Item ごとに 1 回〕では同じ市町村が 2 回入る）。条文にする: 1 つの種類の中で、同じ Area/Code の市町村等は最初の 1 回だけ数える（Area/Code の無い Item はその Item で 1 回）。起草の写しで、3 つ目の TimeSeriesInfo の佐久市・軽井沢町の霜の Significancy を濃霧危険度・20 に書き換えた報は、濃霧の areas が 11 のまま（佐久市・軽井沢町が 2 回入らない）で、時間帯は 1 つ目の TimeSeriesInfo の「０６日朝」〜「０６日昼前」のまま。名前の無い Item（r1 の品質 P2: 先の Item は Name なし、後の Item は同じ Code で Name あり）: 名前の無い Item は others に 1 足し、Area/Code に印を付けない（その Item 自身に印を付けて、同じ Item の中では 1 回だけ数える）。後の同じ Area/Code の名前つきの Item は名前として数える。壊れた形でだけ others が 1 多くなる（少なく数えるより安全な側）。fixture の VPWP50 の Item（13 本で 375）に Area/Name の無いものは 0（Area/Code の無いものは人工の 81_09_01_local_identity の 1 つで、種類の無い報）。起草の写しで、1 つ目の TimeSeriesInfo の小諸市の Name を除き、3 つ目の小諸市の霜を濃霧・20 にした報は areas 11（最後が小諸市）・others 1。「最初の 1 回だけ」のままより単純で食い違いの無い規則は見つからなかった（名前の有無で印を分けないと、名前があるのに「ほか 1」になる）",
         "remaining": "なし"
       },
       {
         "id": "Q-TL19-STAGE-NAME",
         "status": "closed",
         "source": "起草レビュー r0 の整合 P3（同じ行に全角と半角が混ざる）と統合担当の決め",
-        "closed": "1 行目の段階の名前（name）も時間帯と同じ nfkc を通す（D-DIGITS=A と同じ読み替えで、値は変わらない）。事実: 気象庁の実物の段階の名前は全角の数字（81_09_01 の 107 行ほか「警戒レベル２未満」が 2,268 個、81_01_01〜04 も同じ。Code 21〜51 の実物の fixture は repo に無い）、人工の fixture は半角（81_02_01 などの「警戒レベル4相当」）。束の形（format.ts の 798 行）と P3-TERMINAL-LAYOUT-017 の riskLines は name を電文の字のまま出すので、実物の「警戒レベル２相当」以上の種類は束では全角のまま出る（spec の束の図〔576〜581 行〕は人工の fixture の字で組んだので半角）。束の形は範囲外で、1 件の形（半角）と束の形（全角）の食い違いが残る（残存 (7)）",
+        "closed": "1 行目の段階の名前（name）も時間帯と同じ nfkc を通す（D-DIGITS=A と同じ読み替えで、値は変わらない。作者の裁定 P3-TL19-D-STAGE-NAME=A で確定）。事実: 気象庁の実物の段階の名前は全角の数字（81_09_01 の 107 行ほか「警戒レベル２未満」が 2,268 個、81_01_01〜04 も同じ。Code 21〜51 の実物の fixture は repo に無い）、人工の fixture は半角（81_02_01 などの「警戒レベル4相当」）。束の形（format.ts の 798 行）と P3-TERMINAL-LAYOUT-017 の riskLines は name を電文の字のまま出すので、実物の「警戒レベル２相当」以上の種類は束では全角のまま出る（spec の束の図〔576〜581 行〕は人工の fixture の字で組んだので半角）。束の形は範囲外で、1 件の形（半角）と束の形（全角）の食い違いが残る（残存 (7)）",
         "remaining": "なし（残存 (7)）"
+      },
+      {
+        "id": "Q-TL19-HOLD",
+        "status": "closed",
+        "source": "起草レビュー r1 と作者の裁定 D-CAP=A を受けた統合担当の依頼（材料が作られてから列に入るまでに持たれる場所で、1 件の大きさの限りが効くか）",
+        "closed": "道（実物で確かめた）: owner の worker の material.ts が材料を作る → inputDone の返信で main へ（host.ts の 164・192 行、composition-root.ts の inputDone から onInputDone。どちらも持たずに渡す）→ output.ts の sink.inputDone。1 件だけの VPWP50 は、時系列のまとまり（series.reports。64 件まで、最後の報から 8 秒か最初から 180 秒）に入って待ち、flushSeries で push（output.ts の 258 行で estimate が QUEUE_BYTES を越えれば積まずに数え、次の書き出しの頭に「表示を省きました」）。限りが効くのは push の時だけで、まとまりの待ちには効かない。数で切らない今の形では材料の大きさは電文の大きさで決まり、ingress の 8 MiB の電文から 1 報で約 4 MiB（見積もり。測っていない: XML の 1 つの名前の組〔Item の中の 1 種類の Significancy〕は約 150 byte 以上、材料の 1 つの名前は 24 字で約 76 byte）、まとまりの 64 件で約 256 MiB を main が最長 180 秒持ちうる。限りが要る（無いと、出せない報の材料を main がまとまりの間に 64 件まで持つ）。新しい数を置かず、既存の 1 MiB の判定を材料が端末に入る時に使う: sink.inputDone の時系列の分岐（output.ts の 565 行）に「estimate(報) が QUEUE_BYTES 以下」を足し、越えた報はまとまりに入れずに今の else の道（すぐ push）へ回す。push が丸ごと省く。まとまりが持つのは 1 件 1 MiB 以下で、64 件で 64 MiB まで。起草の写しで、この条件の無い形に 1 MiB を越える報を入れて close すると、まとまりの flush の push が積まずに数えた件数を載せる書き出しが無く、「表示を省きました」がどこにも出なかった（P3-TL19-T10）。条件があれば、入った時にすぐ省かれて次の書き出しの頭に出る",
+        "remaining": "なし（残存 (6)）"
+      },
+      {
+        "id": "Q-TL19-R1",
+        "status": "closed",
+        "source": "起草の確かめの 2 巡目（r1）の結果と当てたもの",
+        "closed": "r1: 整合（Opus）は残り P2 1・P3 2、品質（ヘルツ）は残り P1 1・P2 1。当てたもの: (1) 品質 P1（重い段階を数で切ると 1 つ多い入力で全部出すが破れる）→ 作者の裁定 P3-TL19-D-CAP=A、Q-TL19-LIMIT・Q-TL19-HOLD・P3-TL19-AC04、試験 T06 (a)・T09・T10 (2) 作者の裁定 P3-TL19-D-STAGE-NAME=A を記録し、T02 に全角の段階の名前の報を足した (3) 整合 P2（allowedPaths の文の古さ）→ format.ts は関数 2 つ、layout17.test.ts は T03〜T10、output.ts を足した (4) 整合 P3（spec 664 行の「束と同じ字」）→「束と同じ type の字」 (5) 整合 P3（384 桁）→ Q-TL19-LIMIT (a) と残存 (3) を「起きない（本文は 100 桁まで）」に (6) 品質 P2（24 桁の字下げが狭い端末で空の行になる）→ AC02 (2) の 2 桁下げ、T08 に 24 桁 (7) 品質 P2（名前の無い Item）→ Q-TL19-OVERLAP の規則 (8) 試験: 積み直しを others の後に置き替えた（T05）、T05 の「TimeDefine に無い refID」を T09 に置き替えて消した、T08 の 100 桁を消した",
+        "remaining": "なし"
       },
       {
         "id": "Q-TL19-BASEOID",
@@ -175,13 +211,16 @@
       "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml",
       "test/fixtures/81_04_01_260605_VPWP50_cancel.xml",
       "test/fixtures/81_06_01_260605_VPWP50_criteria_period.xml",
-      "test/fixtures/81_09_01_260605_VPWP50.xml"
+      "test/fixtures/81_09_01_260605_VPWP50.xml",
+      "reconstruction/test/terminal/output.test.ts",
+      "reconstruction/src/host/host.ts"
     ],
     "allowedPaths": [
       "reconstruction/contracts/p3-terminal-output.types.ts（短い形の 89 行に欄 riskRows を足し、88 行と 89 行の間に欄の説明のコメントを 1 行足す。87・88 行の中身は変えない）",
       "reconstruction/src/terminal/material.ts（P3-TL19-AC01 だけ。scan〔109〜175 行〕と、その前に置く型・定数・関数、short の 292 行と 301 行の object の欄。行の数が変わってよい〔配送で «» を付け直す。artifactRequirements の原文の改訂〕）",
-      "reconstruction/src/terminal/format.ts（P3-TL19-AC02 だけ。777 行〔shortForm の summary の並び〕の riskLines の引数、riskLines〔起草の時は 985〜992 行。P3-TERMINAL-LAYOUT-018 の配送の後は typhoonLines の後〕の書き換えと、その後〔「---- 書き出す文字 ----」の前〕に置く関数 1 つ。ほかの関数と行は変えない）",
-      "reconstruction/test/terminal/layout17.test.ts（P3-TL17-T02・T03 の期待を P3-TL19-T01・T02 の形に改め、P3-TL19-T03〜T06 を末尾に新しい describe で足す。既存の owned を使い、XML を書き換える試験は owned に書き換えの関数を渡す引数を足すか、terminal-fixture の reportOf の transform を使う）"
+      "reconstruction/src/terminal/format.ts（P3-TL19-AC02 だけ。777 行〔shortForm の summary の並び〕の riskLines の引数、riskLines〔P3-TERMINAL-LAYOUT-018 の配送の後は 989〜994 行、頭のコメントは 987・988 行〕の書き換えと、その後〔「---- 書き出す文字 ----」の前〕に置く関数 2 つ〔1 行目の帯の行と、市町村等の行〕。ほかの関数と行は変えない）",
+      "reconstruction/src/terminal/output.ts（P3-TL19-AC04 だけ。sink.inputDone の時系列の分岐の条件〔565 行〕に、estimate(報) が QUEUE_BYTES 以下のときだけまとまりに入れる、を足す。行の数を変えない）",
+      "reconstruction/test/terminal/layout17.test.ts（P3-TL17-T02・T03 の期待を P3-TL19-T01・T02 の形に改め、P3-TL19-T03〜T10 を末尾に新しい describe で足す。既存の owned を使い、XML を書き換える試験は owned に書き換えの関数を渡す引数を足すか、terminal-fixture の reportOf の transform を使う。T10 は layout17.test.ts の sink と inputDoneOf を使う）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -245,7 +284,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL19-AC01",
-        "requirement": "種類ごとの最悪の段階の時間帯と市町村等の材料（P3-TL19-D-SINGLE-ROWS=A、作者の裁定 2026-11-10）: (1) 短い形に欄 riskRows を足す。形は { type; name; code; spans; areas; others }[] で、type・name・code は risks の同じ組と同じ字（並びも risks と同じ、電文で先に現れた type の順）。spans は時間帯の帯 { from; to }（from・to は帯の最初と最後の TimeDefine の Name の生の字で、24 字〔BOUNDS.areaName〕までに cut で切る。1 つだけの帯は from と to が同じ字）の電文の順の並び（時間帯が 1 つも分からなければ空）、areas は市町村等の Item の Area/Name の生の字（同じく 24 字まで）の電文の順の並び、others は areas に入れなかった市町村等の数。risks が非 null の報（U-F の VPWP50 で取消でない報）では必ず非 null（並びが空のことも）、ほかの報は null（全国の集約通報の早い return〔292 行〕も null） (2) 定義: 種類の最悪の段階は risks と同じ（type ごとに Code の数の最も大きい組。同じ Code なら電文で先の組の Name）。その段階の Significancy（scan が risks に数える道の Base と Local の直下のもの）のうち、Code が最悪の段階の Code と同じものについて、(a) 時間帯: refID と同じ timeId を持つ、その Significancy を含む TimeSeriesInfo の TimeDefines/TimeDefine（TimeSeriesInfo ごとに電文の順に 64〔import 済みの LIMITS.slots と同じ値〕まで読み、同じ timeId は最初の 1 つ）の電文の順の位置を、市町村をまたいで合わせ、位置が隣どうし（差が 1）のものを 1 つの帯にまとめて spans にする（P3-TL19-D-SPAN-GAP=A。帯の数の上限は置かない。TimeDefine が 64 までなので帯は 1 つの種類で 32 まで。65 番目からの TimeDefine を指す時間帯は帯に入らない。Q-TL19-SPAN-GAP）。最悪の段階を最初に持った TimeSeriesInfo と違う TimeSeriesInfo の時間帯は合わせない（Q-TL19-DAILY） (b) 市町村等: その Significancy を含む Item の Area/Name を電文の順に areas に足す。1 つの type の中で同じ Area/Code は最初の 1 回だけ数える（Base と Local と複数の refID と、同じ type が 2 つの TimeSeriesInfo に出るときに重ねない。Area/Code の無い Item はその Item で 1 回。Q-TL19-OVERLAP）。Area/Name が無いか空の市町村等は others に 1 足す (c) より重い Code が後から出たら、その type のそれまでの時間帯・市町村等・others・数えた印を捨てて、その Item から積み直す (3) 上限（Q-TL19-LIMIT。種類をまたぐ延べの上限は置かない）: Code の十の位が 2・3 の種類は名前を電文の順に 64 まで areas に持ち（新しい定数 1 つ。無いと 1 報の材料が Item の数×種類の数で大きくなる。64 の名前は 384 桁より狭い端末の 1 行に入らないので、出る字は幅で決まる）、十の位が 4・5 の種類は種類ごとに 256（既存の AREA_LIMIT）まで持つ。越えた市町村等はその種類の others に数える（電文で後ろの市町村等から。積み直しは (c) のとおりその種類の中だけで、ほかの種類の数に効かない）。全部の Significancy を「特別警報級」「50」にした 81_09_01 は 13 種類とも areas 81・others 0（P3-TL19-T06）。材料の大きさは、全部の種類が十の位 4・5 で 256 件ずつのとき 32 × 256 × 24 字 = 196,608 字（UTF-8 で約 0.59 MB。時間帯の帯 32 種類 × 32 帯 × 2 × 24 字 = 49,152 字〔約 0.15 MB〕と type・name を足して約 0.74 MB）で、端末の列（output.ts の 1 MiB）に入る。束を待つ main は報を 64 件まで持つので、全部がこの形なら約 47 MB（実物の 81_09_01 は 11 名前） (4) 作り方: scan の 1 回の辿りの中で拾う（新しい辿りを足さない）。risks を作る報（withRisks）のときだけ、道の上の TimeSeriesInfo に入る時にその TimeDefines を読み（timeId → 位置と Name）、道の上の Item に入る時にその Area/Name と Area/Code を読んで（Item の中で Area は Kind の後ろにあるので、Significancy に着く前に読む）、Significancy の分岐で (2) を当てる。type ごとの積み上げの表は risks の Map の値を広げる形でよい（risks と riskRows は辿りの後に同じ値から作る） (5) 計算量（AGENTS.md の受信経路）: 受信 1 回の仕事は Body の大きさに比例するまま（各 TimeSeriesInfo の TimeDefine を 1 回、各 Item の Area/Name・Area/Code を 1 回、各 Significancy で種類の Map と、その種類の数えた印の Set を 1 回ずつ引く）。全件×全件の走査と JSON.stringify をしない。材料の時間（P3-TO-AC08 (3)）を 81_09_01（2.27 MB、Item 81×3、Significancy 約 11,000）で、変える前と後にそれぞれ 20 回測った中央値で比べ、前・後・差を成果物に表で書く。P3-TO-AC08 (3) の「どれかが 5 ms を越えたら止める」は、81_09_01 では変える前から越えている（起草の写しの MacBook で前 5.7〜6.6 ms）。U-F は owner の deferred の置き場（runtime/unit-coverage.ts の 16 行）で、AC08 (3) が気にする urgent の場所（津波と EEW の E01 の予算）には効かない。そこで本契約は後の値が前の 1.5 倍を越えたら配送の前に止めて報告する（起草の写しの MacBook の目安は、同じ回の測りで前 6.4〜6.6 ms・後 6.9〜7.1 ms）。場面: 81_09_01（長野地方気象台、2026-06-06 05:00）の riskRows は [{ type 濃霧危険度、name 注意報級、code 20、spans [{ from「０６日朝」、to「０６日昼前」}]、areas 小諸市〜立科町の 11、others 0 }]",
+        "requirement": "種類ごとの最悪の段階の時間帯と市町村等の材料（P3-TL19-D-SINGLE-ROWS=A、作者の裁定 2026-11-10）: (1) 短い形に欄 riskRows を足す。形は { type; name; code; spans; areas; others }[] で、type・name・code は risks の同じ組と同じ字（並びも risks と同じ、電文で先に現れた type の順）。spans は時間帯の帯 { from; to }（from・to は帯の最初と最後の TimeDefine の Name の生の字で、24 字〔BOUNDS.areaName〕までに cut で切る。1 つだけの帯は from と to が同じ字）の電文の順の並び（時間帯が 1 つも分からなければ空）、areas は市町村等の Item の Area/Name の生の字（同じく 24 字まで）の電文の順の並び、others は areas に入れなかった市町村等の数。risks が非 null の報（U-F の VPWP50 で取消でない報）では必ず非 null（並びが空のことも）、ほかの報は null（全国の集約通報の早い return〔292 行〕も null） (2) 定義: 種類の最悪の段階は risks と同じ（type ごとに Code の数の最も大きい組。同じ Code なら電文で先の組の Name）。その段階の Significancy（scan が risks に数える道の Base と Local の直下のもの）のうち、Code が最悪の段階の Code と同じものについて、(a) 時間帯: refID と同じ timeId を持つ、その Significancy を含む TimeSeriesInfo の TimeDefines/TimeDefine（TimeSeriesInfo ごとに電文の順に全部読む。数の上限は置かない〔P3-TL19-D-CAP=A〕。同じ timeId は最初の 1 つ）の電文の順の位置を、市町村をまたいで合わせ、位置が隣どうし（差が 1）のものを 1 つの帯にまとめて spans にする（P3-TL19-D-SPAN-GAP=A。帯の数の上限は置かない。Q-TL19-SPAN-GAP）。最悪の段階を最初に持った TimeSeriesInfo と違う TimeSeriesInfo の時間帯は合わせない（Q-TL19-DAILY） (b) 市町村等: その Significancy を含む Item の Area/Name を電文の順に areas に足す。1 つの type の中で同じ Area/Code は最初の 1 回だけ数える（Base と Local と複数の refID と、同じ type が 2 つの TimeSeriesInfo に出るときに重ねない。Area/Code の無い Item はその Item で 1 回。Q-TL19-OVERLAP）。Area/Name が無いか空の Item は others に 1 足し、Area/Code に印を付けない（その Item で 1 回だけ数え、後の同じ Area/Code の名前つきの Item は名前として数える。Q-TL19-OVERLAP） (c) より重い Code が後から出たら、その type のそれまでの時間帯・市町村等・others・数えた印を捨てて、その Item から積み直す (3) 数の上限（Q-TL19-LIMIT。種類をまたぐ上限は置かない）: Code の十の位が 2・3 の種類は名前を電文の順に 64 まで areas に持ち（新しい定数 1 つ。無いと 1 報の材料が Item の数×種類の数で大きくなる。本文は 100 桁までなので出る字は幅で決まる）、越えた市町村等はその種類の others に数える。十の位が 4・5 の種類の名前と、どの段階の時間帯の帯も、数で切らない（P3-TL19-D-CAP=A、作者の裁定 2026-11-10）。材料の大きさの限りは P3-TL19-AC04 の 1 MiB だけ (4) 作り方: scan の 1 回の辿りの中で拾う（新しい辿りを足さない）。risks を作る報（withRisks）のときだけ、道の上の TimeSeriesInfo に入る時にその TimeDefines を読み（timeId → 位置と Name）、道の上の Item に入る時にその Area/Name と Area/Code を読んで（Item の中で Area は Kind の後ろにあるので、Significancy に着く前に読む）、Significancy の分岐で (2) を当てる。type ごとの積み上げの表は risks の Map の値を広げる形でよい（risks と riskRows は辿りの後に同じ値から作る） (5) 計算量（AGENTS.md の受信経路）: 受信 1 回の仕事は Body の大きさに比例するまま（各 TimeSeriesInfo の TimeDefine を 1 回、各 Item の Area/Name・Area/Code を 1 回、各 Significancy で種類の Map と、その種類の数えた印の Set を 1 回ずつ引く）。全件×全件の走査と JSON.stringify をしない。材料の時間（P3-TO-AC08 (3)）を 81_09_01（2.27 MB、Item 81×3、Significancy 約 11,000）で、変える前と後にそれぞれ 20 回測った中央値で比べ、前・後・差を成果物に表で書く。P3-TO-AC08 (3) の「どれかが 5 ms を越えたら止める」は、81_09_01 では変える前から越えている（起草の写しの MacBook で前 5.6〜6.6 ms）。U-F は owner の deferred の置き場（runtime/unit-coverage.ts の 16 行）で、AC08 (3) が気にする urgent の場所（津波と EEW の E01 の予算）には効かない。そこで本契約は後の値が前の 1.5 倍を越えたら配送の前に止めて報告する（起草の写しの MacBook の目安は、同じ回の測りで前 5.6〜6.6 ms・後 5.9〜7.1 ms、差 0.3〜0.5 ms。回ごとにばらつく）。場面: 81_09_01（長野地方気象台、2026-06-06 05:00）の riskRows は [{ type 濃霧危険度、name 注意報級、code 20、spans [{ from「０６日朝」、to「０６日昼前」}]、areas 小諸市〜立科町の 11、others 0 }]",
         "evidenceRefs": [
           "reconstruction/src/terminal/material.ts:112 «c38aca45da771424»",
           "reconstruction/src/terminal/material.ts:117 «9a557da9b261c502»",
@@ -268,7 +307,7 @@
       },
       {
         "id": "P3-TL19-AC02",
-        "requirement": "種類の 2 行の形（P3-TL19-D-SINGLE-ROWS=A。P3-TL19-D-FIT と D-DIGITS はどちらも作者の裁定 A。spec §5.4 の 664 行と図の 584〜591 行・Q-TO19-VPWP50-SINGLE-ROWS）: (1) 対象と置き場は P3-TL17-AC01 (1)(2) のまま（短い形で riskRows が非 null かつ空でない報。見出し文の行の後）。並びも同じ（Code の数の大きい順、同じ Code は riskRows の順。sort は安定） (2) 1 つの種類を 2 行にする。1 行目は「<type>（<name>）」（name は下の nfkc を通す。Q-TL19-STAGE-NAME）に、spans が空でなければ空白 2 桁と時間帯を続ける。時間帯は spans の帯を電文の順に「・」でつなぎ、1 つの帯は from と to が同じなら from、違えば「<from>〜<to>」（P3-TL19-D-SPAN-GAP=A、作者の裁定 2026-11-10）。name と帯の from・to は端末の既存の nfkc（format.ts の 208 行。NFKC の正規化で全角の英数字・括弧・空白を半角にし、前後の空白を除く。震度・長周期地震動の階級・description の読み替えと同じ helper で、新しい helper を足さず新築のほかの行と同じ読み替えに揃える）を通す（P3-TL19-D-DIGITS=A、作者の裁定 2026-11-10）。1 行目が本文の幅（ctx.body）を越えるときは帯の境で折り、続きの行は 1 つ目の帯の位置まで下げる（空白を「<type>（<name>）」と空白 2 桁の幅だけ。帯は落とさず「ほか」にしない。種類と最初の帯だけで幅を越えるときと、1 つの帯だけで続きの行の幅を越えるときは、書き出しの physical が字の境目で折る） (3) 2 行目は空白 2 桁の後に areas を電文の順に「・」でつなぐ。Code の十の位が 4 か 5 の種類（危険警報級と特別警報級。Q-TL19-STAGE の表）は全部の市町村等を出し、本文の幅（ctx.body）に入らなければ名前の境で折って、続きの行も空白 2 桁で始める。ほかの種類は 1 行だけで、幅に入る分だけ並べ、残り（並べなかった areas と others の和）が 1 以上なら末尾に「 ほか n」を付ける。残りがあるときは「 ほか n」の幅も含めて入る分だけ並べる。1 つ目の名前は幅に入らなくても出す（書き出しで折る）（P3-TL19-D-FIT=A、作者の裁定 2026-11-10） (4) 十の位が 4・5 の種類で others が 1 以上（種類ごとの 256 を越えた報か、名前の無い市町村等のある報）のときは、全部の areas の後に「 ほか n」を付ける。areas が空で others が 1 以上なら 2 行目は「  ほか n」、両方 0 なら 2 行目を出さない (5) 帯・末尾の行・段・見出し文の行、便の束（timeseries）・ほかの短い形の報は変えない。riskRows が空の報（81_01_01〜04）と null の報（取消）は今のまま行を足さない (6) 形は format.ts の riskLines（985〜992 行）を書き換え、777 行の呼び出しの引数を report.risks から report.riskRows にする。1 行目の帯の行と市町村等の行を組む関数を 2 つ riskLines の後に足してよい（無いと「・」の区切りと、帯の位置への字下げと、「 ほか n」の形を組めない。既存の flow は区切りが全角の空白で、fitAreas は「　ほか n 地域」の字で、どちらも形が違う）。riskLines の頭の 2 行のコメント（985・986 行）は 2 行の形に合わせて直す (7) 計算量: renderer の中で riskRows（32 まで）を 1 回並べ替え、各種類の areas（十の位 2・3 は 64、4・5 は 256 まで）を 1 回ずつ見て幅を測るだけで、受信の main の仕事は変えない。場面: 81_09_01 の 100 桁は帯の直下に「濃霧危険度（注意報級）  06日朝〜06日昼前」と「  小諸市・佐久市・小海町・川上村・南牧村・南相木村・北相木村・佐久穂町・軽井沢町・御代田町・立科町」（98 桁で全部入る）、56 桁は 2 行目が「  小諸市・佐久市・小海町・川上村・南牧村 ほか 6」",
+        "requirement": "種類の 2 行の形（P3-TL19-D-SINGLE-ROWS=A。P3-TL19-D-FIT と D-DIGITS はどちらも作者の裁定 A。spec §5.4 の 664 行と図の 584〜591 行・Q-TO19-VPWP50-SINGLE-ROWS）: (1) 対象と置き場は P3-TL17-AC01 (1)(2) のまま（短い形で riskRows が非 null かつ空でない報。見出し文の行の後）。並びも同じ（Code の数の大きい順、同じ Code は riskRows の順。sort は安定） (2) 1 つの種類を 2 行にする。1 行目は「<type>（<name>）」（name は下の nfkc を通す。P3-TL19-D-STAGE-NAME=A、作者の裁定 2026-11-10）に、spans が空でなければ空白 2 桁と時間帯を続ける。時間帯は spans の帯を電文の順に「・」でつなぎ、1 つの帯は from と to が同じなら from、違えば「<from>〜<to>」（P3-TL19-D-SPAN-GAP=A、作者の裁定 2026-11-10）。name と帯の from・to は端末の既存の nfkc（format.ts の 208 行。NFKC の正規化で全角の英数字・括弧・空白を半角にし、前後の空白を除く。震度・長周期地震動の階級・description の読み替えと同じ helper で、新しい helper を足さず新築のほかの行と同じ読み替えに揃える）を通す（P3-TL19-D-DIGITS=A、作者の裁定 2026-11-10）。1 行目が本文の幅（ctx.body）を越えるときは帯の境で折り、続きの行は 1 つ目の帯の位置まで下げる（空白を「<type>（<name>）」と空白 2 桁の幅だけ。帯は落とさず「ほか」にしない）。その字下げと続きの行の最初の帯が本文の幅に入らない行は、空白 2 桁で下げる（無いと字下げだけで幅を越え、書き出しで空の行が出る。r1 の品質 P2）。（種類と最初の帯だけで幅を越えるときと、1 つの帯だけで続きの行の幅を越えるときは、書き出しの physical が字の境目で折る） (3) 2 行目は空白 2 桁の後に areas を電文の順に「・」でつなぐ。Code の十の位が 4 か 5 の種類（危険警報級と特別警報級。Q-TL19-STAGE の表）は全部の市町村等を出し、本文の幅（ctx.body）に入らなければ名前の境で折って、続きの行も空白 2 桁で始める。ほかの種類は 1 行だけで、幅に入る分だけ並べ、残り（並べなかった areas と others の和）が 1 以上なら末尾に「 ほか n」を付ける。残りがあるときは「 ほか n」の幅も含めて入る分だけ並べる。1 つ目の名前は幅に入らなくても出す（書き出しで折る）（P3-TL19-D-FIT=A、作者の裁定 2026-11-10） (4) 十の位が 4・5 の種類で others が 1 以上（名前の無い市町村等のある報）のときは、全部の areas の後に「 ほか n」を付ける。areas が空で others が 1 以上なら 2 行目は「  ほか n」、両方 0 なら 2 行目を出さない (5) 帯・末尾の行・段・見出し文の行、便の束（timeseries）・ほかの短い形の報は変えない。riskRows が空の報（81_01_01〜04）と null の報（取消）は今のまま行を足さない (6) 形は format.ts の riskLines（P3-TERMINAL-LAYOUT-018 の配送の後は 989〜994 行）を書き換え、777 行の呼び出しの引数を report.risks から report.riskRows にする。1 行目の帯の行と市町村等の行を組む関数を 2 つ riskLines の後に足してよい（無いと「・」の区切りと、帯の位置への字下げと、「 ほか n」の形を組めない。既存の flow は区切りが全角の空白で、fitAreas は「　ほか n 地域」の字で、どちらも形が違う）。riskLines の頭の 2 行のコメント（987・988 行）は 2 行の形に合わせて直す (7) 計算量: renderer の中で riskRows（32 まで）を 1 回並べ替え、各種類の areas（十の位 2・3 は 64 まで、4・5 は材料のとおり全部）と帯を 1 回ずつ見て幅を測るだけで、受信の main の仕事は変えない。場面: 81_09_01 の 100 桁は帯の直下に「濃霧危険度（注意報級）  06日朝〜06日昼前」と「  小諸市・佐久市・小海町・川上村・南牧村・南相木村・北相木村・佐久穂町・軽井沢町・御代田町・立科町」（98 桁で全部入る）、56 桁は 2 行目が「  小諸市・佐久市・小海町・川上村・南牧村 ほか 6」",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
           "reconstruction/src/terminal/format.ts:989 «27a55d71559d53b4»",
@@ -287,17 +326,29 @@
           "docs/specs/cli-terminal-output.md:587 «d3e178039d28202f»",
           "docs/specs/cli-terminal-output.md:588 «bcc7059085a445a5»",
           "docs/specs/cli-terminal-output.md:589 «2803e751623538d0»",
-          "docs/specs/cli-terminal-output.md:664 «c648802a8fdc02cb»",
-          "docs/specs/cli-terminal-output.md:948 «a762313c6e0223c9»"
+          "docs/specs/cli-terminal-output.md:664 «517efc9e7af4ed5c»",
+          "docs/specs/cli-terminal-output.md:948 «eebcb5dc2d3bc2d0»"
         ]
       },
       {
         "id": "P3-TL19-AC03",
         "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 584〜591 行（1 件の時系列情報の 100 桁の図を足した）、664 行（時系列情報の項の 1 件の形の種類の 2 行）、948 行（Q-TO19-VPWP50-SINGLE-ROWS を Q-TO18-VPTA50-HEADER の後に足した）、946 行（Q-TO17-VPWP50-SINGLE の行に 019 で改めたことを足した。起草レビュー r0）。spec の行を引く契約の «» を同じ起草で付け直した（中身を変えた 655→664 行を引く 4 契約の 7 か所は新しい anchor を手で入れ、図の 9 行と §8 の 1 行で後ろにずれた行は reanchor-target.py で 25 契約） (2) 閉じた契約の文 5 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)〜(5)。行の数は変えない）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:664 «c648802a8fdc02cb»",
-          "docs/specs/cli-terminal-output.md:948 «a762313c6e0223c9»",
+          "docs/specs/cli-terminal-output.md:664 «517efc9e7af4ed5c»",
+          "docs/specs/cli-terminal-output.md:948 «eebcb5dc2d3bc2d0»",
           "reconstruction/contracts/p3-terminal-layout17.json:143 «fd2058cc50621738»"
+        ]
+      },
+      {
+        "id": "P3-TL19-AC04",
+        "requirement": "重い段階を全部出すか、報を丸ごと省くか（P3-TL19-D-CAP=A、作者の裁定 2026-11-10。Q-TL19-HOLD）: (1) 不変条件: U-F が受け入れた 1 件の VPWP50 は、危険警報級・特別警報級の種類の市町村等と、全部の種類の時間帯の帯を全部出すか、報が丸ごと既存の省きの道（output.ts の push で estimate が QUEUE_BYTES〔1 MiB〕を越えた単位を積まずに数え、次の書き出しの頭に「（表示が間に合わなかったため、n 件の表示を省きました）」）を通るかのどちらか。一部だけを黙って落とす道は無い（注意報級・警報級の「ほか n」は裁定 D-FIT=A の幅の形で、黙って落とすものではない） (2) 時系列のまとまり（series）は、入れる前に estimate(報) を 1 回測り、QUEUE_BYTES 以下の報だけを入れる。越えた報は今の else の道ですぐ push に渡し、push が丸ごと省く（無いと、出せない報の材料を main がまとまりの待ち〔最長 180 秒〕の間に 64 件まで持ちうる。Q-TL19-HOLD の見積もりで約 256 MiB）。形は output.ts の 565 行の条件に足すだけで、行の数を変えない。新しい数は置かない (3) 計算量: estimate は報の材料の大きさに比例し、VPWP50 の報ごとに 1 回（push の時の 1 回と合わせて 2 回）。全件×全件にならない (4) 1 MiB を越える名前の数（Q-TL19-LIMIT (d)）: 実物の長さの名前で 68,927 個、24 字の名前で 13,753 個（81_09_01 の 1,053 の約 65 倍と約 13 倍）。既存の試験 output.test.ts の「1 MiB より大きい 1 つの返事は積まずに数え、前に積んだ単位は落とさない」は push の省きを見るが、報（VPWP50 のまとまりを通る道）では見ていないので、P3-TL19-T10 を足す",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/output.ts:32 «2e2fd56b7ee57810»",
+          "reconstruction/src/terminal/output.ts:258 «df6dcc1278732971»",
+          "reconstruction/src/terminal/output.ts:565 «faf8f7e37a1b5c0a»",
+          "reconstruction/test/terminal/output.test.ts:66 «0f138fa382822b2c»",
+          "reconstruction/src/terminal/format.ts:56 «f12a46629eaef3f6»",
+          "reconstruction/src/terminal/format.ts:1031 «0f26a012ef2038e8»"
         ]
       }
     ],
@@ -317,7 +368,7 @@
         "referenceIds": [
           "P3-TL19-AC02"
         ],
-        "behavior": "契約境界（P3-TL19-AC02 (1)(2) の並び・見出し文の下・時間帯の 1 つと範囲・日付の無い Name）。81_02_01（人工、見出し文あり、土砂災害危険度 41 が 1・2 番目の時間帯、大雨浸水危険度 50 が 1 番目、市町村は稚内市）を T01 と同じ道に通す。layout17.test.ts の P3-TL17-T03 の期待を改めて受け持つ。100 桁の行が [\"\", \"━ 宗谷地方警戒・注意事項時系列情報 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17:00:00 発表 ━\", \"大雨警報・土砂災害警戒レベル4相当・特別警報級の予測\", \"大雨浸水危険度（特別警報級）  夜のはじめ頃\", \"  稚内市\", \"土砂災害危険度（警戒レベル4相当）  夜のはじめ頃〜夜遅く\", \"  稚内市\", \"VPWP50 ・ 稚内地方気象台\"]（56 桁は同じ本文の行で、帯の罫線だけ短いので期待に書かない）"
+        "behavior": "契約境界（P3-TL19-AC02 (1)(2) の並び・見出し文の下・時間帯の 1 つと範囲・日付の無い Name）。81_02_01（人工、見出し文あり、土砂災害危険度 41 が 1・2 番目の時間帯、大雨浸水危険度 50 が 1 番目、市町村は稚内市）を T01 と同じ道に通す。layout17.test.ts の P3-TL17-T03 の期待を改めて受け持つ。100 桁の行が [\"\", \"━ 宗谷地方警戒・注意事項時系列情報 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17:00:00 発表 ━\", \"大雨警報・土砂災害警戒レベル4相当・特別警報級の予測\", \"大雨浸水危険度（特別警報級）  夜のはじめ頃\", \"  稚内市\", \"土砂災害危険度（警戒レベル4相当）  夜のはじめ頃〜夜遅く\", \"  稚内市\", \"VPWP50 ・ 稚内地方気象台\"]（56 桁は同じ本文の行で、帯の罫線だけ短いので期待に書かない）。同じ報の Significancy の Name の「警戒レベル4相当」を全角の「警戒レベル４相当」に書き換えた報（見出し文は変えない）でも、1 行目は \"土砂災害危険度（警戒レベル4相当）  夜のはじめ頃〜夜遅く\"（段階の名前も nfkc。P3-TL19-D-STAGE-NAME=A）"
       },
       {
         "testId": "P3-TL19-T03",
@@ -342,7 +393,7 @@
         "referenceIds": [
           "P3-TL19-AC01"
         ],
-        "behavior": "契約境界（P3-TL19-AC01 (1)(2) の材料だけが見る値）。reportOf（U-F）の短い形の riskRows で: 81_09_01 の spans が [{ from: \"０６日朝\", to: \"０６日昼前\" }]（電文の生の字。半角は端末の側）。81_06_01 の高潮危険度（Local の下の 41）の areas が [\"稚内市\"]（Local の AreaName「稚内海岸」でなく Item の Area/Name）。81_01_01 は []、81_04_01（取消）は null。81_09_01 の 1 つ目の TimeSeriesInfo の立科町の Area/Name を除いた報は濃霧の areas 10・others 1。濃霧危険度の refID を TimeDefine に無い番号にした報は spans が []。立科町の Item の濃霧危険度の refID \"1\" の Significancy を「警報級」「30」に書き換えた報は [{ type: \"濃霧危険度\", name: \"警報級\", code: \"30\", spans: [{ from: \"０６日朝\", to: \"０６日朝\" }], areas: [\"立科町\"], others: 0 }]（それまでの 10 市町村と「０６日昼前」を捨てて積み直す）"
+        "behavior": "契約境界（P3-TL19-AC01 (1)(2) の材料だけが見る値）。reportOf（U-F）の短い形の riskRows で: 81_09_01 の spans が [{ from: \"０６日朝\", to: \"０６日昼前\" }]（電文の生の字。半角は端末の側）。81_06_01 の高潮危険度（Local の下の 41）の areas が [\"稚内市\"]（Local の AreaName「稚内海岸」でなく Item の Area/Name）。81_01_01 は []、81_04_01（取消）は null。81_09_01 の 1 つ目の TimeSeriesInfo の立科町の Area/Name を除いた報は濃霧の areas 10・others 1。濃霧危険度の 20 を全部 01 にし、1 つ目の TimeSeriesInfo の先頭 65 個の Item の refID \"1\" を「注意報級」「20」（64 で areas が満ち、65 個目は others）、66 個目の Item の refID \"1\" を「警報級」「30」に書き換えた報は [{ type: \"濃霧危険度\", name: \"警報級\", code: \"30\", spans: [{ from: \"０６日朝\", to: \"０６日朝\" }], areas: [\"朝日村\"], others: 0 }]（others の出た後でも、それまでの名前・others・帯を捨てて 66 個目の Item から積み直す）"
       },
       {
         "testId": "P3-TL19-T06",
@@ -350,7 +401,7 @@
         "referenceIds": [
           "P3-TL19-AC01"
         ],
-        "behavior": "契約境界（P3-TL19-AC01 (3) の種類ごとの上限）。(a) 81_09_01 の全部の Significancy の Name と Code を「特別警報級」「50」に書き換えた報（81 の Item × 13 種類）の riskRows が 13 組で、どの組も areas 81・others 0（種類をまたぐ上限で落ちない。100 桁で描くと「ほか」の行が無い） (b) 81_09_01 の濃霧危険度の 20 を全部 01 にし、1 つ目の TimeSeriesInfo の先頭 64 個の Item だけ refID \"1\" を「注意報級」「20」にした報は濃霧の areas 64（最後は生坂村）・others 0、先頭 65 個にした報は areas 64・others 1"
+        "behavior": "契約境界（P3-TL19-AC01 (3) の数の上限）。(a) 重い段階は数で切らない（P3-TL19-D-CAP=A。r1 の品質の列）: 81_09_01 の 1 つ目の TimeSeriesInfo の Item を 4 回並べ（2〜4 回目は Area/Name と Area/Code の末尾に回の番号を足す）、濃霧危険度の 20 を全部 01 にして、先頭 257 個の Item の refID \"1\" を「特別警報級」「50」にした報は、riskRows の濃霧の areas 257・others 0 で、terminal(100) の行に「ほか」を含む行が無い (b) 注意報級・警報級の 64: 81_09_01 の濃霧危険度の 20 を全部 01 にし、1 つ目の TimeSeriesInfo の先頭 64 個の Item だけ refID \"1\" を「注意報級」「20」にした報は濃霧の areas 64（最後は生坂村）・others 0、先頭 65 個にした報は areas 64・others 1"
       },
       {
         "testId": "P3-TL19-T07",
@@ -367,7 +418,24 @@
           "P3-TL19-AC01",
           "P3-TL19-AC02"
         ],
-        "behavior": "契約境界（P3-TL19-D-SPAN-GAP=A の飛び飛びの時間帯と、1 行目の折り）。81_09_01 の Area/Name が小諸市の Item の濃霧危険度の refID \"9\"（「０７日朝」）の Significancy を「注意報級」「20」に書き換えた報を reportOf（U-F）で作ると、spans が [{ from: \"０６日朝\", to: \"０６日昼前\" }, { from: \"０７日朝\", to: \"０７日朝\" }]。terminal(100) と terminal(56) の 1 行目は \"濃霧危険度（注意報級）  06日朝〜06日昼前・07日朝\"、terminal(40) では \"濃霧危険度（注意報級）  06日朝〜06日昼前\" と \"                        07日朝\"（24 桁下げ）の 2 行に折れ、市町村等の行がその後に続く（帯が 1 つの報の形は T01 が見る）"
+        "behavior": "契約境界（P3-TL19-D-SPAN-GAP=A の飛び飛びの時間帯と、1 行目の折り）。81_09_01 の Area/Name が小諸市の Item の濃霧危険度の refID \"9\"（「０７日朝」）の Significancy を「注意報級」「20」に書き換えた報を reportOf（U-F）で作ると、spans が [{ from: \"０６日朝\", to: \"０６日昼前\" }, { from: \"０７日朝\", to: \"０７日朝\" }]。terminal(56) の 1 行目は \"濃霧危険度（注意報級）  06日朝〜06日昼前・07日朝\"、terminal(40) では \"濃霧危険度（注意報級）  06日朝〜06日昼前\" と \"                        07日朝\"（24 桁下げ）の 2 行に折れ、terminal(24) では「05:00:00 発表」の行の後が \"濃霧危険度（注意報級）\"・\"  06日朝〜06日昼前\"（この 2 行は書き出しの physical の折り）・\"  07日朝\"（24 桁の字下げと帯が 24 桁に入らないので 2 桁下げ。空の行が無い）で、市町村等の行がその後に続く（帯が 1 つの報の形は T01 が見る）"
+      },
+      {
+        "testId": "P3-TL19-T09",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL19-AC01",
+          "P3-TL19-AC02"
+        ],
+        "behavior": "契約境界（P3-TL19-D-CAP=A の TimeDefine を数で切らない。r1 の品質の列）。81_09_01 の 1 つ目の TimeSeriesInfo の TimeDefines に timeId 15〜65 の TimeDefine（Name「枠15」〜「枠65」）を足し、小諸市の Item の濃霧危険度に refID \"65\" の「特別警報級」「50」の Significancy を足した報は、riskRows の濃霧が code 50・spans [{ from: \"枠65\", to: \"枠65\" }]・areas [\"小諸市\"] で、terminal(100) の 1 行目が \"濃霧危険度（特別警報級）  枠65\""
+      },
+      {
+        "testId": "P3-TL19-T10",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TL19-AC04"
+        ],
+        "behavior": "契約境界（P3-TL19-AC04 の 1 MiB を越える 1 件の VPWP50 は丸ごと省きの道を通る）。layout17.test.ts の owned と同じ owner の道で 81_09_01 の報と outcomes（U-F の accepted で自分の subject を持つ）を作り、報の riskRows を code \"50\" で areas が「あ」24 字の名前 20,000 個の 1 組に替えた報（estimate で 1 MiB を越える）を、同じ file の sink の sink.inputDone に inputDoneOf（その outcomes）で渡し、続けて line(\"next\") を積んで close すると、書いた行が [\"（表示が間に合わなかったため、1 件の表示を省きました）\", \"next\"]（まとまりに入らずにすぐ省かれ、種類の行も市町村等の行も出ない）。起草の写しで、AC04 (2) の条件の無い形（まとまりに入れる今の形）では同じ手順の行が [\"next\"] だけで、close の時のまとまりの flush で省いた件数がどこにも出なかった"
       }
     ],
     "requiredCommands": [
@@ -430,14 +498,14 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: AC01 は材料の欄 1 つと scan の中の積み上げ（無いと時間帯と市町村等が端末へ届かない。U-F の候補は inputDone の返信に載らない）、定数 1 つ（十の位 2・3 の種類の名前の数 64。無いと 1 報の材料が Item×種類で大きくなる。十の位 4・5 は既存の AREA_LIMIT）。AC01 は帯をまとめる関数 1 つ（無いと続いている時間帯を 1 つの帯にできない）。AC02 は riskLines の書き換えと、帯の行と市町村等の行の関数 2 つ（無いと「・」の区切りと帯の位置への字下げと「 ほか n」を組めない）。新しい export・設定・file は作らない。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01 は受入条件、T02〜T08 は契約境界）",
-      "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は scan の 1 回の辿りの中で、TimeDefine・Item の Area/Name と Area/Code・Significancy をそれぞれ 1 回ずつ見る（種類ごとの印の Set は辿りの間だけ持ち、材料に入れない）。AC02 は renderer の中で riskRows（32 まで）と areas（種類ごとに 64 か 256 まで）に比例するだけ。AC01 (5) の材料の時間の表（81_09_01、前・後・差、Mac mini で）",
+      "最小実装・最小テスト: AC01 は材料の欄 1 つと scan の中の積み上げ（無いと時間帯と市町村等が端末へ届かない。U-F の候補は inputDone の返信に載らない）、定数 1 つ（十の位 2・3 の種類の名前の数 64。無いと 1 報の材料が Item×種類で大きくなる）、帯をまとめる関数 1 つ（無いと続いている時間帯を 1 つの帯にできない）。AC02 は riskLines の書き換えと、帯の行と市町村等の行の関数 2 つ（無いと「・」の区切りと帯の位置への字下げと「 ほか n」を組めない）。AC04 は output.ts の条件 1 つ（無いと 1 MiB を越える報の材料をまとまりの待ちに 64 件まで持つ）。新しい export・設定・file は作らない。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01 は受入条件、T02〜T10 は契約境界）",
+      "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は scan の 1 回の辿りの中で、TimeDefine・Item の Area/Name と Area/Code・Significancy をそれぞれ 1 回ずつ見る（種類ごとの印の Set と時間帯の位置は辿りの間だけ持ち、帯にまとめて材料に入れる）。AC02 は renderer の中で riskRows（32 まで）と areas・帯の数に比例するだけ。AC04 は VPWP50 の報ごとに estimate を 1 回足す（材料の大きさに比例）。AC01 (5) の材料の時間の表（81_09_01、前・後・差、Mac mini で）",
       "期待が変わる既存の試験（理由はどれも AC02 (2)(3) の種類の 2 行）: (1) layout17.test.ts の P3-TL17-T02: 100 桁の期待の \"濃霧危険度（注意報級）\" を \"濃霧危険度（注意報級）  06日朝〜06日昼前\" と \"  小諸市・佐久市・小海町・川上村・南牧村・南相木村・北相木村・佐久穂町・軽井沢町・御代田町・立科町\" の 2 行に、56 桁の期待の同じ行を \"濃霧危険度（注意報級）  06日朝〜06日昼前\" と \"  小諸市・佐久市・小海町・川上村・南牧村 ほか 6\" の 2 行に（P3-TL19-T01） (2) 同じ file の P3-TL17-T03: 100 桁の \"大雨浸水危険度（特別警報級）　土砂災害危険度（警戒レベル4相当）\" と、56 桁の \"大雨浸水危険度（特別警報級）\"・\"土砂災害危険度（警戒レベル4相当）\" の 2 行を、どちらも \"大雨浸水危険度（特別警報級）  夜のはじめ頃\"・\"  稚内市\"・\"土砂災害危険度（警戒レベル4相当）  夜のはじめ頃〜夜遅く\"・\"  稚内市\" の 4 行に（P3-TL19-T02）。P3-TL17-T01（81_01_01、種類 0）と layout11.test.ts（束と材料の risks）の期待は変えない。ほかを変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
-      "起草の確かめ: P3-TL19-T01〜T08 の期待の字と数は（r0 の直しと D-SPAN-GAP=A の後に描き直した）、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し（P3-TERMINAL-LAYOUT-018 の AC01 を当てた写しの上）、AC01（scan の中で TimeSeriesInfo の TimeDefines と Item の Area/Name を読み、Significancy の分岐で積む形。種類ごとに 64 か 256 まで、同じ Area/Code は 1 回、名前は 24 字まで）と AC02（riskLines の書き換えと、帯の行と市町村等の行の関数 2 つ）を当て、T01〜T04 は owner の道（layout17.test.ts の owned と同じ）、T05〜T08 は terminal-fixture の reportOf・terminal で写した（vitest の中で行を出す使い捨ての試験 file。写しは worktree の未追跡の .dr-tmp/ に置いたまま、repo に入れない）。P3-TL19-D-DIGITS の B と P3-TL19-D-FIT の B の見本は、写しの riskRows の値から python の小さい script で組んだ。同じ写しで terminal の試験と tsc 2 本を回した（Q-TL19-TESTS）。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
+      "起草の確かめ: P3-TL19-T01〜T10 の期待の字と数は（r0・r1 の直しと D-SPAN-GAP=A・D-CAP=A・D-STAGE-NAME=A の後に描き直した）、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し（P3-TERMINAL-LAYOUT-018 の AC01 を当てた写しの上）、AC01（scan の中で TimeSeriesInfo の TimeDefines と Item の Area/Name を読み、Significancy の分岐で積む形。十の位 2・3 の名前は 64 まで、重い段階と時間帯は数で切らず、同じ Area/Code は 1 回〔名前の無い Item は印を付けない〕、名前は 24 字まで）と AC02（riskLines の書き換えと、帯の行と市町村等の行の関数 2 つ。続きの行の字下げは入らなければ 2 桁）と AC04（output.ts の 565 行の条件）を当て、T01〜T04 は owner の道（layout17.test.ts の owned と同じ）、T05〜T10 は terminal-fixture の reportOf・terminal と、T10 は layout17.test.ts と同じ sink で写した。1 MiB を越える名前の数は estimate を同じ写しで二分して数えた（vitest の中で行を出す使い捨ての試験 file。写しは worktree の未追跡の .dr-tmp/ に置いたまま、repo に入れない）。P3-TL19-D-DIGITS の B と P3-TL19-D-FIT の B の見本は、写しの riskRows の値から python の小さい script で組んだ。同じ写しで terminal の試験と tsc 2 本を回した（Q-TL19-TESTS）。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
       "本物の経路での写し（統合担当、配送の前）: 実装の後の木で、P3-TERMINAL-LAYOUT-017 の写しと同じ形（watch を COLUMNS を変えて起こし、inject で fixture を入れる）で 81_09_01 と 81_02_01 を 1 件の便として入れ（8 秒の後に出る）、56 桁と 100 桁で写し、T01・T02 と同じ行が出ることを見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 65 番目からの TimeDefine を指す時間帯は帯に入らない（Q-TL19-SPAN-GAP。実物は 14 まで）。1 行目は帯が多いと折れて縦に長くなる（帯は 1 つの種類で 32 まで） (2) 同じ type が 2 つの TimeSeriesInfo に最悪の段階で出たら、時間帯は最初の TimeSeriesInfo のものだけ（Q-TL19-DAILY。fixture では起きない） (3) 危険警報級・特別警報級の種類で市町村等が 256（実物の最大 81 の 3.2 倍）を越えた報は、その行の後ろが「ほか n」になる。注意報級・警報級は 384 桁以上の端末で幅より早く「ほか n」になる（名前 64 まで） (4) Code 40（危険警報級の段の Code としてありうるもの）は表で確かめられず、十の位の規則で全部出す側に入れた（Q-TL19-STAGE） (5) 1 件の形と束の形で種類の並べ替えの式を 2 か所に書く（P3-TL17 の残存 (3) のまま）。束は種類の名前の行だけで、時間帯と市町村等を出さない (6) 束を待つ main は報ごとの riskRows も持つ（AC01 (3) の数。全部が上限の報 64 件なら約 47 MB） (7) 1 件の形は段階の名前を半角に読み替えるが、束の形（format.ts の 798 行）は電文の字のままで、実物の「警戒レベル２相当」以上は束では全角のまま出る（Q-TL19-STAGE-NAME。束の形は範囲外）",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout17.json:143 の P3-TL17-AC01 の requirement の (3) の「形は便の束（format.ts の 796〜798 行の timeseries）と同じ:」の前に「（P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯の 1 行と市町村等の行の 2 行にした。作者の裁定 P3-TL19-D-SINGLE-ROWS=A、2026-11-10）」を書き足す (2) 同じ file の 19 行の P3-TL17-D-SINGLE-KINDS の reason の末尾に「（P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯と市町村等を足した）」を書き足す (3) reconstruction/contracts/p3-terminal-layout11.json:282 の outOfScope の「帯の下の種類の行は P3-TERMINAL-LAYOUT-017 で足した）」の「足した」の後に「。種類ごとの時間帯と市町村等は P3-TERMINAL-LAYOUT-019 で足した」を書き足す (4) reconstruction/contracts/p3-terminal-layout17.json:134 の outOfScope の末尾に「（P3-TERMINAL-LAYOUT-019 で、種類ごとの最悪の段階の時間帯と市町村等を足した。市町村の数は「ほか n」の n のほかは出さない）」を書き足す (5) 同じ file の 265 行の残存 (1) の末尾に「（P3-TERMINAL-LAYOUT-019 で、どの市町村か・いつかを出すようにした）」を書き足す。spec の Q-TO17-VPWP50-SINGLE の行（946 行）は起草で直した。(1) の行は本契約の AC03 が引くので、新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で中身が変わる行を引く «» は新しい行の anchor を手で入れる（reanchor-target.py は同じ anchor の行が無いと止まる）。起草の時の数え: p3-terminal-output.types.ts:89（p3-terminal-layout11.json 2・p3-terminal-layout12.json 2・p3-terminal-layout16.json 1・本契約）、material.ts:149 の scan の頭（p3-terminal-layout11.json 2・p3-terminal-layout12.json 2・本契約）、material.ts:292（p3-terminal-layout16.json・本契約）、material.ts:301（p3-terminal-layout17.json・本契約）、format.ts:777（p3-terminal-layout12.json・p3-terminal-layout15.json・p3-terminal-layout16.json・p3-terminal-layout17.json・p3-terminal-layout18.json・本契約）、format.ts:987・990・991（本契約）。実装が中身を変えた行がほかにあれば、material.ts と format.ts を引く «» を grep して同じく手で入れる。中身が同じで行のずれた «» は reanchor-target.py で付け直す（material.ts は scan の前に行を足すと p3-terminal-layout14.json などが引く 118 行から後がずれる。道具が似た名前の file に当たって止まったら、止まった所を直してもう 1 度回す）。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
+      "残存として成果物に書く: (1) 1 行目は帯が多いと折れて縦に長くなる（帯の数に上限が無い。P3-TL19-D-CAP=A） (2) 同じ type が 2 つの TimeSeriesInfo に最悪の段階で出たら、時間帯は最初の TimeSeriesInfo のものだけ（Q-TL19-DAILY。fixture では起きない） (3) 注意報級・警報級の名前は 64 までだが、本文は 100 桁まで（RULE_LIMIT）なので出る字は変わらない。危険警報級・特別警報級の市町村等と時間帯は数で切らず、1 報の材料が 1 MiB を越える報（実物の長さの名前で約 69,000 個から）は丸ごと「表示を省きました」になる（AC04） (4) Code 40（危険警報級の段の Code としてありうるもの）は表で確かめられず、十の位の規則で全部出す側に入れた（Q-TL19-STAGE） (5) 1 件の形と束の形で種類の並べ替えの式を 2 か所に書く（P3-TL17 の残存 (3) のまま）。束は種類の名前の行だけで、時間帯と市町村等を出さない (6) 束を待つ main は報ごとの riskRows も持つ（1 件 1 MiB まで、64 件で 64 MiB まで。AC04 (2)）。1 MiB を越える報も owner から main へは一度運ばれる（見積もりで 1 報約 4 MiB まで、すぐ省く） (7) 1 件の形は段階の名前を半角に読み替えるが、束の形（format.ts の 798 行）は電文の字のままで、実物の「警戒レベル２相当」以上は束では全角のまま出る（Q-TL19-STAGE-NAME。束の形は範囲外） (8) 名前の無い Item は壊れた形でだけ others を 1 多く数える（Q-TL19-OVERLAP）",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-layout17.json:143 の P3-TL17-AC01 の requirement の (3) の「形は便の束（format.ts の 796〜798 行の timeseries）と同じ:」の前に「（P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯の 1 行と市町村等の行の 2 行にした。作者の裁定 P3-TL19-D-SINGLE-ROWS=A、2026-11-10）」を書き足す (2) 同じ file の 19 行の P3-TL17-D-SINGLE-KINDS の reason の末尾に「（P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯と市町村等を足した）」を書き足す (3) reconstruction/contracts/p3-terminal-layout11.json:282 の outOfScope の「帯の下の種類の行は P3-TERMINAL-LAYOUT-017 で足した）」の「足した」の後に「。種類ごとの時間帯と市町村等は P3-TERMINAL-LAYOUT-019 で足した」を書き足す (4) reconstruction/contracts/p3-terminal-layout17.json:134 の outOfScope の末尾に「（P3-TERMINAL-LAYOUT-019 で、種類ごとの最悪の段階の時間帯と市町村等を足した。市町村の数は「ほか n」の n のほかは出さない）」を書き足す (5) 同じ file の 265 行の残存 (1) の末尾に「（P3-TERMINAL-LAYOUT-019 で、どの市町村か・いつかを出すようにした）」を書き足す。spec の Q-TO17-VPWP50-SINGLE の行（946 行）は起草で直した。(1) の行は本契約の AC03 が引くので、新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）を手で入れる。«» の付け直し（同じ commit）: 実装で中身が変わる行を引く «» は新しい行の anchor を手で入れる（reanchor-target.py は同じ anchor の行が無いと止まる）。起草の時の数え: p3-terminal-output.types.ts:89（p3-terminal-layout11.json 2・p3-terminal-layout12.json 2・p3-terminal-layout16.json 1・本契約）、material.ts:149 の scan の頭（p3-terminal-layout11.json 2・p3-terminal-layout12.json 2・本契約）、material.ts:292（p3-terminal-layout16.json・本契約）、material.ts:301（p3-terminal-layout17.json・本契約）、format.ts:777（p3-terminal-layout12.json・p3-terminal-layout15.json・p3-terminal-layout16.json・p3-terminal-layout17.json・p3-terminal-layout18.json・本契約）、format.ts の riskLines の 3 行（本契約。P3-TERMINAL-LAYOUT-018 の配送の後は 989・992・993 行）、output.ts:565（本契約）。実装が中身を変えた行がほかにあれば、material.ts と format.ts を引く «» を grep して同じく手で入れる。中身が同じで行のずれた «» は reanchor-target.py で付け直す（material.ts は scan の前に行を足すと p3-terminal-layout14.json などが引く 118 行から後がずれる。道具が似た名前の file に当たって止まったら、止まった所を直してもう 1 度回す）。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
     ],
     "unresolvedQuestions": [
       {
