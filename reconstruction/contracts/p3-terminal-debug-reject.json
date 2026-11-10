@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7e9cfcf9960b02dc1423b8e030e3394165c4b6c8",
-    "sha256": "e00efd5a662b9142e7d0f24ddfea7e9a99c644bc87c06c84685d0f1008aac0f6",
+    "sha256": "fedcd9895b7a33a34ce6557f8fdaf17b37796201adf006e8a64e4420d97ed702",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -46,7 +46,7 @@
     "contractId": "P3-TERMINAL-DEBUG-REJECT-001",
     "mode": "implementation",
     "objective": "新築の端末の --debug で、host が入力 ID（input-N）を振ったのに owner へ渡さなかった入力（ingress の拒否、VXSE43 を捨てる、停止か無応答の owner への拒否、mailbox の拒否）にも 1 行を出し、入力 ID の抜けの行き先を読めるようにする。2026-11-08〜11-10 に Mac mini の新築で WTJP21・WTJP31 の formatUnsupported が 18 件あり、--debug の行の入力 ID の抜けと 1 対 1 で一致した（Q-TDR-WTJP）。TerminalSink に口 inputDropped を 1 つ足し、host.ts の 4 つの道から呼ぶ。--debug でないときの画面・音・通知は変えない。あわせて P3-TO-AC17 (1)、P3-TERMINAL-LAYOUT-013 の Q-TL13-WTJP-SEEN、layout10・11・12 の「TerminalSink に口を足さない」を原文の改訂で整理する（統合担当が配送で当てる）",
-    "baseOid": "unassigned",
+    "baseOid": "345eb73d",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
