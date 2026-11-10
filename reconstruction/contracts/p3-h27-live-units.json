@@ -1,0 +1,366 @@
+{
+  "meta": {
+    "draftedFromOid": "c0c478db56d3e99db6c0496ca402179338501ff6",
+    "sha256": "16549aa7819c8f0f194fe4b9d28a6d630b3bad9ad6e19f73ae7436c69506ed40",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-H27L-D-BASIS",
+        "kind": "作者",
+        "A": "U-R・U-N・U-V・U-T とも、H27 の比べの基準を採用の直前の live（at.live）だけにする（U-L の P3-UL2-D-LIVE-ONLY=A と同じ）。open は使わない",
+        "B": "U-W の P3-WN-AC12 と同じく open と at.live の両方と比べ、どちらかでその段以上なら作らない",
+        "C": "open のまま。取り直しの間に live で知らせた引上げが採用でもう一度鳴る欠けを残存として記録する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-10）",
+        "ruling": "A（作者の裁定、2026-11-10。「4 unit とも U-L と同じく採用の直前の live と比べる。津波は、live で受けなかった同じ段の続報の normal も採用では鳴らなくなる」）",
+        "reason": "A と B が分かれるのは、候補の間に live で段が下がり（引下げ・取消・期限）、それより新しい引上げの本文を取り直しが拾ったときだけ（P3-H27L-AC04）。場面: 11:56 に巨大地震警戒（音は鳴った）、11:57 の切断から 11:58 の再接続で取り直しが開く（open=警戒）。11:58 に live で巨大地震注意への引下げ（warning）、取り直しの本文が 11:59 の巨大地震警戒を拾う。A は live=注意と比べて info を 1 組、B と C は open=警戒で作らない（今は引下げの pending も候補の当て直しで外れ、何も鳴らない）。live の順なら 11:59 の警戒は critical で鳴るので A が近い。live が動かなければ live の state は open と同じ欄を持つので（owner-runtime の sameBase）、A・B・C とも今と同じ"
+      },
+      {
+        "id": "P3-H27L-D-UT-SIGNATURE",
+        "kind": "統合担当",
+        "A": "U-T の recoveryNotices は 1 つ目の引数 open を外し、今の 6 つ目の live（unit の行が at.live を渡している）で比べる。unit の行は open を渡さない（引数 6→5）",
+        "B": "引数の形を保ち、unit の行が 1 つ目に at.live を渡す（6 つ目にも同じ at.live が渡る）。1 つ目の名を live にすると名が重なるので before などにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が起草レビューの後に確定する）",
+        "reason": "U-T の recoveryNotices は loweredNotice（N4）のために at.live を 6 つ目で既に受けている。A は 1 つの state を 1 つの名で読む。export の recoveryNotices を呼ぶのは unit の行だけで、試験は直に呼ばない（reconstruction/test を grep、2026-11-10 起草）ので、引数の数が変わっても壊れるものが無い。B は U-R・U-N・U-V と引数の数を揃えるが、同じ state を 2 回渡す。起草の写しは A で当てて tsc 3 本と全 suite が緑（Q-H27L-DRAFT-FACTS (1)）"
+      },
+      {
+        "id": "P3-H27L-D-UNIT-WORDING",
+        "kind": "統合担当",
+        "A": "各 unit の契約の「起点より上がった」の字（p3-nankai-unit.json:826・p3-flood-unit.json:956・p3-volcano-unit.json:1158）にも、配送の原文の改訂で比べの基準を書き足す（原文の改訂 (8)）",
+        "B": "書き足さない（P3-REC-D-RAISE-BASIS の ruling の改訂 (1) が 4 unit の読み替えを持つ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が起草レビューの後に確定する）",
+        "reason": "3 行とも他の契約の «» に引かれていない（Q-H27L-DRAFT-FACTS (4)）ので、行の中に書き足しても付け直しは 0 件。読む人が unit の契約だけを読んで open と取り違えないようにする"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-H27L-RULING-SOURCE",
+        "status": "closed",
+        "source": "統合担当の起草依頼（2026-11-10）と作者の裁定（2026-11-10、A）。材料: 前の調べ（~/dev/fleq-h27-probe の未追跡の試験 reconstruction/test/recovery/h27-probe-units.test.ts とログ .pr-tmp/h27-probe.log、20 本中赤 8）",
+        "closed": "調べの赤: U-R（code 30→live の 40 の b→同じ 40 の c）・U-N（中身が同じで時刻だけ違う c）・U-V（同上）で、live が c を受けても受けなくても採用で info の desktop・sound が 1 組出る。U-T は live で c を受けなかったときだけ warning がもう 1 組出る（live で c を受けると live が normal の updated を作り、K8 の印が c の版を持つので止まる）。仕組み: 中身の変わらない c を live が鳴らさない unit では印が b の版に残り、候補の c を open と比べて「上がった」と読む。U-L の採用の窓の 1 本の赤は U-L の残存で本契約の外（outOfScope）"
+      },
+      {
+        "id": "Q-H27L-UT-NORMAL",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-10、A）の 2 文目",
+        "closed": "U-T では、live で受けなかった同じ区分の続報（live で受ければ normal の updated を desktop・sound に作る、調べのログの U-T の liveC=true の列）を取り直しが拾っても、採用では鳴らない。at.live の区分と同じなので transitionOf が issued・expanded・upgraded にならない。取り直しは引上げだけを鳴らす決まり（spec:674 の「途中の報は鳴らさない」、P3-REC-D-UNIT-ENTRANCE）どおりで、live が動かない場合の今の振る舞いと同じ"
+      },
+      {
+        "id": "Q-H27L-RAISE-BASIS",
+        "status": "closed",
+        "source": "2026-11-10 起草（Q-UL2-RAISE-BASIS と同じ読み）",
+        "closed": "P3-REC-D-RAISE-BASIS=A の読み替え: 比べる状態の時点を「取り直しを始めた時点」から「採用の直前に画面に出ている状態（live）」に移す。候補の間に live が動かなければ同じ state なので、A の ifNotChosen の場面（注意報が画面に出ていたが音が鳴らなかったとき、取り直しで同じ注意報なら鳴らさない）はそのまま成り立つ。B（最後に通知した段と比べる）には寄せていない。p3-volcano-raise.json:143 の (4)「起点は open のまま」と直接ぶつかるので原文の改訂 (4) で改める。p3-migration.json:226 の (3)（移行の後の最初の起動では移した記録が前回情報になる）は、候補の間に live が動かなければ今のまま成り立つ（原文の改訂 (5) で書き足す）。p3-weather-notice.json:188・:352 は U-W の記録で、U-W は変えない"
+      },
+      {
+        "id": "Q-H27L-UNITS",
+        "status": "closed",
+        "source": "2026-11-10 起草（c0c478db の木を読んだ）",
+        "closed": "(1) U-W: weather-current-notice.ts の recoveryNotices は open と live の両方でその段以上の cell を除く（:312）ので、live で知らせた引上げは採用で鳴らない。読みだけで実走していない (2) U-Q・U-B・U-M・U-Y: unit の行に recoveryNotices が無く、owner-runtime の noticed は採用の state をそのまま返す（:727） (3) U-L: P3-UNIT-L-002 で at.live に改めて配送済み (4) 4 unit の段の読み（U-T の transitionOf、U-N の raiseRank(shownAt)、U-V の raiseLevel、U-R の noticeOf）は変えず、読む相手の state を open から at.live に替えるだけ"
+      },
+      {
+        "id": "Q-H27L-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-10 起草（作業の worktree の未追跡の .dr-tmp/ に c0c478db の木を CoW で写し、src は写しの中だけで変えて回した）",
+        "closed": "(1) 写しの 4 unit に直し（U-R・U-N・U-V は unit の行で at.live を渡し 1 つ目の引数を live に、U-T は P3-H27L-D-UT-SIGNATURE=A の形）を当て、tsc 3 本は rc 0。全 reconstruction 試験（調べの 20 本を足した）は 1580 緑・1 赤・30 skip で、赤は調べの U-L の採用の窓の 1 本だけ（直す前の木でも赤）。既存の試験は 1 本も期待が変わらない（recovery-adopt.test.ts の P3-REC-T15〔U-T の advisory→warning、:126〕・P3-REC-T18〔U-N の megaquake advisory、:829〕、unit の試験で recoveryNotices(open, …) を直に呼ぶ volcano・flood・nankai の列を含む。直に呼ぶ列は 1 つ目の引数の位置に state を渡すので、名の読み替えで期待は変わらない） (2) 写しに P3-H27L-T01〜T03 の形の試験 20 列を足し（4 unit × 二重 live c 無し・二重 live c 有り・初見 live 静止・初見 live 引下げ・逆向き）、直す前の木（4 file を c0c478db に戻して tsc し直した）では 11 列が赤: 二重 live c 無しの 4 unit、二重 live c 有りの U-N・U-V・U-R、逆向きの 4 unit。直した木では 20 列とも緑。初見の 8 列は直す前も緑 (3) 直す前の二重の列の intents: U-N は live の b の critical の pending 2 件が recovered の info 2 件に、U-V・U-R は warning の pending 2 件が info 2 件に、U-T は warning の pending 2 件が recovered の warning 2 件に、同じ subject・channel の置換で替わる。逆向きの列は直す前に採用の後の intents が 0 件（live の d の pending を候補の当て直しが外し、H27 も作らない）、直した後は H27 の 1 組だけが残る (4) 4 unit の file で直しが変える行（flood :764・:771・:772・:775・:776、nankai :870・:882・:883・:886・:887、volcano :1676・:1707・:1708・:1711・:1712、tsunami :962・:966・:969・:1255）を引く «» は他の契約に 0 件（nankai :869 を引く p3-operation-capacity-n.json の 1 件は行が変わらない）。写しの直した 4 file で、契約の «» の割れは直す前と同じ数（flood の 4 件は p3-briefing-unit.json の地の文の古い参照で、直す前からある。checker は evidenceRefs だけを見る） (5) U-N の場面は advisory（74_01_05）→warning（74_01_04）で書く。調べの investigating（74_01_01）は EventID の違う報の information（subject normal/VYSE50/…）に入り、現況（normal/nankai/current）を下げないので、逆向きの列が成り立たなかった (6) 原文の改訂を書く行のうち、他の契約の «» に引かれているものは 0 件。p3-recovery.json:47・:391、p3-persist-premises.md:373 は P3-UNIT-L-002 の原文の改訂の項の地の文に出るだけ（«» ではない）。同じ趣旨の p3-recovery.json:1104（AC10、5 件）・p3-persist-premises.md:138（3 件）・spec:3054 は引かれているか比べ先を C16 に預けるだけなので改訂しない"
+      },
+      {
+        "id": "Q-H27L-RESIDUAL",
+        "status": "closed",
+        "source": "2026-11-10 起草（統合担当の起草依頼の outOfScope）",
+        "closed": "残存として記録する（直さない）",
+        "remaining": "(1) 採用の窓: 採用の時刻に at.live の記録の保持期限が過ぎているが期限の step（1 s の tick）がまだ走っていない間は、at.live の記録をまだ見えるものとして比べるので、その記録と同じ段の新しい報を取り直しが拾っても鳴らない（live で受ければ鳴る）。U-L で調べが確かめた。U-R（noticeOf が before の期限を見ない、:780）は同じ形（読みだけ）、U-V は raiseLevel が effective だけを見る（:1704、読みだけ）、U-T は prior.effective だけを見る（:974、読みだけ）。U-N は shownAt で期限を当ててから比べる（:891）。幅は最大約 1 秒。open の比べでは候補の間ずっと古い state と比べたので、窓は今より狭くなる (2) 切断中の同じ subject の X→Y→X: 取り直しが最新だけを取る unit（U-R・U-V）は、切断中に下がって戻った報の最新だけを拾い、at.live と同じ段なら鳴らない（Q-UL2-RESIDUAL と同じ形）。U-N は窓の中の報を全部取る（P3-C8-N2 の B）が、H27 は採用の state と at.live を比べるので同じ"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。比べは subject（運用区分を含む）ごと、H27 は今どおり unit に 1 件（U-L・U-W の operation ごとの形には寄せない）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-H27-LIVE-UNITS-001",
+    "mode": "implementation",
+    "objective": "U-R・U-N・U-V・U-T の取り直しの H27 の比べの基準を、取り直しを始めた時の state（open）から採用の直前の live（at.live）に改める（作者裁定 2026-11-10、A。P3-UNIT-L-002 と同じ形）。取り直しの間に live で知らせた引上げを、当て直しで受け直した同じ段の報が採用でもう一度鳴らし、live の pending まで置き換える今のコードの欠けを直す。候補の間に live で段が下がった後の新しい引上げは、live と比べて 1 組鳴らす",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/contracts/p3-h27-live-units.json",
+      "reconstruction/contracts/p3-landslide-unit-002.json",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p3-volcano-raise.json",
+      "reconstruction/contracts/p3-unit-table.types.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "reconstruction/src/units/nankai/nankai-unit.ts",
+      "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/test/recovery/**",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/test/tsunami-unit/tsunami-fixture.ts",
+      "reconstruction/test/nankai-unit/nankai-fixture.ts",
+      "reconstruction/test/volcano-unit/volcano-fixture.ts",
+      "reconstruction/test/flood-unit/flood-fixture.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/flood/flood-unit.ts（unit の行 :764 で at.live を渡す〔1 つ目の引数の名は _open〕、recoveryNotices の 1 つ目の引数の名 :775 とそれを読む :776、その上の JSDoc :771・:772 の open の字だけ。行の数を変えない）",
+      "reconstruction/src/units/nankai/nankai-unit.ts（unit の行 :870、recoveryNotices の :886・:887、JSDoc :882・:883 の open の字だけ。行の数を変えない）",
+      "reconstruction/src/units/volcano/volcano-unit.ts（unit の行 :1676、recoveryNotices の :1711・:1712、JSDoc :1707・:1708 の open の字だけ。行の数を変えない）",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts（P3-H27L-D-UT-SIGNATURE=A の形: unit の行 :1255 は open を渡さない、recoveryNotices の 1 つ目の引数 open を外し :969 は 6 つ目の live を読む、JSDoc :962 の open の字だけ。署名の 2 行〔:966・:967〕を保ち、行の数を変えない）",
+      "reconstruction/test/recovery/recovery-adopt.test.ts（末尾に試験と、その試験だけが使う helper・import を足す。既存の行は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-h27-live-units.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M04",
+      "M05",
+      "M13",
+      "M14",
+      "M15",
+      "M16"
+    ],
+    "integrationContractIds": [
+      "I-U-T",
+      "I-U-N",
+      "I-U-V",
+      "I-U-R"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-L-002",
+      "P3-RECOVERY-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-VOLCANO-RAISE-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P3-UNIT-N-001",
+      "P3-UNIT-V-001",
+      "P3-UNIT-R-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-unit-table.types.ts#UnitModule"
+    ],
+    "publicFunctions": [
+      "UnitModule の recoveryNotices の型は変えない（owner-runtime は今どおり open・adopted・at を渡す。open を読むのは U-W だけになる）。export の recoveryNotices: U-R・U-N・U-V は 1 つ目の引数を open から採用の直前の live に読み替え（型も引数の数も同じ）、unit の行は at.live を渡す（U-L の行と同じ口、landslide-unit.ts:646）。U-T は P3-H27L-D-UT-SIGNATURE=A で 1 つ目の open を外し、6 つ目の live（at.live）で比べる（引数 6→5。export を呼ぶのは unit の行だけ）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__16_02_01_220728_VXKO50",
+      "test__fixtures__45_01_01_200522_VFVO50",
+      "test__fixtures__selected_xml__74_01_04_200512_VYSE50",
+      "test__fixtures__selected_xml__74_01_05_200512_VYSE50"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-H27L-RES-01",
+        "target": "採用 1 回の計算量",
+        "limit": "今の recoveryNotices と同じ（比べる state の記録の Map を 1 回作り、候補の記録の数〔U-T は区域の数の和〕だけ回る）",
+        "unit": "操作",
+        "scope": "比べる state を open から at.live に替えるだけで、走査も直列化も足さない（at.live は owner-runtime が今も各行へ渡している）",
+        "source": "AGENTS.md の受信経路の計算量"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-T",
+      "U-N",
+      "U-V",
+      "U-R"
+    ],
+    "persistedFields": [
+      "なし（4 unit とも保存の形と版を変えない）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "U-W（open と at.live の両方と比べる P3-WN-AC12 のまま。live で知らせた引上げは :312 で除かれる。候補の間に live で下がった後の新しい引上げを open で黙らせる形も U-W はそのまま）",
+      "U-L（P3-UNIT-L-002 で配送済み）、U-Q・U-B・U-M・U-Y（unit の行に recoveryNotices が無く採用で鳴らない）",
+      "採用の窓（at.live の記録の保持期限が過ぎ、期限の step がまだ走らない最大約 1 秒の間。Q-H27L-RESIDUAL の (1)）",
+      "切断中の同じ subject の X→Y→X（Q-H27L-RESIDUAL の (2)）",
+      "取り直しの本文の選び方、owner-host の当て直し・sameBase、候補の当て直しが live の pending を外す規則（逆向きの列で live の引下げの pending が外れるのは今と同じ）",
+      "H27 の段・payload・channel・選び方・印の除外（U-T の raiseSound、U-N の RAISE_RANK、U-V の raiseLevel、U-R の noticeOf）、U-T の読めない報の info と loweredNotice（N4）",
+      "spec 本体の編集（spec:3054 は比べ先を C16 で決めると書くだけ）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-H27L-AC01",
+        "requirement": "H27 の比べの基準（P3-H27L-D-BASIS=A）: U-R・U-N・U-V・U-T の採用の step で、候補の記録ごとに採用の直前の live（at.live）の同じ subject の記録と段を比べ、上がったものだけを今どおり選ぶ（段の読み・通知済みの版〔K8 の印〕の除外・unit に 1 件・payload・channel は変えない）。open は比べに使わない。場面ごとの基準: (1) 候補の間に live が動かない: sameBase が通り、live の state は open と同じ欄を持つので結果は今と同じ (2) live が動いた（受信・期限・取消のどれか）: owner-host が候補の本文を最新の live に当て直してから採用し、当て直した候補と live を比べる。live で知らせた（配った・配る途中の pending・容量で落とした のどれでも）引上げと同じ段の報は、取り直しの本文が新しくても古くても上がらないので作らない (3) live が open より下げた（引下げ・取消・期限）後に、それより新しい引上げの本文を拾ったら、下げた live と比べて 1 組作る (4) live に subject の記録が無いか見えないなら、候補の引上げは全部上がった扱い（open に記録が有っても同じ） (5) U-T では live で受けなかった同じ区分の続報は鳴らない（Q-H27L-UT-NORMAL）",
+        "evidenceRefs": [
+          "reconstruction/src/units/flood/flood-unit.ts:764 «3904016492697d0a»",
+          "reconstruction/src/units/flood/flood-unit.ts:776 «fea261c738b1cc8f»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:870 «8dabf7a88f113098»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:887 «fea261c738b1cc8f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1676 «3904016492697d0a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1712 «ec0541763ed70126»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1255 «e97911b2c7dfedb1»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:967 «1491cc784333a9f1»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:969 «e970995b4b292ecd»",
+          "reconstruction/src/runtime/owner-runtime.ts:663 «01831e52d61d5093»",
+          "reconstruction/src/runtime/owner-runtime.ts:729 «61454ecf7d8dcfd5»",
+          "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
+          "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:646 «a819a81885203d5d»",
+          "reconstruction/contracts/p3-recovery.json:37 «068c7a8178ee75e7»"
+        ]
+      },
+      {
+        "id": "P3-H27L-AC02",
+        "requirement": "二重鳴りを直す（調べの赤）: 低い段の報 a を live で受けた後に取り直しが開き、一覧が引上げの報 c（T0−1 分）を返す。本文を取る間に live で c と同じ段の報 b（T0−2 分、live の引上げの音）を受ける。直した後は採用で recovered の intent を作らず、採用の直前の intents（b の pending）がそのまま残る。列: (a) live で c を受けない（4 unit） (b) live で c も受ける（U-N・U-V・U-R。U-T は live の c が normal の updated を作り K8 の印で今も止まる）。今は (a)(b) とも recovered の 1 組が b の pending を同じ subject・channel の置換で替える（U-N は critical→info、U-V・U-R は warning→info、U-T は warning→recovered の warning。Q-H27L-DRAFT-FACTS (3)）。場面の段: U-T は津波注意報（62）→津波警報（51）、U-N は巨大地震注意（74_01_05）→巨大地震警戒（74_01_04）、U-V は浅間山のレベル 2→3（45_01_01 の Code 13 を 12 に替えた写し→原文）、U-R は code 30→40（16_02_01）",
+        "evidenceRefs": [
+          "reconstruction/src/units/flood/flood-unit.ts:780 «584018822cb19dfb»",
+          "reconstruction/src/units/nankai/nankai-unit.ts:891 «7e351bfde7218759»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1716 «0857a99b1392ab48»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:974 «d956c8b989dc356a»",
+          "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»"
+        ]
+      },
+      {
+        "id": "P3-H27L-AC03",
+        "requirement": "取り直しで初めて見た引上げは鳴る（基準を替えても鳴らなくならない）: 低い段の報 a を live で受けた後に取り直しが開き、一覧が引上げの報 c を返す。列: (a) 候補の間に live が動かない (b) 候補の間に live で a と同じ低い段の報 d（T0−2 分）を受ける。どちらも採用で recovered の intent が desktop と sound に 1 件ずつ（U-T は warning〔P3-REC-D-RAISE-SOUND の津波警報〕、U-N・U-V・U-R は info）。今のコードでも同じ（既存の P3-REC-T15〔U-T〕・P3-REC-T18〔U-N〕は (a) の形）",
+        "evidenceRefs": [
+          "reconstruction/test/recovery/recovery-adopt.test.ts:126 «d9f0bbab4cc2a70e»",
+          "reconstruction/test/recovery/recovery-adopt.test.ts:829 «2eba89d84d07be9f»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1704 «5f780bfafb9e5852»"
+        ]
+      },
+      {
+        "id": "P3-H27L-AC04",
+        "requirement": "逆向き（AC01 の (3)、P3-H27L-D-BASIS の A と B・C が分かれる列）: 引上げの段の報 a（T0−4 分）を live で受けた後に取り直しが開き、一覧が同じ段の新しい報 c（T0−1 分）を返す。本文を取る間に live で低い段の報 d（T0−2 分、a より新しく c より古い）を受ける。採用で live=d と c を比べ、recovered の intent を desktop と sound に 1 件ずつ作る（U-T は warning、ほかは info）。今は open=a と比べて作らず、live の d の pending も候補の当て直しで外れるので、採用の後の intents が 0 件（何も鳴らない）",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
+          "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
+          "reconstruction/test/recovery/recovery-adopt.test.ts:197 «bbc38a02e13276ca»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-H27L-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-H27L-AC02"
+        ],
+        "behavior": "実不具合の再発防止（調べの赤）。recovery-adopt.test.ts の末尾に、P3-UL2-T01 と同じ形で 4 unit の表を回す: setup()、live の報は uwLive(t, 型, 本文)、一覧の頭は unit・headType・eventId を unit ごとに置き、本文の取得を Promise で止める。live で a（T0−3 分）→ startup（本文 c、T0−1 分を止める）→ live で b（T0−2 分）→〔(b) の列だけ live で c〕→ 本文を返す → 採用。progress が recovered、recovered の payload を持つ intent が 0 件、採用の後の intents の (channel, level) が採用の直前と同じ。本文は AC02 の場面の段（U-T は tsunami-fixture の vtse41、ほかは fixture の写しを retime・followHead で時刻だけ替える。fixture の file は変えない）。直す前に落ちることを確かめる（(a) の 4 unit と (b) の 3 unit）"
+      },
+      {
+        "testId": "P3-H27L-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-H27L-AC03"
+        ],
+        "behavior": "受入条件（基準を替えても初めて見た引上げは鳴る）。T01 と同じ表と harness で 2 列: (a) live で a → startup（本文 c）→ 採用 (b) live で a → startup（本文 c を止める）→ live で d（低い段、T0−2 分）→ 本文を返す → 採用。recovered の payload を持つ intent が desktop・sound の 1 件ずつで、level は U-T が warning、ほかが info"
+      },
+      {
+        "testId": "P3-H27L-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-H27L-AC04"
+        ],
+        "behavior": "契約境界（P3-H27L-D-BASIS=A、AC01 の (3)）。T01 と同じ表と harness で、live で a（引上げの段、T0−4 分）→ startup（本文 c、同じ段、T0−1 分を止める）→ live で d（低い段、T0−2 分）→ 本文を返す → 採用。progress が recovered、recovered の payload を持つ intent が desktop・sound の 1 件ずつ（U-T は warning、ほかは info）。直す前に落ちることを確かめる（今は採用の後の intents が 0 件）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O07 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。本契約自身の evidenceRefs のうち 4 unit の file の変える行（flood :764・:776、nankai :870・:887、volcano :1676・:1712、tsunami :969・:1255。tsunami :967 は変わらない）は実装で割れ、統合担当が配送で付け直す。他の契約では割れる想定 0 件で、FAIL は止めて報告する。checker は契約ごとに最初の 1 件しか出さないので、実装担当は変えた行を引く «» を全契約から探し、行の trim の sha256 の先頭 16 桁で照らし直して報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "旧築",
+        "stage": "implementation",
+        "purpose": "旧築の build と test（AGENTS.md の完了条件。旧築は変えない）"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "足した仕組みは無い（比べる state を替えるだけ）。替えないと何が壊れるかを 1 行（取り直しの間に live で鳴らした引上げが採用でもう一度鳴り、live の pending を置き換える。live で下がった後の新しい引上げが鳴らない）",
+      "追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行。T01・T03 は直す前に落ちた列を書く",
+      "既存の試験の期待は変えない（P3-REC-T15・P3-REC-T18、volcano・flood・nankai の unit 試験で recoveryNotices を直に呼ぶ列を含む。起草の写しで全 suite が変わらないことを確かめた、Q-H27L-DRAFT-FACTS (1)）。変わるなら止めて報告する",
+      "4 unit の file の行の数を変えない。«» の見込み（統合担当が配送で付け直す）: 他の契約が 4 unit の file の変える行を引く «» は 0 件（Q-H27L-DRAFT-FACTS (4)）。本契約自身の evidenceRefs のうち変える行は requiredCommands の check-contract の purpose のとおり。それ以外の FAIL は止めて報告する",
+      "原文の改訂（統合担当が配送で、行の中に書き足す。どの行も他の契約の «» に引かれていない、Q-H27L-DRAFT-FACTS (6)）: (1) p3-recovery.json:47（P3-REC-D-RAISE-BASIS の ruling）の末尾に「。U-R・U-N・U-V・U-T も 2026-11-10 の作者裁定（P3-H27-LIVE-UNITS-001）で同じく採用の直前の live と比べる（U-T では、live で受けなかった同じ区分の続報〔live なら normal の updated を作る〕も採用では鳴らない。取り直しは引上げだけを鳴らす）。U-W は open と at.live の両方（P3-WN-AC12）のまま」 (2) p3-recovery.json:365（P3-REC-D-N2-RAISE の ruling）の「A（作者の裁定、2026-10-28 夜）」の後に「。U-N・U-V の比べの基準は採用の直前の live（P3-H27-LIVE-UNITS-001）」 (3) p3-recovery.json:391（P3-REC-D-N2-RAISE-4B の ruling）の末尾に「。U-R も同じ（P3-H27-LIVE-UNITS-001）」 (4) p3-volcano-raise.json:143 の (4) の「（P3-REC-D-RAISE-BASIS=A）」の後に「〔P3-H27-LIVE-UNITS-001 で起点を採用の直前の live に改めた〕」 (5) p3-migration.json:226 の (3) の 1 文目（「…と比べる（P3-REC-D-RAISE-BASIS=A）。」）の後に「U-T は P3-H27-LIVE-UNITS-001 で採用の直前の live と比べる（候補の間に live が動かなければ移した記録のまま）。」 (6) p3-persist-premises.md:373 の末尾に「（U-R・U-N・U-V・U-T も同じ。P3-H27-LIVE-UNITS-001）」 (7) p3-landslide-unit-002.json:184（outOfScope の ほかの unit の行）の末尾に「→ P3-H27-LIVE-UNITS-001 で U-T・U-N・U-V・U-R も at.live に改めた」 (8) P3-H27L-D-UNIT-WORDING=A なら、p3-nankai-unit.json:826 の「取り直しの起点より上がった現況」、p3-flood-unit.json:956 の「取り直しの起点より上がり」、p3-volcano-unit.json:1158 の「が起点より上がり」の「起点」の後に「（P3-H27-LIVE-UNITS-001 で採用の直前の live）」。改訂した契約（p3-recovery.json・p3-volcano-raise.json・p3-migration.json・p3-landslide-unit-002.json、(8) なら p3-nankai-unit.json・p3-flood-unit.json・p3-volcano-unit.json）の sha256 を作り直す。p3-recovery.json:1104（AC10）・p3-persist-premises.md:138・spec:3054、p3-recovery.json:452・:531（10-20 の裁定の閉じた記録）、p3-weather-notice.json:188・:352（U-W）は改訂しない",
+      "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の 4 unit の slot は消さない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
