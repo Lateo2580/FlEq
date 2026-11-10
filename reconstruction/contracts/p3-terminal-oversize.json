@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bafeceedbb50e469abbcf24507569a7f959b5c3d",
-    "sha256": "163ca1d09fe5b693159fa111eabe37b92ae26a80c9700d589a94ab580e86a32b",
+    "sha256": "584b8e29e4f12edc8a39fb8d80403bf44e384c7b168b1a4d405687c38aa6a963",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -92,6 +92,13 @@
         "status": "closed",
         "source": "起草レビュー r0（整合 Opus: 条件付き GO・P2 2・P3 3、品質 ヘルツ: 条件付き GO・P2 2。どちらも A の方式は替えなくてよい）",
         "closed": "当てたもの: (1) 品質 P2-1（件数の書き出しの echo が 1 MiB の限りを通らない）→ AC01 (5)・Q-TOV-PROMPT、T01 に TTY の境目 (2) 品質 P2-2・整合（AC03 の試験が無い）→ 試験の口 seriesBytes を 1 つ（Q-TOV-PORT）、T03 で持つ量を見る。T04 の全文の再掲を消した (3) 整合 P2-1（帯の見本の ━ の数）→ T02 と D-HOLD の見本を、写しの renderer で描いた字に替えた (4) 整合 P2-2（目的 (3) と起きない穴）→ 目的と Q-TOV-SEQ を「今起きる／今は起きない」に分け、(3) は 019 の残存 (6)(d) と同じ言い方に (5) 整合 P3: 経過（lastReportWallMs）は今のまま（Q-TOV-ELAPSED、AC03 (6)）。close で出ない穴を TTY でない出力に限った（cli.ts の 326 行と output.ts の 666 行を確かめた）。T01 の材料を risks と riskRows の同じ組（濃霧危険度・特別警報級・50）にした。AC02 (2) の文を直した。format.ts の行番号の地の文を関数の名前に替えた (6) 試験の過不足: AC01 (2)（列が空ならその場で）と AC01 (1) の echo の字を、close の前に行を見る T01 にまとめた。T03（同じ subject）は layout17.test.ts の owned と同じく呼ぶたびに新しい owner で、2 つの報とも U-F の accepted で自分の subject を持つ（起草の写しで確かめた）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TOV-R1",
+        "status": "closed",
+        "source": "起草の確かめ r1（整合 Opus: ADDRESSED、品質 ヘルツ: 残り P2 1。前の P2 2 件は解消）",
+        "closed": "当てたもの: 品質 P2（r0 で旧 T04 を置き換えたので、riskRows を除いた 1 MiB 越えの報と正常な報の束を確かめる試験が無くなり、写しを作る時に risks も除く誤った実装を T01〜T05 が通した）→ T02 に (b) を戻した（束の行の「2件・特別警報級・2 官署・省いた件数の行なし」を見る）。AC03 (3) に「写しが除くのは riskRows だけ」を書いた。誤った実装を写しに当てて (b) が落ちることを確かめた。当てなかったもの: 整合 P3（seriesBytes は呼ぶたびに持つ報の数に比例する）は、試験だけが呼ぶと書いてあるのでそのまま（統合担当の指示）",
         "remaining": "なし"
       },
       {
@@ -223,7 +230,7 @@
       },
       {
         "id": "P3-TOV-AC03",
-        "requirement": "まとまりが持つ量と、古い報（目的 (3)(4)。P3-TOV-D-HOLD=A を本文に。作者の裁定待ち）: (1) sink.inputDone の時系列の分岐で報をまとまりに置く時（571 行）、estimate(報) を 1 回測り、QUEUE_BYTES を越えたら riskRows を null にした浅い写しを置く。越えなければ今のとおり報そのもの。置き場所と同じ subject の置き換え（570・571 行）、64 件・8 秒・180 秒・鍵の比べは変えない（無いと、出せない報の材料をまとまりの待ちに 64 件まで持ちうる。Q-TOV-SEQ (4)） (2) flushSeries の 1 件（321 行）で、報の riskRows が null なら（まとまりで除いた印。Q-TOV-MARK）、release せずに dropped を 1 足して kick を呼ぶ（AC01 で件数が出る）。null でなければ今のとおり release (3) 2 件以上の束は今のとおり件数・官署の数・種類の行（risks）に、除いた写しも数える (4) 同じ subject の古い報は、今のとおり新しい報（除いた写しを含む）に置き換えられ、後から出ない (5) まとまりが持つのは 1 件 1 MiB 以下で、64 件で 64 MiB まで（今は上限が無い）。1 MiB を越える報の材料は、owner から main へは今のとおり一度運ばれ、置く時の写しの後は参照が残らない (6) (2) の枝でも、release と同じく lastReportWallMs を今の時刻にする（入力の行の経過は、今と同じく省かれた報でも 0 に戻る。Q-TOV-ELAPSED） (7) 試験の口 seriesBytes() を TerminalOutput に足す（Q-TOV-PORT。まとまりの報の estimate の合計、無ければ 0）",
+        "requirement": "まとまりが持つ量と、古い報（目的 (3)(4)。P3-TOV-D-HOLD=A を本文に。作者の裁定待ち）: (1) sink.inputDone の時系列の分岐で報をまとまりに置く時（571 行）、estimate(報) を 1 回測り、QUEUE_BYTES を越えたら riskRows を null にした浅い写しを置く。越えなければ今のとおり報そのもの。置き場所と同じ subject の置き換え（570・571 行）、64 件・8 秒・180 秒・鍵の比べは変えない（無いと、出せない報の材料をまとまりの待ちに 64 件まで持ちうる。Q-TOV-SEQ (4)） (2) flushSeries の 1 件（321 行）で、報の riskRows が null なら（まとまりで除いた印。Q-TOV-MARK）、release せずに dropped を 1 足して kick を呼ぶ（AC01 で件数が出る）。null でなければ今のとおり release (3) 2 件以上の束は今のとおり件数・官署の数・種類の行（risks）に、除いた写しも数える（写しが除くのは riskRows だけで、risks は残す。P3-TOV-T02 (b)） (4) 同じ subject の古い報は、今のとおり新しい報（除いた写しを含む）に置き換えられ、後から出ない (5) まとまりが持つのは 1 件 1 MiB 以下で、64 件で 64 MiB まで（今は上限が無い）。1 MiB を越える報の材料は、owner から main へは今のとおり一度運ばれ、置く時の写しの後は参照が残らない (6) (2) の枝でも、release と同じく lastReportWallMs を今の時刻にする（入力の行の経過は、今と同じく省かれた報でも 0 に戻る。Q-TOV-ELAPSED） (7) 試験の口 seriesBytes() を TerminalOutput に足す（Q-TOV-PORT。まとまりの報の estimate の合計、無ければ 0）",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:565 «faf8f7e37a1b5c0a»",
           "reconstruction/src/terminal/output.ts:570 «0747654d6eb59387»",
@@ -266,9 +273,10 @@
         "testId": "P3-TOV-T02",
         "purpose": "regression",
         "referenceIds": [
-          "P3-TOV-AC02"
+          "P3-TOV-AC02",
+          "P3-TOV-AC03"
         ],
-        "behavior": "実不具合（目的 (2)、Q-TOV-SEQ (2)、P3-TERMINAL-LAYOUT-019 の確かめの 3 巡目の品質 ②）。layout17.test.ts の owned と同じ owner の道（呼ぶたびに新しい owner）で 81_09_01 の報と outcomes を作り、報の risks を [{ type: \"濃霧危険度\", name: \"特別警報級\", code: \"50\" }]、riskRows を同じ組で spans は元のまま・areas を「あ」24 字の名前 N 個・others 0 にした報（P3-TL19-AC01 (1) の組の形）で N を 13,753 にした報 X（estimate(報) 1,048,566 byte・1 件の単位 1,048,604 byte）を先に、81_09_01 の EditorialOffice と PublishingOffice の字を「松本地方気象台」に替えた正常な報 Y を後に、sink.inputDone に渡して close すると、100 桁で書いた行が [\"\", \"━ 気象警報・注意報時系列情報 2件 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 05:00:00 発表 ━\", \"濃霧危険度（特別警報級）\", \"VPWP50 ・ 2 官署\"]（今のコードでは []、Y も巻き添えで出ない）。書き出しに載った束の単位の report の riskRows は null"
+        "behavior": "実不具合（目的 (2)、Q-TOV-SEQ (2)、P3-TERMINAL-LAYOUT-019 の確かめの 3 巡目の品質 ②）。layout17.test.ts の owned と同じ owner の道（呼ぶたびに新しい owner）で 81_09_01 の報と outcomes を作り、報の risks を [{ type: \"濃霧危険度\", name: \"特別警報級\", code: \"50\" }]、riskRows を同じ組で spans は元のまま・areas を「あ」24 字の名前 N 個・others 0 にした報（P3-TL19-AC01 (1) の組の形）で N を 13,753 にした報 X（estimate(報) 1,048,566 byte・1 件の単位 1,048,604 byte）を先に、81_09_01 の EditorialOffice と PublishingOffice の字を「松本地方気象台」に替えた正常な報 Y を後に、sink.inputDone に渡して close すると、100 桁で書いた行が [\"\", \"━ 気象警報・注意報時系列情報 2件 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 05:00:00 発表 ━\", \"濃霧危険度（特別警報級）\", \"VPWP50 ・ 2 官署\"]（今のコードでは []、Y も巻き添えで出ない）。書き出しに載った束の単位の report の riskRows は null。(b) AC03 (3) の束: 同じ作り方で N を 20,000 にした報 X（estimate 1,529,585 byte。まとまりには riskRows を除いた写しが置かれる）と、同じ正常な報 Y を入れて close すると、100 桁で書いた行の 2 行目（帯）が「気象警報・注意報時系列情報 2件」を含み、3 行目が \"濃霧危険度（特別警報級）\"（X の risks が束の種類の行に入る）、4 行目が \"VPWP50 ・ 2 官署\" で、「表示を省きました」を含む行が無い。起草の写しで、写しを作る時に risks も除く誤った実装を当てると、3 行目が \"濃霧危険度（注意報級）\"（Y の種類だけ）になり、この期待が落ちた（r1 の品質 P2。ほかの T01〜T05 の期待と T03 の持つ量は、その誤った実装でも通った）"
       },
       {
         "testId": "P3-TOV-T03",
