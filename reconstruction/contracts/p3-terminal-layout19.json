@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "28f9e2cc32bebe36a4116bf8b9b6129274fe7c9a",
-    "sha256": "8c799b720d24b9266dc72f7c9708860f5681b6d119afb853650395ceaff5cf33",
+    "sha256": "ed48a78ac4e3678272be12a6c647c38c16bacaa5c0629433d59c9c3056c344ab",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -271,9 +271,9 @@
         "requirement": "種類の 2 行の形（P3-TL19-D-SINGLE-ROWS=A。P3-TL19-D-FIT と D-DIGITS はどちらも作者の裁定 A。spec §5.4 の 664 行と図の 584〜591 行・Q-TO19-VPWP50-SINGLE-ROWS）: (1) 対象と置き場は P3-TL17-AC01 (1)(2) のまま（短い形で riskRows が非 null かつ空でない報。見出し文の行の後）。並びも同じ（Code の数の大きい順、同じ Code は riskRows の順。sort は安定） (2) 1 つの種類を 2 行にする。1 行目は「<type>（<name>）」（name は下の nfkc を通す。Q-TL19-STAGE-NAME）に、spans が空でなければ空白 2 桁と時間帯を続ける。時間帯は spans の帯を電文の順に「・」でつなぎ、1 つの帯は from と to が同じなら from、違えば「<from>〜<to>」（P3-TL19-D-SPAN-GAP=A、作者の裁定 2026-11-10）。name と帯の from・to は端末の既存の nfkc（format.ts の 208 行。NFKC の正規化で全角の英数字・括弧・空白を半角にし、前後の空白を除く。震度・長周期地震動の階級・description の読み替えと同じ helper で、新しい helper を足さず新築のほかの行と同じ読み替えに揃える）を通す（P3-TL19-D-DIGITS=A、作者の裁定 2026-11-10）。1 行目が本文の幅（ctx.body）を越えるときは帯の境で折り、続きの行は 1 つ目の帯の位置まで下げる（空白を「<type>（<name>）」と空白 2 桁の幅だけ。帯は落とさず「ほか」にしない。種類と最初の帯だけで幅を越えるときと、1 つの帯だけで続きの行の幅を越えるときは、書き出しの physical が字の境目で折る） (3) 2 行目は空白 2 桁の後に areas を電文の順に「・」でつなぐ。Code の十の位が 4 か 5 の種類（危険警報級と特別警報級。Q-TL19-STAGE の表）は全部の市町村等を出し、本文の幅（ctx.body）に入らなければ名前の境で折って、続きの行も空白 2 桁で始める。ほかの種類は 1 行だけで、幅に入る分だけ並べ、残り（並べなかった areas と others の和）が 1 以上なら末尾に「 ほか n」を付ける。残りがあるときは「 ほか n」の幅も含めて入る分だけ並べる。1 つ目の名前は幅に入らなくても出す（書き出しで折る）（P3-TL19-D-FIT=A、作者の裁定 2026-11-10） (4) 十の位が 4・5 の種類で others が 1 以上（種類ごとの 256 を越えた報か、名前の無い市町村等のある報）のときは、全部の areas の後に「 ほか n」を付ける。areas が空で others が 1 以上なら 2 行目は「  ほか n」、両方 0 なら 2 行目を出さない (5) 帯・末尾の行・段・見出し文の行、便の束（timeseries）・ほかの短い形の報は変えない。riskRows が空の報（81_01_01〜04）と null の報（取消）は今のまま行を足さない (6) 形は format.ts の riskLines（985〜992 行）を書き換え、777 行の呼び出しの引数を report.risks から report.riskRows にする。1 行目の帯の行と市町村等の行を組む関数を 2 つ riskLines の後に足してよい（無いと「・」の区切りと、帯の位置への字下げと、「 ほか n」の形を組めない。既存の flow は区切りが全角の空白で、fitAreas は「　ほか n 地域」の字で、どちらも形が違う）。riskLines の頭の 2 行のコメント（985・986 行）は 2 行の形に合わせて直す (7) 計算量: renderer の中で riskRows（32 まで）を 1 回並べ替え、各種類の areas（十の位 2・3 は 64、4・5 は 256 まで）を 1 回ずつ見て幅を測るだけで、受信の main の仕事は変えない。場面: 81_09_01 の 100 桁は帯の直下に「濃霧危険度（注意報級）  06日朝〜06日昼前」と「  小諸市・佐久市・小海町・川上村・南牧村・南相木村・北相木村・佐久穂町・軽井沢町・御代田町・立科町」（98 桁で全部入る）、56 桁は 2 行目が「  小諸市・佐久市・小海町・川上村・南牧村 ほか 6」",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:777 «d9b627dfaa47ad88»",
-          "reconstruction/src/terminal/format.ts:987 «27a55d71559d53b4»",
-          "reconstruction/src/terminal/format.ts:990 «9375cec09438c059»",
-          "reconstruction/src/terminal/format.ts:991 «85333b598599e097»",
+          "reconstruction/src/terminal/format.ts:989 «27a55d71559d53b4»",
+          "reconstruction/src/terminal/format.ts:992 «9375cec09438c059»",
+          "reconstruction/src/terminal/format.ts:993 «85333b598599e097»",
           "reconstruction/src/terminal/format.ts:798 «d9396eb663483691»",
           "reconstruction/src/terminal/format.ts:208 «7c156f3e87d51fa0»",
           "reconstruction/src/view-projector/view-projector.ts:100 «68549a813ce4e630»",
