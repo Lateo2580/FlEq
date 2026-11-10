@@ -774,7 +774,7 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
     : listTable(null, national.rows.map((row) => ({ label: seg(row.label), rest: seg(row.label, "dim"), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
     ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
-    { summary: nationwide ?? [...reason, ...sentences, ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
+    { summary: nationwide ?? [...reason, ...sentences, ...typhoonLines(report.probability, ctx.body), ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
 // P3-TL10-AC01 (5)・spec §5.4 の図: 降灰予報（定時）のまとまり。帯は 1 報目の題名と印と「 N火山」、段は最も重い段、帯の下に各報の対象を 1 行ずつと末尾の行。
 // 見出し文・段の理由の行・区切りの罫線は出さない。
@@ -865,7 +865,7 @@ function digest(view: RecoveryDigestView, ctx: Ctx): Line[] {
     if (unit.kind === "unsatisfied" || total == null) { lines.push(line(name, gap, seg("取り直せませんでした"))); continue; }
     lines.push(line(name, gap, seg(`${String(total).padStart(digits)} 件`)));
     for (const head of unit.heads) lines.push(line(seg(`  ${minuteOf(head.reportDateTime) ?? localClock(head.receivedAt).slice(0, 5)}  ${untruncated(head.title)}`)));
-    if (rest.length > 0) lines.push(line(seg(`  ほか ${rest.map(([title, count]) => `${title} ${count} 件`).join("　")}`)));
+    if (rest.length > 0) lines.push(...flow([seg("  ほか ")], rest.map(([title, count]) => [seg(`${title} ${count} 件`)]), ctx.total, width("  ほか ")));
   }
   return lines;
 }
@@ -963,6 +963,24 @@ function tipLines(text: string, total: number): Line[] {
       lead = "    ";
     }
   });
+}
+// P3-TL16-AC02・D-NARROW=A: 台風の暴風域に入る確率の府県の行。府県名と最悪の地域は左に、確率は右に揃え、列の間は 2 桁。
+// 無いと 5 行の列を揃えられない（rowTable は見出しの行を出し、入らないときの 2 行目を揃えない）。最も長い行が room に入らなければ全部の府県を 2 行にする。
+function typhoonLines(probability: Extract<TerminalReport, { kind: "short" }>["probability"], room: number): Line[] {
+  if (probability == null || probability.rows.length === 0) return [];
+  const rows = probability.rows.map((row) => {
+    // 旧築の jstHourLabel と同じ形（生の字の月・日・時で、時刻帯を換算しない）。府県名と同じ字の地域（大東島地方）は地域の欄を空にする。
+    const peak = /^\d{4}-(\d{2})-(\d{2})T(\d{2})/.exec(row.peakRaw ?? "");
+    return { prefecture: row.prefecture, area: row.area === row.prefecture ? "" : row.area, percent: `${row.percent}%`, time: peak == null ? "" : `${peak[1]}/${peak[2]} ${peak[3]}時頃` };
+  });
+  const most = (pick: (row: (typeof rows)[number]) => string): number => Math.max(...rows.map((row) => width(pick(row))));
+  const prefectureSize = most((row) => row.prefecture), areaSize = most((row) => row.area), percentSize = most((row) => row.percent);
+  // 地域の欄が全部空なら地域の列を出さない。時刻の欄が空の行は行末の空白を書き出しで除く。
+  const values = (row: (typeof rows)[number]): string => `${areaSize === 0 ? "" : pad(row.area, areaSize + 2)}${row.percent.padStart(percentSize)}  ${row.time}`;
+  const single = rows.map((row) => `${pad(row.prefecture, prefectureSize + 2)}${values(row)}`.trimEnd());
+  const lines = single.every((text) => width(text) <= room) ? single.map((text) => line(seg(text)))
+    : rows.flatMap((row) => [line(seg(row.prefecture)), line(seg(`  ${values(row)}`))]);
+  return probability.others === 0 ? lines : [...lines, line(seg(`ほか ${probability.others} 府県`, "dim"))];
 }
 // ---- 書き出す文字 ----
 function trimEnd(segs: readonly Seg[]): Seg[] {

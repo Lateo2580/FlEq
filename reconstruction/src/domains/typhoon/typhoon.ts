@@ -459,3 +459,4 @@ export {
 };
 export type { AnalysisCandidate, AnalysisHeadType, ProbabilityCandidate, ProbabilityHeadType, TyphoonCandidate };
 export { ANALYSIS_TYPES, PROBABILITY_TYPES };
+export { halfWidth };

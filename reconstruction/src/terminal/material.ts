@@ -4,8 +4,8 @@ import type {
   TerminalBandLevel, TerminalHead, TerminalHypocenter, TerminalIntensityArea, TerminalReport, TerminalTsunamiArea, TerminalTsunamiStation, TerminalValue,
 } from "../../contracts/p3-terminal-output.types";
 import { attribute, children, first, localName, scalar, text } from "../decode-material/xml-read";
-import { levelOf as floodLevel } from "../domains/flood/flood";
-import { levelOf as landslideLevel } from "../domains/landslide/landslide";
+import { cut, levelOf as floodLevel, validReportDateTime } from "../domains/flood/flood";
+import { levelOf as landslideLevel } from "../domains/landslide/landslide"; import { BOUNDS, LIMITS, halfWidth } from "../domains/typhoon/typhoon";
 import { classifyHeadType } from "../runtime/unit-coverage"; import { controlDateTimeOf } from "../contracts-revision/version";
 
 // P3-TO-AC01 (3)・RES-02: 端末の材料を owner の worker で 1 報に 1 回だけ作る。XML の生の文字を写すだけで、整形は端末の側。
@@ -289,7 +289,7 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
   const layer = nationwide && !cancel ? children(body, "Warning").find((node) => attribute(node, "type") === PREFECTURE_LAYER) ?? null : null;
   if (layer != null) {
     const table = nationalTable(layer);
-    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national, risks: null, released: null };
+    return { kind: "short", unit, head: heading, target: "全国", level: table.level, reason: null, cancelText: null, monthly: null, flash: null, national: table.national, risks: null, released: null, probability: null };
   }
   const found = scan(body, unit === "U-F" && material.headType === "VPWP50" && !cancel, /^VPWW(5[5-9]|6[01])$/.test(material.headType) && !cancel);
   // Head の Title に全国の活火山を含む VFVO51。EventID 900 は「その他の火山」の番号でもあるので使わない（P3-TL3-D-DETECT）。
@@ -299,7 +299,7 @@ function short(material: DecodedMaterial, unit: ShortUnit, body: XmlElement | nu
     // 取消の文は取消の報だけ読む（P3-TL3-AC05 (4)）。read は Body の直下の子だけを見るので VolcanoInfo の中の Text は読まない。
     cancelText: cancel ? read(body, "Text") : null, monthly: monthly && !cancel ? monthlyTable(body) : null,
     flash: material.headType === "VFVO56" && !cancel ? flashBody(body) : null, national: null, risks: found.risks == null ? null : [...found.risks.values()],
-    released: found.released == null ? null : { rows: [...found.released.rows.values()].map(({ label, areas }) => ({ label, areas })), others: found.released.others + found.released.items.omitted } };
+    released: found.released == null ? null : { rows: [...found.released.rows.values()].map(({ label, areas }) => ({ label, areas })), others: found.released.others + found.released.items.omitted }, probability: unit === "U-Y" && /^VPTA5[0-5]$/.test(material.headType) && !cancel ? typhoonRows(body) : null };
 }
 
 // P3-TO-AC01 (2)・D-ORIGIN: 端末に出すのは live か replay の報だけ。U-E は facts.report を使うので作らない。
@@ -332,6 +332,50 @@ function inputTerminal(result: ParserMailboxResult, outcomes: readonly RuntimePu
   if (result.material.headType === "VPNO50") return null;
   const taken = outcomes.some(({ unit, outcome }) => unit === route.unit && outcome.kind === "accepted" && outcome.change !== "deliveryOnly");
   return taken || (!rejected && tideOnly(result.material)) ? terminalReport(result.material, route.unit) : null;
+}
+
+// ---- 台風の暴風域に入る確率の府県の行（P3-TL16-AC01、D-VPTA-ROWS=A'・D-TIE=A） ----
+// 無いと府県ごとの確率が端末へ届かない（U-Y の候補は inputDone の返信に載らず、時刻の生の字も持たないので parser は呼ばない、AC01 (6)）。
+type Probability = NonNullable<Extract<TerminalReport, { kind: "short" }>["probability"]>;
+const FIVE_DAY = "台風の暴風域に入る確率（5日積算）", ALL_FROM = 70, ROWS_MIN = 5;
+const windValues = (item: XmlElement): XmlElement[] => children(first(first(first(item, "Kind"), "Property"), "FiftyKtWindProbabilityPart"), "FiftyKtWindProbability");
+const percentOf = (raw: string | null): number | null => raw != null && /^[0-9]{1,3}$/.test(raw) ? Number(raw) : null;
+// 5日積算の Item は件数の上限なしに全部見る（AREA_LIMIT で切ると 257 番目からの西の地域が読まれず、台風の近い府県が消える。Q-TL16-RECHECK (3)）。
+// 縛るのは府県の数だけ（96、U-Y の LIMITS と同じ）。1% 未満の地域は府県の最大にならないので、府県の数にも数えない。
+function typhoonRows(body: XmlElement | null): Probability {
+  const infos = first(body, "MeteorologicalInfos");
+  const section = children(infos, "MeteorologicalInfo").find((node) => halfWidth(attribute(node, "type") ?? "") === FIVE_DAY) ?? null;
+  const byPrefecture = new Map<string, { prefecture: string; area: string; code: string; percent: string; value: number }>();
+  for (const item of children(section, "Item")) {
+    const area = first(item, "Area"), code = read(area, "Code"), prefectureCode = read(area, "PrefectureCode"), prefecture = read(area, "Prefecture"), name = read(area, "Name");
+    const node = windValues(item)[0], percent = node == null ? null : clip(scalar(node)), value = percentOf(percent);
+    if (code == null || prefectureCode == null || prefecture == null || name == null || percent == null || value == null || value < 1) continue;
+    const row = { prefecture: cut(prefecture, BOUNDS.areaName), area: cut(name, BOUNDS.areaName), code, percent, value }, known = byPrefecture.get(prefectureCode);
+    // 同じ値の地域は電文で先の Item を残す（旧築の aggregateByPrefecture の「>」と同じ）。
+    if (known == null ? byPrefecture.size < LIMITS.prefectures : value > known.value) byPrefecture.set(prefectureCode, row);
+  }
+  const order = [...byPrefecture].sort(([left, a], [right, b]) => b.value - a.value || (left < right ? -1 : left > right ? 1 : 0));
+  const shown = order.slice(0, Math.max(ROWS_MIN, order.filter(([, row]) => row.value >= ALL_FROM).length)).map(([, row]) => row);
+  // ピークは最悪の地域の 3 時間ごとの値で最初に最大になる時間帯の DateTime（AC01 (4)）。TimeDefine と値は 64 まで、Item は全部 1 回見て rows の地域だけ値を読む。
+  const series = first(infos, "TimeSeriesInfo"), times = new Map<string, string | null>();
+  for (const define of children(first(series, "TimeDefines"), "TimeDefine").slice(0, LIMITS.slots)) {
+    const id = attribute(define, "timeId");
+    if (id != null && !times.has(id)) times.set(id, read(define, "DateTime"));
+  }
+  const wanted = new Set(shown.map((row) => row.code)), peaks = new Map<string, string | null>();
+  for (const item of children(series, "Item")) {
+    const code = read(first(item, "Area"), "Code");
+    // 同じ Code の Item は最初の 1 つだけ。
+    if (code == null || !wanted.has(code) || peaks.has(code)) continue;
+    let peak = 0, ref: string | null = null;
+    for (const node of windValues(item).slice(0, LIMITS.slots)) {
+      const value = percentOf(scalar(node));
+      if (value != null && value > peak) { peak = value; ref = attribute(node, "refID"); }
+    }
+    const raw = ref == null ? null : times.get(ref) ?? null;
+    peaks.set(code, raw != null && validReportDateTime(raw) ? raw : null);
+  }
+  return { rows: shown.map((row) => ({ prefecture: row.prefecture, area: row.area, percent: row.percent, peakRaw: peaks.get(row.code) ?? null })), others: order.length - shown.length };
 }
 
 export { inputTerminal, terminalReport };
