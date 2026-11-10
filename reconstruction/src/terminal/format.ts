@@ -1006,7 +1006,7 @@ function spanLines(row: RiskRow, room: number): Line[] {
   });
   return [...texts, current].map((text) => line(seg(text)));
 }
-// AC02 (3)(4): 2 桁下げて市町村等を「・」でつなぐ。十の位 4・5 は全部を名前の境で折り（続きも 2 桁下げ）、名前の無い数を最後に「 ほか n」。
+// AC02 (3)(4): 2 桁下げて市町村等を「・」でつなぐ。十の位 4・5 は全部を名前の境で折り（続きも 2 桁下げ）、名前の無い数を最後に「 ほか n」（入らなければ次の行）。
 // ほかは 1 行に「 ほか n」の幅も含めて入るだけ並べる（D-FIT=A）。1 つ目の名前は入らなくても出す（書き出しの physical が折る）。
 function areaLines(row: RiskRow, room: number): Line[] {
   const { areas, others } = row, total = areas.length + others;
@@ -1020,7 +1020,9 @@ function areaLines(row: RiskRow, room: number): Line[] {
       else if (width(current) + 2 + width(area) <= room) current += `・${area}`;
       else { texts.push(current); current = `  ${area}`; }
     }
-    return [...texts, current + more(areas.length)].map((text) => line(seg(text)));
+    const tail = more(areas.length);
+    if (areas.length > 0 && tail !== "" && width(current + tail) > room) { texts.push(current); current = `  ${tail.slice(1)}`; } else current += tail;
+    return [...texts, current].map((text) => line(seg(text)));
   }
   // 「 ほか n」は n の桁で幅が変わり、全部並べると消えるので、並べる数ごとに測って入る最大を採る。
   let shown = Math.min(1, areas.length), used = 2 + (areas.length === 0 ? 0 : width(areas[0]));

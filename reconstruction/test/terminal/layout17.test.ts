@@ -89,6 +89,8 @@ const setSig = (item: string, from: string, ref: string, type: string, name: str
     `<Significancy refID="${ref}" type="${type}"><Name>${name}</Name><Code>${code}</Code></Significancy>`);
 // 濃霧危険度の注意報級（20）を全部 01 にする。
 const fogOff = (xml: string): string => xml.replace(/(<Significancy refID="\d+" type="濃霧危険度">\s*)<Name>注意報級<\/Name>(\s*)<Code>20<\/Code>/g, "$1<Name>注意報級未満</Name>$2<Code>01</Code>");
+// 濃霧危険度の注意報級（20）を全部 特別警報級（50）にする。
+const fogSpecial = (xml: string): string => xml.replace(/(<Significancy refID="\d+" type="濃霧危険度">\s*)<Name>注意報級<\/Name>(\s*)<Code>20<\/Code>/g, "$1<Name>特別警報級</Name>$2<Code>50</Code>");
 const shortOf = (report: TerminalReport): Extract<TerminalReport, { kind: "short" }> => {
   if (report.kind !== "short") throw new Error(`not short: ${report.kind}`);
   return report;
@@ -100,8 +102,7 @@ const MORNING = { from: "０６日朝", to: "０６日昼前" };
 describe("P3-TL19 1 件の気象警報・注意報時系列情報の種類ごとの時間帯と市町村等", () => {
   // P3-TL19-T03 contractBoundary / AC02 (3)
   it("T03 特別警報級は全部の市町村を名前の境で折り、続きの行も 2 桁下げ", async () => {
-    const special = (xml: string) => xml.replace(/(<Significancy refID="\d+" type="濃霧危険度">\s*)<Name>注意報級<\/Name>(\s*)<Code>20<\/Code>/g, "$1<Name>特別警報級</Name>$2<Code>50</Code>");
-    expect((await owned(NAGANO, 56, special)).lines).toEqual(["", "━ 長野県警戒・注意事項時系列情報 ━━━━━━━ 05:00:00 発表 ━",
+    expect((await owned(NAGANO, 56, fogSpecial)).lines).toEqual(["", "━ 長野県警戒・注意事項時系列情報 ━━━━━━━ 05:00:00 発表 ━",
       "濃霧危険度（特別警報級）  06日朝〜06日昼前", "  小諸市・佐久市・小海町・川上村・南牧村・南相木村", "  北相木村・佐久穂町・軽井沢町・御代田町・立科町", "VPWP50 ・ 長野地方気象台"]);
   });
 
@@ -126,6 +127,16 @@ describe("P3-TL19 1 件の気象警報・注意報時系列情報の種類ごと
     expect(fog?.areas).toHaveLength(11);
     expect(fog?.areas.at(-1)).toBe("小諸市");
     expect(fog?.others).toBe(1);
+    // 十の位 5 の行の末尾の「 ほか n」: 56 桁で最後の行に入り（46＋7 桁）、52 桁では入らず次の行に 2 桁下げる。
+    const specialUnit = reportUnit(reportOf(NAGANO, "U-F", (xml) => fogSpecial(nameless(xml))));
+    expect(terminal(56)([specialUnit])).toContain("  佐久穂町・軽井沢町・御代田町・立科町・小諸市 ほか 1");
+    const fifty = terminal(52)([specialUnit]), last = fifty.indexOf("  佐久穂町・軽井沢町・御代田町・立科町・小諸市");
+    expect(fifty.slice(last, last + 2)).toEqual(["  佐久穂町・軽井沢町・御代田町・立科町・小諸市", "  ほか 1"]);
+    // 名前つきの後に同じ Area/Code の名前の無い Item（後の TimeSeriesInfo）が来ても数えない。
+    const laterNameless = (xml: string) => editItems(xml, 3, (item) => areaOf(item) === "小諸市"
+      ? setSig(item.replace(/(<Area>\s*)<Name>小諸市<\/Name>/, "$1"), "霜危険度", "1", "濃霧危険度", "注意報級", "20") : item);
+    const later = rowsOf(laterNameless)?.find((row) => row.type === "濃霧危険度");
+    expect({ areas: later?.areas, others: later?.others }).toEqual({ areas: ELEVEN, others: 0 });
     const heavier = (xml: string) => editItems(fogOff(xml), 1, (item, index) => index < 65 ? setSig(item, "濃霧危険度", "1", "濃霧危険度", "注意報級", "20")
       : index === 65 ? setSig(item, "濃霧危険度", "1", "濃霧危険度", "警報級", "30") : item);
     expect(rowsOf(heavier)).toEqual([{ type: "濃霧危険度", name: "警報級", code: "30", spans: [{ from: "０６日朝", to: "０６日朝" }], areas: ["朝日村"], others: 0 }]);
@@ -175,6 +186,10 @@ describe("P3-TL19 1 件の気象警報・注意報時系列情報の種類ごと
     expect(stamp).toBeGreaterThan(0);
     expect(narrow.slice(stamp + 1, stamp + 4)).toEqual(["濃霧危険度（注意報級）", "  06日朝〜06日昼前", "  07日朝"]);
     expect(narrow[stamp + 4]).toMatch(/^  小諸市/);
+    // 続く 3 つの時間帯の真ん中の TimeDefine の Name を除いても、帯は 1 つ（隣の判定は位置で、from・to は名前のある最初と最後）。
+    const hole = (xml: string) => editItems(editSeries(xml, 1, (block) => block.replace("<Name>０６日昼前</Name>", "")), 1,
+      (item) => areaOf(item) === "小諸市" ? setSig(item, "濃霧危険度", "3", "濃霧危険度", "注意報級", "20") : item);
+    expect(terminal(56)([reportUnit(reportOf(NAGANO, "U-F", hole))])).toContain("濃霧危険度（注意報級）  06日朝〜06日昼過ぎ");
   });
 
   // P3-TL19-T09 contractBoundary / AC01 (2)(a)・AC02・AC04

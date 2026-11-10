@@ -147,20 +147,21 @@ function release(item: XmlElement, found: ReleaseRows): void {
   if (lost) found.others += 1;
 }
 // P3-TL19-AC01: risks の組に、最悪の段階の時間帯と市町村等を積んだもの（risks と riskRows は辿りの後に同じ値から作る）。
-// times は最悪の段階を最初に持った TimeSeriesInfo の timeId → TimeDefine の位置（Q-TL19-DAILY）、slots はその段階の Significancy が指した位置 → Name。
+// times は最悪の段階を最初に持った TimeSeriesInfo の timeId → TimeDefine の位置（Q-TL19-DAILY）、slots はその段階の Significancy が指した位置 → Name（Name の無い TimeDefine は null で、隣の判定にだけ使う）。
 // seen は数えた Area/Code（Area/Code か名前の無い Item は Item そのもの。Q-TL19-OVERLAP）。
 type Times = Readonly<{ ids: Map<string, number>; names: readonly (string | null)[] }>;
-type RiskRow = Risk & { times: Times | null; slots: Map<number, string>; areas: string[]; others: number; seen: Set<string | XmlElement> };
+type RiskRow = Risk & { times: Times | null; slots: Map<number, string | null>; areas: string[]; others: number; seen: Set<string | XmlElement> };
 // Q-TL19-LIMIT (a): 十の位が 2・3 の種類の名前は 64 まで（無いと 1 報の材料が Item の数×種類の数で大きくなる）。十の位 4・5 の名前と時間帯は数で切らない（D-CAP=A）。
 const NAME_LIMIT = 64;
-// D-SPAN-GAP=A: 位置が隣どうしの時間帯を 1 つの帯（最初〜最後）にまとめ、電文の順に並べる。
-function spansOf(slots: ReadonlyMap<number, string>): { from: string; to: string }[] {
-  const spans: { from: string; to: string; last: number }[] = [];
+// D-SPAN-GAP=A: 位置が隣どうしの時間帯を 1 つの帯にまとめ、電文の順に並べる。from・to は帯の中で Name のある最初と最後で、Name が 1 つも無い帯は出さない。
+function spansOf(slots: ReadonlyMap<number, string | null>): { from: string; to: string }[] {
+  const spans: { from: string | null; to: string | null; last: number }[] = [];
   for (const [at, name] of [...slots].sort(([left], [right]) => left - right)) {
     const span = spans.at(-1);
-    if (span != null && span.last === at - 1) { span.to = name; span.last = at; } else spans.push({ from: name, to: name, last: at });
+    if (span == null || span.last !== at - 1) spans.push({ from: name, to: name, last: at });
+    else { span.last = at; if (name != null) { span.from ??= name; span.to = name; } }
   }
-  return spans.map(({ from, to }) => ({ from, to }));
+  return spans.flatMap(({ from, to }) => from == null || to == null ? [] : [{ from, to }]);
 }
 function scan(body: XmlElement | null, withRisks = false, withReleased = false): { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, RiskRow> | null; released: ReleaseRows | null } {
   const found: { target: string | null; kinds: Kind[]; serialName: string | null; typhoon: XmlElement | null; risks: Map<string, RiskRow> | null; released: ReleaseRows | null } = { target: null, kinds: [], serialName: null, typhoon: null, risks: withRisks ? new Map() : null,
@@ -185,10 +186,10 @@ function scan(body: XmlElement | null, withRisks = false, withReleased = false):
         if (row != null && row.code === code) {
           // 時間帯は最初の TimeSeriesInfo のものだけ合わせる（Q-TL19-DAILY）。
           const ref = attribute(node, "refID"), at = ref == null || row.times !== times ? undefined : times?.ids.get(ref);
-          const slot = at == null ? undefined : times?.names[at];
-          if (at != null && slot != null) row.slots.set(at, slot);
+          if (at != null) row.slots.set(at, times?.names[at] ?? null);
           const key = area == null ? null : area.name == null || area.code == null ? area.node : area.code;
-          if (area != null && key != null && !row.seen.has(key)) {
+          // 名前の無い Item も、同じ Area/Code が先に数えてあれば数えない（印は Item に付け、Code には付けない。Q-TL19-OVERLAP）。
+          if (area != null && key != null && !row.seen.has(key) && (area.code == null || !row.seen.has(area.code))) {
             // 印は名前と上限を見る前に付ける（無いと別の TimeSeriesInfo の同じ市町村が others に二重に入る）。
             row.seen.add(key);
             if (area.name == null || (/^[23]/.test(code) && row.areas.length >= NAME_LIMIT)) row.others += 1;
