@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "0a23622bcf8c93483337afe4bffe3869e5394a3930a8d042d19079a712668729",
+    "sha256": "84329a98179e800091de6665ff0767bb4dd819fe0dd8fb40db4441c0c6df9707",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1189,7 +1189,7 @@
         "requirement": "【発注 3】境界を進める入力と未解決の列: (1) origin=recovery の入力は、publisher が境界を測る unit ごとの未解決の列（K7、段 2 のメモ §2.4）に入れない。取り直しは穴を埋める側で、穴そのものではない。(2) 採用（P3-REC-AC07）の後に、owner の採用の返信を受けた publisher が、その unit の穴 b〜d のうち、今回の辿りで覆った区間（起点から、一覧を引き始めた時点の inputSequence まで。dmdata 時刻でなく受信の順で数える）を解決にする。そのための口を composition-root に 1 つ足す（境界の列は root.checkpoint.boundaries にあって PublisherState ではないので、PublisherInput・RuntimeInput には足さず root のメソッドにする。2026-10-28 発注 3 の点検 M13。無いと、取り直しが済んでも境界が穴を越えず、毎回同じ起点から取り直す）。中身は unit・runId・覆った区間の終わり（inputSequence と、最後に一覧で見た item の dmdata 時刻と電文 id。一覧の応答の responseTime があればその時刻で電文 id は null。無ければ束が 1 つの unit だけ最後の item の時刻と id、2 つ以上なら進めない。解決は採用の返信の同期の処理で、その返信の output を反映する前に当てる。一覧を引き始めた時に接続の無かった回は穴を解かず、最古の穴の before を覆った区間の終わりへ進める（P3-RECOVERY-BOUNDARY-001 の AC02・AC03・AC07））。checkpoint の InputBoundaries に穴を解くメソッドを足す（いまは無い、発注前点検 N2）。(3) 取り直しの間に live で受けた入力は、今までどおり未解決の列で処理を待つ。覆った区間より後に開いた穴は解決にせず、P3-REC-D-HOLE-AFTER-START=A の「取り直しを始めた後に開いた最古の穴」として持ち、解決の後に最古の穴へ繰り上げる（一覧を引き始めた時に接続の無かった回の採用は、穴を残して確認を止めない印を付け、afterStart は捨てる、P3-RECOVERY-BOUNDARY-001 の AC07）。(4) 量の上限・未充足で取り終えなかった unit は、穴を解決にしない（次のきっかけで同じ起点から）。(5) 解決にした位置は、自分の受信時刻が null で dmdata 側の時刻か電文 id を持つ境界として、次の書込み権で envelope に入る（両方 null の境界は無い。両方 null で受信末尾が null のときだけ、解いた穴の before を受信末尾に残す（末尾があれば末尾を残す）、メモ §2.4） InputBoundaries の口は recoveryStarted(unit, atSequence)（P3-REC-D-HOLE-AFTER-START の境目）と resolve(unit, throughSequence, position)（publicFunctions の 14 番目）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3116 «191f681b268759e4»",
-          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
+          "reconstruction/src/host/host.ts:334 «92d9b7e49e6c8fab»",
           "reconstruction/src/runtime/composition-root.ts:150 «d515e86c34a64341»",
           "reconstruction/src/checkpoint/checkpoint.ts:903 «f34c57c08414c0ec»"
         ]

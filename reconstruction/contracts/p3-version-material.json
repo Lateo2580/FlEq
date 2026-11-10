@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "fd4111b9f57369d4b1df0db47cea2b14a57b3c8b27ce822f9dc9b09dec4df793",
+    "sha256": "0b40d3adb48d931f233adc00a23f6b252bc36b6cd070aa30cfb68aa0854cedcf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -526,7 +526,7 @@
           "reconstruction/src/runtime/composition-root.ts:935 «d9ca8a096374d838»",
           "reconstruction/src/runtime/composition-root.ts:1501 «90ced524d38d1efe»",
           "reconstruction/src/host/host.ts:328 «0c05272de607230d»",
-          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
+          "reconstruction/src/host/host.ts:334 «92d9b7e49e6c8fab»",
           "reconstruction/contracts/p3-persist-premises.md:140 «2f26078ea8843032»",
           "reconstruction/contracts/p3-persist-premises.md:141 «642fa0fee91f1ede»",
           "reconstruction/contracts/p3-persist-premises.md:142 «b0bb1f9f3b718590»",

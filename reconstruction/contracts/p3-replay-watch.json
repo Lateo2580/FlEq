@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "857cf97e9af0d41fcc0b88cf481cc3da44650a8c",
-    "sha256": "79fa6b6158c5daf2a69f4f704588733340bcb7cf5a140753030e86667e027a82",
+    "sha256": "457603513b0d5ad1e65a8ae2851d5bd9950b3b863f62ce6af5fd3873ba9b9a09",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -388,7 +388,7 @@
         "evidenceRefs": [
           "reconstruction/test/eew-e01/frames.mjs:99 «5e33372db55faf23»",
           "reconstruction/test/eew-e01/frames.mjs:32 «33a0cb6f98e04b13»",
-          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
+          "reconstruction/src/host/host.ts:334 «92d9b7e49e6c8fab»",
           "reconstruction/src/display/chrome-eew/index.html:93 «53f86ffd08a3e586»",
           "reconstruction/src/display/chrome-eew/index.html:94 «4fbe20bfaef88efa»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:121 «b5b185097f7f2a3a»",
@@ -402,8 +402,8 @@
           "reconstruction/src/host/host.ts:322 «7da556e3df4f1cb5»",
           "reconstruction/src/host/host.ts:166 «b747b81e2514721e»",
           "reconstruction/src/host/host.ts:187 «8eccbc77af0cc99f»",
-          "reconstruction/src/host/host.ts:325 «cb6d2970662a0a8e»",
-          "reconstruction/src/host/host.ts:334 «78ed7c65133feaf5»",
+          "reconstruction/src/host/host.ts:325 «ee96e1ca4581c286»",
+          "reconstruction/src/host/host.ts:334 «92d9b7e49e6c8fab»",
           "reconstruction/src/host/host.ts:292 «e17c8666a6170c67»",
           "reconstruction/src/host/host.ts:659 «6838d5e0771027a7»",
           "reconstruction/src/mailbox/mailbox.ts:12 «c8550d4a158a4b98»",

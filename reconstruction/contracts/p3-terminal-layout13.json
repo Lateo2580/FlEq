@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86bb360c4e857d340f328644b670bead0b03474f",
-    "sha256": "733df5fee48b798ae96cf7c503b75372e2b9b4ef71f4eb6dccff41aed1bfb20b",
+    "sha256": "e13459edf47883ec45c6115c23b794189088f3eef276e773731aa159be23eb99",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -39,7 +39,7 @@
         "status": "closed",
         "source": "起草（統合担当、2026-11-09）。写し ~/dev/fleq-vault-archive/2026-11-09-snap/mini-new-1335.txt と報告 sweep/report.md の (c)-2〜(c)-4、repo の fixture・新築の src を読み直した",
         "closed": "(1) 版の印: format.ts の shortForm の題名は「（Ｒ[０-９]+）」だけを除く。repo の fixture で Control/Title に「（Ｈ３０）」を持つのは台風解析・予報情報（VPTW60〜62 と取消の合成 2 本）だけで、写しの 118・407・492・863・944・1274 行の帯は全部 VPTW60。降灰のまとまりの題名（ashfall）も「（Ｒ…）」だけを除くが、降灰予報の Control/Title に版の印は無いので変えない。起動時のまとめの名前は表（TYPE_NAMES）で、版の印は表を作る時に除いてある（Q-TO8-NO-CODE） (2) 種類の分からない電文: unit の受け持ちの表（unit-coverage.ts）に無い型（WTJP31・WTJP21 など）は、owner が U-M の view に headType ごとの unknownType のカードを置き（owner-runtime.ts、routeUnlisted か routeNotPorted）、端末の sink は unknownType のカードを選ばない（output.ts の P3-TO-D-UNREADABLE の絞り）。P3-TO-D-UNREADABLE の条文は「unreadable・unidentified のカード」と書くだけで、unknownType を出さないことは条文の字に無い。写しでは旧築が WTJP31・21 を 6 回出し、新築の端末には 0 行（新築の host に届いていたかは未確認） (3) tips: notice の tip は「  <tips の字>」の 1 行で、前に空行が無く、幅を越えると physical の wrapChars が字の境目で折って続きの行を 2 桁の字下げ（tips の字の頭と同じ位置）で出す",
-        "remaining": "新築の host に WTJP が届いていたか（Q-TL13-WTJP-SEEN、発注は止めない）"
+        "remaining": "なし（Q-TL13-WTJP-SEEN は P3-TERMINAL-DEBUG-REJECT-001 の起草で閉じた: 新築の host に WTJP21・WTJP31 は届いていて、format が xml でないので ingress が formatUnsupported で断り、owner に渡していなかった〔上の (2) の unknownType のカードにもならない〕。2026-11-08〜11-10 の Mac mini の新築の diag で 18 件、--debug の行の入力 ID の抜けと 1 対 1）"
       },
       {
         "id": "Q-TL13-SPEC-LINES",
@@ -280,18 +280,6 @@
       "残存として成果物に書く: (1) 幅の中に読点の無い文を持つ tips（tips-data.ts の 2,238 件のうち、100 桁で 45 件・80 桁で 165 件・56 桁で 1,020 件）は、文の途中の字の境目で折れる（P3-TL13-D-TIP-WRAP=A） (2) 種類の分からない電文（notPorted の型を含む）は端末に出ないので、区分の契約で届く他の型が届いているかは端末では読めない（--debug の行と routeNotPorted の INFO で読む） (3) 幅の中の最後の読点が文の頭近くにあると、折った 1 行目が短くなる。句点で分けた文の最初の折り目の行が幅の 3 分の 1 未満になる tips は 100 桁で 30 件・80 桁で 91 件・56 桁で 97 件（起草の時に tips-data.ts で数えた。続きの行の折り目も含めると 30・93・204 件）。裁定「句読点で折る」の範囲の動きとして残す",
       "原文の改訂（統合担当が配送の commit で当てる。各条文の行の中に書き足し、行の数は変えない。起草の時に 4 行とも他の契約の «» に引かれていないことを grep で確かめた。行番号は 2026-11-09 夜の載せ直しの後の木）: (1) reconstruction/contracts/p3-terminal-layout9.json:282 の outOfScope に、P3-TL13-AC01 で除くことにした旨 (2) reconstruction/contracts/p3-terminal-output.json:615 の P3-TO-AC09 (4) の P3-TO-D-UNREADABLE の句に、unknownType のカードは出さない旨（P3-TL13-AC02） (3) 同 :661 の P3-TO-AC12 の tips の形に、前の空行と折り方（P3-TL13-AC03） (4) docs/specs/cli-terminal-output.md:708 の「1 行出す」に「幅に入る tips は」（p3-cli-repl.json と p3-terminal-output.json が引く行なので起草では触らず、配送でその «» と一緒に取り直す）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-TL13-WTJP-SEEN",
-        "owner": "integrator",
-        "blocks": [
-          "P3-TL13-AC02 の場面の確かめ（発注は止めない）"
-        ],
-        "resolveBy": "配送の後",
-        "requiredEvidence": [
-          "新築の host の --debug の行で WTJP31・21 が届いて「出さない」になったことを 1 回見る（2026-11-09 の写しには新築の --debug の行が無く未確認）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

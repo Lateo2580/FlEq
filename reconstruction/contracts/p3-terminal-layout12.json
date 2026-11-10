@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e53b60cff971e8c18e10398b40584cbaac396b9c",
-    "sha256": "6a0400560cd9abb8ef73d749b0d2065ca63d2afabea6026c1dca6a3add7aead3",
+    "sha256": "4b80c59737ec85f5fd7de1eefe26c317a84f93cda5275bdd2a885fca50acf50e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -283,7 +283,7 @@
       },
       {
         "id": "P3-TL12-AC04",
-        "requirement": "計算量・口（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) 足すのは scan の同じ辿りの中の Item ごとの Kind の確かめと、行の Map を鍵で 1 回引くことだけ。新しい辿り・JSON.stringify・報の並びの走査をしない (2) released の大きさ（output.ts の estimate の数え方: 文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte、鍵は鍵の byte）: label と区域の名前は 32 字まで（AC02 (3)、UTF-8 で 96 byte まで）。外側は入れ物 8 と鍵 rows・others の 10 と others の 8 と rows の列の 8 で 34 byte。1 行は添字の鍵 2 と入れ物 8 と鍵 label・areas の 10 と label 96 と areas の列 8 で 124 byte 以下、行は 100 まで（12,400 byte 以下）。区域の延べ 1 つは添字の鍵 3 と名前 96 で 99 byte 以下、512 まで（50,688 byte 以下）。合わせて 63,122 byte 以下（64 KiB 以下と書く）で、Item の数（256）によらない。受信 1 回の仕事は層の Item の数と Item の子の Kind の数に比例する加算で、全件×全件の走査は無い (3) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink の型。TerminalReport の short に欄 released を 1 つ足す（publicTypes、P3-TERMINAL-LAYOUT-008 の national と同じ足し方）。runtime と U-W・U-L を変えない",
+        "requirement": "計算量・口（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) 足すのは scan の同じ辿りの中の Item ごとの Kind の確かめと、行の Map を鍵で 1 回引くことだけ。新しい辿り・JSON.stringify・報の並びの走査をしない (2) released の大きさ（output.ts の estimate の数え方: 文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte、鍵は鍵の byte）: label と区域の名前は 32 字まで（AC02 (3)、UTF-8 で 96 byte まで）。外側は入れ物 8 と鍵 rows・others の 10 と others の 8 と rows の列の 8 で 34 byte。1 行は添字の鍵 2 と入れ物 8 と鍵 label・areas の 10 と label 96 と areas の列 8 で 124 byte 以下、行は 100 まで（12,400 byte 以下）。区域の延べ 1 つは添字の鍵 3 と名前 96 で 99 byte 以下、512 まで（50,688 byte 以下）。合わせて 63,122 byte 以下（64 KiB 以下と書く）で、Item の数（256）によらない。受信 1 回の仕事は層の Item の数と Item の子の Kind の数に比例する加算で、全件×全件の走査は無い (3) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink の型（TerminalSink はその配送の制約。後に P3-TERMINAL-DEBUG-REJECT-001 で inputDropped を足した）。TerminalReport の short に欄 released を 1 つ足す（publicTypes、P3-TERMINAL-LAYOUT-008 の national と同じ足し方）。runtime と U-W・U-L を変えない",
         "evidenceRefs": [
           "reconstruction/src/terminal/material.ts:109 «00c7232ddbf5e65e»",
           "reconstruction/src/terminal/material.ts:149 «3ac5beb8148dae5c»",

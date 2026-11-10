@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "9da6e441d4456804d0bb51c77886245148d610e15287055e5de81767d1c5cc6a",
+    "sha256": "59ca667c7443b132d9e737b76b4df182967f1013be3283eedb2e23872b1f67c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -265,7 +265,7 @@
       "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
     ],
     "publicFunctions": [
-      "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま。TerminalSink に口を足さない）"
+      "口は変えない（terminalReport・inputTerminal・createRenderer・createTerminalOutput のまま。TerminalSink に口を足さない（TerminalSink はその配送の制約。後に P3-TERMINAL-DEBUG-REJECT-001 で inputDropped を足した））"
     ],
     "allowedDependencies": [
       "既存の依存だけ"
@@ -368,7 +368,7 @@
       },
       {
         "id": "P3-TL10-AC04",
-        "requirement": "計算量・口・幅（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) main の受信 1 回の仕事に足すのは、降灰のまとまりに置くこと（同じ火山を 20 件までの並びで探す・鍵を比べる）と、返信の U-B の accepted の subjects を 1 回見て待ちの表（Map）を引くこと（表が空なら見ない）だけ。JSON.stringify・列の走査・ほかの unit の走査をしない。束の単位の byte は積む時に estimate で 1 回だけ見積もる（報 20 まで） (2) 1 秒の tick と inputDone の初めに足すのは、まとまりの期限の比べ 1 回と、待ちの表の先頭から期限の過ぎた分を出すことだけ（表は置いた順が期限の順。期限は 60 秒で一定で、置き換えは最初の期限と表の位置を保つ。件数は端末の上限 256） (3) worker の EEW の段の割り当ては、新しい地震の最初の報で memory.events（64 件まで）を 1 回見るだけ (4) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink と TerminalReport の型。material.ts と runtime（host.ts・composition-root.ts）と U-V・U-B を変えない。format.ts の内側の型 TerminalUnit に束の単位を 1 つ足す (5) 束のブロックは 56・80・100 桁のどれでも行が桁数を越えず（P3-TO-AC04 (5)）、帯は 1 行、火山の名前は途中で折れない。色を付けないときは帯を塗らず ━ の形（Q-TO2-NOCOLOR）、縦線は色のある 60 桁以上だけ（今のとおり）",
+        "requirement": "計算量・口・幅（AGENTS.md の受信経路の計算量、P3-TO-AC08）: (1) main の受信 1 回の仕事に足すのは、降灰のまとまりに置くこと（同じ火山を 20 件までの並びで探す・鍵を比べる）と、返信の U-B の accepted の subjects を 1 回見て待ちの表（Map）を引くこと（表が空なら見ない）だけ。JSON.stringify・列の走査・ほかの unit の走査をしない。束の単位の byte は積む時に estimate で 1 回だけ見積もる（報 20 まで） (2) 1 秒の tick と inputDone の初めに足すのは、まとまりの期限の比べ 1 回と、待ちの表の先頭から期限の過ぎた分を出すことだけ（表は置いた順が期限の順。期限は 60 秒で一定で、置き換えは最初の期限と表の位置を保つ。件数は端末の上限 256） (3) worker の EEW の段の割り当ては、新しい地震の最初の報で memory.events（64 件まで）を 1 回見るだけ (4) 口は変えない: terminalReport・inputTerminal・createRenderer・createTerminalOutput、TerminalSink と TerminalReport の型（TerminalSink はその配送の制約。後に P3-TERMINAL-DEBUG-REJECT-001 で inputDropped を足した）。material.ts と runtime（host.ts・composition-root.ts）と U-V・U-B を変えない。format.ts の内側の型 TerminalUnit に束の単位を 1 つ足す (5) 束のブロックは 56・80・100 桁のどれでも行が桁数を越えず（P3-TO-AC04 (5)）、帯は 1 行、火山の名前は途中で折れない。色を付けないときは帯を塗らず ━ の形（Q-TO2-NOCOLOR）、縦線は色のある 60 桁以上だけ（今のとおり）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:83 «acd70b64750d0720»",
           "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
