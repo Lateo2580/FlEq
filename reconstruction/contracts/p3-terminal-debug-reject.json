@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7e9cfcf9960b02dc1423b8e030e3394165c4b6c8",
-    "sha256": "1938f36326ca4497f5a55b7e90b77109c33c0f6e59047e7fa3934a5e00b92a4a",
+    "sha256": "894c47623a8586cf37c9dafb4c9dbc743dc1ab3c518b6d178e4f3c483d169fca",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -18,8 +18,8 @@
       {
         "id": "Q-TDR-SINK-PORT",
         "status": "closed",
-        "source": "起草（2026-11-10）。p3-terminal-layout10.json・11・12 の口の条文を読んだ",
-        "closed": "layout10 の publicFunctions（:268）と AC の (4)（:371）、layout11 の publicFunctions（:245）と口の AC（:356）、layout12 の口の AC（:286）は「TerminalSink に口を足さない」「TerminalSink の型（を変えない）」と書く。どれもその配送の patch の範囲を縛る制約で、後の契約が口を足すことを禁じる設計の決まりではない（理由はどの条文にも書かれていない）。host から端末へ入力以外の出来事を押し込む口は今は無く（TerminalSink は inputDone・digest・mirror の 3 つで、inputDone は owner の返信だけ）、本契約で inputDropped を 1 つ足す。5 行は原文の改訂 (3) で、その配送の制約だったことと本契約で足したことを書き足す",
+        "source": "起草（2026-11-10）。p3-terminal-layout10.json・11・12・p3-terminal-rain-evict.json の口の条文と P3-TO-AC01 (4) を読んだ（起草レビュー r0 の P3 で rain-evict と AC01 (4) を足した）",
+        "closed": "layout10 の publicFunctions（:268）と AC の (4)（:371）、layout11 の publicFunctions（:245）と口の AC（:356）、layout12 の口の AC（:286）、p3-terminal-rain-evict.json の publicFunctions（:145）と口の AC（:215）は「TerminalSink に口を足さない」「TerminalSink の型（を変えない）」「TerminalSink のまま」と書く。どれもその配送の patch の範囲を縛る制約で、後の契約が口を足すことを禁じる設計の決まりではない（理由はどの条文にも書かれていない）。host から端末へ入力以外の出来事を押し込む口は今は無く（TerminalSink は inputDone・digest・mirror の 3 つで、inputDone は owner の返信だけ）、本契約で inputDropped を 1 つ足す。7 行は原文の改訂 (3) で、その配送の制約だったことと本契約で足したことを書き足す。p3-terminal-output.json:504 の P3-TO-AC01 (4)「TerminalSink は返信を受けて O(1) で列に積むだけ」は口の範囲を返信と書くので、(1) と同じく書き足す",
         "remaining": "なし"
       },
       {
@@ -66,7 +66,7 @@
       "test/fixtures/37_01_01_240613_VXSE43.xml"
     ],
     "allowedPaths": [
-      "reconstruction/src/terminal/output.ts（P3-TDR-AC02 (1)(2): 47 行の TerminalSink の型に inputDropped を足すことと、490〜632 行の sink の object に inputDropped の本体を足すことだけ。その上の 44〜46 行のコメントと sink の object の中は行を足してよい。足した行の数だけ 661 行以降がずれる〔原文の改訂の «» の項〕）",
+      "reconstruction/src/terminal/output.ts（P3-TDR-AC02 (1)(2): 47 行の TerminalSink の型に inputDropped を足すこと〔行の中で。コメントを書くならこの行の末尾〕と、sink の object に inputDropped の本体を足すことだけ。本体を置くのは 626 行（inputDone の閉じの「}」）と 627 行（「}, digest(view) {」）の間か、632 行（「}, mirror(views) { mirror = views; } },」）の mirror の後だけで、そこでは行を足してよい（コメントは本体の中）。626 行より上には行を足さない〔他の契約の «» が引く output.ts の行は 38〜615 と 661 で、動くのを 661 だけにする〕）",
       "reconstruction/src/host/host.ts（P3-TDR-AC02 (5): 325・326・334・339 の 4 行の中に inputDropped の呼び出しを足すことだけ。行を足さない）",
       "reconstruction/test/host/host.test.ts（P3-TDR-T01〜T05 の describe を 1 つ、file の末尾に足すことだけ。既存の it・helper・mock は変えない）"
     ],
@@ -130,7 +130,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TDR-AC01",
-        "requirement": "番号を振って owner に渡さなかった入力の --debug の行（host.ts の onFrame で入力 ID を振った後に return する 4 つの道。帳簿: host の WS の入力は、owner の返信の行〔P3-TO-AC17 (1)〕かこの行のどちらか 1 行で行き先が分かる）: (1) ingress の拒否（:325）: 「debug: <入力 ID>（出さない・断った <reason>）」。reason は ingress の ParserDiagnostic の reason（runtime-diagnostic.ts の parserDiagnosticReasons の 14 値で、diag の jsonl の同じ入力 ID の行の reason と同じ字）。種類のコードは出さない（ingress は断った入力の head.type を返さない） (2) VXSE43 を捨てる（:326、P3-ED43-AC01）: 「debug: VXSE43 <入力 ID>（出さない・捨てた）」。診断の出ない道なので reason の字を作らない（捨てる規則は VXSE43 の 1 つだけで、種類のコードで分かる） (3) 停止か無応答の owner への拒否（:334、P3-C3B-AC02）: 「debug: <種類のコード> <入力 ID>（出さない・断った ownerStopped）」。ownerStopped は refuseInput が書く診断の reason（停止と無応答で同じ字。診断はひと続きの拒否の最初の 1 件だけ入力 ID を持つが、端末の行は入力ごと） (4) mailbox の拒否（:337〜339）: 「debug: <種類のコード> <入力 ID>（出さない・断った <reason>）」。reason は mailbox の enqueue の結果の draining・itemLimit・byteLimit の 3 値をそのまま（診断の字 mailboxRejected* に直さない）。draining も同じ行 (5) (2)〜(4) は item.headType を種類のコードに書き、unit は書かない（owner に渡していないので unit は決まっていない）。P3-TO-AC17 (1) の「返信に種類のコードが無い入力は書かない」と同じ考え方で、持っている道では書く (6) 字は既存の debug の行と同じく薄い 1 行で、書き出しの列を通す（notice の kind debug。列が溢れたら D-DROP で落ちうるのも同じ）。種類のコードと入力 ID の間は半角の空白 1 つ、括弧は全角",
+        "requirement": "番号を振って owner に渡さなかった入力の --debug の行（host.ts の onFrame で入力 ID を振った後に return する 4 つの道。帳簿: host の WS の入力は、mailbox に受けた後に owner に届かない入力（範囲外、outOfScope）を除き、owner の返信の行〔P3-TO-AC17 (1)〕かこの行のどちらか 1 行で行き先が分かる）: (1) ingress の拒否（:325）: 「debug: <入力 ID>（出さない・断った <reason>）」。reason は ingress の ParserDiagnostic の reason（runtime-diagnostic.ts の parserDiagnosticReasons の 14 値で、diag の jsonl の同じ入力 ID の行の reason と同じ字）。種類のコードは出さない（ingress は断った入力の head.type を返さない） (2) VXSE43 を捨てる（:326、P3-ED43-AC01）: 「debug: VXSE43 <入力 ID>（出さない・捨てた）」。診断の出ない道なので reason の字を作らない（捨てる規則は VXSE43 の 1 つだけで、種類のコードで分かる） (3) 停止か無応答の owner への拒否（:334、P3-C3B-AC02）: 「debug: <種類のコード> <入力 ID>（出さない・断った ownerStopped）」。ownerStopped は refuseInput が書く診断の reason（停止と無応答で同じ字。診断はひと続きの拒否の最初の 1 件だけ入力 ID を持つが、端末の行は入力ごと） (4) mailbox の拒否（:337〜339）: 「debug: <種類のコード> <入力 ID>（出さない・断った <reason>）」。reason は mailbox の enqueue の結果の draining・itemLimit・byteLimit の 3 値をそのまま（診断の字 mailboxRejected* に直さない）。draining も同じ行 (5) (2)〜(4) は item.headType を種類のコードに書き、unit は書かない（owner に渡していないので unit は決まっていない）。P3-TO-AC17 (1) の「返信に種類のコードが無い入力は書かない」と同じ考え方で、持っている道では書く (6) 字は既存の debug の行と同じく薄い 1 行で、書き出しの列を通す（notice の kind debug。列が溢れたら D-DROP で落ちうるのも同じ）。種類のコードと入力 ID の間は半角の空白 1 つ、括弧は全角",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:321 «b4fadb3860eca60f»",
           "reconstruction/src/host/host.ts:325 «cb6d2970662a0a8e»",
@@ -148,7 +148,7 @@
       },
       {
         "id": "P3-TDR-AC02",
-        "requirement": "口・時点・計算量: (1) TerminalSink（output.ts）に inputDropped(inputId: string, headType: string | null, reason: string | null): void を 1 つ足す。headType が null なら種類のコードを書かず、reason が null なら「捨てた」、そうでなければ「断った <reason>」。reason を string にするのは ParserDiagnostic の reason の型が string を含むためで、値には上限がある: :325 では recordRejected（projectParserDiagnostic）が 14 値の外の reason で投げるので、その後に呼ぶ（14 値の外の字は端末に届かない）。:334 は字の ownerStopped、:339 は mailbox の 3 値 (2) options.debug が true でないときは何も積まない（通常の画面・音・通知・定期要約の数・tips の待ちの起点を変えない） (3) 呼ぶ時点は host が断った・捨てた時点（WS の受信の callback の中）。通った入力の行は owner の返信の後に出るので、端末の行の入力 ID の順は前後しうる（例: 返信を待っている input-1 より、断った input-2 の行が先に出る）。並べ直さない。要約の区切り（roll）とまとまりの期限（expire）は見ない（tick と inputDone のまま） (4) 計算量（AGENTS.md の受信経路の計算量）: 1 入力に 1 回の呼び出しと 1 行の字の組み立てだけ。走査・直列化をしない (5) host.ts は :325・:326・:334・:339 の 4 行の中に呼び出しを足し、行を足さない（:325 は recordRejected の後、:326 は return の前、:334 は refused の後、:339 は return の前）。config.terminal が無ければ呼ばない（今の inputDone と同じ ?.）。cli.ts の配線（terminal に output.sink を渡す）は変えない",
+        "requirement": "口・時点・計算量: (1) TerminalSink（output.ts）に inputDropped(inputId: string, headType: string | null, reason: string | null): void を 1 つ足す。headType が null なら種類のコードを書かず、reason が null なら「捨てた」、そうでなければ「断った <reason>」。reason を string にするのは ParserDiagnostic の reason の型が string を含むためで、値には上限がある: :325 では recordRejected（projectParserDiagnostic）が 14 値の外の reason で投げるので、その後に呼ぶ（14 値の外の字は端末に届かない）。:334 は字の ownerStopped、:339 は mailbox の 3 値 (2) options.debug が true でないときは何も積まない（通常の画面・音・通知・定期要約の数・tips の待ちの起点を変えない） (3) 呼ぶ時点は host が断った・捨てた時点（WS の受信の callback の中）。通った入力の行は owner の返信の後に出るので、端末の行の入力 ID の順は前後しうる（例: 返信を待っている input-1 より、断った input-2 の行が先に出る）。並べ直さない。要約の区切り（roll）とまとまりの期限（expire）は見ない（tick と inputDone のまま） (4) 計算量（AGENTS.md の受信経路の計算量）: 1 入力に 1 回の呼び出しと 1 行の字の組み立てだけ。走査・直列化をしない (5) host.ts は :325・:326・:334・:339 の 4 行の中に呼び出しを足し、行を足さない（:325 は recordRejected の後、:326 は return の前、:334 は refused の後、:339 は return の前）。config.terminal が無ければ呼ばない（今の inputDone と同じ ?.）。cli.ts の配線（terminal に output.sink を渡す）は変えない (6) inputDone と同じく try で包まない（字の組み立てと push だけ）。host の記録（recordRejected・checkpoint の refused・overload）を済ませた後に呼ぶので、host の状態は先に確定する",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:47 «6369f0fd8280bf3a»",
           "reconstruction/src/terminal/output.ts:621 «6826729ae6278b43»",
@@ -160,7 +160,7 @@
       },
       {
         "id": "P3-TDR-AC03",
-        "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装はしない。文は artifactRequirements の「原文の改訂」）: (1) P3-TO-AC17 (1)（p3-terminal-output.json:726）に、owner に渡さなかった入力の行を書き足す (2) P3-TERMINAL-LAYOUT-013 の Q-TL13-WTJP-SEEN を閉じる（p3-terminal-layout13.json:42 の remaining に答えを書き、unresolvedQuestions から除く） (3) layout10:268・:371、layout11:245・:356、layout12:286 の「TerminalSink に口を足さない」「TerminalSink の型」に、その配送の制約だったことと本契約で inputDropped を足したことを書き足す (4) spec は改めない: docs/specs/cli-terminal-output.md に --debug の節は無く、電文の --debug の行は P3-TO-AC17 (1) が決めている。本契約も条文に置き、spec に節を足さない",
+        "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装はしない。文は artifactRequirements の「原文の改訂」）: (1) P3-TO-AC17 (1)（p3-terminal-output.json:726）と P3-TO-AC01 (4)（同 :504）に、owner に渡さなかった入力の行と口を書き足す (2) P3-TERMINAL-LAYOUT-013 の Q-TL13-WTJP-SEEN を閉じる（p3-terminal-layout13.json:42 の remaining に答えを書き、unresolvedQuestions から除く） (3) layout10:268・:371、layout11:245・:356、layout12:286、rain-evict:145・:215 の「TerminalSink に口を足さない」「TerminalSink の型」に、その配送の制約だったことと本契約で inputDropped を足したことを書き足す (4) spec は改めない: docs/specs/cli-terminal-output.md に --debug の節は無く、電文の --debug の行は P3-TO-AC17 (1) が決めている。本契約も条文に置き、spec に節を足さない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-terminal-output.json:726 «c5c76cb18bb135cc»",
           "reconstruction/contracts/p3-terminal-layout13.json:42 «4ec7cf1a3a576fce»",
@@ -168,7 +168,10 @@
           "reconstruction/contracts/p3-terminal-layout10.json:371 «4eb59625e1c27ada»",
           "reconstruction/contracts/p3-terminal-layout11.json:245 «53c9fd7cbe736984»",
           "reconstruction/contracts/p3-terminal-layout11.json:356 «d1a97aedd5c54229»",
-          "reconstruction/contracts/p3-terminal-layout12.json:286 «b87e98bfd4f73e03»"
+          "reconstruction/contracts/p3-terminal-layout12.json:286 «b87e98bfd4f73e03»",
+          "reconstruction/contracts/p3-terminal-output.json:504 «dc0f04efb831da4a»",
+          "reconstruction/contracts/p3-terminal-rain-evict.json:145 «8831cc7f4878c9ef»",
+          "reconstruction/contracts/p3-terminal-rain-evict.json:215 «d8442e91926f35b7»"
         ]
       }
     ],
@@ -179,7 +182,7 @@
         "referenceIds": [
           "P3-TDR-AC01"
         ],
-        "behavior": "実不具合（2026-11-08〜11-10 の Mac mini の新築で、WTJP の formatUnsupported 18 件の入力 ID が --debug の行から抜けた）。wsUrl の host（startP2Host を直に呼び（prompt-host.test.ts の P3-TP-T09 の形）、terminal に terminal-fixture.ts の harness({ debug: true }) の output.sink を渡し、行は harness の lines で読む）に、head.type WTJP21 で format を json にした data の frame と、37_01_01 の VXSE43 の frame を続けて送る。lines に「debug: input-1（出さない・断った formatUnsupported）」があり、input-2 の行（owner の返信の後の既存の行）もある"
+        "behavior": "実不具合（2026-11-08〜11-10 の Mac mini の新築で、WTJP の formatUnsupported 18 件の入力 ID が --debug の行から抜けた）。wsUrl の host（startP2Host を直に呼び（prompt-host.test.ts の P3-TP-T09 の形）、terminal に terminal-fixture.ts の harness({ debug: true }) の output.sink を渡し、行は harness の lines で読む）に、head.type WTJP21 で format を json にした data の frame と、37_01_01 の VXSE43 の frame を続けて送る。lines に「debug: input-1（出さない・断った formatUnsupported）」があり、続いて「debug: VXSE43 input-2（U-E、出した）」もある（owner の返信の後の既存の行。種類のコードは U-E の subject の facts.family〔VXSE43 か VXSE45〕）"
       },
       {
         "testId": "P3-TDR-T02",
@@ -196,7 +199,7 @@
           "P3-TDR-AC01",
           "P3-TDR-AC02"
         ],
-        "behavior": "契約境界（AC01 (3) と AC02 (3) の順の前後）。wsUrl の host（startP2Host を直に呼び（prompt-host.test.ts の P3-TP-T09 の形）、terminal に terminal-fixture.ts の harness({ debug: true }) の output.sink を渡し、行は harness の lines で読む）で、既存の stall の試験と同じ手順（owners.hold、junk を 1 つ、skew と偽の setInterval で 1 tick）で weatherCurrent の owner を unresponsive にし（heartbeat が unresponsive になるまで待つ）、2 つ目の junk を送る。lines に「debug: VPWW57 input-2（出さない・断った ownerStopped）」があり、その時点で input-1 の行は無い。終わりに owners.hold を false に戻して held を流す（既存の試験と同じ）"
+        "behavior": "契約境界（AC01 (3) と AC02 (3) の順の前後）。wsUrl の host（SSE の heartbeat を待つので、prompt-host.test.ts の形の displayPort: null でなく displayPort: 0 にし、clock は host.test.ts の clock〔skew で進む〕を渡す。startP2Host を直に呼び（prompt-host.test.ts の P3-TP-T09 の形）、terminal に terminal-fixture.ts の harness({ debug: true }) の output.sink を渡し、行は harness の lines で読む）で、既存の stall の試験と同じ手順（owners.hold、junk を 1 つ、skew と偽の setInterval で 1 tick）で weatherCurrent の owner を unresponsive にし（heartbeat が unresponsive になるまで待つ）、2 つ目の junk を送る。lines に「debug: VPWW57 input-2（出さない・断った ownerStopped）」があり、その時点で input-1 の行は無い。終わりに owners.hold を false に戻して held を流す（既存の試験と同じ）"
       },
       {
         "testId": "P3-TDR-T04",
@@ -288,8 +291,8 @@
       "起草の確かめ: 試験の期待の字は host.ts・output.ts・ingress.ts・mailbox.ts と、既存の stall・容量の拒否・P3-ED43-T01 の試験を読んで出した（写しでは走らせていない）。実装で字や行の数が期待と違えば、条文を外れる直しをせず、試験名・契約の期待・実際の値を報告して止める",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 取り直しの本文が ingress か mailbox で断られたときは、入力 ID が抜けたまま行が出ない（Q-TDR-RECOVERY） (2) mailbox に受けた後に owner の停止で外れた入力も、返信が無いので行が出ない (3) 端末の行の入力 ID の順は前後しうる（P3-TDR-AC02 (3)） (4) ingress の拒否の行には種類のコードが無い（WTJP21 か WTJP31 かは diag の jsonl でも読めない。読むなら別の契約）",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しか書き換えで、(2) のほかは行の数を変えない。起草の時に、書き換える行を他の契約の «» が引いていないことを grep で確かめた〔p3-terminal-output.json:726、layout13 の :42 と :283〜:295、layout10 の :268・:371、layout11 の :245・:356、layout12 の :286、どれも 0 件〕。p3-terminal-layout10.json:491 は p3-terminal-output.json:726 を «» なしの字で引くが、行の番号は変わらない）: (1) reconstruction/contracts/p3-terminal-output.json:726 の P3-TO-AC17 (1) の「（Q-TO-IMPL-2 (3)）」の後、「 (2) lowmem」の前に書き足す: 「。host が入力 ID を振って owner に渡さなかった入力（ingress の拒否、VXSE43 を捨てる、停止か無応答の owner への拒否、mailbox の拒否）は、TerminalSink の inputDropped で受けた時点に「debug: [<種類のコード> ]<入力 ID>（出さない・断った <reason>）」か「debug: VXSE43 <入力 ID>（出さない・捨てた）」を出す。通った入力の行は owner の返信の後なので、入力 ID の順は前後しうる（P3-TERMINAL-DEBUG-REJECT-001）」 (2) reconstruction/contracts/p3-terminal-layout13.json:42 の remaining を「なし（Q-TL13-WTJP-SEEN は P3-TERMINAL-DEBUG-REJECT-001 の起草で閉じた: 新築の host に WTJP21・WTJP31 は届いていて、format が xml でないので ingress が formatUnsupported で断り、owner に渡していなかった〔上の (2) の unknownType のカードにもならない〕。2026-11-08〜11-10 の Mac mini の新築の diag で 18 件、--debug の行の入力 ID の抜けと 1 対 1）」に替え、:283〜:295 の unresolvedQuestions を「\"unresolvedQuestions\": []」の 1 行にする（減る行は :283 より後で、他の契約が «» で引く layout13 の行は :177〔p3-terminal-layout15.json:336〕だけなので動かない） (3) p3-terminal-layout10.json:268 と p3-terminal-layout11.json:245 の「TerminalSink に口を足さない」の後、p3-terminal-layout10.json:371 の「TerminalSink と TerminalReport の型」の後、p3-terminal-layout11.json:356 と p3-terminal-layout12.json:286 の「TerminalSink の型」の後に、「（TerminalSink はその配送の制約。後に P3-TERMINAL-DEBUG-REJECT-001 で inputDropped を足した）」を書き足す (4) (1)〜(3) で変えた 5 本の契約（p3-terminal-output.json・p3-terminal-layout10.json・11・12・13）の meta.sha256 を取り直してから check-contract を通す",
-      "«» の付け直し（統合担当が配送の commit で当てる）: (1) host.ts は行を足さないが、:325 と :334 の中身が変わる。:325 を引く p3-replay-watch.json:405 と、:334 を引く p3-recovery.json:1192・p3-replay-watch.json:391・:406・p3-version-material.json:529 の 5 件は、reanchor-target.py では付け直せない（同じ anchor の行が無くなる）ので、新しい行の anchor（python3 ~/dev/fleq-vault-archive/tools/anchor.py reconstruction/src/host/host.ts:325 などで出る）に手で替え、3 本の meta.sha256 を取り直す。:326・:339 を引く «» は無い (2) output.ts に行を足したら、661 行を引く p3-terminal-rain-evict.json:201 は中身が同じなので reanchor-target.py で付け直す。47 行と 632 行を引く他の契約の «» は無い (3) 本契約の «» も同じ commit で付け直し、本契約の meta.sha256 を取り直す: 中身の変わる src の行（host.ts の :325・:326・:334、output.ts の :47 と、変われば :632）と、原文の改訂で中身の変わる契約の行（p3-terminal-output.json:726、p3-terminal-layout13.json:42、layout10 の :268・:371、layout11 の :245・:356、layout12 の :286）は手で、行の動く output.ts の行（:274・:621・:625 など）は reanchor-target.py で"
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しか書き換えで、(2) のほかは行の数を変えない。起草の時に、書き換える行を他の契約の «» が引いていないことを grep で確かめた〔p3-terminal-output.json:726、layout13 の :42 と :283〜:295、layout10 の :268・:371、layout11 の :245・:356、layout12 の :286、p3-terminal-output.json:504、rain-evict の :145・:215、どれも 0 件〕。p3-terminal-layout10.json:491 は p3-terminal-output.json:726 を «» なしの字で引くが、行の番号は変わらない）: (1) reconstruction/contracts/p3-terminal-output.json:726 の P3-TO-AC17 (1) の「（Q-TO-IMPL-2 (3)）」の後、「 (2) lowmem」の前に書き足す: 「。host が入力 ID を振って owner に渡さなかった入力（ingress の拒否、VXSE43 を捨てる、停止か無応答の owner への拒否、mailbox の拒否）は、TerminalSink の inputDropped で受けた時点に「debug: [<種類のコード> ]<入力 ID>（出さない・断った <reason>）」か「debug: VXSE43 <入力 ID>（出さない・捨てた）」を出す。通った入力の行は owner の返信の後なので、入力 ID の順は前後しうる（P3-TERMINAL-DEBUG-REJECT-001）」 (2) reconstruction/contracts/p3-terminal-layout13.json:42 の remaining を「なし（Q-TL13-WTJP-SEEN は P3-TERMINAL-DEBUG-REJECT-001 の起草で閉じた: 新築の host に WTJP21・WTJP31 は届いていて、format が xml でないので ingress が formatUnsupported で断り、owner に渡していなかった〔上の (2) の unknownType のカードにもならない〕。2026-11-08〜11-10 の Mac mini の新築の diag で 18 件、--debug の行の入力 ID の抜けと 1 対 1）」に替え、:283〜:295 の unresolvedQuestions を「\"unresolvedQuestions\": []」の 1 行にする（減る行は :283 より後で、他の契約が «» で引く layout13 の行は :177〔p3-terminal-layout15.json:336〕だけなので動かない） (3) p3-terminal-layout10.json:268 と p3-terminal-layout11.json:245 の「TerminalSink に口を足さない」の後、p3-terminal-layout10.json:371 の「TerminalSink と TerminalReport の型」の後、p3-terminal-layout11.json:356 と p3-terminal-layout12.json:286 の「TerminalSink の型」の後に、「（TerminalSink はその配送の制約。後に P3-TERMINAL-DEBUG-REJECT-001 で inputDropped を足した）」を書き足す 同じ (3) の字を、p3-terminal-rain-evict.json:145 の「TerminalSink のまま」の後と、同 :215 の「(2) 口は変えない: terminalReport・inputTerminal・createTerminalOutput・TerminalSink」の後にも書き足す（起草レビュー r0 の P3） (3b) p3-terminal-output.json:504 の P3-TO-AC01 (4) の「TerminalSink は返信を受けて O(1) で列に積むだけ（AC08）」の後に「。host が入力 ID を振って owner に渡さなかった入力は inputDropped で受けて O(1) で列に積む（P3-TERMINAL-DEBUG-REJECT-001）」を書き足す (4) (1)〜(3b) で変えた 6 本の契約（p3-terminal-output.json・p3-terminal-layout10.json・11・12・13・p3-terminal-rain-evict.json）の meta.sha256 を取り直してから check-contract を通す",
+      "«» の付け直し（統合担当が配送の commit で当てる）: (1) host.ts は行を足さないが、:325 と :334 の中身が変わる。:325 を引く p3-replay-watch.json:405 と、:334 を引く p3-recovery.json:1192・p3-replay-watch.json:391・:406・p3-version-material.json:529 の 5 件は、reanchor-target.py では付け直せない（同じ anchor の行が無くなる）ので、新しい行の anchor（python3 ~/dev/fleq-vault-archive/tools/anchor.py reconstruction/src/host/host.ts:325 などで出る）に手で替え、3 本の meta.sha256 を取り直す。:326・:339 を引く «» は無い (2) output.ts は 626 行より上に行を足さない（allowedPaths）ので、他の契約の «» で動くのは 661 行を引く p3-terminal-rain-evict.json:201 だけ。中身が同じなので reanchor-target.py で付け直す。47 行と 632 行を引く他の契約の «» は無い (3) 本契約の «» も同じ commit で付け直し、本契約の meta.sha256 を取り直す: 中身の変わる src の行（host.ts の :325・:326・:334、output.ts の :47 と、本体を mirror の後に置いたなら :632）と、原文の改訂で中身の変わる契約の行（p3-terminal-output.json の :504・:726、p3-terminal-layout13.json:42、layout10 の :268・:371、layout11 の :245・:356、layout12 の :286、rain-evict の :145・:215）は手で。本体を 627 行の前に置いたなら :632 は中身が同じまま動くので reanchor-target.py で。本契約が引く output.ts の :274・:621・:625 は 626 行より上なので動かない"
     ],
     "unresolvedQuestions": []
   }
