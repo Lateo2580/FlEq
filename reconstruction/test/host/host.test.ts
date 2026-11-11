@@ -774,6 +774,8 @@ describe("P3-DMDATA-CONNECT-001 live dmdata entry, connection and liveness", () 
     late.request.answer({ kind: "ok", id: 54, url: "ws://127.0.0.1:1/", protocol: ["dmdata.v2"] });
     await lateStopped;
     expect(deletes()).toEqual([]);
+    // 打切りの診断は sink に入れただけで stop() が返り、書き込みはその後に終わる（P3-C2-RES-07）。afterEach の rm と競わないよう行が出るまで待つ。
+    await firstLine(late.dirs.diagnosticDirectory, "dmdataSocketCloseFailed");
   });
 
   it("P3-C2-T02: stop() in the turn right after the start answer opens no WS, and the returned id is closed", async () => {
