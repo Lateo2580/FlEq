@@ -59,7 +59,7 @@ describe("P3-TL20 起動の帯の折り", () => {
   // P3-TL20-T03 acceptance / P3-TL20-AC03 (1)(2)(5)
   it("T03 1 行が端末の幅にちょうど入れば 1 行、1 桁足りなければ名前と版の行と下げた副題の 2 行", () => {
     expect(banner("fleq-next", 70, 3)).toEqual(["", p("banner", "fleq-next v4.1.0 — Project DM-D.S.S リアルタイム地震・津波情報モニター"), ""]);
-    expect(banner("fleq-watch", 70, 3)).toEqual(["", p("banner", "fleq-watch v4.1.0"), "  Project DM-D.S.S リアルタイム地震・津波情報モニター", ""]);
+    expect(banner("fleq-watch", 70, 3)).toEqual(["", p("banner", "fleq-watch v4.1.0"), "  " + p("banner", "Project DM-D.S.S リアルタイム地震・津波情報モニター"), ""]);
     expect(banner("fleq-watch", 70, 0)).toEqual(["", "fleq-watch v4.1.0", "  Project DM-D.S.S リアルタイム地震・津波情報モニター", ""]);
   });
 });

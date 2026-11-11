@@ -903,10 +903,10 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
     case "debug": return [line(seg(item.text, "dim"))];
     // 旧築 src/engine/cli/cli-run.ts の帯（前後に空行）と、src/dmdata/ws-client.ts・src/engine/monitor/monitor.ts の接続の行の形（spec §6.7）。
     case "banner": {
-      // P3-TL20-AC03: 1 行が端末の幅（ctx.total）に入らないときだけ、名前と版の行と 2 桁下げた副題の行に分ける。
+      // P3-TL20-AC03: 1 行が端末の幅（ctx.total）に入らないときだけ、名前と版の行と 2 桁下げた副題の行（字だけ banner の色。P3-TL20-D-BANNER-SECOND=B）に分ける。
       const name = `${item.appName} v${item.version}`, subtitle = "Project DM-D.S.S リアルタイム地震・津波情報モニター";
       return width(`${name} — ${subtitle}`) <= ctx.total ? [line(), line(seg(`${name} — ${subtitle}`, "banner")), line()]
-        : [line(), line(seg(name, "banner")), line(seg(`  ${subtitle}`)), line()];
+        : [line(), line(seg(name, "banner")), line(seg("  "), seg(subtitle, "banner")), line()];
     }
     case "session": return [...item.missing.map((name) => line(seg(`${name} は未契約のため受信できません`, "warn"))),
       line(seg(`セッション開始: socketId=${item.socketId}`)), line(seg(`区分: [${item.classifications.join(", ")}]`)), line(seg(`テスト電文: ${item.testMode}`)),
