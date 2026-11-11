@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5f3095d7e324384b93ee126181d6d8cbac9cb9dc",
-    "sha256": "f166ac0e78f95c69729dab05d1d1754ebba423d7cbcac90998015d3349e99817",
+    "sha256": "54ca00b36741e88e2ca5bc06cd2903eb3783164ba735c03cbf79d4c90c34cdee",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -269,7 +269,7 @@
           "reconstruction/src/cli/cli.ts:326 «b9c492f5da23e6e8»",
           "reconstruction/src/cli/cli.ts:354 «50619ac50a9cc3bb»",
           "reconstruction/src/terminal/output.ts:395 «d8d3a650b9e35ea3»",
-          "reconstruction/src/terminal/format.ts:906 «1bb65f57e524c4f2»",
+          "reconstruction/src/terminal/format.ts:911 «1bb65f57e524c4f2»",
           "reconstruction/cli/watch.mjs:318 «7b4b0a91805fa29d»",
           "src/engine/cli/cli-run.ts:66 «6cf3457473eb270c»",
           "src/engine/cli/cli-run.ts:75 «8f91e1c2976b90a9»",
@@ -327,7 +327,7 @@
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:364 «cb9be8e27616c714»",
           "reconstruction/src/host/host.ts:583 «4af6c88c69026a5e»",
-          "reconstruction/src/terminal/format.ts:906 «1bb65f57e524c4f2»",
+          "reconstruction/src/terminal/format.ts:911 «1bb65f57e524c4f2»",
           "docs/specs/cli-terminal-output.md:824 «f6b0c61fc02c92e4»"
         ]
       }

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "549047f1b16a328b8af6058c03385011168a605869072fb44f3b85ee569d88e6",
+    "sha256": "279d2a1caefe6347b11b18bf8ebc6120b2af4e5c604f6fc942cd59455821b4a3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -287,16 +287,16 @@
       },
       {
         "id": "P3-TL7-AC04",
-        "requirement": "起動画面（Q-TO8-BANNER）: (1) createTerminalOutput の options.startup（appName・version・testMode・classifications）があれば、作った時に空行、「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」を空色の地に黒の太字、空行を積む (2) 標準出力が端末なら端末の題名を「<appName> v<version>」にし、close で空に戻す (3) classifications が null でなければ、回線の読みで最初に connection が connected で socketId と HostStatus.classifications が null でないときに 1 回だけ、求めた区分のうち start の区分に無いものを求めた順に「<区分> は未契約のため受信できません」（黄）、「セッション開始: socketId=<n>」「区分: [<start の区分を , で>]」「テスト電文: <testMode>」、「リアルタイム受信中...」（明るい緑）、「help でコマンド一覧を表示（終了は quit か Ctrl+C）」（薄い字）を出す (4) 繋ぎ直しでは出さない (5) cli.ts は通常の起動で「受信を始めました…」の行を出さず、版は packageVersion() の値を渡す。偽の dmdata（FLEQ_WS_URL）では classifications を null にし、今の 1 行を出す (6) HostStatus.classifications は今の接続で受理した start の区分（新しい接続を張ると null に戻し、形の正しい start の受理で入れる。forecastGranted と同じ扱い）",
+        "requirement": "起動画面（Q-TO8-BANNER）: (1) createTerminalOutput の options.startup（appName・version・testMode・classifications）があれば、作った時に空行、「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」を空色の地に黒の太字、空行を積む（P3-TERMINAL-LAYOUT-020 で、1 行が端末の幅に入らないときは「<appName> v<version>」と、2 桁下げた副題の 2 行にした） (2) 標準出力が端末なら端末の題名を「<appName> v<version>」にし、close で空に戻す (3) classifications が null でなければ、回線の読みで最初に connection が connected で socketId と HostStatus.classifications が null でないときに 1 回だけ、求めた区分のうち start の区分に無いものを求めた順に「<区分> は未契約のため受信できません」（黄）、「セッション開始: socketId=<n>」「区分: [<start の区分を , で>]」「テスト電文: <testMode>」、「リアルタイム受信中...」（明るい緑）、「help でコマンド一覧を表示（終了は quit か Ctrl+C）」（薄い字）を出す (4) 繋ぎ直しでは出さない (5) cli.ts は通常の起動で「受信を始めました…」の行を出さず、版は packageVersion() の値を渡す。偽の dmdata（FLEQ_WS_URL）では classifications を null にし、今の 1 行を出す (6) HostStatus.classifications は今の接続で受理した start の区分（新しい接続を張ると null に戻し、形の正しい start の受理で入れる。forecastGranted と同じ扱い）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:821 «cb681df6bd63628f»",
+          "docs/specs/cli-terminal-output.md:821 «54d5a26167d4545d»",
           "docs/specs/cli-terminal-output.md:822 «f833f80cc50ad88e»",
           "docs/specs/cli-terminal-output.md:823 «355213680537aea1»",
           "docs/specs/cli-terminal-output.md:824 «f6b0c61fc02c92e4»",
           "docs/specs/cli-terminal-output.md:825 «166ef6583ccb6ea7»",
           "docs/specs/cli-terminal-output.md:826 «dbc234ef9401180b»",
           "docs/specs/cli-terminal-output.md:55 «946b3dee8140cad8»",
-          "docs/specs/cli-terminal-output.md:928 «88ed1a874beaba13»"
+          "docs/specs/cli-terminal-output.md:928 «ec51375f740e790d»"
         ]
       }
     ],

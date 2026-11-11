@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "d34dbff4e05fb7af61d07939d91c1181ae6708ad2fb9f497fc727755fc0af504",
+    "sha256": "f2d1ea2b1ff5f259f74882d0d6da66f4343454b3231e885b331b30128e8a8c6b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -140,20 +140,20 @@
     "acceptanceChecks": [
       {
         "id": "P3-TL17-AC01",
-        "requirement": "1 件の気象警報・注意報時系列情報の種類の行（P3-TL17-D-SINGLE-KINDS=B、作者の裁定 2026-11-10。spec §5.4 の 652 行・Q-TO17-VPWP50-SINGLE）: (1) 対象は短い形で risks が非 null かつ空でない報。material が risks を非 null にするのは unit が U-F・headType が VPWP50・InfoType が取消でない報だけ（P3-TL11-AC02、material.ts の 294・301 行）なので、ほかの報の画面は変わらない。時系列のまとまりが 1 件で出るとき（output.ts の flushSeries、最後の報から 8 秒か終了の時）も、まとまりを通らずに短い形で出るときも同じ形 (2) 置き場: shortForm の要点のまとまりで見出し文の行の後（理由の行・見出し文・種類の行・府県の行・解除の行・活動の文の順。区切りの罫線は足さない）。U-F の段は常に普通で理由の行は無い（material.ts の shortLevel）。見出し文が空の報（気象庁の実物の全部）は帯の直下になる (3) （P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯の 1 行と市町村等の行の 2 行にした。作者の裁定 P3-TL19-D-SINGLE-ROWS=A、2026-11-10）形は便の束（format.ts の 796〜798 行の timeseries）と同じ: 1 つの組は「<type>（<Name>）」（電文の字のまま）、並びは Code の数の大きい順で同じ Code は risks の順（電文で先に現れた順。sort は安定）、組の間は全角の空白、幅（ctx.body。束と同じ）に入らなければ組の境で折り、続きの行は字下げしない（flow([], 組, ctx.body, 0)。1 つの組だけで幅を越えるときは flow の今の振る舞いのとおり組の中を字の境目で折る）。組の数は材料の 32 まで（RISK_LIMIT） (4) risks が空の報（Code 20〜59 の Significancy が無い報。例 81_01_01〜04）は行を足さず今の 2 行のまま（「ありません」と書かない。束の種類が 0 の便と同じ）。取消の報は risks が null なので出さない (5) 帯・末尾の行・段・見出し文の行と、便の束（timeseries、793〜800 行）・ほかの短い形の報は変えない (6) 形は format.ts の shortForm の 777 行の summary の並びに 1 つ足し、新しい関数は typhoonLines の後（「---- 書き出す文字 ----」の前）に置く（他の契約が引く 1〜984 行の行の数を変えない。束の timeseries と関数を 1 つにしないのは Q-TL17-SHARED のため） (7) 計算量（AGENTS.md の受信経路）: 受信の main（publisher・material）の仕事は変えない（risks は今も 1 報に 1 回作っている）。renderer が risks（32 まで）の写しを 1 回並べ替え、flow で組の数に比例して組むだけ。場面: 2026-11-10 14:41 の福井県の VPWP50（1 件だけの便）は、今は帯「福井県警戒・注意事項時系列情報」と末尾「VPWP50 ・ 福井地方気象台」の 2 行（写し ~/dev/fleq-vault-archive/2026-11-10-snap/mini-new-J.txt の 734〜735 行）。B では帯の直下に種類の行（旧築の同じ報の「[霜 11]」から「霜危険度（注意報級）」を含む見込み。電文は repo に無い）が出て、末尾の行は今のまま",
+        "requirement": "1 件の気象警報・注意報時系列情報の種類の行（P3-TL17-D-SINGLE-KINDS=B、作者の裁定 2026-11-10。spec §5.4 の 652 行・Q-TO17-VPWP50-SINGLE）: (1) 対象は短い形で risks が非 null かつ空でない報。material が risks を非 null にするのは unit が U-F・headType が VPWP50・InfoType が取消でない報だけ（P3-TL11-AC02、material.ts の 294・301 行）なので、ほかの報の画面は変わらない。時系列のまとまりが 1 件で出るとき（output.ts の flushSeries、最後の報から 8 秒か終了の時）も、まとまりを通らずに短い形で出るときも同じ形 (2) 置き場: shortForm の要点のまとまりで見出し文の行の後（理由の行・見出し文・種類の行・府県の行・解除の行・活動の文の順。区切りの罫線は足さない）。U-F の段は常に普通で理由の行は無い（material.ts の shortLevel）。見出し文が空の報（気象庁の実物の全部）は帯の直下になる (3) （P3-TERMINAL-LAYOUT-019 で、種類ごとに時間帯の 1 行と市町村等の行の 2 行にした。作者の裁定 P3-TL19-D-SINGLE-ROWS=A、2026-11-10）形は便の束（format.ts の 796〜798 行の timeseries）と同じ: 1 つの組は「<type>（<Name>）」（電文の字のまま）（P3-TERMINAL-LAYOUT-020 で、束も 1 件の形も Name を半角にし、段階の重さの色を付けた）、並びは Code の数の大きい順で同じ Code は risks の順（電文で先に現れた順。sort は安定）、組の間は全角の空白、幅（ctx.body。束と同じ）に入らなければ組の境で折り、続きの行は字下げしない（flow([], 組, ctx.body, 0)。1 つの組だけで幅を越えるときは flow の今の振る舞いのとおり組の中を字の境目で折る）。組の数は材料の 32 まで（RISK_LIMIT） (4) risks が空の報（Code 20〜59 の Significancy が無い報。例 81_01_01〜04）は行を足さず今の 2 行のまま（「ありません」と書かない。束の種類が 0 の便と同じ）。取消の報は risks が null なので出さない (5) 帯・末尾の行・段・見出し文の行と、便の束（timeseries、793〜800 行）・ほかの短い形の報は変えない (6) 形は format.ts の shortForm の 777 行の summary の並びに 1 つ足し、新しい関数は typhoonLines の後（「---- 書き出す文字 ----」の前）に置く（他の契約が引く 1〜984 行の行の数を変えない。束の timeseries と関数を 1 つにしないのは Q-TL17-SHARED のため） (7) 計算量（AGENTS.md の受信経路）: 受信の main（publisher・material）の仕事は変えない（risks は今も 1 報に 1 回作っている）。renderer が risks（32 まで）の写しを 1 回並べ替え、flow で組の数に比例して組むだけ。場面: 2026-11-10 14:41 の福井県の VPWP50（1 件だけの便）は、今は帯「福井県警戒・注意事項時系列情報」と末尾「VPWP50 ・ 福井地方気象台」の 2 行（写し ~/dev/fleq-vault-archive/2026-11-10-snap/mini-new-J.txt の 734〜735 行）。B では帯の直下に種類の行（旧築の同じ報の「[霜 11]」から「霜危険度（注意報級）」を含む見込み。電文は repo に無い）が出て、末尾の行は今のまま",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:777 «ce2bb7497bf5174d»",
           "reconstruction/src/terminal/format.ts:796 «01945da95bbb1752»",
-          "reconstruction/src/terminal/format.ts:798 «d9396eb663483691»",
-          "reconstruction/src/terminal/format.ts:969 «74b467cab9954133»",
-          "reconstruction/src/terminal/format.ts:1036 «5c2f568149d8c6bc»",
+          "reconstruction/src/terminal/format.ts:798 «97d6ca93ae370622»",
+          "reconstruction/src/terminal/format.ts:974 «74b467cab9954133»",
+          "reconstruction/src/terminal/format.ts:1050 «5c2f568149d8c6bc»",
           "reconstruction/src/terminal/format.ts:133 «e5dc8ac892b86410»",
           "reconstruction/src/terminal/material.ts:341 «e379136426950870»",
           "reconstruction/src/terminal/material.ts:348 «7e77bd3fa046ba06»",
           "reconstruction/src/terminal/material.ts:260 «ebb86d4fb6943021»",
           "reconstruction/src/terminal/output.ts:329 «f5001ae486d14f86»",
           "reconstruction/test/terminal/layout11.test.ts:327 «45adb05588b457d0»",
-          "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
+          "docs/specs/cli-terminal-output.md:664 «ed1a3339a338be08»",
           "docs/specs/cli-terminal-output.md:946 «976c86d1528b035f»",
           "AGENTS.md"
         ]
@@ -163,7 +163,7 @@
         "requirement": "spec と他の契約の文（実装はしない）: (1) spec は起草で直した: 480 行（§5.4 の総則の列挙に Q-TO17-VPWP50-SINGLE）、652 行（時系列情報の項の 1 件の形）、848 行（Q-TO-S-3 の足す行の列挙）、934 行（Q-TO17-VPWP50-SINGLE を 933 行の後に足した）。spec の行を引く契約の «» を同じ起草で付け直した（中身を変えた 480・652・848 行を引く 7 契約の 12 か所は新しい anchor を手で入れ、934 行から後の 1 行のずれは reanchor-target.py で 4 契約） (2) 閉じた契約の文 2 つは原文の改訂として統合担当が配送の commit で当てる（artifactRequirements の原文の改訂 (1)(2)。行の数は変えない）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:480 «d24349a29a330afa»",
-          "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
+          "docs/specs/cli-terminal-output.md:664 «ed1a3339a338be08»",
           "docs/specs/cli-terminal-output.md:860 «30158ec2a8f610b5»",
           "docs/specs/cli-terminal-output.md:946 «976c86d1528b035f»",
           "reconstruction/contracts/p3-terminal-layout11.json:282 «aa836b3a35ad49d8»"
