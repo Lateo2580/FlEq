@@ -50,7 +50,8 @@ async function start(): Promise<Child> {
     if (m == null) throw new Error(`unexpected start line: ${line}`);
     // 表示の port に GET して確かめない（port を取った別の server が答えうる）。fleq 自身の行で確かめる。
     const shown = () => out.includes(`情報ディスプレイ: http://127.0.0.1:${displayPort}/`);
-    await until(() => shown() || child.exitCode != null, 30_000);
+    // 上限は既定の testTimeout（30 s）より短くし、壊れたときに timeout より先に下の診断文を出す。
+    await until(() => shown() || child.exitCode != null || child.signalCode != null, 15_000);
     if (shown()) return { child, exit, stdout: () => out, port: Number(m[1]), displayPort, directory: m[2] };
     if (attempt < 3 && err.includes(`ポート ${displayPort} は使われています`)) { await exit; continue; }
     throw new Error(`fleq did not open the display on ${displayPort}: ${err}`);
