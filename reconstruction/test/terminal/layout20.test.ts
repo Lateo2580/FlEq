@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import type { TerminalReport } from "../../contracts/p3-terminal-output.types";
 import { painter } from "../../src/terminal/color";
 import type { TerminalUnit } from "../../src/terminal/format";
 import { reportOf, reportUnit, terminal } from "./terminal-fixture";
@@ -27,6 +26,18 @@ describe("P3-TL20 種類の行の色", () => {
   });
 });
 
+describe("P3-TL20 帯の境で折った続きの行", () => {
+  // P3-TL20-T01 (e) / AC01 (2): 時間帯が帯の境で折れた続きの行は役目なし。60 桁未満は縦線が無い（種類の字の役目を引き継がない）。
+  it("T01 (e) 40 桁で時間帯が 2 行になる 1 件の形は、続きの行に色が付かない", () => {
+    const report = reportOf(NAGANO, "U-F");
+    if (report.kind !== "short" || report.riskRows == null) throw new Error("no riskRows");
+    const [row, ...others] = report.riskRows;
+    const folded = { ...report, riskRows: [{ ...row, spans: [...row.spans, { from: "０７日朝", to: "０７日朝" }] }, ...others] };
+    const lines = terminal(40, 3)([reportUnit(folded)]);
+    expect(lines.slice(3, 5)).toEqual([p("ruleCaution", "濃霧危険度（注意報級）") + "  06日朝〜06日昼前", " ".repeat(24) + "07日朝"]);
+  });
+});
+
 describe("P3-TL20 束の種類の並び", () => {
   // P3-TL20-T02 acceptance / P3-TL20-AC02 (1)(2)(4)
   it("T02 全角の数字の Name は半角、色ありは組ごとの役目で区切りの全角の空白は色なし", () => {
@@ -34,7 +45,7 @@ describe("P3-TL20 束の種類の並び", () => {
     if (report.kind !== "short") throw new Error("not short");
     const risks = [["大雨浸水危険度", "特別警報級", "50"], ["土砂災害危険度", "警戒レベル４相当", "41"], ["風危険度", "警報級", "30"], ["濃霧危険度", "注意報級", "20"]]
       .map(([type, name, code]) => ({ type, name, code }));
-    const unit: TerminalUnit = { kind: "timeseries", report: report as Extract<TerminalReport, { kind: "short" }>, count: 2, offices: 2, risks, prompt: null };
+    const unit: TerminalUnit = { kind: "timeseries", report, count: 2, offices: 2, risks, prompt: null };
     const rows = (columns: number, level: 0 | 3): string[] => terminal(columns, level)([unit]).slice(2, -1);
     expect(rows(100, 0)).toEqual(["大雨浸水危険度（特別警報級）　土砂災害危険度（警戒レベル4相当）　風危険度（警報級）", "濃霧危険度（注意報級）"]);
     expect(rows(100, 3)).toEqual([bar + p("bandTop", "大雨浸水危険度（特別警報級）") + "　" + p("bandPurple", "土砂災害危険度（警戒レベル4相当）") + "　" + p("strong", p("ruleWarning", "風危険度（警報級）")),
