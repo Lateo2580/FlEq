@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "55e915879c1f96d65d66b9322fb76a5523f5249b",
-    "sha256": "72c49975141fa4461ca6bda666f7415dfb95a5616695b8ed977cb71fa3ebfb01",
+    "sha256": "c54fa501701dc58c3bdce275618d156e86d40d4951df2c26728818e934709b86",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -349,7 +349,7 @@
           "reconstruction/src/checkpoint/checkpoint.ts:845 «51f4e59b5b7ee5a2»",
           "reconstruction/src/checkpoint/checkpoint.ts:903 «f34c57c08414c0ec»",
           "reconstruction/contracts/p3-recovery.json:413 «d3f7895cdfbb1f93»",
-          "reconstruction/test/host/host.test.ts:1123 «4592ded7ec5b30f4»"
+          "reconstruction/test/host/host.test.ts:1125 «4592ded7ec5b30f4»"
         ]
       },
       {
@@ -361,7 +361,7 @@
           "reconstruction/src/runtime/composition-root.ts:2079 «397533e2c87aad15»",
           "reconstruction/src/host/host.ts:564 «f1dca50b63703d46»",
           "reconstruction/src/host/host.ts:133 «c974d51b9612a8f2»",
-          "reconstruction/test/host/host.test.ts:1110 «3f6e520f1f84f036»",
+          "reconstruction/test/host/host.test.ts:1112 «3f6e520f1f84f036»",
           "reconstruction/test/recovery/recovery.test.ts:254 «c39d7ce679f3adc7»",
           "reconstruction/contracts/p3-recovery.json:1018 «eae8581c6c57beda»"
         ]
