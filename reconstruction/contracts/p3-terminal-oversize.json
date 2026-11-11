@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bafeceedbb50e469abbcf24507569a7f959b5c3d",
-    "sha256": "f06a46fe7b4ea29b66e1269f6101b1eba19390a0e8c427bd5a194b932ae707f4",
+    "sha256": "de7a963f16fd618be9fb5e2787b6238637c201930ea9f842a78ca8852af584b7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -145,8 +145,8 @@
       "reconstruction/src/terminal/material.ts"
     ],
     "allowedPaths": [
-      "reconstruction/src/terminal/output.ts（AC01〜AC03 だけ。kick の 237 行の条件と単位の作り方、push の 258 行の省く枝、flushSeries の 321 行と 331 行、sink.inputDone の 571 行、TerminalOutput の型〔62・63 行の held の後〕と返す object〔640 行の held の後〕に seriesBytes を 1 つ。コメントを足して行がずれたら配送で «» を付け直す。ほかに artifactRequirements の古い注記の直しで 69 行の字だけ）",
-      "reconstruction/src/terminal/material.ts（artifactRequirements の古い注記の直しで 12 行の字だけ。13 行と行の数は変えない）",
+      "reconstruction/src/terminal/output.ts（AC01〜AC03 だけ。kick の 237 行の条件と単位の作り方、push の 258 行の省く枝、flushSeries の 321 行と 331 行、sink.inputDone の 571 行、TerminalOutput の型〔62・63 行の held の後〕と返す object〔640 行の held の後〕に seriesBytes を 1 つ。コメントを足して行がずれたら配送で «» を付け直す。ほかに artifactRequirements の注記の書き足しで、estimate の上の「TerminalReport は件数の上限（RES-02）があり」で始まる注記の行の字だけ）",
+      "reconstruction/src/terminal/material.ts（artifactRequirements の注記の書き足しで、AREA_LIMIT の上の「件数の上限は細分区域 188」で始まる注記の行の字だけ。AREA_LIMIT の行は変えず、行を足さない）",
       "reconstruction/test/terminal/oversize.test.ts（新しい file。P3-TOV-T01〜T05。layout17.test.ts の owned と sink の形と terminal-fixture の inputDoneOf を使う）"
     ],
     "allowedGitCommands": [
@@ -200,7 +200,7 @@
       "列の上限 1 MiB・64 KiB の送り・古い単位から落とす規則（P3-TO-RES-01）と、件数の行の字",
       "降灰予報（定時）のまとまりと記録的短時間大雨の待ち（材料は RES-02 で縛られ、1 MiB に届かない）",
       "束の形（timeseries の帯・種類の行・官署の数）と、束を待つ 8 秒・180 秒・64 件",
-      "material.ts（12 行の注記の直しのほか）と format.ts（P3-TERMINAL-LAYOUT-019 の材料と整形）、worker・Windows の子の書き出し",
+      "material.ts（AREA_LIMIT の上の注記の書き足しのほか）と format.ts（P3-TERMINAL-LAYOUT-019 の材料と整形）、worker・Windows の子の書き出し",
       "件数の行が入力の行の後ろに続けて書かれること（今の書き出しと同じ。Q-TOV-PROMPT）",
       "ディスプレイ（P4）・runtime・旧築（src/）"
     ],
@@ -258,7 +258,7 @@
           "reconstruction/contracts/p3-terminal-layout11.json:291 «e933919283da53ae»",
           "reconstruction/contracts/p3-terminal-layout19.json:362 «5e4b1d003899646c»",
           "reconstruction/src/terminal/output.ts:32 «2e2fd56b7ee57810»",
-          "docs/specs/cli-terminal-output.md:949 «558f392205cb9e31»"
+          "docs/specs/cli-terminal-output.md:949 «9530289042f3be6e»"
         ]
       }
     ],
@@ -371,10 +371,10 @@
       "受信経路の計算量（AGENTS.md）: Q-TOV-BOUND のとおり。U-F の VPWP50 の報ごとに estimate を 1 回足す（材料の大きさに比例）ほかは、今の仕事と同じ",
       "期待が変わる既存の試験: 起草の写しでは 0（Q-TOV-TESTS）。stall.test.ts・windows.test.ts・prompt-host.test.ts は実装の木で回し、期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "起草の確かめ: T01〜T05 の期待の字と数は、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し（P3-TERMINAL-LAYOUT-019 の材料を当てた写しの上）、AC01〜AC03 を当てた output.ts（kick の条件と echo の限り、push の kick、flushSeries の 2 か所と経過、置く時の写し、seriesBytes）と、当てない今の output.ts の両方で、owner の道の報を sink.inputDone に渡して書いた行を写した（T01 は process.stdout.isTTY を true にして readline の形を bind した。帯の字は写しの renderer が描いたもの。vitest の中で行を出す使い捨ての試験 file。写しは worktree の未追跡の .dr-tmp/ に置いたまま、repo に入れない）",
-      "古い注記の直し（コメントだけ。P3-TERMINAL-LAYOUT-019 の残存 (10)）: output.ts の 69 行の「TerminalReport は件数の上限（RES-02）があり」と、material.ts の 12 行の「件数の上限は細分区域 188・津波予報区 66・観測点 1,024 の上に置く（RES-02）。無いと 1 報の材料が publisher の列を埋める」は、P3-TL19-D-CAP=A（危険警報級・特別警報級の市町村等と時間帯の帯を数で切らない）で事実と合わなくなった。実装で事実に合う字へ直す: VPWP50 の riskRows の十の位 4・5 の名前と時間帯の帯は数で切らず、1 報の材料は電文の大きさに比例して ingress の 8 MiB で縛られ（Q-TOV-BOUND）、列の 1 単位の限りは QUEUE_BYTES の 1 MiB だけ（P3-TL19-AC04）。どちらも既存の行の中の書き換えにし、行の数を変えない（material.ts の 13 行は p3-terminal-layout16.json が «» で引き、output.ts の 70 行は本契約の AC02 が «» で、p3-terminal-layout19.json の Q-TL19-LIMIT が地の文で引く。output.ts の 68・69 行と material.ts の 11〜13 行は p3-terminal-layout19.json の残存 (10) が地の文で引く）。material.ts の 13 行の字は変えない。コメントだけの変更なので試験は足さない",
+      "足りない注記の書き足し（コメントだけ。P3-TERMINAL-LAYOUT-019 の残存 (10)）: output.ts の estimate の上の「TerminalReport は件数の上限（RES-02）があり、EEW の facts は 1 報分なので、1 単位の中を辿るだけで受信 1 回の仕事は有界。」（起草の時は 69 行）と、material.ts の AREA_LIMIT の上の「件数の上限は細分区域 188・津波予報区 66・観測点 1,024 の上に置く（RES-02）。無いと 1 報の材料が publisher の列を埋める。」（起草の時は 12 行）は、P3-TL19-D-CAP=A（危険警報級・特別警報級の市町村等と、どの段階の時間帯の帯も数で切らない）の後も既存の字は正しいが、VPWP50 の riskRows がこの件数の上限の外にあることが書かれていない（output.ts で合わないのは前半の「件数の上限（RES-02）があり」だけで、EEW の facts と受信 1 回の仕事が有界という結論は今も正しい）。実装で既存の字を残し、VPWP50 の riskRows の例外を書き足す: 十の位 4・5 の名前と、どの段階の時間帯の帯も数で切らず、1 報の材料は電文の大きさに比例して ingress の 8 MiB で縛られ（Q-TOV-BOUND）、列の 1 単位の限りは QUEUE_BYTES の 1 MiB だけ（P3-TL19-AC04）。この注記の書き足しでは行を足さず、その注記の行の中に書き足す（material.ts の AREA_LIMIT の行は p3-terminal-layout16.json が «» で引くので字も行の位置も変えない。output.ts の行は AC03 (7) の seriesBytes で下へずれるので、その «» と地の文の行番号は原文の改訂 (5) と «» の付け直しで扱う）。コメントだけの変更なので試験は足さない",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) 件数の行は今の書き出しと同じく、入力の行の後ろに続けて書かれる（Q-TOV-PROMPT） (2) まとまりで除いた印は riskRows が null かに頼る。取消でない VPWP50 の riskRows を null にする変更は本契約の AC03 を同時に直す（Q-TOV-MARK） (3) 1 MiB を越える報の材料は owner から main へ一度運ばれる（1 報約 4 MiB の見積もりまで）。ingress の 8 MiB のほかに限りは無い (4) 束に数えられた 1 MiB を越える報の種類の 2 行は出ない（束は種類の名前の行だけ） (5) 入力の行に 1 MiB を越える字が入っている間は、件数の書き出しに入力の行を載せず、repl の 1 秒ごとの書き直し（repl.ts の 441 行。入力中の字が空のときだけ）でも戻らない。prompt を持つほかの単位も今のとおり push で省かれる（今の動きのまま。Q-TOV-PROMPT）",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-output.json:462 の P3-TO-RES-01 の limit の末尾に「（P3-TERMINAL-OVERSIZE-001: 省いた件数は列が空なら次の出力を待たずに件数だけの書き出しで出す。時系列のまとまりは 1 MiB を越える報の材料を持たず、束の単位は報の riskRows を持たない）」を書き足す (2) 同じ file の 606 行の P3-TO-AC08 の「積む時に 1 回だけ見積もる」の後に「（U-F の VPWP50 は時系列のまとまりに置く時にも 1 回。P3-TERMINAL-OVERSIZE-001）」を書き足す (3) reconstruction/contracts/p3-terminal-layout11.json:291 の P3-TL11-AC01 の (5) の「2 件以上は 1 つの単位（AC03 (1)）で積む」の後に「（単位の report は reports[0] の riskRows を null にした写し。1 MiB を越える報はまとまりに riskRows を除いた写しで置き、1 件なら積まずに数える。P3-TERMINAL-OVERSIZE-001）」を書き足す (4) reconstruction/contracts/p3-terminal-layout19.json:362 の P3-TL19-AC04 の (2) の「その配送までは」の前に「（P3-TERMINAL-OVERSIZE-001 で決めた。）」を書き足す。«» の付け直し（同じ commit）: 実装で中身が変わる output.ts の行を引く «» は新しい anchor を手で入れる（起草の時の数え: 258 行〔p3-terminal-debug-tip.json・p3-terminal-layout19.json・本契約〕、321 行〔p3-terminal-layout17.json・p3-terminal-layout19.json・本契約〕、331 行〔p3-terminal-layout19.json・本契約〕、237・571・63・640 行〔本契約〕）。(1)〜(4) の改訂で中身の変わる契約の行のうち、«» で引かれる行（p3-terminal-output.json:462・606、p3-terminal-layout11.json:291、p3-terminal-layout19.json:362）も新しい anchor を手で入れる。中身が同じで行のずれた «» は、完全な path だけを当てる付け直し（reanchor-target.py は短い path の地の文の引用にも当たる。P3-TERMINAL-LAYOUT-018 の配送で layout10・layout12 の地の文に当たった）で付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-output.json:462 の P3-TO-RES-01 の limit の末尾に「（P3-TERMINAL-OVERSIZE-001: 省いた件数は列が空なら次の出力を待たずに件数だけの書き出しで出す。時系列のまとまりは 1 MiB を越える報の材料を持たず、束の単位は報の riskRows を持たない）」を書き足す (2) 同じ file の 606 行の P3-TO-AC08 の「積む時に 1 回だけ見積もる」の後に「（U-F の VPWP50 は時系列のまとまりに置く時にも 1 回。P3-TERMINAL-OVERSIZE-001）」を書き足す (3) reconstruction/contracts/p3-terminal-layout11.json:291 の P3-TL11-AC01 の (5) の「2 件以上は 1 つの単位（AC03 (1)）で積む」の後に「（単位の report は reports[0] の riskRows を null にした写し。1 MiB を越える報はまとまりに riskRows を除いた写しで置き、1 件なら積まずに数える。P3-TERMINAL-OVERSIZE-001）」を書き足す (4) reconstruction/contracts/p3-terminal-layout19.json:362 の P3-TL19-AC04 の (2) の「その配送までは」の前に「（P3-TERMINAL-OVERSIZE-001 で決めた。）」を書き足す (5) 実装で output.ts の行が下へずれて古くなる p3-terminal-layout19.json の地の文の行番号を、関数と定数の名前に置き換える（行の中の置き換え。どちらも «» では引かれていない）: Q-TL19-LIMIT (d) の「estimate の式（output.ts の 70 行）」を「estimate の式（output.ts の estimate）」に、残存 (10) の「output.ts の 68・69 行と material.ts の 11〜13 行の注記」を「output.ts の estimate の上の注記と material.ts の AREA_LIMIT の上の注記」にする。«» の付け直し（同じ commit）: 実装で中身が変わる output.ts の行を引く «» は新しい anchor を手で入れる（起草の時の数え: 258 行〔p3-terminal-debug-tip.json・p3-terminal-layout19.json・本契約〕、321 行〔p3-terminal-layout17.json・p3-terminal-layout19.json・本契約〕、331 行〔p3-terminal-layout19.json・本契約〕、237・571・63・640 行〔本契約〕）。(1)〜(4) の改訂で中身の変わる契約の行のうち、«» で引かれる行（p3-terminal-output.json:462・606、p3-terminal-layout11.json:291、p3-terminal-layout19.json:362）も新しい anchor を手で入れる。中身が同じで行のずれた «» は、完全な path だけを当てる付け直し（reanchor-target.py は短い path の地の文の引用にも当たる。P3-TERMINAL-LAYOUT-018 の配送で layout10・layout12 の地の文に当たった）で付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
       "本物の経路での写し（統合担当、配送の前）: 1 MiB を越える実物の報は無いので要らない。実装の後の木で、ふだんの便（81_09_01 を 1 件、同じ発表時刻の 2 件）の写しが今と同じ字になることを 1 回見る"
     ],
     "unresolvedQuestions": []
