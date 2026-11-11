@@ -9,7 +9,7 @@ import { levelOf as landslideLevel } from "../domains/landslide/landslide"; impo
 import { classifyHeadType } from "../runtime/unit-coverage"; import { controlDateTimeOf } from "../contracts-revision/version";
 
 // P3-TO-AC01 (3)・RES-02: 端末の材料を owner の worker で 1 報に 1 回だけ作る。XML の生の文字を写すだけで、整形は端末の側。
-// 件数の上限は細分区域 188・津波予報区 66・観測点 1,024 の上に置く（RES-02）。無いと 1 報の材料が publisher の列を埋める。
+// 件数の上限は細分区域 188・津波予報区 66・観測点 1,024 の上に置く（RES-02）。無いと 1 報の材料が publisher の列を埋める。VPWP50 の riskRows はこの件数の上限の外で、十の位 4・5 の名前とどの段階の時間帯の帯も数で切らず（P3-TL19-D-CAP=A）、1 報の材料は電文の大きさに比例して ingress の 8 MiB で縛られ、端末の列の 1 単位の限りは QUEUE_BYTES の 1 MiB だけ（P3-TL19-AC04）。
 const AREA_LIMIT = 256, STATION_LIMIT = 1024, TEXT_LIMIT = 4096;
 
 type Budget = { left: number; omitted: number };

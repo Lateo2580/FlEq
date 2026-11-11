@@ -61,12 +61,14 @@ type TerminalOutput = Readonly<{
   close(): Promise<void>;
   // 試験の口（T06）: 列の配列がまだ参照している単位の数。
   held(): number;
+  // 試験の口（P3-TOV-AC03 (7)）: 時系列のまとまりが持つ報の estimate の合計（無ければ 0）。持つ報の数に比例するので試験だけが呼ぶ。
+  seriesBytes(): number;
   // 【発注 3】列が空で、worker へ送った単位の書き込みも終わっている（O(1)）。入力の行の書き直しを詰まった端末に積まないため（P3-CLI-AC23 (3)）。
   drained(): boolean;
 }>;
 
 // AC08 (1): 積む時に 1 回だけ見積もる（JSON にしない）。文字列は UTF-8 の byte、ほかの値と入れ物は 8 byte。
-// TerminalReport は件数の上限（RES-02）があり、EEW の facts は 1 報分なので、1 単位の中を辿るだけで受信 1 回の仕事は有界。
+// TerminalReport は件数の上限（RES-02）があり、EEW の facts は 1 報分なので、1 単位の中を辿るだけで受信 1 回の仕事は有界。VPWP50 の riskRows はこの件数の上限の外で、十の位 4・5 の名前とどの段階の時間帯の帯も数で切らず、1 報の材料は電文の大きさに比例して ingress の 8 MiB で縛られ、列の 1 単位の限りは QUEUE_BYTES の 1 MiB だけ（P3-TL19-AC04・Q-TOV-BOUND）。
 function estimate(value: unknown): number {
   if (typeof value === "string") return Buffer.byteLength(value);
   if (value == null || typeof value !== "object") return 8;
@@ -234,8 +236,11 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
   };
   const kick = (): void => {
     if (inFlight) return;
-    if (failed || head === queue.length) { idle?.(); return; }
+    if (failed || (head === queue.length && dropped === 0)) { idle?.(); return; }
     const units: TerminalUnit[] = [];
+    // P3-TOV-AC01 (1)(5): 列が空でも省いた件数は次の出力を待たずに出す。入力の行は echo で書き直し、1 MiB を越えるなら載せない（push を通らない単位も列の限りに合わせる）。
+    const echo: TerminalUnit = { kind: "echo", text: promptOf() ?? "" };
+    if (head === queue.length && estimate(echo) <= QUEUE_BYTES) units.push(echo);
     let size = 0;
     while (head < queue.length && (units.length === 0 || size + queue[head]!.bytes <= SEND_BYTES)) {
       const item = take();
@@ -255,7 +260,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     if (counted(unit) && !(unit.kind === "notice" && unit.notice.kind === "debug")) lastOutputMs = clock().monotonicMs;
     const size = failed ? 0 : estimate(unit);
     // P3-TL8-AC04 (6): 覚えた全国の集約通報の単位を落としたら覚えを消す（参照の比べ 1 回）。無いと画面に無い報と比べて次の同じ報を出さない。
-    if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; if (unit.kind === "report" && unit.report === national) national = null; return; }
+    // P3-TOV-AC01 (2): 省いた件数を出す書き出しを作る（返事待ちなら kick は何もせず、次の書き出しの頭に載る）。
+    if (failed || size > QUEUE_BYTES) { if (counted(unit)) dropped += 1; if (unit.kind === "report" && unit.report === national) national = null; kick(); return; }
     while (bytes + size > QUEUE_BYTES) { const old = take().unit; if (counted(old)) dropped += 1; if (old.kind === "report" && old.report === national) national = null; }
     queue.push({ unit, bytes: size });
     bytes += size;
@@ -318,6 +324,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     if (series == null) return;
     const reports = [...series.reports.values()];
     series = null;
+    // P3-TOV-AC03 (2)(6)・Q-TOV-MARK: riskRows が null の報はまとまりで材料を除いた 1 MiB 越えの報なので、1 件では積まずに数える（経過は release と同じく動かす）。
+    if (reports.length === 1 && reports[0].riskRows == null) { dropped += 1; kick(); lastReportWallMs = clock().wallTimeMs; return; }
     if (reports.length === 1) { release({ kind: "report", report: reports[0], prompt: promptOf() }); return; }
     const risks = new Map<string, NonNullable<ShortReport["risks"]>[number]>(), offices = new Set<string>();
     for (const report of reports) {
@@ -328,7 +336,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       const office = report.head.publishingOffice;
       if (office != null && office !== "") offices.add(office);
     }
-    release({ kind: "timeseries", report: reports[0], count: reports.length, offices: offices.size, risks: [...risks.values()], prompt: promptOf() });
+    // P3-TOV-AC02 (1): 束は report の head だけを使うので、reports[0] の大きな材料で束の単位が 1 MiB を越えて同じ便の報を巻き込まないよう riskRows を除く。
+    release({ kind: "timeseries", report: { ...reports[0], riskRows: null }, count: reports.length, offices: offices.size, risks: [...risks.values()], prompt: promptOf() });
   };
   // tick と inputDone の初めに見る（U-V が入力の前に期限を当てる順と同じ、AC01 (4)・AC03 (4)）。表は先頭から期限の過ぎた分だけ。時系列のまとまりは降灰の後（P3-TL11-AC01 (4)）。
   const expire = (nowMono: number): void => {
@@ -568,7 +577,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
           if (series != null && (series.reportDateTimeRaw !== timeline.head.reportDateTimeRaw || series.status !== timeline.head.status)) flushSeries();
           if (series == null) series = { reports: new Map(), reportDateTimeRaw: timeline.head.reportDateTimeRaw, status: timeline.head.status, firstMs: now.monotonicMs, lastMs: now.monotonicMs };
           series.reports.delete(mine);
-          series.reports.set(mine, timeline);
+          // P3-TOV-AC03 (1)・D-HOLD=A: 1 MiB を越える報は riskRows だけを除いた写しで置く（束には数え、1 件なら flushSeries で数える）。無いと出せない材料を 64 件まで持つ。
+          series.reports.set(mine, estimate(timeline) > QUEUE_BYTES ? { ...timeline, riskRows: null } : timeline);
           series.lastMs = now.monotonicMs;
           lastOutputMs = now.monotonicMs;
           held = { ...taken, result: "まとめて出す" };
@@ -638,6 +648,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     control,
     line: (text) => { push({ kind: "line", text }); },
     held: () => queue.filter((item) => item != null).length,
+    seriesBytes: () => series == null ? 0 : [...series.reports.values()].reduce((total, report) => total + estimate(report), 0),
     drained: () => !inFlight && head === queue.length,
     bind(next) {
       readline = next;
