@@ -28,24 +28,33 @@ const until = async (ok: () => boolean | Promise<boolean>, ms = 10_000) => {
 };
 
 // 標準入力は閉じない（閉じると子の fleq の REPL が閉じて止まる）。
+// freePort() が返した表示の port は、子の fleq が listen するまでに他（watch 自身の port 0 の listen を含む）に取られうる。取られると fleq が断り watch ごと終わり、
+// 次の POST が ECONNREFUSED になる（P3-RW2-T20 の CI の揺れ）。表示の port には 0 を渡せない（watch.mjs の portOf の下限 1）ので、断られたときだけ選び直す。
 async function start(): Promise<Child> {
-  const displayPort = await freePort();
-  const child = spawn("node", [CLI, "watch"], {
-    cwd: REPO, stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env, FLEQ_WATCH_PORT: "0", FLEQ_WATCH_DISPLAY_PORT: String(displayPort), FLEQ_JMA_CODES: "" }, // 資料なし（公開サンプルの範囲）で動かす（T14・T18）
-  });
-  spawned.push(child);
-  let out = "";
-  child.stdout!.on("data", (chunk) => { out += chunk; });
-  const exit = new Promise<number | null>((done) => child.once("exit", done));
-  const line = await new Promise<string>((ok, ng) => {
-    let text = "";
-    child.stderr!.on("data", (chunk) => { text += chunk; if (text.includes("\n")) ok(text.split("\n")[0]); });
-    child.once("exit", () => ng(new Error(`exited before the start line: ${text}`)));
-  });
-  const m = /^fleq watch: http:\/\/127\.0\.0\.1:(\d+)\/（設定と保存: (.+)）$/.exec(line);
-  if (m == null) throw new Error(`unexpected start line: ${line}`);
-  return { child, exit, stdout: () => out, port: Number(m[1]), displayPort, directory: m[2] };
+  for (let attempt = 1; ; attempt += 1) {
+    const displayPort = await freePort();
+    const child = spawn("node", [CLI, "watch"], {
+      cwd: REPO, stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, FLEQ_WATCH_PORT: "0", FLEQ_WATCH_DISPLAY_PORT: String(displayPort), FLEQ_JMA_CODES: "" }, // 資料なし（公開サンプルの範囲）で動かす（T14・T18）
+    });
+    spawned.push(child);
+    let out = "";
+    let err = "";
+    child.stdout!.on("data", (chunk) => { out += chunk; });
+    const exit = new Promise<number | null>((done) => child.once("exit", done));
+    const line = await new Promise<string>((ok, ng) => {
+      child.stderr!.on("data", (chunk) => { err += chunk; if (err.includes("\n")) ok(err.split("\n")[0]); });
+      child.once("exit", () => ng(new Error(`exited before the start line: ${err}`)));
+    });
+    const m = /^fleq watch: http:\/\/127\.0\.0\.1:(\d+)\/（設定と保存: (.+)）$/.exec(line);
+    if (m == null) throw new Error(`unexpected start line: ${line}`);
+    // 表示の port に GET して確かめない（port を取った別の server が答えうる）。fleq 自身の行で確かめる。
+    const shown = () => out.includes(`情報ディスプレイ: http://127.0.0.1:${displayPort}/`);
+    await until(() => shown() || child.exitCode != null, 30_000);
+    if (shown()) return { child, exit, stdout: () => out, port: Number(m[1]), displayPort, directory: m[2] };
+    if (attempt < 3 && err.includes(`ポート ${displayPort} は使われています`)) { await exit; continue; }
+    throw new Error(`fleq did not open the display on ${displayPort}: ${err}`);
+  }
 }
 const spawned: ChildProcess[] = [];
 // watch だけを SIGKILL しない（子の fleq が孤児になり表示の port を握ったまま繋ぎ直し続ける）。後始末は quit か SIGTERM。
