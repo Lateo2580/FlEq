@@ -352,7 +352,7 @@ describe("P3-TL11 時系列情報の種類の材料と束の描画", () => {
   });
   it("T04 (d) 32 組の 2 件と 64 件の束を 56・80・100 桁、色 0 と 3 で描くと、桁数を越えず、帯は 1 行、組は折れず、色 0 の帯は ━ の形", () => {
     const risks: Risk[] = Array.from({ length: 32 }, (_, index) => ({ type: `大雨浸水危険度${index}`, name: index % 2 === 0 ? "警戒レベル４相当" : "特別警報級", code: String(20 + index) }));
-    const pairs = new Set(risks.map((risk) => `${risk.type}（${risk.name}）`));
+    const pairs = new Set(risks.map((risk) => `${risk.type}（${risk.name.normalize("NFKC")}）`));
     for (const count of [2, 64]) for (const columns of [56, 80, 100]) for (const level of [0, 3] as const) {
       const lines = terminal(columns, level)([unit(count, count, risks)]).map(plain);
       for (const text of lines) expect(width(text.trimEnd())).toBeLessThanOrEqual(columns);
