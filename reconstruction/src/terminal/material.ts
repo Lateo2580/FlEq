@@ -176,7 +176,7 @@ function scan(body: XmlElement | null, withRisks = false, withReleased = false):
     else if (name === "TyphoonNamePart" && found.typhoon == null) found.typhoon = node;
     else if (name === "Item" && found.released != null && layer === RELEASE_LAYER) release(node, found.released);
     else if (name === "Significancy" && found.risks != null && (place === "base" || place === "local")) {
-      // Code は並べるかと並べる順だけに使い、出す字は電文の type と Name のまま（D-TS-KINDS=A）。同じ Code なら電文で先の組を残す。
+      // Code は並べるかと並べる順だけに使い、出す字は電文の type と Name（端末が Name を NFKC で半角に読み替える。P3-TL20-D-SERIES-SAME=A）。同じ Code なら電文で先の組を残す。
       const type = attribute(node, "type"), label = read(node, "Name"), code = read(node, "Code");
       if (type != null && type !== "" && type.length <= RISK_LIMIT && label != null && label !== "" && label.length <= RISK_LIMIT && code != null && /^[2-5][0-9]$/.test(code)) {
         const before = found.risks.get(type);

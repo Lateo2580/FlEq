@@ -795,7 +795,7 @@ function timeseries(unit: Extract<TerminalUnit, { kind: "timeseries" }>, ctx: Ct
   const title = `${(head.controlTitle ?? head.title ?? head.headType).replace(/（Ｒ[０-９]+）/g, "")}${statusMark(head.status)} ${unit.count}件`;
   const kinds = [...unit.risks].sort((left, right) => Number(right.code) - Number(left.code));
   // 組が無ければ行を出さない（flow は空の並びでも空の 1 行を返す）。
-  const summary = kinds.length === 0 ? [] : flow([], kinds.map((risk) => [seg(`${risk.type}（${risk.name}）`)]), ctx.body, 0);
+  const summary = kinds.length === 0 ? [] : flow([], kinds.map((risk) => [riskHead(risk)]), ctx.body, 0);
   const office = unit.offices === 0 ? head.headType : `${head.headType} ・ ${unit.offices} 官署`;
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles, { summary, tables: [], supplement: [], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
@@ -902,7 +902,12 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
     case "digest": return digest(item.digest, ctx);
     case "debug": return [line(seg(item.text, "dim"))];
     // 旧築 src/engine/cli/cli-run.ts の帯（前後に空行）と、src/dmdata/ws-client.ts・src/engine/monitor/monitor.ts の接続の行の形（spec §6.7）。
-    case "banner": return [line(), line(seg(`${item.appName} v${item.version} — Project DM-D.S.S リアルタイム地震・津波情報モニター`, "banner")), line()];
+    case "banner": {
+      // P3-TL20-AC03: 1 行が端末の幅（ctx.total）に入らないときだけ、名前と版の行と 2 桁下げた副題の行に分ける。
+      const name = `${item.appName} v${item.version}`, subtitle = "Project DM-D.S.S リアルタイム地震・津波情報モニター";
+      return width(`${name} — ${subtitle}`) <= ctx.total ? [line(), line(seg(`${name} — ${subtitle}`, "banner")), line()]
+        : [line(), line(seg(name, "banner")), line(seg(`  ${subtitle}`)), line()];
+    }
     case "session": return [...item.missing.map((name) => line(seg(`${name} は未契約のため受信できません`, "warn"))),
       line(seg(`セッション開始: socketId=${item.socketId}`)), line(seg(`区分: [${item.classifications.join(", ")}]`)), line(seg(`テスト電文: ${item.testMode}`)),
       line(seg("リアルタイム受信中...", "connRestored")), line(seg("help でコマンド一覧を表示（終了は quit か Ctrl+C）", "dim"))];
@@ -993,18 +998,27 @@ function riskLines(rows: Extract<TerminalReport, { kind: "short" }>["riskRows"],
   return kinds.flatMap((row) => [...spanLines(row, room), ...areaLines(row, room)]);
 }
 type RiskRow = NonNullable<Extract<TerminalReport, { kind: "short" }>["riskRows"]>[number];
+// P3-TL20-AC01 (7)・AC02: 「種類（段階）」の字と、Code の 1 字目（十の位）で決めた役目。1 件の形（spanLines）と束（timeseries）が同じ関数で作る。
+// 無いと色と字の決まりが 2 か所に分かれ、片方だけ直すと D-SERIES-SAME=A が崩れる。5・4 の役目は太字を持つので seg の bold は立てない（立てると strong が重なる）。
+const RISK_TENS: Readonly<Record<string, readonly [Role, boolean]>> = { "5": ["bandTop", false], "4": ["bandPurple", false], "3": ["ruleWarning", true], "2": ["ruleCaution", false] };
+function riskHead({ type, name, code }: Readonly<{ type: string; name: string; code: string }>): Seg {
+  const [role, bold] = RISK_TENS[code[0]] ?? [null, false];
+  return seg(`${type}（${nfkc(name)}）`, role, bold);
+}
 // AC02 (2): 「種類（段階）  時間帯」。帯は「・」でつなぎ、幅を越えたら帯の境で折って続きの行を 1 つ目の帯の位置まで下げる（入らなければ 2 桁。D-SPAN-GAP=A）。
 // 段階の名前と帯は nfkc で半角に読み替える（D-DIGITS=A・D-STAGE-NAME=A）。種類と最初の帯だけで幅を越える行は書き出しの physical が折る。
 function spanLines(row: RiskRow, room: number): Line[] {
-  const head = `${row.type}（${nfkc(row.name)}）`, indent = " ".repeat(width(head) + 2), texts: string[] = [];
-  let current = head;
+  const head = riskHead(row), indent = " ".repeat(width(head.text) + 2), texts: string[] = [];
+  let current = head.text;
   row.spans.forEach(({ from, to }, index) => {
     const span = from === to ? nfkc(from) : `${nfkc(from)}〜${nfkc(to)}`;
     if (index === 0) current += `  ${span}`;
     else if (width(current) + 2 + width(span) <= room) current += `・${span}`;
     else { texts.push(current); current = width(indent) + width(span) <= room ? indent + span : `  ${span}`; }
   });
-  return [...texts, current].map((text) => line(seg(text)));
+  // P3-TL20-AC01 (2): 色は 1 行目の種類の字だけ。続きの行と時間帯は役目なし。
+  const [first, ...rest] = [...texts, current];
+  return [line(head, ...first.length > head.text.length ? [seg(first.slice(head.text.length))] : []), ...rest.map((text) => line(seg(text)))];
 }
 // AC02 (3)(4): 2 桁下げて市町村等を「・」でつなぐ。十の位 4・5 は全部を名前の境で折り（続きも 2 桁下げ）、名前の無い数を最後に「 ほか n」（入らなければ次の行）。
 // ほかは 1 行に「 ほか n」の幅も含めて入るだけ並べる（D-FIT=A）。1 つ目の名前は入らなくても出す（書き出しの physical が折る）。
