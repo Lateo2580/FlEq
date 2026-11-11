@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "05f7ebab9d46598283806bfb82ccd020e9333917",
-    "sha256": "51b3d310a74f7ad686c5791dac735f6dfeada6a9322d379093402442ac0d3942",
+    "sha256": "fb2332f4547987c5b86693073da89f9910602e593067472ba7f1c9f40ec73ec9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -196,7 +196,7 @@
         "requirement": "気象警報・注意報時系列情報のまとまりの上限（P3-TL15-D-TS-WINDOW=A。P3-TL11-AC01 (4) の改訂。実測は Q-TL15-TS-INTERVAL）: (1) VPWP50 のまとまりは、1 秒の tick と inputDone の初めに見て、最後に置いてから 8,000 ms 以上（今のまま）か、最初に置いてから 180,000 ms 以上（今は 90,000 ms）のときに出す。64 件でその場で出すこと、鍵の違う報で前のまとまりを先に出すこと、取消、close() の前に出すこと、1 件だけなら 1 報の形で出すことは今のとおり (2) 降灰予報（定時）のまとまり（P3-TL10-AC01 (4)、8,000 ms・90,000 ms）は変えない (3) 形: output.ts の 40 行に時系列のまとまりの上限の定数を 1 つ足し、336 行の expire の時系列の式の最初からの比べだけをその定数に替える（最後からの比べは ASH_QUIET_MS のまま）。39 行のコメントの「区切りの 8 秒・90 秒は降灰と同じ数を使う」を、8 秒は降灰と同じで上限だけ 180 秒にした旨と根拠（Q-TL15-TS-INTERVAL）に直す。行を足さない（38 行と 334 行は他の契約が «» で引く）。受信の経路の比べの数は変わらない (4) layout11.test.ts で変えるのは T02 (c) だけ: 18 報を 5 秒ごとに渡して最初から 90 秒で「18件」を見る形を、36 報を 5 秒ごとに渡して（最後の報は 175 秒）最初の報から 180 秒を過ぎた最初の tick で「36件」が出る形にし、it の名前の「90 秒」を「180 秒」にする（期待の件数が 18 から 36 に変わる。8 秒の区切りを変えないので間隔を 8 秒以上にできず、180 秒に届くには 36 報が要る）。ほかの it（8 秒の区切りと 64 件と降灰を見るもの）は変えない。場面: 2026-11-09 23:00 の便の 58 件は、今は最初の報から 90 秒で「気象警報・注意報時系列情報 41件」、残りが「17件」の 2 ブロックに割れた（写し mini-new-2305.txt の 2328・2351 行）。A では最後の報から 8 秒を過ぎた最初の tick に「58件」の 1 ブロック",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:38 «97b5147c5d2bf7ab»",
-          "reconstruction/src/terminal/output.ts:334 «11805c7036c18003»",
+          "reconstruction/src/terminal/output.ts:343 «11805c7036c18003»",
           "docs/specs/cli-terminal-output.md:662 «5768731f8619d84e»",
           "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
           "docs/specs/cli-terminal-output.md:939 «e71e64be56479335»"

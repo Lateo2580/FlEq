@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5f3095d7e324384b93ee126181d6d8cbac9cb9dc",
-    "sha256": "96889d8e387ace84b2809b0182344c2840c3a971fcf48fbc89a1c061523859a4",
+    "sha256": "f166ac0e78f95c69729dab05d1d1754ebba423d7cbcac90998015d3349e99817",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -268,7 +268,7 @@
           "reconstruction/src/cli/cli.ts:187 «73019f2eb1d207f7»",
           "reconstruction/src/cli/cli.ts:326 «b9c492f5da23e6e8»",
           "reconstruction/src/cli/cli.ts:354 «50619ac50a9cc3bb»",
-          "reconstruction/src/terminal/output.ts:386 «d8d3a650b9e35ea3»",
+          "reconstruction/src/terminal/output.ts:395 «d8d3a650b9e35ea3»",
           "reconstruction/src/terminal/format.ts:906 «1bb65f57e524c4f2»",
           "reconstruction/cli/watch.mjs:318 «7b4b0a91805fa29d»",
           "src/engine/cli/cli-run.ts:66 «6cf3457473eb270c»",
@@ -286,7 +286,7 @@
           "reconstruction/src/terminal/format.ts:812 «eaaa9074375c6393»",
           "reconstruction/src/terminal/format.ts:817 «52b0a698c38ab469»",
           "reconstruction/src/host/host.ts:418 «1bdbd2fc0594394f»",
-          "reconstruction/src/terminal/output.ts:394 «92bb7c565c6e5b2b»",
+          "reconstruction/src/terminal/output.ts:403 «92bb7c565c6e5b2b»",
           "reconstruction/src/terminal/format.ts:811 «e416b1b6ab4e03af»",
           "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
           "reconstruction/src/host/host.ts:587 «98104048db3c9a8c»"
@@ -297,10 +297,10 @@
         "requirement": "動いている途中の noContract（P3-NC-D-RUNNING-LOSS=A、作者の裁定）: (1) host は noContract でも今の retryLater と同じく繋ぎ直しの timer を張る（host.ts:249 の経路、待ちは P3-DC2-AC01 の式。host.ts の変更は AC01 の行だけ） (2) output.ts の受信の後の判定（:391〜:395）を改める。今は :391 の if（lastFrameWallMs があれば received を立てる）が受信の後に毎回成り立ち、:392 の else if に入らないので、:392 の条件だけを変えても受信の後は何も出ない。受信の記録と理由の行の判定を別の if に分け、受信の後でも、直前に読んだ lastFailure が noContract でなく今の読みが noContract なら FAILURE_TEXT.noContract を 1 回出す。直前に読んだ lastFailure を覚える変数を :361 の宣言に 1 つ足し、読むたびに更新する（前に出した理由〔shownFailure〕と比べると、402→network→402 や、繋がって lastFailure が null に戻った後の 2 回目の解約で出ないため）。一度も受信していない間は今の規則のまま。ほかの 5 種の理由は受信の後に出さないまま（P3-TO-AC10 (5) を noContract だけ改める） (3) 場面: P3-NC-D-RUNNING-LOSS の A のとおり（21:00:00 に close 4807→今の「回線が切れました」の 3 行→21:00:05 の試行で start が 402→1 秒以内に noContract の 1 行→402 の間は行を増やさない→22:01:15 の試行で start が通り「回線が戻りました」と「21:00:00 から 22:01:15 まで（61 分 15 秒）受信できていませんでした」）。21:00:05 の後に回線も切れて network になり、また 402 に戻ると、noContract に戻った読みで noContract の文がもう 1 行出る（network の文は受信の後なので出ない）。22:01:15 に繋がった後、別の日にまた解約されたときも、402 の読みで 1 行出る。デスクトップ通知は今のまま（切断の 1 回に 1 回、P3-TO-AC10 (4)）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:249 «fab504201225d15f»",
-          "reconstruction/src/terminal/output.ts:394 «92bb7c565c6e5b2b»",
+          "reconstruction/src/terminal/output.ts:403 «92bb7c565c6e5b2b»",
           "reconstruction/src/terminal/format.ts:816 «41c70bdfbc884764»",
-          "reconstruction/src/terminal/output.ts:361 «a594472a25db784a»",
-          "reconstruction/src/terminal/output.ts:391 «9adea79d2deb1ecb»"
+          "reconstruction/src/terminal/output.ts:370 «a594472a25db784a»",
+          "reconstruction/src/terminal/output.ts:400 «9adea79d2deb1ecb»"
         ]
       },
       {
@@ -312,7 +312,7 @@
           "reconstruction/src/host/host.ts:363 «17dd220688acc103»",
           "reconstruction/src/host/host.ts:366 «3ca67678bb8158a8»",
           "reconstruction/src/host/host.ts:579 «ef97415fc6486b6f»",
-          "reconstruction/src/terminal/output.ts:361 «a594472a25db784a»",
+          "reconstruction/src/terminal/output.ts:370 «a594472a25db784a»",
           "docs/specs/cli-terminal-output.md:721 «c310d236d4cfdc06»",
           "docs/specs/cli-terminal-output.md:824 «f6b0c61fc02c92e4»",
           "docs/specs/reconstruction-p0-contracts.md:2288 «c222547f5dcd1259»",

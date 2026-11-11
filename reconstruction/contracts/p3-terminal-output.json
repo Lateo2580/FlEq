@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "e674f2b063f6af86460e8b792671345f57a892afa8dd265a6a4c83a1d8e18a9f",
+    "sha256": "78b1d9b1d77d1ca50dc0a45a6ed773bb26fc24745798e78788dd4dff14a0dbe5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -459,7 +459,7 @@
       {
         "id": "P3-TO-RES-01",
         "target": "書き出しの列（main の側）",
-        "limit": "書き出しの列は 1 本で、上限は byte の 1 つ: 1 MiB（1,048,576 bytes。積む時の見積もり、AC08 (1)）。越えたら種類によらず古い単位から丸ごと落とす。1 つの単位が 1 MiB より大きければ、その単位を積まずに落として数える（例: repl.ts の未知の題名の返事が入力を全文返して 1 MiB を越える場合。C18 の repl.ts の文字列は変えない）。worker への 1 回の送りは 64 KiB まで（1 単位がそれより大きければその 1 単位だけ）",
+        "limit": "書き出しの列は 1 本で、上限は byte の 1 つ: 1 MiB（1,048,576 bytes。積む時の見積もり、AC08 (1)）。越えたら種類によらず古い単位から丸ごと落とす。1 つの単位が 1 MiB より大きければ、その単位を積まずに落として数える（例: repl.ts の未知の題名の返事が入力を全文返して 1 MiB を越える場合。C18 の repl.ts の文字列は変えない）。worker への 1 回の送りは 64 KiB まで（1 単位がそれより大きければその 1 単位だけ）（P3-TERMINAL-OVERSIZE-001: 省いた件数は列が空なら次の出力を待たずに件数だけの書き出しで出す。時系列のまとまりは 1 MiB を越える報の材料を持たず、束の単位は報の riskRows を持たない）",
         "unit": "件・bytes",
         "scope": "端末の 1 run",
         "source": "O02（spec:382）。本物の fixture で最も大きい出力の見積もりは約 49 KiB（dmdataCaptured の phase7_5_VXSE53_…bf35e8ea1825、区域と観測点 84 行×160 byte＋名前と文の全 byte 37,000 の上界）、公開の最大は約 24 KiB（32-39_11_10 VTSE51、123 行）。RES-02 の件数の上限いっぱいの報（区域 256＋観測点 1,024＋推定 256 の行）でも約 250 KiB で 1 MiB の内。1 MiB は最大の本物の出力を約 20 件持てる"
@@ -603,7 +603,7 @@
       },
       {
         "id": "P3-TO-AC08",
-        "requirement": "【発注 1】計算量と大きさ（AGENTS.md の受信経路の計算量、P3-TO-RES-01〜03）: (1) publisher（main）の 1 回の受信の仕事は、返信の terminal の参照を列に積むこと、output の outcomes のうち U-E のものを探すこと（その返信の outcomes の数に比例）、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字〔震源名と発生時刻〕を取ること（P3-TL9-AC06 (3)、U-E を探すのと同じ列を 1 回見る）、定期要約の数を 1 足すこと、全国の集約通報の表を覚えた 1 つと比べること（P3-TL8-AC04・AC05 (2)）、降灰予報（定時）のまとまり〔20 件までの並び〕と記録的短時間大雨の待ちの表〔Map、端末の上限 256〕に置く・外すこと（返信の U-B の accepted の subjects を 1 回見る。表が空で VPOA50 でもなければ見ない、P3-TL10-AC04 (1)）、気象警報・注意報時系列情報（VPWP50）のまとまり〔U-F の自分の記録の subject → 報の Map、64 件まで〕に置く・外すこと（VPWP50 の返信だけ、その返信の outcomes の U-F の accepted の subjects を 1 回見る。種類の合わせと官署の数えは束を出す時だけ、P3-TL11-AC05 (1)）だけで、整形・JSON.stringify・列全体の走査・全 unit の view の走査をしない。列の byte は積む時に 1 回だけ見積もる（TerminalReport は件数の上限があるので件数から見積もり、文字列の長さを足す。JSON にしない） (2) owner の terminalReport は decode 済みの tree を 1 回だけ線形に辿る。（台風の暴風域に入る確率の府県の行は、scan の後に 5日積算と時系列の 2 つの節の Item の列を 1 回ずつ見る。P3-TERMINAL-LAYOUT-016 の P3-TL16-AC01 (5)）読む区域・観測点は P3-TO-RES-02 の件数まで（越えた数は omitted に数え、端末は「ほか N 件」の 1 行を出す） (3) 材料を作る時間を、配送の前に Mac で最も大きい fixture（VTSE41・VTSE51・VXSE53 と 18 の気象の最大）で測り、成果物に表で書く。どれかが 5 ms を越えたら配送の前に止めて報告する（owner の urgent の場所は津波を持つので、EEW の E01 の予算に効く）",
+        "requirement": "【発注 1】計算量と大きさ（AGENTS.md の受信経路の計算量、P3-TO-RES-01〜03）: (1) publisher（main）の 1 回の受信の仕事は、返信の terminal の参照を列に積むこと、output の outcomes のうち U-E のものを探すこと（その返信の outcomes の数に比例）、地震の取消の報で同じ返信の outcomes から U-Q の facts の 2 つの字〔震源名と発生時刻〕を取ること（P3-TL9-AC06 (3)、U-E を探すのと同じ列を 1 回見る）、定期要約の数を 1 足すこと、全国の集約通報の表を覚えた 1 つと比べること（P3-TL8-AC04・AC05 (2)）、降灰予報（定時）のまとまり〔20 件までの並び〕と記録的短時間大雨の待ちの表〔Map、端末の上限 256〕に置く・外すこと（返信の U-B の accepted の subjects を 1 回見る。表が空で VPOA50 でもなければ見ない、P3-TL10-AC04 (1)）、気象警報・注意報時系列情報（VPWP50）のまとまり〔U-F の自分の記録の subject → 報の Map、64 件まで〕に置く・外すこと（VPWP50 の返信だけ、その返信の outcomes の U-F の accepted の subjects を 1 回見る。種類の合わせと官署の数えは束を出す時だけ、P3-TL11-AC05 (1)）だけで、整形・JSON.stringify・列全体の走査・全 unit の view の走査をしない。列の byte は積む時に 1 回だけ見積もる（U-F の VPWP50 は時系列のまとまりに置く時にも 1 回。P3-TERMINAL-OVERSIZE-001）（TerminalReport は件数の上限があるので件数から見積もり、文字列の長さを足す。JSON にしない） (2) owner の terminalReport は decode 済みの tree を 1 回だけ線形に辿る。（台風の暴風域に入る確率の府県の行は、scan の後に 5日積算と時系列の 2 つの節の Item の列を 1 回ずつ見る。P3-TERMINAL-LAYOUT-016 の P3-TL16-AC01 (5)）読む区域・観測点は P3-TO-RES-02 の件数まで（越えた数は omitted に数え、端末は「ほか N 件」の 1 行を出す） (3) 材料を作る時間を、配送の前に Mac で最も大きい fixture（VTSE41・VTSE51・VXSE53 と 18 の気象の最大）で測り、成果物に表で書く。どれかが 5 ms を越えたら配送の前に止めて報告する（owner の urgent の場所は津波を持つので、EEW の E01 の予算に効く）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
           "reconstruction/src/host/host.ts:182 «26aeb254c6d4535e»",

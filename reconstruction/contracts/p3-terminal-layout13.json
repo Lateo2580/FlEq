@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86bb360c4e857d340f328644b670bead0b03474f",
-    "sha256": "010af869ea1274ae114c95e05c8140d98455aba781bfab755a6a4cf6fa8c6d57",
+    "sha256": "d26158e1b5389703ec2a4570a9023c8492c759c6b59fd1d5c67f4aea29bafe10",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -161,8 +161,8 @@
         "id": "P3-TL13-AC02",
         "requirement": "種類の分からない電文（P3-TO-D-UNREADABLE の範囲を条文に書き留める。今の動きで、コードは変えない）: (1) unit の受け持ちの表に無い型（例 WTJP31・WTJP21。owner が U-M の view に置く unknownType のカード）は、端末に出さない。sink は返信の view の unreadableCards のうち kind が unreadable か unidentified のカードだけを「処理できなかった電文」の 2 行にし、unknownType のカードは選ばない (2) 出さない理由: unknownType は FlEq が扱わない種類（海上警報など、区分の契約で届く他の型）で、U-M が headType ごとに件数をまとめて持つ。出すと 6 時間ごとなどの定時の報が「処理できなかった電文 WTJP31」として電文の間に並ぶ（写しでは旧築が 6 回出した） (3) --debug の行と定期要約の数え方は今のとおり (4) 受け持ちの表で notPorted の型（VXSE47・VPBS51 など、unit がまだ受けない型）も、owner は routeNotPorted の unknownType のカードを U-M に置くので、同じく端末に出さない。届いたことを読む所は --debug の行と、routeNotPorted の INFO の記録",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:611 «11c98b66c886edc9»",
-          "reconstruction/src/terminal/output.ts:615 «a9fdf1f07ee9742b»",
+          "reconstruction/src/terminal/output.ts:621 «11c98b66c886edc9»",
+          "reconstruction/src/terminal/output.ts:625 «a9fdf1f07ee9742b»",
           "reconstruction/src/runtime/owner-runtime.ts:536 «c96480327a2ee170»",
           "reconstruction/src/runtime/owner-runtime.ts:537 «b1c66d2e0a2f144d»",
           "reconstruction/src/runtime/unit-coverage.ts:44 «f41d86dc1375f9a9»",
@@ -182,7 +182,7 @@
           "reconstruction/src/terminal/format.ts:763 «434d49a755e2dd35»",
           "reconstruction/src/terminal/format.ts:882 «eb95c7e1288d5c62»",
           "reconstruction/src/terminal/format.ts:900 «e05f03b9b4cacd1f»",
-          "reconstruction/src/terminal/output.ts:419 «2e886d21d6e2c58f»"
+          "reconstruction/src/terminal/output.ts:428 «2e886d21d6e2c58f»"
         ]
       }
     ],

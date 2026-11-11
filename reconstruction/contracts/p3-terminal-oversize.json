@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bafeceedbb50e469abbcf24507569a7f959b5c3d",
-    "sha256": "d27d722ead471f71b0e99d5ffe8d92dff8238cbe2231d8d63f972cc7f500f33b",
+    "sha256": "972a10ef8ff3426a2b3a7b72e1b1cb820d2cdc7c3833ef5337c2bad0c684ad99",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -209,54 +209,54 @@
         "id": "P3-TOV-AC01",
         "requirement": "省いた件数は必ず出す（目的 (1)。Q-TOV-WHEN・Q-TOV-PROMPT）: (1) kick（235〜251 行）は、queue が空でも dropped が 1 以上なら書き出しを作る（237 行の条件を「failed か、queue が空で dropped が 0」に）。そのときの単位は echo 1 つで、text は promptOf() の字（readline が無ければ空）。dropped は今のとおり書き出しに載せて 0 に戻す (2) push の省く枝（258 行）は、dropped を足した後に kick を呼ぶ（書き出しの返事待ちなら kick は何もせず、今のとおり次の書き出しの頭に載る） (3) close（662〜697 行）は変えない: flushAll（665 行）が省けば kick が書き出しを送り（inFlight になる）、694 行は返事を待ってから drained にする。failed のときは今のとおり書かない（worker が落ちている） (4) 件数の行の字と位置（書き出しの頭）は変えない。今と変わるのは出る時だけ: 今は次に何かを積むまで出ない（TTY でない出力では close の時も出ない）。新しい形では列が空ならその場で出る。列に単位が残っていれば今のとおり次の書き出しの頭 (5) (1) の echo も列の限りを通す: estimate(echo) が QUEUE_BYTES を越えるなら echo を載せず、単位の無い件数だけの書き出しを送る（無いと 1 MiB を越える入力の行が push の計量を通らずに送られる。r0 の品質 P2-1）。件数の書き出しは push を呼ばない",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:237 «a67ad0d47dd70c76»",
-          "reconstruction/src/terminal/output.ts:247 «d568138e23ecdadb»",
-          "reconstruction/src/terminal/output.ts:258 «df6dcc1278732971»",
-          "reconstruction/src/terminal/output.ts:263 «78813489d9a71527»",
-          "reconstruction/src/terminal/output.ts:665 «1efcca7a47fc5697»",
-          "reconstruction/src/terminal/output.ts:694 «34b2616986cdd88a»",
+          "reconstruction/src/terminal/output.ts:239 «89bcae7594c8aadd»",
+          "reconstruction/src/terminal/output.ts:252 «d568138e23ecdadb»",
+          "reconstruction/src/terminal/output.ts:264 «c6ecb3f87a3f0575»",
+          "reconstruction/src/terminal/output.ts:269 «78813489d9a71527»",
+          "reconstruction/src/terminal/output.ts:676 «1efcca7a47fc5697»",
+          "reconstruction/src/terminal/output.ts:705 «34b2616986cdd88a»",
           "reconstruction/src/cli/repl.ts:441 «02381ba472f95b1d»",
           "reconstruction/src/cli/cli.ts:326 «b9c492f5da23e6e8»",
-          "reconstruction/src/terminal/output.ts:666 «73f0a1ccf702830d»"
+          "reconstruction/src/terminal/output.ts:677 «73f0a1ccf702830d»"
         ]
       },
       {
         "id": "P3-TOV-AC02",
         "requirement": "束の単位は報の材料の riskRows を持たない（目的 (2)）: (1) flushSeries の 2 件以上の単位（331 行）の report を、reports[0] の riskRows を null にした浅い写しにする（束の形は report の head だけを使い〔format.ts の timeseries〕、種類の行は単位の risks から作るので、出る字は変わらない）。無いと、reports[0] の材料が大きいとき束の単位が 1 MiB を越え、同じ便の正常な報まで省かれる (2) 1 件で出すかどうかを決めるのは push（258 行）の 1 か所だけ。まとまりに置く時の判定（AC03 (1)）は、材料を除くかだけを決める。置く時に 1 MiB を越えた報は、1 件の単位（報＋kind・prompt）が報より大きいので push でも必ず越え、置く時の判定と push の判定が逆にならない。置く時に入った報でも、1 件の単位が 1 MiB を越えれば push が丸ごと省き、AC01 で件数が出る（境目。Q-TOV-SEQ (2) の X は estimate(報) 1,048,566 byte・1 件の単位 1,048,604 byte・束の単位 1,048,702 byte）",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:321 «f5001ae486d14f86»",
-          "reconstruction/src/terminal/output.ts:331 «2c49f9300b48827e»",
-          "reconstruction/src/terminal/output.ts:258 «df6dcc1278732971»",
-          "reconstruction/src/terminal/output.ts:70 «d4749867e567bd03»"
+          "reconstruction/src/terminal/output.ts:329 «f5001ae486d14f86»",
+          "reconstruction/src/terminal/output.ts:340 «b652b8619010ace8»",
+          "reconstruction/src/terminal/output.ts:264 «c6ecb3f87a3f0575»",
+          "reconstruction/src/terminal/output.ts:72 «d4749867e567bd03»"
         ]
       },
       {
         "id": "P3-TOV-AC03",
         "requirement": "まとまりが持つ量と、古い報（目的 (3)(4)。P3-TOV-D-HOLD=A、作者の裁定 2026-11-11）: (1) sink.inputDone の時系列の分岐で報をまとまりに置く時（571 行）、estimate(報) を 1 回測り、QUEUE_BYTES を越えたら riskRows を null にした浅い写しを置く。越えなければ今のとおり報そのもの。置き場所と同じ subject の置き換え（570・571 行）、64 件・8 秒・180 秒・鍵の比べは変えない（無いと、出せない報の材料をまとまりの待ちに 64 件まで持ちうる。Q-TOV-SEQ (4)） (2) flushSeries の 1 件（321 行）で、報の riskRows が null なら（まとまりで除いた印。Q-TOV-MARK）、release せずに dropped を 1 足して kick を呼ぶ（AC01 で件数が出る）。null でなければ今のとおり release (3) 2 件以上の束は今のとおり件数・官署の数・種類の行（risks）に、除いた写しも数える（写しが除くのは riskRows だけで、risks は残す。P3-TOV-T02 (b)） (4) 同じ subject の古い報は、今のとおり新しい報（除いた写しを含む）に置き換えられ、後から出ない (5) まとまりが持つのは 1 件 1 MiB 以下で、64 件で 64 MiB まで（今は上限が無い）。1 MiB を越える報の材料は、owner から main へは今のとおり一度運ばれ、置く時の写しの後は参照が残らない (6) (2) の枝でも、release と同じく lastReportWallMs を今の時刻にする（入力の行の経過は、今と同じく省かれた報でも 0 に戻る。Q-TOV-ELAPSED） (7) 試験の口 seriesBytes() を TerminalOutput に足す（Q-TOV-PORT。まとまりの報の estimate の合計、無ければ 0）",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:565 «faf8f7e37a1b5c0a»",
-          "reconstruction/src/terminal/output.ts:570 «0747654d6eb59387»",
-          "reconstruction/src/terminal/output.ts:571 «e37295470d26c2ff»",
-          "reconstruction/src/terminal/output.ts:575 «79e28e067f0c2a06»",
-          "reconstruction/src/terminal/output.ts:321 «f5001ae486d14f86»",
-          "reconstruction/src/terminal/output.ts:336 «e144cf4d1c8b7c71»",
+          "reconstruction/src/terminal/output.ts:574 «faf8f7e37a1b5c0a»",
+          "reconstruction/src/terminal/output.ts:579 «0747654d6eb59387»",
+          "reconstruction/src/terminal/output.ts:581 «69ee7da1c5fcbfcc»",
+          "reconstruction/src/terminal/output.ts:585 «79e28e067f0c2a06»",
+          "reconstruction/src/terminal/output.ts:329 «f5001ae486d14f86»",
+          "reconstruction/src/terminal/output.ts:345 «e144cf4d1c8b7c71»",
           "reconstruction/src/terminal/output.ts:40 «4a42faba4bff78fe»",
-          "reconstruction/contracts/p3-terminal-layout19.json:362 «5e4b1d003899646c»",
-          "reconstruction/src/terminal/output.ts:308 «b800d7aefca28f37»",
-          "reconstruction/src/terminal/output.ts:476 «4baf9f0582330637»",
-          "reconstruction/src/terminal/output.ts:619 «e8fec3be2591f6bb»",
+          "reconstruction/contracts/p3-terminal-layout19.json:362 «36fba01562b11934»",
+          "reconstruction/src/terminal/output.ts:314 «b800d7aefca28f37»",
+          "reconstruction/src/terminal/output.ts:485 «4baf9f0582330637»",
+          "reconstruction/src/terminal/output.ts:629 «e8fec3be2591f6bb»",
           "reconstruction/src/terminal/output.ts:63 «cd31b75272c3e2d8»",
-          "reconstruction/src/terminal/output.ts:640 «1d32c14c6a5a6b1d»"
+          "reconstruction/src/terminal/output.ts:650 «1d32c14c6a5a6b1d»"
         ]
       },
       {
         "id": "P3-TOV-AC04",
         "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: artifactRequirements の原文の改訂 (1)〜(5) の 5 か所。spec は起草で §8 の 949 行に Q-TO-OVERSIZE を足した（後ろの行が 1 行ずれた契約の «» は起草で付け直した）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-terminal-output.json:462 «7cd79d410638a7df»",
-          "reconstruction/contracts/p3-terminal-output.json:606 «dfa7dc63f2c589ec»",
-          "reconstruction/contracts/p3-terminal-layout11.json:291 «e933919283da53ae»",
-          "reconstruction/contracts/p3-terminal-layout19.json:362 «5e4b1d003899646c»",
+          "reconstruction/contracts/p3-terminal-output.json:462 «76acd650d50b349e»",
+          "reconstruction/contracts/p3-terminal-output.json:606 «87a6fe8fdd83f769»",
+          "reconstruction/contracts/p3-terminal-layout11.json:291 «f6fef55a34f36c8e»",
+          "reconstruction/contracts/p3-terminal-layout19.json:362 «36fba01562b11934»",
           "reconstruction/src/terminal/output.ts:32 «2e2fd56b7ee57810»",
           "docs/specs/cli-terminal-output.md:949 «9530289042f3be6e»"
         ]
@@ -373,9 +373,10 @@
       "起草の確かめ: T01〜T05 の期待の字と数は、起草の時に worktree の中の未追跡の場所に reconstruction を CoW で写し（P3-TERMINAL-LAYOUT-019 の材料を当てた写しの上）、AC01〜AC03 を当てた output.ts（kick の条件と echo の限り、push の kick、flushSeries の 2 か所と経過、置く時の写し、seriesBytes）と、当てない今の output.ts の両方で、owner の道の報を sink.inputDone に渡して書いた行を写した（T01 は process.stdout.isTTY を true にして readline の形を bind した。帯の字は写しの renderer が描いたもの。vitest の中で行を出す使い捨ての試験 file。写しは worktree の未追跡の .dr-tmp/ に置いたまま、repo に入れない）",
       "足りない注記の書き足し（コメントだけ。P3-TERMINAL-LAYOUT-019 の残存 (10)）: output.ts の estimate の上の「TerminalReport は件数の上限（RES-02）があり、EEW の facts は 1 報分なので、1 単位の中を辿るだけで受信 1 回の仕事は有界。」（起草の時は 69 行）と、material.ts の AREA_LIMIT の上の「件数の上限は細分区域 188・津波予報区 66・観測点 1,024 の上に置く（RES-02）。無いと 1 報の材料が publisher の列を埋める。」（起草の時は 12 行）は、P3-TL19-D-CAP=A（危険警報級・特別警報級の市町村等と、どの段階の時間帯の帯も数で切らない）の後も既存の字は正しいが、VPWP50 の riskRows がこの件数の上限の外にあることが書かれていない（output.ts で合わないのは前半の「件数の上限（RES-02）があり」だけで、EEW の facts と受信 1 回の仕事が有界という結論は今も正しい）。実装で既存の字を残し、VPWP50 の riskRows の例外を書き足す: 十の位 4・5 の名前と、どの段階の時間帯の帯も数で切らず、1 報の材料は電文の大きさに比例して ingress の 8 MiB で縛られ（Q-TOV-BOUND）、列の 1 単位の限りは QUEUE_BYTES の 1 MiB だけ（P3-TL19-AC04）。この注記の書き足しでは行を足さず、その注記の行の中に書き足す（material.ts の AREA_LIMIT の行は p3-terminal-layout16.json が «» で引くので字も行の位置も変えない。output.ts の行は AC03 (7) の seriesBytes で下へずれるので、その «» と地の文の行番号は原文の改訂 (5) と «» の付け直しで扱う）。コメントだけの変更なので試験は足さない",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 件数の行は今の書き出しと同じく、入力の行の後ろに続けて書かれる（Q-TOV-PROMPT） (2) まとまりで除いた印は riskRows が null かに頼る。取消でない VPWP50 の riskRows を null にする変更は本契約の AC03 を同時に直す（Q-TOV-MARK） (3) 1 MiB を越える報の材料は owner から main へ一度運ばれる（1 報約 4 MiB の見積もりまで）。ingress の 8 MiB のほかに限りは無い (4) 束に数えられた 1 MiB を越える報の種類の 2 行は出ない（束は種類の名前の行だけ） (5) 入力の行に 1 MiB を越える字が入っている間は、件数の書き出しに入力の行を載せず、repl の 1 秒ごとの書き直し（repl.ts の 441 行。入力中の字が空のときだけ）でも戻らない。prompt を持つほかの単位も今のとおり push で省かれる（今の動きのまま。Q-TOV-PROMPT）",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しか置き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-output.json:462 の P3-TO-RES-01 の limit の末尾に「（P3-TERMINAL-OVERSIZE-001: 省いた件数は列が空なら次の出力を待たずに件数だけの書き出しで出す。時系列のまとまりは 1 MiB を越える報の材料を持たず、束の単位は報の riskRows を持たない）」を書き足す (2) 同じ file の 606 行の P3-TO-AC08 の「積む時に 1 回だけ見積もる」の後に「（U-F の VPWP50 は時系列のまとまりに置く時にも 1 回。P3-TERMINAL-OVERSIZE-001）」を書き足す (3) reconstruction/contracts/p3-terminal-layout11.json:291 の P3-TL11-AC01 の (5) の「2 件以上は 1 つの単位（AC03 (1)）で積む」の後に「（単位の report は reports[0] の riskRows を null にした写し。1 MiB を越える報はまとまりに riskRows を除いた写しで置き、1 件なら積まずに数える。P3-TERMINAL-OVERSIZE-001）」を書き足す (4) reconstruction/contracts/p3-terminal-layout19.json:362 の P3-TL19-AC04 の (2) の「その配送までは」の前に「（P3-TERMINAL-OVERSIZE-001 で決めた。）」を書き足す (5) 実装で output.ts の行が下へずれて古くなる p3-terminal-layout19.json の地の文の行番号を、関数と定数の名前に置き換える（行の中の置き換え。どちらも «» では引かれていない）: Q-TL19-LIMIT (d) の「estimate の式（output.ts の 70 行）」を「estimate の式（output.ts の estimate）」に、残存 (10) の「output.ts の 68・69 行と material.ts の 11〜13 行の注記」を「output.ts の estimate の上の注記と material.ts の AREA_LIMIT の上の注記」にする。«» の付け直し（同じ commit）: 実装で中身が変わる output.ts の行を引く «» は新しい anchor を手で入れる（起草の時の数え: 258 行〔p3-terminal-debug-tip.json・p3-terminal-layout19.json・本契約〕、321 行〔p3-terminal-layout17.json・p3-terminal-layout19.json・本契約〕、331 行〔p3-terminal-layout19.json・本契約〕、237・571・63・640 行〔本契約〕）。(1)〜(5) の改訂で中身の変わる契約の行のうち、«» で引かれる行（p3-terminal-output.json:462・606、p3-terminal-layout11.json:291、p3-terminal-layout19.json:362）も新しい anchor を手で入れる。中身が同じで行のずれた «» は、完全な path だけを当てる付け直し（reanchor-target.py は短い path の地の文の引用にも当たる。P3-TERMINAL-LAYOUT-018 の配送で layout10・layout12 の地の文に当たった）で付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
-      "本物の経路での写し（統合担当、配送の前）: 1 MiB を越える実物の報は無いので要らない。実装の後の木で、ふだんの便（81_09_01 を 1 件、同じ発表時刻の 2 件）の写しが今と同じ字になることを 1 回見る"
+      "残存として成果物に書く: (1) 件数の行は今の書き出しと同じく、入力の行の後ろに続けて書かれる（Q-TOV-PROMPT） (2) まとまりで除いた印は riskRows が null かに頼る。取消でない VPWP50 の riskRows を null にする変更は本契約の AC03 を同時に直す（Q-TOV-MARK） (3) 1 MiB を越える報の材料は owner から main へ一度運ばれる（1 報約 4 MiB の見積もりまで）。ingress の 8 MiB のほかに限りは無い (4) 束に数えられた 1 MiB を越える報の種類の 2 行は出ない（束は種類の名前の行だけ） (5) 入力の行に 1 MiB を越える字が入っている間は、件数の書き出しに入力の行を載せず、repl の 1 秒ごとの書き直し（repl.ts の 441 行。入力中の字が空のときだけ）でも戻らない。prompt を持つほかの単位も今のとおり push で省かれる（今の動きのまま。Q-TOV-PROMPT） (6) tips の待ちの起点: flushSeries の 1 件で省く枝（riskRows が null の報を数える所）は lastOutputMs を動かさず、push の省く枝は動かす。まとまりに置いた時に動かしている（P3-TL11-AC01 (8)）ので差は静かな 8 秒と tick の 1 秒ほどで、tips が 1 分の設定で 1 MiB を越える報が 1 件だけ届くと tips は前より約 8 秒早く出る。P3-CLI-AC27 (2) の字には合い、直すならその枝に 1 句足す（契約の改訂が要る。整合・品質のレビューとも P3） (7) 証拠不足（判定の外）: close の完了の後の push・kick に closed の判定が無い（期限切れの終了の後に遅い返事が来たときの再送までは実証できていない）。worker から main へ報を渡す層が reply.terminal を写して持つかは辿れていない。単位が 0 個の書き出しを本物の worker で走らせる確かめは、試験 stall のほかにしていない",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しか置き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-terminal-output.json:462 の P3-TO-RES-01 の limit の末尾に「（P3-TERMINAL-OVERSIZE-001: 省いた件数は列が空なら次の出力を待たずに件数だけの書き出しで出す。時系列のまとまりは 1 MiB を越える報の材料を持たず、束の単位は報の riskRows を持たない）」を書き足す (2) 同じ file の 606 行の P3-TO-AC08 の「積む時に 1 回だけ見積もる」の後に「（U-F の VPWP50 は時系列のまとまりに置く時にも 1 回。P3-TERMINAL-OVERSIZE-001）」を書き足す (3) reconstruction/contracts/p3-terminal-layout11.json:291 の P3-TL11-AC01 の (5) の「2 件以上は 1 つの単位（AC03 (1)）で積む」の後に「（単位の report は reports[0] の riskRows を null にした写し。1 MiB を越える報はまとまりに riskRows を除いた写しで置き、1 件なら積まずに数える。P3-TERMINAL-OVERSIZE-001）」を書き足す (4) reconstruction/contracts/p3-terminal-layout19.json:362 の P3-TL19-AC04 の (2) の「その配送までは」の前に「（P3-TERMINAL-OVERSIZE-001 で決めた。）」を書き足す (5) 実装で output.ts の行が下へずれて古くなる p3-terminal-layout19.json の地の文の行番号を、関数と定数の名前に置き換える（行の中の置き換え。どれも «» では引かれていない）: Q-TL19-LIMIT (d) の「estimate の式（output.ts の 70 行）」を「estimate の式（output.ts の estimate）」に、残存 (10) の「output.ts の 68・69 行と material.ts の 11〜13 行の注記」を「output.ts の estimate の上の注記と material.ts の AREA_LIMIT の上の注記」にする。同じ file の「output.ts の 322〜331 行」（Q-TL19-FIELD と outOfScope）を「output.ts の flushSeries」に、「output.ts の 258 行」（Q-TL19-HOLD と残存 (6)(b)）を「output.ts の push」に、「output.ts の 570・571 行」（Q-TL19-R2 と残存 (6)(d)）を「output.ts の sink.inputDone」に、残存 (6)(d) の「（258 行）」を「（push の省く枝）」にする（配送の整合のレビューの P3 で足した）。«» の付け直し（同じ commit）: 実装で中身が変わる output.ts の行を引く «» は新しい anchor を手で入れる（起草の時の数え: 258 行〔p3-terminal-debug-tip.json・p3-terminal-layout19.json・本契約〕、321 行〔p3-terminal-layout17.json・p3-terminal-layout19.json・本契約〕、331 行〔p3-terminal-layout19.json・本契約〕、237・571・63・640 行〔本契約〕）。(1)〜(5) の改訂で中身の変わる契約の行のうち、«» で引かれる行（p3-terminal-output.json:462・606、p3-terminal-layout11.json:291、p3-terminal-layout19.json:362）も新しい anchor を手で入れる。中身が同じで行のずれた «» は、完全な path だけを当てる付け直し（reanchor-target.py は短い path の地の文の引用にも当たる。P3-TERMINAL-LAYOUT-018 の配送で layout10・layout12 の地の文に当たった）で付け直す。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "本物の経路での写し（統合担当、配送の前）: 1 MiB を越える実物の報は無いので要らない。実装の後の木で、ふだんの便（81_09_01 を 1 件、同じ発表時刻の 2 件）の写しが今と同じ字になることを 1 回見る",
+      "配送の記録（統合担当、2026-11-11）: (1) 実装は db1a3559（output.ts と material.ts）と 0b930fd4（試験 oversize.test.ts）。output.ts は seriesBytes の型、kick の echo、push と flushSeries の注記などで行が下へずれ、本文に書いた起草の時の行番号（kick の 237 行、push の 258 行、flushSeries の 321・331 行、sink.inputDone の 571 行、返す object の 640 行など）は配送の木では 239・264・329・340・581・650 行など。本文の行番号は配送の木の行と合わせて読む (2) レビューの結果: 契約適合 Opus 5.5 xhigh GO（P3 3）、品質 gpt-6-astra xhigh（新しいスレッド・読むだけ）GO（P3 1）。実走は tsc 3 本 rc 0、端末の試験 36 file・293 件 rc 0（整合のレビューの側）。ヘルツの側の vitest は読むだけの sandbox で blocked。P3 のうち残すものは残存 (6)(7) に書いた (3) 原文の改訂 (1)〜(5) は配送の commit で p3-terminal-output.json の 462・606 行、p3-terminal-layout11.json の 291 行、p3-terminal-layout19.json の 362・157・517・129・294・178・192 行に当て、«» で引かれる p3-terminal-output.json の 462・606 行、p3-terminal-layout11.json の 291 行、p3-terminal-layout19.json の 362 行の anchor と、実装で中身の変わった output.ts の 237・258・331・571 行を引く «» を手で付け直した"
     ],
     "unresolvedQuestions": []
   }

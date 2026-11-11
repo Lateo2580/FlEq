@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "584a49573bce19e6eec98439b0d39ac57f6829dd",
-    "sha256": "57e2073838b777c5cf2a1e926aebb2958bb0b5a6b6cb0b7bf131f7e7eb36dba9",
+    "sha256": "2a441cc1c620253a960cab0f1510b73ad6c2c6638964aec42e0c9a037d2f7825",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -126,15 +126,15 @@
         "id": "P3-TDT-AC01",
         "requirement": "--debug の行は tips の待ちの起点を動かさない（統合担当の決め、2026-11-10）: (1) output.ts の push で lastOutputMs を今の時刻にする条件（:255）を「数える単位（counted）で、かつ notice の kind が debug でない」にする。--debug の行は inputDone の行（:625、P3-TO-AC17 (1)）と inputDropped の行（:630、P3-TDR-AC01）の 2 つで、どちらも notice（:274）を通るので、条件 1 つで両方が外れる (2) counted そのもの（:77）は変えない。列から落とした数（:258・:259、D-DROP）では --debug の行も今までどおり数える (3) tick（:419）の比べと間隔（既定 30 分〔:35〕、設定の値）、ほかの単位が起点を動かすこと、まとまりや待ちの表に置いた時の起点の代入は変えない (4) --debug でない起動では debug の notice を積まないので、振る舞いは何も変わらない（既存の tips の試験 layout8.test.ts:187 の後半と output.test.ts:99 の P3-CLI-T19 は変えない） (5) 受信経路の計算量（AGENTS.md）: push 1 回に比べが 1 つ増えるだけ。走査・直列化をしない",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:255 «73710cfef527956a»",
-          "reconstruction/src/terminal/output.ts:254 «eb021cecfe47fa38»",
-          "reconstruction/src/terminal/output.ts:77 «a6679ae6c4cc16e2»",
-          "reconstruction/src/terminal/output.ts:258 «df6dcc1278732971»",
-          "reconstruction/src/terminal/output.ts:274 «fa7f7ada4df17a32»",
-          "reconstruction/src/terminal/output.ts:419 «2e886d21d6e2c58f»",
+          "reconstruction/src/terminal/output.ts:260 «73710cfef527956a»",
+          "reconstruction/src/terminal/output.ts:259 «eb021cecfe47fa38»",
+          "reconstruction/src/terminal/output.ts:79 «a6679ae6c4cc16e2»",
+          "reconstruction/src/terminal/output.ts:264 «c6ecb3f87a3f0575»",
+          "reconstruction/src/terminal/output.ts:280 «fa7f7ada4df17a32»",
+          "reconstruction/src/terminal/output.ts:428 «2e886d21d6e2c58f»",
           "reconstruction/src/terminal/output.ts:35 «5afebc6b307f2309»",
-          "reconstruction/src/terminal/output.ts:625 «6a7d0548989939da»",
-          "reconstruction/src/terminal/output.ts:630 «9fd0e91928b1ca47»",
+          "reconstruction/src/terminal/output.ts:635 «6a7d0548989939da»",
+          "reconstruction/src/terminal/output.ts:640 «9fd0e91928b1ca47»",
           "reconstruction/test/terminal/layout8.test.ts:187 «337943241e7c93ff»",
           "reconstruction/test/terminal/output.test.ts:99 «fb4e5bdfc7d72692»"
         ]

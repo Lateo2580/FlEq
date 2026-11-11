@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "7092ee44d8e5049d82cff4a92dd6d971f2a473ca6585023c020dd18b3b98623f",
+    "sha256": "9dfa81fe240994af67cdb69097547f413c538923791e219a73bbd40c9c3d9287",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -327,8 +327,8 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:946 «f23179083a311f59»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1150 «569df56fdc9b65a9»",
           "reconstruction/src/terminal/material.ts:355 «744087a2cd4e4fc9»",
-          "reconstruction/src/terminal/output.ts:490 «df18802267659c7f»",
-          "reconstruction/src/terminal/output.ts:419 «2e886d21d6e2c58f»"
+          "reconstruction/src/terminal/output.ts:499 «df18802267659c7f»",
+          "reconstruction/src/terminal/output.ts:428 «2e886d21d6e2c58f»"
         ]
       },
       {
@@ -372,7 +372,7 @@
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:83 «acd70b64750d0720»",
           "docs/specs/cli-terminal-output.md:566 «f874613a720d04ef»",
-          "reconstruction/src/terminal/output.ts:490 «df18802267659c7f»",
+          "reconstruction/src/terminal/output.ts:499 «df18802267659c7f»",
           "reconstruction/src/terminal/format.ts:690 «9b48a3baea15eff3»"
         ]
       }
