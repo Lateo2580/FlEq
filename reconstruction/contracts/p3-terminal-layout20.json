@@ -1,0 +1,340 @@
+{
+  "meta": {
+    "draftedFromOid": "248036a194f5a4ff7ed1b5cc3a027eb64c1d19c6",
+    "sha256": "1eaf6966bee458f53e0513bf6e1a6fc2fcd5f2ef57fa8977c19ea17e9bbfb00c",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TL20-D-RISK-COLOR",
+        "kind": "作者",
+        "A": "1 件の気象警報・注意報時系列情報の種類の行の「種類（段階）」の部分だけに、段階の重さの色を付ける。時間帯・市町村等・続きの行には付けない。色は Code の十の位で決め、上の 2 段を塗る: 5（特別警報級・警戒レベル5相当）は白 #ffffff の地に黒の太字（役目 bandTop と同じ姿）、4（危険警報級・警戒レベル4相当）は紫 #b23ab2 の地に白の太字（bandPurple と同じ姿）、3（警報級・警戒レベル3相当）は朱のリフト #e56910 の字の太字（地は塗らない）、2（注意報級・警戒レベル2相当）は黄 #f0e442 の字（太字にしない。地は塗らない）、それ以外の Code は色なし（今のまま）",
+        "B": "塗るのは十の位 5 だけ。4 は紫の字、3 は朱のリフトの字、2 は黄の字（不採用）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-11。起草の前）",
+        "ruling": "A（作者の裁定、2026-11-11）",
+        "reason": "場面: 作者が P3-TERMINAL-LAYOUT-019 の 1 件の形を実端末で見て「色分けがなく少し判別しづらい。見出し（土砂災害危険度（警戒レベル4相当）など）の部分に該当する色付けを行った方がいい」と言った（2026-11-11）。今の種類の行は字だけで、81_02_01 の「大雨浸水危険度（特別警報級）」と「土砂災害危険度（警戒レベル4相当）」が同じ見た目で並ぶ。色の根拠は端末の spec の Q-TO3-LEVEL（短い形の段: L5 白、L4 紫、L3 警報の色、L2 注意の色）と、震度は 6 強・7 の上の 2 段だけを塗る決まり（§3.1 の震度の段の項）。A はこの「上の 2 段を塗る」に合わせ、B は塗る段を 1 つに減らす。案 A・B の色つきの見本は統合担当が作った（.dr-tmp/tl20-mock.ansi。repo の外）"
+      },
+      {
+        "id": "P3-TL20-D-SERIES-SAME",
+        "kind": "作者",
+        "A": "同じ発表時刻の報をまとめた 1 ブロック（format.ts の timeseries。「気象警報・注意報時系列情報 N件」の帯の下の「種類（段階）」の並び）にも P3-TL20-D-RISK-COLOR と同じ決まりの色を付け、段階の名前の字も 1 件の形と同じく nfkc で半角に揃える",
+        "B": "色だけ付け、段階の名前は電文の字のまま（不採用）",
+        "C": "今のまま（色なし・電文の字のまま。不採用）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の裁定、2026-11-11。起草の前）",
+        "ruling": "A（作者の裁定、2026-11-11）",
+        "reason": "場面: 定時の便は全国の気象台から 58 件ほどが同じ発表時刻で届き、端末は 1 つの束にまとめる（Q-TO12-VPWP50）。1 件の形だけに色を付けると、同じ種類が束では色なしで並び、1 件の形は「警戒レベル4相当」、束は実配信の電文の字のまま「警戒レベル４相当」（全角の数字）と字も揃わない（P3-TERMINAL-LAYOUT-019 の残存 (7)。実物の段階の名前が全角の数字であることは Q-TL19-STAGE-NAME の closed、p3-terminal-layout19.json の 171 行）"
+      },
+      {
+        "id": "P3-TL20-D-BANNER-WRAP",
+        "kind": "作者",
+        "A": "起動の帯の 1 行（「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」、役目 banner）が端末の幅に入らないときだけ 2 行にする。1 行目は「<appName> v<version>」に今の banner の役目、2 行目は 2 桁下げた「Project DM-D.S.S リアルタイム地震・津波情報モニター」で役目なし（「 — 」は出さない）。幅に入るときは今のまま。前後の空行も今のまま。2 行目も入らない幅では、今と同じく書き出しの折りに任せる",
+        "B": "今のまま（1 行を書き出しの折りに任せる。狭い幅では字の途中で折れる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者の依頼、2026-11-11。条件と色は統合担当が決め、見本を作者に見せた）",
+        "ruling": "A（作者の依頼 2026-11-11「狭い幅では最初のタイトルが変な場所で改行されている。次のように区切る」と、見本の確かめ）",
+        "reason": "場面: 今の帯の 1 行は fleq-next v4.1.0 で 70 桁（fleq-watch で 71 桁）で、69 桁以下の端末では書き出しの physical が字の境目で折る（起草の写しで今のコードを描くと、69 桁は「fleq-next v4.1.0 — Project DM-D.S.S リアルタイム地震・津波情報モニ」「  ター」、30 桁は「fleq-next v4.1.0 — Project DM-」「  D.S.S リアルタイム地震・津波」「  情報モニター」のように語の途中で割れる）。作者が示した形は「fleq-watch v4.1.0」と「  Project DM-D.S.S リアルタイム地震・津波情報モニター」の 2 行"
+      },
+      {
+        "id": "P3-TL20-D-WRAP-COLOR",
+        "kind": "作者",
+        "A": "種類の字が書き出しで折れたとき、続きの行の種類の字も同じ色で塗る（wrapChars が字ごとに役目を保つ今の書き出しの動きのまま。何も足さない）。塗る段（十の位 4・5）では地の色が 2 行に割れる",
+        "B": "続きの行の種類の字は色なし（折れる前の行の字だけ塗る。書き出しの後で役目を外す処理を足す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者の裁定待ち（本文は今の動きに近い A で書いた）",
+        "ruling": "未",
+        "reason": "今の動き: 色のあるほかの字（帯の題名・段の理由の行・震度の段の字・EEW の震源の名前）も、書き出しで折れると続きの行で同じ役目のまま。起きる時: 本文の幅が種類の字より狭いときだけ（縦線の無い 60 桁未満の端末で、fixture の最長は「土砂災害危険度（警戒レベル4相当）」の 33 桁なので 33 桁未満。束で 1 組が幅より長いときも同じ）。起草の写しで、28 桁・色ありの 81_02_01 は A で「土砂災害危険度（警戒レベル4」（紫の地に白の太字）、「  相当）  夜のはじめ頃〜夜遅」（空白 2 桁は地の色、「相当）」が紫の地、後ろは色なし）、「  く」。B は 2 行目の「相当）」が色なしになる"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TL20-ROLE",
+        "status": "closed",
+        "source": "起草（2026-11-11）。4 つの姿に当たる役目が color.ts に既にあるか、十の位 3 に名前を足すか",
+        "closed": "足さない。color.ts の ROLES に 4 つの姿が全部ある: bandTop（白の地に黒の太字、14 行）、bandPurple（#b23ab2 の地に白の太字、14 行）、ruleWarning（#e56910 の字、15 行）、ruleCaution（#f0e442 の字、16 行）。十の位 3 の太字は seg の bold で立てる（paintSegs が strong を重ねる、format.ts の 1047 行）。この形は EEW の震源の名前（681 行の seg(name, roles.rule, true)）と津波の区分の字（468 行の ruleWarning・ruleCaution）が既に使っていて、spec §3.1 の表の「警報の字（罫線、到達の字、区分の字）」「注意の色」の役目と意味が合う。int6Lower は姿が同じでも震度の段の名前なので使わない。無いと何が壊れるか: 新しい役目は無くても壊れるものが無い（同じ姿の役目と bold の旗で描ける）。color.ts は変えない",
+        "remaining": "起草の報告で A（足さない）・B（意味の名前を 1 つ足す）を挙げる。作者の裁定は未"
+      },
+      {
+        "id": "Q-TL20-WRAP",
+        "status": "closed",
+        "source": "起草（2026-11-11）。色を付けた字が折りをまたいだとき",
+        "closed": "wrapChars は字ごとに role と bold を保って行を組み（format.ts の 89 行の append）、書き出しの physical（293 行）は本文の幅を越える行だけを wrapChars で折る。種類の字が折れると、続きの行の種類の字も同じ役目で塗られ、続きの行の頭の 2 桁の空白は役目なし。束の 1 組が幅より長いときの flow（147 行）の wrapChars も同じ。起草の写しで、28 桁・色ありの 81_02_01 は「土砂災害危険度（警戒レベル4」が紫の地、続きの行は 2 桁の空白（地の色）の後の「相当）」が紫の地、その後ろの「  夜のはじめ頃〜夜遅」は色なしになった。契約はこの何も足さない動きで書く（折れた続きの色を消す処理を書かない）。種類の字が割れるのは本文の幅が種類の字より狭いときだけ（fixture の最長は「土砂災害危険度（警戒レベル4相当）」の 33 桁）",
+        "remaining": "P3-TL20-D-WRAP-COLOR（作者の裁定待ち。本文は A）"
+      },
+      {
+        "id": "Q-TL20-SAME-TEXT",
+        "status": "closed",
+        "source": "起草（2026-11-11）。色を付けても字の並びと折りが変わらないか、期待の変わる既存の試験",
+        "closed": "1 件の形は 1 行目を seg 2 つに分けるだけで字は変わらない（wrapChars と physical は字ごとに幅を数え、seg の境を見ない）。束の形は nfkc で全角の英数字が半角になる分だけ字が変わる。起草の写し（.dr-tmp/ の中に reconstruction を CoW で写し、AC01〜AC03 を当てた format.ts）で terminal の試験 35 file を回すと、落ちたのは layout11.test.ts の P3-TL11-T04 (d) の 1 件（32 組の risks の Name の半分が全角の「警戒レベル４相当」で、期待の組の Set を生の字で作っている。355 行）だけ。ほかに stall.test.ts の 1 file が、写しの置き場所から repo の根を求める道で test/fixtures/telegram-foundation の fixture を見つけられず（ENOENT）、試験の前に落ちた（本契約と関わらない写しの事情）。layout17.test.ts（1 件の形の色 0 の字と折り）、startup.test.ts の BANNER（80 桁で 70 桁の 1 行）、layout11.test.ts のほかの期待（fixture の Name は半角）は変わらない。起草中の P3-TERMINAL-OVERSIZE-001 の P3-TOV-T02 の期待（「濃霧危険度（特別警報級）」、色 0 の書き出し）も、Name が半角で色 0 なので変わらない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL20-BANNER-WIDTH",
+        "status": "closed",
+        "source": "起草（2026-11-11）。帯の行を作る所が端末の幅を知れるか",
+        "closed": "知れる。notice(item, ctx) は ctx を受けていて、ctx.total は線の右端と同じ min(端末の桁数, 100)（createRenderer の render、format.ts の 1070 行。桁数は main が書き出しの時に読む process.stdout.columns、無ければ 80）。notice の行は今も paintLines の physical がこの ctx.total で折る（1049・1050 行）ので、判定を ctx.total で書けば今の折りの境目と同じになる。幅を渡す仕組みは足さない。appName は設定で変わるので、判定は実際の 1 行の字を width で測る。fleq-next v4.1.0 の 1 行は 70 桁、2 行目（空白 2 桁＋副題）は 53 桁。1 行が 100 桁を越える appName は 130 桁の端末でも 2 行になる（今はその 1 行が 100 桁で字の境目で折れる）",
+        "remaining": "起草の報告で 100 の頭打ちを A（今の書き出しと同じ ctx.total）・B（端末の桁数そのもの）で挙げる。作者の裁定は未（残存 (3)）"
+      },
+      {
+        "id": "Q-TL20-MOCK",
+        "status": "closed",
+        "source": "起草（2026-11-11）。見本 .dr-tmp/tl20-mock.ansi と実物の字の違い",
+        "closed": "見本から取るのは色の値と、色を付ける部分（「種類（段階）」だけ、起動の帯の 1 行目だけ）だけにする。見本は種類の行を 2 桁・市町村を 4 桁下げ、束の区切りを半角の空白 2 つで描いているが、実物は種類の行が 0 桁・市町村の行が 2 桁（layout17.test.ts の期待）、束の区切りは全角の空白（flow の 144 行）で、本契約はこれを変えない。見本の escape（1;38;2;… の 1 つの並び）と chalk の escape（太字と色を別の並びで出す）は byte が違うので、試験の期待は painter(3) で作る",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TL20-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-11）",
+        "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける（P3-TERMINAL-LAYOUT-018 と同じ）",
+        "remaining": "発注の時の baseOid（統合担当）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。種類の行の色と起動の帯の折りは運用区分によらず同じ"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-LAYOUT-020",
+    "mode": "implementation",
+    "objective": "作者の裁定と依頼（2026-11-11）のとおり、(1) 1 件の気象警報・注意報時系列情報（VPWP50）の種類の行の「種類（段階）」の字に段階の重さの色を付け（P3-TL20-D-RISK-COLOR=A）、(2) 同じ便をまとめた束の種類の並びにも同じ色を付けて段階の名前を半角に揃え（P3-TL20-D-SERIES-SAME=A）、(3) 起動の帯の 1 行が端末の幅に入らないときは名前と版の行と副題の行の 2 行にする（P3-TL20-D-BANNER-WRAP=A）。材料（material.ts）・型・色の役目（color.ts）は変えず、整形（format.ts の spanLines・timeseries・notice の case \"banner\"）だけを改める。spec と閉じた契約の文は配送で統合担当が当てる（artifactRequirements の原文の改訂）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/contracts/p3-terminal-layout20.json",
+      "reconstruction/contracts/p3-terminal-layout19.json",
+      "reconstruction/contracts/p3-terminal-layout11.json",
+      "reconstruction/contracts/p3-terminal-layout7.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/color.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/test/terminal/**",
+      "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml",
+      "test/fixtures/81_03_01_260605_VPWP50_unknown_code.xml",
+      "test/fixtures/81_09_01_260605_VPWP50.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/format.ts（P3-TL20-AC01〜AC03 だけ。(a) timeseries の 798 行〔flow の項目〕の項目の作り方 (b) notice の case \"banner\"〔905 行〕を、1 行の字を測って 1 行か 2 行を返す形に。case を { } の塊にして行が増えてよい (c) spanLines〔998〜1008 行〕の 1 行目の種類の字の作り方と、行を seg に分ける return (d) AC01 (7) の関数 1 つを type RiskRow〔995 行〕の後、spanLines の頭のコメント〔996 行〕の前に足す。riskLines・areaLines・paintSegs・wrapChars・physical・flow とほかの関数と行は変えない。996・997 行と 987・988 行のコメントは、行の数を変えない書き換えだけしてよい。行が増えると 906 行から後と 996 行から後がずれるので、配送で «» を付け直す〔artifactRequirements の原文の改訂〕）",
+      "reconstruction/test/terminal/layout11.test.ts（P3-TL11-T04 (d) の 355 行の pairs を、Name を NFKC で読み替えた字で作る形に改めるだけ〔artifactRequirements の期待が変わる試験〕。ほかの行は変えない）",
+      "reconstruction/test/terminal/layout20.test.ts（新しい file。P3-TL20-T01〜T03 を置く。terminal-fixture の terminal・reportOf・reportUnit と color.ts の painter を使い、新しい helper の file は作らない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-layout20.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-LAYOUT-019",
+      "P3-TERMINAL-LAYOUT-011",
+      "P3-TERMINAL-LAYOUT-007"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口も型も変えない（createRenderer・createTerminalOutput と TerminalReport のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（format.ts の中の seg・line・width・nfkc・flow と、すでに import している color.ts の Role。import を足さない）"
+    ],
+    "fixtureIds": [
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+      "test__fixtures__81_03_01_260605_VPWP50_unknown_code",
+      "test__fixtures__81_09_01_260605_VPWP50"
+    ],
+    "sequenceIds": [
+      "O01",
+      "O02"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし（材料の risks・riskRows〔P3-TL11-AC02・P3-TL19-AC01〕と起動の設定の appName・version を描くだけで、欄を足さない）"
+    ],
+    "outOfScope": [
+      "材料（material.ts の risks・riskRows の作り方と Code の範囲）と型（p3-terminal-output.types.ts）、種類の並び・数・時間帯と市町村等の行の字と折り（P3-TERMINAL-LAYOUT-019）、束の件数・帯・末尾の行・まとめ方（P3-TERMINAL-LAYOUT-011・015）",
+      "色の役目と値（color.ts の ROLES。新しい役目を足さない。Q-TL20-ROLE）",
+      "時間帯・市町村等・「ほか n」・帯の境で折った続きの行の色（P3-TL20-D-RISK-COLOR=A で付けない）、帯の段と帯の色（束の段は普通のまま、P3-TL11-D-TS-LEVEL=A）",
+      "折れた種類の字の続きの色を消す処理（Q-TL20-WRAP）",
+      "起動の帯のほかの行（端末の題名・区分の行・偽の dmdata の行）と、帯の前後の空行",
+      "spec と閉じた契約の文の書き換え（配送で統合担当が原文の改訂として当てる）",
+      "ディスプレイ（P4）・runtime・旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TL20-AC01",
+        "requirement": "1 件の形の種類の行の色（P3-TL20-D-RISK-COLOR=A、作者の裁定 2026-11-11）: (1) 対象は 1 件の形の種類の行（spanLines が作る 1 行目。P3-TL19-AC02 (2)）。「<type>（<nfkc(name)>）」の字だけに、Code の十の位で決めた役目を付ける: 5 は bandTop（白 #ffffff の地に黒の太字）、4 は bandPurple（紫 #b23ab2 の地に白の太字）、3 は ruleWarning（朱のリフト #e56910 の字）に seg の bold を立てる、2 は ruleCaution（黄 #f0e442 の字。bold は立てない）。それ以外の Code は役目なし（今のまま。material.ts の 181 行が Code を 2 桁の 20〜59 に絞るので今の材料からは来ない。専用の試験は作らない） (2) 時間帯（種類の字の直後の空白 2 桁から後）、帯の境で折った続きの行（spanLines の 2 行目から）、市町村等の行（areaLines）、「ほか n」には付けない。1 行目を「種類の字の seg（役目つき）」と「残りの seg（役目なし）」の 2 つにする（Line は seg を並べられ、paintSegs が seg ごとに塗る。1047 行） (3) 字は変えない: 前後に空白を足さない（震度 7 の solid のような色のときだけの詰めをしない）。wrapChars と physical は字ごとに幅を数えるので、折りの位置と字の並びは P3-TERMINAL-LAYOUT-019 のまま（layout17.test.ts の色 0 の期待はそのまま通る。Q-TL20-SAME-TEXT） (4) 種類の字が書き出しの physical で折れるとき（本文の幅が種類の字より狭いとき）は、wrapChars が字ごとに役目を保つので続きの行の種類の字も同じ役目で塗られ、続きの行の頭の空白 2 桁は役目なし。これを足す・消す処理は書かない（Q-TL20-WRAP。P3-TL20-D-WRAP-COLOR は作者の裁定待ちで、本文は今の動きの A。B に決まったら配送の前に契約を改める） (5) 色の段が 0（NO_COLOR・パイプ・ファイル）は painter が escape を出さないので（color.ts の 65 行）、字は今と同じ (6) 役目は color.ts の ROLES の既存のものを使い、新しい役目を足さない（Q-TL20-ROLE。十の位 3 の形は EEW の震源の名前〔681 行〕と同じ「rule の役目＋bold」。int6Lower は使わない） (7) 足す仕組みは関数 1 つ（例 riskHead。{ type; name; code } を受けて、字「<type>（<nfkc(name)>）」と役目と bold を持つ Seg を返す。十の位から役目と bold への対応の表は関数の中か直前に置いてよい）。無いと何が壊れるか: 1 件の形（spanLines）と束（timeseries）で色と字の決まりが 2 か所に分かれ、片方だけ直すと P3-TL20-D-SERIES-SAME=A が崩れる（987・988 行のコメントがこの危険を書いている）。置き場は type RiskRow（995 行）の後で、export・型・file は足さない (8) 計算量（AGENTS.md の受信経路）: renderer の中で種類ごとに対応を 1 回引くだけ（32 種類まで）で、受信の main の仕事は変えない。場面: 81_02_01（宗谷地方、2026-06-05 17:00 発表）を 80 桁・色ありで描くと、「大雨浸水危険度（特別警報級）」が白の地に黒の太字、その後ろの「  夜のはじめ頃」は地の色のまま、次の行「  稚内市」も色なし、「土砂災害危険度（警戒レベル4相当）」が紫の地に白の太字で「  夜のはじめ頃〜夜遅く」は色なし",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:995 «ece378da7a542760»",
+          "reconstruction/src/terminal/format.ts:999 «a88ca62b9285b92d»",
+          "reconstruction/src/terminal/format.ts:681 «3847a70d84173b18»",
+          "reconstruction/src/terminal/format.ts:89 «1bc012e697a81cf0»",
+          "reconstruction/src/terminal/format.ts:293 «bd58451a65e675df»",
+          "reconstruction/src/terminal/format.ts:1047 «755abe53d647e5dd»",
+          "reconstruction/src/terminal/color.ts:14 «19b95b2198d6dda1»",
+          "reconstruction/src/terminal/color.ts:15 «212369a305a9fa1e»",
+          "reconstruction/src/terminal/color.ts:16 «cd36d8ef25ca945f»",
+          "reconstruction/src/terminal/color.ts:65 «603d774e89ab9f2a»",
+          "reconstruction/src/terminal/material.ts:181 «af85c4dbf4822bee»",
+          "docs/specs/cli-terminal-output.md:46 «ee9e9e12d6e69f44»",
+          "docs/specs/cli-terminal-output.md:48 «1659b37f9ada2df9»",
+          "docs/specs/cli-terminal-output.md:49 «c568f6835afbc5d2»",
+          "docs/specs/cli-terminal-output.md:50 «4c7209669f1508c6»",
+          "docs/specs/cli-terminal-output.md:60 «6966554ac2cf3c1e»",
+          "docs/specs/cli-terminal-output.md:664 «9d9d52259462e57e»",
+          "docs/specs/cli-terminal-output.md:948 «691422c0cc55af6e»",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "id": "P3-TL20-AC02",
+        "requirement": "束の種類の並びの色と半角（P3-TL20-D-SERIES-SAME=A、作者の裁定 2026-11-11）: (1) 対象は timeseries の種類の並び（798 行の flow の項目）。各項目を AC01 (7) の関数で作る。字は「<type>（<nfkc(name)>）」（1 件の形と同じく nfkc〔208 行。NFKC の正規化と前後の空白の除き〕で全角の英数字・括弧・空白を半角に。type は今のまま）、役目と bold は AC01 (1) と同じ (2) 区切りの全角の空白（flow の 144 行）、折り方（組の境。1 組が本文の幅より長いときだけ組の中を wrapChars で折る）、並び（Code の大きい順、同じ Code は先に現れた順）、帯・末尾の行は変えない。区切りの空白と続きの行の頭には役目を付けない。1 組が組の中で折れるときの色は AC01 (4) と同じ (3) nfkc で字が狭くなる（「４」の 2 桁が「4」の 1 桁）ので、全角の数字の Name を持つ束は 1 行に入る組の数が今より増えうる（折りの位置が変わる）。fixture から作る risks の Name は全部半角（「警戒レベル4相当」など。起草の写しで 81_02_01・81_03_01・81_06_01・81_08_01・81_09_01 の riskRows を描いて確かめた）で、全角は試験が作った risks だけ（layout11.test.ts の 354 行）。気象庁の実物の段階の名前は「警戒レベル２未満」のように全角の数字（Q-TL19-STAGE-NAME の closed、p3-terminal-layout19.json の 171 行） (4) 色の段が 0 の字は (3) の半角のほかは今と同じ (5) 計算量: renderer の中で組ごとに 1 回（32 組まで）。場面: 2 件の束の risks が「大雨浸水危険度・特別警報級・50」「土砂災害危険度・警戒レベル４相当・41」「風危険度・警報級・30」「濃霧危険度・注意報級・20」なら、100 桁の帯の下は「大雨浸水危険度（特別警報級）　土砂災害危険度（警戒レベル4相当）　風危険度（警報級）」と「濃霧危険度（注意報級）」の 2 行で（「警戒レベル4相当」は半角）、色ありでは 4 つの組がそれぞれ白の地・紫の地・朱のリフトの太字・黄の字、全角の空白は色なし",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:798 «d9396eb663483691»",
+          "reconstruction/src/terminal/format.ts:144 «0d0f8f0023a36a89»",
+          "reconstruction/src/terminal/format.ts:208 «7c156f3e87d51fa0»",
+          "reconstruction/test/terminal/layout11.test.ts:354 «99566e31538e025a»",
+          "docs/specs/cli-terminal-output.md:940 «d1f1b6799dc1c82b»"
+        ]
+      },
+      {
+        "id": "P3-TL20-AC03",
+        "requirement": "起動の帯の折り（P3-TL20-D-BANNER-WRAP=A、作者の依頼 2026-11-11）: (1) notice の case \"banner\"（905 行）で、1 行の字「<appName> v<version> — Project DM-D.S.S リアルタイム地震・津波情報モニター」の幅（width で測る。appName と version は実際の字）が ctx.total 以下なら今のまま（空行・役目 banner の 1 行・空行の 3 行） (2) 越えるなら、空行・役目 banner の「<appName> v<version>」・役目なしの「  Project DM-D.S.S リアルタイム地震・津波情報モニター」（頭に空白 2 桁。「 — 」は出さない）・空行の 4 行 (3) ctx.total は線の右端と同じ min(端末の桁数, 100)（createRenderer の render、1070 行）で、notice の行は今も paintLines の physical がこの幅で折る。幅を渡す仕組みは足さない（notice は既に ctx を受ける。Q-TL20-BANNER-WIDTH） (4) 2 行目が ctx.total に入らない幅（fleq-next v4.1.0 では 52 桁以下）と、1 行目が入らない幅は、今と同じく physical が字の境目で折り、続きの行を 2 桁下げる (5) 色の段が 0 は同じ字の行で escape なし (6) 前後の空行、端末の題名、区分の行、偽の dmdata の行は変えない (7) 1 行が 100 桁を越える appName は、100 桁より広い端末でも 2 行になる（今はその 1 行が 100 桁で字の境目で折れる。ctx.total の頭打ち。残存 (3)）。場面: appName fleq-next・版 4.1.0 の 1 行は 70 桁で、70 桁の端末では今の 1 行、69 桁では「fleq-next v4.1.0」（空色の地に黒の太字）と「  Project DM-D.S.S リアルタイム地震・津波情報モニター」（53 桁、色なし）の 2 行。80 桁（startup.test.ts の BANNER）では今の 1 行",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:905 «7a237687f44cb4d9»",
+          "reconstruction/src/terminal/format.ts:1070 «69020a7f0c69befc»",
+          "reconstruction/src/terminal/format.ts:293 «bd58451a65e675df»",
+          "reconstruction/src/terminal/color.ts:21 «800723aa1aef0e88»",
+          "reconstruction/test/terminal/startup.test.ts:7 «6c90528626ec98ba»",
+          "docs/specs/cli-terminal-output.md:808 «d4c179ff8fba1682»",
+          "docs/specs/cli-terminal-output.md:821 «cb681df6bd63628f»",
+          "docs/specs/cli-terminal-output.md:928 «88ed1a874beaba13»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TL20-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL20-AC01"
+        ],
+        "behavior": "受入（AC01 (1)(2)(6)）。layout20.test.ts で、p = painter(3)、bar = p(\"barPlain\", \" \") + \" \"（縦線）とし、terminal(80, 3) で reportUnit(reportOf(fixture, \"U-F\")) を描く。(a) 81_02_01 の 4 行目から 7 行目（帯・見出し文の後）が [bar + p(\"bandTop\", \"大雨浸水危険度（特別警報級）\") + \"  夜のはじめ頃\", bar + \"  稚内市\", bar + p(\"bandPurple\", \"土砂災害危険度（警戒レベル4相当）\") + \"  夜のはじめ頃〜夜遅く\", bar + \"  稚内市\"]（時間帯と市町村等の行は escape なし） (b) 81_03_01（大雨浸水危険度・警戒レベル3相当・31）の 3 行目が bar + p(\"strong\", p(\"ruleWarning\", \"大雨浸水危険度（警戒レベル3相当）\")) + \"  夜のはじめ頃\" (c) 81_09_01 の 3 行目が bar + p(\"ruleCaution\", \"濃霧危険度（注意報級）\") + \"  06日朝〜06日昼前\"（太字なし）。色 0 の字が変わらないことは、layout17.test.ts の既存の期待が受け持つ（新しい試験を足さない）"
+      },
+      {
+        "testId": "P3-TL20-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL20-AC02"
+        ],
+        "behavior": "受入（AC02 (1)(2)(4)）。layout20.test.ts で、report を reportOf(81_02_01, \"U-F\")、count 2、offices 2、risks を [大雨浸水危険度・特別警報級・50、土砂災害危険度・警戒レベル４相当（全角の４）・41、風危険度・警報級・30、濃霧危険度・注意報級・20] にした timeseries の単位を描く。(a) terminal(100, 0) の帯の下から末尾の行の前までが [\"大雨浸水危険度（特別警報級）　土砂災害危険度（警戒レベル4相当）　風危険度（警報級）\", \"濃霧危険度（注意報級）\"]（半角の「4」） (b) terminal(100, 3) の同じ範囲が [bar + p(\"bandTop\", \"大雨浸水危険度（特別警報級）\") + \"　\" + p(\"bandPurple\", \"土砂災害危険度（警戒レベル4相当）\") + \"　\" + p(\"strong\", p(\"ruleWarning\", \"風危険度（警報級）\")), bar + p(\"ruleCaution\", \"濃霧危険度（注意報級）\")]（区切りの全角の空白は色なし）"
+      },
+      {
+        "testId": "P3-TL20-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TL20-AC03"
+        ],
+        "behavior": "受入と境目（AC03 (1)(2)(5)。幅を実際の字で測ること）。layout20.test.ts で、{ kind: \"notice\", notice: { kind: \"banner\", appName, version: \"4.1.0\" }, prompt: null } を同じ 70 桁で描く。(a) appName fleq-next（1 行 70 桁）の terminal(70, 3) が [\"\", p(\"banner\", \"fleq-next v4.1.0 — Project DM-D.S.S リアルタイム地震・津波情報モニター\"), \"\"]（ちょうど入る） (b) appName fleq-watch（1 行 71 桁）の terminal(70, 3) が [\"\", p(\"banner\", \"fleq-watch v4.1.0\"), \"  Project DM-D.S.S リアルタイム地震・津波情報モニター\", \"\"] (c) 同じ fleq-watch の terminal(70, 0) が [\"\", \"fleq-watch v4.1.0\", \"  Project DM-D.S.S リアルタイム地震・津波情報モニター\", \"\"]（境目の桁を 70 に決め打ちした実装は (b) で落ちる）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01・O02 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは AC01 (7) の関数 1 つだけ（無いと 1 件の形と束で色と字の決まりが 2 か所に分かれる）。新しい役目・export・設定・型の欄・file（試験の layout20.test.ts を除く）は作らない。AC03 は case \"banner\" の中の分岐だけで、幅を渡す仕組みは足さない（notice は既に ctx を受ける）。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01〜T03 は受入。layout11.test.ts の P3-TL11-T04 (d) の書き換えは AC02 (1) の半角）",
+      "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01・AC02 は renderer の中で種類ごとに対応を 1 回引くだけ（32 種類まで）、AC03 は起動の時の 1 回で、受信の main（publisher・material）の仕事は変えない",
+      "期待が変わる既存の試験（変える理由は AC02 (1) の半角）: layout11.test.ts の P3-TL11-T04 (d) の 355 行の pairs を、risk.name を NFKC で読み替えた字（例 risk.name.normalize(\"NFKC\")）で作る。354 行の risks（半分が全角の「警戒レベル４相当」）と、桁数を越えない・帯は 1 行・組は折れないの確かめは変えない。ほかの期待（layout17.test.ts の P3-TL17・P3-TL19 の全部、startup.test.ts の BANNER、layout11.test.ts のほか）は変えない。ほかを変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "起草の確かめ: P3-TL20-T01〜T03 の期待の字と escape は、起草の時に worktree の中の未追跡の .dr-tmp/ に reconstruction を CoW で写し、AC01〜AC03 を当てた format.ts（type RiskRow の後に十の位の対応の表と関数を 1 つ足し、spanLines の 1 行目を seg 2 つに、timeseries の項目をその関数に、case \"banner\" を 1 行か 2 行に）で、vitest の中で描いて写した（写しの使い捨ての試験 file で T01〜T03 の期待の全部が通り、P3-TL11-T04 (d) を書き換えた layout11.test.ts も通った）。同じ写しで terminal の試験 35 file を回し、落ちたのは Q-TL20-SAME-TEXT の 1 件と写しの置き場所の stall.test.ts だけだった。写しは repo に入れない。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
+      "本物の経路での写し（統合担当、配送の前）: 実装の後の木で、P3-TERMINAL-LAYOUT-019 の写しと同じ形（watch を桁数を変えて起こし、inject で fixture を入れる）で、81_02_01・81_03_01・81_09_01 を 1 件の便として、また 81_02_01 と 81_09_01 を同じ便として入れ、80 桁と 56 桁・色ありで写し、種類の字だけが塗られ時間帯と市町村等が色なしであることと、束の種類の色を見る。起動の帯は 69 桁と 80 桁で起こして写す。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 種類の字が折れると続きの行の種類の字も塗られ、塗る段（十の位 4・5）では地の色が 2 行に割れる（Q-TL20-WRAP・P3-TL20-D-WRAP-COLOR の A。本文の幅が種類の字より狭いときだけで、fixture の最長は 33 桁） (2) 束は全角の数字の Name を半角にするので、実配信の束は今より 1 行に多く組が入り、折りの位置が変わる（AC02 (3)） (3) 起動の帯の幅の判定は ctx.total（100 で頭打ち）なので、1 行が 100 桁を越える appName は 100 桁より広い端末でも 2 行になる（AC03 (7)） (4) 色の試験は painter(3) の escape で見るので、端末ごとの見え方（Nightfox の地の上の紫の地と白の地）は本物の経路での写しと作者の目視で見る",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き換えと書き足しで、行の数は変えない）: (1) docs/specs/cli-terminal-output.md:62（§3.1 の長周期地震動の階級の段の項）の末尾に「気象警報・注意報時系列情報の「種類（段階）」の字は段階の Code の十の位で、5 白の地に黒の太字、4 #b23ab2 の地に白の太字（ここまで塗る。震度の 6 強・7 と同じく上の 2 段）、3 朱のリフト #e56910 の太字、2 黄 #f0e442 の字（太字にしない）、ほかは色なし。時間帯・市町村等・続きの行には付けない（§5.4。P3-TL20-D-RISK-COLOR=A、2026-11-11 の作者の裁定）。」を書き足す (2) 同じ file の 664 行（§5.4 の時系列情報の項）: 束の種類の行の「Name（「注意報級」など）を電文の字のまま組にし」を「Name（「注意報級」など）を組にし（Name は 1 件の形と同じく NFKC の正規化で半角に読み替える。P3-TL20-D-SERIES-SAME=A、2026-11-11 の作者の裁定）」に改め、1 件の形の「P3-TL19-D-DIGITS。例「濃霧危険度（注意報級）  06日朝〜06日昼前」）。」の後に「「<type>（<Name>）」の字には段階の重さの色を付ける（§3.1。時間帯・市町村等・続きの行には付けない。束の種類の並びも同じ色。P3-TL20-D-RISK-COLOR=A・D-SERIES-SAME=A、2026-11-11 の作者の裁定）。」を書き足す (3) 同じ file の 821 行（§6.7 の帯の行の項）の「後ろに空行を 1 行置く。」の後に「1 行が端末の幅（線の右端と同じ、桁数と 100 の小さい方）に入らないときは、「<appName> v<版>」を帯の色で 1 行目に、2 桁下げた「Project DM-D.S.S リアルタイム地震・津波情報モニター」を色なしで 2 行目に出す（「 — 」は出さない。2 行目も入らなければ字の境目で折る。P3-TL20-D-BANNER-WRAP、2026-11-11 の作者の依頼）。」を書き足す (4) 同じ file の 928 行（Q-TO8-BANNER）の答えの「新築の中身を入れる（§6.7）」の後に「。帯が幅に入らないときは名前と版の行と、2 桁下げた副題の行の 2 行（P3-TERMINAL-LAYOUT-020）」を書き足す (5) 同じ file の 940 行（Q-TO12-VPWP50-KINDS）の「Name を電文の字のまま組にし」の後に「（P3-TERMINAL-LAYOUT-020 で Name を NFKC で半角にし、段階の重さの色を付けた。P3-TL20-D-SERIES-SAME=A）」を書き足す (6) 同じ file の 948 行（Q-TO19-VPWP50-SINGLE-ROWS）の「Q-TO17-VPWP50-SINGLE を改めた。」の前に「「種類（段階）」の字には段階の重さの色を付ける（§3.1。P3-TL20-D-RISK-COLOR=A）。」を書き足し、同じ行の「束の形は変えない。」を「束の形は変えない（P3-TERMINAL-LAYOUT-020 で、束の段階の名前の半角と色だけを 1 件の形に揃えた。P3-TL20-D-SERIES-SAME=A）。」に改める (7) reconstruction/contracts/p3-terminal-output.types.ts:87 のコメントの「出す字は電文の type と Name のまま。」を「出す字は電文の type と Name（端末が Name を NFKC で半角に読み替える。P3-TL20-D-SERIES-SAME=A）。」に改める (8) reconstruction/contracts/p3-terminal-layout11.json:322 の P3-TL11-AC03 の (3) の「「<type>（<Name>）」を全角の空白で区切って並べる」の後に「（P3-TERMINAL-LAYOUT-020 で Name を NFKC で半角にし、段階の重さの色を付けた。P3-TL20-D-SERIES-SAME=A、2026-11-11）」を書き足す (9) reconstruction/contracts/p3-terminal-layout17.json:143 の「「<type>（<Name>）」（電文の字のまま）」の後に「（P3-TERMINAL-LAYOUT-020 で、束も 1 件の形も Name を半角にし、段階の重さの色を付けた）」を書き足す (10) reconstruction/contracts/p3-terminal-layout19.json の 171 行と 517 行の「束では全角のまま出る」の後に、それぞれ「（P3-TERMINAL-LAYOUT-020 で束も半角にした）」を書き足す (11) reconstruction/contracts/p3-terminal-layout7.json:290 の P3-TL7-AC04 の (1) の「を空色の地に黒の太字、空行を積む」の後に「（P3-TERMINAL-LAYOUT-020 で、1 行が端末の幅に入らないときは「<appName> v<version>」と、2 桁下げた副題の 2 行にした）」を書き足す。«» の付け直し（同じ commit）: (a) 中身を変えた行を引く «» は、行番号はそのままで anchor だけを新しい行の anchor（check-manifest.mjs の lineAnchor と同じ式）に替える。起草の時に引いているのは、spec の 664 行（p3-terminal-layout11・14・15・17・19 と本契約）、821 行と 928 行（p3-terminal-layout7 と本契約）、940 行（p3-terminal-layout11 と本契約）、948 行（p3-terminal-layout19 と本契約）、types.ts の 87 行（p3-terminal-layout12・19）、p3-terminal-layout17.json の 143 行（p3-terminal-layout19）。配送の時の木で古い anchor を grep して全部を替える。spec の 62 行と p3-terminal-layout11.json の 322 行・p3-terminal-layout19.json の 171・517 行・p3-terminal-layout7.json の 290 行を引く «» は起草の時に 0 件 (b) 実装で format.ts の中身が変わる行のうち、798 行（timeseries の flow。p3-terminal-layout17・19 と本契約が引く）と 905 行・999 行（本契約が引く）は、実装の後の行の anchor を手で入れる (c) 実装で行が増えると、format.ts の 906 行から後（case \"banner\" の後）と 996 行から後（足す関数の後）がずれる。中身の同じ行は統合担当の道具 reanchor-target.py に reconstruction/src/terminal/format.ts を渡して付け直す（起草の時に 906 行より後を引くのは p3-dmdata-no-contract の 906、p3-terminal-layout17 の 969・1036、p3-terminal-layout18 の 969・974・985、p3-terminal-layout19 の 989・992・993・1072、本契約の 995・1047・1070。その時の木で grep する） (d) そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
