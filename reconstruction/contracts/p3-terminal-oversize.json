@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bafeceedbb50e469abbcf24507569a7f959b5c3d",
-    "sha256": "0c661a61b6fe0412456e63152a36e0e1ef05dab1b90d0d2151d821101ea34a9e",
+    "sha256": "d27d722ead471f71b0e99d5ffe8d92dff8238cbe2231d8d63f972cc7f500f33b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -125,7 +125,7 @@
     "contractId": "P3-TERMINAL-OVERSIZE-001",
     "mode": "implementation",
     "objective": "端末の列の 1 単位の上限 1 MiB（output.ts の QUEUE_BYTES）を越える単位と、その近くの大きさの報の扱いを、次の 4 つが起きない形に直す（作者の裁定 P3-TOV-D-SPLIT=A、2026-11-10）: (1) 省いた件数が、次の出力が来ない間（TTY でない出力では close の時も）画面に出ない。今起きる (2) 束が 1 MiB を越え、正常な大きさの報が巻き添えで省かれる。今起きる (3) 省かれた報と同じ subject の古い報が、束に残って後から最新として出る。今は起きない（output.ts の 570・571 行の置き換え）。直した後も起こさない（r1 の形〔束に入れる前に省く〕で起きた列を戻さない） (4) 束が待つ間に持つ材料の量に限りが無い。今起きる。新しい数は置かず、既存の QUEUE_BYTES・estimate・dropped を使う。出る字（「（表示が間に合わなかったため、n 件の表示を省きました）」）は変えない。P3-TOV-D-HOLD は A（作者の裁定、2026-11-11）",
-    "baseOid": "unassigned",
+    "baseOid": "8f2119e6",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
