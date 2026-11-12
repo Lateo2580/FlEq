@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "5ad19428cb7b7bc35d9fd83e90ada33690d4721b5d5504d8cbda789192ea3170",
+    "sha256": "290812e98b0ab4d2e46fa5c74c806b851efa9f8f1de61b84ef6734eaa1529243",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -22,25 +22,25 @@
       {
         "id": "P3-DSR-D-REPORT",
         "kind": "統合担当",
-        "A": "diagnosticSinkFailed の報せ（reportFailure、製品では標準エラーの 1 行。composition-root.ts の 463 行）は 1 つの sink（1 run）に 1 回だけ。2 回目からの失敗は droppedCounts と終了要約の droppedDiagnostics にだけ数える。印は report() の中で持ち、追記・回収・読む口・終了要約の失敗のどれでも合わせて 1 回にする",
+        "A": "diagnosticSinkFailed の報せ（reportFailure、製品では標準エラーの 1 行。composition-root.ts の 463 行）は 1 つの sink（1 run）に 1 回だけ。2 回目からの失敗は droppedCounts と終了要約の droppedDiagnostics にだけ数える。印は report() の中で持ち、追記・回収・読む口・終了要約の失敗のどれでも合わせて 1 回にする。印が立った後は diagnosticQueueOverflow の報せ（reportOverflow）も出さない（343 行で印を見て返る）",
         "B": "失敗の山ごとに 1 回: 書けた後にまた失敗したら、もう 1 行出す",
         "C": "時間で間引く（例 10 分に 1 行、欠落数つき）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当の決定、2026-11-13）",
         "ruling": "A（統合担当 2026-11-13。今の上限〔fail() が available で 1 回に絞る〕と同じ 1 行なので、端末に出る行の数は増えない。B・C は端末の行が増えうるので、採るなら作者の分岐）",
-        "reason": "今のコードでも diagnosticSinkFailed は 1 run に 1 行（fail() の 360 行の available の検査）。A はその上限を保つ。SD が壊れて毎回失敗しても標準エラーは溢れない。印を report() の中に置くと、fail()（回収・読む口・終了要約の失敗）の報せも同じ 1 回に入るので、R18（review-regressions.test.ts の events が 1 件）が今のまま通る。代わりに、2 回目の失敗の山は標準エラーに出ず、欠落数だけが終了要約に載る（artifactRequirements の残存）"
+        "reason": "今のコードでも diagnosticSinkFailed は 1 run に 1 行（fail() の 360 行の available の検査）。A はその上限を保つ。SD が壊れて毎回失敗しても標準エラーは溢れない。印を report() の中に置くと、fail()（回収・読む口・終了要約の失敗）の報せも同じ 1 回に入るので、R18（review-regressions.test.ts の events が 1 件）が今のまま通る。overflow も印で止めるので、失敗の後の標準エラーは今と同じく 0 行（今は失敗の後に sink が止まり overflow も起きない）。r2 で、起草レビューの指摘（同じまとまりの入口と終わりで overflow が 2 回出うる）を受け、統合担当が Opus の推奨で overflow も印に入れると決めた（2026-11-13）。代わりに、2 回目の失敗の山と、失敗の後の overflow は標準エラーに出ず、欠落数だけが droppedCounts と終了要約に載る（artifactRequirements の残存 (1)(6)）"
       },
       {
         "id": "P3-DSR-D-PRUNE",
         "kind": "統合担当",
         "A": "回収（prune）が失敗しても追記は続ける。失敗は報せ（D-REPORT=A の 1 回に入る）、次の flush の回収でまた試す。回収が通るまでの間は 7 日・100 MiB（P2-A3-RET-02）を越えうる",
-        "B": "回収の失敗では今どおり fail() でその run の sink を止める（起動の回収〔144 行〕も flush の中の回収〔218 行〕も）。試し直すのは追記の失敗だけ。flush の catch では、まとまりの行が全部書けていれば（appended の数がまとまりの数と同じ）失敗は回収のものなので fail()、そうでなければ追記の失敗として AC01 の道へ進む",
+        "B": "回収の失敗では今どおり fail() でその run の sink を止める（起動の回収〔144 行〕も flush の中の回収〔218 行〕も）。試し直すのは追記の失敗だけで、その前にも回収を通し、その回収の失敗でも fail() で止める（r2、P3-DSR-AC06）。flush の catch では、まとまりの行が全部書けていれば（appended の数がまとまりの数と同じ）失敗は回収のものなので fail()、そうでなければ追記の失敗として AC01 の道へ進む",
         "recommended": "B",
         "provisional": "B",
         "status": "確定（統合担当の決定、2026-11-13。起草の推奨 A から替えた）",
         "ruling": "B（統合担当 2026-11-13）",
-        "reason": "統合担当の理由: 回収が失敗し続けると 7 日・100 MiB の上限を越えて SD を埋めうる。SD が埋まると状態の保存（checkpoint）まで巻き込む恐れがある。診断を失うより、保存を守る側を選ぶ。回収の失敗は一時の空き不足より稀で、削除の権限や I/O の故障に近い。起草は A を推した（回収が通らない間も追記は通ることが多く、B ではその run の診断を失う）が、その欠けは今どおりとして残存に書く。B は 144 行を変えず、catch の 1 行の分かれ目で済む"
+        "reason": "統合担当の理由: 回収が失敗し続けると 7 日・100 MiB の上限を越えて SD を埋めうる。SD が埋まると状態の保存（checkpoint）まで巻き込む恐れがある。診断を失うより、保存を守る側を選ぶ。回収の失敗は一時の空き不足より稀で、削除の権限や I/O の故障に近い。起草は A を推した（回収が通らない間も追記は通ることが多く、B ではその run の診断を失う）が、その欠けは今どおりとして残存に書く。B は 144 行を変えず、catch の 1 行の分かれ目で済む。r2（起草レビューのヘルツ P2）: 追記が途中まで書けて例外になる、を繰り返すと 215 行から catch へ飛び続け、218 行の回収を一度も通らずに file が増える。旧実装は初回で止まるので、試し直しで新しく続けられる列になる。だから追記の失敗の catch でも回収し、その失敗では止める（AC06）。上限の文は「回収の失敗の後は増やさない」にする（追記に成功して上限を越えた後に回収が失敗すると、越えたまま止まる。今と同じ）"
       },
       {
         "id": "P3-DSR-D-READ",
@@ -59,7 +59,7 @@
         "id": "Q-DSR-CAUSE",
         "status": "closed",
         "source": "起草（2026-11-13、HEAD 239a35f5 の木を読んだ）。判断カード 2026-11-13-P3の残り-夜の走行 の先頭「裁定」と 9-2 の A16 の行",
-        "closed": "(1) 欠けの道: flush（191 行）は列をまとめて取り（196 行）、日付ごとに追記し（215 行）、最後に回収する（218 行）。どこかで投げると catch（219 行）で、書けなかった行を数え（221〜223 行）、書き出し中に列へ入った行も数えて捨て（224〜225 行）、fail()（226 行）を呼ぶ。fail()（359〜365 行）は available を false にし、列を捨て、diagnosticSinkFailed を 1 回報せる。以後 enqueueDiagnostic は 150 行で sinkUnavailable を返し、flush は 195 行ですぐ戻る。起動の回収の失敗（144 行）も fail() を呼ぶ。だから 21:00 の ENOSPC の後、21:05 に空きが戻っても、process を起こし直すまで診断は 1 行も書かれない (2) 外に出るもの: reportFailure の 1 回（製品では composition-root.ts の 463 行で標準エラーへ JSON の 1 行）と droppedCounts（終了の段の観測、1772 行） (3) 決まりとの照合: spec §7.9（:1224）は「sink 失敗は受理を止めず、main の小さい状態表示と stderr に理由・欠落数を示す。失敗した sink 自身へ無制限に再帰ログを出さない」で、止め続けることは書いていない。P2-A3-AC07（p2-checkpoint-shutdown.json の 421 行）も sink 故障・再帰増殖 0 を求めるだけ。止め続けるのは実装の選択で、既存の試験 2 か所（diagnostic.test.ts の 112〜116 行、review-regressions.test.ts の 871 行）がそれを写している (4) B12（queue の 256 件・1 MiB、7 日・100 MiB の回収）は spec どおりで変えない（判断カードの 9-2）",
+        "closed": "(1) 欠けの道: flush（191 行）は列をまとめて取り（196 行）、日付ごとに追記し（215 行）、最後に回収する（218 行）。どこかで投げると catch（219 行）で、書けなかった行を数え（221〜223 行）、書き出し中に列へ入った行も数えて捨て（224〜225 行）、fail()（226 行）を呼ぶ。fail()（359〜365 行）は available を false にし、列を捨て、diagnosticSinkFailed を 1 回報せる。以後 enqueueDiagnostic は 150 行で sinkUnavailable を返し、flush は 195 行ですぐ戻る。起動の回収の失敗（144 行）も fail() を呼ぶ。だから 21:00 の ENOSPC の後、21:05 に空きが戻っても、process を起こし直すまで診断は 1 行も書かれない (2) 外に出るもの: reportFailure の 1 回（製品では composition-root.ts の 463 行で標準エラーへ JSON の 1 行）と droppedCounts（終了の段の観測、1772 行） (3) 決まりとの照合: spec §7.9（:1224）は「sink 失敗は受理を止めず、main の小さい状態表示と stderr に理由・欠落数を示す。失敗した sink 自身へ無制限に再帰ログを出さない」で、止め続けることは書いていない。P2-A3-AC07（p2-checkpoint-shutdown.json の 421 行）も sink 故障・再帰増殖 0 を求めるだけ。止め続けるのは実装の選択で、既存の試験 2 か所（diagnostic.test.ts の 112〜117 行、review-regressions.test.ts の 871 行）がそれを写している (4) B12（queue の 256 件・1 MiB、7 日・100 MiB の回収）は spec どおりで変えない（判断カードの 9-2）",
         "remaining": "なし"
       },
       {
@@ -72,15 +72,15 @@
       {
         "id": "Q-DSR-LINES",
         "status": "closed",
-        "source": "起草（2026-11-13）。git grep で reconstruction と docs から、persistent-diagnostic-sink.ts・diagnostic.test.ts・review-regressions.test.ts を行で引く «» と地の文を探した",
-        "closed": "(1) persistent-diagnostic-sink.ts を «» で引くのは 13 契約の 23 件で、行は 40・46・50・56・57・63・65・102・191・193・195・214・236・253・302・339・342・346・370・379・401。地の文で今の行を引くのは、「sink の N 行」「flush（N 行」「N 行で」などの形を git grep で探した限りでは、p3-diag-exit-flush.json の 30・38・52・85・207・224 行（144・186・191・195・203〜218・214・219〜226・253・287・307〜311・339 行）と p3-stop-save-wait.json の 27 行（302 行）。どれも中身を変えない行か、位置だけを言う行（144・219〜226 行）。ほかの書き方の地の文は探していない。p2-checkpoint-shutdown.json の 674 行の「:101-128,156-176,217」「:316-327,368-412」は P2 の時の古い行で、今の行ではない (2) 本契約が中身を変えるのは 129〜131 行のどれか 1 行（印の field）・224〜226 行・343〜344 行だけ（144 行は D-PRUNE=B で変えない）で、どれも «» に引かれていない（219・224〜226 行は 300〜301・362〜363 行と字が同じで anchor が一意にならないので、本契約も引かない）。行を足さず消さなければ、23 件の «» と地の文の行は全部そのまま当たる。だから行の数を変えないことを AC04 に入れる (3) diagnostic.test.ts を «» で引く所は無い。地の文は p3-windows-ci.json の「:90〜:92」だけで、変える 94〜116 行より前 (4) review-regressions.test.ts を引くのは 475 行の «»（p3-stop-save-wait.json）と地の文の 176 行（p3-e01-reaccept.json の 205 行）・475 行（p3-stop-save-wait.json の 27 行）だけ。変える 871・876 行と、file の末尾（今の 1692 行の後）に足す T01 より前",
+        "source": "起草（2026-11-13）、r2 で地の文を全パスで探し直した。git grep と python の走査で、reconstruction/contracts と docs/specs から persistent-diagnostic-sink.ts・diagnostic.test.ts・review-regressions.test.ts を行で引く «» と地の文を探した",
+        "closed": "(1) persistent-diagnostic-sink.ts を «» で引くのは 13 契約の 23 件で、行は 40・46・50・56・57・63・65・102・191・193・195・214・236・253・302・339・342・346・370・379・401。地の文で行を引くのは次の 27 か所（「persistent-diagnostic-sink.ts:N」「persistent-diagnostic-sink.ts の N 行」「sink の N 行」の形）。p3-cli-repl.json の 327・343・615・647（2 件）・1206・1255 行（どれも :58）、p2-shared-runtime.json の 744 行（:56）、p3-dmdata-endpoint.json の 30 行（60 行）、p3-execution-lifecycle.json の 122 行（:281）、p3-flood-unit.json の 378 行（:53）、p3-landslide-unit.json の 327 行（:52）、p3-recovery-read.json の 424 行（:65）、p3-recovery.json の 617 行（:63）、p3-replay-cli.json の 41 行（:299）、p3-unit-table.json の 252 行（:39）、p3-unreadable-mark.json の 235 行（:40）、p3-version-material.json の 129 行（:46）、p3-weather-shape.json の 84 行（:62）、p3-stop-save-wait.json の 27 行（302 行）、p3-diag-exit-flush.json の 30・38・85・224 行（203〜218・186・287・339・214・307〜311 行）と、同じ file の 52・207 行の「flush（191 行」「195 行」「144 行」「219〜226 行」「253 行」。p2-checkpoint-shutdown.json の 674 行（:101-128,156-176,217）と 680 行（:292-294）は P2 の時の古い行で、今の行ではない。どれも本契約が中身を変える行（129〜131 のどれか 1 行・224〜226・343〜344）ではなく、DXF:52 の「219〜226 行」は位置を言うだけ。行の数を変えないので、どの地の文も今と同じ行を指したままで実害は無い。地の文の書き方はこれ以外の形を探していない (2) 本契約が中身を変えるのは 129〜131 行のどれか 1 行（印の field）・224〜226 行・343〜344 行だけ（144 行は D-PRUNE=B で変えない）で、どれも «» に引かれていない（219・224〜226 行は 300〜301・362〜363 行と字が同じで anchor が一意にならないので、本契約も引かない）。行を足さず消さなければ、23 件の «» と地の文の行は全部そのまま当たる。だから行の数を変えないことを AC04 に入れる (3) diagnostic.test.ts を «» で引く所は無い。地の文は p3-windows-ci.json の「:90〜:92」だけで、変える 94〜117 行より前 (4) review-regressions.test.ts を引くのは 475 行の «»（p3-stop-save-wait.json）と地の文の 176 行（p3-e01-reaccept.json の 205 行）・475 行（p3-stop-save-wait.json の 27 行）だけ。変える 871・876 行と、file の末尾（今の 1692 行の後）に足す T01 より前",
         "remaining": "なし"
       },
       {
         "id": "Q-DSR-TESTS",
         "status": "closed",
         "source": "起草（2026-11-13）。sink の失敗を入れる既存の試験を読んで、直した後の動きをたどった。走らせてはいない",
-        "closed": "期待が変わる既存の試験は 2 つの見込み: (1) diagnostic.test.ts の P2-A3-T07 の 2 つ目の it（73 行）の 94〜116 行: 追記がいつも失敗する fs で、2 回目の enqueue が sinkUnavailable で落ち、appends が 1 のままであることを見ている。直すと 2 回目は accepted、appends は 2 になる。この区間を消し、P3-DSR-T03 に置き換える (2) review-regressions.test.ts の I04（851 行）: 871 行は、append・unlink・readFile のどの段の失敗の後でも enqueue が dropped であることを見ている。直すと append の段だけ accepted（unlink の段は D-PRUNE=B、readFile の段は D-READ=A で dropped のまま）。受け付けた行は microtask の flush で 872 行の切れた行の後ろに書かれ、877 行が落ちるので、871 行の中で flush を待つ。append の段の file も 3 行になるので、876 行の期待は 3 つの段とも [event, count 2, event] になる（形は artifactRequirements）。変わらない見込みの試験: R10（追記の失敗の報せが再び enqueue されても 1 回、appends 1。2 回目の flush は列が空ですぐ戻る）、B04（要約の失敗の fail() の報せ 1 回）、R18（起動の回収の失敗は今どおり fail() で 1 回、読む口の失敗の fail() は 2 回目なので何もしない）。ほかの試験の fs は追記と回収を失敗させない",
+        "closed": "期待が変わる既存の試験は 2 つの見込み: (1) diagnostic.test.ts の P2-A3-T07 の 2 つ目の it（73 行）の 94〜117 行: 追記がいつも失敗する fs で、2 回目の enqueue が sinkUnavailable で落ち、appends が 1 のままであることを見ている。直すと 2 回目は accepted、appends は 2 になる。この区間を消し、P3-DSR-T03 に置き換える (2) review-regressions.test.ts の I04（851 行）: 871 行は、append・unlink・readFile のどの段の失敗の後でも enqueue が dropped であることを見ている。直すと append の段だけ accepted（unlink の段は D-PRUNE=B、readFile の段は D-READ=A で dropped のまま）。受け付けた行は microtask の flush で 872 行の切れた行の後ろに書かれ、877 行が落ちるので、871 行の中で flush を待つ。append の段の file も 3 行になるので、876 行の期待は 3 つの段とも [event, count 2, event] になる（形は artifactRequirements）。変わらない見込みの試験: R10（追記の失敗の報せが再び enqueue されても 1 回、appends 1。2 回目の flush は列が空ですぐ戻る）、B04（要約の失敗の fail() の報せ 1 回）、R18（起動の回収の失敗は今どおり fail() で 1 回、読む口の失敗の fail() は 2 回目なので何もしない）。ほかの試験の fs は追記と回収を失敗させない。r2: T02 を消し、AC02（回収の失敗で止まる）は改訂した I04 の unlink の段（871 行の dropped）で確かめる。追記の失敗の道の回収（AC06）は T04 で確かめる",
         "remaining": "見込みは読んでたどったもの。実装者が全試験を回して確かめる（artifactRequirements）"
       },
       {
@@ -99,7 +99,7 @@
   "contract": {
     "contractId": "P3-DIAG-SINK-RETRY-001",
     "mode": "implementation",
-    "objective": "永続の診断の sink が、追記の 1 回の失敗で run の残りの診断を全部捨てるのを直す（判断カード 2026-11-13-P3の残り-夜の走行 の 9-2 の A16、作者裁定「稀は直す」）。場面: 21:00:00 に Pi の SD の空きが一時 0 になり、checkpointWriteFailed の ERROR を書く追記が ENOSPC で失敗する。標準エラーに diagnosticSinkFailed の 1 行が出る。21:05:00 に空きが戻る。今のコードでは sink が止まったままで、21:05 から後の診断（取り直しの WARN など）は 1 行も書かれず、停止（23:00）の要約も書けずに code 4 で終わる（Q-DSR-EXIT）。直した後は、21:00 に失敗したまとまりだけを数えて捨て、21:05 の後の診断は次の書き出しで日別 file へ書く。停止の要約は書けて、失った数は要約の droppedDiagnostics に載る。回収（古い file の削除）の失敗では今どおり止める（P3-DSR-D-PRUNE=B。SD を埋めて状態の保存を巻き込まないため）。同じ失敗が続いても（SD が壊れて毎回失敗）、標準エラーの 1 行は 1 run に 1 回のまま（P3-DSR-D-REPORT=A）。直しは sink の行の中だけで、行の数を変えない。queue の 256 件・1 MiB と 7 日・100 MiB の回収（B12、spec §7.9）、画面の行と音は変えない。変わるのは、追記が途中で失敗した run の終了の code（4 → 0）と、その run での host.ts の 507 行の標準エラーの 1 行（出なくなることがある）だけ（Q-DSR-EXIT。統合担当の決めで、作者には報告だけ）",
+    "objective": "永続の診断の sink が、追記の 1 回の失敗で run の残りの診断を全部捨てるのを直す（判断カード 2026-11-13-P3の残り-夜の走行 の 9-2 の A16、作者裁定「稀は直す」）。場面: 21:00:00 に Pi の SD の空きが一時 0 になり、checkpointWriteFailed の ERROR を書く追記が ENOSPC で失敗する。標準エラーに diagnosticSinkFailed の 1 行が出る。21:05:00 に空きが戻る。今のコードでは sink が止まったままで、21:05 から後の診断（取り直しの WARN など）は 1 行も書かれず、停止（23:00）の要約も書けずに code 4 で終わる（Q-DSR-EXIT）。直した後は、21:00 に失敗したまとまりだけを数えて捨て、21:05 の後の診断は次の書き出しで日別 file へ書く。停止の要約は書けて、失った数は要約の droppedDiagnostics に載る。回収（古い file の削除）の失敗では今どおり止める（P3-DSR-D-PRUNE=B。SD を埋めて状態の保存を巻き込まないため）。追記の失敗の後も、試し直しの前に回収を通し、その失敗でも止める（AC06）。同じ失敗が続いても（SD が壊れて毎回失敗）、標準エラーの 1 行は 1 run に 1 回のまま（P3-DSR-D-REPORT=A）。直しは sink の行の中だけで、行の数を変えない。queue の 256 件・1 MiB と 7 日・100 MiB の回収（B12、spec §7.9）、画面の行と音は変えない。変わるのは、追記が途中で失敗した run の終了の code（4 → 0）と、その run での host.ts の 507 行の標準エラーの 1 行（出なくなることがある）だけ（Q-DSR-EXIT。統合担当の決めで、作者には報告だけ）",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -116,8 +116,8 @@
       "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts"
     ],
     "allowedPaths": [
-      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（AC01〜AC04 だけ。中身を変えてよいのは 129〜131 行のどれか 1 行・219〜226 行・343〜344 行で、行は足さず消さない〔Q-DSR-LINES〕。144 行は変えない。ほかの行の中身と位置は変えない）",
-      "reconstruction/test/checkpoint-shutdown/diagnostic.test.ts（94〜116 行を消し、P3-DSR-T02・T03 を file の末尾に足すだけ。1〜93 行は変えない）",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（AC01〜AC04・AC06 だけ。中身を変えてよいのは 129〜131 行のどれか 1 行・219〜226 行・343〜344 行で、行は足さず消さない〔Q-DSR-LINES〕。144 行は変えない。ほかの行の中身と位置は変えない）",
+      "reconstruction/test/checkpoint-shutdown/diagnostic.test.ts（94〜117 行を消し、P3-DSR-T03・T04 を file の末尾に足すだけ。1〜93 行は変えない）",
       "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts（871 行と 876 行を行の中で書き換え〔artifactRequirements の形〕、P3-DSR-T01 を file の末尾〔今の 1692 行の後〕に足すだけ。ほかの行は変えない）"
     ],
     "allowedGitCommands": [
@@ -164,7 +164,7 @@
         "target": "diagnosticSinkFailed の報せ（reportFailure の呼び出し。製品では標準エラーの 1 行）",
         "limit": 1,
         "unit": "call per PersistentDiagnosticSink（1 run）",
-        "scope": "追記・回収・読む口・終了要約の失敗を合わせて 1 回（今の上限と同じ）。2 回目からの失敗は droppedCounts と終了要約の droppedDiagnostics にだけ数える。diagnosticQueueOverflow の報せ（reportOverflow）は今のまま変えない",
+        "scope": "追記・回収・読む口・終了要約の失敗を合わせて 1 回（今の上限と同じ）。2 回目からの失敗は droppedCounts と終了要約の droppedDiagnostics にだけ数える。印が立った後は diagnosticQueueOverflow の報せ（reportOverflow）も出さない。だから失敗の後の標準エラーは 0 行（今と同じ）",
         "source": "P3-DSR-D-REPORT=A、spec §7.9（:1224）"
       },
       {
@@ -196,7 +196,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-DSR-AC01",
-        "requirement": "一時の追記の失敗の後も書き続ける（目的。P3-DSR-D-RETRY=A）: (1) flush の catch（219〜226 行）は、書けなかった行だけを level ごとに数えて捨てる（221〜223 行のまま）。まとまりに書けなかった行があれば（追記・mkdir・readLastByte の失敗）、書き出し中に列へ入った行は捨てず、queuedBytes も 0 にしない（224〜225 行を外す）。fail() は呼ばず、diagnosticSinkFailed を報せる（D-REPORT=A の 1 回）。available は true のまま。まとまりの行が全部書けていれば失敗は回収のもので、AC02 の道（今どおり fail()） (2) だから 21:05:00 に空きが戻った後の enqueueDiagnostic は accepted を返し（今は 150 行で sinkUnavailable）、次の flush で日別 file へ追記する。finally の 232 行は今のまま、列が残っていれば次の flush を起こす (3) 停止: run の途中の追記の失敗だけでは persistShutdownSummary は 288 行で投げない。停止の時に disk が書けるなら要約を書き、code はほかの段の結果のまま（Q-DSR-EXIT (2)）。要約の droppedDiagnostics は失敗で捨てた行の数を含む (4) 試験 T01 は直す前のコードで (2) の accepted の期待で落ちる（今は dropped）。無いと: 21:00 の一時の ENOSPC の後、process を起こし直すまで診断が 1 行も残らず、停止の要約も書けずに code 4 になる",
+        "requirement": "一時の追記の失敗の後も書き続ける（目的。P3-DSR-D-RETRY=A）: (1) flush の catch（219〜226 行）は、書けなかった行だけを level ごとに数えて捨てる（221〜223 行のまま）。まとまりに書けなかった行があれば（追記・mkdir・readLastByte の失敗）、書き出し中に列へ入った行は捨てず、queuedBytes も 0 にしない（224〜225 行を外す）。fail() は呼ばず、diagnosticSinkFailed を報せ（D-REPORT=A の 1 回）、試し直しの前に回収を通す（AC06）。available は true のまま。まとまりの行が全部書けていれば失敗は回収のもので、AC02 の道（今どおり fail()） (2) だから 21:05:00 に空きが戻った後の enqueueDiagnostic は accepted を返し（今は 150 行で sinkUnavailable）、次の flush で日別 file へ追記する。finally の 232 行は今のまま、列が残っていれば次の flush を起こす (3) 停止: run の途中の追記の失敗だけでは persistShutdownSummary は 288 行で投げない。停止の時に disk が書けるなら要約を書き、code はほかの段の結果のまま（Q-DSR-EXIT (2)）。要約の droppedDiagnostics は失敗で捨てた行の数を含む (4) 試験 T01 は直す前のコードで (2) の accepted の期待で落ちる（今は dropped）。無いと: 21:00 の一時の ENOSPC の後、process を起こし直すまで診断が 1 行も残らず、停止の要約も書けずに code 4 になる",
         "evidenceRefs": [
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:221 «6d6b20d3b295c27e»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:223 «3107701bcaecffce»",
@@ -213,7 +213,7 @@
       },
       {
         "id": "P3-DSR-AC02",
-        "requirement": "回収の失敗では今どおり止める（P3-DSR-D-PRUNE=B、統合担当の決定）: (1) 起動の回収（144 行）の失敗は今のまま fail()。144 行は変えない (2) flush の中の回収（218 行）の失敗は、AC01 (1) の catch の分かれ目（まとまりの行が全部書けていれば回収の失敗）で fail() を呼び、今どおり sink を止めて列を捨てる。書けた行は数えない（220〜223 行のまま） (3) 7 日・100 MiB の上限は、回収が失敗した run でも越えない（以後は追記しない） (4) 試験 T02 は境界の試験で、直す前のコードでも通る。追記の失敗と回収の失敗を取り違えた実装（回収の失敗でも止めない）で落ちる。無いと: 回収（古い file の unlink・readdir）が失敗し続ける間も追記が続き、7 日・100 MiB を越えて SD を埋め、状態の保存（checkpoint）を巻き込みうる",
+        "requirement": "回収の失敗では今どおり止める（P3-DSR-D-PRUNE=B、統合担当の決定）: (1) 起動の回収（144 行）の失敗は今のまま fail()。144 行は変えない (2) flush の中の回収（218 行）の失敗は、AC01 (1) の catch の分かれ目（まとまりの行が全部書けていれば回収の失敗）で fail() を呼び、今どおり sink を止めて列を捨てる。書けた行は数えない（220〜223 行のまま）（追記の失敗の道の回収の失敗は AC06） (3) 回収の失敗の後は増やさない（以後は追記しない）。追記に成功して上限を越えた後に回収が失敗すると、越えたまま止まる（今と同じ） (4) 確かめは、改訂した既存の試験 I04（review-regressions.test.ts の 851 行）の unlink の段: 追記の後の回収の unlink が失敗すると、871 行の enqueue は dropped（1 つの振る舞いに 1 試験。T02 は r2 で消した）。直す前のコードでも通る境界で、回収の失敗を追記の失敗と取り違えた実装（回収の失敗でも止めない）で落ちる。無いと: 回収（古い file の unlink・readdir）が失敗し続ける間も追記が続き、7 日・100 MiB を越えて SD を埋め、状態の保存（checkpoint）を巻き込みうる",
         "evidenceRefs": [
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:144 «afd3612aa497bea8»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:220 «ab243591238453f4»",
@@ -223,7 +223,7 @@
       },
       {
         "id": "P3-DSR-AC03",
-        "requirement": "同じ失敗が続いても溢れず再帰しない（SD が壊れて毎回失敗する場合。P3-DSR-RES-01・RES-02）: (1) diagnosticSinkFailed の報せは report() の中の印で 1 つの sink に 1 回だけ。343 行の検査に「reason が diagnosticSinkFailed で印が立っていれば返る」を足し、344 行で印を立てる。fail()（364 行。回収・読む口・終了要約の失敗）の報せも同じ印に入る (2) 報せの callback がその event を enqueue し直しても、今の reporting の検査（149 行）で受け付けず数えもしない（R10 のまま）。sink 自身へ報せを書く再帰は 0 (3) 試し直しは 1 本ずつ直列で、timer を足さない。1 回の失敗で捨てるのはそのまとまりの書けなかった行だけで、書き出し中に列へ入った行は次の試みで書こうとする。列は今の上限（256 件・1 MiB、DEBUG・INFO から押し出す）のまま (4) diagnosticQueueOverflow の報せ（reportOverflow）は今のまま 1 回の flush に最大 1 回で、印に入れない。書き出しが失敗し続け、1 回の試みの間に列が溢れる（256 件か 1 MiB）と、試みごとに 1 行出うる。今の、書けるが遅い disk のときと同じ上限で、今は失敗の後に sink が止まるので出なかった（残存 (6)） (5) 受信の hot path（enqueueDiagnostic）の仕事は変えない。失敗の後に足すのはまとまりの件数に比例する数え上げ（今と同じ）と boolean の検査だけで、全件×全件の走査はしない (6) 試験 T03 は直す前のコードで appends が 1 のまま（書き出し中に列へ入った行を試さずに捨てる）で落ちる。無いと: 直した後に SD が壊れ続けると、失敗ごとに標準エラーへ 1 行が出て端末が溢れる",
+        "requirement": "同じ失敗が続いても溢れず再帰しない（SD が壊れて毎回失敗する場合。P3-DSR-RES-01・RES-02）: (1) diagnosticSinkFailed の報せは report() の中の印で 1 つの sink に 1 回だけ。343 行を「if (this.reporting || this.failureReported) return;」にし、344 行で reason が diagnosticSinkFailed なら印を立てる。fail()（364 行。回収・読む口・終了要約の失敗）の報せも同じ印に入る (2) 報せの callback がその event を enqueue し直しても、今の reporting の検査（149 行）で受け付けず数えもしない（R10 のまま）。sink 自身へ報せを書く再帰は 0 (3) 試し直しは 1 本ずつ直列で、timer を足さない。1 回の失敗で捨てるのはそのまとまりの書けなかった行だけで、書き出し中に列へ入った行は次の試みで書こうとする。列は今の上限（256 件・1 MiB、DEBUG・INFO から押し出す）のまま (4) 印が立った後は diagnosticQueueOverflow の報せ（reportOverflow → report）も 343 行で返り、標準エラーに出ない。失敗の前の overflow の報せは今のまま。だから失敗の後の標準エラーは 0 行で、今（失敗の後は sink が止まり overflow も起きない）と同じ上限になる。overflow の数は droppedCounts と終了要約の droppedDiagnostics に載る（残存 (6)） (5) 受信の hot path（enqueueDiagnostic）の仕事は変えない。失敗の後に足すのはまとまりの件数に比例する数え上げ（今と同じ）と boolean の検査だけで、全件×全件の走査はしない (6) 試験 T03 は直す前のコードで appends が 1 のまま（書き出し中に列へ入った行を試さずに捨てる）で落ちる。無いと: 直した後に SD が壊れ続けると、失敗ごとに標準エラーへ 1 行が出て端末が溢れる",
         "evidenceRefs": [
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:343 «81ccc2edd6ae99ae»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:344 «6c4bd9bd7a759926»",
@@ -236,7 +236,7 @@
       },
       {
         "id": "P3-DSR-AC04",
-        "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: persistent-diagnostic-sink.ts の行の数（今の 412 行）を変えない。中身を変えてよいのは 129〜131 行のどれか 1 行（印の field を同じ行に足す）・219〜226 行・343〜344 行だけ（144 行は D-PRUNE=B で変えない）。ほかの契約が «» で引く 23 件（Q-DSR-LINES (1)）の行は中身も位置も変えない。形の例（コンパイルしていない）: 131 行を「private overflowPending = false; private failureReported = false;」、224〜226 行を「なぜ分けるか」のコメント 1 行（追記の失敗は列と sink を残して次の書き出しで試し直す、P3-DSR-AC01。全部書けた後の失敗は回収のもので今どおり止める、P3-DSR-D-PRUNE=B）と「if (appended.size === batch.length) this.fail();」「else this.report(\"diagnosticSinkFailed\");」の 2 行、343 行を「if (this.reporting || reason === \"diagnosticSinkFailed\" && this.failureReported) return;」、344 行を「this.reporting = true; if (reason === \"diagnosticSinkFailed\") this.failureReported = true;」。実装の後、check-contract で sink を引く他の契約の «» は全部 PASS のまま（FAIL になるのは本契約が引く、中身を変えた行だけの見込み）",
+        "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: persistent-diagnostic-sink.ts の行の数（今の 412 行）を変えない。中身を変えてよいのは 129〜131 行のどれか 1 行（印の field を同じ行に足す）・219〜226 行・343〜344 行だけ（144 行は D-PRUNE=B で変えない）。ほかの契約が «» で引く 23 件（Q-DSR-LINES (1)）の行は中身も位置も変えない。形の例（コンパイルしていない）: 131 行を「private overflowPending = false; private failureReported = false;」、224〜226 行を「なぜ分けるか」のコメント 1 行（追記の失敗は列と sink を残し、回収を通してから次の書き出しで試し直す、P3-DSR-AC01・AC06。全部書けた後の失敗と回収の失敗は今どおり止める、P3-DSR-D-PRUNE=B）と「if (appended.size === batch.length) this.fail();」「else { this.report(\"diagnosticSinkFailed\"); await this.prune(this.readWallTime()).catch(() => { this.fail(); }); }」の 2 行、343 行を「if (this.reporting || this.failureReported) return;」、344 行を「this.reporting = true; this.failureReported ||= reason === \"diagnosticSinkFailed\";」。実装の後、check-contract で sink を引く他の契約の «» は全部 PASS のまま（FAIL になるのは本契約が引く、中身を変えた行だけの見込み）",
         "evidenceRefs": [
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:131 «3b91f9f69e73ef0c»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:195 «0239dde84442af29»",
@@ -252,6 +252,18 @@
           "reconstruction/src/host/host.ts:75 «6a37371365739c87»",
           "reconstruction/src/host/host.ts:507 «40d42c63c0470205»"
         ]
+      },
+      {
+        "id": "P3-DSR-AC06",
+        "requirement": "試し直しの前にも回収し、その失敗では止める（r2、起草レビューのヘルツ P2。P3-DSR-D-PRUNE=B）: (1) 列: 21:00:00 に SD の空きが一時 0 で、追記（215 行）が途中まで書けて ENOSPC の例外になる。今の 218 行の回収は追記の後にしか無いので、直したまま試し直すだけだと、追記が途中まで書けて例外になる、を繰り返す間は回収を一度も通らずに日別 file が増える（旧実装は初回で止まるので起きない） (2) 直した後は、追記の失敗の catch（226 行の else）で diagnosticSinkFailed を報せた後に回収（prune）を通す。21:00:00 の同じ flush で、7 日を越えた日別 file（例 2026-11-05 の file）と 100 MiB を越えた分を消す。21:00:01 の次の診断は次の flush で試し直す (3) その回収が失敗したら（例 21:10:00 に unlink が EACCES）、今どおり fail() で止める。以後は追記しない（回収の失敗の後は増やさない）。21:10:05 の診断は sinkUnavailable で数えて捨てる (4) 回収は、書けている時の flush と同じく失敗した flush 1 回に 1 回で、計算量は日別 file の数（7 日分と残り）に比例する。全件×全件の走査はしない (5) 行の数は変えない（AC04 の 226 行の中で書く） (6) 試験 T04 は直す前のコードで (2) の古い file が残って落ちる（今は catch で fail() し、回収しない）。無いと: 追記が途中まで書けて失敗する列が続く間、7 日・100 MiB を越えて SD を埋め、状態の保存（checkpoint）を巻き込みうる",
+        "evidenceRefs": [
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:215 «e109bdc3a8c6c038»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:216 «d26de83a3ad6ea00»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:391 «914c6c554c154911»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:393 «f200517fb86ae4d1»",
+          "docs/specs/reconstruction-p0-contracts.md:1219 «95b4e559b996e4be»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:273 «20f65a1824ba8fca»"
+        ]
       }
     ],
     "testMapping": [
@@ -264,12 +276,12 @@
         "behavior": "受入（AC01 (2)(3)、目的の場面を本物の停止の道で）。review-regressions.test.ts の末尾に足す。(1) const h = await harness(); await h.root.diagnostics.flush() で起動の行を書き終える (2) 21:00 の形: h.fault.appendError に code ENOSPC の Error を入れ、ERROR checkpointWriteFailed（timestamp は h.clock().wallTimeMs）を h.root.enqueueDiagnostic で入れて flush する。h.events の diagnosticSinkFailed が 1 件で、h.root.diagnostics.droppedCounts().ERROR が 1 以上であること (3) 21:05 の形: h.fault.appendError = null にし、timestamp を 300_000 進めた WARN recoveryFetchFailed を入れると kind が accepted であること（直す前のコードはここで dropped になって落ちる）。flush の後、h.root.readDiagnostics({ limit: 256 }) の records にその行があること (4) const summary = await h.root.shutdownRuntime(1, h.clock()) の code が 0 で、h.lines の shutdown-summary.json が在り、その droppedDiagnostics.ERROR が (2) の後の droppedCounts().ERROR と等しいこと。h.events の diagnosticSinkFailed は最後まで 1 件。故障を入れない同じ流れで code が 0 になることを実装者が 1 回確かめ、成果物に書く（0 でなければ (4) の code の期待を止めて報告する）"
       },
       {
-        "testId": "P3-DSR-T02",
+        "testId": "I04（既存、review-regressions.test.ts の 851 行。871・876 行を改訂）",
         "purpose": "contractBoundary",
         "referenceIds": [
           "P3-DSR-AC02"
         ],
-        "behavior": "境界（AC02 (2)、追記の失敗と回収の失敗の分かれ目）。diagnostic.test.ts の末尾に足す。directory() の一時 dir と nodeDiagnosticFileSystem() を使い、files() だけを包んで 2 回目（最初の flush の回収）を throw にする（1 回目の起動の回収と 3 回目より後は通す）。reportFailure は配列に積む。(1) await sink.flush() で起動の回収を済ませる (2) INFO shutdownStarted（timestamp 1_000）を入れて flush する（追記は通り、回収が失敗する） (3) 別の INFO（timestamp 1_500）を入れると kind が dropped、reason が sinkUnavailable であること（回収の失敗で止まった。回収の失敗を追記の失敗と取り違えた実装はここで accepted になって落ちる） (4) droppedCounts() の INFO が 1（(3) の行だけ。(2) の書けた行は数えない）、報せが diagnosticSinkFailed の 1 件、readDiagnostics は使わない（D-READ=A で止まった sink の読みは試験の対象外）。(2) の行が日別 file に在ることは、新しい sink（同じ dir、files() を包まない）の readDiagnostics({ limit: 256 }) で 1 行と確かめる。直す前のコードでも通る"
+        "behavior": "境界（AC02、回収の失敗で止まる）。新しい試験は足さない。artifactRequirements の形で 871・876 行を改訂した I04 の unlink の段: 追記は通り、回収の unlink が失敗した後の enqueue が dropped であること（871 行）。直す前のコードでも通り、回収の失敗を追記の失敗と取り違えた実装で落ちる"
       },
       {
         "testId": "P3-DSR-T03",
@@ -277,7 +289,15 @@
         "referenceIds": [
           "P3-DSR-AC03"
         ],
-        "behavior": "境界（AC03 (1)〜(3)、SD が壊れ続ける形）。diagnostic.test.ts の 94〜116 行（今の P2-A3-T07 の 2 つ目の it の中の、止まることを見る区間）を消し、末尾に別の it として足す。fs の appendFile は呼ばれた回数を数えていつも throw し、1 回目だけは reached を解いてから gate を待つ。reportFailure は配列に積んでから同じ event を sink.enqueueDiagnostic へ戻す（再帰の形、R10 と同じ）。(1) ERROR A を入れ、const flushing = sink.flush()、reached を待つ (2) 書き出し中に WARN B を入れると accepted (3) gate を解いて await flushing。appends が 2（B を次の試みで書こうとした。直す前のコードは B を列ごと捨てて 1 のままで落ちる）、droppedCounts() の ERROR と WARN が 1 ずつ、報せが diagnosticSinkFailed の 1 件（count 1）だけ (4) ERROR C を入れると accepted、flush の後 appends が 3、報せは 1 件のまま。偽の時計と timer は使わない"
+        "behavior": "境界（AC03 (1)〜(3)、SD が壊れ続ける形）。diagnostic.test.ts の 94〜117 行（今の P2-A3-T07 の 2 つ目の it の中の、止まることを見る区間）を消し、末尾に別の it として足す。fs の appendFile は呼ばれた回数を数えていつも throw し、1 回目だけは reached を解いてから gate を待つ。reportFailure は配列に積んでから同じ event を sink.enqueueDiagnostic へ戻す（再帰の形、R10 と同じ）。(1) ERROR A を入れ、const flushing = sink.flush()、reached を待つ (2) 書き出し中に WARN B を入れると accepted (3) gate を解いて await flushing。appends が 2（B を次の試みで書こうとした。直す前のコードは B を列ごと捨てて 1 のままで落ちる）、droppedCounts() の ERROR と WARN が 1 ずつ、報せが diagnosticSinkFailed の 1 件（count 1）だけ (4) ERROR C を入れると accepted、flush の後 appends が 3、報せは 1 件のまま。偽の時計と timer は使わない"
+      },
+      {
+        "testId": "P3-DSR-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DSR-AC06"
+        ],
+        "behavior": "境界（AC06 (2)(3)、追記が途中まで書けて失敗する列）。diagnostic.test.ts の末尾に足す。偽の fs は Map に行を持ち、appendFile は data の前半だけを Map に足して ENOSPC の Error を投げる（呼んだ回数を数える）。files() は Map の名前・byte の長さを返し、unlink は印が立っていれば throw、そうでなければ消す。readWallTime は 2026-11-13T12:00:00Z（21:00 JST）。reportFailure は配列に積む。(1) await sink.flush() で起動の回収を済ませる (2) Map に 8 日前の diagnostics-2026-11-05.jsonl を置き、ERROR A を入れて flush する。古い file が Map から消えていること（直す前のコードは catch で fail() して回収しないので、ここで残って落ちる）と、次の enqueue が accepted であること (3) unlink の印を立て、diagnostics-2026-11-04.jsonl を置き、ERROR C を入れて flush する（追記が途中まで書けて失敗し、回収の unlink も失敗する）。次の enqueue が dropped・sinkUnavailable で、その後の flush で appendFile の回数が増えないこと。報せは diagnosticSinkFailed の 1 件だけ。偽の時計と timer は使わない"
       }
     ],
     "requiredCommands": [
@@ -335,7 +355,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "T03 は書き出し中の列と gate を扱い、T02 は一時 dir を使うので、順序を変えても緑か（AGENTS.md）"
+        "purpose": "T03 は書き出し中の列と gate、T04 は偽の fs の Map と unlink の印を扱うので、順序を変えても緑か（AGENTS.md）"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -347,13 +367,13 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 足す仕組みは private の boolean の印 1 つだけ（無いと、AC01 で止めなくした後、SD が壊れ続けると失敗ごとに標準エラーへ 1 行が出る）。新しい定数・helper・型・timer・設定は足さない。試験は T01〜T03 の 3 本（AC01〜AC03 と 1 対 1）。sink の変更を戻すと T01・T03 がそれぞれ testMapping に書いた所で落ちること、catch の分かれ目を外して全部を追記の失敗の道にすると T02 が (3) で落ちることを、実装者が 1 回確かめて成果物に書く",
-      "受信経路の計算量（AGENTS.md）: enqueueDiagnostic（受信の hot path）の仕事は変えない。失敗の後の数え上げはまとまりの件数に比例し（今と同じ）、全件×全件の走査も state の直列化もしない（AC03 (5)）",
-      "期待が変わる既存の試験（統合担当が起草で許した。読んでたどった見込みで、走らせてはいない。これ以外が落ちたら、変える前に試験名・旧の期待・理由を報告して止める）: (1) diagnostic.test.ts の P2-A3-T07 の 2 つ目の it の 94〜116 行（2 回目の enqueue が sinkUnavailable、appends 1）を消す。理由: 書き出しの失敗で止まることを写した期待で、AC01 で逆になる。同じ区間の「失敗の報せが 1 件・再帰しない」は T03 が受け継ぐ。it の名前と 73〜93 行・117 行より後は変えない (2) review-regressions.test.ts の I04: 871 行を「expect(h.root.enqueueDiagnostic(event).kind).toBe(stage === \"append\" ? \"accepted\" : \"dropped\"); await h.root.diagnostics.flush();」に、876 行を「expect(read.records).toEqual([event, { ...event, count: 2 }, event]);」にする（行の中の書き換え）。理由: append の段は直した後、再起動を待たずに受け付けて書く（AC01）。unlink の段は D-PRUNE=B、readFile の段は D-READ=A で今のまま止まる。append の段も 871 行の flush で 3 行目が書かれるので、3 つの段とも file は同じ 3 行になる。871 行で flush を待たないと、受け付けた行が 872 行の切れた行の後ろに書かれて 877 行が落ちる",
+      "最小実装・最小テスト: 足す仕組みは private の boolean の印 1 つだけ（無いと、AC01 で止めなくした後、SD が壊れ続けると失敗ごとに標準エラーへ 1 行が出る）。新しい定数・helper・型・timer・設定は足さない。試験は T01・T03・T04 の 3 本と、改訂した I04（AC01・AC03・AC06・AC02 と 1 対 1）。sink の変更を戻すと T01・T03・T04 がそれぞれ testMapping に書いた所で落ちること、catch の分かれ目を外して全部を追記の失敗の道にすると I04 の unlink の段が 871 行で落ちることを、実装者が 1 回確かめて成果物に書く",
+      "受信経路の計算量（AGENTS.md）: enqueueDiagnostic（受信の hot path）の仕事は変えない。失敗の後の数え上げはまとまりの件数に比例し（今と同じ）、全件×全件の走査も state の直列化もしない（AC03 (5)）。追記の失敗の道で足す回収は失敗した flush 1 回に 1 回で、日別 file の数に比例する（AC06 (4)）",
+      "期待が変わる既存の試験（統合担当が起草で許した。読んでたどった見込みで、走らせてはいない。これ以外が落ちたら、変える前に試験名・旧の期待・理由を報告して止める）: (1) diagnostic.test.ts の P2-A3-T07 の 2 つ目の it の 94〜117 行（2 回目の enqueue が sinkUnavailable、appends 1）を消す。理由: 書き出しの失敗で止まることを写した期待で、AC01 で逆になる。117 行の expect(appends) は 94 行で宣言する appends を使うので一緒に消す。同じ区間の「失敗の報せが 1 件・再帰しない」は T03 が受け継ぐ。it の名前と 73〜93 行・118 行より後は変えない (2) review-regressions.test.ts の I04: 871 行を「expect(h.root.enqueueDiagnostic(event).kind).toBe(stage === \"append\" ? \"accepted\" : \"dropped\"); await h.root.diagnostics.flush();」に、876 行を「expect(read.records).toEqual([event, { ...event, count: 2 }, event]);」にする（行の中の書き換え）。理由: append の段は直した後、再起動を待たずに受け付けて書く（AC01）。unlink の段は D-PRUNE=B、readFile の段は D-READ=A で今のまま止まる。append の段も 871 行の flush で 3 行目が書かれるので、3 つの段とも file は同じ 3 行になる。871 行で flush を待たないと、受け付けた行が 872 行の切れた行の後ろに書かれて 877 行が落ちる",
       "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 2 回目からの失敗の山は標準エラーに出ない（D-REPORT=A）。失った数は droppedCounts と終了要約の droppedDiagnostics だけに載る (2) 回収（古い file の削除・一覧）が失敗した run は、以後の診断を捨てる（今どおり。D-PRUNE=B） (3) ENOSPC の途中で追記の一部が disk に残ったとき、そのまとまりは全部を捨てた数に入る（悲観側に数える）。残った切れた行は次の追記の前の改行で切り離され、読みは JSON にならない行を飛ばす（今と同じ） (4) 停止の code が、途中の追記の失敗だけの run で 4 から 0 に変わる（Q-DSR-EXIT (2)）。host.ts の 507 行の標準エラーの 1 行は、前に追記が失敗していただけでは出なくなる（Q-DSR-EXIT (3)）。どちらも統合担当の決めで、作者には報告だけ (5) 読む口と終了要約の失敗では今のまま止まる（D-READ=A） (6) diagnosticQueueOverflow の報せは印に入れないので、追記が失敗し続けて試みの間に列が溢れると、試みごとに標準エラーへ 1 行出うる（AC03 (4)）",
+      "残存として成果物に書く: (1) 2 回目からの失敗の山は標準エラーに出ない（D-REPORT=A）。失った数は droppedCounts と終了要約の droppedDiagnostics だけに載る (2) 回収（古い file の削除・一覧）が失敗した run は、以後の診断を捨てる（今どおり。D-PRUNE=B） (3) ENOSPC の途中で追記の一部が disk に残ったとき、そのまとまりは全部を捨てた数に入る（悲観側に数える）。残った切れた行は次の追記の前の改行で切り離され、読みは JSON にならない行を飛ばす（今と同じ） (4) 停止の code が、途中の追記の失敗だけの run で 4 から 0 に変わる（Q-DSR-EXIT (2)）。host.ts の 507 行の標準エラーの 1 行は、前に追記が失敗していただけでは出なくなる（Q-DSR-EXIT (3)）。どちらも統合担当の決めで、作者には報告だけ。場面: 21:00 に追記が失敗し、23:00 の停止の時にも disk が書けないと、dmdata の socket の片付けの失敗（dmdataSocketCloseFailed）は列に受け付けられた後に書けずに数えて捨てられ、標準エラーにも file にも出ない（今は、前に追記が失敗していれば標準エラーに「fleq host: dmdata socket close failed」が 1 行出る） (5) 読む口と終了要約の失敗では今のまま止まる（D-READ=A） (6) diagnosticSinkFailed を報せた後は diagnosticQueueOverflow も標準エラーに出さない（AC03 (4)）。空きが戻った後の overflow も出なくなる。数は droppedCounts と終了要約の droppedDiagnostics に載る (7) 追記に成功して 7 日・100 MiB を越えた後に回収が失敗すると、越えたまま止まる（今と同じ。AC02 (3)）",
       "原文の改訂（統合担当が配送の commit で当てる。行の中の書き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-diag-exit-flush.json:224 の「(3) sink が使えない間の行（書き出しか要約の保存の失敗の後）」を「(3) sink が使えない間の行（回収・要約の保存・読む口の失敗の後。追記の失敗では止まらない、P3-DIAG-SINK-RETRY-001）」に置き換え、p3-diag-exit-flush.json の meta.sha256 を取り直す (2) 同じ file の 207 行（P3-DXF-AC02 の requirement）の「file へ書き終えるか sink が使えなくなるまで待つ」を「file へ書き終えるか、書けずに数えて捨てるか、sink が使えなくなるまで待つ」に置き換える (3) reconstruction/src/host/host.ts:75 のコメントの同じ句を (2) と同じに直す（コメントだけ、コードは変えない）。75 行は p3-diag-exit-flush.json の 209 行が «» で引くので、付け直す。理由: 直した後の flush は、書けなかったまとまりを数えて捨てた時にも決着する（AC01）",
-      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる sink の 131・343・344 行を引く本契約の «»（AC01〜AC04）と、改訂 (1) で中身が変わる p3-diag-exit-flush.json の 224 行を引く本契約の AC05 の «»。どれもほかの契約には引かれていない（Q-DSR-LINES）。改訂 (3) で中身が変わる host.ts の 75 行を引く p3-diag-exit-flush.json の 209 行の «»。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる sink の 131・343・344 行を引く本契約の «»（AC01〜AC04。AC06 が引く 215・216・391・393 行は変わらない）と、改訂 (1) で中身が変わる p3-diag-exit-flush.json の 224 行を引く本契約の AC05 の «»。改訂 (2)(3) で中身が変わる p3-diag-exit-flush.json の 207 行と host.ts の 75 行を引く本契約の AC05 の «» の 2 件。どれもほかの契約には引かれていない（Q-DSR-LINES）。改訂 (3) で中身が変わる host.ts の 75 行を引く p3-diag-exit-flush.json の 209 行の «»。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
       "本物の経路での確かめ（統合担当、配送の後、機会があれば）: Mac mini で新築を起こし、その日の日別 file（diagnostics-YYYY-MM-DD.jsonl）の書き込みの権限を一時に外して（chmod u-w。directory の権限を外すと回収の unlink も失敗して D-PRUNE=B で止まりうるので、file だけ）diagnosticSinkFailed の 1 行が標準エラーに出ることを見る。権限を戻した後に起きた診断が日別 file に書かれ、quit の後に shutdown-summary.json が在ることを見る"
     ],
     "unresolvedQuestions": []
