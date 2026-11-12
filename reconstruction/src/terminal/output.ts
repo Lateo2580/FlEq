@@ -602,8 +602,8 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
         else if (refreshed) { lastOutputMs = now.monotonicMs; held = { ...taken, result: "対応報を待つ" }; }
         else {
           if (nationwide != null) national = nationwide.national == null ? null : nationwide;
-          const cancelled = cancelledOf(reply, report);
-          push({ kind: "report", report, prompt, ...cancelled == null ? {} : { cancelled } });
+          const cancelled = cancelledOf(reply, report), unrecorded = (report.kind === "seismic" || report.kind === "tsunami") && reply.output.outcomes.some(({ unit, outcome }) => unit === taken.unit && outcome.kind === "accepted" && outcome.subjects.some((subject) => subject.transition === "unavailable" && subject.source?.inputId === inputId)); // P3-TCN-AC01: 容量で断られ印だけが付いた続報（P3-CC-AC03 (2) の形）は worker から見分けられない。short は U-W の履歴の無い取消と同じ形になるので入れない
+          push({ kind: "report", report, prompt, ...cancelled == null ? {} : { cancelled }, ...unrecorded ? { unrecorded: true as const } : {} });
           shown = taken;
         }
         count(taken.unit, taken.headType, report.kind === "seismic" ? report.maxInt ?? report.maxIntCondition : null, nowMs);

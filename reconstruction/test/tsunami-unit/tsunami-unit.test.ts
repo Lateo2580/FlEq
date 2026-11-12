@@ -715,6 +715,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-T", () => {
     // 印を付けた拒否も失敗そのものを 1 行残し（AC07）、unit の未確認にはしない。
     expect(rejected.diagnostics).toEqual([{ level: "WARN", component: "tsunami", reason: "capacityRejected", unit: "U-T",
       inputId: wide.inputId }]);
+    expect(rejected.outcomes).toEqual([{ kind: "accepted", change: "semantic", subjects: [expect.objectContaining({ transition: "unavailable", source: expect.objectContaining({ inputId: wide.inputId }) })] }]); // P3-TCN-T03
     expect(rejected.confirmationEvidence).toEqual([]);
     const older = receive(rejected.state, report(2), at(4));
     expect([forecast(older.state, CC)?.source.reportDateTimeRaw, markOf(older.state)?.source.reportDateTimeRaw]).toEqual([raw(2), raw(3)]);

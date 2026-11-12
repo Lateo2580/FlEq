@@ -18,7 +18,7 @@ const ROLES = {
   bandCancel: { bg: RASPBERRY, fg: BLACK, bold: true }, ruleCancel: { fg: RASPBERRY },
   // 帯の下の縦線（地の色で塗った空白 1 桁、P3-TL-AC03 (3)）。
   barPurple: { bg: PURPLE_LIFT }, barWarning: { bg: VERMILLION_LIFT }, barCaution: { bg: YELLOW }, barPlain: { bg: GRAY }, barCancel: { bg: RASPBERRY },
-  connLost: { fg: CREAM }, connRestored: { fg: LIGHT_GREEN }, pulse: { fg: SKY }, banner: { bg: SKY, fg: BLACK, bold: true }, warn: { fg: YELLOW }, // pulse・banner・warn は入力の行の回線の印、起動画面の帯（黒と 9.1）、未契約の区分の行（Q-TO8-PULSE・Q-TO8-BANNER）
+  connLost: { fg: CREAM }, connRestored: { fg: LIGHT_GREEN }, pulse: { fg: SKY }, banner: { bg: SKY, fg: BLACK, bold: true }, warn: { fg: YELLOW }, // pulse・banner・warn は入力の行の回線の印、起動画面の帯（黒と 9.1）、未契約の区分の行、記録に入らなかった続報の 1 行（P3-TCN-AC02）（Q-TO8-PULSE・Q-TO8-BANNER）
   arrived: { fg: VERMILLION_LIFT }, slightForecast: { fg: SKY }, dim: { fg: GRAY }, strong: { bold: true },
   int1: { fg: GRAY }, int2: { fg: SKY }, int3: { fg: BLUE }, int4: { fg: BLUE_GREEN }, int5Lower: { fg: YELLOW }, int5Upper: { fg: ORANGE },
   int6Lower: { fg: VERMILLION_LIFT, bold: true }, int6Upper: { bg: VERMILLION, fg: BLACK, bold: true }, int7: { bg: WHITE, fg: BLACK, bold: true },

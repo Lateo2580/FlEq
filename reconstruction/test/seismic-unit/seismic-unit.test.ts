@@ -993,6 +993,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     expect(line(refused.state)).toEqual(line(adopted).map(([id, channel, title]) => [id, channel,
       channel === "desktop" ? `【16:18 発表】${title}` : title]));
     expect(refused.diagnostics.map((item) => item.reason)).toEqual(["capacityRejected"]);
+    expect(refused.outcomes).toEqual([{ kind: "accepted", change: "semantic", subjects: [expect.objectContaining({ transition: "unavailable", source: expect.objectContaining({ inputId: refused.diagnostics[0].inputId }) })] }]); // P3-TCN-T03
     // 同じ VXSE53 の採用（場所が空いた後）で印が消える。
     const cleared = receive(free(refused.state), s53(), atOf(T53, 1_000));
     expect(decision(cleared).decision).toBe("changed");

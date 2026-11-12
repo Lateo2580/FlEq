@@ -14,7 +14,7 @@ import type { BandRoles, ColorLevel, Paint, Role } from "./color";
 // line は数える出力（REPL の返事・起動の行）、echo は readline が書く echo と prompt（D-DROP で数えない）。
 // cancelled は地震の取消の報だけに sink が添える、同じ返信の U-Q の記録の震源名と発生時刻（P3-TL9-AC02 (2)。worker は U-Q の記録を読めない）。
 type TerminalUnit =
-  | Readonly<{ kind: "report"; report: TerminalReport; prompt: string | null; cancelled?: Readonly<{ name: string | null; originTimeRaw: string | null }> }>
+  | Readonly<{ kind: "report"; report: TerminalReport; prompt: string | null; cancelled?: Readonly<{ name: string | null; originTimeRaw: string | null }>; unrecorded?: true }>
   // nowMs は受信した時刻（wall の ms）。同時に進む EEW の 10 分の期限を電文の時刻でなく端末の時計で測る（P3-TL2-AC11）。
   | Readonly<{ kind: "eew"; subject: SubjectOutcome; prompt: string | null; nowMs: number }>
   | Readonly<{ kind: "line"; text: string }>
@@ -1100,7 +1100,9 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
           }
           case "report": {
             const { report } = unit;
-            out += emit(paintBlock(report.kind === "seismic" ? seismic(report, ctx, unit.cancelled) : report.kind === "tsunami" ? tsunami(report, memory, ctx) : shortForm(report, ctx), ctx, paint), unit.prompt);
+            const block = report.kind === "seismic" ? seismic(report, ctx, unit.cancelled) : report.kind === "tsunami" ? tsunami(report, memory, ctx) : shortForm(report, ctx);
+            // P3-TCN-AC02・D-PLACE=B: 記録に入らなかった続報だけ、末尾の行の後に 1 行。compose の後に足すので末尾の再掲の数えに入らない。
+            out += emit(paintBlock(unit.unrecorded === true ? { ...block, body: [...block.body, line(seg("容量の上限のため、この報は記録に入っていません", "warn"))] } : block, ctx, paint), unit.prompt);
             break;
           }
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;
