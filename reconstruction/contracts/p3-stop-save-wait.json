@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "d464c4651941e60fec03573abce179595d6765e3417aa9f94be470bfd939e423",
+    "sha256": "e040eb6efbf4a1afa437beb62ae5c80272e9a493e76afa709ea8437daeb00527",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -156,7 +156,7 @@
         "requirement": "stop() の成否によらず、保存を待ってから終える（目的。P3-SSW-D-REJECT=A、統合担当の確定）: (1) cli.ts の 378 行で stop() の reject を受け止め、381〜388 行の保存の待ち（repl.idle() と 5 秒、AC18 (3)）へ進む。reject の出どころは数えない。B04 の「final shutdown summary could not be persisted」（composition-root.ts の 1805 行）は一例で、1790 行など host の stop の中のどの throw も同じに扱う (2) reject のときの順: 保存の待ち（最長 5 秒。P3-CLI-RES-03 のままで、新しい上限は足さない）→ 保存の 1 行（384・387 行、あれば）→ finally（390〜395 行。repl の close、terminal.close と診断の書き出しの並べ待ち、listener の取り外し）→ 最後に、stop() が投げたのと同じ例外（同じ object）を投げ直す。runCli はその例外で reject する（今と同じ値）。投げ直しは listener を外した後に置く (3) reject のとき、384・385・388 行の code は仮の値で、投げ直しで捨てられる。形の例: 378 行を const { code } = await stopping.catch(() => ({ code: 1 })); に書き換え、395 行の後に await stopping; の 1 行を足し、なぜその行で待つかのコメントを 1 行添える。finally で stopping が null の道（host の無い道〔起動の前の Refusal、346 行、startP2Host の失敗〕や、367〜376 行の throw）では await null が何もしない。catch の中で例外を let の変数に写し、finally で読む形は取らない（TypeScript は closure の中の代入を追わず、変数を null に絞るので、読む側が never になる） (4) stop() が resolve するふつうの終了は今と同じ。戻り値・標準エラー・待ちの長さは変わらない（finally の最後の await は、済んだ Promise を読むだけ） (5) 行の決まり: 中身を変えるのは 378 行だけ。足す行は 395 行の後だけ。377 行と 379〜395 行の中身と位置は変えない（Q-SSW-LINES）。無いと: stop() が reject すると、rename の前の設定の保存（mute・notify eew off など）を待たずに Node が終わる。次の起動では前の値に戻り、mute したはずの通知が鳴る（Q-SSW-CAUSE）",
         "evidenceRefs": [
           "reconstruction/src/cli/cli.ts:377 «220b91d77a1bf4dd»",
-          "reconstruction/src/cli/cli.ts:378 «9c5da53677696d58»",
+          "reconstruction/src/cli/cli.ts:378 «bfef1eb1e178699c»",
           "reconstruction/src/cli/cli.ts:381 «9e814ba6be570a8b»",
           "reconstruction/src/cli/cli.ts:384 «075e894e8828dd94»",
           "reconstruction/src/cli/cli.ts:385 «fab94c37e644e238»",
@@ -173,7 +173,7 @@
           "reconstruction/src/runtime/composition-root.ts:1805 «5d65895f36340616»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:302 «0982cc16635b9129»",
           "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts:475 «4aa6aced5e54f132»",
-          "reconstruction/contracts/p3-cli-repl.json:1236 «7e936ee90b28f01e»",
+          "reconstruction/contracts/p3-cli-repl.json:1236 «5999edebc2f15d38»",
           "reconstruction/contracts/p3-repl-closed.json:13 «a76c9bff78bc6147»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
           "reconstruction/contracts/p3-execution-lifecycle.json:720 «43270efa8e841d25»"
@@ -183,7 +183,7 @@
         "id": "P3-SSW-AC02",
         "requirement": "他の契約の文（実装はしない。原文の改訂として、統合担当が配送の commit で当てる。行の数は変えない）: p3-cli-repl.json の 1236 行（P3-CLI-AC18 の requirement）の (3) は、終了の code を「ShutdownSummary.code」とだけ書き、stop() が reject したときを書いていない。artifactRequirements の原文の改訂 (1) の文を足す。AC18 (3) の待ちの決まり（stop() が終わった後も 5 秒まで待つ）は変わらない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-cli-repl.json:1236 «7e936ee90b28f01e»"
+          "reconstruction/contracts/p3-cli-repl.json:1236 «5999edebc2f15d38»"
         ]
       }
     ],

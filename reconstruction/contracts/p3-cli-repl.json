@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "501d8a8b6057b453de6cde917bc2493f734ab6c874cde303f2bee27fb2b1057b",
+    "sha256": "75657b463703df0e393b41688ca3da08cf2f781b5cd07af4daba83c5ab5705da",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -1233,7 +1233,7 @@
       },
       {
         "id": "P3-CLI-AC18",
-        "requirement": "【発注 2】終了（P3-CLI-D-O2-QUIT・P3-CLI-D-SIGNAL）: (1) quit・exit は readline を close する。close（Ctrl+C・Ctrl+D・標準入力の終わりを含む）の handler が、発注 1 の終了の要求（印と stop() の 1 本、AC05 の (7)）を出す。readline に SIGINT の listener を付けない (2) close の後の行は実行しない。SIGINT・SIGTERM・SIGHUP は発注 1 の listener のまま同じ stop() を待つ。2 回目以後の要求は待つだけで、新しく何もしない (3) 終了の要求の後は、REPL の保存の列（P3-CLI-D-O2-WRITE。走っている 1 本と「もう 1 回要る」の印の分）を、stop() と並べて待つ。stop() が終わった後も保存の列が終わっていなければ、さらに 5 秒（置き値、P3-CLI-RES-03）まで待つ。それでも終わらなければ標準エラーに『設定ファイル <path> に最後の変更を保存できたか確かめられません』の 1 行を出す（rename が済んで directory の sync だけが残っているときは、次の起動で新しい値になりうるので、次の起動の状態を言い切らない、settings.ts の書き込みの手順）。runCli は戻る前に readline を閉じ、自分の listener を外す。終了の code は ShutdownSummary.code で、保存の列が期限までに終わらなかったときは、その code が 0 なら 1 にする（0 以外はそのまま）。fleq.mjs の process.exit はこの後なので、期限の内は rename の前の保存を残したまま終えない。期限の内に保存の列が終わり、REPL が閉じた後に分かった失敗があれば、標準エラーに P3-RC-AC02 (1) の 1 行を出し、code は 0 なら 1、0 以外はそのまま（P3-REPL-CLOSED-001） (4) startP2Host が戻る前に来た要求は発注 1 のまま（REPL を起こさずに stop を待つ）",
+        "requirement": "【発注 2】終了（P3-CLI-D-O2-QUIT・P3-CLI-D-SIGNAL）: (1) quit・exit は readline を close する。close（Ctrl+C・Ctrl+D・標準入力の終わりを含む）の handler が、発注 1 の終了の要求（印と stop() の 1 本、AC05 の (7)）を出す。readline に SIGINT の listener を付けない (2) close の後の行は実行しない。SIGINT・SIGTERM・SIGHUP は発注 1 の listener のまま同じ stop() を待つ。2 回目以後の要求は待つだけで、新しく何もしない (3) 終了の要求の後は、REPL の保存の列（P3-CLI-D-O2-WRITE。走っている 1 本と「もう 1 回要る」の印の分）を、stop() と並べて待つ。stop() が終わった後も保存の列が終わっていなければ、さらに 5 秒（置き値、P3-CLI-RES-03）まで待つ。それでも終わらなければ標準エラーに『設定ファイル <path> に最後の変更を保存できたか確かめられません』の 1 行を出す（rename が済んで directory の sync だけが残っているときは、次の起動で新しい値になりうるので、次の起動の状態を言い切らない、settings.ts の書き込みの手順）。runCli は戻る前に readline を閉じ、自分の listener を外す。終了の code は ShutdownSummary.code で、保存の列が期限までに終わらなかったときは、その code が 0 なら 1 にする（0 以外はそのまま）。fleq.mjs の process.exit はこの後なので、期限の内は rename の前の保存を残したまま終えない。期限の内に保存の列が終わり、REPL が閉じた後に分かった失敗があれば、標準エラーに P3-RC-AC02 (1) の 1 行を出し、code は 0 なら 1、0 以外はそのまま（P3-REPL-CLOSED-001）。stop() が reject で終わったときも、同じ保存の待ちと 1 行を通し、finally の後に同じ例外で runCli を reject させる（code の 0 は作らない。P3-STOP-SAVE-WAIT-001、P3-SSW-D-REJECT=A） (4) startP2Host が戻る前に来た要求は発注 1 のまま（REPL を起こさずに stop を待つ）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-lifecycle.json:445 «64f41c13a3d515bb»",
           "src/ui/repl.ts:193 «d49c2e377965161b»",

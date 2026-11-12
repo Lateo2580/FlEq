@@ -375,7 +375,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     }
     await asked;
     stopping ??= host.stop();
-    const { code } = await stopping.catch(() => ({ code: 1 })); // reject でも下の保存の待ちを通す。例外は finally の後に投げ直す（P3-SSW-AC01）
+    const { code } = await stopping.catch(() => ({ code: 1 })); // reject でも下の保存の待ちを通す。例外は finally の最後で投げ直す（P3-SSW-AC01）
     // AC18 (3): stop() の後も保存の列が終わっていなければ 5 秒まで待つ。期限の内は rename の前の保存を残して終えない。
     let timer: NodeJS.Timeout | undefined;
     const saved = repl == null || await Promise.race([repl.idle().then((line) => line ?? true), new Promise<false>((done) => { timer = setTimeout(() => done(false), SAVE_WAIT_MS); })]);

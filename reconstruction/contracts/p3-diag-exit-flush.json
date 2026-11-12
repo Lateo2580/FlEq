@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "f0197ea4288654f2c2188ec59fd02532efb17b58af0788a92f39c83522d5e00b",
+    "sha256": "a30c996574eb9475cd0b92d58d3fd44fb90f169c3ab23b7452966e922ba73106",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -179,7 +179,7 @@
         "id": "P3-DXF-AC01",
         "requirement": "CLI の終わりで待つ（目的。P3-DXF-D-PLACE=A、P3-DXF-D-LIMIT=A）: (1) cli.ts の finally の terminal.close（391 行）を、host が null でないとき、host.flushDiagnostics() の待ちと並べて両方を待つ形にする。flushDiagnostics の待ちは 1 秒の timer と race し、終わったら timer を clearTimeout する（P3-DXF-RES-01） (2) flushDiagnostics の reject は握る（finally から投げると return の code が例外に置き換わる。sink の flush は reject しない〔Q-DXF-MOUTH〕が、口の約束にしない） (3) host が null の枝（起動の前の Refusal、346 行の一覧を待つ間の終了の要求、startP2Host の失敗）は待たない（sink を持つ host が無い） (4) 待ちを始めるのは保存の待ち（381 行）の後なので、stop() が戻ってから保存の待ちが終わるまでに入った行も書き出す (5) 端末の行・音・終了の code・標準エラーの行は変えない。ふつうの終了が延びるのは書き出しの数 ms だけ (6) 行の決まり: 389 行より後だけを変える（Q-DXF-LINES）。1 秒の数は finally の中に置く（cli.ts の 26 行の SAVE_WAIT_MS の隣に定数を足すと、378〜388 行を引く «» がずれる）。コメントは「なぜ待つか（fleq.mjs の process.exit が書きかけの追記を捨てる）」と上限の根拠を 1 行で。無いと: 停止の後に入った診断が file にも標準エラーにも残らない（目的の場面、Q-DXF-CAUSE）",
         "evidenceRefs": [
-          "reconstruction/src/cli/cli.ts:378 «9c5da53677696d58»",
+          "reconstruction/src/cli/cli.ts:378 «bfef1eb1e178699c»",
           "reconstruction/src/cli/cli.ts:381 «9e814ba6be570a8b»",
           "reconstruction/src/cli/cli.ts:389 «83b07cef61a625f5»",
           "reconstruction/src/cli/cli.ts:394 «e644ea41ec7c178a»",
