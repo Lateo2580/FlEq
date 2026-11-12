@@ -553,3 +553,31 @@ it("P3-DXF-T02: 書き出しが 1 秒で終わらなければ待ちをやめ、s
   state.release();
   await sink.flush(); // afterEach の rm と書き出しを競わせない（0f3d1b9e と同じ理由）
 });
+
+// P3-SSW-T01 acceptance (P3-SSW-AC01 (1)(2)): stop() が reject しても、止まった設定の保存を待ってから、同じ例外で終わる。
+it("P3-SSW-T01: stop() が reject しても保存の待ちを通り、保存が済んでから同じ例外で reject する", async () => {
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["eew.forecast"] });
+  writes.stall = "write";
+  writes.reached = false;
+  writes.gate = new Promise<void>((done) => { writes.release = done; });
+  clear();
+  const error = new Error("final shutdown summary could not be persisted");
+  const stop = vi.fn(async (): Promise<{ code: number }> => { throw error; });
+  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop, flushDiagnostics: async () => {}, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
+  let settled: { ok: boolean; value: unknown } | null = null;
+  const result = runCli([]);
+  void result.then((value) => { settled = { ok: true, value }; }, (reason: unknown) => { settled = { ok: false, value: reason }; });
+  await vi.waitFor(() => expect(mocks.attached).toBe(true));
+  mocks.readline!.line("notify eew off");
+  mocks.readline!.line("quit");
+  while (!writes.reached) await new Promise((done) => setImmediate(done));
+  for (let turn = 0; turn < 50; turn += 1) await new Promise((done) => setImmediate(done));
+  expect(settled).toBeNull();
+  writes.release();
+  await expect(result).rejects.toBe(error);
+  expect(stop).toHaveBeenCalledTimes(1);
+  expect(readConfig().notify).toEqual({ eew: false });
+  expect(stderr).toBe("");
+  writes.stall = null;
+});

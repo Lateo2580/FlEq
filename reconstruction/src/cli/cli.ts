@@ -375,7 +375,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     }
     await asked;
     stopping ??= host.stop();
-    const { code } = await stopping;
+    const { code } = await stopping.catch(() => ({ code: 1 })); // reject でも下の保存の待ちを通す。例外は finally の後に投げ直す（P3-SSW-AC01）
     // AC18 (3): stop() の後も保存の列が終わっていなければ 5 秒まで待つ。期限の内は rename の前の保存を残して終えない。
     let timer: NodeJS.Timeout | undefined;
     const saved = repl == null || await Promise.race([repl.idle().then((line) => line ?? true), new Promise<false>((done) => { timer = setTimeout(() => done(false), SAVE_WAIT_MS); })]);
@@ -393,6 +393,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     const flushed = host == null ? null : Promise.race([host.flushDiagnostics().catch(() => {}), new Promise<void>((done) => { flushTimer = setTimeout(done, 1_000); })]).then(() => clearTimeout(flushTimer));
     await Promise.all([terminal.close(), flushed]); // P3-TO-AC02 (6)・DLV-02: 列の残りを最長 1 秒書かせて writer を終える
     for (const signal of signals) process.off(signal, onSignal);
+    await stopping; // stop() の reject を握りつぶさない。無いと reject の終わり方が code 1 の戻りに化ける（P3-SSW-D-REJECT=A）
   }
 }
 
