@@ -282,3 +282,28 @@ describe("P3-REC-T08 acceptance (Q-REC-PRECHECK-10 N2・N3): the startup digest 
     expect(https.paths.filter((path) => path !== "/v2/telegram")).toEqual([`/v1/${recent.id}`]);
   });
 });
+
+describe("P3-RDL-T01 acceptance: a report received live during the walk is left out of the startup digest (AC01 (1)(2), AC02)", () => {
+  it("the oldest of five VTSE41 heads, received live before the U-T list answers, is neither a headline nor counted", async () => {
+    const startedAt = clock().wallTimeMs;
+    const heads = Array.from({ length: 5 }, (_, index) => item("VTSE41", startedAt - index * MINUTE, `h${index}`));
+    https.handle = (url) => {
+      if (url.hostname === "data.api.dmdata.jp") return xmlBody();
+      return url.searchParams.get("type") === "VTSE41,VTSE51,VTSE52" ? page(heads) : page([]);
+    };
+    https.hold = true;
+    const { host, sockets } = await start(["telegram.earthquake"]);
+    await until(() => https.held.length === 1);
+    // X は新しい順で 5 件目。見出し（3 件）の外に置き、buildDigest の後で見出しだけを除く誤りを件数で落とす。
+    sockets[0].send(JSON.stringify({ type: "data", version: "2.0", classification: "telegram.earthquake", id: heads[4].id, format: "xml",
+      encoding: "utf-8", compression: null, head: { type: "VTSE41", author: "JMA", time: new Date(startedAt).toISOString(), test: false, xml: true },
+      xmlReport: { control: { status: "通常" } }, body: vtse41.toString("utf8") }));
+    await until(() => roots.root!.mailbox.stats(clock().monotonicMs).accepted >= 1);
+    https.hold = false;
+    for (const respond of https.held.splice(0)) respond();
+    await until(async () => (await snapshot(host.displayPort)).recovery.digest != null);
+    const tsunami = (await snapshot(host.displayPort)).recovery.digest!.units.find((unit) => unit.unit === "U-T");
+    expect(tsunami?.kind === "listed" ? [tsunami.heads.map((head) => head.headline), tsunami.omitted] : tsunami)
+      .toEqual([["h0", "h1", "h2"], { VTSE41: 1 }]);
+  });
+});

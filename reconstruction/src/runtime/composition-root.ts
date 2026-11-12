@@ -1916,11 +1916,11 @@ class RuntimeCompositionRoot {
     return result;
   }
 
-  // P3-REC-AC15: 辿りの結果をダイジェストにして snapshot へ載せ、辿れなかった unit を診断に残す（AC03 (4)・AC04）。owner の止まった unit の WARN は出さない（Q-REC-PRECHECK-9 N2。回の後にも来るので stoppedUnit で見る）。
+  // P3-REC-AC15: 辿りの結果をダイジェストにして snapshot へ載せ、辿れなかった unit を診断に残す（AC03 (4)・AC04）。owner の止まった unit の WARN は出さない（Q-REC-PRECHECK-9 N2。回の後にも来るので stoppedUnit で見る）。live で受けた id は件数の前に除く（P3-RECOVERY-DIGEST-LIVE-001。compare が消す前の今だけ引く）。
   showRecoveryDigest(results: readonly UnitWalkResult[], starts: Readonly<Partial<Record<RuntimeUnitId, WalkStart>>>, clock: ClockReading): void {
     const { runId } = this.state;
     for (const details of walkDiagnostics(results)) if (details.unit == null || !this.stoppedUnit(details.unit)) this.enqueueDiagnostic(completeDiagnostic(details, clock, runId));
-    this.recoveryDigest = buildDigest(results, starts);
+    this.recoveryDigest = buildDigest(results.map((result) => result.kind === "listed" && this.freshness != null ? { ...result, heads: this.freshness.ledger.withoutReceived(result.heads) } : result), starts);
     this.project([], [], clock);
   }
 

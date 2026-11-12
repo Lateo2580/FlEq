@@ -112,6 +112,15 @@ class FreshnessLedger {
   private count(unit: RuntimeUnitId, delta: number): void {
     this.counts.set(unit, (this.counts.get(unit) ?? 0) + delta);
   }
+
+  /**
+   * P3-RDL-AC02: 起動のまとめから live で受けた id の頭を除く（読むだけ。compare は一致を消すので代わりに使えない）。区分を見ないのは、
+   * 帳簿と一覧の区分が同じ headType から決まり dmdata の id が電文ごとに一意だから。頭ごとに O(区分の数 ≤ 3)、まとめを作る時に run で 1 回。
+   */
+  withoutReceived(heads: readonly ListHead[]): readonly ListHead[] {
+    const received = [...this.receivedIds.values()];
+    return heads.filter((head) => !received.some((ids) => ids.has(head.id)));
+  }
 }
 
 /**
