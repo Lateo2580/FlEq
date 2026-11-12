@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { HostCommandPort } from "../../contracts/p3-cli-repl.types";
-import { runCli } from "../../src/cli/cli";
+import { runCli } from "../../src/cli/cli"; import { PersistentDiagnosticSink } from "../../src/checkpoint/persistent-diagnostic-sink"; import { nodeDiagnosticFileSystem } from "../../src/runtime/composition-root";
 
 type FakeReadline = { line(text: string): void; close(): void };
 const mocks = vi.hoisted(() => ({ startP2Host: vi.fn(), exchange: vi.fn(), answers: [] as (string | (() => string))[], readline: null as FakeReadline | null, attached: false, startup: undefined as unknown }));
@@ -169,7 +169,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     let requests = 1;
     const start = async (...argv: string[]) => {
       clear();
-      mocks.startP2Host.mockResolvedValue({ displayPort: 12345, stop });
+      mocks.startP2Host.mockResolvedValue({ displayPort: 12345, stop, flushDiagnostics: async () => {} });
       const before = sigintListeners();
       const result = runCli(argv);
       await vi.waitFor(() => expect(mocks.attached).toBe(true));
@@ -190,7 +190,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     const early = runCli([]);
     await vi.waitFor(() => expect(mocks.startP2Host).toHaveBeenCalledTimes(3));
     fire(before);
-    resolveHost({ displayPort: 12345, stop });
+    resolveHost({ displayPort: 12345, stop, flushDiagnostics: async () => {} });
     expect(await early).toBe(3);
     expect(stop).toHaveBeenCalledTimes(1);
     expect(mocks.attached).toBe(false);
@@ -215,8 +215,8 @@ describe("P3-CLI-REPL-001 発注 1", () => {
 
   // P3-CLI-T12 acceptance (AC18・AC19・AC05)
   // stop は要約の code だけを返す（T04 と同じ）。
-  const fakeHost = (stop: () => Promise<{ code: number }>): Omit<HostCommandPort, "stop"> & { stop: () => Promise<{ code: number }> } => ({
-    displayPort: null, stop, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+  const fakeHost = (stop: () => Promise<{ code: number }>): Omit<HostCommandPort, "stop"> & { stop: () => Promise<{ code: number }>; flushDiagnostics: () => Promise<void> } => ({
+    displayPort: null, stop, flushDiagnostics: async () => {}, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
     status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
   const startRepl = async (code: number) => {
     clear();
@@ -365,7 +365,7 @@ vi.mock("../../src/cli/repl", async (importOriginal) => {
 // describe の中の fakeHost・startRepl は使えないので、host の偽物（stop は code 0）と起動をここに書く。
 const startCli = async (): Promise<{ result: Promise<number> }> => {
   clear();
-  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop: async () => ({ code: 0 }), reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop: async () => ({ code: 0 }), flushDiagnostics: async () => {}, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
     status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
   const result = runCli([]);
   await vi.waitFor(() => expect(mocks.attached).toBe(true));
@@ -429,7 +429,7 @@ const contractList = (body: unknown) => ({ kind: "answered", status: 200, bytes:
 const ncStart = async (): Promise<number> => {
   clear();
   mocks.startP2Host.mockClear();
-  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop: async () => ({ code: 0 }), reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+  mocks.startP2Host.mockResolvedValue({ displayPort: null, stop: async () => ({ code: 0 }), flushDiagnostics: async () => {}, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
     status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
   const before = sigintListeners();
   const result = runCli([]);
@@ -499,4 +499,57 @@ it("P3-NC-T07: 形の不正な項目を含む一覧は一覧の失敗、正し�
   mocks.exchange.mockResolvedValue(contractList({ items: [] }));
   expect(await ncStart()).toBe(1);
   expect(stderr).toBe("有効な契約区分がありません。dmdata.jp で区分を契約してください。\n");
+});
+
+// P3-DIAG-EXIT-FLUSH-001: 本物の sink を偽 host の後ろに置き、stop() が戻る直前に 1 行入れる。追記は gate を開けるまで止める（時間の幅に頼らない、Q-DXF-TEST）。
+const exitFlushStart = () => {
+  writeAt(join(tmp, "fleq-next"), { apiKey: "k0", appName: "fleq-new-test", classifications: ["eew.forecast"] });
+  const directory = join(tmp, "diag");
+  const state = { reached: false, stopped: false, returned: false, release: () => {} };
+  const gate = new Promise<void>((done) => { state.release = done; });
+  const fileSystem = nodeDiagnosticFileSystem();
+  const sink = new PersistentDiagnosticSink(directory, { ...fileSystem, appendFile: async (path, data) => { state.reached = true; await gate; return fileSystem.appendFile(path, data); } }, () => Date.now(), () => {});
+  clear();
+  mocks.startP2Host.mockResolvedValue({ displayPort: null, reconnect: () => "connected", openDisplay: async () => ({ kind: "failed" }), closeDisplay: async () => "notOpen",
+    stop: async () => { sink.enqueueDiagnostic({ timestamp: Date.now(), level: "WARN", component: "host", reason: "dmdataSocketCloseFailed", runId: "dxf" }); state.stopped = true; return { code: 0 }; },
+    flushDiagnostics: () => sink.flush(),
+    status: () => ({ connection: "connected", socketId: null, failedAttempts: 0, lastFailure: null, lastFrameWallMs: null, lostConnections: 0, display: null, lastLossFrameWallMs: null, classifications: null }) });
+  const result = runCli([]);
+  void result.then(() => { state.returned = true; });
+  const lines = () => readdirSync(directory).filter((name) => /^diagnostics-.*\.jsonl$/.test(name)).flatMap((name) => readFileSync(join(directory, name), "utf8").split("\n")).filter((line) => line.includes("dmdataSocketCloseFailed"));
+  return { result: { result }, state, sink, lines }; // 包むのは startCli と同じ理由
+};
+const turns = async (count: number) => { for (let turn = 0; turn < count; turn += 1) await new Promise((done) => setImmediate(done)); };
+
+// P3-DXF-T01 acceptance (P3-DXF-AC01 (1)(4)・AC02)
+it("P3-DXF-T01: 停止の後に入った診断の行を、CLI の終わりで file へ書き終えてから戻る", async () => {
+  const { result: { result }, state, lines } = exitFlushStart();
+  await vi.waitFor(() => expect(mocks.attached).toBe(true));
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  mocks.readline!.line("quit");
+  // getTimerCount は待ちの条件に使わない（直す前のコードは timer を張らず、落ちる代わりに期限切れになる）。
+  while (!state.reached || !state.stopped) await turns(1);
+  await turns(10);
+  expect(state.returned).toBe(false);
+  state.release();
+  expect(await result).toBe(0);
+  expect(lines()).toHaveLength(1);
+});
+
+// P3-DXF-T02 contractBoundary (P3-DXF-RES-01・AC03 (1))
+it("P3-DXF-T02: 書き出しが 1 秒で終わらなければ待ちをやめ、stop の code で戻る", async () => {
+  const { result: { result }, state, sink, lines } = exitFlushStart();
+  await vi.waitFor(() => expect(mocks.attached).toBe(true));
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  mocks.readline!.line("quit");
+  while (!state.reached || !state.stopped || vi.getTimerCount() !== 1) await turns(1);
+  await turns(10);
+  vi.advanceTimersByTime(999);
+  await turns(1);
+  expect(state.returned).toBe(false);
+  vi.advanceTimersByTime(1);
+  expect(await result).toBe(0);
+  expect(lines()).toEqual([]);
+  state.release();
+  await sink.flush(); // afterEach の rm と書き出しを競わせない（0f3d1b9e と同じ理由）
 });

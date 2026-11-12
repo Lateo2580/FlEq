@@ -72,8 +72,8 @@ function controlHead(value: unknown): ControlHead | null {
 
 const isStrings = (value: unknown): value is readonly string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
-/** The one P2 product host: WS frames in, mailbox, decode, runtime, display out. displayPort が number の起動は戻りの displayPort も number（{ wsUrl } の呼び手を変えない、P3-CLI-AC16 (1)）。 */ function startP2Host(config: P2HostConfig & Readonly<{ displayPort: number }>): Promise<HostCommandPort & Readonly<{ displayPort: number }>>; function startP2Host(config: P2HostConfig): Promise<HostCommandPort>;
-async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
+/** The one P2 product host: WS frames in, mailbox, decode, runtime, display out. displayPort が number の起動は戻りの displayPort も number（{ wsUrl } の呼び手を変えない、P3-CLI-AC16 (1)）。flushDiagnostics は呼んだ時点で診断の列にある行と書き出し中の行を、file へ書き終えるか sink が使えなくなるまで待つ（上限は呼び手が持つ、P3-DXF-AC02）。 */ function startP2Host(config: P2HostConfig & Readonly<{ displayPort: number }>): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }> & Readonly<{ displayPort: number }>>; function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }>>;
+async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }>> {
   const { clock } = config;
   // P3-C2-AC01: checked before anything starts; the appName is validateAppConfig's (empty and "fleq" are refused there).
   if (config.dmdata != null) {
@@ -661,7 +661,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort> {
     // 4 は 5 秒の倍々が 60 秒に届く前の回数（5・10・20・40 秒）。その後に 60 秒を CAPPED_RETRIES 回使う。
     return n > 4 + CAPPED_RETRIES ? LONG_RETRY_MS : Math.min(RECONNECT_MS * 2 ** (n - 1), BACKOFF_CAP_MS);
   }
-  return { displayPort: server?.port ?? null, stop, reconnect, openDisplay, closeDisplay, status };
+  return { displayPort: server?.port ?? null, stop, reconnect, openDisplay, closeDisplay, status, flushDiagnostics: () => root.diagnostics.flush() };
 }
 
 // P3-DE-AC01 (2): dmdata の文書の地域の入口（ws001・ws002 は東京、ws003・ws004 は大阪）。切れた host の反対の地域を指す。

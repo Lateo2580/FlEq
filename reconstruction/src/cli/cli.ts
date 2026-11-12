@@ -388,7 +388,10 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     return code === 0 ? 1 : code;
   } finally {
     repl?.close();
-    await terminal.close(); // P3-TO-AC02 (6)・DLV-02: 列の残りを最長 1 秒書かせて writer を終える
+    // P3-DXF-AC01: 停止の後に入った診断は誰も書き出しを待たず、fleq.mjs の process.exit が書きかけの追記を捨てる。terminal.close の 1 秒と並べるので終了の最悪の長さは変わらない（P3-DXF-RES-01）。
+    let flushTimer: NodeJS.Timeout | undefined;
+    const flushed = host == null ? null : Promise.race([host.flushDiagnostics().catch(() => {}), new Promise<void>((done) => { flushTimer = setTimeout(done, 1_000); })]).then(() => clearTimeout(flushTimer));
+    await Promise.all([terminal.close(), flushed]); // P3-TO-AC02 (6)・DLV-02: 列の残りを最長 1 秒書かせて writer を終える
     for (const signal of signals) process.off(signal, onSignal);
   }
 }
