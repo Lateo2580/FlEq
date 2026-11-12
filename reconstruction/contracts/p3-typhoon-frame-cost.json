@@ -1,0 +1,250 @@
+{
+  "meta": {
+    "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
+    "sha256": "176abc39a2d693e8900587012a41564dab9685864184385fcade020d4eb466f4",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-TFC-D-FORM",
+        "kind": "統合担当",
+        "A": "typhoon.ts の :311 の中だけで直す: 残した時刻（kept）を Set に 1 回入れ、落とした最初の時刻を nodes.find((node) => !keep.has(node)) で探す（例: if (kept.length < nodes.length) { found.truncated = true; const keep = new Set(kept); drop(\"frame\", nodes.find((node) => !keep.has(node)) ?? null); }）。Set は includes と同じ SameValueZero で要素を比べるので、drop に渡す時刻は今と同じ",
+        "B": ":310 の filter の中で、残さなかった最初の時刻を変数に覚え、:311 はそれを drop に渡す（:310 と :311 の 2 行を書き換え、行の数は同じ）。filter は文書の順に 1 回だけなめるので、覚える時刻は今と同じ",
+        "C": "実況が 2 個以上（nowCount > 1）なら :311 より前に拒否する。振る舞いが変わる: 実況の時刻の Item か DateTime が欠けた報では、今は parseFrame（:140）が found.missing を立て、fail()（:274）が missing を先に見て requiredStructureMissing で拒否する。先に拒否すると requiredStructureInvalid に変わる。drop の印は拒否の結果に載らない（reject は notes を持たない、:236）ので、印の有無は変わらない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（起草の担当が補った、2026-11-12。統合担当が発注の前に確かめる）",
+        "ruling": "起草案 A（統合担当の確認待ち）",
+        "reason": "A は 1 行の中で閉じ、所属の引きが見て分かる。B も同じ結果だが 2 行に触れる。C は拒否の理由が変わる場合がある（上の場面）ので採らない。:311 の位置の比べ（kept は nodes の文書の順の部分列なので、最初に kept[at] !== node となる nodes[at] が落とした最初の時刻）も同じ結果になるが、部分列であることを読み手が確かめる手間があるので A を推す。:311 は他の契約に引かれていない（:306・:321 と :333 から後の行は引かれている、Q-TFC-ANCHORS）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TFC-SOURCE",
+        "status": "closed",
+        "source": "ヘルツの総合レビュー（GPT-6、詳細のモデル ID はレビューの環境で確かめられなかったと結果の 1 行目にある。read-only、2026-11-12 夜）の 1 件目の P2。写しは作業ノートの外の ~/dev/fleq-vault-archive/2026-11-12-night/hz-review-1.result.md",
+        "closed": "イベント列: ① 正常な外枠の解析の報に、実況の時刻 10,000 個と末尾に表の外の type の時刻 1 個を入れる。小さい要素なら decode の上限（8 MiB・320,000 ノード、decode-material.ts:24・:26）の内に収まる ② nowCount=10000、room=-9976。実況は room を見ずに残るので kept は 10,000 個、表の外の 1 個だけ落ちる（typhoon.ts:306〜:310） ③ kept.length < nodes.length なので :311 の nodes.find((node) => !kept.includes(node)) が走り、比べは約 5 千万回 ④ nowCount > 1 の拒否（:322）はその後。AGENTS.md の受信経路の計算量に反する。遅延の時間は計っていない。実電文の実況は 1 個なので通常は起きない。実況が 1 個以下なら kept は 24 個以下で、:311 は時刻の数×24 に収まる（全件×全件になるのは実況が 25 個以上のときだけで、その報はどれも :322 で拒否される）"
+      },
+      {
+        "id": "Q-TFC-OBSERVABLE",
+        "status": "closed",
+        "source": "起草（2026-11-12、HEAD de25f61a の木を読んだ）",
+        "closed": "drop に渡す時刻が外から見えるのは受理された報だけ: drop は notes.note を呼び（typhoon.ts:259）、notes は site ごとに先着の 1 つを残す（unreadable.ts:97）。:311 は残した時刻の parseFrame（:313、その中の drop は :139 ほか）より先に呼ばれるので、truncated で受理された解析の報の印（:280 の notes.mark）の frame の part の raw は、文書の順で最初に落とした時刻になる。拒否（:236 の reject）は notes を持たないので、実況が 2 個以上の報で落とした時刻はどこにも出ない。今の試験は frame の part の raw を見ていない（typhoon-unit.test.ts:791 の (2) は残した時刻の kinds だけ）ので、P3-TFC-T01 を足して直す前と後の両方で緑にする"
+      },
+      {
+        "id": "Q-TFC-COST-TEST",
+        "status": "closed",
+        "source": "起草（2026-11-12）",
+        "closed": "計算量の試験は足さない。比べの回数は外から見えない: includes の呼び出しの回数は今のコードでも時刻の数に比例し、時刻の数倍の比べは native の includes の中にある。Set.prototype.has などの spy で数える形は実装の内部の形を写す試験で、AGENTS.md の最小テストに外れる。時間で確かめる試験は使わない。計算量は P3-TFC-AC01 と P3-TFC-RES-01 を diff のレビュー（:311 の 1 行）で確かめる"
+      },
+      {
+        "id": "Q-TFC-ANCHORS",
+        "status": "closed",
+        "source": "起草（2026-11-12、reconstruction/contracts と docs を typhoon.ts の行の参照で grep）",
+        "closed": "typhoon.ts の行を引く «» は :19・:93・:97・:111・:112・:136・:137・:155・:197・:228・:252・:302・:306・:321・:333〜:458 の行で、:310・:311 を引く契約は無い。行の数を変えなければ他の契約の «» はずれない。本契約自身の :311 の «»（AC01・AC02）は実装で変わる（統合担当が配送で付け直す）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない（時刻の選別は報の中だけで、subject・operation に触れない）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TYPHOON-FRAME-COST-001",
+    "mode": "implementation",
+    "objective": "台風の解析の報で実況の時刻が多いとき、落とした最初の時刻を探す typhoon.ts の :311 が残した時刻の配列を時刻ごとになめる全件×全件の走査（ヘルツの総合レビューの P2、AGENTS.md の受信経路の計算量）を、時刻の数に比例する探索に改める。受理・拒否・拒否の理由・truncated・frames と、drop に渡す時刻（受理された報の印の frame の part）は変えない。画面と音は変わらない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-typhoon-frame-cost.json",
+      "reconstruction/contracts/p3-typhoon-unit.json",
+      "reconstruction/contracts/p3-weather-shape.json",
+      "reconstruction/src/domains/typhoon/typhoon.ts",
+      "reconstruction/src/units/unreadable.ts",
+      "reconstruction/test/typhoon-unit/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/typhoon/typhoon.ts（:311 の 1 行の中だけ。P3-TFC-D-FORM=B なら :310 も。行の数を変えない）",
+      "reconstruction/test/typhoon-unit/typhoon-unit.test.ts（末尾に試験を足す。既存の行は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-typhoon-frame-cost.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M11"
+    ],
+    "integrationContractIds": [
+      "I-U-Y"
+    ],
+    "dependsOnContractIds": [
+      "P3-UNIT-Y-001",
+      "P3-WEATHER-SHAPE-001",
+      "P3-UNREADABLE-MARK-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-typhoon-unit.types.ts#TyphoonFrame"
+    ],
+    "publicFunctions": [
+      "口は変えない（parseTyphoon の型・引数・返す形は同じ）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__synthetic_VPTW60_TC2606"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-TFC-RES-01",
+        "target": "解析の報 1 回の時刻の選別（typhoon.ts の :306〜:311）",
+        "limit": "時刻の数 N に比例（labels・nowCount・kept・落とした最初の時刻の探索をそれぞれ 1 回なめる）。全件×全件 0",
+        "unit": "操作",
+        "scope": "decode の上限（8 MiB・320,000 ノード）の内で組める実況の多い報を含む。拒否（:322）までに残した時刻ごとに parseFrame を 1 回呼ぶのは線形で、変えない",
+        "source": "AGENTS.md の受信経路の計算量、P3-C14-RES-03"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [
+      "U-Y"
+    ],
+    "persistedFields": [
+      "なし（保存の形と版 p3-typhoon-unit-v7 を変えない）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "実況が 2 個以上の報を早く拒否すること（P3-TFC-D-FORM の C。拒否の理由が変わる場合がある）",
+      "拒否までに残した時刻ごとに parseFrame を呼ぶこと（線形で、拒否の理由の missing・invalid を決めるのに要る）",
+      "時刻の選別の規則（P3-WS-D-TYPHOON の (1)(2)、LIMITS.frames 24）と印の作り方（unreadable.ts）",
+      "ヘルツの同じレビューのほかの指摘（U-M・U-Y の容量の退去の後に取消済みの報が戻る族）",
+      "旧築（src/）と spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TFC-AC01",
+        "requirement": "計算量（AGENTS.md の受信経路の計算量、P3-TFC-RES-01）: 解析の報 1 回で、落とした最初の時刻の探索（:311）は時刻の数に比例し、kept を時刻ごとになめない。場面（ヘルツの列、Q-TFC-SOURCE）: 実況の時刻 10,000 個と末尾に表の外の type の時刻 1 個の報で、今は :311 で約 5 千万回の比べをしてから :322 で拒否する。直した後は Set を 1 回作って約 1 万回引く（P3-TFC-D-FORM=A）か、filter の 1 回の中で覚える（B）。拒否の結果は今と同じ（理由は AC02 の (1) に従う。実況の時刻を小さく削って詰めた報では、Item の欠けた実況が requiredStructureMissing にする）",
+        "evidenceRefs": [
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:306 «21b857748f659958»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:309 «220c962b36390109»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:310 «8781f779714ec47b»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:311 «7935d8b1200b18ec»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:322 «860fb2c1e3a37008»",
+          "reconstruction/src/decode-material/decode-material.ts:24 «a7d24b39a97b9657»",
+          "reconstruction/src/decode-material/decode-material.ts:26 «ac5797a85aaedf39»"
+        ]
+      },
+      {
+        "id": "P3-TFC-AC02",
+        "requirement": "振る舞いを変えない: (1) 受理・拒否・拒否の理由・truncated・frames の中身と順は今と同じ（実況の Item 欠けで requiredStructureMissing になる報も同じ、fail() は missing を先に見る） (2) drop(\"frame\", …) に渡す時刻は今と同じく文書の順で最初に落とした時刻。truncated で受理された解析の報では、記録の unreadable の frame の part の raw がその時刻になる（notes は site ごとに先着の 1 つ、:311 は parseFrame の drop より先、Q-TFC-OBSERVABLE）。落とした時刻が無いとき（kept.length === nodes.length）は今どおり drop を呼ばない (3) 実況が 2 個以上の報は今どおり :322 で拒否し、reject は印を持たない (4) 画面・音・通知・保存の形（p3-typhoon-unit-v7）は変わらない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/typhoon/typhoon.ts:311 «7935d8b1200b18ec»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:259 «aafc5b5de32e074b»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:280 «7da63bcf240e3dee»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:274 «68f2c5d5767f8605»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:236 «4587e84e197dc94d»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:140 «a417ff5adae504b7»",
+          "reconstruction/src/units/unreadable.ts:97 «6be25433f14c835c»",
+          "reconstruction/test/typhoon-unit/typhoon-unit.test.ts:791 «f8ef5fb27b61b9fe»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TFC-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-TFC-AC02"
+        ],
+        "behavior": "契約境界（drop に渡す時刻、AC02 の (2)）。typhoon-unit.test.ts の末尾に、analysisXml と sendXml・activeAnalysis で受理される解析の報 2 本を作り、記録の unreadable の parts のうち site が frame の part の raw を見る: (a) later=[\"予報　３時間後\", \"観測　２時間後\", \"観測　５時間後\"]（表の外の type が 2 個）→ raw に「観測　２時間後」があり「観測　５時間後」が無い (b) later=[…予報　３時間後 を 23 個, \"予報　６時間後\", \"予報　９時間後\"]（25 個を越える）→ raw に「予報　６時間後」があり「予報　９時間後」が無い。raw は rewriteXml（unreadable.ts）が要素名と属性を順に書いた欠片なので、DateTime の type の属性の字（analysisXml が書いた全角のまま）で見分けられる。直す前の木でも緑であることを確かめて書く（今の振る舞いを留める試験）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。本契約自身の typhoon.ts:311 の «»（AC01・AC02）は実装で変わる（B なら :310 も）。統合担当が配送で付け直す。それ以外の FAIL は止めて報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い（:311 の所属の引きを Set にするだけ。無いと実況の多い報で受信 1 回が全件×全件になる）。新しい関数・定数・export・型・file は作らない。試験は T01 の 1 本（契約境界）だけで、計算量の試験は足さない（Q-TFC-COST-TEST）。追加した試験がどれに対応するかを成果物に 1 行で書く",
+      "T01 は直す前の木でも緑であることを確かめて書く（落ちたら、今の drop の時刻の読みが Q-TFC-OBSERVABLE と違うので、src を曲げずに止めて報告する）",
+      "既存の試験の期待は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "typhoon.ts の行の数を変えない。他の契約の «» は :310・:311 を引いていない（Q-TFC-ANCHORS）。check-contract は契約ごとに最初の 1 件しか出さないので、変えた行を引く «» が本契約のほかに無いことを全契約の grep で確かめて報告する",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の U-Y の slot は消さない",
+      "残存として成果物に書く: (1) 実況の多い報は拒否までに残した時刻ごとに parseFrame を 1 回呼ぶ（線形、outOfScope） (2) 遅延の時間は計っていない（直す前の約 5 千万回はレビューの見積もり）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
