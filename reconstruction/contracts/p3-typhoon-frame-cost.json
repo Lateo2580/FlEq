@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "4114a5c104eb0383c2c7f278397621c23e51fd49d6acb09174b03d004177971d",
+    "sha256": "88f805194c97c9f4352eea890dd06ed5ffce7b9d253c0f3a2846396f7db76b69",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -154,7 +154,7 @@
           "reconstruction/src/domains/typhoon/typhoon.ts:306 «21b857748f659958»",
           "reconstruction/src/domains/typhoon/typhoon.ts:309 «220c962b36390109»",
           "reconstruction/src/domains/typhoon/typhoon.ts:310 «8781f779714ec47b»",
-          "reconstruction/src/domains/typhoon/typhoon.ts:311 «7935d8b1200b18ec»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:311 «c08a78a98b1d5a9e»",
           "reconstruction/src/domains/typhoon/typhoon.ts:322 «860fb2c1e3a37008»",
           "reconstruction/src/decode-material/decode-material.ts:24 «a7d24b39a97b9657»",
           "reconstruction/src/decode-material/decode-material.ts:26 «ac5797a85aaedf39»"
@@ -164,7 +164,7 @@
         "id": "P3-TFC-AC02",
         "requirement": "振る舞いを変えない: (1) 受理・拒否・拒否の理由・truncated・frames の中身と順は今と同じ（実況の Item 欠けで requiredStructureMissing になる報も同じ、fail() は missing を先に見る） (2) drop(\"frame\", …) に渡す時刻は今と同じく文書の順で最初に落とした時刻。truncated で受理された解析の報では、記録の unreadable の frame の part の raw がその時刻になる（notes は site ごとに先着の 1 つ、:311 は parseFrame の drop より先、Q-TFC-OBSERVABLE）。落とした時刻が無いとき（kept.length === nodes.length）は今どおり drop を呼ばない (3) 実況が 2 個以上の報は今どおり :322 で拒否し、reject は印を持たない (4) 画面・音・通知・保存の形（p3-typhoon-unit-v7）は変わらない",
         "evidenceRefs": [
-          "reconstruction/src/domains/typhoon/typhoon.ts:311 «7935d8b1200b18ec»",
+          "reconstruction/src/domains/typhoon/typhoon.ts:311 «c08a78a98b1d5a9e»",
           "reconstruction/src/domains/typhoon/typhoon.ts:259 «aafc5b5de32e074b»",
           "reconstruction/src/domains/typhoon/typhoon.ts:280 «7da63bcf240e3dee»",
           "reconstruction/src/domains/typhoon/typhoon.ts:274 «68f2c5d5767f8605»",
