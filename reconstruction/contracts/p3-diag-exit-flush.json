@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "fab1981013414634b1d91912a36d3d697ab5e745c20dd41743a2a9ccf8ef789a",
+    "sha256": "710a3edb3d6665685df3e2951d4b41de9cce866b43c25168727d14d67c09422c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -83,7 +83,7 @@
     "contractId": "P3-DIAG-EXIT-FLUSH-001",
     "mode": "implementation",
     "objective": "停止の後に入った診断の行を、CLI の終わりで file へ書き終えてから終わる（構造的欠陥台帳 123）。場面（2026-11-12 朝の CI の P3-C2-T09 と同じ形）: 21:00:00.000 に quit → stop()。21:00:00.400 に shutdownRuntime が要約を保存して戻る（1797 行の書き出しで列は空）。片付け（host.ts の 525 行）は進行中の試みの決着（495 行）と自分の socket の DELETE を待ち続け、21:00:30.000 に停止の要求から 30 秒の期限（492 行）で打ち切られ、506 行の dmdataSocketCloseFailed が列に入る。書き出しは microtask で始まるだけ（sink の 339 行）で、stop() はそのまま戻る。21:00:30.005 に terminal.close、21:00:30.010 に fleq.mjs の process.exit（22 行）が書きかけの追記を捨てる。sink は行を受け付けたので標準エラーの 1 行（507 行）も出ず、どこにも残らない。DELETE の失敗が 30 秒より前でも、1797 行の書き出しより後に返れば同じ（505 行は ok 以外の全部。答えの無い DELETE は REST の 15 秒の期限で失敗する、dmdata-rest.ts の 10 行）。失敗が書き出しより前に返れば今も書かれる。直しは cli.ts の finally の 1 か所で、terminal.close と並べて host の診断の書き出しを最長 1 秒待つ（P3-DXF-D-PLACE=A、P3-DXF-D-LIMIT=A）。そのための口を startP2Host の戻りの型に 1 つ足す（HostCommandPort は変えない）。sink（persistent-diagnostic-sink.ts）と composition-root.ts は変えない。利用者の画面・音・終了の code・標準エラーの行は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "6e86ac6a",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
