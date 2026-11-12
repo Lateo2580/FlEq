@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "570f0448ea651b56b4705be10ba844f838ab784b3bf7f87e2e36c431f90e3853",
+    "sha256": "46bf1b6f6aa0d3c2ae2d2eb5c576962a6895a76360c683946f2438cd01cca1e5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -26,8 +26,8 @@
         "B": "U-Q だけ（裁定の場面の地震の続報だけ）。U-T の印の続報は今のまま中身の表だけを出す",
         "recommended": "A",
         "provisional": "A",
-        "status": "未確定（作者の裁定待ち。津波の画面が変わるので統合担当は決めない）",
-        "ruling": "作者の裁定待ち（起草の推奨 A）",
+        "status": "確定（作者の裁定、2026-11-12 13:41 ごろ）",
+        "ruling": "A（作者の裁定、2026-11-12 13:41 ごろ。U-Q と U-T の両方）",
         "reason": "場面: 14:49 の VTSE41（大津波警報 3 地域）を U-T が記録した後、14:55 の VTSE41 の続報が器に入らず断られると、U-T の refuse（tsunami-unit.ts の 691 行から）は 14:49 の記録に印を付け、outcome を U-Q と同じ形（accepted・semantic・transition unavailable、752・753 行）で返す。端末は taken で 14:55 の区分と地域の表を出すが、記録・ディスプレイ・再起動の後に残るのは 14:49 の中身と印になる。U-Q と同じ隙間で、文言「この報は記録に入っていません」は津波の報にもそのまま合う。B を採ると、津波で同じことが起きても端末からは分からない。U-W・U-F は印の仕組みと見分け方が違うので、どちらの案でも範囲に入れない（Q-TCN-OTHER-UNITS）"
       },
       {
@@ -37,10 +37,10 @@
         "B": "末尾の行の後（報のブロックの最後の行）に、黄 #f0e442 の字（役目 warn）で 1 行",
         "C": "末尾の行の直上に、役目なし（地の字。色 0 と同じ見た目）で 1 行",
         "recommended": "A",
-        "provisional": "A",
-        "status": "未確定（作者の目視待ち）",
-        "ruling": "作者の目視待ち（起草の推奨 A。見本は統合担当が作る）",
-        "reason": "どの案も、字は裁定のとおり、縦線（色のある 60 桁以上）の内側、字下げなしで、整形（compose）の後に足すので末尾の再掲の 20 行に数えない。A は「末尾の行が最後」という §5.0 の 7 の約束を保ち、流れ終わった後も末尾の近くに残る。黄の字は端末で「受けたが扱えない」を伝える既存の役目（format.ts の 911 行、spec の 824 行）。注意の段の報（黄の縦線）では縦線と同じ色相になる。B は字どおりの「末尾」だが、末尾の行が最後でなくなる。C は目立たないが、色 0 の端末と見た目が同じで、色で区別する部分を作らない（§3.2）点は 3 案とも同じ（字で読める）。起草の写しで描くと、字の幅は 46 桁で、56 桁（縦線なし）と 80 桁（縦線あり、本文 78 桁）では折れず、本文の幅が 46 桁より狭い端末（40 桁）では「容量の上限のため、この報は記録に入ってい」「  ません」の 2 行に折れる"
+        "provisional": "B",
+        "status": "確定（作者の裁定、2026-11-12 13:41 ごろ。作者の目視の後）",
+        "ruling": "B（作者の裁定、2026-11-12 13:41 ごろ。見本 ~/dev/fleq-vault-archive/2026-11-12-snap/tcn-mock/tcn-mock.ansi〔案 B〕を見て。起草の推奨は A だった）",
+        "reason": "どの案も、字は裁定のとおり、縦線（色のある 60 桁以上）の内側、字下げなしで、整形（compose）の後に足すので末尾の再掲の 20 行に数えない。B は 1 行を報のブロックの最後（末尾の行の後）に置くので、この 1 行のある報だけ「末尾の行が最後」という §5.0 の並び（1〜7）が変わり、並びは 末尾の再掲 → 末尾の行 → この 1 行 になる（再掲は今のとおり末尾の行の上）。旗の無い報の並びは変わらない。黄の字（役目 warn）は端末で「受けたが扱えない」を伝える既存の役目（format.ts の 911 行、spec の 824 行）。注意の段の報（黄の縦線）では縦線と同じ色相になる。起草の推奨 A（末尾の行の直上）は末尾の行を最後に保つ案、C（直上・役目なし）は目立たない案で、どちらも採らない。字の幅は 46 桁で、56 桁（縦線なし）と 80 桁（縦線あり、本文 78 桁）では折れず、本文の幅が 46 桁より狭い端末（40 桁）では「容量の上限のため、この報は記録に入ってい」「  ません」の 2 行に折れる（起草の写しで描いた）"
       },
       {
         "id": "P3-TCN-D-SUMMARY",
@@ -70,7 +70,7 @@
         "id": "Q-TCN-SHAPE",
         "status": "closed",
         "source": "起草（2026-11-12）。印の outcome をどう見分けるか",
-        "closed": "その入力の unit（taken の unit）の accepted の outcome に、transition が \"unavailable\" で source.inputId がその入力の subject があるかで見る。根拠は P3-CC-AC03 (2) の条文「outcome は accepted・semantic で subject の transition は unavailable」で、changedFields [\"unavailable\"] は条文に無い実装の形なので使わない。U-Q で transition が unavailable になるのは refuse だけ（採用の outcome の transition は記録の effective で、型は active・cancelled・expired。seismic-unit.ts の 725・900 行）、U-T も同じ（採用は記録の effective で、予報は active・released・cancelled、観測は active・cancelled・forecastEnded・expired、tsunami-unit.ts の 313 行。transition に disposition を入れる outcome は deliveryOnly で taken に入らない）。U-Q の採用のうち期限を過ぎた報は subjects が [] なので（1036 行）、「どれも unavailable」でなく「unavailable がある」で見る。source.inputId で絞るのは、返信の outcomes が強制の期限の step と受信の step を合わせたものだから（output.ts の 549 行の U-F と同じ絞り方）",
+        "closed": "その入力の unit（taken の unit）の accepted の outcome に、transition が \"unavailable\" で source.inputId がその入力の subject があるかで見る。根拠は P3-CC-AC03 (2) の条文「outcome は accepted・semantic で subject の transition は unavailable」で、changedFields [\"unavailable\"] は条文に無い実装の形なので使わない。U-Q で transition が unavailable になるのは refuse だけ（採用の outcome の transition は記録の effective で、型は active・cancelled・expired。seismic-unit.ts の 725・900 行）、U-T も同じ（採用は記録の effective で、予報は active・released・cancelled、観測は active・cancelled・forecastEnded・expired、tsunami-unit.ts の 313 行。transition に disposition を入れる outcome は deliveryOnly で taken に入らない）。U-Q の採用のうち期限を過ぎた報は subjects が [] なので（1036 行）、「どれも unavailable」でなく「unavailable がある」で見る。source.inputId で絞るのは、返信の outcomes が強制の期限の step と受信の step を合わせたものだから（output.ts の 549 行の U-F と同じ絞り方）。この絞りは今の作り手では効かない守り（起草レビューの品質の側の指摘。今 accepted の transition unavailable を返すのは受信の step の refuse だけ）で、強制の期限の step が同じ形を返すようになっても別の入力の印で 1 行を出さないために残す",
         "remaining": "なし"
       },
       {
@@ -91,15 +91,15 @@
         "id": "Q-TCN-LAYOUT",
         "status": "closed",
         "source": "起草（2026-11-12）。1 行と整形の組み立て（compose）の関係",
-        "closed": "起草の写し（.dr-tmp/ に format.ts と color.ts を CoW で写し、case \"report\" で旗のある報の body に P3-TCN-D-PLACE の A・B・C を当てた）で、32-35_01_03_240613_VXSE53（警報の段、縦線は #e56910）と 32-39_11_02_250206_VTSE41（最も重い段、縦線は #c46bde）を 80・56・40 桁、色の段 3 と 0 で描いた。(1) 字の幅は width で 46 桁 (2) 1 行は compose の後に body へ足すので、末尾の再掲を出すかの数え（RECAP_LINES 20、format.ts の 307 行）に入らず、再掲の有無は今と同じ (3) compose の body は必ず末尾の行（parts.tail、303 行）で終わるので、A・C は body の最後の 1 つの前に入れればよい。取消の報（seismic の早い return）も同じ compose を通るので、旗があれば同じ形で付く (4) 書き出しの physical（293 行）が本文の幅で折るので、折りの仕組みは足さない (5) 色の段 0 は escape なしの同じ字",
-        "remaining": "なし（見た目は P3-TCN-D-PLACE の作者の目視で決める）"
+        "closed": "起草の写し（.dr-tmp/ に format.ts と color.ts を CoW で写し、case \"report\" で旗のある報の body に P3-TCN-D-PLACE の A・B・C を当てた）で、32-35_01_03_240613_VXSE53（警報の段、縦線は #e56910）と 32-39_11_02_250206_VTSE41（最も重い段、縦線は #c46bde）を 80・56・40 桁、色の段 3 と 0 で描いた。(1) 字の幅は width で 46 桁 (2) 1 行は compose の後に body へ足すので、末尾の再掲を出すかの数え（RECAP_LINES 20、format.ts の 307 行）に入らず、再掲の有無は今と同じ (3) compose の body は必ず末尾の行（parts.tail、303 行）で終わり、tsunami の return も 2 つとも compose なので、B は body の後に 1 行を足せばよい（A・C は最後の 1 つの前）。取消の報（seismic・tsunami の早い return）も同じ compose を通るので、旗があれば同じ形で付く (4) 書き出しの physical（293 行）が本文の幅で折るので、折りの仕組みは足さない (5) 色の段 0 は escape なしの同じ字。(6) seismic・tsunami の報は output.ts の積み分け（ashfall・timeline・rainReport・nationwide・refreshed）のどれにも当たらず、最後の else の push（606 行）に必ず落ちるので、束・保留とは交わらない",
+        "remaining": "なし（P3-TCN-D-PLACE=B で確定）"
       },
       {
         "id": "Q-TCN-BASEOID",
         "status": "closed",
         "source": "起草（2026-11-12）",
         "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける（P3-TERMINAL-LAYOUT-020 と同じ）",
-        "remaining": "発注の時の baseOid（統合担当）。発注は P3-TCN-D-SCOPE と P3-TCN-D-PLACE の裁定の後"
+        "remaining": "発注の時の baseOid（統合担当）。P3-TCN-D-SCOPE・P3-TCN-D-PLACE の裁定は済んだ（2026-11-12 13:41 ごろ）"
       }
     ],
     "operationContract": {
@@ -110,7 +110,7 @@
   "contract": {
     "contractId": "P3-TERMINAL-CAPACITY-NOTE-001",
     "mode": "implementation",
-    "objective": "作者の裁定（2026-11-12、P3-TCN-D-NOTE=B）のとおり、U-Q（と P3-TCN-D-SCOPE=A なら U-T）が既存の記録への続報を容量で断って印だけを付けたとき（その入力の outcome の subject の transition が unavailable）、端末は今のとおりその報を出したまま、報のブロックに「容量の上限のため、この報は記録に入っていません」の 1 行を足す（置き場と色は P3-TCN-D-PLACE）。新しい地震を断ったとき（outcomes []）は今のとおり何も出さない。見分けは main の端末（output.ts）が返信の outcomes で行い、整形（format.ts）が行を足す。U-Q・U-T・owner・材料（material.ts）・契約の型・音・通知・chrome-eew・ディスプレイは変えない。spec と閉じた契約の文は配送で統合担当が当てる（artifactRequirements の原文の改訂）",
+    "objective": "作者の裁定（2026-11-12、P3-TCN-D-NOTE=B・D-SCOPE=A・D-PLACE=B）のとおり、U-Q と U-T が既存の記録への続報を容量で断って印だけを付けたとき（その入力の outcome の subject の transition が unavailable）、端末は今のとおりその報を出したまま、報のブロックの最後（末尾の行の後）に黄の字（役目 warn）で「容量の上限のため、この報は記録に入っていません」の 1 行を足す。新しい地震・新しい subject を断ったとき（outcomes []）は今のとおり何も出さない。見分けは main の端末（output.ts）が返信の outcomes で行い、整形（format.ts）が行を足す。U-Q・U-T・owner・材料（material.ts）・契約の型・音・通知・chrome-eew・ディスプレイは変えない。spec と閉じた契約の文は配送で統合担当が当てる（artifactRequirements の原文の改訂）",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -136,11 +136,12 @@
       "test/fixtures/32-39_11_02_250206_VTSE41.xml"
     ],
     "allowedPaths": [
-      "reconstruction/src/terminal/output.ts（P3-TCN-AC01 だけ。606 行の push の行 1 行の中で書き換え、旗の判定と「なぜ」の短いコメントを同じ行に置く。行を足さない〔606 行から後を 19 件の «» が引く〕。609 行の count とほかの行は変えない）",
-      "reconstruction/src/terminal/format.ts（P3-TCN-AC02 だけ。(a) 17 行の TerminalUnit の report の型に任意の旗 unrecorded?: true を行の中で足す (b) createRenderer の case \"report\"〔1101〜1105 行〕の中で、旗のある報の body に 1 行を足す。case の中の行は増えてよい〔1105 行から後を引く «» は起草の時に 0 件〕。文言の定数を module の頭に足さない〔足すと 18 行から後がずれる〕。seismic・tsunami・compose・physical・paintBlock とほかの関数は変えない）",
+      "reconstruction/src/terminal/output.ts（P3-TCN-AC01 だけ。605 行〔const cancelled = …〕と 606 行〔push〕のそれぞれ 1 行の中で書き換える。605 行を同じ行で const cancelled = …, unrecorded = …; に分けてよい。旗は { unrecorded: true as const } の形で同じ行の中に置き、spread で boolean に広がらないようにする。「なぜ」の短いコメントは同じ行の末尾。行を足さない〔605 行を引く «» は 0 件、606 行から後は 19 件〕。609 行の count とほかの行は変えない）",
+      "reconstruction/src/terminal/format.ts（P3-TCN-AC02 だけ。(a) 17 行の TerminalUnit の report の型に任意の旗 unrecorded?: true を行の中で足す (b) createRenderer の case \"report\"〔1101〜1105 行〕の中で、旗のある報の body の後に 1 行を足す。case の中の行は増えてよい〔1105 行から後を引く «» は起草の時に 0 件〕。文言の定数を module の頭に足さない〔足すと 18 行から後がずれる〕。seismic・tsunami・compose・physical・paintBlock とほかの関数は変えない）",
+      "reconstruction/src/terminal/color.ts（21 行の末尾のコメントの「pulse・banner・warn は入力の行の回線の印、起動画面の帯（黒と 9.1）、未契約の区分の行」に、行の中で「、記録に入らなかった続報の 1 行（P3-TCN-AC02）」を書き足すだけ。ROLES の値と、ほかの行は変えない）",
       "reconstruction/test/terminal/capacity-note.test.ts（新しい file。P3-TCN-T01・T02 を置く。terminal-fixture の harness・inputDoneOf・reportOf・reportUnit・terminal と color.ts の painter を使い、新しい helper の file は作らない）",
       "reconstruction/test/seismic-unit/seismic-unit.test.ts（P3-TCN-T03 だけ。P3-CC-T13〔979 行〕の中に expect を 1 つ足す。ほかの行は変えない）",
-      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts（P3-TCN-T03 だけ。P3-TCN-D-SCOPE=A のときに限り、P3-CC-T04 の AC03(3)〔708 行〕の中に expect を 1 つ足す。ほかの行は変えない）"
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts（P3-TCN-T03 だけ。P3-CC-T04 の AC03(3)〔708 行〕の中に expect を 1 つ足す。ほかの行は変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -152,7 +153,10 @@
       "git ls-files <required-path>"
     ],
     "moduleIds": [
-      "B13"
+      "B13",
+      "M02",
+      "M03",
+      "M04"
     ],
     "integrationContractIds": [],
     "dependsOnContractIds": [
@@ -202,12 +206,15 @@
     "acceptanceChecks": [
       {
         "id": "P3-TCN-AC01",
-        "requirement": "見分け（P3-TCN-D-DETECT=A・Q-TCN-SHAPE）: (1) output.ts が報を積む所（606 行の push）で、報の kind が seismic（P3-TCN-D-SCOPE=A なら seismic か tsunami。short は対象にしない）で、その返信の output.outcomes に、unit が taken.unit・kind が accepted で、subjects のどれかが transition \"unavailable\" かつ source?.inputId がその返信の settlement.inputId であるものがあれば、積む単位に unrecorded: true を足す。無ければ旗の鍵を置かない（今の単位と同じ形） (2) 普通の採用（transition が active・cancelled・expired ほか）と、期限を過ぎた採用（subjects []）では旗を立てない (3) 印を付けない拒否（outcomes []）は taken に入らず報を積まない（今のまま、material.ts の 381 行。Q-TCN-NO-LINE） (4) 609 行の count は変えない（P3-TCN-D-SUMMARY=A。記録に入らなかった続報も件数と最大震度に数える） (5) 計算量（AGENTS.md の受信経路）: 報が seismic・tsunami の返信だけ、その返信の outcomes と subjects を 1 回なめる（返信の outcomes は受信の step と強制の期限の step の分だけ）。state や全体の直列化をしない (6) 無いと何が壊れるか: 整形は TerminalReport しか受けないので、旗が無いと記録に入らなかった続報を見分けられない。場面: 2024-06-13 の駿河湾の地震（EventID 20091001134500）で、13:50 の VXSE53 が器に入らず U-Q が既存の event に印だけを付けると、返信の outcomes は [{ unit: U-Q, accepted・semantic, subjects: [transition unavailable, source.inputId はその入力] }] で、端末は 13:50 の震度の表を出し、旗を立てる",
+        "requirement": "見分け（P3-TCN-D-DETECT=A・Q-TCN-SHAPE）: (1) output.ts が報を積む所（606 行の push）で、報の kind が seismic か tsunami で（P3-TCN-D-SCOPE=A。short は対象にしない。無いと U-W の履歴の無い取消〔historyUnavailable、weather-current.ts の 637 行〕の報に誤って 1 行が出る。seismic には VXSE51・52・53・61 のほか長周期地震動の VXSE62 も入り〔material.ts の 359 行、VXSE62 の記録も P3-CC-AC03 (2) で印が付く〕、どれも同じ扱い）、その返信の output.outcomes に、unit が taken.unit・kind が accepted で、subjects のどれかが transition \"unavailable\" かつ source?.inputId がその返信の settlement.inputId であるものがあれば、積む単位に unrecorded: true を足す（spread の中の true は boolean に広がるので true as const で書く）。無ければ旗の鍵を置かない（今の単位と同じ形） (2) 普通の採用（transition が active・cancelled・expired ほか）と、期限を過ぎた採用（subjects []）では旗を立てない (3) 印を付けない拒否（outcomes []）は taken に入らず報を積まない（今のまま、material.ts の 381 行。Q-TCN-NO-LINE） (4) 609 行の count は変えない（P3-TCN-D-SUMMARY=A。記録に入らなかった続報も件数と最大震度に数える） (5) 計算量（AGENTS.md の受信経路）: 報が seismic・tsunami の返信だけ、その返信の outcomes と subjects を 1 回なめる（返信の outcomes は受信の step と強制の期限の step の分だけ）。state や全体の直列化をしない (6) 無いと何が壊れるか: 整形は TerminalReport しか受けないので、旗が無いと記録に入らなかった続報を見分けられない。場面: fixture の駿河湾の地震（ReportDateTime 2009-10-01T13:50、EventID 20091001134500）で、13:50 の VXSE53 が器に入らず U-Q が既存の event に印だけを付けると、返信の outcomes は [{ unit: U-Q, accepted・semantic, subjects: [transition unavailable, source.inputId はその入力] }] で、端末は 13:50 の震度の表を出し、旗を立てる",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:606 «8eaf35e37d01bde6»",
           "reconstruction/src/terminal/output.ts:609 «952634cc0109bdb8»",
+          "reconstruction/src/terminal/output.ts:605 «dedcb6ef8a2a3411»",
           "reconstruction/src/terminal/output.ts:97 «f61572d6a498896f»",
           "reconstruction/src/terminal/output.ts:549 «3f0b06670eb979e5»",
+          "reconstruction/src/terminal/material.ts:359 «a1c26a841f223303»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:637 «1cfa7af3edd33400»",
           "reconstruction/src/terminal/material.ts:381 «2be327932f009c34»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1003 «6737443737a45304»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1132 «870b1081596c0370»",
@@ -225,7 +232,7 @@
       },
       {
         "id": "P3-TCN-AC02",
-        "requirement": "1 行（P3-TCN-D-NOTE=B・P3-TCN-D-PLACE）: (1) format.ts の TerminalUnit の report に任意の旗 unrecorded?: true を足す（cancelled と同じ任意の鍵） (2) case \"report\" で、旗のある報は、seismic・tsunami（・shortForm）が返した Rendered の body に、字「容量の上限のため、この報は記録に入っていません」（句点なし、裁定の字のまま）の 1 行を足す。置き場と色は P3-TCN-D-PLACE の裁定どおり（起草の推奨 A: body の最後の 1 つ〔末尾の行〕の前に line(seg(字, \"warn\")) を入れる。B は body の最後に同じ行、C は A の位置に役目なしの行）。太字にせず、区切りの罫線を足さない (3) compose の後に足すので、末尾の再掲を出すかの数え（RECAP_LINES）に入れない。取消の報も旗があれば同じ形 (4) 折りの仕組みを足さない。書き出しの physical が本文の幅で折る（字は 46 桁。本文の幅が 46 桁以上なら 1 行、狭ければ字の境目で折って続きの行を 2 桁下げる） (5) 色の段 0（NO_COLOR・パイプ・ファイル）は escape なしの同じ字 (6) 旗の無い報のブロックは今と 1 byte も変わらない（既存の端末の試験の期待を変えない） (7) 新しい役目・関数・定数・export を足さない（役目は color.ts の ROLES の warn。color.ts の 21 行）。場面: 上の 13:50 の VXSE53 を 80 桁・色ありで描くと、補足の「１日１３時４５分ころ、地震がありました。各地の震度をお知らせします。」の次に、縦線（#e56910 の地の空白 1 桁と空白 1 桁）と黄 #f0e442 の「容量の上限のため、この報は記録に入っていません」、その次に薄い字の「VXSE53 ・ ID 20091001134500」（A のとき）",
+        "requirement": "1 行（P3-TCN-D-NOTE=B・P3-TCN-D-PLACE）: (1) format.ts の TerminalUnit の report に任意の旗 unrecorded?: true を足す（cancelled と同じ任意の鍵）。旗が立つのは seismic・tsunami の報だけ（AC01 (1)） (2) case \"report\" で、旗のある報は、seismic・tsunami が返した Rendered の body に、字「容量の上限のため、この報は記録に入っていません」（句点なし、裁定の字のまま）の 1 行を足す。置き場と色は P3-TCN-D-PLACE=B（作者の裁定、2026-11-12 13:41 ごろ）: body の後（末尾の行の後、報のブロックの最後）に line(seg(字, \"warn\")) を足す。太字にせず、区切りの罫線を足さない。この 1 行のある報だけ末尾の行が最後の行でなくなり、並びは 末尾の再掲（出るとき）→ 末尾の行 → この 1 行 (3) compose の後に足すので、末尾の再掲を出すかの数え（RECAP_LINES）に入れない。取消の報も旗があれば同じ形 (4) 折りの仕組みを足さない。書き出しの physical が本文の幅で折る（字は 46 桁。本文の幅が 46 桁以上なら 1 行、狭ければ字の境目で折って続きの行を 2 桁下げる） (5) 色の段 0（NO_COLOR・パイプ・ファイル）は escape なしの同じ字 (6) 旗の無い報のブロックは今と 1 byte も変わらない（既存の端末の試験の期待を変えない） (7) 新しい役目・関数・定数・export を足さない（役目は color.ts の ROLES の warn。color.ts の 21 行）。場面: 上の 13:50 の VXSE53 を 80 桁・色ありで描くと、補足の「１日１３時４５分ころ、地震がありました。各地の震度をお知らせします。」の次に薄い字の「VXSE53 ・ ID 20091001134500」、その次に縦線（#e56910 の地の空白 1 桁と空白 1 桁）と黄 #f0e442 の「容量の上限のため、この報は記録に入っていません」",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:17 «884f41657cccfecf»",
           "reconstruction/src/terminal/format.ts:1103 «38b87004512da216»",
@@ -246,9 +253,10 @@
       },
       {
         "id": "P3-TCN-AC03",
-        "requirement": "作り手の形の境界: 端末の見分け（AC01）は U-Q・U-T の refuse が返す outcome の形（P3-CC-AC03 (2)）に頼るので、作り手の試験でその形を留める。U-Q の P3-CC-T13（器で断った VXSE53 に印を付ける試験）で、拒否の step の outcomes が kind accepted・change semantic で、subjects が 1 つ・その transition が \"unavailable\"・source.inputId が拒否した報の inputId であることを確かめる。P3-TCN-D-SCOPE=A なら U-T の P3-CC-T04 の AC03(3)（300 区域の VTSE41 を断って印を付ける試験）でも同じ。無いと何が壊れるか: 端末の試験は手で作った outcome を使うので、作り手が transition を変えても端末の試験は緑のまま 1 行が出なくなる",
+        "requirement": "作り手の形の境界: 端末の見分け（AC01）は U-Q・U-T の refuse が返す outcome の形（P3-CC-AC03 (2)）に頼るので、作り手の試験でその形を留める。U-Q の P3-CC-T13（器で断った VXSE53 に印を付ける試験）で、拒否の step の outcomes が kind accepted・change semantic で、subjects が 1 つ・その transition が \"unavailable\"・source.inputId が拒否した報の inputId（その step の診断 capacityRejected の inputId。refuse は candidate.source.inputId を診断に載せ、T13 は診断 1 件を留めている）であることを確かめる。U-T の P3-CC-T04 の AC03(3)（300 区域の VTSE41 を断って印を付ける試験）でも同じ（inputId は wide.inputId）。無いと何が壊れるか: 端末の試験は手で作った outcome を使うので、作り手が transition を変えても端末の試験は緑のまま 1 行が出なくなる",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:979 «9b22ba91c3980375»",
+          "reconstruction/test/seismic-unit/seismic-unit.test.ts:194 «64d252653454717a»",
           "reconstruction/test/tsunami-unit/tsunami-unit.test.ts:708 «535c8ed7542062b2»",
           "reconstruction/contracts/p3-currency-coverage.json:431 «26d09c4135af20b9»"
         ]
@@ -262,7 +270,7 @@
           "P3-TCN-AC01",
           "P3-TCN-AC02"
         ],
-        "behavior": "受入（AC01 (1)(2)、AC02 (2)(5)(6)）。capacity-note.test.ts で、summary.test.ts と同じく harness()（色 0 の renderer、80 桁）の output.sink.inputDone に inputDoneOf を渡す。mark(unit, report, inputId) は { unit, outcome: { kind: \"accepted\", change: \"semantic\", subjects: [{ subject・operation は報の運用区分、informationType: \"発表\", transition: \"unavailable\", severity: null, source: { inputId, その他は seismic-unit.ts の 1132・1133 行の形 }, facts: {}, changedFields: [\"unavailable\"] }] } } を作る局所の関数。(a) reportOf(\"32-35_01_03_240613_VXSE53.xml\", \"U-Q\") を mark(\"U-Q\", …, inputId) つきで入れると、lines の「VXSE53 ・ ID 20091001134500」の直前の行が「容量の上限のため、この報は記録に入っていません」（P3-TCN-D-PLACE=A のとき。B なら直後、C なら A と同じ） (b) 同じ報を transition \"active\" の accepted で入れると、lines に「容量の上限のため、この報は記録に入っていません」が無く、その報の行は (a) から 1 行を除いたものと同じ (c) P3-TCN-D-SCOPE=A なら reportOf(\"32-39_11_02_250206_VTSE41.xml\", \"U-T\") を mark(\"U-T\", …) つきで入れると、「VTSE41 ・ ID 20110311144640」の直前の行が「容量の上限のため、この報は記録に入っていません」（B なら (c) は作らない）"
+        "behavior": "受入（AC01 (1)(2)、AC02 (2)(5)(6)）。capacity-note.test.ts で、summary.test.ts と同じく harness()（色 0 の renderer、80 桁）の output.sink.inputDone に inputDoneOf を渡す。mark(unit, report, inputId) は { unit, outcome: { kind: \"accepted\", change: \"semantic\", subjects: [{ subject は任意の字、operation は報の運用区分、informationType: \"発表\", transition: \"unavailable\", severity: null, source: { inputId, その他は seismic-unit.ts の 1132・1133 行の形 }, facts: {}, changedFields: [\"unavailable\"] }] } } を作る局所の関数。lines の行は harness の書き出しの形のまま比べ、頭の空白の有無に頼らないよう .trim() した字で比べる。(a) reportOf(\"32-35_01_03_240613_VXSE53.xml\", \"U-Q\") を mark(\"U-Q\", …, inputId) つきで入れると、「VXSE53 ・ ID 20091001134500」の行の直後の行が「容量の上限のため、この報は記録に入っていません」 (b) 同じ報を transition \"active\" の accepted で入れると、lines に「容量の上限のため、この報は記録に入っていません」が無く、その報の行は (a) から 1 行を除いたものと同じ (c) reportOf(\"32-39_11_02_250206_VTSE41.xml\", \"U-T\") を mark(\"U-T\", …) つきで入れると、「VTSE41 ・ ID 20110311144640」の行の直後の行が「容量の上限のため、この報は記録に入っていません」。起草の写し（推奨 A を当てた形）で (a)〜(c) と同じ組み立ての試験が緑だった（B の位置では「直前」が「直後」に替わる）"
       },
       {
         "testId": "P3-TCN-T02",
@@ -270,7 +278,7 @@
         "referenceIds": [
           "P3-TCN-AC02"
         ],
-        "behavior": "受入（AC02 (2) の色）。capacity-note.test.ts で、p = painter(3) とし、terminal(80, 3) で { kind: \"report\", report: reportOf(\"32-35_01_03_240613_VXSE53.xml\", \"U-Q\"), prompt: null, unrecorded: true } を描くと、最後の 2 行が [p(\"barWarning\", \" \") + \" \" + p(\"warn\", \"容量の上限のため、この報は記録に入っていません\"), p(\"barWarning\", \" \") + \" \" + p(\"dim\", \"VXSE53 ・ ID 20091001134500\")]（P3-TCN-D-PLACE=A のとき。B は 2 行の順が逆、C は 1 行目の字が役目なし）。起草の写しで、この 2 行の escape が A の形で出ることを確かめた"
+        "behavior": "受入（AC02 (2) の色）。capacity-note.test.ts で、p = painter(3) とし、terminal(80, 3) で { kind: \"report\", report: reportOf(\"32-35_01_03_240613_VXSE53.xml\", \"U-Q\"), prompt: null, unrecorded: true } を描くと、最後の 2 行が [p(\"barWarning\", \" \") + \" \" + p(\"dim\", \"VXSE53 ・ ID 20091001134500\"), p(\"barWarning\", \" \") + \" \" + p(\"warn\", \"容量の上限のため、この報は記録に入っていません\")]。起草の写しで、この 2 行の escape が B の並び（末尾の行 → 1 行）で出ることを確かめた"
       },
       {
         "testId": "P3-TCN-T03",
@@ -278,7 +286,7 @@
         "referenceIds": [
           "P3-TCN-AC03"
         ],
-        "behavior": "契約境界（AC03）。seismic-unit.test.ts の P3-CC-T13 に expect を 1 つ足す: refused.outcomes が [{ kind: \"accepted\", change: \"semantic\", subjects: [expect.objectContaining({ transition: \"unavailable\", source: expect.objectContaining({ inputId: 拒否した s53() の material の inputId }) })] }] に等しい。P3-TCN-D-SCOPE=A なら tsunami-unit.test.ts の P3-CC-T04 の AC03(3) の rejected にも同じ形の expect を 1 つ足す（inputId は wide.inputId）。既存の expect は変えない"
+        "behavior": "契約境界（AC03）。seismic-unit.test.ts の P3-CC-T13 に expect を 1 つ足す: refused.outcomes が [{ kind: \"accepted\", change: \"semantic\", subjects: [expect.objectContaining({ transition: \"unavailable\", source: expect.objectContaining({ inputId: refused.diagnostics[0].inputId }) })] }] に等しい（inputId の比べ方は同じ file の 193〜194 行の前例と同じ）。tsunami-unit.test.ts の P3-CC-T04 の AC03(3) の rejected にも同じ形の expect を 1 つ足す（inputId は wide.inputId）。どちらの expect も行末に // P3-TCN-T03 を添える。既存の expect は変えない"
       }
     ],
     "requiredCommands": [
@@ -341,15 +349,15 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "発注の前提: P3-TCN-D-SCOPE と P3-TCN-D-PLACE の作者の裁定を受け、AC01 (1)・AC02 (2)・T01〜T03 の「P3-TCN-D-SCOPE=A なら」「P3-TCN-D-PLACE=A のとき」の場合分けを裁定の側だけに直してから発注する（統合担当）",
-      "最小実装・最小テスト: 足す仕組みは TerminalUnit の任意の旗 1 つ（無いと整形が記録に入らなかった続報を見分けられない）。新しい役目・関数・定数・export・型の欄・file（試験の capacity-note.test.ts を除く）は作らない。output.ts は 606 行の中だけ、format.ts は 17 行の中と case \"report\" の中だけ。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01・T02 は受入、T03 は契約境界）",
+      "作者の裁定（2026-11-12 13:41 ごろ）: P3-TCN-D-SCOPE=A・P3-TCN-D-PLACE=B を AC01・AC02・T01〜T03・原文の改訂に当ててある（起草レビュー 2 本〔整合 条件付き GO・品質 GO、P1 なし〕の指摘も当てた）",
+      "最小実装・最小テスト: 足す仕組みは TerminalUnit の任意の旗 1 つ（無いと整形が記録に入らなかった続報を見分けられない）。新しい役目・関数・定数・export・型の欄・file（試験の capacity-note.test.ts を除く）は作らない。output.ts は 605・606 行の中だけ、format.ts は 17 行の中と case \"report\" の中だけ、color.ts は 21 行のコメントの中だけ。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、1 つの振る舞いに 1 試験。追加・変更した各試験がどれに対応するかを成果物に 1 行で書く（T01・T02 は受入、T03 は契約境界）",
       "受信経路の計算量（AGENTS.md）: 受信 1 回の処理で全件×全件の走査や state・材料全体の直列化をしない。AC01 は seismic・tsunami の報の返信だけ、その返信の outcomes を 1 回なめる",
       "期待が変わる既存の試験: 無い（旗の無い報は今と同じ byte）。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "起草の確かめ: P3-TCN-D-PLACE の 3 案の行と escape は、起草の時に未追跡の .dr-tmp/ に format.ts と color.ts を CoW で写し、case \"report\" に 3 案を当てて、vitest の中で 32-35_01_03_240613_VXSE53 と 32-39_11_02_250206_VTSE41 を 80・56・40 桁、色の段 3 と 0 で描いて写した（Q-TCN-LAYOUT）。写しは repo に入れない。今のコードに契約を当てて落ちたら、src を期待に合わせて曲げる前に、試験名・契約の期待・実際の値を報告して止める",
-      "本物の経路での写し（統合担当、配送の前）: 端末の写しの道具は、整形の直呼びではなく main の端末（createTerminalOutput の sink.inputDone）を通す形で、印の outcome つきの VXSE53（と P3-TCN-D-SCOPE=A なら VTSE41）と、普通の採用の同じ報を 80 桁と 56 桁・色ありで写し、1 行の位置と色を見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
+      "本物の経路での写し（統合担当、配送の前）: 端末の写しの道具は、整形の直呼びではなく main の端末（createTerminalOutput の sink.inputDone）を通す形で、印の outcome つきの VXSE53 と VTSE41 と、普通の採用の同じ報を 80 桁と 56 桁・色ありで写し、1 行の位置と色を見る。写しは ~/dev/fleq-vault-archive/ の日付の folder に置く（repo に入れない）",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 1 行が出るのは U-Q（・U-T）が印を付けた続報だけで、印を付けない拒否（記録が view に無い・印が同じか新しい版で覆う・印の fit も入らない、Q-TCN-NO-LINE）と新しい地震の拒否では報そのものが出ない (2) 記録に入らなかった続報も定期要約の件数と最大震度に数える（P3-TCN-D-SUMMARY=A） (3) U-W・U-F の容量の印の報は今のまま 1 行なしで出る（Q-TCN-OTHER-UNITS） (4) 端末の試験は手で作った outcome を使い、作り手の形は T03 が留める (5) 端末ごとの見え方（Nightfox の地の上の黄の字、注意の段の黄の縦線との並び）は本物の経路での写しと作者の目視で見る",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない。字は P3-TCN-D-SCOPE・P3-TCN-D-PLACE の裁定に合わせる。下は推奨 A・A の字）: (1) reconstruction/contracts/p3-terminal-output.json:36（P3-TO-D-EXTRACT-PATH の A）の「製品の経路を 1 つにする」の後に「。容量の印だけを付けた地震・津波の続報（その入力の outcome の subject の transition が unavailable、P3-CC-AC03 (2)）も採った報として作り、端末はその報の末尾の行の上に「容量の上限のため、この報は記録に入っていません」の 1 行を足す（P3-TERMINAL-CAPACITY-NOTE-001、2026-11-12 の作者の裁定）」を書き足す (2) docs/specs/cli-terminal-output.md:117（§5.0 の末尾の行の項）の末尾に「容量の上限で unit が中身を記録せず印だけを付けた地震・津波の続報（その入力の outcome の subject の transition が unavailable、P3-CC-AC03 (2)）は、今のとおり報を出し、末尾の行の上に「容量の上限のため、この報は記録に入っていません」を黄 #f0e442 の字で 1 行出す（末尾の再掲の 20 行には数えない。新しい地震を断った報は今のとおり出さない。U-W・U-F の容量の印の報には付けない。P3-TERMINAL-CAPACITY-NOTE-001、2026-11-12 の作者の裁定）。」を書き足す (3) docs/specs/cli-terminal-output.md:742（§6.2 の分野の名前の項）の末尾に「容量の上限で記録に入らなかった地震・津波の続報（§5.0 の末尾の行の項）も、端末に出した報として件数と最大震度に数える（P3-TCN-D-SUMMARY=A）。」を書き足す (4) reconstruction/contracts/p3-currency-coverage.json:431（P3-CC-AC03 の requirement）の (2) の「（U-W の addUnavailable と同じ形）」の後に「（端末はこの transition unavailable の accepted で、出した報に記録に入っていない旨の 1 行を足す。P3-TERMINAL-CAPACITY-NOTE-001）」を書き足す。どの位置の字も、その行に 1 回だけある（da9344dd の木で確かめた）。«» の付け直し（同じ commit）: (a) 中身を変えた行を引く «» は、行番号はそのままで anchor だけを新しい行の anchor に替える。起草の時に引いているのは、spec の 117 行（p3-terminal-layout と本契約）、742 行（p3-terminal-output と本契約）、p3-currency-coverage.json の 431 行（p3-unit-q-capacity と本契約）、p3-terminal-output.json の 36 行（本契約だけ） (b) 実装で中身が変わる行のうち、output.ts の 606 行（p3-terminal-rain-evict と本契約）と format.ts の 17 行・1103 行（本契約）は、実装の後の行の anchor を手で入れる (c) 実装で行が増えるのは format.ts の case \"report\" の中だけで、1105 行から後を引く «» は起草の時に 0 件（その時の木で grep する）。output.ts と試験の file は行を足さない（試験の file の行を引く «» は起草の時に 0 件） (d) そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
+      "残存として成果物に書く: (1) 1 行が出るのは U-Q（VXSE62 を含む）と U-T が印を付けた続報だけで、印を付けない拒否（記録が view に無い・印が同じか新しい版で覆う・印の fit も入らない、Q-TCN-NO-LINE）と新しい地震の拒否では報そのものが出ない (2) 記録に入らなかった続報も定期要約の件数と最大震度に数える（P3-TCN-D-SUMMARY=A） (3) U-W・U-F の容量の印の報は今のまま 1 行なしで出る（Q-TCN-OTHER-UNITS） (4) 端末の試験は手で作った outcome を使い、作り手の形は T03 が留める (5) 端末ごとの見え方（Nightfox の地の上の黄の字、注意の段の黄の縦線との並び）は本物の経路での写しと作者の目視で見る (6) この 1 行のある報だけ、末尾の行が報のブロックの最後の行でなくなる（P3-TCN-D-PLACE=B。並びは 末尾の再掲 → 末尾の行 → この 1 行）",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の書き足しで、行の数は変えない。字は裁定 D-SCOPE=A・D-PLACE=B のもの）: (1) reconstruction/contracts/p3-terminal-output.json:36（P3-TO-D-EXTRACT-PATH の A）の「製品の経路を 1 つにする」の後に「。容量の印だけを付けた地震・津波の続報（その入力の outcome の subject の transition が unavailable、P3-CC-AC03 (2)）も採った報として作り、端末はその報の末尾の行の後に「容量の上限のため、この報は記録に入っていません」の 1 行を足す（P3-TERMINAL-CAPACITY-NOTE-001、2026-11-12 の作者の裁定）」を書き足す (2) docs/specs/cli-terminal-output.md:109（§5.0 の並びの 7）の「7. 末尾の行（電文の種類のコードと ID）」の後に「。容量の上限で記録に入らなかった地震・津波の続報だけ、その後に記録に入っていない旨の 1 行を足す（下の末尾の行の項）」を書き足す (3) docs/specs/cli-terminal-output.md:117（§5.0 の末尾の行の項）の末尾に「容量の上限で unit が中身を記録せず印だけを付けた地震・津波の続報（U-Q の VXSE51・52・53・61・62 と U-T の VTSE41。その入力の outcome の subject の transition が unavailable、P3-CC-AC03 (2)）は、今のとおり報を出し、末尾の行の後（報のブロックの最後）に「容量の上限のため、この報は記録に入っていません」を黄 #f0e442 の字で 1 行出す。この 1 行のある報だけ末尾の行は最後の行でなくなり、並びは 末尾の再掲（出るとき）→ 末尾の行 → この 1 行（再掲は今のとおり末尾の行の上）。この 1 行は末尾の再掲の 20 行に数えない。新しい地震・新しい subject を断った報は今のとおり出さない。U-W・U-F の容量の印の報には付けない（P3-TERMINAL-CAPACITY-NOTE-001、P3-TCN-D-PLACE=B、2026-11-12 の作者の裁定）。」を書き足す (4) docs/specs/cli-terminal-output.md:742（§6.2 の分野の名前の項）の末尾に「容量の上限で記録に入らなかった地震・津波の続報（§5.0 の末尾の行の項）も、端末に出した報として件数と最大震度に数える（P3-TCN-D-SUMMARY=A）。」を書き足す (5) reconstruction/contracts/p3-currency-coverage.json:431（P3-CC-AC03 の requirement）の (2) の「（U-W の addUnavailable と同じ形）」の後に「（端末はこの transition unavailable の accepted で、出した報の末尾の行の後に記録に入っていない旨の 1 行を足す。P3-TERMINAL-CAPACITY-NOTE-001）」を書き足す。docs/specs/cli-terminal-output.md:118（末尾の再掲の項）の「末尾の行の上にもう一度出す」は B でもそのまま正しいので書き換えない（並びの関係は (3) に書く。118 行を引く «» 3 件の付け直しも要らない）。どの位置の字も、その行に 1 回だけある（da9344dd の木で確かめた。239e0150 までに terminal・units・spec・この 2 契約は動いていない）。«» の付け直し（同じ commit）: (a) 中身を変えた行を引く «» は、行番号はそのままで anchor だけを新しい行の anchor に替える。起草の時に引いているのは、spec の 109 行（本契約だけ）、117 行（p3-terminal-layout と本契約）、742 行（p3-terminal-output と本契約）、p3-currency-coverage.json の 431 行（p3-unit-q-capacity と本契約）、p3-terminal-output.json の 36 行（本契約だけ） (b) 実装で中身が変わる行のうち、output.ts の 605 行（本契約）・606 行（p3-terminal-rain-evict と本契約）、format.ts の 17 行・1103 行（本契約）、color.ts の 21 行（p3-terminal-layout20 と本契約）は、実装の後の行の anchor を手で入れる (c) 実装で行が増えるのは format.ts の case \"report\" の中だけで、1105 行から後を引く «» は起草の時に 0 件（その時の木で grep する）。output.ts・color.ts と試験の file は行を足さない（試験の file の行を引く «» は起草の時に 0 件） (d) そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す"
     ],
     "unresolvedQuestions": []
   }
