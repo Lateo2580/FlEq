@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "2cc0b5558d53ed747c1e11541c58aab326f4b10ed107a1eedd9cb47b85d43da7",
+    "sha256": "fab1981013414634b1d91912a36d3d697ab5e745c20dd41743a2a9ccf8ef789a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -25,8 +25,8 @@
         "B": "上限 1 秒。terminal.close が終わってから待つ。terminal.close の間に入った行も覆うが、終了の最悪の長さが 1 秒延びる",
         "recommended": "A",
         "provisional": "A",
-        "status": "統合担当の確かめ待ち（推奨 A）",
-        "ruling": "統合担当の確かめ待ち（推奨 A）。条文は A で書いた。B になったら AC01 (1) と T02 の時間の見方を書き直す",
+        "status": "確定（統合担当の裁定、2026-11-12。推奨どおり）",
+        "ruling": "A（統合担当。terminal.close と並べて最長 1 秒）",
         "reason": "書き出しはふつう数 ms（mkdir・file の最後の 1 byte の読み・追記・保持の掃除、sink の 203〜218 行）。1 秒を使い切るのは disk が詰まったときだけ。A は終了の最悪の長さ（停止の 30 秒の全体の期限 ＋ 保存の待ち 5 秒〔cli.ts の 26 行〕＋ terminal.close 1 秒）を変えない。B が余分に覆うのは terminal.close の 1 秒の間に入る行だけで、stop() が戻った後に診断を入れるのは終了を待ち切れなかった owner だけ（P3-DXF-AC03 (2)）"
       }
     ],
@@ -42,8 +42,8 @@
         "id": "Q-DXF-WHICH",
         "status": "closed",
         "source": "起草（2026-11-12）。最後に待った書き出し（1797 行、それが走らなければ 1741 行）より後に入りうる診断を実物で辿った",
-        "closed": "(1) 確か: dmdataSocketCloseFailed（host.ts の 506 行）。片付け（525 行）は shutdownRuntime と並べて走り、stop() は 528 行でその終わりを待つ。505 行は ok 以外の全部なので、回線の切れた quit で DELETE がすぐ失敗した場面と、30 秒の期限（492 行）の場面の両方で、shutdownRuntime の書き出しの後に入る (2) 確か（条件つき）: 1794 行の条件が偽のとき（workerClose の段が期限で切れた、または 1 回目の要約の保存が終わらなかった）は 1797 行が走らず、1741 行の後に入った行を誰も待たない。この間に入るのは、owner を終わらせる待ち（1744 行の closeWorker = host の endOwners）の間の owner の返事の診断: 遅い返事の ownerReplyLate（813 行、finalization が closed になった 1755 行の後の返事）、worker の error の ownerStopped（host.ts の 171 行 → composition-root.ts の 707 行。exit は ownersStopping で外れるが error は外れない）、保存の終わりの返事の checkpoint の診断（composition-root.ts の 1552 行の checkpoint.done の中の checkpoint.ts の 610 行。late を見る 1553 行より前に出る） (3) 起きうる（時刻は未確認）: 取り直しの WARN。2170・2216・2221 行から呼ぶ recoveryUnsatisfied（2333 行）は停止の段を見ないので、停止の開始の前に始まった await が停止の後に終わると入る（2014 行の H41 の周期と 2146・2151・2211〜2212 行は停止で止まる） (4) 入らない: workerClose の段の observeStage は診断を作らない（shared-runtime.ts の 179〜182 行）。host の接続の道の診断は stopping を見て止まる（host.ts の 292・370・380・387 行、576 行）。tick は 518 行で止まる。起動に失敗した host の停止（582 行）は最初の試みに自分の socket が無く、496 行で ok になる (5) 診断の行ではない: 期限で切れた後も続く要約の書き込みの .tmp（1741・1797 行の within は切った後の作業を止めない、365 行）。P3-DXF-AC03 (4)",
-        "remaining": "(3) の時刻は確かめていない。本契約の待ちは stop() の前に入った行をまとめて書き出すので、(3) が stop() の前に入れば書き出され、後なら P3-DXF-AC03 (2) と同じく落ちる"
+        "closed": "(1) 確か: dmdataSocketCloseFailed（host.ts の 506 行）。片付け（525 行）は shutdownRuntime と並べて走り、stop() は 528 行でその終わりを待つ。505 行は ok 以外の全部なので、回線の切れた quit で DELETE がすぐ失敗した場面と、30 秒の期限（492 行）の場面の両方で、shutdownRuntime の書き出しの後に入る (2) 確か（条件つき）: 1794 行の条件が偽のとき（workerClose の段が期限で切れた、または 1 回目の要約の保存が終わらなかった）は 1797 行が走らず、1741 行の後に入った行を誰も待たない。この間に入るのは、owner を終わらせる待ち（1744 行の closeWorker = host の endOwners）の間の owner の返事の診断: 遅い返事の ownerReplyLate（813 行、finalization が closed になった 1755 行の後の返事）、worker の error の ownerStopped（host.ts の 171 行 → composition-root.ts の 707 行。exit は ownersStopping で外れるが error は外れない）、保存の終わりの返事の checkpoint の診断（composition-root.ts の 1552 行の checkpoint.done の中の checkpoint.ts の 610 行。late を見る 1553 行より前に出る） (3) 取り直しの WARN（recoveryUnsatisfied、2333 行は停止の段を見ない）: 2170 行の WARN は、停止の初めの walking.abort()（host.ts の 516 行）で歩きが打ち切られて入るので、1741 行の書き出しより前に入る。2221 行は owner が止まったときだけ null で、そのときは 2277 行が runStopped に入れるので 2332 行で出ない。後から入りうるのは、停止の前に送った discard の返事を待つ 2215 行の後の 2216 行だけで、stop() が戻る前に入れば本契約の待ちで書き出される（2014 行の H41 の周期と 2146・2151・2211〜2212 行は停止で止まる） (4) 入らない: workerClose の段の observeStage は診断を作らない（shared-runtime.ts の 179〜182 行）。host の接続の道の診断は stopping を見て止まる（host.ts の 292・370・380・387 行、576 行）。tick は 518 行で止まる。起動に失敗した host の停止（582 行）は最初の試みに自分の socket が無く、496 行で ok になる (5) 診断の行ではない: 期限で切れた後も続く要約の書き込みの .tmp（1741・1797 行の within は切った後の作業を止めない、365 行）。P3-DXF-AC03 (4)",
+        "remaining": "(3) の 2216 行が stop() の後に入ることがあるか（discard の返事が owner の終わりの後に来るか）は確かめていない。後なら P3-DXF-AC03 (2) と同じく落ちる"
       },
       {
         "id": "Q-DXF-MOUTH",
@@ -106,7 +106,7 @@
     "allowedPaths": [
       "reconstruction/src/cli/cli.ts（AC01 だけ。389 行の finally より後だけを変え、行を足してよい〔389 行より後を引く «» と地の文の行番号は無い。Q-DXF-LINES〕。381・384・385・387・388 行の中身と位置は変えない）",
       "reconstruction/src/host/host.ts（AC02 だけ。75 行の 2 つの overload と 76 行の実装の戻りの型、664 行の return の中の 1 項。3 行とも行の中で書き、行を足さない〔536 行より後を多くの契約が引く。Q-DXF-LINES〕）",
-      "reconstruction/test/cli/cli.test.ts（P3-DXF-T01・T02 を file の末尾〔今の 502 行の後〕に足す。偽 host の 172・193・219・368・432 行に flushDiagnostics: async () => {} を行の中で足す〔無いと finally の呼び出しが TypeError になる。期待は変えない〕。77・237・253 行は変えない）"
+      "reconstruction/test/cli/cli.test.ts（P3-DXF-T01・T02 を file の末尾〔今の 502 行の後〕に足す。偽 host の 172・193・219・368・432 行に flushDiagnostics: async () => {} を行の中で足す〔無いと finally の呼び出しが TypeError になる。期待は変えない〕。218 行の fakeHost の戻りの型〔Omit<HostCommandPort, \"stop\"> & { stop: ... }〕の & { } の中に flushDiagnostics: () => Promise<void> を行の中で足す〔無いと 219 行の literal が TS2353。218 行を引く «» は無い〕。77・237・253 行は変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -177,7 +177,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-DXF-AC01",
-        "requirement": "CLI の終わりで待つ（目的。P3-DXF-D-PLACE=A、P3-DXF-D-LIMIT=A）: (1) cli.ts の finally の terminal.close（391 行）を、host が null でないとき、host.flushDiagnostics() の待ちと並べて両方を待つ形にする。flushDiagnostics の待ちは 1 秒の timer と race し、終わったら timer を clearTimeout する（P3-DXF-RES-01） (2) flushDiagnostics の reject は握る（finally から投げると return の code が例外に置き換わる。sink の flush は reject しない〔Q-DXF-MOUTH〕が、口の約束にしない） (3) host が null の枝（起動の前の Refusal、346 行の一覧を待つ間の終了の要求、startP2Host の失敗）は待たない（sink を持つ host が無い） (4) 待ちを始めるのは保存の待ち（381 行）の後なので、stop() が戻ってから保存の待ちが終わるまでに入った行も書き出す (5) 端末の行・音・終了の code・標準エラーの行は変えない。ふつうの終了が延びるのは書き出しの数 ms だけ (6) 行の決まり: 389 行より後だけを変える（Q-DXF-LINES）。コメントは「なぜ待つか（fleq.mjs の process.exit が書きかけの追記を捨てる）」と上限の根拠を 1 行で。無いと: 停止の後に入った診断が file にも標準エラーにも残らない（目的の場面、Q-DXF-CAUSE）",
+        "requirement": "CLI の終わりで待つ（目的。P3-DXF-D-PLACE=A、P3-DXF-D-LIMIT=A）: (1) cli.ts の finally の terminal.close（391 行）を、host が null でないとき、host.flushDiagnostics() の待ちと並べて両方を待つ形にする。flushDiagnostics の待ちは 1 秒の timer と race し、終わったら timer を clearTimeout する（P3-DXF-RES-01） (2) flushDiagnostics の reject は握る（finally から投げると return の code が例外に置き換わる。sink の flush は reject しない〔Q-DXF-MOUTH〕が、口の約束にしない） (3) host が null の枝（起動の前の Refusal、346 行の一覧を待つ間の終了の要求、startP2Host の失敗）は待たない（sink を持つ host が無い） (4) 待ちを始めるのは保存の待ち（381 行）の後なので、stop() が戻ってから保存の待ちが終わるまでに入った行も書き出す (5) 端末の行・音・終了の code・標準エラーの行は変えない。ふつうの終了が延びるのは書き出しの数 ms だけ (6) 行の決まり: 389 行より後だけを変える（Q-DXF-LINES）。1 秒の数は finally の中に置く（cli.ts の 26 行の SAVE_WAIT_MS の隣に定数を足すと、378〜388 行を引く «» がずれる）。コメントは「なぜ待つか（fleq.mjs の process.exit が書きかけの追記を捨てる）」と上限の根拠を 1 行で。無いと: 停止の後に入った診断が file にも標準エラーにも残らない（目的の場面、Q-DXF-CAUSE）",
         "evidenceRefs": [
           "reconstruction/src/cli/cli.ts:378 «9c5da53677696d58»",
           "reconstruction/src/cli/cli.ts:381 «9e814ba6be570a8b»",
@@ -221,7 +221,7 @@
       },
       {
         "id": "P3-DXF-AC03",
-        "requirement": "落ちる物（コードは足さず、残存として成果物に書く）: (1) 1 秒を越えた分: 今と同じく process.exit で捨てる。書きかけの行の残りは次の起動の追記が改行を前に足して切り離し（sink の 214 行）、読みは JSON にならない行を飛ばす（253 行）ので、ほかの行は壊れない。1 秒を使い切るのは disk が詰まったときだけ (2) 待ちが終わった後に入る行: owner を終わらせる待ちが期限で切れて残った owner（host.ts の 534 行）が後から送る返事の ownerReplyLate（composition-root.ts の 813 行）、worker の error の ownerStopped（host.ts の 171 行 → 707 行）、取り直しの WARN（2333 行、Q-DXF-WHICH (3)）。残った owner は要約の workers に数えてある (3) sink が使えない間の行（書き出しか要約の保存の失敗の後）: 今と同じく数えて捨てる。dmdataSocketCloseFailed だけは 507 行で標準エラーに 1 行出る (4) 要約の .tmp: flush は列が空なら 195 行ですぐ戻り、期限で切れた後も続いている要約の書き込み（composition-root.ts の 1741・1797 行。within は切った後の作業を止めない、365 行）を待たない。これは診断の行ではなく、次の起動の掃除（sink の 370・379 行）が .tmp を消す。disk には前の回か今回の完全な要約が残る（1800 行） (5) CLI を通らない終わり方: fleq replay（replay.mjs の 138 行。{ wsUrl } なので host.ts の 489 行で DELETE をしない）、試験の host（host.test.ts の T09 は 778 行で行が出るまで待つ）、起動に失敗した host の停止（host.ts の 582 行。CLI に host が渡らない。最初の試みでは自分の socket が無く 496 行で ok）。どれも今と同じ（P3-DXF-D-PLACE の B を採らない代わり）",
+        "requirement": "落ちる物（コードは足さず、残存として成果物に書く）: (1) 1 秒を越えた分: 今と同じく process.exit で捨てる。書きかけの行の残りは次の起動の追記が改行を前に足して切り離し（sink の 214 行）、読みは JSON にならない行を飛ばす（253 行）ので、ほかの行は壊れない。1 秒を使い切るのは disk が詰まったときだけ (2) 待ちが終わった後に入る行: owner を終わらせる待ちが期限で切れて残った owner（host.ts の 534 行）が後から送る返事の ownerReplyLate（composition-root.ts の 813 行）、worker の error の ownerStopped（host.ts の 171 行 → 707 行）、discard の返事の後の取り直しの WARN（2216 行、Q-DXF-WHICH (3)）。残った owner は要約の workers に数えてある (3) sink が使えない間の行（書き出しか要約の保存の失敗の後）: 今と同じく数えて捨てる。dmdataSocketCloseFailed だけは 507 行で標準エラーに 1 行出る (4) 要約の .tmp: flush は列が空なら 195 行ですぐ戻り、期限で切れた後も続いている要約の書き込み（composition-root.ts の 1741・1797 行。within は切った後の作業を止めない、365 行）を待たない。列に行があればその書き出しは serial の順（sink の 307〜311 行）で要約の書き込みの後ろに並ぶが、上限 1 秒の中で待ち、越えた分は (1) に入る。要約の .tmp は診断の行ではなく、次の起動の掃除（sink の 370・379 行）が .tmp を消す。disk には前の回か今回の完全な要約が残る（1800 行） (5) CLI を通らない終わり方: fleq replay（replay.mjs の 138 行。{ wsUrl } なので host.ts の 489 行で DELETE をしない）、試験の host（host.test.ts の T09 は 778 行で行が出るまで待つ）、起動に失敗した host の停止（host.ts の 582 行。CLI に host が渡らない。最初の試みでは自分の socket が無く 496 行で ok）。どれも今と同じ（P3-DXF-D-PLACE の B を採らない代わり）",
         "evidenceRefs": [
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:214 «15ca423066d951f4»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:253 «550ad2cf1111bc75»",
@@ -246,9 +246,11 @@
       },
       {
         "id": "P3-DXF-AC04",
-        "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: p3-repl-closed.json の 31 行（P3-RC-D-PLACE の reason）の「B: idle を待つのは host.stop() が終わった後で、host の診断の sink はもう閉じている。」は実物と合わない（sink に閉じる口は無く、列に入った行は終わりまで受け付ける。Q-DXF-CAUSE）。artifactRequirements の原文の改訂の文に置き換える。裁定 A の結論は変わらない（B のほかの理由〔reason の union と sink の reason の一覧の 2 file を足す、利用者は diag の file を読まない〕は残る）",
+        "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: p3-repl-closed.json の 31 行（P3-RC-D-PLACE の reason）の「B: idle を待つのは host.stop() が終わった後で、host の診断の sink はもう閉じている。」は実物と合わない（sink に閉じる口は無く、列に入った行は終わりまで受け付ける。Q-DXF-CAUSE）。artifactRequirements の原文の改訂の文に置き換える。裁定 A の結論は変わらない（B のほかの理由〔reason の union と sink の reason の一覧の 2 file を足す、利用者は diag の file を読まない〕は残る）。同じ前提の文が p3-dmdata-connect.json の 289 行（P3-C2-RES-07 の scope「sinkが受け付ける間に入れ、閉じた後なら…stderrへ出す」）と 347 行（P3-C2-AC03 の「sinkが閉じた後なら…stderr」）にもある。実物の分かれ目は sink が行を断ったとき（sinkUnavailable、host.ts の 507 行）なので、行の中で「使えないとき」に書き換える（artifactRequirements の原文の改訂 (2)(3)）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-repl-closed.json:31 «5cd0dfd5b8f02dd9»"
+          "reconstruction/contracts/p3-repl-closed.json:31 «5cd0dfd5b8f02dd9»",
+          "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
+          "reconstruction/contracts/p3-dmdata-connect.json:347 «88eca4172c4fc5f5»"
         ]
       }
     ],
@@ -260,7 +262,7 @@
           "P3-DXF-AC01",
           "P3-DXF-AC02"
         ],
-        "behavior": "受入（AC01 (1)(4)、目的の場面の形）。cli.test.ts の末尾。一時 directory に本物の PersistentDiagnosticSink を作り、file system（DiagnosticFileSystem）は node の fs で組むか composition-root の nodeDiagnosticFileSystem() を包む（cli.test.ts は host・terminal/output・dmdata-rest を mock しているので、composition-root を import して無事かは実装で確かめ、駄目なら node の fs で組む）。appendFile だけ試験の gate を待たせる。偽 host（368 行の形）の stop は、戻る直前に sink.enqueueDiagnostic で WARN の dmdataSocketCloseFailed を 1 行入れてから { code: 0 } を返し、flushDiagnostics は () => sink.flush()。runCli([]) を起こして終了を要求し、少し待って runCli がまだ戻っていないこと（直す前のコードはここで戻っていて落ちる）を見てから gate を開け、runCli が 0 で戻った直後に、待たずに diagnostics-*.jsonl を同期で読んで、その行があることを見る。試験の終わりまでに sink の書き出しが終わっているので afterEach の rm と競わない"
+        "behavior": "受入（AC01 (1)(4)、目的の場面の形）。cli.test.ts の末尾。一時 directory に本物の PersistentDiagnosticSink を作る。file system は composition-root.ts の nodeDiagnosticFileSystem()（2464 行で export。node:fs の promises を使うので cli.test.ts の node:fs/promises の mock は割り込まない）を spread し、appendFile だけ包んで、届いた印 reached を立ててから試験の gate を待たせる。偽 host（368 行の形）の stop は、sink.enqueueDiagnostic で WARN の dmdataSocketCloseFailed を 1 行入れ、印 stopped を立ててから { code: 0 } を返す。flushDiagnostics は () => sink.flush()。368 行の startCli と同じ起こし方（host だけ差し替える）で vi.waitFor の attach の待ちが終わった後に vi.useFakeTimers({ toFake: [\"setTimeout\", \"clearTimeout\"] }) を入れ（前例 265〜268 行・406〜408 行。偽の時計を入れた後は vi.waitFor を使わない）、quit で終了を要求する。待つ合図は「reached かつ stopped」で、setImmediate を回してそれを待ち、さらに setImmediate を決まった回数（例えば 10 回）回してから runCli がまだ戻っていないことを見る（直す前のコードはここで戻っていて落ちる。待ちの条件に getTimerCount を使わない: 直す前のコードは timer を張らないので、落ちる代わりに試験の期限切れになる）。gate を開け、runCli が 0 で戻った直後に、待たずに diagnostics-*.jsonl を同期で読んで、その行があることを見る。試験の終わりまでに sink の書き出しが終わっているので afterEach の rm と競わない"
       },
       {
         "testId": "P3-DXF-T02",
@@ -269,7 +271,7 @@
           "P3-DXF-AC01",
           "P3-DXF-AC03"
         ],
-        "behavior": "上限の境界（P3-DXF-RES-01、AC03 (1)）。T01 と同じ組み立てで gate を開けないまま終了を要求し、runCli が上限の 1 秒（fake timers で進めるか、実時間で 1 秒の後）に stop の code のまま戻ること、その時点で行が file に無いことを見る。そのあと gate を開け、sink.flush() を待ってから試験を終える（afterEach の rm と競わない、0f3d1b9e と同じ理由）。無いと: 上限を外した実装（flushDiagnostics をそのまま await）でも T01 が通り、disk が詰まると quit の後に process が終わらない"
+        "behavior": "上限の境界（P3-DXF-RES-01、AC03 (1)）。T01 と同じ組み立てと偽の時計で、gate を開けないまま quit し、「reached かつ stopped」と setImmediate の決まった回数を待つ。vi.advanceTimersByTime(999) の後に setImmediate を回して runCli がまだ戻っていないこと、あと 1 進めて runCli が stop の code（0）で戻ること、その時点で行が file に無いことを見る（269〜276 行の 5 秒の試験と同じ形）。そのあと gate を開け、sink.flush() を待ってから試験を終える（afterEach の rm と競わない、0f3d1b9e と同じ理由）。無いと: 上限を外した実装（flushDiagnostics をそのまま await）でも T01 が通り、disk が詰まると quit の後に process が終わらない"
       }
     ],
     "requiredCommands": [
@@ -292,7 +294,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約（host.ts:664 と p3-repl-closed.json:31 の «» の付け直しの後）"
+        "purpose": "全契約（host.ts:664・p3-repl-closed.json:31・p3-dmdata-connect.json:289 の «» の付け直しの後）"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -336,9 +338,9 @@
       "受信経路の計算量（AGENTS.md）: 受信の hot path に触れない。足すのは終了で 1 回の待ちだけ",
       "期待が変わる既存の試験: 0 の見込み。偽 host への口の追加（cli.test.ts の 172・193・219・368・432 行）は期待を変えない。REPL の偽 host（repl.test.ts・prompt.test.ts・prompt-repl.test.ts）は HostCommandPort を変えないので触らない。host.test.ts の T09 の行の待ち（778 行）は残す（試験の host は CLI を通らない）。実装の木で全試験を回し、期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) P3-DXF-AC03 の (1)〜(5) (2) Q-DXF-WHICH (3) の取り直しの WARN が停止の後に入る時刻は確かめていない (3) 上限 1 秒は terminal.close の 1 秒と並べるので終了の最悪の長さは変わらないが、ふつうの終了も書き出しの数 ms だけ延びる",
-      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-repl-closed.json:31 の「B: idle を待つのは host.stop() が終わった後で、host の診断の sink はもう閉じている。」を「B: idle を待つのは host.stop() が終わった後で、そのころ host の診断の sink の列は誰も書き出しを待っていない（sink に閉じる口は無く、列に入った行は fleq.mjs の process.exit までに書き終わらなければ消える。P3-DIAG-EXIT-FLUSH-001 で CLI の終わりに最長 1 秒待つようにした〔2026-11-12〕。裁定 A の結論は変わらない）。」に置き換え、p3-repl-closed.json の meta.sha256 を取り直す (2) 構造的欠陥台帳 123 に、CLI の終わりで解消した旨と、CLI を通らない終わり方（P3-DXF-AC03 (5)）は残る旨を書く",
-      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる host.ts の 664 行を引く «»（p3-dmdata-connect-002.json の 355 行と本契約の AC02）、host.ts の 75・76 行を引く本契約の AC02 の «»（他の契約は «» で引かない）、cli.ts の 391 行を引く本契約の AC01 の «»（391 行が書き換わるか動くので、中身で選び直す）、改訂で中身が変わる p3-repl-closed.json の 31 行を引く本契約の AC04 の «»。cli.test.ts を引く «» はずれない（Q-DXF-LINES）。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "残存として成果物に書く: (1) P3-DXF-AC03 の (1)〜(5) (2) Q-DXF-WHICH (3) の 2216 行の WARN が stop() の後に入ることがあるかは確かめていない。AC01 (4)「保存の待ちの後に待ちを始める」を落とせる試験は無い（stop() の後〜保存の待ちの間に診断を入れる道を試験で作れない）ので、レビューで見る (3) 上限 1 秒は terminal.close の 1 秒と並べるので終了の最悪の長さは変わらないが、ふつうの終了も書き出しの数 ms だけ延びる",
+      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-repl-closed.json:31 の「B: idle を待つのは host.stop() が終わった後で、host の診断の sink はもう閉じている。」を「B: idle を待つのは host.stop() が終わった後で、そのころ host の診断の sink の列は誰も書き出しを待っていない（sink に閉じる口は無く、列に入った行は fleq.mjs の process.exit までに書き終わらなければ消える。P3-DIAG-EXIT-FLUSH-001 で CLI の終わりに最長 1 秒待つようにした〔2026-11-12〕。裁定 A の結論は変わらない）。」に置き換え、p3-repl-closed.json の meta.sha256 を取り直す (2) reconstruction/contracts/p3-dmdata-connect.json:289 の「片付けの失敗・打切りの診断は、sinkが受け付ける間に入れ、閉じた後なら秘密値を含まない固定文1行をstderrへ出す。」を「片付けの失敗・打切りの診断はsinkに入れ、sinkが使えないとき（sinkUnavailable、host.ts の 507 行）は秘密値を含まない固定文1行をstderrへ出す（列に入れた行は CLI の終わりで最長 1 秒書き出しを待つ、P3-DIAG-EXIT-FLUSH-001）。」に置き換える (3) 同じ file の 347 行の「（sinkが閉じた後なら秘密値なしの固定文1行をstderr）」を「（sinkが使えないとき〔sinkUnavailable、host.ts の 507 行〕は秘密値なしの固定文1行をstderr）」に置き換え、p3-dmdata-connect.json の meta.sha256 を取り直す (4) 構造的欠陥台帳 123 に、CLI の終わりで解消した旨と、CLI を通らない終わり方（P3-DXF-AC03 (5)）は残る旨を書く",
+      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる host.ts の 664 行を引く «»（p3-dmdata-connect-002.json の 355 行と本契約の AC02）、host.ts の 75・76 行を引く本契約の AC02 の «»（他の契約は «» で引かない）、cli.ts の 391 行を引く本契約の AC01 の «»（391 行が書き換わるか動くので、中身で選び直す）、改訂で中身が変わる p3-repl-closed.json の 31 行と p3-dmdata-connect.json の 289・347 行を引く本契約の AC04 の «»。改訂 (2) で中身が変わる p3-dmdata-connect.json の 289 行を引く «»（p3-clock-check.json の 260 行、p3-execution-lifecycle.json の 511 行）。347 行を «» で引く契約は無い（本契約の AC01 が引く 288 行は変わらない）。cli.test.ts を引く «» はずれない（Q-DXF-LINES）。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
       "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 新築を起こし、回線を切ってから quit し、診断の file に dmdataSocketCloseFailed が残ることを 1 回見る（起こせなければ T01 に任せる）"
     ],
     "unresolvedQuestions": []
