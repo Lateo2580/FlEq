@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8431c525e18379f9239f38447ebce4d1573c43aa",
-    "sha256": "84329a98179e800091de6665ff0767bb4dd819fe0dd8fb40db4441c0c6df9707",
+    "sha256": "caee7626c4cd3192caef1cf33e932a912139335d7852990d498fe261a7a32443",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -889,7 +889,7 @@
       },
       {
         "id": "P3-REC-RET-02",
-        "target": "前に突き合わせた位置の後に live で受けた電文の id（unit ごと、H41 の突き合わせ用）",
+        "target": "前に突き合わせた位置の後に live で受けた電文の id（unit ごと、H41 の突き合わせ用。起動のまとめから live で受けた報を外すのにも使う〔P3-RECOVERY-DIGEST-LIVE-001。積む時点を変える変更は本契約を見直す〕）",
         "limit": 4096,
         "unit": "ids per unit",
         "status": "provisional（置き値。突き合わせの周期 10 分で、最も多い unit の 10 分の受信数に余裕を足した数として見直す）",
@@ -1152,7 +1152,7 @@
       },
       {
         "id": "P3-REC-AC15",
-        "requirement": "【発注 1。(2) の並べ方は発注 2】起動時のダイジェスト（H32）: 起動時の一覧の辿り（AC02）で得た一覧の頭から、unit ごとに AC02 の digestAfterMs（余白を除いた境界の時刻を起動時刻 − 7 日で切ったもの）より後に dmdata が受けた item を（境界の dmdataId の item とそれより古い item は除く）、表題・見出し・発表時刻・運用区分・型・dmdata の受信時刻だけで並べ、snapshot の DisplayRecoveryView の digest の欄へ載せる（P2-SNAPSHOT-SSE-001 の DisplayRecoveryView を改訂し、同じ commit で json を改める。無いと: 一覧を辿っても止まっていた間の情報が画面へ届かず、発注 1 の仕組みに本番の呼び手が無い）。本文を取らず、unit の state と mailbox に入れない（U-W・U-F が origin=recovery の入力を live と同じに採る、発注前点検 N5）。もう終わったもの（解除済みなど）も含める。(1) 遡り: P3-REC-D-DIGEST-WINDOW=A の 7 日。起点が 7 日より前の unit と、起点が分からない unit（初めての起動・境界 null・restoration が empty か unavailable・時計の根拠なし）でも 7 日分を出し、「7 日より前は取り直していない」の印を付ける (2) 大きさ: 件数は RES-04、byte は RES-06 の枠に作るときに収める。文字列は 1 本 256 byte に切る。並べ方は【発注 2】P3-REC-D-DIGEST-BUDGET=D（確定、作者の裁定 2026-10-28）: 分野（unit）の順（ORDER-AND-LIMIT=A と同じ）に、各分野の中は新しい順で見出しを 3 件まで残し、残りは型ごとの件数だけにする（件数は消さない）。RES-06 の枠に入らなければ、順の後ろの分野から件数だけになる（境目の分野は 1〜2 件だけ見出しになりうる。A と同じく、入る分だけ載せる）。【発注 1】は A の順（分野ごとの 3 件の上限なし）で配送済みで、発注 2 で recovery.ts の buildDigest の見出しを足すループ（fill）を D に差し替える（A の順では 2026-10-27 の実 API の 7 日分で見出しがすべて火山になった。DIGEST-BUDGET の ruling）。ダイジェストの大きさで P2-A8-RES-04 の共通の上限を越えて live の snapshot が断られる経路を作らない (3) 辿れなかった unit（recoveryLimit・fetchFailed・authRejected）は理由とともに載せ、件数は「不明」として 0 と出さない。telegram.* を 1 つも購読していないときと、config.dmdata が無い起動（{ wsUrl }）では digest は null（既存の試験が API キー無しで通り続けることが確かめになる） (4) ダイジェストは run の中だけで持ち、次の起動で作り直す。停止を始めた後に揃った結果では公開しない（AC03 の (6)）。見せ方は P4 （2026-10-28 発注 3 の点検 M7）発注 3・4 で取得の窓を unit ごと（AC02 の (8)）にしても、(1) の 7 日・digestAfterMs・「7 日より前は取り直していない」の印はダイジェストの範囲の意味のまま変えない （2026-10-29 夜、節目の直し、Q-REC-PRECHECK-10）N2 の窓が 7 日より短い unit でも、起動の辿りは 7 日まで一覧を辿り（AC02 の (8)）、(1) のダイジェストに載せる。本文は N2 の窓の中だけ",
+        "requirement": "【発注 1。(2) の並べ方は発注 2】起動時のダイジェスト（H32）: 起動時の一覧の辿り（AC02）で得た一覧の頭から、unit ごとに AC02 の digestAfterMs（余白を除いた境界の時刻を起動時刻 − 7 日で切ったもの）より後に dmdata が受けた item を（境界の dmdataId の item とそれより古い item は除く）、表題・見出し・発表時刻・運用区分・型・dmdata の受信時刻だけで並べ、snapshot の DisplayRecoveryView の digest の欄へ載せる（P2-SNAPSHOT-SSE-001 の DisplayRecoveryView を改訂し、同じ commit で json を改める。無いと: 一覧を辿っても止まっていた間の情報が画面へ届かず、発注 1 の仕組みに本番の呼び手が無い）。本文を取らず、unit の state と mailbox に入れない（U-W・U-F が origin=recovery の入力を live と同じに採る、発注前点検 N5）。もう終わったもの（解除済みなど）も含める。(1) 遡り: P3-REC-D-DIGEST-WINDOW=A の 7 日。起点が 7 日より前の unit と、起点が分からない unit（初めての起動・境界 null・restoration が empty か unavailable・時計の根拠なし）でも 7 日分を出し、「7 日より前は取り直していない」の印を付ける (2) 大きさ: 件数は RES-04、byte は RES-06 の枠に作るときに収める。文字列は 1 本 256 byte に切る。並べ方は【発注 2】P3-REC-D-DIGEST-BUDGET=D（確定、作者の裁定 2026-10-28）: 分野（unit）の順（ORDER-AND-LIMIT=A と同じ）に、各分野の中は新しい順で見出しを 3 件まで残し、残りは型ごとの件数だけにする（件数は消さない）。RES-06 の枠に入らなければ、順の後ろの分野から件数だけになる（境目の分野は 1〜2 件だけ見出しになりうる。A と同じく、入る分だけ載せる）。【発注 1】は A の順（分野ごとの 3 件の上限なし）で配送済みで、発注 2 で recovery.ts の buildDigest の見出しを足すループ（fill）を D に差し替える（A の順では 2026-10-27 の実 API の 7 日分で見出しがすべて火山になった。DIGEST-BUDGET の ruling）。ダイジェストの大きさで P2-A8-RES-04 の共通の上限を越えて live の snapshot が断られる経路を作らない (3) 辿れなかった unit（recoveryLimit・fetchFailed・authRejected）は理由とともに載せ、件数は「不明」として 0 と出さない。telegram.* を 1 つも購読していないときと、config.dmdata が無い起動（{ wsUrl }）では digest は null（既存の試験が API キー無しで通り続けることが確かめになる） (4) ダイジェストは run の中だけで持ち、次の起動で作り直す。停止を始めた後に揃った結果では公開しない（AC03 の (6)）。見せ方は P4 （2026-10-28 発注 3 の点検 M7）発注 3・4 で取得の窓を unit ごと（AC02 の (8)）にしても、(1) の 7 日・digestAfterMs・「7 日より前は取り直していない」の印はダイジェストの範囲の意味のまま変えない （2026-10-29 夜、節目の直し、Q-REC-PRECHECK-10）N2 の窓が 7 日より短い unit でも、起動の辿りは 7 日まで一覧を辿り（AC02 の (8)）、(1) のダイジェストに載せる。本文は N2 の窓の中だけ（P3-RECOVERY-DIGEST-LIVE-001、作者の裁定 2026-11-12: まとめの上端は時刻で置かない。一覧の頭のうち、まとめを作る時に live で受けた電文の id の帳簿〔RET-02〕にある id は、件数を数える前に除く〔帳簿を引くのはまとめを作る時の 1 回だけ〕。帳簿は mailbox に受け取らせた時点で積むので、端末に行を出さない報もまとめから外れる〔P3-RDL-AC04〕。外し損ねは重複に戻るだけ〔P3-RDL-AC03〕）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3059 «de603c487f88ebc8»",
           "docs/specs/reconstruction-p0-contracts.md:3124 «006740d745ab7866»",

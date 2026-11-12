@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d48ef4be3a4a29abf8647c25cc56217c2fca1ea2",
-    "sha256": "33faeae1af4b4dc29ff111f4efcac7f68d52a319596421cb770744f5f6089d92",
+    "sha256": "4335ccfb371303c33fbfcd58f3fad3c9fa912f862ed60562d1af296b079e9ee1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -173,7 +173,7 @@
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:1920 «9d9d9dc17a593e03»",
           "reconstruction/src/runtime/composition-root.ts:1922 «6bcd61bd38cceea5»",
-          "reconstruction/src/runtime/composition-root.ts:1923 «756480f52e2a747e»",
+          "reconstruction/src/runtime/composition-root.ts:1923 «8d3cdb6a5b2840b0»",
           "reconstruction/src/recovery/recovery.ts:500 «dbdb2b1f6ef72539»",
           "reconstruction/src/recovery/recovery.ts:502 «22d33025fe2003e1»",
           "reconstruction/src/host/host.ts:342 «b340c2e586dcd39f»",
@@ -263,7 +263,7 @@
         "id": "P3-RDL-AC05",
         "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: P3-REC-AC15 の本文（p3-recovery.json の 1155 行）にまとめの上端の一文を、P3-REC-RET-02 の target（892 行、今は「H41 の突き合わせ用」）に帳簿のもう 1 つの使い道を書き足す（artifactRequirements の原文の改訂 (1)(2)）。spec（reconstruction-p0-contracts.md の 3123 行の起動時のダイジェスト、cli-terminal-output.md の 775 行の「C16 のダイジェストの形をそのまま写す」）は範囲の言い方を持たないので変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-recovery.json:1155 «8124919f2fa9781b»",
+          "reconstruction/contracts/p3-recovery.json:1155 «89fae1dcf031ae88»",
           "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
           "docs/specs/cli-terminal-output.md:775 «f16f012995b53ec2»"
         ]
