@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "88f805194c97c9f4352eea890dd06ed5ffce7b9d253c0f3a2846396f7db76b69",
+    "sha256": "b0650d945f345c8814960f35f47ae4a59a0300b6a66301e5a27eb0d50c568549",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -251,7 +251,8 @@
       "typhoon.ts の行の数を変えない。他の契約の «» は :310・:311 を引いていない（Q-TFC-ANCHORS）。check-contract は契約ごとに最初の 1 件しか出さないので、変えた行を引く «» が本契約のほかに無いことを全契約の grep で確かめて報告する",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の U-Y の slot は消さない",
-      "残存として成果物に書く: (1) 実況の多い報は拒否までに残した時刻ごとに parseFrame を 1 回呼ぶ（線形、outOfScope） (2) 遅延の時間は計っていない（直す前の約 5 千万回はレビューの見積もり）"
+      "残存として成果物に書く: (1) 実況の多い報は拒否までに残した時刻ごとに parseFrame を 1 回呼ぶ（線形、outOfScope） (2) 遅延の時間は計っていない（直す前の約 5 千万回はレビューの見積もり）",
+      "配送の記録（統合担当、2026-11-13）: (1) 実装は 90cd4338（typhoon.ts:311 の行の中だけ、試験 P3-TFC-T01 を typhoon-unit.test.ts の末尾に。Sonnet 5.5。試験は今の振る舞いを留める形で、直す前の木でも緑を実装者が確かめた）。baseOid d95c9b54 の点検の commit は 34d404f0 (2) «» の付け直しは a524ca6b（本契約の typhoon.ts:311、AC01・AC02） (3) レビュー: 契約適合と品質を 1 体で（Opus、変更が 1 行のため）GO、P1・P2 は 0 (4) Mac mini のゲート b22（a524ca6b、Node 26）: tsc 3 本・reconstruction の vitest と shuffle・checker 3 本・root の build と test の 12 段がすべて rc 0。7-3 と合わせた b23（88128d2c）も同じく rc 0"
     ],
     "unresolvedQuestions": []
   }

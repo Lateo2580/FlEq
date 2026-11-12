@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "e040eb6efbf4a1afa437beb62ae5c80272e9a493e76afa709ea8437daeb00527",
+    "sha256": "73d5d7028e8e65620fc85ce9b8163ac859f5a0566bd3c4d4ed05705b50f159a1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -271,7 +271,8 @@
       "残存として成果物に書く: (1) fleq.mjs の未捕捉の例外の扱い（Node の表示と code 1）は走らせて確かめていない（P3-SSW-D-REJECT=A は今の扱いをそのまま使う） (2) 5 秒を越えた保存は今と同じく捨てる。確かめられない旨の 1 行の後に例外で終わり、rename の前なら次の起動は前の値になる (3) reject の道では、終わりが最長 5 秒延びる（保存の列が空なら延びない） (4) stop() が reject し、同じ try の中で別の例外も出たとき（repl.idle() の reject など）は、finally の投げ直しで stop() の例外が勝つ。今はそういう道は知られていない",
       "原文の改訂（統合担当が配送の commit で当てる。行の中の書き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-cli-repl.json:1236 の「（P3-REPL-CLOSED-001） (4) startP2Host」の「（P3-REPL-CLOSED-001）」の後に、「。stop() が reject で終わったときも、同じ保存の待ちと 1 行を通し、finally の後に同じ例外で runCli を reject させる（code の 0 は作らない。P3-STOP-SAVE-WAIT-001、P3-SSW-D-REJECT=A）」を足し、p3-cli-repl.json の meta.sha256 を取り直す（P3-SSW-D-REJECT が B になったら文を B の形に替える）",
       "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる cli.ts の 378 行を引く «»（p3-diag-exit-flush.json の 182 行と本契約の AC01）と、改訂 (1) で中身が変わる p3-cli-repl.json の 1236 行を引く本契約の AC01・AC02 の «»。p3-cli-repl.json の 1236 行を引く «» は、ほかの契約には無い。cli.ts の 381〜395 行と cli.test.ts を引く «» はずれない（Q-SSW-LINES）。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
-      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 本物の host.stop() を reject させる道（診断の directory を書けなくする）は端末から起こしにくいので、T01 に任せる。起こせたら、notify eew off の直後に quit し、設定 file に残ることと、例外の表示を 1 回見る"
+      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 本物の host.stop() を reject させる道（診断の directory を書けなくする）は端末から起こしにくいので、T01 に任せる。起こせたら、notify eew off の直後に quit し、設定 file に残ることと、例外の表示を 1 回見る",
+      "配送の記録（統合担当、2026-11-13）: (1) 実装は 85764d1c（cli.ts の 378 行の中と finally の最後の 1 行、試験 P3-SSW-T01 を cli.test.ts の末尾に。Sonnet 5.5。378 行を戻すと T01 が落ちることを実装者が確かめた）。もとは 34d404f0 の上の d4acf805 で、配送で P3-TYPHOON-FRAME-COST-001 の上へ載せ直した (2) 原文の改訂 (1)（p3-cli-repl.json:1236）と «» の付け直し（本契約と P3-DIAG-EXIT-FLUSH-001 の cli.ts:378、本契約の p3-cli-repl.json:1236）、cli.ts:378 のコメントの字の直しは 88128d2c (3) レビュー: 品質はヘルツ（gpt-6-astra high、thread 01a1d1df）GO、契約適合は Opus GO、どちらも P1・P2 は 0。契約適合の P3 のうち T01 が listener を外す順を見ない点は直さない (4) Mac mini のゲート b23（88128d2c、Node 26）: tsc 3 本・reconstruction の vitest と shuffle・checker 3 本・root の build と test の 12 段がすべて rc 0 (5) 字の食い違い: Q-SSW-LINES が cli.test.ts の行に挙げた「:35（p3-replay-cli.json:140、spec:2303）」は replay-cli.test.ts:35 だった（点検で見つけた。結論は変わらない）。本物の host.stop を reject させた実走は未実施"
     ],
     "unresolvedQuestions": []
   }
