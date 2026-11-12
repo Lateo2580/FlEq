@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "46bf1b6f6aa0d3c2ae2d2eb5c576962a6895a76360c683946f2438cd01cca1e5",
+    "sha256": "c7973492af9d4832f90037622eb5391b1507f190dc956a283be1e78ec05bc824",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -111,7 +111,7 @@
     "contractId": "P3-TERMINAL-CAPACITY-NOTE-001",
     "mode": "implementation",
     "objective": "作者の裁定（2026-11-12、P3-TCN-D-NOTE=B・D-SCOPE=A・D-PLACE=B）のとおり、U-Q と U-T が既存の記録への続報を容量で断って印だけを付けたとき（その入力の outcome の subject の transition が unavailable）、端末は今のとおりその報を出したまま、報のブロックの最後（末尾の行の後）に黄の字（役目 warn）で「容量の上限のため、この報は記録に入っていません」の 1 行を足す。新しい地震・新しい subject を断ったとき（outcomes []）は今のとおり何も出さない。見分けは main の端末（output.ts）が返信の outcomes で行い、整形（format.ts）が行を足す。U-Q・U-T・owner・材料（material.ts）・契約の型・音・通知・chrome-eew・ディスプレイは変えない。spec と閉じた契約の文は配送で統合担当が当てる（artifactRequirements の原文の改訂）",
-    "baseOid": "unassigned",
+    "baseOid": "0d5f84dd",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
