@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "46fd965482cfdcacd4639022e372641de67133f18f4e0b2e71f368a1dbc9debf",
+    "sha256": "b9c19b7caaca4eaeec156420eb8749e94719f4001ca5bd3f6e070ca57e84ee57",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -377,7 +377,7 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:681 «ea8d6da6d7e5bf3f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:801 «9379000288c0b994»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1076 «70a64289aaf69c2d»",
-          "reconstruction/contracts/p3-currency-coverage.json:431 «26d09c4135af20b9»"
+          "reconstruction/contracts/p3-currency-coverage.json:431 «abcc1ac00a3bb923»"
         ]
       },
       {

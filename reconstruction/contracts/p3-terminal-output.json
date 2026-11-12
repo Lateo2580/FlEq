@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "8bcb78ca54bda64aed1abc86c96f62db712ff0dafb8f1aa5ee6d4f7b77a8d379",
+    "sha256": "69d1dd47bc988c701f42263bd99028dbd3989871b7eb61ab95f06e066a2675bc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -33,7 +33,7 @@
       {
         "id": "P3-TO-D-EXTRACT-PATH",
         "kind": "統合担当",
-        "A": "TerminalReport は端末の有無によらず、origin が live か replay の採った報（その unit の outcome に kind accepted かつ change が semantic か revisionOnly のものがある入力。deliveryOnly と、duplicate・stale で outcome の無い入力は作らない）で毎回作る。例外は 2 つで、P3-TL5-AC01 の満潮の報は outcome が無くても作り、P3-TL4-AC04 の VPNO50 は採っても作らない。製品の経路を 1 つにする",
+        "A": "TerminalReport は端末の有無によらず、origin が live か replay の採った報（その unit の outcome に kind accepted かつ change が semantic か revisionOnly のものがある入力。deliveryOnly と、duplicate・stale で outcome の無い入力は作らない）で毎回作る。例外は 2 つで、P3-TL5-AC01 の満潮の報は outcome が無くても作り、P3-TL4-AC04 の VPNO50 は採っても作らない。製品の経路を 1 つにする。容量の印だけを付けた地震・津波の続報（その入力の outcome の subject の transition が unavailable、P3-CC-AC03 (2)）も採った報として作り、端末はその報の末尾の行の後に「容量の上限のため、この報は記録に入っていません」の 1 行を足す（P3-TERMINAL-CAPACITY-NOTE-001、2026-11-12 の作者の裁定）",
         "B": "OwnerStartData に印を足し、端末を持たない起動（測定の runner・試験）では作らない",
         "recommended": "A",
         "provisional": "A",
@@ -650,7 +650,7 @@
         "requirement": "【発注 2】定期要約（spec の §6.2、Q-TO-R-1、P3-TO-D-SUMMARY）: (1) 1 行だけ「── HH:MM〜HH:MM の受信 ── EEW n件 ・ 地震 n件（最大震度 x） ・ 津波 n件 ・ 南海トラフ n件 ・ 火山 n件 ・ 気象 n件」。0 件の分野は出さず、全部 0 件なら「受信なし」。sparkline は出さない (2) 間隔の初めの値は起動の summaryInterval（--summary-interval と設定、cli.ts の resolved）で、0 か無しなら出さない。変えるのは TerminalControl.setSummaryInterval（C18 の発注 3） (3) 数えるのは AC01 の口を通った報だけで、持つのは分野ごとの件数と最大震度の 7 つの数（受信 1 回で O(1)）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:741 «740944585e241d7d»",
-          "docs/specs/cli-terminal-output.md:742 «0ccafd77bb11b150»",
+          "docs/specs/cli-terminal-output.md:742 «cbae0d4e14cf6207»",
           "docs/specs/cli-terminal-output.md:743 «237b4283b3ac2f74»",
           "docs/specs/cli-terminal-output.md:744 «b074478f0d03b3a5»",
           "docs/specs/reconstruction-p0-contracts.md:2373 «ac89d7c7db5a4eba»"

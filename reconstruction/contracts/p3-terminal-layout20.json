@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3c5f353cc5c9657b81aec3afcc6a2d1f8a790c06",
-    "sha256": "5ca560636adbbe4ad933dbb6041fb19290f282708c42fbb7c1bb5713b23a7a55",
+    "sha256": "d73e4c1fd10a68c1f2df3eb81b0c863f97b88ba07081b0bedeabac4518c28e82",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -245,7 +245,7 @@
           "reconstruction/src/terminal/format.ts:908 «e3816b3a989d168e»",
           "reconstruction/src/terminal/format.ts:1084 «69020a7f0c69befc»",
           "reconstruction/src/terminal/format.ts:293 «bd58451a65e675df»",
-          "reconstruction/src/terminal/color.ts:21 «800723aa1aef0e88»",
+          "reconstruction/src/terminal/color.ts:21 «8a4239a8f6ba2839»",
           "reconstruction/test/terminal/startup.test.ts:7 «6c90528626ec98ba»",
           "docs/specs/cli-terminal-output.md:808 «d4c179ff8fba1682»",
           "docs/specs/cli-terminal-output.md:821 «3078f955106b5fed»",
