@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "d1275343724cb271b793ab4524df023a2fef8527d53fa38ee825abf2709fff6d",
+    "sha256": "d464c4651941e60fec03573abce179595d6765e3417aa9f94be470bfd939e423",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -53,7 +53,15 @@
         "status": "closed",
         "source": "起草（2026-11-12）",
         "closed": "起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける",
-        "remaining": "発注の時の baseOid（統合担当）"
+        "remaining": "なし（発注前点検 Q-SSW-PRECHECK で d95c9b54 を割り当てた）"
+      },
+      {
+        "id": "Q-SSW-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-13、HEAD d95c9b54。紙の照合は Opus〔読むだけ〕。補助は reconstruction/.dr-tmp/ssw-tfc-pre/〔anchors.py・refs.py・owners.py〕で、repo に入れない）",
+        "closed": "(1) 分岐: P3-SSW-D-REJECT は統合担当が A で確定（ruling あり）。起草案・provisional のまま ruling の無いものは 0 件 (2) 行: evidenceRefs の 23 個と contractTypeRef の «» を d95c9b54 の木で読み、全部が書いた行で一致した（ほかの行への移りも 0）。地の文の行（cli.ts の 26・109・346・359〜376・389〜395、fleq.mjs の 19・22、cli.test.ts の 35〜52・366・368・401〜403・505 と file の長さ 555 行）も中身を読み、条文の主張と合う。起草（4510ad7f・4e11b257）の後の d95c9b54 は文書だけ（計画・spec・3 契約の行の中）で、reconstruction/src と test は変わっていない (3) 他の契約の引き（全パスで照合）: reconstruction/src/cli/cli.ts を «» で引くのは本契約の外で 31 件（7 契約）。377 行より後は 8 件で、p3-diag-exit-flush.json:182〜185（378・381・389・394）と p3-repl-closed.json:204・205・214・215（381・388・385・387）。Q-SSW-LINES の列と一致する。地の文の「cli.ts の N 行」で 377 行より後は p3-diag-exit-flush.json の 381 行（:38・:174）と 391 行（:343）で、どれも中身を変えない 379〜395 行の内。«» の無い「cli.ts:N」（旧築の cli.ts を含む）は 59 件で、最大 371 行。「cli.ts の N〜M 行」の形は 0 件。395 行より後を引くものは 0 件（cli.ts の近くに出る 402・408 などは Q-DXF-LINES のとおり別の file の行）。reconstruction/test/cli/cli.test.ts は «» 3 件（77・237・253、p3-dmdata-no-contract.json）と地の文の :13・:15・:215 で、どれも 555 行より前。字の食い違い 1 件（直さず残す）: Q-SSW-LINES が cli.test.ts の地の文に挙げた「:35（p3-replay-cli.json の 140 行、spec の 2303 行）」は replay-cli.test.ts:35 で、cli.test.ts の行ではない。結論（どれも 555 行より前）は変わらない。「中身を変えるのは 378 行だけ、足すのは 395 行の後と試験の末尾だけ」で他の契約の «» はずれない。実装の後に FAIL になるのは p3-diag-exit-flush.json:182 と本契約の 378 行の «» だけの見込み（requiredCommands のとおり） (4) 後の裁定: d95c9b54 の計画の末尾の節「C15 の取り下げと C21 の外出し」は C15・volcanorepair・C21・C22 の読みだけで、終了の道と保存の待ちに触れない。p3-cli-repl.json の P3-CLI-AC18 (3)（1236 行、«» 一致）と P3-CLI-RES-03 の待ちは 5 秒のまま、cli.ts の SAVE_WAIT_MS（26 行）は 5_000、378 行の stop の待ち → 381 行の repl.idle() と 5 秒の race の順も同じ。本契約が前提にする 5 秒の待ちと stop → repl.idle() の順は今も生きている (5) 同じ file を allowedPaths に持つ契約 9 本（P3-CLI-REPL-001・P3-DIAG-EXIT-FLUSH-001・P3-REPL-CLOSED-001・P3-DMDATA-NO-CONTRACT-001・P3-DMDATA-CONNECT-002・P3-REPLAY-WATCH-002・P3-TERMINAL-LAYOUT-007・P3-TERMINAL-OUTPUT-001・P3-WINDOWS-CI-001）はどれも、契約 ID を題に持つ feat か fix の commit がある（配送済み）。本契約の file を行で引く契約・文書は 0 件なので、本項を足して行がずれても他の «» は動かない (6) baseOid を d95c9b54a0c59527cc220c6cf95701358b8fc29c にした（本契約の file はその木にある）",
+        "remaining": "なし",
+        "reason": "発注前点検の記録（前例 Q-WN-PRECHECK）"
       }
     ],
     "operationContract": {
@@ -65,7 +73,7 @@
     "contractId": "P3-STOP-SAVE-WAIT-001",
     "mode": "implementation",
     "objective": "host の stop() が reject しても、設定の保存の待ち（P3-CLI-AC18 (3)）を通してから終える（ヘルツの総合レビュー hz-review-2 の 1 件目、P2。Mac mini の probe で赤）。場面: 23:10:00.000 に「notify eew off」と Enter。端末に「  緊急地震速報 (eew): OFF」が出て、保存の列が一時 file への書き込みを始める。続けて「quit」と Enter で REPL が閉じ、stop() が始まる。23:10:00.400 に終了の要約の 2 回目の書き込みが診断の sink で失敗し、stop() が「final shutdown summary could not be persisted」で reject する（既存の試験 B04 と同じ形）。今のコードでは cli.ts の 378 行から finally へ飛び、23:10:00.410 に runCli が reject し、Node が未捕捉の例外で終わる。設定の一時 file は rename の前のまま捨てられ、次の起動では eew の通知が on に戻る。直した後は、23:10:00.400 の reject の後も保存の列（最長 5 秒）を待つ。rename が済んでから finally を通り、最後に同じ例外を投げ直す（P3-SSW-D-REJECT=A、統合担当の確定）。直しは cli.ts の 378 行（行の中）と、395 行の後に足す 1 行。stop が resolve するふつうの終了の戻り値・標準エラー・待ちの長さ、端末の行と音は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "d95c9b54a0c59527cc220c6cf95701358b8fc29c",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",

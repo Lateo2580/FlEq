@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "f649f1ef172ae3c1ec0b4b688d62729896cb214df2b0a4be878361805a8f11a5",
+    "sha256": "4114a5c104eb0383c2c7f278397621c23e51fd49d6acb09174b03d004177971d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -44,6 +44,14 @@
         "status": "closed",
         "source": "起草（2026-11-12、reconstruction/contracts と docs を typhoon.ts の行の参照で grep）",
         "closed": "typhoon.ts の行を引く «» は :19・:93・:97・:111・:112・:136・:137・:155・:197・:228・:252・:302・:306・:321・:333〜:458 の行で、:310・:311 を引く契約は無い。行の数を変えなければ他の契約の «» はずれない。本契約自身の :311 の «»（AC01・AC02）は実装で変わる（統合担当が配送で付け直す）"
+      },
+      {
+        "id": "Q-TFC-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-13、HEAD d95c9b54。紙の照合は Opus〔読むだけ〕。補助は reconstruction/.dr-tmp/ssw-tfc-pre/〔anchors.py・refs.py・owners.py〕で、repo に入れない）",
+        "closed": "(1) 分岐: P3-TFC-D-FORM は統合担当が A で確定（ruling あり）。起草案・provisional のまま ruling の無いものは 0 件 (2) 行: evidenceRefs の 16 個と contractTypeRef の «» を d95c9b54 の木で読み、全部が書いた行で一致した（ほかの行への移りも 0）。地の文の行（typhoon.ts の :123 の FRAME_LABEL・:304〜:323、typhoon-unit.test.ts の :97・:100 と file の長さ 828 行）も中身を読み、条文の主張と合う。T01 の (a)(b) は、labelOf（:125、halfWidth〔:97〕で全角の数字と空白を半角にする）・FRAME_LABEL・:309〜:310 で辿ると、最初に落とす時刻が「観測　２時間後」「予報　６時間後」になる。起草（70c29cf6・f39f6ff2）の後の commit は文書だけで、reconstruction/src と test は変わっていない (3) 他の契約の引き（全パスで照合）: reconstruction/src/domains/typhoon/typhoon.ts を «» で引くのは本契約の外で 32 件（5 契約: p3-cli-repl・p3-recovery-read・p3-terminal-layout16・p3-unreadable-mark・p3-weather-shape）。行は :19〜:458 で Q-TFC-ANCHORS の列と一致し、:309〜:311 を引くものは 0 件。いちばん近いのは p3-weather-shape.json:290〜:292・:348 の :302・:306・:321（中身を変えない行）。«» の無い「typhoon.ts:N」は 9 件（:93〜:438）と domains/typhoon/typhoon.ts:19 の 1 件で、:310・:311 は 0 件。地の文の「typhoon.ts の N 行」は 0 件。typhoon-unit.test.ts は本契約の外で «» 4 件（:194・:206・:212・:218）と地の文 10 件（:305〜:791 と :654）で、どれも 828 行より前。「行の数を変えない、試験は末尾に足す」で他の契約の «» はずれない (4) 後の裁定: d95c9b54 が変えたのは計画・spec と p3-migration・p3-nankai-unit・p3-volcano-unit-002 の行の中で、台風の契約・規則（P3-WS-D-TYPHOON、LIMITS.frames 24）には触れていない (5) 同じ file を allowedPaths に持つ契約 3 本（P3-TERMINAL-LAYOUT-016・P3-WEATHER-SHAPE-001・P3-XML-READERS-001）はどれも配送済み。本契約の file を行で引く契約・文書は 0 件なので、本項を足して行がずれても他の «» は動かない (6) baseOid を d95c9b54a0c59527cc220c6cf95701358b8fc29c にした（本契約の file はその木にある）",
+        "remaining": "なし",
+        "reason": "発注前点検の記録（前例 Q-WN-PRECHECK）"
       }
     ],
     "operationContract": {
@@ -55,7 +63,7 @@
     "contractId": "P3-TYPHOON-FRAME-COST-001",
     "mode": "implementation",
     "objective": "台風の解析の報で実況の時刻が多いとき、落とした最初の時刻を探す typhoon.ts の :311 が残した時刻の配列を時刻ごとになめる全件×全件の走査（ヘルツの総合レビューの P2、AGENTS.md の受信経路の計算量）を、時刻の数に比例する探索に改める。受理・拒否・拒否の理由・truncated・frames と、drop に渡す時刻（受理された報の印の frame の part）は変えない。画面と音は変わらない",
-    "baseOid": "unassigned",
+    "baseOid": "d95c9b54a0c59527cc220c6cf95701358b8fc29c",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
