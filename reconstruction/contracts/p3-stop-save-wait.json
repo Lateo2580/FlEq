@@ -1,0 +1,261 @@
+{
+  "meta": {
+    "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
+    "sha256": "bc12bd6393d27f65695fb62a6ce089e814ec27402552d1c08ccc1e9d4bbfe513",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-SSW-D-REJECT",
+        "kind": "統合担当",
+        "A": "stop() の失敗の見せ方は今のまま。保存の待ちと保存の 1 行（あれば）を通し、finally を終えた後に、stop() が投げたのと同じ例外を投げ直す。runCli は今と同じ値で reject する。fleq.mjs の 19 行はこれを捕まえないので、終わり方は今と同じになる（Node が未捕捉の例外を標準エラーに出し、code 1 で終わる。未実走）。標準エラーに増えるのは、既存の保存の 1 行（P3-CLI-AC18 (3) か P3-RC-D-END=A の文）だけ。fleq.mjs は変えない",
+        "B": "cli.ts で stop() の reject を code に変える。標準エラーに固定の文を 1 行出し（文は新しく作る。例:「終了の処理を最後まで確かめられませんでした」）、code 1 で戻る。runCli は reject しなくなり、fleq.mjs の 22 行（標準出力を流してから exit）を通る。例外の stack は出なくなる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が起草レビューの後に確定する）",
+        "reason": "本契約の目的は、終わり方の確かさ（設定の保存を待つこと）だけ。stop() の reject をどう見せるかを決めた契約は無い。P3-CLI-AC05 (5) が決めているのは startP2Host の reject だけで、hz-repro.md の 7-3 の「契約」の節でも、stop の reject を扱う残存は見つからなかった。A なら、既存の決まりがそのまま当たる。保存の 1 行は AC18 (3) と P3-RC-D-END=A の文のまま出る。code の決まり（0 なら 1、0 以外はそのまま）は、未捕捉の例外が code 1 なので「0 以外」に当たる。P2-A3-AC06 と C3B の追補 C3B-CLOSE が決めた「保存を確かめられない要約で code 0 を返さない」も保たれる。B は stop の失敗に利用者向けの文を新しく作る仕事で、文を選ぶ作者の裁定が要る。B を採るなら、P3-SSW-AC01 (2)(3)、P3-SSW-T01 の最後の期待（reject を 1 と文に置き換える）、AC02 の改訂の文を書き換える"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-SSW-CAUSE",
+        "status": "closed",
+        "source": "起草（2026-11-12）。ヘルツの総合レビュー hz-review-2 の 1 件目（P2）、Mac mini の probe（hz-repro.md の 7-3、Node 26 と Node 22 で赤）、実物の読み",
+        "closed": "(1) 欠けの道: cli.ts の 378 行（const { code } = await stopping）で stop() が reject すると、381 行の repl.idle() と 5 秒の待ち（AC18 (3)、P3-CLI-RES-03）を通らずに 389 行の finally へ飛ぶ。finally が待つのは terminal.close と診断の書き出し（394 行）だけで、例外はそのまま runCli から出る。runCli の settle（109 行）は Refusal 以外を投げ直す。fleq.mjs は 19 行の await を try で包まないので、process.exit を呼ぶ 22 行に届かず、Node が未捕捉の例外で終わる。そのとき rename の前の設定の保存（mute・notify eew off など。repl.ts の保存の列）は終わりを待たれずに捨てられ、次の起動では前の値に戻る (2) stop() が reject する例: host の stop は 526 行の try { return await root.shutdownRuntime(…) } で、片付け・owner の終わり・表示の close を finally で待ってから、例外をそのまま返す。shutdownRuntime は、2 回目の要約の書き込みが sink で失敗すると（persistent-diagnostic-sink.ts の 302 行の throw）、composition-root.ts の 1805 行で「final shutdown summary could not be persisted」を投げる（既存の試験 B04、review-regressions.test.ts の 475 行）。この throw は P2-A3-AC06 と C3B の追補 C3B-CLOSE（p3-execution-lifecycle.json の 720 行）が意図して残した分岐で、本契約では変えない。1790 行の「shutdown did not produce a summary」など、ほかの throw も同じ道を通る。出どころは数えず、reject 全部を同じに扱う (3) probe（hz-repro/cli-stop-reject-probe.test.ts）の結果: notify eew off の保存を一時 file の書き込み（rename の前）で止めたまま quit する。stop が resolve する対照は、止めている間は決着しない（緑）。stop が reject する本体は、50 turn の後に「rejected final shutdown summary could not be persisted」で決着している（赤）",
+        "remaining": "fleq.mjs の未捕捉の例外の扱い（Node が出す表示と code 1）は読んだだけで、走らせていない。本物の host.stop が reject するところから終わりまでを通しで走らせたことも無い（probe の stop は偽物で、reject の形は B04 に合わせた）"
+      },
+      {
+        "id": "Q-SSW-RULES",
+        "status": "closed",
+        "source": "起草（2026-11-12）。p3-cli-repl.json の AC05 (7)・AC18 (3)、p3-repl-closed.json の P3-RC-D-END、p2-checkpoint-shutdown.json の P2-A3-AC06、p3-execution-lifecycle.json の追補 C3B-CLOSE を突き合わせた",
+        "closed": "既存の決まりから一意に出る部分: (1) 保存の待ち: AC18 (3) は「stop() が終わった後も保存の列が終わっていなければ、さらに 5 秒まで待つ」と書き、resolve に限っていない。だから reject の後も同じ待ちを通すのが条文どおりで、今のコードがそこから外れている (2) 保存の 1 行: 期限切れなら AC18 (3) の「確かめられません」、閉じた後に分かった失敗なら P3-RC-D-END=A の文。どちらも stop の成否に関わらない (3) code: 決まりは「ShutdownSummary.code、保存が期限までに終わらなければ 0 なら 1、0 以外はそのまま」。reject には要約が無い。P2-A3-AC06 と C3B-CLOSE は、最後の要約を保存できなかった停止を、成功の code 0 で返さないために reject にしている。だから CLI でも 0 にしてはいけない。一意に出ない部分: stop() の失敗を利用者にどう見せるか（今の例外のままか、文と code に変えるか）。stop の reject を決めた契約は無い（AC05 (5) は startP2Host の reject だけ）ので、P3-SSW-D-REJECT に分けた",
+        "remaining": "P3-SSW-D-REJECT（統合担当）"
+      },
+      {
+        "id": "Q-SSW-LINES",
+        "status": "closed",
+        "source": "起草（2026-11-12）。contracts/*.json と docs/specs/*.md から、cli.ts を引く «» と地の文の行番号を探した",
+        "closed": "377 行より後の cli.ts を «» で引くのは次のとおり。378 行（p3-diag-exit-flush.json の 182 行）、381 行（p3-diag-exit-flush.json の 183 行、p3-repl-closed.json の 204 行）、385 行（p3-repl-closed.json の 214 行）、387 行（同じく 215 行）、388 行（同じく 205 行）、389 行（p3-diag-exit-flush.json の 184 行）、394 行（同じく 185 行）。395 行より後を引く «» と地の文（「cli.ts:395」より後、「cli.ts の 395 行」より後）は無い。だから、中身を変えるのは 378 行だけにし、足す行は 395 行の後に置く。そうすれば、381〜394 行の中身と位置は変わらない。378 行を引く p3-diag-exit-flush.json の 182 行の «» は、配送で付け直す（artifactRequirements）。cli.test.ts を «» で引くのは 77・237・253 行（p3-dmdata-no-contract.json）だけなので、試験は file の末尾（今の 555 行の後）に足す",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-SSW-TEST",
+        "status": "closed",
+        "source": "起草（2026-11-12）。probe と cli.test.ts の既存の仕組みの突き合わせ",
+        "closed": "probe の mock（node:fs/promises の open を包み、wx で開いた handle の writeFile を gate で止める）は、cli.test.ts の 35〜52 行の writes（stall: \"write\"）と同じ形で、そのまま使える。cli.test.ts の 366 行の startCli は stop を code 0 に固定しているので、偽 host は試験の中に書く（505 行の exitFlushStart と同じやり方）。待ちには本物の timer を使う。直す前のコードは、保存が止まっている間に reject で決着する。だから「writes.reached を待ち、setImmediate を決まった回数回してから、決着していないことを見る」形なら、期限切れではなく期待の外れで落ちる。偽の時計と getTimerCount は使わない。直す前のコードでは 5 秒の timer が張られないので、それを待つ条件は期限切れになる（P3-DXF-T01 と同じ理由）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-SSW-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-12）",
+        "closed": "起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける",
+        "remaining": "発注の時の baseOid（統合担当）。P3-SSW-D-REJECT の確定も発注の前に済ませる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。stop() が reject したときの終わり方の順を変えるだけで、受信・判定・通知・停止の段・端末と音の出力は変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-STOP-SAVE-WAIT-001",
+    "mode": "implementation",
+    "objective": "host の stop() が reject しても、設定の保存の待ち（P3-CLI-AC18 (3)）を通してから終える（ヘルツの総合レビュー hz-review-2 の 1 件目、P2。Mac mini の probe で赤）。場面: 23:10:00.000 に「notify eew off」と Enter。端末に「  緊急地震速報 (eew): OFF」が出て、保存の列が一時 file への書き込みを始める。続けて「quit」と Enter で REPL が閉じ、stop() が始まる。23:10:00.400 に終了の要約の 2 回目の書き込みが診断の sink で失敗し、stop() が「final shutdown summary could not be persisted」で reject する（既存の試験 B04 と同じ形）。今のコードでは cli.ts の 378 行から finally へ飛び、23:10:00.410 に runCli が reject し、Node が未捕捉の例外で終わる。設定の一時 file は rename の前のまま捨てられ、次の起動では eew の通知が on に戻る。直した後は、23:10:00.400 の reject の後も保存の列（最長 5 秒）を待つ。rename が済んでから finally を通り、最後に同じ例外を投げ直す（P3-SSW-D-REJECT=A、起草案）。直しは cli.ts の 378 行（行の中）と、395 行の後に足す 1 行。stop が resolve するふつうの終了の戻り値・標準エラー・待ちの長さ、端末の行と音は変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-stop-save-wait.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p3-repl-closed.json",
+      "reconstruction/contracts/p3-diag-exit-flush.json",
+      "reconstruction/src/cli/cli.ts",
+      "reconstruction/cli/fleq.mjs",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts",
+      "reconstruction/test/cli/cli.test.ts",
+      "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/cli/cli.ts（AC01 だけ。378 行は行の中で書き換える。行は 395 行の後にだけ足してよい〔395 行より後を引く «» と地の文の行番号は無い。Q-SSW-LINES〕。377 行と 379〜395 行の中身と位置は変えない）",
+      "reconstruction/test/cli/cli.test.ts（P3-SSW-T01 を file の末尾〔今の 555 行の後〕に足すだけ。既存の行は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-stop-save-wait.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-CLI-REPL-001",
+      "P3-REPL-CLOSED-001",
+      "P3-DIAG-EXIT-FLUSH-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-cli-repl.types.ts#HostCommandPort"
+    ],
+    "publicFunctions": [
+      "runCli・startP2Host・HostCommandPort の口の形は変えない。stop() が reject したとき、runCli は今と同じ例外で reject する（P3-SSW-D-REJECT=A）。新しい export・helper・定数・型は足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__32-35_01_02_240613_VXSE52"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（設定 file の形と保存の手順は変えない。stop() が reject した道でも、今ある保存の列を待つだけ）"
+    ],
+    "nonPersistedFields": [
+      "なし（新しい状態を持たない）"
+    ],
+    "outOfScope": [
+      "host の stop()・shutdownRuntime・診断の sink が reject する条件（B04、P2-A3-AC06、C3B の追補 C3B-CLOSE）。reject を減らす変更はしない",
+      "fleq.mjs の未捕捉の例外の扱い（P3-SSW-D-REJECT の B を採るときの仕事）",
+      "保存の列・5 秒の期限（P3-CLI-RES-03）・保存の 1 行の文（AC18 (3)、P3-RC-D-END=A）",
+      "診断の書き出しの待ち（P3-DIAG-EXIT-FLUSH-001。finally の中は変えない）",
+      "startP2Host の reject の道（P3-CLI-AC05 (5)）と、host を起こす前の終了（346 行）",
+      "旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-SSW-AC01",
+        "requirement": "stop() の成否によらず、保存を待ってから終える（目的。P3-SSW-D-REJECT=A、起草案）: (1) cli.ts の 378 行で stop() の reject を受け止め、381〜388 行の保存の待ち（repl.idle() と 5 秒、AC18 (3)）へ進む。reject の出どころは数えない。B04 の「final shutdown summary could not be persisted」（composition-root.ts の 1805 行）は一例で、1790 行など host の stop の中のどの throw も同じに扱う (2) reject のときの順: 保存の待ち（最長 5 秒。P3-CLI-RES-03 のままで、新しい上限は足さない）→ 保存の 1 行（384・387 行、あれば）→ finally（390〜395 行。repl の close、terminal.close と診断の書き出しの並べ待ち、listener の取り外し）→ 最後に、stop() が投げたのと同じ例外（同じ object）を投げ直す。runCli はその例外で reject する（今と同じ値）。投げ直しは listener を外した後に置く (3) reject のとき、384・385・388 行の code は仮の値で、投げ直しで捨てられる。形の例: 378 行を const { code } = await stopping.catch(() => ({ code: 1 })); に書き換え、395 行の後に await stopping; の 1 行を足し、なぜその行で待つかのコメントを 1 行添える。finally で stopping が null の道（host の無い道〔起動の前の Refusal、346 行、startP2Host の失敗〕や、367〜376 行の throw）では await null が何もしない。catch の中で例外を let の変数に写し、finally で読む形は取らない（TypeScript は closure の中の代入を追わず、変数を null に絞るので、読む側が never になる） (4) stop() が resolve するふつうの終了は今と同じ。戻り値・標準エラー・待ちの長さは変わらない（finally の最後の await は、済んだ Promise を読むだけ） (5) 行の決まり: 中身を変えるのは 378 行だけ。足す行は 395 行の後だけ。377 行と 379〜395 行の中身と位置は変えない（Q-SSW-LINES）。無いと: stop() が reject すると、rename の前の設定の保存（mute・notify eew off など）を待たずに Node が終わる。次の起動では前の値に戻り、mute したはずの通知が鳴る（Q-SSW-CAUSE）",
+        "evidenceRefs": [
+          "reconstruction/src/cli/cli.ts:377 «220b91d77a1bf4dd»",
+          "reconstruction/src/cli/cli.ts:378 «9c5da53677696d58»",
+          "reconstruction/src/cli/cli.ts:381 «9e814ba6be570a8b»",
+          "reconstruction/src/cli/cli.ts:384 «075e894e8828dd94»",
+          "reconstruction/src/cli/cli.ts:385 «fab94c37e644e238»",
+          "reconstruction/src/cli/cli.ts:387 «341aa9d2306d9933»",
+          "reconstruction/src/cli/cli.ts:388 «3500973c5041ae4a»",
+          "reconstruction/src/cli/cli.ts:394 «e644ea41ec7c178a»",
+          "reconstruction/src/cli/cli.ts:395 «851cf0887837b4d7»",
+          "reconstruction/src/cli/cli.ts:109 «8cf0ccd1c4d7bbf8»",
+          "reconstruction/cli/fleq.mjs:19 «f90ddb0a45f33599»",
+          "reconstruction/cli/fleq.mjs:22 «35f85fde5f5d2ad4»",
+          "reconstruction/src/host/host.ts:513 «a2ad0b3b132c008c»",
+          "reconstruction/src/host/host.ts:526 «e74d6a66c5815e63»",
+          "reconstruction/src/runtime/composition-root.ts:1790 «25d9cfb11bef431f»",
+          "reconstruction/src/runtime/composition-root.ts:1805 «5d65895f36340616»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:302 «0982cc16635b9129»",
+          "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts:475 «4aa6aced5e54f132»",
+          "reconstruction/contracts/p3-cli-repl.json:1236 «7e936ee90b28f01e»",
+          "reconstruction/contracts/p3-repl-closed.json:13 «a76c9bff78bc6147»",
+          "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:720 «43270efa8e841d25»"
+        ]
+      },
+      {
+        "id": "P3-SSW-AC02",
+        "requirement": "他の契約の文（実装はしない。原文の改訂として、統合担当が配送の commit で当てる。行の数は変えない）: p3-cli-repl.json の 1236 行（P3-CLI-AC18 の requirement）の (3) は、終了の code を「ShutdownSummary.code」とだけ書き、stop() が reject したときを書いていない。artifactRequirements の原文の改訂 (1) の文を足す。AC18 (3) の待ちの決まり（stop() が終わった後も 5 秒まで待つ）は変わらない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-cli-repl.json:1236 «7e936ee90b28f01e»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-SSW-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-SSW-AC01"
+        ],
+        "behavior": "受入（AC01 (1)(2)、目的の場面の形。probe の hz-repro/cli-stop-reject-probe.test.ts の「本体」を正式にしたもの）。cli.test.ts の末尾、describe の外に足す。(1) 用意: writeAt で有効な設定を書き、writes.stall を \"write\" に、writes.reached を false にし、writes.gate を新しい Promise にする（今の 401〜403 行と同じ）。clear() を呼ぶ。偽 host は 368 行の形で、stop は 1 回呼ばれたことを数え、new Error(\"final shutdown summary could not be persisted\") で reject するものにする。flushDiagnostics は async () => {} (2) runCli([]) を起こし、.then で決着を 1 つの変数に写す（resolve と reject の両方。これで reject が未処理にならない）。vi.waitFor で mocks.attached を待つ (3) mocks.readline!.line で「notify eew off」と「quit」を流す。writes.reached が立つまで setImmediate を回し、さらに決まった回数（probe と同じ 50 回）回す。このとき、まだ決着していないことを見る（直す前のコードはここで reject の決着になっていて落ちる）。偽の時計と getTimerCount は使わない（Q-SSW-TEST） (4) writes.release() で gate を開ける。runCli が同じ文の例外で reject すること（expect(result).rejects.toThrow）、stop が 1 回だけ呼ばれたこと、readConfig() の notify が { eew: false } であること、標準エラーが空であること（保存は期限の内に成功したので、1 行は出ない）を見る。最後に writes.stall を null に戻す"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O10 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の後に FAIL になるのは、378 行を引く «»（本契約の AC01 と p3-diag-exit-flush.json の 182 行）だけの見込み。統合担当が配送で付け直す"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（cli の試験を含む）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: AC01 で変えるのは、cli.ts の 378 行（行の中）と、395 行の後の 1 行（とコメント 1 行）だけ。無いと、stop() が reject したときに保存を待たずに終わる。新しい定数・helper・型・設定は足さない。試験は T01 の 1 本（probe を正式にした形、AC01 と 1 対 1）。cli.ts の 378 行だけを戻すと T01 が (3) の「まだ決着していない」で落ちることを、実装者が 1 回確かめて成果物に書く",
+      "受信経路の計算量（AGENTS.md）: 受信の hot path に触れない。変わるのは終了の道の 1 回の待ちの順だけ",
+      "期待が変わる既存の試験: 0 の見込み（stop() が resolve する道は変わらない）。実装の木で全試験を回し、期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
+      "残存として成果物に書く: (1) fleq.mjs の未捕捉の例外の扱い（Node の表示と code 1）は走らせて確かめていない（P3-SSW-D-REJECT=A は今の扱いをそのまま使う） (2) 5 秒を越えた保存は今と同じく捨てる。確かめられない旨の 1 行の後に例外で終わり、rename の前なら次の起動は前の値になる (3) reject の道では、終わりが最長 5 秒延びる（保存の列が空なら延びない） (4) stop() が reject し、同じ try の中で別の例外も出たとき（repl.idle() の reject など）は、finally の投げ直しで stop() の例外が勝つ。今はそういう道は知られていない",
+      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き換えで、行の数は変えない）: (1) reconstruction/contracts/p3-cli-repl.json:1236 の「（P3-REPL-CLOSED-001） (4) startP2Host」の「（P3-REPL-CLOSED-001）」の後に、「。stop() が reject で終わったときも、同じ保存の待ちと 1 行を通し、finally の後に同じ例外で runCli を reject させる（code の 0 は作らない。P3-STOP-SAVE-WAIT-001、P3-SSW-D-REJECT=A）」を足し、p3-cli-repl.json の meta.sha256 を取り直す（P3-SSW-D-REJECT が B になったら文を B の形に替える）",
+      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる cli.ts の 378 行を引く «»（p3-diag-exit-flush.json の 182 行と本契約の AC01）と、改訂 (1) で中身が変わる p3-cli-repl.json の 1236 行を引く本契約の AC01・AC02 の «»。p3-cli-repl.json の 1236 行を引く «» は、ほかの契約には無い。cli.ts の 381〜395 行と cli.test.ts を引く «» はずれない（Q-SSW-LINES）。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 本物の host.stop() を reject させる道（診断の directory を書けなくする）は端末から起こしにくいので、T01 に任せる。起こせたら、notify eew off の直後に quit し、設定 file に残ることと、例外の表示を 1 回見る"
+    ],
+    "unresolvedQuestions": []
+  }
+}
