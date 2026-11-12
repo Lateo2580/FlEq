@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "176abc39a2d693e8900587012a41564dab9685864184385fcade020d4eb466f4",
+    "sha256": "f649f1ef172ae3c1ec0b4b688d62729896cb214df2b0a4be878361805a8f11a5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -15,8 +15,8 @@
         "C": "実況が 2 個以上（nowCount > 1）なら :311 より前に拒否する。振る舞いが変わる: 実況の時刻の Item か DateTime が欠けた報では、今は parseFrame（:140）が found.missing を立て、fail()（:274）が missing を先に見て requiredStructureMissing で拒否する。先に拒否すると requiredStructureInvalid に変わる。drop の印は拒否の結果に載らない（reject は notes を持たない、:236）ので、印の有無は変わらない",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（起草の担当が補った、2026-11-12。統合担当が発注の前に確かめる）",
-        "ruling": "起草案 A（統合担当の確認待ち）",
+        "status": "確定",
+        "ruling": "A（統合担当 2026-11-13 深夜。A と B は振る舞いが同じで、A は 1 行の中で済む。C は拒否の理由を変えるので採らない。起草レビューは契約適合・品質とも GO）",
         "reason": "A は 1 行の中で閉じ、所属の引きが見て分かる。B も同じ結果だが 2 行に触れる。C は拒否の理由が変わる場合がある（上の場面）ので採らない。:311 の位置の比べ（kept は nodes の文書の順の部分列なので、最初に kept[at] !== node となる nodes[at] が落とした最初の時刻）も同じ結果になるが、部分列であることを読み手が確かめる手間があるので A を推す。:311 は他の契約に引かれていない（:306・:321 と :333 から後の行は引かれている、Q-TFC-ANCHORS）"
       }
     ],
