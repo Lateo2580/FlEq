@@ -72,7 +72,7 @@ function controlHead(value: unknown): ControlHead | null {
 
 const isStrings = (value: unknown): value is readonly string[] => Array.isArray(value) && value.every((item) => typeof item === "string");
 
-/** The one P2 product host: WS frames in, mailbox, decode, runtime, display out. displayPort が number の起動は戻りの displayPort も number（{ wsUrl } の呼び手を変えない、P3-CLI-AC16 (1)）。flushDiagnostics は呼んだ時点で診断の列にある行と書き出し中の行を、file へ書き終えるか sink が使えなくなるまで待つ（上限は呼び手が持つ、P3-DXF-AC02）。 */ function startP2Host(config: P2HostConfig & Readonly<{ displayPort: number }>): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }> & Readonly<{ displayPort: number }>>; function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }>>;
+/** The one P2 product host: WS frames in, mailbox, decode, runtime, display out. displayPort が number の起動は戻りの displayPort も number（{ wsUrl } の呼び手を変えない、P3-CLI-AC16 (1)）。flushDiagnostics は呼んだ時点で診断の列にある行と書き出し中の行を、file へ書き終えるか、書けずに数えて捨てるか、sink が使えなくなるまで待つ（上限は呼び手が持つ、P3-DXF-AC02）。 */ function startP2Host(config: P2HostConfig & Readonly<{ displayPort: number }>): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }> & Readonly<{ displayPort: number }>>; function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }>>;
 async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }>> {
   const { clock } = config;
   // P3-C2-AC01: checked before anything starts; the appName is validateAppConfig's (empty and "fleq" are refused there).

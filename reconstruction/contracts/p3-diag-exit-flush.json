@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "a30c996574eb9475cd0b92d58d3fd44fb90f169c3ab23b7452966e922ba73106",
+    "sha256": "06b464b3d743a5c77d3b4da515c0ea290679a1fb1530f36dcc339b21d6ffde72",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -204,9 +204,9 @@
       },
       {
         "id": "P3-DXF-AC02",
-        "requirement": "host から sink へ届く口（Q-DXF-MOUTH）: (1) startP2Host の戻りの型（host.ts の 75 行の 2 つの overload と 76 行の実装）を HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }> にする（displayPort が number の overload は今の & Readonly<{ displayPort: number }> も残す）。意味は 75 行の説明の中に句で足す: 呼んだ時点で診断の列にある行と書き出し中の行を、file へ書き終えるか sink が使えなくなるまで待つ。上限は持たず、呼び手が持つ。HostCommandPort は変えない（REPL の偽 host を変えないため） (2) host.ts の 664 行の return に flushDiagnostics: () => root.diagnostics.flush() を行の中で足す。sink の flush（191 行）は書き出し中の flush を待ってやり直し（193 行）、列が空になるまで繰り返す（236 行）。sink が使えないか列が空なら 195 行ですぐ戻る (3) sink と composition-root.ts は変えない（root の diagnostics は readonly で public、378 行） (4) REPL（repl.ts）は呼ばない。停止の前に呼んでも書き出しを待つだけで害は無い。無いと: CLI から sink へ届く道が無い（startP2Host の戻りは HostCommandPort だけ）",
+        "requirement": "host から sink へ届く口（Q-DXF-MOUTH）: (1) startP2Host の戻りの型（host.ts の 75 行の 2 つの overload と 76 行の実装）を HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }> にする（displayPort が number の overload は今の & Readonly<{ displayPort: number }> も残す）。意味は 75 行の説明の中に句で足す: 呼んだ時点で診断の列にある行と書き出し中の行を、file へ書き終えるか、書けずに数えて捨てるか、sink が使えなくなるまで待つ。上限は持たず、呼び手が持つ。HostCommandPort は変えない（REPL の偽 host を変えないため） (2) host.ts の 664 行の return に flushDiagnostics: () => root.diagnostics.flush() を行の中で足す。sink の flush（191 行）は書き出し中の flush を待ってやり直し（193 行）、列が空になるまで繰り返す（236 行）。sink が使えないか列が空なら 195 行ですぐ戻る (3) sink と composition-root.ts は変えない（root の diagnostics は readonly で public、378 行） (4) REPL（repl.ts）は呼ばない。停止の前に呼んでも書き出しを待つだけで害は無い。無いと: CLI から sink へ届く道が無い（startP2Host の戻りは HostCommandPort だけ）",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:75 «6a37371365739c87»",
+          "reconstruction/src/host/host.ts:75 «e559015f1a1fe909»",
           "reconstruction/src/host/host.ts:76 «e7862771c103f32a»",
           "reconstruction/src/cli/cli.ts:324 «70b5c683b8d7e6b7»",
           "reconstruction/contracts/p3-cli-repl.types.ts:99 «f348bcd22817f316»",
@@ -221,7 +221,7 @@
       },
       {
         "id": "P3-DXF-AC03",
-        "requirement": "落ちる物（コードは足さず、残存として成果物に書く）: (1) 1 秒を越えた分: 今と同じく process.exit で捨てる。書きかけの行の残りは次の起動の追記が改行を前に足して切り離し（sink の 214 行）、読みは JSON にならない行を飛ばす（253 行）ので、ほかの行は壊れない。1 秒を使い切るのは disk が詰まったときだけ (2) 待ちが終わった後に入る行: owner を終わらせる待ちが期限で切れて残った owner（host.ts の 534 行）が後から送る返事の ownerReplyLate（composition-root.ts の 813 行）、worker の error の ownerStopped（host.ts の 171 行 → 707 行）、discard の返事の後の取り直しの WARN（2216 行、Q-DXF-WHICH (3)）。残った owner は要約の workers に数えてある (3) sink が使えない間の行（書き出しか要約の保存の失敗の後）: 今と同じく数えて捨てる。dmdataSocketCloseFailed だけは 507 行で標準エラーに 1 行出る (4) 要約の .tmp: flush は列が空なら 195 行ですぐ戻り、期限で切れた後も続いている要約の書き込み（composition-root.ts の 1741・1797 行。within は切った後の作業を止めない、365 行）を待たない。列に行があればその書き出しは serial の順（sink の 307〜311 行）で要約の書き込みの後ろに並ぶが、上限 1 秒の中で待ち、越えた分は (1) に入る。要約の .tmp は診断の行ではなく、次の起動の掃除（sink の 370・379 行）が .tmp を消す。disk には前の回か今回の完全な要約が残る（1800 行） (5) CLI を通らない終わり方: fleq replay（replay.mjs の 138 行。{ wsUrl } なので host.ts の 489 行で DELETE をしない）、試験の host（host.test.ts の T09 は 778 行で行が出るまで待つ）、起動に失敗した host の停止（host.ts の 582 行。CLI に host が渡らない。最初の試みでは自分の socket が無く 496 行で ok）。どれも今と同じ（P3-DXF-D-PLACE の B を採らない代わり）",
+        "requirement": "落ちる物（コードは足さず、残存として成果物に書く）: (1) 1 秒を越えた分: 今と同じく process.exit で捨てる。書きかけの行の残りは次の起動の追記が改行を前に足して切り離し（sink の 214 行）、読みは JSON にならない行を飛ばす（253 行）ので、ほかの行は壊れない。1 秒を使い切るのは disk が詰まったときだけ (2) 待ちが終わった後に入る行: owner を終わらせる待ちが期限で切れて残った owner（host.ts の 534 行）が後から送る返事の ownerReplyLate（composition-root.ts の 813 行）、worker の error の ownerStopped（host.ts の 171 行 → 707 行）、discard の返事の後の取り直しの WARN（2216 行、Q-DXF-WHICH (3)）。残った owner は要約の workers に数えてある (3) sink が使えない間の行（回収・要約の保存・読む口の失敗の後。追記の失敗では止まらない、P3-DIAG-SINK-RETRY-001）: 今と同じく数えて捨てる。dmdataSocketCloseFailed だけは 507 行で標準エラーに 1 行出る (4) 要約の .tmp: flush は列が空なら 195 行ですぐ戻り、期限で切れた後も続いている要約の書き込み（composition-root.ts の 1741・1797 行。within は切った後の作業を止めない、365 行）を待たない。列に行があればその書き出しは serial の順（sink の 307〜311 行）で要約の書き込みの後ろに並ぶが、上限 1 秒の中で待ち、越えた分は (1) に入る。要約の .tmp は診断の行ではなく、次の起動の掃除（sink の 370・379 行）が .tmp を消す。disk には前の回か今回の完全な要約が残る（1800 行） (5) CLI を通らない終わり方: fleq replay（replay.mjs の 138 行。{ wsUrl } なので host.ts の 489 行で DELETE をしない）、試験の host（host.test.ts の T09 は 778 行で行が出るまで待つ）、起動に失敗した host の停止（host.ts の 582 行。CLI に host が渡らない。最初の試みでは自分の socket が無く 496 行で ok）。どれも今と同じ（P3-DXF-D-PLACE の B を採らない代わり）",
         "evidenceRefs": [
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:214 «15ca423066d951f4»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:253 «550ad2cf1111bc75»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "3901b162e1583be4235c07c9b6e1af89b483845f2a441846b36e216e35b5b4c0",
+    "sha256": "eae7229cf401362bbe7c4e5c498b2072836979d597bd89aaa7cb9673c1bd5ab4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -225,8 +225,8 @@
         "id": "P3-DSR-AC03",
         "requirement": "同じ失敗が続いても溢れず再帰しない（SD が壊れて毎回失敗する場合。P3-DSR-RES-01・RES-02）: (1) diagnosticSinkFailed の報せは report() の中の印で 1 つの sink に 1 回だけ。343 行を「if (this.reporting || this.failureReported) return;」にし、344 行で reason が diagnosticSinkFailed なら印を立てる。fail()（364 行。回収・読む口・終了要約の失敗）の報せも同じ印に入る (2) 報せの callback がその event を enqueue し直しても、今の reporting の検査（149 行）で受け付けず数えもしない（R10 のまま）。sink 自身へ報せを書く再帰は 0 (3) 試し直しは 1 本ずつ直列で、timer を足さない。1 回の失敗で捨てるのはそのまとまりの書けなかった行だけで、書き出し中に列へ入った行は次の試みで書こうとする。列は今の上限（256 件・1 MiB、DEBUG・INFO から押し出す）のまま (4) 印が立った後は diagnosticQueueOverflow の報せ（reportOverflow → report）も 343 行で返り、標準エラーに出ない。失敗の前の overflow の報せは今のまま。だから失敗の後の標準エラーは 0 行で、今（失敗の後は sink が止まり overflow も起きない）と同じ上限になる。overflow の数は droppedCounts と終了要約の droppedDiagnostics に載る（残存 (6)） (5) 受信の hot path（enqueueDiagnostic）の仕事は変えない。失敗の後に足すのはまとまりの件数に比例する数え上げ（今と同じ）と boolean の検査だけで、全件×全件の走査はしない (6) 試験 T03 は直す前のコードで appends が 1 のまま（書き出し中に列へ入った行を試さずに捨てる）で落ちる。無いと: 直した後に SD が壊れ続けると、失敗ごとに標準エラーへ 1 行が出て端末が溢れる",
         "evidenceRefs": [
-          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:343 «81ccc2edd6ae99ae»",
-          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:344 «6c4bd9bd7a759926»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:343 «9061e6f4567a5595»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:344 «3ace0abc6d3c7a0b»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:360 «e72bc0bc90fe7f96»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:364 «f1f924d40eb1ae6d»",
           "reconstruction/src/runtime/composition-root.ts:463 «a25d8a6994e817af»",
@@ -238,7 +238,7 @@
         "id": "P3-DSR-AC04",
         "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: persistent-diagnostic-sink.ts の行の数（今の 412 行）を変えない。中身を変えてよいのは 129〜131 行のどれか 1 行（印の field を同じ行に足す）・219〜226 行・343〜344 行だけ（144 行は D-PRUNE=B で変えない）。ほかの契約が «» で引く 23 件（Q-DSR-LINES (1)）の行は中身も位置も変えない。形の例（コンパイルしていない）: 131 行を「private overflowPending = false; private failureReported = false;」、224〜226 行を「なぜ分けるか」のコメント 1 行（追記の失敗は列と sink を残し、回収を通してから次の書き出しで試し直す、P3-DSR-AC01・AC06。全部書けた後の失敗と回収の失敗は今どおり止める、P3-DSR-D-PRUNE=B）と「if (appended.size === batch.length) this.fail();」「else { this.report(\"diagnosticSinkFailed\"); await this.prune(this.readWallTime()).catch(() => { this.fail(); }); }」の 2 行、343 行を「if (this.reporting || this.failureReported) return;」、344 行を「this.reporting = true; this.failureReported ||= reason === \"diagnosticSinkFailed\";」。実装の後、check-contract で sink を引く他の契約の «» は全部 PASS のまま（FAIL になるのは本契約が引く、中身を変えた行だけの見込み）",
         "evidenceRefs": [
-          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:131 «3b91f9f69e73ef0c»",
+          "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:131 «d34de12b24505534»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:195 «0239dde84442af29»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:214 «15ca423066d951f4»"
         ]
@@ -247,9 +247,9 @@
         "id": "P3-DSR-AC05",
         "requirement": "他の契約の文（実装はしない。原文の改訂として、統合担当が配送の commit で当てる。行の数は変えない）: p3-diag-exit-flush.json の 224 行（P3-DXF-AC03 の requirement）の (3) は「sink が使えない間の行（書き出しか要約の保存の失敗の後）」と書き、書き出しの失敗で sink が止まる今の動きを写している。直した後は追記の失敗では止まらない（回収の失敗では今どおり止まる）ので、artifactRequirements の原文の改訂 (1) の文に替える。DXF-AC03 の結論（使えない間の行は数えて捨て、dmdataSocketCloseFailed だけ 507 行で標準エラーに 1 行）は変わらない。同じ file の 207 行（P3-DXF-AC02）と host.ts の 75 行のコメントは flushDiagnostics を「file へ書き終えるか sink が使えなくなるまで待つ」と書く。直した後は、書けずに数えて捨てた時にも決着するので、改訂 (2)(3) の句を足す（host.ts はコメントだけ）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-diag-exit-flush.json:224 «495a4e746853b052»",
-          "reconstruction/contracts/p3-diag-exit-flush.json:207 «d4a6ed5c651b482d»",
-          "reconstruction/src/host/host.ts:75 «6a37371365739c87»",
+          "reconstruction/contracts/p3-diag-exit-flush.json:224 «35d78e5ec1a67fbb»",
+          "reconstruction/contracts/p3-diag-exit-flush.json:207 «54d6623d624174ab»",
+          "reconstruction/src/host/host.ts:75 «e559015f1a1fe909»",
           "reconstruction/src/host/host.ts:507 «40d42c63c0470205»"
         ]
       },
