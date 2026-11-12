@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d48ef4be3a4a29abf8647c25cc56217c2fca1ea2",
-    "sha256": "607f8c735563777bfc8f72a6cfca26db47cee021187b4a47fd3931f8398c8262",
+    "sha256": "33faeae1af4b4dc29ff111f4efcac7f68d52a319596421cb770744f5f6089d92",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -83,7 +83,7 @@
     "contractId": "P3-RECOVERY-DIGEST-LIVE-001",
     "mode": "implementation",
     "objective": "起動のまとめ（P3-REC-AC15 の起動時のダイジェスト）に、live で受けた報が重ねて載らないようにする（作者の裁定 P3-RDL-D-UPPER=A、2026-11-12 11:10）。まとめを作る時に、live で受けた電文の id の帳簿（P3-REC-RET-02、watch.ts の FreshnessLedger）にある id を、件数を数える前にまとめの入力から外す。時刻の上端は置かない。外し損ねたときは今の重複に戻るだけで、報は消えない（AC03）。外しすぎの側（帳簿にあるが端末に行を出さない報がまとめからも消える）は AC04 に何が落ちるかを書き、範囲は作者の裁定 P3-RDL-D-RANGE=A（2026-11-12 11:40。帳簿の id を全部外す）",
-    "baseOid": "unassigned",
+    "baseOid": "b4dcf53b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
