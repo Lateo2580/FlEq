@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d48ef4be3a4a29abf8647c25cc56217c2fca1ea2",
-    "sha256": "abeb4f8533c641649dfa1e4e3c998e8c52c69fc2f81981c2535c70d25981db0d",
+    "sha256": "e525edb05b812dc42a2b58588f0f99f9d444e1dcb3fd2e492ba644200e2f2a3c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -14,8 +14,8 @@
         "B": "まとめに時刻の上端を置き、それより後に dmdata が受けた報を外す（不採用）",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者の裁定、2026-11-12 11:10）",
-        "ruling": "A（作者の裁定、2026-11-12 11:10）",
+        "status": "確定（作者の裁定、2026-11-12 11:07 ごろ）",
+        "ruling": "A（作者の裁定、2026-11-12 11:07 ごろ）",
         "reason": "B は手元の時計と dmdata の受信時刻（一覧の receivedTime）を比べることになる（P3-REC-AC13 が全体で避けている時計の混用）。上端を接続の時刻に置くと、起動から接続までの間に出た報が live にもまとめにも出ない欠けを作る。A は id だけで比べ、時計を使わない"
       },
       {
@@ -25,8 +25,8 @@
         "B": "端末に実際に出した id だけ外す。inputId と dmdataId の対応を新しく持ち（host は host.ts の 342 行で両方を知る）、端末が報を出したかを帳簿の側へ伝える道を足す。出さなかった報は今のとおりまとめに残る",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者の裁定、2026-11-12 11:40）",
-        "ruling": "A（作者の裁定、2026-11-12 11:40。VPNO50 が気象特別警報報知で特別警報のときだけ届くことを見て A と答えた）",
+        "status": "確定（作者の裁定、2026-11-12 11:30 ごろ）",
+        "ruling": "A（作者の裁定、2026-11-12 11:30 ごろ。VPNO50 が気象特別警報報知で特別警報のときだけ届くことを見て A と答えた）",
         "reason": "A で落ちる報のうち (A)〜(G) は、ずっと動いていたときに live でも端末に行を出さない報で、出方が起動の前後で揃う（P3-RDL-AC04 の表）。起動の後だけの道は (H) の狭い道だけ（Q-RDL-STARTUP）。B はまとめの範囲を「端末に出したか」に結ぶので、端末の列の省き・束・待ちの判定（output.ts）を publisher が知る道が要り、ディスプレイ（P4）は端末と別の出方なのに同じ digest を見る。B の利点は、unit が採らなかった報（重ねての配信・古い版など）もまとめに数えて残ること"
       }
     ],
@@ -63,7 +63,7 @@
         "id": "Q-RDL-RANGE",
         "status": "closed",
         "source": "起草（2026-11-12）。P3-RDL-D-RANGE の作者の裁定",
-        "closed": "作者の裁定 A（2026-11-12 11:40）: 帳簿の id を全部外す。作者は VPNO50 が気象特別警報報知で特別警報のときだけ届くことを見て A と答えた。Y・X の道と (E)(H) は統合担当が改めて作者に見せる",
+        "closed": "作者の裁定 A（2026-11-12 11:30 ごろ）: 帳簿の id を全部外す。作者は VPNO50 が気象特別警報報知で特別警報のときだけ届くことを見て A と答えた。Y・X の道と (E)(H) は統合担当が改めて作者に見せる",
         "remaining": "なし"
       },
       {
@@ -82,7 +82,7 @@
   "contract": {
     "contractId": "P3-RECOVERY-DIGEST-LIVE-001",
     "mode": "implementation",
-    "objective": "起動のまとめ（P3-REC-AC15 の起動時のダイジェスト）に、live で受けた報が重ねて載らないようにする（作者の裁定 P3-RDL-D-UPPER=A、2026-11-12 11:10）。まとめを作る時に、live で受けた電文の id の帳簿（P3-REC-RET-02、watch.ts の FreshnessLedger）にある id を、件数を数える前にまとめの入力から外す。時刻の上端は置かない。外し損ねたときは今の重複に戻るだけで、報は消えない（AC03）。外しすぎの側（帳簿にあるが端末に行を出さない報がまとめからも消える）は AC04 に何が落ちるかを書き、範囲は作者の裁定 P3-RDL-D-RANGE=A（2026-11-12 11:40。帳簿の id を全部外す）",
+    "objective": "起動のまとめ（P3-REC-AC15 の起動時のダイジェスト）に、live で受けた報が重ねて載らないようにする（作者の裁定 P3-RDL-D-UPPER=A、2026-11-12 11:07 ごろ）。まとめを作る時に、live で受けた電文の id の帳簿（P3-REC-RET-02、watch.ts の FreshnessLedger）にある id を、件数を数える前にまとめの入力から外す。時刻の上端は置かない。外し損ねたときは今の重複に戻るだけで、報は消えない（AC03）。外しすぎの側（帳簿にあるが端末に行を出さない報がまとめからも消える）は AC04 に何が落ちるかを書き、範囲は作者の裁定 P3-RDL-D-RANGE=A（2026-11-12 11:30 ごろ。帳簿の id を全部外す）",
     "baseOid": "b4dcf53b",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -218,7 +218,7 @@
       },
       {
         "id": "P3-RDL-AC04",
-        "requirement": "外しすぎの側（何が落ちるか。P3-RDL-D-RANGE=A、作者の裁定 2026-11-12 11:40）: 帳簿は mailbox に受け取らせた時点で積む（host.ts の 342 行、P3-REC-AC13 (8)）ので、端末に行を出さない報も入る。A ではそれらが起動のまとめからも消え、live にもまとめにも行が出ない。(A)〜(G) は、ずっと動いていたときに live で受けても端末に行を出さない報で、出方は「ずっと動いていたときと同じ」: (A) unit が採らない報: 重ねての配信・古い版・版が決まらない・期限切れ（outcome が accepted でないか deliveryOnly。material.ts の 381・382 行が端末の報を作らない）。unit が拒否した報と decode できなかった報（376 行）は、読めなかった報のカードがあるときだけ 1 行出る（output.ts の 623〜627 行） (B) VPNO50（気象特別警報報知）: 端末は常に出さない（material.ts の 380 行、Q-TO5-VPNO50。本文は VPWW の報で出る） (C) U-B の VPOA50（記録的短時間大雨情報）で、対応報があるもの（output.ts の 586 行「出さない・対応報あり」）と、待っていた報の取消（601 行「出さない・待っていた報の取消」） (D) VPWS50（全国の集約通報）で、前に積んだ報と同じもの（output.ts の 564 行「出さない・前と同じ」） (E) owner の停止で inputDone が来ないまま消える入力（composition-root.ts の ownerFailed の 688 行の mailbox.removePlace と 689 行。端末の行も出ない）と、停止の mailbox の drain の期限（10 秒、shared-runtime.ts の 140 行）までに owner へ送られずに終わった入力（期限の後は composition-root.ts の 844 行で pump が送らず、終了は ownerFailed を通らない。まとめの公開の後に停止しても同じ。ずっと動いていても同じ入力は出ずに終わる。実装のレビューでヘルツが挙げ、統合担当が作者の裁定 A の理由〔ずっと動いていても同じ報は消える〕から (E) に含めた、2026-11-12） (F) まとまり・待ちの中で、出る前に同じ subject の後の報に置き換えられた報と取消で外れた報（output.ts の 579 行の気象の時系列、552 行の時系列の取消、590 行の VPOA50 の待ち。後の報が出る） (G) 端末の列の上限で省いた報（output.ts の 264・265 行。「表示を省きました」の件数の行だけ出る）。(H) 起動の後だけの狭い道: 止まっていた間に出た報 Y の続報・訂正・取消 X が、保持の期限を過ぎて遅れて live で届き、手元の state に Y が無いとき。U-B は期限を過ぎた報で手元に見える記録が無ければ stale にする（briefing-unit.ts の 421・422 行。保持は ReportDateTime から 2 時間、対応報ありは 3 時間、35・84 行）。ずっと動いていれば Y の記録があり、425〜431 行で出る。U-M（local-bulletins-unit.ts の 442 行）と台風（typhoon-unit.ts の 375 行）は、遅れて届いた報に加えて保持の枠が満杯のときだけ stale。A ではこの X が live にもまとめにも出ず、まとめに Y だけが残る（Y の頭は帳簿に無いので残る）。代表の unit（U-F・U-T・U-Q・U-W）では手元に Y が無くても X を採るので起きない（Q-RDL-STARTUP (2)）。起動の取り直しの本文との順で落ちる道は無い（Q-RDL-STARTUP (1)、mailbox.ts の 41 行）",
+        "requirement": "外しすぎの側（何が落ちるか。P3-RDL-D-RANGE=A、作者の裁定 2026-11-12 11:30 ごろ）: 帳簿は mailbox に受け取らせた時点で積む（host.ts の 342 行、P3-REC-AC13 (8)）ので、端末に行を出さない報も入る。A ではそれらが起動のまとめからも消え、live にもまとめにも行が出ない。(A)〜(G) は、ずっと動いていたときに live で受けても端末に行を出さない報で、出方は「ずっと動いていたときと同じ」: (A) unit が採らない報: 重ねての配信・古い版・版が決まらない・期限切れ（outcome が accepted でないか deliveryOnly。material.ts の 381・382 行が端末の報を作らない）。unit が拒否した報と decode できなかった報（376 行）は、読めなかった報のカードがあるときだけ 1 行出る（output.ts の 623〜627 行） (B) VPNO50（気象特別警報報知）: 端末は常に出さない（material.ts の 380 行、Q-TO5-VPNO50。本文は VPWW の報で出る） (C) U-B の VPOA50（記録的短時間大雨情報）で、対応報があるもの（output.ts の 586 行「出さない・対応報あり」）と、待っていた報の取消（601 行「出さない・待っていた報の取消」） (D) VPWS50（全国の集約通報）で、前に積んだ報と同じもの（output.ts の 564 行「出さない・前と同じ」） (E) owner の停止で inputDone が来ないまま消える入力（composition-root.ts の ownerFailed の 688 行の mailbox.removePlace と 689 行。端末の行も出ない）と、停止の mailbox の drain の期限（10 秒、shared-runtime.ts の 140 行）までに owner へ送られずに終わった入力（期限の後は composition-root.ts の 844 行で pump が送らず、終了は ownerFailed を通らない。まとめの公開の後に停止しても同じ。ずっと動いていても同じ入力は出ずに終わる。実装のレビューでヘルツが挙げ、統合担当が作者の裁定 A の理由〔ずっと動いていても同じ報は消える〕から (E) に含めた、2026-11-12） (F) まとまり・待ちの中で、出る前に同じ subject の後の報に置き換えられた報と取消で外れた報（output.ts の 579 行の気象の時系列、552 行の時系列の取消、590 行の VPOA50 の待ち。後の報が出る） (G) 端末の列の上限で省いた報（output.ts の 264・265 行。「表示を省きました」の件数の行だけ出る）。(H) 起動の後だけの狭い道: 止まっていた間に出た報 Y の続報・訂正・取消 X が、保持の期限を過ぎて遅れて live で届き、手元の state に Y が無いとき。U-B は期限を過ぎた報で手元に見える記録が無ければ stale にする（briefing-unit.ts の 421・422 行。保持は ReportDateTime から 2 時間、対応報ありは 3 時間、35・84 行）。ずっと動いていれば Y の記録があり、425〜431 行で出る。U-M（local-bulletins-unit.ts の 442 行）と台風（typhoon-unit.ts の 375 行）は、遅れて届いた報に加えて保持の枠が満杯のときだけ stale。A ではこの X が live にもまとめにも出ず、まとめに Y だけが残る（Y の頭は帳簿に無いので残る）。代表の unit（U-F・U-T・U-Q・U-W）では手元に Y が無くても X を採るので起きない（Q-RDL-STARTUP (2)）。起動の取り直しの本文との順で落ちる道は無い（Q-RDL-STARTUP (1)、mailbox.ts の 41 行）",
         "evidenceRefs": [
           "reconstruction/src/terminal/material.ts:372 «a923ec905dc0e7ce»",
           "reconstruction/src/terminal/material.ts:376 «b967674c99b59d85»",
@@ -264,7 +264,7 @@
         "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: P3-REC-AC15 の本文（p3-recovery.json の 1155 行）にまとめの上端の一文を、P3-REC-RET-02 の target（892 行、今は「H41 の突き合わせ用」）に帳簿のもう 1 つの使い道を書き足す（artifactRequirements の原文の改訂 (1)(2)）。spec（reconstruction-p0-contracts.md の 3123 行の起動時のダイジェスト、cli-terminal-output.md の 775 行の「C16 のダイジェストの形をそのまま写す」）は範囲の言い方を持たないので変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-recovery.json:1155 «89fae1dcf031ae88»",
-          "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
+          "docs/specs/reconstruction-p0-contracts.md:3123 «3295135a55bc2849»",
           "docs/specs/cli-terminal-output.md:775 «f16f012995b53ec2»"
         ]
       }
