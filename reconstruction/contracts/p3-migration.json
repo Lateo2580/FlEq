@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "152ba7fb4d12aa22fb750a4b1e3fa90906571abf",
-    "sha256": "a84571c0b57f8822bad1c4803e577172566a12bedcb17bf638c71a5c42d1e31b",
+    "sha256": "3bd408f2bf430fb07e810fdc5f17de6cdc4446ce9fbac10160babfcb0b71d6b0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -268,7 +268,7 @@
   "contract": {
     "contractId": "P3-MIGRATION-001",
     "mode": "implementation",
-    "objective": "旧築（旧 v2）の待機画面の保存と補助の保存の読み取り専用のコピーから、新築の U-* の checkpoint を一方向に作る移行器（spec §10.4、計画 §2.1 の C15）を reconstruction/tools/migration/ に作り、Q-MIGRATION・O04:2・O06:29-30・O07:19〜26・N8 を閉じる。あわせて捨ててよい旧い版の一覧（P3-VM-AC05）を全 unit で空にする（作者の裁定 X2=A、最初の発注）。移行器は製品の runtime の外に置き、旧 reader は旧築の StandbyPersistence を tools から呼ぶ。運用区分は旧築の設定の testMode を根拠に normal、取り直しで戻る分も全部移し、Control/DateTime の無い記録は時刻の空な ReportRef（未確認）で移し、期限は元の報の時刻から新築の規則で作り直す（作者の裁定、2026-10-30 朝）。1 契約を 5 回に分けて発注する（P3-MIG-D-SPLIT=A）。条文の【発注 n】が振り分け",
+    "objective": "【取り下げ（作者裁定 2026-11-13）: 発注 2 以降は作らない。発注 1（951e3655、一覧を全 unit で空にした）は配送済みのまま残し、P3-MIG-D-LIST-AFTER=A は生きる決まりとして残す。旧築から新築への切替は C16 の起動時の取り直し（P3-REC-D-START-WINDOW=B）で行う。unresolvedQuestions の発注 2〜5 の問いは発注しないので閉じない。期待（O04:2・O06:29-30・O07:19〜26・N8）の行き先と volcanorepair の扱いは p3-order-plan.md の節「C15 の取り下げと C21 の外出し」。branch の p3-migration-o2-precheck・p3-migration-o2-hold は残し、削除は作者の !】旧築（旧 v2）の待機画面の保存と補助の保存の読み取り専用のコピーから、新築の U-* の checkpoint を一方向に作る移行器（spec §10.4、計画 §2.1 の C15）を reconstruction/tools/migration/ に作り、Q-MIGRATION・O04:2・O06:29-30・O07:19〜26・N8 を閉じる。あわせて捨ててよい旧い版の一覧（P3-VM-AC05）を全 unit で空にする（作者の裁定 X2=A、最初の発注）。移行器は製品の runtime の外に置き、旧 reader は旧築の StandbyPersistence を tools から呼ぶ。運用区分は旧築の設定の testMode を根拠に normal、取り直しで戻る分も全部移し、Control/DateTime の無い記録は時刻の空な ReportRef（未確認）で移し、期限は元の報の時刻から新築の規則で作り直す（作者の裁定、2026-10-30 朝）。1 契約を 5 回に分けて発注する（P3-MIG-D-SPLIT=A）。条文の【発注 n】が振り分け",
     "baseOid": "5863e4edbab865de20d43a3785d33a4fe6990037",
     "cleanTreeRequired": true,
     "readPaths": [
