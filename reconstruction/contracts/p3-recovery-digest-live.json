@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d48ef4be3a4a29abf8647c25cc56217c2fca1ea2",
-    "sha256": "109a9081f88b751a94c41fef7ddc045732d08cfad05ab12e0f4f9d9d7fb5fd2b",
+    "sha256": "607f8c735563777bfc8f72a6cfca26db47cee021187b4a47fd3931f8398c8262",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -21,13 +21,13 @@
       {
         "id": "P3-RDL-D-RANGE",
         "kind": "作者",
-        "A": "帳簿（P3-REC-RET-02）にある id を全部まとめから外す。帳簿は mailbox に受け取らせた時点で積むので、端末に行を出さない報（P3-RDL-AC04 の (A)〜(G)）もまとめから消え、live にもまとめにも出ない。(A)〜(G) は「ずっと動いていたときと同じ出方」（起動の後の unit の state の違いで採り方が変わる道は証拠不足。Q-RDL-STARTUP）。足すのは帳簿の読むだけの口 1 つと、まとめを作る 1 行の書き換えだけ",
+        "A": "帳簿（P3-REC-RET-02）にある id を全部まとめから外す。帳簿は mailbox に受け取らせた時点で積むので、端末に行を出さない報（P3-RDL-AC04 の (A)〜(H)）もまとめから消え、live にもまとめにも出ない。(A)〜(G) は「ずっと動いていたときと同じ出方」、(H) は起動の後だけの狭い道。足すのは帳簿の読むだけの口 1 つと、まとめを作る 1 行の書き換えだけ",
         "B": "端末に実際に出した id だけ外す。inputId と dmdataId の対応を新しく持ち（host は host.ts の 342 行で両方を知る）、端末が報を出したかを帳簿の側へ伝える道を足す。出さなかった報は今のとおりまとめに残る",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者の確かめ待ち",
-        "ruling": "作者の確かめ待ち（推奨 A）。条文は A で書いた。B になったら AC01・AC02・AC04・T01 を書き直す",
-        "reason": "A で落ちる報は、どれもずっと動いていたときに live でも端末に行を出さない報で、出方が起動の前後で揃う（P3-RDL-AC04 の表。起動の取り直しの本文との順で落ちる道は無いことを Q-RDL-STARTUP で確かめた。止まっていた間の報の続報・訂正・取消を live で受けたとき、unit の state が起動の後で違うために採り方が変わる道は、確かめきれていない〔証拠不足〕）。B はまとめの範囲を「端末に出したか」に結ぶので、端末の列の省き・束・待ちの判定（output.ts）を publisher が知る道が要り、ディスプレイ（P4）は端末と別の出方なのに同じ digest を見る。B の利点は、unit が採らなかった報（重ねての配信・古い版など）もまとめに数えて残ること"
+        "status": "確定（作者の裁定、2026-11-12 11:40）",
+        "ruling": "A（作者の裁定、2026-11-12 11:40。VPNO50 が気象特別警報報知で特別警報のときだけ届くことを見て A と答えた）",
+        "reason": "A で落ちる報のうち (A)〜(G) は、ずっと動いていたときに live でも端末に行を出さない報で、出方が起動の前後で揃う（P3-RDL-AC04 の表）。起動の後だけの道は (H) の狭い道だけ（Q-RDL-STARTUP）。B はまとめの範囲を「端末に出したか」に結ぶので、端末の列の省き・束・待ちの判定（output.ts）を publisher が知る道が要り、ディスプレイ（P4）は端末と別の出方なのに同じ digest を見る。B の利点は、unit が採らなかった報（重ねての配信・古い版など）もまとめに数えて残ること"
       }
     ],
     "questionResolutions": [
@@ -42,40 +42,47 @@
         "id": "Q-RDL-TIMING",
         "status": "closed",
         "source": "起草（2026-11-12）。帳簿をまとめの時に引いてよいか",
-        "closed": "まとめを作る時、帳簿の受信済みの id はまだ 1 つも消されていない: 消すのは compare（watch.ts の 62 行の一致と 78〜82 行の時間の掃除）と切断の reset（106 行）だけで、compare は周期の中でしか呼ばれない（composition-root.ts の 2026 行）。周期は poll が null の間は起きず（1999 行）、poll は startFreshness（1947 行）でだけ置かれ、host はそれを showRecoveryDigest の後に呼ぶ（host.ts の 571 行が 575 行より先）。だから辿りの前から積んだ id（watchFreshness は接続の前、host.ts の 550 行）は全部残っている。保留も空なので、received は保留の枝（watch.ts の 31 行）に入らず受信済みに足す。周期が始まると compare が一致した id を消していくので、引くのは showRecoveryDigest の中の 1 回だけにする（後で引き直すと外し損ねる）",
+        "closed": "まとめを作る時、帳簿の受信済みの id はまだ 1 つも消されていない: 消すのは compare（watch.ts の 62 行の一致と 78〜82 行の時間の掃除）と切断の reset（106 行）だけで、compare は周期の中でしか呼ばれない（composition-root.ts の 2026 行）。周期は poll が null の間は起きず（1999 行）、poll は startFreshness（1947 行）でだけ置かれ、host はそれを showRecoveryDigest の後に呼ぶ（host.ts の 571 行が 575 行より先）。だから辿りの前から積んだ id（watchFreshness は接続の前、host.ts の 550 行）は全部残っている。保留も空なので、received は保留の枝（watch.ts の 31 行）に入らず受信済みに足す。周期が始まると compare が一致した id を消していくので、引くのは showRecoveryDigest の 1 回の呼び出しの中だけにし、後で引き直さない（後で引き直すと外し損ねる）",
         "remaining": "なし"
       },
       {
         "id": "Q-RDL-STARTUP",
         "status": "closed",
-        "source": "起草（2026-11-12）。A で落ちる報に、起動の時だけの道が無いか（あれば「ずっと動いていたときと同じ出方」が崩れる）",
-        "closed": "疑った道: 同じ報が起動の取り直しの本文（origin=recovery、composition-root.ts の 2230 行）としても unit に入り、取り直しが先に採られると、後から来た live の入力が duplicate になって端末に出ず（material.ts の 381 行）、まとめからも外れる。今のコードでは起きない: 取り直しの本文は一覧の辿りが終わってから要求し（host.ts の 565 行の attachRecovery は辿りの結果を待つ）、帳簿にある live の入力はその前に mailbox に入っている。mailbox は REST の本文を live より後に取り出す（mailbox.ts の 41 行。同じ headType の順の判定にも入れない）。だから live の入力が先に unit に当たり、端末に出る。取り直しの入力は端末に出さない（output.ts の 634 行の「取り直し」）。証拠不足（判定の外）: 止まっていた間に出た報 Y の続報・訂正・取消 X を live で受けたとき、起動の後の unit の state は Y を持たない（restoration が empty・unavailable のときも同じ）。その違いで unit が X を採らないか待たせる枝があれば（seismic-unit.ts などの version の held、units の stale・noChange の枝）、X は live にもまとめにも出ず、まとめには Y だけが残る。ずっと動いていれば Y も X も live で出た。起草では units の枝を辿りきっていない",
-        "remaining": "起動の後の state の違いで live の入力の採り方が変わる道（証拠不足。発注前点検か実装の確かめで、units の held・stale・noChange の枝を見る）"
+        "source": "起草（2026-11-12）と整合レビュー P2-1。A で落ちる報に、起動の時だけの道が無いか（あれば「ずっと動いていたときと同じ出方」が崩れる）",
+        "closed": "(1) 取り直しの本文との順（阻止）: 同じ報が起動の取り直しの本文（origin=recovery、composition-root.ts の 2230 行）としても unit に入っても、取り直しの本文は一覧の辿りが終わってから要求し（host.ts の 565 行の attachRecovery は辿りの結果を待つ）、帳簿にある live の入力はその前に mailbox に入っている。mailbox は REST の本文を live より後に取り出す（mailbox.ts の 41 行。同じ headType の順の判定にも入れない）ので、live の入力が先に unit に当たり端末に出る。取り直しの入力は端末に出さない（owner-host.ts の 193 行、output.ts の 634 行の「取り直し」） (2) 止まっていた間の報 Y の続報・訂正・取消 X を live で受け、手元の state に Y が無い場合（代表の unit で阻止）: 版の比べ（version.ts の stepVersion）は手元の版との比べだけで、手元に subject が無ければ採る（94 行）。前の報の有無では拒まない。U-F（weather-timeseries-unit.ts の 229・234 行）・U-T（tsunami-unit.ts の 374 行）・U-Q（seismic-unit.ts の 842 行）・U-W（下）はこの形。後から来る Y の本文は、取り直しの候補の基点が変わったとして今の live に当て直され（owner-host.ts の 226 行）、X より古いので stale になる。Y は取り直しなので端末に出ない。U-W も同じ形（domains/weather-current/weather-current.ts の 593 行の stepVersion は系列の最新の版 latest が無ければ採り、597 行の duplicate と 600 行の adopt でない枝を通らず 608 行の adoptCandidate へ進む） (3) 成立する狭い道は AC04 の (H): 保持の期限を過ぎて遅れて届いた live の X で、手元に Y が無いとき",
+        "remaining": "なし"
       },
       {
         "id": "Q-RDL-LINES",
         "status": "closed",
         "source": "起草（2026-11-12）。行を足すと他の契約の «» がずれるか",
-        "closed": "composition-root.ts の 1923 行より後の行を、p3-recovery-boundary.json（1971〜2320 行の 13 か所）・p3-recovery-read.json（6 か所）・p3-dmdata-connect-002.json（1930・1937 行）・p3-e05p-typhoon.json・p3-host-followup.json・p3-uw-canon.json が «» で引く。だから AC01 は 1923 行の中で書き換え、行を足さない（1919 行のコメントに句を足すのも行の中だけ）。watch.ts を «» で引く契約と spec は無い（起草の時に contracts/*.json と docs/specs/*.md を探した）ので、口は行を足してよい。recovery.ts は変えない。p3-recovery.json の 1155 行は他の契約が «» で引かず、改訂は行の中の書き足しで行の数を変えない。試験は recovery-host.test.ts の末尾（284 行の後）に足す（その file は 122・167・180・185・191 行が引かれる）",
+        "closed": "composition-root.ts の 1923 行より後の行を、p3-recovery-boundary.json（1971〜2320 行の 13 か所）・p3-recovery-read.json（6 か所）・p3-dmdata-connect-002.json（1930・1937 行）・p3-e05p-typhoon.json・p3-host-followup.json・p3-uw-canon.json が «» で引く。«» の無い地の文の行番号も、p3-recovery.json（2086・2091・2152・2287・2290・2299 行を名指す）・p3-replay-watch.json（1963 行）・p3-terminal-debug-reject.json（2228・2232・2236 行）にある。だから AC01 は 1923 行の中で書き換え、行を足さない（1919 行のコメントに句を足すのも行の中だけ）。watch.ts を «» で引く契約と spec は本契約のほかに無い（起草の時に contracts/*.json と docs/specs/*.md を探した）。口は class の末尾（114 行の private count の後）に置くので、本契約の «» もずれない。recovery.ts は変えない。p3-recovery.json の 1155 行は他の契約が «» で引かず、改訂は行の中の書き足しで行の数を変えない。試験は recovery-host.test.ts の末尾（284 行の後）に足す（その file は 122・167・180・185・191 行が引かれる）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-RDL-RANGE",
+        "status": "closed",
+        "source": "起草（2026-11-12）。P3-RDL-D-RANGE の作者の裁定",
+        "closed": "作者の裁定 A（2026-11-12 11:40）: 帳簿の id を全部外す。作者は VPNO50 が気象特別警報報知で特別警報のときだけ届くことを見て A と答えた。Y・X の道と (E)(H) は統合担当が改めて作者に見せる",
         "remaining": "なし"
       },
       {
         "id": "Q-RDL-BASEOID",
         "status": "closed",
         "source": "起草（2026-11-12）",
-        "closed": "起草は unassigned にし、P3-RDL-D-RANGE の裁定の後、発注の時に統合担当が契約を入れた commit を付ける",
+        "closed": "起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける",
         "remaining": "発注の時の baseOid（統合担当）"
       }
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "運用区分の扱いを変えない（帳簿の id は区分と id で引き、運用区分は見ない。一覧の test の item を捨てる規則は今のまま）"
+      "rule": "運用区分の扱いを変えない（帳簿の id は id だけで引き、区分と運用区分は見ない。一覧の test の item を捨てる規則は今のまま）"
     }
   },
   "contract": {
     "contractId": "P3-RECOVERY-DIGEST-LIVE-001",
     "mode": "implementation",
-    "objective": "起動のまとめ（P3-REC-AC15 の起動時のダイジェスト）に、live で受けた報が重ねて載らないようにする（作者の裁定 P3-RDL-D-UPPER=A、2026-11-12 11:10）。まとめを作る時に、live で受けた電文の id の帳簿（P3-REC-RET-02、watch.ts の FreshnessLedger）にある id を、件数を数える前にまとめの入力から外す。時刻の上端は置かない。外し損ねたときは今の重複に戻るだけで、報は消えない（AC03）。外しすぎの側（帳簿にあるが端末に行を出さない報がまとめからも消える）は AC04 に何が落ちるかを書き、範囲は作者の分岐 P3-RDL-D-RANGE（推奨 A、作者の確かめ待ち）で決める",
+    "objective": "起動のまとめ（P3-REC-AC15 の起動時のダイジェスト）に、live で受けた報が重ねて載らないようにする（作者の裁定 P3-RDL-D-UPPER=A、2026-11-12 11:10）。まとめを作る時に、live で受けた電文の id の帳簿（P3-REC-RET-02、watch.ts の FreshnessLedger）にある id を、件数を数える前にまとめの入力から外す。時刻の上端は置かない。外し損ねたときは今の重複に戻るだけで、報は消えない（AC03）。外しすぎの側（帳簿にあるが端末に行を出さない報がまとめからも消える）は AC04 に何が落ちるかを書き、範囲は作者の裁定 P3-RDL-D-RANGE=A（2026-11-12 11:40。帳簿の id を全部外す）",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -92,12 +99,16 @@
       "reconstruction/src/terminal/material.ts",
       "reconstruction/src/terminal/output.ts",
       "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/units/**",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/contracts-revision/version.ts",
       "reconstruction/test/recovery/**",
       "test/fixtures/rest/**"
     ],
     "allowedPaths": [
-      "reconstruction/src/recovery/watch.ts（AC02 だけ。FreshnessLedger に読むだけの口 1 つ。置き場所は class の末尾〔private count の後〕。watch.ts を «» で引くのは本契約だけで、末尾に置けば本契約の «» もずれない。Q-RDL-LINES）",
-      "reconstruction/src/runtime/composition-root.ts（AC01 だけ。showRecoveryDigest の 1923 行の中の書き換えと、1919 行のコメントの行の中の書き足し。行を足さない〔1923 行より後を 6 本の契約が «» で引く。Q-RDL-LINES〕）",
+      "reconstruction/src/recovery/watch.ts（AC02 だけ。FreshnessLedger に読むだけの口 withoutReceived を 1 つ。置き場所は class の末尾〔114 行の private count の後〕。watch.ts を «» で引くのは本契約だけで、末尾に置けば本契約の «» もずれない。Q-RDL-LINES）",
+      "reconstruction/src/runtime/composition-root.ts（AC01 だけ。showRecoveryDigest の 1923 行の中の書き換えと、1919 行のコメントの行の中の書き足し。行を足さない〔1923 行より後を 6 本の契約が «» で引き、3 本の契約が地の文で行番号を名指す。Q-RDL-LINES〕）",
       "reconstruction/test/recovery/recovery-host.test.ts（P3-RDL-T01。file の末尾〔今の 284 行の後〕にだけ足す。既存の行は変えない）"
     ],
     "allowedGitCommands": [
@@ -121,10 +132,10 @@
       "reconstruction/contracts/p3-recovery.types.ts#ListHead"
     ],
     "publicFunctions": [
-      "口の形は変えない（showRecoveryDigest・recordLiveId・buildDigest の引数と戻り値は今のまま）。FreshnessLedger に区分と id で受けたかを返す読むだけの口を 1 つ足す（AC02。export は増やさない）"
+      "口の形は変えない（showRecoveryDigest・recordLiveId・buildDigest の引数と戻り値は今のまま）。FreshnessLedger に読むだけの口 withoutReceived(heads: readonly ListHead[]): readonly ListHead[] を 1 つ足す（AC02。export は増やさない）"
     ],
     "allowedDependencies": [
-      "既存の依存だけ（composition-root.ts は既に import している familyFor を使う。import を足さない）"
+      "既存の依存だけ（watch.ts は ListHead の型を既に import している。import を足さない）"
     ],
     "fixtureIds": [
       "test__fixtures__rest__telegram-list-vtse41-real",
@@ -158,12 +169,11 @@
     "acceptanceChecks": [
       {
         "id": "P3-RDL-AC01",
-        "requirement": "まとめから live で受けた id を外す（目的。P3-RDL-D-UPPER=A、P3-RDL-D-RANGE は推奨 A で書いた）: (1) showRecoveryDigest の中で、buildDigest に渡す前に、kind が listed の unit の結果ごとに、heads から帳簿の受信済みにある頭を除いた写し（{ ...result, heads: 除いた heads }）を作り、それを buildDigest に渡す。unsatisfied の結果はそのまま渡す。除く判定は頭ごとに、区分を recordLiveId（1965 行）と同じ引き方 freshness.classifications.find((item) => item === familyFor(head.headType)) で引き（as を使わない）、区分があり AC02 の口が true を返す頭を除く。id は ListHead.id で、live の dmdataId と同じ id 空間（Q-REC-ID-MATCH） (2) 除くのは件数（omitted）を数える前: buildDigest の候補（recovery.ts の 500 行）と件数（502 行）は除いた後の heads から作られるので、見出しにも件数にも数えない。recovery.ts は変えない (3) results そのものは書き換えない（1922 行の walkDiagnostics と、attachRecovery が待つ辿りの結果は今のまま）。帳簿も書き換えない (4) 帳簿を引くのは showRecoveryDigest の中の 1 回だけ（Q-RDL-TIMING: その時は compare が 1 回も走っておらず、受信済みの id が全部残っている。周期が始まると compare が一致した id を消す） (5) this.freshness が null の root（watchFreshness を呼ばない root。host では digest も null になる run）では今のとおり results をそのまま渡す (6) 書き換えは 1923 行の中だけで、行を足さない（Q-RDL-LINES）。無いと: 起動を跨いで live で受けた報が、端末とディスプレイで live の本文とまとめの両方に出る（2026-11-11 21:53 の実例、Q-RDL-CAUSE） (7) まとめは snapshot の recovery.digest で、端末（host の publishDisplay から sink.digest）とディスプレイ（P4）が同じものを見る。両方で同じく外れる",
+        "requirement": "まとめから live で受けた id を外す（目的。P3-RDL-D-UPPER=A、P3-RDL-D-RANGE=A）: (1) showRecoveryDigest の 1923 行を this.recoveryDigest = buildDigest(results.map((result) => result.kind === \"listed\" && this.freshness != null ? { ...result, heads: this.freshness.ledger.withoutReceived(result.heads) } : result), starts); の形にする。unsatisfied の結果と、this.freshness が null の root（watchFreshness を呼ばない root。host では digest も null になる run）の結果はそのまま渡す。id は ListHead.id で、live の dmdataId と同じ id 空間（Q-REC-ID-MATCH） (2) 除くのは件数（omitted）を数える前: buildDigest の候補（recovery.ts の 500 行）と件数（502 行）は除いた後の heads から作られるので、見出しにも件数にも数えない。recovery.ts は変えない (3) results そのものは書き換えない（1922 行の walkDiagnostics と、attachRecovery が待つ辿りの結果は今のまま）。帳簿も書き換えない (4) 帳簿は showRecoveryDigest の 1 回の呼び出しの中だけで引き、後で引き直さない（Q-RDL-TIMING: その時は compare が 1 回も走っておらず、受信済みの id が全部残っている。周期が始まると compare が一致した id を消す） (5) 書き換えは 1923 行の中だけで、行を足さない（Q-RDL-LINES）。無いと: 起動を跨いで live で受けた報が、端末とディスプレイで live の本文とまとめの両方に出る（2026-11-11 21:53 の実例、Q-RDL-CAUSE） (6) まとめは snapshot の recovery.digest で、端末（host の publishDisplay から sink.digest）とディスプレイ（P4）が同じものを見る。両方で同じく外れる",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:1920 «9d9d9dc17a593e03»",
           "reconstruction/src/runtime/composition-root.ts:1922 «6bcd61bd38cceea5»",
           "reconstruction/src/runtime/composition-root.ts:1923 «756480f52e2a747e»",
-          "reconstruction/src/runtime/composition-root.ts:1965 «8ffdbc159052c158»",
           "reconstruction/src/recovery/recovery.ts:500 «dbdb2b1f6ef72539»",
           "reconstruction/src/recovery/recovery.ts:502 «22d33025fe2003e1»",
           "reconstruction/src/host/host.ts:342 «b340c2e586dcd39f»",
@@ -178,18 +188,21 @@
       },
       {
         "id": "P3-RDL-AC02",
-        "requirement": "帳簿の読むだけの口（受信の hot path は変えない）: FreshnessLedger に、区分（DmdataClassification）と id を受けて、受信済みの Map（22 行の receivedIds）にその id があるかを返す口を 1 つ足す（this.receivedIds.get(classification)?.has(id) ?? false の形。O(1)）。受信済み・保留・件数・overflow のどれも書き換えない（無いと、まとめの側から帳簿の中を引けない。compare は一致した id を消すので代わりに使えない）。保留（pending）は見ない（まとめの時は空。Q-RDL-TIMING）。received・compare・expire・reset は変えない。showRecoveryDigest での引きは O(辿りの頭の数 × 購読の区分の数〔3 以下〕) を run に 1 回（P3-REC-AC16 の「上限のある一括処理」。頭の数は起動の辿りのページの上限 P3-REC-RES-02〔recovery.ts の PAGE_LIMIT 300、1 ページ 100 件〕で縛られる。RES-04 の 500 はまとめに載せる見出しの数で、頭の数の上限ではない）",
+        "requirement": "帳簿の読むだけの口（受信の hot path は変えない）: FreshnessLedger に withoutReceived(heads: readonly ListHead[]): readonly ListHead[] を 1 つ足す。受信済みの Map（22 行の receivedIds）の値のどれか（区分ごとの Map で 3 つ以下）に head.id がある頭を除いた配列を返す（頭ごとに O(区分の数) ＝ O(3)）。区分を見なくてよい理由: 帳簿の区分（composition-root.ts の recordLiveId）と一覧の区分（recovery.ts の一覧の濾し）は同じ headType から familyFor で決まり、dmdata の id は電文ごとに一意。受信済み・保留・件数・overflow のどれも書き換えない（無いと、まとめの側から帳簿の中を引けない。compare は一致した id を消すので代わりに使えない）。保留（pending）は見ない（まとめの時は空。Q-RDL-TIMING）。received・compare・expire・reset は変えない。showRecoveryDigest での引きは O(辿りの頭の数 × 3) を run に 1 回（P3-REC-AC16 の「上限のある一括処理」。頭の数は起動の辿りのページの上限 P3-REC-RES-02〔recovery.ts の PAGE_LIMIT 300、1 ページ 100 件〕で縛られる。RES-04 の 500 はまとめに載せる見出しの数で、頭の数の上限ではない）",
         "evidenceRefs": [
           "reconstruction/src/recovery/watch.ts:22 «f7f33cb049da2965»",
           "reconstruction/src/recovery/watch.ts:29 «0e75a2a3b508a675»",
           "reconstruction/src/recovery/watch.ts:62 «537e6ce1a1d0fce1»",
-          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "reconstruction/src/runtime/composition-root.ts:1965 «8ffdbc159052c158»"
         ]
       },
       {
         "id": "P3-RDL-AC03",
-        "requirement": "外し損ね（どれも今の重複に戻るだけで、報は消えない。コードは足さず、残存として成果物に書く）: (1) RET-02 の上限: unit ごとの受信済みと保留の和が 4,096（watch.ts の 10 行）に達した後に live で受けた id は受信済みに足さない（35〜40 行の overflow の枝）。その報はまとめに残る (2) 帳簿の無い run: freshness が null（composition-root.ts の 1963 行。telegram.* を購読しない run と { wsUrl } の起動）。そのときは辿りの plan が空で walk が null になり（recovery.ts の 159 行）、まとめも null (3) まとめの前の切断: connectionLost の recoveryLost が帳簿を捨てる（composition-root.ts の 1976 行 → watch.ts の 106 行）。切断の前に live で受けた報はまとめに残る (4) まとめの後に live の frame が来た報: 帳簿を引くのは 1 回だけ（host.ts の 571 行。AC01 (4)）で、まとめは作り直さない（P3-REC-AC15 (4)） (5) WS と一覧の id が違う報（Q-REC-ID-MATCH の読みが外れたとき）。なお、帳簿に積まない live の入力（host.ts の 326 行の捨てた VXSE43、334 行の owner の停止で断った入力、338 行の mailbox が断った入力）は外さないので、今のとおりまとめに残る",
+        "requirement": "外し損ね（どれも今の重複に戻るだけで、報は消えない。コードは足さず、残存として成果物に書く）: (1) RET-02 の上限: unit ごとの受信済みと保留の和が 4,096（watch.ts の 10 行）に達した後に live で受けた id は受信済みに足さない（35〜40 行の overflow の枝）。その報はまとめに残る (2) 帳簿の無い run: freshness が null（watchFreshness の 1955 行は購読の telegram.* が 0 なら作らず、host.ts の 550 行は config.dmdata が無い { wsUrl } の起動では呼ばない）。そのときは辿りの plan が空で walk が null になり（recovery.ts の 159 行）、まとめも null (3) まとめの前の切断: connectionLost の recoveryLost が帳簿を捨てる（composition-root.ts の 1976 行 → watch.ts の 106 行）。切断の前に live で受けた報はまとめに残る (4) まとめの後に live の frame が来た報: 帳簿を引くのは 1 回だけ（host.ts の 571 行。AC01 (4)）で、まとめは作り直さない（P3-REC-AC15 (4)） (5) WS と一覧の id が違う報（Q-REC-ID-MATCH の読みが外れたとき） (6) dmdataId が null の live の入力（composition-root.ts の 1963 行で帳簿に積まない）。なお、帳簿に積まない live の入力（host.ts の 326 行の捨てた VXSE43、334 行の owner の停止で断った入力、338 行の mailbox が断った入力）は外さないので、今のとおりまとめに残る",
         "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:1955 «4d6604a64044397e»",
+          "reconstruction/src/host/host.ts:550 «c7836788574a24a9»",
           "reconstruction/src/recovery/watch.ts:10 «71cd9b81f3486084»",
           "reconstruction/src/recovery/watch.ts:35 «18127915f8924d19»",
           "reconstruction/src/recovery/watch.ts:39 «69c3aa64586acfe4»",
@@ -205,14 +218,14 @@
       },
       {
         "id": "P3-RDL-AC04",
-        "requirement": "外しすぎの側（何が落ちるか。P3-RDL-D-RANGE=A のとき。作者に見せる）: 帳簿は mailbox に受け取らせた時点で積む（host.ts の 342 行、P3-REC-AC13 (8)）ので、端末に行を出さない報も入る。A ではそれらが起動のまとめからも消え、live にもまとめにも行が出ない。どれも、ずっと動いていたときに live で受けても端末に行を出さない報で、出方は「ずっと動いていたときと同じ」: (A) unit が採らない報: 重ねての配信・古い版・版が決まらない・期限切れ（outcome が accepted でないか deliveryOnly。material.ts の 381・382 行が端末の報を作らない）。decode できなかった報（376 行）は、読めなかった報のカードが出るときだけ 1 行出る（output.ts の 626 行） (B) VPNO50（気象特別警報報知）: 端末は常に出さない（material.ts の 380 行、Q-TO5-VPNO50。本文は VPWW の報で出る） (C) U-B の VPOA50（記録的短時間大雨情報）で、対応報があるもの（output.ts の 586 行「出さない・対応報あり」）と、待っていた報の取消（601 行「出さない・待っていた報の取消」） (D) VPWS50（全国の集約通報）で、前に積んだ報と同じもの（output.ts の 564 行「出さない・前と同じ」） (E) owner の停止で inputDone が来ないまま消える入力（composition-root.ts の ownerFailed の 688 行の mailbox.removePlace と 689 行。端末の行も出ない） (F) まとまり・待ちの中で、出る前に同じ subject の後の報に置き換えられた報と取消で外れた報（output.ts の 579 行の気象の時系列、552 行の時系列の取消、590 行の VPOA50 の待ち。後の報が出る） (G) 端末の列の上限で省いた報（output.ts の 264・265 行。「表示を省きました」の件数の行だけ出る）。起動の取り直しの本文との順で落ちる道は無い（Q-RDL-STARTUP: 取り直しの本文は live より後に取り出す、mailbox.ts の 41 行）。起動の後の unit の state の違い（止まっていた間の報を持たない）で live の続報・訂正・取消の採り方が変わる道は証拠不足で、あれば A ではその報が live にもまとめにも出ない（Q-RDL-STARTUP の remaining）。B（端末に実際に出した id だけ外す）なら (A)〜(G) は今のとおりまとめに残る",
+        "requirement": "外しすぎの側（何が落ちるか。P3-RDL-D-RANGE=A、作者の裁定 2026-11-12 11:40）: 帳簿は mailbox に受け取らせた時点で積む（host.ts の 342 行、P3-REC-AC13 (8)）ので、端末に行を出さない報も入る。A ではそれらが起動のまとめからも消え、live にもまとめにも行が出ない。(A)〜(G) は、ずっと動いていたときに live で受けても端末に行を出さない報で、出方は「ずっと動いていたときと同じ」: (A) unit が採らない報: 重ねての配信・古い版・版が決まらない・期限切れ（outcome が accepted でないか deliveryOnly。material.ts の 381・382 行が端末の報を作らない）。unit が拒否した報と decode できなかった報（376 行）は、読めなかった報のカードがあるときだけ 1 行出る（output.ts の 623〜627 行） (B) VPNO50（気象特別警報報知）: 端末は常に出さない（material.ts の 380 行、Q-TO5-VPNO50。本文は VPWW の報で出る） (C) U-B の VPOA50（記録的短時間大雨情報）で、対応報があるもの（output.ts の 586 行「出さない・対応報あり」）と、待っていた報の取消（601 行「出さない・待っていた報の取消」） (D) VPWS50（全国の集約通報）で、前に積んだ報と同じもの（output.ts の 564 行「出さない・前と同じ」） (E) owner の停止で inputDone が来ないまま消える入力（composition-root.ts の ownerFailed の 688 行の mailbox.removePlace と 689 行。端末の行も出ない） (F) まとまり・待ちの中で、出る前に同じ subject の後の報に置き換えられた報と取消で外れた報（output.ts の 579 行の気象の時系列、552 行の時系列の取消、590 行の VPOA50 の待ち。後の報が出る） (G) 端末の列の上限で省いた報（output.ts の 264・265 行。「表示を省きました」の件数の行だけ出る）。(H) 起動の後だけの狭い道: 止まっていた間に出た報 Y の続報・訂正・取消 X が、保持の期限を過ぎて遅れて live で届き、手元の state に Y が無いとき。U-B は期限を過ぎた報で手元に見える記録が無ければ stale にする（briefing-unit.ts の 421・422 行。保持は ReportDateTime から 2 時間、対応報ありは 3 時間、35・84 行）。ずっと動いていれば Y の記録があり、425〜431 行で出る。U-M（local-bulletins-unit.ts の 442 行）と台風（typhoon-unit.ts の 375 行）は、遅れて届いた報に加えて保持の枠が満杯のときだけ stale。A ではこの X が live にもまとめにも出ず、まとめに Y だけが残る（Y の頭は帳簿に無いので残る）。代表の unit（U-F・U-T・U-Q・U-W）では手元に Y が無くても X を採るので起きない（Q-RDL-STARTUP (2)）。起動の取り直しの本文との順で落ちる道は無い（Q-RDL-STARTUP (1)、mailbox.ts の 41 行）",
         "evidenceRefs": [
           "reconstruction/src/terminal/material.ts:372 «a923ec905dc0e7ce»",
           "reconstruction/src/terminal/material.ts:376 «b967674c99b59d85»",
           "reconstruction/src/terminal/material.ts:380 «8617c91e33408feb»",
           "reconstruction/src/terminal/material.ts:381 «2be327932f009c34»",
           "reconstruction/src/terminal/material.ts:382 «a02ebdf86710ff20»",
-          "reconstruction/src/terminal/output.ts:626 «36be2a1dc8fd2faf»",
+          "reconstruction/src/terminal/output.ts:623 «07f462a25dc9550d»",
           "reconstruction/src/terminal/output.ts:586 «ef72453e882ec620»",
           "reconstruction/src/terminal/output.ts:601 «c164c53e8e357801»",
           "reconstruction/src/terminal/output.ts:564 «bd0f40f2a2644c1c»",
@@ -226,12 +239,29 @@
           "reconstruction/src/mailbox/mailbox.ts:41 «f11b5c268ad5732c»",
           "reconstruction/src/runtime/composition-root.ts:2230 «4bb26e912fc9453f»",
           "reconstruction/src/terminal/output.ts:634 «4fe1edd5681081af»",
-          "reconstruction/src/runtime/owner-host.ts:134 «da44b8a4aa43cad1»"
+          "reconstruction/src/runtime/owner-host.ts:134 «da44b8a4aa43cad1»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:421 «a9466abd0ddd7d16»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:422 «0573d48dbb3021a5»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:84 «a5b72debcd2eb677»",
+          "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:442 «13b521a7211cc37a»",
+          "reconstruction/src/units/typhoon/typhoon-unit.ts:375 «75aff8b9b1068c7d»",
+          "reconstruction/src/contracts-revision/version.ts:94 «cff61db6f536fd3f»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «0c4bf4cc6f7ce2d9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:234 «bc430b5ab35af311»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:374 «3ca4da5b4c8b2813»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:842 «ca5b13d448917d11»",
+          "reconstruction/src/runtime/owner-host.ts:226 «719a77be126354a2»",
+          "reconstruction/src/runtime/owner-host.ts:193 «23accdf9096d56f5»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:593 «63571d9e910c4524»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:597 «e0bfbfbe9dc24a90»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:600 «d50f6744d7433d2b»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:608 «615259eb3829a86c»"
         ]
       },
       {
         "id": "P3-RDL-AC05",
-        "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: P3-REC-AC15 の本文（p3-recovery.json の 1155 行）に、まとめの上端の一文を書き足す（artifactRequirements の原文の改訂 (1)）。spec（reconstruction-p0-contracts.md の 3123 行の起動時のダイジェスト、cli-terminal-output.md の 775 行の「C16 のダイジェストの形をそのまま写す」）は範囲の言い方を持たないので変えない",
+        "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: P3-REC-AC15 の本文（p3-recovery.json の 1155 行）にまとめの上端の一文を、P3-REC-RET-02 の target（892 行、今は「H41 の突き合わせ用」）に帳簿のもう 1 つの使い道を書き足す（artifactRequirements の原文の改訂 (1)(2)）。spec（reconstruction-p0-contracts.md の 3123 行の起動時のダイジェスト、cli-terminal-output.md の 775 行の「C16 のダイジェストの形をそのまま写す」）は範囲の言い方を持たないので変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-recovery.json:1155 «8124919f2fa9781b»",
           "docs/specs/reconstruction-p0-contracts.md:3123 «3746a484faab65d3»",
@@ -247,7 +277,7 @@
           "P3-RDL-AC01",
           "P3-RDL-AC02"
         ],
-        "behavior": "受入（AC01 (1)(2)、2026-11-11 21:53 の実例の形）。recovery-host.test.ts の start・item・page・https.hold・roots の形で、購読に telegram.earthquake を入れて host を起こし、U-T の一覧（type が VTSE41,VTSE51,VTSE52）に VTSE41 の頭 5 件（受信時刻は新しい順に 1 分ずつ古い）を返す。一覧の応答は https.hold で止めておき、その間に WS で、5 件のうち最も古い頭 X の id を id に持つ VTSE41 の data の frame（本文は telegram-body-vtse41-real.xml、classification は telegram.earthquake）を送り、mailbox の受理（roots.root!.mailbox.stats(...).accepted が 1 以上）を待ってから hold を外して応答を返す。snapshot の recovery.digest の U-T が、見出し 3 件（受信時刻が新しい順の上の 3 件）と omitted の和 1（X を除いた残りの 1 件。今のコードでは 2）で、見出しにも件数にも X が入らない。X を新しい順で 4 件目より後に置くのは、buildDigest の後で見出しだけを除く誤った実装を落とすため（X は見出しに出ないので、件数で見る）。live で受けていない 4 件は今のとおり見出し 3 件と件数 1 に載る（AC01 の「受けていない報は今のとおり」）。今のコードでは omitted の和が 2 になり落ちる"
+        "behavior": "受入（AC01 (1)(2)、2026-11-11 21:53 の実例の形）。recovery-host.test.ts の start・item・page・https.hold・roots の形で、https.handle は U-T の一覧（type が VTSE41,VTSE51,VTSE52）に VTSE41 の頭 5 件（受信時刻は新しい順に 1 分ずつ古い）を返し、本文の要求（url.hostname が data.api.dmdata.jp）には T08 と同じく xmlBody() を返し、ほかの一覧は page([]) にする。https.hold は本文の要求も止める全体の旗なので start() の前に立て、購読に telegram.earthquake を入れて host を起こす。https.held.length が 1 になる（U-T の一覧の要求が止まった）のを待ってから、WS で 5 件のうち最も古い頭 X の id を id に持つ VTSE41 の data の frame（本文は telegram-body-vtse41-real.xml、classification は telegram.earthquake）を送り、mailbox の受理（roots.root!.mailbox.stats(...).accepted が 1 以上）を待つ。そのあと T08（183・184 行）と同じく https.hold = false にしてから held を返す。snapshot の recovery.digest の U-T が、見出し 3 件（受信時刻が新しい順の上の 3 件）と omitted の和 1（X を除いた残りの 1 件。今のコードでは 2）で、見出しにも件数にも X が入らない。X を新しい順で 4 件目より後に置くのは、buildDigest の後で見出しだけを除く誤った実装を落とすため（X は見出しに出ないので、件数で見る）。live で受けていない 4 件は今のとおり見出し 3 件と件数 1 に載る（AC01 の「受けていない報は今のとおり」）"
       }
     ],
     "requiredCommands": [
@@ -310,29 +340,15 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: AC01 は showRecoveryDigest の 1 行の中で buildDigest の入力を絞るだけ（無いと live で受けた報がまとめにも載る）。AC02 は帳簿の読むだけの口 1 つ（無いとまとめの側から受信済みの id を引けない。compare は一致を消すので使えない）。新しい状態・型・export・設定は作らない。recovery.ts の buildDigest は変えない。テストは受入条件に限り T01 の 1 本（受入）",
-      "受信経路の計算量（AGENTS.md）: 受信 1 回の仕事は変えない（recordLiveId と received は今のまま）。足すのは run に 1 回の showRecoveryDigest の中の O(辿りの頭の数 × 区分の数) と、頭ごとの O(1) の引き（AC02）",
+      "最小実装・最小テスト: AC01 は showRecoveryDigest の 1 行の中で buildDigest の入力を絞るだけ（無いと live で受けた報がまとめにも載る）。AC02 は帳簿の読むだけの口 withoutReceived 1 つ（無いとまとめの側から受信済みの id を引けない。compare は一致を消すので使えない）。新しい状態・型・export・設定は作らない。recovery.ts の buildDigest は変えない。テストは受入条件に限り T01 の 1 本（受入）",
+      "受信経路の計算量（AGENTS.md）: 受信 1 回の仕事は変えない（recordLiveId と received は今のまま）。足すのは run に 1 回の showRecoveryDigest の中の O(辿りの頭の数 × 区分の数〔3 以下〕)（AC02）",
       "期待が変わる既存の試験: 起草では回していないが、0 の見込み（recordLiveId を呼ぶ既存の試験は watch.test.ts の 2 本で、まとめを作らない。recovery-host.test.ts の T08 は live の EEW をまとめの後に送り、U-E は帳簿に積まない）。実装の木で全試験を回し、期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: (1) 外し損ねの 5 つの道（AC03 (1)〜(5)）。どれも今の重複に戻るだけ (2) P3-RDL-D-RANGE=A で落ちる報（AC04 の (A)〜(G)）。ずっと動いていたときと同じ出方。ほかに、起動の後の unit の state の違いで live の続報・訂正・取消が採られない道は証拠不足（Q-RDL-STARTUP。実装で units の held・stale・noChange の枝を見て、見つけたら報告する） (3) WS と一覧の id が同じという読み（Q-REC-ID-MATCH）に頼る。外れても重複に戻るだけ (4) 起動の取り直しの本文が live より先に unit に採られる順は、mailbox が REST を live より後に取り出す規則（mailbox.ts の 41 行、P3-REC-AC03 (2)）に頼る。その規則を変える変更は本契約の AC04 を同時に見直す",
-      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-recovery.json:1155 の P3-REC-AC15 の本文の末尾に「（P3-RECOVERY-DIGEST-LIVE-001、作者の裁定 2026-11-12: まとめの上端は時刻で置かない。一覧の頭のうち、まとめを作る時に live で受けた電文の id の帳簿〔RET-02〕にある id は、件数を数える前に除く〔帳簿を引くのはまとめを作る時の 1 回だけ〕。帳簿は mailbox に受け取らせた時点で積むので、端末に行を出さない報もまとめから外れる〔P3-RDL-AC04〕。外し損ねは重複に戻るだけ〔P3-RDL-AC03〕）」を書き足す（P3-RDL-D-RANGE が B になったら文を書き直す）",
-      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる行を引く «» を新しい anchor にする。本契約の composition-root.ts:1923（と 1919 を引く契約があればそれも。起草の時は無い）、改訂で中身が変わる p3-recovery.json:1155（本契約の AC05 だけが引く）。watch.ts の口は class の末尾に置くので、本契約の watch.ts の «» は付け直さない。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "残存として成果物に書く: (1) 外し損ねの 6 つの道（AC03 (1)〜(6)）。どれも今の重複に戻るだけ (2) P3-RDL-D-RANGE=A で落ちる報（AC04 の (A)〜(H)）。(A)〜(G) はずっと動いていたときと同じ出方、(H) は起動の後だけの狭い道 (3) 今より悪くなる現実の場面は (E): 例えば 21:50 に起こし直し、21:53 に辿りの最中に live で VPWP50 を受けて mailbox に入れた直後、21:53:05 に気象の owner が落ちると、その報は inputDone が来ないまま消え（composition-root.ts の 688 行）、端末に行が出ないうえ、帳簿にあるのでまとめからも外れる。今はまとめに 1 件として残る (4) WS と一覧の id が同じという読み（Q-REC-ID-MATCH）に頼る。外れても重複に戻るだけ (5) 起動の取り直しの本文が live より先に unit に採られる順は、mailbox が REST を live より後に取り出す規則（mailbox.ts の 41 行、P3-REC-AC03 (2)）に頼る。その規則と、帳簿に積む時点（host.ts の 342 行）を変える変更は本契約を見直す",
+      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-recovery.json:1155 の P3-REC-AC15 の本文の末尾に「（P3-RECOVERY-DIGEST-LIVE-001、作者の裁定 2026-11-12: まとめの上端は時刻で置かない。一覧の頭のうち、まとめを作る時に live で受けた電文の id の帳簿〔RET-02〕にある id は、件数を数える前に除く〔帳簿を引くのはまとめを作る時の 1 回だけ〕。帳簿は mailbox に受け取らせた時点で積むので、端末に行を出さない報もまとめから外れる〔P3-RDL-AC04〕。外し損ねは重複に戻るだけ〔P3-RDL-AC03〕）」を書き足す (2) 同じ file の P3-REC-RET-02 の target「前に突き合わせた位置の後に live で受けた電文の id（unit ごと、H41 の突き合わせ用）」の「H41 の突き合わせ用」の後に「。起動のまとめから live で受けた報を外すのにも使う〔P3-RECOVERY-DIGEST-LIVE-001。積む時点を変える変更は本契約を見直す〕」を書き足す",
+      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる行を引く «» を新しい anchor にする。本契約の composition-root.ts:1923（と 1919 を引く契約があればそれも。起草の時は無い）、改訂で中身が変わる p3-recovery.json:1155 と RET-02 の target の行（本契約の AC05 が 1155 を引く。target の行を «» で引く契約は配送の時に探す）。watch.ts の口は class の末尾に置くので、本契約の watch.ts の «» は付け直さない。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
       "本物の経路での確かめ（統合担当、配送の後）: 新築を起こし直し、辿りの最中に live で届いた報が端末の起動のまとめに重ねて出ないことを、実配信で 1 回見る（2026-11-11 21:53 と同じ形が起きたとき。起きなければ T01 に任せる）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-RDL-RANGE",
-        "owner": "user",
-        "blocks": [
-          "P3-RDL-AC01",
-          "P3-RDL-AC04",
-          "P3-RDL-AC05"
-        ],
-        "resolveBy": "発注の前（作者の裁定 P3-RDL-D-RANGE）",
-        "requiredEvidence": [
-          "作者の裁定（A: 帳簿の id を全部外す、または B: 端末に実際に出した id だけ外す）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
