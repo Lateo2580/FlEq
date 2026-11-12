@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "42a847de24ecf792efc5e5889dc1aad2a51ef7068060ba27c539a18a08e90cda",
+    "sha256": "76098184fff86e78f9f88cb43ac85babe1aeeb6da7dc06496297d287c855d565",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -508,7 +508,7 @@
           "reconstruction/contracts/p3-execution-split.json:685 «1ab394f0d4c773d9»",
           "reconstruction/contracts/p3-execution-split.json:129 «d4a38fc7de1d9806»",
           "reconstruction/contracts/p3-execution-split.json:134 «1c84f3b0ce68dac9»",
-          "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
+          "reconstruction/contracts/p3-dmdata-connect.json:289 «ac89b1509e32f124»",
           "reconstruction/contracts/p3-execution-boundary.md:48 «03fb41f056642dd7»",
           "reconstruction/contracts/p3-order-plan.md:61 «90cd4b030c735359»"
         ]

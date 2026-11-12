@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "37d83bdd7290bc9c7f84fb52d3ba9c56d3f20cf809bbfdcaeef4e1d008a0972b",
+    "sha256": "5ca4d6ead5280d715c8245e5d3e45d4b1bd67b8dd5709d2c044de54d0cbc9dd7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -286,7 +286,7 @@
         "target": "stop request through end of connection cleanup (REST settlement and own socket DELETE)",
         "limit": 30,
         "unit": "seconds from the stop request, shared with the existing overall shutdown deadline (not added to it)",
-        "scope": "stop()は入口でclock()を1回取り、それをshutdownRuntimeのclockに渡す（全体30秒の起点を停止要求にする）。再接続timerの停止とWSのterminateを同期で行った後、shutdownRuntimeと接続の片付け（進行中のRESTの決着→自分のsocketのDELETE 1回）を並行に走らせ、片付けのRESTは停止要求+30秒で打ち切る。stop()は両方の決着を待つ。片付けを先に済ませてからshutdownRuntimeを始める直列にはしない（停止要求から最大約60秒になる）。片付けの失敗・打切りの診断は、sinkが受け付ける間に入れ、閉じた後なら秘密値を含まない固定文1行をstderrへ出す。§5.9の段の順序と各段の期限はC3bが所有し、本契約は変えない",
+        "scope": "stop()は入口でclock()を1回取り、それをshutdownRuntimeのclockに渡す（全体30秒の起点を停止要求にする）。再接続timerの停止とWSのterminateを同期で行った後、shutdownRuntimeと接続の片付け（進行中のRESTの決着→自分のsocketのDELETE 1回）を並行に走らせ、片付けのRESTは停止要求+30秒で打ち切る。stop()は両方の決着を待つ。片付けを先に済ませてからshutdownRuntimeを始める直列にはしない（停止要求から最大約60秒になる）。片付けの失敗・打切りの診断はsinkに入れ、sinkが使えないとき（sinkUnavailable、host.ts の 507 行）は秘密値を含まない固定文1行をstderrへ出す（列に入れた行は CLI の終わりで最長 1 秒書き出しを待つ、P3-DIAG-EXIT-FLUSH-001）。§5.9の段の順序と各段の期限はC3bが所有し、本契約は変えない",
         "source": "spec:882、spec:889、独立レビュー指摘H2"
       }
     ],
@@ -344,7 +344,7 @@
       },
       {
         "id": "P3-C2-AC03",
-        "requirement": "接続1本と自分のsocketの寿命（R57）: 開いているか接続中のWSは常に1本以下、自分のdmdata socketは常に1つ以下（RES-01・RES-02）。接続試行は同時に1つで、試行の各await（REST・WS open）の後でstop()の開始を確かめ、stop()中ならWSを開かない。stop()は入口でclock()を1回取り、再接続timerを止めてWSを切った後、そのclockでshutdownRuntimeを始める。並行に、進行中の試行の決着を待ってから自分のsocketを1回DELETEする（idを受け取っていないsocketには触れない）。片付けのRESTは停止要求+30秒（spec:889の全体上限）で打ち切り、失敗・打切りはWARN dmdataSocketCloseFailed（sinkが閉じた後なら秘密値なしの固定文1行をstderr）にする。stop()は両方の決着を待つ。片付けをshutdownRuntimeの前に直列に置かない（RES-07）。過負荷の自接続停止・通常切断・errorフレーム・生存期限切れはどれも同じclose経路でconnectionLostを1回流し、次の試行の(2)で前の自分のsocketを片付ける。旧築の接続とqueueを操作しない",
+        "requirement": "接続1本と自分のsocketの寿命（R57）: 開いているか接続中のWSは常に1本以下、自分のdmdata socketは常に1つ以下（RES-01・RES-02）。接続試行は同時に1つで、試行の各await（REST・WS open）の後でstop()の開始を確かめ、stop()中ならWSを開かない。stop()は入口でclock()を1回取り、再接続timerを止めてWSを切った後、そのclockでshutdownRuntimeを始める。並行に、進行中の試行の決着を待ってから自分のsocketを1回DELETEする（idを受け取っていないsocketには触れない）。片付けのRESTは停止要求+30秒（spec:889の全体上限）で打ち切り、失敗・打切りはWARN dmdataSocketCloseFailed（sinkが使えないとき〔sinkUnavailable、host.ts の 507 行〕は秘密値なしの固定文1行をstderr）にする。stop()は両方の決着を待つ。片付けをshutdownRuntimeの前に直列に置かない（RES-07）。過負荷の自接続停止・通常切断・errorフレーム・生存期限切れはどれも同じclose経路でconnectionLostを1回流し、次の試行の(2)で前の自分のsocketを片付ける。旧築の接続とqueueを操作しない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:245 «0f7a4bde9f8dd8eb»",
           "docs/specs/reconstruction-p0-contracts.md:2114 «487c96dbe3d33331»",

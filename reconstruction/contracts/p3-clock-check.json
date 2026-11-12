@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "513fa6ef0c555909e79e1c558e8911f553980fee",
-    "sha256": "3b95020c1a8e613a3b2da414336085b1704f2b00d37dc64de2745940dad07589",
+    "sha256": "2eb388acfa6e67e27ef760d58601194cc12ba3d928e6b6171f1c86e1ebe6d117",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -257,7 +257,7 @@
           "reconstruction/contracts/p3-persist-premises.md:426 «2da899c097a9e079»",
           "reconstruction/src/domains/eew/eew.ts:504 «e304c0a864cd1d0b»",
           "reconstruction/src/host/host.ts:495 «9b98adf06aff1701»",
-          "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
+          "reconstruction/contracts/p3-dmdata-connect.json:289 «ac89b1509e32f124»",
           "reconstruction/src/host/host.ts:368 «d8770b1e9f36d4c7»"
         ]
       },

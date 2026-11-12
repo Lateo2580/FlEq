@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "710a3edb3d6665685df3e2951d4b41de9cce866b43c25168727d14d67c09422c",
+    "sha256": "f6de2df43f052c257fc681c21bc4ac55b8a11187b1709e798cff578b3584ea2f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -182,7 +182,7 @@
           "reconstruction/src/cli/cli.ts:378 «9c5da53677696d58»",
           "reconstruction/src/cli/cli.ts:381 «9e814ba6be570a8b»",
           "reconstruction/src/cli/cli.ts:389 «83b07cef61a625f5»",
-          "reconstruction/src/cli/cli.ts:391 «5fc03d53da043ddc»",
+          "reconstruction/src/cli/cli.ts:394 «e644ea41ec7c178a»",
           "reconstruction/src/cli/cli.ts:346 «44706cc6af2d9f60»",
           "reconstruction/src/cli/cli.ts:26 «db6c6b0968a83728»",
           "reconstruction/cli/fleq.mjs:22 «35f85fde5f5d2ad4»",
@@ -206,11 +206,11 @@
         "id": "P3-DXF-AC02",
         "requirement": "host から sink へ届く口（Q-DXF-MOUTH）: (1) startP2Host の戻りの型（host.ts の 75 行の 2 つの overload と 76 行の実装）を HostCommandPort & Readonly<{ flushDiagnostics(): Promise<void> }> にする（displayPort が number の overload は今の & Readonly<{ displayPort: number }> も残す）。意味は 75 行の説明の中に句で足す: 呼んだ時点で診断の列にある行と書き出し中の行を、file へ書き終えるか sink が使えなくなるまで待つ。上限は持たず、呼び手が持つ。HostCommandPort は変えない（REPL の偽 host を変えないため） (2) host.ts の 664 行の return に flushDiagnostics: () => root.diagnostics.flush() を行の中で足す。sink の flush（191 行）は書き出し中の flush を待ってやり直し（193 行）、列が空になるまで繰り返す（236 行）。sink が使えないか列が空なら 195 行ですぐ戻る (3) sink と composition-root.ts は変えない（root の diagnostics は readonly で public、378 行） (4) REPL（repl.ts）は呼ばない。停止の前に呼んでも書き出しを待つだけで害は無い。無いと: CLI から sink へ届く道が無い（startP2Host の戻りは HostCommandPort だけ）",
         "evidenceRefs": [
-          "reconstruction/src/host/host.ts:75 «eb8ce9ee41126810»",
-          "reconstruction/src/host/host.ts:76 «e04b785506273056»",
+          "reconstruction/src/host/host.ts:75 «6a37371365739c87»",
+          "reconstruction/src/host/host.ts:76 «e7862771c103f32a»",
           "reconstruction/src/cli/cli.ts:324 «70b5c683b8d7e6b7»",
           "reconstruction/contracts/p3-cli-repl.types.ts:99 «f348bcd22817f316»",
-          "reconstruction/src/host/host.ts:664 «0d3cc53c9450c53c»",
+          "reconstruction/src/host/host.ts:664 «b40a72b18584486d»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:191 «0c6b0912e04aa9e1»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:193 «60fb0857b074485b»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:195 «0239dde84442af29»",
@@ -248,9 +248,9 @@
         "id": "P3-DXF-AC04",
         "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の数は変えない）: p3-repl-closed.json の 31 行（P3-RC-D-PLACE の reason）の「B: idle を待つのは host.stop() が終わった後で、host の診断の sink はもう閉じている。」は実物と合わない（sink に閉じる口は無く、列に入った行は終わりまで受け付ける。Q-DXF-CAUSE）。artifactRequirements の原文の改訂の文に置き換える。裁定 A の結論は変わらない（B のほかの理由〔reason の union と sink の reason の一覧の 2 file を足す、利用者は diag の file を読まない〕は残る）。同じ前提の文が p3-dmdata-connect.json の 289 行（P3-C2-RES-07 の scope「sinkが受け付ける間に入れ、閉じた後なら…stderrへ出す」）と 347 行（P3-C2-AC03 の「sinkが閉じた後なら…stderr」）にもある。実物の分かれ目は sink が行を断ったとき（sinkUnavailable、host.ts の 507 行）なので、行の中で「使えないとき」に書き換える（artifactRequirements の原文の改訂 (2)(3)）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-repl-closed.json:31 «5cd0dfd5b8f02dd9»",
-          "reconstruction/contracts/p3-dmdata-connect.json:289 «0a0c074748c205de»",
-          "reconstruction/contracts/p3-dmdata-connect.json:347 «88eca4172c4fc5f5»"
+          "reconstruction/contracts/p3-repl-closed.json:31 «249a1b96d8880c8b»",
+          "reconstruction/contracts/p3-dmdata-connect.json:289 «ac89b1509e32f124»",
+          "reconstruction/contracts/p3-dmdata-connect.json:347 «b7a531f4ac381a0c»"
         ]
       }
     ],

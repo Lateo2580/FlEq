@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "5fc5bb5c8e4f96d140212c3e20ed883a46ffe64080bd47b21a4794993b14ac19",
+    "sha256": "c273baf3f37ec7bdb8053a1b70a7a36893e4fcd15fef3e2da43d6a858c7eb545",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -352,7 +352,7 @@
           "reconstruction/src/host/host.ts:208 «d4e90dd82533f3b2»",
           "reconstruction/contracts/p3-cli-repl.json:1206 «35261cfebcfaabcf»",
           "reconstruction/src/host/host.ts:210 «0ad54f173fa3d818»",
-          "reconstruction/src/host/host.ts:664 «0d3cc53c9450c53c»"
+          "reconstruction/src/host/host.ts:664 «b40a72b18584486d»"
         ]
       },
       {

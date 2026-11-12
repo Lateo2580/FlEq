@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "56adaed74895f466ef40b4dd606bf21ca254f03b3b2bd04aad0aff8c0f47265f",
+    "sha256": "0d605501a9eb79cc582b67f0ca98138064040dfafa092c0897cf5866dfe97faa",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -28,7 +28,7 @@
         "provisional": "A",
         "status": "確定（統合担当の裁定、2026-11-08 夜。推奨どおり）",
         "ruling": "A（統合担当）",
-        "reason": "今の終了の診断は cli.ts の 1 か所だけで、stop() の後に保存の列を待ち、期限を過ぎたら標準エラーに 1 行出して code を直す（cli.ts:369〜:374）。閉じた後に分かった失敗も同じ待ちの後に分かるので、置き場は一意。B: idle を待つのは host.stop() が終わった後で、host の診断の sink はもう閉じている。reason の union（p2-shared-runtime.types.ts）と sink の reason の一覧の 2 file を足すうえ、利用者は diag の file を読まない。C: 返事の口は失敗のときしか呼ばれないので、閉じた後に 1 回目が失敗し、「もう 1 回要る」の印で走った 2 回目が成功した場面（最後の変更は保存できた）を repl.ts から見分けられない。そのまま『保存できませんでした』と code 1 を出してしまう。A は 1 回の保存ごとに持つ行を消すので、最後の 1 回の結果だけが残る"
+        "reason": "今の終了の診断は cli.ts の 1 か所だけで、stop() の後に保存の列を待ち、期限を過ぎたら標準エラーに 1 行出して code を直す（cli.ts:369〜:374）。閉じた後に分かった失敗も同じ待ちの後に分かるので、置き場は一意。B: idle を待つのは host.stop() が終わった後で、そのころ host の診断の sink の列は誰も書き出しを待っていない（sink に閉じる口は無く、列に入った行は fleq.mjs の process.exit までに書き終わらなければ消える。P3-DIAG-EXIT-FLUSH-001 で CLI の終わりに最長 1 秒待つようにした〔2026-11-12〕。裁定 A の結論は変わらない）。reason の union（p2-shared-runtime.types.ts）と sink の reason の一覧の 2 file を足すうえ、利用者は diag の file を読まない。C: 返事の口は失敗のときしか呼ばれないので、閉じた後に 1 回目が失敗し、「もう 1 回要る」の印で走った 2 回目が成功した場面（最後の変更は保存できた）を repl.ts から見分けられない。そのまま『保存できませんでした』と code 1 を出してしまう。A は 1 回の保存ごとに持つ行を消すので、最後の 1 回の結果だけが残る"
       },
       {
         "id": "P3-RC-D-CONFIG",
