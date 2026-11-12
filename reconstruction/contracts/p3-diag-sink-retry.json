@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "601c410411f8004d79ecedb430b490c679b5dac88c3bb5406a5b5b9ef14dd645",
+    "sha256": "3901b162e1583be4235c07c9b6e1af89b483845f2a441846b36e216e35b5b4c0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -100,7 +100,7 @@
     "contractId": "P3-DIAG-SINK-RETRY-001",
     "mode": "implementation",
     "objective": "永続の診断の sink が、追記の 1 回の失敗で run の残りの診断を全部捨てるのを直す（判断カード 2026-11-13-P3の残り-夜の走行 の 9-2 の A16、作者裁定「稀は直す」）。場面: 21:00:00 に Pi の SD の空きが一時 0 になり、checkpointWriteFailed の ERROR を書く追記が ENOSPC で失敗する。標準エラーに diagnosticSinkFailed の 1 行が出る。21:05:00 に空きが戻る。今のコードでは sink が止まったままで、21:05 から後の診断（取り直しの WARN など）は 1 行も書かれず、停止（23:00）の要約も書けずに code 4 で終わる（Q-DSR-EXIT）。直した後は、21:00 に失敗したまとまりだけを数えて捨て、21:05 の後の診断は次の書き出しで日別 file へ書く。停止の要約は書けて、失った数は要約の droppedDiagnostics に載る。回収（古い file の削除）の失敗では今どおり止める（P3-DSR-D-PRUNE=B。SD を埋めて状態の保存を巻き込まないため）。追記の失敗の後も、試し直しの前に回収を通し、その失敗でも止める（AC06）。同じ失敗が続いても（SD が壊れて毎回失敗）、標準エラーの 1 行は 1 run に 1 回のまま（P3-DSR-D-REPORT=A）。直しは sink の行の中だけで、行の数を変えない。queue の 256 件・1 MiB と 7 日・100 MiB の回収（B12、spec §7.9）、画面の行と音は変えない。変わるのは、追記が途中で失敗した run の終了の code（4 → 0）と、その run での host.ts の 507 行の標準エラーの 1 行（出なくなることがある）だけ（Q-DSR-EXIT。統合担当の決めで、作者には報告だけ）",
-    "baseOid": "unassigned",
+    "baseOid": "c9caae2b692068158d72b76e22d2628a82f30ffe",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
