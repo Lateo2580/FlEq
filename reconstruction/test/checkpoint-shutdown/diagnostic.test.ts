@@ -91,30 +91,6 @@ describe("P2 persistent diagnostic sink", () => {
       join("/retention", "diagnostics-1970-01-01.jsonl"), join("/retention", "diagnostics-1970-01-09.jsonl"),
     ]);
 
-    let appends = 0;
-    const unavailable: DiagnosticFileSystem = {
-      async readLastByte() { return null; },
-      async mkdir() {},
-      async appendFile() { appends += 1; throw new Error("disk unavailable"); },
-      async writeFile() {},
-      async rename() {},
-      async readFile() { return ""; },
-      async files() { return []; },
-      async unlink() {},
-    };
-    const failures: DiagnosticEvent[] = [];
-    const failed = new PersistentDiagnosticSink("/virtual", unavailable, () => 0,
-      (message) => failures.push(message));
-    failed.enqueueDiagnostic({ timestamp: 0, level: "ERROR", component: "sink",
-      reason: "diagnosticSinkFailed", runId: "run" });
-    await failed.flush();
-    expect(failures).toEqual([expect.objectContaining({ reason: "diagnosticSinkFailed", count: 1 })]);
-    expect(failed.enqueueDiagnostic({ timestamp: 1, level: "ERROR", component: "sink",
-      reason: "diagnosticSinkFailed", runId: "run" })).toMatchObject({
-      kind: "dropped", reason: "sinkUnavailable", count: 2,
-    });
-    await failed.flush();
-    expect(appends).toBe(1);
 
     const held: DiagnosticFileSystem = {
       async readLastByte() { return null; },
@@ -150,5 +126,92 @@ describe("P2 persistent diagnostic sink", () => {
     for (let index = 0; index < 200; index += 1) last = sink.enqueueDiagnostic(large(200 + index));
     expect(last).toMatchObject({ kind: "dropped", reason: "byteLimit" });
     await sink.flush();
+  });
+
+  it("P3-DSR-T03 contractBoundary / P3-DSR-AC03: a sink that keeps failing retries batch by batch and reports once", async () => {
+    let appends = 0;
+    let reach!: () => void;
+    const reached = new Promise<void>((resolve) => { reach = resolve; });
+    let open!: () => void;
+    const gate = new Promise<void>((resolve) => { open = resolve; });
+    const broken: DiagnosticFileSystem = {
+      async readLastByte() { return null; },
+      async mkdir() {},
+      async appendFile() {
+        appends += 1;
+        if (appends === 1) { reach(); await gate; }
+        throw new Error("disk unavailable");
+      },
+      async writeFile() {}, async rename() {}, async readFile() { return ""; },
+      async files() { return []; }, async unlink() {},
+    };
+    const failures: DiagnosticEvent[] = [];
+    const sink: PersistentDiagnosticSink = new PersistentDiagnosticSink("/virtual", broken, () => 0, (event) => {
+      failures.push(event);
+      sink.enqueueDiagnostic(event);
+    });
+    const event = (timestamp: number, level: "WARN" | "ERROR", inputId: string): DiagnosticEvent =>
+      ({ timestamp, level, component: "checkpoint", reason: "checkpointWriteFailed", runId: "run", inputId });
+    sink.enqueueDiagnostic(event(0, "ERROR", "A"));
+    const flushing = sink.flush();
+    await reached;
+    expect(sink.enqueueDiagnostic(event(1, "WARN", "B")).kind).toBe("accepted");
+    open();
+    await flushing;
+    // 試し直しは finally が起こした別の flush が持つことがあるので、それも待つ。
+    await sink.flush();
+    expect(appends).toBe(2);
+    expect(sink.droppedCounts()).toMatchObject({ ERROR: 1, WARN: 1 });
+    expect(failures).toEqual([expect.objectContaining({ reason: "diagnosticSinkFailed", count: 1 })]);
+    expect(sink.enqueueDiagnostic(event(2, "ERROR", "C")).kind).toBe("accepted");
+    await sink.flush();
+    expect(appends).toBe(3);
+    expect(failures).toHaveLength(1);
+  });
+
+  it("P3-DSR-T04 contractBoundary / P3-DSR-AC06: a partly written failed append still reclaims old files, and a failed reclaim stops the sink", async () => {
+    const root = "/virtual";
+    const saved = new Map<string, string>();
+    let appends = 0;
+    let unlinkFails = false;
+    const partial: DiagnosticFileSystem = {
+      async mkdir() {},
+      async readLastByte(path) { return Buffer.from(saved.get(path) ?? "").at(-1) ?? null; },
+      async appendFile(path, data) {
+        appends += 1;
+        saved.set(path, (saved.get(path) ?? "") + data.slice(0, Math.floor(data.length / 2)));
+        throw Object.assign(new Error("no space left on device"), { code: "ENOSPC" });
+      },
+      async writeFile() {}, async rename() {}, async readFile() { return ""; },
+      async files() {
+        return [...saved].map(([path, content]) =>
+          ({ name: path.slice(root.length + 1), size: Buffer.byteLength(content), mtimeMs: 0 }));
+      },
+      async unlink(path) { if (unlinkFails) throw new Error("EACCES"); saved.delete(path); },
+    };
+    const failures: DiagnosticEvent[] = [];
+    const now = Date.parse("2026-11-13T12:00:00Z");
+    const sink = new PersistentDiagnosticSink(root, partial, () => now, (event) => failures.push(event));
+    await sink.flush();
+    const daily = (date: string) => join(root, `diagnostics-${date}.jsonl`);
+    const error = (inputId: string): DiagnosticEvent =>
+      ({ timestamp: now, level: "ERROR", component: "checkpoint", reason: "checkpointWriteFailed", runId: "run", inputId });
+
+    saved.set(daily("2026-11-05"), "{}\n");
+    sink.enqueueDiagnostic(error("A"));
+    await sink.flush();
+    expect(saved.has(daily("2026-11-05"))).toBe(false);
+    expect(sink.enqueueDiagnostic(error("B")).kind).toBe("accepted");
+    await sink.flush();
+
+    unlinkFails = true;
+    saved.set(daily("2026-11-04"), "{}\n");
+    sink.enqueueDiagnostic(error("C"));
+    await sink.flush();
+    const attempts = appends;
+    expect(sink.enqueueDiagnostic(error("D"))).toMatchObject({ kind: "dropped", reason: "sinkUnavailable" });
+    await sink.flush();
+    expect(appends).toBe(attempts);
+    expect(failures).toEqual([expect.objectContaining({ reason: "diagnosticSinkFailed" })]);
   });
 });

@@ -128,7 +128,7 @@ class PersistentDiagnosticSink {
   private flushing: Promise<void> | null = null;
   private available = true;
   private reporting = false;
-  private overflowPending = false;
+  private overflowPending = false; private failureReported = false;
   private readonly startup: Promise<void>;
   private fileOperation: Promise<void> = Promise.resolve();
   private readonly dropped: Record<DiagnosticLevel, number> = { DEBUG: 0, INFO: 0, WARN: 0, ERROR: 0 };
@@ -221,9 +221,9 @@ class PersistentDiagnosticSink {
         for (const entry of batch)
           if (!appended.has(entry))
             this.dropped[entry.event.level] += entry.occurrences;
-        for (const entry of this.queue.splice(0)) this.dropped[entry.event.level] += entry.occurrences;
-        this.queuedBytes = 0;
-        this.fail();
+        // 追記の失敗は列と sink を残し、回収を通してから次の書き出しで試し直す（P3-DSR-AC01・AC06）。全部書けた後の失敗は回収のもので、今どおり止める（P3-DSR-D-PRUNE=B）。
+        if (appended.size === batch.length) this.fail();
+        else { this.report("diagnosticSinkFailed"); await this.prune(this.readWallTime()).catch(() => { this.fail(); }); }
       } finally {
         this.inFlight = [];
         this.inFlightBytes = 0;
@@ -340,8 +340,8 @@ class PersistentDiagnosticSink {
   }
 
   private report(reason: "diagnosticSinkFailed" | "diagnosticQueueOverflow"): void {
-    if (this.reporting) return;
-    this.reporting = true;
+    if (this.reporting || this.failureReported) return;
+    this.reporting = true; this.failureReported ||= reason === "diagnosticSinkFailed";
     try {
       this.reportFailure(completeDiagnostic({ level: "ERROR", component: "diagnosticSink", reason,
         count: Object.values(this.dropped).reduce((sum, count) => sum + count, 0) },

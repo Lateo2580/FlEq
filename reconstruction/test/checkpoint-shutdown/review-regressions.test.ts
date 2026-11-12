@@ -859,7 +859,7 @@ it("I04 contractBoundary / AC07: append, daily unlink and query read failures re
     const date = new Date(expired.timestamp).toISOString().slice(0, 10);
     h.lines.set(join(h.config.diagnosticDirectory, `diagnostics-${date}.jsonl`), `${JSON.stringify(expired)}\n`);
     h.fault.appendError = stage === "append" ? new Error("append failed") : null;
-    h.fault.unlink = stage === "unlink";
+    if (stage === "unlink") { let left = 1; Object.defineProperty(h.fault, "unlink", { configurable: true, get: () => left-- > 0, set: (on: boolean) => { left = on ? 1 : 0; } }); }
     h.fault.logRead = stage === "readFile";
     h.root.enqueueDiagnostic(event);
     await h.root.diagnostics.flush();
@@ -868,12 +868,12 @@ it("I04 contractBoundary / AC07: append, daily unlink and query read failures re
     expect(h.root.diagnostics.droppedCounts().ERROR).toBe(stage === "append" ? 1 : 0);
     h.fault.appendError = null;
     h.fault.unlink = h.fault.logRead = false;
-    expect(h.root.enqueueDiagnostic(event).kind).toBe("dropped");
+    expect(h.root.enqueueDiagnostic(event).kind).toBe(stage === "append" ? "accepted" : "dropped"); await h.root.diagnostics.flush();
     h.lines.set(path, h.lines.get(path)! + '{"timestamp":');
     const retained = h.lines.get(path);
     const restarted = new PersistentDiagnosticSink(h.config.diagnosticDirectory, h.logs, () => h.clock().wallTimeMs, () => {});
     const read = await restarted.readDiagnostics({ limit: 256 });
-    expect(read.records).toEqual([event, { ...event, count: 2 }, ...(stage === "append" ? [] : [event])]);
+    expect(read.records).toEqual([event, { ...event, count: 2 }, event]);
     expect(h.lines.get(path)).toBe(retained);
     restarted.enqueueDiagnostic({ ...event, runId: "after-restart" });
     await restarted.flush();
@@ -1689,4 +1689,31 @@ it("I09 contractBoundary / AC08 RES-01: startup reclaims only owned tmp, and del
     expect(owners.owners.get("deferred")!["checkpoint"].restoreUnit("U-F")).toEqual({ kind: "empty" });
     await owners.root.diagnostics.flush();
   } finally { await disk.rm(directory, { recursive: true, force: true }); }
+});
+
+it("P3-DSR-T01 acceptance / P3-DSR-AC01: a transient append failure drops only its batch, later diagnostics are written and shutdown saves the summary", async () => {
+  const h = await harness();
+  await h.root.diagnostics.flush();
+  const failures = () => h.events.filter((event) => event.reason === "diagnosticSinkFailed");
+  // 21:00: checkpointWriteFailed の追記が ENOSPC で失敗する。
+  h.fault.appendError = Object.assign(new Error("no space left on device"), { code: "ENOSPC" });
+  h.root.enqueueDiagnostic({ timestamp: h.clock().wallTimeMs, level: "ERROR", component: "checkpoint",
+    reason: "checkpointWriteFailed", runId: "review" });
+  await h.root.diagnostics.flush();
+  expect(failures()).toHaveLength(1);
+  const dropped = h.root.diagnostics.droppedCounts().ERROR;
+  expect(dropped).toBeGreaterThanOrEqual(1);
+  // 21:05: 空きが戻る。
+  h.fault.appendError = null;
+  const later: DiagnosticEvent = { timestamp: h.clock().wallTimeMs + 300_000, level: "WARN", component: "recovery",
+    reason: "recoveryFetchFailed", runId: "review" };
+  expect(h.root.enqueueDiagnostic(later).kind).toBe("accepted");
+  await h.root.diagnostics.flush();
+  expect((await h.root.readDiagnostics({ limit: 256 })).records).toContainEqual(later);
+  const summary = await h.root.shutdownRuntime(1, h.clock());
+  expect(summary.code).toBe(0);
+  const saved = h.lines.get(join(h.config.diagnosticDirectory, "shutdown-summary.json"));
+  expect(saved).toBeDefined();
+  expect(JSON.parse(saved!).droppedDiagnostics.ERROR).toBe(dropped);
+  expect(failures()).toHaveLength(1);
 });
