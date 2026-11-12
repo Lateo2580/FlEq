@@ -826,3 +826,16 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-Y restores failed and null p
     restore: (state, at) => reduceTyphoonUnit(emptyState(), { kind: "restore", persisted: typhoonUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => [...state.analysis, ...state.probability].find((item) => item.subject === subject)?.notice });
 });
+// P3-TFC-T01 contractBoundary / P3-TFC-AC02 (2): 落とした最初の時刻が、受理された解析の報の印の frame の part の raw に出る。
+it("P3-TFC-T01 contractBoundary / P3-TFC-AC02: the first dropped time is the one recorded in the frame part", () => {
+  const frameRaw = (later: string[]) => {
+    const mark = activeAnalysis(sendXml(emptyState(), analysisXml({ later }), "VPTW60").state, TC2606).unreadable;
+    return mark?.parts.filter((part) => part.site === "frame").map((part) => part.raw ?? "").join("") ?? "";
+  };
+  const typeOut = frameRaw(["予報　３時間後", "観測　２時間後", "観測　５時間後"]);
+  expect(typeOut).toContain("観測　２時間後");
+  expect(typeOut).not.toContain("観測　５時間後");
+  const overLimit = frameRaw([..."x".repeat(23)].map(() => "予報　３時間後").concat("予報　６時間後", "予報　９時間後"));
+  expect(overLimit).toContain("予報　６時間後");
+  expect(overLimit).not.toContain("予報　９時間後");
+});

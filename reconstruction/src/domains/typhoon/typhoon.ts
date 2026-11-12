@@ -308,7 +308,7 @@ function parseTyphoon(material: DecodedMaterial): ParseResult {
     // 落とした時刻と残さない時刻は type のほかを読まない。
     let room = LIMITS.frames - nowCount;
     const kept = nodes.filter((_, at) => labels[at] === "実況" || (labels[at] === "" || FRAME_LABEL.test(labels[at])) && room-- > 0);
-    if (kept.length < nodes.length) { found.truncated = true; drop("frame", nodes.find((node) => !kept.includes(node)) ?? null); }
+    if (kept.length < nodes.length) { found.truncated = true; const keep = new Set(kept); drop("frame", nodes.find((node) => !keep.has(node)) ?? null); }
     for (const node of kept) {
       const read = parseFrame(node, labelOf(node) === "実況", found, drop);
       if (read == null) continue;
