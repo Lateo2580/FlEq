@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "a440800c2154a6ce3c550f2565c04e6c06e3c0f9b574e4e2648ce689b81bba12",
+    "draftedFromOid": "61265374c272ef2a27fff9d5534b2e123089fb3c",
+    "sha256": "af2f4cfc18436d71fdc05bf47edf160bdd6a894da8a980e8f26adcfc37af3632",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -10,83 +10,105 @@
       {
         "id": "P3-VL-D-KEEP",
         "kind": "作者",
-        "A": "解除の分岐（:386、報の区分が null か activeKind でない。解除・引下げのほか、レベル 1 の継続など inactive の区分を全部含む）に入る報で、もう一方の側の区分が active を支えるなら、警報を active のまま残す。陸の側（VFVO50・VFVO51 の火山 entry）の解除は marineKind（marineSource がある記録だけ）、海上の側（VFSV）の解除は landKind で支えを見る。取消の分岐（volcano-unit.ts の :371〜:379）の判定を解除の分岐（:386〜:391）に写し、新しい決まりを作らない",
+        "A": "解除の分岐（:386、報の区分が null か activeKind でない。解除・引下げのほか、レベル 1 の継続など inactive の区分を全部含む）に入る報で、もう一方の側の区分が active を支えるなら、警報を active のまま残す。陸の側（VFVO50・VFVO51 の火山 entry）の解除は marineKind（marineSource がある記録だけ）、海上の側（VFSV）の解除は landKind で支えを見る。取消の分岐（volcano-unit.ts の :371〜:379）の判定を解除の分岐に写し、新しい決まりを作らない",
         "B": "今のまま（I-U-V.alertSemantics (3)。VFVO50・VFSV・VFVO51 のどれの解除でも、もう一方の側が active でも警報全体を ended）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（作者、2026-11-13 朝）",
         "ruling": "A（2026-11-13 朝の作者の裁定。出典は作業ノート（repo 外）の判断カード 2026-11-13「P3 の残り・夜の走行」§4「取消と同じく、もう一方の側が有効なら残す」。取消の再裁定 P3-UV2-D-LAND-CANCEL=B と Q-C9-IMPL-AMEND(9)(a) の形を解除に写す）",
-        "reason": "B では、片側だけの解除で、まだ有効なもう一方の警報が view から消え、次の報まで戻らない（p3-volcano-unit-002.json:219 が範囲の外として残した所）。A は取消で決めた形と解除の形を揃えるだけ。陸と海を別の記録に分ける案は、11-07 までの裁定（取消・事実の持ち方）が全部 1 つの記録を前提にしていて作り直しが大きいので採らない（判断カード §4）"
+        "reason": "B では、片側だけの解除で、まだ有効なもう一方の警報が view から消え、次の報まで戻らない（p3-volcano-unit-002.json:219 が範囲の外として残した所）。陸と海を別の記録に分ける案は、11-07 までの裁定（取消・事実の持ち方）が全部 1 つの記録を前提にしていて作り直しが大きいので採らない（判断カード §4）"
+      },
+      {
+        "id": "P3-VL-D-WITHDRAW-SIDE",
+        "kind": "作者",
+        "A": "取消でない inactive の区分（null か activeKind でない）の報で、採用の前に active だった記録が採用の後も active のまま残るなら、その報の側の pending だけを撤回し、その報の intent が置き換えるのもその側の pending だけにする（取消の :762 の鍵の写し。鍵は `${subject}\\n${側}`、VFVO50・VFVO51 は陸〔LAND_PART〕、VFSV は海〔MARINE_PART〕）。receiveAlert と applyEntries の撤回の行（:1053）に当てる。版の比べや verdict の印は足さない。解除の分岐で残した採用と、!takeKind の道（もう一方の側より古い解除）で残った採用の両方に当たる",
+        "B": "その subject の pending を両側とも置き換える（今の P3-C9-REPLACEMENT=A のまま）。VFVO51 の entry は、記録が active に残っても、その subject の pending を全部撤回する（:1053 の条件に、entry の区分が inactive を足す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未裁定（作者に聞く、2026-11-13 起草 r1）",
+        "ruling": "未裁定",
+        "reason": "場面（浅間山、報の間隔が寿命〔desktop 180 秒・sound 60 秒、volcano-unit.ts:45〕の内）: 13:02:00 に VFSV の周辺海域警戒、13:03:00 に VFVO50 のレベル 3 で warning が desktop・sound に pending（VFSV の pending はこれに置き換わる）、13:03:30 に VFSV の周辺海域警戒の解除。A ではレベル 3 の warning 2 本が残り、海上の解除の normal 2 本が足される。B では海上の解除の normal 2 本が、まだ有効な陸のレベル 3 の warning 2 本を置き換え、配送が遅れていればレベル 3 の警報は鳴らない。逆向き（陸の解除の前に海上の warning が pending）も同じ形。どちらでも、VFVO51 の引下げの後に前の VFVO50 の Lv3 の warning が鳴る件（P3-UV2-AC01 の族。海上より新しい引下げも、海上より古い〔!takeKind の〕引下げも）は閉じる。A を推すのは、取消の部分で作者が決めた形（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09）と同じで、まだ有効な側の通知を消さないため。違いが出るのは pending が配送される前だけ（ふつうは数秒で配送される）。作者に聞くのは、どちらも今と音が違う所があり、作者の裁定 P3-VL-D-KEEP=A からは一意に出ないため（起草レビューのヘルツ・Opus の指摘）"
       },
       {
         "id": "P3-VL-D-FACTS",
         "kind": "統合担当",
-        "A": "残す事実は取消の部分の形と同じにする。陸の解除: kind＝marineKind、level＝levelOf(その code)、volcanoName・coordinate・marineAreas・truncated は前の記録のまま、headline・municipalities・prevention・lastKind は消す（P3-UV2-D-LAND-FACTS=A の写し）。海上の解除: kind＝landKind、level＝levelOf(その code)、marineAreas は空、ほかは前の記録のまま（VFSV の取消の分岐の写し）。解除した側の区分（陸なら landKind、海なら marineKind）は取消と違って null にせず、alertBase のとおりその報の inactive の区分を持つ（inactive の区分は支えに数えない）。source・marineSource・identity・retainUntil は alertBase のまま",
-        "B": "解除の報が書く事実を当てる（陸の解除なら、その VFVO50 の headline・municipalities・prevention を記録に書き、kind だけを marineKind にする。今の『もう一方の側より古い解除』の道〔:380 の !takeKind〕と同じ形）",
+        "A": "解除の分岐で残す事実は取消の部分の形と同じにする。陸の解除: kind＝marineKind、level＝levelOf(その code)、volcanoName・coordinate・marineAreas・truncated は前の記録のまま、headline・municipalities・prevention・lastKind は消す（P3-UV2-D-LAND-FACTS=A の写し）。海上の解除: kind＝landKind、level＝levelOf(その code)、marineAreas は空、ほかは前の記録のまま（VFSV の取消の分岐の写し）。解除した側の区分（陸なら landKind、海なら marineKind）は取消と違って null にせず、alertBase のとおりその報の inactive の区分を持つ（inactive の区分は支えに数えない）。source・marineSource・identity・retainUntil は alertBase のまま",
+        "B": "解除の報が書く事実を当てる（陸の解除なら、その VFVO50 の headline・municipalities・prevention を記録に書き、kind だけを marineKind にする。今の !takeKind の道〔:380〜:385〕と同じ形）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-13 起草）",
         "ruling": "A（統合担当）",
-        "reason": "作者の裁定は『取消の分岐の判定を解除の分岐に写す』で、A はその写し。B で残る headline はレベル 1 への引下げの見出しで、残る記録の区分（海上の周辺海域警戒）とは別の警報を述べる。区分が陸の側から海上の側へ替わるときに前の区分の説明を消すのは、VFVO51 の区分の変化の決まり（I-U-V.alertSemantics (2)）と同じ向き。画面は A と B で変わらない: 記録の headline・municipalities・lastKind は reconstruction/src/terminal と display が読まない（端末は受けた報の本文から書き、入力の行は kind・landKind・volcanoName だけを読む、prompt-current.ts:65）。解除した側の区分を null にしないのは、その報が取り消されたのではなく本当に出た報で、P3-UV2-AC02 (1) の『landKind は VFVO50・VFVO51 の報だけが書く（取消で null）』のとおりだから。B を採るなら AC01 (1) と T01 の期待を書き換える"
-      },
-      {
-        "id": "P3-VL-D-WITHDRAW-SIDE",
-        "kind": "統合担当",
-        "A": "解除の分岐（:386）が、もう一方の側の支えで記録を active のまま残した採用に限って、その報の側の pending だけを撤回し、その報の intent が置き換えるのもその側の pending だけにする（取消の P3-UV2-D-WITHDRAW-SIDE=A と同じ鍵 `${subject}\\n${側}`。VFVO50・VFVO51 は陸〔LAND_PART〕、VFSV は海〔MARINE_PART〕）。receiveAlert と applyEntries の撤回の行（:1053）の両方に当てる。今もある『もう一方の側より古い解除』の道（:380 の !takeKind で記録が active に残る採用）には当てない。見分けは、その報の版がもう一方の側の版より新しいか（compareVersion が newer、:365・:367 の takeKind と同じ。receiveAlert には :771 に同じ比べがある）か、judgeAlert の採用の印のどちらでもよい",
-        "B": "今のまま（VFVO50・VFSV の解除の intent は同じ subject・channel の pending を両側とも置き換える。VFVO51 の entry は、記録が active に残ると撤回しない）",
-        "recommended": "A",
-        "provisional": "A",
-        "status": "確定（統合担当、2026-11-13 起草）",
-        "ruling": "A（統合担当）",
-        "reason": "B では (1) VFVO51 の entry の引下げの後に、前の VFVO50 の Lv3 の warning が pending に残って配送される。P3-UV2-AC01 で直した不具合が、海上が支える場合に戻る (2) 陸の解除の intent が、まだ有効な海上警報の未配送の warning を置き換えて消す。A は取消で作者が決めた形（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09）をそのまま写すので、作者の裁定 P3-VL-D-KEEP=A の『取消と同じく』の内にある。!takeKind の道に当てないのは、作者の裁定が解除の分岐だけを対象にしていて、その道の pending を変えるのは裁定の外の変更になるため（P3-UV2-D-UNSUPPORTED が B を採らなかったのと同じ理由。残存 (5)）。報の間隔が寿命（desktop 180 秒・sound 60 秒、volcano-unit.ts:45）より長いと pending はもう無く、A と B の差は出ない"
+        "reason": "作者の裁定は『取消の分岐の判定を解除の分岐に写す』で、A はその写し。B で残る headline はレベル 1 への引下げの見出しで、残る記録の区分（海上の周辺海域警戒）とは別の警報を述べる。区分が陸の側から海上の側へ替わるときに前の区分の説明を消すのは、VFVO51 の区分の変化の決まり（I-U-V.alertSemantics (2)）と同じ向き。画面と音は A と B で変わらない: 記録の headline・municipalities・lastKind は reconstruction/src/terminal と display が読まず（端末は受けた報の本文から書き、入力の行は kind・landKind・volcanoName だけを読む、prompt-current.ts:65）、通知の本文は volcanoName・Lv・区分の名だけ。解除した側の区分を null にしないのは、その報が取り消されたのではなく本当に出た報で、P3-UV2-AC02 (1) の『landKind は VFVO50・VFVO51 の報だけが書く（取消で null）』のとおりだから"
       },
       {
         "id": "P3-VL-D-MARK",
         "kind": "統合担当",
-        "A": "解除で残した記録は、解除した側の読めない所の印（陸は unreadable、海は marineUnreadable）を持たない。もう一方の側の印は保つ。取消の部分の採用と同じ形（alertUnreadable に own を null で渡し、VFVO51 の entry の持ち越しもしない）",
+        "A": "解除の分岐で残した記録は、解除した側の読めない所の印（陸は unreadable、海は marineUnreadable）を持たない。もう一方の側の印は保つ。取消の部分の採用と同じ形（alertUnreadable に own を null で渡し、VFVO51 の entry の持ち越しもしない）。!takeKind の道は今のまま",
         "B": "今の alertUnreadable のまま（陸の解除は解除の報の印を陸の印にする。VFVO51 の entry は前の陸の印から、持ち越す欄の part を引き継ぐ）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-13 起草）",
         "ruling": "A（統合担当）",
-        "reason": "B では、headline・municipalities を消した記録に、その欄の part を持つ印が残りうる。さらに VFVO51 の entry では、持ち越しの判定（:328 の next.kind === before.kind）が object の参照の一致で決まる。VFSV が区分を採った記録では kind と marineKind が同じ object なので、メモリの上では全欄の part を引き継ぐ。保存・復元の後は別の object になり、3 欄（volcanoName・marineAreas・coordinate）だけを引き継ぐ。同じ入力列で、再起動を挟むかどうかで記録が違ってしまう。A は取消の部分（own が null）と同じ形で、この差も消える。失うのは、残した前の記録の volcanoName・coordinate の part（取消の部分でも同じく失う）"
+        "reason": "B では、headline・municipalities を消した記録に、その欄の part を持つ印が残りうる。さらに VFVO51 の entry では、持ち越しの判定（:328 の next.kind === before.kind）が object の参照の一致で決まる。VFSV が区分を採った記録では kind と marineKind が同じ object なので、メモリの上では全欄の part を引き継ぎ、保存・復元の後は別の object になって 3 欄（volcanoName・marineAreas・coordinate）だけを引き継ぐ。同じ入力列で、再起動を挟むかどうかで記録が違ってしまう。A は取消の部分（own が null）と同じ形で、この差も消える。UM-AC01 (6)（p3-unreadable-mark.json:609、印は記録の中身と一緒に生まれ一緒に消える）との関係: 解除した側の事実（陸なら headline・municipalities・prevention・lastKind）が消えるので、その側の印も一緒に消える。UM-AC01 (5) の entry の持ち越しの例外は、解除で残す採用には当てない。失うのは、残した前の記録の volcanoName・coordinate の part（取消の部分でも同じく失う）"
       },
       {
         "id": "P3-VL-D-TRANSITION",
         "kind": "統合担当",
-        "A": "解除で残す記録への VFVO50・VFSV の通知の transition は、今の決まり（p3-volcano-unit.json:255 の『既存の active の新しい revision は updated』、volcano-unit.ts:775）のまま updated になる。level・title・body・channel・series は今と同じ",
+        "A": "解除の分岐で残す記録への VFVO50・VFSV の通知の transition は、今の決まり（p3-volcano-unit.json:255 の『既存の active の新しい revision は updated』、volcano-unit.ts:775）のまま updated になる",
         "B": "解除の報なので released を保つ（:775 に分岐を足す）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-13 起草）",
         "ruling": "A（統合担当）",
         "reason": "intent の transition が効くのは、intent の ID と、通知の照合の種類だけ。照合では released と updated は同じ『報』の種類にまとまる（P3-NOTICE-LEDGER-001 の AC01 (2)）。配送・端末・view は intent の transition を読まない（outcome の transition は記録の effective から作る、volcano-unit.ts の outcomeOf）。B は新しい決まりを足すことになる"
+      },
+      {
+        "id": "P3-VL-D-RENOTICE",
+        "kind": "統合担当",
+        "A": "解除の分岐が、もう一方の側の支えで記録を active のまま残した採用（区分が inactive の報で、:771 と同じ比べ〔もう一方の側の版と比べた compareVersion〕が newer）では、表示の変化（compared.changed）が無くても通知を作る（:773 の早い return を通さない）。level・本文は今の式（:777・:778）のまま",
+        "B": "表示が変わったときだけ通知する（:773 のまま）。片側を解除した後に、同じ内容の解除を新しい版で受け直すと鳴らない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草 r1）",
+        "ruling": "A（統合担当。今の音を保つ形）",
+        "reason": "今は、解除の分岐の採用は必ず通知が出る: 採用の前が active なら active から ended で表示が変わり、前が ended なら inactiveAdoption（:770・:771）になる。直した後は記録が active に残るので、同じ内容の解除を新しい版で受け直すと、残す事実が変わらず :773 で通知を作らない（起草レビューのヘルツ P2）。場面: 11:00:30 に陸のレベル 1 の引下げで海上の警報が残り、11:00:35 に同じ内容のレベル 1 の報を新しい版で受け直す。今は normal 2 本、B では鳴らない。A はこの音を今のまま保つ。版の比べは inactiveAdoption の :771 にもう有る比べを使い、新しい決まりではない。level の差が残るのは、陸が既に inactive の記録へ、Condition が引下げ・解除・継続のどれでもない inactive の区分（例: 21 の発表）を受け直すときだけ（今は inactiveAdoption の info、直した後は alertLevel の normal。実電文で起こるかは確かめていない、残存 (5)）"
+      },
+      {
+        "id": "P3-VL-D-LATE",
+        "kind": "統合担当",
+        "A": "!takeKind の道（:380〜:385、報の版がもう一方の側の版と同じか古い）でも、報の区分が inactive（null か activeKind でない）で、もう一方の側の区分も active でない（null か inactive）なら、採用の前の記録が active でも ended にする（:382 の before == null の条件に足す。VFVO51 の entry の道も同じ）",
+        "B": "今の !takeKind のまま（記録は active のまま残り、kind は前の記録の区分）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草 r1）",
+        "ruling": "A（統合担当）",
+        "reason": "B では、両側とも解除されたのに警報が終わらない列ができる（起草レビューのヘルツ P1、AC06）。復元でも消えない（codec はkind と両側の区分の整合を見ない、volcano-unit.ts:1480・:1511）、active の警報は期限でも消えない（:104）。直す前のコードでは、同じ列は先に着いた解除で ended になっていた。古い版の解除で状態を変える新しい決まりではないかの確かめ: (1) 取消の分岐（:371〜:379）は takeKind（:367）より前にあり、版の比べをせずに、もう一方の側の今の区分で支えを決める。A は同じ判定（支えが無ければ終わる）を !takeKind の解除に当てるだけ (2) A の結果は着く順によらない: 陸の解除と海上の解除が両方着けば、どちらの順でも ended（新しい側が後に着けば解除の分岐、古い側が後に着けば A） (3) !takeKind の今の前例（古い報は kind を替えず自分の側の欄だけを当てる）は、もう一方の側が active なら今のまま。A が効くのは、もう一方の側も inactive のときだけで、そのとき kind を替えずに残すと、どちらの側も支えない区分が表示に残る"
       }
     ],
     "questionResolutions": [
       {
         "id": "Q-VL-SOURCE",
         "status": "closed",
-        "source": "作業ノート（repo 外）の判断カード 2026-11-13「P3 の残り・夜の走行」§4 と、起草（2026-11-13、HEAD 4e11b257 の木を読んだ）",
-        "closed": "解除の分岐（volcano-unit.ts:386〜:391）は、もう一方の側が active かを見ずに、active の記録を ended にする。I-U-V.alertSemantics (3)（p3-volcano-unit.json:341）どおりの動きで、p3-volcano-unit-002.json:219 が範囲の外として残した。分岐に入る道は 3 つある: VFVO50 と VFSV（receiveAlert）、VFVO51 の火山 entry（applyEntries から judgeAlert、entry 付き）。条件は区分が null か activeKind でないことで、解除・引下げだけでなく、レベル 1 や 21（活火山であることに留意）の継続も入る。定時の VFVO51 の entry が、海上の警報だけを持つ記録（海底火山など）に 21 の継続を書いてくると、今はそれだけで警報が ended になる（起こりうるかは実電文で確かめていない）。takeKind（:367）が真のとき、つまり解除の報がもう一方の側の版より新しい（もう一方の側が無いときを含む）ときだけ入る。inactive の区分では sameKind（:366）が偽なので、同じ版なら !takeKind に入る。同じ版か古ければ !takeKind（:380）に入り、今も記録は active のまま残って、陸の事実は解除の報で書かれる（本契約の範囲の外、AC04 (2)）。取消の分岐は、海上の取消なら landKind（:374〜:376）、陸の取消なら marineSource がある記録の marineKind（:379）で支えを見る"
+        "source": "作業ノート（repo 外）の判断カード 2026-11-13「P3 の残り・夜の走行」§4 と、起草（2026-11-13、HEAD 4e11b257 の木を読んだ。r1 は 61265374）",
+        "closed": "解除の分岐（volcano-unit.ts:386〜:391）は、もう一方の側が active かを見ずに、active の記録を ended にする。I-U-V.alertSemantics (3)（p3-volcano-unit.json:341）どおりの動きで、p3-volcano-unit-002.json:219 が範囲の外として残した。分岐に入る道は 3 つある: VFVO50 と VFSV（receiveAlert）、VFVO51 の火山 entry（applyEntries から judgeAlert、entry 付き）。条件は区分が null か activeKind でないことで、解除・引下げだけでなく、レベル 1 や 21（活火山であることに留意）の継続も入る。定時の VFVO51 の entry が、海上の警報だけを持つ記録（海底火山など）に 21 の継続を書いてくると、今はそれだけで警報が ended になる（起こりうるかは実電文で確かめていない）。takeKind（:367）が真のとき、つまり解除の報がもう一方の側の版より新しい（もう一方の側が無いときを含む）ときだけ入る。inactive の区分では sameKind（:366）が偽なので、同じ版なら !takeKind に入る。同じ版か古ければ !takeKind（:380）に入り、今も記録は active のまま残って、陸の事実は解除の報で書かれる。火山の報の新旧は Control/DateTime だけで比べる（version.ts:6 の表に火山の種類は無い、:36）。取消の分岐は、海上の取消なら landKind（:374〜:376）、陸の取消なら marineSource がある記録の marineKind（:379）で支えを見る"
       },
       {
         "id": "Q-VL-NOTICE",
         "status": "closed",
-        "source": "起草（2026-11-13、receiveAlert の :768〜:782 と alertLevel を読んで、直す前と後の通知を組んだ）",
-        "closed": "陸の解除（VFVO50 のレベル 1 引下げ）: level は alertLevel(kind, before) で、Condition が引下げ・解除なので直す前も後も normal（:788）。本文は volcanoName・Lv（kind の code 11 から Lv1）・kind の名前で、volcanoName は残す記録の値（前の記録と同じ）なので変わらない。通知が出るかは noticeChange の changed で決まる。直した後は headline・municipalities・lastKind が消える（kind が陸の区分から替わる場面では kind も変わる）ので changed は真で、通知は出る。海上の解除（VFSV）: level は marineCodes に 31 があれば warning、無ければ normal（:777）で、直す前と同じ。kind が landKind に替わるので changed は真。どちらも変わるのは transition（released → updated、P3-VL-D-TRANSITION）だけで、intent の ID がこれに伴って変わる。VFVO51 の entry は警報の subject に intent を作らない（解説の subject だけ）ので、解説の info は今と同じ。payload（level・title・body）と channel が同じなので、配送での扱いも今と同じ"
+        "source": "起草（2026-11-13、receiveAlert の :768〜:782 と alertLevel を読んで、直す前と後の通知を組んだ。r1 でヘルツ P2 を受けて受け直しの場面を足した）",
+        "closed": "陸の解除（VFVO50 のレベル 1 引下げ）: level は alertLevel(kind, before) で、Condition が引下げ・解除なので直す前も後も normal（:788）。本文は volcanoName・Lv（kind の code 11 から Lv1）・kind の名前で、volcanoName は残す記録の値（前の記録と同じ）なので変わらない。海上の解除（VFSV）: level は marineCodes に 31 があれば warning、無ければ normal（:777）で、直す前と同じ。どちらも transition は released から updated（P3-VL-D-TRANSITION）。通知が出るかは、直す前は解除の分岐の採用で必ず出ていた（表示が active から ended に変わるか、inactiveAdoption）。直した後は記録が active に残るので、表示の変化が無い採用（同じ内容の解除の受け直し）では :773 で出なくなる。P3-VL-D-RENOTICE=A でこれを今のまま出す。AC06 の遅れて着いた解除では、直す前は先の解除で ended になっていて後の報は revisionOnly で鳴らず、直した後は先の解除が updated の normal、後の報が active から ended の released の normal になる（1 回多く鳴る。両側の解除が別々に鳴る形）。VFVO51 の entry は警報の subject に intent を作らない（解説の subject だけ）ので、解説の info は今と同じ"
       },
       {
         "id": "Q-VL-ANCHORS",
         "status": "closed",
         "source": "起草（2026-11-13、git grep -n \"volcano-unit.ts:[0-9]\" -- reconstruction と、«» の付いた参照の行ごとの数え）",
-        "closed": "volcano-unit.ts の行を引く参照は 127 行・143 件ある（20 file。p3-persist-premises.md の地の文 7 件を含む）。«» の付いた参照は 94 件で、74 行・16 契約にまたがる。387 行より後を引く «» は 58 件あり、行を足すとずれる。本契約が中身を変えうる :355・:370・:386〜:391・:768〜:776・:1052・:1053 を引く «» は、ほかの契約に無い。近くで引かれている行は次のとおりで、どれも中身を変えない: :369〔p3-authority-evidence.json:291〕、:371・:374・:375〔p3-volcano-unit-002.json:244〜:246〕、:379〔p3-authority-evidence.json:294〕、:408〔p3-revision-order.json:248〕、:747〔p3-restore-dropped-text.json:351〕、:748・:753〔p3-final-adoption.json:307・:308、p3-volcano-unit-002.json:247〕、:757〔p3-volcano-unit-002.json:248〕、:1043〔p3-operation-capacity.json:286、p3-volcano-unit-002.json:233〕、:1051・:1054〔p3-volcano-unit-002.json:234・:235〕。行の数を変えなければ、ほかの契約の «» はずれない。volcano-unit.test.ts は末尾に足すだけ。改訂する p3-volcano-unit.json:154・:339 と p3-volcano-unit-002.json:219 を «» で引く参照は無い（:154 は p3-volcano-unit-002.json:95 の地の文だけ）。p3-volcano-unit.json:341（alertSemantics）は sequences.json の 2 か所と p3-authority-evidence.json:299 が «» で引くので、改訂しない（変えると sequences の digest が変わり、全契約の sequencesSha256 が外れる）"
+        "closed": "volcano-unit.ts の行を引く参照は 127 行・143 件ある（20 file。p3-persist-premises.md の地の文 7 件を含む）。«» の付いた参照は 94 件で、74 行・16 契約にまたがる。387 行より後を引く «» は 58 件あり、行を足すとずれる。本契約が中身を変えうる :355・:370・:382・:386〜:391・:768〜:776・:1052・:1053 を引く «» は、ほかの契約に無い。近くで引かれている行は次のとおりで、どれも中身を変えない: :369〔p3-authority-evidence.json:291〕、:371・:374・:375〔p3-volcano-unit-002.json:244〜:246〕、:379〔p3-authority-evidence.json:294〕、:408〔p3-revision-order.json:248〕、:747〔p3-restore-dropped-text.json:351〕、:748・:753〔p3-final-adoption.json:307・:308、p3-volcano-unit-002.json:247〕、:757〔p3-volcano-unit-002.json:248〕、:1043〔p3-operation-capacity.json:286、p3-volcano-unit-002.json:233〕、:1051・:1054〔p3-volcano-unit-002.json:234・:235〕。行の数を変えなければ、ほかの契約の «» はずれない。volcano-unit.test.ts は末尾に足すだけ。改訂する p3-volcano-unit.json:26・:154・:339・:995 と p3-volcano-unit-002.json:219 を «» で引くほかの契約は無い（:154 は p3-volcano-unit-002.json:95 の地の文だけ。:26 は同じ字の ruling の行が 4 つあり anchor が一意でないので、どの契約も引けていない）。p3-volcano-unit.json:341（alertSemantics）は sequences.json の 2 か所と p3-authority-evidence.json:299 が «» で引くので、改訂しない（変えると sequences の digest が変わり、全契約の sequencesSha256 が外れる）"
       },
       {
         "id": "Q-VL-TESTS",
         "status": "closed",
-        "source": "起草（2026-11-13、reconstruction/test の解除・引下げの試験を grep して、どの分岐を通るかを読んだ）",
-        "closed": "解除の分岐を通る既存の試験は、どれも、もう一方の側が支えない記録への解除だった: volcano-unit.test.ts:148（VFVO50 だけの記録へのレベル 1）、:662（空の state へのレベル 1）、:684・:695・:1316（空の state への VFVO50 の解除）、:1339（P3-UV2-T01、VFVO50 だけの記録への VFVO51 の引下げ）、volcano-host.test.ts:356（記録の無い火山）。volcano-runtime.test.ts の P3-C9-T10 の VFVO51（13:56）は浅間山を解除しない（activeCount 1 → 2）。期待が変わる既存の試験は 0 の見込み。sequences.json には VFSV の列が無く、O07 は U-V の噴火の列で、本契約で期待は変わらない。片側だけの解除の実電文は、repo の fixture と気象庁のサンプルに無い（VFVO51 は 3 本とも『継続』、判断カード §4）。VFSV の解除は 46_01_01 を変えた合成で書く"
+        "source": "起草（2026-11-13、reconstruction/test の解除・引下げの試験を grep して、どの分岐を通るかを読んだ。r1 で版の時刻の作り方を確かめた）",
+        "closed": "解除の分岐を通る既存の試験は、どれも、もう一方の側が支えない記録への解除だった: volcano-unit.test.ts:148（VFVO50 だけの記録へのレベル 1）、:662（空の state へのレベル 1）、:684・:695・:1316（空の state への VFVO50 の解除）、:1339（P3-UV2-T01、VFVO50 だけの記録への VFVO51 の引下げ）、volcano-host.test.ts:356（記録の無い火山）。volcano-runtime.test.ts の P3-C9-T10 の VFVO51（13:56）は浅間山を解除しない（activeCount 1 → 2）。期待が変わる既存の試験は 0 の見込み。sequences.json には VFSV の列が無く、O07 は U-V の噴火の列で、本契約で期待は変わらない。版の時刻: 火山の報の新旧は Control/DateTime だけで比べる（version.ts:6・:36）。retime は ReportDateTime だけを替え、followHead（volcano-fixture.ts:44）が Control/DateTime を元の電文のずれごと動かす。45_01_01 は Control が ReportDateTime の 25 秒後、46_01_01 は 22 秒後なので、13:03:00 の陸と 13:03:01 の海を retime だけで作ると、陸の Control は 13:03:25、海は 13:03:23 になり、海が古い版として !takeKind に入る（起草レビューのヘルツ P2）。試験は Control/DateTime を表の時刻に明示する。片側だけの解除の実電文は、repo の fixture と気象庁のサンプルに無い（VFVO51 は 3 本とも『継続』、判断カード §4）。VFSV の解除は 46_01_01 を変えた合成で書く（Body の Kind 35・Condition 解除・海上の Code 33 で解除の分岐に入ることは volcano.ts:327〜:343 を読んで確かめた、ヘルツ）"
       }
     ],
     "operationContract": {
@@ -97,7 +119,7 @@
   "contract": {
     "contractId": "P3-VOLCANO-LIFT-001",
     "mode": "implementation",
-    "objective": "噴火警報の陸の側（VFVO50・VFVO51 の火山 entry）か海上の側（VFSV）の片側だけが解除・引下げ（取消でない inactive の区分）になったとき、もう一方の側の区分が active を支えるなら、警報を active のまま残す（2026-11-13 朝の作者の裁定 A、P3-VL-D-KEEP）。取消の分岐の判定（P3-UV2-D-LAND-CANCEL=B・Q-C9-IMPL-AMEND(9)(a)）を volcano-unit.ts の解除の分岐に写す。残す事実・pending を撤回する側・読めない所の印も、取消の部分と同じ形にする。通知の level・本文・channel は今と同じ。保存の形と版は変えない",
+    "objective": "噴火警報の陸の側（VFVO50・VFVO51 の火山 entry）か海上の側（VFSV）の片側だけが解除・引下げ（取消でない inactive の区分）になったとき、もう一方の側の区分が active を支えるなら、警報を active のまま残す（2026-11-13 朝の作者の裁定 A、P3-VL-D-KEEP）。取消の分岐の判定（P3-UV2-D-LAND-CANCEL=B・Q-C9-IMPL-AMEND(9)(a)）を volcano-unit.ts の解除の分岐に写す。残す事実・pending を撤回する側・読めない所の印も、取消の部分と同じ形にする。両側の支えが消えた採用は、着く順によらず ended にする（P3-VL-D-LATE）。通知の有無と level・本文は今と同じに保つ（P3-VL-D-RENOTICE）。保存の形と版は変えない",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -109,6 +131,7 @@
       "reconstruction/contracts/p3-notice-ledger.json",
       "reconstruction/contracts/p3-volcano-raise.json",
       "reconstruction/src/units/volcano/volcano-unit.ts",
+      "reconstruction/src/contracts-revision/version.ts",
       "reconstruction/src/terminal/prompt-current.ts",
       "reconstruction/test/volcano-unit/**",
       "reconstruction/test/unreadable-mark/unreadable-mark.test.ts",
@@ -118,8 +141,8 @@
       "test/fixtures/44_02_01_200522_VFVO51.xml"
     ],
     "allowedPaths": [
-      "reconstruction/src/units/volcano/volcano-unit.ts（judgeAlert の解除の分岐〔:386〜:391〕、:370 の宣言、settle の alertUnreadable の呼び出し〔:355〕、receiveAlert の :768〜:776 のどれかの行の中〔解除の側の鍵〕、applyEntries の撤回の行〔:1053〕とその上のコメント〔:1052〕、採用の印を verdict に載せるなら AlertVerdict の型〔:293〕の行の中だけ。行の数を変えない。«» で引かれた :369・:371・:374・:375・:379・:408・:747・:748・:753・:757・:1043・:1051・:1054 の中身は変えない〔Q-VL-ANCHORS〕）",
-      "reconstruction/test/volcano-unit/volcano-unit.test.ts（末尾に describe を 1 つ足し、試験 3 本を置く。既存の行は変えない）"
+      "reconstruction/src/units/volcano/volcano-unit.ts（judgeAlert の !takeKind の最初の行〔:382〕と解除の分岐〔:386〜:391〕、:370 の宣言、settle の alertUnreadable の呼び出し〔:355〕、receiveAlert の :768〜:776 の行の中〔解除の側の鍵と通知の早い return〕、applyEntries の撤回の行〔:1053〕とその上のコメント〔:1052〕だけ。行の数を変えない。«» で引かれた :369・:371・:374・:375・:379・:408・:747・:748・:753・:757・:1043・:1051・:1054 の中身は変えない〔Q-VL-ANCHORS〕）",
+      "reconstruction/test/volcano-unit/volcano-unit.test.ts（末尾に describe を 1 つ足し、試験 4 本を置く。既存の行は変えない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -172,8 +195,8 @@
     "resourceLimits": [
       {
         "id": "P3-VL-RES-01",
-        "target": "警報の報 1 回の解除の判定（judgeAlert の解除の分岐、receiveAlert と applyEntries の撤回の鍵）",
-        "limit": "記録 1 件につき、もう一方の側の区分を 1 回読み、鍵を 1 つ足すだけ。全件の走査を足さない（VFVO51 は entry ごとに O(1)）",
+        "target": "警報の報 1 回の解除の判定（judgeAlert の !takeKind と解除の分岐、receiveAlert と applyEntries の撤回の鍵、通知の早い return）",
+        "limit": "記録 1 件につき、もう一方の側の区分を 1 回読み、鍵を 1 つ足し、版の比べを 1 回するだけ。全件の走査を足さない（VFVO51 は entry ごとに O(1)）",
         "unit": "操作",
         "scope": "VFVO50・VFSV・VFVO51 の全国の報（entry 128）を含む",
         "source": "AGENTS.md の受信経路の計算量、I-U-V.computation"
@@ -191,26 +214,30 @@
     ],
     "outOfScope": [
       "陸と海を別々の記録に分けること（判断カード §4 の『仕組みを消す案』。推奨にしない）",
-      "!takeKind の道（もう一方の側より古い解除、:380〜:385）の事実の当て方。今どおり解除の報の headline・municipalities を書き、その intent は両側の pending を置き換える（P3-VL-D-WITHDRAW-SIDE=A は当てない）",
+      "!takeKind の道（もう一方の側と同じ版か古い解除、:380〜:385）の事実の当て方。もう一方の側が active なら、今どおり解除の報の headline・municipalities を書き、kind を替えない。pending の鍵（P3-VL-D-WITHDRAW-SIDE）と、両側の支えが消えたときの ended（P3-VL-D-LATE）は当てる",
       "取消の分岐（:371〜:379）と取消の通知の文面・level",
       "VFVO51 の火山 entry が active のまま区分を下げたとき（Lv3 から Lv2 など）の前の pending（p3-volcano-unit-002.json の outOfScope のまま）",
       "H27（raiseLevel）・入力の行（prompt-current.ts）・view の形のコード。読み方は変えず、残る記録が今の規則で読まれる（AC04 (4)）",
+      "p3-restore-dropped-text.json:359 の (4)（解除で記録の事実ごと消える）と p3-unreadable-mark.json:609 の UM-AC01 (5)(6)（陸と海の印の置き換えと持ち越し）の文は、記録が active に残る解除を書いていない。解除で残す記録の事実と印は本契約の P3-VL-D-FACTS・P3-VL-D-MARK が決め、両契約の文は改訂しない",
       "保存の版・旧い保存の移行（版を上げない）",
       "旧築（src/）と spec 本体の編集"
     ],
     "acceptanceChecks": [
       {
         "id": "P3-VL-AC01",
-        "requirement": "陸の側の解除（VFVO50）で、海上が支えるなら残す（P3-VL-D-KEEP=A）: (1) VFVO50 の報が解除の分岐（:386、区分が null か activeKind でない。解除・引下げ・レベル 1 の継続など）に入り、採用の前の記録が active で、marineSource があり、marineKind が null でなく activeKind なら、警報を active のまま残す。残す事実は P3-VL-D-FACTS=A（kind＝marineKind、level＝levelOf、headline・municipalities・prevention・lastKind は消す、landKind は解除の報の区分）。陸の印は持たない（P3-VL-D-MARK=A） (2) 場面: 桜島（506）。10:00 に VFVO50 でレベル 3（引上げ）が出て warning。10:00:01 に 46_01_01_170103_VFSVii.xml（周辺海域警戒 36・海上警報 31）が着き、kind は 36、marineKind は 36、landKind は 13 になる。15:00 に VFVO50 でレベル 1 への引下げ（45_03_01_200731_VFVO50.xml の形）が着く。今は警報全体が ended になり、view の alerts から海上の警報も消え、次の VFSV まで戻らない。直した後は active のままで、kind 36・level null・landKind（11、引下げ）・marineKind 36 になる。volcanoName・coordinate・marineAreas は残り、source は 15:00 の VFVO50 に進む。view の active の数は 1 のまま (3) 通知: 15:00 の報の通知は、今と同じく level normal の desktop・sound の 2 本で、本文も同じ。transition は released から updated になる（P3-VL-D-TRANSITION=A、Q-VL-NOTICE） (4) pending（P3-VL-D-WITHDRAW-SIDE=A、解除の分岐が残した採用だけ）: 報の間隔が寿命の内の場面（10:00:00・10:00:01・10:00:30）では、10:00:01 の VFSV の warning 2 本が残り、VFVO50 の normal 2 本が足される。今は VFVO50 の通知が両側の pending を置き換え、まだ有効な海上警報の warning が消える (5) 保存・復元を挟んでも同じ記録・同じ pending になる",
+        "requirement": "陸の側の解除（VFVO50）で、海上が支えるなら残す（P3-VL-D-KEEP=A）: (1) VFVO50 の報が解除の分岐（:386、区分が null か activeKind でない。解除・引下げ・レベル 1 の継続など）に入り、採用の前の記録が active で、marineSource があり、marineKind が null でなく activeKind なら、警報を active のまま残す。残す事実は P3-VL-D-FACTS=A（kind＝marineKind、level＝levelOf、headline・municipalities・prevention・lastKind は消す、landKind は解除の報の区分）。陸の印は持たない（P3-VL-D-MARK=A） (2) 場面: 桜島（506）。10:00 に VFVO50 でレベル 3（引上げ）が出て warning。10:00:01 に 46_01_01_170103_VFSVii.xml（周辺海域警戒 36・海上警報 31）が着き、Control/DateTime が新しいので kind を採り（:365・:367）、状態は active／kind 36／landKind 13／marineKind 36。15:00 に VFVO50 でレベル 1 への引下げ（45_03_01_200731_VFVO50.xml の形）が着く。海上の版より新しいので解除の分岐に入る。今は警報全体が ended になり（:391）、view の alerts から海上の警報も消え、次の VFSV まで戻らない。直した後は active／kind 36／level null／landKind（11、引下げ）／marineKind 36 で、volcanoName・coordinate・marineAreas は残り、source は 15:00 の VFVO50 に進む。view の active の数は 1 のまま（:1379） (3) 通知: 15:00 の報の通知は、今と同じく level normal の desktop・sound の 2 本で、本文も同じ。transition は released から updated になる（P3-VL-D-TRANSITION=A）。続けて 15:05 に同じ内容のレベル 1 の報を新しい版で受け直しても、今と同じく normal 2 本を作る（表示は変わらないが :773 で止めない、P3-VL-D-RENOTICE=A） (4) pending（P3-VL-D-WITHDRAW-SIDE の推奨 A）: 報の間隔が寿命の内の場面（10:00:00・10:00:01・10:00:30）では、10:00:01 の VFSV の warning 2 本が残り、VFVO50 の normal 2 本が足される。今は VFVO50 の通知が両側の pending を置き換え、まだ有効な海上警報の warning が消える (5) 保存・復元を挟んでも同じ記録・同じ pending になる",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:386 «b0ab14ff34538bdf»",
           "reconstruction/src/units/volcano/volcano-unit.ts:391 «80af27175267cb74»",
           "reconstruction/src/units/volcano/volcano-unit.ts:379 «74907245797fe959»",
           "reconstruction/src/units/volcano/volcano-unit.ts:300 «3f50b8bf97db587b»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:365 «15146190816c63b5»",
           "reconstruction/src/units/volcano/volcano-unit.ts:366 «f0de8264271b265f»",
           "reconstruction/src/units/volcano/volcano-unit.ts:367 «644bad59adbe4964»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:771 «d7aac3aff1b13945»",
           "reconstruction/src/units/volcano/volcano-unit.ts:762 «b61456ccdd964e2c»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:770 «b35a3db7388607eb»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:771 «d7aac3aff1b13945»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:773 «bf5d024209d0270a»",
           "reconstruction/src/units/volcano/volcano-unit.ts:775 «eb52a1cd1b2740c8»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1073 «d63cd8a83e2af9c9»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1379 «41c43b83130ab3be»",
@@ -222,7 +249,7 @@
       },
       {
         "id": "P3-VL-AC02",
-        "requirement": "海上の側の解除（VFSV）で、陸が支えるなら残す（P3-VL-D-KEEP=A）: (1) VFSV の報が解除の分岐（:386）に入り、採用の前の記録が active で、landKind が null でなく activeKind なら、警報を active のまま残す。kind＝landKind、level＝levelOf、marineAreas は空、ほかの事実は前の記録のまま。marineKind は解除の報の区分（P3-VL-D-FACTS=A）。海上の印は持たない（P3-VL-D-MARK=A） (2) 場面（逆向き）: 10:00 に VFVO50 でレベル 3、10:00:01 に VFSV で周辺海域警戒（kind は 36）、15:00 に VFSV で周辺海域警戒の解除（区分が 35「活火山であることに留意（海底火山）」に戻る。46_01_01 の LastKind の値）。今は警報全体が ended になり、陸のレベル 3 が view から消え、次の VFVO51 で戻る。直した後は active のままで、kind 13・level 3 に戻る (3) 通知: level は今と同じ（marineCodes に 31 が無ければ normal、:777）。series は marine で、transition は updated になる。pending は VFSV の側だけを撤回・置換し、陸の pending は残す（P3-VL-D-WITHDRAW-SIDE=A） (4) 入力の行（prompt-current.ts:65 は kind と landKind を読む）: レベル 5（15）の火山で同じ順に来ると、今は ended で入力の行の「レベル５（避難）」が消える。直した後は kind 15 で行が残る (5) 保存・復元を挟んでも同じ",
+        "requirement": "海上の側の解除（VFSV）で、陸が支えるなら残す（P3-VL-D-KEEP=A）: (1) VFSV の報が解除の分岐（:386）に入り、採用の前の記録が active で、landKind が null でなく activeKind なら、警報を active のまま残す。kind＝landKind、level＝levelOf、marineAreas は空、ほかの事実は前の記録のまま。marineKind は解除の報の区分（P3-VL-D-FACTS=A）。海上の印は持たない（P3-VL-D-MARK=A） (2) 場面（逆向き）: 10:00 に VFVO50 でレベル 3、10:00:01 に VFSV で周辺海域警戒（kind は 36）、15:00 に VFSV で周辺海域警戒の解除（区分が 35「活火山であることに留意（海底火山）」に戻る。46_01_01 の LastKind の値）。今は警報全体が ended になり、陸のレベル 3 が view から消え、次の VFVO51 で戻る。直した後は active のままで、kind 13・level 3 に戻る (3) 通知: level は今と同じ（marineCodes に 31 が無ければ normal、:777）。series は marine で、transition は updated になる。pending は VFSV の側だけを撤回・置換し、陸の pending は残す（P3-VL-D-WITHDRAW-SIDE の推奨 A。13:02:00 の VFSV → 13:03:00 の VFVO50 のレベル 3 → 13:03:30 の VFSV の解除の順なら、VFVO50 の warning 2 本と VFSV の normal 2 本が pending） (4) 入力の行（prompt-current.ts:65 は kind と landKind を読む）: レベル 5（15）の火山で同じ順に来ると、今は ended で入力の行の「レベル５（避難）」が消える。直した後は kind 15 で行が残る (5) 保存・復元を挟んでも同じ",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:371 «10f908b8191cbb83»",
           "reconstruction/src/units/volcano/volcano-unit.ts:375 «dc341d2e69ab640f»",
@@ -236,11 +263,12 @@
       },
       {
         "id": "P3-VL-AC03",
-        "requirement": "VFVO51 の火山 entry の引下げで、海上が支えるなら残す（P3-VL-D-KEEP=A）: (1) 解除の分岐に入る VFVO51 の火山 entry（解除・引下げのほか、レベル 1 や 21 の継続）は、陸の側の解除として AC01 (1) と同じに扱う（事実・landKind・印も同じ）。持ち越しの判定（:328）による前の陸の印の引き継ぎはしない（P3-VL-D-MARK=A） (2) applyEntries の撤回: 採用の前に active だった記録を、解除の分岐が海上の支えで active のまま残したときは、その subject の陸の pending（VFVO50・VFVO51）だけを撤回する（鍵 `${subject}\\n${LAND_PART}`、P3-VL-D-WITHDRAW-SIDE=A）。active でない記録になるとき・期限を過ぎた採用のときの全部の撤回（P3-UV2-AC01・P3-FINAL-AC04）は今のまま (3) 場面: 浅間山（306）。13:02 に VFSV（周辺海域警戒 36）、13:03 に VFVO50 でレベル 3（kind は 13 に替わり、warning 2 本が pending）、13:03:30 に VFVO51 の 306 の entry がレベル 1 の引下げで着く。今は警報全体が ended になり、pending は全部外れる。直した後は active のまま kind 36 になる。13:03 の VFVO50 の warning 2 本は外れ、残るのは VFVO51 の解説の info 2 本だけになる。撤回の行を直さないと、warning 2 本が残り、引下げの後に Lv3 の音と通知が出る（P3-UV2-AC01 の不具合が、海上が支える場合に戻る） (4) 同じ形で、定時の VFVO51 の entry が海上の支える記録にレベル 1 や 21 の継続を書いてきても、今は ended、直した後は active のまま (5) 13:03 の VFVO50 の火山名が読めず陸の印がある記録でも、13:03:30 の後の記録に陸の印は無い。保存・復元を挟んでも同じ記録になる",
+        "requirement": "VFVO51 の火山 entry の引下げで、海上が支えるなら残す（P3-VL-D-KEEP=A）: (1) 解除の分岐に入る VFVO51 の火山 entry（解除・引下げのほか、レベル 1 や 21 の継続）は、陸の側の解除として AC01 (1) と同じに扱う（事実・landKind・印も同じ）。持ち越しの判定（:328）による前の陸の印の引き継ぎはしない（P3-VL-D-MARK=A） (2) applyEntries の撤回: 採用の前に active だった記録が、inactive の区分の entry の採用の後も active のまま残るときは、その subject の陸の pending（VFVO50・VFVO51）だけを撤回する（鍵 `${subject}\\n${LAND_PART}`、P3-VL-D-WITHDRAW-SIDE の推奨 A。B なら全部）。active でない記録になるとき・期限を過ぎた採用のときの全部の撤回（P3-UV2-AC01・P3-FINAL-AC04）は今のまま (3) 場面（海上より新しい引下げ）: 浅間山（306）。13:02 に VFSV（周辺海域警戒 36）、13:03 に VFVO50 でレベル 3（Control が新しいので kind は 13 に替わり、warning 2 本が pending、VFSV の pending はそれに置き換わる）、13:03:30 に VFVO51 の 306 の entry がレベル 1 の引下げで着く。今は警報全体が ended になり、pending は全部外れる。直した後は active／kind 36／landKind（11、引下げ）／marineKind 36 で、13:03 の VFVO50 の warning 2 本は外れ、残るのは VFVO51 の解説の info 2 本だけになる (4) 場面（海上より古い引下げ、!takeKind）: 13:03:40 の VFSV が先に着き、続いて 13:03:00 の VFVO50 のレベル 3 が着く（kind は 36 のまま、陸の事実と warning 2 本）。13:03:30 の VFVO51 の引下げは、陸の版より新しく海上の版より古いので !takeKind（:380）に入り、記録は active のまま。今は撤回が無く、引下げの後にレベル 3 の warning 2 本が鳴る。直した後は (2) の鍵で外れる (5) 定時の VFVO51 の entry が海上の支える記録にレベル 1 や 21 の継続を書いてきても、今は ended、直した後は active のまま (6) 13:03 の VFVO50 の火山名が読めず陸の印がある記録でも、(3) の後の記録に陸の印は無い。保存・復元を挟んでも同じ記録になる",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:1053 «e0ac489c40d04824»",
           "reconstruction/src/units/volcano/volcano-unit.ts:328 «9674a4c353c609d6»",
           "reconstruction/src/units/volcano/volcano-unit.ts:355 «55ef9ff7b7003f19»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:380 «92b1667a4cdddaab»",
           "reconstruction/src/units/volcano/volcano-unit.ts:388 «860b4387eb4ac3f1»",
           "reconstruction/test/volcano-unit/volcano-unit.test.ts:1339 «ad79b9ff4c4352ba»",
           "reconstruction/contracts/p3-volcano-unit.json:154 «a3eef9be6bd6a842»"
@@ -248,7 +276,7 @@
       },
       {
         "id": "P3-VL-AC04",
-        "requirement": "変えないこと: (1) もう一方の側が支えないとき（記録にもう一方の側が無い、その区分が null か inactive、採用の前の記録が active でない）は今どおり。active の記録は ended、inactive の記録は revisionOnly、記録の無い火山は inactiveAdoption で、通知の released・normal も今のまま（volcano-unit.test.ts:148 からの期待）。両側とも解除されれば ended になる（陸の解除で残した記録へ VFSV の解除が来れば、landKind が inactive なので ended） (2) 取消の分岐（:371〜:379）、!takeKind の道の事実の当て方（:380〜:385）、VFVO51 の同じ区分の継続（:361）、active の区分の道は変えない。!takeKind の道の pending の扱い（解除の報の intent が両側の pending を置き換える）も今のまま (3) 保存の形と版（p3-volcano-unit-v8）、codec、容量の式（GENERATION_LIMIT）は変えない。残す記録は今の active の記録の形（kind が activeKind で、level が levelOf(kind.code)）なので、decode を通る (4) H27（raiseLevel、:1704）のコードは変えない。陸の解除で残した記録は kind で読まれる（海上の区分 36 なら段 2）。今の ended（段 1）より高いので、取り直しの中で同じ火山がレベル 2 になっても引上げの info は出ない（段 2 から 2）。レベル 3 以上なら今どおり出る (5) 既存の試験の期待は変えない（変わる見込みは 0、Q-VL-TESTS）",
+        "requirement": "変えないこと: (1) もう一方の側が支えないとき（記録にもう一方の側が無い、その区分が null か inactive、採用の前の記録が active でない）は今どおり。active の記録は ended、inactive の記録は revisionOnly、記録の無い火山は inactiveAdoption で、通知の released・normal も今のまま（volcano-unit.test.ts:148 からの期待）。両側とも解除されれば ended になる（陸の解除で残した記録へ新しい VFSV の解除が来れば、landKind が inactive なので解除の分岐で ended） (2) 取消の分岐（:371〜:379）、VFVO51 の同じ区分の継続（:361）、active の区分の道は変えない。!takeKind の道（:380〜:385）は、もう一方の側が active なら事実の当て方を変えない。変わるのは、記録が active に残るときの pending の鍵（P3-VL-D-WITHDRAW-SIDE）と、両側の支えが消えたときの ended（P3-VL-D-LATE、AC06）だけ (3) 保存の形と版（p3-volcano-unit-v8）、codec、容量の式（GENERATION_LIMIT）は変えない。残す記録は今の active の記録の形（kind が activeKind で、level が levelOf(kind.code)）なので、decode を通る (4) H27（raiseLevel、:1704）のコードは変えない。陸の解除で残した記録は kind で読まれる（海上の区分 36 なら段 2）。今の ended（段 1）より高いので、取り直しの中で同じ火山がレベル 2 になっても引上げの info は出ない（段 2 から 2）。レベル 3 以上なら今どおり出る (5) 既存の試験の期待は変えない（変わる見込みは 0、Q-VL-TESTS）",
         "evidenceRefs": [
           "reconstruction/test/volcano-unit/volcano-unit.test.ts:148 «3280b8474ecd22a9»",
           "reconstruction/src/units/volcano/volcano-unit.ts:380 «92b1667a4cdddaab»",
@@ -260,10 +288,26 @@
       },
       {
         "id": "P3-VL-AC05",
-        "requirement": "計算量と行（P3-VL-RES-01）: (1) 受信 1 回で足すのは、記録 1 件のもう一方の側の区分の読みと、撤回の鍵 1 つだけ。全件×全件の走査も、state・intent 全体の直列化も足さない (2) volcano-unit.ts の行の数を変えない。«» で引かれた行（Q-VL-ANCHORS）の中身を変えない",
+        "requirement": "計算量と行（P3-VL-RES-01）: (1) 受信 1 回で足すのは、記録 1 件のもう一方の側の区分の読み、撤回の鍵 1 つ、版の比べ 1 回だけ。全件×全件の走査も、state・intent 全体の直列化も足さない (2) volcano-unit.ts の行の数を変えない。«» で引かれた行（Q-VL-ANCHORS）の中身を変えない",
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
           "reconstruction/src/units/volcano/volcano-unit.ts:370 «d19d4af4bb2fbd19»"
+        ]
+      },
+      {
+        "id": "P3-VL-AC06",
+        "requirement": "両側の支えが消えた採用は、着く順によらず ended（P3-VL-D-LATE=A）: (1) !takeKind の道（:380）でも、報の区分が inactive で、もう一方の側の区分が null か inactive なら、採用の前の記録が active でも ended にする（:382）。VFVO50・VFSV・VFVO51 の entry のどれでも同じ (2) 場面（起草レビューのヘルツ P1）: 草津白根山（350）。11:00:00 に VFVO50 のレベル 2（active／12／12／—）、11:00:01 に VFSV の周辺海域警戒（active／36／12／36）、11:00:30 に VFVO50 のレベル 1 の引下げ（解除の分岐で残す: active／36／11／36）。そこへ、Control/DateTime が 11:00:20 の VFSV の解除が遅れて 11:00:40 に着く。自分の側（11:00:01）より新しいので stale ではなく（:342）、陸の版（11:00:30）より古いので !takeKind に入る（:365・:367）。この決まりが無いと active／36／11／35 で残り、両側とも解除されたのに終わらず、復元でも消えない（:1480・:1511 は区分と両側の整合を見ない）。直した後は ended。直す前のコードでは 11:00:30 の時点で ended だった (3) 逆の順: 11:00:30 に VFSV の解除が先に新しい版で着き（陸の 12 が支えて active／12／12／35）、Control/DateTime が 11:00:20 の VFVO50 のレベル 1 が 11:00:40 に着くと、!takeKind で ended (4) 通知: 遅れて着いた報は active から ended なので、今の式どおり transition released・level normal（海上は :777、陸は :788）の 2 本を作り、pending は両側とも置き換わる（記録が active に残らないので鍵は付かない）。直す前は、先の解除で鳴り、遅れた報は鳴らなかった（Q-VL-NOTICE） (5) もう一方の側が active のときの !takeKind は今のまま（AC04 (2)）",
+        "evidenceRefs": [
+          "reconstruction/src/units/volcano/volcano-unit.ts:342 «cf601a9b2ab83f94»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:365 «15146190816c63b5»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:367 «644bad59adbe4964»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:380 «92b1667a4cdddaab»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:382 «bf7c5713ad704416»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:104 «ee67c3c47e745e7e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1480 «a67c0c3baaeb2c12»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1511 «e125272aea60d91e»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:777 «2e6faeb348a71336»",
+          "reconstruction/src/contracts-revision/version.ts:36 «102f4b39b3c1b0be»"
         ]
       }
     ],
@@ -272,9 +316,10 @@
         "testId": "P3-VL-T01",
         "purpose": "acceptance",
         "referenceIds": [
-          "P3-VL-AC01"
+          "P3-VL-AC01",
+          "P3-VL-AC04"
         ],
-        "behavior": "volcano-unit.test.ts の末尾の describe に置く。草津白根山（350）で、clock は各報の時刻にする（寿命の内）。(i) 2020-07-31 11:00:00 に、45_03_01_200731_VFVO50 を Code 11→12・Condition 引下げ→引上げ に替えた報（:140 と同じ変換、レベル 2・warning） (ii) 11:00:01 に、46_01_01_170103_VFSVii の火山コード 506→350 の報（:663 と同じ、周辺海域警戒 36） (iii) 11:00:30 に、45_03_01 を時刻だけ替えた報（レベル 1 引下げ）。期待: (a) 記録 350 は effective active・kind 36・level null・landKind（11、引下げ）・marineKind 36・headline null・municipalities []・lastKind null で、prevention と unreadable が無く、marineAreas は (ii) のまま、source は (iii) (b) (iii) の intents は desktop・sound の 2 本で、level normal・transition updated (c) pending は (ii) の VFSV50 の warning 2 本と、(iii) の VFVO50 の normal 2 本 (d) (ii) の後に保存・復元を挟んでも (a)〜(c) が同じ。直す前の木では (a) が ended で落ちる。receiveAlert の側の鍵だけを戻すと (c) で落ちる"
+        "behavior": "volcano-unit.test.ts の末尾の describe に置く。各報は ReportDateTime と Control/DateTime の両方を表の時刻にする（retime で ReportDateTime を、:623 の control(iso) と同じ置換で Control/DateTime を替える。火山の報の新旧は Control/DateTime だけで比べ〔version.ts:6・:36〕、retime だけだと followHead〔volcano-fixture.ts:44〕が元の電文の Control のずれを持ち越して順が入れ替わる）。clock は受信の時刻（書いていなければ報の時刻）。草津白根山（350）で、(i) 2020-07-31 11:00:00 に、45_03_01_200731_VFVO50 を Code 11→12・Condition 引下げ→引上げ に替えた報（:140 と同じ変換、レベル 2・warning） (ii) 11:00:01 に、46_01_01_170103_VFSVii の火山コード 506→350 の報（:663 と同じ、周辺海域警戒 36） (iii) 11:00:30 に 45_03_01（レベル 1 引下げ） (iv) 11:00:35 に (iii) と同じ内容の 45_03_01 (v) 11:00:40 に、46_01_01 の火山コード 506 を替え、対象火山の Kind（周辺海域警戒・36・引上げ）を LastKind の値（活火山であることに留意（海底火山）・35）と Condition 解除に、海上の Kind の Code 31 を LastKind の 33（海上予報（噴火予報））に替えた合成の VFSV の解除（実電文が無い、Q-VL-TESTS）（火山コード 350）。期待: (a) (ii) の後は active／kind 36／landKind 12／marineKind 36 (b) (iii) の後の記録 350 は effective active・kind 36・level null・landKind（11、引下げ）・marineKind 36・headline null・municipalities []・lastKind null で、prevention と unreadable が無く、marineAreas は (ii) のまま、source は (iii) (c) (iii) の intents は desktop・sound の 2 本で、level normal・transition updated。pending は (ii) の VFSV50 の warning 2 本と (iii) の VFVO50 の normal 2 本 (d) (iv) の intents も normal 2 本（記録の事実は (b) と同じ）。pending は (ii) の warning 2 本と (iv) の normal 2 本 (e) (v) の後は ended で、intents は transition released・level normal の 2 本、pending は (v) の VFSV50 の normal 2 本だけ（AC04 (1) の両側の解除） (f) (ii) の後に保存・復元を挟んでも (b)〜(e) が同じ。直す前の木では (b) が ended で落ちる"
       },
       {
         "testId": "P3-VL-T02",
@@ -282,7 +327,7 @@
         "referenceIds": [
           "P3-VL-AC02"
         ],
-        "behavior": "浅間山（306）で、clock は各報の時刻にする。(i) 2020-05-22 13:03:00 に 45_01_01_200522_VFVO50（レベル 3） (ii) 13:03:01 に 46_01_01 の 506→306 の報 (iii) 13:03:30 に、46_01_01 の 506→306 で、対象火山の Kind（周辺海域警戒・36・引上げ）を LastKind の値（活火山であることに留意（海底火山）・35）と Condition 解除に、海上の Kind の Code 31 を LastKind の 33（海上予報（噴火予報））に替えた合成の報（実電文が無い、Q-VL-TESTS）。期待: (a) 記録 306 は effective active・kind 13・level 3・landKind 13・marineKind（35、解除）・marineAreas [] で、headline・municipalities は (i) のまま、marineUnreadable が無い (b) (iii) の intents は 2 本で level normal・transition updated (c) pending は (iii) の VFSV50 の normal 2 本だけ (d) (ii) の後に保存・復元を挟んでも同じ。直す前の木では (a) が ended で落ちる"
+        "behavior": "各報は ReportDateTime と Control/DateTime の両方を表の時刻にする（retime で ReportDateTime を、:623 の control(iso) と同じ置換で Control/DateTime を替える。火山の報の新旧は Control/DateTime だけで比べ〔version.ts:6・:36〕、retime だけだと followHead〔volcano-fixture.ts:44〕が元の電文の Control のずれを持ち越して順が入れ替わる）。clock は受信の時刻（書いていなければ報の時刻）。浅間山（306）で、(i) 2020-05-22 13:02:00 に 46_01_01 の 506→306 の報 (ii) 13:03:00 に 45_01_01_200522_VFVO50（レベル 3） (iii) 13:03:30 に、46_01_01 の火山コード 506 を替え、対象火山の Kind（周辺海域警戒・36・引上げ）を LastKind の値（活火山であることに留意（海底火山）・35）と Condition 解除に、海上の Kind の Code 31 を LastKind の 33（海上予報（噴火予報））に替えた合成の VFSV の解除（実電文が無い、Q-VL-TESTS）（火山コード 306）。期待: (a) (ii) の後は active／kind 13／landKind 13／marineKind 36 で、pending は VFVO50 の warning 2 本 (b) (iii) の後の記録 306 は effective active・kind 13・level 3・landKind 13・marineKind（35、解除）・marineAreas [] で、headline・municipalities は (ii) のまま、marineUnreadable が無い (c) (iii) の intents は 2 本で level normal・transition updated。pending は (ii) の VFVO50 の warning 2 本と (iii) の VFSV50 の normal 2 本 (d) (ii) の後に保存・復元を挟んでも (b)(c) が同じ。直す前の木では (b) が ended で落ちる"
       },
       {
         "testId": "P3-VL-T03",
@@ -290,7 +335,15 @@
         "referenceIds": [
           "P3-VL-AC03"
         ],
-        "behavior": "浅間山（306）で、clock は各報の時刻にする。(i) 2020-05-22 13:02:00 に 46_01_01 の 506→306 の報 (ii) 13:03:00 に 45_01_01（レベル 3）。対象火山の火山名を <Name><x/>浅間山</Name> にして、陸の印を付ける（unreadable-mark.test.ts:166 と同じ変換） (iii) 13:03:30 に、44_02_01_200522_VFVO51 の 350 の entry を 306 に替え、Code 12→11・Condition 継続→引下げ にした報（:1343 と同じ変換）。期待: (a) 記録 306 は effective active・kind 36・level null・landKind（11、引下げ）・marineKind 36・headline null・municipalities []・lastKind null で、unreadable が無い (b) pending は VFVO51 の info 2 本だけ（(ii) の VFVO50 の warning 2 本が外れる） (c) (ii) の後に保存・復元を挟んでも (a)(b) が同じ。直す前の木では (a) が ended で落ちる。:1053 だけを戻すと (b) で落ち、印の扱い（:355）だけを戻すと (a) の unreadable で落ちる"
+        "behavior": "各報は ReportDateTime と Control/DateTime の両方を表の時刻にする（retime で ReportDateTime を、:623 の control(iso) と同じ置換で Control/DateTime を替える。火山の報の新旧は Control/DateTime だけで比べ〔version.ts:6・:36〕、retime だけだと followHead〔volcano-fixture.ts:44〕が元の電文の Control のずれを持ち越して順が入れ替わる）。clock は受信の時刻（書いていなければ報の時刻）。浅間山（306）で 2 つの列を作る。列 1（海上より新しい引下げ）: (i) 2020-05-22 13:02:00 に 46_01_01 の 506→306 の報 (ii) 13:03:00 に 45_01_01（レベル 3）。対象火山の火山名を <Name><x/>浅間山</Name> にして、陸の印を付ける（unreadable-mark.test.ts:166 と同じ変換） (iii) 13:03:30 に、44_02_01_200522_VFVO51 の 350 の entry を 306 に替え、Code 12→11・Condition 継続→引下げ にした報（:1343 と同じ変換）。列 2（海上より古い引下げ）: (i') 13:03:40 の 46_01_01 の 506→306 を clock 13:03:40 で (ii') 13:03:00 の 45_01_01（レベル 3）を clock 13:03:45 で (iii') 13:03:30 の (iii) と同じ VFVO51 を clock 13:03:50 で。期待: (a) 列 1 の (iii) の後の記録 306 は effective active・kind 36・level null・landKind（11、引下げ）・marineKind 36・headline null・municipalities []・lastKind null で、unreadable が無い (b) 列 1 の pending は VFVO51 の info 2 本だけ（(ii) の VFVO50 の warning 2 本が外れる） (c) 列 2 の (ii') の後は pending が VFVO50 の warning 2 本で、(iii') の後は記録が active のまま、pending は VFVO51 の info 2 本だけ (d) 列 1 の (ii) の後に保存・復元を挟んでも (a)(b) が同じ。直す前の木では (a) が ended、(c) が warning の残りで落ちる"
+      },
+      {
+        "testId": "P3-VL-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-VL-AC06"
+        ],
+        "behavior": "各報は ReportDateTime と Control/DateTime の両方を表の時刻にする（retime で ReportDateTime を、:623 の control(iso) と同じ置換で Control/DateTime を替える。火山の報の新旧は Control/DateTime だけで比べ〔version.ts:6・:36〕、retime だけだと followHead〔volcano-fixture.ts:44〕が元の電文の Control のずれを持ち越して順が入れ替わる）。clock は受信の時刻（書いていなければ報の時刻）。草津白根山（350）で T01 の (i)(ii)(iii) と同じ 3 報の後に、46_01_01 の火山コード 506 を替え、対象火山の Kind（周辺海域警戒・36・引上げ）を LastKind の値（活火山であることに留意（海底火山）・35）と Condition 解除に、海上の Kind の Code 31 を LastKind の 33（海上予報（噴火予報））に替えた合成の VFSV の解除（実電文が無い、Q-VL-TESTS）（火山コード 350）を ReportDateTime と Control/DateTime 11:00:20・clock 11:00:40 で受ける。逆の順として、(i)(ii) の後に同じ合成の VFSV の解除を 11:00:30 で受け（active／12／12／35 を確かめる）、Control/DateTime が 11:00:20 の 45_03_01（レベル 1）を clock 11:00:40 で受ける。期待: (a) どちらの順も最後は ended (b) 最後の報の intents は transition released・level normal の 2 本 (c) 保存・復元の後も ended。直す前の木では途中の active の確かめで落ち、解除の分岐だけを直して :382 の決まりを入れないと (a) で落ちる"
       }
     ],
     "requiredCommands": [
@@ -313,7 +366,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。本契約自身が引く volcano-unit.ts の :355・:370・:386・:391・:1053 の «» は、実装で中身が変わりうる（統合担当が配送で付け直す）。それ以外の FAIL は止めて報告する"
+        "purpose": "全契約。本契約自身が引く volcano-unit.ts の行のうち、実装で中身が変わりうる行の «» は統合担当が配送で付け直す（artifactRequirements の付け直しの一覧）。それ以外の FAIL は止めて報告する"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -353,15 +406,17 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 足す仕組みは無い。変えるのは、解除の分岐で取消の分岐の判定を写す式、撤回の側の鍵 2 か所（receiveAlert と :1053）、印の 1 か所（:355）。無いと、片側の解除で、まだ有効な警報が view から消える。新しい関数・定数・型・export・file は作らない。試験は T01〜T03 の 3 本で、AC01〜AC03 と 1 対 1。AC04・AC05 は既存の試験の全緑と diff のレビューで確かめる。追加した各試験がどれに対応するかを成果物に 1 行で書く",
-      "T01〜T03 が直す前の木で落ちることを確かめて書く。:1053 だけを戻すと T03 が (b) で落ちること、receiveAlert の側の鍵だけを戻すと T01 が (c) で落ちること、:355 の印の扱いだけを戻すと T03 が (a) で落ちることも、1 回ずつ確かめて書く",
+      "最小実装・最小テスト: 足す仕組みは無い。変えるのは、解除の分岐で取消の分岐の判定を写す式、!takeKind の 1 行の条件（:382）、撤回の側の鍵 2 か所（receiveAlert と :1053）、通知の早い return の条件（:773）、印の 1 か所（:355）。無いと、片側の解除で、まだ有効な警報が view から消える。新しい関数・定数・型・export・file は作らない。試験は T01〜T04 の 4 本で、AC01〜AC03・AC06 と 1 対 1（T01 は AC04 (1) の両側の解除も確かめる）。AC04・AC05 は既存の試験の全緑と diff のレビューで確かめる。追加した各試験がどれに対応するかを成果物に 1 行で書く",
+      "委譲の注意: 印の扱い（P3-VL-D-MARK）の条件を settle（:344〜:356）の中で書くときは、:358 の kind を、kind が inactive のときだけ読む短絡の形で読み、settle が :358 より前に評価される形にしない（const の TDZ で ReferenceError になる）。解除の分岐で残したことを :370 の宣言に足した let で持つ形でもよい",
+      "T01〜T03 が直す前の木で落ちることを確かめて書く。次も 1 回ずつ確かめて書く: :1053 の鍵だけを戻すと T03 が (b)(c) で落ちる。receiveAlert の陸の鍵だけを戻すと T01 が (c) で落ち、海の鍵だけを戻すと T02 が (c) で落ちる。:355 の印の扱いだけを戻すと T03 が (a) で落ちる。:773 の条件だけを戻すと T01 が (d) で落ちる。:382 の条件だけを戻すと T04 が (a) で落ちる",
+      "P3-VL-D-WITHDRAW-SIDE が作者の裁定で B になったら、AC01 (4)・AC02 (3)・AC03 (2)、T01 (c)(d)・T02 (c)・T03 の期待を B の形（その subject の pending を両側とも置き換える・全部撤回する）に書き換えてから発注する",
       "既存の試験の期待は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める（見込みは 0、Q-VL-TESTS）",
       "volcano-unit.ts の行の数を変えない。«» で引かれた行の中身を変えない（Q-VL-ANCHORS）。check-contract は契約ごとに最初の 1 件しか出さないので、変えた行を引く «» が本契約のほかに無いことを、全契約の grep で確かめて報告する",
       "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
       "配送の手順: 保存の形と版を変えないので、開発機の新築の stateDirectory の U-V の slot は消さない",
-      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) p3-volcano-unit-002.json:219 の末尾に「→ P3-VOLCANO-LIFT-001 で、もう一方の側の区分が active を支えるなら active を保つ形に改めた（2026-11-13 朝の作者の裁定 A）」を足す (2) p3-volcano-unit.json:339 の status に「alertSemantics (3) の解除は P3-VOLCANO-LIFT-001 で、もう一方の側が支えるなら active を保つ（事実・pending・印は取消の部分と同じ形）」を足す。:341 は sequences.json と p3-authority-evidence.json:299 が «» で引くので変えない (3) p3-volcano-unit.json:995（I-U-V の警報の AC の requirement、«» で引かれていない）の「inactiveの区分・解除はactiveの記録をendedにし」の後に「（もう一方の側の区分が支えるなら active を保つ、P3-VOLCANO-LIFT-001）」を足す (4) p3-volcano-unit.json:154 の ruling に「解除で記録が active に残るときの撤回と置換も、その側だけ（P3-VL-D-WITHDRAW-SIDE=A、P3-VOLCANO-LIFT-001）」を足す。改訂した 2 契約の meta.sha256 を取り直す",
-      "«» の付け直し（統合担当、配送の commit）: 本契約が引く volcano-unit.ts の :355・:370・:386・:391・:1053 は実装で中身が変わりうる。ほかの契約はこれらの行を引いていない（Q-VL-ANCHORS）。付け直した後に、本契約の meta.sha256 を取り直し、check-contract を通す",
-      "残存として成果物に書く: (1) 片側だけの解除の実電文は repo の fixture と気象庁のサンプルに無い。VFSV の解除は合成で、実物の Kind・Code の形は確かめていない (2) !takeKind の道（もう一方の側より古い解除が後に着く）は、今どおり解除の報の headline・municipalities を書く。着く順で記録の headline が違う（画面には出ない） (3) 解除の報自身に読めない所がある場合の印の扱い（P3-VL-D-MARK=A で外す）は、T03 の前の印の場面でだけ試す (4) 解除で残した記録は、もう一方の側の解除か取消が着くまで active のまま。その報を取りこぼすと残り続ける（今の active の記録と同じく期限では消えない） (5) !takeKind の道（同じ版か古い解除）では、解除の報の intent が今どおり両側の pending を置き換え、海上の未配送の warning が消えうる（裁定の外として残す）"
+      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) p3-volcano-unit-002.json:219 の末尾に「→ P3-VOLCANO-LIFT-001 で、もう一方の側の区分が active を支えるなら active を保つ形に改めた（2026-11-13 朝の作者の裁定 A）」を足す (2) p3-volcano-unit.json:339 の status に「alertSemantics (3) の解除は P3-VOLCANO-LIFT-001 で、もう一方の側が支えるなら active を保つ（事実・pending・印は取消の部分と同じ形、両側の支えが消えれば着く順によらず ended）」を足す。:341 は sequences.json と p3-authority-evidence.json:299 が «» で引くので変えない (3) p3-volcano-unit.json:995（I-U-V の警報の AC の requirement）の「inactiveの区分・解除はactiveの記録をendedにし」の後に「（もう一方の側の区分が支えるなら active を保つ、P3-VOLCANO-LIFT-001）」を足す (4) p3-volcano-unit.json:154 の ruling に「解除で記録が active に残るときの撤回と置換は P3-VL-D-WITHDRAW-SIDE（P3-VOLCANO-LIFT-001）の裁定のとおり」を足す (5) p3-volcano-unit.json:26（P3-C9-ALERT-ACTIVE の ruling、作者 2026-10-09 夜）の末尾に「→ 解除でももう一方の側が支えるなら active を保つ（2026-11-13 の作者の裁定、P3-VOLCANO-LIFT-001）」を足す（前例は P3-UNIT-V-002 の :91）。改訂した 2 契約の meta.sha256 を取り直す",
+      "«» の付け直し（統合担当、配送の commit）: (1) 実装で中身が変わりうる、本契約が引く volcano-unit.ts の :355・:370・:380・:382・:386・:388・:391・:770・:771・:773・:775・:1053。ほかの契約はこれらの行を引いていない（Q-VL-ANCHORS） (2) 原文の改訂で中身が変わる、本契約が引く p3-volcano-unit-002.json:219・p3-volcano-unit.json:154・:995（:26 と :339 は本契約も引いていない）。付け直した後に、本契約の meta.sha256 を取り直し、check-contract を通す（self digest だけでは check-contract.mjs の行の anchor の検査を通らない）",
+      "残存として成果物に書く: (1) 片側だけの解除の実電文は repo の fixture と気象庁のサンプルに無い。VFSV の解除は合成で、実物の Kind・Code の形は確かめていない (2) !takeKind の道（もう一方の側が active で、それより古い解除が後に着く）は、今どおり解除の報の headline・municipalities を書く。着く順で記録の headline が違う（画面には出ない） (3) 解除の報自身に読めない所がある場合の印の扱い（P3-VL-D-MARK=A で外す）は、T03 の前の印の場面でだけ試す (4) 解除で残した記録は、もう一方の側の解除か取消が着くまで active のまま。その報を取りこぼすと残り続ける（今の active の記録と同じく期限では消えない） (5) P3-VL-D-RENOTICE の level の差: 陸が既に inactive の記録へ、Condition が引下げ・解除・継続のどれでもない inactive の区分を受け直すと、info が normal になる (6) AC06 の遅れて着いた解除は、今は鳴らない所で normal 2 本を作る"
     ],
     "unresolvedQuestions": []
   }
