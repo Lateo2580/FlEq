@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d48ef4be3a4a29abf8647c25cc56217c2fca1ea2",
-    "sha256": "180c3abe39df36c43c89c72be14ea069f6ac780f2b45937798790bdae631aac9",
+    "sha256": "abeb4f8533c641649dfa1e4e3c998e8c52c69fc2f81981c2535c70d25981db0d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -347,6 +347,7 @@
       "残存として成果物に書く: (1) 外し損ねの 6 つの道（AC03 (1)〜(6)）。どれも今の重複に戻るだけ (2) P3-RDL-D-RANGE=A で落ちる報（AC04 の (A)〜(H)）。(A)〜(G) はずっと動いていたときと同じ出方、(H) は起動の後だけの狭い道 (3) 今より悪くなる現実の場面は (E): 例えば 21:50 に起こし直し、21:53 に辿りの最中に live で VPWP50 を受けて mailbox に入れた直後、21:53:05 に気象の owner が落ちると、その報は inputDone が来ないまま消え（composition-root.ts の 688 行）、端末に行が出ないうえ、帳簿にあるのでまとめからも外れる。今はまとめに 1 件として残る (4) WS と一覧の id が同じという読み（Q-REC-ID-MATCH）に頼る。外れても重複に戻るだけ (5) 起動の取り直しの本文が live より先に unit に採られる順は、mailbox が REST を live より後に取り出す規則（mailbox.ts の 41 行、P3-REC-AC03 (2)）に頼る。その規則と、帳簿に積む時点（host.ts の 342 行）を変える変更は本契約を見直す",
       "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p3-recovery.json:1155 の P3-REC-AC15 の本文の末尾に「（P3-RECOVERY-DIGEST-LIVE-001、作者の裁定 2026-11-12: まとめの上端は時刻で置かない。一覧の頭のうち、まとめを作る時に live で受けた電文の id の帳簿〔RET-02〕にある id は、件数を数える前に除く〔帳簿を引くのはまとめを作る時の 1 回だけ〕。帳簿は mailbox に受け取らせた時点で積むので、端末に行を出さない報もまとめから外れる〔P3-RDL-AC04〕。外し損ねは重複に戻るだけ〔P3-RDL-AC03〕）」を書き足す (2) 同じ file の P3-REC-RET-02 の target「前に突き合わせた位置の後に live で受けた電文の id（unit ごと、H41 の突き合わせ用）」の「H41 の突き合わせ用」の後に「。起動のまとめから live で受けた報を外すのにも使う〔P3-RECOVERY-DIGEST-LIVE-001。積む時点を変える変更は本契約を見直す〕」を書き足す",
       "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる行を引く «» を新しい anchor にする。本契約の composition-root.ts:1923（と 1919 を引く契約があればそれも。起草の時は無い）、改訂で中身が変わる p3-recovery.json:1155 と RET-02 の target の行（本契約の AC05 が 1155 を引く。target の行を «» で引く契約は配送の時に探す）。watch.ts の口は class の末尾に置くので、本契約の watch.ts の «» は付け直さない。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "配送の記録（統合担当、2026-11-12）: (1) 実装は c0adb3e3（watch.ts の withoutReceived、composition-root.ts の 1923 行を 1 行のまま、試験 P3-RDL-T01。Opus 5.5。直す前の 1923 行では T01 が件数 2 で落ちることを実装者が確かめた）。baseOid b4dcf53b の commit は 9b30ba4e。原文の改訂 (1)(2) と «» の付け直しは 966c3f8f (2) レビュー: 実装の整合（Opus xhigh）GO、品質（ヘルツ Astra high、thread 01a1cda9）は NO-GO の P2 1 件（停止の drain の期限切れで送られなかった入力もまとめから外れる）→ コードは変えず AC04 (E) に含めて（64dbea1b）ADDRESSED (3) Mac mini のゲート b19（966c3f8f）: tsc 3 本・新築の vitest（1,612 本）・並べ替え・checker 3 本・build・旧築の test（6,850 本）がすべて rc 0。64dbea1b と本記録は契約の文だけで、手元の check-contract・check-manifest・check-sequences が rc 0",
       "本物の経路での確かめ（統合担当、配送の後）: 新築を起こし直し、辿りの最中に live で届いた報が端末の起動のまとめに重ねて出ないことを、実配信で 1 回見る（2026-11-11 21:53 と同じ形が起きたとき。起きなければ T01 に任せる）"
     ],
     "unresolvedQuestions": []
