@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "e6bbd9baed6d4ebd8402234255c678a33a8550c64abe38dbb3f09b81685ee945",
+    "sha256": "8f6c769fe7799fe865de83aa5343af27c61f72e5a8f5b40b02ed46ff88b00b09",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
@@ -681,11 +681,11 @@
       },
       {
         "id": "P3-TO-AC14",
-        "requirement": "【発注 2】起動時のまとめ（spec の §6.6、Q-TO-D-1、P3-TO-D-DIGEST）: (1) host の publishDisplay（host.ts:591 の行の中身）で、snapshot.recovery.digest が null でない最初の 1 回だけ端末へ渡す (2) 形は spec の図（分野の順は digest の units の順〔P3-REC-D-ORDER-AND-LIMIT=A の U-T → U-V → U-Q → … → U-Y〕、分野ごとに件数、新しい順の見出し 3 件、「ほか <種類のコード> n 件」。種類のコードは omitted の key〔headType〕のまま、2 つ以上なら全角の空白で並べる。題名を引く表は足さない〔作者裁定 Q-TO-D-2、2026-11-03〕）。unsatisfied の分野は「取り直せませんでした」で 0 件と書かない。beforeWindow なら見出しの罫線の下に「7 日より前の情報は取り直していません」を薄い字で。時刻は reportDateTime、無ければ receivedAt (3) digest が作られない起動（{ wsUrl }、telegram.* を購読しない）では何も出さない 【P3-TERMINAL-LAYOUT-007 で改めた（配送の commit で当てた）】(2) の「ほか <種類のコード> n 件」は種類の題名にする（同じ題名は件数を足して多い順、表に無い種類は「その他」）。見出しの行は時刻と題名だけで見出し文を出さず、題名の末尾の [truncated:fieldLimit] は … にする。分野の名前は太字、件数は右揃え、0 件の分野は出さず、全部 0 件なら帯ごと出さない（Q-TO-D-2 の改め・Q-TO8-NO-CODE・Q-TO8-DIGEST、P3-TL7-AC01・AC02）",
+        "requirement": "【発注 2】起動時のまとめ（spec の §6.6、Q-TO-D-1、P3-TO-D-DIGEST）: (1) host の publishDisplay（host.ts:591 の行の中身）で、snapshot.recovery.digest が null でない最初の 1 回だけ端末へ渡す (2) 形は spec の図（分野の順は digest の units の順〔P3-REC-D-ORDER-AND-LIMIT=A の U-T → U-V → U-Q → … → U-Y〕、分野ごとに件数、新しい順の見出し 3 件、「ほか <種類のコード> n 件」。種類のコードは omitted の key〔headType〕のまま、2 つ以上なら全角の空白で並べる。題名を引く表は足さない〔作者裁定 Q-TO-D-2、2026-11-03〕）。unsatisfied の分野は「再取得に失敗しました」で 0 件と書かない。beforeWindow なら見出しの罫線の下に「7 日より前の情報は再取得していません」を薄い字で。時刻は reportDateTime、無ければ receivedAt (3) digest が作られない起動（{ wsUrl }、telegram.* を購読しない）では何も出さない 【P3-TERMINAL-LAYOUT-007 で改めた（配送の commit で当てた）】(2) の「ほか <種類のコード> n 件」は種類の題名にする（同じ題名は件数を足して多い順、表に無い種類は「その他」）。見出しの行は時刻と題名だけで見出し文を出さず、題名の末尾の [truncated:fieldLimit] は … にする。分野の名前は太字、件数は右揃え、0 件の分野は出さず、全部 0 件なら帯ごと出さない（Q-TO-D-2 の改め・Q-TO8-NO-CODE・Q-TO8-DIGEST、P3-TL7-AC01・AC02）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:775 «f16f012995b53ec2»",
-          "docs/specs/cli-terminal-output.md:794 «e354158a3dc76602»",
-          "docs/specs/cli-terminal-output.md:795 «77e948d5933bdd50»",
+          "docs/specs/cli-terminal-output.md:794 «58fbb15371967449»",
+          "docs/specs/cli-terminal-output.md:795 «a1469d37c3316667»",
           "docs/specs/cli-terminal-output.md:796 «ade324e936478549»",
           "docs/specs/cli-terminal-output.md:797 «3e9467ef9bb2c3e7»",
           "reconstruction/src/host/host.ts:591 «57bcacc5289ac442»",
@@ -873,7 +873,7 @@
         "referenceIds": [
           "P3-TO-AC14"
         ],
-        "behavior": "受入条件（起動時のまとめ、【発注 2】）。RecoveryDigestView の手書きの値（U-Q の listed で見出し 3 件と omitted 2、U-W の listed 1 件と omitted 1、U-T の unsatisfied、beforeWindow の unit 1 つ）から spec §6.6 の図の行と、beforeWindow の unit があるので見出しの罫線の下に「7 日より前の情報は取り直していません」の 1 行（§6.6 の本文の箇条。図には描いていない）が出る。digest が null の snapshot と、2 枚目以後の snapshot では何も出ない"
+        "behavior": "受入条件（起動時のまとめ、【発注 2】）。RecoveryDigestView の手書きの値（U-Q の listed で見出し 3 件と omitted 2、U-W の listed 1 件と omitted 1、U-T の unsatisfied、beforeWindow の unit 1 つ）から spec §6.6 の図の行と、beforeWindow の unit があるので見出しの罫線の下に「7 日より前の情報は再取得していません」の 1 行（§6.6 の本文の箇条。図には描いていない）が出る。digest が null の snapshot と、2 枚目以後の snapshot では何も出ない"
       },
       {
         "testId": "P3-TO-T16",

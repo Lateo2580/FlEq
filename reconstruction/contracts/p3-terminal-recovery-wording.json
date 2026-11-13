@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f002a0c3a63219c010511c41274a01c854e29d1",
-    "sha256": "524cbcaf4e03b41bde9e972c6bd15e8f28ebe9c3d51d029274db08e2eedd5f51",
+    "sha256": "799203bbc5977462cc833d52a41dfaa3b500e3a1d08ad054ae89b3f5664f72a7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
@@ -140,11 +140,11 @@
         "id": "P3-TRW-AC01",
         "requirement": "起動時のまとめの 2 つの字を言い直す（作者の裁定 2026-11-13、カード 9-6 の裁定 5）: (1) beforeWindow の unit があるときに見出しの罫線の下へ薄い字で出す 1 行（format.ts:860）を「7 日より前の情報は再取得していません」にする (2) unsatisfied の分野（total が null のときも）の分野の名前の後の字（format.ts:865）を「再取得に失敗しました」にする (3) どちらも字だけを替え、role（dim と無し）、分野の名前の太字、列の幅、行の順、帯ごと出さない条件（全部 0 件、作者裁定 A 2026-11-08）は変えない。表示の桁は 36 → 36、20 → 20 で、折り返す位置も変わらない（Q-TRW-WIDTH） (4) 既存の試験の期待を替える: digest.test.ts の P3-TL7-T01 の it（:34・:35）と作者裁定 A の it（:62）の期待の字を (1)(2) の字にする。替える理由は作者の裁定で、ほかの期待は変えない",
         "evidenceRefs": [
-          "reconstruction/src/terminal/format.ts:860 «06806f691eb3af93»",
-          "reconstruction/src/terminal/format.ts:865 «c4b56737b78e44f9»",
-          "reconstruction/test/terminal/digest.test.ts:34 «fc5e42ef94d5ee1f»",
-          "reconstruction/test/terminal/digest.test.ts:35 «bea1438691c972e6»",
-          "reconstruction/test/terminal/digest.test.ts:62 «8959620965e48ace»",
+          "reconstruction/src/terminal/format.ts:860 «c157d98c900e81d4»",
+          "reconstruction/src/terminal/format.ts:865 «f81af9d3cb2c285f»",
+          "reconstruction/test/terminal/digest.test.ts:34 «3ff429f5c37e9222»",
+          "reconstruction/test/terminal/digest.test.ts:35 «2d559fefb1ba4409»",
+          "reconstruction/test/terminal/digest.test.ts:62 «7944e5396f8a000d»",
           "reconstruction/src/terminal/output.ts:634 «4fe1edd5681081af»"
         ]
       },
@@ -152,13 +152,13 @@
         "id": "P3-TRW-AC02",
         "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装はしない。文は artifactRequirements の「原文の改訂」）: spec cli-terminal-output.md の §6.6 の図（:779）と箇条（:794・:795）、閉じた契約の生きた条文 P3-TO-AC14 の (2)（p3-terminal-output.json:684）、P3-TO-T15 の behavior（:876）、P3-TL7-AC02 の (3)（p3-terminal-layout7.json:272）、P3-RB-AC03 の (6)（p3-recovery-boundary.json:323）の古い字を、AC01 の新しい字に行の中で替える。当時の記録（p3-recovery-boundary.json:42、p3-terminal-layout7.json:125）は替えない（Q-TRW-CLAUSES）",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:779 «9b58c2462e8f1a05»",
-          "docs/specs/cli-terminal-output.md:794 «e354158a3dc76602»",
-          "docs/specs/cli-terminal-output.md:795 «77e948d5933bdd50»",
-          "reconstruction/contracts/p3-terminal-output.json:684 «f6295f4b75a4ecc1»",
-          "reconstruction/contracts/p3-terminal-output.json:876 «be5d2f5a2894f991»",
-          "reconstruction/contracts/p3-terminal-layout7.json:272 «4e410c4d78959847»",
-          "reconstruction/contracts/p3-recovery-boundary.json:323 «794299b16cdbbe78»",
+          "docs/specs/cli-terminal-output.md:779 «ac29aef6b0298fc4»",
+          "docs/specs/cli-terminal-output.md:794 «58fbb15371967449»",
+          "docs/specs/cli-terminal-output.md:795 «a1469d37c3316667»",
+          "reconstruction/contracts/p3-terminal-output.json:684 «1b2f28992f9d0c83»",
+          "reconstruction/contracts/p3-terminal-output.json:876 «a00f63ae7f4b5d5e»",
+          "reconstruction/contracts/p3-terminal-layout7.json:272 «fed5c2c032ac8dbc»",
+          "reconstruction/contracts/p3-recovery-boundary.json:323 «fb32f03a73a443e6»",
           "reconstruction/contracts/p3-terminal-output.json:726 «d23be8354654b982»"
         ]
       }

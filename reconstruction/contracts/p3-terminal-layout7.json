@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b414b4e0010ea038ffd833ccff1e99f711053002",
-    "sha256": "921626dd1da458429f72349aa62a54f4df58f2b48a1027556febb197ec603c8f",
+    "sha256": "d172c2df58dfa1838029e2c2667d9f58da016973c88b5b803086d4055e6fc0d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
@@ -269,10 +269,10 @@
       },
       {
         "id": "P3-TL7-AC02",
-        "requirement": "まとめの行（Q-TO8-DIGEST）: (1) 分野の名前を太字にする（取り直せなかった分野も） (2) 見出しの行は「  HH:MM  <題名>」だけで、見出し文を出さない。題名の末尾の [truncated:fieldLimit] は … にする (3) listed で見出しも omitted も無い分野は出さない。取り直せなかった分野は今のまま「取り直せませんでした」 (4) 件数は出す分野の件数の最大の桁に右で揃える (5) 帯の行、7 日より前の行、時刻の決め方、最初の digest だけを出すことは変えない (6) 出す分野が 1 つも無い（全部 0 件で、取り直せなかった分野も無い）ときは、7 日より前の印があっても帯ごと何も出さない（作者裁定 A、2026-11-08。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため。Q-TL7-RESTART-DIGEST）",
+        "requirement": "まとめの行（Q-TO8-DIGEST）: (1) 分野の名前を太字にする（取り直せなかった分野も） (2) 見出しの行は「  HH:MM  <題名>」だけで、見出し文を出さない。題名の末尾の [truncated:fieldLimit] は … にする (3) listed で見出しも omitted も無い分野は出さない。取り直せなかった分野は今のまま「再取得に失敗しました」 (4) 件数は出す分野の件数の最大の桁に右で揃える (5) 帯の行、7 日より前の行、時刻の決め方、最初の digest だけを出すことは変えない (6) 出す分野が 1 つも無い（全部 0 件で、取り直せなかった分野も無い）ときは、7 日より前の印があっても帯ごと何も出さない（作者裁定 A、2026-11-08。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため。Q-TL7-RESTART-DIGEST）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:792 «e91ad6d5e73242ec»",
-          "docs/specs/cli-terminal-output.md:794 «e354158a3dc76602»",
+          "docs/specs/cli-terminal-output.md:794 «58fbb15371967449»",
           "docs/specs/cli-terminal-output.md:926 «850230eac0477005»"
         ]
       },
