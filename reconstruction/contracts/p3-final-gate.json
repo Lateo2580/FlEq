@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "0db25d24a63e1886cd489b0cfcfa43311ad7c6c9e2ef756cda7a55449888d6a3",
+    "sha256": "7a4867f818deafe38d2a9ae929167517d9eeaee510b934b8f407fd43b777ee7b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
@@ -497,7 +497,7 @@
     "contractId": "P3-FINAL-GATE-001",
     "mode": "implementation",
     "objective": "P3 の最終ゲート（C22、統合担当）。全 unit を繋いだ最終の形の新築に、正常・取消・復元の電文を流して P3 を閉じてよいかを判定する。spec の P3 行（spec:2614）の検収のうち、全 route の oracle・一入力一保存単位・必須機能契約・通知の故障隔離を、全単位接続後の最終検証（spec:2664）として行い、全単位の E20 と終了の再確認（spec:889・:2072）、Pi の短い確認（D-P3-7）、災害の日の合格（計画:492）、ペルソナ歩き（計画:587〜:596）を足す。§6 の移管の 18 行を全部閉じ、C15 の取り下げと C21 の外出し（2026-11-13 の作者裁定、計画:661〜:686）で古くなった記述の読みを決める。2026-11-13 の作者裁定で、旧 v2 移行と移行直後の続報は取り下げ、export の故障隔離と O10 の export 分は P3 の外。部分受入は無い。場面: 2026-06-26 の南海トラフの半割れの筋書き（N2）を最終の形に流し、16:30:53 に地震の記録が件数の上限に届いても期限の内の報が消えず、画面へ送る現況が要約にならず、その日の通知と音を演じ手に 1 場面ずつ見せて受け取りのずれに行き先が付けば、P3 を閉じる。発注は 3 回に分ける（P3-FG-D-SPLIT の起草案）",
-    "baseOid": "f5f1ed7da64f2e588f9718447e37aa277511821d",
+    "baseOid": "af981649414875d404ae255913d2d81c50fe0709",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -1092,7 +1092,7 @@
           "発注 1",
           "発注 2"
         ],
-        "resolveBy": "各発注の前（発注前点検で baseOid を割り当てる。発注 1 は f5f1ed7d。発注 2 は統合担当が T04 の発注のときに割り当てる）",
+        "resolveBy": "各発注の前（発注前点検で baseOid を割り当てる。発注 1 は f5f1ed7d。発注 2 は af981649（T04、2026-11-14））",
         "requiredEvidence": [
           "evidenceRefs の «» をその木で読み直した記録",
           "Q-FG-RARE-FIXES の契約のうち、その木にある契約 file を dependsOnContractIds に足したこと"
