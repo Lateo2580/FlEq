@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "8f718501cfe5a87f5c63cef0ac147332decb2beeac9ccc1f12c2cf0be6d6e04d",
+    "sha256": "51e27de1a5c346598322582ac636e3a9b1be455448f668f7a3e55afec74a8403",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -78,14 +78,14 @@
       {
         "id": "P3-NFR-D-BIT-HOME",
         "kind": "統合担当",
-        "A": "印は RuntimeCompositionRoot の private の field（channel ごとの boolean、保存しない）に持ち、snapshotInput の 6 番目の引数（省略は両方 false）と SnapshotProjectionInput の新しい欄 channelFailing で projector へ渡す",
+        "A": "印は RuntimeCompositionRoot の private の field（channel ごとの boolean、保存しない）に持ち、snapshotInput の 7 番目の引数（省略は両方 false）と SnapshotProjectionInput の新しい欄 channelFailing で projector へ渡す",
         "B": "PublisherState（shared-runtime.ts:40）に欄を足す",
         "C": "A7 の NotificationChannelState の各 variant に欄を足す",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当 2026-11-13）",
         "ruling": "A（統合担当 2026-11-13）",
-        "reason": "印は run の中だけで、保存も A1 の reducer も要らない。B は PublisherState を組む試験の literal（runtime-fixture.ts の 42・60 行、shared-runtime.test.ts の 65・263 行など）を全部直すことになる。C は idle→running→stopping→idle の遷移のたびに欄を運ぶ必要があり、A7 の 4 つの variant と選択の全部に触る。A の 6 番目の引数の省略は、snapshotInput を直接呼ぶ試験（smoke.mjs:121、recovery-projection.test.ts:127、projection-fixture.ts:210）を変えないため。製品の呼び出しは composition-root.ts:985 の 1 か所だけで、そこでは必ず渡す"
+        "reason": "印は run の中だけで、保存も A1 の reducer も要らない。B は PublisherState を組む試験の literal（runtime-fixture.ts の 42・60 行、shared-runtime.test.ts の 65・263 行など）を全部直すことになる。C は idle→running→stopping→idle の遷移のたびに欄を運ぶ必要があり、A7 の 4 つの variant と選択の全部に触る。A の 7 番目の引数の省略は、snapshotInput を直接呼ぶ試験（smoke.mjs:121、recovery-projection.test.ts:127、projection-fixture.ts:210）を変えないため。製品の呼び出しは composition-root.ts:985 の 1 か所だけで、そこでは必ず渡す"
       },
       {
         "id": "P3-NFR-D-SET",
@@ -96,7 +96,7 @@
         "provisional": "A",
         "status": "確定（統合担当 2026-11-13）",
         "ruling": "A（統合担当 2026-11-13）",
-        "reason": "A は裁定の字「直近の試行が失敗で終わった」のまま。失敗の数え方は A7 の既存の failed（notification-delivery.ts:110。期限の後の結果・中断は数えない）を使い、root は既に同じ形で step.diagnostics の notificationOutcomeUnknown を読んでいる（composition-root.ts:1458）。notStarted（外へ何も出していない）も、A7 の期限切れ（wall の期限か intent の monotonic の期限、notification-delivery.ts:106〜107）が先に当たらなければ failed に数え、印が立つ（notification-delivery.ts:110）。たとえば実行の途中で backend の実行ファイルが消えて spawn が全部失敗したとき、試行の期限（sound 10 秒）を起動の前に過ぎたとき（adapter.ts:125〜127）は「直前に失敗」が出る。期限切れで起動しなかったものは数えない。A では、1 回目が失敗して鳴らし直しが 1 秒後に通ると、その 1 秒だけ「直前に失敗」が出る。B は notStarted の再試行（最長 10 秒の間隔）の間も「使用可」のまま隠れ、PulseAudio が落ちた場面では 1 回目でなく 2 回目の後にしか出ない"
+        "reason": "A は裁定の字「直近の試行が失敗で終わった」のまま。失敗の数え方は A7 の既存の failed（notification-delivery.ts:110。期限の後の結果・中断は数えない）を使い、root は既に同じ形で step.diagnostics の notificationOutcomeUnknown を読んでいる（composition-root.ts:1458）。notStarted（外へ何も出していない）も、A7 の期限切れ（wall の期限か intent の monotonic の期限、notification-delivery.ts:106〜107）が先に当たらなければ failed に数え、印が立つ（notification-delivery.ts:110）。たとえば実行の途中で backend の実行ファイルが消えて spawn が全部失敗したとき、試行の期限（sound 10 秒）を起動の前に過ぎたとき（adapter.ts:125〜127）は「直前に失敗」が出る。期限切れで起動しなかったものは数えない。A では、1 回目が失敗して鳴らし直しが通ると、鳴らし直しの間隔 1 秒に再生の 0.6〜0.9 秒を足した長さだけ「直前に失敗」が出る（delivered は再生が終わって close した時）。B は notStarted の再試行（最長 10 秒の間隔）の間も「使用可」のまま隠れ、PulseAudio が落ちた場面では 1 回目でなく 2 回目の後にしか出ない"
       },
       {
         "id": "P3-NFR-D-SCHEMA",
@@ -112,13 +112,13 @@
       {
         "id": "P3-NFR-D-SHUTDOWN",
         "kind": "統合担当",
-        "A": "停止の間も、副作用の最終化の段が終わる（finalizationAt が入る）までに来た遅い close では idle に戻す。選び直しは今の selectDelivery の検査（stage が running でなければ何もしない、composition-root.ts:1202）で起きない。finalizationAt が入った後の遅い close は捨てる（notificationResult と同じ検査）",
+        "A": "停止の間も、副作用の最終化の段を締める（composition-root.ts:1755 で finalization.closed が true になる）までに来た遅い close では idle に戻す。選び直しは今の selectDelivery の検査（stage が running でなければ何もしない、composition-root.ts:1202）で起きない。締めた後（finalization.closed が true、または finalizationAt が入った後）の遅い close は捨てる。finalizationAt だけでは足りない: 最終化の期限で切れると finalizationAt は null のまま残る（unit-write-right.test.ts の 488 行の期待、r2 ヘルツ P2）",
         "B": "停止を求めた後の遅い close は全部捨てる",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当 2026-11-13、作者には報告だけ）",
         "ruling": "A（統合担当 2026-11-13）",
-        "reason": "A では、停止の段の中で遅れて止まった player は、最終化の段の終わりの数え（composition-root.ts:1753 の isolated）に入らない。だから停止の code が 4（unconfirmedNotifications）から、ほかの段の結果（場面では 0）に変わることがある。close を見たので process は止まっており、P2-A3 の「停止を確かめられない通知を残して code 0 にしない」に合う。B は止まったと分かった player を止まっていないと数え続ける"
+        "reason": "A では、停止の段の中で遅れて止まった player は、最終化の段の終わりの数え（composition-root.ts:1753 の isolated）に入らない。だから停止の code が 4（unconfirmedNotifications）から、ほかの段の結果（場面では 0）に変わることがある。close を見たので process は止まっており、P2-A3 の「停止を確かめられない通知を残して code 0 にしない」に合う。B は止まったと分かった player を止まっていないと数え続ける。締めた後を断るのは、1753 行の数えと 1755 行の closed が同じ同期の区間にあり、数えた後の観測で channel と snapshot を変えると、記録した段の結果と公開した画面が食い違うため"
       }
     ],
     "questionResolutions": [
@@ -126,15 +126,22 @@
         "id": "Q-NFR-CAUSE",
         "status": "closed",
         "source": "起草（2026-11-13、HEAD 84c2c626 の木を読んだ）。判断カード 2026-11-13-P3の残り-夜の走行 の「裁定 2」と 9-2 の A6・A10 の行、監査の調べ 2026-11-12-night/limits-card.md の 42 行",
-        "closed": "A6 の道: (1) abort の停止の期限（要求の時の monotonic＋1,000 ms、composition-root.ts:1112 → adapter.ts:191）までに close が無いと、adapter は stop(false) で試行を timeout／aborted・stopped=false で終える。active[channel] は stopped のときしか空けない（adapter.ts:90）(2) root は A7 の applyNotificationResult で channel を isolated にする（notification-delivery.ts:111〜113）。中断された intent は replayable が stopped を求める（:130）ので鳴らし直さず、notificationOutcomeUnknown で終わる (3) その後の結果は A7 が全部捨て（:97〜99）、選択も isolated の channel には試行を作らない (4) 遅い close は settled の後なので何もしない（adapter.ts:152〜155）。だから process を起こし直すまで、その channel では一度も鳴らない。起動の probe（adapter.ts:223）が止めきれなかった player も active.sound を空けず、以後の音の試行は全部 notification channel occupied で adapterError になる。A10 の道: (1) A7 が再試行するのは notStarted だけ（notification-delivery.ts:137〜138）で、sound の起動した後の失敗は 1 回だけ鳴らし直し（:139〜148）、ほかは notificationOutcomeUnknown で終わる (2) channel は idle に戻り、projector は idle・running・stopping を全部 available と出す（view-projector.ts:746）。chrome は available を「使える」と出す（pure.ts:124）。だから 20:00 に PulseAudio が落ちても、状態行は「音声通知: 使える」のまま",
+        "closed": "A6 の道: (1) abort の停止の期限（要求の時の monotonic＋1,000 ms、composition-root.ts:1112 → adapter.ts:191）までに close が無いと、adapter は stop(false) で試行を timeout／aborted・stopped=false で終える。active[channel] は stopped のときしか空けない（adapter.ts:90）(2) root は A7 の applyNotificationResult で channel を isolated にする（notification-delivery.ts:111〜113）。中断された intent は replayable が stopped を求める（:130）ので鳴らし直さず、notificationOutcomeUnknown で終わる (3) その後の結果は A7 が全部捨て（:97〜99）、選択も isolated の channel には試行を作らない (4) 遅い close は settled の後なので何もしない（adapter.ts:152〜155）。だから process を起こし直すまで、その channel では一度も鳴らない。起動の probe（adapter.ts:223）が止めきれなかった player も active.sound を空けないが、probe が delivered でなければ root は sound を unavailable にし（composition-root.ts:480・488）、その run では音の試行を作らない（r2 で説明を直した）。A10 の道: (1) A7 が再試行するのは notStarted だけ（notification-delivery.ts:137〜138）で、sound の起動した後の失敗は 1 回だけ鳴らし直し（:139〜148）、ほかは notificationOutcomeUnknown で終わる (2) channel は idle に戻り、projector は idle・running・stopping を全部 available と出す（view-projector.ts:746）。chrome は available を「使える」と出す（pure.ts:124）。だから 20:00 に PulseAudio が落ちても、状態行は「音声通知: 使える」のまま",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-NFR-AUTHOR",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-13 昼すぎ）。r0 の unresolvedQuestions から r2 で移した（Opus P2）",
+        "closed": "P3-NFR-D-REPLAY=A・D-TIMEOUT-AFTER=A・D-MUTE=A・D-LABEL=B（字は「直前に失敗」。あわせて既存の字を「使える」→「使用可」、「使えない」→「使用不可」に改める）。AC01・AC03・AC04 はこの裁定の言い切りで書いた",
         "remaining": "なし"
       },
       {
         "id": "Q-NFR-ORDER",
-        "status": "closed",
-        "source": "起草（2026-11-13）。adapter.ts:87〜99・152〜156、composition-root.ts:1116〜1135 を読んだ。走らせてはいない",
-        "closed": "遅い close が root に届くのは、root が隔離の結果を反映した後: adapter の stop(false) は finish で terminal の Promise を解き、root の runAttempt の then（composition-root.ts:1124）は microtask の連なりで notificationResult まで走る。子の close は I/O の macrotask なので、その microtask が全部終わった後に来る。それでも、root が channel を isolated でなく見ているとき（stopping のまま、別の attemptId）に届いた遅い close は捨てる（AC02 (2)）。この順の前提は T01 が本物の adapter で確かめる",
-        "remaining": "順の前提は読みで、T01 が確かめる"
+        "status": "open",
+        "source": "起草（2026-11-13）。adapter.ts:87〜99・152〜156・184〜197、composition-root.ts:1104〜1135 を読んだ。走らせてはいない。r2 でヘルツの指摘（T01 は順の証明にならない）を受けて未決に戻した",
+        "closed": "読みの根拠: 隔離の結果は、停止の期限の timer の callback（adapter.ts:187〜192 の waitUntilDeadline の setTimeout）か、root の abortAttempts の同期の呼び出しの中（期限がもう過ぎていたとき）で stop(false) → finish → terminal の Promise の解決として出る。root への反映（composition-root.ts:1120〜1133 の Promise の then → notificationResult）は、その解決から続く microtask の連なりで、host の gatedAdapter の async の包み（host.ts:596）を通っても microtask のまま。Node は timer の callback 1 つの後と、同期の区間の後に microtask を全部流してから、次の I/O の callback（子の close）へ進む。だから close が反映より先に来る道は、読みの上では無い。逆順だと stopping のまま観測を捨て、その後の反映で isolated に入って戻らない（AC02 (2)）。製品で逆順が起きる証拠も、起きない証明もまだ無い。T01 は isolated を確かめてから close を出すので、この順の証明にならない",
+        "remaining": "未決（unresolvedQuestions の Q-NFR-ORDER）。製品の境界の根拠を確かめる試験か、本物の経路の観測で閉じる"
       },
       {
         "id": "Q-NFR-LINES",
@@ -160,7 +167,7 @@
     ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
-      "rule": "運用区分の扱いを変えない。通知の intent の作り方・優先の群・鳴らし直しの回数（K8 の 1 回）・試行の期限は変えない。変わるのは、停止を確かめられずに隔離した channel が遅い close で使用可に戻ること（AC01）と、chrome の状態の行に「直前に失敗」が出て、既存の字「使える」「使えない」が「使用可」「使用不可」に改まること（AC03・AC04）。停止の code が 4 から 0 に変わる場面がある（P3-NFR-D-SHUTDOWN、作者には報告だけ）"
+      "rule": "運用区分の扱いを変えない。通知の intent の作り方・優先の群・鳴らし直しの回数（K8 の 1 回）・試行の期限は変えない。変わるのは、停止を確かめられずに隔離した channel が遅い close で使用可に戻ること（AC01）と、chrome の状態の行に「直前に失敗」が出て、既存の字「使える」「使えない」が「使用可」「使用不可」に改まること（AC03・AC04）。作者には報告だけのものが 2 つある: 停止の code が 4 から 0 に変わる場面がある（P3-NFR-D-SHUTDOWN）。1 回目の試行が失敗して鳴らし直しが通ると、鳴らし直しの間隔 1 秒に再生の 0.6〜0.9 秒を足した長さだけ「直前に失敗」が出る（P3-NFR-D-SET）"
     }
   },
   "contract": {
@@ -187,7 +194,10 @@
       "reconstruction/src/host/host.ts",
       "reconstruction/test/notification-delivery/adapter.test.ts",
       "reconstruction/test/integration/notification-wiring.test.ts",
-      "reconstruction/test/chrome-eew/pure.test.ts"
+      "reconstruction/test/chrome-eew/pure.test.ts",
+      "reconstruction/test/chrome-eew/smoke.mjs",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/test/execution-split/unit-write-right.test.ts"
     ],
     "allowedPaths": [
       "reconstruction/src/notification-delivery/adapter.ts（AC01・AC02 だけ。中身を変えてよいのは 25・155・176・183・229 行で、行は足さず消さない〔AC05〕）",
@@ -196,7 +206,7 @@
       "reconstruction/src/display/chrome-eew/pure.ts（AC04 だけ。124 行の中だけ）",
       "reconstruction/contracts/p2-snapshot-sse.types.ts（AC03 だけ。78・149 行の中だけ）",
       "reconstruction/test/notification-delivery/adapter.test.ts（P3-NFR-T01 を file の末尾〔今の 235 行の後〕に足すだけ）",
-      "reconstruction/test/integration/notification-wiring.test.ts（P3-NFR-T02 を file の末尾〔今の 954 行の後〕に足すだけ）",
+      "reconstruction/test/integration/notification-wiring.test.ts（P3-NFR-T02・T04 を file の末尾〔今の 954 行の後〕に足すだけ）",
       "reconstruction/test/chrome-eew/pure.test.ts（P3-NFR-T03 を file の末尾〔今の 81 行の後〕に足すだけ）",
       "reconstruction/test/chrome-eew/smoke.mjs（AC04 (5) だけ。408・529・530 行の中の状態の字を「使える」→「使用可」、「使えない」→「使用不可」に書き換えるだけ。行の数を変えない。この file を «» で引くのは p3-currency-coverage.json:524 の 492 行だけで、変えない）"
     ],
@@ -229,7 +239,7 @@
       "abortNotificationAttempt に 4 番目の省略できる引数 onLateStop?: (observation: StopObservation) => void を足す（停止の期限の後に close を見たら 1 回だけ呼ぶ）。adapter.ts の StopObservation を型として export する（229 行の export type に足す。P1-T04 が数える export function・export const は足さない）",
       "CompositionOptions.notificationAdapter.abort の型に同じ 4 番目の省略できる引数を足す（composition-root.ts:129）。偽の adapter は引数が少なくても型が合う",
       "DisplayChannelView に \"failing\" を足し、SnapshotProjectionInput に channelFailing: Readonly<Record<\"desktop\" | \"sound\", boolean>> を足す",
-      "snapshotInput に 6 番目の省略できる引数（channel ごとの失敗の印、省略は両方 false）を足す",
+      "snapshotInput に 7 番目の省略できる引数（channel ごとの失敗の印、省略は両方 false）を足す。6 番目は今の recovery（composition-root.ts:218〜219、省略できる）で、位置を変えない（r2 ヘルツ P2）",
       "ほかの export・helper・定数・型・timer・設定は足さない。A7 の reducer（notification-delivery.ts）と NotificationResult・NotificationChannelState・DiagnosticReason の形は変えない"
     ],
     "allowedDependencies": [
@@ -287,7 +297,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-NFR-AC01",
-        "requirement": "遅れて閉じたら隔離から戻す（目的の A6。P3-NFR-D-LATE-PATH=A）: 場面: 21:00:00.000 津波注意報の音（sound、aplay、群 other）が走っている → 21:00:02.000 EEW の音の intent（群 normalEew）で上位群の中断、root は abort を onLateStop つきで呼ぶ（composition-root.ts:1112）。adapter は SIGTERM を送る → 21:00:03.000 停止の期限に close が無く、adapter は stopped=false で試行を終え、root は sound を isolated にする（今と同じ。津波注意報の intent は notificationOutcomeUnknown で終わる）→ 21:00:04.500 aplay が閉じる。(1) adapter: close の handler（152〜156 行）は settled の後でも、その試行が stopped=false で終わっていたら、active[channel] がその試行のままなら null にしてから（155 行）、onLateStop を { attemptId, stopped: true, completedAt: close を見た時の clock } で 1 回呼ぶ。onLateStop は abort が受けた最初のもの（183 行で ??= で持つ。Active の型は 25 行の中に省略できる欄を足す）。NotificationResult は返さない (2) root: 遅い close の method（2361 行と 2362 行の間に足す）は、current が null、finalizationAt が入っている、channel が isolated でない、isolated の attemptId が観測と違う、のどれかなら何もしない。そうでなければ notificationResult と同じ順で、reclaimExpired → channel を idle にする → selectDelivery → project を 1 回ずつ呼ぶ (3) 戻った後の最初の試行は今の選択の順（群・期限・作成の順、notification-delivery.ts の earlier）で決まり、場面では EEW の音。21:00:04.500 の後、EEW の音の intent（期限は作成から 15 秒、eew-unit.ts:352。場面では 21:00:17）は、今の選択と予約の道で試され、鳴る。21:00:17 より後に閉じたときは、EEW の音の intent が先に期限で終わり、戻っても鳴らない（今の期限のまま）。中断された津波注意報の音は鳴らし直さない（P3-NFR-D-REPLAY=A） (4) 試験 T01 は直す前のコードで、close の後も channel が isolated のままで 2 つ目の試行が始まらず落ちる。無いと: 21:00:03 から process を起こし直すまで、その run の音が 1 つも鳴らない",
+        "requirement": "遅れて閉じたら隔離から戻す（目的の A6。P3-NFR-D-LATE-PATH=A）: 場面: 21:00:00.000 津波注意報の音（sound、aplay、群 other）が走っている → 21:00:02.000 EEW の音の intent（群 normalEew）で上位群の中断、root は abort を onLateStop つきで呼ぶ（composition-root.ts:1112）。adapter は SIGTERM を送る → 21:00:03.000 停止の期限に close が無く、adapter は stopped=false で試行を終え、root は sound を isolated にする（今と同じ。津波注意報の intent は notificationOutcomeUnknown で終わる）→ 21:00:04.500 aplay が閉じる。(1) adapter: close の handler（152〜156 行）は settled の後でも、その試行が stopped=false で終わっていたら、active[channel] がその試行のままなら null にしてから（155 行）、onLateStop を { attemptId, stopped: true, completedAt: close を見た時の clock } で 1 回呼ぶ。onLateStop は abort が受けた最初のもの（183 行で ??= で持つ。Active の型は 25 行の中に省略できる欄を足す）。NotificationResult は返さない (2) root: 遅い close の method（2361 行と 2362 行の間に足す）は、current が null、停止の最終化を締めた後（finalization.closed が true、composition-root.ts:1755。または finalizationAt が入っている）、channel が isolated でない、isolated の attemptId が観測と違う、のどれかなら何もしない。そうでなければ notificationResult と同じ順で、reclaimExpired → channel を idle にする → selectDelivery → project を 1 回ずつ呼ぶ。method は子の close の listener から同期で呼ばれるので、中身を今の結果の道（composition-root.ts:1127〜1132）と同じ形で包む: try で囲み、投げたら onNotificationDispatchFailure があればそれへ渡し（停止の間、composition-root.ts:1676）、無ければ void Promise.reject(error) にする。EventEmitter の同期の例外にして process ごと落とさない（r2 Opus P2）(3) 戻った後の最初の試行は今の選択の順（群・期限・作成の順、notification-delivery.ts の earlier）で決まり、場面では EEW の音。21:00:04.500 の後、EEW の音の intent（期限は作成から 15 秒、eew-unit.ts:352。場面では 21:00:17）は、今の選択と予約の道で試され、鳴る。21:00:17 より後に閉じたときは、EEW の音の intent が先に期限で終わり、戻っても鳴らない（今の期限のまま）。中断された津波注意報の音は鳴らし直さない（P3-NFR-D-REPLAY=A） (4) 試験 T01 は直す前のコードで、close の後も channel が isolated のままで 2 つ目の試行が始まらず落ちる。無いと: 21:00:03 から process を起こし直すまで、その run の音が 1 つも鳴らない",
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/adapter.ts:90 «586c749105b2e74b»",
           "reconstruction/src/notification-delivery/adapter.ts:152 «c9771745fa6d99f1»",
@@ -300,6 +310,9 @@
           "reconstruction/src/runtime/composition-root.ts:1112 «ae8a95860aa59dd4»",
           "reconstruction/src/runtime/composition-root.ts:1202 «e79df0eb5d3ec435»",
           "reconstruction/src/runtime/composition-root.ts:2358 «ba111a328dd530b0»",
+          "reconstruction/src/runtime/composition-root.ts:1127 «e170cda82cb48269»",
+          "reconstruction/src/runtime/composition-root.ts:1129 «439bfcb5e822c27e»",
+          "reconstruction/src/runtime/composition-root.ts:1676 «fa5f6eb48b6b13fa»",
           "docs/specs/reconstruction-p0-contracts.md:962 «aa57e0ea5ddebeb1»",
           "reconstruction/contracts/p2-notification-delivery.json:103 «faff8ea62ba1e088»",
           "reconstruction/src/units/eew/eew-unit.ts:352 «ca46ed6b5af75b8a»"
@@ -307,20 +320,23 @@
       },
       {
         "id": "P3-NFR-AC02",
-        "requirement": "戻らない場合と、戻すときの境界（新しい試験は足さない。既存の試験と読みで確かめる）: (1) process が閉じないままなら、今どおり isolated のまま、その channel で試行を作らず、後の intent は期限で終わる（adapter.test.ts:22 の T02 の close の前の段が今どおり通る）(2) 遅い close は停止の観測で、二件目の結果ではない。A7 の applyNotificationResult は呼ばず、isolated の間の結果を捨てる形（notification-delivery.ts:97〜99）は変えない。root が channel を stopping のまま見ている間に届いた遅い close（Q-NFR-ORDER）、別の attemptId の観測、2 回目の観測は捨てる (3) 戻った後にもう一度中断して閉じないと、また isolated になり、また遅い close で戻る。戻る回数に上限は置かない（戻るたびに close という停止の証拠がある）(4) 停止の間: 最終化の段が終わる前の遅い close では idle に戻し、selectDelivery は stage が running でないので何も選ばない。そのため最終化の段の終わりの数え（composition-root.ts:1753）に入らず、停止の code が 4 から 0 になることがある。finalizationAt が入った後は捨てる（P3-NFR-D-SHUTDOWN=A、作者には報告だけ）。既存の「resolved but unconfirmed stop remains an isolated shutdown attempt」は偽の abort が 4 番目を捨てるので今どおり (5) 起動の probe（adapter.ts:223）は onLateStop を渡さない。probe の player が遅れて閉じたら active.sound だけ空き、以後の音の試行が occupied で失敗し続けることが無くなる (6) desktop も同じ道（osascript・notify-send・PowerShell）。OS へ渡した通知の表示を取り消したことは保証しない（P2-A7-ADAPTER の stopEvidence のまま）(7) 受信の hot path の仕事は変えない。遅い close の処理は 1 回の観測に O(1) と、今の selectDelivery・project の 1 回ずつ",
+        "requirement": "戻らない場合と、戻すときの境界（(4) の締めた後の境界は試験 T04、ほかは既存の試験と読みで確かめる）: (1) process が閉じないままなら、今どおり isolated のまま、その channel で試行を作らず、後の intent は期限で終わる（adapter.test.ts:22 の T02 の close の前の段が今どおり通る）(2) 遅い close は停止の観測で、二件目の結果ではない。A7 の applyNotificationResult は呼ばず、isolated の間の結果を捨てる形（notification-delivery.ts:97〜99）は変えない。root が channel を stopping のまま見ている間に届いた遅い close（Q-NFR-ORDER）、別の attemptId の観測、2 回目の観測は捨てる (3) 戻った後にもう一度中断して閉じないと、また isolated になり、また遅い close で戻る。戻る回数に上限は置かない（戻るたびに close という停止の証拠がある）(4) 停止の間: 最終化の段を締める前の遅い close では idle に戻し、selectDelivery は stage が running でないので何も選ばない。そのため最終化の段の終わりの数え（composition-root.ts:1753）に入らず、停止の code が 4 から 0 になることがある。締めた後（finalization.closed が true、composition-root.ts:1755、または finalizationAt が入った後）は捨て、channel も snapshot も変えない。保存が詰まって最終化が期限で切れると finalizationAt は null のまま残るので、finalizationAt だけでは断れない（P3-NFR-D-SHUTDOWN=A、作者には報告だけ）。試験 T04 がこの境界を見る。既存の「resolved but unconfirmed stop remains an isolated shutdown attempt」は偽の abort が 4 番目を捨てるので今どおり (5) 起動の probe（adapter.ts:223）は onLateStop を渡さない。probe の player が遅れて閉じたら active.sound は空くが、probe が delivered でなければ root は sound を unavailable にしていて（composition-root.ts:480・488）、その run の間は試行しない。製品の「使用不可」は戻らない（r2 で説明を直した）(6) desktop も同じ道（osascript・notify-send・PowerShell）。OS へ渡した通知の表示を取り消したことは保証しない（P2-A7-ADAPTER の stopEvidence のまま）(7) 受信の hot path の仕事は変えない。遅い close の処理は 1 回の観測に O(1) と、今の selectDelivery・project の 1 回ずつ",
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/notification-delivery.ts:97 «904b64e7d709a821»",
           "reconstruction/src/notification-delivery/adapter.ts:181 «b9b79f1c30b6081c»",
           "reconstruction/src/notification-delivery/adapter.ts:223 «54c80265dd291966»",
           "reconstruction/src/runtime/composition-root.ts:1441 «8a9a8558dff80fc9»",
           "reconstruction/src/runtime/composition-root.ts:1753 «93b99352a24e9c5c»",
+          "reconstruction/src/runtime/composition-root.ts:1755 «4224c48f6bd7d36b»",
+          "reconstruction/src/runtime/composition-root.ts:480 «7825f9a0d89386a1»",
+          "reconstruction/src/runtime/composition-root.ts:488 «709181cb515a96f9»",
           "reconstruction/src/host/host.ts:596 «c20f1e3e972a0c4e»",
           "reconstruction/test/integration/notification-wiring.test.ts:199 «ffc9bc4ba8183e5c»"
         ]
       },
       {
         "id": "P3-NFR-AC03",
-        "requirement": "直近の試行が失敗で終わった channel を wire で failing と出す（目的の A10。P3-NFR-D-SET=A・D-BIT-HOME=A・D-SCHEMA=A）: 場面: 20:00 Pi の PulseAudio が落ちる → 21:00:00 EEW の音の試行が paplay の exit 1（adapterRejected）で終わる → 21:00:01 鳴らし直しも失敗し notificationOutcomeUnknown → 21:40 PulseAudio が戻った後の次の音が delivered。(1) 印: root は channel ごとの boolean（2361 行と 2362 行の間に足す private の field、初めは両方 false）を持つ。notificationResult の running・stopping の分岐（1448 行の中）で、A7 の step.diagnostics にその結果の attemptId の notificationAttemptFailed があれば立て、無くて結果の kind が delivered なら下ろす。ほかの結果（上位群・置換・期限・停止の中断、隔離中の channel の結果）では変えない (2) 渡し方: snapshotInput の 6 番目の引数（219 行。省略は両方 false）→ SnapshotProjectionInput.channelFailing（240 行、types の 149 行）。製品の呼び出し（985 行）は必ず this の印を渡す (3) 表示: view-projector の channel()（744・746 行）は probe の前は checking、unavailable と isolated は同じ名前、それ以外で印が立っていれば failing、立っていなければ available（強さは checking ＞ unavailable ＞ isolated ＞ failing ＞ available）。DisplayChannelView に failing を足す（types の 78 行）(4) 場面では 21:00:00 の結果の後に sound が failing（直す前は available）、21:01 の時点も failing、21:40 の delivered の後は available。D-TIMEOUT-AFTER=A なら、時間切れで隔離して遅い close で戻った channel は failing（上位群の中断で隔離した channel は available）(5) 印が変わると snapshot の channels が変わり、comparable（view-projector.ts:754）に入っているので新しい snapshot が出る。印の変化だけで新しい仕組みは要らない (6) 受信の hot path の仕事は変えない。結果 1 件ごとに step.diagnostics（多くて 3 件）を 1 回見るだけで、全件×全件の走査も state の直列化もしない (7) 試験 T02 は直す前のコードで (4) の failing の期待で落ちる（今は available）。無いと: PulseAudio が落ちた夜に、画面は「使える」と出し続け、EEW の音が鳴らないことに気づけない",
+        "requirement": "直近の試行が失敗で終わった channel を wire で failing と出す（目的の A10。P3-NFR-D-SET=A・D-BIT-HOME=A・D-SCHEMA=A）: 場面: 20:00 Pi の PulseAudio が落ちる → 21:00:00 EEW の音の試行が paplay の exit 1（adapterRejected）で終わる → 21:00:01 鳴らし直しも失敗し notificationOutcomeUnknown → 21:40 PulseAudio が戻った後の次の音が delivered。(1) 印: root は channel ごとの boolean（2361 行と 2362 行の間に足す private の field、初めは両方 false）を持つ。notificationResult の running・stopping の分岐（1448 行の中）で、A7 の step.diagnostics にその結果の attemptId の notificationAttemptFailed があれば立て、無くて結果の kind が delivered なら下ろす。ほかの結果（上位群・置換・期限・停止の中断、隔離中の channel の結果）では変えない (2) 渡し方: snapshotInput の 7 番目の引数（219 行。省略は両方 false）→ SnapshotProjectionInput.channelFailing（240 行、types の 149 行）。製品の呼び出し（985 行）は必ず this の印を渡す (3) 表示: view-projector の channel()（744・746 行）は probe の前は checking、unavailable と isolated は同じ名前、それ以外で印が立っていれば failing、立っていなければ available（強さは checking ＞ unavailable ＞ isolated ＞ failing ＞ available）。DisplayChannelView に failing を足す（types の 78 行）(4) 場面では 21:00:00 の結果の後に sound が failing（直す前は available）、21:01 の時点も failing、21:40 の delivered の後は available。時間切れで隔離して遅い close で戻った channel は failing、上位群の中断で隔離して戻った channel は available（P3-NFR-D-TIMEOUT-AFTER=A）(5) 印が変わると snapshot の channels が変わり、comparable（view-projector.ts:754）に入っているので新しい snapshot が出る。印の変化だけで新しい仕組みは要らない (6) 受信の hot path の仕事は変えない。結果 1 件ごとに step.diagnostics（多くて 3 件）を 1 回見るだけで、全件×全件の走査も state の直列化もしない (7) 試験 T02 は直す前のコードで (4) の failing の期待で落ちる（今は available）。無いと: PulseAudio が落ちた夜に、画面は「使える」と出し続け、EEW の音が鳴らないことに気づけない",
         "evidenceRefs": [
           "reconstruction/src/view-projector/view-projector.ts:746 «d567876cdf0b092a»",
           "reconstruction/src/view-projector/view-projector.ts:889 «0317e5007b5f2b01»",
@@ -353,7 +369,7 @@
       },
       {
         "id": "P3-NFR-AC05",
-        "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: (1) adapter.ts（今の 242 行）・view-projector.ts（935 行）・pure.ts（422 行）・p2-snapshot-sse.types.ts（244 行）は行の数を変えない。中身を変えてよいのは allowedPaths に書いた行だけ (2) composition-root.ts は 49・129・219・240・985・1112・1448 行の中を書き換え、行を足すのは 2361 行と 2362 行の間だけ（印の field 1 つと遅い close の method 1 つ、それぞれ「なぜ」のコメント 1 行と前の空行）。ほかの行の中身と位置は変えない (3) 形の例（コンパイルしていない）: adapter.ts の 155 行を「if (settled) { if (context.stopObservation?.stopped === false && active[attempt.channel] === context) { active[attempt.channel] = null; context.onLateStop?.({ attemptId: attempt.attemptId, stopped: true, completedAt }); } return; }」、183 行を「context.cause ??= request.cause; context.onLateStop ??= onLateStop;」、composition-root.ts の 1112 行を「void this.notificationAdapter.abort(request, channel.stopByMonotonicMs, this.clock, (observation) => this.notificationStopped(name, observation)).catch(() => {});」(4) 実装の後、check-contract で FAIL になるのは、本契約が引く行のうち中身を変えた行（allowedPaths に挙げた行。adapter.ts の 25・176・183・229、composition-root.ts の 49・129・219・240・985・1112・1448、view-projector.ts の 744・746・889・890、pure.ts の 124、types の 78・149、smoke.mjs の 408・529・530）と、composition-root.ts の 2417・2437・2440 を引く 3 契約の 4 件だけの見込み。統合担当が配送で付け直す",
+        "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: (1) adapter.ts（今の 242 行）・view-projector.ts（935 行）・pure.ts（422 行）・p2-snapshot-sse.types.ts（244 行）は行の数を変えない。中身を変えてよいのは allowedPaths に書いた行だけ (2) composition-root.ts は 49・129・219・240・985・1112・1448 行の中を書き換え、行を足すのは 2361 行と 2362 行の間だけ（印の field 1 つと遅い close の method 1 つ、それぞれ「なぜ」のコメント 1 行と前の空行）。ほかの行の中身と位置は変えない (3) 形の例（コンパイルしていない）: adapter.ts の 155 行を「if (settled) { if (context.stopObservation?.stopped === false && active[attempt.channel] === context) { active[attempt.channel] = null; context.onLateStop?.({ attemptId: attempt.attemptId, stopped: true, completedAt }); } return; }」、183 行を「context.cause ??= request.cause; context.onLateStop ??= onLateStop;」、composition-root.ts の 1112 行を「void this.notificationAdapter.abort(request, channel.stopByMonotonicMs, this.clock, (observation) => this.notificationStopped(name, observation)).catch(() => {});」。notificationStopped の中身は AC01 (2) の try で包む（行を足すのは 2361〜2362 行の間なので、包みの行も数に入れてよい）(4) 実装の後、check-contract で FAIL になるのは、本契約が引く行のうち中身を変えた行（allowedPaths に挙げた行。adapter.ts の 25・176・183・229、composition-root.ts の 49・129・219・240・985・1112・1448、view-projector.ts の 744・746・889・890、pure.ts の 124、types の 78・149、smoke.mjs の 408・529・530）と、行を足して位置がずれる composition-root.ts の 2417・2437・2440 を引く 4 契約の 7 件（他の 3 契約の 4 件と、本契約の AC05 の 3 件）だけの見込み。統合担当が配送で付け直す",
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/adapter.ts:25 «55b2545213cefd77»",
           "reconstruction/src/notification-delivery/adapter.ts:176 «4fdea23ddb0766bf»",
@@ -402,6 +418,14 @@
           "P3-NFR-AC04"
         ],
         "behavior": "受入（AC04 (1)(2)）。pure.test.ts の末尾に足す。file の既存の snapshot（:22 の channels）を元に channels を { desktop: \"available\", sound: \"failing\" } にした JSON を、pure.ts の parseDisplaySnapshot が受けること（直す前のコードは null で落ちる）と、buildChannelLines がそれを [\"デスクトップ通知: 使用可\", \"音声通知: 直前に失敗\"] にすること。あわせて { desktop: \"unavailable\", sound: \"checking\" } を [\"デスクトップ通知: 使用不可\", \"音声通知: 確認中\"] にすること（AC04 (1) の改めた字。1 つの it の中で見る）"
+      },
+      {
+        "testId": "P3-NFR-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-NFR-AC02"
+        ],
+        "behavior": "境界（AC02 (4)、締めた後の遅い close は捨てる。r2 ヘルツ P2）。notification-wiring.test.ts の末尾に足す。file の「resolved but unconfirmed stop remains an isolated shutdown attempt」に倣い、偽の abort は 4 番目の引数 onLateStop を取っておき、試行を aborted・shutdown・stopped false で終えて stopped false を返す。harnessedRoot に display: { publish } を渡す。(1) EEW の sound の試行を走らせ、shutdownRuntime で停止を求める (2) 最終化の段が終わり、sound が isolated で、stageResults.sideEffectFinalization の pending.notificationAttempts が 1 であることを確かめ、公開した snapshot の数を控える (3) 取っておいた onLateStop を呼ぶ。sound は isolated のまま、公開した snapshot の数は増えない。最終化の段は、finalizationAt が null のまま期限で切れる形で組む（owner の確定を詰まらせて cutoff を決めさせない。unit-write-right.test.ts の 480〜488 行が同じ形で finalizationAt の null を見ている）。(2) で finalizationAt が null であることも確かめる。この形でないと、finalizationAt だけを見る実装（r1 の書き方）でも通ってしまい、境界を見分けられない。直す前のコードでも通る境界で、遅い close の method から finalization.closed の検査を外した実装では idle になって落ちる。この形で組めなければ、blocked として理由を報告する"
       }
     ],
     "requiredCommands": [
@@ -471,27 +495,26 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 足す仕組みは、abort の省略できる引数 1 つ（無いと、遅い close を root が知る道が無く、隔離から戻れない）、root の印の field 1 つと遅い close の method 1 つ（無いと、失敗を wire に出せず、隔離を解けない）、wire の値 1 つと projection の欄 1 つ（無いと、画面に失敗を出せない）だけ。新しい定数・helper・timer・設定・診断の reason は足さない。試験は T01〜T03 の 3 本（AC01・AC03・AC04 と 1 対 1）。AC01 の adapter の 155 行を戻すと T01 が、AC03 の 1448 行を戻すと T02 が、pure.ts の 124 行を戻すと T03 が、testMapping に書いた所で落ちることを、実装者が 1 回確かめて成果物に書く",
+      "最小実装・最小テスト: 足す仕組みは、abort の省略できる引数 1 つ（無いと、遅い close を root が知る道が無く、隔離から戻れない）、root の印の field 1 つと遅い close の method 1 つ（無いと、失敗を wire に出せず、隔離を解けない）、wire の値 1 つと projection の欄 1 つ（無いと、画面に失敗を出せない）だけ。新しい定数・helper・timer・設定・診断の reason は足さない。試験は T01〜T04 の 4 本（AC01・AC03・AC04・AC02 (4) と 1 対 1）。AC01 の adapter の 155 行を戻すと T01 が、AC03 の 1448 行を戻すと T02 が、pure.ts の 124 行を戻すと T03 が、testMapping に書いた所で落ちることを、実装者が 1 回確かめて成果物に書く。T04 は直す前のコードでも通る境界で、遅い close の method から finalization.closed の検査を外すと落ちることを、実装者が 1 回確かめて成果物に書く",
       "受信経路の計算量（AGENTS.md）: 受信の hot path（parser の入力・owner の返信・選択）の仕事は変えない。結果 1 件の照合に足すのは、その結果の step.diagnostics（多くて 3 件）を 1 回見ることと boolean の代入だけ。遅い close の処理は観測 1 回に O(1) と、今の selectDelivery・project の 1 回ずつ。全件×全件の走査も state の直列化もしない",
       "期待が変わる既存の試験（統合担当が起草で許した。r1、作者の字の裁定）: chrome の smoke.mjs の 408・529・530 行だけ。行の中で「使える」→「使用可」、「使えない」→「使用不可」に書き換える（確認中・隔離中はそのまま）。理由: AC04 (1) で状態の行の字を改めたため。smoke はブラウザの実走なので実装者は走らせず、統合担当が配送の後に走らせる。これ以外が落ちたら、変える前に試験名・旧の期待・理由を報告して止める（Q-NFR-TESTS）",
       "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
-      "残存として成果物に書く: (1) player が永遠に閉じないと、今どおり run の残りの間 isolated のまま（9-2 の A6 で SIGKILL を足す B は選ばれていない）(2) 隔離から戻ったことは診断の記録に残らない。記録には隔離の ERROR notificationAdapterIsolated だけが残る（D-RECOVER-DIAG=A）(3) mute や種類の門で止めた試行は delivered と数え、直前に失敗を下ろす（D-MUTE=A）。mute の間は backend が壊れていても「使用可」と出る (4) 版を上げる前から開いている Chrome のタブ（古い JS）は、channel が failing の間の snapshot を検査で捨て、読み直すまで前の snapshot のまま（D-SCHEMA=A。新築は P5 の前は Pi で動いていない）(5) 1 回目が失敗して鳴らし直しが通ると、その間（約 1 秒）だけ「直前に失敗」が出る（D-SET=A）(6) 遅い close までの間に期限の過ぎた intent は戻っても鳴らない（今の期限のまま）(7) 停止の段の中の遅い close で、停止の code が 4 から 0 になることがある（D-SHUTDOWN=A、作者には報告だけ）(8) 実機の試験（real-backend.test.ts）の abort の包みは 3 つの引数だけ渡すので、そこでは今どおり隔離のまま",
+      "残存として成果物に書く: (1) player が永遠に閉じないと、今どおり run の残りの間 isolated のまま（9-2 の A6 で SIGKILL を足す B は選ばれていない）(2) 隔離から戻ったことは診断の記録に残らない。記録には隔離の ERROR notificationAdapterIsolated だけが残る（D-RECOVER-DIAG=A）(3) mute や種類の門で止めた試行は delivered と数え、直前に失敗を下ろす（D-MUTE=A）。mute の間は backend が壊れていても「使用可」と出る (4) 版を上げる前から開いている Chrome のタブ（古い JS）は、channel が failing の間の snapshot を検査で捨て、読み直すまで前の snapshot のまま（D-SCHEMA=A。新築は P5 の前は Pi で動いていない）(5) 1 回目が失敗して鳴らし直しが通ると、その間（鳴らし直しの間隔 1 秒に再生の 0.6〜0.9 秒を足した長さ）だけ「直前に失敗」が出る（D-SET=A、作者には報告だけ）(6) 遅い close までの間に期限の過ぎた intent は戻っても鳴らない（今の期限のまま）(7) 停止の段の中の遅い close で、停止の code が 4 から 0 になることがある（D-SHUTDOWN=A、作者には報告だけ）(8) 実機の試験（real-backend.test.ts）の abort の包みは 3 つの引数だけ渡すので、そこでは今どおり隔離のまま",
       "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p2-notification-delivery.json:103 の abort の「停止未確認ならstopped=falseでterminal化しchannelを隔離、遅いclose/successから二件目を返さない。」の後に「停止の期限の後にcloseを観測したら停止の証拠として、adapterはchannelのactiveを空け、abortの4番目の引数onLateStopへ{attemptId,stopped:true,completedAt}を一度だけ渡す。NotificationResultは返さない。A3は隔離中の同じattemptIdのchannelだけをidleに戻して選び直す（P3-NOTIFY-FAIL-RECOVER-001のP3-NFR-AC01）。」を足し、meta.sha256 を取り直す (2) reconstruction/contracts/p2-snapshot-sse.json:468 の「完了後idle/running/stopping=available、unavailable/isolatedは同名表示」を「完了後idle/running/stopping=available（直近の試行がA7のnotificationAttemptFailedで終わり、まだdeliveredが無いchannelはfailing。P3-NOTIFY-FAIL-RECOVER-001のP3-NFR-AC03）、unavailable/isolatedは同名表示（failingより優先）」に置き換え、meta.sha256 を取り直す。p2-chrome-eew.json:491 の «» を付け直す (3) reconstruction/contracts/p2-chrome-eew.json:486 の「checking=確認中、available=使える、unavailable=使えない、isolated=隔離中。」を「checking=確認中、available=使用可、unavailable=使用不可、isolated=隔離中、failing=直前に失敗（2026-11-13 作者裁定、P3-NOTIFY-FAIL-RECOVER-001 の P3-NFR-D-LABEL）。」に置き換え、meta.sha256 を取り直す。486 行を «» で引くのは本契約だけ",
-      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる行を引く本契約の «»（AC05 (4) の一覧）、composition-root.ts の 2417・2437・2440 を引く p3-uw-canon.json:588・p3-host-followup.json:244・p3-e05p-typhoon.json:262・316（~/dev/fleq-vault-archive/tools/reanchor-target.py を composition-root.ts に当てる）、改訂 (1)〜(3) で中身が変わる 3 行を引く本契約の AC01・AC03・AC04・AC06 の «» と p2-chrome-eew.json:491。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
-      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: Mac mini で新築を起こし、(1) 音の player を SIGSTOP で止めてから上位群の中断を起こし、Chrome の状態の行が「音声通知: 隔離中」になること、SIGCONT と終わりの後に「使用可」へ戻り、次の音が鳴ることを見る (2) 音の backend の列を一時に動かなくして（PulseAudio を止める）音を 1 つ鳴らさせ、「音声通知: 直前に失敗」が出て、戻した後の次の音で「使用可」に戻ることを見る。(3) chrome の smoke（node reconstruction/test/chrome-eew/smoke.mjs。Chrome を起こし evidence/smoke-result.json を書き直すので、ブラウザの実走は統合担当が担う）を走らせ、書き換えた 3 行（408・529・530、P2-A9-T06 の channels4States ほか）が新しい字で通ることを見て、書き直された smoke-result.json（今は 393・394・717・718・721・722 行に古い字）を配送の記録の commit に入れる。実装者のゲートには入れない（字の表は Record<DisplayChannelView, string> の型と T03 が守る）"
+      "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる行を引く本契約の «»（AC05 (4) の一覧）、composition-root.ts の 2417・2437・2440 を引く p3-uw-canon.json:588・p3-host-followup.json:244・p3-e05p-typhoon.json:262・316 と本契約の AC05 の 3 件（~/dev/fleq-vault-archive/tools/reanchor-target.py を composition-root.ts に当てる）、改訂 (1)〜(3) で中身が変わる 3 行を引く本契約の AC01・AC03・AC04・AC06 の «» と p2-chrome-eew.json:491。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: Mac mini で新築を起こし、(1) 音の player を SIGSTOP で止めてから上位群の中断を起こし、Chrome の状態の行が「音声通知: 隔離中」になること、SIGCONT と終わりの後に「使用可」へ戻り、次の音が鳴ることを見る (2) 音の backend の列を一時に動かなくして（PulseAudio を止める）音を 1 つ鳴らさせ、「音声通知: 直前に失敗」が出て、戻した後の次の音で「使用可」に戻ることを見る",
+      "chrome の smoke の実走と記録の書き直し（統合担当、配送で必ず行う。r2 Opus P2）: node reconstruction/test/chrome-eew/smoke.mjs を走らせ（Chrome を起こし evidence/smoke-result.json を書き直すので、ブラウザの実走は統合担当が担う）、書き換えた 3 行（408・529・530、P2-A9-T06 の channels4States ほか）が新しい字で通ることを見る。書き直された reconstruction/test/chrome-eew/evidence/smoke-result.json（今は 393・394・717・718・721・722 行に古い字）を配送の記録の commit に入れる。smoke が通らないか記録が書き直せないときは、配送を止めて報告する。実装者のゲートには入れない（字の表は Record<DisplayChannelView, string> の型と T03 が守る）"
     ],
     "unresolvedQuestions": [
       {
-        "id": "Q-NFR-AUTHOR",
-        "owner": "user",
+        "id": "Q-NFR-ORDER",
+        "owner": "integrator",
         "blocks": [
-          "P3-NFR-AC01",
-          "P3-NFR-AC03",
-          "P3-NFR-AC04"
+          "P3-NFR-AC01"
         ],
-        "resolveBy": "発注の前（D-LABEL は provisional A で発注してよく、配送の前まで）",
+        "resolveBy": "配送の前（発注は止めない。逆順が起きたときに残るのは今と同じ隔離のままで、悪くはならない）",
         "requiredEvidence": [
-          "P3-NFR-D-REPLAY・D-TIMEOUT-AFTER・D-MUTE・D-LABEL の作者の裁定"
+          "遅い close（子の close の I/O の callback）が、root の隔離の反映（terminal の Promise の解決から続く microtask）より先に届く道が製品に無いことの根拠: 停止の期限の timer の callback と同期の区間の後に microtask を全部流してから I/O の callback へ進む、という Node の境界を確かめる試験か、本物の経路での確かめ (1) の観測（questionResolutions の Q-NFR-ORDER の読み）"
         ]
       }
     ]
