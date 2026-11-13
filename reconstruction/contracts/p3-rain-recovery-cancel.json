@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "024cf4149322cc9e67d452979070c8b0608c583d55f249a55ecc572537409ec8",
+    "sha256": "efd4c19bf936601b4294cf2759a11b51b51a524ba943aa009714fe728dfd0cc1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -295,7 +295,7 @@
         "referenceIds": [
           "P3-RRC-AC01"
         ],
-        "behavior": "受入（AC01 の場面）。新設の reconstruction/test/recovery/rain-recovery-cancel.test.ts に置く。統合担当が実装の委譲文に貼る probe（hz-repro/rain-recovery-cancel-probe.test.ts）の「本体 1」を元に組む。probe が無くても組める手順: 本物の host（startP2Host）と本物の端末（createTerminalOutput、debug: true、端末の clock は host と別の関数）をつなぎ、偽物は dmdata の 2 つだけにする。WS は 127.0.0.1 の ws の WebSocketServer で、繋がるたびに start（classifications は telegram.weather）を送る。REST は node:https を vi.mock して、一覧（api.dmdata.jp）と本文（data.api.dmdata.jp、取消の XML）に答える。dmdata-rest の listSockets・closeSocket・startSocket は recovery-host.test.ts と同じ形で mock する。composition-root を継承した class で root を取り、recoveryAdopted を包んで U-B の採用を数える。時刻の列（壁時計は試験の clock、例は 2026-08-21）: 起動の取り直しが終わる → 次の取り直しの許し（root の recoveryNotBefore、RECOVERY_GAP_MS の 60 秒）の 15 秒前の 16:33:14 に、WS で fixture phase6b_VPOA50_JPTC202608211633_202608211633 を送る → 端末に「対応報を待つ」の debug 行が出るのを待つ → WS を切る → 一覧に同じ EventID の取消（fixture の InfoType を取消に、ReportDateTime を 16:33:15、Control/DateTime を 07:33:20Z に替えた XML。一覧の行は rest/telegram-list-vtse41-real.json の 1 行目の head.type を VPOA50 に、eventId を同じ EventID にしたもの）を載せる → 繋ぎ直し → 取消の本文を取り、U-B の採用を待つ。前提（緑のまま）: A 端末の「対応報を待つ」の行 B 取消の本文を取り、U-B の採用が端末の 60 秒より前、停止の保存で U-B の記録が cancelled・origin recovery・取消 C 並びが「受信 < 切断 < 取消の発表 < 採用」。本体: 採用の後に端末の clock だけを 61 秒進め、次の tick の後に、端末に「記録的短時間大雨」の帯と本文が 0 行（直す前は 2 行で赤）。取り直しの 60 秒の間隔は host の clock なので実時間で待ち、1 本で約 50 秒かかる（timeout は 150 秒）"
+        "behavior": "受入（AC01 の場面）。新設の reconstruction/test/recovery/rain-recovery-cancel.test.ts に置く。統合担当が実装の委譲文に貼る probe（hz-repro/rain-recovery-cancel-probe.test.ts）の「本体 1」を元に組む。probe が無くても組める手順: 本物の host（startP2Host）と本物の端末（createTerminalOutput、debug: true、端末の clock は host と別の関数）をつなぎ、偽物は dmdata の 2 つだけにする。WS は 127.0.0.1 の ws の WebSocketServer で、繋がるたびに start（classifications は telegram.weather）を送る。REST は node:https を vi.mock して、一覧（api.dmdata.jp）と本文（data.api.dmdata.jp、取消の XML）に答える。dmdata-rest の listSockets・closeSocket・startSocket は recovery-host.test.ts と同じ形で mock する。composition-root を継承した class で root を取り、recoveryAdopted を包んで U-B の採用を数える。時刻の列（壁時計は試験の clock、例は 2026-08-21）: 起動の取り直しが終わる → 次の取り直しの許し（root の recoveryNotBefore、RECOVERY_GAP_MS の 60 秒）の 15 秒前の 16:33:14 に、WS で fixture phase6b_VPOA50_JPTC202608211633_202608211633 を送る → 端末に「対応報を待つ」の debug 行が出るのを待つ → WS を切る → 一覧に同じ EventID の取消（fixture の InfoType を取消に、ReportDateTime を 16:33:15、Control/DateTime を 07:33:20Z に替えた XML。一覧の行は rest/telegram-list-vtse41-real.json の 1 行目の head.type を VPOA50 に、xmlReport.head.eventId を同じ EventID に、id を 96 字の値に、url を https://data.api.dmdata.jp/v1/<その id> に、receivedTime を取消の受信時刻（16:33:16、取消の発表の 1 秒後の ISO の字）に替えたもの。receivedTime を替えないと fixture の 17 行の 2026-07-28T09:10:11.291Z が残り、recovery.ts の 407 行の取得の下限 fetchFromMs で行が外れて本文を取りに行かない）を載せる → 繋ぎ直し → 取消の本文を取り、U-B の採用を待つ。前提（緑のまま）: A 端末の「対応報を待つ」の行 B 取消の本文を取り、U-B の採用が端末の 60 秒より前、停止の保存で U-B の記録が cancelled・origin recovery・取消 C 並びが「受信 < 切断 < 取消の発表 < 採用」。本体: 採用の後に端末の clock だけを 61 秒進め、次の tick の後に、端末に「記録的短時間大雨」の帯と本文が 0 行（直す前は 2 行で赤）。取り直しの 60 秒の間隔は host の clock なので実時間で待ち、1 本で約 50 秒かかる（timeout は 150 秒）"
       },
       {
         "testId": "P3-RRC-T03",
@@ -303,7 +303,7 @@
         "referenceIds": [
           "P3-RRC-AC03"
         ],
-        "behavior": "当て直しで Set を空にすること（AC03 (3) の列）。T01 と同じ file と同じ偽物。起動の取り直しの一覧に、live の報より古い取消（ReportDateTime 16:32:50、Control/DateTime 07:33:10Z）を載せる。本文（data.api.dmdata.jp）の応答だけを止め、止まったこと（本文の要求が 1 件来た = 候補が開いた後）を確かめてから、WS で fixture の VPOA50（16:33:00 発表）を送り、端末の「対応報を待つ」の行を待つ。そのあと本文の応答を返し、U-B の採用を待つ。前提: 採用は 1 回で adopted、停止の保存で U-B の記録はこの subject の held か released（取消は stale で記録を変えない）。本体: 採用の後に端末の clock だけを 61 秒進め、次の tick の後に、端末に速報の帯が 1 つと本文が出る。直す前も緑（今は待ちを外さない）。AC03 (3) の空にする行だけを抜くと、当て直す前の shadow で入った subject が残って赤になる（実装者が 1 回確かめて成果物に書く）。起動の取り直しなので、取り直しの間隔の実時間の待ちは無い"
+        "behavior": "当て直しで Set を空にすること（AC03 (3) の列）。T01 と同じ file と同じ偽物。起動の取り直しの一覧に、live の報より古い取消（ReportDateTime 16:32:50、Control/DateTime 07:33:10Z）を載せる。一覧の行は T01 と同じ替え方で、receivedTime は起動の 2 秒後（16:33:07、起動の取り直しの下限より新しい）にする（fixture の 2026-07-28 のままだと recovery.ts の 407 行で外れ、本文の要求が来ないので待ちに着かない）。本文（data.api.dmdata.jp）の応答だけを止め、止まったこと（本文の要求が 1 件来た = 候補が開いた後）を確かめてから、WS で fixture の VPOA50（16:33:00 発表）を送り、端末の「対応報を待つ」の行を待つ。そのあと本文の応答を返し、U-B の採用を待つ。前提: 採用は 1 回で adopted、停止の保存で U-B の記録はこの subject の held か released（取消は stale で記録を変えない）。本体: 採用の後に端末の clock だけを 61 秒進め、次の tick の後に、端末に速報の帯が 1 つと本文が出る。直す前も緑（今は待ちを外さない）。AC03 (3) の空にする行だけを抜くと、当て直す前の shadow で入った subject が残って赤になる（実装者が 1 回確かめて成果物に書く）。起動の取り直しなので、取り直しの間隔の実時間の待ちは無い"
       },
       {
         "testId": "P3-RRC-T04",
