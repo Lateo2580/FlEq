@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "28562fd342d42e2fb059fe2b46048a8d8f4043f2beb2ba3793813280484dc0ca",
+    "sha256": "e25c46a85019e8f78ec64d7fb6c29ff45d48d27ed8d9c312810f4d39f228439d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
@@ -76,7 +76,7 @@
     "contractId": "P3-WEATHER-OTHER-OFFICE-001",
     "mode": "implementation",
     "objective": "C22 の帳簿で行き先の無かった O03:7（2026-08-30 06:50 の全国 VPWS50 base、福井の区域に特別警報）と O03:9（06:52 の京都 VPWW57 の partial）に合成の入力 2 本を足し、unmet を expected（どちらも changed/semantic・active・通知あり）にする。後ろの O03:8・10〜14（福井 L5、VPNO50 の issue・switch、引下げ、古い L5、解除）を含む 8 step を C22 の T01 で流し、一致させる（作者裁定 Q-FG-UNMET-ORPHAN、2026-11-13 15:13）。一致に要る T01 の読み方 3 つ（U-W の VPNO50 の墓標と、段を持つ行の無い報の記録を inactive と読む、noChange の revision を比べない）を足し（P3-WOO-D-READING=A）、O03 の中心要件（全国 base の福井の特別警報が区域終了の後に戻らない、福井以外と京都の現象を保つ）を T01 の同じ実行で assert する（AC08）。後ろの step の通知と O03:10 の decision は条文から確定し、O03:12 の通知は作者の裁定（Q-WOO-O03-12）を待つ。製品のコードは変えない。unmet は群 2 の後の 87 → 85",
-    "baseOid": "unassigned",
+    "baseOid": "6818b8dd2f7f98356634ed4c02b04d3e2f4cb691",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
