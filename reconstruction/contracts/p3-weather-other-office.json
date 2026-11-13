@@ -1,0 +1,401 @@
+{
+  "meta": {
+    "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
+    "sha256": "1015b1cb9ab342f0b1648a5196ec8c989d3151048ee0aebd85d21a60ee0423ea",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-WOO-D-BASE-FORM",
+        "kind": "統合担当",
+        "A": "O03:7 の合成（test/fixtures/synthetic_VPWS50_fukui_base.xml）は実物の全国報 15_18_01_250630_VPWS50.xml（2019-10-12 09:09、気象庁本庁）を親にし、Head の時刻 3 つ（Control/DateTime・ReportDateTime・TargetDateTime）を 06:50 に替え、福井の区域（Area/Code が 18 で始まる）の Item だけを実物の 18_00_01_260830_VPWW55_fukui_L5.xml（06:51、confirmedOriginal）の Item に置き換える: Body は 4 type の 25 件を同じ type・同じ Code の L5 の Body の 25 件と 1 対 1 で、Headline の Information は 4 type の 25 件を L5 の Headline の 14 件（type ごと、同じ順）で。ほかの区域・Headline/Text（空）・EventID・InfoType・Serial・官署は親のまま",
+        "B": "Head の時刻 3 つだけを替える（福井の区域は親の 2019-10-12 の注意報のまま）",
+        "C": "A に加えて福井と京都のほかの区域の Item を取り除き、小さい全国報にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。O03:7 の input.required の「福井L5と同じ区域に特別警報、別官署partialの所有外現象も含む」を満たすのは A と C だけで、C は親の値を消す置き換えが 2,300 件を越え、所有外の現象〔福井と京都の外の区域〕も消える。A の福井の値は同じ日の実物の福井の報から写すので、値を作らない）",
+        "reason": "福井 L5（06:51）の Body の Kind の Status は 25 件とも「継続」（発表は 0 件）なので、06:50 の全国報が福井の区域に同じ行を持つことは実物と食い違わない。親の福井の Item は 2019-10-12 の注意報で、B では全国 base に 3x の行が無く、O03:11 の終了と O03:13・14 の「古い base を再露出しない」が空回りする（起草の試しで、B の base では O03:7 の intent が 0 になり、AC03 の notices・intents=true で T01 が落ちることを確かめた。Q-WOO-PROBE の (4)）。P3-WEATHER-NOTICE-001 の試験（p3-weather-notice.json:841）も同じ親の福井の区域に Code 33 を載せた全国報を試験の中で作っている。福井の区域の Item は親とも L5 とも Body で 4 type・25 件の同じ Code の並びで、Headline だけ L5 が 14 件（警報・注意報のある区域だけ）。Headline も替えるのは、U-W は VPWS50 の Headline を読まない〔Body だけ〕が、親の Headline の福井の注意報が Body の特別警報と食い違って端末の見出しに出ないようにするため。福井以外の区域の値（2019-10-12）と、その中の DateTime・Time（2019-10-12 の発表時刻など）は親のまま残す（2026-08-30 の全国の実物は corpus に無い。替えれば値を作ることになる）。結果は 4,509,112 byte で親（4,567,490 byte）と同じ大きさ。走る試験への時間の差は小さい（Q-WOO-PROBE の (6)）"
+      },
+      {
+        "id": "P3-WOO-D-KYOTO-AREA",
+        "kind": "統合担当",
+        "A": "O03:9 の合成（test/fixtures/synthetic_VPWW57_kyoto_partial.xml）は実物の京都の 15_16_02_251222_VPWW57.xml（2020-06-22 23:00、京都地方気象台、高潮の危険警報 48）を親にし、Head の時刻 3 つだけを 06:52 に替える。区域は京都の区域（Code が 26 で始まる）のまま。O03:9 の input.required の「福井L5と重なる区域」は、福井の区域と同じ日・同じ全国 base の中で同時に有効な京都の区域、と読む",
+        "B": "京都の報に福井の区域の Code（18 で始まる）を足し、字どおり福井 L5 と重なる区域にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。帳簿の字〔p3-final-gate.json:191 の「福井 L5 と重なる区域」〕との違いは統合担当が作者への報告に 1 行で添える）",
+        "reason": "京都地方気象台が福井の区域の警報を出すことは無く、B は input.required 自身の「合法partial」に反し、値と位置を作る。製品が区域の重なりを見るのは VPNO50 の終了の Code の完全一致と、末尾 0000 の Code の先頭 2 桁だけ（weather-current.ts:542）で、京都の Code（26…）は福井の終了（180000、先頭 18）に当たらない。A で O03:9 が確かめるのは、別官署の partial の現象と所有が O03:11 の終了と O03:14 の解除で変わらないこと（起草の試しで O03:9〜14 の京都の phenomena と所有 10 件が同じ。Q-WOO-PROBE の (3)）。確かめないのは、同じ区域を 2 官署が持つときの終了の当たり方（合法な電文では起きない）。Head の外の 2020-06-23 の時刻（Headline/Text の「２３日６時以降」、Body の CriteriaPeriod の Time など）は親のまま（U-W は Head の時刻だけを読む。替えれば値を作る）"
+      },
+      {
+        "id": "P3-WOO-D-READING",
+        "kind": "統合担当",
+        "A": "C22 の T01（oracle.test.ts）の比べの読み方に 3 つを足す: (1) effectiveOf で U-W の VPNO50 の記録（source.family が VPNO50。U-W に残る VPNO50 の記録は区域終了の墓標だけ）を inactive/released と読む (2) effectiveOf で U-W の報の記録（phenomena を持つ）に段を持つ行（Code が文字列で 00 でなく、Status が「解除」「発表警報・注意報はなし」でない行。weather-current.ts の owned と同じ条件）が無ければ inactive と読み、cause は解除の行（Status 解除か Code 00）があれば released、無ければ noActiveItems (3) revision を比べない場合に unchanged/noChange を足す（stale と同じく、意味を更新しない報の revision は報自身のもので保存の記録に無い）",
+        "B": "読み方を変えず、O03:10・11・14 の期待を製品の記録の形（active、revision を比べない字）に合わせて書き換える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。O03:11・14 の inactive/released は spec と P2-A5 の条文から読める期待で、製品の state もそのとおり〔墓標と解除の行〕。食い違いは T01 の読みの欠けで、群 1 の P3-EEW-SAME-CORRECTION-001 が U-E の gate の読みを effectiveOf に足したのと同じ形）",
+        "reason": "起草の試しで、合成 2 本を当てると O03:7・8・9・12・13 は今の読みで一致し、O03:10（revision: 期待 10:57 に actual null）・O03:11（effective: 期待 inactive/released に actual active）・O03:14（同じ）の 3 件だけが食い違った。製品: O03:10 の VPNO50（Code 33 の報知、終了でない）は P2-A5 の VPNO50 の行（p2-weather-current-unit.json:139「非終了枝は既存P2対象外で意味更新しない」）どおり unchanged/noChange で何も保存しない（weather-current.ts:260・:586）。O03:11 の VPNO50 の終了は墓標だけを残す（spec:794、p2-weather-current-unit.json:138）。O03:14 の福井の解除は partial を残し、全行が Status 解除で所有 0（p2-weather-current-unit.json:115「全項目が解除・発表警報・注意報はなしなら正常な無発令であり取消ではない」、weather-current.ts:502）。今の読みは effective の欄の無い記録を active と読み、noChange でも保存の記録の revision を比べる。読みを足した前後で流した 381 step の (matched, fields) を step ごとに比べ、変わったのは O03:10（(偽,2)→(真,1)）・O03:11・O03:14（(偽,4)→(真,4)）の 3 step だけ（ほかの U-W の step〔O03:2〜5・7〜9・12・13、O06:10、O09:2〕は同じ）。B は O03:11・14 の期待を spec と逆にするので採らない"
+      },
+      {
+        "id": "P3-WOO-D-NOTICE",
+        "kind": "統合担当",
+        "A": "expected:O03:7・O03:9 の notices・intents を true にする",
+        "B": "今の unmet の record と同じ null（比べない）のままにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。P3-WEATHER-NOTICE-001 の AC01・AC02 から読め、試しの値も同じ。B の base を弾く唯一の T01 の欄でもある）",
+        "reason": "O03:7: 空の U-W（O03:6 の restart の後）に福井の区域の L5 を持つ全国報を受けるので、L5 に上がった区域があり desktop＋音の 1 組（p3-weather-notice.json:602・:617。試しで intent 2 件）。親の福井以外の区域に L4・L5 の行は無い（試しで福井以外の 3x・4x の行 0。時刻だけ替えた親〔P3-WOO-D-BASE-FORM の B〕では O03:7 の intent 0）。試しの intent は desktop と sound の 2 件で level critical、title「大雨特別警報（福井県）」、body「大雨特別警報 福井県嶺北 / 大雨危険警報 福井県坂井市、福井県永平寺町」。O03:9: 全国 base の京都の行（親の 2019-10-12）より上がった高潮危険警報（48、L4）で desktop だけの 1 件（試しで 1 件、level warning、title「高潮危険警報（京都府）」、body「高潮危険警報 京都府北部」）。後ろの step: O03:8 の福井 L5 は全国報が同じ段を先に載せたので上がらず intent 0（:617 の (2)。期待は null のまま変えない）、O03:13 は false のとおり 0、O03:14 は 0。画面・通知・音は変えない（corpus に今の製品の出方を固定するだけ）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-WOO-SOURCE",
+        "status": "closed",
+        "source": "起草（2026-11-13、HEAD 9fb23040〔群 2 の起草の branch の上〕の木を読んだ。読むだけの子）",
+        "closed": "(1) corpus: unmet:O03:7（step は sequences.json :3434〜:3446、record :15401〜:15435）と unmet:O03:9（step :3463〜:3476、record :15470〜:15505）は fixture が無い。期待は両方 changed/semantic・active、subjects は「normal/O03/input.requiredに記した対象（未充足）」、revision 06:50（O03:7）・06:52（O03:9）で serial・infoType は null、notices・intents は null。receivedAt は 1788040200000（06:50:00+09:00）・1788040320000（06:52）。後ろの O03:8・10〜14 は oracle.test.ts:53 で dependsOnUnmet に入り流れていない（oracle.test.ts:417 の一覧）。O03:14 の checks の字に「いずれも未充足」がある (2) 2026-08-30 の全国の VPWS50 と京都の VPWW57 の実物は corpus（manifest 315 件）に無い。全国の VPWS50 の実物は 15_18_01_250630_VPWS50.xml（2019-10-12、4,567,490 byte、Body 4 type・2,353 区域）だけ、京都の VPWW57 の実物は 15_16_02_251222_VPWW57.xml（2020-06-22）だけ。福井の 2026-08-30 の実物は L5・downgrade・release・VPNO50 の issue・switch の 5 本 (3) 帳簿（p3-final-gate.json:190・:191・:274）の前提と製品: U-W は全国 base と官署 partial を別の subject で持ち、区域をまたいで触れるのは VPNO50 の終了だけ（終了の Code の完全一致と末尾 0000 の Code の先頭 2 桁、weather-current.ts:542。報時刻が終了以前の全国・partial・履歴の 3x の行を外す、:548）。P2-A5-T02（weather-current-unit.test.ts:290）は全国＋福井 partial＋VPNO50 までで、別官署の partial を組まない（帳簿の字どおり） (4) 件数の決め打ち（今の木の値。群 2 の後は +1）: check-manifest.mjs の :33・:34・:62・:97・:149（315・294）、README.md の :5・:44、p1-parser-boundary.json の objective（:84）・P1-AC01（:544）・P1-T01（:561）・requiredCommands（:572）と fixtureIds、p1-parser-boundary.test.ts の :46・:48・:50（294・293・293）、oracle.test.ts の :412・:415・:417、weather-current-unit.test.ts:613 の P2-A5-T05 の U-W の family の fixture の数 14（manifest の VPWS50・VPWW55・57〜61・VPNO50 を全部回す。群 2 の VPWP50 は数えない） (5) fixture を全部回す試験: 群 2 の Q-TNE-SOURCE (4) の一覧（width.test.ts の P3-TL-T05、layout6.test.ts の P3-TL6-T04、digest.test.ts の P3-TL7-T02、check-manifest.mjs、旧築の weather-warning-fixture-coverage.test.ts）に、U-W の family を数える P2-A5-T05 を足す (6) 帳簿の「京都の partial が福井 L5 と重なる区域」は合法な京都の報では作れない（P3-WOO-D-KYOTO-AREA）"
+      },
+      {
+        "id": "Q-WOO-PROBE",
+        "status": "closed",
+        "source": "起草（2026-11-13、worktree の reconstruction/.dr-tmp/g3/ で、追跡 file を変えずに合成 2 本を作り、manifest・sequences・oracle.test.ts の写しと、cp -c で写した木で流した。群 2 は当てていない木）",
+        "closed": "(1) 合成: test/fixtures/synthetic_VPWS50_fukui_base.xml は 4,509,112 byte・sha256 4dcbeef1b8c37de0f335570bf4656abbdbe09cc07c9e04015c6235bd09de968f、test/fixtures/synthetic_VPWW57_kyoto_partial.xml は 20,762 byte・sha256 b5b81974565a4bd2721f7c96d62bda918a289008122411b7568e371d17865af6（AC01 (1) の作り方。違えば止めて報告） (2) T01（今の読み）: 流した 381 step のうち食い違い 3 step（O03:10 revision、O03:11・O03:14 effective、P3-WOO-D-READING）。O03:7・8・9・12・13 は一致。読みを足した写し（AC04 の字）で mismatches 0、O03:7〜14 は全部一致（O03:7・9 は subjects・decision・revision・effective・intents・notices の 6 欄、O03:10 は subjects の 1 欄、O03:11・12・14 は 4 欄、O03:13 は 5 欄）。数は unmet 88 → 86、dependsOnUnmet 7 → 1（O02:4 だけ。群 2 の後は 0）、flow 373 → 381、hollow 13・prepared 15・withdrawn 10・injectFailure 44・afterInjectFailure 47 は同じ。件数を直した写しで T01・T02 とも緑 (3) U-W の state（T01 の写しで O03 の各 step の後に書き出した。T01 の比べの外）: 全国 base の福井の区域の 3x の行は O03:7〜10 で 7 件、O03:11（VPNO50 の終了）の後 0 件で O03:12〜14 も 0 件。全国 base の福井以外の区域の phenomena（2,353 区域のうち福井 25 を除く全部）は O03:7 から O03:14 まで同じ。京都の partial の phenomena は O03:9 から O03:14 まで同じで、京都の所有は 10 件のまま。福井の partial の所有は O03:14 で 0 件。墓標は O03:11 から VPNO50 の 1 件 (4) 弾き: 全国 base を時刻だけ替えた形（P3-WOO-D-BASE-FORM の B）にすると O03:7 の intents・notices が食い違う（intent 0）。京都の合成の EditorialOffice を福井地方気象台にすると O03:9 の subjects が食い違う。読みを足さないと (2) の 3 step が食い違う (5) intent の数（試しの値）: O03:7 は 2（L5 の desktop＋音）、O03:8 は 0、O03:9 は 1（L4 の desktop「高潮危険警報（京都府）」）、O03:10・11・13・14 は 0、O03:12 は 1（desktop「大雨危険警報（福井県）」、outOfScope の発見） (6) cp -c の木で、tsc 3 本の後に全 reconstruction の vitest（--maxWorkers=2）: 落ちたのは P2-A5-T05（weather-current-unit.test.ts:613 の 14 → 16、AC05 で直す）と eew-e01/p3.test.ts の 8 本（どれも「contract digest: P1-PARSER-BOUNDARY-001」。p1-parser-boundary.json の fixtureIds を足して meta を取り直していないため。AC06 で統合担当が取り直せば消える見込み）だけ。:613 を直した木で weather-current-unit・parser-boundary・final-gate・width・layout6・digest は緑。時間は width 444 → 434ms、layout6 671 → 749ms、digest 29 → 24ms（ほぼ同じ）。check-manifest・check-sequences は写しの木で PASS（317 件、unmet=86） (7) 旧築: 写しの木で test/fixtures を歩く 4 本（weather-warning-fixture-coverage・kinsoku-snapshot・width-contract・phase1-shadow）は緑。npm run build と旧築の全 npm test は回していない（許可 root の外に書かない都合。発注の最初の作業で回す）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。合成の 2 本の Control/Status は親のまま「通常」"
+    }
+  },
+  "contract": {
+    "contractId": "P3-WEATHER-OTHER-OFFICE-001",
+    "mode": "implementation",
+    "objective": "C22 の帳簿で行き先の無かった O03:7（2026-08-30 06:50 の全国 VPWS50 base、福井の区域に特別警報）と O03:9（06:52 の京都 VPWW57 の partial）に合成の入力 2 本を足し、unmet を expected（どちらも changed/semantic・active・通知あり）にする。後ろの O03:8・10〜14（福井 L5、VPNO50 の issue・switch、引下げ、古い L5、解除）を含む 8 step を C22 の T01 で流し、一致させる（作者裁定 Q-FG-UNMET-ORPHAN、2026-11-13 15:13）。一致に要る T01 の読み方 3 つ（U-W の VPNO50 の墓標と、段を持つ行の無い報の記録を inactive と読む、noChange の revision を比べない）を足す（P3-WOO-D-READING=A）。製品のコードは変えない。unmet は群 2 の後の 87 → 85",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-weather-other-office.json",
+      "reconstruction/contracts/p3-timeseries-newer-empty.json",
+      "reconstruction/contracts/p3-eew-same-correction.json",
+      "reconstruction/contracts/p3-final-gate.json",
+      "reconstruction/contracts/p2-weather-current-unit.json",
+      "reconstruction/contracts/p3-weather-notice.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/src/units/weather-current/weather-current-notice.ts",
+      "reconstruction/test/final-gate/oracle.test.ts",
+      "reconstruction/test/weather-current-unit/weather-current-unit.test.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/tools/corpus/**",
+      "test/fixtures/15_18_01_250630_VPWS50.xml",
+      "test/fixtures/15_16_02_251222_VPWW57.xml",
+      "test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml"
+    ],
+    "allowedPaths": [
+      "test/fixtures/synthetic_VPWS50_fukui_base.xml（新規。AC01）",
+      "test/fixtures/synthetic_VPWW57_kyoto_partial.xml（新規。AC01）",
+      "reconstruction/tools/corpus/manifest.json（2 行を path の順の位置に足す〔AC01 (3)〕。meta.sha256 を取り直す。ほかの行は変えない）",
+      "reconstruction/tools/corpus/sequences.json（O03:7・O03:9 の step と record と、O03:14 の checks の 1 語だけ〔AC02〕。meta.manifestSha256 と meta.sha256 を取り直す）",
+      "reconstruction/tools/corpus/check-manifest.mjs（件数の行の中だけ: :33・:34・:62・:97・:149）",
+      "reconstruction/tools/corpus/README.md（:5 の件数と経緯の書き足し、:44 の件数）",
+      "reconstruction/contracts/p1-parser-boundary.json（objective・P1-AC01・P1-T01・requiredCommands の件数と、fixtureIds に 2 行。meta は統合担当が取り直す）",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（:46・:48・:50 の件数だけ）",
+      "reconstruction/test/weather-current-unit/weather-current-unit.test.ts（:613 の件数 14 → 16 だけ）",
+      "reconstruction/test/final-gate/oracle.test.ts（effectiveOf に 6 行〔AC04 (1)〕、:302・:303 の行の中〔AC04 (2)〕、:411〜:417〔足した後は :417〜:423〕の数・一覧・コメントの行の中だけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-weather-other-office.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M06"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-WEATHER-CURRENT-UNIT-001",
+      "P3-WEATHER-NOTICE-001",
+      "P3-FINAL-GATE-001",
+      "P3-EEW-SAME-CORRECTION-001",
+      "P3-TIMESERIES-NEWER-EMPTY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-weather-current-unit.types.ts#WeatherCurrentSnapshot"
+    ],
+    "publicFunctions": [
+      "口は変えない（製品のコードを変えない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPNO50_issue",
+      "test__fixtures__18_00_01_260830_VPNO50_switch",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_downgrade",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release"
+    ],
+    "sequenceIds": [
+      "O03"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O03:8"
+      },
+      {
+        "expectedRef": "expected:O03:11"
+      },
+      {
+        "expectedRef": "expected:O03:12"
+      },
+      {
+        "expectedRef": "expected:O03:13"
+      },
+      {
+        "expectedRef": "expected:O03:14"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O03:8"
+      },
+      {
+        "expectedRef": "expected:O03:11"
+      },
+      {
+        "expectedRef": "expected:O03:12"
+      },
+      {
+        "expectedRef": "expected:O03:13"
+      },
+      {
+        "expectedRef": "expected:O03:14"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形と版を変えない）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "製品のコード（reconstruction/src/）の変更",
+      "U-W の試験（weather-current-unit.test.ts）に試験を足すこと。O03:7〜14 の現象の保持と古い base の再露出しないことは T01 の比べの外で、起草の試しの state の書き出しで確かめただけ（Q-WOO-PROBE の (3)）",
+      "C22 の帳簿の orphan のほかの群（O04:3・5〜8、O06:11〜28、O09:3〜7・10）と O02 の unmet",
+      "C22 の帳簿の記録の数（p3-final-gate.json の Q-FG-LEDGER-AC03・発注 1 の記録の unmet 90・流す 365 など）の書き換え。記録は当時の数のまま残し、原文の改訂の文を足すだけ",
+      "expected:O03:8・10・12 の notices・intents（null のまま）と O03:10 の decision（null のまま）。試しの値は O03:8 が 0、O03:10 が 0（unchanged/noChange）",
+      "発見（統合担当がバックログと作者のカードへ送る。契約違反かは未判断）: O03:12 の福井の引下げ（11:40、特別警報から危険警報）で U-W が L4 の desktop の intent を 1 件作る（試しで観た: level warning、title「大雨危険警報（福井県）」、body「大雨危険警報 福井県嶺北」。全国 base を時刻だけ替えた形でも 1 件で、福井の実物 4 本の並びだけで起きる）。同じ 11:40 の VPNO50 の終了（O03:11）が先に福井の 3x の行を外し、引下げの報の 43 が「上がった」と読まれるため（P3-WN-AC02 (3) は引下げで作らないと書くが、AC02 の比べは終了の後の行で読む）。P3-WEATHER-NOTICE-001 の試験は L5 → 引下げの間に VPNO50 を挟まない",
+      "evidence の凍結 manifest の o09Subset.sequencesSha256（測定の入力の記録。書き換えない）",
+      "2026-08-30 の全国 VPWS50・京都 VPWW57 の実物の採取（見つかれば P5 の REST 採取で錨を足す）",
+      "旧築（src/）と spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-WOO-AC01",
+        "requirement": "合成の入力 2 本（P3-WOO-D-BASE-FORM=A・P3-WOO-D-KYOTO-AREA=A）: (1) test/fixtures/synthetic_VPWS50_fukui_base.xml: 親 test/fixtures/15_18_01_250630_VPWS50.xml の bytes を LF で行に分け、Headline の Information と Body の Warning のそれぞれで、Area の Code（<Area> の 2 行後の <Code>）が 18 で始まる Item（<Item> の行から </Item> の行まで）を選ぶ（親は Headline 25 件・Body 25 件、どれも Area 1 つ）。Body: 各 Item を、test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml の Body の同じ Warning type・同じ Code の Item（25 件）の行で置き換える。Headline: type ごとに連続した福井の Item の並びを、L5 の Headline の同じ type の Item の並び（府県予報区等 1・一次細分区域等 1・市町村等をまとめた地域等 3・市町村等 9）で置き換える。その後、<DateTime>2019-10-12T00:02:45Z</DateTime> を 2026-08-29T21:50:00Z に、<ReportDateTime> と <TargetDateTime> の 2019-10-12T09:09:00+09:00 を 2026-08-30T06:50:00+09:00 に替える。ほかの bytes（Control/Title・Status・EditorialOffice 気象庁本庁・Head/Title・Headline/Text〔空〕・EventID・InfoType 発表・Serial〔空〕・福井以外の区域・末尾）は親のまま。結果は 4,509,112 byte、sha256 4dcbeef1b8c37de0f335570bf4656abbdbe09cc07c9e04015c6235bd09de968f (2) test/fixtures/synthetic_VPWW57_kyoto_partial.xml: 親 test/fixtures/15_16_02_251222_VPWW57.xml の <DateTime>2020-06-22T14:00:00Z</DateTime> を 2026-08-29T21:52:00Z に、<ReportDateTime> と <TargetDateTime> の 2020-06-22T23:00:00+09:00 を 2026-08-30T06:52:00+09:00 に替える（各 1 か所）。ほかは親のまま。結果は 20,762 byte、sha256 b5b81974565a4bd2721f7c96d62bda918a289008122411b7568e371d17865af6 (3) manifest に 2 行を path の順の位置（全国は synthetic_VPWP50_newer_empty〔群 2〕の次、京都は synthetic_VPWW56_correction の次）に足す。欄は既存の合成の行に倣う: role telegramXml、acquisition {kind generated、locator は自分の path、acquiredAt null、evidenceRefs は「<path>: synthetic命名の固定人工入力。配信原本性を主張しない。P3-WEATHER-OTHER-OFFICE-001（C22 の帳簿の O03:7〔京都は O03:9〕）で追加。」の 1 本。全国は「福井の区域の Item は test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml（confirmedOriginal、06:51。Body の Kind の Status は全部「継続」）から写した。福井以外の区域は親の 2019-10-12 の値。」を同じ文に続ける}、modification {kind synthetic、parentFixtureId は親の fixtureId、parentSha256 は親の行の sha256、changes は全国が 5 つ: {field Control/DateTime、from 2019-10-12T00:02:45Z、to 2026-08-29T21:50:00Z}・{field Head/ReportDateTime、from 2019-10-12T09:09:00+09:00、to 2026-08-30T06:50:00+09:00}・{field Head/TargetDateTime、同じ from・to}・{field Head/Headline/Information/Item（Area/Code 18…）、from 親の 25 件、to test__fixtures__18_00_01_260830_VPWW55_fukui_L5 の Headline の 14 件}・{field Body/Warning/Item（Area/Code 18…）、from 親の 25 件、to test__fixtures__18_00_01_260830_VPWW55_fukui_L5 の Body の同じ type・Code の 25 件}、京都が 3 つ（Control/DateTime 2020-06-22T14:00:00Z → 2026-08-29T21:52:00Z、Head/ReportDateTime・Head/TargetDateTime 2020-06-22T23:00:00+09:00 → 2026-08-30T06:52:00+09:00）}、transport は親の行と同じ（evidence の字も同じ）、documentTimes は全国 {2026-08-30T06:50:00+09:00、同じ}・京都 {2026-08-30T06:52:00+09:00、同じ}、sourceStrength synthetic、distribution unconfirmed (4) 件数は「群 2 の配送の後の値 +2」: manifest 316 → 318、XML 295 → 297（今の木なら 315 → 317・294 → 296）。check-manifest.mjs の 5 か所（:149 は「297 XML + 21 JSON」）、README.md の :5（318件=XML297+JSON21 と経緯の 1 文）・:44（全318件）、p1-parser-boundary.json の objective（全318）・P1-AC01（XML 297件）・P1-T01（全297）・requiredCommands（318 fixture）と fixtureIds（manifest と同じ 2 つの位置に 1 行ずつ）を合わせる。数は統合担当が載せ直しのときに確かめる",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/manifest.json",
+          "reconstruction/tools/corpus/check-manifest.mjs",
+          "reconstruction/contracts/p3-weather-notice.json:841 «1d748bb5fb03736a»",
+          "reconstruction/contracts/p3-final-gate.json:190 «8491ecf8eb18f054»",
+          "reconstruction/contracts/p3-final-gate.json:191 «b2f97e612b2b8e25»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:542 «4b5ba3e1977460af»"
+        ]
+      },
+      {
+        "id": "P3-WOO-AC02",
+        "requirement": "O03:7・O03:9 の期待（P3-WOO-D-NOTICE=A）: (1) step: O03:7 は fixtureId を test__fixtures__synthetic_VPWS50_fukui_base、expectedRef を expected:O03:7 に、O03:9 は test__fixtures__synthetic_VPWW57_kyoto_partial・expected:O03:9 に替える。receivedAt・evaluatedAt・inputSource（replay）・operationExpected（normal）は変えない（受信は報の時刻と同じで check-sequences の「受信が報より前にならない」を満たす） (2) expectationBasis（step と record の basisRefs を同じにし、順もこのまま）: O03:7 は「L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03」（今の 1 本）「L1: docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae» VPNO50 の区域終了で終了済みの特別警報を再露出させない」「L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域」「L2: test/fixtures/synthetic_VPWS50_fukui_base.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）」の 4 本。O03:9 は「L1: …md:1779 «739b40cc8a7f938f» O03」（今の 1 本目）「L1: reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577» office は Control/EditorialOffice」「L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域」「L2: test/fixtures/synthetic_VPWW57_kyoto_partial.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）」の 4 本（今の 2 本目の福井 L5 の L2 は O03:9 の入力ではないので外す） (3) record（unmet → expected、expectedId も同じ値へ）: decision {kind: changed, change: semantic}・effective {kind: active}（同じ）、subjects は O03:7 が [{subject: normal/VPWS50/気象庁本庁, revision: {reportDateTimeRaw: 2026-08-30T06:50:00+09:00, serialRaw: null, infoTypeRaw: 発表}}]、O03:9 が [{subject: normal/VPWW57/京都地方気象台, revision: {2026-08-30T06:52:00+09:00, null, 発表}}]（office は EditorialOffice、p2-weather-current-unit.json:109。O03:2 の 168d3018 の直しと同じ字）、notices true、intents true、basisLevel 1、basisRefs は (2)、input null。checks は O03:7 が 4 本「同日同時有効base+複数partial合成。後続実福井材料と組み、所有外現象を維持。」（今の 1 本）「福井の区域（Code が 18 で始まる）の行は 06:51 の福井 L5 の Body と同じ（特別警報 33 を含む）。福井以外の区域は親（2019-10-12 の全国報）の値のまま。」「空の U-W で L5 に上がった区域があるので desktop＋音の 1 組（P3-WN-AC01・AC02）。福井の特別警報の行は O03:11 の VPNO50 の終了で外れ、O03:13・14 で戻らない。」と運用区分の定型「運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。」。O03:9 が 4 本「各官署/typeの所有現象を保持。福井の終了で京都の所有外現象を全消去しない。」（今の 1 本）「京都の区域（Code が 26 で始まる）だけの報。福井の区域とは Code も先頭 2 桁も重ならず、O03:11 の終了（180000）と O03:14 の解除で京都の行と所有は変わらない。」「全国 base の京都の行より上がった高潮危険警報（L4）で desktop の 1 件（P3-WN-AC01・AC02）。」と運用区分の定型 (4) expected:O03:14 の checks の 1 本目の「（O03:7 の VPWS50 base・O03:9 の VPWW57 京都、いずれも未充足）」の「いずれも未充足」を「P3-WEATHER-OTHER-OFFICE-001 の合成」に替える（行の中だけ）。O03:8・10〜14 のほかの欄は変えない (5) 根拠: O03:7 は空の state（O03:6 の restart）への全国報で previous が無く changed/semantic、記録は段を持つ行があるので active。O03:9 は京都の subject の初報で同じ。後ろの 6 step の期待は今の字のまま、AC04 の読みで一致する（Q-WOO-PROBE の (2)）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f»",
+          "docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae»",
+          "reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577»",
+          "reconstruction/contracts/p3-weather-notice.json:602 «e9daf4832b807a44»",
+          "reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1»",
+          "reconstruction/contracts/p3-final-gate.json:274 «37393f113b02490e»"
+        ]
+      },
+      {
+        "id": "P3-WOO-AC03",
+        "requirement": "C22 の T01 で 8 step が流れて一致する: (1) O03:7〜14 が flow の表に入り（unmet と、その後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま (2) oracle.test.ts の数（行の中だけ。群 2（P3-TIMESERIES-NEWER-EMPTY-001）の配送の後の値から）: unmet 87 → 85、dependsOnUnmet 6 → 0・flow 375 → 383、dependsOnUnmet の一覧は []（空）。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13（と一覧）・prepared 15 は変えない。今の木の :411 のコメントの末尾に「2026-11-13 の P3-WEATHER-OTHER-OFFICE-001 で O03:7・O03:9 に入力を足した。」を足す（AC04 で 6 行足すので :417 になる） (3) T02 も緑のまま（O03:7・9 は U-W だけが変え、保存の inputIds に U-W だけで入る。試しで緑） (4) O03:7〜14 の actual が AC02 の期待と違うか、T01・T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する。起草では .dr-tmp の写しで (1)〜(3) を確かめた（Q-WOO-PROBE の (2)。群 2 を当てていない木なので、数は unmet 86・dependsOnUnmet 1〔O02:4〕・flow 381）",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
+          "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
+          "reconstruction/test/final-gate/oracle.test.ts:412 «7043bd37d4a2ef31»",
+          "reconstruction/test/final-gate/oracle.test.ts:415 «fa00634b251085aa»"
+        ]
+      },
+      {
+        "id": "P3-WOO-AC04",
+        "requirement": "T01 の読み方（P3-WOO-D-READING=A。試験の読みだけで、製品は変えない）: (1) effectiveOf の U-E の gate の行（今の :117）の直後に、次の 6 行（コメント 2 行と判定 4 行）を足す: VPNO50 の記録の行「if (unit === \"U-W\" && isRecord(record[\"source\"]) && record[\"source\"][\"family\"] === \"VPNO50\") return { kind: \"inactive\", cause: { kind: \"released\" } };」と、報の記録の行「const rows = unit === \"U-W\" && isRecord(record[\"phenomena\"]) ? Object.values(record[\"phenomena\"]).flatMap((value) => Array.isArray(value) ? value.filter(isRecord) : []) : null;」「if (rows != null && !rows.some((row) => typeof row[\"code\"] === \"string\" && row[\"code\"] !== \"00\" && row[\"status\"] !== \"解除\" && row[\"status\"] !== \"発表警報・注意報はなし\"))」「return { kind: \"inactive\", cause: { kind: rows.some((row) => row[\"status\"] === \"解除\" || row[\"code\"] === \"00\") ? \"released\" : \"noActiveItems\" } };」。コメントは「U-W の VPNO50 の記録は区域終了の墓標だけなので released。報の記録は段を持つ行（weather-current.ts の owned と同じ条件）が無ければ inactive で、解除の行があれば released、無ければ noActiveItems（P2-A5 の全項目が解除・なしの報は無発令）」の趣旨で、行番号を書かない（AGENTS.md のコメントの決まり）。無いと O03:11・O03:14 の effective（期待 inactive/released）が active と読まれ T01 が落ちる (2) revision を比べる条件（今の :303）の「!(made.decision === \"unchanged\" && made.reason === \"stale\")」を「!(made.decision === \"unchanged\" && (made.reason === \"stale\" || made.reason === \"noChange\"))」にし、その上のコメント（:302）の行の末尾に「noChange（意味を更新しない報、U-W の終了でない VPNO50）も同じ。」を足す。無いと O03:10 の revision（期待 10:57）が null と比べられ T01 が落ちる (3) 足した前後で流した step の (matched, fields) が変わるのは O03:10・O03:11・O03:14 の 3 step だけであることを、FLEQ_FINAL_GATE_OUT の flowed で確かめて成果物に書く（起草の試しでは 3 step だけ、Q-WOO-PROBE の (2)・P3-WOO-D-READING の reason）。ほかの step が変われば止めて報告する (4) (1) で 6 行足すので、今の :118・:125・:233・:303 は :124・:131・:239・:309 になり、:303 は字も変わる（AC06 の «» の付け直し）",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/oracle.test.ts:117 «a2c82f4934f3e9e0»",
+          "reconstruction/test/final-gate/oracle.test.ts:303 «aed348fc8f40aa42»",
+          "reconstruction/contracts/p2-weather-current-unit.json:115 «1772fe5c3b2eb16d»",
+          "reconstruction/contracts/p2-weather-current-unit.json:138 «2a1209ecc887d0dd»",
+          "reconstruction/contracts/p2-weather-current-unit.json:139 «5189384eb681f592»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:260 «8dab50163cbe4336»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:502 «fb9cf6ba19e7cd7f»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:586 «f5fd07d83be1001e»"
+        ]
+      },
+      {
+        "id": "P3-WOO-AC05",
+        "requirement": "fixture の件数を数える既存の試験の期待を直す（理由: corpus に 2 本足すため。直す前の報告はこの条文で済ませる）: (1) P1-T01（p1-parser-boundary.test.ts:46〜:50）は群 2 の後の値から行 295 → 297、decoded 294 → 296、偽の decode で差の出る行 294 → 296（今の木なら 294 → 296・293 → 295・293 → 295）。新しい 2 本の分類は親と同じ（telegram.weather・VPWS50／VPWW57） (2) P2-A5-T05（weather-current-unit.test.ts:613）の U-W の family の fixture の数 14 → 16（試験は manifest の VPWS50・VPWW55・57〜61・VPNO50 を全部空の state に受け、unavailable 0 を確かめる。新しい 2 本も通ることを試しで確かめた） (3) ほかの fixture を全部回す試験（width.test.ts の P3-TL-T05、layout6.test.ts の P3-TL6-T04、digest.test.ts の P3-TL7-T02、旧築の weather-warning-fixture-coverage.test.ts ほか）は直さない見込み（Q-WOO-PROBE の (6)・(7)）。落ちたら試験名と旧・新の値を報告して止める",
+        "evidenceRefs": [
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:613 «28be7ba697b2e0fa»"
+        ]
+      },
+      {
+        "id": "P3-WOO-AC06",
+        "requirement": "製品と保存を変えない: reconstruction/src/ と旧築（src/）を変えない。保存の形と版を変えない。AC02〜AC04 を満たすのに製品の変更が要ると分かったら、変えずに理由を書いて止める",
+        "evidenceRefs": [
+          "reconstruction/src/domains/weather-current/weather-current.ts:548 «6990364a60d44243»"
+        ]
+      },
+      {
+        "id": "P3-WOO-AC07",
+        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・e8500cb4）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない (3) «» の付け直し（群 2（P3-TIMESERIES-NEWER-EMPTY-001）の配送の後の行番号から）: p1-parser-boundary.json の fixtureIds に 2 行足すので、p3-xml-tree-compact.json が引く :504 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :548・:550・:551・:559 の行番号を 2 足す（anchor は同じ。:46・:148 はずれない）。sequences.json は O03:7 の step で +3・O03:9 の step で +2・O03:7 の record で +3（basisRefs +3、input の 4 行 → 1 行で −3、checks +3）・O03:9 の record で +2 の計 +10 行なので、p3-weather-notice.json が引く «eb7977e1e2170e55»（\"expectedId\": \"expected:O01:82\",。群 2 の後は :24282）は :24292 になる見込み。中身で引き直す。p3-migration.json が引く sequences.json の :65・:103・:114 と、p3-e05p-typhoon.json が引く manifest.json の :117〜:119・:243 は挿入の位置より前でずれないことを確かめる。oracle.test.ts は AC04 (1) で 6 行足すので、«oracle.test.ts:118»（p3-eew-same-correction.json）→ :124、«:125»・«:233»（p3-timeseries-newer-empty.json）→ :131・:239（anchor は同じ）、«:303»（p3-eew-same-correction.json の 1 件と p3-timeseries-newer-empty.json の 2 件）→ :309 で、字が変わるので anchor も取り直す（起草の写しでは «3d60ff180164f361»）。:45・:53 はずれない。check-manifest.mjs・p1-parser-boundary.test.ts・weather-current-unit.test.ts・README.md は行の中だけを直すので、引かれた行はずれない（weather-current-unit.test.ts:290 は :613 より前） (4) 自己 hash を引く «» の連鎖: p3-measure-harness.json:4 を引く p3-e05p-classify.json:343 を、p3-measure-harness.json の自己 hash の確定の後に付け直し、最後に p3-e05p-classify.json の自己 hash を取り直す。ほかに契約の meta の行を引く «» が無いかを配送の木で grep で確かめる (5) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）。eew-e01/p3.test.ts の 8 本は p1-parser-boundary.json の digest を取り直すまで「contract digest: P1-PARSER-BOUNDARY-001」で落ちる（Q-WOO-PROBE の (6)）ので、取り直しの後の木で全 reconstruction の vitest を回す",
+        "evidenceRefs": [
+          "reconstruction/contracts/check-contract.mjs",
+          "reconstruction/tools/corpus/check-sequences.mjs"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-FG-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-WOO-AC02",
+          "P3-WOO-AC03",
+          "P3-WOO-AC04"
+        ],
+        "behavior": "既存の oracle.test.ts の T01。新しい試験は足さず、読み方 3 つ（AC04）と数・一覧（AC03 (2)）を直す。O03:7・9 は changed/semantic・active・intent ありを、O03:8・10〜14 は既存の期待を、連結した 12 unit の上で照合する"
+      },
+      {
+        "testId": "P3-FG-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-WOO-AC03"
+        ],
+        "behavior": "既存の oracle.test.ts の T02。変えずに緑のままを確かめる（O03:7・9 は U-W だけが変え、保存の inputIds に U-W だけで入る）"
+      },
+      {
+        "testId": "P1-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-WOO-AC01",
+          "P3-WOO-AC05"
+        ],
+        "behavior": "既存の試験。件数を直し、新しい 2 本の分類と documentTimes が manifest と一致することを確かめる"
+      },
+      {
+        "testId": "P2-A5-T05",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-WOO-AC05"
+        ],
+        "behavior": "既存の試験。U-W の family の fixture の数を 16 に直し、新しい 2 本も空の state に受けて unavailable 0 を確かめる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 318 件（群 2 の後）の台帳と hash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O03 の参照。unmet=85（群 2 の後）を確かめる"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装担当の木では各契約の最初の FAIL が digest になる。統合担当が AC07 の取り直しの後に回し、PASS（WARN は baseOid=unassigned の契約だけ）を確かめる"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（oracle.test.ts の足した行）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T01・T02・P1-T01・P2-A5-T05・P3-TL-T05 を含む）。eew-e01/p3.test.ts の 8 本は p1-parser-boundary.json の digest の取り直し（AC07）まで落ちる見込みで、それ以外の落ちは止めて報告する"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "package.json",
+        "stage": "implementation",
+        "purpose": "test/fixtures に file を足すので旧築の試験も回す（前例 b3df1e3f・4a08b83c）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは T01 の読み方 3 つ（AC04。無いと O03:10・11・14 が spec どおりの製品の記録に対して食い違い、C22 の合格〔行き先の無い unmet 0〕に届かない）と、入力 2 本・台帳の 2 行だけ。新しい試験・helper・script を repo に足さない。直す既存の試験は P3-FG-T01（AC03・AC04）、P1-T01 と P2-A5-T05 の数（AC05）だけ",
+      "最初の作業: 合成 2 本・manifest の 2 行・sequences の O03:7・9 を当て、AC04 の読みを足した木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせる（件数の assert が先に落ちても、beforeAll が書いた出力の mismatches・counts・flowed で中身を見られる）。O03:7〜14 の一致と、AC04 (3) の 3 step だけの変化を確かめてから件数の直しに進む。期待と違えば AC03 (4) で止める",
+      "合成は親を cp -c で写してから AC01 の置き換えを当て、byte 数と sha256 が AC01 の値と同じことを確かめて書く。全国の合成は行の置き換えで作り、XML として書き直さない（属性の順・空白・改行を親のままにする）",
+      "sequences.json の数字の id と、O03:7・9 の step・record・O03:14 の checks の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）。sequences.json と manifest.json は JSON として書き直さず、行の中を手で直す（書き直すと行が展開されて AC07 (3) の «» の先がずれる）",
+      "digest と «» の取り直し（AC07）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
+      "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の値を報告して止める。allowedPaths の外は直さない",
+      "原文の改訂（統合担当が配送の commit で当てる。(4) を除き、どれも行の中の書き足しで、行を足さない）: (1) p3-final-gate.json:274 の orphan の 3 項目め（O03:7・O03:9）の末尾に「→ P3-WEATHER-OTHER-OFFICE-001 で合成 2 本を足し、unmet:O03:7・9 を expected（changed/semantic・active・通知あり）にした。京都の合成は京都の区域だけの合法な報で、帳簿の字の「福井と同じ区域」ではない（P3-WOO-D-KYOTO-AREA）。T01 の読み方 3 つを足した（P3-WOO-D-READING）。unmet 87 → 85」を足す (2) p3-final-gate.json の発注 1 の記録 2（:1057）の (4) の比べの読み方の列の末尾（記録の末尾ではなく (4) の文の中、(5) の前）に「、U-W の VPNO50 の記録を released、段を持つ行の無い U-W の報の記録を inactive（解除があれば released、無ければ noActiveItems）と読み、noChange の報の revision は比べない（P3-WEATHER-OTHER-OFFICE-001）」を足す (3) reconstruction/tools/corpus/README.md:14 の O03 の行の末尾に「2026-11-13 P3-WEATHER-OTHER-OFFICE-001 で O03:7・9 を合成で充足（全国 base は福井の区域を福井 L5 から写した 2019 の全国報、京都は 2020 の京都の報の時刻を移したもの）。」を足す (4) 本契約の fixtureIds に test__fixtures__synthetic_VPWS50_fukui_base・test__fixtures__synthetic_VPWW57_kyoto_partial を、expectedDecisions と expectationEvidence に expected:O03:7・expected:O03:9 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
+      "載せ直し: 本契約は群 2（P3-TIMESERIES-NEWER-EMPTY-001、起草 9fb23040 の上）の配送の後に載せ直す前提で書いた。件数（AC01 (4)・AC03 (2)・AC05）と行番号（AC07 (3)）は群 2（P3-TIMESERIES-NEWER-EMPTY-001）の配送の後の値で書き、今の木の値を括弧で添えた。統合担当は載せ直しの木で数と行を確かめてから baseOid を割り当てる",
+      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
