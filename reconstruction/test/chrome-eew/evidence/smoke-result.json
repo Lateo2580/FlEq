@@ -1,6 +1,6 @@
 {
   "schemaVersion": "p2-a9-chrome-smoke-evidence-v1",
-  "ranAt": "2026-10-05T15:41:52.749Z",
+  "ranAt": "2026-11-13T07:20:32.273Z",
   "conditions": {
     "file": "reconstruction/test/eew-e01/evidence/chrome-smoke-conditions.json",
     "conditionsSha256": "07d16d81e410ed293776bcf314580cf7264b178cc018c329de927ecc03f2b1d9"
@@ -26,7 +26,7 @@
       "evidence": "CDP応答",
       "detail": {
         "expected": "154.0.8037.58",
-        "actual": "154.0.8037.97"
+        "actual": "157.0.8103.52"
       }
     },
     {
@@ -315,12 +315,12 @@
       "detail": {
         "t5": [
           {
-            "startTime": 118.60000000149012,
+            "startTime": 123.09999999403954,
             "detail": {
               "name": "fleq:p2:eew:T5",
               "displayVersion": {
                 "streamId": "smoke-a",
-                "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
+                "semanticRevision": "[\"1\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]",
                 "sequence": 1
               }
             }
@@ -328,12 +328,12 @@
         ],
         "t6": [
           {
-            "startTime": 119.19999999925494,
+            "startTime": 123.59999999403954,
             "detail": {
               "name": "fleq:p2:eew:T6-candidate",
               "displayVersion": {
                 "streamId": "smoke-a",
-                "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
+                "semanticRevision": "[\"1\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]",
                 "sequence": 1
               },
               "operation": "normal",
@@ -374,8 +374,8 @@
       "evidence": "CDP応答 (Runtime.evaluate)",
       "detail": {
         "probeId": "smoke-probe-1",
-        "chromeReceivedMonotonicMs": 214.5,
-        "chromeSentMonotonicMs": 214.5
+        "chromeReceivedMonotonicMs": 269.2000000178814,
+        "chromeSentMonotonicMs": 269.2000000178814
       }
     },
     {
@@ -390,8 +390,8 @@
         },
         "t6Count": 0,
         "channels": [
-          "デスクトップ通知: 使える",
-          "音声通知: 使えない"
+          "デスクトップ通知: 使用可",
+          "音声通知: 使用不可"
         ]
       }
     },
@@ -522,12 +522,12 @@
       "detail": {
         "t6": [
           {
-            "startTime": 345,
+            "startTime": 447.09999999403954,
             "detail": {
               "name": "fleq:p2:eew:T6-candidate",
               "displayVersion": {
                 "streamId": "smoke-b",
-                "semanticRevision": "[\"1:0\",\"0:0\",\"0:0\"]",
+                "semanticRevision": "[\"1\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\"]",
                 "sequence": 8
               },
               "operation": "normal",
@@ -645,15 +645,24 @@
       "evidence": "DOM (A1→A4→A8の実経路のsnapshot)",
       "detail": {
         "wire": {
-          "capacityExceeded": 1,
-          "unavailable": {},
-          "activeCount": 0,
-          "current": 0
+          "summaryDelivery": "summary",
+          "summaryActive": 512,
+          "summaryCapacity": 1,
+          "fullDelivery": "full",
+          "fullActive": 512,
+          "fullCapacity": 1,
+          "fullCurrent": 512
         },
-        "rows": [
-          "[通常] 表示できない報がある（容量超過 1 件）"
+        "summaryRows": [
+          "[通常] 緊急地震速報: 処理できていない報がある（容量超過）"
         ],
-        "cardCount": 0
+        "summaryLines": [
+          "[通常] 512件 / 警報 / 更新: 2024/04/17 23:14:59 / 詳細省略中"
+        ],
+        "fullRows": [
+          "[通常] 緊急地震速報: 処理できていない報がある（容量超過）"
+        ],
+        "cardCount": 512
       }
     },
     {
@@ -715,10 +724,10 @@
       "detail": {
         "first": [
           "デスクトップ通知: 確認中",
-          "音声通知: 使える"
+          "音声通知: 使用可"
         ],
         "second": [
-          "デスクトップ通知: 使えない",
+          "デスクトップ通知: 使用不可",
           "音声通知: 隔離中"
         ]
       }
@@ -905,7 +914,7 @@
       "evidence": "DOM",
       "detail": {
         "benign": {
-          "elements": 42,
+          "elements": 47,
           "executable": 1,
           "head": "[通常] VXSE43 EVENT-BENIGN 最大5弱",
           "areas": [
@@ -924,7 +933,7 @@
           "fired": 0
         },
         "evil": {
-          "elements": 42,
+          "elements": 47,
           "executable": 1,
           "head": "[通常] VXSE43 <script>window.__fleqXss=(window.__fleqXss||0)+1</script> 最大5弱",
           "areas": [
@@ -964,8 +973,8 @@
           "line": "接続: 接続中 / 切断: 未切断 / worker: 停止（停止系） / 受信: 無受信45秒未満",
           "banner": "更新未確認の最終情報"
         },
-        "t5Before": 32,
-        "t5After": 32
+        "t5Before": 33,
+        "t5After": 33
       }
     },
     {
@@ -974,13 +983,13 @@
       "evidence": "EventSource観測log・DOM・performance entry",
       "detail": {
         "lastValidEvent": {
-          "t": 2882.800000000745,
+          "t": 3507.7000000178814,
           "kind": "heartbeat",
           "id": 1
         },
         "invalidReceived": 10,
-        "t5Before": 32,
-        "t5After": 32,
+        "t5Before": 33,
+        "t5After": 33,
         "cardsBefore": [
           "[通常] VXSE45 20240417231454 最大3"
         ],
@@ -1002,21 +1011,21 @@
       "evidence": "EventSource観測log・DOM・server clientCount",
       "detail": {
         "lastValidEvent": {
-          "t": 2882.800000000745,
+          "t": 3507.7000000178814,
           "kind": "heartbeat",
           "id": 1
         },
         "closed": {
-          "t": 60024.60000000149,
+          "t": 60023.80000001192,
           "kind": "close",
           "id": 1
         },
         "reopened": {
-          "t": 60024.699999999255,
+          "t": 60023.80000001192,
           "kind": "new",
           "id": 2
         },
-        "gapMs": 57141.800000000745,
+        "gapMs": 56516.09999999404,
         "bannerWhileInvalid": "更新未確認の最終情報",
         "after": {
           "heads": [
@@ -1044,20 +1053,20 @@
         ],
         "slotsHeld": 8,
         "closedBy503": {
-          "t": 63244.10000000149,
+          "t": 63422,
           "kind": "error",
           "id": 2,
           "readyState": 2
         },
         "reopenedAfterSlotsFreed": {
-          "t": 75024.40000000224,
+          "t": 75023.20000001788,
           "kind": "new",
           "id": 3
         },
-        "publishedSequence": 42,
+        "publishedSequence": 43,
         "delivered": [
           {
-            "t": 75053,
+            "t": 75039.59999999404,
             "kind": "snapshot",
             "id": 3
           }
@@ -1077,134 +1086,134 @@
       "evidence": "visibilitychange dispatch内の観測・EventSource観測log",
       "detail": {
         "lastEvent": {
-          "t": 82527.30000000075,
+          "t": 82527.59999999404,
           "kind": "snapshot",
           "id": 3
         },
-        "thresholdAt": 127527.30000000075,
-        "nextPeriodicTickAt": 135024.6000000015,
+        "thresholdAt": 127527.59999999404,
+        "nextPeriodicTickAt": 135023.80000001192,
         "bannerBefore": "",
         "before": {
           "phase": "before",
-          "t": 129036,
+          "t": 129036.30000001192,
           "banner": "",
-          "logLength": 76
+          "logLength": 77
         },
         "after": {
           "phase": "after",
-          "t": 129036.10000000149,
+          "t": 129036.5,
           "banner": "更新未確認の最終情報",
-          "logLength": 78
+          "logLength": 79
         },
         "events": [
           {
-            "t": 82528.90000000224,
+            "t": 82529.30000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 85540.60000000149,
+            "t": 85533.30000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 88549.10000000149,
+            "t": 88537.5,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 91557.80000000075,
+            "t": 91541.70000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 94568,
+            "t": 94545.30000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 97578.60000000149,
+            "t": 97549.20000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 100588.40000000224,
+            "t": 100554.09999999404,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 103597.5,
+            "t": 103558.70000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 106605.69999999925,
+            "t": 106562.90000000596,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 109614.69999999925,
+            "t": 109567.09999999404,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 112625.19999999925,
+            "t": 112569.80000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 115635.60000000149,
+            "t": 115573.90000000596,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 118646.10000000149,
+            "t": 118577.80000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 121656.40000000224,
+            "t": 121582.09999999404,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 124666.60000000149,
+            "t": 124586.20000001788,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 127677.19999999925,
+            "t": 127589.80000001192,
             "kind": "error",
             "id": 3,
             "readyState": 0
           },
           {
-            "t": 129036.10000000149,
+            "t": 129036.40000000596,
             "kind": "close",
             "id": 3
           },
           {
-            "t": 129036.10000000149,
+            "t": 129036.40000000596,
             "kind": "new",
             "id": 4
           },
           {
-            "t": 129038.30000000075,
+            "t": 129038.59999999404,
             "kind": "error",
             "id": 4,
             "readyState": 0
@@ -1227,6 +1236,10 @@
       "evidence": "performance entry",
       "detail": {
         "names": [
+          "fleq:p2:eew:T5",
+          "fleq:p2:eew:T6-candidate"
+        ],
+        "allowed": [
           "fleq:p2:eew:T5",
           "fleq:p2:eew:T6-candidate"
         ]

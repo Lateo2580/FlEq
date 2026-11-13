@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "f89a5187417f44dea5eafdfdeb7edc19a7b797242903e5d3b594c3dc4018cef1",
+    "sha256": "4f20154b37db518209afefdc41dab4dee03cfc8d08dac6d5f519bb9b0ea473e1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -138,10 +138,10 @@
       },
       {
         "id": "Q-NFR-ORDER",
-        "status": "open",
+        "status": "closed",
         "source": "起草（2026-11-13）。adapter.ts:87〜99・152〜156・184〜197、composition-root.ts:1104〜1135 を読んだ。走らせてはいない。r2 でヘルツの指摘（T01 は順の証明にならない）を受けて未決に戻した",
-        "closed": "読みの根拠: 隔離の結果は、停止の期限の timer の callback（adapter.ts:187〜192 の waitUntilDeadline の setTimeout）か、root の abortAttempts の同期の呼び出しの中（期限がもう過ぎていたとき）で stop(false) → finish → terminal の Promise の解決として出る。root への反映（composition-root.ts:1120〜1133 の Promise の then → notificationResult）は、その解決から続く microtask の連なりで、host の gatedAdapter の async の包み（host.ts:596）を通っても microtask のまま。Node は timer の callback 1 つの後と、同期の区間の後に microtask を全部流してから、次の I/O の callback（子の close）へ進む。だから close が反映より先に来る道は、読みの上では無い。逆順だと stopping のまま観測を捨て、その後の反映で isolated に入って戻らない（AC02 (2)）。製品で逆順が起きる証拠も、起きない証明もまだ無い。T01 は isolated を確かめてから close を出すので、この順の証明にならない",
-        "remaining": "未決（unresolvedQuestions の Q-NFR-ORDER）。配送の前に、境界の試験 P3-NFR-T05（停止の期限の timer の callback で stop(false) になる道と、期限を過ぎていて同期の呼び出しの中で stop(false) になる道の両方）で閉じる。本物の経路での確かめ (1) は隔離の表示を見てから SIGCONT するので、T01 と同じ理由で順の根拠にしない（r3 ヘルツ P2）"
+        "closed": "読みの根拠: 隔離の結果は、停止の期限の timer の callback（adapter.ts:187〜192 の waitUntilDeadline の setTimeout）か、root の abortAttempts の同期の呼び出しの中（期限がもう過ぎていたとき）で stop(false) → finish → terminal の Promise の解決として出る。root への反映（composition-root.ts:1120〜1133 の Promise の then → notificationResult）は、その解決から続く microtask の連なりで、host の gatedAdapter の async の包み（host.ts:596）を通っても microtask のまま。Node は timer の callback 1 つの後と、同期の区間の後に microtask を全部流してから、次の I/O の callback（子の close）へ進む。だから close が反映より先に来る道は、読みの上では無い。逆順だと stopping のまま観測を捨て、その後の反映で isolated に入って戻らない（AC02 (2)）。製品で逆順が起きる証拠も、起きない証明もまだ無い。T01 は isolated を確かめてから close を出すので、この順の証明にならない 配送で閉じた（2026-11-13、統合担当）: 実装者のゲートで T05 の 2 つの it（(a) timer の callback の道、(b) 期限を過ぎた同期の道）が本物の timer で通り（vitest 全体と --sequence.shuffle の両方）、(b) の close を tick の直後の同期の区間で出すと close の直前の channel が stopping になって落ちることを実装者が確かめた。Mac mini のゲート b30 でも rec-vitest・rec-shuffle とも rc 0。",
+        "remaining": "なし（2026-11-13 の配送で閉じた）"
       },
       {
         "id": "Q-NFR-LINES",
@@ -510,20 +510,9 @@
       "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) reconstruction/contracts/p2-notification-delivery.json:103 の abort の「停止未確認ならstopped=falseでterminal化しchannelを隔離、遅いclose/successから二件目を返さない。」の後に「停止の期限の後にcloseを観測したら停止の証拠として、adapterはchannelのactiveを空け、abortの4番目の引数onLateStopへ{attemptId,stopped:true,completedAt}を一度だけ渡す。NotificationResultは返さない。A3は隔離中の同じattemptIdのchannelだけをidleに戻して選び直す（P3-NOTIFY-FAIL-RECOVER-001のP3-NFR-AC01）。」を足し、meta.sha256 を取り直す (2) reconstruction/contracts/p2-snapshot-sse.json:468 の「完了後idle/running/stopping=available、unavailable/isolatedは同名表示」を「完了後idle/running/stopping=available（直近の試行がA7のnotificationAttemptFailedで終わり、まだdeliveredが無いchannelはfailing。P3-NOTIFY-FAIL-RECOVER-001のP3-NFR-AC03）、unavailable/isolatedは同名表示（failingより優先）」に置き換え、meta.sha256 を取り直す。p2-chrome-eew.json:491 の «» を付け直す (3) reconstruction/contracts/p2-chrome-eew.json:486 の「checking=確認中、available=使える、unavailable=使えない、isolated=隔離中。」を「checking=確認中、available=使用可、unavailable=使用不可、isolated=隔離中、failing=直前に失敗（2026-11-13 作者裁定、P3-NOTIFY-FAIL-RECOVER-001 の P3-NFR-D-LABEL）。」に置き換え、meta.sha256 を取り直す。486 行を «» で引くのは本契約だけ",
       "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる行を引く本契約の «»（AC05 (4) の一覧）、composition-root.ts の 2417・2437・2440 を引く p3-uw-canon.json:588・p3-host-followup.json:244・p3-e05p-typhoon.json:262・316 と本契約の AC05 の 3 件（~/dev/fleq-vault-archive/tools/reanchor-target.py を composition-root.ts に当てる）、改訂 (1)〜(3) で中身が変わる 3 行を引く本契約の AC01・AC03・AC04・AC06 の «» と p2-chrome-eew.json:491。そのあと、書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
       "本物の経路での確かめ（統合担当、配送の後、機会があれば。Q-NFR-ORDER を閉じる根拠にはしない: (1) は隔離の表示を見てから SIGCONT するので、隔離の反映と遅い close の順の競合を作れない。順は配送の前に T05 で閉じる）: Mac mini で新築を起こし、(1) 音の player を SIGSTOP で止めてから上位群の中断を起こし、Chrome の状態の行が「音声通知: 隔離中」になること、SIGCONT と終わりの後に「使用可」（その前の試行が失敗なら「直前に失敗」）へ戻り、次の音が鳴ることを見る (2) 音の backend の列を一時に動かなくして（PulseAudio を止める）音を 1 つ鳴らさせ、「音声通知: 直前に失敗」が出て、戻した後の次の音で「使用可」に戻ることを見る",
-      "chrome の smoke の実走と記録の書き直し（統合担当、配送で必ず行う。r2 Opus P2）: node reconstruction/test/chrome-eew/smoke.mjs を走らせ（Chrome を起こし evidence/smoke-result.json を書き直すので、ブラウザの実走は統合担当が担う）、書き換えた 3 行（408・529・530、P2-A9-T06 の channels4States ほか）が新しい字で通ることを見る。書き直された reconstruction/test/chrome-eew/evidence/smoke-result.json（今は 393・394・717・718・721・722 行に古い字）を配送の記録の commit に入れる。smoke が通らないか記録が書き直せないときは、配送を止めて報告する。実装者のゲートには入れない（字の表は Record<DisplayChannelView, string> の型と T03 が守る）"
+      "chrome の smoke の実走と記録の書き直し（統合担当、配送で必ず行う。r2 Opus P2）: node reconstruction/test/chrome-eew/smoke.mjs を走らせ（Chrome を起こし evidence/smoke-result.json を書き直すので、ブラウザの実走は統合担当が担う）、書き換えた 3 行（408・529・530、P2-A9-T06 の channels4States ほか）が新しい字で通ることを見る。書き直された reconstruction/test/chrome-eew/evidence/smoke-result.json（今は 393・394・717・718・721・722 行に古い字）を配送の記録の commit に入れる。smoke が通らないか記録が書き直せないときは、配送を止めて報告する。実装者のゲートには入れない（字の表は Record<DisplayChannelView, string> の型と T03 が守る）",
+      "配送の記録（統合担当、2026-11-13）: (1) 実装は b55e31c9（31f5d210 の上、9 file、+265/−23。Opus 5.5）。adapter.ts は 25・155・176・183・229 行の中、composition-root.ts は 7 行の中と 2361〜2362 行の間の 22 行、view-projector.ts は 744・746・889・890、pure.ts は 124、types は 78・149、smoke.mjs は 408・529・530。試験 T01〜T03 は受入、T04・T05 は契約の境界。歯の確かめ: T01 は adapter.ts:155 を戻すと (4) で落ち、T02 は 1448 行を戻すと落ち、T03 は 124 行を戻すと parseDisplaySnapshot が null で落ち、T04 は onLateStop を渡さないと・finalization.closed の確かめを外すとそれぞれ落ち、T05 (b) は close を同期で出すと落ちる (2) 原文の改訂 (1)〜(3) と «» の付け直しは c91ea7bf。新しい notificationStopped の catch の行が composition-root.ts:1129 と同じ字になったので、AC01 の根拠から :1129 を外した（同じ結果の道の :1127 が既に挙がっている） (3) 起草レビュー: ヘルツ r0 NO-GO → r2 条件付き GO → r3 P2 → r4 閉じた（thread 01a1d2f1 から resume）、Opus r0 条件付き GO → r2 条件付き GO → r3 GO。実装レビュー: 品質はヘルツ（gpt-6-astra xhigh、thread 01a1d3b9）GO で指摘 0（sandbox で試験は走らず、読みの列 2 本で阻止を示した）、契約適合は Opus GO で P1〜P3 は 0。Opus の証拠不足 1 件を残存とする: sideEffectFinalization の期限を既に過ぎて within が work を呼ばない場合、finalization が null のまま closed が立たず、その後の遅い close が composition-root.ts:2370 の断る条件を通り抜けて channel を idle にしうる（前提には event loop が約 20 秒止まるか時計が飛ぶことが要り、その経路はコードで示せていない。直すなら stageResults.sideEffectFinalization の有無も断る条件に足す） (4) Mac mini のゲート b30（c91ea7bf）: tsc 3 本・rec-vitest・rec-shuffle・checker 3 本・build・test の 12 段すべて rc 0 (5) chrome の smoke（この MacBook の前景の Chrome 157.0.8103.52、2026-11-13 16 時台）: 43 項目のうち 42 が Pass。Fail は P2-A9-env:chromeVersion の 1 件だけで、条件の 154.0.8037.58 と実物の版の食い違い（10-05 の記録でも同じ項目が Fail）。書き換えた 408・529・530 行を含む状態行の項目は新しい字で Pass。書き直した evidence/smoke-result.json と画像 4 枚をこの commit に入れた"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-NFR-ORDER",
-        "owner": "integrator",
-        "blocks": [
-          "P3-NFR-AC01"
-        ],
-        "resolveBy": "配送の前（実装者の成果物の T05 の結果で閉じる。発注は止めない。逆順が起きたときに残るのは今と同じ隔離のままで、悪くはならない）",
-        "requiredEvidence": [
-          "境界の試験 P3-NFR-T05 が実装者のゲート（vitest と test:shuffle）で通り、歯の確かめ（close を反映より先に出すと落ちる）が成果物に書かれていること。T05 は、停止の期限の timer の callback で stop(false) になる道と、期限を過ぎていて root の abortAttempts の同期の呼び出しの中で stop(false) になる道の両方で、root への隔離の反映（terminal の Promise の解決から続く microtask）が遅い close（別の macrotask の callback）より先に済むことを、本物の timer で Node の上で確かめる（questionResolutions の Q-NFR-ORDER の読み）。本物の経路での確かめ (1) は根拠にしない（隔離の表示を見てから SIGCONT するので順の競合を作れない、T01 と同じ理由）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
