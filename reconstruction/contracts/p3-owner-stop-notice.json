@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6f16239104aeaf667f3ab6ea26df459ebcf16dd3",
-    "sha256": "70572f0b1272b86aa1f8341ec6fa877bf32311037aede5ddb47c04ba136757b5",
+    "sha256": "6bdde7768eaedba168c22193a3d16aec2b1eb062cebbad572be4327a888c961e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -14,8 +14,8 @@
         "B": "題「FlEq」、本文「緊急地震速報を処理できません。FlEq を再起動してください」（今朝の判断カードの案の字のまま）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 19 時台）",
+        "ruling": "作者裁定 A（「全てAでお願いします」）",
         "reason": "問い: 止まった時のデスクトップ通知の本文。場面: 21:12:00.000 に urgent の owner が落ちる → 同じ時刻に端末へ帯（1 行目「━ 緊急地震速報などの処理が止まりました ━━━」、2 行目「21:12:00 から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。」、3 行目「FlEq を起動し直してください。」）が出て、デスクトップ通知が 1 回出る。理由: A は帯と同じ事実を同じ字で言う。止まったのは緊急地震速報だけでなく津波・南海トラフ・火山も同じ owner の処理で（unit-coverage.ts:16）、B の「緊急地震速報を処理できません」はそのうち 1 つだけを言う。B の「再起動」と帯の「起動し直して」は同じことを別の字で言う。macOS の通知の欄は本文が長いと 2 行目で切れる。A の本文は 36 字、B は 30 字。macOS の通知の欄でどこで切れるかは、まだ実機で見ていない（配送の前に統合担当が見る）"
       },
       {
@@ -26,8 +26,8 @@
         "C": "緊急地震速報の最終報だけの報などと同じ音（earthquake-eew-normal.wav。高い C を 1 回打つ）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 19 時台）",
+        "ruling": "作者裁定 A（「全てAでお願いします」）",
         "reason": "問い: 止まった時に 1 回鳴らす音。今ある音は 4 分野×5 段の 20 個（reconstruction/assets/sounds、render-sounds.mjs の根音表）で、どれもどこかの電文の通知が使っている。新しい音は作らない（outOfScope）。場面: 02:10:00 に urgent の owner が落ちる → 音が 1 回鳴り、同じ部屋の人が聞く。A は気象の警報（local-bulletins-unit.ts の竜巻の目撃など）と同じ音で、地震の音と取り違えない。気象の警報が出たと思いうるが、デスクトップ通知と端末の帯の字で何が起きたかを読める。B は地震の分野の音だが緊急地震速報の予報（warning）・警報（critical）の音とは違う（eew.ts:686）。1 回打つ弱い音なので、寝ている間は気づきにくい。C は緊急地震速報の最終報だけの報（eew.ts:686 の normal）と同じ音で、緊急地震速報が来たと取り違えうる"
       },
       {
@@ -38,8 +38,8 @@
         "C": "mute と sound off によらず、desktop と音をいつも出す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者の裁定待ち）",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 19 時台）",
+        "ruling": "作者裁定 A（「全てAでお願いします」）",
         "reason": "問い: mute と sound off の間に止まったとき、desktop と音を出すか。どの案も帯は出し、notify の分野の on/off は見ない（この知らせには分野が無い。分野を足すのは REPL と設定ファイルの変更で本契約の外）。場面 1: 23:00 に作者が緊急地震速報の警報を条件にした mute（mute の間も緊急地震速報の警報は鳴る）にして寝る → 02:10:00 に urgent の owner が落ちる。A と C は 02:10:00 に desktop と音が 1 回出る。B は帯だけで、朝まで気づかない。その間の緊急地震速報の警報は鳴らない（mute の条件で鳴らすはずだった音）。場面 2: 条件の無い mute で寝る → 02:10:00 に落ちる。A と B は帯だけ、C は音が鳴る。A は「mute の間も緊急地震速報を鳴らす」設定のときだけ、それが鳴らなくなったことも鳴らして知らせる。読むのは今の設定の欄（NotificationSettings.mute.rules、notification-gate.ts）だけで、設定の key は足さない。B は回線の通知の決まりに揃い、足す条件が無い。C は mute を明示した人も起こす"
       },
       {
@@ -50,8 +50,8 @@
         "C": "CompositionOptions に止まった時の callback を足し、root が ownerFailed の中で呼ぶ",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の確定待ち）",
-        "ruling": null,
+        "status": "確定（統合担当、2026-11-13）",
+        "ruling": "A（統合担当。理由は reason）",
         "reason": "worker の例外では Node が error（host.ts:171）と exit（:172）を続けて出すので、host の ownerFailed は 1 回の停止で 2 回呼ばれる。:171 には ownersStopping の門も無い。A は root の今の門（:684 の monitor.stopped、:678 の startRuntime の前）をそのまま「1 回だけ」に使い、時刻は ERROR ownerStopped（:707）と同じ読みになる。変える行は composition-root.ts の ownerFailed の中の 4 行とコメント 1 行で、どれも他の契約の «» に引かれていない。B は host に印を 1 つ足し、root の門と同じことを二重に持つ。C は CompositionOptions（他の契約が «» で引く型）を変え、試験の root の組み立てにも口が増える"
       },
       {
@@ -62,8 +62,8 @@
         "C": "publisher の側で A7 の試行（intent）として鳴らす",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の確定待ち）",
-        "ruling": null,
+        "status": "確定（統合担当、2026-11-13）",
+        "ruling": "A（統合担当。理由は reason）",
         "reason": "音を鳴らす今の道は A7 の試行だけで、intent は unit の owner が作り、結果の更新も owner へ送る。止まったのはその owner なので C は送り先が無く、試行は副作用の最終化の段の数え（composition-root.ts:1753）にも入り、終了の code（C22 の AC05 が見る）を動かしうる。B は adapter の active（adapter.ts:28）を取り、root が同じ sound の channel で試行を選ぶと :81 の「notification channel occupied」で例外になる。A は channel の状態に触れず、終了の段にも入らない。代わりに、鳴っている別の音や隔離の元の player と重なりうる（残存）"
       },
       {
@@ -73,8 +73,8 @@
         "B": "停止の間でも出す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の確定待ち）",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 19 時台。統合担当の分岐だったが画面と音が変わるので作者に聞いた）",
+        "ruling": "作者裁定 A（「全てAでお願いします」）",
         "reason": "場面: 22:00:00 に作者が quit → 22:00:01 の収束の段の最中に urgent の owner が例外で落ちる。A では何も出さずに終わる。B では終わる直前に「FlEq を起動し直してください」が出て、作者は終えたばかりの FlEq について読むことになる。終了の段と code はどちらでも変わらない（AC04）。endOwners の後の exit は今も ownerFailed に来ない（host.ts:172）"
       },
       {
@@ -85,8 +85,8 @@
         "C": "色を付けない",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の確定待ち。作者には報告する）",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 19 時台。統合担当の分岐だったが画面と音が変わるので作者に聞いた）",
+        "ruling": "作者裁定 A（「全てAでお願いします」）",
         "reason": "作者が決めたのは字と形（回線の帯と同じ）で、色は決めていない。止まった状態は FlEq を起動し直すまで続くので、「まだ戻っていない」回線が切れた帯の色に揃える。B の緑は回線が戻った（直った）知らせの色。C は端末の流れの中で目立たない。新しい色の役目は足さない（spec §3.1 の表を変えない）。出る・出ないは変えないので統合担当で決め、作者には報告する"
       }
     ],
