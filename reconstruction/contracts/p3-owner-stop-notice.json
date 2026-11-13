@@ -1,0 +1,468 @@
+{
+  "meta": {
+    "draftedFromOid": "6f16239104aeaf667f3ab6ea26df459ebcf16dd3",
+    "sha256": "70572f0b1272b86aa1f8341ec6fa877bf32311037aede5ddb47c04ba136757b5",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-OSN-D-DESKTOP-TEXT",
+        "kind": "作者",
+        "A": "題「FlEq」、本文「緊急地震速報などの処理が止まりました。FlEq を起動し直してください。」（帯の見出しと 2 文目の字に揃える）",
+        "B": "題「FlEq」、本文「緊急地震速報を処理できません。FlEq を再起動してください」（今朝の判断カードの案の字のまま）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": null,
+        "reason": "問い: 止まった時のデスクトップ通知の本文。場面: 21:12:00.000 に urgent の owner が落ちる → 同じ時刻に端末へ帯（1 行目「━ 緊急地震速報などの処理が止まりました ━━━」、2 行目「21:12:00 から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。」、3 行目「FlEq を起動し直してください。」）が出て、デスクトップ通知が 1 回出る。理由: A は帯と同じ事実を同じ字で言う。止まったのは緊急地震速報だけでなく津波・南海トラフ・火山も同じ owner の処理で（unit-coverage.ts:16）、B の「緊急地震速報を処理できません」はそのうち 1 つだけを言う。B の「再起動」と帯の「起動し直して」は同じことを別の字で言う。macOS の通知の欄は本文が長いと 2 行目で切れる。A の本文は 36 字、B は 30 字。macOS の通知の欄でどこで切れるかは、まだ実機で見ていない（配送の前に統合担当が見る）"
+      },
+      {
+        "id": "P3-OSN-D-SOUND",
+        "kind": "作者",
+        "A": "気象の警報の音（reconstruction/assets/sounds/weather-warning.wav。低い C の短和音を 2 回打つ）",
+        "B": "地震の解説・南海トラフの情報と同じ音（earthquake-eew-info.wav。1 回打つ弱い音）",
+        "C": "緊急地震速報の最終報だけの報などと同じ音（earthquake-eew-normal.wav。高い C を 1 回打つ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": null,
+        "reason": "問い: 止まった時に 1 回鳴らす音。今ある音は 4 分野×5 段の 20 個（reconstruction/assets/sounds、render-sounds.mjs の根音表）で、どれもどこかの電文の通知が使っている。新しい音は作らない（outOfScope）。場面: 02:10:00 に urgent の owner が落ちる → 音が 1 回鳴り、同じ部屋の人が聞く。A は気象の警報（local-bulletins-unit.ts の竜巻の目撃など）と同じ音で、地震の音と取り違えない。気象の警報が出たと思いうるが、デスクトップ通知と端末の帯の字で何が起きたかを読める。B は地震の分野の音だが緊急地震速報の予報（warning）・警報（critical）の音とは違う（eew.ts:686）。1 回打つ弱い音なので、寝ている間は気づきにくい。C は緊急地震速報の最終報だけの報（eew.ts:686 の normal）と同じ音で、緊急地震速報が来たと取り違えうる"
+      },
+      {
+        "id": "P3-OSN-D-MUTE",
+        "kind": "作者",
+        "A": "mute の条件に緊急地震速報（分野 eew）が入っている mute の間は、desktop と音を出す。条件の無い mute と、条件に eew の無い mute の間は、desktop も音も出さない。sound off の間は音だけ出さない。帯はいつも出す",
+        "B": "回線の切断の通知と同じ（P3-TO-D-CONN-NOTIFY=A）: mute の間は条件によらず desktop も音も出さない。sound off の間は音だけ出さない。帯はいつも出す",
+        "C": "mute と sound off によらず、desktop と音をいつも出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": null,
+        "reason": "問い: mute と sound off の間に止まったとき、desktop と音を出すか。どの案も帯は出し、notify の分野の on/off は見ない（この知らせには分野が無い。分野を足すのは REPL と設定ファイルの変更で本契約の外）。場面 1: 23:00 に作者が緊急地震速報の警報を条件にした mute（mute の間も緊急地震速報の警報は鳴る）にして寝る → 02:10:00 に urgent の owner が落ちる。A と C は 02:10:00 に desktop と音が 1 回出る。B は帯だけで、朝まで気づかない。その間の緊急地震速報の警報は鳴らない（mute の条件で鳴らすはずだった音）。場面 2: 条件の無い mute で寝る → 02:10:00 に落ちる。A と B は帯だけ、C は音が鳴る。A は「mute の間も緊急地震速報を鳴らす」設定のときだけ、それが鳴らなくなったことも鳴らして知らせる。読むのは今の設定の欄（NotificationSettings.mute.rules、notification-gate.ts）だけで、設定の key は足さない。B は回線の通知の決まりに揃い、足す条件が無い。C は mute を明示した人も起こす"
+      },
+      {
+        "id": "P3-OSN-D-TRIGGER",
+        "kind": "統合担当",
+        "A": "RuntimeCompositionRoot.ownerFailed の戻りを ClockReading | null にし、その place を初めて止めた呼び出しだけが止めた時の clock の読み（composition-root.ts:685）を返す。host は戻りが null でなく、place が urgent で、stage が running のときだけ端末へ渡す",
+        "B": "host が自分の印（urgent を知らせたか）を持ち、root.ownerFailed を呼ぶ前に自分で clock を読む",
+        "C": "CompositionOptions に止まった時の callback を足し、root が ownerFailed の中で呼ぶ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の確定待ち）",
+        "ruling": null,
+        "reason": "worker の例外では Node が error（host.ts:171）と exit（:172）を続けて出すので、host の ownerFailed は 1 回の停止で 2 回呼ばれる。:171 には ownersStopping の門も無い。A は root の今の門（:684 の monitor.stopped、:678 の startRuntime の前）をそのまま「1 回だけ」に使い、時刻は ERROR ownerStopped（:707）と同じ読みになる。変える行は composition-root.ts の ownerFailed の中の 4 行とコメント 1 行で、どれも他の契約の «» に引かれていない。B は host に印を 1 つ足し、root の門と同じことを二重に持つ。C は CompositionOptions（他の契約が «» で引く型）を変え、試験の root の組み立てにも口が増える"
+      },
+      {
+        "id": "P3-OSN-D-SOUND-PATH",
+        "kind": "統合担当",
+        "A": "adapter.ts の末尾に soundNotice(asset) を足し、端末の出力から desktopNotice と同じ形（追わない子、10 秒の timeout、unref）で 1 回鳴らす",
+        "B": "runNotificationAttempt を直に呼ぶ",
+        "C": "publisher の側で A7 の試行（intent）として鳴らす",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の確定待ち）",
+        "ruling": null,
+        "reason": "音を鳴らす今の道は A7 の試行だけで、intent は unit の owner が作り、結果の更新も owner へ送る。止まったのはその owner なので C は送り先が無く、試行は副作用の最終化の段の数え（composition-root.ts:1753）にも入り、終了の code（C22 の AC05 が見る）を動かしうる。B は adapter の active（adapter.ts:28）を取り、root が同じ sound の channel で試行を選ぶと :81 の「notification channel occupied」で例外になる。A は channel の状態に触れず、終了の段にも入らない。代わりに、鳴っている別の音や隔離の元の player と重なりうる（残存）"
+      },
+      {
+        "id": "P3-OSN-D-SHUTDOWN",
+        "kind": "統合担当",
+        "A": "停止を求めた後（stage が running でない）に urgent が止まっても、帯・desktop・音を出さない",
+        "B": "停止の間でも出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の確定待ち）",
+        "ruling": null,
+        "reason": "場面: 22:00:00 に作者が quit → 22:00:01 の収束の段の最中に urgent の owner が例外で落ちる。A では何も出さずに終わる。B では終わる直前に「FlEq を起動し直してください」が出て、作者は終えたばかりの FlEq について読むことになる。終了の段と code はどちらでも変わらない（AC04）。endOwners の後の exit は今も ownerFailed に来ない（host.ts:172）"
+      },
+      {
+        "id": "P3-OSN-D-COLOR",
+        "kind": "統合担当",
+        "A": "回線が切れた帯と同じ色の役目（connLost。クリーム #ffff99、format.ts:820 の CONN_LOST）で 4 行とも出す",
+        "B": "回線が戻った帯の色（connRestored。明るい緑 #87e7b0）",
+        "C": "色を付けない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の確定待ち。作者には報告する）",
+        "ruling": null,
+        "reason": "作者が決めたのは字と形（回線の帯と同じ）で、色は決めていない。止まった状態は FlEq を起動し直すまで続くので、「まだ戻っていない」回線が切れた帯の色に揃える。B の緑は回線が戻った（直った）知らせの色。C は端末の流れの中で目立たない。新しい色の役目は足さない（spec §3.1 の表を変えない）。出る・出ないは変えないので統合担当で決め、作者には報告する"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-OSN-FACTS",
+        "status": "closed",
+        "source": "起草（2026-11-13、HEAD 6f162391 の木を読んだ。走らせてはいない）。host.ts・composition-root.ts・output.ts・format.ts・adapter.ts・notification-gate.ts・pure.ts・lifecycle.test.ts・host.test.ts",
+        "closed": "今の製品で urgent の owner が止まったときに起きること: (1) 入口: owner の thread の例外で Node は worker の error を出し（host.ts:171）、続けて exit を出す（:172。endOwners の後は ownersStopping で来ない）。どちらも host の ownerFailed（:119〜:123）から root.ownerFailed（composition-root.ts:677）へ渡る。startRuntime の前なら startFailure に置いて startRuntime を reject させる（:678〜:681。startP2Host が reject し、CLI は「起動に失敗しました」）。2 回目は :684 で何もしない (2) 止める処理（:685〜:712）: monitor.stopped を立て、mailbox からその place の待ちと処理中を外して数え（:688）、要求・予約・保留中の更新を外し、ERROR ownerStopped を 1 件（component owner.urgent、count は外した数、:707）、取り直しから外し（:709）、選び直しと project。U-E・U-T・U-N・U-V（unit-coverage.ts:16）の view は最後の値のまま (3) 画面: 次の tick の monitorOwners（:735）が stopped と判じ、Chrome の状態の行は「worker: 停止（停止系）」（pure.ts:135）と「更新未確認の最終情報」（pure.ts:149）になる (4) その後の入力: urgent 行きの電文（緊急地震速報・津波・南海トラフ・火山）は host が refuseInput で断り（host.ts:334、composition-root.ts:765〜:779）、episode の最初の 1 件に WARN ownerStopped を書く（:773）。端末には --debug のときだけ「断った ownerStopped」の行が出る（output.ts の inputDropped）。緊急地震速報は画面にも音にも出ない (5) 端末・デスクトップ通知・音: 何も出ない。root から端末へ渡る道は display.mirror と host の inputDone・inputDropped・digest・recoveryDone だけで（host.ts:169・:180・:192・:325・:334・:591）、止まったことを渡す道は無い (6) 終了: quit で終えると、外した入力があれば収束の段が ownerStopped で failed になり code 3（lifecycle.test.ts:395 の形）、止まった owner が書込み権を持っていれば最終保存の段が ownerStopped で code 2（:438・:457）。止まった place には shutdownInput・finalize を送らない（composition-root.ts:517 の shutdownExcluded）。自動で作り直さない（P3-C3B-AUTO-RESTART=A、spec:1200）",
+        "remaining": "どれも読んだだけ。(5) の「何も出ない」は T01・T02 が直す前のコードで落ちることで確かめる"
+      },
+      {
+        "id": "Q-OSN-C11",
+        "status": "closed",
+        "source": "作者の決め（2026-11-13 19 時台、「2 段に分ける」）と、起草を止めた C11（P3-OWNER-REBUILD-001、~/dev/fleq-ownrb-draft の draft/owner-rebuild。main には無いので «» で引かない）の Q-ORB-TABLE・Q-ORB-STATES・P3-ORB-D-GAP・D-BANNED-LABEL・D-BANNER-WRAP・D-GAVEUP-TIME",
+        "closed": "(1) 本契約は C11 の gaveUp（作り直さずに止まった状態。C11 の Q-ORB-STATES の T2 は「今の ownerFailed をそのまま行う」）だけを取り出したもの。C11 の表（S01〜S32）の gaveUp の列は rebuilding から諦める時の差分で、running から直に止まる本契約には当たらない。本契約は止める処理（composition-root.ts:685〜:712）を変えない (2) 帯の字は C11 の諦めの帯の字（D-BANNED-LABEL の裁定の「━ 緊急地震速報などの処理が止まりました ━━━」と、D-BANNER-WRAP の裁定の 2 文を 1 行ずつ）を、作者が本契約の字として決め直したもの。時刻は止まった時刻（C11 の D-GAVEUP-TIME=A と同じ、ownerFailed の時刻） (3) C11 の D-GAP=A は「デスクトップ通知と音は足さない」だったが、作者は本契約で止まった時に desktop と音で 1 回知らせると決めた（2026-11-13 19 時台）。C11 は保留で配送しないので、C11 の文は改訂しない (4) C11 の残り（作り直し・EEW の札・確認の戻し・作り直しの帯）は P5 へ送る（outOfScope）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-OSN-LINES",
+        "status": "closed",
+        "source": "起草（2026-11-13）。reconstruction/contracts/*.json と docs/specs/*.md の「<file>:<行> «»」を数えた（.dr-tmp の補助の script、走らせた）",
+        "closed": "(1) 変える行と «» の有無: composition-root.ts の 676・677・681・684・712（ownerFailed の中。他の契約の «» は 0。近くの «» は 674・687〜:689・:707）。host.ts の 121・122（«» は 0。近くは 99・126）。output.ts の 17・120・365・641（«» は 0）と 47（«» 3 件: p3-rain-recovery-cancel.json:236・:276、p3-terminal-debug-reject.json:153）。format.ts の 44・897（«» は 0。後ろの 900・908・911 に «» があるので行を足さない）。adapter.ts の 54（«» は 0）と、末尾の 242 行の後に足す行（後ろに «» は無い） (2) どの file も、末尾に足す adapter.ts のほかは行の数を変えない。684（if (monitor.stopped) return;）と 712（this.project([], [], clock);）と 897（}）は同じ字の行が file の中にほかにもあるので、ownerFailed の中・notice() の restored の case を閉じる行と場所で指す (3) 試験の file: host.test.ts は末尾（今の 2103 行の後）に足す（«» は 1125 行まで）。adapter.test.ts は末尾（今の 362 行の後、«» は 85 行だけ）。reconstruction/test/terminal/owner-stop.test.ts は新設 (4) 配送で付け直す «»: output.ts:47 を引く 3 件と、本契約が引く行のうち実装で中身が変わる行（AC05 (4) の一覧）。原文の改訂（AC06）で変える p3-final-gate.json の 8 行は、他の契約の «» に引かれていない（同 file の «» は 180・797 行だけ） (5) 通知の 1 channel 1 本の決まりとの関わり: p2-notification-delivery.json の :100・:105・:174・:461・:623（spawn した子の close だけを停止の証拠にする、sound の次の player は前の close の後、channel ごとに 1 件、外の sound・desktop の処理を重ねない）は A7 の試行（runAttempt と active）の決まりで、soundNotice は試行ではなく active を使わないので、字の上では当たらない。回線の切断の desktopNotice（P3-TO-D-CONN-NOTIFY-PATH）と同じ例外で、:623 の「重なる」は本契約の残存 (4) として書いた。p2-notification-delivery.json は改訂しない。p3-notify-windows.json:268 の上限の文は追わない子を desktopNotice だけと書いているので、原文の改訂 (5) で soundNotice を書き足す（同じ行の中、«» は 0）",
+        "remaining": "地の文の「<file>:<行>」（«» の無い引き）は数えていない。行の数を変えないので、ずれは出ない"
+      },
+      {
+        "id": "Q-OSN-TESTS",
+        "status": "closed",
+        "source": "起草（2026-11-13）。ownerFailed を呼ぶ試験・TerminalSink を組む試験・commands を通る試験を git grep で探して読んだ。走らせてはいない",
+        "closed": "期待が変わらない見込み: (1) root.ownerFailed を呼ぶ試験（lifecycle.test.ts の 177・196・223・245・271・272・386・430・452・484 行、bulletin-text-api.test.ts:267）は戻りを使わない (2) host.test.ts:987 の vi.spyOn(…, \"ownerFailed\").mockImplementation(() => undefined as never) は型も通る。spy が undefined を返すので、その試験では host は端末へ渡さない (3) TerminalSink の object を組む試験は無い（host へ terminal を渡すのは cli.ts の createTerminalOutput だけ）。test/cli の terminal は REPL の別の口 (4) format.ts の notice() の switch は default の never で網羅を見るので、variant を足して case を足し忘れるとコンパイルが止まる (5) commands の引数の型を狭めても、呼び手（runAttempt・probe）の値は今のまま。adapter.test.ts の完全一致の期待（P3-NW-T03 ほか）は変わらない。これ以外が落ちたら、変える前に試験名・旧の期待・理由を報告して止める",
+        "remaining": "見込みは読んでたどったもの。実装者が全試験を回して確かめる"
+      },
+      {
+        "id": "Q-OSN-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-13）",
+        "closed": "起草は unassigned にし、作者の裁定（P3-OSN-D-DESKTOP-TEXT・D-SOUND・D-MUTE）を条文に当てた後、統合担当が契約を入れた commit を付ける",
+        "remaining": "発注前点検で割り当てる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。通知の intent の作り方・優先の群・鳴らし直しの回数・試行の期限・通知の門・A7 の channel は変えない。止める処理（ownerFailed の中身）・自動で作り直さないこと（P3-C3B-AUTO-RESTART=A）・終了の段と code も変えない。変わるのは、urgent の owner が止まった時に、端末に帯が 1 回出て、デスクトップ通知と音が 1 回出ること（mute と sound off の条件は P3-OSN-D-MUTE）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-OWNER-STOP-NOTICE-001",
+    "mode": "implementation",
+    "objective": "急ぐ側（urgent）の owner が止まったことを利用者に 1 回知らせる（C11 の 1 段目。作者の決め 2026-11-13 19 時台: P3 では知らせるだけを出し、作り直しは P5 へ送る）。今は、U-E・U-T・U-N・U-V を処理する urgent の owner の thread が例外で落ちると黙って止まり（P3-C3B-OWNER-STOP=A・AUTO-RESTART=A）、その後の緊急地震速報は画面にも音にも出ず、端末・デスクトップ通知・音には何も出ない（Chrome の状態の行の「worker: 停止（停止系）」と診断の file だけ）。場面: 21:12:00 に U-T の VTSE41 の処理で urgent の owner が落ちる。直した後は、21:12:00 に端末へ「━ 緊急地震速報などの処理が止まりました ━━━」「21:12:00 から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。」「FlEq を起動し直してください。」の帯が出て、デスクトップ通知と音が 1 回出る（mute と sound off の条件は P3-OSN-D-MUTE）。同じ run で 2 回は出さない。止める処理・終了の段と code・作り直さないことは変えない",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-owner-stop-notice.json",
+      "reconstruction/contracts/p3-execution-lifecycle.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "reconstruction/contracts/p3-final-gate.json",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/notification-delivery/adapter.ts",
+      "reconstruction/src/cli/notification-gate.ts",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/test/host/host.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts",
+      "reconstruction/test/terminal/connection.test.ts",
+      "reconstruction/test/notification-delivery/adapter.test.ts",
+      "reconstruction/test/execution-lifecycle/lifecycle.test.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/runtime/composition-root.ts（AC01 だけ。ownerFailed の中の 676〔コメント〕・677・681・684・712 行の中だけ。行を足さない〔AC05 (1)〕）",
+      "reconstruction/src/host/host.ts（AC01 だけ。121・122 行の中だけ。行を足さない）",
+      "reconstruction/src/terminal/output.ts（AC02 だけ。17・47・120・365・641 行の中だけ。行を足さない）",
+      "reconstruction/src/terminal/format.ts（AC02 だけ。44 行の中と、notice() の restored の case を閉じる 897 行の後ろに同じ行で足すことだけ。行を足さない）",
+      "reconstruction/src/notification-delivery/adapter.ts（AC03 だけ。54 行の中〔commands の引数の型を狭める場合〕と、末尾の 242 行の後に足す行だけ）",
+      "reconstruction/test/host/host.test.ts（P3-OSN-T01 を file の末尾〔今の 2103 行の後〕に足すだけ）",
+      "reconstruction/test/terminal/owner-stop.test.ts（新設、P3-OSN-T02）",
+      "reconstruction/test/notification-delivery/adapter.test.ts（P3-OSN-T03 を file の末尾〔今の 362 行の後〕に足すだけ。import の行は足さない〔85 行を p3-notify-windows.json:339 が «» で引く〕。名前は既存の import の行か、試験の中の dynamic import で取る）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-owner-stop-notice.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B13",
+      "B09"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-EXECUTION-LIFECYCLE-001",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-CLI-REPL-001",
+      "P2-NOTIFICATION-DELIVERY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-shared-runtime.types.ts#ClockReading"
+    ],
+    "publicFunctions": [
+      "RuntimeCompositionRoot.ownerFailed の戻りを void から ClockReading | null にする（初めて止めた呼び出しだけが止めた時の読みを返す）。呼び手は host.ts:121 と試験で、試験は戻りを使わない",
+      "TerminalSink（output.ts）に ownerStopped(fromWallMs: number): void を足す",
+      "TerminalOptions（output.ts）に sound?: (asset: string) => Promise<void> を足す（試験で差し替える口、既定は soundNotice）",
+      "TerminalNotice（format.ts）に { kind: \"ownerStopped\"; fromWallMs: number } を足す",
+      "adapter.ts に soundNotice(asset: string): Promise<void> を足し、末尾の export { soundNotice } で export する（export function・export const にしない。P1-T04 が数える）",
+      "ほかの export・helper・定数・型・timer・設定・診断の reason は足さない。OwnerRequest・OwnerReply・DisplayWorkerView・NotificationResult・NotificationSettings・CompositionOptions の形は変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O02"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-OSN-RES-01",
+        "target": "止まったことの知らせ（帯・デスクトップ通知・音）",
+        "limit": 1,
+        "unit": "each per run",
+        "scope": "urgent の owner の最初の停止で 1 回ずつ。owner は作り直さないので、同じ run で urgent が 2 回止まることは無い（P3-C3B-AUTO-RESTART=A）。帯は端末の列の 1 単位（P3-TO-AC02 の 1 MiB の列に積む）",
+        "source": "作者の決め（2026-11-13 19 時台）、P3-OSN-AC01"
+      },
+      {
+        "id": "P3-OSN-RES-02",
+        "target": "soundNotice と desktopNotice の子",
+        "limit": 1,
+        "unit": "process per notice, 10 s timeout",
+        "scope": "子は追わず（unref）、10 秒の timeout で止める。本契約で増えるのは run に多くて desktop 1 本と音 1 本",
+        "source": "P3-OSN-D-SOUND-PATH=A、desktopNotice の形（adapter.ts:240）"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（checkpoint・設定ファイル・診断の行の形は変えない。止まったことは今の ERROR ownerStopped が記録する）"
+    ],
+    "nonPersistedFields": [
+      "なし（新しい印を持たない。1 回だけは root の monitor.stopped が守る）"
+    ],
+    "outOfScope": [
+      "urgent の owner の作り直し（P3-OWNER-REBUILD-001、C11。作者が 2026-11-13 19 時台に P5 へ送った。保留）。作り直しの帯・EEW の札・確認の戻しも P5",
+      "seismic・weatherCurrent・deferred の owner の停止の知らせ（作者の決めの字は urgent の 4 分野。今のまま Chrome の状態の行と診断の file だけ）",
+      "応答の無い（unresponsive・stalled）urgent の owner の知らせ（止まったと判じない。P3-C3B-AC01 のまま）",
+      "chrome-eew と P4 の画面の表示（今の「worker: 停止（停止系）」と「更新未確認の最終情報」のまま、pure.ts:135・:149）",
+      "止まった owner の未配送の通知と、止まった後に断る入力の扱い（P3-C3B-AC02 のまま）",
+      "通知の門・REPL の notify の分野・設定ファイルの key（新しい分野や key を足さない）",
+      "新しい音の資材（render-sounds.mjs と reconstruction/assets/sounds を変えない）",
+      "終了の段の順と code（AC04）",
+      "診断の reason（足さない）",
+      "旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-OSN-AC01",
+        "requirement": "止まったことを 1 回だけ、止まった時刻で端末へ渡す（P3-OSN-D-TRIGGER=A・D-SHUTDOWN=A）: 場面: 21:12:00.000 に U-T の VTSE41 の処理で urgent の owner の thread が例外で落ちる。Node は worker の error（host.ts:171）を出し、続けて exit（:172）を出すので、host の ownerFailed（:119〜:123）は 2 回呼ばれる。(1) root: ownerFailed（composition-root.ts:677）の戻りを ClockReading | null にする。その place を初めて止めた呼び出し（:684 の monitor.stopped の門を通った呼び出し）だけが、:685 で読んだ clock を :712 の project の後で返す。startRuntime の前（:678〜:681）と、止まっている place の 2 回目以降（:684）は null を返す。止める処理の中身と順（:685〜:712）は変えない。676 行のコメントに戻りの意味を 1 句足す (2) host: 121 行で戻りを受け、122 行の started の分岐の中で、place が urgent、戻りが null でない、root.state.shutdown.stage が running（:233 と同じ読み）の 3 つが揃ったときだけ config.terminal?.ownerStopped(戻りの wallTimeMs) を 1 回呼ぶ。urgent の unit は U-E・U-T・U-N・U-V（unit-coverage.ts:16）。resumeIfDrained は今のまま呼ぶ (3) 呼ばないとき: startRuntime の前（startP2Host が reject する）、停止を求めた後（stop() の後の error。exit は endOwners の後は :172 で来ない）、urgent 以外の place（seismic・weatherCurrent・deferred）、同じ place の 2 回目 (4) 渡す wall は ERROR ownerStopped（composition-root.ts:707）の timestamp と同じ読み (5) 試験 T01 は直す前のコードで (2) の呼び出しが無く落ちる。無いと: 止まったことを端末・デスクトップ通知・音へ渡す道が無い（今は診断の file の ERROR ownerStopped と、Chrome の状態の行の「worker: 停止（停止系）」だけ）",
+        "evidenceRefs": [
+          "reconstruction/src/host/host.ts:119 «1cce3f5aaa7b710b»",
+          "reconstruction/src/host/host.ts:121 «ff271d362b95ecce»",
+          "reconstruction/src/host/host.ts:122 «eac019345fb5391b»",
+          "reconstruction/src/host/host.ts:171 «410cbfe3876cc1ba»",
+          "reconstruction/src/host/host.ts:172 «e93960e51c997a04»",
+          "reconstruction/src/host/host.ts:233 «35363c2f74266d26»",
+          "reconstruction/src/runtime/composition-root.ts:677 «b8434bcb544e7ae9»",
+          "reconstruction/src/runtime/composition-root.ts:707 «a2c99f9d7827e668»",
+          "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»",
+          "reconstruction/test/host/host.test.ts:986 «1514dd16733d30ff»",
+          "reconstruction/contracts/p3-execution-lifecycle.json:11 «f88a2312b2fa7331»"
+        ]
+      },
+      {
+        "id": "P3-OSN-AC02",
+        "requirement": "端末の帯と、デスクトップ通知・音を 1 回（作者の決め 2026-11-13 19 時台。P3-OSN-D-DESKTOP-TEXT・D-SOUND・D-MUTE は推奨の A で書き、裁定が違えば統合担当が発注前に条文を合わせる）: (1) TerminalSink（output.ts:47）に ownerStopped(fromWallMs: number): void を足す。実装（641 行の digest の前に同じ行で書き足す）は、notice({ kind: \"ownerStopped\", fromWallMs })（output.ts:280）を 1 回積み、下の (3) の条件で desktop と音を 1 回ずつ出す。同じ run で 2 回呼ばれないことは AC01 が守る（sink に印は足さない）。ownerStopped は投げない: host の worker の error・exit の listener の中で同期に呼ばれるので、投げると publisher の process ごと落ちる。notify と play の失敗（reject と同期の例外）は外へ出さない (2) 帯: TerminalNotice（format.ts:33〜:44、44 行の中に足す）に { kind: \"ownerStopped\"; fromWallMs: number } を足し、notice()（format.ts:883）で次の 4 行にする。形は回線の帯（format.ts:888〜:896、spec §6.1: 見出しの帯・本文・下の罫線）で、見出しに時刻を入れない（戻った帯の :894 と同じく band の time は null、label は \"\"）。1 行目「━ 緊急地震速報などの処理が止まりました ━━━…」（端末の幅まで ━ で埋める）、2 行目「21:12:00 から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。」（時刻は fromWallMs の localClock）、3 行目「FlEq を起動し直してください。」、4 行目 下の罫線（\"━\" を ctx.total）。色の役目は 4 行とも connLost（P3-OSN-D-COLOR=A、:820 の CONN_LOST と :888〜:890 の seg）。56 桁の端末では 2 行目が書き出しの折り返し（paintLines → physical）で 2 行に折れ、そのままにする（作者の決め）。帯のための折り返しは足さない (3) デスクトップ通知と音: 帯は設定によらずいつも出す。デスクトップ通知は notify の口（output.ts:365、既定 desktopNotice）で題「FlEq」・本文「緊急地震速報などの処理が止まりました。FlEq を起動し直してください。」を 1 回。音は新しい口 play（options.sound、既定 soundNotice、AC03）で reconstruction/assets/sounds/weather-warning.wav を 1 回。止めるのは次の 2 つだけ: (a) mute が効いている間（muteActive、notification-gate.ts:52）で、mute の条件（rules）に分野 eew の条件が 1 つも無いとき（条件の無い mute を含む）は、desktop も音も出さない (b) sound off（NotificationSettings.sound が false、notification-gate.ts:11）の間は音だけ出さない。分野の on/off（notify）は見ない。settings（options.notification）が無い起動（試験・測定）では止めない。ミュートは呼ばれた時の時計で 1 回だけ判じ、後で mute が解けても出し直さない (4) 通知の道との関わり: desktop と音は intent・A7 の channel・通知の門（host.ts の gatedAdapter）を通らない（回線の切断の desktop 通知と同じ道、P3-TO-D-CONN-NOTIFY-PATH）。だから A7 の channel の状態（idle・running・stopping・isolated・unavailable）を変えず、channel の状態にも止められない。音の channel が隔離中（player が閉じない）でも、probe で backend が無いと判じた run でも、別の player を起こして試す。鳴っている別の通知の音と重なりうる（残存）。起動と終わりを待たず、成否を記録しない（失敗は .catch で捨てる、:388 と同じ） (5) 試験 T02 は直す前のコードで、sink に ownerStopped が無く落ちる。無いと: 端末を見ている人にも、離れている人にも、緊急地震速報が出なくなったことが伝わらない",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:280 «fa7f7ada4df17a32»",
+          "reconstruction/src/terminal/output.ts:365 «ed3e5410d69cad08»",
+          "reconstruction/src/terminal/output.ts:388 «01619191811a14b8»",
+          "reconstruction/src/terminal/output.ts:641 «ed4c52834b1a8b45»",
+          "reconstruction/src/terminal/format.ts:44 «f60e898c28581293»",
+          "reconstruction/src/terminal/format.ts:820 «f287b579a1c86376»",
+          "reconstruction/src/terminal/format.ts:888 «5f36ceb867c04269»",
+          "reconstruction/src/terminal/format.ts:894 «d1cc4fbc5081b81b»",
+          "reconstruction/src/cli/notification-gate.ts:11 «c3627c1f70375e67»",
+          "reconstruction/src/cli/notification-gate.ts:52 «4762cb78e84bbbd0»",
+          "docs/specs/cli-terminal-output.md:704 «e031c40283a6b5e9»"
+        ]
+      },
+      {
+        "id": "P3-OSN-AC03",
+        "requirement": "音を 1 回鳴らす口（P3-OSN-D-SOUND-PATH=A）: adapter.ts の末尾（今の 242 行の後）に soundNotice(asset: string): Promise<void> を足し、同じ末尾に export { soundNotice } を書く（export function・export const にしない。228 行の export は変えない）。(1) backend の組は commands の音の組（adapter.ts:64〜:71。darwin は afplay、linux は ffplay・paplay・aplay の順、win32 は PowerShell の SoundPlayer）を使い、組を書き写さない。commands を呼ぶために、54 行の中で引数の型を Pick<NotificationAttempt, \"channel\" | \"payload\" | \"soundAsset\"> に狭めるか、probeSoundBackend（:214〜:218）と同じく試行の形の値を組む（as で言い換えない） (2) 組の先頭から、実行ファイルが existsSync で在る最初の 1 つだけを execFile で起こす。desktopNotice（:238〜:240）と同じく、組の 3 番目の option（win32 の windowsHide と env）に timeout 10,000 ms を足し、unref する。終わりの code を見ず、次の backend へ進まない。在るものが無い、未対応の platform（commands の RangeError）、execFile の同期の例外では何もせずに resolve する (3) active（:28）・A7 の試行・SoundBackend の位置（:78）・probe に触れない (4) 試験 T03 は直す前のコードで soundNotice が無く落ちる。無いと: 音を鳴らす今の道は A7 の試行だけで、その intent を作る owner が止まっているので鳴らせない",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/adapter.ts:54 «b17da7b026dce20e»",
+          "reconstruction/src/notification-delivery/adapter.ts:66 «3af3d8bdb0126499»",
+          "reconstruction/src/notification-delivery/adapter.ts:67 «39ece06a2d7a7fd7»",
+          "reconstruction/src/notification-delivery/adapter.ts:52 «4c2504eb87bf8688»",
+          "reconstruction/src/notification-delivery/adapter.ts:214 «ada924c3e5221cfb»",
+          "reconstruction/src/notification-delivery/adapter.ts:228 «51a3dfe295040a9b»",
+          "reconstruction/src/notification-delivery/adapter.ts:233 «c3443ecf16fd527c»"
+        ]
+      },
+      {
+        "id": "P3-OSN-AC04",
+        "requirement": "終了の段と code は変えない（試験は足さない。既存の P3-C3B-T05 が守り、C22 の AC05 (1) が最終の形で見る）: 止まった後に quit か Ctrl+C で終えたときの段の順と終了の code は今のまま（P3-C3B-AC03）。例: 落ちた時に処理中だった入力 1 件を mailbox から外していれば、収束の段が ownerStopped で failed になり code 3（理由は mailboxDrain:failed:ownerStopped・mailboxDrain:remainingInputs ほか、lifecycle.test.ts:395 の形。composition-root.ts:1766、shared-runtime.ts:456）。止まった owner が書込み権を持っていれば最終保存の段が ownerStopped で failed になり code 2（lifecycle.test.ts:457）。本契約の desktop と音の子は追わず（unref）、副作用の最終化の段の数え（composition-root.ts:1753 は A7 の channel だけを数える）に入らないので、段の結果と code を変えない。帯は端末の列に積むだけで、列は終わりに最長 1 秒書かれる（P3-TO-AC02 (6)）。C22（P3-FINAL-GATE-001）の AC05 (1) の owner の停止の場面は、本契約の配送の後に、urgent を止めてから終える形で確かめる（原文の改訂は AC06）",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:1753 «93b99352a24e9c5c»",
+          "reconstruction/src/runtime/composition-root.ts:1766 «d3a1e88e5b7463fc»",
+          "reconstruction/src/runtime/shared-runtime.ts:456 «9bb9dacde1bf8832»",
+          "reconstruction/test/execution-lifecycle/lifecycle.test.ts:395 «6e037a7ed066d7d8»",
+          "reconstruction/test/execution-lifecycle/lifecycle.test.ts:457 «dfefeaa7808a3fb5»",
+          "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»"
+        ]
+      },
+      {
+        "id": "P3-OSN-AC05",
+        "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: (1) composition-root.ts は ownerFailed の中の 676（コメント）・677・681・684・712 行の中だけを変える。684（if (monitor.stopped) return;）と 712（this.project([], [], clock);）は同じ字の行が file にほかにもあるので、ownerFailed の中の行だけを変える。行を足さない (2) host.ts は 121・122 行の中だけ。行を足さない (3) output.ts は 17（import に soundNotice を足す）・47（TerminalSink に ownerStopped）・120（TerminalOptions の notify の行に sound?: (asset: string) => Promise<void> を足す）・365（play = options.sound ?? soundNotice を同じ行に）・641（ownerStopped の実装を digest の前に）の 5 行の中だけ。行を足さない (4) format.ts は 44（TerminalNotice の variant）と、notice() の中の restored の case を閉じる 897 行（}）の後ろに同じ行で case \"ownerStopped\" を足すことだけ。行を足さない（後ろの 900・908・911 などを他の契約が «» で引く） (5) adapter.ts は 54 行の中（commands の引数の型を狭める場合だけ）と、242 行の後に足す行だけ（soundNotice と export、それぞれ「なぜ」のコメント 1 行）。足す行は、«» で引かれている行と同じ字（前後の空白を除く）にしない。desktopNotice の :238・:240 をそのまま写すと、その行を引く «» が一意でなくなり check-contract が落ちる (6) 形の例（コンパイルしていない）: host.ts の 121 行を「const stoppedAt = root.ownerFailed(place, cause);」、122 行を「if (started) { resumeIfDrained(); if (place === \"urgent\" && stoppedAt != null && root.state.shutdown.stage === \"running\") config.terminal?.ownerStopped(stoppedAt.wallTimeMs); } // P3-OSN-AC01」 (7) 実装の後、check-contract で FAIL になるのは、output.ts:47 を引く 3 件（p3-rain-recovery-cancel.json:236・:276、p3-terminal-debug-reject.json:153）と、本契約が引く行のうち中身を変えた行（host.ts:121・:122、composition-root.ts:677、output.ts:17・:47・:120・:365・:641、format.ts:44、adapter.ts:54〔変えた場合〕）の «» だけの見込み。統合担当が配送で付け直す",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:677 «b8434bcb544e7ae9»",
+          "reconstruction/src/host/host.ts:121 «ff271d362b95ecce»",
+          "reconstruction/src/host/host.ts:122 «eac019345fb5391b»",
+          "reconstruction/src/terminal/output.ts:17 «39f0417d93dfa721»",
+          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:120 «21f4b7e63be00614»",
+          "reconstruction/src/terminal/output.ts:365 «ed3e5410d69cad08»",
+          "reconstruction/src/terminal/output.ts:641 «ed4c52834b1a8b45»",
+          "reconstruction/src/terminal/format.ts:44 «f60e898c28581293»",
+          "reconstruction/src/notification-delivery/adapter.ts:54 «b17da7b026dce20e»"
+        ]
+      },
+      {
+        "id": "P3-OSN-AC06",
+        "requirement": "他の文の改訂（実装はしない。統合担当が配送の commit で当てる。どれも行の中の置き換えか file の末尾への書き足しで、«» の付いた行の数をずらさない）: C22 の owner の停止の場面は C11（P3-OWNER-REBUILD-001）の配送の後に置かれ、C11 の AC08・RES-02 を待つ形で書かれている（p3-final-gate.json の 99・105・828・839・860・959・1091・1095 行）。作者が C11 を P5 へ送ったので、本契約を名指す字に置き換える。置き換えの字は artifactRequirements の原文の改訂 (1)〜(3)。p3-notify-windows.json:268 の追わない子の上限の文にも soundNotice を書き足す（原文の改訂 (5)）。端末の字の真実源（docs/specs/cli-terminal-output.md）には、本契約の帯・通知・音の節を末尾に足す（原文の改訂 (4)）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-final-gate.json:99 «33a75e67dbfd85b8»",
+          "reconstruction/contracts/p3-final-gate.json:105 «6b6fbaa63dbeebbc»",
+          "reconstruction/contracts/p3-final-gate.json:828 «721bb109aeb471c6»",
+          "reconstruction/contracts/p3-final-gate.json:839 «96614ec866c63204»",
+          "reconstruction/contracts/p3-final-gate.json:860 «b052ae49f9c915f4»",
+          "reconstruction/contracts/p3-final-gate.json:959 «7f7c59f83100813a»",
+          "reconstruction/contracts/p3-final-gate.json:1091 «9f05f2f593541143»",
+          "reconstruction/contracts/p3-final-gate.json:1095 «a695c9c3b2ed2926»",
+          "reconstruction/test/final-gate/shutdown.test.ts:16 «d83287457ca55a0b»",
+          "docs/specs/cli-terminal-output.md:1068 «623712f5916ec5c0»",
+          "reconstruction/contracts/p3-notify-windows.json:268 «63046cfd7ef952ae»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-OSN-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-OSN-AC01"
+        ],
+        "behavior": "受入（AC01、dist の owner の thread で）。host.test.ts の末尾に足す。P3-C3A-T10（:986）と同じく本物の owner の thread を使い、startP2Host を直接呼んで terminal に偽の sink（inputDone・recoveryDone・inputDropped・digest・mirror は何もせず、ownerStopped は受けた値を配列に積む）を渡す。owner の見分け方: host を起こす前に owners.live が空になるのを待ち、owners.workerData を空にする（afterEach は workerData を空にしない）。起こした直後、どの owner も終わる前に、workerData の place と owners.live の並び（どちらも作った順）で urgent と deferred の Worker を控える（終わった owner は live から消えて並びがずれるので、後から引き直さない）。host 1: (1) deferred の owner を terminate し、診断の file に owner.deferred の ERROR ownerStopped が出るまで待つ。ownerStopped は呼ばれていない (2) urgent の owner に worker.emit(\"error\", new Error(…)) を出してから terminate する（error と exit の 2 回）。診断の file に owner.urgent の ERROR ownerStopped が出るまで待つ。ownerStopped は 1 回だけ呼ばれ、値はその診断の行の timestamp と同じ（直す前のコードはここで 0 回で落ちる）。host 2: host 1 の stop を終え、owners.live が空になってから同じ形で起こす。host.stop() を呼んで await する前に urgent の owner へ worker.emit(\"error\", …) を出す。stop が終わった後も ownerStopped は呼ばれていない（停止を求めた後、AC01 (3)）"
+      },
+      {
+        "testId": "P3-OSN-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-OSN-AC02"
+        ],
+        "behavior": "受入（AC02 (1)〜(3)）。reconstruction/test/terminal/owner-stop.test.ts を新設し、terminal-fixture.ts の harness（偽の時計、色 0、桁 80、notify は h.notices に積む）に options.sound（受けた資材を配列に積む）と options.notification を渡す。1 つの it の中で 4 つの端末を作り、それぞれ sink.ownerStopped(at(21, 12, 0)) を呼んで書き出しを待つ（connection.test.ts の until に倣う）: (a) mute 無し・sound on: 行は [`━ 緊急地震速報などの処理が止まりました ${\"━\".repeat(80 - width(\"緊急地震速報などの処理が止まりました\") - 3)}`, \"21:12:00 から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。\", \"FlEq を起動し直してください。\", \"━\".repeat(80)]、notices は [\"緊急地震速報などの処理が止まりました。FlEq を起動し直してください。\"]、音は [\"reconstruction/assets/sounds/weather-warning.wav\"]（直す前のコードは sink に ownerStopped が無く落ちる） (b) 条件の無い mute（endsAtMonotonicMs null、rules []）: 行は (a) と同じ、notices と音は空 (c) 条件に eew の段を持つ mute（rules [{ category: \"eew\", level: \"warning\" }]）: notices と音が 1 つずつ (d) mute 無し・sound off: notices は 1 つ、音は空。D-MUTE・D-DESKTOP-TEXT・D-SOUND の裁定が A でなければ、統合担当が発注前に期待を裁定に合わせる"
+      },
+      {
+        "testId": "P3-OSN-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-OSN-AC03"
+        ],
+        "behavior": "受入（AC03 (1)(2)）。adapter.test.ts の末尾に足す。P3-NW-T02・T04 に倣い、process.platform を win32 に、process.env.SystemRoot を mkdtemp の dir の下の root に替え（withSystemRoot）、試験の後に戻す。(1) powershell.exe の path に空の file を置き、soundNotice(\"reconstruction/assets/sounds/weather-warning.wav\") を呼ぶ。execFile が 1 回、[powerShellPath(root), powerShellArgv(soundScript), { windowsHide: true, timeout: 10_000, env: { ...process.env, FLEQ_NOTIFY_WAV: resolveRepoPath(\"reconstruction/assets/sounds/weather-warning.wav\") } }] で呼ばれ、戻りの unref が呼ばれる。callback を呼ぶと Promise が解ける (2) 別の dir（powershell.exe を置かない）で soundNotice を呼ぶと execFile は呼ばれず、Promise が解ける。win32 で組むのは、darwin と linux の実行ファイル（/usr/bin/afplay など）の有無が試験の機械で変わるため。直す前のコードは soundNotice が無く落ちる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02 の参照（本契約は sequences を変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の後に FAIL になるのは AC05 (7) に挙げた «» だけの見込み。統合担当が配送で付け直す"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（T01 が dist の owner の thread を使うので vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（ownerFailed の戻りの型、TerminalSink の method、notice() の網羅）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "chrome-eew の dist（本契約は変えないが、ゲートの順を保つ）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（Q-OSN-TESTS の見込みを確かめる）"
+      },
+      {
+        "command": "npm run test:shuffle -- --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "host.test.ts の owners は module スコープの hoisted の値で、T01 が workerData の並びを読むので、順序を変えても緑か（AGENTS.md）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは、ownerFailed の戻り（無いと、1 回だけ・止まった時刻を host が知れない）、TerminalSink の method 1 つと TerminalNotice の variant 1 つ（無いと、端末に帯を出せない）、音の口 soundNotice 1 つと TerminalOptions の sound の口 1 つ（無いと、止まった owner の代わりに音を鳴らす道が無く、試験で差し替えられない）だけ。新しい定数の file・helper・timer・設定の key・診断の reason・印は足さない。試験は T01〜T03 の 3 本（T01 は AC01、T02 は AC02、T03 は AC03 の受入。AC04〜AC06 は試験を足さない）。host.ts の 122 行を戻すと T01 が、output.ts の 641 行の実装を空にすると T02 が、soundNotice の execFile を外すと T03 が落ちることを、実装者が 1 回ずつ確かめて成果物に書く",
+      "受信経路の計算量（AGENTS.md）: 受信の hot path（parser の入力・owner の返信・選択）の仕事は変えない。足すのは owner が止まった時の 1 回だけの判定（O(1)）と、mute の条件の走査 1 回（rules の数に比例、REPL が作る数）",
+      "期待が変わる既存の試験は無い見込み（Q-OSN-TESTS）。落ちたら、変える前に試験名・旧の期待・理由を報告して止める",
+      "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 止まった後の緊急地震速報・津波・南海トラフ・火山の電文は、起動し直すまで画面にも音にも出ない（P3-C3B-AUTO-RESTART=A のまま。作り直しは P5） (2) 応答の無い（thread は生きている）urgent の owner は止まったと判じないので、帯も通知も出ない (3) seismic・weatherCurrent・deferred の owner が止まっても、今のまま帯も通知も出ない (4) 音は A7 の channel を通らないので、鳴っている別の通知の音や、隔離の元の閉じない player と重なりうる。linux では組の先頭の在る player（ffplay があれば ffplay）だけを試し、それが鳴らなくても次へ進まない（音の試行の SoundBackend の位置は使わない） (5) デスクトップ通知と音は起動と終わりを待たず、成否を記録しない。backend の無い環境では黙って何も出ない (6) mute を解いた後に出し直さない（止まった時の 1 回だけ）",
+      "原文の改訂（統合担当が配送の commit で当てる）: (1) reconstruction/contracts/p3-final-gate.json の行の中の置き換え。:99 の「P3-OWNER-REBUILD-001〔C11、作者の裁定 2 で急ぐ側の owner を最後の checkpoint から作り直す、draft/owner-rebuild、作者の分岐待ち〕」→「P3-OWNER-STOP-NOTICE-001〔C11 の 1 段目。急ぐ側の owner が止まったことを帯・desktop・音で 1 回知らせる。作り直しは P5 へ送った（作者 2026-11-13 19 時台）〕」。:105 の「AC05 の owner の停止の場面は、P3-OWNER-REBUILD-001 の AC08 が停止の時に作り直し中だった場合の扱いと終了 code を変えるので、その配送の後に置く。」→「AC05 の owner の停止の場面は、P3-OWNER-STOP-NOTICE-001 が止まった後の端末と通知を変える（終了の段と code は変えない、同契約の AC04）ので、その配送の後に置く。」。:828 の「owner の停止の場面は P3-OWNER-REBUILD-001 の配送の後に行う（同契約の AC08 が、停止の時に作り直し中だった場合の扱いと終了 code を変えるため。作り直し中の停止も場面に入れる）」→「owner の停止の場面は P3-OWNER-STOP-NOTICE-001 の配送の後に行う（urgent の owner を止めてから終え、段の順と code が P3-C3B-AC03 のままで、帯と通知は同契約の試験が見る。作り直しは P5 へ送ったので、作り直し中の停止は場面に入れない）」。:839 の「C11（EEW の thread が落ちる）は P3-OWNER-REBUILD-001 が受け、AC05・AC08 で見る（Q-FG-RARE-FIXES）。」→「C11（EEW の thread が落ちる）は、P3 では P3-OWNER-STOP-NOTICE-001 が止まったことを知らせ（AC05 で見る）、作り直しは P5 へ送った（作者 2026-11-13 19 時台。P3-OWNER-REBUILD-001 は保留、Q-FG-RARE-FIXES）。」。:860 の「(4) P3-OWNER-REBUILD-001 が C22 へ渡した 2 点: 急ぐ側の owner を最後の checkpoint から作り直す時間（同契約の RES-02 の 10 秒に収まるか）と、作り直しの間に投入した EEW の遅れ を取る。」→「(4) は取らない（作り直しを P5 へ送ったため。作り直しの時間と、作り直しの間に投入した EEW の遅れは、P5 の作り直しの契約で取る）。」。:959 の「発注 3 は P3-OWNER-REBUILD-001 の配送の後に owner の停止の場面（作り直し中の停止を含む）を同じ file に足す」→「発注 3 は P3-OWNER-STOP-NOTICE-001 の配送の後に owner の停止の場面（urgent を止めてから終える）を同じ file に足す」。:1091 の「P3-OWNER-REBUILD-001（C11、作者の裁定 2 で作り直し、draft/owner-rebuild、作者の分岐待ち）」→「P3-OWNER-STOP-NOTICE-001（C11 の 1 段目、作り直しは P5）」。:1095 の「P3-OWNER-REBUILD-001 の AC08（停止の時に作り直し中だった場合の扱いと終了 code）と RES-02（作り直しの 10 秒）の確定値」→「P3-OWNER-STOP-NOTICE-001 の配送 commit（終了の段と code を変えないこと、同契約の AC04）」。8 行とも他の契約の «» に引かれていない（同 file の «» は 180・797 行）。そのあと meta.sha256 を取り直す。本契約の AC06 の «» を付け直す (2) reconstruction/test/final-gate/shutdown.test.ts:16 のコメントの「P3-OWNER-REBUILD-001」を「P3-OWNER-STOP-NOTICE-001」に置き換える（行の数は変えない） (3) C11（P3-OWNER-REBUILD-001、draft/owner-rebuild）は保留のまま main に入れない。本契約は C11 の文を改訂しない (4) docs/specs/cli-terminal-output.md の末尾（今の 1068 行の後）に節「## 11. 処理の停止（P3-OWNER-STOP-NOTICE-001）」を足す。中身: urgent の owner が止まった時に 1 回出す帯の図（21:12:00 の場面、80 桁の 4 行）、色の役目（P3-OSN-D-COLOR）、デスクトップ通知の題と本文、音の資材、mute と sound off で止める条件（作者の裁定のとおり）、seismic・weatherCurrent・deferred と応答の無い owner では出ないこと。§6 の中に入れないのは、行を足すと §6 より後の «» が 100 件余りずれるため。§6.1 の文は変えない (5) reconstruction/contracts/p3-notify-windows.json:268 の limit の文の末尾（「1 本のメモリと起動の時間は未測定（Q-NW-DEVICE）」の前）に「急ぐ側の owner の停止の desktop 通知と音（desktopNotice・soundNotice、P3-OWNER-STOP-NOTICE-001）の子も追跡せず、run に多くて 1 本ずつで、鳴っている試行の音と重なりうる。」を足し、meta.sha256 を取り直す（行の数は変えない。この行を引く «» は 0）",
+      "«» の付け直し（統合担当、配送の commit）: output.ts:47 を引く 3 件（p3-rain-recovery-cancel.json:236・:276、p3-terminal-debug-reject.json:153）と、AC05 (7) に挙げた本契約の «»、原文の改訂 (1) で変わる p3-final-gate.json の 8 行を引く本契約の AC06 の «»。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
+      "外見の確かめ（統合担当、配送の前）: 製品には owner を落とす入口が無いので、format.ts の renderer で帯の 4 行を色ありで 130 桁と 56 桁に描いた写しを作り、作者に見せる。macOS の通知の欄で本文がどこで切れるかと、音の聞こえ方は、soundNotice と desktopNotice をその場で 1 回呼んで確かめる"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-OSN-AUTHOR",
+        "owner": "user",
+        "blocks": [
+          "baseOid の割当",
+          "発注"
+        ],
+        "resolveBy": "作者の裁定（P3-OSN-D-DESKTOP-TEXT・D-SOUND・D-MUTE）。裁定が A でない分岐は、統合担当が AC02 (3)・T02・原文の改訂 (4) の字を裁定に合わせてから baseOid を付ける",
+        "requiredEvidence": [
+          "3 つの分岐の作者の裁定",
+          "統合担当の分岐（D-TRIGGER・D-SOUND-PATH・D-SHUTDOWN・D-COLOR）の確定"
+        ]
+      }
+    ]
+  }
+}
