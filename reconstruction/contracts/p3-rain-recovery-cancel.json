@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "efd4c19bf936601b4294cf2759a11b51b51a524ba943aa009714fe728dfd0cc1",
+    "sha256": "28a4d41eb649f144ab40980af4922f65b85ad11440722f52a96c7f8241d10849",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -91,7 +91,7 @@
     "contractId": "P3-RAIN-RECOVERY-CANCEL-001",
     "mode": "implementation",
     "objective": "記録的短時間大雨の速報（VPOA50）を端末が 60 秒待つ間に、回線が切れて繋ぎ直し、取り直しで同じ報の取消を採ったら、端末の待ちから外して出さない（作者裁定 7-1、2026-11-13 朝。ヘルツの総合レビュー hz-review-2 の 2 件目、P2。Mac mini の probe で赤）。場面: 22:10:00 に速報を受け、22:10:30 に切断、22:10:35 に取消の発表、22:10:40 に繋ぎ直し、22:10:50 に取り直しで取消を採る。今のコードでは 22:11:00 に端末へ取り消された速報の帯と本文が出る。直した後は出ない。取消の無い列は今と同じく 22:11:00 に出る。60 秒待つ仕組み（P3-TL10-D-RAIN-ALONE=A）は残す。直しは owner の候補が取消に進んだ subject を集め、採用の返信に載せ、host が端末へ渡し、端末が待ちから外す（AC03）。表示（Pi の画面）・通知・音・保存は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "050deaf5ac5ccbfb6adcff387b78324719ee5a18",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
