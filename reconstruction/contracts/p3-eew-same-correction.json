@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0e417215cd8043a8fde243bec0d19c23c3b9035e",
-    "sha256": "4aaad339b113a7c2fc8dd50328576fc0c41087d1cddb8428042fc81c5d69efbe",
+    "sha256": "b9024372a2bb04f82a048cfe42b4d8d1cde71ec55c6bc23145beb49eff2914a1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -370,7 +370,8 @@
       "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の数を報告して止める。allowedPaths の外は直さない",
       "原文の改訂（統合担当が配送の commit で当てる）: (1) p3-final-gate.json:272 の orphan の 1 項目めの末尾に「→ P3-EEW-SAME-CORRECTION-001 で入力 2 本を足し、O01:4・11 の期待を unchanged/stale に直した（仮定震源でない発表→訂正の同じ版は R37 の duplicate でなく P3-VM-AC03 の same で中身が違う組。通知しないのは同じ）。unmet 90 → 88」を足す（行の中の書き足しで、行の数は変えない） (2) 本契約の fixtureIds に合成の 2 本を、expectedDecisions と expectationEvidence に expected:O01:4・expected:O01:11 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
       "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す",
-      "配送の改訂（統合担当、2026-11-13）: (a) reconstruction/test/terminal/width.test.ts を allowedPaths に足した。実装（4a08b83c）で、P3-TL-T05 の全 fixture の検査が使い回す共有の renderer が、同じ EventID の VXSE45（77_01_*）の後に path の順で描く合成の VXSE43 を畳んで 0 行にし、地域名の検査が落ちたため。地域名の検査は sample ごとの renderer で行い、幅と … の検査は sample ごとと共有の renderer の両方に当てる (b) AC03 (5) の effectiveOf の 1 行は、品質レビューの P2 で「U-E の gate の記録〔retainUntil を持つ〕を inactive と読み、cause は取消→cancelled・terminal→released・ほか→expired」に強めた。current を消す変異で O01:4・11 が落ちることを実装担当が確かめた。AC03 (5) の字もこれに合わせた"
+      "配送の改訂（統合担当、2026-11-13）: (a) reconstruction/test/terminal/width.test.ts を allowedPaths に足した。実装（4a08b83c）で、P3-TL-T05 の全 fixture の検査が使い回す共有の renderer が、同じ EventID の VXSE45（77_01_*）の後に path の順で描く合成の VXSE43 を畳んで 0 行にし、地域名の検査が落ちたため。地域名の検査は sample ごとの renderer で行い、幅と … の検査は sample ごとと共有の renderer の両方に当てる (b) AC03 (5) の effectiveOf の 1 行は、品質レビューの P2 で「U-E の gate の記録〔retainUntil を持つ〕を inactive と読み、cause は取消→cancelled・terminal→released・ほか→expired」に強めた。current を消す変異で O01:4・11 が落ちることを実装担当が確かめた。AC03 (5) の字もこれに合わせた",
+      "配送の記録（統合担当、2026-11-13）: (1) 起草は 617149bd（draft/c22-orphan-g1）→ r1 44403e06 → r2 093c7675。通知の回復（P3-NOTIFY-FAIL-RECOVER-001、deliver/ntfrc 4b002122）の上へ載せ直したので、baseOid を載せ直した r2 の 6a914bd5 へ割り当て直した（e47d541a）(2) 実装は 4a08b83c（Opus 5.5、11 file）。T01 は mismatches 0、unmet 90→88・dependsOnUnmet 13→7・flow 373・hollow 13。effectiveOf の新しい 1 行を抜くと O01:5〜7・12〜14 の effective で 6 件落ち、current を消す変異で O01:4・11 が落ちることを確かめた (3) 配送の改訂と取り直しは e8500cb4（全 138 契約の digest、«» 9 件、p3-final-gate.json の原文の改訂）(4) 起草レビュー: ヘルツ r0 NO-GO（P2 3）→ r1 GO（thread 01a1d3ca・01a1d3d3）、Opus r0 NO-GO（P1 1、合成の形を実際に流して確かめた）→ r1 条件付き GO（«» の一覧の漏れ 1）→ r2 で当てた。実装レビュー: 契約適合 Opus GO（P3 3）、品質 Opus 条件付き GO（P2 1: effectiveOf を強めた）。範囲の外の発見 1 件（起動し直した後に、前に通知しなかった続報と同じ版の訂正が届くと [訂正] が鳴る。gate は保存されず、eew.ts:484〜485 で adopt になる。P3-NL-AC04(3) どおりで契約違反ではない）はバックログと作者のカードへ送った (5) Mac mini のゲート b31（e8500cb4）: tsc 3 本・rec-vitest・rec-shuffle・checker 3 本・build・test の 12 段すべて rc 0 (6) 2026-11-13 の時点で push していない（作者の配送の許しを待つ）"
     ],
     "unresolvedQuestions": []
   }
