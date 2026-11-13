@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "4ec2ca0991750d9acba0e0d4a05961681cd2030c071ef49c178f8adcbc68187c",
+    "sha256": "e96e3894d8bf7421e3910adf3bd468c31321b9b39267c2e05436d5e073d27074",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -483,12 +483,12 @@
       },
       {
         "id": "P2-A9-AC09",
-        "requirement": "R40〜R42のsnapshot項目を意匠なしの最小テキストで描く（2026-09-24作者裁定Q1=A）。(1) notices: 各VisibleNoticeのoperation・A8が生成したtext・官署名を一覧にし、training/testは明示する。textはtextContentで表示し、A9にkind→文言表を重複定義しない。sourceがnull、またはsource.officeがnullなら官署名を出さない。source.officeTruncated=trueなら切詰め済みと分かる印を添える。notice生成・期限計算・並べ替えはA8に任せA9で作らない。(2) channels: desktop/soundの2行でchecking=確認中、available=使える、unavailable=使えない、isolated=隔離中。availableを可聴の保証と書かない。(3) 接続/確認の1行: connection.state（connected/reconnecting/stopped）とdisconnectedAt（AC10の書式、null=未切断）、worker.state（stalled/unresponsive/stoppedは停止系として明示）、ブラウザ側SSE到達のstale、U-Eの確認状態snapshot.current.eew.items[i].confirmation.state（full/summaryの両配送にある）を出す。stale: 最終有効snapshot／名前付きheartbeatの受信から45秒無受信なら最大15秒周期の検査でstaleとし、旧EventSourceを閉じて再接続し、最新完全snapshotで置換する。背景から前景へ戻った時はtimerを待たず直ちに確認する。初回未受信の起点は接続開始時刻とする。heartbeatが運ぶ明示的なworker状態は反映するが、heartbeatや再接続が届いた事実だけでhealthy・確認済みに変えない。normal行は常に、training/test行はそのoperationのcardまたはnoticeを表示している間だけ出す。unconfirmed/partialを確認済みと書かない。stale中とworker停止中は現在の表示を「更新未確認の最終情報」と明示する。U-W/U-FはQ-NOTICE-UX=AどおりA8のunavailable noticeだけを描き、危険度上昇のnoticeを作らない。理由: A8が運ぶ未確認・通知不能・お知らせと、specの再同期を画面と接続で閉じる担当がないとP2の間これらが分からない",
+        "requirement": "R40〜R42のsnapshot項目を意匠なしの最小テキストで描く（2026-09-24作者裁定Q1=A）。(1) notices: 各VisibleNoticeのoperation・A8が生成したtext・官署名を一覧にし、training/testは明示する。textはtextContentで表示し、A9にkind→文言表を重複定義しない。sourceがnull、またはsource.officeがnullなら官署名を出さない。source.officeTruncated=trueなら切詰め済みと分かる印を添える。notice生成・期限計算・並べ替えはA8に任せA9で作らない。(2) channels: desktop/soundの2行でchecking=確認中、available=使用可、unavailable=使用不可、isolated=隔離中、failing=直前に失敗（2026-11-13 作者裁定、P3-NOTIFY-FAIL-RECOVER-001 の P3-NFR-D-LABEL）。availableを可聴の保証と書かない。(3) 接続/確認の1行: connection.state（connected/reconnecting/stopped）とdisconnectedAt（AC10の書式、null=未切断）、worker.state（stalled/unresponsive/stoppedは停止系として明示）、ブラウザ側SSE到達のstale、U-Eの確認状態snapshot.current.eew.items[i].confirmation.state（full/summaryの両配送にある）を出す。stale: 最終有効snapshot／名前付きheartbeatの受信から45秒無受信なら最大15秒周期の検査でstaleとし、旧EventSourceを閉じて再接続し、最新完全snapshotで置換する。背景から前景へ戻った時はtimerを待たず直ちに確認する。初回未受信の起点は接続開始時刻とする。heartbeatが運ぶ明示的なworker状態は反映するが、heartbeatや再接続が届いた事実だけでhealthy・確認済みに変えない。normal行は常に、training/test行はそのoperationのcardまたはnoticeを表示している間だけ出す。unconfirmed/partialを確認済みと書かない。stale中とworker停止中は現在の表示を「更新未確認の最終情報」と明示する。U-W/U-FはQ-NOTICE-UX=AどおりA8のunavailable noticeだけを描き、危険度上昇のnoticeを作らない。理由: A8が運ぶ未確認・通知不能・お知らせと、specの再同期を画面と接続で閉じる担当がないとP2の間これらが分からない",
         "evidenceRefs": [
           "reconstruction/contracts/p2-snapshot-sse.types.ts:98 «b14beebdc83475d2»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:58 «fd2ac8da3d1741d1»",
           "reconstruction/contracts/p2-snapshot-sse.json:41 «fe443b0075eaa651»",
-          "reconstruction/contracts/p2-snapshot-sse.json:468 «f3eed5ecb07ec110»",
+          "reconstruction/contracts/p2-snapshot-sse.json:468 «f17ccb0bcca98310»",
           "reconstruction/contracts/p2-snapshot-sse.json:475 «f0a8f1d35f2b7323»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:80 «b731944200fafc30»",
           "reconstruction/contracts/p2-snapshot-sse.types.ts:34 «24c063ef29bb6cf5»",

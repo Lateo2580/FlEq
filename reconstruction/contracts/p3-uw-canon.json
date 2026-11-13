@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "79625008d379b9c4471b555f1794ec7bccfbaf83faf09a902aa9dd34ce60f74e",
+    "sha256": "6d478b5583ddfb21e7610fbb982989572645df8e8bcc781ffab6da56a61dd0eb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -585,7 +585,7 @@
           "reconstruction/contracts/p3-execution-split.types.ts:142 «3465dfa1ad6dab50»",
           "reconstruction/src/runtime/composition-root.ts:687 «9c15477e6338b73e»",
           "reconstruction/src/runtime/composition-root.ts:1899 «2f979307af0502cb»",
-          "reconstruction/src/runtime/composition-root.ts:2417 «4da7e576a9ec5a9a»",
+          "reconstruction/src/runtime/composition-root.ts:2439 «4da7e576a9ec5a9a»",
           "reconstruction/src/runtime/composition-root.ts:630 «daa25c869eb0c90c»",
           "reconstruction/src/http-sse/http-sse.ts:82 «6ed80b8c97106703»",
           "reconstruction/test/uf-public/uf-detail-http.test.ts:94 «a232842ea4bc4709»"

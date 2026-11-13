@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "7d0876e5ec30938ee81420a274b767f23b85915f45de06c9677147709ca75040",
+    "sha256": "f89a5187417f44dea5eafdfdeb7edc19a7b797242903e5d3b594c3dc4018cef1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -302,19 +302,18 @@
           "reconstruction/src/notification-delivery/adapter.ts:90 «586c749105b2e74b»",
           "reconstruction/src/notification-delivery/adapter.ts:152 «c9771745fa6d99f1»",
           "reconstruction/src/notification-delivery/adapter.ts:154 «8f504a2a5968281c»",
-          "reconstruction/src/notification-delivery/adapter.ts:183 «6c346f01e0b196a8»",
+          "reconstruction/src/notification-delivery/adapter.ts:183 «a8cfe96ae362fcca»",
           "reconstruction/src/notification-delivery/adapter.ts:191 «a815734eb860d2e5»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:99 «a4ee70e7afbf5fcb»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:112 «9d821e18677b9496»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:130 «9a4c13af22c9edd9»",
-          "reconstruction/src/runtime/composition-root.ts:1112 «ae8a95860aa59dd4»",
+          "reconstruction/src/runtime/composition-root.ts:1112 «ac571b19cad6c5fc»",
           "reconstruction/src/runtime/composition-root.ts:1202 «e79df0eb5d3ec435»",
           "reconstruction/src/runtime/composition-root.ts:2358 «ba111a328dd530b0»",
           "reconstruction/src/runtime/composition-root.ts:1127 «e170cda82cb48269»",
-          "reconstruction/src/runtime/composition-root.ts:1129 «439bfcb5e822c27e»",
           "reconstruction/src/runtime/composition-root.ts:1676 «fa5f6eb48b6b13fa»",
           "docs/specs/reconstruction-p0-contracts.md:962 «aa57e0ea5ddebeb1»",
-          "reconstruction/contracts/p2-notification-delivery.json:103 «faff8ea62ba1e088»",
+          "reconstruction/contracts/p2-notification-delivery.json:103 «ba9956deea86bb13»",
           "reconstruction/src/units/eew/eew-unit.ts:352 «ca46ed6b5af75b8a»"
         ]
       },
@@ -338,19 +337,19 @@
         "id": "P3-NFR-AC03",
         "requirement": "直近の試行が失敗で終わった channel を wire で failing と出す（目的の A10。P3-NFR-D-SET=A・D-BIT-HOME=A・D-SCHEMA=A）: 場面: 20:00 Pi の PulseAudio が落ちる → 21:00:00 EEW の音の試行が paplay の exit 1（adapterRejected）で終わる → 21:00:01 鳴らし直しも失敗し notificationOutcomeUnknown → 21:40 PulseAudio が戻った後の次の音が delivered。(1) 印: root は channel ごとの boolean（2361 行と 2362 行の間に足す private の field、初めは両方 false）を持つ。notificationResult の running・stopping の分岐（1448 行の中）で、A7 の step.diagnostics にその結果の attemptId の notificationAttemptFailed があれば立て、無くて結果の kind が delivered なら下ろす。ほかの結果（上位群・置換・期限・停止の中断、隔離中の channel の結果）では変えない。印は隔離の前の値を引き継ぐ（隔離と、遅い close で戻ることでは変えない）。期限と重なった時間切れ（intent の期限まで試行の期限〔sound 10 秒・desktop 5 秒、notification-delivery.ts:25〕を切ってから選ばれた試行は timeoutAt が期限と同じになる、notification-delivery.ts:83）は、A7 が isExpired（:106〜107）に当てて notificationAttemptFailed を出さないので、期限の中断として数え、印を変えない (2) 渡し方: snapshotInput の 7 番目の引数（219 行。省略は両方 false）→ SnapshotProjectionInput.channelFailing（240 行、types の 149 行）。製品の呼び出し（985 行）は必ず this の印を渡す (3) 表示: view-projector の channel()（744・746 行）は probe の前は checking、unavailable と isolated は同じ名前、それ以外で印が立っていれば failing、立っていなければ available（強さは checking ＞ unavailable ＞ isolated ＞ failing ＞ available）。DisplayChannelView に failing を足す（types の 78 行）(4) 場面では 21:00:00 の結果の後に sound が failing（直す前は available）、21:01 の時点も failing、21:40 の delivered の後は available。時間切れ（A7 が失敗に数えるもの）で隔離して遅い close で戻った channel は failing。上位群の中断で隔離して戻った channel と、期限と重なった時間切れで隔離して戻った channel は、隔離の前の印のまま（前の試行が delivered なら available、adapterRejected などの失敗なら failing）（P3-NFR-D-TIMEOUT-AFTER=A と (1) の引き継ぎ）(5) 印が変わると snapshot の channels が変わり、comparable（view-projector.ts:754）に入っているので新しい snapshot が出る。印の変化だけで新しい仕組みは要らない (6) 受信の hot path の仕事は変えない。結果 1 件ごとに step.diagnostics（多くて 3 件）を 1 回見るだけで、全件×全件の走査も state の直列化もしない (7) 試験 T02 は直す前のコードで (4) の failing の期待で落ちる（今は available）。無いと: PulseAudio が落ちた夜に、画面は「使える」と出し続け、EEW の音が鳴らないことに気づけない",
         "evidenceRefs": [
-          "reconstruction/src/view-projector/view-projector.ts:746 «d567876cdf0b092a»",
-          "reconstruction/src/view-projector/view-projector.ts:889 «0317e5007b5f2b01»",
+          "reconstruction/src/view-projector/view-projector.ts:746 «cd36ec50f63a9f3e»",
+          "reconstruction/src/view-projector/view-projector.ts:889 «11f6c06bfc3fdb71»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:110 «83fab9222dcf2bc6»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:137 «1e13cd14c8b270c0»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:157 «3d9e9377cc16f04e»",
-          "reconstruction/src/runtime/composition-root.ts:1448 «7870b47deca610c2»",
+          "reconstruction/src/runtime/composition-root.ts:1448 «5f3f444af895c5af»",
           "reconstruction/src/runtime/composition-root.ts:1458 «651bb6c3d7842cd7»",
-          "reconstruction/src/runtime/composition-root.ts:219 «2e7c81238cb64c8a»",
-          "reconstruction/src/runtime/composition-root.ts:240 «2c32999f409efe50»",
-          "reconstruction/src/runtime/composition-root.ts:985 «27938ca12bd123e8»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:78 «bae325d28357656f»",
-          "reconstruction/contracts/p2-snapshot-sse.types.ts:149 «7efaff7e693033ed»",
-          "reconstruction/contracts/p2-snapshot-sse.json:468 «f3eed5ecb07ec110»",
+          "reconstruction/src/runtime/composition-root.ts:219 «7e713925dc4d2540»",
+          "reconstruction/src/runtime/composition-root.ts:240 «de67f3b0d9bf6767»",
+          "reconstruction/src/runtime/composition-root.ts:985 «59eea18426b1770b»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:78 «b97671cacaf0e459»",
+          "reconstruction/contracts/p2-snapshot-sse.types.ts:149 «6643ad54a1a58877»",
+          "reconstruction/contracts/p2-snapshot-sse.json:468 «f17ccb0bcca98310»",
           "reconstruction/src/host/host.ts:602 «64c0c9fcb3b537ba»"
         ]
       },
@@ -358,12 +357,12 @@
         "id": "P3-NFR-AC04",
         "requirement": "chrome の状態の行の字（P3-NFR-D-LABEL=B、作者裁定 2026-11-13 昼すぎ。同じ裁定で既存の字も改める）: (1) pure.ts:124 の CHANNEL_LABEL を、checking「確認中」・available「使用可」・unavailable「使用不可」・isolated「隔離中」・failing「直前に失敗」の 5 つにする（「使える」→「使用可」、「使えない」→「使用不可」、failing を足す。124 行の中だけで、行の数は変えない）。デスクトップ通知と音声通知の両方の行に効く (2) 状態の 2 行は「デスクトップ通知: 使用可」「音声通知: 直前に失敗」などの形（pure.ts:128 のまま）。snapshot の検査（pure.ts:401）は CHANNEL_LABEL の鍵で受けるので、failing の snapshot も受ける。wire の値（available・unavailable）は変えない (3) R41「available を可聴の保証と書かない」（p2-chrome-eew.json:486）は「使用可」でも守られる。理由: 「使用可」は試行を受け付ける状態を言うだけで、鳴った・聞こえたとは言わない（「直前に失敗」も直近の試行の結果という事実だけを言う） (4) 端末には channel の行が無いので変わらない。旧築（src/・display/）は状態の行の字を引いていない (5) 字を期待する既存の試験は chrome の smoke.mjs の 3 行（408・529・530）で、行の中で新しい字に書き換える（artifactRequirements の事前の許可）。記録の evidence/smoke-result.json は、統合担当が配送の後に smoke を実走して書き直す (6) 試験 T03 は直す前のコードで落ちる（failing の snapshot を検査が断り、字の表に failing が無く、available の字も「使える」のまま）。無いと: wire に failing が出ても Chrome がその snapshot を捨て、画面が前の snapshot で止まる",
         "evidenceRefs": [
-          "reconstruction/src/display/chrome-eew/pure.ts:124 «65cfaa360e5d6ee0»",
+          "reconstruction/src/display/chrome-eew/pure.ts:124 «5c4ee22883e58728»",
           "reconstruction/src/display/chrome-eew/pure.ts:401 «c57076b0166b2d39»",
-          "reconstruction/test/chrome-eew/smoke.mjs:408 «a2d605c1e9976fce»",
-          "reconstruction/test/chrome-eew/smoke.mjs:529 «7b590d6a2debc704»",
-          "reconstruction/test/chrome-eew/smoke.mjs:530 «c2a121d727284e2a»",
-          "reconstruction/contracts/p2-chrome-eew.json:486 «7948c6c74b46a030»",
+          "reconstruction/test/chrome-eew/smoke.mjs:408 «5c892dc2d6173ac4»",
+          "reconstruction/test/chrome-eew/smoke.mjs:529 «82039018994ae83f»",
+          "reconstruction/test/chrome-eew/smoke.mjs:530 «23aa2d7965a3f635»",
+          "reconstruction/contracts/p2-chrome-eew.json:486 «84b493be528acead»",
           "reconstruction/contracts/p3-notice-ledger.json:510 «93f2f6bde23d9b1b»"
         ]
       },
@@ -371,26 +370,26 @@
         "id": "P3-NFR-AC05",
         "requirement": "行の決まり（試験は無い。diff と check-contract で確かめる）: (1) adapter.ts（今の 242 行）・view-projector.ts（936 行）・pure.ts（422 行）・p2-snapshot-sse.types.ts（244 行）は行の数を変えない。中身を変えてよいのは allowedPaths に書いた行だけ (2) composition-root.ts は 49・129・219・240・985・1112・1448 行の中を書き換え、行を足すのは 2361 行と 2362 行の間だけ（印の field 1 つと遅い close の method 1 つ、それぞれ「なぜ」のコメント 1 行と前の空行）。ほかの行の中身と位置は変えない (3) 形の例（コンパイルしていない）: adapter.ts の 155 行を「if (settled) { if (context.stopObservation?.stopped === false && active[attempt.channel] === context) { active[attempt.channel] = null; context.onLateStop?.({ attemptId: attempt.attemptId, stopped: true, completedAt }); } return; }」、183 行を「context.cause ??= request.cause; context.onLateStop ??= onLateStop;」、composition-root.ts の 1112 行を「void this.notificationAdapter.abort(request, channel.stopByMonotonicMs, this.clock, (observation) => this.notificationStopped(name, observation)).catch(() => {});」。notificationStopped の中身は AC01 (2) の try で包む（行を足すのは 2361〜2362 行の間なので、包みの行も数に入れてよい）(4) 実装の後、check-contract で FAIL になるのは、本契約が引く行のうち中身を変えた行（allowedPaths に挙げた行。adapter.ts の 25・176・183・229、composition-root.ts の 49・129・219・240・985・1112・1448、view-projector.ts の 744・746・889・890、pure.ts の 124、types の 78・149、smoke.mjs の 408・529・530）と、行を足して位置がずれる composition-root.ts の 2417・2437・2440 を引く 4 契約の 7 件（他の 3 契約の 4 件と、本契約の AC05 の 3 件）だけの見込み。統合担当が配送で付け直す",
         "evidenceRefs": [
-          "reconstruction/src/notification-delivery/adapter.ts:25 «55b2545213cefd77»",
-          "reconstruction/src/notification-delivery/adapter.ts:176 «4fdea23ddb0766bf»",
-          "reconstruction/src/notification-delivery/adapter.ts:229 «c425713e3689bae3»",
-          "reconstruction/src/runtime/composition-root.ts:49 «c24089af58b343bb»",
-          "reconstruction/src/runtime/composition-root.ts:129 «388c09cb9c4b5c6b»",
-          "reconstruction/src/runtime/composition-root.ts:2417 «4da7e576a9ec5a9a»",
-          "reconstruction/src/runtime/composition-root.ts:2437 «a8e36100fe204f8f»",
-          "reconstruction/src/runtime/composition-root.ts:2440 «89d351c384d4c301»",
-          "reconstruction/src/view-projector/view-projector.ts:744 «1a765fc17bc49c6c»",
-          "reconstruction/src/view-projector/view-projector.ts:890 «c109360b23b53792»"
+          "reconstruction/src/notification-delivery/adapter.ts:25 «8723328890cebb37»",
+          "reconstruction/src/notification-delivery/adapter.ts:176 «b2bd73780a1aad3a»",
+          "reconstruction/src/notification-delivery/adapter.ts:229 «86c0b9bc07f30d72»",
+          "reconstruction/src/runtime/composition-root.ts:49 «18fde2a7f9aa365a»",
+          "reconstruction/src/runtime/composition-root.ts:129 «cadbc28317de5a30»",
+          "reconstruction/src/runtime/composition-root.ts:2439 «4da7e576a9ec5a9a»",
+          "reconstruction/src/runtime/composition-root.ts:2459 «a8e36100fe204f8f»",
+          "reconstruction/src/runtime/composition-root.ts:2462 «89d351c384d4c301»",
+          "reconstruction/src/view-projector/view-projector.ts:744 «a5a9bcd94af9fc01»",
+          "reconstruction/src/view-projector/view-projector.ts:890 «c203d71c4f70f055»"
         ]
       },
       {
         "id": "P3-NFR-AC06",
         "requirement": "他の契約の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。どれも行の中の書き足しで、行の数は変えない）: P2-A7-ADAPTER の abort（p2-notification-delivery.json:103）は「停止未確認なら隔離、遅い close/success から二件目を返さない」で、戻る道を書いていない。P2-A8-AC10（p2-snapshot-sse.json:468）は「完了後 idle/running/stopping=available」で failing が無い。P2-A9 の R40〜R42（p2-chrome-eew.json:486）の (2) は 4 つの字だけを挙げる。それぞれに artifactRequirements の原文の改訂 (1)〜(3) の句を足す。p2-snapshot-sse.json:468 は p2-chrome-eew.json:491 の «» が引くので付け直す。spec:962 と p3-notice-ledger.json:510（K8）は改訂しない（戻る前提と鳴らし直しの回数に矛盾しない）",
         "evidenceRefs": [
-          "reconstruction/contracts/p2-notification-delivery.json:103 «faff8ea62ba1e088»",
-          "reconstruction/contracts/p2-snapshot-sse.json:468 «f3eed5ecb07ec110»",
-          "reconstruction/contracts/p2-chrome-eew.json:486 «7948c6c74b46a030»",
-          "reconstruction/contracts/p2-chrome-eew.json:491 «20b243b1c8b57dd0»"
+          "reconstruction/contracts/p2-notification-delivery.json:103 «ba9956deea86bb13»",
+          "reconstruction/contracts/p2-snapshot-sse.json:468 «f17ccb0bcca98310»",
+          "reconstruction/contracts/p2-chrome-eew.json:486 «84b493be528acead»",
+          "reconstruction/contracts/p2-chrome-eew.json:491 «b915d4413cd35cc3»"
         ]
       }
     ],

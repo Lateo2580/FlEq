@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "c12c0eb12c59d6bf3fc57d7f792c81654b6ca85cea74d3f43e0100312a036d21",
+    "sha256": "abb05b12d8ccb57cdc554dda964e26e4bc19755a9446375a8d844cbfbc34a0d1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -100,7 +100,7 @@
         "reason": "P2-A7-AC03: notify()ではChildProcessを所有できず停止確認が取れないため、既存実行ファイルをspawnしrunだけをterminal結果の返却口にする。",
         "requests": "NotificationSelection/RuntimeStep.abortRequestsは{attemptId,cause}。causeはtimeoutまたは共有NotificationResult.aborted.reasonで、A1→A3→abortNotificationAttemptの途中で推定し直さない。stoppingには最初に確定したcauseを保持する。",
         "run": "runNotificationAttemptは二channelの現在試行に限ってChildProcessと完了待ちを所有し、spawnの直前でadapterCalledAtMonotonicMsを記録する。terminal NotificationResultの唯一の返却口はこのPromise。desktopのspawn不能/自然終了失敗はfailed、要求なしのexit code 0＋closeはdelivered。soundは前processのclose後に次playerを試すのは、前がnotStarted（外へ何も出していない）のときだけで、起動した後の失敗はその試行を結果の分からない終わり〔failed/adapterRejected・adapterError〕で返す。成功または列の全notStartedで一件を返す（P3-NOTICE-LEDGER-001のP3-NL-AC06の(3)。起動時のprobeSoundBackendは無音なのでこの制限から分け、close後なら起動した後の失敗でも次を試す）。fallbackでも同じattemptId/試行期限を使い、timeoutを起算し直さない。無効化要求を確定した後のexit code 0をdeliveredに戻さない。",
-        "abort": "abortNotificationAttemptは対象processへSIGTERMを要求し、渡されたstopByMonotonicMsまで停止確認を待って{attemptId,stopped,completedAt}だけを返す。NotificationResultを返さずA1へterminal入力を送らない。run側が同じ停止観測からcause=timeoutならkind=timeout、その他ならkind=aborted/reason=causeを一度だけ返す。停止未確認ならstopped=falseでterminal化しchannelを隔離、遅いclose/successから二件目を返さない。",
+        "abort": "abortNotificationAttemptは対象processへSIGTERMを要求し、渡されたstopByMonotonicMsまで停止確認を待って{attemptId,stopped,completedAt}だけを返す。NotificationResultを返さずA1へterminal入力を送らない。run側が同じ停止観測からcause=timeoutならkind=timeout、その他ならkind=aborted/reason=causeを一度だけ返す。停止未確認ならstopped=falseでterminal化しchannelを隔離、遅いclose/successから二件目を返さない。停止の期限の後にcloseを観測したら停止の証拠として、adapterはchannelのactiveを空け、abortの4番目の引数onLateStopへ{attemptId,stopped:true,completedAt}を一度だけ渡す。NotificationResultは返さない。A3は隔離中の同じattemptIdのchannelだけをidleに戻して選び直す（P3-NOTIFY-FAIL-RECOVER-001のP3-NFR-AC01）。",
         "stopDeadline": "stopByMonotonicMsは要求時M+1000。終了時はA1のsideEffectFinalization期限とのminをA1/A7で確定してA3へ渡す。abort側で猶予を起算し直さない。",
         "stopEvidence": "spawnした子のcloseを観測したとき（またはspawn失敗で子が存在しないと確定したとき）だけ停止確認済みとする。exitだけ、kill()の戻り値、AbortSignalの応答、timeout宣言は停止証拠にしない。sound fallbackの次playerも前processのclose確認後だけ起動する。OS通知サービスへ既に引き渡したdesktop表示を取り消したという保証は含めない。",
         "backendTable": [

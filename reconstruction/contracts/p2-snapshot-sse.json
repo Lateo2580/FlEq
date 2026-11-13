@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "cdf7f6187c73a1b76778609385e9699ba649075d8932b11a2061698026a7f556",
+    "sha256": "9d6e3b585629b85da125f2fb48ece0d94bf0059836e249096c9d90f618094299",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -465,7 +465,7 @@
       },
       {
         "id": "P2-A8-AC10",
-        "requirement": "R41: desktop/soundそれぞれA1 P2-A1-PROBEの初期状態と採用結果を使い、probe前checking、完了後idle/running/stopping=available、unavailable/isolatedは同名表示。attempt payloadはwireへ出さず、無音probeを実可聴保証としない。理由: channel故障を正常表示へ隠さない。",
+        "requirement": "R41: desktop/soundそれぞれA1 P2-A1-PROBEの初期状態と採用結果を使い、probe前checking、完了後idle/running/stopping=available（直近の試行がA7のnotificationAttemptFailedで終わり、まだdeliveredが無いchannelはfailing。P3-NOTIFY-FAIL-RECOVER-001のP3-NFR-AC03）、unavailable/isolatedは同名表示（failingより優先）。attempt payloadはwireへ出さず、無音probeを実可聴保証としない。理由: channel故障を正常表示へ隠さない。",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1190 «174d8e21c85706f2»"
         ]
