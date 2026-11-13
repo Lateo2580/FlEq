@@ -2,14 +2,15 @@ import { createHash } from "node:crypto";
 import * as childProcess from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { expect, it, vi } from "vitest";
-import type { ClockReading, NotificationResult } from "../../contracts/p2-shared-runtime.types";
-import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
+import type { ClockReading, MailboxEnvelope, NotificationIntent, NotificationResult, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { NotificationAttempt, NotificationPriorityGroup } from "../../contracts/p2-notification-delivery.types";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { initialUnits } from "../../src/runtime/owner-runtime";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, runNotificationAttempt } from "../../src/notification-delivery/adapter";
-import { harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import { envelope, harnessedRoot, seeded, startHarness, submit } from "../execution-split/owner-harness";
+import { vtse41 } from "../tsunami-unit/tsunami-fixture";
 import { background, calls, eewEnvelope } from "./delivery-fixture";
 const { judgeLatency } = require("./r32-latency.cjs") as { judgeLatency: (generated: number | undefined,
   spawned: number | undefined, predecessorSpawned?: number | null, predecessorClosed?: number | null,
@@ -26,18 +27,37 @@ vi.mock("node:child_process", async importOriginal => {
 const enabled = process.env.FLEQ_A7_C2 === "1";
 const target = process.env.FLEQ_A7_C2_OS;
 const evidenceDir = "reconstruction/test/notification-delivery/evidence";
+// 緊急の担い手の行（P3-FG-T05）: spawn の計測と判定を C2 と T2 で 1 つに保つため、違いはここだけに置く。reports は受理の順で、
+// 2 本目以降の EventID の先行は 1 つ前の報（同群の先行、R32）。ownerAdoption は T05 の (5) を当てる行だけ true。
+type Emergency = Readonly<{ label: string; unit: RuntimeUnitId; group: NotificationPriorityGroup; intentKind: string;
+  reports: readonly Readonly<{ inputId: string; eventId: string; offsetMs: number; envelope: (now: ClockReading) => MailboxEnvelope }>[];
+  file: (os: "macos" | "linux-rpi") => string; evidenceKind: string; piDesktopIntents: number; ownerAdoption: boolean }>;
+const c2: Emergency = { label: "C2", unit: "U-E", group: "normalEew", intentKind: "A4",
+  reports: [{ inputId: "A", eventId: "20990101000001", offsetMs: 0, envelope: now => eewEnvelope("a7", now, "A") },
+    { inputId: "B", eventId: "20990101000002", offsetMs: 10, envelope: now => eewEnvelope("a7", now, "B") }],
+  file: os => `${evidenceDir}/c2-${os}.detail.json`, evidenceKind: "C2 A7 standalone artificial A4/A1 competition (not R33 or A3-AC11)",
+  piDesktopIntents: 4, ownerAdoption: false };
+// P3-C5-E21-LOAD-T-v1 の T2: T1 の第 1 行（tsunami-runtime.test.ts の tsunamiEnvelope と同じ引数の VTSE41）を C2 と同じ条件で。B は無い。
+const t2: Emergency = { label: "AC07 T2", unit: "U-T", group: "normalTsunamiEmergency", intentKind: "critical",
+  reports: [{ inputId: "T2", eventId: "20990101000011", offsetMs: 0, envelope: now => envelope("a7", "VTSE41", "T2",
+    Buffer.from(vtse41({ eventId: "20990101000011", at: new Date(now.wallTimeMs).toISOString(),
+      areas: [{ code: "311", name: "千葉県内房", kind: "52" }] })), now, 1) }],
+  file: os => `reconstruction/test/final-gate/evidence/ac07-t2-${os}.detail.json`,
+  evidenceKind: "AC07 T2 (P3-C5-E21-LOAD-T-v1) real backend tsunami emergency competition, P3-FG-T05",
+  piDesktopIntents: 3, ownerAdoption: true };
 // AC02/R32: one verdict path for live observations and the Mac regression trace; otherwise retries
 // contaminate stop evidence and same-group player duration is charged to dispatch latency.
 function judgeCompetition(results: readonly { attempt: NotificationAttempt; result: NotificationResult }[],
   generatedAt: ReadonlyMap<string, number>, spawnAt: ReadonlyMap<string, number>, closeAt: ReadonlyMap<string, number>,
   abortAt: ReadonlyMap<string, number>, lowerAttemptIds: ReadonlySet<string>,
-  backendChannels: readonly NotificationAttempt["channel"][] = ["desktop", "sound"]) {
-  const emergency = results.filter(item => item.attempt.unit === "U-E" && backendChannels.includes(item.attempt.channel));
+  backendChannels: readonly NotificationAttempt["channel"][] = ["desktop", "sound"], row: Emergency = c2) {
+  const emergency = results.filter(item => item.attempt.unit === row.unit && backendChannels.includes(item.attempt.channel));
   const firstCalls = emergency.map(({ attempt }) => {
     const generated = generatedAt.get(attempt.intentId), spawned = spawnAt.get(attempt.attemptId);
-    const predecessor = attempt.subject.endsWith("20990101000002") ? emergency.find(item =>
+    const index = row.reports.findIndex(report => attempt.subject.endsWith(report.eventId));
+    const predecessor = index > 0 ? emergency.find(item =>
       item.attempt.channel === attempt.channel && item.attempt.priorityGroup === attempt.priorityGroup
-      && item.attempt.subject.endsWith("20990101000001"))?.attempt : null;
+      && item.attempt.subject.endsWith(row.reports[index - 1].eventId))?.attempt : null;
     const predecessorSpawned = predecessor == null ? null : spawnAt.get(predecessor.attemptId);
     const predecessorClosed = predecessor == null ? null : closeAt.get(predecessor.attemptId);
     const { durationMs, excludedPredecessorWaitMs, adjustedDurationMs, closeToSpawnMs, status } = judgeLatency(
@@ -52,24 +72,25 @@ function judgeCompetition(results: readonly { attempt: NotificationAttempt; resu
     requestedAt: abortAt.get(attempt.attemptId) ?? null, closedAt: closeAt.get(attempt.attemptId) ?? null,
     durationMs: closeAt.has(attempt.attemptId) && abortAt.has(attempt.attemptId)
       ? closeAt.get(attempt.attemptId)! - abortAt.get(attempt.attemptId)! : null }));
-  const blockedReason = emergency.length !== backendChannels.length * 2 || emergency.some(item => item.result.kind !== "delivered")
+  const blockedReason = emergency.length !== backendChannels.length * row.reports.length || emergency.some(item => item.result.kind !== "delivered")
     ? "emergency backend did not deliver the required attempts"
     : lowerAttemptIds.size !== backendChannels.length || lower.length !== backendChannels.length || lower.some(({ result }) => result.kind !== "aborted"
       || !result.stopped || result.reason !== "higherPriority") || stopConfirmations.some(item => item.durationMs == null)
       ? "lower real close not confirmed" : firstCalls.some(item => item.status === "blocked") ? "first-call observation missing" : null;
+  // 同群の順（報の順に spawn）と固定群（緊急の群の試行の後にだけ U-W の retry）。
   const ordered = backendChannels.every(channel => {
-    const a = emergency.find(item => item.attempt.channel === channel && item.attempt.subject.endsWith("20990101000001"));
-    const b = emergency.find(item => item.attempt.channel === channel && item.attempt.subject.endsWith("20990101000002"));
-    if (a == null || b == null || !(spawnAt.get(a.attempt.attemptId)! < spawnAt.get(b.attempt.attemptId)!)) return false;
+    const series = row.reports.map(report => emergency.find(item => item.attempt.channel === channel && item.attempt.subject.endsWith(report.eventId)));
+    if (series.some((item, index) => item == null || item.attempt.priorityGroup !== row.group
+      || index > 0 && !(spawnAt.get(series[index - 1]!.attempt.attemptId)! < spawnAt.get(item.attempt.attemptId)!))) return false;
     const retry = spawnAt.get(`U-W:retry-${channel}:2`);
-    return retry == null || retry >= closeAt.get(b.attempt.attemptId)!;
+    return retry == null || retry >= closeAt.get(series[series.length - 1]!.attempt.attemptId)!;
   });
   const status = blockedReason != null ? "blocked" : ordered && firstCalls.every(item => item.status === "pass")
     && stopConfirmations.every(item => item.durationMs! >= 0 && item.durationMs! <= 1_000) ? "pass" : "fail";
-  return { firstCalls, stopConfirmations, status, reason: blockedReason ?? (status === "fail" ? "C2 ordering or R32 latency limit exceeded" : null) };
+  return { firstCalls, stopConfirmations, status, reason: blockedReason ?? (status === "fail" ? `${row.label} ordering or R32 latency limit exceeded` : null) };
 }
 
-async function measure(os: "macos" | "linux-rpi") {
+async function measure(os: "macos" | "linux-rpi", row: Emergency = c2) {
   const backendChannels: readonly NotificationAttempt["channel"][] = os === "macos" ? ["desktop", "sound"] : ["sound"];
   const desktopProbe = os === "linux-rpi" && process.platform === "linux" ? probeDesktopBackend() : null;
   const executables = os === "macos" ? ["/usr/bin/osascript", "/usr/bin/afplay"]
@@ -77,13 +98,13 @@ async function measure(os: "macos" | "linux-rpi") {
   const backend = executables.map(path => ({ path, present: existsSync(path), sha256: existsSync(path)
     ? createHash("sha256").update(readFileSync(path)).digest("hex") : null }));
   const markers: Record<string, unknown>[] = [];
-  const record: Record<string, unknown> = { evidenceKind: "C2 A7 standalone artificial A4/A1 competition (not R33 or A3-AC11)",
+  const record: Record<string, unknown> = { evidenceKind: row.evidenceKind,
     os, platform: process.platform, arch: process.arch, node: process.version, backend,
     ...(os === "linux-rpi" ? { desktopProbe, desktopAttempts: 0, backendChannels } : {}),
     session: { dbus: Boolean(process.env.DBUS_SESSION_BUS_ADDRESS), macNotificationPermission: "integrator visually confirmed R31; display not observable by this test" }, markers };
-  const save = () => { mkdirSync(evidenceDir, { recursive: true });
-    writeFileSync(`${evidenceDir}/c2-${os}.detail.json`, JSON.stringify(record, null, 2) + "\n"); };
-  const blocked = (reason: string): never => { record.status = "blocked"; record.reason = reason; save(); throw new Error(`C2 blocked: ${reason}`); };
+  const save = () => { mkdirSync(dirname(row.file(os)), { recursive: true });
+    writeFileSync(row.file(os), JSON.stringify(record, null, 2) + "\n"); };
+  const blocked = (reason: string): never => { record.status = "blocked"; record.reason = reason; save(); throw new Error(`${row.label} blocked: ${reason}`); };
   if ((os === "macos" ? process.platform !== "darwin" : process.platform !== "linux") || os === "macos" && !backend[0].present
     || !backend.slice(1).some(item => item.present))
     blocked("OS, backend or notification session unavailable");
@@ -150,18 +171,21 @@ async function measure(os: "macos" | "linux-rpi") {
     await seeds.weather(h, { ...initialUnits["U-W"], intents: background(foreground) }, null, start);
     record.background = h.unit("U-W").intents;
     let failure: string | null = null;
-    const accept = async (event: "A" | "B", offset: number) => {
+    const accepted: NotificationIntent[] = [];
+    const accept = async (report: Emergency["reports"][number]) => {
       const now = clock();
-      await submit(h, eewEnvelope("a7", now, event));
-      const intents = h.unit("U-E").intents.filter(item => item.source.inputId === event);
-      if (intents.length !== 2) failure = `${event} did not produce two A4 intents`;
+      await submit(h, report.envelope(now));
+      const intents = h.unit(row.unit).intents.filter(item => item.source.inputId === report.inputId);
+      if (intents.length !== 2) failure = `${report.inputId} did not produce two ${row.intentKind} intents`;
       for (const intent of intents) generatedAt.set(intent.id, now.monotonicMs);
-      markers.push({ kind: "generation", event, scheduledOffsetMs: offset, clock: now,
+      accepted.push(...intents);
+      markers.push({ kind: "generation", event: report.inputId, scheduledOffsetMs: report.offsetMs, clock: now,
         createdAtMonotonicMs: now.monotonicMs, intentIds: intents.map(item => item.id) });
     };
     await new Promise<void>((resolve, reject) => {
       // B's timer is registered against M0+10 BEFORE A/lower, never after close or A spawn.
-      timers.push(setTimeout(() => { accept("B", 10).catch(reject); }, Math.max(0, foreground.monotonicMs + 10 - clock().monotonicMs)));
+      for (const report of row.reports.slice(1)) timers.push(setTimeout(() => { accept(report).catch(reject); },
+        Math.max(0, foreground.monotonicMs + report.offsetMs - clock().monotonicMs)));
       timers.push(setTimeout(() => {
         (async () => {
           foregroundStarted = true;
@@ -175,36 +199,47 @@ async function measure(os: "macos" | "linux-rpi") {
           if (!competing) { failure = "required lower handles were not spawned and close-unobserved at A"; resolve(); return; }
           for (const channel of lower) if (channel.kind === "running") lowerAttemptIds.add(channel.attempt.attemptId);
           record.lowerAttemptIdsAtA = [...lowerAttemptIds];
-          await accept("A", 0);
+          await accept(row.reports[0]);
         })().catch(reject);
       }, Math.max(0, foreground.monotonicMs - clock().monotonicMs)));
       interval = setInterval(() => {
         if (!foregroundStarted || finished) return;
         try {
           h.root.tick(clock());
-          if (failure != null || results.filter(item => item.attempt.unit === "U-E" && backendChannels.includes(item.attempt.channel)).length >= backendChannels.length * 2) resolve();
+          if (failure != null || results.filter(item => item.attempt.unit === row.unit && backendChannels.includes(item.attempt.channel)).length
+            >= backendChannels.length * row.reports.length) resolve();
           else if (clock().monotonicMs > foreground.monotonicMs + 15_000) { failure = "competition did not complete"; resolve(); }
         } catch (error) { reject(error); }
       }, 10);
     });
     record.results = results;
     if (failure != null) blocked(failure);
-    Object.assign(record, judgeCompetition(results, generatedAt, spawnAt, closeAt, abortAt, lowerAttemptIds, backendChannels));
+    Object.assign(record, judgeCompetition(results, generatedAt, spawnAt, closeAt, abortAt, lowerAttemptIds, backendChannels, row));
     if (record.status === "blocked") blocked(String(record.reason));
+    if (row.ownerAdoption) {
+      // T05 (5): adapter の delivered だけを成功にしない。期限で製品が expired にした結果は、owner に採られた delivered の終端の更新が欠けて落ちる。
+      await h.settle();
+      const expected = accepted.filter(intent => backendChannels.includes(intent.channel)).map(intent => intent.id);
+      const doneOf = new Map(h.delivered.flatMap(({ reply }) => reply.kind === "intentUpdateDone" ? [[reply.requestId, reply.adopted] as const] : []));
+      const adopted = h.sent.flatMap(({ request }) => request.kind === "intentUpdate" && doneOf.get(request.requestId) === true
+        ? request.updates.filter(update => update.disposition === "delivered" && expected.includes(update.id)).map(update => update.id) : []);
+      record.ownerAdoption = { expected, adopted };
+      if (expected.some(id => !adopted.includes(id))) { record.status = "fail"; record.reason = "T2 delivered terminal updates not adopted by the owner"; }
+    }
     if (os === "linux-rpi") {
       // R34 TTL evidence is a deadline input at the latest desktop expiry, separate from sound's real backend timings.
-      const desktopIntents = [...h.unit("U-E").intents, ...h.unit("U-W").intents]
+      const desktopIntents = [...h.unit(row.unit).intents, ...h.unit("U-W").intents]
         .filter(item => item.channel === "desktop" && item.disposition === "pending");
       const now = clock(), expiresAt = Math.max(now.wallTimeMs, ...desktopIntents.map(item => item.expiresAt));
       const expiryClock = { wallTimeMs: expiresAt, monotonicMs: now.monotonicMs + expiresAt - now.wallTimeMs };
       const attemptsBefore = Number(record.desktopAttempts);
       h.root.tick(expiryClock);
       await h.settle();
-      const pendingAfter = [...h.unit("U-E").intents, ...h.unit("U-W").intents]
+      const pendingAfter = [...h.unit(row.unit).intents, ...h.unit("U-W").intents]
         .filter(item => item.channel === "desktop" && item.disposition === "pending").length;
       const deadlineKeysAfter = Object.keys(h.root.state.notificationDeadlines.desktop).length;
       const attemptsAtExpiry = Number(record.desktopAttempts) - attemptsBefore;
-      const status = record.desktopAttempts === 0 && desktopIntents.length === 4 && pendingAfter === 0
+      const status = record.desktopAttempts === 0 && desktopIntents.length === row.piDesktopIntents && pendingAfter === 0
         && deadlineKeysAfter === 0 && attemptsAtExpiry === 0 ? "pass" : "fail";
       record.desktopTtlCheck = { evidenceKind: "deadline input at the expiry clock; not real elapsed time", expiryClock,
         originalIntents: desktopIntents.map(item => ({ id: item.id, expiresAt: item.expiresAt, attempts: item.attempts })),
@@ -230,6 +265,13 @@ it.skipIf(!enabled || target !== "macos")("C2 macOS real backend", async () => {
 it.skipIf(!enabled || target !== "linux-rpi")("C2 Linux Raspberry Pi real backend", async () => { await measure("linux-rpi"); });
 it.skipIf(!enabled || target === "macos" || target === "linux-rpi")("C2 requires an explicit supported OS", () => {
   throw new Error("C2 blocked: FLEQ_A7_C2_OS must be macos or linux-rpi");
+});
+// P3-FG-T05（AC07）: 本番は -t AC07 で走らせる。名前に C2 を含めない（C2 の command の -t C2 に拾われる）。
+const ac07 = process.env.FLEQ_C22_AC07;
+it.skipIf(ac07 !== "macos")("AC07 T2 macOS real backend", async () => { await measure("macos", t2); });
+it.skipIf(ac07 !== "linux-rpi")("AC07 T2 Linux Raspberry Pi real backend", async () => { await measure("linux-rpi", t2); });
+it.skipIf(ac07 == null || ac07 === "macos" || ac07 === "linux-rpi")("AC07 requires an explicit supported OS", () => {
+  throw new Error("AC07 T2 blocked: FLEQ_C22_AC07 must be macos or linux-rpi");
 });
 
 // T01 regression: the original real Mac trace contains lower-desktop:2 and a 1.6s A sound.
