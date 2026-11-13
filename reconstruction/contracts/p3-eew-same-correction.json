@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0e417215cd8043a8fde243bec0d19c23c3b9035e",
-    "sha256": "b68a269eae77296f8fad220d8751dc91d36e19a9c44e593abea4ae02310c1a43",
+    "sha256": "ff93d5b746ad7a81ac868a423654a785ca904278288e25da58f3606e4499add6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -53,7 +53,7 @@
     "contractId": "P3-EEW-SAME-CORRECTION-001",
     "mode": "implementation",
     "objective": "C22 の帳簿で行き先の無かった O01:4・O01:11（EEW の同じ版の訂正、報番号・時刻・本文が直前と同じ）に合成の入力 2 本を足し、期待を製品の決まり（P3-VM-AC03 の same で中身が違う組は先の版を残す、unchanged/stale・通知しない）に直す。後ろの O01:5〜7・O01:12〜14 の 6 step を含む 8 step を C22 の T01 で流し、全部一致させる（作者裁定 Q-FG-UNMET-ORPHAN=A、2026-11-13 15:13）。製品のコードは変えない。unmet は 90 → 88",
-    "baseOid": "unassigned",
+    "baseOid": "6a914bd585a2858c9bb4a692c839b0ac909bd292",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
