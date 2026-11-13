@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "67453a8366d2872ed21e74ccd77830a0ab9e88f6280a2574c196e584b9cf434c",
+    "sha256": "4897e757ec24aef2911be2dda164d2d7a3fed00afc56997e4c1ae0146ffa1234",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
-    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
+    "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -183,10 +183,10 @@
           "O02:15 (d) P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06（weather-timeseries-unit.test.ts:536、32 MiB の直前・一致・+1。p2-weather-timeseries-unit.json:647 が試験内で作ると書く）",
           "O02:16 (d) P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06（weather-timeseries-unit.test.ts:536、32 MiB の直前・一致・+1。p2-weather-timeseries-unit.json:647 が試験内で作ると書く）",
           "O02:17 (d) P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06（weather-timeseries-unit.test.ts:536、32 MiB の直前・一致・+1。p2-weather-timeseries-unit.json:647 が試験内で作ると書く）",
-          "O02:39 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:476〜479",
-          "O02:40 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:476〜479",
-          "O02:41 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:476〜479",
-          "O02:42 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:476〜479",
+          "O02:39 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:477〜480",
+          "O02:40 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:477〜480",
+          "O02:41 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:477〜480",
+          "O02:42 (b) P1 の持ち物。運用区分の無い・読めない VXSE45 を operationMissing で断る受信（synthetic 待ち）。根拠: 計画:685、p1-parser-boundary.json:477〜480",
           "O03:7 (e) 全国 VPWS50 base（2026-08-30T06:50、福井 L5 と同じ区域に特別警報、別官署 partial の所有外現象を含む）。U-W の試験は全国＋福井 partial＋VPNO50 の終了（P2-A5-T02、weather-current-unit.test.ts:290）までで、別官署の所有外現象を含む base は作らない。後ろの expected:O03:8・10〜14 が前提待ち",
           "O03:9 (e) 京都 VPWW57 の partial が福井 L5 と重なる区域に別所有の現象を持つ報。福井の終了で京都の現象を消さないことを確かめる試験は無い（P3-UWC の試験は京都単独か、全国＋京都）",
           "O04:3 (e) stale lock の場面の全国 VPWS50（2026-09-07T13:00）。移行 state（08-30T13:00。C15 の取り下げで作られない）を前提に書かれている。P2 の置き換えは expected:O04:9（文の上でだけの準備、T01 の preparedInProse）",
@@ -270,7 +270,7 @@
         ],
         "orphan": [
           "O01:4・O01:11（2 本）: EEW の訂正報で、報番号も時刻も直前と同じで中身の差が無いもの。受け手が無い理由: corpus に入力が無く、作る契約が無い。U-E の試験（P2-A4-T11 の R37）はこの形を試験内で作り、結果は同じ報の再送（unchanged/duplicate）で、期待（changed＝通知の判定をする）と違う。案: 推奨は期待を R37 の決まりに直して synthetic 2 本を足す小さい契約（P4 の前。後ろの O01:5〜7・12〜14 の 6 step も T01 で流れる）。他案は取り下げ（6 step は前提待ちの表に残る） → P3-EEW-SAME-CORRECTION-001 で入力 2 本を足し、O01:4・11 の期待を unchanged/stale に直した（仮定震源でない発表→訂正の同じ版は R37 の duplicate でなく P3-VM-AC03 の same で中身が違う組。通知しないのは同じ。通知しないのは gate〔受けてから 10 分〕が生きている間で、再起動の後は別の扱い〔バックログ 2026-11-13〕）。unmet 90 → 88",
-          "O02:3（1 本）: 気象の時系列（VPWP50）で、active の後に届く「有効な期間 0」の新しい報。受け手が無い理由: P2-WEATHER-TIMESERIES-UNIT-001 は入力が揃ったら戻すと書いたまま、入力を作る契約が無い。案: 推奨は U-F の試験内で active の後の newer empty を作る小さい契約（P4 の前、後ろの O02:4 も流れる）。他案は P5 の REST 採取へ送る",
+          "O02:3（1 本）: 気象の時系列（VPWP50）で、active の後に届く「有効な期間 0」の新しい報。受け手が無い理由: P2-WEATHER-TIMESERIES-UNIT-001 は入力が揃ったら戻すと書いたまま、入力を作る契約が無い。案: 推奨は U-F の試験内で active の後の newer empty を作る小さい契約（P4 の前、後ろの O02:4 も流れる）。他案は P5 の REST 採取へ送る → P3-TIMESERIES-NEWER-EMPTY-001 で合成 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にした。帳簿の案の字は U-F の試験内だったが、O02:4 も T01 で流すため corpus に足した（P3-TNE-D-WHERE）。unmet 88 → 87",
           "O03:7・O03:9（2 本）: 2026-08-30 の福井の大雨の場面で、全国の base と京都の partial が福井と同じ区域に別の官署の現象を持つ報。受け手が無い理由: synthetic を作る契約が無く、U-W の試験は 1 官署ずつしか組まない。案: 推奨は synthetic 2 本を足す小さい契約（後ろの O03:8・10〜14 の 6 step も T01 で流れる）。他案は P4 へ送る",
           "O04:3・O04:5〜8（5 本）: 旧 Pi の stale lock（O04:2、取り下げ）から始まる場面の続きで、全国の「新しい報を受けそこねたかもしれない」印（freshnessSuspect）が別の報の採用で消えず、全国の確認で消えること。受け手が無い理由: P2 は始点を expected:O04:9 に置き換えたが準備は文の上だけで、続きの入力を作る契約が無い。案: 推奨は O10 の窓を流す発注で O04:9 の準備を組み、synthetic 4 本と recover を足して流す。他案は O04:2 と一緒に取り下げ（印の対象の厳密さは P2-A5-T04 が確かめた）",
           "O09:3〜5（3 本）: EEW の 250 ms の測定の負荷（大きい XML の parse 中・U-W の保存の encode 中・通常の backlog）。受け手が無い理由: C4 は同じ 3 つの負荷を母集団 (1)〜(3) で測り Pass にしたが、凍結 manifest の O09 の対応（o09Subset）に位置 3〜5 を載せなかった。案: 推奨は C4 の測定を行き先と読んで (d) にする（新しい仕事なし、作者の確かめだけ）",

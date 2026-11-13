@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f60f0a261be36c4f7802d0e446f05b3decc58696",
-    "sha256": "10f425f08a12eadef78bd6a6705116ef7d41b25780d017cb423977d7fdda8915",
+    "sha256": "c87cfd55a7477e6c44fe15955f9b20e046eeb8980f7c572d2693650c51ccc0bf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
-    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
+    "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -125,17 +125,24 @@
       "既存の依存だけ"
     ],
     "fixtureIds": [
-      "test__fixtures__81_02_01_260605_VPWP50_high_severity"
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity",
+      "test__fixtures__synthetic_VPWP50_newer_empty"
     ],
     "sequenceIds": [
       "O02"
     ],
     "expectedDecisions": [
       {
+        "expectedRef": "expected:O02:3"
+      },
+      {
         "expectedRef": "expected:O02:4"
       }
     ],
     "expectationEvidence": [
+      {
+        "expectedRef": "expected:O02:3"
+      },
       {
         "expectedRef": "expected:O02:4"
       }

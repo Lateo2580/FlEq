@@ -42,8 +42,8 @@ O02のP2 subset案（D5裁定前）。以下の各IDは独立した参照で、`
 
 | 検査・担当 | 現行の機械参照ID | 充足後の参照・扱い |
 |---|---|---|
-| U-F初期化・正常・旧報・未知値・最大入力／A6 | `expected:O02:1`, `expected:O02:2`, `expected:O02:4`, `expected:O02:5`, `expected:O02:6`, `expected:O02:13`, `expected:O02:14` | ID維持。`:1`を含む初期化を省かず、`:6`のQ-VALUESはA6でclosed。`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23） |
-| U-F newer empty・容量境界／A6 | `unmet:O02:3`, `unmet:O02:15`, `unmet:O02:16`, `unmet:O02:17` | 充足後ID案は`expected:O02:3`, `expected:O02:15`, `expected:O02:16`, `expected:O02:17`。入力・根拠・reason固定後に統合担当がstep/expectation両参照とhashを更新しcheckerで検査。現時点では存在しないID |
+| U-F初期化・正常・旧報・未知値・最大入力／A6 | `expected:O02:1`, `expected:O02:2`, `expected:O02:4`, `expected:O02:5`, `expected:O02:6`, `expected:O02:13`, `expected:O02:14` | ID維持。`:1`を含む初期化を省かず、`:6`のQ-VALUESはA6でclosed。`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23）。2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 は expected:O02:3 に充足、O02:3・:4 は C22 の T01 で確かめる |
+| U-F newer empty・容量境界／A6 | `unmet:O02:3`, `unmet:O02:15`, `unmet:O02:16`, `unmet:O02:17` | 充足後ID案は`expected:O02:3`, `expected:O02:15`, `expected:O02:16`, `expected:O02:17`。入力・根拠・reason固定後に統合担当がstep/expectation両参照とhashを更新しcheckerで検査。現時点では存在しないID。2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 は expected:O02:3 に充足、O02:3・:4 は C22 の T01 で確かめる |
 | 共通の意味入力拒否／A1、U-F境界／A6 | `expected:O02:7`, `expected:O02:8`, `expected:O02:9`, `expected:O02:10` | ID維持。`:8`はVPWP50 Head欠落、`:10`はVXSE51不正日時。A1の共通検証で`:10`を拒否し、M02意味実装は要求しない。`:8`はA6接続でも拒否・state不変を確認。両reasonは凍結待ち |
 | 共通parser拒否の回帰確認／P1継承 | `expected:O02:11`, `expected:O02:12` | VPTW60抽出断片。U-F固有検査に含めず、P1の拒否経路と根拠を照合して参照。M11実装は要求しない |
 

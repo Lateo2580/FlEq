@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "81453a427d51a4d788063a0905a3dbc55ea5a0587b791651e51d2c744546fee2",
+    "sha256": "2c8b2e8256707f6578fd81c2f09c619b661e6221d35840096891ad8521ed7d44",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
-    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
+    "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -443,7 +443,7 @@
       },
       {
         "id": "P2-A6-AC06",
-        "requirement": "O02 P2 subsetでnewer empty、unknown、gate-only、取消、容量直前/一致/+1、O02:14の件数と元XMLの値集合の保持を検収し、原報periodのactive期限・7日retention（validUntil の表示の期限は確かめる前は保留の印、記憶〔noActiveItems＋lapsed〕への移行と回収は verified のときだけ、P3-EXPIRY-FORM-001 の P3-EF-AC04・AC05 の (6)）とshutdownで期限延長・旧current復活を0にする。expected:O02:4（newer empty後の旧報で復活0）は前提のunmet:O02:3が未充足なのでP2のexpectedDecisionsから外し、O02:3の入力が充足したら戻す。expected:O02:10（VXSE51、route外でA1 T03が検収）とexpected:O02:12（VPTW60、P1がxmlInvalidで拒否）はU-Fの入力ではないので外す",
+        "requirement": "O02 P2 subsetでnewer empty、unknown、gate-only、取消、容量直前/一致/+1、O02:14の件数と元XMLの値集合の保持を検収し、原報periodのactive期限・7日retention（validUntil の表示の期限は確かめる前は保留の印、記憶〔noActiveItems＋lapsed〕への移行と回収は verified のときだけ、P3-EXPIRY-FORM-001 の P3-EF-AC04・AC05 の (6)）とshutdownで期限延長・旧current復活を0にする。expected:O02:4（newer empty後の旧報で復活0）は前提のunmet:O02:3が未充足なのでP2のexpectedDecisionsから外し、O02:3の入力が充足したら戻す。expected:O02:10（VXSE51、route外でA1 T03が検収）とexpected:O02:12（VPTW60、P1がxmlInvalidで拒否）はU-Fの入力ではないので外す（2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で unmet:O02:3 は expected:O02:3 になり、O02:3・O02:4 は C22 の T01 で確かめる）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-order-plan.md:25 «49efb270e287cc78»",
           "docs/specs/reconstruction-p0-contracts.md:574 «3382e3e956fbbc9b»",
@@ -470,7 +470,7 @@
       },
       {
         "id": "P2-A6-AC09",
-        "requirement": "P2-O02-U-F-v1の履歴oracle・構造条件を通し（U-Fの入力でないO02:10とO02:12はU-Fの検収対象にせず、unmet stepと前提未充足のO02:4は未確認として残す）、E13で正常corpusの恒常的unavailable 0。P2外stepは未確認としてP3-P5へ残す",
+        "requirement": "P2-O02-U-F-v1の履歴oracle・構造条件を通し（U-Fの入力でないO02:10とO02:12はU-Fの検収対象にせず、unmet stepと前提未充足のO02:4は未確認として残す）、E13で正常corpusの恒常的unavailable 0。P2外stepは未確認としてP3-P5へ残す（2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で unmet:O02:3 は expected:O02:3 になり、O02:3・O02:4 は C22 の T01 で確かめる）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2064 «e2e2e4700050616c»",
           "reconstruction/contracts/p2-order-plan.md:214 «6278a180baad86fc»",
