@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "aa1b7aa35573427656637e1ca7c4a70b78ff2bca19bbe45505e2515764e7eda6",
+    "sha256": "7e27b1b76fa6e950d2248460eb0ce9b10ad0bdc93da6cfd2f1a8221ad1de8fb4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -148,7 +148,7 @@
     "contractId": "P3-DISASTER-PI-MEASURE-001",
     "mode": "implementation",
     "objective": "段 4（器の上限は Pi で速さを測ってから広げる。2026-10-21 作者の方向、p3-order-plan.md:547）の最初の段として、災害の日の道具（P3-DISASTER-CAPACITY-001）に、Pi で測る値を出す口を足す。上限は変えない（2026-11-13 作者裁定、判断カード 2026-11-13-P3の残り-夜の走行 §8 の A: 地震の件数の上限 512 と snapshot の 1 MiB を段 4 で一緒に扱い、件数は 768 か 1024 を Pi の測定で選ぶ。上限を変える契約は Pi の測定の後に別に書く）。今の道具は仮想時計の 1 thread の harness で、保存の時間・EEW の待ち・復元・製品の RSS を出せない（Q-DPM-PI）。そこで (1) 1 段目（Mac mini で回す）は器の値を製品から取り、全 unit の保存の byte の合計が最大の時点の保存の file（山の写し）を書き出す (2) 2 段目（Pi で回す node の script）は、山の写しを本物の host（worker と SD の disk）で復元し、復元の時間・保存の段ごとの時間・EEW の投入から T2・T4 までの待ち・RSS・snapshot の直列化を測る (3) 地震の畳みの試験を今の器で畳みが起きる量にする。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "13df8341a48cd631a981e385867f41d15fa6435b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
