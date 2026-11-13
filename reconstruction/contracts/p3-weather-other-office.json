@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "61858f7a680d573cdcfdf4d9f08709b7e0671926ba5e75899e6aae4fffd8fb3e",
+    "sha256": "8cccb7ddf94dd40a6187e8dec9aa908eb5828c1628659d8f18e1b74b70c94342",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
@@ -65,6 +65,13 @@
         "status": "closed",
         "source": "起草（2026-11-13、worktree の reconstruction/.dr-tmp/g3/ で、追跡 file を変えずに合成 2 本を作り、manifest・sequences・oracle.test.ts の写しと、cp -c で写した木で流した。群 2 は当てていない木）",
         "closed": "(1) 合成: test/fixtures/synthetic_VPWS50_fukui_base.xml は 4,509,112 byte・sha256 4dcbeef1b8c37de0f335570bf4656abbdbe09cc07c9e04015c6235bd09de968f、test/fixtures/synthetic_VPWW57_kyoto_partial.xml は 20,762 byte・sha256 b5b81974565a4bd2721f7c96d62bda918a289008122411b7568e371d17865af6（AC01 (1) の作り方。違えば止めて報告） (2) T01（今の読み）: 流した 381 step のうち食い違い 3 step（O03:10 revision、O03:11・O03:14 effective、P3-WOO-D-READING）。O03:7・8・9・12・13 は一致。読みを足した写し（AC04 の字）で mismatches 0、O03:7〜14 は全部一致（O03:7・9 は subjects・decision・revision・effective・intents・notices の 6 欄、O03:10 は subjects の 1 欄、O03:11・12・14 は 4 欄、O03:13 は 5 欄）。数は unmet 88 → 86、dependsOnUnmet 7 → 1（O02:4 だけ。群 2 の後は 0）、flow 373 → 381、hollow 13・prepared 15・withdrawn 10・injectFailure 44・afterInjectFailure 47 は同じ。件数を直した写しで T01・T02 とも緑 (3) U-W の state（T01 の写しで O03 の各 step の後に書き出した。T01 の比べの外）: 全国 base の福井の区域の 3x の行は O03:7〜10 で 7 件、O03:11（VPNO50 の終了）の後 0 件で O03:12〜14 も 0 件。全国 base の福井以外の区域の phenomena（2,353 区域のうち福井 25 を除く全部）は O03:7 から O03:14 まで同じ。京都の partial の phenomena は O03:9 から O03:14 まで同じで、京都の所有は 10 件のまま。福井の partial の所有は O03:14 で 0 件。墓標は O03:11 から VPNO50 の 1 件 (4) 弾き: 全国 base を時刻だけ替えた形（P3-WOO-D-BASE-FORM の B）にすると O03:7 の intents・notices が食い違う（intent 0）。京都の合成の EditorialOffice を福井地方気象台にすると O03:9 の subjects が食い違う。読みを足さないと (2) の 3 step が食い違う (5) intent の数（試しの値）: O03:7 は 2（L5 の desktop＋音）、O03:8 は 0、O03:9 は 1（L4 の desktop「高潮危険警報（京都府）」）、O03:10・11・13・14 は 0、O03:12 は 1（desktop「大雨危険警報（福井県）」、Q-WOO-O03-12） (6) cp -c の木で、tsc 3 本の後に全 reconstruction の vitest（--maxWorkers=2）: 落ちたのは P2-A5-T05（weather-current-unit.test.ts:613 の 14 → 16、AC05 で直す）と eew-e01/p3.test.ts の 8 本（どれも「contract digest: P1-PARSER-BOUNDARY-001」。p1-parser-boundary.json の fixtureIds を足して meta を取り直していないため。AC07 で統合担当が取り直せば消える見込み）だけ。:613 を直した木で weather-current-unit・parser-boundary・final-gate・width・layout6・digest は緑。時間は width 444 → 434ms、layout6 671 → 749ms、digest 29 → 24ms（ほぼ同じ）。check-manifest・check-sequences は写しの木で PASS（317 件、unmet=86） (7) 旧築: 写しの木で test/fixtures を歩く 4 本（weather-warning-fixture-coverage・kinsoku-snapshot・width-contract・phase1-shadow）は緑。npm run build と旧築の全 npm test は回していない（許可 root の外に書かない都合。発注の最初の作業で回す） (8) r1（2026-11-13、同じ .dr-tmp の写しと cp -c の木）: AC02 (4) の期待（O03:10 を unchanged/noChange・false、O03:8・11・14 を false）と AC08 の assert を当てた写しで、T01・T02 とも緑、mismatches 0（O03:7〜14 の欄の数は 6・6・6・4・6・4・5・6）、tsc の test の型検査も rc 0。製品を一時に変えた写しの木で AC08 (3) の 3 つの変異を流し、3 つとも T01 の欄の食い違いは 0 のまま AC08 の assert で落ちた（全国 base を終了から外す → (a)、区域を見ずに 3x・4x を外す → (b) の O03:11、別官署の partial を空にする → (c) の O03:11）。変異は写しの木だけで、戻したことを cmp で確かめた。福井 L5 の Body の Status の数え直し: 継続 13・なし 11・発表 1（r0 の「25 件とも継続」は sort・uniq が日本語の行をまとめた数え違い。python で数え直した）"
+      },
+      {
+        "id": "Q-WOO-O03-12",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-14 朝、「判断についてはすべて推奨で進めてください」。判断カード 2026-11-13-特別警報の引下げで危険警報の通知が出る の推奨 A）",
+        "closed": "11:40 の引下げ（O03:12）では desktop の通知を作らない（A: 出さない）。終わりの VPNO50 で外した特別警報も直前の段として数え、引下げとして扱う。直し方の推奨は受けた報の LastKind（直前の段）を読む案 1A。製品の変更が要り本契約の範囲の外なので、本契約は expected:O03:12 を null（比べない）のまま配送する",
+        "remaining": "U-W の通知の判定を直す契約の起草（案 1A）。その契約が expected:O03:12 の notices・intents に false を入れ、C22 の T01 で比べる"
       }
     ],
     "operationContract": {
@@ -218,7 +225,7 @@
       "p3-order-plan.md:685・p2-order-plan.md:239 の «» の無い地の文の p1-parser-boundary.json の行番号（群 2 の outOfScope と同じ。統合担当が直すかを決める）",
       "C22 の帳簿の orphan のほかの群（O04:3・5〜8、O06:11〜28、O09:3〜7・10）と O02 の unmet",
       "C22 の帳簿の記録の数（p3-final-gate.json の Q-FG-LEDGER-AC03・発注 1 の記録の unmet 90・流す 365 など）の書き換え。記録は当時の数のまま残し、原文の改訂の文を足すだけ",
-      "expected:O03:12 の notices・intents（null のまま。Q-WOO-O03-12 の作者の裁定で入れる）",
+      "expected:O03:12 の notices・intents（null のまま。Q-WOO-O03-12 の作者の裁定〔通知なし〕を受けて、U-W の通知の判定を直す契約が false を入れる）",
       "evidence の凍結 manifest の o09Subset.sequencesSha256（測定の入力の記録。書き換えない）",
       "2026-08-30 の全国 VPWS50・京都 VPWW57 の実物の採取（見つかれば P5 の REST 採取で錨を足す）",
       "旧築（src/）と spec 本体の編集"
@@ -415,7 +422,7 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "最小実装・最小テスト: 足す仕組みは T01 の読み方 3 つ（AC04。無いと O03:10・11・14 が spec どおりの製品の記録に対して食い違い、C22 の合格〔行き先の無い unmet 0〕に届かない）、T01 の同じ実行の O03 の state の assert（AC08。無いと全国 base の終了を壊しても T01 が通る〔受入条件、spec の O03〕）と、入力 2 本・台帳の 2 行だけ。新しい suite・helper・script を repo に足さない。直す既存の試験は P3-FG-T01（AC03・AC04・AC08）、P1-T01 と P2-A5-T05 の数（AC05）だけ",
-      "配送の止め: Q-WOO-O03-12（O03:12 の通知）の作者の裁定で expected:O03:12 の notices・intents に true か false を入れるまで配送しない。裁定が false なら製品の通知の変更が要り、本契約の範囲（製品を変えない）を越えるので、統合担当が別の契約にするかを決める",
+      "配送の止め（Q-WOO-O03-12 の裁定で解いた）: 作者の裁定は「通知なし」（2026-11-14）。製品の通知の変更が要り本契約の範囲（製品を変えない）を越えるので、expected:O03:12 の notices・intents は null（比べない）のまま本契約を配送し、U-W の通知の判定を直す契約が false を入れる",
       "最初の作業: 合成 2 本・manifest の 2 行・sequences の O03:7・9 を当て、AC04 の読みを足した木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせる（件数の assert が先に落ちても、beforeAll が書いた出力の mismatches・counts・flowed で中身を見られる）。O03:7〜14 の一致と、AC04 (3) の 3 step だけの変化を確かめてから件数の直しに進む（AC08 の判定は beforeAll の出力に入らず、T01 は先頭の件数の assert で終わるので、件数を直す前には見えない）。件数を直した後に、AC08 の assert が通常の木で緑、(3) の変異で落ちることを確かめる。期待と違えば AC03 (4) で止める",
       "合成は親を cp -c で写してから AC01 の置き換えを当て、byte 数と sha256 が AC01 の値と同じことを確かめて書く。全国の合成は行の置き換えで作り、XML として書き直さない（属性の順・空白・改行を親のままにする）",
       "sequences.json の数字の id と、O03:7・9 の step・record、AC02 (4)(5) が変える O03:8・10・11・14 の期待の欄、O03:14 の checks の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）。sequences.json と manifest.json は JSON として書き直さず、行の中を手で直す（書き直すと行が展開されて AC07 (3) の «» の先がずれる）",
@@ -424,24 +431,8 @@
       "原文の改訂（統合担当が配送の commit で当てる。(4) を除き、どれも行の中の書き足しで、行を足さない）: (1) p3-final-gate.json:274 の orphan の 3 項目め（O03:7・O03:9）の末尾に「→ P3-WEATHER-OTHER-OFFICE-001 で合成 2 本を足し、unmet:O03:7・9 を expected（changed/semantic・active・通知あり）にした。京都の合成は京都の区域だけの合法な報で、帳簿の字の「福井と同じ区域」ではない（P3-WOO-D-KYOTO-AREA）。T01 の読み方 3 つを足した（P3-WOO-D-READING）。unmet 87 → 85」を足す (2) p3-final-gate.json の発注 1 の記録 2（:1057）の (4) の比べの読み方の列の末尾（記録の末尾ではなく (4) の文の中、(5) の前）に「、U-W の VPNO50 の記録を released、段を持つ行の無い U-W の報の記録を inactive（解除があれば released、無ければ noActiveItems）と読み、noChange の報の revision は比べない（P3-WEATHER-OTHER-OFFICE-001）」を足す (3) reconstruction/tools/corpus/README.md:14 の O03 の行の末尾に「2026-11-13 P3-WEATHER-OTHER-OFFICE-001 で O03:7・9 を合成で充足（全国 base は福井の区域を福井 L5 から写した 2019 の全国報、京都は 2020 の京都の報の時刻を移したもの）。」を足す (4) 本契約の fixtureIds に test__fixtures__synthetic_VPWS50_fukui_base・test__fixtures__synthetic_VPWW57_kyoto_partial を、expectedDecisions と expectationEvidence に expected:O03:7・expected:O03:9 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
       "載せ直し: 本契約は群 2（P3-TIMESERIES-NEWER-EMPTY-001、起草 9fb23040 の上）の配送の後に載せ直す前提で書いた。件数（AC01 (4)・AC03 (2)・AC05）と行番号（AC07 (3)）は群 2（P3-TIMESERIES-NEWER-EMPTY-001）の配送の後の値で書き、今の木の値を括弧で添えた。統合担当は載せ直しの木で数と行を確かめてから baseOid を割り当てる",
       "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す",
-      "配送の記録（統合担当、2026-11-13）: (1) 起草 d63e0445 → 起草レビュー r0（Codex 条件付き GO P2 3 thread 01a1d501、Opus 条件付き GO P2 1・P3 6）→ r1 b93f7d1a（Codex 前回の P2 は閉じ新 P2 2、Opus GO P3 2）→ r2 44228130（Codex GO）→ P3-TIMESERIES-NEWER-EMPTY-001・P3-TERMINAL-RECOVERY-WORDING-001 の配送の上へ載せ直し、digest と oracle.test.ts:412・:415 の «» を合わせた 6818b8dd → baseOid 568a31e8 (2) 実装 71eed80f（Opus 5.5、合成 2 本は契約の byte 数と sha256 に一致、manifest 318・unmet 87→85〔O03 は 0〕、T01 の読み 3 つで変わる step は O03:10・11・14 だけ、AC08 は通常で緑・変異 3 つで落ちる） (3) 実装レビュー: 契約適合 Opus GO（P3 1: README:44 の括弧の書き換えは前例どおり採り allowedPaths の字を合わせた）、品質 Opus GO（P3 2: oracle.test.ts の weather.set を try の中へ、非 null 断言を expect.unreachable に。どちらも配送の改訂で当てた）。D-P3-10 の節目ではないので Codex の総合レビューは C22 の節目でまとめて頼む (4) 配送の改訂 fdfbb6a1: 142 契約の digest、«» 28 件、原文の改訂 5 項 (5) Mac mini ゲート b35（fdfbb6a1）12 段 rc 0 (6) Q-WOO-O03-12 は作者の裁定待ちで、配送（push）はその後。契約適合レビューの証拠不足から、府県の報で全部解除した後も全国の古い行がスナップショットに残る形が見つかった（台帳 125、範囲の外）"
+      "配送の記録（統合担当、2026-11-13）: (1) 起草 d63e0445 → 起草レビュー r0（Codex 条件付き GO P2 3 thread 01a1d501、Opus 条件付き GO P2 1・P3 6）→ r1 b93f7d1a（Codex 前回の P2 は閉じ新 P2 2、Opus GO P3 2）→ r2 44228130（Codex GO）→ P3-TIMESERIES-NEWER-EMPTY-001・P3-TERMINAL-RECOVERY-WORDING-001 の配送の上へ載せ直し、digest と oracle.test.ts:412・:415 の «» を合わせた 6818b8dd → baseOid 568a31e8 (2) 実装 71eed80f（Opus 5.5、合成 2 本は契約の byte 数と sha256 に一致、manifest 318・unmet 87→85〔O03 は 0〕、T01 の読み 3 つで変わる step は O03:10・11・14 だけ、AC08 は通常で緑・変異 3 つで落ちる） (3) 実装レビュー: 契約適合 Opus GO（P3 1: README:44 の括弧の書き換えは前例どおり採り allowedPaths の字を合わせた）、品質 Opus GO（P3 2: oracle.test.ts の weather.set を try の中へ、非 null 断言を expect.unreachable に。どちらも配送の改訂で当てた）。D-P3-10 の節目ではないので Codex の総合レビューは C22 の節目でまとめて頼む (4) 配送の改訂 fdfbb6a1: 142 契約の digest、«» 28 件、原文の改訂 5 項 (5) Mac mini ゲート b35（fdfbb6a1）12 段 rc 0 (6) Q-WOO-O03-12 は作者の裁定待ちで、配送（push）はその後。契約適合レビューの証拠不足から、府県の報で全部解除した後も全国の古い行がスナップショットに残る形が見つかった（台帳 125、範囲の外） (7) Q-WOO-O03-12 は作者の裁定で「通知なし」（2026-11-14 朝、「判断についてはすべて推奨で」）。O03:12 は null のまま配送し、false は通知の判定を直す契約で入れる（判断カード 2026-11-13-特別警報の引下げで危険警報の通知が出る の §3 の A のときの配送の順）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-WOO-O03-12",
-        "owner": "user",
-        "blocks": [
-          "expected:O03:12 の notices・intents（今は null）",
-          "本契約の配送"
-        ],
-        "resolveBy": "作者の裁定（統合担当がカードにする）。true か false を expected:O03:12 に入れるまで配送しない。false なら製品の通知の変更が要り、本契約の範囲の外なので統合担当が別の契約にするかを決める",
-        "requiredEvidence": [
-          "場面: 2026-08-30 11:40 に福井地方気象台が VPNO50（特別警報を警報に切り替えた知らせ、O03:11）と VPWW55（大雨特別警報から大雨危険警報への引下げ、O03:12）を同じ時刻で出す。corpus は VPNO50 を先に受ける。U-W は VPNO50 の終了で福井の区域の特別警報（3x）の行を外し、続く引下げの報の 43（大雨危険警報、L4）を、終了の後の段なし（または警報）から L4 へ上がったと読んで、desktop の通知を 1 件作る（試しの値: level warning、title「大雨危険警報（福井県）」、body「大雨危険警報 福井県嶺北」。全国 base を親のままにしても 1 件で、福井の実物の並びだけで起きる）",
-          "読み 1（ヘルツ）: P3-WN-AC02 の (1)(2) の字では、受理の前（終了の後）の段が無く後の段が L4 なので「上がった」に当たる。(3) の「引下げ」は上がった区域の無い報の例示で、終了の後の L4 を作らないとまでは読めない。違反とは断定できない（true のままなら製品はこのまま）",
-          "読み 2（Opus）: 報そのものは特別警報から危険警報への引下げ（Status「特別警報から危険警報」）で、(3) の「引下げ…は作らない」と食い違う。利用者には 11:40 に「大雨危険警報」の通知が新しい警報の発表のように届く（false なら製品の変更が要る）",
-          "条文: reconstruction/contracts/p3-weather-notice.json:617（P3-WN-AC02）、:629（P3-WN-AC03 の (3)。VPNO50 の採用と Code 00 の終了では作らない）。P3-WEATHER-NOTICE-001 の試験（p3-weather-notice.json:823）は L5 → 引下げの間に VPNO50 を挟まない"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
