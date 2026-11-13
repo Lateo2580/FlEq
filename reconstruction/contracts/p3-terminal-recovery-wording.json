@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f002a0c3a63219c010511c41274a01c854e29d1",
-    "sha256": "290cd3f32f0273a3d65b4e9cf217bfa79d57b15c90d61e97016f41d6ee0dfb61",
+    "sha256": "524cbcaf4e03b41bde9e972c6bd15e8f28ebe9c3d51d029274db08e2eedd5f51",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
@@ -65,7 +65,7 @@
     "contractId": "P3-TERMINAL-RECOVERY-WORDING-001",
     "mode": "implementation",
     "objective": "新築の端末の起動時のまとめ（止まっていた間に出た情報の帯、spec §6.6）の字を 2 つ言い直す（作者の裁定 2026-11-13、カード 9-6 の裁定 5「文脈を持たない人の言葉で」）: 取り直せなかった分野の「取り直せませんでした」を「再取得に失敗しました」に、7 日より前に止まっていたときの「7 日より前の情報は取り直していません」を「7 日より前の情報は再取得していません」にする。format.ts の 2 つの字と、その字を期待に持つ digest.test.ts の 3 か所を行の中で替えるだけで、表示の桁・折り返し・色・出す条件は変わらない（Q-TRW-WIDTH）。spec と閉じた契約の生きた条文は統合担当が配送で原文の改訂として揃える（P3-TRW-AC02）",
-    "baseOid": "unassigned",
+    "baseOid": "aebcfb3f7828f97324cca8b81401a033fb557623",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
