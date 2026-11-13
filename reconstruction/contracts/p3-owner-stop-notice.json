@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6f16239104aeaf667f3ab6ea26df459ebcf16dd3",
-    "sha256": "e75c43bf1e3b57f36491e25d30782e3afe62b18d1efa8c22eeccd0732eac15d0",
+    "sha256": "01137f5a0d35515e6d47260978f518a9987e87514cfcd244d8ef7f50b7db98a0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
@@ -344,16 +344,16 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-final-gate.json:99 «063805d8a801373e»",
           "reconstruction/contracts/p3-final-gate.json:105 «9307b3aea7656eb8»",
-          "reconstruction/contracts/p3-final-gate.json:849 «d76958f2bbbcfcb7»",
-          "reconstruction/contracts/p3-final-gate.json:860 «e540bceab27d6506»",
-          "reconstruction/contracts/p3-final-gate.json:883 «9243cf066b43fc70»",
-          "reconstruction/contracts/p3-final-gate.json:982 «e0ad9438dfa056bc»",
-          "reconstruction/contracts/p3-final-gate.json:1115 «c1c39b1b3ff65169»",
-          "reconstruction/contracts/p3-final-gate.json:1118 «938d1db8b819eae5»",
+          "reconstruction/contracts/p3-final-gate.json:853 «d76958f2bbbcfcb7»",
+          "reconstruction/contracts/p3-final-gate.json:864 «fd74d302586cc537»",
+          "reconstruction/contracts/p3-final-gate.json:887 «9243cf066b43fc70»",
+          "reconstruction/contracts/p3-final-gate.json:986 «e0ad9438dfa056bc»",
+          "reconstruction/contracts/p3-final-gate.json:1119 «c1c39b1b3ff65169»",
+          "reconstruction/contracts/p3-final-gate.json:1122 «938d1db8b819eae5»",
           "reconstruction/test/final-gate/shutdown.test.ts:16 «2902fa10feb1aa0a»",
           "docs/specs/cli-terminal-output.md:1068 «623712f5916ec5c0»",
           "reconstruction/contracts/p3-notify-windows.json:268 «e6421a5c232980d0»",
-          "reconstruction/contracts/p3-final-gate.json:532 «faabc41a442e9a74»",
+          "reconstruction/contracts/p3-final-gate.json:534 «faabc41a442e9a74»",
           "reconstruction/contracts/p3-execution-lifecycle.json:328 «d170fe093cb5297b»",
           "docs/specs/reconstruction-p0-contracts.md:3168 «903d17261f1c2452»"
         ]
