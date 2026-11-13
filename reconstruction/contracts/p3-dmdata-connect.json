@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "87fc5ed341ed3e7a735e0382533a56610f33636a",
-    "sha256": "8acee204975e42e87015ce1279ab2971155e3e98673c9652aa9ff02360e3355f",
+    "sha256": "812512942346d1592cb1f01b3711054dad4ee6d0f76fd18f2bfdd937bb24a509",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -92,7 +92,7 @@
     "questionResolutions": [
       {
         "id": "P2-A10-R63",
-        "status": "inProgress",
+        "status": "closed",
         "closed": "P2のhostは接続先URLだけを受け、本物のdmdataへの接続準備をP3最初の契約群へ送った（e01:84、e01:562の(5)）。本契約がその引受先",
         "remaining": "実接続検証（AC09）は作者が決める時刻に行う。それまでC2は配送できても、最初の契約群（C0〜C4）を完了にしない（計画§1.3）",
         "reason": "計画§6の本物のdmdata接続・台帳58・台帳59の3行をC2へ割り当てる"
