@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { ClockReading, JsonValue, RuntimeUnitId, RuntimeUnitInputs, RuntimeUnitSteps } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, JsonValue, RuntimeUnitId, RuntimeUnitInputs, RuntimeUnitStates, RuntimeUnitSteps } from "../../contracts/p2-shared-runtime.types";
 import type { ExecutionPlace, OwnerReply, OwnerRequest } from "../../contracts/p3-execution-split.types";
 import type { UnitModule, UnitTable } from "../../contracts/p3-unit-table.types";
 import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
@@ -115,6 +115,12 @@ function recordOf(state: object, subject: string): Readonly<Record<string, unkno
 function effectiveOf(unit: RuntimeUnitId, record: Readonly<Record<string, unknown>> | null): JsonValue {
   if (record == null) return { kind: "inactive", cause: { kind: "expired" } };
   if (unit === "U-E" && "retainUntil" in record) return { kind: "inactive", cause: { kind: isRecord(record["source"]) && record["source"]["infoTypeRaw"] === "取消" ? "cancelled" : record["terminal"] === true ? "released" : "expired" } };
+  // U-W の VPNO50 の記録は区域終了の墓標だけなので released。報の記録は段を持つ行（weather-current.ts の owned と同じ条件）が無ければ inactive で、
+  // 解除の行があれば released、無ければ noActiveItems（P2-A5 の全項目が解除・なしの報は無発令、P3-WOO-D-READING）。
+  if (unit === "U-W" && isRecord(record["source"]) && record["source"]["family"] === "VPNO50") return { kind: "inactive", cause: { kind: "released" } };
+  const rows = unit === "U-W" && isRecord(record["phenomena"]) ? Object.values(record["phenomena"]).flatMap((value) => Array.isArray(value) ? value.filter(isRecord) : []) : null;
+  if (rows != null && !rows.some((row) => typeof row["code"] === "string" && row["code"] !== "00" && row["status"] !== "解除" && row["status"] !== "発表警報・注意報はなし"))
+    return { kind: "inactive", cause: { kind: rows.some((row) => row["status"] === "解除" || row["code"] === "00") ? "released" : "noActiveItems" } };
   const effective = record["effective"];
   if (effective === undefined || effective === "active") return { kind: "active" };
   if (effective === "unavailable") return { kind: "unavailable", reason: typeof record["unavailableReason"] === "string" ? record["unavailableReason"] : null };
@@ -169,6 +175,8 @@ type GateRun = Readonly<{
   diagnostics: Map<string, string[]>;
   events: Event[];
   mailboxPeaks: { items: number; bytes: number };
+  // P3-WOO-AC08: O03 の流した step の後の U-W の state（expectedRef ごと。state は不変の値なので参照を残すだけ）。
+  weather: Map<string, RuntimeUnitStates["U-W"]>;
 }>;
 
 async function runGate(): Promise<GateRun> {
@@ -179,6 +187,7 @@ async function runGate(): Promise<GateRun> {
   const events: Event[] = [];
   const diagnostics = new Map<string, string[]>();
   const mailboxPeaks = { items: 0, bytes: 0 };
+  const weather = new Map<string, RuntimeUnitStates["U-W"]>();
   const log: Reduced[] = [];
   const units = observed(log);
   let now: ClockReading = { wallTimeMs: 0, monotonicMs: 1 };
@@ -288,7 +297,7 @@ async function runGate(): Promise<GateRun> {
           const want = expected.decision.kind === "rejected" && expected.decision.reason == null && isRecord(actual) ? { ...expected.decision, reason: actual["reason"] } : expected.decision;
           if (!isDeepStrictEqual(actual, want)) miss(unit, "decision", expected.decision, actual);
         }
-        // revision: stale と rejected の報の revision は報自身のもので、保存した記録には入らない（各 unit の corpus 試験と同じ）。
+        // revision: stale と rejected の報の revision は報自身のもので、保存した記録には入らない（各 unit の corpus 試験と同じ）。noChange（意味を更新しない報、U-W の終了でない VPNO50）も同じ。
         const stateUnit = unit ?? lastUnit;
         // 期待の subject の文字列は比べる組の表記で wire の鍵ではない（sequences.json の meta.expectedRecord）。state に無ければ同じ位置の decision の subject で引く。
         const live = (subject: string) => {
@@ -300,7 +309,7 @@ async function runGate(): Promise<GateRun> {
           if (record != null && step.action === "receive") found.add(subject);
           return record;
         };
-        if (step.action === "receive" && made != null && made.decision !== "rejected" && !(made.decision === "unchanged" && made.reason === "stale"))
+        if (step.action === "receive" && made != null && made.decision !== "rejected" && !(made.decision === "unchanged" && (made.reason === "stale" || made.reason === "noChange")))
           for (const subject of expected.subjects) {
             fields++;
             const actual = revisionOf(live(subject.subject));
@@ -323,6 +332,7 @@ async function runGate(): Promise<GateRun> {
       } catch (error) {
         miss(unit, "error", null, error instanceof Error ? error.message : String(error));
       }
+      if (sequence.sequenceId === "O03" && h != null) weather.set(label, h.unit("U-W"));
       const cancel = expected.subjects.some((item) => item.revision.infoTypeRaw === "取消");
       flowed.push({ expectedRef: label, sequenceId: sequence.sequenceId, action: step.action, headType, unit,
         kind: step.action === "receive" ? (cancel ? "cancel" : "normal") : step.action === "restart" ? "restore" : "control",
@@ -348,7 +358,7 @@ async function runGate(): Promise<GateRun> {
   const stats = probe.root.mailbox.stats(now.monotonicMs);
   mailboxPeaks.items = Math.max(mailboxPeaks.items, stats.highWaterItems);
   mailboxPeaks.bytes = Math.max(mailboxPeaks.bytes, stats.highWaterBytes);
-  return { tables, flowed, mismatches, prepared, saved, receives, diagnostics, events, mailboxPeaks };
+  return { tables, flowed, mismatches, prepared, saved, receives, diagnostics, events, mailboxPeaks, weather };
 }
 
 // 別表の行き先（AC01 (6)）: その expectedRef を引く試験・契約の file。
@@ -408,18 +418,31 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
   it("P3-FG-T01 acceptance / AC01: every flowed step of O01-O11 matches its expectation on the linked units", () => {
     const count = (table: Table, action?: string) => corpus.sequences.flatMap((sequence) => sequence.steps)
       .filter((step) => gate.tables.get(step.expectedRef)?.table === table && (action == null || step.action === action)).length;
-    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。
-    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 87]);
+    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。2026-11-13 の P3-WEATHER-OTHER-OFFICE-001 で O03:7・O03:9 に入力を足した。
+    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 85]);
     expect(["recover", "receive", "advanceClock", "save", "restart"].map((action) => count("afterInjectFailure", action))).toEqual([23, 11, 6, 4, 3]);
     // 前提の unmet に頼る step（AC01 (5)）・流した step・準備を作らずに始めた run の中の step（一致に数えない）の数と一覧。
-    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([6, 375, 13]);
+    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([0, 383, 13]);
     expect(corpus.sequences.flatMap((sequence) => sequence.steps).filter((step) => gate.tables.get(step.expectedRef)?.table === "dependsOnUnmet").map((step) => step.expectedRef.slice(9)))
-      .toEqual(["O03:8", "O03:10", "O03:11", "O03:12", "O03:13", "O03:14"]);
+      .toEqual([]);
     expect(gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef.slice(9))).toEqual(["O10:28", "O10:30", "O10:32", "O10:33", "O10:39", "O10:40",
       "O10:57", "O10:62", "O10:67", "O10:72", "O10:77", "O10:89", "O10:90"]);
     expect(gate.prepared.length).toBe(15);
     // AC01 (1): fixture の無い receive は unmet だけ（流す receive は全部 fixture を持つ）。
     expect(gate.flowed.filter((item) => item.action === "receive" && item.headType == null)).toEqual([]);
+    // AC08（P3-WEATHER-OTHER-OFFICE-001、spec の O03）: T01 の欄は step の subject だけを比べるので、O03 の U-W の state で、全国 base の福井の特別警報が
+    // 区域終了（O03:11）で外れて戻らないこと、福井以外の区域と京都の partial の現象・所有が変わらないことを見る。3x は製品の endSnapshot と同じ字。
+    const at = (position: number) => gate.weather.get(`expected:O03:${position}`)!;
+    const areas = (position: number, fukui: boolean) => Object.fromEntries(Object.entries(at(position).national.normal?.phenomena ?? {})
+      .filter(([token]) => { const code: unknown = JSON.parse(token)[4]; return (typeof code === "string" && code.startsWith("18")) === fukui; }));
+    const special = (position: number) => Object.values(areas(position, true))
+      .some((rows) => Array.isArray(rows) && rows.some((row) => isRecord(row) && typeof row["code"] === "string" && /^3\d$/.test(row["code"])));
+    const kyoto = (position: number) => [at(position).partials.find((item) => item.subject === "normal/VPWW57/京都地方気象台")?.phenomena ?? {},
+      Object.entries(at(position).ownership).filter(([, subject]) => subject === "normal/VPWW57/京都地方気象台").map(([key]) => key).sort()];
+    expect([7, 8, 9, 10, 11, 12, 13, 14].map(special)).toEqual([true, true, true, true, false, false, false, false]);
+    for (const position of [8, 9, 10, 11, 12, 13, 14]) expect(areas(position, false), `O03:${position} national outside Fukui`).toEqual(areas(7, false));
+    for (const position of [10, 11, 12, 13, 14]) expect(kyoto(position), `O03:${position} Kyoto partial`).toEqual(kyoto(9));
+    expect([Object.keys(areas(7, false)).length, ...kyoto(9).map((part) => Object.keys(part).length)].every((size) => size > 0)).toBe(true);
     const summary = gate.mismatches.slice(0, 20).map((item) => `${item.expectedRef} ${item.unit ?? "-"} ${item.field}: expected ${JSON.stringify(item.expected)} actual ${JSON.stringify(item.actual)}`).join("\n");
     expect(gate.mismatches.length, `${gate.mismatches.length} mismatches over ${new Set(gate.mismatches.map((item) => item.expectedRef)).size} steps (first 20):\n${summary}`).toBe(0);
   });

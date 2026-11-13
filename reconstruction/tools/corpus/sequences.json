@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
+    "sha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -3437,14 +3437,17 @@
           "sequenceId": "O03",
           "position": 7,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWS50_fukui_base",
           "receivedAt": 1788040200000,
           "evaluatedAt": 1788040200000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O03:7",
+          "expectedRef": "expected:O03:7",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+            "L1: docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae» VPNO50 の区域終了で終了済みの特別警報を再露出させない",
+            "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+            "L2: test/fixtures/synthetic_VPWS50_fukui_base.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -3466,15 +3469,17 @@
           "sequenceId": "O03",
           "position": 9,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWW57_kyoto_partial",
           "receivedAt": 1788040320000,
           "evaluatedAt": 1788040320000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O03:9",
+          "expectedRef": "expected:O03:9",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
-            "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+            "L1: reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577» office は Control/EditorialOffice",
+            "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+            "L2: test/fixtures/synthetic_VPWW57_kyoto_partial.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -15404,7 +15409,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O03:7",
+      "expectedId": "expected:O03:7",
       "sequenceId": "O03",
       "position": 7,
       "decision": {
@@ -15416,26 +15421,29 @@
       },
       "subjects": [
         {
-          "subject": "normal/O03/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWS50/気象庁本庁",
           "revision": {
             "reportDateTimeRaw": "2026-08-30T06:50:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
+        "L1: docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae» VPNO50 の区域終了で終了済みの特別警報を再露出させない",
+        "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+        "L2: test/fixtures/synthetic_VPWS50_fukui_base.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VPWS50 全国base、気象庁、通常、EventID/Serial空、ReportDateTime=2026-08-30T06:50:00+09:00。福井L5と同じ区域に特別警報、別官署partialの所有外現象も含む。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "同日同時有効base+複数partial合成。後続実福井材料と組み、所有外現象を維持。"
+        "同日同時有効base+複数partial合成。後続実福井材料と組み、所有外現象を維持。",
+        "福井の区域（Code が 18 で始まる）の行は 06:51 の福井 L5 の Body と同じ（特別警報 33 を含む）。福井以外の区域は親（2019-10-12 の全国報）の値のまま。",
+        "空の U-W で L5 に上がった区域があるので desktop＋音の 1 組（P3-WN-AC01・AC02）。福井の特別警報の行は O03:11 の VPNO50 の終了で外れ、O03:12〜14 で戻らない。福井以外の区域の現象は O03:14 まで変わらない（T01 の O03 の state の assert、P3-WOO-AC08）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -15459,8 +15467,8 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
@@ -15473,7 +15481,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O03:9",
+      "expectedId": "expected:O03:9",
       "sequenceId": "O03",
       "position": 9,
       "decision": {
@@ -15485,34 +15493,39 @@
       },
       "subjects": [
         {
-          "subject": "normal/O03/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWW57/京都地方気象台",
           "revision": {
             "reportDateTimeRaw": "2026-08-30T06:52:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": true,
+      "intents": true,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
-        "L2: test/fixtures/18_00_01_260830_VPWW55_fukui_L5.xml:1 «12c29731e40adc0c» 原本確認済み（dmdata Telegram List item id と受領 hash 一致、manifest 参照）"
+        "L1: reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577» office は Control/EditorialOffice",
+        "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+        "L2: test/fixtures/synthetic_VPWW57_kyoto_partial.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VPWW57 別官署=京都地方気象台、通常、EventID/Serial空、ReportDateTime=2026-08-30T06:52:00+09:00。福井L5と重なる区域に別所有現象の合法partial。",
-        "acquisition": "synthetic"
-      },
+      "input": null,
       "checks": [
-        "各官署/typeの所有現象を保持。福井の終了で京都の所有外現象を全消去しない。"
+        "各官署/typeの所有現象を保持。福井の終了で京都の所有外現象を全消去しない。",
+        "京都の区域（Code が 26 で始まる）だけの報。福井の区域とは Code も先頭 2 桁も重ならず、O03:11 の終了（180000）と O03:14 の解除で京都の行と所有は変わらない（T01 の O03 の state の assert、P3-WOO-AC08）。",
+        "全国 base の京都の行より上がった高潮危険警報（L4）で desktop の 1 件（P3-WN-AC01・AC02）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
       "expectedId": "expected:O03:10",
       "sequenceId": "O03",
       "position": 10,
-      "decision": null,
+      "decision": {
+        "kind": "unchanged",
+        "reason": "noChange"
+      },
       "effective": null,
       "subjects": [
         {
@@ -15524,8 +15537,8 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
@@ -15561,8 +15574,8 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
@@ -15666,8 +15679,8 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
@@ -15675,7 +15688,7 @@
       ],
       "input": null,
       "checks": [
-        "福井 VPWW55 の所有現象だけ終了（code00 ×16、Headline 全区域「解除」）。別官署／別 type の現象（O03:7 の VPWS50 base・O03:9 の VPWW57 京都、いずれも未充足）を消さない。福井の current は空になり、古い base を再露出しない。",
+        "福井 VPWW55 の所有現象だけ終了（code00 ×16、Headline 全区域「解除」）。別官署／別 type の現象（O03:7 の VPWS50 base・O03:9 の VPWW57 京都、P3-WEATHER-OTHER-OFFICE-001 の合成）を消さない。福井の current は空になり、古い base を再露出しない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },

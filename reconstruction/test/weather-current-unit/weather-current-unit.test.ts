@@ -610,7 +610,7 @@ describe("P2 weather-current unit", () => {
         expect(step.decisions[0], fixture.path).toMatchObject({ decision: "rejected", reason: "requiredStructureMissing" });
       covered.push(fixture.path);
     }
-    expect(covered, covered.join(",")).toHaveLength(14);
+    expect(covered, covered.join(",")).toHaveLength(16);
 
     const driver = fixtureDriver();
     const calls = callsWith({ ...driver.stubs, reduceWeatherCurrentUnit, toWeatherCurrentView });
