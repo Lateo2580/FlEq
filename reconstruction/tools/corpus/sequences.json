@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "sha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -29,7 +29,7 @@
         "stepRefs": [
           "expected:O02:1",
           "expected:O02:2",
-          "unmet:O02:3",
+          "expected:O02:3",
           "expected:O02:4",
           "expected:O02:5",
           "expected:O02:6",
@@ -2406,14 +2406,17 @@
           "sequenceId": "O02",
           "position": 3,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWP50_newer_empty",
           "receivedAt": 1780650060000,
           "evaluatedAt": 1780650060000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O02:3",
+          "expectedRef": "expected:O02:3",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»"
+            "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
+            "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+            "L1: reconstruction/contracts/p3-weather-notice.json:177 «f63478847482598b» P3-WN-D-UF=A U-F は通知の intent を作らない",
+            "L2: test/fixtures/synthetic_VPWP50_newer_empty.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -13785,7 +13788,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O02:3",
+      "expectedId": "expected:O02:3",
       "sequenceId": "O02",
       "position": 3,
       "decision": {
@@ -13800,26 +13803,28 @@
       },
       "subjects": [
         {
-          "subject": "normal/O02/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWP50/稚内地方気象台",
           "revision": {
             "reportDateTimeRaw": "2026-06-05T18:01:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»"
+        "L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
+        "L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02",
+        "L1: reconstruction/contracts/p3-weather-notice.json:177 «f63478847482598b» P3-WN-D-UF=A U-F は通知の intent を作らない",
+        "L2: test/fixtures/synthetic_VPWP50_newer_empty.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VPWP50 官署=稚内地方気象台、EventID空、ReportDateTime=2026-06-05T18:01:00+09:00、Serial空。構造正常で有効periodが0、InfoType発表。",
-        "acquisition": "REST見込み（合法empty事例）/synthetic"
-      },
+      "input": null,
       "checks": [
-        "changed→inactive/noActiveItems。watermark18:01を残し旧currentを除く。"
+        "changed→inactive/noActiveItems。watermark18:01を残し旧currentを除く。",
+        "同じ官署の active（O02:2、17:00）の後の正常な newer（Head/ReportDateTime 18:01）で、有効な period 0 の報。U-F は通知の intent を作らない（P3-WN-D-UF=A）。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {

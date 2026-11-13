@@ -408,13 +408,13 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
   it("P3-FG-T01 acceptance / AC01: every flowed step of O01-O11 matches its expectation on the linked units", () => {
     const count = (table: Table, action?: string) => corpus.sequences.flatMap((sequence) => sequence.steps)
       .filter((step) => gate.tables.get(step.expectedRef)?.table === table && (action == null || step.action === action)).length;
-    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。
-    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 88]);
+    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。
+    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 87]);
     expect(["recover", "receive", "advanceClock", "save", "restart"].map((action) => count("afterInjectFailure", action))).toEqual([23, 11, 6, 4, 3]);
     // 前提の unmet に頼る step（AC01 (5)）・流した step・準備を作らずに始めた run の中の step（一致に数えない）の数と一覧。
-    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([7, 373, 13]);
+    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([6, 375, 13]);
     expect(corpus.sequences.flatMap((sequence) => sequence.steps).filter((step) => gate.tables.get(step.expectedRef)?.table === "dependsOnUnmet").map((step) => step.expectedRef.slice(9)))
-      .toEqual(["O02:4", "O03:8", "O03:10", "O03:11", "O03:12", "O03:13", "O03:14"]);
+      .toEqual(["O03:8", "O03:10", "O03:11", "O03:12", "O03:13", "O03:14"]);
     expect(gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef.slice(9))).toEqual(["O10:28", "O10:30", "O10:32", "O10:33", "O10:39", "O10:40",
       "O10:57", "O10:62", "O10:67", "O10:72", "O10:77", "O10:89", "O10:90"]);
     expect(gate.prepared.length).toBe(15);
