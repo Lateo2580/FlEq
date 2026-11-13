@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "4f88d64d2b7dec3213ddf06d83a561e8553fd4e6155255a413ce8c019beea7de",
+    "sha256": "7d0876e5ec30938ee81420a274b767f23b85915f45de06c9677147709ca75040",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -174,7 +174,7 @@
     "contractId": "P3-NOTIFY-FAIL-RECOVER-001",
     "mode": "implementation",
     "objective": "通知の配送の 2 つの欠けを直す（判断カード 2026-11-13-P3の残り-夜の走行 の 9-2 の A6・A10、作者の裁定 2「A6=A・A10=A」）。A6: 停止を確かめられない中断で隔離した channel に戻る道が無い。場面: 21:00:00 津波注意報の音（aplay）が鳴っている → 21:00:02 EEW の音で中断を求める → aplay が 1 秒の内に閉じない → sound が隔離され、その EEW の音も run の残りの音も鳴らない。直した後は、遅れて来た close を停止の証拠として受け、adapter が channel を空け、root が隔離した channel を idle に戻して選び直す（21:00:04.5 に aplay が閉じたら、EEW の音〔期限は作成から 15 秒で 21:00:17〕が鳴る。21:00:17 より後に閉じたら EEW の音は鳴らず、その後の音から鳴る）。process が閉じないままなら今どおり隔離のまま。A10: 試行が失敗で終わっても状態行が「使える」のまま。場面: 20:00 Pi の PulseAudio が落ちる → 21:00 の EEW の音は 2 回試して終わる → Chrome の状態の行は「音声通知: 使える」のまま。直した後は、直近の試行が失敗で終わった channel を「音声通知: 直前に失敗」と出し、次に delivered で終わると「使用可」に戻す（作者の裁定で、既存の字も「使える」→「使用可」、「使えない」→「使用不可」に改める）。印は root の中だけ（保存しない）。鳴らし直しの回数（K8 の 1 回）・優先の群・試行の期限・端末の出力・音の資材は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "31fec3da4408fe52d09b73849694128149156cdc",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
