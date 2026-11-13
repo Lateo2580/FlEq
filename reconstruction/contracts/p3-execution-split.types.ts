@@ -86,7 +86,7 @@ export type RecoveryInputResult = Readonly<{ inputSequence: number; result: "ado
 export type RecoveryOutcome =
   | Readonly<{ kind: "opened" }>
   | Readonly<{ kind: "discarded" }>
-  | Readonly<{ kind: "adopted"; generation: number; inputs: readonly RecoveryInputResult[] }>
+  | Readonly<{ kind: "adopted"; generation: number; inputs: readonly RecoveryInputResult[]; cancelled: readonly string[] }> // cancelled: その採用で取消に進んだ unit の subject（P3-RRC-AC03 (4)。端末が待ちから外す）
   | Readonly<{ kind: "generationConflict" }>
   | Readonly<{ kind: "unsatisfied"; reason: "baseMissing" | "clockEvidenceMissing" }>;
 

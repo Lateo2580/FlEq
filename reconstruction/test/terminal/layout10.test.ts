@@ -464,3 +464,37 @@ describe("P3-TRE 容量で退去した速報の取消・訂正", () => {
     expect(shown(f.lines)).toEqual(blockOf(drillFix));
   });
 });
+
+// P3-RRC-T04 contractBoundary / P3-RRC-AC04・AC02 (1)（取り直しの採用の返信で取消に進んだ subject の待ちだけを外す）
+describe("P3-RRC 取り直しの採用で取消に進んだ待ちを外す", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(16, 33, 5)); });
+  afterEach(() => { vi.useRealTimers(); });
+  const oa = shortOf(reportOf(OA, "U-B")), OA_BAND = terminal()([reportUnit(oa)])[1], Q = "vpoa50-q";
+  type RecoveryDone = Parameters<ReturnType<typeof createTerminalOutput>["sink"]["recoveryDone"]>[0];
+  const recoveryDoneOf = (result: RecoveryDone["result"]): RecoveryDone => ({ kind: "recoveryDone", recoveryId: "r1", unit: "U-B", result, output: inputDoneOf("r", null).output });
+  const adopted = recoveryDoneOf({ kind: "adopted", generation: 1, inputs: [], cancelled: [P] });
+
+  it("T04 (a) 採用で P だけが外れ 60 秒で Q が出る (b) 期限の後で tick の前の採用では P が先に出る (c) generationConflict では外れない", () => {
+    const a = sink();
+    a.attach();
+    a.output.sink.inputDone(inputDoneOf("a1", oa, [ub(ubSubject(P, "a1", "held"))]));
+    a.output.sink.inputDone(inputDoneOf("a2", oa, [ub(ubSubject(Q, "a2", "held"))]));
+    a.output.sink.recoveryDone(adopted);
+    vi.advanceTimersByTime(61_000);
+    expect(bands(a.lines, OA_BAND)).toBe(1);
+
+    const b = sink();
+    b.output.sink.inputDone(inputDoneOf("a1", oa, [ub(ubSubject(P, "a1", "held"))]));
+    vi.advanceTimersByTime(60_000);
+    expect(bands(b.lines, OA_BAND)).toBe(0);
+    b.output.sink.recoveryDone(adopted);
+    expect(bands(b.lines, OA_BAND)).toBe(1);
+
+    const c = sink();
+    c.attach();
+    c.output.sink.inputDone(inputDoneOf("a1", oa, [ub(ubSubject(P, "a1", "held"))]));
+    c.output.sink.recoveryDone(recoveryDoneOf({ kind: "generationConflict" }));
+    vi.advanceTimersByTime(60_000);
+    expect(bands(c.lines, OA_BAND)).toBe(1);
+  });
+});

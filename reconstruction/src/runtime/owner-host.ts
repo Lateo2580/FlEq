@@ -57,7 +57,7 @@ type Candidate = {
   readonly recoveryId: string; readonly unit: RuntimeUnitId; readonly base: OwnerState; readonly open: OwnerState;
   shadow: OwnerState; readonly items: ParserMailboxItem[]; bytes: number; overflow: boolean;
   results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[];
-  readonly inputIds: string[];
+  readonly inputIds: string[]; readonly cancelled: Set<string>; // P3-RRC-AC03 (1): 候補の中で取消に進んだ subject（採用の返信で端末の待ちから外す）
 };
 
 class OwnerHost {
@@ -201,7 +201,7 @@ class OwnerHost {
     candidate.results.set(item.inputSequence, recoveryResult(completion, step, seen.held));
     candidate.diagnostics.push(...step.diagnostics);
     candidate.evidence.push(...step.confirmationEvidence.filter((evidence) => evidence.source !== "acceptedReport"));
-    candidate.inputIds.push(item.inputId);
+    candidate.inputIds.push(item.inputId); for (const { outcome } of step.outcomes) if (outcome.kind === "accepted") for (const subject of outcome.subjects) { if (subject.transition === "cancelled") candidate.cancelled.add(subject.subject); else candidate.cancelled.delete(subject.subject); } // P3-RRC-AC03 (2): 後の transition が勝つ。unit の名前で分けない
   }
 
   // P3-REC-AC05・AC07: 候補の要求（open・adopt・discard）。返信は 1 要求に 1 つ（recovery の未回答 1 件）。
@@ -213,7 +213,7 @@ class OwnerHost {
     if (request.phase === "open") {
       if (state.units[unit] == null) throw new Error(`unit ${unit} is not owned here`);
       this.candidate = { recoveryId, unit, base: state, open: state, shadow: state, items: [], bytes: 0, overflow: false, results: new Map(),
-        diagnostics: [], evidence: [], inputIds: [] };
+        diagnostics: [], evidence: [], inputIds: [], cancelled: new Set() };
       done({ kind: "opened" });
       return;
     }
@@ -227,7 +227,7 @@ class OwnerHost {
       if (candidate.overflow) { done({ kind: "generationConflict" }); return; }
       const items = [...candidate.items];
       Object.assign(candidate, { shadow: state, results: new Map(), diagnostics: [], evidence: [] });
-      candidate.inputIds.length = 0;
+      candidate.inputIds.length = 0; candidate.cancelled.clear(); // P3-RRC-AC03 (3): 開いた時の基点で集めた subject を残すと、当て直しで取消にならない待ちまで外す
       for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis, state);
     }
     const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis);
@@ -236,7 +236,7 @@ class OwnerHost {
     this.apply(step);
     const output = this.output([step]);
     done({ kind: "adopted", generation: this.persistence(unit).currentGeneration,
-      inputs: [...candidate.results].map(([inputSequence, result]) => ({ inputSequence, result })) },
+      inputs: [...candidate.results].map(([inputSequence, result]) => ({ inputSequence, result })), cancelled: [...candidate.cancelled] },
     { ...output, confirmationEvidence: candidate.evidence, diagnostics: [...candidate.diagnostics, ...output.diagnostics] });
   }
 

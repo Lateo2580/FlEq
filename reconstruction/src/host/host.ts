@@ -166,7 +166,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
           emit({ kind: "marker", point: "T2", runId, inputId, monotonicMs: reply.processingStartedMs });
           if (reply.decode != null) emit({ kind: "decode", runId, inputId, ...reply.decode });
         }
-        observeHeap(place, reply); root.receive(place, reply);
+        observeHeap(place, reply); root.receive(place, reply); if (reply.kind === "recoveryDone") config.terminal?.recoveryDone(reply); // P3-RRC-AC03 (5)・D-HOOK=A: 取り直しの採用で取消に進んだ待ちを端末が外す
       });
       worker.on("error", (error) => ownerFailed(place, error));
       worker.on("exit", (code) => { if (!ownersStopping) ownerFailed(place, new Error(`owner thread exited (code ${code})`)); });

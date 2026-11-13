@@ -44,7 +44,7 @@ const RAIN_HOLD_MS = 60_000, RAIN_LIMIT = 256;
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
 // mirror は参照を置き換えるだけ（P3-TP-AC06 (3)）。項目は promptLabel の中で作る。
-type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; inputDropped(inputId: string, headType: string, reason: "discarded"): void; inputDropped(inputId: string, headType: string | null, reason: Readonly<{ refused: string }>): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void }>; // P3-TDR-AC02 (1): inputDropped は host が番号を振って owner に渡さなかった入力。捨てるのは種類のコードを読んだ後だけなので、種類のコードの無い「捨てた」は書けない形にする
+type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; recoveryDone(reply: Extract<OwnerReply, { kind: "recoveryDone" }>): void;inputDropped(inputId: string, headType: string, reason: "discarded"): void; inputDropped(inputId: string, headType: string | null, reason: Readonly<{ refused: string }>): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void }>; // P3-TDR-AC02 (1): inputDropped は host が番号を振って owner に渡さなかった入力。捨てるのは種類のコードを読んだ後だけなので、種類のコードの無い「捨てた」は書けない形にする
 // AC02 (5): 試験で差し替える writer。done を呼ぶまで次を送らない。
 type TerminalWriter = (batch: TerminalBatch, done: () => void) => void;
 type TerminalOutput = Readonly<{
@@ -643,7 +643,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       if (digestShown || view == null) return;
       digestShown = true;
       notice({ kind: "digest", digest: view });
-    }, mirror(views) { mirror = views; } },
+    }, mirror(views) { mirror = views; }, recoveryDone(reply) { if (reply.result.kind !== "adopted") return; const now = clock(); roll(now.wallTimeMs); expire(now.monotonicMs); for (const subject of reply.result.cancelled) rain.delete(subject); } }, // P3-RRC-AC04: 期限を過ぎた待ちは先に出し（inputDone・tick と同じ順）、取消に進んだ subject の待ちだけを出さずに外す
     output,
     control,
     line: (text) => { push({ kind: "line", text }); },
