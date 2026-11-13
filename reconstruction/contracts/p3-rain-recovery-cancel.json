@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "601a9b5b97a050e803b5cc49ed8bd168bf09e8a79664a615cd9b6800413862b8",
+    "sha256": "024cf4149322cc9e67d452979070c8b0608c583d55f249a55ecc572537409ec8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -71,7 +71,7 @@
         "id": "Q-RRC-TEST",
         "status": "closed",
         "source": "起草（2026-11-13）。probe（~/dev/fleq-vault-archive/2026-11-12-night/hz-repro/rain-recovery-cancel-probe.test.ts）と recovery-host.test.ts の突き合わせ",
-        "closed": "T01〜T03 は probe の scenario をほぼそのまま使える（mock は recovery-host.test.ts の写し、composition-root を継承して root を取る、recoveryAdopted を包んで採用を観る）。probe は端末の 60 秒を実時間で待ち、3 本で約 300 秒かかった。端末の期限は端末の clock の単調時計だけで数える（output.ts の 597 行）ので、端末に host と別の clock を渡し、採用の後に端末の clock だけを 61 秒進めれば次の tick で期限を越える。取り直しの 60 秒の間隔（composition-root.ts の RECOVERY_GAP_MS、this.clock() で数える）は host の clock なので、T01・T02 は実時間で待つ（probe と同じ）。host の clock を進める形は、owner の業務の時刻と U-B の holdUntil に効くので使わない",
+        "closed": "probe は repo の外にあるので、統合担当が委譲文に本文を貼り、T01 の behavior に probe 無しでも組める手順を書いた。probe は端末の 60 秒を実時間で待ち、3 本で約 300 秒かかった。端末の期限は端末の clock の単調時計だけで数える（output.ts の 597 行）ので、端末に host と別の clock を渡し、採用の後に端末の clock だけを 61 秒進めれば次の tick で期限を越える。取り直しの 60 秒の間隔（composition-root.ts の RECOVERY_GAP_MS、this.clock() で数える）は host の clock なので、T01 は実時間で待つ。host の clock を進める形は、owner の業務の時刻と U-B の holdUntil に効くので使わない。r1（2026-11-13、ヘルツと Opus の起草レビュー）: probe の本体 2 の列（一覧の応答を止める）は open の前に live が基点へ入り当て直しを通らないので、T03 は本文の応答を止める列に替え、取消を live の報より古い版にして (3) の抜けが赤になる形にした（AC03 (3)）。T02 は T04 (a) と T03 の 60 秒の後の 1 ブロックで足りるので削った",
         "remaining": "実装の木で 1 本の時間を測って成果物に書く"
       },
       {
@@ -118,7 +118,7 @@
       "reconstruction/contracts/p3-execution-split.types.ts（89 行の adopted に欄 cancelled: readonly string[] を足すことだけ。行の中、行の数を変えない）",
       "reconstruction/src/host/host.ts（169 行の行の中だけ。AC03 (5)）",
       "reconstruction/src/terminal/output.ts（47 行の TerminalSink に recoveryDone を足すことと、646 行の sink の末尾に recoveryDone の実装を足すことだけ。行の中、行の数を変えない。AC04）",
-      "reconstruction/test/recovery/rain-recovery-cancel.test.ts（新設。P3-RRC-T01〜T03）",
+      "reconstruction/test/recovery/rain-recovery-cancel.test.ts（新設。P3-RRC-T01・T03）",
       "reconstruction/test/terminal/layout10.test.ts（P3-RRC-T04 を file の末尾〔今の 466 行の後〕に足すだけ。既存の行は変えない）"
     ],
     "allowedGitCommands": [
@@ -155,7 +155,8 @@
       "既存の依存だけ。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
     ],
     "fixtureIds": [
-      "test__fixtures__phase6b_VPOA50_JPTC202608211633_202608211633"
+      "test__fixtures__phase6b_VPOA50_JPTC202608211633_202608211633",
+      "test__fixtures__rest__telegram-list-vtse41-real"
     ],
     "sequenceIds": [
       "O08"
@@ -202,18 +203,19 @@
       },
       {
         "id": "P3-RRC-AC02",
-        "requirement": "対照（60 秒の待ちは残す。作者裁定 7-1）: (1) 取消の無い列: 22:10:00 に同じ VPOA50 を受け、22:10:30 に切れ、22:10:40 に繋ぎ直し、取り直しの一覧は空のまま U-B の候補が採用される（繋ぎ直しは composition-root.ts の 1039 行で取り直しの対象の unit を全部印にし、一覧が空の unit も 2165 行の recoverUnit で open から adopt まで進む）。22:11:00 の tick で、端末に速報の帯「記録的短時間大雨情報 …」と本文が 1 つ出る（今と同じ） (2) 回線の切れない列（P3-TL10-AC03 の 60 秒、RAIN_HOLD_MS）も今と同じ (3) 端末の 60 秒（output.ts の 42 行）と U-B の HOLD_MS（briefing-unit.ts の 35 行）は変えない。無いと: 直し方が待ちの表を広く外しすぎても（採用のたびに外すなど）試験が通ってしまう",
+        "requirement": "対照（60 秒の待ちは残す。作者裁定 7-1）: (1) 取消の無い列: 22:10:00 に同じ VPOA50 を受け、22:10:30 に切れ、22:10:40 に繋ぎ直し、取り直しの一覧は空のまま U-B の候補が採用される（繋ぎ直しは composition-root.ts の 1039 行で取り直しの対象の unit を全部印にし、一覧が空の unit も 2165 行の recoverUnit で open から adopt まで進む）。22:11:00 の tick で、端末に速報の帯「記録的短時間大雨情報 …」と本文が 1 つ出る（今と同じ） (2) 回線の切れない列（P3-TL10-AC03 の 60 秒、RAIN_HOLD_MS）も今と同じ (3) 端末の 60 秒（output.ts の 42 行）と U-B の HOLD_MS（briefing-unit.ts の 35 行）は変えない。検収: (1) の採用で取消の無い待ちが残ることは T04 (a) の Q と、host の段では T03 の 60 秒の後の 1 ブロック、(2) は既存の P3-TL10 の T04 (c)（layout10.test.ts の 268 行）で見る。無いと: 直し方が待ちの表を広く外しすぎても（採用のたびに外すなど）試験が通ってしまう",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:42 «94c54606ccefd219»",
           "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
           "docs/specs/cli-terminal-output.md:663 «40be8a63ec3c23fc»",
           "reconstruction/src/runtime/composition-root.ts:1039 «838835ae670bbb95»",
-          "reconstruction/src/runtime/composition-root.ts:2165 «1baa19096b592e21»"
+          "reconstruction/src/runtime/composition-root.ts:2165 «1baa19096b592e21»",
+          "reconstruction/test/terminal/layout10.test.ts:268 «d8a331fbbeb004c5»"
         ]
       },
       {
         "id": "P3-RRC-AC03",
-        "requirement": "道の全段（P3-RRC-D-PATH=A・D-SOURCE=A・D-HOOK=A、統合担当の確定）。受信 → owner → 返信 → 端末の待ちの全段をこの形で通す: (1) owner の候補（owner-host.ts の Candidate、60 行）に欄 cancelled（subject の Set）を足す。候補を開く時（216 行）に空で作る (2) applyCandidate（204 行の後、同じ行の中）で、その step の outcomes のうち accepted の subjects を順に見て、transition が \"cancelled\" なら subject を足し、ほかの transition なら外す（後の transition が勝つ）。unit の名前で分けない（owner-host・owner-runtime に unit の分岐を足さない。p3-unit-table.types.ts の 28 行の方針）。候補は 1 つの unit のものなので subject は reply.unit の subject (3) 基点が変わって当て直す時（230 行。229 行は 6 つの «» が引くので変えない）に cancelled を空にしてから当て直す（startup の取り直しで live の速報が候補を開いた後に届く列、hz-repro.md の本体 2） (4) 採用の返信（238・239 行）の result に cancelled: [...candidate.cancelled] を載せる。型は p3-execution-split.types.ts の 89 行の adopted に readonly string[] の欄を 1 つ足す（欄は adopted だけ。opened・discarded・generationConflict・unsatisfied には足さない。live が変わらない返信で端末を動かさないため） (5) host.ts の 169 行（owner の thread の message）で、root.receive の後に、reply.kind が \"recoveryDone\" なら config.terminal?.recoveryDone(reply) を呼ぶ（同じ行の中） (6) 端末の sink（output.ts の 47 行の TerminalSink と 646 行の sink の末尾）に recoveryDone(reply) を足す。規則は AC04。outcomes には載せない（publisher の投影は accepted の outcome の subject を semantic の門に使う、view-projector.ts の 781 行。載せると表示が変わる）。計算量: owner で足す仕事は step ごとに outcome の subjects の数に比例し、候補は 1 回の取り直しで本文 300 件まで（P3-REC-RES-03）なので Set も有界。端末で足す仕事は cancelled の数に比例。state の全体の走査・直列化は足さない（AGENTS.md の受信経路の計算量）。無いと: 取り直しで採った取消を端末が知る道が無い（今の採用の返信は held→cancelled を運ばない、AC01）",
+        "requirement": "道の全段（P3-RRC-D-PATH=A・D-SOURCE=A・D-HOOK=A、統合担当の確定）。受信 → owner → 返信 → 端末の待ちの全段をこの形で通す: (1) owner の候補（owner-host.ts の Candidate、60 行）に欄 cancelled（subject の Set）を足す。候補を開く時（216 行）に空で作る (2) applyCandidate（204 行の後、同じ行の中）で、その step の outcomes のうち accepted の subjects を順に見て、transition が \"cancelled\" なら subject を足し、ほかの transition なら外す（後の transition が勝つ）。unit の名前で分けない（owner-host・owner-runtime に unit の分岐を足さない。p3-unit-table.types.ts の 28 行の方針）。候補は 1 つの unit のものなので subject は reply.unit の subject (3) 基点が変わって当て直す時（230 行。229 行は 6 つの «» が引くので変えない）に cancelled を空にしてから当て直す。空にしないと、当て直す前の shadow（開いた時の基点）で集めた subject が残り、当て直しでは取消にならなかった待ちまで外す。列（T03）: 16:33:05 に起動、起動の取り直しの一覧に取消（ReportDateTime 16:32:50、live の報より古い版）が載る → 一覧を受けた後に U-B の候補を開く（composition-root.ts の 2144 行の await の後、2165 行 → 2190 行の open）→ 取消の本文の HTTP の応答を止める → 16:33:08 に live の VPOA50（16:33:00 発表）を受け、U-B は held、端末は待つ → 16:33:10 に本文の応答を返す → 本文は開いた時の基点（記録なし）の shadow に当たり、取消は記録が無くても cancelled の記録を作る（briefing-unit.ts の 263 行）ので Set に入る → 採用の時に基点が変わっている（owner-runtime.ts の 662 行の sameBase が false）ので今の live に当て直す → live の 16:33:00 の版より古い取消は older で stale（version.ts の 99 行、briefing-unit.ts の 404 行、outcomes は空）→ 直した後は Set が空のまま採用され、16:34:08 に端末へ速報が 1 つ出る。(3) が無いと最初の当てで入った subject が残り、待ちが外れて出ない（一覧の応答を止める列では live が open の前に基点へ入り、当て直しを通らない。取消が live の報より新しい列では当て直しでも cancelled になり、(3) の抜けが見えない） (4) 採用の返信（238・239 行）の result に cancelled: [...candidate.cancelled] を載せる。型は p3-execution-split.types.ts の 89 行の adopted に readonly string[] の欄を 1 つ足す（欄は adopted だけ。opened・discarded・generationConflict・unsatisfied には足さない。live が変わらない返信で端末を動かさないため） (5) host.ts の 169 行（owner の thread の message）で、root.receive の後に、reply.kind が \"recoveryDone\" なら config.terminal?.recoveryDone(reply) を呼ぶ（同じ行の中） (6) 端末の sink（output.ts の 47 行の TerminalSink と 646 行の sink の末尾）に recoveryDone(reply) を足す。規則は AC04。outcomes には載せない（publisher の投影は accepted の outcome の subject を semantic の門に使う、view-projector.ts の 781 行。載せると表示が変わる）。計算量: owner で足す仕事は step ごとに outcome の subjects の数に比例し、候補は 1 回の取り直しで本文 300 件まで（P3-REC-RES-03）なので Set も有界。端末で足す仕事は cancelled の数に比例。state の全体の走査・直列化は足さない（AGENTS.md の受信経路の計算量）。無いと: 取り直しで採った取消を端末が知る道が無い（今の採用の返信は held→cancelled を運ばない、AC01）",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-host.ts:60 «c20a1b4fae01e61d»",
           "reconstruction/src/runtime/owner-host.ts:216 «f2349e72d3a697a0»",
@@ -222,6 +224,12 @@
           "reconstruction/src/runtime/owner-host.ts:230 «4c2063a3d58113b8»",
           "reconstruction/src/runtime/owner-host.ts:238 «869282bd2dbe30df»",
           "reconstruction/src/runtime/owner-host.ts:239 «1d64cdfc628c1c0d»",
+          "reconstruction/src/runtime/composition-root.ts:2144 «1dbb7581ee092ef3»",
+          "reconstruction/src/runtime/composition-root.ts:2190 «1d6273d2132980f7»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:263 «f211a521494c2d18»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:404 «a97fbb338a0767bc»",
+          "reconstruction/src/contracts-revision/version.ts:99 «a9d50ad87a49896b»",
+          "reconstruction/src/runtime/owner-runtime.ts:662 «9408ffd800062069»",
           "reconstruction/contracts/p3-execution-split.types.ts:89 «e14fab250638f842»",
           "reconstruction/contracts/p3-execution-split.types.ts:141 «2c8431b2e8e4be5c»",
           "reconstruction/src/host/host.ts:169 «b796d35648a66011»",
@@ -236,10 +244,11 @@
       },
       {
         "id": "P3-RRC-AC04",
-        "requirement": "端末の規則（output.ts の sink の recoveryDone）: (1) reply.unit が \"U-B\" で reply.result.kind が \"adopted\" のときだけ動く。ほかは何もしない (2) 先に expire（343 行）を今の時計で当てる。期限を過ぎた待ちは先に出す（inputDone の初めの 502〜504 行と同じ順。採用が端末の 60 秒より遅れたときは、多くの場合 U-B も held を released にして解放を鳴らした後なので、出す側に揃える。期限の直前の数 ms の採用は AC05 (k) の残存） (3) そのあと result.cancelled の subject を待ちの表から外す（rain.delete。出さない・積まない・定期要約に数えない） (4) 外すのは cancelled だけ。aliased・released・held と、候補が触れなかった subject の待ちは残す（P3-RRC-D-ALIAS=A。B になったら aliased も外す） (5) --debug でも行を足さない（取消の本文の入力は 499 行の inputDone で既に「出さない・取り直し」の行が出ている。P3-TO-AC17 の列挙は入力ごとの行で、採用は入力ではない） (6) 待ちの表の上限・期限・置き換え・close で出すこと（P3-TL10-AC03、P3-TERMINAL-RAIN-EVICT-001）は変えない。取り直しの報を端末に出さない決まり（P3-TO-D-ORIGIN）も変えない。無いと: (2) が無いと、期限を過ぎた速報が tick より先に届いた採用で黙って消え、U-B が鳴らした解放の報が端末にだけ出ない",
+        "requirement": "端末の規則（output.ts の sink の recoveryDone）: (1) reply.result.kind が \"adopted\" のときだけ動く。ほかは何もしない。unit では絞らない（待ちの表の鍵は U-B だけが作る運用区分/VPOA50/系列の subject で、ほかの unit の subject を外そうとしても何も起きない） (2) 先に今の時計を 1 回読み、roll（定期要約の区切り）をしてから expire（343 行）を当てる。期限を過ぎた待ちは先に出す（inputDone の 502〜504 行と tick の 425・426 行と同じ順。採用が端末の 60 秒より遅れたときは、多くの場合 U-B も held を released にして解放を鳴らした後なので、出す側に揃える。期限の直前の数 ms の採用は AC05 (k) の残存） (3) そのあと result.cancelled の subject を待ちの表から外す（rain.delete。出さない・積まない・定期要約に数えない） (4) 外すのは cancelled だけ。aliased・released・held と、候補が触れなかった subject の待ちは残す（P3-RRC-D-ALIAS=A。B になったら aliased も外す） (5) --debug でも行を足さない（取消の本文の入力は 499 行の inputDone で既に「出さない・取り直し」の行が出ている。P3-TO-AC17 の列挙は入力ごとの行で、採用は入力ではない） (6) 待ちの表の上限・期限・置き換え・close で出すこと（P3-TL10-AC03、P3-TERMINAL-RAIN-EVICT-001）は変えない。取り直しの報を端末に出さない決まり（P3-TO-D-ORIGIN）も変えない。無いと: (2) が無いと、期限を過ぎた速報が tick より先に届いた採用で黙って消え、U-B が鳴らした解放の報が端末にだけ出ない",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:343 «11805c7036c18003»",
           "reconstruction/src/terminal/output.ts:502 «a706a68afcb5b293»",
+          "reconstruction/src/terminal/output.ts:425 «7cda101b26baadd1»",
           "reconstruction/src/terminal/output.ts:520 «48303698d24448e9»",
           "reconstruction/src/terminal/output.ts:601 «c164c53e8e357801»",
           "reconstruction/src/terminal/output.ts:499 «df18802267659c7f»",
@@ -262,7 +271,7 @@
       },
       {
         "id": "P3-RRC-AC06",
-        "requirement": "行の決まり: owner-host.ts・host.ts・output.ts・p3-execution-split.types.ts の行の数を変えない（足すのは既存の行の中だけ。なぜを書くコメントも行末に置く）。中身を変えてよい行は、owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、output.ts の 47・646 行、p3-execution-split.types.ts の 89 行だけ。composition-root.ts は変えない（P3-RRC-D-HOOK=A）。発注前点検の数（2026-11-13 起草、git grep -n \"<basename>:[0-9]\" -- reconstruction の行数）: output.ts 105、composition-root.ts 283、host.ts 428（owner-host.ts を含む）、owner-host.ts 65、p3-execution-split.types.ts 29。このうち変える行を «» で引くのは output.ts の 47 行（p3-terminal-debug-reject.json の 153 行）と 646 行（同じく 155 行）の 2 つだけ。owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、types の 89 行を引く «» は無い。無いと: 行を足すと 3 file で 400 を越える «» と地の文の行番号がずれる",
+        "requirement": "行の決まり: owner-host.ts・host.ts・output.ts・p3-execution-split.types.ts の行の数を変えない（足すのは既存の行の中だけ。なぜを書くコメントも行末に置く）。中身を変えてよい行は、owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、output.ts の 47・646 行、p3-execution-split.types.ts の 89 行だけ。composition-root.ts は変えない（P3-RRC-D-HOOK=A）。発注前点検の数（2026-11-13 起草、git grep -n \"<basename>:[0-9]\" -- reconstruction の行数、本契約を除く）: output.ts 105、composition-root.ts 283、host.ts 428（owner-host.ts を含む）、owner-host.ts 65、p3-execution-split.types.ts 29。このうち変える行を «» で引くのは output.ts の 47 行（p3-terminal-debug-reject.json の 153 行）と 646 行（同じく 155 行）の 2 つだけ。owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、types の 89 行を引く «» は無い。無いと: 行を足すと 3 file で 400 を越える «» と地の文の行番号がずれる",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:47 «44df86f440a468a6»",
           "reconstruction/src/terminal/output.ts:646 «dc7c340c370f3cee»",
@@ -286,15 +295,7 @@
         "referenceIds": [
           "P3-RRC-AC01"
         ],
-        "behavior": "受入（AC01 の場面。probe の hz-repro/rain-recovery-cancel-probe.test.ts の「本体 1」を正式にしたもの）。新設の reconstruction/test/recovery/rain-recovery-cancel.test.ts に置く。本物の host（startP2Host）と本物の端末（createTerminalOutput、debug: true）をつなぎ、偽物は dmdata の WS と REST だけ（mock は recovery-host.test.ts の写し）。列: 起動の取り直しが終わる → 次の取り直しの許し（RECOVERY_GAP_MS の 60 秒）の 15 秒前に live の VPOA50（fixture の phase6b_VPOA50_JPTC202608211633_202608211633）→ 切断 → 一覧に同じ EventID の取消（InfoType 取消、ReportDateTime と Control/DateTime を新しく）→ 繋ぎ直し → 取消の本文を取り、U-B の候補が採用される。前提（緑のまま）: A 端末に「対応報を待つ」の debug 行 B 取消の本文を取り、U-B の採用が端末の 60 秒より前、停止の保存で U-B の記録が cancelled・origin recovery・取消 C 並びが「受信 < 切断 < 取消の発表 < 採用」。本体: 60 秒を越えた後、端末に「記録的短時間大雨」の帯と本文が 0 行（直す前は 2 行で赤）。60 秒は端末の clock だけを採用の後に 61 秒進めて越えてよい（host の clock は進めない。端末の期限は端末の単調時計だけで数える、output.ts の 597 行）。それでも取り直しの 60 秒の間隔は実時間で待つので、1 本で約 50〜110 秒かかる（timeout は 150 秒）"
-      },
-      {
-        "testId": "P3-RRC-T02",
-        "purpose": "acceptance",
-        "referenceIds": [
-          "P3-RRC-AC02"
-        ],
-        "behavior": "対照（AC02 (1)）。T01 と同じ file と同じ列で、取り直しの一覧を空にする。前提: U-B の採用（取消なし）が端末の 60 秒より前にある。期待: 60 秒を越えた後、端末に速報の帯が 1 つと本文が出る。直す前も直した後も緑（直し方が待ちを広く外しすぎないことを見る）"
+        "behavior": "受入（AC01 の場面）。新設の reconstruction/test/recovery/rain-recovery-cancel.test.ts に置く。統合担当が実装の委譲文に貼る probe（hz-repro/rain-recovery-cancel-probe.test.ts）の「本体 1」を元に組む。probe が無くても組める手順: 本物の host（startP2Host）と本物の端末（createTerminalOutput、debug: true、端末の clock は host と別の関数）をつなぎ、偽物は dmdata の 2 つだけにする。WS は 127.0.0.1 の ws の WebSocketServer で、繋がるたびに start（classifications は telegram.weather）を送る。REST は node:https を vi.mock して、一覧（api.dmdata.jp）と本文（data.api.dmdata.jp、取消の XML）に答える。dmdata-rest の listSockets・closeSocket・startSocket は recovery-host.test.ts と同じ形で mock する。composition-root を継承した class で root を取り、recoveryAdopted を包んで U-B の採用を数える。時刻の列（壁時計は試験の clock、例は 2026-08-21）: 起動の取り直しが終わる → 次の取り直しの許し（root の recoveryNotBefore、RECOVERY_GAP_MS の 60 秒）の 15 秒前の 16:33:14 に、WS で fixture phase6b_VPOA50_JPTC202608211633_202608211633 を送る → 端末に「対応報を待つ」の debug 行が出るのを待つ → WS を切る → 一覧に同じ EventID の取消（fixture の InfoType を取消に、ReportDateTime を 16:33:15、Control/DateTime を 07:33:20Z に替えた XML。一覧の行は rest/telegram-list-vtse41-real.json の 1 行目の head.type を VPOA50 に、eventId を同じ EventID にしたもの）を載せる → 繋ぎ直し → 取消の本文を取り、U-B の採用を待つ。前提（緑のまま）: A 端末の「対応報を待つ」の行 B 取消の本文を取り、U-B の採用が端末の 60 秒より前、停止の保存で U-B の記録が cancelled・origin recovery・取消 C 並びが「受信 < 切断 < 取消の発表 < 採用」。本体: 採用の後に端末の clock だけを 61 秒進め、次の tick の後に、端末に「記録的短時間大雨」の帯と本文が 0 行（直す前は 2 行で赤）。取り直しの 60 秒の間隔は host の clock なので実時間で待ち、1 本で約 50 秒かかる（timeout は 150 秒）"
       },
       {
         "testId": "P3-RRC-T03",
@@ -302,15 +303,16 @@
         "referenceIds": [
           "P3-RRC-AC03"
         ],
-        "behavior": "当て直しの道（AC03 (3)。probe の「本体 2」を正式にしたもの）。T01 と同じ file。起動の取り直しの一覧の応答を止めている間に live の VPOA50 を受け（候補を開いた後に live が進むので、採用の時に当て直しが走る）、そのあと一覧に同じ subject の取消を載せて採用まで進める。期待: 60 秒を越えた後、端末に速報の帯と本文が 0 行（直す前は赤）。この列は実配信では起きない（WS が繋がっていれば取消は live でも届く）。当て直しで cancelled を作り直す道を通すためだけに置く"
+        "behavior": "当て直しで Set を空にすること（AC03 (3) の列）。T01 と同じ file と同じ偽物。起動の取り直しの一覧に、live の報より古い取消（ReportDateTime 16:32:50、Control/DateTime 07:33:10Z）を載せる。本文（data.api.dmdata.jp）の応答だけを止め、止まったこと（本文の要求が 1 件来た = 候補が開いた後）を確かめてから、WS で fixture の VPOA50（16:33:00 発表）を送り、端末の「対応報を待つ」の行を待つ。そのあと本文の応答を返し、U-B の採用を待つ。前提: 採用は 1 回で adopted、停止の保存で U-B の記録はこの subject の held か released（取消は stale で記録を変えない）。本体: 採用の後に端末の clock だけを 61 秒進め、次の tick の後に、端末に速報の帯が 1 つと本文が出る。直す前も緑（今は待ちを外さない）。AC03 (3) の空にする行だけを抜くと、当て直す前の shadow で入った subject が残って赤になる（実装者が 1 回確かめて成果物に書く）。起動の取り直しなので、取り直しの間隔の実時間の待ちは無い"
       },
       {
         "testId": "P3-RRC-T04",
         "purpose": "contractBoundary",
         "referenceIds": [
-          "P3-RRC-AC04"
+          "P3-RRC-AC04",
+          "P3-RRC-AC02"
         ],
-        "behavior": "端末の規則（AC04 (1)〜(4)）。reconstruction/test/terminal/layout10.test.ts の末尾（今の 466 行の後）に describe を 1 つ足す。同じ file の sink()・inputDoneOf・ub・ubSubject で 2 つの VPOA50（subject P と Q）を held で待たせ、recoveryDone の返信（unit U-B、result adopted、cancelled [P]）を sink に渡す。(a) 60 秒の後に Q だけが出て P は出ない (b) 別の端末で P を待たせ、時計を 60 秒の後へ進めて tick の前に同じ返信を渡すと、P は出る（先に expire） (c) unit が U-B でない返信と、result が generationConflict の返信では P が外れず 60 秒で出る。直す前は sink に recoveryDone が無いので落ちる"
+        "behavior": "端末の規則（AC04 (1)〜(4)、AC02 (1) の端末の段）。reconstruction/test/terminal/layout10.test.ts の末尾（今の 466 行の後）に describe を 1 つ足す。同じ file の sink()・inputDoneOf・ub・ubSubject で 2 つの VPOA50（subject P と Q）を held で待たせ、recoveryDone の返信（unit U-B、result adopted、cancelled [P]）を sink に渡す。(a) 60 秒の後に Q だけが出て P は出ない（取消の無い待ちは採用で外れない） (b) 別の端末で P を待たせ、時計を 60 秒の後へ進めて tick の前に同じ返信を渡すと、P は出る（先に expire） (c) result が generationConflict の返信では P が外れず 60 秒で出る。直す前は sink に recoveryDone が無いので落ちる"
       }
     ],
     "requiredCommands": [
@@ -361,14 +363,14 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "全 reconstruction 試験（T01〜T03 は実時間の待ちがあり、file 1 本で数分かかる）"
+        "purpose": "全 reconstruction 試験（T01 は取り直しの間隔の実時間の待ちがあり、約 50 秒かかる）"
       },
       {
         "command": "npm run test:shuffle -- --config reconstruction/vitest.config.ts --maxWorkers=2",
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "T01〜T03 は vi.hoisted の共有の mock（https・socket・roots）を it の間で使うので、順序を変えても緑か（AGENTS.md）"
+        "purpose": "T01・T03 は vi.hoisted の共有の mock（https・socket・roots）を it の間で使うので、順序を変えても緑か（AGENTS.md）"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -380,12 +382,12 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 足す仕組みは 3 つで、無いと壊れることは次のとおり。候補の cancelled の Set（無いと採用で取消に進んだ subject を owner の外へ運べない。今の候補は step の outcomes を捨てる）。adopted の欄 cancelled と host の 1 呼び出し（無いと採用の返信が端末に届かない）。端末の recoveryDone（無いと待ちの表から外せない）。新しい定数・helper・export・設定は足さない。試験は T01〜T04 の 4 本（AC と 1 対 1）。AC03 (2)(3) の owner の行だけを戻すと T01 と T03 が赤に戻ることを、実装者が 1 回確かめて成果物に書く",
+      "最小実装・最小テスト: 足す仕組みは 3 つで、無いと壊れることは次のとおり。候補の cancelled の Set（無いと採用で取消に進んだ subject を owner の外へ運べない。今の候補は step の outcomes を捨てる）。adopted の欄 cancelled と host の 1 呼び出し（無いと採用の返信が端末に届かない）。端末の recoveryDone（無いと待ちの表から外せない）。新しい定数・helper・export・設定は足さない。試験は T01・T03・T04 の 3 本。AC03 (2) の集める行だけを戻すと T01 が赤、(3) の空にする行だけを戻すと T03 が赤になることを、実装者が 1 回ずつ確かめて成果物に書く",
       "受信経路の計算量（AGENTS.md）: 受信の hot path（live の inputDone）には触れない。足す仕事は取り直しの本文 1 件ごとに outcome の subjects の数、採用 1 回ごとに cancelled の数に比例する（AC03）",
       "期待が変わる既存の試験: 0 の見込み（adopted の欄が 1 つ増えるが、既存の試験は result.kind と inputs を見るだけで、adopted を toEqual で丸ごと比べる試験は無い〔2026-11-13 起草の grep〕。cli.test.ts の 16 行の偽の sink は、同じ file の 12 行が host を mock するので本物の host を通らず、recoveryDone を足さなくてよい）。実装の木で全試験を回し、期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
       "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
       "残存として成果物に書く: (1) 取り直しの訂正・続報で held の速報の版が進んでも、端末は 60 秒で古い版の字を出す（AC05 (c)） (2) 採用が端末の 60 秒より遅れると、端末は速報を出した後で、取り直しの取消は端末に出ない（AC05 (g)、P3-TO-D-ORIGIN） (3) 取り直しの VPBS50 で aliased になった速報は端末に 60 秒で出る（AC05 (b)、layout10 の残存 (9)。P3-RRC-D-ALIAS=A） (4) host.ts の 169 行は root.receive の後に呼ぶので、root が停止と判定した owner（composition-root.ts の 631 行の monitor.stopped）の採用の返信でも端末は待ちを外す。その owner の unit は最後の view のままで、U-B の解放も来ないので、端末が出さない方が表示と揃う（P3-RRC-D-HOOK の理由） (5) U-B が満杯で取消自身を退去した訓練・試験の取消では、待っていた速報が 60 秒で出る（AC05 (j)） (6) 採用が端末の期限の直前の数 ms に重なると、取り消された速報が出る（AC05 (k)）",
-      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) docs/specs/cli-terminal-output.md:663 の「待っている VPOA50 の取消が届いたら、どちらも出さない（U-B も鳴らさない）。」の後に「回線が切れている間の取消を取り直しで採ったときも、採った時に待ちから外して出さない（ほかの報の取り直しと同じく取消も出さない。P3-RAIN-RECOVERY-CANCEL-001）。」を足す (2) reconstruction/contracts/p3-terminal-layout10.json:490 の残存 (9) の「（証拠不足）」を「（取消の場面は 2026-11-12 の hz-repro の probe で再現し、P3-RAIN-RECOVERY-CANCEL-001 で外すようにした。aliased は P3-RRC-D-ALIAS=A で残す）」に替え、layout10 の meta.sha256 を取り直す。(1) の後、spec:663 を引く «»（p3-terminal-layout10.json の 355 行、p3-terminal-rain-evict.json の 182 行、本契約の AC01・AC02・AC07）を付け直す。p3-terminal-layout10.json:490 を引く «» は本契約の AC05・AC07 だけ",
+      "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) docs/specs/cli-terminal-output.md:663 の「待っている VPOA50 の取消が届いたら、どちらも出さない（U-B も鳴らさない）。」の後に「回線が切れている間の取消を取り直しで採ったときも、採った時に待ちから外して出さない（ほかの報の取り直しと同じく取消も出さない。P3-RAIN-RECOVERY-CANCEL-001）。」を足し、続けて「60 秒の間に取り直しで採った VPBS50 が VPOA50 を aliased にしたときは、上の『VPBS50 が来れば VPOA50 は出さず』の例外として 60 秒で VPOA50 を出す（取り直しの VPBS50 は端末に出ないので、外すとこの雨の行が端末に 1 つも出ない。P3-RRC-D-ALIAS=A、2026-11-13 作者裁定）。」を足す (2) reconstruction/contracts/p3-terminal-layout10.json:490 の残存 (9) の「その返信（recoveryDone）は端末に届かず、端末は 60 秒で VPOA50 を出す（証拠不足）」を「端末は取り直しの採用で取消だけを待ちから外すので（P3-RRC-D-ALIAS=A）、60 秒で VPOA50 を出す（取消の場面は 2026-11-12 の hz-repro の probe で再現し、P3-RAIN-RECOVERY-CANCEL-001 で外すようにした）」に替え、layout10 の meta.sha256 を取り直す。(1) の後、spec:663 を引く «»（p3-terminal-layout10.json の 355 行、p3-terminal-rain-evict.json の 182 行、本契約の AC01・AC02・AC07）を付け直す。p3-terminal-layout10.json:490 を引く «» は本契約の AC05・AC07 だけ",
       "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる output.ts の 47・646 行を引く «»（p3-terminal-debug-reject.json の 153・155 行と本契約の AC03・AC06）、owner-host.ts の 60・204・216・230・239 行と host.ts の 169 行と types の 89 行を引く本契約の AC03・AC06 の «»。そのあと、書き換えた契約の meta.sha256 を取り直し（~/dev/fleq-vault-archive/tools/reanchor-target.py）、check-contract を通す",
       "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 実配信で 60 秒の内に切断と取消が重なることは稀なので、T01 に任せる"
     ],
