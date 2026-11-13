@@ -111,9 +111,10 @@ function recordOf(state: object, subject: string): Readonly<Record<string, unkno
 }
 
 // sequences.json の effective の語彙へ（各 unit の corpus 試験の読み: 記録が無ければ expired、zero は noActiveItems、ended は終わりの原因、
-// U-T は取消のほかを released、effective の欄を持たない記録〔U-E の current〕は在れば active）。
+// U-T は取消のほかを released、effective の欄を持たない記録〔U-E の current〕は在れば active、U-E の gate〔retainUntil を持つ記録〕は current が無いので取消なら cancelled・終わりなら released・ほかは expired〔P3-ESC-AC03 (5)〕）。
 function effectiveOf(unit: RuntimeUnitId, record: Readonly<Record<string, unknown>> | null): JsonValue {
   if (record == null) return { kind: "inactive", cause: { kind: "expired" } };
+  if (unit === "U-E" && "retainUntil" in record) return { kind: "inactive", cause: { kind: isRecord(record["source"]) && record["source"]["infoTypeRaw"] === "取消" ? "cancelled" : record["terminal"] === true ? "released" : "expired" } };
   const effective = record["effective"];
   if (effective === undefined || effective === "active") return { kind: "active" };
   if (effective === "unavailable") return { kind: "unavailable", reason: typeof record["unavailableReason"] === "string" ? record["unavailableReason"] : null };
@@ -407,13 +408,13 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
   it("P3-FG-T01 acceptance / AC01: every flowed step of O01-O11 matches its expectation on the linked units", () => {
     const count = (table: Table, action?: string) => corpus.sequences.flatMap((sequence) => sequence.steps)
       .filter((step) => gate.tables.get(step.expectedRef)?.table === table && (action == null || step.action === action)).length;
-    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数）。規則が数を変えたら、規則を合わせずに報告する。
-    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 90]);
+    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。
+    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 88]);
     expect(["recover", "receive", "advanceClock", "save", "restart"].map((action) => count("afterInjectFailure", action))).toEqual([23, 11, 6, 4, 3]);
     // 前提の unmet に頼る step（AC01 (5)）・流した step・準備を作らずに始めた run の中の step（一致に数えない）の数と一覧。
-    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([13, 365, 13]);
+    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([7, 373, 13]);
     expect(corpus.sequences.flatMap((sequence) => sequence.steps).filter((step) => gate.tables.get(step.expectedRef)?.table === "dependsOnUnmet").map((step) => step.expectedRef.slice(9)))
-      .toEqual(["O01:5", "O01:6", "O01:7", "O01:12", "O01:13", "O01:14", "O02:4", "O03:8", "O03:10", "O03:11", "O03:12", "O03:13", "O03:14"]);
+      .toEqual(["O02:4", "O03:8", "O03:10", "O03:11", "O03:12", "O03:13", "O03:14"]);
     expect(gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef.slice(9))).toEqual(["O10:28", "O10:30", "O10:32", "O10:33", "O10:39", "O10:40",
       "O10:57", "O10:62", "O10:67", "O10:72", "O10:77", "O10:89", "O10:90"]);
     expect(gate.prepared.length).toBe(15);

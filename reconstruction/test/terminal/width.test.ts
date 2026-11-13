@@ -40,12 +40,16 @@ describe("P3-TL-T05 全 fixture を 8 つの桁数・色 0 と 3 に通す（契
   it("fixture が 200 本以上読め、どの桁数でも線と本文は min(桁数, 100) を越えず、… の切り詰めが無く、電文の地域名が全部残る", () => {
     expect(SAMPLES.length).toBeGreaterThan(200);
     for (const level of [0, 3] as const) for (const columns of COLUMNS) {
-      const print = terminal(columns, level);
+      const shared = terminal(columns, level);
       for (const sample of SAMPLES) {
-        const lines = print(sample.units).map(plain);
-        const over = lines.filter((line) => !line.trim().startsWith("https://") && width(line) > Math.min(columns, 100));
-        expect(over, `${sample.path} ${columns}/${level}`).toEqual([]);
-        if (!sample.hasEllipsis) expect(lines.some((line) => line.includes("…")), `${sample.path} ${columns}/${level} …`).toBe(false);
+        // 名前は fixture ごとの端末で見る。共有の端末では同じ EventID で VXSE45 を受けた後の VXSE43 が畳まれて 0 行になり（format.ts の fold、P3-TL2-AC10）、
+        // 合成の VXSE43 は path の順で 77_01_* の後に描かれる（P3-EEW-SAME-CORRECTION-001）。幅と … は続報の形も見るため共有の端末でも確かめる。
+        const lines = terminal(columns, level)(sample.units).map(plain);
+        for (const drawn of [lines, shared(sample.units).map(plain)]) {
+          const over = drawn.filter((line) => !line.trim().startsWith("https://") && width(line) > Math.min(columns, 100));
+          expect(over, `${sample.path} ${columns}/${level}`).toEqual([]);
+          if (!sample.hasEllipsis) expect(drawn.some((line) => line.includes("…")), `${sample.path} ${columns}/${level} …`).toBe(false);
+        }
         const joined = squash(lines);
         expect(sample.names.filter((name) => !joined.includes(name.replace(/[ 　]/g, ""))), `${sample.path} ${columns}/${level} names`).toEqual([]);
       }

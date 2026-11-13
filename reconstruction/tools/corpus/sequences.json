@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
+    "sha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -246,14 +246,17 @@
           "sequenceId": "O01",
           "position": 4,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE43_same_version_correction",
           "receivedAt": 1713363310001,
           "evaluatedAt": 1713363310001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:4",
+          "expectedRef": "expected:O01:4",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03 same で中身が違えば先の版を残す",
+            "L1: reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33» R37 発表→訂正を抑えるのは仮定震源の非表示 M 差だけ",
+            "L2: test/fixtures/synthetic_VXSE43_same_version_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -350,14 +353,17 @@
           "sequenceId": "O01",
           "position": 11,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VXSE45_same_version_correction",
           "receivedAt": 1713363338001,
           "evaluatedAt": 1713363338001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O01:11",
+          "expectedRef": "expected:O01:11",
           "expectationBasis": [
-            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+            "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+            "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03 same で中身が違えば先の版を残す",
+            "L1: reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33» R37 発表→訂正を抑えるのは仮定震源の非表示 M 差だけ",
+            "L2: test/fixtures/synthetic_VXSE45_same_version_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -11871,36 +11877,39 @@
       ]
     },
     {
-      "expectedId": "unmet:O01:4",
+      "expectedId": "expected:O01:4",
       "sequenceId": "O01",
       "position": 4,
       "decision": {
-        "kind": "changed",
-        "change": null
+        "kind": "unchanged",
+        "reason": "stale"
       },
-      "effective": null,
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE43/20240417231454",
           "revision": {
-            "reportDateTimeRaw": null,
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2024-04-17T23:15:10+09:00",
+            "serialRaw": "2",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03 same で中身が違えば先の版を残す",
+        "L1: reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33» R37 発表→訂正を抑えるのは仮定震源の非表示 M 差だけ",
+        "L2: test/fixtures/synthetic_VXSE43_same_version_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXSE43, EventID=20240417231454、直前報と同じ報番号・ReportDateTime、InfoType=訂正、本文差分なし。取消報より前に投入。",
-        "acquisition": "REST見込み（同revision事例が無ければsynthetic）"
-      },
+      "input": null,
       "checks": [
-        "受理した訂正は表示差分なしでも通知判定。具体 change と通知有無は Q-REV/Q-NOTICE。"
+        "同じ版（Control/DateTime・Serial・ReportDateTime が O01:3 と同じ）の訂正で、InfoType だけが発表→訂正と食い違い、仮定震源でない報。先に確定した O01:3 の版を残して採らず（P3-VM-AC03 の same で中身が違う組。R37 の発表→訂正の例外は仮定震源の非表示 M 差だけ）、通知しない。gate に未確認の印（保存しない）を付け、current は O01:3 のまま。subjects.revision は報自身の比較 tuple。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
@@ -12105,36 +12114,39 @@
       ]
     },
     {
-      "expectedId": "unmet:O01:11",
+      "expectedId": "expected:O01:11",
       "sequenceId": "O01",
       "position": 11,
       "decision": {
-        "kind": "changed",
-        "change": null
+        "kind": "unchanged",
+        "reason": "stale"
       },
-      "effective": null,
+      "effective": {
+        "kind": "active"
+      },
       "subjects": [
         {
-          "subject": "normal/O01/input.requiredに記した対象（未充足）",
+          "subject": "normal/VXSE45/20240417231454",
           "revision": {
-            "reportDateTimeRaw": null,
-            "serialRaw": null,
-            "infoTypeRaw": null
+            "reportDateTimeRaw": "2024-04-17T23:15:38+09:00",
+            "serialRaw": "26",
+            "infoTypeRaw": "訂正"
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
-        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01"
+        "L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01",
+        "L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03 same で中身が違えば先の版を残す",
+        "L1: reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33» R37 発表→訂正を抑えるのは仮定震源の非表示 M 差だけ",
+        "L2: test/fixtures/synthetic_VXSE45_same_version_correction.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
-      "input": {
-        "required": "VXSE45, EventID=20240417231454、直前報と同じ報番号・ReportDateTime、InfoType=訂正、本文差分なし。取消報より前に投入。",
-        "acquisition": "REST見込み（同revision事例が無ければsynthetic）"
-      },
+      "input": null,
       "checks": [
-        "受理した訂正は表示差分なしでも通知判定。具体 change と通知有無は Q-REV/Q-NOTICE。"
+        "同じ版（Control/DateTime・Serial・ReportDateTime が O01:10 と同じ）の訂正で、InfoType だけが発表→訂正と食い違い、仮定震源でない報。先に確定した O01:10 の版を残して採らず（P3-VM-AC03 の same で中身が違う組。R37 の発表→訂正の例外は仮定震源の非表示 M 差だけ）、通知しない。gate に未確認の印（保存しない）を付け、current は O01:10 のまま。subjects.revision は報自身の比較 tuple。",
+        "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
     {
