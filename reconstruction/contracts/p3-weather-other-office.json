@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "fce04c09cb574e60fc1e37835af97334ad4458cb0163bd73fb42dd2968ad4e74",
+    "sha256": "61858f7a680d573cdcfdf4d9f08709b7e0671926ba5e75899e6aae4fffd8fb3e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
@@ -423,7 +423,8 @@
       "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の値を報告して止める。allowedPaths の外は直さない",
       "原文の改訂（統合担当が配送の commit で当てる。(4) を除き、どれも行の中の書き足しで、行を足さない）: (1) p3-final-gate.json:274 の orphan の 3 項目め（O03:7・O03:9）の末尾に「→ P3-WEATHER-OTHER-OFFICE-001 で合成 2 本を足し、unmet:O03:7・9 を expected（changed/semantic・active・通知あり）にした。京都の合成は京都の区域だけの合法な報で、帳簿の字の「福井と同じ区域」ではない（P3-WOO-D-KYOTO-AREA）。T01 の読み方 3 つを足した（P3-WOO-D-READING）。unmet 87 → 85」を足す (2) p3-final-gate.json の発注 1 の記録 2（:1057）の (4) の比べの読み方の列の末尾（記録の末尾ではなく (4) の文の中、(5) の前）に「、U-W の VPNO50 の記録を released、段を持つ行の無い U-W の報の記録を inactive（解除があれば released、無ければ noActiveItems）と読み、noChange の報の revision は比べない（P3-WEATHER-OTHER-OFFICE-001）」を足す (3) reconstruction/tools/corpus/README.md:14 の O03 の行の末尾に「2026-11-13 P3-WEATHER-OTHER-OFFICE-001 で O03:7・9 を合成で充足（全国 base は福井の区域を福井 L5 から写した 2019 の全国報、京都は 2020 の京都の報の時刻を移したもの）。」を足す (4) 本契約の fixtureIds に test__fixtures__synthetic_VPWS50_fukui_base・test__fixtures__synthetic_VPWW57_kyoto_partial を、expectedDecisions と expectationEvidence に expected:O03:7・expected:O03:9 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
       "載せ直し: 本契約は群 2（P3-TIMESERIES-NEWER-EMPTY-001、起草 9fb23040 の上）の配送の後に載せ直す前提で書いた。件数（AC01 (4)・AC03 (2)・AC05）と行番号（AC07 (3)）は群 2（P3-TIMESERIES-NEWER-EMPTY-001）の配送の後の値で書き、今の木の値を括弧で添えた。統合担当は載せ直しの木で数と行を確かめてから baseOid を割り当てる",
-      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
+      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す",
+      "配送の記録（統合担当、2026-11-13）: (1) 起草 d63e0445 → 起草レビュー r0（Codex 条件付き GO P2 3 thread 01a1d501、Opus 条件付き GO P2 1・P3 6）→ r1 b93f7d1a（Codex 前回の P2 は閉じ新 P2 2、Opus GO P3 2）→ r2 44228130（Codex GO）→ P3-TIMESERIES-NEWER-EMPTY-001・P3-TERMINAL-RECOVERY-WORDING-001 の配送の上へ載せ直し、digest と oracle.test.ts:412・:415 の «» を合わせた 6818b8dd → baseOid 568a31e8 (2) 実装 71eed80f（Opus 5.5、合成 2 本は契約の byte 数と sha256 に一致、manifest 318・unmet 87→85〔O03 は 0〕、T01 の読み 3 つで変わる step は O03:10・11・14 だけ、AC08 は通常で緑・変異 3 つで落ちる） (3) 実装レビュー: 契約適合 Opus GO（P3 1: README:44 の括弧の書き換えは前例どおり採り allowedPaths の字を合わせた）、品質 Opus GO（P3 2: oracle.test.ts の weather.set を try の中へ、非 null 断言を expect.unreachable に。どちらも配送の改訂で当てた）。D-P3-10 の節目ではないので Codex の総合レビューは C22 の節目でまとめて頼む (4) 配送の改訂 fdfbb6a1: 142 契約の digest、«» 28 件、原文の改訂 5 項 (5) Mac mini ゲート b35（fdfbb6a1）12 段 rc 0 (6) Q-WOO-O03-12 は作者の裁定待ちで、配送（push）はその後。契約適合レビューの証拠不足から、府県の報で全部解除した後も全国の古い行がスナップショットに残る形が見つかった（台帳 125、範囲の外）"
     ],
     "unresolvedQuestions": [
       {
