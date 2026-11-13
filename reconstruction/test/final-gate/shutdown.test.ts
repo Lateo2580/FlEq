@@ -13,7 +13,7 @@ import type { Harness } from "../execution-split/owner-harness";
 
 // P3-FINAL-GATE-001 発注 1 の T03（AC05 (1)）: 12 unit を全部 dirty にした最終の形の結線（本物の unit 表と codec、owner 4 本）で、E20 の場面のうち
 // owner の停止を除く 4 つ（通常終了・保存不能・batch 残存・終了中の遅い ack）を起こし、§5.9 の段の順・各 unit の最終世代の確認・終了 code を見る。
-// owner の停止の場面は P3-OWNER-REBUILD-001 の配送の後（発注 3）にこの file へ足す。
+// owner の停止の場面は P3-OWNER-STOP-NOTICE-001 の配送の後（発注 3）にこの file へ足す。
 
 const directories: string[] = [];
 afterEach(() => { for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); });

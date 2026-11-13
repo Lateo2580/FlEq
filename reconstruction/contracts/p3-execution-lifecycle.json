@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad0f4b255d7c422d23421c516d1b6d5bf8ad21cc",
-    "sha256": "31db50e778ab5e19589d9e43313ed3bec56a0aad069627e28afa1972f1c28011",
+    "sha256": "30c18ba6d3f36632a7554fa7978b0ed49d6d083f044d2b9bcb820255219d8fb3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -325,7 +325,7 @@
     ],
     "publicFunctions": [
       "startP2Host(config: P2HostConfig)（C3a配送後のsignatureのまま。起動完了の前にownerが落ちたときのrejectとowner threadの後始末はC3aのまま［startRuntimeのuntilのreject、host.ts:156〜:161］。起動完了の後のownerの停止ではrejectもthrowもしない。C3aはstop()の開始でownersStoppingを立て［host.ts:414］、終了の段の途中のexitを無視しerrorを投げる［C3aの残存リスクL3］。本契約では予期されたexitをendOwners［closeWorkerの段、host.ts:106〜:109］以後に限り、それより前のerror・exitはstop()の途中でもownerFailedへ渡す［AC03の「どの段でも」］）",
-      "RuntimeCompositionRoot#ownerFailed(place: ExecutionPlace, cause: unknown): void（名前と引数はC3aのまま。C3aの戻り値はnever［composition-root.ts:473、例外を投げる］で、hostのwrapper［host.ts:112〜:114］が起動完了の後に投げ直す。本契約は戻り値をvoidにし、例外を投げずにそのownerを停止済みにする。同じplaceの2回目は何もしない。C3aの単一のfailure［composition-root.ts:282］が止めていた送出［:361］・受信［:449］・pump［:513］・tick［:561］・driveCheckpoint［:928］・until［:373］・shutdownRuntimeの例外［:1078］は、停止済みのownerに関わる分だけに絞る。起動完了の前の停止は、C3aどおりstartRuntimeのuntil［:391］をrejectする）",
+      "RuntimeCompositionRoot#ownerFailed(place: ExecutionPlace, cause: unknown): void（P3-OWNER-STOP-NOTICE-001 で戻りを ClockReading | null に改めた。初めて止めた呼び出しだけが止めた時の読みを返す）（名前と引数はC3aのまま。C3aの戻り値はnever［composition-root.ts:473、例外を投げる］で、hostのwrapper［host.ts:112〜:114］が起動完了の後に投げ直す。本契約は戻り値をvoidにし、例外を投げずにそのownerを停止済みにする。同じplaceの2回目は何もしない。C3aの単一のfailure［composition-root.ts:282］が止めていた送出［:361］・受信［:449］・pump［:513］・tick［:561］・driveCheckpoint［:928］・until［:373］・shutdownRuntimeの例外［:1078］は、停止済みのownerに関わる分だけに絞る。起動完了の前の停止は、C3aどおりstartRuntimeのuntil［:391］をrejectする）",
       "RuntimeCompositionRoot: tickごとにowner 4本〔P3-SEISMIC-PLACE-001 で 4 本〕の記録とmailbox.isStalledからDisplayWorkerViewを返すメソッド1つ（名前は実装が決めて成果物に書く）。hostのtickはこれを既存のsetWorker(view)へ渡し、変わったときだけheartbeat()を即時に呼ぶ。stop()の後は呼ばない。置き換えるのはhostのtickの写像（host.ts:371〜:378。tickごとのmailbox.recordWorkerResponseとisStalledだけのview）で、RuntimeCompositionRoot#setWorker（composition-root.ts:615）はstateが変わったときtrueを返す",
       "Mailbox: 実行場所1つのpendingとin-flightを1回の走査で外すメソッド1つ（名前は実装が決める。pendingはcancelledに数え、in-flightはcompletedにもcancelledにも数えない。外したpending・in-flightの件数を返す）。isStalled(nowMonotonicMs)とdrainDiagnosticsの述語は変えない。entryはenqueueでplaceを持ち（mailbox.ts:23・:95）、pendingは配列（:67）、in-flightは実行場所ごとのMap（:69）。completedを変えないので、inputDoneの採否（composition-root.ts:539〜:542、completedの増加で決める）はそのままで、外したin-flightに遅れて届く完了は解放せず採用されない",
       "InfrastructureDiagnosticReasonに\"ownerStopped\"を1つ足す（末尾はp2-shared-runtime.types.ts:242。C3aのownerReplyLateはDiagnosticReasonの末尾［:248］。persistent-diagnostic-sink.tsのreason一覧［:40〜:56］にも足す）",

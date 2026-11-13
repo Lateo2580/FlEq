@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "59dc2d8e73f2bc24cf3c4a40de433a11e893bfe2256865bc394015732976b41d",
+    "sha256": "67453a8366d2872ed21e74ccd77830a0ab9e88f6280a2574c196e584b9cf434c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -96,13 +96,13 @@
       {
         "id": "P3-FG-D-SPLIT",
         "kind": "統合担当",
-        "A": "3 回に分ける。発注 1（今から、段 4 を待たない）: AC01・AC02 の試験、AC05 (1) のうち owner の停止を除く 4 場面の試験（reconstruction/test/final-gate/）と、統合担当の帳簿 AC03・AC04・AC11・AC12。発注 2（P3-NOTIFY-FAIL-RECOVER-001〔判断カード §9 の A6・A10、draft/notify-recover、作者の分岐待ち〕の配送の後）: AC06 の試験と AC07 の Mac mini の実走。発注 3（最終の形。段 4 の P3-DISASTER-PI-MEASURE-001 ほか器の拡張、P3-RAIN-RECOVERY-CANCEL-001〔7-1、baseOid 050deaf5、実装中〕、P3-OWNER-REBUILD-001〔C11、作者の裁定 2 で急ぐ側の owner を最後の checkpoint から作り直す、draft/owner-rebuild、作者の分岐待ち〕、P3-VOLCANO-LIFT-001〔実装 3b25c34b、配送の直前〕の配送の後）: AC05 (1) の owner の停止の場面と AC05 (2) の所要、AC07 の Pi の実走（AC08 の窓）、AC08、AC09、AC10、その後に AC13 の Codex の総合レビュー。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は P3-STOP-SAVE-WAIT-001・P3-TYPHOON-FRAME-COST-001 で配送済み",
+        "A": "3 回に分ける。発注 1（今から、段 4 を待たない）: AC01・AC02 の試験、AC05 (1) のうち owner の停止を除く 4 場面の試験（reconstruction/test/final-gate/）と、統合担当の帳簿 AC03・AC04・AC11・AC12。発注 2（P3-NOTIFY-FAIL-RECOVER-001〔判断カード §9 の A6・A10、draft/notify-recover、作者の分岐待ち〕の配送の後）: AC06 の試験と AC07 の Mac mini の実走。発注 3（最終の形。段 4 の P3-DISASTER-PI-MEASURE-001 ほか器の拡張、P3-RAIN-RECOVERY-CANCEL-001〔7-1、baseOid 050deaf5、実装中〕、P3-OWNER-STOP-NOTICE-001〔C11 の 1 段目。急ぐ側の owner が止まったことを帯・desktop・音で 1 回知らせる。作り直しは P5 へ送った（作者 2026-11-13 19 時台）〕、P3-VOLCANO-LIFT-001〔実装 3b25c34b、配送の直前〕の配送の後）: AC05 (1) の owner の停止の場面と AC05 (2) の所要、AC07 の Pi の実走（AC08 の窓）、AC08、AC09、AC10、その後に AC13 の Codex の総合レビュー。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は P3-STOP-SAVE-WAIT-001・P3-TYPHOON-FRAME-COST-001 で配送済み",
         "B": "1 回で全部を最終の形の後に行う",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-13 r1。起草レビューで「直しの後なら統合担当で確定してよい」）",
         "ruling": "統合担当 A（2026-11-13）",
-        "reason": "分け方の基準は『段 4 が器や snapshot の上限を変えたら結果が変わるか』と『どの直しの契約が検収の形を変えるか』。AC01〜AC04・AC11・AC12 は変わらないので先に閉じられ、AC05 の所要・AC08・AC09・AC10 は段 4 で変わる。AC06 は P3-NOTIFY-FAIL-RECOVER-001 で通知の隔離の形が変わるので、その配送を待つ。AC05 の owner の停止の場面は、P3-OWNER-REBUILD-001 の AC08 が停止の時に作り直し中だった場合の扱いと終了 code を変えるので、その配送の後に置く。発注 1 の試験はゲートに入るので、最終の形でも毎回回る。部分受入は作らない（計画:684）"
+        "reason": "分け方の基準は『段 4 が器や snapshot の上限を変えたら結果が変わるか』と『どの直しの契約が検収の形を変えるか』。AC01〜AC04・AC11・AC12 は変わらないので先に閉じられ、AC05 の所要・AC08・AC09・AC10 は段 4 で変わる。AC06 は P3-NOTIFY-FAIL-RECOVER-001 で通知の隔離の形が変わるので、その配送を待つ。AC05 の owner の停止の場面は、P3-OWNER-STOP-NOTICE-001 が止まった後の端末と通知を変える（終了の段と code は変えない、同契約の AC04）ので、その配送の後に置く。発注 1 の試験はゲートに入るので、最終の形でも毎回回る。部分受入は作らない（計画:684）"
       },
       {
         "id": "P3-FG-D-ORACLE",
@@ -515,7 +515,7 @@
       "reconstruction/test/integration/"
     ],
     "allowedPaths": [
-      "reconstruction/test/final-gate/**（新設。発注 1 は T01・T02 と T03 の 4 場面、発注 2 は T04、発注 3 は T03 の owner の停止の場面〔作り直し中の停止を含む〕）",
+      "reconstruction/test/final-gate/**（新設。発注 1 は T01・T02 と T03 の 4 場面、発注 2 は T04、発注 3 は T03 の owner の停止の場面〔urgent を止めてから終える。P3-OWNER-STOP-NOTICE-001 の配送の後〕）",
       "reconstruction/contracts/p3-final-gate.json（統合担当だけ。記録）",
       "reconstruction/contracts/p3-order-plan.md（統合担当だけ。他の契約が «» で引かない行の中だけ、AC11・AC12 の句）",
       "reconstruction/contracts/p3-dmdata-connect.json（統合担当だけ。:95 の status の 1 語と meta.sha256）"
@@ -825,7 +825,7 @@
       },
       {
         "id": "P3-FG-AC05",
-        "requirement": "全単位の E20 と終了の再確認（spec:2072・:889）: (1)【発注 1、owner の停止の場面だけ発注 3】12 unit を全部 dirty にした状態で、E20 の 5 場面（通常終了、保存不能、owner の停止、batch 残存、終了中の遅い ack）を最終の形の結線で起こし、§5.9 の段の順・各 unit の最終世代の確認・終了 code が一致し、保存を確かめていない code 0 が 0。P2 の終了試験（P2-A3-T06）と C3b（P3-C3B-AC03、U-E・U-W・U-F の単位）と同じ条件を全 unit に広げる（spec:889 の『同じ条件で確認』）。owner は 4 本（P3-SEISMIC-PLACE-001）。owner の停止の場面は P3-OWNER-REBUILD-001 の配送の後に行う（同契約の AC08 が、停止の時に作り直し中だった場合の扱いと終了 code を変えるため。作り直し中の停止も場面に入れる） (2)【発注 3】段ごとの開始上限（全体 30 秒、収束 10 秒、batch・通知 5 秒、最終保存 10 秒、終了処理 5 秒。前段の超過を後段へ足さない）に収まることを、最終の形で 12 unit が最大に近い器の状態から測る。起点の state は段 4 の P3-DISASTER-PI-MEASURE-001 の『山の写し』を使う。最終保存の段の所要を unit ごとと合計で記録する。Pi の値は AC08 の (3)",
+        "requirement": "全単位の E20 と終了の再確認（spec:2072・:889）: (1)【発注 1、owner の停止の場面だけ発注 3】12 unit を全部 dirty にした状態で、E20 の 5 場面（通常終了、保存不能、owner の停止、batch 残存、終了中の遅い ack）を最終の形の結線で起こし、§5.9 の段の順・各 unit の最終世代の確認・終了 code が一致し、保存を確かめていない code 0 が 0。P2 の終了試験（P2-A3-T06）と C3b（P3-C3B-AC03、U-E・U-W・U-F の単位）と同じ条件を全 unit に広げる（spec:889 の『同じ条件で確認』）。owner は 4 本（P3-SEISMIC-PLACE-001）。owner の停止の場面は P3-OWNER-STOP-NOTICE-001 の配送の後に行う（urgent の owner を止めてから終え、段の順と code が P3-C3B-AC03 のままで、帯と通知は同契約の試験が見る。作り直しは P5 へ送ったので、作り直し中の停止は場面に入れない） (2)【発注 3】段ごとの開始上限（全体 30 秒、収束 10 秒、batch・通知 5 秒、最終保存 10 秒、終了処理 5 秒。前段の超過を後段へ足さない）に収まることを、最終の形で 12 unit が最大に近い器の状態から測る。起点の state は段 4 の P3-DISASTER-PI-MEASURE-001 の『山の写し』を使う。最終保存の段の所要を unit ごとと合計で記録する。Pi の値は AC08 の (3)",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»",
           "docs/specs/reconstruction-p0-contracts.md:889 «b5001a1d03d84568»",
@@ -836,7 +836,7 @@
       },
       {
         "id": "P3-FG-AC06",
-        "requirement": "通知の故障隔離（spec:2614 の P3 分。E21・spec:962。発注 2）: 通知の channel（desktop・sound）ごとに、制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、通知を出す全 unit の intent（U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む）で、(1) 停止を確かめられない adapter の隔離・無効化と、同じ実処理への重ね呼び 0 (2) 隔離中の intent は試行せず、期限で欠落を記録し、成功に数えない (3) 固定優先順（EEW→通常運用の津波緊急→その他）と満杯の採否 (4) ある channel の故障が他の channel と受理・保存を止めない、を確かめる。2026-11-13 の作者裁定（判断カードの §9、稀の群は承認せず直す）のうち、A6（通知の channel の隔離）と A10（失敗しても『使える』）を直す P3-NOTIFY-FAIL-RECOVER-001（draft/notify-recover、作者の分岐待ち）が配送した形で検収する。直し方は同契約で決まり、本契約は決めない。A16（永続の診断を捨てる）は P3-DIAG-SINK-RETRY-001 で配送済み（87c97a45）。C11（EEW の thread が落ちる）は P3-OWNER-REBUILD-001 が受け、AC05・AC08 で見る（Q-FG-RARE-FIXES）。export と personal の consumer（§12.7）は P3 の外（計画:684）",
+        "requirement": "通知の故障隔離（spec:2614 の P3 分。E21・spec:962。発注 2）: 通知の channel（desktop・sound）ごとに、制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、通知を出す全 unit の intent（U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む）で、(1) 停止を確かめられない adapter の隔離・無効化と、同じ実処理への重ね呼び 0 (2) 隔離中の intent は試行せず、期限で欠落を記録し、成功に数えない (3) 固定優先順（EEW→通常運用の津波緊急→その他）と満杯の採否 (4) ある channel の故障が他の channel と受理・保存を止めない、を確かめる。2026-11-13 の作者裁定（判断カードの §9、稀の群は承認せず直す）のうち、A6（通知の channel の隔離）と A10（失敗しても『使える』）を直す P3-NOTIFY-FAIL-RECOVER-001（draft/notify-recover、作者の分岐待ち）が配送した形で検収する。直し方は同契約で決まり、本契約は決めない。A16（永続の診断を捨てる）は P3-DIAG-SINK-RETRY-001 で配送済み（87c97a45）。C11（EEW の thread が落ちる）は、P3 では P3-OWNER-STOP-NOTICE-001 が止まったことを知らせ（AC05 で見る）、作り直しは P5 へ送った（作者 2026-11-13 19 時台。P3-OWNER-REBUILD-001 は保留、Q-FG-RARE-FIXES）。export と personal の consumer（§12.7）は P3 の外（計画:684）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe»",
@@ -857,7 +857,7 @@
       },
       {
         "id": "P3-FG-AC08",
-        "requirement": "Pi の短い確認（D-P3-7、計画:87・:239。発注 3、P3-FG-D-PI-WINDOW=A、作者裁定 2026-11-13 昼）: P3-PH-AC08 の窓の手順で最終の形の新築を Pi で動かし、(1) 最も重い急ぐ unit の処理中（U-Q の最大の地震の報と、件数の上限の前後の退去）に投入した EEW の待ち (2) 12 unit を同時に dirty にした保存（書込み権の待ち・着手・encode・write・ack の分解、unit ごとの所要） (3) 通常終了（AC05 の段の所要） (4) P3-OWNER-REBUILD-001 が C22 へ渡した 2 点: 急ぐ側の owner を最後の checkpoint から作り直す時間（同契約の RES-02 の 10 秒に収まるか）と、作り直しの間に投入した EEW の遅れ を取る。見るのは計画 §4.5 の 5 つ（EEW が大型処理に追従して止まる、publisher が owner の完了を待つ、書込み権が戻らず他の単位が保存できない、RSS が上限を明らかに超える、queue が一方向に増える）。結果は『この予備条件では再現せず』か異常の分類で書き、Pass と呼ばない（計画:187）。同じ窓で AC07 の Pi の実走と、残り 3 点（T2→採用と射影・採用と射影→公開の分解の集計、P3-PH-AC08 の (3)(4)、Q-PH-MEASURE の requiredEvidence）を閉じ、:239 を閉じる結論の文（P3-E01-REACCEPT-001 の AC09 の 5 つそれぞれに、起きた／再現せず）を書く。Pi の PSI は作者が窓の前に psi=1 を入れれば取る",
+        "requirement": "Pi の短い確認（D-P3-7、計画:87・:239。発注 3、P3-FG-D-PI-WINDOW=A、作者裁定 2026-11-13 昼）: P3-PH-AC08 の窓の手順で最終の形の新築を Pi で動かし、(1) 最も重い急ぐ unit の処理中（U-Q の最大の地震の報と、件数の上限の前後の退去）に投入した EEW の待ち (2) 12 unit を同時に dirty にした保存（書込み権の待ち・着手・encode・write・ack の分解、unit ごとの所要） (3) 通常終了（AC05 の段の所要） (4) は取らない（作り直しを P5 へ送ったため。作り直しの時間と、作り直しの間に投入した EEW の遅れは、P5 の作り直しの契約で取る）。見るのは計画 §4.5 の 5 つ（EEW が大型処理に追従して止まる、publisher が owner の完了を待つ、書込み権が戻らず他の単位が保存できない、RSS が上限を明らかに超える、queue が一方向に増える）。結果は『この予備条件では再現せず』か異常の分類で書き、Pass と呼ばない（計画:187）。同じ窓で AC07 の Pi の実走と、残り 3 点（T2→採用と射影・採用と射影→公開の分解の集計、P3-PH-AC08 の (3)(4)、Q-PH-MEASURE の requiredEvidence）を閉じ、:239 を閉じる結論の文（P3-E01-REACCEPT-001 の AC09 の 5 つそれぞれに、起きた／再現せず）を書く。Pi の PSI は作者が窓の前に psi=1 を入れれば取る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -956,7 +956,7 @@
         "referenceIds": [
           "P3-FG-AC05"
         ],
-        "behavior": "（起草案）12 unit を dirty にして E20 の場面を起こし、段の順・最終世代の確認・code を確かめる。保存を確かめていない code 0 が 0。発注 1 は owner の停止を除く 4 場面（通常終了・保存不能・batch 残存・終了中の遅い ack）、発注 3 は P3-OWNER-REBUILD-001 の配送の後に owner の停止の場面（作り直し中の停止を含む）を同じ file に足す"
+        "behavior": "（起草案）12 unit を dirty にして E20 の場面を起こし、段の順・最終世代の確認・code を確かめる。保存を確かめていない code 0 が 0。発注 1 は owner の停止を除く 4 場面（通常終了・保存不能・batch 残存・終了中の遅い ack）、発注 3 は P3-OWNER-STOP-NOTICE-001 の配送の後に owner の停止の場面（urgent を止めてから終える）を同じ file に足す"
       },
       {
         "testId": "P3-FG-T04",
@@ -1088,11 +1088,11 @@
           "発注 2",
           "発注 3"
         ],
-        "resolveBy": "発注 2: P3-NOTIFY-FAIL-RECOVER-001（A6・A10、draft/notify-recover、作者の分岐待ち）の配送の後。発注 3: P3-RAIN-RECOVERY-CANCEL-001（7-1、baseOid 050deaf5、実装中）・P3-OWNER-REBUILD-001（C11、作者の裁定 2 で作り直し、draft/owner-rebuild、作者の分岐待ち）・P3-VOLCANO-LIFT-001（実装 3b25c34b、配送の直前）の配送の後。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は配送済み。どれも 239a35f5 の木に契約 file が無いので dependsOnContractIds には入れず、baseOid の割当のときに足す",
+        "resolveBy": "発注 2: P3-NOTIFY-FAIL-RECOVER-001（A6・A10、draft/notify-recover、作者の分岐待ち）の配送の後。発注 3: P3-RAIN-RECOVERY-CANCEL-001（7-1、baseOid 050deaf5、実装中）・P3-OWNER-STOP-NOTICE-001（C11 の 1 段目、作り直しは P5）・P3-VOLCANO-LIFT-001（実装 3b25c34b、配送の直前）の配送の後。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は配送済み。どれも 239a35f5 の木に契約 file が無いので dependsOnContractIds には入れず、baseOid の割当のときに足す",
         "requiredEvidence": [
           "各契約の配送 commit",
           "AC06 の検収で使う通知の隔離の形が P3-NOTIFY-FAIL-RECOVER-001 の配送の後のものであること",
-          "P3-OWNER-REBUILD-001 の AC08（停止の時に作り直し中だった場合の扱いと終了 code）と RES-02（作り直しの 10 秒）の確定値"
+          "P3-OWNER-STOP-NOTICE-001 の配送 commit（終了の段と code を変えないこと、同契約の AC04）"
         ]
       },
       {

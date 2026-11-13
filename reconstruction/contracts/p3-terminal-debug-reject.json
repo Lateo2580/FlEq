@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7e9cfcf9960b02dc1423b8e030e3394165c4b6c8",
-    "sha256": "ed251701d7d1f1269418f530127b6b6b829ed7f764cc242be5704bf0d06f169b",
+    "sha256": "d5434c8c2f90b80f95ae369ee59190c9062bdaa57f55c437a7ca1bc0b5bddf57",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -150,7 +150,7 @@
         "id": "P3-TDR-AC02",
         "requirement": "口・時点・計算量: (1) TerminalSink（output.ts）に inputDropped を 1 つ足す。overload は 2 つで、(inputId: string, headType: string, reason: \"discarded\"): void と (inputId: string, headType: string | null, reason: Readonly<{ refused: string }>): void（捨てるのは種類のコードを読んだ後だけなので、種類のコードの無い「捨てた」は型で書けない形にする）。headType が null なら種類のコードを書かず、reason が \"discarded\" なら「捨てた」、{ refused } なら「断った <refused>」。refused を string にするのは ParserDiagnostic の reason の型が string を含むためで、値には上限がある: :325 では recordRejected（projectParserDiagnostic）が 14 値の外の reason で投げるので、その後に呼ぶ（14 値の外の字は端末に届かない）。:334 は字の ownerStopped、:339 は mailbox の 3 値 (2) options.debug が true でないときは何も積まない（通常の画面・音・通知・定期要約の数・tips の待ちの起点を変えない） (3) 呼ぶ時点は host が断った・捨てた時点（WS の受信の callback の中）。通った入力の行は owner の返信の後に出るので、端末の行の入力 ID の順は前後しうる（例: 返信を待っている input-1 より、断った input-2 の行が先に出る）。並べ直さない。要約の区切り（roll）とまとまりの期限（expire）は見ない（tick と inputDone のまま） (4) 計算量（AGENTS.md の受信経路の計算量）: 1 入力に 1 回の呼び出しと 1 行の字の組み立てだけ。走査・直列化をしない (5) host.ts は :325・:326・:334・:339 の 4 行の中に呼び出しを足し、行を足さない（:325 は recordRejected の後、:326 は return の前、:334 は refused の後、:339 は return の前）。config.terminal が無ければ呼ばない（今の inputDone と同じ ?.）。cli.ts の配線（terminal に output.sink を渡す）は変えない (6) inputDone と同じく try で包まない（字の組み立てと push だけ）。host の記録（recordRejected・checkpoint の refused・overload）を済ませた後に呼ぶので、host の状態は先に確定する",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:47 «1be4b4cb52174802»",
           "reconstruction/src/terminal/output.ts:631 «6826729ae6278b43»",
           "reconstruction/src/terminal/output.ts:646 «3094f992eda6e346»",
           "reconstruction/src/terminal/output.ts:280 «fa7f7ada4df17a32»",
@@ -169,7 +169,7 @@
           "reconstruction/contracts/p3-terminal-layout11.json:245 «194f24ef7a113266»",
           "reconstruction/contracts/p3-terminal-layout11.json:356 «13570f9b62f463c7»",
           "reconstruction/contracts/p3-terminal-layout12.json:286 «59ea0da0e4547b31»",
-          "reconstruction/contracts/p3-terminal-output.json:504 «6ce343efa2933b64»",
+          "reconstruction/contracts/p3-terminal-output.json:504 «3898d79ffb60aa97»",
           "reconstruction/contracts/p3-terminal-rain-evict.json:145 «c558c84756425c98»",
           "reconstruction/contracts/p3-terminal-rain-evict.json:215 «b67464a1a613ab6c»"
         ]

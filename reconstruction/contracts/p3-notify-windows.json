@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4241a02dd87ac72b6a8b51fdf23899b12d49fc49",
-    "sha256": "2e54c45d083b0ac4823ffd42e729889bfc8f27f74a8681accf67caacf84948d2",
+    "sha256": "ba1c3e6b7fbae291fe7075ab8318045a4b2402829df8620b685a58fac4f74b72",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -265,7 +265,7 @@
       {
         "id": "P3-NW-RES-01",
         "target": "通知と音の子プロセス（win32）",
-        "limit": "desktop と sound は channel ごとに 1 本（active の 1 channel 1 process）。切断の通知（desktopNotice）の子は追跡せず、10 秒の timeout の内に回線が重ねて切れた分だけ重なりうる（本数の上限は置かない）。試行のたびに起こして終わらせ、常駐させない。1 本のメモリと起動の時間は未測定（Q-NW-DEVICE）",
+        "limit": "desktop と sound は channel ごとに 1 本（active の 1 channel 1 process）。切断の通知（desktopNotice）の子は追跡せず、10 秒の timeout の内に回線が重ねて切れた分だけ重なりうる（本数の上限は置かない）。試行のたびに起こして終わらせ、常駐させない。急ぐ側の owner の停止の desktop 通知と音（desktopNotice・soundNotice、P3-OWNER-STOP-NOTICE-001）の子も追跡せず、run に多くて 1 本ずつで、鳴っている試行の音と重なりうる。1 本のメモリと起動の時間は未測定（Q-NW-DEVICE）",
         "unit": "本",
         "scope": "win32 の 1 run",
         "source": "P3-NW-D-SOUND"

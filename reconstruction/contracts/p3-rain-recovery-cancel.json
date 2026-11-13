@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "d907ac7e1fa12d7417660bdb0c7238069a5571c6abdda943ec90865f1cf23bc5",
+    "sha256": "3a1e05fb3688321a6868a8b945e3619ef4f44c0cea248721923bc4e05b8f41e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -233,7 +233,7 @@
           "reconstruction/contracts/p3-execution-split.types.ts:89 «5c31e72a97ac2025»",
           "reconstruction/contracts/p3-execution-split.types.ts:141 «2c8431b2e8e4be5c»",
           "reconstruction/src/host/host.ts:169 «2781c6b1893c1adf»",
-          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:47 «1be4b4cb52174802»",
           "reconstruction/src/terminal/output.ts:646 «3094f992eda6e346»",
           "reconstruction/contracts/p3-unit-table.types.ts:28 «e5c767e027f8c111»",
           "reconstruction/src/view-projector/view-projector.ts:781 «a1a9b6ef7858bb2f»",
@@ -273,7 +273,7 @@
         "id": "P3-RRC-AC06",
         "requirement": "行の決まり: owner-host.ts・host.ts・output.ts・p3-execution-split.types.ts の行の数を変えない（足すのは既存の行の中だけ。なぜを書くコメントも行末に置く）。中身を変えてよい行は、owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、output.ts の 47・646 行、p3-execution-split.types.ts の 89 行だけ。composition-root.ts は変えない（P3-RRC-D-HOOK=A）。発注前点検の数（2026-11-13 起草、git grep -n \"<basename>:[0-9]\" -- reconstruction の行数、本契約を除く）: output.ts 105、composition-root.ts 283、host.ts 428（owner-host.ts を含む）、owner-host.ts 65、p3-execution-split.types.ts 29。このうち変える行を «» で引くのは output.ts の 47 行（p3-terminal-debug-reject.json の 153 行）と 646 行（同じく 155 行）の 2 つだけ。owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、types の 89 行を引く «» は無い。無いと: 行を足すと 3 file で 400 を越える «» と地の文の行番号がずれる",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:47 «1be4b4cb52174802»",
           "reconstruction/src/terminal/output.ts:646 «3094f992eda6e346»",
           "reconstruction/src/host/host.ts:169 «2781c6b1893c1adf»",
           "reconstruction/contracts/p3-execution-split.types.ts:89 «5c31e72a97ac2025»"
