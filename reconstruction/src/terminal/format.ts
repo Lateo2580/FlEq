@@ -857,12 +857,12 @@ function digest(view: RecoveryDigestView, ctx: Ctx): Line[] {
   // 全部 0 件なら帯ごと出さない（作者裁定 A。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため）。
   if (units.length === 0) return [];
   const lines: Line[] = [...band("止まっていた間に出た情報（7 日前まで）", BAND_ROLES.plain, null, ctx)];
-  if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は取り直していません", "dim")));
+  if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は再取得していません", "dim")));
   const size = Math.max(11, ...units.map(({ unit }) => width(UNIT_NAMES[unit.unit]) + 3));
   const digits = Math.max(0, ...units.map(({ total }) => total == null ? 0 : String(total).length));
   for (const { unit, total, rest } of units) {
     const name = seg(UNIT_NAMES[unit.unit], null, true), gap = seg(" ".repeat(size - width(UNIT_NAMES[unit.unit])));
-    if (unit.kind === "unsatisfied" || total == null) { lines.push(line(name, gap, seg("取り直せませんでした"))); continue; }
+    if (unit.kind === "unsatisfied" || total == null) { lines.push(line(name, gap, seg("再取得に失敗しました"))); continue; }
     lines.push(line(name, gap, seg(`${String(total).padStart(digits)} 件`)));
     for (const head of unit.heads) lines.push(line(seg(`  ${minuteOf(head.reportDateTime) ?? localClock(head.receivedAt).slice(0, 5)}  ${untruncated(head.title)}`)));
     if (rest.length > 0) lines.push(...flow([seg("  ほか ")], rest.map(([title, count]) => [seg(`${title} ${count} 件`)]), ctx.total, width("  ほか ")));
