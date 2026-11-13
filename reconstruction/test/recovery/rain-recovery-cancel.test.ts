@@ -66,7 +66,7 @@ const EVENT_ID = "JPTC202608211633_202608211633";
 const cancelOf = (reportTime: string, controlTime: string): string => oaXml.replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>")
   .replace("<ReportDateTime>2026-08-21T16:33:00+09:00</ReportDateTime>", `<ReportDateTime>2026-08-21T${reportTime}+09:00</ReportDateTime>`)
   .replace("<DateTime>2026-08-21T07:33:19Z</DateTime>", `<DateTime>2026-08-21T${controlTime}Z</DateTime>`);
-const CANCEL_AT = Date.parse("2026-08-21T16:33:15+09:00");
+const jst = (ms: number): string => new Date(ms + 32_400_000).toISOString().slice(11, 19);
 // 壁時計は始めの wallStart から実時間で進む。端末の clock は skew だけ先へ進める（host の clock は進めない、Q-RRC-TEST）。
 let wallStart = 0, base = 0, skew = 0, holdBody = false;
 const clock = () => { const monotonicMs = performance.now(); return { wallTimeMs: wallStart + Math.trunc(monotonicMs - base), monotonicMs }; };
@@ -95,14 +95,15 @@ async function until(condition: () => boolean, milliseconds = 30_000): Promise<v
 }
 const sleep = (milliseconds: number) => new Promise((done) => setTimeout(done, Math.max(0, milliseconds)));
 
-// reconnect（T01）: 起動の取り直しの後に live の速報を受け、切断して、繋ぎ直しの取り直しの一覧に取消（16:33:15）を載せる。
+// reconnect（T01）: 起動の取り直しの後に live の速報を受け、切断して、繋ぎ直しの取り直しの一覧に取消（発表は切断の次の秒）を載せる。
 // stale（T03）: 起動の取り直しの一覧に live の報より古い取消（16:32:50）を載せ、本文の応答を止めた間に live の速報を受ける。
 async function scenario(mode: "reconnect" | "stale") {
   const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
   await new Promise((done) => wss.once("listening", done));
-  const sockets: WebSocket[] = [];
+  const sockets: WebSocket[] = [], connectedAt: number[] = [];
   wss.on("connection", (ws) => {
     sockets.push(ws);
+    connectedAt.push(clock().wallTimeMs);
     ws.on("error", () => {});
     ws.send(JSON.stringify({ type: "start", socketId: 7, classifications: ["telegram.weather"], time: new Date(clock().wallTimeMs).toISOString() }));
   });
@@ -115,12 +116,15 @@ async function scenario(mode: "reconnect" | "stale") {
   base = performance.now();
   wallStart = Date.parse(mode === "reconnect" ? "2026-08-21T16:32:19+09:00" : "2026-08-21T16:33:05+09:00");
   const startedAt = clock().wallTimeMs;
-  let cutAt: number | null = null;
-  const cancelXml = mode === "reconnect" ? cancelOf("16:33:15", "07:33:20") : cancelOf("16:32:50", "07:33:10");
+  // 取消の発表は観測した切断の次の秒（ReportDateTime は秒まで）。繋ぎ直しは切断から 5 秒（host の RECONNECT_MS）なので、その前に入る。
+  let cutAt: number | null = null, cancelAt: number | null = null;
   https.handle = (url) => {
-    if (url.hostname === "data.api.dmdata.jp") return { status: 200, raw: Buffer.from(cancelXml), headers: { "content-type": "application/xml" } };
+    if (url.hostname === "data.api.dmdata.jp") {
+      const cancelXml = mode === "reconnect" ? cancelOf(jst(cancelAt!), "07:33:20") : cancelOf("16:32:50", "07:33:10");
+      return { status: 200, raw: Buffer.from(cancelXml), headers: { "content-type": "application/xml" } };
+    }
     const rain = url.searchParams.get("type")?.split(",").includes("VPOA50") === true;
-    const items = !rain ? [] : mode === "stale" ? [listItem(startedAt + 2_000)] : cutAt != null ? [listItem(CANCEL_AT + 1_000)] : [];
+    const items = !rain ? [] : mode === "stale" ? [listItem(startedAt + 2_000)] : cancelAt != null ? [listItem(cancelAt + 1_000)] : [];
     return { status: 200, body: { status: "ok", items } };
   };
   holdBody = mode === "stale";
@@ -131,7 +135,9 @@ async function scenario(mode: "reconnect" | "stale") {
   const host = await startP2Host({ dmdata: { apiKey: "KEY-RRC", appName: "fleq-rrc", classifications: ["telegram.weather"] },
     stateDirectory: join(path, "state"), diagnosticDirectory: join(path, "diagnostics"), displayPort: null, clock, observe: null, terminal: terminal.sink });
   cleanups.push(() => host.stop().then(() => {}, () => {}));
-  terminal.attach(host);
+  // tick は時計を読んでから host.status() を同期で呼び、続けて expire と writer まで進む。skew を変えた後の呼び出しを待てば次の tick は終わっている。
+  let statusCalls = 0;
+  terminal.attach({ status: () => { statusCalls += 1; return host.status(); } });
   // 取り直しの採用の返信を控える（判定は product のまま）。
   const adopted: { unit: unknown; reply: { result: { kind: string } } }[] = [];
   const root = roots.root! as unknown as Record<string, (...args: unknown[]) => unknown>;
@@ -142,7 +148,7 @@ async function scenario(mode: "reconnect" | "stale") {
   if (mode === "stale") await until(() => sockets.length === 1 && https.held.length === 1); // 本文の要求が来た = U-B の候補が開いた後
   else {
     await until(() => sockets.length === 1 && roots.root!["recoveryNotBefore"] > -Infinity);
-    // 次の取り直しの許しの 15 秒前に受け、切断の間（16:33:15）に取消が出て、採用が端末の 60 秒の内に終わる位置に置く。
+    // 次の取り直しの許しの 15 秒前に受け、採用が端末の 60 秒の内に終わる位置に置く。
     await sleep((roots.root!["recoveryNotBefore"] as number) - 15_000 - performance.now());
   }
   const ubBefore = ubAdopted().length;
@@ -158,14 +164,16 @@ async function scenario(mode: "reconnect" | "stale") {
     await until(() => ubAdopted().length > ubBefore);
   } else {
     cutAt = clock().wallTimeMs;
+    cancelAt = Math.floor(cutAt / 1_000) * 1_000 + 1_000;
     sockets[0].terminate();
     await until(() => sockets.length === 2);
     await until(() => ubAdopted().length > ubBefore, 50_000);
   }
   const adoptedAtMono = performance.now(), adoptedAtWall = clock().wallTimeMs;
   // 端末の clock だけを 61 秒進め、次の tick（1 秒ごと）を待つ。
+  const calls = statusCalls;
   skew = 61_000;
-  await sleep(1_500);
+  await until(() => statusCalls > calls);
   const shown = lines.filter((line) => !line.startsWith("debug: ") && line.includes("記録的短時間大雨"));
   // 停止の保存で書かれた U-B の state（世代の最も新しい file）から、この subject の記録を読む（owner は worker の中）。
   await host.stop().catch(() => {});
@@ -174,7 +182,7 @@ async function scenario(mode: "reconnect" | "stale") {
   const saved: Saved[] = [];
   for (const name of (await fileSystem.readdir(stateDir)).filter((item) => item.startsWith("U-B-"))) saved.push(JSON.parse(await fileSystem.readFile(join(stateDir, name), "utf8")) as Saved);
   const record = saved.sort((a, b) => b.generation - a.generation)[0]?.payload.currents.find((item) => item.subject === `normal/VPOA50/${EVENT_ID}`);
-  return { order: [receivedAtWall, cutAt, adoptedAtWall], fetched: https.paths.filter((item) => item.startsWith("/v1/")),
+  return { order: [receivedAtWall, cutAt, cancelAt, connectedAt[1], adoptedAtWall], fetched: https.paths.filter((item) => item.startsWith("/v1/")),
     adoptedKinds: ubAdopted().slice(ubBefore).map((item) => item.reply.result.kind), adoptedBeforeDue: adoptedAtMono - heldAtMono < 60_000,
     savedRecord: record == null ? null : [record.effective, record.source.origin, record.source.infoTypeRaw], shown };
 }
@@ -182,8 +190,8 @@ async function scenario(mode: "reconnect" | "stale") {
 // P3-RRC-T01 acceptance / P3-RRC-AC01
 it("T01 切断の間の取消を繋ぎ直しの取り直しで採ったら、端末の 60 秒の後も取り消された速報は出ない", async () => {
   const result = await scenario("reconnect");
-  const [received, cut, adopted] = result.order as [number, number, number];
-  expect([received < cut, cut < CANCEL_AT, CANCEL_AT < adopted]).toEqual([true, true, true]);
+  const [received, cut, cancel, reconnected, adopted] = result.order as number[];
+  expect([received < cut, cut < cancel, cancel < reconnected, reconnected < adopted]).toEqual([true, true, true, true]); // 受信 < 切断 < 取消の発表 < 繋ぎ直し < 採用
   expect([result.fetched, result.adoptedKinds, result.adoptedBeforeDue, result.savedRecord])
     .toEqual([[`/v1/${"c".repeat(96)}`], ["adopted"], true, ["cancelled", "recovery", "取消"]]);
   expect(result.shown).toEqual([]);
