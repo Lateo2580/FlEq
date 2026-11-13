@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { DisplaySnapshot } from "../../contracts/p2-snapshot-sse.types";
-import { parseDisplaySnapshot, parseHeartbeatWorker, replaceDisplaySnapshot } from "../../src/display/chrome-eew/pure";
+import { buildChannelLines, parseDisplaySnapshot, parseHeartbeatWorker, replaceDisplaySnapshot } from "../../src/display/chrome-eew/pure";
 
 function snapshot(streamId: string, sequence: number): DisplaySnapshot {
   const item = (operation: "normal" | "training" | "test") => ({ operation, informationType: "eew" as const,
@@ -78,4 +78,13 @@ describe("P2-A9-T05 forbidden HTML-interpreting APIs", () => {
     });
     expect(hits).toEqual([]);
   });
+});
+
+// P3-NFR-T03 受入（P3-NFR-AC04 (1)(2)）: failing の snapshot を受け、状態の 2 行を改めた字で出す。
+it("P3-NFR-T03 acceptance: a failing channel snapshot is accepted and the channel lines use the ruled labels", () => {
+  const failing: DisplaySnapshot = { ...snapshot("s", 1), channels: { desktop: "available", sound: "failing" } };
+  const parsed = parseDisplaySnapshot(JSON.stringify(failing));
+  expect(parsed).toEqual(failing);
+  expect(buildChannelLines(parsed!.channels)).toEqual(["デスクトップ通知: 使用可", "音声通知: 直前に失敗"]);
+  expect(buildChannelLines({ desktop: "unavailable", sound: "checking" })).toEqual(["デスクトップ通知: 使用不可", "音声通知: 確認中"]);
 });

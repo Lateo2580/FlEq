@@ -405,7 +405,7 @@ async function checkMetadataOnly() {
   const t6 = (await marks(T6)).filter((m) => m.detail.displayVersion.sequence === published.sequence);
   const channels = await texts("#channels .channel");
   check("P2-A9-T03:AC04:metadataOnlyNoReinit", before === 10 && after.count === 10 && after.kept === 10 && t6.length === 0
-    && channels.includes("音声通知: 使えない"), "DOM (node同一性)", { before, after, t6Count: t6.length, channels });
+    && channels.includes("音声通知: 使用不可"), "DOM (node同一性)", { before, after, t6Count: t6.length, channels });
 }
 
 async function checkRemoval() {
@@ -526,8 +526,8 @@ async function checkChannels() {
   const first = await texts("#channels .channel");
   await publish({ ...S45, channels: { desktop: "unavailable", sound: "isolated" } });
   const second = await texts("#channels .channel");
-  check("P2-A9-T06:AC09:channels4States", JSON.stringify(first) === JSON.stringify(["デスクトップ通知: 確認中", "音声通知: 使える"])
-    && JSON.stringify(second) === JSON.stringify(["デスクトップ通知: 使えない", "音声通知: 隔離中"]), "DOM", { first, second });
+  check("P2-A9-T06:AC09:channels4States", JSON.stringify(first) === JSON.stringify(["デスクトップ通知: 確認中", "音声通知: 使用可"])
+    && JSON.stringify(second) === JSON.stringify(["デスクトップ通知: 使用不可", "音声通知: 隔離中"]), "DOM", { first, second });
 }
 
 async function checkConnectionAndWorker() {

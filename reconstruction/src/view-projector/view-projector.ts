@@ -741,9 +741,9 @@ function boundedPersistence(persistence: SnapshotProjectionInput["persistence"])
   return result;
 }
 
-function channel(state: NotificationChannelState, probeComplete: boolean): DisplayChannelView {
+function channel(state: NotificationChannelState, probeComplete: boolean, failing: boolean): DisplayChannelView {
   if (!probeComplete) return "checking";
-  return state.kind === "unavailable" || state.kind === "isolated" ? state.kind : "available";
+  return state.kind === "unavailable" || state.kind === "isolated" ? state.kind : failing ? "failing" : "available"; // P3-NFR-AC03 (3): checking ＞ unavailable ＞ isolated ＞ failing ＞ available
 }
 
 // Everything except sequence/generatedAt and the full view bodies (identified by contentRevision).
@@ -886,8 +886,8 @@ function projectSnapshot(input: SnapshotProjectionInput, previous: SnapshotProje
     generatedAt: input.generatedAt,
     semanticRevision: JSON.stringify(domains.map((item) => item.full.contentRevision)),
     connection: input.connection, worker: input.worker, persistence: boundedPersistence(input.persistence), recovery: input.recovery,
-    channels: { desktop: channel(input.notificationChannels.desktop, input.channelProbeComplete),
-      sound: channel(input.notificationChannels.sound, input.channelProbeComplete) },
+    channels: { desktop: channel(input.notificationChannels.desktop, input.channelProbeComplete, input.channelFailing.desktop),
+      sound: channel(input.notificationChannels.sound, input.channelProbeComplete, input.channelFailing.sound) },
     current: { eew: eew.projection.full, weatherCurrent: weatherCurrent.projection.full,
       weatherTimeseries: weatherTimeseries.projection.full, tsunami: tsunami.projection.full, earthquake: earthquake.projection.full,
       nankai: nankai.projection.full, volcano: volcano.projection.full, landslide: landslide.projection.full,

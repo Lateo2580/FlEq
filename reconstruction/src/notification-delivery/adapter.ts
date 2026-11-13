@@ -22,7 +22,7 @@ type Active = {
   closed: boolean;
   noChild: boolean;
   stopObservation: StopObservation | null;
-  waiters: ((observation: StopObservation) => void)[];
+  waiters: ((observation: StopObservation) => void)[]; onLateStop?: (observation: StopObservation) => void;
   stop: (stopped: boolean, completedAt: ClockReading) => void;
 };
 const active: Record<NotificationChannel, Active | null> = { desktop: null, sound: null };
@@ -152,7 +152,7 @@ function runAttempt(attempt: NotificationAttempt, clock: () => ClockReading, pro
     child.once("close", (code: number | null) => {
       const completedAt = clock();
       context.closed = true;
-      if (settled) return;
+      if (settled) { if (context.stopObservation?.stopped === false && active[attempt.channel] === context) { active[attempt.channel] = null; context.onLateStop?.({ attemptId: attempt.attemptId, stopped: true, completedAt }); } return; } // P3-NFR-AC01 (1): 遅い close は停止の証拠で、二件目の結果にしない
       if (context.cause != null) { context.stop(true, completedAt); return; }
       if (!errored && code === 0) { finish({ ...base(completedAt), kind: "delivered" }); return; }
       // P3-NL-AC06 (3): 次の backend へ進むのは、プロセスを生成できなかった（pid の無い error）ときだけ。起動した後の失敗は
@@ -173,14 +173,14 @@ function runNotificationAttempt(attempt: NotificationAttempt, clock: () => Clock
 }
 
 function abortNotificationAttempt(request: NotificationAbortRequest, stopByMonotonicMs: number,
-  clock: () => ClockReading): Promise<StopObservation> {
+  clock: () => ClockReading, onLateStop?: (observation: StopObservation) => void): Promise<StopObservation> {
   const { attemptId } = request;
   const context = active.desktop?.attempt.attemptId === attemptId ? active.desktop
     : active.sound?.attempt.attemptId === attemptId ? active.sound : null;
   if (context == null) return Promise.resolve({ attemptId, stopped: true, completedAt: clock() });
   if (context.stopObservation != null) return Promise.resolve(context.stopObservation);
   const firstRequest = context.cause == null;
-  context.cause ??= request.cause;
+  context.cause ??= request.cause; context.onLateStop ??= onLateStop;
   const stopped = new Promise<StopObservation>((resolveStop) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     context.waiters.push((observation) => { clearTimeout(timer); resolveStop(observation); });
@@ -226,7 +226,7 @@ async function probeSoundBackend(silentWavPath: string, clock: () => ClockReadin
 }
 
 export { runNotificationAttempt, abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, desktopNotice };
-export type { SoundBackend };
+export type { SoundBackend, StopObservation };
 
 // P3-TO-D-CONN-NOTIFY-PATH: 回線の切断の通知（端末の出力の側、C19）。intent・保存・通知の門を通らず、音は付けない。
 // 起動と終わりを待たない（10 秒で止める）。backend の無い環境と起動の失敗は何もしない（R34 と同じく再試行しない）。

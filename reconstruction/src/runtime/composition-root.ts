@@ -46,7 +46,7 @@ import { PersistentDiagnosticSink, projectParserDiagnostic } from "../checkpoint
 import type { DiagnosticFileSystem } from "../checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../mailbox/mailbox";
 import { abortNotificationAttempt, probeDesktopBackend, probeSoundBackend, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
-import type { SoundBackend } from "../notification-delivery/adapter";
+import type { SoundBackend, StopObservation } from "../notification-delivery/adapter";
 import { ATTEMPT_TIMEOUT_MS, applyNotificationResult, selectNotificationAttempt } from "../notification-delivery/notification-delivery";
 import { eewUnit } from "../units/eew/eew-unit";
 import { nankaiUnit } from "../units/nankai/nankai-unit";
@@ -126,7 +126,7 @@ type CompositionOptions = Readonly<{
   mailbox?: Mailbox;
   notificationAdapter?: Readonly<{
     run: (attempt: NotificationAttempt, clock: () => ClockReading, soundBackend?: SoundBackend) => Promise<NotificationResult>;
-    abort: (request: NotificationAbortRequest, stopByMonotonicMs: number, clock: () => ClockReading) => Promise<unknown>;
+    abort: (request: NotificationAbortRequest, stopByMonotonicMs: number, clock: () => ClockReading, onLateStop?: (observation: StopObservation) => void) => Promise<unknown>;
   }>;
   notificationCalls?: NotificationCalls;
   // Confirmation scope limits come from the unit rows; the publisher never calls a unit reducer.
@@ -216,7 +216,7 @@ function viewOf(unit: MirrorUnit) { return unit.view; }
 function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
   connection: DisplayConnectionView, worker: DisplayWorkerView,
   recovery: Readonly<{ digest: ReturnType<typeof buildDigest> | null; eewUnverified: EewWindowCard | null; progress?: readonly RecoveryProgressUnit[] | null }>
-    = { digest: null, eewUnverified: null }): SnapshotProjectionInput {
+    = { digest: null, eewUnverified: null }, failing: Readonly<Record<NotificationChannel, boolean>> = { desktop: false, sound: false }): SnapshotProjectionInput {
   const { state } = step;
   const date = new Date(nowMs);
   const eew = viewOf(state.mirror["U-E"]), weatherCurrent = viewOf(state.mirror["U-W"]), weatherTimeseries = viewOf(state.mirror["U-F"]);
@@ -237,7 +237,7 @@ function snapshotInput(step: ProjectedStep, streamId: string, nowMs: number,
       "U-Y": state.mirror["U-Y"].persistence },
     recovery: { restoration: state.restoration, digest: recovery.digest?.digest ?? null, eewUnverified: recovery.eewUnverified, progress: recovery.progress ?? null },
     recoveryDigestBytes: recovery.digest?.utf8Bytes ?? 0, confirmation: state.confirmation,
-    notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
+    notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete, channelFailing: failing,
     eew, weatherCurrent, weatherTimeseries, tsunami, earthquake, nankai, volcano, landslide, flood, briefing, localBulletins, typhoon, outcomes: step.outcomes, displayChanges: step.displayChanges,
   };
 }
@@ -982,7 +982,7 @@ class RuntimeCompositionRoot {
     const stopped = state.shutdown.stage === "completed";
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
-      this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }), this.projection);
+      this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), this.projection);
     this.projection = result.state;
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
@@ -1109,7 +1109,7 @@ class RuntimeCompositionRoot {
       const channel = this.state.notificationChannels[name];
       if (channel.kind !== "stopping" || channel.attempt.attemptId !== request.attemptId)
         throw new Error("A1 abort request has no stopping channel");
-      void this.notificationAdapter.abort(request, channel.stopByMonotonicMs, this.clock).catch(() => {});
+      void this.notificationAdapter.abort(request, channel.stopByMonotonicMs, this.clock, (observation) => this.notificationStopped(name, observation)).catch(() => {});
     }
   }
 
@@ -1445,7 +1445,7 @@ class RuntimeCompositionRoot {
       const before = this.deliveryState(this.heldBasis(clock));
       const step = apply(before, result, result.completedAt);
       this.current = { ...state, notificationChannels: step.state.channels, notificationDeadlines: step.state.deadlines };
-      if (channel.kind === "running" || channel.kind === "stopping") {
+      if (channel.kind === "running" || channel.kind === "stopping") { const failedNow = step.diagnostics.some((item) => item.reason === "notificationAttemptFailed" && item.attemptId === result.attemptId); if (failedNow || result.kind === "delivered") this.channelFailing[result.channel] = failedNow; // P3-NFR-D-SET=A
         const original = before.intents.find((intent) => sameIntent(intent, { ...channel.attempt, id: channel.attempt.intentId }));
         const candidate = step.state.intents.find((intent) => original != null && sameIntent(intent, original));
         const unit = runtimeUnits.find((value) => value === original?.unit);
@@ -2358,6 +2358,28 @@ class RuntimeCompositionRoot {
   private noteEewWindow(window: EewWindowCard, clock: ClockReading): void {
     this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "eewWindowUnverified",
       durationMs: window.toWallMs - window.fromWallMs, count: 1 }, { wallTimeMs: window.toWallMs, monotonicMs: clock.monotonicMs }, this.state.runId));
+  }
+
+  // P3-NFR-D-BIT-HOME=A: 直近の試行が失敗で終わった channel の印。run の中だけで保存しない（再起動で両方 false）。
+  private readonly channelFailing: Record<NotificationChannel, boolean> = { desktop: false, sound: false };
+
+  // P3-NFR-AC01 (2)・AC02: 遅い close は停止の観測で結果ではない。隔離中の同じ試行だけを idle に戻し、締めた後は捨てる（D-SHUTDOWN=A）。
+  private notificationStopped(name: NotificationChannel, observation: StopObservation): void {
+    // 子の close の listener から同期で呼ばれるので、結果の道と同じく投げたものを EventEmitter へ返さない（process ごと落ちる）。
+    try {
+      if (this.current == null || this.finalization?.closed === true || this.state.shutdown.finalizationAt != null) return;
+      const channel = this.state.notificationChannels[name];
+      if (channel.kind !== "isolated" || channel.attemptId !== observation.attemptId) return;
+      const clock = observation.completedAt;
+      this.reclaimExpired(clock);
+      const state = this.state;
+      this.current = { ...state, notificationChannels: { ...state.notificationChannels, [name]: { kind: "idle" } } };
+      this.selectDelivery(clock);
+      this.project([], [], clock);
+    } catch (error) {
+      if (this.onNotificationDispatchFailure != null) this.onNotificationDispatchFailure(error);
+      else void Promise.reject(error);
+    }
   }
 }
 

@@ -233,3 +233,130 @@ it("P3-NW-T04 acceptance: desktopNotice on win32 runs the toast script through e
     });
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
+
+// P3-NFR-T01 受入（P3-NFR-AC01）: 本物の adapter（abort は 4 つの引数のまま）で、停止を確かめられずに隔離した channel が遅い close で戻り、
+// 後の intent を試す。AC01 の音・EEW の場面でなく U-W の desktop で組む（adapter と root の道は channel を問わず同じ）。
+it("P3-NFR-T01 acceptance / AC01: a late close returns the isolated channel and the next intent starts", async () => {
+  vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
+  const { abortNotificationAttempt, runNotificationAttempt } = await import("../../src/notification-delivery/adapter");
+  vi.useRealTimers();
+  const first = child(), second = child();
+  const spawn = vi.mocked(childProcess.spawn).mockReset().mockReturnValueOnce(first).mockReturnValueOnce(second);
+  let now = { wallTimeMs: 0, monotonicMs: 0 };
+  const clock = () => now;
+  const directory = mkdtempSync(join(tmpdir(), "fleq-nfr-t01-"));
+  const seeds = seeded(calls.units);
+  const apply = vi.fn(calls.applyNotificationResult);
+  const runs: Promise<NotificationResult>[] = [];
+  const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+    legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, {
+    clock, runtimeCalls: { ...calls, units: seeds.units, applyNotificationResult: apply },
+    notificationAdapter: { run: (value, at, backend) => { const run = runNotificationAttempt(value, at, backend); runs.push(run); return run; },
+      abort: abortNotificationAttempt } });
+  try {
+    await startHarness(h, "nfr-t01", now);
+    await seeds.weather(h, { ...h.unit("U-W"), intents: [notice("one", "desktop", 0)] });
+    expect(spawn).toHaveBeenCalledTimes(1);
+    // (2) one を消して superseded の中断。停止の期限の timer だけを偽にする（settle は本物の setImmediate で回る）。
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await seeds.weather(h, { ...h.unit("U-W"), intents: [] });
+    expect(first.kill).toHaveBeenCalledWith("SIGTERM");
+    now = { wallTimeMs: 100, monotonicMs: 1_000 };
+    await vi.advanceTimersByTimeAsync(1_000);
+    vi.useRealTimers();
+    await h.settle();
+    expect(h.root.state.notificationChannels.desktop.kind).toBe("isolated");
+    // (3) 隔離の間は後の intent を試さない。
+    await seeds.weather(h, { ...h.unit("U-W"), intents: [notice("two", "desktop", now.wallTimeMs)] });
+    expect([h.root.state.notificationChannels.desktop.kind, spawn.mock.calls.length]).toEqual(["isolated", 1]);
+    // (4) 遅れて閉じると channel が戻り、two の試行が始まる。one の結果を A7 が照合したのは 1 回だけ。
+    first.emit("close", null);
+    await h.settle();
+    expect([h.root.state.notificationChannels.desktop.kind === "isolated", spawn.mock.calls.length]).toEqual([false, 2]);
+    expect(await runs[0]).toMatchObject({ kind: "aborted", reason: "superseded", stopped: false });
+    const one = (await runs[0]).attemptId;
+    expect(apply.mock.calls.filter(([, result]) => result.attemptId === one)).toHaveLength(1);
+    expect(runs).toHaveLength(2);
+    await h.root.diagnostics.flush();
+  } finally {
+    vi.useRealTimers();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+// P3-NFR-T05 の組み立て: root に本物の adapter を 4 つの引数のまま薄く包んで渡し、停止の期限までの残り・abort の停止の観測・terminal の
+// stopped・close の直前の channel を控える（then で控えるだけで、試験の流れに await を挟まない）。one と two を初めに入れ、one を試させる。
+async function lateStopOrder(name: string) {
+  vi.spyOn(process, "platform", "get").mockReturnValue("darwin");
+  const adapter = await import("../../src/notification-delivery/adapter");
+  vi.useRealTimers();
+  const first = child(), second = child();
+  const spawn = vi.mocked(childProcess.spawn).mockReset().mockReturnValueOnce(first).mockReturnValueOnce(second);
+  const clock = { now: { wallTimeMs: 0, monotonicMs: 0 } };
+  const record: { remaining?: number; abortStopped?: boolean; runStopped?: boolean; beforeClose?: string } = {};
+  const started: NotificationAttempt[] = [];
+  const directory = mkdtempSync(join(tmpdir(), `fleq-nfr-t05-${name}-`));
+  const seeds = seeded(calls.units);
+  const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(directory, "state"),
+    legacyStateDirectory: join(directory, "legacy"), diagnosticDirectory: join(directory, "diagnostics") }, linkedUnitCodecs, {
+    clock: () => clock.now, runtimeCalls: { ...calls, units: seeds.units },
+    notificationAdapter: {
+      run: (attempt, at, backend) => {
+        started.push(attempt);
+        const run = adapter.runNotificationAttempt(attempt, at, backend);
+        void run.then((result) => { if (result.kind === "aborted" || result.kind === "timeout") record.runStopped = result.stopped; });
+        return run;
+      },
+      abort: (request, stopBy, at, onLateStop) => {
+        record.remaining = stopBy - at().monotonicMs;
+        const stop = adapter.abortNotificationAttempt(request, stopBy, at, onLateStop);
+        void stop.then((observation) => { record.abortStopped = observation.stopped; });
+        return stop;
+      } } });
+  await startHarness(h, `nfr-t05-${name}`, clock.now);
+  await seeds.weather(h, { ...h.unit("U-W"), intents: [notice("one", "desktop", 0), notice("two", "desktop", 1)] });
+  expect(started.map((item) => item.intentId)).toEqual(["one"]);
+  const close = () => { record.beforeClose = h.root.state.notificationChannels.desktop.kind; first.emit("close", null); };
+  // close の後に settle してから、6 つの事実をまとめて確かめる（前の 4 つが無いと、close が先に来て stop(true) で終わっても後の 2 つで緑になる）。
+  const settled = async (closed: Promise<void>) => {
+    await closed;
+    await h.settle();
+    expect([record.abortStopped, record.runStopped, record.beforeClose]).toEqual([false, false, "isolated"]);
+    expect([h.root.state.notificationChannels.desktop.kind === "isolated", started.map((item) => item.intentId), spawn.mock.calls.length])
+      .toEqual([false, ["one", "two"], 2]);
+    await h.root.diagnostics.flush();
+  };
+  return { h, clock, record, attempt: started[0], close, settled, directory };
+}
+
+// P3-NFR-T05 契約境界（P3-NFR-AC01 (5)、Q-NFR-ORDER）: 隔離の反映（terminal の解決から続く microtask）は、遅い close（別の macrotask）より
+// 先に済む。偽の timer は microtask を流す境目が Node と違うので、本物の timer で 2 つの道を別の it で見る。
+it("P3-NFR-T05 contractBoundary / AC01 (5) (a): stop(false) in the stop deadline timer callback is reflected before a close in the next timer", async () => {
+  const t = await lateStopOrder("timer");
+  try {
+    // 試行の期限ちょうどの tick で timeout の中断。停止の期限は 1,000 ms 先で、adapter は waitUntilDeadline の setTimeout を張る。
+    const at = t.attempt.timeoutAtMonotonicMs;
+    t.clock.now = { wallTimeMs: at, monotonicMs: at };
+    t.h.root.tick(t.clock.now);
+    const remaining = t.record.remaining!;
+    // waitUntilDeadline は callback の中で clock を読み直すので、先に停止の期限の後へ進める。同じ遅れの timer は張った順に呼ばれる。
+    t.clock.now = { wallTimeMs: at + remaining + 1, monotonicMs: at + remaining + 1 };
+    const closed = new Promise<void>((done) => { setTimeout(() => { t.close(); done(); }, remaining); });
+    await t.settled(closed);
+    expect(remaining).toBeGreaterThan(0);
+  } finally { rmSync(t.directory, { recursive: true, force: true }); }
+});
+
+it("P3-NFR-T05 contractBoundary / AC01 (5) (b): stop(false) inside the synchronous abort past the stop deadline is reflected before a close in the next macrotask", async () => {
+  const t = await lateStopOrder("expired");
+  try {
+    // 古い clock（試行の期限ちょうど、root の clock より 2,000 ms 前）の tick: stopBy は古い読み＋1,000 ms なので、abortAttempts の同期の
+    // 呼び出しの中で remaining ≤ 0 になり stop(false) に入る。owner の出力の superseded は stopBy がその場の clock＋1,000 ms になるので使わない。
+    const at = t.attempt.timeoutAtMonotonicMs;
+    t.clock.now = { wallTimeMs: at + 2_000, monotonicMs: at + 2_000 };
+    t.h.root.tick({ wallTimeMs: at, monotonicMs: at });
+    const closed = new Promise<void>((done) => { setImmediate(() => { t.close(); done(); }); });
+    await t.settled(closed);
+    expect(t.record.remaining).toBeLessThanOrEqual(0);
+  } finally { rmSync(t.directory, { recursive: true, force: true }); }
+});

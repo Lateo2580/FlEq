@@ -121,7 +121,7 @@ function buildNoticeLine(notice: VisibleNotice): string {
 }
 
 const CHANNEL_LABEL: Readonly<Record<DisplayChannelView, string>> = {
-  checking: "確認中", available: "使える", unavailable: "使えない", isolated: "隔離中",
+  checking: "確認中", available: "使用可", unavailable: "使用不可", isolated: "隔離中", failing: "直前に失敗", // P3-NFR-D-LABEL=B
 };
 // R41: availableを可聴の保証と書かない。
 function buildChannelLines(channels: DisplaySnapshot["channels"]): readonly string[] {

@@ -952,3 +952,87 @@ it("P3-NL-T06 contractBoundary / AC14: the publisher's reclaim is not counted ag
   expect([lines.map((item) => [item.component, item.count]), h.root.state.mirror["U-E"].pendingIntents]).toEqual([[["runtime", 2], ["eew", 2]], []]);
   expect(h.owners.get("urgent")!["state"]!.losses["U-E"]).toMatchObject([{ reason: "notificationExpired", count: 2 }]);
 });
+
+// P3-NFR-T02 受入（P3-NFR-AC03 (4)）: 直近の試行が失敗で終わった sound は公開の snapshot で failing、次の delivered で available に戻る。
+it("P3-NFR-T02 acceptance / AC03: a failed sound attempt shows failing until the next delivered attempt", async () => {
+  const fake = adapter();
+  let now = at(0);
+  const published: DisplaySnapshot[] = [];
+  const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake,
+    display: { publish: (snapshot) => { published.push(snapshot); } } });
+  await startProbed(h, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  const sound = () => published.at(-1)?.channels.sound;
+  const end = async (index: number, delivered: boolean) => {
+    const attempt = fake.attempts[index];
+    const base = { attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: now };
+    fake.complete.get(attempt.attemptId)!(delivered ? { ...base, kind: "delivered" } : { ...base, kind: "failed", reason: "adapterRejected" });
+    await h.settle();
+  };
+  await eew(h, now);
+  expect(fake.attempts).toHaveLength(1);
+  // (1) PulseAudio が落ちた後の最初の試行が失敗する。
+  now = at(100);
+  await end(0, false);
+  expect(sound()).toBe("failing");
+  // (2) 1 秒後の鳴らし直しも失敗する。
+  now = at(1_100);
+  h.root.tick(now);
+  await h.settle();
+  expect(fake.attempts).toHaveLength(2);
+  now = at(1_200);
+  await end(1, false);
+  expect(sound()).toBe("failing");
+  // (3) 次の音の intent の試行が delivered で終わる。
+  now = at(2_000);
+  await submit(h, eewEnvelope("t11", now, "A"));
+  expect(fake.attempts.map((item) => item.channel)).toEqual(["sound", "sound", "sound"]);
+  now = at(2_100);
+  await end(2, true);
+  expect(sound()).toBe("available");
+  await h.root.diagnostics.flush();
+});
+
+// P3-NFR-T04 契約境界（P3-NFR-AC02 (4)、D-SHUTDOWN=A）: 最終化の段を締めた後の遅い close は捨てる。段は finalizationAt が null のまま
+// 期限で切れる形で組む（見本は P3-CK-T02 の (f) の期限切れ）。finalizationAt だけを見る実装では見分けられない形。
+it("P3-NFR-T04 contractBoundary / AC02 (4): a late stop after the finalization stage closed changes neither the channel nor the snapshot", async () => {
+  type LateStop = (observation: { attemptId: string; stopped: boolean; completedAt: ClockReading }) => void;
+  const base = adapter();
+  let captured: LateStop | undefined;
+  const fake = { run: base.run,
+    abort: async (request: NotificationAbortRequest, _stopBy: number, clock: () => ClockReading, onLateStop?: LateStop) => {
+      captured = onLateStop;
+      const attempt = base.attempts.find((item) => item.attemptId === request.attemptId)!;
+      base.complete.get(request.attemptId)!({ kind: "aborted", reason: "shutdown", stopped: false,
+        attemptId: request.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: clock() });
+      return { attemptId: request.attemptId, stopped: false, completedAt: clock() };
+    } };
+  let now = at(0);
+  const published: DisplaySnapshot[] = [];
+  const h = harnessedRoot(await settings(), linkedUnitCodecs, { clock: () => now, notificationAdapter: fake,
+    display: { publish: (snapshot) => { published.push(snapshot); } } });
+  await startProbed(h, now, { desktop: { kind: "unavailable", reason: "backendMissing" }, sound: { kind: "idle" } });
+  await eew(h, now);
+  expect(base.attempts).toHaveLength(1);
+  // 中断した intent の更新への返信を、副作用の最終化の段の期限より後まで留保する。
+  const unhold = h.hold((_place, reply) => reply.kind === "intentUpdateDone");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    const stopping = h.root.shutdownRuntime(0, now);
+    for (let turn = 0; turn < 200 && !(h.root.state.shutdown.stage === "sideEffectFinalization" && h.held.length > 0); turn++)
+      await new Promise((done) => setImmediate(done));
+    expect([h.root.state.shutdown.stage, h.held.length > 0]).toEqual(["sideEffectFinalization", true]);
+    now = at(6_000);
+    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await stopping;
+  } finally { vi.useRealTimers(); }
+  expect([h.root.state.notificationChannels.sound.kind, h.root.state.shutdown.finalizationAt]).toEqual(["isolated", null]);
+  expect(h.root.state.shutdown.stageResults.sideEffectFinalization).toMatchObject({ result: { kind: "deadlineExceeded" },
+    pending: { notificationAttempts: 1 } });
+  const count = published.length;
+  expect(typeof captured).toBe("function");
+  captured!({ attemptId: base.attempts[0].attemptId, stopped: true, completedAt: at(6_100) });
+  expect([h.root.state.notificationChannels.sound.kind, published.length]).toEqual(["isolated", count]);
+  unhold();
+  await h.root.diagnostics.flush();
+});

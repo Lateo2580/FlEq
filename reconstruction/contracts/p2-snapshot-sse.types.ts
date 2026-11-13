@@ -75,7 +75,7 @@ export type DisplaySummaryItem = Readonly<{
   confirmation: DisplayConfirmationView;
 }>;
 
-export type DisplayChannelView = "checking" | "available" | "unavailable" | "isolated";
+export type DisplayChannelView = "checking" | "available" | "unavailable" | "isolated" | "failing"; // failing: P3-NFR-AC03
 
 export type DisplayDomainView<View> = Readonly<{
   unit: RuntimeUnitId;
@@ -146,7 +146,7 @@ export type SnapshotProjectionInput = Readonly<{
   recovery: DisplayRecoveryView; recoveryDigestBytes: number; // P3-REC-AC16: 作るときに数えた digest の byte（digest が null なら 0）。projector は digest を直列化しない
   confirmation: RuntimeConfirmation;
   notificationChannels: NotificationDeliveryState["channels"];
-  channelProbeComplete: boolean;
+  channelProbeComplete: boolean; channelFailing: Readonly<Record<"desktop" | "sound", boolean>>; // P3-NFR-D-BIT-HOME=A
   eew: EewUnitView;
   weatherCurrent: WeatherCurrentUnitView;
   weatherTimeseries: WeatherTimeseriesUnitView;
