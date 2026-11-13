@@ -432,6 +432,13 @@ describe("P3-UNIT-Y-001 U-Y reducer", () => {
     const over64 = sendXml(pending, analysisN(64), "VPTW60");
     expect(over64.diagnostics).toContainEqual({ level: "INFO", component: "typhoon", reason: "notificationCapacityEvicted", unit: "U-Y", count: 2 });
     expect(over64.state.intents.filter((item) => item.disposition === "pending")).toHaveLength(128);
+    // capacity は C13 の Q-NOTICE.capacity と同じ（同じ群の中で A7 の選択順〔expiresAt→createdAt→ID〕の後ろから外す）: 130 件の後ろの 2 件は 064 と 063 の
+    // desktop（作成＋180 秒）で、064 の sound（＋60 秒）は残る。ID は JSON の配列で、2 番目が subject、6 番目が channel。
+    const keptIds = (state: typeof pending) => new Set(state.intents.filter((item) => item.disposition === "pending").map((item) => item.id));
+    const [beforeIds, afterIds] = [keptIds(pending), keptIds(over64.state)];
+    const subjectChannel = (list: readonly string[]) => list.map((id) => { const parts = JSON.parse(id) as readonly string[]; return [parts[1], parts[5]]; });
+    expect([subjectChannel([...beforeIds].filter((id) => !afterIds.has(id))), subjectChannel([...afterIds].filter((id) => !beforeIds.has(id)))])
+      .toEqual([[["normal/typhoonAnalysis/TC0063", "desktop"]], [["normal/typhoonAnalysis/TC0064", "sound"]]]);
     // intentUpdate で attempts が 1 桁から 5 桁になっても予約の内側で decode できる。
     const grown = reduceTyphoonUnit(pending, { kind: "intentUpdate", clock: clock(T0), intentUpdate: pending.intents.map((item) => ({ ...item, attempts: 12_345,
       nextAttemptAt: T0 + 1_234_567_890, disposition: "pending" as const, lossReason: null })) });

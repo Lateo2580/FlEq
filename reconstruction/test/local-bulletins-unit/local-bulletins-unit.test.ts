@@ -466,6 +466,13 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(over64.diagnostics).toEqual([{ level: "INFO", component: "localBulletins", reason: "notificationCapacityEvicted", unit: "U-M", count: 2 }]);
     // A7 の選択順の後ろから外すので、pending は 128 件のまま（外れた分は intents から外れる、P3-NL-AC05 (1)）。
     expect(over64.state.intents.filter((item) => item.disposition === "pending")).toHaveLength(128);
+    // Q-NOTICE.capacity（同じ群の中で A7 の選択順〔expiresAt→createdAt→ID〕の後ろから外す）: 130 件の後ろの 2 件は 064 と 063 の desktop（作成＋180 秒）で、
+    // 064 の sound（＋60 秒）は残る。ID は JSON の配列で、2 番目が subject、6 番目が channel。
+    const keptIds = (state: typeof pending) => new Set(state.intents.filter((item) => item.disposition === "pending").map((item) => item.id));
+    const [beforeIds, afterIds] = [keptIds(pending), keptIds(over64.state)];
+    const named = (list: readonly string[]) => list.map((id) => { const parts = JSON.parse(id) as readonly string[]; return [parts[1], parts[5]]; });
+    expect([named([...beforeIds].filter((id) => !afterIds.has(id))), named([...afterIds].filter((id) => !beforeIds.has(id)))])
+      .toEqual([[["normal/tornado/長崎地方気象台/第063府県竜巻注意情報", "desktop"]], [["normal/tornado/長崎地方気象台/第064府県竜巻注意情報", "sound"]]]);
     // byte の予算: 長い intent の 120 subject を送っても pending の「実 byte＋予約」は 131,072 以内で、保存物は decode できる。
     let heavy = emptyState();
     for (let index = 0; index < 120; index++) heavy = send(heavy, "85_01_01_250630_VPFJ51", compose(explanationN(index), replaceTag("Text", "長".repeat(380)))).state;
