@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "9c519d355fac13f8f56b571098938ba2aebc0c748db9fb22c33e4bfdb07e71f2",
+    "sha256": "8662970c4a46dda04f17b3b59e884631449ad998e9b120c3d35174d8c6d8153d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
-    "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -760,7 +760,7 @@
         "id": "P3-WN-AC17",
         "requirement": "corpus の期待（実装担当。Q-WN-CORPUS）。reconstruction/tools/corpus/sequences.json の行の中身だけを書き換え、行を足さない・消さない: (1) expected:O01:82（:24285・:24286）・expected:O03:26（:24572・:24573）・expected:O07:49（:24720・:24721）の notices と intents を false にする (2) Q-WN-CORPUS に挙げた 18 の期待の checks のうち、段・channel を書いた地の文を P3-WN-AC08・AC09 の規則に改める（例 :24300 は「通知: 作らない（事実の同じ訂正で上がった区域が無い、P3-WEATHER-NOTICE-001 の P3-WN-AC08）。:81 の pending は置き換えない」、:24259 は「…desktop だけ、level=warning（上がった区域の最大がレベル4（49）。P3-WEATHER-NOTICE-001 の P3-WN-AC08）」）。basisRefs は変えない（引く先の改訂と付け直しは配送で統合担当、AC15・AC16） (3) meta.sha256 を hashConvention で取り直し、check-sequences.mjs を PASS にする",
         "evidenceRefs": [
-          "reconstruction/tools/corpus/sequences.json:24282 «eb7977e1e2170e55»",
+          "reconstruction/tools/corpus/sequences.json:24295 «eb7977e1e2170e55»",
           "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
           "reconstruction/test/landslide-unit/landslide-corpus.test.ts:95 «11e7b5cd0d633da6»",
           "reconstruction/test/briefing-unit/briefing-corpus.test.ts:160 «175f1fc67a550447»"

@@ -329,10 +329,10 @@ async function runGate(): Promise<GateRun> {
         }
         if (expected.intents != null) { fields++; if (intents > 0 !== expected.intents) miss(unit, "intents", expected.intents, intents); }
         if (expected.notices != null) { fields++; if (intents > 0 !== expected.notices) miss(unit, "notices", expected.notices, intents); }
+        if (sequence.sequenceId === "O03") weather.set(label, h.unit("U-W"));
       } catch (error) {
         miss(unit, "error", null, error instanceof Error ? error.message : String(error));
       }
-      if (sequence.sequenceId === "O03" && h != null) weather.set(label, h.unit("U-W"));
       const cancel = expected.subjects.some((item) => item.revision.infoTypeRaw === "取消");
       flowed.push({ expectedRef: label, sequenceId: sequence.sequenceId, action: step.action, headType, unit,
         kind: step.action === "receive" ? (cancel ? "cancel" : "normal") : step.action === "restart" ? "restore" : "control",
@@ -432,9 +432,9 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
     expect(gate.flowed.filter((item) => item.action === "receive" && item.headType == null)).toEqual([]);
     // AC08（P3-WEATHER-OTHER-OFFICE-001、spec の O03）: T01 の欄は step の subject だけを比べるので、O03 の U-W の state で、全国 base の福井の特別警報が
     // 区域終了（O03:11）で外れて戻らないこと、福井以外の区域と京都の partial の現象・所有が変わらないことを見る。3x は製品の endSnapshot と同じ字。
-    const at = (position: number) => gate.weather.get(`expected:O03:${position}`)!;
+    const at = (position: number) => gate.weather.get(`expected:O03:${position}`) ?? expect.unreachable(`O03:${position} has no U-W state`);
     const areas = (position: number, fukui: boolean) => Object.fromEntries(Object.entries(at(position).national.normal?.phenomena ?? {})
-      .filter(([token]) => { const code: unknown = JSON.parse(token)[4]; return (typeof code === "string" && code.startsWith("18")) === fukui; }));
+      .filter(([token]) => { const parsed: unknown = JSON.parse(token); const code: unknown = Array.isArray(parsed) ? parsed[4] : null; return (typeof code === "string" && code.startsWith("18")) === fukui; }));
     const special = (position: number) => Object.values(areas(position, true))
       .some((rows) => Array.isArray(rows) && rows.some((row) => isRecord(row) && typeof row["code"] === "string" && /^3\d$/.test(row["code"])));
     const kyoto = (position: number) => [at(position).partials.find((item) => item.subject === "normal/VPWW57/京都地方気象台")?.phenomena ?? {},

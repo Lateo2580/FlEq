@@ -11,7 +11,7 @@ route/familyはspec §4.3を適用（通常はheadType別family）。21route: ee
 |---|---|
 | O01 | eew・earthquake・volcano三slice・floodForecastのXML、RESTのVTSE41/VFVO50/54/55。発表/訂正/取消の個片はあるが、同一subject/revisionの完全履歴・重複/遅着stepは未作成。2026-09-16: 桜島VFVO52 原本2報で同Serial・新ReportDateTime訂正→重複→遅着のケース（O01:56〜60）を追加。同時刻訂正・取消はunmetのまま。 |
 | O02 | 全XMLの正常・empty・unknown・不正判別。`synthetic_*`、`81_*VPWP50*`、`76_*VPTA50*`、WeatherCW断片を含む。JSON期待値6本は対象familyの根拠、provenance2本は由来根拠。現状の個片を全familyの境界充足としない。 |
-| O03 | weatherのVPWS50/VPWW系＋legacyCounterpartのVPNO50、`phase6b_*` VPOA50→VPBS50と`replay/*`。code00は2026-09-16に福井20:04原本でO03:14を充足。所有現象/対応取消履歴のstep未作成。 |
+| O03 | weatherのVPWS50/VPWW系＋legacyCounterpartのVPNO50、`phase6b_*` VPOA50→VPBS50と`replay/*`。code00は2026-09-16に福井20:04原本でO03:14を充足。所有現象/対応取消履歴のstep未作成。2026-11-13 P3-WEATHER-OTHER-OFFICE-001 で O03:7・9 を合成で充足（全国 base は福井の区域を福井 L5 から写した 2019 の全国報、京都は 2020 の京都の報の時刻を移したもの）。 |
 | O04 | `vpws50-stale-lock/pi-stale-lock-state.json`＋VPWS50/VPWW*（weather）。既存README・`test/engine/messages/vpws50-stale-lock-recovery.test.ts`を根拠参照。8日前状態からの採否・官署/運用区分交差stepが不足。 |
 | O05 | VTSE51/52 XML（tsunamiObservation各family）、特に`32-39_11_10_250206_VTSE51.xml`・`61_11_01_250206_VTSE52.xml`。station identityの根拠だけ。同revision分割・順序交換・同station訂正は不足。 |
 | O06 | weatherのVPWS50/VPWW*、`vpws50-stale-lock/*`、`standby-persistence/*`。全国履歴2/partial8の境界・連続取消を結んだ履歴なし。 |

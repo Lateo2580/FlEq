@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "e25c46a85019e8f78ec64d7fb6c29ff45d48d27ed8d9c312810f4d39f228439d",
+    "sha256": "fce04c09cb574e60fc1e37835af97334ad4458cb0163bd73fb42dd2968ad4e74",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
-    "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -104,7 +104,7 @@
       "reconstruction/tools/corpus/manifest.json（2 行を path の順の位置に足す〔AC01 (3)〕。meta.sha256 を取り直す。ほかの行は変えない）",
       "reconstruction/tools/corpus/sequences.json（O03:7・O03:9 の step と record、O03:10 の decision と notices・intents、O03:8・O03:11・O03:14 の notices・intents、O03:14 の checks の 1 語だけ〔AC02〕。meta.manifestSha256 と meta.sha256 を取り直す）",
       "reconstruction/tools/corpus/check-manifest.mjs（件数の行の中だけ: :33・:34・:62・:97・:149）",
-      "reconstruction/tools/corpus/README.md（:5 の件数と経緯の書き足し、:44 の件数）",
+      "reconstruction/tools/corpus/README.md（:5 の件数と経緯の書き足し、:44 の件数と括弧の中の経緯）",
       "reconstruction/contracts/p1-parser-boundary.json（objective・P1-AC01・P1-T01・requiredCommands の件数と、fixtureIds に 2 行。meta は統合担当が取り直す）",
       "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（:46・:48・:50 の件数だけ）",
       "reconstruction/test/weather-current-unit/weather-current-unit.test.ts（:613 の件数 14 → 16 だけ）",
@@ -147,14 +147,22 @@
       "test__fixtures__18_00_01_260830_VPNO50_issue",
       "test__fixtures__18_00_01_260830_VPNO50_switch",
       "test__fixtures__18_00_01_260830_VPWW55_fukui_downgrade",
-      "test__fixtures__18_00_01_260830_VPWW55_fukui_release"
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__synthetic_VPWS50_fukui_base",
+      "test__fixtures__synthetic_VPWW57_kyoto_partial"
     ],
     "sequenceIds": [
       "O03"
     ],
     "expectedDecisions": [
       {
+        "expectedRef": "expected:O03:7"
+      },
+      {
         "expectedRef": "expected:O03:8"
+      },
+      {
+        "expectedRef": "expected:O03:9"
       },
       {
         "expectedRef": "expected:O03:11"
@@ -171,7 +179,13 @@
     ],
     "expectationEvidence": [
       {
+        "expectedRef": "expected:O03:7"
+      },
+      {
         "expectedRef": "expected:O03:8"
+      },
+      {
+        "expectedRef": "expected:O03:9"
       },
       {
         "expectedRef": "expected:O03:11"
@@ -231,7 +245,7 @@
           "reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577»",
           "reconstruction/contracts/p3-weather-notice.json:602 «e9daf4832b807a44»",
           "reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1»",
-          "reconstruction/contracts/p3-final-gate.json:274 «37393f113b02490e»"
+          "reconstruction/contracts/p3-final-gate.json:274 «a3f53f9086f1338b»"
         ]
       },
       {
@@ -240,8 +254,8 @@
         "evidenceRefs": [
           "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
           "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
-          "reconstruction/test/final-gate/oracle.test.ts:412 «8fdf38fca3e1fb31»",
-          "reconstruction/test/final-gate/oracle.test.ts:415 «fb67f710628de0cd»"
+          "reconstruction/test/final-gate/oracle.test.ts:422 «35a7a04eab849797»",
+          "reconstruction/test/final-gate/oracle.test.ts:425 «8df409a0f0ed97f3»"
         ]
       },
       {
@@ -249,7 +263,7 @@
         "requirement": "T01 の読み方（P3-WOO-D-READING=A。試験の読みだけで、製品は変えない）: (1) effectiveOf の U-E の gate の行（今の :117）の直後に、次の 6 行（コメント 2 行と判定 4 行）を足す: VPNO50 の記録の行「if (unit === \"U-W\" && isRecord(record[\"source\"]) && record[\"source\"][\"family\"] === \"VPNO50\") return { kind: \"inactive\", cause: { kind: \"released\" } };」と、報の記録の行「const rows = unit === \"U-W\" && isRecord(record[\"phenomena\"]) ? Object.values(record[\"phenomena\"]).flatMap((value) => Array.isArray(value) ? value.filter(isRecord) : []) : null;」「if (rows != null && !rows.some((row) => typeof row[\"code\"] === \"string\" && row[\"code\"] !== \"00\" && row[\"status\"] !== \"解除\" && row[\"status\"] !== \"発表警報・注意報はなし\"))」「return { kind: \"inactive\", cause: { kind: rows.some((row) => row[\"status\"] === \"解除\" || row[\"code\"] === \"00\") ? \"released\" : \"noActiveItems\" } };」。コメントは「U-W の VPNO50 の記録は区域終了の墓標だけなので released。報の記録は段を持つ行（weather-current.ts の owned と同じ条件）が無ければ inactive で、解除の行があれば released、無ければ noActiveItems（P2-A5 の全項目が解除・なしの報は無発令）」の趣旨で、行番号を書かない（AGENTS.md のコメントの決まり）。無いと O03:11・O03:14 の effective（期待 inactive/released）が active と読まれ T01 が落ちる (2) revision を比べる条件（今の :303）の「!(made.decision === \"unchanged\" && made.reason === \"stale\")」を「!(made.decision === \"unchanged\" && (made.reason === \"stale\" || made.reason === \"noChange\"))」にし、revision のコメントの行（今の :291）の末尾に「noChange（意味を更新しない報、U-W の終了でない VPNO50）も同じ。」を足す。無いと O03:10 の revision（期待 10:57）が null と比べられ T01 が落ちる (3) 足した前後で流した step の (matched, fields) が変わるのは O03:10・O03:11・O03:14 の 3 step だけであることを、FLEQ_FINAL_GATE_OUT の flowed で確かめて成果物に書く（起草の試しでは 3 step だけ、Q-WOO-PROBE の (2)・P3-WOO-D-READING の reason）。ほかの step が変われば止めて報告する (4) (1) の 6 行と AC08 の行で、今の :118・:125・:233・:291・:303 は :124・:131・:242・:300・:312 になり、:303 は字も変わる（AC07 (3) の «» の付け直し）",
         "evidenceRefs": [
           "reconstruction/test/final-gate/oracle.test.ts:117 «a2c82f4934f3e9e0»",
-          "reconstruction/test/final-gate/oracle.test.ts:303 «aed348fc8f40aa42»",
+          "reconstruction/test/final-gate/oracle.test.ts:312 «3d60ff180164f361»",
           "reconstruction/contracts/p2-weather-current-unit.json:115 «1772fe5c3b2eb16d»",
           "reconstruction/contracts/p2-weather-current-unit.json:138 «2a1209ecc887d0dd»",
           "reconstruction/contracts/p2-weather-current-unit.json:139 «5189384eb681f592»",
@@ -263,7 +277,7 @@
         "requirement": "fixture の件数を数える既存の試験の期待を直す（理由: corpus に 2 本足すため。直す前の報告はこの条文で済ませる）: (1) P1-T01（p1-parser-boundary.test.ts:46〜:50）は群 2 の後の値から行 295 → 297、decoded 294 → 296、偽の decode で差の出る行 294 → 296（今の木なら 294 → 296・293 → 295・293 → 295）。新しい 2 本の分類は親と同じ（telegram.weather・VPWS50／VPWW57） (2) P2-A5-T05（weather-current-unit.test.ts:613）の U-W の family の fixture の数 14 → 16（試験は manifest の VPWS50・VPWW55・57〜61・VPNO50 を全部空の state に受け、unavailable 0 を確かめる。新しい 2 本も通ることを試しで確かめた） (3) ほかの fixture を全部回す試験（width.test.ts の P3-TL-T05、layout6.test.ts の P3-TL6-T04、digest.test.ts の P3-TL7-T02、旧築の weather-warning-fixture-coverage.test.ts ほか）は直さない見込み（Q-WOO-PROBE の (6)・(7)）。落ちたら試験名と旧・新の値を報告して止める",
         "evidenceRefs": [
           "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
-          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:613 «28be7ba697b2e0fa»"
+          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:613 «0bb1bf0864ec1d2f»"
         ]
       },
       {
@@ -287,8 +301,8 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f»",
           "docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae»",
-          "reconstruction/test/final-gate/oracle.test.ts:171 «d09308bbd06ccfe5»",
-          "reconstruction/test/final-gate/oracle.test.ts:424 «c2217031eccc788c»",
+          "reconstruction/test/final-gate/oracle.test.ts:177 «d09308bbd06ccfe5»",
+          "reconstruction/test/final-gate/oracle.test.ts:447 «c2217031eccc788c»",
           "reconstruction/src/domains/weather-current/weather-current.ts:520 «3f41c4108f80d38c»",
           "reconstruction/src/domains/weather-current/weather-current.ts:521 «0160e3e59ffc794e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:548 «6990364a60d44243»"
