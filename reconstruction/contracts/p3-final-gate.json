@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "93dbc7b53ff072a15fc675933c5316aa108ab84e534955f50fc66b5b7db3a820",
+    "sha256": "952c43120ecc936c8c6d957d6bdb88dd4a367525845e5404bed326c8acb3dce0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -181,7 +181,7 @@
     "contractId": "P3-FINAL-GATE-001",
     "mode": "implementation",
     "objective": "P3 の最終ゲート（C22、統合担当）。全 unit を繋いだ最終の形の新築に、正常・取消・復元の電文を流して P3 を閉じてよいかを判定する。spec の P3 行（spec:2614）の検収のうち、全 route の oracle・一入力一保存単位・必須機能契約・通知の故障隔離を、全単位接続後の最終検証（spec:2664）として行い、全単位の E20 と終了の再確認（spec:889・:2072）、Pi の短い確認（D-P3-7）、災害の日の合格（計画:492）、ペルソナ歩き（計画:587〜:596）を足す。§6 の移管の 18 行を全部閉じ、C15 の取り下げと C21 の外出し（2026-11-13 の作者裁定、計画:661〜:686）で古くなった記述の読みを決める。2026-11-13 の作者裁定で、旧 v2 移行と移行直後の続報は取り下げ、export の故障隔離と O10 の export 分は P3 の外。部分受入は無い。場面: 2026-06-26 の南海トラフの半割れの筋書き（N2）を最終の形に流し、16:30:53 に地震の記録が件数の上限に届いても期限の内の報が消えず、画面へ送る現況が要約にならず、その日の通知と音を演じ手に 1 場面ずつ見せて受け取りのずれに行き先が付けば、P3 を閉じる。発注は 3 回に分ける（P3-FG-D-SPLIT の起草案）",
-    "baseOid": "unassigned",
+    "baseOid": "f5f1ed7da64f2e588f9718447e37aa277511821d",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
