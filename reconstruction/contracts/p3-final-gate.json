@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "7f9c733515d44ac7924c1ffdf5d9445d9235746ad9f4e7ae2634205081ff2587",
+    "sha256": "93dbc7b53ff072a15fc675933c5316aa108ab84e534955f50fc66b5b7db3a820",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -107,12 +107,12 @@
       {
         "id": "P3-FG-D-ORACLE",
         "kind": "統合担当",
-        "A": "reconstruction/test/final-gate/ に 1 本の試験を置き、sequences.json の全 sequence の expected: の step（receive は fixture を持つもの、restart・recover・save・advanceClock は fixture によらず。injectFailure と取り下げ・前提の unmet の未充足の step は別表、AC01）を、owner-harness の TEST-PATH（linkedRuntimeCalls と 12 unit の表）に step の順と時計のまま流して expectation と比べる。unit ごとの corpus 試験はそのまま残す",
+        "A": "reconstruction/test/final-gate/ に 1 本の試験を置き、sequences.json の全 sequence の expected: の step（receive は fixture を持つもの、restart・recover・save・advanceClock は fixture によらず。injectFailure とそれに頼る後続の step〔recover まで〕・取り下げ・前提の unmet の未充足の step は別表、AC01）を、owner-harness の TEST-PATH（linkedRuntimeCalls と 12 unit の表）に step の順と時計のまま流して expectation と比べる。unit ごとの corpus 試験はそのまま残す",
         "B": "新しい runner は作らず、各 unit の corpus 試験の引く expectedRef を集めて、全部の解決済みの step がどれかの試験に引かれていることだけを確かめる",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（統合担当、2026-11-13 r1）",
-        "ruling": "A（統合担当、2026-11-13 r1。起草レビューで step の定義を action ごとに直した上で確定）",
+        "status": "確定（統合担当、2026-11-13 r2）",
+        "ruling": "A（統合担当、2026-11-13 r2。r1 で step の定義を action ごとに、r2 で injectFailure に頼る後続の step を別表へ送る形〔再レビューの N1 の (a)〕に直した上で確定）",
         "reason": "spec:2664 は単位を一つずつ閉じた後に『全 route の正常・取消・復元と共有資源の契約を検証する』と書く。B は unit を単独で reduce した結果を数えるだけで、route の振り分けと一入力一保存単位（AC02）を結線の上で確かめない。A の道具は災害の日の runner（reconstruction/test/disaster/runner.ts）と同じ包み方を再利用し、新しい製品の export は足さない"
       },
       {
@@ -155,7 +155,7 @@
         "status": "closed",
         "source": "起草（2026-11-13、HEAD 239a35f5、子の起草。読むだけ）",
         "closed": "(1) 着手: 計画:683 の読みで C15 を除いた C7〜C20 は配送済み（判断カード 11-13 の §1 で is-ancestor を確かめた記録）。C22 は今から起草でき、部分受入は無い（:684） (2) check-sequences（239a35f5）: unmet=88（O01 2・O02 8・O03 2・O04 5・O05 0・O06 26・O07 0・O08 3・O09 37・O10 0・O11 5）。O04 5・O06 26 は 2026-10-01 の数（:40）から動いていない (3) 古い記述: C15・移行器・移行契約・P3-MIGRATION-001 を語の境界つきで数えると 33 file・96 行（*.json・*.md・*.ts。p3-order-plan.md と p3-migration.json と本契約を除く。AC15 などは数えない。r1 で *.ts を足して数え直した） (4) §6 の 18 行の判定は c22-rows（11-12 夜の子、de25f61a）を 239a35f5 の行番号で読み直した（行はずれていない） (5) 段 4 の器の拡張の契約と、判断カード §9 の稀の群・§7 の 7-1 の直しの契約は、239a35f5 の contracts に無い（今の状態は Q-FG-STAGE4・Q-FG-RARE-FIXES、r1 で統合担当の知らせから書き直した）。§7 の 7-3 は P3-STOP-SAVE-WAIT-001（85764d1c）、7-4 は P3-TYPHOON-FRAME-COST-001（90cd4338）で配送済み",
-        "remaining": "requiredCommands のうち発注 3 の測定の command（災害の日と Pi の窓）は起草案で、発注 3 の点検で確かめる。testMapping は起草案。r1（起草レビュー Opus 条件付き GO の P2 5 件・P3 5 件）を当てた"
+        "remaining": "requiredCommands のうち発注 3 の測定の command（災害の日と Pi の窓）は起草案で、発注 3 の点検で確かめる。testMapping は起草案。r1（起草レビュー Opus 条件付き GO の P2 5 件・P3 5 件）を当てた。r2（再レビュー Opus 条件付き GO の P2 3 件・P3 2 件）を当てた: injectFailure に頼る後続の step を別表へ、O09 の容量縮退・personal を (c) へ"
       },
       {
         "id": "Q-FG-ROWS",
@@ -206,7 +206,7 @@
       "reconstruction/test/integration/"
     ],
     "allowedPaths": [
-      "reconstruction/test/final-gate/**（新設。発注 1 は T01〜T03、発注 2 は T04）",
+      "reconstruction/test/final-gate/**（新設。発注 1 は T01・T02 と T03 の 4 場面、発注 2 は T04、発注 3 は T03 の owner の停止の場面〔作り直し中の停止を含む〕）",
       "reconstruction/contracts/p3-final-gate.json（統合担当だけ。記録）",
       "reconstruction/contracts/p3-order-plan.md（統合担当だけ。他の契約が «» で引かない行の中だけ、AC11・AC12 の句）",
       "reconstruction/contracts/p3-dmdata-connect.json（統合担当だけ。:95 の status の 1 語と meta.sha256）"
@@ -456,7 +456,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-FG-AC01",
-        "requirement": "全 route の正常・取消・復元の oracle（spec:2614・:2664。発注 1、P3-FG-D-ORACLE=A）: (1) 流す step は sequences.json の O01〜O11 の expected: の step で、action ごとに決める。receive は fixture を持つものだけ（fixture の無い receive は unmet）。restart・recover・save・advanceClock は fixture の有無によらず流す（239a35f5 で expected の restart 121〔fixture あり 10・なし 111〕・recover 23・save 26・advanceClock 25）。最終の形の結線（composition root の linkedRuntimeCalls と 12 unit の表、owner-harness の TEST-PATH）に step の順と評価の時計のまま流し、expectation の null でない欄（decision・effective・subjects・notices・intents）と一致することを確かめる。null の欄は一致に数えない (2) 正常・取消・復元（restart・recover の step）を分けて数え、headType→unit の route ごとの件数を出す (3) 不一致は step ごとに actual と expected を出し、最初の不一致で止めない (4) 取り下げの step は流さず、合否から外して別の表に出す: O04:2・O06:29・O07:19〜26（旧築の保存物の fixture で起動する restart の step。decision は null で、期待は移行の扱い。計画:673）。P2 の置換の step（expected:O04:9・expected:O06:31、fixture なしの restart）は oracle に残す (5) 前提の unmet が満たされていない step（例: expected:O02:4 は unmet:O02:3 が前提で、P2-WEATHER-TIMESERIES-UNIT-001 が P2 の expectedDecisions から外した）は流さず、前提の unmet と並べて別の表に出し、一致に数えない。sequence の中で unmet の step より後にあり、その状態に頼る step を発注 1 で列挙する (6) injectFailure（expected で 44: O09 20・O10 21・O11 2・O04 1）は、owner-harness と災害の日の runner に受け口が無いので T01 では流さない。(5) と同じく別の表に出し、step ごとに検収した契約と試験（O09 は C4・C6 の測定の母集団、O10 は保存の失敗と終了の試験、O11 は P4）か行き先の無いことを書く。受け口を足すのは本契約の範囲の外 (7) O10 の U-V の step を含める（計画:87 の『O10 の U-V・export 分』から export 分を外した読み、:684） (8) :250 の受信の 16 列（O02:18〜48 のうち O02:39〜42 を除く、:685）が、fixture の headType で振り分けた unit の版付きの部分集合で閉じたかを、この試験の結果で確かめる。unit ごとの corpus 試験は残し、本 AC はそれを置き換えない",
+        "requirement": "全 route の正常・取消・復元の oracle（spec:2614・:2664。発注 1、P3-FG-D-ORACLE=A）: (1) 流す step は sequences.json の O01〜O11 の expected: の step で、action ごとに決める。receive は fixture を持つものだけ（fixture の無い receive は unmet）。restart・recover・save・advanceClock は fixture の有無によらず流す。ただし (6) の injectFailure に頼る step は除く（239a35f5 で expected の restart 121〔fixture あり 10・なし 111〕・recover 23・save 26・advanceClock 25）。最終の形の結線（composition root の linkedRuntimeCalls と 12 unit の表、owner-harness の TEST-PATH）に step の順と評価の時計のまま流し、expectation の null でない欄（decision・effective・subjects・notices・intents）と一致することを確かめる。null の欄は一致に数えない (2) 正常・取消・復元（restart の step。recover は (6) で別表）を分けて数え、headType→unit の route ごとの件数を出す (3) 不一致は step ごとに actual と expected を出し、最初の不一致で止めない (4) 取り下げの step は流さず、合否から外して別の表に出す: O04:2・O06:29・O07:19〜26（旧築の保存物の fixture で起動する restart の step。decision は null で、期待は移行の扱い。計画:673）。P2 の置換の step（expected:O04:9・expected:O06:31、fixture なしの restart）は oracle に残す (5) 前提の unmet が満たされていない step（例: expected:O02:4 は unmet:O02:3 が前提で、P2-WEATHER-TIMESERIES-UNIT-001 が P2 の expectedDecisions から外した）は流さず、前提の unmet と並べて別の表に出し、一致に数えない。sequence の中で unmet の step より後にあり、その状態に頼る step を発注 1 で列挙する (6) expected の injectFailure（44: O09 20・O10 21・O11 2・O04 1）と、O10・O11 でそれに頼る後続の step（同じ sequence で injectFailure の後から、それを解く recover まで。recover を含む。239a35f5 で O10 42・O11 6 の計 48 step: recover 23 の全部〔再レビューが挙げた 2 step 以内の 19 と O10:8・38・88・97〕・receive 12・advanceClock 6・save 4・restart 3）は T01 で流さず、(5) と同じく別の表に出す。O09 の injectFailure は E01 の母集団の負荷の設定で recover で解かれないので、injectFailure だけを別表に出し、後続の receive・restart は意味の oracle として流す（負荷は採否と状態を変えない）。O04:4 の後続 O04:5〜8 は unmet（AC03）。expected の recover は全部が別表に入るので、T01 の復元は restart の step で数える。step ごとに、検収した契約と試験（O10 は保存の失敗・成否不明・遅い ack・通知の adapter・診断の sink を実の注入で確かめた P2-CHECKPOINT-SHUTDOWN-001・P3-CHECKPOINT-STEP1-001・P3-EXECUTION-SPLIT-001・P3-EXECUTION-LIFECYCLE-001・P2-NOTIFICATION-DELIVERY-001 などの試験、O09 は C4・C6 の測定の母集団、O11 は P4）か、行き先の無いことを書く。unit の corpus 試験には『injectFailure から recover までの save は書けなかったものとして、直前に保存できた世代を残す』模し方の先例がある（typhoon-corpus.test.ts:116、volcano-corpus.test.ts:83）。これは unit の state だけを比べるときに足りる形で、故障の種類（容量の不足・tmp の残り・成否不明・遅い ack・adapter・sink）を区別しない。T01 は結線の上で notices・intents まで比べ（O10 の injectFailure 11・recover 11 は notices・intents が null でない）、種類ごとの期待（例 O10:15『成否不明、再読込して世代を照合』）を一つの模し方で作ると、届かない期待を一致や不一致に化けさせるので使わない。故障の種類を step から機械で読む欄が sequences.json に無いのも理由。受け口を足すのは本契約の範囲の外 (7) O10 の U-V の step を含める（計画:87 の『O10 の U-V・export 分』から export 分を外した読み、:684） (8) :250 の受信の 16 列（O02:18〜48 のうち O02:39〜42 を除く、:685）が、fixture の headType で振り分けた unit の版付きの部分集合で閉じたかを、この試験の結果で確かめる。unit ごとの corpus 試験は残し、本 AC はそれを置き換えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "docs/specs/reconstruction-p0-contracts.md:2664 «f963cd8f76a100d3»",
@@ -466,7 +466,9 @@
           "reconstruction/contracts/p3-order-plan.md:684 «2ddc508d874e98da»",
           "reconstruction/contracts/p3-order-plan.md:685 «c8438065e93f3032»",
           "reconstruction/tools/corpus/sequences.json",
-          "reconstruction/test/execution-split/owner-harness.ts"
+          "reconstruction/test/execution-split/owner-harness.ts",
+          "reconstruction/test/typhoon-unit/typhoon-corpus.test.ts:116 «8be084a37bf886d7»",
+          "reconstruction/test/volcano-unit/volcano-corpus.test.ts:83 «8be084a37bf886d7»"
         ]
       },
       {
@@ -483,7 +485,7 @@
       },
       {
         "id": "P3-FG-AC03",
-        "requirement": "unmet の帳簿（統合担当、発注 1、P3-FG-D-UNMET=A）: check-sequences の unmet を免除しない（計画:40・:673）。239a35f5 で 88。C22 の受入の時点の数を記録し、step ごとに行き先を 1 つだけ付けた表を成果物に出す: (a) 取り下げ（C15、:673）: O06:30 だけ（:673 が unmet の移行の step として挙げるのはこれだけ） (b) P1 の持ち物: O02:39〜42（:685） (c) P4/P5 へ送り済み（計画:40 の振り分けの全部）: O11:6〜10（:40、§5.2）、O09 の津波の P4 分 O09:30・31・39・40・48・49・57・58・66・67（:231、P3-C6-O09-REST=A）、O09:9（personal の consumer 有効、P4/P5）、O09:21・22（EEW の容量縮退、P4/P5） (d) 契約の試験が試験内の入力で確かめたか、契約が正式 Pass に数えないと書いたもの（契約 ID と試験 ID を書く）: O08:11〜13（P3-UNIT-V-001 の T04）、O06:2〜8（P2-SNAPSHOT-SSE-001）、O02:15〜17（P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06）、O09:17・18（C6 の単発 smoke と Pi 確認の入力で正式母集団に入れない、p3-tsunami-e01.json:146・p3-tsunami-unit.json:365 が組で扱う）、O09:27〜29・36〜38・45〜47・54〜56・63〜65（C6 の津波の母集団、p3-tsunami-e01.json） (e) 引き手の無いもの: O01:4・11、O02:3（P2-WEATHER-TIMESERIES-UNIT-001 は『入力が充足したら O02:4 を戻す』と書き、開いた義務のまま）、O03:7・9、O04:3（ふつうの全国の正常報。C15 の契約が移行直後の続報の入力に使っただけで、移行の step ではない）・5〜8、O06:11〜28、O09:3〜8・10（EEW の E01 母集団の負荷の型）。起草の数（239a35f5、r1）: (a) 1・(b) 4・(c) 18・(d) 30・(e) 35、計 88。(e) から (c)(d) へ移す手順: step ごとに (1) expectedRef と範囲の書き方（O09:3〜10 の形を含む）で contracts と reconstruction/test（evidence の manifest を含む）を引く (2) O09 は計画:40 の母集団の振り分けに当てる（EEW の E01 の母集団は C4 の凍結 manifest に載っていれば (d)、詳細射影中の O09:10 は P4 の実体なら (c)） (3) unit 契約の試験が同じ入力を試験内で作っていれば試験 ID を付けて (d) (4) どれにも当たらなければ (e) に残し、Q-FG-UNMET-ORPHAN で作者へ出す。合格は行き先の無い unmet 0",
+        "requirement": "unmet の帳簿（統合担当、発注 1、P3-FG-D-UNMET=A）: check-sequences の unmet を免除しない（計画:40・:673）。239a35f5 で 88。C22 の受入の時点の数を記録し、step ごとに行き先を 1 つだけ付けた表を成果物に出す: (a) 取り下げ（C15、:673）: O06:30 だけ（:673 が unmet の移行の step として挙げるのはこれだけ） (b) P1 の持ち物: O02:39〜42（:685） (c) P4/P5 へ送り済み（計画:40 の振り分けの全部）: O11:6〜10（:40、§5.2）。O09 の津波の P4 分 O09:30・31・39・40・48・49・57・58・66・67（:231、P3-C6-O09-REST=A）。personal 有効の母集団 O09:9（EEW）・29・38・47・56・65（津波の発令・引上げ・区域拡大・解除・降格、P4/P5）。容量縮退の母集団: EEW の O09:8（他分野 U-W の容量 summary 中）・21・22（spec:1129 の母集団 4、:40 の『EEW の容量縮退』）と、津波の O09:27・36・45・54・63（他分野容量縮退）・28・37・46・55・64（対象分野 fallback）。津波の 10 本は D-P3-6 で期待値だけを C5・C6 で固定し、測定は P4 の容量契約へ送った（p3-tsunami-e01.json:419 は C6 の範囲の外と書く）。unmet は入力が corpus に無いことで、それを作るのも測るのも P4 なので (d) でなく (c) に置く (d) 契約の試験が試験内の入力で確かめたか、契約が正式 Pass に数えないと書いたもの（契約 ID と試験 ID を書く）: O08:11〜13（P3-UNIT-V-001 の T04）、O06:2〜8（P2-SNAPSHOT-SSE-001）、O02:15〜17（P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06）、O09:17・18（C6 の単発 smoke と Pi 確認の入力で正式母集団に入れない、p3-tsunami-e01.json:146・p3-tsunami-unit.json:365 が組で扱う） (e) 引き手の無いもの: O01:4・11、O02:3（P2-WEATHER-TIMESERIES-UNIT-001 は『入力が充足したら O02:4 を戻す』と書き、開いた義務のまま）、O03:7・9、O04:3（ふつうの全国の正常報。C15 の契約が移行直後の続報の入力に使っただけで、移行の step ではない）・5〜8、O06:11〜28、O09:3〜7・10（EEW の E01 母集団の負荷の型。C4 の manifest の o09Subset は位置 1・2・11・12 だけで、O09:3〜7 は載っていない）。起草の数（239a35f5、r2）: (a) 1・(b) 4・(c) 34・(d) 15・(e) 34、計 88。(e) から (c)(d) へ移す手順: step ごとに (1) expectedRef と範囲の書き方（O09:3〜10 の形を含む）で contracts と reconstruction/test（evidence の manifest を含む）を引く (2) O09 は計画:40 の振り分けに当てる: EEW の E01 の母集団は C4 の凍結 manifest の o09Subset に載っていれば (d)、main health・queue 待ち・固定優先順（E02・E07）は C3b・C4 の試験か測定がその負荷を確かめていれば (d)、詳細射影中の O09:10 は P4 の実体なら (c) (3) unit 契約の試験が同じ入力を試験内で作っていれば試験 ID を付けて (d) (4) どれにも当たらなければ (e) に残し、Q-FG-UNMET-ORPHAN で作者へ出す。合格は行き先の無い unmet 0",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
           "reconstruction/contracts/p3-order-plan.md:673 «ec858d7f784e5f2e»",
@@ -493,7 +495,9 @@
           "reconstruction/contracts/p3-volcano-unit.json",
           "reconstruction/contracts/p2-snapshot-sse.json",
           "reconstruction/contracts/p3-tsunami-e01.json:146 «20b0628c54f19dd5»",
-          "reconstruction/contracts/p3-tsunami-unit.json:365 «a192e6f180181f74»"
+          "reconstruction/contracts/p3-tsunami-unit.json:365 «a192e6f180181f74»",
+          "reconstruction/contracts/p3-tsunami-e01.json:419 «cb70de3d7841a1e3»",
+          "reconstruction/test/eew-e01/evidence/p3-harness/manifest-dyl-e05y.json"
         ]
       },
       {
@@ -636,7 +640,7 @@
         "referenceIds": [
           "P3-FG-AC02"
         ],
-        "behavior": "（起草案）manifest の全 headType が coverage に 1 行ずつあり、T01 の各入力で世代を上げた unit が 1 つだけで coverage の unit と一致する（保存の inputIds で数える）"
+        "behavior": "（起草案）manifest の全 headType が coverage に 1 行ずつあり、T01 の各入力で世代を上げた unit が 1 つだけで coverage の unit と一致する（保存の inputIds で数える）。AC02 (4): T01 の 12 unit の run の間、書込み権（unit ごとの in-flight 1 件）と mailbox（実行場所ごとの通常 data の in-flight 1 件、全体の件数・byte の上限、同じ対象の順序と完了照合）の不変条件の破れを run の記録で数え、0 であること"
       },
       {
         "testId": "P3-FG-T03",
@@ -644,7 +648,7 @@
         "referenceIds": [
           "P3-FG-AC05"
         ],
-        "behavior": "（起草案）12 unit を dirty にして E20 の 5 場面を起こし、段の順・最終世代の確認・code を確かめる。保存を確かめていない code 0 が 0"
+        "behavior": "（起草案）12 unit を dirty にして E20 の場面を起こし、段の順・最終世代の確認・code を確かめる。保存を確かめていない code 0 が 0。発注 1 は owner の停止を除く 4 場面（通常終了・保存不能・batch 残存・終了中の遅い ack）、発注 3 は P3-OWNER-REBUILD-001 の配送の後に owner の停止の場面（作り直し中の停止を含む）を同じ file に足す"
       },
       {
         "testId": "P3-FG-T04",
@@ -751,7 +755,6 @@
         ],
         "resolveBy": "発注 1 の前（発注前点検で baseOid を割り当てる）",
         "requiredEvidence": [
-          "起草案の分岐 P3-FG-D-SPLIT の確定",
           "evidenceRefs の «» をその木で読み直した記録",
           "Q-FG-RARE-FIXES の契約のうち、その木にある契約 file を dependsOnContractIds に足したこと"
         ]
@@ -802,7 +805,7 @@
         ],
         "resolveBy": "発注 1 の帳簿の後",
         "requiredEvidence": [
-          "AC03 の (e)（r1 の起草の数で 35）から手順 (1)〜(3) で移した後に残った step ごとの入力と期待の要約と、P4/P5 へ送るか取り下げるかの推奨"
+          "AC03 の (e)（r2 の起草の数で 34）から手順 (1)〜(3) で移した後に残った step ごとの入力と期待の要約と、P4/P5 へ送るか取り下げるかの推奨"
         ]
       },
       {
