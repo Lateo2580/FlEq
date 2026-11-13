@@ -396,9 +396,9 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       const done = m.processingOf(work)!, arrival = owners.arrivals.get(work)!;
       rows.push(m.row(eew, injectedAt, { start: workAt, end: done.endedMonotonicMs }, { workBusyMs: done.endedMonotonicMs - done.startedMonotonicMs,
         decodeMs: arrival.decodeEnded - arrival.decodeStarted, reduceMs: arrival.raised == null ? null : arrival.raised - arrival.decodeEnded }));
-      if (trial === foldRuns - 1) { m.record("widestFold", rows, Math.ceil(foldRuns / 2)); results = m.results; }
       await h.stop(); const folded = (await Promise.all((await fileSystem.readdir(h.diagnostics)).filter((name) => /^diagnostics-.*\.jsonl$/.test(name)).map((name) => fileSystem.readFile(join(h.diagnostics, name), "utf8")))).join("\n").split("\n").filter((line) => line.includes("\"seismicStationsFolded\"")).reduce((sum, line) => sum + Number(/"count":(\d+)/.exec(line)?.[1] ?? 1), 0);
       Object.assign(rows[trial], { folded, piled }); if (folded === 0) throw new Error(`trial ${trial}: no seismicStationsFolded after ${piled} piles (${bytes} bytes)`);
+      if (trial === foldRuns - 1) { m.record("widestFold", rows, Math.ceil(foldRuns / 2)); results = m.results; }
     }
     console.info("P3-QC-AC11-FOLD", JSON.stringify({ runs: foldRuns, rows, results }));
   }, 900_000);

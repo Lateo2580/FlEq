@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "b9c19b7caaca4eaeec156420eb8749e94719f4001ca5bd3f6e070ca57e84ee57",
+    "sha256": "210fe8dd8c911e4b5ef78490bb87c85d0a1a30c11084acf1de46f0b3ea60a152",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -490,9 +490,9 @@
         "requirement": "災害の日の道具の読み（P3-DISASTER-CAPACITY-001、期待例は変えない、設計メモ :309）: (1) reconstruction/test/disaster/runner.ts の BYTE_LIMITS の U-Q を seismicUnitCodec.maxEnvelopeBytes にする（今は 4,194,304 のままで、使用率を 125.6% と出す未確認の不整合、p3-order-plan.md:559） (2) 退去の件数の表と別に、U-Q の seismicStationsFolded の count を時刻ごとに数えて結果に書く（退去にも容量の欠けにも数えない） (3) 試験は道具の今の試験（reconstruction/test/disaster/）に境界例を 1 本足す（今の器は U-Q 15,515,625 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:559 «036a201be6bf98eb»",
-          "reconstruction/test/disaster/runner.ts:194 «b67f7948980756a4»",
+          "reconstruction/test/disaster/runner.ts:194 «f94bca981beba75f»",
           "reconstruction/test/disaster/runner.ts:32 «0549d7e3c3222352»",
-          "reconstruction/contracts/p3-disaster-capacity.json:406 «bce8780d918f793f»"
+          "reconstruction/contracts/p3-disaster-capacity.json:406 «07190f5aff1080ad»"
         ]
       },
       {

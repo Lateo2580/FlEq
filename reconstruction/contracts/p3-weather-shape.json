@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "bf16903c9abe6819227b67af9c4f8739920daf7fca0113498e58d1bad0272efe",
+    "sha256": "55b68a7a446d9a8f4d5331087c921c207672fc5078ee263edad171479483ce04",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -335,7 +335,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-disaster-capacity.json:57 «41a697c6cf92332c»",
           "reconstruction/contracts/p3-disaster-capacity.json:704 «d2a50e29fe30ea49»",
-          "reconstruction/test/disaster/runner.ts:490 «f7e985c22367465f»",
+          "reconstruction/test/disaster/runner.ts:535 «f7e985c22367465f»",
           "reconstruction/test/disaster/scenario.ts:112 «c9c643316263b5a4»"
         ]
       },

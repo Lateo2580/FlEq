@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "7e27b1b76fa6e950d2248460eb0ce9b10ad0bdc93da6cfd2f1a8221ad1de8fb4",
+    "sha256": "39cdbfd4dfebaf6d807a1681505878903a0996381ef6f33e0556b3b0a7980925",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -272,12 +272,12 @@
         "id": "P3-DPM-AC01",
         "requirement": "道具の保存の器を製品から取る（定数の写しをやめる）: (1) runner.ts:194〜195 の BYTE_LIMITS を、runtimeUnits の 12 unit それぞれの linkedUnitCodecs[unit].maxEnvelopeBytes に替える（12 の codec が全部持つ値で、checkpoint.ts:223 が保存の最後の守りに使う）。runner.ts:15 の import の行は消さずに、AC02 の EVENT_LIMIT・LONG_PERIOD_LIMIT（seismic-unit）と SNAPSHOT_BYTES（view-projector）の import に入れ替える（行の数を保つ） (2) 結果の identity（runner.ts:308）に effectiveLimits を足す: unit ごとの maxEnvelopeBytes、U-Q の件数の上限（AC02）、snapshot の上限（AC02 の SNAPSHOT_BYTES）。足す理由: 測定のために上限を書き換えた checkout は gitHead（runner.ts:255）では見分けられない。effectiveLimits は決定的な値なので本体に置く（T02 の bodyHash の一致を崩さない） (3) 合否の式（runner.ts:534）と 4 条件は変えない。byte の使用率は今も判定に使わない (4) 無いと: 11-12 夜の N2・N3 で U-E.bytes が道具の古い上限 262,144 の 106% と出た（製品の器 2,190,935 の 12.7%）。U-T（道具 4,194,304・製品 11,354,432）・U-N（294,912・3,139,385）・U-F（33,554,432・製品は印と原文の予算を足した値）も同じ形",
         "evidenceRefs": [
-          "reconstruction/test/disaster/runner.ts:194 «b67f7948980756a4»",
-          "reconstruction/test/disaster/runner.ts:195 «69bdd43a774278cb»",
-          "reconstruction/test/disaster/runner.ts:15 «99183e8f8671cd6c»",
-          "reconstruction/test/disaster/runner.ts:308 «33a1d5396671df2a»",
-          "reconstruction/test/disaster/runner.ts:255 «977806efe5989306»",
-          "reconstruction/test/disaster/runner.ts:534 «622b9a2b3f5e5ae2»",
+          "reconstruction/test/disaster/runner.ts:194 «f94bca981beba75f»",
+          "reconstruction/test/disaster/runner.ts:195 «848d0f7dcf7ea5fc»",
+          "reconstruction/test/disaster/runner.ts:15 «c6f4a16bbfca2fd7»",
+          "reconstruction/test/disaster/runner.ts:339 «614c08d3705c4c8c»",
+          "reconstruction/test/disaster/runner.ts:261 «977806efe5989306»",
+          "reconstruction/test/disaster/runner.ts:579 «622b9a2b3f5e5ae2»",
           "reconstruction/src/checkpoint/checkpoint.ts:223 «79ffa012cb68d408»"
         ]
       },
@@ -288,18 +288,18 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:39 «a65f9be0377b481f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1689 «b850bb9aca0d01ab»",
           "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
-          "reconstruction/test/disaster/runner.ts:115 «cfbe534f486b9abe»"
+          "reconstruction/test/disaster/runner.ts:115 «f3915799afc7d27a»"
         ]
       },
       {
         "id": "P3-DPM-AC03",
         "requirement": "山の写し（1 段目の出力。P3-DPM-D-PEAK=A）: (1) runStage1 の RunOptions に peakOut?: string を足す。settled（runner.ts:382）の終わりで、unit ごとの最新の encode の bytes（観測の表の `${unit}.bytes` の current）の合計を数え、それまでの最大を越えたら、その時刻（仮想の wall）・合計・unit ごとの bytes と世代（encode の CheckpointMeasurement.generation）と、memoryFiles の Map の写しを覚える。Map の写しは値の参照だけ（memoryFiles の write は data.slice() で新しい配列を作り、閉じた後に書き換わらない、runner.ts:242〜245）。計量は unit の数に比例し、state を直列化しない (2) 結果の本体に peak（atMs・totalBytes・unit ごとの bytes と generation）を書く（決定的） (3) peakOut があれば、status が Pass か Fail の run の後に、Map の写しのうち state の directory（harness の stateDirectory を resolve したもの）の下の file を peakOut/state/ の下へ同じ相対 path で書き、peakOut/peak.json に schema（p3-disaster-peak-v1）・contractId・scenario・digest・gitHead・effectiveLimits・peak・その時点の snapshot の計量（山を更新した時は lastSnapshot の参照だけを覚え、peak.json を書く時に measureSnapshot を 1 回だけ呼ぶ。settle ごとに snapshot を直列化しない。参照が無ければ null）・file ごとの相対 path と bytes と sha256 を書く。state の directory の外の file は数だけ skippedFiles に書く。blocked の run は書かない (4) peakOut と checkpointFileSystem を一緒に渡したら Error（メモリの Map が無く写せない） (5) 正式の口（disaster.test.ts:441）は環境変数 FLEQ_DISASTER_PEAK_OUT を peakOut に渡す（無ければ今のまま）。足す理由: 2 段目が災害の日の最も重い state から本物の host を起こすため。無いと、Pi の保存・復元・EEW の待ちを空の state か手で組んだ state でしか測れない",
         "evidenceRefs": [
-          "reconstruction/test/disaster/runner.ts:382 «5b1d0bec8cfc5a1d»",
-          "reconstruction/test/disaster/runner.ts:239 «c51c6ab08c1a2083»",
-          "reconstruction/test/disaster/runner.ts:242 «c323941381ca230e»",
-          "reconstruction/test/disaster/runner.ts:330 «e73452581ba43ce3»",
-          "reconstruction/test/disaster/disaster.test.ts:441 «b061b1b4bd290777»"
+          "reconstruction/test/disaster/runner.ts:420 «5b1d0bec8cfc5a1d»",
+          "reconstruction/test/disaster/runner.ts:243 «c51c6ab08c1a2083»",
+          "reconstruction/test/disaster/runner.ts:246 «c323941381ca230e»",
+          "reconstruction/test/disaster/runner.ts:367 «e73452581ba43ce3»",
+          "reconstruction/test/disaster/disaster.test.ts:441 «f04126d4d4a77c35»"
         ]
       },
       {
@@ -323,15 +323,15 @@
         "requirement": "地震の畳みの試験を今の器で畳みが起きる量に直す（P3-DPM-D-FOLD=A。seismic-host.test.ts の widest fold、373 行の it）: (1) 389 行の 17 件を、U-Q の encode の bytes（observations の kind checkpoint・U-Q・encode の最後の bytes）が seismicUnitCodec.maxEnvelopeBytes の 0.8 倍以上になるまで積む形に替える（上限 120 件、届かなければ Error）。0.8 は 11-12 夜の補助の測定（qc-measure-ac11.md: 512 で 40 件 12,540,391 byte／器 15,515,625、768 で 52 件 16,301,983／20,498,153 を先に入れ、観測点 30,000 の VXSE53 で畳みが起きた）から (2) host() の戻り値（157 行）に診断の directory を足し、試行ごとに h.stop() の後、日別 file の seismicStationsFolded の count を数えて行（rows）に folded と piled（積んだ件数）を足す。folded が 0 の試行があれば Error (3) seismicUnitCodec は it の中で const { seismicUnitCodec } = await import(\"../../src/units/seismic/seismic-unit\") と読む（import は 1〜14 行で、行を足せないため）。行の数を変えない（157 行と 385〜404 行の中で直す。後ろの 406・409・461・478 行は p3-seismic-host-expiry-test.json が «» で引く） (4) 無いと: 器を 15.5 MB に広げた後も 17 件のままで、畳みが 0 回のまま緑になり、畳みの最中の EEW の待ちを測らずに値を報告する（2026-11-12 夜に実際に起きた）",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-host.test.ts:373 «f8307b96c979e627»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:389 «b9c8761942061bfd»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:389 «56be8bdfa4833ec5»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:403 «80d506a7d25c35e2»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:157 «56a1dd9de2910663»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:157 «b7ff60c3404f395d»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:146 «9b03d893503e5ce6»"
         ]
       },
       {
         "id": "P3-DPM-AC06",
-        "requirement": "測定の手順（統合担当。道具の code に入れない）: (1) Mac mini の 1 段目: 測る commit の使い捨ての checkout を 3 つ（今の製品・件数 768＋snapshot を広げた build・件数 1024＋snapshot を広げた build。書き換えは P3-DPM-D-OVERRIDE=A）作り、tsc 3 本の後に N3 だけ（P3-DPM-D-WINDOW-SET=A）を FLEQ_DISASTER=1・FLEQ_DISASTER_PEAK_OUT で流す。snapshot を広げる値は、先に件数 768・1024 の build で snapshot を広げずに流した結果の snapshot の total（区切りの checkpoints・要約の遷移 summaryTransitions・山の peak.json の 3 か所。区切りの間の山は見ない）の最大を越える最小の 2 の冪の MiB とし、記録する (2) Pi: 窓の前（旧築を動かしたまま）に、置き場 ~/p3-bench の下へ 3 つの checkout を作り（npm ci --ignore-scripts と tsc 3 本、P3-PH-AC08 (1) の形）、build は 1 本ずつ行い、そのたびに MemAvailable を見る（旧築が動いている間）。Pi で動くことの確かめは、N3 の山と観測点 30,000 の frame を使わず、T02 と同じ公開 fixture の小さい山（Mac mini で T02a の形で作る）で、今の製品の組の pi-measure.mjs --launches 1 --probe-seconds 5 を 1 回流して見る（値は捨てる）。N3 の山の写しは scp で運ぶだけ (3) 窓: P3-PH-D-LEGACY=B と P3-PH-AC08 の手順（終わりの時刻を作者へ伝える・有効な警報が無いことを確かめる・旧築を止める・測る・起こし直して /healthz 200 と kiosk の clients を確かめる）。止める条件は P3-C4-AC09 のもの（MemAvailable 2 GiB 未満・swap の増え・新しい throttle。P3-PH-AC08 が引き継いだ形）。/proc/pressure と vcgencmd は統合担当の shell の loop で同じ窓に取る (4) 窓の後: 山の写し・work の directory を Pi から消し、結果の file と 1 段目の結果を作者への報告の材料にする。上限を変える契約（件数 768 か 1024、snapshot）はこの値の後に別に起草する",
+        "requirement": "測定の手順（統合担当。道具の code に入れない）: (1) Mac mini の 1 段目: 測る commit の使い捨ての checkout を 3 つ（今の製品・件数 768＋snapshot を広げた build・件数 1024＋snapshot を広げた build。書き換えは P3-DPM-D-OVERRIDE=A）作り、tsc 3 本の後に N3 だけ（P3-DPM-D-WINDOW-SET=A）を FLEQ_DISASTER=1・FLEQ_DISASTER_PEAK_OUT で流す。snapshot を広げる値は、先に件数 768・1024 の build で snapshot を広げずに流した結果の snapshot の total（区切りの checkpoints・要約の遷移 summaryTransitions・山の peak.json の 3 か所。区切りの間の山は見ない）の最大を越える最小の 2 の冪の MiB とし、記録する (2) Pi: 窓の前（旧築を動かしたまま）に、置き場 ~/p3-bench の下へ 3 つの checkout を作り（npm ci --ignore-scripts と tsc 3 本、P3-PH-AC08 (1) の形）、build は 1 本ずつ行い、そのたびに MemAvailable を見る（旧築が動いている間）。Pi で動くことの確かめは、N3 の山を使わず、T02 と同じ公開 fixture の小さい山（Mac mini で T02a の形で作る）で、今の製品の組の pi-measure.mjs --launches 1 --probe-seconds 5 を 1 回流して見る（値は捨てる）。pi-measure.mjs は観測点 30,000 の frame を必ず組み、5 秒の run でも投入の半ばに送るので、窓の前の確かめの run でも 30,000 の frame は入る。MemAvailable を見ながら流す（旧築が動いている間）。N3 の山の写しは scp で運ぶだけ (3) 窓: P3-PH-D-LEGACY=B と P3-PH-AC08 の手順（終わりの時刻を作者へ伝える・有効な警報が無いことを確かめる・旧築を止める・測る・起こし直して /healthz 200 と kiosk の clients を確かめる）。止める条件は P3-C4-AC09 のもの（MemAvailable 2 GiB 未満・swap の増え・新しい throttle。P3-PH-AC08 が引き継いだ形）。/proc/pressure と vcgencmd は統合担当の shell の loop で同じ窓に取る (4) 窓の後: 山の写し・work の directory を Pi から消し、結果の file と 1 段目の結果を作者への報告の材料にする。上限を変える契約（件数 768 か 1024、snapshot）はこの値の後に別に起草する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-pi-harness.json:366 «9b9b658dd07ec5da»",
           "reconstruction/contracts/p3-order-plan.md:547 «6210004ba3292953»",

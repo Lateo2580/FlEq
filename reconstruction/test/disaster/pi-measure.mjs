@@ -97,7 +97,8 @@ async function launch(k, dir, ctx) {
       request.on("error", reject);
       cleanups.push(() => request.destroy());
     });
-    const read = () => (existsSync(obsPath) ? parseJsonl(readFileSync(obsPath, "utf8")) : []);
+    // host が追記している途中の行を読まないよう、最後の改行までだけを parse する。
+    const read = () => { if (!existsSync(obsPath)) return []; const text = readFileSync(obsPath, "utf8"); return parseJsonl(text.slice(0, text.lastIndexOf("\n") + 1)); };
     let clock = null;
     for (let i = 0; i < 100 && clock == null; i++) { clock = read().find((line) => line.t === "clock") ?? null; if (clock == null) await sleep(100); }
     if (clock == null) throw new Blocked("hostFailed", `launch ${k}: no clock line within 10 s`);
@@ -222,7 +223,7 @@ function analyze(k, dir, ctx, { lines, readyMs, eews, dirties, wide }) {
 function distributions(raws) {
   const saves = (first) => {
     const keys = new Map();
-    for (const raw of raws) for (const s of raw.saves) if (s.first === first) keys.set(s.key, [...(keys.get(s.key) ?? []), s]);
+    for (const raw of raws) for (const s of raw.saves) if (s.first === first) { const list = keys.get(s.key) ?? []; list.push(s); keys.set(s.key, list); }
     return Object.fromEntries([...keys].sort(([a], [b]) => (a < b ? -1 : 1)).map(([key, list]) =>
       [key, { ...stats(list.map((s) => s.ms), { p90: true }), maxBytes: Math.max(...list.map((s) => s.bytes)) }]));
   };
