@@ -32,8 +32,8 @@ type Scene = Readonly<{
   unsaveable?: RuntimeUnitId;
   // running の段の保存を失敗させない unit（遅い ack の場面の U-W）。
   saving?: RuntimeUnitId;
-  // 12 本の後に入れる報（test/fixtures の名前と headType）。
-  extra?: readonly Readonly<{ headType: string; file: string }>[];
+  // 12 本の後に入れる報（test/fixtures の名前と headType、時刻を替える書き換え）。
+  extra?: readonly Readonly<{ headType: string; file: string; transform?: (xml: string) => string }>[];
   // この unit の最初の保存の open を、during が gate を開くまで止める（遅い ack。返信の順は変えない）。
   gated?: RuntimeUnitId;
   // 全部の入力の後、shutdownRuntime の前。
@@ -78,7 +78,7 @@ async function scene(options: Scene = {}) {
     return false;
   });
   const inputs = [...runtimeUnits.map((unit) => ({ headType: unitBodies[unit].headType, body: unitBodies[unit].body, id: `dirty-${unit}` })),
-    ...(options.extra ?? []).map((item, index) => ({ headType: item.headType, body: readFileSync(`test/fixtures/${item.file}.xml`), id: `extra-${index}` }))]
+    ...(options.extra ?? []).map((item, index) => ({ headType: item.headType, body: Buffer.from((item.transform ?? ((xml: string) => xml))(readFileSync(`test/fixtures/${item.file}.xml`, "utf8"))), id: `extra-${index}` }))]
     .sort((a, b) => reportTime(a.body) - reportTime(b.body));
   now = { wallTimeMs: reportTime(inputs[0].body), monotonicMs: 1 };
   await startHarness(h, "run", now);
@@ -106,9 +106,11 @@ async function scene(options: Scene = {}) {
 }
 
 // §5.9 の段の順: drain の入力 → 各 owner の shutdownInput → finalize → 最終保存の権（dirty の unit ごと）→ 要約の記録 → owner の終了。
-function expectStageOrder(order: readonly string[], grants: number) {
+// grants が null なら権の数は見ない（保存不能の場面は失敗した保存の再試行の権が足される）。
+function expectStageOrder(order: readonly string[], grants: number | null) {
   const first = (kind: string) => order.indexOf(kind), last = (kind: string) => order.lastIndexOf(kind);
-  expect(["shutdownInput", "finalize", "checkpointGrant"].map((kind) => order.filter((item) => item === kind).length)).toEqual([4, 4, grants]);
+  expect(["shutdownInput", "finalize"].map((kind) => order.filter((item) => item === kind).length)).toEqual([4, 4]);
+  expect(order.filter((item) => item === "checkpointGrant").length).toBe(grants ?? Math.max(1, order.filter((item) => item === "checkpointGrant").length));
   expect([last("input") < first("shutdownInput"), last("shutdownInput") < first("finalize"), last("finalize") < first("checkpointGrant"),
     last("checkpointGrant") < first("closeAfterSummary"), order.includes("closeBeforeSummary")]).toEqual([true, true, true, true, false]);
 }
@@ -127,17 +129,22 @@ describe("P3-FG-T03 E20 on the 12 linked units (order 1: four scenes)", () => {
       expect(summary).toMatchObject({ code: 2, reasons: ["finalCheckpoint:unsavedUnits"] });
       expect(savedUnits).toEqual(runtimeUnits.filter((unit) => unit !== "U-Q"));
       expect(order.filter((kind) => kind === "checkpointGrant").length).toBeGreaterThanOrEqual(12);
+      expectStageOrder(order, null);
     }
     // (3) batch 残存: 採った VFVO53 の batch（P3-C9-BATCH）が開いたまま停止に入る。U-V の shutdownInput が終了理由 shutdown の無音の flush で
     // 閉じ（spec §5.9 の 3）、その後の世代が保存される。code 0。
     {
-      const { h, summary, order } = await scene({ extra: [{ headType: "VFVO53", file: "66_01_01_210517_VFVO53" }],
+      // 停止の時計で VFVO53 の記録が active に残るよう、時刻だけを 12 本より新しくした写しを最後に入れる（p3-weather-light-step1.json の時刻だけ新しくした続報と同じ）。
+      const later = (xml: string) => xml.replace(/<DateTime>[^<]*<\/DateTime>/, "<DateTime>2026-08-30T03:00:00Z</DateTime>")
+        .replace(/<ReportDateTime>[^<]*</, "<ReportDateTime>2026-08-30T12:00:00+09:00<").replace(/<TargetDateTime>[^<]*</, "<TargetDateTime>2026-08-30T13:00:00+09:00<")
+        .replace(/<ValidDateTime>[^<]*</, "<ValidDateTime>2026-08-31T07:00:00+09:00<");
+      const { h, summary, order } = await scene({ extra: [{ headType: "VFVO53", file: "66_01_01_210517_VFVO53", transform: later }],
         ready: (h) => { expect(h.unit("U-V").batch?.subjects).toEqual(["normal/VFVO53/506"]); } });
-      // U-V の shutdownInput は batch の有無によらず batchCompleted（shutdown）を返すので、停止の前に開いていた batch が停止の後に無いことで見る。
-      // 閉じた batch の subjects は空: 停止の時計（後の報の 2026 年）では VFVO53 の記録の期限が過ぎ、flush の前の期限の適用で active でない。
+      // U-V の shutdownInput は batch の有無によらず batchCompleted（shutdown）を返すので、閉じた batch の subject と、通知が出ないことで見る。
       const closed = h.delivered.flatMap(({ reply }) => reply.kind === "shutdownInputDone" ? reply.output.outcomes : [])
         .filter((item) => item.unit === "U-V" && item.outcome.kind === "batchCompleted");
-      expect(closed.map((item) => item.outcome.kind === "batchCompleted" ? item.outcome.reason : null)).toEqual(["shutdown"]);
+      expect(closed.map((item) => item.outcome.kind === "batchCompleted" ? [item.outcome.reason, item.outcome.subjects.map((subject) => subject.subject)] : null))
+        .toEqual([["shutdown", ["normal/VFVO53/506"]]]);
       expect(h.unit("U-V").batch).toBeNull();
       expect(h.unit("U-V").intents.filter((intent) => intent.subject.includes("VFVO53"))).toEqual([]);
       expect(summary).toMatchObject({ code: 0, reasons: [] });

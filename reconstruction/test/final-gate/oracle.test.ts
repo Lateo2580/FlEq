@@ -31,6 +31,7 @@ const WITHDRAWN = new Set(["expected:O04:2", "expected:O06:29", ...[19, 20, 21, 
 // 直前の保存から復元する restart（O07・O10 の字）。ほかの restart は空の state から始める（meta.execution[3]）。
 const restores = (step: Step) => /復元|再読込|crash\/restart/.test(required(step));
 // 空の state でなく、文で書いた準備（試験コードで生成した state、保存済みの g1）を前提にする restart。step に無い準備は作らず、表に出す。
+// O10:31（「新しい隔離harness。U-F空…通知adapter停止」）も当たる: state は空だが通知 adapter の停止と設定版を文で指定し、それを作らないので準備に数える。
 const preparedInProse = (step: Step) => step.action === "restart" && !restores(step) && !/^新しい隔離 ?harness を空/.test(required(step));
 
 // 各 step を表の 1 つにだけ置く（AC01 (4)〜(6)）。injectFailure の窓は O10・O11 だけで、unmet の injectFailure も窓を開く（O11:6〜10）。
@@ -208,6 +209,8 @@ async function runGate(): Promise<GateRun> {
     let h: Harness | null = null, files = memoryFiles();
     // effective を持つ制御の step は subjects が空なので、その run の直前の receive の subject で引く。
     let lastSubjects: readonly string[] = [], lastUnit: RuntimeUnitId | null = null, hollow = false;
+    // その run の receive で記録を引けた subject。制御の step で記録が無いことを expired と読むのは、ここにある subject だけ（引き損ないと区別する）。
+    let found = new Set<string>();
     for (const step of sequence.steps) {
       if (tables.get(step.expectedRef)?.table !== "flow") continue;
       const expected: Expectation = expectations.get(step.expectedRef)!;
@@ -219,7 +222,7 @@ async function runGate(): Promise<GateRun> {
       try {
         setNow(step.receivedAt ?? step.evaluatedAt);
         if (step.action === "restart") {
-          if (!restores(step)) files = memoryFiles();
+          if (!restores(step)) { files = memoryFiles(); found = new Set(); }
           hollow = preparedInProse(step);
           if (hollow) prepared.push(label);
           h = await open(files);
@@ -251,7 +254,9 @@ async function runGate(): Promise<GateRun> {
         const intents = own.reduce((sum, item) => sum + item.step.intents.length, 0);
         // decision: 期待の最後の subject の decision（1 入力で複数 subject を変える step は最後の subject の射影、typhoon-corpus.test.ts の PER_SUBJECT）。
         const wanted = expected.subjects.at(-1)?.subject;
-        const made = (wanted == null ? decisions[0] : decisions.find((item) => item.made.subject === wanted) ?? decisions[0])?.made ?? null;
+        // 制御の step では、期待の unit（その run の直前の receive の unit）の decision だけを見る（別の unit の期限の decision と比べない）。
+        const pool = step.action === "receive" || lastUnit == null ? decisions : decisions.filter((item) => item.unit === lastUnit);
+        const made = (wanted == null ? pool[0] : pool.find((item) => item.made.subject === wanted) ?? pool[0])?.made ?? null;
         // unit に届く前に parser が断った入力（P1 の拒否の経路、p2-order-plan.md の O02:11・12）は、その診断の reason を rejected の reason と読む。
         const parserRejection = step.action !== "receive" || made != null ? null
           : (diagnostics.get(label) ?? []).find((reason) => parserDiagnosticReasons.some((candidate) => candidate === reason)) ?? null;
@@ -290,7 +295,9 @@ async function runGate(): Promise<GateRun> {
           const state = h!.unit(stateUnit);
           const index = expected.subjects.findIndex((item) => item.subject === subject);
           const fallback = decisions.length === expected.subjects.length && index >= 0 ? decisions[index].made.subject : null;
-          return recordOf(state, subject) ?? (fallback == null ? null : recordOf(state, fallback));
+          const record = recordOf(state, subject) ?? (fallback == null ? null : recordOf(state, fallback));
+          if (record != null && step.action === "receive") found.add(subject);
+          return record;
         };
         if (step.action === "receive" && made != null && made.decision !== "rejected" && !(made.decision === "unchanged" && made.reason === "stale"))
           for (const subject of expected.subjects) {
@@ -304,8 +311,11 @@ async function runGate(): Promise<GateRun> {
         if (expected.effective != null) {
           fields++;
           const subject = expected.subjects[0]?.subject ?? lastSubjects[0];
-          const actual = subject == null || stateUnit == null ? null : effectiveOf(stateUnit, live(subject));
+          const record = subject == null || stateUnit == null ? null : live(subject);
+          const actual = subject == null || stateUnit == null ? null : effectiveOf(stateUnit, record);
           if (!isDeepStrictEqual(actual, expected.effective)) miss(stateUnit, "effective", expected.effective, actual);
+          // 制御の step の expired（記録が無い）は、その subject の記録がこの run の receive で一度は引けていたときだけ認める。
+          else if (step.action !== "receive" && record == null && (subject == null || !found.has(subject))) miss(stateUnit, "effective record never found", subject ?? null, null);
         }
         if (expected.intents != null) { fields++; if (intents > 0 !== expected.intents) miss(unit, "intents", expected.intents, intents); }
         if (expected.notices != null) { fields++; if (intents > 0 !== expected.notices) miss(unit, "notices", expected.notices, intents); }
@@ -379,7 +389,11 @@ beforeAll(async () => {
   const routes: Record<string, number> = {};
   for (const item of gate.flowed) if (item.headType != null) routes[`${item.headType}->${item.unit ?? classifyHeadType(item.headType).status}`] = (routes[`${item.headType}->${item.unit ?? classifyHeadType(item.headType).status}`] ?? 0) + 1;
   writeFileSync(out, `${JSON.stringify({
-    flowed: gate.flowed, mismatches: gate.mismatches, routes, preparedInProse: gate.prepared,
+    flowed: gate.flowed, mismatches: gate.mismatches, routes,
+    // 文で書いた準備を作らずに空の state で始めた restart（期待は notices・intents の false だけなので空の state でも当たる）と、その run の中の step。
+    preparedInProse: gate.prepared.map((ref) => ({ expectedRef: ref, notices: expectations.get(ref)?.notices ?? null, intents: expectations.get(ref)?.intents ?? null,
+      required: expectations.get(ref)?.input?.required ?? null })),
+    hollow: gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef),
     counts: { flowed: gate.flowed.length, matched: gate.flowed.filter((item) => item.matched && !item.hollow).length,
       hollowMatched: gate.flowed.filter((item) => item.matched && item.hollow).length, mismatchedSteps: gate.flowed.filter((item) => !item.matched).length },
     withdrawn: separate("withdrawn"), dependsOnUnmet: separate("dependsOnUnmet"),
@@ -396,6 +410,13 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
     // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数）。規則が数を変えたら、規則を合わせずに報告する。
     expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 90]);
     expect(["recover", "receive", "advanceClock", "save", "restart"].map((action) => count("afterInjectFailure", action))).toEqual([23, 11, 6, 4, 3]);
+    // 前提の unmet に頼る step（AC01 (5)）・流した step・準備を作らずに始めた run の中の step（一致に数えない）の数と一覧。
+    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([13, 365, 13]);
+    expect(corpus.sequences.flatMap((sequence) => sequence.steps).filter((step) => gate.tables.get(step.expectedRef)?.table === "dependsOnUnmet").map((step) => step.expectedRef.slice(9)))
+      .toEqual(["O01:5", "O01:6", "O01:7", "O01:12", "O01:13", "O01:14", "O02:4", "O03:8", "O03:10", "O03:11", "O03:12", "O03:13", "O03:14"]);
+    expect(gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef.slice(9))).toEqual(["O10:28", "O10:30", "O10:32", "O10:33", "O10:39", "O10:40",
+      "O10:57", "O10:62", "O10:67", "O10:72", "O10:77", "O10:89", "O10:90"]);
+    expect(gate.prepared.length).toBe(15);
     // AC01 (1): fixture の無い receive は unmet だけ（流す receive は全部 fixture を持つ）。
     expect(gate.flowed.filter((item) => item.action === "receive" && item.headType == null)).toEqual([]);
     const summary = gate.mismatches.slice(0, 20).map((item) => `${item.expectedRef} ${item.unit ?? "-"} ${item.field}: expected ${JSON.stringify(item.expected)} actual ${JSON.stringify(item.actual)}`).join("\n");
