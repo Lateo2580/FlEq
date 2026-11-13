@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "f83b33ee6cdb3e09e8fb9cbdd1ee5a4d9bb5a01249ce98dd8c3a1dff124383c5",
+    "sha256": "7f9c733515d44ac7924c1ffdf5d9445d9235746ad9f4e7ae2634205081ff2587",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -96,23 +96,23 @@
       {
         "id": "P3-FG-D-SPLIT",
         "kind": "統合担当",
-        "A": "3 回に分ける。発注 1（今から、段 4 を待たない）: AC01・AC02 の試験、AC05 の段の順と code の試験（reconstruction/test/final-gate/）と、統合担当の帳簿 AC03・AC04・AC11・AC12。発注 2（判断カード §9 の稀の群の直しの配送の後）: AC06 の試験と AC07 の実走。発注 3（段 4 の器の拡張の契約と、§7 の 7-1 の直しの配送の後＝最終の形。7-3・7-4 は配送済み）: AC09 の測定、AC10 の場面の抜き出しと歩き、AC08 の Pi の窓、AC05 の所要の記録、その後に AC13 の Codex の総合レビュー",
+        "A": "3 回に分ける。発注 1（今から、段 4 を待たない）: AC01・AC02 の試験、AC05 (1) のうち owner の停止を除く 4 場面の試験（reconstruction/test/final-gate/）と、統合担当の帳簿 AC03・AC04・AC11・AC12。発注 2（P3-NOTIFY-FAIL-RECOVER-001〔判断カード §9 の A6・A10、draft/notify-recover、作者の分岐待ち〕の配送の後）: AC06 の試験と AC07 の Mac mini の実走。発注 3（最終の形。段 4 の P3-DISASTER-PI-MEASURE-001 ほか器の拡張、P3-RAIN-RECOVERY-CANCEL-001〔7-1、baseOid 050deaf5、実装中〕、P3-OWNER-REBUILD-001〔C11、作者の裁定 2 で急ぐ側の owner を最後の checkpoint から作り直す、draft/owner-rebuild、作者の分岐待ち〕、P3-VOLCANO-LIFT-001〔実装 3b25c34b、配送の直前〕の配送の後）: AC05 (1) の owner の停止の場面と AC05 (2) の所要、AC07 の Pi の実走（AC08 の窓）、AC08、AC09、AC10、その後に AC13 の Codex の総合レビュー。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は P3-STOP-SAVE-WAIT-001・P3-TYPHOON-FRAME-COST-001 で配送済み",
         "B": "1 回で全部を最終の形の後に行う",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当、2026-11-13）",
-        "ruling": null,
-        "reason": "分け方の基準は『段 4 が器や snapshot の上限を変えたら結果が変わるか』。AC01〜AC04・AC11・AC12 は変わらないので先に閉じられ、AC05 の所要・AC08・AC09・AC10 は変わる。AC06・AC07 は稀の群の直し（A6・A10・C11 ほか）で通知の隔離の形が変わるので、その配送を待つ。発注 1 の試験はゲートに入るので、最終の形でも毎回回る。部分受入は作らない（計画:684）"
+        "status": "確定（統合担当、2026-11-13 r1。起草レビューで「直しの後なら統合担当で確定してよい」）",
+        "ruling": "統合担当 A（2026-11-13）",
+        "reason": "分け方の基準は『段 4 が器や snapshot の上限を変えたら結果が変わるか』と『どの直しの契約が検収の形を変えるか』。AC01〜AC04・AC11・AC12 は変わらないので先に閉じられ、AC05 の所要・AC08・AC09・AC10 は段 4 で変わる。AC06 は P3-NOTIFY-FAIL-RECOVER-001 で通知の隔離の形が変わるので、その配送を待つ。AC05 の owner の停止の場面は、P3-OWNER-REBUILD-001 の AC08 が停止の時に作り直し中だった場合の扱いと終了 code を変えるので、その配送の後に置く。発注 1 の試験はゲートに入るので、最終の形でも毎回回る。部分受入は作らない（計画:684）"
       },
       {
         "id": "P3-FG-D-ORACLE",
         "kind": "統合担当",
-        "A": "reconstruction/test/final-gate/ に 1 本の試験を置き、sequences.json の全 sequence の解決済みの step を、owner-harness の TEST-PATH（linkedRuntimeCalls と 12 unit の表）に step の順と時計のまま流して expectation と比べる。unit ごとの corpus 試験はそのまま残す",
+        "A": "reconstruction/test/final-gate/ に 1 本の試験を置き、sequences.json の全 sequence の expected: の step（receive は fixture を持つもの、restart・recover・save・advanceClock は fixture によらず。injectFailure と取り下げ・前提の unmet の未充足の step は別表、AC01）を、owner-harness の TEST-PATH（linkedRuntimeCalls と 12 unit の表）に step の順と時計のまま流して expectation と比べる。unit ごとの corpus 試験はそのまま残す",
         "B": "新しい runner は作らず、各 unit の corpus 試験の引く expectedRef を集めて、全部の解決済みの step がどれかの試験に引かれていることだけを確かめる",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当、2026-11-13）",
-        "ruling": null,
+        "status": "確定（統合担当、2026-11-13 r1）",
+        "ruling": "A（統合担当、2026-11-13 r1。起草レビューで step の定義を action ごとに直した上で確定）",
         "reason": "spec:2664 は単位を一つずつ閉じた後に『全 route の正常・取消・復元と共有資源の契約を検証する』と書く。B は unit を単独で reduce した結果を数えるだけで、route の振り分けと一入力一保存単位（AC02）を結線の上で確かめない。A の道具は災害の日の runner（reconstruction/test/disaster/runner.ts）と同じ包み方を再利用し、新しい製品の export は足さない"
       },
       {
@@ -154,15 +154,22 @@
         "id": "Q-FG-DRAFT",
         "status": "closed",
         "source": "起草（2026-11-13、HEAD 239a35f5、子の起草。読むだけ）",
-        "closed": "(1) 着手: 計画:683 の読みで C15 を除いた C7〜C20 は配送済み（判断カード 11-13 の §1 で is-ancestor を確かめた記録）。C22 は今から起草でき、部分受入は無い（:684） (2) check-sequences（239a35f5）: unmet=88（O01 2・O02 8・O03 2・O04 5・O05 0・O06 26・O07 0・O08 3・O09 37・O10 0・O11 5）。O04 5・O06 26 は 2026-10-01 の数（:40）から動いていない (3) 古い記述: C15・移行器・移行契約・P3-MIGRATION-001 を語の境界つきで数えると 31 file・94 行（p3-order-plan.md と p3-migration.json を除く。AC15 などは数えない） (4) §6 の 18 行の判定は c22-rows（11-12 夜の子、de25f61a）を 239a35f5 の行番号で読み直した（行はずれていない） (5) 段 4 の器の拡張の契約と、判断カード §9 の稀の群（A6・A10・C11・A16）・§7 の 7-1 の直しの契約は、239a35f5 の contracts に無い（Q-FG-STAGE4・Q-FG-RARE-FIXES）。§7 の 7-3 は P3-STOP-SAVE-WAIT-001（85764d1c）、7-4 は P3-TYPHOON-FRAME-COST-001（90cd4338）で配送済み",
-        "remaining": "requiredCommands のうち発注 3 の測定の command（災害の日と Pi の窓）は起草案で、発注 3 の点検で確かめる。testMapping は起草案"
+        "closed": "(1) 着手: 計画:683 の読みで C15 を除いた C7〜C20 は配送済み（判断カード 11-13 の §1 で is-ancestor を確かめた記録）。C22 は今から起草でき、部分受入は無い（:684） (2) check-sequences（239a35f5）: unmet=88（O01 2・O02 8・O03 2・O04 5・O05 0・O06 26・O07 0・O08 3・O09 37・O10 0・O11 5）。O04 5・O06 26 は 2026-10-01 の数（:40）から動いていない (3) 古い記述: C15・移行器・移行契約・P3-MIGRATION-001 を語の境界つきで数えると 33 file・96 行（*.json・*.md・*.ts。p3-order-plan.md と p3-migration.json と本契約を除く。AC15 などは数えない。r1 で *.ts を足して数え直した） (4) §6 の 18 行の判定は c22-rows（11-12 夜の子、de25f61a）を 239a35f5 の行番号で読み直した（行はずれていない） (5) 段 4 の器の拡張の契約と、判断カード §9 の稀の群・§7 の 7-1 の直しの契約は、239a35f5 の contracts に無い（今の状態は Q-FG-STAGE4・Q-FG-RARE-FIXES、r1 で統合担当の知らせから書き直した）。§7 の 7-3 は P3-STOP-SAVE-WAIT-001（85764d1c）、7-4 は P3-TYPHOON-FRAME-COST-001（90cd4338）で配送済み",
+        "remaining": "requiredCommands のうち発注 3 の測定の command（災害の日と Pi の窓）は起草案で、発注 3 の点検で確かめる。testMapping は起草案。r1（起草レビュー Opus 条件付き GO の P2 5 件・P3 5 件）を当てた"
       },
       {
         "id": "Q-FG-ROWS",
         "status": "起草案",
         "source": "子 c22-rows の判定（2026-11-12 夜、de25f61a）を 239a35f5 の計画の行で読み直した。11-13 の作者裁定（:243 は P5、:249 は取り下げ、:250 の O02:39〜42 は P1）を当てた",
-        "closed": "§6 の 18 行（計画 :239〜:256）: :239 Mac と Pi の速度差＝C22 で検収（AC08。e01-reaccept の 5 項目それぞれに結論の文を書く。正式 Pass と呼ばない） / :240 E01 の 4 条件＝再検収済み（C4、2026-10-08） / :241 N7・IR06＝再検収済み（C4、P3-C4-CLOSE-INGRESS-N7。ingress の比は Q-UWR-REMEASURE で 10-29 に記録） / :242 E02-P・E05-P・E06＝再検収済み（Mac mini。E05-P は Q-WYL-E05P・Q-DYL-E05P。Pi の判定は P3-C4-MACHINES=B で P5） / :243 E15 の残り＝作者裁定で P5 へ再移管（2026-11-13） / :244 AC15＝再検収済み（C4） / :245 本物の dmdata 接続＝再検収済み（C2 1aafed5a、evidence/dmdata-live-20261005.json の AC09。P2-A10-R63 の status を closed に直す） / :246 生存監視・start の記録＝再検収済み（同じ evidence の②⑥） / :247 reconnecting のまま＝再検収済み（同じ evidence の⑥） / :248 止まった worker の独立監視＝再検収済み（C3b 66899fb7、P3-C3B-AC01・T02） / :249 O04:2・O06:29-30・Q-MIGRATION＝作者裁定で取り下げ（2026-11-13） / :250 O02:18-48＝C22 で検収（受信の 16 列が版つきの部分集合で閉じたかを AC01・AC03 で。O02:39〜42 の 4 列は P1 の持ち物で C22 の外、:685） / :251 origin=recovery＝検収済み（C16） / :252 IR03 の津波緊急＝C22 で検収（AC07） / :253 IR05・IR02＝検収済み（C6） / :254 R10 の 2 点＝再検収済み（C17 973f133b、C19 cf5ec262・88416df3、T17 は 11-03 夜の作者の目視） / :255 台帳 49＝再検収済み（P3-C3A-VIEW-REVISION=A、P3-C4-VIEW-COPY=B の .viewCopy。台帳 49 の状態欄を直す） / :256 台帳 48＝解消（K8）。数: 再検収済み・検収済み・解消 13、再移管 1、取り下げ 1、C22 で検収 3（:250 は受信の 16 列を C22 で、4 列を P1 へ分ける）",
+        "closed": "§6 の 18 行（計画 :239〜:256）: :239 Mac と Pi の速度差＝C22 で検収（AC08。e01-reaccept の 5 項目それぞれに結論の文を書く。正式 Pass と呼ばない） / :240 E01 の 4 条件＝再検収済み（C4、2026-10-08） / :241 N7・IR06＝再検収済み（C4、P3-C4-CLOSE-INGRESS-N7。ingress の比は Q-UWR-REMEASURE で 10-29 に記録） / :242 E02-P・E05-P・E06＝再検収済み（Mac mini。E05-P は Q-WYL-E05P・Q-DYL-E05P。Pi の判定は P3-C4-MACHINES=B で P5） / :243 E15 の残り＝作者裁定で P5 へ再移管（2026-11-13） / :244 AC15＝再検収済み（C4） / :245 本物の dmdata 接続＝再検収済み（C2 3fff76f5、reconstruction/test/host/evidence/dmdata-live-20261005.json を足した commit の AC09。P2-A10-R63 の status を closed に直す） / :246 生存監視・start の記録＝再検収済み（同じ evidence の②⑥） / :247 reconnecting のまま＝再検収済み（同じ evidence の⑥） / :248 止まった worker の独立監視＝再検収済み（C3b 66899fb7、P3-C3B-AC01・T02） / :249 O04:2・O06:29-30・Q-MIGRATION＝作者裁定で取り下げ（2026-11-13） / :250 O02:18-48＝C22 で検収（受信の 16 列が版つきの部分集合で閉じたかを AC01・AC03 で。O02:39〜42 の 4 列は P1 の持ち物で C22 の外、:685） / :251 origin=recovery＝検収済み（C16） / :252 IR03 の津波緊急＝C22 で検収（AC07） / :253 IR05・IR02＝検収済み（C6） / :254 R10 の 2 点＝再検収済み（C17 973f133b、C19 cf5ec262・88416df3、T17 は 11-03 夜の作者の目視） / :255 台帳 49＝再検収済み（P3-C3A-VIEW-REVISION=A、P3-C4-VIEW-COPY=B の .viewCopy。台帳 49 の状態欄を直す） / :256 台帳 48＝解消（K8）。数: 再検収済み・検収済み・解消 13、再移管 1、取り下げ 1、C22 で検収 3（:250 は受信の 16 列を C22 で、4 列を P1 へ分ける）",
         "remaining": "発注 1 で各行の根拠の commit と記録を 239a35f5 以後の main で開いて確かめ直す。:242 の E05-P は owner が 4 本になった後（P3-SEISMIC-PLACE-001）に測り直した記録を見ていない（c22-rows の『見ていないもの』）"
+      },
+      {
+        "id": "Q-FG-AUTHOR",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-13 昼、判断カードの推奨どおり）。統合担当が f66d3c19 で decisionBranches に当てた",
+        "closed": "kind 作者の 6 件（P3-FG-D-STAGE4・PI-WINDOW・IR03-BACKEND・PERSONA-PRO・PERSONA-TERMINAL・VOLCANOREPAIR）はすべて A",
+        "remaining": "PERSONA-PRO の場面の上限 8 は起草の見込みで、場面を抜いた後の数を作者に確かめ直す（同分岐の reason）"
       }
     ],
     "operationContract": {
@@ -200,7 +207,6 @@
     ],
     "allowedPaths": [
       "reconstruction/test/final-gate/**（新設。発注 1 は T01〜T03、発注 2 は T04）",
-      "reconstruction/test/disaster/runner.ts（発注 3 だけ。BYTE_LIMITS の U-E・U-T・U-N の値を今の器に合わせる行だけ）",
       "reconstruction/contracts/p3-final-gate.json（統合担当だけ。記録）",
       "reconstruction/contracts/p3-order-plan.md（統合担当だけ。他の契約が «» で引かない行の中だけ、AC11・AC12 の句）",
       "reconstruction/contracts/p3-dmdata-connect.json（統合担当だけ。:95 の status の 1 語と meta.sha256）"
@@ -450,7 +456,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-FG-AC01",
-        "requirement": "全 route の正常・取消・復元の oracle（spec:2614・:2664。発注 1、P3-FG-D-ORACLE=A の起草案）: (1) sequences.json の O01〜O11 の解決済みの step（fixture を持ち、expectedRef が expected: のもの）を、最終の形の結線（composition root の linkedRuntimeCalls と 12 unit の表、owner-harness の TEST-PATH）に step の順と評価の時計のまま流し、expectation の null でない欄（decision・effective・subjects・notices・intents）と一致することを確かめる。null の欄は一致に数えない (2) 正常・取消・復元（restart・recover の step）を分けて数え、headType→unit の route ごとの件数を出す (3) 不一致は step ごとに actual と expected を出し、最初の不一致で止めない (4) 取り下げの step は流さず、合否から外して別の表に出す: O04:2・O06:29・O07:19〜26（旧築の保存物の fixture で起動する restart の step。decision は null で、期待は移行の扱い。計画:673）。P2 の置換の step（expected:O04:9・expected:O06:31）は oracle に残す (5) 前提の unmet が満たされていない解決済みの step（例: expected:O02:4 は unmet:O02:3 が前提で、P2-WEATHER-TIMESERIES-UNIT-001 が P2 の expectedDecisions から外した）は流さず、前提の unmet と並べて別の表に出し、一致に数えない。どの step が該当するかは、sequence の中で unmet の step より後にあり、その状態に頼る step を発注 1 で列挙する (6) O10 の U-V の step を含める（計画:87 の『O10 の U-V・export 分』から export 分を外した読み、:684） (7) :250 の受信の 16 列（O02:18〜48 のうち O02:39〜42 を除く、:685）が、fixture の headType で振り分けた unit の版付きの部分集合で閉じたかを、この試験の結果で確かめる。unit ごとの corpus 試験は残し、本 AC はそれを置き換えない",
+        "requirement": "全 route の正常・取消・復元の oracle（spec:2614・:2664。発注 1、P3-FG-D-ORACLE=A）: (1) 流す step は sequences.json の O01〜O11 の expected: の step で、action ごとに決める。receive は fixture を持つものだけ（fixture の無い receive は unmet）。restart・recover・save・advanceClock は fixture の有無によらず流す（239a35f5 で expected の restart 121〔fixture あり 10・なし 111〕・recover 23・save 26・advanceClock 25）。最終の形の結線（composition root の linkedRuntimeCalls と 12 unit の表、owner-harness の TEST-PATH）に step の順と評価の時計のまま流し、expectation の null でない欄（decision・effective・subjects・notices・intents）と一致することを確かめる。null の欄は一致に数えない (2) 正常・取消・復元（restart・recover の step）を分けて数え、headType→unit の route ごとの件数を出す (3) 不一致は step ごとに actual と expected を出し、最初の不一致で止めない (4) 取り下げの step は流さず、合否から外して別の表に出す: O04:2・O06:29・O07:19〜26（旧築の保存物の fixture で起動する restart の step。decision は null で、期待は移行の扱い。計画:673）。P2 の置換の step（expected:O04:9・expected:O06:31、fixture なしの restart）は oracle に残す (5) 前提の unmet が満たされていない step（例: expected:O02:4 は unmet:O02:3 が前提で、P2-WEATHER-TIMESERIES-UNIT-001 が P2 の expectedDecisions から外した）は流さず、前提の unmet と並べて別の表に出し、一致に数えない。sequence の中で unmet の step より後にあり、その状態に頼る step を発注 1 で列挙する (6) injectFailure（expected で 44: O09 20・O10 21・O11 2・O04 1）は、owner-harness と災害の日の runner に受け口が無いので T01 では流さない。(5) と同じく別の表に出し、step ごとに検収した契約と試験（O09 は C4・C6 の測定の母集団、O10 は保存の失敗と終了の試験、O11 は P4）か行き先の無いことを書く。受け口を足すのは本契約の範囲の外 (7) O10 の U-V の step を含める（計画:87 の『O10 の U-V・export 分』から export 分を外した読み、:684） (8) :250 の受信の 16 列（O02:18〜48 のうち O02:39〜42 を除く、:685）が、fixture の headType で振り分けた unit の版付きの部分集合で閉じたかを、この試験の結果で確かめる。unit ごとの corpus 試験は残し、本 AC はそれを置き換えない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "docs/specs/reconstruction-p0-contracts.md:2664 «f963cd8f76a100d3»",
@@ -465,16 +471,19 @@
       },
       {
         "id": "P3-FG-AC02",
-        "requirement": "一入力一保存単位（spec:2614。発注 1）: (1) manifest の全 headType が unit 表の coverage（ready＋unit・not-ported＋理由・ignored＋理由）に 1 行ずつある (2) AC01 で流した各入力について、採られたとき世代を上げた unit が 1 つだけで、それが coverage の行の unit と一致する。保存の inputIds に同じ入力が 2 つの unit で現れない。期限と tick による世代は入力に数えない（P2-A3-T10 と同じ帰属） (3) 表に無い headType・not-ported・ignored は件数か診断で区別され、黙って捨てない（P3-UNIT-TABLE-001 の台帳 52 の 3 点が 12 unit の結線でも 0）",
+        "requirement": "一入力一保存単位（spec:2614。発注 1）: (1) manifest の全 headType が unit 表の coverage（ready＋unit・not-ported＋理由・ignored＋理由）に 1 行ずつある (2) AC01 で流した各入力について、採られたとき世代を上げた unit が 1 つだけで、それが coverage の行の unit と一致する。保存の inputIds に同じ入力が 2 つの unit で現れない。期限と tick による世代は入力に数えない（P2-A3-T10 と同じ帰属） (3) 表に無い headType・not-ported・ignored は件数か診断で区別され、黙って捨てない（P3-UNIT-TABLE-001 の台帳 52 の 3 点が 12 unit の結線でも 0） (4) 共有資源の契約（spec:2664 の後半『共有資源の契約を検証する』）: AC01 の 12 unit の run の間、checkpoint の書込み権（unit ごとの in-flight 1 件、P3-UNIT-WRITE-RIGHT-001）と mailbox（実行場所ごとの通常 data の in-flight 1 件、件数・byte の上限は全体で 1 つ、同じ対象の順序と完了照合、P3-EXECUTION-SPLIT-001）の不変条件が破れないことを、run の記録で数える",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "reconstruction/contracts/p3-unit-table.json",
-          "reconstruction/tools/corpus/manifest.json"
+          "reconstruction/tools/corpus/manifest.json",
+          "docs/specs/reconstruction-p0-contracts.md:2664 «f963cd8f76a100d3»",
+          "reconstruction/contracts/p3-unit-write-right.json",
+          "reconstruction/contracts/p3-execution-split.json"
         ]
       },
       {
         "id": "P3-FG-AC03",
-        "requirement": "unmet の帳簿（統合担当、発注 1、P3-FG-D-UNMET=A）: check-sequences の unmet を免除しない（計画:40・:673）。239a35f5 で 88。C22 の受入の時点の数を記録し、step ごとに行き先を 1 つだけ付けた表を成果物に出す: (a) 取り下げ（C15、:673）: O06:30 だけ（:673 が unmet の移行の step として挙げるのはこれだけ） (b) P1 の持ち物: O02:39〜42（:685） (c) P4/P5 へ送り済み: O11:6〜10（:40）と、O09 のうち :231 の津波の P4 分 (d) 契約の試験が試験内の入力で確かめたか、契約が正式 Pass に数えないと書いたもの（契約 ID と試験 ID を書く。例: O08:11〜13 は P3-UNIT-V-001 の T04、O06:2〜8 は P2-SNAPSHOT-SSE-001、O02:15〜17 は P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06） (e) 引き手の無いもの。O04:3（ふつうの全国の正常報。C15 の契約が移行直後の続報の入力に使っただけで、移行の step ではない）と O02:3（P2-WEATHER-TIMESERIES-UNIT-001 は『入力が充足したら O02:4 を戻す』と書き、開いた義務のまま）もここに入れる。起草案の数（239a35f5 の contracts の grep だけ。O09 の津波の 26 の引きは中身を読んでいない）: (a) 1・(b) 4・(c) 5＋O09 の一部・(d) の候補 39（O09 の津波の 26 を含み、そのうち :231 の分は (c) へ移る）・(e) 39（O01:4・11、O02:3、O03:7・9、O04:3・5〜8、O06:11〜28、O09:3〜10・18・21・22）、計 88。O09 の (c)(d) の分けは C4・C6 の版付き subset（reconstruction/test/eew-e01 の manifest）で決める。(e) は各 unit 契約の試験を照合して (d) に移せるものを移し、残りを Q-FG-UNMET-ORPHAN で作者へ出す。合格は行き先の無い unmet 0",
+        "requirement": "unmet の帳簿（統合担当、発注 1、P3-FG-D-UNMET=A）: check-sequences の unmet を免除しない（計画:40・:673）。239a35f5 で 88。C22 の受入の時点の数を記録し、step ごとに行き先を 1 つだけ付けた表を成果物に出す: (a) 取り下げ（C15、:673）: O06:30 だけ（:673 が unmet の移行の step として挙げるのはこれだけ） (b) P1 の持ち物: O02:39〜42（:685） (c) P4/P5 へ送り済み（計画:40 の振り分けの全部）: O11:6〜10（:40、§5.2）、O09 の津波の P4 分 O09:30・31・39・40・48・49・57・58・66・67（:231、P3-C6-O09-REST=A）、O09:9（personal の consumer 有効、P4/P5）、O09:21・22（EEW の容量縮退、P4/P5） (d) 契約の試験が試験内の入力で確かめたか、契約が正式 Pass に数えないと書いたもの（契約 ID と試験 ID を書く）: O08:11〜13（P3-UNIT-V-001 の T04）、O06:2〜8（P2-SNAPSHOT-SSE-001）、O02:15〜17（P2-WEATHER-TIMESERIES-UNIT-001 の P2-A6-T03・T06）、O09:17・18（C6 の単発 smoke と Pi 確認の入力で正式母集団に入れない、p3-tsunami-e01.json:146・p3-tsunami-unit.json:365 が組で扱う）、O09:27〜29・36〜38・45〜47・54〜56・63〜65（C6 の津波の母集団、p3-tsunami-e01.json） (e) 引き手の無いもの: O01:4・11、O02:3（P2-WEATHER-TIMESERIES-UNIT-001 は『入力が充足したら O02:4 を戻す』と書き、開いた義務のまま）、O03:7・9、O04:3（ふつうの全国の正常報。C15 の契約が移行直後の続報の入力に使っただけで、移行の step ではない）・5〜8、O06:11〜28、O09:3〜8・10（EEW の E01 母集団の負荷の型）。起草の数（239a35f5、r1）: (a) 1・(b) 4・(c) 18・(d) 30・(e) 35、計 88。(e) から (c)(d) へ移す手順: step ごとに (1) expectedRef と範囲の書き方（O09:3〜10 の形を含む）で contracts と reconstruction/test（evidence の manifest を含む）を引く (2) O09 は計画:40 の母集団の振り分けに当てる（EEW の E01 の母集団は C4 の凍結 manifest に載っていれば (d)、詳細射影中の O09:10 は P4 の実体なら (c)） (3) unit 契約の試験が同じ入力を試験内で作っていれば試験 ID を付けて (d) (4) どれにも当たらなければ (e) に残し、Q-FG-UNMET-ORPHAN で作者へ出す。合格は行き先の無い unmet 0",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:40 «c4be59ca24a3e392»",
           "reconstruction/contracts/p3-order-plan.md:673 «ec858d7f784e5f2e»",
@@ -482,12 +491,14 @@
           "reconstruction/contracts/p3-order-plan.md:231 «d50b01ca53cff3d6»",
           "reconstruction/tools/corpus/check-sequences.mjs",
           "reconstruction/contracts/p3-volcano-unit.json",
-          "reconstruction/contracts/p2-snapshot-sse.json"
+          "reconstruction/contracts/p2-snapshot-sse.json",
+          "reconstruction/contracts/p3-tsunami-e01.json:146 «20b0628c54f19dd5»",
+          "reconstruction/contracts/p3-tsunami-unit.json:365 «a192e6f180181f74»"
         ]
       },
       {
         "id": "P3-FG-AC04",
-        "requirement": "必須機能契約（spec:2614。統合担当、発注 1）: spec §11.2〜§11.4 で互換必須と書かれた行（CLI の引数・REPL の入口・端末の出力）を 1 行ずつ、検収した契約と AC か、廃止可・取り下げ・P4 へ送った裁定に結ぶ表を作る。volcanorepair（spec:2347・:2351）は P3-FG-D-VOLCANOREPAIR の裁定のとおり。backup は 2026-10-31 の作者裁定で廃止可（計画:617）。ブラウザ側の互換必須行（津波 chip 再放送・browser dim・reduced-motion）は P4（計画:232）。合格は結び先の無い行 0。作者の実端末の目視が残る行（C18 の AC28 (4)）は Q-FG-C18-VISUAL",
+        "requirement": "必須機能契約（spec:2614。統合担当、発注 1）: spec §11.2〜§11.4 で互換必須と書かれた行（CLI の引数・REPL の入口・端末の出力）を 1 行ずつ、検収した契約と AC か、廃止可・取り下げ・代替機能へ統合（例: volcanorepair の下位操作 rest は retry へ、計画:617）・P4 へ送った裁定に結ぶ表を作る。§11.5 の互換必須の『入出力例・設定移行・エラー・副作用を契約化する』（spec:2403）のうち設定移行は C18（P3-CLI-REPL-001 の §11.5 の設定移行）に結ぶ。volcanorepair（spec:2347・:2351）は P3-FG-D-VOLCANOREPAIR の裁定のとおり。backup は 2026-10-31 の作者裁定で廃止可（計画:617）。ブラウザ側の互換必須行（津波 chip 再放送・browser dim・reduced-motion）は P4（計画:232）。合格は結び先の無い行 0。作者の実端末の目視が残る行（C18 の AC28 (4)）は Q-FG-C18-VISUAL",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "docs/specs/reconstruction-p0-contracts.md:2347 «59362f92de1fecfe»",
@@ -495,12 +506,13 @@
           "reconstruction/contracts/p3-order-plan.md:617 «ed5ceb754aae3164»",
           "reconstruction/contracts/p3-order-plan.md:232 «422781f57763a10f»",
           "reconstruction/contracts/p3-cli-repl.json",
-          "reconstruction/contracts/p3-terminal-output.json"
+          "reconstruction/contracts/p3-terminal-output.json",
+          "docs/specs/reconstruction-p0-contracts.md:2403 «62d8feda0404521e»"
         ]
       },
       {
         "id": "P3-FG-AC05",
-        "requirement": "全単位の E20 と終了の再確認（spec:2072・:889）: (1)【発注 1】12 unit を全部 dirty にした状態で、E20 の 5 場面（通常終了、保存不能、owner の停止、batch 残存、終了中の遅い ack）を最終の形の結線で起こし、§5.9 の段の順・各 unit の最終世代の確認・終了 code が一致し、保存を確かめていない code 0 が 0。P2 の終了試験（P2-A3-T06）と C3b（P3-C3B-AC03、U-E・U-W・U-F の単位）と同じ条件を全 unit に広げる（spec:889 の『同じ条件で確認』）。owner は 4 本（P3-SEISMIC-PLACE-001） (2)【発注 3】段ごとの開始上限（全体 30 秒、収束 10 秒、batch・通知 5 秒、最終保存 10 秒、終了処理 5 秒。前段の超過を後段へ足さない）に収まることを、最終の形で 12 unit が最大に近い器の状態（AC09 の N2 の 06-27 04:04 の state を起点にする案、起草案）から測り、最終保存の段の所要を unit ごとと合計で記録する。Pi の値は AC08 の (3)",
+        "requirement": "全単位の E20 と終了の再確認（spec:2072・:889）: (1)【発注 1、owner の停止の場面だけ発注 3】12 unit を全部 dirty にした状態で、E20 の 5 場面（通常終了、保存不能、owner の停止、batch 残存、終了中の遅い ack）を最終の形の結線で起こし、§5.9 の段の順・各 unit の最終世代の確認・終了 code が一致し、保存を確かめていない code 0 が 0。P2 の終了試験（P2-A3-T06）と C3b（P3-C3B-AC03、U-E・U-W・U-F の単位）と同じ条件を全 unit に広げる（spec:889 の『同じ条件で確認』）。owner は 4 本（P3-SEISMIC-PLACE-001）。owner の停止の場面は P3-OWNER-REBUILD-001 の配送の後に行う（同契約の AC08 が、停止の時に作り直し中だった場合の扱いと終了 code を変えるため。作り直し中の停止も場面に入れる） (2)【発注 3】段ごとの開始上限（全体 30 秒、収束 10 秒、batch・通知 5 秒、最終保存 10 秒、終了処理 5 秒。前段の超過を後段へ足さない）に収まることを、最終の形で 12 unit が最大に近い器の状態から測る。起点の state は段 4 の P3-DISASTER-PI-MEASURE-001 の『山の写し』を使う。最終保存の段の所要を unit ごとと合計で記録する。Pi の値は AC08 の (3)",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2072 «7ff1730a323b9563»",
           "docs/specs/reconstruction-p0-contracts.md:889 «b5001a1d03d84568»",
@@ -511,7 +523,7 @@
       },
       {
         "id": "P3-FG-AC06",
-        "requirement": "通知の故障隔離（spec:2614 の P3 分。E21・spec:962。発注 2）: 通知の channel（desktop・sound）ごとに、制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、通知を出す全 unit の intent（U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む）で、(1) 停止を確かめられない adapter の隔離・無効化と、同じ実処理への重ね呼び 0 (2) 隔離中の intent は試行せず、期限で欠落を記録し、成功に数えない (3) 固定優先順（EEW→通常運用の津波緊急→その他）と満杯の採否 (4) ある channel の故障が他の channel と受理・保存を止めない、を確かめる。2026-11-13 の作者裁定（判断カードの §9、稀の群は承認せず直す）で直す族（A6 通知の channel の隔離、A10 失敗しても『使える』、C11 EEW の thread が落ちる、A16 永続の診断を捨てる）の直しの契約が配送した形で検収する。直し方は各契約で決まり、本契約は決めない（Q-FG-RARE-FIXES）。export と personal の consumer（§12.7）は P3 の外（計画:684）",
+        "requirement": "通知の故障隔離（spec:2614 の P3 分。E21・spec:962。発注 2）: 通知の channel（desktop・sound）ごとに、制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、通知を出す全 unit の intent（U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む）で、(1) 停止を確かめられない adapter の隔離・無効化と、同じ実処理への重ね呼び 0 (2) 隔離中の intent は試行せず、期限で欠落を記録し、成功に数えない (3) 固定優先順（EEW→通常運用の津波緊急→その他）と満杯の採否 (4) ある channel の故障が他の channel と受理・保存を止めない、を確かめる。2026-11-13 の作者裁定（判断カードの §9、稀の群は承認せず直す）のうち、A6（通知の channel の隔離）と A10（失敗しても『使える』）を直す P3-NOTIFY-FAIL-RECOVER-001（draft/notify-recover、作者の分岐待ち）が配送した形で検収する。直し方は同契約で決まり、本契約は決めない。A16（永続の診断を捨てる）は P3-DIAG-SINK-RETRY-001 で配送済み（87c97a45）。C11（EEW の thread が落ちる）は P3-OWNER-REBUILD-001 が受け、AC05・AC08 で見る（Q-FG-RARE-FIXES）。export と personal の consumer（§12.7）は P3 の外（計画:684）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe»",
@@ -523,7 +535,7 @@
       },
       {
         "id": "P3-FG-AC07",
-        "requirement": "津波緊急の実 backend（IR03、計画:252。P3-C5-AC08 の T2。発注 2、P3-FG-D-IR03-BACKEND=A の起草案）: 統合担当が P3-C5-E21-LOAD-T-v1 の T2 を実 backend で走らせ、macOS（Mac mini）と Linux（Pi）を別に記録する。見るのは、各初回待ち≤暫定 1 秒、固定群（EEW→通常運用の津波緊急→その他）と同群の順、緊急の到着で下位の試行を abort し遅い成功で書き換えない、隔離・期限切れを成功に数えない。Pi は AC08 の窓の中で行う",
+        "requirement": "津波緊急の実 backend（IR03、計画:252。P3-C5-AC08 の T2。P3-FG-D-IR03-BACKEND=A、作者裁定 2026-11-13 昼）: 統合担当が P3-C5-E21-LOAD-T-v1 の T2 を実 backend で走らせ、macOS（Mac mini、発注 2）と Linux（Pi、発注 3。AC08 の窓の中で行う）を別に記録する。見るのは、各初回待ち≤暫定 1 秒、固定群（EEW→通常運用の津波緊急→その他）と同群の順、緊急の到着で下位の試行を abort し遅い成功で書き換えない、隔離・期限切れを成功に数えない。実際に音と desktop の通知が出るので、作者の在席の時刻に行う",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:252 «c483fd5e71eeacd8»",
           "reconstruction/contracts/p3-tsunami-unit.json:901 «225db1bd29ba1a7e»",
@@ -532,7 +544,7 @@
       },
       {
         "id": "P3-FG-AC08",
-        "requirement": "Pi の短い確認（D-P3-7、計画:87・:239。発注 3、P3-FG-D-PI-WINDOW=A の起草案）: P3-PH-AC08 の窓の手順で最終の形の新築を Pi で動かし、(1) 最も重い急ぐ unit の処理中（U-Q の最大の地震の報と、件数の上限の前後の退去）に投入した EEW の待ち (2) 12 unit を同時に dirty にした保存（書込み権の待ち・着手・encode・write・ack の分解、unit ごとの所要） (3) 通常終了（AC05 の段の所要）を取る。見るのは計画 §4.5 の 5 つ（EEW が大型処理に追従して止まる、publisher が owner の完了を待つ、書込み権が戻らず他の単位が保存できない、RSS が上限を明らかに超える、queue が一方向に増える）。結果は『この予備条件では再現せず』か異常の分類で書き、Pass と呼ばない（計画:187）。同じ窓で残り 3 点（T2→採用と射影・採用と射影→公開の分解の集計、P3-PH-AC08 の (3)(4)、Q-PH-MEASURE の requiredEvidence）を閉じ、:239 を閉じる結論の文（P3-E01-REACCEPT-001 の AC09 の 5 つそれぞれに、起きた／再現せず）を書く。Pi の PSI は作者が窓の前に psi=1 を入れれば取る",
+        "requirement": "Pi の短い確認（D-P3-7、計画:87・:239。発注 3、P3-FG-D-PI-WINDOW=A、作者裁定 2026-11-13 昼）: P3-PH-AC08 の窓の手順で最終の形の新築を Pi で動かし、(1) 最も重い急ぐ unit の処理中（U-Q の最大の地震の報と、件数の上限の前後の退去）に投入した EEW の待ち (2) 12 unit を同時に dirty にした保存（書込み権の待ち・着手・encode・write・ack の分解、unit ごとの所要） (3) 通常終了（AC05 の段の所要） (4) P3-OWNER-REBUILD-001 が C22 へ渡した 2 点: 急ぐ側の owner を最後の checkpoint から作り直す時間（同契約の RES-02 の 10 秒に収まるか）と、作り直しの間に投入した EEW の遅れ を取る。見るのは計画 §4.5 の 5 つ（EEW が大型処理に追従して止まる、publisher が owner の完了を待つ、書込み権が戻らず他の単位が保存できない、RSS が上限を明らかに超える、queue が一方向に増える）。結果は『この予備条件では再現せず』か異常の分類で書き、Pass と呼ばない（計画:187）。同じ窓で AC07 の Pi の実走と、残り 3 点（T2→採用と射影・採用と射影→公開の分解の集計、P3-PH-AC08 の (3)(4)、Q-PH-MEASURE の requiredEvidence）を閉じ、:239 を閉じる結論の文（P3-E01-REACCEPT-001 の AC09 の 5 つそれぞれに、起きた／再現せず）を書く。Pi の PSI は作者が窓の前に psi=1 を入れれば取る",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:204 «6dbae61d532de8c8»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -545,14 +557,13 @@
       },
       {
         "id": "P3-FG-AC09",
-        "requirement": "災害の日（計画:492〜:496、作者裁定 判断 2。発注 3、P3-FG-D-STAGE4=A の起草案）: P3-DISASTER-CAPACITY-001 の道具（formal）で、最終の形の新築に W1 の 3 日・道具を直した W2・N1・N2・N3・R2 を流し、各筋書きが P3-DC-PASS の 4 条件（入力単位の拒否 0、容量の欠け 0〔U-Q の退去を含む〕、手書きの期待例が全部合う、U-E・U-T・U-Q の要約 0）を全部満たす。blocked は合格に数えない（:493）。R1 は Q-FG-R1（:494）。結果に流した電文の digest・測った commit・契約の版を残す（:495）。道具の BYTE_LIMITS の U-E・U-T・U-N（runner.ts、器を広げる前の値）は判定に効かないが、段 4 の器に合わせて直してから測る。de25f61a の測り直し（Q-QC-MEASURE、N1〜N3 は要約と件数 512 で Fail）は記録で、合否に使わない",
+        "requirement": "災害の日（計画:492〜:496、作者裁定 判断 2。発注 3、P3-FG-D-STAGE4=A、作者裁定 2026-11-13 昼）: P3-DISASTER-CAPACITY-001 の道具（formal）で、最終の形の新築に W1 の 3 日・道具を直した W2・N1・N2・N3・R2 を流し、各筋書きが P3-DC-PASS の 4 条件（入力単位の拒否 0、容量の欠け 0〔U-Q の退去を含む〕、手書きの期待例が全部合う、U-E・U-T・U-Q の要約 0）を全部満たす。blocked は合格に数えない（:493）。R1 は Q-FG-R1（:494）。結果に流した電文の digest・測った commit・契約の版を残す（:495）。de25f61a の測り直し（Q-QC-MEASURE、N1〜N3 は要約と件数 512 で Fail）は記録で、合否に使わない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:492 «b28126ed179342cc»",
           "reconstruction/contracts/p3-order-plan.md:493 «7626c9148c1d4f83»",
           "reconstruction/contracts/p3-order-plan.md:494 «16bcd54a5442cc98»",
           "reconstruction/contracts/p3-disaster-capacity.json:79 «046b5cfd49473e42»",
-          "reconstruction/contracts/p3-unit-q-capacity.json:681 «ee02e5bfefed3b85»",
-          "reconstruction/test/disaster/runner.ts"
+          "reconstruction/contracts/p3-unit-q-capacity.json:681 «ee02e5bfefed3b85»"
         ]
       },
       {
@@ -567,7 +578,7 @@
       },
       {
         "id": "P3-FG-AC11",
-        "requirement": "§6 の移管の行（計画 :239〜:256 の 18 行。統合担当、発注 1、P3-FG-D-ROWS=A）: 各行を 1 つの区分に置く。計画:47 の 3 区分（再検収済み・作者裁定で P4/P5 へ再移管・作者裁定で取り下げ）に、C22 で検収する行を足す。起草案の判定は Q-FG-ROWS: 再検収済み・検収済み・解消 13（:240・:241・:242・:244〜:248・:251・:253〜:256）、再移管 1（:243 は P5、2026-11-13）、取り下げ 1（:249、2026-11-13）、C22 で検収 3（:239 は AC08、:250 は AC01・AC03、:252 は AC07）。記録の直し: p3-dmdata-connect.json の P2-A10-R63 の status を inProgress から closed へ（1aafed5a、evidence/dmdata-live-20261005.json の AC09）、作業ノートの台帳 49 の状態欄を解消へ。合格は区分の無い行 0 と、C22 で検収する 3 行がそれぞれの AC で閉じたこと",
+        "requirement": "§6 の移管の行（計画 :239〜:256 の 18 行。統合担当、発注 1、P3-FG-D-ROWS=A）: 各行を 1 つの区分に置く。計画:47 の 3 区分（再検収済み・作者裁定で P4/P5 へ再移管・作者裁定で取り下げ）に、C22 で検収する行を足す。起草案の判定は Q-FG-ROWS: 再検収済み・検収済み・解消 13（:240・:241・:242・:244〜:248・:251・:253〜:256）、再移管 1（:243 は P5、2026-11-13）、取り下げ 1（:249、2026-11-13）、C22 で検収 3（:239 は AC08、:250 は AC01・AC03、:252 は AC07）。記録の直し: p3-dmdata-connect.json の P2-A10-R63 の status を inProgress から closed へ（3fff76f5、reconstruction/test/host/evidence/dmdata-live-20261005.json の AC09）、作業ノートの台帳 49 の状態欄を解消へ。合格は区分の無い行 0 と、C22 で検収する 3 行がそれぞれの AC で閉じたこと",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:47 «b8fc6b10139ce7f9»",
           "reconstruction/contracts/p3-order-plan.md:239 «a2dcbf55a796dfee»",
@@ -581,7 +592,7 @@
       },
       {
         "id": "P3-FG-AC12",
-        "requirement": "C15 の取り下げと C21 の外出しの読みの表（統合担当、発注 1、P3-FG-D-STALE=A）: 他の契約の C15・移行器・移行契約・P3-MIGRATION-001 の記述（239a35f5 で 31 file・94 行。p3-order-plan.md と p3-migration.json を除く）と、C21 で実 adapter を検収するとした記述を、行を書き換えずに次の区分で読む。(K1) 旧築の保存から unit の候補を作る・移行未確認を報告するのは C15（unit 契約の outOfScope と申し送り、p3-persist-premises.md の C15）→ 取り下げ。旧築の保存は移さず、切替は C16 の起動時の取り直し（P3-REC-D-START-WINDOW=B）。30 日より前に出て今も有効な分は計画:610 の数えへ (K2) Q-MIGRATION と『P3 移行契約の前に旧 checkpoint の変換を検収』（p2-checkpoint-shutdown.json:709〜721、p2-weather-current-unit.json の Q-MIGRATION、p2-order-plan.md:215・:243）→ 取り下げ。step と期待は消さない（計画:673） (K3) volcanorepair は C18 の発注 4 で結線（p3-cli-repl.json:46・:47・:904、p3-migration.json:474、p3-volcano-unit.json:971）→ P3-FG-D-VOLCANOREPAIR の裁定のとおり。発注 4 は作らない（計画:671） (K4) C15 の保留ブランチ・再開するときの申し送り（p3-uw-canon.json、p3-weather-notice.json など）→ 再開は無い。ブランチの削除は作者の ! (K5) 『C15 まで新築は本番で動かない』の推測（p3-notice-ledger.json など）→ 本番で動き始めるのは P5 の並走と P6 の切替と読む (K6) 実 adapter での検収は C21・C22（p3-replay-cli.json:249、p3-replay-watch.json:323）→ 通知は C22 の AC06・AC07、export は P3 の外（計画:684）。発注 1 で 94 行の全部を区分に振った一覧を成果物に出し、区分に入らない行は作者に見せる",
+        "requirement": "C15 の取り下げと C21 の外出しの読みの表（統合担当、発注 1、P3-FG-D-STALE=A）: 数え方は reconstruction/contracts の *.json・*.md・*.ts の行で、正規表現 (?<![A-Za-z0-9_-])C15(?![0-9])|P3-MIGRATION-001|移行契約|移行器 に当たるもの（p3-order-plan.md・p3-migration.json・本契約を除く）。239a35f5 で 33 file・96 行。これと、C21 で実 adapter を検収するとした記述を、行を書き換えずに次の区分で読む。(K0) 配送済みの C15 の発注 1（951e3655、捨ててよい旧い版の一覧を空にした）を指し、今も正しい行（p2-checkpoint-shutdown.json:441、p2-shared-runtime.types.ts:555、p3-version-material.json:484、p3-persist-premises.md:67・:73・:86、p3-notice-ledger.json:900、p3-unreadable-mark.json:267・:830・:1006、p3-unit-n-series.json:514）→ そのまま読む。P3-MIG-D-LIST-AFTER=A は生きる決まり（計画:668） (K1) 旧築の保存から unit の候補を作る・移行未確認を報告するのは C15（unit 契約の outOfScope と申し送り、p3-persist-premises.md の C15）→ 取り下げ。旧築の保存は移さず、切替は C16 の起動時の取り直し（P3-REC-D-START-WINDOW=B）。30 日より前に出て今も有効な分は計画:610 の数えへ (K2) Q-MIGRATION と『P3 移行契約の前に旧 checkpoint の変換を検収』（p2-checkpoint-shutdown.json:709〜721、p2-weather-current-unit.json の Q-MIGRATION、p2-order-plan.md:215・:243）→ 取り下げ。step と期待は消さない（計画:673） (K3) volcanorepair は C18 の発注 4 で結線（p3-cli-repl.json:46・:47・:904、p3-migration.json:474、p3-volcano-unit.json:971）→ P3-FG-D-VOLCANOREPAIR=A（作者裁定 2026-11-13 昼）で取り下げ。発注 4 は作らない（計画:671） (K4) C15 の保留ブランチ・再開するときの申し送り（p3-uw-canon.json、p3-weather-notice.json など）→ 再開は無い。ブランチの削除は作者の ! (K5) 『C15 まで新築は本番で動かない』の推測（p3-notice-ledger.json:116 など）→ 本番で動き始めるのは P5 の並走と P6 の切替と読む (K6) 実 adapter での検収は C21・C22（p3-replay-cli.json:249、p3-replay-watch.json:323）→ 通知は C22 の AC06・AC07、export は P3 の外（計画:684） (K7) 旧築との切替・rollback の重複窓の受け手を C15 とした行（p3-notice-ledger.json:420、spec §6.6・H48 の別例外）→ spec:2617 の P6（切替・rollback、表示・通知の handoff）の受け手と読む (K8) 宛先の無くなった申し送り（C15 の起草で見直す・C15 の発注 2 の条文を改める、p3-revision-order.json:207・:264、p3-windows-ci.json:244・:408）→ 見直しも改訂も要らない。p3-revision-order.json の lastKnown の比較は、不足を作るのが C15 の移行器だけ（同:264）なので、取り下げで不足が生まれず、比較を見直す宛先が無い。p3-windows-ci.json の 2 行は移行器の条文の改訂で、移行器が作られないので消えた。発注 1 で 96 行の全部を区分に振った一覧を成果物に出し、区分に入らない行は作者に見せる",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:673 «ec858d7f784e5f2e»",
           "reconstruction/contracts/p3-order-plan.md:610 «2ade53248e27eeb1»",
@@ -594,7 +605,8 @@
           "reconstruction/contracts/p3-volcano-unit.json:971 «33c510356b31f094»",
           "reconstruction/contracts/p3-replay-cli.json:249 «b60c516682af9908»",
           "reconstruction/contracts/p3-replay-watch.json:323 «b1b78f963bde4d3e»",
-          "reconstruction/contracts/p3-persist-premises.md"
+          "reconstruction/contracts/p3-persist-premises.md",
+          "docs/specs/reconstruction-p0-contracts.md:2617 «d9d318c06bb309d4»"
         ]
       },
       {
@@ -616,7 +628,7 @@
         "referenceIds": [
           "P3-FG-AC01"
         ],
-        "behavior": "（起草案）全 sequence の解決済みの step を owner-harness の TEST-PATH に順と時計のまま流し、null でない欄の一致を数える。正常・取消・復元と route ごとの件数、取り下げの step の別表、不一致の全件を出す"
+        "behavior": "（起草案）AC01 (1) の step（receive は fixture を持つもの、restart・recover・save・advanceClock は fixture によらず）を owner-harness の TEST-PATH に順と時計のまま流し、null でない欄の一致を数える。正常・取消・復元と route ごとの件数、取り下げ・前提の unmet の未充足・injectFailure の別表、不一致の全件を出す"
       },
       {
         "testId": "P3-FG-T02",
@@ -739,21 +751,9 @@
         ],
         "resolveBy": "発注 1 の前（発注前点検で baseOid を割り当てる）",
         "requiredEvidence": [
-          "起草案の分岐 P3-FG-D-SPLIT・D-ORACLE の確定と、作者の分岐の裁定",
-          "evidenceRefs の «» をその木で読み直した記録"
-        ]
-      },
-      {
-        "id": "Q-FG-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "発注 1 の AC04（VOLCANOREPAIR）",
-          "発注 2 の AC07（IR03-BACKEND）",
-          "発注 3（STAGE4・PI-WINDOW・PERSONA-PRO・PERSONA-TERMINAL）"
-        ],
-        "resolveBy": "各発注の前",
-        "requiredEvidence": [
-          "meta.decisionBranches の kind 作者の 6 件の裁定"
+          "起草案の分岐 P3-FG-D-SPLIT の確定",
+          "evidenceRefs の «» をその木で読み直した記録",
+          "Q-FG-RARE-FIXES の契約のうち、その木にある契約 file を dependsOnContractIds に足したこと"
         ]
       },
       {
@@ -762,9 +762,10 @@
         "blocks": [
           "発注 3"
         ],
-        "resolveBy": "段 4 の器の拡張の契約（未起草）の配送の後",
+        "resolveBy": "段 4 の器の拡張の契約と P3-DISASTER-PI-MEASURE-001（AC01 が runner.ts の BYTE_LIMITS の行を持つ。AC05 (2) の起点の『山の写し』も同契約）の配送の後",
         "requiredEvidence": [
-          "段 4 の契約の配送 commit と、件数の上限・snapshot の上限・器の byte の新しい値"
+          "段 4 の契約の配送 commit と、件数の上限・snapshot の上限・器の byte の新しい値",
+          "P3-DISASTER-PI-MEASURE-001 の配送 commit と、BYTE_LIMITS を今の器に合わせた記録、『山の写し』の置き場と digest"
         ]
       },
       {
@@ -774,9 +775,11 @@
           "発注 2",
           "発注 3"
         ],
-        "resolveBy": "判断カード §9 の稀の群の直し（A6・A10・C11・A16、239a35f5 では契約が無い）の配送の後に発注 2、§7 の 7-1 の直し（同じく契約が無い）の配送の後に発注 3。7-3・7-4 は配送済み",
+        "resolveBy": "発注 2: P3-NOTIFY-FAIL-RECOVER-001（A6・A10、draft/notify-recover、作者の分岐待ち）の配送の後。発注 3: P3-RAIN-RECOVERY-CANCEL-001（7-1、baseOid 050deaf5、実装中）・P3-OWNER-REBUILD-001（C11、作者の裁定 2 で作り直し、draft/owner-rebuild、作者の分岐待ち）・P3-VOLCANO-LIFT-001（実装 3b25c34b、配送の直前）の配送の後。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は配送済み。どれも 239a35f5 の木に契約 file が無いので dependsOnContractIds には入れず、baseOid の割当のときに足す",
         "requiredEvidence": [
-          "各契約の配送 commit。AC06 の検収で使う通知の隔離の形がその配送の後のものであること"
+          "各契約の配送 commit",
+          "AC06 の検収で使う通知の隔離の形が P3-NOTIFY-FAIL-RECOVER-001 の配送の後のものであること",
+          "P3-OWNER-REBUILD-001 の AC08（停止の時に作り直し中だった場合の扱いと終了 code）と RES-02（作り直しの 10 秒）の確定値"
         ]
       },
       {
@@ -787,7 +790,7 @@
         ],
         "resolveBy": "段 4 の器の拡張の契約の起草のとき",
         "requiredEvidence": [
-          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。決まらないまま AC13 を判定しない"
+          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。決まらないまま AC13 を判定しない"
         ]
       },
       {
@@ -799,7 +802,7 @@
         ],
         "resolveBy": "発注 1 の帳簿の後",
         "requiredEvidence": [
-          "AC03 の (e) に残った step ごとの入力と期待の要約と、P4/P5 へ送るか取り下げるかの推奨"
+          "AC03 の (e)（r1 の起草の数で 35）から手順 (1)〜(3) で移した後に残った step ごとの入力と期待の要約と、P4/P5 へ送るか取り下げるかの推奨"
         ]
       },
       {
