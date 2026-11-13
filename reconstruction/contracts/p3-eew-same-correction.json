@@ -1,0 +1,359 @@
+{
+  "meta": {
+    "draftedFromOid": "0e417215cd8043a8fde243bec0d19c23c3b9035e",
+    "sha256": "068c720edec0202cb25f65e3bb77792d9526b245e33efb9639e9baade7b4838c",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-ESC-D-FORM",
+        "kind": "統合担当",
+        "A": "synthetic は親（O01:4 は 37_01_02_240613_VXSE43、O01:11 は 77_01_26_240613_VXSE45）の bytes のうち <InfoType>発表</InfoType> の 1 か所だけを <InfoType>訂正</InfoType> に替えたもの。Control/DateTime・Serial・ReportDateTime・本文は親のまま",
+        "B": "A に加えて Control/DateTime を親より後にする（P2-A4-T11 の AC02 の試験の sentLater と同じ形）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。corpus の input.required の字「直前報と同じ報番号・ReportDateTime、InfoType=訂正、本文差分なし」と C22 の帳簿の「報番号も時刻も直前と同じ」をそのまま読む形）",
+        "reason": "製品の判定は形で分かれる（製品のコードは変えない）。A: 新旧の比べ（version.ts の compareVersion）は Control/DateTime と Serial が同じなので same。中身が同じかの判定（eew.ts:478）は InfoType の一致を要し、発表→訂正の食い違いを許すのは両方が仮定震源のときだけ（R37）。親の 2 本は仮定震源でない（Condition は「既に主要動到達と推測」だけ）ので same で中身が違う組になり、version.ts:102 の held、eew.ts:495 の unchanged/stale。採らず、通知しない。B: Control/DateTime が新しいので newer で採り、changed/revisionOnly（eew.ts:710、予測は同じ）。訂正は eew.ts:614 で通知の判定に入る（題は [訂正] 付き、:620。出る本数は起草で読んでいない）。作者の裁定（Q-FG-UNMET-ORPHAN=A）は「同じ報の再送として扱う（通知しない）」形を求めたので、結果が通知しない側の A を採る。B を採るなら期待は旧のまま changed で、change を null から revisionOnly に埋め、notices・intents は走らせた値で書く（AC02 を書き換える）。どちらでも画面・通知・音の出方は今の製品のままで、変わるのは corpus がどちらの形を固定するかだけ"
+      },
+      {
+        "id": "P3-ESC-D-REASON",
+        "kind": "統合担当",
+        "A": "O01:4・O01:11 の新しい期待を unchanged/stale にする（製品の決まり P3-VM-AC03 の「same で中身が違えば先の版を残す」）。製品のコードは変えない",
+        "B": "作者の裁定の字（R37 の unchanged/duplicate）に合わせ、仮定震源でない報の発表→訂正の InfoType だけの食い違いも duplicate と読むよう eew.ts:478 の条件を広げる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 16 時台）",
+        "ruling": "A（統合担当。製品を変えない。stale と duplicate の違いは gate に付く未確認の印だけで、印は保存されず読むのは eew.ts だけ。画面・通知・音は同じ）",
+        "reason": "C22 の帳簿（p3-final-gate.json:180・:272）は「R37 はこの形を試験内で作り、結果は unchanged/duplicate」と書いたが、R37 の試験（eew-unit.test.ts:365）が duplicate を確かめるのは、仮定震源の発表→訂正で非表示の M だけが違う組と、訂正どうしの同じ raw の再送（:1173 の AC02 も訂正どうし）だけ。仮定震源でない発表→訂正で中身の差が無い同じ版の報は、この 2 つの試験は作っていない（eew-unit.test.ts のほかの試験は全部は読んでいない）。製品では A の形が stale になる（P3-ESC-D-FORM の reason）。stale と duplicate の違いは decision の reason と、gate の未確認の印（保存しない、eew.ts:489。view・端末に出ない）だけで、どちらも採らず intent 0 本、current と gate の版は O01:3・O01:10 のまま。画面・通知・音は同じなので作者の裁定の趣旨（通知しない）を満たす。B は製品の変更で本契約の範囲の外（変えるなら止めて報告）。作者の裁定の前提の字（duplicate）が事実と違ったことは、統合担当が作者への報告に 1 行で添える"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-ESC-SOURCE",
+        "status": "closed",
+        "source": "起草（2026-11-13、HEAD 0e417215 の木を読んだ。読むだけの子）",
+        "closed": "(1) corpus: O01:4（sequences.json の step :254・record :11874）と O01:11（:358・:12108）は unmet で fixture が無い。期待は decision {changed, change null}・effective null・notices/intents null。後ろの O01:5〜7（37_01_03 の取消・同じ取消の再送・37_01_01 の遅着）と O01:12〜14（77_01_33 の取消・再送・77_01_01 の遅着）は期待を持つが、oracle.test.ts:53 で dependsOnUnmet に入り流れていない (2) 親の版: 37_01_02 は Control/DateTime 2024-04-17T14:15:10Z・Serial 2・発表、77_01_26 は 14:15:38Z・Serial 26・発表。どちらも <InfoType>発表</InfoType> を 1 つだけ持ち、仮定震源の Condition を持たない。取消の 37_01_03・77_01_33 の Control/DateTime は 14:17:00Z で、O01:4・11 より新しい (3) 製品: EEW の新旧は Control/DateTime、同じなら Serial（version.ts:90）。same で中身が同じなら duplicate（:96）、違えば held（:102）で、U-E は held を stale と返す（eew.ts:495）。中身の比べ（eew.ts:475〜:481）は InfoType の一致を要し、訂正の例外は仮定震源どうしだけ（:478） (4) T01 は stale の receive の revision を比べない（oracle.test.ts:302）。effective・subjects・decision・notices・intents は比べる (5) fixture を足すと件数の決め打ちが 4 か所で変わる: check-manifest.mjs（313・292）、p1-parser-boundary.test.ts:46〜:50（292・291・291）、eew-unit.test.ts:1169（P2-A4-T09 の EEW の母集団 14・12）、oracle.test.ts:411・:414・:416（unmet 90、dependsOnUnmet 13、flow 365 と一覧） (6) «» の行ずれ: manifest は path の順で、新しい 2 行は :276 の後に入り、引かれた行（:117〜:119・:243）より後。p1-parser-boundary.json の fixtureIds に 2 行足すと、:501（p3-xml-tree-compact.json が引く）と :545・:547・:548・:556（p3-weather-light-step1/2.json が引く）が 2 行下がる。sequences.json は O01 の後ろの :24265（p3-weather-notice.json が引く）がずれる。check-manifest.mjs・eew-unit.test.ts・p1-parser-boundary.test.ts は行の中だけを直すので、引かれた行（:15・:78・:81、:1154・:1197 ほか、:114）はずれない (7) 名前の付け替え: unmet:O01:4・unmet:O01:11 を引く契約・spec・試験は無い（reconstruction/contracts・docs/specs・reconstruction/test・reconstruction/tools を grep、evidence を除く）。EEW の gate の未確認の印（unconfirmed）を読むのは reconstruction/src の中で eew.ts だけ（:475・:491・:603）"
+      },
+      {
+        "id": "Q-ESC-PROBE",
+        "status": "closed",
+        "source": "起草（2026-11-13）",
+        "closed": "起草の木（worktree）には node_modules と dist が無く、許可 root の外から持ち込まないので、製品の結果は走らせて確かめていない。AC02 の期待は eew.ts と version.ts を読んで出した値。発注の最初の作業として、2 本の fixture と sequences の直しを当てた木で T01 を走らせ、O01:4・11 の actual が AC02 と違えば、期待を合わせずに actual・expected を添えて止めて報告する（artifactRequirements）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。合成の 2 本の Control/Status は親のまま「通常」"
+    }
+  },
+  "contract": {
+    "contractId": "P3-EEW-SAME-CORRECTION-001",
+    "mode": "implementation",
+    "objective": "C22 の帳簿で行き先の無かった O01:4・O01:11（EEW の同じ版の訂正、報番号・時刻・本文が直前と同じ）に合成の入力 2 本を足し、期待を製品の決まり（P3-VM-AC03 の same で中身が違う組は先の版を残す、unchanged/stale・通知しない）に直す。後ろの O01:5〜7・O01:12〜14 の 6 step を含む 8 step を C22 の T01 で流し、全部一致させる（作者裁定 Q-FG-UNMET-ORPHAN=A、2026-11-13 15:13）。製品のコードは変えない。unmet は 90 → 88",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-eew-same-correction.json",
+      "reconstruction/contracts/p3-final-gate.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/test/final-gate/oracle.test.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/test/parser-boundary/evidence.mjs",
+      "reconstruction/tools/corpus/**",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "test/fixtures/37_01_02_240613_VXSE43.xml",
+      "test/fixtures/37_01_03_240613_VXSE43.xml",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/77_01_26_240613_VXSE45.xml",
+      "test/fixtures/77_01_33_240613_VXSE45.xml"
+    ],
+    "allowedPaths": [
+      "test/fixtures/synthetic_VXSE43_same_version_correction.xml（新規。AC01）",
+      "test/fixtures/synthetic_VXSE45_same_version_correction.xml（新規。AC01）",
+      "reconstruction/tools/corpus/manifest.json（2 行を path の順の位置〔:276 の synthetic_VXKO50_multi_forecast の次〕に足す。meta.sha256 を取り直す。ほかの行は変えない）",
+      "reconstruction/tools/corpus/sequences.json（O01:4・O01:11 の step と record だけ〔AC02〕。meta.manifestSha256 と meta.sha256 を取り直す）",
+      "reconstruction/tools/corpus/check-manifest.mjs（件数 313・292 の行の中だけ: :33・:34・:62・:97・:149）",
+      "reconstruction/tools/corpus/README.md（:5 の件数と経緯の書き足し、:44 の件数）",
+      "reconstruction/contracts/p1-parser-boundary.json（objective・P1-AC01・P1-T01・requiredCommands の件数と、fixtureIds に 2 行。meta は統合担当が取り直す）",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（:46・:48・:50 の件数だけ）",
+      "reconstruction/test/eew-unit/eew-unit.test.ts（:1169 の件数だけ）",
+      "reconstruction/test/final-gate/oracle.test.ts（:410〜:416 の数・一覧・コメントだけ）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-eew-same-correction.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M01"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-EEW-UNIT-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-FINAL-GATE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewGate"
+    ],
+    "publicFunctions": [
+      "口は変えない（製品のコードを変えない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__37_01_02_240613_VXSE43",
+      "test__fixtures__37_01_03_240613_VXSE43",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__77_01_33_240613_VXSE45"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O01:5"
+      },
+      {
+        "expectedRef": "expected:O01:6"
+      },
+      {
+        "expectedRef": "expected:O01:7"
+      },
+      {
+        "expectedRef": "expected:O01:12"
+      },
+      {
+        "expectedRef": "expected:O01:13"
+      },
+      {
+        "expectedRef": "expected:O01:14"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O01:5"
+      },
+      {
+        "expectedRef": "expected:O01:6"
+      },
+      {
+        "expectedRef": "expected:O01:7"
+      },
+      {
+        "expectedRef": "expected:O01:12"
+      },
+      {
+        "expectedRef": "expected:O01:13"
+      },
+      {
+        "expectedRef": "expected:O01:14"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形と版を変えない。stale の報は gate に未確認の印を付けるだけで、印は保存しない）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "製品のコード（reconstruction/src/）の変更。R37 の duplicate を仮定震源でない発表→訂正へ広げること（P3-ESC-D-REASON の B）",
+      "Control/DateTime を後にした訂正の形（P3-ESC-D-FORM の B）。その形は採って [訂正] を鳴らすのが今の製品の決まりで、P2-A4-T11 の AC02 の試験（eew-unit.test.ts:1173）が中身の差のある組を確かめている",
+      "C22 の帳簿の orphan のほかの群（O02:3、O03:7・9、O04:3・5〜8、O06:11〜28、O09:3〜7・10）",
+      "C22 の帳簿の記録の数（p3-final-gate.json の Q-FG-LEDGER-AC03・発注 1 の記録の unmet 90・流す 365 など）の書き換え。記録は当時の数のまま残し、:272 の末尾に 1 文足すだけ（原文の改訂）",
+      "evidence の凍結 manifest の o09Subset.sequencesSha256（測定の入力の記録。commit 4acb9ae3 と同じく書き換えない）",
+      "旧築（src/）と spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-ESC-AC01",
+        "requirement": "合成の入力 2 本（P3-ESC-D-FORM=A）: (1) test/fixtures/synthetic_VXSE43_same_version_correction.xml は 37_01_02_240613_VXSE43.xml の bytes のうち <InfoType>発表</InfoType> の 1 か所だけを <InfoType>訂正</InfoType> に替えたもの。synthetic_VXSE45_same_version_correction.xml は 77_01_26_240613_VXSE45.xml から同じ置き換え。ほかの bytes（Control/DateTime・Serial・ReportDateTime・EventID・Body・末尾の改行）は親と同じ。発表と訂正はどちらも UTF-8 で 6 byte なので byteLength は親と同じ (2) manifest に 2 行を path の順の位置（:276 の後）に足す。欄は既存の合成の行（synthetic_VFVO56_correction）に倣う: role telegramXml、acquisition {kind generated、locator は自分の path、acquiredAt null、evidenceRefs は「<path>: synthetic命名の固定人工入力。配信原本性を主張しない。P3-EEW-SAME-CORRECTION-001（C22 の帳簿の O01:4・O01:11）で追加。」}、modification {kind synthetic、parentFixtureId は親、parentSha256 は親の行の sha256、changes [{field Head/InfoType、from 発表、to 訂正}]}、transport は親の行と同じ（VXSE43 は eew.warning、VXSE45 は eew.forecast、evidence の字も同じ）、documentTimes は親と同じ、sourceStrength synthetic、distribution unconfirmed（既存の合成と同じ。気象庁の公開サンプルからの合成でも publicApproved の裁定の対象を広げない） (3) 件数: manifest 313 → 315、XML 292 → 294。check-manifest.mjs の 5 か所、README.md の :5・:44、p1-parser-boundary.json の objective（全315）・P1-AC01（XML 294件）・P1-T01（全294）・requiredCommands（315 fixture）と fixtureIds（path の順に 2 行）を合わせる",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/manifest.json",
+          "reconstruction/tools/corpus/check-manifest.mjs",
+          "reconstruction/src/domains/eew/eew.ts:478 «8d7d092a3fec67e2»"
+        ]
+      },
+      {
+        "id": "P3-ESC-AC02",
+        "requirement": "O01:4・O01:11 の期待（P3-ESC-D-REASON=A）: (1) step: O01:4 は fixtureId を test__fixtures__synthetic_VXSE43_same_version_correction、expectedRef を expected:O01:4 に、O01:11 は test__fixtures__synthetic_VXSE45_same_version_correction・expected:O01:11 に替える。receivedAt・evaluatedAt・inputSource・operationExpected（normal）は変えない（receivedAt は親の ReportDateTime より後で check-sequences を満たす） (2) expectationBasis（step と record の basisRefs を同じにする）: 「L1: docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6» O01」「L1: reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd» P3-VM-AC03 same で中身が違えば先の版を残す」「L1: reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33» R37 発表→訂正を抑えるのは仮定震源の非表示 M 差だけ」「L2: <合成の path>:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）」の 4 本 (3) 旧 → 新: unmet:O01:4 の record（decision {kind changed, change null}、effective null、subjects [normal/O01/input.requiredに記した対象（未充足）、revision 全 null]、notices null、intents null、input {required…, acquisition REST見込み…}、checks「受理した訂正は表示差分なしでも通知判定。具体 change と通知有無は Q-REV/Q-NOTICE。」）→ expected:O01:4 の record: decision {kind: unchanged, reason: stale}、effective {kind: active}、subjects [{subject: normal/VXSE43/20240417231454, revision: {reportDateTimeRaw: 2024-04-17T23:15:10+09:00, serialRaw: 2, infoTypeRaw: 訂正}}]、notices false、intents false、basisLevel 1、input null。checks は「同じ版（Control/DateTime・Serial・ReportDateTime が O01:3 と同じ）の訂正で、InfoType だけが発表→訂正と食い違い、仮定震源でない報。先に確定した O01:3 の版を残して採らず（P3-VM-AC03 の same で中身が違う組。R37 の発表→訂正の例外は仮定震源の非表示 M 差だけ）、通知しない。gate に未確認の印（保存しない）を付け、current は O01:3 のまま。subjects.revision は報自身の比較 tuple。」と運用区分の定型の 2 本。unmet:O01:11 も同じ旧から → expected:O01:11 の record: decision {kind: unchanged, reason: stale}、effective {kind: active}、subjects [{subject: normal/VXSE45/20240417231454, revision: {reportDateTimeRaw: 2024-04-17T23:15:38+09:00, serialRaw: 26, infoTypeRaw: 訂正}}]、notices false、intents false、basisLevel 1、input null。checks は O01:3 を O01:10 に替えた同じ字と運用区分の定型 (4) 根拠: 製品は same（version.ts:90 の Serial も同じ）→ 中身の比べが InfoType の食い違いで偽（eew.ts:478、仮定震源どうしの訂正だけ例外）→ held（version.ts:102）→ unchanged/stale（eew.ts:495）。spec の O01 の行（:1777）の「受理済み訂正は表示差分なしでも通知判定」は受理した訂正の決まりで、この報は受理しない (5) 後ろの 6 step（expected:O01:5〜7・12〜14）の期待は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1777 «8e3058a90dcdc8e6»",
+          "reconstruction/contracts/p3-version-material.json:448 «8c92ec09c319f9dd»",
+          "reconstruction/contracts/p2-eew-unit.json:479 «be91a5dcbb153d33»",
+          "reconstruction/contracts/p2-eew-unit.json:556 «75e2a617600f8aad»",
+          "reconstruction/src/contracts-revision/version.ts:90 «239c1ef5af8af27e»",
+          "reconstruction/src/contracts-revision/version.ts:96 «1454e490399f6a5f»",
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
+          "reconstruction/src/domains/eew/eew.ts:478 «8d7d092a3fec67e2»",
+          "reconstruction/src/domains/eew/eew.ts:495 «60c99fd18b9fdf9b»",
+          "reconstruction/src/domains/eew/eew.ts:489 «606fb37c19d521ea»",
+          "reconstruction/contracts/p3-final-gate.json:180 «f253af6f9e078290»"
+        ]
+      },
+      {
+        "id": "P3-ESC-AC03",
+        "requirement": "C22 の T01 で 8 step が流れて一致する: (1) O01:4・5・6・7・11・12・13・14 が flow の表に入り（unmet の後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま (2) oracle.test.ts の数: unmet 90 → 88、dependsOnUnmet 13 → 7、flow 365 → 373、dependsOnUnmet の一覧は [O02:4, O03:8, O03:10, O03:11, O03:12, O03:13, O03:14]。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13・prepared 15 は変えない。:410 のコメントに「2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した」を足す (3) T02 も緑のまま（見込み: 新しく流れる取消 O01:5・O01:12 は U-E だけが変え、保存の inputIds に入る。走らせて確かめていない） (4) O01:4・11 の actual が AC02 と違うか、O01:5〜7・12〜14 のどれかが食い違うか、T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
+          "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
+          "reconstruction/test/final-gate/oracle.test.ts:302 «aed348fc8f40aa42»",
+          "reconstruction/contracts/p3-final-gate.json:790 «89a900a299a6e44b»"
+        ]
+      },
+      {
+        "id": "P3-ESC-AC04",
+        "requirement": "fixture の件数を数える既存の試験の期待を直す（理由: corpus に 2 本足すため。直す前の報告はこの条文で済ませる）: (1) P1-T01（p1-parser-boundary.test.ts:46〜:50）は行 292 → 294、decoded 291 → 293、偽の decode で差の出る行 291 → 293。新しい 2 本の分類は親と同じ（eew.warning・eew.forecast、documentTimes も同じ）で差 0 (2) P2-A4-T09（eew-unit.test.ts:1169）は fixtures 14 → 16、normalCorpus 12 → 14。新しい 2 本は空の state から採られ（手元の版が無いので adopt）、gate 1 件・view の active 1・codec の往復が通る。rejected 0・invalidSynthetic 2・semanticUnavailable 0 は変えない",
+        "evidenceRefs": [
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+          "reconstruction/test/eew-unit/eew-unit.test.ts",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1173 «2dfd6ef639261923»"
+        ]
+      },
+      {
+        "id": "P3-ESC-AC05",
+        "requirement": "製品と保存を変えない: reconstruction/src/ と旧築（src/）を変えない。保存の形と版を変えない。AC02・AC03 を満たすのに製品の変更が要ると分かったら、変えずに理由を書いて止める",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:478 «8d7d092a3fec67e2»",
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»"
+        ]
+      },
+      {
+        "id": "P3-ESC-AC06",
+        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・b3df1e3f）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない（行の数と整形を変えない） (3) «» の付け直し: p1-parser-boundary.json に 2 行足すので、p3-xml-tree-compact.json が引く :501 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :545・:547・:548・:556 の行番号を 2 足す（anchor は中身が変わらないので同じ）。sequences.json の O01:4・11 の行の増減で、p3-weather-notice.json が引く :24265 の行番号を中身で引き直す。p3-migration.json が引く :65・:103・:114 と、manifest.json を引く p3-e05p-typhoon.json の :117〜:119・:243 は位置が前なのでずれないことを確かめる (4) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/check-contract.mjs",
+          "reconstruction/tools/corpus/check-sequences.mjs"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-FG-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-ESC-AC02",
+          "P3-ESC-AC03"
+        ],
+        "behavior": "既存の oracle.test.ts の T01。新しい試験は足さず、:411・:414・:416 の数と一覧を AC03 (2) に直す。O01:4・11 は stale・active・intent 0 を、O01:5〜7・12〜14 は既存の期待を、連結した 12 unit の上で照合する"
+      },
+      {
+        "testId": "P1-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-ESC-AC01",
+          "P3-ESC-AC04"
+        ],
+        "behavior": "既存の試験。件数を 294・293・293 に直し、新しい 2 本の分類と documentTimes が manifest と一致することを確かめる"
+      },
+      {
+        "testId": "P2-A4-T09",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-ESC-AC04"
+        ],
+        "behavior": "既存の試験。EEW の母集団の件数を 16・14 に直す"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 315 件の台帳と hash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O01 の参照。unmet=88 を確かめる"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装担当の木では各契約の最初の FAIL が digest になり、ほかの FAIL は見えない。統合担当が AC06 の取り直しの後に回し、PASS（WARN は baseOid=unassigned の契約だけ）を確かめる"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T01・T02・P1-T01・P2-A4-T09 を含む）"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "package.json",
+        "stage": "implementation",
+        "purpose": "test/fixtures に file を足すので旧築の試験も回す（前例 b3df1e3f）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い。足すのは入力 2 本と台帳の 2 行だけで、無いと O01:4・11 と後ろの 6 step が T01 で流れず、C22 の合格（行き先の無い unmet 0）に届かない。新しい試験・helper・script を repo に足さない。直す既存の試験は P3-FG-T01・P1-T01・P2-A4-T09 の数だけで、各々 AC03・AC04 に対応する",
+      "最初の作業: 2 本の fixture・manifest の 2 行・sequences の O01:4・11 を当てた木で T01 を走らせ、O01:4・11 の decision・effective・intents と O01:5〜7・12〜14 の一致を確かめてから、件数の直しに進む。期待と違えば AC03 (4) で止める（起草では走らせていない、Q-ESC-PROBE）",
+      "合成の 2 本は親を cp -c で写してから 1 か所を置き換え、cmp で親との差が InfoType の 1 か所（6 byte）だけであることを確かめて書く",
+      "sequences.json の数字の id（expectedId・expectedRef）と、O01:4・11 以外の step・record は変えない。整形は既存の record と同じ字下げにする",
+      "digest と «» の取り直し（AC06）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
+      "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の数を報告して止める。allowedPaths の外は直さない",
+      "原文の改訂（統合担当が配送の commit で当てる）: (1) p3-final-gate.json:272 の orphan の 1 項目めの末尾に「→ P3-EEW-SAME-CORRECTION-001 で入力 2 本を足し、O01:4・11 の期待を unchanged/stale に直した（仮定震源でない発表→訂正の同じ版は R37 の duplicate でなく P3-VM-AC03 の same で中身が違う組。通知しないのは同じ）。unmet 90 → 88」を足す（行の中の書き足しで、行の数は変えない） (2) 本契約の fixtureIds に合成の 2 本を、expectedDecisions と expectationEvidence に expected:O01:4・expected:O01:11 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
+      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
