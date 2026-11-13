@@ -352,7 +352,7 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     const whole = next.effective === "cancelled", kept = whole ? null : (marine ? existing?.unconfirmed : existing?.marineUnconfirmed) ?? null;
     const ownMark = whole ? null : version.mark, land = marine ? kept : ownMark, sea = marine ? ownMark : kept;
     return { kind: "adopt", conflict, missing: version.missing, next: alertUnreadable({ ...rest, ...land == null ? {} : { unconfirmed: land },
-      ...sea == null ? {} : { marineUnconfirmed: sea } }, marine, candidate.cancelled ? null : candidate.unreadable, existing, entry != null) };
+      ...sea == null ? {} : { marineUnconfirmed: sea } }, marine, candidate.cancelled || (kind == null || !activeKind(kind)) && lifted ? null : candidate.unreadable, existing, entry != null && !((kind == null || !activeKind(kind)) && lifted)) }; // 解除の分岐で残した記録はその側の印を持たず持ち越しもしない（P3-VL-D-MARK=A）。lifted は区分が inactive のときだけ読む（同じ区分の継続の settle は lifted の宣言より前に呼ばれる）
   };
   const before = existing?.effective === "active" ? existing : null;
   const kind = entry?.kind ?? facts?.kind ?? null;
@@ -367,7 +367,7 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
   const takeKind = cross === "newer" || cross === "same" && sameKind;
   const crossConflict = other != null && reportMs(other) === reportMs(ref) && !sameKind && !candidate.cancelled;
   const base = alertBase(candidate, subject, code, existing, entry != null && existing != null ? existing.eventId : candidate.eventId, kind);
-  let next: VolcanoAlert;
+  let next: VolcanoAlert; const support = marine ? existing?.landKind ?? null : existing?.marineSource == null ? null : existing.marineKind, held = support != null && activeKind(support) ? support : null, lifted = !candidate.cancelled && takeKind && (kind == null || !activeKind(kind)) && before != null && held != null; // もう一方の側の区分が active を支えるか（取消の分岐と同じ判定、P3-VL-D-KEEP=A）。lifted は解除の分岐でそれが記録を残す採用
   if (candidate.cancelled && marine && existing?.source != null) {
     // VFVO50 の source がある記録への VFSV の取消は海上の部分だけを取り消す（P3-C9-MARINE=A）。取消の後の active は、残る VFVO50・VFVO51 が
     // 自分の区分（landKind）で支えるかで決め、支えるならその区分に戻す（Q-C9-IMPL-AMEND(9)(a)）。
@@ -379,7 +379,7 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     const sea = marine || existing?.marineSource == null ? null : existing.marineKind; next = before != null && sea != null && activeKind(sea) ? { ...withoutPrevention(before), ...base, kind: sea, lastKind: null, level: levelOf(sea.code), headline: null, municipalities: [] } : { ...base, effective: "cancelled" };
   } else if (!takeKind) {
     // kind は先着（か新しい別 family）のまま。active なら自分の field だけを当てる。
-    next = before == null ? { ...base, effective: inactive(existing) } : entry != null ? { ...before, ...base }
+    next = before == null || (kind == null || !activeKind(kind)) && held == null ? { ...base, effective: inactive(existing) } : entry != null ? { ...before, ...base } // 両側とも支えない古い解除も ended（P3-VL-D-LATE=A）
       : marine ? { ...before, ...base, marineAreas: facts!.marineAreas, truncated: before.truncated || candidate.truncated }
       : { ...withoutPrevention(before), ...base, volcanoName: facts!.volcanoName, headline: facts!.headline, municipalities: facts!.municipalities,
         coordinate: facts!.coordinate, truncated: before.truncated || candidate.truncated, ...preventionKey(facts!.prevention) };
@@ -387,8 +387,8 @@ function judgeAlert(candidate: VolcanoCandidate, existing: VolcanoAlert | null, 
     // inactive の区分・解除。記録の無い VFVO51 の entry は解除・引下げのときだけ ended を作る（P3-C9-ALERT-ACTIVE=A）。
     if (existing == null && entry != null && !/解除|引下げ/.test(kind?.condition ?? ""))
       return { kind: "unchanged", reason: "noChange", held: null };
-    // 記録が inactive なら watermark だけを進める（revisionOnly）。
-    next = { ...base, effective: before == null ? inactive(existing) : "ended" };
+    // 記録が inactive なら watermark だけを進める（revisionOnly）。もう一方の側の区分が支えるなら、取消の部分と同じ事実で active を保つ（P3-VL-D-KEEP=A・D-FACTS=A）。
+    next = before != null && held != null ? marine ? { ...before, ...base, kind: held, level: levelOf(held.code), marineAreas: [] } : { ...withoutPrevention(before), ...base, kind: held, lastKind: null, level: levelOf(held.code), headline: null, municipalities: [] } : { ...base, effective: before == null ? inactive(existing) : "ended" };
   } else if (entry != null) {
     // VFVO51 の区分の変化: kind・level を置き換え、前の区分の説明（headline・lastKind・municipalities）を消す。
     next = { ...base, effective: "active", volcanoName: before?.volcanoName ?? entry.volcanoName, kind, lastKind: null,
@@ -765,12 +765,12 @@ function receiveAlert(state: VolcanoUnitState, candidate: Candidate<"alert">, no
     if (cancelled != null) applied.notice = noticeOf(candidate, subject, "cancelled", "cancel", "", cancelled);
     return applied;
   }
-  const kind = facts!.kind;
+  const kind = facts!.kind, other = (isMarine(candidate.family) ? existing?.source : existing?.marineSource) ?? null;
   // inactiveAdoption: 単独の VFVO50・VFSV の inactive の報を、記録の無い火山か inactive の記録に採用した（P3-C9-ALERT-ACTIVE=A）。
   const inactiveAdoption = before == null && next.effective !== "active" && !activeKind(kind) && (existing == null
-    || ["newer", "same"].includes(compareVersion((isMarine(candidate.family) ? existing.source : existing.marineSource) ?? null, candidate.source)));
-  const correction = candidate.infoRank === 2;
-  if (!correction && !compared.changed && !inactiveAdoption) return applied;
+    || ["newer", "same"].includes(compareVersion(other, candidate.source)));
+  const correction = candidate.infoRank === 2, lifted = before != null && next.effective === "active" && !activeKind(kind); // 片側の解除で警報が残る採用
+  if (lifted) applied.cancelled.add(`${subject}\n${isMarine(candidate.family) ? MARINE_PART : LAND_PART}`); if (!correction && !compared.changed && !inactiveAdoption && !(lifted && compareVersion(other, candidate.source) === "newer")) return applied; // 残る警報はその報の側の pending だけを撤回・置換する（P3-VL-D-WITHDRAW-SIDE=A）。解除の分岐で残した採用は表示が変わらなくても今どおり通知する（P3-VL-D-RENOTICE=A）
   const releasing = /解除|引下げ/.test(kind.condition ?? "");
   const transition = correction ? "updated" : next.effective === "active" ? before == null ? "activated" : "updated"
     : before != null || releasing ? "released" : "updated";
@@ -1049,8 +1049,8 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     const next = verdict.next;
     const fields = changed(existing, next, ALERT_FIELDS);
     applied.changes.push([existing, next]);
-    // 前の active を期限を過ぎた採用が置き換えるか active でない記録にするなら pending を撤回する（P3-FINAL-AC04、P3-UV2-D-WITHDRAW=A: 解説の intent は警報の subject の pending を置き換えない）。
-    if (existing?.effective === "active" && (dueAt(next, now) || next.effective !== "active")) applied.cancelled.add(subject);
+    // 前の active を期限を過ぎた採用が置き換えるか active でない記録にするなら pending を撤回する（P3-FINAL-AC04、P3-UV2-D-WITHDRAW=A: 解説の intent は警報の subject の pending を置き換えない）。inactive の区分で active が残るなら陸の pending だけ（P3-VL-D-WITHDRAW-SIDE=A）。
+    if (existing?.effective === "active") { if (dueAt(next, now) || next.effective !== "active") applied.cancelled.add(subject); else if (!activeKind(entry.kind)) applied.cancelled.add(`${subject}\n${LAND_PART}`); }
     applied.subjects.push(outcomeOf(next, fields));
     applied.semantic ||= fields.length !== 0;
     decide(applied, candidate, subject, { kind: "adopt" }, fields.length !== 0);

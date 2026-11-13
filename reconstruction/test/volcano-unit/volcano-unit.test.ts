@@ -1382,3 +1382,109 @@ describe("P3-UNIT-V-002: withdrawal on a lowered entry and the land-only cancel"
       .toEqual(["restored", "invalid", "restored", "invalid"]);
   });
 });
+
+// P3-VOLCANO-LIFT-001: 片側だけの解除・引下げでも、もう一方の側の区分が支えるなら警報を active のまま残す（作者裁定 P3-VL-D-KEEP=A）。
+describe("P3-VOLCANO-LIFT-001: a one-side release keeps the alert the other side supports", () => {
+  // 火山の新旧は Control/DateTime だけで比べるので、ReportDateTime と Control/DateTime の両方を表の時刻にする（Q-VL-TESTS）。
+  const timed = (iso: string, edit: (xml: string) => string = (xml) => xml) => (xml: string) =>
+    retime(iso)(edit(xml)).replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(at(iso)).toISOString().replace(".000Z", "Z")}</DateTime>`);
+  const coded = (code: string) => (xml: string) => xml.replaceAll("<Code>506</Code>", `<Code>${code}</Code>`);
+  // 合成の VFSV の解除（実電文が無い）: 対象火山の Kind を LastKind の 35 と Condition 解除に、海上の Kind を LastKind の 33 に替える。
+  const lifted = (code: string) => (xml: string) => coded(code)(xml)
+    .replaceAll(/<Name>周辺海域警戒<\/Name>\s*<Code>36<\/Code>\s*<Condition>引上げ<\/Condition>/g,
+      "<Name>活火山であることに留意（海底火山）</Name>\n<Code>35</Code>\n<Condition>解除</Condition>")
+    .replaceAll("<Name>海上警報（噴火警報）</Name>", "<Name>海上予報（噴火予報）</Name>").replaceAll(/<Code>31<\/Code>/g, "<Code>33</Code>");
+  const level2 = (xml: string) => xml.replaceAll("<Code>11</Code>", "<Code>12</Code>").replace("<Condition>引下げ</Condition>", "<Condition>引上げ</Condition>");
+  const lowered = (xml: string) => xml.replaceAll(">350<", ">306<").replaceAll("<Code>12</Code>", "<Code>11</Code>")
+    .replaceAll("<Condition>継続</Condition>", "<Condition>引下げ</Condition>");
+  const restarted = (state: VolcanoUnitState, now: number) => {
+    const decoded = roundTrip(state);
+    if (decoded.kind !== "restored") throw new Error("the saved state does not decode");
+    return reduceVolcanoUnit(emptyState(), { kind: "restore", persisted: volcanoUnitCodec.encode(decoded.state), clock: clock(now) }).state;
+  };
+  const active = (state: VolcanoUnitState, code: string) => {
+    const record = alertOf(state, code);
+    if (record?.effective !== "active") throw new Error(`alert ${code} is not active`);
+    return record;
+  };
+  const queued = (state: VolcanoUnitState) => pending(state).map((item) =>
+    `${item.source.family}:${item.channel}:${item.payload.level}:${item.source.reportDateTimeRaw.slice(11, 19)}`);
+  const notes = (step: VolcanoUnitStep) => step.intents.map((item) => `${item.channel}:${item.payload.level}:${item.transition}`);
+  const present = (record: VolcanoAlert, keys: readonly string[]) => keys.filter((key) => key in record);
+  // 草津白根山: VFVO50 のレベル 2 → VFSV の周辺海域警戒（T01・T04 の前半）。
+  const kusatsu = () => send(send(emptyState(), F.a350, timed("2020-07-31T11:00:00+09:00", level2)).state, F.marine,
+    timed("2020-07-31T11:00:01+09:00", coded("350")));
+
+  it("P3-VL-T01 acceptance / AC01,AC04: a land release keeps the marine-supported alert, renotices and ends on the marine release", () => {
+    const sea = kusatsu();
+    const open = active(sea.state, "350");
+    expect(open).toMatchObject({ kind: { code: "36" }, landKind: { code: "12" }, marineKind: { code: "36" } });
+    const kept = { effective: "active", kind: { code: "36" }, level: null, landKind: { code: "11", condition: "引下げ" }, marineKind: { code: "36" },
+      headline: null, municipalities: [], lastKind: null, marineAreas: open.marineAreas, volcanoName: open.volcanoName, coordinate: open.coordinate };
+    for (const [label, state] of [["direct", sea.state], ["restored", restarted(sea.state, at("2020-07-31T11:00:01+09:00"))]] as const) {
+      const low = send(state, F.a350, timed("2020-07-31T11:00:30+09:00")), record = active(low.state, "350");
+      expect(record, label).toMatchObject({ ...kept, source: { family: "VFVO50", reportDateTimeRaw: "2020-07-31T11:00:30+09:00" } });
+      expect(present(record, ["prevention", "unreadable"]), label).toEqual([]);
+      expect([notes(low), queued(low.state)], label).toEqual([["desktop:normal:updated", "sound:normal:updated"],
+        ["VFSV50:desktop:warning:11:00:01", "VFSV50:sound:warning:11:00:01", "VFVO50:desktop:normal:11:00:30", "VFVO50:sound:normal:11:00:30"]]);
+      // 同じ内容の引下げを新しい版で受け直しても今と同じく鳴る（P3-VL-D-RENOTICE=A）。
+      const again = send(low.state, F.a350, timed("2020-07-31T11:00:35+09:00"));
+      expect([active(again.state, "350"), notes(again), queued(again.state)], label).toMatchObject([kept, ["desktop:normal:updated", "sound:normal:updated"],
+        ["VFSV50:desktop:warning:11:00:01", "VFSV50:sound:warning:11:00:01", "VFVO50:desktop:normal:11:00:35", "VFVO50:sound:normal:11:00:35"]]);
+      // 両側とも解除されれば ended（AC04 (1)）。
+      const end = send(again.state, F.marine, timed("2020-07-31T11:00:40+09:00", lifted("350")));
+      expect([effective(alertOf(end.state, "350")), notes(end), queued(end.state)], label).toEqual(["ended",
+        ["desktop:normal:released", "sound:normal:released"], ["VFSV50:desktop:normal:11:00:40", "VFSV50:sound:normal:11:00:40"]]);
+    }
+  });
+
+  it("P3-VL-T02 acceptance / AC02: a marine release keeps the land-supported alert and only the land pending", () => {
+    const land = send(send(emptyState(), F.marine, timed("2020-05-22T13:02:00+09:00", coded("306"))).state, F.a306, timed("2020-05-22T13:03:00+09:00"));
+    const open = active(land.state, "306");
+    expect([open, queued(land.state)]).toMatchObject([{ kind: { code: "13" }, landKind: { code: "13" }, marineKind: { code: "36" } },
+      ["VFVO50:desktop:warning:13:03:00", "VFVO50:sound:warning:13:03:00"]]);
+    for (const [label, state] of [["direct", land.state], ["restored", restarted(land.state, at("2020-05-22T13:03:00+09:00"))]] as const) {
+      const release = send(state, F.marine, timed("2020-05-22T13:03:30+09:00", lifted("306"))), record = active(release.state, "306");
+      expect(record, label).toMatchObject({ kind: { code: "13" }, level: 3, landKind: { code: "13" }, marineKind: { code: "35", condition: "解除" },
+        marineAreas: [], headline: open.headline, municipalities: open.municipalities });
+      expect(present(record, ["marineUnreadable"]), label).toEqual([]);
+      expect([notes(release), queued(release.state)], label).toEqual([["desktop:normal:updated", "sound:normal:updated"],
+        ["VFVO50:desktop:warning:13:03:00", "VFVO50:sound:warning:13:03:00", "VFSV50:desktop:normal:13:03:30", "VFSV50:sound:normal:13:03:30"]]);
+    }
+  });
+
+  it("P3-VL-T03 acceptance / AC03: a lowered VFVO51 entry keeps the marine-supported alert, drops the land mark and withdraws only the land pending", () => {
+    // 列 1（海上より新しい引下げ）: 13:03 の VFVO50 は火山名が読めず陸の印を持つ。
+    const marked = send(send(emptyState(), F.marine, timed("2020-05-22T13:02:00+09:00", coded("306"))).state, F.a306, timed("2020-05-22T13:03:00+09:00",
+      (xml) => xml.replace(/(<VolcanoInfo type="噴火警報・予報（対象火山）">[\s\S]*?)<Name>浅間山<\/Name>/, "$1<Name><x/>浅間山</Name>")));
+    expect(active(marked.state, "306")).toMatchObject({ kind: { code: "13" }, unreadable: { parts: [{ site: "name" }] } });
+    for (const [label, state] of [["direct", marked.state], ["restored", restarted(marked.state, at("2020-05-22T13:03:00+09:00"))]] as const) {
+      const low = send(state, F.b350, timed("2020-05-22T13:03:30+09:00", lowered)), record = active(low.state, "306");
+      expect(record, label).toMatchObject({ kind: { code: "36" }, level: null, landKind: { code: "11", condition: "引下げ" }, marineKind: { code: "36" },
+        headline: null, municipalities: [], lastKind: null });
+      expect([present(record, ["unreadable"]), queued(low.state)], label).toEqual([[], ["VFVO51:desktop:info:13:03:30", "VFVO51:sound:info:13:03:30"]]);
+    }
+    // 列 2（海上より古い引下げ、!takeKind）: 引下げの後に 13:03:00 のレベル 3 の warning を鳴らさない。
+    const sea = send(emptyState(), F.marine, timed("2020-05-22T13:03:40+09:00", coded("306"))).state;
+    const raised = send(sea, F.a306, timed("2020-05-22T13:03:00+09:00"), at("2020-05-22T13:03:45+09:00"));
+    expect(queued(raised.state)).toEqual(["VFVO50:desktop:warning:13:03:00", "VFVO50:sound:warning:13:03:00"]);
+    const late = send(raised.state, F.b350, timed("2020-05-22T13:03:30+09:00", lowered), at("2020-05-22T13:03:50+09:00"));
+    expect([effective(alertOf(late.state, "306")), queued(late.state)]).toEqual(["active", ["VFVO51:desktop:info:13:03:30", "VFVO51:sound:info:13:03:30"]]);
+  });
+
+  it("P3-VL-T04 acceptance / AC06: once both sides are released the alert ends whichever release arrives late", () => {
+    const ended = (step: VolcanoUnitStep) => {
+      const restored = roundTrip(step.state);
+      return [effective(alertOf(step.state, "350")), notes(step), restored.kind === "restored" ? effective(alertOf(restored.state, "350")) : restored.kind];
+    };
+    const final = ["ended", ["desktop:normal:released", "sound:normal:released"], "ended"];
+    // 陸の引下げ（11:00:30）の後に、Control/DateTime が 11:00:20 の海上の解除が 11:00:40 に着く。
+    const low = send(kusatsu().state, F.a350, timed("2020-07-31T11:00:30+09:00"));
+    expect(alertOf(low.state, "350")).toMatchObject({ effective: "active", kind: { code: "36" }, landKind: { code: "11" }, marineKind: { code: "36" } });
+    expect(ended(send(low.state, F.marine, timed("2020-07-31T11:00:20+09:00", lifted("350")), at("2020-07-31T11:00:40+09:00")))).toEqual(final);
+    // 逆の順: 海上の解除（11:00:30）の後に、Control/DateTime が 11:00:20 の陸の引下げが 11:00:40 に着く。
+    const release = send(kusatsu().state, F.marine, timed("2020-07-31T11:00:30+09:00", lifted("350")));
+    expect(alertOf(release.state, "350")).toMatchObject({ effective: "active", kind: { code: "12" }, landKind: { code: "12" }, marineKind: { code: "35" } });
+    expect(ended(send(release.state, F.a350, timed("2020-07-31T11:00:20+09:00"), at("2020-07-31T11:00:40+09:00")))).toEqual(final);
+  });
+});
