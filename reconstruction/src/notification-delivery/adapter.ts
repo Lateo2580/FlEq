@@ -51,7 +51,7 @@ const toastScript = "$ErrorActionPreference='Stop';"
   + ".Show([Windows.UI.Notifications.ToastNotification]::new($x))";
 const soundScript = "$ErrorActionPreference='Stop';(New-Object System.Media.SoundPlayer $env:FLEQ_NOTIFY_WAV).PlaySync()";
 
-function commands(attempt: NotificationAttempt, probeWav?: string): readonly Backend[] {
+function commands(attempt: Pick<NotificationAttempt, "channel" | "payload"> & Readonly<{ soundAsset: string | null }>, probeWav?: string): readonly Backend[] { // P3-OSN-AC03 (1): soundNotice も同じ組を使う（資材は文字列で受ける）
   if (attempt.channel === "desktop") {
     const { title, body } = attempt.payload;
     if (typeof title !== "string" || typeof body !== "string" || title.length === 0 || body.length === 0)
@@ -240,3 +240,22 @@ function desktopNotice(title: string, body: string): Promise<void> {
     try { childProcess.execFile(command[0], command[1], { ...command[2], timeout: 10_000 }, () => done()).unref(); } catch { done(); }
   });
 }
+// P3-OSN-D-SOUND-PATH=A・AC03: 止まった owner の代わりに音を 1 回だけ鳴らす。A7 の試行・active・backend の位置に触れず子は追わない。組は試行と同じ順に試し、起動できなかった（無い・spawn の例外・pid の無い子の error、P3-NL-AC06 (3) と同じ見分け）ときだけ次へ（起動した後の失敗で進むと 2 回鳴りうる）。
+function soundNotice(asset: string): Promise<void> {
+  let backends: readonly Backend[];
+  try { backends = commands({ channel: "sound", payload: { domain: "weather", level: "warning" }, soundAsset: asset }); } catch { return Promise.resolve(); }
+  return new Promise((done) => {
+    const launch = (index: number): void => {
+      if (index >= backends.length) { done(); return; }
+      const [file, argv, options] = backends[index];
+      if (!existsSync(file)) { launch(index + 1); return; }
+      try {
+        const child = childProcess.execFile(file, argv, { ...options, timeout: 10_000 }, (error) => { if (error != null && child.pid == null) launch(index + 1); else done(); });
+        child.unref();
+      } catch { launch(index + 1); }
+    };
+    launch(0);
+  });
+}
+// 末尾の 228 行の export を変えないため、足した口はここで出す（P3-OSN-AC03）。
+export { soundNotice };

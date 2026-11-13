@@ -986,7 +986,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
     let now: ClockReading = { wallTimeMs: 1_713_363_299_001, monotonicMs: 1 };
     const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => now, notificationAdapter: recordingNotificationAdapter() });
     await startHarness(h, "t10", now);
-    expect(h.root.ownerFailed("weatherCurrent", new Error("worker error"))).toBeUndefined();
+    expect(h.root.ownerFailed("weatherCurrent", new Error("worker error"))).toEqual(now);
     const sent = h.sent.length;
     h.root.mailbox.enqueue(envelope("t10", "VXSE43", "after", fixture("37_01_01_240613_VXSE43"), now, 1));
     h.root.pump();

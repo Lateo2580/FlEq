@@ -41,7 +41,7 @@ type TerminalNotice =
   | Readonly<{ kind: "debug"; text: string }>
   // Q-TO8-BANNER（spec §6.7）: 起動の帯と、最初の接続の確立で 1 回の区分の行。missing は求めて start に無かった区分。
   | Readonly<{ kind: "banner"; appName: string; version: string }>
-  | Readonly<{ kind: "session"; socketId: number; classifications: readonly string[]; missing: readonly string[]; testMode: string }>;
+  | Readonly<{ kind: "session"; socketId: number; classifications: readonly string[]; missing: readonly string[]; testMode: string }> | Readonly<{ kind: "ownerStopped"; fromWallMs: number }>; // P3-OSN-AC02 (2): 急ぐ側の owner が止まった時刻
 // worker への 1 回の送り。columns は送る時に読んだ端末の桁数（AC04 (1)）、dropped はその前に落とした単位の数（AC02 (3)）。
 type TerminalBatch = Readonly<{ columns: number; dropped: number; units: readonly TerminalUnit[] }>;
 
@@ -894,7 +894,7 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
       return [...band("回線が戻りました", CONN_RESTORED, null, ctx, ""),
         line(seg(`${from} から ${localClock(item.toWallMs)} まで（${span(item.fromWallMs, item.toWallMs)}）受信できていませんでした`, "connRestored")),
         line(seg("━".repeat(ctx.total), "connRestored"))];
-    }
+    } case "ownerStopped": return [...band("緊急地震速報などの処理が止まりました", CONN_LOST, null, ctx, ""), line(seg(`${localClock(item.fromWallMs)} から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。`, "connLost")), line(seg("FlEq を起動し直してください。", "connLost")), line(seg("━".repeat(ctx.total), "connLost"))]; // P3-OSN-AC02 (2)・D-COLOR=A: 起動し直すまで戻らないので、回線が切れた帯の形と色
     case "failure": return [line(seg(FAILURE_TEXT[item.reason]))];
     case "summary": return [line(seg(summary(item.fromWallMs, item.toWallMs, item.counts)))];
     case "tip": return [line(), ...tipLines(item.text, ctx.total)];

@@ -14,7 +14,7 @@ import type { RecoveryDigestView } from "../../contracts/p3-recovery.types";
 import type { TerminalControl, TerminalReport } from "../../contracts/p3-terminal-output.types";
 import { muteActive } from "../cli/notification-gate";
 import type { NotificationSettings } from "../cli/notification-gate"; import { compareVersion } from "../contracts-revision/version";
-import { desktopNotice, resolveRepoPath } from "../notification-delivery/adapter";
+import { desktopNotice, resolveRepoPath, soundNotice } from "../notification-delivery/adapter";
 import { colorLevel, painter } from "./color";
 import { createEewLog } from "./eew-log";
 import { intensityLabel, intensityRank, jsonRecord, jsonString, localClock } from "./format";
@@ -44,7 +44,7 @@ const RAIN_HOLD_MS = 60_000, RAIN_LIMIT = 256;
 type InputDone = Extract<OwnerReply, { kind: "inputDone" }>;
 // AC01 (4): host の config の terminal。返信を受けて列に積むだけ（AC08 (1)）。digest は publishDisplay が snapshot ごとに渡す（AC14 (1)）。
 // mirror は参照を置き換えるだけ（P3-TP-AC06 (3)）。項目は promptLabel の中で作る。
-type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; recoveryDone(reply: Extract<OwnerReply, { kind: "recoveryDone" }>): void;inputDropped(inputId: string, headType: string, reason: "discarded"): void; inputDropped(inputId: string, headType: string | null, reason: Readonly<{ refused: string }>): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void }>; // P3-TDR-AC02 (1): inputDropped は host が番号を振って owner に渡さなかった入力。捨てるのは種類のコードを読んだ後だけなので、種類のコードの無い「捨てた」は書けない形にする
+type TerminalSink = Readonly<{ inputDone(reply: InputDone): void; recoveryDone(reply: Extract<OwnerReply, { kind: "recoveryDone" }>): void;inputDropped(inputId: string, headType: string, reason: "discarded"): void; inputDropped(inputId: string, headType: string | null, reason: Readonly<{ refused: string }>): void; digest(view: RecoveryDigestView | null): void; mirror(views: PromptMirror): void; ownerStopped(fromWallMs: number): void }>; // P3-TDR-AC02 (1): inputDropped は host が番号を振って owner に渡さなかった入力。捨てるのは種類のコードを読んだ後だけなので、種類のコードの無い「捨てた」は書けない形にする
 // AC02 (5): 試験で差し替える writer。done を呼ぶまで次を送らない。
 type TerminalWriter = (batch: TerminalBatch, done: () => void) => void;
 type TerminalOutput = Readonly<{
@@ -117,7 +117,7 @@ type TerminalOptions = Readonly<{
   // AC10 (4): cli.ts が通知の門と REPL に渡している object と同じもの（その場で読む）。
   notification?: Readonly<NotificationSettings>;
   // 切断の通知の口（既定は adapter の desktopNotice。試験で差し替える）。
-  notify?: (title: string, body: string) => Promise<void>;
+  notify?: (title: string, body: string) => Promise<void>; sound?: (asset: string) => Promise<void>; // P3-OSN-AC02 (3): 急ぐ側の owner が止まった時の音の口（既定は adapter の soundNotice。試験で差し替える）
   // AC11 (2)・AC12 (2): 分。0 か無しは出さない（tips の既定は 30 分）。
   summaryInterval?: number;
   tipInterval?: number;
@@ -362,7 +362,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
 
   // ---- 回線（AC10） ----
   const settings = options.notification;
-  const notify = options.notify ?? desktopNotice;
+  const notify = options.notify ?? desktopNotice, play = options.sound ?? soundNotice;
   let host: Pick<HostCommandPort, "status"> | null = null, status: HostStatus | null = null, timer: NodeJS.Timeout | null = null, closed = false;
   // P3-TL7-D-SESSION-ONCE: 区分の行は最初の確立で 1 回だけ。繋ぎ直しは §6.1 の回線の行が受け持つ。
   let sessionShown = false;
@@ -638,7 +638,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
       // P3-TDR-AC01: owner の返信が来ないので、断った・捨てた時点に行を出す（入力 ID の抜けの行き先）。unit は決まっていないので書かない。
       if (options.debug !== true) return;
       notice({ kind: "debug", text: `debug: ${headType == null ? "" : `${headType} `}${inputId}（出さない・${reason === "discarded" ? "捨てた" : `断った ${reason.refused}`}）` });
-    }, digest(view) {
+    }, ownerStopped(fromWallMs) { notice({ kind: "ownerStopped", fromWallMs }); const now = clock(); if (settings != null && muteActive(settings, now.monotonicMs) && settings.mute?.rules.some((rule) => rule.category === "eew") !== true) return; try { notify("FlEq", "緊急地震速報などの処理が止まりました。FlEq を起動し直してください。").catch(() => {}); } catch { /* 投げない */ } if (settings?.sound === false) return; try { play("reconstruction/assets/sounds/weather-warning.wav").catch(() => {}); } catch { /* 投げない */ } }, digest(view) { // P3-OSN-AC02 (1)(3)・D-MUTE=A: host の worker の listener の中で同期に呼ばれるので投げない。帯はいつも出し、条件に eew の無い mute の間は desktop も音も出さず、sound off の間は音だけ出さない
       // P3-TO-D-DIGEST: null から値になった最初の 1 回だけ。
       if (digestShown || view == null) return;
       digestShown = true;

@@ -360,3 +360,67 @@ it("P3-NFR-T05 contractBoundary / AC01 (5) (b): stop(false) inside the synchrono
     expect(t.record.remaining).toBeLessThanOrEqual(0);
   } finally { rmSync(t.directory, { recursive: true, force: true }); }
 });
+
+// P3-OSN-T03 受入（P3-OSN-AC03 (1)(2)）: 音の組は試行と同じ。win32 で組むのは darwin と linux の実行ファイルの有無が試験の機械で変わるため。
+it("P3-OSN-T03 acceptance / AC03: soundNotice plays the WAV once through execFile, starts nothing without a backend, and moves on only when a player did not start", async () => {
+  const WAV = "reconstruction/assets/sounds/weather-warning.wav";
+  const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const { dirname } = await import("node:path");
+  const directory = mkdtempSync(join(tmpdir(), "fleq-osn-t03-"));
+  const root = join(directory, "root");
+  const unrefed = () => Object.assign(child(), { unref: vi.fn() });
+  try {
+    // (1) powershell.exe の有る root
+    await withSystemRoot(root, async () => {
+      mkdirSync(dirname(powerShellPath(root)), { recursive: true });
+      writeFileSync(powerShellPath(root), "");
+      const { resolveRepoPath, soundNotice } = await import("../../src/notification-delivery/adapter");
+      const handle = unrefed();
+      const execFile = vi.mocked(childProcess.execFile).mockReset().mockReturnValue(handle);
+      const played = soundNotice(WAV);
+      expect(execFile).toHaveBeenCalledTimes(1);
+      const [file, argv, options, callback] = execFile.mock.calls[0];
+      expect([file, argv, options]).toEqual([powerShellPath(root), powerShellArgv(soundScript), { windowsHide: true, timeout: 10_000,
+        env: { ...process.env, FLEQ_NOTIFY_WAV: resolveRepoPath(WAV) } }]);
+      expect(handle.unref).toHaveBeenCalledTimes(1);
+      callback?.(null, "", "");
+      await played;
+    });
+    // (2) powershell.exe の無い root
+    await withSystemRoot(join(directory, "empty"), async () => {
+      const { soundNotice } = await import("../../src/notification-delivery/adapter");
+      const execFile = vi.mocked(childProcess.execFile).mockReset();
+      await soundNotice(WAV);
+      expect(execFile).not.toHaveBeenCalled();
+    });
+    // (3) linux の組の順。実機の player の有無に頼らないよう existsSync だけを差し替え、ほかの path（repoRoot の解決）は元へ渡す。
+    platform.mockReturnValue("linux");
+    const players = ["/usr/bin/ffplay", "/usr/bin/paplay", "/usr/bin/aplay"];
+    vi.doMock("node:fs", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("node:fs")>();
+      return { ...actual, existsSync: (path: Parameters<typeof actual.existsSync>[0]) => typeof path === "string" && players.includes(path) || actual.existsSync(path) };
+    });
+    vi.resetModules();
+    const { soundNotice } = await import("../../src/notification-delivery/adapter");
+    // (a) ffplay は起動できない（pid の無い子と ENOENT）→ paplay で鳴らし、aplay は試さない
+    const missing = unrefed();
+    Object.defineProperty(missing, "pid", { value: undefined });
+    let execFile = vi.mocked(childProcess.execFile).mockReset().mockReturnValueOnce(missing).mockReturnValueOnce(unrefed());
+    const fallback = soundNotice(WAV);
+    execFile.mock.calls[0][3]?.(Object.assign(new Error("spawn /usr/bin/ffplay ENOENT"), { code: "ENOENT" }), "", "");
+    execFile.mock.calls[1][3]?.(null, "", "");
+    await fallback;
+    expect(execFile.mock.calls.map((call) => call[0])).toEqual(["/usr/bin/ffplay", "/usr/bin/paplay"]);
+    // (b) ffplay が起動した後に code 1 で終わる → 次へ進まない（鳴らすのは 1 回）
+    execFile = vi.mocked(childProcess.execFile).mockReset().mockReturnValueOnce(unrefed());
+    const launched = soundNotice(WAV);
+    execFile.mock.calls[0][3]?.(Object.assign(new Error("exit 1"), { code: 1 }), "", "");
+    await launched;
+    expect(execFile.mock.calls.map((call) => call[0])).toEqual(["/usr/bin/ffplay"]);
+  } finally {
+    vi.doUnmock("node:fs");
+    vi.resetModules();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

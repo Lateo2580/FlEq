@@ -673,15 +673,15 @@ class RuntimeCompositionRoot {
 
   // P3-C3B-OWNER-STOP (A): an owner's error or unexpected exit stops that owner only. Its mailbox items, requests,
   // reservations and held updates go; its unit keeps the last view and gets no grant (a write right it holds is kept,
-  // DEAD-WRITE-RIGHT A). Before startRuntime completed, the stop rejects startRuntime instead (P3-C3A-AC01).
-  ownerFailed(place: ExecutionPlace, cause: unknown): void {
+  // DEAD-WRITE-RIGHT A). Before startRuntime completed, the stop rejects startRuntime instead (P3-C3A-AC01). 戻りは、その place を初めて止めた呼び出しだけが止めた時の読み（端末へ 1 回だけ知らせる時刻）、ほかは null（P3-OSN-AC01）。
+  ownerFailed(place: ExecutionPlace, cause: unknown): ClockReading | null {
     if (this.current == null) {
       this.startFailure ??= { place, cause };
       this.wake();
-      return;
+      return null;
     }
     const monitor = this.monitors[place];
-    if (monitor.stopped) return;
+    if (monitor.stopped) return null;
     const clock = this.clock();
     this.endRefusals(place, clock);
     monitor.stopped = true; this.failDetails(place);
@@ -709,7 +709,7 @@ class RuntimeCompositionRoot {
     this.recoveryOwnerStopped(units);
     this.wake();
     this.evaluateDelivery(clock);
-    this.project([], [], clock);
+    this.project([], [], clock); return clock;
   }
 
   // P3-C3B-AC01 (spec:1190-1191): stalled when the oldest unanswered request is 5 s old; unresponsive when, with a

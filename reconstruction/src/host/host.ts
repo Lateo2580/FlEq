@@ -118,8 +118,8 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
   // A stop can empty the mailbox (its items leave it) while the WS is cut for overload: that is a drain too.
   const ownerFailed = (place: ExecutionPlace, cause: unknown) => {
     if (root == null) return;
-    root.ownerFailed(place, cause);
-    if (started) resumeIfDrained();
+    const stoppedAt = root.ownerFailed(place, cause);
+    if (started) { resumeIfDrained(); if (place === "urgent" && stoppedAt != null && root.state.shutdown.stage === "running") config.terminal?.ownerStopped(stoppedAt.wallTimeMs); } // P3-OSN-AC01: urgent の初めての停止だけを、停止を求める前に限って端末へ 1 回渡す
   };
   // P3-CK-AC01: 手元の時計の確かめ（作者裁定の案 1・案 A）。時計は差し替えず、接続先の時刻を受けたその場で比べるだけで、後の読みへ外挿しない。
   // 置き値: 起動から 30 秒の待ち（P3-CK-DLV-01）、幅と G の上限 5 秒（一番短い TTL の 3 分の 1）、R〜M の休止 1 秒（Q-CK-RULER）。

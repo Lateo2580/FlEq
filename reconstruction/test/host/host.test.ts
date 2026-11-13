@@ -2101,3 +2101,56 @@ describe("P3-TERMINAL-DEBUG-REJECT-001 the --debug line of an input the host num
     expect(terminal.lines).toEqual([]);
   });
 });
+
+// P3-OWNER-STOP-NOTICE-001: urgent の owner が止まった時に端末へ 1 回渡す。import を file の頭に足さないのは、他の契約の «» が引く本 file の行を動かさないため。
+import { EventEmitter } from "node:events";
+import type { TerminalSink } from "../../src/terminal/output";
+describe("P3-OWNER-STOP-NOTICE-001 the host hands the urgent owner's stop to the terminal once", () => {
+  // 偽の sink は ownerStopped の値だけを積む。owner は workerData の place と live の並び（どちらも作った順）で起こした直後に控える。
+  async function stopHost() {
+    await until(() => owners.live.size === 0);
+    owners.workerData.length = 0;
+    const server = await localServer();
+    const dirs = await directories();
+    const stopped: number[] = [];
+    const terminal: TerminalSink = { inputDone() {}, recoveryDone() {}, inputDropped() {}, digest() {}, mirror() {}, ownerStopped(fromWallMs) { stopped.push(fromWallMs); } };
+    const host = await startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null, terminal });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    const live = [...owners.live];
+    const worker = (place: string): EventEmitter & { terminate(): Promise<number> } => {
+      const found = live[owners.workerData.findIndex((data) => typeof data === "object" && data != null && "place" in data && data.place === place)];
+      if (!(found instanceof EventEmitter)) throw new Error(`no owner worker for ${place}`);
+      return found;
+    };
+    await until(() => server.sockets.length === 1);
+    return { host, dirs, stopped, urgent: worker("urgent"), deferred: worker("deferred") };
+  }
+  const ownerStopLine = async (dir: string, place: string) => {
+    let found: { timestamp: number } | undefined;
+    await until(async () => {
+      found = (await diagnostics(dir)).split("\n").filter((line) => line.includes(`"component":"owner.${place}"`) && line.includes('"reason":"ownerStopped"'))
+        .map((line): { timestamp: number } => JSON.parse(line))[0];
+      return found != null;
+    });
+    return found!;
+  };
+
+  it("P3-OSN-T01 acceptance / AC01: only the urgent owner's first stop reaches ownerStopped, with the ERROR ownerStopped time, and never after stop()", async () => {
+    const first = await stopHost();
+    await first.deferred.terminate();
+    await ownerStopLine(first.dirs.diagnosticDirectory, "deferred");
+    expect(first.stopped).toEqual([]);
+    // Node の worker の例外は error と exit を続けて出す（host の ownerFailed が 2 回呼ばれる）。
+    first.urgent.emit("error", new Error("urgent owner failed"));
+    await first.urgent.terminate();
+    const line = await ownerStopLine(first.dirs.diagnosticDirectory, "urgent");
+    expect(first.stopped).toEqual([line.timestamp]);
+    await first.host.stop();
+    // 停止を求めた後の error は渡さない（AC01 (3)）。
+    const second = await stopHost();
+    const stopping = second.host.stop();
+    second.urgent.emit("error", new Error("urgent owner failed during stop"));
+    await stopping;
+    expect(second.stopped).toEqual([]);
+  });
+});
