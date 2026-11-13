@@ -438,7 +438,78 @@ describe.runIf(env["FLEQ_DISASTER"] === "1")("P3-DISASTER-CAPACITY-001 formal ru
     const id = env["FLEQ_DISASTER_SCENARIO"], out = env["FLEQ_DISASTER_OUT"];
     if (id == null || out == null) throw new Error("FLEQ_DISASTER_SCENARIO and FLEQ_DISASTER_OUT are required");
     const scenario = readScenario({ id, dataDir: env["FLEQ_DISASTER_DATA"] ?? null, expectedDigest: env["FLEQ_DISASTER_DIGEST"] ?? null });
-    const { result } = await runStage1(scenario, { out });
+    const { result } = await runStage1(scenario, { out, ...(env["FLEQ_DISASTER_PEAK_OUT"] == null ? {} : { peakOut: env["FLEQ_DISASTER_PEAK_OUT"] }) });
     console.info(`[P3-DC] ${id} status=${String(result["status"])} digest=${String(result["digest"])} timing=${JSON.stringify(result["timing"])}`);
   }, 75 * 60_000);
 });
+
+// P3-DISASTER-PI-MEASURE-001 の T01・T02a・T02b（import は 1〜440 行の並びを変えないため末尾に置く）。
+describe("P3-DISASTER-PI-MEASURE-001 stage 1", () => {
+  it("P3-DPM-T01 contractBoundary / AC01・AC02: the byte, event and snapshot limits come from the product", async () => {
+    const at = Date.parse("2026-07-01T00:00:00+09:00");
+    const { result } = await runStage1(ready("DPM-T01", [frame(at, "VXSE53", variant("32-35_04_04_240613_VXSE53", at))], at + MINUTE));
+    expect(result["effectiveLimits"]).toEqual({ bytes: Object.fromEntries(runtimeUnits.map((unit) => [unit, linkedUnitCodecs[unit]?.maxEnvelopeBytes])),
+      seismic: { events: EVENT_LIMIT, longPeriods: LONG_PERIOD_LIMIT }, snapshotBytes: SNAPSHOT_BYTES });
+    expect(Object.keys(recordOf(recordOf(result["effectiveLimits"])["bytes"]))).toHaveLength(12);
+    expect(limit(result, "U-Q.events")?.["limit"]).toBe(EVENT_LIMIT);
+  });
+
+  it("P3-DPM-T02a acceptance / AC03: the peak copy has the five units' bytes and generations and its files match peak.json", async () => {
+    const { dir, peak } = await smallPeak();
+    const units = recordOf(recordOf(peak["peak"])["units"]);
+    for (const unit of ["U-Q", "U-T", "U-E", "U-W", "U-F"]) expect(units[unit], unit).toEqual({ bytes: expect.any(Number), generation: expect.any(Number) });
+    const files = listOf(peak, "files").map(recordOf);
+    expect(files.length).toBeGreaterThan(0);
+    // 写した slot のうち世代の新しい方が山の世代（encode の bytes と file の書き込みが同じ時点のもの）。
+    const newest = new Map<string, number>();
+    for (const file of files) {
+      const data = readFileSync(join(dir, "state", String(file["path"])));
+      expect(sha256(data), String(file["path"])).toBe(file["sha256"]);
+      const saved = recordOf(JSON.parse(data.toString("utf8")));
+      newest.set(String(saved["unit"]), Math.max(newest.get(String(saved["unit"])) ?? 0, Number(saved["generation"])));
+    }
+    for (const [unit, value] of Object.entries(units)) expect(newest.get(unit), unit).toBe(recordOf(value)["generation"]);
+  });
+});
+
+// T02 の山: 公開 fixture 5 報を 1 秒ずつ置いた筋書きを peakOut つきで流す（T02b は単独でも shuffle でも走るので、自分で作る）。
+const PEAK_REPORTS = [["32-35_04_04_240613_VXSE53", "VXSE53"], ["32-39_11_02_250206_VTSE41", "VTSE41"], ["77_01_01_240613_VXSE45", "VXSE45"],
+  ["15_16_02_251222_VPWW57", "VPWW57"], ["81_01_04_251222_VPWP50", "VPWP50"]] as const;
+async function smallPeak(): Promise<{ dir: string; peak: Readonly<Record<string, JsonValue>> }> {
+  const at = Date.parse("2026-07-01T00:00:00+09:00");
+  const dir = scratch();
+  const frames = PEAK_REPORTS.map(([name, headType], index) => frame(at + index * 1_000, headType, variant(name, at + index * 1_000)));
+  const { result } = await runStage1(ready("DPM-T02", frames, at + MINUTE), { peakOut: dir });
+  expect(result["status"]).toBe("Pass");
+  return { dir, peak: recordOf(JSON.parse(readFileSync(join(dir, "peak.json"), "utf8"))) };
+}
+
+// P3-DPM-D-T02-GATE=A: 本物の host を 2 回起こす T02b は FLEQ_DPM_STAGE2=1 のときだけ（配送の前と Pi の窓の前に統合担当が回す）。
+describe.runIf(env["FLEQ_DPM_STAGE2"] === "1")("P3-DISASTER-PI-MEASURE-001 stage 2", () => {
+  it("P3-DPM-T02b acceptance / AC03・AC04: pi-measure.mjs restores the small peak on the real host and measures saves and EEW waits", async () => {
+    const { dir } = await smallPeak();
+    const work = scratch(), out = join(work, "result.json");
+    const code = await new Promise<number | null>((done) => {
+      spawn(process.execPath, ["reconstruction/test/disaster/pi-measure.mjs", "--peak", dir, "--work", work, "--out", out, "--launches", "1", "--probe-seconds", "25"],
+        { stdio: "inherit" }).on("exit", done);
+    });
+    expect(code).toBe(0);
+    const result = recordOf(JSON.parse(readFileSync(out, "utf8")));
+    expect(result["blocked"]).toBeNull();
+    const peakLaunch = recordOf(listOf(result, "launches")[1]);
+    expect(recordOf(peakLaunch["restore"])).toMatchObject({ "U-Q": "restored", "U-T": "restored", "U-W": "restored", "U-F": "restored" });
+    const combined = recordOf(result["combined"]);
+    const samples = Object.values(recordOf(combined["eew"])).reduce((sum: number, group) => sum + Number(recordOf(group)["count"]), 0);
+    expect(samples).toBeGreaterThan(0);
+    const stages = Object.keys(recordOf(combined["saves"])).map((key) => key.split(" ")[1]);
+    expect(stages).toEqual(expect.arrayContaining(["encode", "write"]));
+    console.info(`[P3-DPM-T02b] ${JSON.stringify({ readyMs: result["readyMs"], machine: result["machine"] })}`);
+  }, 180_000);
+});
+
+import { spawn } from "node:child_process";
+
+import { linkedUnitCodecs } from "../../src/runtime/composition-root";
+import { runtimeUnits } from "../../src/runtime/unit-coverage";
+import { EVENT_LIMIT, LONG_PERIOD_LIMIT } from "../../src/units/seismic/seismic-unit";
+import { SNAPSHOT_BYTES } from "../../src/view-projector/view-projector";

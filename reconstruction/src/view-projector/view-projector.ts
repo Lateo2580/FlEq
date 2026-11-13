@@ -933,3 +933,4 @@ export { dateValue, projectSnapshot };
 
 // P3-REC-AC13 (3): UnconfirmedReason に語を足して UNCONFIRMED_KEYS に足し忘れると、ここで型が落ちる（落とすと集計と確認の状態から漏れる）。
 const unconfirmedKeysComplete: [Exclude<UnconfirmedReason, (typeof UNCONFIRMED_KEYS)[number]>] extends [never] ? true : never = true;
+export { SNAPSHOT_BYTES };

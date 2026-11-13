@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { vi } from "vitest";
 
 import type { CheckpointMeasurement } from "../../contracts/p2-eew-e01.types";
@@ -12,7 +12,7 @@ import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagn
 import { sealSelfHash } from "../../src/measurement/eew-e01/frozen";
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { executionPlaces, runtimeUnits } from "../../src/runtime/unit-coverage";
-import { seismicUnitCodec } from "../../src/units/seismic/seismic-unit"; import { weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit";
+import { EVENT_LIMIT, LONG_PERIOD_LIMIT } from "../../src/units/seismic/seismic-unit"; import { SNAPSHOT_BYTES } from "../../src/view-projector/view-projector";
 import { envelope, harnessedRoot, places, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import type { Scenario } from "./scenario";
@@ -112,7 +112,7 @@ class ObservationTable {
         return [["U-T.forecasts", state.forecasts.length, 512], ...units([["U-T.observations:VTSE51", count.VTSE51[0]], ["U-T.observations:VTSE52", count.VTSE52[0]]], 512),
           ...units([["U-T.stations:VTSE51", count.VTSE51[1]], ["U-T.stations:VTSE52", count.VTSE52[1]]], 1_024)];
       }, (state) => state.forecasts.flatMap((item) => item.unavailable == null ? [] : [[item.unavailable.source.inputId]])),
-      "U-Q": this.wrap(base["U-Q"], (step) => step.state, (state) => [["U-Q.events", state.earthquakes.length, 512], ["U-Q.longPeriods", state.longPeriods.length, 256]],
+      "U-Q": this.wrap(base["U-Q"], (step) => step.state, (state) => [["U-Q.events", state.earthquakes.length, EVENT_LIMIT], ["U-Q.longPeriods", state.longPeriods.length, LONG_PERIOD_LIMIT]],
         (state) => [...state.earthquakes.flatMap((item) => item.unavailable == null || item.unavailable.length === 0 ? [] : [item.unavailable.map((mark) => mark.source.inputId)]),
           ...state.longPeriods.flatMap((item) => item.unavailable == null ? [] : [[item.unavailable.source.inputId]])]),
       "U-N": this.wrap(base["U-N"], (step) => step.state, (state) => [["U-N.currents", state.currents.length, 6], ["U-N.information", state.information.length, 64]], null),
@@ -190,9 +190,9 @@ class ObservationTable {
 
 // ---- 1 段目の流し手（P3-DC-CLOCK、AC03・AC04・AC06） ----
 
-// P3-QC-AC12 (1): U-Q は codec の器（P3-QC-AC05）。U-W も codec の器（P3-UWC-AC10 (2)）。
-const BYTE_LIMITS: Readonly<Partial<Record<RuntimeUnitId, number>>> = { "U-E": 262_144, "U-T": 4_194_304, "U-Q": seismicUnitCodec.maxEnvelopeBytes, "U-N": 294_912,
-  "U-W": weatherCurrentUnitCodec.maxEnvelopeBytes, "U-F": 33_554_432 };
+// P3-DPM-AC01: 保存の器は 12 unit とも codec の maxEnvelopeBytes（checkpoint.ts の最後の守りと同じ値。定数の写しは器を広げると古くなる）。
+const BYTE_LIMITS: Readonly<Record<string, number>> = Object.fromEntries(runtimeUnits.map((unit) => [unit, linkedUnitCodecs[unit]?.maxEnvelopeBytes
+  ?? (() => { throw new Error(`${unit}: the codec has no maxEnvelopeBytes`); })()]));
 const DOMAIN_KEYS = ["eew", "weatherCurrent", "weatherTimeseries", "tsunami", "earthquake", "nankai", "volcano", "landslide", "flood",
   "briefing", "localBulletins", "typhoon"] as const satisfies readonly (keyof DisplaySnapshot["current"])[];
 const DOMAINS: Readonly<Record<(typeof DOMAIN_KEYS)[number], RuntimeUnitId>> = { eew: "U-E", weatherCurrent: "U-W", weatherTimeseries: "U-F",
@@ -233,17 +233,23 @@ type RunOptions = Readonly<{
   // 試験の前置き: 観測の表が包む前の unit 表と、起動の後・最初の frame の前に呼ぶもの（owner-harness の seeded）。
   units?: UnitTable;
   prepare?: (h: Harness, clock: ClockReading) => Promise<void>;
+  // P3-DPM-AC03: 山の写し（全 unit の最新の保存の byte の合計が最大の時点の保存の file と peak.json）の書き先。Pass・Fail の run だけ書く。
+  peakOut?: string;
 }>;
 
-// 必ず成功するメモリの保存（projection-fixture.ts の memoryWrites と同じ形、disk に書かない）。
+// 必ず成功するメモリの保存（projection-fixture.ts の memoryWrites と同じ形、disk に書かない）。山の写し（P3-DPM-AC03）が Map を読むので、
+// 返した file system から Map を引けるようにする。
+const memoryMaps = new WeakMap<CheckpointFileSystem, ReadonlyMap<string, Uint8Array>>();
 function memoryFiles(): CheckpointFileSystem {
   const files = new Map<string, Uint8Array>();
-  return { readFile: (path) => files.get(path) ?? null, unlinkSync: (path) => { files.delete(path); },
+  const system: CheckpointFileSystem = { readFile: (path) => files.get(path) ?? null, unlinkSync: (path) => { files.delete(path); },
     mkdir: async () => {}, rename: async (from, to) => { files.set(to, files.get(from)!); files.delete(from); }, syncDirectory: async () => {},
     open: async (path) => {
       let bytes = new Uint8Array();
       return { write: async (data) => { bytes = data.slice(); }, sync: async () => {}, close: async () => { files.set(path, bytes); } };
     } };
+  memoryMaps.set(system, files);
+  return system;
 }
 
 // 診断は捨てる（保存の再試行の予定だけ見る、P3-DC-CLOCK (6)）。
@@ -302,10 +308,35 @@ function measureSnapshot(snapshot: DisplaySnapshot): Readonly<{ bytes: Record<st
   return { bytes, shell, total, withoutWeather, withoutWeatherOver1MiB: withoutWeather > 1_048_576 };
 }
 
+// P3-DPM-AC01 (2): 結果に書く器の値。上限を書き換えた測定の checkout は gitHead で見分けられないため。
+const EFFECTIVE_LIMITS = { bytes: BYTE_LIMITS, seismic: { events: EVENT_LIMIT, longPeriods: LONG_PERIOD_LIMIT }, snapshotBytes: SNAPSHOT_BYTES };
+const STATE_DIRECTORY = "disaster-state";
+type Peak = { atMs: number; totalBytes: number; units: Record<string, { bytes: number; generation: number }>;
+  files: ReadonlyMap<string, Uint8Array> | null; snapshot: DisplaySnapshot | null };
+
+// P3-DPM-AC03 (3): 山の時点の Map のうち state の directory の下の file を peakOut/state/ へ同じ相対 path で書き、peak.json に file ごとの sha256 を書く。
+function writePeak(out: string, head: Readonly<Record<string, JsonValue>>, peak: Peak | null): void {
+  const root = resolve(STATE_DIRECTORY);
+  const files: JsonValue[] = [];
+  let skippedFiles = 0;
+  mkdirSync(join(out, "state"), { recursive: true });
+  for (const [path, data] of peak?.files ?? []) {
+    const inside = relative(root, resolve(path));
+    if (inside === "" || inside.startsWith("..") || isAbsolute(inside)) { skippedFiles++; continue; }
+    mkdirSync(dirname(join(out, "state", inside)), { recursive: true });
+    writeFileSync(join(out, "state", inside), data);
+    files.push({ path: inside.split(sep).join("/"), bytes: data.byteLength, sha256: sha256(data) });
+  }
+  const measured = peak?.snapshot == null ? null : measureSnapshot(peak.snapshot);
+  writeFileSync(join(out, "peak.json"), `${JSON.stringify({ schema: "p3-disaster-peak-v1", contractId: "P3-DISASTER-PI-MEASURE-001", ...head,
+    peak: peak == null ? null : { atMs: peak.atMs, totalBytes: peak.totalBytes, units: peak.units }, snapshot: measured, files, skippedFiles }, null, 1)}\n`);
+}
+
 // 1 段目の流し手: 1 筋書き 1 run、空の state から。結果（自己 hash 付きの JSON）を返し、out があれば書く。
 async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<Readonly<{ text: string; result: Readonly<Record<string, JsonValue>> }>> {
   const began = performance.now();
-  const identity = { schema: "p3-disaster-capacity-result-v1", contractId: "P3-DISASTER-CAPACITY-001", scenario: scenario.id, gitHead: gitHead(),
+  if (options.peakOut != null && options.checkpointFileSystem != null) throw new Error("peakOut needs the memory file system (checkpointFileSystem has no Map to copy)");
+  const identity = { schema: "p3-disaster-capacity-result-v1", contractId: "P3-DISASTER-CAPACITY-001", scenario: scenario.id, gitHead: gitHead(), effectiveLimits: EFFECTIVE_LIMITS,
     digest: scenario.digest, synth: scenario.kind === "ready" ? scenario.synth : null, t0: scenario.kind === "ready" ? scenario.t0 : null,
     contracts: contractRefs() };
   if (scenario.kind === "blocked") {
@@ -322,12 +353,19 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   const spans: Spans = new Map();
   const transitions: JsonValue[] = [];
   let summarized = "";
+  // P3-DPM-AC03 (1): unit ごとの最新の encode の bytes と世代、それまでの山。
+  const latest = new Map<string, { bytes: number; generation: number }>();
+  // 山は閉包の中だけで更新するので、run の後で null に絞られないよう入れ物に置く。
+  const top: { peak: Peak | null } = { peak: null };
+  const fileSystem = options.checkpointFileSystem ?? memoryFiles();
+  const memory = memoryMaps.get(fileSystem) ?? null;
   const measure = (list: readonly CheckpointMeasurement[]) => {
     for (const item of list) {
       if (item.outcome === "failed" || item.retryReason !== "notRetry") saveFailure ??= `${item.unit} ${item.stage} ${item.outcome} ${item.retryReason}`;
       const unit = runtimeUnits.find((candidate) => candidate === item.unit);
       const limit = unit == null ? undefined : BYTE_LIMITS[unit];
       if (item.stage === "encode" && limit != null) table.record(`${item.unit}.bytes`, item.bytes, limit, now.wallTimeMs);
+      if (item.stage === "encode") latest.set(item.unit, { bytes: item.bytes, generation: item.generation });
     }
   };
   // snapshot の要約（AC04 (4)）: 分野ごとの要約の始まりと終わり。要約の組が変わった時刻だけ分野ごとの byte を数える。
@@ -345,9 +383,9 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     summarized = current.join();
     transitions.push({ atMs: now.wallTimeMs, summarized: current.map((key) => DOMAINS[key]), ...measureSnapshot(snapshot) });
   };
-  const h = harnessedRoot({ appName: "fleq-disaster", legacyAppName: "fleq", stateDirectory: "disaster-state", legacyStateDirectory: "disaster-legacy",
+  const h = harnessedRoot({ appName: "fleq-disaster", legacyAppName: "fleq", stateDirectory: STATE_DIRECTORY, legacyStateDirectory: "disaster-legacy",
     diagnosticDirectory: "disaster-diagnostics" }, linkedUnitCodecs, {
-    clock: () => now, runtimeCalls: { ...linkedRuntimeCalls, units: table.units }, checkpointFileSystem: options.checkpointFileSystem ?? memoryFiles(),
+    clock: () => now, runtimeCalls: { ...linkedRuntimeCalls, units: table.units }, checkpointFileSystem: fileSystem,
     diagnosticFileSystem: discardDiagnostics(() => { saveFailure ??= "checkpointRetryScheduled"; }), reportFailure: () => {},
     notificationAdapter: { run: async (attempt, clock) => ({ kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId,
       channel: attempt.channel, completedAt: clock() }), abort: async () => ({ stopped: true }) },
@@ -405,6 +443,13 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     }
     const key = JSON.stringify(counts);
     if (key !== lastUnresolved) { lastUnresolved = key; unresolvedFinal = counts; unresolved.push({ atMs: now.wallTimeMs, counts }); }
+    // P3-DPM-AC03 (1): 計量は unit の数の加算と Map の参照の写しだけ（state も snapshot も直列化しない。snapshot は参照を覚え、peak.json を書く時に 1 回数える）。
+    let total = 0;
+    for (const value of latest.values()) total += value.bytes;
+    if (total > (top.peak?.totalBytes ?? 0)) {
+      const snapshot: DisplaySnapshot | null = lastSnapshot;
+      top.peak = { atMs: now.wallTimeMs, totalBytes: total, units: Object.fromEntries(latest), files: options.peakOut == null || memory == null ? null : new Map(memory), snapshot };
+    }
   };
   // 時計を target へ進める。途中で満了する timer は満了の時刻で発火させ、その tick も settle してから先へ進む（P3-DC-CLOCK (2)）。
   const moveTo = async (target: number) => {
@@ -533,7 +578,9 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   for (const [unit, counts] of unresolvedSeen) unresolvedMax[unit] = counts;
   const pass = table.rejections.length === 0 && countedLosses.length === 0 && expectations.every((item) => isRecord(item) && item["ok"] === true)
     && failingSummary.length === 0;
+  const reached = top.peak;
   const result = { ...identity, status: pass ? "Pass" : "Fail", blocked: null,
+    peak: reached == null ? null : { atMs: reached.atMs, totalBytes: reached.totalBytes, units: reached.units },
     pass: { inputRejections: table.rejections.length, capacityLosses: countedLosses.length, capacityLossQuakeEvents: quakeEvents(countedLosses),
       expectationsFailed: expectations.filter((item) => isRecord(item) && item["ok"] !== true).length, failingSummaries: failingSummary },
     limits, over90: limits.filter((item) => item.over90).map((item) => item.id),
@@ -547,6 +594,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
       counted: countedLosses.filter((item) => item.unit === "U-E").length }, quakeEventLosses: { all: quakeEvents(table.losses), counted: quakeEvents(countedLosses) },
     realInvalid, summaries, summaryTransitions: transitions, checkpoints, expectations,
     final: { stateSha256: finalStates }, run: { startMs, endMs }, timing };
+  if (options.peakOut != null) writePeak(options.peakOut, { scenario: identity.scenario, digest: identity.digest, gitHead: identity.gitHead, effectiveLimits: EFFECTIVE_LIMITS }, reached);
   return { text: seal(result, options.out), result };
 }
 

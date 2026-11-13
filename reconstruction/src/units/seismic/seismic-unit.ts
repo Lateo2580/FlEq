@@ -1687,3 +1687,4 @@ function recoveryChanges(before: SeismicUnitState, after: SeismicUnitState): Sei
 }
 
 export { emptyDaily, recoveryChanges, reduceSeismicUnit, seismicUnit, seismicUnitCodec, toSeismicView };
+export { EVENT_LIMIT, LONG_PERIOD_LIMIT };

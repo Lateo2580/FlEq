@@ -154,7 +154,7 @@ async function host(observations: P2HostObservation[]) {
   });
   cleanups.push(() => { events.destroy(); });
   await until(() => sender.connected());
-  return { sender, stop: started.stop };
+  return { sender, stop: started.stop, diagnostics: join(path, "diagnostics") };
 }
 function frame(headType: string, body: string): string {
   return JSON.stringify({ type: "data", version: "2.0", classification: "telegram.earthquake", id: "id", format: "xml", encoding: "utf-8",
@@ -385,12 +385,11 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       const observations: P2HostObservation[] = [];
       const h = await host(observations);
       const m = measurer(observations);
-      let sequence = 0;
-      for (let index = 0; index < 17; index++) {
-        const sent = `input-${++sequence}`;
-        await h.sender.send([frame("VXSE53", withEvent(s53w, `W53${trial}${String(index).padStart(10, "0")}`))]);
-        await until(() => m.processingOf(sent) != null);
-      }
+      let sequence = 0, piled = 0, bytes = 0; const { seismicUnitCodec } = await import("../../src/units/seismic/seismic-unit"); const saves = () => observations.flatMap((item) => item.kind === "checkpoint" && item.measurement.unit === "U-Q" && item.measurement.stage === "encode" ? [item.measurement] : []);
+      for (; bytes < 0.8 * (seismicUnitCodec.maxEnvelopeBytes ?? Infinity); piled++) { if (piled === 120) throw new Error(`trial ${trial}: the U-Q encode ${bytes} did not reach 0.8 of ${seismicUnitCodec.maxEnvelopeBytes} in 120 piles`);
+        const sent = `input-${++sequence}`; await h.sender.send([frame("VXSE53", withEvent(s53w, `W53${trial}${String(piled).padStart(10, "0")}`))]);
+        await until(() => m.processingOf(sent) != null && saves().some((save) => save.inputIds.includes(sent))); bytes = saves().at(-1)?.bytes ?? 0;
+      } // P3-DPM-AC05: U-Q の encode が器の 0.8 倍に届くまで積む。17 件の固定では器を広げた後に畳みが 0 回のまま緑だった（2026-11-12 夜）
       const work = `input-${++sequence}`, eew = `input-${++sequence}`;
       const [workAt, injectedAt] = await h.sender.send([frame("VXSE53", wide(`WIDE${trial}`)), probes.eew()]);
       await until(() => m.processingOf(eew) != null && m.processingOf(work) != null, 120_000);
@@ -398,7 +397,8 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       rows.push(m.row(eew, injectedAt, { start: workAt, end: done.endedMonotonicMs }, { workBusyMs: done.endedMonotonicMs - done.startedMonotonicMs,
         decodeMs: arrival.decodeEnded - arrival.decodeStarted, reduceMs: arrival.raised == null ? null : arrival.raised - arrival.decodeEnded }));
       if (trial === foldRuns - 1) { m.record("widestFold", rows, Math.ceil(foldRuns / 2)); results = m.results; }
-      await h.stop();
+      await h.stop(); const folded = (await Promise.all((await fileSystem.readdir(h.diagnostics)).filter((name) => /^diagnostics-.*\.jsonl$/.test(name)).map((name) => fileSystem.readFile(join(h.diagnostics, name), "utf8")))).join("\n").split("\n").filter((line) => line.includes("\"seismicStationsFolded\"")).reduce((sum, line) => sum + Number(/"count":(\d+)/.exec(line)?.[1] ?? 1), 0);
+      Object.assign(rows[trial], { folded, piled }); if (folded === 0) throw new Error(`trial ${trial}: no seismicStationsFolded after ${piled} piles (${bytes} bytes)`);
     }
     console.info("P3-QC-AC11-FOLD", JSON.stringify({ runs: foldRuns, rows, results }));
   }, 900_000);
