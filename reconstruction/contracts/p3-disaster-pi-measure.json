@@ -1,0 +1,461 @@
+{
+  "meta": {
+    "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
+    "sha256": "a927242517edc80720288f95520b555227f0fa256945673e872cc3c0c5c9e20f",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
+    "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-DPM-D-WINDOW-SET",
+        "kind": "作者",
+        "A": "Pi の窓（旧築を止める間）で流すのは N3 の山の写し 1 つだけで、組は 3 つ: (1) 今の製品（件数 512・snapshot 1 MiB） (2) 件数 768・snapshot を広げた build (3) 件数 1024・snapshot を広げた build。組ごとに起動 6 回（空の state 1 回＋山の写し 5 回、各 60 秒の投入）。見込み: 組ごとに約 9 分、3 組で約 27 分。旧築の停止・警報の確かめ・起こし直し・/healthz を足して約 35 分（上限 60 分で切る）",
+        "B": "N1・N2・N3 の山の写し 3 つ × 同じ 3 組（9 通り）。見込み: 約 80 分、手順を足して約 90 分（上限 2 時間）",
+        "C": "N3 の山の写しで、768 と 1024 の 2 組だけ（今の製品の組を測らない）。見込み: 約 18 分、手順を足して約 26 分",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者の裁定待ち",
+        "ruling": null,
+        "reason": "場面: 窓の間（例 14:00〜14:35）は Pi の画面に旧築の表示が出ず、EEW・津波の通知音も鳴らない（P3-PH-D-LEGACY=B と同じ）。A の 35 分は、今の製品と、件数の上限の 2 つの候補を、同じ山の state で並べられる最小。N3 は N2 に 06-26 の実の気象の電文を重ねた筋書きで、11-12 夜の Mac mini では U-Q の byte と件数の最大が N2 とほぼ同じ（12,621,600 と 12,621,596 byte、どちらも 512 に到達）で、U-W・U-F の state も持つので、山の総量は N3 が最も大きい見込み。N1 は件数 512 に届かない（最大 403）。B は N1・N2 を足すが、件数と byte の山は N3 に含まれるので、窓が 2.5 倍になるわりに足すものが少ない。C は今の製品の値が無く、広げた分の差を言えない。見込みの根拠: 起動 1 回は Node の起動と復元（Pi で 10〜20 秒の見込み、未測）＋投入 60 秒＋停止と読み込み約 10 秒。build（npm ci と tsc 3 本）は窓の前に旧築を動かしたまま済ませるので窓に入れない（P3-PH-AC08 (1) の置き場の形）。snapshot を広げる値は、Mac mini の 1 段目（N3、件数 768・1024 の build）が出した snapshot の全体の最大を越える最小の 2 の冪の MiB にする（統合担当が 1 段目の結果から決めて記録する）"
+      },
+      {
+        "id": "P3-DPM-D-RENDERER",
+        "kind": "作者",
+        "A": "この契約の同じ窓で、Pi の Chromium（kiosk と別の profile）で新築の表示の page を開き、renderer の RSS を ps で 1 秒ごとに取る（道具の code は足さず、統合担当の手順だけ）。窓が約 15〜20 分のびる",
+        "B": "分ける。Chrome の renderer は P4 の画面（表示の page を作り直す）の Pi の窓で測る。この契約は Node の側（保存・復元・EEW の待ち・RSS・snapshot の直列化）だけ",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "作者の裁定待ち",
+        "ruling": null,
+        "reason": "renderer の重さは、snapshot を描く page の作りで決まる。今の新築の表示の page は P4 で作り直すので、今測った値は P4 の後に測り直しになる。製品が描くのは Pi の Chromium で、P3-PI-HARNESS-001 の別機械の形（Mac mini の Chrome）は描くまでの時間を測る形で、Pi の renderer のメモリは測れない。B にすると、snapshot の 1 MiB を広げる契約は、Node の側の値（publishSerialization の bytes と時間、EEW の T2→T4）で決め、renderer の分は残存リスクに書いて P4 の窓で確かめることになる。A は窓が 1 回で済むが、Pi の Chromium を SSH から起こす手順（keyring の罠、memory の feedback_pi_chromium_from_ssh）と、P4 の後の測り直しが要る"
+      },
+      {
+        "id": "P3-DPM-D-STAGE2",
+        "kind": "統合担当",
+        "A": "Pi で値を出す口（2 段目）をこの契約に入れる。2 段目は node の script（reconstruction/test/disaster/pi-measure.mjs）で、Pi で動いた実績のある host-launcher.mjs（子 process の本物の host、worker と disk）と run.mjs の startInjector を使う。vitest を使わない",
+        "B": "この契約は 1 段目の直し（器の値・山の写し）と畳みの試験だけにし、2 段目を別の契約に分ける",
+        "C": "2 段目を vitest の試験（seismic-host.test.ts の FLEQ_C7_AC12 の形、startP2Host を同じ process で起こす）として書き、Pi で vitest を回す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当 2026-11-13）",
+        "ruling": "A",
+        "reason": "1 段目だけでは、Pi で測るべき値（保存の時間・EEW の待ち・復元・製品の RSS）が 1 つも出ない（Q-DPM-PI）。B は Pi の窓の前にもう 1 本の契約の起草・レビュー・配送が要り、段 4 の値が出るまでが延びる。C は Pi で vitest を回した記録が無く（P3-PI-HARNESS-001 の窓は node run.mjs だけ）、RSS が vitest の process の値になる。A の host-launcher.mjs は 2026-10-29 の Pi の第 1 段の窓で動いた（Q-PH-STAGE1-20261029）。画面・音は変わらず、窓の長さは P3-DPM-D-WINDOW-SET で決まる"
+      },
+      {
+        "id": "P3-DPM-D-LIMIT-SOURCE",
+        "kind": "統合担当",
+        "A": "U-Q の件数の上限（EVENT_LIMIT・LONG_PERIOD_LIMIT）と snapshot の上限（SNAPSHOT_BYTES）を製品の file の末尾に足す export の 1 行で外へ出し、道具はそれを読む。製品の振る舞いは変えない",
+        "B": "道具は 512・256 を手書きのまま持ち、結果にその旨を書く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当 2026-11-13）",
+        "ruling": "A",
+        "reason": "Pi で 768・1024 の build を測ると、B では道具が 512 を上限と書き、使用率と 90% 越えを誤って出す（11-12 夜の qc-measure-limit.md で実際に起きた）。export の行は file の末尾に足すので、他の契約が «» で引く行（seismic-unit.ts:1689 は p3-replay-watch-002.json:729 が引く）は動かない。他の unit の件数の上限（U-E の family 512 など）は今回の測定で変えないので手書きのまま（残存）"
+      },
+      {
+        "id": "P3-DPM-D-PEAK",
+        "kind": "統合担当",
+        "A": "山は「全 unit の最新の保存の byte の合計が最大の時点」1 つ。その時点の保存の file を写す",
+        "B": "実行場所（urgent・seismic・weatherCurrent・deferred）ごとに、その場所の byte の合計が最大の時点を別々に写す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当 2026-11-13）",
+        "ruling": "A",
+        "reason": "復元の時間と RSS の最悪は合計の山で決まる。urgent の EEW の待ちは U-T・U-E・U-N の保存の大きさで決まり、合計の山でそれぞれが最大とは限らないが、1 段目の limits に unit ごとの最大の byte と時刻が残るので、山の写しの byte と並べて差を報告できる。B は写しが 4 倍になり、窓の起動の数も増える"
+      },
+      {
+        "id": "P3-DPM-D-REPLAY-PLACE",
+        "kind": "統合担当",
+        "A": "1 段目（筋書きを仮想時計で流す）は Mac mini で回す。Pi へは山の写し（state の file と peak.json）だけを運ぶ",
+        "B": "1 段目も Pi で回す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当 2026-11-13）",
+        "ruling": "A",
+        "reason": "1 段目の値（件数・byte・欠け・要約）は仮想時計で決まり、機械によらない（T02 が同じ入力の 2 回で本体の hash の一致を確かめている）。Pi で回すと、Pi と Mac の速さの比（p3-unit-write-right.json の Q-UWR-REMEASURE の対の run: processing 3.38〜3.39 倍、XML の parse 4.89〜4.92 倍）から、N3 の 1 本（Mac mini で 291〜343 秒）が 16〜28 分になり、vitest も Pi で初めて回すことになる。採取物（dmdata の Archive）を Pi に置かずに済む。ただし N3 は 06-26 の採取物の xml を種類で絞らずに全部重ねる（scenario.ts の archiveDay）ので、採取物に EEW の原本があれば山の U-E の state に入りうる（採取物の中身は確かめていない）。山の写しは作者の私的な機械の中だけで使い、窓の後に消す（dmdata の規約の私的な使用）"
+      },
+      {
+        "id": "P3-DPM-D-OVERRIDE",
+        "kind": "統合担当",
+        "A": "件数と snapshot の上限を測定のためだけに変えるのは、使い捨ての checkout の中の 1 行の書き換え（seismic-unit.ts:39 と view-projector.ts:35）で行い、commit しない。結果の effectiveLimits と、書き換えの diff の sha256 を測定の記録に残す",
+        "B": "製品に上限を外から変える口（環境変数など）を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当 2026-11-13）",
+        "ruling": "A",
+        "reason": "11-12 夜の Mac mini の測り方（qc-measure-limit.md）と同じで、製品のコードを変えない。器の byte の上限は件数に比例して codec の中で決まる（GENERATION_LIMIT・RESERVE_BYTES）ので、1 行の書き換えで codec の maxEnvelopeBytes も一緒に変わり、道具は AC01 でそれを読む。B は本番に測定の口が残る"
+      },
+      {
+        "id": "P3-DPM-D-FOLD",
+        "kind": "統合担当",
+        "A": "地震の畳みの試験（P3-QC-AC11-FOLD、seismic-host.test.ts の widest fold）を、今の器で畳みが起きる量に直す。この契約に入れる",
+        "B": "別の小さい契約で直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当 2026-11-13）",
+        "ruling": "A",
+        "reason": "同じ段 4 の測定の道具の古さで、直しは 1 つの it の中の数行。2 段目は Pi で山の写しに観測点 30,000 の VXSE53 を 1 回入れるので、Pi の畳みの最中の EEW の待ちは 2 段目で出る。Mac の側の P3-QC-AC11 (3) の証拠（作者に報告する線の約 40 ms）は、この試験を直さないと畳みの無い値のまま残る（2026-11-12 夜、17 件で畳み 0 回）。試験の期待を変える（畳みが 0 回の試行を Error にする）ので、理由をここに書く（AGENTS.md）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-DPM-PI",
+        "status": "closed",
+        "source": "起草（2026-11-13、HEAD 84c2c626 の木を読んだ）",
+        "closed": "災害の日の道具は Pi で動く作りだが、Pi で測るべき値を出せない。(1) 動く: 筋書きの readFileSync は作業ディレクトリからの相対 path（synth.ts:20、owner-harness.ts:247〜258、runner.ts:270、disaster.test.ts:37）で、Mac の固定の path も Chrome も使わない。package-lock.json に linux-arm64 の rollup（:633）と esbuild（:215）がある。ただし vitest に縛られている（runner.ts:4 の import、:357 の fake timers、:370 の advanceTimersByTime。正式の口は disaster.test.ts:435 の FLEQ_DISASTER）。Pi で vitest を回した記録は無い（P3-PI-HARNESS-001 の窓は node run.mjs だけ）。N1〜N3 は 06-26 の採取物が無いと dataMissing（scenario.ts:192〜193） (2) 出せない: 保存の段の時刻は owner の sharedNow から読み（owner-host.ts:258）、harness の既定の sharedNow は仮想時計（owner-harness.ts:81）なので、保存の時間は 0 になる。保存先はメモリ（runner.ts:239・:350）で disk に書かない。owner は 4 つとも同じ thread の中（owner-harness.ts:99）で、流し手は frame ごとに settle する（runner.ts:482）ので、EEW が保存の後ろに並ぶ待ちは起きない。run は空の state から始まり（runner.ts:305）、復元を測らない。RSS は vitest の process の値になる (3) 仮想時計の harness に本物の sharedNow を入れる直し方は採らない: owner の業務の時計（owner-host.ts の business()）が sharedNow の経過を壁時計に足すので、格子と T02・T10 の同値が崩れる。だから時間の値は本物の host（startP2Host、host-launcher.mjs）から取る（P3-DPM-D-STAGE2=A）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DPM-ESTIMATE",
+        "status": "closed",
+        "source": "起草（2026-11-13）",
+        "closed": "窓の見込みの根拠: Pi と Mac の速さの比は p3-unit-write-right.json の Q-UWR-REMEASURE の対の run（processing 3.38〜3.39 倍、XML の parse 4.89〜4.92 倍）。1 段目の 1 本の所要は 11-12 夜の Mac mini で N2 187〜241 秒・N3 291〜343 秒（qc-measure-limit.md）。2 段目の起動 1 回は、Node の起動と復元（未測、10〜20 秒の見込み）＋投入 60 秒＋停止と読み込み約 10 秒。旧築の停止から起こし直しまでの手順の分は、P3-PI-HARNESS-001 の第 1 段の窓（Q-PH-STAGE1-20261029、07:02:48 の確かめ〜08:32:55 の /healthz）の前後の数分から見込んだ。どれも見込みで、窓では上限の時刻で切る",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DPM-LINES",
+        "status": "closed",
+        "source": "発注前点検の材料（2026-11-13、git grep -n \"<basename>:[0-9]\" -- reconstruction）",
+        "closed": "(1) runner.ts を引くのは 14 件、«» つきは 6 件（p3-unit-q-capacity.json:493 の :194、:494 の :32、p3-uw-canon.json:627〜629 の :105・:195・:206、p3-weather-shape.json:338 の :490）。AC01 で中身が変わる :194・:195 を引く 2 件は FAIL になる見込み（想定内。配送で原文を改訂して付け直す）。:32・:105 は変えない。行を足せば :206・:490 の位置が動くので、配送で reanchor-target.py で付け直す。«» の無い 8 件（p3-notice-ledger.json:116・p3-unit-n-series.json:99・:454・:614 の :188、p3-uw-canon.json:302 の :528・:621・:649・:659）は checker に掛からない (2) disaster.test.ts を引くのは 1 件（«» なし） (3) seismic-host.test.ts を «» で引くのは 10 件（:48・:54・:141・:218・:242・:373・:406・:409・:461・:478）。AC05 は 157 行と 385〜404 行の中だけを変え、行の数を変えない (4) seismic-unit.ts は 146 件（«» つき 108）。AC02 は file の末尾（1689 行の後）に 1 行足すだけで、:1689（p3-replay-watch-002.json:729 が引く）の中身も位置も変えない (5) view-projector.ts は末尾（935 行の後）に 1 行足すだけ。:901・:904・:906 を引く契約の行は動かない (6) host-launcher.mjs（16 件、«» つき 8）・run.mjs・frames.mjs・scenario.ts・owner-harness.ts は変えない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DPM-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-13）",
+        "closed": "起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。製品の受信・判定・通知・保存・画面の行と音は変えない（製品の file に足すのは末尾の export の 2 行だけ）。変わるのは試験の道具の出力と、測定のための使い捨ての checkout の中の上限だけ"
+    }
+  },
+  "contract": {
+    "contractId": "P3-DISASTER-PI-MEASURE-001",
+    "mode": "implementation",
+    "objective": "段 4（器の上限は Pi で速さを測ってから広げる。2026-10-21 作者の方向、p3-order-plan.md:547）の最初の段として、災害の日の道具（P3-DISASTER-CAPACITY-001）に、Pi で測る値を出す口を足す。上限は変えない（2026-11-13 作者裁定、判断カード 2026-11-13-P3の残り-夜の走行 §8 の A: 地震の件数の上限 512 と snapshot の 1 MiB を段 4 で一緒に扱い、件数は 768 か 1024 を Pi の測定で選ぶ。上限を変える契約は Pi の測定の後に別に書く）。今の道具は仮想時計の 1 thread の harness で、保存の時間・EEW の待ち・復元・製品の RSS を出せない（Q-DPM-PI）。そこで (1) 1 段目（Mac mini で回す）は器の値を製品から取り、全 unit の保存の byte の合計が最大の時点の保存の file（山の写し）を書き出す (2) 2 段目（Pi で回す node の script）は、山の写しを本物の host（worker と SD の disk）で復元し、復元の時間・保存の段ごとの時間・EEW の投入から T2・T4 までの待ち・RSS・snapshot の直列化を測る (3) 地震の畳みの試験を今の器で畳みが起きる量にする。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-disaster-pi-measure.json",
+      "reconstruction/contracts/p3-disaster-capacity.json",
+      "reconstruction/contracts/p3-pi-harness.json",
+      "reconstruction/contracts/p3-unit-q-capacity.json",
+      "reconstruction/test/disaster/runner.ts",
+      "reconstruction/test/disaster/disaster.test.ts",
+      "reconstruction/test/disaster/scenario.ts",
+      "reconstruction/test/disaster/synth.ts",
+      "reconstruction/test/execution-split/owner-harness.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/test/eew-e01/host-launcher.mjs",
+      "reconstruction/test/eew-e01/run.mjs",
+      "reconstruction/test/eew-e01/run.d.mts",
+      "reconstruction/test/eew-e01/frames.mjs",
+      "reconstruction/test/seismic-unit/seismic-host.test.ts",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/runtime/unit-coverage.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/contracts/p2-eew-e01.types.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/disaster/runner.ts（AC01〜AC03）",
+      "reconstruction/test/disaster/disaster.test.ts（441 行の中で peakOut を渡し〔AC03 (5)〕、P3-DPM-T01・T02 を file の末尾に足すだけ。1〜440 行と 442 行より後の既存の行は変えない）",
+      "reconstruction/test/disaster/pi-measure.mjs（新しい file、AC04）",
+      "reconstruction/src/units/seismic/seismic-unit.ts（AC02。file の末尾に export の 1 行を足すだけ。1〜1689 行は変えない）",
+      "reconstruction/src/view-projector/view-projector.ts（AC02。file の末尾に export の 1 行を足すだけ。1〜935 行は変えない）",
+      "reconstruction/test/seismic-unit/seismic-host.test.ts（AC05。157 行と 385〜404 行の中だけ。行は足さず消さない）",
+      "reconstruction/contracts/p3-disaster-pi-measure.json"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-disaster-pi-measure.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B07",
+      "B08",
+      "B15",
+      "M02"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-DISASTER-CAPACITY-001",
+      "P3-PI-HARNESS-001",
+      "P3-UNIT-Q-CAPACITY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-e01.types.ts#CheckpointMeasurement",
+      "reconstruction/contracts/p2-eew-e01.types.ts#P2HostObservation",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+    ],
+    "publicFunctions": [
+      "runStage1 の口は変えず、RunOptions に peakOut?: string を 1 つ足す（AC03）",
+      "seismic-unit.ts の EVENT_LIMIT・LONG_PERIOD_LIMIT と view-projector.ts の SNAPSHOT_BYTES を export する（AC02。値と使い方は変えない）",
+      "pi-measure.mjs は CLI だけで、export を持たない（AC04）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（node の標準の module、ws、vitest、dist の frozen.js と unit-coverage.js）。新しい npm 依存は足さず、package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__81_01_04_251222_VPWP50",
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-DPM-RES-01",
+        "target": "Pi の窓（旧築を止めてから起こし直すまで）",
+        "limit": "P3-DPM-D-WINDOW-SET の裁定の上限（A なら 60 分）",
+        "unit": "minutes",
+        "scope": "越えたら測定を止めて旧築を起こし直し、測れた分だけを記録する（P3-PH-AC08 の形）"
+      },
+      {
+        "id": "P3-DPM-RES-02",
+        "target": "2 段目の 1 起動",
+        "limit": "ready まで 120 秒、投入 probe-seconds（既定 60 秒）",
+        "unit": "seconds",
+        "scope": "ready が来なければ blocked（hostFailed）。EEW は 200 ms ごと（5 つの EventID を回し、各 1 秒に 1 報）、dirty の入力は 5 秒ごと"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（製品の保存の形を変えない。山の写しは製品の保存の file をそのまま写す）"
+    ],
+    "nonPersistedFields": [
+      "1 段目の山の記録（run の中だけ）"
+    ],
+    "outOfScope": [
+      "器の上限（件数・byte・snapshot）を変えること。Pi の測定の後に別の契約で決める",
+      "Chrome の renderer の測定（P3-DPM-D-RENDERER の裁定による）",
+      "P3-DISASTER-CAPACITY-001 の合否の式（P3-DC-PASS の 4 条件）を変えること",
+      "旧築を止める・起こす手順を道具の code に入れること（統合担当の手順、P3-PH-AC08）",
+      "入口の上限（frame 8 MiB・mailbox 128 件 16 MiB など。2026-10-21 作者の方向で対象外）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-DPM-AC01",
+        "requirement": "道具の保存の器を製品から取る（定数の写しをやめる）: (1) runner.ts:194〜195 の BYTE_LIMITS を、runtimeUnits の 12 unit それぞれの linkedUnitCodecs[unit].maxEnvelopeBytes に替える（12 の codec が全部持つ値で、checkpoint.ts:223 が保存の最後の守りに使う）。使わなくなる runner.ts:15 の import は行の中で外す (2) 結果の identity（runner.ts:308）に effectiveLimits を足す: unit ごとの maxEnvelopeBytes、U-Q の件数の上限（AC02）、snapshot の上限（AC02 の SNAPSHOT_BYTES）。足す理由: 測定のために上限を書き換えた checkout は gitHead（runner.ts:255）では見分けられない。effectiveLimits は決定的な値なので本体に置く（T02 の bodyHash の一致を崩さない） (3) 合否の式（runner.ts:534）と 4 条件は変えない。byte の使用率は今も判定に使わない (4) 無いと: 11-12 夜の N2・N3 で U-E.bytes が道具の古い上限 262,144 の 106% と出た（製品の器 2,190,935 の 12.7%）。U-T（道具 4,194,304・製品 11,354,432）・U-N（294,912・3,139,385）・U-F（33,554,432・製品は印と原文の予算を足した値）も同じ形",
+        "evidenceRefs": [
+          "reconstruction/test/disaster/runner.ts:194 «b67f7948980756a4»",
+          "reconstruction/test/disaster/runner.ts:195 «69bdd43a774278cb»",
+          "reconstruction/test/disaster/runner.ts:15 «99183e8f8671cd6c»",
+          "reconstruction/test/disaster/runner.ts:308 «33a1d5396671df2a»",
+          "reconstruction/test/disaster/runner.ts:255 «977806efe5989306»",
+          "reconstruction/test/disaster/runner.ts:534 «622b9a2b3f5e5ae2»",
+          "reconstruction/src/checkpoint/checkpoint.ts:223 «79ffa012cb68d408»"
+        ]
+      },
+      {
+        "id": "P3-DPM-AC02",
+        "requirement": "件数と snapshot の上限を製品から読む（P3-DPM-D-LIMIT-SOURCE=A）: (1) seismic-unit.ts の末尾（1689 行の後）に export { EVENT_LIMIT, LONG_PERIOD_LIMIT }; の 1 行を足し、view-projector.ts の末尾（935 行の後）に export { SNAPSHOT_BYTES }; の 1 行を足す。どちらも既存の行の中身と位置を変えず、製品の振る舞いを変えない (2) runner.ts:115 の U-Q.events の 512 と U-Q.longPeriods の 256 を、その export に替える (3) 他の unit の件数の上限（U-E の family 512・U-T・U-W・U-F・U-N）は手書きのまま（今回の測定で変えない。残存） (4) 無いと: 件数 768・1024 の build を測ったとき、道具が 512 を上限として使用率と 90% 越えを出す（11-12 夜に実際に起きた）",
+        "evidenceRefs": [
+          "reconstruction/src/units/seismic/seismic-unit.ts:39 «a65f9be0377b481f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1689 «b850bb9aca0d01ab»",
+          "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
+          "reconstruction/test/disaster/runner.ts:115 «cfbe534f486b9abe»"
+        ]
+      },
+      {
+        "id": "P3-DPM-AC03",
+        "requirement": "山の写し（1 段目の出力。P3-DPM-D-PEAK=A）: (1) runStage1 の RunOptions に peakOut?: string を足す。settled（runner.ts:382）の終わりで、unit ごとの最新の encode の bytes（観測の表の `${unit}.bytes` の current）の合計を数え、それまでの最大を越えたら、その時刻（仮想の wall）・合計・unit ごとの bytes と世代（encode の CheckpointMeasurement.generation）と、memoryFiles の Map の写しを覚える。Map の写しは値の参照だけ（memoryFiles の write は data.slice() で新しい配列を作り、閉じた後に書き換わらない、runner.ts:242〜245）。計量は unit の数に比例し、state を直列化しない (2) 結果の本体に peak（atMs・totalBytes・unit ごとの bytes と generation）を書く（決定的） (3) peakOut があれば、status が Pass か Fail の run の後に、Map の写しのうち state の directory（harness の stateDirectory を resolve したもの）の下の file を peakOut/state/ の下へ同じ相対 path で書き、peakOut/peak.json に schema（p3-disaster-peak-v1）・contractId・scenario・digest・gitHead・effectiveLimits・peak・その時点の snapshot の計量（measureSnapshot、lastSnapshot が無ければ null）・file ごとの相対 path と bytes と sha256 を書く。state の directory の外の file は数だけ skippedFiles に書く。blocked の run は書かない (4) peakOut と checkpointFileSystem を一緒に渡したら Error（メモリの Map が無く写せない） (5) 正式の口（disaster.test.ts:441）は環境変数 FLEQ_DISASTER_PEAK_OUT を peakOut に渡す（無ければ今のまま）。足す理由: 2 段目が災害の日の最も重い state から本物の host を起こすため。無いと、Pi の保存・復元・EEW の待ちを空の state か手で組んだ state でしか測れない",
+        "evidenceRefs": [
+          "reconstruction/test/disaster/runner.ts:382 «5b1d0bec8cfc5a1d»",
+          "reconstruction/test/disaster/runner.ts:239 «c51c6ab08c1a2083»",
+          "reconstruction/test/disaster/runner.ts:242 «c323941381ca230e»",
+          "reconstruction/test/disaster/runner.ts:330 «e73452581ba43ce3»",
+          "reconstruction/test/disaster/disaster.test.ts:441 «b061b1b4bd290777»"
+        ]
+      },
+      {
+        "id": "P3-DPM-AC04",
+        "requirement": "2 段目の測り手（P3-DPM-D-STAGE2=A。新しい file reconstruction/test/disaster/pi-measure.mjs、node で動き vitest・Chrome・Mac の path を使わない）: node reconstruction/test/disaster/pi-measure.mjs --peak <dir> --work <dir> --out <file> [--launches 5] [--probe-seconds 60] [--node <path>]。(1) 前提は dist（AGENTS.md の reconstruction ゲートの tsc 3 本）。host は host-launcher.mjs を子 process で起こし（run.mjs の startHost と同じ config の形: wsUrl・stateDirectory・diagnosticDirectory・obsPath・wallOriginMs・startedWallMs・notification \"silent\"・memEveryMs 1000）、投入は run.mjs の startInjector（wallNow を渡して start の time を送る、P3-CLOCK-CHECK-001 の時計の確かめ）。host-launcher.mjs・run.mjs・frames.mjs は変えない (2) 起動は launch 0（空の state）と launch 1..L（毎回 peak/state を work/launch-k/state へ写し直す。Linux なので cp -c は使わない）。wallOriginMs は peak.json の peak.atMs（host の壁時計は wallOriginMs＋子の performance.now、host-launcher.mjs:41）。fork から ready（host-launcher.mjs:75）までを readyMs として測る。復元の値は readyMs の山と空の両方を書く（差が復元の分の見積もり。Node の起動と dist の読み込みを含むため） (3) ready の後 probe-seconds の間: EEW（frames.mjs の eewVariant）を 200 ms ごとに 1 通。EventID は launch ごとに 5 つを順に回し、各 EventID は 1 秒に 1 報、Serial を 1 つずつ上げ、報の時刻はその時の wall（秒）にする（EEW の新旧は Control/DateTime で決まり〔P3-VM-AC03〕、同じ秒の続報は採られない見込みのため。family の 512 件〔10 分〕も越えない）。5 秒ごとに大きい unit を dirty にする入力を U-T・U-Q・U-W・U-F の順に 1 通: U-T は 32-39_11_02_250206_VTSE41 の時刻を今の wall に寄せ EventID を替えた報、U-Q は 32-35_04_04_240613_VXSE53 の同じ形、U-W は 15_16_02_251222_VPWW57、U-F は 81_01_04_251222_VPWP50 の時刻を今の wall に寄せた報（官署は替えず、件数を増やさない）。投入の半ばで 1 回だけ run.mjs の stations30k の VXSE53（観測点 30,000、山の state では畳みが起きうる）。終わりに host を止め（{t:\"stop\"}）、obs の JSON Lines と診断の日別 file を読む。T4 のために SSE の /events を 1 本つないで読み捨てる (4) 集計（launch 1..L を併せた分布と launch ごとの値）: (a) 保存: kind checkpoint の measurement を unit × stage（encode・write・fileSync・close・rename・directorySync・verify）ごとに件数・p50・p90・最大の ms と bytes の最大。復元の後の最初の世代の保存は firstSave として分ける (b) EEW の待ち: 採られた EEW（その inputId の U-E の generationRaised がある）ごとに、投入→T0（startInjector の投入の時刻を launcher の clock 行で host の時計へ写す、aux-measures.mjs:28 の hostMsOf）・T0→T2・投入→T2・T2→T4（marker）。作者に報告する線（約 40 ms、P3-QC-AC11 (3)）は投入→T2 で、main の詰まり（大きい snapshot の直列化など）は投入→T0 に出る。標本を、投入の時刻（host の時計）が urgent の unit（unit-coverage.ts:16 の executionPlaces から引く）の encode の区間の中・seismic の encode の区間の中・どちらでもない、の 3 組に分け、組ごとに件数・p50・p99（100 件未満は観測最大と書く）・最大。採られなかった EEW と dirty の入力は数だけ書き、値から外す。送った EEW のうち採られたものが 9 割に届かなければ status blocked（probeNotAdopted。採られない投入で測った値を出さない） (c) RSS: mem の行の rss・heapUsed の最大と ready の直後の値 (d) publishSerialization の bytes と durationMs の最大 (e) 畳み: 診断の日別 file の seismicStationsFolded（INFO）の count の合計。INFO は列が溢れると先に捨てられるので、終了要約の file があればその droppedDiagnostics の INFO を並べる（無ければ null） (f) 復元の確かめ: 診断に checkpointRestoreRejected・checkpointSchemaDiscarded があれば status blocked（restoreRejected）で値を出さない。peak.json の unit ごとに、その launch の最初の保存の世代が peak の世代より大きければ restored、その launch で保存が無ければ unverified と書く（復元しただけでは保存しない unit がありうるため。owner-host.ts の restore は世代の帳簿を付けるだけ） (5) 結果は 1 file（frozen.js の sealSelfHash で自己 hash）。schema p3-disaster-pi-measure-result-v1、peak.json の scenario・digest・gitHead・effectiveLimits、測った機械（os.arch・cpus()[0].model・totalmem・Node の版）、launch ごとの値と併せた分布。合否は付けない（器を広げてよいかは、作者が値を見て、上限を変える契約で決める） (6) 子が ready を 120 秒で返さない・途中で落ちる・injector.broken が立つ、のどれかで status blocked（hostFailed）。無いと: Pi で本物の worker と SD の上の保存・復元・EEW の待ち・RSS を測る口が無い（Q-DPM-PI）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-e01/host-launcher.mjs:41 «4113ec73f724a47d»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:57 «2edccdb967d3bc9e»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:75 «fc00f83c8ca49387»",
+          "reconstruction/test/eew-e01/aux-measures.mjs:28 «8658990c3c001faa»",
+          "reconstruction/test/eew-e01/run.mjs:124 «efac49ec53682715»",
+          "reconstruction/test/eew-e01/run.mjs:1058 «aadf6cc2a5777cbf»",
+          "reconstruction/test/eew-e01/frames.mjs:47 «54e873cc2c9e22d4»",
+          "reconstruction/src/runtime/unit-coverage.ts:16 «d322b87ac6931d20»"
+        ]
+      },
+      {
+        "id": "P3-DPM-AC05",
+        "requirement": "地震の畳みの試験を今の器で畳みが起きる量に直す（P3-DPM-D-FOLD=A。seismic-host.test.ts の widest fold、373 行の it）: (1) 389 行の 17 件を、U-Q の encode の bytes（observations の kind checkpoint・U-Q・encode の最後の bytes）が seismicUnitCodec.maxEnvelopeBytes の 0.8 倍以上になるまで積む形に替える（上限 120 件、届かなければ Error）。0.8 は 11-12 夜の補助の測定（qc-measure-ac11.md: 512 で 40 件 12,540,391 byte／器 15,515,625、768 で 52 件 16,301,983／20,498,153 を先に入れ、観測点 30,000 の VXSE53 で畳みが起きた）から (2) host() の戻り値（157 行）に診断の directory を足し、試行ごとに h.stop() の後、日別 file の seismicStationsFolded の count を数えて行（rows）に folded と piled（積んだ件数）を足す。folded が 0 の試行があれば Error (3) 行の数を変えない（157 行と 385〜404 行の中で直す。後ろの 406・409・461・478 行は p3-seismic-host-expiry-test.json が «» で引く） (4) 無いと: 器を 15.5 MB に広げた後も 17 件のままで、畳みが 0 回のまま緑になり、畳みの最中の EEW の待ちを測らずに値を報告する（2026-11-12 夜に実際に起きた）",
+        "evidenceRefs": [
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:373 «f8307b96c979e627»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:389 «b9c8761942061bfd»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:403 «80d506a7d25c35e2»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:157 «56a1dd9de2910663»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:146 «9b03d893503e5ce6»"
+        ]
+      },
+      {
+        "id": "P3-DPM-AC06",
+        "requirement": "測定の手順（統合担当。道具の code に入れない）: (1) Mac mini の 1 段目: 測る commit の使い捨ての checkout を 3 つ（今の製品・件数 768＋snapshot を広げた build・件数 1024＋snapshot を広げた build。書き換えは P3-DPM-D-OVERRIDE=A）作り、tsc 3 本の後に N3（P3-DPM-D-WINDOW-SET の裁定で N1・N2 も）を FLEQ_DISASTER=1・FLEQ_DISASTER_PEAK_OUT で流す。snapshot を広げる値は、先に件数 768・1024 の build で snapshot を広げずに流した結果の snapshot の total（区切りの checkpoints・要約の遷移 summaryTransitions・山の peak.json の 3 か所。区切りの間の山は見ない）の最大を越える最小の 2 の冪の MiB とし、記録する (2) Pi: 窓の前（旧築を動かしたまま）に、置き場 ~/p3-bench の下へ 3 つの checkout を作り（npm ci --ignore-scripts と tsc 3 本、P3-PH-AC08 (1) の形）、山の写しを scp で運び、今の製品の組で pi-measure.mjs --launches 1 --probe-seconds 5 を 1 回流して Pi で動くことを確かめる（値は捨てる） (3) 窓: P3-PH-D-LEGACY=B と P3-PH-AC08 の手順（終わりの時刻を作者へ伝える・有効な警報が無いことを確かめる・旧築を止める・測る・起こし直して /healthz 200 と kiosk の clients を確かめる）。止める条件は P3-PH-AC08 と同じ（MemAvailable 2 GiB 未満・swap の増え・新しい throttle）。/proc/pressure と vcgencmd は統合担当の shell の loop で同じ窓に取る (4) 窓の後: 山の写し・work の directory を Pi から消し、結果の file と 1 段目の結果を作者への報告の材料にする。上限を変える契約（件数 768 か 1024、snapshot）はこの値の後に別に起草する",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-pi-harness.json:366 «9b9b658dd07ec5da»",
+          "reconstruction/contracts/p3-order-plan.md:547 «6210004ba3292953»",
+          "reconstruction/test/disaster/disaster.test.ts:435 «c39913882ddf9e1e»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-DPM-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-DPM-AC01",
+          "P3-DPM-AC02"
+        ],
+        "behavior": "disaster.test.ts の末尾に足す。32-35_04_04_240613_VXSE53 の 1 報だけの筋書きを runStage1 で流すと、結果の effectiveLimits の unit ごとの bytes が 12 unit とも linkedUnitCodecs[unit].maxEnvelopeBytes と同じで、U-Q の件数の上限が seismic-unit.ts の export した EVENT_LIMIT・LONG_PERIOD_LIMIT、snapshot の上限が SNAPSHOT_BYTES と同じ。limits の U-Q.events の limit が EVENT_LIMIT と同じ。直す前のコードは effectiveLimits が無くて落ちる"
+      },
+      {
+        "testId": "P3-DPM-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-DPM-AC03",
+          "P3-DPM-AC04"
+        ],
+        "behavior": "disaster.test.ts の末尾に足す。32-35_04_04_240613_VXSE53・32-39_11_02_250206_VTSE41・77_01_01_240613_VXSE45・15_16_02_251222_VPWW57・81_01_04_251222_VPWP50 の 5 報の筋書きを peakOut つきで流すと、peak.json の peak に U-Q・U-T・U-E・U-W・U-F の bytes と generation があり、state/ の下の file の sha256 が peak.json と合う。続けて node reconstruction/test/disaster/pi-measure.mjs を --launches 1 --probe-seconds 25 で子 process として走らせると rc 0 で、結果の status が blocked でなく、U-Q・U-T・U-W・U-F の 4 unit が dirty の入力の後の保存で restored（AC04 (4)(f)）になり、採られた EEW の標本が 1 件以上、保存の encode と write の行がある。harness で書いた保存を本物の host が復元できることの確かめ（Q-DPM-PI の未確認の点）を兼ねる"
+      },
+      {
+        "testId": "P3-DPM-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-DPM-AC05"
+        ],
+        "behavior": "seismic-host.test.ts の widest fold を直したもの（FLEQ_C7_AC12=1 のときだけ走る）。各試行で folded が 1 以上で、0 なら Error で落ちる。2026-11-12 夜、器を広げた後も 17 件のまま畳みが 0 回で緑だった不具合の再発防止。統合担当が Mac mini で FLEQ_C7_AC12=1 FLEQ_C7_AC12_FOLD_RUNS=1 で 1 回回し、512 の build で folded と piled（40 件前後の見込み）を記録する"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の後に FAIL になるのは、AC01 で中身が変わる runner.ts:194・:195 を引く 2 件（p3-unit-q-capacity.json:493、p3-uw-canon.json:628）と、本契約が引く runner.ts:15・:115・:194・:195・disaster.test.ts:441・seismic-host.test.ts:157・:389・:403 の «» の見込み。runner.ts に行を足して :206・:490 を引く 2 件の位置が動けば、配送で reanchor-target.py で付け直す。それ以外の FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（pi-measure.mjs と host-launcher.mjs が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "run.mjs が読む chrome-eew の dist"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T01・T02 を含む。既存の試験の期待は変わらない見込み）"
+      },
+      {
+        "command": "npm run test:shuffle -- --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "T02 は一時 directory と子 process を扱うので、順序を変えても緑か（AGENTS.md）"
+      },
+      {
+        "command": "FLEQ_C7_AC12=1 FLEQ_C7_AC12_RUNS=2 FLEQ_C7_AC12_FOLD_RUNS=1 FLEQ_C7_AC12_BULK_RUNS=1 ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/seismic-unit/seismic-host.test.ts -t \"widest fold\"",
+        "cwd": ".",
+        "target": "reconstruction/test/seismic-unit/seismic-host.test.ts",
+        "stage": "implementation",
+        "purpose": "T03（AC05）。Mac mini で回し、folded と piled を成果物に書く"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch（新しい file の pi-measure.mjs を含む）、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは RunOptions の peakOut と山の記録（AC03）、新しい script 1 本（AC04）、製品の末尾の export 2 行（AC02）だけ。新しい npm 依存・設定・型の file は足さない。pi-measure.mjs は試験から子 process で走らせるので .d.mts を足さない。試験は T01・T02（disaster.test.ts の末尾）と、直した widest fold（T03）。AC と 1 対 1。runner.ts の直しを戻すと T01 が effectiveLimits で落ち、peakOut を戻すと T02 が peak.json で落ちることを、実装者が 1 回確かめて成果物に書く",
+      "受信経路の計算量（AGENTS.md）: 製品の受信の hot path は変えない。1 段目の山の計量は settle ごとに unit の数（12）の加算と Map の参照の写し（file の数に比例）で、state も snapshot も直列化しない。measureSnapshot は山が更新された時と区切りの時だけ呼ぶ",
+      "期待が変わる既存の試験: P3-QC-AC11-FOLD（seismic-host.test.ts の widest fold、FLEQ_C7_AC12=1 のときだけ）は積む件数と畳みの確かめが変わる（AC05、理由は P3-DPM-D-FOLD）。それ以外は変わらない見込み（読んでたどった見込みで、走らせてはいない）。P3-QC-T08 の U-Q.bytes の limit は今も seismicUnitCodec.maxEnvelopeBytes。T02 の bodyHash は決定的な欄（effectiveLimits・peak）が足されるだけで 2 回の一致は崩れない。ほかが落ちたら、変える前に試験名・旧の期待・理由を報告して止める",
+      "旧築（src/）を変えない。変えないので、旧築の build と test は要らない",
+      "原文の改訂（統合担当が配送の commit で当てる）: (1) p3-disaster-capacity.json の P3-DC-AC04 の本文（405 行の次の requirement）の「U-E 256 KiB・U-T 4 MiB・…・U-N 288 KiB・…・U-F 32 MiB」を「各 unit の codec の maxEnvelopeBytes（P3-DISASTER-PI-MEASURE-001 の AC01）」に、件数の上限の「U-Q: event 512・長周期256」に「（EVENT_LIMIT・LONG_PERIOD_LIMIT を製品から読む、同 AC02）」を足す（行の中の書き換え） (2) p3-unit-q-capacity.json:493 と p3-uw-canon.json:628 の runner.ts:194・:195 の引用を、直した後の BYTE_LIMITS の行へ付け直す (3) p3-notice-ledger.json:116 の「P3-DISASTER-CAPACITY-001 へ送る: BYTE_LIMITS の U-E・U-T・U-Q を K8 の器にする」の送りに、本契約で果たした旨を書く (4) バックログの「災害の日の道具の BYTE_LIMITS が、器を広げる前の値のまま」と「地震の畳みの試験（P3-QC-AC11-FOLD）が、今の器では畳みを起こしていない」を完了へ",
+      "残存として成果物に書く: (1) 2 段目の復元の値は fork から ready までで、Node の起動と dist の読み込みを含む（空の state の launch 0 との差で見る） (2) EEW の待ちの標本は投入の時刻と保存の重なりで分けるので、urgent の encode に重なった標本の数は保存の数と長さで決まり、100 件に届かないことがある（そのときは観測最大） (3) 山は合計の山 1 つで、unit ごとの最大の時刻の state ではない（P3-DPM-D-PEAK=A） (4) 他の unit の件数の上限は手書きのまま (5) Chrome の renderer は P3-DPM-D-RENDERER の裁定による (6) 2 段目の投入（EEW 5 件の同時進行で 200 ms ごと、5 秒ごとの dirty）は災害の日の実の頻度より強い負荷で、値は上界の側に寄る (7) 畳みの数は INFO の診断から数えるので、列が溢れた run では下限になる（AC04 (4)(e)） (8) 復元しても保存しなかった unit は unverified のまま（AC04 (4)(f)。U-V・U-L など dirty にしない unit）"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-DPM-WINDOW",
+        "owner": "user",
+        "blocks": [
+          "P3-DPM-AC06"
+        ],
+        "resolveBy": "発注の前（作者の裁定）",
+        "requiredEvidence": [
+          "P3-DPM-D-WINDOW-SET の A・B・C の選択"
+        ]
+      },
+      {
+        "id": "Q-DPM-RENDERER",
+        "owner": "user",
+        "blocks": [
+          "P3-DPM-AC06"
+        ],
+        "resolveBy": "発注の前（作者の裁定）",
+        "requiredEvidence": [
+          "P3-DPM-D-RENDERER の A・B の選択"
+        ]
+      }
+    ]
+  }
+}
