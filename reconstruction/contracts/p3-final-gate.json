@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "2cc95dc8e58738e26e3916dc16b957d8868319a0cd4dba67b9cf59a4a6850ca5",
+    "sha256": "02af96c2970c68f3e08570c99a5747079f3a4c0614241399d47dc02bd72844ca",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
@@ -479,6 +479,13 @@
         "source": "作者の裁定（2026-11-13 15:13、外出先から「全て推奨でお願いします」。判断カード 2026-11-13-C22-最終ゲートの分岐 の「行き先の無い 34 本をどうするか」と「裁定 2」）",
         "closed": "(e) の 34 本（7 群）は全部 Q-FG-LEDGER-AC03 の orphan の推奨どおり: 群 1（O01:4・11）と群 2（O02:3）と群 3（O03:7・9）は P4 の前の小さい契約、群 4（O04:3・5〜8）は O10 を流す発注で準備を組む、群 5（O09:3〜5）は C4 の測定を行き先と読む、群 6（O09:6・7・10）は P4 へ送る、群 7（O06:11〜28）は T02 の checks の字を今の決まりに直して T02 を行き先と読む。群 1 は P3-EEW-SAME-CORRECTION-001 が受け持った（帳簿の「duplicate」は誤りで、製品は unchanged/stale）。群 2 は P3-TIMESERIES-NEWER-EMPTY-001 を起草した（帳簿の「U-F の試験内で作る」は T01 が manifest の fixture しか読まないので corpus に足す形に替えた）",
         "remaining": "群 2 の発注、群 3 の起草、群 4・7 は O10・O06 を流す発注へ、群 5 は作者の確かめ、群 6 は P4"
+      },
+      {
+        "id": "Q-FG-ORDER2-PRECHECK",
+        "status": "closed",
+        "source": "発注 2（AC06 の T04）の発注前点検と起草 r0（2026-11-13、HEAD 5008ac04、branch draft/c22-order2。子の起草。読んだのは AC06・spec:2614・:2073・:962・p2-notification-delivery.json・p3-notify-fail-recover.json・p3-notice-ledger.json・notification-delivery.ts・adapter.ts・composition-root.ts の通知の道・既存の通知の試験。試しは reconstruction/.dr-tmp の写しの木の使い捨ての試験で、repo に足していない）",
+        "closed": "(1) Q-FG-RARE-FIXES の発注 2 の分: P3-NOTIFY-FAIL-RECOVER-001 は配送済み（実装 b55e31c9、原文の改訂と «» c91ea7bf、配送の記録 4b002122。Mac mini のゲート b30）で、3 つとも 5008ac04 の祖先。AC06 の検収はその後の形（遅い close で隔離から戻る、直前に失敗の印）の上で行う。T04 の偽の abort は onLateStop を呼ばない（閉じない player）ので、戻る道の確かめは P3-NFR-T01・T05 に残す。P3-DIAG-SINK-RETRY-001（87c97a45）・P3-OWNER-STOP-NOTICE-001（5463f455）・P3-RAIN-RECOVERY-CANCEL-001（048c2c4a）・P3-VOLCANO-LIFT-001（3b25c34b）・P3-DISASTER-PI-MEASURE-001（2cde841d）も 5008ac04 の祖先。契約 file のある 7 契約（通知の 3 つと直しの 4 つ）を dependsOnContractIds に足した。P3-FG-D-SPLIT の A の字（『作者の分岐待ち』『実装中』『配送の直前』）は確定した裁定の記録なので書き換えず、この記録で配送済みと読む。AC06 と Q-FG-RARE-FIXES の同じ字は直した (2) 後の裁定で前提が変わっていないか: C11 の作り直しは P5（P3-OWNER-REBUILD-001 は保留）。P3-OWNER-STOP-NOTICE-001 の止まった知らせは A7 の channel を通らない soundNotice・desktopNotice（adapter.ts の末尾）で、回線の切断の知らせ（C19）も同じ。どちらも AC06 の範囲を変えない（AC06 の外と書いた） (3) 通知を出す unit: owner-harness の unitBodies の 12 本を流すと、U-F を除く 11 unit が desktop の intent を作り、U-W・U-L を除く 9 unit が sound の intent も作る（U-W の VPWW57・U-L の VPWW56 の報は desktop だけ）。AC06 の『U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む』は 11 unit と読み、C20 の分は U-W の desktop の intent で通る (4) 担い手の分け（AC06 に書いた）: 故障の種類ごとの A7・adapter の振る舞いと (3) の順・満杯の採否は既存の試験が持ち、T04 は本物の 12 unit の intent × channel をまたぐ × 受理・保存だけ。統合担当の決め 2 つ（画面・音・通知の出る出ないを変えない試験の組み方なので作者に出さない）: (a) T04 の壊し方は abort 無視（停止未確認の隔離）だけにする。隔離だけが channel を run の残りの間使えなくし、reject・timeout・遅い成功では channel が idle に戻るので、他の channel へ波及する道が無い。種類ごとの振る舞いは (4) の既存の試験が持つ (b) 入力は unitBodies の 12 本で、fixture も合成も足さない。A7 は unit を見ず priorityGroup で選ぶので、U-W の sound の intent を作る報を足しても別の分岐を通らない (5) 試し（5008ac04 の写しの木、使い捨て）: T04 の要点は今の製品で成り立った。sound を壊すと、sound は U-Q の 1 回の試行の後に isolated（stopUnconfirmed。中断の cause は次の入力の時計で期限が過ぎた expired）、desktop は 11 unit の 12 件が delivered、sound の 9 件は expired・lossReason notificationExpired の終端の更新、各入力の後の保存は全部 savedGeneration＝currentGeneration、harness の failures 0。desktop を壊す場面も対称（sound の 9 件が delivered、desktop の 11 件が expired）。ほかに sound で reject・遅い成功（abort の後の delivered）・停止を確かめた timeout の 3 つも流し、desktop の 12 件の delivered と保存は同じで、sound の結果は reject が failed の後に expired、遅い成功と timeout は expired（delivered に数えない）だった。製品の不具合は見つからなかった。T04 の behavior の (1)〜(5) をそのまま assert にした使い捨ての試験も 2 場面とも通り（desktop の delivered 12・sound の expired の更新 9、sound の delivered 9・desktop の expired の更新 11）、製品を一時に書き換えた 2 つ（どちらかが isolated なら両 channel を飛ばす、owner への終端の更新の lossReason を null にする）ではそれぞれ (2)・(3) で落ちた (6) 欠落の記録の見え方: owner の losses（P3-NL-AC14）は capture で lastAt＋24 時間を過ぎた行を外すので、年をまたいで時計を進める T04 の場面では前の unit の行が残らない（試しでは U-T・U-V・U-B の行だけが残った。決まりどおり）。T04 は losses を数えず、owner へ送った終端の更新の lossReason で見る (7) kind 作者の分岐は無い（試験を足すだけで、画面・音・通知の出方を変えない）",
+        "remaining": "baseOid の割当（統合担当、T04 の発注のとき、Q-FG-BASE）。AC07 の Mac mini の実走（作者の在席の時刻）は発注 2 の残りで、T04 を待たせない"
       }
     ],
     "operationContract": {
@@ -512,10 +519,17 @@
       "reconstruction/src/runtime/composition-root.ts",
       "reconstruction/test/execution-split/owner-harness.ts",
       "reconstruction/test/disaster/",
-      "reconstruction/test/integration/"
+      "reconstruction/test/integration/",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p3-notify-fail-recover.json",
+      "reconstruction/src/notification-delivery/notification-delivery.ts",
+      "reconstruction/src/notification-delivery/adapter.ts",
+      "reconstruction/test/notification-delivery/",
+      "reconstruction/test/final-gate/",
+      "reconstruction/test/tsunami-unit/tsunami-runtime.test.ts"
     ],
     "allowedPaths": [
-      "reconstruction/test/final-gate/**（新設。発注 1 は T01・T02 と T03 の 4 場面、発注 2 は T04、発注 3 は T03 の owner の停止の場面〔urgent を止めてから終える。P3-OWNER-STOP-NOTICE-001 の配送の後〕）",
+      "reconstruction/test/final-gate/**（新設。発注 1 は T01・T02〔oracle.test.ts〕と T03 の 4 場面〔shutdown.test.ts〕、発注 2 は T04〔notify-isolation.test.ts を新設〕、発注 3 は T03 の owner の停止の場面〔urgent を止めてから終える。P3-OWNER-STOP-NOTICE-001 の配送の後〕）",
       "reconstruction/contracts/p3-final-gate.json（統合担当だけ。記録）",
       "reconstruction/contracts/p3-order-plan.md（統合担当だけ。他の契約が «» で引かない行の中だけ、AC11・AC12 の句）",
       "reconstruction/contracts/p3-dmdata-connect.json（統合担当だけ。:95 の status の 1 語と meta.sha256）"
@@ -558,7 +572,14 @@
       "P3-WEATHER-NOTICE-001",
       "P3-DISASTER-CAPACITY-001",
       "P3-UNIT-Q-CAPACITY-001",
-      "P3-PI-HARNESS-001"
+      "P3-PI-HARNESS-001",
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-NOTIFY-FAIL-RECOVER-001",
+      "P3-DIAG-SINK-RETRY-001",
+      "P3-OWNER-STOP-NOTICE-001",
+      "P3-RAIN-RECOVERY-CANCEL-001",
+      "P3-VOLCANO-LIFT-001"
     ],
     "publicTypes": [
       "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeUnitId",
@@ -836,14 +857,16 @@
       },
       {
         "id": "P3-FG-AC06",
-        "requirement": "通知の故障隔離（spec:2614 の P3 分。E21・spec:962。発注 2）: 通知の channel（desktop・sound）ごとに、制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、通知を出す全 unit の intent（U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む）で、(1) 停止を確かめられない adapter の隔離・無効化と、同じ実処理への重ね呼び 0 (2) 隔離中の intent は試行せず、期限で欠落を記録し、成功に数えない (3) 固定優先順（EEW→通常運用の津波緊急→その他）と満杯の採否 (4) ある channel の故障が他の channel と受理・保存を止めない、を確かめる。2026-11-13 の作者裁定（判断カードの §9、稀の群は承認せず直す）のうち、A6（通知の channel の隔離）と A10（失敗しても『使える』）を直す P3-NOTIFY-FAIL-RECOVER-001（draft/notify-recover、作者の分岐待ち）が配送した形で検収する。直し方は同契約で決まり、本契約は決めない。A16（永続の診断を捨てる）は P3-DIAG-SINK-RETRY-001 で配送済み（87c97a45）。C11（EEW の thread が落ちる）は、P3 では P3-OWNER-STOP-NOTICE-001 が止まったことを知らせ（AC05 で見る）、作り直しは P5 へ送った（作者 2026-11-13 19 時台。P3-OWNER-REBUILD-001 は保留、Q-FG-RARE-FIXES）。export と personal の consumer（§12.7）は P3 の外（計画:684）",
+        "requirement": "通知の故障隔離（spec:2614 の P3 分。E21・spec:962。発注 2）: 通知の channel（desktop・sound）ごとに、制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、通知を出す全 unit の intent（U-E・U-T・U-Q・U-N・U-V・U-W・U-L・U-B ほか、C20 の気象分を含む）で、(1) 停止を確かめられない adapter の隔離・無効化と、同じ実処理への重ね呼び 0 (2) 隔離中の intent は試行せず、期限で欠落を記録し、成功に数えない (3) 固定優先順（EEW→通常運用の津波緊急→その他）と満杯の採否 (4) ある channel の故障が他の channel と受理・保存を止めない、を確かめる。通知を出す unit は 11（U-E・U-T・U-Q・U-N・U-V・U-L・U-R・U-B・U-M・U-Y と、P3-WEATHER-NOTICE-001〔C20〕の U-W。U-F は通知を作らない）。担い手（同じ分岐を重ねて試さない、AGENTS.md の最小テスト）: 故障の種類ごとの A7・adapter の振る舞いは既存の試験が持つ。遅い成功と abort 無視（停止未確認の隔離・重ね呼び 0・隔離中の後続は pending のまま）は P2-A7-T02（adapter.test.ts の T02 regression、notification-delivery.test.ts の T02 regression #1・#3）と P2-A3-T11（notification-wiring.test.ts の『a resolved but unconfirmed stop remains an isolated shutdown attempt』）、reject は P3-NFR-T02 と P3-NL-T04 (e)、timeout は P2-A7-T02 の #1 と P3-NL-T04 (e)、隔離からの戻り（遅い close）は P3-NFR-T01・T05。(3) は、A7 が intent の priorityGroup だけで群を決める（notification-delivery.ts の group）ので、composition root の上の順は P2-A7-T01（EEW→その他）と P3-C5-T07（EEW→通常運用の津波緊急→その他）が、満杯の採否は unit ごとの pending 128 件の試験（P2-A4-T11〔U-E〕・P3-C7-T07〔U-Q〕・P3-C5-T06〔U-T〕・P3-C8-T04〔U-N〕・P3-C9-T05〔U-V〕・P3-C10-T04〔U-L〕・P3-C11-T04〔U-R〕・P3-C12-T05〔U-B〕・P3-C13-T06〔U-M〕・P3-C14-T06〔U-Y〕・P3-WN-T05〔U-W〕）と publisher の期限の表（P2-A7-T03・P3-C5-T10）が持つ。T04 が新しく確かめるのは、本物の 12 unit の表が作った intent で、channel をまたいで、受理と保存まで: 1 つの channel の adapter が abort を無視して隔離された後、(1) その channel の試行は 1 回だけ (2) その channel の後の intent は試行されず、期限で expired になって owner へ lossReason notificationExpired の終端の更新が送られ、delivered に数えない (3) 各 unit の intent の群が U-E は normalEew、U-T は normalTsunamiEmergency（津波警報の報で。注意報は other、P3-NL-T05）、ほかは other (4) もう一方の channel が通知を出す全 unit の intent を delivered で配り、隔離の後に受けた全部の報が採られて各 unit の保存が確かめられる。desktop と sound のそれぞれを壊す。2026-11-13 の作者裁定（判断カードの §9、稀の群は承認せず直す）のうち、A6（通知の channel の隔離）と A10（失敗しても『使える』）を直す P3-NOTIFY-FAIL-RECOVER-001 は配送済み（実装 b55e31c9、原文の改訂 c91ea7bf）で、その後の形で検収する。T04 の偽の abort は 4 番目の引数（onLateStop）を呼ばない（閉じない player）。A16（永続の診断を捨てる）は P3-DIAG-SINK-RETRY-001 で配送済み（87c97a45）。C11（EEW の thread が落ちる）は、P3 では P3-OWNER-STOP-NOTICE-001（配送済み 5463f455）が止まったことを知らせ（AC05 で見る）、作り直しは P5 へ送った（作者 2026-11-13 19 時台。P3-OWNER-REBUILD-001 は保留）。owner の停止の知らせ（soundNotice・desktopNotice）と回線の切断の知らせ（desktopNotice）は A7 の channel を通らないので、本 AC の外。export と personal の consumer（§12.7）は P3 の外（計画:684）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2614 «14a838a9ba869959»",
           "docs/specs/reconstruction-p0-contracts.md:2073 «060f0c204a8219fe»",
           "docs/specs/reconstruction-p0-contracts.md:962 «aa57e0ea5ddebeb1»",
           "reconstruction/contracts/p3-order-plan.md:684 «2ddc508d874e98da»",
           "reconstruction/contracts/p2-notification-delivery.json",
-          "reconstruction/contracts/p3-notice-ledger.json"
+          "reconstruction/contracts/p3-notice-ledger.json",
+          "reconstruction/contracts/p3-notify-fail-recover.json",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:20 «ffbac14987a87590»"
         ]
       },
       {
@@ -964,7 +987,7 @@
         "referenceIds": [
           "P3-FG-AC06"
         ],
-        "behavior": "（起草案、発注 2）制御した adapter で成功・reject・timeout・abort 無視・遅い成功を起こし、全 unit の intent で隔離・欠落・優先順・他 channel への非波及を確かめる"
+        "behavior": "（発注 2、r0）reconstruction/test/final-gate/notify-isolation.test.ts の 1 つの it。最終の形の結線（owner-harness の harnessedRoot に既定の本物の unit 表と codec、owner 4 本）に、owner-harness の unitBodies の 12 本を ReportDateTime の順に、各報の時刻＋1 秒の時計で 1 本ずつ submit する（shutdown.test.ts の scene と同じ時計の進め方。monotonic も同じだけ進める）。通知の adapter は制御した偽物: もう一方の channel の run はすぐ delivered を返す。壊す channel の run は settle せずに abort を待ち、abort を受けたら run を aborted（cause が timeout なら timeout）・stopped false で 1 回だけ settle する（adapter の契約。notification-wiring.test.ts の :187〜191 の偽物と同じ）。abort は 4 つの引数で受け、4 番目（onLateStop）は呼ばない（閉じない player。戻る道は P3-NFR-T01・T05）。場面は sound を壊す・desktop を壊すの 2 つ。最後の入力の後、全部の intent の期限を過ぎる時計（＋1 時間）で root.tick を 1 回呼んで settle してから数える。確かめる: (1) 隔離と重ね呼び 0: 壊した channel の run は全体で 1 回（最初の入力 U-Q の VXSE53 の試行）で、その channel は isolated（reason stopUnconfirmed）のまま終わる (2) 他の channel への非波及: もう一方の channel の run の結果は全部 delivered で、その試行の unit が、sound を壊す場面では U-F を除く 11 unit、desktop を壊す場面では U-F・U-W・U-L を除く 9 unit（U-W・U-L の unitBodies の報は sound を作らない）を全部含む (3) 隔離中の欠落の記録: 壊した channel の intent について publisher が owner へ送った終端の更新（harness の sent の intentUpdate の要求。channel は intent の ID〔JSON の配列〕の 6 番目、P3-NL-AC01）が、壊した channel に intent を作る unit（sound を壊す場面は U-F・U-W・U-L を除く 9 unit、desktop を壊す場面は U-F を除く 11 unit）の各 unit で disposition expired・lossReason notificationExpired を 1 件以上持ち、壊した channel の delivered の更新は 0 (4) 受理と保存: 各入力の submit の後、その報の unit の publisher の写しの persistence が savedGeneration＝currentGeneration（1 以上）で、harness の failures が 0 (5) 群: 試行の priorityGroup は U-E が normalEew、U-T が normalTsunamiEmergency（unitBodies の VTSE41 が津波警報なので。注意報は other、P3-NL-T05）、ほかが other。owner の losses（P3-NL-AC14）は capture で lastAt＋24 時間を過ぎた行を外すので、年をまたぐこの場面では数えない（Q-FG-ORDER2-PRECHECK の (6)）。試しの数（5008ac04 の写しの木）: sound を壊すと desktop の delivered 12 件（U-R の 2 件目は tick で作られた期限の通知）・sound の expired の更新 9 件、desktop を壊すと sound の delivered 9 件・desktop の expired の更新 11 件"
       }
     ],
     "requiredCommands": [
@@ -1022,7 +1045,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "T01〜T03 は保存と共有の状態を扱うので、順序を変えても緑か（AGENTS.md）"
+        "purpose": "T01〜T04 は保存と共有の状態を扱うので、順序を変えても緑か（AGENTS.md）"
       },
       {
         "command": "FLEQ_DISASTER_DATA=<採取物の directory> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/disaster/disaster.test.ts -t formal",
@@ -1054,16 +1077,18 @@
       "測定の記録（発注 3）: AC09 は筋書きごとの Pass・Fail・blocked と digest・commit・契約の版、AC08 は P3-PH-AC08 の (1)〜(7) の記録と区間の分解、AC10 は場面・演じ手ごとの答え・ずれと行き先の表。private corpus と測定の生データは公開の Actions・artifact に渡さない（計画:112）",
       "残存リスク（起草案、閉じる前に作者に見せる）: (1) :242 の E05-P は owner 4 本（P3-SEISMIC-PLACE-001）の後に測り直した記録を見ていない (2) Pi の値は予備で正式 Pass ではない。Pi 72 時間・E16〜E19 は P5 (3) 災害の日の合格は通知が溢れたとき・保存に失敗したとき・Pi の実時間の遅れとメモリを保証しない（計画:496） (4) ペルソナの演じ手の答えは仮説 (5) 移行器が無いので、30 日より前に出て今も有効な情報は切替で失いうる（計画:610 の数えは P5 の前） (6) C21 の外出しで personal 有効の O09/O10 と export の故障隔離は未検収（P5 の前に決め直す） (7) unmet は 0 にならない（O06:30 ほか、AC03 の表）",
       "発注 1 の記録（統合担当、2026-11-13）: (1) 試験は c6efb1ba（reconstruction/test/final-gate/oracle.test.ts の T01・T02、shutdown.test.ts の T03 の 4 場面。Opus 5.5）。T01 は最初の実走で、流した 366 step のうち 5 step・7 欄が食い違った（U-W の subject の官署の名 3、O08:5 の decision が null、O11:2 の空の Body）。調べ（読むだけの子）で 3 種とも製品が決まりどおり・corpus の期待が古いと分かった (2) 統合担当の決め: 種 1 は sequences.json の expected:O03:2・O03:3・O09:2 の字を EditorialOffice の名に直す（p2-weather-current-unit.json:109 の identityRule、168d3018 の R19=A の直し漏れ）。種 3 は R18=A と同じく O11:2 と、同じ fixture の欠けがある O11:4 を unmet にする（fixture と manifest は変えない、行き先は (e)）。種 2 は T01 で「advanceClock で reduce が呼ばれなければ unchanged/noChange と読む」（p2-shared-runtime.json:749、owner-runtime.ts:326-328）。AC01 (1) の「null でない欄は一致」の例外として、この 1 つだけを置く。どれも画面・音・記録を変えない (3) corpus の直しと全 136 契約の sequencesSha256・自己 digest の取り直しは 4acb9ae3（sequences の sha256 0cc65646…、行の数は 28077 のまま）。これで unmet は 88 → 90、AC03 の (e) は 34 → 36、injectFailure の後続の別表は 48 → 47（O11:4 が unmet の表へ移る）。AC01・AC03 と Q-FG-DRAFT の 88・48 の字はこの記録で読み替える (4) T01・T02・T03 は既定の順と shuffle で緑、全 reconstruction の vitest も rc 0（実装担当の手元）。帳簿 AC03・AC04・AC11・AC12 の表は発注 1 の残りとして統合担当が書く。P3-EEW-SAME-CORRECTION-001 で T01 の effectiveOf にU-E の gate の記録（retainUntil を持つ、current の無い状態）を inactive と読む 1 行（取消→cancelled・terminal→released・ほか→expired）を足した",
-      "発注 1 の記録 2（統合担当、2026-11-13）: (1) 試験のレビュー（Opus、契約適合と品質を 1 体で）条件付き GO（P2 3: 別表の数の assert、T03 (3) の無音の確かめの空回り、T03 (2) の段の順）を、上の commit の次の試験の commit で直した (2) T01 の数（corpus の直しの後）: 流す 365 step のうち一致 352、食い違い 0。別表は 取り下げ 10・injectFailure 44・その後続 47・unmet 90・unmet を待つ step 13（O01:5-7・12-14、O02:4、O03:8・10-14） (3) AC01 に無い区分「hollow」13 step（O10:28・30・32・33・39・40・57・62・67・72・77・89・90）: 文の上でだけ書かれた準備（adapter の停止・設定の版など）の restart 15 本（O04:9・O06:31・O10:27 ほか、期待は notices・intents が false だけ）の後の step で、空の state から流すので一致しても意味を持たない。食い違いは比べ続けるが、一致の数には入れない。O10 の窓（injectFailure の別表）を流す発注で準備を組み、hollow を外す (4) 比べの読み方（既存の unit の試験に合わせた統合担当の決め）: 空の serial を null と読む、null の期待の欄は比べない、parser の診断を rejected と読む、識別の前に断られた入力の subject は比べない、U-N・U-V は期待の subject を含めばよい、U-M の VPFT50 の ended を expired と読む（local-bulletins-unit.ts:215・371・374、熱中症が ended になるのは期限だけ）、期待の subject が state に無ければ decision の subject で引く（receive では subject の組を先に厳密に比べる）、advanceClock で reduce が呼ばれなければ unchanged/noChange、advanceClock の decision は期待の unit に絞る、記録の無いことを expired と読むのは同じ run で一度引けた subject だけ、U-W の VPNO50 の記録を released、段を持つ行の無い U-W の報の記録を inactive（解除があれば released、無ければ noActiveItems）と読み、noChange の報の revision は比べない（P3-WEATHER-OTHER-OFFICE-001） (5) 残り: expected:O10:82 の subject「normal/VPWS50/全国base」は同じ fixture（15_18_01 VPWS50）の EditorialOffice と食い違う見込みで、O10 の窓を流す時に直す。fixtureIds（:411-412）に使わなくなった synthetic の density の 2 本が残る"
+      "発注 1 の記録 2（統合担当、2026-11-13）: (1) 試験のレビュー（Opus、契約適合と品質を 1 体で）条件付き GO（P2 3: 別表の数の assert、T03 (3) の無音の確かめの空回り、T03 (2) の段の順）を、上の commit の次の試験の commit で直した (2) T01 の数（corpus の直しの後）: 流す 365 step のうち一致 352、食い違い 0。別表は 取り下げ 10・injectFailure 44・その後続 47・unmet 90・unmet を待つ step 13（O01:5-7・12-14、O02:4、O03:8・10-14） (3) AC01 に無い区分「hollow」13 step（O10:28・30・32・33・39・40・57・62・67・72・77・89・90）: 文の上でだけ書かれた準備（adapter の停止・設定の版など）の restart 15 本（O04:9・O06:31・O10:27 ほか、期待は notices・intents が false だけ）の後の step で、空の state から流すので一致しても意味を持たない。食い違いは比べ続けるが、一致の数には入れない。O10 の窓（injectFailure の別表）を流す発注で準備を組み、hollow を外す (4) 比べの読み方（既存の unit の試験に合わせた統合担当の決め）: 空の serial を null と読む、null の期待の欄は比べない、parser の診断を rejected と読む、識別の前に断られた入力の subject は比べない、U-N・U-V は期待の subject を含めばよい、U-M の VPFT50 の ended を expired と読む（local-bulletins-unit.ts:215・371・374、熱中症が ended になるのは期限だけ）、期待の subject が state に無ければ decision の subject で引く（receive では subject の組を先に厳密に比べる）、advanceClock で reduce が呼ばれなければ unchanged/noChange、advanceClock の decision は期待の unit に絞る、記録の無いことを expired と読むのは同じ run で一度引けた subject だけ、U-W の VPNO50 の記録を released、段を持つ行の無い U-W の報の記録を inactive（解除があれば released、無ければ noActiveItems）と読み、noChange の報の revision は比べない（P3-WEATHER-OTHER-OFFICE-001） (5) 残り: expected:O10:82 の subject「normal/VPWS50/全国base」は同じ fixture（15_18_01 VPWS50）の EditorialOffice と食い違う見込みで、O10 の窓を流す時に直す。fixtureIds（:411-412）に使わなくなった synthetic の density の 2 本が残る",
+      "発注 2 の範囲（統合担当、2026-11-13 の起草 r0。点検の記録は Q-FG-ORDER2-PRECHECK）: (1) 実装担当の分は T04 だけ。reconstruction/test/final-gate/notify-isolation.test.ts を新設し（AC06）、製品・T01〜T03 の file・owner-harness・他の試験は変えない (2) 発注 2 は T04 だけでは閉じない。AC07 の Mac mini の実走（統合担当、作者の在席の時刻、P3-FG-D-IR03-BACKEND=A）が残り、計画:252 は未了。T04 の発注は AC07 を待たない (3) 発注の前に統合担当が baseOid を割り当てる（Q-FG-BASE） (4) 最小テスト: 足す試験は T04 の 1 本で、AC06 と 1 対 1。T04 は今の製品で通る見込み（Q-FG-ORDER2-PRECHECK の (5)）なので、歯は製品を一時に書き換えて確かめる: selectNotificationAttempt の channel の loop で、どちらかの channel が isolated なら両方を飛ばす形にすると T04 の (2) で落ち、publisher が owner へ送る終端の更新の lossReason を null にすると (3) で落ちることを 1 回ずつ確かめ、戻してから成果物に書く（起草の試しでは、T04 の (1)〜(5) を assert にした使い捨ての試験が今の製品で通り、この 2 つの書き換えでそれぞれ (2)・(3) で落ちた。Q-FG-ORDER2-PRECHECK の (5)）。無いと何が壊れるか: T04 が無いと、本物の 12 unit が作った intent で、1 つの channel の隔離が他の channel と受理・保存を止めないことを、結線の上で確かめた試験が無い（既存の隔離の試験は U-W・U-E の偽の intent だけ） (5) T04 の checkpoint と診断は、shutdown.test.ts の config()（os.tmpdir() の一時の directory、afterEach で消す）か、tsunami-runtime.test.ts の MemoryFiles・MemoryDiagnostics の形の memory の fake に置く。作業の木の中に書かない (6) 受信経路の計算量（AGENTS.md）: 製品の hot path に触れない (7) 期待を変える既存の試験は無い。T04 で製品の不具合が見つかったら、期待を製品に合わせずに blocked で報告する（直しは別の契約）"
     ],
     "unresolvedQuestions": [
       {
         "id": "Q-FG-BASE",
         "owner": "integrator",
         "blocks": [
-          "発注 1"
+          "発注 1",
+          "発注 2"
         ],
-        "resolveBy": "発注 1 の前（発注前点検で baseOid を割り当てる）",
+        "resolveBy": "各発注の前（発注前点検で baseOid を割り当てる。発注 1 は f5f1ed7d。発注 2 は統合担当が T04 の発注のときに割り当てる）",
         "requiredEvidence": [
           "evidenceRefs の «» をその木で読み直した記録",
           "Q-FG-RARE-FIXES の契約のうち、その木にある契約 file を dependsOnContractIds に足したこと"
@@ -1085,13 +1110,11 @@
         "id": "Q-FG-RARE-FIXES",
         "owner": "integrator",
         "blocks": [
-          "発注 2",
           "発注 3"
         ],
-        "resolveBy": "発注 2: P3-NOTIFY-FAIL-RECOVER-001（A6・A10、draft/notify-recover、作者の分岐待ち）の配送の後。発注 3: P3-RAIN-RECOVERY-CANCEL-001（7-1、baseOid 050deaf5、実装中）・P3-OWNER-STOP-NOTICE-001（C11 の 1 段目、作り直しは P5）・P3-VOLCANO-LIFT-001（実装 3b25c34b、配送の直前）の配送の後。A16 は P3-DIAG-SINK-RETRY-001（実装 87c97a45、origin 84c2c626）、7-3・7-4 は配送済み。どれも 239a35f5 の木に契約 file が無いので dependsOnContractIds には入れず、baseOid の割当のときに足す",
+        "resolveBy": "発注 2 の分は閉じた（P3-NOTIFY-FAIL-RECOVER-001 の配送 b55e31c9・c91ea7bf、Q-FG-ORDER2-PRECHECK の (1)）。発注 3: P3-RAIN-RECOVERY-CANCEL-001（7-1、048c2c4a）・P3-OWNER-STOP-NOTICE-001（C11 の 1 段目、5463f455。作り直しは P5）・P3-VOLCANO-LIFT-001（3b25c34b）は 5008ac04 の木で配送済みで、発注 3 の点検で requiredEvidence を開いて閉じる。A16 は P3-DIAG-SINK-RETRY-001（87c97a45）、7-3・7-4 は配送済み。5008ac04 の木にある契約 file は dependsOnContractIds に足した（Q-FG-BASE）",
         "requiredEvidence": [
           "各契約の配送 commit",
-          "AC06 の検収で使う通知の隔離の形が P3-NOTIFY-FAIL-RECOVER-001 の配送の後のものであること",
           "P3-OWNER-STOP-NOTICE-001 の配送 commit（終了の段と code を変えないこと、同契約の AC04）"
         ]
       },
