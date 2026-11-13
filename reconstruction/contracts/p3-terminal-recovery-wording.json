@@ -1,0 +1,247 @@
+{
+  "meta": {
+    "draftedFromOid": "4f002a0c3a63219c010511c41274a01c854e29d1",
+    "sha256": "0ff26aaabe451f1117eb01dbaf61714ffe49528cc928ec380f71ff8ddcd9a4a4",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:382 «4a6174cc3258dd08»",
+    "decisionBranches": [
+      {
+        "id": "P3-TRW-D-DEBUG",
+        "kind": "統合担当",
+        "A": "--debug の行の理由の字「出さない・取り直し」（output.ts:634、P3-TO-AC17 の条文 p3-terminal-output.json:726 が決めた字）は今のまま変えない。本契約は起動時のまとめの 2 つの字だけを言い直す",
+        "B": "--debug の行も同じ言い方に揃えて「出さない・再取得」に替える（output.ts:634 の字と、その字を引く生きた条文 p3-terminal-output.json:726・p3-rain-recovery-cancel.json:60・:191・:247・p3-recovery-digest-live.json:52 を改める）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、起草 2026-11-13。作者の裁定の範囲の外なので作者には聞かない）",
+        "ruling": "A",
+        "reason": "場面: 起草で reconstruction/src を「取り直」で引くと、利用者の画面に出る字（文字列の literal）は format.ts:860・:865 のほかに output.ts:634 の 1 つだけだった（Q-TRW-SCAN）。output.ts:634 は --debug で起動したときだけ出る 1 入力 1 行の観察の行で（P3-TO-AC17 (1)。--debug は観察のための起動、P3-TERMINAL-DEBUG-TIP-001 の Q-TDT-CAUSE）、読み手は FlEq の中の区分（入力の origin=recovery）を知っている人。作者の裁定 5「文脈を持たない人の言葉で」（カード 9-6、2026-11-13）は起動時のまとめを読む利用者に向けた 2 つの字を名指ししている。B にすると、その字を引く生きた条文 3 本の契約の 5 か所を改めることになり、裁定の外へ範囲が広がる。reconstruction/test に「出さない・取り直し」を期待に持つ試験は 0 件で、A でも B でも試験の期待は動かない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TRW-SCAN",
+        "status": "closed",
+        "source": "起草（2026-11-13、4f002a0c の木）。reconstruction/src を「取り直」「取直」で git grep し、引用符の中の字に絞った。reconstruction の src・contracts・test の外、docs/specs/cli-terminal-output.md も同じ字で引いた",
+        "closed": "利用者に見える字として「取り直」が出るのは 3 か所: (1) format.ts:860 の「7 日より前の情報は取り直していません」と (2) format.ts:865 の「取り直せませんでした」（どちらも起動時のまとめ、本契約の対象） (3) output.ts:634 の --debug の行の「出さない・取り直し」（P3-TRW-D-DEBUG で範囲の外）。ほかの「取り直し」は全部コメント（format.ts:845 を含む）。chrome-eew（reconstruction/src/display/chrome-eew/ の index.html を含む）、notification-delivery（render-sounds.mjs を含む）、desktop の通知の字（output.ts の notify の 2 つの引数）、reconstruction の src・contracts・test の外の reconstruction の file には 0 件。2 つの字は reconstruction/test では digest.test.ts の :34・:35・:62 だけ（layout16.test.ts の T06 は beforeWindow の view を描くが、期待は末尾の「ほか」の行と分野の行だけで、この 2 行を期待に持たない）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRW-WIDTH",
+        "status": "closed",
+        "source": "起草（2026-11-13）。format.ts の WIDE・charWidth・width の字をそのまま切り出して node で実走し（型注釈だけ外す）、新旧の字の表示の桁と、NO_HEAD（format.ts:81）の字を含むかを数えた",
+        "closed": "表示の桁は変わらない: 「取り直せませんでした」20 桁（10 字）→「再取得に失敗しました」20 桁（10 字）、「7 日より前の情報は取り直していません」36 桁（19 字）→「7 日より前の情報は再取得していません」36 桁（19 字）、図の行「津波       取り直せませんでした」31 桁 → 「津波       再取得に失敗しました」31 桁。置き換える字は位置ごとに 2 桁の字どうしで、行頭に置かない字（NO_HEAD）は新旧のどちらにも無い。なので何桁の端末でも折り返す位置は同じで、width 系の試験（layout16.test.ts の T06・T07 ほか）の範囲は増えない。分野の列の幅（format.ts:861 の size）は分野の名前だけから決まるので変わらない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRW-CLAUSES",
+        "status": "closed",
+        "source": "起草（2026-11-13）。docs/specs と reconstruction/contracts を 2 つの字で git grep し、行ごとに生きた条文か当時の記録かを読んだ",
+        "closed": "生きた条文（原文の改訂で字を替える、P3-TRW-AC02）: spec cli-terminal-output.md:779（§6.6 の図）・:794・:795（§6.6 の箇条）、p3-terminal-output.json:684（P3-TO-AC14 の (2)）・:876（P3-TO-T15 の behavior）、p3-terminal-layout7.json:272（P3-TL7-AC02 の (3)）、p3-recovery-boundary.json:323（P3-RB-AC03 の (6) の場面）。どの行も替える字はその行に 1 回だけある（p3-terminal-output.json:684 は 2 つの字が 1 回ずつ）。当時の記録（変えない）: p3-recovery-boundary.json:42（分岐の ifNotChosen）、p3-terminal-layout7.json:125（作者の観測の source）。「取り直せなかった分野」「取り直し」の地の文（spec・契約・コメント・試験の名前）は利用者に出ない中の言い方なので変えない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRW-ANCHORS",
+        "status": "closed",
+        "source": "起草（2026-11-13）。reconstruction/contracts を「format.ts:8xx」「digest.test.ts:」「cli-terminal-output.md:77x〜79x」と原文の改訂の 4 行の «» で git grep し、新旧の行の anchor を check-manifest.mjs の lineAnchor と同じ計算（trim した行の sha256 の頭 16 字）で取った",
+        "closed": "中身が変わる行を引く他の契約の «» は 4 つ: p3-recovery-boundary.json:334（format.ts:860）、p3-terminal-layout7.json:275 と p3-terminal-output.json:687（spec:794）、p3-terminal-output.json:688（spec:795）。format.ts:865、spec:779、digest.test.ts の 3 行、原文の改訂で変える契約の 4 行を引く «» は 0 件。どれも行の中の書き換えで行の数は変わらないので、ほかの «» は動かない。新しい行の anchor は他の行と重ならない（同じ file の中で 0 件）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRW-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-13）",
+        "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にする。発注の時に統合担当が本契約を入れた commit を付ける",
+        "remaining": "発注の時の baseOid（統合担当）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない（起動時のまとめの字を 2 つ言い直すだけ）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-RECOVERY-WORDING-001",
+    "mode": "implementation",
+    "objective": "新築の端末の起動時のまとめ（止まっていた間に出た情報の帯、spec §6.6）の字を 2 つ言い直す（作者の裁定 2026-11-13、カード 9-6 の裁定 5「文脈を持たない人の言葉で」）: 取り直せなかった分野の「取り直せませんでした」を「再取得に失敗しました」に、7 日より前に止まっていたときの「7 日より前の情報は取り直していません」を「7 日より前の情報は再取得していません」にする。format.ts の 2 つの字と、その字を期待に持つ digest.test.ts の 3 か所を行の中で替えるだけで、表示の桁・折り返し・色・出す条件は変わらない（Q-TRW-WIDTH）。spec と閉じた契約の生きた条文は統合担当が配送で原文の改訂として揃える（P3-TRW-AC02）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-terminal-recovery-wording.json",
+      "reconstruction/contracts/p3-terminal-layout7.json",
+      "reconstruction/contracts/p3-terminal-output.json",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/test/terminal/digest.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/format.ts（P3-TRW-AC01 だけ。860 行の字「7 日より前の情報は取り直していません」を「7 日より前の情報は再取得していません」に、865 行の字「取り直せませんでした」を「再取得に失敗しました」に、行の中で替える。行を足さない・定数を足さない〔他の契約の «» が引く format.ts の行を動かさない〕。845 行ほかのコメントの「取り直し」は変えない）",
+      "reconstruction/test/terminal/digest.test.ts（P3-TRW-T01 だけ。34・35・62 行の期待の字を AC01 の新しい字に行の中で替える。it・describe の名前〔53 行〕とコメント〔12・52 行〕の「取り直」は変えない。it を足さない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-recovery-wording.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-TERMINAL-LAYOUT-007",
+      "P3-RECOVERY-BOUNDARY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-recovery.types.ts#RecoveryDigestView"
+    ],
+    "publicFunctions": [
+      "口は変えない（createRenderer・typeName の形と、RecoveryDigestView・TerminalNotice の型は今のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__rest__telegram-list-vtse41-real"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし（字を替えるだけ）"
+    ],
+    "outOfScope": [
+      "--debug の行の「出さない・取り直し」（output.ts:634、P3-TO-AC17。P3-TRW-D-DEBUG=A）",
+      "起動時のまとめの帯の字「止まっていた間に出た情報（7 日前まで）」、分野の名前、件数・見出し・「ほか」の行の形と折り返し、出す条件（Q-TO8-DIGEST・Q-TO16-DIGEST-WRAP）",
+      "ソースのコメント・試験の名前とコメント・spec と契約の地の文の「取り直し」「取り直せなかった分野」（利用者に出ない中の言い方、Q-TRW-CLAUSES）",
+      "当時の記録として古い字を引く条文: p3-recovery-boundary.json:42（分岐の ifNotChosen）、p3-terminal-layout7.json:125（作者の観測の source）",
+      "C16 の digest の作り方（recovery.ts の beforeWindow・unsatisfied の判定）、runtime・host・unit・chrome-eew・ディスプレイ（P4）・旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TRW-AC01",
+        "requirement": "起動時のまとめの 2 つの字を言い直す（作者の裁定 2026-11-13、カード 9-6 の裁定 5）: (1) beforeWindow の unit があるときに見出しの罫線の下へ薄い字で出す 1 行（format.ts:860）を「7 日より前の情報は再取得していません」にする (2) unsatisfied の分野（total が null のときも）の分野の名前の後の字（format.ts:865）を「再取得に失敗しました」にする (3) どちらも字だけを替え、role（dim と無し）、分野の名前の太字、列の幅、行の順、帯ごと出さない条件（全部 0 件、作者裁定 A 2026-11-08）は変えない。表示の桁は 36 → 36、20 → 20 で、折り返す位置も変わらない（Q-TRW-WIDTH） (4) 既存の試験の期待を替える: digest.test.ts の P3-TL7-T01 の it（:34・:35）と作者裁定 A の it（:62）の期待の字を (1)(2) の字にする。替える理由は作者の裁定で、ほかの期待は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:860 «06806f691eb3af93»",
+          "reconstruction/src/terminal/format.ts:865 «c4b56737b78e44f9»",
+          "reconstruction/test/terminal/digest.test.ts:34 «fc5e42ef94d5ee1f»",
+          "reconstruction/test/terminal/digest.test.ts:35 «bea1438691c972e6»",
+          "reconstruction/test/terminal/digest.test.ts:62 «8959620965e48ace»",
+          "reconstruction/src/terminal/output.ts:634 «4fe1edd5681081af»"
+        ]
+      },
+      {
+        "id": "P3-TRW-AC02",
+        "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装はしない。文は artifactRequirements の「原文の改訂」）: spec cli-terminal-output.md の §6.6 の図（:779）と箇条（:794・:795）、閉じた契約の生きた条文 P3-TO-AC14 の (2)（p3-terminal-output.json:684）、P3-TO-T15 の behavior（:876）、P3-TL7-AC02 の (3)（p3-terminal-layout7.json:272）、P3-RB-AC03 の (6)（p3-recovery-boundary.json:323）の古い字を、AC01 の新しい字に行の中で替える。当時の記録（p3-recovery-boundary.json:42、p3-terminal-layout7.json:125）は替えない（Q-TRW-CLAUSES）",
+        "evidenceRefs": [
+          "docs/specs/cli-terminal-output.md:779 «9b58c2462e8f1a05»",
+          "docs/specs/cli-terminal-output.md:794 «e354158a3dc76602»",
+          "docs/specs/cli-terminal-output.md:795 «77e948d5933bdd50»",
+          "reconstruction/contracts/p3-terminal-output.json:684 «f6295f4b75a4ecc1»",
+          "reconstruction/contracts/p3-terminal-output.json:876 «be5d2f5a2894f991»",
+          "reconstruction/contracts/p3-terminal-layout7.json:272 «4e410c4d78959847»",
+          "reconstruction/contracts/p3-recovery-boundary.json:323 «794299b16cdbbe78»",
+          "reconstruction/contracts/p3-terminal-output.json:726 «d23be8354654b982»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TRW-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TRW-AC01"
+        ],
+        "behavior": "受入条件（AC01 (4)）。新しい試験は足さず、digest.test.ts の既存の 2 つの it の期待の字を替える: P3-TL7-T01 の it の toEqual の 2 行目（:34）を「7 日より前の情報は再取得していません」、3 行目（:35）を「津波       再取得に失敗しました」（空白は今の 7 個のまま）、作者裁定 A の it の toEqual（:62）の 2 つの字を同じく替える。今のコード（4f002a0c の format.ts）に当てると 2 つの it が落ち、AC01 の format.ts で通る。足さない理由: 字の置き換えは既存の 2 つの it がそのまま留めていて、新しい it は同じ振る舞いの言い換えになる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "watch の表示"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 仕組みを足さない（字の定数・helper・表・設定・file を作らない。format.ts の 2 行と digest.test.ts の 3 行の中の字を替えるだけ）。テストは足さない（P3-TRW-T01 は既存の期待の置き換えで受入条件）。test:shuffle は要らない（永続化・共有状態・module の変数を触らない）",
+      "受信経路の計算量（AGENTS.md）: 変わらない（起動時に 1 回描くまとめの字を替えるだけ）",
+      "既存の試験の期待を変えるのは digest.test.ts の :34・:35・:62 の 3 か所だけで、理由は作者の裁定（2026-11-13、カード 9-6 の裁定 5）。ほかの試験の期待が変わる要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "起草の確かめ: 起草の写し（worktree の未追跡の .dr-tmp/、確かめた後に消した）で、format.ts の width の字を切り出して新旧の字の桁を実走で数えた（Q-TRW-WIDTH）。新しい行の anchor は同じ file の他の行と重ならないことも確かめた（Q-TRW-ANCHORS）。実装で字や数が期待と違えば、条文を外れる直しをせず、試験名・契約の期待・実際の値を報告して止める",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) --debug の行は今のまま「出さない・取り直し」と出る（P3-TRW-D-DEBUG=A） (2) spec・契約の地の文とコメントは中の言い方の「取り直し」のまま（Q-TRW-CLAUSES）",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の字の置き換えで、行の数を変えない。置き換えは「取り直せませんでした」→「再取得に失敗しました」と「7 日より前の情報は取り直していません」→「7 日より前の情報は再取得していません」の 2 つだけで、ほかの字は足さない・変えない。どの行も替える字は 1 回だけある）: (1) docs/specs/cli-terminal-output.md:779（§6.6 の図の「津波       取り直せませんでした」）の「取り直せませんでした」 (2) docs/specs/cli-terminal-output.md:794 の「「取り直せませんでした」と書き」の字（行頭の「取り直せなかった分野は」は地の文なので変えない） (3) docs/specs/cli-terminal-output.md:795 の「7 日より前の情報は取り直していません」 (4) reconstruction/contracts/p3-terminal-output.json:684（P3-TO-AC14 の (2)）の 2 つの字 (5) reconstruction/contracts/p3-terminal-output.json:876（P3-TO-T15 の behavior）の「7 日より前の情報は取り直していません」 (6) reconstruction/contracts/p3-terminal-layout7.json:272（P3-TL7-AC02 の (3)）の「今のまま「取り直せませんでした」」の字（「取り直せなかった分野」の 2 か所は地の文なので変えない） (7) reconstruction/contracts/p3-recovery-boundary.json:323（P3-RB-AC03 の (6)）の「7 日より前の情報は取り直していません」 (8) (4)〜(7) と «» の付け直しで変えた 3 本の契約の meta.sha256 を取り直してから check-contract を通す",
+      "«» の付け直し（統合担当が配送の commit で当てる。この順で）: (1) 本契約の «» を先に手で付け直し、本契約の meta.sha256 を取り直す。行番号はそのままで、anchor だけを新しい行のものに替える（起草で取った値。実装と原文の改訂が字の置き換えだけなら一致する）: format.ts:860 «c157d98c900e81d4»、format.ts:865 «f81af9d3cb2c285f»、digest.test.ts:34 «3ff429f5c37e9222»、:35 «2d559fefb1ba4409»、:62 «7944e5396f8a000d»、spec:779 «ac29aef6b0298fc4»、:794 «58fbb15371967449»、:795 «a1469d37c3316667»、p3-terminal-output.json:684 «1b2f28992f9d0c83»、:876 «a00f63ae7f4b5d5e»、p3-terminal-layout7.json:272 «fed5c2c032ac8dbc»、p3-recovery-boundary.json:323 «fb32f03a73a443e6»。本契約が引くほかの行（output.ts:634、p3-terminal-output.json:726）は動かない (2) 他の契約の «» 4 つの anchor を新しい行のものに替える: p3-recovery-boundary.json:334 の format.ts:860 を «c157d98c900e81d4»、p3-terminal-layout7.json:275 と p3-terminal-output.json:687 の cli-terminal-output.md:794 を «58fbb15371967449»、p3-terminal-output.json:688 の cli-terminal-output.md:795 を «a1469d37c3316667»（Q-TRW-ANCHORS）。値が違えば reanchor-target.py で中身から付け直す。この 4 行を書き換えても行の数は変わらず、この 4 行を引く «» は無い (3) 書き換えた 3 本の契約の meta.sha256 を取り直し、check-contract を通す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
