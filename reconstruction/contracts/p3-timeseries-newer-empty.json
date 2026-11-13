@@ -1,0 +1,328 @@
+{
+  "meta": {
+    "draftedFromOid": "f60f0a261be36c4f7802d0e446f05b3decc58696",
+    "sha256": "0a9131fac725e1f9faf0338feaea83f696533683681e15fc3c98dba9638a2b9e",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-TNE-D-WHERE",
+        "kind": "統合担当",
+        "A": "corpus に合成の入力 1 本（test/fixtures/synthetic_VPWP50_newer_empty.xml）を足し、O02:3 の step に fixtureId を付けて unmet:O02:3 を expected:O02:3 にする。C22 の T01 が O02:3 と後ろの O02:4 を流す",
+        "B": "C22 の帳簿の推奨の字どおり、U-F の試験（weather-timeseries-unit.test.ts）の中で active の後の newer empty を作る試験を 1 本足す。O02:3 は unmet のまま行き先を (d) に変える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。帳簿の推奨は「U-F の試験内で作る小さい契約（後ろの O02:4 も流れる）」で、作者はこれを裁定した。O02:4 も流れるのは A だけなので、裁定の目的に合わせて A を採る。字との違いは統合担当が作者への報告に 1 行で添える）",
+        "reason": "T01 は流す receive の入力を manifest の fixture からしか読まない（oracle.test.ts:233）。B では O02:3 は unmet のまま残り、O02:4 は dependsOnUnmet に残る（oracle.test.ts:53）。p2-order-plan.md:46 も充足後の ID を expected:O02:3 と書いている。大きさ: A は合成 1 本・manifest 1 行・sequences の 1 step と 1 record、件数の決め打ち 3 file。B は U-F の試験 1 本で、新しい試験と C22 の帳簿の書き換えが要る。A は群 1（P3-EEW-SAME-CORRECTION-001）と同じ形で、新しい試験を足さない。画面・通知・音はどちらでも変わらない（corpus と試験だけ）"
+      },
+      {
+        "id": "P3-TNE-D-FORM",
+        "kind": "統合担当",
+        "A": "合成は 81_02_01_260605_VPWP50_high_severity.xml（O02:2 の入力）から、Control/DateTime を 2026-06-05T08:00:00Z → 09:01:00Z、Head/ReportDateTime を 17:00 → 18:01（+09:00）、Head/Headline/Text を空（<Text/>）、Body の MeteorologicalInfos の中の TimeSeriesInfo（1 件）を取り除いたもの。MeteorologicalInfos の要素と type、Head/TargetDateTime（18:00）、EventID・Serial（空）・InfoType（発表）・官署は親のまま",
+        "B": "TimeSeriesInfo を残し、TimeDefine を全部 18:01 より前にする（期間が過ぎた予報）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。spec の「正常な newer report に有効 period がない」と、U-F の試験 T01 が合法な explicit empty として受ける形〔TimeSeriesInfo を取り除く〕に合わせる）",
+        "reason": "製品: VPWP50 は Head/ReportDateTime を先に比べる種類（version.ts:8・:32）なので 18:01 は 17:00 の門より newer。period 0 で noActiveItems（weather-timeseries-unit.ts:216）。Control/DateTime を親のまま（08:00Z）にした形も .dr-tmp で流し、decisions・intents・門は同じだった（比べるのは ReportDateTime が先）。進めたのは発表の時刻と揃えるため。Headline を空にしたのは、親の「特別警報級の予測」が period 0 の本文と食い違い、端末の見出しに出るため（terminal/material.ts の headline。U-F の判定は Headline を読まない。親のままでも decisions・intents は同じだった）。A は P2-WEATHER-TIMESERIES-UNIT-001 の VPWP50 の「明示empty」の行（p2-weather-timeseries-unit.json:126、全 MeteorologicalInfos に TimeSeriesInfo 0 件）に当たり、U-F の T01 の前例（weather-timeseries-unit.test.ts:320）と同じ形。B も同じ契約の :127 が合法 empty とする形（原報 period の期限で有効 period 0 件）だが、input.required の「構造正常で有効periodが0」と spec:731 に近いのは A で、B には corpus の前例が無い。実物の合法 empty は REST の探索で見つからず、その行は「合法 empty は synthetic」と結んでいる（rest-acquisition-plan.md:45）"
+      },
+      {
+        "id": "P3-TNE-D-NOTICE",
+        "kind": "統合担当",
+        "A": "expected:O02:3 の notices・intents を false にする（新規の intent 0）",
+        "B": "O02:2 と同じ null（比べない）のままにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-13 起草）",
+        "ruling": "A（統合担当。作者裁定 P3-WN-D-UF=A〔U-F は通知の intent を作らない〕が既にあり、走らせた値も 0。後ろの expected:O02:4 は既に false）",
+        "reason": "O02:2 の null は P2 の時点の Q-NOTICE 未決（p2-weather-timeseries-unit.json:633）の名残で、C20 の作者裁定 P3-WN-D-UF=A（p3-weather-notice.json:177）で決まった。.dr-tmp で流した T01 の写しで O02:3 の intents は 0。A は今の製品の通知の出方を corpus に固定するだけで、画面・通知・音は変えない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TNE-SOURCE",
+        "status": "closed",
+        "source": "起草（2026-11-13、HEAD f60f0a26 の木を読んだ。読むだけの子）",
+        "closed": "(1) corpus: unmet:O02:3（sequences.json の step :2414・record :13788）は fixture が無い。期待は decision {changed, semantic}・effective inactive/noActiveItems・subjects [normal/O02/input.requiredに記した対象（未充足）、revision 18:01・null・null]・notices/intents null・input {VPWP50 稚内地方気象台、EventID 空、ReportDateTime 2026-06-05T18:01:00+09:00、Serial 空、構造正常で有効 period 0、InfoType 発表}。step の receivedAt は 1780650060000（18:01:00+09:00）。後ろの expected:O02:4（81_02_01 の 17:00 の報を 18:01:00.001 に再受信、unchanged/stale・inactive/noActiveItems・false/false）は oracle.test.ts:53 で dependsOnUnmet に入り流れていない。p2Subsets の P2-O02-U-F-v1（sequences.json:32）も unmet:O02:3 を引く (2) 帳簿の前提（p3-final-gate.json:182）と製品は合っていた: 製品は O02:2 の active の後の 18:01 の period 0 の報を changed/semantic で採り、current を noActiveItems・periods 0・validUntil null にし、門を 18:01 へ進める（weather-timeseries-unit.ts:216・:229）。O02:4 の 17:00 は older で unchanged/stale（:236）、門に印は付かず state は同じ object のまま、intents 0。held ではない（群 1 の duplicate/stale の取り違えに当たる食い違いは無い） (3) U-F の試験 T01（weather-timeseries-unit.test.ts:313・:320）は空の state からの explicit empty だけで、active の後の newer は作らない（帳簿の字どおり） (4) fixture を全部回す試験: reconstruction/test と reconstruction/tools を「readdirSync|readdir\\(|test/fixtures」で引いた 115 file（evidence を除く）のうち、dir を歩く 32 file の行を見た。test/fixtures を歩くのは width.test.ts（:15、path の順で読み、共有の renderer を使い回す。合成は synthetic_VPTW60_cancel_newer の次・synthetic_VPWW56_cancel の前に入る）、layout6.test.ts の P3-TL6-T04（全 fixture を 56・80・100 桁で描き、折った行頭を見る）、digest.test.ts の P3-TL7-T02（Control/Title を比べる。親のまま）と check-manifest.mjs の 4 本。ほかは manifest を読む試験で、weather-current-unit.test.ts の全 fixture の検査は VPWS50・VPWW・VPNO50 だけ、U-F の T04（weather-timeseries-unit.test.ts:464）は名前の決め打ちの一覧、eew-unit.test.ts の P2-A4-T09 は EEW だけ。sequences.json を読む 17 file のうち step を広く回すのは oracle.test.ts だけで、t05-corpus-replay.test.ts は O09・O10 の決め打ちの位置、snapshot-sse の corpus.test.ts は O02:2・O02:14 の決め打ち、P2-O02-U-F-v1 の subsetId を読む試験は無い。旧築（test/）の readdirSync を持つ 10 file は、test/fixtures を歩くのが weather-warning-fixture-coverage.test.ts（VPWW だけ）だけ (7) 実物の合法 empty の VPWP50 の形は確かめていない（REST の探索で見つからず、rest-acquisition-plan.md:45。合成は配信原本を主張しない） (5) 件数の決め打ち: check-manifest.mjs（:33・:34・:62・:97・:149 の 315・294）、README.md（:5・:44）、p1-parser-boundary.json（:84 objective 全315・:544 P1-AC01 XML 294・:561 P1-T01 全294・:572 requiredCommands 315）、p1-parser-boundary.test.ts（:46 294・:48 293・:50 293）、oracle.test.ts（:412 unmet 88・:415 dependsOnUnmet 7・flow 373・:417 一覧） (6) 名前の付け替え: unmet:O02:3 を引くのは sequences.json の :32・:2414・:13788 だけ（reconstruction/contracts・docs/specs・reconstruction/test・reconstruction/tools を grep、evidence を除く）。文の上の「unmet:O02:3」「O02:3」は p2-weather-timeseries-unit.json:446・:473、p2-order-plan.md:45・:46、p3-final-gate.json:182・:273 にある"
+      },
+      {
+        "id": "Q-TNE-PROBE",
+        "status": "closed",
+        "source": "起草（2026-11-13、worktree の reconstruction/.dr-tmp/g2/ で dist を作り、追跡 file を変えずに流した）",
+        "closed": "合成（P3-TNE-D-FORM=A、1136 byte、sha256 f0dc151a66142c82278e878772fd86c1b4e3234d01b0dbbe0c03645daf3d7a71）を .dr-tmp に置き、manifest と sequences の写し（O02:3 を AC02 の形にし、p2Subsets を直したもの）と、import の相対 path と件数だけを替えた oracle.test.ts の写しで T01・T02 を回した: (1) mismatches 0、O02:3 は 6 欄（subjects・decision・revision・effective・intents・notices）、O02:4 は 5 欄が一致 (2) 数: unmet 88 → 87、dependsOnUnmet 7 → 6（一覧は O03:8・10〜14）、flow 373 → 375、hollow 13・prepared 15・withdrawn 10・injectFailure 44・afterInjectFailure 47 は同じ。件数を直した写しで T01・T02 とも緑 (3) 弁別: 合成を構造の壊れた形（MeteorologicalInfos を「broken」に）にすると O02:3 が rejected/requiredStructureMissing・active、O02:4 が unchanged/duplicate・active で 4 件食い違う。O02:3 を unmet に戻すと O02:4 は dependsOnUnmet に戻る (4) check-sequences の写し（manifest の検査を外した stub）で写しの sequences が PASS、unmet=87 (5) width.test.ts の写し（合成を path の順の位置に足した）で P3-TL-T05 の 3 試験が緑。合成は 8 桁数×色 0/3 で幅と … の検査を通り、80 桁の色 0 では見出しの線と「VPWP50 ・ 稚内地方気象台」の 2 行 (6) P1 の分類: 合成は route telegram.weather・headType VPWP50 で decode された（走らせて見た）。Head の ReportDateTime 18:01+09:00 は端末の report の head で見た。TargetDateTime 18:00+09:00 は XML の字から（classifyCorpus の比べは走らせていない）。走らせていないもの: 合成を test/fixtures に置いた木での全 reconstruction 試験・旧築の build と test（許可 root の外に書かないため。発注の最初の作業で回す）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。合成の Control/Status は親のまま「通常」"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TIMESERIES-NEWER-EMPTY-001",
+    "mode": "implementation",
+    "objective": "C22 の帳簿で行き先の無かった O02:3（気象の時系列 VPWP50 で、active の後に届く有効な period 0 の新しい報）に合成の入力 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にする。後ろの O02:4（newer empty の後の旧報で復活 0）を含む 2 step を C22 の T01 で流し、一致させる（作者裁定 Q-FG-UNMET-ORPHAN、2026-11-13 15:13。P3-TNE-D-WHERE=A）。製品のコードは変えない。unmet は 88 → 87。P2-WEATHER-TIMESERIES-UNIT-001 が開いたままにした O02:3・O02:4 の義務（p2-order-plan.md:45・:46）を閉じる",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-timeseries-newer-empty.json",
+      "reconstruction/contracts/p3-eew-same-correction.json",
+      "reconstruction/contracts/p3-final-gate.json",
+      "reconstruction/contracts/p2-weather-timeseries-unit.json",
+      "reconstruction/contracts/p3-weather-notice.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts",
+      "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/test/final-gate/oracle.test.ts",
+      "reconstruction/test/weather-timeseries-unit/weather-timeseries-unit.test.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/test/parser-boundary/evidence.mjs",
+      "reconstruction/test/terminal/width.test.ts",
+      "reconstruction/tools/corpus/**",
+      "test/fixtures/81_02_01_260605_VPWP50_high_severity.xml"
+    ],
+    "allowedPaths": [
+      "test/fixtures/synthetic_VPWP50_newer_empty.xml（新規。AC01）",
+      "reconstruction/tools/corpus/manifest.json（1 行を path の順の位置〔:248 の synthetic_VPTW60_cancel_newer の次〕に足す。meta.sha256 を取り直す。ほかの行は変えない）",
+      "reconstruction/tools/corpus/sequences.json（:32 の p2Subsets の 1 語、O02:3 の step と record だけ〔AC02〕。meta.manifestSha256 と meta.sha256 を取り直す）",
+      "reconstruction/tools/corpus/check-manifest.mjs（件数 315・294 の行の中だけ: :33・:34・:62・:97・:149）",
+      "reconstruction/tools/corpus/README.md（:5 の件数と経緯の書き足し、:44 の件数）",
+      "reconstruction/contracts/p1-parser-boundary.json（objective・P1-AC01・P1-T01・requiredCommands の件数と、fixtureIds に 1 行〔:394 の synthetic_VPTW60_cancel_newer の次〕。meta は統合担当が取り直す）",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（:46・:48・:50 の件数だけ）",
+      "reconstruction/test/final-gate/oracle.test.ts（:411〜:417 の数・一覧・コメントの行の中だけ。行は足さない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-timeseries-newer-empty.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M08"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P2-WEATHER-TIMESERIES-UNIT-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-WEATHER-NOTICE-001",
+      "P3-FINAL-GATE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-weather-timeseries-unit.types.ts#WeatherTimeseriesSubject"
+    ],
+    "publicFunctions": [
+      "口は変えない（製品のコードを変えない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__81_02_01_260605_VPWP50_high_severity"
+    ],
+    "sequenceIds": [
+      "O02"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O02:4"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O02:4"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形と版を変えない）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "製品のコード（reconstruction/src/）の変更",
+      "U-F の試験（weather-timeseries-unit.test.ts）に試験を足すこと（P3-TNE-D-WHERE の B）",
+      "C22 の帳簿の orphan のほかの群（O03:7・9、O04:3・5〜8、O06:11〜28、O09:3〜7・10）と、O02 のほかの unmet（O02:15〜17 の容量境界、O02:39〜42 の P1 の持ち物）",
+      "C22 の帳簿の記録の数（p3-final-gate.json の Q-FG-LEDGER-AC03・発注 1 の記録の unmet 90・流す 365 など）の書き換え。記録は当時の数のまま残し、:273 の末尾に 1 文足すだけ（原文の改訂）",
+      "evidence の凍結 manifest の o09Subset.sequencesSha256（測定の入力の記録。commit 4acb9ae3 と同じく書き換えない）",
+      "p3-order-plan.md:685 の「p1-parser-boundary.json:474〜:477」（群 1 の配送の前から行がずれたままの地の文。計画の文で、本契約では直さない。統合担当が直すかを決める）",
+      "rest-acquisition-plan.md:45 の O02:3 の行（REST の探索で見つからず、合法 empty は synthetic と結んだ記録）の書き換えと、実物の合法 empty の VPWP50 の採取（見つかれば P5 の REST 採取で錨を足す）",
+      "旧築（src/）と spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TNE-AC01",
+        "requirement": "合成の入力 1 本（P3-TNE-D-FORM=A）: (1) test/fixtures/synthetic_VPWP50_newer_empty.xml は 81_02_01_260605_VPWP50_high_severity.xml の bytes から、<DateTime>2026-06-05T08:00:00Z</DateTime>（Control）を 09:01:00Z に、<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime> を 18:01:00+09:00 に、<Text>大雨警報・土砂災害警戒レベル4相当・特別警報級の予測</Text> を <Text/> に替え、<TimeSeriesInfo> から </TimeSeriesInfo> と直後の改行までを取り除いたもの（MeteorologicalInfos の開きと閉じのタグは残り、間は改行 1 つ）。ほかの bytes（宣言・名前空間・Control/Title・Status・官署・Head/Title・TargetDateTime 18:00・EventID・InfoType 発表・Serial・InfoKind・末尾の改行）は親と同じ。結果は 1136 byte、sha256 f0dc151a66142c82278e878772fd86c1b4e3234d01b0dbbe0c03645daf3d7a71（起草の .dr-tmp の写しの値。違えば止めて報告） (2) manifest に 1 行を path の順の位置（:248 の後）に足す。欄は既存の合成の行に倣う: role telegramXml、acquisition {kind generated、locator は自分の path、acquiredAt null、evidenceRefs は「<path>: synthetic命名の固定人工入力。配信原本性を主張しない。P3-TIMESERIES-NEWER-EMPTY-001（C22 の帳簿の O02:3）で追加。」}、modification {kind synthetic、parentFixtureId は test__fixtures__81_02_01_260605_VPWP50_high_severity、parentSha256 は親の行の sha256、changes は 4 つ: {field Control/DateTime、from 2026-06-05T08:00:00Z、to 2026-06-05T09:01:00Z}・{field Head/ReportDateTime、from 2026-06-05T17:00:00+09:00、to 2026-06-05T18:01:00+09:00}・{field Head/Headline/Text、from 大雨警報・土砂災害警戒レベル4相当・特別警報級の予測、to 空（<Text/>）}・{field Body/MeteorologicalInfos/TimeSeriesInfo、from 1件（TimeDefine 3・Kind 3・稚内市）、to なし（MeteorologicalInfos は空）}}、transport は親の行と同じ（telegram.weather・VPWP50、evidence の字も同じ）、documentTimes {reportDateTimeRaw 2026-06-05T18:01:00+09:00、targetDateTimeRaw 2026-06-05T18:00:00+09:00}、sourceStrength synthetic、distribution unconfirmed (3) 件数: manifest 315 → 316、XML 294 → 295。check-manifest.mjs の 5 か所（:149 は「295 XML + 21 JSON」）、README.md の :5（316件=XML295+JSON21 と経緯の 1 文）・:44（全316件）、p1-parser-boundary.json の objective（全316）・P1-AC01（XML 295件）・P1-T01（全295）・requiredCommands（316 fixture）と fixtureIds（:394 の後に 1 行）を合わせる",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/manifest.json",
+          "reconstruction/tools/corpus/check-manifest.mjs",
+          "reconstruction/test/weather-timeseries-unit/weather-timeseries-unit.test.ts:320 «3cf95ec01f7a0fe8»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:126 «375154203a407a23»",
+          "reconstruction/tools/corpus/rest-acquisition-plan.md:45 «f18901a36eecf717»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:216 «5d4a4c63158d1eec»"
+        ]
+      },
+      {
+        "id": "P3-TNE-AC02",
+        "requirement": "O02:3 の期待（P3-TNE-D-NOTICE=A）: (1) step: fixtureId を test__fixtures__synthetic_VPWP50_newer_empty、expectedRef を expected:O02:3 に替える。receivedAt・evaluatedAt（1780650060000）・inputSource（replay）・operationExpected（normal）は変えない（receivedAt は合成の ReportDateTime と同じ時刻で check-sequences の「受信が報より前にならない」を満たす） (2) expectationBasis（step と record の basisRefs を同じにする。順もこのまま）: 「L1: docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»」（今の 1 本をそのまま先頭に）「L1: docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225» O02」「L1: reconstruction/contracts/p3-weather-notice.json:177 «f63478847482598b» P3-WN-D-UF=A U-F は通知の intent を作らない」「L2: test/fixtures/synthetic_VPWP50_newer_empty.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）」の 4 本 (3) 旧 → 新: unmet:O02:3 の record（decision {changed, semantic}、effective inactive/noActiveItems、subjects [normal/O02/input.requiredに記した対象（未充足）、revision {2026-06-05T18:01:00+09:00, null, null}]、notices null、intents null、basisRefs 1 本、input {required…, acquisition REST見込み（合法empty事例）/synthetic}、checks 1 本）→ expected:O02:3 の record: decision {kind: changed, change: semantic}（同じ）、effective {kind: inactive, cause: {kind: noActiveItems}}（同じ）、subjects [{subject: normal/VPWP50/稚内地方気象台, revision: {reportDateTimeRaw: 2026-06-05T18:01:00+09:00, serialRaw: null, infoTypeRaw: 発表}}]、notices false、intents false、basisLevel 1、basisRefs は (2)、input null、checks は 3 本「changed→inactive/noActiveItems。watermark18:01を残し旧currentを除く。」（今の 1 本）「同じ官署の active（O02:2、17:00）の後の正常な newer（Head/ReportDateTime 18:01）で、有効な period 0 の報。U-F は通知の intent を作らない（P3-WN-D-UF=A）。」と運用区分の定型「運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。」 (4) sequences.json:32 の P2-O02-U-F-v1 の stepRefs の \"unmet:O02:3\" を \"expected:O02:3\" に替える（行の中だけ。replaces・deferred は変えない）。subsetId は v1 のまま: 母集団の step の位置と数は変わらず、p2-order-plan.md:46 が充足後の ID を expected:O02:3 と先に決め「統合担当が step/expectation 両参照と hash を更新」と書いている。版を上げた前例の P2-O10-CHECKPOINT-v2 は作った commit（51936f3a）で母集団そのものを置き換えたもので、ID の接頭辞の付け替えではない (5) 根拠: VPWP50 は Head/ReportDateTime を先に比べ（version.ts:8・:32）、18:01 は門の 17:00 より newer で採る。period 0 で current は noActiveItems・validUntil null（weather-timeseries-unit.ts:216）、門は 18:01 になり、O02:4 の 17:00 は older で unchanged/stale（:229・:236）。U-F は intent を作らない（p3-weather-notice.json:177）。合成の Serial は空なので revisionOf が null と読み、期待の serialRaw null と合う（oracle.test.ts:303 の後の読み） (6) 後ろの expected:O02:4 の期待は変えない",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:731 «2054b0d946d1477b»",
+          "docs/specs/reconstruction-p0-contracts.md:1778 «513e4c47ef60e225»",
+          "reconstruction/contracts/p3-weather-notice.json:177 «f63478847482598b»",
+          "reconstruction/contracts/p2-weather-timeseries-unit.json:633 «f5b0d79bd116374a»",
+          "reconstruction/src/contracts-revision/version.ts:8 «4b86b94361e732b1»",
+          "reconstruction/src/contracts-revision/version.ts:32 «bf7d8f6d75fcbb90»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:216 «5d4a4c63158d1eec»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «0c4bf4cc6f7ce2d9»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:236 «a1495e873f342fa0»",
+          "reconstruction/contracts/p3-final-gate.json:182 «ecab1bbfb1e8a330»"
+        ]
+      },
+      {
+        "id": "P3-TNE-AC03",
+        "requirement": "C22 の T01 で 2 step が流れて一致する: (1) O02:3・O02:4 が flow の表に入り（unmet と、その後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま。O02:3 は subjects・decision・revision・effective・intents・notices、O02:4 は subjects・decision・effective・intents・notices を比べる（stale の revision は比べない、:303） (2) oracle.test.ts の数（行の中だけを直す）: :412 の unmet 88 → 87、:415 の dependsOnUnmet 7 → 6・flow 373 → 375、:417 の一覧は [O03:8, O03:10, O03:11, O03:12, O03:13, O03:14]。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13（と一覧）・prepared 15 は変えない。:411 のコメントの末尾に「2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。」を足す (3) T02 も緑のまま（O02:3 は U-F だけが変え、保存の inputIds に U-F だけで入る） (4) oracle の読み（recordOf・effectiveOf）は変えない。U-F の記録の effective noActiveItems は :125 で inactive/noActiveItems と読まれる (5) O02:3・O02:4 の actual が AC02 と違うか、T01・T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する。起草では .dr-tmp の写しで (1)〜(3) を確かめた（Q-TNE-PROBE）",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
+          "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
+          "reconstruction/test/final-gate/oracle.test.ts:125 «304f95b88e95379e»",
+          "reconstruction/test/final-gate/oracle.test.ts:233 «39ba74f039a318d1»",
+          "reconstruction/test/final-gate/oracle.test.ts:303 «aed348fc8f40aa42»"
+        ]
+      },
+      {
+        "id": "P3-TNE-AC04",
+        "requirement": "fixture の件数を数える既存の試験の期待を直す（理由: corpus に 1 本足すため。直す前の報告はこの条文で済ませる）: P1-T01（p1-parser-boundary.test.ts:46〜:50）は行 294 → 295、decoded 293 → 294、偽の decode で差の出る行 293 → 294。新しい 1 本の分類は親と同じ（telegram.weather・VPWP50）で、documentTimes は AC01 (2) の値で差 0。ほかの fixture を全部回す試験（width.test.ts の P3-TL-T05〔:15〕、layout6.test.ts の P3-TL6-T04、digest.test.ts の P3-TL7-T02、weather-current-unit.test.ts の全 fixture の検査、weather-timeseries-unit.test.ts の T04〔:464、名前の決め打ち〕、eew-unit.test.ts の P2-A4-T09）は直さない見込み（Q-TNE-SOURCE (4)・Q-TNE-PROBE (5)）。落ちたら試験名と旧・新の値を報告して止める",
+        "evidenceRefs": [
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+          "reconstruction/test/terminal/width.test.ts:15 «a6b25bb45b89348b»",
+          "reconstruction/test/weather-timeseries-unit/weather-timeseries-unit.test.ts:464 «5d71dc3dc91d5802»"
+        ]
+      },
+      {
+        "id": "P3-TNE-AC05",
+        "requirement": "製品と保存を変えない: reconstruction/src/ と旧築（src/）を変えない。保存の形と版を変えない。AC02・AC03 を満たすのに製品の変更が要ると分かったら、変えずに理由を書いて止める",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «0c4bf4cc6f7ce2d9»"
+        ]
+      },
+      {
+        "id": "P3-TNE-AC06",
+        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・e8500cb4）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない（行の数と整形を変えない） (3) «» の付け直し: p1-parser-boundary.json の fixtureIds に 1 行足すので、p3-xml-tree-compact.json が引く :503 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :547・:549・:550・:558 の行番号を 1 足す（anchor は中身が変わらないので同じ。:46・:148 はずれない）。sequences.json は O02:3 の step で +3 行（expectationBasis 1 → 4 本）、record で +2 行（basisRefs +3、input の 4 行 → 1 行で −3、checks +2）なので、p3-weather-notice.json が引く :24277（\"expectedId\": \"expected:O01:82\",）は :24282 になる見込み。中身で引き直す。p3-migration.json が引く sequences.json の :65・:103・:114 と、p3-e05p-typhoon.json が引く manifest.json の :117〜:119・:243 は挿入の位置（manifest :249、sequences :2414）より前なのでずれないことを確かめる。p3-final-gate.json の Q-FG-LEDGER-AC03 の rows（:186〜:189、O02:39〜42）の地の文の「p1-parser-boundary.json:476〜479」を 477〜480 に直す（«» ではない字の行番号）。oracle.test.ts・check-manifest.mjs・p1-parser-boundary.test.ts・README.md は行の中だけを直すので、引かれた行（oracle.test.ts:45・:53・:118・:303、check-manifest.mjs:15・:78・:81、p1-parser-boundary.test.ts:114）はずれない。p2-weather-timeseries-unit.json の :446・:473 と p2-order-plan.md の :45・:46 は «» で引かれていない（:445・:464・:47 は引かれているが変えない） (4) 自己 hash を引く «» の連鎖: 全契約の取り直しで p3-measure-harness.json:4（meta.sha256 の行）が変わり、それを p3-e05p-classify.json:343 が «» で引く。p3-measure-harness.json の自己 hash を確定した後に :343 の «» を付け直し、最後に p3-e05p-classify.json の自己 hash を取り直す。ほかに契約の meta の行（:2〜:7）を引く «» が無いことは起草で grep した（この 1 件だけ）が、配送の木でもう一度確かめる (5) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/check-contract.mjs",
+          "reconstruction/tools/corpus/check-sequences.mjs"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-FG-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TNE-AC02",
+          "P3-TNE-AC03"
+        ],
+        "behavior": "既存の oracle.test.ts の T01。新しい試験は足さず、:412・:415・:417 の数と一覧を AC03 (2) に直す。O02:3 は changed/semantic・noActiveItems・intent 0 を、O02:4 は既存の期待を、連結した 12 unit の上で照合する。oracle の読みは変えない"
+      },
+      {
+        "testId": "P1-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P3-TNE-AC01",
+          "P3-TNE-AC04"
+        ],
+        "behavior": "既存の試験。件数を 295・294・294 に直し、新しい 1 本の分類と documentTimes が manifest と一致することを確かめる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 316 件の台帳と hash"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O02 の参照。unmet=87 を確かめる"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装担当の木では各契約の最初の FAIL が digest になり、ほかの FAIL は見えない。統合担当が AC06 の取り直しの後に回し、PASS（WARN は baseOid=unassigned の契約だけ）を確かめる"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T01・T02・P1-T01・P3-TL-T05・U-F の試験を含む）"
+      },
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "package.json",
+        "stage": "implementation",
+        "purpose": "test/fixtures に file を足すので旧築の試験も回す（前例 b3df1e3f・4a08b83c）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い。足すのは入力 1 本と台帳の 1 行だけで、無いと O02:3 と後ろの O02:4 が T01 で流れず、C22 の合格（行き先の無い unmet 0）に届かない。新しい試験・helper・script を repo に足さない。直す既存の試験は P3-FG-T01 と P1-T01 の数だけで、各々 AC03・AC04 に対応する",
+      "最初の作業: 合成・manifest の 1 行・sequences の O02:3 の step と record と :32 を当てた木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせる（:412 の件数の assert が先に落ちても、beforeAll が書いた出力の mismatches・counts で中身を見られる）。O02:3 の decision・effective・intents と O02:4 の一致を確かめてから、件数の直しに進む。期待と違えば AC03 (5) で止める",
+      "合成は親を cp -c で写してから AC01 (1) の 4 か所を置き換え、byte 数と sha256 が AC01 (1) の値と同じことを確かめて書く",
+      "sequences.json の数字の id（expectedId・expectedRef）と、O02:3 の step・record・:32 の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）",
+      "digest と «» の取り直し（AC06）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
+      "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の値を報告して止める。allowedPaths の外は直さない",
+      "原文の改訂（統合担当が配送の commit で当てる。どれも行の中の書き足し・書き換えで、行を足さない）: (1) p3-final-gate.json:273 の orphan の 2 項目めの末尾に「→ P3-TIMESERIES-NEWER-EMPTY-001 で合成 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にした。帳簿の案の字は U-F の試験内だったが、O02:4 も T01 で流すため corpus に足した（P3-TNE-D-WHERE）。unmet 88 → 87」を足す (2) p3-final-gate.json:186〜:189 の「p1-parser-boundary.json:476〜479」を「477〜480」に (3) p2-weather-timeseries-unit.json:446 と :473 の requirement の末尾に「（2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で unmet:O02:3 は expected:O02:3 になり、O02:3・O02:4 は C22 の T01 で確かめる）」を足す (4) p2-order-plan.md:45 の備考の「`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23）」の後と、:46 の備考の末尾に「2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 は expected:O02:3 に充足、O02:3・:4 は C22 の T01 で確かめる」を足す（:46 の行の ID の列の unmet:O02:3 は当時の記録として残す） (5) 本契約の fixtureIds に test__fixtures__synthetic_VPWP50_newer_empty を、expectedDecisions と expectationEvidence に expected:O02:3 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
+      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
+    ],
+    "unresolvedQuestions": []
+  }
+}
