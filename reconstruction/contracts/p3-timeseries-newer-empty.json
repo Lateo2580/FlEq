@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f60f0a261be36c4f7802d0e446f05b3decc58696",
-    "sha256": "6b6fde92c2313f378e32d9175639fd2d8e471589238e95ebc176ba0d3feb9b1f",
+    "sha256": "10f425f08a12eadef78bd6a6705116ef7d41b25780d017cb423977d7fdda8915",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -64,7 +64,7 @@
     "contractId": "P3-TIMESERIES-NEWER-EMPTY-001",
     "mode": "implementation",
     "objective": "C22 の帳簿で行き先の無かった O02:3（気象の時系列 VPWP50 で、active の後に届く有効な period 0 の新しい報）に合成の入力 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にする。後ろの O02:4（newer empty の後の旧報で復活 0）を含む 2 step を C22 の T01 で流し、一致させる（作者裁定 Q-FG-UNMET-ORPHAN、2026-11-13 15:13。P3-TNE-D-WHERE=A）。製品のコードは変えない。unmet は 88 → 87。P2-WEATHER-TIMESERIES-UNIT-001 が開いたままにした O02:3・O02:4 の義務（p2-order-plan.md:45・:46）を閉じる",
-    "baseOid": "unassigned",
+    "baseOid": "b84abd6ad9c927c73bd6b0e05e457af6e82e883e",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
