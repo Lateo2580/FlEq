@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "c8dac92ddb58b077de113b2ae478b3a154bffb5ab429ccd4547fcb722ac6b72f",
+    "sha256": "9355fe0d6324ed7d0b6a3ee60800da9eee2998f32e49628ceaaebcbf1ad8dee8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -389,7 +389,8 @@
       "残存として成果物に書く: (1) 取り直しの訂正・続報で held の速報の版が進んでも、端末は 60 秒で古い版の字を出す（AC05 (c)） (2) 採用が端末の 60 秒より遅れると、端末は速報を出した後で、取り直しの取消は端末に出ない（AC05 (g)、P3-TO-D-ORIGIN） (3) 取り直しの VPBS50 で aliased になった速報は端末に 60 秒で出る（AC05 (b)、layout10 の残存 (9)。P3-RRC-D-ALIAS=A） (4) host.ts の 169 行は root.receive の後に呼ぶので、root が停止と判定した owner（composition-root.ts の 631 行の monitor.stopped）の採用の返信でも端末は待ちを外す。その owner の unit は最後の view のままで、U-B の解放も来ないので、端末が出さない方が表示と揃う（P3-RRC-D-HOOK の理由） (5) U-B が満杯で取消自身を退去した訓練・試験の取消では、待っていた速報が 60 秒で出る（AC05 (j)） (6) 採用が端末の期限の直前の数 ms に重なると、取り消された速報が出る（AC05 (k)）",
       "原文の改訂（統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: (1) docs/specs/cli-terminal-output.md:663 の「待っている VPOA50 の取消が届いたら、どちらも出さない（U-B も鳴らさない）。」の後に「回線が切れている間の取消を取り直しで採ったときも、採った時に待ちから外して出さない（ほかの報の取り直しと同じく取消も出さない。P3-RAIN-RECOVERY-CANCEL-001）。」を足し、続けて「60 秒の間に取り直しで採った VPBS50 が VPOA50 を aliased にしたときは、上の『VPBS50 が来れば VPOA50 は出さず』の例外として 60 秒で VPOA50 を出す（取り直しの VPBS50 は端末に出ないので、外すとこの雨の行が端末に 1 つも出ない。P3-RRC-D-ALIAS=A、2026-11-13 作者裁定）。」を足す (2) reconstruction/contracts/p3-terminal-layout10.json:490 の残存 (9) の「その返信（recoveryDone）は端末に届かず、端末は 60 秒で VPOA50 を出す（証拠不足）」を「端末は取り直しの採用で取消だけを待ちから外すので（P3-RRC-D-ALIAS=A）、60 秒で VPOA50 を出す（取消の場面は 2026-11-12 の hz-repro の probe で再現し、P3-RAIN-RECOVERY-CANCEL-001 で外すようにした）」に替え、layout10 の meta.sha256 を取り直す。(1) の後、spec:663 を引く «»（p3-terminal-layout10.json の 355 行、p3-terminal-rain-evict.json の 182 行、本契約の AC01・AC02・AC07）を付け直す。p3-terminal-layout10.json:490 を引く «» は本契約の AC05・AC07 だけ",
       "«» の付け直し（統合担当、配送の commit）: 実装で中身が変わる output.ts の 47・646 行を引く «»（p3-terminal-debug-reject.json の 153・155 行と本契約の AC03・AC06）、owner-host.ts の 60・204・216・230・239 行と host.ts の 169 行と types の 89 行を引く本契約の AC03・AC06 の «»。そのあと、書き換えた契約の meta.sha256 を取り直し（~/dev/fleq-vault-archive/tools/reanchor-target.py）、check-contract を通す",
-      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 実配信で 60 秒の内に切断と取消が重なることは稀なので、T01 に任せる"
+      "本物の経路での確かめ（統合担当、配送の後、機会があれば）: 実配信で 60 秒の内に切断と取消が重なることは稀なので、T01 に任せる",
+      "配送の記録（統合担当、2026-11-13）: (1) 実装は 048c2c4a（もとは 59bbc86a の上の 25857afe、配送で P3-FINAL-GATE-001 の baseOid の commit 9c4dd7e4 の上へ載せ直した。owner-host.ts の :60・:204・:216・:230・:239、p3-execution-split.types.ts:89、host.ts:169、output.ts の :47・:646 の行の中、composition-root.ts は変えていない。試験 T01・T03 を test/recovery/rain-recovery-cancel.test.ts〔新設〕、T04 を layout10.test.ts の末尾に。Opus 5.5。commit の本文の「端末は U-B の採用のときだけ」は「adopted のときだけ」の誤り〔コードは unit で絞らない、AC04 (1)〕）。試験の直しは 9edf5581（ヘルツの実装レビューの P2: 取消の発表時刻と receivedTime を観測した切断の時刻から作り、受信＜切断＜取消の発表＜繋ぎ直し＜採用の全順序を確かめる。P3: 次の tick を status の呼び出しを数えて待つ、T04 (a) の Q を見分けられる報に）。直す前に T01・T04 が赤、(2) を戻すと T01、(3) を戻すと T03 が赤を、直した後の試験で実装者が確かめた。T01 の実測は約 80 秒（契約の見込みの約 50 秒より長い、timeout 150 秒）。baseOid 050deaf5 の commit は 59bbc86a (2) 原文の改訂 (1)(2) と «» の付け直し（本契約・p3-terminal-debug-reject・p3-terminal-layout10・p3-terminal-rain-evict）は 8038e124 (3) 起草レビュー: ヘルツ r0 条件付き GO → r1 条件付き GO → r2（thread 01a1d277）、Opus r0 条件付き GO。作者の分岐 D-ALIAS は 2026-11-13 昼に A。実装レビュー: 品質はヘルツ（gpt-6-astra high、thread 01a1d29f）条件付き GO（試験の直しで閉じた）、契約適合は Opus GO (4) Mac mini のゲート b26（8038e124、Node 26）: tsc 3 本・reconstruction の vitest と shuffle・checker 3 本・root の build と test の 12 段がすべて rc 0"
     ],
     "unresolvedQuestions": []
   }
