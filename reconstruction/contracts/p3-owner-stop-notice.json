@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6f16239104aeaf667f3ab6ea26df459ebcf16dd3",
-    "sha256": "6bdde7768eaedba168c22193a3d16aec2b1eb062cebbad572be4327a888c961e",
+    "sha256": "4d021cd9480b77750af9c8315ca6e07075fe38d3d2a5959c16b2a195c98d60e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -125,6 +125,13 @@
         "source": "起草（2026-11-13）",
         "closed": "起草は unassigned にし、作者の裁定（P3-OSN-D-DESKTOP-TEXT・D-SOUND・D-MUTE）を条文に当てた後、統合担当が契約を入れた commit を付ける",
         "remaining": "発注前点検で割り当てる"
+      },
+      {
+        "id": "Q-OSN-AUTHOR",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-13 19 時台、「全てAでお願いします」）",
+        "closed": "D-DESKTOP-TEXT・D-SOUND・D-MUTE・D-SHUTDOWN・D-COLOR は作者が A。D-TRIGGER・D-SOUND-PATH は統合担当が A。どれも A なので条文の字は起草のまま",
+        "remaining": "baseOid の割当（起草レビューの後）"
       }
     ],
     "operationContract": {
@@ -449,20 +456,6 @@
       "«» の付け直し（統合担当、配送の commit）: output.ts:47 を引く 3 件（p3-rain-recovery-cancel.json:236・:276、p3-terminal-debug-reject.json:153）と、AC05 (7) に挙げた本契約の «»、原文の改訂 (1) で変わる p3-final-gate.json の 8 行を引く本契約の AC06 の «»。そのあと書き換えた契約の meta.sha256 を取り直し、check-contract を通す",
       "外見の確かめ（統合担当、配送の前）: 製品には owner を落とす入口が無いので、format.ts の renderer で帯の 4 行を色ありで 130 桁と 56 桁に描いた写しを作り、作者に見せる。macOS の通知の欄で本文がどこで切れるかと、音の聞こえ方は、soundNotice と desktopNotice をその場で 1 回呼んで確かめる"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-OSN-AUTHOR",
-        "owner": "user",
-        "blocks": [
-          "baseOid の割当",
-          "発注"
-        ],
-        "resolveBy": "作者の裁定（P3-OSN-D-DESKTOP-TEXT・D-SOUND・D-MUTE）。裁定が A でない分岐は、統合担当が AC02 (3)・T02・原文の改訂 (4) の字を裁定に合わせてから baseOid を付ける",
-        "requiredEvidence": [
-          "3 つの分岐の作者の裁定",
-          "統合担当の分岐（D-TRIGGER・D-SOUND-PATH・D-SHUTDOWN・D-COLOR）の確定"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
