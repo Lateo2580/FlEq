@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f60f0a261be36c4f7802d0e446f05b3decc58696",
-    "sha256": "c87cfd55a7477e6c44fe15955f9b20e046eeb8980f7c572d2693650c51ccc0bf",
+    "sha256": "08b044a676b8f50b07c7e1795c2b686232b0e16e8a47f9a42b38e30e64b9273f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
     "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
@@ -336,7 +336,8 @@
       "digest と «» の取り直し（AC06）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
       "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の値を報告して止める。allowedPaths の外は直さない",
       "原文の改訂（統合担当が配送の commit で当てる。(5) を除き、どれも行の中の書き足し・書き換えで、行を足さない）: (1) p3-final-gate.json:273 の orphan の 2 項目めの末尾に「→ P3-TIMESERIES-NEWER-EMPTY-001 で合成 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にした。帳簿の案の字は U-F の試験内だったが、O02:4 も T01 で流すため corpus に足した（P3-TNE-D-WHERE）。unmet 88 → 87」を足す (2) p3-final-gate.json:186〜:189 の「p1-parser-boundary.json:476〜479」を「477〜480」に (3) p2-weather-timeseries-unit.json:446 と :473 の requirement の末尾に「（2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で unmet:O02:3 は expected:O02:3 になり、O02:3・O02:4 は C22 の T01 で確かめる）」を足す (4) p2-order-plan.md:45 の備考の「`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23）」の後と、:46 の備考の末尾に「2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 は expected:O02:3 に充足、O02:3・:4 は C22 の T01 で確かめる」を足す（:46 の行の ID の列の unmet:O02:3 は当時の記録として残す） (5) 本契約の fixtureIds に test__fixtures__synthetic_VPWP50_newer_empty を、expectedDecisions と expectationEvidence に expected:O02:3 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
-      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
+      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す",
+      "配送の記録（統合担当、2026-11-13）: (1) 起草 bd5c38a6 → 起草レビュー（Codex GO thread 01a1d418、Opus GO P3 5）→ r1 48d13384 を main 4f002a0c へ載せ直した 3df691f5・b84abd6a（checker 3 本 rc 0）→ baseOid 9fb23040 (2) 実装 5262fe0e（Opus 5.5、合成 1 本 1136 byte・sha256 f0dc151a…、manifest 1 行、sequences の O02:3、件数 315→316・294→295・unmet 88→87）。実装者の最初の作業の T01 で O02:3 は 6 欄、O02:4 は 5 欄が一致し mismatches 0 (3) 実装レビュー: 契約適合 Opus GO（P1〜P3 0）、品質 Opus GO（P1〜P3 0、合成と親の diff は 4 か所だけ、旧の木で T01・P1-T01 が落ちることを確かめた）。D-P3-10 の節目ではないので Codex の総合レビューは C22 の節目でまとめて頼む (4) 配送の改訂 7a734747: 140 契約の manifestSha256・sequencesSha256・sha256、«» の付け直し（p3-xml-tree-compact・p3-weather-light-step1・step2・p3-weather-notice と p3-e05p-classify:343 の連鎖）、原文の改訂 (1)〜(5) (5) Mac mini ゲート b33（7a734747）12 段 rc 0。p3.test.ts の 8 件（P1 の自己 digest）は配送の改訂で通った"
     ],
     "unresolvedQuestions": []
   }
