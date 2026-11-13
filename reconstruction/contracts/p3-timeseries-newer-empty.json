@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "f60f0a261be36c4f7802d0e446f05b3decc58696",
-    "sha256": "0a9131fac725e1f9faf0338feaea83f696533683681e15fc3c98dba9638a2b9e",
+    "sha256": "6b6fde92c2313f378e32d9175639fd2d8e471589238e95ebc176ba0d3feb9b1f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -158,7 +158,7 @@
       "C22 の帳簿の orphan のほかの群（O03:7・9、O04:3・5〜8、O06:11〜28、O09:3〜7・10）と、O02 のほかの unmet（O02:15〜17 の容量境界、O02:39〜42 の P1 の持ち物）",
       "C22 の帳簿の記録の数（p3-final-gate.json の Q-FG-LEDGER-AC03・発注 1 の記録の unmet 90・流す 365 など）の書き換え。記録は当時の数のまま残し、:273 の末尾に 1 文足すだけ（原文の改訂）",
       "evidence の凍結 manifest の o09Subset.sequencesSha256（測定の入力の記録。commit 4acb9ae3 と同じく書き換えない）",
-      "p3-order-plan.md:685 の「p1-parser-boundary.json:474〜:477」（群 1 の配送の前から行がずれたままの地の文。計画の文で、本契約では直さない。統合担当が直すかを決める）",
+      "p3-order-plan.md:685 の「p1-parser-boundary.json:474〜:477」と p2-order-plan.md:239 の「p1-parser-boundary.json:535〜:541」（どちらも «» の無い、本契約の前から行がずれたままの地の文。計画の文で、本契約では直さない。統合担当が直すかを決める）",
       "rest-acquisition-plan.md:45 の O02:3 の行（REST の探索で見つからず、合法 empty は synthetic と結んだ記録）の書き換えと、実物の合法 empty の VPWP50 の採取（見つかれば P5 の REST 採取で錨を足す）",
       "旧築（src/）と spec 本体の編集"
     ],
@@ -220,7 +220,7 @@
       },
       {
         "id": "P3-TNE-AC06",
-        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・e8500cb4）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない（行の数と整形を変えない） (3) «» の付け直し: p1-parser-boundary.json の fixtureIds に 1 行足すので、p3-xml-tree-compact.json が引く :503 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :547・:549・:550・:558 の行番号を 1 足す（anchor は中身が変わらないので同じ。:46・:148 はずれない）。sequences.json は O02:3 の step で +3 行（expectationBasis 1 → 4 本）、record で +2 行（basisRefs +3、input の 4 行 → 1 行で −3、checks +2）なので、p3-weather-notice.json が引く :24277（\"expectedId\": \"expected:O01:82\",）は :24282 になる見込み。中身で引き直す。p3-migration.json が引く sequences.json の :65・:103・:114 と、p3-e05p-typhoon.json が引く manifest.json の :117〜:119・:243 は挿入の位置（manifest :249、sequences :2414）より前なのでずれないことを確かめる。p3-final-gate.json の Q-FG-LEDGER-AC03 の rows（:186〜:189、O02:39〜42）の地の文の「p1-parser-boundary.json:476〜479」を 477〜480 に直す（«» ではない字の行番号）。oracle.test.ts・check-manifest.mjs・p1-parser-boundary.test.ts・README.md は行の中だけを直すので、引かれた行（oracle.test.ts:45・:53・:118・:303、check-manifest.mjs:15・:78・:81、p1-parser-boundary.test.ts:114）はずれない。p2-weather-timeseries-unit.json の :446・:473 と p2-order-plan.md の :45・:46 は «» で引かれていない（:445・:464・:47 は引かれているが変えない） (4) 自己 hash を引く «» の連鎖: 全契約の取り直しで p3-measure-harness.json:4（meta.sha256 の行）が変わり、それを p3-e05p-classify.json:343 が «» で引く。p3-measure-harness.json の自己 hash を確定した後に :343 の «» を付け直し、最後に p3-e05p-classify.json の自己 hash を取り直す。ほかに契約の meta の行（:2〜:7）を引く «» が無いことは起草で grep した（この 1 件だけ）が、配送の木でもう一度確かめる (5) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・e8500cb4）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない（行の数と整形を変えない） (3) «» の付け直し: p1-parser-boundary.json の fixtureIds に 1 行足すので、p3-xml-tree-compact.json が引く :503 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :547・:549・:550・:558 の行番号を 1 足す（anchor は中身が変わらないので同じ。:46・:148 はずれない）。sequences.json は O02:3 の step で +3 行（expectationBasis 1 → 4 本）、record で +2 行（basisRefs +3、input の 4 行 → 1 行で −3、checks +2）なので、p3-weather-notice.json が引く :24277（\"expectedId\": \"expected:O01:82\",）は :24282 になる見込み。中身で引き直す。p3-migration.json が引く sequences.json の :65・:103・:114 と、p3-e05p-typhoon.json が引く manifest.json の :117〜:119・:243 は挿入の位置（manifest :249、sequences :2414）より前なのでずれないことを確かめる。p3-final-gate.json の Q-FG-LEDGER-AC03 の rows（:186〜:189、O02:39〜42）の地の文の「p1-parser-boundary.json:476〜479」を 477〜480 に直す（«» ではない字の行番号）。p3-order-plan.md:685 の「474〜:477」と p2-order-plan.md:239 の「535〜:541」も «» の無い地の文で、本契約の前からずれている（outOfScope。直すなら挿入で 1 足した値に）。oracle.test.ts・check-manifest.mjs・p1-parser-boundary.test.ts・README.md は行の中だけを直すので、引かれた行（oracle.test.ts:45・:53・:118・:303、check-manifest.mjs:15・:78・:81、p1-parser-boundary.test.ts:114）はずれない。p2-weather-timeseries-unit.json の :446・:473 と p2-order-plan.md の :45・:46 は «» で引かれていない（:445・:464・:47 は引かれているが変えない） (4) 自己 hash を引く «» の連鎖: 全契約の取り直しで p3-measure-harness.json:4（meta.sha256 の行）が変わり、それを p3-e05p-classify.json:343 が «» で引く。p3-measure-harness.json の自己 hash を確定した後に :343 の «» を付け直し、最後に p3-e05p-classify.json の自己 hash を取り直す。ほかに契約の meta の行（:2〜:7）を引く «» が無いことは起草で grep した（この 1 件だけ）が、配送の木でもう一度確かめる (5) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）",
         "evidenceRefs": [
           "reconstruction/contracts/check-contract.mjs",
           "reconstruction/tools/corpus/check-sequences.mjs"
@@ -236,6 +236,14 @@
           "P3-TNE-AC03"
         ],
         "behavior": "既存の oracle.test.ts の T01。新しい試験は足さず、:412・:415・:417 の数と一覧を AC03 (2) に直す。O02:3 は changed/semantic・noActiveItems・intent 0 を、O02:4 は既存の期待を、連結した 12 unit の上で照合する。oracle の読みは変えない"
+      },
+      {
+        "testId": "P3-FG-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-TNE-AC03"
+        ],
+        "behavior": "既存の oracle.test.ts の T02。変えずに緑のままを確かめる（AC03 (3)。O02:3 は U-F だけが変え、保存の inputIds に U-F だけで入る）"
       },
       {
         "testId": "P1-T01",
@@ -317,10 +325,10 @@
       "最小実装・最小テスト: 足す仕組みは無い。足すのは入力 1 本と台帳の 1 行だけで、無いと O02:3 と後ろの O02:4 が T01 で流れず、C22 の合格（行き先の無い unmet 0）に届かない。新しい試験・helper・script を repo に足さない。直す既存の試験は P3-FG-T01 と P1-T01 の数だけで、各々 AC03・AC04 に対応する",
       "最初の作業: 合成・manifest の 1 行・sequences の O02:3 の step と record と :32 を当てた木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせる（:412 の件数の assert が先に落ちても、beforeAll が書いた出力の mismatches・counts で中身を見られる）。O02:3 の decision・effective・intents と O02:4 の一致を確かめてから、件数の直しに進む。期待と違えば AC03 (5) で止める",
       "合成は親を cp -c で写してから AC01 (1) の 4 か所を置き換え、byte 数と sha256 が AC01 (1) の値と同じことを確かめて書く",
-      "sequences.json の数字の id（expectedId・expectedRef）と、O02:3 の step・record・:32 の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）",
+      "sequences.json の数字の id（expectedId・expectedRef）と、O02:3 の step・record・:32 の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）。sequences.json は JSON として書き直さず、行の中を手で直す（:22256・:22312 の 1 行の input はそのまま残す。書き直すと展開されて +6 行になり、AC06 (3) の «» の先が :24288 にずれる）",
       "digest と «» の取り直し（AC06）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
       "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の値を報告して止める。allowedPaths の外は直さない",
-      "原文の改訂（統合担当が配送の commit で当てる。どれも行の中の書き足し・書き換えで、行を足さない）: (1) p3-final-gate.json:273 の orphan の 2 項目めの末尾に「→ P3-TIMESERIES-NEWER-EMPTY-001 で合成 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にした。帳簿の案の字は U-F の試験内だったが、O02:4 も T01 で流すため corpus に足した（P3-TNE-D-WHERE）。unmet 88 → 87」を足す (2) p3-final-gate.json:186〜:189 の「p1-parser-boundary.json:476〜479」を「477〜480」に (3) p2-weather-timeseries-unit.json:446 と :473 の requirement の末尾に「（2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で unmet:O02:3 は expected:O02:3 になり、O02:3・O02:4 は C22 の T01 で確かめる）」を足す (4) p2-order-plan.md:45 の備考の「`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23）」の後と、:46 の備考の末尾に「2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 は expected:O02:3 に充足、O02:3・:4 は C22 の T01 で確かめる」を足す（:46 の行の ID の列の unmet:O02:3 は当時の記録として残す） (5) 本契約の fixtureIds に test__fixtures__synthetic_VPWP50_newer_empty を、expectedDecisions と expectationEvidence に expected:O02:3 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
+      "原文の改訂（統合担当が配送の commit で当てる。(5) を除き、どれも行の中の書き足し・書き換えで、行を足さない）: (1) p3-final-gate.json:273 の orphan の 2 項目めの末尾に「→ P3-TIMESERIES-NEWER-EMPTY-001 で合成 1 本を足し、unmet:O02:3 を expected:O02:3（changed/semantic・inactive/noActiveItems・通知 0）にした。帳簿の案の字は U-F の試験内だったが、O02:4 も T01 で流すため corpus に足した（P3-TNE-D-WHERE）。unmet 88 → 87」を足す (2) p3-final-gate.json:186〜:189 の「p1-parser-boundary.json:476〜479」を「477〜480」に (3) p2-weather-timeseries-unit.json:446 と :473 の requirement の末尾に「（2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で unmet:O02:3 は expected:O02:3 になり、O02:3・O02:4 は C22 の T01 で確かめる）」を足す (4) p2-order-plan.md:45 の備考の「`:4`は前提のunmet:O02:3が充足するまで保留（2026-09-23）」の後と、:46 の備考の末尾に「2026-11-13 P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 は expected:O02:3 に充足、O02:3・:4 は C22 の T01 で確かめる」を足す（:46 の行の ID の列の unmet:O02:3 は当時の記録として残す） (5) 本契約の fixtureIds に test__fixtures__synthetic_VPWP50_newer_empty を、expectedDecisions と expectationEvidence に expected:O02:3 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
       "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
     ],
     "unresolvedQuestions": []
