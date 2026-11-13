@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f130ed396687593783f92e10757ef9863dea0bc2",
-    "sha256": "da36c21891a06be952f30cd21c38a96446b15268af3d61c0ff76c0daca4ed39d",
+    "sha256": "f5c101536af3ee6cd309b24316471d17cca4259ea08a901f4497b8edb926c8b3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {

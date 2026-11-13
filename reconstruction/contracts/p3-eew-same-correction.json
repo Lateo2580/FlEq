@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0e417215cd8043a8fde243bec0d19c23c3b9035e",
-    "sha256": "ff93d5b746ad7a81ac868a423654a785ca904278288e25da58f3606e4499add6",
+    "sha256": "4aaad339b113a7c2fc8dd50328576fc0c41087d1cddb8428042fc81c5d69efbe",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
-    "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
+    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
+    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -86,7 +86,8 @@
       "reconstruction/contracts/p1-parser-boundary.json（objective・P1-AC01・P1-T01・requiredCommands の件数と、fixtureIds に 2 行。meta は統合担当が取り直す）",
       "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（:46・:48・:50 の件数だけ）",
       "reconstruction/test/eew-unit/eew-unit.test.ts（:1169 の件数だけ）",
-      "reconstruction/test/final-gate/oracle.test.ts（:410〜:416 の数・一覧・コメントと、effectiveOf〔:115〜:126〕に U-E の取消の gate の読みの 1 行とそのコメント〔AC03 (5)〕だけ）"
+      "reconstruction/test/final-gate/oracle.test.ts（:410〜:416 の数・一覧・コメントと、effectiveOf〔:115〜:126〕に U-E の取消の gate の読みの 1 行とそのコメント〔AC03 (5)〕だけ）",
+      "reconstruction/test/terminal/width.test.ts（P3-TL-T05 の全 fixture の検査の 1 か所。地域名は sample ごとの renderer で、幅と … は sample ごとと共有の renderer の両方で確かめる。配送の改訂〔統合担当、2026-11-13〕で足した）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -122,12 +123,17 @@
       "test__fixtures__37_01_03_240613_VXSE43",
       "test__fixtures__77_01_01_240613_VXSE45",
       "test__fixtures__77_01_26_240613_VXSE45",
-      "test__fixtures__77_01_33_240613_VXSE45"
+      "test__fixtures__77_01_33_240613_VXSE45",
+      "test__fixtures__synthetic_VXSE43_same_version_correction",
+      "test__fixtures__synthetic_VXSE45_same_version_correction"
     ],
     "sequenceIds": [
       "O01"
     ],
     "expectedDecisions": [
+      {
+        "expectedRef": "expected:O01:4"
+      },
       {
         "expectedRef": "expected:O01:5"
       },
@@ -136,6 +142,9 @@
       },
       {
         "expectedRef": "expected:O01:7"
+      },
+      {
+        "expectedRef": "expected:O01:11"
       },
       {
         "expectedRef": "expected:O01:12"
@@ -149,6 +158,9 @@
     ],
     "expectationEvidence": [
       {
+        "expectedRef": "expected:O01:4"
+      },
+      {
         "expectedRef": "expected:O01:5"
       },
       {
@@ -156,6 +168,9 @@
       },
       {
         "expectedRef": "expected:O01:7"
+      },
+      {
+        "expectedRef": "expected:O01:11"
       },
       {
         "expectedRef": "expected:O01:12"
@@ -216,12 +231,12 @@
       },
       {
         "id": "P3-ESC-AC03",
-        "requirement": "C22 の T01 で 8 step が流れて一致する: (1) O01:4・5・6・7・11・12・13・14 が flow の表に入り（unmet の後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま (2) oracle.test.ts の数: unmet 90 → 88、dependsOnUnmet 13 → 7、flow 365 → 373、dependsOnUnmet の一覧は [O02:4, O03:8, O03:10, O03:11, O03:12, O03:13, O03:14]。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13・prepared 15 は変えない。:410 のコメントに「2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した」を足す (3) T02 も緑のまま（見込み: 新しく流れる取消 O01:5・O01:12 は U-E だけが変え、保存の inputIds に入る。走らせて確かめていない） (4) O01:4・11 の actual が AC02 と違うか、O01:5〜7・12〜14 のどれかが (5) の直しの後も食い違うか、T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する (5) oracle の読みの直し（統合担当の決め、2026-11-13 起草レビュー r0 の Opus P1・ヘルツ P2-1。担い手は本契約）: U-E の取消の採用は current を [] にし、gates に terminal で InfoType 取消の gate を残す（eew.ts:599〜:605）。recordOf は current に無ければ gates を引き、effectiveOf は effective の欄の無い記録を active と読む（:117・:118）ので、O01:5〜7・12〜14 の effective が期待 inactive/cancelled に対し active になる（製品の誤りではない）。effectiveOf の :116（record == null の行）の直後、effective === undefined の判定より前に、unit が U-E で record.terminal === true かつ record.source.infoTypeRaw === \"取消\" なら { kind: inactive, cause: { kind: cancelled } } を返す 1 行を足す（無いと U-E の取消の後の effective を T01 で比べられない）。:114 のコメントに「U-E の取消の gate は cancelled」を足す（行の中の書き足しで行の数は変えない）。起草レビューで Opus がこの直しを当てて流し、mismatches 0・T02 緑・数は unmet 88・dependsOnUnmet 7・flow 373・hollow 13・prepared 15 を確かめた",
+        "requirement": "C22 の T01 で 8 step が流れて一致する: (1) O01:4・5・6・7・11・12・13・14 が flow の表に入り（unmet の後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま (2) oracle.test.ts の数: unmet 90 → 88、dependsOnUnmet 13 → 7、flow 365 → 373、dependsOnUnmet の一覧は [O02:4, O03:8, O03:10, O03:11, O03:12, O03:13, O03:14]。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13・prepared 15 は変えない。:410 のコメントに「2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した」を足す (3) T02 も緑のまま（見込み: 新しく流れる取消 O01:5・O01:12 は U-E だけが変え、保存の inputIds に入る。走らせて確かめていない） (4) O01:4・11 の actual が AC02 と違うか、O01:5〜7・12〜14 のどれかが (5) の直しの後も食い違うか、T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する (5) oracle の読みの直し（統合担当の決め、2026-11-13 起草レビュー r0 の Opus P1・ヘルツ P2-1。担い手は本契約）: U-E の取消の採用は current を [] にし、gates に terminal で InfoType 取消の gate を残す（eew.ts:599〜:605）。recordOf は current に無ければ gates を引き、effectiveOf は effective の欄の無い記録を active と読む（:117・:118）ので、O01:5〜7・12〜14 の effective が期待 inactive/cancelled に対し active になる（製品の誤りではない）。effectiveOf の :116（record == null の行）の直後、effective === undefined の判定より前に、unit が U-E で record が gate の記録（retainUntil を持つ記録。current に無く gates から引いたもの）なら { kind: inactive } を返し、cause は record.source.infoTypeRaw === \"取消\" なら cancelled、record.terminal === true なら released、ほかは expired とする 1 行を足す（無いと U-E の取消の後の effective を T01 で比べられない。品質レビューの P2 で、取消の terminal の gate だけを読む形からこの形に強めた〔配送の改訂、統合担当 2026-11-13〕。current を消す変異で O01:4・11 が落ちることを実装担当が確かめた）。:114 のコメントにこの読み〔U-E の gate は current が無いので取消なら cancelled・終わりなら released・ほかは expired〕を足す（行の中の書き足しで行の数は変えない）。起草レビューで Opus がこの直しを当てて流し、mismatches 0・T02 緑・数は unmet 88・dependsOnUnmet 7・flow 373・hollow 13・prepared 15 を確かめた",
         "evidenceRefs": [
           "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
           "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
-          "reconstruction/test/final-gate/oracle.test.ts:302 «aed348fc8f40aa42»",
-          "reconstruction/test/final-gate/oracle.test.ts:117 «bfe87cf0fab19b4c»",
+          "reconstruction/test/final-gate/oracle.test.ts:303 «aed348fc8f40aa42»",
+          "reconstruction/test/final-gate/oracle.test.ts:118 «bfe87cf0fab19b4c»",
           "reconstruction/src/domains/eew/eew.ts:599 «b0942936e8d96798»",
           "reconstruction/contracts/p3-final-gate.json:790 «89a900a299a6e44b»"
         ]
@@ -354,7 +369,8 @@
       "digest と «» の取り直し（AC06）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
       "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の数を報告して止める。allowedPaths の外は直さない",
       "原文の改訂（統合担当が配送の commit で当てる）: (1) p3-final-gate.json:272 の orphan の 1 項目めの末尾に「→ P3-EEW-SAME-CORRECTION-001 で入力 2 本を足し、O01:4・11 の期待を unchanged/stale に直した（仮定震源でない発表→訂正の同じ版は R37 の duplicate でなく P3-VM-AC03 の same で中身が違う組。通知しないのは同じ）。unmet 90 → 88」を足す（行の中の書き足しで、行の数は変えない） (2) 本契約の fixtureIds に合成の 2 本を、expectedDecisions と expectationEvidence に expected:O01:4・expected:O01:11 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
-      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す"
+      "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す",
+      "配送の改訂（統合担当、2026-11-13）: (a) reconstruction/test/terminal/width.test.ts を allowedPaths に足した。実装（4a08b83c）で、P3-TL-T05 の全 fixture の検査が使い回す共有の renderer が、同じ EventID の VXSE45（77_01_*）の後に path の順で描く合成の VXSE43 を畳んで 0 行にし、地域名の検査が落ちたため。地域名の検査は sample ごとの renderer で行い、幅と … の検査は sample ごとと共有の renderer の両方に当てる (b) AC03 (5) の effectiveOf の 1 行は、品質レビューの P2 で「U-E の gate の記録〔retainUntil を持つ〕を inactive と読み、cause は取消→cancelled・terminal→released・ほか→expired」に強めた。current を消す変異で O01:4・11 が落ちることを実装担当が確かめた。AC03 (5) の字もこれに合わせた"
     ],
     "unresolvedQuestions": []
   }
