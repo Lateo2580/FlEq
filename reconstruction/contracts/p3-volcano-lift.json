@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "61265374c272ef2a27fff9d5534b2e123089fb3c",
-    "sha256": "af2f4cfc18436d71fdc05bf47edf160bdd6a894da8a980e8f26adcfc37af3632",
+    "sha256": "569412c0069ca8bb0a6406127cff41388525d6a32ec1a899c5f2c6c6b55bb164",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -25,8 +25,8 @@
         "B": "その subject の pending を両側とも置き換える（今の P3-C9-REPLACEMENT=A のまま）。VFVO51 の entry は、記録が active に残っても、その subject の pending を全部撤回する（:1053 の条件に、entry の区分が inactive を足す）",
         "recommended": "A",
         "provisional": "A",
-        "status": "未裁定（作者に聞く、2026-11-13 起草 r1）",
-        "ruling": "未裁定",
+        "status": "確定（作者、2026-11-13 昼）",
+        "ruling": "作者裁定 A（2026-11-13 昼、判断カードの推奨どおり）",
         "reason": "場面（浅間山、報の間隔が寿命〔desktop 180 秒・sound 60 秒、volcano-unit.ts:45〕の内）: 13:02:00 に VFSV の周辺海域警戒、13:03:00 に VFVO50 のレベル 3 で warning が desktop・sound に pending（VFSV の pending はこれに置き換わる）、13:03:30 に VFSV の周辺海域警戒の解除。A ではレベル 3 の warning 2 本が残り、海上の解除の normal 2 本が足される。B では海上の解除の normal 2 本が、まだ有効な陸のレベル 3 の warning 2 本を置き換え、配送が遅れていればレベル 3 の警報は鳴らない。逆向き（陸の解除の前に海上の warning が pending）も同じ形。どちらでも、VFVO51 の引下げの後に前の VFVO50 の Lv3 の warning が鳴る件（P3-UV2-AC01 の族。海上より新しい引下げも、海上より古い〔!takeKind の〕引下げも）は閉じる。A を推すのは、取消の部分で作者が決めた形（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09）と同じで、まだ有効な側の通知を消さないため。違いが出るのは pending が配送される前だけ（ふつうは数秒で配送される）。作者に聞くのは、どちらも今と音が違う所があり、作者の裁定 P3-VL-D-KEEP=A からは一意に出ないため（起草レビューのヘルツ・Opus の指摘）"
       },
       {
