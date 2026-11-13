@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "61265374c272ef2a27fff9d5534b2e123089fb3c",
-    "sha256": "401d7a5258266ead91653a6b31bf3d00666cff28cd1aa81d05d79476f5d937db",
+    "sha256": "0a6a2ece1e629f65e80a0bb0a3e16b3ca114a34823ddc4af78db353f9420549f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -228,7 +228,7 @@
         "requirement": "陸の側の解除（VFVO50）で、海上が支えるなら残す（P3-VL-D-KEEP=A）: (1) VFVO50 の報が解除の分岐（:386、区分が null か activeKind でない。解除・引下げ・レベル 1 の継続など）に入り、採用の前の記録が active で、marineSource があり、marineKind が null でなく activeKind なら、警報を active のまま残す。残す事実は P3-VL-D-FACTS=A（kind＝marineKind、level＝levelOf、headline・municipalities・prevention・lastKind は消す、landKind は解除の報の区分）。陸の印は持たない（P3-VL-D-MARK=A） (2) 場面: 桜島（506）。10:00 に VFVO50 でレベル 3（引上げ）が出て warning。10:00:01 に 46_01_01_170103_VFSVii.xml（周辺海域警戒 36・海上警報 31）が着き、Control/DateTime が新しいので kind を採り（:365・:367）、状態は active／kind 36／landKind 13／marineKind 36。15:00 に VFVO50 でレベル 1 への引下げ（45_03_01_200731_VFVO50.xml の形）が着く。海上の版より新しいので解除の分岐に入る。今は警報全体が ended になり（:391）、view の alerts から海上の警報も消え、次の VFSV まで戻らない。直した後は active／kind 36／level null／landKind（11、引下げ）／marineKind 36 で、volcanoName・coordinate・marineAreas は残り、source は 15:00 の VFVO50 に進む。view の active の数は 1 のまま（:1379） (3) 通知: 15:00 の報の通知は、今と同じく level normal の desktop・sound の 2 本で、本文も同じ。transition は released から updated になる（P3-VL-D-TRANSITION=A）。続けて 15:05 に同じ内容のレベル 1 の報を新しい版で受け直しても、今と同じく normal 2 本を作る（表示は変わらないが :773 で止めない、P3-VL-D-RENOTICE=A） (4) pending（P3-VL-D-WITHDRAW-SIDE の推奨 A）: 報の間隔が寿命の内の場面（10:00:00・10:00:01・10:00:30）では、10:00:01 の VFSV の warning 2 本が残り、VFVO50 の normal 2 本が足される。今は VFVO50 の通知が両側の pending を置き換え、まだ有効な海上警報の warning が消える (5) 保存・復元を挟んでも同じ記録・同じ pending になる",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:386 «b0ab14ff34538bdf»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:391 «80af27175267cb74»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:391 «41e183ac99d2bb46»",
           "reconstruction/src/units/volcano/volcano-unit.ts:379 «74907245797fe959»",
           "reconstruction/src/units/volcano/volcano-unit.ts:300 «3f50b8bf97db587b»",
           "reconstruction/src/units/volcano/volcano-unit.ts:365 «15146190816c63b5»",
@@ -236,15 +236,15 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:367 «644bad59adbe4964»",
           "reconstruction/src/units/volcano/volcano-unit.ts:762 «b61456ccdd964e2c»",
           "reconstruction/src/units/volcano/volcano-unit.ts:770 «b35a3db7388607eb»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:771 «d7aac3aff1b13945»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:773 «bf5d024209d0270a»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:771 «a12a11aa4224d03d»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:773 «08903cd3ccbb38b4»",
           "reconstruction/src/units/volcano/volcano-unit.ts:775 «eb52a1cd1b2740c8»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1073 «d63cd8a83e2af9c9»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1379 «41c43b83130ab3be»",
           "reconstruction/contracts/p3-volcano-unit-002.json:29 «06ab1633758ef2e7»",
           "reconstruction/contracts/p3-volcano-unit-002.json:35 «072510fcef92c416»",
           "reconstruction/contracts/p3-volcano-unit-002.json:57 «3ce70e9ae05bc394»",
-          "reconstruction/contracts/p3-volcano-unit-002.json:219 «571030006797344a»"
+          "reconstruction/contracts/p3-volcano-unit-002.json:219 «ff256f58b0b4a438»"
         ]
       },
       {
@@ -254,7 +254,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:371 «10f908b8191cbb83»",
           "reconstruction/src/units/volcano/volcano-unit.ts:375 «dc341d2e69ab640f»",
           "reconstruction/src/units/volcano/volcano-unit.ts:386 «b0ab14ff34538bdf»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:391 «80af27175267cb74»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:391 «41e183ac99d2bb46»",
           "reconstruction/src/units/volcano/volcano-unit.ts:777 «2e6faeb348a71336»",
           "reconstruction/src/terminal/prompt-current.ts:65 «a18a61ecf1d2d070»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1379 «41c43b83130ab3be»",
@@ -265,13 +265,13 @@
         "id": "P3-VL-AC03",
         "requirement": "VFVO51 の火山 entry の引下げで、海上が支えるなら残す（P3-VL-D-KEEP=A）: (1) 解除の分岐に入る VFVO51 の火山 entry（解除・引下げのほか、レベル 1 や 21 の継続）は、陸の側の解除として AC01 (1) と同じに扱う（事実・landKind・印も同じ）。持ち越しの判定（:328）による前の陸の印の引き継ぎはしない（P3-VL-D-MARK=A） (2) applyEntries の撤回: 採用の前に active だった記録が、inactive の区分の entry の採用の後も active のまま残るときは、その subject の陸の pending（VFVO50・VFVO51）だけを撤回する（鍵 `${subject}\\n${LAND_PART}`、P3-VL-D-WITHDRAW-SIDE の推奨 A。B なら全部）。active でない記録になるとき・期限を過ぎた採用のときの全部の撤回（P3-UV2-AC01・P3-FINAL-AC04）は今のまま (3) 場面（海上より新しい引下げ）: 浅間山（306）。13:02 に VFSV（周辺海域警戒 36）、13:03 に VFVO50 でレベル 3（Control が新しいので kind は 13 に替わり、warning 2 本が pending、VFSV の pending はそれに置き換わる）、13:03:30 に VFVO51 の 306 の entry がレベル 1 の引下げで着く。今は警報全体が ended になり、pending は全部外れる。直した後は active／kind 36／landKind（11、引下げ）／marineKind 36 で、13:03 の VFVO50 の warning 2 本は外れ、残るのは VFVO51 の解説の info 2 本だけになる (4) 場面（海上より古い引下げ、!takeKind）: 13:03:40 の VFSV が先に着き、続いて 13:03:00 の VFVO50 のレベル 3 が着く（kind は 36 のまま、陸の事実と warning 2 本）。13:03:30 の VFVO51 の引下げは、陸の版より新しく海上の版より古いので !takeKind（:380）に入り、記録は active のまま。今は撤回が無く、引下げの後にレベル 3 の warning 2 本が鳴る。直した後は (2) の鍵で外れる (5) 定時の VFVO51 の entry が海上の支える記録にレベル 1 や 21 の継続を書いてきても、今は ended、直した後は active のまま (6) 13:03 の VFVO50 の火山名が読めず陸の印がある記録でも、(3) の後の記録に陸の印は無い。保存・復元を挟んでも同じ記録になる",
         "evidenceRefs": [
-          "reconstruction/src/units/volcano/volcano-unit.ts:1053 «e0ac489c40d04824»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1053 «56663a8fa20b9b38»",
           "reconstruction/src/units/volcano/volcano-unit.ts:328 «9674a4c353c609d6»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:355 «55ef9ff7b7003f19»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:355 «59e046ed28291f94»",
           "reconstruction/src/units/volcano/volcano-unit.ts:380 «92b1667a4cdddaab»",
           "reconstruction/src/units/volcano/volcano-unit.ts:388 «860b4387eb4ac3f1»",
           "reconstruction/test/volcano-unit/volcano-unit.test.ts:1339 «ad79b9ff4c4352ba»",
-          "reconstruction/contracts/p3-volcano-unit.json:154 «a3eef9be6bd6a842»"
+          "reconstruction/contracts/p3-volcano-unit.json:154 «a6e39cf2883ba5db»"
         ]
       },
       {
@@ -283,7 +283,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:1704 «5f780bfafb9e5852»",
           "reconstruction/contracts/p3-volcano-unit.json:255 «7f8cc176c308ce39»",
           "reconstruction/contracts/p3-volcano-unit.json:341 «6fb47491ac41a9d0»",
-          "reconstruction/contracts/p3-volcano-unit.json:995 «edad9dbf686ae866»"
+          "reconstruction/contracts/p3-volcano-unit.json:995 «b234f462537fe988»"
         ]
       },
       {
@@ -291,7 +291,7 @@
         "requirement": "計算量と行（P3-VL-RES-01）: (1) 受信 1 回で足すのは、記録 1 件のもう一方の側の区分の読み、撤回の鍵 1 つ、版の比べ 1 回だけ。全件×全件の走査も、state・intent 全体の直列化も足さない (2) volcano-unit.ts の行の数を変えない。«» で引かれた行（Q-VL-ANCHORS）の中身を変えない",
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:370 «d19d4af4bb2fbd19»"
+          "reconstruction/src/units/volcano/volcano-unit.ts:370 «058fdc2e55350376»"
         ]
       },
       {
@@ -302,7 +302,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:365 «15146190816c63b5»",
           "reconstruction/src/units/volcano/volcano-unit.ts:367 «644bad59adbe4964»",
           "reconstruction/src/units/volcano/volcano-unit.ts:380 «92b1667a4cdddaab»",
-          "reconstruction/src/units/volcano/volcano-unit.ts:382 «bf7c5713ad704416»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:382 «2754c44a0d21e033»",
           "reconstruction/src/units/volcano/volcano-unit.ts:104 «ee67c3c47e745e7e»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1480 «a67c0c3baaeb2c12»",
           "reconstruction/src/units/volcano/volcano-unit.ts:1511 «e125272aea60d91e»",

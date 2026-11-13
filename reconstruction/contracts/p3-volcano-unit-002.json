@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a90a284e632b82a1cc92f7bc92f026aaccdb6e07",
-    "sha256": "6a32da6f340a5bb98a5e3611cd6f39561758f4de77d327a92c962851ed81eddd",
+    "sha256": "5b83d247fb8bc12e12b90fb9be3630a39975e151b3deeda685f019df25bce5c7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -216,7 +216,7 @@
       "なし"
     ],
     "outOfScope": [
-      "解除・引下げ（取消でない inactive の区分）が警報全体を ended にする規則（I-U-V.alertSemantics (3) のまま。VFVO50・VFSV・VFVO51 のどれでも、もう一方の側が active でも ended。再裁定 B は取消だけ）",
+      "解除・引下げ（取消でない inactive の区分）が警報全体を ended にする規則（I-U-V.alertSemantics (3) のまま。VFVO50・VFSV・VFVO51 のどれでも、もう一方の側が active でも ended。再裁定 B は取消だけ） → P3-VOLCANO-LIFT-001 で、もう一方の側の区分が active を支えるなら active を保つ形に改めた（2026-11-13 朝の作者の裁定 A）",
       "VFVO51 の火山 entry が active のまま区分を下げたとき（Lv3 から Lv2 など）の前の pending（撤回は active でない記録に落ちるときだけ、P3-UV2-D-WITHDRAW の裁定の範囲）。→ 残存リスクとして作者承認 2026-11-13（判断カード「P3 の残り（11-12 夜の走行から）」§5 の 5-1）: 噴火警戒レベル 3 の引上げの通知がまだ鳴らないうちに（最長 180 秒）、同じ火山の VFVO51 でレベル 2 への段下げが届くと、レベル 2 の通知の後にレベル 3 の音と通知が出る（volcano-unit.ts:1053 の撤回の条件が「active でなくなったとき」だけのため）。直さない。直すなら撤回の条件に「区分が下がった」の 1 条件で、音が 1 回減る",
       "VFSV の取消の効き方（P3-C9-MARINE=A・Q-C9-IMPL-AMEND(9)(a) のまま）と、火山コードの無い取消の結び付け（P3-AUTH-AC03 (3) のまま）",
       "取消の通知の文面・level（今の cancelText と cancelledOf のまま）",

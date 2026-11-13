@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "b7c5999889d82f832b68f5bd579a8b2aa67a880f",
-    "sha256": "ff8892dd8406d5601ba321aa5414b316b95f45131cbe7c2eb48d9b88b6b31fff",
+    "sha256": "8eb5054b2e226ed937d9d16b21069e09799d25bd85ba34769d486adfff784061",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -23,7 +23,7 @@
         "C": "Aのうち、記録の無い火山へのinactiveの報は、どのfamilyでも記録を作らず通知もしない（起草の初版。単独のVFVO50の解除が初回起動の前の引上げに当たると無音になるので退けた）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-09夜、ご主人）、推奨どおり",
+        "ruling": "作者裁定A（2026-10-09夜、ご主人）、推奨どおり → 解除でももう一方の側が支えるなら active を保つ（2026-11-13 の作者の裁定、P3-VOLCANO-LIFT-001）",
         "reason": "見え方の違い（corpusの44_01_01_151008_VFVO51、全国の火山の状況に関する解説情報、2015-10-08）: この報は112火山を列挙し、21（活火山であることに留意）が65火山、35が11火山、11（レベル1）が22火山で、どれもConditionは継続。Bでは76火山が「活火山であることに留意」のactiveの警報になり、再起動の後も戻る（警報の記録の上限128件の6割）。Aではレベル2以上と非数値の警戒（22・23・36）の14火山だけがactiveになり、留意の列挙は記録を作らない。単独のVFVO50・VFSVは記録が無くても通知するので、旧築と同じく報ごとに鳴る（C9はREST回復をしない、P3-C9-N2。初回起動の前に引き上げられた火山の解除・引下げが無音にならない）。spec §8の器の推奨は火山L3を通常（spec:1447）、火山L2を見出し（spec:1448）に割り当て、レベル1相当の器は無い。Aの代償: レベル1・留意の火山は「警報の記録なし」と区別できない（どちらも画面に出ない）。表に無いcodeをactiveに残すのは、気象庁のcodeの追加で警報を捨てないため（C8のP3-C8-CODE-TABLEと同じ向き）"
       },
       {
@@ -151,7 +151,7 @@
         "B": "置き換えずに全部残す",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "統合担当が起草で確定（P2-A4 Q-NOTICEの最新一件の置換、C8のP3-C8-REPLACEMENTと同じ）。陸の部分だけの取消の撤回は陸の pending だけ（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09 の作者の裁定）、VFVO51 の entry が active を ended にする採用も撤回する、P3-UNIT-V-002",
+        "ruling": "統合担当が起草で確定（P2-A4 Q-NOTICEの最新一件の置換、C8のP3-C8-REPLACEMENTと同じ）。陸の部分だけの取消の撤回は陸の pending だけ（P3-UV2-D-WITHDRAW-SIDE=A、2026-11-09 の作者の裁定）、VFVO51 の entry が active を ended にする採用も撤回する、P3-UNIT-V-002。解除で記録が active に残るときの撤回と置換は P3-VL-D-WITHDRAW-SIDE（P3-VOLCANO-LIFT-001）の裁定のとおり",
         "reason": "Bでは引上げの通知が未配送のうちに次の引上げが来ると、古い段階の音も後から鳴る"
       },
       {
@@ -336,7 +336,7 @@
       },
       {
         "id": "I-U-V",
-        "status": "frozen（P3-C9-ERUPTION-SUBJECT=A・P3-C9-ALERT-ACTIVE=A・P3-C9-BULLETIN=A・P3-C9-SHORTFALL=A・P3-C9-MARINE=A、作者裁定 2026-10-09夜）。alertSemantics (4) と decode と capacityReserve は P3-UNIT-V-002 で marineKind と陸の部分だけの取消を足した、版 v8",
+        "status": "frozen（P3-C9-ERUPTION-SUBJECT=A・P3-C9-ALERT-ACTIVE=A・P3-C9-BULLETIN=A・P3-C9-SHORTFALL=A・P3-C9-MARINE=A、作者裁定 2026-10-09夜）。alertSemantics (4) と decode と capacityReserve は P3-UNIT-V-002 で marineKind と陸の部分だけの取消を足した、版 v8。alertSemantics (3) の解除は P3-VOLCANO-LIFT-001 で、もう一方の側が支えるなら active を保つ（事実・pending・印は取消の部分と同じ形、両側の支えが消えれば着く順によらず ended）",
         "subjects": "P3-C9-SUBJECTS=A。一入力は、その報のsliceのsubjectだけを変える",
         "alertSemantics": "(1) VFVO50・VFSV（対象火山のItemの先頭1件）: activeの区分なら、P3-C9-MARINE=Aのとおりその報のfamilyが持つfieldだけを置き換え、他を保ち、自分のfamilyのwatermark（sourceかmarineSource）を進める（記録が無ければ持たないfieldはnullか空、VFSVのvolcanoName・coordinateは記録が無いときだけ埋める）。municipalitiesはBody/VolcanoInfo（typeに「対象市町村等」を含む）のItemのKindの名前ごとのArea/Code、marineAreasは「対象海上予報区」の同じ形 (2) VFVO51の火山entry: activeの区分で、採用前の記録がactiveで区分のcodeとlevelが同じなら、unchanged/noChange（記録とwatermarkを変えない。VFVO50の事実を保つ）。区分が違えばkind・levelを置き換え、前の区分の説明であるheadline・lastKind・municipalitiesを消し、volcanoName・coordinate・marineAreasは保つ (3) inactiveの区分・解除: 記録がactiveならeffective=endedにして事実を捨て、sourceを進める。記録がinactiveならwatermarkの比較で新しければrevisionOnly。記録が無ければ、単独のVFVO50・VFSVはendedの記録を作り（watermarkだけでviewは変わらないのでchanged/revisionOnly、通知はQ-NOTICE.generationTableのinactiveAdoption）、VFVO51のentryは解除・引下げのときだけendedの記録を作り、ほかは記録を作らずunchanged/noChange（P3-C9-ALERT-ACTIVE=A） (4) 取消はP3-C9-CANCEL-SCOPE (5) inactiveの記録はretainUntil（sourceとmarineSourceの新しい方のReportDateTime+30日）の到来で除く。activeの記録は期限で消えない。changeは公開事実（effectiveとactiveの事実）が変わればsemantic、watermarkだけが進めばrevisionOnly",
         "eruptionSemantics": "発表・訂正はsubject（EventID）の事実を置き換える（flash=VFVO56、phenomenon、eventDateTimeRaw、craterName、噴煙の高さ2つ、plumeDirection、headline、対象市町村のcode）。validUntil=ReportDateTime+1日の到来でexpired（事実を捨てる、通知しない）、retainUntil=+2日で除く。取消はcancelled。VFVO52とVFVO56は同じsubjectの名前空間を使い、版の比較だけで並ぶ",
@@ -992,7 +992,7 @@
       },
       {
         "id": "P3-C9-AC02",
-        "requirement": "警報（I-U-V.alertSemantics、P3-C9-ALERT-ACTIVE・P3-C9-VFVO51-ATOMIC・P3-C9-MARINE）: codeをXMLの文字列で引き、activeの区分でだけactiveの記録を作り、inactiveの区分・解除はactiveの記録をendedにし、記録の無い火山へのVFVO51の継続など（留意の列挙）では記録を作らない。VFVO51の同じ区分の継続はVFVO50の事実を保つ（noChange）。VFVO51はentryのどれかがstale・食い違いなら報全体を適用せずvolcanoRevisionConflict、重複・noChangeでは捨てない。VFSV50〜61とVFVO50は同じ警報subjectで自分のfieldだけを更新し、互いのfieldを消さない（46_01_01をVFSV50として、P3-C9-MARINE）。記録の無い火山への単独のVFVO50・VFSVのinactiveの報はendedの記録と通知（inactiveAdoption）、VFVO51のentryは解除・引下げだけendedの記録で、entryごとの通知は無い。全国のVFVO51（44_01_01）で、activeになるのはレベル2以上と22・23・36の火山だけ。semanticとrevisionOnlyの区別、normal/training/testの区分交差0",
+        "requirement": "警報（I-U-V.alertSemantics、P3-C9-ALERT-ACTIVE・P3-C9-VFVO51-ATOMIC・P3-C9-MARINE）: codeをXMLの文字列で引き、activeの区分でだけactiveの記録を作り、inactiveの区分・解除はactiveの記録をendedにし（もう一方の側の区分が支えるなら active を保つ、P3-VOLCANO-LIFT-001）、記録の無い火山へのVFVO51の継続など（留意の列挙）では記録を作らない。VFVO51の同じ区分の継続はVFVO50の事実を保つ（noChange）。VFVO51はentryのどれかがstale・食い違いなら報全体を適用せずvolcanoRevisionConflict、重複・noChangeでは捨てない。VFSV50〜61とVFVO50は同じ警報subjectで自分のfieldだけを更新し、互いのfieldを消さない（46_01_01をVFSV50として、P3-C9-MARINE）。記録の無い火山への単独のVFVO50・VFSVのinactiveの報はendedの記録と通知（inactiveAdoption）、VFVO51のentryは解除・引下げだけendedの記録で、entryごとの通知は無い。全国のVFVO51（44_01_01）で、activeになるのはレベル2以上と22・23・36の火山だけ。semanticとrevisionOnlyの区別、normal/training/testの区分交差0",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:500 «6d7fa2bbb46fac73»",
           "docs/specs/reconstruction-p0-contracts.md:618 «10a5c6c83219be19»",
