@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "16d4e82fa0d53088d05ffff4e9b442698cd975b461522e078db678424046e8f5",
+    "sha256": "0e71bc3bca36ad0ede490a23ab98452fbb816327e77d1708e444d01529f343d5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
@@ -744,7 +744,8 @@
       "受信経路の計算量（AGENTS.md）: 製品の hot path に触れない。T01 の照合は step ごとに 1 回で、state 全体の直列化で比べない",
       "帳簿（統合担当）: AC03 の unmet の表（step ごとの行き先）、AC04 の必須機能の表、AC11 の 18 行の表、AC12 の 94 行の区分の一覧を成果物に出す",
       "測定の記録（発注 3）: AC09 は筋書きごとの Pass・Fail・blocked と digest・commit・契約の版、AC08 は P3-PH-AC08 の (1)〜(7) の記録と区間の分解、AC10 は場面・演じ手ごとの答え・ずれと行き先の表。private corpus と測定の生データは公開の Actions・artifact に渡さない（計画:112）",
-      "残存リスク（起草案、閉じる前に作者に見せる）: (1) :242 の E05-P は owner 4 本（P3-SEISMIC-PLACE-001）の後に測り直した記録を見ていない (2) Pi の値は予備で正式 Pass ではない。Pi 72 時間・E16〜E19 は P5 (3) 災害の日の合格は通知が溢れたとき・保存に失敗したとき・Pi の実時間の遅れとメモリを保証しない（計画:496） (4) ペルソナの演じ手の答えは仮説 (5) 移行器が無いので、30 日より前に出て今も有効な情報は切替で失いうる（計画:610 の数えは P5 の前） (6) C21 の外出しで personal 有効の O09/O10 と export の故障隔離は未検収（P5 の前に決め直す） (7) unmet は 0 にならない（O06:30 ほか、AC03 の表）"
+      "残存リスク（起草案、閉じる前に作者に見せる）: (1) :242 の E05-P は owner 4 本（P3-SEISMIC-PLACE-001）の後に測り直した記録を見ていない (2) Pi の値は予備で正式 Pass ではない。Pi 72 時間・E16〜E19 は P5 (3) 災害の日の合格は通知が溢れたとき・保存に失敗したとき・Pi の実時間の遅れとメモリを保証しない（計画:496） (4) ペルソナの演じ手の答えは仮説 (5) 移行器が無いので、30 日より前に出て今も有効な情報は切替で失いうる（計画:610 の数えは P5 の前） (6) C21 の外出しで personal 有効の O09/O10 と export の故障隔離は未検収（P5 の前に決め直す） (7) unmet は 0 にならない（O06:30 ほか、AC03 の表）",
+      "発注 1 の記録（統合担当、2026-11-13）: (1) 試験は c6efb1ba（reconstruction/test/final-gate/oracle.test.ts の T01・T02、shutdown.test.ts の T03 の 4 場面。Opus 5.5）。T01 は最初の実走で、流した 366 step のうち 5 step・7 欄が食い違った（U-W の subject の官署の名 3、O08:5 の decision が null、O11:2 の空の Body）。調べ（読むだけの子）で 3 種とも製品が決まりどおり・corpus の期待が古いと分かった (2) 統合担当の決め: 種 1 は sequences.json の expected:O03:2・O03:3・O09:2 の字を EditorialOffice の名に直す（p2-weather-current-unit.json:109 の identityRule、168d3018 の R19=A の直し漏れ）。種 3 は R18=A と同じく O11:2 と、同じ fixture の欠けがある O11:4 を unmet にする（fixture と manifest は変えない、行き先は (e)）。種 2 は T01 で「advanceClock で reduce が呼ばれなければ unchanged/noChange と読む」（p2-shared-runtime.json:749、owner-runtime.ts:326-328）。AC01 (1) の「null でない欄は一致」の例外として、この 1 つだけを置く。どれも画面・音・記録を変えない (3) corpus の直しと全 136 契約の sequencesSha256・自己 digest の取り直しは 4acb9ae3（sequences の sha256 0cc65646…、行の数は 28077 のまま）。これで unmet は 88 → 90、AC03 の (e) は 34 → 36、injectFailure の後続の別表は 48 → 47（O11:4 が unmet の表へ移る）。AC01・AC03 と Q-FG-DRAFT の 88・48 の字はこの記録で読み替える (4) T01・T02・T03 は既定の順と shuffle で緑、全 reconstruction の vitest も rc 0（実装担当の手元）。帳簿 AC03・AC04・AC11・AC12 の表は発注 1 の残りとして統合担当が書く"
     ],
     "unresolvedQuestions": [
       {
