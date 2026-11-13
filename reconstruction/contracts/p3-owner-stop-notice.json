@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6f16239104aeaf667f3ab6ea26df459ebcf16dd3",
-    "sha256": "8c4139b2442113eca827803269cc286dc6bf0131590b7491e20ea8825f8b25d1",
+    "sha256": "25ae8b2e42d3b8846a71e9cf7f63bf0ce92a27975d235f1641f7265c3529627a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -143,7 +143,7 @@
     "contractId": "P3-OWNER-STOP-NOTICE-001",
     "mode": "implementation",
     "objective": "急ぐ側（urgent）の owner が止まったことを利用者に 1 回知らせる（C11 の 1 段目。作者の決め 2026-11-13 19 時台: P3 では知らせるだけを出し、作り直しは P5 へ送る）。今は、U-E・U-T・U-N・U-V を処理する urgent の owner の thread が例外で落ちると黙って止まり（P3-C3B-OWNER-STOP=A・AUTO-RESTART=A）、その後の緊急地震速報は画面にも音にも出ず、端末・デスクトップ通知・音には何も出ない（Chrome の状態の行の「worker: 停止（停止系）」と診断の file だけ）。場面: 21:12:00 に U-T の VTSE41 の処理で urgent の owner が落ちる。直した後は、21:12:00 に端末へ「━ 緊急地震速報などの処理が止まりました ━━━」「21:12:00 から、緊急地震速報・津波・南海トラフ・火山の情報を処理していません。」「FlEq を起動し直してください。」の帯が出て、デスクトップ通知と音が 1 回出る（mute と sound off の条件は P3-OSN-D-MUTE）。同じ run で 2 回は出さない。止める処理・終了の段と code・作り直さないことは変えない",
-    "baseOid": "unassigned",
+    "baseOid": "4b4dd9130c60738984bb39a4be89b2f07e653da2",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
