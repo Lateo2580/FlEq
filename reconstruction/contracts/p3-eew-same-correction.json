@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0e417215cd8043a8fde243bec0d19c23c3b9035e",
-    "sha256": "b9024372a2bb04f82a048cfe42b4d8d1cde71ec55c6bc23145beb49eff2914a1",
+    "sha256": "67385b0082d052d304f2241fcdc24baa53374ed13833e35e76871358c248ffcf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -86,7 +86,7 @@
       "reconstruction/contracts/p1-parser-boundary.json（objective・P1-AC01・P1-T01・requiredCommands の件数と、fixtureIds に 2 行。meta は統合担当が取り直す）",
       "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（:46・:48・:50 の件数だけ）",
       "reconstruction/test/eew-unit/eew-unit.test.ts（:1169 の件数だけ）",
-      "reconstruction/test/final-gate/oracle.test.ts（:410〜:416 の数・一覧・コメントと、effectiveOf〔:115〜:126〕に U-E の取消の gate の読みの 1 行とそのコメント〔AC03 (5)〕だけ）",
+      "reconstruction/test/final-gate/oracle.test.ts（:410〜:416 の数・一覧・コメントと、effectiveOf〔:115〜:126〕に U-E の gate の記録を inactive と読む 1 行とそのコメント〔AC03 (5)〕だけ）",
       "reconstruction/test/terminal/width.test.ts（P3-TL-T05 の全 fixture の検査の 1 か所。地域名は sample ごとの renderer で、幅と … は sample ごとと共有の renderer の両方で確かめる。配送の改訂〔統合担当、2026-11-13〕で足した）"
     ],
     "allowedGitCommands": [
@@ -260,7 +260,7 @@
       },
       {
         "id": "P3-ESC-AC06",
-        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・b3df1e3f）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない（行の数と整形を変えない） (3) «» の付け直し: p1-parser-boundary.json に 2 行足すので、p3-xml-tree-compact.json が引く :501 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :545・:547・:548・:556 の行番号を 2 足す（anchor は中身が変わらないので同じ）。sequences.json の O01:4・11 の行の増減で、p3-weather-notice.json が引く :24265 の行番号を中身で引き直す。p3-migration.json が引く :65・:103・:114 と、manifest.json を引く p3-e05p-typhoon.json の :117〜:119・:243 は位置が前なのでずれないことを確かめる。p3-final-gate.json の Q-FG-LEDGER-AC03 の rows（:186〜:189、O02:39〜42）の地の文の「p1-parser-boundary.json:474〜477」を 476〜479 に直す（«» ではない字の行番号）。oracle.test.ts に 1 行足すので、本契約の AC03 の «oracle.test.ts:302» と «oracle.test.ts:117»（const effective の行。:116 の直後に 1 行足すので :118 になる）を中身で引き直す (4) 自己 hash を引く «» の連鎖: 全契約の取り直しで p3-measure-harness.json:4（meta.sha256 の行）が変わり、それを p3-e05p-classify.json:343 が «» で引く。p3-measure-harness.json の自己 hash を確定した後に :343 の «» を付け直し、最後に p3-e05p-classify.json の自己 hash を取り直す（前例 4acb9ae3）。ほかに契約の meta の行（:2〜:7）を引く «» が無いかを grep で確かめる (5) 原文の改訂: C22 の試験（oracle.test.ts の effectiveOf）を本契約が変えるので、p3-final-gate.json の発注 1 の記録の末尾（行の中の書き足し）に「P3-EEW-SAME-CORRECTION-001 で T01 の effectiveOf に U-E の取消の gate の読み（inactive/cancelled）を足した」を足す (6) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "requirement": "digest と «» の取り直し（統合担当が配送の commit で当てる。前例 commit 4acb9ae3・b3df1e3f）: (1) 順: manifest.json の meta.sha256 → sequences.json の meta.manifestSha256 と meta.sha256 → «» の付け直し → 全契約（本契約を含む reconstruction/contracts/*.json）の meta.manifestSha256・meta.sequencesSha256 を新しい値に置き換え、meta.sha256 を hashConvention で取り直す (2) 置き換えは raw の文字列の置き換えで行い、JSON を書き直さない（行の数と整形を変えない） (3) «» の付け直し: p1-parser-boundary.json に 2 行足すので、p3-xml-tree-compact.json が引く :501 と p3-weather-light-step1.json・p3-weather-light-step2.json が引く :545・:547・:548・:556 の行番号を 2 足す（anchor は中身が変わらないので同じ）。sequences.json の O01:4・11 の行の増減で、p3-weather-notice.json が引く :24265 の行番号を中身で引き直す。p3-migration.json が引く :65・:103・:114 と、manifest.json を引く p3-e05p-typhoon.json の :117〜:119・:243 は位置が前なのでずれないことを確かめる。p3-final-gate.json の Q-FG-LEDGER-AC03 の rows（:186〜:189、O02:39〜42）の地の文の「p1-parser-boundary.json:474〜477」を 476〜479 に直す（«» ではない字の行番号）。oracle.test.ts に 1 行足すので、本契約の AC03 の «oracle.test.ts:302» と «oracle.test.ts:117»（const effective の行。:116 の直後に 1 行足すので :118 になる）を中身で引き直す (4) 自己 hash を引く «» の連鎖: 全契約の取り直しで p3-measure-harness.json:4（meta.sha256 の行）が変わり、それを p3-e05p-classify.json:343 が «» で引く。p3-measure-harness.json の自己 hash を確定した後に :343 の «» を付け直し、最後に p3-e05p-classify.json の自己 hash を取り直す（前例 4acb9ae3）。ほかに契約の meta の行（:2〜:7）を引く «» が無いかを grep で確かめる (5) 原文の改訂: C22 の試験（oracle.test.ts の effectiveOf）を本契約が変えるので、p3-final-gate.json の発注 1 の記録の末尾（行の中の書き足し）に「P3-EEW-SAME-CORRECTION-001 で T01 の effectiveOf にU-E の gate の記録（retainUntil を持つ、current の無い状態）を inactive と読む 1 行（取消→cancelled・terminal→released・ほか→expired）を足した」を足す (6) 3 本の checker が PASS（WARN は baseOid=unassigned の契約だけ）",
         "evidenceRefs": [
           "reconstruction/contracts/check-contract.mjs",
           "reconstruction/tools/corpus/check-sequences.mjs"
@@ -275,7 +275,7 @@
           "P3-ESC-AC02",
           "P3-ESC-AC03"
         ],
-        "behavior": "既存の oracle.test.ts の T01。新しい試験は足さず、:411・:414・:416 の数と一覧を AC03 (2) に直す。O01:4・11 は stale・active・intent 0 を、O01:5〜7・12〜14 は既存の期待を、連結した 12 unit の上で照合する。effectiveOf に U-E の取消の gate を inactive/cancelled と読む 1 行を足す（AC03 (5)。U-E 以外の読みは変えない）"
+        "behavior": "既存の oracle.test.ts の T01。新しい試験は足さず、:411・:414・:416 の数と一覧を AC03 (2) に直す。O01:4・11 は stale・active・intent 0 を、O01:5〜7・12〜14 は既存の期待を、連結した 12 unit の上で照合する。effectiveOf にU-E の gate の記録（retainUntil を持つ、current の無い状態）を inactive と読む 1 行（取消→cancelled・terminal→released・ほか→expired）を足す（AC03 (5)。U-E 以外の読みは変えない）"
       },
       {
         "testId": "P1-T01",
@@ -371,7 +371,7 @@
       "原文の改訂（統合担当が配送の commit で当てる）: (1) p3-final-gate.json:272 の orphan の 1 項目めの末尾に「→ P3-EEW-SAME-CORRECTION-001 で入力 2 本を足し、O01:4・11 の期待を unchanged/stale に直した（仮定震源でない発表→訂正の同じ版は R37 の duplicate でなく P3-VM-AC03 の same で中身が違う組。通知しないのは同じ）。unmet 90 → 88」を足す（行の中の書き足しで、行の数は変えない） (2) 本契約の fixtureIds に合成の 2 本を、expectedDecisions と expectationEvidence に expected:O01:4・expected:O01:11 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
       "旧築（src/）を変えない。test/fixtures に file を足すので旧築の build と test は回す",
       "配送の改訂（統合担当、2026-11-13）: (a) reconstruction/test/terminal/width.test.ts を allowedPaths に足した。実装（4a08b83c）で、P3-TL-T05 の全 fixture の検査が使い回す共有の renderer が、同じ EventID の VXSE45（77_01_*）の後に path の順で描く合成の VXSE43 を畳んで 0 行にし、地域名の検査が落ちたため。地域名の検査は sample ごとの renderer で行い、幅と … の検査は sample ごとと共有の renderer の両方に当てる (b) AC03 (5) の effectiveOf の 1 行は、品質レビューの P2 で「U-E の gate の記録〔retainUntil を持つ〕を inactive と読み、cause は取消→cancelled・terminal→released・ほか→expired」に強めた。current を消す変異で O01:4・11 が落ちることを実装担当が確かめた。AC03 (5) の字もこれに合わせた",
-      "配送の記録（統合担当、2026-11-13）: (1) 起草は 617149bd（draft/c22-orphan-g1）→ r1 44403e06 → r2 093c7675。通知の回復（P3-NOTIFY-FAIL-RECOVER-001、deliver/ntfrc 4b002122）の上へ載せ直したので、baseOid を載せ直した r2 の 6a914bd5 へ割り当て直した（e47d541a）(2) 実装は 4a08b83c（Opus 5.5、11 file）。T01 は mismatches 0、unmet 90→88・dependsOnUnmet 13→7・flow 373・hollow 13。effectiveOf の新しい 1 行を抜くと O01:5〜7・12〜14 の effective で 6 件落ち、current を消す変異で O01:4・11 が落ちることを確かめた (3) 配送の改訂と取り直しは e8500cb4（全 138 契約の digest、«» 9 件、p3-final-gate.json の原文の改訂）(4) 起草レビュー: ヘルツ r0 NO-GO（P2 3）→ r1 GO（thread 01a1d3ca・01a1d3d3）、Opus r0 NO-GO（P1 1、合成の形を実際に流して確かめた）→ r1 条件付き GO（«» の一覧の漏れ 1）→ r2 で当てた。実装レビュー: 契約適合 Opus GO（P3 3）、品質 Opus 条件付き GO（P2 1: effectiveOf を強めた）。範囲の外の発見 1 件（起動し直した後に、前に通知しなかった続報と同じ版の訂正が届くと [訂正] が鳴る。gate は保存されず、eew.ts:484〜485 で adopt になる。P3-NL-AC04(3) どおりで契約違反ではない）はバックログと作者のカードへ送った (5) Mac mini のゲート b31（e8500cb4）: tsc 3 本・rec-vitest・rec-shuffle・checker 3 本・build・test の 12 段すべて rc 0 (6) 2026-11-13 の時点で push していない（作者の配送の許しを待つ）"
+      "配送の記録（統合担当、2026-11-13）: (1) 起草は 617149bd（draft/c22-orphan-g1）→ r1 44403e06 → r2 093c7675。通知の回復（P3-NOTIFY-FAIL-RECOVER-001、deliver/ntfrc 4b002122）の上へ載せ直したので、baseOid を載せ直した r2 の 6a914bd5 へ割り当て直した（e47d541a）(2) 実装は 4a08b83c（Opus 5.5、11 file）。T01 は mismatches 0、unmet 90→88・dependsOnUnmet 13→7・flow 373・hollow 13。effectiveOf の新しい 1 行を抜くと O01:5〜7・12〜14 の effective で 6 件落ち、current を消す変異で O01:4・11 が落ちることを確かめた (3) 配送の改訂と取り直しは e8500cb4（全 138 契約の digest、«» 9 件、p3-final-gate.json の原文の改訂）(4) 起草レビュー: ヘルツ r0 NO-GO（P2 3）→ r1 GO（thread 01a1d3ca・01a1d3d3）、Opus r0 NO-GO（P1 1、合成の形を実際に流して確かめた）→ r1 条件付き GO（«» の一覧の漏れ 1）→ r2 で当てた。実装レビュー: 契約適合 Opus GO（P3 3）、品質 Opus 条件付き GO（P2 1: effectiveOf を強めた）。範囲の外の発見 1 件（起動し直した後に、前に通知しなかった続報と同じ版の訂正が届くと [訂正] が鳴る。gate は保存されず、eew.ts:484〜485 で adopt になる。P3-NL-AC04(3) どおりで契約違反ではない）はバックログと作者のカードへ送った (5) Mac mini のゲート b31（e8500cb4）: tsc 3 本・rec-vitest・rec-shuffle・checker 3 本・build・test の 12 段すべて rc 0 (6) レビューの後に当てた直し 3 件（effectiveOf を強めた 1 行、width.test.ts の 2 つの print、コメントの理由）は、品質の Opus が最終の形を読んで GO（P3 1: width の失敗の文で 2 つの print を見分けられない。直さない）。強めた読みに合わせて、allowedPaths・AC06 (5)・testMapping と p3-final-gate.json の発注 1 の記録に足した 1 文の字を広げた (7) 2026-11-13 の時点で push していない（作者の配送の許しを待つ）"
     ],
     "unresolvedQuestions": []
   }
