@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "d35af8c487710800dc5644033aa3fc5374de7ce51d75271f6a776e0ccab80a5d",
+    "sha256": "56d4de0b89d9a33f118a8e60fb5d72d824c855f712ed0e440f9f8d1077906350",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -402,9 +402,9 @@
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "最小実装・最小テスト: 足す仕組みは T01 の読み方 3 つ（AC04。無いと O03:10・11・14 が spec どおりの製品の記録に対して食い違い、C22 の合格〔行き先の無い unmet 0〕に届かない）、T01 の同じ実行の O03 の state の assert（AC08。無いと全国 base の終了を壊しても T01 が通る〔受入条件、spec の O03〕）と、入力 2 本・台帳の 2 行だけ。新しい suite・helper・script を repo に足さない。直す既存の試験は P3-FG-T01（AC03・AC04・AC08）、P1-T01 と P2-A5-T05 の数（AC05）だけ",
       "配送の止め: Q-WOO-O03-12（O03:12 の通知）の作者の裁定で expected:O03:12 の notices・intents に true か false を入れるまで配送しない。裁定が false なら製品の通知の変更が要り、本契約の範囲（製品を変えない）を越えるので、統合担当が別の契約にするかを決める",
-      "最初の作業: 合成 2 本・manifest の 2 行・sequences の O03:7・9 を当て、AC04 の読みを足した木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせる（件数の assert が先に落ちても、beforeAll が書いた出力の mismatches・counts・flowed で中身を見られる）。O03:7〜14 の一致と、AC04 (3) の 3 step だけの変化と、AC08 の assert が緑で (3) の変異で落ちることを確かめてから件数の直しに進む。期待と違えば AC03 (4) で止める",
+      "最初の作業: 合成 2 本・manifest の 2 行・sequences の O03:7・9 を当て、AC04 の読みを足した木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせる（件数の assert が先に落ちても、beforeAll が書いた出力の mismatches・counts・flowed で中身を見られる）。O03:7〜14 の一致と、AC04 (3) の 3 step だけの変化を確かめてから件数の直しに進む（AC08 の判定は beforeAll の出力に入らず、T01 は先頭の件数の assert で終わるので、件数を直す前には見えない）。件数を直した後に、AC08 の assert が通常の木で緑、(3) の変異で落ちることを確かめる。期待と違えば AC03 (4) で止める",
       "合成は親を cp -c で写してから AC01 の置き換えを当て、byte 数と sha256 が AC01 の値と同じことを確かめて書く。全国の合成は行の置き換えで作り、XML として書き直さない（属性の順・空白・改行を親のままにする）",
-      "sequences.json の数字の id と、O03:7・9 の step・record・O03:14 の checks の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）。sequences.json と manifest.json は JSON として書き直さず、行の中を手で直す（書き直すと行が展開されて AC07 (3) の «» の先がずれる）",
+      "sequences.json の数字の id と、O03:7・9 の step・record、AC02 (4)(5) が変える O03:8・10・11・14 の期待の欄、O03:14 の checks の 1 語以外は変えない。整形は既存の step と record と同じ字下げにする（配列の要素は 1 行に 1 つ）。sequences.json と manifest.json は JSON として書き直さず、行の中を手で直す（書き直すと行が展開されて AC07 (3) の «» の先がずれる）",
       "digest と «» の取り直し（AC07）は統合担当がする。実装担当は manifest.json と sequences.json の自己 hash（meta.sha256）と sequences の meta.manifestSha256 だけを取り直し、契約の meta は触らない",
       "件数を決め打ちしたほかの試験（reconstruction でも旧築でも）が落ちたら、試験名と旧・新の値を報告して止める。allowedPaths の外は直さない",
       "原文の改訂（統合担当が配送の commit で当てる。(4) を除き、どれも行の中の書き足しで、行を足さない）: (1) p3-final-gate.json:274 の orphan の 3 項目め（O03:7・O03:9）の末尾に「→ P3-WEATHER-OTHER-OFFICE-001 で合成 2 本を足し、unmet:O03:7・9 を expected（changed/semantic・active・通知あり）にした。京都の合成は京都の区域だけの合法な報で、帳簿の字の「福井と同じ区域」ではない（P3-WOO-D-KYOTO-AREA）。T01 の読み方 3 つを足した（P3-WOO-D-READING）。unmet 87 → 85」を足す (2) p3-final-gate.json の発注 1 の記録 2（:1057）の (4) の比べの読み方の列の末尾（記録の末尾ではなく (4) の文の中、(5) の前）に「、U-W の VPNO50 の記録を released、段を持つ行の無い U-W の報の記録を inactive（解除があれば released、無ければ noActiveItems）と読み、noChange の報の revision は比べない（P3-WEATHER-OTHER-OFFICE-001）」を足す (3) reconstruction/tools/corpus/README.md:14 の O03 の行の末尾に「2026-11-13 P3-WEATHER-OTHER-OFFICE-001 で O03:7・9 を合成で充足（全国 base は福井の区域を福井 L5 から写した 2019 の全国報、京都は 2020 の京都の報の時刻を移したもの）。」を足す (4) 本契約の fixtureIds に test__fixtures__synthetic_VPWS50_fukui_base・test__fixtures__synthetic_VPWW57_kyoto_partial を、expectedDecisions と expectationEvidence に expected:O03:7・expected:O03:9 を足す（起草の時点では manifest と sequences に無いので checker が通らない）",
