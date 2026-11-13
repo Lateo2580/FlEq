@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "61265374c272ef2a27fff9d5534b2e123089fb3c",
-    "sha256": "569412c0069ca8bb0a6406127cff41388525d6a32ec1a899c5f2c6c6b55bb164",
+    "sha256": "401d7a5258266ead91653a6b31bf3d00666cff28cd1aa81d05d79476f5d937db",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -120,7 +120,7 @@
     "contractId": "P3-VOLCANO-LIFT-001",
     "mode": "implementation",
     "objective": "噴火警報の陸の側（VFVO50・VFVO51 の火山 entry）か海上の側（VFSV）の片側だけが解除・引下げ（取消でない inactive の区分）になったとき、もう一方の側の区分が active を支えるなら、警報を active のまま残す（2026-11-13 朝の作者の裁定 A、P3-VL-D-KEEP）。取消の分岐の判定（P3-UV2-D-LAND-CANCEL=B・Q-C9-IMPL-AMEND(9)(a)）を volcano-unit.ts の解除の分岐に写す。残す事実・pending を撤回する側・読めない所の印も、取消の部分と同じ形にする。両側の支えが消えた採用は、着く順によらず ended にする（P3-VL-D-LATE）。通知の有無と level・本文は今と同じに保つ（P3-VL-D-RENOTICE）。保存の形と版は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "fe19e47b464d167c8cc59c31d7113577780f4f72",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
