@@ -28,7 +28,7 @@ const enabled = process.env.FLEQ_A7_C2 === "1";
 const target = process.env.FLEQ_A7_C2_OS;
 const evidenceDir = "reconstruction/test/notification-delivery/evidence";
 // 緊急の担い手の行（P3-FG-T05）: spawn の計測と判定を C2 と T2 で 1 つに保つため、違いはここだけに置く。reports は受理の順で、
-// 2 本目以降の EventID の先行は 1 つ前の報（同群の先行、R32）。ownerAdoption は T05 の (5) を当てる行だけ true。
+// 2 本目以降の EventID の先行は 1 つ前の報（同群の先行、R32）。ownerAdoption は T05 の行だけ true（受理の写しから intent を拾い、(5) を当てる）。
 type Emergency = Readonly<{ label: string; unit: RuntimeUnitId; group: NotificationPriorityGroup; intentKind: string;
   reports: readonly Readonly<{ inputId: string; eventId: string; offsetMs: number; envelope: (now: ClockReading) => MailboxEnvelope }>[];
   file: (os: "macos" | "linux-rpi") => string; evidenceKind: string; piDesktopIntents: number; ownerAdoption: boolean }>;
@@ -175,7 +175,11 @@ async function measure(os: "macos" | "linux-rpi", row: Emergency = c2) {
     const accept = async (report: Emergency["reports"][number]) => {
       const now = clock();
       await submit(h, report.envelope(now));
-      const intents = h.unit(row.unit).intents.filter(item => item.source.inputId === report.inputId);
+      // T05: submit() の settle の間に先に終わった intent は owner の配列から外れるので、受理の inputDone の pendingIntents（受理の時の写し）から拾う。
+      const intents = row.ownerAdoption ? h.delivered.flatMap(({ reply }) => reply.kind === "inputDone" && reply.settlement.inputId === report.inputId
+        ? reply.output.units.flatMap(delta => delta.unit === row.unit ? delta.pendingIntents ?? [] : []) : [])
+        .filter(item => item.source.inputId === report.inputId)
+        : h.unit(row.unit).intents.filter(item => item.source.inputId === report.inputId);
       if (intents.length !== 2) failure = `${report.inputId} did not produce two ${row.intentKind} intents`;
       for (const intent of intents) generatedAt.set(intent.id, now.monotonicMs);
       accepted.push(...intents);
