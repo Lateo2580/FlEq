@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "796d77cb881618d6b2e865d139491a0d0db65972948b0f7ab299a15a9c90a20f",
+    "sha256": "673fdfdb0e119db0d2ebc530ab6101abc53476ca8cc494d3b66dfe1064ae5fb3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -14,8 +14,8 @@
         "B": "EEW の音の後に、津波注意報の音を 1 回だけ鳴らし直す（1 秒の内に閉じたときと同じ、K8 の 1 回）",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者に諮る",
-        "ruling": "未（作者に諮る。2026-11-13 起草）",
+        "status": "確定（作者、2026-11-13 昼すぎ）",
+        "ruling": "作者裁定 A（2026-11-13 昼すぎ）",
         "reason": "問い: 遅れて止まって隔離から戻ったとき、中断された音を鳴らし直すか（音が変わる）。場面: 21:00:00 津波注意報の音（aplay）が鳴り始める → 21:00:02 EEW の音の intent で上位群の中断、SIGTERM → 21:00:03 aplay が閉じない（停止の期限）。sound は隔離され、津波注意報の音の intent はこの時に notificationOutcomeUnknown で終わり、owner へ送られる → 21:00:04.5 aplay が閉じる → sound は使えるに戻り、EEW の音が鳴る（AC01。EEW の音の intent の期限は作成から 15 秒〔eew-unit.ts:352〕なので、21:00:17 より後に閉じたときは EEW の音も鳴らない）。理由: A は隔離した時に終えた intent をそのまま終わりにする。B は、終わりにして owner へ送った intent を、遅い close で生き返らせる道が要る。これは P2-A7-ADAPTER の「遅い close/success から二件目を返さない」に当たり、隔離の間は結果を全部捨てる A7 の形（notification-delivery.ts:99）も変える。さらに、遅い close は aplay が音を最後まで鳴らした後のこともあり（close まで鳴っていた）、B では同じ音が 2 回聞こえうる。鳴らし直しの回数（K8 の 1 回、p3-notice-ledger.json:510）は A でも B でも越えない"
       },
       {
@@ -25,8 +25,8 @@
         "B": "「音声通知: 使える」。隔離から戻ったときに印も下ろす",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者に諮る",
-        "ruling": "未（作者に諮る。2026-11-13 起草）",
+        "status": "確定（作者、2026-11-13 昼すぎ）",
+        "ruling": "作者裁定 A（2026-11-13 昼すぎ）",
         "reason": "問い: 時間切れ（10 秒）で隔離した channel が遅れて止まって戻ったとき、状態行を「失敗中」と「使える」のどちらにするか（画面が変わる）。場面: 21:00:00 EEW の音を鳴らす aplay が固まる → 21:00:10 試行の期限（ATTEMPT_TIMEOUT_MS の 10 秒）で中断、SIGTERM → 21:00:11 閉じない → 状態行「音声通知: 隔離中」 → 21:00:20 aplay が閉じる → 状態行は？。理由: A は「直近の試行が失敗で終わった channel を失敗中と出す」（裁定 A10=A）の字のままで、戻す条件を足さない。10 秒鳴り終わらなかった player は、閉じた後も次に鳴るかが分からない。B は、印を戻す条件に「隔離から戻った」を足す。上位群や置換の中断で隔離した場合（D-REPLAY の場面）は、もともと失敗に数えないので、どちらの案でも戻ると「使える」になる"
       },
       {
@@ -36,8 +36,8 @@
         "B": "「失敗中」のまま。門で止めた delivered では下ろさない",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者に諮る",
-        "ruling": "未（作者に諮る。2026-11-13 起草）",
+        "status": "確定（作者、2026-11-13 昼すぎ）",
+        "ruling": "作者裁定 A（2026-11-13 昼すぎ）",
         "reason": "問い: 消音（mute）や種類の門で止めた試行で「失敗中」を下ろすか（画面が変わる）。場面: 20:00 Pi の PulseAudio が落ちる → 21:00 EEW の音が 2 回失敗し「音声通知: 失敗中」 → 21:10 作者が REPL で mute → 21:20 次の音の試行は門で止まり、子を作らずに delivered で終わる（host.ts:602、P3-CLI-D-O2-GATE） → 状態行は？。理由: A は root が今受け取る結果だけで決まり、host と NotificationResult の形を変えない。mute の間は音を鳴らさないので、音が出ないことを知らせる意味が薄い。B は、門で止めた結果を root が見分けられるよう、host の門（host.ts:596〜602）が delivered 以外を返すか、結果に印を足す必要があり、P3-CLI-D-O2-GATE（印の evidence は possible）と共有の型 NotificationResult の改訂になる"
       },
       {
@@ -47,9 +47,9 @@
         "B": "「音声通知: 直前に失敗」（直近の 1 回のことだと字で分かる）",
         "C": "新しい値を足さず「音声通知: 使えない」（probe で backend が無いときと同じ字。wire も chrome も変えない）",
         "recommended": "A",
-        "provisional": "A",
-        "status": "作者に諮る（provisional A で発注してよい。字は P4 の試作で決め直せる。変わるのは pure.ts:124 の 1 語と p2-chrome-eew.json:486 の改訂の字だけ）",
-        "ruling": "未（作者に諮る。2026-11-13 起草）",
+        "provisional": "B",
+        "status": "確定（作者、2026-11-13 昼すぎ）",
+        "ruling": "作者裁定 B（2026-11-13 昼すぎ）。字は「直前に失敗」。あわせて既存の字「使える」「使えない」を「使用可」「使用不可」に改める（作者、同日）",
         "reason": "問い: 状態行に出す字（chrome-eew の状態の 2 行。端末には channel の行が無いので変わらない）。場面: 20:00 Pi の PulseAudio が落ちる → 21:00:00 EEW の音の試行が失敗（paplay が exit 1）→ 21:00:01 鳴らし直しも失敗 → Chrome の状態の行。理由: A は裁定の字そのまま。B は字が長いが、1 回の成功で消える性質が読める。C は wire を変えずに済むが、起動の probe で backend が無い（以後一度も試さない）と、試して失敗した（次の試行で戻りうる）が同じ字になる。既存の 4 つの字（確認中・使える・使えない・隔離中）は smoke.mjs:527〜530 と evidence が見ているので変えない"
       },
       {
