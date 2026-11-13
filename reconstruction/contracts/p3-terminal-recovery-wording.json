@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f002a0c3a63219c010511c41274a01c854e29d1",
-    "sha256": "0ff26aaabe451f1117eb01dbaf61714ffe49528cc928ec380f71ff8ddcd9a4a4",
+    "sha256": "27bef454ea4049cc9b3c7b1632c571bdf2c0c5f634b2758568c7c02dd029dd81",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -38,7 +38,7 @@
         "id": "Q-TRW-CLAUSES",
         "status": "closed",
         "source": "起草（2026-11-13）。docs/specs と reconstruction/contracts を 2 つの字で git grep し、行ごとに生きた条文か当時の記録かを読んだ",
-        "closed": "生きた条文（原文の改訂で字を替える、P3-TRW-AC02）: spec cli-terminal-output.md:779（§6.6 の図）・:794・:795（§6.6 の箇条）、p3-terminal-output.json:684（P3-TO-AC14 の (2)）・:876（P3-TO-T15 の behavior）、p3-terminal-layout7.json:272（P3-TL7-AC02 の (3)）、p3-recovery-boundary.json:323（P3-RB-AC03 の (6) の場面）。どの行も替える字はその行に 1 回だけある（p3-terminal-output.json:684 は 2 つの字が 1 回ずつ）。当時の記録（変えない）: p3-recovery-boundary.json:42（分岐の ifNotChosen）、p3-terminal-layout7.json:125（作者の観測の source）。「取り直せなかった分野」「取り直し」の地の文（spec・契約・コメント・試験の名前）は利用者に出ない中の言い方なので変えない",
+        "closed": "生きた条文（原文の改訂で字を替える、P3-TRW-AC02）: spec cli-terminal-output.md:779（§6.6 の図）・:794・:795（§6.6 の箇条）、p3-terminal-output.json:684（P3-TO-AC14 の (2)）・:876（P3-TO-T15 の behavior）、p3-terminal-layout7.json:272（P3-TL7-AC02 の (3)）、p3-recovery-boundary.json:323（P3-RB-AC03 の (6) の場面）。どの行も替える字はその行に 1 回だけある（p3-terminal-output.json:684 は 2 つの字が 1 回ずつ）。当時の記録（変えない）: p3-recovery-boundary.json:42（分岐の ifNotChosen）・:43（分岐の reason）・:65（別の分岐の ifNotChosen）、p3-terminal-layout7.json:125（作者の観測の source）。「取り直せなかった分野」「取り直し」の地の文（spec・契約・コメント・試験の名前）は利用者に出ない中の言い方なので変えない",
         "remaining": "なし"
       },
       {
@@ -132,7 +132,7 @@
       "--debug の行の「出さない・取り直し」（output.ts:634、P3-TO-AC17。P3-TRW-D-DEBUG=A）",
       "起動時のまとめの帯の字「止まっていた間に出た情報（7 日前まで）」、分野の名前、件数・見出し・「ほか」の行の形と折り返し、出す条件（Q-TO8-DIGEST・Q-TO16-DIGEST-WRAP）",
       "ソースのコメント・試験の名前とコメント・spec と契約の地の文の「取り直し」「取り直せなかった分野」（利用者に出ない中の言い方、Q-TRW-CLAUSES）",
-      "当時の記録として古い字を引く条文: p3-recovery-boundary.json:42（分岐の ifNotChosen）、p3-terminal-layout7.json:125（作者の観測の source）",
+      "当時の記録として古い字を引く条文: p3-recovery-boundary.json:42（分岐の ifNotChosen）・:43（分岐の reason）・:65（別の分岐の ifNotChosen）、p3-terminal-layout7.json:125（作者の観測の source）",
       "C16 の digest の作り方（recovery.ts の beforeWindow・unsatisfied の判定）、runtime・host・unit・chrome-eew・ディスプレイ（P4）・旧築（src/）"
     ],
     "acceptanceChecks": [
@@ -236,7 +236,7 @@
       "最小実装・最小テスト: 仕組みを足さない（字の定数・helper・表・設定・file を作らない。format.ts の 2 行と digest.test.ts の 3 行の中の字を替えるだけ）。テストは足さない（P3-TRW-T01 は既存の期待の置き換えで受入条件）。test:shuffle は要らない（永続化・共有状態・module の変数を触らない）",
       "受信経路の計算量（AGENTS.md）: 変わらない（起動時に 1 回描くまとめの字を替えるだけ）",
       "既存の試験の期待を変えるのは digest.test.ts の :34・:35・:62 の 3 か所だけで、理由は作者の裁定（2026-11-13、カード 9-6 の裁定 5）。ほかの試験の期待が変わる要があれば、変える前に試験名・旧の期待・理由を報告して止める",
-      "起草の確かめ: 起草の写し（worktree の未追跡の .dr-tmp/、確かめた後に消した）で、format.ts の width の字を切り出して新旧の字の桁を実走で数えた（Q-TRW-WIDTH）。新しい行の anchor は同じ file の他の行と重ならないことも確かめた（Q-TRW-ANCHORS）。実装で字や数が期待と違えば、条文を外れる直しをせず、試験名・契約の期待・実際の値を報告して止める",
+      "起草の確かめ: 起草の写し（worktree の未追跡の .dr-tmp/、確かめた後に消した）で、format.ts の width の字を切り出して新旧の字の桁を実走で数えた（Q-TRW-WIDTH）。新しい行の anchor は同じ file の他の行と重ならないことも確かめた（Q-TRW-ANCHORS）。実装で字や数が期待と違えば、条文を外れる直しをせず、試験名・契約の期待・実際の値を報告して止める。実装の後の check-contract は、P3-RECOVERY-BOUNDARY-001 と本契約の 2 本が format.ts:860 の古い anchor で FAIL する（checker は契約ごとに最初の 1 件しか出さないので、本契約の :865 と digest.test.ts の 3 行の古い anchor は隠れる）。付け直しは統合担当が配送の commit でする。それ以外の FAIL があれば報告して止める",
       "旧築（src/）を変えない。変えないので旧築の build と test は要らない",
       "残存として成果物に書く: (1) --debug の行は今のまま「出さない・取り直し」と出る（P3-TRW-D-DEBUG=A） (2) spec・契約の地の文とコメントは中の言い方の「取り直し」のまま（Q-TRW-CLAUSES）",
       "原文の改訂（統合担当が配送の commit で当てる。どれも既存の行の中の字の置き換えで、行の数を変えない。置き換えは「取り直せませんでした」→「再取得に失敗しました」と「7 日より前の情報は取り直していません」→「7 日より前の情報は再取得していません」の 2 つだけで、ほかの字は足さない・変えない。どの行も替える字は 1 回だけある）: (1) docs/specs/cli-terminal-output.md:779（§6.6 の図の「津波       取り直せませんでした」）の「取り直せませんでした」 (2) docs/specs/cli-terminal-output.md:794 の「「取り直せませんでした」と書き」の字（行頭の「取り直せなかった分野は」は地の文なので変えない） (3) docs/specs/cli-terminal-output.md:795 の「7 日より前の情報は取り直していません」 (4) reconstruction/contracts/p3-terminal-output.json:684（P3-TO-AC14 の (2)）の 2 つの字 (5) reconstruction/contracts/p3-terminal-output.json:876（P3-TO-T15 の behavior）の「7 日より前の情報は取り直していません」 (6) reconstruction/contracts/p3-terminal-layout7.json:272（P3-TL7-AC02 の (3)）の「今のまま「取り直せませんでした」」の字（「取り直せなかった分野」の 2 か所は地の文なので変えない） (7) reconstruction/contracts/p3-recovery-boundary.json:323（P3-RB-AC03 の (6)）の「7 日より前の情報は取り直していません」 (8) (4)〜(7) と «» の付け直しで変えた 3 本の契約の meta.sha256 を取り直してから check-contract を通す",
