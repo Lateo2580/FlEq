@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6f16239104aeaf667f3ab6ea26df459ebcf16dd3",
-    "sha256": "b6bde7c4df8e2f221b8cd07352be3a712da0345e0489b362efa7a30371f8c4de",
+    "sha256": "8c4139b2442113eca827803269cc286dc6bf0131590b7491e20ea8825f8b25d1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -382,7 +382,7 @@
         "referenceIds": [
           "P3-OSN-AC03"
         ],
-        "behavior": "受入（AC03 (1)(2)）。adapter.test.ts の末尾に足す。P3-NW-T02・T04 に倣い、process.platform を win32 に、process.env.SystemRoot を mkdtemp の dir の下の root に替え（withSystemRoot）、試験の後に戻す。(1) powershell.exe の path に空の file を置き、soundNotice(\"reconstruction/assets/sounds/weather-warning.wav\") を呼ぶ。execFile が 1 回、[powerShellPath(root), powerShellArgv(soundScript), { windowsHide: true, timeout: 10_000, env: { ...process.env, FLEQ_NOTIFY_WAV: resolveRepoPath(\"reconstruction/assets/sounds/weather-warning.wav\") } }] で呼ばれ、戻りの unref が呼ばれる。callback を呼ぶと Promise が解ける (2) 別の dir（powershell.exe を置かない）で soundNotice を呼ぶと execFile は呼ばれず、Promise が解ける。次を試す順（ENOENT で次へ）は win32 の組が 1 つなので、この試験では見ない（linux の組の実行ファイルの有無が試験の機械で変わるため。読みで確かめる）。win32 で組むのは、darwin と linux の実行ファイル（/usr/bin/afplay など）の有無が試験の機械で変わるため。直す前のコードは soundNotice が無く落ちる"
+        "behavior": "受入（AC03 (1)(2)）。adapter.test.ts の末尾に足す。P3-NW-T02・T04 に倣い、process.platform を win32 に、process.env.SystemRoot を mkdtemp の dir の下の root に替え（withSystemRoot）、試験の後に戻す。(1) powershell.exe の path に空の file を置き、soundNotice(\"reconstruction/assets/sounds/weather-warning.wav\") を呼ぶ。execFile が 1 回、[powerShellPath(root), powerShellArgv(soundScript), { windowsHide: true, timeout: 10_000, env: { ...process.env, FLEQ_NOTIFY_WAV: resolveRepoPath(\"reconstruction/assets/sounds/weather-warning.wav\") } }] で呼ばれ、戻りの unref が呼ばれる。callback を呼ぶと Promise が解ける (2) 別の dir（powershell.exe を置かない）で soundNotice を呼ぶと execFile は呼ばれず、Promise が解ける。(3) 試す順（AC03 (2)、r2 でヘルツの P2 を受けて足した）: process.platform を linux にし、実機の file の有無に頼らないよう node:fs の existsSync を mock する（vi.doMock で元の module を写し、/usr/bin/ffplay・/usr/bin/paplay・/usr/bin/aplay だけ true を返し、ほかの path は元の existsSync に渡す。adapter の repoRoot の解決を壊さないため）。execFile は file の mock（:14）のまま、呼ばれた順に戻りと callback を決める。(a) 1 つ目（ffplay）の戻りは pid の無い子で、callback に code ENOENT の error を渡す（起動の失敗）。2 つ目（paplay）は pid のある子で callback を成功で呼ぶ。execFile は ffplay → paplay の 2 回で、aplay は呼ばれない (b) 1 つ目（ffplay）の戻りは pid のある子で、callback に code 1 の error を渡す（起動した後の失敗）。execFile は ffplay の 1 回だけで、paplay は呼ばれない（鳴らすのは 1 回）。どちらも Promise が解ける。起動の失敗の見分け方（戻りの pid か、子の error か、callback の error の code か）は実装に合わせてよいが、(a) と (b) を同じ試験の mock で分けられる形にする。直す前のコードは soundNotice が無く落ち、先頭だけを試す実装は (a) で、起動した後の失敗でも次へ進む実装は (b) で落ちる。win32 で組むのは、darwin と linux の実行ファイル（/usr/bin/afplay など）の有無が試験の機械で変わるため。直す前のコードは soundNotice が無く落ちる"
       }
     ],
     "requiredCommands": [
