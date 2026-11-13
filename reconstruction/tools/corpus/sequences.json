@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
+    "sha256": "0cc6564672deb5b2b38a19912b77754075190037c9f8580b8a3db602682b81cd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -9805,12 +9805,12 @@
           "sequenceId": "O11",
           "position": 2,
           "action": "receive",
-          "fixtureId": "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-before",
+          "fixtureId": null,
           "receivedAt": 1788656400001,
           "evaluatedAt": 1788656400001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "expected:O11:2",
+          "expectedRef": "unmet:O11:2",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1845 «4372e39cf2d99c95» D-AC08",
             "L1: docs/specs/reconstruction-p0-contracts.md:1845 «4372e39cf2d99c95» E13a",
@@ -9836,12 +9836,12 @@
           "sequenceId": "O11",
           "position": 4,
           "action": "receive",
-          "fixtureId": "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-after",
+          "fixtureId": null,
           "receivedAt": 1788656460000,
           "evaluatedAt": 1788656460000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "expected:O11:4",
+          "expectedRef": "unmet:O11:4",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1787 «093b2c02be506dfb»",
             "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
@@ -15247,7 +15247,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPWS50/気象庁",
+          "subject": "normal/VPWS50/気象庁本庁",
           "revision": {
             "reportDateTimeRaw": "2019-10-12T09:09:00+09:00",
             "serialRaw": null,
@@ -15279,7 +15279,7 @@
       "effective": null,
       "subjects": [
         {
-          "subject": "normal/VPWW57/近畿地方整備局 京都府 京都地方気象台",
+          "subject": "normal/VPWW57/京都地方気象台",
           "revision": {
             "reportDateTimeRaw": "2020-06-22T23:00:00+09:00",
             "serialRaw": null,
@@ -19054,7 +19054,7 @@
       },
       "subjects": [
         {
-          "subject": "normal/VPWS50/気象庁",
+          "subject": "normal/VPWS50/気象庁本庁",
           "revision": {
             "reportDateTimeRaw": "2019-10-12T09:09:00+09:00",
             "serialRaw": null,
@@ -22213,7 +22213,7 @@
       ]
     },
     {
-      "expectedId": "expected:O11:2",
+      "expectedId": "unmet:O11:2",
       "sequenceId": "O11",
       "position": 2,
       "decision": {
@@ -22241,7 +22241,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1845 «4372e39cf2d99c95» E13a",
         "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-before.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
-      "input": null,
+      "input": {"required": "Body/Warning/Item を持つ実 VPWS50 の連続 2 版の 1 版目（同一 subject、ReportDateTime 昇順、EventID/Serial は原報の合法値）。synthetic-vpws50-change-density-before は空 Body のため契約 familyTable で requiredStructureMissing になり、D-AC08 の正常入力に使えない（2026-11-13 C22、R18=A と同じ扱い）。", "acquisition": "REST（dmdata GD API）で実電文 2 版を取得する。synthetic は作らない"},
       "checks": [
         "区域/現象を全件保持、ページ外区域も地図対象。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
@@ -22270,7 +22270,7 @@
       ]
     },
     {
-      "expectedId": "expected:O11:4",
+      "expectedId": "unmet:O11:4",
       "sequenceId": "O11",
       "position": 4,
       "decision": {
@@ -22297,7 +22297,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1787 «093b2c02be506dfb»",
         "L2: test/fixtures/weather-alert-kind-area/synthetic-vpws50-change-density-after.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
-      "input": null,
+      "input": {"required": "Body/Warning/Item を持つ実 VPWS50 の連続 2 版の 2 版目（2 の版の後続、同一 subject）。synthetic-vpws50-change-density-after は空 Body のため契約 familyTable で requiredStructureMissing になり、切断中の意味更新の入力に使えない（2026-11-13 C22、R18=A と同じ扱い）。", "acquisition": "REST（dmdata GD API）で実電文 2 版を取得する。synthetic は作らない"},
       "checks": [
         "切断中も全国current更新。最新集合から消えた対象を旧snapshotで残さない。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
