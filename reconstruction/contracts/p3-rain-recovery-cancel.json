@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4e11b25760e9b9e59a071c0ad2d1969d63c8c1de",
-    "sha256": "28a4d41eb649f144ab40980af4922f65b85ad11440722f52a96c7f8241d10849",
+    "sha256": "c8dac92ddb58b077de113b2ae478b3a154bffb5ab429ccd4547fcb722ac6b72f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -198,7 +198,7 @@
           "reconstruction/src/units/briefing/briefing-unit.ts:916 «6aa1e0de30a09ad6»",
           "reconstruction/src/terminal/output.ts:347 «b20940f9e162af53»",
           "reconstruction/src/terminal/output.ts:349 «ae36955a4a091f58»",
-          "docs/specs/cli-terminal-output.md:663 «40be8a63ec3c23fc»"
+          "docs/specs/cli-terminal-output.md:663 «da3d16eb77f2ee26»"
         ]
       },
       {
@@ -207,7 +207,7 @@
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:42 «94c54606ccefd219»",
           "reconstruction/src/units/briefing/briefing-unit.ts:35 «bd685834780fe4ac»",
-          "docs/specs/cli-terminal-output.md:663 «40be8a63ec3c23fc»",
+          "docs/specs/cli-terminal-output.md:663 «da3d16eb77f2ee26»",
           "reconstruction/src/runtime/composition-root.ts:1039 «838835ae670bbb95»",
           "reconstruction/src/runtime/composition-root.ts:2165 «1baa19096b592e21»",
           "reconstruction/test/terminal/layout10.test.ts:268 «d8a331fbbeb004c5»"
@@ -217,24 +217,24 @@
         "id": "P3-RRC-AC03",
         "requirement": "道の全段（P3-RRC-D-PATH=A・D-SOURCE=A・D-HOOK=A、統合担当の確定）。受信 → owner → 返信 → 端末の待ちの全段をこの形で通す: (1) owner の候補（owner-host.ts の Candidate、60 行）に欄 cancelled（subject の Set）を足す。候補を開く時（216 行）に空で作る (2) applyCandidate（204 行の後、同じ行の中）で、その step の outcomes のうち accepted の subjects を順に見て、transition が \"cancelled\" なら subject を足し、ほかの transition なら外す（後の transition が勝つ）。unit の名前で分けない（owner-host・owner-runtime に unit の分岐を足さない。p3-unit-table.types.ts の 28 行の方針）。候補は 1 つの unit のものなので subject は reply.unit の subject (3) 基点が変わって当て直す時（230 行。229 行は 6 つの «» が引くので変えない）に cancelled を空にしてから当て直す。空にしないと、当て直す前の shadow（開いた時の基点）で集めた subject が残り、当て直しでは取消にならなかった待ちまで外す。列（T03）: 16:33:05 に起動、起動の取り直しの一覧に取消（ReportDateTime 16:32:50、live の報より古い版）が載る → 一覧を受けた後に U-B の候補を開く（composition-root.ts の 2144 行の await の後、2165 行 → 2190 行の open）→ 取消の本文の HTTP の応答を止める → 16:33:08 に live の VPOA50（16:33:00 発表）を受け、U-B は held、端末は待つ → 16:33:10 に本文の応答を返す → 本文は開いた時の基点（記録なし）の shadow に当たり、取消は記録が無くても cancelled の記録を作る（briefing-unit.ts の 263 行）ので Set に入る → 採用の時に基点が変わっている（owner-runtime.ts の 662 行の sameBase が false）ので今の live に当て直す → live の 16:33:00 の版より古い取消は older で stale（version.ts の 99 行、briefing-unit.ts の 404 行、outcomes は空）→ 直した後は Set が空のまま採用され、16:34:08 に端末へ速報が 1 つ出る。(3) が無いと最初の当てで入った subject が残り、待ちが外れて出ない（一覧の応答を止める列では live が open の前に基点へ入り、当て直しを通らない。取消が live の報より新しい列では当て直しでも cancelled になり、(3) の抜けが見えない） (4) 採用の返信（238・239 行）の result に cancelled: [...candidate.cancelled] を載せる。型は p3-execution-split.types.ts の 89 行の adopted に readonly string[] の欄を 1 つ足す（欄は adopted だけ。opened・discarded・generationConflict・unsatisfied には足さない。live が変わらない返信で端末を動かさないため） (5) host.ts の 169 行（owner の thread の message）で、root.receive の後に、reply.kind が \"recoveryDone\" なら config.terminal?.recoveryDone(reply) を呼ぶ（同じ行の中） (6) 端末の sink（output.ts の 47 行の TerminalSink と 646 行の sink の末尾）に recoveryDone(reply) を足す。規則は AC04。outcomes には載せない（publisher の投影は accepted の outcome の subject を semantic の門に使う、view-projector.ts の 781 行。載せると表示が変わる）。計算量: owner で足す仕事は step ごとに outcome の subjects の数に比例し、候補は 1 回の取り直しで本文 300 件まで（P3-REC-RES-03）なので Set も有界。端末で足す仕事は cancelled の数に比例。state の全体の走査・直列化は足さない（AGENTS.md の受信経路の計算量）。無いと: 取り直しで採った取消を端末が知る道が無い（今の採用の返信は held→cancelled を運ばない、AC01）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/owner-host.ts:60 «c20a1b4fae01e61d»",
-          "reconstruction/src/runtime/owner-host.ts:216 «f2349e72d3a697a0»",
-          "reconstruction/src/runtime/owner-host.ts:204 «d9d57e8d8918199e»",
+          "reconstruction/src/runtime/owner-host.ts:60 «98acc3195b027d14»",
+          "reconstruction/src/runtime/owner-host.ts:216 «0516facbdc9232a3»",
+          "reconstruction/src/runtime/owner-host.ts:204 «4dd67963b489ed65»",
           "reconstruction/src/runtime/owner-host.ts:229 «ca17981f3cedd7ac»",
-          "reconstruction/src/runtime/owner-host.ts:230 «4c2063a3d58113b8»",
+          "reconstruction/src/runtime/owner-host.ts:230 «05edadca71164332»",
           "reconstruction/src/runtime/owner-host.ts:238 «869282bd2dbe30df»",
-          "reconstruction/src/runtime/owner-host.ts:239 «1d64cdfc628c1c0d»",
+          "reconstruction/src/runtime/owner-host.ts:239 «e615d325a4c3fdad»",
           "reconstruction/src/runtime/composition-root.ts:2144 «1dbb7581ee092ef3»",
           "reconstruction/src/runtime/composition-root.ts:2190 «1d6273d2132980f7»",
           "reconstruction/src/units/briefing/briefing-unit.ts:263 «f211a521494c2d18»",
           "reconstruction/src/units/briefing/briefing-unit.ts:404 «a97fbb338a0767bc»",
           "reconstruction/src/contracts-revision/version.ts:99 «a9d50ad87a49896b»",
           "reconstruction/src/runtime/owner-runtime.ts:662 «9408ffd800062069»",
-          "reconstruction/contracts/p3-execution-split.types.ts:89 «e14fab250638f842»",
+          "reconstruction/contracts/p3-execution-split.types.ts:89 «5c31e72a97ac2025»",
           "reconstruction/contracts/p3-execution-split.types.ts:141 «2c8431b2e8e4be5c»",
-          "reconstruction/src/host/host.ts:169 «b796d35648a66011»",
-          "reconstruction/src/terminal/output.ts:47 «44df86f440a468a6»",
-          "reconstruction/src/terminal/output.ts:646 «dc7c340c370f3cee»",
+          "reconstruction/src/host/host.ts:169 «2781c6b1893c1adf»",
+          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:646 «3094f992eda6e346»",
           "reconstruction/contracts/p3-unit-table.types.ts:28 «e5c767e027f8c111»",
           "reconstruction/src/view-projector/view-projector.ts:781 «a1a9b6ef7858bb2f»",
           "reconstruction/src/units/briefing/briefing-unit.ts:505 «0073439c5d20a32b»",
@@ -265,7 +265,7 @@
           "reconstruction/src/units/briefing/briefing-unit.ts:486 «6502c2b9a4974dd4»",
           "reconstruction/src/terminal/output.ts:643 «155e5fcdaf84094f»",
           "reconstruction/src/runtime/owner-host.ts:193 «23accdf9096d56f5»",
-          "reconstruction/contracts/p3-terminal-layout10.json:490 «5c3b7519d5af247c»",
+          "reconstruction/contracts/p3-terminal-layout10.json:490 «74d030f1179f3218»",
           "reconstruction/contracts/p3-terminal-output.json:45 «47913fce42523c35»"
         ]
       },
@@ -273,18 +273,18 @@
         "id": "P3-RRC-AC06",
         "requirement": "行の決まり: owner-host.ts・host.ts・output.ts・p3-execution-split.types.ts の行の数を変えない（足すのは既存の行の中だけ。なぜを書くコメントも行末に置く）。中身を変えてよい行は、owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、output.ts の 47・646 行、p3-execution-split.types.ts の 89 行だけ。composition-root.ts は変えない（P3-RRC-D-HOOK=A）。発注前点検の数（2026-11-13 起草、git grep -n \"<basename>:[0-9]\" -- reconstruction の行数、本契約を除く）: output.ts 105、composition-root.ts 283、host.ts 428（owner-host.ts を含む）、owner-host.ts 65、p3-execution-split.types.ts 29。このうち変える行を «» で引くのは output.ts の 47 行（p3-terminal-debug-reject.json の 153 行）と 646 行（同じく 155 行）の 2 つだけ。owner-host.ts の 60・204・216・230・239 行、host.ts の 169 行、types の 89 行を引く «» は無い。無いと: 行を足すと 3 file で 400 を越える «» と地の文の行番号がずれる",
         "evidenceRefs": [
-          "reconstruction/src/terminal/output.ts:47 «44df86f440a468a6»",
-          "reconstruction/src/terminal/output.ts:646 «dc7c340c370f3cee»",
-          "reconstruction/src/host/host.ts:169 «b796d35648a66011»",
-          "reconstruction/contracts/p3-execution-split.types.ts:89 «e14fab250638f842»"
+          "reconstruction/src/terminal/output.ts:47 «1a18bc1ba9847f8b»",
+          "reconstruction/src/terminal/output.ts:646 «3094f992eda6e346»",
+          "reconstruction/src/host/host.ts:169 «2781c6b1893c1adf»",
+          "reconstruction/contracts/p3-execution-split.types.ts:89 «5c31e72a97ac2025»"
         ]
       },
       {
         "id": "P3-RRC-AC07",
         "requirement": "他の契約と spec の文（実装はしない。原文の改訂として統合担当が配送の commit で当てる。行の中の書き足しで、行の数は変えない）: artifactRequirements の原文の改訂 (1) spec:663 (2) p3-terminal-layout10.json:490 の残存 (9)",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:663 «40be8a63ec3c23fc»",
-          "reconstruction/contracts/p3-terminal-layout10.json:490 «5c3b7519d5af247c»"
+          "docs/specs/cli-terminal-output.md:663 «da3d16eb77f2ee26»",
+          "reconstruction/contracts/p3-terminal-layout10.json:490 «74d030f1179f3218»"
         ]
       }
     ],
