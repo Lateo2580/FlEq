@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "a927242517edc80720288f95520b555227f0fa256945673e872cc3c0c5c9e20f",
+    "sha256": "621a4dedf91844a6c3fb353ec6ffea05186fbe10cca86813c8ff4f324aad685f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "8e175b327b49c401794915eea281382b3055868d53b0e40abd6705beb8957173",
     "sequencesSha256": "16556390dce4faa5c622afc7b8ab153b5e14aea1530a30716edbd8742b1927d5",
@@ -15,8 +15,8 @@
         "C": "N3 の山の写しで、768 と 1024 の 2 組だけ（今の製品の組を測らない）。見込み: 約 18 分、手順を足して約 26 分",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者の裁定待ち",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 昼）",
+        "ruling": "作者裁定 A（2026-11-13 昼、判断カードの推奨どおり）",
         "reason": "場面: 窓の間（例 14:00〜14:35）は Pi の画面に旧築の表示が出ず、EEW・津波の通知音も鳴らない（P3-PH-D-LEGACY=B と同じ）。A の 35 分は、今の製品と、件数の上限の 2 つの候補を、同じ山の state で並べられる最小。N3 は N2 に 06-26 の実の気象の電文を重ねた筋書きで、11-12 夜の Mac mini では U-Q の byte と件数の最大が N2 とほぼ同じ（12,621,600 と 12,621,596 byte、どちらも 512 に到達）で、U-W・U-F の state も持つので、山の総量は N3 が最も大きい見込み。N1 は件数 512 に届かない（最大 403）。B は N1・N2 を足すが、件数と byte の山は N3 に含まれるので、窓が 2.5 倍になるわりに足すものが少ない。C は今の製品の値が無く、広げた分の差を言えない。見込みの根拠: 起動 1 回は Node の起動と復元（Pi で 10〜20 秒の見込み、未測）＋投入 60 秒＋停止と読み込み約 10 秒。build（npm ci と tsc 3 本）は窓の前に旧築を動かしたまま済ませるので窓に入れない（P3-PH-AC08 (1) の置き場の形）。snapshot を広げる値は、Mac mini の 1 段目（N3、件数 768・1024 の build）が出した snapshot の全体の最大を越える最小の 2 の冪の MiB にする（統合担当が 1 段目の結果から決めて記録する）"
       },
       {
@@ -26,8 +26,8 @@
         "B": "分ける。Chrome の renderer は P4 の画面（表示の page を作り直す）の Pi の窓で測る。この契約は Node の側（保存・復元・EEW の待ち・RSS・snapshot の直列化）だけ",
         "recommended": "B",
         "provisional": "B",
-        "status": "作者の裁定待ち",
-        "ruling": null,
+        "status": "確定（作者、2026-11-13 昼）",
+        "ruling": "作者裁定 B（2026-11-13 昼、判断カードの推奨どおり）",
         "reason": "renderer の重さは、snapshot を描く page の作りで決まる。今の新築の表示の page は P4 で作り直すので、今測った値は P4 の後に測り直しになる。製品が描くのは Pi の Chromium で、P3-PI-HARNESS-001 の別機械の形（Mac mini の Chrome）は描くまでの時間を測る形で、Pi の renderer のメモリは測れない。B にすると、snapshot の 1 MiB を広げる契約は、Node の側の値（publishSerialization の bytes と時間、EEW の T2→T4）で決め、renderer の分は残存リスクに書いて P4 の窓で確かめることになる。A は窓が 1 回で済むが、Pi の Chromium を SSH から起こす手順（keyring の罠、memory の feedback_pi_chromium_from_ssh）と、P4 の後の測り直しが要る"
       },
       {
