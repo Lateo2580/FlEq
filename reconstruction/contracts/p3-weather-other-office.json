@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "56d4de0b89d9a33f118a8e60fb5d72d824c855f712ed0e440f9f8d1077906350",
+    "sha256": "28562fd342d42e2fb059fe2b46048a8d8f4043f2beb2ba3793813280484dc0ca",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
-    "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
+    "manifestSha256": "b106394a3176f22afd73439112c8aa1da4e88d03f654a2e2842f6529d1c529f2",
+    "sequencesSha256": "d0686de8aef183d03f7267df9d67d0edf414fd15cefd57db27f157d57c54c7c5",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -240,8 +240,8 @@
         "evidenceRefs": [
           "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
           "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
-          "reconstruction/test/final-gate/oracle.test.ts:412 «7043bd37d4a2ef31»",
-          "reconstruction/test/final-gate/oracle.test.ts:415 «fa00634b251085aa»"
+          "reconstruction/test/final-gate/oracle.test.ts:412 «8fdf38fca3e1fb31»",
+          "reconstruction/test/final-gate/oracle.test.ts:415 «fb67f710628de0cd»"
         ]
       },
       {
