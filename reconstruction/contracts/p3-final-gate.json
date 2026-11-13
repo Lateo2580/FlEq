@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "0f33b37aa3d3a07c8710240a032261c24891dc3f3bbcb7ab4bf62697b7581f65",
+    "sha256": "59dc2d8e73f2bc24cf3c4a40de433a11e893bfe2256865bc394015732976b41d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "a08022b4a1a434040339208b9362a6038fc96c9758300210513fae36f55cf978",
     "sequencesSha256": "1552f3a0dc0b918786953ac5a57c70d9a60975525f96d6aa8d04bda9a1fa2337",
@@ -472,6 +472,13 @@
           "p3-replay-watch.json:323 K6（同じ）"
         ],
         "remaining": "区分外 7 行の読みを作者に見せる（AC12 の「区分に入らない行は作者に見せる」）"
+      },
+      {
+        "id": "Q-FG-UNMET-ORPHAN",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-13 15:13、外出先から「全て推奨でお願いします」。判断カード 2026-11-13-C22-最終ゲートの分岐 の「行き先の無い 34 本をどうするか」と「裁定 2」）",
+        "closed": "(e) の 34 本（7 群）は全部 Q-FG-LEDGER-AC03 の orphan の推奨どおり: 群 1（O01:4・11）と群 2（O02:3）と群 3（O03:7・9）は P4 の前の小さい契約、群 4（O04:3・5〜8）は O10 を流す発注で準備を組む、群 5（O09:3〜5）は C4 の測定を行き先と読む、群 6（O09:6・7・10）は P4 へ送る、群 7（O06:11〜28）は T02 の checks の字を今の決まりに直して T02 を行き先と読む。群 1 は P3-EEW-SAME-CORRECTION-001 が受け持った（帳簿の「duplicate」は誤りで、製品は unchanged/stale）。群 2 は P3-TIMESERIES-NEWER-EMPTY-001 を起草した（帳簿の「U-F の試験内で作る」は T01 が manifest の fixture しか読まないので corpus に足す形に替えた）",
+        "remaining": "群 2 の発注、群 3 の起草、群 4・7 は O10・O06 を流す発注へ、群 5 は作者の確かめ、群 6 は P4"
       }
     ],
     "operationContract": {
@@ -1097,18 +1104,6 @@
         "resolveBy": "段 4 の器の拡張の契約の起草のとき",
         "requiredEvidence": [
           "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。決まらないまま AC13 を判定しない"
-        ]
-      },
-      {
-        "id": "Q-FG-UNMET-ORPHAN",
-        "owner": "user",
-        "blocks": [
-          "AC03 の合格",
-          "AC13"
-        ],
-        "resolveBy": "発注 1 の帳簿の後",
-        "requiredEvidence": [
-          "AC03 の (e)（r2 の起草の数で 34）から手順 (1)〜(3) で移した後に残った step ごとの入力と期待の要約と、P4/P5 へ送るか取り下げるかの推奨"
         ]
       },
       {
