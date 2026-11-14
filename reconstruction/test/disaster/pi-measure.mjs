@@ -23,6 +23,8 @@ import projector from "../../dist/src/view-projector/view-projector.js";
 const LAUNCHER = join(REPO, "reconstruction/test/eew-e01/host-launcher.mjs");
 const READY_MS = 120_000; // P3-DPM-RES-02
 const EEW_EVERY_MS = 200, EEW_EVENTS = 5, DIRTY_EVERY_MS = 5_000, DRAIN_MS = 10_000, STOP_MS = 60_000;
+// blocked の後始末で SIGTERM の後に待つ時間。host の stop は保存の待ちを含み、Pi の山では数秒かかりうる（AC04 (7)）。
+const TERM_MS = 20_000;
 // 大きい unit を dirty にする入力（AC04 (3)）。U-T・U-Q は EventID を報ごとに替え（必ず変わる）、U-W・U-F は官署を替えない（件数を増やさない）。
 const DIRTY = [["U-T", "VTSE41", "32-39_11_02_250206_VTSE41"], ["U-Q", "VXSE53", "32-35_04_04_240613_VXSE53"], ["U-W", "VPWW57", "15_16_02_251222_VPWW57"],
   ["U-F", "VPWP50", "81_01_04_251222_VPWP50"]];
@@ -50,8 +52,9 @@ function stats(values, { p90 = false, p99 = false } = {}) {
     max: s.at(-1) };
 }
 
-const readJsonl = (dir) => (existsSync(dir) ? readdirSync(dir).filter((name) => /^diagnostics-.*\.jsonl$/.test(name)).sort()
-  .flatMap((name) => parseJsonl(readFileSync(join(dir, name), "utf8"))) : []);
+// wholeLines: 最後の改行までだけを読む（SIGKILL で止めた host の書きかけの行を読まない、AC04 (7)）。既定は file の全部で、analyze の読みは変えない。
+const readJsonl = (dir, wholeLines = false) => (existsSync(dir) ? readdirSync(dir).filter((name) => /^diagnostics-.*\.jsonl$/.test(name)).sort()
+  .flatMap((name) => { const text = readFileSync(join(dir, name), "utf8"); return parseJsonl(wholeLines ? text.slice(0, text.lastIndexOf("\n") + 1) : text); }) : []);
 
 // 自分の T2 の後、自分の processing（か次の T2）までの最初の T3 が自分の版で、その版の最初の T4（run.mjs の t4Of と同じ境界）。1 回の走査で引く。
 function t4Index(observations) {
@@ -71,7 +74,7 @@ async function launch(k, dir, ctx) {
   const cleanups = [];
   const scope = { add: (fn) => cleanups.push(fn) };
   const obsPath = join(dir, "host-obs.jsonl"), configPath = join(dir, "host-config.json");
-  let exited = null;
+  let exited = null, terminatedBy = null, failure = null;
   try {
     const launchedHr = hrMs();
     const injector = await startInjector(scope, { wallNow: () => ctx.wallOriginMs + (hrMs() - launchedHr) });
@@ -81,7 +84,14 @@ async function launch(k, dir, ctx) {
     const child = spawn(ctx.nodePath, [LAUNCHER, configPath], { stdio: ["ignore", "inherit", "inherit", "ipc"] });
     child.once("exit", (code, signal) => { exited ??= { code, signal }; });
     child.on("error", (error) => { exited ??= { code: null, signal: null, error: String(error?.message ?? error) }; });
-    cleanups.push(async () => { if (exited == null) { child.kill("SIGKILL"); for (let i = 0; i < 20 && exited == null; i++) await sleep(100); } });
+    // AC04 (7): 先に SIGTERM で止め、host に診断の日別 file と終了要約を書かせる（SIGKILL だけだと blocked の理由を診断から分けられない、2026-11-14 の窓）。
+    cleanups.push(async () => {
+      for (const [signal, waitMs] of [["SIGTERM", TERM_MS], ["SIGKILL", 2_000]]) {
+        if (exited != null) return;
+        terminatedBy = signal; child.kill(signal);
+        for (const until = hrMs() + waitMs; exited == null && hrMs() < until;) await sleep(100);
+      }
+    });
     let timer;
     const ready = await new Promise((resolve, reject) => {
       child.once("message", resolve);
@@ -157,8 +167,21 @@ async function launch(k, dir, ctx) {
     if (exited == null) throw new Blocked("hostFailed", `launch ${k}: did not stop within ${STOP_MS} ms`);
     if (exited.code !== 0) throw new Blocked("hostFailed", `launch ${k}: exit ${JSON.stringify(exited)}`);
     return analyze(k, dir, ctx, { lines: read(), readyMs, eews, dirties, wide });
+  } catch (error) {
+    failure = error;
+    throw error;
   } finally {
     for (const fn of cleanups.reverse()) { try { await fn(); } catch { /* 後始末の失敗で他の後始末を止めない */ } }
+    // AC04 (7): blocked の理由を分ける材料。host の終わり方、道具が送った signal、host が書いた WARN・ERROR の診断の理由ごとの数
+    // （mailboxRejectedItemLimit なら host が投入に追いつかずに入力を断った）。
+    if (failure instanceof Blocked) {
+      // 書きかけの末尾の行は読まない。それでも読めなければ Blocked を別の例外に替えない（hostReasons は null）。
+      let hostReasons = {};
+      try {
+        for (const d of readJsonl(join(dir, "diagnostics"), true)) if (d.level === "WARN" || d.level === "ERROR") hostReasons[d.reason] = (hostReasons[d.reason] ?? 0) + 1;
+      } catch { hostReasons = null; }
+      failure.evidence = { launch: k, hostExit: exited, terminatedBy, hostReasons };
+    }
   }
 }
 
@@ -284,7 +307,7 @@ async function main(argv) {
       launches: runs.map(({ raw, ...run }) => ({ ...run, ...distributions([raw]) })) });
   } catch (error) {
     if (!(error instanceof Blocked)) throw error;
-    finish({ status: "blocked", blocked: { reason: error.reason, detail: error.detail } });
+    finish({ status: "blocked", blocked: { reason: error.reason, detail: error.detail, ...error.evidence } });
   }
 }
 
