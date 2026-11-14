@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ddf8240bd554e3619c1be64936c57236e4eb6f0",
-    "sha256": "6fad5aee1a8b92cd1b6cdc0f8ada2b2987603597d058d657de42af4fcf8e51f5",
+    "sha256": "91e69d33b539cb5fb45be277aa3dd10e1c3584c4048d40ef68a3f828a9be8650",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -88,6 +88,13 @@
         "source": "r4（2026-11-14 夕、HEAD 89901032。draft/dpm-remeasure を origin/main d05f4b0d の上に載せ直した木）。写しの確かめは未追跡の補助 reconstruction/.dr-tmp/sel-r4/ の new・old・probe.ts・run-new.log・run-old.log",
         "closed": "(1) 回収が予約を越える state を作る件（構造的欠陥台帳 128）は、P3-SEISMIC-RESERVE-CLOSE-001（作者裁定 A、実装 e8926254）が d05f4b0d で配送して閉じた（Mac mini ゲート b43、CI success run 43574412156、台帳 128 解消）。予約を確かめる 1 か所 overReserve を、採用の fit（受けた報のある fit で予約を越えたとき、seismic-unit.ts:717）と期限切れの回収 collect（記憶へ移した回、:1234）の最後から呼び、越えたら件数の超過の (4) と同じ順で記憶を外す（seismicCapacityEvicted）。だから受信は予約で断らず、回収の後も restored。本契約の AC06 の式（P3-SEL-D-RESERVE=B）はそのまま有効で、役目は『件数の上限まで最悪の長さの記憶が予約に入り、外す控えが出ない』ことを保つことになる (2) T03 の歯（P3-SEISMIC-RESERVE-CLOSE-001 の契約適合レビューからの申し送り、同契約の artifactRequirements）: d05f4b0d と同じ src・test の木を cp -cR で 2 つ写し（new は件数 1024 と AC06 の式、old は件数 1024 だけで式は今のまま）、seismic-capacity.test.ts の末尾に T03 の形の確かめ 1 本を足して -t で --maxWorkers=2 で回した（MacBook、両方 rc 0、repo には入れていない）。new: 器 L 26,519,529（P3-SEL-RES-02 の見込みと一致。RESERVE_BYTES は直に読んでいない）、(a) reserveState（記憶 1024 件＋長周期 256 件＋当日履歴の上限）は restored、(b) それに新しい VXSE53 1 通で changed・seismicCapacityEvicted の count 1（件数の超過の最古の記憶）・event 1024 件・restored、(c) 記憶 1020 件に 4 family の地震 4 つ（16 報とも changed、seismicCapacityEvicted 無し）を受け、12:01 の期限で記憶にしても seismicCapacityEvicted 無し・event 1024 件・地震 4 つは expired の記憶で残り・restored。old: (a) invalid、(b) changed・seismicCapacityEvicted の count 549（event 293 件と長周期 256 件の全部）・event 732 件・長周期 0 件・restored、(c) 16 報の受信で計 546 件・回収で 3 件を外し（計 549 件、長周期 256 件の全部を含む）、event 731 件・長周期 0 件・地震 4 つのうち 1 つだけ残り・restored。直す前の式でも (b)(c) は断られず restored で、違いは seismicCapacityEvicted の count だけに出る。old は始めの state が既に予約を越えている（(a) が invalid）ので、(c) の控えは回収より先に受信で外れる。new の (b)(c) の長周期は 256 件のまま。同じ new の写しで P3-SEISMIC-RESERVE-CLOSE-001 の P3-SRC-T01（540 ms）・P3-SRC-T02（658 ms）は今の期待のまま通る（件数 1024 と AC06 の式で直さなくてよい） (3) r4 の書き直し: AC05 (d) を解消にし、AC06 (4)・P3-SEL-T03 の歯を seismicCapacityEvicted の期待に置いた。questionResolutions の他の項に素で書いた seismic-unit.ts の行番号は、それぞれの source の HEAD の行のまま（P3-SEISMIC-RESERVE-CLOSE-001 で :607 より後ろは 13〜20 行ずれた。89901032 の行は :615→:628、:619〜:620→:632〜:633、:626→:639、:998〜:1000→:1013〜:1015、:1178→:1193、:1192→:1207、:1630→:1650、:1639→:1659）",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-SEL-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-14 19 時台、HEAD 61529563）",
+        "closed": "baseOid を 6152956373ab10323252ff98fb0caf90285f5f00 に割り当てた（p3-final-gate.json の AC09 の成果物の読み方の改訂を当てた commit）。decisionBranches の status に「起草案」は 0 件（P3-SEL-D-LIMIT・P3-SEL-D-RESERVE とも作者の確定）、依存の P3-SEISMIC-RESERVE-CLOSE-001 は origin/main d05f4b0d に配送済みで 61529563 の祖先。起草レビューは品質（Codex、thread 01a1d89b、r4 で GO）・契約適合（Opus、r4 で GO）。787 の Mac mini の out/c1024.json での確かめは任意で、行っていない",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -99,7 +106,7 @@
     "contractId": "P3-SEISMIC-EVENT-LIMIT-001",
     "mode": "implementation",
     "objective": "段 4（器の上限は Pi で速さを測ってから広げる、2026-10-21 作者の方向、p3-order-plan.md:547）の上限を変える契約。地震の記録の件数の上限（seismic-unit.ts の EVENT_LIMIT）を 512 から 1024 にする（P3-SEL-D-LIMIT=A、作者裁定 2026-11-14 13:50 ごろ）。あわせて、件数から決まる退去できない記録の予約と器のうち 512 件分に固定された頭を件数の式にする（P3-SEL-D-RESERVE=B、作者裁定 2026-11-14 14:29 ごろ、AC06）。長周期の上限 256（LONG_PERIOD_LIMIT）と画面へ渡す snapshot の上限 1 MiB は変えない。保存の形（schemaVersion）は変えない。無いと: 南海トラフ級の地震が続く日（筋書き N2・N3）に、震度 5 弱に届かない地震の報 432 件（地震 250 個）が、画面に出しておく期限より前に件数の上限で記録から消える（判断カード 2026-11-13 夜 §8、P3-DISASTER-PI-MEASURE-001 の Q-DPM-REMEASURE-20261114 (2) の c512）。あわせて、件数を字の 512 で組んだ既存の試験の期待を 1024 に合わせる（Q-SEL-PROBE）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加・変更した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "6152956373ab10323252ff98fb0caf90285f5f00",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -385,19 +392,6 @@
       "原文の改訂（統合担当が配送の commit で当てる。行の数を変えない）: (1) docs/specs/reconstruction-p0-contracts.md:570 の「最大512 EventID」を 1024 に、:3063 の H36 の行の「未充足: 件数 512 は据え置き」に「件数 1024 は P3-SEISMIC-EVENT-LIMIT-001 で作者裁定（P3-SEL-D-LIMIT=A）。R1 の実例の数えは未実施で、R1 を取った後の確かめに残る（Q-QC-H36 は閉じない）」の旨を書く。p3-unit-q-capacity.json:344 の outOfScope「件数 512 の変更（H36）…」にも「件数は P3-SEISMIC-EVENT-LIMIT-001 で作者裁定により 1024、R1 の数えは Q-QC-H36 に残る」を行の中で足す (2) p3-seismic-unit.json:76・:815 の「event 512」と p3-unit-q-capacity.json:408 の「件数の上限は event 512・長周期 256 のまま」に、本契約で 1024 にした旨を行の中で足す (3) p3-disaster-capacity.json:406 の「U-Q: event 512・長周期256」に 1024（本契約）を足す (4) «» で seismic-unit.ts:39・:63・:69 を引く行は付け直す（:39 は p3-disaster-pi-measure.json:321、:63 は p3-c7t05-fill.json:124・:133・p3-currency-coverage.json:503・p3-disaster-capacity.json:410・p3-unit-q-capacity.json:414、:69 は p3-currency-coverage.json:504・p3-seismic-reserve-close.json:195・p3-unit-q-capacity.json:362、ほかに本契約の AC01・AC06） (5) 予約と器（AC06）: p3-seismic-unit.json:310（capacityReserve の『512×1,833…』の式）・:724〜:725（容量の scope の 1,470,281 と、source の器の広げの履歴）・:815（退去できない記録の上限 1,470,281）、p3-unit-q-capacity.json:52（RESERVE_BYTES 1,705,289）・:305（P3-QC-RES-01 の器 15,515,625）・:312（P3-QC-RES-02 の 1,705,289＋…＝1,958,729）・:408（器と上界）に、本契約で件数の式にした旨と 1024 の値を行の中で足す (6) 「今の器は U-Q 15,515,625」の注（その時の器の値の注に、件数 1024・AC06 の式の器を本契約で足した旨を行の中で足す）: p3-seismic-unit.json:76・:305・:957、p3-unit-q-capacity.json:490・:510・:677、p3-currency-coverage.json:497、p3-intent-update-reserve.json:195・:247・:274・:350、p3-notice-ledger.json:21、p3-disaster-capacity.json:406、p3-seismic-expiry-view.json:183（器の式 15,499,497＋768×21＝15,515,625） (7) 一括処理の上限を event 512 と書いた条文（一括の回収の上限が 1024＋256 になった旨を足す）: p3-seismic-unit.json:303・:316、p3-expiry-form.json:114、p3-unit-q-capacity.json:84・:481 (8)「記憶も件数 512・256 に数える」の句（件数 1024 の旨を足す）: p3-seismic-unit.json:67・:303・:631・:639・:682、p3-unit-q-capacity.json:35・:677。(1)〜(8) の行と改める字は r4 で 89901032 の行に照らし直した（P3-SEISMIC-RESERVE-CLOSE-001 の配送で中身が変わった行は p3-seismic-unit.json:76・:310 と p3-unit-q-capacity.json:510 で、改める字は今の行にある）。測定の記録の行（p3-c7t05-fill.json:15 など）は数えない (9) 上の改訂で中身が変わり、他の契約が «» で引く行（89901032 の時点。引き手の «» を付け直す）: p3-seismic-unit.json:67 ← p3-unit-q-capacity.json:450、:76 ← p3-currency-coverage.json:508・p3-final-adoption.json:259・:341・p3-seismic-reserve-close.json:234・p3-unit-q-capacity.json:513、:303 ← p3-unit-q-capacity.json:517、:305 ← p3-intent-update-reserve.json:250・:280・p3-unit-q-capacity.json:475、:310 ← p3-final-adoption.json:343・p3-intent-update-reserve.json:251・:281・p3-seismic-reserve-close.json:196・:232・p3-unit-q-capacity.json:519・本契約の AC06、:815 ← p3-unit-q-capacity.json:485、p3-unit-q-capacity.json:510 ← p3-seismic-reserve-close.json:236、p3-currency-coverage.json:497 ← p3-version-material.json:561、p3-disaster-capacity.json:406 ← p3-unit-q-capacity.json:495・p3-uw-canon.json:634、docs/specs/reconstruction-p0-contracts.md:570 ← p3-seismic-unit.json:801・:818",
       "残存として成果物に書く: P3-SEL-AC05 の (a)〜(c)（(d) は r4 で解消）。旧築（src/）は変えない"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-SEL-PRECHECK",
-        "owner": "integrator",
-        "blocks": [
-          "発注"
-        ],
-        "resolveBy": "発注前点検",
-        "requiredEvidence": [
-          "baseOid の割当",
-          "787 は bad75ae3 の写しの N2・N3 で引き直せた（Q-SEL-RESERVE-RUN (3)、out-tree-N2.json・out-tree-N3.json）。Mac mini の d244a088 の out/c1024.json の limits でも確かめるなら発注前点検で（任意の確かめで、発注は止めない）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
