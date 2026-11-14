@@ -591,12 +591,12 @@ function eewArrival(condition: string | null, arrivalRaw: string | null, reportR
   const at = clockOf(arrivalRaw);
   return at != null ? seg(at, arrivalRaw != null && reportRaw != null && Date.parse(arrivalRaw) < Date.parse(reportRaw) ? "arrived" : null) : text === "" ? null : seg(text);
 }
-// 見出し文の地方名を太字にする（spec §5.1 の表）。全角の空白で区切られた部分が地方名で、先頭が震源の文のままのときは先頭だけ地方名でない。
+// 見出し文の地方名を太字にする（spec §5.1 の表）。全角の空白で区切られた部分が地方名で、先頭が震源の文のままのときは先頭だけ地方名でない。改行の揃えは空白の並びの頭からだけ読む（後読みが無いと並びの開始位置ごとに読み直して 2 乗）。地方名の部分は正規表現で分けない（旧の /^(.*?)(で強い揺れ.*)?$/ は CR・U+2028・U+2029 で null を返して batch ごと消した）。地方名の部分の CR・U+2028・U+2029 を含む空白の並びは全角の空白に揃える（台帳 132・133、P3-TERMINAL-REGEX-LINEAR-001、P3-TRL-D-BREAK）。
 function headlineSegs(headline: string, regions: boolean): Seg[] {
-  return headline.replace(/\s*\n+\s*/g, "　").split("　").flatMap((part, index) => {
+  return headline.replace(/(?<!\s)\s*\n+\s*/g, "　").split("　").flatMap((part, index) => {
     if (index === 0 && !regions) return [seg(part)];
-    const [, name, tail] = /^(.*?)(で強い揺れ.*)?$/.exec(part)!;
-    return [...index === 0 ? [] : [seg("　")], seg(name, null, true), ...tail == null ? [] : [seg(tail)]];
+    const text = part.replace(/\s+/g, (run: string) => /[\r\u2028\u2029]/.test(run) ? "　" : run), at = text.indexOf("で強い揺れ");
+    return [...index === 0 ? [] : [seg("　")], seg(at < 0 ? text : text.slice(0, at), null, true), ...at < 0 ? [] : [seg(text.slice(at))]];
   });
 }
 
@@ -721,12 +721,12 @@ function eew(subject: SubjectOutcome, memory: Memory, ctx: Ctx, nowMs: number, s
 const TOWN_LABEL = "対象の市町村  ";
 const MONTHLY_URL = "https://www.data.jma.go.jp/vois/data/report/monthly_v-act_doc/monthly_vact.php";
 // 短い形の文の組版の空白（P3-TL3-AC06、Q-TO4-SPACE）。端末の側の整形で、material は生の字を写す。
-// 無いと電文の字下げと折り返しがそのまま出て「（ 平成」「詳しくは 月間」のように語の途中に空白が入る。短い形でない報の textLines は変えない。
+// 無いと電文の字下げと折り返しがそのまま出て「（ 平成」「詳しくは 月間」のように語の途中に空白が入る。短い形でない報の textLines は変えない。「、。」の前の空白は並びの頭からだけ読む（後読みが無いと並びの開始位置ごとに読み直して 2 乗、台帳 133）。
 const SENTENCE_ITEM = /^[^\s：:。、]*[^\s：:。、0-9０-９][：:]/, SENTENCE_JOIN = /[\p{L}\p{N}\p{Ps}]$/u;
 function shortSentence(raw: string | null): string {
   const rows = (raw ?? "").split(/\n/).map((row) => row.trim().replace(/^(\S)[ 　]+(\S)(?=[：:])/, "$1$2"));
   return rows.reduce((sentence, row, index) => row === "" ? sentence : sentence === "" ? row : `${sentence}${SENTENCE_JOIN.test(rows[index - 1]) && !SENTENCE_ITEM.test(row) ? "" : " "}${row}`, "")
-    .replace(/[ 　]+(?=[、。])/g, "");
+    .replace(/(?<![ 　])[ 　]+(?=[、。])/g, "");
 }
 function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx): Rendered {
   const { head } = report;
@@ -1051,7 +1051,7 @@ function areaLines(row: RiskRow, room: number): Line[] {
 function trimEnd(segs: readonly Seg[]): Seg[] {
   const kept = [...segs];
   while (kept.length > 0) {
-    const last = kept.at(-1)!, trimmed = last.text.replace(/[ 　]+$/, "");
+    const last = kept.at(-1)!, trimmed = last.text.replace(/(?<![ 　])[ 　]+$/, ""); // 末尾の空白の並びは頭からだけ読む（後読みが無いと並びの開始位置ごとに読み直して 2 乗、台帳 133）
     if (trimmed !== "") { kept[kept.length - 1] = seg(trimmed, last.role, last.bold); break; }
     kept.pop();
   }

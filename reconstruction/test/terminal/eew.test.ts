@@ -96,6 +96,24 @@ describe("P3-TL-T02 続報の変化", () => {
     expect(lines).toContain("四国　九州で強い揺れ");
   });
 
+  // P3-TRL-T01（台帳 132）: 地方名の部分に CR・U+2028・U+2029 があると旧は例外で batch ごと出なかった。P3-TRL-D-BREAK=A で全角の空白に揃える。
+  it("文字参照の CR・U+2028・U+2029 の入った見出し文でも例外にならず、全角の空白になる", () => {
+    for (const mark of ["&#13;", "\u2028", "\u2029"]) {
+      const text = (xml: string) => xml.replace("<Text>豊後水道で地震　四国　九州　中国で強い揺れ</Text>", `<Text>豊後水道で地震　四国${mark}九州　中国で強い揺れ</Text>`);
+      expect(terminal()(eewUnits([{ path: "37_01_01_240613_VXSE43.xml", transform: text }])[0])).toContain("四国　九州　中国で強い揺れ");
+    }
+  });
+
+  // P3-TRL-T02（台帳 133）: 見出し文の改行の揃えと行末の空白の消し（trimEnd）は空白の並びの長さに線形。旧はどちらも並びの開始位置ごとに読み直し、この報で片方だけ旧に戻すと 120〜170 ms、両方で約 0.3 秒。
+  it("見出し文に半角空白 16,382 字の並びがあっても、整形 1 回（3 回の最小）は 100 ms 未満で、報が出る", () => {
+    const text = (xml: string) => xml.replace("<Text>豊後水道で地震　四国　九州　中国で強い揺れ</Text>", `<Text>a${" ".repeat(16_382)}a</Text>`);
+    const [units] = eewUnits([{ path: "37_01_01_240613_VXSE43.xml", transform: text }]);
+    // 最初の整形は JIT が冷えていて遅いので、新しい端末で 3 回整形した最小と比べる（旧は最小でも数百 ms）。
+    let lines: string[] = [];
+    const times = [0, 1, 2].map(() => { const print = terminal(), started = performance.now(); lines = print(units); return performance.now() - started; });
+    expect([Math.min(...times) < 100, lines[1]]).toEqual([true, band("緊急地震速報（警報） 第1報", "23:14:59")]);
+  });
+
   it("同じ EventID の訓練の報は通常の報の覚えを上書きせず、通常の取消の 3 行目は通常の報の震源名（覚えの鍵は operation・family・EventID）", () => {
     const training = { path: "37_01_01_240613_VXSE43.xml", transform: (xml: string) => xml.replace("<Status>通常</Status>", "<Status>訓練</Status>")
       .replace(/<Name>豊後水道<\/Name>/g, "<Name>訓練の震源</Name>").replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, "<ReportDateTime>2024-04-17T23:15:30+09:00</ReportDateTime>") };
