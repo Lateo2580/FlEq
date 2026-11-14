@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "79d258e496cf56dd05fce8e87fb48fe4b3e94f1b4b7f66822b6f84a5d77f22be",
+    "sha256": "6511bd4223fd6be55bac59c5d2c0c6b29f3133b316a2e6db39a7a907fbfa79f1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -1131,7 +1131,7 @@
         ],
         "resolveBy": "段 4 の器の拡張の契約の起草のとき",
         "requiredEvidence": [
-          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。起草の時点の答えの置き場は P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01（統合担当、同契約の発注の前に閉じる）。決まらないまま AC13 を判定しない"
+          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。起草の時点の答えの置き場は P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01（統合担当、同契約の発注の前に閉じる）。決まらないまま AC13 を判定しない。→ 2026-11-14、P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01 で閉じた: 段 4 を理由にした取り直しは要らない（E05 の 9 run で U-Q の保存 0 回、上限の値は比べにしか使われない）。U-Q が詰まったときの RSS は同契約の Q-SEL-FULL-STATE の測る項目"
         ]
       },
       {
