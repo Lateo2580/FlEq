@@ -386,10 +386,10 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       const h = await host(observations);
       const m = measurer(observations);
       let sequence = 0, piled = 0, bytes = 0; const { seismicUnitCodec } = await import("../../src/units/seismic/seismic-unit"); const saves = () => observations.flatMap((item) => item.kind === "checkpoint" && item.measurement.unit === "U-Q" && item.measurement.stage === "encode" ? [item.measurement] : []);
-      for (; bytes < 0.8 * (seismicUnitCodec.maxEnvelopeBytes ?? Infinity); piled++) { if (piled === 120) throw new Error(`trial ${trial}: the U-Q encode ${bytes} did not reach 0.8 of ${seismicUnitCodec.maxEnvelopeBytes} in 120 piles`);
+      for (; bytes < 0.9 * (seismicUnitCodec.maxEnvelopeBytes ?? Infinity); piled++) { if (piled === 120) throw new Error(`trial ${trial}: the U-Q encode ${bytes} did not reach 0.9 of ${seismicUnitCodec.maxEnvelopeBytes} in 120 piles`);
         const sent = `input-${++sequence}`; await h.sender.send([frame("VXSE53", withEvent(s53w, `W53${trial}${String(piled).padStart(10, "0")}`))]);
         await until(() => m.processingOf(sent) != null && saves().some((save) => save.inputIds.includes(sent))); bytes = saves().at(-1)?.bytes ?? 0;
-      } // P3-DPM-AC05: U-Q の encode が器の 0.8 倍に届くまで積む。17 件の固定では器を広げた後に畳みが 0 回のまま緑だった（2026-11-12 夜）
+      } // P3-DPM-AC05: U-Q の encode が器の 0.9 倍に届くまで積む。17 件の固定では器を広げた後に畳みが 0 回のまま緑だった（2026-11-12 夜）。器 26.5 MB では 0.8 倍に観測点 30,000 の報を足しても器に届かなかった（P3-SEISMIC-EVENT-LIMIT-001）
       const work = `input-${++sequence}`, eew = `input-${++sequence}`;
       const [workAt, injectedAt] = await h.sender.send([frame("VXSE53", wide(`WIDE${trial}`)), probes.eew()]);
       await until(() => m.processingOf(eew) != null && m.processingOf(work) != null, 120_000);

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "f28f3809cf4c4a788eb0ffc3330df2f7738baee482e1a889b481ffc2770934d6",
+    "sha256": "b8b7d3a7b1598b430ce3051a12d07d24d0a8b645c8d162eef914e44e7b9a262a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -353,10 +353,10 @@
       },
       {
         "id": "P3-DPM-AC05",
-        "requirement": "地震の畳みの試験を今の器で畳みが起きる量に直す（P3-DPM-D-FOLD=A。seismic-host.test.ts の widest fold、373 行の it）: (1) 389 行の 17 件を、U-Q の encode の bytes（observations の kind checkpoint・U-Q・encode の最後の bytes）が seismicUnitCodec.maxEnvelopeBytes の 0.8 倍以上になるまで積む形に替える（上限 120 件、届かなければ Error）。0.8 は 11-12 夜の補助の測定（qc-measure-ac11.md: 512 で 40 件 12,540,391 byte／器 15,515,625、768 で 52 件 16,301,983／20,498,153 を先に入れ、観測点 30,000 の VXSE53 で畳みが起きた）から (2) host() の戻り値（157 行）に診断の directory を足し、試行ごとに h.stop() の後、日別 file の seismicStationsFolded の count を数えて行（rows）に folded と piled（積んだ件数）を足す。folded が 0 の試行があれば Error (3) seismicUnitCodec は it の中で const { seismicUnitCodec } = await import(\"../../src/units/seismic/seismic-unit\") と読む（import は 1〜14 行で、行を足せないため）。行の数を変えない（157 行と 385〜404 行の中で直す。後ろの 406・409・461・478 行は p3-seismic-host-expiry-test.json が «» で引く） (4) 無いと: 器を 15.5 MB に広げた後も 17 件のままで、畳みが 0 回のまま緑になり、畳みの最中の EEW の待ちを測らずに値を報告する（2026-11-12 夜に実際に起きた）",
+        "requirement": "地震の畳みの試験を今の器で畳みが起きる量に直す（P3-DPM-D-FOLD=A。seismic-host.test.ts の widest fold、373 行の it）: (1) 389 行の 17 件を、U-Q の encode の bytes（observations の kind checkpoint・U-Q・encode の最後の bytes）が seismicUnitCodec.maxEnvelopeBytes の 0.8 倍以上になるまで積む形に替える（上限 120 件、届かなければ Error）〔P3-SEISMIC-EVENT-LIMIT-001 で 0.9 倍にした。器 26,519,529 では 0.8 倍に観測点 30,000 の報を足しても器に届かず、畳みが起きなかった。0.9 倍は「0.8 倍以上」の内〕。0.8 は 11-12 夜の補助の測定（qc-measure-ac11.md: 512 で 40 件 12,540,391 byte／器 15,515,625、768 で 52 件 16,301,983／20,498,153 を先に入れ、観測点 30,000 の VXSE53 で畳みが起きた）から (2) host() の戻り値（157 行）に診断の directory を足し、試行ごとに h.stop() の後、日別 file の seismicStationsFolded の count を数えて行（rows）に folded と piled（積んだ件数）を足す。folded が 0 の試行があれば Error (3) seismicUnitCodec は it の中で const { seismicUnitCodec } = await import(\"../../src/units/seismic/seismic-unit\") と読む（import は 1〜14 行で、行を足せないため）。行の数を変えない（157 行と 385〜404 行の中で直す。後ろの 406・409・461・478 行は p3-seismic-host-expiry-test.json が «» で引く） (4) 無いと: 器を 15.5 MB に広げた後も 17 件のままで、畳みが 0 回のまま緑になり、畳みの最中の EEW の待ちを測らずに値を報告する（2026-11-12 夜に実際に起きた）",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-host.test.ts:373 «f8307b96c979e627»",
-          "reconstruction/test/seismic-unit/seismic-host.test.ts:389 «56be8bdfa4833ec5»",
+          "reconstruction/test/seismic-unit/seismic-host.test.ts:389 «87a0751b48003f41»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:403 «80d506a7d25c35e2»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:157 «b7ff60c3404f395d»",
           "reconstruction/test/seismic-unit/seismic-host.test.ts:146 «9b03d893503e5ce6»"
