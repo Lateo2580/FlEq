@@ -1,0 +1,313 @@
+{
+  "meta": {
+    "draftedFromOid": "56f3f0070095fb456a7a6d89dc67e10093d63ede",
+    "sha256": "b57874673bedb1ec76ad6009f40ab377226a06b9914edf83a803ce3d44496e9c",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-DNL-D-EQUIVALENCE",
+        "kind": "統合担当",
+        "A": "新旧の同値は使い捨ての比べの script で示し、件数を成果物に書く（起草の写しの compare.cjs と同じ形: corpus の全 fixture の欄・10 字の網羅・seed 固定の乱数・誤った変異 5 つ、AC03）。常設の試験には旧の正規表現を残さない",
+        "B": "旧の正規表現を試験の中に神託として残し、seed 固定の乱数の字列（長さ 80 まで）で新旧を比べる試験を常設する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "同値は 1 回確かめれば足りる性質で、旧の正規表現を常設の試験に残すと、消したい形を repo に残し続け、乱数の試験は fixture の焼き直しに近い（AGENTS.md の最小テスト）。P3-XML-TREE-COMPACT-001 の D-XTC-EQUIVALENCE=A（使い捨ての比べ・常設に焼き込まない）と同じ形。B の利点は、後で boundedNumber を触る人が同値を崩したときに落ちることだが、その変更は別の契約で同じ比べを回せばよい"
+      },
+      {
+        "id": "P3-DNL-D-PLACE",
+        "kind": "統合担当",
+        "A": "boundedNumber を materialValue の直前に置く（なぜのコメント 3 行・関数 8 行・空行 1 行の計 +12 行。:384 以降の行は 12 行ずれ、ほかの契約の «» 6 個を付け直す、AC04）",
+        "B": "boundedNumber を file の末尾に置き、行をずらさない（«» の付け直しは 0）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "呼び手は materialValue 1 つだけで、隣に置くと読む人が行き来しない。付け直す «» は 6 個で、どれも中身の変わらない行なので付け直しの道具で機械的に済む（中身の変わる :387・:389・:390 を引く «» は 0 個、AC04）。B は関数の宣言の巻き上げで動くが、読み手が file の末尾まで探しに行く"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-DNL-EQUIV",
+        "status": "closed",
+        "source": "起草（2026-11-14 夜、56f3f007 の decode-material.ts を読み、ECMAScript の正規表現の後戻りの順で考え、起草の写しで比べた〔Q-DNL-PROBE〕）",
+        "closed": "統合担当の見立ては正しい。旧の match は次と全ての入力で同じになる: 欄の字 T（condition を NFKC にしたもの、空なら raw を NFKC にして trim したもの）を行の終わりの字（LF・CR・U+2028・U+2029。u・s の flag が無いので `.` はこの 4 つだけを越えない）で行に分け、前の行から順に、その行で語（以上・超・未満・以下）が始まる最後の位置 k を取り、行の k より前の部分で最初に一致する数字 /[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)/（貪欲）を探す。数字が見つかった最初の行で、match[1] はその数字、match[2] はその行の位置 k の語。どの行にも無ければ null。理由: (1) 数字の字（0-9・.・+・-）と語の字は重ならず、行の終わりの字はどちらにも入らないので、一致は 1 つの行の中に収まる (2) ある始まりの位置で旧が試す数字の終わりは、符号を含む形を先に、数字の長い方から短い方へ（小数の部分があれば小数の長い方から、次に整数の部分だけ）の降順で、`.*` も長い方から試すので、始まりが決まると「行の最後の語の位置 k 以下で最も長い数字の終わり」と「位置 k の語」を採る。k より前で切った行に貪欲の数字を掛けた結果と同じ（切った行で取れる数字の終わりの集合は、元の行で取れる終わりのうち k 以下のものと等しい） (3) 始まりは左から試すので、最初の行の最初の位置が勝つ (4) 1 つの位置で 2 つの語は始まらない（以上と以下は 2 字目で分かれ、上・下・満は語の頭でない）ので k の語は 1 つ。桁あふれ（Number が有限でない）のときに別の数字を探し直さないのも旧と同じ（boundedNumber は 1 つだけ返し、有限の判定は materialValue が今どおり行う）。既知の反例の形での結果（旧・新とも）: \"1\\n以上\" は text（数字と語が別の行）、\"5以上6以下\" は upper 5（行の最後の語で数字は最初）、\"以上5\" は text（語より後ろの数字は採らない）、\"1 2以上\" は lower 1、\"+.5以上\" は lower 0.5、\"1.2.3未満\" は upper 1.2、\"-0以上\" は lower -0（-0 のまま）、\"1\\r2以上\" は lower 2、\"以上\\n3未満\" は upper 3、\"12.以下\" は upper 12、\"+-5超\" は lower -5、\"9\"×400＋\"以上\" は text（桁あふれ）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DNL-PROBE",
+        "status": "closed",
+        "source": "起草の写し（2026-11-14 夜、MacBook Apple M5・Node v26.12.1、load average 約 1.9。draft/l131 の checkout の reconstruction/.dr-tmp/l131/〔未追跡〕: 実装の案 decode-material.diff・試験の案 p1-parser-boundary.test.diff、比べ compare.cjs〔記録 compare.log〕、所要 timing.cjs〔記録 timing.log〕、2 乗の変異 naive.cjs、行の終わりの字の数え count-terminators.cjs、«» のずれ shift-check.mjs。旧は 56f3f007 の src を tsc --outDir で dist-old に、新は src・contracts を cp -cR した wt に patch を当てて dist-new に作った。比べは両方の dist の decode-material.js に `module.exports.__mv = materialValue;` を足して Module._compile で読み、本物の compile 済みの関数どうしを util.isDeepStrictEqual〔-0 と 0 を分ける〕で比べた。追跡 file は変えていない）",
+        "closed": "(1) 既知の反例 14 形×raw と condition の 2 通り＝28 件で不一致 0、誤った変異 5 つ（LF だけで行に分ける・最初の語を採る・数字を行全体から探す・語にいちばん近い数字を採る・行に分けない）はどれも 2〜6 件を区別した (2) corpus: manifest の telegramXml 297 件のうち decode できた 296 件（xmlInvalid で断られる 1 件は weathercw-10_03_01_171016_VPTW60-wind-range）の、classifyMaterial の visit と同じ道で拾った欄＋Head の EventID・Serial の計 404,994 組（range 3,644・複数行 279）で不一致 0。拾った組に旧の関数を当てた結果が本物の classifyMaterial（旧の dist）の materialValues・metadata と 296 件とも一致し（自分の書き写しどうしを比べていない）、新旧の dist の classifyMaterial の戻り（marks を除く）も 296 件とも一致。変異は corpus でも 1〜70 件を区別した（LF だけの変異は 0 件。corpus の欄 808,804〔葉の字と condition〕のうち LF を含むのは 279、CR・U+2028・U+2029 を含むのは 0 で、XML の読みが CR を LF にする。count-terminators.cjs） (3) 網羅: 字の集合 1 . + - 以 上 下 超 x LF の 10 字で、長さ 0〜7 の全ての字列を raw に（11,111,111 件、range 1,583,880・複数行 5,730,271）、長さ 1〜6 を condition に（1,111,110 件）当てて不一致 0。変異は長さ 5 までで 70〜7,121 件を区別した（LF だけの変異は集合に CR が無いので 0） (4) 乱数: seed 20261114 の線形合同、32 種の字（0 1 9 . + - 以 上 下 超 未 満 x 空白 LF CR U+2028 U+2029 U+0085 全角の 1 ． ＋ － ⒛ ⑳ ㍿ e 全角空白 タブ と 以上・未満・以下）から長さ 1〜80、4 件に 1 件を condition にして 300,000 件（range 249,651・複数行 276,923）で不一致 0。変異は先頭の 100,000 件で 16,782〜52,453 件を区別した (5) 所要（旧は 1 回、新は 5 回の最大）: 旧の「以」＋数字は 1,000 字 155 ms・2,000 字 1,072 ms・4,000 字 8,024 ms（台帳 131 の 160・8,298 ms と合う。16,384 字は 3 乗で約 9 分、台帳の 573 秒の観測と合う）。新は 16,384 code point の 10 の形（以＋数字、数字＋以、以＋⑳〔NFKC で 32,767 字〕、ﷺ＋以上〔NFKC で 294,878 字〕、以上＋LF の行 5,461、1＋LF の行 8,191＋以上、1以＋LF の行、＋の列＋以上、1.1.… の列＋以上、以下の繰り返し）でどれも 0.88 ms 以下。condition の「以」＋⑳×255 は旧 39.8 ms・新 0.02 ms。試験の形（本物の decode の後の classifyMaterial、「以」＋数字 16,384 字の欄 1 つ）は新で 0.05〜0.20 ms。AC02 (1) の 2 乗の誤り（行ごとに全文へ行の終わりから lastIndexOf を掛ける変異、naive.cjs）は 16,384 字で、語の無い行 8,191（1＋LF）なら 0.6〜1.1 ms（V8 が速く打ち切る）、以上＋LF の行 5,461 で 62 ms、頭に以上＋1＋LF の行 8,190 で 117 ms で、T01 の 200 ms では捕まらない (6) 試験の案: 写しの木で p1-parser-boundary.test.ts（案の P3-DNL-T01 を足した）を回し、P3-DNL-T01 を含む 15 件が通った。写しの木の tsconfig.test.json の tsc は rc 0。落ちた 1 件 P1-T06 は写しの木の置き場が違い cwd からの reconstruction/dist/src/diagnostics/parser-diagnostic.js を読めない ENOENT で、patch と関係しない。歯: 旧の src の写しで T01 の数字を 2,999 字に縮めると 3,824 ms で落ちた（[false, \"text\"]）。16,384 字のままでは旧は約 9 分、同期の正規表現なので testTimeout 30 秒では止まらない",
+        "remaining": "なし（実装担当は AC03 の比べを配送する実装で回し直す）"
+      },
+      {
+        "id": "Q-DNL-INPUT-BOUND",
+        "status": "closed",
+        "source": "起草（2026-11-14 夜、56f3f007 の decode-material.ts の withinXmlLimits と classifyMaterial を読んだ。NFKC の伸びは全ての code point を Node v26.12.1 で数えた）",
+        "closed": "(1) materialValue の呼び手は classifyMaterial の 2 か所だけ（葉の要素の directText と condition 属性、:415。Head の EventID・Serial、:423）。src のほかに同じ名の関数は unit の codec の読み戻しで、別物 (2) 葉の要素の字は、withinXmlLimits が要素ごとに text と CDATA の code point を足して 16,384 を越えると断る（:118）ので、directText（同じ要素の text の node をつないだもの）も 16,384 code point 以下。condition 属性は 256 code point 以下（:146） (3) ただし materialValue が正規表現に渡すのは NFKC の後の字で、1 code point が最大 18 字に伸びる（U+FDFA）。text の欄は最大 294,912 字、condition は 4,608 字になりうる。旧は condition の「以」＋⑳×255（NFKC で 511 字）でも 39.8 ms。新は NFKC の後の長さに線形なので、どちらも 1 ms 以下（Q-DNL-PROBE (5)）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DNL-ANCHORS",
+        "status": "closed",
+        "source": "起草（2026-11-14 夜、56f3f007 で `decode-material.ts:<行> «…»` と `p1-parser-boundary.test.ts:<行> «…»` を reconstruction・docs に git grep した）",
+        "closed": "(1) decode-material.ts の行を引くほかの契約の «» は 7 契約の 11 個。P3-DNL-D-PLACE=A で 12 行ずれるのは :384 以降を引く 6 個（p3-replay-watch-002.json:528 の :441、p3-terminal-rain-evict.json:207 の :473・:208 の :481、p3-version-material.json:418 の :483、p3-revision-order.json:238・:291 の :485）。:24・:25・:26（3 契約の 4 個）と :365（p3-terminal-rain-evict.json:206）はずれない。中身の変わる :387・:389・:390 を引く «» は 0 個 (2) p1-parser-boundary.test.ts の行を引く «» は p3-xml-readers.json:333 の :114 だけで、T01 は file の末尾に足すのでずれない (3) 本契約の evidenceRefs は中身の変わらない行に置いた。decode-material.ts の :384・:386・:392・:415・:423・:441 は A で 12 行ずれ、統合担当が配送の commit で付け直す（:26・:118 はずれない） (4) 起草の写しの patch を当てた decode-material.ts で全契約の «» を引き直すと（shift-check.mjs）、ずれる 12 個（ほかの 6・本契約の 6）はどれも元の行＋12 のちょうど 1 行に当たり、ほかの 7 個は元の行のまま (5) 計画（p3-order-plan.md）には行を足さない。小さい直しの P3-SEISMIC-RESERVE-CLOSE-001 も計画に行が無く、計画の行は 425 個の «» が引くので、足すと付け直しが広がる。足すかは統合担当が決める",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。materialValue は Control.Status を読まず、全ての入力で結果が同じなので、運用区分の判定と診断は今のまま"
+    }
+  },
+  "contract": {
+    "contractId": "P3-DECODE-NUMBER-LINEAR-001",
+    "mode": "implementation",
+    "objective": "構造的欠陥台帳 131 を閉じる。decode-material.ts の materialValue が欄の字に掛ける /([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)).*(以上|超|未満|以下)/ は、後ろの語が無いと始まりの位置ごとに数字の長さを戻しては `.*` で走り直し、「以」などの字が欄にあると V8 が打ち切らず、文字数の 3 乗に近い時間になる（「以」＋数字 4,000 字で 8,024 ms、16,384 字で約 9 分、Q-DNL-PROBE）。1 通の報が、受けた実行場所（owner の thread）を数分止めうる。これを、全ての入力で今と同じ結果（kind・bound・value・raw、-0 を含む）を返し、欄の長さ（NFKC の後）に線形の形に書き換える: 行の終わりの字で行に分け、語のある最初の行で、最後の語より前の最初の数字を採る（Q-DNL-EQUIV）。欄を短く切るような、長い欄で結果が変わる直しは採らない（電文の値・意味を変えない）。同値は使い捨ての比べで示し（P3-DNL-D-EQUIVALENCE）、長い欄の所要を試験 1 つで守る（P3-DNL-T01）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-decode-number-linear.json",
+      "reconstruction/contracts/p1-parser-boundary.json",
+      "reconstruction/contracts/p1-parser-boundary.types.ts",
+      "reconstruction/src/decode-material/decode-material.ts",
+      "reconstruction/src/ingress/ingress.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "test/fixtures/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/decode-material/decode-material.ts（AC01 の分だけ: materialValue の直前に boundedNumber となぜのコメントの計 +12 行、materialValue の :387・:389・:390 の行の中。ほかの行は変えない）",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts（AC02 の分だけ: 末尾〔P3-XTC-T02 の後〕に P3-DNL-T01 の it 1 つ、空行を含め +9 行。ほかの行と期待は変えない）",
+      "reconstruction/contracts/p3-decode-number-linear.json（統合担当だけ: 配送の記録と «» の付け直し。実装担当は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-decode-number-linear.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B04"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P3-XML-TREE-COMPACT-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#MaterialValue"
+    ],
+    "publicFunctions": [
+      "classifyMaterial(material)・decodeMaterial(item, parseTimes?)（signature・結果の値を変えない）。materialValue・boundedNumber は module の中だけで、export・型・設定を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__synthetic_phase4a_VXSE53_special"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-DNL-RES-01",
+        "target": "materialValue 1 回（欄の字を NFKC にした後の長さ n。葉の要素で n は最大 294,912、condition で 4,608、Q-DNL-INPUT-BOUND）",
+        "limit": "O(n)。行に分ける 1 回、行ごとに語の lastIndexOf 4 回と、入れ子の量指定の無い数字の正規表現 1 回（行の長さに線形）。全文に対する lastIndexOf を行の数だけ繰り返さない",
+        "unit": "欄の字 1 字あたりの操作",
+        "scope": "P3-DNL-T01 で「以」＋数字 16,384 字の欄を持つ報の classifyMaterial 1 回が 200 ms 未満。起草の写しの MacBook で 0.05〜0.20 ms、CI の遅さ 7〜8 倍でも 2 ms 未満で、200 ms は 100 倍の余り。旧は同じ欄で約 9 分。行の数×長さの誤り（limit の後の文）は T01 で捕まらないのでレビューで確かめる（Q-DNL-PROBE (5)）",
+        "source": "AGENTS.md の受信経路の計算量、Q-DNL-PROBE (5)"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（MaterialValue の値が全ての入力で同じなので、どの unit の保存も変わらない）"
+    ],
+    "nonPersistedFields": [
+      "boundedNumber の戻り（1 回の materialValue の中だけ）"
+    ],
+    "outOfScope": [
+      "materialValue の結果を変えること（range・unknown・empty・number・text の判定と順、有限の判定、raw の持ち方）。欄を一定の字数で切る直し",
+      "ほかの正規表現の点検（seismic.ts の深さの description など）と、台帳 131 の「再構成での扱い」（外部の字を正規表現にかける所に欄の長さの上限を先に当てる）の全面の当てはめ",
+      "withinXmlLimits の上限（text 16,384・属性 256）と NFKC の扱い",
+      "decodeMaterial の木の組立て・拒否・marks、classifyMaterial の visit・fields・route",
+      "unit の codec の読み戻しの materialValue（seismic-unit.ts・tsunami-unit.ts などの同じ名の別の関数）",
+      "計画（p3-order-plan.md）・spec 本文・ほかの契約の本文の改訂（«» の付け直しだけは AC04 で統合担当が当てる）",
+      "旧築（src/）と test/fixtures"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-DNL-AC01",
+        "requirement": "方式（Q-DNL-EQUIV・P3-DNL-D-PLACE=A）: decode-material.ts の materialValue の直前に、module の中だけの関数 boundedNumber(text: string): { number: string; lower: boolean } | null を置く。中身: text を正規表現 /[\\n\\r\\u2028\\u2029]/ で split し、前の行から順に、at を 4 つの語（以上・超・未満・以下）の line.lastIndexOf の最大にし、at が 0 以上なら /[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)/ を line.slice(0, at) に exec して、一致があれば { number: 一致の字, lower: その行の at から 以上 か 超 が始まる } を返す。どの行にも無ければ null。materialValue は :387 の match を boundedNumber(condition.normalize(\"NFKC\") || normalized) にし、:389・:390 の match[1] を match.number に、match[2] の語の判定を match.lower にする（行の中の書き換え。有限の判定・コメント・後ろの分岐は変えない）。なぜのコメントを関数の前に書く（旧の正規表現の形、台帳 131、`.` が行の終わりの字を越えず貪欲な `.*` が行の最後の語まで伸びるので旧の一致がこの形になること、P3-DECODE-NUMBER-LINEAR-001）。split の字の集合に LF・CR・U+2028・U+2029 の 4 つを全て入れる（U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く。生の字は行の終わりとして読まれる）。無いと: 「以」などの字と長い数字の列を持つ欄 1 つで、owner の thread が数分止まる（台帳 131）。起草の写しの patch（decode-material.diff）がこの形",
+        "evidenceRefs": [
+          "reconstruction/src/decode-material/decode-material.ts:384 «2aada108970d8727»",
+          "reconstruction/src/decode-material/decode-material.ts:386 «e429c33651a0b386»",
+          "reconstruction/src/decode-material/decode-material.ts:392 «4a47ef63a23a8e05»",
+          "reconstruction/contracts/p1-parser-boundary.types.ts:54 «f86b3d2069855faa»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»"
+        ]
+      },
+      {
+        "id": "P3-DNL-AC02",
+        "requirement": "計算量と試験（P3-DNL-RES-01）: (1) boundedNumber は NFKC の後の欄の長さに線形（RES-01 の操作だけ）。lastIndexOf は行の字列に掛け、全文に対して行の終わりの位置から掛けない（行ごとに全文の頭の側へ戻り、行の数×長さになる）。T01 はこの誤りを捕まえない（起草の変異は 16,384 字で 62〜117 ms、Q-DNL-PROBE (5)）ので、(1) は実装レビューで確かめる (2) P3-DNL-T01（regression、台帳 131 の実不具合）: p1-parser-boundary.test.ts の末尾に it を 1 つ足す。既存の base（:20）の Body を <n>「以」＋\"1\"×16,383</n> にした報を既存の decode で decode し、classifyMaterial 1 回の前後を performance.now() で測り、assert 1 つで [経過 < 200 ms, materialValues の最後〔その欄〕の kind] が [true, \"text\"] であることを確かめる（欄は要素ごとの上限 16,384 code point ちょうど）。経過と値の全文を toEqual に入れない（落ちたときに 16,384 字の差分が出る）。起草の写しの試験の案（p1-parser-boundary.test.diff）がこの形 (3) 歯: 直す前の src の写しで、T01 の数字を 2,999 字に縮めて -t \"P3-DNL\" で回し、落ちる（起草で 3,824 ms・[false, \"text\"]）ことを確かめて成果物に書く。16,384 字のままの旧は約 9 分かかり、同期の正規表現なので testTimeout（30 秒、vitest.config.ts）では止まらないので回さない。製品と試験の戻しは残さない (4) 200 ms の根拠: 起草の写しで 0.05〜0.20 ms（vitest の中で 1 ms 未満）、CI の遅さ 7〜8 倍で 2 ms 未満、余り 100 倍。縮めた歯の 2,999 字でも旧は 200 ms を 15 倍越える",
+        "evidenceRefs": [
+          "reconstruction/src/decode-material/decode-material.ts:26 «ac5797a85aaedf39»",
+          "reconstruction/src/decode-material/decode-material.ts:118 «f7cc3de7883fd66d»",
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:19 «a351ec8c94be84f8»",
+          "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-DNL-AC03",
+        "requirement": "同値（P3-DNL-D-EQUIVALENCE=A）: 実装担当は、置き場は作業木の未追跡の reconstruction/.dr-tmp/dnl/（compare.cjs は自分の 3 つ上を repo の根とし、隣の dist-old/・dist-new/ を読む）。変更の前に baseOid の src を tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/dnl/dist-old で、変更の後に --outDir reconstruction/.dr-tmp/dnl/dist-new で作り、使い捨ての比べの script（起草の写しの compare.cjs。統合担当が発注の時に reconstruction/.dr-tmp/dnl/compare.cjs として渡す。成果物に中身と出力を載せる）で比べる。比べは両方の dist の decode-material.js の末尾に `module.exports.__mv = materialValue;` を足して Module._compile で読み、compile 済みの関数どうしを util.isDeepStrictEqual で比べる（JSON にしない。-0 と 0 を分ける）。(a) 既知の反例 14 形（Q-DNL-EQUIV の形と \"1\\u20282以上\"・\"a\\n1超 2\"）を raw と condition の 2 通りで (b) corpus: manifest の telegramXml の全件を replay で ingest → decodeMaterial し、classifyMaterial の visit と同じ道で拾った (raw, condition) と Head の EventID・Serial。拾った組に旧の関数を当てた結果が旧の dist の classifyMaterial の materialValues・metadata と全件で一致すること（写しの道の確かめ）、新旧の dist の classifyMaterial の戻り（marks を除く）が全件で一致すること (c) 網羅: 10 字（1 . + - 以 上 下 超 x LF）の長さ 0〜7 の全ての字列を raw に、長さ 1〜6 を condition に (d) 乱数: seed 20261114、Q-DNL-PROBE (4) の 32 種の字、長さ 1〜80、300,000 件、4 件に 1 件を condition (e) 誤った変異 5 つ（LF だけで行に分ける・最初の語を採る・数字を行全体から探す・語にいちばん近い数字を採る・行に分けない）が (a) と (d) でそれぞれ 1 件以上を区別すること（比べに歯があること。比べの 0 件は軸を先に確かめる）。合否: (a)〜(d) で不一致 0、(e) で各変異の区別 1 件以上。起草の写しの件数（Q-DNL-PROBE）: corpus 296 件・404,994 組、網羅 11,111,111＋1,111,110 件、乱数 300,000 件で、件数が違えば理由を書く。あわせて reconstruction/test/ の全試験が、既存の期待を変えずに緑で通る（P1-T03 の range の期待を含む）",
+        "evidenceRefs": [
+          "reconstruction/src/decode-material/decode-material.ts:415 «28eb6f48095477f9»",
+          "reconstruction/src/decode-material/decode-material.ts:423 «6829f238eadb3585»",
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:88 «e582f1ea16381d15»",
+          "reconstruction/contracts/p3-xml-tree-compact.json:33 «a1a3c055f4dff266»"
+        ]
+      },
+      {
+        "id": "P3-DNL-AC04",
+        "requirement": "«» の付け直し（統合担当が配送の commit で当てる。P3-DNL-D-PLACE=A のとき）: (1) ほかの契約で decode-material.ts の行を引く «» のうち、12 行ずれる 6 個を付け直す: p3-replay-watch-002.json の :441、p3-terminal-rain-evict.json の :473・:481、p3-version-material.json の :483、p3-revision-order.json の :485（2 か所）。どれも中身の変わらない行なので、付け直しの道具（anchor の中身から付け直す）で済む。:24・:25・:26・:365 を引く «» はずれない (2) 本契約の evidenceRefs の decode-material.ts の :384・:386・:392・:415・:423・:441 も 12 行ずれる（中身は変わらない） (3) p1-parser-boundary.test.ts は末尾に足すので、それを引く «»（p3-xml-readers.json の :114、本契約の :19・:88）はずれない (4) 順: 実装の commit → 付け直し → 付け直した契約と本契約の meta.sha256 を hashConvention で取り直す → check-contract・check-sequences が PASS（WARN は baseOid=unassigned の契約だけ）。sequences.json・manifest.json は変えない (5) 台帳 131（repo 外）の局所修正の状態を「解消（P3-DECODE-NUMBER-LINEAR-001）」に",
+        "evidenceRefs": [
+          "reconstruction/src/decode-material/decode-material.ts:441 «03ddf7f652e974c4»",
+          "reconstruction/tools/corpus/check-manifest.mjs:15 «8a0389790318ccfc»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-DNL-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-DNL-AC02"
+        ],
+        "behavior": "p1-parser-boundary.test.ts の末尾に足す（AC02 (2)）。「以」＋数字 16,384 字の欄を持つ報の classifyMaterial 1 回が 200 ms 未満で、欄は text のまま。直す前の code では同じ欄で約 9 分かかる（台帳 131、P3-SEISMIC-EVENT-LIMIT-001 の実装の子が 573 秒を観測）。縮めた 2,999 字で旧が落ちることを実装担当が確かめる（AC02 (3)）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/dnl/dist-old",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "preparation",
+        "purpose": "変更の前に baseOid の dist を作る（AC03 の旧の側。git worktree・stash は使わない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest と比べより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（足した it）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式（chrome-eew の dist を読む試験がある）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/dnl/dist-new",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "変更の後の dist を比べの置き場に作る（AC03 の新の側）"
+      },
+      {
+        "command": "node reconstruction/.dr-tmp/dnl/compare.cjs 7 300000",
+        "cwd": ".",
+        "target": "dist-old と変更後の dist",
+        "stage": "implementation",
+        "purpose": "AC03 の (a)〜(e)。出力の全文を成果物に載せる"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P3-DNL-T01 を含む）。既存の期待は変えない。ほかの落ちは止めて報告する"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装担当の木では decode-material.ts の行がずれて AC04 の «» が FAIL する（統合担当が付け直す）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは boundedNumber 1 つ（無いと materialValue の中に行の loop を直に書くことになり、旧の match[1]・match[2] の 2 つの値を 1 か所で返せない。無いと壊れるのは台帳 131 の所要）。export・型・設定・helper の file は足さない。試験は P3-DNL-T01 の 1 つ（regression）で、新しい helper・fixture を足さない",
+      "最初の作業: 起草の写しの patch と同じ形を当て、AC03 の比べを回して不一致 0 と変異の区別を確かめ、続けて AC02 (3) の歯を確かめる。違えば製品も期待も変えずに actual・expected を添えて止めて報告する",
+      "受信経路の計算量（AGENTS.md）: AC02 (1) のとおり。P3-DNL-T01 の経過の値（ms）を成果物に書く",
+      "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
+      "残存: (1) 同値は比べの集合（corpus・長さ 7 までの網羅・長さ 80 までの乱数）と Q-DNL-EQUIV の読みで示し、形式の証明ではない (2) 経過の時間の assert は機械の負荷で揺れうる（余り 100 倍） (3) AC02 (1) の行の数×長さの誤りは T01 で捕まらず、実装レビューで確かめる"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-DNL-PRECHECK",
+        "owner": "integrator",
+        "blocks": [
+          "発注"
+        ],
+        "resolveBy": "発注前点検",
+        "requiredEvidence": [
+          "baseOid の割当",
+          "decisionBranches の起草案 2 つ（P3-DNL-D-EQUIVALENCE・P3-DNL-D-PLACE）の確定",
+          "起草の写しの compare.cjs を実装担当の作業木の reconstruction/.dr-tmp/dnl/compare.cjs に渡す（中身は変えずに写す）",
+          "起草レビュー（品質・契約適合）"
+        ]
+      }
+    ]
+  }
+}
