@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "56f3f0070095fb456a7a6d89dc67e10093d63ede",
-    "sha256": "4e5b66ab15a63b390b48c2cc7291255bf9ea2133e7c9c8bc3cd1a4d0732d1453",
+    "sha256": "5c00aa91cf66fb6c3dfa58c3c76d4487d8a0b68a2d060be024141d2ded166050",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -14,8 +14,8 @@
         "B": "旧の正規表現を試験の中に神託として残し、seed 固定の乱数の字列（長さ 80 まで）で新旧を比べる試験を常設する",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決め。発注前点検で確定する）",
-        "ruling": "未（推奨 A）",
+        "status": "確定（統合担当、2026-11-14 22 時台の発注前点検。起草レビュー 2 本〔契約適合・品質、どちらも Opus〕とも A に賛成）",
+        "ruling": "A（統合担当）",
         "reason": "同値は 1 回確かめれば足りる性質で、旧の正規表現を常設の試験に残すと、消したい形を repo に残し続け、乱数の試験は fixture の焼き直しに近い（AGENTS.md の最小テスト）。P3-XML-TREE-COMPACT-001 の D-XTC-EQUIVALENCE=A（使い捨ての比べ・常設に焼き込まない）と同じ形。B の利点は、後で boundedNumber を触る人が同値を崩したときに落ちることだが、その変更は別の契約で同じ比べを回せばよい"
       },
       {
@@ -25,8 +25,8 @@
         "B": "boundedNumber を file の末尾に置き、行をずらさない（«» の付け直しは 0）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決め。発注前点検で確定する）",
-        "ruling": "未（推奨 A）",
+        "status": "確定（統合担当、2026-11-14 22 時台の発注前点検。起草レビュー 2 本〔契約適合・品質、どちらも Opus〕とも A に賛成）",
+        "ruling": "A（統合担当）",
         "reason": "呼び手は materialValue 1 つだけで、隣に置くと読む人が行き来しない。付け直す «» は 6 個で、どれも中身の変わらない行なので付け直しの道具で機械的に済む（中身の変わる :387・:389・:390 を引く «» は 0 個、AC04）。B は関数の宣言の巻き上げで動くが、読み手が file の末尾まで探しに行く"
       }
     ],
@@ -58,6 +58,13 @@
         "source": "起草（2026-11-14 夜、56f3f007 で `decode-material.ts:<行> «…»` と `p1-parser-boundary.test.ts:<行> «…»` を reconstruction・docs に git grep した）",
         "closed": "(1) decode-material.ts の行を引くほかの契約の «» は 7 契約の 11 個。P3-DNL-D-PLACE=A で 12 行ずれるのは :384 以降を引く 6 個（p3-replay-watch-002.json:528 の :441、p3-terminal-rain-evict.json:207 の :473・:208 の :481、p3-version-material.json:418 の :483、p3-revision-order.json:238・:291 の :485）。:24・:25・:26（3 契約の 4 個）と :365（p3-terminal-rain-evict.json:206）はずれない。中身の変わる :387・:389・:390 を引く «» は 0 個 (2) p1-parser-boundary.test.ts の行を引く «» は p3-xml-readers.json:333 の :114 だけで、T01 は file の末尾に足すのでずれない (3) 本契約の evidenceRefs は中身の変わらない行に置いた。decode-material.ts の :384・:386・:392・:415・:423・:441 は A で 12 行ずれ、統合担当が配送の commit で付け直す（:26・:118 はずれない） (4) 起草の写しの patch を当てた decode-material.ts で全契約の «» を引き直すと（shift-check.mjs）、ずれる 12 個（ほかの 6・本契約の 6）はどれも元の行＋12 のちょうど 1 行に当たり、ほかの 7 個は元の行のまま (5) 計画（p3-order-plan.md）には行を足さない。小さい直しの P3-SEISMIC-RESERVE-CLOSE-001 も計画に行が無く、計画の行は 425 個の «» が引くので、足すと付け直しが広がる。足すかは統合担当が決める",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-DNL-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-14 22 時台、HEAD 93785c1a）",
+        "closed": "baseOid を 93785c1a49ed5aa0df4bb336bc40249cf0f39cc5 に割り当てた（起草レビューの P3 を当てた r2）。decisionBranches の「起草案」は 0 件（P3-DNL-D-EQUIVALENCE・P3-DNL-D-PLACE とも A で確定）。起草レビューは契約適合（Opus、GO、P3 3 件）・品質（Opus、GO、P3 1 件）で、P3 は r2 で当てた（patch のコメントの言い回しは実装で当てる）。compare.cjs は起草の写しの .dr-tmp/l131/compare.cjs を実装の作業木の reconstruction/.dr-tmp/dnl/compare.cjs に中身を変えずに写す。起草の写しの patch での Mac mini ゲート b46（f65a5ee9＋patch）は 12 段のうち check-contract 以外の 11 段が rc 0 で、check-contract の FAIL は AC04 の «» のずれだけ",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -69,7 +76,7 @@
     "contractId": "P3-DECODE-NUMBER-LINEAR-001",
     "mode": "implementation",
     "objective": "構造的欠陥台帳 131 を閉じる。decode-material.ts の materialValue が欄の字に掛ける /([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)).*(以上|超|未満|以下)/ は、後ろの語が無いと始まりの位置ごとに数字の長さを戻しては `.*` で走り直し、「以」などの字が欄にあると V8 が打ち切らず、文字数の 3 乗に近い時間になる（「以」＋数字 4,000 字で 8,024 ms、16,384 字で約 9 分、Q-DNL-PROBE）。1 通の報が、受けた実行場所（owner の thread）を数分止めうる。これを、全ての入力で今と同じ結果（kind・bound・value・raw、-0 を含む）を返し、欄の長さ（NFKC の後）に線形の形に書き換える: 行の終わりの字で行に分け、最後の語より前に数字がある最初の行で、その最初の数字を採る（Q-DNL-EQUIV）。欄を短く切るような、長い欄で結果が変わる直しは採らない（電文の値・意味を変えない）。同値は使い捨ての比べで示し（P3-DNL-D-EQUIVALENCE）、長い欄の所要を試験 1 つで守る（P3-DNL-T01）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "93785c1a49ed5aa0df4bb336bc40249cf0f39cc5",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -293,21 +300,6 @@
       "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
       "残存: (1) 同値は比べの集合（corpus・長さ 7 までの網羅・長さ 80 までの乱数）と Q-DNL-EQUIV の読みで示し、形式の証明ではない (2) 経過の時間の assert は機械の負荷で揺れうる（余り 100 倍） (3) AC02 (1) の行の数×長さの誤りは T01 で捕まらず、実装レビューで確かめる"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-DNL-PRECHECK",
-        "owner": "integrator",
-        "blocks": [
-          "発注"
-        ],
-        "resolveBy": "発注前点検",
-        "requiredEvidence": [
-          "baseOid の割当",
-          "decisionBranches の起草案 2 つ（P3-DNL-D-EQUIVALENCE・P3-DNL-D-PLACE）の確定",
-          "起草の写しの compare.cjs を実装担当の作業木の reconstruction/.dr-tmp/dnl/compare.cjs に渡す（中身は変えずに写す）",
-          "起草レビュー（品質・契約適合）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
