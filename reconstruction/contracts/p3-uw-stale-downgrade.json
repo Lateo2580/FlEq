@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4088ea621e712d2d3d92f30559c5e6796a9ef938",
-    "sha256": "934bc1f6affcb80c0707b46956fbb5f9e90f365536a15cee60ec066c7b76e976",
+    "sha256": "9d68a4031fc61e57cbc499ad8bffc30ededc1715e00b0979fe06645624784ada",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
@@ -77,7 +77,7 @@
     "contractId": "P3-UW-STALE-DOWNGRADE-001",
     "mode": "implementation",
     "objective": "U-W（気象警報の unit）の 2 つの不具合を直す（作者裁定 2026-11-14 朝、どちらも推奨）。(1) 2026-08-30 11:40 に福井の VPNO50 の終了（O03:11）が先に特別警報の行を外した後、同じ時刻の福井の引下げ（O03:12、大雨特別警報 → 大雨危険警報）が段なし → L4 と数えられ、desktop「大雨危険警報（福井県）」が 1 件出る。受理が採った行の Status が「特別警報から危険警報」（前回電文は同じ現象の特別警報）の区域×Code を上がったに数えない（案 1A、P3-USD-D-DOWNGRADE=A・D-LASTKIND-READ=B）。expected:O03:12 の notices・intents を false にし C22 の T01 で比べる (2) 全国報と府県の報の合わせ（weather-current-public.ts の mergeCells）が区域×Code で勝者を決めるので、20:04 の福井の報が全区域を解除・なしにしても 06:50 の全国報の 43・03 の行がスナップショットと詳細 API に残り、後の出し直しの通知の前の段にもなる（台帳 125）。全国報より newer な府県の報が語った区域は、その報の種類の Code の全国報の行を外してから合わせる（案 2A、P3-USD-D-MERGE-FAMILY=A）。O03:14 の後の福井の合わせに active な区域が残らないことを T01 の同じ実行で assert する。変わる出方: O03:12 の desktop が出ない、20:04 の後の福井の合わせが空、出し直しで desktop が鳴る。保存の形・版・P2-A5・画面の端末の行は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "c4012932699ec46afd8caf620d9062c38ef5a61d",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
