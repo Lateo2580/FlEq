@@ -9,7 +9,7 @@ import { PENDING_MARK_BYTES } from "../../src/units/expiry";
 import { FAILURE_MARKS_MAX_BYTES, noticeMarkBytes } from "../../src/units/notice-mark";
 import { unreadableMarkBytes } from "../../src/units/unreadable";
 import { longestMarks } from "../unreadable-mark/longest-mark";
-import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
+import { EVENT_LIMIT, reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, sentLater, vxse53 } from "./seismic-fixture";
 
@@ -671,7 +671,7 @@ function reserveState(now: number): SeismicUnitState {
   const notice = { version: "0".repeat(16), kinds: ["report", "cancel", "expiry"] as const, evidence: "unattempted" as const };
   const guard = { from: -0.0000012345678901234567, on: 0 as const };
   const forgotten = { effective: "cancelled" as const, targetDateTimeRaw: null, title: "", headline: null, hypocenter: null, intensity: null, tsunamiComment: null, notice };
-  const earthquakes = Array.from({ length: 512 }, (_, index): EarthquakeEvent => {
+  const earthquakes = Array.from({ length: EVENT_LIMIT }, (_, index): EarthquakeEvent => {
     const eventId = id40("m", index);
     return { eventId, operation: "normal", strongHold: null, retainUntil: now + HOUR, guard,
       contributions: (["VXSE51", "VXSE52", "VXSE53", "VXSE61"] as const).map((family) => ({ family, source: source(family, eventId), ...forgotten })),
@@ -689,3 +689,60 @@ function reserveState(now: number): SeismicUnitState {
       hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false })) });
   return { ...emptyState(), earthquakes, longPeriods, daily: { normal: history("n"), training: history("t"), test: history("s") } };
 }
+
+describe("P3-SEISMIC-RESERVE-CLOSE-001 the reserve after every step", () => {
+  const T = Date.parse("2099-01-01T12:00:00+09:00");
+  let input = 0;
+  const take = (state: SeismicUnitState, xml: string, family: "VXSE51" | "VXSE52" | "VXSE53" | "VXSE61") =>
+    reduceSeismicUnit(state, { kind: "receive", material: decodeXml(xml, family, `input-${String(1e15 + input++)}`), clock: clock(T) });
+  const FAMILIES = ["VXSE51", "VXSE52", "VXSE53", "VXSE61"] as const;
+  // 実不具合の再発防止（台帳 128、ヘルツ 2026-11-14）: 取消記憶で埋まった state に期限 1 分の地震 4 つを受け、取消記憶へ時刻の無い報を送って
+  // 未確認の印を付け（P3-QC-AC08 (4)）、期限の回収で予約を越えても、古い記憶を外して 2 回の回収の後も保存を読み戻せる。
+  it("P3-SRC-T01 regression / AC01・AC03: marked memories and two collections over the reserve still restore", () => {
+    let state = reserveState(T);
+    for (let i = 0; i < 4; i++) for (const family of FAMILIES) state = take(state, vxse53({ eventId: `NEW${i}`, at: iso(T - 24 * HOUR + MINUTE), maxInt: "5-", serial: 1234567890 }), family).state;
+    const filled = state;
+    for (const item of filled.earthquakes.filter((entry) => entry.eventId.startsWith("m"))) state = take(state, vxse53({ eventId: item.eventId, at: iso(T), maxInt: "5-", control: "", serial: 1234567890 }), "VXSE53").state;
+    const first = reduceSeismicUnit(state, { kind: "deadline", clock: clock(T + MINUTE) });
+    const second = reduceSeismicUnit(first.state, { kind: "deadline", clock: clock(T + 3 * MINUTE) });
+    // 外れるのはその回に期限切れの記憶になった 4 つ（P3-SRC-D-ORDER の段 3）。
+    expect([state !== filled, first.diagnostics.find((item) => item.reason === "seismicCapacityEvicted")?.count,
+      first.state.earthquakes.filter((item) => item.eventId.startsWith("NEW")).length, roundTrip(first.state).kind, roundTrip(second.state).kind])
+      .toEqual([true, 4, 0, "restored", "restored"]);
+  });
+
+  // 契約境界: 読み戻しが受け付ける長い数（retainUntil・count）と recovery の source の記憶で予約の近くまで埋まった state は、期限の回収でも取消の採用でも
+  // 予約を越える。越えた分は件数の超過の (4) の順で記憶を外し、保存を読み戻せる（P3-SRC-AC01・AC02）。
+  it("P3-SRC-T02 contractBoundary / AC01・AC02: a collection and an adoption over the reserve evict memories in the count order and still restore", () => {
+    const original = reserveState(T);
+    const numeric: SeismicUnitState = { ...original,
+      earthquakes: original.earthquakes.map(({ cancelledSummary, ...event }, index) => ({ ...event, retainUntil: index === 0 ? T + MINUTE : 1.2345678901234567e308,
+        ...index === 0 ? {} : { cancelledSummary }, contributions: event.contributions.map((item) => ({ ...item, effective: index === 0 ? "active" as const : item.effective,
+          source: { ...item.source, origin: "recovery" as const } })) })),
+      // 長周期の記憶は後ろほど古い報（鍵の順と逆）にし、古い順に外れることを鍵で見る。
+      longPeriods: original.longPeriods.map((item, index) => ({ ...item, retainUntil: 1.2345678901234567e308,
+        source: { ...item.source, origin: "recovery" as const, reportDateTimeRaw: iso(T - 4 * HOUR - index * MINUTE) } })),
+      daily: { normal: { ...original.daily.normal, count: Number.MAX_SAFE_INTEGER }, training: { ...original.daily.training, count: Number.MAX_SAFE_INTEGER },
+        test: { ...original.daily.test, count: Number.MAX_SAFE_INTEGER } } };
+    // 読み戻せる最大の数まで、取消の一覧の印の震源名を JSON で 6 byte の制御文字にする（予約まで 192 byte 未満）。
+    const escaped = (count: number): SeismicUnitState => ({ ...numeric, earthquakes: numeric.earthquakes.map((item, index) => index === 0 || index > count ? item
+      : { ...item, cancelledSummary: { hypocenterName: "\u0001".repeat(64), originTimeRaw: item.cancelledSummary!.originTimeRaw } }) });
+    let low = 0, high = EVENT_LIMIT - 1;
+    while (low < high) { const mid = Math.ceil((low + high) / 2); if (roundTrip(escaped(mid)).kind === "restored") low = mid; else high = mid - 1; }
+    const tight = escaped(low);
+    const restored = reduceSeismicUnit(emptyState(), { kind: "restore", persisted: JSON.parse(JSON.stringify(seismicUnitCodec.encode(tight))), clock: clock(T) });
+    expect(restored.decisions).toEqual([]);
+    const head = numeric.earthquakes[0].eventId;
+    // 期限の回収: 期限切れの記憶（(4) の段 3）が取消記憶（段 5）より先に外れる。
+    const collected = reduceSeismicUnit(restored.state, { kind: "deadline", clock: clock(T + MINUTE) });
+    expect([eventOf(collected.state, head), collected.diagnostics.filter((item) => item.reason === "seismicCapacityEvicted"), roundTrip(collected.state).kind])
+      .toEqual([undefined, [{ level: "INFO", component: "seismic", reason: "seismicCapacityEvicted", unit: "U-Q", count: 1 }], "restored"]);
+    // 取消の採用: 4 family の取消で記憶になった地震を採り、いちばん古い記憶（後ろの長周期）から外す（断らない）。
+    let state = restored.state, last: SeismicUnitStep | null = null;
+    for (const family of FAMILIES) { last = take(state, vxse53({ eventId: head, at: iso(T), infoType: "取消", serial: 1234567890 }), family); state = last.state; }
+    const gone = tight.longPeriods.filter((item) => longOf(state, item.eventId) == null).map((item) => item.eventId);
+    expect([decision(last!).decision, eventOf(state, head)?.contributions.map((item) => item.effective), reasons(last!).includes("seismicCapacityEvicted"),
+      state.earthquakes.length, gone.length > 0, gone, roundTrip(state).kind]).toEqual(["changed", ["cancelled", "cancelled", "cancelled", "cancelled"], true,
+      EVENT_LIMIT, true, tight.longPeriods.slice(-gone.length).map((item) => item.eventId), "restored"]);
+  });
+});

@@ -92,7 +92,7 @@ const visible = (value: Shown | null): boolean => value != null
   && (isEvent(value) ? value.contributions.some((item) => item.effective === "active") : value.effective === "active");
 // P3-SEV-AC02: 保留の印のある記録は表示に出ない。守り・RESERVE・容量の段・当日の履歴は visible（active の寄与を持つ記録）で読む。
 const onScreen = (value: Shown | null): boolean => visible(value) && value?.expiryPending !== true;
-// 取消・期限切れの記憶だけの記録（P3-C7-CAPACITY の (4)。byte の超過では退去しない）。
+// 取消・期限切れの記憶だけの記録（P3-C7-CAPACITY の (4)。byte の超過では退去せず、予約の超過では退去する、P3-SEISMIC-RESERVE-CLOSE-001）。
 const memoryOnly = (value: Shown): boolean => !visible(value);
 // P3-QC-AC08: 期限切れの記憶（件数の超過で取消記憶より先に退去する、Q-QC-DECIDED (9)）。
 const expiredMemory = (value: Shown): boolean => !visible(value)
@@ -607,6 +607,19 @@ function oldest(left: Shown, right: Shown): number {
   const a = keyOf(left), b = keyOf(right);
   return a < b ? -1 : a > b ? 1 : 0;
 }
+// P3-SEISMIC-RESERVE-CLOSE-001（作者裁定 2026-11-14 A）: 予約を越えたら、退去できる記憶を件数の超過の (4) と同じ順（(1)(2)・期限切れ・取消、同じ段は古い順）に外す。
+// 記憶を全部外しても残る当日履歴の最大は予約より小さい（P3-SRC-AC02）。ponytail: 越えたときだけ並べる（記憶は件数の上限まで）。
+function overReserve(records: readonly Shown[], reserve: number, now: number, verified: boolean): Shown[] {
+  const out: Shown[] = [];
+  if (reserve <= RESERVE_BYTES) return out;
+  const rank = (item: Shown) => verified && item.retainUntil <= now ? 1 : item.operation !== "normal" ? 2 : expiredMemory(item) ? 3 : 5;
+  for (const item of records.filter(memoryOnly).sort((left, right) => rank(left) - rank(right) || oldest(left, right))) {
+    if (reserve <= RESERVE_BYTES) break;
+    out.push(item);
+    reserve -= shownBytes(item);
+  }
+  return out;
+}
 // P3-QC-AC02: 器の超過を解く案。採用・印のどちらの fit も同じ段を通り、案は一回の参照交換で確定する（呼ぶ側が state に当てる）。
 // received は受けた報の記録 1 件の byte で、印だけを置く fit（holdVersion・refuse）は null（第 6 段に入らない、(1) の (8)）。
 // folded は畳んだ記録の元と後の組（退去しなかったものだけ）、target は畳んだ後の target。
@@ -625,7 +638,7 @@ function fit(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly Long
   const targetKey = keyOf(target), targetIsEvent = isEvent(target), normalTarget = target.operation === "normal";
   const countOver = () => targetIsEvent ? events > EVENT_LIMIT : periods > LONG_PERIOD_LIMIT;
   const byteOver = () => size > GENERATION_LIMIT;
-  if (!countOver() && !byteOver()) return reserve > RESERVE_BYTES ? null : { earthquakes, longPeriods, evicted: [], folded: [], target };
+  if (!countOver() && !byteOver() && reserve <= RESERVE_BYTES) return { earthquakes, longPeriods, evicted: [], folded: [], target };
   const evicted = new Set<Shown>(), foldedEvents = new Map<EarthquakeEvent, EarthquakeEvent>();
   const foldedPeriods = new Map<LongPeriodSubject, LongPeriodSubject>();
   const current = (item: Shown): Shown => (isEvent(item) ? foldedEvents.get(item) : foldedPeriods.get(item)) ?? item;
@@ -701,6 +714,7 @@ function fit(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly Long
     }
     if (byteOver()) return null;
   }
+  for (const item of received == null || reserve <= RESERVE_BYTES ? [] : overReserve([...earthquakes, ...longPeriods].filter(eligible), reserve, now, verified)) remove(item);
   if (reserve > RESERVE_BYTES) return null;
   return { earthquakes: earthquakes.filter((item) => !evicted.has(item)).map((item) => foldedEvents.get(item) ?? item),
     longPeriods: longPeriods.filter((item) => !evicted.has(item)).map((item) => foldedPeriods.get(item) ?? item), evicted: [...evicted],
@@ -766,9 +780,10 @@ function planChanges(plan: Plan): Change[] {
   const own = keyOf(plan.target);
   return [...plan.folded.filter(([item]) => !isEvent(item) && keyOf(item) !== own), ...plan.evicted.map((item): Change => [item, null])];
 }
+const evictedNote = (count = 0): DiagnosticDetails[] => count === 0 ? []
+  : [{ level: "INFO", component: "seismic", reason: "seismicCapacityEvicted", unit: "U-Q", count }];
 function planDiagnostics(plan: Plan): DiagnosticDetails[] {
-  return [...plan.evicted.length === 0 ? [] : [{ level: "INFO" as const, component: "seismic", reason: "seismicCapacityEvicted" as const,
-    unit: "U-Q" as const, count: plan.evicted.length }], ...plan.folded.length === 0 ? [] : [{ level: "INFO" as const, component: "seismic",
+  return [...evictedNote(plan.evicted.length), ...plan.folded.length === 0 ? [] : [{ level: "INFO" as const, component: "seismic",
     reason: "seismicStationsFolded" as const, unit: "U-Q" as const, count: plan.folded.length }]];
 }
 
@@ -978,7 +993,7 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
     }
     changes = changes.map(([before, after]): Change => [before, after === original ? target : after]);
   }
-  // 到着の時点で期限を過ぎた記録の無い subject の報は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない
+  // 到着の時点で期限を過ぎた記録の無い subject の報は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない（予約の超過〔当日履歴の増え〕では fit が記憶を外す、P3-SEISMIC-RESERVE-CLOSE-001）
   // （P3-FINAL-AC01）。before は受信で引いた索引の結果で、記録の有無を引き直さない（P3-FINAL-RES-01）。
   const due = target.retainUntil <= clock.wallTimeMs;
   const [before] = changes[0];
@@ -1022,7 +1037,7 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   // P3-VM-D-MISSING=A の (2): 手元の版の無い比べる時刻を欠く報は採って WARN を添える。
   const diagnostics: DiagnosticDetails[] = proposal.missing ? [{ level: "WARN", component: "seismic", reason: "requiredStructureMissing",
     inputId: candidate.source.inputId, unit: "U-Q" }] : [];
-  diagnostics.push(...planDiagnostics(fitted));
+  diagnostics.push(...planDiagnostics(fitted), ...evictedNote(collected?.evicted));
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "notificationCapacityEvicted",
     unit: "U-Q", count: notices.dropped });
   const dropped = droppedIn(raw, [...next.earthquakes.flatMap((item) => item.contributions), ...next.longPeriods]);
@@ -1176,7 +1191,7 @@ function markPending(state: SeismicUnitState, clock: ClockReading): Readonly<{ s
 
 // expired は期限切れの記憶にした寄与と長周期の outcome（transition "expired"、source は最終更新の報、P3-QC-AC08 (2)）。
 function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis): Readonly<{ state: SeismicUnitState; changes: readonly Change[];
-  expiredIntents: number; expired: readonly SubjectOutcome[] }> {
+  expiredIntents: number; expired: readonly SubjectOutcome[]; evicted?: number }> {
   const now = clock.wallTimeMs;
   if (basis === "awaiting") return { state, changes: [], expiredIntents: 0, expired: [] };
   if (basis === "unverified") return { ...markPending(state, clock), expiredIntents: 0, expired: [] };
@@ -1190,7 +1205,7 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
     return after != null && after.retainUntil > now ? [after] : [];
   };
   // ponytail: event 512・長周期 256 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
-  const earthquakes = minOf(state.earthquakes, eventDeadline) > now && !heldEvents ? state.earthquakes : state.earthquakes.flatMap((item) => {
+  const aged = minOf(state.earthquakes, eventDeadline) > now && !heldEvents ? state.earthquakes : state.earthquakes.flatMap((item) => {
     if (item.retainUntil <= now && !visible(item)) return keep(item, null);
     if (item.retainUntil <= now || item.expiryPending === true) {
       const after = expireEvent(item);
@@ -1202,7 +1217,7 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
     changes.push([item, after]);
     return [after];
   });
-  const longPeriods = minOf(state.longPeriods, (item) => item.retainUntil) > now && !heldPeriods ? state.longPeriods
+  const kept = minOf(state.longPeriods, (item) => item.retainUntil) > now && !heldPeriods ? state.longPeriods
     : state.longPeriods.flatMap((item) => {
       if (item.retainUntil > now && item.expiryPending !== true) return [item];
       if (!visible(item)) return keep(item, null);
@@ -1215,6 +1230,11 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
     const key = daily[operation].dayKey;
     if (key != null && nextMidnight(key) <= now) daily = { ...daily, [operation]: EMPTY_HISTORY };
   }
+  // P3-SRC-AC01: 記憶へ移した回だけ（予約が増えるのはここだけ）、越えたら同じ回で古い記憶から外す。
+  const victims = new Set(expired.length === 0 ? [] : overReserve([...aged, ...kept], reservedBytes(aged, kept, daily), now, true));
+  victims.forEach((item) => changes.push([item, null]));
+  const earthquakes = victims.size === 0 ? aged : aged.filter((item) => !victims.has(item));
+  const longPeriods = victims.size === 0 ? kept : kept.filter((item) => !victims.has(item));
   const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
   const expiredIntents = state.intents.length - intents.length;
   // P3-NL-AC02 (6): until を過ぎた失敗の印は期限の入力で外す。
@@ -1223,15 +1243,15 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
   if (earthquakes === state.earthquakes && longPeriods === state.longPeriods && daily === state.daily && intents === state.intents
     && failureMarks === state.failureMarks) return { state, changes: [], expiredIntents: 0, expired: [] };
   return { state: { ...state, earthquakes, longPeriods, daily, intents, failureMarks, persistence: dirty(state.persistence, clock.monotonicMs) },
-    changes, expiredIntents, expired };
+    changes, expiredIntents, expired, evicted: victims.size };
 }
 
 function deadlineStep(state: SeismicUnitState, clock: ClockReading, basis: WallBasis, shutdown: boolean): Result {
   const applied = collect(state, clock, basis);
   const subjects = [...applied.changes.flatMap(([, after]) => after == null || !isEvent(after) || !onScreen(after) ? [] : shownOutcomes(after)
     .map((item) => ({ ...item, facts: eventView(after), changedFields: ["strongHold"] }))), ...applied.expired];
-  const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "seismic",
-    reason: "notificationExpired", unit: "U-Q", count: applied.expiredIntents }];
+  const diagnostics: DiagnosticDetails[] = [...applied.expiredIntents === 0 ? [] : [{ level: "INFO" as const, component: "seismic",
+    reason: "notificationExpired" as const, unit: "U-Q" as const, count: applied.expiredIntents }], ...evictedNote(applied.evicted)];
   return { changes: applied.changes, step: { ...idle(applied.state),
     outcomes: shutdown ? [{ kind: "batchCompleted", reason: "shutdown", subjects }]
       : subjects.length === 0 ? [] : [{ kind: "deadlineApplied", subjects }],
@@ -1302,8 +1322,8 @@ function restore(state: SeismicUnitState, persisted: PersistedSeismicUnit, clock
   const applied = collect(base, clock, basis);
   const active: Shown[] = [...applied.state.earthquakes, ...applied.state.longPeriods].filter(onScreen);
   const shownAfter: Shown[] = [...applied.state.earthquakes, ...applied.state.longPeriods].filter(listed);
-  const diagnostics: DiagnosticDetails[] = applied.expiredIntents === 0 ? [] : [{ level: "INFO", component: "seismic",
-    reason: "notificationExpired", unit: "U-Q", count: applied.expiredIntents }];
+  const diagnostics: DiagnosticDetails[] = [...applied.expiredIntents === 0 ? [] : [{ level: "INFO" as const, component: "seismic",
+    reason: "notificationExpired" as const, unit: "U-Q" as const, count: applied.expiredIntents }], ...evictedNote(applied.evicted)];
   if (restored.started.length !== 0) diagnostics.push({ level: "INFO", component: "seismic", reason: "notificationOutcomeUnknown",
     unit: "U-Q", count: restored.started.length });
   return { changes: shownAfter.map((item): Change => [null, item]), step: { ...idle(applied.state),
