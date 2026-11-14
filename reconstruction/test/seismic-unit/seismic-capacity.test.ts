@@ -518,7 +518,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const marked = bounded(atLimit - (EVENT_LIMIT * 4 + 256) * unreadableMarkBytes("unreadable") - 131_072, true);
     console.info("P3-UM-AC03 (6) U-Q", JSON.stringify({ marked: generation(marked), limit: L, cards: UNREADABLE_CARDS_MAX_BYTES }));
     expect([generation(marked) <= L, roundTrip(marked).kind]).toEqual([true, "restored"]);
-  });
+  }, 180_000); // 件数 1024 で Linux の CI が 42.7 秒かかり 30 秒の上限を越えた（P3-SEL-AC02 (4)、MacBook では 5.8 秒）
 
   it("P3-QC-T04 acceptance / P3-QC-AC07・AC10: the whole cancel leaves a marked card, leaves today's count and recomputes the maximum", () => {
     const EVENT = "20260728162718", cancel = decodeFixture("synthetic_VXSE53_cancel");
