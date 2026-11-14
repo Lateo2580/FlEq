@@ -1,0 +1,340 @@
+{
+  "meta": {
+    "draftedFromOid": "95612a629bc06e8aadc2732ad770ac5991de6b3e",
+    "sha256": "1360a3646ef1c7e21c9f79e965c22ddc5187f9a02ed8e708f8d2f89e1a0eb46e",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-TCC-D-SUBSTITUTE",
+        "kind": "作者",
+        "A": "半角の空白 1 字（字 1 つにつき 1 字）。置き場は color.ts の painter が返す関数の 1 か所（端末の整形〔format.ts の createRenderer〕とプロンプト〔output.ts〕の色付けがどちらもこれを使い、端末へ書く電文の字の全部がここを通る、Q-TCC-SITE）。整形はどの字も幅 1 桁と数えて組んである（charWidth は表に無い字を 1 桁）ので、折り返し・帯の塗り・表の列・再掲の行の数えは 1 桁も変わらない（起草の写しで、旧の出力の当の字を半角の空白にしたものと新の出力が全件一致、Q-TCC-PATH (3)）",
+        "B": "全角の空白 1 字（P3-TRL-D-BREAK=A の地方名の部分と同じ字）。全角は 2 桁なので、A の置き場で全角の空白に替え、あわせて format.ts の幅の表 WIDE（:61〜:64 の範囲の表、prompt の幅もこの width を使う）に CR・U+007F〜U+009F・U+2028・U+2029 を 2 桁として足す（2 行）。起草の写しで回すと corpus の出力は 1 字も変わらず、反例を入れた整形でも桁数を越える行は 0（Q-TCC-PATH (5)）。ただし当の字のある行は組み直され（折り返しの位置・表の列・帯の空白の幅が変わる）、幅の表が「書く時に全角の空白に替える字」を East Asian Width と関係なく 2 桁と数え、表と替える字の 2 か所を対で保つ決まりが増える。折り目に当たった字は次の行の頭に全角の空白として残る（wrapChars が折り目で捨てるのは本物の空白だけ）",
+        "C": "改行として行を分ける（生の CR が decode で LF に揃った報の、文〔textLines〕の段落の分けと同じ見え方）。textLines の分けの /\\n+/ を広げ、見出し文の先頭の部分も分ける。帯の題名・地域名・表の欄は行を分けられないので A の形を残す（3 か所以上）",
+        "D": "消す。A の置き場で \"\" に替えると、幅 1 桁と数えた字を 0 桁で書くので、その字のある帯の右端と表の列が 1 字につき 1 桁ずれる（揃えるには charWidth でその字を 0 桁と数える 1 行が要る）。区切りの意味が落ちて語や地方名がつながる（「四国&#13;九州」が「四国九州」）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": "未（推奨 A）",
+        "reason": "場面: 2024-04-17 23:14:59 発表の緊急地震速報（警報）第 1 報（VXSE43、37_01_01。最大予測震度 5弱）の行動の文（WarningComment）が「強い揺れに&#13;警戒してください。」（「に」と「警」の間に CR の文字参照）だったとき、色ありの 80 桁の端末で。旧（今）: 縦線 2 桁と「強い揺れに」を書き、CR で行の頭へ戻って「警戒してください。」（18 桁）を上から書くので、画面のその行は縦線も「強い揺れに」も消えて「警戒してください。」だけに見える（字の並びから導いた見え方で、実端末では見ていない）。A: 「強い揺れに 警戒してください。」。B: 「強い揺れに　警戒してください。」。C: 「強い揺れに」と「警戒してください。」の 2 行。D: 「強い揺れに警戒してください。」。同じ形は見出し文の先頭が震源の文のままの部分（2026-01-01 12:00:30 発表の最終報 77_01_30 の見出し文を「テスト&#13;地域で地震」にした報: 旧は「テスト」が消えて「地域で地震」、A は「テスト 地域で地震」）、地震以外の報の見出し文（2007-11-30 06:00:00 発表の火山に関するお知らせ 42_02_01 VZVO40 の見出し文の途中: 旧は「噴火警報及び噴火予報」CR「の発表開始のお知らせ」、A は「噴火警報及び噴火予報 の発表開始のお知らせ」）、帯の題名・地域名・表の欄でも起きる。生の U+2028・U+2029・U+0085 は端末によって空白・記号・幅 0・改行のどれかで出る。A を推す理由: 1 行で済み、組みが 1 桁も変わらない（当の字を含む報も、折り返し・帯・表は今と同じ位置）ので、幅の決まり（行は桁数を越えない、P3-TO-AC04 (5)）に触れない。短い形の文は改行を半角の空白 1 つにしていて（spec §5.4 の Q-TO4-SPACE「ほかの改行は今のとおり空白 1 つにする」）、同じ字になる。B は地方名の部分（P3-TRL-D-BREAK=A）と字が揃い、日本語の文の中では全角の空白のほうが馴染むが、幅の表と替える字を対で保つ決まりが 1 つ増える。地方名の部分の全角の空白は太字の範囲を分ける区切りの字で、ここで替える字は区切りの役目を持たないので、揃える要は弱い。気象庁の留意事項 §3 の線（電文の本質・値・意味を変えない。空白の整形は可）: A・B・C は画面に字として出ない制御の字を空白か改行に替えるだけで、電文の字（漢字・かな・数字・記号）は 1 字も足さず消さず並べ替えない。CR・U+2028・U+2029・U+0085 は行・段落の区切りで、空白か改行に替えても区切りは残る。ほかの C1 と DEL は字でない。D は区切りを落として語がつながるので、A・B・C より線に近い。corpus の全 fixture にはどの字も 0 件なので、どの案でも corpus の出力は 1 字も変わらない（Q-TCC-REACH・Q-TCC-PATH）"
+      },
+      {
+        "id": "P3-TCC-D-SCOPE",
+        "kind": "統合担当",
+        "A": "替える字は CR（U+000D）・U+007F〜U+009F（DEL と C1。U+0085 を含む）・U+2028・U+2029。TAB と LF は替えない",
+        "B": "台帳 134 の字（CR・U+2028・U+2029）だけ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "届く字を decode の決まりから数えた（Q-TCC-REACH）: decode-material.ts は生の C0 を TAB・LF・CR のほか全部断り、文字参照も XML の Char の外（TAB・LF・CR のほかの C0）を断るので、ESC・BEL などは届かない。届くのは TAB・LF・CR（文字参照だけ。生の CR は組立てで LF に揃う）・U+007F〜U+009F（生でも文字参照でも）・U+2028・U+2029。C1 のうち U+0085（NEL、次の行の頭へ）・U+008D（RI、1 行上へ）・U+009B（CSI、制御の並びの頭）は、UTF-8 の C1 を制御として読む端末では前の行を上書きし、画面を消す・色を変えるなどの並びを始めうる。DEL は端末が何も描かないのに整形は 1 桁と数える。A は同じ 1 つの字の組（正規表現 1 つ）で、corpus はどれも 0 件なので比べの結果は B と同じ。TAB は行の頭へ戻らず次のタブの位置へ進むだけで上書きせず、電文の文に実在する（42_01_01 VZSE40 の本文の 1 か所。端末の出力には出ない、Q-TCC-PATH (1)）ので outOfScope。LF は文の段落の区切りとして使っている"
+      },
+      {
+        "id": "P3-TCC-D-PLACE",
+        "kind": "統合担当",
+        "A": "color.ts の painter が返す関数の頭の行（:64）の中だけを書き換え、なぜのコメントは同じ行の行末に書く。color.ts・format.ts の行の数を変えない（ほかの契約の «» の付け直しは 0 個）",
+        "B": "format.ts の createRenderer の paint（:1075）と output.ts のプロンプトの paint（:434）の 2 か所で替える（«» の付け直しは 0 個）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "painter を使うのは format.ts の createRenderer と output.ts のプロンプトの 2 か所だけで、どちらも電文の字を色付けして書く（Q-TCC-SITE）。A なら 1 行で両方に掛かり、B は同じ式を 2 か所に書く。color.ts の :64 を引く «» は 0 個（color.ts を引く «» は :14・:15・:16・:21・:24・:37・:38・:45・:62）。太字は paint が 2 回（色の内側と strong の外側）掛かるが、替えた後の字は替える字の組に入らず、色の並び（ESC で始まる）も組の外なので、2 回目は何も変えない。painter を直に呼ぶ試験（layout2・layout8 など 11 file）は替える字を渡さないので変わらない。D-SUBSTITUTE が C に決まったときは置き場が欄ごとになるので本項を立て直す"
+      },
+      {
+        "id": "P3-TCC-D-EQUIVALENCE",
+        "kind": "統合担当",
+        "A": "新旧の同値は使い捨ての script（起草の写しの capture.mjs）で示し、件数を成果物に書く。常設の試験に比べの道具を残さない",
+        "B": "本物の経路の比べを常設の試験にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "P3-TRL-D-EQUIVALENCE=A・P3-DNL-D-EQUIVALENCE=A と同じ形。corpus にどの字も無いので比べは 1 回確かめれば足り、常設は fixture の焼き直しに近い（AGENTS.md の最小テスト）。字の振る舞いは P3-TCC-T01 が守る"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TCC-REACH",
+        "status": "closed",
+        "source": "起草（2026-11-15 朝、95612a62 の decode-material.ts と corpus を読んだ）",
+        "closed": "(1) decode-material.ts: 生の字は U+0000〜U+0008・U+000B・U+000C・U+000E〜U+001F・孤立サロゲート・U+FFFE・U+FFFF を断る。文字参照は XML の Char（TAB・LF・CR・U+0020 以上）の外を断る。生の CR と CR LF は組立てで LF に揃う。よって届く制御の字は TAB・LF・CR（文字参照だけ）・U+007F〜U+009F・U+2028・U+2029 (2) corpus の telegramXml 297 件: 生の CR・&#13;・&#x0D;・文字参照の全部・U+007F〜U+009F・U+2028・U+2029 はどれも 0 件。空白でない字の要素の中の TAB は 1 件（42_01_01 VZSE40 の本文）で、端末の出力には出ない（Q-TCC-PATH (1)） (3) JS の trim は CR・U+2028・U+2029 を落とすので、文（textLines・shortSentence）の段落の端にある分は今も出ない。出るのは段落の途中と、trim を掛けない欄（帯の題名・地域名・見出し文の先頭の部分など）。U+0085 と C1 は trim でも \\s でも落ちない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TCC-SITE",
+        "status": "closed",
+        "source": "起草（2026-11-15 朝、format.ts・color.ts・output.ts・prompt-current.ts・cli.ts・repl.ts を読んだ）",
+        "closed": "(1) 電文の字は全部 Line の Seg になり、paintBlock（電文のブロック）か paintLines（知らせ）から paintSegs を通って paint で字列になる。帯の固定の行（physical が折らずに返す）も paintSegs を通る (2) プロンプトの字も電文の字を持つ: prompt-current.ts は津波の区域名・火山名・VYSE60 の題名・河川名などを項目にし、promptFrame が output.ts の paint（painter）で色付けする。この字は readline の prompt になり、emit（電文のブロックの後の書き直し）と echo の単位で paintSegs を通らずに書かれる。幅は format.ts の width で色の無い字から数える。よって format.ts の paint だけで替えるとプロンプトが漏れ、painter（color.ts）なら 1 か所で両方に掛かる (3) echo と line の単位のほかの字（readline の echo、REPL の返事、起動の後の行）は電文の字を持たず、画面消し（ESC [2J）・窓の題名（ESC ]2;…BEL）・prompt の書き直し（emit の CR ESC [K）を意図して書くので、render の戻りの字列の全体では替えられない。src/terminal と src/cli の字列に替える字は、emit の CR（paint の外）のほかに無い (4) seg() は wrapChars の append が字ごとに作り直すので、そこで替えると長い字列で 2 乗になる (5) physical は帯の固定の行を素通りさせる (6) paint は幅を数え終えた後に掛かるので、幅の扱いを変えずに置けるのは幅が同じ 1 桁の字（半角の空白、D-SUBSTITUTE の A）だけ。B は幅の表に 2 桁として足せば同じ置き場で成り立ち、C は欄ごとになる",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TCC-PATH",
+        "status": "closed",
+        "source": "起草の写し（2026-11-15 朝、MacBook・Node v26.12.1。draft/l134 の checkout の未追跡の reconstruction/.dr-tmp/l134/: 本物の経路の比べ capture.mjs〔記録 cal.log・cap-*.log・capB-*.log〕、場面 scene.mjs。旧は 95612a62 の src を tsc --outDir で dist-old に、新は案を当てた src で dist-new に、B の形〔幅の表に足して全角の空白〕は一時に src を書き換えて dist-B に作り src を戻した。追跡 file は案のほか変えていない）",
+        "closed": "(1) 本物の経路: replay.mjs と同じローカル WS → startP2Host（owner の worker は reconstruction/dist から起きる）→ owner の inputTerminal（taken の判定）・U-E の facts.report → createTerminalOutput の列 → write の口。write に来た batch を旧と新の createRenderer へ同じ順で渡した（6 通り: 桁 80・56・120 × 色 0・3。通りごとに 1 つの renderer）。fd 1 への書き出しだけは通らない。通知の子は /usr/bin/true、state・diag は写しの置き場の下、TMPDIR・XDG_CONFIG_HOME も写しの置き場の下。corpus の telegramXml 297 件を発表時刻の順で流し、297 件とも処理済み、batch 252、単位は報 227・EEW 12・読めなかった報 13、整形 1,512 回・673,962 字で、旧と新の字の不一致 0、どちらも例外 0、出力の中の替える字は旧も新も 0、TAB 0 (2) 物差しの確かめ: 先に旧と旧（dist-old の写しを dist-new に置いた）で回し、P3-TRL の Q-TRL-PATH の件数（297・252・1,512・673,962）と同じになった (3) 既知の反例: 全ての <Text> の字の中ほどに 1 字を入れた corpus を同じ経路で流すと、&#13;・U+2028・U+2029 は整形 1,512 回のうち 1,128 回、U+0085 は 1,152 回で旧と新が違い、旧の出力には替える字が 1,286・1,286・1,286・1,334 個、新は 0 個。旧の出力の替える字を半角の空白にした字列と新の出力は 4 通りとも全件一致（組みが変わらない、D-SUBSTITUTE=A）。桁数（100 で止める）を越える行は、URL の行を除いて引数なし・反例とも 0 (4) 線形: paint の置き換え（字の組 1 つ、量指定なし）は字 16,384・65,536・262,144・1,048,576 で 0.11・0.55・2.08・7.94 ms（node、5 回の最小） (5) B の形（DISTNEW=dist-B）: 引数なしは不一致 0、&#13; と U+0085 の反例は不一致 1,128・1,152 回で新の替える字 0、桁数を越える行 0 (6) 覆った範囲: corpus の単位は報・EEW・読めなかった報の 3 種で、知らせ・降灰の束・時系列・まとめ・プロンプトは比べに出ない（どれも同じ painter を通る。プロンプトは batch の prompt が null の写しでは出ない） (7) 場面（scene.mjs、色あり 80 桁、ESC を除く）: 77_01_30 の見出し文を「テスト&#13;地域で地震」にすると旧は「  テスト」CR「地域で地震」、新は「  テスト 地域で地震」。37_01_01 の行動の文は旧「  強い揺れに」CR「警戒してください。」、新「  強い揺れに 警戒してください。」。37_01_01 の震源名を「豊後&#10;水道」にすると旧・新とも「  震源: 豊後」と縦線の無い「水道 ・ M5.8 ・ 深さ30km ・ 長周期階級 1」の 2 行、42_02_01 の Head の題名に &#10; を入れると帯が「━ 火山に関」と「するお知らせ ━…」に割れる（outOfScope の LF）",
+        "remaining": "なし（実装担当は AC03 の比べを配送する実装で回し直す）"
+      },
+      {
+        "id": "Q-TCC-ANCHORS",
+        "status": "closed",
+        "source": "起草（2026-11-15 朝、95612a62 で `format.ts:<行> «…»` と `eew.test.ts:<行> «…»` を reconstruction・docs に git grep した）",
+        "closed": "(1) color.ts の :64 を引く «» は 0 個。案は color.ts の行の数を変えず、format.ts は変えない (2) eew.test.ts の行を引く «» は :93・:96 の 2 個（p3-terminal-regex-linear.json）。T01 は :115（P3-TRL-T02 の it の終わり）の後に足すので、どちらもずれない (3) 本契約の evidenceRefs は中身の変わらない行に置いた (4) 案を当てた木に本契約を置いて check-contract を回し、全契約が PASS（本契約は WARN: baseOid=unassigned）",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末へ書く字の置き換えだけで、Control.Status を読む所も通知と表示の判定も変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-CONTROL-CHARS-001",
+    "mode": "implementation",
+    "objective": "構造的欠陥台帳 134 を閉じる。format.ts は、電文の字に入った CR（文字参照 &#13;）・U+2028・U+2029 を電文の字のまま端末へ書く（緊急地震速報の見出し文の先頭が震源の文のままの部分、行動の文 WarningComment、地震情報・短い形の見出し文、本文の引用、帯の題名、地域名、プロンプトの区域名など）。端末は CR で行の頭へ戻るので、CR の前の字が後の字で上書きされて見えなくなりうる（字の並びから導いた見え方で、実端末では未確認）。同じく届く U+0085 などの C1 と DEL も、端末によって行を変える・前の行へ戻る・制御の並びを始めるなどしうる（P3-TCC-D-SCOPE）。これを、端末へ書く手前の 1 か所（color.ts の painter が返す関数。端末の整形とプロンプトの色付けがどちらも通る）で、D-SUBSTITUTE の字に替えて直す。ふつうの入力（corpus の全 fixture）で端末の出力は 1 字も変わらない（どの字も corpus に 0 件、Q-TCC-PATH）。変わるのは当の字を含む報の出方だけで、A なら組み（折り返し・帯・表）は変わらず当の字が半角の空白になる。電文の値・意味を変えない（D-SUBSTITUTE の reason）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-terminal-control-chars.json",
+      "reconstruction/contracts/p3-terminal-regex-linear.json",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/color.ts",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/terminal/prompt-current.ts",
+      "reconstruction/src/decode-material/decode-material.ts",
+      "reconstruction/test/terminal/eew.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "test/fixtures/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/color.ts（AC01 の分だけ: :64 の行の中。行の数を変えない〔P3-TCC-D-PLACE=A〕。ほかの行は変えない。D-SUBSTITUTE=B なら reconstruction/src/terminal/format.ts の WIDE の表の行の中も）",
+      "reconstruction/test/terminal/eew.test.ts（AC02 の分だけ: :115〔P3-TRL-T02 の it の終わり〕の後に P3-TCC-T01 の it 1 つ、コメントと空行を含め +12 行。ほかの行と期待は変えない）",
+      "reconstruction/contracts/p3-terminal-control-chars.json（統合担当だけ: 配送の記録。実装担当は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-control-chars.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-TERMINAL-LAYOUT-001",
+      "P3-TERMINAL-REGEX-LINEAR-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "painter・createRenderer・createTerminalOutput の口と型（Paint）を変えない。export・型・設定・helper を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-TCC-RES-01",
+        "target": "painter が返す関数の 1 回（字の長さ n。緊急地震速報の見出し文と行動の文は要素の上限 16,384 code point、ほかの報は material.ts で 4,096 字に切られる）",
+        "limit": "O(n)。正規表現は字の組 1 つで量指定を持たない（各位置を 1 回だけ見る）",
+        "unit": "字 1 字あたりの操作",
+        "scope": "1 回の整形で Seg ごとに 1 回（太字は 2 回）、プロンプトの書き直しで項目ごとに掛かる。字 1,048,576 で 7.94 ms（Q-TCC-PATH (4)）。所要の試験は足さない（2 乗になりうる形を持たないので、戻りはレビューで見る）",
+        "source": "AGENTS.md の受信経路の計算量、Q-TCC-PATH (4)"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（端末へ書く字だけで、保存するものは無い）"
+    ],
+    "nonPersistedFields": [
+      "painter が返す関数の戻り（1 回の整形・プロンプトの中だけ）"
+    ],
+    "outOfScope": [
+      "TAB（U+0009）: 行の頭へ戻らず次のタブの位置へ進むだけで上書きしない。整形は 1 桁と数えるが端末では最大 8 桁で、行が桁数を越えて端末に折られうる（幅の問題として別に扱う。corpus では端末の出力に出ない、Q-TCC-PATH (1)）",
+      "LF（U+000A）が文（textLines・shortSentence）でない欄（帯の題名・地域名・震源名・表の欄）にあると、そのまま改行になり、縦線の無い行が始まり幅の数えが外れる（上書きはしない。起草の写しで震源名と帯の題名に &#10; を入れて確かめた、Q-TCC-PATH (7)）。台帳へ送る",
+      "幅 0 の字・結合文字・異体字セレクタなどを 1 桁と数える近道（format.ts の WIDE の shortcut のコメント）",
+      "echo と line の単位の、プロンプトの外の字（readline の echo、REPL の返事、起動の後の行。電文の字を持たない）",
+      "端末の外へ出る電文の字（デスクトップ通知の本文、EEW のログの file、情報ディスプレイ）",
+      "decode-material.ts の字の決まりと、material.ts の字の切り方（TEXT_LIMIT 4,096）",
+      "端末の見た目の spec（cli-terminal-output.md）の本文と、ほかの契約の本文の改訂",
+      "旧築（src/）と test/fixtures"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TCC-AC01",
+        "requirement": "方式（Q-TCC-SITE・P3-TCC-D-SUBSTITUTE・P3-TCC-D-SCOPE・P3-TCC-D-PLACE=A）: (1) color.ts の painter が返す関数の頭の :64 の return (role, text) => { を、引数を raw とし、同じ行で const text = raw の CR・U+007F〜U+009F・U+2028・U+2029 を 1 字ずつ D-SUBSTITUTE の字に替えた字列、とする形に書き換える（D-SUBSTITUTE=A なら raw.replace(/[\\r\\u007f-\\u009f\\u2028\\u2029]/g, \" \")。:65 から後は text のまま。D-SCOPE=B なら字の組を CR・U+2028・U+2029 だけに）。D-SUBSTITUTE=B なら替える字を全角の空白にし、format.ts の WIDE の表の最初の行の頭に [0x000d, 0x000d], [0x007f, 0x009f], [0x2028, 0x2029] を足す（行の数を変えない。なぜのコメントは :64 の行末に、対で保つことを書く）。D なら \"\" にし、charWidth でその字を 0 桁と数える (2) U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く（生の字は行の終わりとして読まれる） (3) なぜのコメントは同じ行の行末に書く（端末が CR などで前の字を上書きしうること、どの字も幅 1 桁と数えて組んであるので 1 桁の字に替えれば組みは変わらないこと、台帳 134、P3-TERMINAL-CONTROL-CHARS-001、D-SUBSTITUTE の ID） (4) 足す仕組みは無い（既にある関数の頭で字を替える 1 行。無いと: 生の CR などが端末へ届き、前の字を上書きする）。export・型・設定・helper を足さない (5) D-SUBSTITUTE が C に決まったときは置き場が欄ごとになるので、統合担当が本契約を改訂してから発注する。起草の写しの案（color.ts の差分、D-SUBSTITUTE=A・D-SCOPE=A の形）がこの形",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:1061 «755abe53d647e5dd»",
+          "reconstruction/src/terminal/format.ts:1070 «131c1afbb095e63e»",
+          "reconstruction/src/terminal/format.ts:291 «b2ffca6de531c382»",
+          "reconstruction/src/terminal/format.ts:67 «cdf2873d00c43c3b»",
+          "reconstruction/src/terminal/format.ts:1080 «bb4f5a69aa41ed79»",
+          "reconstruction/src/terminal/format.ts:1093 «4b146094438ae052»",
+          "reconstruction/src/terminal/format.ts:238 «c6e6f460a0ff2fe9»",
+          "reconstruction/src/terminal/format.ts:597 «47f4114356eb0a39»",
+          "reconstruction/src/terminal/format.ts:62 «8a169a8da4b6dea7»",
+          "reconstruction/src/terminal/color.ts:65 «603d774e89ab9f2a»",
+          "reconstruction/src/terminal/color.ts:75 «8b083af0b199cbbe»",
+          "reconstruction/src/terminal/output.ts:434 «55b032d3bd1df864»",
+          "reconstruction/src/terminal/prompt-current.ts:106 «07e18368c0733e31»",
+          "reconstruction/src/terminal/prompt-current.ts:109 «312851c17edb8673»",
+          "reconstruction/src/decode-material/decode-material.ts:91 «aae9ff3fc2b01cb1»",
+          "reconstruction/src/decode-material/decode-material.ts:110 «690114010dfd32bf»",
+          "reconstruction/src/decode-material/decode-material.ts:255 «afa6fb4e10e0f4c6»",
+          "docs/specs/cli-terminal-output.md:653 «d2ad9f5976facb80»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»"
+        ]
+      },
+      {
+        "id": "P3-TCC-AC02",
+        "requirement": "試験: (1) P3-TCC-T01（regression、台帳 134 の実不具合）: eew.test.ts の :115 の後に it を 1 つ足す。37_01_01 の行動の文「強い揺れに警戒してください。」の「に」と「警」の間に半角の空白を入れた報を、色あり 80 桁の terminal() で行にし（基準）、基準に「  強い揺れに 警戒してください。」（ESC を除いた形）があることを確かめる（行の途中なので、折り目と行末で起きる「本物の空白は捨て、替えた空白は残る」の差は出ない）。続けて同じ所に &#13;・U+0085・U+2028・U+2029・U+009B・U+007F を順に入れた報の行が、[入れた字, 行のどれかに替える字がある, 行] で [入れた字, false, 基準] と等しいこと（D-SUBSTITUTE=A。B・C・D に決まったときは基準と期待を改訂する）。試験の字列の U+2028・U+2029 などは \\u のエスケープで書く (2) 歯: 直す前の src の写しで T01 を回して落ちる（起草で &#13; の回に行に CR が残って落ちた）ことを確かめて成果物に書く。製品と試験の戻しは残さない",
+        "evidenceRefs": [
+          "reconstruction/test/terminal/eew.test.ts:93 «7497b98318a783be»",
+          "reconstruction/test/terminal/terminal-fixture.ts:60 «5792a52e97228f24»",
+          "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-TCC-AC03",
+        "requirement": "同値（P3-TCC-D-EQUIVALENCE=A）: 作業開始時の確認（AGENTS.md の git status --porcelain が空）では、統合担当が置いた未追跡の reconstruction/.dr-tmp/ の 1 行だけを許す。置き場は作業木の未追跡の reconstruction/.dr-tmp/tcc/（統合担当が発注の時に起草の写しの capture.mjs を中身を変えずに写す。自分の 3 つ上を repo の根とし、隣の dist-old/・dist-new/ を読み、走るたびに隣へ run-<mode>-<時刻>/ の state・diag を作る）。変更の前に baseOid の src で dist-old を、変更の後に dist-new を tsc --outDir で作り、capture.mjs を引数なし・&#13;・u2028・u2029・u0085 の 5 回回す（どれも rc 0。capture.mjs は、処理されない入力・新の例外・新の出力の替える字・引数なしの不一致・反例の不一致 0 回・layoutDiff のどれかがあると rc 1 で終わる。DISTNEW は付けない）: (a) 引数なし: 本物の経路で corpus の telegramXml の全件を流し、旧と新の整形の字の不一致 0・例外 0・新の出力の替える字 0 (b) 4 つの反例: 旧と新が 1 回以上違い、新の出力の替える字 0、layoutDiff 0（旧の出力の替える字を D-SUBSTITUTE の字にした字列と新の出力が全件一致。D-SUBSTITUTE=A のとき）。起草の写しの件数（Q-TCC-PATH）: 297 件・batch 252・整形 1,512 回・673,962 字、反例の不一致 1,128・1,128・1,128・1,152 回。件数が違えば理由を書く。あわせて reconstruction/test/ の全試験が、既存の期待を変えずに緑で通る",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/material.ts:382 «a02ebdf86710ff20»",
+          "reconstruction/cli/replay.mjs:116 «cfcfba7abe4c7b38»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-TCC-AC04",
+        "requirement": "配送の後（統合担当）: (1) color.ts（D-SUBSTITUTE=B なら format.ts も）の行の数は変わらず、ほかの契約の «» の付け直しは 0 個 (2) eew.test.ts の :93・:96 を引く «» はずれない (3) check-contract・check-sequences が PASS（WARN は baseOid=unassigned の契約だけ）。sequences.json・manifest.json は変えない (4) 台帳 134（repo 外）の局所修正の状態を「解消（P3-TERMINAL-CONTROL-CHARS-001）」に。outOfScope の 2 つ目（文でない欄の LF）を台帳の新しい項か 134 の追記に書く",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:1064 «6d84249b53649bba»",
+          "reconstruction/tools/corpus/check-manifest.mjs:15 «8a0389790318ccfc»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TCC-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TCC-AC02"
+        ],
+        "behavior": "eew.test.ts の :115 の後に足す（AC02 (1)）。行動の文の途中に CR（文字参照）・U+0085・U+2028・U+2029・U+009B・U+007F のある緊急地震速報が、どの字も端末へ生で書かず、行の途中の同じ所に半角の空白を置いた報と同じ行で出る（D-SUBSTITUTE=A。プロンプトは同じ painter を通るので本試験で兼ねる）。直す前の code では字が生で残り、CR で行の頭へ戻って「強い揺れに」が上書きされうる（台帳 134）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "mkdir -p reconstruction/.dr-tmp/tcc/tmp reconstruction/.dr-tmp/tcc/home && ./node_modules/.bin/tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/tcc/dist-old && ./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "preparation",
+        "purpose": "変更の前に baseOid の dist を比べの置き場に作り、reconstruction/dist も作る（capture.mjs の startP2Host は owner の worker を reconstruction/dist から起こす。git worktree・stash は使わない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest と比べより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（足した it）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/tcc/dist-new",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "変更の後の dist を比べの置き場に作る（AC03 の新の側）"
+      },
+      {
+        "command": "for m in '' '&#13;' u2028 u2029 u0085; do TMPDIR=$PWD/reconstruction/.dr-tmp/tcc/tmp XDG_CONFIG_HOME=$PWD/reconstruction/.dr-tmp/tcc/home node reconstruction/.dr-tmp/tcc/capture.mjs \"$m\"; done",
+        "cwd": ".",
+        "target": "corpus の telegramXml の全件（本物の経路）",
+        "stage": "implementation",
+        "purpose": "AC03。5 回の出力を成果物に載せる"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P3-TCC-T01 を含む）。既存の期待は変えない。ほかの落ちは止めて報告する"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約（D-PLACE=A なら «» のずれは無い。FAIL は想定外として報告する）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い（AC01 (4)）。試験は P3-TCC-T01 の 1 つ（regression）で、新しい helper・fixture を足さない",
+      "最初の作業: 起草の写しの案（color.ts と eew.test.ts の差分）と同じ形を当て、AC03 の比べを回して不一致 0 と反例の区別を確かめ、続けて AC02 (2) の歯を確かめる。違えば製品も期待も変えずに actual・expected を添えて止めて報告する",
+      "受信経路の計算量（AGENTS.md）: RES-01 のとおり（字の組 1 つの置き換えで線形）",
+      "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
+      "残存: (1) 同値は corpus と 4 つの反例の比べで示し、形式の証明ではない (2) 本物の経路の比べは fd 1 への書き出しを通らない (3) 端末での見え方（旧の上書き、A の空白）は字の並びから導いたもので、実端末では見ていない (4) UTF-8 の C1 を制御として読むかは端末ごとに違い、読まない端末では C1 は今も何も描かれず、A では半角の空白が出る (5) プロンプトの経路は比べにも試験にも出ず、同じ painter を通ることは読みで確かめた (6) 試験の「空白を置いた報と同じ」は行の途中の字だけで、折り目と行末の字の振る舞いは比べの layoutDiff（旧の当の字を空白にした字列との一致）が確かめる"
+    ],
+    "unresolvedQuestions": []
+  }
+}
