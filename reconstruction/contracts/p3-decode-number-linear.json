@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "56f3f0070095fb456a7a6d89dc67e10093d63ede",
-    "sha256": "7e09985d23ded3a288e3a29dd36dda82e688a6d7713ddf220dfe4fa111842d2e",
+    "sha256": "0162c6d1d48569ea92e2d84b0a6631d9ac7d07ca89128f5d9e35af4b5c694212",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -196,7 +196,7 @@
       },
       {
         "id": "P3-DNL-AC04",
-        "requirement": "«» の付け直し（統合担当が配送の commit で当てる。P3-DNL-D-PLACE=A のとき）: (1) ほかの契約で decode-material.ts の行を引く «» のうち、12 行ずれる 6 個を付け直す: p3-replay-watch-002.json の :441、p3-terminal-rain-evict.json の :473・:481、p3-version-material.json の :483、p3-revision-order.json の :485（2 か所）。どれも中身の変わらない行なので、付け直しの道具（anchor の中身から付け直す）で済む。:24・:25・:26・:365 を引く «» はずれない (2) 本契約の evidenceRefs の decode-material.ts の :384・:386・:392・:415・:423・:441 も 12 行ずれる（中身は変わらない） (3) p1-parser-boundary.test.ts は末尾に足すので、それを引く «»（p3-xml-readers.json の :114、本契約の :19・:88）はずれない (4) 順: 実装の commit → 付け直し → 付け直した契約と本契約の meta.sha256 を hashConvention で取り直す → check-contract・check-sequences が PASS（WARN は baseOid=unassigned の契約だけ）。sequences.json・manifest.json は変えない (5) 台帳 131（repo 外）の局所修正の状態を「解消（P3-DECODE-NUMBER-LINEAR-001）」に",
+        "requirement": "«» の付け直し（統合担当が配送の commit で当てる。P3-DNL-D-PLACE=A のとき）: (1) ほかの契約で decode-material.ts の行を引く «» のうち、12 行ずれる 6 個を付け直す: p3-replay-watch-002.json の :441、p3-terminal-rain-evict.json の :473・:481、p3-version-material.json の :483、p3-revision-order.json の :485（2 か所）。どれも中身の変わらない行なので、付け直しの道具（anchor の中身から付け直す）で済む。:24・:25・:26・:365 を引く «» はずれない (2) 本契約の evidenceRefs の decode-material.ts の :384・:386・:392・:415・:423・:441 も 12 行ずれる（中身は変わらない） (3) p1-parser-boundary.test.ts は末尾に足すので、それを引く «»（p3-xml-readers.json の :114、本契約の :20・:88）はずれない (4) 順: 実装の commit → 付け直し → 付け直した契約と本契約の meta.sha256 を hashConvention で取り直す → check-contract・check-sequences が PASS（WARN は baseOid=unassigned の契約だけ）。sequences.json・manifest.json は変えない (5) 台帳 131（repo 外）の局所修正の状態を「解消（P3-DECODE-NUMBER-LINEAR-001）」に",
         "evidenceRefs": [
           "reconstruction/src/decode-material/decode-material.ts:453 «03ddf7f652e974c4»",
           "reconstruction/tools/corpus/check-manifest.mjs:15 «8a0389790318ccfc»"

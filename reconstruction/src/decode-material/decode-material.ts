@@ -382,8 +382,8 @@ function normalizeStatus(raw: string | null): OperationSourceEvidence<Operation>
 }
 
 // 旧の /([+-]?(?:\d+(?:\.\d+)?|\.\d+)).*(以上|超|未満|以下)/ と全ての入力で同じ結果を、欄の長さに線形で返す（台帳 131、
-// P3-DECODE-NUMBER-LINEAR-001）。旧は行の中で数字の後ろに語が無いと文字数の 3 乗に近い時間になった。旧の `.` は行の終わりの
-// 字を越えず、貪欲な `.*` は行の最後の語まで伸びるので、旧の一致は「最後の語より前に数字がある最初の行で、その最初の数字」になる。
+// P3-DECODE-NUMBER-LINEAR-001）。旧は語の頭の字（以・超・未）が行にあって数字の後ろに語が無いと、文字数の 3 乗に近い時間になった。
+// 旧の `.` は行の終わりの字を越えず、貪欲な `.*` は行の最後の語まで伸びるので、旧の一致は「最後の語より前に数字がある最初の行の最初の数字」。
 function boundedNumber(text: string): { number: string; lower: boolean } | null {
   for (const line of text.split(/[\n\r\u2028\u2029]/)) {
     const at = Math.max(line.lastIndexOf("以上"), line.lastIndexOf("超"), line.lastIndexOf("未満"), line.lastIndexOf("以下"));
