@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "6511bd4223fd6be55bac59c5d2c0c6b29f3133b316a2e6db39a7a907fbfa79f1",
+    "sha256": "bfe088593991bb758645fd885f52450a9af1a3159f319e2cd8f3f2005c762878",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -1107,7 +1107,7 @@
         ],
         "resolveBy": "段 4 の器の拡張の契約と P3-DISASTER-PI-MEASURE-001（AC01 が runner.ts の BYTE_LIMITS の行を持つ。AC05 (2) の起点の『山の写し』も同契約）の配送の後",
         "requiredEvidence": [
-          "段 4 の契約の配送 commit と、件数の上限・snapshot の上限・器の byte の新しい値（段 4 の契約は P3-SEISMIC-EVENT-LIMIT-001。snapshot の上限は 1 MiB のまま）",
+          "段 4 の契約の配送 commit と、件数の上限・snapshot の上限・器の byte の新しい値（段 4 の契約は P3-SEISMIC-EVENT-LIMIT-001。snapshot の上限は 1 MiB のまま）。あわせて同契約の Q-SEL-FULL-STATE（作者裁定 A、2026-11-14 15 時台）: 作り物の報で U-Q だけを 1024 件まで詰めた山を作る道具を発注 3 の準備で作り、発注 3 の Pi の窓で一緒に測る。測る項目は 4 つ（詰まった state からの起動の ready の時間、U-Q の保存の encode の bytes と所要、RSS の最大、保存と重なった EEW の投入→T2）。AC08 (1)（:887）は他の契約が «» で引くので書き換えず、ここに置く",
           "P3-DISASTER-PI-MEASURE-001 の配送 commit と、BYTE_LIMITS を今の器に合わせた記録、『山の写し』の置き場と digest"
         ]
       },
@@ -1131,7 +1131,7 @@
         ],
         "resolveBy": "段 4 の器の拡張の契約の起草のとき",
         "requiredEvidence": [
-          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。起草の時点の答えの置き場は P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01（統合担当、同契約の発注の前に閉じる）。決まらないまま AC13 を判定しない。→ 2026-11-14、P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01 で閉じた: 段 4 を理由にした取り直しは要らない（E05 の 9 run で U-Q の保存 0 回、上限の値は比べにしか使われない）。U-Q が詰まったときの RSS は同契約の Q-SEL-FULL-STATE の測る項目"
+          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。起草の時点の答えの置き場は P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01（統合担当、同契約の発注の前に閉じる）。決まらないまま AC13 を判定しない。→ 2026-11-14、P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01 で閉じた: 段 4 を理由にした取り直しは要らない（E05 の 9 run で U-Q の保存 0 回、上限の値は比べにしか使われない）。U-Q が詰まったときの RSS は同契約の Q-SEL-FULL-STATE の測る項目（Q-FG-STAGE4 で測る）。閉じたので、AC13 の判定のとき統合担当が本問いを questionResolutions へ移す"
         ]
       },
       {
