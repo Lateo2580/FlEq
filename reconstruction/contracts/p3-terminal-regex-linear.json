@@ -1,0 +1,356 @@
+{
+  "meta": {
+    "draftedFromOid": "3c9d983b2292ada62f413560aab79ab4418e9d56",
+    "sha256": "b8a3060bfa0492b5bf74712c0d7e3be3b95b6c302667daeea47e9b26a1291e4d",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-TRL-D-BREAK",
+        "kind": "作者",
+        "A": "見出し文の地方名の部分（全角の空白で分けた 2 つ目以降と、先頭が震源の文でないときの先頭）にある CR・U+2028・U+2029 を含む空白の並びを、全角の空白 1 字に揃えて出す（改行の入った見出し文と同じ見え方）。今も出ている側（先頭が震源の文のままの部分）は変えない",
+        "B": "例外だけを無くし、CR・U+2028・U+2029 は電文の字のまま端末へ書く（見出し文以外の文〔textLines〕と同じ扱い）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": "未（推奨 A）",
+        "reason": "場面: 2024-04-17 23:14:59 発表の緊急地震速報 第 4 報（VXSE45、77_01_04。最大予測震度 5弱）で、見出し文が「豊後水道で地震　四国&#13;九州　中国で強い揺れ」（四国と九州の間の全角空白の代わりに CR の文字参照）だったとき。旧（今）: 整形が例外を投げ、writer-worker の catch がその回の batch の全部を空にする。緊急地震速報も、同じ回に並んだ地震情報などの報も端末に 1 行も出ない（音と通知は別の経路で出る）。A: 「四国　九州　中国で強い揺れ」（CR LF の文字参照が入ったときの今の出方と字が同じ。四国　九州 は 1 つの太字の範囲になり、間の全角空白も太字になるが見た目は変わらない）。B: 「四国」CR「九州　中国で強い揺れ」を書き、端末は CR で行の頭へ戻るので「四国」と色つきの縦線の上に「九州」が重ね書きされ、画面には「九州　中国で強い揺れ」と見える（四国が消える。字の並びから導いた見え方で、実端末では見ていない）。生の U+2028・U+2029 は端末によって空白・記号・幅 0 のどれかで出て、整形はどれも 1 桁と数える。別の行: 先頭が震源の文のままの部分（例: 77_01_30 の見出し文を「テスト&#13;地域で地震」にした報）は今も例外にならず「テスト」CR「地域で地震」を生で書いていて、旧・A・B とも同じ（A はここを揃えない。揃えると今も出ている入力の字が変わる。広げるなら別の契約）。どちらも今は例外で出ない入力だけが変わり、corpus の全 fixture の出力は A でも B でも 1 字も変わらない（Q-TRL-PATH）。A を推す理由は B だと警報の地方名が画面から消えうること。ただし同じ CR が行動の文（WarningComment）や地震情報の見出し文など textLines の文にあるときは A でも B でも今のまま生で出る（outOfScope、台帳へ送る）"
+      },
+      {
+        "id": "P3-TRL-D-PLACE",
+        "kind": "統合担当",
+        "A": "format.ts の行の数を変えない。なぜのコメントは headlineSegs と shortSentence の直前の既存のコメント行の末尾と、trimEnd の書き換える行の行末に書く（ほかの契約の «» の付け直しは 0 個）",
+        "B": "なぜのコメントを新しい行に書く（headlineSegs の前に足すと :594 より後を引く «» 63 個、trimEnd の前だけでも 4 個がずれ、付け直しの道具で付け直す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "format.ts の行を引く «» は 89 個あり、:594 以降が 63 個。書き換える行（:594・:596・:598・:599・:724・:729・:1054）を引く «» は 0 個なので、A なら付け直しが要らない。コメントの中身は B と同じで、置き場所だけが違う。P3-DNL-D-PLACE は付け直し 6 個で隣に置く A を採ったが、ここは 63 個で釣り合いが逆"
+      },
+      {
+        "id": "P3-TRL-D-EQUIVALENCE",
+        "kind": "統合担当",
+        "A": "新旧の同値は使い捨ての script 3 本（起草の写しの compare.mjs・capture.mjs・direct.mjs）で示し、件数を成果物に書く。常設の試験には旧の正規表現を残さない",
+        "B": "旧の正規表現を試験の中に神託として残し、seed 固定の乱数の字列で新旧を比べる試験を常設する",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "P3-DNL-D-EQUIVALENCE=A・P3-XML-TREE-COMPACT-001 の D-XTC-EQUIVALENCE=A と同じ形。同値は 1 回確かめれば足り、旧の形を repo に残すと消したい形が残り、乱数の試験は fixture の焼き直しに近い（AGENTS.md の最小テスト）"
+      },
+      {
+        "id": "P3-TRL-D-TIME-TEST",
+        "kind": "統合担当",
+        "A": "所要の試験を 1 つ足す（P3-TRL-T02: 見出し文に半角空白 16,382 字の並びを持つ緊急地震速報の整形 1 回が 100 ms 未満）",
+        "B": "所要の試験は足さず、比べ（AC03）と実装レビューで線形を確かめる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の決め。発注前点検で確定する）",
+        "ruling": "未（推奨 A）",
+        "reason": "起草の写しの MacBook で、本物の decode を通した報の整形 1 回が旧 282〜325 ms・新 2.1〜3.8 ms（Q-TRL-PROBE (4)）。100 ms は新の約 30 倍（CI の遅さ 7〜8 倍でも約 4 倍の余り）、旧は MacBook でも 100 ms を約 3 倍越え、写しの vitest で旧が [false, true] で落ちた。旧の 282〜325 ms の内訳は改行の揃え（headlineSegs）と行末の空白の消し（trimEnd、16k 字の seg に 2 回）で、片方だけ旧に戻した写しでも 123〜132 ms・147〜173 ms で、vitest でもどちらも落ちた（Q-TRL-PROBE (6)）。改行の揃えだけの戻りは 100 ms を 1.2 倍しか越えず、速い機械では素通りしうる。shortSentence は入力が 4,096 字で切られ旧でも 13.6 ms なので、所要の試験では捕まえられず、比べとレビューに任せる。B は試験の揺れが無いが、2 乗に戻す変更が素通りする"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TRL-EQUIV",
+        "status": "closed",
+        "source": "起草（2026-11-14 夜、3c9d983b の format.ts を読み、ECMAScript の正規表現の後戻りの順で考え、起草の写しで比べた〔Q-TRL-PROBE〕）",
+        "closed": "4 か所とも、旧と同じ結果を欄の長さに線形の形で出せる。(1) headlineSegs の replace(/\\s*\\n+\\s*/g, 全角空白): 空白の並びの中のどの位置でも、前の \\s* が並びの終わりまで伸びてから最後の \\n まで戻り、\\n+ と後ろの \\s* で並びの残りを取るので、一致は「\\n を含む極大の空白の並び」全体で、\\n を含まない並びは一致しない（その並びの開始位置ごとに並びを読み直すのが 2 乗の元）。replace(/\\s+/g, 並びが \\n を含めば全角空白、含まなければ並びのまま) と全ての入力で同じ (2) /^(.*?)(で強い揺れ.*)?$/.exec(part): u・s・m の flag が無いので . は LF・CR・U+2028・U+2029 を越えず、$ は字列の終わりだけに合う。(1) の後の部分に LF は残らないので、部分が CR・U+2028・U+2029 を含めば null（台帳 132 の例外）、含まなければ name は最初の「で強い揺れ」の前まで、tail はそこから終わりまで（無ければ name は部分の全部で tail は undefined）。indexOf の 1 回と同じ。旧の所要はもともと線形 (3) trimEnd の replace(/[ 　]+$/, \"\"): 末尾の極大の [ 　] の並びを消すのと同じ。replace(/(^|[^ 　])[ 　]+$/, \"$1\") は、並びの直前の字（か字列の頭）からだけ並びを読むので、各並びを 1 回だけ読む (4) shortSentence の replace(/[ 　]+(?=[、。])/g, \"\"): 貪欲な並びの後ろの字が「、」か「。」のときだけ並びの全体が一致する（短くすると後ろが空白になり先読みが外れる）。replace(/[ 　]+([、。]?)/g, 後ろの字があればその字、無ければ並びのまま) と同じ（後ろの字は空白でないので次の一致の頭にならない）。台帳 132 の入力（太字にする側の部分が CR・U+2028・U+2029 を含む）だけは旧が投げるので比べから外し、P3-TRL-D-BREAK の側の期待（A なら、その部分の CR・U+2028・U+2029 を含む空白の並びを全角空白 1 字にしてから旧の正規表現で分けた結果）と比べた",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRL-PROBE",
+        "status": "closed",
+        "source": "起草の写し（2026-11-14 夜、MacBook・Node v26.12.1。draft/tfr の checkout の未追跡の reconstruction/.dr-tmp/tfr/: 実装の案 format.diff・試験の案 eew.test.diff、関数の比べ compare.mjs〔記録 compare.log〕、端末の出力全体の比べ capture.mjs〔capture-*.log〕と direct.mjs〔direct.log〕、場面と所要 scenes.mjs〔scenes.log〕、線形の確かめ scale.mjs〔scale.log〕、«» の計算 anchor.py。旧は 3c9d983b の src を tsc --outDir で dist-old に、新は src・contracts を cp -cR した wt に案を当てて dist-new に作った。比べは両方の dist の format.js の headlineSegs・shortSentence・trimEnd を Module._compile で外へ出し、compile 済みの関数どうしを util.isDeepStrictEqual で比べた。追跡 file は変えていない）",
+        "closed": "(1) 網羅: headlineSegs は 11 の字片（半角空白・全角空白・タブ・LF・CR・U+2028・U+2029・a・で強い揺れ・で強い・揺れ）の長さ 0〜6 の全ての並びを regions の 2 通りで 3,897,434 件。旧が投げた 1,754,019 件は述語（太字にする側の部分に CR・U+2028・U+2029）と全件で一致し、新は 0 件で投げず、A の期待と全件で一致。残りの 2,143,415 件で不一致 0。shortSentence は 10 の字片（半角空白・全角空白・タブ・LF・、・。・a・：・1・（）の長さ 0〜6 と null で 1,111,112 件、不一致 0。trimEnd は 5 字（半角空白・全角空白・タブ・a・LF）の長さ 0〜3 の字の seg を 0〜3 個（role と bold も変える）で 3,820,909 件、不一致 0 (2) 乱数: seed 20261114 の線形合同（glibc の係数を 32 bit で、上位 15 bit）で長さ 1〜80 の字片の並びを各 300,000 件。headlineSegs は旧が投げた 187,237 件で述語・A の期待と一致、ほかで不一致 0。shortSentence・trimEnd も不一致 0 (3) 歯（各か所に 1 つの誤った変異を新に当てる）: m1（改行の並びの前後の空白を残す）は headlineSegs の網羅で 1,005,000 件・乱数で 86,677 件、m2（最後の「で強い揺れ」で分ける）は 74,786・48,066 件、m3（trimEnd を String.prototype.trimEnd に）は 2,544,862・110,099 件、m4（「、。」の前の空白を 1 字だけ消す）は 18,048・75,087 件を区別した (4) 所要（3 回の最小、ms）: headlineSegs に a＋半角空白 16,382＋a は旧 85.9・新 0.02、タブは旧 108.3・新 0.02、全角空白は旧 154〜213・新 1.6。trimEnd に半角空白 16,383＋a は旧 76.5・新 0.03、全角空白は旧 88.8・新 0.02。shortSentence に x＋全角空白 4,094＋a（material.ts で 4,096 字に切られる）は旧 13.6・新 0.01、16,382 字なら旧 209・新 0.03。本物の decode を通した VXSE45（77_01_04）の見出し文を a＋空白 16,382＋a にした報の整形全体は、半角空白で旧 282〜325・新 2.1〜3.8、全角空白で旧 158〜189・新 7.6〜8.2（そのままの fixture は旧 0.25・新 0.21）。新は 2,048・4,096・8,192・16,384 字で全角空白 1.30・1.87・3.77・7.68、半角空白 0.29・0.56・1.11・2.11 と長さに比例した（scale.log） (5) 試験の案: 案を当てた写しの木（reconstruction・test/fixtures・package.json を cp -cR した full/）で tsc の 3 つ（tsconfig.json・tsconfig.test.json・chrome-eew）が rc 0、reconstruction/test/terminal の 39 file・303 件が緑（P3-TRL-T01・T02 を含む）。format.ts を import するほかの試験（cli・host・rain-recovery-cancel）は 90 件のうち 89 件が緑で、落ちた 1 件 P2-A10-T06 は音の置き場を本物の repo の根から引き、写しの木の置き場と違うことによる（案と関係しない）。歯: 直す前の src の写しで P3-TRL-T01 は TypeError（object null is not iterable）、P3-TRL-T02 は [false, true] で落ちた (6) T02 が捕まえるか所（t02-sites.mjs、5 回の最小〜最大）: T02 の報の整形 1 回は旧 280〜291 ms・新 2.0〜9.8 ms、新のうち改行の揃えだけ旧に戻すと 123〜132 ms、trimEnd だけ旧に戻すと 147〜173 ms。旧の整形 1 回で headlineSegs は 1 回、trimEnd は 454 回（うち 1,000 字を越える seg は 2 回）。写しの vitest でも片方だけ旧に戻した 2 通りとも T02 が [false, true] で落ちた。T02 の vitest の中の経過の値は記録していない（node の値だけ）",
+        "remaining": "なし（実装担当は AC03 の比べを配送する実装で回し直す）"
+      },
+      {
+        "id": "Q-TRL-PATH",
+        "status": "closed",
+        "source": "起草の写し（2026-11-14 夜、capture.mjs と direct.mjs。memory の教訓「整形を直に呼ぶと taken を通らない」により、本物の経路で写す道を先に探した）",
+        "closed": "(1) 本物の経路: replay.mjs と同じローカル WS → startP2Host（dist-old。owner の worker は reconstruction/dist から起きる）→ owner の inputTerminal（taken の判定）・U-E の facts.report → createTerminalOutput の列 → write の口。writer-worker の renderer.render(batch) の代わりに、同じ batch を旧と新の createRenderer へ同じ順で渡した（6 通り: 桁 80・56・120 × 色 0・3）。fd 1 への書き出しだけは通らない。通知の子は replay.mjs と同じく /usr/bin/true に替え、state・diag・TMPDIR・XDG_CONFIG_HOME は写しの置き場の下 (2) corpus の telegramXml 297 件を発表時刻の順で流し（manifest の順だと時計が前へだけ進むので古い EEW が遅れの報になり EEW の単位が 0 になった）、297 件とも処理済み、batch 252、単位は報 227・EEW 12・ほか 13、整形 1,512 回・673,962 字で、旧と新の字の不一致 0、どちらも例外 0。旧の整形で headlineSegs 36 回・shortSentence 1,026 回・trimEnd 23,558 回 (3) 歯: corpus の入力は細かい誤り m1〜m4 を区別しない（EEW の見出し文は 2 種で LF を含まず、「、。」の前の空白は 1 字だけ、行末の空白は [ 　] だけ。corpus-stats.cjs）。粗い誤りでは、g2（「で強い揺れ」で分けない）9 件・g3（trimEnd で消さない）40 件・g4（「、。」の前の空白を消さない）18 件を区別した。g1（改行の並びを半角空白に）は corpus の見出し文に LF が無く 0 件で、headlineSegs の改行の揃えは関数の比べ（Q-TRL-PROBE (1)(2)(3)）だけが確かめる (4) 補い（本物の経路ではない）: 1 通ずつ覚えの無い端末で整形する direct.mjs（terminal-fixture.ts と同じ道。taken を通らない）で 292 件（断られたのは xmlInvalid 1・route ignored 1・route unlisted 1・EEW の subject 無し 2）、EEW 14、整形 1,752 回で不一致 0、g2 21・g3 68・g4 18 件を区別",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRL-REACH",
+        "status": "closed",
+        "source": "起草の写し（2026-11-14 夜、scenes.mjs。本物の decode〔ingress→decodeMaterial→reduceEewUnit の facts.report〕を通した報を旧・A・B で整形）",
+        "closed": "(1) 届く: 文字参照 &#13;、生の U+2028、生の U+2029 を 77_01_04 の見出し文の「四国」と「九州」の間に入れると、facts.report.headline に CR・U+2028・U+2029 のまま残り、旧の整形は TypeError（object null is not iterable）を投げる。同じ batch に VXSE53 の報を並べると、旧は batch の全部が例外（writer-worker の catch で 0 行）、A・B は 34 行 (2) 生の CR は decode-material.ts の組立てで LF に揃い、&#13;&#10; は CR LF になり、どちらも \\n を含む空白の並びとして旧でも全角空白になり投げない（旧・A・B とも「四国　九州　中国で強い揺れ」） (3) 先頭が震源の文のままの部分（cut が無い報の先頭）は旧でも正規表現に掛けず投げない: 77_01_30 の見出し文を「テスト&#13;地域で地震」にすると旧・A・B とも「テスト」CR「地域で地震」を生で出す（A はこの部分を変えないので、今も出る入力の字は変わらない） (4) 例外の後の出方は P3-TRL-D-BREAK の reason の表（A は「四国　九州　中国で強い揺れ」、B は「四国」CR「九州　中国で強い揺れ」）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TRL-ANCHORS",
+        "status": "closed",
+        "source": "起草（2026-11-14 夜、3c9d983b で `format.ts:<行> «…»` と `eew.test.ts:<行> «…»` を reconstruction・docs に git grep した）",
+        "closed": "(1) format.ts の行を引く «» は 89 個で、P3-TRL-D-PLACE=A の案は行の数を変えない（1,130 行のまま）。書き換える :594・:596・:598・:599・:724・:729・:1054 を引く «» は 0 個 (2) eew.test.ts の行を引く «» は 0 個。T01・T02 は :97 の後に足す (3) 本契約の evidenceRefs は中身の変わらない行に置いた (4) 写しの木（full/）に本契約を置いて check-contract を回し、全契約が PASS（本契約は WARN: baseOid=unassigned）",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。端末の整形の中の字の処理だけで、Control.Status を読む所も通知と表示の判定も変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-REGEX-LINEAR-001",
+    "mode": "implementation",
+    "objective": "構造的欠陥台帳 132・133 を閉じる。(132) format.ts の headlineSegs が見出し文の部分に掛ける /^(.*?)(で強い揺れ.*)?$/.exec(part)! は、部分に CR・U+2028・U+2029 があると null を返して投げ、writer-worker の catch がその回の batch の全部を空にする（緊急地震速報と、同じ回に並んだ報が端末に出ない。文字参照 &#13; と生の U+2028・U+2029 が decode の後に残る、Q-TRL-REACH）。(133) headlineSegs の /\\s*\\n+\\s*/g、trimEnd の /[ 　]+$/、shortSentence の /[ 　]+(?=[、。])/g が、長い空白の並びで開始位置ごとに並びを読み直し、字数の 2 乗の時間になる（見出し文 16,384 字の整形 1 回が旧 282〜325 ms、Q-TRL-PROBE (4)）。これを、ふつうの入力（corpus の全 fixture）で端末の出力が 1 字も変わらず、欄の長さに線形の形に書き換える。変わってよいのは、今は例外で出力が消える入力（P3-TRL-D-BREAK の形で出す）と所要だけ。電文の値・意味を変えない。同値は使い捨ての比べで示し（P3-TRL-D-EQUIVALENCE）、例外と所要を試験 2 つで守る（P3-TRL-T01・T02）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-terminal-regex-linear.json",
+      "reconstruction/contracts/p3-terminal-output.types.ts",
+      "docs/specs/cli-terminal-output.md",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/material.ts",
+      "reconstruction/src/terminal/writer-worker.ts",
+      "reconstruction/test/terminal/eew.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts",
+      "reconstruction/tools/corpus/manifest.json",
+      "test/fixtures/**",
+      "reconstruction/tsconfig.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/terminal/format.ts（AC01 の分だけ: :594・:596・:598・:599・:724・:729・:1054 の行の中。行の数を変えない〔P3-TRL-D-PLACE=A〕。ほかの行は変えない）",
+      "reconstruction/test/terminal/eew.test.ts（AC02 の分だけ: :97〔改行の入った見出し文の it の終わり〕の後に P3-TRL-T01・T02 の it 2 つ、コメントと空行を含め +16 行。ほかの行と期待は変えない）",
+      "reconstruction/contracts/p3-terminal-regex-linear.json（統合担当だけ: 配送の記録。実装担当は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-regex-linear.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-TERMINAL-LAYOUT-001",
+      "P3-TERMINAL-LAYOUT-003"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "createRenderer・createTerminalOutput の口と型を変えない。headlineSegs・shortSentence・trimEnd は module の中だけで、export・型・設定・helper を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O02",
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P3-TRL-RES-01",
+        "target": "headlineSegs・trimEnd・shortSentence の 1 回（字の長さ n。緊急地震速報の見出し文と行動の文は要素の上限 16,384 code point、ほかの報は material.ts で 4,096 字に切られる）",
+        "limit": "O(n)。どの正規表現も、1 つの空白の並びを 1 回だけ読む形（入れ子・重なりの量指定と、並びの後ろの字で外れる量指定を全文の各位置から掛けない）",
+        "unit": "字 1 字あたりの操作",
+        "scope": "P3-TRL-T02 で見出し文に半角空白 16,382 字の並びを持つ緊急地震速報の整形 1 回が 100 ms 未満（起草の写しの MacBook で新 2.1〜3.8 ms、旧 282〜325 ms、Q-TRL-PROBE (4)）。T02 は改行の揃えと trimEnd のどちらか 1 か所を旧の正規表現に戻した誤りも捕まえる（123〜132 ms・147〜173 ms、Q-TRL-PROBE (6)。改行の揃えの側は余りが 1.2 倍と薄い）。shortSentence の 2 乗は T02 で捕まらない（入力は 4,096 字で旧でも 13.6 ms）のでレビューで確かめる",
+        "source": "AGENTS.md の受信経路の計算量、Q-TRL-PROBE (4)"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（端末の整形の字だけで、保存するものは無い）"
+    ],
+    "nonPersistedFields": [
+      "headlineSegs・shortSentence・trimEnd の戻り（1 回の整形の中だけ）"
+    ],
+    "outOfScope": [
+      "writer-worker.ts の catch がその回の batch の全部を空にする作り（1 報ずつに狭めるか）。台帳 132 の「再構成での扱い」に残す",
+      "見出し文の先頭が震源の文のままの部分と、textLines の文（行動の文 WarningComment、地震情報・短い形の見出し文・本文の引用など）に入った CR・U+2028・U+2029 を生のまま端末へ書くこと（今も出ている入力の字を変えない。B の場面と同じく CR で行の頭へ戻りうるので、台帳へ送る）",
+      "ほかの正規表現の点検（depthText の /([0-9.]+)\\s*km\\s*(以上|超|以下|未満)$/ は 2 乗だが description が 256 字で切られ 0.74 ms、台帳 133）と、外部の字に掛ける正規表現の全面の当てはめ",
+      "material.ts の字の切り方（TEXT_LIMIT 4,096）と、decode-material.ts の CR の揃え",
+      "端末の見た目の spec（cli-terminal-output.md）の本文と、ほかの契約の本文の改訂",
+      "旧築（src/）と test/fixtures"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TRL-AC01",
+        "requirement": "方式（Q-TRL-EQUIV・P3-TRL-D-BREAK・P3-TRL-D-PLACE=A）: (1) headlineSegs の :596 の replace(/\\s*\\n+\\s*/g, \"　\") を replace(/\\s+/g, (run: string) => run.includes(\"\\n\") ? \"　\" : run) にする (2) :598 の正規表現の分割をやめ、部分の字で indexOf(\"で強い揺れ\") を 1 回取り、無ければ部分の全部を太字の名前、あればその前を太字の名前・そこからを残りにする（:599 の戻りの形はそのまま）。D-BREAK=A なら indexOf の前に、部分の CR・U+2028・U+2029 を含む空白の並びを全角空白 1 字に揃える（replace(/\\s+/g, 並びが /[\\r U+2028 U+2029]/ に合えば全角空白、合わなければ並びのまま)。B なら揃えない）。:597 の先頭の部分（震源の文のまま）は変えない (3) trimEnd の :1054 を replace(/(^|[^ 　])[ 　]+$/, \"$1\") にする (4) shortSentence の :729 を replace(/[ 　]+([、。]?)/g, (run: string, mark: string) => mark === \"\" ? run : mark) にする (5) なぜのコメントは :594 と :724 の既存のコメント行の末尾、:1054 の行末に書く（旧の正規表現の形と 2 乗・null の理由、台帳 132・133、P3-TERMINAL-REGEX-LINEAR-001、D-BREAK の ID）。U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く（生の字は行の終わりとして読まれる） (6) 足す仕組みは無い（関数・型・export・helper を足さず、行の中の書き換えだけ）。起草の写しの案（format.diff、D-BREAK=A の形）がこの形",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:595 «d0c7e425d0a815f3»",
+          "reconstruction/src/terminal/format.ts:597 «47f4114356eb0a39»",
+          "reconstruction/src/terminal/format.ts:697 «124ecdc31012caa7»",
+          "reconstruction/src/terminal/format.ts:726 «8a45ed7b825ac722»",
+          "reconstruction/src/terminal/format.ts:1051 «6ff5ae74a3b637fe»",
+          "reconstruction/src/terminal/format.ts:292 «3380973397d1c6f2»",
+          "reconstruction/src/terminal/writer-worker.ts:67 «2a21f969d578db8e»",
+          "reconstruction/src/decode-material/decode-material.ts:255 «afa6fb4e10e0f4c6»",
+          "docs/specs/cli-terminal-output.md:149 «d3182553c2af6c44»",
+          "AGENTS.md:24 «c1288cfa5b0d16dc»"
+        ]
+      },
+      {
+        "id": "P3-TRL-AC02",
+        "requirement": "試験（P3-TRL-RES-01）: (1) P3-TRL-T01（regression、台帳 132 の実不具合）: eew.test.ts の :97 の後に it を 1 つ足す。37_01_01 の見出し文の「四国」と「九州」の間の全角空白を、文字参照 &#13;・U+2028・U+2029 の 3 つに順に替えた報を eewUnits で通し、terminal() の行に D-BREAK=A なら「四国　九州　中国で強い揺れ」があること（B なら「四国」と替えた字と「九州　中国で強い揺れ」をつないだ行）。U+2028・U+2029 は試験の字列でも \\u のエスケープで書く (2) P3-TRL-T02（regression、台帳 133 の実不具合、P3-TRL-D-TIME-TEST=A のとき）: 続けて it を 1 つ足す。37_01_01 の見出し文を a＋半角空白 16,382 字＋a にした報を eewUnits で通し、terminal() の 1 回の前後を performance.now() で測り、assert 1 つで [経過 < 100 ms, 行が 1 行以上] が [true, true]。経過と行の全文を toEqual に入れない (3) 歯: 直す前の src の写しで T01・T02 を回して落ちる（起草で T01 は TypeError、T02 は [false, true]）ことを確かめて成果物に書く。製品と試験の戻しは残さない (4) 100 ms の根拠は P3-TRL-D-TIME-TEST の reason。起草の写しの試験の案（eew.test.diff）がこの形",
+        "evidenceRefs": [
+          "reconstruction/test/terminal/eew.test.ts:93 «7497b98318a783be»",
+          "reconstruction/test/terminal/eew.test.ts:96 «c475f5fbe2286fd0»",
+          "reconstruction/test/terminal/terminal-fixture.ts:60 «5792a52e97228f24»",
+          "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-TRL-AC03",
+        "requirement": "同値（P3-TRL-D-EQUIVALENCE=A）: 作業開始時の確認（AGENTS.md の git status --porcelain が空）では、統合担当が置いた未追跡の reconstruction/.dr-tmp/ の 1 行だけを許す。置き場は作業木の未追跡の reconstruction/.dr-tmp/trl/（統合担当が発注の時に起草の写しの compare.mjs・capture.mjs・direct.mjs を中身を変えずに写す。どれも自分の 3 つ上を repo の根とし、隣の dist-old/・dist-new/ を読む。D-BREAK=B に決まったときは compare.mjs の expectA を B の期待〔揃えずに indexOf で分けた結果〕に替える）。変更の前に baseOid の src で dist-old を、変更の後に dist-new を tsc --outDir で作り、(a) compare.mjs 6 300000: 4 か所の網羅と乱数で、旧が投げない入力の不一致 0、旧が投げた入力は述語と全件で一致し新は投げず D-BREAK の期待と一致、誤った変異 m1〜m4 がそれぞれ網羅と乱数で 1 件以上を区別 (b) capture.mjs（ORDER=time）: 本物の経路で corpus の telegramXml の全件を流し、旧と新の整形の字の不一致 0・例外 0。粗い誤り g2・g3・g4 を当てた回はそれぞれ 1 件以上を区別（g1 と m1〜m4 は corpus では 0 件で、理由は Q-TRL-PATH (3)） (c) direct.mjs: 1 通ずつの整形で不一致 0（本物の経路ではない補い）。起草の写しの件数（Q-TRL-PROBE・Q-TRL-PATH）: 網羅 3,897,434・1,111,112・3,820,909 件、乱数 各 300,000 件、本物の経路 297 件・batch 252・整形 1,512 回、direct 292 件。件数が違えば理由を書く。あわせて reconstruction/test/ の全試験が、既存の期待を変えずに緑で通る",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/material.ts:382 «a02ebdf86710ff20»",
+          "reconstruction/src/terminal/material.ts:354 «c6214143c95abe49»",
+          "reconstruction/src/domains/eew/eew.ts:809 «2c9475c203a53d9b»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P3-TRL-AC04",
+        "requirement": "配送の後（統合担当）: (1) P3-TRL-D-PLACE=A なら format.ts の行の数は変わらず、ほかの契約の «» の付け直しは 0 個。B に決まったときは、ずれる «»（:594 より後を引く 63 個、:1054 より後だけなら 4 個）を付け直しの道具で付け直し、付け直した契約の meta.sha256 を取り直す (2) eew.test.ts を引く «» は無い (3) check-contract・check-sequences が PASS（WARN は baseOid=unassigned の契約だけ）。sequences.json・manifest.json は変えない (4) 台帳 132・133（repo 外）の局所修正の状態を「解消（P3-TERMINAL-REGEX-LINEAR-001）」に。outOfScope の 2 つ目（textLines などの生の CR）を台帳の新しい項か 132 の追記に書く",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/format.ts:1053 «8eae97c627f24747»",
+          "reconstruction/tools/corpus/check-manifest.mjs:15 «8a0389790318ccfc»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TRL-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TRL-AC02"
+        ],
+        "behavior": "eew.test.ts の :97 の後に足す（AC02 (1)）。見出し文の地方名の間に CR（文字参照）・U+2028・U+2029 のある緊急地震速報が例外にならず、D-BREAK の形の行で出る。直す前の code では整形が投げ、その回の batch の全部が端末に出ない（台帳 132）"
+      },
+      {
+        "testId": "P3-TRL-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TRL-AC02"
+        ],
+        "behavior": "eew.test.ts の T01 の後に足す（AC02 (2)、D-TIME-TEST=A のとき）。見出し文に半角空白 16,382 字の並びを持つ緊急地震速報の整形 1 回が 100 ms 未満。直す前の code では MacBook で 282〜325 ms、改行の揃えか trimEnd の片方だけを旧に戻しても 123〜173 ms（台帳 133）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "mkdir -p reconstruction/.dr-tmp/trl/tmp reconstruction/.dr-tmp/trl/home && ./node_modules/.bin/tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/trl/dist-old && ./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "preparation",
+        "purpose": "変更の前に baseOid の dist を比べの置き場に作り、reconstruction/dist も作る（capture.mjs の startP2Host は owner の worker を reconstruction/dist から起こす。git worktree・stash は使わない）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest と比べより先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（足した it）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/trl/dist-new",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "変更の後の dist を比べの置き場に作る（AC03 の新の側）"
+      },
+      {
+        "command": "node reconstruction/.dr-tmp/trl/compare.mjs 6 300000",
+        "cwd": ".",
+        "target": "dist-old と dist-new の format.js",
+        "stage": "implementation",
+        "purpose": "AC03 (a)。出力の全文を成果物に載せる"
+      },
+      {
+        "command": "for m in '' g2 g3 g4; do ORDER=time TMPDIR=$PWD/reconstruction/.dr-tmp/trl/tmp XDG_CONFIG_HOME=$PWD/reconstruction/.dr-tmp/trl/home node reconstruction/.dr-tmp/trl/capture.mjs $m; done",
+        "cwd": ".",
+        "target": "corpus の telegramXml の全件（本物の経路）",
+        "stage": "implementation",
+        "purpose": "AC03 (b)。4 回の出力を成果物に載せる"
+      },
+      {
+        "command": "node reconstruction/.dr-tmp/trl/direct.mjs",
+        "cwd": ".",
+        "target": "corpus の telegramXml の全件（1 通ずつ）",
+        "stage": "implementation",
+        "purpose": "AC03 (c)"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P3-TRL-T01・T02 を含む）。既存の期待は変えない。ほかの落ちは止めて報告する"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約（D-PLACE=A なら «» のずれは無い。FAIL は想定外として報告する）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い（行の中の書き換えだけ）。試験は P3-TRL-T01・T02 の 2 つ（どちらも regression）で、新しい helper・fixture を足さない",
+      "最初の作業: 起草の写しの案（format.diff・eew.test.diff）と同じ形を当て、AC03 の比べを回して不一致 0 と変異の区別を確かめ、続けて AC02 (3) の歯を確かめる。違えば製品も期待も変えずに actual・expected を添えて止めて報告する",
+      "受信経路の計算量（AGENTS.md）: RES-01 のとおり。P3-TRL-T02 の経過の値（ms）を成果物に書く",
+      "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
+      "残存: (1) 同値は比べの集合（網羅は長さ 6 まで・乱数は長さ 80 まで・corpus）と Q-TRL-EQUIV の読みで示し、形式の証明ではない (2) 本物の経路の比べは fd 1 への書き出しを通らず、corpus は改行の揃えと細かい誤りを確かめない（Q-TRL-PATH (3)） (3) 経過の時間の assert は機械の負荷で揺れうる (4) shortSentence の 2 乗への戻りは T02 で捕まらず、改行の揃えだけの戻りも T02 の余りが 1.2 倍と薄いので、実装レビューで確かめる"
+    ],
+    "unresolvedQuestions": []
+  }
+}
