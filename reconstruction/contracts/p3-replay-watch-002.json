@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "a9bc08f3ade9ae70c4ef72873574b9a59f8bf4070a18449075b85446e0601e70",
+    "sha256": "c5e310929d4559fa48d12acca585db60a821ae8bce1dd359f7757fd7462abdd6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -525,7 +525,7 @@
         "requirement": "【発注 2】 新築の parser を通ること（草稿 AC05 を写す）: 作った各分野 1 本ずつを reconstruction/test/telegram-gen/telegram-gen.test.ts の中で ingestXmlData（kind replay・origin replay）→ decodeMaterial に通し、地震 3 種は parseSeismic、津波 3 種は parseTsunami が accepted。EEW 2 種は reduceEewUnit に順に通し（clock はその報の ReportDateTime）、各報の decision が changed で、終端でない報の後は current にその subject がある。読み戻した値が入力と一致する: 震央地名の name と code・緯度・経度・深さ・M、VXSE51・53 の最大震度と区域（intensity.maxInt と、選んだ区域の item の maxInt）、VXSE53 の市町村が、その区域の市町村（資料が無いときは型のその区域の市町村）と同じ集合、EEW の facts.prediction.maximum と areas（選んだ区域の 1 件）、VXSE51 の TargetDateTime と VXSE52・53 の OriginTime が起点、Serial、EventID が eventIdAt(起点) で型と違う、operation が normal、VXSE45 の warningClass が forecast・VXSE43 が warning。津波 3 種は Serial（VTSE51・52）・EventID・operation に限る。無いと: 作った XML が製品に断られても気づかない",
         "evidenceRefs": [
           "reconstruction/test/seismic-unit/seismic-fixture.ts:26 «6db669c1f49fac65»",
-          "reconstruction/src/decode-material/decode-material.ts:441 «03ddf7f652e974c4»",
+          "reconstruction/src/decode-material/decode-material.ts:453 «03ddf7f652e974c4»",
           "reconstruction/src/domains/seismic/seismic.ts:211 «faed547ede075396»",
           "reconstruction/src/domains/tsunami/tsunami.ts:199 «2b87ae64dd9f2dd8»",
           "reconstruction/src/units/eew/eew-unit.ts:301 «66d7eb8f4ffc477a»",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "56f3f0070095fb456a7a6d89dc67e10093d63ede",
-    "sha256": "5c00aa91cf66fb6c3dfa58c3c76d4487d8a0b68a2d060be024141d2ded166050",
+    "sha256": "7e09985d23ded3a288e3a29dd36dda82e688a6d7713ddf220dfe4fa111842d2e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -165,9 +165,9 @@
         "id": "P3-DNL-AC01",
         "requirement": "方式（Q-DNL-EQUIV・P3-DNL-D-PLACE=A）: decode-material.ts の materialValue の直前に、module の中だけの関数 boundedNumber(text: string): { number: string; lower: boolean } | null を置く。中身: text を正規表現 /[\\n\\r\\u2028\\u2029]/ で split し、前の行から順に、at を 4 つの語（以上・超・未満・以下）の line.lastIndexOf の最大にし、at が 0 以上なら /[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)/ を line.slice(0, at) に exec して、一致があれば { number: 一致の字, lower: その行の at から 以上 か 超 が始まる } を返す。どの行にも無ければ null。materialValue は :387 の match を boundedNumber(condition.normalize(\"NFKC\") || normalized) にし、:389・:390 の match[1] を match.number に、match[2] の語の判定を match.lower にする（行の中の書き換え。有限の判定・コメント・後ろの分岐は変えない）。なぜのコメントを関数の前に書く（旧の正規表現の形、台帳 131、`.` が行の終わりの字を越えず貪欲な `.*` が行の最後の語まで伸びるので旧の一致がこの形になること、P3-DECODE-NUMBER-LINEAR-001）。split の字の集合に LF・CR・U+2028・U+2029 の 4 つを全て入れる（U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く。生の字は行の終わりとして読まれる）。無いと: 「以」などの字と長い数字の列を持つ欄 1 つで、owner の thread が数分止まる（台帳 131）。起草の写しの patch（decode-material.diff）がこの形",
         "evidenceRefs": [
-          "reconstruction/src/decode-material/decode-material.ts:384 «2aada108970d8727»",
-          "reconstruction/src/decode-material/decode-material.ts:386 «e429c33651a0b386»",
-          "reconstruction/src/decode-material/decode-material.ts:392 «4a47ef63a23a8e05»",
+          "reconstruction/src/decode-material/decode-material.ts:396 «2aada108970d8727»",
+          "reconstruction/src/decode-material/decode-material.ts:398 «e429c33651a0b386»",
+          "reconstruction/src/decode-material/decode-material.ts:404 «4a47ef63a23a8e05»",
           "reconstruction/contracts/p1-parser-boundary.types.ts:54 «f86b3d2069855faa»",
           "AGENTS.md:24 «c1288cfa5b0d16dc»"
         ]
@@ -188,8 +188,8 @@
         "id": "P3-DNL-AC03",
         "requirement": "同値（P3-DNL-D-EQUIVALENCE=A）: 作業開始時の確認（AGENTS.md の git status --porcelain が空）では、統合担当が置いた未追跡の reconstruction/.dr-tmp/ の 1 行だけを許す。実装担当は、置き場は作業木の未追跡の reconstruction/.dr-tmp/dnl/（compare.cjs は自分の 3 つ上を repo の根とし、隣の dist-old/・dist-new/ を読む）。変更の前に baseOid の src を tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/dnl/dist-old で、変更の後に --outDir reconstruction/.dr-tmp/dnl/dist-new で作り、使い捨ての比べの script（起草の写しの compare.cjs。統合担当が発注の時に reconstruction/.dr-tmp/dnl/compare.cjs として渡す。成果物に中身と出力を載せる）で比べる。比べは両方の dist の decode-material.js の末尾に `module.exports.__mv = materialValue;` を足して Module._compile で読み、compile 済みの関数どうしを util.isDeepStrictEqual で比べる（JSON にしない。-0 と 0 を分ける）。(a) 既知の反例 14 形（Q-DNL-EQUIV の形と \"1\\u20282以上\"・\"a\\n1超 2\"）を raw と condition の 2 通りで (b) corpus: manifest の telegramXml の全件を replay で ingest → decodeMaterial し、classifyMaterial の visit と同じ道で拾った (raw, condition) と Head の EventID・Serial。拾った組に旧の関数を当てた結果が旧の dist の classifyMaterial の materialValues・metadata と全件で一致すること（写しの道の確かめ）、新旧の dist の classifyMaterial の戻り（marks を除く）が全件で一致すること (c) 網羅: 10 字（1 . + - 以 上 下 超 x LF）の長さ 0〜7 の全ての字列を raw に、長さ 1〜6 を condition に (d) 乱数: seed 20261114、Q-DNL-PROBE (4) の 32 種の字、長さ 1〜80、300,000 件、4 件に 1 件を condition (e) 誤った変異 5 つ（LF だけで行に分ける・最初の語を採る・数字を行全体から探す・語にいちばん近い数字を採る・行に分けない）が (a) と (d) でそれぞれ 1 件以上を区別すること（比べに歯があること。比べの 0 件は軸を先に確かめる）。合否: (a)〜(d) で不一致 0、(e) で各変異の区別 1 件以上。起草の写しの件数（Q-DNL-PROBE）: corpus 296 件・404,994 組、網羅 11,111,111＋1,111,110 件、乱数 300,000 件で、件数が違えば理由を書く。あわせて reconstruction/test/ の全試験が、既存の期待を変えずに緑で通る（P1-T03 の range の期待を含む）",
         "evidenceRefs": [
-          "reconstruction/src/decode-material/decode-material.ts:415 «28eb6f48095477f9»",
-          "reconstruction/src/decode-material/decode-material.ts:423 «6829f238eadb3585»",
+          "reconstruction/src/decode-material/decode-material.ts:427 «28eb6f48095477f9»",
+          "reconstruction/src/decode-material/decode-material.ts:435 «6829f238eadb3585»",
           "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:88 «e582f1ea16381d15»",
           "reconstruction/contracts/p3-xml-tree-compact.json:33 «a1a3c055f4dff266»"
         ]
@@ -198,7 +198,7 @@
         "id": "P3-DNL-AC04",
         "requirement": "«» の付け直し（統合担当が配送の commit で当てる。P3-DNL-D-PLACE=A のとき）: (1) ほかの契約で decode-material.ts の行を引く «» のうち、12 行ずれる 6 個を付け直す: p3-replay-watch-002.json の :441、p3-terminal-rain-evict.json の :473・:481、p3-version-material.json の :483、p3-revision-order.json の :485（2 か所）。どれも中身の変わらない行なので、付け直しの道具（anchor の中身から付け直す）で済む。:24・:25・:26・:365 を引く «» はずれない (2) 本契約の evidenceRefs の decode-material.ts の :384・:386・:392・:415・:423・:441 も 12 行ずれる（中身は変わらない） (3) p1-parser-boundary.test.ts は末尾に足すので、それを引く «»（p3-xml-readers.json の :114、本契約の :19・:88）はずれない (4) 順: 実装の commit → 付け直し → 付け直した契約と本契約の meta.sha256 を hashConvention で取り直す → check-contract・check-sequences が PASS（WARN は baseOid=unassigned の契約だけ）。sequences.json・manifest.json は変えない (5) 台帳 131（repo 外）の局所修正の状態を「解消（P3-DECODE-NUMBER-LINEAR-001）」に",
         "evidenceRefs": [
-          "reconstruction/src/decode-material/decode-material.ts:441 «03ddf7f652e974c4»",
+          "reconstruction/src/decode-material/decode-material.ts:453 «03ddf7f652e974c4»",
           "reconstruction/tools/corpus/check-manifest.mjs:15 «8a0389790318ccfc»"
         ]
       }

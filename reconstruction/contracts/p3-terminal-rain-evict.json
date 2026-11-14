@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "88efce28866566b91324ca08a059910b64acbfca1d4234e533bf1a2c96674d8e",
+    "sha256": "e84d59833143c00fd6dd8efa119a370c58f07696178c1dfb67be32aa60d684ea",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -204,8 +204,8 @@
           "reconstruction/src/terminal/output.ts:590 «54f2348cc3d31d82»",
           "reconstruction/src/terminal/material.ts:40 «57ba2c6087207b3d»",
           "reconstruction/src/decode-material/decode-material.ts:365 «01e9c87cb03feddb»",
-          "reconstruction/src/decode-material/decode-material.ts:473 «3df2eaec74aa3821»",
-          "reconstruction/src/decode-material/decode-material.ts:481 «cd42c49d293414db»",
+          "reconstruction/src/decode-material/decode-material.ts:485 «3df2eaec74aa3821»",
+          "reconstruction/src/decode-material/decode-material.ts:493 «cd42c49d293414db»",
           "reconstruction/src/decode-material/xml-read.ts:7 «19ce24362ab1e4ea»",
           "reconstruction/src/domains/briefing/briefing.ts:68 «219e4c76a457de44»"
         ]
