@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e0d3f0f1201414533b87ab91ededa7bf8bbf5459",
-    "sha256": "65111b430a7e726d462fb4837be7ebfb9631b5298af88333b1a26eded741687d",
+    "sha256": "da584830fbc1efa73084cda96913f8158e7c1bb7c2e80552e2b7e7e63d37c4d5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -256,7 +256,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:1095 «5ff3e954504ea98f»",
           "reconstruction/src/units/landslide/landslide-unit.ts:305 «e8afc5291a8206af»",
           "reconstruction/contracts/p3-landslide-unit.json:88 «c629cbaaa6776c3c»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «583ed7ab787d5296»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «18b39840fc364e91»",
           "reconstruction/contracts/p3-nankai-unit.json:93 «384c9aa7a276b940»",
           "reconstruction/contracts/p3-volcano-unit.json:132 «e768459753d79115»",
           "reconstruction/contracts/p3-order-plan.md:365 «4bb3437bae54dd66»",
@@ -338,9 +338,9 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:72 «dad13f72955b6839»",
           "reconstruction/contracts/p3-seismic-unit.json:1007 «a561ed4e064feda2»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «583ed7ab787d5296»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «18b39840fc364e91»",
           "reconstruction/contracts/p3-seismic-unit.json:228 «6d9cc710a984a7cb»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «af76389393137877»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «400aa754eeec502b»",
           "reconstruction/contracts/p3-nankai-unit.json:84 «d9d7f65ed0015f7a»",
           "reconstruction/contracts/p3-nankai-unit.json:716 «6d7e4ad3c99cc0f6»",
           "reconstruction/contracts/p3-nankai-unit.json:858 «7529d55f17a887c9»",

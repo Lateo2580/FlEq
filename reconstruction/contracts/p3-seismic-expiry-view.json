@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "81273dcf97f753a6c8800a13b5056cff2f4a079c0cfe4eecea062dd994133c5a",
+    "sha256": "198d9ff239c72c846deb5ed0bd0049cb7cf58eabf94c8217caa610e467454380",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -180,7 +180,7 @@
       {
         "id": "P3-SEV-RES-01",
         "target": "U-Q encoded generation（器 L）",
-        "limit": "15,499,497＋768×21＝15,515,625（event 512・長周期 256 の全部に印が付く最悪の分だけ広げる。作者裁定 P3-NL-D-CAPACITY=A と同じ向き。base の値は seismicUnitCodec.maxEnvelopeBytes の実値）",
+        "limit": "15,499,497＋768×21＝15,515,625（event 512・長周期 256 の全部に印が付く最悪の分だけ広げる。作者裁定 P3-NL-D-CAPACITY=A と同じ向き。base の値は seismicUnitCodec.maxEnvelopeBytes の実値。U-Q は P3-SEISMIC-EVENT-LIMIT-001 で件数 1024・AC06 の式にして 26,519,529）",
         "unit": "UTF-8 bytes",
         "source": "P3-EF-AC10 (5) の形、P3-SEV-AC06"
       }

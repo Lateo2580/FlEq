@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "33d4ae20a14427d1e24ef01c721f452cbbfe0212c95f5fb46ebd8dd5e3f83094",
+    "sha256": "fd73d8346eaa32844861f0a5172dd30c9886df049f5ee0e5adb8ae7b6b39f05f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -494,18 +494,18 @@
       },
       {
         "id": "P3-CC-AC05",
-        "requirement": "保存の形と移行の 1 セット（Q-CC-SCHEMA、P3-X-C4）。(1) U-T・U-Q の schemaVersion は p3-tsunami-unit-v3・p3-seismic-unit-v3（P3-VERSION-MATERIAL-001 の AC05・AC08 で上げた版。旧い版の保存は捨ててよい版として初期化する、P3-VM-AC09(7)により統合担当が改訂）で、AC03 の optional の鍵を持つ。encode は印のある記録だけ鍵を書く。decode は鍵の無い記録を印なしとして読む。checkpoint.ts と owner-runtime.ts の schemaVersion の一致の検査は変えない (2) 鍵があるときの検査（印の source が親の記録に属すること）: reason が capacityExceeded。source が各 codec の既存の ReportRef の検査を通り、source.operation が記録の operation と同じ。U-T の予報は source.subject が記録の subject、source.family が VTSE41。U-Q の長周期は source.subject が記録の subject、source.family が VXSE62。U-Q の event は各印の source.family が VXSE51・52・53・61 のどれかで family の重複なし・1〜4 件、source.subject が `${operation}/${family}/${eventId}`（eventId は記録の eventId）。版の比較に使う欄が比べられること（InfoType が各 unit の InfoType の優先の表にあり、U-Q の Serial は validSerial を通る）。TsunamiObservationSubject に鍵があれば invalid。U-Q の取消記憶だけの記録に鍵があれば invalid（AC03(4)）。外れれば今どおり invalid (3) 上界: 印は fit を通った state にだけあるので各 unit の世代の上限（4 MiB）の内。decode の上界の検査は印の byte を含めて数える（fit と同じ境界）。取消記憶の予約（RESERVE_BYTES）には印が入らない (4) 試験の 1 セット: 印の無い記録の保存物が restored になり印なしで読めること、印のある state（U-T の予報、U-Q の event の 4 family と長周期）を encode→decode して同じ state に戻ること、不正な印（reason の違い・source の欠け・別 operation・別 subject・別 EventID・event に VXSE62 の印・観測の記録の印・取消記憶だけの記録の印・U-Q の family の重複と 5 件）がどれも invalid になること。AC10 の失敗警報の intent: U-T・U-Q の intent の decode は、subject が『${operation}/capacityRejected』の intent を受け、そのときだけ source.subject と subject の一致を求めず、代わりに source がその unit の報の subject の形で同じ operation であることを確かめる（ほかの intent の検査は今どおり）。U-E・U-W・U-F の保存の形は変えない。旧版での再実行は版の違いで保存を読まない（K7 で版を上げた後。Q-CC-SCHEMA）。無いと何が壊れるか: 印を保存できないと再起動で印が消えて古い値を今の値として出し、所属を確かめないと別の記録の版で印が誤って消えるか消えなくなる（Pro §8.3 の復元の正直さ）（今の器は U-T 11,354,432・U-Q 15,515,625 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
+        "requirement": "保存の形と移行の 1 セット（Q-CC-SCHEMA、P3-X-C4）。(1) U-T・U-Q の schemaVersion は p3-tsunami-unit-v3・p3-seismic-unit-v3（P3-VERSION-MATERIAL-001 の AC05・AC08 で上げた版。旧い版の保存は捨ててよい版として初期化する、P3-VM-AC09(7)により統合担当が改訂）で、AC03 の optional の鍵を持つ。encode は印のある記録だけ鍵を書く。decode は鍵の無い記録を印なしとして読む。checkpoint.ts と owner-runtime.ts の schemaVersion の一致の検査は変えない (2) 鍵があるときの検査（印の source が親の記録に属すること）: reason が capacityExceeded。source が各 codec の既存の ReportRef の検査を通り、source.operation が記録の operation と同じ。U-T の予報は source.subject が記録の subject、source.family が VTSE41。U-Q の長周期は source.subject が記録の subject、source.family が VXSE62。U-Q の event は各印の source.family が VXSE51・52・53・61 のどれかで family の重複なし・1〜4 件、source.subject が `${operation}/${family}/${eventId}`（eventId は記録の eventId）。版の比較に使う欄が比べられること（InfoType が各 unit の InfoType の優先の表にあり、U-Q の Serial は validSerial を通る）。TsunamiObservationSubject に鍵があれば invalid。U-Q の取消記憶だけの記録に鍵があれば invalid（AC03(4)）。外れれば今どおり invalid (3) 上界: 印は fit を通った state にだけあるので各 unit の世代の上限（4 MiB）の内。decode の上界の検査は印の byte を含めて数える（fit と同じ境界）。取消記憶の予約（RESERVE_BYTES）には印が入らない (4) 試験の 1 セット: 印の無い記録の保存物が restored になり印なしで読めること、印のある state（U-T の予報、U-Q の event の 4 family と長周期）を encode→decode して同じ state に戻ること、不正な印（reason の違い・source の欠け・別 operation・別 subject・別 EventID・event に VXSE62 の印・観測の記録の印・取消記憶だけの記録の印・U-Q の family の重複と 5 件）がどれも invalid になること。AC10 の失敗警報の intent: U-T・U-Q の intent の decode は、subject が『${operation}/capacityRejected』の intent を受け、そのときだけ source.subject と subject の一致を求めず、代わりに source がその unit の報の subject の形で同じ operation であることを確かめる（ほかの intent の検査は今どおり）。U-E・U-W・U-F の保存の形は変えない。旧版での再実行は版の違いで保存を読まない（K7 で版を上げた後。Q-CC-SCHEMA）。無いと何が壊れるか: 印を保存できないと再起動で印が消えて古い値を今の値として出し、所属を確かめないと別の記録の版で印が誤って消えるか消えなくなる（Pro §8.3 の復元の正直さ）（今の器は U-T 11,354,432・U-Q 15,515,625 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた。U-Q は P3-SEISMIC-EVENT-LIMIT-001 で件数 1024・AC06 の式にして 26,519,529）",
         "evidenceRefs": [
           "reconstruction/src/units/tsunami/tsunami-unit.ts:37 «632cae790ef4aa0a»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1141 «312519f384672d04»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1160 «dc523517c10c957b»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1179 «441eaadc026421dc»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:69 «04b5e98ae1630102»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:63 «8cb830971ba4bd10»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:69 «ebda797d76ae3016»",
           "reconstruction/src/domains/seismic/seismic.ts:63 «c200b4f7c1ed4c6e»",
           "reconstruction/contracts/p3-authority-evidence.json:29 «303af67ab4a3f92f»",
           "reconstruction/contracts/p3-tsunami-unit.json:94 «5aba6d9878988b1f»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «583ed7ab787d5296»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «18b39840fc364e91»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1178 «1a4d8ab82201bf92»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1634 «2ea0d161656b57fe»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1402 «3374b7a5c60a993b»"

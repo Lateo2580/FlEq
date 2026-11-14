@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "e7daf26303d8f4ed4605663b6ca383bbf9b76179e78446c33c65ae38edc88a3f",
+    "sha256": "e035fd0d25f5d089aad7ba7cd66ef9bd9a173d8106e68a3728c8941c394b00b9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -111,7 +111,7 @@
         "id": "Q-EF-COST",
         "status": "closed",
         "source": "AGENTS.md の受信経路の計算量",
-        "closed": "(1) 根拠の判定と owner の根拠の切替えの判定（直前の要求の根拠との比べ）は入力 1 件に定数 (2) unit は表示の期限・回収の期限（retainUntil・until）・保留の記録・intent の期限の最小を、配列に結び付けた今の cache（minOf・deadlineCache）で別々に持ち、根拠で当てない種類は比べない。\"awaiting\"・\"unverified\" の間も publisher は毎秒期限要求を送る（composition-root.ts:914）が、当てる期限が来ていなければ unit は O(1) で同じ state の参照を返し、配列を作り直さず世代を進めない（今の U-Q の collect は到来の判定の後に必ず新しい state を作るので、そこも直す）。nextDeadline は根拠によらず全部の期限の最小のまま（保留の記録は表示の期限の値で数える）。時計が後ろへ直ったときの保留の記録の回収は到来の判定を通さず、根拠が verified に替わった最初の要求で owner が unit ごとに 1 回当てる（P3-EF-AC02 の (7)） (3) 止めた回収は各 unit の件数の上限（U-L 128・U-R 512・U-B 256・U-T 予報 512＋観測 2×512・U-V slice 4×128＋解説 64・U-Y 2×64・U-M 竜巻 128＋熱中症 256＋短命 768・U-Q 512＋256・U-N 現況 6＋情報 64・U-F 512・U-E 印 2,048）の内で、保持と decode の両方で効く。\"verified\" に替わった最初の要求の回収はその件数の線形 1 回（上限のある稀な一括処理） (4) U-T・U-F の予約は今の加算（U-T は fit の generationBytes、U-F は measure）に「印の無い active の記録の数×21」を足すだけで、件数は今の数えから取る。U-T の退去は記録ごとに予約も差し引く（定数）、U-F は数え直し (5) U-B の報ごとの subject で、受信 1 回の索引の作り直しは今どおり 256 件の線形 (6) state 全体の JSON 化を足さない",
+        "closed": "(1) 根拠の判定と owner の根拠の切替えの判定（直前の要求の根拠との比べ）は入力 1 件に定数 (2) unit は表示の期限・回収の期限（retainUntil・until）・保留の記録・intent の期限の最小を、配列に結び付けた今の cache（minOf・deadlineCache）で別々に持ち、根拠で当てない種類は比べない。\"awaiting\"・\"unverified\" の間も publisher は毎秒期限要求を送る（composition-root.ts:914）が、当てる期限が来ていなければ unit は O(1) で同じ state の参照を返し、配列を作り直さず世代を進めない（今の U-Q の collect は到来の判定の後に必ず新しい state を作るので、そこも直す）。nextDeadline は根拠によらず全部の期限の最小のまま（保留の記録は表示の期限の値で数える）。時計が後ろへ直ったときの保留の記録の回収は到来の判定を通さず、根拠が verified に替わった最初の要求で owner が unit ごとに 1 回当てる（P3-EF-AC02 の (7)） (3) 止めた回収は各 unit の件数の上限（U-L 128・U-R 512・U-B 256・U-T 予報 512＋観測 2×512・U-V slice 4×128＋解説 64・U-Y 2×64・U-M 竜巻 128＋熱中症 256＋短命 768・U-Q 512＋256〔P3-SEISMIC-EVENT-LIMIT-001 で 1024＋256〕・U-N 現況 6＋情報 64・U-F 512・U-E 印 2,048）の内で、保持と decode の両方で効く。\"verified\" に替わった最初の要求の回収はその件数の線形 1 回（上限のある稀な一括処理） (4) U-T・U-F の予約は今の加算（U-T は fit の generationBytes、U-F は measure）に「印の無い active の記録の数×21」を足すだけで、件数は今の数えから取る。U-T の退去は記録ごとに予約も差し引く（定数）、U-F は数え直し (5) U-B の報ごとの subject で、受信 1 回の索引の作り直しは今どおり 256 件の線形 (6) state 全体の JSON 化を足さない",
         "remaining": "なし",
         "reason": "受信経路に全件×全件の走査を足さない"
       },

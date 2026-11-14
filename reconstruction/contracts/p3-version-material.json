@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "7d0b7d34b43137201cd869bf14a7d07279c3959c7b25c216bb5449577a4ca365",
+    "sha256": "6538f3de8d7eb581482eced9e373186ccd89155a2a3e160a11cfc8190ff19c94",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -558,7 +558,7 @@
           "reconstruction/contracts/p3-authority-evidence.json:330 «a9935dee3adaa308»",
           "reconstruction/contracts/p3-authority-evidence.json:448 «153fac1d89de1f21»",
           "reconstruction/contracts/p3-currency-coverage.json:114 «2494236b0bc1412e»",
-          "reconstruction/contracts/p3-currency-coverage.json:497 «a0322c8f49a7e7c6»",
+          "reconstruction/contracts/p3-currency-coverage.json:497 «5debfd9355622b1f»",
           "reconstruction/contracts/p3-currency-coverage.json:713 «fc5c5e44dd936554»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:441 «c4f88a5bd4c207fb»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:432 «bd243d5ec3e58476»",
