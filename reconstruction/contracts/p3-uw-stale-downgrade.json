@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4088ea621e712d2d3d92f30559c5e6796a9ef938",
-    "sha256": "309b6554c7fecaebbde2b1c1371510aa17e0e7764f32d94a084dff1e7ef54a25",
+    "sha256": "e4a993ec33981e278d7dce7930f0f8762b2c44f7fc5fe36ea3f4794e190cfd82",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -381,7 +381,7 @@
       "受信経路の計算量（AGENTS.md）: AC06 のとおり。全件×全件・state の直列化を足さない",
       "sequences.json は JSON として書き直さず、行の中を手で直す（書き直すと行が展開されて «» の先がずれる）。自己 hash（meta.sha256）だけを取り直し、契約の meta は触らない（AC08 (8) は統合担当）",
       "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
-      "配送の止め: 無し。P3-USD-D-NATIONAL-AFTER-RELEASE は作者の裁定 A で確定した（2026-11-14 09:10）。起草案は 0",
+      "配送の止め: 無し。P3-USD-D-NATIONAL-AFTER-RELEASE は作者の裁定 A で確定した（2026-11-14 09:10）。起草案は 0。配送の記録（統合担当、2026-11-14）: (1) 起草 r0 0d935eb2 → 起草レビュー（品質 Codex 条件付き GO、thread 01a1d6b3。契約適合 Opus 条件付き GO）→ r1 1751c5d1 → r2 8ec60b88 → 399f99fb（Codex 条件付き GO の L4 の限定を当てた）。P3-FINAL-GATE-001 の発注 2b と P3-DISASTER-PI-MEASURE-001 の窓の前の改訂の配送（917d7990）の上へ載せ直し、作者の裁定を c4012932 で当て、baseOid b59ce40b (2) 実装 750d8b0d（Sonnet 5.5。6 file +35/−10、起草の写しの patch と同じ中身で sequences.json の自己 hash だけ取り直した。全 vitest 1,643 通過・失敗 0・skip 34〔契約の見込み 31 との差 3 は発注 2b の real-backend.test.ts の it〕、歯の確かめ 3 形はどれも狙いの assert で落ちた） (3) 実装レビュー: 品質 Codex GO（指摘 0、Astra xhigh、thread 01a1d779。解除で消えた通知が遅い失敗の返信・再試行・保存からの復元で戻らないことを 6 段で阻止と結論、旧コードの写しでは狙いの 2 件が落ちた）、契約適合 Opus GO（P3 2: P3-WN-T01 のコメントの受入条件の番号を ea1fbfff で直した、本契約の中の字の食い違い 2 件は配送の改訂で直した） (4) 配送の改訂 5ca32650: P3-USD-AC08 (1)〜(5)、sequences.json と 143 契約の digest、«» 40 件。数え直しは新しい向き 0 件（181・39 は製品を呼ばない数え方の数で、数え直していない） (5) Mac mini ゲート b40（5ca32650）12 段 rc 0 (6) 台帳 125 を解消にした（repo 外）",
       "原文の改訂と «»・digest の取り直しは AC08（統合担当が配送の commit で当てる）"
     ],
     "unresolvedQuestions": []
