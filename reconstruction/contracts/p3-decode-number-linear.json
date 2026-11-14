@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "56f3f0070095fb456a7a6d89dc67e10093d63ede",
-    "sha256": "b57874673bedb1ec76ad6009f40ab377226a06b9914edf83a803ce3d44496e9c",
+    "sha256": "4e5b66ab15a63b390b48c2cc7291255bf9ea2133e7c9c8bc3cd1a4d0732d1453",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -68,7 +68,7 @@
   "contract": {
     "contractId": "P3-DECODE-NUMBER-LINEAR-001",
     "mode": "implementation",
-    "objective": "構造的欠陥台帳 131 を閉じる。decode-material.ts の materialValue が欄の字に掛ける /([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)).*(以上|超|未満|以下)/ は、後ろの語が無いと始まりの位置ごとに数字の長さを戻しては `.*` で走り直し、「以」などの字が欄にあると V8 が打ち切らず、文字数の 3 乗に近い時間になる（「以」＋数字 4,000 字で 8,024 ms、16,384 字で約 9 分、Q-DNL-PROBE）。1 通の報が、受けた実行場所（owner の thread）を数分止めうる。これを、全ての入力で今と同じ結果（kind・bound・value・raw、-0 を含む）を返し、欄の長さ（NFKC の後）に線形の形に書き換える: 行の終わりの字で行に分け、語のある最初の行で、最後の語より前の最初の数字を採る（Q-DNL-EQUIV）。欄を短く切るような、長い欄で結果が変わる直しは採らない（電文の値・意味を変えない）。同値は使い捨ての比べで示し（P3-DNL-D-EQUIVALENCE）、長い欄の所要を試験 1 つで守る（P3-DNL-T01）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "objective": "構造的欠陥台帳 131 を閉じる。decode-material.ts の materialValue が欄の字に掛ける /([+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)).*(以上|超|未満|以下)/ は、後ろの語が無いと始まりの位置ごとに数字の長さを戻しては `.*` で走り直し、「以」などの字が欄にあると V8 が打ち切らず、文字数の 3 乗に近い時間になる（「以」＋数字 4,000 字で 8,024 ms、16,384 字で約 9 分、Q-DNL-PROBE）。1 通の報が、受けた実行場所（owner の thread）を数分止めうる。これを、全ての入力で今と同じ結果（kind・bound・value・raw、-0 を含む）を返し、欄の長さ（NFKC の後）に線形の形に書き換える: 行の終わりの字で行に分け、最後の語より前に数字がある最初の行で、その最初の数字を採る（Q-DNL-EQUIV）。欄を短く切るような、長い欄で結果が変わる直しは採らない（電文の値・意味を変えない）。同値は使い捨ての比べで示し（P3-DNL-D-EQUIVALENCE）、長い欄の所要を試験 1 つで守る（P3-DNL-T01）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -171,7 +171,7 @@
         "evidenceRefs": [
           "reconstruction/src/decode-material/decode-material.ts:26 «ac5797a85aaedf39»",
           "reconstruction/src/decode-material/decode-material.ts:118 «f7cc3de7883fd66d»",
-          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:19 «a351ec8c94be84f8»",
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:20 «593168c13d85cbb3»",
           "reconstruction/vitest.config.ts:6 «ec76e9c392f7555c»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
           "AGENTS.md:26 «2c223bbb66635b53»"
@@ -179,7 +179,7 @@
       },
       {
         "id": "P3-DNL-AC03",
-        "requirement": "同値（P3-DNL-D-EQUIVALENCE=A）: 実装担当は、置き場は作業木の未追跡の reconstruction/.dr-tmp/dnl/（compare.cjs は自分の 3 つ上を repo の根とし、隣の dist-old/・dist-new/ を読む）。変更の前に baseOid の src を tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/dnl/dist-old で、変更の後に --outDir reconstruction/.dr-tmp/dnl/dist-new で作り、使い捨ての比べの script（起草の写しの compare.cjs。統合担当が発注の時に reconstruction/.dr-tmp/dnl/compare.cjs として渡す。成果物に中身と出力を載せる）で比べる。比べは両方の dist の decode-material.js の末尾に `module.exports.__mv = materialValue;` を足して Module._compile で読み、compile 済みの関数どうしを util.isDeepStrictEqual で比べる（JSON にしない。-0 と 0 を分ける）。(a) 既知の反例 14 形（Q-DNL-EQUIV の形と \"1\\u20282以上\"・\"a\\n1超 2\"）を raw と condition の 2 通りで (b) corpus: manifest の telegramXml の全件を replay で ingest → decodeMaterial し、classifyMaterial の visit と同じ道で拾った (raw, condition) と Head の EventID・Serial。拾った組に旧の関数を当てた結果が旧の dist の classifyMaterial の materialValues・metadata と全件で一致すること（写しの道の確かめ）、新旧の dist の classifyMaterial の戻り（marks を除く）が全件で一致すること (c) 網羅: 10 字（1 . + - 以 上 下 超 x LF）の長さ 0〜7 の全ての字列を raw に、長さ 1〜6 を condition に (d) 乱数: seed 20261114、Q-DNL-PROBE (4) の 32 種の字、長さ 1〜80、300,000 件、4 件に 1 件を condition (e) 誤った変異 5 つ（LF だけで行に分ける・最初の語を採る・数字を行全体から探す・語にいちばん近い数字を採る・行に分けない）が (a) と (d) でそれぞれ 1 件以上を区別すること（比べに歯があること。比べの 0 件は軸を先に確かめる）。合否: (a)〜(d) で不一致 0、(e) で各変異の区別 1 件以上。起草の写しの件数（Q-DNL-PROBE）: corpus 296 件・404,994 組、網羅 11,111,111＋1,111,110 件、乱数 300,000 件で、件数が違えば理由を書く。あわせて reconstruction/test/ の全試験が、既存の期待を変えずに緑で通る（P1-T03 の range の期待を含む）",
+        "requirement": "同値（P3-DNL-D-EQUIVALENCE=A）: 作業開始時の確認（AGENTS.md の git status --porcelain が空）では、統合担当が置いた未追跡の reconstruction/.dr-tmp/ の 1 行だけを許す。実装担当は、置き場は作業木の未追跡の reconstruction/.dr-tmp/dnl/（compare.cjs は自分の 3 つ上を repo の根とし、隣の dist-old/・dist-new/ を読む）。変更の前に baseOid の src を tsc --project reconstruction/tsconfig.json --outDir reconstruction/.dr-tmp/dnl/dist-old で、変更の後に --outDir reconstruction/.dr-tmp/dnl/dist-new で作り、使い捨ての比べの script（起草の写しの compare.cjs。統合担当が発注の時に reconstruction/.dr-tmp/dnl/compare.cjs として渡す。成果物に中身と出力を載せる）で比べる。比べは両方の dist の decode-material.js の末尾に `module.exports.__mv = materialValue;` を足して Module._compile で読み、compile 済みの関数どうしを util.isDeepStrictEqual で比べる（JSON にしない。-0 と 0 を分ける）。(a) 既知の反例 14 形（Q-DNL-EQUIV の形と \"1\\u20282以上\"・\"a\\n1超 2\"）を raw と condition の 2 通りで (b) corpus: manifest の telegramXml の全件を replay で ingest → decodeMaterial し、classifyMaterial の visit と同じ道で拾った (raw, condition) と Head の EventID・Serial。拾った組に旧の関数を当てた結果が旧の dist の classifyMaterial の materialValues・metadata と全件で一致すること（写しの道の確かめ）、新旧の dist の classifyMaterial の戻り（marks を除く）が全件で一致すること (c) 網羅: 10 字（1 . + - 以 上 下 超 x LF）の長さ 0〜7 の全ての字列を raw に、長さ 1〜6 を condition に (d) 乱数: seed 20261114、Q-DNL-PROBE (4) の 32 種の字、長さ 1〜80、300,000 件、4 件に 1 件を condition (e) 誤った変異 5 つ（LF だけで行に分ける・最初の語を採る・数字を行全体から探す・語にいちばん近い数字を採る・行に分けない）が (a) と (d) でそれぞれ 1 件以上を区別すること（比べに歯があること。比べの 0 件は軸を先に確かめる）。合否: (a)〜(d) で不一致 0、(e) で各変異の区別 1 件以上。起草の写しの件数（Q-DNL-PROBE）: corpus 296 件・404,994 組、網羅 11,111,111＋1,111,110 件、乱数 300,000 件で、件数が違えば理由を書く。あわせて reconstruction/test/ の全試験が、既存の期待を変えずに緑で通る（P1-T03 の range の期待を含む）",
         "evidenceRefs": [
           "reconstruction/src/decode-material/decode-material.ts:415 «28eb6f48095477f9»",
           "reconstruction/src/decode-material/decode-material.ts:423 «6829f238eadb3585»",
