@@ -85,7 +85,7 @@ describe("P3-WEATHER-NOTICE-001 U-W notices", () => {
     // P3-USD-AC02 (3): 空の U-W に引下げだけを受けると、「特別警報から危険警報」の区域は数えず、直前も危険警報の坂井市・永平寺町だけで 1 件。
     const bodies = (change: (xml: string) => string, inputId: string) => receive(empty(), decode(DOWN, "VPWW55", change, inputId)).intents.map((item) => item.payload.body);
     expect(bodies((xml) => xml, "cold")).toEqual(["大雨危険警報 福井県坂井市、福井県永平寺町"]);
-    // P3-USD-AC01 (2): 同じ区域の Item が 2 つなら、受理が採った後の行で読む（嶺北の後に「発表」の 43 の Item を足すと嶺北が上がる）。
+    // P3-USD-AC01 (5): 同じ区域の Item が 2 つなら、受理が採った後の行で読む（嶺北の後に「発表」の 43 の Item を足すと嶺北が上がる）。
     expect(bodies((xml) => xml.replace(/(<Body[\s\S]*?<Code>180010<\/Code>[\s\S]*?<\/Item>)/, "$1<Item><Kind><Name>レベル４大雨危険警報</Name><Code>43</Code><Status>発表</Status></Kind><Area><Name>嶺北</Name><Code>180010</Code></Area></Item>"), "duplicate")).toEqual(["大雨危険警報 福井県嶺北"]);
     // P3-USD-AC01 (2): 外すのは L4 の行だけ。嶺北を 43 で受けた後、新しい版が同じ区域を Code 33（Status は引下げのまま）にすると L5 に上がって鳴る。
     const toL5 = (xml: string) => { const at = xml.lastIndexOf("<Code>43</Code>", xml.indexOf("<Code>180010</Code>", xml.indexOf("<Body"))); return retime("2026-08-30T11:50:00+09:00")(xml.slice(0, at) + "<Code>33</Code>" + xml.slice(at + 15)); };
