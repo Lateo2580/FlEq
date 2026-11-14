@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "95612a629bc06e8aadc2732ad770ac5991de6b3e",
-    "sha256": "959b6246e825fba796fd86263ed8e624feb2c0d183cde132d466bff88f69bf02",
+    "sha256": "d61927df88e271681764cd63797aa519f882aa1e234c3032edfd88888ff23dfc",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -122,7 +122,7 @@
     "allowedPaths": [
       "reconstruction/src/terminal/color.ts（AC01 の分だけ: :64 の行の中と、その下に足す 2 行〔P3-TCC-D-PLACE=A〕。ほかの行は変えない。D-SUBSTITUTE=B なら reconstruction/src/terminal/format.ts の WIDE の表の行の中も）",
       "reconstruction/test/terminal/eew.test.ts（AC02 の分だけ: file の末尾〔:126 の describe の閉じの後〕に P3-TCC-T01 の describe 1 つ、コメントと空行を含め +15 行。ほかの行と期待は変えない）",
-      "reconstruction/contracts/p3-terminal-control-chars.json（統合担当だけ: 配送の記録。実装担当は変えない）"
+      "reconstruction/contracts/p3-terminal-control-chars.json（統合担当だけ: 配送の記録。実装担当は変えない）", "reconstruction/contracts/p3-terminal-prompt.json（統合担当だけ: P3-TP-AC10 の requirement の末尾と meta.sha256、AC04 (5)）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -189,7 +189,7 @@
       "WS の JSON の head.type: ingress は文字列かどうかしか確かめず、owner が止まっているか mailbox が断ったときに host が inputDropped へ渡し、--debug の時だけ debug の行に入るので、ESC がそのまま端末へ出うる（ingress.ts・host.ts・output.ts の inputDropped）。替える字の組に ESC は足せない（太字は paint を 2 回通り、2 回目に 1 回目の chalk の符号の ESC を替えて壊す）ので、統合担当が別の台帳の項にする",
       "端末の外へ出る電文の字（デスクトップ通知の本文、EEW のログの file、情報ディスプレイ）",
       "decode-material.ts の字の決まりと、material.ts の字の切り方（TEXT_LIMIT 4,096）",
-      "端末の見た目の spec（cli-terminal-output.md）の本文（字を置き換える決まりの記述は足さない。気象庁の電文に入る見込みの低い制御の字への守りで、図・表・色・字の位置の決まりを変えず、P3-TRL-D-BREAK の例外の守りと同じく契約に置く）と、AC04 (5) のほかの契約の本文の改訂",
+      "端末の見た目の spec（cli-terminal-output.md）の本文（字を置き換える決まりの記述は足さない。気象庁の電文に入る見込みの低い制御の字への守りで、図・表・色・字の位置の決まりを変えず、P3-TRL-D-BREAK の例外の守りと同じく契約に置く）と、AC04 (5) を除く、ほかの契約の本文の改訂",
       "旧築（src/）と test/fixtures"
     ],
     "acceptanceChecks": [
