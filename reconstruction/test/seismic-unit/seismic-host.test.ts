@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { DisplayVersion } from "../../contracts/p2-snapshot-sse.types";
 import { startP2Host } from "../../src/host/host";
-import { executionPlaces } from "../../src/runtime/unit-coverage";
+import { executionPlaces } from "../../src/runtime/unit-coverage"; import { EVENT_LIMIT } from "../../src/units/seismic/seismic-unit";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import { stations30k } from "../eew-e01/run.mjs";
 import { clock as fixtureClock, decodeXml, emptyState, receive, sentLater, vxse53 } from "./seismic-fixture";
@@ -435,7 +435,7 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       const probe = trial % 2 === 0 ? "eew" : "tsunami";
       const due = Math.ceil((clock().wallTimeMs + 20_000) / 1000) * 1000;
       const frames = [
-        ...Array.from({ length: 512 }, (_, index) => frame("VXSE53", vxse53({ eventId: `B${trial}E${index}`, at: iso(due - 86_400_000),
+        ...Array.from({ length: EVENT_LIMIT }, (_, index) => frame("VXSE53", vxse53({ eventId: `B${trial}E${index}`, at: iso(due - 86_400_000),
           origin: iso(due - 86_460_000), maxInt: "3" }))),
         ...Array.from({ length: 256 }, (_, index) => frame("VXSE62", withEvent(lp, `B${trial}L${index}`)
           .replace(/2026-08-01T21:02:00\+09:00/g, iso(due - 129_600_000)))),
@@ -472,7 +472,7 @@ describe.runIf(process.env.FLEQ_C7_AC12 === "1")("P3-C7-AC12 U-Q interference re
       // owners.deadlineDone は afterEach で空にされないので、約 1.9 MB の返信を試行ごとに離す。
       done.output = null;
       // P3-SHE-AC02 (3): 場面が回収に当たらなければ数字を出さずに止める。
-      if (basis !== "verified" || expired !== 768) throw new Error(`bulk deadline not collected (trial ${trial}): basis ${String(basis)}, expired ${expired}/768`);
+      if (basis !== "verified" || expired !== EVENT_LIMIT + 256) throw new Error(`bulk deadline not collected (trial ${trial}): basis ${String(basis)}, expired ${expired}/${EVENT_LIMIT + 256}`);
       rows[probe].push(m.row(eew, injectedAt, { start: deadlinePosted, end: deadlineDone }, { deadlineMs: deadlineDone - deadlinePosted, expired }));
     }
     m.record("bulkDeadline512And256", rows.eew, Math.ceil(bulkRuns / 4));

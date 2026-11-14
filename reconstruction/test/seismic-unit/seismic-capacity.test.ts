@@ -17,6 +17,14 @@ import { clock, decodeFixture, decodeXml, emptyState, fixtureXml, receive, sentL
 
 const HOUR = 3_600_000, MINUTE = 60_000;
 const L = seismicUnitCodec.maxEnvelopeBytes!;
+// 器 L と予約の式（P3-SEL-AC06）。seismic-unit.ts の GENERATION_LIMIT・RESERVE_BYTES と同じ字の式で、件数の項は EVENT_LIMIT で書く。
+// 強震保持の印の増え（HOLD_GROWTH）は 1 event あたり 1,864 B（寄与 4 つ分、LONGEST_REF から決まる）。
+const NOTICE_GROWTH = EVENT_LIMIT * 4 * noticeMarkBytes("notice") + 256 * noticeMarkBytes("notice");
+const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50;
+const RESERVE_HEAD = EVENT_LIMIT * 1_833 + 256 * 530 + 283_209 + (EVENT_LIMIT * 4 + 256) * 49;
+const RESERVE = RESERVE_HEAD + NOTICE_GROWTH + MEMORY_GROWTH;
+const EXPECTED_L = 4_194_304 + 121_513 + (RESERVE_HEAD - 1_470_281) + EVENT_LIMIT * 1_864 + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
+  + (EVENT_LIMIT * 4 + 256) * unreadableMarkBytes("unreadable") + 131_072 + UNREADABLE_CARDS_MAX_BYTES + (EVENT_LIMIT + 256) * PENDING_MARK_BYTES;
 const P75 = (name: string) => `telegram-foundation/phase7_5_${name}`;
 const W4 = "32-35_04_04_240613_VXSE53", S5 = "32-35_01_03_240613_VXSE53", S7 = P75("VXSE53_20260728162718_99e82c812e72");
 const BIG51 = P75("VXSE51_20260728162718_059a2b392646"), BIG53 = P75("VXSE53_20260728162718_bf35e8ea1825");
@@ -142,9 +150,9 @@ describe("P3-SEISMIC-EXPIRY-VIEW-001 the pending mark in the capacity", () => {
 
   it("P3-SEV-T04 contractBoundary / AC05: a count overflow takes the unguarded pending record first and keeps the guarded one", () => {
     const loose: EarthquakeEvent = { ...eventRow("P", AT - 2 * HOUR, 0), expiryPending: true }, guardedRow: EarthquakeEvent = { ...eventRow("G", AT - 30 * HOUR, 1), expiryPending: true };
-    const state = { ...emptyState(), earthquakes: [guardedRow, ...Array.from({ length: 510 }, (_, index) => eventRow(`N${index}`, AT - 3 * HOUR, 0)), loose] };
+    const state = { ...emptyState(), earthquakes: [guardedRow, ...Array.from({ length: EVENT_LIMIT - 2 }, (_, index) => eventRow(`N${index}`, AT - 3 * HOUR, 0)), loose] };
     const arrived = step(state, quake("NEW", AT, { maxInt: "3" }), "unverified", clock(AT)).state;
-    expect([eventOf(arrived, "P"), eventOf(arrived, "G")?.expiryPending, arrived.earthquakes.length]).toEqual([undefined, true, 512]);
+    expect([eventOf(arrived, "P"), eventOf(arrived, "G")?.expiryPending, arrived.earthquakes.length]).toEqual([undefined, true, EVENT_LIMIT]);
   });
 
   it("P3-SEV-T04 contractBoundary / AC05: a pending record is folded and evicted by bytes and stays out of the reserve", () => {
@@ -154,24 +162,24 @@ describe("P3-SEISMIC-EXPIRY-VIEW-001 the pending mark in the capacity", () => {
     expect([eventOf(marked, "A")?.expiryPending, saved.kind === "restored" && eventOf(saved.state, "A")?.expiryPending]).toEqual([true, true]);
     const pressedOut = pressed(marked, quake("X", AT + 26 * HOUR, { maxInt: "3", big: 400_000 }), 300_000, AT + 26 * HOUR, "unverified").step;
     expect([decision(pressedOut).decision, eventOf(pressedOut.state, "A")]).toEqual(["changed", undefined]);
-    // 事実の byte は RESERVE（1,958,729）に入らない。
+    // 事実の byte は RESERVE に入らない。
     const large = roundTrip({ ...emptyState(), earthquakes: [{ ...pad(2_500_000, AT), expiryPending: true }] });
     expect(large.kind === "restored" && eventOf(large.state, "PAD")?.expiryPending).toBe(true);
   });
 
   it("P3-SEV-T05 contractBoundary / AC06,AC07: at the limit the marks and the memories save and restore; the mark is checked on decode", () => {
     const until = AT + 36 * HOUR, size = (state: SeismicUnitState) => generation(state);
-    const rows = { ...emptyState(), earthquakes: Array.from({ length: 511 }, (_, index) => eventRow(`E${index}`, AT, 0, until)),
+    const rows = { ...emptyState(), earthquakes: Array.from({ length: EVENT_LIMIT - 1 }, (_, index) => eventRow(`E${index}`, AT, 0, until)),
       longPeriods: Array.from({ length: 256 }, (_, index) => longRow(`L${index}`, AT, until)) };
     const filled = (extra: number) => { const bare = { ...rows, earthquakes: [...rows.earthquakes, { ...pad(0, AT), retainUntil: until }] };
       return { ...rows, earthquakes: [...rows.earthquakes, { ...pad(L + extra - size(bare), AT), retainUntil: until }] }; };
     const full = filled(0), over = filled(1);
-    expect([L, size(full), roundTrip(full).kind, roundTrip(over).kind]).toEqual([15_515_625, L, "restored", "invalid"]);
+    expect([L, size(full), roundTrip(full).kind, roundTrip(over).kind]).toEqual([EXPECTED_L, L, "restored", "invalid"]);
     const marked = reduceSeismicUnit(full, { kind: "deadline", clock: clock(until), basis: "unverified" }).state;
     const memory = reduceSeismicUnit(marked, { kind: "deadline", clock: clock(until + 1), basis: "verified" }).state;
     const saved = roundTrip(marked);
     expect([size(marked), saved.kind, saved.kind === "restored" && saved.state.earthquakes[0], toSeismicView(marked).earthquakes, roundTrip(memory).kind, memory.earthquakes.length,
-      memory.longPeriods.length]).toEqual([L, "restored", marked.earthquakes[0], [], "restored", 512, 256]);
+      memory.longPeriods.length]).toEqual([L, "restored", marked.earthquakes[0], [], "restored", EVENT_LIMIT, 256]);
     // 欄は true だけで、active の記録だけが持つ。
     const first = memory.earthquakes[0], long = memory.longPeriods[0], decoded = (state: SeismicUnitState) => roundTrip(state).kind;
     const live = eventRow("V", AT, 0), liveLong = longRow("V", AT, until);
@@ -244,10 +252,14 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     // training の受理は normal を畳まない。
     const training = pressed(world, quake("20260801000601", T + 60 * MINUTE, { maxInt: "3", operation: "訓練" }), 1, PAD_AT);
     expect([decision(training.step).decision, training.step.state.longPeriods]).toEqual(["capacityExceeded", training.before.longPeriods]);
-    // 1 件で器を越える報は何も畳まず退去せず断る（(0)(a)）。P3-UM-RES-09 で器が入力の上限（8 MiB）を越えたので、JSON で 2 byte になる
-    // 「\」の名前の市町村で記録を器より大きくする。
-    const huge = step(world, decodeXml(widened(L / 2 + 16_000, escapedCities)(vxse53({ eventId: "20260801000701", at: iso(T + 60 * MINUTE),
-      origin: iso(T + 60 * MINUTE), maxInt: "5-", city: CITY })), "VXSE53"));
+    // 1 件で器を越える報は何も畳まず退去せず断る（(0)(a)、Q-SEL-HUGE）。入力の上限（8 MiB）の内の XML で記録を器より大きくするため、Area の Code を
+    // 文字の節の上限 16,384 文字（数字だと decode-material の条件の正規表現が文字数の 2〜3 乗で遅くなるので英字）にして City を並べる（seismic.ts が Area の Code を各 City の parentCode へ写す）。
+    const cityCount = Math.ceil(L / 16_000);
+    const hugeCities = () => Array.from({ length: cityCount }, (_, index) =>
+      `<City><Name>c</Name><Code>8${String(index).padStart(5, "0")}</Code><MaxInt>1</MaxInt></City>`).join("");
+    const hugeXml = widened(1, hugeCities)(vxse53({ eventId: "20260801000701", at: iso(T + 60 * MINUTE),
+      origin: iso(T + 60 * MINUTE), maxInt: "5-", city: CITY })).replace("<Code>990</Code>", `<Code>${"A".repeat(16_384)}</Code>`);
+    const huge = step(world, decodeXml(hugeXml, "VXSE53"));
     expect([decision(huge).decision, reasons(huge), huge.state.longPeriods]).toEqual(["capacityExceeded", ["capacityRejected"], world.longPeriods]);
 
     // 畳んだ寄与の比べ方（P3-QC-AC03 (3)）。詰め物を外して器に余りのある state で受ける。
@@ -402,10 +414,9 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
   });
 
   it("P3-QC-T02 contractBoundary / P3-QC-AC02・AC04・AC05: L, RESERVE, S, S_f, T_f, N_guard, N_keep and the cases at their bounds", () => {
-    const MARK = noticeMarkBytes("notice"), NOTICE_GROWTH = 512 * 4 * MARK + 256 * MARK;
-    const RESERVE = 1_470_281 + NOTICE_GROWTH + 512 * 372 + 3 * 2048 * 4 + 768 * 50;
     // P3-UM-RES-09: 前の器＋記録の上限（寄与 512×4＋長周期 256）×印 1 件＋原文の予算＋カード。
-    expect([L, RESERVE]).toEqual([5_627_794 + 2304 * unreadableMarkBytes("unreadable") + 131_072 + UNREADABLE_CARDS_MAX_BYTES + 768 * PENDING_MARK_BYTES, 1_958_729]);
+    // RESERVE は 512 のときの 1,958,729 に、1 event あたり 2,859（取消記憶 1,833＋49×4、通知の印 102×4、cancelledSummary 372、guard 50）を足した値。
+    expect([L, RESERVE]).toEqual([EXPECTED_L, 1_958_729 + (EVENT_LIMIT - 512) * 2_859]);
     // N_guard の式（P3-QC-AC04 (1)）。S は最大の実例の守る地震（VXSE51＋53＋61 の event と VXSE62）の観測点つき、S_f は畳んだ後、
     // T_f は最大の実例を守らない報として受けて畳んだ後（event 1 件）。
     const EVENT = "20260728162718";
@@ -491,20 +502,20 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
       "32-35_03_02_240613_VXSE61", "synthetic_phase4a_VXSE62_special"].map((file, index) => report(file, now + index * MINUTE, "S")));
     const four = eventOf(small, "S")!, slp = longOf(small, "S")!;
     expect(four.contributions.map((item) => item.family).sort()).toEqual(["VXSE51", "VXSE52", "VXSE53", "VXSE61"]);
-    const marks = longestMarks(512 * 4 + 256, "hypocenter", [], 131_072);
+    const marks = longestMarks(EVENT_LIMIT * 4 + 256, "hypocenter", [], 131_072);
     const bounded = (length: number, marked: boolean): SeismicUnitState => {
       const id = (k: number) => `B${String(k).padStart(4, "0")}`;
-      const earthquakes = Array.from({ length: 512 }, (_, k): EarthquakeEvent => ({ ...four, eventId: id(k),
+      const earthquakes = Array.from({ length: EVENT_LIMIT }, (_, k): EarthquakeEvent => ({ ...four, eventId: id(k),
         contributions: four.contributions.map((item, index) => ({ ...tag(item, item.family, id(k)),
           ...k === 0 && item.family === "VXSE52" ? { headline: "x".repeat(length) } : {}, ...marked ? { unreadable: marks[k * 4 + index] } : {} })) }));
       const longPeriods = Array.from({ length: 256 }, (_, k): LongPeriodSubject => ({ ...slp, eventId: id(k), subject: `normal/VXSE62/${id(k)}`,
-        source: { ...slp.source, subject: `normal/VXSE62/${id(k)}` }, ...marked ? { unreadable: marks[2048 + k] } : {} }));
+        source: { ...slp.source, subject: `normal/VXSE62/${id(k)}` }, ...marked ? { unreadable: marks[EVENT_LIMIT * 4 + k] } : {} }));
       return { ...emptyState(), earthquakes, longPeriods };
     };
     const atLimit = L - generation(bounded(0, false));
     expect([generation(bounded(atLimit, false)), roundTrip(bounded(atLimit, false)).kind, roundTrip(bounded(atLimit + 1, false)).kind])
       .toEqual([L, "restored", "invalid"]);
-    const marked = bounded(atLimit - 2304 * unreadableMarkBytes("unreadable") - 131_072, true);
+    const marked = bounded(atLimit - (EVENT_LIMIT * 4 + 256) * unreadableMarkBytes("unreadable") - 131_072, true);
     console.info("P3-UM-AC03 (6) U-Q", JSON.stringify({ marked: generation(marked), limit: L, cards: UNREADABLE_CARDS_MAX_BYTES }));
     expect([generation(marked) <= L, roundTrip(marked).kind]).toEqual([true, "restored"]);
   });
@@ -598,7 +609,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
     const clone = (k: number): EarthquakeEvent => { const id = `C${String(k).padStart(4, "0")}`;
       return { ...seed, eventId: id, retainUntil: reported + 48 * HOUR, contributions: seed.contributions.map((item) =>
         ({ ...item, source: { ...item.source, subject: `normal/${item.family}/${id}` } })) }; };
-    const crowded: SeismicUnitState = { ...emptyState(), earthquakes: [...Array.from({ length: 511 }, (_, k) => clone(k)), { ...memory, retainUntil: reported + 48 * HOUR }] };
+    const crowded: SeismicUnitState = { ...emptyState(), earthquakes: [...Array.from({ length: EVENT_LIMIT - 1 }, (_, k) => clone(k)), { ...memory, retainUntil: reported + 48 * HOUR }] };
     const pushedOut = step(crowded, decodeXml(vxse53({ eventId: "NEW", at: iso(reported + 24 * HOUR), maxInt: "1" }), "VXSE53"));
     expect([eventOf(pushedOut.state, EVENT), eventOf(pushedOut.state, "C0000") != null]).toEqual([undefined, true]);
   });
@@ -744,5 +755,32 @@ describe("P3-SEISMIC-RESERVE-CLOSE-001 the reserve after every step", () => {
     expect([decision(last!).decision, eventOf(state, head)?.contributions.map((item) => item.effective), reasons(last!).includes("seismicCapacityEvicted"),
       state.earthquakes.length, gone.length > 0, gone, roundTrip(state).kind]).toEqual(["changed", ["cancelled", "cancelled", "cancelled", "cancelled"], true,
       EVENT_LIMIT, true, tight.longPeriods.slice(-gone.length).map((item) => item.eventId), "restored"]);
+  });
+
+  // 実不具合の再発防止（P3-SEL-AC06 (4)、Q-SEL-RESERVE-RUN）: 件数だけ上げて予約の式を 512 のままにすると、最悪の長さの記憶（EVENT_LIMIT 件）が予約に入らず
+  // 受信・回収のたびに控えを外す。式が件数の式なら、件数の超過の 1 件だけを外す。歯は seismicCapacityEvicted の数に置く。
+  const evictedOf = (steps: readonly SeismicUnitStep[]) => steps.flatMap((item) => item.diagnostics).filter((item) => item.reason === "seismicCapacityEvicted");
+  it("P3-SEL-T03 regression / AC06 (4)(b): a new report on a full worst-case state evicts only the one over the count and still restores", () => {
+    // 件数の境界の試験は EVENT_LIMIT に追従するので、512 への退行はここだけが拾う（P3-SEL-AC01 の値、P3-SEL-D-LIMIT=A）。
+    expect(EVENT_LIMIT).toBe(1024);
+    const full = reserveState(T);
+    const received = take(full, vxse53({ eventId: "NEWB", at: iso(T), maxInt: "3" }), "VXSE53");
+    expect([decision(received).decision, reasons(received).includes("capacityRejected"), evictedOf([received]).map((item) => item.count),
+      received.state.earthquakes.length, roundTrip(full).kind, roundTrip(received.state).kind]).toEqual(["changed", false, [1], EVENT_LIMIT, "restored", "restored"]);
+  });
+
+  it("P3-SEL-T03 regression / AC06 (4)(c): four live quakes turned into memories on a state of EVENT_LIMIT - 4 memories evict nothing and restore", () => {
+    let state: SeismicUnitState = { ...reserveState(T), earthquakes: reserveState(T).earthquakes.slice(0, EVENT_LIMIT - 4) };
+    const steps: SeismicUnitStep[] = [];
+    for (let i = 0; i < 4; i++) for (const family of FAMILIES) {
+      const received = take(state, vxse53({ eventId: `NEW${i}`, at: iso(T - 24 * HOUR + MINUTE), maxInt: "5-" }), family);
+      steps.push(received); state = received.state;
+    }
+    const collected = reduceSeismicUnit(state, { kind: "deadline", clock: clock(T + MINUTE) });
+    steps.push(collected);
+    const fresh = collected.state.earthquakes.filter((item) => item.eventId.startsWith("NEW"));
+    expect([steps.slice(0, 16).every((item) => decision(item).decision === "changed"), evictedOf(steps), fresh.length,
+      fresh.every((item) => item.contributions.every((entry) => entry.effective === "expired")), collected.state.earthquakes.length, roundTrip(collected.state).kind])
+      .toEqual([true, [], 4, true, EVENT_LIMIT, "restored"]);
   });
 });

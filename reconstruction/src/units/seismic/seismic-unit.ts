@@ -36,9 +36,9 @@ import type { RawPlan } from "../unreadable";
 const SCHEMA = "p3-seismic-unit-v8" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
-const EVENT_LIMIT = 512, LONG_PERIOD_LIMIT = 256;
+const EVENT_LIMIT = 1024, LONG_PERIOD_LIMIT = 256;
 const encoder = new TextEncoder();
-// P3-VM-AC08（作者裁定 2026-10-21 午後）: 強震保持の事実の予算は、512 件の全部の寄与に印が付く最悪の場合まで旧い形のまま守る。寄与 1 つの増え分の
+// P3-VM-AC08（作者裁定 2026-10-21 午後）: 強震保持の事実の予算は、1024 件の全部の寄与に印が付く最悪の場合まで旧い形のまま守る。寄与 1 つの増え分の
 // 上界は、読み戻しの上限いっぱいの欄の ReportRef の未確認の印 1 つと、寄与の source と容量不足の印の source の Control/DateTime。予算と器の両方に足す。
 const LONGEST_REF: ReportRef = { inputId: "i".repeat(INPUT_ID_LIMIT), origin: "recovery", operation: "training", family: "VXSE53",
   subject: `training/VXSE53/${"E".repeat(EVENT_ID_LIMIT)}`, reportDateTimeRaw: "0".repeat(REPORT_TIME_LIMIT),
@@ -47,7 +47,7 @@ const LONGEST_REF: ReportRef = { inputId: "i".repeat(INPUT_ID_LIMIT), origin: "r
 const sizeOf = (text: string) => encoder.encode(text).byteLength;
 const HOLD_GROWTH = EVENT_LIMIT * EARTHQUAKE_FAMILIES.length * (sizeOf(`,"unconfirmed":${JSON.stringify(LONGEST_REF)}`)
   + 2 * sizeOf(`,"controlDateTimeRaw":"${LONGEST_REF.controlDateTimeRaw}"`));
-// P3-NL-D-CAPACITY=A: 通知の印は寄与（512×4）と長周期（256）の全部に付く最悪の場合まで、器と下の 2 つの予算に足す（印は取消記憶にも
+// P3-NL-D-CAPACITY=A: 通知の印は寄与（1024×4）と長周期（256）の全部に付く最悪の場合まで、器と下の 2 つの予算に足す（印は取消記憶にも
 // 強震保持の event にも残る）。外した終端 intent の予算 131,072（P3-NL-AC05 (2)）は器から引く。
 const MARK_BYTES = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = EVENT_LIMIT * EARTHQUAKE_FAMILIES.length * MARK_BYTES;
 const NOTICE_GROWTH = CONTRIBUTION_MARKS + LONG_PERIOD_LIMIT * MARK_BYTES;
@@ -59,14 +59,14 @@ const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.000001234567890
 const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
   + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * GUARD_BYTES;
 // 4 MiB に、同時最大状態の Control/DateTime と印の分（121,513）と強震保持の増え分を足す。Q-QC-DECIDED (1): 退去できない記録の増えと同じ分だけ広げる。
-// P3-UM-RES-09: 読めない所の印（寄与 512×4 と長周期 256 の全部）・原文の予算・カードの分も足す。P3-SEV-RES-01: 全部の記録に付く保留の印の分も足す。
-const GENERATION_LIMIT = 4_194_304 + 121_513 + HOLD_GROWTH + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
+// P3-UM-RES-09: 読めない所の印（寄与 1024×4 と長周期 256 の全部）・原文の予算・カードの分も足す。P3-SEV-RES-01: 全部の記録に付く保留の印の分も足す。
+const GENERATION_LIMIT = 4_194_304 + 121_513 + EVENT_LIMIT * 1_833 + LONG_PERIOD_LIMIT * 530 + 283_209 + (EVENT_LIMIT * 4 + LONG_PERIOD_LIMIT) * 49 - 1_470_281 + HOLD_GROWTH + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
   + (EVENT_LIMIT * EARTHQUAKE_FAMILIES.length + LONG_PERIOD_LIMIT) * unreadableMarkBytes("unreadable") + RAW_BUDGET + UNREADABLE_CARDS_MAX_BYTES
   + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * PENDING_MARK_BYTES;
 const PENDING_ITEMS = 128, PENDING_BYTES = 131_072;
-// I-U-Q.capacityReserve: 取消・期限切れの記憶だけの記録と当日履歴の上限。P3-VM-AC08: 取消記憶の ReportRef（512×4＋256 件）に
+// I-U-Q.capacityReserve: 取消・期限切れの記憶だけの記録と当日履歴の上限。P3-VM-AC08: 取消記憶の ReportRef（1024×4＋256 件）に
 // controlDateTimeRaw の 49 byte を足した予約。
-const RESERVE_BYTES = 1_470_281 + NOTICE_GROWTH + MEMORY_GROWTH;
+const RESERVE_BYTES = EVENT_LIMIT * 1_833 + LONG_PERIOD_LIMIT * 530 + 283_209 + (EVENT_LIMIT * 4 + LONG_PERIOD_LIMIT) * 49 + NOTICE_GROWTH + MEMORY_GROWTH;
 // P3-QC-AC03 (2): 畳んだ印 `,"folded":"<16 桁>"`。生きている記録にだけ付き、外した観測点より必ず小さいので器に足さない（Q-QC-BYTES (5)）。
 const FOLDED_BYTES = sizeOf(`,"folded":"${"0".repeat(16)}"`);
 // P3-C7-SEM-01〜06。
@@ -625,7 +625,7 @@ function overReserve(records: readonly Shown[], reserve: number, now: number, ve
 // folded は畳んだ記録の元と後の組（退去しなかったものだけ）、target は畳んだ後の target。
 type Plan = Readonly<{ earthquakes: readonly EarthquakeEvent[]; longPeriods: readonly LongPeriodSubject[]; evicted: readonly Shown[];
   folded: readonly (readonly [Shown, Shown])[]; target: Shown }>;
-// ponytail: 退去と畳みは稀で件数 512・256 に限られる（AGENTS.md の稀な一括処理、Q-QC-COST (2)）。超過の種類ごとに候補を 1 回並べる。
+// ponytail: 退去と畳みは稀で件数 1024・256 に限られる（AGENTS.md の稀な一括処理、Q-QC-COST (2)）。超過の種類ごとに候補を 1 回並べる。
 function fit(earthquakes: readonly EarthquakeEvent[], longPeriods: readonly LongPeriodSubject[], daily: Daily,
   intents: readonly SeismicIntent[], failureMarks: readonly FailureMark[], target: Shown, now: number, verified: boolean,
   received: number | null): Plan | null {
@@ -1204,7 +1204,7 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
     changes.push([before, after != null && after.retainUntil > now ? after : null]);
     return after != null && after.retainUntil > now ? [after] : [];
   };
-  // ponytail: event 512・長周期 256 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
+  // ponytail: event 1024・長周期 256 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
   const aged = minOf(state.earthquakes, eventDeadline) > now && !heldEvents ? state.earthquakes : state.earthquakes.flatMap((item) => {
     if (item.retainUntil <= now && !visible(item)) return keep(item, null);
     if (item.retainUntil <= now || item.expiryPending === true) {

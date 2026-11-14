@@ -71,12 +71,12 @@ const bodyHash = (text: string) => {
 describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
   it("P3-DC-T01 contractBoundary / AC05: the 513th U-Q event evicts the oldest normal one; the loss is kept past its own deadline", async () => {
     const base = Date.parse("2026-07-01T00:00:00+09:00");
-    const frames = Array.from({ length: 513 }, (_, index) =>
+    const frames = Array.from({ length: EVENT_LIMIT + 1 }, (_, index) =>
       frame(base + index * 2_000, "VXSE52", variant("32-35_01_02_240613_VXSE52", base + index * 2_000, { eventId: String(20260701000000 + index) })));
     const { result } = await runStage1(ready("T01", frames, base + 26 * HOUR));
     expect(result["status"]).toBe("Fail");
     expect(listOf(result, "losses")).toEqual([{ subject: "normal/VXSE52/20260701000000", unit: "U-Q", operation: "normal",
-      atMs: base + 512 * 2_000, inputId: "input-513", reason: "seismicCapacityEvicted", deadlineMs: base + DAY, counted: true }]);
+      atMs: base + EVENT_LIMIT * 2_000, inputId: `input-${EVENT_LIMIT + 1}`, reason: "seismicCapacityEvicted", deadlineMs: base + DAY, counted: true }]);
     expect(recordOf(recordOf(result["evictions"])["total"])["U-Q"]).toBe(1);
   }, 180_000);
 
