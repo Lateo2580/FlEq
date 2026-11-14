@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "239a35f5648d32216a4933d3d5bd76550e6f1fbd",
-    "sha256": "2632269eded8f73c5915a10fe23ff9f0cdb1d4adf65c153c8a6aceed403c5fef",
+    "sha256": "79d258e496cf56dd05fce8e87fb48fe4b3e94f1b4b7f66822b6f84a5d77f22be",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -17,7 +17,7 @@
         "C": "今の形で測り、N1〜N3 を Fail と記録したまま P3 を閉じる（:494 の R1 と同じ『欠いたことを記録』の扱いを N1〜N3 にも広げる）",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者、2026-11-13 昼）",
+        "status": "確定（作者、2026-11-13 昼）。:492 の 4 条件のうち 4 つ目（U-E・U-T・U-Q の要約 0）は P4 へ持ち越し（2026-11-14 作者裁定 α、P3-DISASTER-PI-MEASURE-001 の P3-DPM-D-REMEASURE、計画の末尾の節「段 4 の上限の次の形」）、AC09 は pass の 3 欄を読む。段 4 の器の拡張の契約は P3-SEISMIC-EVENT-LIMIT-001（件数 1024、snapshot 1 MiB のまま）",
         "ruling": "作者裁定 A（2026-11-13 昼、判断カードの推奨どおり）",
         "reason": "11-13 の作者裁定 §8=A が件数の上限と snapshot の 1 MiB を同じ段 4 の契約に入れると決めたので、A は既存の裁定から出る並べ方で、:492 の条件を変えない。B は :492（判断 2）を改める作者の裁定が要り、件数だけを先に広げると Pi の測定を 2 回することになる（§8 の B を退けた理由と同じ）。C は大きな地震が続く日に期限の内の地震の行が消える P3 を閉じることになる",
         "ifNotChosen": "A を選ばないと、P3 は段 4 の Pi の測定（旧築を止めるので作者の在席が要る）を待たずに閉じられる代わりに、B では :492 の条件の改訂、C では N1〜N3 の欠けを抱えた閉鎖になる。A では P3 の閉鎖が段 4 の配送まで延びる"
@@ -780,7 +780,7 @@
     ],
     "outOfScope": [
       "見つかった欠陥の直し（別の契約。直した後に影響する AC を取り直す）",
-      "段 4 の器の拡張そのもの（件数の上限・snapshot の 1 MiB・器の byte。§8 の作者裁定 A で段 4 の契約）",
+      "段 4 の器の拡張そのもの（件数の上限・snapshot の 1 MiB・器の byte。§8 の作者裁定 A で段 4 の契約。2026-11-14 の作者裁定 α で snapshot の 1 MiB は変えず、件数は P3-SEISMIC-EVENT-LIMIT-001 で 1024）",
       "旧 v2 移行・移行直後の続報・volcanorepair の結線（2026-11-13 の C15 の取り下げ、計画:673。volcanorepair は P3-FG-D-VOLCANOREPAIR）",
       "personal 配線（PERS-1〜5）、export の故障隔離、O10 の export 分、personal 有効の O09/O10（C21 の外出し、計画:684・spec:2616）",
       "O02:39〜42（P1 の持ち物、計画:685）、E15 の残り（P5、計画:243）",
@@ -897,7 +897,7 @@
       },
       {
         "id": "P3-FG-AC09",
-        "requirement": "災害の日（計画:492〜:496、作者裁定 判断 2。発注 3、P3-FG-D-STAGE4=A、作者裁定 2026-11-13 昼）: P3-DISASTER-CAPACITY-001 の道具（formal）で、最終の形の新築に W1 の 3 日・道具を直した W2・N1・N2・N3・R2 を流し、各筋書きが P3-DC-PASS の 4 条件（入力単位の拒否 0、容量の欠け 0〔U-Q の退去を含む〕、手書きの期待例が全部合う、U-E・U-T・U-Q の要約 0）を全部満たす。blocked は合格に数えない（:493）。R1 は Q-FG-R1（:494）。結果に流した電文の digest・測った commit・契約の版を残す（:495）。de25f61a の測り直し（Q-QC-MEASURE、N1〜N3 は要約と件数 512 で Fail）は記録で、合否に使わない",
+        "requirement": "災害の日（計画:492〜:496、作者裁定 判断 2。発注 3、P3-FG-D-STAGE4=A、作者裁定 2026-11-13 昼）: P3-DISASTER-CAPACITY-001 の道具（formal）で、最終の形の新築に W1 の 3 日・道具を直した W2・N1・N2・N3・R2 を流し、各筋書きの結果の pass の 3 欄（inputRejections 0〔入力単位の拒否〕・capacityLosses 0〔容量の欠け、U-Q の退去を含む〕・expectationsFailed 0〔手書きの期待例が全部合う〕）が全部 0 であることを読む。P3-DC-PASS の 4 つ目（U-E・U-T・U-Q の要約 0）は P4 へ持ち越した（2026-11-14 作者裁定 α、P3-DISASTER-PI-MEASURE-001 の P3-DPM-D-REMEASURE、計画の末尾の節「段 4 の上限の次の形」）。道具の合否の式（要約があれば Fail）は変えないので、結果の status は判定に使わず、要約の区間（pass.failingSummaries と summaries）は記録して P4 へ渡す。blocked は合格に数えない（:493）。R1 は Q-FG-R1（:494）。結果に流した電文の digest・測った commit・契約の版を残す（:495）。de25f61a の測り直し（Q-QC-MEASURE、N1〜N3 は要約と件数 512 で Fail）は記録で、合否に使わない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:492 «b28126ed179342cc»",
           "reconstruction/contracts/p3-order-plan.md:493 «7626c9148c1d4f83»",
@@ -908,7 +908,7 @@
       },
       {
         "id": "P3-FG-AC10",
-        "requirement": "ペルソナ歩き（2026-10-28 の作者提案と裁定、計画:587〜:596 をそのまま。発注 3）: (1) 場面は手で書かない。AC09 の最終の形の run（W1・R2・N1〜N3）と試行 2 の場面（配信切断・再接続など）を最終の形の新築に流した記録から、決めた時刻ごとの通知の題名と本文・音の段・snapshot を機械で抜いて場面にする（試行 2 は振る舞い表の決まりから手で書いたので、処理の欠け〔来ない報・残る古い報・順の入れ替わり〕が演じ手の前に出なかった） (2) 進め方は試行 2 と同じ: 進行役・演じ手・評価者を分け、裏の事実を渡さず、受け取り方を訊き、1 場面ずつ出す。P3 には画面が無いので、画面の欄は snapshot の中身を文字にしたもの（P3-FG-D-PERSONA-TERMINAL） (3) 演じ手は Claude・Codex・ChatGPT Pro の 3 系統。Pro への送信は作者が行う（P3-FG-D-PERSONA-PRO） (4) 評価者は演じ手の受け取りと内部の事実（その時刻に有効な警報など）を突き合わせ、ずれを『処理の欠け（P3 で直す）』『文言・配置（P4 へ送る）』『作者の受け入れ』に分ける (5) 合否（作者裁定 A）: ずれの 1 件ずつに行き先（直した・P4 へ送った・作者が受け入れた）が付くまで C22 を閉じない。演じ手の答えは仮説なので、答えそのものは合否の基準にしない（報告だけの B は選ばなかった） (6) 本物の画面での歩き直しは P5 の並走検収で行う",
+        "requirement": "ペルソナ歩き（2026-10-28 の作者提案と裁定、計画:587〜:596 をそのまま。発注 3。AC09 の run には要約の区間があり〔P4 へ持ち越し、AC09〕、場面の snapshot に要約の画面が入りうる）: (1) 場面は手で書かない。AC09 の最終の形の run（W1・R2・N1〜N3）と試行 2 の場面（配信切断・再接続など）を最終の形の新築に流した記録から、決めた時刻ごとの通知の題名と本文・音の段・snapshot を機械で抜いて場面にする（試行 2 は振る舞い表の決まりから手で書いたので、処理の欠け〔来ない報・残る古い報・順の入れ替わり〕が演じ手の前に出なかった） (2) 進め方は試行 2 と同じ: 進行役・演じ手・評価者を分け、裏の事実を渡さず、受け取り方を訊き、1 場面ずつ出す。P3 には画面が無いので、画面の欄は snapshot の中身を文字にしたもの（P3-FG-D-PERSONA-TERMINAL） (3) 演じ手は Claude・Codex・ChatGPT Pro の 3 系統。Pro への送信は作者が行う（P3-FG-D-PERSONA-PRO） (4) 評価者は演じ手の受け取りと内部の事実（その時刻に有効な警報など）を突き合わせ、ずれを『処理の欠け（P3 で直す）』『文言・配置（P4 へ送る）』『作者の受け入れ』に分ける (5) 合否（作者裁定 A）: ずれの 1 件ずつに行き先（直した・P4 へ送った・作者が受け入れた）が付くまで C22 を閉じない。演じ手の答えは仮説なので、答えそのものは合否の基準にしない（報告だけの B は選ばなかった） (6) 本物の画面での歩き直しは P5 の並走検収で行う",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:591 «6a31217e69c36fa7»",
           "reconstruction/contracts/p3-order-plan.md:593 «a300e9982a2f1e90»",
@@ -1107,7 +1107,7 @@
         ],
         "resolveBy": "段 4 の器の拡張の契約と P3-DISASTER-PI-MEASURE-001（AC01 が runner.ts の BYTE_LIMITS の行を持つ。AC05 (2) の起点の『山の写し』も同契約）の配送の後",
         "requiredEvidence": [
-          "段 4 の契約の配送 commit と、件数の上限・snapshot の上限・器の byte の新しい値",
+          "段 4 の契約の配送 commit と、件数の上限・snapshot の上限・器の byte の新しい値（段 4 の契約は P3-SEISMIC-EVENT-LIMIT-001。snapshot の上限は 1 MiB のまま）",
           "P3-DISASTER-PI-MEASURE-001 の配送 commit と、BYTE_LIMITS を今の器に合わせた記録、『山の写し』の置き場と digest"
         ]
       },
@@ -1131,7 +1131,7 @@
         ],
         "resolveBy": "段 4 の器の拡張の契約の起草のとき",
         "requiredEvidence": [
-          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。決まらないまま AC13 を判定しない"
+          "段 4 が snapshot の上限・器の byte を変えた後に、EEW と津波の E01（C4・C6 で閉じた計画:240・:253）と、計画:242 の E05-P（上限 400 MiB に対し最大 389.3 MiB。owner が 4 本になった〔P3-SEISMIC-PLACE-001〕後は測り直していない）を誰が取り直すか。推奨は段 4 の契約の受入に入れる（C22 の外）。起草の時点の答えの置き場は P3-SEISMIC-EVENT-LIMIT-001 の Q-SEL-E01（統合担当、同契約の発注の前に閉じる）。決まらないまま AC13 を判定しない"
         ]
       },
       {

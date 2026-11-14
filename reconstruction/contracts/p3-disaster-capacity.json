@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "8610d67363c4bf614de12cf4eb15a870658fa2e1f24ad163fdab2adb8533c4be",
+    "sha256": "6ddeb5cd4fde047e89475b860b0063dce007cfffd629afe8d2173d93db5c7177",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -15,7 +15,7 @@
         "C": "要約は報告だけにし、合否に入れない",
         "recommended": "A'",
         "provisional": "A'",
-        "status": "確定",
+        "status": "確定。道具の合否の式（A'）は変えない。C22 の合否での読みは、2026-11-14 の作者裁定 α で U-E・U-T・U-Q の要約 0 を P4 へ持ち越した（p3-final-gate.json の P3-FG-AC09、計画の末尾の節「段 4 の上限の次の形」）",
         "ruling": "A'（作者裁定 2026-10-15、ご主人）、推奨どおり。採らなかった案は分岐の記録として残すだけで、実装は A' の形だけを読む",
         "reason": "要約で残るのは運用区分ごとの件数・最高区分・areaCounts・更新時刻などの数だけで、subjectの識別子もviewも配らない（p2-snapshot-sse.types.ts:62〜:87、view-projector.ts:793〜:797）。地震なら震源・規模・地域ごとの震度、津波なら区域ごとの区分、EEWなら予想震度の区域が配られなくなる。stateが残っていても起きる表示の欠けなので、D2=A（stateの欠け）とは別に決める。A'は命と被害の把握に直結するEEW・津波・地震の3分野を合否に入れる。代償の注: 今のchrome-eewはeewとtsunamiだけを読みU-Qを描かない（client.ts）ので、今の画面の見え方はA'とAで変わらず、A'の差はP4の地震の画面・端末出力・SSEの受け手に効く。各案でFailになる筋書き（起草の見積り、推測）: A'はU-E・U-T・U-Qのどれかが要約になった筋書きで、N1・N2・N3はU-T・U-Qのviewだけで全体が1 MiBを越える見込み、R1は本震のU-Qのview（実例のM7.1で1件120,803 byte）と全体の大きさ次第。AはU-Qだけが要約になる筋書きをPassにしうる（震源・震度が配られなくても合格）。Bは気象の要約もFailで、W1・W2・N3は今のHEADでは平常のU-F・U-Wの要約（A3）でもFailになる見込み（P3-UF-PUBLIC-001の配送の後は推測。発注前点検の注: ここの「今のHEAD」は起草の3fe5dd69。P3-UF-PUBLIC-001は963351a7で配送され、U-Fのviewは公開形式〔1鍵1,510＋10×区域byte〕になってstateは変わらないので、Bの見込みのうちU-Fの平常の要約は配送の後の推測の側に当たる。A'は気象の要約を合否に入れないので裁定の形は変わらない）。N1・N2・R1・R2は気象を流さないので、Bでも災害の分野の要約だけで決まる。Cは表示の欠けが合否に出ない。どの案でも要約の時刻は全分野で報告し、溢れが災害の情報だけで起きたかの印を書く（P3-DC-AC04(4)）"
       },
