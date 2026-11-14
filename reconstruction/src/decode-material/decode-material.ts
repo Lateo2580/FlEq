@@ -381,13 +381,25 @@ function normalizeStatus(raw: string | null): OperationSourceEvidence<Operation>
   return status == null ? { kind: "invalid", observed: raw } : { kind: "provided", value: status };
 }
 
+// 旧の /([+-]?(?:\d+(?:\.\d+)?|\.\d+)).*(以上|超|未満|以下)/ と全ての入力で同じ結果を、欄の長さに線形で返す（台帳 131、
+// P3-DECODE-NUMBER-LINEAR-001）。旧は行の中で数字の後ろに語が無いと文字数の 3 乗に近い時間になった。旧の `.` は行の終わりの
+// 字を越えず、貪欲な `.*` は行の最後の語まで伸びるので、旧の一致は「最後の語より前に数字がある最初の行で、その最初の数字」になる。
+function boundedNumber(text: string): { number: string; lower: boolean } | null {
+  for (const line of text.split(/[\n\r\u2028\u2029]/)) {
+    const at = Math.max(line.lastIndexOf("以上"), line.lastIndexOf("超"), line.lastIndexOf("未満"), line.lastIndexOf("以下"));
+    const number = at < 0 ? null : /[+-]?(?:\d+(?:\.\d+)?|\.\d+)/.exec(line.slice(0, at));
+    if (number != null) return { number: number[0], lower: line.startsWith("以上", at) || line.startsWith("超", at) };
+  }
+  return null;
+}
+
 function materialValue(raw: string | undefined, condition = ""): MaterialValue {
   if (raw === undefined) return { kind: "missing" };
   const normalized = raw.normalize("NFKC").trim();
-  const match = (condition.normalize("NFKC") || normalized).match(/([+-]?(?:\d+(?:\.\d+)?|\.\d+)).*(以上|超|未満|以下)/);
+  const match = boundedNumber(condition.normalize("NFKC") || normalized);
   // 有限でない境界（桁あふれ）は range にしない。保存の JSON で null になり、どの unit の decode も受けられなくなる。
-  if (match != null && Number.isFinite(Number(match[1]))) {
-    return { kind: "range", bound: match[2] === "以上" || match[2] === "超" ? "lower" : "upper", value: Number(match[1]), raw };
+  if (match != null && Number.isFinite(Number(match.number))) {
+    return { kind: "range", bound: match.lower ? "lower" : "upper", value: Number(match.number), raw };
   }
   if (/不明|未定|NaN|なし/.test(condition || normalized)) return { kind: "unknown", raw };
   if (normalized === "") return { kind: "empty", raw };

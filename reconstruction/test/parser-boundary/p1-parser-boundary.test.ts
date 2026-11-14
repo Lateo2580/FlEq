@@ -479,3 +479,12 @@ it("P3-XTC-T02 contractBoundary / P3-XTC-AC01,AC03: 木の値は同じで、共�
   expect(blanks).toBeGreaterThan(0);
   expect(empties).toBeGreaterThan(0);
 });
+
+it("P3-DNL-T01 regression / P3-DNL-AC02: 「以」と長い数字の欄で、数値の欄の読みが欄の長さに線形", () => {
+  // 台帳 131: 旧の正規表現は「以」＋数字 16,384 字で約 9 分（同期なので testTimeout では止まらない）。
+  const result = decode(base.replace("<Body/>", `<Body><n>以${"1".repeat(16_383)}</n></Body>`));
+  if (result.kind !== "decoded") throw Error(result.kind);
+  const started = performance.now();
+  const values = classifyMaterial(result.material).materialValues;
+  expect([performance.now() - started < 200, values.at(-1)?.kind]).toEqual([true, "text"]);
+});
