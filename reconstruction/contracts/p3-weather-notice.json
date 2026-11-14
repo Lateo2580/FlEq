@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "8662970c4a46dda04f17b3b59e884631449ad998e9b120c3d35174d8c6d8153d",
+    "sha256": "9fb5cf34e6474483f1b742ee24b8cfc833fa646014b48fd58b185964d473c369",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -75,7 +75,7 @@
       },
       {
         "id": "P3-WN-D-MERGED",
-        "A": "上がったかは、府県×区域×現象で合わせた結果（weather-current-public.ts の合わせ、全国報と府県の報を新しいほうで合わせた勝った行）の受理の前後の段の差で決める。前後で段が上がり、上がった後の段を持つ行が受けた報のものである区域だけを数える",
+        "A": "上がったかは、府県×区域×現象で合わせた結果（weather-current-public.ts の合わせ、全国報と府県の報を新しいほうで合わせた勝った行）の受理の前後の段の差で決める。前後で段が上がり、上がった後の段を持つ行が受けた報のものである区域だけを数える（L4 の行で、受けた報が採った行の Status が「特別警報から危険警報」の区域×Code は数えない、P3-UW-STALE-DOWNGRADE-001）",
         "B": "報の subject ごとに、同じ subject の前の版との差で決める",
         "recommended": "A",
         "provisional": "A",
@@ -356,7 +356,7 @@
         "id": "Q-WN-NATIONAL-LAG",
         "status": "closed",
         "source": "r1 の起草の観測（契約適合 r0 の証拠不足 (i)。~/dev/fleq-corpus-p0 の 20260923-capacity の 7 日〔W1 の 3 日と 2025-08-10・09-05・2026-01-11・02-08〕の normal の発表の VPWS50・VPWW55〜61 を報時刻の順に流し、全国報と府県の報を区域ごとに新しいほうで合わせた写しで数えた。script は起草の作業場所の lag_probe.py で、repo に入れない。製品の code は呼んでいない）",
-        "closed": "上がった区域×現象×段は 181 件（層ごとに数える）。同じ区域×現象×段が 2 回上がったのは 39 件で、間の引下げは全部が府県の報（VPWW55 が 39 回、VPWW58 が 66 回）によるもの。全国報が府県の報の引上げを載せずに後から出て合わせの段を下げ、次の報で同じ段がまた上がる列は 0 件。2 回目は官署自身が下げてから出し直した報で、作者裁定の問い 2=A（上がった区域で決める）では鳴るのが正しい",
+        "closed": "上がった区域×現象×段は 181 件（層ごとに数える）。同じ区域×現象×段が 2 回上がったのは 39 件で、間の引下げは全部が府県の報（VPWW55 が 39 回、VPWW58 が 66 回）によるもの。全国報が府県の報の引上げを載せずに後から出て合わせの段を下げ、次の報で同じ段がまた上がる列は 0 件。2 回目は官署自身が下げてから出し直した報で、作者裁定の問い 2=A（上がった区域で決める）では鳴るのが正しい（P3-UW-STALE-DOWNGRADE-001 の合わせで数え直し: 同じ 7 日のうち VPWS50・VPWW55〜61 があるのは 3 日〔2026-06-03・06-26・09-21〕の 1,895 報〔うち VPWW56 の 425 報は U-W が受けない〕。直しを当てた製品の reduce〔reconstruction/dist の reduceWeatherCurrentUnit〕に日ごとに空の state から報時刻の順に流し、受理の前後の合わせ〔areaEntry〕の区域×現象の段〔L4・L5、層ごと〕を P3-WN-AC02 (2) の規則で比べた〔統合担当の写しの recount.cjs、repo に入れない〕。上がったのは 125 回〔区域×現象×段で 115 件、全部 L4、VPWW55 が 110 回・VPWS50 が 15 回、上がった区域のある報は 46 報〕で、同じ区域×現象×段が 2 回上がったのは 10 件。2 つの直しを外した写しで流しても 125・115・10 で同じ。上の 181・39 は製品を呼ばない lag_probe.py の数え方の数で、その数え方では数えていない。新しい向き（府県の報の引下げ・解除・なしの後に、それより newer な全国報が同じ区域にその前の L4・L5 を載せ直して上がった数）は 0 件〔全国報が上げた 15 回はどれも直前の段の変化が府県の報の引下げではない。同じ数えに 06:50 の全国報 → 20:04 の福井の解除 → 時刻を 20:10 にした同じ全国報の合成を流すと 9 件と数え、直しを外した写しでは 0 件〕。作者は 2026-11-14 09:10 に、この 0 件を載せた判断カードで P3-USD-D-NATIONAL-AFTER-RELEASE=A と裁定した）",
         "remaining": "なし（7 日で 0 件。起きれば同じ L5 が 2 回鳴る列になるので、C22 の測定で数え直す）",
         "reason": "P3-WN-D-MERGED"
       },
@@ -608,19 +608,19 @@
           "src/dmdata/weather-warning-level.ts:150 «08744e71ceecd320»",
           "src/dmdata/weather-warning-level.ts:231 «61aa653cd24038bc»",
           "reconstruction/src/domains/weather-current/weather-current.ts:553 «0c17bd367b35a94b»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:105 «e5b4058391f6d7ba»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:115 «e5b4058391f6d7ba»",
           "docs/specs/reconstruction-p0-contracts.md:951 «29e2b6869a8216ca»"
         ]
       },
       {
         "id": "P3-WN-AC02",
-        "requirement": "上がった区域（P3-WN-D-RAISE=A・MERGED=A）。(1) 受信の step で作り直した府県（reduceWeatherCurrentUnit の areas、operation\\0府県）ごとに、受理の前の合わせ（areaEntry(state)）と後の合わせ（advanceAreas の後の areaEntry(step.state)）の勝った行から、区域（WARNING_TYPES の層と区域の Code）×現象の段の最大を 1 回の走査で Map にする (2) 後の段が前の段（無ければ段なし）より高く、後の段を持つ行の source が受けた報（subject と inputId）のものである区域×現象だけを「上がった」と数える。全国報の後に府県の報が同じ段を載せても、府県の報の後に全国報が載せても上がらない (3) 一つの報で上がった区域があれば、上がった段の最大で AC01 の channel の intent を作る。上がった区域が無い報（引下げ・区域の縮小・事実の同じ続報・事実の同じ訂正・解除・なし）は作らない (4) 取消の採用では数えない（P3-WN-D-CANCEL=A） (5) 費用は作り直した府県の前後の勝った行の和（全国報 1 通で W1 の 3 日の勝った行 2,673 の前後、Q-UWC-SIZE）で、作り直さない府県の行を読まない",
+        "requirement": "上がった区域（P3-WN-D-RAISE=A・MERGED=A）。(1) 受信の step で作り直した府県（reduceWeatherCurrentUnit の areas、operation\\0府県）ごとに、受理の前の合わせ（areaEntry(state)）と後の合わせ（advanceAreas の後の areaEntry(step.state)）の勝った行から、区域（WARNING_TYPES の層と区域の Code）×現象の段の最大を 1 回の走査で Map にする (2) 後の段が前の段（無ければ段なし）より高く、後の段を持つ行の source が受けた報（subject と inputId）のものである区域×現象だけを「上がった」と数える。全国報の後に府県の報が同じ段を載せても、府県の報の後に全国報が載せても上がらない。L4 の行で、受理が採った行の Status が「特別警報から危険警報」（前回電文は同じ現象の特別警報）の区域×Code は上がったに数えない（L5 の行は Status によらず数える）（P3-UW-STALE-DOWNGRADE-001、作者裁定 2026-11-14）（取り直しの採用〔P3-WN-AC12〕の上がった判定には含めない） (3) 一つの報で上がった区域があれば、上がった段の最大で AC01 の channel の intent を作る。上がった区域が無い報（引下げ・区域の縮小・事実の同じ続報・事実の同じ訂正・解除・なし）は作らない (4) 取消の採用では数えない（P3-WN-D-CANCEL=A） (5) 費用は作り直した府県の前後の勝った行の和（全国報 1 通で W1 の 3 日の勝った行 2,673 の前後、Q-UWC-SIZE）で、作り直さない府県の行を読まない",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-unit.ts:769 «f5dce440c6d0cbc3»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:776 «4171168ae0309007»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:175 «1b1a700b3b2e4445»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:185 «f4a65021cd1bcea0»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:108 «d4f7cb4e885c6b5a»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:185 «1b1a700b3b2e4445»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:195 «f4a65021cd1bcea0»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
           "docs/specs/reconstruction-p0-contracts.md:3038 «fc1a1fc607e6814f»"
         ]
       },
@@ -730,7 +730,7 @@
       },
       {
         "id": "P3-WN-AC12",
-        "requirement": "U-W の取り直しの H27（P3-WN-D-UW-H27=A、作者裁定 2026-11-01）。順序（品質 r2 の P2-1）: (1) 最終の candidate を作る（基点が変わっていれば、取り直しの本文を最新の live に当て直す。owner-host.ts:225 の分岐。候補を作る途中の step では P3-WN-AC06 の (2) の外す規則を当てない） (2) live 由来の pending（candidate の intents。部分集合の検査〔owner-runtime.ts:688〕を通ったもの）に、P3-WN-AC06 の (2) の外す規則を最終の candidate の合わせに対して 1 回だけ当てる (3) そのあと H27 の除外は下の at.live の規則だけ（生きている pending の target では除かない。古い desktop の L4 の target が H27 を抑えるため、品質 r3 の P2）。(2) と (3) は U-W の unit の行の recoveryNotices の中で行う（owner-runtime.ts の noticed が :725 で呼ぶ。owner-runtime.ts と owner-host.ts は変えない）。以下は (3) の H27 の作り方。U-W の unit の行に recoveryNotices を足す（owner-runtime.ts は units[unit].recoveryNotices を読むので変えない）。取り直しを始めた時の state（open）と採用する state（candidate）の合わせを全部の府県で比べ（取り直し 1 回に 1 回、O(前後の勝った行の和)）、AC02 の規則で上がった区域×現象のうち、採用の時点で active なものの最も重い段を 1 件選ぶ（同じ段は府県の Code の昇順）。その行の報の系列の印に同じ版の報があれば除いてから選ぶ。payload は level info、title「<Kind の名前>（HH:MM 発表）」、body「<Kind の名前> <区域の数>地域」、reportDateTime と recovered: true（U-L と同じ形。区域の名前は保存していないので数で書く）。channel は L4 も L5 も desktop＋sound（P3-WN-D-H27-L4=A、training・test は desktop）。取り直しの間の live の通知と重ねない: candidate の cell の段が、採用の直前の live（at.live）の合わせの同じ cell の段以下なら除く。P3-WN-AC06 の (2) により live の pending は系列の取消では消えないので、at.live でその段なら、配った・配る途中・容量で落とした（H39）のどれか（Q-WN-PENDING-TARGETS の 5）。H27 の intent の targets は、選んだ cell 1 つでなく、その取り直しで上がった cell 全部（土砂を除き、印と at.live の除外の後に残ったもの、全府県・全報）とし、P3-WN-AC06 の (2) の規則で外れる。intent は今どおり 1 組（作者裁定「取り直し 1 回で info 1 回」）。文面は今どおり代表の cell（最も重い段・府県の Code の昇順）で作り、代表が配る前に終わって他の cell が残るときの文面は Q-WN-PENDING-TARGETS の残存 (1) と同じ扱い（dot のモデル検査の I1 の反例、Q-WN-MODEL-CHECK）。H27 の targets の上界は 1 報の行の数でなく、その取り直しで上がった cell の数（合わせの L4・L5 の cell の数まで）。7 日の合わせの L4・L5 の cell の同時の最大は 38（起草の作業場所の h27_peak.py の出力「合わせの L4・L5 の cell の同時の最大 38 ('x-2026-06-26', '2026-06-26T07:58:00+09:00', 38) 、targets の JSON の上界の目安 912 byte」）。131,072 byte を越えれば（1 cell 約 25 byte で約 5,200 cell）admit で落ち、notificationCapacityEvicted として欠けに数える（P3-WN-AC01 の (5) と同じ）",
+        "requirement": "U-W の取り直しの H27（P3-WN-D-UW-H27=A、作者裁定 2026-11-01）。順序（品質 r2 の P2-1）: (1) 最終の candidate を作る（基点が変わっていれば、取り直しの本文を最新の live に当て直す。owner-host.ts:225 の分岐。候補を作る途中の step では P3-WN-AC06 の (2) の外す規則を当てない） (2) live 由来の pending（candidate の intents。部分集合の検査〔owner-runtime.ts:688〕を通ったもの）に、P3-WN-AC06 の (2) の外す規則を最終の candidate の合わせに対して 1 回だけ当てる (3) そのあと H27 の除外は下の at.live の規則だけ（生きている pending の target では除かない。古い desktop の L4 の target が H27 を抑えるため、品質 r3 の P2）。(2) と (3) は U-W の unit の行の recoveryNotices の中で行う（owner-runtime.ts の noticed が :725 で呼ぶ。owner-runtime.ts と owner-host.ts は変えない）。以下は (3) の H27 の作り方。U-W の unit の行に recoveryNotices を足す（owner-runtime.ts は units[unit].recoveryNotices を読むので変えない）。取り直しを始めた時の state（open）と採用する state（candidate）の合わせを全部の府県で比べ（取り直し 1 回に 1 回、O(前後の勝った行の和)）、AC02 の規則で上がった区域×現象（P3-UW-STALE-DOWNGRADE-001 の「特別警報から危険警報」の除外は含めない。P3-USD-AC02 (4)）のうち、採用の時点で active なものの最も重い段を 1 件選ぶ（同じ段は府県の Code の昇順）。その行の報の系列の印に同じ版の報があれば除いてから選ぶ。payload は level info、title「<Kind の名前>（HH:MM 発表）」、body「<Kind の名前> <区域の数>地域」、reportDateTime と recovered: true（U-L と同じ形。区域の名前は保存していないので数で書く）。channel は L4 も L5 も desktop＋sound（P3-WN-D-H27-L4=A、training・test は desktop）。取り直しの間の live の通知と重ねない: candidate の cell の段が、採用の直前の live（at.live）の合わせの同じ cell の段以下なら除く。P3-WN-AC06 の (2) により live の pending は系列の取消では消えないので、at.live でその段なら、配った・配る途中・容量で落とした（H39）のどれか（Q-WN-PENDING-TARGETS の 5）。H27 の intent の targets は、選んだ cell 1 つでなく、その取り直しで上がった cell 全部（土砂を除き、印と at.live の除外の後に残ったもの、全府県・全報）とし、P3-WN-AC06 の (2) の規則で外れる。intent は今どおり 1 組（作者裁定「取り直し 1 回で info 1 回」）。文面は今どおり代表の cell（最も重い段・府県の Code の昇順）で作り、代表が配る前に終わって他の cell が残るときの文面は Q-WN-PENDING-TARGETS の残存 (1) と同じ扱い（dot のモデル検査の I1 の反例、Q-WN-MODEL-CHECK）。H27 の targets の上界は 1 報の行の数でなく、その取り直しで上がった cell の数（合わせの L4・L5 の cell の数まで）。7 日の合わせの L4・L5 の cell の同時の最大は 38（起草の作業場所の h27_peak.py の出力「合わせの L4・L5 の cell の同時の最大 38 ('x-2026-06-26', '2026-06-26T07:58:00+09:00', 38) 、targets の JSON の上界の目安 912 byte」）。131,072 byte を越えれば（1 cell 約 25 byte で約 5,200 cell）admit で落ち、notificationCapacityEvicted として欠けに数える（P3-WN-AC01 の (5) と同じ）",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:726 «a087f7117133613b»",
           "reconstruction/src/units/landslide/landslide-unit.ts:671 «e72e89f20cb2a2eb»",

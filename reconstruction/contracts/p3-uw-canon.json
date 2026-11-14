@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "7806f693946bbe66555c776ec945d55e5e160e27f30ae494631ed7793ae5a195",
+    "sha256": "61aa26385ca3e50b571c7142370ba0a79c8b2f01ad0f1b5f5bb133e62ae522c2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -99,13 +99,13 @@
       },
       {
         "id": "P3-UWC-D-MERGE",
-        "A": "合わせはoperationごと、区域（Warningのtypeと区域のCode）×Kind/Codeごと。全国報が載せる区域は全国報の行を基にし、compareVersionで全国報より新しい（newer）partialの行だけがCodeごとに上書きする（解除の行も上書きして解除として出す）。全国報が載せない区域（高潮予報区間など）はpartialの行だけで、Codeごとに新しいほうが勝つ。Codeの無い行（発表警報・注意報はなし）は上書きしない",
+        "A": "合わせはoperationごと、区域（Warningのtypeと区域のCode）×Kind/Codeごと。全国報が載せる区域は全国報の行を基にし、compareVersionで全国報より新しい（newer）partialの行だけがCodeごとに上書きする（解除の行も上書きして解除として出す）。全国報が載せない区域（高潮予報区間など）はpartialの行だけで、Codeごとに新しいほうが勝つ。Codeの無い行（発表警報・注意報はなし）は上書きしない。P3-UW-STALE-DOWNGRADE-001（作者裁定 2026-11-14）で、newerなpartialが語った区域ではその報の種類のCodeの全国報の行を外してから合わせる",
         "B": "旧築と同じ: 全国報より古いpartialは丸ごと効かない（高潮予報区間の層も落ちる）。『なし』の行は、同じsubjectの前の版が持っていた区域×現象を消す（vpws50-state.ts:964〜:976・:1189〜:1225）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-10-31 起草）",
         "ruling": "統合担当の決め（2026-10-31）。P3の画面（chrome-eew）はU-Wを描かず、snapshotのU-Wはいつも要約なので、今の画面・音・通知の出方は変わらない。P4がこの形を描く。r2の注: U-Wのviewが縮むことによるほかの分野の要約の減り（chrome-eewの津波・EEWの出方が変わる）はP3-UWC-D-RES06-SHIFTで作者裁定A（受け入れる、Q-UWC-AUTHOR-3）",
-        "reason": "Aは新しい版だけを出す（H38）。Bの『前の版が持っていた現象を消す』は、前の版を履歴から引く（深さ2では続けて2回の『なし』で辿れなくなる）か、保存の形に消した現象の欄を足すことになる。Aで落ちるもの: partialが解除を出さずにいきなり『なし』を出した区域では、全国報の古い行が次の全国報（約10分ごと、1日144通）まで残る。実配信のpartialの『なし』の行はいつも単独（W1の3日、Kindが『なし』1つのItemだけ）で、解除の報は解除の行（Codeつき）で来る（Q-UWC-MERGE-PROBE）",
+        "reason": "Aは新しい版だけを出す（H38）。Bの『前の版が持っていた現象を消す』は、前の版を履歴から引く（深さ2では続けて2回の『なし』で辿れなくなる）か、保存の形に消した現象の欄を足すことになる。Aで落ちるもの: partialが解除を出さずにいきなり『なし』を出した区域では、全国報の古い行が次の全国報（約10分ごと、1日144通）まで残る。（P3-UW-STALE-DOWNGRADE-001 で表のCodeでは落ちなくなった）実配信のpartialの『なし』の行はいつも単独（W1の3日、Kindが『なし』1つのItemだけ）で、解除の報は解除の行（Codeつき）で来る（Q-UWC-MERGE-PROBE）",
         "kind": "統合担当"
       },
       {
@@ -527,7 +527,7 @@
       },
       {
         "id": "P3-UWC-AC04",
-        "requirement": "全国報とpartialの合わせ（P3-UWC-D-MERGE=A・D-GROUP=A）。新しいfile reconstruction/src/units/weather-current/weather-current-public.tsに置く。(1) operationごと、府県（区域のCodeの先頭2桁）ごとに、区域（WARNING_TYPESのtypeと区域のCode）×Kind/Codeの行を1つに決める。全国報（national[operation]）が載せる区域は、全国報の行を基にし、compareVersion（P3-VM-AC03）で全国報よりnewerなpartialの行だけがCodeごとに上書きする（解除の行も上書きする）。全国報とpartialの比べでsame・undecidableなら全国報の行が残る。全国報が載せない区域はpartialの行だけで、その府県のpartialをcompareSnapshotの順（報時刻→operation→subject→inputId、weather-current-unit.ts:399〜:406、stateだけで決まる全順序）に見て、Codeごとに、勝っている行の報よりcompareVersionでnewerな報の行だけが置き換える（same・undecidableは前の勝者を残す。順がstateだけで決まるので復元の後も同じ勝者、Q-UWC-MERGE-TIEの(1)）。Codeの無い行は上書きしない。全国報が無ければ全区域を後者の規則で決める (2) 復元して未確認の報（restoredAtの付いたcurrent）も合わせに入れ、勝った行に復元の印を付ける。公開形のareas・codesは復元の印の行を数えない（今の要約が復元のcurrentを数えないのと同じ、view-projector.ts:206〜:211） (3) 合わせはstateに保存しない（派生の値）。VPNO50のtombstoneは今どおり採用のときにcurrentへ当ててあるので、合わせでは当て直さない (4) 落ちるもの（仕様どおり）: partialが解除を出さずに『なし』を出した区域では、全国報の古い行が次の全国報まで残る。全国報より古いpartialの行は、全国報が載せる区域では出ない。(5) 勝つ行が0の府県は府県の行を作らない（公開形も詳細の索引の項も無く、前にあった府県の行はafter=nullのdisplayChangesで消える）。勝つ行が1つ以上なら、activeの区域が0でも府県の行を作る（Q-UWC-MERGE-TIEの(2)）",
+        "requirement": "全国報とpartialの合わせ（P3-UWC-D-MERGE=A・D-GROUP=A）。新しいfile reconstruction/src/units/weather-current/weather-current-public.tsに置く。(1) operationごと、府県（区域のCodeの先頭2桁）ごとに、区域（WARNING_TYPESのtypeと区域のCode）×Kind/Codeの行を1つに決める。全国報（national[operation]）が載せる区域は、全国報の行を基にし、compareVersion（P3-VM-AC03）で全国報よりnewerなpartialの行だけがCodeごとに上書きする（解除の行も上書きする）。全国報とpartialの比べでsame・undecidableなら全国報の行が残る。全国報が載せない区域はpartialの行だけで、その府県のpartialをcompareSnapshotの順（報時刻→operation→subject→inputId、weather-current-unit.ts:399〜:406、stateだけで決まる全順序）に見て、Codeごとに、勝っている行の報よりcompareVersionでnewerな報の行だけが置き換える（same・undecidableは前の勝者を残す。順がstateだけで決まるので復元の後も同じ勝者、Q-UWC-MERGE-TIEの(1)）。Codeの無い行は上書きしない。全国報よりnewerなpartialが語った区域（『なし』・解除だけの区域も）では、そのpartialの報の種類のCode（P3-UW-STALE-DOWNGRADE-001 の P3-USD-AC03 (2) の表）の全国報の行を外してから合わせる（作者裁定 2026-11-14、台帳 125）。全国報が無ければ全区域を後者の規則で決める (2) 復元して未確認の報（restoredAtの付いたcurrent）も合わせに入れ、勝った行に復元の印を付ける。公開形のareas・codesは復元の印の行を数えない（今の要約が復元のcurrentを数えないのと同じ、view-projector.ts:206〜:211） (3) 合わせはstateに保存しない（派生の値）。VPNO50のtombstoneは今どおり採用のときにcurrentへ当ててあるので、合わせでは当て直さない (4) 落ちるもの（仕様どおり）: partialが語った区域でも、表に無いCode（洪水・土砂・予約）の全国報の古い行は次の全国報まで残る（表のCodeは P3-UW-STALE-DOWNGRADE-001 で外す）。全国報より古いpartialの行は、全国報が載せる区域では出ない。(5) 勝つ行が0の府県は府県の行を作らない（公開形も詳細の索引の項も無く、前にあった府県の行はafter=nullのdisplayChangesで消える）。勝つ行が1つ以上なら、activeの区域が0でも府県の行を作る（Q-UWC-MERGE-TIEの(2)）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3065 «ed278133911ef54d»",
           "docs/specs/reconstruction-p0-contracts.md:513 «531a21c33012c7db»",

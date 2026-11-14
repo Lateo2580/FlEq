@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "e6630b7fe15164640f44615749f8648347d18ae937f08945680301bf0f07688e",
+    "sha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -3446,7 +3446,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae» VPNO50 の区域終了で終了済みの特別警報を再露出させない",
-            "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+            "L1: reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648» P3-WN-AC02 上がった区域",
             "L2: test/fixtures/synthetic_VPWS50_fukui_base.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -3478,7 +3478,7 @@
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
             "L1: reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577» office は Control/EditorialOffice",
-            "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+            "L1: reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648» P3-WN-AC02 上がった区域",
             "L2: test/fixtures/synthetic_VPWW57_kyoto_partial.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -15435,7 +15435,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae» VPNO50 の区域終了で終了済みの特別警報を再露出させない",
-        "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+        "L1: reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648» P3-WN-AC02 上がった区域",
         "L2: test/fixtures/synthetic_VPWS50_fukui_base.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -15507,7 +15507,7 @@
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
         "L1: reconstruction/contracts/p2-weather-current-unit.json:109 «02cd5774d58ba577» office は Control/EditorialOffice",
-        "L1: reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1» P3-WN-AC02 上がった区域",
+        "L1: reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648» P3-WN-AC02 上がった区域",
         "L2: test/fixtures/synthetic_VPWW57_kyoto_partial.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,

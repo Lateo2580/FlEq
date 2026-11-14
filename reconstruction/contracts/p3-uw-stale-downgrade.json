@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4088ea621e712d2d3d92f30559c5e6796a9ef938",
-    "sha256": "9d68a4031fc61e57cbc499ad8bffc30ededc1715e00b0979fe06645624784ada",
+    "sha256": "309b6554c7fecaebbde2b1c1371510aa17e0e7764f32d94a084dff1e7ef54a25",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -189,13 +189,13 @@
         "requirement": "上がった区域の数え（P3-USD-D-DOWNGRADE=A・D-LASTKIND-READ=B）: (1) receiveNotices の受理の step で、今の P3-WN-AC02 (1)(2) の規則（後の段が前の段より高く、その段の行が受けた報のもの）に、「その行が L4 でないか、Status が『特別警報から危険警報』でない」ことを足す（:254 の条件の行の中に 1 つ、`(level !== 4 || cell.status !== \"特別警報から危険警報\")` の形）。読むのは受理が採って合わせの勝者になった行（同じ層・区域の Item が 2 つ以上なら受理と同じく後の Item の行、weather-current.ts の rows の組み立て）の Status だけで、Body を読み直さず LastKind は読まない（LastKind の欠け・非数値・重複は結果に効かない）。Status は受理が 1 つに決めた値（weather-current.ts の validateMaterial で Kind ごとに Status はちょうど 1 つ、STATUSES の値）。外れなかった区域の文面・targets・channel は今と同じで、残りが 0 なら intent も印も作らない (2) 外すのは L4 の行（段 4）で Status が「特別警報から危険警報」のものだけ。L5 の行は Status に関わらず今どおり数え（受理は Code と Status を別々に検めるので、Code 33 と「特別警報から危険警報」の組も現況では L5 になる、weather-current.ts の validateMaterial）、Status がほかの値の L4 の行も今どおり数える。境界の試験（P3-WN-T01 に expect 1 つ）: 引下げの報を空の U-W に受けた後（嶺北は 43）、11:50 の新しい版で嶺北の Code を 33 にした報（Status は「特別警報から危険警報」のまま）を受けると、現況は L5 に上がり critical の desktop＋sound が 1 組出る。L4 の限定を外すと 0 件で落ちる（起草 r2 の写しで確かめた） (3) 取り直しの採用（recoveryNotices、P3-WN-AC12）と取消の枝・origin=recovery の候補の作成は変えない。AC12 の「AC02 の規則で上がった区域×現象」に本契約の除外は含めない（取り直しは open・live・candidate の合わせの比べで、受けた報の行を個別に見ない。仕様どおりの欠けは AC02 (4)） (4) 足す仕組みは条件 1 つ（無いと O03:12 の引下げが段なし → L4 に読まれる）。関数・定数・型は足さない (5) 境界の試験（P3-WN-T01 に expect 1 つ）: 引下げの報の嶺北（180010）の Item の後に、同じ区域の Code 43・Status 発表の Item を足した報を空の U-W に受けると、受理は後の Item を採るので嶺北が上がり、本文は「大雨危険警報 福井県嶺北」の 1 件。r0 の A（Body の先頭の Item の LastKind 33 で外す）では「大雨危険警報 福井県坂井市、福井県永平寺町」になって落ちる（起草の写しで確かめた）",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-notice.ts:245 «98073a47cc1e440f»",
-          "reconstruction/src/units/weather-current/weather-current-notice.ts:253 «c7c495e8a6f9d000»",
-          "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «266483bedc72b280»",
+          "reconstruction/src/units/weather-current/weather-current-notice.ts:253 «6065073a174bbd18»",
+          "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «1db24b298e4a3b72»",
           "reconstruction/src/units/weather-current/weather-current-notice.ts:305 «39882895daaf0079»",
-          "reconstruction/contracts/p3-weather-notice.json:733 «bc7be5faf0ac62aa»",
+          "reconstruction/contracts/p3-weather-notice.json:733 «37e4bb8279126338»",
           "reconstruction/src/domains/weather-current/weather-current.ts",
           "reconstruction/test/weather-notice/weather-notice.test.ts",
-          "reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1»",
+          "reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648»",
           "reconstruction/contracts/p2-weather-current-unit.json:115 «1772fe5c3b2eb16d»",
           "test/fixtures/18_00_01_260830_VPWW55_fukui_downgrade.xml"
         ]
@@ -207,21 +207,21 @@
           "reconstruction/tools/corpus/sequences.json:15591 «f16c465410ee88b5»",
           "reconstruction/contracts/p3-weather-other-office.json:73 «0f6fa1ab47a0bfc3»",
           "docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f»",
-          "reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1»"
+          "reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648»"
         ]
       },
       {
         "id": "P3-USD-AC03",
         "requirement": "合わせ（P3-USD-D-MERGE-FAMILY=A）: (1) mergeCells で、全国報（national[operation]）があるとき、その府県の partial のうち compareVersion(全国報, partial) が newer のものごとに、その partial が載せる区域（regionsOf: 行が空・『なし』・解除だけの区域も含む）× partial の報の種類（source.family）を集め、全国報の行のうち Code が (2) の表でその報の種類に属し、区域が集めた組にあるものを外してから、今の規則（P3-UWC-AC04 (1)）で合わせる。same・undecidable・older の partial は外さない（全国報の行が残る、今と同じ）。Code の無い全国報の行と表に無い Code の行は外さない。partial の行どうしの勝ち負け・全国報の載せない区域・復元の印・勝つ行 0 の府県は今と同じ (2) 報の種類と Kind/Code の表（気象庁の R06 の解説資料の別表類。別表 1〔~/research/fleq-jma-premises/sources/manual/気象警報・注意報（Ｒ０６）_解説資料_別表類.txt:3〜:9〕で報の種類〔TTAAii〕が受け持つ警報・注意報、別表 3〔同 :39〜:61、※1 の予約領域の注は :61〕で種類名と Code）: VPWW55 大雨＝03・10・33・43、VPWW57 高潮＝08・19・38・48、VPWW58 暴風（雪）＝02・05・13・15・32・35、VPWW59 波浪＝07・16・37、VPWW60 大雪＝06・12・36、VPWW61 その他の注意報＝14・17・20・21・22・23・24・25・26・27。repo の fixture の実物の Kind/Code（Body の Kind、file 名の種類ごと）での裏: VPWW55 は 03・10・33・43、VPWW57 は 08・48、VPWW58 は 05・15、VPWW59 は 07・16、VPWW60 は 06・12、VPWW61 は 14・17・20・21・22・23・24・25・26（全部が表の中。表の中で fixture に無いのは 02・13・19・32・35・36・37・38・27）。表に無い Code は全国報の行を残す（今の動き）: 洪水 04・18（別表 3 にあるが別表 1 のどの報も受け持たない）、土砂災害 09・29・39・49（VPWW56 が受け持つが U-W の family ではない、weather-current.ts の WEATHER_FAMILIES）、予約 42・45・46・47（別表 3 の ※1「将来的な予約領域」、実物が無い）、解除 00 と Code の無い行 (3) 結果: 2026-08-30 の福井で、20:04 の解除（O03:14）の後の福井の合わせは active な区域 0・codes {}（解除・なしの行だけが残り、府県の行は P3-UWC-AC04 (5) のまま残る）。今は坂井市・永平寺町の 43 と 180012・1820700・1820800・1842300 の 03（06:50 の全国報の行）の 6 区域が残る。11:40 の後も 1820900 の 06:50 の全国報の 10（注意報）が外れる（11:40 の福井の報が 1820900 を 03 で語った）。21:00 に福井の報が坂井市に 43 を出し直す試しの合成で desktop「大雨危険警報（福井県）」本文「大雨危険警報 福井県坂井市」が 1 件鳴る（今は 0 件） (4) 新しく鳴る道（P3-USD-D-NATIONAL-AFTER-RELEASE、起草案 A）: 府県の報の引下げ・解除・なしの後に、それより newer な全国報が同じ区域に L4・L5 を載せると、合わせは段なし → L4・L5 で通知を作る。その前の段を同じ区域に載せ直すと、合わせは段なし → その段で通知を作る（L5 は音つき）。今は前の全国報の古い行が前の段に残って隠していた (5) P3-UWC-AC04 (4) の仕様どおりの欠け「partial が解除を出さずに『なし』を出した区域では、全国報の古い行が次の全国報まで残る」は、表の Code では消える。残るのは表に無い Code（洪水・土砂・予約）の行 (6) 境界の試験: P3-UWC-T04 の古い partial の it に、O03:7 の合成の全国報へ 2019-01-01 の福井の解除の報を受けても府県 18 の VPWW55 の Code の全国報の行が残る expect を足す（newer の条件を外すと落ちる）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-public.ts:79 «c7e5a15eb1c838ce»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:82 «56221cea3119fcbf»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:95 «cba1b8ecce694618»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:96 «1b209ba28c8f44f2»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:155 «efbfa9b969b2039c»",
-          "reconstruction/contracts/p3-uw-canon.json:102 «b302dd4d70986636»",
-          "reconstruction/contracts/p3-uw-canon.json:108 «35e8fc731b0ddaf3»",
-          "reconstruction/contracts/p3-uw-canon.json:530 «ab4f154c230b090d»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:84 «c7e5a15eb1c838ce»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:87 «56221cea3119fcbf»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:105 «cba1b8ecce694618»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «1b209ba28c8f44f2»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:165 «efbfa9b969b2039c»",
+          "reconstruction/contracts/p3-uw-canon.json:102 «04aa7382c04f2882»",
+          "reconstruction/contracts/p3-uw-canon.json:108 «7a0a85980be21eca»",
+          "reconstruction/contracts/p3-uw-canon.json:530 «63893ff853f7f2f8»",
           "docs/specs/reconstruction-p0-contracts.md:3065 «ed278133911ef54d»",
           "reconstruction/src/domains/weather-current/weather-current.ts"
         ]
@@ -230,12 +230,12 @@
         "id": "P3-USD-AC04",
         "requirement": "T01 の同じ実行で確かめる（新しい suite・helper を足さない。P3-WOO-AC08 の O03 の U-W の state の assert を伸ばす）: (1) oracle.test.ts:13 の import の行の中に「 import { weatherCurrentAreas } from \"../../src/units/weather-current/weather-current-public\";」を足す（同じ行に 2 つの import は weather-current-unit.ts の import の行と同じ形。行を足すと AC08 の «» がずれる） (2) :445 の後に、コメント 1 行（台帳 125 と、O03:13 の 16 は空回りを防ぐことの趣旨）と assert 1 行「expect([13, 14].map((position) => weatherCurrentAreas(at(position)).filter((item) => item.prefecture === \"18\").map((item) => item.areas.length))).toEqual([[16], [0]]);」を足す (3) 弾き（起草の写しで確かめた）: AC04 の assert は直し 2 を戻すと [[16], [6]] で落ち（直しなし・1 だけの木）、O03:12 の false は直し 1 を戻すと intents・notices の 2 欄が食い違う（直しなし・2 だけの木）。両方の木で T01・T02 とも緑。実装担当も、片方ずつ戻した写しで落ちることを確かめて成果物に書く（製品のコードの戻しは残さない）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:13 «071a517c4663becd»",
+          "reconstruction/test/final-gate/oracle.test.ts:13 «f9ebbb0699b712b3»",
           "reconstruction/test/final-gate/oracle.test.ts:331 «ef3a91065e12492f»",
           "reconstruction/test/final-gate/oracle.test.ts:332 «e3aaecfdbb025ece»",
           "reconstruction/test/final-gate/oracle.test.ts:435 «a61e505d92f1e320»",
           "reconstruction/test/final-gate/oracle.test.ts:445 «c258dc2f97c998eb»",
-          "reconstruction/test/final-gate/oracle.test.ts:447 «c2217031eccc788c»",
+          "reconstruction/test/final-gate/oracle.test.ts:449 «c2217031eccc788c»",
           "reconstruction/tools/corpus/sequences.json:15691 «50db7662e12c7725»"
         ]
       },
@@ -243,7 +243,7 @@
         "id": "P3-USD-AC05",
         "requirement": "既存の試験の期待（理由: 合わせと通知の規則を変えるため。直す前の報告はこの条文で済ませる）: 0 件の見込み。起草の写しで、直しなし・1 だけ・2 だけ・両方の 4 本の木の全 reconstruction の vitest が 1,674 件のうち 1,643 通過・0 失敗・31 skip で同じ（Q-USD-PROBE の (4)）。引下げ・解除で鳴らない P3-WN-T01、全国報と partial の同じ段で鳴らない P3-WN-T03、合わせの P3-UWC-T04（:141〜:142 の「partial が『なし』でも 180020 は全国報の行のまま」も緑。180020 の全国報の行の Code は 14・15・16・19・29 で VPWW55 の表に無い）、費用の P3-UWC-T09・T15 は今の期待のまま。P3-UWC-T04 に足す境界の expect（AC03 (6)）のほかは、uw-canon-unit.test.ts:141 のコメント「『なし』（Code の無い行）は全国報の行を消さない。」は規則の字が変わるので、行の中で「『なし』（Code の無い行）は、その報の種類の Code に無い全国報の行を消さない（P3-USD-AC03）。」に直す（期待は変えない）。期待を変える要が出たら、変える前に試験名・旧・新の値を報告して止める",
         "evidenceRefs": [
-          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:141 «93e954cc3f996ad8»",
+          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:141 «0376b8a76b24f3f9»",
           "reconstruction/test/uw-canon/uw-canon-unit.test.ts:142 «14a8c14d35546060»"
         ]
       },
@@ -251,30 +251,30 @@
         "id": "P3-USD-AC06",
         "requirement": "受信経路の計算量（AGENTS.md の hot path）: (1) 通知の足しは、今の区域×現象の走査の中の行ごとの文字列の比べ 1 回だけで、Body を読み直さない（費用は今と同じ） (2) mergeCells の足しは、作り直す府県の partial の区域を 1 回ずつ Set に入れ（regionsOf は報の object ごとの cache、P3-UWC-AC09）、全国報の行ごとに Map と Set を 1 回ずつ引くだけ。全件×全件の走査・state の直列化を足さない。作り直さない府県は読まない（P3-UWC-AC09 (1)(2) のまま） (3) 実装担当は、P3-UWC の受信経路の費用の試験（uw-canon-unit.test.ts の P3-UWC-T09・T10）が今の期待のまま緑であることを成果物に書く",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «266483bedc72b280»",
+          "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «1db24b298e4a3b72»",
           "reconstruction/contracts/p3-weather-notice.json:745 «e35f055531d99b33»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:89 «606a660f494d9d8e»"
+          "reconstruction/src/units/weather-current/weather-current-public.ts:99 «606a660f494d9d8e»"
         ]
       },
       {
         "id": "P3-USD-AC07",
         "requirement": "2 つの直しは互いの結果を変えない（起草の写しで 4 通りを流した。Q-USD-PROBE）: | 直し | O03:12 の intent | 20:04 の後の福井の合わせの active な区域 | 21:00 の出し直し | 20:10 の全国報の載せ直し | 11:39 起動の引下げ | 全 vitest | 直しなし: 1（desktop「大雨危険警報（福井県）」本文「大雨危険警報 福井県嶺北」）・6（43 が 2・03 が 4、06:50 の全国報の行）・0・0・1（嶺北）・1,643/0。 1 だけ: 0・6・0・0・1（坂井市、永平寺町）・1,643/0。 2 だけ: 1（同じ）・0（codes {}、解除・なしの行 27 だけ）・1（desktop「大雨危険警報（福井県）」本文「大雨危険警報 福井県坂井市」）・1（坂井市、永平寺町）・1（嶺北）・1,643/0。 両方: 0・0・1（同じ）・1（同じ）・1（坂井市、永平寺町）・1,643/0。 1 の結果（O03:12・起動の場面）は 2 の有無で変わらず、2 の結果（合わせ・出し直し・載せ直し）は 1 の有無で変わらない。2 は 11:40 の後の合わせも変える: 1820900 の 06:50 の全国報の 10（注意報）が、11:40 の福井の報が同じ区域を 03 で語ったので外れる（cellCount 28 → 27）。O03:12 の上がった判定には効かない（10 は段なし）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «266483bedc72b280»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:96 «1b209ba28c8f44f2»"
+          "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «1db24b298e4a3b72»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «1b209ba28c8f44f2»"
         ]
       },
       {
         "id": "P3-USD-AC08",
-        "requirement": "原文の改訂と digest・«» の取り直し（統合担当が配送の commit で当てる。どれも行の中の書き換えで、行を足さない）: (1) p3-uw-canon.json:530（P3-UWC-AC04）の (1) の「Codeの無い行は上書きしない」の後に「。全国報よりnewerなpartialが語った区域（『なし』・解除だけの区域も）では、そのpartialの報の種類のCode（P3-UW-STALE-DOWNGRADE-001 の P3-USD-AC03 (2) の表）の全国報の行を外してから合わせる（作者裁定 2026-11-14、台帳 125）」を足し、(4) の「partialが解除を出さずに『なし』を出した区域では、全国報の古い行が次の全国報まで残る。」を「partialが語った区域でも、表に無いCode（洪水・土砂・予約）の全国報の古い行は次の全国報まで残る（表のCodeは P3-UW-STALE-DOWNGRADE-001 で外す）。」に替える (2) p3-uw-canon.json:102（P3-UWC-D-MERGE の A）の末尾に「。P3-UW-STALE-DOWNGRADE-001（作者裁定 2026-11-14）で、newerなpartialが語った区域ではその報の種類のCodeの全国報の行を外してから合わせる」を、:108（reason）の「Aで落ちるもの: …残る。」の後に「（P3-UW-STALE-DOWNGRADE-001 で表のCodeでは落ちなくなった）」を足す (3) p3-weather-notice.json:617（P3-WN-AC02）の (2) の「府県の報の後に全国報が載せても上がらない」の後に「。L4 の行で、受理が採った行の Status が「特別警報から危険警報」（前回電文は同じ現象の特別警報）の区域×Code は上がったに数えない（L5 の行は Status によらず数える）（P3-UW-STALE-DOWNGRADE-001、作者裁定 2026-11-14）」を足し、続けて「（取り直しの採用〔P3-WN-AC12〕の上がった判定には含めない）」を足す。:733（P3-WN-AC12）の「AC02 の規則で上がった区域×現象」の後に「（P3-UW-STALE-DOWNGRADE-001 の「特別警報から危険警報」の除外は含めない。P3-USD-AC02 (4)）」を足す。:78（P3-WN-D-MERGED の A）の末尾に「（L4 の行で、受けた報が採った行の Status が「特別警報から危険警報」の区域×Code は数えない、P3-UW-STALE-DOWNGRADE-001）」を足す（:78・:733 を引く «» は 0 件、2026-11-14 起草 r1 の grep） (4) p3-weather-notice.json:359（Q-WN-NATIONAL-LAG の closed）の数え直し: 同じ 7 日（~/dev/fleq-corpus-p0 の 20260923-capacity）を本契約の合わせ（区域×報の種類で全国報の行を外す）で数え直し、上がった区域×現象×段（今 181）・2 回上がった数（今 39）と、新しい向き「府県の報の引下げ・解除・なしの後に、それより newer な全国報が同じ区域にその前の L4・L5 を載せ直して上がった数」を、closed の末尾に「（P3-UW-STALE-DOWNGRADE-001 の合わせで数え直し: …）」として書き足す。件数は P3-USD-D-NATIONAL-AFTER-RELEASE のカードの材料にし、件数に関わらず作者の裁定を受けてから配送する (5) p3-weather-other-office.json:74（Q-WOO-O03-12 の remaining）の末尾に「→ P3-UW-STALE-DOWNGRADE-001 で false を入れた」を足す (6) 台帳 125（repo 外）の局所修正の状態を「解消（P3-UW-STALE-DOWNGRADE-001）」に (7) «» の付け直し（行の数は起草の写しの patch〔reconstruction/.dr-tmp/uw/patch/、未追跡〕での見込み。実装の木で中身から引き直す）: weather-current-public.ts は +10 行（:35 の後に 5、mergeCells に 5）なので、p3-weather-notice.json の :611（:105 → :115）・:621（:175 → :185）・:622（:185 → :195）・:623（:108 → :118）の 4 件の行番号を直す（中身は同じなので anchor は同じ）。oracle.test.ts は :445 の後に 2 行なので、p3-weather-other-office.json の «oracle.test.ts:447» → :449（anchor は同じ）。(3) で p3-weather-notice.json:617 の字が変わるので «6c7615188c8142c1» を引く 7 件（p3-weather-other-office.json の :254 の evidenceRefs と :248 の地の文の 2 か所、sequences.json の :3449・:3481・:15438・:15510 の basisRefs）の anchor を取り直す。(1)(2)(5) の行を引く «» は 0 件（2026-11-14 起草の grep）。本契約の evidenceRefs のうち改訂する行（p3-uw-canon.json:102・:108・:530、p3-weather-notice.json:359・:617）と oracle.test.ts:445・:447、weather-current-public.ts と weather-current-notice.ts の行も、実装の後の行で付け直す（合わせて ほかの file の 12 件と本契約） (8) 順（(3) の付け直しが sequences.json の basisRefs を変えるので）: (3) で p3-weather-notice.json:617 を改める → sequences.json の 4 件の basisRefs の anchor を取り直す → sequences.json の自己 hash（meta.sha256）を取り直す（実装担当が取った値の上書き）→ 全契約の meta.sequencesSha256 を新しい値に raw の文字列の置き換えで替え、改訂した契約と全契約の meta.sha256 を hashConvention で取り直す（前例 P3-WOO-AC07 (1)(2)）。check-contract が PASS（WARN は baseOid=unassigned だけ）",
+        "requirement": "原文の改訂と digest・«» の取り直し（統合担当が配送の commit で当てる。どれも行の中の書き換えで、行を足さない）: (1) p3-uw-canon.json:530（P3-UWC-AC04）の (1) の「Codeの無い行は上書きしない」の後に「。全国報よりnewerなpartialが語った区域（『なし』・解除だけの区域も）では、そのpartialの報の種類のCode（P3-UW-STALE-DOWNGRADE-001 の P3-USD-AC03 (2) の表）の全国報の行を外してから合わせる（作者裁定 2026-11-14、台帳 125）」を足し、(4) の「partialが解除を出さずに『なし』を出した区域では、全国報の古い行が次の全国報まで残る。」を「partialが語った区域でも、表に無いCode（洪水・土砂・予約）の全国報の古い行は次の全国報まで残る（表のCodeは P3-UW-STALE-DOWNGRADE-001 で外す）。」に替える (2) p3-uw-canon.json:102（P3-UWC-D-MERGE の A）の末尾に「。P3-UW-STALE-DOWNGRADE-001（作者裁定 2026-11-14）で、newerなpartialが語った区域ではその報の種類のCodeの全国報の行を外してから合わせる」を、:108（reason）の「Aで落ちるもの: …残る。」の後に「（P3-UW-STALE-DOWNGRADE-001 で表のCodeでは落ちなくなった）」を足す (3) p3-weather-notice.json:617（P3-WN-AC02）の (2) の「府県の報の後に全国報が載せても上がらない」の後に「。L4 の行で、受理が採った行の Status が「特別警報から危険警報」（前回電文は同じ現象の特別警報）の区域×Code は上がったに数えない（L5 の行は Status によらず数える）（P3-UW-STALE-DOWNGRADE-001、作者裁定 2026-11-14）」を足し、続けて「（取り直しの採用〔P3-WN-AC12〕の上がった判定には含めない）」を足す。:733（P3-WN-AC12）の「AC02 の規則で上がった区域×現象」の後に「（P3-UW-STALE-DOWNGRADE-001 の「特別警報から危険警報」の除外は含めない。P3-USD-AC02 (4)）」を足す。:78（P3-WN-D-MERGED の A）の末尾に「（L4 の行で、受けた報が採った行の Status が「特別警報から危険警報」の区域×Code は数えない、P3-UW-STALE-DOWNGRADE-001）」を足す（:78・:733 を引く «» は 0 件、2026-11-14 起草 r1 の grep） (4) p3-weather-notice.json:359（Q-WN-NATIONAL-LAG の closed）の数え直し: 同じ 7 日（~/dev/fleq-corpus-p0 の 20260923-capacity）を本契約の合わせ（区域×報の種類で全国報の行を外す）で数え直し、上がった区域×現象×段（今 181）・2 回上がった数（今 39）と、新しい向き「府県の報の引下げ・解除・なしの後に、それより newer な全国報が同じ区域にその前の L4・L5 を載せ直して上がった数」を、closed の末尾に「（P3-UW-STALE-DOWNGRADE-001 の合わせで数え直し: …）」として書き足す。件数は P3-USD-D-NATIONAL-AFTER-RELEASE のカードの材料にし、件数に関わらず作者の裁定を受けてから配送する（作者は 2026-11-14 09:10 に、数え直しの 0 件を載せた判断カードで A と裁定した） (5) p3-weather-other-office.json:74（Q-WOO-O03-12 の remaining）の末尾に「→ P3-UW-STALE-DOWNGRADE-001 で false を入れた」を足す (6) 台帳 125（repo 外）の局所修正の状態を「解消（P3-UW-STALE-DOWNGRADE-001）」に (7) «» の付け直し（行の数は起草の写しの patch〔reconstruction/.dr-tmp/uw/patch/、未追跡〕での見込み。実装の木で中身から引き直す）: weather-current-public.ts は +10 行（:35 の後に 5、mergeCells に 5）なので、p3-weather-notice.json の :611（:105 → :115）・:621（:175 → :185）・:622（:185 → :195）・:623（:108 → :118）の 4 件の行番号を直す（中身は同じなので anchor は同じ）。oracle.test.ts は :445 の後に 2 行なので、p3-weather-other-office.json の «oracle.test.ts:447» → :449（anchor は同じ）。(3) で p3-weather-notice.json:617 の字が変わるので «6c7615188c8142c1» を引く 7 件（p3-weather-other-office.json の :254 の evidenceRefs と :248 の地の文の 2 か所、sequences.json の :3449・:3481・:15438・:15510 の basisRefs）の anchor を取り直す。(1)(2)(5) の行を引く «» は 0 件（2026-11-14 起草の grep）。本契約の evidenceRefs のうち改訂する行（p3-uw-canon.json:102・:108・:530、p3-weather-notice.json:359・:617）と oracle.test.ts:445・:447、weather-current-public.ts と weather-current-notice.ts の行も、実装の後の行で付け直す（合わせて ほかの file の 12 件と本契約） (8) 順（(3) の付け直しが sequences.json の basisRefs を変えるので）: (3) で p3-weather-notice.json:617 を改める → sequences.json の 4 件の basisRefs の anchor を取り直す → sequences.json の自己 hash（meta.sha256）を取り直す（実装担当が取った値の上書き）→ 全契約の meta.sequencesSha256 を新しい値に raw の文字列の置き換えで替え、改訂した契約と全契約の meta.sha256 を hashConvention で取り直す（前例 P3-WOO-AC07 (1)(2)）。check-contract が PASS（WARN は baseOid=unassigned だけ）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-uw-canon.json:102 «b302dd4d70986636»",
-          "reconstruction/contracts/p3-uw-canon.json:108 «35e8fc731b0ddaf3»",
-          "reconstruction/contracts/p3-uw-canon.json:530 «ab4f154c230b090d»",
-          "reconstruction/contracts/p3-weather-notice.json:78 «d07672ada92ef2ce»",
-          "reconstruction/contracts/p3-weather-notice.json:359 «91e7bf4e3eace5ff»",
-          "reconstruction/contracts/p3-weather-notice.json:617 «6c7615188c8142c1»",
-          "reconstruction/contracts/p3-weather-notice.json:733 «bc7be5faf0ac62aa»"
+          "reconstruction/contracts/p3-uw-canon.json:102 «04aa7382c04f2882»",
+          "reconstruction/contracts/p3-uw-canon.json:108 «7a0a85980be21eca»",
+          "reconstruction/contracts/p3-uw-canon.json:530 «63893ff853f7f2f8»",
+          "reconstruction/contracts/p3-weather-notice.json:78 «562a671b5d7862b4»",
+          "reconstruction/contracts/p3-weather-notice.json:359 «388601c32c271f5e»",
+          "reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648»",
+          "reconstruction/contracts/p3-weather-notice.json:733 «37e4bb8279126338»"
         ]
       }
     ],
@@ -376,7 +376,7 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最小実装・最小テスト: 足す仕組みは 2 つ。weather-current-public.ts の CODE_FAMILY と mergeCells の spoken（無いと 20:04 の解除の後も 06:50 の全国報の 43・03 が合わせに残る、台帳 125）、weather-current-notice.ts の :254 の条件 1 つ（無いと O03:12 の引下げで desktop が出る）。export・型・helper・設定・保存の欄は足さない。試験は T01 の期待 2 欄（AC02）と assert 1 行（AC04）、P3-WN-T01 の expect 2 つ（AC01 (5)・AC02 (3)）、P3-UWC-T04 の expect 1 つ（AC03 (6)）だけで、新しい suite・helper・fixture を足さない。21:00 の出し直しと 20:10 の全国報は起草の写しの合成で確かめ、repo に足さない（Q-USD-PROBE）",
+      "最小実装・最小テスト: 足す仕組みは 2 つ。weather-current-public.ts の CODE_FAMILY と mergeCells の spoken（無いと 20:04 の解除の後も 06:50 の全国報の 43・03 が合わせに残る、台帳 125）、weather-current-notice.ts の :254 の条件 1 つ（無いと O03:12 の引下げで desktop が出る）。export・型・helper・設定・保存の欄は足さない。試験は T01 の期待 2 欄（AC02）と assert 1 行（AC04）、P3-WN-T01 の expect 3 つ（AC01 (5)・AC01 (2)・AC02 (3)）、P3-UWC-T04 の expect 1 つ（AC03 (6)）だけで、新しい suite・helper・fixture を足さない。21:00 の出し直しと 20:10 の全国報は起草の写しの合成で確かめ、repo に足さない（Q-USD-PROBE）",
       "最初の作業: 製品の 2 file を当てた木で、FLEQ_FINAL_GATE_OUT=<worktree の中の未追跡の path> を付けて T01 を走らせ、mismatches 0・O03:12 の欄 6、AC04 の [[16], [0]] を確かめる。続けて片方ずつ戻した写しで AC04 (3) の弾きを確かめる。違えば期待も製品も変えずに actual・expected を添えて止めて報告する",
       "受信経路の計算量（AGENTS.md）: AC06 のとおり。全件×全件・state の直列化を足さない",
       "sequences.json は JSON として書き直さず、行の中を手で直す（書き直すと行が展開されて «» の先がずれる）。自己 hash（meta.sha256）だけを取り直し、契約の meta は触らない（AC08 (8) は統合担当）",
