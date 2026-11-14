@@ -10,7 +10,7 @@ import type { CheckpointFileSystem } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { parserDiagnosticReasons } from "../../src/runtime/runtime-diagnostic";
-import { classifyHeadType, placeOfHeadType, rowsByHeadType, runtimeUnits } from "../../src/runtime/unit-coverage";
+import { classifyHeadType, placeOfHeadType, rowsByHeadType, runtimeUnits } from "../../src/runtime/unit-coverage"; import { weatherCurrentAreas } from "../../src/units/weather-current/weather-current-public";
 import corpus from "../../tools/corpus/sequences.json";
 import manifest from "../../tools/corpus/manifest.json";
 import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
@@ -443,6 +443,8 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
     for (const position of [8, 9, 10, 11, 12, 13, 14]) expect(areas(position, false), `O03:${position} national outside Fukui`).toEqual(areas(7, false));
     for (const position of [10, 11, 12, 13, 14]) expect(kyoto(position), `O03:${position} Kyoto partial`).toEqual(kyoto(9));
     expect([Object.keys(areas(7, false)).length, ...kyoto(9).map((part) => Object.keys(part).length)].every((size) => size > 0)).toBe(true);
+    // P3-USD-AC04（台帳 125）: 20:04 の福井の解除（O03:14）の後、合わせ（スナップショットと詳細 API が読む値）に福井の active な区域が残らない。O03:13 の 16 は空回りを防ぐ。
+    expect([13, 14].map((position) => weatherCurrentAreas(at(position)).filter((item) => item.prefecture === "18").map((item) => item.areas.length))).toEqual([[16], [0]]);
     const summary = gate.mismatches.slice(0, 20).map((item) => `${item.expectedRef} ${item.unit ?? "-"} ${item.field}: expected ${JSON.stringify(item.expected)} actual ${JSON.stringify(item.actual)}`).join("\n");
     expect(gate.mismatches.length, `${gate.mismatches.length} mismatches over ${new Set(gate.mismatches.map((item) => item.expectedRef)).size} steps (first 20):\n${summary}`).toBe(0);
   });

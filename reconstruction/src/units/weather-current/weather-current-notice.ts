@@ -250,8 +250,8 @@ function receiveNotices(before: State, step: Step, input: Extract<WeatherCurrent
       if (operation !== source.operation) continue;
       const old = levels(entryOf(before, source.operation, prefecture));
       for (const [at, { level, cell }] of levels(entryOf(step.state, source.operation, prefecture)))
-        // P3-WN-AC02 (2): 後の段が前の段より高く、その段の行が受けた報のものである区域×現象だけ（P3-WN-D-MERGED=A）。
-        if (cell.source.subject === source.subject && cell.source.inputId === source.inputId && (old.get(at)?.level ?? 0) < level)
+        // P3-WN-AC02 (2): 後の段が前の段より高く、その段の行が受けた報のものである区域×現象だけ（P3-WN-D-MERGED=A）。L4 の行で採った行が「特別警報から危険警報」（前回電文は特別警報）なら引下げで数えない（P3-USD-AC01）。
+        if (cell.source.subject === source.subject && cell.source.inputId === source.inputId && (old.get(at)?.level ?? 0) < level && (level !== 4 || cell.status !== "特別警報から危険警報"))
           raised.push({ prefecture, layer: cell.type, areaCode: cell.areaCode, phenomenon: cell.code![1], level, cell });
     }
     if (raised.length !== 0) {

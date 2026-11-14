@@ -138,10 +138,15 @@ describe("P3-UWC-T04 acceptance (AC04): the national report and partials merge p
     const released = receive(receive(national, decode(FUKUI, "VPWW55")).state, decode(RELEASE, "VPWW55", code15)).state;
     expect(rows(released, "18")!.filter((row) => row[1] === "180000" && row[2] === "15").map((row) => [row[3], row[5]]))
       .toEqual([["解除", "2026-08-30T20:04:00+09:00"]]);
-    // 『なし』（Code の無い行）は全国報の行を消さない。180020 は partial が『なし』でも全国報の行のまま。
+    // 『なし』（Code の無い行）は、その報の種類の Code に無い全国報の行を消さない（P3-USD-AC03）。180020 は partial が『なし』でも全国報の行のまま。
     expect(rows(released, "18")!.filter((row) => row[1] === "180020").map((row) => row[5])).toEqual(rows(national, "18")!.filter((row) => row[1] === "180020").map((row) => row[5]));
     const older = receive(national, decode(RELEASE, "VPWW55", compose(code15, at("2019-01-01T00:00:00+09:00")), "older")).state;
     expect(rows(older, "18")!.filter((row) => row[1] === "180000" && row[2] === "15").map((row) => [row[3], row[5]])).toEqual([[nationalRow[3], nationalRow[5]]]);
+    // P3-USD-AC03 (1): 全国報より古い partial は、その報の種類（VPWW55）の Code の全国報の行も外さない。
+    const rain = (value: WeatherCurrentUnitState) => rows(value, "18")!.filter((row) => ["03", "10", "33", "43"].includes(String(row[2]))).map((row) => [row[1], row[2], row[5]]);
+    const fukuiBase = receive(empty(), decode("synthetic_VPWS50_fukui_base", "VPWS50")).state;
+    const olderRelease = receive(fukuiBase, decode(RELEASE, "VPWW55", at("2019-01-01T00:00:00+09:00"), "older-release")).state;
+    expect([rain(fukuiBase).length > 0, rain(olderRelease)]).toEqual([true, rain(fukuiBase)]);
   });
   it("an area the national report still carries after a VPNO50 ending stays the national report's, so an older partial row does not come back", () => {
     // r0 品質の P2: 06:00 の partial が 180000 に Code 03、07:00 の全国報が同じ区域に Code 33 と 180010 に Code 15、11:40 の VPNO50 が 33 を外す。

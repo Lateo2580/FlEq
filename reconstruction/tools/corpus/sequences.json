@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "1b21ff3c8481e2fe996d91d4aa07a6ee82612188d486cd56a6fdaf16ce7fd359",
+    "sha256": "e6630b7fe15164640f44615749f8648347d18ae937f08945680301bf0f07688e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -15608,8 +15608,8 @@
           }
         }
       ],
-      "notices": null,
-      "intents": null,
+      "notices": false,
+      "intents": false,
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f» O03",
@@ -15617,7 +15617,7 @@
       ],
       "input": null,
       "checks": [
-        "同時刻11:40の危険警報への切替。特別警報の終了と下位警報の継続を分ける。",
+        "同時刻11:40の危険警報への切替。特別警報の終了と下位警報の継続を分ける。引下げ（Status が「特別警報から危険警報」）なので通知しない（作者裁定 2026-11-14、P3-UW-STALE-DOWNGRADE-001）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
