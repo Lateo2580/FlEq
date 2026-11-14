@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d244a088b1775625a596b1461d9cd593fd9edce0",
-    "sha256": "78febefbc9b8bb85248238f73a86f2980e8643a703ab18a3d91d9484975fd1f8",
+    "sha256": "0b30f4cec458bc86ffb47e152501c5af0de83083f8bc92f159c683ff845b7e17",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -76,7 +76,7 @@
     "contractId": "P3-SEISMIC-RESERVE-CLOSE-001",
     "mode": "implementation",
     "objective": "U-Q（地震の unit）で、reducer が作った state を読み戻し（decode）が予約の超過で捨てる食い違いを閉じる（構造的欠陥台帳 128、作者裁定 2026-11-14 15 時台の A）。件数 512・host の inputId 22 字で、取消記憶 512 件・長周期 256 件・当日履歴の上限の state に期限 1 分の地震 4 つを受け（記憶 4 件を退去）、取消記憶 49 件へ Control/DateTime の空の報を送ると未確認の印が付き（P3-QC-AC08 (4) の表どおり）、12:01 の期限の回収で 4 つが記憶になって予約（RESERVE_BYTES 1,958,729）を 67 byte 越える。保存は器だけを見るので受理され、2 回の保存の後の再起動で U-Q が unavailable（noValidSlot）になる（ヘルツの再現、統合担当も rc 0）。予約を越えたら、退去できる記憶（取消・期限切れの記憶だけの event・長周期）を件数の超過の (4) と同じ順で外して収める。確かめる所は共通の関数 overReserve の 1 つで、採用の fit（received のある fit）と、期限の回収 collect（期限の入力・終了・復元・到着時に期限を過ぎた報の採用）の 2 か所から呼ぶ。未確認の印の付け方（記憶にも付き、越えれば印を置かない）は変えない。変わる出方: 予約を越えたときだけ（読み戻しの上限の近くの値か記憶の印で起きる）、古い記憶が早く消え、取り消した地震の一覧のカードが消えうる。その地震の遅れた古い報は新しい報として出うる。取消の採用で越えるときは断らずに記憶を外して採る。保存の形・版・器・予約の値・decode の検査は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "79968370e6709203f5f15259d35090906300c5dd",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
