@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "c5a5469058814ec99b68c34daafd3c771cd3a700468fde55ce0030fb22a67c34",
+    "sha256": "a9bc08f3ade9ae70c4ef72873574b9a59f8bf4070a18449075b85446e0601e70",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -726,12 +726,12 @@
         "referenceIds": [
           "P3-RW2-AC10",
           "P3-RW2-AC11",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1689 «b850bb9aca0d01ab»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1709 «b850bb9aca0d01ab»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1309 «7b2ea92c8eae2d25»",
           "reconstruction/src/units/seismic/seismic-unit.ts:101 «c65875e2c4e4f9b9»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:825 «ac2fe724dfda62c0»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:854 «2c478593c6bd7870»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1365 «17e6277a0b725595»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:840 «ac2fe724dfda62c0»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:869 «2c478593c6bd7870»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1385 «17e6277a0b725595»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:395 «8347d528c026de1f»",
           "reconstruction/src/domains/tsunami/tsunami.ts:245 «e74757e96611c97e»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:535 «a8e6e6ed3b383254»",

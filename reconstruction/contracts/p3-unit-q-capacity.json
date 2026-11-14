@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "0146c3d0a00e094fb4e7a88a97fdcad927703bcbdbcc561a32e5778c8ceafa78",
+    "sha256": "df8ddd60ac65d7d7e4a6aed09d861b9aeea2118481aa61a8d672e597bd075471",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -360,24 +360,24 @@
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "docs/specs/reconstruction-p0-contracts.md:3062 «78dec9004c9496aa»",
           "reconstruction/src/units/seismic/seismic-unit.ts:69 «04b5e98ae1630102»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:656 «4550121a84059a8f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:669 «4550121a84059a8f»",
           "reconstruction/contracts/p3-seismic-unit.json:298 «fe843e506b18c741»"
         ]
       },
       {
         "id": "P3-QC-AC02",
-        "requirement": "退去と畳みの順（設計メモ §4.3 :263、作者裁定 §7 の 2・5）: (0) 処理の順（r1、D8）: (a) 受けた報 1 件の encode が器 L を越える、または採用で RESERVE を越えるなら、何も畳まず退去せず capacityExceeded（印・失敗警報・title の時刻、P3-CURRENCY-COVERAGE-001） (b) 件数の超過を先に (4) の順で解き (c) 次に byte の超過を (1) の順で解く（今の fit の run の順と同じ）。byte の段では第 1・2 段を先に当て、その後に残った記録から EventID ごとの守り（P3-QC-AC01 の (2)）と第 3〜6 段の候補を 1 回だけ作る（r5）。第 1 段が K10 の保留で止まる記録（時計を確かめるまで active のまま残る、Q-QC-DECIDED の (5)）は、残った記録として守りの判定と候補に入る。無いと何が壊れるか: 第 1 段の前に並べると、第 1 段で守りの根拠の記録だけが消えた EventID の残りが守る記録の順位のまま残り、無保護なのに別の守る地震が先に畳まれ・退去される (1) byte の超過（器 L を越える）では、超過を実際に減らすものだけを必要な分だけ当てる: (1) retainUntil を過ぎた記録（根拠のある時計の条件は K10、Q-QC-DECIDED の (5)） (2) training/test の記録（normal の受理のときだけ。training/test の受理で normal を外さない） (3) 守らない normal の記録の観測点を畳む（P3-QC-AC03。古い順＝最新の採用報が古い順、受けている報〔target〕も最も新しいものとして含める） (4) 守らない normal の記録を記録ごと退去する（古い順。target は外さない。event と長周期を一つの順に並べる） (5) 守る記録の観測点を畳む（古い順、target を含む） (6) target が守る報のときだけ、守る地震を operation・EventID ごとにまとめて退去する（その EventID の active の記録を全部。from の古い順、同じ from は EventID の順。退去できるのは from が target の EventID の from より古い守る EventID だけで、target の EventID は外さない。r7: 古い守る地震の遅い報のために、より新しい守る地震を消さない。作者裁定 §7 の 2 の理由「新しい大きな地震ほど要る」:387。新しい守る報は (7) の場合を除いて必ず入る、作者裁定 §7 の 2）。EventID ごとにまとめるので、退去で残る記録の守りは変わらず、並べた順は案の途中で古くならない（r4）。target が守らない報なら (6) に入らず、第 5 段までで足りなければその報を capacityExceeded で断る（畳み・退去の案は確定しない、(5)。P3-QC-D-SMALL-PUSH=B） (7) 第 6 段で退去できる守る地震を全部当てても L を越えるときは、守る報でも畳み・退去の案を確定せず capacityExceeded で断る（作者裁定 §7 の 2 の「新しい報は必ず入る」の例外）。起きるのは、target と同じ operation・EventID の残す active の記録を畳んだ合計と、退去できない部分〔RESERVE の実際の byte・E・PENDING・FAILURE〕だけで L を越えるとき（r5、残存リスク (22)）と、target の EventID より from の古い守る地震を消しても足りないとき（r7、残存リスク (2)） (8) 印だけを置く fit（報を採らない: K7 の未確認の印を置く holdVersion と、拒否の印を置く refuse。seismic-unit.ts の両方の fit の呼び出し）は第 5 段で止め、第 6 段に入らない。収まらなければ今どおり印を置かず unit の未確認へ寄せる（r7。P3-CC-AC03 の「退去の適格性は採用と同じ」を U-Q ではこの分だけ狭める、P3-QC-AC14 の (5)） (2) 取消記憶と期限切れの記憶（active の寄与の無い記録）は byte の超過では退去しない（RESERVE の式に入っている） (3) RESERVE を越える採用は今どおり capacityExceeded (4) 件数の超過（event の 513 件目・長周期の 257 件目）では、同じ種類の中で: (1) retainUntil を過ぎた記録 (2) training/test (3) 期限切れの記憶（古い順） (4) 守らない normal の記録（古い順） (5) 取消記憶（古い順） (6) 守る記録（その種類の記録 1 件を、守る EventID の from の古い順で選ぶ。(1) の (6) と同じく from が target の EventID の from より古い守る EventID だけで、無ければ capacityExceeded。target の EventID は外さない。target が守らない報なら入らず capacityExceeded、P3-QC-D-SMALL-PUSH=B）。件数の段で消した記録の相手の守りは、後の byte の段で並べるときに残る記録の on から導き直す。畳みは件数を減らさないので当てない (5) 退去と畳みと採用は一回の参照交換で確定し、確定した退去だけを seismicCapacityEvicted（count）、畳んだ記録の数を seismicStationsFolded（count、INFO）で返す (6) 満杯のまま更新が続くときは、受信ごとに同じ手順で上から空ける（設計メモ :265） (7) 復元の境界: decode は同じ器と同じ RESERVE で上界を確かめる（今の P3-C7-AC05 の形）。保存できた state は読み戻せ、読み戻した後も同じ順が効く（:266）",
+        "requirement": "退去と畳みの順（設計メモ §4.3 :263、作者裁定 §7 の 2・5）: (0) 処理の順（r1、D8）: (a) 受けた報 1 件の encode が器 L を越える、または採用で RESERVE を越えるなら、何も畳まず退去せず capacityExceeded（印・失敗警報・title の時刻、P3-CURRENCY-COVERAGE-001）（P3-SEISMIC-RESERVE-CLOSE-001 で改訂: 採用の RESERVE の超過は (b)(c) の後に記憶を (4) の順で外して解き、外しきれないときだけ capacityExceeded） (b) 件数の超過を先に (4) の順で解き (c) 次に byte の超過を (1) の順で解く（今の fit の run の順と同じ）。byte の段では第 1・2 段を先に当て、その後に残った記録から EventID ごとの守り（P3-QC-AC01 の (2)）と第 3〜6 段の候補を 1 回だけ作る（r5）。第 1 段が K10 の保留で止まる記録（時計を確かめるまで active のまま残る、Q-QC-DECIDED の (5)）は、残った記録として守りの判定と候補に入る。無いと何が壊れるか: 第 1 段の前に並べると、第 1 段で守りの根拠の記録だけが消えた EventID の残りが守る記録の順位のまま残り、無保護なのに別の守る地震が先に畳まれ・退去される (1) byte の超過（器 L を越える）では、超過を実際に減らすものだけを必要な分だけ当てる: (1) retainUntil を過ぎた記録（根拠のある時計の条件は K10、Q-QC-DECIDED の (5)） (2) training/test の記録（normal の受理のときだけ。training/test の受理で normal を外さない） (3) 守らない normal の記録の観測点を畳む（P3-QC-AC03。古い順＝最新の採用報が古い順、受けている報〔target〕も最も新しいものとして含める） (4) 守らない normal の記録を記録ごと退去する（古い順。target は外さない。event と長周期を一つの順に並べる） (5) 守る記録の観測点を畳む（古い順、target を含む） (6) target が守る報のときだけ、守る地震を operation・EventID ごとにまとめて退去する（その EventID の active の記録を全部。from の古い順、同じ from は EventID の順。退去できるのは from が target の EventID の from より古い守る EventID だけで、target の EventID は外さない。r7: 古い守る地震の遅い報のために、より新しい守る地震を消さない。作者裁定 §7 の 2 の理由「新しい大きな地震ほど要る」:387。新しい守る報は (7) の場合を除いて必ず入る、作者裁定 §7 の 2）。EventID ごとにまとめるので、退去で残る記録の守りは変わらず、並べた順は案の途中で古くならない（r4）。target が守らない報なら (6) に入らず、第 5 段までで足りなければその報を capacityExceeded で断る（畳み・退去の案は確定しない、(5)。P3-QC-D-SMALL-PUSH=B） (7) 第 6 段で退去できる守る地震を全部当てても L を越えるときは、守る報でも畳み・退去の案を確定せず capacityExceeded で断る（作者裁定 §7 の 2 の「新しい報は必ず入る」の例外）。起きるのは、target と同じ operation・EventID の残す active の記録を畳んだ合計と、退去できない部分〔RESERVE の実際の byte・E・PENDING・FAILURE〕だけで L を越えるとき（r5、残存リスク (22)）と、target の EventID より from の古い守る地震を消しても足りないとき（r7、残存リスク (2)） (8) 印だけを置く fit（報を採らない: K7 の未確認の印を置く holdVersion と、拒否の印を置く refuse。seismic-unit.ts の両方の fit の呼び出し）は第 5 段で止め、第 6 段に入らない。収まらなければ今どおり印を置かず unit の未確認へ寄せる（r7。P3-CC-AC03 の「退去の適格性は採用と同じ」を U-Q ではこの分だけ狭める、P3-QC-AC14 の (5)）（印だけを置く fit は予約の外しにも入らない、P3-SEISMIC-RESERVE-CLOSE-001） (2) 取消記憶と期限切れの記憶（active の寄与の無い記録）は byte の超過では退去しない（RESERVE の式に入っている） (3) RESERVE を越える採用は記憶を外して採り、外しきれないときだけ capacityExceeded（P3-SEISMIC-RESERVE-CLOSE-001） (4) 件数の超過（event の 513 件目・長周期の 257 件目）では、同じ種類の中で: (1) retainUntil を過ぎた記録 (2) training/test (3) 期限切れの記憶（古い順） (4) 守らない normal の記録（古い順） (5) 取消記憶（古い順） (6) 守る記録（その種類の記録 1 件を、守る EventID の from の古い順で選ぶ。(1) の (6) と同じく from が target の EventID の from より古い守る EventID だけで、無ければ capacityExceeded。target の EventID は外さない。target が守らない報なら入らず capacityExceeded、P3-QC-D-SMALL-PUSH=B）。件数の段で消した記録の相手の守りは、後の byte の段で並べるときに残る記録の on から導き直す。畳みは件数を減らさないので当てない (5) 退去と畳みと採用は一回の参照交換で確定し、確定した退去だけを seismicCapacityEvicted（count）、畳んだ記録の数を seismicStationsFolded（count、INFO）で返す (6) 満杯のまま更新が続くときは、受信ごとに同じ手順で上から空ける（設計メモ :265） (7) 復元の境界: decode は同じ器と同じ RESERVE で上界を確かめる（今の P3-C7-AC05 の形）。保存できた state は読み戻せ、読み戻した後も同じ順が効く（:266）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:263 «86f2b23aca0b155b»",
           "reconstruction/contracts/p3-persist-premises.md:265 «056aac105c2fef5b»",
           "reconstruction/contracts/p3-persist-premises.md:266 «dfc7cff63767ab46»",
           "reconstruction/contracts/p3-persist-premises.md:387 «75dc1fda22982fcd»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:678 «05763e314fcd9fc5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:662 «6a59a402161e8896»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:681 «ea8d6da6d7e5bf3f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:801 «9379000288c0b994»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1076 «70a64289aaf69c2d»",
-          "reconstruction/contracts/p3-currency-coverage.json:431 «abcc1ac00a3bb923»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:691 «05763e314fcd9fc5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:675 «6a59a402161e8896»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:694 «ea8d6da6d7e5bf3f»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:816 «9379000288c0b994»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1091 «70a64289aaf69c2d»",
+          "reconstruction/contracts/p3-currency-coverage.json:431 «d522c0361c738ff9»"
         ]
       },
       {
@@ -412,7 +412,7 @@
           "reconstruction/contracts/p3-order-plan.md:556 «88c712cf529c65ed»",
           "reconstruction/contracts/p3-order-plan.md:558 «73c4395164a3713f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:63 «112e2504d3fb418f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1640 «8f65a5c445bc7355»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1660 «8f65a5c445bc7355»"
         ]
       },
       {
@@ -448,7 +448,7 @@
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
           "reconstruction/contracts/p3-seismic-unit.json:67 «daf91d68a98a2560»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1194 «e85cf715bf3ed3e2»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1209 «e85cf715bf3ed3e2»"
         ]
       },
       {
@@ -470,7 +470,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:309 «072a7927898ff921»",
           "reconstruction/contracts/p3-persist-premises.md:438 «0b572eb74bd511a1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1649 «71786c518c236331»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1669 «71786c518c236331»",
           "reconstruction/contracts/p3-seismic-unit.json:304 «22e37753670cc27f»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «99a2d51d0362ebe1»",
           "reconstruction/src/runtime/owner-runtime.ts:84 «2c4ca5bcec0e58ad»"
@@ -501,22 +501,22 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-persist-premises.md:479 «57059635896231e1»",
           "reconstruction/src/units/seismic/seismic-unit.ts:96 «89e1a77f78dbf9da»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:616 «c3904969d4614e9c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:629 «c3904969d4614e9c»",
           "reconstruction/contracts/p2-shared-runtime.types.ts:547 «5664a1747994b0b2»"
         ]
       },
       {
         "id": "P3-QC-AC14",
-        "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先する）: (1) P3-UNIT-Q-001: (a) P3-C7-NOTICE-LEVELS の A（:12）と Q-NOTICE.level（:221）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消→報自身の全体 MaxInt が 5 弱以上か全体 MaxLgInt の階級が 2 以上なら critical→全体 MaxInt が unknown なら info→震度 4 は warning。長周期は階級 2 以上 critical・1 warning。P3-QC-AC06）」を足し、P3-C7-T07 の behavior の level の式の行を同じ形に替える (b) P3-C7-CAPACITY の A（:76）と P3-C7-CAPACITY-BUDGET の A（:85）に「（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）」を足す (c) P3-C7-CANCEL-SCOPE の A（:40）の「全寄与がcancelledになったeventはviewに載らない」と I-U-Q.view（:306）に「（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)）」を足す (d) P3-C7-DAILY の A（:95）と P3-C7-AC04（:799）の「取消で減らさない」に「（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）」を足し、P3-C7-DAILY の reason（:100）の「1件43 byte」に「（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）」を、P3-C7-RET-04 の target に「（[EventID, 段階] の組、P3-QC-D-DAILY-MAX=A）」を添える (e) P3-C7-RETENTION の A（:67）と P3-C7-SEM-01・SEM-02・RET-01、I-U-Q.deadlines（:303）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）」を足し、P3-C7-T11 の behavior の「eventの23時間59分と24時間」「長周期の35時間59分と36時間」の境界を「記憶への変換と記憶の終わり」に替える (f) P3-C7-VALUE-UNKNOWN の A（:113）の「拒否するのはQ-ENUM.familyTableの必須構造の欠落と…だけ」と Q-ENUM.priorityRule（:256）・familyTable に「（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）」を足す (g) P3-C7-LEGACY-DIFF の段階（:238）・保持の基準（:244）・当日地震履歴（:245）・容量（:246）の行に Q-QC-LEGACY の (1)〜(4) を足す (h) I-U-Q.capacityReserve（:310）・decode（:305）・persisted（:304）・computation（:309、畳みの byte の引き算と指紋）、P3-C7-RES-01 の limit（:722）、persistedFields、P3-C7-AC05（:815）・AC06・AC07 に、版 v5・欄・値（P3-QC-AC05・AC10）を添える (2) P3-NOTICE-LEDGER-001: P3-NL-AC14 の (3)（:669）の閉集合に「U-Q の seismicStationsFolded（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC03）」を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReason と LossReason（p2-shared-runtime.types.ts:533）の型の境界の AC と試験の閉集合に seismicStationsFolded を足す (4) P3-DISASTER-CAPACITY-001: P3-DC-AC04（:406）の (1) の「U-Q 4 MiB」を「U-Q は seismicUnitCodec.maxEnvelopeBytes」に、(3) に「U-Q の観測点の畳み（seismicStationsFolded）は退去と別の列」を足し、P3-DC-OPTIONS（:87）の U-Q の世代の行に「P3-UNIT-Q-CAPACITY-001 で D（観測点の畳み）と守る線を入れた」を添える。期待例は変えない (5) P3-CURRENCY-COVERAGE-001: P3-CC-AC03 の「退去の適格性は採用と同じ」に「（U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）」を足す。ほかの本文は変えない（U-Q の拒否は 1 件で器を越える報・RESERVE を越える採用と、P3-QC-D-SMALL-PUSH=B で第 5 段までに収まらない守らない報と、同じ EventID の記録だけで器を越える守る報・より新しい守る地震を消さなければ入らない古い守る地震の遅い報〔P3-QC-AC02 の (1) の (7)〕に狭まる。失敗警報は H08 で critical になりうる）。読みを配送の記録に書く (6) sequences.json: expected:O01:52 の checks の「level=warning」を「level=critical（H08）」に、expected:O01:53 の checks の「eventはviewに載らなくなり」「取消で件数・最大震度を減らさない」を裁定の形に改め、sequences の meta.sha256 と全契約の meta.sequencesSha256 を付け直す（K8 の配送の前例） (7) spec §16 の H08・H18・H23・H35・H36 の運ぶ契約の欄に本契約の ID を足す（H36 は「未充足」と書き添える）。統合担当が main で別に行う (8) 設計メモに新しい節を足し、:264 の N_guard の値（実装の数え直しと Q-QC-MEASURE）、:267 の件数の読み（Q-QC-DISASTER の (5)）、:309・:438 の変える契約、K10 との合流と期限切れの形のそろえ（Q-QC-DECIDED の (5)）、§7 の 1(c) の地震の記憶の長さ（P3-QC-D-EXPIRED-MEMORY）を書く。§0〜§16 の行は書き換えない (9) 他の契約が引く行: 変える file（seismic-unit.ts・seismic.ts・p3-seismic-unit.types.ts・p2-shared-runtime.types.ts・owner-runtime.ts・checkpoint.ts・persistent-diagnostic-sink.ts・runner.ts）の行を anchor で引く他の契約と sequences の basisRefs は、発注前点検で数え、動いた行は配送の commit で付け直す（本文は書き換えない） (10) 配送の commit で本契約の publicTypes の行を足した型に合わせる（起草の時点では folded・guard・cancelledSummary・counted はまだ無い）（今の器は U-Q 15,515,625 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
+        "requirement": "【配送の commit、統合担当】改める他の条文（原文は重ねて読み替えず、配送の commit で統合担当が改訂する。行の数を変えない書き方を優先する）: (1) P3-UNIT-Q-001: (a) P3-C7-NOTICE-LEVELS の A（:12）と Q-NOTICE.level（:221）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H08: 取消→報自身の全体 MaxInt が 5 弱以上か全体 MaxLgInt の階級が 2 以上なら critical→全体 MaxInt が unknown なら info→震度 4 は warning。長周期は階級 2 以上 critical・1 warning。P3-QC-AC06）」を足し、P3-C7-T07 の behavior の level の式の行を同じ形に替える (b) P3-C7-CAPACITY の A（:76）と P3-C7-CAPACITY-BUDGET の A（:85）に「（P3-UNIT-Q-CAPACITY-001 で改訂: 退去と畳みの順は P3-QC-AC02、強震保持の事実の予算は守る線と guard〔P3-QC-AC01〕に置き換えて外した。器と RESERVE の値は P3-QC-AC05、保証は N_guard〔P3-QC-AC04〕）」を足す (c) P3-C7-CANCEL-SCOPE の A（:40）の「全寄与がcancelledになったeventはviewに載らない」と I-U-Q.view（:306）に「（P3-UNIT-Q-CAPACITY-001 で改訂: P3-QC-D-CANCEL-LIST の裁定、P3-QC-AC07 の (4)）」を足す (d) P3-C7-DAILY の A（:95）と P3-C7-AC04（:799）の「取消で減らさない」に「（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）」を足し、P3-C7-DAILY の reason（:100）の「1件43 byte」に「（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）」を、P3-C7-RET-04 の target に「（[EventID, 段階] の組、P3-QC-D-DAILY-MAX=A）」を添える (e) P3-C7-RETENTION の A（:67）と P3-C7-SEM-01・SEM-02・RET-01、I-U-Q.deadlines（:303）に「（P3-UNIT-Q-CAPACITY-001 で改訂、H23: 期限で事実を捨てて期限切れの記憶にし、6 時間残す〔P3-QC-D-EXPIRED-MEMORY=A〕。記憶も件数 512・256 に数える、P3-QC-AC08）」を足し、P3-C7-T11 の behavior の「eventの23時間59分と24時間」「長周期の35時間59分と36時間」の境界を「記憶への変換と記憶の終わり」に替える (f) P3-C7-VALUE-UNKNOWN の A（:113）の「拒否するのはQ-ENUM.familyTableの必須構造の欠落と…だけ」と Q-ENUM.priorityRule（:256）・familyTable に「（P3-UNIT-Q-CAPACITY-001 で改訂: 設計メモ §13 の 4 か所は受け取る、P3-QC-AC09）」を足す (g) P3-C7-LEGACY-DIFF の段階（:238）・保持の基準（:244）・当日地震履歴（:245）・容量（:246）の行に Q-QC-LEGACY の (1)〜(4) を足す (h) I-U-Q.capacityReserve（:310）・decode（:305）・persisted（:304）・computation（:309、畳みの byte の引き算と指紋）、P3-C7-RES-01 の limit（:722）、persistedFields、P3-C7-AC05（:815）・AC06・AC07 に、版 v5・欄・値（P3-QC-AC05・AC10）を添える (2) P3-NOTICE-LEDGER-001: P3-NL-AC14 の (3)（:669）の閉集合に「U-Q の seismicStationsFolded（P3-UNIT-Q-CAPACITY-001 の P3-QC-AC03）」を足す (3) P2-SHARED-RUNTIME-001: DiagnosticReason と LossReason（p2-shared-runtime.types.ts:533）の型の境界の AC と試験の閉集合に seismicStationsFolded を足す (4) P3-DISASTER-CAPACITY-001: P3-DC-AC04（:406）の (1) の「U-Q 4 MiB」を「U-Q は seismicUnitCodec.maxEnvelopeBytes」に、(3) に「U-Q の観測点の畳み（seismicStationsFolded）は退去と別の列」を足し、P3-DC-OPTIONS（:87）の U-Q の世代の行に「P3-UNIT-Q-CAPACITY-001 で D（観測点の畳み）と守る線を入れた」を添える。期待例は変えない (5) P3-CURRENCY-COVERAGE-001: P3-CC-AC03 の「退去の適格性は採用と同じ」に「（U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）」を足す。ほかの本文は変えない（U-Q の拒否は 1 件で器を越える報・RESERVE を越え記憶を外しきれない採用〔P3-SEISMIC-RESERVE-CLOSE-001〕と、P3-QC-D-SMALL-PUSH=B で第 5 段までに収まらない守らない報と、同じ EventID の記録だけで器を越える守る報・より新しい守る地震を消さなければ入らない古い守る地震の遅い報〔P3-QC-AC02 の (1) の (7)〕に狭まる。失敗警報は H08 で critical になりうる）。読みを配送の記録に書く (6) sequences.json: expected:O01:52 の checks の「level=warning」を「level=critical（H08）」に、expected:O01:53 の checks の「eventはviewに載らなくなり」「取消で件数・最大震度を減らさない」を裁定の形に改め、sequences の meta.sha256 と全契約の meta.sequencesSha256 を付け直す（K8 の配送の前例） (7) spec §16 の H08・H18・H23・H35・H36 の運ぶ契約の欄に本契約の ID を足す（H36 は「未充足」と書き添える）。統合担当が main で別に行う (8) 設計メモに新しい節を足し、:264 の N_guard の値（実装の数え直しと Q-QC-MEASURE）、:267 の件数の読み（Q-QC-DISASTER の (5)）、:309・:438 の変える契約、K10 との合流と期限切れの形のそろえ（Q-QC-DECIDED の (5)）、§7 の 1(c) の地震の記憶の長さ（P3-QC-D-EXPIRED-MEMORY）を書く。§0〜§16 の行は書き換えない (9) 他の契約が引く行: 変える file（seismic-unit.ts・seismic.ts・p3-seismic-unit.types.ts・p2-shared-runtime.types.ts・owner-runtime.ts・checkpoint.ts・persistent-diagnostic-sink.ts・runner.ts）の行を anchor で引く他の契約と sequences の basisRefs は、発注前点検で数え、動いた行は配送の commit で付け直す（本文は書き換えない） (10) 配送の commit で本契約の publicTypes の行を足した型に合わせる（起草の時点では folded・guard・cancelledSummary・counted はまだ無い）（今の器は U-Q 15,515,625 byte、P3-UNREADABLE-MARK-001 の RES-09 と P3-SEISMIC-EXPIRY-VIEW-001 の P3-SEV-RES-01 で広げた）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-seismic-unit.json:12 «6414c1e18a42d0ba»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «aef5d3cad15b6dce»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «583ed7ab787d5296»",
           "reconstruction/contracts/p3-seismic-unit.json:85 «85f38138f68ddce1»",
           "reconstruction/contracts/p3-seismic-unit.json:238 «a40033dc8bd9e780»",
           "reconstruction/contracts/p3-seismic-unit.json:246 «334ea8e90e3c1d00»",
           "reconstruction/contracts/p3-seismic-unit.json:303 «c40a0d7d166e74ac»",
           "reconstruction/contracts/p3-seismic-unit.json:309 «42251c3710913a67»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «af76389393137877»",
           "reconstruction/contracts/p3-seismic-unit.json:722 «7e4579ce3343feb7»",
           "reconstruction/contracts/p3-notice-ledger.json:669 «58e4094ff585a1a5»",
           "reconstruction/contracts/p3-disaster-capacity.json:87 «f33f3b8008824a74»",

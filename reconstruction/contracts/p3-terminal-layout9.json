@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8da5dd733843bdf3f6d19af73307bd64ada1ae19",
-    "sha256": "29ad7a42406a05e65796297dc4f178700aa2e0a73ce4aa7c08152e8d69aeb87b",
+    "sha256": "b5815c4ebf743b8d7048383ae48001cc3d59a9a96df4fdb850f88eafe372d79f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -307,12 +307,12 @@
           "docs/specs/cli-terminal-output.md:319 «f9aa8ca85c5cff0c»",
           "docs/specs/cli-terminal-output.md:320 «8544b04616a6a6fd»",
           "docs/specs/cli-terminal-output.md:934 «423e85ef562f0456»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:900 «e969d2903578cd2e»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:832 «a9ee37a35aefc96d»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:915 «e969d2903578cd2e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:847 «a9ee37a35aefc96d»",
           "test/fixtures/32-35_10_01_220510_VXSE51.xml:13 «709d509a595a10fb»",
           "src/ui/earthquake-info-formatter.ts:220 «37669a4a0e71ec10»",
           "src/utils/cancel-target-phrase.ts:59 «be503dd406fc97a1»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:952 «be6dda57589ca2ac»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:967 «be6dda57589ca2ac»",
           "reconstruction/src/terminal/material.ts:66 «dc1002138eed11eb»"
         ]
       },

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1d307989560e298199af040831df538ec9d75e24",
-    "sha256": "72760d24997584635edf9854d085f7b36a89ec54d23003da528904a6ac29d87c",
+    "sha256": "6dd5147e02584903a5f64aea7c0acc4f99417b8a08c1641c7a4ee27ef85b0927",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -200,7 +200,7 @@
           "reconstruction/contracts/p3-nankai-unit.json:866 «76ca027b46a20ea3»",
           "reconstruction/contracts/p3-operation-capacity.json:242 «07909997f5c665d3»",
           "reconstruction/contracts/p3-operation-capacity.json:510 «385daacb4de4d695»",
-          "reconstruction/contracts/p3-final-adoption.json:241 «f9e50dde6c89fab1»",
+          "reconstruction/contracts/p3-final-adoption.json:241 «866abcc79ce17c97»",
           "reconstruction/contracts/p3-authority-evidence.json:255 «474389820213efeb»",
           "reconstruction/contracts/p3-briefing-unit.json:139 «4cabaceea6f0aa50»",
           "reconstruction/contracts/p3-order-plan.md:389 «7939e6ac68fba854»"

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "9fb5cf34e6474483f1b742ee24b8cfc833fa646014b48fd58b185964d473c369",
+    "sha256": "9eede5b5c8c876ac68cef3f575b38c8712f746b7fbd64da9311e61824a2f3646",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -790,7 +790,7 @@
           "reconstruction/contracts/p3-notice-ledger.json:595 «7169a5a4f59dce48»",
           "reconstruction/contracts/p3-cli-repl.json:1113 «6235e154b5559e6a»",
           "reconstruction/contracts/p3-intent-update-reserve.json:46 «659b9165e808c99d»",
-          "reconstruction/contracts/p3-currency-coverage.json:90 «c139de6f2182309c»",
+          "reconstruction/contracts/p3-currency-coverage.json:90 «12809bcb2cd0fa71»",
           "reconstruction/contracts/p3-currency-coverage.json:593 «d306c3bb4a14d7d5»",
           "reconstruction/contracts/p3-order-plan.md:466 «d3dd9d2f655ea6a9»",
           "docs/specs/reconstruction-p0-contracts.md:3054 «6d754d7b4474729a»"

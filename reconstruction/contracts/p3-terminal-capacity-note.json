@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "8395815e0550da2bfb91257f7f273e5f65689056cc86f30400bf324152258d69",
+    "sha256": "82ac77b8dbf4054af197ce9ebff530ebc179cb326fc0752d68f929ecfa568da5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -216,16 +216,16 @@
           "reconstruction/src/terminal/material.ts:359 «a1c26a841f223303»",
           "reconstruction/src/domains/weather-current/weather-current.ts:637 «1cfa7af3edd33400»",
           "reconstruction/src/terminal/material.ts:381 «2be327932f009c34»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1003 «6737443737a45304»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1132 «870b1081596c0370»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1133 «383779bb6d2e36b0»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1036 «a0e35eb00c585a48»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:725 «31e6e3382990e19d»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:900 «e969d2903578cd2e»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1018 «6737443737a45304»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1147 «870b1081596c0370»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1148 «383779bb6d2e36b0»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1051 «a0e35eb00c585a48»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:739 «31e6e3382990e19d»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:915 «e969d2903578cd2e»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:752 «870b1081596c0370»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:753 «383779bb6d2e36b0»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:313 «93d1903b8a93256c»",
-          "reconstruction/contracts/p3-currency-coverage.json:431 «abcc1ac00a3bb923»",
+          "reconstruction/contracts/p3-currency-coverage.json:431 «d522c0361c738ff9»",
           "reconstruction/contracts/p3-terminal-output.json:36 «e15d8911a03f8b9c»",
           "AGENTS.md"
         ]
@@ -258,7 +258,7 @@
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:979 «9b22ba91c3980375»",
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:194 «64d252653454717a»",
           "reconstruction/test/tsunami-unit/tsunami-unit.test.ts:708 «535c8ed7542062b2»",
-          "reconstruction/contracts/p3-currency-coverage.json:431 «abcc1ac00a3bb923»"
+          "reconstruction/contracts/p3-currency-coverage.json:431 «d522c0361c738ff9»"
         ]
       }
     ],

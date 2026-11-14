@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "577d8f30e7cb1b889e7b97984c82c2285d212628dc1a997c547525ba6494f879",
+    "sha256": "e7daf26303d8f4ed4605663b6ca383bbf9b76179e78446c33c65ae38edc88a3f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -497,7 +497,7 @@
           "reconstruction/src/units/volcano/volcano-unit.ts:179 «dce1f66a9d48f994»",
           "reconstruction/src/units/typhoon/typhoon-unit.ts:126 «b1171cdbc536fec5»",
           "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts:156 «b1171cdbc536fec5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:654 «b2ad6b113563b871»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:667 «b2ad6b113563b871»",
           "reconstruction/src/units/nankai/nankai-unit.ts:213 «a8bc17e7f3c9d6f1»"
         ]
       },
@@ -509,10 +509,10 @@
           "reconstruction/src/units/eew/eew-unit.ts:136 «91151c25973aa618»",
           "reconstruction/src/units/eew/eew-unit.ts:176 «0c2e15f2abe148aa»",
           "reconstruction/src/units/eew/eew-unit.ts:238 «a721e23687c7e96d»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1194 «e85cf715bf3ed3e2»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1200 «08f1f471124d1809»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1209 «e85cf715bf3ed3e2»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1215 «08f1f471124d1809»",
           "reconstruction/src/units/seismic/seismic-unit.ts:436 «e7310a321d102451»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:665 «0f330453657d599a»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:678 «0f330453657d599a»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»",
           "reconstruction/src/units/nankai/nankai-unit.ts:533 «014d27c72af291f5»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:137 «e87e8dd009d4cb60»",
@@ -631,7 +631,7 @@
           "reconstruction/src/runtime/composition-root.ts:966 «8ae52d9d693e7af3»",
           "reconstruction/src/runtime/owner-runtime.ts:328 «60efe28edd3505f0»",
           "reconstruction/src/runtime/owner-runtime.ts:322 «5dea0b14358b6e3d»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1194 «e85cf715bf3ed3e2»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1209 «e85cf715bf3ed3e2»",
           "reconstruction/contracts/p3-persist-premises.md:221 «0f800960ce0b4cd0»"
         ]
       },

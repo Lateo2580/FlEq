@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d48ef4be3a4a29abf8647c25cc56217c2fca1ea2",
-    "sha256": "f667cd1f237a6620d1bac6a752e706a6757fd8a20da9262fe2a3f2e641515fea",
+    "sha256": "afccd7aaecc4a92b40e9189248aa89c78e165047d428036619a18dabfe38f057",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -250,7 +250,7 @@
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:229 «0c4bf4cc6f7ce2d9»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:234 «bc430b5ab35af311»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:374 «3ca4da5b4c8b2813»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:842 «ca5b13d448917d11»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:857 «ca5b13d448917d11»",
           "reconstruction/src/runtime/owner-host.ts:226 «719a77be126354a2»",
           "reconstruction/src/runtime/owner-host.ts:193 «23accdf9096d56f5»",
           "reconstruction/src/domains/weather-current/weather-current.ts:593 «63571d9e910c4524»",

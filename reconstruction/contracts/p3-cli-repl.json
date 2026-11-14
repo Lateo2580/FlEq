@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "491d5a27d14a700c1cf48c3bd556da925c887b924684bb1c6559cfb5749c1266",
+    "sha256": "c15712d81ff4790a46cda09402e7a5c77f2a07850a0484ce109e7a16fc556277",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -1134,7 +1134,7 @@
           "reconstruction/src/domains/seismic/seismic.ts:234 «34777d82d4574d59»",
           "reconstruction/src/units/seismic/seismic-unit.ts:555 «9b34d3e53816eb8f»",
           "reconstruction/src/units/seismic/seismic-unit.ts:562 «a02b22933ee3d597»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1097 «e17fbd47d314a2ce»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1112 «e17fbd47d314a2ce»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:25 «aea36a2bad7fb179»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:127 «3db61e7c93ccd4ce»",
           "reconstruction/src/domains/local-bulletins/local-bulletins.ts:128 «59a8f74c639a5a62»",

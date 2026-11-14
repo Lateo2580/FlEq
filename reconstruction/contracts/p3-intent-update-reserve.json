@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0ed0c626b17303cfa3e4b66821d7c5fa7d96fc03",
-    "sha256": "b6c8860bad52bc81bb2dd313b6ac1d1830a98adf9c990821a1d2051b9828ad63",
+    "sha256": "f1ec0318ead652a4350251511f450dd308936e3f68555cb4be5cedb6810fd72a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -248,7 +248,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p3-tsunami-unit.json:265 «84ef9e9e865185da»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «99a2d51d0362ebe1»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «af76389393137877»"
         ]
       },
       {
@@ -278,7 +278,7 @@
           "reconstruction/contracts/p3-tsunami-unit.json:207 «d31b9ee92b979154»",
           "reconstruction/contracts/p3-tsunami-unit.json:265 «84ef9e9e865185da»",
           "reconstruction/contracts/p3-seismic-unit.json:305 «99a2d51d0362ebe1»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «af76389393137877»"
         ]
       },
       {

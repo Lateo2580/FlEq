@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "8fe61fc9cfbe8cc5c144d49ec652a91e73d011306d7f972c7c0cdf0b4c09957a",
+    "sha256": "33d4ae20a14427d1e24ef01c721f452cbbfe0212c95f5fb46ebd8dd5e3f83094",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -71,7 +71,7 @@
         "id": "Q-CC-MARK",
         "status": "closed",
         "source": "起草（統合担当の判断、2026-10-15）。裏取りのメモ『既知の事実を前回情報として残すのは U-W/U-F には lastKnown 付きの印として既にある。足すのは U-E/U-T/U-Q と、印も入らない byte 超過の経路』",
-        "closed": "U-T・U-Q の印は記録に unavailable（reason・拒否した報の source）を足す形にし、U-W・U-F のように current を外して lastKnown へ写す形にしない。意味は同じ（最終確認の値＝その記録、処理できなかった報、理由）。写さない理由: (1) U-T の観測の生死は同じ EventID の予報の effective で決まる（P3-C5-OBS-LIFETIME=A）。予報を外すと観測まで終わる (2) U-Q の event は 4 family の寄与を束ねる（P3-C7-SUBJECT・CANCEL-SCOPE）。VXSE53 1 本の拒否で event を外すと有効な VXSE51・52 の寄与まで消える（Pro §10.5） (3) 写しを持たないので byte は ReportRef 1 つ分しか増えない。付ける記録は、新しい版の採用が拒否した報の中身を包含する記録に限る: U-T の VTSE41（区域を丸ごと置き換える）、U-Q の event（family ごとの寄与を丸ごと置き換える。印は family ごとに 1 つ、最大 4。拒否された family の寄与が無い event にも付く）と長周期。U-T の観測には付けない（P3-C5-OBS-MERGE=A で新しい版でも載らない station を保つので、印を消す条件で包含を示せない。観測の拒否は AC02 の unit の未確認へ寄せる。どちらにしたかの理由: 印を消す条件を版の比較 1 つに保ち、station の一覧を印に持たせない）。付けるのは view に出ている記録だけ（U-T active、U-Q visible）。引き継いだ先の記録が view に出ないとき（版の古い解除・取消の採用、U-Q の取消記憶だけの記録）は印を外して unit の未確認へ移す: 出ていない記録の印は画面に出ず、U-Q の取消記憶の予約 RESERVE_BYTES の式（event と長周期の両方、P3-C7-CAPACITY-BUDGET の予算の裁定）にも印を入れない。印を付けた state も既存の fit を通す（退去の適格性は採用と同じ）。outcome は U-W の addUnavailable と同じ accepted・semantic・transition unavailable。decode は印の source が親の記録に属すること（operation・subject・EventID・許可 family の一致、版の比較に使う Serial・InfoType）を確かめる（AC05）",
+        "closed": "U-T・U-Q の印は記録に unavailable（reason・拒否した報の source）を足す形にし、U-W・U-F のように current を外して lastKnown へ写す形にしない。意味は同じ（最終確認の値＝その記録、処理できなかった報、理由）。写さない理由: (1) U-T の観測の生死は同じ EventID の予報の effective で決まる（P3-C5-OBS-LIFETIME=A）。予報を外すと観測まで終わる (2) U-Q の event は 4 family の寄与を束ねる（P3-C7-SUBJECT・CANCEL-SCOPE）。VXSE53 1 本の拒否で event を外すと有効な VXSE51・52 の寄与まで消える（Pro §10.5） (3) 写しを持たないので byte は ReportRef 1 つ分しか増えない。付ける記録は、新しい版の採用が拒否した報の中身を包含する記録に限る: U-T の VTSE41（区域を丸ごと置き換える）、U-Q の event（family ごとの寄与を丸ごと置き換える。印は family ごとに 1 つ、最大 4。拒否された family の寄与が無い event にも付く）と長周期。U-T の観測には付けない（P3-C5-OBS-MERGE=A で新しい版でも載らない station を保つので、印を消す条件で包含を示せない。観測の拒否は AC02 の unit の未確認へ寄せる。どちらにしたかの理由: 印を消す条件を版の比較 1 つに保ち、station の一覧を印に持たせない）。付けるのは view に出ている記録だけ（U-T active、U-Q visible）。引き継いだ先の記録が view に出ないとき（版の古い解除・取消の採用、U-Q の取消記憶だけの記録）は印を外して unit の未確認へ移す: 出ていない記録の印は画面に出ず、U-Q の取消記憶の予約 RESERVE_BYTES の式（event と長周期の両方、P3-C7-CAPACITY-BUDGET の予算の裁定）にも印を入れない。印を付けた state も既存の fit を通す（退去の適格性は採用と同じ（U-Q の印だけの fit は予約の外しに入らない、P3-SEISMIC-RESERVE-CLOSE-001））。outcome は U-W の addUnavailable と同じ accepted・semantic・transition unavailable。decode は印の source が親の記録に属すること（operation・subject・EventID・許可 family の一致、版の比較に使う Serial・InfoType）を確かめる（AC05）",
         "remaining": "なし",
         "reason": "Pro §4.2「更新失敗が既存の現況鍵に結び付くなら、その鍵が持つ出典・現在性の状態へ反映する」を、U-T・U-Q の意味（観測の寿命と合成、family の寄与）を壊さない最小の形で入れる。結び付けられない拒否は §4.2 の『網羅性を粗く未確認にする』へ寄せる"
       },
@@ -87,7 +87,7 @@
         "id": "Q-CC-SERIES",
         "status": "closed",
         "source": "起草（統合担当の判断、2026-10-15）。P3-C5-REPLACEMENT=A、P3-C7-REPLACEMENT=A、P2-A4 の Q-NOTICE（同じ EventID の置換）",
-        "closed": "『失敗した系列』は各 unit の既存の置換の単位にそろえ、新しい対応表を作らない: U-T は拒否した報の subject（予報と観測は別 subject）、U-Q は lineOf の系統（地震 4 family は EventID ごとに 1 つ、VXSE62 は別）。U-W・U-F は intent を作らない（P2 のまま、U-W の印は subject の intent を落とす）（U-W は P3-WEATHER-NOTICE-001 から通知を作る。容量の unavailable は通知を作らない機会。subject の pending は系列では落とさず P3-WN-AC06(2) の規則で外す。D-PENDING の書き換えは今どおり U-W に当てない）。系列の外側の pending は変えない。拒否の経路の順: (1) 印を既存の fit に通す（退去の適格性は採用と同じ） (2) D-FAILNOTICE=A の失敗警報を unit の固定の subject に入れる（系列の外。admit は通さず、subject の pending に触れない、AC10） (3) D-PENDING=A の書き換えを、残った系列の desktop の pending に当てる。(2)(3) は (1) を確定した後の state に、ほかの pending や記録を退去させずに（admit の退去 0・fit の退去 0）収まるときだけ当て、収まらなければその段を当てない。D-PENDING=A の書き換え: 写しを作らず、同じ id のまま payload.title だけを替える（訓練・試験の接頭辞の後に『【HH:MM 発表】』。HH:MM は intent の source の ReportDateTime を JST にしたもの。訂正の『[訂正] 』はその後）。同じ時刻の印が既に付いていれば付け直さない（何度拒否されても 1 回）。attempts・nextAttemptAt・期限・段階・channel・transition・source・disposition は変えない。main の単調の期限は id ごとなのでそのまま続き、壁時計が戻っても延びない（別の id にすると main は今の壁時計から期限を作り直す）。走行中の試行は選んだ時の payload を持つので切れない。sound の pending は変えない。main は既存の経路で扱う（mirror の pending が替わるだけ）。main に隠す対応表を再構築しない（P3-X-C6、Pro §4.3）",
+        "closed": "『失敗した系列』は各 unit の既存の置換の単位にそろえ、新しい対応表を作らない: U-T は拒否した報の subject（予報と観測は別 subject）、U-Q は lineOf の系統（地震 4 family は EventID ごとに 1 つ、VXSE62 は別）。U-W・U-F は intent を作らない（P2 のまま、U-W の印は subject の intent を落とす）（U-W は P3-WEATHER-NOTICE-001 から通知を作る。容量の unavailable は通知を作らない機会。subject の pending は系列では落とさず P3-WN-AC06(2) の規則で外す。D-PENDING の書き換えは今どおり U-W に当てない）。系列の外側の pending は変えない。拒否の経路の順: (1) 印を既存の fit に通す（退去の適格性は採用と同じ（U-Q の印だけの fit は予約の外しに入らない、P3-SEISMIC-RESERVE-CLOSE-001）） (2) D-FAILNOTICE=A の失敗警報を unit の固定の subject に入れる（系列の外。admit は通さず、subject の pending に触れない、AC10） (3) D-PENDING=A の書き換えを、残った系列の desktop の pending に当てる。(2)(3) は (1) を確定した後の state に、ほかの pending や記録を退去させずに（admit の退去 0・fit の退去 0）収まるときだけ当て、収まらなければその段を当てない。D-PENDING=A の書き換え: 写しを作らず、同じ id のまま payload.title だけを替える（訓練・試験の接頭辞の後に『【HH:MM 発表】』。HH:MM は intent の source の ReportDateTime を JST にしたもの。訂正の『[訂正] 』はその後）。同じ時刻の印が既に付いていれば付け直さない（何度拒否されても 1 回）。attempts・nextAttemptAt・期限・段階・channel・transition・source・disposition は変えない。main の単調の期限は id ごとなのでそのまま続き、壁時計が戻っても延びない（別の id にすると main は今の壁時計から期限を作り直す）。走行中の試行は選んだ時の payload を持つので切れない。sound の pending は変えない。main は既存の経路で扱う（mirror の pending が替わるだけ）。main に隠す対応表を再構築しない（P3-X-C6、Pro §4.3）",
         "remaining": "なし",
         "reason": "適格性と通知の形は owner が返し、main は配送だけを行う（P3-X-C6）"
       },
@@ -428,20 +428,20 @@
       },
       {
         "id": "P3-CC-AC03",
-        "requirement": "U-T・U-Q の記録の印（Q-CC-MARK、D-CLEAR=A・D-SHOW=A の形）。(1) 形: SubjectUnavailable = { reason: \"capacityExceeded\"; source: ReportRef（拒否した報）}。TsunamiForecastSubject と LongPeriodSubject に optional の unavailable を 1 つ、EarthquakeEvent と EarthquakeEventView に optional の unavailable（family ごとに 1 つ、1〜4 件の配列）を足す。印の無い記録は鍵を持たない。TsunamiObservationSubject には足さない (2) 付ける場面: U-T・U-Q の adopt で fit が null を返したとき、拒否した報の記録（U-T は同じ VTSE41 の subject、U-Q の地震 4 family は同じ operation・EventID の event、VXSE62 は同じ subject）が view に出ていれば（U-T は effective active、U-Q は visible）、その記録に印を付け（同じ記録・同じ family の印があれば版の新しい方へ進め、巻き戻さない）、印だけを既存の fit に通す（退去の適格性は採用と同じ、P3-X-C5。U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）。AC10 の通知と AC04 の書き換えは、印を確定した後の state に追加の退去なしで収まるときだけ当てる。収まれば decision は changed（change semantic、currentEstablished null、正の確認の証拠なし）、outcome は accepted・semantic で subject の transition は unavailable（U-W の addUnavailable と同じ形）（端末はこの transition unavailable の accepted で、出した報の末尾の行の後に記録に入っていない旨の 1 行を足す。P3-TERMINAL-CAPACITY-NOTE-001）、displayChanges と contentRevision は既存の差分の規則で出る。収まらない、記録が無い・view に出ていない、または U-T の観測の拒否のときは印を付けず、AC10 の通知と AC04 の書き換えだけを当てて capacityExceeded を返す（AC02 へ）。印の版が拒否した報の版以上なら、その拒否は印が覆うので負の証拠を返さず、decision は capacityExceeded のまま（unit を未確認にしない。配送の commit で統合担当が追記、実装の判断を採った、Q-CC-IMPL） (3) 消える条件と引き継ぎ: 同じ subject（U-Q の event は印と同じ family）の報を採用したとき、その報の版が印の source の版以上なら印を消し、未満（遅れて届いた古い報）なら新しい記録へ印を引き継ぐ。版の比較は unit の既存の規則（U-T の VTSE41 は ReportDateTime と InfoType の優先、U-Q は family ごとの ReportDateTime・InfoType・Serial）。ほかの subject・family の採用、期限、再起動、heartbeat では消さない (4) 引き継いだ先の記録が view に出ないとき（U-T の解除・取消、U-Q の event と長周期の取消記憶だけの記録＝memoryOnly）は、印を外して AC02 の負の証拠を返す（unit/operation の未確認へ移す）。取消記憶だけの記録は印を持たないので、予約 RESERVE_BYTES の式は変わらない。記録が期限・退去で回収されれば印も一緒に消える（影響が終わる） (5) A8: tsunamiTally・seismicTally は印のある記録を今どおり active・重大度・区域に数え、unavailable.capacityExceeded に記録 1 つにつき 1 を足す（U-Q の event は印の family の数によらず 1）。updatedAt に印の時刻を足さない (6) U-E には印を足さない（Q-CC-UE）。U-W・U-F の既存の印は変えない (7) 計算量: 印を付ける経路は拒否のときだけで、記録の引き当ては既存の索引か配列の線形 1 回（≦512・1,024）に既存の fit が加わる。引き継ぎの判定は採用 1 回につき記録 1 つの比較 1 回。無いと何が壊れるか: 隠しを外した後、拒否で更新できなかった記録の古い値を今の値として出す（Pro §4.1、P3b）",
+        "requirement": "U-T・U-Q の記録の印（Q-CC-MARK、D-CLEAR=A・D-SHOW=A の形）。(1) 形: SubjectUnavailable = { reason: \"capacityExceeded\"; source: ReportRef（拒否した報）}。TsunamiForecastSubject と LongPeriodSubject に optional の unavailable を 1 つ、EarthquakeEvent と EarthquakeEventView に optional の unavailable（family ごとに 1 つ、1〜4 件の配列）を足す。印の無い記録は鍵を持たない。TsunamiObservationSubject には足さない (2) 付ける場面: U-T・U-Q の adopt で fit が null を返したとき、拒否した報の記録（U-T は同じ VTSE41 の subject、U-Q の地震 4 family は同じ operation・EventID の event、VXSE62 は同じ subject）が view に出ていれば（U-T は effective active、U-Q は visible）、その記録に印を付け（同じ記録・同じ family の印があれば版の新しい方へ進め、巻き戻さない）、印だけを既存の fit に通す（退去の適格性は採用と同じ（U-Q の印だけの fit は予約の外しに入らない、P3-SEISMIC-RESERVE-CLOSE-001）、P3-X-C5。U-Q の印だけの fit は第 6 段に入らない、P3-UNIT-Q-CAPACITY-001 の P3-QC-AC02 の (1) の (8)）。AC10 の通知と AC04 の書き換えは、印を確定した後の state に追加の退去なしで収まるときだけ当てる。収まれば decision は changed（change semantic、currentEstablished null、正の確認の証拠なし）、outcome は accepted・semantic で subject の transition は unavailable（U-W の addUnavailable と同じ形）（端末はこの transition unavailable の accepted で、出した報の末尾の行の後に記録に入っていない旨の 1 行を足す。P3-TERMINAL-CAPACITY-NOTE-001）、displayChanges と contentRevision は既存の差分の規則で出る。収まらない、記録が無い・view に出ていない、または U-T の観測の拒否のときは印を付けず、AC10 の通知と AC04 の書き換えだけを当てて capacityExceeded を返す（AC02 へ）。印の版が拒否した報の版以上なら、その拒否は印が覆うので負の証拠を返さず、decision は capacityExceeded のまま（unit を未確認にしない。配送の commit で統合担当が追記、実装の判断を採った、Q-CC-IMPL） (3) 消える条件と引き継ぎ: 同じ subject（U-Q の event は印と同じ family）の報を採用したとき、その報の版が印の source の版以上なら印を消し、未満（遅れて届いた古い報）なら新しい記録へ印を引き継ぐ。版の比較は unit の既存の規則（U-T の VTSE41 は ReportDateTime と InfoType の優先、U-Q は family ごとの ReportDateTime・InfoType・Serial）。ほかの subject・family の採用、期限、再起動、heartbeat では消さない (4) 引き継いだ先の記録が view に出ないとき（U-T の解除・取消、U-Q の event と長周期の取消記憶だけの記録＝memoryOnly）は、印を外して AC02 の負の証拠を返す（unit/operation の未確認へ移す）。取消記憶だけの記録は印を持たないので、予約 RESERVE_BYTES の式は変わらない。記録が期限・退去で回収されれば印も一緒に消える（影響が終わる） (5) A8: tsunamiTally・seismicTally は印のある記録を今どおり active・重大度・区域に数え、unavailable.capacityExceeded に記録 1 つにつき 1 を足す（U-Q の event は印の family の数によらず 1）。updatedAt に印の時刻を足さない (6) U-E には印を足さない（Q-CC-UE）。U-W・U-F の既存の印は変えない (7) 計算量: 印を付ける経路は拒否のときだけで、記録の引き当ては既存の索引か配列の線形 1 回（≦512・1,024）に既存の fit が加わる。引き継ぎの判定は採用 1 回につき記録 1 つの比較 1 回。無いと何が壊れるか: 隠しを外した後、拒否で更新できなかった記録の古い値を今の値として出す（Pro §4.1、P3b）",
         "evidenceRefs": [
           "reconstruction/src/units/tsunami/tsunami-unit.ts:659 «85aa8babc9974580»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:661 «cc1e1a8b4d6def00»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:374 «3ca4da5b4c8b2813»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:498 «3f2690b71e67d7d4»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:948 «72906f66f5646915»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1001 «63c2344c19805b4c»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1003 «6737443737a45304»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:842 «ca5b13d448917d11»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1016 «63c2344c19805b4c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1018 «6737443737a45304»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:857 «ca5b13d448917d11»",
           "reconstruction/src/units/seismic/seismic-unit.ts:91 «a631cd88c9964441»",
           "reconstruction/src/units/seismic/seismic-unit.ts:96 «89e1a77f78dbf9da»",
           "reconstruction/src/units/seismic/seismic-unit.ts:173 «91fab6170144ed9f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:704 «af671d3baed4bca7»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:718 «af671d3baed4bca7»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:486 «40b1dcceeb4fbcaf»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:280 «fb853f496e34fbb6»",
           "reconstruction/src/view-projector/view-projector.ts:285 «f7871bc3b24b07a6»",
@@ -467,8 +467,8 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:576 «98d9dd9eda28aa06»",
           "reconstruction/src/units/seismic/seismic-unit.ts:595 «51b65ec22ad53857»",
           "reconstruction/src/units/seismic/seismic-unit.ts:594 «f3084e832bb015aa»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:891 «b735881eff8eabae»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:964 «c050c5f77e6e1ce5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:906 «b735881eff8eabae»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:979 «c050c5f77e6e1ce5»",
           "reconstruction/src/domains/eew/eew.ts:743 «c35c08026b010563»",
           "reconstruction/src/domains/weather-current/weather-current.ts:484 «787abe877da5b7ce»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:13 «f3dd33a45b215f68»",
@@ -505,10 +505,10 @@
           "reconstruction/src/domains/seismic/seismic.ts:63 «c200b4f7c1ed4c6e»",
           "reconstruction/contracts/p3-authority-evidence.json:29 «303af67ab4a3f92f»",
           "reconstruction/contracts/p3-tsunami-unit.json:94 «5aba6d9878988b1f»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «aef5d3cad15b6dce»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «583ed7ab787d5296»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:1178 «1a4d8ab82201bf92»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1614 «2ea0d161656b57fe»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1382 «3374b7a5c60a993b»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1634 «2ea0d161656b57fe»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1402 «3374b7a5c60a993b»"
         ]
       },
       {
@@ -547,7 +547,7 @@
           "reconstruction/src/runtime/composition-root.ts:1384 «e3dfa141be792522»",
           "reconstruction/src/runtime/composition-root.ts:1223 «c1316ed7219f7ac9»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:501 «390aea3ad8550a22»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:838 «561a94aa843f3519»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:853 «561a94aa843f3519»",
           "reconstruction/src/runtime/owner-runtime.ts:510 «c0d82ea339f67c93»"
         ]
       },
@@ -602,11 +602,11 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:202 «433e4cdfa4e77e5d»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:501 «390aea3ad8550a22»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:585 «d19790ea34d6f92b»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:838 «561a94aa843f3519»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:853 «561a94aa843f3519»",
           "reconstruction/src/units/seismic/seismic-unit.ts:548 «d968506ec36c0a76»",
           "reconstruction/src/units/seismic/seismic-unit.ts:576 «98d9dd9eda28aa06»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:964 «c050c5f77e6e1ce5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1001 «63c2344c19805b4c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:979 «c050c5f77e6e1ce5»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1016 «63c2344c19805b4c»",
           "reconstruction/src/domains/eew/eew.ts:583 «3ec78c2aad9e3950»",
           "reconstruction/src/domains/eew/eew.ts:502 «f331e6a98870edd9»",
           "reconstruction/src/units/notice-mark.ts:100 «085550b0cc032fbb»",
@@ -625,7 +625,7 @@
           "reconstruction/src/runtime/owner-runtime.ts:551 «6af0a32f7c614e1c»",
           "reconstruction/src/notification-delivery/notification-delivery.ts:63 «f04614abff120d81»",
           "reconstruction/src/runtime/owner-runtime.ts:284 «29b451e1757a3dc4»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1003 «6737443737a45304»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1018 «6737443737a45304»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:497 «702b80d62b5d9c62»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:292 «539616777ccf4b0d»",
           "reconstruction/src/domains/weather-current/weather-current.ts:485 «654add7b0350704c»"

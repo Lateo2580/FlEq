@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "2617c7b2c29140e907f7fcd6055a8bdf3d5a60e2e334463089f54cf30cc35769",
+    "sha256": "ba9f9ad825d95dfdeb198cac857fee32d5ac1eb29a612c3bdb88b1c9e4036a22",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -466,7 +466,7 @@
           "reconstruction/contracts/p3-operation-capacity-n.json:163 «3c7e2ab86ff832d7»",
           "reconstruction/contracts/p3-codec-closure.json:190 «679fad0f89522733»",
           "reconstruction/contracts/p3-final-adoption.json:64 «3667d73df5ae471f»",
-          "reconstruction/contracts/p3-final-adoption.json:241 «f9e50dde6c89fab1»",
+          "reconstruction/contracts/p3-final-adoption.json:241 «866abcc79ce17c97»",
           "reconstruction/contracts/p3-final-adoption.json:268 «94c616cbc54402c5»",
           "reconstruction/contracts/p3-revision-order.json:289 «b66f864b1e4ea519»",
           "reconstruction/tools/corpus/sequences.json#expected:O07:44",

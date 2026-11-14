@@ -83,7 +83,7 @@ export type EarthquakeContribution = Readonly<{
   headline: string | null;
   hypocenter: SeismicHypocenter | null;
   intensity: SeismicIntensityObservation | null;
-  tsunamiComment: SeismicTsunamiComment | null; unconfirmed?: ReportRef; // P3-VM-AC04: family の系列の未確認の印。active の寄与だけが鍵を持つ
+  tsunamiComment: SeismicTsunamiComment | null; unconfirmed?: ReportRef; // P3-VM-AC04: family の系列の未確認の印。取消・期限切れの寄与にもその後の印を付ける報で付く（P3-QC-AC08 (4)）。期限切れにするときと取消の採用で外れる
   notice?: NoticeMark; // P3-NL-AC02: family の系列の通知の印（寄与と同じに生き、取消記憶にも残る）。表示には出さない
   folded?: string;
   unreadable?: UnreadableMark; // P3-UM-AC01: 読めなかった所の印（site は SeismicUnreadableSite）。active の寄与だけが持つ
@@ -135,7 +135,7 @@ export type LongPeriodSubject = Readonly<{
   intensity: SeismicIntensityObservation | null;
   retainUntil: number;
   // P3-CC-AC03: 容量で入らなかった報の印。active の記録だけが鍵を持つ。
-  unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。active の記録だけが鍵を持つ
+  unavailable?: SubjectUnavailable; unconfirmed?: ReportRef; // P3-VM-AC04: 未確認の印。取消・期限切れの記録にもその後の印を付ける報で付く（P3-QC-AC08 (4)）
   notice?: NoticeMark; // P3-NL-AC02: 通知の印（記録と同じに生きる）。表示には出さない
   folded?: string;
   guard?: SeismicGuard;

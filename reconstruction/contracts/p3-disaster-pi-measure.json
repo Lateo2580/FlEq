@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "5f5ccc890d82d14ea9de049ebf93ff393420ba07529c39119becefd63d054573",
+    "sha256": "bd227a123decabd559978df4e99009a8a01b50b75d0d89ec7473f2417b98eeff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -312,7 +312,7 @@
         "requirement": "件数と snapshot の上限を製品から読む（P3-DPM-D-LIMIT-SOURCE=A）: (1) seismic-unit.ts の末尾（1689 行の後）に export { EVENT_LIMIT, LONG_PERIOD_LIMIT }; の 1 行を足し、view-projector.ts の末尾（935 行の後）に export { SNAPSHOT_BYTES }; の 1 行を足す。どちらも既存の行の中身と位置を変えず、製品の振る舞いを変えない (2) runner.ts:115 の U-Q.events の 512 と U-Q.longPeriods の 256 を、その export に替える (3) 他の unit の件数の上限（U-E の family 512・U-T・U-W・U-F・U-N）は手書きのまま（今回の測定で変えない。残存） (4) 無いと: 件数 768・1024 の build を測ったとき、道具が 512 を上限として使用率と 90% 越えを出す（11-12 夜に実際に起きた）",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:39 «a65f9be0377b481f»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1689 «b850bb9aca0d01ab»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1709 «b850bb9aca0d01ab»",
           "reconstruction/src/view-projector/view-projector.ts:35 «6dd7dad3794ebbb1»",
           "reconstruction/test/disaster/runner.ts:115 «f3915799afc7d27a»"
         ]

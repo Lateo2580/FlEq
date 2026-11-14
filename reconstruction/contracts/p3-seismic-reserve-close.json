@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "d244a088b1775625a596b1461d9cd593fd9edce0",
-    "sha256": "0b30f4cec458bc86ffb47e152501c5af0de83083f8bc92f159c683ff845b7e17",
+    "sha256": "fe19488a7d5eef9792f76b1239cc12b08f1c9df552d9acf273b1f55c3bb1fd12",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -166,24 +166,24 @@
           "reconstruction/src/units/seismic/seismic-unit.ts:98 «d5cc341e83777739»",
           "reconstruction/src/units/seismic/seismic-unit.ts:176 «8f55895c1617e180»",
           "reconstruction/src/units/seismic/seismic-unit.ts:604 «3a19ff5f0e5f1e0c»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:624 «63477c9bdfc3f0ff»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:648 «a2a495903d753d78»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:654 «b2ad6b113563b871»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:667 «ed3e04014fbf18fb»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:704 «af671d3baed4bca7»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:801 «9379000288c0b994»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1016 «56605176b2e04572»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1021 «ba94236780a0c93a»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1178 «6cb99f60ccefe883»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1216 «6cdd96a1162334fe»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1230 «ccbd69dbd4c595ea»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1302 «238f48b50821379d»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1162 «8f7e351d252ab133»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1250 «24043be2ebe490b8»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:637 «63477c9bdfc3f0ff»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:661 «a2a495903d753d78»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:667 «b2ad6b113563b871»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:680 «ed3e04014fbf18fb»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:718 «af671d3baed4bca7»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:816 «9379000288c0b994»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1031 «56605176b2e04572»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1036 «ba94236780a0c93a»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1193 «6cb99f60ccefe883»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1231 «6cdd96a1162334fe»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1250 «ccbd69dbd4c595ea»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1322 «238f48b50821379d»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1177 «8f7e351d252ab133»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1270 «24043be2ebe490b8»",
           "reconstruction/src/units/notice-mark.ts:16 «e88ceefff8bc66a1»",
           "reconstruction/contracts/p3-unit-q-capacity.json:445 «e5e00cbd173d2ec5»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:982 «1f2196617c9380bd»",
-          "reconstruction/contracts/p3-final-adoption.json:241 «f9e50dde6c89fab1»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:997 «1f2196617c9380bd»",
+          "reconstruction/contracts/p3-final-adoption.json:241 «866abcc79ce17c97»"
         ]
       },
       {
@@ -191,17 +191,17 @@
         "requirement": "収まることと出方: (1) 記憶を全部外しても残る予約は当日履歴だけで、読み戻しが受ける当日履歴の最大は 324,949 byte（Q-SRC-PROBE の (6)）。RESERVE_BYTES 1,958,729 より小さいので、collect の overReserve は必ず予約の内に戻す。採用の fit が null を返すのは operationContract で外せる記憶が尽きたときだけ（training/test の受理で normal の記憶しか残らないとき） (2) 画面: 外した取消記憶が取り消した地震の一覧の印（cancelledSummary）を持てば view の earthquakes に載っていた（listed）ので、displayChanges に before → null が出てカードが消える。期限切れの記憶と印の無い取消記憶は view に出ないので表示の変化は無い。intent・通知は作らない。外した記録の subject の pending は残る（decode は state に残る subject との一致を求めない、:1610）。当日履歴（count・counted・recent）は変えない（後でその地震の取消が来ても nextHistory の before が null の分岐で数え直す、今の件数の退去と同じ） (3) 仕様どおりの欠け（作者はカードで A の代償として見た）: 予約を越えたときだけ、いちばん順の早い記憶が早く消える。取消記憶が消えたあとにその地震の遅れた古い報が届くと、今は「取消の後の古い報」で stale になるところが、新しい報として採られ画面に出て、期限の内の報なら desktop（normal は音も）が鳴る（件数の超過のとき今も起きる形と同じ）。期限切れの記憶が消えたあとの遅れた報も、duplicate ではなく新しい報として採られる。越えるのは、記憶への未確認の印で予約が埋まった state（ヘルツの列: 取消記憶への時刻の無い報で印が予約の手前まで付き、その後の回収で期限切れの記憶が足される）と、読み戻しの上限の近くの値（JSON で 6 byte の制御文字、長い数、recovery の source）を持つ state。byte（器）と予約が同じ採用で越えたときは byte の段が先に走り、後の記憶の外しでも size が減るので、生きている記録を要らない分まで畳む・外すことがある（直さない。器を越える採用で予約も越えるのは、記憶の多い state で大きな報を受けたときだけ）",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:103 «6201c9dc57f06283»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1610 «68c851c4387d66d6»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1630 «68c851c4387d66d6»",
           "reconstruction/src/units/seismic/seismic-unit.ts:69 «04b5e98ae1630102»",
-          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»"
+          "reconstruction/contracts/p3-seismic-unit.json:310 «af76389393137877»"
         ]
       },
       {
         "id": "P3-SRC-AC03",
         "requirement": "読み戻しと保存（P3-SRC-D-DECODE=A）: (1) decode の予約の検査（:1639）・器・版は変えない。本契約の後に reducer が作る state は、受信・期限・復元・intentUpdate のどの入力の後も予約の内（AC01）なので、予約の超過で invalid にはならない（保証はこの検査の分だけ。ほかの読み戻しの検査は本契約の外） (4) 残存（本契約の外）: 当日履歴の count が読み戻しの上限（安全な整数、:1597）ちょうどの保存の値に、受信が 1 を足す（:464）と次の読み戻しで invalid になる。構造的欠陥台帳 130、作り物の保存の値でだけ起きる (2) ヘルツの列（台帳 128）で、直した後は 12:01 の回収で期限切れの記憶 4 件が外れ（seismicCapacityEvicted の count 4）、12:01 と 12:03 の期限の回収の後の state が両方とも保存→読み戻しで restored（P3-SRC-T01）。checkpoint の再起動は新しい世代から順に読み戻せる slot を選ぶ（checkpoint.ts は変えない）ので、2 回の保存がどちらも restored なら再起動も restored。試験は checkpoint を通さず codec の encode → JSON → decode で確かめる (3) 前の版の code が予約を越えて保存した slot は invalid のまま（新築は未稼働、開発用の保存は P5 の前は初期化してよい）",
         "evidenceRefs": [
-          "reconstruction/src/units/seismic/seismic-unit.ts:1639 «e270710a724b4546»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1597 «4d5976ed5fdb24ce»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1659 «e270710a724b4546»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1617 «4d5976ed5fdb24ce»",
           "reconstruction/src/units/seismic/seismic-unit.ts:464 «bfc8ca42cf4483d1»",
           "reconstruction/src/checkpoint/checkpoint.ts:223 «79ffa012cb68d408»"
         ]
@@ -222,26 +222,26 @@
         "requirement": "受信経路の計算量（AGENTS.md）: (1) 平常の受信は足さない。fit の予約は今と同じ reservedBytes（配列に結び付けた cache の和、記録ごとの byte の加算）で、採用で越えたときだけ overReserve が記憶を 1 回 filter して並べる（記憶は件数の上限まで: 512＋256、件数 1024 でも 1,280）。受信 1 回で全件×全件の走査・state の直列化をしない。remove は 1 件ごとに定数 (2) collect は期限が来た入力でだけ走り、記憶へ移した回だけ作り直した配列の reservedBytes を 1 回足し上げる（記録の byte は cache、新しく記憶にした記録だけ 1 回直列化する。通知・失敗の印・当日履歴だけの期限の回は数えない）。越えたときだけ並べる (3) 稀な一括処理の上限: 並べは 1 回の fit・collect に 1 回で O(M log M)（M は記憶の数、上の件数の上限）。起草の写しの所要は Q-SRC-PROBE の (4)。P3-C7-T05（受信 1 回で全体を encode しない）が今の期待のまま緑であることを実装担当が成果物に書く",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:176 «8f55895c1617e180»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1178 «6cb99f60ccefe883»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1193 «6cb99f60ccefe883»"
         ]
       },
       {
         "id": "P3-SRC-AC06",
         "requirement": "原文の改訂と «» の付け直し（統合担当が配送の commit で当てる。どれも行の中の書き換えで、行の数を変えない）: (1) p3-seismic-unit.json:310（capacityReserve）の「fitは予約を超える採用をcapacityExceededにし、decodeと同じ境界を守る。」の後に「（P3-SEISMIC-RESERVE-CLOSE-001 で改訂: 予約を越える採用は退去できる記憶を件数の超過の (4) の順で外して採り、外しきれないとき〔training/test の受理で normal の記憶しか残らないとき〕だけ capacityExceeded。印だけを置く fit は記憶を外さない）」、「超えることは件数・文字列長の上限と回収の規則から起きず、decodeで超えた保存物はunavailable。」の後に「（P3-SEISMIC-RESERVE-CLOSE-001 で改訂: 記憶への未確認の印〔P3-QC-AC08 (4)〕と読み戻しが受け付ける値〔JSON で 6 byte の制御文字・長い数・recovery の source〕では回収で越えうるので、採用の fit と期限の回収で予約を確かめ、越えた分は記憶を外す。台帳 128）」を足す (2) p3-unit-q-capacity.json:369（P3-QC-AC02）の (0)(a) の「（印・失敗警報・title の時刻、P3-CURRENCY-COVERAGE-001）」の後に「（P3-SEISMIC-RESERVE-CLOSE-001 で改訂: 採用の RESERVE の超過は (b)(c) の後に記憶を (4) の順で外して解き、外しきれないときだけ capacityExceeded）」を足し、(1) の (3)「RESERVE を越える採用は今どおり capacityExceeded」を「RESERVE を越える採用は記憶を外して採り、外しきれないときだけ capacityExceeded（P3-SEISMIC-RESERVE-CLOSE-001）」に替える。同じ file の :510 の「RESERVE を越える採用と、」を「RESERVE を越え記憶を外しきれない採用〔P3-SEISMIC-RESERVE-CLOSE-001〕と、」に替える。p3-seismic-unit.json:338（C7 実装の測定の後の閉じた問い）の「fitは予約を超える採用をcapacityExceededにし、decodeと同じ境界を守る。」の後にも (1) の 1 つ目と同じ注を足す (2b) 退去の適格性と引き金: p3-unit-q-capacity.json:369 の (1) の (8) の「（r7。P3-CC-AC03 の「退去の適格性は採用と同じ」を U-Q ではこの分だけ狭める、P3-QC-AC14 の (5)）」の後に「（印だけを置く fit は予約の外しにも入らない、P3-SEISMIC-RESERVE-CLOSE-001）」を足す。p3-currency-coverage.json の :431・:74・:90 の「退去の適格性は採用と同じ」の後に、それぞれ「（U-Q の印だけの fit は予約の外しに入らない、P3-SEISMIC-RESERVE-CLOSE-001）」を足す。p3-seismic-unit.json:76（P3-C7-CAPACITY の A）の「byteの超過では取消記憶だけの記録を退去しない（上限が式で決まり、退去しても予算を作れないため）。」の後に「（予約〔RESERVE_BYTES〕の超過では採用と期限の回収で取消・期限切れの記憶を (4) の順で外す、P3-SEISMIC-RESERVE-CLOSE-001）」を足す (2c) p3-final-adoption.json:241（P3-FINAL-AC01 (1)）の「件数・byteの超過の判定と退去は入れない配列で行い、ほかの記録を退去しない」の後に「（U-Q は予約の超過〔当日履歴の増え〕では記憶を外す、P3-SEISMIC-RESERVE-CLOSE-001）」を足す (2d) p3-version-material.json:162 の (c) の「（それまでに長い inputId が来ると取消記憶の受理が早く断られうる。ヘルツ許容）」の後に「（P3-SEISMIC-RESERVE-CLOSE-001 の後は、断られず古い記憶が早く外れる）」を足す (3) P3-QC-AC08（p3-unit-q-capacity.json:445）・Q-QC-BYTES の (3)（:68）・P3-QC-T05（:571）は今の動きと合うので改訂しない (4) 型の注を P3-QC-AC08 (4) に合わせる（今の code: holdVersion は family の寄与・長周期が手元にあれば effective によらず印を付け、forget・expireLongPeriod の期限切れと取消の採用〔stepVersion の ends〕で外れる）: p3-seismic-unit.types.ts:86 の「// P3-VM-AC04: family の系列の未確認の印。active の寄与だけが鍵を持つ」を「// P3-VM-AC04: family の系列の未確認の印。取消・期限切れの寄与にもその後の印を付ける報で付く（P3-QC-AC08 (4)）。期限切れにするときと取消の採用で外れる」に、:138 の「// P3-VM-AC04: 未確認の印。active の記録だけが鍵を持つ」を「// P3-VM-AC04: 未確認の印。取消・期限切れの記録にもその後の印を付ける報で付く（P3-QC-AC08 (4)）」に替える（同じ行の unavailable の注は変えない） (5) 台帳 128（repo 外）の局所修正の状態を「解消（P3-SEISMIC-RESERVE-CLOSE-001）」に (6) «» の付け直し（起草の写しの patch での数え）: seismic-unit.ts の行を引く «» はほかの契約に 110 件で、行がずれるのは 15 契約の 70 件（p3-c7t05-fill・p3-cli-repl・p3-currency-coverage・p3-disaster-pi-measure・p3-expiry-form・p3-final-adoption・p3-recovery-digest-live・p3-recovery-read・p3-replay-watch-002・p3-revision-order・p3-seismic-host-expiry-test・p3-terminal-capacity-note・p3-terminal-layout9・p3-unit-q-capacity・p3-version-material）。中身の変わる行（:95・:981 などのコメント）を引く «» は 0 件なので、全部を reanchor-target.py（anchor の中身から付け直す道具）で付け直せる。字の変わる原文の行を引くほかの契約の «» は 15 件で手で取り直す: p3-seismic-unit.json:310 を引く 4 件（p3-final-adoption.json:343、p3-intent-update-reserve.json:251・:281、p3-unit-q-capacity.json:519）、p3-seismic-unit.json:76 を引く 4 件（p3-currency-coverage.json:508、p3-final-adoption.json:259・:341、p3-unit-q-capacity.json:513）、p3-currency-coverage.json:431 を引く 3 件（p3-terminal-capacity-note.json:228・:261、p3-unit-q-capacity.json:380）、p3-currency-coverage.json:90 を引く 1 件（p3-weather-notice.json:793）、p3-final-adoption.json:241 を引く 3 件（p3-operation-capacity-n.json:203、p3-operation-capacity.json:347、p3-unit-n-series.json:469）。p3-unit-q-capacity.json:369・:510、p3-seismic-unit.json:338、p3-currency-coverage.json:74、p3-version-material.json:162、p3-seismic-unit.types.ts:86・:138 を引く «» はほかの契約に 0 件。本契約が字の変わる原文の行を引くのは 12 行・13 個（p3-seismic-unit.json:310 は AC02 と AC06 の 2 か所で引く。p3-seismic-unit.json:76・:310・:338、p3-unit-q-capacity.json:369・:510、p3-currency-coverage.json:74・:90・:431、p3-final-adoption.json:241、p3-version-material.json:162、p3-seismic-unit.types.ts:86・:138 のうち本契約の evidenceRefs にあるもの）で手で取り直す。seismic-capacity.test.ts の行を引く «» はほかの契約に 0 件、sequences.json は seismic-unit.ts を引かない（2026-11-14 起草の git grep）。本契約が引く seismic-unit.ts と seismic-capacity.test.ts の行は、実装で中身の変わらない行に置いた（ずれるだけで、reanchor-target.py が付け直す） (7) 順: 実装の commit → (1)〜(4) → 字の変わった原文の行を引く «»（ほかの契約 15・本契約 12 行・13 個）を手で → reanchor-target.py reconstruction/src/units/seismic/seismic-unit.ts（0 行に当たる anchor が残っていると止まるので、手の分を先に済ませる）→ 改訂・付け直した契約と本契約の meta.sha256 を hashConvention で取り直す → check-contract・check-sequences が PASS（WARN は baseOid=unassigned だけ）。sequences.json は変えないので全契約の sequencesSha256 は変わらない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-seismic-unit.json:310 «c01e71c3d57d4c77»",
-          "reconstruction/contracts/p3-seismic-unit.json:338 «d4cbe32ec880768f»",
-          "reconstruction/contracts/p3-seismic-unit.json:76 «aef5d3cad15b6dce»",
-          "reconstruction/contracts/p3-unit-q-capacity.json:369 «3ed26811fa4aec4b»",
-          "reconstruction/contracts/p3-unit-q-capacity.json:510 «aab43478dfe472b5»",
+          "reconstruction/contracts/p3-seismic-unit.json:310 «af76389393137877»",
+          "reconstruction/contracts/p3-seismic-unit.json:338 «05235cb1ad8d17fc»",
+          "reconstruction/contracts/p3-seismic-unit.json:76 «583ed7ab787d5296»",
+          "reconstruction/contracts/p3-unit-q-capacity.json:369 «bce39fb16558215c»",
+          "reconstruction/contracts/p3-unit-q-capacity.json:510 «0b19107bdf0f9c13»",
           "reconstruction/contracts/p3-unit-q-capacity.json:68 «2c7df24b9090f78c»",
           "reconstruction/contracts/p3-unit-q-capacity.json:571 «25cc0173699cceb4»",
-          "reconstruction/contracts/p3-seismic-unit.types.ts:86 «50574cb0f02426e9»",
-          "reconstruction/contracts/p3-seismic-unit.types.ts:138 «ac4965511ea91c64»",
-          "reconstruction/contracts/p3-currency-coverage.json:74 «79a782b7077df48e»",
-          "reconstruction/contracts/p3-currency-coverage.json:90 «c139de6f2182309c»",
-          "reconstruction/contracts/p3-currency-coverage.json:431 «abcc1ac00a3bb923»",
-          "reconstruction/contracts/p3-version-material.json:162 «578e84b11b77508d»"
+          "reconstruction/contracts/p3-seismic-unit.types.ts:86 «f2ee22e815cbbb08»",
+          "reconstruction/contracts/p3-seismic-unit.types.ts:138 «7c63517142d5481a»",
+          "reconstruction/contracts/p3-currency-coverage.json:74 «0eade20c8548eeeb»",
+          "reconstruction/contracts/p3-currency-coverage.json:90 «12809bcb2cd0fa71»",
+          "reconstruction/contracts/p3-currency-coverage.json:431 «d522c0361c738ff9»",
+          "reconstruction/contracts/p3-version-material.json:162 «770534c579c3902e»"
         ]
       }
     ],
@@ -336,7 +336,7 @@
       "最初の作業: 起草の写しの patch と同じ形を当てた木で -t \"P3-SRC|P3-QC-T05\" を回して緑を確かめ、続けて直しを戻した写しと fit の分だけ戻した写しで AC04 (5) の歯を確かめる。違えば期待も製品も変えずに actual・expected を添えて止めて報告する",
       "受信経路の計算量（AGENTS.md）: AC05 のとおり。全件×全件・state の直列化を足さない。P3-C7-T05 と P3-QC-T02 が今の期待のまま緑であることを書く",
       "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
-      "配送の止め: 無し。作者の分岐は P3-SRC-D-ADOPT の 1 つで、作者裁定 A に含むと統合担当が読み、画面の差を作者に報告する。統合担当の分岐 2 つは推奨で確定。起草案は 0",
+      "配送の止め: 無し。作者の分岐は P3-SRC-D-ADOPT の 1 つで、作者裁定 A に含むと統合担当が読み、画面の差を作者に報告する。統合担当の分岐 2 つは推奨で確定。起草案は 0。配送の記録（統合担当、2026-11-14）: (1) 起草レビュー: 品質 Codex GO（thread 01a1d8e6、r2 で ADDRESSED）、契約適合 Opus GO (2) 実装 e8926254 → 実装レビュー: 品質 Codex GO（thread 01a1d901）、契約適合 Opus GO（P3 1 件: fit の filter を予約を越えたときだけにする。統合担当が当てた） (3) 原文の改訂と «» の付け直し（AC06）は配送の commit で当てた (4) Mac mini のゲートは未",
       "原文の改訂と «» の付け直しは AC06（統合担当が配送の commit で当てる）",
       "申し送り（依存する契約）: 件数を 1024 にする P3-SEISMIC-EVENT-LIMIT-001 は本契約に依存する。その T03 (b)(c) は本契約の後では直す前の式でも落ちなくなる（予約を越えた分を overReserve が外すため）ので、あちらの r4 で seismicCapacityEvicted の件数を期待に足す"
     ],
