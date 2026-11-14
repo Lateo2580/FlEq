@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "84c2c6269d3d841793ec0a285c4807d9a438897c",
-    "sha256": "bd227a123decabd559978df4e99009a8a01b50b75d0d89ec7473f2417b98eeff",
+    "sha256": "495f38903a6fc6c3cf3dbea4b672ba313b3955acc9c2d084a742f14cf297d223",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -162,6 +162,13 @@
         "status": "closed",
         "source": "Pi の窓（2026-11-14 09:11:29〜09:20:51、M は 4088ea62、統合担当の run-window.sh）。結果とログは作業ノートの外の控え（fleq-vault-archive/2026-11-14/dpm-window/ の res.log・result-c512.json・result-c768.json・result-c1024.json・pm-*.log・resources.log）。診断は Mac mini の再現（後始末の SIGKILL を SIGTERM に替えた run）と、測り直しの前の Mac mini の測定（件数だけ上げた組）",
         "closed": "(1) 窓: 警報なし（09:11:32）→ 旧築を止める → c512 09:11:32〜09:18:09 measured（6 起動、ready の中央値は山 約 5.0 秒・空 0.6 秒、mailbox の待ちは最大 2 件）→ c768 09:18:09〜09:19:26 blocked hostFailed（launch 1、13.2 秒の時点の input-36 で投入側の socket が close）→ c1024 09:19:26〜09:20:47 blocked hostFailed（launch 1、17.4 秒の時点の input-59）→ 旧築を起こし直して /healthz 200・kiosk の clients 1（09:20:51、経過 562 秒）。止める条件には当たらなかった (2) 原因（台帳 127）: c768・c1024 は snapshot 8 MiB の build で、山の snapshot 7,527,625 B が要約されずに publish され、直列化の中央値は c512 の 147 KB・1.3 ms に対して 54.0 ms（c768）・52.8 ms（c1024）。EEW の処理の中央値は c512 10.6 ms、c768 219.9 ms、c1024 218.3 ms。host が mailboxRejectedItemLimit で入力を断り接続を切った（Mac mini の再現の診断で直に見た） (3) 道具の欠け: blocked の後始末が host を SIGKILL で止めたので、Pi の c768・c1024 には診断の日別 file に断った理由が残らず、結果の blocked は『socket が close した』だけだった。AC04 (7) の 2026-11-14 の改訂（SIGTERM を先に送り、blocked の結果に hostExit・terminatedBy・hostReasons を足す）で分ける (4) 8 MiB の組は P3-DPM-D-REMEASURE=α で測る組から外し、測り直さない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-DPM-REMEASURE-20261114",
+        "status": "closed",
+        "source": "Pi の測り直しの窓（2026-11-14 13:16:54〜13:37:06、AC06 (5)、P3-DPM-D-REMEASURE=α）。M は d244a088、Pi の node v22.23.4、run-window.sh の sha256 は b3042a18…ebe（ヘルツの確かめで ADDRESSED とした版）。結果とログは作業ノートの外の控え（fleq-vault-archive/2026-11-14/dpm-remeasure/ の result-c512.json・result-c768.json・result-c1024.json・result-r2s.json、window/res.log・resources.log、run-window.sh）。値はこの控えの result から引いた",
+        "closed": "(1) 窓: 13:16:57 警報なし・旧築を止める → c512 13:16:57〜13:23:34 → c768 〜13:30:16 → c1024 〜13:37:00。3 組とも 1 回目で verdict measured（やり直し 0、止める条件は立たず、trip は空のまま）→ 13:37:00 旧築を起こし直し（rc 0）、13:37:02 /healthz 200、13:37:06 kiosk の clients 1、経過 1,212 秒。MemAvailable の最小は 5,748,784 kB（resources.log の 1,162 標本） (2) 窓の前（Mac mini、M）: T02b rc 0。1 段目の N3 は 3 組とも digest 86a86744…で、入力の拒否 0・期待例の外れ 0。容量の欠けは c512 が 432（地震 250 個）、c768・c1024 が 0。要約は 3 組とも U-E・U-T・U-Q で、区間も同じ（P3-DPM-D-REMEASURE=α で P4 へ持ち越す分）。山の合計は c512 が 31,298,427 B（06-26 16:53:28）、c768・c1024 が 32,812,043 B（06-26 22:54:10）。Pi の R2S の確かめは measured (3) 値（組ごとに起動 6 回、空 1・山 5）: 山からの ready の p50／最大は c512 4,978／5,063 ms、c768 5,896／6,024 ms、c1024 5,970／5,993 ms（空の state は 618〜662 ms）。U-Q の保存の bytes の最大は 15,408,967 B（器 15,515,625 の 99.3%）、20,049,017 B（20,498,153 の 97.8%）、20,049,017 B（25,480,681 の 78.7%）。publishSerialization の最大は 149,474 B・9.9 ms、159,535 B・13.6 ms、159,534 B・20.2 ms。RSS の最大は 934／942／986 MiB。EEW の投入→T2（injectToT2）: 群 none は 1,470／1,456／1,458 報で、p50 1.2／1.1／1.1 ms、最大 606.0／363.3／922.5 ms。保存の encode と重なった群（urgentEncode 6／3／2 報、seismicEncode 24／41／40 報）の最大は 24.9／24.9／11.3 ms。群は pi-measure.mjs の分け方による（AC04 (4)(b)）: 投入の時刻（host の時計）が urgent の実行場所の unit の encode の区間の中なら urgentEncode、そうでなく seismic の場所の encode の区間の中なら seismicEncode、どちらでもないか、投入の時刻を host の時計へ写せない標本は none (4) 限定: (a) c1024 は上限 1024 の build に N3 の山を入れたもの。山の時点の U-Q の件数は、4088ea62 の Mac mini の 1 段目の区切りで 696（06-26 22:00）〜759（06-27 04:00）の間で、筋書きの中の最大でも 787（判断カード 2026-11-13 夜 §8 の 1024 の回）。地震が 1024 件まで詰まった state は測っていない (b) c768 は件数・容量ともほぼいっぱい: U-Q の保存の最大が器の 97.8% で、件数は筋書きの中で上限 768 に届く（同 §8、余裕 0） (c) 群 none の injectToT2 の最大は組ごとに 0.36〜0.92 秒（起動ごとの最大は c512 101.7〜606.0 ms、c768 119.0〜363.3 ms、c1024 143.7〜922.5 ms）で、対照の c512 にも 0.6 秒の回がある。判定（verdict）には効いていない。原因は調べていない (5) 窓の手順の残存: 監視が current.pid の番号を読んでから TERM を送るまでの間に、親が試行を刈り取り、同じ番号が別の process に使い回される隙は排除しきれていない（ヘルツの確かめで証拠不足、thread 01a1d813）。この窓では止める条件が立たず、送っていない (6) 上限の定数（768 か 1024）は本契約では決めない（outOfScope）。作者の裁定の後、上限を変える契約で決める",
         "remaining": "なし"
       }
     ],
