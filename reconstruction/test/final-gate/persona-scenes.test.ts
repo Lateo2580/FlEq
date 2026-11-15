@@ -178,6 +178,18 @@ const bodyOf = (text: string, drop: readonly string[]): string => {
 const bodyHash = (text: string) => bodyOf(text, ["timing", "selfSha256"]);
 const ac09Hash = (text: string) => bodyOf(text, ["timing", "selfSha256", "gitHead"]);
 
+// 演じ手には前の場面からの通知の最後の 20 件と、題名ごとの件数と「ほか n 件」だけを渡す（統合担当の決め、SCENE-TEXT の追加の「渡す量を絞る」の内。
+// 23 時間分の 1,844 件を 1 場面で読む利用者はいない）。音の試行は題名が無いので「（音）資材の名前」で数える。評価者の file は全部を持つ。
+const NOTIFICATION_LIMIT = 20;
+function notificationsOf(attempts: readonly SceneAttempt[]): Readonly<{ notifications: JsonValue[]; notificationCounts: Record<string, number>; notificationsOmitted: number }> {
+  const counts: Record<string, number> = {};
+  for (const attempt of attempts) {
+    const title = attempt.channel === "desktop" ? String(attempt.payload["title"] ?? "") : `（音）${attempt.soundAsset?.replace(/^.*\//, "").replace(/\.wav$/, "") ?? ""}`;
+    counts[title] = (counts[title] ?? 0) + 1;
+  }
+  return { notifications: attempts.slice(-NOTIFICATION_LIMIT).map(notificationOf), notificationCounts: counts,
+    notificationsOmitted: Math.max(0, attempts.length - NOTIFICATION_LIMIT) };
+}
 function notificationOf(attempt: SceneAttempt): JsonValue {
   const { title, body } = attempt.payload;
   return attempt.channel === "desktop" ? { at: jstText(attempt.atMs), channel: "desktop", title: title ?? null, body: body ?? null }
@@ -213,9 +225,9 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
       const number = String(written.length).padStart(2, "0"), rule = chosen[written.length - 1]?.item ?? null, externalSend = !carriesRealEew(scene);
       // 外の演じ手に送れない場面は file の名前でも分ける（P3-FG-D-EXTERNAL-SEND=A。中身の印だけだと貼り付けで見落とす）。
       writeFileSync(join(dir, `${number}-actor${externalSend ? "" : "-local-only"}.json`), `${JSON.stringify({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend,
-        notifications: scene.attempts.map(notificationOf), screen: scene.screen }, null, 1)}\n`);
+        ...notificationsOf(scene.attempts), screen: scene.screen }, null, 1)}\n`);
       writeFileSync(join(dir, `${number}-evaluator.json`), `${JSON.stringify({ scenario: id, scene: written.length, at: jstText(scene.atMs), rule,
-        facts: scene.facts }, null, 1)}\n`);
+        notifications: scene.attempts.map(notificationOf), facts: scene.facts }, null, 1)}\n`);
     } }));
 
     // (1) 2 回の run は同じ本体（場面の口は観測だけ）。

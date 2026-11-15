@@ -620,10 +620,10 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
 
 type SceneAttempt = Readonly<{ atMs: number; unit: string; subject: string; channel: NotificationAttempt["channel"];
   priorityGroup: NotificationAttempt["priorityGroup"]; payload: NotificationAttempt["payload"]; soundAsset: NotificationAttempt["soundAsset"] }>;
-// SCENE-TEXT=A: 画面に出る欄だけを snapshot の形のまま写す（演じ手に裏の事実を渡さない）。
+// SCENE-TEXT=A（2026-11-15 午後の作者裁定で追加）: 画面に出る欄だけを snapshot の形のまま写し、一覧は画面に載る量で切る（演じ手に裏の事実を渡さない）。
 type SceneScreen = Readonly<{ connection: DisplayConnectionView;
-  current: Readonly<Record<string, Readonly<{ delivery: "summary" } | { delivery: "full"; view: unknown }>>>;
-  recovery: Pick<DisplayRecoveryView, "eewUnverified"> }>;
+  current: Readonly<Record<string, Readonly<{ delivery: "summary" } | { delivery: "full"; view: JsonValue }>>>;
+  recovery: Pick<DisplayRecoveryView, "eewUnverified">; notices: readonly Pick<DisplaySnapshot["notices"][number], "kind" | "text" | "expiresAt">[] }>;
 type SceneCapture = Readonly<{ atMs: number; attempts: readonly SceneAttempt[]; screen: SceneScreen | null;
   facts: Readonly<Record<string, readonly Readonly<{ subject: string; until: number | null }>[]>> }>;
 // times が空の run は候補を集めるだけ（SCENE-RULE の 1 回目）。write は場面ごとに 1 回、その時刻の frame と tick を済ませた後に呼ぶ。
@@ -631,13 +631,50 @@ type SceneOptions = Readonly<{ times: readonly number[]; write: (scene: SceneCap
 type SceneResult = Readonly<{ attempts: readonly SceneAttempt[]; newSubjects: readonly number[]; deadlines: readonly number[] }>;
 type Dispatch = Readonly<{ atMs: number; kind: "watchEewWindow" | "connected" | "connectionLost" }> | Readonly<{ atMs: number; kind: "frame"; frame: Frame }>;
 
+// 画面に出ない欄（識別子・出どころ・版・コード・時刻以外の生の文字列・保持の期限）。時刻の生の文字列（*TimeRaw）は画面の時刻なので残す。
+const HIDDEN = new Set(["source", "sources", "subjects", "subject", "eventId", "unit", "family", "inputId", "origin", "semanticRevision", "contentRevision",
+  "changedFields", "code", "codes", "parentCode", "areaCode", "kindCode", "controlDateTimeRaw", "counted", "revision", "establishedBy", "strongHold",
+  "retainUntil", "validUntil", "depthConflict"]);
+// 一覧の件数の上限（D1 夜の画面に載る量。EEW は大カードの予測地域 1 ページ 3 行と小カード 6 枚、今日の地震は 4 行）。表に無い一覧は 5 件。
+const SCREEN_LIMITS: Readonly<Record<string, number>> = { "eew.current": 6, "eew.areas": 3, "eew.reportAreas": 3, "earthquake.earthquakes": 4,
+  "earthquake.recent": 4, "earthquake.items": 5, "tsunami.forecasts": 3, "tsunami.areas": 10, "tsunami.stations": 5, "tsunami.estimations": 5,
+  "nankai.currents": 3, "nankai.information": 3 };
+// earthquakes は受けた順に並ぶので、発生の時刻の新しい順に並べてから切る（画面の今日の地震は新しい順）。
+const NEWEST_BY: Readonly<Record<string, string>> = { "earthquake.earthquakes": "originTimeRaw" };
+const timeOf = (item: unknown, key: string): number => isRecord(item) && typeof item[key] === "string" ? Date.parse(item[key]) : -Infinity;
+function screenValue(domain: string, value: unknown): JsonValue {
+  if (Array.isArray(value)) return value.map((item) => screenValue(domain, item));
+  if (!isRecord(value)) return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? value : null;
+  const out: Record<string, JsonValue> = {};
+  for (const [key, item] of Object.entries(value)) {
+    // 出どころからは画面に出る時刻と第 N 報だけを残す（D1 夜: 全部のカードに更新時刻、EEW のカードは発表時刻と第 N 報）。
+    if (key === "source" || key === "sources") {
+      const list: readonly unknown[] = Array.isArray(item) ? item : [item];
+      const times = list.flatMap((element) => isRecord(element) && typeof element["reportDateTimeRaw"] === "string" ? [element["reportDateTimeRaw"]] : []);
+      if (times.length !== 0) out[domain === "eew" ? "発表時刻" : "更新時刻"] = times.reduce((latest, time) => Date.parse(time) > Date.parse(latest) ? time : latest);
+      if (domain === "eew" && isRecord(item) && typeof item["serialRaw"] === "string" && item["serialRaw"] !== "") out["第N報"] = item["serialRaw"];
+      continue;
+    }
+    if (HIDDEN.has(key) || (key.endsWith("Raw") && !key.endsWith("TimeRaw")) || (key === "raw" && "value" in value)) continue;
+    if (!Array.isArray(item)) { out[key] = screenValue(domain, item); continue; }
+    const limit = SCREEN_LIMITS[`${domain}.${key}`] ?? 5;
+    const newest = NEWEST_BY[`${domain}.${key}`];
+    const ordered = newest == null ? item : [...item].sort((a, b) => timeOf(b, newest) - timeOf(a, newest));
+    out[key] = ordered.slice(0, limit).map((element) => screenValue(domain, element));
+    // 切った件数は場面に残す（画面の「ほか n 件」）。
+    if (item.length > limit) out[`${key}Omitted`] = item.length - limit;
+  }
+  return out;
+}
+
 function screenOf(snapshot: DisplaySnapshot): SceneScreen {
   const { state, disconnectedAt, lastInputAt } = snapshot.connection;
   const current = Object.fromEntries(DOMAIN_KEYS.map((key) => {
     const domain = snapshot.current[key];
-    return [key, domain.delivery === "full" ? { delivery: "full" as const, view: domain.view } : { delivery: "summary" as const }];
+    return [key, domain.delivery === "full" ? { delivery: "full" as const, view: screenValue(key, domain.view) } : { delivery: "summary" as const }];
   }));
-  return { connection: { state, disconnectedAt, lastInputAt }, current, recovery: { eewUnverified: snapshot.recovery.eewUnverified } };
+  return { connection: { state, disconnectedAt, lastInputAt }, current, recovery: { eewUnverified: snapshot.recovery.eewUnverified },
+    notices: snapshot.notices.map(({ kind, text, expiresAt }) => ({ kind, text, expiresAt })) };
 }
 
 // 場面の記録は観測だけ（結果の本体・adapter の delivered・合否を変えない。T09 (1)(2) が本体の hash で確かめる）。
