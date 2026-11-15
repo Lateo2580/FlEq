@@ -193,7 +193,8 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     const dispatches = t2?.dispatches ?? [];
     // 試行 2 は本物の host と同じく 1 秒ごとに tick する（取り直しの開始・札の射影は publisher の tick が起こす。格子を飛ばすと繋がり直しの後に何も起きない）。
     const everySecond = scenario.kind === "ready" ? [{ fromMs: scenario.startMs, toMs: scenario.endMs }] : [];
-    const options = (scenes: RunOptions["scenes"]): RunOptions => ({ scenes, ...t2 == null ? {} : { dispatches, everySecond, ...t2.prepare == null ? {} : { prepare: t2.prepare } } });
+    // 1 回の run は 35 分で止めて blocked にする（2 回で 75 分の timeout に収め、落ちる前に index を書く）。
+    const options = (scenes: RunOptions["scenes"]): RunOptions => ({ scenes, budgetMs: 35 * MINUTE, ...t2 == null ? {} : { dispatches, everySecond, ...t2.prepare == null ? {} : { prepare: t2.prepare } } });
     const dir = join(out, id.replace(/[^A-Za-z0-9-]/g, "-"));
     mkdirSync(dir, { recursive: true });
     const blocked: string[] = [];
@@ -210,7 +211,8 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     const second = await runStage1(scenario, options({ times: chosen.map((item) => item.atMs), write: (scene) => {
       written.push(scene);
       const number = String(written.length).padStart(2, "0"), rule = chosen[written.length - 1]?.item ?? null, externalSend = !carriesRealEew(scene);
-      writeFileSync(join(dir, `${number}-actor.json`), `${JSON.stringify({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend,
+      // 外の演じ手に送れない場面は file の名前でも分ける（P3-FG-D-EXTERNAL-SEND=A。中身の印だけだと貼り付けで見落とす）。
+      writeFileSync(join(dir, `${number}-actor${externalSend ? "" : "-local-only"}.json`), `${JSON.stringify({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend,
         notifications: scene.attempts.map(notificationOf), screen: scene.screen }, null, 1)}\n`);
       writeFileSync(join(dir, `${number}-evaluator.json`), `${JSON.stringify({ scenario: id, scene: written.length, at: jstText(scene.atMs), rule,
         facts: scene.facts }, null, 1)}\n`);
@@ -218,7 +220,7 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
 
     // (1) 2 回の run は同じ本体（場面の口は観測だけ）。
     const hashes = [bodyHash(first.text), bodyHash(second.text)];
-    if (first.result["status"] === "blocked") blocked.push(`run blocked: ${JSON.stringify(first.result["blocked"])}`);
+    for (const run of [first, second]) if (run.result["status"] === "blocked") blocked.push(`run blocked: ${JSON.stringify(run.result["blocked"])}`);
     if (hashes[0] !== hashes[1]) blocked.push("bodyHash differs between the two runs");
     // (2) AC09 の筋書きは AC09 の同じ筋書きの結果と本体が一致し、その gitHead から src と災害の日の道具が変わっていない。
     let ac09: JsonValue = null;
