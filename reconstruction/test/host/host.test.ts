@@ -2154,3 +2154,21 @@ describe("P3-OWNER-STOP-NOTICE-001 the host hands the urgent owner's stop to the
     expect(second.stopped).toEqual([]);
   });
 });
+
+// P3-TET-T01（台帳 135）: WS の head.type が種類のコードの形でない報は ingress で断り、U-M の帯・debug の行へ外部の字を出さない（P3-TERMINAL-EXTERNAL-TEXT-001）。
+describe("P3-TET-T01 head.type の形", () => {
+  it("regression / AC01: VPWW57 の後に ESC の head.type の報は envelopeInvalid で断り、端末の行に ESC も VPWW57 も出ない", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const terminal = harness({ debug: true });
+    cleanups.push(() => terminal.output.close());
+    const host = await startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null, terminal: terminal.output.sink });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(dataFrame("VPWW57\u001b[2J", "x"));
+    server.sockets[0].send(dataFrame("VZZZ99", "x"));
+    await until(() => terminal.lines.some((line) => line.startsWith("━ 処理できなかった電文 VZZZ99 ")));
+    const leaked = terminal.lines.filter((line) => line.includes("\u001b") || line.includes("VPWW57"));
+    expect([terminal.lines.includes("debug: input-1（出さない・断った envelopeInvalid）"), leaked]).toEqual([true, []]);
+  });
+});
