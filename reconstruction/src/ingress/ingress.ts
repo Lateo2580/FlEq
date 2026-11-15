@@ -60,7 +60,7 @@ export function ingestXmlData(input: IngressInput):
       ? (message.format === "xml" || message.format === "json" ? { kind: "missing" } : { kind: "notProvided" })
       : normalized == null ? { kind: "invalid", observed: observed(status) } : { kind: "provided", value: normalized };
     if (message.format !== "xml") return reject("formatUnsupported");
-    if (message.type !== "data" || typeof head.type !== "string" || typeof message.body !== "string") return reject("envelopeInvalid");
+    if (message.type !== "data" || typeof head.type !== "string" || !/^[A-Z0-9]+$/.test(head.type) || typeof message.body !== "string") return reject("envelopeInvalid"); // head.type は U-M の帯・debug の行・保存のカードへ字のまま出るので、種類のコードの形でなければ封筒の誤りとして断る（台帳 135、P3-TERMINAL-EXTERNAL-TEXT-001）
     if (message.encoding !== "base64" && message.encoding !== "utf-8") return reject("encodingUnsupported");
     if (message.compression !== null && message.compression !== "gzip" && message.compression !== "zip") return reject("compressionUnsupported");
     encoding = message.encoding;

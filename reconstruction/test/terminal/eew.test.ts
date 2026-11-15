@@ -139,3 +139,14 @@ describe("P3-TCC-T01 端末の制御の字", () => {
     }
   });
 });
+
+// P3-TET-T02（台帳 136）: 文でない欄の LF は縦線の無い行を始めるので空白に替える。文の LF は段落の区切りのまま（P3-TERMINAL-EXTERNAL-TEXT-001）。
+describe("P3-TET-T02 文でない欄の LF", () => {
+  it("regression / AC02: 震源名の LF は空白 1 字になり「水道」で始まる行が無く、文の LF は別の行のまま", () => {
+    const lines = terminal(80, 3)(eewUnits([{ path: "37_01_01_240613_VXSE43.xml",
+      transform: (xml: string) => xml.replace("<Name>豊後水道</Name>", "<Name>豊後&#10;水道</Name>")
+        .replace("<Text>強い揺れに警戒してください。</Text>", "<Text>強い揺れに&#10;警戒してください。</Text>") }])[0]).map(plain);
+    expect([lines.includes("  震源: 豊後 水道 ・ M5.8 ・ 深さ30km ・ 長周期階級 1"), lines.some((text) => text.startsWith("水道")),
+      lines.includes("  強い揺れに"), lines.includes("  警戒してください。")]).toEqual([true, false, true, true]);
+  });
+});
