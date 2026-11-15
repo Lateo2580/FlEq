@@ -61,7 +61,9 @@ type Paint = (role: Role | null, text: string) => string;
 function painter(level: ColorLevel): Paint {
   const instance = new chalk.Instance({ level });
   const styled = new Map<Role, chalk.Chalk>();
-  return (role, text) => {
+  return (role, raw) => {
+    // 電文の CR・U+0085・U+2028・U+2029 は端末で行の頭へ戻るなどして前の字を上書きしうる。ほかの C1 と DEL も制御として読まれうる。端末の整形とプロンプトの字は全部ここを通り、どれも幅 1 桁と数えて組んであるので、色の水準によらず半角の空白 1 字に替えれば組みは変わらない（台帳 134、P3-TERMINAL-CONTROL-CHARS-001、P3-TCC-D-SUBSTITUTE）
+    const text = raw.replace(/[\r\u007f-\u009f\u2028\u2029]/g, " ");
     if (role == null || text === "") return text;
     let paint = styled.get(role);
     if (paint == null) {
