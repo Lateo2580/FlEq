@@ -234,7 +234,7 @@ type RunOptions = Readonly<{
   units?: UnitTable;
   prepare?: (h: Harness, clock: ClockReading) => Promise<void>;
   // P3-DPM-AC03: 山の写し（全 unit の最新の保存の byte の合計が最大の時点の保存の file と peak.json）の書き先。Pass・Fail の run だけ書く。
-  peakOut?: string;
+  peakOut?: string; scenes?: SceneOptions; dispatches?: readonly Dispatch[];
 }>;
 
 // 必ず成功するメモリの保存（projection-fixture.ts の memoryWrites と同じ形、disk に書かない）。山の写し（P3-DPM-AC03）が Map を読むので、
@@ -333,7 +333,7 @@ function writePeak(out: string, head: Readonly<Record<string, JsonValue>>, peak:
 }
 
 // 1 段目の流し手: 1 筋書き 1 run、空の state から。結果（自己 hash 付きの JSON）を返し、out があれば書く。
-async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<Readonly<{ text: string; result: Readonly<Record<string, JsonValue>> }>> {
+async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<Readonly<{ text: string; result: Readonly<Record<string, JsonValue>>; scenes?: SceneResult | null }>> {
   const began = performance.now();
   if (options.peakOut != null && options.checkpointFileSystem != null) throw new Error("peakOut needs the memory file system (checkpointFileSystem has no Map to copy)");
   const identity = { schema: "p3-disaster-capacity-result-v1", contractId: "P3-DISASTER-CAPACITY-001", scenario: scenario.id, gitHead: gitHead(), effectiveLimits: EFFECTIVE_LIMITS,
@@ -349,7 +349,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   let now: ClockReading = { wallTimeMs: startMs, monotonicMs: 1 };
   const setNow = (wallTimeMs: number) => { now = { wallTimeMs, monotonicMs: wallTimeMs - startMs + 1 }; };
   let saveFailure: string | null = null;
-  const table = new ObservationTable(options.units ?? linkedUnitTable);
+  const scene = options.scenes == null ? null : new SceneLog(options.scenes); const table = new ObservationTable(scene?.units(options.units ?? linkedUnitTable) ?? options.units ?? linkedUnitTable);
   const spans: Spans = new Map();
   const transitions: JsonValue[] = [];
   let summarized = "";
@@ -387,7 +387,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     diagnosticDirectory: "disaster-diagnostics" }, linkedUnitCodecs, {
     clock: () => now, runtimeCalls: { ...linkedRuntimeCalls, units: table.units }, checkpointFileSystem: fileSystem,
     diagnosticFileSystem: discardDiagnostics(() => { saveFailure ??= "checkpointRetryScheduled"; }), reportFailure: () => {},
-    notificationAdapter: { run: async (attempt, clock) => ({ kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId,
+    notificationAdapter: { run: async (attempt, clock) => (scene?.attempt(attempt, now.wallTimeMs), { kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId,
       channel: attempt.channel, completedAt: clock() }), abort: async () => ({ stopped: true }) },
     onMeasurements: measure, display: { publish } });
 
@@ -477,10 +477,10 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   };
   const grid = (atMs: number) => startMs + Math.ceil((atMs - startMs) / 1_000) * 1_000;
   // 区切りと期待例の時刻。その時刻までの frame と tick を済ませてから記録する（P3-DC-RES-02: 期待例は区切りの時刻だけ）。
-  const points = [...scenario.checkpoints.map((item) => ({ ...item, check: null })), ...scenario.expectations].sort((a, b) => a.atMs - b.atMs);
+  const points = [...scenario.checkpoints.map((item) => ({ ...item, check: null })), ...scenario.expectations, ...scene?.points ?? []].sort((a, b) => a.atMs - b.atMs);
   const checkpoints: JsonValue[] = [];
   const expectations: JsonValue[] = [];
-  const evaluate = (point: (typeof points)[number]) => {
+  const evaluate = (point: (typeof points)[number]) => { if ("scene" in point) return scene?.capture(point.atMs, lastSnapshot, h);
     if (point.check == null) {
       const snapshot: DisplaySnapshot | null = lastSnapshot;
       const measured = snapshot == null ? null : measureSnapshot(snapshot);
@@ -494,8 +494,8 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   let blocked: Blocked | null = null;
   try {
     await settled(startHarness(h, "disaster", now));
-    if (options.prepare != null) await settled(options.prepare(h, now));
-    let frameIndex = 0, pointIndex = 0, lastTick = -Infinity;
+    if (options.dispatches != null) h.root.attachSequence(() => ++frameCount, () => frameCount); if (options.prepare != null) await settled(options.prepare(h, now));
+    let frameIndex = 0, pointIndex = 0, lastTick = -Infinity, dispatchIndex = 0;
     // 直前の frame の時刻。その後の最初の格子で tick する（次の tick の候補、P3-DC-CLOCK (4)）。
     let afterFrame: number | null = null;
     const nextTick = () => {
@@ -509,9 +509,9 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     };
     for (;;) {
       if (performance.now() - began > budgetMs) throw new Blocked("timeBudget", `stopped at ${new Date(now.wallTimeMs).toISOString()}`);
-      const frameAt = scenario.frames[frameIndex]?.atMs ?? Infinity;
+      const frameAt = scenario.frames[frameIndex]?.atMs ?? Infinity, dispatchAt = options.dispatches?.[dispatchIndex]?.atMs ?? Infinity;
       const tickAt = nextTick();
-      const next = Math.min(frameAt, tickAt);
+      const next = Math.min(frameAt, tickAt, dispatchAt);
       const point = points[pointIndex];
       if (point != null && point.atMs < Math.min(next, endMs + 1)) {
         await moveTo(Math.max(point.atMs, now.wallTimeMs));
@@ -520,11 +520,11 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
         continue;
       }
       if (next > endMs) break;
-      if (frameAt <= tickAt) {
+      if (frameAt <= tickAt && frameAt <= dispatchAt) {
         const frame = scenario.frames[frameIndex++];
         await moveTo(frame.atMs);
         const inputId = `input-${++frameCount}`;
-        await settled(submit(h, envelope(h.root.state.runId, frame.headType, inputId, frame.body, now, frameCount)));
+        if (options.dispatches != null) received(); await settled(submit(h, envelope(h.root.state.runId, frame.headType, inputId, frame.body, now, frameCount)));
         afterFrame = frame.atMs;
         // 合成の frame の入力の結果（P3-DC-ORACLE (5)）: 容量の拒否は数えて続け、不正だけを測定不成立にする。実電文の不正は数える。
         const outcome = table.outcome(inputId);
@@ -533,9 +533,9 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
         // 合成と公開サンプルは筋書きが中身を決める入力なので、不正は測定不成立。実電文だけ数えて続ける。
         if (invalid != null && frame.origin !== "real") throw new Blocked("inputNotAdopted", `${inputId} ${frame.source} ${frame.headType} ${invalid}`);
         if (invalid != null) realInvalid[`${frame.headType} ${invalid}`] = (realInvalid[`${frame.headType} ${invalid}`] ?? 0) + 1;
-      } else {
+      } else if (dispatchAt <= tickAt) await dispatch(dispatchIndex++); else {
         await moveTo(tickAt);
-        h.root.tick(now);
+        if (scene != null && ownerDeadline() <= tickAt) scene.deadline(tickAt); h.root.tick(now);
         ticks++;
         await settled(h.settle());
         lastTick = tickAt;
@@ -578,6 +578,24 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   for (const [unit, counts] of unresolvedSeen) unresolvedMax[unit] = counts;
   const pass = table.rejections.length === 0 && countedLosses.length === 0 && expectations.every((item) => isRecord(item) && item["ok"] === true)
     && failingSummary.length === 0;
+  // P3-FG-D-T2-RECONNECT: 時刻つきの操作。同じ時刻の frame の後に流す（試行 2 の切断・繋がり直し・再送）。再送は採否を問わない（捨てられるのが筋書き）。
+  async function dispatch(index: number): Promise<void> {
+    const item = options.dispatches?.[index];
+    if (item == null) return;
+    await moveTo(item.atMs);
+    switch (item.kind) {
+      case "watchEewWindow": h.root.watchEewWindow(); break;
+      case "connected": h.root.recordFrame(now.wallTimeMs); h.root.recordConnected(now.wallTimeMs); break;
+      case "connectionLost": h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: frameCount === 0 ? -1 : frameCount, clock: now }); break;
+      case "frame":
+        received();
+        await settled(submit(h, envelope(h.root.state.runId, item.frame.headType, `input-${++frameCount}`, item.frame.body, now, frameCount)));
+        return;
+    }
+    await settled(h.settle());
+  }
+  // 本物の host の受信の口と同じ順（host.ts の onFrame: 札の始まりの frame の wall、最終受信）。ping は流さないので、札の始まりは最後の data か start の frame。
+  function received(): void { h.root.recordFrame(now.wallTimeMs); h.root.recordInput(now.wallTimeMs); }
   const reached = top.peak;
   const result = { ...identity, status: pass ? "Pass" : "Fail", blocked: null,
     peak: reached == null ? null : { atMs: reached.atMs, totalBytes: reached.totalBytes, units: reached.units },
@@ -595,8 +613,81 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     realInvalid, summaries, summaryTransitions: transitions, checkpoints, expectations,
     final: { stateSha256: finalStates }, run: { startMs, endMs }, timing };
   if (options.peakOut != null) writePeak(options.peakOut, { scenario: identity.scenario, digest: identity.digest, gitHead: identity.gitHead, effectiveLimits: EFFECTIVE_LIMITS }, reached);
-  return { text: seal(result, options.out), result };
+  return { text: seal(result, options.out), result, scenes: scene?.result() ?? null };
+}
+
+// ---- P3-FINAL-GATE-001 の場面の口（発注 3b、AC10・P3-FG-D-SCENE-RULE・P3-FG-D-SCENE-TEXT） ----
+
+type SceneAttempt = Readonly<{ atMs: number; unit: string; subject: string; channel: NotificationAttempt["channel"];
+  priorityGroup: NotificationAttempt["priorityGroup"]; payload: NotificationAttempt["payload"]; soundAsset: NotificationAttempt["soundAsset"] }>;
+// SCENE-TEXT=A: 画面に出る欄だけを snapshot の形のまま写す（演じ手に裏の事実を渡さない）。
+type SceneScreen = Readonly<{ connection: DisplayConnectionView;
+  current: Readonly<Record<string, Readonly<{ delivery: "summary" } | { delivery: "full"; view: unknown }>>>;
+  recovery: Pick<DisplayRecoveryView, "eewUnverified"> }>;
+type SceneCapture = Readonly<{ atMs: number; attempts: readonly SceneAttempt[]; screen: SceneScreen | null;
+  facts: Readonly<Record<string, readonly Readonly<{ subject: string; until: number | null }>[]>> }>;
+// times が空の run は候補を集めるだけ（SCENE-RULE の 1 回目）。write は場面ごとに 1 回、その時刻の frame と tick を済ませた後に呼ぶ。
+type SceneOptions = Readonly<{ times: readonly number[]; write: (scene: SceneCapture) => void }>;
+type SceneResult = Readonly<{ attempts: readonly SceneAttempt[]; newSubjects: readonly number[]; deadlines: readonly number[] }>;
+type Dispatch = Readonly<{ atMs: number; kind: "watchEewWindow" | "connected" | "connectionLost" }> | Readonly<{ atMs: number; kind: "frame"; frame: Frame }>;
+
+function screenOf(snapshot: DisplaySnapshot): SceneScreen {
+  const { state, disconnectedAt, lastInputAt } = snapshot.connection;
+  const current = Object.fromEntries(DOMAIN_KEYS.map((key) => {
+    const domain = snapshot.current[key];
+    return [key, domain.delivery === "full" ? { delivery: "full" as const, view: domain.view } : { delivery: "summary" as const }];
+  }));
+  return { connection: { state, disconnectedAt, lastInputAt }, current, recovery: { eewUnverified: snapshot.recovery.eewUnverified } };
+}
+
+// 場面の記録は観測だけ（結果の本体・adapter の delivered・合否を変えない。T09 (1)(2) が本体の hash で確かめる）。
+class SceneLog {
+  readonly points: readonly Readonly<{ atMs: number; label: string; check: null; scene: true }>[];
+  private readonly attempts: SceneAttempt[] = [];
+  private readonly newSubjects: number[] = [];
+  private readonly deadlines: number[] = [];
+  private written = 0;
+
+  constructor(private readonly options: SceneOptions) {
+    this.points = options.times.map((atMs) => ({ atMs, label: "scene", check: null, scene: true as const }));
+  }
+
+  attempt(attempt: NotificationAttempt, atMs: number): void {
+    const { unit, subject, channel, priorityGroup, payload, soundAsset } = attempt;
+    this.attempts.push({ atMs, unit, subject, channel, priorityGroup, payload, soundAsset });
+  }
+
+  // SCENE-RULE (vii): owner の期限が来ていた tick。
+  deadline(atMs: number): void { this.deadlines.push(atMs); }
+
+  // SCENE-RULE (vi): receive の step の displayChanges のうち before が null のもの（step ごとに変化の数だけ）。
+  units(base: UnitTable): UnitTable {
+    const wrap = <K extends RuntimeUnitId>(module: UnitModule<K>): UnitModule<K> => ({ ...module, reduce: (state, input) => {
+      const step = module.reduce(state, input);
+      const given: RuntimeUnitInputs[RuntimeUnitId] = input, taken: RuntimeUnitSteps[RuntimeUnitId] = step;
+      if (given.kind === "receive" && this.newSubjects.at(-1) !== given.clock.wallTimeMs && taken.displayChanges.some((change) => change.before == null))
+        this.newSubjects.push(given.clock.wallTimeMs);
+      return step;
+    } });
+    return { "U-E": wrap(base["U-E"]), "U-W": wrap(base["U-W"]), "U-F": wrap(base["U-F"]), "U-T": wrap(base["U-T"]), "U-Q": wrap(base["U-Q"]),
+      "U-N": wrap(base["U-N"]), "U-V": wrap(base["U-V"]), "U-L": wrap(base["U-L"]), "U-R": wrap(base["U-R"]), "U-B": wrap(base["U-B"]),
+      "U-M": wrap(base["U-M"]), "U-Y": wrap(base["U-Y"]) };
+  }
+
+  // 評価者の事実は選んだ時刻だけで recordsOf を引く（P3-DPM-AC03 (1) の state を辿らない決まり）。
+  capture(atMs: number, snapshot: DisplaySnapshot | null, h: Harness): void {
+    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, [...recordsOf(h.unit(unit))]
+      .filter(([, until]) => until == null || until > atMs).map(([subject, until]) => ({ subject, until }))]));
+    this.options.write({ atMs, attempts: this.attempts.slice(this.written), screen: snapshot == null ? null : screenOf(snapshot), facts });
+    this.written = this.attempts.length;
+  }
+
+  result(): SceneResult { return { attempts: this.attempts, newSubjects: this.newSubjects, deadlines: this.deadlines }; }
 }
 
 export { ObservationTable, runStage1 };
-export type { Loss, RunOptions };
+export type { Dispatch, Loss, RunOptions, SceneAttempt, SceneCapture, SceneResult };
+
+import type { DisplayConnectionView, DisplayRecoveryView } from "../../contracts/p2-snapshot-sse.types";
+import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
+import type { Frame } from "./synth";
