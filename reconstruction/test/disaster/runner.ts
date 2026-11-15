@@ -736,9 +736,12 @@ function screenOf(snapshot: ScreenInput): SceneScreen {
 // （P3-DC-RES-02）が使うので変えず、同じ辿り方で 2 つを読む。表示の期限の欄（EEW の gate の currentUntil、validUntil・activeUntil・visibleUntil）が
 // 有れば until はその値（null は current の無い版・失効後、P3-LIFE-SEM-01）。欄の無い記録は toView が時計を見ず期限の reduce が記録を除くので、
 // view に出ている間は保持の期限で外れる。含める subject は今までどおり保持の期限で絞る（外部送付の判定が facts の subject を読む）。
+// shown は view の行の subject か、その行の出どころの報の subject。U-W の view の行は府県（operation/area/府県）で state の報の subject と
+// 突き合わないので、府県の行の source（その府県の行の最も新しい報）で引く。ほかの 11 unit は view の行の subject と source の subject が同じ。
 const DISPLAY_UNTIL = ["currentUntil", "validUntil", "activeUntil", "visibleUntil"];
 type Limits = Readonly<{ display: number | null | undefined; retainUntil: number | null }>;
-function factsOf(state: object, shown: ReadonlySet<string>, atMs: number): SceneFact[] {
+function factsOf(state: object, rows: readonly Readonly<{ subject: string; source: Readonly<{ subject: string }> | null }>[], atMs: number): SceneFact[] {
+  const shown = new Set(rows.flatMap((row) => row.source == null ? [row.subject] : [row.subject, row.source.subject]));
   const found = new Map<string, Limits>();
   const add = (item: Readonly<Record<string, unknown>>, parent: Limits | null): Limits => {
     const key = DISPLAY_UNTIL.find((name) => name in item), display = key == null ? undefined : item[key], retain = item["retainUntil"];
@@ -798,9 +801,9 @@ class SceneLog {
       "U-M": wrap(base["U-M"]), "U-Y": wrap(base["U-Y"]) };
   }
 
-  // 評価者の事実は選んだ時刻だけで recordsOf を引く（P3-DPM-AC03 (1) の state を辿らない決まり）。
+  // 評価者の事実は選んだ時刻だけで factsOf を引く（P3-DPM-AC03 (1) の state を辿らない決まり）。
   capture(atMs: number, snapshot: DisplaySnapshot | null, h: Harness): void {
-    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, factsOf(h.unit(unit), new Set(h.root.state.mirror[unit].view.subjects.map((item) => item.subject)), atMs)]));
+    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, factsOf(h.unit(unit), h.root.state.mirror[unit].view.subjects, atMs)]));
     const fullScreen = snapshot == null ? null : { connection: snapshot.connection, current: snapshot.current,
       recovery: { eewUnverified: snapshot.recovery.eewUnverified }, notices: snapshot.notices };
     this.options.write({ atMs, attempts: this.attempts.slice(this.written), screen: snapshot == null ? null : screenOf(snapshot), fullScreen, facts });
@@ -810,7 +813,7 @@ class SceneLog {
   result(): SceneResult { return { attempts: this.attempts, newSubjects: this.newSubjects, deadlines: this.deadlines }; }
 }
 
-export { ObservationTable, runStage1, screenOf };
+export { ObservationTable, factsOf, runStage1, screenOf };
 export type { Dispatch, Loss, RunOptions, SceneAttempt, SceneCapture, SceneResult };
 
 import type { DisplayConnectionView, DisplayDomainView, DisplayRecoveryView, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";

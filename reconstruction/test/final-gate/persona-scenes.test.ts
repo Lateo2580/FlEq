@@ -9,7 +9,7 @@ import type { JsonValue, RuntimeUnitId } from "../../contracts/p2-shared-runtime
 import type { DisplayDomainView, DisplaySeverity, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
 import { walkStart } from "../../src/recovery/recovery";
-import { runStage1, screenOf } from "../disaster/runner";
+import { factsOf, runStage1, screenOf } from "../disaster/runner";
 import type { Dispatch, RunOptions, SceneAttempt, SceneCapture } from "../disaster/runner";
 import { readScenario } from "../disaster/scenario";
 import type { Scenario } from "../disaster/scenario";
@@ -312,6 +312,17 @@ describe("P3-FINAL-GATE-001 scene tool fixes (3b3)", () => {
     const reportAreas = [{ code: "390", name: "高知県西部", lgInt: null, arrivalTimeRaw: null }, { code: "391", name: null, lgInt: null, arrivalTimeRaw: null }];
     expect(viewOf("eew", { eew: full("U-E", { current: [{ warningClass: "warning", source: source(0), prediction, reportAreas }] }) })).toMatchObject({
       current: [{ prediction: { areas: [{ name: "高知県西部", intensity: intensity("5-") }, { 地域コード: "391", intensity: intensity("4") }] } }] });
+  });
+
+  it("(v) evaluator facts give the display deadline apart from the retention, and a U-W report on a prefecture row is shown", () => {
+    // 実不具合: 保持の 24 時間を表示の期限として並べた（EEW の gate）。U-W は view の行が府県なので、報の事実が毎回 shown:false になった（3b3 のレビュー）。
+    const subject = "normal/VXSE45/20261019233001", gate = (currentUntil: number | null) => ({ current: [], gates: [{ subject, currentUntil, retainUntil: 90_000 }] });
+    expect(factsOf(gate(1_000), [{ subject, source: { subject } }], 500)).toEqual([{ subject, shown: true, until: 1_000, retainUntil: 90_000 }]);
+    expect(factsOf(gate(null), [], 2_000)).toEqual([{ subject, shown: false, until: null, retainUntil: 90_000 }]);
+    const report = "normal/VPWW55/宇都宮地方気象台", other = "normal/VPWW55/前橋地方気象台";
+    const weather = { national: {}, partials: [report, other].map((item) => ({ subject: item, source: { subject: item } })) };
+    expect(factsOf(weather, [{ subject: "normal/area/09", source: { subject: report } }], 0)).toEqual([
+      { subject: report, shown: true, until: null, retainUntil: null }, { subject: other, shown: false, until: null, retainUntil: null }]);
   });
 
   it("(iv) T2-saori (forecast contract) streams no VXSE43, T2-naoto (warning only) still does", () => {
