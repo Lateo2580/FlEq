@@ -31,10 +31,11 @@ it.skipIf(process.platform === "win32")("P3-PMB-T01 contractBoundary / P3-DPM-AC
   const exited = new Promise<number | null>((done) => tool.on("exit", done));
   let host: number | null = null;
   try {
-    // launch 0 の host が clock の行を書いた後（道具が投入を始める時）に止める。それより前だと道具は ready・clock の待ちで別の blocked になる。
+    // launch 0 の host が最初の T2 を書いた後（投入が始まった後、道具の drain が見るのと同じ行）に止める。clock の行は投入の前の準備より先に出るので、
+    // それを合図にすると止めている間に溜まる報が減り、遅い機械で予約の枠に届かず measured になりうる。
     const obs = join(work, "launch-0", "host-obs.jsonl");
-    for (const until = Date.now() + 60_000; !(existsSync(obs) && readFileSync(obs, "utf8").includes('"t":"clock"'));) {
-      if (Date.now() > until) throw new Error("no clock line from the launch 0 host within 60 s");
+    for (const until = Date.now() + 60_000; !(existsSync(obs) && readFileSync(obs, "utf8").includes('"point":"T2"'));) {
+      if (Date.now() > until) throw new Error("no T2 line from the launch 0 host within 60 s");
       await sleep(100);
     }
     const children = execFileSync("pgrep", ["-P", String(tool.pid)], { encoding: "utf8" }).trim().split("\n");
@@ -56,4 +57,4 @@ it.skipIf(process.platform === "win32")("P3-PMB-T01 contractBoundary / P3-DPM-AC
   // hostReasons は出た reason だけを数えるので、欄があれば 1 以上。
   expect(result).toMatchObject({ status: "blocked", blocked: { reason: "hostFailed", launch: 0, hostExit: { code: 0, signal: null }, terminatedBy: "SIGTERM",
     hostReasons: { mailboxRejectedItemLimit: expect.any(Number) } } });
-}, 120_000);
+}, 180_000); // T2 の待ち 60 秒＋投入 15 秒＋drain 10 秒＋stop の待ち 60 秒＋SIGTERM 20 秒＋SIGKILL 2 秒＝167 秒に runStage1 を足す
