@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5ea379847e986616bf1aca3fa1dbe4157d86af01",
-    "sha256": "f453cb8c5c4ff37d1b8f939a28e6e09ce636f6bc19c7bbc34c532242c632629e",
+    "sha256": "2049780e7a76300491a5623d0c4361256ed95dcb78911089f13f69f9d40e035b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -53,6 +53,12 @@
         "status": "closed",
         "source": "起草（2026-11-15、worktree の reconstruction/.dr-tmp/ に cp -cR で写した木で、追跡 file を変えずに流した。木は base〔直しなし〕・caseA〔本契約の 5 行〕・B の字どおり・狭い B〔partial の報時刻が全国報より前でないときだけ全国報の版を勝者の代わりにしない〕と、caseA から片方ずつ戻した 2 本。corpus は ~/dev/fleq-corpus-p0/20260923-capacity の x-2026-06-03・x-2026-06-26・x-2026-09-21 の VPWS50・VPWW55〜61、1,895 報〔うち VPWW56 の 425 報は U-W が受けない〕。数え直しの script は .dr-tmp の recount2.cjs〔~/dev/fleq-vault-archive/2026-11-14/uw-recount/recount.cjs に AC05 の条件を足したもの〕と linger.cjs〔2 本の木に同じ報を流し、各 step の合わせの段の差と desktop の差を数える〕。どれも repo に入れない。script・結果・patch は ~/dev/fleq-vault-archive/2026-11-15/uw-same-time/ に控えた〔out-base・out-caseA は recount2、linger-caseA-rep・linger-caseA-recv は base と caseA の linger、B の字どおりは out-fix・linger-out・linger-fix-recv、狭い B は linger-narrow-*、場面は paths・rev・rel・reraise-partial・probe-t03、木は 5ea37984 の写しに caseA.diff を当てたもの〕）",
         "closed": "(1) corpus の数え直し（recount2、報時刻の順、日ごとに空の state から）: base は上がった 125 回・区域×現象×段 115・2 回上がった 10・desktop のある報 46（VPWW55 41・VPWS50 5）・全国報による L4 以上の引下げ 10・その後の全国報による同じ段の上げ直し 10。caseA は 115・115・0・42（VPWW55 41・VPWS50 1）・0・0。上げ直しの 10 は 2026-06-03 08:40 鎌倉市（1420400）、09-21 13:50 神奈川県・東部・東部の一次細分・1410012、14:10 140013・1410011・1420400、19:10 080021・0822300 で、どれも府県の報 VPWW55 が 43 発表、同じ報時刻で Control/DateTime が 8〜51 秒後の全国報がその区域を 03 継続（43・なしではない） (2) base と caseA の差（linger、報時刻の順と受けた順の両方）: desktop の差は 4 件だけで、どれも base にあり caseA に無い（06-03 08:50「大雨危険警報 神奈川県鎌倉市」、09-21 14:00「〜神奈川県東部」、14:20「〜神奈川県三浦半島」、19:20「大雨危険警報 茨城県鹿行地域」）。caseA で新しく鳴るものは 0。合わせの段の差は 10 区域×10 分だけ（どれも次の VPWS50 が 43 を載せて同じに戻る）。受けた順でも同じ数（報時刻の順・受けた順とも、合わせの差は 10 区域×10 分・desktop の差は同じ 4 件） (3) B の字どおりの木: corpus の差は caseA と同じだが、reconstruction の全 vitest は 1,647 通過・4 失敗・34 skip。落ちたのは P3-UWC-T04 の :149（古い福井の解除の行が戻る、29 行対 14 行）・:160（VPNO50 の終了の後に 06:00 の partial の 03 が戻る）・:169（古い京都の 260000 の行が戻る）と P3-WN-T03 の :127（08:00 の全国報の後に 06:51 の福井の報を受けると desktop「大雨危険警報（福井県）」本文「大雨危険警報 福井県坂井市、福井県永平寺町」が 1 件）。狭い B の木は対象の 75 件が緑 (4) caseA: uw-canon・weather-notice・weather-current-unit・final-gate の 75 件が緑（T01 の O03 も今の期待のまま）。AC02・AC03 の試験を足すと 2 本の file の 37 件が緑。直しなしの木に同じ試験を足すと 2 件落ちる（AC02: 2 本目の全国報で desktop 1 件、AC03: 府県 18 の active な区域 14）。:91 の足しだけを戻すと AC03 だけ（active 13）、:106 の足しだけを戻すと AC02 だけが落ちる。全 reconstruction の vitest（--maxWorkers=2）は 1,685 件のうち 1,651 通過・0 失敗・34 skip（足した 2 つの expect を含む）、uw-canon・weather-notice・final-gate の --sequence.shuffle は 41 件緑 (5) caseA の場面（paths.cjs・rev.cjs・rel.cjs、06:51 の福井の報〔L5 の 33 を 43 に替えた L4 版〕など）: 同じ報時刻で Control/DateTime が後の全国報が 03 を載せても 43 の 7 行は残り、07:00 の全国報が 43 を載せても鳴らない。逆の順（同じ報時刻の全国報が先）では府県の報の受理で desktop が 1 件鳴り、07:00 の全国報では鳴らない（base は府県の報で鳴らず 07:00 で 1 件）。報時刻が後（07:00）の全国報が 03 を載せると 43 は消え、続く全国報が 43 を載せると desktop が鳴る（base と同じ、AC02 (5) の上げの向き）。20:04 の全国報（Control 11:04:59Z、synthetic_VPWS50_fukui_base の中身で嶺北 33・坂井市と永平寺町 43）→ 20:04 の福井の解除 → 20:10 の同じ中身の全国報では、20:10 で critical の desktop＋sound「大雨特別警報 福井県嶺北 / 大雨危険警報 福井県坂井市、福井県永平寺町」が 1 組鳴る（base は鳴らない、AC02 (5) の解除の向き）"
+      },
+      {
+        "id": "Q-UTP-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-15、HEAD edd54f6f、main edd54f6f・origin/main 5ea37984）",
+        "closed": "baseOid を edd54f6f15c08cf4a7ec33ebd45c08412bb85ee2 に割り当てた（起草 a0bf38d2・r1 edd54f6f。起草レビューは品質〔ヘルツ Astra xhigh〕が r0 で GO、契約適合〔Opus〕が r0 条件付き GO → r1 の再確認で GO）。decisionBranches の「起草案」は 0 件（P3-UTP-D-TIE は作者の裁定で A、P3-UTP-D-SPOKEN は D-TIE=A に含まれる、P3-UTP-D-TIE-READ は統合担当が A で確定）。起草から baseOid までに main は 5ea37984 の上に本契約の 2 commit だけで、ほかの file は動いていない。weather-current-public.ts・uw-canon-unit.test.ts・weather-notice.test.ts を引くほかの契約の «» は Q-UTP-SOURCE (6) のまま（p3-uw-stale-downgrade.json の :84・:87・:99・:105・:106〔2 件〕・:165 と uw-canon-unit.test.ts の :141・:142、p3-weather-notice.json の :115・:118・:185・:195。実装で字が変わるのは :106 の 2 件だけで、AC07 (4) で付け直す）。実装は起草の写しの patch（.dr-tmp/patch/caseA.diff、控え ~/dev/fleq-vault-archive/2026-11-15/uw-same-time/caseA.diff）を当てる。その patch を当てた写しの木に本契約を置いた check-contract は、rc 1 で 148 PASS・2 FAIL、どちらも AC07 (4) の付け直し前の FAIL（本契約の weather-current-public.ts:85 と P3-UW-STALE-DOWNGRADE-001 の :106。checker は契約ごとに最初の FAIL で止まるので、本契約の :88・:90・:91・:106 と uw-canon-unit.test.ts の :160・:169 も同じ族）"
       }
     ],
     "operationContract": {
@@ -64,7 +70,7 @@
     "contractId": "P3-UW-SAME-TIME-PARTIAL-001",
     "mode": "implementation",
     "objective": "U-W（気象警報の unit）の全国報と府県の報の合わせで、報時刻が同じときに府県の報を優先する（作者裁定 2026-11-15、P3-UTP-D-TIE=A、台帳 126）。場面: 2026-09-21 13:50 に横浜地方気象台の府県の報（VPWW55、Control/DateTime 04:50:15Z）が神奈川県・東部などを Code 43（大雨危険警報）に上げ、desktop「大雨危険警報（神奈川県）」が 1 件鳴る。38 秒後に同じ報時刻 13:50 の全国報（VPWS50、Control/DateTime 04:50:53Z）が届くが、同じ区域はまだ 03 継続で 43 を載せていない。compareVersion（version.ts、HEAD_THEN_CONTROL）は報時刻が同じなので Control/DateTime で比べ、全国報を newer にする。mergeCells は全国報が載せる区域の 43 の勝者を全国報の版（base）で決めるので、府県の報の 43 は合わせから消える。14:00 の全国報が 43 を載せると、同じ区域が段なし → L4 に上がり、desktop がもう一度鳴る（印は系列ごと）。3 日 1,895 報で 4 件（06-03 08:50 鎌倉市、09-21 14:00 神奈川県東部、14:20 三浦半島、19:20 鹿行地域）。mergeCells（weather-current-public.ts）の全国報との比べ 2 か所（全国報の行を外す条件 :91 と、勝者が全国報のときの置き換えの条件 :106）に『報時刻が同じ』を足す。変わる出方: 13:50 の府県の報で 1 回だけ鳴り、14:00 は鳴らない。同じ報時刻の府県の解除が全国報の行を外す。報時刻が違う比べ・partial どうし・取消・compareVersion・保存の形・版・通知の規則は変えない",
-    "baseOid": "unassigned",
+    "baseOid": "edd54f6f15c08cf4a7ec33ebd45c08412bb85ee2",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
