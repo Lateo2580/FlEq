@@ -479,10 +479,10 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       && !predictionChanged && (previous == null || candidate.cancelled || candidate.terminal
         || previous.warningClass === warningClass)
       && isDeepStrictEqual(gate.noticeSource, noticeSource), candidate.cancelled);
-  // 記録しか無いときは中身を比べないので、同じ版を duplicate に寄せず採る（current は作り直し、種類の照合で鳴らない）。取消済みの取消の
-  // 再送は stale（P3-NL-AC04 (3)(5)）。
+  // 記録しか無いときは中身を比べないので、同じ版の発表・続報は duplicate に寄せず採る（current は作り直し、種類の照合で鳴らない）。記録と比べて held の
+  // 訂正（時刻の読めない報も）と取消済みの取消の再送は、gate があるときと同じく採らない（P3-NL-AC04 (3)(5)、P3-EEW-RESTART-CORRECTION-001）。
   if (recorded != null && version.kind === "held")
-    version = recorded.cancelled && candidate.cancelled && !version.missing ? { kind: "older" } : { kind: "adopt", mark: null, missing: version.missing };
+    version = candidate.source.infoTypeRaw === "訂正" ? { kind: "held", mark: null, missing: version.missing } : recorded.cancelled && candidate.cancelled && !version.missing ? { kind: "older" } : { kind: "adopt", mark: null, missing: version.missing };
   const missing = (version.kind === "held" || version.kind === "adopt") && version.missing
     ? [diagnostic(input.material, "requiredStructureMissing")] : [];
   if (version.kind !== "adopt") {

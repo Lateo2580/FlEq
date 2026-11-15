@@ -1371,6 +1371,17 @@ describe("P2 EEW unit", () => {
     const newer = receive(notified.state, second);
     expect(receive(restore(newer.state, BASE_TIME + 1_000).state, first, BASE_TIME + 2_000).decisions[0])
       .toMatchObject({ decision: "unchanged", reason: "stale" });
+    // (2b) 実不具合（P3-EEW-RESTART-CORRECTION-001）: 通知しなかった続報（77_01_03）と同じ版の訂正は、復元の後も gate のあるときと同じく stale で
+    // 鳴らず current も作らない（復元の後は state も同じ参照）。時刻の読めない訂正は記録が取消でも採らない。Control/DateTime が後の訂正は今どおり鳴る。
+    const followed = receive(receive(emptyState(), decodeFixture("77_01_01_240613_VXSE45", "VXSE45")).state, vxse45), restored = restore(followed.state, BASE_TIME + 1_000).state;
+    const corrected = (later: number) => decodeFixture("77_01_03_240613_VXSE45", "VXSE45", (xml) => sentLater(xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>"), later), `t03-correction-${later}`);
+    expect([followed.intents.length, ...[followed.state, restored].map((state) => { const step = receive(state, corrected(0), BASE_TIME + 2_000);
+      return [step.decisions[0].decision, step.intents.length, step.state.current.length, step.state === state]; })]).toEqual([0, ["unchanged", 0, 1, false], ["unchanged", 0, 0, true]]);
+    expect(receive(restored, corrected(1), BASE_TIME + 2_000).intents.map((item) => item.payload.title)).toEqual(["[訂正] 緊急地震速報（予報）", "[訂正] 緊急地震速報（予報）"]);
+    const unreadable = decodeFixture("77_01_03_240613_VXSE45", "VXSE45", (xml) => xml.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>").replace(/<DateTime>[^<]*<\/DateTime>/, "<DateTime>x</DateTime>"), "t03-correction-unreadable");
+    const cancelledRestored = restore(receive(followed.state, decodeFixture("77_01_33_240613_VXSE45", "VXSE45")).state, BASE_TIME + 1_000).state;
+    expect([restored, cancelledRestored].map((state) => receive(state, unreadable, BASE_TIME + 2_000)).map(({ decisions, intents, diagnostics }) => [decisions[0].decision, intents.length,
+      diagnostics.map((item) => item.reason)])).toEqual([["unchanged", 0, ["requiredStructureMissing"]], ["unchanged", 0, ["requiredStructureMissing"]]]);
     // (3) 再起動の後、発表から 10 分以上遅れた取消は印の記録で既知として採り、印の証拠（possible）で通知する。
     const delivered = reduceEewUnit(notified.state, { kind: "intentUpdate", clock: clock(BASE_TIME), intentUpdate: notified.intents.map((item) => ({ ...item,
       attempts: 1, nextAttemptAt: BASE_TIME, disposition: "delivered" as const, lossReason: null })) }).state;
