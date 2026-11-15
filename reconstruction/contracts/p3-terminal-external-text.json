@@ -1,0 +1,363 @@
+{
+  "meta": {
+    "draftedFromOid": "86d471fbcb4bf9d3e1be4223fc2e5676ddfb9254",
+    "sha256": "9e7e4f9e434dbe82df4f7dcb66c08731a5617383710ff7b5ef88faf04dac4dcc",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-TET-D-HEADTYPE",
+        "kind": "作者",
+        "A": "WS の JSON の head.type が種類のコードの形（/^[A-Z0-9]+$/、英大文字と数字が 1 字以上）に合わなければ、ingress（ingress.ts の WS の枝の封筒の検査、:63）で envelopeInvalid として断る。断った報は owner に渡らず、U-M のカードにも --debug の inputDone の行にも保存のカードにもならず、--debug の時だけ host の拒否の行「debug: <入力 ID>（出さない・断った envelopeInvalid）」（host.ts:325、P3-TDR-AC01 (1)）が出る",
+        "B": "端末の側（output.ts の inputDropped、:639）で debug の行だけ種類のコードを書かない（r0、P3-TERMINAL-DEBUG-HEADTYPE-001）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-16 朝「推奨」）",
+        "ruling": "A（作者）",
+        "reason": "B は起草レビューで NO-GO だった。WS の head.type は ingress の後、item.headType（ingress.ts:69）→ material.headType（decode-material.ts:494）として運ばれ、--debug でなくても端末に出る。起草の写しで確かめた場面（Q-TET-PATH (1)）: 本文が parser の断る字（x）で head.type が「VPWW57<ESC>[2J」の frame を、--debug なしの host に WS で流すと、表に無い種類のコードなので U-M の unidentified のカード（owner-runtime.ts:520〜:521）になり、端末に「━ 処理できなかった電文 VPWW57<ESC>[2J ━…━ 23:14:59 受信 ━」と「VPWW57<ESC>[2J を処理できませんでした。」の 2 行が ESC を生のまま書かれた（format.ts:806・:807）。--debug では返信の行「debug: VPWW57<ESC>[2J input-1（U-M、出さない・採らなかった）」も ESC を含んだ。字は U-M のカードとして保存にも載る。B は inputDropped の行しか直さないので、この道を塞がない。A は入口の 1 か所で止めるので、カード・帯・debug の行（inputDropped と inputDone）・保存のどれにも外部の字が入らない。unit-coverage の表の 137 種はすべてこの形に合う（Q-TET-PATTERN）。代償: 形の外れた head.type の報は、本文が正しくても画面に出ない（今は「処理できなかった電文」のカードが出る）。気象庁の種類のコードはこの形なので、dmdata の実配信で起きる見込みは無い"
+      },
+      {
+        "id": "P3-TET-D-LF",
+        "kind": "作者",
+        "A": "端末の文でない欄（帯の題名・地域名・震源名・表の欄）に入った LF を、台帳 134 と同じく半角の空白 1 字に替える。置き場は color.ts の painter が返す関数の 1 か所（:66 の字の組に \\n を足す）",
+        "B": "欄ごとに LF を替える（帯の題名・地域名・震源名・表の欄の組み立てのそれぞれ）",
+        "C": "今のまま（LF はそのまま改行になり、縦線の無い行が始まる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者、2026-11-16 朝「推奨」。起草の写しで成り立つことを確かめた、Q-TET-LF）",
+        "ruling": "A（作者）",
+        "reason": "P3-TERMINAL-CONTROL-CHARS-001 の outOfScope と台帳 136 は「文の LF と区別が要り painter の 1 か所では替えられない」と書いていたが、起草の写しで覆った（Q-TET-LF）: 文の LF は seg に入る前に割られる（textLines〔format.ts:238〕・sentenceLines〔:440〕・見出し文〔:488・:596〕・表の行〔:727〕）ので、painter に届く LF は文でない欄の分だけで、corpus を整形に直に通した範囲では 0 回（painter が LF を受けた回数を数えた、Q-TET-LF (1)）。場面（色あり 80 桁、ESC を除く）: 2024-04-17 23:14:59 発表の緊急地震速報（警報）第 1 報 37_01_01（VXSE43）の震源名を「豊後&#10;水道」にすると、旧は「  震源: 豊後」と縦線の無い「水道 ・ M5.8 ・ 深さ30km ・ 長周期階級 1」の 2 行、A は「  震源: 豊後 水道 ・ M5.8 ・ 深さ30km ・ 長周期階級 1」の 1 行。2007-11-30 06:00:00 発表の火山に関するお知らせ 42_02_01（VZVO40）の Head の題名「火山に&#10;関するお知らせ」は、旧は帯が「━ 火山に」と「関するお知らせ ━…━ 06:00:00 発表 ━」に割れ、A は「━ 火山に 関するお知らせ ━…━ 06:00:00 発表 ━」の 1 行（罫線の数は旧と同じ 40）。37_01_01 の行動の文を「強い揺れに&#10;警戒してください。」にした段落の分けは旧も A も「  強い揺れに」「  警戒してください。」の 2 行のまま。LF は幅 1 桁と数えて組んである（charWidth は表に無い字を 1 桁）ので、半角の空白に替えても組みは 1 桁も変わらない。気象庁の留意事項 §3 の線（電文の本質・値・意味を変えない。空白の整形は可）: 字でない区切りの LF を空白にするだけで、電文の字は足さず消さず並べ替えない（P3-TCC-D-SUBSTITUTE の reason と同じ）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TET-PATH",
+        "status": "closed",
+        "source": "起草の写し（2026-11-16、MacBook。~/dev/fleq-dbg の HEAD 504508f5 の作業木を未追跡の .dr-tmp/w/ に cp -cR で写し、写しの host.test.ts の末尾に場面の it を足して vitest で回した。追跡 file は変えていない）",
+        "closed": "(1) 非 debug の道（直す前）: harness()（--debug なし、色 0）を terminal に渡した startP2Host へ、ローカル WS で head.type が \"VPWW57\\u001b[2J\" の frame を 2 つ（本文が 15_16_02_251222_VPWW57 のものと、parser の断る x のもの）送った。本文の正しい 1 つ目は ingress が受け（ingress.ts:63 は文字列かだけを見る）、表に無い種類のコードなので routeUnlisted の WARN になり、端末の行は出なかった（--debug では「debug: input-1（出さない・採らなかった）」）。本文が x の 2 つ目は parser が断り、U-M の unidentified のカードになって、端末の行に「━ 処理できなかった電文 VPWW57\\u001b[2J ━━…━ 23:14:59 受信 ━」「VPWW57\\u001b[2J を処理できませんでした。」が ESC を含んで出た。--debug の harness では返信の行「debug: VPWW57\\u001b[2J input-1（U-M、出さない・採らなかった）」も ESC を含んだ（P3-TET-T01 の直す前の落ち方） (2) 外部の字が端末へ届く道は、どれも ingress の item.headType から始まる: material.headType（decode-material.ts:494）→ U-M の unknownType のカード（owner-runtime.ts:536〜:538）・unidentified のカード（:520〜:521）→ 帯と本文の行（format.ts:806・:807）。--debug の行は host の拒否（host.ts:334・:339、item.headType）と返信の行（inputDone の種類のコードは返信の decode・view の material.headType）。カードは保存（checkpoint の U-M のカード）にも載る。ingress の WS の枝で断れば、この全部に入らない (3) 直した後（同じ写しで ingress.ts:63 に照合を足した）: 同じ frame は ingress で envelopeInvalid になり、--debug の行は「debug: input-1（出さない・断った envelopeInvalid）」（host.ts:325 が headType を null で渡し、output.ts:640 が種類のコードを書かない）、カードも ESC も出ない。続けて送った VXSE43 は今と同じく「debug: VXSE43 input-2（U-E、出した）」、本文が x で形の正しい表に無い種類のコード VZZZ99 は今と同じく「━ 処理できなかった電文 VZZZ99 ━…」のカード",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TET-WS-ONLY",
+        "status": "closed",
+        "source": "起草（2026-11-16、ingress.ts・recovery.ts・composition-root.ts・cli/replay.mjs・tools を読んだ）",
+        "closed": "照合を置くのは ingress の WS の枝だけにする。REST（取り直し）の head.type は一覧の item の head.type で、recovery.ts の passed（:88・:89）が classifyHeadType で ready の行（unit-coverage の表の鍵）だけを通すので、表の 137 種のどれかになり形に合う（composition-root.ts の sendBody はその headType を ingress に渡す）。replay の枝（kind replay）は試験と道具（parse-diff の tree-diff.mjs は VPWS50、terminal-fixture.ts は file 名の /V[A-Z]{3}\\d\\d/）がコードの字を渡す入口で、dmdata の外部の字は来ない。枝の合流点に置くと replay の枝の試験の入口も変わるので置かない",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TET-PATTERN",
+        "status": "closed",
+        "source": "起草（2026-11-16、写しの reconstruction/dist の unit-coverage.js と manifest.json を読んだ）",
+        "closed": "rowsByHeadType の鍵 137 種はすべて /^[A-Z0-9]+$/ に合う。manifest の transport.headType で合わないのは VFSVii の 1 つだけ（file 名から補った字、Q-TET-VFSVII）。長さの上限は足さない（今の U-M のカードの headType の上限〔checkpoint.ts の CARD_TEXT.headType〕と WS の frame の 8 MiB の上限はそのまま。形の照合は長さに比例する 1 回で、AGENTS.md の受信経路の計算量に触れない）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TET-LF",
+        "status": "closed",
+        "source": "起草の写し（2026-11-16、同じ .dr-tmp/w/。写しの color.ts の painter に「raw に LF があれば file に 1 行書く」を一時に入れ、字の組に \\n を足した。比べの旧は同じ写しで字の組から \\n を除いた形）",
+        "closed": "(1) corpus: manifest の telegramXml 297 件を terminal-fixture.ts の decodeFixture（VFSVii は VFSV50 で投入）→ terminalReport（EEW は 1 件ずつ新しい state の eewUnits）→ createRenderer に、色 0・3 × 桁 56・80・120 の 6 通りで直に通した。通ったのは 293 件（6 通りで整形 1,758 回・880,926 字）。通らなかった 4 件: 36_01_10_240613_VXSE44（ignored）、synthetic_phase4a_VXSE45_regionless と synthetic_phase4a_VXSE45_special（1 件ずつの EEW の unit では端末の単位が 0）、telegram-foundation/weathercw-10_03_01_171016_VPTW60-wind-range（decode が xmlInvalid）。painter が LF を受けた回数は 0 回。painter の戻りは LF を受けた時だけ変わるので、通した範囲の端末の出力は 1 字も変わらない。この比べは整形の直呼びで、host・EEW の続報の並び・知らせ・まとめ・取り直しの一覧・プロンプトは通っていない (2) 全試験: reconstruction/test の全試験（場面の it を足した写し）で、painter が LF を受けたのは場面の it の 4 回だけ（震源名・帯の題名・太字の 2 回）。既存の試験からは 0 回 (3) 場面: Q の D-LF の reason のとおり（震源名・帯の題名は 1 行になり、行動の文の段落の分けは残る） (4) 太字: paint(\"strong\", paint(\"bandWarning\", \"a\\nb\")) は paint(\"strong\", paint(\"bandWarning\", \"a b\")) と同じ字列（1 回目で LF が空白になり、chalk の符号の ESC は字の組の外なので 2 回目は何も変えない）。旧は chalk が LF の前後で色を閉じて開き直す字列を返していた (5) プロンプト（output.ts:434 の painter）も同じ関数を通るので、区域名などの LF も空白になる。プロンプトは場面にも比べにも出ない（読みで確かめた）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TET-SUITE",
+        "status": "closed",
+        "source": "起草の写し（2026-11-16、MacBook。.dr-tmp/w/ に案の 2 か所〔ingress.ts:63 の照合・color.ts:66 の字の組〕と LF を数える一時の行を当て、tsc の 2 本の後に vitest --maxWorkers=2）",
+        "closed": "(1) 全試験: 案の 2 か所を当てた写しで vitest run（--maxWorkers=2）は rc 0、Test Files 153 passed・11 skipped、Tests 1,660 passed・38 skipped（写しに足した場面の it 3 本〔非 debug の再現 1・corpus と場面の 2〕を含む）。既存の試験は期待を変えずに全部緑で、WS に形の外れた head.type（VFSVii を含む）を流す既存の試験は無かった。tsc は reconstruction/tsconfig.json・chrome-eew の 2 本とも rc 0 (2) T01・T02: 契約の形の 2 本を写しの host.test.ts・eew.test.ts の末尾に足し、案の後で 2 本とも緑、案を戻した形（環境変数で照合と \\n を外した）で 2 本とも落ちた（AC04 (3) の形）。host.test.ts と eew.test.ts を --sequence.shuffle で回して 87 本 rc 0、tsconfig.test.json の型検査 rc 0",
+        "remaining": "なし（実装担当は本物の木で requiredCommands を回し直す）"
+      },
+      {
+        "id": "Q-TET-VFSVII",
+        "status": "closed",
+        "source": "起草の写し（2026-11-16、同じ .dr-tmp/w/。dataFrame(\"VFSVii\", 46_01_01_170103_VFSVii の本文) と、順の目印の dataFrame(\"VZZZ99\", \"x\") を、--debug のあり・なし × 案の前・後で host に流した）",
+        "closed": "replay（cli/replay.mjs）は manifest の transport.headType をそのまま WS の head.type にする（:47・:130）ので、46_01_01_170103_VFSVii は head.type「VFSVii」（小文字を含む）で届き、案の後は ingress で envelopeInvalid として断られる。VFSVii は気象庁サンプルの file 名の略記を補った字で、配信される種類のコードではない（manifest の transport.evidence、P3-C0-MANIFEST-EXCEPTION）。写しで見えた差: (1) --debug なし: 案の前も後も、この報の端末の行は 0（前は routeUnlisted で U-M の unknownType のカードを state に作るが、端末には出なかった） (2) --debug: 行が「debug: input-1（出さない・採らなかった）」から「debug: input-1（出さない・断った envelopeInvalid）」に変わる (3) 診断が routeUnlisted の WARN から ingress の envelopeInvalid に変わり、U-M の state に unknownType のカードを作らなくなる。reconstruction/test の試験で WS に VFSVii を流すものは無い（Q-TET-SUITE）。AC09 の災害の日のデータは実電文の head.type（telegrams.json）と合成のコードで、VFSVii を含まない。端末の普段の画面は変わらないので、replay と manifest は変えない（決める分岐にしない）。起草レビュー r1（2026-11-16）で見つかった差: (4) fleq replay（cli/replay.mjs）は入力ごとに T2 の印を待ち 60 秒で打ち切る（:102・:132〜:133、P3-RP-AC06）。T2 は owner の inputDone からしか出ない（host.ts:166）ので、ingress で断った入力には来ない。VFSVii の fixture を渡すと 60 秒待って rc 1 で終わり、後ろの fixture は送られない（写しで、VFSVii と 32-35_01_03 の VXSE53 の 2 件が、案の前は rc 0・1 秒で 2 件とも processed、案の後は rc 1・61 秒で 2 件とも未処理）。統合担当の決め（2026-11-16）: 受け入れて残存に書く。VFSVii は配信される種類のコードではなく、ゲートの試験と AC09・T09 は VFSVii を WS で流さない（replay-cli.test.ts は VXSE52・53、oracle と災害の日の runner は ingress の kind replay）。fleq-eyes は file 名を V[A-Z]{3}[0-9]{2} で拾うので VFSVii を元から入れない。replay で VFSV50 として送る直しは別の契約の仕事",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TET-LINES",
+        "status": "closed",
+        "source": "起草（2026-11-16、504508f5 で reconstruction/contracts と docs の «» を git grep した）",
+        "closed": "(1) ingress.ts を引く «» は p3-recovery.json の :13・:78、p3-terminal-debug-reject.json の :62、p3-version-material.json の :82（r0 の :63・:69 は r0 を消すので無くなる）。直しは :63 の行の中だけ（照合 1 つと行末のコメント）で、ingress.ts は 92 行のまま、どの «» もずれない (2) color.ts を引く «» は :14・:15・:16・:21・:24・:37・:38・:45・:62 と p3-terminal-control-chars.json の :67・:77（r0 の :66 は無くなる）。直しは :65（コメント）と :66（字の組）の行の中だけで、color.ts は 82 行のまま (3) host.test.ts と eew.test.ts は file の末尾に describe を足すだけで、引かれている行は動かない (4) output.ts は変えない（r0 の :639 の直しは要らない、AC03） (5) 本契約の evidenceRefs は中身の変わらない行だけを引く",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-TET-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-16）",
+        "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にする。r0（reconstruction/contracts/p3-terminal-debug-headtype.json、P3-TERMINAL-DEBUG-HEADTYPE-001）は本契約に置き換え、作業木から消した（ほかの file からの参照は 0 件）",
+        "remaining": "発注の時の baseOid（統合担当）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。断る報は head.type の形で決まり、Control.Status・head.test を読む所は変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P3-TERMINAL-EXTERNAL-TEXT-001",
+    "mode": "implementation",
+    "objective": "構造的欠陥台帳 135 と 136 を閉じる。(135) dmdata の WebSocket の JSON の head.type に制御の字（例 VPWW57 の後に ESC[2J）が入っていると、--debug でなくても U-M の「処理できなかった電文 <head.type>」の帯と本文の行に ESC が生で書かれ、端末の画面が消えるなどしうる（コードを読んで見つけ、起草の写しで再現した不具合で、本物の経路では起きていない、Q-TET-PATH）。ingress の WS の枝で、head.type が種類のコードの形（/^[A-Z0-9]+$/）に合わなければ envelopeInvalid として断る（P3-TET-D-HEADTYPE=A）。(136) 端末の文でない欄（帯の題名・地域名・震源名・表の欄）に入った LF がそのまま改行になり、縦線の無い行が始まる。color.ts の painter で LF を半角の空白 1 字に替える（P3-TET-D-LF=A）。形の正しい head.type の報と、LF の無い字の端末の出力は 1 字も変わらない（Q-TET-LF）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-terminal-external-text.json",
+      "reconstruction/contracts/p3-terminal-control-chars.json",
+      "reconstruction/contracts/p3-terminal-debug-reject.json",
+      "reconstruction/src/ingress/ingress.ts",
+      "reconstruction/src/terminal/color.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/terminal/output.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/decode-material/decode-material.ts",
+      "reconstruction/test/host/host.test.ts",
+      "reconstruction/test/terminal/eew.test.ts",
+      "reconstruction/test/terminal/terminal-fixture.ts",
+      "test/fixtures/15_16_02_251222_VPWW57.xml",
+      "test/fixtures/37_01_01_240613_VXSE43.xml",
+      "reconstruction/tsconfig.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/ingress/ingress.ts（AC01 の分だけ: :63 の行の中。typeof head.type !== \"string\" の後に || !/^[A-Z0-9]+$/.test(head.type) を足し、行末になぜのコメントを置く。行を足さず消さない。ほかの行は変えない）",
+      "reconstruction/src/terminal/color.ts（AC02 の分だけ: :65 のコメントと :66 の字の組の行の中。行を足さず消さない。ほかの行は変えない）",
+      "reconstruction/test/host/host.test.ts（P3-TET-T01 の describe を 1 つ、file の末尾に足すことだけ。既存の it・helper・mock・import は変えない）",
+      "reconstruction/test/terminal/eew.test.ts（P3-TET-T02 の describe を 1 つ、file の末尾〔P3-TCC-T01 の describe の閉じの後〕に足すことだけ。ほかの行と期待は変えない）",
+      "統合担当だけ（AC05、配送の commit）: reconstruction/contracts/p3-terminal-control-chars.json と reconstruction/contracts/p3-terminal-prompt.json の原文の改訂と meta.sha256。実装担当は触らない"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-terminal-external-text.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B13"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P1-PARSER-BOUNDARY-001",
+      "P3-TERMINAL-OUTPUT-001",
+      "P3-TERMINAL-DEBUG-REJECT-001",
+      "P3-TERMINAL-CONTROL-CHARS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p1-parser-boundary.types.ts#ParserDiagnostic",
+      "reconstruction/contracts/p3-terminal-output.types.ts#TerminalReport"
+    ],
+    "publicFunctions": [
+      "口は変えない。ingestXmlData・painter・createRenderer・createTerminalOutput・startP2Host の引数と戻りの型、ParserDiagnostic の reason の値の組（envelopeInvalid は既にある値）は変えない。export・型・helper・設定・定数を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O02"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形は変えない。断った報はカードにならないので、U-M のカードに形の外れた headType が入らなくなるだけ）"
+    ],
+    "nonPersistedFields": [
+      "painter が返す関数の戻り（1 回の整形・プロンプトの中だけ）"
+    ],
+    "outOfScope": [
+      "REST（取り直し）と replay の枝の head.type: REST は recovery.ts の passed が表の鍵だけを通し、replay は試験と道具の入口（Q-TET-WS-ONLY）",
+      "REST の一覧の JSON の xmlReport.head.title（と headline）: recovery.ts の headOf が文字列かだけを確かめ、bounded（recovery.ts の :476 の関数、byte の長さだけを切る）を通って RecoveryDigestHead の title になり、端末の取り直しの一覧の行（format.ts の digest の「  HH:MM  <title>」）に出る。decode-material の字の検査を通らない外部の字なので、ESC などの C0 はそのまま端末へ書かれうる（LF・CR・C1 は painter で空白になる）。135 と同じ族だが本契約の裁定の外で、統合担当が別の台帳の項にする",
+      "WS の head.type の長さの上限（Q-TET-PATTERN）と、head.type 以外の WS の JSON の欄（id・classification など）。起草レビュー r1 で読んだ事実: start の frame の classifications は文字列の配列かだけを確かめ（host.ts:282）、host.ts:284 → :655 → output.ts:397 の「区分: [...]」の行に字のまま出る（ESC などの C0 はそのまま書かれうる）。135・138 と同じ族で、統合担当が台帳の項にする",
+      "decode-material.ts の字の決まりと、TAB・幅 0 の字の扱い（P3-TERMINAL-CONTROL-CHARS-001 の outOfScope のまま）",
+      "文（textLines・sentenceLines・見出し文・表の行）の LF の分け方: seg に入る前に割るので painter に届かず、今のまま（Q-TET-LF）",
+      "output.ts の inputDropped（r0 の :639 の直し）: AC03 のとおり要らない",
+      "端末の外へ出る電文の字（デスクトップ通知の本文、EEW のログの file、情報ディスプレイ）の LF",
+      "spec の本文（cli-terminal-output.md・P1 の parser 境界の spec）: envelopeInvalid の値は既にあり、字を置き換える決まりは P3-TCC と同じく契約に置く",
+      "旧築（src/）と test/fixtures、manifest.json・sequences.json、cli/replay.mjs（Q-TET-VFSVII）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-TET-AC01",
+        "requirement": "ingress（P3-TET-D-HEADTYPE=A）: (1) WS の枝の封筒の検査（ingress.ts:63）で、head.type が文字列でも /^[A-Z0-9]+$/ に合わなければ（制御の字・空白・小文字・記号を含むか、空の字）envelopeInvalid として断る。照合は typeof head.type !== \"string\" の後に置く（文字列でない値は今のとおり同じ理由で断る）。format の検査（:62、formatUnsupported）は先のまま (2) 断った報: host の拒否の道（host.ts:325）のとおり、診断に envelopeInvalid の parser の診断が 1 件、--debug の時だけ「debug: <入力 ID>（出さない・断った envelopeInvalid）」の 1 行（種類のコードを書かない、output.ts:640）。owner に渡らないので、U-M のカード・帯・本文の行・--debug の inputDone の行・保存のカードのどれにも出ない。--debug でなければ端末には何も出ない (3) 形の正しい head.type（unit-coverage の表の 137 種は全部合う、Q-TET-PATTERN）の報は今と同じ（受け・振り分け・表示・保存・debug の行）。表に無い形の正しい種類のコードは今と同じ（本文を parser が断れば U-M の unidentified のカード、T01 の VZZZ99） (4) REST と replay の枝は変えない（Q-TET-WS-ONLY） (5) なぜのコメントは :63 の行末に 1 つ（head.type は U-M の帯・debug の行・保存のカードへ字のまま出るので、種類のコードの形でなければ封筒の誤りとして断ること、台帳 135、P3-TERMINAL-EXTERNAL-TEXT-001） (6) 計算量: 受けた frame 1 つに正規表現の照合 1 回（head.type の長さに比例、量指定は字の組 1 つの +）を足すだけ (7) 足す仕組みは無い（既にある検査の条件に 1 つ足すだけ。無いと: 外部の字が U-M の帯に生で書かれる）",
+        "evidenceRefs": [
+          "reconstruction/src/ingress/ingress.ts:62 «2e0d3d1ec22d6111»",
+          "reconstruction/src/ingress/ingress.ts:69 «9b00db03b6674d55»",
+          "reconstruction/src/host/host.ts:325 «ee96e1ca4581c286»",
+          "reconstruction/src/host/host.ts:334 «92d9b7e49e6c8fab»",
+          "reconstruction/src/host/host.ts:339 «c6b1ef78ac32ab4b»",
+          "reconstruction/src/decode-material/decode-material.ts:494 «2f38489ea0d48889»",
+          "reconstruction/src/runtime/owner-runtime.ts:520 «a973e47ca078b932»",
+          "reconstruction/src/runtime/owner-runtime.ts:521 «a2dbc365d3c3248c»",
+          "reconstruction/src/runtime/owner-runtime.ts:536 «c96480327a2ee170»",
+          "reconstruction/src/runtime/owner-runtime.ts:538 «7aefaa5f7783bf58»",
+          "reconstruction/src/terminal/format.ts:806 «4a38c33b794fc73e»",
+          "reconstruction/src/terminal/format.ts:807 «a3ddfb8eba4779a2»",
+          "reconstruction/src/terminal/output.ts:640 «9fd0e91928b1ca47»",
+          "reconstruction/src/recovery/recovery.ts:88 «d0463df9993a40e9»",
+          "reconstruction/src/recovery/recovery.ts:89 «af8ef9a0f1866768»",
+          "reconstruction/src/runtime/unit-coverage.ts:172 «0344f1d6e2b14fc3»",
+          "reconstruction/cli/replay.mjs:47 «4fb7f2124d4bc474»",
+          "reconstruction/cli/replay.mjs:130 «69541f1cbf578cf3»"
+        ]
+      },
+      {
+        "id": "P3-TET-AC02",
+        "requirement": "painter（P3-TET-D-LF=A）: (1) color.ts の :66 の字の組の頭に \\n を足し、raw.replace(/[\\n\\r\\u007f-\\u009f\\u2028\\u2029]/g, \" \") にする（替える字は半角の空白 1 字のまま、色の水準によらない） (2) :65 のなぜのコメントに、文でない欄（帯の題名・地域名・震源名・表の欄）の LF は縦線の無い行を始めること、文の LF は seg に入る前に段落として割るのでここに届かないこと、台帳 136、P3-TERMINAL-EXTERNAL-TEXT-001 を足す（独立した 1 行のまま） (3) 組みは変わらない（LF は幅 1 桁と数えてあり、空白も 1 桁）。LF の無い字の出力は 1 字も変わらない（corpus は 0 回、Q-TET-LF） (4) 文の段落の分け（textLines・sentenceLines・見出し文・表の行）は今のまま (5) 足す仕組みは無い（既にある字の組に 1 字足すだけ。無いと: 震源名・帯の題名の LF で縦線の無い行が始まり、帯が割れる）",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/color.ts:64 «39deb9b0b32b3c52»",
+          "reconstruction/src/terminal/color.ts:67 «603d774e89ab9f2a»",
+          "reconstruction/src/terminal/format.ts:67 «cdf2873d00c43c3b»",
+          "reconstruction/src/terminal/format.ts:238 «c6e6f460a0ff2fe9»",
+          "reconstruction/src/terminal/format.ts:440 «ce02e445615acd37»",
+          "reconstruction/src/terminal/format.ts:488 «55961ee9dc141453»",
+          "reconstruction/src/terminal/format.ts:596 «11e31d4384609d20»",
+          "reconstruction/src/terminal/format.ts:727 «8cd1f981ae651304»",
+          "reconstruction/src/terminal/format.ts:1061 «755abe53d647e5dd»"
+        ]
+      },
+      {
+        "id": "P3-TET-AC03",
+        "requirement": "変えないもの: (1) output.ts は変えない。r0 の :639 の直し（inputDropped で形の外れた headType を書かない）は要らない: inputDropped に外部の字を渡すのは host.ts:334・:339 の item.headType だけで、AC01 の後は WS の枝の item.headType は形に合い、REST の枝は表の鍵（Q-TET-WS-ONLY。そもそも REST の入力は inputDropped に来ない）。:325 は null、:326 は VXSE43 と等しいときだけ (2) 行の数: ingress.ts は 92 行、color.ts は 82 行のまま（Q-TET-LINES）。ほかの契約の «» は付け直し 0 個 (3) 既存の試験の期待（expect の値）は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/terminal/output.ts:637 «a2bb194fb542e2ad»",
+          "reconstruction/src/terminal/output.ts:640 «9fd0e91928b1ca47»",
+          "reconstruction/src/host/host.ts:334 «92d9b7e49e6c8fab»",
+          "reconstruction/src/host/host.ts:339 «c6b1ef78ac32ab4b»"
+        ]
+      },
+      {
+        "id": "P3-TET-AC04",
+        "requirement": "試験（各 1 本、実不具合の再発防止）: (1) P3-TET-T01（台帳 135）を host.test.ts の末尾の自前の describe に置く (2) P3-TET-T02（台帳 136）を eew.test.ts の末尾の自前の describe に置く (3) 歯: 直す前の src の写しで T01・T02 が落ちる（起草の写しで、T01 は [false, [帯の行, 本文の行, 「debug: VPWW57<ESC>[2J input-1（U-M、出さない・採らなかった）」]] で、T02 は「  震源: 豊後」と縦線の無い「水道 ・ …」の 2 行で落ちた）ことを確かめて成果物に書く。製品と試験の戻しは残さない (4) 形の正しい head.type の報が今と同じことは、既存の試験（P3-TDR-T01〜T04 ほか host.test.ts の全 it）が期待を変えずに緑であることで確かめ、試験を足さない",
+        "evidenceRefs": [
+          "reconstruction/test/host/host.test.ts:215 «4f6222daf107d4e9»",
+          "reconstruction/test/host/host.test.ts:2040 «14b803b88a61681a»",
+          "reconstruction/test/terminal/terminal-fixture.ts:60 «5792a52e97228f24»",
+          "AGENTS.md:26 «2c223bbb66635b53»"
+        ]
+      },
+      {
+        "id": "P3-TET-AC05",
+        "requirement": "配送の後（統合担当、配送の commit で当てる。どれも行の中の書き換えで、行を足さない。引かれている «» は 0 件、Q-TET-LINES の grep）: (1) 原文の改訂: p3-terminal-control-chars.json の (a) P3-TCC-D-SCOPE の ruling の末尾に「。P3-TERMINAL-EXTERNAL-TEXT-001（作者裁定 2026-11-16 朝、P3-TET-D-LF=A）で LF も替える字に足した（A の『TAB と LF は替えない』の LF を読み替える）」 (b) outOfScope の 2 つ目（文でない欄の LF）と 5 つ目（WS の JSON の head.type）の末尾にそれぞれ「【P3-TERMINAL-EXTERNAL-TEXT-001 で直した】」 (c) P3-TCC-AC01 (1) の末尾に「【P3-TERMINAL-EXTERNAL-TEXT-001 で字の組の頭に \\n を足した】」。p3-terminal-prompt.json の P3-TP-AC10 の requirement の末尾の【P3-TERMINAL-CONTROL-CHARS-001 で改めた…】の字の一覧「CR・U+007F〜U+009F・U+2028・U+2029」を「LF・CR・U+007F〜U+009F・U+2028・U+2029（LF は P3-TERMINAL-EXTERNAL-TEXT-001）」に。2 つの契約の meta.sha256 を取り直す (2) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ） (3) 台帳 135・136（repo 外）の局所修正の状態を「解消（P3-TERMINAL-EXTERNAL-TEXT-001）」に",
+        "evidenceRefs": [
+          "reconstruction/tools/corpus/check-manifest.mjs:15 «8a0389790318ccfc»"
+        ]
+      },
+      {
+        "id": "P3-TET-AC06",
+        "requirement": "統合担当・P3-FINAL-GATE-001 向けの記録で、実装担当は何もしない。本契約は reconstruction/src を変えるので、P3-FG-T09 の確かめ (2)（AC09 の結果の gitHead と今の木の間で reconstruction/src・reconstruction/test/disaster の差分が無いこと）に当たる。配送の後に P3-FINAL-GATE-001 が取り直す（取り直しは P3-FINAL-GATE-001 の仕事で、本契約の合否に入れない）: (1) AC09 の 8 回（W1 の 2026-06-03・06-26・09-21、W2、N1、N2、N3、R2）を配送の commit で Mac mini で流し直し、判定に使う run を差し替える。AC09 の runner は報を ingress の kind replay で入れる（disaster/runner.ts:527・:592）ので WS の枝の照合は届かず、端末の painter は道具の記録に出ないので、pass の 3 欄 0・blocked 0・digest は変わらない見込み（inputRejections が 0 でなくなったら、形の外れた head.type を持つ frame の有無を先に確かめる） (2) T09 の場面を (1) の結果で流し直し、前の場面と比べる。場面の file はディスプレイの snapshot と通知の写しで、端末の字も ingress の拒否も入らない見込み (3) Pi の窓（~/p3-bench/fleq-rec）の記録を取り直すかは統合担当が決める（本契約では窓の道具を読んでいない。窓の frame が災害の日のデータなら head.type は形に合う見込み）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-final-gate.json:899 «d554a285e0fd73cd»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-TET-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TET-AC01",
+          "P3-TET-AC04"
+        ],
+        "behavior": "実不具合の再発防止（台帳 135）。host.test.ts の末尾に自前の describe「P3-TET-T01 …」を足し、it を 1 つ置く。P3-TDR-T01 の形（ローカル WS → startP2Host、terminal は harness({ debug: true }) の sink、displayPort null・observe null・clock）で、dataFrame(\"VPWW57\\u001b[2J\", \"x\") と dataFrame(\"VZZZ99\", \"x\") の frame を順に送り、「━ 処理できなかった電文 VZZZ99 」で始まる行が出るまで待つ（どちらも本文を parser が断る。VZZZ99 は形の正しい表に無い種類のコードで、同じ deferred の owner が順に処理するので、そのカードが出た時には 1 つ目の処理も済んでいる）。lines に「debug: input-1（出さない・断った envelopeInvalid）」があり、ESC（\\u001b）か「VPWW57」を含む行が 0 であること（[行がある, 当の行の一覧] が [true, []] と等しい、の 1 つの expect）。harness の renderer は色 0 なので、行の ESC は外部の字から来たものだけ。直す前の製品では [false, [「━ 処理できなかった電文 VPWW57<ESC>[2J ━…━ 23:14:59 受信 ━」, 「VPWW57<ESC>[2J を処理できませんでした。」, 「debug: VPWW57<ESC>[2J input-1（U-M、出さない・採らなかった）」]] で落ちる（起草の写しで確かめた）。待ちは until の既定の時間。import は足さない（harness・startP2Host・localServer・directories・until・cleanups・dataFrame は file に既にある）"
+      },
+      {
+        "testId": "P3-TET-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-TET-AC02",
+          "P3-TET-AC04"
+        ],
+        "behavior": "実不具合の再発防止（台帳 136）。eew.test.ts の末尾に自前の describe「P3-TET-T02 …」を足し、it を 1 つ置く。P3-TCC-T01 の形で、37_01_01 の最初の「<Name>豊後水道</Name>」（震源名）を「<Name>豊後&#10;水道</Name>」に、「<Text>強い揺れに警戒してください。</Text>」を「<Text>強い揺れに&#10;警戒してください。</Text>」にした報を eewUnits と色あり 80 桁の terminal(80, 3) で行にし、plain で ESC を除く。(a) 行に「  震源: 豊後 水道 ・ M5.8 ・ 深さ30km ・ 長周期階級 1」がある (b) 「水道」で始まる行が無い (c) 「  強い揺れに」と「  警戒してください。」が別の行としてある（文の LF は段落の区切りのまま、契約の境界）。直す前の製品では (a) が無く「水道 ・ M5.8 ・ 深さ30km ・ 長周期階級 1」の行があって落ちる。(c) は直す前も後も通る"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest より先。owner の worker は dist から起きる）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（足した it）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T01・T02 を含む）。既存の期待は変えない。ほかの落ちは止めて報告する"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/host/host.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/host/host.test.ts",
+        "stage": "implementation",
+        "purpose": "host.test.ts は module の範囲の owners と cleanups を試験の間で共有するので、順を変えても通ること"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約（行を動かさないので «» のずれは無い。FAIL は想定外として報告する）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い（AC01 (7)・AC02 (5)）。試験は T01・T02 の 2 本（どちらも regression）で、新しい helper・fixture・import を足さない",
+      "最初の作業: 先に T01・T02 だけを足した木で host.test.ts と eew.test.ts を回し、AC04 (3) の形で落ちることを確かめてから ingress.ts と color.ts を直す。違う落ち方（行が出ない、別の字になる、待ちが時間切れ）なら止めて、試験名と actual・expected を添えて報告する",
+      "行の数: ingress.ts 92 行・color.ts 82 行のまま。直した後の wc -l を成果物に書く",
+      "既存の試験の期待（expect の値）は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める",
+      "試験は file・設定に書かない（host の state・diag は host.test.ts の directories() の一時の置き場。XDG_CONFIG_HOME・作者の設定に触れない）",
+      "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: (1) 形の外れた head.type の報は本文が正しくても画面に出ない（P3-TET-D-HEADTYPE の代償） (2) 端末での見え方（旧の ESC・LF、新の空白）は字の並びから導いたもので、実端末では見ていない (3) プロンプトの LF は試験に出ず、同じ painter を通ることは読みで確かめた (4) 端末の外（通知・ログ・ディスプレイ）の LF は変えない (5) LF が painter に届かないことの比べは corpus を整形に直に通した範囲で、host・続報の並び・知らせ・まとめ・取り直しの一覧は通っていない（Q-TET-LF (1)） (6) fleq replay に VFSVii の fixture を渡すと 60 秒待って rc 1 で終わり、後ろの fixture は送られない（Q-TET-VFSVII (4)）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
