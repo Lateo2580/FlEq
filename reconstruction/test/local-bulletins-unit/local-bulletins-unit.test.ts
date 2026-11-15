@@ -645,8 +645,8 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     const cancel = send(first.state, "synthetic_VPHW50_tokyo_cancel", compose(office("長崎地方気象台"), headTitle("長崎県竜巻注意情報"), at("2013-07-26T09:25:00+09:00"), serial("2")));
     expect(shape(cancel)).toEqual(both("cancelled", "weather", "cancel", "[取消] 長崎県竜巻注意情報（09:20 発表）", "09:20 発表の長崎県竜巻注意情報を取り消しました"));
     expect(pendingOf(cancel.state, NAGASAKI).map((item) => item.transition)).toEqual(["cancelled", "cancelled"]);
-    // 熱中症は warning、解説は seismicText が info（earthquake-eew）、ほかは normal（weather）。
-    expect(shape(send(emptyState(), HEAT))).toEqual(both("activated", "weather", "warning", "埼玉県熱中症警戒アラート", "埼玉県 8月11日"));
+    // 解説は seismicText が info（earthquake-eew）、熱中症を含むほかは normal（weather）。
+    expect(shape(send(emptyState(), HEAT))).toEqual(both("activated", "weather", "normal", "埼玉県熱中症警戒アラート", "埼玉県 8月11日"));
     expect(shape(send(emptyState(), "32-35_09_01_191111_VXSE56"))).toEqual(both("activated", "earthquake-eew", "info", "地震の活動状況等に関する情報", "伊豆東部の地震活動の見通しに関する情報を発表します。"));
     expect(shape(send(emptyState(), "selected_xml/42_01_01_100514_VZSE40"))[0].slice(2, 4)).toEqual(["earthquake-eew", "info"]);
     for (const name of ["72_01_01_190327_VPAW51", "29_01_01_140129_VPZI50", "83_01_01_250630_VPZJ51"])
@@ -671,7 +671,7 @@ describe("P3-UNIT-M-001 U-M reducer", () => {
     expect(send(cancel.state, "synthetic_VPHW50_tokyo_release", releaseXml).intents).toEqual([]);
     // training/test は desktop だけ（接頭辞【訓練】・【試験】）。
     expect(shape(send(emptyState(), N50, status("訓練")))).toEqual([["desktop", "activated", "weather", "normal", "【訓練】長崎県竜巻注意情報", "発表中 24地域 / 有効期限 10:30"]]);
-    expect(shape(send(emptyState(), HEAT, status("試験")))[0].slice(0, 5)).toEqual(["desktop", "activated", "weather", "warning", "【試験】埼玉県熱中症警戒アラート"]);
+    expect(shape(send(emptyState(), HEAT, status("試験")))[0].slice(0, 5)).toEqual(["desktop", "activated", "weather", "normal", "【試験】埼玉県熱中症警戒アラート"]);
     // 復元直後の続報は復元した記録との差で updated（同じ報は作らない）。
     const restored = reduceLocalBulletinsUnit(emptyState(), { kind: "restore", clock: clock(T0), persisted: localBulletinsUnitCodec.encode(first.state) });
     expect(send(restored.state, N50, compose(serial("2"), at("2013-07-26T09:30:00+09:00"), replaceTag("ValidDateTime", "2013-07-26T11:00:00+09:00"))).intents.map((item) => item.transition)).toEqual(["updated", "updated"]);

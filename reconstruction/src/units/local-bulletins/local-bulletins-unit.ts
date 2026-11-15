@@ -373,7 +373,7 @@ const heatLane: Lane<HeatCurrent, HeatCandidate> = {
   },
   expire: (item) => heatMemory(baseOf(item), "ended"),
   expireIsPersisted: true,
-  style: () => ({ domain: "weather", level: "warning" }),
+  style: () => ({ domain: "weather", level: "normal" }),
   body: (_candidate, record) => "targetDate" in record ? [record.areaName, dateText(record.targetDate)].filter((part) => part != null).join(" ") : "",
 };
 const transientLane: Lane<TransientCurrent, TransientCandidate> = {
