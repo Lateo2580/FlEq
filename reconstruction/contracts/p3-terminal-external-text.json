@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86d471fbcb4bf9d3e1be4223fc2e5676ddfb9254",
-    "sha256": "9e7e4f9e434dbe82df4f7dcb66c08731a5617383710ff7b5ef88faf04dac4dcc",
+    "sha256": "e8414090964d0cc23be60b8ea3aef4bf73e6690a6d769745b776a0dbbd06a024",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -98,7 +98,7 @@
     "contractId": "P3-TERMINAL-EXTERNAL-TEXT-001",
     "mode": "implementation",
     "objective": "構造的欠陥台帳 135 と 136 を閉じる。(135) dmdata の WebSocket の JSON の head.type に制御の字（例 VPWW57 の後に ESC[2J）が入っていると、--debug でなくても U-M の「処理できなかった電文 <head.type>」の帯と本文の行に ESC が生で書かれ、端末の画面が消えるなどしうる（コードを読んで見つけ、起草の写しで再現した不具合で、本物の経路では起きていない、Q-TET-PATH）。ingress の WS の枝で、head.type が種類のコードの形（/^[A-Z0-9]+$/）に合わなければ envelopeInvalid として断る（P3-TET-D-HEADTYPE=A）。(136) 端末の文でない欄（帯の題名・地域名・震源名・表の欄）に入った LF がそのまま改行になり、縦線の無い行が始まる。color.ts の painter で LF を半角の空白 1 字に替える（P3-TET-D-LF=A）。形の正しい head.type の報と、LF の無い字の端末の出力は 1 字も変わらない（Q-TET-LF）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "db4fa46bc1ccb5166ed29ac6cf01d14e22bd5379",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
