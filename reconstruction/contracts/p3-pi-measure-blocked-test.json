@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0b37f7668a6244f7d0b59a61f9f19c45e55fad1a",
-    "sha256": "85662fefa19741ca877b47a6e7eea87161b9c5fe02a3956e8ec7a07ea4ab1671",
+    "sha256": "36f58e5d99487abb57e12c119605a288aad7bc2cb4963c99412733d04210528e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -73,7 +73,7 @@
     "contractId": "P3-PI-MEASURE-BLOCKED-TEST-001",
     "mode": "implementation",
     "objective": "P3-DPM-AC04 (7) の「残存（2026-11-14）: この経路（後始末の SIGTERM と、blocked の結果の 4 欄）に repo の中の試験は無い」を閉じる。pi-measure.mjs を本物の host で走らせ、投入の途中で host を SIGSTOP で 4 秒止めて SIGCONT し、blocked hostFailed になった結果の launch・hostExit・terminatedBy・hostReasons を確かめる試験を 1 本足す（reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts）。pi-measure.mjs と reconstruction/src は変えない（Pi の記録とずれない、P3-FINAL-GATE-001 の T09 に当たらない）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "c7a0606a41e3be92e4314bf07b7fb98998474f35",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
