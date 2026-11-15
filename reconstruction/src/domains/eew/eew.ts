@@ -479,7 +479,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
       && !predictionChanged && (previous == null || candidate.cancelled || candidate.terminal
         || previous.warningClass === warningClass)
       && isDeepStrictEqual(gate.noticeSource, noticeSource), candidate.cancelled);
-  // 記録しか無いときは中身を比べないので、同じ版の発表・続報は duplicate に寄せず採る（current は作り直し、種類の照合で鳴らない）。記録と比べて held の
+  // 記録しか無いときは中身を比べないので、同じ版の発表・続報は duplicate に寄せず採る（current は作り直し、通知は既存の規則と種類の照合に従う。未通知の版は鳴りうる、P3-EEW-RESTART-CORRECTION-001 の AC03 (6)）。記録と比べて held の
   // 訂正（時刻の読めない報も）と取消済みの取消の再送は、gate があるときと同じく採らない（P3-NL-AC04 (3)(5)、P3-EEW-RESTART-CORRECTION-001）。
   if (recorded != null && version.kind === "held")
     version = candidate.source.infoTypeRaw === "訂正" ? { kind: "held", mark: null, missing: version.missing } : recorded.cancelled && candidate.cancelled && !version.missing ? { kind: "older" } : { kind: "adopt", mark: null, missing: version.missing };
