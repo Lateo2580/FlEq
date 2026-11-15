@@ -227,7 +227,7 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
       writeFileSync(join(dir, `${number}-actor${externalSend ? "" : "-local-only"}.json`), `${JSON.stringify({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend,
         ...notificationsOf(scene.attempts), screen: scene.screen }, null, 1)}\n`);
       writeFileSync(join(dir, `${number}-evaluator.json`), `${JSON.stringify({ scenario: id, scene: written.length, at: jstText(scene.atMs), rule,
-        notifications: scene.attempts.map(notificationOf), facts: scene.facts }, null, 1)}\n`);
+        notifications: scene.attempts.map(notificationOf), facts: scene.facts, screen: scene.fullScreen }, null, 1)}\n`);
     } }));
 
     // (1) 2 回の run は同じ本体（場面の口は観測だけ）。

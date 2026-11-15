@@ -623,18 +623,25 @@ type SceneAttempt = Readonly<{ atMs: number; unit: string; subject: string; chan
 // SCENE-TEXT=A（2026-11-15 午後の作者裁定で追加）: 画面に出る欄だけを snapshot の形のまま写し、一覧は画面に載る量で切る（演じ手に裏の事実を渡さない）。
 type SceneScreen = Readonly<{ connection: DisplayConnectionView;
   current: Readonly<Record<string, Readonly<{ delivery: "summary" } | { delivery: "full"; view: JsonValue }>>>;
-  recovery: Pick<DisplayRecoveryView, "eewUnverified">; notices: readonly Pick<DisplaySnapshot["notices"][number], "kind" | "text" | "expiresAt">[] }>;
-type SceneCapture = Readonly<{ atMs: number; attempts: readonly SceneAttempt[]; screen: SceneScreen | null;
+  recovery: Pick<DisplayRecoveryView, "eewUnverified">; notices: readonly Pick<DisplaySnapshot["notices"][number], "kind" | "text" | "expiresAt" | "operation">[] }>;
+// fullScreen は絞る前の写し（生の view と notices の全部）。評価者が演じ手に見えなかった行（*Omitted）と突き合わせるため。
+type FullScreen = Readonly<{ connection: DisplayConnectionView; current: DisplaySnapshot["current"]; recovery: Pick<DisplayRecoveryView, "eewUnverified">;
+  notices: DisplaySnapshot["notices"] }>;
+type SceneCapture = Readonly<{ atMs: number; attempts: readonly SceneAttempt[]; screen: SceneScreen | null; fullScreen: FullScreen | null;
   facts: Readonly<Record<string, readonly Readonly<{ subject: string; until: number | null }>[]>> }>;
 // times が空の run は候補を集めるだけ（SCENE-RULE の 1 回目）。write は場面ごとに 1 回、その時刻の frame と tick を済ませた後に呼ぶ。
 type SceneOptions = Readonly<{ times: readonly number[]; write: (scene: SceneCapture) => void }>;
 type SceneResult = Readonly<{ attempts: readonly SceneAttempt[]; newSubjects: readonly number[]; deadlines: readonly number[] }>;
 type Dispatch = Readonly<{ atMs: number; kind: "watchEewWindow" | "connected" | "connectionLost" }> | Readonly<{ atMs: number; kind: "frame"; frame: Frame }>;
 
-// 画面に出ない欄（識別子・出どころ・版・コード・時刻以外の生の文字列・保持の期限）。時刻の生の文字列（*TimeRaw）は画面の時刻なので残す。
-const HIDDEN = new Set(["source", "sources", "subjects", "subject", "eventId", "unit", "family", "inputId", "origin", "semanticRevision", "contentRevision",
+// 画面に出ない欄（識別子・出どころ・版・コード・時刻以外の生の文字列・保持の期限・EEW の前の報の予測）。時刻の生の文字列（*TimeRaw）と、見出しや札に効く
+// infoTypeRaw（訂正・取消）・maxIntChangeReasonRaw（最大予測震度が変わった理由）は画面に効くので残す。
+const SHOWN_RAW = new Set(["infoTypeRaw", "maxIntChangeReasonRaw"]);
+// U-W の codes は警報の段（Kind/Code）ごとの区域の数で、画面の「ほかにレベル4〜2 が N 市町」の元になるので残す（ほかの unit の codes はコードの列）。
+const SHOWN_CODES = new Set(["weatherCurrent"]);
+const HIDDEN = new Set(["source", "sources", "subjects", "subject", "eventId", "unit", "family", "inputId", "origin", "semanticRevision", "contentRevision", "id",
   "changedFields", "code", "codes", "parentCode", "areaCode", "kindCode", "controlDateTimeRaw", "counted", "revision", "establishedBy", "strongHold",
-  "retainUntil", "validUntil", "depthConflict"]);
+  "retainUntil", "validUntil", "depthConflict", "retainedPrediction"]);
 // 一覧の件数の上限（D1 夜の画面に載る量。EEW は大カードの予測地域 1 ページ 3 行と小カード 6 枚、今日の地震は 4 行）。表に無い一覧は 5 件。
 const SCREEN_LIMITS: Readonly<Record<string, number>> = { "eew.current": 6, "eew.areas": 3, "eew.reportAreas": 3, "earthquake.earthquakes": 4,
   "earthquake.recent": 4, "earthquake.items": 5, "tsunami.forecasts": 3, "tsunami.areas": 10, "tsunami.stations": 5, "tsunami.estimations": 5,
@@ -647,15 +654,19 @@ function screenValue(domain: string, value: unknown): JsonValue {
   if (!isRecord(value)) return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? value : null;
   const out: Record<string, JsonValue> = {};
   for (const [key, item] of Object.entries(value)) {
-    // 出どころからは画面に出る時刻と第 N 報だけを残す（D1 夜: 全部のカードに更新時刻、EEW のカードは発表時刻と第 N 報）。
+    // 出どころからは画面に出る欄だけを残す（D1 夜: 全部のカードに更新時刻、EEW のカードは発表時刻と第 N 報。訂正・取消は見出しに効く）。複数なら最新の報。
     if (key === "source" || key === "sources") {
       const list: readonly unknown[] = Array.isArray(item) ? item : [item];
-      const times = list.flatMap((element) => isRecord(element) && typeof element["reportDateTimeRaw"] === "string" ? [element["reportDateTimeRaw"]] : []);
-      if (times.length !== 0) out[domain === "eew" ? "発表時刻" : "更新時刻"] = times.reduce((latest, time) => Date.parse(time) > Date.parse(latest) ? time : latest);
-      if (domain === "eew" && isRecord(item) && typeof item["serialRaw"] === "string" && item["serialRaw"] !== "") out["第N報"] = item["serialRaw"];
+      const latest = list.reduce<Readonly<Record<string, unknown>> | null>((found, element) => !isRecord(element) || typeof element["reportDateTimeRaw"] !== "string" ? found
+        : found == null || Date.parse(element["reportDateTimeRaw"]) > timeOf(found, "reportDateTimeRaw") ? element : found, null);
+      if (latest == null) continue;
+      out[domain === "eew" ? "発表時刻" : "更新時刻"] = String(latest["reportDateTimeRaw"]);
+      if (typeof latest["infoTypeRaw"] === "string") out["infoTypeRaw"] = latest["infoTypeRaw"];
+      if (domain === "eew" && typeof latest["serialRaw"] === "string" && latest["serialRaw"] !== "") out["第N報"] = latest["serialRaw"];
       continue;
     }
-    if (HIDDEN.has(key) || (key.endsWith("Raw") && !key.endsWith("TimeRaw")) || (key === "raw" && "value" in value)) continue;
+    if (key === "codes" && SHOWN_CODES.has(domain)) { out[key] = screenValue(domain, item); continue; }
+    if (HIDDEN.has(key) || (key.endsWith("Raw") && !key.endsWith("TimeRaw") && !SHOWN_RAW.has(key)) || (key === "raw" && "value" in value)) continue;
     if (!Array.isArray(item)) { out[key] = screenValue(domain, item); continue; }
     const limit = SCREEN_LIMITS[`${domain}.${key}`] ?? 5;
     const newest = NEWEST_BY[`${domain}.${key}`];
@@ -674,7 +685,7 @@ function screenOf(snapshot: DisplaySnapshot): SceneScreen {
     return [key, domain.delivery === "full" ? { delivery: "full" as const, view: screenValue(key, domain.view) } : { delivery: "summary" as const }];
   }));
   return { connection: { state, disconnectedAt, lastInputAt }, current, recovery: { eewUnverified: snapshot.recovery.eewUnverified },
-    notices: snapshot.notices.map(({ kind, text, expiresAt }) => ({ kind, text, expiresAt })) };
+    notices: snapshot.notices.map(({ kind, text, expiresAt, operation }) => ({ kind, text, expiresAt, operation })) };
 }
 
 // 場面の記録は観測だけ（結果の本体・adapter の delivered・合否を変えない。T09 (1)(2) が本体の hash で確かめる）。
@@ -715,7 +726,9 @@ class SceneLog {
   capture(atMs: number, snapshot: DisplaySnapshot | null, h: Harness): void {
     const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, [...recordsOf(h.unit(unit))]
       .filter(([, until]) => until == null || until > atMs).map(([subject, until]) => ({ subject, until }))]));
-    this.options.write({ atMs, attempts: this.attempts.slice(this.written), screen: snapshot == null ? null : screenOf(snapshot), facts });
+    const fullScreen = snapshot == null ? null : { connection: snapshot.connection, current: snapshot.current,
+      recovery: { eewUnverified: snapshot.recovery.eewUnverified }, notices: snapshot.notices };
+    this.options.write({ atMs, attempts: this.attempts.slice(this.written), screen: snapshot == null ? null : screenOf(snapshot), fullScreen, facts });
     this.written = this.attempts.length;
   }
 
