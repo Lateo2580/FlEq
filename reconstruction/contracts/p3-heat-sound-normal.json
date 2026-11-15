@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1fb23e5a79e63206b893973f11d81af33f8fee3d",
-    "sha256": "ea01ed07c0fe48f46acece881a491f6c828a1af787cbf9265813cbbd53dcdc25",
+    "sha256": "3e80fae227a9b89a389fd300d19a7a241e8a71777cefef06e7731bc9ce560812",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -31,6 +31,12 @@
         "status": "closed",
         "source": "r0（2026-11-15 夜）の起草レビュー 2 本: 品質（Opus）GO の P3 2、整合（Opus）条件付き GO の P2 1・P3 2。r1 で 5 件とも当てた",
         "closed": "(1) 整合 P2: AC05 (3) に walk2/runs（claude・hertz）と walk2/eval の扱いを足した（場面の組か演じ手に見せる中身が変わった筋書きだけやり直す。統合担当の決め） (2) 品質 P3: AC03 (1) の mute を REPL の書式 ha:warning（repl.ts:53・:65）と、desktop と sound の両方が止まる形に直した (3) 品質 P3: AC05・AC06 の先頭に、統合担当・P3-FINAL-GATE-001 向けで実装担当は何もしない旨を足した (4) 整合 P3-1: :305 の竜巻の段が :72 の A・local-bulletins-unit.ts:351・試験 :637 と食い違うので、AC04 (3) の同じ行の改訂に竜巻の直しを足した（前からの食い違い） (5) 整合 P3-2: AC04 (11) に、配送の後に Q-FG-ORDER3-DELIVERY の remaining の熱中症の発注を閉じる旨を足した"
+      },
+      {
+        "id": "Q-HSN-DELIVERY",
+        "status": "closed",
+        "source": "配送（統合担当、2026-11-15 夜）。実装 7961aad4（Sonnet 5.5、base e97d12c7、main へは 752cec5b として載せた）、配送の改訂 b68390c0",
+        "closed": "(1) 実装: local-bulletins-unit.ts:376 の 1 行と試験 :648・:649・:674 の 3 行、両 file とも行の数は不変。赤（試験だけ直して T08 rc 1）→ 緑（rc 0）を実装担当が確かめた (2) レビュー: 実装の契約適合と品質を Opus 1 本（差分 4 行のため 1 本に寄せた）で GO、P3 1（:648 のコメントが AC02 (1) の字どおりの置き換えでなく言い直し。中身は正しく :648 を引く «» は 0 件なので、統合担当が言い直しを受け入れた） (3) Mac mini のゲート（7961aad4）: checker 3 本・reconstruction の tsc 3 本・vitest・shuffle・root の build・test は rc 0。typecheck:test は rc 1 だったが、写しの木に display/node_modules を入れていなかったため（display/frontend の試験 file が svelte を引けない）で、配送の木（b68390c0、display/node_modules を CoW で写した）で回し直して rc 0 (4) 配送の改訂（b68390c0）: AC04 の (1)〜(7) を当てた。sequences.json の meta.sha256 を 2d47587b… に取り直し、151 契約の sequencesSha256 と meta.sha256、«» 22 件（p3-cli-repl 1・sequences の basisRefs 20・p3-e05p-classify 1）を付け直した。行を足した file は無い。checker 3 本 rc 0、local-bulletins-unit と final-gate の vitest rc 0。あわせて作者裁定（2026-11-15 夜 A、帯の ut-obs-unrecovered）で p3-tsunami-unit.json:309 の P3-C5-N2 を「取り直さず、未回復の印も持たない」に改めた（«» の参照 0 件） (5) 残し: p3-local-bulletins-unit.json:1329 の T08 の behavior に、竜巻の「新しいactive（warning）」が残る（:305 で直したのと同じ前からの食い違い。:72 の A では目撃の無い active は normal）。AC04 の一覧に無いので触らず、台帳の小さい直しへ送る。AC04 (10) のバックログと (11) の P3-FINAL-GATE-001 の remaining は統合担当が記録の側で当てる"
       }
     ],
     "operationContract": {
