@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5ea379847e986616bf1aca3fa1dbe4157d86af01",
-    "sha256": "7d8bda6291b28862d851d8d443b8f741d096bf713e6cf0e22146b782d7e02f36",
+    "sha256": "25632874385687c58702854ae13a18a6b0e26cdba0a44f755f38644f78130afe",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -53,6 +53,13 @@
         "status": "closed",
         "source": "起草（2026-11-15、worktree の reconstruction/.dr-tmp/ue/tree に cp -cR で写した木。追跡 file は変えていない。U-E の reduce を直に呼ぶ試しの試験〔repo に足さない〕と、全 reconstruction の vitest〔--maxWorkers=2〕）",
         "closed": "(1) 赤の再現（直す前）: 77_01_01（第 1 報、通知 2 本）→ 77_01_03（第 3 報、intent 0、印の VXSE45 の記録の kinds []）→ 保存→復元 → 77_01_03 の InfoType だけを訂正にした報で changed/semantic・current 1・desktop と sound の「[訂正] 緊急地震速報（予報）」（level warning）2 本。復元しなければ unchanged/stale・intent 0。合成の 2 本（親が通知済み、kinds に report）は復元の後も :676 で止まり intent 0（changed で current を作り直す） (2) 直した後（D-MISSING=A の形と B の形の両方）: 復元の後の同じ版の訂正は unchanged/stale・intent 0・current []・state は同じ参照・診断なし。合成の 2 本も復元の後は unchanged/stale。Control/DateTime を 1 秒後にした訂正は復元の後も changed で [訂正] 2 本。同じ版の発表の受け直しは changed・intent 0・current を作り直す。記録が取消（77_01_33）のときの同じ Control/DateTime の訂正は、直す前も後も、復元の有無とも unchanged/stale・intent 0。報時刻から 10 分より後の同じ版の訂正は、直す前の復元の後は stale＋eewHorizonStale、直した後は stale・診断なし（復元しない場合と同じ） (3) 時刻の読めない訂正（Control/DateTime を x にした報）: A の形では復元の後 changed・[訂正] 2 本・WARN requiredStructureMissing、B の形では unchanged/stale・intent 0・WARN（復元しない場合と同じ）。記録が取消（77_01_33）の後の時刻の読めない訂正は、直す前と A の形では復元の後 changed・current 26・「[訂正] 緊急地震速報（警報）」critical 2 本、復元しなければ unchanged/stale・WARN (4) 全 reconstruction の vitest（B の形と AC04 の 8 行〔r0〕を当てた木。試しの試験 2 件を含む）: 162 file のうち 152 通過・10 skip、1,687 件のうち 1,653 通過・0 失敗・34 skip（試しを除くと 1,685 件のうち 1,651 通過）。tsc 3 本（tsconfig.json・tsconfig.test.json・chrome-eew）も rc 0。既存の試験で期待の変わるものは 0 件（final-gate の T01・T02 を含む）。A の形でも全 vitest は 0 失敗だった (5) AC04 の試験の弾き: B の形の木で eew-unit.test.ts は 37 件緑（--sequence.shuffle でも緑）。直す前の eew.ts では (2b) の復元の組が [unchanged, 0, 0, true] に対し [changed, 2, 1, false] で落ち、A の形では時刻の読めない訂正の行が [unchanged, 0, …] に対し [changed, 2, …] で落ちる (6) r1（2026-11-15、同じ写し）: AC04 を 11 行の形にした eew-unit.test.ts は、B の形で 37 件緑（--sequence.shuffle でも緑、tsconfig.test.json も rc 0）。A の形では非取消・取消の両方の組が、取消の記録だけを外す誤った形では取消の組が [changed, 2, …] で落ちる。B の形の木で、77_01_01 → 77_01_03 → 保存→復元 → 77_01_03 に NextAdvisory を足した同じ版の最終報は changed・level normal の 2 本（復元しなければ stale・0 本）、時刻の読めない 77_01_03（発表のまま）は復元の後 changed・0 本・current を作り直す（復元しなければ stale・WARN）"
+      },
+      {
+        "id": "Q-ERC-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-15、HEAD 521323c9〔ローカルの main と同じ〕、origin/main 5ea37984）",
+        "closed": "baseOid を 521323c9500e0f9ed1c47122e8dd0b6c4c22b75c に割り当てた（起草 ab89fb08〔載せ直す前は 623eba49〕・r1 521323c9。r1 の再確認はヘルツ・Opus とも GO。AC03 (5) の Opus の P3-1 は点検の commit で当てた）。decisionBranches の「起草案」は 0 件（P3-ERC-D-RULING は作者の X、P3-ERC-D-MISSING は作者の B、P3-ERC-D-SCOPE は統合担当の A）。main は edd54f6f（P3-UW-SAME-TIME-PARTIAL-001 の r1、契約の file を 1 本足しただけ）の上で、5ea37984 から eew.ts・eew-unit.test.ts・本契約が引く file は変わっていない。eew.ts・eew-unit.test.ts を引くほかの契約の «» は Q-ERC-SOURCE (6) のまま（eew.ts の :479〜:488 を引く «» は 0 件、:489・:495 は p3-eew-same-correction.json、eew-unit.test.ts の :1373 より後は p3-eew-gate-evict.json:276 の :1477 の 1 件で AC07 (2) の :1488）。実装の patch は起草の写しから作り、~/dev/fleq-vault-archive/2026-11-15/ue-restart/ue-restart-impl.patch に控えた（eew.ts の 3 行の置き換え〔行の数 836 のまま〕と eew-unit.test.ts の 11 行の追加、D-MISSING=B の形）。patch を当てた写しの木に本契約を置いた check-contract は、p3-eew-gate-evict.json だけが :1477 の anchor のずれで FAIL（AC07 (2) で統合担当が直す）、ほかは PASS",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -64,7 +71,7 @@
     "contractId": "P3-EEW-RESTART-CORRECTION-001",
     "mode": "implementation",
     "objective": "U-E（緊急地震速報の unit）で、FlEq を起動し直した後に、通知しなかった続報と同じ版（Control/DateTime・Serial が同じ）の訂正が届くと「[訂正] 緊急地震速報（予報）」が鳴る不具合を直す（バックログ U-E、作者裁定 X 2026-11-15）。gate は保存されないので、起動し直した後は印の family の記録と比べ、:484〜:485 が同じ版を中身を比べずに採る。記録しか無いときの同じ版の訂正は、gate のあるときと同じく採らない（unchanged/stale・intent 0・current と印を変えない）。直すのは eew.ts の :482〜:485 の行の中だけで、保存の形・版・口を変えない。P3-NL-AC04 (3) の原文を配送で改める",
-    "baseOid": "unassigned",
+    "baseOid": "521323c9500e0f9ed1c47122e8dd0b6c4c22b75c",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
@@ -191,7 +198,7 @@
       },
       {
         "id": "P3-ERC-AC03",
-        "requirement": "仕様どおりの欠けと、変わる出方（作者に報告する）: (1) 画面: 起動し直した後は current が無い（保存しない）。今はこの訂正で current を作り直して EEW が画面に戻るが、直した後は current [] のまま、その EventID は次の新しい版（Control/DateTime か Serial が後の報）か同じ版の発表の受け直しまで画面に出ない。起動し直さない場合は第 3 報が見えたまま。作者の裁定の「画面も変えない」は受ける前の画面を変えないことで、起動し直して消えた EEW をこの訂正で戻さない (2) 中身の違う訂正でも版が同じなら採らない（作者に見せた困ること）: 記録は版の鍵と kinds だけで中身を持たないので比べられない。起動し直さない場合も中身が違えば held で採らない（同じなら duplicate）ので、鳴る・鳴らないは一致する (3) 診断: 報時刻から 10 分より後に届いた同じ版の訂正は、今は起動し直した後だけ horizon（eew.ts:540）で stale＋eewHorizonStale になる。直した後は版の比べで先に stale になり eewHorizonStale を出さない（起動し直さない場合と同じ）。この診断を見る既存の試験は無い（起草の probe で全 vitest が緑） (4) D-MISSING=B で、時刻の読めない訂正を起動し直した後に採らない（起動し直さない場合も採らない） (5) 非対称: 起動し直した後の時刻の読めない発表・続報は今どおり採られる（current を作り直す。起草の probe で intent 0）。起動し直さなければ held で採らない。鳴る・鳴らないは同じで、違うのは画面だけ (6) 残存（直さない、D-SCOPE=A）: 通知しなかった続報（77_01_03）と同じ Control/DateTime・Serial で、InfoType 発表のまま中身の違う最終報（NextAdvisory を足した報）を起動し直した後に受けると、採って desktop と sound の「緊急地震速報（予報）」（level normal、本文に「最終報: 」）2 本が鳴る。起動し直さなければ gate の中身の比べで held、鳴らない（起草の probe、B の形の木）。同じ Serial で中身の違う発表は実電文で起きない見込み（読みだけで、実電文で確かめていない）",
+        "requirement": "仕様どおりの欠けと、変わる出方（作者に報告する）: (1) 画面: 起動し直した後は current が無い（保存しない）。今はこの訂正で current を作り直して EEW が画面に戻るが、直した後は current [] のまま、その EventID は次の新しい版（Control/DateTime か Serial が後の報）か同じ版の発表の受け直しまで画面に出ない。起動し直さない場合は第 3 報が見えたまま。作者の裁定の「画面も変えない」は受ける前の画面を変えないことで、起動し直して消えた EEW をこの訂正で戻さない (2) 中身の違う訂正でも版が同じなら採らない（作者に見せた困ること）: 記録は版の鍵と kinds だけで中身を持たないので比べられない。起動し直さない場合も中身が違えば held で採らない（同じなら duplicate）ので、鳴る・鳴らないは一致する (3) 診断: 報時刻から 10 分より後に届いた同じ版の訂正は、今は起動し直した後だけ horizon（eew.ts:540）で stale＋eewHorizonStale になる。直した後は版の比べで先に stale になり eewHorizonStale を出さない（起動し直さない場合と同じ）。この診断を見る既存の試験は無い（起草の probe で全 vitest が緑） (4) D-MISSING=B で、時刻の読めない訂正を起動し直した後に採らない（起動し直さない場合も採らない） (5) 非対称: 起動し直した後の時刻の読めない発表・続報は今どおり採られる（current を作り直す。起草の probe で intent 0）。起動し直さなければ held で採らない。予報の続報では鳴らない（probe）。まだ鳴らしていない EventID の警報は、起動し直した後だけ鳴りうる（eew.ts:614、D-SCOPE=A で今のまま） (6) 残存（直さない、D-SCOPE=A）: 通知しなかった続報（77_01_03）と同じ Control/DateTime・Serial で、InfoType 発表のまま中身の違う最終報（NextAdvisory を足した報）を起動し直した後に受けると、採って desktop と sound の「緊急地震速報（予報）」（level normal、本文に「最終報: 」）2 本が鳴る。起動し直さなければ gate の中身の比べで held、鳴らない（起草の probe、B の形の木）。同じ Serial で中身の違う発表は実電文で起きない見込み（読みだけで、実電文で確かめていない）",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:540 «533bdccc801402bd»",
           "reconstruction/src/domains/eew/eew.ts:267 «1ced5f9ee11c0061»",
