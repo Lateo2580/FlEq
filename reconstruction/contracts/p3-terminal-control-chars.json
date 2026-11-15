@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "95612a629bc06e8aadc2732ad770ac5991de6b3e",
-    "sha256": "a6d09ef339986da19085f261317a77bb1afc25fd87cbf30dbba7046803e71c9e",
+    "sha256": "13c79b70e468d7bbfb012a4979dee452a41d756bf4385ccb9f2195944189a620",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -28,7 +28,7 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当、2026-11-15 朝の発注前点検。起草レビュー 2 本〔契約適合・品質、どちらも Opus〕とも 1 回目・r2 の再確認で GO）",
-        "ruling": "A（統合担当）",
+        "ruling": "A（統合担当）。P3-TERMINAL-EXTERNAL-TEXT-001（作者裁定 2026-11-16 朝、P3-TET-D-LF=A）で LF も替える字に足した（A の『TAB と LF は替えない』の LF を読み替える）",
         "reason": "届く字を decode の決まりから数えた（Q-TCC-REACH）: decode-material.ts は生の C0 を TAB・LF・CR のほか全部断り、文字参照も XML の Char の外（TAB・LF・CR のほかの C0）を断るので、電文の XML の字としては ESC・BEL などは届かない（WS の JSON の head.type は別で、outOfScope の ESC の項）。届くのは TAB・LF・CR（文字参照だけ。生の CR は組立てで LF に揃う）・U+007F〜U+009F（生でも文字参照でも）・U+2028・U+2029。C1 のうち U+0085（NEL、次の行の頭へ）・U+008D（RI、1 行上へ）・U+009B（CSI、制御の並びの頭）は、UTF-8 の C1 を制御として読む端末では前の行を上書きし、画面を消す・色を変えるなどの並びを始めうる。DEL は端末が何も描かないのに整形は 1 桁と数える。A は同じ 1 つの字の組（正規表現 1 つ）で、corpus はどれも 0 件なので比べの結果は B と同じ。TAB は行の頭へ戻らず次のタブの位置へ進むだけで上書きせず、電文の文に実在する（42_01_01 VZSE40 の本文の 1 か所。端末の出力には出ない、Q-TCC-PATH (1)）ので outOfScope。LF は文の段落の区切りとして使っている"
       },
       {
@@ -190,10 +190,10 @@
     ],
     "outOfScope": [
       "TAB（U+0009）: 行の頭へ戻らず次のタブの位置へ進むだけで上書きしない。整形は 1 桁と数えるが端末では最大 8 桁で、行が桁数を越えて端末に折られうる（幅の問題として別に扱う。corpus では端末の出力に出ない、Q-TCC-PATH (1)）",
-      "LF（U+000A）が文（textLines・shortSentence）でない欄（帯の題名・地域名・震源名・表の欄）にあると、そのまま改行になり、縦線の無い行が始まり幅の数えが外れる（上書きはしない。起草の写しで震源名と帯の題名に &#10; を入れて確かめた、Q-TCC-PATH (7)）。台帳へ送る",
+      "LF（U+000A）が文（textLines・shortSentence）でない欄（帯の題名・地域名・震源名・表の欄）にあると、そのまま改行になり、縦線の無い行が始まり幅の数えが外れる（上書きはしない。起草の写しで震源名と帯の題名に &#10; を入れて確かめた、Q-TCC-PATH (7)）。台帳へ送る【P3-TERMINAL-EXTERNAL-TEXT-001 で直した】",
       "幅 0 の字・結合文字・異体字セレクタなどを 1 桁と数える近道（format.ts の WIDE の shortcut のコメント）",
       "echo と line の単位の、プロンプトの外の字（readline の echo、REPL の返事、起動の後の行。電文の字を持たない）",
-      "WS の JSON の head.type: ingress は文字列かどうかしか確かめず、owner が止まっているか mailbox が断ったときに host が inputDropped へ渡し、--debug の時だけ debug の行に入るので、ESC がそのまま端末へ出うる（ingress.ts・host.ts・output.ts の inputDropped）。替える字の組に ESC は足せない（太字は paint を 2 回通り、2 回目に 1 回目の chalk の符号の ESC を替えて壊す）ので、統合担当が別の台帳の項にする",
+      "WS の JSON の head.type: ingress は文字列かどうかしか確かめず、owner が止まっているか mailbox が断ったときに host が inputDropped へ渡し、--debug の時だけ debug の行に入るので、ESC がそのまま端末へ出うる（ingress.ts・host.ts・output.ts の inputDropped）。替える字の組に ESC は足せない（太字は paint を 2 回通り、2 回目に 1 回目の chalk の符号の ESC を替えて壊す）ので、統合担当が別の台帳の項にする【P3-TERMINAL-EXTERNAL-TEXT-001 で直した】",
       "端末の外へ出る電文の字（デスクトップ通知の本文、EEW のログの file、情報ディスプレイ）",
       "decode-material.ts の字の決まりと、material.ts の字の切り方（TEXT_LIMIT 4,096）",
       "端末の見た目の spec（cli-terminal-output.md）の本文（字を置き換える決まりの記述は足さない。気象庁の電文に入る見込みの低い制御の字への守りで、図・表・色・字の位置の決まりを変えず、P3-TRL-D-BREAK の例外の守りと同じく契約に置く）と、AC04 (5) を除く、ほかの契約の本文の改訂",
@@ -202,7 +202,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TCC-AC01",
-        "requirement": "方式（Q-TCC-SITE・P3-TCC-D-SUBSTITUTE・P3-TCC-D-SCOPE・P3-TCC-D-PLACE=A）: (1) color.ts の painter が返す関数の頭の :64 の return (role, text) => { を return (role, raw) => { にし、その下になぜのコメントの行と、const text = raw の CR・U+007F〜U+009F・U+2028・U+2029 を 1 字ずつ D-SUBSTITUTE の字に替えた字列、の行を足す（D-SUBSTITUTE=A なら raw.replace(/[\\r\\u007f-\\u009f\\u2028\\u2029]/g, \" \")。元の :65 から後は text のまま）。替えるのは色の水準によらない（NO_COLOR・端末でない＝水準 0 でも替える。painter は水準 0 でも role が null でも同じ関数を返し、置き換えは色付けより前）。D-SCOPE=B なら字の組を CR・U+2028・U+2029 だけに）。D-SUBSTITUTE=B なら替える字を全角の空白にし、format.ts の WIDE の表の最初の行の頭に [0x000d, 0x000d], [0x007f, 0x009f], [0x2028, 0x2029] を足す（行の数を変えない。なぜのコメントに、対で保つことを書く）。D なら \"\" にし、charWidth でその字を 0 桁と数える (2) U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く（生の字は行の終わりとして読まれる） (3) なぜのコメントは関数の中の独立した行に書く（端末が CR などで前の字を上書きしうること、どの字も幅 1 桁と数えて組んであるので 1 桁の字に替えれば組みは変わらないこと、色の水準によらないこと、台帳 134、P3-TERMINAL-CONTROL-CHARS-001、D-SUBSTITUTE の ID）。output.ts のプロンプトの「TTY でなければ字を変えない」のコメントは色の符号のことで、本契約は output.ts を変えない（AGENTS.md の、既存のコメントは触った関数の中だけ合わせる）。P3-TP-AC10 の原文は AC04 (5) で統合担当が改める (4) 足す仕組みは無い（既にある関数の頭で字を替える 1 行。無いと: 生の CR などが端末へ届き、前の字を上書きする）。export・型・設定・helper を足さない (5) D-SUBSTITUTE が C に決まったときは置き場が欄ごとになるので、統合担当が本契約を改訂してから発注する。起草の写しの案（color.ts の差分、D-SUBSTITUTE=A・D-SCOPE=A の形）がこの形",
+        "requirement": "方式（Q-TCC-SITE・P3-TCC-D-SUBSTITUTE・P3-TCC-D-SCOPE・P3-TCC-D-PLACE=A）: (1) color.ts の painter が返す関数の頭の :64 の return (role, text) => { を return (role, raw) => { にし、その下になぜのコメントの行と、const text = raw の CR・U+007F〜U+009F・U+2028・U+2029 を 1 字ずつ D-SUBSTITUTE の字に替えた字列、の行を足す（D-SUBSTITUTE=A なら raw.replace(/[\\r\\u007f-\\u009f\\u2028\\u2029]/g, \" \")。元の :65 から後は text のまま）。替えるのは色の水準によらない（NO_COLOR・端末でない＝水準 0 でも替える。painter は水準 0 でも role が null でも同じ関数を返し、置き換えは色付けより前）。D-SCOPE=B なら字の組を CR・U+2028・U+2029 だけに）。D-SUBSTITUTE=B なら替える字を全角の空白にし、format.ts の WIDE の表の最初の行の頭に [0x000d, 0x000d], [0x007f, 0x009f], [0x2028, 0x2029] を足す（行の数を変えない。なぜのコメントに、対で保つことを書く）。D なら \"\" にし、charWidth でその字を 0 桁と数える【P3-TERMINAL-EXTERNAL-TEXT-001 で字の組の頭に \\n を足した】 (2) U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く（生の字は行の終わりとして読まれる） (3) なぜのコメントは関数の中の独立した行に書く（端末が CR などで前の字を上書きしうること、どの字も幅 1 桁と数えて組んであるので 1 桁の字に替えれば組みは変わらないこと、色の水準によらないこと、台帳 134、P3-TERMINAL-CONTROL-CHARS-001、D-SUBSTITUTE の ID）。output.ts のプロンプトの「TTY でなければ字を変えない」のコメントは色の符号のことで、本契約は output.ts を変えない（AGENTS.md の、既存のコメントは触った関数の中だけ合わせる）。P3-TP-AC10 の原文は AC04 (5) で統合担当が改める (4) 足す仕組みは無い（既にある関数の頭で字を替える 1 行。無いと: 生の CR などが端末へ届き、前の字を上書きする）。export・型・設定・helper を足さない (5) D-SUBSTITUTE が C に決まったときは置き場が欄ごとになるので、統合担当が本契約を改訂してから発注する。起草の写しの案（color.ts の差分、D-SUBSTITUTE=A・D-SCOPE=A の形）がこの形",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:1061 «755abe53d647e5dd»",
           "reconstruction/src/terminal/format.ts:1070 «131c1afbb095e63e»",
