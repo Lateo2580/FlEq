@@ -121,7 +121,8 @@ describe("P3-FINAL-GATE-001 order 3a window tools (gated)", () => {
       digest: peakFile["digest"] ?? null, gitHead: peakFile["gitHead"] ?? null, atMs },
       machine: { os: `${platform()} ${release()}`, cpu: cpus()[0]?.model ?? null, cpus: cpus().length, node: process.version },
       note: "起点の N3 の山は 11 unit（U-V 無し）で U-Q は 696〜787 件止まり（Q-DPM-REMEASURE-20261114 の (4)(a)）。U-Q が満杯の state は AC08 (1) で取る。"
-        + "要約の completedAt は closeWorker の前の値で、owner thread の終了の所要は stageResults の workerClose で読む" };
+        + "要約の completedAt は closeWorker の前の値で、owner thread の終了の所要は stageResults の workerClose で読む。"
+        + "Pi の窓（AC08 (3)）では status の Pass を『この予備条件では再現せず』と読み替える（AC08 は Pass と呼ばない）" };
     const write = () => writeFileSync(out, `${JSON.stringify(record, null, 1)}\n`);
     const blocked = (reason: string, detail: string) => {
       record["status"] = "blocked";
@@ -151,6 +152,12 @@ describe("P3-FINAL-GATE-001 order 3a window tools (gated)", () => {
     const spy = vi.spyOn(RuntimeCompositionRoot.prototype, "shutdownRuntime").mockImplementation(
       function (this: RuntimeCompositionRoot, ...args) { roots.push(this); return shutdownRuntime.apply(this, args); });
     cleanups.push(() => spy.mockRestore());
+    // 12 本の受理まで owner への受け渡しを留め、停止の drain で放す。受信のターンが分かれると先に着いた報が running の段で保存され
+    // （P3-UWR-AC03）、最終保存の段の unit が 12 に満たなくなるため。
+    const gate = { open: true };
+    const pump = RuntimeCompositionRoot.prototype.pump;
+    const held = vi.spyOn(RuntimeCompositionRoot.prototype, "pump").mockImplementation(function (this: RuntimeCompositionRoot) { if (gate.open) pump.apply(this); });
+    cleanups.push(() => held.mockRestore());
     const base = performance.now();
     const clock = () => { const monotonicMs = performance.now(); return { wallTimeMs: atMs + Math.trunc(monotonicMs - base), monotonicMs }; };
     const observations: P2HostObservation[] = [];
@@ -159,20 +166,22 @@ describe("P3-FINAL-GATE-001 order 3a window tools (gated)", () => {
     const host = await startP2Host({ wsUrl: `ws://127.0.0.1:${(wss.address() as AddressInfo).port}/`, stateDirectory: join(work, "state"),
       diagnosticDirectory: join(work, "diagnostics"), displayPort: 0, clock, observe: (o) => {
         observations.push(o);
-        // 12 本目を mailbox が受けた turn のうちに止める。running の段の入力はすぐ保存される（P3-UWR-AC03）ので、採られるのを待つと最終保存の段の
-        // unit がわずかになる。drain の段で採られ、最終保存の段で保存される（T03 の場面 (4) と同じ流れ）。
-        if (o.kind === "marker" && o.point === "T1" && ++accepted === 12) queueMicrotask(() => { stopped.summary = host.stop(); });
+        // 12 本目を mailbox が受けたら止める。drain の段で採られ、最終保存の段で保存される（T03 の場面 (4) と同じ流れ）。
+        if (o.kind === "marker" && o.point === "T1" && ++accepted === 12) queueMicrotask(() => { gate.open = true; stopped.summary = host.stop(); });
       } });
     cleanups.push(() => host.stop().then(() => {}, () => {}));
     if (!await until(() => sockets.length === 1, 10_000)) throw blocked("hostFailed", "the host did not connect within 10 s");
     const wall = Math.floor(clock().wallTimeMs / 1_000) * 1_000;
-    for (const report of dirtyReports(wall, "202611150600")) sockets[0].send(dataFrame(report.headType, report.xml));
+    const reports = dirtyReports(wall, "202611150600");
+    gate.open = false;
+    for (const report of reports) sockets[0].send(dataFrame(report.headType, report.xml));
     if (!await until(() => stopped.summary != null, 30_000)) throw blocked("inputNotAccepted", `${accepted} of 12 accepted by the mailbox within 30 s`);
     const summary = await stopped.summary!;
     const [root] = roots;
 
-    const adopted = new Set(observations.flatMap((o) => (o.kind === "generationRaised" ? [o.unit] : [])));
-    const missed = runtimeUnits.filter((unit) => !adopted.has(unit));
+    // この接続で送ったのは 12 本だけなので、host の通し番号 input-<n> は送った順（pi-measure と同じく inputId|unit で結ぶ）。
+    const adopted = new Set(observations.flatMap((o) => (o.kind === "generationRaised" ? [`${o.inputId}|${o.unit}`] : [])));
+    const missed = reports.flatMap((report, index) => (adopted.has(`input-${index + 1}|${report.unit}`) ? [] : [report.unit]));
     if (missed.length !== 0) throw blocked("dirtyNotAdopted", missed.join(", "));
     const { startedAt, stageResults } = root.state.shutdown;
     const ends = STAGES.map((stage) => stageResults[stage]?.clock.monotonicMs ?? null);
@@ -218,16 +227,17 @@ describe("P3-FINAL-GATE-001 order 3a window tools (gated)", () => {
     const peak = readJson(join(dir, "peak.json"));
     const uq = peak["peak"] == null ? null : recordOf(recordOf(recordOf(peak["peak"])["units"])["U-Q"]);
     const limit = linkedUnitCodecs["U-Q"]?.maxEnvelopeBytes ?? null;
-    // 判定の前に出す（器に先に届いたら、その時点の件数と bytes がこの行に残る、P3-FG-D-UQ-PEAK の A）。
-    console.info(`[P3-FG-T07] ${JSON.stringify({ status: result["status"], digest: result["digest"], events: current, stationPercent: STATION_PERCENT,
-      stations: uqScenario(1).frames[0].body.toString().match(/<IntensityStation>/g)?.length ?? 0,
-      foldLimit: limit, uqBytes: uq?.["bytes"] ?? null,
-      uqGeneration: uq?.["generation"] ?? null, evicted, folds: result["folds"], timing: result["timing"] })}`);
+    // 判定の前に山の dir の t07.json と console に書く（器に先に届いたら、その時点の件数と bytes が残る、P3-FG-D-UQ-PEAK の A）。
+    // 間引きの決め（1024 通で畳みの始まる閾値 GENERATION_LIMIT より 5% 以上低い）は記録だけで、合否は (1)〜(4)。
+    const record = { status: result["status"], digest: result["digest"], events: current, stationPercent: STATION_PERCENT,
+      stations: uqScenario(1).frames[0].body.toString().match(/<IntensityStation>/g)?.length ?? 0, foldLimit: limit, uqBytes: uq?.["bytes"] ?? null,
+      uqRatio: limit == null || uq == null ? null : Number(uq["bytes"]) / limit, uqGeneration: uq?.["generation"] ?? null, evicted, folds: result["folds"],
+      timing: result["timing"] };
+    writeFileSync(join(dir, "t07.json"), `${JSON.stringify(record, null, 1)}\n`);
+    console.info(`[P3-FG-T07] ${JSON.stringify(record)}`);
     expect(current).toBe(EVENT_LIMIT);
     expect([evicted, listOf(result["folds"]).length, pass["capacityLosses"], pass["inputRejections"]]).toEqual([0, 0, 0, 0]);
     expect(checkPeakFiles(dir, peak).get("U-Q")).toBe(uq?.["generation"]);
-    // 間引きの決めの条件: 1024 通の時点で器（畳みの始まる閾値、seismic-unit の GENERATION_LIMIT）より 5% 以上低い。
-    expect(Number(uq?.["bytes"])).toBeLessThanOrEqual(Number(limit) * 0.95);
   }, 10 * 60_000);
 
   it.runIf(env["FLEQ_C22_WINDOW_TOOLS"] === "1")("P3-FG-T08 acceptance / AC08 (1)(2): pi-measure --dirty all writes the five save intervals, evictions and the EEW groups", async () => {

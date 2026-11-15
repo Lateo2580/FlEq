@@ -43,15 +43,22 @@ const at = (xml, wallMs) => shiftTimestamps(xml, wallMs - reportMs(xml));
 const withEventId = (xml, eventId) => xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);
 const pad2 = (n) => String(n).padStart(2, "0");
 
-// 区間の和を時刻で並べて畳み、昇順の問い合わせに 2 本の指で答える（全件×全件の走査をしない、P3-FG の発注 3 の範囲 (5)）。閉区間。
+// 区間の和を時刻で並べて畳み、昇順の問い合わせに 2 本の指で答える（全件×全件の走査をしない、P3-FG の発注 3 の範囲 (5)）。
+// 区間は [from, to, openFrom, openTo]。端の印が無ければ閉区間（保存の区間は encode に接する端を含めない）。
 function cover(intervals) {
   const merged = [];
-  for (const [from, to] of [...intervals].sort((a, b) => a[0] - b[0])) {
+  for (const [from, to, openFrom = false, openTo = false] of [...intervals].sort((a, b) => a[0] - b[0] || Number(a[2] ?? false) - Number(b[2] ?? false))) {
     const last = merged.at(-1);
-    if (last != null && from <= last[1]) last[1] = Math.max(last[1], to); else merged.push([from, to]);
+    if (last != null && (from < last.to || (from === last.to && !(openFrom && last.openTo)))) {
+      if (to > last.to) Object.assign(last, { to, openTo });
+      else if (to === last.to) last.openTo &&= openTo;
+    } else merged.push({ from, to, openFrom, openTo });
   }
   let i = 0;
-  return (ms) => { while (i < merged.length && merged[i][1] < ms) i++; return i < merged.length && merged[i][0] <= ms; };
+  return (ms) => {
+    while (i < merged.length && (merged[i].to < ms || (merged[i].to === ms && merged[i].openTo))) i++;
+    return i < merged.length && (merged[i].from < ms || (merged[i].from === ms && !merged[i].openFrom));
+  };
 }
 
 class Blocked extends Error {
@@ -242,24 +249,25 @@ function analyze(k, dir, ctx, { lines, readyMs, eews, dirties, wide }) {
     const missed = dirties.filter((d) => d.inputId == null || !raised.has(`${d.inputId}|${d.unit}`)).map((d) => d.unit);
     if (missed.length !== 0) throw new Blocked("dirtyNotAdopted", `launch ${k}: ${missed.join(", ")} not adopted (no generationRaised)`);
   }
-  // 保存の試行（attemptId）ごとの encode と、最後の measurement の終わり。
-  const encodeOf = new Map(), lastEndOf = new Map();
-  for (const m of checkpoints) {
-    if (m.stage === "encode" && !encodeOf.has(m.attemptId)) encodeOf.set(m.attemptId, m);
-    lastEndOf.set(m.attemptId, Math.max(lastEndOf.get(m.attemptId) ?? -Infinity, m.endedMonotonicMs));
-  }
-  // 保存の区間: 権の着手（ownerStarted）から ack の反映（doneReceived）まで、encode の区間を除いたもの。実行場所ごと。
+  // 保存の試行（attemptId）ごとの measurement。成否不明の後の照合は同じ attemptId を持つので、権ごとに送出から返信の受信までに
+  // 収まるものだけを結ぶ（aux-measures.mjs の preSaveSync と同じ限り方）。
+  const byAttempt = new Map();
+  for (const m of checkpoints) byAttempt.set(m.attemptId, [...(byAttempt.get(m.attemptId) ?? []), m]);
+  // 保存の区間: 権の着手（ownerStarted）から ack の反映（doneReceived）まで、encode の区間（両端を含む）を除いたもの。実行場所ごと。
   const saveSpans = { urgent: [], seismic: [], other: [] }, grantOf = new Map();
   for (const g of grants) {
-    const encodes = g.attemptIds.flatMap((id) => (encodeOf.has(id) ? [encodeOf.get(id)] : []));
-    let cursor = g.ownerStartedMonotonicMs;
+    const stages = g.attemptIds.flatMap((id) => byAttempt.get(id) ?? [])
+      .filter((m) => m.startedMonotonicMs >= g.grantSentMonotonicMs && m.endedMonotonicMs <= g.doneReceivedMonotonicMs);
+    const encodes = stages.filter((m) => m.stage === "encode").sort((a, b) => a.startedMonotonicMs - b.startedMonotonicMs);
+    const lastEnd = Math.max(...stages.map((m) => m.endedMonotonicMs));
+    let cursor = g.ownerStartedMonotonicMs, openFrom = false;
     const spans = saveSpans[executionPlaces[g.unit] === "urgent" || executionPlaces[g.unit] === "seismic" ? executionPlaces[g.unit] : "other"];
-    for (const e of [...encodes].sort((a, b) => a.startedMonotonicMs - b.startedMonotonicMs)) {
-      if (e.startedMonotonicMs > cursor) spans.push([cursor, e.startedMonotonicMs]);
-      cursor = Math.max(cursor, e.endedMonotonicMs);
+    for (const e of encodes) {
+      if (e.startedMonotonicMs > cursor) spans.push([cursor, e.startedMonotonicMs, openFrom, true]);
+      if (e.endedMonotonicMs >= cursor) { cursor = e.endedMonotonicMs; openFrom = true; }
     }
-    if (cursor < g.doneReceivedMonotonicMs) spans.push([cursor, g.doneReceivedMonotonicMs]);
-    for (const e of encodes) for (const inputId of e.inputIds) if (!grantOf.has(`${inputId}|${g.unit}`)) grantOf.set(`${inputId}|${g.unit}`, { g, e });
+    if (cursor < g.doneReceivedMonotonicMs) spans.push([cursor, g.doneReceivedMonotonicMs, openFrom, false]);
+    for (const e of encodes) for (const inputId of e.inputIds) if (!grantOf.has(`${inputId}|${g.unit}`)) grantOf.set(`${inputId}|${g.unit}`, { g, e, lastEnd });
   }
   const covers = { urgentEncode: cover(checkpoints.filter((m) => m.stage === "encode" && executionPlaces[m.unit] === "urgent").map((m) => [m.startedMonotonicMs, m.endedMonotonicMs])),
     seismicEncode: cover(checkpoints.filter((m) => m.stage === "encode" && executionPlaces[m.unit] === "seismic").map((m) => [m.startedMonotonicMs, m.endedMonotonicMs])),
@@ -276,7 +284,7 @@ function analyze(k, dir, ctx, { lines, readyMs, eews, dirties, wide }) {
   const dirtySaves = !ctx.dirtyAll ? null : Object.fromEntries(dirties.map((d) => {
     const found = grantOf.get(`${d.inputId}|${d.unit}`);
     if (found == null) return [d.unit, null];
-    const { g, e } = found, lastEnd = lastEndOf.get(e.attemptId);
+    const { g, e, lastEnd } = found;
     return [d.unit, { rightWaitMs: minus(g.grantSentMonotonicMs, g.dirtyObservedMonotonicMs), startWaitMs: g.ownerStartedMonotonicMs - g.grantSentMonotonicMs,
       captureEncodeMs: e.endedMonotonicMs - g.ownerStartedMonotonicMs, writeThroughDirectorySyncMs: lastEnd - e.endedMonotonicMs,
       ackApplyMs: g.doneReceivedMonotonicMs - lastEnd }];
