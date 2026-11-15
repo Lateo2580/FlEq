@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0b37f7668a6244f7d0b59a61f9f19c45e55fad1a",
-    "sha256": "36f58e5d99487abb57e12c119605a288aad7bc2cb4963c99412733d04210528e",
+    "sha256": "477612d650daa5df25cfa00c7fe0a65e4c1c64ede1e79738a3714573c3be4507",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -197,7 +197,7 @@
         "id": "P3-PMB-AC04",
         "requirement": "配送（統合担当）: (0) baseOid を c7a0606a に付け、本契約の sha256 を取り直す (1) P3-PMB-D-GATE の裁定を受けてから入れる。A なら配送の前に Linux（Mac mini のゲートは macOS なので CI の reconstruction の job か Pi）で 1 回通ったことを確かめる (2) 原文の改訂（行を足さない）: p3-disaster-pi-measure.json の AC04 の requirement（:340）の (7) の「残存（2026-11-14）: この経路（後始末の SIGTERM と、blocked の結果の 4 欄）に repo の中の試験は無い。根拠は手の確かめ 3 回（…）」に、〔P3-PI-MEASURE-BLOCKED-TEST-001 の T01 で試験を足した（日付・commit）〕を添え、証拠不足の 2 件は残存のまま残す。改訂で中身の変わる :340 を引く anchor（本契約の P3-PMB-AC04 と他の契約）を付け直し、改訂した契約の sha256 を作り直す (3) やりたいことリストの該当の項を完了へ送る",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-disaster-pi-measure.json:340 «bf29b362f00518ec»",
+          "reconstruction/contracts/p3-disaster-pi-measure.json:340 «3dd740a213acf770»",
           "reconstruction/src/runtime/composition-root.ts:2357 «b337e5954d4ab06d»"
         ]
       }
