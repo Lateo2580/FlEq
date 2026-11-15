@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5ea379847e986616bf1aca3fa1dbe4157d86af01",
-    "sha256": "2049780e7a76300491a5623d0c4361256ed95dcb78911089f13f69f9d40e035b",
+    "sha256": "e4b0827eec285b596beb581e3220a45e17e07556a13516cdf101644c8a2489b4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -163,18 +163,18 @@
         "id": "P3-UTP-AC01",
         "requirement": "合わせ（P3-UTP-D-TIE=A・D-SPOKEN=A・D-TIE-READ=A）: (1) mergeCells の中で『報時刻が同じ』を Date.parse(左.reportDateTimeRaw) === Date.parse(右.reportDateTimeRaw) で決める（:88 の宣言の行の中に `tied = (left: ReportRef, right: ReportRef) => …` の形で 1 つ。NaN は同じに数えない） (2) 全国報の行を外す条件（:91、P3-USD-AC03 (1)）を『compareVersion(全国報, partial) が newer か、報時刻が同じ』にする。外す範囲（その partial が載せる区域×その報の種類の Code、P3-USD-AC03 (2) の表）は変えない (3) 区域×Code の置き換えの条件（:106）を『今の勝者より compareVersion で newer か、今の勝者が全国報の版（全国報の行か base。どちらも national.source と同じ object）で報時刻が同じ』にする。勝者が partial のときは今の規則のまま (4) 変えないもの: compareVersion の本体、partial どうしの比べと compareSnapshot の順、報時刻が全国報より古い partial（全国報が載せる区域では今どおり出ない、P3-UWC-AC04 (4)）、報時刻が後の全国報、Code の無い partial の行（covered の区域では今どおり足さない、:101〜:102）、表に無い Code（洪水・土砂・予約）の全国報の行、取消と復元の印。順は state だけで決まるので復元の後も同じ勝者（Q-UWC-MERGE-TIE (1) の性質） (5) :85・:90 のコメントを行の中で直す（全国報に対してだけ報時刻が同じ partial も置き換える・外す、P3-UTP-AC01） (6) 足す仕組みは式 1 つ（無いと 13:50 の府県の報の 43 が同じ報時刻の全国報で合わせから消え、14:00 に二重に鳴る、台帳 126）。関数の export・定数・型は足さない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-public.ts:85 «745577b674a821d4»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:88 «8fd2eab6f210c13b»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:90 «6569cc894e0f1d11»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «c50e87f78fa19fd2»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:85 «e6d135bdf6783053»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:88 «bbd6ac08b4b6255c»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:90 «44a915ec1d923494»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «922d498bab600979»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:100 «611c0368366c7874»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:102 «d4e16a627dfc9a75»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:105 «cba1b8ecce694618»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «1b209ba28c8f44f2»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «d145fea5f47c6ca5»",
           "reconstruction/src/contracts-revision/version.ts:31 «5b0909f0eaaef62d»",
           "reconstruction/src/contracts-revision/version.ts:37 «42dc0b2827ff21d0»",
           "reconstruction/contracts/p3-uw-canon.json:530 «63893ff853f7f2f8»",
-          "reconstruction/contracts/p3-uw-canon.json:270 «90e61285a0401d88»"
+          "reconstruction/contracts/p3-uw-canon.json:270 «969d6c0ed59cc828»"
         ]
       },
       {
@@ -182,7 +182,7 @@
         "requirement": "鳴り方（台帳 126）: (1) 府県の報が区域を L4 に上げて desktop が 1 件鳴った後、同じ報時刻で Control/DateTime が後の全国報がその区域に L4 を載せていなくても、合わせの L4 は残り、全国報の受理で通知は作らない。報時刻が後の全国報が L4 を載せても段は変わらず鳴らない（今は合わせから一度消え、後の全国報で段なし → L4 になって desktop が 2 回目に鳴る） (2) 逆の順（全国報が先に届き、同じ報時刻の府県の報が後に届く）では、府県の報の受理で上がって 1 件鳴る（今は府県の報では鳴らず、後の全国報で鳴る）。どちらの順でも desktop は 1 件 (3) 試験（P3-WN-T03 に expect 1 つ）: fukui_L5 の 33 を 43 に替えた報（06:51）を空の U-W に受けた後、national(asFukui(\"03\"), 06:51) の Control/DateTime を 2026-08-29T21:51:40Z にした全国報、続けて national(asFukui(\"43\"), 07:00) を受けると、2 つの受理の intents が [[], []]。直しなしの木では 2 本目で desktop が 1 件出て落ちる（起草の写しで確かめた） (4) corpus の受入（Q-UTP-PROBE (1)(2)、起草の写しで確かめた）: 3 日 1,895 報で、desktop のある報は 46 → 42（VPWS50 は 5 → 1）、二重の 4 件（06-03 08:50 鎌倉市、09-21 14:00 神奈川県東部、14:20 三浦半島、19:20 鹿行地域）が消え、新しく鳴るものは 0。合わせの差は 10 区域×10 分だけ。報時刻の順と受けた順で同じ (5) 残る形（今の規則のまま。本契約が塞ぐのは報時刻が同じ全国報だけ）: 上げの向き: 府県の報が上げた区域で、報時刻が後の全国報が一度でも段を下げると（まだ載せていない、または下げた）合わせから消え、その後の新しい全国報または府県の報が同じ段へ戻すと 2 回目が鳴る。例: 府県 06:51 の 43 で鳴る → 全国 07:00 の 03 で消える → 府県 07:10 の 43 継続で 2 回目（印は版ごとで、新しい版の報では止まらない、notice-mark.ts の noticed。起草の写しの reraise-partial で base・caseA とも desktop 1 件）。全国報が 2 回続けて遅れる形（07:00 の全国報もまだ載せず、07:10 の全国報が載せる）も同じ。解除の向き: 同じ報時刻の府県の解除・下げが全国報の行を外した後（P3-UTP-D-SPOKEN=A）、報時刻が後の全国報がまだその段を載せていると、段なし → その段、または L4 → L5 で鳴る（L5 は音つき）。P3-USD-D-NATIONAL-AFTER-RELEASE=A（作者裁定 2026-11-14、新しい報の値が今の値）と同じ族で、それが同じ報時刻の解除にも広がる。どちらも起草の写しで鳴ることを確かめ（Q-UTP-PROBE (5)）、corpus の 3 日では 0 件（caseA の全国報による L4 以上の引下げ 0、base に無い desktop 0）",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-public.ts:105 «cba1b8ecce694618»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «1b209ba28c8f44f2»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «d145fea5f47c6ca5»",
           "reconstruction/src/units/weather-current/weather-current-notice.ts:251 «901ec0d6b006e66c»",
           "reconstruction/src/units/weather-current/weather-current-notice.ts:254 «1db24b298e4a3b72»",
           "reconstruction/test/weather-notice/weather-notice.test.ts:127 «9c60020f028bdcbb»",
@@ -193,9 +193,9 @@
         "id": "P3-UTP-AC03",
         "requirement": "同じ報時刻の府県の解除（台帳 125 と同じ向き、P3-UTP-D-SPOKEN=A）: (1) 府県の報が区域を解除・なしにし、同じ報時刻で Control/DateTime が後の全国報がその区域にその報の種類の Code の行（43・03 など）を載せていても、全国報の行を外して合わせる（今は全国報が newer なので外さず、L4 などが残る） (2) 試験（P3-UWC-T04 の 1 つ目の it に expect 1 つ）: synthetic_VPWS50_fukui_base の報時刻を 2026-08-30T20:04:00+09:00、Control/DateTime を 2026-08-30T11:04:59Z（fukui_release の 11:04:49Z の 10 秒後）にした全国報を空の U-W に受け、続けて fukui_release を受けると、府県 18 の公開形の areas の数が [0]。直しなしの木では [14] で落ちる。:91 の足しを戻すと [13] で落ちる（起草の写しで確かめた） (3) 表に無い Code（洪水・土砂・予約）の全国報の行と、Code の無い全国報の行は今どおり残る（P3-USD-AC03 (2)(5)）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-public.ts:90 «6569cc894e0f1d11»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «c50e87f78fa19fd2»",
-          "reconstruction/contracts/p3-uw-stale-downgrade.json:215 «a41c9f14808a9241»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:90 «44a915ec1d923494»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «922d498bab600979»",
+          "reconstruction/contracts/p3-uw-stale-downgrade.json:215 «e60f72ab231d973b»",
           "reconstruction/contracts/p3-uw-canon.json:108 «7a0a85980be21eca»"
         ]
       },
@@ -204,8 +204,8 @@
         "requirement": "既存の試験の期待は変えない（理由の報告は要らない）: 報時刻が全国報より古い partial の形の P3-UWC-T04 :149（古い福井の解除は VPWW55 の Code の全国報の行を外さない）・:160（VPNO50 の終了の後も古い partial の 03 は戻らない）・:169（古い京都の 260000 の行は全国報のまま）と P3-WN-T03 :127（08:00 の全国報の後に 06:51 の福井の報を受けても鳴らない）は今の期待のまま緑（作者がいったん答えた B の形ではこの 4 本が落ちる、Q-UTP-PROBE (3)）。P3-FG-T01 の O03（全国報 06:50 と福井 06:51 は報時刻が違う）と T02、P3-WN-T01・T02、P3-UWC-T09・T10（費用）も今の期待のまま。期待を変える要が出たら、変える前に試験名・旧・新の値を報告して止める",
         "evidenceRefs": [
           "reconstruction/test/uw-canon/uw-canon-unit.test.ts:149 «7b63b8279c67dbf4»",
-          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:160 «b92faa62db3e490a»",
-          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:169 «801e563288a54f5a»",
+          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:163 «b92faa62db3e490a»",
+          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:172 «801e563288a54f5a»",
           "reconstruction/test/weather-notice/weather-notice.test.ts:127 «9c60020f028bdcbb»"
         ]
       },
@@ -214,15 +214,15 @@
         "requirement": "数え直しの条件（C22 の測定と、今後の U-W の数え直しで使う）: ~/dev/fleq-vault-archive/2026-11-14/uw-recount/recount.cjs の検出は :82（新しい向き: 全国報の上げで、直前の段の変化が府県の報の引下げ）と :88（府県の報による L4 以上の引下げ）で、全国報による引下げを数えない。このため台帳 126 の形（府県の報の上げ → 同じ報時刻の全国報による引下げ → 次の全国報による同じ段の上げ直し）は、Q-WN-NATIONAL-LAG の『0 件』にも P3-UW-STALE-DOWNGRADE-001 の数え直しの『新しい向き 0 件』にも入らなかった。数え直しでは、区域×現象ごとに (a) 全国報（VPWS50）による L4 以上の引下げと、(b) その直後の全国報による、引き下げる前と同じ段への上げ直し（受けた報の行が上がった、P3-WN-AC02 (2)）を数え、(b) が鳴った報を二重として数える。この数えは全国報による上げ直しだけで、府県の報による上げ直し（AC02 (5) の例の 07:10）は数えない。起草の数え（Q-UTP-PROBE (1)）: 直しなし (a) 10・(b) 10・desktop の二重 4 件、直しの後 0・0・0。script と結果は ~/dev/fleq-vault-archive/2026-11-15/uw-same-time/（recount2.cjs と out-base.json・out-caseA.json）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-weather-notice.json:359 «388601c32c271f5e»",
-          "reconstruction/contracts/p3-weather-notice.json:360 «3183acaac1580918»"
+          "reconstruction/contracts/p3-weather-notice.json:360 «52b10f2d01e8cdf5»"
         ]
       },
       {
         "id": "P3-UTP-AC06",
         "requirement": "受信経路の計算量（AGENTS.md の hot path）: 足すのは、全国報と partial の比べ 1 回ごとの報時刻の Date.parse 2 回と比べ 1 回だけ（:91 は partial ごと、:106 は partial の行ごと。compareVersion も同じ回数の Date.parse をしている）。全件×全件の走査・state の直列化を足さない。作り直さない府県は読まない（P3-UWC-AC09 (1)(2) のまま）。実装担当は P3-UWC-T09・T10（費用）が今の期待のまま緑であることを成果物に書く",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «c50e87f78fa19fd2»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «1b209ba28c8f44f2»"
+          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «922d498bab600979»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «d145fea5f47c6ca5»"
         ]
       },
       {
@@ -230,14 +230,14 @@
         "requirement": "原文の改訂と digest・«» の取り直し（統合担当が配送の commit で当てる。どれも行の中の書き換えで、行を足さない。p3-uw-canon.json の :102・:530 と p3-weather-notice.json の :359 は p3-uw-stale-downgrade.json が «» で引くので書き換えない）: (1) p3-uw-canon.json:270（Q-UWC-MERGE-TIE の closed、引く «» 0 件）の (1) の『全国報とpartialの比べでsame・undecidableなら全国報の行が残る』の後に『（報時刻が同じ partial は全国報の行を置き換え、その報の種類の Code の全国報の行も外す。P3-UW-SAME-TIME-PARTIAL-001、作者裁定 2026-11-15、台帳 126。P3-UWC-D-MERGE の A〔:102〕と P3-UWC-AC04 (1)〔:530〕の『全国報より newer な partial』『same・undecidable なら全国報の行が残る』は、報時刻が同じ partial〔compareVersion が same でも older でも〕を newer の側に含めて読み、P3-UWC-AC04 (4) の『全国報より古いpartial』は報時刻が古い partial と読む）』を足す (2) p3-weather-notice.json:360（Q-WN-NATIONAL-LAG の remaining、引く «» 0 件）を『:359 の「全国報が府県の報の引上げを載せずに後から出て合わせの段を下げ、次の報で同じ段がまた上がる列は 0 件」は、数えた写しが全国報による引下げを数えていなかったための数で、製品の reduce での数え直しでは 3 日で 10 区域×現象×段・desktop の二重 4 件（台帳 126）。:359 の製品の数えの『同じ区域×現象×段が 2 回上がったのは 10 件』がこの 10 件で、官署の出し直しではない。P3-UW-SAME-TIME-PARTIAL-001 の直しの後は 0（同契約の P3-UTP-AC05 の条件）。C22 の測定でも同じ条件で数え直す』に替える (3) p3-uw-stale-downgrade.json:215（P3-USD-AC03 の requirement、引く «» 0 件）の (1) の『same・undecidable・older の partial は外さない』の後に『（報時刻が同じ partial は、compareVersion が same でも older〔Control/DateTime が全国報より前〕でも、P3-UW-SAME-TIME-PARTIAL-001 で外す側）』を足す (4) «» の付け直し: weather-current-public.ts:106 の字が変わるので、p3-uw-stale-downgrade.json の :220・:264 の «1b209ba28c8f44f2» を新しい :106 の anchor に替える（行番号は同じ）。AC03 の試験で uw-canon-unit.test.ts の :149 の後に 3 行足すので、本契約の AC04 が引く :160・:169 は :163・:172 になる（anchor は同じ、check-manifest.mjs の citedLine は行番号まで照らす）。本契約の evidenceRefs のうち改訂する行（weather-current-public.ts の :85・:88・:90・:91・:106、p3-uw-canon.json:270、p3-weather-notice.json:360、p3-uw-stale-downgrade.json:215・:220・:264）も実装と改訂の後の行で付け直す (5) 改訂した 3 契約と本契約の meta.sha256 を hashConvention で取り直す。sequences.json と manifest は変えないので、全契約の digest の置き換えは要らない。check-contract が PASS（WARN は baseOid=unassigned の契約だけ） (6) 台帳 126（repo 外）の局所修正の状態を『解消（P3-UW-SAME-TIME-PARTIAL-001）』に、Q-WN-NATIONAL-LAG の 0 件の訂正を書き添える",
         "evidenceRefs": [
           "reconstruction/contracts/p3-uw-canon.json:102 «04aa7382c04f2882»",
-          "reconstruction/contracts/p3-uw-canon.json:270 «90e61285a0401d88»",
+          "reconstruction/contracts/p3-uw-canon.json:270 «969d6c0ed59cc828»",
           "reconstruction/contracts/p3-uw-canon.json:530 «63893ff853f7f2f8»",
           "reconstruction/contracts/p3-weather-notice.json:359 «388601c32c271f5e»",
-          "reconstruction/contracts/p3-weather-notice.json:360 «3183acaac1580918»",
-          "reconstruction/contracts/p3-uw-stale-downgrade.json:215 «a41c9f14808a9241»",
-          "reconstruction/contracts/p3-uw-stale-downgrade.json:220 «eb98096e544f08ed»",
-          "reconstruction/contracts/p3-uw-stale-downgrade.json:264 «4676ba5d8d84a857»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «1b209ba28c8f44f2»"
+          "reconstruction/contracts/p3-weather-notice.json:360 «52b10f2d01e8cdf5»",
+          "reconstruction/contracts/p3-uw-stale-downgrade.json:215 «e60f72ab231d973b»",
+          "reconstruction/contracts/p3-uw-stale-downgrade.json:220 «7c50e0d09ae96b83»",
+          "reconstruction/contracts/p3-uw-stale-downgrade.json:264 «5d838864cbed282a»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «d145fea5f47c6ca5»"
         ]
       }
     ],

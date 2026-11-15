@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "421646968a4a0e4f710c19afeddf03921c5254075d5c8987fbb0ece7e8fdc8b1",
+    "sha256": "869e4e8bb8c86446f1cd51d124d9ff0876fcfe4ab24ad8159d7baf40a82e52e0",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -267,7 +267,7 @@
         "id": "Q-UWC-MERGE-TIE",
         "status": "closed",
         "source": "統合担当の決め（2026-10-31 夜、品質r0の証拠不足3つ。条文とコードから一意に決めた。どれもP3の画面・音・通知の出方を変えない〔chrome-eewはU-Wの区域を描かない〕）",
-        "closed": "(1) 同値・undecidableの勝者: r0の『先に勝っていたほうを残す』は計算の順に依り、合わせは保存しない派生の値（AC04(3)）なので復元の後に割れうる。全国報とpartialの比べでsame・undecidableなら全国報の行が残る（newerなpartialだけが上書きする、D-MERGE=Aの字義）。partialどうしは、その府県のpartialをcompareSnapshotの順（報時刻→operation→subject→inputId、weather-current-unit.ts:399〜:406、stateだけで決まる全順序）に見て、勝っている行の報よりcompareVersionでnewerな報の行だけが置き換える。順がstateだけで決まるので、復元の後も同じ勝者になる (2) 勝つ行が0の府県（全国報が無く、その府県のpartialが全部退去・取消で消えたとき）は府県の行を作らない（公開形も詳細の索引の項も無い。前にあった府県の行はafter=nullのdisplayChangesで消える）。勝つ行が1つ以上なら、activeの区域が0（解除・なしだけ）でも府県の行を作る（要約のactiveには数えない） (3) 詳細の本文だけが変わるとき（公開形の欄は同じで、勝った行の値だけが変わる。例: 同じCodeのまま発表→継続、Kind/Nameだけの変化）も、府県のobjectとrevisionを新しくしてdisplayChangesに出す。前のobjectを使い回すのは、勝った行の列と公開形の欄の両方が同じときだけ。U-Fの前例（Q-UFP-REVISION: subjectのobjectが変わればそのstepの内容版）と同じで、同じrevisionのページに違う行が混ざらない（spec:1337『一応答へ異なる対象内容版を混ぜない』）",
+        "closed": "(1) 同値・undecidableの勝者: r0の『先に勝っていたほうを残す』は計算の順に依り、合わせは保存しない派生の値（AC04(3)）なので復元の後に割れうる。全国報とpartialの比べでsame・undecidableなら全国報の行が残る（報時刻が同じ partial は全国報の行を置き換え、その報の種類の Code の全国報の行も外す。P3-UW-SAME-TIME-PARTIAL-001、作者裁定 2026-11-15、台帳 126。P3-UWC-D-MERGE の A〔:102〕と P3-UWC-AC04 (1)〔:530〕の『全国報より newer な partial』『same・undecidable なら全国報の行が残る』は、報時刻が同じ partial〔compareVersion が same でも older でも〕を newer の側に含めて読み、P3-UWC-AC04 (4) の『全国報より古いpartial』は報時刻が古い partial と読む）（newerなpartialだけが上書きする、D-MERGE=Aの字義）。partialどうしは、その府県のpartialをcompareSnapshotの順（報時刻→operation→subject→inputId、weather-current-unit.ts:399〜:406、stateだけで決まる全順序）に見て、勝っている行の報よりcompareVersionでnewerな報の行だけが置き換える。順がstateだけで決まるので、復元の後も同じ勝者になる (2) 勝つ行が0の府県（全国報が無く、その府県のpartialが全部退去・取消で消えたとき）は府県の行を作らない（公開形も詳細の索引の項も無い。前にあった府県の行はafter=nullのdisplayChangesで消える）。勝つ行が1つ以上なら、activeの区域が0（解除・なしだけ）でも府県の行を作る（要約のactiveには数えない） (3) 詳細の本文だけが変わるとき（公開形の欄は同じで、勝った行の値だけが変わる。例: 同じCodeのまま発表→継続、Kind/Nameだけの変化）も、府県のobjectとrevisionを新しくしてdisplayChangesに出す。前のobjectを使い回すのは、勝った行の列と公開形の欄の両方が同じときだけ。U-Fの前例（Q-UFP-REVISION: subjectのobjectが変わればそのstepの内容版）と同じで、同じrevisionのページに違う行が混ざらない（spec:1337『一応答へ異なる対象内容版を混ぜない』）",
         "remaining": "P4への申し送り（契約適合r1の証拠不足）: D-MERGE=Aの下で、取り直しの後、VPWS50より古いVPWW57の高潮予報区間の行が次のpartialまで出ない場合がある。W1の3日でVPWW57は0通で、P3の画面はU-Wの区域を描かないので、見えるのはP4から。P4の起草で場面を確かめる",
         "reason": "P3-UWC-AC04(1)(5)・AC05(3)の不定を除く"
       },

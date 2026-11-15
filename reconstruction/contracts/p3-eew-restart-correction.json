@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5ea379847e986616bf1aca3fa1dbe4157d86af01",
-    "sha256": "25632874385687c58702854ae13a18a6b0e26cdba0a44f755f38644f78130afe",
+    "sha256": "dd1dcd5c17ab9d9423e763f8f7c5cca223185e5064dd10bc07979786572acbe9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -179,7 +179,7 @@
           "reconstruction/src/domains/eew/eew.ts:495 «60c99fd18b9fdf9b»",
           "reconstruction/src/contracts-revision/version.ts:97 «9579e846974b66ff»",
           "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
-          "reconstruction/contracts/p3-notice-ledger.json:468 «347338aa5d27523c»"
+          "reconstruction/contracts/p3-notice-ledger.json:468 «255d4ebb0f1c5e39»"
         ]
       },
       {
@@ -234,7 +234,7 @@
         "id": "P3-ERC-AC07",
         "requirement": "原文の改訂と «»・digest の取り直し（統合担当が配送の commit で当てる。どれも行の中の書き換えで、行を足さない）: (1) p3-notice-ledger.json:468（P3-NL-AC04）の (3) の「same の版は種類の照合〔AC01 の (2)〕で鳴らない」を「same の版は、その版・種類が記録済みなら照合〔AC01 の (2)〕で抑止し、それ以外は既存の通知規則に従う」に替え（未通知の版は kinds が [] で照合が効かない、AC03 (6)）、その文の後に「ただし記録と比べて held になった訂正（same の訂正と時刻の読めない訂正。記録が取消かを問わない）は、gate があるとき（held）と同じく unchanged/stale で採らず、current も印も変えない（P3-EEW-RESTART-CORRECTION-001、作者裁定 2026-11-15 X、P3-ERC-D-MISSING=B）。」を足す。:468 を引く «» は 0 件（地の文の p3-eew-drop43.json:307 は (4) を指し、字は変えない） (2) eew-unit.test.ts に 11 行足すので、p3-eew-gate-evict.json:276 の «eew-unit.test.ts:1477» を中身で引き直す（:1488 の見込み。anchor «2b057236a59006f4» は同じ）。p3-eew-gate-evict.json:276 を引く «» は 0 件（起草の grep）なので連鎖しない。:1373 より前を引く «»（:60〜:1318）はずれない (3) 本契約の evidenceRefs のうち p3-notice-ledger.json:468 の anchor を改訂の後の行で取り直す。eew.ts は :484・:495 などの変えない行だけを引いているので付け直さない（:485 を引く «» は 0 件） (4) 順: (1) で p3-notice-ledger.json を改める → (2) で p3-eew-gate-evict.json を改める → (7) で p3-final-gate.json を改める → 本契約の (3) を当てる → 4 本の meta.sha256 を hashConvention で取り直す。4 本の meta の行を引く «» は 0 件（起草の grep）。manifest・sequences は変えないので全契約の meta.manifestSha256・sequencesSha256 は変えない (5) バックログ（repo 外）の U-E の項を配送の commit で完了に (6) check-contract が PASS（WARN は baseOid=unassigned の契約だけ） (7) p3-final-gate.json:272（orphan の O01:4・O01:11 の行）の「通知しないのは gate〔受けてから 10 分〕が生きている間で、再起動の後は別の扱い〔バックログ 2026-11-13〕」を「通知しないのは gate〔受けてから 24 時間、GATE_MS〕が生きている間で、再起動の後も P3-EEW-RESTART-CORRECTION-001 で同じく通知しない」に替える。:272 を引く «» は 0 件（地の文で p3-eew-same-correction.json:371 が触れるだけ）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-notice-ledger.json:468 «347338aa5d27523c»"
+          "reconstruction/contracts/p3-notice-ledger.json:468 «255d4ebb0f1c5e39»"
         ]
       }
     ],

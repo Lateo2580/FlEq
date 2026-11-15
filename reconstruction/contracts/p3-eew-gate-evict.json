@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e7440188a03355302dea96f68773497a834f1076",
-    "sha256": "8fb849bf81031cec8d3c0aff43165b2cfdb9ac75325b632f7260c613a2ec6b72",
+    "sha256": "d7fffa74d6aecf95d6e12ecb07083e6a2ea2a846df2393373665608bd14afb67",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -273,7 +273,7 @@
         "id": "P3-EVICT-AC07",
         "requirement": "既存試験の変更（変える前に差と理由を統合担当へ報告する）: 起草の試作でreconstructionのvitestは1件だけ落ちた。P3-LIFE-T01の最初のretainUntilの1 ms前の新しいEventIDは、512 gateが全部最終報で報時刻＋10分を過ぎ、currentもpendingも無いので、capacityExceededからchanged（最古のgate、EventID 20260101000000を退去、eewCapacityEvicted count 1、gate 512のまま）へ変わる。その行の期待値だけをこれに変え、T01の残り（retainUntilちょうどの回収、90日後の0件）は変えずに同じstateから続ける。P2-A4-T06-R14のnormalだけ512件への新規normalのcapacityExceededは、gateの報時刻と時計の差が1 msで若いので変わらない（試作で緑）。ここに挙げていない期待値の変更が要る試験が出たら、変えずに止めて差と理由を報告する（AGENTS.md）。vitestの外のchrome-eewのsmokeのS_CAPACITY（smoke.mjs）は報時刻から31秒の時計で513件を入れるので変わらない（読んで確かめた。実走はしていない）。P3-MEASURE-HARNESS-001（MH、1871540bでは未配送）のP3-MH-T01の最後の句「充填の開始＋600,000msのdeadlineの後、同じ時計の新しい通常のEventIDはcapacityExceeded」は本契約の後は成り立たない（付け直した充填のEEWの報時刻は全部充填の開始の秒で(a)を満たし、currentはそのdeadlineで回収され、intentは15秒で掃けるので、最古のgateを退去してchangedになる）。baseOidの時点でMHが配送済みならその1行も本契約の期待値の変更に含める（allowedPathsへMH-T01の試験ファイルを足す改訂はQ-EVICT-BASEで統合担当が行う）。未配送ならMH側の改訂として統合担当が送る（Q-EVICT-BASE）。統合担当の決定（2026-10-11）: MHは40d040c0で配送済みなので、reconstruction/test/eew-e01/frames.test.tsのP3-MH-T01の最後の期待（付け直した充填の失効の後の新しい通常のEventIDのdecision）をcapacityExceededからchanged（最古のgateを退去、eewCapacityEvicted count 1、gate 512のまま）へ変える。その試験のほかの期待（充填の512・stale 0、失効でcurrent 0・gate 512、2024年の時刻はeewHorizonStale）は変えない。MHのAC08(a)（凍結の前のMac miniの予備の「失効の後も新しい通常のEventIDはcapacityExceeded」）は、本契約の配送の後に走らせる予備ではchangedと読み替える（統合担当が予備の記録に書く）。",
         "evidenceRefs": [
-          "reconstruction/test/eew-unit/eew-unit.test.ts:1477 «2b057236a59006f4»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1488 «2b057236a59006f4»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:676 «9c8d75df1c63772a»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:742 «4821b8442df7266c»"
         ]
