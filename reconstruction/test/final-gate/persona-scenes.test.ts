@@ -4,10 +4,12 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
+import type { DisplayDomainView, DisplaySeverity, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
 import { walkStart } from "../../src/recovery/recovery";
-import { runStage1 } from "../disaster/runner";
+import { runStage1, screenOf } from "../disaster/runner";
 import type { Dispatch, RunOptions, SceneAttempt, SceneCapture } from "../disaster/runner";
 import { readScenario } from "../disaster/scenario";
 import type { Scenario } from "../disaster/scenario";
@@ -88,10 +90,10 @@ function trial(id: string): Trial {
 // 津波の観測を、繋がり直しの取り直しで拾う（S5〜S7）。取り直しの口は偽物で、一覧はその時刻までに受けた報だけを返す（P3-FG-D-T2-RECONNECT=A）。
 function saori(id: string): Trial {
   const event = "20261019181202", at = (iso: string) => jst(`2026-10-19T${iso}`), delta = at("18:12:06") - BUNGO_45;
-  const eew: Frame[] = [["77_01_01_240613_VXSE45", "VXSE45"], ["77_01_03_240613_VXSE45", "VXSE45"], ["37_01_01_240613_VXSE43", "VXSE43"],
-    ["77_01_04_240613_VXSE45", "VXSE45"], ["37_01_02_240613_VXSE43", "VXSE43"]].map(([name, headType]) => {
+  // 予報も受ける契約なので VXSE43 は流さない（本物の host は eew.forecast の接続で VXSE43 を捨てる、P3-ED43-AC01。SCENE-TEXT の 2026-11-15 夕の (iv)）。
+  const eew: Frame[] = ["77_01_01_240613_VXSE45", "77_01_03_240613_VXSE45", "77_01_04_240613_VXSE45"].map((name) => {
     const item = shiftedBy(name, delta, event);
-    return frame(item.atMs, headType, item.xml);
+    return frame(item.atMs, "VXSE45", item.xml);
   });
   const last = shiftedBy("77_01_26_240613_VXSE45", delta, event, finalReport);
   eew.push(frame(last.atMs, "VXSE45", last.xml));
@@ -262,4 +264,61 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     const times = written.flatMap((scene) => [...scene.attempts.map((item) => item.atMs), scene.atMs]);
     expect(times).toEqual([...times].sort((a, b) => a - b));
   }, 75 * MINUTE);
+});
+
+// ---- 場面の道具の直し（P3-FG-D-SCENE-TEXT の 2026-11-15 夕の追加の裁定、発注 3b3）。実不具合の再発防止なので門なしで回す ----
+
+describe("P3-FINAL-GATE-001 scene tool fixes (3b3)", () => {
+  const row = (operation: Operation, activeCount = 0, highestSeverity: DisplaySeverity | null = null): DisplaySummaryItem => ({ operation, informationType: "eew",
+    activeCount, highestSeverity, areaCounts: {}, updatedAt: null, unavailable: {}, unconfirmed: {}, unknownCode: {}, freshness: {}, confirmation: { state: "confirmed", confirmedAt: null } });
+  const rows = (activeCount = 0, top: DisplaySeverity | null = null) => [row("normal", activeCount, top), row("training"), row("test")] as const;
+  const full = (unit: RuntimeUnitId, view: unknown): DisplayDomainView<unknown> => ({ unit, contentRevision: "1", items: rows(), delivery: "full", view });
+  const screen = (current: Readonly<Record<string, DisplayDomainView<unknown>>>) =>
+    screenOf({ connection: { state: "connected", disconnectedAt: null, lastInputAt: null }, current, recovery: { eewUnverified: null }, notices: [] });
+  const source = (second: number) => ({ subject: "s", reportDateTimeRaw: `2026-10-19T23:00:0${second}+09:00`, serialRaw: "1", infoTypeRaw: "発表" });
+  const viewOf = (key: string, current: Readonly<Record<string, DisplayDomainView<unknown>>>): JsonValue => {
+    const domain = screen(current).current[key];
+    return domain?.delivery === "full" ? domain.view : null;
+  };
+
+  it("(i) lists are ordered heaviest and newest first before the screen limit cuts them", () => {
+    // 実不具合: 古い警報 1 件と新しい予報 6 件で、上限 6 の切りが警報を落とした。府県は段の重い順（同じ段は更新の新しい順）。
+    const current = [{ warningClass: "warning", source: source(0) }, ...[1, 2, 3, 4, 5, 6].map((second) => ({ warningClass: "forecast", source: source(second) }))];
+    expect(viewOf("eew", { eew: full("U-E", { current }) })).toMatchObject({ currentOmitted: 1, current: [{ warningClass: "warning", 発表時刻: source(0).reportDateTimeRaw },
+      ...[6, 5, 4, 3, 2].map((second) => ({ warningClass: "forecast", 発表時刻: source(second).reportDateTimeRaw }))] });
+    const prefecture = (name: string, codes: Readonly<Record<string, number>>, second: number) => ({ prefecture: name, codes, source: source(second),
+      areas: [["primary", `${name}-2`], ["prefecture", `${name}-1`]] });
+    const areas = [prefecture("注意報の古い", { "10": 1 }, 0), prefecture("警報", { "03": 1 }, 1), prefecture("危険警報", { "43": 2 }, 2),
+      prefecture("注意報の新しい", { "13": 1 }, 6), prefecture("特別警報", { "33": 1, "13": 3 }, 3), prefecture("警報の新しい", { "03": 1, "20": 1 }, 5)];
+    expect(viewOf("weatherCurrent", { weatherCurrent: full("U-W", { areas }) })).toMatchObject({ areasOmitted: 1,
+      areas: ["特別警報", "危険警報", "警報の新しい", "警報", "注意報の新しい"].map((name) => ({ prefecture: name, areas: [["primary", `${name}-2`], ["prefecture", `${name}-1`]] })) });
+  });
+
+  it("(ii) a summarized domain keeps the reason and the active count and highest severity of each operation", () => {
+    // 実不具合: 要約の分野が {delivery} だけで、大津波警報が有効なことが演じ手に見えなかった。
+    const tsunami: DisplayDomainView<unknown> = { unit: "U-T", contentRevision: "1", items: rows(2, "specialWarning"), delivery: "summary", reason: "snapshotBudget",
+      originalBytes: 2_000_000, budgetBytes: 1_048_576 };
+    const confirmation = { state: "confirmed", confirmedAt: null };
+    expect(screen({ tsunami }).current["tsunami"]).toEqual({ delivery: "summary", reason: "snapshotBudget", items: [
+      { operation: "normal", activeCount: 2, highestSeverity: "specialWarning", confirmation, unconfirmed: {} },
+      { operation: "training", activeCount: 0, highestSeverity: null, confirmation, unconfirmed: {} },
+      { operation: "test", activeCount: 0, highestSeverity: null, confirmation, unconfirmed: {} }] });
+  });
+
+  it("(iii) EEW prediction areas carry the place name of the same code from the report areas, or keep the code", () => {
+    // 実不具合: 予測の地域が code ごと落ちて地名が無く、reportAreas の lgInt の 0 を震度 0 と読ませた。
+    const intensity = (to: string) => ({ from: to, to, condition: null, description: null });
+    const prediction = { maximum: intensity("5-"), areaCoverage: "present", areas: [{ code: "390", intensity: intensity("5-") }, { code: "391", intensity: intensity("4") }] };
+    const reportAreas = [{ code: "390", name: "高知県西部", lgInt: null, arrivalTimeRaw: null }, { code: "391", name: null, lgInt: null, arrivalTimeRaw: null }];
+    expect(viewOf("eew", { eew: full("U-E", { current: [{ warningClass: "warning", source: source(0), prediction, reportAreas }] }) })).toMatchObject({
+      current: [{ prediction: { areas: [{ name: "高知県西部", intensity: intensity("5-") }, { 地域コード: "391", intensity: intensity("4") }] } }] });
+  });
+
+  it("(iv) T2-saori (forecast contract) streams no VXSE43, T2-naoto (warning only) still does", () => {
+    // 実不具合: 予報も受ける沙織の筋書きに、本物の host が捨てる VXSE43 を流していた（P3-ED43-AC01）。
+    const headTypes = (id: string) => { const { scenario } = trial(id); return scenario.kind === "ready" ? scenario.frames.map((item) => item.headType) : []; };
+    expect(headTypes("T2-saori")).not.toContain("VXSE43");
+    expect(headTypes("T2-saori")).toContain("VXSE45");
+    expect(new Set(headTypes("T2-naoto"))).toEqual(new Set(["VXSE43"]));
+  });
 });

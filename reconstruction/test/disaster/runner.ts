@@ -621,14 +621,21 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
 type SceneAttempt = Readonly<{ atMs: number; unit: string; subject: string; channel: NotificationAttempt["channel"];
   priorityGroup: NotificationAttempt["priorityGroup"]; payload: NotificationAttempt["payload"]; soundAsset: NotificationAttempt["soundAsset"] }>;
 // SCENE-TEXT=A（2026-11-15 午後の作者裁定で追加）: 画面に出る欄だけを snapshot の形のまま写し、一覧は画面に載る量で切る（演じ手に裏の事実を渡さない）。
+// SCENE-TEXT の 2026-11-15 夕の (ii): 要約の分野も、有効な件数と最も重い段が演じ手に見えるよう reason と items の 4 欄を残す（operation は 3 行の見分け）。
+type SceneSummaryItem = Pick<DisplaySummaryItem, "operation" | "activeCount" | "highestSeverity" | "confirmation" | "unconfirmed">;
 type SceneScreen = Readonly<{ connection: DisplayConnectionView;
-  current: Readonly<Record<string, Readonly<{ delivery: "summary" } | { delivery: "full"; view: JsonValue }>>>;
+  current: Readonly<Record<string, Readonly<{ delivery: "summary"; reason: "snapshotBudget"; items: readonly SceneSummaryItem[] } | { delivery: "full"; view: JsonValue }>>>;
   recovery: Pick<DisplayRecoveryView, "eewUnverified">; notices: readonly Pick<DisplaySnapshot["notices"][number], "kind" | "text" | "expiresAt" | "operation">[] }>;
 // fullScreen は絞る前の写し（生の view と notices の全部）。評価者が演じ手に見えなかった行（*Omitted）と突き合わせるため。
 type FullScreen = Readonly<{ connection: DisplayConnectionView; current: DisplaySnapshot["current"]; recovery: Pick<DisplayRecoveryView, "eewUnverified">;
   notices: DisplaySnapshot["notices"] }>;
+// screenOf が読む欄だけ（試験が 1〜2 分野の手書きの snapshot で呼べるよう、分野の view は unknown で受ける）。
+type ScreenInput = Readonly<{ connection: DisplayConnectionView; current: Readonly<Record<string, DisplayDomainView<unknown>>>;
+  recovery: Pick<DisplayRecoveryView, "eewUnverified">; notices: DisplaySnapshot["notices"] }>;
+// SCENE-TEXT の 2026-11-15 夕の (v): until は表示の期限、retainUntil は保持の期限。shown はその時刻の unit の view に出ている subject か。
+type SceneFact = Readonly<{ subject: string; shown: boolean; until: number | null; retainUntil: number | null }>;
 type SceneCapture = Readonly<{ atMs: number; attempts: readonly SceneAttempt[]; screen: SceneScreen | null; fullScreen: FullScreen | null;
-  facts: Readonly<Record<string, readonly Readonly<{ subject: string; until: number | null }>[]>> }>;
+  facts: Readonly<Record<string, readonly SceneFact[]>> }>;
 // times が空の run は候補を集めるだけ（SCENE-RULE の 1 回目）。write は場面ごとに 1 回、その時刻の frame と tick を済ませた後に呼ぶ。
 type SceneOptions = Readonly<{ times: readonly number[]; write: (scene: SceneCapture) => void }>;
 type SceneResult = Readonly<{ attempts: readonly SceneAttempt[]; newSubjects: readonly number[]; deadlines: readonly number[] }>;
@@ -646,9 +653,32 @@ const HIDDEN = new Set(["source", "sources", "subjects", "subject", "eventId", "
 const SCREEN_LIMITS: Readonly<Record<string, number>> = { "eew.current": 6, "eew.areas": 3, "eew.reportAreas": 3, "earthquake.earthquakes": 4,
   "earthquake.recent": 4, "earthquake.items": 5, "tsunami.forecasts": 3, "tsunami.areas": 10, "tsunami.stations": 5, "tsunami.estimations": 5,
   "nankai.currents": 3, "nankai.information": 3 };
-// earthquakes は受けた順に並ぶので、発生の時刻の新しい順に並べてから切る（画面の今日の地震は新しい順）。
-const NEWEST_BY: Readonly<Record<string, string>> = { "earthquake.earthquakes": "originTimeRaw" };
-const timeOf = (item: unknown, key: string): number => isRecord(item) && typeof item[key] === "string" ? Date.parse(item[key]) : -Infinity;
+const field = (item: unknown, ...path: readonly string[]): unknown => path.reduce<unknown>((found, key) => isRecord(found) ? found[key] : undefined, item);
+const timeOf = (item: unknown, ...path: readonly string[]): number => {
+  const raw = field(item, ...path), time = typeof raw === "string" ? Date.parse(raw) : NaN;
+  return Number.isNaN(time) ? -Infinity : time;
+};
+const reported = (item: unknown) => timeOf(item, "source", "reportDateTimeRaw");
+const flat = () => 0;
+// 気象警報の Kind/Code の段（端末の段と同じ表、Q-TO3-LEVEL）: 3x 特別警報・4x 危険警報・01〜09 警報・1x と 2x 注意報。
+const weatherStage = (code: string) => /^3\d$/.test(code) ? 4 : /^4\d$/.test(code) ? 3 : /^0[1-9]$/.test(code) ? 2 : /^[12]\d$/.test(code) ? 1 : 0;
+// 土砂・洪水の current は kinds の level の最大。level の無い group は土砂の kinds の順（null は 3 の直後）と同じ重さに置く。
+const kindLevel = (item: unknown) => {
+  const kinds = field(item, "kinds"), list: readonly unknown[] = Array.isArray(kinds) ? kinds : [];
+  return Math.max(-Infinity, ...list.map((kind) => { const level = field(kind, "level"); return typeof level === "number" ? level : 2.5; }));
+};
+const TSUNAMI_CLASSES = ["released", "forecast", "advisory", "warning", "majorWarning"];
+// SCENE-TEXT の 2026-11-15 夕の (i): 切る前に重い順・同じ重さは新しい順に並べる（切った後に画面の上の行が残るように）。earthquakes は受けた順に
+// 並ぶので発生の新しい順（画面の今日の地震）。鍵は深さを見ないので、欄の無い要素（府県の中の区域の tuple など）は同じ重さで元の順を保つ。
+const ORDER: Readonly<Record<string, readonly [heavier: (item: unknown) => number, newer: (item: unknown) => number]>> = {
+  "eew.current": [(item) => field(item, "warningClass") === "warning" ? 1 : 0, reported],
+  "weatherCurrent.areas": [(item) => { const codes = field(item, "codes"); return isRecord(codes) ? Math.max(0, ...Object.keys(codes).map(weatherStage)) : 0; }, reported],
+  "landslide.currents": [kindLevel, reported], "flood.currents": [kindLevel, reported],
+  "tsunami.areas": [(item) => TSUNAMI_CLASSES.indexOf(String(field(item, "areaClass"))), flat],
+  "tsunami.forecasts": [flat, reported], "nankai.information": [flat, reported],
+  "earthquake.earthquakes": [flat, (item) => timeOf(item, "originTimeRaw")],
+};
+const descending = (a: number, b: number) => a === b ? 0 : a < b ? 1 : -1;
 function screenValue(domain: string, value: unknown): JsonValue {
   if (Array.isArray(value)) return value.map((item) => screenValue(domain, item));
   if (!isRecord(value)) return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? value : null;
@@ -666,11 +696,25 @@ function screenValue(domain: string, value: unknown): JsonValue {
       continue;
     }
     if (key === "codes" && SHOWN_CODES.has(domain)) { out[key] = screenValue(domain, item); continue; }
+    // SCENE-TEXT の 2026-11-15 夕の (iii): 予測の地域は code を落とすと地名が無くなる（reportAreas の震度 0 を予測と読ませた）ので、切る前の同じ報の
+    // reportAreas から同じ code の地名を付ける。地名が無ければ code を「地域コード」で残す（code は HIDDEN で落ちるため別の鍵）。
+    const reportAreas = value["reportAreas"], predicted = field(item, "areas");
+    if (domain === "eew" && key === "prediction" && isRecord(item) && Array.isArray(reportAreas) && Array.isArray(predicted)) {
+      const names = new Map<string, string>(), areas: readonly unknown[] = predicted, reports: readonly unknown[] = reportAreas;
+      for (const area of reports) { const code = field(area, "code"), name = field(area, "name"); if (typeof code === "string" && typeof name === "string") names.set(code, name); }
+      out[key] = screenValue(domain, { ...item, areas: areas.map((area) => {
+        const code = field(area, "code"), name = typeof code === "string" ? names.get(code) : undefined;
+        return !isRecord(area) ? area : name != null ? { ...area, name } : { ...area, 地域コード: code };
+      }) });
+      continue;
+    }
     if (HIDDEN.has(key) || (key.endsWith("Raw") && !key.endsWith("TimeRaw") && !SHOWN_RAW.has(key)) || (key === "raw" && "value" in value)) continue;
     if (!Array.isArray(item)) { out[key] = screenValue(domain, item); continue; }
     const limit = SCREEN_LIMITS[`${domain}.${key}`] ?? 5;
-    const newest = NEWEST_BY[`${domain}.${key}`];
-    const ordered = newest == null ? item : [...item].sort((a, b) => timeOf(b, newest) - timeOf(a, newest));
+    const order = ORDER[`${domain}.${key}`], list: readonly unknown[] = item;
+    // 重さと時刻は要素ごとに 1 回だけ読む（並べ替えは一覧ごとに 1 回）。
+    const ordered = order == null ? list : list.map((element) => [order[0](element), order[1](element), element] as const)
+      .sort((a, b) => descending(a[0], b[0]) || descending(a[1], b[1])).map(([, , element]) => element);
     out[key] = ordered.slice(0, limit).map((element) => screenValue(domain, element));
     // 切った件数は場面に残す（画面の「ほか n 件」）。
     if (item.length > limit) out[`${key}Omitted`] = item.length - limit;
@@ -678,14 +722,46 @@ function screenValue(domain: string, value: unknown): JsonValue {
   return out;
 }
 
-function screenOf(snapshot: DisplaySnapshot): SceneScreen {
+function screenOf(snapshot: ScreenInput): SceneScreen {
   const { state, disconnectedAt, lastInputAt } = snapshot.connection;
-  const current = Object.fromEntries(DOMAIN_KEYS.map((key) => {
-    const domain = snapshot.current[key];
-    return [key, domain.delivery === "full" ? { delivery: "full" as const, view: screenValue(key, domain.view) } : { delivery: "summary" as const }];
-  }));
+  const current = Object.fromEntries(Object.entries(snapshot.current).map(([key, domain]) => [key, domain.delivery === "full"
+    ? { delivery: "full" as const, view: screenValue(key, domain.view) }
+    : { delivery: "summary" as const, reason: domain.reason, items: domain.items.map(({ operation, activeCount, highestSeverity, confirmation, unconfirmed }) =>
+      ({ operation, activeCount, highestSeverity, confirmation, unconfirmed })) }]));
   return { connection: { state, disconnectedAt, lastInputAt }, current, recovery: { eewUnverified: snapshot.recovery.eewUnverified },
     notices: snapshot.notices.map(({ kind, text, expiresAt, operation }) => ({ kind, text, expiresAt, operation })) };
+}
+
+// SCENE-TEXT の 2026-11-15 夕の (v): 評価者の事実の期限を表示と保持に分ける（保持の 24 時間を「有効」と並べていた）。recordsOf は容量の欠けの判定
+// （P3-DC-RES-02）が使うので変えず、同じ辿り方で 2 つを読む。表示の期限の欄（EEW の gate の currentUntil、validUntil・activeUntil・visibleUntil）が
+// 有れば until はその値（null は current の無い版・失効後、P3-LIFE-SEM-01）。欄の無い記録は toView が時計を見ず期限の reduce が記録を除くので、
+// view に出ている間は保持の期限で外れる。含める subject は今までどおり保持の期限で絞る（外部送付の判定が facts の subject を読む）。
+const DISPLAY_UNTIL = ["currentUntil", "validUntil", "activeUntil", "visibleUntil"];
+type Limits = Readonly<{ display: number | null | undefined; retainUntil: number | null }>;
+function factsOf(state: object, shown: ReadonlySet<string>, atMs: number): SceneFact[] {
+  const found = new Map<string, Limits>();
+  const add = (item: Readonly<Record<string, unknown>>, parent: Limits | null): Limits => {
+    const key = DISPLAY_UNTIL.find((name) => name in item), display = key == null ? undefined : item[key], retain = item["retainUntil"];
+    const limits = { display: key == null ? parent?.display : typeof display === "number" ? display : null,
+      retainUntil: typeof retain === "number" ? retain : parent?.retainUntil ?? null };
+    for (const subject of [item["subject"], field(item, "source", "subject")]) if (typeof subject === "string") found.set(subject, limits);
+    return limits;
+  };
+  for (const [key, value] of Object.entries(state)) {
+    if (SKIPPED.has(key)) continue;
+    const elements: readonly unknown[] = Array.isArray(value) ? value : isRecord(value) ? Object.values(value) : [];
+    for (const element of elements) {
+      if (!isRecord(element)) continue;
+      const own = add(element, null);
+      for (const nested of Object.values(element)) if (Array.isArray(nested)) for (const item of nested) if (isRecord(item)) add(item, own);
+    }
+  }
+  return [...found].flatMap(([subject, { display, retainUntil }]) => {
+    const held = retainUntil ?? (typeof display === "number" ? display : null);
+    if (held != null && held <= atMs) return [];
+    const visible = shown.has(subject);
+    return [{ subject, shown: visible, until: typeof display === "number" ? display : display === undefined && visible ? retainUntil : null, retainUntil }];
+  });
 }
 
 // 場面の記録は観測だけ（結果の本体・adapter の delivered・合否を変えない。T09 (1)(2) が本体の hash で確かめる）。
@@ -724,8 +800,7 @@ class SceneLog {
 
   // 評価者の事実は選んだ時刻だけで recordsOf を引く（P3-DPM-AC03 (1) の state を辿らない決まり）。
   capture(atMs: number, snapshot: DisplaySnapshot | null, h: Harness): void {
-    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, [...recordsOf(h.unit(unit))]
-      .filter(([, until]) => until == null || until > atMs).map(([subject, until]) => ({ subject, until }))]));
+    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, factsOf(h.unit(unit), new Set(h.root.state.mirror[unit].view.subjects.map((item) => item.subject)), atMs)]));
     const fullScreen = snapshot == null ? null : { connection: snapshot.connection, current: snapshot.current,
       recovery: { eewUnverified: snapshot.recovery.eewUnverified }, notices: snapshot.notices };
     this.options.write({ atMs, attempts: this.attempts.slice(this.written), screen: snapshot == null ? null : screenOf(snapshot), fullScreen, facts });
@@ -735,9 +810,9 @@ class SceneLog {
   result(): SceneResult { return { attempts: this.attempts, newSubjects: this.newSubjects, deadlines: this.deadlines }; }
 }
 
-export { ObservationTable, runStage1 };
+export { ObservationTable, runStage1, screenOf };
 export type { Dispatch, Loss, RunOptions, SceneAttempt, SceneCapture, SceneResult };
 
-import type { DisplayConnectionView, DisplayRecoveryView } from "../../contracts/p2-snapshot-sse.types";
+import type { DisplayConnectionView, DisplayDomainView, DisplayRecoveryView, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import type { Frame } from "./synth";
