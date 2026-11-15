@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "2629e6383d15a755e05156bd913f337211dbf25d57db42c60a16aa65119ae4b6",
+    "sha256": "4328fba77ff233d4d36b184e89064582debdec759f50f7aa11452eb3a1c601f1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -1326,7 +1326,7 @@
         "referenceIds": [
           "P3-C13-AC08"
         ],
-        "behavior": "Q-NOTICEの各機会とlevelの表: 竜巻の新しいactive（warning）・目撃・公開事実の変わった続報・同じ続報（作らない）・解除（tornadoRelease、info）・取消（cancel）、熱中症（normal、P3-HEAT-SOUND-NORMAL-001）、解説（seismicTextはinfoでdomain earthquake-eew、ほかnormal）、訂正（事実が同じでも作る）、記憶だけの取消・期限・遅着で作らない、一入力1 intent/channel、置換（同じsubject・channel、取消の全channel）、title・bodyの組み方と切り方（接頭辞が残る）、training/testのdesktopだけ、recovery未適用、復元直後の続報"
+        "behavior": "Q-NOTICEの各機会とlevelの表: 竜巻の新しいactive（目撃の無い報はnormal、:72 の A・H13。2026-11-15 夜に前からの食い違いを直した）・目撃（warning）・公開事実の変わった続報・同じ続報（作らない）・解除（tornadoRelease、info）・取消（cancel）、熱中症（normal、P3-HEAT-SOUND-NORMAL-001）、解説（seismicTextはinfoでdomain earthquake-eew、ほかnormal）、訂正（事実が同じでも作る）、記憶だけの取消・期限・遅着で作らない、一入力1 intent/channel、置換（同じsubject・channel、取消の全channel）、title・bodyの組み方と切り方（接頭辞が残る）、training/testのdesktopだけ、recovery未適用、復元直後の続報"
       },
       {
         "testId": "P3-C13-T09",
