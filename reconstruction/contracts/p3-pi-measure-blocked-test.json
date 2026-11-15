@@ -1,0 +1,298 @@
+{
+  "meta": {
+    "draftedFromOid": "0b37f7668a6244f7d0b59a61f9f19c45e55fad1a",
+    "sha256": "477612d650daa5df25cfa00c7fe0a65e4c1c64ede1e79738a3714573c3be4507",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-PMB-D-PLACE",
+        "A": "試験 file を reconstruction/test/disaster の外の新しい dir に置く（reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts）",
+        "B": "reconstruction/test/disaster/disaster.test.ts に it を足す",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決め（2026-11-15）A",
+        "reason": "P3-FINAL-GATE-001 の T09 は AC09 の gitHead から reconstruction/src と reconstruction/test/disaster の差分が無いことを確かめ、差分があれば blocked になる（persona-scenes.test.ts:248）。B はその dir を変える。git の pathspec は dir の単位で当たるので disaster-blocked は当たらない。vitest の include（reconstruction/test/**/*.test.ts）と tsconfig.test.json の include（test/**/*.ts）は新しい dir も拾う"
+      },
+      {
+        "id": "P3-PMB-D-HOW",
+        "A": "host を SIGSTOP で 4 秒止めて SIGCONT する（再開の時に積もった EEW が予約の枠を溢れ、host が入力を断って接続を切り、道具が injector.broken で blocked にし、後始末の SIGTERM で host が自分の stop で終わる）",
+        "B": "host を止めたままにする（後始末の SIGTERM は届かず 20 秒後に SIGKILL）",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決め（2026-11-15）A",
+        "reason": "A は後始末の SIGTERM と 4 欄の両方を覆い、手の確かめ（2026-11-14）と同じ形。B は SIGKILL の側だけを通り、STOP_MS の 60 秒を含めて 80 秒以上かかり、hostReasons の材料も変わる"
+      },
+      {
+        "id": "P3-PMB-D-GATE",
+        "A": "既定のゲート（AGENTS.md の reconstruction ゲート、CI の reconstruction の job、Mac mini のゲートと shuffle）で毎回走らせる",
+        "B": "P3-DPM-T02b と同じく env の口（例 FLEQ_DPM_STAGE2=1）のときだけ走らせる",
+        "recommended": "A",
+        "provisional": "A",
+        "ruling": "統合担当の決め（2026-11-15 夜）A。利用者に見えるものが変わらない試験の置き方で、1 本約 5 秒と軽く、blocked の後始末は道具の正常の経路では通らないので既定で回さないと触った変更に気づけない",
+        "reason": "T02b を env に絞った理由（P3-DPM-D-T02-GATE）は、本物の host の起動 2 回と投入 50 秒で約 1 分が毎回のゲートに乗ること。本試験は launch 0（空の state）の 1 起動で、R2S の山を作る時間を含めて 1 本 約 5 秒（起草の確かめ、MacBook）。T02b と違って、blocked の後始末は道具の正常の経路では通らないので、既定で回さないと pi-measure.mjs の後始末を触った変更で気づけない。懸念は CI（ubuntu-latest、2 分割の並列）の上での時間の揺れ: 溢れるかは「止めた 4 秒に積もる報（200 ms ごと）」と「予約の枠 8 件」の差で決まる。host が遅いほど溢れやすい向きだが、道具の側が遅いと投入の始まりが止める時刻より後にずれて積もる報が減る向き。そこで止める合図は投入が始まった後に出る最初の T2 の行（道具の drain が見るのと同じ行、pi-measure.mjs:188。投入の始まりの 250〜450 ms 後に見える）にし、4 秒で 17 報以上を見込む。時刻の推測はしない。Linux の CI で 1 回も回していない（起草の確かめは macOS だけ）ので、A に決めたら配送の前に Mac mini か CI で 1 回通す"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-PMB-PID",
+        "status": "closed",
+        "source": "起草（2026-11-15）。pi-measure.mjs の実装を読んだ",
+        "closed": "道具を変えずに host の PID を取れる。pi-measure.mjs が spawn する子は host（host-launcher.mjs）の 1 本だけ（reconstruction/test/disaster/pi-measure.mjs:106。投入側の WebSocket server は道具の process の中）なので、道具の PID の直下の子を pgrep -P で引き、ちょうど 1 本であることを確かめる。止める時刻は launch-0/host-obs.jsonl に最初の \"point\":\"T2\" の行が出た後（道具の drain が見るのと同じ行、:188）。clock の行は ready の後の最初の flush（host-launcher.mjs の 250 ms ごとの flush）で出るが、道具はその後に /events の GET・自分の clock の待ち・観測点 30,000 の VXSE53 の組み立て（:127〜:143）を済ませてから投入を始めるので、clock の行を合図にすると積もる報が減り、遅い機械で予約の枠に届かず measured になりうる（レビュー r0 の P2）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-PMB-PATH",
+        "status": "closed",
+        "source": "起草の確かめ（2026-11-15、MacBook、作業の木 0b37f766、Apple M5・node v26.12.1）",
+        "closed": "試験は経路を通る。(1) 今の pi-measure.mjs で 2 回とも rc 0、結果は status blocked・reason hostFailed（detail は投入側の socket が close した）・launch 0・hostExit { code 0, signal null }・terminatedBy SIGTERM・hostReasons { mailboxRejectedItemLimit 2, eewWindowUnverified 1 }、1 回 約 5.3 秒 (2) 後始末の組を [[\"SIGKILL\", 2_000]] に読みで替えると（作業の木の写しで、確かめの後に元に戻し git diff -- reconstruction/test/disaster が空）、試験は assert で落ちる: hostExit { code null, signal SIGKILL }・terminatedBy SIGKILL。hostReasons の mailboxRejectedItemLimit は SIGKILL でも残った（host の診断は入力を断った時に書かれる）ので、hostReasons は SIGTERM の有無を見分けない。見分けるのは terminatedBy と hostExit",
+        "remaining": "なし（Linux での走りは P3-PMB-D-GATE と P3-PMB-AC04 (1) へ）"
+      },
+      {
+        "id": "Q-PMB-BASEOID",
+        "status": "closed",
+        "source": "起草（2026-11-15）",
+        "closed": "check-contract.mjs は baseOid の木に契約の file があるかを確かめるので、起草は unassigned にし、発注の時に統合担当が契約を入れた commit を付ける",
+        "remaining": "なし（baseOid は P3-PMB-AC04 (0) で統合担当が付ける）"
+      },
+      {
+        "id": "Q-PMB-GATE",
+        "status": "closed",
+        "source": "統合担当（2026-11-15 夜）",
+        "closed": "P3-PMB-D-GATE は A（既定のゲートで毎回走らせる）。Linux（CI の ubuntu か Pi）で 1 回も回していないので、配送の前に CI か Pi で 1 回通す（AC04 (1)）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない（試験だけを足す。製品と測定の道具は変えない）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-PI-MEASURE-BLOCKED-TEST-001",
+    "mode": "implementation",
+    "objective": "P3-DPM-AC04 (7) の「残存（2026-11-14）: この経路（後始末の SIGTERM と、blocked の結果の 4 欄）に repo の中の試験は無い」を閉じる。pi-measure.mjs を本物の host で走らせ、投入の途中で host を SIGSTOP で 4 秒止めて SIGCONT し、blocked hostFailed になった結果の launch・hostExit・terminatedBy・hostReasons を確かめる試験を 1 本足す（reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts）。pi-measure.mjs と reconstruction/src は変えない（Pi の記録とずれない、P3-FINAL-GATE-001 の T09 に当たらない）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "c7a0606a41e3be92e4314bf07b7fb98998474f35",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-pi-measure-blocked-test.json",
+      "reconstruction/contracts/p3-disaster-pi-measure.json",
+      "reconstruction/test/disaster/pi-measure.mjs",
+      "reconstruction/test/disaster/disaster.test.ts",
+      "reconstruction/test/disaster/runner.ts",
+      "reconstruction/test/disaster/scenario.ts",
+      "reconstruction/test/eew-e01/host-launcher.mjs",
+      "reconstruction/test/final-gate/persona-scenes.test.ts",
+      "reconstruction/src/mailbox/mailbox.ts",
+      "reconstruction/src/host/host.ts",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts（新しい file。reconstruction/test/disaster の下と reconstruction/src は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-pi-measure-blocked-test.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git diff --quiet -- reconstruction/test/disaster reconstruction/src",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B07",
+      "B08",
+      "B15",
+      "M02"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-DISASTER-PI-MEASURE-001",
+      "P3-DISASTER-CAPACITY-001",
+      "P3-FINAL-GATE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-e01.types.ts#P2HostObservation"
+    ],
+    "publicFunctions": [
+      "口は変えない（pi-measure.mjs は CLI のまま、runStage1・readScenario は今の形で呼ぶ）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（node の child_process・fs・os・path と vitest）。package.json・package-lock.json を変えない。新しい helper file を足さない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__37_01_01_240613_VXSE43",
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__81_01_04_251222_VPWP50",
+      "test__fixtures__32-39_11_02_250206_VTSE41",
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__telegram-foundation__phase7_5_VXSE53_20260728162718_bf35e8ea1825"
+    ],
+    "sequenceIds": [
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし"
+    ],
+    "nonPersistedFields": [
+      "なし（製品と道具を変えない）"
+    ],
+    "outOfScope": [
+      "reconstruction/test/disaster/pi-measure.mjs と reconstruction/src/ の変更（試験が今の道具で通らなければ、道具を直さずに試験名・結果の blocked の欄・理由を報告して止める）",
+      "reconstruction/test/disaster/ の下の変更（P3-FINAL-GATE-001 の T09）",
+      "P3-DPM-AC04 (7) の証拠不足の 2 件（(i) 子の error の通知を host の終わりとして扱う所 (ii) host が自分で終わっても exit の通知が後始末より遅れると terminatedBy が SIGTERM と書かれうる所）の試験",
+      "後始末の SIGKILL の側（host が SIGTERM の後 20 秒残る場合）の試験",
+      "Pi・Mac mini での測定",
+      "旧築（src/）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-PMB-AC01",
+        "requirement": "試験の組み方: (1) 山は readScenario の R2S を runStage1 に peakOut つきで流して作る（runStage1 の結果の status が Pass であること）。一時の dir は os.tmpdir() の下に作り、afterAll で消す (2) pi-measure.mjs を子 process で --launches 1 --probe-seconds 15 で走らせる (3) launch-0/host-obs.jsonl に最初の \"point\":\"T2\" の行（投入が始まった印、道具の drain が見るのと同じ行）が出るまで待ち（上限 60 秒、越えたら Error）、道具の PID の直下の子を pgrep -P で引いて、ちょうど 1 本であることを確かめる（道具が spawn する子は host だけ、reconstruction/test/disaster/pi-measure.mjs:106） (4) host に SIGSTOP を送り、4 秒待って SIGCONT を送る。4 秒は手の確かめと同じ長さで、EEW は 200 ms ごとに送られ、T2 の行は投入の始まりの 250〜450 ms 後に見えるので、止めている間に 17 報以上が積もり、再開の時に予約の枠（RESERVED_ITEM_LIMIT 8、mailbox.ts:14・:108）を溢れて host が mailboxRejectedItemLimit で接続を切る（host.ts:270） (5) 試験が途中で落ちても、道具が終わっていなければ host に SIGCONT と SIGKILL を、道具に SIGKILL を送って残さない。道具が終わっていれば host は道具の後始末か disconnect で終わっているので、終わった PID には送らない (6) win32 では skip する（SIGSTOP・SIGCONT と pgrep が無い）。書き方は it.skipIf(process.platform === \"win32\") (7) it の timeout は 180 秒。止めても溢れない最も長い経路は T2 の待ち 60 秒＋投入 15 秒＋drain 10 秒＋stop の待ち（STOP_MS）60 秒＋SIGTERM の待ち 20 秒＋SIGKILL の待ち 2 秒＝167 秒で、これに runStage1（R2S、起草の確かめで 1 秒未満）を足して収まる",
+        "evidenceRefs": [
+          "reconstruction/test/disaster/pi-measure.mjs:106 «1fa5c1d5eec71a06»",
+          "reconstruction/src/mailbox/mailbox.ts:14 «5821cfbc66285ebb»",
+          "reconstruction/src/mailbox/mailbox.ts:108 «8f0fbc13a56bdb83»",
+          "reconstruction/src/host/host.ts:270 «b92cdfb78dd0906b»",
+          "reconstruction/test/disaster/pi-measure.mjs:127 «19b0484796694132»",
+          "reconstruction/test/disaster/pi-measure.mjs:143 «8831db23406a0e35»",
+          "reconstruction/test/disaster/pi-measure.mjs:188 «c289cbcda8a07f64»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:54 «de760db75ee5cea5»"
+        ]
+      },
+      {
+        "id": "P3-PMB-AC02",
+        "requirement": "確かめる値: 道具の rc が 0（status が blocked でも結果を書けたら 0）で、結果の file が status \"blocked\"、blocked が reason \"hostFailed\"・launch 0・hostExit { code 0, signal null }・terminatedBy \"SIGTERM\"・hostReasons に mailboxRejectedItemLimit の欄を持つこと（hostReasons は出た reason だけを 1 以上で数えるので、欄の有無で見る。件数は固定しない）。hostExit の code 0 は、host が後始末の SIGTERM を受けて自分の stop で終えた印（host-launcher.mjs:74）。terminatedBy と hostExit は、後始末の SIGTERM を外すと SIGKILL の値に変わる（Q-PMB-PATH (2)）。hostReasons は SIGKILL でも mailboxRejectedItemLimit を持つので、SIGTERM の有無の確かめには使わない。所要は 1 本 約 5 秒（起草の確かめ、MacBook。上限は AC01 (7) の 180 秒）",
+        "evidenceRefs": [
+          "reconstruction/test/disaster/pi-measure.mjs:29 «201bb9dbf759c899»",
+          "reconstruction/test/disaster/pi-measure.mjs:111 «9e9077ec90e6673a»",
+          "reconstruction/test/disaster/pi-measure.mjs:113 «c7763bea6dc61255»",
+          "reconstruction/test/disaster/pi-measure.mjs:158 «b270427f6bd9c476»",
+          "reconstruction/test/disaster/pi-measure.mjs:209 «72f103d0352193df»",
+          "reconstruction/test/disaster/pi-measure.mjs:211 «f16f7fa0846473f7»",
+          "reconstruction/test/eew-e01/host-launcher.mjs:74 «4fb53609300b479e»"
+        ]
+      },
+      {
+        "id": "P3-PMB-AC03",
+        "requirement": "置き場と範囲: (1) 試験 file は reconstruction/test/disaster の外に置き（P3-PMB-D-PLACE）、git diff --quiet -- reconstruction/test/disaster reconstruction/src が rc 0 のままであること（P3-FINAL-GATE-001 の T09 が見る範囲、persona-scenes.test.ts:248） (2) vitest の include（reconstruction/vitest.config.ts:5）に入り、tsconfig.test.json の型検査に掛かる (3) 走らせ方は P3-PMB-D-GATE の裁定に従う（A なら既定のゲートで走り、B なら env の口で絞る）",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/persona-scenes.test.ts:248 «345a62f905230b70»",
+          "reconstruction/vitest.config.ts:5 «913b7d6ec01edff3»",
+          "reconstruction/test/disaster/disaster.test.ts:488 «850f9400e931f94f»"
+        ]
+      },
+      {
+        "id": "P3-PMB-AC04",
+        "requirement": "配送（統合担当）: (0) baseOid を c7a0606a に付け、本契約の sha256 を取り直す (1) P3-PMB-D-GATE の裁定を受けてから入れる。A なら配送の前に Linux（Mac mini のゲートは macOS なので CI の reconstruction の job か Pi）で 1 回通ったことを確かめる (2) 原文の改訂（行を足さない）: p3-disaster-pi-measure.json の AC04 の requirement（:340）の (7) の「残存（2026-11-14）: この経路（後始末の SIGTERM と、blocked の結果の 4 欄）に repo の中の試験は無い。根拠は手の確かめ 3 回（…）」に、〔P3-PI-MEASURE-BLOCKED-TEST-001 の T01 で試験を足した（日付・commit）〕を添え、証拠不足の 2 件は残存のまま残す。改訂で中身の変わる :340 を引く anchor（本契約の P3-PMB-AC04 と他の契約）を付け直し、改訂した契約の sha256 を作り直す (3) やりたいことリストの該当の項を完了へ送る",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-disaster-pi-measure.json:340 «3dd740a213acf770»",
+          "reconstruction/src/runtime/composition-root.ts:2357 «b337e5954d4ab06d»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-PMB-T01",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P3-PMB-AC01",
+          "P3-PMB-AC02",
+          "P3-PMB-AC03"
+        ],
+        "behavior": "契約の境界（P3-DPM-AC04 (7) の blocked の後始末と 4 欄）。reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts: 投入の途中で host を 4 秒止めると、pi-measure.mjs は rc 0 で blocked hostFailed・launch 0・hostExit code 0・terminatedBy SIGTERM・hostReasons に mailboxRejectedItemLimit を書く。後始末の SIGTERM を外すと terminatedBy と hostExit が SIGKILL になって落ちる（Q-PMB-PATH (2)）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O09 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約の検査。本契約は試験 file を足すだけなので、実装の後も FAIL は出ない想定。FAIL は想定外として報告する"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（pi-measure.mjs と host-launcher.mjs が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "新しい試験 file の型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "pi-measure.mjs が import する eew-e01 の run.mjs が dist/chrome-eew を読む"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/disaster-blocked/pi-measure-blocked.test.ts",
+        "stage": "implementation",
+        "purpose": "P3-PMB-T01 を 2 回（前景で走らせ、出力を file に残し exit code を正とする）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P3-PMB-D-GATE が A なら本試験も含む）"
+      },
+      {
+        "command": "git diff --quiet -- reconstruction/test/disaster reconstruction/src",
+        "cwd": ".",
+        "target": "reconstruction/test/disaster, reconstruction/src",
+        "stage": "implementation",
+        "purpose": "P3-PMB-AC03 (1)。rc 0 であること"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch（新しい file）、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 新しい helper file・型・共有の関数を足さない。山を作る数行と一時の dir の helper は disaster.test.ts の smallPeak・scratch を import できない（export されておらず、disaster の下は変えられない）ので試験 file の中に置く。P3-PMB-T01 は契約の境界で、it は 1 本",
+      "起草の確かめ（2026-11-15、MacBook、0b37f766、Apple M5・node v26.12.1）: tsc の 3 本と tsconfig.test.json の型検査は rc 0、P3-PMB-T01 は 2 回とも rc 0（vitest の Duration 5.25 秒・5.27 秒、壁時計 5.4 秒）。結果の blocked の値は Q-PMB-PATH (1)。後始末の SIGTERM を外した確かめは Q-PMB-PATH (2)。レビュー r0 の後（止める合図を T2 の行に替え、timeout を 180 秒にした形）も 2 回とも rc 0（vitest の Duration 5.68 秒・5.66 秒）",
+      "残存として成果物に書く: (1) 溢れの確かめは時間に頼る（止める合図の T2 の後の 4 秒に 17 報以上、枠 8 件）。host が速くても再開の時に積もった frame を一度に読むので溢れる向きだが、Linux では起草の確かめをしていない（P3-PMB-D-GATE） (2) hostReasons の eewWindowUnverified は P3-REC-AC14 の窓の札の WARN（composition-root.ts:2357）で、溢れたときの切断で開いた窓と読める（道具は start の制御 frame を送る、pi-measure.mjs の sendStart）。本試験は見ない (3) 証拠不足の 2 件（outOfScope）と SIGKILL の側は覆わない",
+      "旧築（src/）を変えない。変えないので旧築の build と test は要らない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
