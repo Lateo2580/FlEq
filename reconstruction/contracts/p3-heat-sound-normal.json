@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1fb23e5a79e63206b893973f11d81af33f8fee3d",
-    "sha256": "4abbe3ee85883b849fbc815a6aac239c5bfa1309ff4820c1594204a23718c6f3",
+    "sha256": "e4ddb0fc130131e648bf47c7f62546706722d119959258a4815f1c314dc207e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
@@ -42,7 +42,7 @@
     "contractId": "P3-HEAT-SOUND-NORMAL-001",
     "mode": "implementation",
     "objective": "U-M の熱中症警戒アラート（VPFT50）の通知の段を warning から normal へ変える（作者裁定 2026-11-15 夕、P3-HSN-D-RULING=A）。直すのは local-bulletins-unit.ts:376 の heatLane の style の 1 行の中だけで、熱中症の音は weather-warning.wav から weather-normal.wav になる。画面の重さ・題名・本文・保存の形は変えない。原文の改訂と corpus の digest の取り直しは統合担当が配送で当て（AC04）、影響する記録は配送の後に P3-FINAL-GATE-001 が取り直す（AC05）",
-    "baseOid": "unassigned",
+    "baseOid": "e97d12c726c30c4307c0354359747f9bdb5734f3",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
