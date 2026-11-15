@@ -1,0 +1,316 @@
+{
+  "meta": {
+    "draftedFromOid": "5ea379847e986616bf1aca3fa1dbe4157d86af01",
+    "sha256": "c505568369db5fe6c964f4e61f80e1846f9f7def66605310a92505a330f5dda1",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P3-ERC-D-RULING",
+        "kind": "作者",
+        "A": "案 X: 記録しか無いとき（gate が無く、その EventID・family の印の記録がある）、取消でない記録と同じ版（Control/DateTime・Serial が同じ）の訂正は採らない（unchanged/stale）。起動し直さない場合（gate あり、中身の違う同じ版は held で採らない）と同じく鳴らず、current も印も変えない。schema は変えない",
+        "B": "今のまま: 記録と同じ版の報は中身を比べずに採る（P3-NL-AC04 (3)）。current を作り直し、訂正は通知の判定に入る（eew.ts:612〜:614）ので、その版を通知していなければ「[訂正] 緊急地震速報（予報）」が desktop と音で鳴る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定、2026-11-15 10 時台）",
+        "ruling": "A（作者、2026-11-15 10 時台。判断カード 2026-11-13-C22-最終ゲートの分岐 の裁定 3「P4 の前に決める」を受けた案 X）",
+        "reason": "場面: 21:00:00 第 1 報（通知）、21:00:05 第 3 報（予報の続報、鳴らない）、21:02 に FlEq を起動し直し、21:03 に第 3 報と同じ Control/DateTime・同じ Serial の訂正が live で届くと、今は「[訂正] 緊急地震速報（予報）」が鳴る。起動し直さなければ gate の中身の比べで held になり鳴らない。gate は保存されない（eew-unit.ts:292〜:296）ので、起動し直した後は印の family の記録（版の鍵と kinds だけ）と比べて held になり、:484〜:485 が中身を比べずに adopt に替える。第 3 報は通知していないので kinds が [] で、:676 の照合でも止まらない。作者に見せた困ること: 中身の違う訂正でも版が同じなら採らない（記録は中身を持たない）。起動し直さない場合も中身の違う同じ版は held で採らないので、鳴る・鳴らないは起動し直しの有無で同じになる"
+      },
+      {
+        "id": "P3-ERC-D-MISSING",
+        "kind": "統合担当",
+        "A": "時刻の読めない訂正（Control/DateTime が読めず版の比べが undecidable の報）は X に入れない。今どおり記録があっても採り、current を作り直し、「[訂正] 緊急地震速報（予報）」を鳴らす（WARN requiredStructureMissing を添える）。起動し直さなければ gate と比べて held（WARN 付き）で鳴らない",
+        "B": "記録と比べて held になった訂正は、時刻の読めない報も採らない（unchanged/stale、intent 0、current を変えない）。起動し直さない場合の held と同じく WARN requiredStructureMissing を出す。記録が取消でも同じ（今は採って鳴る。起動し直さなければ取消の gate と比べて held で鳴らない）",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "確定（統合担当、2026-11-15）",
+        "ruling": "統合担当 B（2026-11-15、作者裁定 X の範囲として）",
+        "reason": "作者裁定 X の「起動し直さない場合と同じ」の字の中に入る。起動し直さなければ今も held で鳴らないので、B はその判定に揃えるだけ。X の「同じ版」の字だけを読むと、時刻の読めない報は同じ版と言えないので外に残る。時刻の読めない報は同じ版と言えないので裁定の外に残る。場面: 起動し直した後に、Control/DateTime が Date.parse で読めない（controlDateTimeOf で空にされた値を含む）訂正が届く。A では鳴り、起動し直さなければ鳴らない（起草の probe: 77_01_01→77_01_03・04・05・26 のどれの後でも、起動し直した後は changed・desktop と sound の「[訂正] 緊急地震速報（予報／警報）」2 本、起動し直さなければ unchanged/stale・intent 0・WARN）。記録が取消（77_01_33）の後の時刻の読めない訂正は、A（と今）では起動し直した後に changed・current を作り直し「[訂正] 緊急地震速報（警報）」critical 2 本（取り消した EEW が画面に戻って鳴る）、起動し直さなければ unchanged/stale・WARN。B は起動し直しの有無で鳴る・鳴らないと WARN が一致し、違うのは current の有無だけ（X と同じ）。B は作者の裁定の理由（起動し直さない場合と同じく鳴らない）を時刻の読めない訂正にも通し、式も「受けた報が訂正なら held のまま（印なし）」の 1 条件で A（取消でない記録・時刻の読める報に限る 2 条件）より短い。test/fixtures の file 名に VXSE43〜45 を含む 17 本は、どれも Control/DateTime が ISO 8601 の形で 40 字以内（起草の数え、読めない報は 0 本）。B で落ちるもの: 時刻の読めない新しい訂正（実は後の版）を、起動し直した後に採らない。起動し直さない場合も held で採らないので、今の gate のある判定と同じ"
+      },
+      {
+        "id": "P3-ERC-D-SCOPE",
+        "kind": "統合担当",
+        "A": "X は訂正だけに当てる。記録と同じ版の発表・続報・最終報（受け直し）は今どおり採り、current を作り直す（鳴るか鳴らないかは種類の照合〔eew.ts:676〕と latch の規則のまま）",
+        "B": "記録と同じ版の取消でない報を全部採らない。起動し直した後に同じ報を受け直しても画面に EEW が戻らない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当、2026-11-15 起草）",
+        "ruling": "A（統合担当。作者の裁定の字は訂正だけで、A は今の規則のまま）",
+        "reason": "鳴る不具合は訂正だけで起きる（訂正は :614 で notify が真になり、latch の firstReportNotified で止まらない）。同じ版の発表の受け直しは、起草の probe で起動し直した後も intent 0（latch で止まる）で、current を作り直して画面に戻る。B は画面に戻らない欠けを増やし、作者の裁定の外"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-ERC-SOURCE",
+        "status": "closed",
+        "source": "起草（2026-11-15、HEAD 5ea37984 の worktree を読んだ）",
+        "closed": "(1) 直す file は reconstruction/src/domains/eew/eew.ts（依頼の字の units/eew/eew.ts は無い。units/eew/ には eew-unit.ts だけ） (2) 判定の順: :472 で gate が無ければ印の family の記録を手元の版にし、:473 の stepVersion に渡す。中身の比べ（:475〜:481）は gate のあるときだけ真になりうるので、記録しか無いときの同じ版は version.ts の same の枝で held（:102）になる。:484〜:485 が held を adopt に替える（取消済みの取消の再送だけ older） (3) held になる組: Control/DateTime と Serial が同じで、受けた報と記録の取消かどうかが同じとき（version.ts の Serial の例外の後）と、受けた報の Control/DateTime が読めないとき（undecidable、missing）。記録が取消で受けた報が取消でない同じ Control/DateTime の報は、:97 の取消の優先で older になり held にならない（記録が取消のときの同じ版の訂正は今も採らない。分岐にしない） (4) 鳴る道: adopt の後、:540 の horizon（起点＋10 分、HORIZON_MS）の内なら、:612〜:614 で訂正は notify、:676 の照合はその版の kinds に report が無ければ止めない。horizon の外なら今も stale（eewHorizonStale）。gate は 24 時間（:267 GATE_MS、:602）で、保存しない（eew-unit.ts:292〜:296 の decode は current・gates を [] にする） (5) 取り直しの EEW（origin recovery）は :420 で採らない (6) «»: eew.ts の :479〜:488 を引く «» は 0 件、:489 以降を引く «» は 40 件を超える（:489・:495・:502・:540・:583・:607・:613・:614 ほか、計 69 件）。p3-notice-ledger.json:468（P3-NL-AC04）を引く «» は 0 件（地の文で p3-eew-drop43.json:307 が触れるだけ）。eew-unit.test.ts の :1373 より後を引く «» は p3-eew-gate-evict.json:276 の «eew-unit.test.ts:1477» の 1 件だけで、その :276 を引く «» は 0 件。p3-notice-ledger.json・p3-eew-gate-evict.json の meta の行（:2〜:7）を引く «» は 0 件（2026-11-15 起草の grep）"
+      },
+      {
+        "id": "Q-ERC-PROBE",
+        "status": "closed",
+        "source": "起草（2026-11-15、worktree の reconstruction/.dr-tmp/ue/tree に cp -cR で写した木。追跡 file は変えていない。U-E の reduce を直に呼ぶ試しの試験〔repo に足さない〕と、全 reconstruction の vitest〔--maxWorkers=2〕）",
+        "closed": "(1) 赤の再現（直す前）: 77_01_01（第 1 報、通知 2 本）→ 77_01_03（第 3 報、intent 0、印の VXSE45 の記録の kinds []）→ 保存→復元 → 77_01_03 の InfoType だけを訂正にした報で changed/semantic・current 1・desktop と sound の「[訂正] 緊急地震速報（予報）」（level warning）2 本。復元しなければ unchanged/stale・intent 0。合成の 2 本（親が通知済み、kinds に report）は復元の後も :676 で止まり intent 0（changed で current を作り直す） (2) 直した後（D-MISSING=A の形と B の形の両方）: 復元の後の同じ版の訂正は unchanged/stale・intent 0・current []・state は同じ参照・診断なし。合成の 2 本も復元の後は unchanged/stale。Control/DateTime を 1 秒後にした訂正は復元の後も changed で [訂正] 2 本。同じ版の発表の受け直しは changed・intent 0・current を作り直す。記録が取消（77_01_33）のときの同じ Control/DateTime の訂正は、直す前も後も、復元の有無とも unchanged/stale・intent 0。報時刻から 10 分より後の同じ版の訂正は、直す前の復元の後は stale＋eewHorizonStale、直した後は stale・診断なし（復元しない場合と同じ） (3) 時刻の読めない訂正（Control/DateTime を x にした報）: A の形では復元の後 changed・[訂正] 2 本・WARN requiredStructureMissing、B の形では unchanged/stale・intent 0・WARN（復元しない場合と同じ）。記録が取消（77_01_33）の後の時刻の読めない訂正は、直す前と A の形では復元の後 changed・current 26・「[訂正] 緊急地震速報（警報）」critical 2 本、復元しなければ unchanged/stale・WARN (4) 全 reconstruction の vitest（B の形と AC04 の 8 行を当てた木。試しの試験 2 件を含む）: 162 file のうち 152 通過・10 skip、1,687 件のうち 1,653 通過・0 失敗・34 skip（試しを除くと 1,685 件のうち 1,651 通過）。tsc 3 本（tsconfig.json・tsconfig.test.json・chrome-eew）も rc 0。既存の試験で期待の変わるものは 0 件（final-gate の T01・T02 を含む）。A の形でも全 vitest は 0 失敗だった (5) AC04 の試験の弾き: B の形の木で eew-unit.test.ts は 37 件緑（--sequence.shuffle でも緑）。直す前の eew.ts では (2b) の復元の組が [unchanged, 0, 0, true] に対し [changed, 2, 1, false] で落ち、A の形では時刻の読めない訂正の行が [unchanged, 0, …] に対し [changed, 2, …] で落ちる"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない（訓練・試験の EEW にも同じ規則を当てる。音を出さない区分の規則は今のまま）"
+    }
+  },
+  "contract": {
+    "contractId": "P3-EEW-RESTART-CORRECTION-001",
+    "mode": "implementation",
+    "objective": "U-E（緊急地震速報の unit）で、FlEq を起動し直した後に、通知しなかった続報と同じ版（Control/DateTime・Serial が同じ）の訂正が届くと「[訂正] 緊急地震速報（予報）」が鳴る不具合を直す（バックログ U-E、作者裁定 X 2026-11-15）。gate は保存されないので、起動し直した後は印の family の記録と比べ、:484〜:485 が同じ版を中身を比べずに採る。記録しか無いときの同じ版の訂正は、gate のあるときと同じく採らない（unchanged/stale・intent 0・current と印を変えない）。直すのは eew.ts の :482〜:485 の行の中だけで、保存の形・版・口を変えない。P3-NL-AC04 (3) の原文を配送で改める",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p3-eew-restart-correction.json",
+      "reconstruction/contracts/p3-notice-ledger.json",
+      "reconstruction/contracts/p3-eew-same-correction.json",
+      "reconstruction/contracts/p3-version-material.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/contracts-revision/version.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/final-gate/oracle.test.ts",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/77_01_03_240613_VXSE45.xml",
+      "test/fixtures/synthetic_VXSE43_same_version_correction.xml",
+      "test/fixtures/synthetic_VXSE45_same_version_correction.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/eew/eew.ts（:482〜:485 の 4 行の中だけ: :482〜:483 のコメントと :485 の式。行を足さず消さない。:489 以降の行を 40 件を超える «» が引くので、行の数を変えない）",
+      "reconstruction/test/eew-unit/eew-unit.test.ts（P3-NL-T03 の AC04 の it〔:1350〕の (2) の step〔:1370〜:1373〕の直後に 8 行まで〔AC04〕。ほかの行と期待は変えない）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p3-eew-restart-correction.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M01"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P2-EEW-UNIT-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-VERSION-MATERIAL-001",
+      "P3-EEW-SAME-CORRECTION-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewNoticeMark",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewGate"
+    ],
+    "publicFunctions": [
+      "口は変えない。export・型・helper・保存の形・版を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__77_01_03_240613_VXSE45",
+      "test__fixtures__synthetic_VXSE43_same_version_correction",
+      "test__fixtures__synthetic_VXSE45_same_version_correction"
+    ],
+    "sequenceIds": [
+      "O01"
+    ],
+    "expectedDecisions": [
+      {
+        "expectedRef": "expected:O01:4"
+      },
+      {
+        "expectedRef": "expected:O01:11"
+      }
+    ],
+    "expectationEvidence": [
+      {
+        "expectedRef": "expected:O01:4"
+      },
+      {
+        "expectedRef": "expected:O01:11"
+      }
+    ],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（U-E の保存の形と版を変えない。印 EewNoticeMark の欄と family の記録の欄〔版の鍵・cancelled・kinds〕も変えない。gate・current は今どおり保存しない）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "保存の形・版・codec。gate・current や中身の材料（予測・震源）を保存し、記録しか無いときに中身を比べること（作者に見せた困ること「中身の違う同じ版の訂正を採らない」は X で受け入れた）",
+      "Control/DateTime か Serial が後の訂正（P3-ESC-D-FORM の B の形）: newer で採り [訂正] を鳴らす今の決まり（eew.ts:612〜:614）を変えない",
+      "記録と同じ版の発表・続報・最終報の受け直し（P3-ERC-D-SCOPE=A、今どおり採る）と、gate のあるときの判定（中身の比べ・held・duplicate）",
+      "取り直しの EEW（origin recovery、eew.ts:420 で採らない）と horizon・容量・退去の規則",
+      "corpus（manifest・sequences）と fixture の変更、旧築（src/）と spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P3-ERC-AC01",
+        "requirement": "製品の判定（P3-ERC-D-RULING=A・D-SCOPE=A・D-MISSING=B）: (1) 記録しか無いとき（その EventID・family の gate が無く、印の family の記録がある）に stepVersion が held を返した報のうち、受けた報の InfoType が訂正のものは採らない。記録が取消か・時刻が読めるか（version.missing）を問わない（D-MISSING=B）。結果は decision unchanged/stale、intents 0、outcomes 0、state は受ける前と同じ参照（current・gates・notices・persistence を変えない）。診断は gate のあるときの held と同じ（時刻の読める報は無し、時刻の読めない報は WARN requiredStructureMissing） (2) それ以外の held は今どおり: 同じ版の訂正でない報は adopt（current を作り直す）、取消済みの取消の時刻の読める再送は older (3) 場所は :484〜:485 の 1 か所で、:482〜:483 のコメントを新しい規則の字に直す（行の中）。stepVersion（version.ts）と gate のあるときの判定（:473〜:481）は変えない (4) 効く範囲: 起動し直した後だけでなく、gate を退去・期限（24 時間、GATE_MS）で失い印の記録が残る間も同じ (5) 変わらないもの: Control/DateTime か Serial が後の訂正は newer で採り、通知の判定は今どおり（[訂正] が鳴る）。記録が取消のときの同じ Control/DateTime の訂正は今も older（version.ts:97 の取消の優先）。取消の通知（cancelOnly・遅い取消）と horizon の規則は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:472 «3cac36d39a510ca7»",
+          "reconstruction/src/domains/eew/eew.ts:473 «9db3aa10ed859c05»",
+          "reconstruction/src/domains/eew/eew.ts:484 «be0c683737b37fb9»",
+          "reconstruction/src/domains/eew/eew.ts:495 «60c99fd18b9fdf9b»",
+          "reconstruction/src/contracts-revision/version.ts:97 «9579e846974b66ff»",
+          "reconstruction/src/contracts-revision/version.ts:102 «286ade55e599c93b»",
+          "reconstruction/contracts/p3-notice-ledger.json:468 «347338aa5d27523c»"
+        ]
+      },
+      {
+        "id": "P3-ERC-AC02",
+        "requirement": "場面と受入（fixture は 2024-04-17 の豊後水道の VXSE45、EventID 20240417231454）: (1) 23:14:57 の第 1 報 77_01_01 を受けて通知（2 本）、23:14:59 の第 3 報 77_01_03（予報の続報）を受けて intent 0（印の VXSE45 の記録の kinds []）。保存→復元（起動し直し）の後に、77_01_03 の InfoType だけを訂正にした報（同じ Control/DateTime・Serial）を報時刻から 10 分の内に受けると、今は changed/semantic・current を作り直し・desktop と sound の「[訂正] 緊急地震速報（予報）」2 本。直した後は unchanged/stale・intents []・current []・state は同じ参照 (2) 起動し直さない場合と比べる欄で一致させる: decision（unchanged/stale）、intents の数（0）、その step で current と印を変えないこと。state 全体は一致しない（起動し直さない場合は current に第 3 報があり、gate に未確認の印が付く） (3) Control/DateTime を 1 秒後にした同じ訂正は、復元の後も今どおり desktop と sound の「[訂正] 緊急地震速報（予報）」2 本 (4) corpus の O01:4・O01:11（合成の同じ版の訂正、起動し直さない列）の期待 unchanged/stale・effective active・notices と intents false は変わらず、C22 の T01・T02 は緑のまま",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:612 «45a0157380980ae5»",
+          "reconstruction/src/domains/eew/eew.ts:614 «cbb4373eadfff199»",
+          "reconstruction/src/domains/eew/eew.ts:676 «a4f91827021c45b4»",
+          "reconstruction/src/units/eew/eew-unit.ts:292 «643fa9ad24425a2b»",
+          "reconstruction/src/units/eew/eew-unit.ts:296 «bc9a6b0d231d49e7»",
+          "reconstruction/contracts/p3-eew-same-correction.json:14 «9496d7d67d0060bd»",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:4",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:11"
+        ]
+      },
+      {
+        "id": "P3-ERC-AC03",
+        "requirement": "仕様どおりの欠けと、変わる出方（作者に報告する）: (1) 画面: 起動し直した後は current が無い（保存しない）。今はこの訂正で current を作り直して EEW が画面に戻るが、直した後は current [] のまま、その EventID は次の新しい版（Control/DateTime か Serial が後の報）か同じ版の発表の受け直しまで画面に出ない。起動し直さない場合は第 3 報が見えたまま。作者の裁定の「画面も変えない」は受ける前の画面を変えないことで、起動し直して消えた EEW をこの訂正で戻さない (2) 中身の違う訂正でも版が同じなら採らない（作者に見せた困ること）: 記録は版の鍵と kinds だけで中身を持たないので比べられない。起動し直さない場合も中身が違えば held で採らない（同じなら duplicate）ので、鳴る・鳴らないは一致する (3) 診断: 報時刻から 10 分より後に届いた同じ版の訂正は、今は起動し直した後だけ horizon（eew.ts:540）で stale＋eewHorizonStale になる。直した後は版の比べで先に stale になり eewHorizonStale を出さない（起動し直さない場合と同じ）。この診断を見る既存の試験は無い（起草の probe で全 vitest が緑） (4) D-MISSING=B で、時刻の読めない訂正を起動し直した後に採らない（起動し直さない場合も採らない）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:540 «533bdccc801402bd»",
+          "reconstruction/src/domains/eew/eew.ts:267 «1ced5f9ee11c0061»",
+          "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»"
+        ]
+      },
+      {
+        "id": "P3-ERC-AC04",
+        "requirement": "試験（実不具合の再発防止、新しい it・helper・fixture を足さない）: P3-NL-T03 の AC04 の it（eew-unit.test.ts:1350）の (2) の step（:1370〜:1373）の直後に 8 行まで（コメント 2・式 6）で、(1) 77_01_01 → 77_01_03（既存の変数 vxse45）を受け、intent 0 を確かめる (2) 77_01_03 の InfoType だけを訂正にした報（decodeFixture の書き換え）を、復元しない state と復元した state（既存の restore）の両方に受け、[decision, intents の数, current の数, 受ける前と同じ参照か] が [unchanged, 0, 1, false]・[unchanged, 0, 0, true] (3) Control/DateTime を 1 秒後にした同じ訂正（既存の sentLater）を復元した state に受けると、title が「[訂正] 緊急地震速報（予報）」の 2 本。(4) D-MISSING=B: 77_01_03 の訂正の Control/DateTime を読めない値にした報を復元した state に受けて [unchanged, 0, [requiredStructureMissing]]（decision・intents の数・診断の reason）を見る expect を 1 行足す（記録が取消でなく時刻の読める訂正だけを採らない A の形の実装では [changed, 2, …] で落ちる。起草の写しで確かめた）。弾き: 直す前の eew.ts では (2) の復元の組が [changed, 2, 1, false] で落ちる（起草の写しで確かめた）。実装担当も直す前の eew.ts に戻した写しで落ちることを確かめて成果物に書く（戻しは残さない）",
+        "evidenceRefs": [
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1350 «29b4b88248623243»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1370 «26b43f56c99d94fc»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1363 «7aecb1a0fadae87d»"
+        ]
+      },
+      {
+        "id": "P3-ERC-AC05",
+        "requirement": "既存の試験の期待（理由: 記録しか無いときの同じ版の訂正の扱いを変えるため。直す前の報告はこの条文で済ませる）: 0 件の見込み。起草の写しで、直した木の全 reconstruction の vitest が 0 失敗（Q-ERC-PROBE の (4)）。P3-NL-T03 の (1)（通知した報を復元の後に受け直しても鳴らない、発表）、(2)（復元の後の古い版は stale）、C22 の T01（O01:4・O01:11 は起動し直さない列）・T02 は今の期待のまま。期待を変える要が出たら、変える前に試験名・旧・新の値を報告して止める",
+        "evidenceRefs": [
+          "reconstruction/test/eew-unit/eew-unit.test.ts:1363 «7aecb1a0fadae87d»",
+          "reconstruction/tools/corpus/sequences.json#expected:O01:11"
+        ]
+      },
+      {
+        "id": "P3-ERC-AC06",
+        "requirement": "受信経路の計算量（AGENTS.md の hot path）: 足すのは、記録しか無く held になった受理での InfoType の文字列の比べ 1 回だけ。走査・直列化・Map の作り直しを足さない。採らない報は受ける前と同じ参照の state を返す（P3-LIFE-AC08 (1) の同一参照のまま、保存の世代を進めない）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:484 «be0c683737b37fb9»",
+          "reconstruction/src/domains/eew/eew.ts:495 «60c99fd18b9fdf9b»"
+        ]
+      },
+      {
+        "id": "P3-ERC-AC07",
+        "requirement": "原文の改訂と «»・digest の取り直し（統合担当が配送の commit で当てる。どれも行の中の書き換えで、行を足さない）: (1) p3-notice-ledger.json:468（P3-NL-AC04）の (3) の「same・newer は今どおり採る（current は作り直すが、same の版は種類の照合〔AC01 の (2)〕で鳴らない）。」の後に「ただし記録と比べて held になった訂正（same の訂正と時刻の読めない訂正。記録が取消かを問わない）は、gate があるとき（held）と同じく unchanged/stale で採らず、current も印も変えない（P3-EEW-RESTART-CORRECTION-001、作者裁定 2026-11-15 X、P3-ERC-D-MISSING=B）。」を足す。:468 を引く «» は 0 件（地の文の p3-eew-drop43.json:307 は (4) を指し、字は変えない） (2) eew-unit.test.ts に 8 行足すので、p3-eew-gate-evict.json:276 の «eew-unit.test.ts:1477» を中身で引き直す（:1485 の見込み。anchor «2b057236a59006f4» は同じ）。p3-eew-gate-evict.json:276 を引く «» は 0 件（起草の grep）なので連鎖しない。:1373 より前を引く «»（:60〜:1318）はずれない (3) 本契約の evidenceRefs のうち p3-notice-ledger.json:468 の anchor を改訂の後の行で取り直す。eew.ts は :484・:495 などの変えない行だけを引いているので付け直さない（:485 を引く «» は 0 件） (4) 順: (1) で p3-notice-ledger.json を改める → (2) で p3-eew-gate-evict.json を改める → 本契約の (3) を当てる → 3 本の meta.sha256 を hashConvention で取り直す。3 本の meta の行を引く «» は 0 件（起草の grep）。manifest・sequences は変えないので全契約の meta.manifestSha256・sequencesSha256 は変えない (5) バックログ（repo 外）の U-E の項を配送の commit で完了に (6) check-contract が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-notice-ledger.json:468 «347338aa5d27523c»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P3-NL-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P3-ERC-AC01",
+          "P3-ERC-AC02",
+          "P3-ERC-AC04"
+        ],
+        "behavior": "既存の eew-unit.test.ts の P3-NL-T03 の AC04 の it に step (2b) を足す（AC04）: 77_01_01 → 77_01_03（intent 0）の後、77_01_03 の InfoType だけを訂正にした報は、復元しない state でも復元した state でも unchanged/stale・intent 0 で、復元した state では current [] と同じ参照の state。Control/DateTime を 1 秒後にした訂正は復元の後も [訂正] 2 本。Control/DateTime の読めない訂正は復元した state で unchanged・0 本・WARN requiredStructureMissing（D-MISSING=B）。直す前の eew.ts では復元の組が changed・2 本で落ちる"
+      },
+      {
+        "testId": "P3-FG-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P3-ERC-AC05"
+        ],
+        "behavior": "既存の oracle.test.ts の T01。変えずに緑のまま（O01:4・O01:11 の unchanged/stale・intent 0 は起動し直さない列で、本契約の直しの前後で同じ）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（足した step）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験。起草の写し（B の形）では 0 失敗（試しの試験を除いて 1,685 件のうち 1,651 通過・34 skip）。それ以外の落ちは止めて報告する"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/eew-unit/",
+        "cwd": ".",
+        "target": "reconstruction/test/eew-unit/",
+        "stage": "implementation",
+        "purpose": "保存→復元を使う step を足すので順を変えても緑"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装担当の木では eew-unit.test.ts の行が 8 行ずれるので p3-eew-gate-evict.json が FAIL になる見込み（AC07 (2) は統合担当）。統合担当が AC07 の後に回し PASS（WARN は baseOid=unassigned の契約だけ）を確かめる"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最小実装・最小テスト: 足す仕組みは無い。:485 の式に条件を 1 つ足すだけ（無いと、起動し直した後に通知しなかった続報と同じ版の訂正で「[訂正] 緊急地震速報（予報）」が鳴る）。export・型・helper・設定・保存の欄は足さない。試験は P3-NL-T03 の既存の it に step 1 つ（AC04、実不具合の再発防止）だけで、新しい it・helper・fixture を足さない",
+      "最初の作業: 先に AC04 の step だけを当てた木で eew-unit.test.ts を回し、(2b) が復元の組で落ちる（[changed, 2, 1, false]）ことを確かめてから eew.ts を直す。違う落ち方なら期待も製品も変えずに actual・expected を添えて止めて報告する",
+      "行の数: eew.ts は行の数を変えない（:489 以降を 40 件を超える «» が引く）。直した後に wc -l が 836 のままであることを成果物に書く。eew-unit.test.ts は 8 行まで",
+      "受信経路の計算量（AGENTS.md）: AC06 のとおり。走査・state の直列化を足さない",
+      "試験の保存は state の encode・decode だけで、file・設定に書かない（XDG_CONFIG_HOME・作者の設定に触れない）",
+      "旧築（src/）を変えない。test/fixtures を変えないので旧築の build と test は要らない",
+      "原文の改訂と «»・digest の取り直しは AC07（統合担当が配送の commit で当てる）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
