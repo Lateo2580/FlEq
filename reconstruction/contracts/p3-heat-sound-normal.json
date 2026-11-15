@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1fb23e5a79e63206b893973f11d81af33f8fee3d",
-    "sha256": "3e80fae227a9b89a389fd300d19a7a241e8a71777cefef06e7731bc9ce560812",
+    "sha256": "9f0e3ff7315410524bda133882e6303a84c42c0597d7f16c5a492b0cc0b54e7b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -179,7 +179,7 @@
         "requirement": "統合担当・P3-FINAL-GATE-001 向けの記録で、実装担当は何もしない。配送の後に P3-FINAL-GATE-001 が取り直す記録（P3-FG-AC13 の『直した後に影響する AC を最終の形で取り直す』。取り直しは P3-FINAL-GATE-001 の仕事で、本契約の合否に入れない）: (1) AC09 の 8 回（W1 の 2026-06-03・06-26・09-21、W2、N1、N2、N3、R2）を配送の commit で Mac mini で流し直し、判定に使う run を c1fec0fc の run から差し替える。結果の file に音の段は無い（控え 2026-11-15-c3c の ac09-*.json 8 本と r1.json で weather-warning・soundAsset の字は 0 件）ので、pass の 3 欄 0・blocked 0・digest の一致は変わらない見込み。U-M の bytes は pending の熱中症 1 件につき 1 byte 減りうる。流し直す理由は T09 の確かめ (2)（AC09 の結果の gitHead と今の木の間で reconstruction/src の差分が無いこと）で、本契約の後は c1fec0fc の run では T09 が blocked になる (2) T09 の場面を (1) の結果で 7 筋書き（W1 の 3 日・N1・N2・N3・R2）流し直し、scenes2（c1fec0fc の 69 場面）と比べる。熱中症の音が出ているのは W1-2026-06-03 の 08（16:55:01 の八重山地方熱中症警戒アラート、weather-warning）と N3 の 07（東京都・大東島地方、（音）weather-warning の数）。P3-FG-D-SCENE-RULE の (iii)（音の段が前の sound の試行と変わった時刻）で場面の時刻も動きうるので、熱中症を含む筋書きを場面の file でなく run で見るため 7 筋書きとも流す。熱中症の音・音の数・(iii) で選ばれた時刻のほかに違いが出たら止めて報告する。W2 は作者裁定で場面から外した。試行 2 の 3 本（T2-naoto・T2-yu・T2-saori）は persona-scenes.test.ts の組み立てに VPFT50 が無く、T09 (2) も AC09 の筋書きだけに掛かるので流さない (3) 取り直さないもの: walk2/pro の 10 本（作者裁定 A、Pro には 2 回目の場面のまま送る。Pro の答えの熱中症の音は旧い warning の場面への答えとして読み、そのずれの行き先は『直した（P3-HEAT-SOUND-NORMAL-001）』）。walk2/runs（claude・hertz）と walk2/eval は、取り直した scenes を scenes2 と比べ、場面の組（時刻）か演じ手に見せる中身が変わった筋書きだけ Claude・ヘルツの歩きと評価をやり直し、変わらない筋書きは walk2 の答えと評価をそのまま使う（統合担当の決め、作者に 2026-11-15 20 時台に伝え済み）。1 回目の scenes と walk（2 回目に置き換え済み）。AC05 (2) の T06・T07・T08・U-Q の山・N3 の山（どれも 59d4e51a の記録で、level は保存の段の所要と山の照合に効かない）。AC07 の macOS の記録（EEW・津波・U-W の背景だけ）。R1（能登 2024 の telegram.earthquake だけで VPFT50 を含まない、控えの README の能登の取得） (4) AC10 のずれの帳簿の熱中症の音の行き先を『直した（P3-HEAT-SOUND-NORMAL-001）』にする",
         "evidenceRefs": [
           "reconstruction/contracts/p3-final-gate.json:911 «b3b8d36e6de360b4»",
-          "reconstruction/contracts/p3-final-gate.json:953 «60bd479361fd7cb5»",
+          "reconstruction/contracts/p3-final-gate.json:953 «44dc0121e170ec11»",
           "reconstruction/contracts/p3-final-gate.json:995 «0a5ee370886ddadb»"
         ]
       },
