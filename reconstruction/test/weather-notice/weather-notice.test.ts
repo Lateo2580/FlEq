@@ -125,6 +125,10 @@ describe("P3-WEATHER-NOTICE-001 U-W notices", () => {
     expect(receive(fukui, decodeXml(national(asFukui("33"), "2026-08-30T08:00:00+09:00"), "VPWS50", "n")).intents).toEqual([]);
     const first = receive(empty(), decodeXml(national(asFukui("33"), "2026-08-30T08:00:00+09:00"), "VPWS50", "n"));
     expect([first.intents.length, receive(first.state, decode(L5, "VPWW55")).intents]).toEqual([2, []]);
+    // P3-UTP-AC02: 同じ報時刻で Control/DateTime が後の全国報が府県の報の L4 をまだ載せていなくても L4 は消えず、次の全国報が載せても鳴り直さない（台帳 126）。
+    const raisedL4 = receive(empty(), decode(L5, "VPWW55", (xml) => xml.replace(/<Code>33<\/Code>/g, "<Code>43</Code>"), "l4")).state;
+    const lagging = receive(raisedL4, decodeXml(national(asFukui("03"), "2026-08-30T06:51:00+09:00").replace(/<DateTime>[^<]*<\/DateTime>/, "<DateTime>2026-08-29T21:51:40Z</DateTime>"), "VPWS50", "lag"));
+    expect([lagging.intents, receive(lagging.state, decodeXml(national(asFukui("43"), "2026-08-30T07:00:00+09:00"), "VPWS50", "caught-up")).intents]).toEqual([[], []]);
     const other = receive(fukui, decodeXml(national(asFukui("33", { "09": "33" }), "2026-08-30T08:00:00+09:00"), "VPWS50", "n"));
     expect(other.intents.map((item) => [item.payload.title, String(item.payload.body).includes("福井"), prefecturesOf(item)])).toEqual(
       [["大雨特別警報（栃木県）", false, ["09"]], ["大雨特別警報（栃木県）", false, ["09"]]]);

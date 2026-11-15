@@ -147,6 +147,9 @@ describe("P3-UWC-T04 acceptance (AC04): the national report and partials merge p
     const fukuiBase = receive(empty(), decode("synthetic_VPWS50_fukui_base", "VPWS50")).state;
     const olderRelease = receive(fukuiBase, decode(RELEASE, "VPWW55", at("2019-01-01T00:00:00+09:00"), "older-release")).state;
     expect([rain(fukuiBase).length > 0, rain(olderRelease)]).toEqual([true, rain(fukuiBase)]);
+    // P3-UTP-AC03: 報時刻が同じ（20:04）で Control/DateTime が後の全国報が 43・03 を載せていても、府県の解除が語った区域では VPWW55 の Code の全国報の行を外す。
+    const sameTime = receive(receive(empty(), decode("synthetic_VPWS50_fukui_base", "VPWS50", compose(at("2026-08-30T20:04:00+09:00"), (xml) => xml.replace(/<DateTime>[^<]*<\/DateTime>/, "<DateTime>2026-08-30T11:04:59Z</DateTime>")), "same-time")).state, decode(RELEASE, "VPWW55")).state;
+    expect(weatherCurrentAreas(sameTime).filter((item) => item.prefecture === "18").map((item) => item.areas.length)).toEqual([0]);
   });
   it("an area the national report still carries after a VPNO50 ending stays the national report's, so an older partial row does not come back", () => {
     // r0 品質の P2: 06:00 の partial が 180000 に Code 03、07:00 の全国報が同じ区域に Code 33 と 180010 に Code 15、11:40 の VPNO50 が 33 を外す。

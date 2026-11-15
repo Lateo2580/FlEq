@@ -82,13 +82,13 @@ const compareCell = (left: Cell, right: Cell) => left.type - right.type || compa
   || compareText(left.code ?? "", right.code ?? "") || compareText(left.source.subject, right.source.subject);
 
 // P3-UWC-AC04 (1): 区域×Code の勝者は、全国報が載せる区域では全国報の行（無ければ全国報の版）を基にし、partial を compareSnapshot の順に見て、
-// 今の勝者の報より newer な報の行だけが置き換える（same・undecidable は前の勝者のまま、Q-UWC-MERGE-TIE (1)）。Code の無い行は置き換えも
+// 今の勝者の報より newer な報の行だけが置き換える（same・undecidable は前の勝者のまま、Q-UWC-MERGE-TIE (1)。全国報に対してだけは報時刻が同じ partial も置き換える、P3-UTP-AC01）。Code の無い行は置き換えも
 // 置き換えられもせず、全国報が載せる区域では全国報の行だけを残す。
 function mergeCells(national: WeatherCurrentSnapshot | undefined, partials: readonly WeatherCurrentSnapshot[], prefecture: string): Cell[] {
-  const cells = new Map<string, Cell>(), covered = new Set<string>(), spoken = new Set<string>();
+  const cells = new Map<string, Cell>(), covered = new Set<string>(), spoken = new Set<string>(), tied = (left: ReportRef, right: ReportRef) => Date.parse(left.reportDateTimeRaw) === Date.parse(right.reportDateTimeRaw);
   for (const region of national == null ? [] : regionsOf(national, prefecture)) covered.add(region);
-  // P3-USD-AC03 (1): 全国報より newer な partial が語った区域（『なし』・解除だけの区域も）では、その報の種類の Code の全国報の行を外して合わせる。
-  if (national != null) for (const partial of partials) if (compareVersion(national.source, partial.source) === "newer")
+  // P3-USD-AC03 (1): 全国報より newer か報時刻が同じ（P3-UTP-AC01、台帳 126）partial が語った区域（『なし』・解除だけの区域も）では、その報の種類の Code の全国報の行を外して合わせる。
+  if (national != null) for (const partial of partials) if (compareVersion(national.source, partial.source) === "newer" || tied(national.source, partial.source))
     for (const region of regionsOf(partial, prefecture)) spoken.add(`${region}\u0000${partial.source.family}`);
   for (const cell of national == null ? [] : cellsOf(national).get(prefecture) ?? []) {
     const family = cell.code == null ? undefined : CODE_FAMILY.get(cell.code);
@@ -103,7 +103,7 @@ function mergeCells(national: WeatherCurrentSnapshot | undefined, partials: read
       continue;
     }
     const key = `${region}\u0000${cell.code}`, winner = cells.get(key)?.source ?? base;
-    if (winner == null || compareVersion(winner, cell.source) === "newer") cells.set(key, cell);
+    if (winner == null || compareVersion(winner, cell.source) === "newer" || winner === national?.source && tied(winner, cell.source)) cells.set(key, cell);
   }
   return [...cells.values()].sort(compareCell);
 }
