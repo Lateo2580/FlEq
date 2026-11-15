@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "sha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -1840,7 +1840,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «ae64a321eb061c43» Q-NOTICE payload",
             "L2: test/fixtures/synthetic_VPHW50_tokyo_pair.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
@@ -1894,7 +1894,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «8b55aebfa8365417» Q-NOTICE cancellation",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPHW50_tokyo_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -1945,7 +1945,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -1980,7 +1980,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «8b55aebfa8365417» Q-NOTICE cancellation",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPCI50_cancel.xml:1 «86e0a4d4f900f574» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -2031,7 +2031,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/85(82)_02_04_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -3100,7 +3100,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
             "L2: test/fixtures/synthetic_VPFT50_no_body.xml:1 «12c29731e40adc0c» Control/Head/Body"
           ]
@@ -6183,7 +6183,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «ae64a321eb061c43» Q-NOTICE payload",
             "L2: test/fixtures/57_03_01_240401_VPFT50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
@@ -6515,7 +6515,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -6534,7 +6534,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:273 «ffab5729a134da6e» Q-NOTICE tornadoRelease",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/synthetic_VPHW50_tokyo_release.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
@@ -6584,7 +6584,7 @@
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
             "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+            "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
             "L2: test/fixtures/19_03_01_130906_VPHW50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
           ]
         },
@@ -15166,14 +15166,14 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094» 運用区分隔離",
         "L2: test/fixtures/synthetic_VPFT50_no_body.xml:1 «12c29731e40adc0c» Control/Head/Body"
       ],
       "input": null,
       "checks": [
         "Body欠落の報も合法な発表として採る（P3-C13-HEAT-FACTS=AはBodyを読まず、形も確かめない。Q-VALUESのVPFT50の行はこの条文で閉じた）。対象日2024-08-11のactive。",
-        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「埼玉県熱中症警戒アラート」、bodyは「埼玉県 8月11日」（Q-NOTICE.payload、P3-C13-HEAT-SPECIAL=Aで「特別警戒 」の接頭辞は無い）。",
+        "通知: semanticAdoption、desktop＋sound、level=normal（P3-HEAT-SOUND-NORMAL-001）、transition activated、titleは「埼玉県熱中症警戒アラート」、bodyは「埼玉県 8月11日」（Q-NOTICE.payload、P3-C13-HEAT-SPECIAL=Aで「特別警戒 」の接頭辞は無い）。",
         "Control.Status=通常; head.test/envelope Status=notProvided。replayとoperationを分離。"
       ]
     },
@@ -18706,14 +18706,14 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:156 «a41848d26e8531eb» P3-C13-HEAT-FACTS=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:165 «a2a5eb43ae5919c0» P3-C13-HEAT-SPECIAL=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «ae64a321eb061c43» Q-NOTICE payload",
         "L2: test/fixtures/57_03_01_240401_VPFT50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
       "checks": [
         "対象日はTargetDateTime（2024-08-11T05:00）のJSTの日付の2024-08-11（P3-C13-HEAT-EXPIRY=A）。activeUntilは2024-08-12T00:00（1723388400000）、retainUntilはReportDateTime＋3日。3日retentionとactive期限は別。",
-        "通知: semanticAdoption、desktop＋sound、level=warning、transition activated、titleは「埼玉県熱中症警戒アラート」、bodyは「埼玉県 8月11日」（Q-NOTICE.payload、P3-C13-HEAT-SPECIAL=Aで「特別警戒 」の接頭辞は無い）。",
+        "通知: semanticAdoption、desktop＋sound、level=normal（P3-HEAT-SOUND-NORMAL-001）、transition activated、titleは「埼玉県熱中症警戒アラート」、bodyは「埼玉県 8月11日」（Q-NOTICE.payload、P3-C13-HEAT-SPECIAL=Aで「特別警戒 」の接頭辞は無い）。",
         "運用区分: Control.Status=通常; head.test/envelope Status=notProvided。replay 起源から区分を補わない。"
       ]
     },
@@ -26323,7 +26323,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:314 «ae64a321eb061c43» Q-NOTICE payload",
         "L2: test/fixtures/synthetic_VPHW50_tokyo_pair.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
@@ -26439,7 +26439,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «8b55aebfa8365417» Q-NOTICE cancellation",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPHW50_tokyo_cancel.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -26539,7 +26539,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/30_01_01_100915_VPCI50.xml:1 «86e0a4d4f900f574» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -26616,7 +26616,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:367 «94532c39ce9a4b07» Q-ENUM revisionOrder",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:192 «e1411bdb4de9dc12» P3-C13-CANCEL-SCOPE=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:295 «8b55aebfa8365417» Q-NOTICE cancellation",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPCI50_cancel.xml:1 «86e0a4d4f900f574» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -26716,7 +26716,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:174 «06058662d337c5dd» P3-C13-TRANSIENT-FAMILIES=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:52 «9d405e4311fa015c» P3-C13-TRANSIENT-TTL=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/85(82)_02_04_260326_VPFJ51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -27461,7 +27461,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/19_04_01_140425_VPHW51.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,
@@ -27503,7 +27503,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:138 «c658ab661d279908» P3-C13-TORNADO-FACTS=A",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:273 «ffab5729a134da6e» Q-NOTICE tornadoRelease",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/synthetic_VPHW50_tokyo_release.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": null,
@@ -27592,7 +27592,7 @@
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:118 «7ca4c058b096a10f» P3-C13-TORNADO-SUBJECT=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:31 «5f217de33c64841e» P3-C13-TORNADO-EXPIRY=A（作者裁定）",
         "L1: reconstruction/contracts/p3-local-bulletins-unit.json:262 «e85a799c4993347b» Q-NOTICE semanticAdoption",
-        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «e91b07801f5822c8» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
+        "L1: reconstruction/contracts/p3-local-bulletins-unit.json:305 «fc2e116de7f1cf66» Q-NOTICE level（作者裁定 NOTICE-LEVELS=A）",
         "L2: test/fixtures/19_03_01_130906_VPHW50.xml:1 «12c29731e40adc0c» 元XMLのControl/Head/Bodyを読解（原本確認の主張ではない）"
       ],
       "input": null,

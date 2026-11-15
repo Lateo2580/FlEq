@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "8a04189ea6a6bb3f46847a802869a6fc58569234",
-    "sha256": "9dfccdd9c200b8706581c3d91b574ba55e3d3f2adf9d63021b7a5b01e0e5d330",
+    "sha256": "2629e6383d15a755e05156bd913f337211dbf25d57db42c60a16aa65119ae4b6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -69,12 +69,12 @@
       },
       {
         "id": "P3-C13-NOTICE-LEVELS",
-        "A": "旧築の音を移す: 竜巻の active の採用は normal、目撃は warning（H13、P3-EF-AC07）、竜巻の区域が全部「なし」の報（通常の解除）はinfo、熱中症はwarning、seismicTextはinfo、weatherExplanation・earlyWeather・climateInfoはnormal、取消はcancel",
+        "A": "旧築の音を移す: 竜巻の active の採用は normal、目撃は warning（H13、P3-EF-AC07）、竜巻の区域が全部「なし」の報（通常の解除）はinfo、熱中症はnormal、seismicTextはinfo、weatherExplanation・earlyWeather・climateInfoはnormal、取消はcancel",
         "B": "Aのうち竜巻の目撃（sighted）と熱中症の特別警戒アラート（special）をcriticalにする",
         "C": "Aのうちtransient（解説）は通知を作らない（表示だけ）",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-12朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（旧築の音を移す）だけを読む。発注前点検でP3-C13-HEAT-SPECIAL=A（作者裁定2026-10-12夜）に合わせ、Aの「熱中症（通常・特別）」を「熱中症」に直した",
+        "ruling": "作者裁定A（2026-10-12朝、ご主人）、推奨どおり。採らなかったB・Cは分岐の記録として残すだけで、実装はAの形（旧築の音を移す）だけを読む。発注前点検でP3-C13-HEAT-SPECIAL=A（作者裁定2026-10-12夜）に合わせ、Aの「熱中症（通常・特別）」を「熱中症」に直した。P3-HEAT-SOUND-NORMAL-001（作者裁定 2026-11-15 夕）で A の熱中症を warning から normal に改めた（:78 の reason は旧築の音の記録として残す）",
         "reason": "旧築: 竜巻の音は目撃でもwarning（2026-06-12のレビューの決定、src/engine/presentation/level-helpers.ts:363 «d60e6813bbcdcc48»、区域0はinfo）、熱中症は特別でも音はwarningで表示だけcritical（src/engine/presentation/level-helpers.ts:533 «4129bdcdbc952ac2»・:536 «d82c76fa92a0aa69»）、地震の解説はinfo（src/engine/notification/notifier.ts:486 «b479df1c9a5cc543»）、気象解説はnormal（src/engine/presentation/level-helpers.ts:658 «238b2656e2b3d667»）。Bは特別警報と同じ音を特別警報でない情報に使う（U-BのP3-C12-NOTICE-LEVELS=Aと逆の向き）。Cは旧築が鳴らしていた解説を鳴らさなくなる。竜巻の「解除はinfo」の解除は、Headlineに竜巻のInformationが無くBody/Warningの区域が全部なしの報（P3-C13-TORNADO-FACTS。実物は無く、形は旧築とfixtureからの見込み）。どの案でも型は変わらず、Q-NOTICE.levelの表だけを差し替える"
       },
       {
@@ -166,7 +166,7 @@
         "B": "起草の形: Titleが「特別警戒アラート」を含むときspecialをtrueにし、通知の本文の冒頭に「特別警戒 」、snapshotのhighestSeverityをspecialWarningにする",
         "recommended": "A",
         "provisional": "A",
-        "ruling": "作者裁定A（2026-10-12夜、ご主人。統合担当が発注前点検で分岐を立てた、Q-C13-PRECHECK）、推奨どおり。採らなかったBは分岐の記録として残すだけで、実装はAの形（specialを持たない）だけを読む",
+        "ruling": "作者裁定A（2026-10-12夜、ご主人。統合担当が発注前点検で分岐を立てた、Q-C13-PRECHECK）、推奨どおり。採らなかったBは分岐の記録として残すだけで、実装はAの形（specialを持たない）だけを読む。P3-HEAT-SOUND-NORMAL-001 の後は、:170 の A の代償の『ふつうの警戒アラートの重さ（warning）で出る』を『通知の音は normal、画面の重さ（P3-C13-SNAPSHOT）は warning で出る』と読む",
         "reason": "気象庁の配信資料に関する仕様No.11001（熱中症警戒アラート、2021-05-27、2024-04-24改訂、https://www.data.jma.go.jp/suishin/shiyou/pdf/no11001）と配信資料に関する技術情報第622号（2024-02-13）: 熱中症特別警戒アラートは熱中症警戒アラートの上位の情報で環境省が発表し、これと重複する地域・対象日の熱中症警戒アラート（VPFT50）は発表しない。dmdataの電文の説明（https://dmdata.jp/docs/telegrams/we02551/、lastUpdate 2026/10/8、curlの生HTML）も同じ。仕様の電文の例は17時の発表（TargetDateTime＝翌日0時、Serial 1）と5時の発表（TargetDateTime＝当日5時、Serial 2）の2つで、Head/Titleは「◯◯県熱中症警戒アラート」、InfoTypeは発表。実配信の採取27通（P3-C13-HEAT-EXPIRY.reason）もHead/Titleは全部「熱中症警戒アラート」。VPFT50のTitleに「特別警戒」が載るのは合成のsynthetic_VPFT50_title_escalationだけ。Aの代償: 気象庁がVPFT50で特別警戒を出す形に変えると、ふつうの警戒アラートの重さ（warning）で出る（Titleは電文のまま見える）。Bの代償: 実配信で来ない枝と試験が残る。旧築はTitleの語でspecialを立て、表示をcriticalにした（src/dmdata/heat-alert-parser.ts、src/engine/presentation/level-helpers.ts）"
       },
       {
@@ -302,7 +302,7 @@
             ]
           }
         ],
-        "level": "P3-C13-NOTICE-LEVELS=A（作者裁定 2026-10-12朝）: 竜巻のsemanticAdoption・correctionはwarning（目撃を含む）、tornadoReleaseはinfo、熱中症はwarning、seismicTextはinfo、weatherExplanation・earlyWeather・climateInfoはnormal、cancellationはcancel",
+        "level": "P3-C13-NOTICE-LEVELS=A（作者裁定 2026-10-12朝）: 竜巻のsemanticAdoption・correctionは目撃がwarning、目撃の無い報はnormal（:72 の A、H13・P3-EF-AC07）、tornadoReleaseはinfo、熱中症はnormal（P3-HEAT-SOUND-NORMAL-001、作者裁定 2026-11-15 夕）、seismicTextはinfo、weatherExplanation・earlyWeather・climateInfoはnormal、cancellationはcancel",
         "domain": "seismicTextはearthquake-eew、ほかはweather（P3-C13-NOTICE-GROUP）",
         "silent": "期限（竜巻の有効期限・熱中症の対象日の終わり・transientのvisibleUntil・retainUntil）、遅着の記憶だけの採用、記憶だけの取消、退去、restore、終了入力では作らない",
         "overlap": "一つの採用報は各channel最大1 intent。intentのsubjectは採用した報の記録のsubject",
@@ -1326,7 +1326,7 @@
         "referenceIds": [
           "P3-C13-AC08"
         ],
-        "behavior": "Q-NOTICEの各機会とlevelの表: 竜巻の新しいactive（warning）・目撃・公開事実の変わった続報・同じ続報（作らない）・解除（tornadoRelease、info）・取消（cancel）、熱中症（warning）、解説（seismicTextはinfoでdomain earthquake-eew、ほかnormal）、訂正（事実が同じでも作る）、記憶だけの取消・期限・遅着で作らない、一入力1 intent/channel、置換（同じsubject・channel、取消の全channel）、title・bodyの組み方と切り方（接頭辞が残る）、training/testのdesktopだけ、recovery未適用、復元直後の続報"
+        "behavior": "Q-NOTICEの各機会とlevelの表: 竜巻の新しいactive（warning）・目撃・公開事実の変わった続報・同じ続報（作らない）・解除（tornadoRelease、info）・取消（cancel）、熱中症（normal、P3-HEAT-SOUND-NORMAL-001）、解説（seismicTextはinfoでdomain earthquake-eew、ほかnormal）、訂正（事実が同じでも作る）、記憶だけの取消・期限・遅着で作らない、一入力1 intent/channel、置換（同じsubject・channel、取消の全channel）、title・bodyの組み方と切り方（接頭辞が残る）、training/testのdesktopだけ、recovery未適用、復元直後の続報"
       },
       {
         "testId": "P3-C13-T09",

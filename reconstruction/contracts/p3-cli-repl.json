@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "e4f5e9d3076a9fea28f9dfcd04e682c9b9430cce",
-    "sha256": "c15712d81ff4790a46cda09402e7a5c77f2a07850a0484ce109e7a16fc556277",
+    "sha256": "8beefff8d2c05f97aaaf657d55437d44fd854c7468921a9f5985391e4cab3aa2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -1125,7 +1125,7 @@
           "reconstruction/contracts/p3-landslide-unit.json:22 «23d2315506f124bc»",
           "reconstruction/contracts/p3-flood-unit.json:24 «09d70963189a06b5»",
           "reconstruction/contracts/p3-briefing-unit.json:45 «e30008f4d8a17b6a»",
-          "reconstruction/contracts/p3-local-bulletins-unit.json:72 «3c7a0543cd214b42»",
+          "reconstruction/contracts/p3-local-bulletins-unit.json:72 «e754596cbee673ae»",
           "reconstruction/contracts/p3-typhoon-unit.json:43 «24a357544ead9a8c»",
           "reconstruction/contracts/p2-weather-current-unit.json:390 «bc3ff54d95b3835c»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «8bdd44bcb281344a»",

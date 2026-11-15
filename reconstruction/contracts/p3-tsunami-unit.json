@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "9a292ba19c221af95633941445b8068e4b2649a085b19670f99ec4e14eb2af3b",
+    "sha256": "7a12e4b32d6f5b6ffa26d9251618b8422ea48de85de3f54b719387487f6f38d2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "63bd8377d24caa37b65e51ebc38fc1e0b75e53658386e62d56e69d8ad033423c",
+    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -306,7 +306,7 @@
       {
         "id": "P3-C5-N2",
         "status": "frozen（C16が集めるE22のU-T範囲、計画:22）",
-        "range": "REST回復の対象はVTSE41のEventIDごとの最新状態だけ（spec:2205）。VTSE51/52の観測は回復しない（REST coverageの根拠が無い）ので、再起動・切断の間の観測は未回復として残し、復元した観測を「回復済み」と呼ばない",
+        "range": "REST回復の対象はVTSE41のEventIDごとの最新状態だけ（spec:2205）。VTSE51/52の観測は回復しない（REST coverageの根拠が無い）ので、再起動・切断の間の観測は取り直さず、未回復の印も持たない（作者裁定 2026-11-15 夜 A。切断の間に出た VTSE51 は、後の観測の報が前の観測点を含むので次の報で埋まる見込み。画面に注記を出すかは P4 の配置の論点）。復元した観測を「回復済み」と呼ばない",
         "order": "履歴はReportDateTime順（同時刻はInfoType優先）で適用し、元の受信時刻が不明なら不明とする。業務期限は元報の絶対時刻から計算する（観測のvalidUntilはReportDateTime基準）",
         "inC5": "C5はorigin=recoveryの入力を適用しない（Q-NOTICE.recovery）。候補採用・競合・coverageの受入はC16"
       },
