@@ -1,7 +1,8 @@
 // P3-DISASTER-PI-MEASURE-001 の 2 段目（AC04）: 1 段目の山の写し（peak.json と state/）を本物の host（host-launcher.mjs の子 process、worker と disk）で
 // 復元し、復元の時間・保存の段ごとの時間・EEW の投入から T0・T2・T4 までの待ち・RSS・snapshot の直列化を測って、結果を 1 file に封じる。
 // 無いと、Pi で本物の worker と SD の上の保存・復元・EEW の待ち・RSS を測る口が無い（Q-DPM-PI）。node だけで動き、vitest・Chrome を使わない。
-//   node reconstruction/test/disaster/pi-measure.mjs --peak <dir> --work <dir> --out <file> [--launches 5] [--probe-seconds 60] [--node <path>]
+//   node reconstruction/test/disaster/pi-measure.mjs --peak <dir> --work <dir> --out <file> [--launches 5] [--probe-seconds 60] [--node <path>] [--dirty all]
+// --dirty all（P3-FINAL-GATE-001 の AC08 (2)）: 4 unit の順送りの代わりに、起動ごとに 1 回、12 unit の報を同じ時刻に送り、unit ごとの保存の 5 区間を書く。
 // 前提は dist（AGENTS.md の reconstruction ゲートの tsc 3 本）。結果を書けたら rc 0（status が blocked でも）、書けなければ rc 1。
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,6 +15,7 @@ import { versionKey } from "../eew-e01/analysis.mjs";
 import { hostMsOf, parseFlags, parseJsonl } from "../eew-e01/aux-measures.mjs";
 import { REPO, dataFrame, eewVariant, fixtureText, shiftTimestamps, weatherFrame } from "../eew-e01/frames.mjs";
 import { startInjector, stations30k } from "../eew-e01/run.mjs";
+import { dirtyReports } from "./dirty-reports.mjs";
 
 import { ZERO_HASH, sealSelfHash } from "../../dist/src/measurement/eew-e01/frozen.js";
 import { executionPlaces } from "../../dist/src/runtime/unit-coverage.js";
@@ -22,7 +24,7 @@ import projector from "../../dist/src/view-projector/view-projector.js";
 
 const LAUNCHER = join(REPO, "reconstruction/test/eew-e01/host-launcher.mjs");
 const READY_MS = 120_000; // P3-DPM-RES-02
-const EEW_EVERY_MS = 200, EEW_EVENTS = 5, DIRTY_EVERY_MS = 5_000, DRAIN_MS = 10_000, STOP_MS = 60_000;
+const EEW_EVERY_MS = 200, EEW_EVENTS = 5, DIRTY_EVERY_MS = 5_000, DIRTY_ALL_AT_MS = 10_000, DRAIN_MS = 10_000, STOP_MS = 60_000;
 // blocked の後始末で SIGTERM の後に待つ時間。host の stop は保存の待ちを含み、Pi の山では数秒かかりうる（AC04 (7)）。
 const TERM_MS = 20_000;
 // 大きい unit を dirty にする入力（AC04 (3)）。U-T・U-Q は EventID を報ごとに替え（必ず変わる）、U-W・U-F は官署を替えない（件数を増やさない）。
@@ -30,6 +32,8 @@ const DIRTY = [["U-T", "VTSE41", "32-39_11_02_250206_VTSE41"], ["U-Q", "VXSE53",
   ["U-F", "VPWP50", "81_01_04_251222_VPWP50"]];
 const DIRTY_UNITS = DIRTY.map(([unit]) => unit);
 const WIDE_FIXTURE = "telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825";
+// EEW の投入の重なりの群（先に当てた群が勝つ）。none は残り（P3-FG の発注 3a で U-Q の処理中・保存中を分けたので、11-14 の none より狭い）。
+const EEW_GROUPS = ["urgentEncode", "seismicEncode", "seismicProcessing", "urgentSave", "seismicSave", "otherSave"];
 
 const hrMs = () => Number(process.hrtime.bigint()) / 1e6;
 const sleep = (ms) => new Promise((wake) => setTimeout(wake, ms));
@@ -38,6 +42,17 @@ const reportMs = (xml) => Date.parse(/<ReportDateTime>([^<]+)</.exec(xml)[1]);
 const at = (xml, wallMs) => shiftTimestamps(xml, wallMs - reportMs(xml));
 const withEventId = (xml, eventId) => xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);
 const pad2 = (n) => String(n).padStart(2, "0");
+
+// 区間の和を時刻で並べて畳み、昇順の問い合わせに 2 本の指で答える（全件×全件の走査をしない、P3-FG の発注 3 の範囲 (5)）。閉区間。
+function cover(intervals) {
+  const merged = [];
+  for (const [from, to] of [...intervals].sort((a, b) => a[0] - b[0])) {
+    const last = merged.at(-1);
+    if (last != null && from <= last[1]) last[1] = Math.max(last[1], to); else merged.push([from, to]);
+  }
+  let i = 0;
+  return (ms) => { while (i < merged.length && merged[i][1] < ms) i++; return i < merged.length && merged[i][0] <= ms; };
+}
 
 class Blocked extends Error {
   constructor(reason, detail) { super(`${reason}: ${detail}`); this.reason = reason; this.detail = detail; }
@@ -121,9 +136,10 @@ async function launch(k, dir, ctx) {
     const wideFrame = dataFrame("VXSE53", Buffer.from(at(ctx.wideXml, wallSecond() + wideAt - (wideAt % 1_000))));
     const schedule = [
       ...Array.from({ length: Math.ceil(probeMs / EEW_EVERY_MS) }, (_, i) => ({ atMs: i * EEW_EVERY_MS, kind: "eew", index: i })),
-      ...Array.from({ length: Math.ceil(probeMs / DIRTY_EVERY_MS) }, (_, j) => ({ atMs: j * DIRTY_EVERY_MS, kind: "dirty", index: j })),
+      ...(ctx.dirtyAll ? [{ atMs: DIRTY_ALL_AT_MS, kind: "dirtyAll", index: 0 }]
+        : Array.from({ length: Math.ceil(probeMs / DIRTY_EVERY_MS) }, (_, j) => ({ atMs: j * DIRTY_EVERY_MS, kind: "dirty", index: j }))),
       { atMs: wideAt, kind: "wide", index: 0 },
-    ].sort((a, b) => a.atMs - b.atMs || (a.kind === "dirty" ? -1 : 1));
+    ].sort((a, b) => a.atMs - b.atMs || (a.kind === "dirty" || a.kind === "dirtyAll" ? -1 : 1));
     const eews = [], dirties = [];
     let wide = null;
     const serials = Array(EEW_EVENTS).fill(0), lastReport = Array(EEW_EVENTS).fill(0);
@@ -149,6 +165,11 @@ async function launch(k, dir, ctx) {
           : weatherFrame(fixture, headType, wallSecond());
         const sent = injector.send(frame, headType);
         dirties.push({ unit, inputId: sent.seq == null ? null : `input-${sent.seq}` });
+      } else if (item.kind === "dirtyAll") {
+        for (const { unit, headType, xml } of dirtyReports(wallSecond(), `20261113${pad2(k)}30`)) {
+          const sent = injector.send(dataFrame(headType, Buffer.from(xml)), headType);
+          dirties.push({ unit, inputId: sent.seq == null ? null : `input-${sent.seq}` });
+        }
       } else {
         const sent = injector.send(wideFrame, "VXSE53");
         wide = { inputId: sent.seq == null ? null : `input-${sent.seq}` };
@@ -204,32 +225,69 @@ function analyze(k, dir, ctx, { lines, readyMs, eews, dirties, wide }) {
     const missing = DIRTY_UNITS.filter((unit) => restore[unit] === "missing");
     if (missing.length !== 0) throw new Blocked("restoreMissing", `launch ${k}: ${missing.join(", ")} saved a generation not above the peak's (started empty)`);
   }
-  const t0 = new Map(), t2 = new Map(), raised = new Set();
+  // U-Q の入力（pi-measure が送った VXSE53、dirty と wide）。processing の obs に unit の欄が無いので inputId で引く。
+  const seismicInputs = new Set([...dirties.filter((d) => d.unit === "U-Q").map((d) => d.inputId), wide?.inputId].filter((id) => id != null));
+  const t0 = new Map(), t2 = new Map(), raised = new Set(), grants = [], processing = [];
   for (const o of observations) {
     if (o.kind === "marker" && o.point === "T0") t0.set(o.inputId, o.monotonicMs);
     else if (o.kind === "marker" && o.point === "T2") t2.set(o.inputId, o.monotonicMs);
     else if (o.kind === "generationRaised") raised.add(`${o.inputId}|${o.unit}`);
+    else if (o.kind === "checkpointGrant") grants.push(o);
+    else if (o.kind === "processing" && seismicInputs.has(o.measurement.inputId)) processing.push([o.measurement.startedMonotonicMs, o.measurement.endedMonotonicMs]);
   }
   const t4Of = t4Index(observations);
   const adopted = eews.filter((e) => e.inputId != null && raised.has(`${e.inputId}|U-E`));
   if (adopted.length < eews.length * 0.9) throw new Blocked("probeNotAdopted", `launch ${k}: ${adopted.length} of ${eews.length} EEW adopted`);
-  const intervals = (place) => checkpoints.filter((m) => m.stage === "encode" && executionPlaces[m.unit] === place).map((m) => [m.startedMonotonicMs, m.endedMonotonicMs]);
-  const urgent = intervals("urgent"), seismicPlace = intervals("seismic");
-  const inside = (list, ms) => list.some(([from, to]) => ms >= from && ms <= to);
-  const eewSamples = adopted.map((e) => {
-    const injected = hostMsOf(lines, BigInt(Math.round(e.injectedHrMs * 1e6)).toString());
-    const a = t0.get(e.inputId) ?? null, b = t2.get(e.inputId) ?? null, d = t4Of(e.inputId);
-    const minus = (x, y) => (x == null || y == null ? null : x - y);
-    // 投入が urgent の encode と seismic の encode の両方に重なれば urgent に数える。
-    return { group: injected == null ? "none" : inside(urgent, injected) ? "urgentEncode" : inside(seismicPlace, injected) ? "seismicEncode" : "none",
-      injectToT0: minus(a, injected), t0ToT2: minus(b, a), injectToT2: minus(b, injected), t2ToT4: minus(d, b) };
-  });
+  if (ctx.dirtyAll) {
+    const missed = dirties.filter((d) => d.inputId == null || !raised.has(`${d.inputId}|${d.unit}`)).map((d) => d.unit);
+    if (missed.length !== 0) throw new Blocked("dirtyNotAdopted", `launch ${k}: ${missed.join(", ")} not adopted (no generationRaised)`);
+  }
+  // 保存の試行（attemptId）ごとの encode と、最後の measurement の終わり。
+  const encodeOf = new Map(), lastEndOf = new Map();
+  for (const m of checkpoints) {
+    if (m.stage === "encode" && !encodeOf.has(m.attemptId)) encodeOf.set(m.attemptId, m);
+    lastEndOf.set(m.attemptId, Math.max(lastEndOf.get(m.attemptId) ?? -Infinity, m.endedMonotonicMs));
+  }
+  // 保存の区間: 権の着手（ownerStarted）から ack の反映（doneReceived）まで、encode の区間を除いたもの。実行場所ごと。
+  const saveSpans = { urgent: [], seismic: [], other: [] }, grantOf = new Map();
+  for (const g of grants) {
+    const encodes = g.attemptIds.flatMap((id) => (encodeOf.has(id) ? [encodeOf.get(id)] : []));
+    let cursor = g.ownerStartedMonotonicMs;
+    const spans = saveSpans[executionPlaces[g.unit] === "urgent" || executionPlaces[g.unit] === "seismic" ? executionPlaces[g.unit] : "other"];
+    for (const e of [...encodes].sort((a, b) => a.startedMonotonicMs - b.startedMonotonicMs)) {
+      if (e.startedMonotonicMs > cursor) spans.push([cursor, e.startedMonotonicMs]);
+      cursor = Math.max(cursor, e.endedMonotonicMs);
+    }
+    if (cursor < g.doneReceivedMonotonicMs) spans.push([cursor, g.doneReceivedMonotonicMs]);
+    for (const e of encodes) for (const inputId of e.inputIds) if (!grantOf.has(`${inputId}|${g.unit}`)) grantOf.set(`${inputId}|${g.unit}`, { g, e });
+  }
+  const covers = { urgentEncode: cover(checkpoints.filter((m) => m.stage === "encode" && executionPlaces[m.unit] === "urgent").map((m) => [m.startedMonotonicMs, m.endedMonotonicMs])),
+    seismicEncode: cover(checkpoints.filter((m) => m.stage === "encode" && executionPlaces[m.unit] === "seismic").map((m) => [m.startedMonotonicMs, m.endedMonotonicMs])),
+    seismicProcessing: cover(processing), urgentSave: cover(saveSpans.urgent), seismicSave: cover(saveSpans.seismic), otherSave: cover(saveSpans.other) };
+  const minus = (x, y) => (x == null || y == null ? null : x - y);
+  // cover の指は前にしか進まないので、投入の時刻の順に問う。群は EEW_GROUPS の順に当てる（urgent の encode と seismic の encode の両方に重なれば urgent）。
+  const eewSamples = adopted.map((e) => ({ e, injected: hostMsOf(lines, BigInt(Math.round(e.injectedHrMs * 1e6)).toString()) }))
+    .sort((a, b) => (a.injected ?? Infinity) - (b.injected ?? Infinity)).map(({ e, injected }) => {
+      const a = t0.get(e.inputId) ?? null, b = t2.get(e.inputId) ?? null, d = t4Of(e.inputId);
+      return { group: injected == null ? "none" : EEW_GROUPS.find((group) => covers[group](injected)) ?? "none",
+        injectToT0: minus(a, injected), t0ToT2: minus(b, a), injectToT2: minus(b, injected), t2ToT4: minus(d, b) };
+    });
+  // AC08 (2): 12 unit の同時 dirty の保存の 5 区間（その unit の dirty の報を含む encode の試行の権）。
+  const dirtySaves = !ctx.dirtyAll ? null : Object.fromEntries(dirties.map((d) => {
+    const found = grantOf.get(`${d.inputId}|${d.unit}`);
+    if (found == null) return [d.unit, null];
+    const { g, e } = found, lastEnd = lastEndOf.get(e.attemptId);
+    return [d.unit, { rightWaitMs: minus(g.grantSentMonotonicMs, g.dirtyObservedMonotonicMs), startWaitMs: g.ownerStartedMonotonicMs - g.grantSentMonotonicMs,
+      captureEncodeMs: e.endedMonotonicMs - g.ownerStartedMonotonicMs, writeThroughDirectorySyncMs: lastEnd - e.endedMonotonicMs,
+      ackApplyMs: g.doneReceivedMonotonicMs - lastEnd }];
+  }));
   const firstAttempts = new Set([...firstEncode.values()].map((m) => m.attemptId));
   const summary = existsSync(join(dir, "diagnostics", "shutdown-summary.json")) ? JSON.parse(readFileSync(join(dir, "diagnostics", "shutdown-summary.json"), "utf8")) : null;
   const mem = lines.filter((line) => line.t === "mem");
   return {
     launch: k, state: k === 0 ? "empty" : "peak", readyMs, restore,
     sent: { eew: eews.length, eewAdopted: adopted.length, eewNotAdopted: eews.length - adopted.length, dirty: dirties.length, wide: wide == null ? 0 : 1 },
+    seismicCapacityEvicted: diagnostics.filter((d) => d.reason === "seismicCapacityEvicted").reduce((sum, d) => sum + (d.count ?? 1), 0), dirtySaves,
     folds: { seismicStationsFolded: diagnostics.filter((d) => d.reason === "seismicStationsFolded").reduce((sum, d) => sum + (d.count ?? 1), 0),
       droppedInfo: summary?.droppedDiagnostics?.INFO ?? null },
     memoryAtReady: mem[0] == null ? null : { rss: mem[0].rss, heapUsed: mem[0].heapUsed },
@@ -252,7 +310,7 @@ function distributions(raws) {
   };
   const eew = raws.flatMap((raw) => raw.eew);
   const metric = (list, name) => stats(list.flatMap((s) => (s[name] == null ? [] : [s[name]])), { p99: true });
-  const groups = Object.fromEntries(["urgentEncode", "seismicEncode", "none"].map((group) => {
+  const groups = Object.fromEntries([...EEW_GROUPS, "none"].map((group) => {
     const list = eew.filter((s) => s.group === group);
     return [group, { count: list.length, injectToT0: metric(list, "injectToT0"), t0ToT2: metric(list, "t0ToT2"), injectToT2: metric(list, "injectToT2"), t2ToT4: metric(list, "t2ToT4") }];
   }));
@@ -267,6 +325,8 @@ async function main(argv) {
   const flags = parseFlags(argv);
   for (const name of ["peak", "work", "out"]) if (flags[name] == null) throw new Error(`--${name} is required`);
   const launches = Number(flags.launches ?? 5), probeSeconds = Number(flags["probe-seconds"] ?? 60);
+  if (flags.dirty != null && flags.dirty !== "all") throw new Error("--dirty takes only all");
+  const dirtyAll = flags.dirty === "all";
   if (!Number.isInteger(launches) || launches < 1 || !Number.isInteger(probeSeconds) || probeSeconds < 1) throw new Error("--launches and --probe-seconds take positive integers");
   const peakFile = JSON.parse(readFileSync(join(flags.peak, "peak.json"), "utf8"));
   if (peakFile.schema !== "p3-disaster-peak-v1" || peakFile.peak == null) throw new Error("--peak has no p3-disaster-peak-v1 peak.json with a peak");
@@ -274,7 +334,8 @@ async function main(argv) {
     atMs: peakFile.peak.atMs, totalBytes: peakFile.peak.totalBytes };
   const machine = { arch: arch(), cpu: cpus()[0]?.model ?? null, cpus: cpus().length, totalmem: totalmem(), node: process.version };
   const finish = (fields) => {
-    const result = { schema: "p3-disaster-pi-measure-result-v1", contractId: "P3-DISASTER-PI-MEASURE-001", peak: identity, machine, options: { launches, probeSeconds }, ...fields };
+    const result = { schema: "p3-disaster-pi-measure-result-v1", contractId: "P3-DISASTER-PI-MEASURE-001", peak: identity, machine, options: { launches, probeSeconds, dirty: dirtyAll ? "all" : null },
+      eewNoneNote: "none の意味が 11-14 と違う、U-Q の処理中・保存中を除いた残り", ...fields };
     writeFileSync(flags.out, sealSelfHash(`${JSON.stringify({ selfSha256: ZERO_HASH, ...result }, null, 1)}\n`, "selfSha256"));
     console.info(`[P3-DPM] status=${result.status}${result.blocked == null ? "" : ` ${result.blocked.reason}: ${result.blocked.detail}`} out=${flags.out}`);
   };
@@ -286,7 +347,7 @@ async function main(argv) {
     if (Object.keys(actual).some((key) => actual[key] !== expected[key])) throw new Blocked("limitMismatch", JSON.stringify({ dist: actual, peak: expected }));
     // 写しの破損（scp の途中など）を起動の前に止める。
     for (const file of peakFile.files) if (sha256(readFileSync(join(flags.peak, "state", file.path))) !== file.sha256) throw new Error(`peak file ${file.path} does not match peak.json`);
-    const ctx = { wallOriginMs: peakFile.peak.atMs, nodePath: flags.node ?? process.execPath, probeSeconds, peak: peakFile.peak,
+    const ctx = { wallOriginMs: peakFile.peak.atMs, nodePath: flags.node ?? process.execPath, probeSeconds, dirtyAll, peak: peakFile.peak,
       wideXml: stations30k(fixtureText(WIDE_FIXTURE).toString("utf8")) };
     const runs = [];
     for (let k = 0; k <= launches; k++) {
@@ -304,6 +365,7 @@ async function main(argv) {
     finish({ status: "measured", blocked: null,
       readyMs: { empty: runs[0].readyMs, peak: stats(peakRuns.map((run) => run.readyMs)) },
       combined: distributions(peakRuns.map((run) => run.raw)),
+      seismicCapacityEvicted: { total: runs.reduce((sum, run) => sum + run.seismicCapacityEvicted, 0) },
       launches: runs.map(({ raw, ...run }) => ({ ...run, ...distributions([raw]) })) });
   } catch (error) {
     if (!(error instanceof Blocked)) throw error;

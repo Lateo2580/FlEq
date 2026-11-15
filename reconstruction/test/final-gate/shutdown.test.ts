@@ -36,6 +36,8 @@ type Scene = Readonly<{
   extra?: readonly Readonly<{ headType: string; file: string; transform?: (xml: string) => string }>[];
   // この unit の最初の保存の open を、during が gate を開くまで止める（遅い ack。返信の順は変えない）。
   gated?: RuntimeUnitId;
+  // この id の入力（extra-<n>）の要求を owner へ渡さずに止め、処理中に残す（owner の停止の場面、owner-harness の holdRequests）。
+  held?: string;
   // 全部の入力の後、shutdownRuntime の前。
   ready?: (h: Harness) => void;
   // shutdownRuntime を呼んだ後、要約を待つ前。open は止めた保存を進める。
@@ -75,7 +77,7 @@ async function scene(options: Scene = {}) {
       closeWorker: async () => { order.push(existsSync(summaryPath) ? "closeAfterSummary" : "closeBeforeSummary"); } } });
   h.holdRequests((_place, request) => {
     if (!running && ["input", "shutdownInput", "finalize", "checkpointGrant"].includes(request.kind)) order.push(request.kind);
-    return false;
+    return request.kind === "input" && request.envelope.messageId === options.held;
   });
   const inputs = [...runtimeUnits.map((unit) => ({ headType: unitBodies[unit].headType, body: unitBodies[unit].body, id: `dirty-${unit}` })),
     ...(options.extra ?? []).map((item, index) => ({ headType: item.headType, body: Buffer.from((item.transform ?? ((xml: string) => xml))(readFileSync(`test/fixtures/${item.file}.xml`, "utf8"))), id: `extra-${index}` }))]
@@ -106,10 +108,10 @@ async function scene(options: Scene = {}) {
 }
 
 // §5.9 の段の順: drain の入力 → 各 owner の shutdownInput → finalize → 最終保存の権（dirty の unit ごと）→ 要約の記録 → owner の終了。
-// grants が null なら権の数は見ない（保存不能の場面は失敗した保存の再試行の権が足される）。
-function expectStageOrder(order: readonly string[], grants: number | null) {
+// grants が null なら権の数は見ない（保存不能の場面は失敗した保存の再試行の権が足される）。owners は shutdownInput・finalize の数（止めた owner には送らない）。
+function expectStageOrder(order: readonly string[], grants: number | null, owners: readonly [number, number] = [4, 4]) {
   const first = (kind: string) => order.indexOf(kind), last = (kind: string) => order.lastIndexOf(kind);
-  expect(["shutdownInput", "finalize"].map((kind) => order.filter((item) => item === kind).length)).toEqual([4, 4]);
+  expect(["shutdownInput", "finalize"].map((kind) => order.filter((item) => item === kind).length)).toEqual(owners);
   expect(order.filter((item) => item === "checkpointGrant").length).toBe(grants ?? Math.max(1, order.filter((item) => item === "checkpointGrant").length));
   expect([last("input") < first("shutdownInput"), last("shutdownInput") < first("finalize"), last("finalize") < first("checkpointGrant"),
     last("checkpointGrant") < first("closeAfterSummary"), order.includes("closeBeforeSummary")]).toEqual([true, true, true, true, false]);
@@ -169,6 +171,38 @@ describe("P3-FG-T03 E20 on the 12 linked units (order 1: four scenes)", () => {
       expect(summary).toMatchObject({ code: 0, reasons: [] });
       expect(order.filter((kind) => kind === "input")).toEqual(["input"]);
       expectStageOrder(order, 12);
+    }
+  });
+});
+
+// 発注 3（P3-OWNER-STOP-NOTICE-001 の配送の後）: E20 の owner の停止の場面を同じ 12 unit の結線で見る（AC05 (1)、P3-OSN-AC04 が預けた分）。
+// 帯と通知は P3-OWNER-STOP-NOTICE-001 の試験が見るので、ここでは段の順・保存・code だけを見る。
+describe("P3-FG-T03 E20 on the 12 linked units (order 3: owner stopped)", () => {
+  it("P3-FG-T03 acceptance / AC05 (1): urgent stopped with an input in flight, and stopped while holding the write right", async () => {
+    const urgent: readonly RuntimeUnitId[] = ["U-E", "U-T", "U-N", "U-V"];
+    // (1) 処理中の入力を持つ urgent が止まる: 12 本の後の VTSE41（報の時刻だけ 12 本より新しい写し、owner へ渡さない）が処理中に残り、drain は
+    // 待たずに失敗（ownerStopped）。urgent には shutdownInput・finalize を送らず、urgent の 4 unit は最終保存されない。code 3（P3-C3B-T03 の形）。
+    {
+      const later = (xml: string) => xml.replace(/<ReportDateTime>[^<]*</, "<ReportDateTime>2026-08-31T00:00:00+09:00<");
+      const { summary, savedUnits, order } = await scene({ extra: [{ headType: "VTSE41", file: "32-39_11_02_250206_VTSE41", transform: later }], held: "extra-0",
+        ready: (h) => { expect(h.heldRequests.map(({ request }) => request.kind === "input" ? request.envelope.messageId : request.kind)).toEqual(["extra-0"]);
+          h.root.ownerFailed("urgent", new Error("owner thread exited (code 1)")); } });
+      expect(summary).toMatchObject({ code: 3, inFlightInputs: 1,
+        reasons: ["mailboxDrain:failed:ownerStopped", "mailboxDrain:remainingInputs", "finalCheckpoint:unsavedUnits"] });
+      expect(savedUnits).toEqual(runtimeUnits.filter((unit) => !urgent.includes(unit)));
+      expectStageOrder(order, 8, [3, 3]);
+    }
+    // (2) 書込み権を持つ urgent が止まる: running の段の U-T の保存の open を止めて権を urgent に残したまま止める。最終保存の段は始めで
+    // 失敗（ownerStopped）して 12 unit とも保存されない。code 2（P3-OSN-AC04、lifecycle の (5) の形）。
+    {
+      const { summary, savedUnits, order } = await scene({ gated: "U-T",
+        ready: (h) => { expect(h.root.checkpoint.grantOf("U-T")?.unit).toBe("U-T"); h.root.ownerFailed("urgent", new Error("owner thread exited (code 1)")); } });
+      expect(summary).toMatchObject({ code: 2, reasons: ["finalCheckpoint:failed:ownerStopped", "finalCheckpoint:unsavedUnits"] });
+      expect(savedUnits).toEqual([]);
+      // 権が戻らないので最終保存の権は出ない（expectStageOrder の権の順は見られない）。
+      expect([order.filter((kind) => kind === "shutdownInput").length, order.filter((kind) => kind === "finalize").length, order.includes("checkpointGrant"),
+        order.lastIndexOf("shutdownInput") < order.indexOf("finalize"), order.includes("closeAfterSummary"), order.includes("closeBeforeSummary")])
+        .toEqual([3, 3, false, true, true, false]);
     }
   });
 });
