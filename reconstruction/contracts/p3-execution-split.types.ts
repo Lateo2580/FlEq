@@ -115,7 +115,7 @@ export type OwnerOutput = Readonly<{
 export type OwnerReply =
   | Readonly<{ kind: "restored"; units: readonly (OwnerUnitDelta & Readonly<{
       restoration: RuntimeRestoration[RuntimeUnitId]; inputBoundary: InputBoundary | null; saves: boolean; view: RuntimeUnitView; pendingIntents: readonly NotificationIntent[] }>)[]; // P3-VM-AC05 (4): saves=false はこの run で保存しない unit
-      output: OwnerOutput }>
+      output: OwnerOutput; lastInputSequence: number }> // P3-FINAL-REVIEW-FIX-001: この owner の保存から戻した input-N の最大の N（無ければ 0）。host は次の入力をその次から振る
   // settlement times are business time (mailbox matching). processingStartedMs is T2 in measured time;
   // marks.workerTransferMs = T2 - (sharedMs - publisherTimeOriginMs).
   // full parse の区間（P3-C4-PARSE-MARK）は印が無いと null、parse tree の前で拒否された入力では終了が null。

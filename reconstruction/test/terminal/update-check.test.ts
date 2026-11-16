@@ -1,4 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
+import type { IncomingMessage, RequestOptions } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -34,5 +37,33 @@ describe("P3-TO-T14 update check（spec §6.5、AC13）", () => {
       expect(await checkForUpdate({ ...base, directory: directory(), env, fetchJson })).toBeNull();
     }
     expect(fetchJson).not.toHaveBeenCalled();
+  });
+});
+
+// P3-FRF-T05（P3-TO-AC13 (1)）: npm の 200 の本文が途中で切れても待ちを解き、GitHub の確かめへ進む（P3-FINAL-REVIEW-FIX-001）。
+// 既定の https の GET を 127.0.0.1 の http へ向ける（npm・GitHub へは出ない）。ほかの試験は fetchJson を差し替えるので https を通らない。
+const local = vi.hoisted(() => ({ port: 0 }));
+vi.mock("node:https", async (importOriginal) => {
+  const http = await import("node:http");
+  return { ...await importOriginal<typeof import("node:https")>(),
+    get: (url: string, options: RequestOptions, callback: (response: IncomingMessage) => void) => http.get(`http://127.0.0.1:${local.port}${new URL(url).pathname}`, options, callback) };
+});
+describe("P3-FRF-T05 update check の本文の途切れ", () => {
+  it("regression / AC06: npm の 200 の本文が途中で切れると、GitHub の版で知らせる", async () => {
+    const server = createServer((request, response) => {
+      if (request.url?.startsWith("/repos/") === true) { response.end(JSON.stringify({ tag_name: "v4.2.0" })); return; }
+      response.writeHead(200, { "content-type": "application/json", "content-length": "100" });
+      response.write("{\"version\":\"4.", () => response.socket?.destroy());
+    });
+    await new Promise<void>((done) => server.listen(0, "127.0.0.1", () => done()));
+    local.port = (server.address() as AddressInfo).port;
+    try {
+      // 直す前は本文の途切れで待ちが解けない（reject されず GitHub へも進まない）ので、2 秒で "pending" として落とす。
+      const found = await Promise.race([checkForUpdate({ ...base, directory: directory(), env: {} }), new Promise((done) => { setTimeout(() => done("pending"), 2_000); })]);
+      expect(found).toEqual({ current: "4.1.0", latest: "v4.2.0", packageName: "@sayue_ltr/fleq" });
+    } finally {
+      server.closeAllConnections();
+      await new Promise((done) => server.close(done));
+    }
   });
 });

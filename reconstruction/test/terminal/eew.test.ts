@@ -150,3 +150,13 @@ describe("P3-TET-T02 文でない欄の LF", () => {
       lines.includes("  強い揺れに"), lines.includes("  警戒してください。")]).toEqual([true, false, true, true]);
   });
 });
+
+// P3-FRF-T01（R1）: 震度・長周期階級の字は表の key に電文のまま使うので、表は自分の key だけを引く（P3-FINAL-REVIEW-FIX-001）。
+describe("P3-FRF-T01 震度と長周期階級の表引き", () => {
+  it("regression / AC01: 予測震度が toString、長周期階級が constructor の報も例外を投げず、字のまま行になる", () => {
+    const lines = (transform: (xml: string) => string) => terminal(80, 3)(eewUnits([{ path: "37_01_01_240613_VXSE43.xml", transform }])[0]).map(plain);
+    const intensity = lines((xml) => xml.replace("<ForecastInt><From>5-</From><To>5-</To></ForecastInt>", "<ForecastInt><From>toString</From><To>toString</To></ForecastInt>"));
+    const lg = lines((xml) => xml.replace(/<ForecastLgInt><From>1<\/From><To>1<\/To><\/ForecastLgInt>/g, "<ForecastLgInt><From>constructor</From><To>constructor</To></ForecastLgInt>"));
+    expect([intensity.some((text) => text.includes("toString")), lg.some((text) => text.includes("constructor"))]).toEqual([true, true]);
+  });
+});

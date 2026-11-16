@@ -179,9 +179,9 @@ describe("P3-FINAL-GATE-001 order 3a window tools (gated)", () => {
     const summary = await stopped.summary!;
     const [root] = roots;
 
-    // この接続で送ったのは 12 本だけなので、host の通し番号 input-<n> は送った順（pi-measure と同じく inputId|unit で結ぶ）。
-    const adopted = new Set(observations.flatMap((o) => (o.kind === "generationRaised" ? [`${o.inputId}|${o.unit}`] : [])));
-    const missed = reports.flatMap((report, index) => (adopted.has(`input-${index + 1}|${report.unit}`) ? [] : [report.unit]));
+    // この接続で送ったのは 12 本だけなので、T0 の印の順が送った順（host は山の保存にある input-N の次から振る、P3-FINAL-REVIEW-FIX-001。pi-measure と同じく inputId|unit で結ぶ）。
+    const adopted = new Set(observations.flatMap((o) => (o.kind === "generationRaised" ? [`${o.inputId}|${o.unit}`] : []))), sent = observations.flatMap((o) => (o.kind === "marker" && o.point === "T0" ? [o.inputId] : []));
+    const missed = reports.flatMap((report, index) => (adopted.has(`${sent[index]}|${report.unit}`) ? [] : [report.unit]));
     if (missed.length !== 0) throw blocked("dirtyNotAdopted", missed.join(", "));
     const { startedAt, stageResults } = root.state.shutdown;
     const ends = STAGES.map((stage) => stageResults[stage]?.clock.monotonicMs ?? null);

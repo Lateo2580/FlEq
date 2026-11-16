@@ -32,6 +32,8 @@ function httpsJson(url: string): Promise<unknown> {
       response.setEncoding("utf8");
       response.on("data", (chunk: string) => { data += chunk; });
       response.on("end", () => { try { resolve(JSON.parse(data)); } catch (error) { reject(error); } });
+      // 200 の本文が途中で切れると end が来ないので、応答の error と close で reject して GitHub の確かめへ進む（P3-TO-AC13 (1)、P3-FINAL-REVIEW-FIX-001）。end の後の close は効かない。
+      response.on("error", reject).on("close", () => { reject(new Error("response closed before end")); });
     });
     request.on("error", reject);
     request.on("timeout", () => { request.destroy(new Error("Request timeout")); });

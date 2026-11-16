@@ -182,6 +182,9 @@ async function launch(k, dir, ctx) {
         wide = { inputId: sent.seq == null ? null : `input-${sent.seq}` };
       }
     }
+    // 山の写しから起こした host は保存にある input-N の次から振る（P3-FINAL-REVIEW-FIX-001）。送った順の番号（1 から）を、この起動の最初の T0 の番号に合わせてずらす。
+    const first = read().find((line) => line.t === "obs" && line.o.kind === "marker" && line.o.point === "T0"), shift = first == null ? 0 : Number(first.o.inputId.slice("input-".length)) - 1;
+    for (const item of [...eews, ...dirties, ...(wide == null ? [] : [wide])]) if (item.inputId != null) item.inputId = `input-${Number(item.inputId.slice("input-".length)) + shift}`;
     // 送った入力の T2 が出るまで待つ（最大 DRAIN_MS）。終わりの数報を「採られなかった」と数えないため。
     const sentIds = [...eews, ...dirties, ...(wide == null ? [] : [wide])].map((item) => item.inputId);
     for (const drainUntil = hrMs() + DRAIN_MS; hrMs() < drainUntil;) {
