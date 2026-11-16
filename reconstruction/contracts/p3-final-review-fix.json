@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "69876477f0c01a6077c1625f3fd5e1707febc9ec",
-    "sha256": "85c9a1523df1b1b5e90374df3c071153d2e40c0f53c58285ca161a7386b5ec76",
+    "sha256": "b192af3f3a0b334a748f6fb25908e68974908f5f2f88ba470479ad014ec2cfc2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -127,7 +127,7 @@
     "contractId": "P3-FINAL-REVIEW-FIX-001",
     "mode": "implementation",
     "objective": "P3-FINAL-GATE-001 の AC13（P3 を閉じる総合レビュー）で見つかった欠けを、1 つの契約・1 回の配送で直す（作者裁定 2026-11-16 午後「全て A」）。(R1) 端末の整形の表引き（format.ts の intensityLabel・intensityRole・lgRole）が Object.prototype から継承した値を返し、予測震度や長周期階級の字が toString・constructor の報で整形が投げて、その回の出力のバッチが丸ごと消える。自分の key だけを引く形にする（AC01）。(R2 の根・台帳 140) host は入力の番号を起動ごとに input-1 から振り直すので、保存から戻った報・カード・intent と今の入力が同じ inputId になり、U-W の保存が止まる・前の起動のカードを今の入力のものとして出すなど実害が 11 行ある。owner が復元した保存の最大の番号を restored の返信で渡し、host がその次から振る（P3-FRF-D-INPUTID=A、AC02・AC03）。あわせて U-W の履歴の並べの最後の決め手を inputId の字から番号の数の比べに替える（O1・O2、AC04）。(R3) U-W の取り直しの partial の切りは、作者裁定（2026-11-16 夕、P3-FRF-D-R3=B）で外し、P4 の最初の契約で設計し直す（AC05 に申し送り）。(ヘルツの P3) 更新確認の npm の 200 の本文が途中で切れると待ちが解けず GitHub へ進まない。応答の error・close を reject へつなぐ（AC06）。(R7) oracle の T01 が比べる欄の無い step を一致に数えていた（AC07）。期待の変わる既存の試験と道具（AC08）、配送で当てる原文の注記（AC09）、配送の後の取り直し（AC10）。保存の形・inputId の書式・上限・通知の規則は変えない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "a374f5a58d0dbd42275b92b521a6856ddbe318a3",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
