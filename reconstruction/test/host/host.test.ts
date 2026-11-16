@@ -2214,7 +2214,7 @@ describe("P3-FRF-T02 起動をまたぐ入力の番号", () => {
     const { createHash } = await import("node:crypto");
     for (const name of (await fileSystem.readdir(dirs.stateDirectory)).filter((item) => /^U-M-[AB]\.json$/.test(item))) {
       const path = join(dirs.stateDirectory, name);
-      const zeroed = (await fileSystem.readFile(path, "utf8")).replaceAll('"inputId":"input-1"', '"inputId":"input-9007199254740992"').replace(/[0-9a-f]{64}"}$/, `${"0".repeat(64)}"}`);
+      const zeroed = (await fileSystem.readFile(path, "utf8")).replaceAll('"inputId":"input-1"', '"inputId":"input-9007199254740990"').replace(/[0-9a-f]{64}"}$/, `${"0".repeat(64)}"}`);
       await fileSystem.writeFile(path, zeroed.replace(/0{64}"}$/, `${createHash("sha256").update(zeroed).digest("hex")}"}`));
     }
     const second = startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null });
