@@ -35,7 +35,7 @@ import {
 } from "../../domains/weather-current/weather-current";
 import type { CurrentChange } from "../../domains/weather-current/weather-current";
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { count, finite } from "../codec-base";
-import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { readReportRef } from "../../contracts-revision/version";
+import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareInputId, readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
 import { applyIntentUpdate, readIntentState, restoreStarted, updateEvidence } from "../notice-mark"; import { advanceAreas, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas } from "./weather-current-public"; import { noticeReserve, raiseNotices, readNotices, readPayload, receiveNotices, recoveryNotices as weatherRecoveryNotices, seriesKey } from "./weather-current-notice";
 
@@ -399,10 +399,10 @@ function noChange(state: WeatherCurrentUnitState): InternalStep {
 function compareSnapshot(left: WeatherCurrentSnapshot, right: WeatherCurrentSnapshot): number {
   const time = Date.parse(left.source.reportDateTimeRaw) - Date.parse(right.source.reportDateTimeRaw);
   if (time !== 0) return time;
-  const a = [left.operation, left.subject, left.source.inputId];
-  const b = [right.operation, right.subject, right.source.inputId];
+  const a = [left.operation, left.subject];
+  const b = [right.operation, right.subject];
   for (let index = 0; index < a.length; index++) if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
-  return 0;
+  return compareInputId(left.source.inputId, right.source.inputId); // O2: 番号を数で比べる（P3-FINAL-REVIEW-FIX-001）
 }
 
 function removeSubject(state: WeatherCurrentUnitState, subjectValue: string, operationValue: Operation): WeatherCurrentUnitState {

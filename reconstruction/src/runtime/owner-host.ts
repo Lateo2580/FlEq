@@ -295,7 +295,7 @@ class OwnerHost {
     }
     const views = new Map(ownerViews(this.state, this.options.units).map((view) => [view.unit, view]));
     const output = this.output([first, deadline]);
-    this.options.reply({ kind: "restored", output, units: this.own.map((unit) => ({ ...this.delta(unit, views.get(unit)!),
+    this.options.reply({ kind: "restored", output, lastInputSequence: Math.max(0, ...this.own.map((unit) => restored[unit]?.kind === "restored" ? maxInputSequence(restored[unit].envelope) : 0)), units: this.own.map((unit) => ({ ...this.delta(unit, views.get(unit)!),
       view: views.get(unit)!, pendingIntents: this.pending(unit),
       restoration: first.restoration[unit]!, inputBoundary: first.restoration[unit]?.kind === "restored" && restored[unit]?.kind === "restored" ? restored[unit].envelope.inputBoundary ?? null : null, saves: this.checkpoint.saves(unit) })) }); // P3-VM-AC05・AC06: 復元した世代の境界と保存の可否
   }
@@ -424,6 +424,20 @@ class OwnerHost {
       diagnostics: [...this.diagnostics.splice(0), ...steps.flatMap((step) => step.diagnostics)],
     };
   }
+}
+
+// P3-FINAL-REVIEW-FIX-001: 保存の envelope の inputId の欄（ReportRef・読めない報のカード・intent の source）にある input-N の最大の N。原文・題名などほかの欄の字は
+// 番号にしない（電文の本文の字で起点が動く）。host が起動ごとに 1 から振ると戻した番号と重なる。起動の 1 回だけで、走査は読んだ envelope の大きさに比例する。
+// 2^52 を越える番号は、低い番号へ戻すと重なるので起動を断る。shortcut: 2^52 件の余白（安全な整数の上限までを受信で使い切るのは 1 億年超）、超える受信の量が現実になったら採番時の検査へ。
+function maxInputSequence(value: unknown): number {
+  if (value == null || typeof value !== "object") return 0;
+  let max = 0;
+  for (const [key, item] of Object.entries(value)) {
+    const digits = key === "inputId" && typeof item === "string" ? /^input-(\d+)$/.exec(item)?.[1] : undefined;
+    if (digits != null && Number(digits) > 2 ** 52) throw new RangeError("a restored inputId is beyond the input sequence range");
+    max = Math.max(max, digits == null ? maxInputSequence(item) : Number(digits));
+  }
+  return max;
 }
 
 export { OwnerHost };

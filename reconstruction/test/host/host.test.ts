@@ -2172,3 +2172,53 @@ describe("P3-TET-T01 head.type の形", () => {
     expect([terminal.lines.includes("debug: input-1（出さない・断った envelopeInvalid）"), leaked]).toEqual([true, []]);
   });
 });
+
+// P3-FRF-T02（台帳 140・R2 の根）: 入力の番号は前の起動の保存にある input-N の次から振る。起動ごとに 1 から振ると、保存から戻ったカード・報・intent の番号と
+// 今の入力の番号が重なり、別の報を同じ報と取り違える。番号にするのは inputId の欄だけで、カードの原文の字は数えない（P3-FINAL-REVIEW-FIX-001）。
+describe("P3-FRF-T02 起動をまたぐ入力の番号", () => {
+  it("regression / AC02: 本文が input-999999999999999 の報を受けた後の 2・3 回目の起動は input-2・input-3 で、前の起動の U-M のカードを今の入力のカードとして出さない", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const terminal = harness({ debug: true });
+    cleanups.push(() => terminal.output.close());
+    const run = () => startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null, terminal: terminal.output.sink });
+    const launch = async (frame: string, marker: string) => {
+      terminal.lines.length = 0;
+      const socket = server.sockets.length;
+      const host = await run();
+      cleanups.push(() => host.stop().then(() => {}, () => {}));
+      await until(() => server.sockets.length === socket + 1);
+      server.sockets[socket].send(frame);
+      await until(() => terminal.lines.some((line) => line.startsWith(marker)));
+      return { host, lines: [...terminal.lines] };
+    };
+    // 1 回目: 本文が XML でない報は U-M のカードの原文（raw）に残り、保存される。
+    await (await launch(dataFrame("VZZZ97", "input-999999999999999"), "debug: VZZZ97 input-1")).host.stop();
+    await (await launch(dataFrame("VZZZ99", "x"), "debug: ")).host.stop();
+    const third = await launch(dataFrame("VZZZ98", vxse43), "debug: ");
+    expect(third.lines).toEqual(["debug: input-3（出さない・採らなかった）"]);
+    // 番号の起点を変えても、3 回目の起動の入力（U-M の unknownType のカード）の世代は停止の最終保存で保存される。
+    expect((await third.host.stop()).persistence["U-M"]).toMatchObject({ kind: "saved", savedGeneration: expect.any(Number) });
+  });
+
+  it("P3-FRF-T06 contractBoundary / AC02: 保存の inputId の番号の次が安全な整数でなければ、低い番号へ戻さず起動を断る", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const first = await startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null });
+    cleanups.push(() => first.stop().then(() => {}, () => {}));
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(dataFrame("VZZZ99", "x"));
+    await until(async () => (await fileSystem.readdir(dirs.stateDirectory).catch(() => [] as string[])).some((name) => /^U-M-[AB]\.json$/.test(name)));
+    await first.stop();
+    // U-M のカードの inputId を 2^53 にし、readSlot と同じ式（sha256 の 64 字を 0 にした bytes の sha256）で封を付け直す。
+    const { createHash } = await import("node:crypto");
+    for (const name of (await fileSystem.readdir(dirs.stateDirectory)).filter((item) => /^U-M-[AB]\.json$/.test(item))) {
+      const path = join(dirs.stateDirectory, name);
+      const zeroed = (await fileSystem.readFile(path, "utf8")).replaceAll('"inputId":"input-1"', '"inputId":"input-9007199254740990"').replace(/[0-9a-f]{64}"}$/, `${"0".repeat(64)}"}`);
+      await fileSystem.writeFile(path, zeroed.replace(/0{64}"}$/, `${createHash("sha256").update(zeroed).digest("hex")}"}`));
+    }
+    const second = startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null });
+    cleanups.push(() => second.then((host) => host.stop()).then(() => {}, () => {}));
+    await expect(second).rejects.toThrow();
+  });
+});

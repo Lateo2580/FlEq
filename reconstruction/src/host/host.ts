@@ -215,7 +215,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
   // Monotonic time of the current WS's open or last frame (P3-C2-LIVENESS).
   let lastFrameAt = 0, lastLossFrameWallMs: number | null = null; // P3-TO-AC10 (2): 切断の時点の最後の受信の wall（次の切断まで変えない）
   let overloaded = false;
-  let lastSequence = 0;
+  let lastSequence = root.restoredInputSequence; // P3-FINAL-REVIEW-FIX-001: 保存にある input-N の次から振る（1 から振ると戻したカード・報・intent の番号と重なる。台帳 140）
   let lastAccepted: Readonly<{ sequence: number; inputId: string }> | null = null;
   // Only kept while observing: ingress's JSON time is one of the seven P1 durations of the processing record.
   const ingressJsonMs = new Map<string, number | null>();

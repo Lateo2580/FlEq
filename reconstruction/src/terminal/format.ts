@@ -309,16 +309,16 @@ function compose(head: Line[], roles: BandRoles, parts: Parts, ctx: Ctx): Render
 
 // ---- 特殊値（AC05 (5)・AC06 (3)、O02） ----
 const INTENSITY_ORDER = ["1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"];
-const intensityLabel = (raw: string): string => {
-  const text = nfkc(raw);
-  return { "5-": "5弱", "5+": "5強", "6-": "6弱", "6+": "6強" }[text] ?? text;
-};
+// 震度と長周期階級の表は電文の字を key に引くので、自分の key だけを見る（Object.hasOwn）。"toString" などで Object.prototype の値を返すと
+// 整形が投げ、writer がその回のバッチを全部捨てる（R1、P3-FINAL-REVIEW-FIX-001）。
+const INTENSITY_SIGNS: Readonly<Record<string, string>> = { "5-": "5弱", "5+": "5強", "6-": "6弱", "6+": "6強" };
+const intensityLabel = (raw: string): string => { const text = nfkc(raw); return Object.hasOwn(INTENSITY_SIGNS, text) ? INTENSITY_SIGNS[text] : text; };
 // 先頭の震度の段（「5弱以上未入電」は 5 弱）。段が読めなければ -1。
 const intensityRank = (label: string): number => INTENSITY_ORDER.indexOf(/^[1-7][弱強]?/.exec(label)?.[0] ?? "");
 // 合成の字（7程度以上、6強〜7）は 7 の役目、7 を含まない合成（6強程度以上）は先頭の段の役目（3 桁の詰めは solid が字ちょうど 7 のときだけ）。
 const intensityRole = (label: string): Role | null =>
-  INTENSITY_ROLES[label] ?? (label.includes("7") ? INTENSITY_ROLES["7"] : INTENSITY_ROLES[/^[1-7][弱強]?/.exec(label)?.[0] ?? ""] ?? null);
-const lgRole = (label: string): Role | null => LG_ROLES[label] ?? null;
+  (Object.hasOwn(INTENSITY_ROLES, label) ? INTENSITY_ROLES[label] : null) ?? (label.includes("7") ? INTENSITY_ROLES["7"] : INTENSITY_ROLES[/^[1-7][弱強]?/.exec(label)?.[0] ?? ""] ?? null);
+const lgRole = (label: string): Role | null => Object.hasOwn(LG_ROLES, label) ? LG_ROLES[label] : null;
 
 function magnitudeText(value: TerminalValue | null): string {
   if (value == null) return "M不明";

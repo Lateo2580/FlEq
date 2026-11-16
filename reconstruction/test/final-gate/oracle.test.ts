@@ -336,7 +336,7 @@ async function runGate(): Promise<GateRun> {
       const cancel = expected.subjects.some((item) => item.revision.infoTypeRaw === "取消");
       flowed.push({ expectedRef: label, sequenceId: sequence.sequenceId, action: step.action, headType, unit,
         kind: step.action === "receive" ? (cancel ? "cancel" : "normal") : step.action === "restart" ? "restore" : "control",
-        matched: mismatches.length === before, fields, hollow: hollow && step.action !== "restart" });
+        matched: mismatches.length === before && fields > 0, fields, hollow: hollow && step.action !== "restart" });
     }
   }
   // AC02 (3): 流す step の headType は全部 ready なので、表に無い・notPorted・ignored の 3 つを同じ結線に 1 本ずつ入れる（T01 には数えない）。
@@ -406,7 +406,7 @@ beforeAll(async () => {
       required: expectations.get(ref)?.input?.required ?? null })),
     hollow: gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef),
     counts: { flowed: gate.flowed.length, matched: gate.flowed.filter((item) => item.matched && !item.hollow).length,
-      hollowMatched: gate.flowed.filter((item) => item.matched && item.hollow).length, mismatchedSteps: gate.flowed.filter((item) => !item.matched).length },
+      hollowMatched: gate.flowed.filter((item) => item.matched && item.hollow).length, mismatchedSteps: new Set(gate.mismatches.map((item) => item.expectedRef)).size },
     withdrawn: separate("withdrawn"), dependsOnUnmet: separate("dependsOnUnmet"),
     injectFailure: separate("injectFailure").map((item) => ({ ...item, destination: DESTINATION[item.expectedRef.split(":")[1]] ?? null, references: references[item.expectedRef] })),
     afterInjectFailure: separate("afterInjectFailure").map((item) => ({ ...item, destination: DESTINATION[item.expectedRef.split(":")[1]] ?? null, references: references[item.expectedRef] })),

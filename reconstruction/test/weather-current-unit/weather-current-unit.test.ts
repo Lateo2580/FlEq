@@ -1245,3 +1245,29 @@ describe("P3-REC-T11 contractBoundary (unit side): the U-W entrance for origin=r
 function admissionExtra(subject: string, operation: Operation = "normal"): number {
   return 131_072 + noticeReserve({ subject, operation });
 }
+
+// P3-FRF-T03（O1）: 履歴の並べの最後の決め手は inputId の番号を数で比べる。字で比べると "input-10" が "input-9" より前に並び、深さの退去が新しい版を外す（P3-FINAL-REVIEW-FIX-001）。
+describe("P3-FRF-T03 履歴の深さの退去の順", () => {
+  it("regression / AC04: 同じ報時刻の input-9 と、Control/DateTime の新しい input-10 が履歴に並ぶと、次の版の退去は input-9 を外す", () => {
+    const at = "2020-06-22T14:05:00Z", control = (xml: string) => xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*(<\/DateTime>)/, `$1${at}$2`).replace(/<Code>48<\/Code>/g, "<Code>45</Code>");
+    const versions = [decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => xml, "input-9"), decodeFixture("15_16_02_251222_VPWW57", "VPWW57", control, "input-10"),
+      decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "input-11"),
+      decodeFixture("15_16_02_251222_VPWW57", "VPWW57", (xml) => control(atTime(xml, "2020-06-22T23:02:00+09:00")), "input-12")];
+    let state = emptyState();
+    const decisions = versions.map((material) => { const step = receive(state, material); state = step.state; return step.decisions[0]?.decision; });
+    expect([decisions, state.histories.flatMap((item) => item.reports.map((report) => report.source.inputId))])
+      .toEqual([["changed", "changed", "changed", "changed"], ["input-10", "input-11"]]);
+  });
+
+  it("P3-FRF-T07 contractBoundary / AC04: input-N の形とそれ以外が混ざっても、並べの順は並べる前の順によらず 1 つ（input-N の群が先、番号は先頭の 0 を除いた数）", async () => {
+    const { compareInputId } = await import("../../src/contracts-revision/version");
+    const ids = ["input-10", "input-1x", "input-2", "input-02", "x"];
+    const orders = new Set<string>();
+    const permute = (rest: readonly string[], head: readonly string[]): void => {
+      if (rest.length === 0) { orders.add(JSON.stringify([...head].sort(compareInputId))); return; }
+      rest.forEach((id, index) => permute([...rest.slice(0, index), ...rest.slice(index + 1)], [...head, id]));
+    };
+    permute(ids, []);
+    expect([...orders]).toEqual([JSON.stringify(["input-02", "input-2", "input-10", "input-1x", "x"])]);
+  });
+});

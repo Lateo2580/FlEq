@@ -21,7 +21,7 @@ import type {
   WeatherCurrentUnitStep,
   WeatherCurrentUnavailableReason,
 } from "../../../contracts/p2-weather-current-unit.types";
-import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { compareVersion, controlDateTimeOf, stepVersion, validInputId } from "../../contracts-revision/version";
+import { validateSemanticEnvelope } from "../../runtime/shared-runtime"; import { compareInputId, compareVersion, controlDateTimeOf, stepVersion, validInputId } from "../../contracts-revision/version";
 
 const WEATHER_FAMILIES = ["VPWS50", "VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61", "VPNO50"] as const;
 const WARNING_TYPES = [
@@ -394,10 +394,10 @@ function outcome(candidate: Candidate, transition: string, source: ReportRef | n
 function compareEntry(left: WeatherCurrentSnapshot, right: WeatherCurrentSnapshot): number {
   const time = Date.parse(left.source.reportDateTimeRaw) - Date.parse(right.source.reportDateTimeRaw);
   if (time !== 0) return time;
-  const a = [left.operation, left.subject, left.source.inputId];
-  const b = [right.operation, right.subject, right.source.inputId];
+  const a = [left.operation, left.subject];
+  const b = [right.operation, right.subject];
   for (let index = 0; index < a.length; index++) if (a[index] !== b[index]) return a[index] < b[index] ? -1 : 1;
-  return 0;
+  return compareInputId(left.source.inputId, right.source.inputId); // O1: 番号を数で比べる（P3-FINAL-REVIEW-FIX-001）
 }
 
 function freshnessKey(record: FreshnessRecord): string {
