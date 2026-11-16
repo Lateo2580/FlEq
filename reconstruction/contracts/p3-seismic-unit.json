@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "f5b4460c67f8a9bad999f997b16e83556ed012fce42623548e56622b8869e763",
+    "sha256": "7cf0ec6d0946b9a94a0bd7904e53b1cc99906a3a8fac78185acb0e73215ee518",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -97,7 +97,7 @@
         "recommended": "A",
         "provisional": "A",
         "ruling": "統合担当が起草で確定（台帳60: 履歴の深さの上限と容量の上限を同じdecisionに束ねない）。日の基準はP3-C7-DAILY-BASIS=B（作者裁定 2026-10-09）",
-        "reason": "recentの5行とcountedEventIdsの2048件は深さの上限で、超えた分は決まった規則で落とし、capacityExceededにしない。2048の根拠: 24時間保持のevent上限512の4倍で、日の途中でeventが退去・期限切れになっても同じ日の数え直しを起こしにくくする幅。byteは1件43 byte（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）（EventID 40文字＋引用符・区切り）×2048＝88,064 byte/operationで、I-U-Q.capacityReserveに入れた。旧築は上限なし"
+        "reason": "recentの5行とcountedEventIdsの2048件は深さの上限で、超えた分は決まった規則で落とし、capacityExceededにしない。2048の根拠: 24時間保持のevent上限512の4倍で、日の途中でeventが退去・期限切れになっても同じ日の数え直しを起こしにくくする幅。（P3-SEISMIC-EVENT-LIMIT-001 で event の上限は 1024 件になり、2048 はその 2 倍。上限の値と規則は変えない。P3-FINAL-REVIEW-FIX-001 の注記、R13）byteは1件43 byte（P3-QC-D-DAILY-MAX=A で [EventID, 段階] の組の 47 byte）（EventID 40文字＋引用符・区切り）×2048＝88,064 byte/operationで、I-U-Q.capacityReserveに入れた。旧築は上限なし"
       },
       {
         "id": "P3-C7-DAILY-BASIS",

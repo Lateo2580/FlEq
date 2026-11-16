@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e340e4c8aa03de71a4373e38284ca954555ee6db",
-    "sha256": "daf0cecbda992bf51187904ef18ffa3e94b657db175201eb217977aecd86ce1f",
+    "sha256": "c94e4ef099aaaeec2526af5f64125781dd4f731dca0bf26d51a8c9119730c8ef",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -29,7 +29,7 @@
         "provisional": "A",
         "status": "確定（統合担当、2026-11-08 起草）",
         "ruling": "A（統合担当）",
-        "reason": "snapshot を変えない裁定なので、hex の id を載せる欄が無い。B は 1 件の本文に 2 往復かかるか、snapshot に欄が要る。C は同じ分野の別の報でも contentRevision が進むので、関係の無い報の到着で 409 になる。inputId だけでは足りない。host.ts の採番は起動ごとに 0 へ戻るので、復元した U-N の報 A の input-1 と、再起動の後に届いた訂正 B の input-1 が同じ鍵になる（ヘルツのレビューの P1）。active の記録が別の active の記録へ置き換わるのは stepVersion が newer を返したときだけで、このとき reportDateTimeRaw か controlDateTimeRaw の字が必ず違う（同じ時刻で中身の違う報は held で手元の版を残す）ので、記録が直に置き換わる列は再起動を越えても鍵が分かれる。inputId は、記録が消えた後に同じ時刻の別の報が来た列を、復元の無い同じ run の中で分ける。dmdataId は ReportRef にも view にも無く、使うには snapshot を変えることになる。この鍵は版の取り違えを全く無くすものではない。残存リスク: 同じ stream の中でも鍵が重なる列が 1 つある。U-N の 64 件を復元して A（旧 input-2）を公開した後、新しい入力の 1 件目で A が容量で退去し、2 件目に同じ subject で両方の時刻が同じ B が届くと、記録が無いので B が採用され、A の鍵で B の本文が返る（ヘルツの再レビュー）。仕組みを足さず残存リスクとして残す。同じ subject で両方の時刻が同じ報は同じ電文の再送で、返るのはその subject の最新の本文だから。inputId に起動固有の値を入れる案は host の採番と全部の試験に効くので採らない"
+        "reason": "snapshot を変えない裁定なので、hex の id を載せる欄が無い。B は 1 件の本文に 2 往復かかるか、snapshot に欄が要る。C は同じ分野の別の報でも contentRevision が進むので、関係の無い報の到着で 409 になる。inputId だけでは足りない。host.ts の採番は起動ごとに 0 へ戻るので、復元した U-N の報 A の input-1 と、再起動の後に届いた訂正 B の input-1 が同じ鍵になる（ヘルツのレビューの P1）。active の記録が別の active の記録へ置き換わるのは stepVersion が newer を返したときだけで、このとき reportDateTimeRaw か controlDateTimeRaw の字が必ず違う（同じ時刻で中身の違う報は held で手元の版を残す）ので、記録が直に置き換わる列は再起動を越えても鍵が分かれる。inputId は、記録が消えた後に同じ時刻の別の報が来た列を、復元の無い同じ run の中で分ける。dmdataId は ReportRef にも view にも無く、使うには snapshot を変えることになる。この鍵は版の取り違えを全く無くすものではない。残存リスク: 同じ stream の中でも鍵が重なる列が 1 つある。U-N の 64 件を復元して A（旧 input-2）を公開した後、新しい入力の 1 件目で A が容量で退去し、2 件目に同じ subject で両方の時刻が同じ B が届くと、記録が無いので B が採用され、A の鍵で B の本文が返る（ヘルツの再レビュー）。仕組みを足さず残存リスクとして残す。同じ subject で両方の時刻が同じ報は同じ電文の再送で、返るのはその subject の最新の本文だから。inputId に起動固有の値を入れる案は host の採番と全部の試験に効くので採らない【P3-FINAL-REVIEW-FIX-001（作者裁定 2026-11-16 午後、P3-FRF-D-INPUTID=A）で host の番号を保存にある input-N の次から振るようにしたので、残存リスクの列（旧 input-2 と新 input-2 が同じ鍵になる）は閉じた。鍵の形は変えない】"
       },
       {
         "id": "P3-BT-D-VISIBLE",
@@ -341,7 +341,7 @@
       },
       {
         "id": "P3-BT-AC03",
-        "requirement": "owner の答え（P3-BT-D-VISIBLE・P3-BT-D-NANKAI-SAVED）: (1) detailOwner は unit が U-V なら state の bulletins、U-N なら state の information を、owner-runtime.ts の 1 つの関数で読む。volcano-unit.ts と nankai-unit.ts は変えない (2) id と同じ subject の記録が無い（retainUntil で消えた、件数の上限で退去した、U-V の再起動の後）、effective が active でない（取消、U-N の expired）、expiryPending が true のときは { kind: error, reason: versionChanged, revision: null } (3) 記録はあるが、その source の 3 つの欄を AC01 (2) の順で JSON.stringify した revision が要求と違う（同じ subject が新しい報で置き換えられた）ときは versionChanged に今の revision を載せる。再起動の後に採番が戻って inputId が同じでも、記録が置き換わったのなら時刻の欄が違うので一致しない。退去を挟む列は P3-BT-D-KEY の残存リスクのとおり (4) 一致すれば ok で、id は subject、revision は今の revision。電文に欄が無ければ text・nextAdvisory は null のまま ok (5) owner の state に unit が無ければ unavailable (6) 読むだけで、state も期限も動かさない (7) 答えを ok にする記録は toVolcanoView と toNankaiView が見出しを載せる記録と同じ。見出しに無い報の本文を返さない (8) U-V の解説は復元の後に空から始まるので、再起動の前の id は (2) の答えになる。U-N の情報は保存していて復元の後も source と本文が同じなので、新しい streamId で要求すれば ok になる",
+        "requirement": "owner の答え（P3-BT-D-VISIBLE・P3-BT-D-NANKAI-SAVED）: (1) detailOwner は unit が U-V なら state の bulletins、U-N なら state の information を、owner-runtime.ts の 1 つの関数で読む。volcano-unit.ts と nankai-unit.ts は変えない (2) id と同じ subject の記録が無い（retainUntil で消えた、件数の上限で退去した、U-V の再起動の後）、effective が active でない（取消、U-N の expired）、expiryPending が true のときは { kind: error, reason: versionChanged, revision: null } (3) 記録はあるが、その source の 3 つの欄を AC01 (2) の順で JSON.stringify した revision が要求と違う（同じ subject が新しい報で置き換えられた）ときは versionChanged に今の revision を載せる。再起動の後に採番が戻って inputId が同じでも、記録が置き換わったのなら時刻の欄が違うので一致しない。（P3-FINAL-REVIEW-FIX-001 の後は、保存にある input-N の次から振るので起動をまたいでも重ならない。ここの決めは変えない）退去を挟む列は P3-BT-D-KEY の残存リスクのとおり (4) 一致すれば ok で、id は subject、revision は今の revision。電文に欄が無ければ text・nextAdvisory は null のまま ok (5) owner の state に unit が無ければ unavailable (6) 読むだけで、state も期限も動かさない (7) 答えを ok にする記録は toVolcanoView と toNankaiView が見出しを載せる記録と同じ。見出しに無い報の本文を返さない (8) U-V の解説は復元の後に空から始まるので、再起動の前の id は (2) の答えになる。U-N の情報は保存していて復元の後も source と本文が同じなので、新しい streamId で要求すれば ok になる",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:446 «ee055f152374fab0»",
           "reconstruction/src/units/volcano/volcano-unit.ts:454 «52be15e3cf8aa683»",

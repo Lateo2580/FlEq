@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "050454b452dc50d6dc324383b3455233b0be7dc69cff9036db7b6add151d0997",
+    "sha256": "ab2c97eaedb744d2d642249b8703efcfa17086a4b5d97911062889dc4c1a952e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -234,7 +234,7 @@
       },
       {
         "id": "P3-EWF-AC02",
-        "requirement": "出る所と出ない所: (1) report が出るのは採った報（transition が activated・updated・released・cancelled）の outcome だけで、作るのは eew.ts:726 の 1 か所。(2) 出ない所: 取り直し（origin=recovery）の報（eew.ts:420 で outcome が無い）、unchanged（duplicate・stale）・capacityExceeded・取消だけの intent（cancelOnly、eew.ts:518）の return（outcome は []）、expiredOutcome（facts は今の 4 key のまま、eew.ts:390）。(3) report を EewCurrent・EewGate（noticeSource を含む）・currentSubject の view（eew-unit.ts:265〜266）・codec（eew-unit.ts:292）・decision・診断・通知の intent と payload・displayChanges に入れない。表示の wire の byte は変わらない（view-projector は outcome の facts から eventId だけを読む、view-projector.ts:784）。(4) codec の decode の後（再起動の後）は前の報の report が無く、再起動の後の最初の報は差分なし（旧築も activeFiles を memory にだけ持つ、eew-logger.ts:122・:236）。続けるかは C19 が決める。",
+        "requirement": "出る所と出ない所: (1) report が出るのは採った報（transition が activated・updated・released・cancelled）の outcome だけで、作るのは eew.ts:726 の 1 か所。(2) 出ない所: 取り直し（origin=recovery）の報（eew.ts:420 で outcome が無い）、unchanged（duplicate・stale）・capacityExceeded・取消だけの intent（cancelOnly、eew.ts:518）の return（outcome は []）、expiredOutcome（facts は今の 4 key のまま、eew.ts:390）。(3) report を EewCurrent・EewGate（noticeSource を含む）・currentSubject の view（eew-unit.ts:265〜266）・codec（eew-unit.ts:292）・decision・診断・通知の intent と payload・displayChanges に入れない。表示の wire の byte は変わらない（view-projector は outcome の facts から eventId だけを読む、view-projector.ts:784）。(4) codec の decode の後（再起動の後）は前の報の report が無く、再起動の後の最初の報は差分なし（旧築も activeFiles を memory にだけ持つ、eew-logger.ts:122・:236）。続けるかは C19 が決める。【P3-FINAL-REVIEW-FIX-001 の注記（R12）: P3-VAT-AC01 (4) で eew.ts:466 の行（EewCurrent の reportAreas）に helper の 2 か所目の呼び出しが足された。「作るのは eew.ts:726 の 1 か所」はその後の実装では helper を呼ぶ所が 2 か所と読む。採った報の outcome に report を出すのは今も :726 だけ】",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:726 «84c24ffe39cdf683»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
@@ -267,7 +267,7 @@
       },
       {
         "id": "P3-EWF-AC04",
-        "requirement": "計算量と大きさ（P3-EWF-RES-01・RES-02）: helper は Head/Headline、Body/Earthquake の子、Body/Intensity/Forecast の子を first・elements で読み、Forecast/Pref/Area を線形 1 回だけ回す。JSON.stringify・classifyMaterial（leafValues）の呼び直し・material.xml 全体の再帰の走査をしない。呼ぶのは採った報の return（:726）だけ。report の大きさに上限を足さない（採った報の XML の文字の部分集合で、展開後 10 MiB 以下、decode-material.ts:25）。state に残らないので保存の上限と世代の計量は変わらず、owner の worker から 1 回の postMessage で運ばれる（owner-worker.ts:15）。",
+        "requirement": "計算量と大きさ（P3-EWF-RES-01・RES-02）: helper は Head/Headline、Body/Earthquake の子、Body/Intensity/Forecast の子を first・elements で読み、Forecast/Pref/Area を線形 1 回だけ回す。JSON.stringify・classifyMaterial（leafValues）の呼び直し・material.xml 全体の再帰の走査をしない。呼ぶのは採った報の return（:726）だけ。report の大きさに上限を足さない（採った報の XML の文字の部分集合で、展開後 10 MiB 以下、decode-material.ts:25）。state に残らないので保存の上限と世代の計量は変わらず、owner の worker から 1 回の postMessage で運ばれる（owner-worker.ts:15）。【P3-FINAL-REVIEW-FIX-001 の注記（R12）: 「呼ぶのは採った報の return（:726）だけ」は、P3-VAT-AC01 (4) で eew.ts:466 の行（EewCurrent の reportAreas）にも呼び出しが足されたので 2 か所と読む。どちらも採った報の 1 回の reduce の中で、計算量の読みは変わらない】",
         "evidenceRefs": [
           "reconstruction/src/decode-material/decode-material.ts:25 «70f619fc62775eb6»",
           "reconstruction/src/runtime/owner-worker.ts:15 «d3185b4345e2c2fa»",

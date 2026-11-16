@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0b37f7668a6244f7d0b59a61f9f19c45e55fad1a",
-    "sha256": "477612d650daa5df25cfa00c7fe0a65e4c1c64ede1e79738a3714573c3be4507",
+    "sha256": "ec83766da4e96748607d9a07c347f39ca19d386211be6b97d3bbe98ca71c254b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -167,7 +167,7 @@
           "reconstruction/src/host/host.ts:270 «b92cdfb78dd0906b»",
           "reconstruction/test/disaster/pi-measure.mjs:127 «19b0484796694132»",
           "reconstruction/test/disaster/pi-measure.mjs:143 «8831db23406a0e35»",
-          "reconstruction/test/disaster/pi-measure.mjs:188 «c289cbcda8a07f64»",
+          "reconstruction/test/disaster/pi-measure.mjs:191 «c289cbcda8a07f64»",
           "reconstruction/test/eew-e01/host-launcher.mjs:54 «de760db75ee5cea5»"
         ]
       },
@@ -179,8 +179,8 @@
           "reconstruction/test/disaster/pi-measure.mjs:111 «9e9077ec90e6673a»",
           "reconstruction/test/disaster/pi-measure.mjs:113 «c7763bea6dc61255»",
           "reconstruction/test/disaster/pi-measure.mjs:158 «b270427f6bd9c476»",
-          "reconstruction/test/disaster/pi-measure.mjs:209 «72f103d0352193df»",
-          "reconstruction/test/disaster/pi-measure.mjs:211 «f16f7fa0846473f7»",
+          "reconstruction/test/disaster/pi-measure.mjs:212 «72f103d0352193df»",
+          "reconstruction/test/disaster/pi-measure.mjs:214 «f16f7fa0846473f7»",
           "reconstruction/test/eew-e01/host-launcher.mjs:74 «4fb53609300b479e»"
         ]
       },
