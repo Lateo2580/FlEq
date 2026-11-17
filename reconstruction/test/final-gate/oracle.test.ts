@@ -34,6 +34,38 @@ const restores = (step: Step) => /復元|再読込|crash\/restart/.test(required
 // O10:31（「新しい隔離harness。U-F空…通知adapter停止」）も当たる: state は空だが通知 adapter の停止と設定版を文で指定し、それを作らないので準備に数える。
 const preparedInProse = (step: Step) => step.action === "restart" && !restores(step) && !/^新しい隔離 ?harness を空/.test(required(step));
 
+// P3-SOO-AC01・AC02 (3): 文の上だけの準備のうち、後ろに流す step を持つ restart の準備（expectedRef ごと）。組むのは state と保存の世代だけで、
+// 準備の報をその報の時刻で製品の経路で受けて保存し、同じ時計で開き直す（restore は開いた時計で期限を回収するので、step の時刻で開くと準備が消える）。
+type Preparation = Readonly<{ inputs: readonly Readonly<{ headType: string; body: Uint8Array; at: number }>[]; subjects: readonly (readonly [RuntimeUnitId, string])[] }>;
+const asIs = (file: string, headType: string, at: string) => ({ headType, body: readFileSync(`test/fixtures/${file}.xml`), at: Date.parse(at) });
+const wakkanai = (file: string, at: string): Preparation => ({ inputs: [asIs(file, "VPWP50", at)], subjects: [["U-F", "normal/VPWP50/稚内地方気象台"]] });
+// P3-SOO-D-O04-VALUES=A: 実物の報の官署と区域のまま、Head の 3 つの時刻だけを替える（Control/DateTime は UTC）。
+const retimed = (file: string, at: string) => readFileSync(`test/fixtures/${file}.xml`, "utf8")
+  .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(at).toISOString().replace(".000Z", "Z")}</DateTime>`)
+  .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${at}</ReportDateTime>`)
+  .replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, `<TargetDateTime>${at}</TargetDateTime>`);
+const retimedInput = (file: string, headType: string, at: string) => ({ headType, body: Buffer.from(retimed(file, at)), at: Date.parse(at) });
+// O04:9 の stale lock の開始条件: 8 日前の全国 base と、同じ operation の新しい partial（移行を使わない、Q-SOO-MIGRATION）。
+const stale: Preparation = { inputs: [retimedInput("synthetic_VPWS50_fukui_base", "VPWS50", "2026-08-30T13:00:00+09:00"),
+  retimedInput("18_00_01_260830_VPWW55_fukui_L5", "VPWW55", "2026-09-07T12:50:00+09:00")],
+subjects: [["U-W", "normal/VPWS50/気象庁本庁"], ["U-W", "normal/VPWW55/福井地方気象台"]] };
+const PREPARATIONS = new Map<string, Preparation>([
+  ...[27, 29].map((position): [string, Preparation] => [`expected:O10:${position}`, wakkanai("81_02_01_260605_VPWP50_high_severity", "2026-06-05T17:00:01+09:00")]),
+  // O10:31 は U-F が空のままで組むものが無い（通知 adapter の停止と設定版は T01 の比べる欄を変えない、P3-SOO-D-O10-PREP）。
+  ["expected:O10:31", { inputs: [], subjects: [] }],
+  ...[56, 61, 66, 71, 76].map((position): [string, Preparation] => [`expected:O10:${position}`, wakkanai("81_01_03_260129_VPWP50", "2023-06-22T17:00:01+09:00")]),
+  ["expected:O04:9", stale],
+]);
+// P3-SOO-D-O04-ORDER=A: O04:9 は群 4 の前提の準備なので、取り下げた O04:2 の位置（O04 の 2 番目）で 1 回だけ流す。sequences.json の位置は変えない。
+const RUN_SECOND = "expected:O04:9";
+const ordered = (steps: readonly Step[]) => {
+  const moved = steps.filter((step) => step.expectedRef === RUN_SECOND);
+  return [...steps.slice(0, 1), ...moved, ...steps.slice(1).filter((step) => step.expectedRef !== RUN_SECOND)];
+};
+// P3-SOO-D-O04-FAIL=A: O04:4 は全国の採用だけの失敗を製品の経路で起こすので、injectFailure でも流す表に置く（比べる欄は 0、確かめは T01 の O04 の state）。
+const FAILED_ADOPTION = "expected:O04:4";
+const unreadableNational = Buffer.from(retimed("15_18_01_250630_VPWS50", "2026-09-07T13:00:00+09:00").replace(/(<Body[\s\S]*?<Status>)[^<]*(<\/Status>)/, "$1未知$2"));
+
 // 各 step を表の 1 つにだけ置く（AC01 (4)〜(6)）。injectFailure の窓は O10・O11 だけで、unmet の injectFailure も窓を開く（O11:6〜10）。
 // unmet の後は、次の独立した初期化の restart までをその状態に頼るとして別表へ（meta.execution[0]）。O08・O09 の unmet の injectFailure は負荷の設定で、後を止めない。
 function partition(): Map<string, Readonly<{ table: Table; after: string | null }>> {
@@ -46,7 +78,7 @@ function partition(): Map<string, Readonly<{ table: Table; after: string | null 
       if (step.action === "restart" && !restores(step)) unmetFrom = null;
       const put = (table: Table, after: string | null = null) => { tables.set(step.expectedRef, { table, after }); };
       if (WITHDRAWN.has(step.expectedRef)) put("withdrawn");
-      else if (step.action === "injectFailure") { if (windowed) failing = true; put(unmet ? "unmet" : "injectFailure"); }
+      else if (step.action === "injectFailure" && step.expectedRef !== FAILED_ADOPTION) { if (windowed) failing = true; put(unmet ? "unmet" : "injectFailure"); }
       // unmet は窓の中でも unmet の表へ（AC03 の帳簿に 1 回だけ数える。O11:4）。窓の中の依存は窓の表が受ける。
       else if (unmet) { put("unmet"); if (!failing) unmetFrom ??= step.expectedRef; else if (step.action === "recover") failing = false; }
       else if (failing) { put("afterInjectFailure"); if (step.action === "recover") failing = false; }
@@ -175,7 +207,7 @@ type GateRun = Readonly<{
   diagnostics: Map<string, string[]>;
   events: Event[];
   mailboxPeaks: { items: number; bytes: number };
-  // P3-WOO-AC08: O03 の流した step の後の U-W の state（expectedRef ごと。state は不変の値なので参照を残すだけ）。
+  // P3-WOO-AC08・P3-SOO-AC03: O03・O04 の流した step の後の U-W の state（expectedRef ごと。state は不変の値なので参照を残すだけ）。
   weather: Map<string, RuntimeUnitStates["U-W"]>;
 }>;
 
@@ -214,6 +246,21 @@ async function runGate(): Promise<GateRun> {
     await startHarness(h, `final-gate-${++runs}`, now);
     return h;
   };
+  // 準備の入力は receives に入れない（T02 が突き合わせるのは流した step の入力）。
+  const prepare = async (files: CheckpointFileSystem, preparation: Preparation, label: string): Promise<Harness> => {
+    const first = preparation.inputs[0];
+    if (first != null) {
+      setNow(first.at);
+      const builder = await open(files);
+      for (const [index, input] of preparation.inputs.entries()) {
+        setNow(input.at);
+        await submit(builder, envelope(builder.root.state.runId, input.headType, `prepare:${label}:${index}`, input.body, now, ++inputSequence));
+      }
+      await builder.root.driveCheckpoint();
+      await builder.settle();
+    }
+    return open(files);
+  };
 
   for (const sequence of corpus.sequences) {
     let h: Harness | null = null, files = memoryFiles();
@@ -221,7 +268,7 @@ async function runGate(): Promise<GateRun> {
     let lastSubjects: readonly string[] = [], lastUnit: RuntimeUnitId | null = null, hollow = false;
     // その run の receive で記録を引けた subject。制御の step で記録が無いことを expired と読むのは、ここにある subject だけ（引き損ないと区別する）。
     let found = new Set<string>();
-    for (const step of sequence.steps) {
+    for (const step of ordered(sequence.steps)) {
       if (tables.get(step.expectedRef)?.table !== "flow") continue;
       const expected: Expectation = expectations.get(step.expectedRef)!;
       log.length = 0;
@@ -233,9 +280,12 @@ async function runGate(): Promise<GateRun> {
         setNow(step.receivedAt ?? step.evaluatedAt);
         if (step.action === "restart") {
           if (!restores(step)) { files = memoryFiles(); found = new Set(); }
-          hollow = preparedInProse(step);
+          const preparation = PREPARATIONS.get(label);
+          hollow = preparation == null && preparedInProse(step);
           if (hollow) prepared.push(label);
-          h = await open(files);
+          h = preparation == null ? await open(files) : await prepare(files, preparation, label);
+          // 準備が捨てられたら、後ろの step は空の state のまま一致に数えられて素通りする（P3-SOO-AC01 (2)）。
+          for (const [owner, subject] of preparation?.subjects ?? []) if (recordOf(h.unit(owner), subject) == null) miss(owner, "prepared subject", subject, null);
         } else {
           h ??= await open(files);
           if (step.action === "receive") {
@@ -245,6 +295,12 @@ async function runGate(): Promise<GateRun> {
           } else if (step.action === "save") {
             await h.root.driveCheckpoint();
             await h.settle();
+          } else if (step.expectedRef === FAILED_ADOPTION) {
+            // O04:9 と同じ準備からやり直した state に、Body の Status を読めない字にした新しい全国報を受ける（P2-A5-T04 の rejected newer と同じ作り方）。
+            files = memoryFiles();
+            h = await prepare(files, stale, label);
+            setNow(step.evaluatedAt);
+            await submit(h, envelope(h.root.state.runId, "VPWS50", label, unreadableNational, now, ++inputSequence));
           } else {
             h.root.tick(now);
             await h.settle();
@@ -330,6 +386,7 @@ async function runGate(): Promise<GateRun> {
         if (expected.intents != null) { fields++; if (intents > 0 !== expected.intents) miss(unit, "intents", expected.intents, intents); }
         if (expected.notices != null) { fields++; if (intents > 0 !== expected.notices) miss(unit, "notices", expected.notices, intents); }
         if (sequence.sequenceId === "O03") weather.set(label, h.unit("U-W"));
+        if (sequence.sequenceId === "O04") weather.set(label, h.unit("U-W"));
       } catch (error) {
         miss(unit, "error", null, error instanceof Error ? error.message : String(error));
       }
@@ -380,7 +437,7 @@ function referencesOf(expectedRefs: readonly string[]): Record<string, string[]>
 
 // sequence ごとの別表の行き先（AC01 (6)、AC03 の振り分け）。
 const DESTINATION: Readonly<Record<string, string>> = {
-  O04: "O04:4 の後続 O04:5〜8 は unmet（AC03）",
+  O04: "なし（O04:4 は T01 で流し、O04 の U-W の state で確かめる。P3-SOO-AC02 (4)・AC03）",
   O09: "E01 の母集団の負荷の設定。C4・C6 の測定の母集団（後続の receive・restart は T01 で流す）",
   O10: "実の注入で確かめた P2-CHECKPOINT-SHUTDOWN-001・P3-CHECKPOINT-STEP1-001・P3-EXECUTION-SPLIT-001・P3-EXECUTION-LIFECYCLE-001・P2-NOTIFICATION-DELIVERY-001 の試験",
   O11: "P4（計画:40、§5.2）",
@@ -418,16 +475,15 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
   it("P3-FG-T01 acceptance / AC01: every flowed step of O01-O11 matches its expectation on the linked units", () => {
     const count = (table: Table, action?: string) => corpus.sequences.flatMap((sequence) => sequence.steps)
       .filter((step) => gate.tables.get(step.expectedRef)?.table === table && (action == null || step.action === action)).length;
-    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。2026-11-13 の P3-WEATHER-OTHER-OFFICE-001 で O03:7・O03:9 に入力を足した。
-    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 44, 47, 85]);
+    // AC01 (4)(6) の数（239a35f5 の起草の数に、2026-11-13 の O11:2・O11:4 の unmet 化〔R18=A と同じ扱い〕を当てた数。2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した）。規則が数を変えたら、規則を合わせずに報告する。2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。2026-11-13 の P3-WEATHER-OTHER-OFFICE-001 で O03:7・O03:9 に入力を足した。2026-11-17 の P3-SEQ-O10-O06-001 で O04:3・5〜8 に入力を足し、O04:4 を流す表へ移した。
+    expect([count("withdrawn"), count("injectFailure"), count("afterInjectFailure"), count("unmet")]).toEqual([10, 43, 47, 80]);
     expect(["recover", "receive", "advanceClock", "save", "restart"].map((action) => count("afterInjectFailure", action))).toEqual([23, 11, 6, 4, 3]);
     // 前提の unmet に頼る step（AC01 (5)）・流した step・準備を作らずに始めた run の中の step（一致に数えない）の数と一覧。
-    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([0, 383, 13]);
+    expect([count("dependsOnUnmet"), count("flow"), gate.flowed.filter((item) => item.hollow).length]).toEqual([0, 389, 0]);
     expect(corpus.sequences.flatMap((sequence) => sequence.steps).filter((step) => gate.tables.get(step.expectedRef)?.table === "dependsOnUnmet").map((step) => step.expectedRef.slice(9)))
       .toEqual([]);
-    expect(gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef.slice(9))).toEqual(["O10:28", "O10:30", "O10:32", "O10:33", "O10:39", "O10:40",
-      "O10:57", "O10:62", "O10:67", "O10:72", "O10:77", "O10:89", "O10:90"]);
-    expect(gate.prepared.length).toBe(15);
+    expect(gate.flowed.filter((item) => item.hollow).map((item) => item.expectedRef.slice(9))).toEqual([]);
+    expect(gate.prepared.length).toBe(6);
     // AC01 (1): fixture の無い receive は unmet だけ（流す receive は全部 fixture を持つ）。
     expect(gate.flowed.filter((item) => item.action === "receive" && item.headType == null)).toEqual([]);
     // AC08（P3-WEATHER-OTHER-OFFICE-001、spec の O03）: T01 の欄は step の subject だけを比べるので、O03 の U-W の state で、全国 base の福井の特別警報が
@@ -445,6 +501,14 @@ describe("P3-FINAL-GATE-001 order 1 (TEST-PATH (2), 12 linked units)", () => {
     expect([Object.keys(areas(7, false)).length, ...kyoto(9).map((part) => Object.keys(part).length)].every((size) => size > 0)).toBe(true);
     // P3-USD-AC04（台帳 125）: 20:04 の福井の解除（O03:14）の後、合わせ（スナップショットと詳細 API が読む値）に福井の active な区域が残らない。O03:13 の 16 は空回りを防ぐ。
     expect([13, 14].map((position) => weatherCurrentAreas(at(position)).filter((item) => item.prefecture === "18").map((item) => item.areas.length))).toEqual([[16], [0]]);
+    // P3-SOO-AC03: T01 の欄は疑いの印を見ないので、O04 の U-W の state で、O04:4 の採用の失敗が全国 normal に疑いを付け、別官署の別 family（O04:5・6）と
+    // 訓練の全国（O04:7）の採用で解けず、同じ対象の正常採用（O04:8）で解けること、O04:3 の全国 base の採用が O04:9 の福井の partial を消さないことを見る。
+    const o04 = (position: number) => gate.weather.get(`expected:O04:${position}`) ?? expect.unreachable(`O04:${position} has no U-W state`);
+    const national = (position: number) => o04(position).freshness.filter((item) => item.target.operation === "normal" && item.target.family === "VPWS50");
+    expect(national(4).map((item) => [item.candidateSource.inputId, item.decision, item.reason, item.revisionOrder, item.freshnessSuspect]))
+      .toEqual([["expected:O04:4", "rejected", "requiredStructureInvalid", "newer", true]]);
+    expect([5, 6, 7, 8].map((position) => national(position).some((item) => item.freshnessSuspect))).toEqual([true, true, true, false]);
+    expect(o04(3).partials.filter((item) => item.subject === "normal/VPWW55/福井地方気象台").map((item) => item.source.reportDateTimeRaw)).toEqual(["2026-09-07T12:50:00+09:00"]);
     const summary = gate.mismatches.slice(0, 20).map((item) => `${item.expectedRef} ${item.unit ?? "-"} ${item.field}: expected ${JSON.stringify(item.expected)} actual ${JSON.stringify(item.actual)}`).join("\n");
     expect(gate.mismatches.length, `${gate.mismatches.length} mismatches over ${new Set(gate.mismatches.map((item) => item.expectedRef)).size} steps (first 20):\n${summary}`).toBe(0);
   });

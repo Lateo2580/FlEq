@@ -1,9 +1,9 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "sha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
     "decisions": [
       "形式A（推奨・採用）={meta,sequences,expectations,unresolvedQuestions}。B=meta/期待値を別file。Aならstepと根拠の配送欠落を一ファイルのhashで検出できる。baseOidは本契約HEAD、manifestの来歴baseOidとは別。",
@@ -52,12 +52,12 @@
         "subsetId": "P2-O04-U-W-v1",
         "stepRefs": [
           "expected:O04:9",
-          "unmet:O04:3",
+          "expected:O04:3",
           "expected:O04:4",
-          "unmet:O04:5",
-          "unmet:O04:6",
-          "unmet:O04:7",
-          "unmet:O04:8"
+          "expected:O04:5",
+          "expected:O04:6",
+          "expected:O04:7",
+          "expected:O04:8"
         ],
         "replaces": [
           "expected:O04:2 -> expected:O04:9"
@@ -3890,16 +3890,15 @@
           "sequenceId": "O04",
           "position": 3,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWS50_national_0907_1300",
           "receivedAt": 1788753600001,
           "evaluatedAt": 1788753600001,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O04:3",
+          "expectedRef": "expected:O04:3",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
-            "L2: test/engine/messages/vpws50-stale-lock-recovery.test.ts:48 «2386f346518bde17» nextReportの具体入力",
-            "L4: test/engine/messages/vpws50-stale-lock-recovery.test.ts:152 «4618ca5a3ba18164» survivor"
+            "L2: test/fixtures/synthetic_VPWS50_national_0907_1300.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
           ]
         },
         {
@@ -3920,12 +3919,12 @@
           "sequenceId": "O04",
           "position": 5,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWW55_matsue_0907_1301",
           "receivedAt": 1788753660000,
           "evaluatedAt": 1788753660000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O04:5",
+          "expectedRef": "expected:O04:5",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»"
@@ -3935,12 +3934,12 @@
           "sequenceId": "O04",
           "position": 6,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWW57_kyoto_0907_1301",
           "receivedAt": 1788753660000,
           "evaluatedAt": 1788753660000,
           "inputSource": "replay",
           "operationExpected": "normal",
-          "expectedRef": "unmet:O04:6",
+          "expectedRef": "expected:O04:6",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»"
@@ -3950,12 +3949,12 @@
           "sequenceId": "O04",
           "position": 7,
           "action": "receive",
-          "fixtureId": null,
+          "fixtureId": "test__fixtures__synthetic_VPWS50_national_training_0907_1301",
           "receivedAt": 1788753660000,
           "evaluatedAt": 1788753660000,
           "inputSource": "replay",
           "operationExpected": "training",
-          "expectedRef": "unmet:O04:7",
+          "expectedRef": "expected:O04:7",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
             "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»"
@@ -3964,13 +3963,13 @@
         {
           "sequenceId": "O04",
           "position": 8,
-          "action": "recover",
-          "fixtureId": null,
-          "receivedAt": null,
+          "action": "receive",
+          "fixtureId": "test__fixtures__synthetic_VPWS50_national_0907_1302",
+          "receivedAt": 1788753720000,
           "evaluatedAt": 1788753720000,
           "inputSource": "replay",
-          "operationExpected": null,
-          "expectedRef": "unmet:O04:8",
+          "operationExpected": "normal",
+          "expectedRef": "expected:O04:8",
           "expectationBasis": [
             "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
             "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22"
@@ -16101,7 +16100,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O04:3",
+      "expectedId": "expected:O04:3",
       "sequenceId": "O04",
       "position": 3,
       "decision": {
@@ -16113,11 +16112,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O04/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWS50/気象庁本庁",
           "revision": {
-            "reportDateTimeRaw": "2026-09-07T13:00",
+            "reportDateTimeRaw": "2026-09-07T13:00:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -16126,15 +16125,14 @@
       "basisLevel": 1,
       "basisRefs": [
         "L1: docs/specs/reconstruction-p0-contracts.md:1780 «deba767d642d01d5»",
-        "L2: test/engine/messages/vpws50-stale-lock-recovery.test.ts:48 «2386f346518bde17» nextReportの具体入力",
-        "L4: test/engine/messages/vpws50-stale-lock-recovery.test.ts:152 «4618ca5a3ba18164» survivor"
+        "L2: test/fixtures/synthetic_VPWS50_national_0907_1300.xml:1 «12c29731e40adc0c» 合成入力（manifest synthetic、配信原本ではない）"
       ],
       "input": {
-        "required": "VPWS50 気象庁、EventID/Serial空、通常、2026-09-07T13:00、区域9900001 code03 と9900002 code10。操作区分が確認された08-30T13:00の移行stateも必要。",
+        "required": "VPWS50 気象庁本庁、EventID/Serial空、通常、2026-09-07T13:00（15_18_01_250630_VPWS50 の Head の時刻だけを替えた合成）。前提はO04:9の準備のstate（全国base synthetic_VPWS50_fukui_base 2026-08-30T13:00 と福井VPWW55 partial 2026-09-07T12:50）。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "stale lockから脱出。9100001の不死L4を消し、新baseより新しい架空第02気象台partialを維持。"
+        "stale lockから脱出。8日前の全国baseを中身の違う新しい全国baseで置き換え（changed/semantic）、O04:9 の partial を全国 base の採用で消さない（T01 の O04 の U-W の state の assert、P3-SOO-AC03 (4)）。"
       ]
     },
     {
@@ -16159,7 +16157,7 @@
       ]
     },
     {
-      "expectedId": "unmet:O04:5",
+      "expectedId": "expected:O04:5",
       "sequenceId": "O04",
       "position": 5,
       "decision": {
@@ -16171,11 +16169,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O04/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWW55/松江地方気象台",
           "revision": {
-            "reportDateTimeRaw": "2026-09-07T13:01",
+            "reportDateTimeRaw": "2026-09-07T13:01:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -16187,15 +16185,15 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»"
       ],
       "input": {
-        "required": "2026-09-07T13:01の正常新報、別官署VPWW55/normal。全国normalの対象/影響範囲と異なる。官署=架空第02気象台、VPWS50は気象庁、EventID/Serial空。",
+        "required": "2026-09-07T13:01の正常新報、別官署の別family VPWW55/normal（松江地方気象台）。全国normalの対象/影響範囲と異なる。EventID/Serial空。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "当該入力を採用しても全国normal freshnessSuspect=true。"
+        "別官署の別family（松江 VPWW55）の入力を採用しても全国normal freshnessSuspect=true（P3-SOO-AC03 (2)）。"
       ]
     },
     {
-      "expectedId": "unmet:O04:6",
+      "expectedId": "expected:O04:6",
       "sequenceId": "O04",
       "position": 6,
       "decision": {
@@ -16207,11 +16205,11 @@
       },
       "subjects": [
         {
-          "subject": "normal/O04/input.requiredに記した対象（未充足）",
+          "subject": "normal/VPWW57/京都地方気象台",
           "revision": {
-            "reportDateTimeRaw": "2026-09-07T13:01",
+            "reportDateTimeRaw": "2026-09-07T13:01:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -16223,15 +16221,15 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»"
       ],
       "input": {
-        "required": "2026-09-07T13:01の正常新報、同官署別subject VPWW57/normal。全国normalの対象/影響範囲と異なる。官署=架空第02気象台、VPWS50は気象庁、EventID/Serial空。",
+        "required": "2026-09-07T13:01の正常新報、別官署の別family VPWW57/normal（京都地方気象台。manifest に VPWW55 と VPWW57 の両方を持つ官署が無いので同官署にしない、P3-SOO-D-O04-VALUES）。全国normalの対象/影響範囲と異なる。EventID/Serial空。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "当該入力を採用しても全国normal freshnessSuspect=true。"
+        "別官署の別family（京都 VPWW57）の入力を採用しても全国normal freshnessSuspect=true（P3-SOO-AC03 (2)）。"
       ]
     },
     {
-      "expectedId": "unmet:O04:7",
+      "expectedId": "expected:O04:7",
       "sequenceId": "O04",
       "position": 7,
       "decision": {
@@ -16243,11 +16241,11 @@
       },
       "subjects": [
         {
-          "subject": "training/O04/input.requiredに記した対象（未充足）",
+          "subject": "training/VPWS50/気象庁本庁",
           "revision": {
-            "reportDateTimeRaw": "2026-09-07T13:01",
+            "reportDateTimeRaw": "2026-09-07T13:01:00+09:00",
             "serialRaw": null,
-            "infoTypeRaw": null
+            "infoTypeRaw": "発表"
           }
         }
       ],
@@ -16259,20 +16257,34 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:668 «1c7ec8bbb7f61094»"
       ],
       "input": {
-        "required": "2026-09-07T13:01の正常新報、同subject VPWS50/training。全国normalの対象/影響範囲と異なる。官署=架空第02気象台、VPWS50は気象庁、EventID/Serial空。",
+        "required": "2026-09-07T13:01の新報、同じ官署・family の VPWS50/training（気象庁本庁、Control/Status=訓練）。全国normalとoperationが異なる。EventID/Serial空。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "当該入力を採用しても全国normal freshnessSuspect=true。"
+        "訓練の全国の入力を採用しても全国normal freshnessSuspect=true（P3-SOO-AC03 (2)）。"
       ]
     },
     {
-      "expectedId": "unmet:O04:8",
+      "expectedId": "expected:O04:8",
       "sequenceId": "O04",
       "position": 8,
-      "decision": null,
-      "effective": null,
-      "subjects": [],
+      "decision": {
+        "kind": "changed",
+        "change": "semantic"
+      },
+      "effective": {
+        "kind": "active"
+      },
+      "subjects": [
+        {
+          "subject": "normal/VPWS50/気象庁本庁",
+          "revision": {
+            "reportDateTimeRaw": "2026-09-07T13:02:00+09:00",
+            "serialRaw": null,
+            "infoTypeRaw": "発表"
+          }
+        }
+      ],
       "notices": null,
       "intents": null,
       "basisLevel": 1,
@@ -16281,11 +16293,11 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:2074 «643c123a1c57d2a8» E22"
       ],
       "input": {
-        "required": "VPWS50 気象庁normal、EventID/Serial空、2026-09-07T13:02。全国の同対象・同影響範囲を正常採用、またはそのcoverage確認。",
+        "required": "VPWS50 気象庁本庁normal、EventID/Serial空、2026-09-07T13:02（15_18_01_250630_VPWS50 の Head の時刻だけを替えた合成）。全国の同対象・同影響範囲を正常採用。",
         "acquisition": "synthetic"
       },
       "checks": [
-        "その範囲だけfreshnessSuspectを解除。新baseより新しいpartial維持。"
+        "全国normal（気象庁本庁）の同じ対象の正常採用でfreshnessSuspectを解除。O04:9のpartialを維持。"
       ]
     },
     {
@@ -17633,7 +17645,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17667,7 +17679,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17701,7 +17713,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17735,7 +17747,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17769,7 +17781,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17803,7 +17815,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17837,7 +17849,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17871,7 +17883,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
@@ -17905,7 +17917,7 @@
         "acquisition": "synthetic"
       },
       "checks": [
-        "8回は保存履歴内の復元、9回目は履歴不足を明示。取消watermarkを復元currentのrevisionに戻さない。"
+        "取消は2回まで保存履歴内の復元（O06:20・21）、3回目のO06:22から戻す版が無く履歴不足（historyUnavailable）を明示（P3-UWC-D-DEPTH=A、partial履歴2）。取消watermarkを復元currentのrevisionに戻さない。"
       ]
     },
     {
