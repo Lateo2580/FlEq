@@ -259,6 +259,8 @@ async function runGate(): Promise<GateRun> {
       await builder.root.driveCheckpoint();
       await builder.settle();
     }
+    // builder の restore と受信の reduce を、開き直しの restore の欄に混ぜない。
+    log.length = 0;
     return open(files);
   };
 
@@ -299,6 +301,7 @@ async function runGate(): Promise<GateRun> {
             // O04:9 と同じ準備からやり直した state に、Body の Status を読めない字にした新しい全国報を受ける（P2-A5-T04 の rejected newer と同じ作り方）。
             files = memoryFiles();
             h = await prepare(files, stale, label);
+            for (const [owner, subject] of stale.subjects) if (recordOf(h.unit(owner), subject) == null) miss(owner, "prepared subject", subject, null);
             setNow(step.evaluatedAt);
             await submit(h, envelope(h.root.state.runId, "VPWS50", label, unreadableNational, now, ++inputSequence));
           } else {
