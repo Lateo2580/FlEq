@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
-    "sha256": "52f439ebb94ac4d251546f7bff823015c891507e0e9210ec005e63b745d16f66",
+    "sha256": "905e8d192e0c826c693ae544c74ac9fbe44d95f175a230c029b55083b713c34a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -10,27 +10,28 @@
       {
         "id": "P4-URC-D-CUT",
         "kind": "作者",
-        "A": "落とす府県の報（partial）を、基点の全国報より前に受け、かつ報時刻も基点より古いものだけにする（受信時刻と報時刻の両方で古いもの）。基点は運用区分ごとに受信の最新で残る VPWS50 で、それが取消なら切らない（直す前は取消を除いた受信の最新を基点にした。AC01 (1)）",
+        "A": "落とす府県の報（partial）を、基点の全国報より前に受け、かつ報時刻も基点より古いものだけにする（受信時刻と報時刻の両方で古いもの）。基点の決め方は P4-URC-D-SCOPE で決める",
         "B": "報時刻だけで切る（基点より報時刻の古い partial は、受けた順を問わず落とす。起草 r2 の案）",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（作者の裁定、2026-11-18 朝。推奨どおり）",
         "ruling": "A（作者の裁定、2026-11-18 朝）",
         "blocks": "なし（裁定済み）",
-        "ifNotChosen": "B の場面: 14:00 に全国報 A（区域は 03）を受け、14:01 に遅れて 13:55 の府県の報 P（区域を 43 に）を受けた。どちらも WS が切れている間で、取り直しは P を落として A だけを取り、確認済みになる。その後 14:03 に live で A の取消が届くと、全国の現況は切れる前に live で受けていた 13:00 の全国報に戻り（13:00 を受けていなければ全国の現況ごと外れて historyUnavailable、P3-REC-T25）、P は取っていないので区域は 03 のまま、次の全国報（約 10 分後）まで L4 の表示も音も出ない。直す前の製品（受信時刻で切る）はこの P を取っていたので、B はこの列で直す前より悪くなる。A ではこの P を取るので 43 が出る。起草の写しで流した（Q-URC-DRAFT-R0 (7)、京都の VPWW57 と 23 時台の全国報）: A は取消の後に全国の現況 23:00・京都の行 23:05、B は全国の現況 23:00・京都の行なし",
-        "reason": "P3-REC-D-UW-PARTIALS=A（作者、2026-10-29 朝）の字は『最新の VPWS50 より後に受けた partial だけを取る』で、R3 はこの受信時刻の切りが同じ報時刻の府県の報を落とす欠け（場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない）。P3-FRF-D-R3（作者、2026-11-16）の午後の裁定 A で『報時刻で切ることで揃える』向きを採り、夕の裁定 B で P4 のこの契約へ送った。A は D-UW-PARTIALS=A の受信時刻の切りを残したまま報時刻の条件を足すので、落とす partial は直す前の製品が落とす partial の部分集合になる（P4-URC-T01 の総当たりで 130,308 組の違反 0）。確認済みにした後に基点の全国報が live で取り消される列は、r0 の採用の段の確かめでも捕まらない（確かめの時には基点が効いている）。この列で A は直す前と同じ、B は直す前より悪い。A は B より多く取るだけでなく、直す前の製品よりも多く取る（RES-03 の 300 件に効く向き）。直す前より多いのは、基点より前に受け報時刻が基点と同じか新しい partial（R3 の同じ報時刻の府県の報はここ）と報時刻の読めない partial、B より多いのはさらに基点より後に受けた古い報時刻の partial で、総当たりでは落とす数が B の 26,442 に対し A は 17,006（直す前 120,544）。統合担当が Mac mini で数えた（2026-11-18、.dr-tmp/count-cut.py・count-nat.py、~/dev/fleq-corpus-p0/20260923-capacity）: 取り直しの U-W の本文の 1 日の最大は、直す前 21・22・12、A 24・22・12（2026-06-03・06-26・09-21）。窓 10 分・60 分・6 時間・24 時間で同じ。VPWS50 は報時刻 10 分ごと（同じ報時刻 2 通）、受信の間隔の最大 11.1 分、取消 0 通（3 日分 866 通）。画面: A と B で違うのは上の列だけ（府県の報の行と L4 の表示・音）。消す案（切りを外す）は D-UW-PARTIALS の B として評価済みで RES-03 の 300 件を越えるので載せない"
+        "ifNotChosen": "B の場面: 14:00 に全国報 A（区域は 03）を受け、14:01 に遅れて 13:55 の府県の報 P（区域を 43 に）を受けた。どちらも WS が切れている間で、B は報時刻だけで P を落とし A だけを取って確認済みになる。その後 14:03 に live で A の取消が届くと、全国の現況は切れる前に live で受けていた 13:00 の全国報に戻り（受けていなければ全国の現況ごと外れて historyUnavailable、P3-REC-T25）、P は取っていないので区域は 03 のまま、次の全国報（約 10 分後）まで L4 の表示も音も出ない。直す前の製品（受信時刻で切る）はこの P を取っていた。A ではこの P を取る（受信時刻の条件で落とさない）。起草 r0 の写しで流した（Q-URC-DRAFT-R0 (7)）",
+        "reason": "P3-REC-D-UW-PARTIALS=A（作者、2026-10-29 朝）の字は『最新の VPWS50 より後に受けた partial だけを取る』で、R3 はこの受信時刻の切りが同じ報時刻の府県の報を落とす欠け（場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない）。P3-FRF-D-R3（作者、2026-11-16）の午後の裁定 A で『報時刻で切ることで揃える』向きを採り、夕の裁定 B で P4 のこの契約へ送った。A は受信時刻の切りを残したまま報時刻の条件を足すので、落とす partial は直す前の製品が落とす partial の部分集合になる（P4-URC-T01）。B は直す前が取っていた遅れた古い府県の報を落とす。消す案（切りを外す）は D-UW-PARTIALS の B として評価済みで RES-03 の 300 件を越えるので載せない"
       },
       {
         "id": "P4-URC-D-SCOPE",
         "kind": "作者",
-        "A": "α: 取り直しの選び方（bodiesFor の切り）だけを直す",
-        "B": "β: 選び方に加えて、採用の段の確かめ（当て直しの後の全国の現況が落とした府県の報を覆うか）と、覆わないときの自動のやり直しを入れる（r0 の AC02・AC03）",
+        "A": "α′: 直す前の規則（基点は取消を除いた受信の最新の VPWS50、それ以前に受けた partial を落とす、8f2be18b の recovery.ts:217・:222）に、『報時刻が基点と同じか新しい partial と、報時刻の読めない partial は落とさない』だけを足す。基点の決め方は直す前のまま。基点の報時刻が読めなければ直す前と同じ受信時刻の切り。府県の報の本文を多く取ることの帰結（下の reason の 3 つ）は受け入れる",
+        "B": "α″: 起草 r1 の案のまま。基点は取消も数えた受信の最新で、それが取消のときと、基点の報時刻が読めないときは切らない",
+        "C": "消す案: R3 を直さない（受信時刻の切りのまま）",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者の裁定、2026-11-18 朝「αでお願いします」）",
-        "ruling": "A（作者の裁定、2026-11-18 朝。判断カード『R3 の直しの範囲』）",
-        "ifNotChosen": "β の場面（α で残す欠け、outOfScope の 1 つ目）: 13:00 の全国報 X を live で受けた後に切れ、切れている間に 13:55 の府県の報 P（区域を 43 に）と 14:00 の全国報 A（区域は 03）を P→A の順に逃す。14:05 に繋がり直して取り直すと A を取り P を落とす。その後（本文を待つ間でも、確認済みの後でも）live で 14:03 の A の取消が届くと全国の現況は X に戻り、P は取っていないので区域は 03 のまま、次の全国報（約 10 分後）まで L4 の表示も音も出ない。β は本文を待つ間の取消だけを確かめて取り直し直すが、確認済みの後の取消は β でも同じに残る",
-        "reason": "α で落とす府県の報は、直す前の製品が落とす府県の報の部分集合なので、どの列でも直す前より悪くならない（P4-URC-T01 の確かめ 3、130,308 組で 0）。基点の全国報が選びの後に live で取り消されると古い府県の報が出ない列は、直す前と同じ終わり方の欠けとして残し、構造的欠陥台帳 141 に書く（outOfScope の 1 つ目）。災害の日 3 日分の VPWS50 866 通に取消は 0 通。採用の段の確かめは、P3 の r1・r2 と本契約の r0 で毎回、確かめた後に状態が動く新しい列が起草レビューで見つかった（r0 は Q-URC-REVIEW-R0）。r0 の案（r0 の AC02・AC03、nationalThrough・cutRedone）は本契約に入れない"
+        "status": "聞き直し中（作者の返事待ち。2026-11-18 朝の裁定 α は前提に誤りがあったので聞き直している。判断カード『R3 の直しの範囲』の訂正の節）",
+        "ruling": "",
+        "ifNotChosen": "α″ の場面: 13:00 の全国報 X を live で受けた後に切れ、切れている間に全国報 A（13:10）と A の取消 C を受ける（取消は 3 日分 866 通に 0 通）。繋がり直しの取り直しで受信の最新の VPWS50 が C なので切らず、24 時間の窓の府県の報の官署×型の最新を全部取る。雨の日は U-W だけで本文が最大約 145 件（P3-REC-D-UW-PARTIALS の ifNotChosen）になり、U-L・U-R・U-F と合わせて RES-03 の 300 件を越え、ORDER-AND-LIMIT の順で後ろの unit が取り直せない。基点の報時刻が読めない窓も同じ。消す案（C）の場面: R3 そのもの（場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない）",
+        "reason": "起草 r1 のレビュー（ヘルツ NO-GO・Opus 条件付き GO、Q-URC-REVIEW-R1）で、朝の裁定の前提『α はどの列でも直す前より悪くならない』が崩れた。選びの段の部分集合は成り立つが、府県の報の本文を多く取ると後段の帰結が変わる。帰結は 3 つで、どれも P3-RECOVERY の決まり（取得の失敗で候補を捨てる、本文の上限は unit をまたいで共有、当て直しの stale）のまま受ける 1 つの族として outOfScope に書く: (1) 本文の待ちが延び、その間の live の全国報と取消で直す前に出た L4 が消える (2) 増えた本文の取得だけが失敗すると候補ごと捨て、直す前に取れた報も取れない (3) 上限 300 の境目で U-W 全体が recoveryLimit。α′ はこの族の起こる機会を、増える本文（3 日分で最大 3 件、AC02）に限る。α″ は取消と読めない基点の窓で切りが丸ごと外れ、本文が最大約 145 件に増える。保証は選びの段だけ: (a) R3 の場面が直る (b) 落とす府県の報は直す前が落とす分の部分集合 (c) 増えるのは基点より前に受け報時刻が同じか新しいか読めない府県の報だけ。採用の段の確かめ（起草 r0 の AC02・AC03）は P3 の r1・r2 と本契約の r0 で毎回、確かめた後に状態が動く新しい列が見つかったので入れない（r0 の案は本契約に入れない）"
       },
       {
         "id": "P4-URC-D-ORDER",
@@ -56,8 +57,15 @@
         "id": "Q-URC-REVIEW-R0",
         "status": "closed",
         "source": "起草 r0 の起草レビュー（ヘルツ・Opus）と作者の裁定 2 つ（2026-11-18 朝）、起草 r1（2026-11-18、worktree ~/dev/fleq-r3-draft、HEAD a314a4c0 で案を当てて回した。案は .dr-tmp/proposal-r1.diff）",
-        "closed": "(1) 作者の裁定: P4-URC-D-CUT=A、P4-URC-D-SCOPE=A（α）。r1 で外したもの: r0 の AC02（採用の段の確かめ、返信の欄 nationalThrough）・AC03（やり直し、root の集合 cutRedone）、分岐 P4-URC-D-RECHECK・P4-URC-D-REDO、bodiesFor の引数 dropped、p3-execution-split.types.ts・owner-host.ts・composition-root.ts の変更、P4-URC-T02 の r0 の it のうちやり直しと上限だけのもの。残したもの: 切りの規則（AC01）、P4-URC-T01、P4-URC-D-ORDER (2) ヘルツ P2（成立）: 一覧の報時刻を Date.parse で読むと『2020-02-30T00:00:00+09:00』を 3 月 1 日に正規化し、基点より古いとして落とすが、本文の受理（owner-runtime.ts の reportDateTime）は暦日を確かめて reportDateTimeInvalid にする。r1 は切りの報時刻にも同じ reportDateTime を使い（export を 1 つ足す）、読めない時刻の府県の報は落とさない（P3-UTP-D-TIE-READ=A の向き）。T02 の (c) で確かめた (3) ヘルツ P3: AC04 の計算量を O(n＋k log k)（2 走査と候補 k 件の整列）に直した (4) Opus P2-2: 他の契約の «» を全部当て直した（check-contract は 1 契約につき最初の FAIL で止まる。.dr-tmp/refs.py で r1 の案の木の字に全契約の «» 付きの ref を当てた）。recovery.ts・owner-runtime.ts を引く ref は 112 で、字が変わるのは p3-final-review-fix.json の recovery.ts:218・:222 と本契約の同じ 2 つの 4 件（AC05 (3)(4)） (5) Opus P3-1: AC05 (4) に、AC05 (1)(2)(6) で字を足す行を引く本契約の ref も配送の木で取り直すと書いた (6) Opus P3-2: 『基点は今と同じ規則』は誤り。直す前（recovery.ts:217）は取消を除いた受信の最新を基点にし、A は受信の最新が取消なら切らない。AC01 (1) の字を直し、P3-REC-T24 (b) の behavior の『基点は 1 つ前の取消でない VPWS50』を AC05 (1) で書き換える。この違いでも落とす府県の報が直す前の部分集合であることは T01 の確かめ 3 で示した (7) 件数（r0 の AC05 (5) を外して結果を書く）: 統合担当が Mac mini で数えた（2026-11-18、.dr-tmp/count-cut.py・count-nat.py、~/dev/fleq-corpus-p0/20260923-capacity）: 取り直しの U-W の本文の 1 日の最大は、直す前 21・22・12、A 24・22・12（2026-06-03・06-26・09-21）。窓 10 分・60 分・6 時間・24 時間で同じ。VPWS50 は報時刻 10 分ごと（同じ報時刻 2 通）、受信の間隔の最大 11.1 分、取消 0 通（3 日分 866 通） (8) r1 の検証（.dr-tmp/proposal-r1.diff の木）: tsc 3 本 rc 0。vitest（--maxWorkers=2）で test/recovery・test/execution-split・test/host・test/terminal/layout10.test.ts・test/weather-current-unit・test/shared-runtime の 15 file・380 本 rc 0（約 103 秒）。--sequence.shuffle で recovery-adopt.test.ts・recovery.test.ts の 2 file・115 本 rc 0（seed 1794958106958）。既存の試験の期待は変えていない。T01 は暦日の直しの後も 130,308 組・落とした partial 17,006・違反 0（総当たりの時刻は読める時刻と x・null だけで、暦日の直しで変わる組は無い） (9) 歯（recovery.ts だけを替えた木、.dr-tmp/teeth-alpha.sh）: 直す前は T01（覆う全国報の無い組・規則の食い違い、落とした partial 120,544）と T02 の (a)(c)、r1 は T01（覆う全国報の無い組・規則の食い違い・直す前が残す partial を落とす組、ヘルツの列の候補 [n2]）と T02 の (b)(c)、r2 は T01（規則の食い違い・直す前が残す partial を落とす組、26,442）と T02 の (b)(c)、r0 の案（暦日を確かめない Date.parse）は T02 の (c)、B（受信時刻の条件を外す）は T01 と T02 の (b) で落ちた",
+        "closed": "【r1 の記録。範囲 α の朝の裁定は r1 のレビューで前提が崩れ、r2 で聞き直している（P4-URC-D-SCOPE、Q-URC-REVIEW-R1）。r1 の案（α″）の bodiesFor は本契約に入れない】(1) 作者の裁定: P4-URC-D-CUT=A、P4-URC-D-SCOPE=A（α）。r1 で外したもの: r0 の AC02（採用の段の確かめ、返信の欄 nationalThrough）・AC03（やり直し、root の集合 cutRedone）、分岐 P4-URC-D-RECHECK・P4-URC-D-REDO、bodiesFor の引数 dropped、p3-execution-split.types.ts・owner-host.ts・composition-root.ts の変更、P4-URC-T02 の r0 の it のうちやり直しと上限だけのもの。残したもの: 切りの規則（AC01）、P4-URC-T01、P4-URC-D-ORDER (2) ヘルツ P2（成立）: 一覧の報時刻を Date.parse で読むと『2020-02-30T00:00:00+09:00』を 3 月 1 日に正規化し、基点より古いとして落とすが、本文の受理（owner-runtime.ts の reportDateTime）は暦日を確かめて reportDateTimeInvalid にする。r1 は切りの報時刻にも同じ reportDateTime を使い（export を 1 つ足す）、読めない時刻の府県の報は落とさない（P3-UTP-D-TIE-READ=A の向き）。T02 の (c) で確かめた (3) ヘルツ P3: AC04 の計算量を O(n＋k log k)（2 走査と候補 k 件の整列）に直した (4) Opus P2-2: 他の契約の «» を全部当て直した（check-contract は 1 契約につき最初の FAIL で止まる。.dr-tmp/refs.py で r1 の案の木の字に全契約の «» 付きの ref を当てた）。recovery.ts・owner-runtime.ts を引く ref は 112 で、字が変わるのは p3-final-review-fix.json の recovery.ts:218・:222 と本契約の同じ 2 つの 4 件（AC05 (3)(4)） (5) Opus P3-1: AC05 (4) に、AC05 (1)(2)(6) で字を足す行を引く本契約の ref も配送の木で取り直すと書いた (6) Opus P3-2: 『基点は今と同じ規則』は誤り。直す前（recovery.ts:217）は取消を除いた受信の最新を基点にし、A は受信の最新が取消なら切らない。AC01 (1) の字を直し、P3-REC-T24 (b) の behavior の『基点は 1 つ前の取消でない VPWS50』を AC05 (1) で書き換える。この違いでも落とす府県の報が直す前の部分集合であることは T01 の確かめ 3 で示した (7) 件数（r0 の AC05 (5) を外して結果を書く）: 統合担当が Mac mini で数えた（2026-11-18、.dr-tmp/count-cut.py・count-nat.py、~/dev/fleq-corpus-p0/20260923-capacity）: 取り直しの U-W の本文の 1 日の最大は、直す前 21・22・12、A 24・22・12（2026-06-03・06-26・09-21）。窓 10 分・60 分・6 時間・24 時間で同じ。VPWS50 は報時刻 10 分ごと（同じ報時刻 2 通）、受信の間隔の最大 11.1 分、取消 0 通（3 日分 866 通） (8) r1 の検証（.dr-tmp/proposal-r1.diff の木）: tsc 3 本 rc 0。vitest（--maxWorkers=2）で test/recovery・test/execution-split・test/host・test/terminal/layout10.test.ts・test/weather-current-unit・test/shared-runtime の 15 file・380 本 rc 0（約 103 秒）。--sequence.shuffle で recovery-adopt.test.ts・recovery.test.ts の 2 file・115 本 rc 0（seed 1794958106958）。既存の試験の期待は変えていない。T01 は暦日の直しの後も 130,308 組・落とした partial 17,006・違反 0（総当たりの時刻は読める時刻と x・null だけで、暦日の直しで変わる組は無い） (9) 歯（recovery.ts だけを替えた木、.dr-tmp/teeth-alpha.sh）: 直す前は T01（覆う全国報の無い組・規則の食い違い、落とした partial 120,544）と T02 の (a)(c)、r1 は T01（覆う全国報の無い組・規則の食い違い・直す前が残す partial を落とす組、ヘルツの列の候補 [n2]）と T02 の (b)(c)、r2 は T01（規則の食い違い・直す前が残す partial を落とす組、26,442）と T02 の (b)(c)、r0 の案（暦日を確かめない Date.parse）は T02 の (c)、B（受信時刻の条件を外す）は T01 と T02 の (b) で落ちた",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-URC-REVIEW-R1",
+        "status": "closed",
+        "source": "起草 r1 の起草レビュー（ヘルツ NO-GO、~/dev/fleq-r3-rv0/.rv-tmp/hertz-r1.out。Opus 条件付き GO）と、起草 r2（2026-11-18、worktree ~/dev/fleq-r3-draft、HEAD 047bafa0 で案を当てて回した。案は .dr-tmp/proposal-r2a.diff）",
+        "closed": "(1) ヘルツ NO-GO（成立）: 選びの段の部分集合は阻止と認め、崩れたのは『どの列でも直す前より悪くならない』の主張。府県の報の本文を 1 件多く取るので、P1: 一覧が京都 P（23:10）→ 全国 A（23:10、秋田 Code 43）の受信順で、X（23:00、秋田 Code 10）が現況のとき、P の本文を待つ間に live の全国報 N（23:20）と N の取消 C（23:23）が届くと、直す前は A を先に採っていて履歴から A に戻り秋田 43、α は A の当て直しが墓標 C より古く stale で X に戻り秋田 10 のまま確認済み。P2: 一覧 P（23:10）→ A（23:10）→ Q（京都 23:11）で P の取得だけが失敗すると候補ごと捨て、直す前が採った Q の行が出ない。先行する U-N の本文 299 件で共有の上限の残りが 1 件のとき、直す前は [A] を取り、α は [P, A] で U-W 全体が recoveryLimit。直し方は『保証を選別段に限定し、退行を明示して裁定を受ける』 (2) Opus 条件付き GO: P2『どの列でも悪くならない』は言い過ぎ（取消の窓と基点の報時刻が読めない窓では切りが丸ごと外れ本文が増える、暦日の読めない partial で確認が出なくなる）。P3 の 3 つ（下の (5)）。証拠不足: 一覧の item の reportDateTime の字の形 (3) 作者への聞き直し: 朝の裁定 α の前提が誤りだったので、P4-URC-D-SCOPE を A=α′（推奨・provisional）・B=α″・C=消す案で書き直し、返事待ち。r2 は α′ で書いた (4) r2 の直し: 案の基点を直す前の決め方（取消を除いた受信の最新）に戻し、落とす条件に『報時刻も基点より古い（暦日の検査で読めた時刻どうし）』を足すだけにした。基点の報時刻が読めなければ直す前の受信時刻の切り。主張を選びの段の 3 つ（D-SCOPE の reason の (a)(b)(c)）に絞り、表示の無退行は主張しない。帰結を 1 つの族として outOfScope に書き、ヘルツの 3 列を例に添えた。選びの後の基点の取消の族（r0 の P1）も outOfScope に残した (5) Opus P3: AC03 (4) の本契約の ref の取り直しに p3-recovery.json:1119・:1406 を足した。AC01 (2) の『読めない報時刻は残す』の根拠を P3-UTP-D-TIE-READ（同じ報時刻の数え方の決め）から、P4-URC-D-CUT=A の字（報時刻も古いものだけ落とす）と AC01 (3)（本文の受理と同じ暦日の検査）に替えた。T01 の末尾の console.log を消した (6) T01: 『返さない partial を覆う取消でない全国報が候補にある』の確かめは外した。α′ は基点の決め方が直す前のままで、基点が取消の前の全国報なら、取消の後に覆うとは限らない（選びの後の基点の取消の族と同じ欠けで、α′ では主張しない）。残したのは、規則どおり（wrong）・部分集合（wider、直す前が残す partial を落とす = 0）・増える集合が (c) の字どおり（extra）の 3 つ。数え直し: 130,308 組、落とす partial 51,680、直す前より多く返す partial 68,864（直す前が落とす 120,544 の内訳）、違反 0、ヘルツの 3 報の列の候補 [n2, p1] (7) T02: 基点の決め方を戻しても (a)(b)(c) の結果は r1 と同じ（(a) は基点 A の報時刻が P と同じ、(b) は P を基点の後に受ける、(c) は P の報時刻が読めない） (8) 歯（recovery.ts だけを替えた木、.dr-tmp/teeth-alpha2.sh）: 直す前は T01（規則の食い違い、落とす 120,544）と T02 の (a)(c)、r1・r2 は T01（規則・部分集合・増える集合）と T02 の (b)(c)、r0 の案は T01（規則・増える集合）と T02 の (c)、α″（r1 の案）は T01（規則・増える集合。取消と読めない基点の窓で直す前より多く返す）、B（α′ から受信時刻の条件を外す）は T01（規則・部分集合）と T02 の (b) で落ちた。α″ は T02 では落ちない（T02 の 3 列に取消や読めない基点が無い） (9) 検証（.dr-tmp/proposal-r2a.diff の木）: tsc 3 本 rc 0。vitest（--maxWorkers=2）で test/recovery・test/execution-split・test/host・test/terminal/layout10.test.ts・test/weather-current-unit・test/shared-runtime の 15 file・380 本 rc 0（約 103 秒）。--sequence.shuffle で recovery-adopt.test.ts・recovery.test.ts の 2 file・115 本 rc 0（seed 1794959215275）。既存の試験の期待は変えていない (10) 件数と材料: 統合担当が Mac mini で数えた（2026-11-18、.dr-tmp/count-cut.py・count-nat.py、~/dev/fleq-corpus-p0/20260923-capacity）: 取り直しの U-W の本文の 1 日の最大は、直す前 21・22・12、A 24・22・12（2026-06-03・06-26・09-21）で、増えるのは最大 3 件。窓 10 分・60 分・6 時間・24 時間で同じ。VPWS50 は報時刻 10 分ごと（同じ報時刻 2 通）、受信の間隔の最大 11.1 分、取消 0 通（3 日分 866 通）。取消が無いので、この数は α′ と α″（基点の決め方の違いは取消と読めない基点の窓だけ）で同じ。数えの材料はアーカイブの索引 telegrams.json の報時刻で、3,711 件中 3,703 件が YYYY-MM-DDTHH:MM:SS+09:00、欄の無い 8 件は XML でない WTJP 系。一覧の API（GET /v2/telegram の xmlReport.head.reportDateTime）の写しではないので、発注前点検で実の一覧 1 ページの字の形を見る",
+        "remaining": "P4-URC-D-SCOPE の作者の返事。発注前点検で実の一覧 1 ページの reportDateTime の字の形を見る"
       }
     ],
     "operationContract": {
@@ -68,7 +76,7 @@
   "contract": {
     "contractId": "P4-UW-RECOVERY-CUT-001",
     "mode": "implementation",
-    "objective": "U-W の取り直しの partial の切り（R3、P3-FRF-AC05 の申し送り）を直す。場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない。作者の裁定 P4-URC-D-CUT=A・P4-URC-D-SCOPE=A（α）により、直すのは選び方だけ（AC01）: 落とす partial を、運用区分ごとの基点の全国報より前に受け、報時刻も基点より古いものに限る。報時刻は本文の受理と同じ暦日の検査で読む。落とす partial は直す前の製品が落とす partial の部分集合で、どの列でも直す前より悪くならない。採用の段の確かめ・自動のやり直しは入れない（残す欠けは outOfScope）。AC02 は計算量、AC03 は配送の原文の改訂。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは owner-runtime.ts の export 1 つ（既存の reportDateTime）だけで、無いと何が壊れるかを AC01 (3) に書いた。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "objective": "U-W の取り直しの partial の切り（R3、P3-FRF-AC05 の申し送り）を直す。場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない。作者の裁定 P4-URC-D-CUT=A と、聞き直し中の P4-URC-D-SCOPE の推奨 A（α′、provisional）により、直すのは選び方だけ（AC01）: 直す前の受信時刻の切り（基点は取消を除いた受信の最新の VPWS50）に、報時刻が基点と同じか新しい府県の報と報時刻の読めない府県の報を落とさない条件を足す。報時刻は本文の受理と同じ暦日の検査で読む。保証は選びの段の 3 つ: (a) R3 の場面が直る (b) 落とす府県の報は直す前が落とす分の部分集合 (c) 増えるのは基点より前に受け報時刻が同じか新しいか読めない府県の報だけ。表示の無退行は主張しない（本文を多く取ることの帰結と、選びの後の基点の取消は outOfScope）。AC02 は計算量と件数、AC03 は配送の原文の改訂。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは owner-runtime.ts の export 1 つ（既存の reportDateTime）だけで、無いと何が壊れるかを AC01 (3) に書いた。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -86,7 +94,7 @@
       "reconstruction/test/recovery/recovery-adopt.test.ts"
     ],
     "allowedPaths": [
-      "reconstruction/src/recovery/recovery.ts（AC01 の分だけ: :9 の行の中〔import を 1 つ足す〕と、:214〜:218・:222 の行の中〔:219〜:221 は変えない〕。526 行のまま）",
+      "reconstruction/src/recovery/recovery.ts（AC01 の分だけ: :9 の行の中〔import を 1 つ足す〕と、:215〜:218・:222 の行の中〔:214・:219〜:221 は変えない〕。526 行のまま）",
       "reconstruction/src/runtime/owner-runtime.ts（AC01 (3) の分だけ: :774 の export の行の中に reportDateTime を足す。776 行のまま）",
       "reconstruction/test/recovery/recovery.test.ts（P4-URC-T01 の describe を P3-REC-T24 の describe の後ろに足す）",
       "reconstruction/test/recovery/recovery-adopt.test.ts（P4-URC-T02 の describe を P3-REC-T11 の describe の後ろ、P3-REC-T25 の前に足す）"
@@ -144,16 +152,17 @@
       "なし（bodiesFor の中の基点の Map だけ）"
     ],
     "outOfScope": [
-      "残す欠け（P4-URC-D-SCOPE=A、構造的欠陥台帳 141）: 選びの後に基点の全国報が live で取り消されると、落とした古い府県の報が次の全国報まで出ない（確認の前か後かを問わない 1 つの族）。場面: 13:00 の全国報 X を live で受けた後に切れ、13:55 の府県の報 P（区域を 43 に）、14:00 の全国報 A（区域は 03）を P→A の順に逃す。14:05 に繋がり直すと取り直しは A を取り P を落とす。14:06 に live で A の取消が届くと全国の現況は X（13:00）に戻り、区域は 03 のまま、約 10 分後の次の全国報まで L4 の表示も音も出ない。直す前の製品もこの P を落とすので同じ終わり方（P4-URC-D-CUT=A は直す前の部分集合）。災害の日 3 日分の VPWS50 866 通に取消は 0 通",
+      "残す欠けの族 1（構造的欠陥台帳 141）: 選びの後に基点の全国報が live で取り消されると、落とした古い府県の報が次の全国報まで出ない（確認の前か後かを問わない）。場面: 13:00 の全国報 X を live で受けた後に切れ、13:55 の府県の報 P（区域を 43 に）、14:00 の全国報 A（区域は 03）を P→A の順に逃す。14:05 に繋がり直すと取り直しは A を取り P を落とす。14:06 に live で A の取消が届くと全国の現況は X（13:00）に戻り、区域は 03 のまま、約 10 分後の次の全国報まで L4 の表示も音も出ない。直す前の製品もこの P を落とすので同じ終わり方。災害の日 3 日分の VPWS50 866 通に取消は 0 通",
+      "残す欠けの族 2（構造的欠陥台帳 141）: 府県の報の本文を直す前より多く取ることの帰結（本文の待ちが延びる・取得の失敗点が増える・本文の上限に近づく）は、P3-RECOVERY の決まり（取得の失敗で候補を捨てる、本文の上限 RES-03 は unit をまたいで共有、基点が変わったら当て直し、当て直した古い報は stale で照合は adopted）のまま受ける。例（起草 r1 のヘルツの列、Q-URC-REVIEW-R1 (1)）: (1) X（23:00、秋田 Code 10）が現況で、一覧が京都 P（23:10）→ 全国 A（23:10、秋田 43）の受信順。P の本文を待つ間に live の全国報 N（23:20）と N の取消 C（23:23）が届くと、直す前は A を先に採っていて秋田 43 に戻るが、α′ は A の当て直しが C より古く stale になり秋田 10 のまま確認済み (2) 一覧 P（23:10）→ A（23:10）→ Q（京都 23:11）で P の取得だけが失敗すると候補ごと捨て、直す前が出した 23:11 の京都の行が出ない (3) 先行する U-N の本文 299 件で上限の残りが 1 件のとき、直す前は [A] を取るが α′ は [P, A] で U-W 全体が recoveryLimit。増える本文は災害の日 3 日分で 1 日最大 3 件（AC02）",
       "Q-FRF-R3 (5)（報時刻の新しい全国報を古い全国報より先に受けた列の選び）: P4-URC-D-ORDER=A で閉じない。台帳に残存として書く（AC03 (6)）",
       "全国報が載せない区域の partial の行（mergeCells は覆わない区域の古い partial の行を残す）: P3-REC-D-UW-PARTIALS の reason の『partial の行と要約の件数は live と違いうる』のまま",
-      "採用の段の確かめと自動のやり直し（r0 の AC02・AC03）: P4-URC-D-SCOPE=A で入れない",
+      "採用の段の確かめと自動のやり直し（起草 r0 の AC02・AC03）: 入れない（P4-URC-D-SCOPE の reason）",
       "U-W 以外の unit の選び（受信の最新）と切り: 変えない"
     ],
     "acceptanceChecks": [
       {
         "id": "P4-URC-AC01",
-        "requirement": "切り（recovery.ts の bodiesFor、P4-URC-D-CUT=A）: (1) 基点: U-W のとき、運用区分ごとに VPWS50 の頭のうち受信時刻の最大のもの（同じ受信時刻は先に見た方。下の :226 の選びと同じ規則）を 1 つ残す。取消も数え、残ったのが取消ならその運用区分は切らない（直す前の :217 は取消を除いた受信の最新を基点にした。この違いでも (4) は成り立つ） (2) partial（VPWS50 でない U-W の頭）は、その運用区分の基点があり、基点が取消でなく、partial の受信時刻が基点より小さく、かつ partial と基点の報時刻がどちらも読めて partial の方が小さいときだけ落とす（同じ報時刻は残す、P3-UTP-D-TIE=A。読めない報時刻は残す、P3-UTP-D-TIE-READ=A） (3) 報時刻を読むのは owner-runtime.ts の reportDateTime（本文の受理が reportDateTimeInvalid を決める関数、:107）で、export に足して recovery.ts から使う。無いと: 一覧の『2020-02-30T00:00:00+09:00』を Date.parse が 3 月 1 日に読んで落とし、本文なら読めない報として確認を止めたはずの府県の報が、確認済みのまま消える（r0 のヘルツ P2） (4) 落とす partial は、直す前の製品（受信の最新の取消でない VPWS50 より後に受けた partial だけを取る）が落とす partial の部分集合で、直す前が残す partial を落とさない（P4-URC-T01 の確かめ 3）。これが範囲 α の主張の柱 (5) VPWS50 の選びと partial の官署×型の最新の選び（:219〜:228）、U-W 以外の unit、戻りの並べと型は変えない (6) 行: :9 の行の中に import を 1 つ、:214・:215 のコメント 2 行、:216〜:218 の基点の 3 行、:222 の 1 行を置き換える（行の数は変えない）",
+        "requirement": "切り（recovery.ts の bodiesFor、P4-URC-D-CUT=A、P4-URC-D-SCOPE の provisional A＝α′）: (1) 基点: U-W のとき、運用区分ごとに取消でない VPWS50 の頭のうち受信時刻の最大のもの（同じ受信時刻は先に見た方）。決め方は直す前（:217）のまま (2) partial（VPWS50 でない U-W の頭）は、その運用区分の基点があり、partial の受信時刻が基点の受信時刻以下で（直す前の :222 の条件のまま）、かつ次のどちらかのときだけ落とす: 基点の報時刻が読めない（直す前と同じ受信時刻の切り）、または partial の報時刻が読めて基点の報時刻より小さい。報時刻が基点と同じ partial（P3-UTP-D-TIE=A の向き）と報時刻の読めない partial は落とさない（P4-URC-D-CUT=A の『報時刻も基点より古いものだけ落とす』の字と (3) の検査による） (3) 報時刻を読むのは owner-runtime.ts の reportDateTime（本文の受理が reportDateTimeInvalid を決める関数、:107）で、export に足して recovery.ts から使う。無いと: 一覧の『2020-02-30T00:00:00+09:00』を Date.parse が 3 月 1 日に読んで落とし、本文なら読めない報として確認を止めたはずの府県の報が、確認済みのまま消える（r0 のヘルツ P2） (4) 保証は選びの段の 3 つ: (a) R3 の場面（同じ報時刻の府県の報を基点より前に受けた）で府県の報を取る (b) 落とす partial は直す前が落とす partial の部分集合 (c) 直す前より多く返すのは、基点より前に受け、基点の報時刻が読めて、報時刻が基点と同じか新しいか読めない partial だけ（P4-URC-T01）。表示の無退行は主張しない（outOfScope の族 1・族 2） (5) VPWS50 の選びと partial の官署×型の最新の選び（:219〜:228）、U-W 以外の unit、戻りの並べと型は変えない (6) 行: :9 の行の中に import を 1 つ、:215 のコメントの行の末尾、:216〜:218 の基点の 3 行、:222 の 1 行を書き換える（行の数は変えない）",
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:9 «8856dc6a021130d3»",
           "reconstruction/src/recovery/recovery.ts:217 «77df95d122173c6f»",
@@ -169,14 +178,14 @@
       },
       {
         "id": "P4-URC-AC02",
-        "requirement": "計算量（AGENTS.md の受信経路の計算量）: bodiesFor は頭の 2 走査（基点の Map と選び）と、返す候補 k 件の受信の順の整列で O(n＋k log k)。報時刻の読みは頭ごとに reportDateTime を 2 回（正規表現と Date.parse、定数）。全件×全件の走査、state の直列化をしない。上限（RES-02・RES-03・RES-05）と取り直しの起こし方は変えない。件数: 統合担当が Mac mini で数えた（2026-11-18、.dr-tmp/count-cut.py・count-nat.py、~/dev/fleq-corpus-p0/20260923-capacity）: 取り直しの U-W の本文の 1 日の最大は、直す前 21・22・12、A 24・22・12（2026-06-03・06-26・09-21）。窓 10 分・60 分・6 時間・24 時間で同じ。VPWS50 は報時刻 10 分ごと（同じ報時刻 2 通）、受信の間隔の最大 11.1 分、取消 0 通（3 日分 866 通）",
+        "requirement": "計算量（AGENTS.md の受信経路の計算量）: bodiesFor は頭の 2 走査（基点の Map と選び）と、返す候補 k 件の受信の順の整列で O(n＋k log k)。報時刻の読みは頭ごとに reportDateTime を 2 回（正規表現と Date.parse、定数）。全件×全件の走査、state の直列化をしない。上限（RES-02・RES-03・RES-05）と取り直しの起こし方は変えない。件数: 統合担当が Mac mini で数えた（2026-11-18、.dr-tmp/count-cut.py・count-nat.py、~/dev/fleq-corpus-p0/20260923-capacity）: 取り直しの U-W の本文の 1 日の最大は、直す前 21・22・12、A 24・22・12（2026-06-03・06-26・09-21）で、増えるのは最大 3 件。窓 10 分・60 分・6 時間・24 時間で同じ。VPWS50 は報時刻 10 分ごと（同じ報時刻 2 通）、受信の間隔の最大 11.1 分、取消 0 通（3 日分 866 通）。取消が無いので、この数は α′ と α″（基点の決め方の違いは取消と読めない基点の窓だけ）で同じ。数えの材料はアーカイブの索引 telegrams.json の報時刻で、3,711 件中 3,703 件が YYYY-MM-DDTHH:MM:SS+09:00、欄の無い 8 件は XML でない WTJP 系。一覧の API（GET /v2/telegram の xmlReport.head.reportDateTime）の写しではないので、発注前点検で実の一覧 1 ページの字の形を見る",
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:226 «ce0f2b9f98b5297a»"
         ]
       },
       {
         "id": "P4-URC-AC03",
-        "requirement": "配送の commit で統合担当が当てる原文の改訂（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-recovery.json の P3-REC-D-UW-PARTIALS の ruling（:397 の決めの中）の末尾に『【P4-UW-RECOVERY-CUT-001 の注記: 落とす partial は、基点〔運用区分ごとに受信の最新で残る VPWS50、取消なら切らない〕より前に受け、報時刻も基点より古いものだけ〔P4-URC-D-CUT=A、作者 2026-11-18〕。報時刻は本文の受理と同じ暦日の検査で読み、読めなければ落とさない】』、P3-REC-AC12 の requirement（:1119）の U-W の行の『それより後に受けた partial』の文の末尾に同じ趣旨の 1 文。P3-REC-T24 の behavior（:1406）の『最新の VPWS50 が取消なら、基点は 1 つ前の取消でない VPWS50 で、その後の partial と取消の VPWS50 を返す』を『最新の VPWS50 が取消なら、その運用区分は切らず、partial の官署×型の最新と取消の VPWS50 を返す（P4-UW-RECOVERY-CUT-001 で改めた。期待の id は変わらない）』に書き換える（末尾に足すのでなく、偽になる字を置き換える） (2) p3-recovery-read.json は改めない（r0 の count の注記は α で不要） (3) «» の付け直し: 実装で字が変わる行を引く他の契約の ref は、p3-final-review-fix.json の recovery.ts:218・:222 の 2 つだけ（.dr-tmp/refs.py で全契約の «» 付きの ref 112 を r1 の案の木に当てた。:9 と owner-runtime.ts:774 を引く他の契約は無い）。行は動かないので番号はそのまま、配送の木の字で取り直す (4) 本契約の ref の取り直し: evidenceRefs のうち実装で字の変わる行（recovery.ts:9・:217・:218・:222、owner-runtime.ts:774）と、(1)(6) で字を足す行（p3-recovery.json:397、p3-final-review-fix.json:360）を配送の木の字で取り直し、改めた契約と本契約の meta.sha256 を取り直す (5) 件数は数え済み（AC02 の件数、Q-URC-REVIEW-R0 (7)） (6) 構造的欠陥台帳（repo 外）: R3 を『解消（P4-UW-RECOVERY-CUT-001）』に。台帳 141 に outOfScope の 1 つ目（選びの後の基点の取消で落とした府県の報が出ない族）を、Q-FRF-R3 (5)（P4-URC-D-ORDER=A の残存）も残存として書く。p3-final-review-fix.json の P3-FRF-AC05 の requirement（:360）の末尾に『【受け手は P4-UW-RECOVERY-CUT-001】』 (7) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "requirement": "配送の commit で統合担当が当てる原文の改訂（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-recovery.json の P3-REC-D-UW-PARTIALS の ruling（:397 の決めの中）の末尾に『【P4-UW-RECOVERY-CUT-001 の注記: 基点〔運用区分ごとの取消でない受信の最新の VPWS50〕は今のまま。基点より前に受けた partial でも、報時刻が基点と同じか新しいか読めなければ落とさない〔P4-URC-D-CUT=A、P4-URC-D-SCOPE=<裁定>〕。報時刻は本文の受理と同じ暦日の検査で読み、基点の報時刻が読めなければ今の受信時刻の切り】』、P3-REC-AC12 の requirement（:1119）の U-W の行の『それより後に受けた partial』の文の末尾に同じ趣旨の 1 文。P3-REC-T24 の behavior（:1406）の末尾に『【P4-UW-RECOVERY-CUT-001 の注記: 基点は今のまま。基点より前に受けた partial でも、報時刻が基点と同じか新しいか読めなければ落とさない。頭の報時刻が null の T24 では基点の報時刻が読めないので今の受信時刻の切りのままで、期待の id は変わらない】』（α′ では基点の決め方を変えないので、(b) の『基点は 1 つ前の取消でない VPWS50』は真のまま） (2) p3-recovery-read.json は改めない（r0 の count の注記は α で不要） (3) «» の付け直し: 実装で字が変わる行を引く他の契約の ref は、p3-final-review-fix.json の recovery.ts:218・:222 の 2 つだけ（.dr-tmp/refs.py で全契約の «» 付きの ref のうち recovery.ts・owner-runtime.ts を引く 113 を r2 の案の木に当てた。本契約自身の 5 つは (4)。:9 と owner-runtime.ts:774 を引く他の契約は無い）。行は動かないので番号はそのまま、配送の木の字で取り直す (4) 本契約の ref の取り直し: evidenceRefs のうち実装で字の変わる行（recovery.ts:9・:217・:218・:222、owner-runtime.ts:774）と、(1)(6) で字を足す行（p3-recovery.json:397・:1119・:1406、p3-final-review-fix.json:360）を配送の木の字で取り直し、改めた契約と本契約の meta.sha256 を取り直す (5) 件数は数え済み（AC02 の件数、Q-URC-REVIEW-R0 (7)） (6) 構造的欠陥台帳（repo 外）: R3 を『解消（P4-UW-RECOVERY-CUT-001）』に。台帳 141 に outOfScope の族 1（選びの後の基点の取消）と族 2（本文を多く取ることの帰結）を、Q-FRF-R3 (5)（P4-URC-D-ORDER=A の残存）も残存として書く。p3-final-review-fix.json の P3-FRF-AC05 の requirement（:360）の末尾に『【受け手は P4-UW-RECOVERY-CUT-001】』 (7) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-recovery.json:397 «78d74d77e8e67a44»",
           "reconstruction/contracts/p3-recovery.json:1064 «95092f89ec09fde4»",
@@ -193,7 +202,7 @@
         "referenceIds": [
           "P4-URC-AC01"
         ],
-        "behavior": "実不具合の再発防止（R3 と r1 の列）。recovery.test.ts の P3-REC-T24 の describe の後ろに自前の describe「P4-URC-T01 …」と it を 1 つ。r2 の P3-FRF-T04 と同じ組合せ（全国報 n1〔normal、報時刻 なし・13:50・13:55・14:00・null〕、n2〔normal か training、なし・13:50・13:55・14:00・x〕、取消 c〔normal、なし・13:55〕、partial p1〔横浜の VPWW55、normal、なし・13:50・13:55・14:00・null〕、p2〔宇都宮の VPWW58、normal か training、なし・13:50・14:00・x〕の全部の組と受信の順の全部の並べで 130,308 組）を bodiesFor(\"U-W\", heads) に通し、(1) 返すかどうかが AC01 (2) の規則と一致する (2) 返さない partial ごとに、返す候補に同じ運用区分の取消でない全国報で報時刻がより新しいものがある (3) 返さない partial は、直す前の製品（受信の最新の取消でない VPWS50 より後に受けた partial だけを取る）も落とす、を数え、{ cases: 130308, dropped: 17006, broken: [], wrong: [], wider: [], hertz: [\"n2\", \"p1\"] } と等しい、の 1 つの expect（hertz はヘルツの 3 報の列 14:00 の n1・13:50 の n2・13:55 の p1 の候補）。歯は Q-URC-REVIEW-R0 (9)"
+        "behavior": "実不具合の再発防止（R3 と r1 の列）。recovery.test.ts の P3-REC-T24 の describe の後ろに自前の describe「P4-URC-T01 …」と it を 1 つ。r2 の P3-FRF-T04 と同じ組合せ（全国報 n1〔normal、報時刻 なし・13:50・13:55・14:00・null〕、n2〔normal か training、なし・13:50・13:55・14:00・x〕、取消 c〔normal、なし・13:55〕、partial p1〔横浜の VPWW55、normal、なし・13:50・13:55・14:00・null〕、p2〔宇都宮の VPWW58、normal か training、なし・13:50・14:00・x〕の全部の組と受信の順の全部の並べで 130,308 組）を bodiesFor(\"U-W\", heads) に通し、partial ごとに (1) 返すかどうかが AC01 (2) の規則と一致する（wrong） (2) 返さない partial は直す前の製品（受信の最新の取消でない VPWS50 以前に受けた partial を落とす）も落とす（wider） (3) 直す前が落とすのに返す partial は、基点の報時刻が読め、報時刻が基点と同じか新しいか読めない（extra）、を数え、{ cases: 130308, dropped: 51680, added: 68864, wrong: [], wider: [], extra: [], hertz: [\"n2\", \"p1\"] } と等しい、の 1 つの expect（hertz はヘルツの 3 報の列 14:00 の n1・13:50 の n2・13:55 の p1 の候補）。『返さない partial を覆う全国報が候補にある』は確かめない（Q-URC-REVIEW-R1 (6)）。歯は Q-URC-REVIEW-R1 (8)"
       },
       {
         "testId": "P4-URC-T02",
@@ -201,7 +210,7 @@
         "referenceIds": [
           "P4-URC-AC01"
         ],
-        "behavior": "実不具合の再発防止（R3、r0 のヘルツ P2、起草レビュー r2 のヘルツの列）。recovery-adopt.test.ts の P3-REC-T11 の describe の後ろに自前の describe「P4-URC-T02 …」と it を 3 つ。製品の root と in-process の owner に通し、setup の購読に telegram.weather を足し、live で全国報 X（23:00）を採ってから始める。値は [取った本文, progress, U-W の normal の whole, 京都の partial の報時刻, 全国の現況の報時刻]。(a) R3: 空の一覧で起動の取り直しを済ませ、connectionLost → 5 分 → recordConnected。一覧は京都の VPWW57 P（23:10）と、その 38 秒後に受けた同じ報時刻の全国報 A（23:10）。60 秒の後の取り直しで [[p, a], recovered, null, [23:10], 23:10] と、京都の区域の勝者の報時刻 [23:10] (b) r2 の列: 起動の取り直しの一覧 A（23:10、先に受けた）と P（23:05、後に受けた）、A の本文を止めて live で A と A の取消（23:13）を採ってから返すと [[a, p], recovered, null, [23:05], 23:00] (c) 暦日の読めない報時刻: P の報時刻を一覧も本文も『2020-02-30T23:05:00+09:00』にして A（23:10）より前に受けると、P も取り [[p, a], unsatisfied, unreadableReport, [], 23:10]（直す前と Date.parse の案は P を落として確認済み）。残す欠けの列（P を A の前に受け、取り直しの後に A の取消）は試験にしない（outOfScope の 1 つ目）。歯は Q-URC-REVIEW-R0 (9)"
+        "behavior": "実不具合の再発防止（R3、r0 のヘルツ P2、起草レビュー r2 のヘルツの列）。recovery-adopt.test.ts の P3-REC-T11 の describe の後ろに自前の describe「P4-URC-T02 …」と it を 3 つ。製品の root と in-process の owner に通し、setup の購読に telegram.weather を足し、live で全国報 X（23:00）を採ってから始める。値は [取った本文, progress, U-W の normal の whole, 京都の partial の報時刻, 全国の現況の報時刻]。(a) R3: 空の一覧で起動の取り直しを済ませ、connectionLost → 5 分 → recordConnected。一覧は京都の VPWW57 P（23:10）と、その 38 秒後に受けた同じ報時刻の全国報 A（23:10）。60 秒の後の取り直しで [[p, a], recovered, null, [23:10], 23:10] と、京都の区域の勝者の報時刻 [23:10] (b) r2 の列: 起動の取り直しの一覧 A（23:10、先に受けた）と P（23:05、後に受けた）、A の本文を止めて live で A と A の取消（23:13）を採ってから返すと [[a, p], recovered, null, [23:05], 23:00] (c) 暦日の読めない報時刻: P の報時刻を一覧も本文も『2020-02-30T23:05:00+09:00』にして A（23:10）より前に受けると、P も取り [[p, a], unsatisfied, unreadableReport, [], 23:10]（直す前と Date.parse で読む案は P を落として確認済み）。残す欠けの族 1・族 2 の列は試験にしない（outOfScope）。歯は Q-URC-REVIEW-R1 (8)"
       }
     ],
     "requiredCommands": [
@@ -271,11 +280,24 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最初の作業: 先に P4-URC-T01・T02 だけを足した木で 2 つの試験 file を回し、直す前の製品で T01 が覆う全国報の無い組と規則の食い違いで、T02 の (a)(c) が P を取らずに落ちることを確かめてから製品を直す（(b) は直す前も緑）。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
+      "最初の作業: 先に P4-URC-T01・T02 だけを足した木で 2 つの試験 file を回し、直す前の製品で T01 が規則の食い違い（wrong）で、T02 の (a)(c) が P を取らずに落ちることを確かめてから製品を直す（(b) は直す前も緑）。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
       "最小実装・最小テスト: 足す仕組みは owner-runtime.ts の export 1 つ（既存の reportDateTime）だけで、無いと壊れることを AC01 (3) に書いた。試験は 2 本: T01 は regression（R3 と r1 の列、選びの総当たり）、T02 は regression（R3 の繋がり直しの場面・r2 の列・暦日の読めない報時刻）。新しい fixture・helper の file を足さない",
       "src の 2 file（recovery.ts・owner-runtime.ts）は行の数を変えない（行の中の書き換えだけ）。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない",
-      "起草 r1 の案（.dr-tmp/proposal-r1.diff、起草の worktree ~/dev/fleq-r3-draft の未追跡）は参考で、実装は本契約の条文に従う。r0 の案（proposal-r0.diff）は範囲 α の外"
+      "起草 r2 の案（.dr-tmp/proposal-r2a.diff、起草の worktree ~/dev/fleq-r3-draft の未追跡）は参考で、実装は本契約の条文に従う。r0 の案（proposal-r0.diff）と r1 の案（proposal-r1.diff、α″）は本契約に入れない"
     ],
-    "unresolvedQuestions": []
+    "unresolvedQuestions": [
+      {
+        "id": "Q-URC-D-SCOPE",
+        "owner": "user",
+        "blocks": [
+          "baseOid の割当"
+        ],
+        "resolveBy": "作者の返事（P4-URC-D-SCOPE の A＝α′・B＝α″・C＝消す案）",
+        "requiredEvidence": [
+          "P4-URC-D-SCOPE の reason・ifNotChosen と outOfScope の族 1・族 2",
+          "AC02 の件数（増える本文は 3 日分で 1 日最大 3 件）"
+        ]
+      }
+    ]
   }
 }
