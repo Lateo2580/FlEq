@@ -58,11 +58,13 @@ npm run start:lowmem # メモリ最適化モードで実行
 
 | 用途 | モデル |
 |---|---|
-| 日常相談・探索・コード読解 | gpt-6-sol medium（GPT-6 に Terra は無い。2026-09-23〜） |
+| 日常相談・探索・コード読解 | Sol medium |
 | 中間 diff レビュー（フェーズ末含む） | Astra high（2026-09-15 作者指示。レビュー依頼は全て Astra high） |
-| 定型実装の委譲 | gpt-6-luna medium/high |
-| 難しい範囲限定実装 | gpt-6-sol medium/high |
+| 定型実装の委譲 | Luna medium/high |
+| 難しい範囲限定実装 | Sol medium/high |
 | 最終全体レビュー・セキュリティ・見解衝突 | 新規スレッドの Astra high |
+
+- **各系統でカタログの最新版を使う**（2026-11-18 作者指示）。`-m` に書く slug は `~/.claude/skills/Codex/references/model-effort-guide.md` の「モデル 3 種」の表から取る（2026-11-18 時点では `gpt-6.2-sol` / `gpt-6.2-astra` / `gpt-6-luna`）
 
 - **独立レビューは必ず新規 codex 呼び出し + read-only**。実装に使ったスレッドを流用しない
 - **独立性**: Claude の自己評価を Codex に見せない（盲点の多様性確保）
@@ -70,7 +72,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 - 委譲環境は使い捨て clone で用意する。依存は、lockfile が本体と同じなら本体の node_modules を `cp -cR`（CoW コピー）で写し、違えば `npm ci --ignore-scripts` で入れる（`~/.claude/rules/cow-copy.md`。node_modules を symlink にしない）
 - 委譲の段階導入・意味的手直し率の判定閾値は運用側メモ（memory `reference_model_division_v1`）を参照
 - **display/frontend の実装委譲は Phase 0（規範読み込み）を最初の成果物にする**: `docs/specs/display-design-system.md`・`theme.css`・header/footer 統一 spec・錨カードを読み、使うトークンと倣う錨の file:line を申告してから実装（2026-09-05、規範を読まない類推実装で乖離 11 件が積み上がった経緯）
-- **実装委譲文には「最小実装・最小テスト」を定型で入れる**: 完了条件の列挙に続けて「仕組みを足すときは無いと何が壊れるかを 1 行で示す／テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに対応するかを成果物に 1 行で書く」を書く。gpt-6-astra への委譲では省略しない（2026-09-11 作者指示、詳細は `AGENTS.md` §コーディング規約）
+- **実装委譲文には「最小実装・最小テスト」を定型で入れる**: 完了条件の列挙に続けて「仕組みを足すときは無いと何が壊れるかを 1 行で示す／テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに対応するかを成果物に 1 行で書く」を書く。Astra への委譲では省略しない（2026-09-11 作者指示、詳細は `AGENTS.md` §コーディング規約）
 - **ブラウザ capture の実走は親（Claude）が担う**: 子の sandbox は listen 不可。子は records に対する `--assert-from` で assertion を検証する
 - **スコープ**: repo 全体ではなく diff 単位に絞る
 - **形式**: file:line 付きの構造化出力・確信度を求める。スタイルのみの指摘は不要と伝える
