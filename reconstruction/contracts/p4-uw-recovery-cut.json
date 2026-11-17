@@ -1,0 +1,340 @@
+{
+  "meta": {
+    "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
+    "sha256": "d9bfcd7791491a6a6c71da73e34a0b7548163967b75ea1c208dd8a7c8a9dc9f2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-URC-D-CUT",
+        "kind": "作者",
+        "A": "落とす府県の報（partial）を、基点の全国報より前に受け、かつ報時刻も基点より古いものだけにする（受信時刻と報時刻の両方で古いもの）。基点は今と同じ規則（運用区分ごとに受信の最新で残る VPWS50。取消なら切らない）",
+        "B": "報時刻だけで切る（基点より報時刻の古い partial は、受けた順を問わず落とす。起草 r2 の案）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "未裁定（起草 r0 の推奨。作者の裁定を待つ）",
+        "ruling": "未裁定",
+        "blocks": "発注の baseOid の割当（AC01 の条文が A と B で変わる）",
+        "ifNotChosen": "B の場面: 14:00 に全国報 A（区域は 03）を受け、14:01 に遅れて 13:55 の府県の報 P（区域を 43 に）を受けた。どちらも WS が切れている間で、取り直しは P を落として A だけを取り、確認済みになる。その後 14:03 に live で A の取消が届くと、全国の現況は前の 13:00 の全国報に戻り、P は取っていないので区域は 03 のまま、次の全国報（約 10 分後）まで L4 の表示も音も出ない。直す前の製品（受信時刻で切る）はこの P を取っていたので、B はこの列で直す前より悪くなる。A ではこの P を取るので 43 が出る",
+        "reason": "P3-REC-D-UW-PARTIALS=A（作者、2026-10-29 朝）の字は『最新の VPWS50 より後に受けた partial だけを取る』で、R3 はこの受信時刻の切りが同じ報時刻の府県の報を落とす欠け（場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない）。P3-FRF-D-R3（作者、2026-11-16）の午後の裁定 A で『報時刻で切ることで揃える』向きを採り、夕の裁定 B で P4 のこの契約へ送った。A は D-UW-PARTIALS=A の受信時刻の切りを残したまま報時刻の条件を足すので、落とす partial は直す前の製品が落とす partial の部分集合になる（P4-URC-T01 の総当たりで 130,308 組の違反 0）。確認済みにした後に基点の全国報が live で取り消される列は、採用の段の確かめ（AC02）では捕まらない（確かめの時には基点が効いている）。この列で A は直す前と同じ、B は直す前より悪い。A が多く取るのは基点より後に受けた古い報時刻の partial だけで、総当たりでは落とす数が B の 26,442 に対し A は 17,006（直す前 120,544）。実配信の 1 日の本文の件数の差は数えていない（corpus は Mac mini にあり起草の許可 root の外。AC05 (5) で配送の前に数える）。画面: A と B で違うのは上の列だけ（府県の報の行と L4 の表示・音）。消す案（切りを外す）は D-UW-PARTIALS の B として評価済みで RES-03 の 300 件を越えるので載せない"
+      },
+      {
+        "id": "P4-URC-D-RECHECK",
+        "kind": "統合担当",
+        "A": "採用の段で確かめる: owner は採用の返信に、当て直しの後の U-W の全国の現況の報時刻（運用区分ごと）を載せる。root の settleAdopted は、切りで落とした partial の報時刻の最大より全国の現況の報時刻が新しいかを運用区分ごとに比べ、新しくなければ穴を解かず、確認を出さない",
+        "B": "owner で確かめる: root が採用の要求に切りの時刻を載せ、owner が判定して返信の語で返す",
+        "C": "基点が変わったら（当て直しが起きたら）一律に確かめを止めて取り直し直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、起草 r0）",
+        "ruling": "A（統合担当の決め、起草 r0）",
+        "reason": "r2 の列（Q-FRF-R3 (6)）は、当て直した基点の全国報 A が live の取消 C より古く stale になっても、照合が adopted になって確認済みへ進んだ。stale は『live で新しい全国報が先に覆った』正常な列でも起きるので、返信の語では分けられない。分けられるのは当て直しの後の state で、全国の現況が落とした partial より新しいか（mergeCells は全国の現況より報時刻の古い partial の行を全国報の行で覆い、同じ報時刻なら partial を残す、weather-current-public.ts の :91・:106）。正常な列では現況が 14:10 の全国報になり新しいので通り、r2 の列では現況が 13:00 に戻り古いので止まる（P4-URC-T02 の (a)(c)）。置き場が settleAdopted なのは、穴の解決と before の前進（:2298・:2299）がそこにあり、返信の反映の前に同期で走るので root の mirror（反映の後）は使えず、値は返信で運ぶしかないから。U-W の view は全国の現況の報時刻を持たない（areas は府県ごとの勝者だけ）。B は要求・返信・判定の 3 か所が owner に増え、確かめの規則（運用区分ごとの最大）が root の切りと owner の判定に分かれる。C は正常な列（待つ間に約 10 分ごとの全国報が来る）でも毎回 60 秒と一覧・本文の取り直しを足す（U-W の本文待ちは RES-05 の 7.5 秒間隔で、全国報 1 件 4.5 MB の当て直しが起きやすい、P3-REC-D-UW-PARTIALS の ifNotChosen）"
+      },
+      {
+        "id": "P4-URC-D-REDO",
+        "kind": "統合担当",
+        "A": "覆わなかったら、同じ起点でもう 1 回だけ取り直す（P3-REC-D-COALESCE の印と 60 秒の間隔を使う）。unit ごとに、確かめが通って recovered になるまで 2 回目は起こさない。尽きたら未充足（notAdopted）のまま確認を出さず、次のきっかけ（繋がり直し・断った入力・鮮度の疑い）を待つ",
+        "B": "やり直さない（未充足のまま次のきっかけを待つ）",
+        "C": "覆うまで何度でも取り直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、起草 r0）",
+        "ruling": "A（統合担当の決め、起草 r0）",
+        "reason": "r2 の列では、やり直しの一覧に A の取消 C が入るので、受信の最新で残る VPWS50 が取消になり切らず、P を取って 43 になる（P4-URC-T02 (a)。1 回で足りる）。B は、取り直しの後は鮮度の疑いか繋がり直しまで何も起こさないので、R3 と同じく 43 が出ないまま待つ。C は、基点の全国報が当て直しの後も効かない列が一覧にそのまま残る場合（受信の順と報時刻の順が逆で、取消の墓標が基点より新しい）に、60 秒ごとに一覧と本文を引き続け、dmdata の枠（RES-02・RES-05）を食う（P4-URC-T02 (d) で上限を外すと 3 回目の本文を取る）。新しい仕組みは unit の集合 1 つ（cutRedone）だけで、やり直しの起こし方・間隔・範囲は既存の requestRecovery・startWantedRecovery・widerStart を使う。画面: やり直しの間は今の『取り直し中』（progress の running）、U-W の確認は出ないまま（今の未確認の表示）で、新しい札や状態は作らない"
+      },
+      {
+        "id": "P4-URC-D-ORDER",
+        "kind": "統合担当",
+        "A": "Q-FRF-R3 (5)（報時刻の新しい全国報 A を報時刻の古い B より先に受けると、選びが受信の最新の B を残し、B が全国の現況になる）は本契約で閉じない。選びの規則は今のまま（受信の最新）で、残存として台帳に書く",
+        "B": "全国報の選びを版の順（報時刻→Control/DateTime、同じ時刻は取消が勝つ）に替え、切りの基点も同じ規則にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、起草 r0）",
+        "ruling": "A（統合担当の決め、起草 r0）",
+        "reason": "この列は直す前からの選びで、AC02 の確かめでは捕まらない（B が全国の現況になり、落とした partial は B より古いので覆われる）。落とす partial の欠けは起きず、害は約 10 分の間、全国の現況が 1 つ古いこと。統合担当の数え（Mac mini の災害の日 3 日分の VPWS50 433 通）で、同じ運用区分で受信の順と報時刻の順が逆の組は 0 件（Q-FRF-R3 (5)）。B は、読めない報時刻（版が決まらない）・同じ時刻の取消・取消と基点の向きを選びに足し、3 巡の起草で毎回後段の新しい列を生んだ選びの段をもう一度広げる。R3 の直しと分けて P4 の後の契約で扱う"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-URC-DRAFT-R0",
+        "status": "closed",
+        "source": "起草 r0（2026-11-18、MacBook。worktree ~/dev/fleq-r3-draft〔branch draft/r3、HEAD 8f2be18b〕で案を当てて回した。案と試験は commit せず .dr-tmp/proposal-r0.diff に残し、木は本契約の file だけに戻した）",
+        "closed": "(1) 後段の読み: 取り直しの一覧の受信時刻の最大で切る今の bodiesFor（recovery.ts:218・:222）と、r1（報時刻の最大で切る）・r2（受信の最新で残る VPWS50 の報時刻で切る）の 3 つの案のどれも、本文を待つ間の live の基点 A と A の取消 C の列で確認済みへ進む。当て直し（owner-host.ts:225）で A は C の墓標より古く stale（weather-current.ts:600 の older。noChange でないので owner-runtime.ts:498 の held が立たない）、recoveryResult（owner-runtime.ts:671）は adopted を返し、settleAdopted は穴を解き（composition-root.ts:2298）、coverageVerified を出す（:2320）。直す前の製品もこの列で落ちる（P を A より前に受けた形。P4-URC-T02 (a) の歯）。正常な列（待つ間に live の 14:10 の全国報）も A は stale なので、返信の語では分けられない (2) live の府県の報の扱い: partial は自分の系列（運用区分/型/官署）の版とだけ比べて採られ（weather-current.ts の latestSource）、全国の現況より報時刻が古くても state に残る。画面の合わせ（mergeCells）は全国報が載せる区域で、報時刻が全国報より古い partial の行を全国報の行で覆い（:106）、同じ報時刻なら partial を残す（:91、P3-UTP-D-TIE=A）。そのため確認済みの後に基点の全国報が live で取り消されると、live で受け続けた木は古い partial を見せ、取り直しで落とした木は見せない。直す前（受信時刻の切り）と同じかより少なくなるように P4-URC-D-CUT の A を推す (3) 総当たり（P4-URC-T01、r2 の P3-FRF-T04 と同じ 130,308 組）: 案の bodiesFor で違反 0（規則と食い違う組 0・落とした partial を覆う全国報が候補に無い組 0・直す前の製品が残す partial を落とす組 0・dropped の食い違い 0）、ヘルツの 3 報の列の候補は [n2, p1]、落とした partial は 17,006（r2 26,442・r1 46,578・直す前 120,544、Q-FRF-R3 (3)）。歯: 直す前の製品・r1・r2・A から受信時刻の条件を外した変異（＝B）の 4 つで落ちた（直す前は規則の食い違い、r1 はヘルツの列が [n2] と dropped の食い違い、r2 と変異は dropped と規則の食い違い） (4) 後段の列（P4-URC-T02、recovery-adopt.test.ts の製品の root と in-process の owner。京都の VPWW57〔23:05〕・全国報 X〔23:00〕・A〔23:10〕・A の取消 C〔23:13〕）: 案で 4 つとも緑。(a) P を A より前に受け、待つ間に live で A と C → 1 回目の採用の後は progress running・U-W の確認なし（startup のまま）・京都の行なし・全国の現況 X、60 秒の後のやり直しで一覧の基点が C（取消）なので切らず P を取り、recovered・確認・京都の行 23:05、一覧の辿りは 1 回、WARN は recoveryNotAdopted 1 件（count 1） (b) r2 の列（P を A より後に受ける）は A では P も取るので、待つ間の C の後も 1 回で recovered・京都の行 23:05 (c) 正常な列（待つ間に live の 23:20 の全国報）は 1 回で recovered・やり直しなし・現況 23:20 (d) やり直しの一覧に C が無い（基点が覆わないまま）と、2 回目は起こさず unsatisfied・未確認・一覧の辿り 1 回・本文 a を 2 回・WARN 2 件。歯: 直す前の製品は (a)(d)、r1・r2 は (a)(b)(d)、案の bodiesFor だけで root の確かめの無い木は (a)(d)、上限（cutRedone）を外した変異は (d)（本文 a を 3 回・辿り 2 回）で落ちた。(c) はどの木でも緑（正常な列を止めない確かめ） (5) 回した検証（案の写し）: tsc 3 本 rc 0。vitest（--maxWorkers=2）で test/recovery・test/execution-split・test/host・test/terminal/layout10.test.ts・test/weather-current-unit の 14 file・343 本 rc 0（約 103 秒）。--sequence.shuffle で recovery-adopt.test.ts・recovery.test.ts の 2 file・115 本 rc 0（seed 1794954861386）。既存の試験の期待は 1 つも変えていない（P3-REC-T24 は頭の reportDateTime が null で、落とす条件の報時刻が NaN になり切らないが、同じ官署×型の最新の選びで期待の id は変わらず緑）。全ゲートは回していない (6) 案は 3 つの src file の行の数を変えない（行の中の書き換えだけ）。それでも行の字が変わるので、他の契約の «» のうち 4 つが落ちる（AC05 (3)）",
+        "remaining": "P4-URC-D-CUT の作者の裁定。配送の前の数え（AC05 (5)）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。切りの基点・落とした partial・確かめはどれも運用区分ごと（normal・training・test は互いに切らない）。取り直しの確認は今どおり normal だけ（recoveredOperations）"
+    }
+  },
+  "contract": {
+    "contractId": "P4-UW-RECOVERY-CUT-001",
+    "mode": "implementation",
+    "objective": "U-W の取り直しの partial の切り（R3、P3-FRF-AC05 の申し送り）を直す。場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない。(1) 切り（AC01）: 落とす partial を、運用区分ごとの基点の全国報より前に受け報時刻も古いものに限り、落とした報時刻の最大を root へ返す。(2) 採用の段の確かめ（AC02）: owner が当て直しの後の全国の現況の報時刻を採用の返信に載せ、root の settleAdopted が落とした partial を覆うかを比べる。覆わなければ穴を解かず before も進めず、確認を出さない。(3) やり直し（AC03）: 覆わなかった unit を同じ起点でもう 1 回だけ取り直す（既存の印と 60 秒の間隔）。(4) 計算量（AC04）と配送の原文の改訂（AC05）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは bodiesFor の引数 1 つ・返信の欄 1 つ・root の集合 1 つと型 1 つだけで、無いと何が壊れるかを各 AC に書いた。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-uw-recovery-cut.json",
+      "reconstruction/contracts/p3-final-review-fix.json",
+      "reconstruction/contracts/p3-recovery.json",
+      "reconstruction/contracts/p3-recovery-read.json",
+      "reconstruction/contracts/p3-uw-same-time-partial.json",
+      "reconstruction/contracts/p3-execution-split.types.ts",
+      "reconstruction/contracts/p3-recovery.types.ts",
+      "reconstruction/src/recovery/recovery.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/src/runtime/owner-host.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/checkpoint/checkpoint.ts",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/src/units/weather-current/weather-current-public.ts",
+      "reconstruction/test/recovery/recovery.test.ts",
+      "reconstruction/test/recovery/recovery-adopt.test.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/recovery/recovery.ts（AC01 の分だけ: :212 の行の中〔引数 dropped〕と、:214〜:222 の 9 行の置き換え〔9 行のまま〕。526 行のまま）",
+      "reconstruction/src/runtime/composition-root.ts（AC02・AC03 の分だけ: :2047・:2162・:2165・:2187・:2220・:2222・:2286・:2290・:2296・:2297・:2301・:2308・:2314・:2316・:2318・:2405 の行の中。2487 行のまま。ほかの行は変えない）",
+      "reconstruction/src/runtime/owner-host.ts（AC02 (1) の分だけ: :237・:238 の行の中。444 行のまま）",
+      "reconstruction/contracts/p3-execution-split.types.ts（AC02 (2) の分だけ: :89 の行の中に欄 1 つと行末のコメント。行を足さない）",
+      "reconstruction/test/recovery/recovery.test.ts（P4-URC-T01 の describe を P3-REC-T24 の describe の後ろに足す）",
+      "reconstruction/test/recovery/recovery-adopt.test.ts（P4-URC-T02 の describe を P3-REC-T11 の describe の後ろ、P3-REC-T25 の前に足す）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-uw-recovery-cut.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B06",
+      "M06"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-RECOVERY-001",
+      "P3-RECOVERY-READ-001",
+      "P3-UW-SAME-TIME-PARTIAL-001",
+      "P3-EXECUTION-SPLIT-001",
+      "P3-FINAL-REVIEW-FIX-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-execution-split.types.ts#RecoveryOutcome"
+    ],
+    "publicFunctions": [
+      "変える口: bodiesFor(unit, heads, nowWallMs = Date.now(), dropped?: Map<Operation, number>)（4 つ目の引数を足す、AC01 (3)）。RecoveryOutcome の adopted に nationalThrough?: Readonly<Partial<Record<Operation, number>>> を足す（AC02 (2)）",
+      "変えない口: recovery.ts の export の一覧、bodiesFor の戻りの型、OwnerRequest の recovery、RecoveryUnsatisfiedReason・DiagnosticReason の語、UnitModule、ListHead、保存の codec の形。ほかの export・型・helper・設定・定数を足さない（composition-root.ts の RecoveryCut の型と cutRedone の集合は module の中だけ）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_16_02_251222_VPWW57",
+      "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-before"
+    ],
+    "sequenceIds": [
+      "O03",
+      "O07",
+      "O08"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形・schema の版を変えない。返信の欄 nationalThrough と root の cutRedone は保存しない）"
+    ],
+    "nonPersistedFields": [
+      "RecoveryOutcome adopted の nationalThrough（その返信の中だけ）",
+      "RuntimeCompositionRoot の cutRedone（その起動の中だけ。再起動で空）"
+    ],
+    "outOfScope": [
+      "Q-FRF-R3 (5)（報時刻の新しい全国報を古い全国報より先に受けた列の選び）: P4-URC-D-ORDER=A で閉じない。台帳に残存として書く（AC05 (6)）",
+      "確認済みの後に基点の全国報が live で取り消される列: 落とした partial は次の全国報まで出ない。P3-REC-D-UW-PARTIALS=A（最新の VPWS50 より前の partial は取らない）と P3-REC-D-UW-CANCEL-HISTORY=B（取り直しで履歴を補わない）が受け入れた欠けの内で、P4-URC-D-CUT=A なら直す前の製品より増えない（P4-URC-T01 の直す前の部分集合の確かめ）",
+      "全国報が載せない区域の partial の行（mergeCells は覆わない区域の古い partial の行を残す）: P3-REC-D-UW-PARTIALS の reason の『partial の行と要約の件数は live と違いうる』のまま",
+      "U-W 以外の unit の選び（受信の最新）と切り: 変えない",
+      "やり直しが尽きた後に何もきっかけが来ない場合の確認の遅れ: 今の notAdopted と同じく次のきっかけ（繋がり直し・断った入力・鮮度の疑い）を待つ。周期の取り直しは足さない"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-URC-AC01",
+        "requirement": "切り（recovery.ts の bodiesFor、P4-URC-D-CUT の A。B に裁定されたら (2) の受信時刻の条件を外す）: (1) 基点: U-W のとき、運用区分ごとに VPWS50 の頭のうち受信時刻の最大のもの（同じ受信時刻は先に見た方。下の :226 の選びと同じ規則）を 1 つ残す。取消も数える (2) partial（VPWS50 でない U-W の頭）は、その運用区分の基点があり、基点が取消でなく、partial の受信時刻が基点より小さく、かつ Date.parse(partial.reportDateTime ?? \"\") が Date.parse(基点.reportDateTime ?? \"\") より小さいときだけ落とす（NaN は < が偽なので落とさない。同じ報時刻は残す、P3-UTP-D-TIE=A） (3) 落とした partial の報時刻の最大を運用区分ごとに引数 dropped（呼び手が渡す Map、省けば書かない）へ入れる。無いと: root は採用の後に何を覆えばよいか分からず、AC02 の確かめが書けない (4) VPWS50 の選びと partial の官署×型の最新の選び（:223〜:228）、U-W 以外の unit、戻りの並べは変えない (5) 行: :212 の行の中で引数を足し、:214〜:222 の 9 行をコメント 2 行・基点の 3 行・既存の 3 行・切りの 1 行に置き換える（行の数は変えない）",
+        "evidenceRefs": [
+          "reconstruction/src/recovery/recovery.ts:212 «d71734fd34553067»",
+          "reconstruction/src/recovery/recovery.ts:218 «23380f7e41c6dfba»",
+          "reconstruction/src/recovery/recovery.ts:222 «26d615cec4a74771»",
+          "reconstruction/src/recovery/recovery.ts:226 «ce0f2b9f98b5297a»",
+          "reconstruction/contracts/p3-recovery.json:397 «78d74d77e8e67a44»",
+          "reconstruction/contracts/p3-uw-same-time-partial.json:11 «86dcc8a143cb3b9d»",
+          "reconstruction/contracts/p3-final-review-fix.json:360 «9aac46346bfeeeb4»"
+        ]
+      },
+      {
+        "id": "P4-URC-AC02",
+        "requirement": "採用の段の確かめ（P4-URC-D-RECHECK=A）: (1) owner-host.ts の recovery の adopt で、採用の step を当てた後（this.apply の後）の state の U-W の national（運用区分ごとの全国の現況）から、Date.parse(source.reportDateTimeRaw) が有限の運用区分だけを nationalThrough に入れて adopted の返信に載せる（unit が U-W のときだけ。当て直しの有無を問わない）。無いと: root は当て直しの後の全国の現況を読めない（settleAdopted は返信の反映の前に走り、U-W の view は全国の現況の報時刻を持たない） (2) 型: p3-execution-split.types.ts の RecoveryOutcome の adopted に nationalThrough?: Readonly<Partial<Record<Operation, number>>> を足す（:89 の行の中。U-W の採用だけが載せる。凍結した型の改訂は AC05 (2) の注記で記録する） (3) root: conduct は bodiesFor に Map を渡して dropped を受け、recoverUnit・settleAdopted・recoveryAdopted へ RecoveryCut（その回の起点 starts[unit] と dropped）を渡す。settleAdopted は dropped の運用区分ごとに (nationalThrough[運用区分] ?? -Infinity) > 落とした報時刻の最大 でないものを数え（uncut）、notAdopted === 0 && uncut === 0 && epoch が同じときだけ穴を解く（resolve）か before を進める（advanceHole）。無いと: 進めた境界の後ろからやり直しの一覧を辿るので、落とした partial を二度と取らない (4) recoveryAdopted は complete を notAdopted === 0 && uncut === 0 にする。complete でなければ uncovered（起動の範囲）を消さず、recovered にせず、coverageVerified を出さない（今の notAdopted の枝と同じ） (5) 比べは報時刻の ms どうしで、mergeCells（weather-current-public.ts:106）が全国の現況より報時刻の古い partial の行を覆う条件と同じ向き（同じ報時刻は partial が勝つので覆わない側） (6) 全国の現況が無い・報時刻が読めない運用区分は覆わない側。dropped が空の取り直し（U-W 以外の unit と、切らなかった U-W）は今と同じに進む",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
+          "reconstruction/src/runtime/owner-host.ts:238 «869282bd2dbe30df»",
+          "reconstruction/src/runtime/owner-runtime.ts:498 «d255e4c6b0a41bdd»",
+          "reconstruction/src/runtime/owner-runtime.ts:671 «cf61a9be768b4569»",
+          "reconstruction/src/domains/weather-current/weather-current.ts:600 «d50f6744d7433d2b»",
+          "reconstruction/src/runtime/composition-root.ts:2297 «0980aa1d36f6b5da»",
+          "reconstruction/src/runtime/composition-root.ts:2298 «7618483483d301e9»",
+          "reconstruction/src/runtime/composition-root.ts:2299 «9146502ba03fe6f2»",
+          "reconstruction/src/runtime/composition-root.ts:2320 «58ad689b9235c638»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:91 «922d498bab600979»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:106 «d145fea5f47c6ca5»",
+          "reconstruction/contracts/p3-execution-split.types.ts:89 «5c31e72a97ac2025»"
+        ]
+      },
+      {
+        "id": "P4-URC-AC03",
+        "requirement": "やり直し（P4-URC-D-REDO=A）: (1) recoveryAdopted で epoch が同じで complete でないとき、今どおり recoveryUnsatisfied(unit, \"notAdopted\", count) を呼ぶ。count は adopted でなかった本文の数に uncut を足す（覆わなかった運用区分ごとに、その基点の全国報を採られなかった本文に数える。P3-RR-AC04 (6) の count の注記は AC05 (2)） (2) uncut が 1 以上で、unit が cutRedone（root の Set<RuntimeUnitId>）に無ければ、unit を入れて requestRecovery([unit], その回の起点) を呼ぶ。印は P3-REC-D-COALESCE のまま、走っている回の後に 60 秒（RECOVERY_GAP_MS）あけて startWantedRecovery が 1 本にまとめて起こす。起点を渡すのは、鮮度の疑いで始めた回には穴が無く、null の起点（boundary）だと受信末尾から辿り、落とした partial の受信時刻に届かないから (3) cutRedone から unit を外すのは recovered にしたときだけ。無いと: 基点の全国報が採用の後も効かない列（受信の順と報時刻の順が逆で、取消の墓標が基点より新しいまま一覧に残る）で、60 秒ごとに一覧と本文を引き続ける (4) 上限: 確かめが起こすやり直しは unit ごとに recovered の間で 1 回。2 回目も覆わなければ未充足（notAdopted）のまま確認を出さず、次のきっかけ（繋がり直し・断った入力・鮮度の疑い）を待つ。ほかのきっかけ・上限（RES-02・RES-03・RES-05）・間隔は変えない (5) 画面: やり直しの間は progress が running（印のある unit、setProgress の今の規則）、U-W の確認は出ない。新しい札・状態・語は作らない。WARN は今の recoveryNotAdopted",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:2098 «e28fe8f6c812257e»",
+          "reconstruction/src/runtime/composition-root.ts:2108 «7711cd1a11b88a9a»",
+          "reconstruction/src/runtime/composition-root.ts:2173 «87b6985fc9dd5106»",
+          "reconstruction/src/runtime/composition-root.ts:2318 «0d57880e2f8fd4a3»",
+          "reconstruction/src/checkpoint/checkpoint.ts:842 «27721cb557a7d38c»",
+          "reconstruction/contracts/p3-recovery.json:161 «35578a7f9d0bdb1f»",
+          "reconstruction/contracts/p3-recovery-read.json:280 «e50d9fdba5673f01»"
+        ]
+      },
+      {
+        "id": "P4-URC-AC04",
+        "requirement": "計算量（AGENTS.md の受信経路の計算量）: (1) bodiesFor は今と同じ頭の 2 回の走査で O(n)（基点は運用区分ごとに 1 つの Map） (2) owner の nationalThrough は U-W の national（運用区分の数、最大 3）の走査 1 回 (3) settleAdopted の確かめは dropped の運用区分ごとに比べ 1 回（最大 3）。全件×全件の走査、state・返信の直列化をしない (4) やり直しは unit ごとに recovered の間で 1 回（AC03 (4)）なので、一覧の辿り（RES-02 の 300 ページ）と本文（RES-03 の 300 件・RES-05 の 7.5 秒間隔）の上限は 1 回分増えるだけで、上限の値は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/runtime/composition-root.ts:2162 «7064e78a65b9f040»",
+          "reconstruction/src/recovery/recovery.ts:226 «ce0f2b9f98b5297a»"
+        ]
+      },
+      {
+        "id": "P4-URC-AC05",
+        "requirement": "配送の commit で統合担当が当てる原文の改訂（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-recovery.json の P3-REC-D-UW-PARTIALS の ruling（:397 の決めの中）の末尾に『【P4-UW-RECOVERY-CUT-001 の注記: 落とす partial は、基点〔運用区分ごとに受信の最新で残る VPWS50、取消なら切らない〕より前に受け、報時刻も基点より古いものだけ〔P4-URC-D-CUT=<裁定>〕。採用の後に全国の現況が落とした partial を覆うかを確かめ、覆わなければ確認せずに 1 回だけ取り直す〔P4-URC-AC02・AC03〕】』、P3-REC-AC12 の requirement（:1119）の U-W の行の『それより後に受けた partial』の文の末尾と、P3-REC-T24 の behavior（:1406）の末尾に同じ趣旨の 1 文 (2) 凍結した型と語の改訂の記録（先例 P3-FRF-AC09 (7c)）: p3-recovery.json の P3-REC-AC06 の requirement（:1064）の末尾に『。P4-UW-RECOVERY-CUT-001 で、RecoveryOutcome の adopted に nationalThrough〔U-W の採用の後の全国の現況の報時刻〕を足した〔P4-URC-AC02 (2)〕』、p3-recovery-read.json の P3-RR-AC04 の requirement（:280 の項）の (6) の末尾に『【P4-UW-RECOVERY-CUT-001 の後は、count に切りの基点が覆わなかった運用区分の数を足す〔P4-URC-AC03 (1)〕】』 (3) «» の付け直し: 実装の行の中の書き換えで字が変わる 4 つ（p3-final-review-fix.json が引く recovery.ts:212、p3-rain-recovery-cancel.json が引く composition-root.ts:2165、p3-recovery-boundary.json が引く composition-root.ts:2220、p3-recovery-read.json が引く composition-root.ts:2318）を、配送の木の字で取り直す（行は動かないので番号はそのまま。起草 r0 の案の写しで check-contract を回し、この 4 つだけが落ちた） (4) 改めた契約と本契約の meta.sha256 を取り直し、本契約の evidenceRefs のうち実装で字の変わる行の «» も配送の木で取り直す (5) 配送の前に、Mac mini の ~/dev/fleq-corpus-p0/20260923-capacity の災害の日 3 日分で、U-W の頭を一覧の形にして直す前・A・B の bodiesFor に通し、本文の件数の 1 日の最大を数えて Q に書く（RES-03 の 300 件の内か。A が B より多く取る数） (6) 構造的欠陥台帳（repo 外）: R3 を『解消（P4-UW-RECOVERY-CUT-001）』に。Q-FRF-R3 (5)（P4-URC-D-ORDER=A の残存）と、確認済みの後の基点の取消で落とした partial が出ない列（outOfScope の 2 つ目）を残存として書く。p3-final-review-fix.json の P3-FRF-AC05 の requirement（:360）の末尾に『【受け手は P4-UW-RECOVERY-CUT-001】』 (7) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-recovery.json:397 «78d74d77e8e67a44»",
+          "reconstruction/contracts/p3-recovery.json:1064 «95092f89ec09fde4»",
+          "reconstruction/contracts/p3-recovery.json:1119 «f31e65ccabcdfb80»",
+          "reconstruction/contracts/p3-recovery.json:1406 «a644af02a54301ec»",
+          "reconstruction/contracts/p3-recovery-read.json:280 «e50d9fdba5673f01»",
+          "reconstruction/contracts/p3-final-review-fix.json:79 «1adf4046c2616c90»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-URC-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-URC-AC01"
+        ],
+        "behavior": "実不具合の再発防止（R3 と r1 の列）。recovery.test.ts の P3-REC-T24 の describe の後ろに自前の describe「P4-URC-T01 …」と it を 1 つ。r2 の P3-FRF-T04 と同じ組合せ（全国報 n1〔normal、報時刻 なし・13:50・13:55・14:00・null〕、n2〔normal か training、なし・13:50・13:55・14:00・x〕、取消 c〔normal、なし・13:55〕、partial p1〔横浜の VPWW55、normal、なし・13:50・13:55・14:00・null〕、p2〔宇都宮の VPWW58、normal か training、なし・13:50・14:00・x〕の全部の組と受信の順の全部の並べで 130,308 組）を bodiesFor(\"U-W\", heads, undefined, dropped) に通し、落とした partial ごとに (1) AC01 の規則と一致する (2) 返す候補に同じ運用区分の取消でない全国報で報時刻がより新しいものがある (3) 直す前の製品（受信の最新の取消でない VPWS50 より後に受けた partial だけを取る）も落とす、と、(4) dropped が運用区分ごとの落とした報時刻の最大と等しい、を数え、{ cases: 130308, droppedSome: true, broken: [], wrong: [], wider: [], told: [], hertz: [\"n2\", \"p1\"] } と等しい、の 1 つの expect（hertz はヘルツの 3 報の列 14:00 の n1・13:50 の n2・13:55 の p1 の候補）。歯は Q-URC-DRAFT-R0 (3)"
+      },
+      {
+        "testId": "P4-URC-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-URC-AC02",
+          "P4-URC-AC03"
+        ],
+        "behavior": "実不具合の再発防止（起草レビュー r2 のヘルツの列、Q-FRF-R3 (6)）と、確かめが正常な列を止めない受入・やり直しの上限の境界。recovery-adopt.test.ts の P3-REC-T11 の describe の後ろに自前の describe「P4-URC-T02 …」と it を 4 つ。setup の購読に telegram.weather を足し、live で全国報 X（23:00）を採ってから、一覧の頭 A（VPWS50、23:10）と京都の P（VPWW57、23:05）で起動の取り直しを始め、A の本文を止める。(a) P を A より前に受ける。待つ間に live で A と A の取消 C（23:13）を採ってから本文を返すと、[progress, U-W の normal の whole, 京都の partial の報時刻, 全国の現況の報時刻] が [running, startup, [], 23:00]。一覧に C を足して 60 秒進めて tick すると、[取った本文, 一覧の辿りの数, …] が [[a, p, c], 1, recovered, null, [23:05], 23:00]、U-W の WARN が [[recoveryNotAdopted, U-W, 1]] (b) P を A より後に受ける（r2 の列）。同じ live の後に本文を返すと [[a, p], recovered, null, [23:05], 23:00] (c) 待つ間に live で 23:20 の全国報だけを採る（正常な列）。本文を返し 60 秒進めて tick すると [[a], 0, recovered, null, [], 23:20]（受入: 新しい現況が覆う stale を止めない） (d) (a) の後、やり直しの一覧に C が無い（基点が覆わないまま）。60 秒と tick を 2 回で [[a, a], 1, unsatisfied, startup, [], 23:00]、WARN が recoveryNotAdopted の 2 件（契約境界: やり直しは 1 回）。歯は Q-URC-DRAFT-R0 (4)"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（返信の型に任意の欄を足す。手で組んだ adopted の返信〔layout10.test.ts〕は変えずに通る）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P4-URC-T01・T02 を含む）。既存の試験の期待は変えない。落ちたら止めて報告する"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/recovery/recovery-adopt.test.ts reconstruction/test/recovery/recovery.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/recovery/",
+        "stage": "implementation",
+        "purpose": "root の新しい集合（cutRedone）と時計を進める試験の順の依存が無いこと。seed を成果物に書く"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の木では AC05 (3) の 4 つと、本契約の evidenceRefs のうち実装で字の変わる行（recovery.ts:212・:218・:222、composition-root.ts:2162・:2297・:2318、owner-host.ts:238、p3-execution-split.types.ts:89）の FAIL だけが想定（付け直しは統合担当）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: 先に P4-URC-T01・T02 だけを足した木で 2 つの試験 file を回し、直す前の製品で T01 が規則の食い違い（wrong）で、T02 の (a)(d) が 1 回目の採用の後に recovered・確認済み・京都の行なしで落ちることを確かめてから製品を直す（(b)(c) は直す前も緑）。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
+      "最小実装・最小テスト: 足す仕組みは bodiesFor の引数 dropped・返信の欄 nationalThrough・root の集合 cutRedone と型 RecoveryCut の 4 つだけで、無いと壊れることを AC01 (3)・AC02 (1)・AC03 (3) に書いた（RecoveryCut は起点と dropped を 3 つの関数へ運ぶ型）。試験は 2 本: T01 は regression（R3 と r1 の列）、T02 は regression（ヘルツ r2 の列）で、it の (c) は受入、(d) は契約境界。新しい fixture・helper の file を足さない",
+      "3 つの src file（recovery.ts・composition-root.ts・owner-host.ts）は行の数を変えない（行の中の書き換えだけ）。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない",
+      "起草 r0 の案（.dr-tmp/proposal-r0.diff、起草の worktree ~/dev/fleq-r3-draft の未追跡）は参考で、実装は本契約の条文に従う"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-URC-D-CUT",
+        "owner": "user",
+        "blocks": [
+          "baseOid の割当"
+        ],
+        "resolveBy": "作者の裁定（P4-URC-D-CUT の A か B）",
+        "requiredEvidence": [
+          "P4-URC-D-CUT の ifNotChosen の場面と、AC05 (5) の件数（配送の前に数える）"
+        ]
+      }
+    ]
+  }
+}
