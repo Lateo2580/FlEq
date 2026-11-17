@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "09d949afaa1503a37492a555770331d4429eaf1e",
-    "sha256": "2c475607ea971c104ad81d5326c38cf9c191afbef5415cf2830abd77e22d95ea",
+    "sha256": "cf103de3ac4673d1a80606bde9df6d3d723dc6d312ddc220dbecebd0b16dab02",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -111,6 +111,13 @@
         "source": "r2（7e074ca1）の 2 つのレビュー（契約適合・品質）の指摘を統合担当が裁いた一括の直し（2026-11-17）と、その確かめの試し（reconstruction/.dr-tmp の使い捨ての試験、vitest --maxWorkers=2、repo に足していない）",
         "closed": "(1) 品質 P2-1: 準備した restart の直後の U-F を見ると、O10:56・61・66・71・76 の 5 本で準備の subject が無かった（2026-06-05T18:01:40 の時計の restore が 2023-06-22 の記録を回収する）。O10:27・29 は残り、O10:31 はもとから空。準備の後に時計を step の時刻へ戻さず、準備の報の時刻で開き直すと（T01 の 1 行）、5 本とも subject が active で在り、O10:57・62・67・72・77 は g1 の在る state に受けて changed/semantic・active で一致した。全体の数は変わらない（流す 383・一致 345・比べる欄の無い 38・hollow 0・準備を作らない restart 7・食い違い 0、表の振り分けも同じ）。AC01 (1)(2) (2) 契約 P2-1・P2-2、P3-1〜5 と品質 (a)〜(e): AC02・AC03・AC05・AC06・allowedPaths・testMapping・outOfScope・artifactRequirements と D-O04-ORDER・D-O10-PREP の reason・ruling に当てた (3) 契約 P3-6: O04:9 の準備の全国を synthetic_VPWS50_fukui_base（Head の時刻を 2026-08-30T13:00 に替えた）にすると、O04:3・O04:8 は changed/semantic・active になった。O04:4 は rejected/requiredStructureInvalid で freshnessSuspect=true、O04:5〜7 の結果と疑いの残り方は r1 の試しと同じ。採った（D-O04-VALUES の ruling、AC02 (2)(3)） (4) 証拠不足 (i): O04:4 のやり直し（新しい保存の file 群で開き直す）の前後で、O04:3・5〜8 の採った入力は各々の settle の後すぐ保存の encode の inputIds に入った（O04:4 の rejected も入る）。T02 の「採ったのに保存に無いのは O08:8 だけ」は O04 の分で崩れない見込み。確かめたのは同じ結線への直接の投入で、T01・T02 そのものではない。そのあと品質レビューが条文どおりの写しで T01・T02 とも緑を確かめた（2026-11-17 r3 の確かめ。流す 389・一致 350・比べる欄の無い 39・hollow 0・食い違い 0 で AC05 と一致） (5) 全国の合成 3 本（O04:3・7・8）は 15_18_01（4,567,490 byte）の写しで、repo は約 13.7 MB 増える",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-SOO-DELIVERY",
+        "status": "closed",
+        "source": "配送（統合担当、2026-11-17 夜）。実装 82bf540b（impl/o10o06 の 8e87a0b4 を main へ cherry-pick）とレビューの P3 の直し c8b20e6e（同 f7501f68）、配送の付け直し 8c94e05e",
+        "closed": "(1) レビュー: 実装 8e87a0b4 に契約適合と品質の 2 つ（Opus、read-only）を当て、どちらも GO（P1・P2 は 0 件）。P3 の 2 件（O04:4 のやり直しにも準備の subject の確かめを置く、prepare の終わりで log を空にする）は f7501f68 で当てた。品質レビューは写しで開き直しの時計を step の時刻に戻し、O10:56・61・66・71・76 の 5 本が prepared subject で落ちることを確かめた（AC01 (2) の assert が噛む）(2) T01 の後の数（AC05、実測）: 取り下げ 10・injectFailure 43・後続 47（action 別 [23,11,6,4,3] は不変）・unmet 80・dependsOnUnmet 0・流す 389・一致 350・比べる欄の無い 39・hollow 0・準備を作らない restart 6（O06:31、O10:41・44・47・50・53）・食い違い 0。check-sequences の unmet は 85 → 80（O04 0）(3) 付け直し（AC06）: 新しい digest は manifest 33f7c44d…0092・sequences 4b9e8cb5…435a。全 155 契約へ raw の置き換えで当て、中身の変わった 5 行（oracle.test.ts の :49→81・:236→286・:422→482・:425→485、weather-current-unit.test.ts の :613）の «» を手で入れ、reanchor-target.py で 5 つの target を付け直した。実装担当の報告の行番号（:236→284・:422→479・:425→482）は P3 の直し（3 行）の前のもので、配送の木で中身から引き直した。自己 hash の連鎖は p3-e05p-classify.json:343 → p3-measure-harness.json:4 の 1 件だけ（meta の行を引く «» は git grep でほかに 0 件）(4) Mac mini のゲート: 実装 8e87a0b4 の上（付け直しの前）では 12 段のうち rec-vitest・rec-shuffle（eew-e01/p3.test.ts の 8 本、P1 の digest）と check-contract（digest）だけが rc 1、旧築の build・test（6,850 本）は rc 0。配送の木 8c94e05e では 12 段とも rc 0（279 秒。reconstruction 1,666 本が並べた順と shuffle の両方で緑、旧築 6,850 本）(5) 合成 5 本は親との差が Head の時刻 3 行（と訓練の 1 本の Control/Status）だけ（2 つのレビューが diff で確かめた）。全国 3 本で repo が約 13.7 MB 増える。旧築で fixture を列挙するのは weather-warning-fixture-coverage.test.ts だけで、15_ で始まる file に限るので当たらない",
+        "remaining": "なし（O06:11〜28 の unmet 18 は D-AFTER どおり P3-UWC-T02 を行き先と読む。窓 O10:34〜38・78〜88 と O10:82 の subject の字は D-O10-PREP=A により窓を流す発注まで）"
       }
     ],
     "operationContract": {
