@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "09d949afaa1503a37492a555770331d4429eaf1e",
-    "sha256": "55a165d20a251828b0951b3c1ed348e7437887bbbbe79537717564320f451971",
+    "sha256": "1db24796eed56f625e9395eb115f5e94d2e71928f4e799c6de55c86c5466872c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -27,8 +27,8 @@
         "C": "13 本すべての準備と、export（O10:23・24）・stdout（O10:25・26）・反復の抽象 step（O10:11〜26）を除く窓すべてを流す",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者裁定、2026-11-17 20:5x「O10 は A」。統合担当が r0 の起草案を作者に見せた）",
-        "ruling": "A（作者裁定、2026-11-17 20:5x）。作者が受け手の字（injectFailure の別表と hollow 13）より狭い A を採った。別表の行き先は oracle.test.ts の DESTINATION の O10（実の注入で確かめた 5 契約の試験）のまま",
+        "status": "確定（作者裁定 2026-11-17 20:5x、「O10 は A」）",
+        "ruling": "A（作者裁定 2026-11-17 20:5x）。作者は受け手の字〔injectFailure の別表と hollow 13〕より狭い A を採った。別表の行き先は oracle.test.ts の DESTINATION の O10〔実の注入で確かめた 5 契約の試験〕のまま",
         "reason": "hollow 13 は 8 本の restart の後ろの step だけ（oracle.test.ts:236 で restart ごとに付き、次の restart まで残る）。O10:41・44・47・50・53 の後ろはすぐ injectFailure（別表）で hollow を作らないので、組んでも T01 の結果が変わらない（無いと壊れるものが無い）。窓を飛ばした後の step を一致に数えるのは今の T01 の読み（O10:9・10・98 と同じ）。窓の実の注入は DESTINATION の試験（P2-CHECKPOINT-SHUTDOWN-001 ほか、O10:1〜10 は P3-C9-T09）が確かめている。B は T01 に失敗を注入する保存と retryAfter の時計を足し、それらの試験と同じ分岐を言い換える。C は export が P3 の外（計画の C21 の外出し）で、O10:11〜26 は「反復は設定上限まで」で step の形が無い。A で別表の数（44・47）と DESTINATION は変わらない。B の見込み（Q-SOO-PROBE の (4)、試しで実際に流した）: 流す 383 → 399、injectFailure 44 → 42、後続 47 → 33、一致 360、食い違い 1。食い違いは O10:82 の subjects で、期待の字が normal/VPWS50/全国base、製品は normal/VPWS50/気象庁本庁（B を選ぶなら sequences.json の O10:82 の subject の字を直す）。B に要るのは、U-F の path を開くと ENOSPC を返すメモリの保存と、O10:34・78 で失敗を入れ O10:38・88 で外す 2 行。T01 が比べるのは decision と通知の欄だけなので、O10:80〜88 の retryAfter の時刻と試行の回数は B でも比べない（窓で開いた U-F の保存は 7 回 ENOSPC になった）"
       },
       {
@@ -96,6 +96,13 @@
         "status": "closed",
         "source": "起草の試し（2026-11-17、HEAD ba74477e の木、reconstruction/.dr-tmp の使い捨ての試験。oracle.test.ts を写して準備の表と失敗の注入を足し、O04・O06 は同じ 12 unit の結線〔owner-harness の harnessedRoot・submit〕で投入した。vitest --maxWorkers=2。repo には足していない。写しの今の形は流す 383・一致 332・比べる欄の無い 38・hollow 13・準備を作らない restart 15・食い違い 0 で、C22 の記録と同じ）",
         "closed": "(1) O10:31 に manualAdapter（owner-harness.ts の終わらない通知 adapter）を渡しても、T01 は settle して次の step へ進み、最後まで流れた（2.19 秒）。渡しても渡さなくても O10:32・33・39・40 は一致し、全体の数も同じ（流す 383・一致 345・比べる欄の無い 38・hollow 0・準備を作らない restart 7・食い違い 0）。比べる欄が変わらないので渡さない（AC01 (1)） (2) 群 4: D-O04-VALUES=A の親から試験コードで bytes を作り、製品の経路で投入した。O04:9 の準備（全国 2026-08-30T13:00、福井 L5 の partial 2026-09-07T12:50、保存して 12:59 で開き直す）の後、O04:3 は normal/VPWS50/気象庁本庁 changed/revisionOnly・active で、福井の partial は残った。準備からやり直した O04:4（Body の Status を「未知」）は rejected/requiredStructureInvalid、全国 normal に freshnessSuspect=true（revisionOrder newer）。O04:5（松江 VPWW55）・O04:6（京都 VPWW57）・O04:7（訓練の全国）は changed/semantic・active で、疑いは残った。O04:8（全国 normal 13:02）は changed/revisionOnly・active で、疑いの記録は消えた。契約に書いていた O04:3・8 の changed/semantic は revisionOnly と食い違ったので AC02 (2) を直した。全国の subject の字は「気象庁本庁」。partial を 13:05（時計より先）にしても結果は同じで、時刻の順を保つ 12:50 を採った (3) O06: 京都 VPWW57 の 23:00 の後に Head の時刻だけを進めた 9 版（23:01〜23:09）を受けると、履歴は 2 版で最古から回収された。取消（23:20〜23:28）の 1 回目は 23:08、2 回目は 23:07 に戻り（changed/semantic）、3〜9 回目（O06:22〜28）は毎回 changed/semantic で historyUnavailable の unavailable になった（weather-current.ts:637 の枝のとおり）。時刻だけを進めた版は changed/revisionOnly で、O06:11〜19 の record の semantic とは違う。群 7 は unmet のままなので record は直さない (4) B の見込み: 準備に加えて窓 O10:34〜38・78〜88 を流す表へ移し、U-F の path を開くと ENOSPC を返すメモリの保存で流した。流す 383 → 399、injectFailure 44 → 42、後続 47 → 33、一致 360、食い違い 1（O10:82 の subjects の字、D-O10-PREP の reason）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-SOO-REANCHOR-TOOL",
+        "status": "closed",
+        "source": "統合担当の答え（2026-11-17）と、«» の参照の git grep（HEAD 08fb7912）",
+        "closed": "付け直しの道具は repo の外の ~/dev/fleq-vault-archive/tools/reanchor-target.py で、repo の中には無い（前例 b68390c0 も同じ道具）。使い方・止まる条件・行の中身を変えたときの手順・basename の罠は AC06 (3) に書いた。本契約で付け直す target は sequences.json（8 件）と manifest.json（4 件）で、basename の衝突は無い（AC06 (3)）。付け直しの後に checker 3 本を回す（AC06 (4)）",
         "remaining": "なし"
       }
     ],
@@ -323,7 +330,7 @@
       },
       {
         "id": "P3-SOO-AC06",
-        "requirement": "sequences.json と manifest の直しは 1 commit にまとめ、digest と «» の付け直しを 1 回で済ませる: (1) 実装担当は sequences.json（AC02 (2)・AC04 (1)）・manifest.json（5 行）・合成 5 本・件数の行（check-manifest.mjs の 318・297 の行、README.md:5、p1-parser-boundary.json の件数と fixtureIds、p1-parser-boundary.test.ts:46）・oracle.test.ts を同じ commit の patch にし、manifest.json と sequences.json の meta.sha256 と sequences.json の meta.manifestSha256 を取り直す (2) 統合担当は配送の commit で、全契約の meta.manifestSha256・meta.sequencesSha256 を新しい値に替え、各契約の meta.sha256（先頭の sha256 を 0 が 64 個に替えた UTF-8 の sha256）を取り直す。前例は b68390c0（151 契約、2 行ずつ） (3) «» は行番号でなく中身で選ぶ: sequences.json の 6 件（p3-migration.json の :65・:103・:114、p3-uw-stale-downgrade.json の :15591・:15691、p3-weather-notice.json の :24295）と manifest.json の 4 件（p3-e05p-typhoon.json の :117〜:119・:243）について、引いている行の中身（anchor）を新しい file で探して 1 行に当たることを確かめ、行番号だけを付け直す。中身の変わった行を引く参照があれば止めて報告する (4) 付け直しの後に check-manifest・check-sequences・check-contract の 3 本を回す (5) 計画 p3-order-plan.md には行を足さない（:695 は他の契約が引く）",
+        "requirement": "sequences.json と manifest の直しは 1 commit にまとめ、digest と «» の付け直しを 1 回で済ませる: (1) 実装担当は sequences.json（AC02 (2)・AC04 (1)）・manifest.json（5 行）・合成 5 本・件数の行（check-manifest.mjs の 318・297 の行、README.md:5、p1-parser-boundary.json の件数と fixtureIds、p1-parser-boundary.test.ts:46）・oracle.test.ts を同じ commit の patch にし、manifest.json と sequences.json の meta.sha256 と sequences.json の meta.manifestSha256 を取り直す (2) 統合担当は配送の commit で、全契約の meta.manifestSha256・meta.sequencesSha256 を新しい値に替え、各契約の meta.sha256（先頭の sha256 を 0 が 64 個に替えた UTF-8 の sha256）を取り直す。前例は b68390c0（151 契約、2 行ずつ） (3) «» は行番号でなく中身で選ぶ。道具は repo の外の ~/dev/fleq-vault-archive/tools/reanchor-target.py（Q-SOO-REANCHOR-TOOL）: checkout の root で python3 <道具> <target> と回すと、全契約の「<target の basename>:<行> «anchor»」を target の中で anchor を持つ唯一の行に付け直し、変えた契約の meta.sha256 も取り直す。anchor が 0 行か 2 行以上なら止まる。行の中身を変えた行を引く参照は anchor 自体が変わるので、先に新しい anchor と行番号を手で入れてから回す。target は reconstruction/tools/corpus/sequences.json（«» の参照 8 件: p3-migration.json の :65・:103・:114、p3-uw-stale-downgrade.json の :15591・:15691、p3-weather-notice.json の :24295、本契約の :52・:16311）と reconstruction/tools/corpus/manifest.json（4 件: p3-e05p-typhoon.json の :117〜:119・:243）。basename の衝突（eew.ts と process-eew.ts の罠）は、2026-11-17 の git grep で «» の付いた参照に sequences.json・manifest.json を後ろに持つ別の file 名が無いことを確かめた（repo には ほかに manifest.json が 5 つあるが〔display と eew-e01 の evidence〕、どれも «» で引かれていない） (4) 付け直しの後に check-manifest・check-sequences・check-contract の 3 本を回す（check-contract だけでは sequences.json が引く行のずれを見ない） (5) 計画 p3-order-plan.md には行を足さない（:695 は他の契約が引く）",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:695 «7d6c4eaa1645c8b3»",
           "reconstruction/contracts/p3-final-gate.json:489 «3ec107a1848eebad»"
@@ -432,18 +439,6 @@
       "合成は親を cp -c で写してから字を替え、byte 数と sha256 を成果物に書く",
       "記録: 後の T01 の数（流す・一致・比べる欄の無い・hollow・食い違い）と check-sequences の unmet を本契約の questionResolutions に統合担当が書く"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-SOO-REANCHOR-TOOL",
-        "owner": "integrator",
-        "blocks": [
-          "P3-SOO-AC06"
-        ],
-        "resolveBy": "配送の commit の前",
-        "requiredEvidence": [
-          "全契約の meta.manifestSha256・meta.sequencesSha256・meta.sha256 を取り直す道具と、«» を中身で付け直す道具の所在（repo の中には無い。前例 b68390c0 は repo の外の道具）"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
