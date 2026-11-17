@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "9fb230402caee69eb4939f439b503ce6dfbb0145",
-    "sha256": "e3960072d8f66525151c59259b09152b1da04003df128af6f10a14003392091e",
+    "sha256": "6eff6d12db3b27a7f6d02524ac030b40755bde86f576981e4b8f56ad9e74533d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -259,18 +259,18 @@
         "id": "P3-WOO-AC03",
         "requirement": "C22 の T01 で 8 step が流れて一致する: (1) O03:7〜14 が flow の表に入り（unmet と、その後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま (2) oracle.test.ts の数（行の中だけ。群 2（P3-TIMESERIES-NEWER-EMPTY-001）の配送の後の値から）: unmet 87 → 85、dependsOnUnmet 6 → 0・flow 375 → 383、dependsOnUnmet の一覧は []（空）。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13（と一覧）・prepared 15 は変えない。今の木の :411 のコメントの末尾に「2026-11-13 の P3-WEATHER-OTHER-OFFICE-001 で O03:7・O03:9 に入力を足した。」を足す（AC04・AC08 で行を足すので、:411・:412・:415・:417 は :421・:422・:425・:427 になる） (3) T02 も緑のまま（O03:7・9 は U-W だけが変え、保存の inputIds に U-W だけで入る。試しで緑） (4) O03:7〜14 の actual が AC02 の期待と違うか、T01・T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する。起草では .dr-tmp の写しで (1)〜(3) を確かめた（Q-WOO-PROBE の (2)・(8)。群 2 を当てていない木なので、数は unmet 86・dependsOnUnmet 1〔O02:4〕・flow 381）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
-          "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
-          "reconstruction/test/final-gate/oracle.test.ts:422 «35a7a04eab849797»",
-          "reconstruction/test/final-gate/oracle.test.ts:425 «8df409a0f0ed97f3»"
+          "reconstruction/test/final-gate/oracle.test.ts:77 «c7a23bcb4c556234»",
+          "reconstruction/test/final-gate/oracle.test.ts:85 «727527e52dd61434»",
+          "reconstruction/test/final-gate/oracle.test.ts:482 «e1aa914683759a2f»",
+          "reconstruction/test/final-gate/oracle.test.ts:485 «1b02a2515649f505»"
         ]
       },
       {
         "id": "P3-WOO-AC04",
         "requirement": "T01 の読み方（P3-WOO-D-READING=A。試験の読みだけで、製品は変えない）: (1) effectiveOf の U-E の gate の行（今の :117）の直後に、次の 6 行（コメント 2 行と判定 4 行）を足す: VPNO50 の記録の行「if (unit === \"U-W\" && isRecord(record[\"source\"]) && record[\"source\"][\"family\"] === \"VPNO50\") return { kind: \"inactive\", cause: { kind: \"released\" } };」と、報の記録の行「const rows = unit === \"U-W\" && isRecord(record[\"phenomena\"]) ? Object.values(record[\"phenomena\"]).flatMap((value) => Array.isArray(value) ? value.filter(isRecord) : []) : null;」「if (rows != null && !rows.some((row) => typeof row[\"code\"] === \"string\" && row[\"code\"] !== \"00\" && row[\"status\"] !== \"解除\" && row[\"status\"] !== \"発表警報・注意報はなし\"))」「return { kind: \"inactive\", cause: { kind: rows.some((row) => row[\"status\"] === \"解除\" || row[\"code\"] === \"00\") ? \"released\" : \"noActiveItems\" } };」。コメントは「U-W の VPNO50 の記録は区域終了の墓標だけなので released。報の記録は段を持つ行（weather-current.ts の owned と同じ条件）が無ければ inactive で、解除の行があれば released、無ければ noActiveItems（P2-A5 の全項目が解除・なしの報は無発令）」の趣旨で、行番号を書かない（AGENTS.md のコメントの決まり）。無いと O03:11・O03:14 の effective（期待 inactive/released）が active と読まれ T01 が落ちる (2) revision を比べる条件（今の :303）の「!(made.decision === \"unchanged\" && made.reason === \"stale\")」を「!(made.decision === \"unchanged\" && (made.reason === \"stale\" || made.reason === \"noChange\"))」にし、revision のコメントの行（今の :291）の末尾に「noChange（意味を更新しない報、U-W の終了でない VPNO50）も同じ。」を足す。無いと O03:10 の revision（期待 10:57）が null と比べられ T01 が落ちる (3) 足した前後で流した step の (matched, fields) が変わるのは O03:10・O03:11・O03:14 の 3 step だけであることを、FLEQ_FINAL_GATE_OUT の flowed で確かめて成果物に書く（起草の試しでは 3 step だけ、Q-WOO-PROBE の (2)・P3-WOO-D-READING の reason）。ほかの step が変われば止めて報告する (4) (1) の 6 行と AC08 の行で、今の :118・:125・:233・:291・:303 は :124・:131・:242・:300・:312 になり、:303 は字も変わる（AC07 (3) の «» の付け直し）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:117 «a2c82f4934f3e9e0»",
-          "reconstruction/test/final-gate/oracle.test.ts:312 «3d60ff180164f361»",
+          "reconstruction/test/final-gate/oracle.test.ts:149 «a2c82f4934f3e9e0»",
+          "reconstruction/test/final-gate/oracle.test.ts:371 «3d60ff180164f361»",
           "reconstruction/contracts/p2-weather-current-unit.json:115 «1772fe5c3b2eb16d»",
           "reconstruction/contracts/p2-weather-current-unit.json:138 «2a1209ecc887d0dd»",
           "reconstruction/contracts/p2-weather-current-unit.json:139 «5189384eb681f592»",
@@ -284,7 +284,7 @@
         "requirement": "fixture の件数を数える既存の試験の期待を直す（理由: corpus に 2 本足すため。直す前の報告はこの条文で済ませる）: (1) P1-T01（p1-parser-boundary.test.ts:46〜:50）は群 2 の後の値から行 295 → 297、decoded 294 → 296、偽の decode で差の出る行 294 → 296（今の木なら 294 → 296・293 → 295・293 → 295）。新しい 2 本の分類は親と同じ（telegram.weather・VPWS50／VPWW57） (2) P2-A5-T05（weather-current-unit.test.ts:613）の U-W の family の fixture の数 14 → 16（試験は manifest の VPWS50・VPWW55・57〜61・VPNO50 を全部空の state に受け、unavailable 0 を確かめる。新しい 2 本も通ることを試しで確かめた） (3) ほかの fixture を全部回す試験（width.test.ts の P3-TL-T05、layout6.test.ts の P3-TL6-T04、digest.test.ts の P3-TL7-T02、旧築の weather-warning-fixture-coverage.test.ts ほか）は直さない見込み（Q-WOO-PROBE の (6)・(7)）。落ちたら試験名と旧・新の値を報告して止める",
         "evidenceRefs": [
           "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
-          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:613 «0bb1bf0864ec1d2f»"
+          "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:613 «fd01876887ed09d8»"
         ]
       },
       {
@@ -308,8 +308,8 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f»",
           "docs/specs/reconstruction-p0-contracts.md:794 «fe4ee804270495ae»",
-          "reconstruction/test/final-gate/oracle.test.ts:177 «d09308bbd06ccfe5»",
-          "reconstruction/test/final-gate/oracle.test.ts:449 «c2217031eccc788c»",
+          "reconstruction/test/final-gate/oracle.test.ts:209 «d09308bbd06ccfe5»",
+          "reconstruction/test/final-gate/oracle.test.ts:516 «c2217031eccc788c»",
           "reconstruction/src/domains/weather-current/weather-current.ts:520 «3f41c4108f80d38c»",
           "reconstruction/src/domains/weather-current/weather-current.ts:521 «0160e3e59ffc794e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:548 «6990364a60d44243»"

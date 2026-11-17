@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "f60f0a261be36c4f7802d0e446f05b3decc58696",
-    "sha256": "d69e9902c71a6b35ae83f662be3c48eea9d5f490d4c8ce258260cc00ac4a0d7d",
+    "sha256": "646d0501274ce9e5615576a5f24004518f4f3f0ff6b01f94c8c8a3b72a8a33f6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -202,11 +202,11 @@
         "id": "P3-TNE-AC03",
         "requirement": "C22 の T01 で 2 step が流れて一致する: (1) O02:3・O02:4 が flow の表に入り（unmet と、その後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま。O02:3 は subjects・decision・revision・effective・intents・notices、O02:4 は subjects・decision・effective・intents・notices を比べる（stale の revision は比べない、:303） (2) oracle.test.ts の数（行の中だけを直す）: :412 の unmet 88 → 87、:415 の dependsOnUnmet 7 → 6・flow 373 → 375、:417 の一覧は [O03:8, O03:10, O03:11, O03:12, O03:13, O03:14]。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13（と一覧）・prepared 15 は変えない。:411 のコメントの末尾に「2026-11-13 の P3-TIMESERIES-NEWER-EMPTY-001 で O02:3 に入力を足した。」を足す (3) T02 も緑のまま（O02:3 は U-F だけが変え、保存の inputIds に U-F だけで入る） (4) oracle の読み（recordOf・effectiveOf）は変えない。U-F の記録の effective noActiveItems は :125 で inactive/noActiveItems と読まれる (5) O02:3・O02:4 の actual が AC02 と違うか、T01・T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する。起草では .dr-tmp の写しで (1)〜(3) を確かめた（Q-TNE-PROBE）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
-          "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
-          "reconstruction/test/final-gate/oracle.test.ts:131 «304f95b88e95379e»",
-          "reconstruction/test/final-gate/oracle.test.ts:242 «39ba74f039a318d1»",
-          "reconstruction/test/final-gate/oracle.test.ts:312 «3d60ff180164f361»"
+          "reconstruction/test/final-gate/oracle.test.ts:77 «c7a23bcb4c556234»",
+          "reconstruction/test/final-gate/oracle.test.ts:85 «727527e52dd61434»",
+          "reconstruction/test/final-gate/oracle.test.ts:163 «304f95b88e95379e»",
+          "reconstruction/test/final-gate/oracle.test.ts:294 «39ba74f039a318d1»",
+          "reconstruction/test/final-gate/oracle.test.ts:371 «3d60ff180164f361»"
         ]
       },
       {

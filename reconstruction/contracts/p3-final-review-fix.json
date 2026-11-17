@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "69876477f0c01a6077c1625f3fd5e1707febc9ec",
-    "sha256": "4ee34ea1fbea2576d7e8996aba8c21e76d9070fa01725834e76ee4853c89b678",
+    "sha256": "3c0cdb76d08b36295ed3cb9d3bf17b0a4488f51e1bbab182074408a7a01d8d79",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -381,8 +381,8 @@
         "id": "P3-FRF-AC07",
         "requirement": "R7（試験の数え、裁定なしで入れる）: (1) oracle.test.ts:339 の matched を mismatches.length === before && fields > 0 にする（比べる欄が 0 の step を一致に数えない、P3-FG-AC01 (1) の『null の欄は一致に数えない』） (2) :409 の mismatchedSteps を、食い違いのあった step の数（new Set(gate.mismatches.map((item) => item.expectedRef)).size）にする（(1) の後に『matched でない step』を数えると、欄 0 の step が食い違いに入るため） (3) 行の中だけで、行の数は変えない。T01 の assert と期待は変えない (4) 記録の数は Q-FRF-R7 (1)（69876477 の木の写しで flowed 383・matched 370→332・比べる欄の無い step 38・hollowMatched 13・mismatchedSteps 0）。AC01 の数え直しの記録は統合担当の仕事（P3-FRF-AC09 (6)）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:408 «c5ff66ace75e026f»",
-          "reconstruction/test/final-gate/oracle.test.ts:336 «d886861405c034a2»"
+          "reconstruction/test/final-gate/oracle.test.ts:468 «c5ff66ace75e026f»",
+          "reconstruction/test/final-gate/oracle.test.ts:396 «d886861405c034a2»"
         ]
       },
       {

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "09d949afaa1503a37492a555770331d4429eaf1e",
-    "sha256": "510bd20d5a4a65255a291aba7133acf04a700b9c5a7e23fbd2e5dff9ff4d007a",
+    "sha256": "2c475607ea971c104ad81d5326c38cf9c191afbef5415cf2830abd77e22d95ea",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -289,8 +289,8 @@
         "requirement": "O10 の準備（P3-SOO-D-O10-PREP=A）: (1) oracle.test.ts に expectedRef ごとの準備の表を置く。組むのは state と保存の世代だけで、restart ごとに次のとおり。時計: 準備の報は報の時刻（81_02_01 は 2026-06-05T17:00:01+09:00、81_01_03 は 2023-06-22T17:00:01+09:00）で受け、開き直しも同じ時計で行う。step の時刻へは次の step の setNow（oracle.test.ts の step の頭）が進める。O10:56 の文の「時計を本 step の evaluatedAt へ設定」と違うのは、製品の restore が開いた時計で期限を回収するため（weather-timeseries-unit.ts の restore の collect）で、2026 の時計で開くと 2023 の g1 が消え、O10:57 などが空の state に受ける（品質レビューの P2-1、Q-SOO-REVIEW-R3 (1)）。文の後半「次の receive で期限評価と新報適用を同一 reduceUnit にまとめる」には合う。O10:27: 新しい memoryFiles の上で 81_02_01_260605_VPWP50_high_severity を製品の経路で受け、driveCheckpoint で g1 の保存の ack まで進め、同じ file 群で開き直す。文の「次の保存を disk full で失敗させる」は組まない（後ろの O10:28 は receive だけで、O10:29 の restart まで save が無く、T01 の比べる欄に出ない）。O10:29: 同じく g1 を保存して開き直す。文の「rename 後 ack 前で停止し、再起動時に slot を照合」は組まない（ack を失った slot の照合は保存の試験〔DESTINATION〕の持ち物。O10:30 の比べる欄は取消の decision・effective・revision だけ）。O10:31: 空の state で開き、通知 adapter は T01 の既定のまま。文の「通知 adapter 停止」「設定版 p2-o10-v2」は組まない（試しで manualAdapter を渡しても渡さなくても O10:32・33・39・40 の結果は同じで、無くても T01 の比べる欄は何も変わらない。Q-SOO-PROBE の (1)）。O10:56・61・66・71・76: 81_01_03_260129_VPWP50 を 2023-06-22T17:00:01+09:00 の時計（原報の 1 秒後）で製品の経路で受け、g1 の保存の ack まで進めて開き直す。U-W は空。文の「この制御 step では tick を投入しない」は今の T01 の restart と同じ（restart は tick しない） (2) 準備は試験の中だけで組み、sequences.json に欄を足さない。準備した restart の直後に、準備の subject（O10 は normal/VPWP50/稚内地方気象台、O04:9 は normal/VPWS50/気象庁本庁と normal/VPWW55/福井地方気象台）が state に在ることを 1 行で assert する（無いと準備が捨てられても一致に数わり素通りする） (3) 準備を組んだ restart は hollow を付けない。hollow の一覧は空になる（試しで、O10 の準備だけを当てた木は流す 383・一致 345・比べる欄の無い 38・hollow 0・準備を作らない restart 7・食い違い 0）。O06:31 と O10:41・44・47・50・53 は準備を組まない（後ろに流す step が無い）。準備を作らない restart の数は 15 → 6（O04:9 は AC02 で組む） (4) O10 の窓は別表のまま。DESTINATION の O10 の字は変えない (5) 準備の後で O10:28・30・32・33・39・40・57・62・67・72・77・89・90 が食い違えば、準備や期待を合わせずに止めて報告する",
         "evidenceRefs": [
           "reconstruction/test/final-gate/oracle.test.ts:35 «c3c16c5d7ba2c6e8»",
-          "reconstruction/test/final-gate/oracle.test.ts:236 «9662b23ddd38fb09»",
-          "reconstruction/test/final-gate/oracle.test.ts:425 «8df409a0f0ed97f3»",
+          "reconstruction/test/final-gate/oracle.test.ts:286 «ad5b54fddb3c9837»",
+          "reconstruction/test/final-gate/oracle.test.ts:485 «1b02a2515649f505»",
           "reconstruction/tools/corpus/check-sequences.mjs:53 «c0a354d6dd3dd7b3»",
           "reconstruction/tools/corpus/check-sequences.mjs:106 «4bae427a2fbc0105»",
           "reconstruction/test/execution-split/owner-harness.ts:316 «05f31a94a07389dc»",
@@ -302,7 +302,7 @@
         "requirement": "群 4 を流す（P3-SOO-D-AFTER=A、D-O04-ORDER=A、D-O04-FAIL=A、D-O04-VALUES=A）: (1) 合成 5 本（O04:3 全国 VPWS50 normal 13:00、O04:5 松江 VPWW55 normal 13:01、O04:6 京都 VPWW57 normal 13:01、O04:7 全国 VPWS50 training 13:01、O04:8 全国 VPWS50 normal 13:02）を test/fixtures に足し、manifest に path の順で 5 行足す（全国の 3 本は 15_18_01〔4,567,490 byte〕の写しなので repo は約 13.7 MB 増える）。親は D-O04-VALUES の ruling、替える字は Head の 3 つの時刻（Control/DateTime は UTC、ReportDateTime と TargetDateTime は +09:00）と、O04:7 の Control/Status（通常→訓練）だけ (2) sequences.json: unmet:O04:3・5・6・7・8 を expected にし（step の expectedRef と fixtureId、record の expectedId・subjects・input・checks、p2Subsets の stepRefs）、O04:8 の action を receive に替える（receivedAt・operationExpected を付ける）。subjects は製品の subject の字。期待の値は試し（Q-SOO-PROBE の (2)）で製品が返した値にする: O04:3 は normal/VPWS50/気象庁本庁・changed/semantic・active（準備の全国が synthetic_VPWS50_fukui_base で中身が違うため。r1 の revisionOnly は準備の全国も 15_18_01 だったとき）、O04:5 は normal/VPWW55/松江地方気象台・changed/semantic・active、O04:6 は normal/VPWW57/京都地方気象台・changed/semantic・active、O04:7 は training/VPWS50/気象庁本庁・changed/semantic・active、O04:8 は normal/VPWS50/気象庁本庁・changed/semantic・active（O04:4 のやり直しで全国の current は準備の synthetic_VPWS50_fukui_base のまま。null のままでは receive の decision の欠けに Q-* が要る、check-sequences.mjs の receive の decision の検査）。revision は各報の ReportDateTime と InfoType 発表、serial は null。notices・intents は 5 本とも null。通知は比べず、群 4 の中心は AC03 が state で見る。O04:3 の input.required・checks から移行 state と架空の官署・区域の字を外し、O04:9 の state を前提とする字にする。O04:5〜7 の checks の「同官署」は「別官署の別 family」と読む字にし、O04:8 の checks は「全国normal（気象庁本庁）の同じ対象の正常採用でfreshnessSuspectを解除。O04:9のpartialを維持。」にする。O04:3 の step の expectationBasis と record の basisRefs（同じ列、check-sequences.mjs の evidence references の一致）から旧築の nextReport（vpws50-stale-lock-recovery.test.ts:48、架空の値）と survivor（:152）の 2 本を外し、合成の file の 1 行目を L2 で引く（前例 expected:O06:10 の形。basisLevel は L1 のまま） (3) T01 は定数 1 つで O04:9 を O04 の 2 番目（取り下げた O04:2 の位置）に流し、その restart を試験コードで組んだ state で行う: synthetic_VPWS50_fukui_base の Head の時刻を 2026-08-30T13:00:00+09:00 にした全国報を時計 2026-08-30T13:00:00+09:00 で、福井 L5 の Head の時刻を 2026-09-07T12:50:00+09:00 にした partial を時計 2026-09-07T12:50:00+09:00 で製品の経路で受けて保存し、同じ 12:50 の時計で開き直す（AC01 の時計と同じ扱い。次の O04:3 の setNow が 13:00:00.001 へ進める。無いと O04:3〜8 が空の state に乗り、全国の疑いを作れない）。位置 9 の O04:9 はもう一度行わない (4) O04:4 は比べる欄 0 の制御 step として流す（oracle.test.ts の partition で injectFailure を別表に置く行に、O04:4 だけを流す表に置く特例を足す。その行を引く本契約の «» は中身が変わるので、配送で新しい anchor を手で入れる。AC06 (3)）。O04:9 と同じ準備からやり直した state に、全国 15_18_01 の Head の時刻を 2026-09-07T13:00:00+09:00 にし、Body の最初の Status を「未知」にした報（試験コードの bytes、manifest に足さない）を製品の経路で受ける（試しで rejected/requiredStructureInvalid、全国 normal の対象に freshnessSuspect=true・revisionOrder newer） (5) 準備に旧い保存の形や移行が要ると分かったら、組まずに止めて報告する（Q-SOO-MIGRATION） (6) 期待と違えば、期待を合わせずに止めて報告する",
         "evidenceRefs": [
           "reconstruction/tools/corpus/sequences.json:52 «7e4d3d3c15b8115f»",
-          "reconstruction/tools/corpus/sequences.json:16311 «1ef1d7016333c103»",
+          "reconstruction/tools/corpus/sequences.json:16323 «1ef1d7016333c103»",
           "reconstruction/contracts/p2-weather-current-unit.json:399 «ff60a1af78555949»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:580 «e438c9e922f91992»",
           "reconstruction/test/weather-current-unit/weather-current-unit.test.ts:403 «195d197e38168098»",
@@ -334,8 +334,8 @@
         "id": "P3-SOO-AC05",
         "requirement": "数（前は 09d949af の C22 の記録と同じ。後は起草の数え〔.dr-tmp の partition の写し〕で、一致の数は実装で数える）: (1) check-sequences の unmet 85（O02 7・O04 5・O06 26・O08 3・O09 37・O11 7）→ 80（O04 0、ほかは同じ） (2) T01 の表: 取り下げ 10 → 10、injectFailure 44 → 43（O04:4 が流す表へ）、後続 47 → 47、unmet 85 → 80、unmet を待つ 0 → 0、流す 383 → 389（O04:3〜8 の 6）、一致 332 → 350（O10 の準備で 345、試しで実測〔Q-SOO-REVIEW-R3 (1)〕。O04:3・5〜8 の 5 本は結線への直接の投入で一致を確かめた見込み）、比べる欄の無い 38 → 39（O04:4）、hollow 13 → 0、準備を作らない restart 15 → 6、食い違い 0 → 0。実装の記録に実測を書く (3) oracle.test.ts の数の assert（:422・:425）と hollow の一覧（:428）・準備の数（:430）・DESTINATION の O04 の字（:383「O04:4 の後続 O04:5〜8 は unmet」）を後の数と字に直す (4) 規則が数を変えたら、規則を合わせずに報告する (5) C22（p3-final-gate.json）と P3-FINAL-REVIEW-FIX-001 の記録の数（unmet 85、383/332/13）は書き換えない。後の数は本契約の記録に書く",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:425 «8df409a0f0ed97f3»",
-          "reconstruction/test/final-gate/oracle.test.ts:49 «5613288df4a89683»",
+          "reconstruction/test/final-gate/oracle.test.ts:485 «1b02a2515649f505»",
+          "reconstruction/test/final-gate/oracle.test.ts:81 «e757b83b1012c8dd»",
           "reconstruction/contracts/p3-final-gate.json:489 «3ec107a1848eebad»"
         ]
       },

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4088ea621e712d2d3d92f30559c5e6796a9ef938",
-    "sha256": "28b648f09333ac094950a7775ebe3d454fcf0bd10a95d7b14b58edce49271be3",
+    "sha256": "b5843dbb69e73cadaf5aa57c80c3c8fadd0f24c10ab0a7db535b1d39f3906206",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -204,7 +204,7 @@
         "id": "P3-USD-AC02",
         "requirement": "O03:12 の期待と仕様どおりの欠け: (1) sequences.json の expected:O03:12 の notices・intents を null から false に（行の中だけ）。checks の 1 本目の末尾に「引下げ（Status が「特別警報から危険警報」）なので通知しない（作者裁定 2026-11-14、P3-UW-STALE-DOWNGRADE-001）。」を足す（行の中）。decision・effective・subjects・basisRefs は変えない。T01 の O03:12 の比べる欄は 4 → 6 (2) 根拠: 11:40 の福井の報の Body の福井県（180000）・嶺北（180010）などの Kind は Code 43・Status「特別警報から危険警報」（LastKind 33、fixture の XML）で、AC01 の (1) で外れる。坂井市（1821000）・永平寺町（1832200）は Kind 43・Status 継続（LastKind 43）で外れない（直前も危険警報）が、11:40 の前の合わせで 43 なので今の規則でも上がらない。O03:12 の intent は 0 (3) 仕様どおりの欠け（作者はカードで見て A を選んだ）: 11:39 に FlEq を起動して（U-W が空）11:40 の福井の引下げ（O03:12 と同じ報）だけを受けると、今は desktop「大雨危険警報（福井県）」本文「大雨危険警報 福井県嶺北」が 1 件（音なし）。直した後も desktop の件数は 1 のままで、本文が「大雨危険警報 福井県坂井市、福井県永平寺町」に変わる（福井県・嶺北・嶺北北部などの 43 は Status「特別警報から危険警報」で外れ、Status 継続の坂井市・永平寺町だけが上がった区域に残る。title・level・音なしは同じ。起草の写しの値）。落ちるのは「直前の報を受けていない FlEq が、引下げの報で初めて知る危険警報」の desktop。残るのは、その報の Status が「特別警報から危険警報」でない区域の desktop（文面の区域は残った区域だけ）。Status が「特別警報から危険警報」なら LastKind が無くても数えない。境目は P3-WN-T01 の expect で固める（空の U-W に引下げの報を受けると本文が「大雨危険警報 福井県坂井市、福井県永平寺町」の 1 件。外れる区域が 1 つでもあれば全部を外す粗い実装では 0 件で落ちる、起草の写しで確かめた） (4) 仕様どおりの欠け（取り直し、起草レビュー r0 のヘルツ P2）: 全国報（06:50）→ 福井 L5（06:51）→ VPNO50 の終了（11:40）の後に取り直しを始め（open の合わせの嶺北の大雨は段なし）、11:40 の引下げを origin=recovery で採ると、live が open のままなら、recoveryNotices は candidate の 43 を open・live より上がった区域として数え、info の desktop＋sound を 1 組作る（title「大雨危険警報（11:40 発表）」、本文「大雨危険警報 1地域」。起草の写しで U-W の recoveryNotices を直に呼んだ値、ヘルツの実測と同じ）。出るのはこの取り直しの知らせの 1 組だけで、live の受理の desktop「大雨危険警報（福井県）」は出ない。取り直しを挟まない live の受理（O03:12）では出ない",
         "evidenceRefs": [
-          "reconstruction/tools/corpus/sequences.json:15591 «f16c465410ee88b5»",
+          "reconstruction/tools/corpus/sequences.json:15590 «f16c465410ee88b5»",
           "reconstruction/contracts/p3-weather-other-office.json:73 «0f6fa1ab47a0bfc3»",
           "docs/specs/reconstruction-p0-contracts.md:1779 «739b40cc8a7f938f»",
           "reconstruction/contracts/p3-weather-notice.json:617 «1415b3b52c81b648»"
@@ -231,12 +231,12 @@
         "requirement": "T01 の同じ実行で確かめる（新しい suite・helper を足さない。P3-WOO-AC08 の O03 の U-W の state の assert を伸ばす）: (1) oracle.test.ts:13 の import の行の中に「 import { weatherCurrentAreas } from \"../../src/units/weather-current/weather-current-public\";」を足す（同じ行に 2 つの import は weather-current-unit.ts の import の行と同じ形。行を足すと AC08 の «» がずれる） (2) :445 の後に、コメント 1 行（台帳 125 と、O03:13 の 16 は空回りを防ぐことの趣旨）と assert 1 行「expect([13, 14].map((position) => weatherCurrentAreas(at(position)).filter((item) => item.prefecture === \"18\").map((item) => item.areas.length))).toEqual([[16], [0]]);」を足す (3) 弾き（起草の写しで確かめた）: AC04 の assert は直し 2 を戻すと [[16], [6]] で落ち（直しなし・1 だけの木）、O03:12 の false は直し 1 を戻すと intents・notices の 2 欄が食い違う（直しなし・2 だけの木）。両方の木で T01・T02 とも緑。実装担当も、片方ずつ戻した写しで落ちることを確かめて成果物に書く（製品のコードの戻しは残さない）",
         "evidenceRefs": [
           "reconstruction/test/final-gate/oracle.test.ts:13 «f9ebbb0699b712b3»",
-          "reconstruction/test/final-gate/oracle.test.ts:331 «ef3a91065e12492f»",
-          "reconstruction/test/final-gate/oracle.test.ts:332 «e3aaecfdbb025ece»",
-          "reconstruction/test/final-gate/oracle.test.ts:435 «a61e505d92f1e320»",
-          "reconstruction/test/final-gate/oracle.test.ts:445 «c258dc2f97c998eb»",
-          "reconstruction/test/final-gate/oracle.test.ts:449 «c2217031eccc788c»",
-          "reconstruction/tools/corpus/sequences.json:15691 «50db7662e12c7725»"
+          "reconstruction/test/final-gate/oracle.test.ts:390 «ef3a91065e12492f»",
+          "reconstruction/test/final-gate/oracle.test.ts:391 «e3aaecfdbb025ece»",
+          "reconstruction/test/final-gate/oracle.test.ts:494 «a61e505d92f1e320»",
+          "reconstruction/test/final-gate/oracle.test.ts:504 «c258dc2f97c998eb»",
+          "reconstruction/test/final-gate/oracle.test.ts:516 «c2217031eccc788c»",
+          "reconstruction/tools/corpus/sequences.json:15690 «50db7662e12c7725»"
         ]
       },
       {

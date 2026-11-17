@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "0e417215cd8043a8fde243bec0d19c23c3b9035e",
-    "sha256": "bb0a14f059d4c1944c9204c260165d996ee6d4098880acf9494e8789ab88a289",
+    "sha256": "0b7c3b42a9f88bd6999eb727656296f339ac4062f27b5f9ea972335a5b544643",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
-    "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -233,10 +233,10 @@
         "id": "P3-ESC-AC03",
         "requirement": "C22 の T01 で 8 step が流れて一致する: (1) O01:4・5・6・7・11・12・13・14 が flow の表に入り（unmet の後の dependsOnUnmet から外れる、oracle.test.ts:45・:53）、mismatches 0 のまま (2) oracle.test.ts の数: unmet 90 → 88、dependsOnUnmet 13 → 7、flow 365 → 373、dependsOnUnmet の一覧は [O02:4, O03:8, O03:10, O03:11, O03:12, O03:13, O03:14]。withdrawn 10・injectFailure 44・afterInjectFailure 47（と action 別の [23, 11, 6, 4, 3]）・hollow 13・prepared 15 は変えない。:410 のコメントに「2026-11-13 の P3-EEW-SAME-CORRECTION-001 で O01:4・11 に入力を足した」を足す (3) T02 も緑のまま（見込み: 新しく流れる取消 O01:5・O01:12 は U-E だけが変え、保存の inputIds に入る。走らせて確かめていない） (4) O01:4・11 の actual が AC02 と違うか、O01:5〜7・12〜14 のどれかが (5) の直しの後も食い違うか、T02 が落ちたら、期待も製品も変えずに actual・expected を添えて止めて報告する (5) oracle の読みの直し（統合担当の決め、2026-11-13 起草レビュー r0 の Opus P1・ヘルツ P2-1。担い手は本契約）: U-E の取消の採用は current を [] にし、gates に terminal で InfoType 取消の gate を残す（eew.ts:599〜:605）。recordOf は current に無ければ gates を引き、effectiveOf は effective の欄の無い記録を active と読む（:117・:118）ので、O01:5〜7・12〜14 の effective が期待 inactive/cancelled に対し active になる（製品の誤りではない）。effectiveOf の :116（record == null の行）の直後、effective === undefined の判定より前に、unit が U-E で record が gate の記録（retainUntil を持つ記録。current に無く gates から引いたもの）なら { kind: inactive } を返し、cause は record.source.infoTypeRaw === \"取消\" なら cancelled、record.terminal === true なら released、ほかは expired とする 1 行を足す（無いと U-E の取消の後の effective を T01 で比べられない。品質レビューの P2 で、取消の terminal の gate だけを読む形からこの形に強めた〔配送の改訂、統合担当 2026-11-13〕。current を消す変異で O01:4・11 が落ちることを実装担当が確かめた）。:114 のコメントにこの読み〔U-E の gate は current が無いので取消なら cancelled・終わりなら released・ほかは expired〕を足す（行の中の書き足しで行の数は変えない）。起草レビューで Opus がこの直しを当てて流し、mismatches 0・T02 緑・数は unmet 88・dependsOnUnmet 7・flow 373・hollow 13・prepared 15 を確かめた",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/oracle.test.ts:45 «c7a23bcb4c556234»",
-          "reconstruction/test/final-gate/oracle.test.ts:53 «727527e52dd61434»",
-          "reconstruction/test/final-gate/oracle.test.ts:312 «3d60ff180164f361»",
-          "reconstruction/test/final-gate/oracle.test.ts:124 «bfe87cf0fab19b4c»",
+          "reconstruction/test/final-gate/oracle.test.ts:77 «c7a23bcb4c556234»",
+          "reconstruction/test/final-gate/oracle.test.ts:85 «727527e52dd61434»",
+          "reconstruction/test/final-gate/oracle.test.ts:371 «3d60ff180164f361»",
+          "reconstruction/test/final-gate/oracle.test.ts:156 «bfe87cf0fab19b4c»",
           "reconstruction/src/domains/eew/eew.ts:599 «b0942936e8d96798»",
           "reconstruction/contracts/p3-final-gate.json:822 «89a900a299a6e44b»"
         ]
