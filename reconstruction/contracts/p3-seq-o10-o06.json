@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "09d949afaa1503a37492a555770331d4429eaf1e",
-    "sha256": "fd93e551372bd805945fe97c544b265e10241ce1b448199127b9d126230fbb52",
+    "sha256": "55a165d20a251828b0951b3c1ed348e7437887bbbbe79537717564320f451971",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -21,14 +21,14 @@
       },
       {
         "id": "P3-SOO-D-O10-PREP",
-        "kind": "統合担当",
+        "kind": "作者",
         "A": "O10 の文の上だけの準備の restart 13 本のうち、後ろに流す step を持つ 8 本（O10:27・29・31・56・61・66・71・76）の準備を T01 の試験コードで組む。窓（injectFailure とその後続）は別表のまま、DESTINATION も変えない",
         "B": "A に加えて、窓 O10:34〜38 と O10:78〜88 を、失敗を注入するメモリの保存で T01 に流す",
         "C": "13 本すべての準備と、export（O10:23・24）・stdout（O10:25・26）・反復の抽象 step（O10:11〜26）を除く窓すべてを流す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当、2026-11-17 起草 r0。受け手の行〔計画:695〕と記録〔p3-final-gate.json:1084 の (3)〕の字は「injectFailure の別表」と「hollow 13 step」の 2 つで、A は別表〔O10 の injectFailure 21・後続 42〕を変えない。発注の名前より狭いので、統合担当が作者に見せている〔2026-11-17〕。答えが来るまで起草案）",
-        "ruling": "A（統合担当の起草案）",
+        "status": "確定（作者裁定、2026-11-17 20:5x「O10 は A」。統合担当が r0 の起草案を作者に見せた）",
+        "ruling": "A（作者裁定、2026-11-17 20:5x）。作者が受け手の字（injectFailure の別表と hollow 13）より狭い A を採った。別表の行き先は oracle.test.ts の DESTINATION の O10（実の注入で確かめた 5 契約の試験）のまま",
         "reason": "hollow 13 は 8 本の restart の後ろの step だけ（oracle.test.ts:236 で restart ごとに付き、次の restart まで残る）。O10:41・44・47・50・53 の後ろはすぐ injectFailure（別表）で hollow を作らないので、組んでも T01 の結果が変わらない（無いと壊れるものが無い）。窓を飛ばした後の step を一致に数えるのは今の T01 の読み（O10:9・10・98 と同じ）。窓の実の注入は DESTINATION の試験（P2-CHECKPOINT-SHUTDOWN-001 ほか、O10:1〜10 は P3-C9-T09）が確かめている。B は T01 に失敗を注入する保存と retryAfter の時計を足し、それらの試験と同じ分岐を言い換える。C は export が P3 の外（計画の C21 の外出し）で、O10:11〜26 は「反復は設定上限まで」で step の形が無い。A で別表の数（44・47）と DESTINATION は変わらない。B の見込み（Q-SOO-PROBE の (4)、試しで実際に流した）: 流す 383 → 399、injectFailure 44 → 42、後続 47 → 33、一致 360、食い違い 1。食い違いは O10:82 の subjects で、期待の字が normal/VPWS50/全国base、製品は normal/VPWS50/気象庁本庁（B を選ぶなら sequences.json の O10:82 の subject の字を直す）。B に要るのは、U-F の path を開くと ENOSPC を返すメモリの保存と、O10:34・78 で失敗を入れ O10:38・88 で外す 2 行。T01 が比べるのは decision と通知の欄だけなので、O10:80〜88 の retryAfter の時刻と試行の回数は B でも比べない（窓で開いた U-F の保存は 7 回 ENOSPC になった）"
       },
       {
