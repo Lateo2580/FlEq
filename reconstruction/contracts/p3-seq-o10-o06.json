@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "09d949afaa1503a37492a555770331d4429eaf1e",
-    "sha256": "4e72aac934b57ad2f646e3549e844ede67fb63f5d932d731c0445183cb6012e5",
+    "sha256": "510bd20d5a4a65255a291aba7133acf04a700b9c5a7e23fbd2e5dff9ff4d007a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "db1b6e7bd3b4ba28a90b6d302e455db34eb5c6fd44ea94b71371cc2be5987266",
     "sequencesSha256": "2d47587bab7d002392c39737918e97d1b5b3499288ca9f944ee45994b191a66a",
@@ -122,7 +122,7 @@
     "contractId": "P3-SEQ-O10-O06-001",
     "mode": "implementation",
     "objective": "P4 の前に「O10・O06 を流す発注」を 1 本にする（計画の「段 4 の上限の次の形」の受け手の行、作者裁定 2026-11-16 朝の判断 2=A）。(1) O10: 文の上だけの準備の restart のうち後ろに流す step を持つ 8 本の準備を T01 の試験コードで組み、hollow 13 を 0 にする（P3-SOO-D-O10-PREP=A。窓は別表のまま） (2) O04: O04:9 の準備（新築の U-W の state、移行を使わない）を T01 で組んで取り下げた O04:2 の位置で行い、群 4（O04:3・5〜8）に合成 5 本を足して expected にし、O04:4 の採用の失敗を製品の経路で実現して、全国 normal の freshnessSuspect が別 subject で解けず同じ対象の正常採用で解けることを T01 で確かめる (3) O06: 群 7（O06:11〜28）は unmet のまま、O06:20〜28 の checks の字を履歴 8 段の頃から今の決まり（履歴 2 段、P3-UWC-D-DEPTH=A）に直し、行き先を P3-UWC-T02 と読む。製品のコードは変えない。unmet は 85 → 80",
-    "baseOid": "unassigned",
+    "baseOid": "3edb3539bfb1974f43bed8c1ab42c8c9c826ef90",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
