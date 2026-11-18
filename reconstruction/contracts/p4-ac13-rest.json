@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "5c5be4c5f9fecc6542e97c3519ad103edfda068e937e95f837408d9f56c3d755",
+    "sha256": "a4b43d2f9aa64e508f290523b192eb80bd46a099fe50d073ae114841b58c64a4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -23,7 +23,7 @@
       {
         "id": "P4-AC13R-D-EXTRA",
         "kind": "統合担当",
-        "A": "R6 で読み戻しを組み立てに替えた結果、保存の national・partials・histories の報と unconfirmed の印に型の外の欄があっても、読み戻しで落とす（intent() と同じ。拒否はしない）",
+        "A": "R6 で読み戻しを組み立てに替えた結果、保存の national・partials・histories の報と unconfirmed の印に型の外の欄があっても、読み戻しで落とす（intent() と同じ。拒否はしない）。16 MiB の容量の判定は落とす前の確かめた元の値で測り（直す前と同じ値）、上限の内なら組み立てた値を返す（AC01 (6)）",
         "B": "型の外の欄があれば invalid にする",
         "recommended": "A",
         "provisional": "A",
@@ -31,7 +31,7 @@
         "ruling": "A（統合担当の決め、起草 r0）",
         "blocks": "なし",
         "ifNotChosen": "B の場面: 手で書き足した欄 note を持つ partial の報が保存にあると、B は U-W の保存ごと invalid にして起動の復元で捨てる。A は note だけを落として残りを読む",
-        "reason": "製品が保存に書く報は domain の snapshot()（weather-current.ts、subject・operation・scope・office・source・phenomena の 6 欄）と sourceFor（ReportRef の 9 欄）で作った形だけで、型の外の欄は出ない。起草の写しで、実の報から組んだ state の保存→読み戻し→encode の byte が一致した（P4-AC13R-T01）。直す前は型の外の欄が通って 16 MiB の数えにも入っていたが、それを頼る読み手は無い。復元した報が持つ Symbol の鍵 restoredAt も JSON には出ず、codec の decode を呼ぶ製品の 3 か所（checkpoint.ts の slot の確かめと owner-runtime.ts の起動の復元は JSON から読んだ payload、weather-current-unit.ts の restore() はその state を encode した値）はどれも restoredAt を持たない値を読むので、落としても振る舞いは変わらない（restore() は読み戻しの後で付け直す）。B は拒否の集合を広げ、AC01 (3)（受理と拒否を直す前と同じにする）に反する"
+        "reason": "製品が保存に書く報は domain の snapshot()（weather-current.ts、subject・operation・scope・office・source・phenomena の 6 欄）と sourceFor（ReportRef の 9 欄）で作った形だけで、型の外の欄は出ない。起草の写しで、実の報から組んだ state の保存→読み戻し→encode の byte が一致した（P4-AC13R-T01）。型の外の欄は読み戻しで落とすが、受理と拒否は直す前と同じ: 容量は落とす前の元の値で測る（直す前も encode も型の外の欄を数えている。起草レビュー r0 のヘルツ P2、P4-AC13R-T03）。復元した報が持つ Symbol の鍵 restoredAt も JSON には出ず、codec の decode を呼ぶ製品の 3 か所（checkpoint.ts の slot の確かめと owner-runtime.ts の起動の復元は JSON から読んだ payload、weather-current-unit.ts の restore() はその state を encode した値）はどれも restoredAt を持たない値を読むので、落としても振る舞いは変わらない（restore() は読み戻しの後で付け直す）。B は型の外の欄を持つ保存を新たに拒否するので、受理と拒否を直す前と同じにする AC01 (6) と合わない"
       },
       {
         "id": "P4-AC13R-D-SCOPE",
@@ -43,7 +43,7 @@
         "status": "確定（統合担当の決め、2026-11-18 12:41）",
         "ruling": "A（統合担当の決め、2026-11-18 12:41。B は freshness だけで 20 を越える欄の組み立て直しになり R6 の欠けと別の仕事、製品の保存に型の外の欄は出ない。残す tombstones・freshness・unavailable の { ...item } は台帳とバックログに送る）",
         "blocks": "なし（決め済み）",
-        "ifNotChosen": "A のまま残るもの: 保存の tombstone・freshness・unavailable に型の外の欄があっても読み戻しで通り、16 MiB の数えに入る（製品の保存には出ない形。画面・音は変わらない）。B の重さ: freshness の述語は 20 を越える確かめで、reader にすると組み立ての欄も同じ数になり、encode の側の述語（P3-WL1-AC05 の「判定の関数は写さずに呼ぶ」）との共有の形も 3 つ分決め直す。行の数を変えない書き方（AC03 (3)）も難しくなる",
+        "ifNotChosen": "A の非対称: unavailable の lastKnown は partials と同じ WeatherCurrentSnapshot の型だが、unavailable の { ...item } の中なので組み立て直さない（述語 snapshot で確かめてから写す。製品の保存には型の外の欄は出ない）。A のまま残るもの: 保存の tombstone・freshness・unavailable に型の外の欄があっても読み戻しで通り、16 MiB の数えに入る（製品の保存には出ない形。画面・音は変わらない）。B の重さ: freshness の述語は 20 を越える確かめで、reader にすると組み立ての欄も同じ数になり、encode の側の述語（P3-WL1-AC05 の「判定の関数は写さずに呼ぶ」）との共有の形も 3 つ分決め直す。行の数を変えない書き方（AC03 (3)）も難しくなる",
         "reason": "R6 の指摘（AC13 の統合 r2）と発注の範囲は 4 欄で、3 欄は今の述語が型の全部の欄を確かめたうえで ...item で写す形（4 欄の直す前と同じ類）。3 欄の欠けは製品の保存に出ない形で、利用者に見える害は無い。B を採るなら発注 3 として足す"
       }
     ],
@@ -53,6 +53,13 @@
         "status": "closed",
         "source": "起草 r0（2026-11-18、MacBook。worktree ~/dev/fleq-ac13r-draft〔branch draft/ac13r、HEAD 912e951a〕で案を当てて回した。案と試験は commit せず .dr-tmp/proposal-r0.diff に残し、木は本契約の file だけに戻した）",
         "closed": "(1) 直す前の基準: P4-AC13R-T01・T02 を足しただけの木（製品は 912e951a のまま）で 2 本とも緑（rc 0）。測りの script（.dr-tmp/measure.cjs、reconstruction/dist の codec を呼ぶ）で、H=384・R=768 の保存の encode→読み戻し→encode の byte の sha256 が 5d326afc…dfe4b1、H=128・R=256 で c647e497…45006d (2) 案（proposal-r0.diff、src 2 file・試験 2 file）: tsc 3 本 rc 0。vitest（weather-current-unit・uw-canon・weather-notice・version-material・expiry-form・unit-wiring・shared-runtime・terminal/eew-log の 12 file）152 件 rc 0、test/terminal と test/cli の 42 file 346 件 rc 0。測りの sha256 は直す前と同じ（2 つとも） (3) 歯: 案をわざと壊して T01・T02 を回し、5 つとも落ちた。a 素直な走査（どれかの組が 2 を越えたら断る）→ T02、b 鍵に運用区分を入れる → T02、c 組み立ての鍵の順を変える（source を office の前）→ T01、d unconfirmed を組み立て忘れる → T01、e encode の側だけ鍵に運用区分を入れる → T02 (4) 『走査を 1 か所だけ替える』（2 か所とも同じ意味の式のまま）は振る舞いが同じなので試験では落ちない。AC01 (1) は helper 1 つを 2 か所から呼ぶ形で条文に書き、レビューで見る (5) 案を当てた木で check-contract が rc 0（157 契約 PASS）。weather-current-unit.ts は 856 行のまま、他契約の «» の付け直しは 0 件。本契約を足した木に案を当てると、FAIL は本契約の weather-current-unit.ts:263（行のずれ）だけで、reanchor-target.py を weather-current-unit.ts・eew-log.ts・eew-log.test.ts に当てると本契約の 5 件（:263→:261・:315→:317・:331→:333・eew-log.ts:85→:84・eew-log.test.ts:174→:173）が付け直り、check-contract が rc 0 (6) 案を当てた木で weather-current-unit.test.ts と eew-log.test.ts を --sequence.shuffle で回し、seed 1794973240286 で 42 件 rc 0",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-AC13R-REVIEW-R0",
+        "status": "closed",
+        "source": "起草 r0 の起草レビュー（ヘルツ〔品質〕条件付き GO、Opus〔契約適合〕GO、2026-11-18）と起草 r1（worktree ~/dev/fleq-ac13r-draft、案は .dr-tmp/proposal-r1.diff）",
+        "closed": "(1) ヘルツ P2（Opus P3-1 も同じ所）: r0 の案は型の外の欄を落とした後の値で 16 MiB を測り、partial に note を足した保存で上限から 1 byte 越えを直す前は invalid、案は restored と受け、encode とも食い違った（ヘルツが実測）。r1 で容量は落とす前の確かめた元の値で測る（AC01 (6)、P4-AC13R-T03）。D-EXTRA の reason を『落とすが受理と拒否は直す前と同じ』に揃え、B の引き方を AC01 (6) に狭めた (2) ヘルツ P3: T01 の入力が正規形だけで partials を素通しする変異が通った。T01 の decode の入力に型の外の欄を 6 か所足した (3) Opus P3-2〜P3-5・見ること 5: D-SCOPE=A を AGENTS.md:28 の例外と outOfScope に書き src の行末の注記を AC01 (7) に、台帳とバックログを AC03 (5) に、lastKnown の非対称を D-SCOPE の ifNotChosen に、未追跡の道具の参照を操作の規則（AC03 (3)(4)）と測る state の形（artifactRequirements）に替え、AC01 (5) に時間で替え忘れを見ることを足した (4) r1 の案: weather-current-unit.ts 856 行のまま。tsc 3 本 rc 0、test/weather-current-unit と test/terminal の 40 file 347 件 rc 0、shuffle（2 file、seed 1794974229779）43 件 rc 0。直す前の製品に T01〜T03 を当てると T01 だけ落ちる。歯 7 本（r0 の a〜e と f partials だけ元の record を返す・g 容量を組み立てた後の値で測る）がどれも落ちた（a・b・e は T02、c・d・f は T01、g は T03）。時間は H=384 で decode 1.876 ms・encode 1.428 ms、H=128 で 0.637・0.478 ms、byte の sha256 は直す前と同じ。案を当てた木の check-contract は他契約の FAIL 0",
         "remaining": "なし"
       },
       {
@@ -150,7 +157,7 @@
     ],
     "outOfScope": [
       "R9（起動の辿りの途中の切断で起動のまとめが多く数える、composition-root.ts）: 作者裁定 B（2026-11-18 12:25）で直さない。P3-RDL-AC03 (3) の残存のまま（Q-AC13R-R9）",
-      "persistedValue の tombstones・freshness・unavailable（lastKnown を含む）の { ...item, … }: P4-AC13R-D-SCOPE=A（統合担当の決め、2026-11-18 12:41）で本契約では組み立てに替えない。台帳とバックログに送る",
+      "persistedValue の tombstones・freshness・unavailable（lastKnown を含む）の { ...item, … }: P4-AC13R-D-SCOPE=A（統合担当の決め、2026-11-18 12:41）で本契約では組み立てに替えない。AGENTS.md:28 の『触った関数の中だけ直す』の例外: R6 の範囲は 4 欄で、残す 3 欄（tombstones・freshness・unavailable）は述語が型の全欄を確かめてから写す形。src の該当の行の末尾に注記を付け（AC01 (7)）、台帳とバックログに送る（AC03 (5)）",
       "P3-TO-AC15 (3) の捨てる規則（64 件、最も古い始めていない書き込み、始めた appendFile は最後まで）と EventID → path の表の 64 件: 変えない",
       "output.ts の TerminalBatch の dropped（端末の出力の列の捨てた数、windows の子へ送る）: EEW ログとは別の数で、変えない",
       "U-W の受理の器の計量（reservedGenerationBytes）・退去の順・encode の 16 MiB の守りの式: 変えない"
@@ -158,7 +165,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-AC13R-AC01",
-        "requirement": "発注 1（weather-current-unit.ts、R5・R6）: (1) 深さの確かめ（R5）: persistedValue と encodedValue の今の 3 行の式（:296〜:298 と :361〜:363。同じ字が 2 か所にあるので «» を付けない）を、helper 1 つ（例 partialDepthOver(histories): boolean）の呼び出し 1 行に替え、2 か所とも同じ位置（inputId の一意の確かめの次、intent の id の一意の前）に置く（P3-WL1-AC05 の同じ確かめを同じ順で）。helper は partial の報ごとに『family と官署の組』の数を Map に 1 回の走査で積み、partial を 1 つでも持つ履歴について reports[0] の組の数だけを引いて 2 を越えたら断る（直す前の式と同じ意味。どれかの組が 2 を越えたら断る形にはしない、1 つの履歴に官署の違う報が混ざると拒否の集合が変わる）。運用区分は鍵に入れない（合算）。鍵は family を先にして官署と \\u0000 でつなぐ（family は確かめ済みの固定の集合で官署の字と衝突しない） (2) byte: 実の報で組んだ state の保存を JSON にして読み戻し、encode し直した byte が元と同じ（:331 の cache の key と、読み戻しで欄の順が変わらないこと。P4-AC13R-T01） (3) 拒否の集合: 府県の報の履歴の境目（運用区分をまたいで 2 件・3 件、1 つの履歴に 3 件、官署が違う、family が違う、先頭の報の組で引く混ざった履歴、先頭が全国の報）で、decode と encode の受理と拒否が直す前と同じ（P4-AC13R-T02。7 組とも直す前の製品で同じ値になることを起草で確かめた） (4) 組み立て（R6）: 報の reader（例 readSnapshot）・履歴の reader（例 readHistory）・印の reader（例 readMarks）を、確かめた欄から項目ごとに組み立てる形にする（intent() と同じ。確かめの後に record を写さない）。組み立ての鍵の順は domain の snapshot()（subject・operation・scope・office・source・phenomena）と historyWith（subject・operation・reports）、ReportRef は readReportRef の順に合わせる（違うと (2) の byte が変わる）。phenomena は json() で全体を確かめた値のまま通す。述語の snapshot・history は reader が null でないことで定め（確かめは 1 か所）、marks の述語は readMarks に替える（readReportRef が運用区分を確かめるので operation(item.operation) は要らない）。intentList は配列の reader 1 つ（例 readList(value, read)）に替える（無いと 4 つの配列に同じ loop を写すことになる）。persistedValue は national の各報・partials・histories・unconfirmed を reader の戻りで組む（intents の今の形と同じく、reader は関数の頭で呼んでよい）。encodedValue は record を作り直さず、今の位置の確かめを述語と readList(…) == null・readMarks(…) == null の形で保つ（戻り値が null かだけを見る。:331 の cache の key を壊さない） (5) 計算量（受信の経路ではないので上限は置かない、数字だけ）: 深さの確かめは O(H＋R)、reader は保存の大きさに比例。起草の写しで、partial 384 件・その履歴 384 本に報 768 件・全国 1 件の state の decode が中央値 5.767→1.909 ms、encode が 5.019→1.448 ms（MacBook、tsc の dist、20 回の空回しの後の 50 回の中央値。H=128・R=256 で decode 0.936→0.650、encode 0.752→0.481）。実装の後に同じ入力で測って成果物に書く",
+        "requirement": "発注 1（weather-current-unit.ts、R5・R6）: (1) 深さの確かめ（R5）: persistedValue と encodedValue の今の 3 行の式（:296〜:298 と :361〜:363。同じ字が 2 か所にあるので «» を付けない）を、helper 1 つ（例 partialDepthOver(histories): boolean）の呼び出し 1 行に替え、2 か所とも同じ位置（inputId の一意の確かめの次、intent の id の一意の前）に置く（P3-WL1-AC05 の同じ確かめを同じ順で）。helper は partial の報ごとに『family と官署の組』の数を Map に 1 回の走査で積み、partial を 1 つでも持つ履歴について reports[0] の組の数だけを引いて 2 を越えたら断る（直す前の式と同じ意味。どれかの組が 2 を越えたら断る形にはしない、1 つの履歴に官署の違う報が混ざると拒否の集合が変わる）。運用区分は鍵に入れない（合算）。鍵は family を先にして官署と \\u0000 でつなぐ（family は確かめ済みの固定の集合で官署の字と衝突しない） (2) byte: 実の報で組んだ state の保存を JSON にして読み戻し、encode し直した byte が元と同じ（:331 の cache の key と、読み戻しで欄の順が変わらないこと。P4-AC13R-T01） (3) 拒否の集合: 府県の報の履歴の境目（運用区分をまたいで 2 件・3 件、1 つの履歴に 3 件、官署が違う、family が違う、先頭の報の組で引く混ざった履歴、先頭が全国の報）で、decode と encode の受理と拒否が直す前と同じ（P4-AC13R-T02。7 組とも直す前の製品で同じ値になることを起草で確かめた） (4) 組み立て（R6）: 報の reader（例 readSnapshot）・履歴の reader（例 readHistory）・印の reader（例 readMarks）を、確かめた欄から項目ごとに組み立てる形にする（intent() と同じ。確かめの後に record を写さない）。組み立ての鍵の順は domain の snapshot()（subject・operation・scope・office・source・phenomena）と historyWith（subject・operation・reports）、ReportRef は readReportRef の順に合わせる（違うと (2) の byte が変わる）。phenomena は json() で全体を確かめた値のまま通す。述語の snapshot・history は reader が null でないことで定め（確かめは 1 か所）、marks の述語は readMarks に替える（readReportRef が運用区分を確かめるので operation(item.operation) は要らない）。intentList は配列の reader 1 つ（例 readList(value, read)）に替える（無いと 4 つの配列に同じ loop を写すことになる）。persistedValue は national の各報・partials・histories・unconfirmed を reader の戻りで組む（intents の今の形と同じく、reader は関数の頭で呼んでよい）。encodedValue は record を作り直さず、今の位置の確かめを述語と readList(…) == null・readMarks(…) == null の形で保つ（戻り値が null かだけを見る。:331 の cache の key を壊さない） (5) 計算量（受信の経路ではないので上限は置かない、数字だけ）: 深さの確かめは O(H＋R)、reader は保存の大きさに比例。起草の写しで、partial 384 件・その履歴 384 本に報 768 件・全国 1 件の state の decode が中央値 5.767→1.909 ms、encode が 5.019→1.448 ms（MacBook、tsc の dist、20 回の空回しの後の 50 回の中央値。H=128・R=256 で decode 0.936→0.650、encode 0.752→0.481）。実装の後に同じ入力で測って成果物に書き、decode・encode の両方の時間が起草の値の近くまで下がっていることを見る（走査の替え忘れはここで見える） (6) 容量（P4-AC13R-D-EXTRA=A）: persistedValue の 16 MiB の判定は、組み立てる前の確かめた元の値（national は確かめた record、partials・histories・unconfirmed は元の配列。ほかの欄は今の result のまま）を直す前と同じ式で測り、上限の内なら reader の組み立てた値を返す。型の外の欄を持つ保存でも、上限ちょうどは受けて 1 byte 越えは断り、decode と encode で同じ（P4-AC13R-T03） (7) persistedValue の tombstones・freshness・unavailable を写す行（P4-AC13R-D-SCOPE=A で組み立てない）の末尾に、行を足さずに短い注記（P4-AC13R-D-SCOPE=A、組み立てず残す）を付ける",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-unit.ts:190 «0280fdddbde2e178»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:263 «63d78d127bafb6ca»",
@@ -183,7 +190,7 @@
       },
       {
         "id": "P4-AC13R-AC03",
-        "requirement": "配送の commit で統合担当が当てる原文の改訂と «» の付け直し（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-terminal-output.json の P3-TO-AC15 (3)（:698 の requirement の中）の『越えたら最も古い始めていない書き込みを捨てて数える。』を『越えたら最も古い始めていない書き込みを捨てる（捨てた数は数えない。P4-AC13-REST-001、P4-AC13R-D-DROPPED=A）。』に替える (2) p3-final-review-fix.json:254 の行の末尾の『: バックログ』の後に『【P4-AC13-REST-001 の注記: R5・R6・R10 は同契約で直した。R9 は作者裁定 B〔2026-11-18 12:25〕で直さず、P3-RDL-AC03 (3) の残存のまま】』を足す (3) 付け直し: 他契約の «» で変える file を引くものを grep で数えた（912e951a）。weather-current-unit.ts は 11 契約の 50 件で、どれも :42〜:233 と :399〜:836（変える範囲の外で、範囲の中の行の数を変えないので動かない）。eew-log.ts・eew-log.test.ts を行で引く «» は 0 件、weather-current-unit.test.ts は :403・:613・:843 の 4 件（試験は末尾に足すので動かない）。改訂する 2 行（p3-terminal-output.json:698・p3-final-review-fix.json:254）を引く他契約の «» は 0 件で、本契約の evidenceRefs だけ。改訂の後に .dr-tmp/reanchor-inplace.py（行を動かさず字だけ変えたとき）で本契約の 2 件を取り直す (4) 本契約の evidenceRefs のうち、実装で字の変わらない行がずれうるもの（weather-current-unit.ts の :263・:315・:331・:370 は範囲の中で上下しうる、eew-log.ts の :85・eew-log.test.ts の :174 は上の行を消すと 1 行上がる）は、実装の後に reanchor-target.py（anchor の中身から付け直す）で付け直す。字の変わる行は本契約で引いていない",
+        "requirement": "配送の commit で統合担当が当てる原文の改訂と «» の付け直し（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-terminal-output.json の P3-TO-AC15 (3)（:698 の requirement の中）の『越えたら最も古い始めていない書き込みを捨てて数える。』を『越えたら最も古い始めていない書き込みを捨てる（捨てた数は数えない。P4-AC13-REST-001、P4-AC13R-D-DROPPED=A）。』に替える (2) p3-final-review-fix.json:254 の行の末尾の『: バックログ』の後に『【P4-AC13-REST-001 の注記: R5・R6・R10 は同契約で直した。R9 は作者裁定 B〔2026-11-18 12:25〕で直さず、P3-RDL-AC03 (3) の残存のまま】』を足す (3) 付け直し: 他契約の «» で変える file を引くものを grep で数えた（912e951a）。weather-current-unit.ts は 11 契約の 50 件で、どれも :42〜:233 と :399〜:836（変える範囲の外で、範囲の中の行の数を変えないので動かない）。eew-log.ts・eew-log.test.ts を行で引く «» は 0 件、weather-current-unit.test.ts は :403・:613・:843 の 4 件（試験は末尾に足すので動かない）。改訂する 2 行（p3-terminal-output.json:698・p3-final-review-fix.json:254）を引く他契約の «» は 0 件で、本契約の evidenceRefs だけ。改訂の後に本契約の 2 件の anchor を今の字から取り直す (4) 本契約の evidenceRefs のうち、実装で字の変わらない行がずれうるもの（weather-current-unit.ts の :263・:315・:331・:370 は範囲の中で上下しうる、eew-log.ts の :85・eew-log.test.ts の :174 は上の行を消すと 1 行上がる）は、実装の後に同じ anchor を持つ唯一の行の番号に書き換える。字の変わる行は本契約で引いていない。«» は『file:行 «その行の前後の空白を除いた字の UTF-8 の sha256 の先頭 16 桁»』で、check-contract はその anchor がその file の中でその行だけに当たることを見る。書き換えた契約は meta.sha256 を meta.hashConvention で取り直す (5) 台帳とバックログ: 配送の commit で、構造的欠陥台帳とやりたいことリスト（作業ノート、repo 外）に 1 項目ずつ書く。題『U-W の保存の読み戻しの tombstones・freshness・unavailable（lastKnown を含む）は確かめた record を写す』、事実は persistedValue の 3 欄の { ...item } と、型の外の欄が読み戻しで通り 16 MiB の数えに入ること、出典は本契約の P4-AC13R-D-SCOPE=A（AGENTS.md:28 の例外）。直すなら別の契約で",
         "evidenceRefs": [
           "reconstruction/contracts/p3-terminal-output.json:698 «58dbbe1d3e2b3309»",
           "reconstruction/contracts/p3-final-review-fix.json:254 «41c70aa60b8b2b9a»"
@@ -197,7 +204,7 @@
         "referenceIds": [
           "P4-AC13R-AC01"
         ],
-        "behavior": "受入条件 AC01 (2)(4)。weather-current-unit.test.ts の末尾の自前の describe「P4-AC13R …」に it を 1 つ。実の報（synthetic-vpws50-change-density-before の normal と training、after の続報、15_16_02_251222_VPWW57 の 23:00 と 23:01、23:01 の同じ時刻の解除）を受けた state が national 2（normal・training）・partial 1・履歴 2 本・未確認の印 1（p3）を持つことを確かめ、encode の JSON を読み戻して encode し直した JSON が元と同じ。歯: 鍵の順を変える・欄を組み立て忘れると落ちる（Q-AC13R-DRAFT-R0 (3) の c・d）"
+        "behavior": "受入条件 AC01 (2)(4)。weather-current-unit.test.ts の末尾の自前の describe「P4-AC13R …」に it を 1 つ。実の報（synthetic-vpws50-change-density-before の normal と training、after の続報、15_16_02_251222_VPWW57 の 23:00 と 23:01、23:01 の同じ時刻の解除）を受けた state が national 2（normal・training）・partial 1・履歴 2 本・未確認の印 1（p3）を持つことを確かめ、encode の JSON に型の外の欄 note を 6 か所（全国の報・partial とその source・履歴とその報・印）足して読み戻し、encode し直した JSON が元の正規形と同じ。直す前の製品では落ちる（型の外の欄を通す）。歯: 鍵の順を変える・欄を組み立て忘れる・partials だけ元の record を返すと落ちる（Q-AC13R-REVIEW-R0 の歯 c・d・f）"
       },
       {
         "testId": "P4-AC13R-T02",
@@ -206,6 +213,14 @@
           "P4-AC13R-AC01"
         ],
         "behavior": "契約の境界 AC01 (3)。同じ describe に it を 1 つ。府県の報の履歴だけを持つ 7 組を、decode（空の保存に histories を差した payload）と encode（空の state に histories を差した state、投げれば refused）の両方に通し、[decode の kind, encode] が [restored, encoded]・[invalid, refused]・[invalid, refused]・[restored, encoded]・[restored, encoded]・[restored, encoded]・[restored, encoded]。組は順に、京都 VPWW57 の training 1・test 1 / training 2・test 1 / training の 1 本に 3 / 京都 2・大阪 2 / VPWW57 2・VPWW55 2 / 先頭が京都で残りが大阪 3 の混ざった 1 本 / 先頭が全国の報で残りが大阪 3 の 1 本。歯: 素直な走査・鍵に運用区分・encode の側だけ壊すと落ちる（同 a・b・e）"
+      },
+      {
+        "testId": "P4-AC13R-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P4-AC13R-AC01"
+        ],
+        "behavior": "契約の境界 AC01 (6)。同じ describe に it を 1 つ。P3-WL1-T06 と同じ上界の式で、空の保存に型の外の欄 note（x の並び）を持つ partial 1 件を差した payload の byte が上限ちょうどになる長さを求め、その長さと 1 つ長いもので [decode の kind, encode] が [restored, encoded]・[invalid, refused]。直す前の製品でも同じ値。歯: 容量を組み立てた後の値で測ると 1 byte 越えを受けて落ちる（同 g）"
       },
       {
         "testId": "P3-TO-T16",
@@ -283,11 +298,11 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最初の作業: 先に P4-AC13R-T01・T02 だけを足した木（製品は直す前）で weather-current-unit.test.ts を回し、2 本とも緑なことを確かめてから製品を直す（どちらも直す前と後で同じ値を求める試験。落ちたら試験の組み方の誤りなので、試験名と actual・expected を添えて止めて報告する）",
-      "最小実装・最小テスト: 足す仕組みは深さの helper 1 つ（無いと同じ式が 2 か所に残り O(H×R)）、報・履歴・印の reader 3 つ（無いと確かめた record を丸ごと通す）、配列の reader 1 つ（intentList を置き換える。無いと 4 つの配列に同じ loop を写す）だけ。試験は 2 本: T01 は acceptance（AC01 (2)(4)）、T02 は contractBoundary（AC01 (3)）。新しい fixture・helper の file を足さない",
+      "最初の作業: 先に P4-AC13R-T01〜T03 だけを足した木（製品は直す前）で weather-current-unit.test.ts を回し、T01 だけが型の外の欄の残り（actual に note が入る）で落ち、T02・T03 は緑なことを確かめてから製品を直す（T02・T03 は直す前と後で同じ値を求める試験）。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
+      "最小実装・最小テスト: 足す仕組みは深さの helper 1 つ（無いと同じ式が 2 か所に残り O(H×R)）、報・履歴・印の reader 3 つ（無いと確かめた record を丸ごと通す）、配列の reader 1 つ（intentList を置き換える。無いと 4 つの配列に同じ loop を写す）だけ。試験は 3 本: T01 は acceptance（AC01 (2)(4)）、T02 は contractBoundary（AC01 (3)）、T03 は contractBoundary（AC01 (6)）。新しい fixture・helper の file を足さない",
       "行の数（直した後の wc -l を成果物に書く）: weather-current-unit.ts は 856 のまま（:162〜:189 と :240〜:375 の中でそれぞれ行の数を変えない）。export は export function / export const の末尾の形を崩さない（今の末尾の export { … } の 1 行のまま）。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない",
-      "AC01 (5) の時間: 実装の後に、AC01 (5) の state（partial 384 件・その履歴 384 本に報 768 件・全国 1 件）で decode と encode を 20 回空回ししてから 50 回測った中央値を成果物に書く（起草の .dr-tmp/measure.cjs と同じ形でよい）",
-      "起草 r0 の案（.dr-tmp/proposal-r0.diff、起草の worktree ~/dev/fleq-ac13r-draft の未追跡）は参考で、実装は本契約の条文に従う"
+      "AC01 (5) の時間: 実装の後に、AC01 (5) の state（partial 384 件・その履歴 384 本に報 768 件・全国 1 件）で decode と encode を 20 回空回ししてから 50 回測った中央値を成果物に書く。state の形: partial は normal・VPWW55・官署 office-0〜office-383、各 partial と同じ subject の履歴に同じ形の報 2 件（inputId だけ違う）、全国は normal の VPWS50（気象庁）1 件、報時刻はどれも 2020-06-22T23:00:00+09:00、phenomena は区域 1 つ。decode には encode の戻りを JSON にして読んだ値を渡す。tsc で作った reconstruction/dist の codec を node で呼ぶ",
+      "起草 r1 の案（.dr-tmp/proposal-r1.diff、起草の worktree ~/dev/fleq-ac13r-draft の未追跡）は参考で、実装は本契約の条文に従う。r0 の案（proposal-r0.diff）は容量を組み立てた後の値で測るので使わない"
     ],
     "unresolvedQuestions": []
   }
