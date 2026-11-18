@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-  "sha256": "b73df71836b3d7f0336bbfe7117b741a2cf756d08deb2453ee0636cf918810fd",
+  "sha256": "07a39ab226f22665997466f88a4bb16ee3caac5257fb521be8e3ed3a2e225e17",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -15,8 +15,8 @@
     "recommended": "B",
     "provisional": "B",
     "status": "確定（統合担当の決め、2026-11-18 12:48）",
-    "ruling": "B（統合担当。B は今の画面の出る/出ないを変えず、ESC・空白・TAB の付いた版は A と同じく出さない。A は接尾辞つきの版の行が消えるので採るなら作者の分岐になるが、そうする理由が無い）",
-    "reason": "どちらも末尾まで固定し、合わない版は今の「合わないとき」と同じく null（行を出さない）になるので、ESC・BEL・TAB・CR・U+0085・空白は A でも B でも版の行に届かない（P4-TET2-T03）。違いは 4.2.0-beta.1 や 4.2.0+build.5 のような semver の接尾辞の付く版だけ: 今の照合（頭だけを見る）はこれを通して「新しい版があります: v4.1.0 → v4.2.0-beta.1」と出す。B は今と同じに出し、A は出さなくなる（parts は current と latest の両方に効く〔update-check.ts の newer〕ので、手元の版が接尾辞つきのときも出なくなる）。A は画面の出る/出ないを変えるので、採るなら作者の分岐になる。B は今ある出力を 1 字も変えず、外の字を英数字と .-+ に限るので端末を書き換える字は通らない。見た範囲の数: repo の tag 136 本のうち - を含むのは freeze/ の 2 本（版でない）で、版の tag に接尾辞つきのものは無い（手元の package.json は 4.1.0。npm registry は見ていない）。B の照合は線形（接尾辞の字の組は互いに + を含まず、量指定の後ろの字が組に入らない。P3-TERMINAL-REGEX-LINEAR-001 の線）"
+    "ruling": "B（統合担当、2026-11-18 12:48。B は semver の版では今の画面の出る/出ないを変えず、ESC・空白・TAB の付いた版は A と同じく出さない。A は接尾辞つきの版の行が消えるので採るなら作者の分岐になるが、そうする理由が無い）",
+    "reason": "どちらも末尾まで固定し、合わない版は今の「合わないとき」と同じく null（行を出さない）になるので、ESC・BEL・TAB・CR・U+0085・空白は A でも B でも版の行に届かない（P4-TET2-T03）。違いは 4.2.0-beta.1 や 4.2.0+build.5 のような semver の接尾辞の付く版だけ: 今の照合（頭だけを見る）はこれを通して「新しい版があります: v4.1.0 → v4.2.0-beta.1」と出す。B は今と同じに出し、A は出さなくなる（parts は current と latest の両方に効く〔update-check.ts の newer〕ので、手元の版が接尾辞つきのときも出なくなる）。A は画面の出る/出ないを変えるので、採るなら作者の分岐になる。B は semver の版では今ある出力を 1 字も変えず、外の字を英数字と .-+ に限るので端末を書き換える字は通らない。semver でない版は A でも B でも今と変わる: 旧は「 4.2.0」（頭の空白、trim）・「4.2.0\n」（末尾の LF、trim）・「4.2.0.1」・「4.2.0_rc」（頭の 3 組だけを見る）を通して版の行を出したが、A・B はどれも出さない。合わない字を空白に替えて出す案は採らない: 版の行は npm install を促す行なので、形の壊れた版は出さない側に倒す。見た範囲の数: repo の tag 136 本のうち - を含むのは freeze/ の 2 本（版でない）で、版の tag に接尾辞つきのものは無い（手元の package.json は 4.1.0。npm registry は見ていない）。B の照合は線形（接尾辞の字の組は互いに + を含まず、量指定の後ろの字が組に入らない。P3-TERMINAL-REGEX-LINEAR-001 の線）"
    }
   ],
   "questionResolutions": [
@@ -24,7 +24,7 @@
     "id": "Q-TET2-ENTRY",
     "status": "closed",
     "source": "起草（2026-11-18、worktree ~/dev/fleq-ext2-draft の 912e951a を読んだ）",
-    "closed": "外部の字が新築の型に入る所を、3 つの口それぞれで実物から決めた。(138) REST の一覧の item は recovery.ts の headOf が項目ごとに確かめて ListHead を組む（:78 で title が文字列かだけを見る）。ListHead.title の消費者は 2 つ: bodyKey（:200、U-M の VPHW50・VPHW51 の subject の鍵に題名が入る）と buildDigest（:510、bounded〔:476〕を通して RecoveryDigestHead.title）。digest は host の publishDisplay（host.ts:591）で snapshot.recovery.digest としてディスプレイの SSE に載り、同じ値が端末の取り直しの一覧の行（format.ts:867）に出る。digest の byte は view-projector の容量の計算（:899）に入る。ListHead は保存されない（ListHead を使う watch.ts と composition-root.ts に title の読みは無い）。headOf の組み立て（:80）で替えれば、ListHead の外では題名がどこでも制御の字を持たない (139) WS の start の frame は host.ts の acceptStart が読む（:282 で classifications が文字列の配列かだけを見る、isStrings〔:73〕）。区分は 3 か所で使う: 設定の区分との照合（dmdataSubscriptionNarrowed の WARN）、forecastGranted（eew.forecast を含むか）、startClassifications（status() の classifications、:655）。startClassifications の消費者は端末の起動画面だけ（output.ts:397 → format.ts:912 の「区分: [...]」の行。missing は起動の設定の区分〔cli の resolved.classifications、既知の名前〕から startClassifications に無いものを引く）。repl の status の行（statusLines）は区分を出さない。照合 2 つは替える前の字で行い、startClassifications に入れる時だけ替える (142) 版は update-check.ts の parts（:47）が current・latest（npm の version・GitHub の tag_name・cache の latestVersion）を照らす。合わなければ newer が false（:52）で found が null、端末に行は出ない（output.ts:667 の then）。latest は照合の後も生の字のまま found に入り（:73）、format.ts:901 の版の行に出るので、照合そのものを末尾まで固定する (診断) 3 つの字はどれも診断の行に出ない（host の note は reason と数だけを取る。src/diagnostics に題名・区分・版の欄は無い。recovery の walkDiagnostics は reason と unit だけ）",
+    "closed": "外部の字が新築の型に入る所を、3 つの口それぞれで実物から決めた。(138) REST の一覧の item は recovery.ts の headOf が項目ごとに確かめて ListHead を組む（:78 で title が文字列かだけを見る）。ListHead.title の消費者は 2 つ: bodyKey（:200、U-M の VPHW50・VPHW51 の subject の鍵に題名が入る）と buildDigest（:510、bounded〔:476〕を通して RecoveryDigestHead.title）。digest は host の publishDisplay（host.ts:591）で snapshot.recovery.digest としてディスプレイの SSE に載り、同じ値が端末の取り直しの一覧の行（format.ts:867）に出る。digest の byte は view-projector の容量の計算（:899）に入る。ListHead は保存されない（ListHead を使う watch.ts と composition-root.ts に title の読みは無い）。ListHead.title を読む所は :200 と :510 の 2 つだけ。headOf（:80）で替えると bodyKey も替えた後の字になり、制御の字と空白だけが違う 2 つの題名が同じ subject になる。本文の側の鍵の題名（local-bulletins.ts の validKeyTitle）は生の題名を見るので、一覧と本文で鍵の字が食い違いうる。buildDigest（:510）で替えれば端末（format.ts:867）とディスプレイ（host.ts:591 の digest）の両方を覆い、bodyKey は生の字のまま（起草レビュー r0 の品質の P3、統合担当の決め） (139) WS の start の frame は host.ts の acceptStart が読む（:282 で classifications が文字列の配列かだけを見る、isStrings〔:73〕）。区分は 3 か所で使う: 設定の区分との照合（dmdataSubscriptionNarrowed の WARN）、forecastGranted（eew.forecast を含むか）、startClassifications（status() の classifications、:655）。startClassifications の消費者は端末の起動画面だけ（output.ts:397 → format.ts:912 の「区分: [...]」の行。missing は起動の設定の区分〔cli の resolved.classifications、既知の名前〕から startClassifications に無いものを引く）。repl の status の行（statusLines）は区分を出さない。照合 2 つは替える前の字で行い、startClassifications に入れる時だけ替える (142) 版は update-check.ts の parts（:47）が current・latest（npm の version・GitHub の tag_name・cache の latestVersion）を照らす。合わなければ newer が false（:52）で found が null、端末に行は出ない（output.ts:667 の then）。latest は照合の後も生の字のまま found に入り（:73）、format.ts:901 の版の行に出るので、照合そのものを末尾まで固定する (診断) 3 つの字はどれも診断の行に出ない（host の note は reason と数だけを取る。src/diagnostics に題名・区分・版の欄は無い。recovery の walkDiagnostics は reason と unit だけ）",
     "remaining": "なし"
    },
    {
@@ -45,7 +45,7 @@
     "id": "Q-TET2-SUITE",
     "status": "closed",
     "source": "起草の写し（2026-11-18、MacBook。worktree ~/dev/fleq-ext2-draft に案〔.dr-tmp/proposal-r0.diff〕を当て、XDG_CONFIG_HOME を .dr-tmp/xdg に向けた）",
-    "closed": "(1) tsc 3 本（reconstruction/tsconfig.json・tsconfig.test.json・chrome-eew）rc 0 (2) vitest --maxWorkers=2 で reconstruction/test/terminal・recovery・host・parser-boundary の 4 dir を回し rc 0、Test Files 49 passed・Tests 583 passed（corpus の端末の写しの試験〔eew・seismic・tsunami・layout ほか〕と P1-T04 の export の数えを含む。既存の試験は期待を変えずに全部緑） (3) --sequence.shuffle で host.test.ts・recovery.test.ts・update-check.test.ts rc 0、116 passed（seed 1794973589499）。(1)〜(3) は戻した base の木に patch -p1 で .dr-tmp/proposal-r0.diff を当てた木で回した（起草の途中で作業木を 1 回 base に上書きし、src は控えの file から、試験は打ち直しで戻したので、diff から作り直した木で取り直した） (4) 歯: 製品の 3 行を 912e951a の行に戻した木（試験は残す）で T01・T02・T03 の 3 本だけを回し、3 本とも落ちた。T01 は題名の行が「津波警報<ESC>[2J<BEL><TAB>  解除」で生の制御の字が true、T02 は「区分: [eew.forecast, x<ESC>[2J<BEL><TAB>  y]」、T03 は 1.2.3<ESC>[2J・1.2.3 abc・1.2.3<BEL>・<TAB>1.2.3・1.2.3<CR>・1.2.3<U+0085> の 6 つとも版を返した（CR と U+0085 は今も painter が空白にするので、T01・T02 で落ちた字は ESC・BEL・TAB） (5) check-contract は案を当てた木でも PASS（3 file の変える行を引く «» は無い、AC04 (2)）",
+    "closed": "r1（2026-11-18、138 の置き換えを :510 に移した案 .dr-tmp/proposal-r1.diff を base に当てた木）: (1) tsc 3 本 rc 0 (2) vitest --maxWorkers=2 で reconstruction/test/terminal・recovery・host・parser-boundary の 4 dir を回し rc 0、Test Files 49 passed・Tests 583 passed（corpus の端末の写しの試験〔eew・seismic・tsunami・layout ほか〕と P1-T04 の export の数えを含む。既存の試験は期待を変えずに全部緑） (3) --sequence.shuffle で host.test.ts・recovery.test.ts・update-check.test.ts rc 0、116 passed（seed 1794974725729） (4) 歯: 製品の 3 行を 912e951a の行に戻した木（試験は残す）で T01・T02・T03 だけを回し rc 1、3 本とも落ちた。T01 は題名の行が「津波警報<ESC>[2J<BEL><TAB>  解除」で生の制御の字が true、T02 は「区分: [eew.forecast, x<ESC>[2J<BEL><TAB>  y]」、T03 は後ろの 6 つが版を返した（CR と U+0085 は今も painter が空白にするので、T01・T02 で落ちた字は ESC・BEL・TAB） (5) bodyKey の字: headOf で替える r0 の形に戻した木で T01 だけを回し rc 1、(a) の ListHead の題名が「津波警報 [2J    解除」になって落ちた。r1 の形では生の字のまま（T01 の (a)）。bodiesFor の既存の試験（P3-REC-T17 の U-M の竜巻の鍵）は ListHead を直に組むので headOf を通らず、この差は見えない (6) check-contract は契約だけの木と案を当てた木の両方で PASS（3 file の変える行を引く «» は無い、AC04 (2)）。r0（.dr-tmp/proposal-r0.diff、headOf で替える形）は起草の途中で作業木を 1 回 base に上書きし、diff から作り直した木で回し直した記録がある",
     "remaining": "なし（実装担当は本物の木で requiredCommands を回し直す。全試験は親が Mac mini で回す）"
    }
   ],
@@ -57,7 +57,7 @@
  "contract": {
   "contractId": "P4-TERMINAL-EXTERNAL-TEXT-002",
   "mode": "implementation",
-  "objective": "構造的欠陥台帳 138・139・142 を閉じる。dmdata・npm registry・GitHub API から来た字のうち、制御の字（ESC・BEL・TAB など C0）がそのまま端末に書かれうる口が 3 つ残っている。ESC が生で出ると、端末の色や画面を外から書き換えられる（コードを読んで見つけ、起草の写しで再現した。本物の経路では起きていない）。(138) REST の一覧の title は取り直しの一覧の行に出る。recovery.ts の headOf で ListHead を組む時に、U+0000〜U+001F・U+007F〜U+009F・U+2028・U+2029 を 1 字につき半角の空白 1 字に替える。(139) WS の start の frame の classifications は起動画面の「区分:」の行に出る。host.ts の acceptStart で status の区分に入れる時に同じく替える（照合は替える前の字）。(142) npm registry・GitHub API・cache の版は「新しい版があります」の行に出るが、update-check.ts の照合が頭しか見ないので版の後ろに何でも続けられる。照合を末尾まで固定し（P4-TET2-D-VERSION）、合わない版は今どおり出さない。どれも行の中の書き換えで、painter と整形は変えない。実データでは 3 つの口とも出力は 1 字も変わらない（Q-TET2-REAL）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+  "objective": "構造的欠陥台帳 138・139・142 を閉じる。dmdata・npm registry・GitHub API から来た字のうち、制御の字（ESC・BEL・TAB など C0）がそのまま端末に書かれうる口が 3 つ残っている。ESC が生で出ると、端末の色や画面を外から書き換えられる（コードを読んで見つけ、起草の写しで再現した。本物の経路では起きていない）。(138) REST の一覧の title は取り直しの一覧の行に出る。recovery.ts の buildDigest で digest の題名にする時に（ListHead の題名と bodyKey は生の字のまま）、U+0000〜U+001F・U+007F〜U+009F・U+2028・U+2029 を 1 字につき半角の空白 1 字に替える。(139) WS の start の frame の classifications は起動画面の「区分:」の行に出る。host.ts の acceptStart で status の区分に入れる時に同じく替える（照合は替える前の字）。(142) npm registry・GitHub API・cache の版は「新しい版があります」の行に出るが、update-check.ts の照合が頭しか見ないので版の後ろに何でも続けられる。照合を末尾まで固定し（P4-TET2-D-VERSION）、合わない版は今どおり出さない。どれも行の中の書き換えで、painter と整形は変えない。実データでは 3 つの口とも出力は 1 字も変わらない（Q-TET2-REAL）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
   "baseOid": "unassigned",
   "cleanTreeRequired": true,
   "readPaths": [
@@ -79,7 +79,7 @@
    "reconstruction/vitest.config.ts"
   ],
   "allowedPaths": [
-   "reconstruction/src/recovery/recovery.ts（AC01 の分だけ: :80 の行の中。title: report.title を title: report.title.replace(<替える字の組>, \" \") にし、行末になぜのコメントを置く。行を足さず消さない。526 行のまま）",
+   "reconstruction/src/recovery/recovery.ts（AC01 の分だけ: :510 の行の中。title: bounded(head.title) を title: bounded(head.title.replace(<替える字の組>, \" \")) にし、行末になぜのコメントを置く。行を足さず消さない。526 行のまま）",
    "reconstruction/src/host/host.ts（AC02 の分だけ: :284 の行の中。startClassifications = classifications を startClassifications = classifications.map((item) => item.replace(<替える字の組>, \" \")) にし、行末になぜのコメントを置く。行を足さず消さない。685 行のまま）",
    "reconstruction/src/terminal/update-check.ts（AC03 の分だけ: :47 の行の中。照合を末尾まで固定し、trim を外し、行末になぜのコメントを置く。行を足さず消さない。98 行のまま）",
    "reconstruction/test/recovery/recovery.test.ts（P4-TET2-T01 の describe を 1 つと、その前の import 1 行を file の末尾に足すことだけ）",
@@ -152,12 +152,14 @@
   "acceptanceChecks": [
    {
     "id": "P4-TET2-AC01",
-    "requirement": "一覧の題名（台帳 138）: (1) headOf が ListHead を組む所（recovery.ts:80 の行の中）で、title を report.title.replace(/[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]/g, \" \") にする（1 字を半角の空白 1 字、P3-TCC-D-SUBSTITUTE=A と同じ字） (2) 文字列でない title は今どおり invalid（:78） (3) 効き: 取り直しの一覧の行（format.ts:867）・ディスプレイの snapshot の digest（host.ts:591）・digest の byte（bounded〔:476〕と buildDigest〔:510〕は替えた後の字を数えるので、ESC 1 字は JSON の 6 byte から 1 byte になる。上限の数え方は変わらない、view-projector.ts:899）・bodyKey（:200、VPHW50・VPHW51 の subject の鍵。制御の字を含む題名だけ鍵が変わり、制御の字と空白だけが違う 2 つの題名は同じ subject になる。実データには制御の字を含む題名が無い、Q-TET2-REAL） (4) 制御の字の無い題名は 1 字も変わらない (5) なぜのコメントは :80 の行末に 1 つ（題名は取り直しの一覧の行へ字のまま出ること、台帳 138、P4-TERMINAL-EXTERNAL-TEXT-002、P3-TCC-D-SUBSTITUTE） (6) 計算量: 一覧の item 1 つに題名の長さに比例する置き換え 1 回 (7) 足す仕組みは無い（無いと: 一覧の題名の ESC が端末に生で書かれる）",
+    "requirement": "一覧の題名（台帳 138）: (1) buildDigest が digest の頭を組む所（recovery.ts:510 の行の中）で、title を bounded(head.title.replace(/[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]/g, \" \")) にする（1 字を半角の空白 1 字、P3-TCC-D-SUBSTITUTE=A と同じ字。替えてから bounded で切る） (2) headOf（:80）は変えない。ListHead の題名は生の字のままで、文字列でない title は今どおり invalid（:78） (3) 効き: 取り直しの一覧の行（format.ts:867）・ディスプレイの snapshot の digest（host.ts:591）・digest の byte（bounded〔:476〕は替えた後の字を数えるので、ESC 1 字は JSON の 6 byte から 1 byte になる。上限と数え方は変わらない、view-projector.ts:899）。bodyKey（:200、VPHW50・VPHW51 の subject の鍵）は生の題名を読むので変わらず、本文の側の鍵の題名（local-bulletins.ts の validKeyTitle）と同じ字を見続ける。digest の headline・reportDateTime（:511）は変えない（outOfScope） (4) 制御の字の無い題名は 1 字も変わらない (5) なぜのコメントは :510 の行末に 1 つ（題名は取り直しの一覧の行とディスプレイの digest へ字のまま出ること、bodyKey は一覧と本文で同じ字を見るので生の字のままにすること、台帳 138、P4-TERMINAL-EXTERNAL-TEXT-002、P3-TCC-D-SUBSTITUTE） (6) 計算量: digest に載せる頭 1 つ（DIGEST_HEADS が上限）に題名の長さに比例する置き換え 1 回 (7) 足す仕組みは無い（無いと: 一覧の題名の ESC が端末に生で書かれる）",
     "evidenceRefs": [
      "reconstruction/src/recovery/recovery.ts:78 «f8caf109d062fa54»",
      "reconstruction/src/recovery/recovery.ts:200 «45b6ce622f21305d»",
      "reconstruction/src/recovery/recovery.ts:476 «b8303683c1000013»",
-     "reconstruction/src/recovery/recovery.ts:510 «1d4c8b7319314798»",
+     "reconstruction/src/recovery/recovery.ts:80 «483a738703dde796»",
+     "reconstruction/src/recovery/recovery.ts:511 «77fd09deb9b0a8be»",
+     "reconstruction/src/domains/local-bulletins/local-bulletins.ts:44 «a1d8452e873cadd9»",
      "reconstruction/src/host/host.ts:591 «57bcacc5289ac442»",
      "reconstruction/src/terminal/format.ts:867 «6da34a56b9d19776»",
      "reconstruction/src/terminal/format.ts:207 «3aea20ed874869c9»",
@@ -190,7 +192,7 @@
    },
    {
     "id": "P4-TET2-AC04",
-    "requirement": "変えないもの: (1) painter（color.ts:66）・format.ts・output.ts・decode-material.ts は変えない。XML の電文の出力は 1 字も変わらない (2) 行の数: recovery.ts 526 行・host.ts 685 行・update-check.ts 98 行のまま。3 file と 3 つの試験 file を引く他の契約の «» は 327 件（host.ts 271・recovery.ts 37・update-check.ts 4・host.test.ts 14・recovery.test.ts 1）で、変える 3 行（recovery.ts:80・host.ts:284・update-check.ts:47）を引くものは 0 件。試験は file の末尾に足すので行は動かない。付け直しは 0 個（起草の写しで、案を当てた木の check-contract が PASS） (3) 既存の試験の期待（expect の値）は変えない",
+    "requirement": "変えないもの: (1) painter（color.ts:66）・format.ts・output.ts・decode-material.ts は変えない。XML の電文の出力は 1 字も変わらない (2) 行の数: recovery.ts 526 行・host.ts 685 行・update-check.ts 98 行のまま。3 file と 3 つの試験 file を引く他の契約の «» は 327 件（host.ts 271・recovery.ts 37・update-check.ts 4・host.test.ts 14・recovery.test.ts 1）で、変える 3 行（recovery.ts:510・host.ts:284・update-check.ts:47）を引くものは 0 件。試験は file の末尾に足すので行は動かない。付け直しは 0 個（起草の写しで、案を当てた木の check-contract が PASS） (3) 既存の試験の期待（expect の値）は変えない",
     "evidenceRefs": [
      "reconstruction/src/terminal/color.ts:66 «74433470282859f4»",
      "reconstruction/src/decode-material/decode-material.ts:110 «690114010dfd32bf»"
@@ -207,7 +209,7 @@
    },
    {
     "id": "P4-TET2-AC06",
-    "requirement": "配送の後（統合担当、配送の commit で当てる。行を足さない）: (1) 原文の改訂（契約と docs/specs を「台帳 ?(138|139|142)」で git grep して、当たるのは p3-final-review-fix.json と p3-final-gate.json〔Q-FG-ORDER2B-PRECHECK の記録、改めない〕と下の p3-terminal-external-text.json）: (a) p3-final-review-fix.json の outOfScope の 1 つ目（台帳 138・139 は P4）の末尾に「【P4-TERMINAL-EXTERNAL-TEXT-002 で直した】」 (b) p3-terminal-external-text.json の outOfScope の 2 つ目（一覧の xmlReport.head.title）と 3 つ目（start の frame の classifications を書いた項）の末尾にそれぞれ「【P4-TERMINAL-EXTERNAL-TEXT-002 で直した（headline は端末に出ないので直さない）】」「【classifications は P4-TERMINAL-EXTERNAL-TEXT-002 で直した】」を足す。2 つの契約の meta.sha256 を取り直す。2 つの file の行を引く «» は p4-uw-recovery-cut.json の p3-final-review-fix.json:79・:360 の 2 件だけで、改める行（p3-final-review-fix.json の outOfScope の 1 つ目の行）とは別の行。行の中の書き換えなので付け直しは 0 個 (2) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ） (3) 台帳 138・139・142（repo 外）の局所修正の状態を「解消（P4-TERMINAL-EXTERNAL-TEXT-002）」に",
+    "requirement": "配送の後（統合担当、配送の commit で当てる。行を足さない）: (1) 原文の改訂（契約と docs/specs を「台帳 ?(138|139|142)」で git grep して当たるのは p3-final-review-fix.json の 3 行〔decisionBranches の P3-FRF-D-LEDGER138 の A・outOfScope の 1 つ目・AC の条文〕と p3-final-gate.json〔Q-FG-ORDER2B-PRECHECK の記録〕。決めと記録〔P3-FRF-D-LEDGER138 の A・p3-final-review-fix.json の AC の条文・p3-final-gate.json〕は改めない。p3-terminal-external-text.json は grep には当たらず〔台帳の番号を書いていない〕、中身〔138・139 と同じ字を outOfScope に書いた〕で選んだ）: (a) p3-final-review-fix.json の outOfScope の 1 つ目（台帳 138・139 は P4）の末尾に「【P4-TERMINAL-EXTERNAL-TEXT-002 で直した】」 (b) p3-terminal-external-text.json の outOfScope の 2 つ目（一覧の xmlReport.head.title）と 3 つ目（start の frame の classifications を書いた項）の末尾にそれぞれ「【P4-TERMINAL-EXTERNAL-TEXT-002 で直した（headline は端末に出ないので直さない）】」「【classifications は P4-TERMINAL-EXTERNAL-TEXT-002 で直した】」を足す (c) p3-terminal-output.json の P3-TO-AC13 の requirement（(1) の「確かめ方は旧築の update-checker の写し」）の末尾に「【照合は P4-TERMINAL-EXTERNAL-TEXT-002 で末尾まで固定（P4-TET2-D-VERSION=B）】」を足す。3 つの契約の meta.sha256 を取り直す。p3-terminal-output.json の行を引く «» は 27 件で、P3-TO-AC13 を引くのは p3-final-review-fix.json の 1 件（id の行を引き、改める requirement の行とは別の行）。ほかの 2 つの file の行を引く «» は p4-uw-recovery-cut.json の p3-final-review-fix.json:79・:360 の 2 件だけで、改める行（p3-final-review-fix.json の outOfScope の 1 つ目の行）とは別の行。行の中の書き換えなので付け直しは 0 個 (2) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ） (3) 台帳 138・139・142（repo 外）の局所修正の状態を「解消（P4-TERMINAL-EXTERNAL-TEXT-002）」に",
     "evidenceRefs": [
      "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»"
     ]
@@ -221,7 +223,7 @@
      "P4-TET2-AC01",
      "P4-TET2-AC05"
     ],
-    "behavior": "実不具合の再発防止（台帳 138）。recovery.test.ts の末尾に「import { createRenderer } from \"../../src/terminal/format\";」（«» の行を動かさないため頭に足さない。import は file のどこでも先に読まれる）と自前の describe「P4-TET2-T01 …」を足し、it を 1 つ置く。file の item(\"VTSE41\", NOW - MINUTE)（telegram-list-vtse41-real.json の写し）の xmlReport.head.title を「津波警報\\u001b[2J\\u0007\\t\\r\\u0085解除」にした 1 件の page を https.handle で返し、walk([{ unit: \"U-T\", bundles: [[\"VTSE41\"]], fetchFromMs: NOW - DAY, stopAtId: null }]) の結果を buildDigest（start は walkStart(null, \"empty\", NOW)）→ createRenderer(0).render の digest の notice で端末の字にする。1 つの expect で、(a)「津波警報」を含む行の頭の「  HH:MM  」を除いた字の一覧が [\"津波警報 [2J    解除\"]（ESC・BEL・TAB・CR・U+0085 の 5 字が 1 字ずつ空白） (b) 出力の全体に LF 以外の U+0000〜U+001F・U+007F〜U+009F・U+2028・U+2029 が無い、の 2 つが [[…], false] と等しい。色 0 なので出力に SGR は無い。直す前の製品では (a) が「津波警報<ESC>[2J<BEL><TAB>  解除」、(b) が true で落ちる"
+    "behavior": "実不具合の再発防止（台帳 138）。recovery.test.ts の末尾に「import { createRenderer } from \"../../src/terminal/format\";」（«» の行を動かさないため頭に足さない。import は file のどこでも先に読まれる）と自前の describe「P4-TET2-T01 …」を足し、it を 1 つ置く。file の item(\"VTSE41\", NOW - MINUTE)（telegram-list-vtse41-real.json の写し）の xmlReport.head.title を「津波警報\\u001b[2J\\u0007\\t\\r\\u0085解除」にした 1 件の page を https.handle で返し、walk([{ unit: \"U-T\", bundles: [[\"VTSE41\"]], fetchFromMs: NOW - DAY, stopAtId: null }]) の結果を buildDigest（start は walkStart(null, \"empty\", NOW)）→ createRenderer(0).render の digest の notice で端末の字にする。1 つの expect で、(a) 歩きの結果の ListHead の題名が生の字のまま（bodyKey の読む字、契約の境界） (b)「津波警報」を含む行の頭の「  HH:MM  」を除いた字の一覧が [\"津波警報 [2J    解除\"]（ESC・BEL・TAB・CR・U+0085 の 5 字が 1 字ずつ空白） (c) 出力の全体に LF 以外の U+0000〜U+001F・U+007F〜U+009F・U+2028・U+2029 が無い、の 3 つが [title, […], false] と等しい。色 0 なので出力に SGR は無い。直す前の製品では (b) が「津波警報<ESC>[2J<BEL><TAB>  解除」、(c) が true で落ちる。headOf で替える形（r0 の案）では (a) が落ちる。5 字のうち CR と U+0085 は直す前も painter が空白にするので歯にならない（歯は ESC・BEL・TAB、試験の中に 1 行のコメントで書く）"
    },
    {
     "testId": "P4-TET2-T02",
@@ -314,7 +316,7 @@
    "行の数: recovery.ts 526 行・host.ts 685 行・update-check.ts 98 行のまま。直した後の wc -l を成果物に書く。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない",
    "既存の試験の期待（expect の値）は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める。試験は XDG_CONFIG_HOME・作者の設定に触れない（update-check の cache は試験の directory()、host の state・diag は directories() の一時の置き場）。外への通信（npm registry・GitHub API・dmdata）はしない",
    "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
-   "残存として成果物に書く: (1) T02 は output.ts:397 の起動画面の道を通らず、status の区分を renderer に手で渡している（wsUrl の起動は socketId が null） (2) 端末での見え方（旧の生の制御の字、新の空白）は字の並びから導いたもので、実端末では見ていない (3) 版の照合は current（手元の package.json の版、外部の字ではない）にも効くので、手元の版が semver の外の字を持つと知らせが出ない（今の package.json は 4.1.0） (4) 一覧の題名が制御の字と空白だけで違う VPHW50・VPHW51 の 2 つの報は、取り直しで同じ subject になる（AC01 (3)、実データでは起きない）"
+   "残存として成果物に書く: (1) T02 は output.ts:397 の起動画面の道を通らず、status の区分を renderer に手で渡している（wsUrl の起動は socketId が null） (2) 端末での見え方（旧の生の制御の字、新の空白）は字の並びから導いたもので、実端末では見ていない (3) 版の照合は current（手元の package.json の版、外部の字ではない）にも効くので、手元の版が semver の外の字を持つと知らせが出ない（今の package.json は 4.1.0）"
   ],
   "unresolvedQuestions": []
  }
