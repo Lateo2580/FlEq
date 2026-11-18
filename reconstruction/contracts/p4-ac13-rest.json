@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "41675cdbdf99f643265e7c1e83169c7b74897232c6f410f58e57f11603780e4f",
+    "sha256": "5c5be4c5f9fecc6542e97c3519ad103edfda068e937e95f837408d9f56c3d755",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -40,9 +40,9 @@
         "B": "同じ関数の 3 欄も、確かめた欄から組み立てる reader に替える（AGENTS.md の「触った関数の中だけ直す」を字どおりに当てる）",
         "recommended": "A",
         "provisional": "A",
-        "status": "提案（統合担当の決め待ち、起草 r0）",
-        "ruling": "未定（起草 r0 の推奨は A）",
-        "blocks": "発注 1 の範囲だけ（B なら AC01 (4) と allowedPaths の行の範囲が広がる）",
+        "status": "確定（統合担当の決め、2026-11-18 12:41）",
+        "ruling": "A（統合担当の決め、2026-11-18 12:41。B は freshness だけで 20 を越える欄の組み立て直しになり R6 の欠けと別の仕事、製品の保存に型の外の欄は出ない。残す tombstones・freshness・unavailable の { ...item } は台帳とバックログに送る）",
+        "blocks": "なし（決め済み）",
         "ifNotChosen": "A のまま残るもの: 保存の tombstone・freshness・unavailable に型の外の欄があっても読み戻しで通り、16 MiB の数えに入る（製品の保存には出ない形。画面・音は変わらない）。B の重さ: freshness の述語は 20 を越える確かめで、reader にすると組み立ての欄も同じ数になり、encode の側の述語（P3-WL1-AC05 の「判定の関数は写さずに呼ぶ」）との共有の形も 3 つ分決め直す。行の数を変えない書き方（AC03 (3)）も難しくなる",
         "reason": "R6 の指摘（AC13 の統合 r2）と発注の範囲は 4 欄で、3 欄は今の述語が型の全部の欄を確かめたうえで ...item で写す形（4 欄の直す前と同じ類）。3 欄の欠けは製品の保存に出ない形で、利用者に見える害は無い。B を採るなら発注 3 として足す"
       }
@@ -150,7 +150,7 @@
     ],
     "outOfScope": [
       "R9（起動の辿りの途中の切断で起動のまとめが多く数える、composition-root.ts）: 作者裁定 B（2026-11-18 12:25）で直さない。P3-RDL-AC03 (3) の残存のまま（Q-AC13R-R9）",
-      "persistedValue の tombstones・freshness・unavailable（lastKnown を含む）の { ...item, … }: P4-AC13R-D-SCOPE=A（提案）で本契約では組み立てに替えない。台帳とバックログに送る",
+      "persistedValue の tombstones・freshness・unavailable（lastKnown を含む）の { ...item, … }: P4-AC13R-D-SCOPE=A（統合担当の決め、2026-11-18 12:41）で本契約では組み立てに替えない。台帳とバックログに送る",
       "P3-TO-AC15 (3) の捨てる規則（64 件、最も古い始めていない書き込み、始めた appendFile は最後まで）と EventID → path の表の 64 件: 変えない",
       "output.ts の TerminalBatch の dropped（端末の出力の列の捨てた数、windows の子へ送る）: EEW ログとは別の数で、変えない",
       "U-W の受理の器の計量（reservedGenerationBytes）・退去の順・encode の 16 MiB の守りの式: 変えない"
