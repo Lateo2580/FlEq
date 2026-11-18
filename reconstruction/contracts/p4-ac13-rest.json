@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "598d5588ada9e7b223731afacaf43c9b508db6d7197b977ad5111fdcbe4178d1",
+    "sha256": "51bc1300edcdcb3a0f5bfc3480046780192a1a9f960dfc1b56da81d43f386f06",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -93,7 +93,7 @@
     "contractId": "P4-AC13-REST-001",
     "mode": "implementation",
     "objective": "C22 の AC13 のウルトラコードの統合 r2 が P3 の後へ送った 4 件（p3-final-review-fix.json:254）のうち R5・R6・R10 を直す。どれも画面・音・保存の形は変わらない。発注 1（weather-current-unit.ts）: R5 U-W の府県の報の履歴の深さの確かめが O(H×R)（保存 1 回で 0.51→5.99 ms、受信の経路ではない）で、同じ式が persistedValue と encodedValue の 2 か所にある。1 回の走査の helper 1 つにして 2 か所から呼ぶ。R6 persistedValue が確かめた national・partials・histories・unconfirmed を確かめた record のまま丸ごと通す。intent() と同じ『確かめた欄から項目ごとに組み立てる』reader に替える（AGENTS.md の外部データと保存データの読み戻し）。発注 2（eew-log.ts）: R10 EEW ログの捨てた数 dropped() を読む所が製品に無い。数える仕組みを外し、P3-TO-AC15 (3) を『捨てる』に改める（P4-AC13R-D-DROPPED=A）。R9（起動の辿りの途中の切断）は入れない",
-    "baseOid": "unassigned",
+    "baseOid": "d0d499c08401e209f59d6ccf28a21b9cccb2e58d",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
