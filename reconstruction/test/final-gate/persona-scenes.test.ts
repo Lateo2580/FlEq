@@ -721,7 +721,7 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
     expect([new Set(events.slice(1).map((item) => tag(text(item), "OriginTime"))).size, events.slice(2).every((item) => tag(text(item), "ReportDateTime") === jstText(item.atMs)
       && tag(text(item), "TargetDateTime") === jstText(item.atMs)), events.map((item) => Number(tag(text(item), "Serial"))).every((serial, index, all) => index === 0 || serial > all[index - 1]),
     events.map((item) => text(item).includes("<NextAdvisory>")).lastIndexOf(true), events.length]).toEqual([1, true, true, 10, 11]);
-  });
+  }, 180_000); // N1・N2・R2 の合成と試行 2 の組み立てで、CI の node 22 では 42〜65 秒かかる（run 44280793644）
 
   it("P4-PWT-T07 each persona gets only the reports of their contract", () => {
     // 実不具合（W1-06-03.md:32・N1.md:22・N3.md:35）: 直人に W1 の気象を全部流し、沙織に host が捨てる VXSE43 を流していた。
