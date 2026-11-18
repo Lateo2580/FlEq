@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "4115b0e70c482488cb2244b390f154a3f5fe85e9731d1a1d5cfca8a2142a4c8b",
+    "sha256": "41675cdbdf99f643265e7c1e83169c7b74897232c6f410f58e57f11603780e4f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -53,6 +53,13 @@
         "status": "closed",
         "source": "起草 r0（2026-11-18、MacBook。worktree ~/dev/fleq-ac13r-draft〔branch draft/ac13r、HEAD 912e951a〕で案を当てて回した。案と試験は commit せず .dr-tmp/proposal-r0.diff に残し、木は本契約の file だけに戻した）",
         "closed": "(1) 直す前の基準: P4-AC13R-T01・T02 を足しただけの木（製品は 912e951a のまま）で 2 本とも緑（rc 0）。測りの script（.dr-tmp/measure.cjs、reconstruction/dist の codec を呼ぶ）で、H=384・R=768 の保存の encode→読み戻し→encode の byte の sha256 が 5d326afc…dfe4b1、H=128・R=256 で c647e497…45006d (2) 案（proposal-r0.diff、src 2 file・試験 2 file）: tsc 3 本 rc 0。vitest（weather-current-unit・uw-canon・weather-notice・version-material・expiry-form・unit-wiring・shared-runtime・terminal/eew-log の 12 file）152 件 rc 0、test/terminal と test/cli の 42 file 346 件 rc 0。測りの sha256 は直す前と同じ（2 つとも） (3) 歯: 案をわざと壊して T01・T02 を回し、5 つとも落ちた。a 素直な走査（どれかの組が 2 を越えたら断る）→ T02、b 鍵に運用区分を入れる → T02、c 組み立ての鍵の順を変える（source を office の前）→ T01、d unconfirmed を組み立て忘れる → T01、e encode の側だけ鍵に運用区分を入れる → T02 (4) 『走査を 1 か所だけ替える』（2 か所とも同じ意味の式のまま）は振る舞いが同じなので試験では落ちない。AC01 (1) は helper 1 つを 2 か所から呼ぶ形で条文に書き、レビューで見る (5) 案を当てた木で check-contract が rc 0（157 契約 PASS）。weather-current-unit.ts は 856 行のまま、他契約の «» の付け直しは 0 件。本契約を足した木に案を当てると、FAIL は本契約の weather-current-unit.ts:263（行のずれ）だけで、reanchor-target.py を weather-current-unit.ts・eew-log.ts・eew-log.test.ts に当てると本契約の 5 件（:263→:261・:315→:317・:331→:333・eew-log.ts:85→:84・eew-log.test.ts:174→:173）が付け直り、check-contract が rc 0 (6) 案を当てた木で weather-current-unit.test.ts と eew-log.test.ts を --sequence.shuffle で回し、seed 1794973240286 で 42 件 rc 0",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-AC13R-R9",
+        "status": "closed",
+        "source": "作者の裁定（2026-11-18 12:25、統合担当の中継）。R9 は AC13 のウルトラコードの統合 r2 の申し送り（p3-final-review-fix.json:254）",
+        "closed": "B（作者の裁定、2026-11-18 12:25）: R9（起動の辿りの途中の切断で起動のまとめが多く数える、composition-root.ts）は直さない。P3-RDL-AC03 (3) の残存のまま。理由: 報は消えず、起動のまとめの件数が多めになるだけ。Mac mini の新築の診断 7 日分・起動 5 回で、起動直後の切断の跡は無かった",
         "remaining": "なし"
       }
     ],
@@ -142,7 +149,7 @@
       "なし（深さの helper の中の Map だけ。EEW ログの捨てた数は消す）"
     ],
     "outOfScope": [
-      "R9（起動の辿りの途中の切断で起動のまとめが多く数える、composition-root.ts）: P3-RDL-AC03 (3) が残存と明記しているので作者の裁定待ち。裁定が A なら発注 3 として足す",
+      "R9（起動の辿りの途中の切断で起動のまとめが多く数える、composition-root.ts）: 作者裁定 B（2026-11-18 12:25）で直さない。P3-RDL-AC03 (3) の残存のまま（Q-AC13R-R9）",
       "persistedValue の tombstones・freshness・unavailable（lastKnown を含む）の { ...item, … }: P4-AC13R-D-SCOPE=A（提案）で本契約では組み立てに替えない。台帳とバックログに送る",
       "P3-TO-AC15 (3) の捨てる規則（64 件、最も古い始めていない書き込み、始めた appendFile は最後まで）と EventID → path の表の 64 件: 変えない",
       "output.ts の TerminalBatch の dropped（端末の出力の列の捨てた数、windows の子へ送る）: EEW ログとは別の数で、変えない",
@@ -176,7 +183,7 @@
       },
       {
         "id": "P4-AC13R-AC03",
-        "requirement": "配送の commit で統合担当が当てる原文の改訂と «» の付け直し（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-terminal-output.json の P3-TO-AC15 (3)（:698 の requirement の中）の『越えたら最も古い始めていない書き込みを捨てて数える。』を『越えたら最も古い始めていない書き込みを捨てる（捨てた数は数えない。P4-AC13-REST-001、P4-AC13R-D-DROPPED=A）。』に替える (2) p3-final-review-fix.json:254 の行の末尾の『: バックログ』の後に『【P4-AC13-REST-001 の注記: R5・R6・R10 は同契約で直した。R9 は作者の裁定待ち】』を足す (3) 付け直し: 他契約の «» で変える file を引くものを grep で数えた（912e951a）。weather-current-unit.ts は 11 契約の 50 件で、どれも :42〜:233 と :399〜:836（変える範囲の外で、範囲の中の行の数を変えないので動かない）。eew-log.ts・eew-log.test.ts を行で引く «» は 0 件、weather-current-unit.test.ts は :403・:613・:843 の 4 件（試験は末尾に足すので動かない）。改訂する 2 行（p3-terminal-output.json:698・p3-final-review-fix.json:254）を引く他契約の «» は 0 件で、本契約の evidenceRefs だけ。改訂の後に .dr-tmp/reanchor-inplace.py（行を動かさず字だけ変えたとき）で本契約の 2 件を取り直す (4) 本契約の evidenceRefs のうち、実装で字の変わらない行がずれうるもの（weather-current-unit.ts の :263・:315・:331・:370 は範囲の中で上下しうる、eew-log.ts の :85・eew-log.test.ts の :174 は上の行を消すと 1 行上がる）は、実装の後に reanchor-target.py（anchor の中身から付け直す）で付け直す。字の変わる行は本契約で引いていない",
+        "requirement": "配送の commit で統合担当が当てる原文の改訂と «» の付け直し（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-terminal-output.json の P3-TO-AC15 (3)（:698 の requirement の中）の『越えたら最も古い始めていない書き込みを捨てて数える。』を『越えたら最も古い始めていない書き込みを捨てる（捨てた数は数えない。P4-AC13-REST-001、P4-AC13R-D-DROPPED=A）。』に替える (2) p3-final-review-fix.json:254 の行の末尾の『: バックログ』の後に『【P4-AC13-REST-001 の注記: R5・R6・R10 は同契約で直した。R9 は作者裁定 B〔2026-11-18 12:25〕で直さず、P3-RDL-AC03 (3) の残存のまま】』を足す (3) 付け直し: 他契約の «» で変える file を引くものを grep で数えた（912e951a）。weather-current-unit.ts は 11 契約の 50 件で、どれも :42〜:233 と :399〜:836（変える範囲の外で、範囲の中の行の数を変えないので動かない）。eew-log.ts・eew-log.test.ts を行で引く «» は 0 件、weather-current-unit.test.ts は :403・:613・:843 の 4 件（試験は末尾に足すので動かない）。改訂する 2 行（p3-terminal-output.json:698・p3-final-review-fix.json:254）を引く他契約の «» は 0 件で、本契約の evidenceRefs だけ。改訂の後に .dr-tmp/reanchor-inplace.py（行を動かさず字だけ変えたとき）で本契約の 2 件を取り直す (4) 本契約の evidenceRefs のうち、実装で字の変わらない行がずれうるもの（weather-current-unit.ts の :263・:315・:331・:370 は範囲の中で上下しうる、eew-log.ts の :85・eew-log.test.ts の :174 は上の行を消すと 1 行上がる）は、実装の後に reanchor-target.py（anchor の中身から付け直す）で付け直す。字の変わる行は本契約で引いていない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-terminal-output.json:698 «58dbbe1d3e2b3309»",
           "reconstruction/contracts/p3-final-review-fix.json:254 «41c70aa60b8b2b9a»"
