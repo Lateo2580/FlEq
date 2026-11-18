@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "0a7255c5b3d180e290285d096ab15b0b315f21b88007056efeb141a4268507c7",
+    "sha256": "5a5074162cc0d70fb472cb5cf2fca99d3499b1cb5407f210226e4a00edbacb53",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -207,6 +207,13 @@
         "source": "統合担当（2026-11-18 17:47）",
         "closed": "AC09 (2) の取り直し（Mac mini、~/dev/fleq-pwt3 を 03c899f1 に、tsc 3 本の後に FLEQ_DISASTER=1 の formal を 1 本ずつ、出力 ~/dev/pwt3-out、写し ~/dev/fleq-vault-archive/2026-11-18-pwt3/、P3 の c3c-out・c3c-out2 は上書きしていない）。8 本とも rc 0、gitHead 03c899f1、pass の 3 欄（inputRejections・capacityLosses・capacityLossQuakeEvents）と expectationsFailed は全部 0。W1:2026-06-03 Pass 109 秒 3,166 frame 50f5b295932be715a44962705683d06dcf553f5c1be6d3a65fc7390c4e6a68b3／W1:2026-06-26 Pass 104 秒 3,460 frame 6f447ae2e3a9866d00a148603fc0298f3e05c3afee7ca439282ce97f5ec52f19／W1:2026-09-21 Pass 92 秒 2,556 frame b9bffb9212a37e0ef4709f5b76f9b42cd7ab51d6c3aafbcf4e109be851ed4c4a／W2 Pass 272 秒 7,720 frame dfcf120afb76522805c46395a7146745d22d17c0e8fc1c04098d07693a48de2e（P3 と同じ。合成を使わない）／N1 Fail〔failingSummaries U-T・U-Q〕52 秒 2,651 frame 4f188cd6576a367fdf5daab47f643973f6c874bf8423c1655f7c0662fba7c8c1／N2 Fail〔U-E・U-T・U-Q〕193 秒 5,313 frame f70e2df5f977a4f784f279336ef3b0287e3f982f6a5ef7ef4732b9f39f5c652e／N3 Fail〔U-E・U-T・U-Q〕293 秒 8,189 frame 9bdd5ed52488508af7062d2d08f975251f58f87a97936d59be00f45515643733／R2 Pass 2 秒 89 frame 757a0de396422413a512e747aa71d05386c8588a8b54e76d18d34b97aaa543de。W1 は前日の 18:00 からで、1 本 92〜109 秒（T09 の 35 分の予算に収まる）。status の Fail は P3 の AC09 と同じく要約の区間で、P3-FG-AC09 のとおり判定に使わない。門つきの T09（~/dev/pwt3-out/scenes、歩きに回す 9 筋書き）: W1 の 3 日・N1・N2・R2 は各 8 場面、T2-naoto 4・T2-saori 5・T2-yu 4、どれも blocked なし、AC09 の筋書きは digestMatches・sourceUnchanged とも true。計画の受入 1〜3 を場面の file で機械で確かめた（pwt3-check.py）: R2 の 2011-03-12 03:20 の大津波警報と W1-09-21 の 12:40 の東京都（大島）の土砂災害警報が演じ手の通知に残る、既定で off の分野は演じ手に無く評価者に stoppedBy category で残る、要約の分野の facts は 7 場面・3,419 件で shown true 0、R2 の lastInputAt は null でない、N 系の演じ手に VXSE43 が無い、W1 の人物は千尋、演じ手の file に伏せ字と「これは訓練です」が無い",
         "remaining": "評価の 1 巡（AC10、作者に規模を伝えて承認を待つ）"
+      },
+      {
+        "id": "Q-PWT-AC10-WALK3",
+        "status": "closed",
+        "source": "統合担当（2026-11-18 19:4x）、作者裁定 A（push する）",
+        "closed": "AC10 の評価の 1 巡（控え ~/dev/fleq-vault-archive/2026-11-18-walk/、場面 scenes3/ は pwt3 の scenes と同じ中身、道具・答え・評価・帳簿は walk3/）。(1) 場面: 9 筋書き 61 場面、gitHead 03c899f1、blocked 0、AC09 の筋書きは digestMatches・sourceUnchanged とも true、採取物の EEW 0。(2) 演じ手: ヘルツ gpt-6.2-sol high（9 thread、空の dir、read-only）と Claude の Opus の子 9 体、どちらも 61 場面。起こす前に統合担当が道具を 2 つ直した（extract.py を今のセッションの記録に絞る、eval-prompt.txt を 3 回目の読む先・書く先と発注 1〜3 の後の前提に書き直し、道具の行に理由を必須にする）。(3) 評価: Opus の子 9 体、判定 122 行（正しく理解 61・判断保留 13・誤解の仮説 5・気づかない〔妥当〕39・気づかない〔見落としの懸念〕4）。ずれ 71 件を帳簿 walk3/ledger.md で全部に行き先: 道具→P4 の歩きの契約へ 21、既にバックログ 16、契約どおり→P4 14、P4 へ新規 11、作者の受け入れ済み 5、入力どおり 2、製品の処理 2。(4) 合格（AC10 (3)）: 評価者の道具 21 件は全部に理由（P4 の歩きの契約へ送る訳と直す file）。T2-yu#6 の『効きが小さいので直さない』は条文の型に無いので統合担当が歩きの契約へ（後回し）に改めた。具体の確かめ（R2 の 03:20 の大津波警報と大島の L5 が演じ手の通知に残る）は Q-PWT-AC09-RERUN と scenes3 の actor の file で確かめた。(5) 評価者の『製品の処理』の案 10 件は帳簿の子がコードと corpus を開いて振り直し、製品の欠けとして残ったのは U-Q の通知の M の字（seismic-unit.ts の magnitudeLabel が kind unknown で description を見ず『M不明』を返す、N1#1・N2#1）の 1 根で、本契約の範囲外（製品のコードを変えない）なので P4 の製品の契約へ。(6) 統合担当が検収で足した族: 読まれない場面（N1・N2・R2 で両系統が避難先に移った後の場面を誰も読まない）、人物の外の行（N1 の Claude の答えの末尾）。(7) R2 の評価者は許可 root の外の test/fixtures の VTSE41 を 1 本読んだ（読むだけ、申告あり、結論は許可 root の中だけで成り立つ）。結果の文は Vault の資料『ペルソナ歩きの手法と結果』の『3 回目』",
+        "remaining": "評価で出た道具の 21 件と族 2 つは次の歩きの契約へ（バックログ『ペルソナ歩きの道具の 3 回目の残り』）、製品の M の字と洪水予報の既定は P4 の製品の契約へ（バックログ）"
       }
     ],
     "operationContract": {
