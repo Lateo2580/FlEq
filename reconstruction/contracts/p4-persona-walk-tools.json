@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "dc6a23b503fa795dc6c68475de5b92ff4136b5a7c6524960fd72c618589fe902",
+    "sha256": "b0b5491b4651a05a1ab40bb348aa3fd078010be42c1497483eccf0d5fa09e1bd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -158,6 +158,13 @@
         "source": "統合担当（2026-11-18 13:50）",
         "closed": "発注 1 の配送: 実装 4e61ac4a（実装の子 Sonnet、案 proposal-r1 と変更行が一致したので、同じ中身を起草レビュー〔品質 r0・r1 GO、契約適合 r0・r1〕が通した後の実装レビューは省いた。歯 5 本〔門・段の順・取消の段・切断の時刻・受信の無い切断の枝〕はそれぞれ T01〜T03 で落ちる。T09 を T2-naoto で 1 回: scenes=4、blocked なし）。«» の付け直し de103500（p3-pi-measure-blocked-test.json の persona-scenes.test.ts:248→292、本契約の evidenceRefs のうち字の変わった :217〔候補を選ぶ行〕→:255 と :192〔20 件の切り〕→:232 は中身を確かめて付け直し、ずれた 15 件を動かした）。AC09 (1) のとおり AC09 の取り直しは無く、AC09 (4) の原文の改訂は発注 2・3 に掛かるので当てていない。Mac mini のゲート（rec-gate.sh、de103500）12 段 rc 0: tsc 3 本、reconstruction の vitest 153 file・1,679 passed・38 skipped、同じ数で shuffle、check-manifest・check-sequences・check-contract（PASS 159）、root の build と test 289 file・6,850 passed。repo の外の改訂 AC03 (4) は ~/dev/fleq-vault-archive/2026-11-18-walk/walk3/render.py（walk2 の写し）に当てた。AC07 (3) の文は発注 3 の配送で同じ file に当てる。発注 2 の点検の下調べ: Q-PWT-PING の間隔は 20 秒（p3-e01-reaccept.json の P3-C4-RUNNER-LIVENESS、C2 の実接続の観測で間隔 20 秒・最大 20.3 秒）",
         "remaining": "発注 2・3（それぞれの発注前点検から）"
+      },
+      {
+        "id": "Q-PWT-PRECHECK-ORDER2",
+        "status": "closed",
+        "source": "統合担当（2026-11-18 13:54）",
+        "closed": "発注 2 の発注前点検: (1) base は main f744c0ed（発注 1 の配送の後）。decisionBranches は 9 つとも確定で「起草案」0 件、後の作者裁定で前提が変わったものは無い (2) Q-PWT-PING: ping の間隔は 20 秒（p3-e01-reaccept.json の P3-C4-RUNNER-LIVENESS の A、C2 の実接続の観測で間隔 20 秒・最大 20.3 秒。dmdata の公式の資料には間隔の数字が無く、pong が無いと 120 秒以内に切断とだけある）。AC04 (2) の定数はこの値で、出どころをコメントに書く (3) AC09 (1) の「発注 2 は AC09 を取り直さない」の根拠を実走で確かめる: 発注 2 の前と後の木で同じ formal の筋書きを 1 本回し、gitHead を除いた結果が一致することを実装担当が成果物に書く（一致しなければ止めて報告） (4) AC05 (1) の everySecond の無い AC09 の筋書きで取り直しが始まるか: T05 を everySecond なしで回し、startup の行が消える時刻を期待に書く。消えなければ直さず止めて報告 (5) AC09 の筋書きの門つきの T09 は、発注 3 の取り直しまで T09 (2) で blocked のままで正しい。発注 2 の確かめは T2 の筋書きと T04・T05 で行う (6) 品質のレビューはヘルツ（製品の非同期の経路〔接続の層・ping〕を写す所なので）、契約適合は Opus。案の無い発注なので実装レビューを省かない",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
