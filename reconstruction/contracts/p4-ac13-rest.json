@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "51bc1300edcdcb3a0f5bfc3480046780192a1a9f960dfc1b56da81d43f386f06",
+    "sha256": "89d2c115ff796260047a1b4a92f13a65f8040016cb5c3539f98283db99bfb2ef",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -182,9 +182,9 @@
         "requirement": "発注 1（weather-current-unit.ts、R5・R6）: (1) 深さの確かめ（R5）: persistedValue と encodedValue の今の 3 行の式（:296〜:298 と :361〜:363。同じ字が 2 か所にあるので «» を付けない）を、helper 1 つ（例 partialDepthOver(histories): boolean）の呼び出し 1 行に替え、2 か所とも同じ位置（inputId の一意の確かめの次、intent の id の一意の前）に置く（P3-WL1-AC05 の同じ確かめを同じ順で）。helper は partial の報ごとに『family と官署の組』の数を Map に 1 回の走査で積み、partial を 1 つでも持つ履歴について reports[0] の組の数だけを引いて 2 を越えたら断る（直す前の式と同じ意味。どれかの組が 2 を越えたら断る形にはしない、1 つの履歴に官署の違う報が混ざると拒否の集合が変わる）。運用区分は鍵に入れない（合算）。鍵は family を先にして官署と \\u0000 でつなぐ（family は確かめ済みの固定の集合で官署の字と衝突しない） (2) byte: 実の報で組んだ state の保存を JSON にして読み戻し、encode し直した byte が元と同じ（:331 の cache の key と、読み戻しで欄の順が変わらないこと。P4-AC13R-T01） (3) 拒否の集合: 府県の報の履歴の境目（運用区分をまたいで 2 件・3 件、1 つの履歴に 3 件、官署が違う、family が違う、先頭の報の組で引く混ざった履歴、先頭が全国の報）で、decode と encode の受理と拒否が直す前と同じ（P4-AC13R-T02。7 組とも直す前の製品で同じ値になることを起草で確かめた） (4) 組み立て（R6）: 報の reader（例 readSnapshot）・履歴の reader（例 readHistory）・印の reader（例 readMarks）を、確かめた欄から項目ごとに組み立てる形にする（intent() と同じ。確かめの後に record を写さない）。組み立ての鍵の順は domain の snapshot()（subject・operation・scope・office・source・phenomena）と historyWith（subject・operation・reports）、ReportRef は readReportRef の順に合わせる（違うと (2) の byte が変わる）。phenomena は json() で全体を確かめた値のまま通す。述語の snapshot・history は reader が null でないことで定め（確かめは 1 か所）、marks の述語は readMarks に替える（readReportRef が運用区分を確かめるので operation(item.operation) は要らない）。intentList は配列の reader 1 つ（例 readList(value, read)）に替える（無いと 4 つの配列に同じ loop を写すことになる）。persistedValue は national の各報・partials・histories・unconfirmed を reader の戻りで組む（intents の今の形と同じく、reader は関数の頭で呼んでよい）。encodedValue は record を作り直さず、今の位置の確かめを述語と readList(…) == null・readMarks(…) == null の形で保つ（戻り値が null かだけを見る。:331 の cache の key を壊さない） (5) 計算量（受信の経路ではないので上限は置かない、数字だけ）: 深さの確かめは O(H＋R)、reader は保存の大きさに比例。起草の写しで、partial 384 件・その履歴 384 本に報 768 件・全国 1 件の state の decode が中央値 5.767→1.909 ms、encode が 5.019→1.448 ms（MacBook、tsc の dist、20 回の空回しの後の 50 回の中央値。H=128・R=256 で decode 0.936→0.650、encode 0.752→0.481）。実装の後に同じ入力で測って成果物に書き、decode・encode の両方の時間が起草の値の近くまで下がっていることを見る（走査の替え忘れはここで見える） (6) 容量（P4-AC13R-D-EXTRA=A）: persistedValue の 16 MiB の判定は、組み立てる前の確かめた元の値（national は確かめた record、partials・histories・unconfirmed は元の配列。ほかの欄は今の result のまま）を直す前と同じ式で測り、上限の内なら reader の組み立てた値を返す。型の外の欄を持つ保存でも、上限ちょうどは受けて 1 byte 越えは断り、decode と encode で同じ（P4-AC13R-T03） (7) persistedValue の tombstones・freshness・unavailable を写す行（P4-AC13R-D-SCOPE=A で組み立てない）の末尾に、行を足さずに短い注記（P4-AC13R-D-SCOPE=A、組み立てず残す）を付ける",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-unit.ts:190 «0280fdddbde2e178»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:263 «63d78d127bafb6ca»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:315 «e96a7deff7f07bda»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:331 «78210b80fe302b57»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:261 «63d78d127bafb6ca»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:317 «e96a7deff7f07bda»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:333 «78210b80fe302b57»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:370 «a8dc86246ba4c2f1»",
           "reconstruction/contracts/p3-weather-light-step1.json:272 «eacca0780d4453d7»",
           "AGENTS.md:28 «c9609171ee8333e3»",
@@ -196,18 +196,18 @@
         "requirement": "発注 2（eew-log.ts、R10、P4-AC13R-D-DROPPED=A）: (1) EewLog 型の dropped(): number（:64）、変数 dropped（:69 の let の中）、加算（:87 の dropped += 1）、返す口（:211 の dropped: () => dropped）を消す。:87 は始めていない書き込みが 64 件を越えたら pending.shift() で最も古いものを捨てるだけにする (2) :84 のコメントの『捨てて数える』を『捨てる』に直し、根拠の ID（P3-TO-AC15 (3)、本契約）を添える (3) 捨てる振る舞いは今のまま: P3-TO-T16 の既存の 4 本が、dropped の期待を外しただけで通る (4) 試験の期待の変更（AGENTS.md の最小テスト、既存の期待を変える理由）: eew-log.test.ts の :157 の expect(many.log.dropped()).toBe(0) を消す（同じ it の file の中身の確かめが残る）、:161 の試験名の『捨てて数える』を『捨てる』に、:171 を expect(written).toEqual([\"0\"]) に、:176 を expect(written.slice(65)).toEqual([\"close\", \"close\"]) に替える（捨てた 1〜5 番が書かれないことは :174 の waitFor が見る）。理由は dropped の口が無くなること",
         "evidenceRefs": [
           "reconstruction/src/terminal/eew-log.ts:12 «bba9105c684c08d1»",
-          "reconstruction/src/terminal/eew-log.ts:85 «152e273d771a477e»",
+          "reconstruction/src/terminal/eew-log.ts:84 «152e273d771a477e»",
           "reconstruction/test/terminal/eew-log.test.ts:146 «759095a600dc04bc»",
-          "reconstruction/test/terminal/eew-log.test.ts:174 «dfef0324df6a4323»",
-          "reconstruction/contracts/p3-terminal-output.json:698 «58dbbe1d3e2b3309»"
+          "reconstruction/test/terminal/eew-log.test.ts:173 «dfef0324df6a4323»",
+          "reconstruction/contracts/p3-terminal-output.json:698 «4c0ef87c6cf01206»"
         ]
       },
       {
         "id": "P4-AC13R-AC03",
         "requirement": "配送の commit で統合担当が当てる原文の改訂と «» の付け直し（実装担当は触らない。どれも行の中の書き換えで行を足さない）: (1) p3-terminal-output.json の P3-TO-AC15 (3)（:698 の requirement の中）の『越えたら最も古い始めていない書き込みを捨てて数える。』を『越えたら最も古い始めていない書き込みを捨てる（捨てた数は数えない。P4-AC13-REST-001、P4-AC13R-D-DROPPED=A）。』に替える (2) p3-final-review-fix.json:254 の行の末尾の『: バックログ』の後に『【P4-AC13-REST-001 の注記: R5・R6・R10 は同契約で直した。R9 は作者裁定 B〔2026-11-18 12:25〕で直さず、P3-RDL-AC03 (3) の残存のまま】』を足す (3) 付け直し: 他契約の «» で変える file を引くものを grep で数えた（912e951a）。weather-current-unit.ts は 11 契約の 50 件で、どれも :42〜:233 と :399〜:836（変える範囲の外で、範囲の中の行の数を変えないので動かない）。eew-log.ts・eew-log.test.ts を行で引く «» は 0 件、weather-current-unit.test.ts は :403・:613・:843 の 4 件（試験は末尾に足すので動かない）。改訂する 2 行（p3-terminal-output.json:698・p3-final-review-fix.json:254）を引く他契約の «» は 0 件で、本契約の evidenceRefs だけ。改訂の後に本契約の 2 件の anchor を今の字から取り直す (4) 本契約の evidenceRefs のうち、実装で字の変わらない行がずれうるもの（weather-current-unit.ts の :263・:315・:331・:370 は範囲の中で上下しうる、eew-log.ts の :85・eew-log.test.ts の :174 は上の行を消すと 1 行上がる）は、実装の後に同じ anchor を持つ唯一の行の番号に書き換える。字の変わる行は本契約で引いていない。«» は『file:行 «その行の前後の空白を除いた字の UTF-8 の sha256 の先頭 16 桁»』で、check-contract はその anchor がその file の中でその行だけに当たることを見る。書き換えた契約は meta.sha256 を meta.hashConvention で取り直す (5) 台帳とバックログ: 配送の commit で、構造的欠陥台帳とやりたいことリスト（作業ノート、repo 外）に 1 項目ずつ書く。題『U-W の保存の読み戻しの tombstones・freshness・unavailable（lastKnown を含む）は確かめた record を写す』、事実は persistedValue の 3 欄の { ...item } と、型の外の欄が読み戻しで通り 16 MiB の数えに入ること、出典は本契約の P4-AC13R-D-SCOPE=A（AGENTS.md:28 の例外）。直すなら別の契約で",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-terminal-output.json:698 «58dbbe1d3e2b3309»",
-          "reconstruction/contracts/p3-final-review-fix.json:254 «41c70aa60b8b2b9a»"
+          "reconstruction/contracts/p3-terminal-output.json:698 «4c0ef87c6cf01206»",
+          "reconstruction/contracts/p3-final-review-fix.json:254 «833f5a324fc90ff8»"
         ]
       }
     ],
