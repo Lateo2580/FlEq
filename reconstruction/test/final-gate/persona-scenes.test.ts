@@ -11,12 +11,14 @@ import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.typ
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
 import { createNotificationGate } from "../../src/cli/notification-gate";
 import { notificationSettingsFrom } from "../../src/cli/repl";
+import { buildCapacityExceededLine, summaryRowVisible } from "../../src/display/chrome-eew/pure";
 import { startupPlan, walkStart } from "../../src/recovery/recovery";
 import { runtimeUnits } from "../../src/runtime/unit-coverage";
 import { PING_INTERVAL_MS, factsOf, runStage1, screenOf } from "../disaster/runner";
 import type { Dispatch, RunOptions, SceneAttempt, SceneCapture } from "../disaster/runner";
 import { readScenario } from "../disaster/scenario";
 import type { Scenario } from "../disaster/scenario";
+import { synthesize } from "../disaster/synth";
 import type { Frame } from "../disaster/synth";
 import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import type { Harness } from "../execution-split/owner-harness";
@@ -132,9 +134,19 @@ function head(id: string, unit: RuntimeUnitId, headType: string, receivedAtMs: n
     controlDateTime: null, controlStatus: "通常", test: false, editorialOffice: null };
 }
 
+// 製品の定数（composition-root.ts の RECOVERY_GAP_MS〔P3-REC-D-COALESCE=A〕と EEW_CONFIRM_MS〔P3-REC-D-EEW-CONFIRM=B〕）。export されておらず src は
+// 本契約で変えないので、定義の行から読む（値を写すと製品を変えたときに古びる）。行が無ければ例外。
+function productMs(name: string): number {
+  const found = new RegExp(`^const ${name} = ([\\d_ *]+);`, "m").exec(readFileSync("reconstruction/src/runtime/composition-root.ts", "utf8"))?.[1];
+  if (found == null) throw new Error(`${name} is not defined in composition-root.ts`);
+  return found.split("*").reduce((product, factor) => product * Number(factor.trim().replace(/_/g, "")), 1);
+}
+
 // P4-PWT-AC05 (1)（実不具合 N1.md:30）: AC09 の筋書きにも試行 2 と同じ始まりの操作と、起動の取り直しの空の一覧を渡す。無いと確認状態が全部 startup のまま残る。
 // unit と束は host と同じく startupPlan が契約の区分で決める（telegram.* の無い契約は null で、host も attachRecovery を呼ばない）。本文は取らない。
-function connectionLayer(startMs: number, classifications: readonly DmdataClassification[]): Pick<Trial, "dispatches" | "prepare"> {
+// tick は接続から 60 秒（最初の接続のきっかけの取り直しの待ち）と 600 秒（U-E の確認）の 2 点だけ足す。製品は 1 秒ごとに tick するので、無いと
+// 2 つの確認が次の frame の後の tick まで遅れる（R2 の S1 の U-Q・S3 の U-E、実装レビュー）。毎秒にはしない（AC09 の長い筋書きの run の時間）。
+function connectionLayer(startMs: number, classifications: readonly DmdataClassification[]): Pick<Trial, "dispatches" | "prepare"> & Pick<RunOptions, "everySecond"> {
   const prepare = async (h: Harness) => {
     const walk = startupPlan(classifications, h.root.restoredBoundaries, h.clock().wallTimeMs);
     if (walk == null) return;
@@ -142,7 +154,8 @@ function connectionLayer(startMs: number, classifications: readonly DmdataClassi
     h.root.attachRecovery({ classifications, walk: async (plan) => empty(plan), notBefore: () => -Infinity,
       fetchBody: async (): Promise<BodyResult> => ({ kind: "failed" }) }, walk.starts, Promise.resolve(empty(walk.plan)));
   };
-  return { dispatches: [{ atMs: startMs, kind: "watchEewWindow" }, { atMs: startMs, kind: "connected" }], prepare };
+  return { dispatches: [{ atMs: startMs, kind: "watchEewWindow" }, { atMs: startMs, kind: "connected" }], prepare,
+    everySecond: [productMs("RECOVERY_GAP_MS"), productMs("EEW_CONFIRM_MS")].map((ms) => ({ fromMs: startMs + ms, toMs: startMs + ms })) };
 }
 
 // ---- P3-FG-D-SCENE-RULE ----
@@ -222,17 +235,16 @@ function noticeOf(attempt: SceneAttempt): Notice {
       : { at: jstText(attempt.atMs), channel: "sound", sound: assetOf(attempt) } };
 }
 // P4-PWT-AC03（実不具合 T2-naoto:40）: 切断の desktop 通知は端末の出力（output.ts の lost）が adapter を通さずに出すので runner が拾わない。
-// connectionLost ごとに同じ字の 1 行を足す。時刻は切断の時点の最後の受信で、runner の connectionLost と同じ規則（P4-PWT-AC04 (2)）: 最後の frame・接続と、
-// 最後の接続から ping の間隔の倍数で切断を越えない最後の時刻の遅い方。受信が 1 つも無ければ切断の時刻（output.ts の fromWallMs ?? now と同じ）。
+// 接続中の connectionLost ごとに同じ字の 1 行を足す（host は確立した接続を失ったときだけ数える。繋がり直さずに続く切断と、接続の無い切断には出ない）。
+// 接続中かは dispatch の順で最後の接続か切断かで見る（runner の connectionLost と同じ）。時刻は切断の時点の最後の受信で、runner と同じ規則
+// （P4-PWT-AC04 (2)）: 最後の frame・接続と、最後の接続から ping の間隔の倍数で切断を越えない最後の時刻の遅い方。
 // shortcut: 30 分で 3 回の「回線が不安定です」のまとめ・mute・connection の分野の設定は写さない。試行 2 は切断が 1 回だけ。切断の多い筋書きを足すときに写す。
 function connectionNotices(dispatches: readonly Dispatch[], frames: readonly Frame[]): Notice[] {
-  return dispatches.flatMap((item) => {
-    if (item.kind !== "connectionLost") return [];
-    const connected = Math.max(...dispatches.filter((before) => before.kind === "connected" && before.atMs <= item.atMs).map((before) => before.atMs));
-    const received = [...frames.filter((frame) => frame.atMs <= item.atMs).map((frame) => frame.atMs),
-      ...dispatches.filter((before) => (before.kind === "connected" || before.kind === "frame") && before.atMs <= item.atMs).map((before) => before.atMs),
-      ...connected === -Infinity ? [] : [connected + Math.floor((item.atMs - connected) / PING_INTERVAL_MS) * PING_INTERVAL_MS]];
-    const from = received.length === 0 ? item.atMs : Math.max(...received);
+  return dispatches.flatMap((item, index) => {
+    const before = dispatches.slice(0, index), last = before.filter((step) => step.kind === "connected" || step.kind === "connectionLost").at(-1);
+    if (item.kind !== "connectionLost" || last?.kind !== "connected") return [];
+    const from = Math.max(last.atMs + Math.floor((item.atMs - last.atMs) / PING_INTERVAL_MS) * PING_INTERVAL_MS,
+      ...frames.filter((frame) => frame.atMs <= item.atMs).map((frame) => frame.atMs), ...before.filter((step) => step.kind === "frame").map((step) => step.atMs));
     return [{ atMs: item.atMs, rank: 0, count: "FlEq", json: { at: jstText(item.atMs), channel: "desktop", title: "FlEq",
       body: `回線が切れました（${jstText(from).slice(11, 19)} から受信できていません）` } }];
   });
@@ -251,7 +263,17 @@ function notificationsOf(notices: readonly Notice[]): Readonly<{ notifications: 
 }
 // 時刻の順（同じ時刻は元の順、試行が切断の行より先）。
 const byTime = (list: readonly Notice[]): Notice[] => [...list].sort((a, b) => a.atMs - b.atMs);
-// P4-PWT-AC05 (2)（実不具合 T2-naoto.md:29）: 製品は full の分野にも items から確認状態の行を出すので、演じ手の screen の full の分野に要約の分野と同じ 3 欄を添える。
+// 製品の operationVisible（pure.ts、P2-CHROME-EEW の AC09: normal はいつも、training・test はその operation の EEW・容量超過の行・notice が出ている間だけ）。
+// shortcut: 写し。operationVisible は DisplaySnapshot 全体を受け、場面の写し（fullScreen）からは呼べない。pure.ts の条件を変えたらここも変える。
+function operationShown(screen: NonNullable<SceneCapture["fullScreen"]>, item: DisplaySummaryItem): boolean {
+  if (item.operation === "normal") return true;
+  const eew = screen.current.eew, tsunami = screen.current.tsunami.items.find((row) => row.operation === item.operation);
+  return (eew.delivery === "full" ? eew.view.current.some((current) => current.operation === item.operation) : summaryRowVisible(item))
+    || buildCapacityExceededLine(item) != null || (tsunami != null && buildCapacityExceededLine(tsunami) != null)
+    || screen.notices.some((notice) => notice.operation === item.operation);
+}
+// P4-PWT-AC05 (2)（実不具合 T2-naoto.md:29）: 製品は items から確認状態の行を出すので、演じ手の screen の full の分野に要約の分野と同じ 3 欄を添える。
+// 行は製品が見せる operation だけ（実装レビュー: 見せない training・test の startup の行を渡していた）。
 type Shown = NonNullable<SceneCapture["screen"]>["current"][string];
 type ActorDomain = Exclude<Shown, { delivery: "full" }>
   | (Extract<Shown, { delivery: "full" }> & Readonly<{ items: readonly Pick<DisplaySummaryItem, "operation" | "confirmation" | "unconfirmed">[] }>);
@@ -263,9 +285,26 @@ function actorScreen(scene: SceneCapture) {
   for (const [key, domain] of Object.entries(fullScreen.current)) {
     const shown = screen.current[key];
     if (shown != null) current[key] = shown.delivery !== "full" ? shown
-      : { ...shown, items: domain.items.map(({ operation, confirmation, unconfirmed }) => ({ operation, confirmation, unconfirmed })) };
+      : { ...shown, items: domain.items.filter((item) => operationShown(fullScreen, item)).map(({ operation, confirmation, unconfirmed }) => ({ operation, confirmation, unconfirmed })) };
   }
   return { ...screen, current };
+}
+// 演じ手の file の中身（P4-PWT-AC01〜AC03・AC05 (2)）。T09 が書き、T05 が同じ関数の結果を確かめる。
+function actorFile(head: Readonly<Record<string, JsonValue>>, scene: SceneCapture, lines: readonly Notice[]) {
+  return { ...head, ...notificationsOf(byTime([...scene.attempts.filter(passed).map(noticeOf), ...lines])), screen: actorScreen(scene) };
+}
+// T09 の場面の run の設定。試行 2 は本物の host と同じく 1 秒ごとに tick する（取り直しの開始・札の射影は publisher の tick が起こす。格子を飛ばすと
+// 繋がり直しの後に何も起きない）。AC09 の筋書きは接続の層（P4-PWT-AC05 (1)、2 点の tick つき）を、流し始め（runner と同じく最初の frame が早ければそこ）から渡す。
+// T05 も同じ関数を通る。
+function sceneRun(scenario: Scenario, t2: Trial | null, classifications: readonly DmdataClassification[]): Readonly<{ dispatches: readonly Dispatch[];
+  options: (scenes: RunOptions["scenes"]) => RunOptions }> {
+  const ready = scenario.kind === "ready" ? scenario : null;
+  const layer = t2 == null ? ready == null ? null : connectionLayer(Math.min(ready.startMs, ready.frames[0]?.atMs ?? Infinity), classifications)
+    : { dispatches: t2.dispatches, prepare: t2.prepare, everySecond: ready == null ? [] : [{ fromMs: ready.startMs, toMs: ready.endMs }] };
+  const dispatches = layer?.dispatches ?? [];
+  // 1 回の run は 35 分で止めて blocked にする（2 回で 75 分の timeout に収め、落ちる前に index を書く）。
+  return { dispatches, options: (scenes) => ({ scenes, budgetMs: 35 * MINUTE, dispatches, ...layer?.prepare == null ? {} : { prepare: layer.prepare },
+    ...layer?.everySecond == null ? {} : { everySecond: layer.everySecond } }) };
 }
 
 describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes", () => {
@@ -276,15 +315,7 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     const scenario = t2?.scenario ?? readScenario({ id, dataDir: env["FLEQ_DISASTER_DATA"] ?? null, expectedDigest: env["FLEQ_DISASTER_DIGEST"] ?? null });
     const persona = id.startsWith("W1:") ? "直人" : PERSONAS[id] ?? null, classifications = CLASSIFICATIONS[persona ?? ""];
     if (t2 == null && classifications == null) throw new Error(`no persona contract for ${id}`);
-    // AC09 の筋書きにも接続の層を渡す（P4-PWT-AC05 (1)）。流し始めは runner と同じく最初の frame が早ければそこ。
-    const layer = t2 ?? (scenario.kind === "ready" ? connectionLayer(Math.min(scenario.startMs, scenario.frames[0]?.atMs ?? Infinity), classifications ?? []) : { dispatches: [] });
-    const dispatches = layer.dispatches;
-    // 試行 2 だけ本物の host と同じく 1 秒ごとに tick する（取り直しの開始・札の射影は publisher の tick が起こす。格子を飛ばすと繋がり直しの後に何も起きない）。
-    // AC09 の筋書きは everySecond なしで流す（P4-PWT-AC05 (1)。T05 が everySecond なしで startup の行が消えることを確かめる）。
-    const everySecond = t2 != null && scenario.kind === "ready" ? [{ fromMs: scenario.startMs, toMs: scenario.endMs }] : [];
-    // 1 回の run は 35 分で止めて blocked にする（2 回で 75 分の timeout に収め、落ちる前に index を書く）。
-    const options = (scenes: RunOptions["scenes"]): RunOptions => ({ scenes, budgetMs: 35 * MINUTE, dispatches, ...layer.prepare == null ? {} : { prepare: layer.prepare },
-      ...t2 == null ? {} : { everySecond } });
+    const { dispatches, options } = sceneRun(scenario, t2, classifications ?? []);
     const dir = join(out, id.replace(/[^A-Za-z0-9-]/g, "-"));
     mkdirSync(dir, { recursive: true });
     const blocked: string[] = [];
@@ -305,8 +336,7 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
       const number = String(written.length).padStart(2, "0"), rule = chosen[written.length - 1]?.item ?? null, externalSend = !carriesRealEew(scene);
       const since = written.at(-2)?.atMs ?? -Infinity, lines = lost.filter((item) => item.atMs > since && item.atMs <= scene.atMs);
       // 外の演じ手に送れない場面は file の名前でも分ける（P3-FG-D-EXTERNAL-SEND=A。中身の印だけだと貼り付けで見落とす）。
-      writeFileSync(join(dir, `${number}-actor${externalSend ? "" : "-local-only"}.json`), `${JSON.stringify({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend,
-        ...notificationsOf(byTime([...scene.attempts.filter(passed).map(noticeOf), ...lines])), screen: actorScreen(scene) }, null, 1)}\n`);
+      writeFileSync(join(dir, `${number}-actor${externalSend ? "" : "-local-only"}.json`), `${JSON.stringify(actorFile({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend }, scene, lines), null, 1)}\n`);
       writeFileSync(join(dir, `${number}-evaluator.json`), `${JSON.stringify({ scenario: id, scene: written.length, at: jstText(scene.atMs), rule,
         // 評価者には門で止めた試行も段の印つきで渡す（P4-PWT-AC01）。
         notifications: byTime([...scene.attempts.map((attempt) => { const notice = noticeOf(attempt); return { ...notice, json: { ...notice.json, stoppedBy: stoppedAt(attempt) } }; }),
@@ -451,19 +481,35 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 1", () => {
     const connected = jst("2026-10-19T23:50:00"), lost = jst("2026-10-20T02:48:10");
     expect(connectionNotices(dispatches, frames).map((item) => item.json)).toEqual([{ at: "2026-10-20T02:48:10+09:00", channel: "desktop", title: "FlEq",
       body: `回線が切れました（${jstText(connected + Math.floor((lost - connected) / PING_INTERVAL_MS) * PING_INTERVAL_MS).slice(11, 19)} から受信できていません）` }]);
-    // 切断より前に受信が無ければ切断の時刻（output.ts の fromWallMs ?? now）。
-    expect(connectionNotices([{ atMs: jst("2026-10-20T01:00:00"), kind: "connectionLost" }], []).map((item) => item.json["body"])).toEqual(["回線が切れました（01:00:00 から受信できていません）"]);
+    // 接続中の切断だけ: 繋がり直さずに続く切断と、接続の無い切断には出ない（host は確立した接続を失ったときだけ数える。実装レビューで、
+    // 接続の無い切断の期待を 1 行〔切断の時刻〕から 0 行に改めた）。
+    const at = jst("2026-10-20T01:00:00");
+    expect(connectionNotices([{ atMs: at, kind: "connected" }, { atMs: at + 30_000, kind: "connectionLost" }, { atMs: at + 70_000, kind: "connectionLost" }], [])
+      .map((item) => item.json["body"])).toEqual(["回線が切れました（01:00:20 から受信できていません）"]);
+    expect(connectionNotices([{ atMs: at, kind: "connectionLost" }], [])).toEqual([]);
   });
 });
 
 // ---- ペルソナ歩きの道具の直し（P4-PERSONA-WALK-TOOLS-001 の発注 2）。門なしで回す ----
 
 describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
-  it("P4-PWT-T04 (a) facts of a summarized domain keep the subject with shown false and the same until", () => {
+  it("P4-PWT-T04 (a) facts of a summarized domain keep the subject with shown false and the same until", async () => {
     // 実不具合（N2.md:60）: 要約の分野（U-E・U-T・U-Q）の報が画面に出ていないのに、評価者の事実で shown:true だった。until は view の行の有無のまま。
     const subject = "normal/VTSE41/20110311144600", state = { forecasts: [{ subject, retainUntil: 90_000 }] }, rows = [{ subject, source: { subject } }];
     expect([factsOf(state, rows, 500), factsOf(state, rows, 500, false)]).toEqual([[{ subject, shown: true, until: 90_000, retainUntil: 90_000 }],
       [{ subject, shown: false, until: 90_000, retainUntil: 90_000 }]]);
+    // capture の経路: U-Q・U-T を要約にする筋書き（P3-DC-T09 と同じ組み立て）の場面で、要約の分野の事実は subject が残り shown が全部 false。
+    const t0 = jst("2026-06-26T00:00:00"), synthetic = synthesize("N1", 1, { t0Ms: t0 });
+    const quake = Buffer.from(synthetic.filter((item) => item.headType === "VXSE53").reduce((a, b) => b.body.byteLength > a.body.byteLength ? b : a).body).toString("utf8");
+    const forecast = Buffer.from(synthetic.find((item) => item.headType === "VTSE41")?.body ?? []).toString("utf8").replace(/<Comments>[\s\S]*?<\/Comments>/, "");
+    const swap = (xml: string, index: number) => xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${20260626000100 + index}</EventID>`);
+    const inputs = [0, 1, 2, 3].flatMap((index) => [...index < 3 ? [frame(t0 + index * MINUTE, "VXSE53", swap(quake, index))] : [],
+      frame(t0 + index * MINUTE + 1_000, "VTSE41", swap(forecast, index))]);
+    const scenes: SceneCapture[] = [];
+    await runStage1(ready("P4-PWT-T04a", inputs, t0, t0 + 10 * MINUTE), { scenes: { times: [t0 + 10 * MINUTE], write: (scene) => scenes.push(scene) } });
+    const summarized = Object.entries(scenes[0]?.screen?.current ?? {}).filter(([, domain]) => domain.delivery === "summary").map(([key]) => key);
+    const facts = ["U-Q", "U-T"].map((unit) => scenes[0]?.facts[unit] ?? []);
+    expect([summarized, facts.map((list) => list.length > 0 && list.every((item) => !item.shown))]).toEqual([["tsunami", "earthquake"], [true, true]]);
   });
 
   it("P4-PWT-T04 (b) the card of a connection loss starts at the last ping before the loss, the same time as the actor's line", async () => {
@@ -477,31 +523,32 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
     expect(from == null ? null : lost - from).toBeGreaterThanOrEqual(0);
     expect(from == null ? null : lost - from).toBeLessThan(PING_INTERVAL_MS);
     expect(connectionNotices(dispatches, scenario.frames)[0]?.json["body"]).toBe(`回線が切れました（${jstText(from ?? 0).slice(11, 19)} から受信できていません）`);
+    // 繋がり直さずに続く切断は ping を作らない（実装レビュー: 製品は最後の受信 00:00:20 のまま、runner は 00:01:00 を記録した）。
+    const at = jst("2026-10-20T00:00:00"), held: Harness[] = [];
+    await runStage1(ready("P4-PWT-T04b", [], at, at + 2 * MINUTE), { prepare: async (h) => { held.push(h); },
+      dispatches: [{ atMs: at, kind: "connected" }, { atMs: at + 30_000, kind: "connectionLost" }, { atMs: at + 70_000, kind: "connectionLost" }] });
+    expect(held[0]?.root.lastReceivedWallMs).toBe(at + 20_000);
   });
 
-  it("P4-PWT-T05 with the connection layer and no everySecond the startup confirmation leaves, and the actor screen shows the three columns", async () => {
+  it("P4-PWT-T05 with the connection layer the startup confirmation leaves as in the product, and the actor file shows the three columns", async () => {
     // 実不具合（N1.md:30・T2-naoto.md:29）: AC09 の筋書きは接続の層が無く確認状態が全部 startup のまま残り、full の分野の確認状態の行が場面に写らなかった。
-    // normal の行で見る。沙織の契約（telegram.earthquake）で起動の取り直しが U-T・U-Q・U-N・U-M を流し始めの時点で確かめ、U-E は接続から 10 分の後の
-    // 最初の tick（everySecond なしでは 18:11 の frame の後の tick）で確かめる。契約に無い分野は startup のまま（host も辿らない）。
+    // T09 と同じ sceneRun・actorFile を通る。normal の行で見る。沙織の契約（telegram.earthquake）で起動の取り直しが U-T・U-Q・U-N・U-M を流し始めに確かめ、
+    // U-E は接続から 10 分の tick（接続の層の 2 点の tick の 2 つ目。製品の毎秒の tick と同じ時刻）で確かめる。契約に無い分野は startup のまま（host も辿らない）。
     const start = jst("2026-10-19T18:00:00");
-    const quake = (atMs: number) => frame(atMs, "VXSE53", retimed("32-35_04_04_240613_VXSE53", atMs, `2026101918${String((atMs - start) / MINUTE).padStart(2, "0")}00`));
-    const scenario = ready("P4-PWT-T05", [quake(start + MINUTE), quake(start + 11 * MINUTE)], start, start + 15 * MINUTE);
-    const { dispatches, prepare } = connectionLayer(start, CLASSIFICATIONS["沙織"] ?? []);
+    const scenario = ready("P4-PWT-T05", [frame(start + 5 * MINUTE, "VXSE53", retimed("32-35_04_04_240613_VXSE53", start + 5 * MINUTE, "20261019180500"))],
+      start, start + 15 * MINUTE);
+    const { options } = sceneRun(scenario, null, CLASSIFICATIONS["沙織"] ?? []);
     const scenes: SceneCapture[] = [];
-    await runStage1(scenario, { dispatches, ...prepare == null ? {} : { prepare },
-      scenes: { times: [start, start + 10 * MINUTE, start + 11 * MINUTE], write: (scene) => scenes.push(scene) } });
-    const startup = scenes.map((scene) => {
-      const screen = actorScreen(scene);
-      return screen == null ? null : Object.entries(screen.current).flatMap(([key, domain]) => domain.delivery === "full"
-        && domain.items.some((item) => item.operation === "normal" && "startup" in item.unconfirmed) ? [key] : []);
-    });
+    await runStage1(scenario, options({ times: [start, start + 10 * MINUTE - 1_000, start + 10 * MINUTE], write: (scene) => scenes.push(scene) }));
+    const screens = scenes.map((scene) => actorFile({}, scene, []).screen);
+    const startup = screens.map((screen) => screen == null ? null : Object.entries(screen.current).flatMap(([key, domain]) => domain.delivery === "full"
+      && domain.items.some((item) => item.operation === "normal" && "startup" in item.unconfirmed) ? [key] : []));
     const outside = ["weatherCurrent", "weatherTimeseries", "volcano", "landslide", "flood", "briefing", "typhoon"];
     expect(startup).toEqual([["eew", ...outside], ["eew", ...outside], outside]);
-    const earthquake = actorScreen(scenes[2]!)?.current["earthquake"];
-    // 3 欄の写し。normal は 18:01 の frame の後の tick の取り直し（最初の接続のきっかけ）で確かめ直した時刻、training・test は取り直しが確かめない。
-    const unconfirmed = { confirmation: { state: "unconfirmed", confirmedAt: null }, unconfirmed: { startup: 1 } };
-    expect(earthquake?.delivery === "full" ? earthquake.items : null).toEqual([
-      { operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + MINUTE }, unconfirmed: {} },
-      { operation: "training", ...unconfirmed }, { operation: "test", ...unconfirmed }]);
+    // 3 欄の写しは製品が見せる operation だけ（training・test は EEW・容量超過・notice が無いので出ない）。U-Q の normal は接続から 60 秒の tick の
+    // 取り直し（最初の接続のきっかけ）で確かめ直した時刻、U-E の normal は 10 分の確認の時刻。
+    const items = (key: string) => { const domain = screens[2]?.current[key]; return domain?.delivery === "full" ? domain.items : null; };
+    expect([items("earthquake"), items("eew")]).toEqual([[{ operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + MINUTE }, unconfirmed: {} }],
+      [{ operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + 10 * MINUTE }, unconfirmed: {} }]]);
   });
 });

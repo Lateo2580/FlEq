@@ -586,7 +586,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     switch (item.kind) {
       case "watchEewWindow": h.root.watchEewWindow(); break;
       case "connected": h.root.recordFrame(now.wallTimeMs); h.root.recordConnected(now.wallTimeMs); break;
-      case "connectionLost": { const from = options.dispatches?.slice(0, index).filter((before) => before.kind === "connected").at(-1)?.atMs; if (from != null) h.root.recordFrame(Math.max(h.root.lastReceivedWallMs ?? -Infinity, from + Math.floor((now.wallTimeMs - from) / PING_INTERVAL_MS) * PING_INTERVAL_MS)); h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: frameCount === 0 ? -1 : frameCount, clock: now }); break; } // P4-PWT-AC04 (2)・P4-PWT-D-PING=A: 切断の前の最後の ping を 1 回だけ recordFrame に渡す（札の始まり）
+      case "connectionLost": { const last = options.dispatches?.slice(0, index).filter((before) => before.kind === "connected" || before.kind === "connectionLost").at(-1); if (last?.kind === "connected") h.root.recordFrame(Math.max(h.root.lastReceivedWallMs ?? -Infinity, last.atMs + Math.floor((now.wallTimeMs - last.atMs) / PING_INTERVAL_MS) * PING_INTERVAL_MS)); h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: frameCount === 0 ? -1 : frameCount, clock: now }); break; } // P4-PWT-AC04 (2)・P4-PWT-D-PING=A: 接続中の切断だけ、その前の最後の ping を 1 回 recordFrame に渡す（札の始まり。繋がり直さずに続く切断の間は ping が来ない）
       case "frame":
         received();
         await settled(submit(h, envelope(h.root.state.runId, item.frame.headType, `input-${++frameCount}`, item.frame.body, now, frameCount)));
