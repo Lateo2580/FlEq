@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "6c0fcf6019eca446611ae3df729d70b52ee5e298",
-    "sha256": "fc962c6c3546258f1f4a9247b5192060deb0bff27c295bb71d373803af366232",
+    "sha256": "aab2f9a0c4bc338f7cb5399f8fa5abcfc16e042b4b899a1dc4a004d12ad4cf1a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -670,7 +670,7 @@
       },
       {
         "id": "P3-TO-AC13",
-        "requirement": "【発注 2】起動時の update check（spec の §6.5、Q-TO-R-2）: (1) 確かめ方は旧築の update-checker の写し（npm の registry、失敗したら GitHub、24 時間の cache、環境変数 FLEQ_NO_UPDATE_CHECK で止める）。cache の置き場は settingsPaths().directory の下 (2) host の起動の後に非同期で 1 回だけ。起動と受信を待たせず、失敗は何も出さない (3) 新しい版があれば「新しい版があります: v<今> → v<新>  npm install -g <package.json の name>@latest」（コマンドの部分は補足の薄い字） (4) 環境変数 FLEQ_WS_URL がある起動（watch の子）では確かめない（試験と watch がネットに出ない）",
+        "requirement": "【発注 2】起動時の update check（spec の §6.5、Q-TO-R-2）: (1) 確かめ方は旧築の update-checker の写し（npm の registry、失敗したら GitHub、24 時間の cache、環境変数 FLEQ_NO_UPDATE_CHECK で止める）。cache の置き場は settingsPaths().directory の下 (2) host の起動の後に非同期で 1 回だけ。起動と受信を待たせず、失敗は何も出さない (3) 新しい版があれば「新しい版があります: v<今> → v<新>  npm install -g <package.json の name>@latest」（コマンドの部分は補足の薄い字） (4) 環境変数 FLEQ_WS_URL がある起動（watch の子）では確かめない（試験と watch がネットに出ない）【照合は P4-TERMINAL-EXTERNAL-TEXT-002 で末尾まで固定（P4-TET2-D-VERSION=B）】",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:770 «1f3e79b4a3236e21»",
           "docs/specs/cli-terminal-output.md:771 «948a0ce7ad8a6faa»",

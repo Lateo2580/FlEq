@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "69876477f0c01a6077c1625f3fd5e1707febc9ec",
-    "sha256": "28df627e4a1f9c767297e138f7f23e6f7244dc246bda1d8552e4af62f01e7baa",
+    "sha256": "808448376f83fcb53d9cfd8e04eab3da230cec6b88f0efc4b77511c00c30299f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -250,7 +250,7 @@
       "host の lastSequence の起点（その起動の中だけ。保存しない）"
     ],
     "outOfScope": [
-      "台帳 138（REST の一覧の xmlReport.head.title が取り直しの一覧の行に字のまま出る）と台帳 139（WS の start の frame の classifications が「区分: [...]」の行に字のまま出る）の制御の字: P4（P3-FRF-D-LEDGER138=A）",
+      "台帳 138（REST の一覧の xmlReport.head.title が取り直しの一覧の行に字のまま出る）と台帳 139（WS の start の frame の classifications が「区分: [...]」の行に字のまま出る）の制御の字: P4（P3-FRF-D-LEDGER138=A）【P4-TERMINAL-EXTERNAL-TEXT-002 で直した】",
       "R5（U-W の履歴の深さの検査の O(H×R)、weather-current-unit.ts の decode・encode）・R6（persistedValue の組み立てが確かめた record を丸ごと通す）・R9（起動の辿りの途中の切断で起動のまとめが多くなる）・R10（eew-log の dropped を読む所が無い）: バックログ【P4-AC13-REST-001 の注記: R5・R6・R10 は同契約で直した。R9 は作者裁定 B〔2026-11-18 12:25〕で直さず、P3-RDL-AC03 (3) の残存のまま】",
       "writer がその回のバッチを丸ごと捨てる catch（writer-worker.ts の render の try、台帳 132、p3-terminal-regex-linear.json の outOfScope）と、単位ごとの try を置く案: 本契約は表引きの 3 つだけを直す",
       "format.ts の TYPE_NAMES の表引き（typeName）: 引く key は取り直しの omitted の鍵で、classifyHeadType の ready の行だけが届く（Q-FRF-R1 (4)）",
