@@ -52,7 +52,8 @@ const finalReport = (xml: string) => xml.replace("</Body>", "<NextAdvisory>こ�
 // 豊後水道の地震の第 1 報（予報 77_01_01・警報 37_01_01）の報時刻。試行 2 の地震はこの列を時刻だけ動かして作る。
 const BUNGO_45 = Date.parse("2024-04-17T23:14:57+09:00"), BUNGO_43 = Date.parse("2024-04-17T23:14:59+09:00");
 
-type Trial = Readonly<{ scenario: Scenario; dispatches: readonly Dispatch[]; prepare?: RunOptions["prepare"] }>;
+// missed は切断中に出て取り直しで拾う報の本文（T2-saori だけ。T06 が報の組を確かめる）。
+type Trial = Readonly<{ scenario: Scenario; dispatches: readonly Dispatch[]; prepare?: RunOptions["prepare"]; missed?: readonly string[] }>;
 
 // 流す順の (受信時刻, headType, 本文の sha256) の列の sha256（scenario.ts の digestOf と同じ形。実電文は telegrams.json の生の文字列）。
 function digestOf(frames: readonly Frame[]): string {
@@ -87,12 +88,13 @@ function trial(id: string): Trial {
     const cancel = { atMs: at("23:31:20"), xml: retimed("77_01_33_240613_VXSE45", at("23:31:20"), b) };
     const finalAt = at("23:31:38");
     const frames = [first, third, other, cancel].map((item) => frame(item.atMs, "VXSE45", item.xml));
-    // 第 3 報と最終報の間に、第 3 報の予報のまま Serial を進めた続報を 10 秒ごとに挟む（P4-PWT-AC06 (11)、帳簿 T2-yu.md:24）。発生時刻は動かさない。
-    // 予報の続報は通知を出さないので、演じ手の通知の数は変わらない。
-    const updates = Array.from({ length: 8 }, (_, index) => at("23:30:21") + index * 10_000).map((atMs, index) => frame(atMs, "VXSE45", third.xml
-      .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(atMs).toISOString().slice(0, 19)}Z</DateTime>`)
-      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstText(atMs)}</ReportDateTime>`).replace(/<Serial>\d+<\/Serial>/, `<Serial>${4 + index}</Serial>`)));
-    frames.push(...updates, frame(finalAt, "VXSE45", retimed("77_01_03_240613_VXSE45", finalAt, a, (xml) => finalReport(xml.replace(/<Serial>\d+<\/Serial>/, `<Serial>${4 + updates.length}</Serial>`)))));
+    // 第 3 報と最終報の間に、第 3 報の予報のまま Serial を進めた続報を 10 秒ごとに挟み、最終報も第 3 報から作る（P4-PWT-AC06 (11)、帳簿 T2-yu.md:24）。
+    // 変えるのは送信・発表・対象の時刻と Serial（と最終報の印）だけで、発生時刻は動かさない。予報の続報は通知を出さないので、演じ手の通知の数は変わらない。
+    const resent = (atMs: number, serial: number) => third.xml.replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(atMs).toISOString().slice(0, 19)}Z</DateTime>`)
+      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstText(atMs)}</ReportDateTime>`)
+      .replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, `<TargetDateTime>${jstText(atMs)}</TargetDateTime>`).replace(/<Serial>\d+<\/Serial>/, `<Serial>${serial}</Serial>`);
+    const updates = Array.from({ length: 8 }, (_, index) => at("23:30:21") + index * 10_000).map((atMs, index) => frame(atMs, "VXSE45", resent(atMs, 4 + index)));
+    frames.push(...updates, frame(finalAt, "VXSE45", finalReport(resent(finalAt, 4 + updates.length))));
     const start = at("23:20:00");
     return { scenario: ready(id, frames.sort((x, y) => x.atMs - y.atMs), start, jst("2026-10-20T00:05:00")),
       dispatches: [...connection(start, at("23:52:10"), at("23:58:40")), { atMs: at("23:58:41"), kind: "frame", frame: frame(at("23:58:41"), "VXSE45", third.xml) }] };
@@ -140,7 +142,7 @@ function saori(id: string): Trial {
       .replace(/<ForecastComment[\s\S]*?<\/ForecastComment>/, "<ForecastComment codeType=\"固定付加文\"><Text>津波警報等（大津波警報・津波警報あるいは津波注意報）を発表中です。</Text><Code>0211</Code></ForecastComment>")],
     [head("m2", "U-T", "VTSE41", at("18:21:10"), "津波警報", event, null), tsunami(at("18:21:10"), "52")],
     [head("m3", "U-T", "VTSE51", at("18:23:00"), "津波観測に関する情報", event, "1"), observation({ eventId: event, at: jstText(at("18:23:00")), serial: 1,
-      stations: [{ code: "31101", name: "銚子", condition: "第１波", height: "0.4" }] })
+      stations: [{ code: "31001", name: "銚子", condition: "第１波", height: "0.4" }] })
       .replace("<Headline></Headline>", `<Headline><Text>${clock(at("18:23:00"))}現在の、津波の観測値をお知らせします。</Text></Headline>`)
       .replace("<Area><Name>岩手県</Name><Code>210</Code></Area>", "<Area><Name>千葉県九十九里・外房</Name><Code>310</Code></Area>")],
   ];
@@ -157,7 +159,7 @@ function saori(id: string): Trial {
       } }, Object.fromEntries(units.map((unit) => [unit, walkStart(null, "empty", h.clock().wallTimeMs)])),
     Promise.resolve(listed(units.map((unit) => ({ unit, fetchFromMs: -Infinity })))));
   };
-  return { scenario: ready(id, live, start, at("18:30:00")), dispatches: connection(start, at("18:17:15"), at("18:24:15")), prepare };
+  return { scenario: ready(id, live, start, at("18:30:00")), dispatches: connection(start, at("18:17:15"), at("18:24:15")), prepare, missed: missed.map(([, xml]) => xml) };
 }
 function head(id: string, unit: RuntimeUnitId, headType: string, receivedAtMs: number, title: string, eventId: string, serial: string | null): ListHead {
   return { id, unit, headType, receivedAtMs, operation: "normal", title, headline: null, reportDateTime: null, infoType: "発表", serial, eventId,
@@ -638,6 +640,54 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
     };
     // VXSE45 は 188 区域の 20 報目、VXSE43 は最後の 10 報目（震度 4 の区域はまだ無い）。
     expect([lg("VXSE45", "20"), lg("VXSE43", "10")]).toEqual([{ pairs: ["4:1", "5-:2", "6+:2"], body: "2", after: true }, { pairs: ["5-:0", "6+:1"], body: "1", after: true }]);
+    // 実装レビュー r1 の回帰（製品の通知・表示・保存に届いた値）。
+    // EEW の区域は、その時点の最後の VXSE43 の区域だけが警報 10、ほかは予報 00 で、Headline の警報の細分区域も同じ。
+    const ofMain = (headType: string) => lists.N1.filter((item) => item.headType === headType && tag(text(item), "EventID") === main);
+    const codesOf = (item: Frame, pattern: RegExp) => [...text(item).matchAll(pattern)].map((match) => match[1]).sort().join();
+    const kinds = (item: Frame, code: string) => codesOf(item, new RegExp(`<Area><Name>[^<]*</Name><Code>(\\d+)</Code><Category><Kind><Name>[^<]*</Name><Code>${code}</Code>`, "g"));
+    const warnedAt = (item: Frame) => kinds(ofMain("VXSE43").filter((warning) => warning.atMs <= item.atMs).at(-1)!, "10");
+    expect(ofMain("VXSE45").filter((item) => kinds(item, "10") !== warnedAt(item) || codesOf(item, /<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><Category>/g) !== [kinds(item, "10"), kinds(item, "00")].filter((list) => list !== "").join().split(",").sort().join()
+      || codesOf({ ...item, body: Buffer.from(/<Information type="緊急地震速報（細分区域）">[\s\S]*?<\/Information>/.exec(text(item))?.[0] ?? "") }, /<Code>(\d+)<\/Code><\/Area>/g) !== warnedAt(item))
+      .map((item) => tag(text(item), "Serial"))).toEqual([]);
+    // 同じ地震の確定した報（地震と津波）は規模が 1 つ、震源は筋書きの震源。M7 級の余震も同じ。
+    const magnitude = (item: Frame) => /<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/.exec(text(item))?.[0];
+    const settled = (eventId: string | null) => lists.N1.filter((item) => /^(VXSE5[1-3]|VXSE6[12]|VTSE4[1-9]|VTSE5[12])$/.test(item.headType) && tag(text(item), "EventID") === eventId);
+    expect([main, ...eventIds(lists.N1, "synth:M7:VTSE41")].map((eventId) => [...new Set(settled(eventId).flatMap((item) => magnitude(item) ?? []))].length)).toEqual([1, 1, 1]);
+    expect([...new Set(lists.N1.flatMap((item) => /<Hypocenter>\s*<Area>\s*<Name>([^<]*)/.exec(text(item))?.[1] ?? []))]).toEqual(["和歌山県南方沖"]);
+    // 注意報の解除は 62→60、全部の解除の題名は「津波予報」で、見出しは出ていた区分の解除。震源の更新の見出しの時刻は報時刻。
+    expect([...new Set(lists.N1.filter(release).flatMap((item) => [...text(item).matchAll(/<Kind><Name>([^<]*)<\/Name><Code>(\d+)<\/Code><\/Kind>\s*<LastKind><Name>[^<]*<\/Name><Code>(\d+)/g)].map((match) => match.slice(1).join())))])
+      .toEqual(["津波注意報解除,60,62"]);
+    const r2End = text(lists.R2.filter((item) => item.source === "synth:R2:VTSE41").at(-1)!);
+    expect([tag(r2End.slice(r2End.indexOf("<Head")), "Title"), /<Headline>\s*<Text>([^<]*)/.exec(r2End)?.[1]]).toEqual(["津波予報", "津波注意報を解除しました。"]);
+    expect(text(lists.N1.find((item) => item.headType === "VXSE61")!)).toContain("令和　８年　６月２６日０４時００分をもって");
+    // 観測の第 1 波 ≦ 最大波 ≦ 報時刻、沿岸の観測点は予報区の沿岸の組（code の頭 3 桁が予報区）。
+    const observations = Object.values(lists).flat().filter((item) => /^synth:.*VTSE5[12]$/.test(item.source));
+    const observed = (item: Frame) => text(item).slice(text(item).indexOf("<Observation>"), text(item).indexOf("</Observation>"));
+    expect(observations.filter((item) => [...observed(item).matchAll(/<FirstHeight>\s*<ArrivalTime>([^<]*)<\/ArrivalTime>[\s\S]*?<MaxHeight>\s*<DateTime>([^<]*)</g)]
+      .some(([, first, max]) => !(Date.parse(first) <= Date.parse(max) && Date.parse(max) <= Date.parse(tag(text(item), "ReportDateTime")!)))).map((item) => item.source)).toEqual([]);
+    expect(observations.filter((item) => item.headType === "VTSE51").flatMap((item) => [...observed(item).matchAll(/<Item>\s*<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>([\s\S]*?)<\/Item>/g)]
+      .flatMap(([, area, stations]) => [...stations.matchAll(/<Station><Name>[^<]*<\/Name><Code>(\d+)/g)].filter(([, code]) => code.slice(0, 3) !== area).map(([, code]) => code)))).toEqual([]);
+    // 臨時情報: M7 級の余震の後も巨大地震警戒（P4-PWT-D-NANKAI-M7=A）、筋書きで決まる伏せ字（警戒の期限・次回の時刻・中心の地方）は埋める。
+    const nankaiCode = (item: Frame) => /<Code>(\d+)<\/Code>\s*<\/InfoSerial>/.exec(text(item))?.[1];
+    expect(lists.N1.filter((item) => item.headType === "VYSE50").map(nankaiCode)).toEqual(["111", "111", "120", "120", "111", "120"]);
+    const commentary = lists.N2.filter((item) => item.headType === "VYSE51").map(text);
+    expect([commentary.every((xml) => xml.includes("まで警戒する措置")), commentary.map((xml) => xml.includes("次回の情報発表は")).lastIndexOf(true),
+      text(lists.N2.find((item) => item.source === "synth:VYSE50:120")!).includes("近畿地方を中心に")]).toEqual([true, 12, true]);
+    // T2-saori（AC06 (10)）: 地震の報は EEW の最後の報と同じ発生時刻と震源、津波の報は JST、観測点の組は公開型と同じ（銚子は千葉県九十九里・外房の 31001）。
+    const saori = trial("T2-saori"), saoriFrames = saori.scenario.kind === "ready" ? saori.scenario.frames.map(text) : [];
+    const origin = tag(saoriFrames.filter((xml) => xml.includes("<Title>緊急地震速報（地震動予報）</Title>")).at(-1)!, "OriginTime");
+    const [quake, warning, coastal] = saori.missed ?? [];
+    expect([tag(saoriFrames.find((xml) => xml.includes("<InfoKind>震度速報</InfoKind>"))!, "TargetDateTime"), tag(quake, "OriginTime"), /<Hypocenter>\s*<Area>\s*<Name>([^<]*)/.exec(quake)?.[1],
+      quake.includes("津波の心配はありません"), tag(warning, "ReportDateTime")?.endsWith("+09:00"), warning.includes("<ArrivalTime>") && warning.includes("TsunamiHeight")])
+      .toEqual([origin, origin, "豊後水道", false, true, true]);
+    const pair = (xml: string) => /<Area><Name>([^<]*)<\/Name><Code>(\d+)<\/Code><\/Area>(?:(?!<Area>)[\s\S])*?<Station><Name>銚子<\/Name><Code>(\d+)/.exec(xml)?.slice(1).join();
+    expect(pair(coastal)).toBe(pair(fixture("32-39_11_10_250206_VTSE51").replace(/>\s+</g, "><")));
+    // T2-yu（AC06 (11)）: 地震 A の第 3 報からの報は発生時刻が 1 つ、続報と最終報の発表と対象の時刻は受ける時刻、Serial は増え、最後だけ最終報。
+    const yu = trial("T2-yu"), events = (yu.scenario.kind === "ready" ? yu.scenario.frames : []).filter((item) => tag(text(item), "EventID") === "20261019233001");
+    // 発生時刻は第 3 報から 1 つ（第 1 報の 77_01_01 は公開型どおり 1 秒早い）。
+    expect([new Set(events.slice(1).map((item) => tag(text(item), "OriginTime"))).size, events.slice(2).every((item) => tag(text(item), "ReportDateTime") === jstText(item.atMs)
+      && tag(text(item), "TargetDateTime") === jstText(item.atMs)), events.map((item) => Number(tag(text(item), "Serial"))).every((serial, index, all) => index === 0 || serial > all[index - 1]),
+    events.map((item) => text(item).includes("<NextAdvisory>")).lastIndexOf(true), events.length]).toEqual([1, true, true, 10, 11]);
   });
 
   it("P4-PWT-T07 each persona gets only the reports of their contract", () => {
