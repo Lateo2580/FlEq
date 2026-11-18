@@ -8,7 +8,10 @@ import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { JsonValue, RuntimeUnitId } from "../../contracts/p2-shared-runtime.types";
 import type { DisplayDomainView, DisplaySeverity, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
+import { createNotificationGate } from "../../src/cli/notification-gate";
+import { notificationSettingsFrom } from "../../src/cli/repl";
 import { walkStart } from "../../src/recovery/recovery";
+import { runtimeUnits } from "../../src/runtime/unit-coverage";
 import { factsOf, runStage1, screenOf } from "../disaster/runner";
 import type { Dispatch, RunOptions, SceneAttempt, SceneCapture } from "../disaster/runner";
 import { readScenario } from "../disaster/scenario";
@@ -180,23 +183,57 @@ const bodyOf = (text: string, drop: readonly string[]): string => {
 const bodyHash = (text: string) => bodyOf(text, ["timing", "selfSha256"]);
 const ac09Hash = (text: string) => bodyOf(text, ["timing", "selfSha256", "gitHead"]);
 
-// 演じ手には前の場面からの通知の最後の 20 件と、題名ごとの件数と「ほか n 件」だけを渡す（統合担当の決め、SCENE-TEXT の追加の「渡す量を絞る」の内。
-// 23 時間分の 1,844 件を 1 場面で読む利用者はいない）。音の試行は題名が無いので「（音）資材の名前」で数える。評価者の file は全部を持つ。
+// P4-PWT-AC01（Q2=A）: 歩きの通知は、CLI が既定の設定（設定ファイルが空）で host に渡す門を通るものだけ。既定の設定は mute が無いので時計を読まない。
+const fixedClock = () => ({ wallTimeMs: 0, monotonicMs: 0 });
+const defaultGate = createNotificationGate(notificationSettingsFrom({}, fixedClock), fixedClock);
+// 門で止めた段（通れば null）。門が読むのは channel・unit・subject・payload の level だけなので、場面の試行に無い欄は空の値で埋める。
+function stoppedAt(attempt: SceneAttempt): "sound" | "category" | "mute" | null {
+  const unit = runtimeUnits.find((item) => item === attempt.unit);
+  if (unit == null) throw new Error(`unknown unit ${attempt.unit}`);
+  const verdict = defaultGate({ ...attempt, unit, attemptId: "", intentId: "", operation: "normal", selectedAtMonotonicMs: 0, timeoutAtMonotonicMs: 0, expiresAt: 0 });
+  return verdict.allow ? null : verdict.stage;
+}
+const passed = (attempt: SceneAttempt): boolean => stoppedAt(attempt) == null;
+
+// 通知の 1 行。count は題名ごとの件数の鍵（音の試行は題名が無いので「（音）資材の名前」）、rank は 20 件に絞るときの段の重さ。
+// 取消は最も重く置く（先に省くと、演じ手は取り消されていない警報だけを見て、製品の画面に無い状態になる。P4-PWT-AC02）。
+type Notice = Readonly<{ atMs: number; rank: number; count: string; json: Readonly<Record<string, JsonValue>> }>;
+const LEVEL_RANK: Readonly<Record<string, number>> = { cancel: 4, critical: 3, warning: 2, normal: 1 };
+const assetOf = (attempt: SceneAttempt): string | null => attempt.soundAsset?.replace(/^.*\//, "").replace(/\.wav$/, "") ?? null;
+function noticeOf(attempt: SceneAttempt): Notice {
+  const { title, body, level } = attempt.payload;
+  return { atMs: attempt.atMs, rank: LEVEL_RANK[String(level)] ?? 0, count: attempt.channel === "desktop" ? String(title ?? "") : `（音）${assetOf(attempt) ?? ""}`,
+    json: attempt.channel === "desktop" ? { at: jstText(attempt.atMs), channel: "desktop", title: title ?? null, body: body ?? null }
+      : { at: jstText(attempt.atMs), channel: "sound", sound: assetOf(attempt) } };
+}
+// P4-PWT-AC03（実不具合 T2-naoto:40）: 切断の desktop 通知は端末の出力（output.ts の lost）が adapter を通さずに出すので runner が拾わない。
+// connectionLost ごとに同じ字の 1 行を足す。時刻は切断の時点の最後の受信（runner は ping を流さないので、最後の frame か接続の時刻）。
+// 受信が 1 つも無ければ切断の時刻（output.ts の fromWallMs ?? now と同じ）。
+// shortcut: 30 分で 3 回の「回線が不安定です」のまとめ・mute・connection の分野の設定は写さない。試行 2 は切断が 1 回だけ。切断の多い筋書きを足すときに写す。
+function connectionNotices(dispatches: readonly Dispatch[], frames: readonly Frame[]): Notice[] {
+  return dispatches.flatMap((item) => {
+    if (item.kind !== "connectionLost") return [];
+    const received = [...frames.filter((frame) => frame.atMs <= item.atMs).map((frame) => frame.atMs),
+      ...dispatches.filter((before) => (before.kind === "connected" || before.kind === "frame") && before.atMs <= item.atMs).map((before) => before.atMs)];
+    const from = received.length === 0 ? item.atMs : Math.max(...received);
+    return [{ atMs: item.atMs, rank: 0, count: "FlEq", json: { at: jstText(item.atMs), channel: "desktop", title: "FlEq",
+      body: `回線が切れました（${jstText(from).slice(11, 19)} から受信できていません）` } }];
+  });
+}
+
+// 演じ手には前の場面からの通知の 20 件と、題名ごとの件数と「ほか n 件」だけを渡す（統合担当の決め、SCENE-TEXT の追加の「渡す量を絞る」の内。
+// 23 時間分の 1,844 件を 1 場面で読む利用者はいない）。評価者の file は全部を持つ。
 const NOTIFICATION_LIMIT = 20;
-function notificationsOf(attempts: readonly SceneAttempt[]): Readonly<{ notifications: JsonValue[]; notificationCounts: Record<string, number>; notificationsOmitted: number }> {
+function notificationsOf(notices: readonly Notice[]): Readonly<{ notifications: JsonValue[]; notificationCounts: Record<string, number>; notificationsOmitted: number }> {
   const counts: Record<string, number> = {};
-  for (const attempt of attempts) {
-    const title = attempt.channel === "desktop" ? String(attempt.payload["title"] ?? "") : `（音）${attempt.soundAsset?.replace(/^.*\//, "").replace(/\.wav$/, "") ?? ""}`;
-    counts[title] = (counts[title] ?? 0) + 1;
-  }
-  return { notifications: attempts.slice(-NOTIFICATION_LIMIT).map(notificationOf), notificationCounts: counts,
-    notificationsOmitted: Math.max(0, attempts.length - NOTIFICATION_LIMIT) };
+  for (const notice of notices) counts[notice.count] = (counts[notice.count] ?? 0) + 1;
+  // P4-PWT-AC02（実不具合: R2 S6 の 03:20 の大津波警報、W1-09-21 S8 の大島の L5 が新しい順の 20 件の切りで落ちた）: 段の重い順・同じ段は新しい順に残し、時刻の順に戻す。
+  const kept = notices.map((notice, index) => ({ notice, index })).sort((a, b) => b.notice.rank - a.notice.rank || b.index - a.index)
+    .slice(0, NOTIFICATION_LIMIT).sort((a, b) => a.index - b.index);
+  return { notifications: kept.map(({ notice }) => notice.json), notificationCounts: counts, notificationsOmitted: Math.max(0, notices.length - NOTIFICATION_LIMIT) };
 }
-function notificationOf(attempt: SceneAttempt): JsonValue {
-  const { title, body } = attempt.payload;
-  return attempt.channel === "desktop" ? { at: jstText(attempt.atMs), channel: "desktop", title: title ?? null, body: body ?? null }
-    : { at: jstText(attempt.atMs), channel: "sound", sound: attempt.soundAsset?.replace(/^.*\//, "").replace(/\.wav$/, "") ?? null };
-}
+// 時刻の順（同じ時刻は元の順、試行が切断の行より先）。
+const byTime = (list: readonly Notice[]): Notice[] => [...list].sort((a, b) => a.atMs - b.atMs);
 
 describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes", () => {
   it("P3-FG-T09 acceptance / AC10: scenes are cut from two identical runs by the scene rule and written outside the repo", async () => {
@@ -214,7 +251,10 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     const blocked: string[] = [];
 
     const first = await runStage1(scenario, options({ times: [], write: () => {} }));
-    const chosen = scenario.kind === "ready" && first.scenes != null ? choose(candidatesOf(scenario, first.result, dispatches, first.scenes)) : [];
+    // 門で止めた試行は場面の候補にしない（P4-PWT-AC01）。
+    const chosen = scenario.kind === "ready" && first.scenes != null
+      ? choose(candidatesOf(scenario, first.result, dispatches, { ...first.scenes, attempts: first.scenes.attempts.filter(passed) })) : [];
+    const lost = connectionNotices(dispatches, scenario.kind === "ready" ? scenario.frames : []);
     // P3-FG-D-EXTERNAL-SEND=A: 採取物の EEW の EventID を含む場面は外部の演じ手に送らない。
     const realEew = scenario.kind === "ready" ? scenario.frames.filter((item) => item.origin === "real" && /^VXSE4[345]$/.test(item.headType)) : [];
     const realIds = new Set(realEew.map((item) => tag(Buffer.from(item.body).toString("utf8"), "EventID") ?? ""));
@@ -225,11 +265,15 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     const second = await runStage1(scenario, options({ times: chosen.map((item) => item.atMs), write: (scene) => {
       written.push(scene);
       const number = String(written.length).padStart(2, "0"), rule = chosen[written.length - 1]?.item ?? null, externalSend = !carriesRealEew(scene);
+      const since = written.at(-2)?.atMs ?? -Infinity, lines = lost.filter((item) => item.atMs > since && item.atMs <= scene.atMs);
       // 外の演じ手に送れない場面は file の名前でも分ける（P3-FG-D-EXTERNAL-SEND=A。中身の印だけだと貼り付けで見落とす）。
       writeFileSync(join(dir, `${number}-actor${externalSend ? "" : "-local-only"}.json`), `${JSON.stringify({ scenario: id, persona, scene: written.length, at: jstText(scene.atMs), externalSend,
-        ...notificationsOf(scene.attempts), screen: scene.screen }, null, 1)}\n`);
+        ...notificationsOf(byTime([...scene.attempts.filter(passed).map(noticeOf), ...lines])), screen: scene.screen }, null, 1)}\n`);
       writeFileSync(join(dir, `${number}-evaluator.json`), `${JSON.stringify({ scenario: id, scene: written.length, at: jstText(scene.atMs), rule,
-        notifications: scene.attempts.map(notificationOf), facts: scene.facts, screen: scene.fullScreen }, null, 1)}\n`);
+        // 評価者には門で止めた試行も段の印つきで渡す（P4-PWT-AC01）。
+        notifications: byTime([...scene.attempts.map((attempt) => { const notice = noticeOf(attempt); return { ...notice, json: { ...notice.json, stoppedBy: stoppedAt(attempt) } }; }),
+          ...lines.map((line) => ({ ...line, json: { ...line.json, stoppedBy: null } }))])
+          .map((notice) => notice.json), facts: scene.facts, screen: scene.fullScreen }, null, 1)}\n`);
     } }));
 
     // (1) 2 回の run は同じ本体（場面の口は観測だけ）。
@@ -331,5 +375,41 @@ describe("P3-FINAL-GATE-001 scene tool fixes (3b3)", () => {
     expect(headTypes("T2-saori")).not.toContain("VXSE43");
     expect(headTypes("T2-saori")).toContain("VXSE45");
     expect(new Set(headTypes("T2-naoto"))).toEqual(new Set(["VXSE43"]));
+  });
+});
+
+// ---- ペルソナ歩きの道具の直し（P4-PERSONA-WALK-TOOLS-001 の発注 1）。門なしで回す ----
+
+describe("P4-PERSONA-WALK-TOOLS-001 order 1", () => {
+  const attempt = (atMs: number, unit: string, subject: string, level: "normal" | "warning" | "critical" | "cancel", channel: "desktop" | "sound" = "desktop"): SceneAttempt => ({
+    atMs, unit, subject, channel, priorityGroup: "other", payload: { level, title: `${unit} ${level}`, body: "b" },
+    soundAsset: channel === "sound" ? `reconstruction/assets/sounds/weather-${level}.wav` : null });
+
+  it("P4-PWT-T01 the default CLI gate stops the categories that are off by default", () => {
+    // 契約の境界（Q2=A）: 既定で off の分野（洪水予報・竜巻・解説の briefing）は止まり、weather（記録的短時間大雨の VPBS50 を含む）・EEW は通る。
+    const stages = [attempt(0, "U-R", "normal/VXKO50/x", "warning"), attempt(0, "U-M", "normal/tornado/x", "warning"), attempt(0, "U-B", "normal/VPBS50/X1", "normal"),
+      attempt(0, "U-B", "normal/VPBS50/K1", "warning"), attempt(0, "U-W", "normal/VPWW55/x", "warning"), attempt(0, "U-E", "normal/VXSE45/x", "critical", "sound")].map(stoppedAt);
+    expect(stages).toEqual(["category", "category", "category", null, null, null]);
+  });
+
+  it("P4-PWT-T02 the actor keeps the heaviest then newest 20 notifications in time order", () => {
+    // 実不具合（R2 S6 の 03:20 の大津波警報、W1-09-21 S8 の大島の L5）: 最も古い critical 1 件が、後の normal 24 件の新しい順の 20 件の切りで落ちた。
+    // 取消も段の最上位として残る（P4-PWT-AC02）。
+    const list = [attempt(0, "U-T", "normal/VTSE41/x", "critical"), attempt(500, "U-E", "normal/VXSE45/x", "cancel"),
+      ...Array.from({ length: 24 }, (_, index) => attempt((index + 1) * 1_000, "U-W", "normal/VPWW55/x", "normal"))];
+    const { notifications, notificationsOmitted, notificationCounts } = notificationsOf(list.map(noticeOf));
+    expect([notifications.map((item) => isRecord(item) ? item["title"] : null), notificationsOmitted, notificationCounts]).toEqual([
+      ["U-T critical", "U-E cancel", ...Array.from({ length: 18 }, () => "U-W normal")], 6, { "U-T critical": 1, "U-E cancel": 1, "U-W normal": 24 }]);
+    expect(notifications.slice(2).map((item) => isRecord(item) ? item["at"] : null)).toEqual(list.slice(8).map((item) => jstText(item.atMs)));
+  });
+
+  it("P4-PWT-T03 a connection loss gives the terminal's desktop line with the last received time", () => {
+    // 実不具合（T2-naoto:40）: 切断の desktop 通知が場面に写らなかった。
+    const { scenario, dispatches } = trial("T2-naoto");
+    const frames = scenario.kind === "ready" ? scenario.frames : [];
+    expect(connectionNotices(dispatches, frames).map((item) => item.json)).toEqual([{ at: "2026-10-20T02:48:10+09:00", channel: "desktop", title: "FlEq",
+      body: `回線が切れました（${jstText(Math.max(...frames.map((frame) => frame.atMs))).slice(11, 19)} から受信できていません）` }]);
+    // 切断より前に受信が無ければ切断の時刻（output.ts の fromWallMs ?? now）。
+    expect(connectionNotices([{ atMs: jst("2026-10-20T01:00:00"), kind: "connectionLost" }], []).map((item) => item.json["body"])).toEqual(["回線が切れました（01:00:00 から受信できていません）"]);
   });
 });
