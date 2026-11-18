@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "7205ede8f26429ad2a4b9a6716fda7b7e16f6f8c9deeca9d1dab156aa0691744",
+    "sha256": "cda1bee884a0ec3cd6c5056663d667f7462cac852825e33896fbb198e7214cc7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -56,7 +56,7 @@
         "provisional": "A",
         "status": "確定（統合担当の決め、起草 r0）",
         "ruling": "A（統合担当の決め、起草 r0）",
-        "reason": "発注 2 は作者待ちの分岐（W1-PERSONA・N3）に依らず進められる。発注 2 の runner.ts の変更は場面の口（scenes と dispatches を渡す run だけが通る所）に限るので AC09 の formal の run の本体は変わらず、取り直しは発注 3 の 1 回で足りる（発注 2 と 3 の配送の間に歩きを回さない）"
+        "reason": "発注 2 は作者待ちの分岐（W1-PERSONA・N3・M7-RELEASE）に依らず進められる。発注 2 の runner.ts の変更は場面の口（scenes と dispatches を渡す run だけが通る所）に限るので AC09 の formal の run の本体は変わらず、取り直しは発注 3 の 1 回で足りる（発注 2 と 3 の配送の間に歩きを回さない）。11-15 の歩きの AC09 の結果の後に src が変わっている（283a82bb ほか）ので、どの道でも歩きの前に 1 回は取り直す"
       },
       {
         "id": "P4-PWT-D-W1-START",
@@ -90,6 +90,30 @@
         "status": "確定（統合担当の決め、起草 r0）",
         "ruling": "A（統合担当の決め、起草 r0）",
         "reason": "製品の recordFrame は時刻を覚えるだけで（composition-root.ts:1937）、読むのは切断の時（:1973 の eewWindow.lost）と host の status だけ。A は札の始まりを B と同じにし、settle を増やさない（B は 8 日の筋書きで ping ごとに settle が増える）"
+      },
+      {
+        "id": "P4-PWT-D-M7-RELEASE",
+        "kind": "作者",
+        "A": "M7 級の余震の津波注意報（largeAftershocks の VTSE41、余震ごとに 1 通）に、解除の VTSE41 を 1 通ずつ足す（発表の 2 時間後〔推測〕）。N1 で +2 通、N2・N3 で +4 通。Q1=A の『件数は変えない』をこの 1 か所だけ改める",
+        "B": "足さずに残す。評価の行き先は『作者の受け入れ』（注意報が 7 日残るのは合成の作り物で、製品の欠けではない）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "作者待ち（起草 r0 で新しく出た分岐。既存の作者裁定 Q1=A を改める）",
+        "ruling": "未裁定",
+        "blocks": "発注 3 の AC06 (5)",
+        "ifNotChosen": "B の場面: N2 の t0＋40 分の M7 の余震で 5 区域に津波注意報が出て、解除の報が無いまま 7 日の筋書きの終わりまで残る。沙織の S8（t0＋7 日）の画面に注意報 4 件と避難の文が載り、演じ手は『まだ避難が要るのか』と受け取る（帳簿 N2.md:72・N3.md:34）",
+        "reason": "largeAftershocks は余震ごとに新しい EventID の VTSE41 を 1 通だけ出し（synth.ts:592〜:593）、解除に替えられる既存の報が無い。件数を変えずに直す道は無いので、Q1=A の字と帳簿の 2 件がぶつかる。A の +6 通は 8 日の筋書きの数万通の中で器にほぼ効かない（P3-DC-SYNTH の reason の『器は件数と文字列の長さで決まる』）"
+      },
+      {
+        "id": "P4-PWT-D-NANKAI-M7",
+        "kind": "統合担当",
+        "A": "M7 級の余震の臨時情報（largeAftershocks の 111→130）は、その時刻に巨大地震警戒（120）が出ていれば 130 の代わりに 120 の型で出す（件数と時刻は同じ）",
+        "B": "今のまま 130 を出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、起草 r0。Q1=A の字の中）",
+        "ruling": "A（統合担当の決め、起草 r0）",
+        "reason": "N2 の t0＋2 時間に 120（巨大地震警戒）が出た後、t0＋40 分・＋9 時間の M7 の余震の 130（巨大地震注意）が現況を注意に下げ、警戒が情報の欄から省かれた（帳簿 N2.md:64、synth.ts:597〜:598）。警戒の間の M7 で警戒が注意に下がる発表は合成の作り物。N1・N2 の期待例（t0＋2 時間 1 分の警戒、N2 の t0＋7 日 1 分の注意）は変わらない"
       }
     ],
     "questionResolutions": [
@@ -104,8 +128,8 @@
         "id": "Q-PWT-DRAFT-R0",
         "status": "closed",
         "source": "起草 r0（2026-11-18、MacBook。worktree ~/dev/fleq-walk-draft〔branch draft/walk、HEAD 912e951a〕で発注 1 の案を当てて回した。案と試験は commit せず .dr-tmp/proposal-r0.diff に残し、木は本契約の file だけに戻した）",
-        "closed": "(1) 計画 1 の前提の訂正: 計画は『desktop の試行には段の欄が無い』と書くが、intent の payload は desktop・sound とも level を持つ（eew-unit の EewNotificationPayload、p2-eew-unit.types.ts:105。seismic-unit.ts:1640 ほか 10 unit も { domain, level, title, body }）。音との組み合わせの近道は要らず、payload.level で段を決める（AC02） (2) 門（AC01）は既定の設定で mute が無いので、効くのは sound（既定 on で止めない）と分野の段だけ。既定で off は floodForecast（U-R）・tornado・earlyWeather・heatAlert・climateInfo・weatherExplanation（U-M）・typhoonAnalysis・typhoonProbability（U-Y）・briefing（U-B の VPBS50、記録的短時間大雨の K の報は weather で on）・weatherWarningTimeseries（notification-gate.ts:19・:36） (3) 発注 1 の案（.dr-tmp/proposal-r0.diff、persona-scenes.test.ts の +89・−17 行）で、tsc 3 本 rc 0、vitest（--maxWorkers=2、XDG_CONFIG_HOME は .dr-tmp/xdg）で persona-scenes.test.ts の 9 本のうち 8 passed・1 skipped（T09 は門つき）rc 0。歯: 門を外す（止めた段を null に）と T01、段の重さを外して新しい順だけにすると T02、切断の行の時刻を切断の時刻にすると T03 が、それぞれ 1 本だけ落ちた。T09（門つき）は回していない (4) N3 は沙織の契約で絞ると N2 と同じ列になる（P4-PWT-D-N3 の ifNotChosen）。06-03・06-26・09-21 とその前日の archive の xml の型は、familyFor で全部 telegram.weather（VXWW50・VXKO* を含む。VXSE・VTSE・VYSE・VZSE・VF は無い）なので、気象を契約した人物には W1 は 1 件も落ちない。R2 の合成と公開サンプルに VXSE43 は無い（VXSE43 は synth.ts:516 の本震の EEW だけ）ので、沙織の絞りで落ちるのは N1・N2・N3 の VXSE43 と N3 の気象だけ (5) 前日の数え: P4-PWT-D-W1-START の reason (6) dmdata の WS の ping の間隔は repo・spec・契約に数字が無い（p3-recovery.json の問いの残りに『dmdata の WS の ping の間隔（札の始まりの粒度。liveness は 90 秒）』）。Q-PWT-PING に置いた",
-        "remaining": "なし"
+        "closed": "(1) 計画 1 の前提の訂正: 計画は『desktop の試行には段の欄が無い』と書くが、intent の payload は desktop・sound とも level を持つ（eew-unit の EewNotificationPayload、p2-eew-unit.types.ts:105。seismic-unit.ts:1640 ほか 10 unit も { domain, level, title, body }）。音との組み合わせの近道は要らず、payload.level で段を決める（AC02） (2) 門（AC01）は既定の設定で mute が無いので、効くのは sound（既定 on で止めない）と分野の段だけ。既定で off は floodForecast（U-R）・tornado・earlyWeather・heatAlert・climateInfo・weatherExplanation（U-M）・typhoonAnalysis・typhoonProbability（U-Y）・briefing（U-B の VPBS50、記録的短時間大雨の K の報は weather で on）・weatherWarningTimeseries（notification-gate.ts:19・:36） (3) 発注 1 の案（.dr-tmp/proposal-r0.diff、persona-scenes.test.ts の +89・−17 行）で、tsc 3 本 rc 0、vitest（--maxWorkers=2、XDG_CONFIG_HOME は .dr-tmp/xdg）で persona-scenes.test.ts の 9 本のうち 8 passed・1 skipped（T09 は門つき）rc 0。歯: 門を外す（止めた段を null に）と T01、段の重さを外して新しい順だけにすると T02、切断の行の時刻を切断の時刻にすると T03 が、それぞれ 1 本だけ落ちた。T09（門つき）は回していない (4) N3 は沙織の契約で絞ると N2 と同じ列になる（P4-PWT-D-N3 の ifNotChosen）。06-03・06-26・09-21 とその前日の archive の xml の型は、familyFor で全部 telegram.weather（VXWW50・VXKO* を含む。VXSE・VTSE・VYSE・VZSE・VF は無い）なので、気象を契約した人物には W1 は 1 件も落ちない。R2 の合成と公開サンプルに VXSE43 は無い（VXSE43 は synth.ts:516 の本震の EEW だけ）ので、沙織の絞りで落ちるのは N1・N2・N3 の VXSE43 と N3 の気象だけ (5) 前日の数え: P4-PWT-D-W1-START の reason (6) dmdata の WS の ping の間隔は repo・spec・契約に数字が無い（p3-recovery.json の問いの残りに『dmdata の WS の ping の間隔（札の始まりの粒度。liveness は 90 秒）』）。Q-PWT-PING に置いた (7) T09 の書き出しの確かめ: 発注 1 の案を当てた木で T09 の門つきの it を T2-naoto に 1 回流した（FLEQ_C22_SCENES=T2-naoto、OUT は .dr-tmp/scenes-out、約 4 秒、rc 0、blocked なし、場面 4 つ〔02:10:24 ii・02:20:35 vii・02:48:10 v・03:02:30 v〕）。S3 の演じ手の通知は『FlEq／回線が切れました（02:10:35 から受信できていません）』の 1 行、評価者の file の試行には stoppedBy（どれも null）が付いた。ほかの筋書きの T09 は回していない (8) 帳簿の突き合わせ（.dr-tmp/ledger-check.py）: 帳簿 92 件のうち評価者の案に『道具』を含む 50 件を、file:行で本契約の AC に当てた。AC01: W1-2026-06-26.md:26。AC02: R2.md:28・N3.md:31・W1-2026-09-21.md:25。AC03: T2-naoto.md:40・W1-2026-06-26.md:51。AC04: N2.md:60・T2-naoto.md:18・R2.md:30。AC05: N1.md:30・T2-naoto.md:29。AC06: 27 件（(1)〜(10) に名指し）と、統合担当が原文を読んで決める 3 件（(11)）。AC07: N1.md:22・N2.md:28・N3.md:28・N3.md:35・W1-2026-06-03.md:32・W1-2026-06-03.md:36・W1-2026-06-26.md:22。AC08: W1-2026-06-03.md:28・W1-2026-09-21.md:50",
+        "remaining": "Q-PWT-T4-REST（AC06 (11) の 3 件）"
       }
     ],
     "operationContract": {
@@ -141,7 +165,7 @@
     "allowedPaths": [
       "発注 1: reconstruction/test/final-gate/persona-scenes.test.ts（AC01〜AC03。T09 の it の書き出しと候補の選び、場面の file の節の helper、末尾に describe「P4-PERSONA-WALK-TOOLS-001 order 1」）",
       "発注 2: reconstruction/test/disaster/runner.ts（AC04 の分だけ: factsOf〔:743〜:767〕と SceneLog.capture〔:806〕、dispatch の connectionLost の枝〔:589〕と ping の間隔の定数 1 つ）、reconstruction/test/final-gate/persona-scenes.test.ts（AC05。末尾に describe「P4-PERSONA-WALK-TOOLS-001 order 2」）",
-      "発注 3: reconstruction/test/disaster/synth.ts（AC06。件数と時刻を変えない）、reconstruction/test/disaster/scenario.ts（AC08 の分だけ: build の W1 の枝〔:102〜:116〕）、reconstruction/test/final-gate/persona-scenes.test.ts（AC07・AC08 と AC06 の T2-saori の分。末尾に describe「P4-PERSONA-WALK-TOOLS-001 order 3」）"
+      "発注 3: reconstruction/test/disaster/synth.ts（AC06。件数と時刻を変えない）、reconstruction/test/disaster/scenario.ts（AC08 の分だけ: build の W1 の枝〔:102〜:116〕）、reconstruction/test/disaster/disaster.test.ts（AC08 (1) の分だけ: P3-DC-T07 に前日の空の dir を作る行）、reconstruction/test/final-gate/persona-scenes.test.ts（AC07・AC08 と AC06 の T2-saori の分。末尾に describe「P4-PERSONA-WALK-TOOLS-001 order 3」）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -226,7 +250,7 @@
       },
       {
         "id": "P4-PWT-AC02",
-        "requirement": "【発注 1】演じ手の通知の 20 件（計画 1、統合担当の決め『渡す量を絞る』の中の切り方を改める）: (1) 前の場面からの通知（門を通った試行と AC03 の切断の行）を、payload の level の段（critical 3・warning 2・normal 1・そのほか 0）の重い順、同じ段は新しい順に 20 件残し、時刻の順に戻して渡す。切断の行は段 0 (2) 題名ごとの件数（notificationCounts）と省いた件数（notificationsOmitted）は今と同じ数え方（全部の数、省いた数 = 全部 − 20） (3) 評価者の file は全部を時刻の順で持つ。計画の『desktop の試行には段の欄が無いので音の試行と組にする』近道は使わない（payload は desktop・sound とも level を持つ、Q-PWT-DRAFT-R0 (1)）。無いと: R2 の S6 の 03:20 の大津波警報への拡大、W1-09-21 の S8 の大島の L5 土砂（その日ただ 1 回の critical）が、後の軽い通知に押されて演じ手に渡らない（帳簿 R2.md:28・W1-2026-09-21.md:25・N3.md:31）",
+        "requirement": "【発注 1】演じ手の通知の 20 件（計画 1、統合担当の決め『渡す量を絞る』の中の切り方を改める）: (1) 前の場面からの通知（門を通った試行と AC03 の切断の行）を、payload の level の段（critical 3・warning 2・normal 1・そのほか 0。取消〔cancel〕と info は段 0 なので先に省かれる）の重い順、同じ段は新しい順に 20 件残し、時刻の順に戻して渡す。切断の行は段 0 (2) 題名ごとの件数（notificationCounts）と省いた件数（notificationsOmitted）は今と同じ数え方（全部の数、省いた数 = 全部 − 20） (3) 評価者の file は全部を時刻の順で持つ。計画の『desktop の試行には段の欄が無いので音の試行と組にする』近道は使わない（payload は desktop・sound とも level を持つ、Q-PWT-DRAFT-R0 (1)）。無いと: R2 の S6 の 03:20 の大津波警報への拡大、W1-09-21 の S8 の大島の L5 土砂（その日ただ 1 回の critical）が、後の軽い通知に押されて演じ手に渡らない（帳簿 R2.md:28・W1-2026-09-21.md:25・N3.md:31）",
         "evidenceRefs": [
           "reconstruction/test/final-gate/persona-scenes.test.ts:185 «043c4345f173253e»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:192 «c8d3c56e64cacab0»",
@@ -280,15 +304,19 @@
       },
       {
         "id": "P4-PWT-AC06",
-        "requirement": "【発注 3】合成の報の文面（計画 4、Q1=A）: synth.ts の既定のまま、報の件数・時刻・headType・流す順を変えずに文面だけを直す: (1) 臨時情報（nankai、:553〜:556）の伏せ字（●●）を消し、VYSE51 の臨時解説の号を報ごとに増やす（N2 の 14 通が全部第１号、帳簿 N3.md:33） (2) 観測点と予報区の対（gauges・tsunami51）を同じ沿岸の組にし、観測の本文の時刻を報の時刻に合わせる（帳簿 N1.md:27・R2.md:26・R2.md:29） (3) 震源の型の残り（eewBody :460〜:472 の予報区と震源、本震の T53 の熊本、余震の駿河湾）を筋書きの震源に揃える (4) 本震と余震の EEW の最後の報に最終報（NextAdvisory）を付ける（:512〜:519・:577〜:583） (5) M7 級の余震の津波注意報（largeAftershocks、:586〜:600）に解除の VTSE41 を足さずに直せないときは、件数を変えないため既存の報の版で解除を表す（足すなら作者に戻す） (6) 『これは訓練です』の型の文を消す (7) persona-scenes.test.ts の T2-saori（:94〜:108）: 別々の公開サンプルを 1 つの EventID に束ねた報の震源・時刻を揃え、津波の時刻を UTC でなく JST で渡す。行数の見込み: synth.ts に 60〜90 行、T2-saori に約 10 行。件数と時刻を変えないことは T07 で確かめる",
+        "requirement": "【発注 3】合成の報の文面（計画 4、Q1=A）: synth.ts の既定のまま、報の件数・時刻・headType・流す順を変えずに文面だけを直す（例外は P4-PWT-D-M7-RELEASE=A の解除の VTSE41）。帳簿の行ごと: (1) 臨時情報（nankai、:553〜:556）の伏せ字（●●）を消し、VYSE51 の臨時解説の号を報ごとに増やす（N1.md:31・N2.md:68・N3.md:32・N3.md:33） (2) 観測点と予報区の対（gauges・tsunami51）を同じ沿岸の組にし、観測の本文の時刻を報の時刻に合わせる（N1.md:27・N2.md:50・R2.md:26・R2.md:29） (3) 震源の型の残りを筋書きの震源に揃える: 本震の VXSE53・VXSE51 の型（T53・T51 の熊本 M7.1）と本震の EEW の型（77_01_26 の豊後水道）、余震の EEW（aftershockEew、:577〜:583 の 77_01_01 の豊後水道 M4.2）、余震の VXSE53 の型の震源と『津波の心配なし』の付加文（大津波警報の間）（N1.md:23・N1.md:25・N1.md:26・N2.md:24・N2.md:32・N3.md:26・N3.md:29。件数〔十数件〕は P4 の通知の量） (4) 本震と余震の EEW の最後の報に最終報（NextAdvisory）を付ける（:512〜:519・:577〜:583、N2.md:79） (5) M7 級の余震の津波注意報に解除を足す（P4-PWT-D-M7-RELEASE=A のとき。N2.md:72・N3.md:34） (6) 『これは訓練です』の型の文を消す（N3.md:36） (7) eewBody（:460〜:472）の予想の到達時刻（ArrivalTime）を報時刻より後にし、ForecastLgInt の 0〜0 の固定を外す（N2.md:40 の道具の側） (8) M7 級の余震の臨時情報は P4-PWT-D-NANKAI-M7=A（N2.md:64 の合成の側） (9) R2 の合成の VTSE41（r2、:643〜）の Headline と本文の文面を報の区分に合わせる（R2.md:27） (10) persona-scenes.test.ts の T2-saori（:94〜:110）: 別々の公開サンプルを 1 つの EventID に束ねた報の震源と時刻を揃え（T2-saori.md:24）、VXSE53 の『津波の心配なし』を外し（T2-saori.md:40）、津波の時刻を UTC でなく JST で渡し（T2-saori.md:32）、vtse41・observation の返す XML の Headline の『合成の報』を区分に合う文に替えて到達予想時刻と高さを入れる（T2-saori.md:28・T2-saori.md:36）。tsunami-fixture.ts は 16 の試験 file が使うので変えず、persona-scenes.test.ts の中で書き換える (11) 発注前点検で統合担当が評価の原文を読んで直し方を決める 3 行（Q-PWT-T4-REST）: R2.md:32（観測の表が黙って消える、合成の側）・T2-yu.md:24（第 3 報が 69 秒更新なし）・T2-yu.md:30（未確認の期間が 27 分）。行数の見込み: synth.ts に 60〜90 行、persona-scenes.test.ts に約 20 行。件数と時刻を変えないことは T06 で確かめる",
         "evidenceRefs": [
           "reconstruction/test/disaster/synth.ts:460 «fad26db42960bb3e»",
+          "reconstruction/test/disaster/synth.ts:461 «a13f7428600b4392»",
           "reconstruction/test/disaster/synth.ts:494 «0ab959ca1ccd4ab1»",
           "reconstruction/test/disaster/synth.ts:516 «3fcf0ef0de535339»",
           "reconstruction/test/disaster/synth.ts:553 «5c70ede5bceddb92»",
           "reconstruction/test/disaster/synth.ts:555 «832784445fb26be9»",
           "reconstruction/test/disaster/synth.ts:577 «acc2f8ddb1bee368»",
           "reconstruction/test/disaster/synth.ts:586 «9ca6ad6971790a76»",
+          "reconstruction/test/disaster/synth.ts:592 «d01eee177269196c»",
+          "reconstruction/test/disaster/synth.ts:597 «59494864e0bbc224»",
+          "reconstruction/test/disaster/synth.ts:643 «6135cefdfc105d85»",
           "reconstruction/test/disaster/synth.ts:749 «bae335c94c2eb177»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:93 «c59aa333b2002e31»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:102 «6d45a359520e8dd2»"
@@ -308,23 +336,27 @@
       },
       {
         "id": "P4-PWT-AC08",
-        "requirement": "【発注 3】W1 の 0 時の切れ目（計画 6、Q4=A、P4-PWT-D-W1-START=A）: (1) scenario.ts の build の W1 の枝で、前日（06-02・06-25・09-20）の x-<前日>/ を同じ archiveDay で読み、受信時刻が前日の 18:00（JST）以上の frame をその日の frame の前に併せる（merge と同じ並べ）。startMs は前日の 18:00、endMs・区切り・期待例は今のまま（その日の 0 時から）。前日の dir が無ければ dataMissing（今の W1 と同じ扱い） (2) W2・N1〜N3・R1・R2 は変えない（W1_DAYS・t0Of・N3 の 06-26 の読みは今のまま） (3) persona-scenes.test.ts: W1 の筋書きでは、場面の候補のうちその日の 0 時より前のものを外す（演じ手の最初の場面の通知には、前日の 18:00 からの通知が入る） (4) W1 の 3 つの digest が変わる。統合担当は配送で新しい digest を AC09 の取り直しの FLEQ_DISASTER_DIGEST に使い、記録に書く。無いと: W1 は 0 時に空の状態から始まり、初めて見た L3 が warning の音で鳴り、09-21 は U-L が空なのに U-W に土砂がある（帳簿 W1-2026-06-03.md:28・W1-2026-09-21.md:50）",
+        "requirement": "【発注 3】W1 の 0 時の切れ目（計画 6、Q4=A、P4-PWT-D-W1-START=A）: (1) scenario.ts の build の W1 の枝で、前日（06-02・06-25・09-20）の x-<前日>/ を同じ archiveDay で読み、受信時刻が前日の 18:00（JST）以上の frame をその日の frame の前に併せる（merge と同じ並べ）。startMs は前日の 18:00、endMs・区切り・期待例は今のまま（その日の 0 時から）。前日の dir が無ければ dataMissing（今の W1 と同じ扱い。黙って 0 時から流さない）。既存の P3-DC-T07（disaster.test.ts:207 の辺り）は x-2026-06-03 だけを作るので、同じ試験の中で x-2026-06-02 に空の telegrams.json（[]）を作る行を足す（期待は変えない。frame は前日の 18:00 以上が 0 件なので今の [VPWW57, VPWW55] のまま） (2) W2・N1〜N3・R1・R2 は変えない（W1_DAYS・t0Of・N3 の 06-26 の読みは今のまま） (3) persona-scenes.test.ts: W1 の筋書きでは、場面の候補のうちその日の 0 時より前のものを外す（演じ手の最初の場面の通知には、前日の 18:00 からの通知が入る） (4) W1 の 3 つの digest が変わる。統合担当は配送で新しい digest を AC09 の取り直しの FLEQ_DISASTER_DIGEST に使い、記録に書く。無いと: W1 は 0 時に空の状態から始まり、初めて見た L3 が warning の音で鳴り、09-21 は U-L が空なのに U-W に土砂がある（帳簿 W1-2026-06-03.md:28・W1-2026-09-21.md:50）",
         "evidenceRefs": [
           "reconstruction/test/disaster/scenario.ts:82 «631608571e4b3e9b»",
           "reconstruction/test/disaster/scenario.ts:104 «ed8056c0461c1cd7»",
           "reconstruction/test/disaster/scenario.ts:106 «7787fbf04fe9c089»",
-          "reconstruction/test/disaster/scenario.ts:110 «8c03773a5d6cfa05»"
+          "reconstruction/test/disaster/scenario.ts:110 «8c03773a5d6cfa05»",
+          "reconstruction/test/disaster/disaster.test.ts:207 «90631b6a84c6d283»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «41a697c6cf92332c»"
         ]
       },
       {
         "id": "P4-PWT-AC09",
-        "requirement": "配送（統合担当）: (1) 発注 1 と 2 の配送は AC09 を取り直さない（T09 (2) の範囲 reconstruction/src・reconstruction/test/disaster のうち、発注 1 は触らず、発注 2 は runner.ts の場面の口だけを変えて formal の run の本体を変えない）。発注 2 と 3 の配送の間に歩き（T09 の門つきの it）を回さない (2) 発注 3 の配送で、統合担当が Mac mini で AC09 の 8 回（W1 の 3 日・W2・N1・N2・N3・R2）を P3-FG-AC09 と同じ formal の道具で取り直す（Q1=A）。前日の 3 日分は archive（item.json の sha256 を確かめる）を x-<日付>/ に無改変で展開し、MacBook と Mac mini の FLEQ_DISASTER_DATA の dir に置く。pass の 3 欄が全部 0 でなければ止めて報告する（outOfScope）。取り直した結果の gitHead が、歩きの T09 (2) の照合の基になる (3) «» の付け直し（実装担当は触らない）: 変える file の行を引く他の契約の ref は 36: persona-scenes.test.ts:248 が 1（p3-pi-measure-blocked-test.json。発注 1 で行が下へずれ、発注 2 で行の字が変わる。T09 が src と test/disaster の無差分を確かめる主張は P4-PWT-D-T09-MATCH=A でも真のまま）、runner.ts が 19（p3-disaster-pi-measure.json 11・p3-uw-canon.json 3・p3-final-review-fix.json 2・p3-unit-q-capacity.json 2・p3-weather-shape.json 1。発注 2 で :589 より後ろに行を足すとずれるのは p3-final-review-fix.json の :592 の 1 つ）、synth.ts が 13（p3-replay-watch-002.json 11・p3-uw-canon.json 2。発注 3 で :460 の eewBody の行の字が変わりうるのと、文面の直しの位置より後ろの :512・:718・:720 がずれうる）、scenario.ts:112 が 1（p3-weather-shape.json。発注 3 の W1 の枝の中）、p3-final-gate.json:911・:995 が 2（p3-heat-sound-normal.json。(4) の改訂で字が変わる）。行がずれただけなら .dr-tmp の reanchor-target.py、字が変わったら中身を読んで主張が真のままかを確かめてから reanchor-inplace.py で付け直し、改めた契約の meta.sha256 を取り直す。本契約の evidenceRefs も配送の木で取り直す (4) 原文の改訂（行の中の書き換え、行を足さない）: p3-final-gate.json の P3-FG-AC10 の requirement（:911）の (1) の末尾と、P3-FG-T09 の behavior（:995 の行の中）の (2) の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: AC09 の筋書きの場面の run は人物の契約で絞り、接続の層を足すので、AC09 の結果との照合は本体の hash でなく、絞る前の digest の一致と AC09 の gitHead からの src・test/disaster の無差分で行う（P4-PWT-D-T09-MATCH の作者の裁定）】』。演じ手への文（walk2/render.py）は AC03 (4)・AC07 (3) (5) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "requirement": "配送（統合担当）: (1) 発注 1 と 2 の配送は AC09 を取り直さない（発注 1 は T09 (2) の範囲 reconstruction/src・reconstruction/test/disaster に差分を足さず、発注 2 は runner.ts の場面の口だけを変えて formal の run の本体を変えない）。ただし 11-15 の歩きで使った AC09 の結果の後にも src は変わっている（283a82bb の R3 ほか）ので、今の HEAD でも T09 (2) の無差分は成り立たない。歩きの前の取り直しは発注 3 の配送の 1 回で、それより前に歩き（T09 の門つきの it の AC09 の筋書き）を回さない (2) 発注 3 の配送で、統合担当が Mac mini で AC09 の 8 回（W1 の 3 日・W2・N1・N2・N3・R2）を P3-FG-AC09 と同じ formal の道具で取り直す（Q1=A）。前日の 3 日分は archive（item.json の sha256 を確かめる）を x-<日付>/ に無改変で展開し、MacBook と Mac mini の FLEQ_DISASTER_DATA の dir に置く。pass の 3 欄が全部 0 でなければ止めて報告する（outOfScope）。取り直した結果の gitHead が、歩きの T09 (2) の照合の基になる (3) «» の付け直し（実装担当は触らない）: 変える file の行を引く他の契約の ref は 36: persona-scenes.test.ts:248 が 1（p3-pi-measure-blocked-test.json。発注 1 で行が下へずれ、発注 2 で行の字が変わる。T09 が src と test/disaster の無差分を確かめる主張は P4-PWT-D-T09-MATCH=A でも真のまま）、runner.ts が 19（p3-disaster-pi-measure.json 11・p3-uw-canon.json 3・p3-final-review-fix.json 2・p3-unit-q-capacity.json 2・p3-weather-shape.json 1。発注 2 で :589 より後ろに行を足すとずれるのは p3-final-review-fix.json の :592 の 1 つ）、synth.ts が 13（p3-replay-watch-002.json 11・p3-uw-canon.json 2。発注 3 で :460 の eewBody の行の字が変わりうるのと、文面の直しの位置より後ろの :512・:718・:720 がずれうる）、scenario.ts:112 が 1（p3-weather-shape.json。発注 3 の W1 の枝の中）、disaster.test.ts が 4（p3-disaster-pi-measure.json の :435・:441、p3-pi-measure-blocked-test.json の :488 は発注 3 の T07 の行の追加で下へずれる。p3-seismic-event-limit.json の :72 はずれない）、p3-final-gate.json:911・:995 が 2（p3-heat-sound-normal.json。(4) の改訂で字が変わる）、p3-disaster-capacity.json:57 が 3（p3-weather-shape.json 1・p3-uw-canon.json 2。(4) の改訂で字が変わる。W1 の 1 日の定義を引く主張が前日の 18:00 からでも真のままかを読む）。合わせて 43。行がずれただけなら .dr-tmp の reanchor-target.py、字が変わったら中身を読んで主張が真のままかを確かめてから reanchor-inplace.py で付け直し、改めた契約の meta.sha256 を取り直す。本契約の evidenceRefs も配送の木で取り直す (4) 原文の改訂（行の中の書き換え、行を足さない）: p3-final-gate.json の P3-FG-AC10 の requirement（:911）の (1) の末尾と、P3-FG-T09 の behavior（:995 の行の中）の (2) の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: AC09 の筋書きの場面の run は人物の契約で絞り、接続の層を足すので、AC09 の結果との照合は本体の hash でなく、絞る前の digest の一致と AC09 の gitHead からの src・test/disaster の無差分で行う（P4-PWT-D-T09-MATCH の作者の裁定）】』。p3-disaster-capacity.json の P3-DC-SCENARIOS の rule（:57）の W1 の節の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: W1 は前日の 18:00 から流し〔x-<前日>/ も要る〕、区切りと期待例はその日の 0 時から】』、P3-DC-SYNTH の rule（:63）の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: 文面の作り物を直した〔件数と時刻は同じ。M7 級の余震の津波注意報の解除は P4-PWT-D-M7-RELEASE〕】』。演じ手への文（walk2/render.py）は AC03 (4)・AC07 (3) (5) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
         "evidenceRefs": [
           "reconstruction/test/final-gate/persona-scenes.test.ts:248 «345a62f905230b70»",
           "reconstruction/test/disaster/runner.ts:592 «6c53688a822b368b»",
           "reconstruction/test/disaster/synth.ts:460 «fad26db42960bb3e»",
           "reconstruction/contracts/p3-final-gate.json:911 «b3b8d36e6de360b4»",
-          "reconstruction/contracts/p3-final-gate.json:995 «0a5ee370886ddadb»"
+          "reconstruction/contracts/p3-final-gate.json:995 «0a5ee370886ddadb»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «41a697c6cf92332c»",
+          "reconstruction/contracts/p3-disaster-capacity.json:63 «9b3da0dd5bac13cd»"
         ]
       },
       {
@@ -382,7 +414,7 @@
         "referenceIds": [
           "P4-PWT-AC06"
         ],
-        "behavior": "【発注 3】受入条件（Q1=A、件数と時刻を変えない）。synthesize の N1・N2（t0 は固定の値）・R2 の (atMs, headType) の列の sha256 が、発注 3 の前の synth.ts で取った値（実装担当が直す前に取り、試験の定数にする）と一致し、本文に『●』『これは訓練です』が無く、VYSE51 の号が報ごとに増え、各 EventID の EEW の最後の報に最終報がある"
+        "behavior": "【発注 3】受入条件（Q1=A、件数と時刻を変えない）。synthesize の N1・N2（t0 は固定の値）・R2 の (atMs, headType) の列から P4-PWT-D-M7-RELEASE=A の解除の VTSE41 を除いた列の sha256 が、発注 3 の前の synth.ts で取った値（実装担当が直す前に取り、試験の定数にする）と一致し、解除の VTSE41 は M7 級の余震ごとに 1 通で、本文に『●』『これは訓練です』が無く、VYSE51 の号が報ごとに増え、各 EventID の EEW の最後の報に最終報がある"
       },
       {
         "testId": "P4-PWT-T07",
@@ -491,6 +523,28 @@
         "resolveBy": "発注 2 の発注前点検",
         "requiredEvidence": [
           "dmdata の WS の ping の間隔の出どころ（dmdata の文書か、Pi の旧築・新築の受信の記録の ping の間隔の実測）"
+        ]
+      },
+      {
+        "id": "Q-PWT-T4-REST",
+        "owner": "integrator",
+        "blocks": [
+          "発注 3 の baseOid の割当（AC06 (11)）"
+        ],
+        "resolveBy": "発注 3 の発注前点検",
+        "requiredEvidence": [
+          "評価の原文（~/dev/fleq-vault-archive/2026-11-15-c3c/walk2/eval/ の R2.md:32・T2-yu.md:24・T2-yu.md:30）を読み、作っている所（synth.ts の r2・tsunami51 か、persona-scenes.test.ts の trial の T2-yu）と直し方を AC06 に書く。直せないものは理由を付けて残す"
+        ]
+      },
+      {
+        "id": "Q-PWT-D-M7-RELEASE",
+        "owner": "user",
+        "blocks": [
+          "発注 3 の baseOid の割当（AC06 (5)）"
+        ],
+        "resolveBy": "作者の裁定（P4-PWT-D-M7-RELEASE）",
+        "requiredEvidence": [
+          "作者の返事"
         ]
       },
       {
