@@ -272,11 +272,12 @@ function operationShown(screen: NonNullable<SceneCapture["fullScreen"]>, item: D
     || buildCapacityExceededLine(item) != null || (tsunami != null && buildCapacityExceededLine(tsunami) != null)
     || screen.notices.some((notice) => notice.operation === item.operation);
 }
-// P4-PWT-AC05 (2)（実不具合 T2-naoto.md:29）: 製品は items から確認状態の行を出すので、演じ手の screen の full の分野に要約の分野と同じ 3 欄を添える。
-// 行は製品が見せる operation だけ（実装レビュー: 見せない training・test の startup の行を渡していた）。
+// P4-PWT-AC05 (2)（実不具合 T2-naoto.md:29）: 製品は EEW の items から確認状態の行を出す（chrome-eew の client.ts の renderStatus。ほかの分野の確認状態は
+// 描かない）ので、演じ手の screen の EEW の分野が full のとき、要約の分野と同じ 3 欄を添える（統合担当の裁定、2026-11-18 14:3x）。行は製品が見せる operation
+// だけ（実装レビュー: 見せない training・test の startup の行を渡していた）。要約の分野の行も、製品の要約の行と同じく summaryRowVisible で絞る。
 type Shown = NonNullable<SceneCapture["screen"]>["current"][string];
 type ActorDomain = Exclude<Shown, { delivery: "full" }>
-  | (Extract<Shown, { delivery: "full" }> & Readonly<{ items: readonly Pick<DisplaySummaryItem, "operation" | "confirmation" | "unconfirmed">[] }>);
+  | (Extract<Shown, { delivery: "full" }> & Readonly<{ items?: readonly Pick<DisplaySummaryItem, "operation" | "confirmation" | "unconfirmed">[] }>);
 function actorScreen(scene: SceneCapture) {
   const { screen, fullScreen } = scene;
   // 2 つは同じ snapshot から作るので、片方だけ null にはならない。
@@ -284,7 +285,9 @@ function actorScreen(scene: SceneCapture) {
   const current: Record<string, ActorDomain> = {};
   for (const [key, domain] of Object.entries(fullScreen.current)) {
     const shown = screen.current[key];
-    if (shown != null) current[key] = shown.delivery !== "full" ? shown
+    if (shown == null) continue;
+    if (shown.delivery !== "full") current[key] = { ...shown, items: shown.items.filter((item) => domain.items.some((row) => row.operation === item.operation && summaryRowVisible(row))) };
+    else current[key] = key !== "eew" ? shown
       : { ...shown, items: domain.items.filter((item) => operationShown(fullScreen, item)).map(({ operation, confirmation, unconfirmed }) => ({ operation, confirmation, unconfirmed })) };
   }
   return { ...screen, current };
@@ -510,6 +513,9 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
     const summarized = Object.entries(scenes[0]?.screen?.current ?? {}).filter(([, domain]) => domain.delivery === "summary").map(([key]) => key);
     const facts = ["U-Q", "U-T"].map((unit) => scenes[0]?.facts[unit] ?? []);
     expect([summarized, facts.map((list) => list.length > 0 && list.every((item) => !item.shown))]).toEqual([["tsunami", "earthquake"], [true, true]]);
+    // 演じ手の要約の行は製品の要約の行と同じく normal と有効件数のある operation だけ（training・test は 0 件なので出ない）。
+    const actor = scenes[0] == null ? null : actorFile({}, scenes[0], []).screen;
+    expect(["tsunami", "earthquake"].map((key) => actor?.current[key]?.items?.map((item) => item.operation))).toEqual([["normal"], ["normal"]]);
   });
 
   it("P4-PWT-T04 (b) the card of a connection loss starts at the last ping before the loss, the same time as the actor's line", async () => {
@@ -532,8 +538,7 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
 
   it("P4-PWT-T05 with the connection layer the startup confirmation leaves as in the product, and the actor file shows the three columns", async () => {
     // 実不具合（N1.md:30・T2-naoto.md:29）: AC09 の筋書きは接続の層が無く確認状態が全部 startup のまま残り、full の分野の確認状態の行が場面に写らなかった。
-    // T09 と同じ sceneRun・actorFile を通る。normal の行で見る。沙織の契約（telegram.earthquake）で起動の取り直しが U-T・U-Q・U-N・U-M を流し始めに確かめ、
-    // U-E は接続から 10 分の tick（接続の層の 2 点の tick の 2 つ目。製品の毎秒の tick と同じ時刻）で確かめる。契約に無い分野は startup のまま（host も辿らない）。
+    // T09 と同じ sceneRun・actorFile を通る。U-E は接続から 10 分の tick（接続の層の 2 点の tick の 2 つ目。製品の毎秒の tick と同じ時刻）で確かめる。
     const start = jst("2026-10-19T18:00:00");
     const scenario = ready("P4-PWT-T05", [frame(start + 5 * MINUTE, "VXSE53", retimed("32-35_04_04_240613_VXSE53", start + 5 * MINUTE, "20261019180500"))],
       start, start + 15 * MINUTE);
@@ -541,14 +546,12 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
     const scenes: SceneCapture[] = [];
     await runStage1(scenario, options({ times: [start, start + 10 * MINUTE - 1_000, start + 10 * MINUTE], write: (scene) => scenes.push(scene) }));
     const screens = scenes.map((scene) => actorFile({}, scene, []).screen);
-    const startup = screens.map((screen) => screen == null ? null : Object.entries(screen.current).flatMap(([key, domain]) => domain.delivery === "full"
-      && domain.items.some((item) => item.operation === "normal" && "startup" in item.unconfirmed) ? [key] : []));
-    const outside = ["weatherCurrent", "weatherTimeseries", "volcano", "landslide", "flood", "briefing", "typhoon"];
-    expect(startup).toEqual([["eew", ...outside], ["eew", ...outside], outside]);
-    // 3 欄の写しは製品が見せる operation だけ（training・test は EEW・容量超過・notice が無いので出ない）。U-Q の normal は接続から 60 秒の tick の
-    // 取り直し（最初の接続のきっかけ）で確かめ直した時刻、U-E の normal は 10 分の確認の時刻。
-    const items = (key: string) => { const domain = screens[2]?.current[key]; return domain?.delivery === "full" ? domain.items : null; };
-    expect([items("earthquake"), items("eew")]).toEqual([[{ operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + MINUTE }, unconfirmed: {} }],
-      [{ operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + 10 * MINUTE }, unconfirmed: {} }]]);
+    // 3 欄は EEW の分野だけで、製品が見せる operation だけ（training・test は EEW・容量超過・notice が無いので出ない）。
+    const rows = screens.map((screen) => Object.entries(screen?.current ?? {}).flatMap(([key, domain]) => domain.delivery === "full" && domain.items != null ? [[key, domain.items]] : []));
+    const startup = { operation: "normal", confirmation: { state: "unconfirmed", confirmedAt: null }, unconfirmed: { startup: 1 } };
+    expect(rows).toEqual([[["eew", [startup]]], [["eew", [startup]]],
+      [["eew", [{ operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + 10 * MINUTE }, unconfirmed: {} }]]]]);
+    // 演じ手に渡らない U-Q の確認も製品と同じ時刻: 接続から 60 秒の tick の取り直し（最初の接続のきっかけ）で確かめ直す（評価者の写し）。
+    expect(scenes[2]?.fullScreen?.current.earthquake.items[0].confirmation).toEqual({ state: "confirmed", confirmedAt: start + MINUTE });
   });
 });
