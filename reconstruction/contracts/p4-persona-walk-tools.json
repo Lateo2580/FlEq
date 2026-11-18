@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "cda1bee884a0ec3cd6c5056663d667f7462cac852825e33896fbb198e7214cc7",
+    "sha256": "1ab82a8a61d2cead1d5de083dde87ababf808b6064e4147d6f33a9ecd4dc248d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -14,9 +14,9 @@
         "B": "沙織の契約に気象を足し、W1 を沙織に当てる",
         "recommended": "A",
         "provisional": "A",
-        "status": "作者待ち（Q3b、2026-11-18 に統合担当が作者へ聞いた。起草は A で書く）",
-        "ruling": "未裁定",
-        "blocks": "発注 3 の人物の契約の表（AC07 (1)）と、repo の外の render.py の BRIEF（AC07 (3)）",
+        "status": "確定（作者の裁定、2026-11-18 12:46、Q3b。W1 に気象を契約した W1 専用の 4 人目を足す）",
+        "ruling": "A（作者の裁定、2026-11-18 12:46）",
+        "blocks": "なし（裁定済み。人物の説明の字は AC07 (4) の provisional で作者の確かめ待ち）",
         "ifNotChosen": "B の場面: N2 の t0＋2 時間（巨大地震警戒の 120 が出た頃）の沙織の場面に、06-26 の気象の報を重ねた N3 の気象の欄と気象の通知が載る。Q3=A で消すはずだった『N3 に契約外の気象』（計画 7、帳簿 N3.md:35）が、契約の内のものとして残る",
         "reason": "今の 3 人（直人・悠・沙織、render.py の BRIEF）に気象を契約した人がいない。A は W1 の 3 日にだけ効き、ほかの筋書きの場面を変えない。B は N 系の沙織の場面（N3）にも気象を流す"
       },
@@ -121,8 +121,8 @@
         "id": "Q-PWT-RULINGS",
         "status": "closed",
         "source": "作者の裁定（2026-11-18 12:34「全て推奨で」）。直し計画（作業ノート『ペルソナ歩きの道具の直し計画』）の Q1〜Q4",
-        "closed": "Q1=A: 合成の報の文面を synth.ts の既定のまま直す（件数と時刻は変えない）。AC09 の 8 回を Mac mini で取り直す（統合担当が配送で回す）。歩きのときだけ働く切り替えは足さない。Q2=A: CLI の分野の既定の門を演じ手の通知と場面の候補の両方に当て、止めた試行は評価者の file に印つきで残す。Q3=A: 人物が契約している区分で流す報を絞る（familyFor と host.ts の VXSE43 の捨てを写す）。Q4=A: W1 の 0 時の切れ目に前日分を足し、前日の夕方から流して 0 時より前を場面の候補から外す。前日分（dmdata の日ごとの archive、2026-06-02・06-25・09-20）は統合担当が取得済み（~/dev/fleq-corpus-p0/20260923-capacity/、item.json に sha256）。Q3b（W1 に当てる人物）は P4-PWT-D-W1-PERSONA で作者待ち",
-        "remaining": "P4-PWT-D-W1-PERSONA"
+        "closed": "Q1=A: 合成の報の文面を synth.ts の既定のまま直す（件数と時刻は変えない）。AC09 の 8 回を Mac mini で取り直す（統合担当が配送で回す）。歩きのときだけ働く切り替えは足さない。Q2=A: CLI の分野の既定の門を演じ手の通知と場面の候補の両方に当て、止めた試行は評価者の file に印つきで残す。Q3=A: 人物が契約している区分で流す報を絞る（familyFor と host.ts の VXSE43 の捨てを写す）。Q4=A: W1 の 0 時の切れ目に前日分を足し、前日の夕方から流して 0 時より前を場面の候補から外す。前日分（dmdata の日ごとの archive、2026-06-02・06-25・09-20）は統合担当が取得済み（~/dev/fleq-corpus-p0/20260923-capacity/、item.json に sha256）。Q3b（W1 に当てる人物）は作者の裁定 A（2026-11-18 12:46、P4-PWT-D-W1-PERSONA）",
+        "remaining": "なし（4 人目の人物の説明の字は AC07 (4) で作者の確かめ待ち）"
       },
       {
         "id": "Q-PWT-DRAFT-R0",
@@ -324,7 +324,7 @@
       },
       {
         "id": "P4-PWT-AC07",
-        "requirement": "【発注 3】人物の契約で流す報を絞る（計画 7、Q3=A）: (1) 人物ごとの契約の区分: 直人 = eew.warning、悠 = eew.forecast、沙織 = eew.warning・eew.forecast・telegram.earthquake、4 人目（P4-PWT-D-W1-PERSONA=A）= telegram.weather・eew.warning。筋書きの frame は familyFor(headType) が契約にあるものだけを流し、契約に eew.forecast があれば VXSE43 を流さない（host.ts:326 の捨て）。W1 の 3 日は 4 人目に当てる（:224 の直人を替える） (2) N3 は P4-PWT-D-N3=A なら歩きの筋書きから外す（AC09 の N3 は残す）。runner に渡す筋書きの digest は絞った後の列で取り直し（scenario.ts の digestOf と同じ形）、index.json に絞る前の digest（AC05 (3) の照合に使う）・絞った後の digest・落とした frame の数を書く (3) repo の外の改訂（統合担当が当てる、walk2/render.py の写し）: BRIEF に 4 人目を足す（下書きは下の (4)）。COMMON の『提示されていない通知は知りません。』の後に『FlEq の通知（デスクトップ通知と音）は、FlEq を動かしている機械から出ます。スマートフォンには届きません。』を足す（帳簿 W1-2026-06-03.md:36。直人の説明の『通知があればスマートフォンも確認します』と読み合わさり、演じ手が通知をスマートフォンへの通知と取った） (4) 4 人目の人物の説明の下書き（provisional、P4-PWT-D-W1-PERSONA が A のとき）: 『あなたは千尋、51歳。川沿いの平野にある一戸建てで一人暮らしをしています。大雨や台風の情報を一か所で見たくて導入し、使い始めて２か月です。契約時には気象の情報と緊急地震速報（警報）を選びました。注意報・警報・特別警報の順に重くなること、警戒レベルは数字が大きいほど危険なことは知っていますが、土砂災害警戒情報や指定河川洪水予報の区分の細かい違いは学んでいません。自宅の浸水想定と避難先は市のハザードマップで確かめています。普段は約３ｍ離れた居間の画面を時々見る程度です。老眼のため細かい字は近づいて確認します。聴力に支障はありません。今見聞きしたことから、何が起きていると思うか、次にどうするかを答えてください。』。無いと: 直人（EEW の警報だけ）に W1 の気象を全部流し、N 系の沙織に VXSE43 の警報の行が VXSE45 と 2 行並び、N3 の沙織に契約外の気象が載る（帳簿 W1-2026-06-03.md:32・W1-2026-06-26.md:22・N1.md:22・N2.md:28・N3.md:28・N3.md:35）",
+        "requirement": "【発注 3】人物の契約で流す報を絞る（計画 7、Q3=A）: (1) 人物ごとの契約の区分: 直人 = eew.warning、悠 = eew.forecast、沙織 = eew.warning・eew.forecast・telegram.earthquake、4 人目（P4-PWT-D-W1-PERSONA=A）= telegram.weather・eew.warning。筋書きの frame は familyFor(headType) が契約にあるものだけを流し、契約に eew.forecast があれば VXSE43 を流さない（host.ts:326 の捨て）。W1 の 3 日は 4 人目に当てる（:224 の直人を替える） (2) N3 は P4-PWT-D-N3=A なら歩きの筋書きから外す（AC09 の N3 は残す）。runner に渡す筋書きの digest は絞った後の列で取り直し（scenario.ts の digestOf と同じ形）、index.json に絞る前の digest（AC05 (3) の照合に使う）・絞った後の digest・落とした frame の数を書く (3) repo の外の改訂（統合担当が当てる、walk2/render.py の写し）: BRIEF に 4 人目を足す（下書きは下の (4)）。COMMON の『提示されていない通知は知りません。』の後に『FlEq の通知（デスクトップ通知と音）は、FlEq を動かしている機械から出ます。スマートフォンには届きません。』を足す（帳簿 W1-2026-06-03.md:36。直人の説明の『通知があればスマートフォンも確認します』と読み合わさり、演じ手が通知をスマートフォンへの通知と取った） (4) 4 人目の人物の説明の下書き（provisional。P4-PWT-D-W1-PERSONA=A は確定、説明の字そのものは作者の確かめ待ちで、作者が直した字を統合担当が render.py の BRIEF に当てる。契約に緊急地震速報〔警報〕も入れたのは起草の判断で、W1 の 3 日の報は全部 telegram.weather なので W1 の場面には効かない）: 『あなたは千尋、51歳。川沿いの平野にある一戸建てで一人暮らしをしています。大雨や台風の情報を一か所で見たくて導入し、使い始めて２か月です。契約時には気象の情報と緊急地震速報（警報）を選びました。注意報・警報・特別警報の順に重くなること、警戒レベルは数字が大きいほど危険なことは知っていますが、土砂災害警戒情報や指定河川洪水予報の区分の細かい違いは学んでいません。自宅の浸水想定と避難先は市のハザードマップで確かめています。普段は約３ｍ離れた居間の画面を時々見る程度です。老眼のため細かい字は近づいて確認します。聴力に支障はありません。今見聞きしたことから、何が起きていると思うか、次にどうするかを答えてください。』。無いと: 直人（EEW の警報だけ）に W1 の気象を全部流し、N 系の沙織に VXSE43 の警報の行が VXSE45 と 2 行並び、N3 の沙織に契約外の気象が載る（帳簿 W1-2026-06-03.md:32・W1-2026-06-26.md:22・N1.md:22・N2.md:28・N3.md:28・N3.md:35）",
         "evidenceRefs": [
           "reconstruction/src/decode-material/decode-material.ts:411 «4b254d32c9b7669a»",
           "reconstruction/src/host/host.ts:326 «d3d3ceac5d293407»",
@@ -543,17 +543,6 @@
           "発注 3 の baseOid の割当（AC06 (5)）"
         ],
         "resolveBy": "作者の裁定（P4-PWT-D-M7-RELEASE）",
-        "requiredEvidence": [
-          "作者の返事"
-        ]
-      },
-      {
-        "id": "Q-PWT-D-W1-PERSONA",
-        "owner": "user",
-        "blocks": [
-          "発注 3 の baseOid の割当（AC07 (1)(3)(4)）"
-        ],
-        "resolveBy": "作者の裁定（P4-PWT-D-W1-PERSONA、Q3b）",
         "requiredEvidence": [
           "作者の返事"
         ]
