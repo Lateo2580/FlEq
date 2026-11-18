@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-  "sha256": "07a39ab226f22665997466f88a4bb16ee3caac5257fb521be8e3ed3a2e225e17",
+  "sha256": "6a266710d385904210b86c997a9d73a7c2f25c9b6785042bb8b03f1ca2852fdd",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -47,6 +47,20 @@
     "source": "起草の写し（2026-11-18、MacBook。worktree ~/dev/fleq-ext2-draft に案〔.dr-tmp/proposal-r0.diff〕を当て、XDG_CONFIG_HOME を .dr-tmp/xdg に向けた）",
     "closed": "r1（2026-11-18、138 の置き換えを :510 に移した案 .dr-tmp/proposal-r1.diff を base に当てた木）: (1) tsc 3 本 rc 0 (2) vitest --maxWorkers=2 で reconstruction/test/terminal・recovery・host・parser-boundary の 4 dir を回し rc 0、Test Files 49 passed・Tests 583 passed（corpus の端末の写しの試験〔eew・seismic・tsunami・layout ほか〕と P1-T04 の export の数えを含む。既存の試験は期待を変えずに全部緑） (3) --sequence.shuffle で host.test.ts・recovery.test.ts・update-check.test.ts rc 0、116 passed（seed 1794974725729） (4) 歯: 製品の 3 行を 912e951a の行に戻した木（試験は残す）で T01・T02・T03 だけを回し rc 1、3 本とも落ちた。T01 は題名の行が「津波警報<ESC>[2J<BEL><TAB>  解除」で生の制御の字が true、T02 は「区分: [eew.forecast, x<ESC>[2J<BEL><TAB>  y]」、T03 は後ろの 6 つが版を返した（CR と U+0085 は今も painter が空白にするので、T01・T02 で落ちた字は ESC・BEL・TAB） (5) bodyKey の字: headOf で替える r0 の形に戻した木で T01 だけを回し rc 1、(a) の ListHead の題名が「津波警報 [2J    解除」になって落ちた。r1 の形では生の字のまま（T01 の (a)）。bodiesFor の既存の試験（P3-REC-T17 の U-M の竜巻の鍵）は ListHead を直に組むので headOf を通らず、この差は見えない (6) check-contract は契約だけの木と案を当てた木の両方で PASS（3 file の変える行を引く «» は無い、AC04 (2)）。r0（.dr-tmp/proposal-r0.diff、headOf で替える形）は起草の途中で作業木を 1 回 base に上書きし、diff から作り直した木で回し直した記録がある",
     "remaining": "なし（実装担当は本物の木で requiredCommands を回し直す。全試験は親が Mac mini で回す）"
+   },
+   {
+    "id": "Q-TET2-REVIEW",
+    "status": "closed",
+    "source": "起草レビュー r0（2026-11-18、Opus の品質と契約適合の 2 本）と r1 の確かめ直し（同じ 2 本）",
+    "closed": "r0: 品質 GO（P3: 138 を headOf で替えると bodyKey〔recovery.ts の :200〕も替えた後の字になり、制御の字と空白だけが違う 2 つの題名が同じ subject になる。本文の側の validKeyTitle は生の題名を見るので鍵の字が食い違いうる → r1 で buildDigest〔:510〕へ移した、統合担当の決め）、契約適合 GO（P3 3 件: AC06 (1) の列挙を grep の結果と合わせる・D-VERSION の効きを semver の版に限る・p3-terminal-output.json の P3-TO-AC13 の注記を AC06 に足す → r1 で 3 件とも直した。品質の P3〔T01 の CR と U+0085 は歯にならない〕は試験の中のコメントで注記）。r1 の確かめ直し: 品質 GO（138 の漏れなし、bodyKey は生の字で一覧と本文の鍵が揃う、T01 は直す前と headOf で替える形の 2 つで落ちる）、契約適合 GO（P3-1〜3 が閉じた、案の木と契約だけの木で check-contract が PASS 158）",
+    "remaining": "なし"
+   },
+   {
+    "id": "Q-TET2-PRECHECK",
+    "status": "closed",
+    "source": "発注前点検（統合担当、2026-11-18 13:2x。draft/ext2 を main 21a278d2 の上へ rebase した木 31540a8b）",
+    "closed": "(1) decisionBranches は P4-TET2-D-VERSION の 1 つで確定（B、統合担当）、「起草案」は 0 件 (2) base は main 21a278d2（P4-AC13-REST-001 の配送の後。draftedFromOid の 912e951a の子孫）で、案 .dr-tmp/proposal-r1.diff はそのまま当たる（patch --dry-run rc 0） (3) 案を当てた木の check-contract は rc 0（PASS 159、他の契約の FAIL 0。P4-AC13-REST-001 が改訂した p3-final-review-fix.json:254・p3-terminal-output.json:698 は AC06 で改める行と別） (4) 後の作者裁定で前提が変わったものは無い",
+    "remaining": "なし"
    }
   ],
   "operationContract": {
