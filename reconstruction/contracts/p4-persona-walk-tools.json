@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "f93ec3f6a635287b13be16269eb79f4f3a6a8131eec5e2e67ee33e35f0054c8b",
+    "sha256": "0a7255c5b3d180e290285d096ab15b0b315f21b88007056efeb141a4268507c7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -200,6 +200,13 @@
         "source": "発注 3 の実装（branch impl/walk3: 43e7dadc→cee5e7cf→2d775ffb→fb50d76e、Opus の子）と実装レビュー（ヘルツ thread 01a1ed73 の r0〜r2、Opus の契約適合）、統合担当の配送の当て（2026-11-18）",
         "closed": "(1) 経緯: 43e7dadc で AC06〜AC08 を入れた。ヘルツ r0 は条件付き GO（合成の値の P2 5 件）で cee5e7cf・2d775ffb（N 系の沖合の津波観測の推定を筋書きの大津波警報の区域から作る）で直し、r1 は NO-GO（EEW の Body の最大予測震度の位置）で fb50d76e（Headline の書き換えの後の位置で直し、T06 に値の確かめ）、r2 GO。Opus（契約適合）は 43e7dadc で条件付き GO（実装は AC06〜AC08 の字の内、条件は配送の当て: P3-DC-SYNTH への注記に限りの外の書き換えを名指すこと） (2) 統合担当の決め: T2-saori の到達予想時刻 18:45・高さ 10・3・1 m は合成の筋書きの値として受け入れる。臨時情報の伏せ字は、筋書きから決まる値は埋め、決まらない文は落とす。VTSE52 の推定の欄も直す範囲に入れた (3) 試験の無い項（Opus が挙げたもの、AC06 (8) の南海の M7 の 130→120 と (9) の R2 の VTSE41 の文面など）は、AC10 の評価の 1 巡で演じ手と評価者の file を読んで確かめる（試験は足さない。最小テストの限りの外） (4) formal の取り直し: N1・N2 の status は Fail だが、P3 の AC09 と同じ failingSummaries（U-E・U-T・U-Q の要約、P3-DC-PASS の 4 つ目で P4 へ持ち越し）によるもので、pass の 3 欄（inputRejections・capacityLosses・expectationsFailed）は 0。R1 は採取物が無く流していない（outOfScope の R1） (5) repo の外の改訂（AC03 (4)・AC07 (3)(4): render.py の COMMON の 1 文・千尋の BRIEF・省いた件数の注記）は ~/dev/fleq-vault-archive/2026-11-18-walk/walk3/render.py に当て済み。歩きの筋書きの一覧から W2・N3 を外すのは、評価の 1 巡（AC10）の準備で統合担当が行う (6) 配送の当て: AC09 (4) の p3-disaster-capacity.json の 2 つの注記（:63 には限りの外の書き換えと観測点の作り方を足した）、«» の付け直し（変えた 4 file を引く他の契約の ref 19 本と本契約の 39 本。字の変わったものは今の木の行を中身で選んだ）、p3-replay-watch-002.json の P3-RW2-AC09 に eewBody の形が変わった注記",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT-AC09-RERUN",
+        "status": "closed",
+        "source": "統合担当（2026-11-18 17:47）",
+        "closed": "AC09 (2) の取り直し（Mac mini、~/dev/fleq-pwt3 を 03c899f1 に、tsc 3 本の後に FLEQ_DISASTER=1 の formal を 1 本ずつ、出力 ~/dev/pwt3-out、写し ~/dev/fleq-vault-archive/2026-11-18-pwt3/、P3 の c3c-out・c3c-out2 は上書きしていない）。8 本とも rc 0、gitHead 03c899f1、pass の 3 欄（inputRejections・capacityLosses・capacityLossQuakeEvents）と expectationsFailed は全部 0。W1:2026-06-03 Pass 109 秒 3,166 frame 50f5b295932be715a44962705683d06dcf553f5c1be6d3a65fc7390c4e6a68b3／W1:2026-06-26 Pass 104 秒 3,460 frame 6f447ae2e3a9866d00a148603fc0298f3e05c3afee7ca439282ce97f5ec52f19／W1:2026-09-21 Pass 92 秒 2,556 frame b9bffb9212a37e0ef4709f5b76f9b42cd7ab51d6c3aafbcf4e109be851ed4c4a／W2 Pass 272 秒 7,720 frame dfcf120afb76522805c46395a7146745d22d17c0e8fc1c04098d07693a48de2e（P3 と同じ。合成を使わない）／N1 Fail〔failingSummaries U-T・U-Q〕52 秒 2,651 frame 4f188cd6576a367fdf5daab47f643973f6c874bf8423c1655f7c0662fba7c8c1／N2 Fail〔U-E・U-T・U-Q〕193 秒 5,313 frame f70e2df5f977a4f784f279336ef3b0287e3f982f6a5ef7ef4732b9f39f5c652e／N3 Fail〔U-E・U-T・U-Q〕293 秒 8,189 frame 9bdd5ed52488508af7062d2d08f975251f58f87a97936d59be00f45515643733／R2 Pass 2 秒 89 frame 757a0de396422413a512e747aa71d05386c8588a8b54e76d18d34b97aaa543de。W1 は前日の 18:00 からで、1 本 92〜109 秒（T09 の 35 分の予算に収まる）。status の Fail は P3 の AC09 と同じく要約の区間で、P3-FG-AC09 のとおり判定に使わない。門つきの T09（~/dev/pwt3-out/scenes、歩きに回す 9 筋書き）: W1 の 3 日・N1・N2・R2 は各 8 場面、T2-naoto 4・T2-saori 5・T2-yu 4、どれも blocked なし、AC09 の筋書きは digestMatches・sourceUnchanged とも true。計画の受入 1〜3 を場面の file で機械で確かめた（pwt3-check.py）: R2 の 2011-03-12 03:20 の大津波警報と W1-09-21 の 12:40 の東京都（大島）の土砂災害警報が演じ手の通知に残る、既定で off の分野は演じ手に無く評価者に stoppedBy category で残る、要約の分野の facts は 7 場面・3,419 件で shown true 0、R2 の lastInputAt は null でない、N 系の演じ手に VXSE43 が無い、W1 の人物は千尋、演じ手の file に伏せ字と「これは訓練です」が無い",
+        "remaining": "評価の 1 巡（AC10、作者に規模を伝えて承認を待つ）"
       }
     ],
     "operationContract": {
