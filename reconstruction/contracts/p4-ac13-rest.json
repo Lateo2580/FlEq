@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "a4b43d2f9aa64e508f290523b192eb80bd46a099fe50d073ae114841b58c64a4",
+    "sha256": "598d5588ada9e7b223731afacaf43c9b508db6d7197b977ad5111fdcbe4178d1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -60,6 +60,20 @@
         "status": "closed",
         "source": "起草 r0 の起草レビュー（ヘルツ〔品質〕条件付き GO、Opus〔契約適合〕GO、2026-11-18）と起草 r1（worktree ~/dev/fleq-ac13r-draft、案は .dr-tmp/proposal-r1.diff）",
         "closed": "(1) ヘルツ P2（Opus P3-1 も同じ所）: r0 の案は型の外の欄を落とした後の値で 16 MiB を測り、partial に note を足した保存で上限から 1 byte 越えを直す前は invalid、案は restored と受け、encode とも食い違った（ヘルツが実測）。r1 で容量は落とす前の確かめた元の値で測る（AC01 (6)、P4-AC13R-T03）。D-EXTRA の reason を『落とすが受理と拒否は直す前と同じ』に揃え、B の引き方を AC01 (6) に狭めた (2) ヘルツ P3: T01 の入力が正規形だけで partials を素通しする変異が通った。T01 の decode の入力に型の外の欄を 6 か所足した (3) Opus P3-2〜P3-5・見ること 5: D-SCOPE=A を AGENTS.md:28 の例外と outOfScope に書き src の行末の注記を AC01 (7) に、台帳とバックログを AC03 (5) に、lastKnown の非対称を D-SCOPE の ifNotChosen に、未追跡の道具の参照を操作の規則（AC03 (3)(4)）と測る state の形（artifactRequirements）に替え、AC01 (5) に時間で替え忘れを見ることを足した (4) r1 の案: weather-current-unit.ts 856 行のまま。tsc 3 本 rc 0、test/weather-current-unit と test/terminal の 40 file 347 件 rc 0、shuffle（2 file、seed 1794974229779）43 件 rc 0。直す前の製品に T01〜T03 を当てると T01 だけ落ちる。歯 7 本（r0 の a〜e と f partials だけ元の record を返す・g 容量を組み立てた後の値で測る）がどれも落ちた（a・b・e は T02、c・d・f は T01、g は T03）。時間は H=384 で decode 1.876 ms・encode 1.428 ms、H=128 で 0.637・0.478 ms、byte の sha256 は直す前と同じ。案を当てた木の check-contract は他契約の FAIL 0",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-AC13R-REVIEW-R1",
+        "status": "closed",
+        "source": "起草 r1 の再レビュー（ヘルツ〔品質〕、thread 01a1ecc0、2026-11-18）",
+        "closed": "GO。r0 の P2（容量を組み立てた後の値で測る）と P3（T01 の入力が正規形だけ）は閉じた。新しい問題は無い。型の外の欄を 8 か所に置いた 16 の境界入力で、直す前と受理・拒否が一致した。partials を素通しする変異と、容量を組み立てた後の値で測る変異は、T01・T03 で落ちる。契約適合（Opus）は r0 で GO",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-AC13R-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-18 13:04）",
+        "closed": "(1) decisionBranches の 3 つ（D-DROPPED・D-EXTRA・D-SCOPE）はどれも確定で、『起草案』は 0 件 (2) main と origin/main は 912e951a のままで、draftedFromOid と同じ (3) 変える行を引く他の契約の «» は 0 件（契約＋案の木の check-contract で、FAIL は本契約の行のずれだけ。Opus r0 も自前の照合で確かめた） (4) 後の作者裁定で前提が変わったものは無い（R9＝B は Q-AC13R-R9 に記録済み） (5) 実装は案 proposal-r1.diff と AC01 (7) の注記を当て、本契約の «» 5 件（weather-current-unit.ts の 3 件・eew-log.ts・eew-log.test.ts の各 1 件。行のずれ）は実装の後に付け直す",
         "remaining": "なし"
       },
       {
