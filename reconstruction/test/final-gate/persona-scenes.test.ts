@@ -676,12 +676,36 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
       return items.length === 0 || items.some(([, code, arrival]) => !areas.has(code) || Date.parse(arrival) <= Date.parse(tag(xml, "OriginTime")!)) ? [item.atMs] : [];
     });
     expect([strays(lists.N1), strays(lists.N2)]).toEqual([[], []]);
+    // 本文の最大予測震度は、どの報でも区域の最大（実装レビュー r2: 第 1〜4 報が 6 強の区域に 6 弱のままだった）。
+    expect(ofMain("VXSE45").filter((item) => {
+      const body = text(item).slice(text(item).indexOf("<Body")), areaInts = [...body.matchAll(/<\/Category><ForecastInt><From>([^<]*)</g)].map((match) => match[1]);
+      const order = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
+      return /<Forecast>[\s\S]*?<ForecastInt><From>([^<]*)</.exec(body)?.[1] !== areaInts.reduce((top, int) => order.indexOf(int) > order.indexOf(top) ? int : top, "0");
+    }).map((item) => tag(text(item), "Serial"))).toEqual([]);
+    // 推定は同じ地震の予報の大津波警報の区域のうち到達の早い 2 区域で、到達はその予報の到達、最大波はその 10 分後。
+    const firstForecast = text(lists.N1.find((item) => item.source === "synth:VTSE41")!);
+    const expected = [...firstForecast.matchAll(/<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>\s*<Category>\s*<Kind><Name>[^<]*<\/Name><Code>5[23]<\/Code>[\s\S]*?<ArrivalTime>([^<]*)</g)]
+      .map(([, code, arrival]) => ({ code, arrival: Date.parse(arrival) })).sort((a, b) => a.arrival - b.arrival).slice(0, 2)
+      .map(({ code, arrival }) => `${code},${jstText(arrival)},${jstText(arrival + 10 * MINUTE)}`);
+    expect([...new Set(lists.N1.filter((item) => item.source === "synth:VTSE52").map((item) => [...text(item).slice(text(item).indexOf("<Estimation>"))
+      .matchAll(/<Code>(\d+)<\/Code><\/Area>\s*<FirstHeight>\s*<ArrivalTime>([^<]*)<\/ArrivalTime>[\s\S]*?<MaxHeight>\s*<DateTime>([^<]*)</g)].map((match) => match.slice(1).join()).join("|")))])
+      .toEqual([expected.join("|")]);
+    // 警告の文と code は区分から（注意報だけは 0123、全部の解除は 0107）、領域表現は載せない。
+    const warningComment = (item: Frame) => /<WarningComment[^>]*>\s*<Text>([^<]*)<\/Text>\s*<Code>([^<]*)</.exec(text(item))?.slice(1).map((value) => value.slice(0, 11)).join();
+    expect([warningComment(lists.N1.find((item) => item.source === "synth:M7:VTSE41")!), warningComment(lists.N1.find(release)!),
+      Object.values(lists).flat().some((item) => item.headType === "VTSE41" && item.origin === "synthetic" && text(item).includes("津波予報領域表現"))])
+      .toEqual(["＜津波注意報＞\n海の中,0123", "現在、大津波警報・津波,0107", false]);
     // 臨時情報: M7 級の余震の後も巨大地震警戒（P4-PWT-D-NANKAI-M7=A）、筋書きで決まる伏せ字（警戒の期限・次回の時刻・中心の地方）は埋める。
     const nankaiCode = (item: Frame) => /<Code>(\d+)<\/Code>\s*<\/InfoSerial>/.exec(text(item))?.[1];
     expect(lists.N1.filter((item) => item.headType === "VYSE50").map(nankaiCode)).toEqual(["111", "111", "120", "120", "111", "120"]);
-    const commentary = lists.N2.filter((item) => item.headType === "VYSE51").map(text);
-    expect([commentary.every((xml) => xml.includes("まで警戒する措置")), commentary.map((xml) => xml.includes("次回の情報発表は")).lastIndexOf(true),
-      text(lists.N2.find((item) => item.source === "synth:VYSE50:120")!).includes("近畿地方を中心に")]).toEqual([true, 12, true]);
+    const commentary = lists.N2.filter((item) => item.headType === "VYSE51");
+    // 期限は最初の巨大地震警戒の発表から 7 日、次回は次の臨時解説の時刻（列から照らす）。
+    const hourOf = (ms: number, month: boolean) => { const date = new Date(ms + 9 * 60 * MINUTE);
+      return `${month ? `${wide(date.getUTCMonth() + 1)}月` : ""}${wide(date.getUTCDate())}日${wide(date.getUTCHours()).padStart(2, "０")}時`; };
+    const until = hourOf(lists.N2.find((item) => item.source === "synth:VYSE50:120")!.atMs + 7 * 24 * 60 * MINUTE, true);
+    expect([commentary.every((item) => text(item).includes(`${until}まで警戒する措置`)),
+      commentary.slice(0, -1).every((item, index) => text(item).includes(`次回の情報発表は、${hourOf(commentary[index + 1].atMs, false)}頃を予定`)),
+      text(commentary.at(-1)!).includes("次回の情報発表は"), text(lists.N2.find((item) => item.source === "synth:VYSE50:120")!).includes("近畿地方を中心に")]).toEqual([true, true, false, true]);
     // T2-saori（AC06 (10)）: 地震の報は EEW の最後の報と同じ発生時刻と震源、津波の報は JST、観測点の組は公開型と同じ（銚子は千葉県九十九里・外房の 31001）。
     const saori = trial("T2-saori"), saoriFrames = saori.scenario.kind === "ready" ? saori.scenario.frames.map(text) : [];
     const origin = tag(saoriFrames.filter((xml) => xml.includes("<Title>緊急地震速報（地震動予報）</Title>")).at(-1)!, "OriginTime");

@@ -575,8 +575,9 @@ function eewBody(template: string, at: number, origin: number, eventId: string, 
   xml = xml.replace(/<Headline>[\s\S]*?<\/Headline>/, listed.length === 0 ? "<Headline><Text></Text></Headline>"
     : `<Headline><Text>${shock?.hypocenter.name ?? hypocenterOf(xml)?.name ?? ""}で地震　${prefs.map((pref) => pref.name).join("　")}で強い揺れ</Text>${
       info("緊急地震速報（府県予報区）", "緊急地震速報／府県予報区", prefs)}${info("緊急地震速報（細分区域）", "地震情報／細分区域", listed.map((item) => item.area))}</Headline>`);
-  const max = areas.reduce((value, item) => higher(value, item.int), "0"), lg = Math.max(...lgs);
-  return xml.slice(0, body) + xml.slice(body).replace(/<ForecastInt><From>[^<]*<\/From><To>[^<]*<\/To><\/ForecastInt>/, `<ForecastInt><From>${max}</From><To>${max}</To></ForecastInt>`)
+  // Headline を書き換えた後なので Body の位置を取り直す（実装レビュー r2: 古い位置で Body の最大予測震度を書き換え損ねた）。
+  const max = areas.reduce((value, item) => higher(value, item.int), "0"), lg = Math.max(...lgs), bodyAt = xml.indexOf("<Body");
+  return xml.slice(0, bodyAt) + xml.slice(bodyAt).replace(/<ForecastInt><From>[^<]*<\/From><To>[^<]*<\/To><\/ForecastInt>/, `<ForecastInt><From>${max}</From><To>${max}</To></ForecastInt>`)
     .replace(/<ForecastLgInt><From>[^<]*<\/From><To>[^<]*<\/To><\/ForecastLgInt>/, `<ForecastLgInt><From>${lg}</From><To>${lg}</To></ForecastLgInt>`);
 }
 
