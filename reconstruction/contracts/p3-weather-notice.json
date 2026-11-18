@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "28b4a642cd523c920f077677feef9f1ad08835533e2a0a40ac6654bcdcb02300",
+    "sha256": "1fdd7b8fc37ab138162c766d7a6542b1a5d32b0226f8a1ec225f43faa8aab2c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -786,7 +786,7 @@
           "reconstruction/contracts/p2-notification-delivery.json:159 «3a059d6494463640»",
           "reconstruction/contracts/p2-weather-current-unit.json:381 «33381152f78f4cab»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:420 «8bdd44bcb281344a»",
-          "reconstruction/contracts/p3-recovery.json:1120 «198ebeaaf97bcbb8»",
+          "reconstruction/contracts/p3-recovery.json:1120 «b3e67387a30f5582»",
           "reconstruction/contracts/p3-notice-ledger.json:595 «7169a5a4f59dce48»",
           "reconstruction/contracts/p3-cli-repl.json:1113 «6235e154b5559e6a»",
           "reconstruction/contracts/p3-intent-update-reserve.json:46 «659b9165e808c99d»",

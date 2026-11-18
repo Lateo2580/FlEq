@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
-    "sha256": "204c0a3cebe59042117f1beabc4db4fa6914e29a94224a56b8e21cc8d279da24",
+    "sha256": "f7ac94be8e1c4ffb8053314f2482cb0602d7d19f49e988de5ba8e6f523bcbb68",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -187,13 +187,13 @@
         "id": "P4-URC-AC01",
         "requirement": "切り（recovery.ts の bodiesFor、P4-URC-D-CUT=A、P4-URC-D-SCOPE=A（α′））: (1) 基点: U-W のとき、運用区分ごとに取消でない VPWS50 の頭のうち受信時刻の最大のもの（同じ受信時刻は先に見た方）。決め方は直す前（:217）のまま (2) partial（VPWS50 でない U-W の頭）は、その運用区分の基点があり、partial の受信時刻が基点の受信時刻以下で（直す前の :222 の条件のまま）、かつ次のどちらかのときだけ落とす: 基点の報時刻が読めない（直す前と同じ受信時刻の切り）、または partial の報時刻が読めて基点の報時刻より小さい。報時刻が基点と同じ partial（P3-UTP-D-TIE=A の向き）と報時刻の読めない partial は落とさない（P4-URC-D-CUT=A の『報時刻も基点より古いものだけ落とす』の字と (3) の検査による） (3) 報時刻を読むのは owner-runtime.ts の reportDateTime（本文の受理が reportDateTimeInvalid を決める関数、:107）で、export に足して recovery.ts から使う。無いと: 一覧の『2020-02-30T00:00:00+09:00』を Date.parse が 3 月 1 日に読んで落とし、本文なら読めない報として確認を止めたはずの府県の報が、確認済みのまま消える（r0 のヘルツ P2） (4) 保証は選びの段の 3 つ: (a) R3 の場面（同じ報時刻の府県の報を基点より前に受けた。受信時刻も同じでも同じ）で府県の報を取る (b) 落とす partial は直す前が落とす partial の部分集合 (c) 直す前より多く返すのは、基点の受信時刻以下で受け（同じ受信時刻を含む）、基点の報時刻が読めて、報時刻が基点と同じか新しいか読めない partial だけ（P4-URC-T01）。表示の無退行は主張しない（outOfScope の族 1・族 2） (5) VPWS50 の選びと partial の官署×型の最新の選び（:219〜:228）、U-W 以外の unit、戻りの並べと型は変えない (6) 行: :9 の行の中に import を 1 つ、:215 のコメントの行の末尾、:216〜:218 の基点の 3 行、:222 の 1 行を書き換える（行の数は変えない）",
         "evidenceRefs": [
-          "reconstruction/src/recovery/recovery.ts:9 «8856dc6a021130d3»",
-          "reconstruction/src/recovery/recovery.ts:217 «77df95d122173c6f»",
-          "reconstruction/src/recovery/recovery.ts:218 «23380f7e41c6dfba»",
-          "reconstruction/src/recovery/recovery.ts:222 «26d615cec4a74771»",
+          "reconstruction/src/recovery/recovery.ts:9 «4abbf8f76ffbcd6c»",
+          "reconstruction/src/recovery/recovery.ts:217 «da9cd840c89ff6e6»",
+          "reconstruction/src/recovery/recovery.ts:218 «d3aa82cc933e59e0»",
+          "reconstruction/src/recovery/recovery.ts:222 «f505880cf07fbd11»",
           "reconstruction/src/recovery/recovery.ts:226 «ce0f2b9f98b5297a»",
           "reconstruction/src/runtime/owner-runtime.ts:107 «a0976611f5d1f795»",
-          "reconstruction/src/runtime/owner-runtime.ts:774 «317493db7f059509»",
+          "reconstruction/src/runtime/owner-runtime.ts:774 «0d311aa04655a9a6»",
           "reconstruction/contracts/p3-recovery.json:397 «78d74d77e8e67a44»",
           "reconstruction/contracts/p3-uw-same-time-partial.json:11 «86dcc8a143cb3b9d»",
           "reconstruction/contracts/p3-final-review-fix.json:360 «9aac46346bfeeeb4»"

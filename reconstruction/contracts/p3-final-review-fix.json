@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "69876477f0c01a6077c1625f3fd5e1707febc9ec",
-    "sha256": "3c0cdb76d08b36295ed3cb9d3bf17b0a4488f51e1bbab182074408a7a01d8d79",
+    "sha256": "2ddb6d3d9cffcfd50e2a7003a1c8310de2823fb9739b0a10590df5e503063ef6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -358,11 +358,11 @@
       },
       {
         "id": "P3-FRF-AC05",
-        "requirement": "R3 は作者裁定（2026-11-16 夕、P3-FRF-D-R3=B）で本契約から外す。recovery.ts と recovery.test.ts（P3-REC-T24 を含む）は 69876477 のまま変えず、本契約の試験に R3 の分は無い（P3-FRF-T04 は欠番）。直す前の振る舞い（そのまま P3 を閉じる）: bodiesFor（recovery.ts:212）は U-W の partial を、同じ運用区分の取消でない VPWS50 の受信時刻の最大以前に受けたものとして落とす（:218・:222）。そのため WS が切れている間に府県の報（例 2026-09-21 13:50 の横浜地方気象台の VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（まだ 03）を両方逃すと、取り直しは府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない（採取した 3 日分のデータに 10 区域）。P4 への申し送り: (1) 3 巡の列（Q-FRF-R3 (6)）: 受信時刻で切る今の形は同じ報時刻の府県の報を落とす（R3）。報時刻の最大で切る r1 の案は、基点の全国報を :226 の受信時刻の選びが候補から外す（14:00 の A、遅れた 13:50 の B、13:55 の P の順で候補が [B]）。:226 で残る全国報の報時刻で切る r2 の案は、選びの段では不変条件（落とした partial を覆う取消でない全国報が候補にある）を満たすが、本文待ちの間に live でその全国報の取消が来ると、当て直した全国報は stale でも照合は adopted になり、partial を取らないまま coverageVerified へ進む（直す前は partial を取っていた） (2) 次の設計の向き: 切りを選びの段だけで決めず、採用の段で、基点にした全国報が今もその partial を覆うか（採用され、取消・stale になっていないか）を確かめ、覆わなければ確認を止めて取り直し直す。stale を一律に失敗にすると、新しい現況が既に覆っている正常な列まで止めるので区別する (3) 試験は選びの総当たり（r2 の P3-FRF-T04 の形、130,308 組）に加え、本文の応答を止めた間に live の全国報とその取消を入れる列を owner と root を通して確かめる (4) 構造的欠陥台帳と P4 の契約が受け手（AC09 (11)）",
+        "requirement": "R3 は作者裁定（2026-11-16 夕、P3-FRF-D-R3=B）で本契約から外す。recovery.ts と recovery.test.ts（P3-REC-T24 を含む）は 69876477 のまま変えず、本契約の試験に R3 の分は無い（P3-FRF-T04 は欠番）。直す前の振る舞い（そのまま P3 を閉じる）: bodiesFor（recovery.ts:212）は U-W の partial を、同じ運用区分の取消でない VPWS50 の受信時刻の最大以前に受けたものとして落とす（:218・:222）。そのため WS が切れている間に府県の報（例 2026-09-21 13:50 の横浜地方気象台の VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（まだ 03）を両方逃すと、取り直しは府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない（採取した 3 日分のデータに 10 区域）。P4 への申し送り: (1) 3 巡の列（Q-FRF-R3 (6)）: 受信時刻で切る今の形は同じ報時刻の府県の報を落とす（R3）。報時刻の最大で切る r1 の案は、基点の全国報を :226 の受信時刻の選びが候補から外す（14:00 の A、遅れた 13:50 の B、13:55 の P の順で候補が [B]）。:226 で残る全国報の報時刻で切る r2 の案は、選びの段では不変条件（落とした partial を覆う取消でない全国報が候補にある）を満たすが、本文待ちの間に live でその全国報の取消が来ると、当て直した全国報は stale でも照合は adopted になり、partial を取らないまま coverageVerified へ進む（直す前は partial を取っていた） (2) 次の設計の向き: 切りを選びの段だけで決めず、採用の段で、基点にした全国報が今もその partial を覆うか（採用され、取消・stale になっていないか）を確かめ、覆わなければ確認を止めて取り直し直す。stale を一律に失敗にすると、新しい現況が既に覆っている正常な列まで止めるので区別する (3) 試験は選びの総当たり（r2 の P3-FRF-T04 の形、130,308 組）に加え、本文の応答を止めた間に live の全国報とその取消を入れる列を owner と root を通して確かめる (4) 構造的欠陥台帳と P4 の契約が受け手（AC09 (11)）【受け手は P4-UW-RECOVERY-CUT-001】",
         "evidenceRefs": [
           "reconstruction/src/recovery/recovery.ts:212 «d71734fd34553067»",
-          "reconstruction/src/recovery/recovery.ts:218 «23380f7e41c6dfba»",
-          "reconstruction/src/recovery/recovery.ts:222 «26d615cec4a74771»",
+          "reconstruction/src/recovery/recovery.ts:218 «d3aa82cc933e59e0»",
+          "reconstruction/src/recovery/recovery.ts:222 «f505880cf07fbd11»",
           "reconstruction/src/recovery/recovery.ts:226 «ce0f2b9f98b5297a»"
         ]
       },
