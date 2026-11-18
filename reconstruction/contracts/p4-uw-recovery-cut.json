@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
-    "sha256": "f2eec45a46e8897222f9f41d46e56c2f9a2be12dd5027fe282082d19cad0faa3",
+    "sha256": "204c0a3cebe59042117f1beabc4db4fa6914e29a94224a56b8e21cc8d279da24",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -98,7 +98,7 @@
     "contractId": "P4-UW-RECOVERY-CUT-001",
     "mode": "implementation",
     "objective": "U-W の取り直しの partial の切り（R3、P3-FRF-AC05 の申し送り）を直す。場面（2026-09-21、R3）: WS が切れている間に 13:50 の横浜地方気象台の府県の報（VPWW55、区域を Code 43 に上げる）と、38 秒後の同じ報時刻 13:50 の全国報（VPWS50、同じ区域はまだ 03）を両方逃す。今の bodiesFor は partial を全国報の受信時刻で切るので府県の報を本文にせず、区域は 03 のまま確認済みになり、次の全国報まで最大約 10 分 L4 の表示も音も出ない。作者の裁定 P4-URC-D-CUT=A と P4-URC-D-SCOPE=A（α′）により、直すのは選び方だけ（AC01）: 直す前の受信時刻の切り（基点は取消を除いた受信の最新の VPWS50）に、報時刻が基点と同じか新しい府県の報と報時刻の読めない府県の報を落とさない条件を足す。報時刻は本文の受理と同じ暦日の検査で読む。保証は選びの段の 3 つ: (a) R3 の場面が直る (b) 落とす府県の報は直す前が落とす分の部分集合 (c) 増えるのは基点の受信時刻以下で受け（同じ受信時刻を含む）、報時刻が同じか新しいか読めない府県の報だけ。表示の無退行は主張しない（本文を多く取ることの帰結と、選びの後の基点の取消は outOfScope）。AC02 は計算量と件数、AC03 は配送の原文の改訂。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは owner-runtime.ts の export 1 つ（既存の reportDateTime）だけで、無いと何が壊れるかを AC01 (3) に書いた。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "ae3619ac22d9b0143f7a23abf078970a336a92ee",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
