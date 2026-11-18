@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "0b37f7668a6244f7d0b59a61f9f19c45e55fad1a",
-    "sha256": "dae164aafeeaf75998140cc3f72e283d13fb4ffbf9372a05b190189baaf89069",
+    "sha256": "e6603d895bb5cb22f0018a7e3f8d698eb810921359c549b113d9a2f86957cc51",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -188,7 +188,7 @@
         "id": "P3-PMB-AC03",
         "requirement": "置き場と範囲: (1) 試験 file は reconstruction/test/disaster の外に置き（P3-PMB-D-PLACE）、git diff --quiet -- reconstruction/test/disaster reconstruction/src が rc 0 のままであること（P3-FINAL-GATE-001 の T09 が見る範囲、persona-scenes.test.ts:248） (2) vitest の include（reconstruction/vitest.config.ts:5）に入り、tsconfig.test.json の型検査に掛かる (3) 走らせ方は P3-PMB-D-GATE の裁定に従う（A なら既定のゲートで走り、B なら env の口で絞る）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/persona-scenes.test.ts:248 «345a62f905230b70»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:292 «345a62f905230b70»",
           "reconstruction/vitest.config.ts:5 «913b7d6ec01edff3»",
           "reconstruction/test/disaster/disaster.test.ts:488 «850f9400e931f94f»"
         ]
