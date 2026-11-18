@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
-    "sha256": "a554082f0f6055d02f01799d11f1ecf264d83c071d5644036d60697057e41dce",
+    "sha256": "f2eec45a46e8897222f9f41d46e56c2f9a2be12dd5027fe282082d19cad0faa3",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -79,6 +79,13 @@
         "status": "closed",
         "source": "起草 r2 の起草レビュー（Opus GO、ヘルツ条件付き GO）と起草 r3（2026-11-18、worktree ~/dev/fleq-r3-draft。案のコードは r2 のまま、T01 を広げた。案は .dr-tmp/proposal-r3.diff）",
         "closed": "(1) Opus GO。P3: 本文を多く取ることの帰結に 4 つ目（増えた本文が adopted にならないと U-W は確認されず次のきっかけを待つ、T02 (c) がこの例、P3-REC-D-LIST-FORCE=A・P3-REC-AC11 のまま）を足す → P4-URC-D-SCOPE の reason と outOfScope の族 2 に足した (2) ヘルツ条件付き GO。P2（条件）: 保証 (c) は『基点より前に受けた』と書くが、recovery.ts:222 は直す前の『以下』のままで、同じ受信時刻の府県の報も増える（A＝VPWS50 と P＝VPWW57 が同じ受信時刻・同じ報時刻のとき、直す前は [A]、r2 は [A, P]。ヘルツが実コードで再現）。コードは変えず、保証 (c)・AC01 (4)・objective・D-SCOPE の A と reason・D-CUT の A・AC03 (1) の注記の字を『基点の受信時刻以下で受け（同じ受信時刻を含む）』に揃えた (3) T01 を広げた: 受信の順の並べごとに、隣り合う 2 つの頭を同じ受信時刻にした組（477,516 組）も通し、直す前の基点を『受信の最新の取消でない VPWS50、同じ受信時刻は先に見た方』で求める。受信時刻が全部違う 130,308 組は落とす 51,680・増える 68,864、同じ受信時刻の組は落とす 213,034・増える 283,870 で、どちらも規則の食い違い・部分集合の破れ・増える集合の字の外がどれも 0。歯: 案の :222 の『以下』を『より小さい』にした変異は、同じ受信時刻の組でだけ規則の食い違いと増える集合の字の外が出て落ちた（落とす 174,140・増える 322,764） (4) 検証（.dr-tmp/proposal-r3.diff の木）: tsc 3 本 rc 0。T01・T02 は rc 0（T01 は約 2 秒）。案のコードは r2 と同じなので、15 file・380 本と shuffle は回し直していない（Q-URC-REVIEW-R1 (9)） (5) T02 (a) を R3 の場面そのものの形に替えた（r1 から断っていた点: 京都の fixture の全国報は京都の区域を載せない）。2026-09-21 13:50 の横浜の VPWW55 と同じ報時刻の VPWS50 の組の fixture は repo に無く、P3-UTP の試験（P3-WN-T03）が組む福井の形（fukui_L5 の L5 の区域を 43 にした府県の報と、同じ報時刻・Control/DateTime が後のまだ 03 の全国報）を使った。取り直しの後、福井の区域の公開の Code に 43 が入り、coverageVerified（whole null）が出た。直す前の木では P を落とし、43 なしで確認済み・intent なし（R3 そのもの）。通知の intent: 取り直しの採用の step で、desktop と sound に level info の intent が 1 つずつ出た（H27 の引上げ、P3-WN-AC12 の recoveryNotices。題は府県の報の Head/Title の『大雨特別警報（06:51 発表）』で、fixture の題を 43 に合わせて書き換えていないため）。試験は channel と level を expect に入れた。案は .dr-tmp/proposal-r4.diff（r3 から recovery-adopt.test.ts の T02 (a) だけを替えた）。tsc 3 本 rc 0、T01・T02 rc 0 (6) r4 のヘルツ P2（成立）: T02 (a) の福井県全体に 43 があるかの expect は、fixture で元から 43 の坂井市・永平寺町（18_00_01_260830_VPWW55_fukui_L5.xml の 1821000・1832200）で通り、書き換えた 7 区域を 03 のままにした変異でも PASS した。書き換えた 7 区域を名指しし、公開の行がどれも 43（全国報の 03 でない）であることと、intent の targets にその 7 区域が段 4 で入ることを expect に足した。歯: 府県の報の本文の 33 を 03 にした変異で (a) が 7 区域とも 03 で落ちた。案は .dr-tmp/proposal-r5.diff（r4 から recovery-adopt.test.ts の T02 (a) の expect と import 1 つだけ）。tsc 3 本 rc 0、T02 rc 0",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-URC-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（2026-11-18 10:0x、統合担当。作者の「続きをどうぞ」の後）",
+        "closed": "(1) 一覧の reportDateTime の字の形（Q-URC-REVIEW-R1 の残り）: 作者の API キーで GET /v2/telegram を U-W の 8 型について 2 回（type は 5 つまで、P3-REC-D-LIST-QUERY）取り、200 件（VPWW61 100・VPWS50 48・VPWW58 24・VPWW59 19・VPWW55 9）がどれも xml で、xmlReport.head.reportDateTime はどれも YYYY-MM-DDTHH:MM:SS+09:00 の形だった（例 VPWW58 2026-11-18T10:06:00+09:00）。本文の受理と同じ暦日の検査（owner-runtime.ts の reportDateTime）が読める形なので、基点の報時刻が読めずに直す前の切りへ戻る窓は、この形が続く限り起きない (2) 分岐 3 本（D-CUT・D-SCOPE は作者、D-ORDER は統合担当）は全部確定、未解決の問いは 0 件 (3) check-contract・check-manifest・check-sequences は PASS（WARN は本契約の baseOid=unassigned だけ） (4) 起草 r0〜r5 とレビューの記録の控えは ~/dev/fleq-vault-archive/2026-11-18-r3/",
         "remaining": "なし"
       }
     ],
