@@ -501,12 +501,21 @@ function tsunami51(origin: number, at: number, eventId: string, serial: number, 
   }).join("\n");
   return between(xml, "</CodeDefine>", "</Observation>", `\n${inner}\n`, xml.indexOf("<Observation>"));
 }
+// estimated は沿岸の推定に載せる予報の行（null は型の推定のまま、R2）。推定は大津波警報の区域の到達の早い 2 区域（型と同じ数）で、時刻は予報の到達と
+// その 10 分後の最大波〔推測〕。大津波警報の区域が無ければ推定の項目を落とす（実装レビュー r1: N 系に 2011 の型の青森・岩手の推定が残った）。
 function tsunami52(origin: number, at: number, eventId: string, serial: number, list: readonly Gauge[], grades: ReadonlyMap<string, Grade>,
-  shock: Shock | null): string {
+  shock: Shock | null, estimated: readonly Forecast[] | null): string {
   const xml = quaked(head(placed(fixture("61_11_02_250206_VTSE52"), origin), at, { eventId, serial: String(serial) }), shock);
   const inner = `<Item>\n<Area><Name></Name><Code></Code></Area>\n${list.map((gauge) =>
     gaugeElement(gauge, grades.get(gauge.coast.code) ?? "advisory", at, origin, true)).join("\n")}\n</Item>`;
-  return between(xml, "</CodeDefine>", "</Observation>", `\n${inner}\n`, xml.indexOf("<Observation>"));
+  const observed = between(xml, "</CodeDefine>", "</Observation>", `\n${inner}\n`, xml.indexOf("<Observation>"));
+  if (estimated == null) return observed;
+  const items = estimated.filter((row) => row.grade === "major").sort((a, b) => a.arrivalMs - b.arrivalMs).slice(0, 2).map(({ coast, arrivalMs }) =>
+    `<Item>\n<Area><Name>${coast.name}</Name><Code>${coast.code}</Code></Area>\n<FirstHeight>\n<ArrivalTime>${jst(arrivalMs)}</ArrivalTime>\n${
+      arrivalMs <= at ? "<Condition>早いところでは既に津波到達と推定</Condition>\n" : ""}</FirstHeight>\n<MaxHeight>\n<DateTime>${jst(arrivalMs + 10 * MINUTE)}</DateTime>\n`
+    + "<jmx_eb:TsunamiHeight type=\"津波の高さ\" unit=\"m\" condition=\"不明\" description=\"巨大\">NaN</jmx_eb:TsunamiHeight>\n</MaxHeight>\n</Item>");
+  return items.length === 0 ? observed.replace(/\s*<Estimation>[\s\S]*?<\/Estimation>/, "")
+    : between(observed, "</CodeDefine>", "</Estimation>", `\n${items.join("\n")}\n`, observed.indexOf("<Estimation>"));
 }
 
 // ---- 緊急地震速報（型は 77_01_26・77_01_01・37_01_01 だけ） ----
@@ -656,7 +665,7 @@ function tsunamiSequence(out: Out, origin: number, eventId: string, side: Side, 
     out.put(at, "VTSE51", tsunami51(origin, at, eventId, serial, coastal.slice(0, Math.max(1, Math.ceil((191 * (at - origin)) / (3 * HOUR)))), grades, shock), "synth:VTSE51");
   const offshore = gauges(fixture("61_11_02_250206_VTSE52"), 420, COASTS, 80);
   for (let serial = 1, at = origin + 5 * MINUTE; at <= origin + 6 * HOUR; serial++, at += 10 * MINUTE)
-    out.put(at, "VTSE52", tsunami52(origin, at, eventId, serial, offshore.slice(0, Math.max(1, Math.ceil((420 * (at - origin)) / (90 * MINUTE)))), grades, shock), "synth:VTSE52");
+    out.put(at, "VTSE52", tsunami52(origin, at, eventId, serial, offshore.slice(0, Math.max(1, Math.ceil((420 * (at - origin)) / (90 * MINUTE)))), grades, shock, rows), "synth:VTSE52");
 }
 
 // 臨時情報（型は 74_01_01 調査中 111・74_01_04 巨大地震警戒 120・74_01_05 巨大地震注意 130・75_01_01 臨時解説 210）。EventID は報の時刻。
@@ -850,7 +859,7 @@ function r2(out: Out, small: boolean): void {
   const offshore = gauges(fixture("61_11_02_250206_VTSE52"), 15, COASTS, 80);
   serial = 3;
   for (let at = Date.parse("2011-03-11T15:15:00+09:00"); at <= Date.parse("2011-03-11T20:00:00+09:00"); at += 20 * MINUTE, serial++)
-    out.put(at, "VTSE52", tsunami52(QUAKE_2011, at, EVENT_2011, serial, offshore.slice(0, Math.min(15, 4 + serial - 2)), grades, null), "synth:R2:VTSE52");
+    out.put(at, "VTSE52", tsunami52(QUAKE_2011, at, EVENT_2011, serial, offshore.slice(0, Math.min(15, 4 + serial - 2)), grades, null, null), "synth:R2:VTSE52");
 }
 
 // R1 の EEW: 実電文の VXSE51・VXSE53 で最大震度 3 以上の EventID ごとに、77_01_01 の形の VXSE45 を発生時刻＋5 秒から 2 秒ごとに 5 報

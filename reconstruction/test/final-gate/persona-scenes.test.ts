@@ -667,6 +667,15 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
       .some(([, first, max]) => !(Date.parse(first) <= Date.parse(max) && Date.parse(max) <= Date.parse(tag(text(item), "ReportDateTime")!)))).map((item) => item.source)).toEqual([]);
     expect(observations.filter((item) => item.headType === "VTSE51").flatMap((item) => [...observed(item).matchAll(/<Item>\s*<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>([\s\S]*?)<\/Item>/g)]
       .flatMap(([, area, stations]) => [...stations.matchAll(/<Station><Name>[^<]*<\/Name><Code>(\d+)/g)].filter(([, code]) => code.slice(0, 3) !== area).map(([, code]) => code)))).toEqual([]);
+    // 沖合の観測の推定の区域は同じ地震の津波の予報の大津波警報の区域の中で、時刻は発生より後（実装レビュー r1: N 系に 2011 の型の青森・岩手の推定が残った）。
+    const forecastAreas = (list: readonly Frame[], eventId: string | null) => new Set(list.filter((item) => item.headType === "VTSE41" && tag(text(item), "EventID") === eventId)
+      .flatMap((item) => [...text(item).matchAll(/<Item>\s*<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>\s*<Category>\s*<Kind><Name>[^<]*<\/Name><Code>5[23]<\/Code>/g)].map((match) => match[1])));
+    const strays = (list: readonly Frame[]) => list.filter((item) => item.source === "synth:VTSE52").flatMap((item) => {
+      const xml = text(item), estimation = xml.slice(xml.indexOf("<Estimation>"), xml.indexOf("</Estimation>")), areas = forecastAreas(list, tag(xml, "EventID"));
+      const items = [...estimation.matchAll(/<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>\s*<FirstHeight>\s*<ArrivalTime>([^<]*)/g)];
+      return items.length === 0 || items.some(([, code, arrival]) => !areas.has(code) || Date.parse(arrival) <= Date.parse(tag(xml, "OriginTime")!)) ? [item.atMs] : [];
+    });
+    expect([strays(lists.N1), strays(lists.N2)]).toEqual([[], []]);
     // 臨時情報: M7 級の余震の後も巨大地震警戒（P4-PWT-D-NANKAI-M7=A）、筋書きで決まる伏せ字（警戒の期限・次回の時刻・中心の地方）は埋める。
     const nankaiCode = (item: Frame) => /<Code>(\d+)<\/Code>\s*<\/InfoSerial>/.exec(text(item))?.[1];
     expect(lists.N1.filter((item) => item.headType === "VYSE50").map(nankaiCode)).toEqual(["111", "111", "120", "120", "111", "120"]);
