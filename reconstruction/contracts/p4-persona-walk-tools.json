@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "b5de6457690b4e2921bf44bacb16499ff01248cefbf1b0e9c30c3411b626e646",
+    "sha256": "d49935a53a4c08c14b862bc339af1974569830e00efa024cd26e92062cea08e7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -172,6 +172,13 @@
         "source": "発注 2 の実装（branch impl/walk2: 2400435a→e68d2f70→373edf80→21ad744c→d7f43be8）と実装レビュー（ヘルツ thread 01a1ed15 の r0〜r3、Opus の契約適合）、統合担当の配送の当て（2026-11-18）",
         "closed": "(1) 経緯: 2400435a で AC04・AC05 と T03 の期待の替え・T04・T05 を入れた。ヘルツ r0 は条件付き GO（確認の時刻・続く切断・書き出しの経路）で、e68d2f70 で 2 点の tick（RECOVERY_GAP_MS・EEW_CONFIRM_MS、composition-root.ts の定義の行から productMs で読む）・接続中の切断だけの ping と行・sceneRun と actorFile の共有・T04 (a) の capture の経路を足した。373edf80（確認状態の 3 欄を EEW だけ、要約の行を summaryRowVisible で絞る、統合担当の裁定 14:3x）と 21ad744c（EEW の確認状態の行を operationShown で採り、津波の要約の行を描く欄に絞る）で演じ手の画面を chrome-eew の描画に揃えたが、ヘルツ r1・r2 は NO-GO（揃える絞りで別の行が欠けた、再現列は ~/dev/fleq-vault-archive/2026-11-18-walk/review/hertz-o2-repro/）。統合担当が『揃えるのは発注 2 の外〔P3-FG-D-SCENE-TEXT=A は snapshot の決まった欄の写し〕』と読み直し、d7f43be8 で絞りを外して full の分野に 3 欄を全 operation で添える形に戻した（統合担当の決め 14:5x）。ヘルツ r3 GO、Opus（契約適合）は d7f43be8 で条件付き GO (2) 統合担当の決め: prepare は saori の手書きの形でなく、host と同じく startupPlan(classifications, restoredBoundaries, now) で unit と束を決める（2400435a）。3 欄を EEW だけにした決め（373edf80）は d7f43be8 で戻した。chrome-eew と行ごとに揃えることは outOfScope（作者の分岐、バックログ） (3) T03 の期待を変えた理由（配送済みの発注 1 の試験）: r1 の『切断より前に受信が無ければ切断の時刻で 1 行』は、接続の無い切断にも行を出していた。製品は host.ts:234 で確立した接続の喪失でだけ lostConnections を増やし、端末の切断の行は output.ts:410 の増えでだけ出るので、接続の無い切断と繋がり直さずに続く切断は 0 行が製品と同じ（e68d2f70、AC03 (1) を改めた） (4) 配送の当て: AC05 (1)・AC03 (1)・AC04 (2)・T03・T04・T05・allowedPaths・publicFunctions・readPaths・AC09 (3)・outOfScope の字、p3-final-gate.json の AC10 (1)・T09 (2) の注記（AC09 (4) の T09-MATCH の分。p3-disaster-capacity.json の 2 つは発注 3）、«» の付け直し（P3-PI-MEASURE-BLOCKED-TEST-001 の persona-scenes.test.ts:292→:352、本契約の evidenceRefs の行のずれ 11 件と字の変わった 10 件と :116）",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT-DELIVERY-ORDER2",
+        "status": "closed",
+        "source": "統合担当（2026-11-18 15:19）",
+        "closed": "発注 2 の配送: 実装 2400435a・e68d2f70・373edf80・21ad744c・d7f43be8（実装の子 Opus）、実装レビュー ヘルツ thread 01a1ed15 の r3 GO・Opus 条件付き GO（条件は d3c765c9 で当てた）、配送の当て d3c765c9。Mac mini のゲート（rec-gate.sh、d3c765c9）12 段 rc 0: tsc 3 本、reconstruction の vitest 153 file・1,682 passed・38 skipped、同じ数で shuffle、check-manifest・check-sequences・check-contract（PASS 159）、root の build と test 289 file・6,850 passed。AC09 (1) のとおり AC09 の取り直しは無い（formal の前後比べ: R2 を b78d54a0 と d7f43be8 で回し、gitHead・timing・selfSha256 を除いた 32 欄が一致）",
+        "remaining": "発注 3（発注前点検から）"
       }
     ],
     "operationContract": {
