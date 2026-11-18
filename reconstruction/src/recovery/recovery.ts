@@ -507,7 +507,7 @@ function buildDigest(results: readonly UnitWalkResult[], starts: Readonly<Partia
   // bytes は最後の digest の byte の上界のまま枠の内に留まる（型は 122 で、件数だけの形は枠に十分収まる）。
   let bytes = jsonBytes({ units }), shown = 0;
   fill: for (const entry of listed) for (const head of entry.candidates.slice(0, DIGEST_UNIT_HEADS)) {
-    const view: RecoveryDigestHead = { headType: head.headType, operation: head.operation, title: bounded(head.title),
+    const view: RecoveryDigestHead = { headType: head.headType, operation: head.operation, title: bounded(head.title.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ")), // 題名は取り直しの一覧の行とディスプレイの digest へ字のまま出るので、制御の字を 1 つにつき半角の空白 1 字に替える。bodyKey は一覧と本文で同じ字を見るので生の字のまま（台帳 138、P4-TERMINAL-EXTERNAL-TEXT-002、P3-TCC-D-SUBSTITUTE）
       headline: head.headline == null ? null : bounded(head.headline), reportDateTime: head.reportDateTime == null ? null : bounded(head.reportDateTime),
       receivedAt: head.receivedAtMs };
     const size = jsonBytes(view) + 1;

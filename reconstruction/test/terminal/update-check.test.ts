@@ -67,3 +67,13 @@ describe("P3-FRF-T05 update check の本文の途切れ", () => {
     }
   });
 });
+
+// P4-TET2-T03（台帳 142）: 版は末尾まで semver の字だけのものに限り、後ろに字が続く版は知らせない（P4-TERMINAL-EXTERNAL-TEXT-002、P4-TET2-D-VERSION）。
+describe("P4-TET2-T03 版の末尾", () => {
+  it("regression / AC03: 1.2.3 と 1.3.0-beta.1 は知らせ、1.2.3 の後に ESC[2J・空白と字・BEL・CR・U+0085 が続く版と頭に TAB のある版は知らせない", async () => {
+    const check = (latest: string) => checkForUpdate({ ...base, version: "1.0.0", directory: directory(), env: {}, fetchJson: async () => ({ version: latest }) });
+    const bad = ["1.2.3\u001b[2J", "1.2.3 abc", "1.2.3\u0007", "\t1.2.3", "1.2.3\r", "1.2.3\u0085"];
+    expect([await check("1.2.3"), await check("1.3.0-beta.1"), ...await Promise.all(bad.map(check))]).toEqual([{ current: "1.0.0", latest: "1.2.3", packageName: "@sayue_ltr/fleq" },
+      { current: "1.0.0", latest: "1.3.0-beta.1", packageName: "@sayue_ltr/fleq" }, ...bad.map(() => null)]);
+  });
+});

@@ -281,7 +281,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
     const { socketId, classifications } = head;
     if (typeof socketId !== "number" || !Number.isInteger(socketId) || !isStrings(classifications)) return false;
     note("INFO", "dmdataSocketStarted", socketId);
-    if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed"); forecastGranted = config.dmdata != null && classifications.includes("eew.forecast"); startClassifications = classifications;
+    if (config.dmdata?.classifications.some((item) => !classifications.includes(item))) note("WARN", "dmdataSubscriptionNarrowed"); forecastGranted = config.dmdata != null && classifications.includes("eew.forecast"); startClassifications = classifications.map((item) => item.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ")); // 区分は起動画面の「区分:」の行へ字のまま出るので制御の字を半角の空白に替える。照合は替える前の字で行う（台帳 139、P4-TERMINAL-EXTERNAL-TEXT-002）
     root.recordConnected(wallTimeMs); // P3-REC-AC14 (1): 札の終わりは新しい WS の最初の frame の wall
     emit({ kind: "controlFrame", frameType: "start", monotonicMs: t0, errorClose: null });
     lastFailure = null; establishedAt = lastFrameAt; return true; // P3-DC2-AC03 (4)・AC09 (2): onFrame がこの frame の entry の monotonic を lastFrameAt に書いた直後なので同じ時計の同じ読み

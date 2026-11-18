@@ -689,3 +689,18 @@ describe("P3-RB-T03 acceptance: the list's response time is the listed-through t
     expect(next.kind === "listed" && ids(next.heads)).toEqual([a.id, b.id]);
   });
 });
+
+// P4-TET2-T01（台帳 138）: 一覧の題名の制御の字は取り直しの一覧の行に生で出ない（P4-TERMINAL-EXTERNAL-TEXT-002）。import を頭に足さないのは «» が引く行を動かさないため。
+import { createRenderer } from "../../src/terminal/format";
+describe("P4-TET2-T01 一覧の題名の制御の字", () => {
+  it("regression / AC01: 題名の ESC・BEL・TAB・CR・U+0085 は 1 字ずつ半角の空白になり、一覧の行に生の制御の字が出ない。bodyKey の読む ListHead の題名は生の字のまま", async () => {
+    const base = item("VTSE41", NOW - MINUTE), title = "津波警報\u001b[2J\u0007\t\r\u0085解除";
+    https.handle = () => page([{ ...base, xmlReport: { ...base.xmlReport, head: { ...base.xmlReport.head, title } } }]);
+    const results = await walk([{ unit: "U-T", bundles: [["VTSE41"]], fetchFromMs: NOW - DAY, stopAtId: null }]);
+    const text = createRenderer(0).render({ columns: 80, dropped: 0,
+      units: [{ kind: "notice", notice: { kind: "digest", digest: buildDigest(results, { "U-T": walkStart(null, "empty", NOW) }).digest }, prompt: null }] });
+    // CR と U+0085 は直す前も painter が空白にするので、歯になるのは ESC・BEL・TAB。
+    expect([results[0].kind === "listed" && results[0].heads[0].title, text.split("\n").filter((line) => line.includes("津波警報")).map((line) => line.replace(/^ {2}\d\d:\d\d {2}/, "")),
+      /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u2028\u2029]/.test(text)]).toEqual([title, ["津波警報 [2J    解除"], false]);
+  });
+});

@@ -2222,3 +2222,20 @@ describe("P3-FRF-T02 起動をまたぐ入力の番号", () => {
     await expect(second).rejects.toThrow();
   });
 });
+
+// P4-TET2-T02（台帳 139）: WS の start の frame の区分の制御の字は起動画面の「区分:」の行に生で出ない（P4-TERMINAL-EXTERNAL-TEXT-002）。
+import { createRenderer } from "../../src/terminal/format";
+describe("P4-TET2-T02 start の区分の制御の字", () => {
+  it("regression / AC02: 区分の ESC・BEL・TAB・CR・U+0085 は 1 字ずつ半角の空白になり、区分の行に生の制御の字が出ない", async () => {
+    const server = await localServer();
+    const dirs = await directories();
+    const host = await startP2Host({ wsUrl: server.url, ...dirs, displayPort: null, clock, observe: null });
+    cleanups.push(() => host.stop().then(() => {}, () => {}));
+    await until(() => server.sockets.length === 1);
+    server.sockets[0].send(JSON.stringify({ type: "start", socketId: 1, classifications: ["eew.forecast", "x\u001b[2J\u0007\t\r\u0085y"], time: startTime() }));
+    await until(() => host.status().classifications != null);
+    const text = createRenderer(0).render({ columns: 80, dropped: 0, units: [{ kind: "notice",
+      notice: { kind: "session", socketId: 1, classifications: host.status().classifications ?? [], missing: [], testMode: "no" }, prompt: null }] });
+    expect(text.split("\n").filter((line) => line.startsWith("区分: "))).toEqual(["区分: [eew.forecast, x [2J    y]"]);
+  });
+});

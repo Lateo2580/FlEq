@@ -44,7 +44,7 @@ function httpsJson(url: string): Promise<unknown> {
 const versionOf = (data: unknown): string | null => data != null && typeof data === "object" && "version" in data && typeof data.version === "string" ? data.version : null;
 const tagOf = (data: unknown): string | null => data != null && typeof data === "object" && "tag_name" in data && typeof data.tag_name === "string" ? data.tag_name : null;
 function parts(version: string): readonly [number, number, number] | null {
-  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version.trim().replace(/^v/, ""));
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.exec(version.replace(/^v/, "")); // 版は「新しい版があります」の行へ字のまま出るので、末尾まで semver の字（数字・点、接尾辞は英数字と .-）だけの版に限る（trim は TAB を通すので使わない。P4-TET2-D-VERSION、台帳 142、P4-TERMINAL-EXTERNAL-TEXT-002）
   return match == null ? null : [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 function newer(current: string, latest: string): boolean {
