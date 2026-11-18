@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
-    "sha256": "f7ac94be8e1c4ffb8053314f2482cb0602d7d19f49e988de5ba8e6f523bcbb68",
+    "sha256": "99981966c5549ed2af7dd6a4a4f386bbab37a5b259f8e3286bff62d6be79becf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -86,6 +86,13 @@
         "status": "closed",
         "source": "発注前点検（2026-11-18 10:0x、統合担当。作者の「続きをどうぞ」の後）",
         "closed": "(1) 一覧の reportDateTime の字の形（Q-URC-REVIEW-R1 の残り）: 作者の API キーで GET /v2/telegram を U-W の 8 型について 2 回（type は 5 つまで、P3-REC-D-LIST-QUERY）取り、200 件（VPWW61 100・VPWS50 48・VPWW58 24・VPWW59 19・VPWW55 9）がどれも xml で、xmlReport.head.reportDateTime はどれも YYYY-MM-DDTHH:MM:SS+09:00 の形だった（例 VPWW58 2026-11-18T10:06:00+09:00）。本文の受理と同じ暦日の検査（owner-runtime.ts の reportDateTime）が読める形なので、基点の報時刻が読めずに直す前の切りへ戻る窓は、この形が続く限り起きない (2) 分岐 3 本（D-CUT・D-SCOPE は作者、D-ORDER は統合担当）は全部確定、未解決の問いは 0 件 (3) check-contract・check-manifest・check-sequences は PASS（WARN は本契約の baseOid=unassigned だけ） (4) 起草 r0〜r5 とレビューの記録の控えは ~/dev/fleq-vault-archive/2026-11-18-r3/",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-URC-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-18、baseOid ae3619ac・c35b26da、実装 283a82bb、原文の改訂と «» の付け直し 668531ab）",
+        "closed": "(1) 実装は起草 r5 の案（.dr-tmp/proposal-r5.diff、契約適合 Opus r2 GO・品質ヘルツ r3〜r5 GO の中身）をそのまま当てた。src は recovery.ts（:9・:215〜:218・:222）と owner-runtime.ts（:774）の行の中だけで 526 行・776 行のまま、試験は P4-URC-T01・T02 (2) Mac mini のゲート 1 回目（283a82bb）は 12 段のうち check-contract だけ rc 1（P3-FRF の recovery.ts:218 と本契約の :9、AC03 (3)(4) の想定どおり）、2 回目（668531ab）は 12 段 rc 0: tsc 3 本、rec-vitest と rec-shuffle は Test Files 153 passed・11 skipped、Tests 1,670 passed・38 skipped、check-manifest・check-sequences・check-contract（157 PASS）、旧築の build と test（289 files・6,850 passed・3 skipped） (3) AC03 (1)(6) の原文の改訂（p3-recovery.json の D-UW-PARTIALS の ruling・AC12・T24、p3-final-review-fix.json の P3-FRF-AC05）を行の中だけで当て、«» を取り直した契約は p3-final-review-fix.json・p3-weather-notice.json・本契約（p3-recovery.json は注記で自分の digest だけ） (4) 構造的欠陥台帳 141 は配送の後に解消と書く",
         "remaining": "なし"
       }
     ],
