@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "8b2655aa68894b4824bf3958bdb6e679c461f22c619edd6bea13536148148538",
+    "sha256": "4cffe10cdd7ded5962bde33f35f53eef40ea0a3ed1eaa5b6a7d31a5a0b9aede8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -137,6 +137,20 @@
         "source": "起草 r0（2026-11-18、MacBook。worktree ~/dev/fleq-walk-draft〔branch draft/walk、HEAD 912e951a〕で発注 1 の案を当てて回した。案と試験は commit せず .dr-tmp/proposal-r0.diff に残し、木は本契約の file だけに戻した）",
         "closed": "(1) 計画 1 の前提の訂正: 計画は『desktop の試行には段の欄が無い』と書くが、intent の payload は desktop・sound とも level を持つ（eew-unit の EewNotificationPayload、p2-eew-unit.types.ts:105。seismic-unit.ts:1640 ほか 10 unit も { domain, level, title, body }）。音との組み合わせの近道は要らず、payload.level で段を決める（AC02） (2) 門（AC01）は既定の設定で mute が無いので、効くのは sound（既定 on で止めない）と分野の段だけ。既定で off は floodForecast（U-R）・tornado・earlyWeather・heatAlert・climateInfo・weatherExplanation（U-M）・typhoonAnalysis・typhoonProbability（U-Y）・briefing（U-B の VPBS50、記録的短時間大雨の K の報は weather で on）・weatherWarningTimeseries（notification-gate.ts:19・:36） (3) 発注 1 の案（.dr-tmp/proposal-r0.diff、persona-scenes.test.ts の +89・−17 行）で、tsc 3 本 rc 0、vitest（--maxWorkers=2、XDG_CONFIG_HOME は .dr-tmp/xdg）で persona-scenes.test.ts の 9 本のうち 8 passed・1 skipped（T09 は門つき）rc 0。歯: 門を外す（止めた段を null に）と T01、段の重さを外して新しい順だけにすると T02、切断の行の時刻を切断の時刻にすると T03 が、それぞれ 1 本だけ落ちた。T09（門つき）は回していない (4) N3 は沙織の契約で絞ると N2 と同じ列になる（P4-PWT-D-N3 の ifNotChosen）。06-03・06-26・09-21 とその前日の archive の xml の型は、familyFor で全部 telegram.weather（VXWW50・VXKO* を含む。VXSE・VTSE・VYSE・VZSE・VF は無い）なので、気象を契約した人物には W1 は 1 件も落ちない。R2 の合成と公開サンプルに VXSE43 は無い（VXSE43 は synth.ts:516 の本震の EEW だけ）ので、沙織の絞りで落ちるのは N1・N2・N3 の VXSE43 と N3 の気象だけ (5) 前日の数え: P4-PWT-D-W1-START の reason (6) dmdata の WS の ping の間隔は repo・spec・契約に数字が無い（p3-recovery.json の問いの残りに『dmdata の WS の ping の間隔（札の始まりの粒度。liveness は 90 秒）』）。Q-PWT-PING に置いた (7) T09 の書き出しの確かめ: 発注 1 の案を当てた木で T09 の門つきの it を T2-naoto に 1 回流した（FLEQ_C22_SCENES=T2-naoto、OUT は .dr-tmp/scenes-out、約 4 秒、rc 0、blocked なし、場面 4 つ〔02:10:24 ii・02:20:35 vii・02:48:10 v・03:02:30 v〕）。S3 の演じ手の通知は『FlEq／回線が切れました（02:10:35 から受信できていません）』の 1 行、評価者の file の試行には stoppedBy（どれも null）が付いた。ほかの筋書きの T09 は回していない (8) 帳簿の突き合わせ（.dr-tmp/ledger-check.py）: 帳簿 92 件のうち評価者の案に『道具』を含む 50 件を、file:行で本契約の AC に当てた。AC01: W1-2026-06-26.md:26。AC02: R2.md:28・N3.md:31・W1-2026-09-21.md:25。AC03: T2-naoto.md:40・W1-2026-06-26.md:51。AC04: N2.md:60・T2-naoto.md:18・R2.md:30。AC05: N1.md:30・T2-naoto.md:29。AC06: 27 件（(1)〜(10) に名指し）と、統合担当が原文を読んで決める 3 件（(11)）。AC07: N1.md:22・N2.md:28・N3.md:28・N3.md:35・W1-2026-06-03.md:32・W1-2026-06-03.md:36・W1-2026-06-26.md:22。AC08: W1-2026-06-03.md:28・W1-2026-09-21.md:50",
         "remaining": "Q-PWT-T4-REST（AC06 (11) の 3 件）"
+      },
+      {
+        "id": "Q-PWT-REVIEW-R1",
+        "status": "closed",
+        "source": "起草 r1（01dc63f6、rebase の前は aae2bcaa）の確かめ直し 2 本（品質 Opus・契約適合 Opus）と起草 r2（22279f32、rebase の前は e0959b45）",
+        "closed": "(1) 品質の確かめ直し GO: r0 の 9 件は閉じた。取消を最上段にしても、製品は通知を間引かないので矛盾しない。LgInt の表示は『長周期階級 2』から増えない（AC06 (7) の決め方は型の最大を上限にする）。発注 1 の歯 5 本はどれも落ちる (2) 契約適合の確かめ直し 条件付き GO: P2（ping の定数の置き場。:589 は runStage1 の中で module の定数を置けず、:336 より前なら他契約の ref 6 件がずれる）は r2 で置き場を runStage1 の後ろの module の地に直し、統合担当が実物で確かめた（他の契約から disaster/runner.ts を引く ref 19 件・最大 :592、runStage1 は :617 で閉じる）。P3（T02 の behavior の前半に r0 の期待）は r2 で直した (3) 契約適合の勧め: 取消を最上段にした統合担当の決め（AC02）を作者へ 1 行報告する。統合担当が報告する",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT-PRECHECK-ORDER1",
+        "status": "closed",
+        "source": "発注 1 の発注前点検（統合担当、2026-11-18 13:3x）",
+        "closed": "(1) decisionBranches は 9 つとも確定（作者 4・統合担当 5）で、『起草案』は 0 件 (2) base は main の c822b26f（P4-AC13-REST-001 と P4-TERMINAL-EXTERNAL-TEXT-002 の配送の後のローカルの main、draftedFromOid 912e951a の子孫）で、draft/walk をその上へ rebase した。発注 1 の案（.dr-tmp/proposal-r1.diff）はそのまま当たる (3) 案を当てた木の check-contract の FAIL は P3-PI-MEASURE-BLOCKED-TEST-001 の persona-scenes.test.ts:248→:292 だけで、AC09 (3) の予告どおり配送で付け直す (4) 後の作者の裁定で前提が変わったものは無い (5) 発注 2・3 の点検（Q-PWT-PING、Q-PWT-T4-REST、everySecond の無い筋書きの取り直しの始まり、W1 の 35 分の予算）は、それぞれの発注の前に行う",
+        "remaining": "なし（発注 2・3 の点検は各発注の前）"
       }
     ],
     "operationContract": {
