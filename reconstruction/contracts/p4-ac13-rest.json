@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "89d2c115ff796260047a1b4a92f13a65f8040016cb5c3539f98283db99bfb2ef",
+    "sha256": "326ae4f53a7ff693a49ababf6ca053e7802fecbc4d50d3543257440606fcaa74",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -81,6 +81,13 @@
         "status": "closed",
         "source": "作者の裁定（2026-11-18 12:25、統合担当の中継）。R9 は AC13 のウルトラコードの統合 r2 の申し送り（p3-final-review-fix.json:254）",
         "closed": "B（作者の裁定、2026-11-18 12:25）: R9（起動の辿りの途中の切断で起動のまとめが多く数える、composition-root.ts）は直さない。P3-RDL-AC03 (3) の残存のまま。理由: 報は消えず、起動のまとめの件数が多めになるだけ。Mac mini の新築の診断 7 日分・起動 5 回で、起動直後の切断の跡は無かった",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-AC13R-DELIVERY",
+        "status": "closed",
+        "source": "統合担当（2026-11-18 13:17）",
+        "closed": "配送: 実装 6f6dcc94（実装の子 Sonnet、案 proposal-r1 と変更行 151 行が一致したので、同じ中身を 2 本のレビュー〔品質ヘルツ r0 条件付き GO→r1 GO、契約適合 Opus r0 GO〕が通した後の実装レビューは省いた）。原文の改訂と «» の付け直し 833f60fd（AC03 (1) P3-TO-AC15 (3)、(2) p3-final-review-fix.json:254、(3)(4) 本契約の 5 件と改訂 2 行、改訂した 2 契約の封の取り直し）。Mac mini のゲート（rec-gate.sh、833f60fd）12 段 rc 0: tsc 3 本、reconstruction の vitest 153 file・1,673 passed・38 skipped、同じ数で shuffle、check-manifest・check-sequences・check-contract（PASS 157）、root の build と test 289 file・6,850 passed。AC01 (5) の時間（H=384、50 回の中央値）は decode 2.002 ms・encode 1.496 ms（直す前 5.767・5.019）。AC03 (5) の台帳とバックログの項は配送の commit と同じ日に作業ノートへ書いた",
         "remaining": "なし"
       }
     ],
