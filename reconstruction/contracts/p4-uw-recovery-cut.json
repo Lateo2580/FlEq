@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8f2be18b3cd94c15fb4b5883d7b37487d3d822ec",
-    "sha256": "42e10bb83485bb8973af933738b6acb46eed4ebaf5b92bc4f4c97f26d84023e9",
+    "sha256": "e6174f3d74ea6451552f386a1d2f3846fdcd427eb39a41e4a70448f581cf7c07",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -78,7 +78,7 @@
         "id": "Q-URC-REVIEW-R2",
         "status": "closed",
         "source": "起草 r2 の起草レビュー（Opus GO、ヘルツ条件付き GO）と起草 r3（2026-11-18、worktree ~/dev/fleq-r3-draft。案のコードは r2 のまま、T01 を広げた。案は .dr-tmp/proposal-r3.diff）",
-        "closed": "(1) Opus GO。P3: 本文を多く取ることの帰結に 4 つ目（増えた本文が adopted にならないと U-W は確認されず次のきっかけを待つ、T02 (c) がこの例、P3-REC-D-LIST-FORCE=A・P3-REC-AC11 のまま）を足す → P4-URC-D-SCOPE の reason と outOfScope の族 2 に足した (2) ヘルツ条件付き GO。P2（条件）: 保証 (c) は『基点より前に受けた』と書くが、recovery.ts:222 は直す前の『以下』のままで、同じ受信時刻の府県の報も増える（A＝VPWS50 と P＝VPWW57 が同じ受信時刻・同じ報時刻のとき、直す前は [A]、r2 は [A, P]。ヘルツが実コードで再現）。コードは変えず、保証 (c)・AC01 (4)・objective・D-SCOPE の A と reason・D-CUT の A・AC03 (1) の注記の字を『基点の受信時刻以下で受け（同じ受信時刻を含む）』に揃えた (3) T01 を広げた: 受信の順の並べごとに、隣り合う 2 つの頭を同じ受信時刻にした組（477,516 組）も通し、直す前の基点を『受信の最新の取消でない VPWS50、同じ受信時刻は先に見た方』で求める。受信時刻が全部違う 130,308 組は落とす 51,680・増える 68,864、同じ受信時刻の組は落とす 213,034・増える 283,870 で、どちらも規則の食い違い・部分集合の破れ・増える集合の字の外がどれも 0。歯: 案の :222 の『以下』を『より小さい』にした変異は、同じ受信時刻の組でだけ規則の食い違いと増える集合の字の外が出て落ちた（落とす 174,140・増える 322,764） (4) 検証（.dr-tmp/proposal-r3.diff の木）: tsc 3 本 rc 0。T01・T02 は rc 0（T01 は約 2 秒）。案のコードは r2 と同じなので、15 file・380 本と shuffle は回し直していない（Q-URC-REVIEW-R1 (9)）",
+        "closed": "(1) Opus GO。P3: 本文を多く取ることの帰結に 4 つ目（増えた本文が adopted にならないと U-W は確認されず次のきっかけを待つ、T02 (c) がこの例、P3-REC-D-LIST-FORCE=A・P3-REC-AC11 のまま）を足す → P4-URC-D-SCOPE の reason と outOfScope の族 2 に足した (2) ヘルツ条件付き GO。P2（条件）: 保証 (c) は『基点より前に受けた』と書くが、recovery.ts:222 は直す前の『以下』のままで、同じ受信時刻の府県の報も増える（A＝VPWS50 と P＝VPWW57 が同じ受信時刻・同じ報時刻のとき、直す前は [A]、r2 は [A, P]。ヘルツが実コードで再現）。コードは変えず、保証 (c)・AC01 (4)・objective・D-SCOPE の A と reason・D-CUT の A・AC03 (1) の注記の字を『基点の受信時刻以下で受け（同じ受信時刻を含む）』に揃えた (3) T01 を広げた: 受信の順の並べごとに、隣り合う 2 つの頭を同じ受信時刻にした組（477,516 組）も通し、直す前の基点を『受信の最新の取消でない VPWS50、同じ受信時刻は先に見た方』で求める。受信時刻が全部違う 130,308 組は落とす 51,680・増える 68,864、同じ受信時刻の組は落とす 213,034・増える 283,870 で、どちらも規則の食い違い・部分集合の破れ・増える集合の字の外がどれも 0。歯: 案の :222 の『以下』を『より小さい』にした変異は、同じ受信時刻の組でだけ規則の食い違いと増える集合の字の外が出て落ちた（落とす 174,140・増える 322,764） (4) 検証（.dr-tmp/proposal-r3.diff の木）: tsc 3 本 rc 0。T01・T02 は rc 0（T01 は約 2 秒）。案のコードは r2 と同じなので、15 file・380 本と shuffle は回し直していない（Q-URC-REVIEW-R1 (9)） (5) T02 (a) を R3 の場面そのものの形に替えた（r1 から断っていた点: 京都の fixture の全国報は京都の区域を載せない）。2026-09-21 13:50 の横浜の VPWW55 と同じ報時刻の VPWS50 の組の fixture は repo に無く、P3-UTP の試験（P3-WN-T03）が組む福井の形（fukui_L5 の L5 の区域を 43 にした府県の報と、同じ報時刻・Control/DateTime が後のまだ 03 の全国報）を使った。取り直しの後、福井の区域の公開の Code に 43 が入り、coverageVerified（whole null）が出た。直す前の木では P を落とし、43 なしで確認済み・intent なし（R3 そのもの）。通知の intent: 取り直しの採用の step で、desktop と sound に level info の intent が 1 つずつ出た（H27 の引上げ、P3-WN-AC12 の recoveryNotices。題は府県の報の Head/Title の『大雨特別警報（06:51 発表）』で、fixture の題を 43 に合わせて書き換えていないため）。試験は channel と level を expect に入れた。案は .dr-tmp/proposal-r4.diff（r3 から recovery-adopt.test.ts の T02 (a) だけを替えた）。tsc 3 本 rc 0、T01・T02 rc 0",
         "remaining": "なし"
       }
     ],
@@ -144,7 +144,9 @@
     ],
     "fixtureIds": [
       "test__fixtures__15_16_02_251222_VPWW57",
-      "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-before"
+      "test__fixtures__weather-alert-kind-area__synthetic-vpws50-change-density-before",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__15_18_01_250630_VPWS50"
     ],
     "sequenceIds": [
       "O03",
@@ -224,7 +226,7 @@
         "referenceIds": [
           "P4-URC-AC01"
         ],
-        "behavior": "実不具合の再発防止（R3、r0 のヘルツ P2、起草レビュー r2 のヘルツの列）。recovery-adopt.test.ts の P3-REC-T11 の describe の後ろに自前の describe「P4-URC-T02 …」と it を 3 つ。製品の root と in-process の owner に通し、setup の購読に telegram.weather を足し、live で全国報 X（23:00）を採ってから始める。値は [取った本文, progress, U-W の normal の whole, 京都の partial の報時刻, 全国の現況の報時刻]。(a) R3: 空の一覧で起動の取り直しを済ませ、connectionLost → 5 分 → recordConnected。一覧は京都の VPWW57 P（23:10）と、その 38 秒後に受けた同じ報時刻の全国報 A（23:10）。60 秒の後の取り直しで [[p, a], recovered, null, [23:10], 23:10] と、京都の区域の勝者の報時刻 [23:10] (b) r2 の列: 起動の取り直しの一覧 A（23:10、先に受けた）と P（23:05、後に受けた）、A の本文を止めて live で A と A の取消（23:13）を採ってから返すと [[a, p], recovered, null, [23:05], 23:00] (c) 暦日の読めない報時刻: P の報時刻を一覧も本文も『2020-02-30T23:05:00+09:00』にして A（23:10）より前に受けると、P も取り [[p, a], unsatisfied, unreadableReport, [], 23:10]（直す前と Date.parse で読む案は P を落として確認済み）。残す欠けの族 1・族 2 の列は試験にしない（outOfScope）。歯は Q-URC-REVIEW-R1 (8)"
+        "behavior": "実不具合の再発防止（R3、r0 のヘルツ P2、起草レビュー r2 のヘルツの列）。recovery-adopt.test.ts の P3-REC-T11 の describe の後ろに自前の describe「P4-URC-T02 …」と it を 3 つ。製品の root と in-process の owner に通し、setup の購読に telegram.weather を足し、live で全国報 X（23:00）を採ってから始める。(b)(c) の値は [取った本文, progress, U-W の normal の whole, 京都の partial の報時刻, 全国の現況の報時刻]。(a) R3 の場面の形（P3-WN-T03 と同じ組み方）: live で福井の区域が 03 の全国報 X（06:41）を採り、空の一覧で起動の取り直しを済ませ、connectionLost → 5 分 → recordConnected。一覧は、fukui_L5 の L5 の区域を 43（L4）にした福井地方気象台の VPWW55 P（06:51）と、その 38 秒後に受けた同じ報時刻 06:51・Control/DateTime が 38 秒後の全国報 A（15_18_01_250630_VPWS50 の Kind をその区域だけ 03 にした報）。60 秒の後の取り直しで [取った本文, progress, whole, 福井の normal の区域の公開の Code に 43 があるか, U-W の intent の [channel, level]] が [[p, a], recovered, null, [true], [[desktop, info], [sound, info]]]（直す前の木は [[a], recovered, null, [false], []]、R3 そのもの） (b) r2 の列: 起動の取り直しの一覧 A（23:10、先に受けた）と P（23:05、後に受けた）、A の本文を止めて live で A と A の取消（23:13）を採ってから返すと [[a, p], recovered, null, [23:05], 23:00] (c) 暦日の読めない報時刻: P の報時刻を一覧も本文も『2020-02-30T23:05:00+09:00』にして A（23:10）より前に受けると、P も取り [[p, a], unsatisfied, unreadableReport, [], 23:10]（直す前と Date.parse で読む案は P を落として確認済み）。残す欠けの族 1・族 2 の列は試験にしない（outOfScope）。歯は Q-URC-REVIEW-R1 (8)"
       }
     ],
     "requiredCommands": [
