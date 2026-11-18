@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "4cffe10cdd7ded5962bde33f35f53eef40ea0a3ed1eaa5b6a7d31a5a0b9aede8",
+    "sha256": "50b10ab365899a3aa85aca67ccc9f83acc3cfdbd8deecd0dbb41bc34baf95642",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -162,7 +162,7 @@
     "contractId": "P4-PERSONA-WALK-TOOLS-001",
     "mode": "implementation",
     "objective": "P3-FINAL-GATE-001 の AC10（ペルソナ歩き）の道具のうち、評価で『道具の作り物』に分けられたものを P4 の歩きの前に直す（作者裁定 A、2026-11-15。Q1〜Q4 は 2026-11-18 12:34 に全部 A）。場面（2026-11-15、R2 の S6）: 3/12 03:20 の大津波警報への拡大の通知が、その後の 03:20〜03:30 の普通の通知の新しい順の 20 件の切りで演じ手に渡らず、評価者は『大津波警報を拾わない』と読んだ（帳簿 R2.md:28）。直すのは、演じ手に渡す通知（CLI の門・段の重い順の 20 件・端末の切断の行）、場面の画面と評価者の事実（要約の分野の shown・確認状態の行・接続の層・ping）、合成の報の文面、人物の契約での絞り、W1 の 0 時の切れ目。発注は 3 つ（P4-PWT-D-ORDER）: 発注 1 は persona-scenes.test.ts だけ、発注 2 は runner.ts の場面の口と T09 (2) の改め、発注 3 は synth.ts・scenario.ts と人物の契約で、配送で AC09 の 8 回を取り直す。最後に統合担当が場面を作り直して評価を 1 巡する（AC10）。製品のコード（reconstruction/src）は変えない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは各 AC に『無いと何が壊れるか』を書き、テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "fabdc3a2126e12fd7052203cba750f0fae92cf79",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
