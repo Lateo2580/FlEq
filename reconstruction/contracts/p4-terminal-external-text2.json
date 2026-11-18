@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-  "sha256": "6a266710d385904210b86c997a9d73a7c2f25c9b6785042bb8b03f1ca2852fdd",
+  "sha256": "4c1cb9b19ffa691f227a033bd864f44a6f3aa4ab22422d18ee060e469a000d1b",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -72,7 +72,7 @@
   "contractId": "P4-TERMINAL-EXTERNAL-TEXT-002",
   "mode": "implementation",
   "objective": "構造的欠陥台帳 138・139・142 を閉じる。dmdata・npm registry・GitHub API から来た字のうち、制御の字（ESC・BEL・TAB など C0）がそのまま端末に書かれうる口が 3 つ残っている。ESC が生で出ると、端末の色や画面を外から書き換えられる（コードを読んで見つけ、起草の写しで再現した。本物の経路では起きていない）。(138) REST の一覧の title は取り直しの一覧の行に出る。recovery.ts の buildDigest で digest の題名にする時に（ListHead の題名と bodyKey は生の字のまま）、U+0000〜U+001F・U+007F〜U+009F・U+2028・U+2029 を 1 字につき半角の空白 1 字に替える。(139) WS の start の frame の classifications は起動画面の「区分:」の行に出る。host.ts の acceptStart で status の区分に入れる時に同じく替える（照合は替える前の字）。(142) npm registry・GitHub API・cache の版は「新しい版があります」の行に出るが、update-check.ts の照合が頭しか見ないので版の後ろに何でも続けられる。照合を末尾まで固定し（P4-TET2-D-VERSION）、合わない版は今どおり出さない。どれも行の中の書き換えで、painter と整形は変えない。実データでは 3 つの口とも出力は 1 字も変わらない（Q-TET2-REAL）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-  "baseOid": "unassigned",
+  "baseOid": "cb9e739683dd96fb6a516d595f708ceba3ac2487",
   "cleanTreeRequired": true,
   "readPaths": [
    "AGENTS.md",
