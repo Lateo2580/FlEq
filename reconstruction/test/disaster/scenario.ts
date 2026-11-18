@@ -102,12 +102,15 @@ function build(id: string, dataDir: string | null, seed: number): Built | "dataM
   if (id.startsWith("W1:")) {
     const date = id.slice(3);
     const frames = W1_DAYS.some((item) => item === date) ? day(date) : null;
-    if (frames == null) return "dataMissing";
+    // P4-PWT-AC08（Q4=A、P4-PWT-D-W1-START=A）: 前日の 18:00 からの報を前に併せる。無いと 0 時に空の状態から始まり、初めて見た報が新しい報として鳴る。
+    // 前日の dir が無ければ 0 時から流さずに dataMissing。区切りと期待例はその日の 0 時からのまま。
+    const before = frames == null ? null : day(new Date(midnight(date) - DAY + 9 * HOUR).toISOString().slice(0, 10));
+    if (frames == null || before == null) return "dataMissing";
     const start = midnight(date);
     // 期待例: 日の終わりに、その日に VPWP50 を出した官署の U-F の subject が全部ある。
     const subjects = new Set(frames.filter((frame) => frame.headType === "VPWP50")
       .map((frame) => `${operationOf(frame.body)}/VPWP50/${textOf(frame.body, "EditorialOffice")}`));
-    return { frames, startMs: start, endMs: start + DAY, synthesized: false,
+    return { frames: merge(before.filter((frame) => frame.atMs >= start - 6 * HOUR), frames), startMs: start - 6 * HOUR, endMs: start + DAY, synthesized: false,
       checkpoints: [6, 12, 18, 24].map((hour) => ({ atMs: start + hour * HOUR, label: `${date} ${hour}:00` })),
       expectations: [{ atMs: start + DAY, label: "VPWP50 の官署の U-F subject が全部ある", check: (h) => {
         const held = new Set(h.unit("U-F").subjects.map((item) => item.subject));

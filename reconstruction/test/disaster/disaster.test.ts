@@ -206,6 +206,7 @@ describe("P3-DISASTER-CAPACITY-001 stage 1", () => {
     const dir = scratch();
     const day = join(dir, "x-2026-06-03");
     mkdirSync(day);
+    mkdirSync(join(dir, "x-2026-06-02")); writeFileSync(join(dir, "x-2026-06-02", "telegrams.json"), "[]"); // P4-PWT-AC08: W1 は前日の dir も要る（18:00 以降の報は 0 件）
     const rows = [
       { filename: "a.xml", format: "xml", head: { type: "VPWW57" }, receivedTime: "2026-06-03T00:10:00.000Z", fixture: "15_16_02_251222_VPWW57" },
       { filename: "b.xml", format: "xml", head: { type: "VPWW55" }, receivedTime: "2026-06-03T00:20:00.000Z", fixture: "15_17_01_251222_VPWW55" },

@@ -8,6 +8,7 @@ import { shiftTimestamps } from "../eew-e01/frames.mjs";
 // 書き換えるのは EventID・Serial・ReportDateTime（と TargetDateTime・Control/DateTime）・観測と到達の時刻・区域と観測点の列・
 // InfoType と Control/Status（通常へ）だけ。型を置く時刻は shiftTimestamps で全体を動かして決める。
 // TargetDateTime を報の時刻に書き換えるのは、TargetDateTime が ReportDateTime と同じ型か製品が読まない型だけ。VXSE51 は発生時刻に使うので書き換えない。
+// P4-PWT-AC06 で文面も報に合わせる（震源・見出しと付加文の字・伏せ字・最終報・EEW の区域の長周期の階級と到達）。件数と時刻は変えない（解除の VTSE41 だけ足す）。
 
 // origin: real は採取物の実電文、sample は筋書きが中身を決める気象庁の公開サンプル、synthetic は合成。receivedTime は telegrams.json の
 // 生の文字列（実電文だけ、digest に使う）。unchanged は筋書きが明示した unchanged の reason（P3-DC-ORACLE (5)、例: Observation の無い VTSE51 の noChange）。
@@ -27,11 +28,16 @@ const jst = (ms: number): string => `${new Date(ms + 9 * HOUR).toISOString().sli
 const utc = (ms: number): string => `${new Date(ms).toISOString().slice(0, 19)}Z`;
 const eventIdAt = (ms: number): string => jst(ms).slice(0, 19).replace(/\D/g, "");
 const textOf = (xml: string, tag: string): string | null => new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(xml)?.[1] ?? null;
+// 本文の全角の「28日16時27分」（P4-PWT-AC06 (2)(3)）。shiftTimestamps は ISO の時刻だけを動かすので、無いと型の日時の字が残る。
+const clockText = (ms: number): string => {
+  const at = new Date(ms + 9 * HOUR);
+  return fullWidth(`${at.getUTCDate()}日${String(at.getUTCHours()).padStart(2, "0")}時${String(at.getUTCMinutes()).padStart(2, "0")}分`);
+};
 
 // 型の OriginTime（無ければ ReportDateTime）を at に合わせて、全時刻を同じだけ動かす。
 function placed(xml: string, at: number): string {
   const anchor = textOf(xml, "OriginTime") ?? textOf(xml, "ReportDateTime")!;
-  return shiftTimestamps(xml, at - Date.parse(anchor));
+  return shiftTimestamps(xml, at - Date.parse(anchor)).replace(/[０-９]+日[０-９]+時[０-９]+分ころ/g, `${clockText(at)}ころ`);
 }
 
 // target: TargetDateTime（既定は報の時刻）。VXSE51 は TargetDateTime を発生時刻に使う（I-U-Q の originTimeRaw）ので、続報でも origin に保つ。
@@ -39,7 +45,8 @@ function head(xml: string, at: number, fields: Readonly<{ eventId?: string; seri
   let out = xml.replace(/<Status>[^<]*<\/Status>/, "<Status>通常</Status>")
     .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${utc(at)}</DateTime>`)
     .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jst(at)}</ReportDateTime>`)
-    .replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, `<TargetDateTime>${jst(fields.target ?? at)}</TargetDateTime>`);
+    .replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, `<TargetDateTime>${jst(fields.target ?? at)}</TargetDateTime>`)
+    .replace(/[０-９]+日[０-９]+時[０-９]+分現在/g, `${clockText(at)}現在`);
   if (fields.eventId != null) out = out.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${fields.eventId}</EventID>`);
   if (fields.serial != null) out = out.replace(/<Serial>[^<]*<\/Serial>/, `<Serial>${fields.serial}</Serial>`);
   if (fields.infoType != null) out = out.replace(/<InfoType>[^<]*<\/InfoType>/, `<InfoType>${fields.infoType}</InfoType>`);
@@ -79,6 +86,30 @@ function codes(used: Set<string>, digits: number) {
     used.add(code);
     return code;
   };
+}
+
+// ---- 震源（P4-PWT-AC06 (3)） ----
+
+type Hypocenter = Readonly<{ name: string; code: string; coordinate: string }>;
+function hypocenterOf(xml: string): Hypocenter | null {
+  const area = /<Hypocenter>\s*<Area>([\s\S]*?)<\/Area>/.exec(xml)?.[1] ?? "";
+  const name = textOf(area, "Name"), code = /<Code type="震央地名">([^<]*)<\/Code>/.exec(area)?.[1];
+  const coordinate = /<jmx_eb:Coordinate[^>]*>[^<]*<\/jmx_eb:Coordinate>/.exec(area)?.[0];
+  return name == null || name === "" || code == null || coordinate == null ? null : { name, code, coordinate };
+}
+// 型の震源の名前・code・座標を替える。名前は EEW の Headline（「豊後水道で地震」）にも出るので全部替える。ReduceCode・NameFromMark は製品が読まないので型のまま。
+function epicentered(xml: string, to: Hypocenter | null): string {
+  const from = hypocenterOf(xml);
+  if (to == null || from == null) return xml;
+  return xml.split(from.name).join(to.name).replace(`<Code type="震央地名">${from.code}</Code>`, `<Code type="震央地名">${to.code}</Code>`).replace(from.coordinate, to.coordinate);
+}
+// N1・N2 の筋書きの震源は本震の津波の型（32-39_12_02 の和歌山県南方沖）。地震と EEW の型（熊本・豊後水道など）をこれに揃える。
+const MAIN_41 = "32-39_12_02_250206_VTSE41";
+let nankaiCache: Readonly<{ hypocenter: Hypocenter; magnitude: string }> | null = null;
+function nankaiQuake(): Readonly<{ hypocenter: Hypocenter; magnitude: string }> {
+  const xml = fixture(MAIN_41);
+  nankaiCache ??= { hypocenter: hypocenterOf(xml)!, magnitude: /<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/.exec(xml)![0] };
+  return nankaiCache;
 }
 
 // ---- 地震の観測網（震度観測点 4,361・市町村等 1,894・細分区域 188・都道府県 47〔上界、P3-DC-SOURCES (8)〕） ----
@@ -378,18 +409,35 @@ function forecastItems(rows: readonly Forecast[]): string {
 function tsunami41(template: string, at: number, eventId: string, rows: readonly Forecast[], origin: number | null): string {
   const xml = head(origin == null ? template : placed(template, origin), at, { eventId });
   const body = xml.indexOf("<Body");
-  return xml.slice(0, body) + between(xml.slice(body), "</CodeDefine>", "</Forecast>", `\n${forecastItems(rows)}\n`);
+  return worded(xml.slice(0, body) + between(xml.slice(body), "</CodeDefine>", "</Forecast>", `\n${forecastItems(rows)}\n`), rows);
+}
+// 見出しと警告の文を報の区分に合わせる（P4-PWT-AC06 (6)(9)）。文は 32-39_11_11 の固定付加文の段落から採る。無いと、解除や注意報だけの報も
+// 「東日本大震災クラスの津波が来襲します」「ただちに避難してください」と読め、32-39_12_02 の型は「これは訓練です」を載せる。
+const GRADE_NAME: Readonly<Partial<Record<Grade, string>>> = { major: "大津波警報", warning: "津波警報", advisory: "津波注意報", forecast: "津波予報（若干の海面変動）" };
+function worded(xml: string, rows: readonly Forecast[]): string {
+  const grades = new Set(rows.map((row) => row.grade));
+  const names = (["major", "warning", "advisory", "forecast"] as const).filter((grade) => grades.has(grade)).map((grade) => GRADE_NAME[grade]!);
+  const parts = /<WarningComment[^>]*>\s*<Text>([^<]*)<\/Text>/.exec(fixture("32-39_11_11_250206_VTSE41"))![1].split(/\n[\s\u3000]*\n/);
+  const urgent = grades.has("major") || grades.has("warning");
+  const headline = names.length === 0 ? "津波警報・注意報を解除しました。" : [...grades.has("major") ? [parts[0]] : [], `${names.join("・")}を発表しています。`,
+    urgent ? "ただちに避難してください。" : "海の中や海岸付近は危険です。"].join("\n");
+  const comment = names.length === 0 ? headline
+    : [headline, ...names.flatMap((name) => parts.filter((part) => part.startsWith(`＜${name}＞`))), ...urgent ? parts.slice(-2) : []].join("\n\n");
+  return xml.replace(/(<Headline>\s*<Text>)[^<]*(<\/Text>)/, `$1${headline}$2`).replace(/(<WarningComment[^>]*>\s*<Text>)[^<]*(<\/Text>)/, `$1${comment}$2`);
 }
 
 // 観測点（VTSE51 は沿岸 191、VTSE52 は沖合 420〔上界、P3-DC-SOURCES (8)〕）。型の実在の観測点を先に使う。
+// 観測点は予報区の沿岸に置く（P4-PWT-AC06 (2)）: 実在の点は code の頭 3 桁がその予報区（20102 は 201 青森県太平洋沿岸）で、coasts の外の点は使わない。
+// 足す点は coasts を順に回し、code は予報区の code に base からの 2 桁（実在の点の 2 桁と重ならない値）、名前は予報区の名前に通し番号。
 type Gauge = Readonly<{ coast: Coast; name: string; code: string }>;
-function gauges(template: string, count: number, offset: number): Gauge[] {
+function gauges(template: string, count: number, coasts: readonly Coast[], base: number): Gauge[] {
   const real = [...template.slice(template.indexOf("<Observation>"), template.indexOf("</Observation>")).matchAll(/<Station><Name>([^<]*)<\/Name><Code>([^<]*)<\/Code>/g)]
-    .map(([, name, code], index) => ({ coast: COASTS[index % COASTS.length], name, code }));
-  const next = codes(new Set(real.map((item) => item.code)), 5);
+    .flatMap(([, name, code]) => coasts.filter((coast) => coast.code === code.slice(0, 3)).map((coast) => ({ coast, name, code })));
   const out: Gauge[] = real.slice(0, count);
-  for (let k = 0; out.length < count; k++)
-    out.push({ coast: COASTS[(k + offset) % COASTS.length], name: `${real[k % real.length].name}${k + 1}`, code: next() });
+  for (let k = 0; out.length < count; k++) {
+    const coast = coasts[k % coasts.length], n = Math.floor(k / coasts.length);
+    out.push({ coast, name: `${coast.name}${n + 1}`, code: `${coast.code}${base + n}` });
+  }
   return out;
 }
 
@@ -405,8 +453,9 @@ function gaugeElement(gauge: Gauge, grade: Grade, at: number, origin: number, se
 <MaxHeight>\n<DateTime>${jst(at - MINUTE)}</DateTime>\n<Condition>重要</Condition>
 <jmx_eb:TsunamiHeight type="これまでの最大波の高さ" unit="m" description="${fullWidth(`${value}m`)}">${value}</jmx_eb:TsunamiHeight>\n</MaxHeight>\n</Station>`;
 }
-function tsunami51(origin: number, at: number, eventId: string, serial: number, list: readonly Gauge[], grades: ReadonlyMap<string, Grade>): string {
-  const xml = head(placed(fixture("32-39_11_10_250206_VTSE51"), origin), at, { eventId, serial: String(serial) });
+function tsunami51(origin: number, at: number, eventId: string, serial: number, list: readonly Gauge[], grades: ReadonlyMap<string, Grade>,
+  hypocenter: Hypocenter | null): string {
+  const xml = epicentered(head(placed(fixture("32-39_11_10_250206_VTSE51"), origin), at, { eventId, serial: String(serial) }), hypocenter);
   const items = new Map<string, string[]>();
   for (const gauge of list) {
     const lines = items.get(gauge.coast.code) ?? [];
@@ -419,8 +468,9 @@ function tsunami51(origin: number, at: number, eventId: string, serial: number, 
   }).join("\n");
   return between(xml, "</CodeDefine>", "</Observation>", `\n${inner}\n`, xml.indexOf("<Observation>"));
 }
-function tsunami52(origin: number, at: number, eventId: string, serial: number, list: readonly Gauge[], grades: ReadonlyMap<string, Grade>): string {
-  const xml = head(placed(fixture("61_11_02_250206_VTSE52"), origin), at, { eventId, serial: String(serial) });
+function tsunami52(origin: number, at: number, eventId: string, serial: number, list: readonly Gauge[], grades: ReadonlyMap<string, Grade>,
+  hypocenter: Hypocenter | null): string {
+  const xml = epicentered(head(placed(fixture("61_11_02_250206_VTSE52"), origin), at, { eventId, serial: String(serial) }), hypocenter);
   const inner = `<Item>\n<Area><Name></Name><Code></Code></Area>\n${list.map((gauge) =>
     gaugeElement(gauge, grades.get(gauge.coast.code) ?? "advisory", at, origin, true)).join("\n")}\n</Item>`;
   return between(xml, "</CodeDefine>", "</Observation>", `\n${inner}\n`, xml.indexOf("<Observation>"));
@@ -457,22 +507,35 @@ function eewAreaList(count: number, side: Side): EewArea[] {
     .sort((a, b) => a.band - b.band || a.index - b.index).slice(0, count);
   return list.map(({ band, item }) => ({ pref: item.pref, area: item.area, int: EEW_INT[band] }));
 }
-function eewBody(template: string, at: number, origin: number, eventId: string, serial: number, areas: readonly EewArea[] | null, warning: boolean): string {
-  let xml = head(placed(template, origin), at, { eventId, serial: String(serial) });
+function eewBody(template: string, at: number, origin: number, eventId: string, serial: number, areas: readonly EewArea[] | null, warning: boolean,
+  final: boolean, hypocenter: Hypocenter | null): string {
+  let xml = epicentered(head(placed(template, origin), at, { eventId, serial: String(serial) }), hypocenter);
+  // 最後の報に最終報（P4-PWT-AC06 (4)）。無いと、EEW は最後の報の後も続報を待つ状態のまま残る。
+  if (final) xml = xml.replace("</Body>", "<NextAdvisory>この情報をもって、緊急地震速報：最終報とします。</NextAdvisory></Body>");
   if (areas == null) return xml;
   const kind = warning ? "<Kind><Name>緊急地震速報（警報）</Name><Code>10</Code></Kind>" : "<Kind><Name>緊急地震速報（予報）</Name><Code>19</Code></Kind>";
-  const blocks = areas.map((item, index) => `<Pref><Name>${item.pref.name}</Name><Code>${item.pref.code}</Code><Area><Name>${item.area.name}</Name><Code>${item.area.code}</Code><Category>${kind}</Category><ForecastInt><From>${item.int}</From><To>${item.int}</To></ForecastInt><ForecastLgInt><From>0</From><To>0</To></ForecastLgInt><ArrivalTime>${jst(origin + 10 * SECOND + 2 * SECOND * index)}</ArrivalTime></Area></Pref>`);
+  // 区域の長周期の階級は、型の区域のうち同じ予想震度の区域の最大で、型に無い予想震度は型の Body の値。到達は報時刻より後（AC06 (7)、統合担当の決め）。
+  const source = template.slice(template.indexOf("<Body"));
+  const lgOf = new Map<string, number>();
+  for (const [, int, lg] of source.matchAll(/<\/Category><ForecastInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastInt><ForecastLgInt><From>([^<]*)<\/From>/g))
+    lgOf.set(int, Math.max(lgOf.get(int) ?? 0, Number(lg)));
+  const top = Number(/<ForecastLgInt><From>([^<]*)<\/From>/.exec(source)![1]);
+  const lgs = areas.map((item) => lgOf.get(item.int) ?? top);
+  const blocks = areas.map((item, index) => `<Pref><Name>${item.pref.name}</Name><Code>${item.pref.code}</Code><Area><Name>${item.area.name}</Name><Code>${item.area.code}</Code><Category>${kind}</Category><ForecastInt><From>${item.int}</From><To>${item.int}</To></ForecastInt><ForecastLgInt><From>${lgs[index]}</From><To>${lgs[index]}</To></ForecastLgInt><ArrivalTime>${jst(at + 10 * SECOND + 2 * SECOND * index)}</ArrivalTime></Area></Pref>`);
   const body = xml.indexOf("<Body");
   const first = xml.indexOf("<Pref>", body), last = xml.lastIndexOf("</Pref>") + "</Pref>".length;
   xml = xml.slice(0, first) + blocks.join("") + xml.slice(last);
-  const max = areas.reduce((value, item) => higher(value, item.int), "0");
-  return xml.slice(0, body) + xml.slice(body).replace(/<ForecastInt><From>[^<]*<\/From><To>[^<]*<\/To><\/ForecastInt>/, `<ForecastInt><From>${max}</From><To>${max}</To></ForecastInt>`);
+  const max = areas.reduce((value, item) => higher(value, item.int), "0"), lg = Math.max(...lgs);
+  return xml.slice(0, body) + xml.slice(body).replace(/<ForecastInt><From>[^<]*<\/From><To>[^<]*<\/To><\/ForecastInt>/, `<ForecastInt><From>${max}</From><To>${max}</To></ForecastInt>`)
+    .replace(/<ForecastLgInt><From>[^<]*<\/From><To>[^<]*<\/To><\/ForecastLgInt>/, `<ForecastLgInt><From>${lg}</From><To>${lg}</To></ForecastLgInt>`);
 }
 
 // ---- 組み立て ----
 
 class Out {
   readonly frames: Frame[] = [];
+  // VYSE51 の臨時解説の号（報ごとに 1 つ増やす、P4-PWT-AC06 (1)）。
+  commentaries = 0;
   private readonly eventIds = new Set<string>();
   put(atMs: number, headType: string, xml: string, source: string): void {
     this.frames.push({ atMs, headType, body: encoder.encode(xml), origin: "synthetic", source });
@@ -493,29 +556,32 @@ const T61 = "telegram-foundation/phase7_5_VXSE61_20260728162718_d7e630bbb653", T
 // 本震の地震・EEW・津波（P3-DC-SYNTH の本震の地震・本震の EEW・津波）。
 function mainShock(out: Out, origin: number, eventId: string, side: Side, seed: number): void {
   const { ordered, areaMax } = intensities(side, seed);
+  const { hypocenter, magnitude } = nankaiQuake();
+  // 型（熊本 M7.1）の震源と規模を、同じ地震の津波の報と同じ値にする（P4-PWT-AC06 (3)）。
+  const shaped = (name: string) => epicentered(placed(fixture(name), origin), hypocenter).replace(/<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/, magnitude);
   const quake = (minutes: number, count: number, serial: number) => out.put(origin + minutes * MINUTE, "VXSE53",
-    quake53(head(placed(fixture(T53), origin), origin + minutes * MINUTE, { eventId, serial: String(serial) }), ordered.slice(0, count)), "synth:VXSE53");
+    quake53(head(shaped(T53), origin + minutes * MINUTE, { eventId, serial: String(serial) }), ordered.slice(0, count)), "synth:VXSE53");
   // VXSE51 は t0＋4 分〔実例〕に細分区域 150〔推測〕。
   const seen = new Set<string>();
   const areas51: { pref: Ref; area: Ref; max: string }[] = [];
   for (const item of ordered) if (!seen.has(item.area.code) && areas51.length < 150) { seen.add(item.area.code); areas51.push({ pref: item.pref, area: item.area, max: areaMax.get(item.area.code)! }); }
-  out.put(origin + 4 * MINUTE, "VXSE51", quake51(head(placed(fixture(T51), origin), origin + 4 * MINUTE, { eventId, target: origin }), areas51), "synth:VXSE51");
+  out.put(origin + 4 * MINUTE, "VXSE51", quake51(head(shaped(T51), origin + 4 * MINUTE, { eventId, target: origin }), areas51), "synth:VXSE51");
   // VXSE53 は＋4 分〔実例〕に 2,000〔推測〕・＋8 分〔実例〕に 3,500〔推測〕・＋20 分〔推測〕に 4,361〔上界〕。
   quake(4, 2_000, 1);
   quake(8, 3_500, 2);
   quake(20, UPPER.stations, 3);
   // VXSE62 は＋10 分〔実例〕に 400〔推測〕・＋30 分〔推測〕に 703〔上界〕。VXSE61 は＋4 時間〔実例〕。
   for (const [minutes, count, serial] of [[10, 400, 1], [30, UPPER.longPeriod, 2]] as const)
-    out.put(origin + minutes * MINUTE, "VXSE62", quake62(head(placed(fixture(T62), origin), origin + minutes * MINUTE, { eventId, serial: String(serial) }),
+    out.put(origin + minutes * MINUTE, "VXSE62", quake62(head(shaped(T62), origin + minutes * MINUTE, { eventId, serial: String(serial) }),
       longPeriodStations(count, side, seed)), "synth:VXSE62");
-  out.put(origin + 4 * HOUR, "VXSE61", head(placed(fixture(T61), origin), origin + 4 * HOUR, { eventId }), "synth:VXSE61");
+  out.put(origin + 4 * HOUR, "VXSE61", head(shaped(T61), origin + 4 * HOUR, { eventId }), "synth:VXSE61");
   // EEW: VXSE45 の 45 報を＋8 秒から 4 秒ごと〔推測〕、予想震度の区域は 20 から 20 報目に 188〔上界〕。VXSE43 は 1・5・10 報目〔推測〕。
   for (let report = 1; report <= 45; report++) {
     const at = origin + 8 * SECOND + (report - 1) * 4 * SECOND;
     const areas = eewAreaList(report >= 20 ? UPPER.areas : 20 + Math.round(((UPPER.areas - 20) * (report - 1)) / 19), side);
     if (report === 1 || report === 5 || report === 10)
-      out.put(at, "VXSE43", eewBody(fixture("37_01_01_240613_VXSE43"), at, origin, eventId, report, areas, true), "synth:VXSE43");
-    out.put(at, "VXSE45", eewBody(fixture("77_01_26_240613_VXSE45"), at, origin, eventId, report, areas, false), "synth:VXSE45");
+      out.put(at, "VXSE43", eewBody(fixture("37_01_01_240613_VXSE43"), at, origin, eventId, report, areas, true, false, hypocenter), "synth:VXSE43");
+    out.put(at, "VXSE45", eewBody(fixture("77_01_26_240613_VXSE45"), at, origin, eventId, report, areas, false, report === 45, hypocenter), "synth:VXSE45");
   }
   tsunamiSequence(out, origin, eventId, side);
 }
@@ -539,27 +605,49 @@ function tsunamiSequence(out: Out, origin: number, eventId: string, side: Side):
   }
   const grades = new Map(rows.map((row) => [row.coast.code, row.grade]));
   // VTSE51 は＋5 分から 15 分ごとに 12 時間〔推測〕、沿岸の観測点は 3 時間で 191〔上界〕。VTSE52 は＋5 分から 10 分ごとに 6 時間〔推測〕、沖合は 1 時間 30 分で 420〔上界〕。
-  const coastal = gauges(fixture("32-39_11_10_250206_VTSE51"), 191, 0);
+  const coastal = gauges(fixture("32-39_11_10_250206_VTSE51"), 191, COASTS, 60), { hypocenter } = nankaiQuake();
   for (let serial = 1, at = origin + 5 * MINUTE; at <= origin + 12 * HOUR; serial++, at += 15 * MINUTE)
-    out.put(at, "VTSE51", tsunami51(origin, at, eventId, serial, coastal.slice(0, Math.max(1, Math.ceil((191 * (at - origin)) / (3 * HOUR)))), grades), "synth:VTSE51");
-  const offshore = gauges(fixture("61_11_02_250206_VTSE52"), 420, 7);
+    out.put(at, "VTSE51", tsunami51(origin, at, eventId, serial, coastal.slice(0, Math.max(1, Math.ceil((191 * (at - origin)) / (3 * HOUR)))), grades, hypocenter), "synth:VTSE51");
+  const offshore = gauges(fixture("61_11_02_250206_VTSE52"), 420, COASTS, 80);
   for (let serial = 1, at = origin + 5 * MINUTE; at <= origin + 6 * HOUR; serial++, at += 10 * MINUTE)
-    out.put(at, "VTSE52", tsunami52(origin, at, eventId, serial, offshore.slice(0, Math.max(1, Math.ceil((420 * (at - origin)) / (90 * MINUTE)))), grades), "synth:VTSE52");
+    out.put(at, "VTSE52", tsunami52(origin, at, eventId, serial, offshore.slice(0, Math.max(1, Math.ceil((420 * (at - origin)) / (90 * MINUTE)))), grades, hypocenter), "synth:VTSE52");
 }
 
 // 臨時情報（型は 74_01_01 調査中 111・74_01_04 巨大地震警戒 120・74_01_05 巨大地震注意 130・75_01_01 臨時解説 210）。EventID は報の時刻。
 const NANKAI = { 111: "selected_xml/74_01_01_200512_VYSE50", 120: "selected_xml/74_01_04_200512_VYSE50", 130: "selected_xml/74_01_05_200512_VYSE50",
   210: "selected_xml/75_01_01_200512_VYSE51" } as const;
-function nankai(out: Out, at: number, code: keyof typeof NANKAI): void {
+// quake は報が述べる地震（発生時刻と、「の地震」の前に置く規模の字）。
+type Quake = Readonly<{ originMs: number; magnitude: string }>;
+const MAIN_MAGNITUDE = "マグニチュード８を超える規模";
+function nankai(out: Out, at: number, code: keyof typeof NANKAI, quake: Quake): void {
   const headType = code === 210 ? "VYSE51" : "VYSE50";
-  out.put(at, headType, head(placed(fixture(NANKAI[code]), at), at, { eventId: eventIdAt(at) }), `synth:${headType}:${code}`);
+  const number = code === 210 ? ++out.commentaries : null;
+  const xml = head(placed(fixture(NANKAI[code]), at), at, { eventId: eventIdAt(at), ...number == null ? {} : { serial: String(number) } });
+  out.put(at, headType, unmasked(number == null ? xml : xml.replace(/（第[０-９]+号）/g, `（第${fullWidth(String(number))}号）`), quake), `synth:${headType}:${code}`);
+}
+// 伏せ字（●・▲）を消す（P4-PWT-AC06 (1)）: 地震の時刻・震源・規模は筋書きの値で埋め、伏せ字を含む括弧は括弧ごと、残る伏せ字は文ごと（文の無い行は行ごと）落とす。
+function unmasked(xml: string, quake: Quake): string {
+  const month = fullWidth(String(new Date(quake.originMs + 9 * HOUR).getUTCMonth() + 1)), time = clockText(quake.originMs);
+  return xml.replace(/●月●日●●時●●分頃/g, `${month}月${time}頃`).replace(/(?:本日|昨日)（●日）●●時●●分頃/g, `${time}頃`)
+    .replace(/●●●●●●を震源とする/g, `${nankaiQuake().hypocenter.name}を震源とする`).replace(/（[^（）<]*[●▲][^（）<]*）/g, "")
+    .replace(/マグニチュード●．●(?:（速報値）)?の地震/g, `${quake.magnitude}の地震`)
+    .replace(/>([^<]*[●▲][^<]*)</g, (_whole, inner: string) => `>${inner.split("\n").flatMap((line) => {
+      if (!/[●▲]/.test(line)) return [line];
+      const kept = line.split(/(?<=。)/).filter((sentence) => !/[●▲]/.test(sentence)).join("");
+      return kept.trim() === "" ? [] : [kept];
+    }).join("\n")}<`);
 }
 
 // 余震: 本震ごとに 24 時間で 400 event〔推測〕、大森の形の累積 N(t)=K・ln(1+t/c)（c=0.05 時間、N(24 時間)=400）〔推測〕。
 // 20 件ごとに大 1（32-35_01_03 の形）・中 5（32-35_04_04 の形）・小 14（32-35_01_02 の VXSE52 と、32-35_04_04 を観測点 5 に切った VXSE53）〔推測の比〕。
 // 中と大の全部と小の 12/14 に EEW（77_01_01 の形、5 報を 2 秒ごと）〔推測〕。報は発生の＋3 分（VXSE52）・＋4 分（VXSE53）〔推測〕。
+// 余震の報はどれも本震の津波警報等の間（本震の＋3 分〜48 時間）に出るので、型の「津波の心配はありません」を、発表中の付加文（T53 の 0211）に替える
+// （P4-PWT-AC06 (3)）。震源は本震と同じ。
+const TSUNAMI_ISSUED = "<ForecastComment codeType=\"固定付加文\">\n<Text>津波警報等（大津波警報・津波警報あるいは津波注意報）を発表中です。</Text>\n<Code>0211</Code>\n</ForecastComment>";
 function aftershocks(out: Out, origin: number): void {
   const c = 0.05 * HOUR, k = 400 / Math.log(1 + DAY / c);
+  const { hypocenter } = nankaiQuake();
+  const shaped = (xml: string, at: number) => epicentered(placed(xml, at), hypocenter).replace(/<ForecastComment[\s\S]*?<\/ForecastComment>/, TSUNAMI_ISSUED);
   const small53 = fixture("32-35_04_04_240613_VXSE53");
   const cut = quake53(small53, stationsOf(small53).slice(0, 5));
   for (let index = 1; index <= 400; index++) {
@@ -567,35 +655,43 @@ function aftershocks(out: Out, origin: number): void {
     const slot = (index - 1) % 20;
     const kind = slot === 0 ? "big" : slot <= 5 ? "middle" : "small";
     const at = (minutes: number) => event.originMs + minutes * MINUTE;
-    if (kind === "small") out.put(at(3), "VXSE52", head(placed(fixture("32-35_01_02_240613_VXSE52"), event.originMs), at(3), { eventId: event.id }), "synth:aftershock:VXSE52");
+    if (kind === "small") out.put(at(3), "VXSE52", head(shaped(fixture("32-35_01_02_240613_VXSE52"), event.originMs), at(3), { eventId: event.id }), "synth:aftershock:VXSE52");
     const template = kind === "big" ? fixture("32-35_01_03_240613_VXSE53") : kind === "middle" ? small53 : cut;
-    out.put(at(4), "VXSE53", head(placed(template, event.originMs), at(4), { eventId: event.id }), `synth:aftershock:${kind}`);
-    if (kind !== "small" || slot < 18) aftershockEew(out, event.originMs, event.id, 5, false);
+    out.put(at(4), "VXSE53", head(shaped(template, event.originMs), at(4), { eventId: event.id }), `synth:aftershock:${kind}`);
+    if (kind !== "small" || slot < 18) aftershockEew(out, event.originMs, event.id, 5, false, hypocenter);
   }
 }
 // wide: 77_01_26 の形（型の区域のまま）、でなければ 77_01_01 の形（区域なし）。
-function aftershockEew(out: Out, origin: number, eventId: string, reports: number, wide: boolean): void {
+function aftershockEew(out: Out, origin: number, eventId: string, reports: number, wide: boolean, hypocenter: Hypocenter | null): void {
   for (let report = 1; report <= reports; report++) {
     const at = origin + 5 * SECOND + (report - 1) * 2 * SECOND;
-    out.put(at, "VXSE45", eewBody(fixture(wide ? "77_01_26_240613_VXSE45" : "77_01_01_240613_VXSE45"), at, origin, eventId, report, null, false), "synth:VXSE45");
+    out.put(at, "VXSE45", eewBody(fixture(wide ? "77_01_26_240613_VXSE45" : "77_01_01_240613_VXSE45"), at, origin, eventId, report, null, false, report === reports, hypocenter), "synth:VXSE45");
   }
 }
 
 // M7 級の余震を本震ごとに 2 件（＋40 分・＋9 時間）〔推測〕: 観測点 1,500 の VXSE53、新しい EventID の VTSE41（注意報 5 区域）と VTSE51 4 報（観測点 20）、
-// VYSE50 の 111→130〔推測〕。
-function largeAftershocks(out: Out, origin: number, side: Side, seed: number): void {
+// VYSE50 の 111→130〔推測〕。warnedFromMs は筋書きの最初の巨大地震警戒（120）の時刻。
+function largeAftershocks(out: Out, origin: number, side: Side, seed: number, warnedFromMs: number): void {
   const { ordered } = intensities(side, seed + 7);
+  const { hypocenter } = nankaiQuake();
   for (const offset of [40 * MINUTE, 9 * HOUR]) {
     const event = out.eventId(origin + offset);
     const at = (minutes: number) => event.originMs + minutes * MINUTE;
-    out.put(at(4), "VXSE53", quake53(head(placed(fixture(T53), event.originMs), at(4), { eventId: event.id, serial: "1" }), ordered.slice(0, 1_500)), "synth:M7:VXSE53");
+    out.put(at(4), "VXSE53", quake53(head(epicentered(placed(fixture(T53), event.originMs), hypocenter), at(4), { eventId: event.id, serial: "1" }), ordered.slice(0, 1_500)), "synth:M7:VXSE53");
     const rows = COASTS.slice(0, 5).map((coast): Forecast => ({ coast, grade: "advisory", arrivalMs: event.originMs + 30 * MINUTE }));
-    out.put(at(3), "VTSE41", tsunami41(fixture("32-39_12_02_250206_VTSE41"), at(3), event.id, rows, event.originMs), "synth:M7:VTSE41");
-    const list = gauges(fixture("32-39_11_10_250206_VTSE51"), 20, 3);
+    out.put(at(3), "VTSE41", tsunami41(fixture(MAIN_41), at(3), event.id, rows, event.originMs), "synth:M7:VTSE41");
+    // 注意報は発表の 2 時間後に解除する〔推測〕（P4-PWT-D-M7-RELEASE=A）。無いと、注意報と避難の文が 7 日の筋書きの終わりまで残る。
+    out.put(at(3) + 2 * HOUR, "VTSE41", tsunami41(fixture(MAIN_41), at(3) + 2 * HOUR, event.id, rows.map((row) => ({ ...row, grade: "released" as const })), event.originMs),
+      "synth:M7:VTSE41:release");
+    const list = gauges(fixture("32-39_11_10_250206_VTSE51"), 20, rows.map((row) => row.coast), 60);
     const grades = new Map(rows.map((row) => [row.coast.code, row.grade]));
-    for (let serial = 1; serial <= 4; serial++) out.put(at(10 + 15 * (serial - 1)), "VTSE51", tsunami51(event.originMs, at(10 + 15 * (serial - 1)), event.id, serial, list, grades), "synth:M7:VTSE51");
-    nankai(out, at(20), 111);
-    nankai(out, at(120), 130);
+    for (let serial = 1; serial <= 4; serial++)
+      out.put(at(10 + 15 * (serial - 1)), "VTSE51", tsunami51(event.originMs, at(10 + 15 * (serial - 1)), event.id, serial, list, grades, hypocenter), "synth:M7:VTSE51");
+    // 型の T53 の Ｍ７．１。
+    const quake = { originMs: event.originMs, magnitude: "マグニチュード７．１（速報値）" };
+    nankai(out, at(20), 111, quake);
+    // 巨大地震警戒の後の M7 は、130 で注意へ下げず 120 の型で出す（P4-PWT-D-NANKAI-M7=A）。
+    nankai(out, at(120), at(120) >= warnedFromMs ? 120 : 130, quake);
   }
 }
 
@@ -605,32 +701,35 @@ function n1(out: Out, t0: number, seed: number): void {
   const e0 = out.eventId(t0);
   mainShock(out, e0.originMs, e0.id, "whole", seed);
   aftershocks(out, e0.originMs);
-  largeAftershocks(out, e0.originMs, "whole", seed);
+  largeAftershocks(out, e0.originMs, "whole", seed, t0 + 2 * HOUR);
   // N1: VYSE50 の 111 を t0＋20 分〔推測〕、120 を＋2 時間〔公式、最短約 2 時間〕、VYSE51 を＋6 時間・＋20 時間〔推測〕。
-  nankai(out, t0 + 20 * MINUTE, 111);
-  nankai(out, t0 + 2 * HOUR, 120);
-  nankai(out, t0 + 6 * HOUR, 210);
-  nankai(out, t0 + 20 * HOUR, 210);
+  const quake = { originMs: e0.originMs, magnitude: MAIN_MAGNITUDE };
+  nankai(out, t0 + 20 * MINUTE, 111, quake);
+  nankai(out, t0 + 2 * HOUR, 120, quake);
+  nankai(out, t0 + 6 * HOUR, 210, quake);
+  nankai(out, t0 + 20 * HOUR, 210, quake);
 }
 
 function n2(out: Out, t0: number, seed: number): void {
   const e0 = out.eventId(t0);
   mainShock(out, e0.originMs, e0.id, "east", seed);
   aftershocks(out, e0.originMs);
-  largeAftershocks(out, e0.originMs, "east", seed);
+  largeAftershocks(out, e0.originMs, "east", seed, t0 + 2 * HOUR);
   // 後発は t0＋12 時間〔公式、内閣府の参考計算〕。
   const e1 = out.eventId(t0 + 12 * HOUR);
   mainShock(out, e1.originMs, e1.id, "west", seed + 1);
   aftershocks(out, e1.originMs);
-  largeAftershocks(out, e1.originMs, "west", seed + 1);
+  largeAftershocks(out, e1.originMs, "west", seed + 1, t0 + 2 * HOUR);
   // N2: 111 を t0＋20 分と＋12 時間 20 分〔推測〕、120 を＋2 時間と＋14 時間〔公式の最短に合わせる〕、VYSE51 を 1〜7 日目の 10:00 と 17:00 に計 14〔推測〕、
-  // 報ごとに別の EventID〔上界〕、130 を t0＋7 日〔公式、警戒約 1 週間の後〕。
-  nankai(out, t0 + 20 * MINUTE, 111);
-  nankai(out, t0 + 12 * HOUR + 20 * MINUTE, 111);
-  nankai(out, t0 + 2 * HOUR, 120);
-  nankai(out, t0 + 14 * HOUR, 120);
-  for (let day = 1; day <= 7; day++) for (const hour of [10, 17]) nankai(out, startOfJstDay(t0) + day * DAY + hour * HOUR, 210);
-  nankai(out, t0 + 7 * DAY, 130);
+  // 報ごとに別の EventID〔上界〕、130 を t0＋7 日〔公式、警戒約 1 週間の後〕。報が述べる地震はその時刻までの最後の本震。
+  const latest = (at: number): Quake => ({ originMs: at < e1.originMs ? e0.originMs : e1.originMs, magnitude: MAIN_MAGNITUDE });
+  const put = (at: number, code: keyof typeof NANKAI) => nankai(out, at, code, latest(at));
+  put(t0 + 20 * MINUTE, 111);
+  put(t0 + 12 * HOUR + 20 * MINUTE, 111);
+  put(t0 + 2 * HOUR, 120);
+  put(t0 + 14 * HOUR, 120);
+  for (let day = 1; day <= 7; day++) for (const hour of [10, 17]) put(startOfJstDay(t0) + day * DAY + hour * HOUR, 210);
+  put(t0 + 7 * DAY, 130);
 }
 
 // R2（2011-03-11 14:46）: 公開サンプルの VTSE41・VTSE51・VTSE52 と、その後の合成。時刻は P3-DC-SCENARIOS（Q-DC-BASE で原文と照合済み）。
@@ -680,25 +779,25 @@ function r2(out: Out, small: boolean): void {
   const grades = new Map(all.map((row) => [row.coast.code, row.grade]));
   // VTSE51 は 15:21 から 3/12 12:00 まで 20 分ごと、沿岸の観測点を 18:00 までに 191〔上界〕へ増やす〔推測〕。
   // 2 通目は 1 通目の最初の観測点 B を落とす（P3-C5-OBS-MERGE で B が残ることを期待例で見る）。
-  const coastal = gauges(fixture("32-39_11_10_250206_VTSE51"), 191, 0);
+  const coastal = gauges(fixture("32-39_11_10_250206_VTSE51"), 191, COASTS, 60);
   // Serial はサンプル（32-39_11_10 が 3）の続き。
   let serial = 4;
   for (let at = Date.parse("2011-03-11T15:21:00+09:00"); at <= Date.parse("2011-03-12T12:00:00+09:00"); at += 20 * MINUTE, serial++) {
     const count = Math.min(191, 5 + Math.ceil((186 * (at - Date.parse("2011-03-11T15:01:00+09:00"))) / (3 * HOUR)));
     const list = coastal.slice(0, count);
-    out.put(at, "VTSE51", tsunami51(QUAKE_2011, at, EVENT_2011, serial, serial === 5 ? list.slice(1) : list, grades), "synth:R2:VTSE51");
+    out.put(at, "VTSE51", tsunami51(QUAKE_2011, at, EVENT_2011, serial, serial === 5 ? list.slice(1) : list, grades, null), "synth:R2:VTSE51");
   }
   // VTSE52 は 15:15 から 3/11 20:00 まで 20 分ごと、沖合の観測点は 15 まで〔推測〕。
-  const offshore = gauges(fixture("61_11_02_250206_VTSE52"), 15, 7);
+  const offshore = gauges(fixture("61_11_02_250206_VTSE52"), 15, COASTS, 80);
   serial = 3;
   for (let at = Date.parse("2011-03-11T15:15:00+09:00"); at <= Date.parse("2011-03-11T20:00:00+09:00"); at += 20 * MINUTE, serial++)
-    out.put(at, "VTSE52", tsunami52(QUAKE_2011, at, EVENT_2011, serial, offshore.slice(0, Math.min(15, 4 + serial - 2)), grades), "synth:R2:VTSE52");
+    out.put(at, "VTSE52", tsunami52(QUAKE_2011, at, EVENT_2011, serial, offshore.slice(0, Math.min(15, 4 + serial - 2)), grades, null), "synth:R2:VTSE52");
 }
 
 // R1 の EEW: 実電文の VXSE51・VXSE53 で最大震度 3 以上の EventID ごとに、77_01_01 の形の VXSE45 を発生時刻＋5 秒から 2 秒ごとに 5 報
 // （最大震度 6 弱以上は 77_01_26 の形で 15 報）〔推測〕。EventID は地震の報と同じ。
 function r1(out: Out, real: readonly Frame[]): void {
-  const events = new Map<string, { originMs: number; max: string }>();
+  const events = new Map<string, { originMs: number; max: string; hypocenter: Hypocenter | null }>();
   for (const frame of real) {
     if (frame.headType !== "VXSE51" && frame.headType !== "VXSE53") continue;
     const xml = decoder.decode(frame.body);
@@ -707,11 +806,12 @@ function r1(out: Out, real: readonly Frame[]): void {
     const max = observation < 0 ? null : textOf(xml.slice(observation), "MaxInt");
     if (textOf(xml, "Status") !== "通常" || eventId == null || origin == null || max == null || rank(max) < 0) continue;
     const known = events.get(eventId);
-    events.set(eventId, { originMs: known?.originMs ?? Date.parse(origin), max: higher(known?.max ?? "0", max) });
+    // EEW の型の震源（豊後水道）は、同じ EventID の実電文の震源に替える（P4-PWT-AC06 (3)。VXSE51 は震源を持たない）。
+    events.set(eventId, { originMs: known?.originMs ?? Date.parse(origin), max: higher(known?.max ?? "0", max), hypocenter: known?.hypocenter ?? hypocenterOf(xml) });
   }
-  for (const [eventId, { originMs, max }] of [...events].sort((a, b) => a[1].originMs - b[1].originMs || (a[0] < b[0] ? -1 : 1))) {
+  for (const [eventId, { originMs, max, hypocenter }] of [...events].sort((a, b) => a[1].originMs - b[1].originMs || (a[0] < b[0] ? -1 : 1))) {
     if (rank(max) < rank("3")) continue;
-    aftershockEew(out, originMs, eventId, rank(max) >= rank("6-") ? 15 : 5, rank(max) >= rank("6-"));
+    aftershockEew(out, originMs, eventId, rank(max) >= rank("6-") ? 15 : 5, rank(max) >= rank("6-"), hypocenter);
   }
 }
 

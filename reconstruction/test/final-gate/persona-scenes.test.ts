@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +11,7 @@ import type { DisplayDomainView, DisplaySeverity, DisplaySummaryItem } from "../
 import type { DmdataClassification } from "../../contracts/p3-dmdata-connect.types";
 import type { BodyResult, ListHead, UnitWalk } from "../../contracts/p3-recovery.types";
 import { createNotificationGate } from "../../src/cli/notification-gate";
+import { familyFor } from "../../src/decode-material/decode-material";
 import { notificationSettingsFrom } from "../../src/cli/repl";
 import { startupPlan, walkStart } from "../../src/recovery/recovery";
 import { runtimeUnits } from "../../src/runtime/unit-coverage";
@@ -52,11 +54,14 @@ const BUNGO_45 = Date.parse("2024-04-17T23:14:57+09:00"), BUNGO_43 = Date.parse(
 
 type Trial = Readonly<{ scenario: Scenario; dispatches: readonly Dispatch[]; prepare?: RunOptions["prepare"] }>;
 
-// 流す順の (時刻, headType, 本文の sha256) の列の sha256（scenario.ts の digestOf と同じ形）。
-function ready(id: string, frames: readonly Frame[], startMs: number, endMs: number): Scenario {
+// 流す順の (受信時刻, headType, 本文の sha256) の列の sha256（scenario.ts の digestOf と同じ形。実電文は telegrams.json の生の文字列）。
+function digestOf(frames: readonly Frame[]): string {
   const hash = createHash("sha256");
-  for (const item of frames) hash.update(`${new Date(item.atMs).toISOString()}\t${item.headType}\t${sha256(item.body)}\n`);
-  return { kind: "ready", id, frames, digest: hash.digest("hex"), startMs, endMs, checkpoints: [], expectations: [], synth: null, t0: null };
+  for (const item of frames) hash.update(`${item.receivedTime ?? new Date(item.atMs).toISOString()}\t${item.headType}\t${sha256(item.body)}\n`);
+  return hash.digest("hex");
+}
+function ready(id: string, frames: readonly Frame[], startMs: number, endMs: number): Scenario {
+  return { kind: "ready", id, frames, digest: digestOf(frames), startMs, endMs, checkpoints: [], expectations: [], synth: null, t0: null };
 }
 const connection = (startMs: number, lost: number, back: number): Dispatch[] => [{ atMs: startMs, kind: "watchEewWindow" }, { atMs: startMs, kind: "connected" },
   { atMs: lost, kind: "connectionLost" }, { atMs: back, kind: "connected" }];
@@ -82,7 +87,12 @@ function trial(id: string): Trial {
     const cancel = { atMs: at("23:31:20"), xml: retimed("77_01_33_240613_VXSE45", at("23:31:20"), b) };
     const finalAt = at("23:31:38");
     const frames = [first, third, other, cancel].map((item) => frame(item.atMs, "VXSE45", item.xml));
-    frames.push(frame(finalAt, "VXSE45", retimed("77_01_03_240613_VXSE45", finalAt, a, (xml) => finalReport(xml.replace(/<Serial>\d+<\/Serial>/, "<Serial>4</Serial>")))));
+    // 第 3 報と最終報の間に、第 3 報の予報のまま Serial を進めた続報を 10 秒ごとに挟む（P4-PWT-AC06 (11)、帳簿 T2-yu.md:24）。発生時刻は動かさない。
+    // 予報の続報は通知を出さないので、演じ手の通知の数は変わらない。
+    const updates = Array.from({ length: 8 }, (_, index) => at("23:30:21") + index * 10_000).map((atMs, index) => frame(atMs, "VXSE45", third.xml
+      .replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${new Date(atMs).toISOString().slice(0, 19)}Z</DateTime>`)
+      .replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${jstText(atMs)}</ReportDateTime>`).replace(/<Serial>\d+<\/Serial>/, `<Serial>${4 + index}</Serial>`)));
+    frames.push(...updates, frame(finalAt, "VXSE45", retimed("77_01_03_240613_VXSE45", finalAt, a, (xml) => finalReport(xml.replace(/<Serial>\d+<\/Serial>/, `<Serial>${4 + updates.length}</Serial>`)))));
     const start = at("23:20:00");
     return { scenario: ready(id, frames.sort((x, y) => x.atMs - y.atMs), start, jst("2026-10-20T00:05:00")),
       dispatches: [...connection(start, at("23:52:10"), at("23:58:40")), { atMs: at("23:58:41"), kind: "frame", frame: frame(at("23:58:41"), "VXSE45", third.xml) }] };
@@ -102,16 +112,37 @@ function saori(id: string): Trial {
   });
   const last = shiftedBy("77_01_26_240613_VXSE45", delta, event, finalReport);
   eew.push(frame(last.atMs, "VXSE45", last.xml));
+  // 別々の公開サンプルを 1 つの地震に束ねるので、地震の報の震源・発生時刻・見出しの時刻を EEW の最後の報に揃え、津波警報の後の VXSE53 の
+  // 「津波の心配はありません」を発表中の付加文に替える（P4-PWT-AC06 (10)、帳簿 T2-saori.md:24・:40）。VXSE51 は発生時刻を TargetDateTime に持つ。
+  const origin = tag(last.xml, "OriginTime")!, hypocenter = /<Hypocenter><Area><Name>([^<]*)<\/Name><Code type="震央地名">([^<]*)<\/Code>(<jmx_eb:Coordinate[^>]*>[^<]*<\/jmx_eb:Coordinate>)/.exec(last.xml)!;
+  const clock = (ms: number) => { const date = new Date(ms + 9 * 3_600_000); return `${date.getUTCDate()}日${String(date.getUTCHours()).padStart(2, "0")}時${String(date.getUTCMinutes()).padStart(2, "0")}分`
+    .replace(/\d/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)); };
+  const sameQuake = (xml: string) => {
+    const from = /<Hypocenter>\s*<Area>\s*<Name>([^<]*)<\/Name>\s*<Code type="震央地名">([^<]*)<\/Code>\s*(<jmx_eb:Coordinate[^>]*>[^<]*<\/jmx_eb:Coordinate>)/.exec(xml);
+    return (from == null ? xml : xml.split(from[1]).join(hypocenter[1]).replace(`<Code type="震央地名">${from[2]}</Code>`, `<Code type="震央地名">${hypocenter[2]}</Code>`).replace(from[3], hypocenter[3]))
+      .replace(/<OriginTime>[^<]*<\/OriginTime>/, `<OriginTime>${origin}</OriginTime>`).replace(/[０-９]+日[０-９]+時[０-９]+分ころ/g, `${clock(Date.parse(origin))}ころ`);
+  };
+  // 津波の報は JST の時刻で渡し、見出しを区分に合う文にして、区域に到達予想時刻と予想の高さを入れる（AC06 (10)、帳簿 T2-saori.md:28・:32・:36）。
   const coast = (kind: string) => [{ code: "310", name: "千葉県九十九里・外房", kind }, { code: "300", name: "茨城県", kind: "62" },
     { code: "311", name: "千葉県内房", kind: "62" }, { code: "320", name: "伊豆諸島", kind: "62" }, { code: "312", name: "東京湾内湾", kind: "62" }];
-  const live = [...eew, frame(at("18:13:40"), "VXSE51", retimed("32-35_01_01_260824_VXSE51", at("18:13:40"), event)),
-    frame(at("18:15:20"), "VTSE41", vtse41({ eventId: event, at: new Date(at("18:15:20")).toISOString(), areas: coast("51") }))].sort((x, y) => x.atMs - y.atMs);
+  const height: Readonly<Record<string, readonly [string, string]>> = { "52": ["10", "１０ｍ"], "51": ["3", "３ｍ"], "62": ["1", "１ｍ"] };
+  const tsunami = (atMs: number, kind: string) => vtse41({ eventId: event, at: jstText(atMs), areas: coast(kind) })
+    .replace("<Headline><Text>合成の報</Text></Headline>", `<Headline><Text>${kind === "52" ? "大津波警報" : "津波警報"}・津波注意報を発表しました。ただちに避難してください。</Text></Headline>`)
+    .replace('<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/">', '<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">')
+    .replace(/<Code>(\d+)<\/Code><\/Kind><\/Category><\/Item>/g, (_whole, code: string) => `<Code>${code}</Code></Kind></Category><FirstHeight><ArrivalTime>${jstText(at("18:45:00"))}</ArrivalTime></FirstHeight>`
+      + `<MaxHeight><jmx_eb:TsunamiHeight type="津波の高さ" unit="m" description="${height[code]?.[1] ?? ""}">${height[code]?.[0] ?? "NaN"}</jmx_eb:TsunamiHeight></MaxHeight></Item>`);
+  const live = [...eew, frame(at("18:13:40"), "VXSE51", sameQuake(retimed("32-35_01_01_260824_VXSE51", at("18:13:40"), event))
+    .replace(/<TargetDateTime>[^<]*<\/TargetDateTime>/, `<TargetDateTime>${origin}</TargetDateTime>`)),
+  frame(at("18:15:20"), "VTSE41", tsunami(at("18:15:20"), "51"))].sort((x, y) => x.atMs - y.atMs);
   // 切断中に出た報（一覧の頭と本文）。
   const missed: readonly (readonly [ListHead, string])[] = [
-    [head("m1", "U-Q", "VXSE53", at("18:16:50"), "震源・震度に関する情報", event, "1"), retimed("32-35_04_04_240613_VXSE53", at("18:16:50"), event)],
-    [head("m2", "U-T", "VTSE41", at("18:21:10"), "津波警報", event, null), vtse41({ eventId: event, at: new Date(at("18:21:10")).toISOString(), areas: coast("52") })],
-    [head("m3", "U-T", "VTSE51", at("18:23:00"), "津波観測に関する情報", event, "1"), observation({ eventId: event, at: new Date(at("18:23:00")).toISOString(), serial: 1,
-      stations: [{ code: "31101", name: "銚子", condition: "第１波", height: "0.4" }] })],
+    [head("m1", "U-Q", "VXSE53", at("18:16:50"), "震源・震度に関する情報", event, "1"), sameQuake(retimed("32-35_04_04_240613_VXSE53", at("18:16:50"), event))
+      .replace(/<ForecastComment[\s\S]*?<\/ForecastComment>/, "<ForecastComment codeType=\"固定付加文\"><Text>津波警報等（大津波警報・津波警報あるいは津波注意報）を発表中です。</Text><Code>0211</Code></ForecastComment>")],
+    [head("m2", "U-T", "VTSE41", at("18:21:10"), "津波警報", event, null), tsunami(at("18:21:10"), "52")],
+    [head("m3", "U-T", "VTSE51", at("18:23:00"), "津波観測に関する情報", event, "1"), observation({ eventId: event, at: jstText(at("18:23:00")), serial: 1,
+      stations: [{ code: "31101", name: "銚子", condition: "第１波", height: "0.4" }] })
+      .replace("<Headline></Headline>", `<Headline><Text>${clock(at("18:23:00"))}現在の、津波の観測値をお知らせします。</Text></Headline>`)
+      .replace("<Area><Name>岩手県</Name><Code>210</Code></Area>", "<Area><Name>千葉県九十九里・外房</Name><Code>310</Code></Area>")],
   ];
   const start = at("17:50:00");
   const units: readonly RuntimeUnitId[] = ["U-T", "U-Q"];
@@ -198,12 +229,21 @@ function choose(found: readonly Candidate[]): Candidate[] {
   return chosen.sort((a, b) => a.atMs - b.atMs);
 }
 
+// P4-PWT-AC08 (3): W1 は前日の 18:00 から流すが、場面はその日の 0 時から選ぶ（前日の分は最初の場面の通知に入る）。
+const sinceMidnight = (id: string, found: readonly Candidate[]): Candidate[] => id.startsWith("W1:") ? found.filter((item) => item.atMs >= jst(`${id.slice(3)}T00:00:00`)) : [...found];
+
 // ---- 場面の file ----
 
-const PERSONAS: Readonly<Record<string, string>> = { W2: "直人", "T2-naoto": "直人", N1: "沙織", N2: "沙織", N3: "沙織", R2: "沙織", "T2-saori": "沙織", "T2-yu": "悠" };
-// 人物の契約の区分（P4-PWT-AC05 (1) の取り直しの classifications。発注 3 で AC07 (1) の表にする）。
+// W1 は 4 人目の千尋（P4-PWT-D-W1-PERSONA=A）。W2 と N3 は歩きに回さない（P4-PWT-D-N3=A・P4-PWT-AC07 (1)）。
+const PERSONAS: Readonly<Record<string, string>> = { "T2-naoto": "直人", N1: "沙織", N2: "沙織", R2: "沙織", "T2-saori": "沙織", "T2-yu": "悠" };
+// 人物の契約の区分（P4-PWT-AC07 (1)。AC05 (1) の取り直しの classifications にも使う）。
 const CLASSIFICATIONS: Readonly<Record<string, readonly DmdataClassification[]>> = { 直人: ["eew.warning"], 悠: ["eew.forecast"],
-  沙織: ["eew.warning", "eew.forecast", "telegram.earthquake"] };
+  沙織: ["eew.warning", "eew.forecast", "telegram.earthquake"], 千尋: ["telegram.weather", "eew.warning"] };
+// P4-PWT-AC07（Q3=A）: 人物の契約の区分の報だけを流す（familyFor）。予報も受ける契約では VXSE43 も流さない（host の捨て、P3-ED43-AC01）。
+// 無いと、直人に W1 の気象を全部流し、沙織に VXSE43 の警報の行が VXSE45 と 2 行並ぶ。
+// shortcut: 捨てた VXSE43 の recordInput は写さない。合成の VXSE43 は同じ報の VXSE45 と同じ時刻に流れるので lastInputAt は変わらない。VXSE43 だけが来る筋書きを足すときは received() だけ呼ぶ形にする。
+const contracted = (frames: readonly Frame[], classifications: readonly DmdataClassification[]): Frame[] => frames.filter((item) =>
+  classifications.some((classification) => classification === familyFor(item.headType)) && !(item.headType === "VXSE43" && classifications.includes("eew.forecast")));
 // 本体の hash（disaster.test.ts の bodyHash と同じく run の所要と自己 hash を除く）。
 const bodyHash = (text: string): string => {
   const parsed: JsonValue = JSON.parse(text);
@@ -304,25 +344,28 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     if (out == null) throw new Error("FLEQ_C22_SCENES_OUT is required");
     const t2 = id.startsWith("T2-") ? trial(id) : null;
     const scenario = t2?.scenario ?? readScenario({ id, dataDir: env["FLEQ_DISASTER_DATA"] ?? null, expectedDigest: env["FLEQ_DISASTER_DIGEST"] ?? null });
-    const persona = id.startsWith("W1:") ? "直人" : PERSONAS[id] ?? null, classifications = CLASSIFICATIONS[persona ?? ""];
-    if (t2 == null && classifications == null) throw new Error(`no persona contract for ${id}`);
-    const { dispatches, options } = sceneRun(scenario, t2, classifications ?? []);
+    const persona = id.startsWith("W1:") ? "千尋" : PERSONAS[id] ?? null, classifications = CLASSIFICATIONS[persona ?? ""];
+    if (classifications == null) throw new Error(`no persona contract for ${id}`);
+    // 流すのは人物の契約で絞った列で、digest は絞った後の列で取り直す（P4-PWT-AC07 (2)）。AC09 との照合は絞る前の digest で行う。
+    const kept = scenario.kind === "ready" ? contracted(scenario.frames, classifications) : [];
+    const walked: Scenario = scenario.kind === "ready" ? { ...scenario, frames: kept, digest: digestOf(kept) } : scenario;
+    const { dispatches, options } = sceneRun(walked, t2, classifications);
     const dir = join(out, id.replace(/[^A-Za-z0-9-]/g, "-"));
     mkdirSync(dir, { recursive: true });
     const blocked: string[] = [];
 
-    const first = await runStage1(scenario, options({ times: [], write: () => {} }));
+    const first = await runStage1(walked, options({ times: [], write: () => {} }));
     // 門で止めた試行は場面の候補にしない（P4-PWT-AC01）。
-    const chosen = scenario.kind === "ready" && first.scenes != null
-      ? choose(candidatesOf(scenario, first.result, dispatches, { ...first.scenes, attempts: first.scenes.attempts.filter(passed) })) : [];
-    const lost = connectionNotices(dispatches, scenario.kind === "ready" ? scenario.frames : []);
+    const chosen = walked.kind === "ready" && first.scenes != null
+      ? choose(sinceMidnight(id, candidatesOf(walked, first.result, dispatches, { ...first.scenes, attempts: first.scenes.attempts.filter(passed) }))) : [];
+    const lost = connectionNotices(dispatches, kept);
     // P3-FG-D-EXTERNAL-SEND=A: 採取物の EEW の EventID を含む場面は外部の演じ手に送らない。
-    const realEew = scenario.kind === "ready" ? scenario.frames.filter((item) => item.origin === "real" && /^VXSE4[345]$/.test(item.headType)) : [];
+    const realEew = kept.filter((item) => item.origin === "real" && /^VXSE4[345]$/.test(item.headType));
     const realIds = new Set(realEew.map((item) => tag(Buffer.from(item.body).toString("utf8"), "EventID") ?? ""));
     const carriesRealEew = (scene: SceneCapture) => [...scene.attempts.filter((item) => item.unit === "U-E").map((item) => item.subject),
       ...(scene.facts["U-E"] ?? []).map((item) => item.subject)].some((subject) => [...realIds].some((eventId) => subject.includes(eventId)));
     const written: SceneCapture[] = [];
-    const second = await runStage1(scenario, options({ times: chosen.map((item) => item.atMs), write: (scene) => {
+    const second = await runStage1(walked, options({ times: chosen.map((item) => item.atMs), write: (scene) => {
       written.push(scene);
       const number = String(written.length).padStart(2, "0"), rule = chosen[written.length - 1]?.item ?? null, externalSend = !carriesRealEew(scene);
       const since = written.at(-2)?.atMs ?? -Infinity, lines = lost.filter((item) => item.atMs > since && item.atMs <= scene.atMs);
@@ -358,6 +401,7 @@ describe.runIf(env["FLEQ_C22_SCENES"] != null)("P3-FINAL-GATE-001 persona scenes
     }
     const { digest, gitHead, effectiveLimits } = second.result;
     writeFileSync(join(dir, "index.json"), `${JSON.stringify({ contractId: "P3-FINAL-GATE-001", test: "P3-FG-T09", scenario: id, persona, digest, gitHead, effectiveLimits,
+      digestBeforeFilter: scenario.digest, digestAfterFilter: walked.digest, droppedFrames: scenario.kind === "ready" ? scenario.frames.length - kept.length : 0,
       bodyHash: hashes, ac09, realEewFrames: realEew.length, blocked,
       scenes: written.map((scene, index) => ({ scene: index + 1, at: jstText(scene.atMs), atMs: scene.atMs, rule: chosen[index]?.item ?? null, externalSend: !carriesRealEew(scene) })) }, null, 1)}\n`);
     console.info(`[P3-FG-T09] ${id} scenes=${written.length} blocked=${JSON.stringify(blocked)} runMs=${JSON.stringify([first.result["timing"], second.result["timing"]])}`);
@@ -552,5 +596,83 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
     // 2 点の tick の値の読み: 整数 1 つか 1 回の積だけを受け、** などは例外（実装レビュー r1: 10 ** 3 * 600 を 0 と読んだ）。
     expect([productMs("X", "const X = 10 * 60_000;"), productMs("X", "const X = 60_000;")]).toEqual([600_000, 60_000]);
     expect(() => productMs("X", "const X = 10 ** 3 * 600;")).toThrow();
+  });
+});
+
+// ---- ペルソナ歩きの道具の直し（P4-PERSONA-WALK-TOOLS-001 の発注 3）。門なしで回す ----
+
+describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
+  const text = (item: Frame) => Buffer.from(item.body).toString("utf8");
+  const wide = (value: number) => String(value).replace(/\d/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0));
+
+  it("P4-PWT-T06 the synthesized reports keep their count and times and read as reports of the scenario", () => {
+    const t0 = jst("2026-06-26T00:00:00");
+    const lists = { N1: synthesize("N1", 1, { t0Ms: t0 }), N2: synthesize("N2", 1, { t0Ms: t0 }), R2: synthesize("R2", 1) };
+    const release = (item: Frame) => item.source === "synth:M7:VTSE41:release";
+    // 受入条件（Q1=A）: 解除の VTSE41（P4-PWT-D-M7-RELEASE=A）を除いた (atMs, headType) の列は、発注 3 の前の synth.ts で取った値と同じ。
+    expect(sha256(Object.entries(lists).map(([id, list]) => `${id}\n${list.filter((item) => !release(item)).map((item) => `${item.atMs}\t${item.headType}\n`).join("")}`).join("")))
+      .toBe("caef02f1fdf3eb80e9e884418000f50e5f468c8f92f52462621b2111081be345");
+    // 解除は M7 級の余震の注意報ごとに 1 通で、同じ EventID。
+    const eventIds = (list: readonly Frame[], source: string) => list.filter((item) => item.source === source).map((item) => tag(text(item), "EventID"));
+    expect([lists.N1, lists.N2].map((list) => eventIds(list, "synth:M7:VTSE41:release"))).toEqual([lists.N1, lists.N2].map((list) => eventIds(list, "synth:M7:VTSE41")));
+    expect([lists.N1, lists.N2].map((list) => list.filter(release).length)).toEqual([2, 4]);
+    // 伏せ字と訓練の文が無い。VYSE51 の号は報ごとに増える。
+    expect(Object.values(lists).flat().filter((item) => /[●▲]|これは訓練です/.test(text(item))).map((item) => item.source)).toEqual([]);
+    expect([lists.N1, lists.N2].map((list) => list.filter((item) => item.headType === "VYSE51").map((item) => tag(text(item).slice(text(item).indexOf("<Head")), "Title"))))
+      .toEqual([2, 14].map((count) => Array.from({ length: count }, (_, index) => `南海トラフ地震関連解説情報（第${wide(index + 1)}号）`)));
+    // 各 EventID の EEW は最後の報だけが最終報。
+    const unfinished = (list: readonly Frame[]) => {
+      const reports = new Map<string, Frame[]>();
+      for (const item of list.filter((frame) => frame.headType === "VXSE45")) reports.set(tag(text(item), "EventID") ?? "", [...reports.get(tag(text(item), "EventID") ?? "") ?? [], item]);
+      return [...reports].filter(([, items]) => items.map((item) => text(item).includes("<NextAdvisory>")).join() !== [...items.slice(1).map(() => false), true].join()).map(([eventId]) => eventId);
+    };
+    expect([lists.N1, lists.N2].map(unfinished)).toEqual([[], []]);
+    // 本震の EEW の区域の ForecastLgInt は型の同じ予想震度の区域の最大（型に無い 6 強は型の最大）、Body は区域の最大、到達は報時刻より後（AC06 (7)）。
+    const main = tag(text(lists.N1.find((item) => item.headType === "VXSE51")!), "EventID");
+    const lg = (headType: string, serial: string) => {
+      const xml = text(lists.N1.find((item) => item.headType === headType && tag(text(item), "EventID") === main && tag(text(item), "Serial") === serial)!);
+      const body = xml.slice(xml.indexOf("<Body")), reported = Date.parse(tag(xml, "ReportDateTime")!);
+      const areas = [...body.matchAll(/<\/Category><ForecastInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastInt><ForecastLgInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastLgInt><ArrivalTime>([^<]*)</g)];
+      return { pairs: [...new Set(areas.map(([, int, lgInt]) => `${int}:${lgInt}`))].sort(), body: /<Forecast>[\s\S]*?<ForecastLgInt><From>([^<]*)</.exec(body)?.[1],
+        after: areas.every(([, , , arrival]) => Date.parse(arrival) > reported) };
+    };
+    // VXSE45 は 188 区域の 20 報目、VXSE43 は最後の 10 報目（震度 4 の区域はまだ無い）。
+    expect([lg("VXSE45", "20"), lg("VXSE43", "10")]).toEqual([{ pairs: ["4:1", "5-:2", "6+:2"], body: "2", after: true }, { pairs: ["5-:0", "6+:1"], body: "1", after: true }]);
+  });
+
+  it("P4-PWT-T07 each persona gets only the reports of their contract", () => {
+    // 実不具合（W1-06-03.md:32・N1.md:22・N3.md:35）: 直人に W1 の気象を全部流し、沙織に host が捨てる VXSE43 を流していた。
+    const types = (list: readonly Frame[], persona: string) => contracted(list, CLASSIFICATIONS[persona] ?? []).map((item) => item.headType);
+    const n1 = types(synthesize("N1", 1, { t0Ms: jst("2026-06-26T00:00:00") }), "沙織");
+    expect([n1.includes("VXSE43"), n1.includes("VXSE45")]).toEqual([false, true]);
+    const { scenario } = trial("T2-naoto");
+    expect(new Set(types(scenario.kind === "ready" ? scenario.frames : [], "直人"))).toEqual(new Set(["VXSE43"]));
+    expect(types(["VXWW50", "VXKO50", "VPWW55", "VXSE45"].map((headType) => frame(0, headType, "")), "千尋")).toEqual(["VXWW50", "VXKO50", "VPWW55"]);
+  });
+
+  it("P4-PWT-T08 W1 streams from 18:00 of the day before while the cuts and the scenes keep the midnight of the day", () => {
+    // 実不具合（W1-2026-09-21.md:50）: W1 は 0 時に空の状態から始まり、09-21 は U-L が空なのに U-W に土砂があった。
+    const dir = mkdtempSync(join(tmpdir(), "fleq-pwt-"));
+    try {
+      const put = (date: string, rows: readonly (readonly [string, string, string])[]) => {
+        mkdirSync(join(dir, `x-${date}`));
+        rows.forEach(([, , name], index) => writeFileSync(join(dir, `x-${date}`, `${index}.xml`), fixture(name)));
+        writeFileSync(join(dir, `x-${date}`, "telegrams.json"), JSON.stringify(rows.map(([receivedTime, type], index) => ({ filename: `${index}.xml`, format: "xml", head: { type }, receivedTime }))));
+      };
+      const read = () => readScenario({ id: "W1:2026-06-03", dataDir: dir, expectedDigest: null });
+      put("2026-06-03", [["2026-06-03T00:10:00.000Z", "VPWW57", "15_16_02_251222_VPWW57"]]);
+      expect(read()).toMatchObject({ kind: "blocked", reason: "dataMissing" });
+      put("2026-06-02", [["2026-06-02T08:59:00.000Z", "VPWW57", "15_16_02_251222_VPWW57"], ["2026-06-02T09:00:00.000Z", "VPWW55", "15_17_01_251222_VPWW55"]]);
+      const scenario = read();
+      if (scenario.kind !== "ready") throw new Error("W1 did not read");
+      const midnight = jst("2026-06-03T00:00:00");
+      expect([scenario.startMs, scenario.frames.map((item) => item.receivedTime), scenario.endMs, scenario.checkpoints.map((item) => item.atMs)]).toEqual([
+        jst("2026-06-02T18:00:00"), ["2026-06-02T09:00:00.000Z", "2026-06-03T00:10:00.000Z"], midnight + 24 * 60 * MINUTE, [6, 12, 18, 24].map((hour) => midnight + hour * 60 * MINUTE)]);
+      // 場面の候補はその日の 0 時から（AC08 (3)）。W1 でない筋書きは切らない。
+      const found: Candidate[] = [{ item: "ii", atMs: midnight - 1_000 }, { item: "ii", atMs: midnight }];
+      expect([sinceMidnight("W1:2026-06-03", found), sinceMidnight("N1", found)]).toEqual([found.slice(1), found]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
