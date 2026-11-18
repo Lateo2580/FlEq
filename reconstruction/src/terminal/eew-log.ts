@@ -61,12 +61,11 @@ type EewLog = Readonly<{
   set(enabled: boolean, fields: Readonly<Partial<Record<EewLogField, boolean>>>): void;
   // 開いている EventID を「シャットダウン」で閉じ、書きかけが終わったら resolve する。
   close(): Promise<void>;
-  dropped(): number;
 }>;
 
 function createEewLog(options: Readonly<{ directory: string; enabled: boolean; fields: Readonly<Partial<Record<EewLogField, boolean>>>;
   clock: () => ClockReading; append?: (path: string, data: string) => Promise<void> }>): EewLog {
-  let enabled = options.enabled, dropped = 0;
+  let enabled = options.enabled;
   let fields = new Set(FIELDS.filter((field) => options.fields[field] !== false));
   const table = new Map<string, Entry>();
   // 試験で差し替える（T16）。既定は設定の場所の下に directory を作って追記する（file を作り直さない、AC15 (3)）。
@@ -81,10 +80,10 @@ function createEewLog(options: Readonly<{ directory: string; enabled: boolean; f
     running = true;
     void append(next.path, next.data).catch(() => { /* 書けなかった報は捨てる（受信は止めない） */ }).then(run);
   };
-  // 始めていない書き込みが 64 件を越えたら、最も古いものを捨てて数える。
+  // 始めていない書き込みが 64 件を越えたら、最も古いものを捨てる（P3-TO-AC15 (3)。数は出さない、P4-AC13-REST-001）。
   const write = (item: Write): void => {
     pending.push(item);
-    if (pending.length > LIMIT) { pending.shift(); dropped += 1; }
+    if (pending.length > LIMIT) pending.shift();
     if (!running) run();
   };
   const has = (field: EewLogField): boolean => fields.has(field);
@@ -208,7 +207,6 @@ function createEewLog(options: Readonly<{ directory: string; enabled: boolean; f
       for (const eventId of [...table.keys()]) closeEvent(eventId, "シャットダウン");
       return running ? new Promise<void>((resolve) => { idle = resolve; }) : Promise.resolve();
     },
-    dropped: () => dropped,
   };
 }
 

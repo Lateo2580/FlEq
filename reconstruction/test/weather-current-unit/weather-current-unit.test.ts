@@ -1271,3 +1271,62 @@ describe("P3-FRF-T03 履歴の深さの退去の順", () => {
     expect([...orders]).toEqual([JSON.stringify(["input-02", "input-2", "input-10", "input-1x", "x"])]);
   });
 });
+
+// P4-AC13-REST-001 発注 1（R5・R6）: 保存の読み戻しは確かめた欄から組み立て、府県の報の履歴の深さは 1 回の走査で数える。保存の byte と受理・拒否の集合は変えない。
+describe("P4-AC13R 保存の読み戻しの組み立てと履歴の深さの数え", () => {
+  it("P4-AC13R-T01 acceptance / AC01 (2)(4): 実の報で組んだ national・partials・histories・unconfirmed の保存に型の外の欄を足して読み戻し、encode し直した byte が元の正規形と同じ", () => {
+    const vpws50 = "weather-alert-kind-area/synthetic-vpws50-change-density-before", vpww57 = "15_16_02_251222_VPWW57";
+    let state = emptyState();
+    for (const material of [decodeFixture(vpws50, "VPWS50", bodyWarning, "n1"),
+      decodeFixture(vpws50, "VPWS50", (xml) => withOperation(bodyWarning(xml), "training"), "t1"), nationalSequel(5, "n"),
+      decodeFixture(vpww57, "VPWW57", (xml) => xml, "p1"), decodeFixture(vpww57, "VPWW57", (xml) => atTime(xml, "2020-06-22T23:01:00+09:00"), "p2"),
+      decodeFixture(vpww57, "VPWW57", (xml) => replaceBodyStatus(atTime(xml, "2020-06-22T23:01:00+09:00"), "解除"), "p3")]) state = receive(state, material).state;
+    expect([Object.keys(state.national), state.partials.length, state.histories.map((item) => item.reports.length), state.unconfirmed.map((item) => item.inputId)])
+      .toEqual([["normal", "training"], 1, [1, 1], ["p3"]]);
+    const before = JSON.stringify(weatherCurrentUnitCodec.encode(state));
+    // 型の外の欄（R6 で読み戻しが落とす）を、全国の報・partial とその source・履歴とその報・印に 1 つずつ足す。
+    const wire = JSON.parse(before);
+    for (const item of [wire.national.normal, wire.partials[0], wire.partials[0].source, wire.histories[0], wire.histories[0].reports[0], wire.unconfirmed[0]]) item.note = "x";
+    const decoded = weatherCurrentUnitCodec.decode(wire);
+    expect(decoded.kind === "restored" && JSON.stringify(weatherCurrentUnitCodec.encode(decoded.state))).toBe(before);
+  });
+
+  it("P4-AC13R-T02 contractBoundary / AC01 (3): 府県の報の履歴は、partial を持つ履歴の先頭の報の官署と family の組で数え（運用区分は合算）、2 件まで受けて 3 件で断る。decode と encode で同じ", () => {
+    const at = (item: WeatherCurrentSnapshot, subject: string): WeatherCurrentSnapshot => ({ ...item, subject, source: { ...item.source, subject } });
+    const report = (operation: Operation, family: string, office: string, inputId: string) => snapshot(operation, family, office, "2020-06-22T23:00:00+09:00", inputId);
+    const history = (reports: readonly WeatherCurrentSnapshot[]) => ({ subject: reports[0].subject, operation: reports[0].operation, reports });
+    const kyoto = (operation: Operation, count: number, family = "VPWW57") => Array.from({ length: count }, (_, index) => report(operation, family, "京都地方気象台", `${operation}-${family}-${index}`));
+    const mixed = (head: WeatherCurrentSnapshot) => history([head, ...Array.from({ length: 3 }, (_, index) => report("training", "VPWW57", "大阪管区気象台", `o${index}`))].map((item) => at(item, "training/mixed")));
+    const cases: readonly (readonly ReturnType<typeof history>[])[] = [
+      [history(kyoto("training", 1)), history(kyoto("test", 1))], // 運用区分をまたいで 2 件
+      [history(kyoto("training", 2)), history(kyoto("test", 1))], // 運用区分をまたいで 3 件
+      [history(kyoto("training", 3))], // 1 つの履歴に 3 件
+      [history(kyoto("training", 2)), history(kyoto("training", 2).map((item) => at({ ...item, office: "大阪管区気象台" }, "training/osaka")))], // 官署が違えば別
+      [history(kyoto("training", 2)), history(kyoto("training", 2, "VPWW55"))], // family が違えば別
+      [mixed(report("training", "VPWW57", "京都地方気象台", "head"))], // 先頭の報の組（京都 1 件）で引き、残りの大阪 3 件は数えない
+      [mixed(report("training", "VPWS50", "気象庁", "head"))], // 先頭が全国の報なら引く組に partial は無い
+    ];
+    const outcome = (histories: readonly ReturnType<typeof history>[]) => {
+      let encoded = "encoded";
+      try { weatherCurrentUnitCodec.encode({ ...emptyState(), histories }); } catch { encoded = "refused"; }
+      return [weatherCurrentUnitCodec.decode({ ...weatherCurrentUnitCodec.encode(emptyState()), histories }).kind, encoded];
+    };
+    expect(cases.map(outcome)).toEqual([["restored", "encoded"], ["invalid", "refused"], ["invalid", "refused"], ["restored", "encoded"],
+      ["restored", "encoded"], ["restored", "encoded"], ["restored", "encoded"]]);
+  });
+
+  it("P4-AC13R-T03 contractBoundary / AC01 (6): 型の外の欄を持つ保存の 16 MiB の境目はその欄も数えて決める（上限ちょうどは受け、1 byte 越えは断る。decode と encode で同じ）", () => {
+    const partial = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T09:00:00+09:00", "partial");
+    const withNote = (length: number): WeatherCurrentSnapshot => Object.assign({ ...partial }, { note: "x".repeat(length) });
+    const empty = weatherCurrentUnitCodec.encode(emptyState()); // P3-WL1-T06 と同じ上界（payload の外の envelope と境界の予約込み）
+    const outside = serializedEnvelope({ schemaVersion: empty.schemaVersion, unit: "U-W", generation: 0, capturedAt: 0, payload: empty, sha256: "0".repeat(64) }).byteLength - Buffer.byteLength(JSON.stringify(empty)) + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES;
+    const wireBytes = (length: number) => Buffer.byteLength(JSON.stringify({ ...empty, partials: [withNote(length)] }));
+    const length = LIMIT - outside - wireBytes(0);
+    const outcome = (count: number) => {
+      let encoded = "encoded";
+      try { weatherCurrentUnitCodec.encode({ ...emptyState(), partials: [withNote(count)] }); } catch { encoded = "refused"; }
+      return [weatherCurrentUnitCodec.decode({ ...empty, partials: [withNote(count)] }).kind, encoded];
+    };
+    expect([wireBytes(length), outcome(length), outcome(length + 1)]).toEqual([LIMIT - outside, ["restored", "encoded"], ["invalid", "refused"]]);
+  });
+});

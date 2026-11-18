@@ -159,23 +159,23 @@ function reportRef(value: unknown, unvalidatedTime = false): value is ReportRef 
     && (unvalidatedTime || Number.isFinite(Date.parse(ref.reportDateTimeRaw)));
 }
 
-function snapshot(value: unknown): value is WeatherCurrentSnapshot {
+// R6・AGENTS.md の読み戻し: 確かめた項目から組み立てる。述語の snapshot・history は同じ確かめで、encode は作り直さず述語だけを使う（P3-WL1-AC05）。
+function readSnapshot(value: unknown): WeatherCurrentSnapshot | null {
   const record = object(value);
-  const phenomena = object(record?.phenomena);
+  const phenomena = object(record?.phenomena), source = record != null && reportRef(record.source) ? readReportRef(record.source) : null;
   if (record == null || typeof record.subject !== "string" || !operation(record.operation)
     || (record.scope !== "national" && record.scope !== "partial") || typeof record.office !== "string"
-    || record.office.trim() === "" || !reportRef(record.source) || phenomena == null || !json(phenomena)) return false;
-  const source = record.source;
-  return source.subject === record.subject && source.operation === record.operation
-    && (record.scope === "national") === (source.family === "VPWS50");
+    || record.office.trim() === "" || source == null || phenomena == null || !json(phenomena)
+    || source.subject !== record.subject || source.operation !== record.operation || (record.scope === "national") !== (source.family === "VPWS50")) return null;
+  return { subject: record.subject, operation: record.operation, scope: record.scope, office: record.office, source, phenomena };
 }
-
-function history(value: unknown): value is WeatherCurrentHistory {
-  const record = object(value);
-  return record != null && typeof record.subject === "string" && operation(record.operation)
-    && Array.isArray(record.reports) && record.reports.length > 0 && record.reports.every(snapshot)
-    && record.reports.every((item) => item.subject === record.subject && item.operation === record.operation);
+const snapshot = (value: unknown): value is WeatherCurrentSnapshot => readSnapshot(value) != null;
+function readHistory(value: unknown): WeatherCurrentHistory | null {
+  const record = object(value), reports = readList(record?.reports, readSnapshot);
+  return record == null || typeof record.subject !== "string" || !operation(record.operation) || reports == null || reports.length === 0
+    || reports.some((item) => item.subject !== record.subject || item.operation !== record.operation) ? null : { subject: record.subject, operation: record.operation, reports };
 }
+const history = (value: unknown): value is WeatherCurrentHistory => readHistory(value) != null;
 
 function tombstone(value: unknown): value is WeatherCurrentTombstone {
   const record = object(value);
@@ -186,7 +186,7 @@ function tombstone(value: unknown): value is WeatherCurrentTombstone {
     && Array.isArray(record.affectedScope) && record.affectedScope.every((item) => typeof item === "string")
     && validScopeSet(record.affectedScope) && tuple?.[0] === record.source.family;
 }
-const intentList = (value: unknown): NotificationIntent[] | null => { if (!Array.isArray(value)) return null; const list: NotificationIntent[] = []; for (const item of value) { const read = intent(item); if (read == null) return null; list.push(read); } return list; };
+const readList = <T>(value: unknown, read: (item: unknown) => T | null): T[] | null => { if (!Array.isArray(value)) return null; const list: T[] = []; for (const item of value) { const element = read(item); if (element == null) return null; list.push(element); } return list; };
 function intent(value: unknown): NotificationIntent | null { // P3-WN-AC07 (3)・AGENTS.md の読み戻し: 確かめた項目から組み立てる（元の record は残さない）
   const record = object(value), transition = (["activated", "updated", "cancelled", "released", "expired"] as const).find((item) => item === record?.transition);
   const payload = readPayload(record?.payload, transition), source = record != null && reportRef(record.source) ? readReportRef(record.source) : null;
@@ -238,10 +238,8 @@ function orphanMarks(value: PersistedWeatherCurrentUnit): boolean {
 }
 
 // P3-VM-AC04: 系列ごとに 1 つの未確認の印（subject・operation の重複なし）。
-function marks(value: unknown): value is readonly ReportRef[] {
-  return Array.isArray(value) && value.every((item) => reportRef(item) && operation(item.operation))
-    && new Set(value.map((item: ReportRef) => `${item.operation}\u0000${item.subject}`)).size === value.length;
-}
+const readMarks = (value: unknown): readonly ReportRef[] | null => { const list = readList(value, (item) => reportRef(item) ? readReportRef(item) : null); // R6: 確かめた項目から組み立てる
+  return list != null && new Set(list.map((item) => `${item.operation}\u0000${item.subject}`)).size === list.length ? list : null; };
 
 function unavailable(value: unknown): value is WeatherCurrentUnitState["unavailable"][number] {
   const record = object(value);
@@ -262,52 +260,56 @@ function unavailable(value: unknown): value is WeatherCurrentUnitState["unavaila
 
 function persistedValue(value: unknown): PersistedWeatherCurrentUnit | null {
   const record = object(value);
-  const national = object(record?.national);
-  const ownership = object(record?.ownership), notices = readNotices(record?.notices), intents = intentList(record?.intents);
+  const national = object(record?.national), partials = readList(record?.partials, readSnapshot), histories = readList(record?.histories, readHistory);
+  const ownership = object(record?.ownership), notices = readNotices(record?.notices), intents = readList(record?.intents, intent), unconfirmed = readMarks(record?.unconfirmed);
   if (record == null || record.schemaVersion !== SCHEMA || national == null
     || Object.keys(national).some((key) => !operation(key))
     || Object.entries(national).some(([key, item]) => !snapshot(item) || item.scope !== "national" || item.operation !== key)
     || ownership == null || Object.values(ownership).some((item) => typeof item !== "string")
-    || !Array.isArray(record.partials) || !record.partials.every(snapshot)
-    || record.partials.some((item) => item.scope !== "partial") || partialsOverLimit(record.partials)
-    || !Array.isArray(record.histories) || !record.histories.every(history)
+    || partials == null || partials.some((item) => item.scope !== "partial") || partialsOverLimit(partials)
+    || histories == null
     || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
     || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
     || !Array.isArray(record.unavailable) || !record.unavailable.every(unavailable)
-    || intents == null || !marks(record.unconfirmed) || notices == null) return null;
+    || intents == null || unconfirmed == null || notices == null) return null;
 
   const result: PersistedWeatherCurrentUnit = {
     schemaVersion: SCHEMA,
-    national: Object.fromEntries(Object.entries(national).flatMap(([key, item]) => operation(key) && snapshot(item) ? [[key, item] as const] : [])),
-    partials: record.partials,
-    histories: record.histories,
+    national: Object.fromEntries(Object.entries(national).flatMap(([key, item]) => { const read = readSnapshot(item); return operation(key) && read != null ? [[key, read] as const] : []; })),
+    partials,
+    histories,
     ownership: Object.fromEntries(Object.entries(ownership).flatMap(([key, item]) => typeof item === "string" ? [[key, item] as const] : [])),
-    tombstones: record.tombstones.map((item) => ({ ...item, affectedScope: normalizeScopes(item.affectedScope) })),
+    tombstones: record.tombstones.map((item) => ({ ...item, affectedScope: normalizeScopes(item.affectedScope) })), // P4-AC13R-D-SCOPE=A: 墓標・freshness・unavailable は組み立てず残す（述語が型の全欄を確かめてから写す）
     freshness: record.freshness.map((item) => ({ ...item,
       target: { ...item.target, affectedScope: normalizeScopes(item.target.affectedScope) },
       confirmedScope: normalizeScopes(item.confirmedScope) })),
     unavailable: record.unavailable.map((item) => ({ ...item, affectedScope: normalizeScopes(item.affectedScope) })),
-    intents, unconfirmed: record.unconfirmed, notices,
+    intents, unconfirmed, notices,
   };
   const nationalHistory = result.histories.flatMap((item) => item.reports).filter((item) => item.scope === "national");
   if (nationalHistory.length > 2 || new Set(result.partials.map((item) => item.subject)).size !== result.partials.length
     || new Set(result.histories.map((item) => `${item.operation}\u0000${item.subject}`)).size !== result.histories.length
     || result.histories.some((item) => new Set(item.reports.map((report) => report.source.inputId)).size !== item.reports.length)
-    || result.histories.some((item) => item.reports.some((report) => report.scope === "partial")
-      && result.histories.flatMap((other) => other.reports).filter((report) => report.scope === "partial"
-        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 2)
+    || partialDepthOver(result.histories)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length
     // P3-VM-AC04: 印は今ある系列（current・履歴・墓標・unavailable）のもの。
     || orphanMarks(result)) return null;
   const pending = result.intents.filter((item) => item.disposition === "pending");
   if (pending.length > 128 || encoder.encode(JSON.stringify(pending)).byteLength + reserve(pending) > 131_072) return null;
-  // P3-VM-AC06（修正波 3）: 受理と同じ予約込みの上界で見る。payload の外の envelope（generation と capturedAt の 62 byte と
-  // inputBoundary の最大を含む emptyEnvelopeBytes）を足す。
-  return encoder.encode(JSON.stringify(result)).byteLength + reserve(pending) + emptyEnvelopeBytes + 62 - emptyPayloadBytes <= GENERATION_BYTES ? result : null;
+  // P3-VM-AC06（修正波 3）: 受理と同じ予約込みの上界で見る。payload の外の envelope（generation と capturedAt の 62 byte と inputBoundary の最大を含む emptyEnvelopeBytes）を足す。
+  // P4-AC13R-D-EXTRA: 測るのは組み立てる前の確かめた元の値（型の外の欄も数え、直す前と encode と同じ受理と拒否にする）。返すのは組み立てた値。
+  const measured = { ...result, national, partials: record.partials, histories: record.histories, unconfirmed: record.unconfirmed };
+  return encoder.encode(JSON.stringify(measured)).byteLength + reserve(pending) + emptyEnvelopeBytes + 62 - emptyPayloadBytes <= GENERATION_BYTES ? result : null;
 }
 
 const emptyPayloadBytes = encoder.encode(JSON.stringify({ schemaVersion: SCHEMA, national: {}, partials: [], histories: [],
   ownership: {}, tombstones: [], freshness: [], unavailable: [], intents: [], unconfirmed: [], notices: [] })).byteLength;
+
+function partialDepthOver(histories: readonly WeatherCurrentHistory[]): boolean { // P3-WL1-AC05・R5: partial を持つ履歴の先頭の報の family と官署の組で、全履歴の partial の数を引く（運用区分は合算、2 まで）。数えは 1 回の走査
+  const depth = new Map<string, number>(), key = (report: WeatherCurrentSnapshot) => `${report.source.family}\u0000${report.office}`;
+  for (const item of histories) for (const report of item.reports) if (report.scope === "partial") depth.set(key(report), (depth.get(key(report)) ?? 0) + 1);
+  return histories.some((item) => item.reports.some((report) => report.scope === "partial") && (depth.get(key(item.reports[0])) ?? 0) > 2);
+}
 
 // P3-WL1-AC05（D-WL1-ENCODE-CHECKS=A）: encode 用。persistedValue と同じ確かめを同じ順で並べ、最後の 16MiB の守りだけを
 // 受理時と同じ要素ごとの cache の和で数える（payload 全体を JSON.stringify しない）。persistedValue に確かめを足すときはここにも足す。
@@ -326,7 +328,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
     || !Array.isArray(record.tombstones) || !record.tombstones.every(tombstone)
     || !Array.isArray(record.freshness) || !record.freshness.every(freshness)
     || !Array.isArray(record.unavailable) || !record.unavailable.every(unavailable)
-    || intentList(record.intents) == null || !marks(record.unconfirmed) || notices == null) return null;
+    || readList(record.intents, intent) == null || readMarks(record.unconfirmed) == null || notices == null) return null;
 
   // 既に正規形の record は作り直さない（byte の cache の key を保つ）。作り直すときの形は persistedValue と同じ。
   const normalized = (tokens: readonly string[]) => {
@@ -358,9 +360,7 @@ function encodedValue(state: WeatherCurrentUnitState): PersistedWeatherCurrentUn
   if (nationalHistory.length > 2 || new Set(result.partials.map((item) => item.subject)).size !== result.partials.length
     || new Set(result.histories.map((item) => `${item.operation}\u0000${item.subject}`)).size !== result.histories.length
     || result.histories.some((item) => new Set(item.reports.map((report) => report.source.inputId)).size !== item.reports.length)
-    || result.histories.some((item) => item.reports.some((report) => report.scope === "partial")
-      && result.histories.flatMap((other) => other.reports).filter((report) => report.scope === "partial"
-        && report.office === item.reports[0].office && report.source.family === item.reports[0].source.family).length > 2)
+    || partialDepthOver(result.histories)
     || new Set(result.intents.map((item) => item.id)).size !== result.intents.length
     // P3-VM-AC04: 印は今ある系列（current・履歴・墓標・unavailable）のもの。
     || orphanMarks(result)) return null;

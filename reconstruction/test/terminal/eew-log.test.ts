@@ -154,11 +154,10 @@ describe("P3-TO-T16 EEW ログ（spec §7、AC15）", () => {
     await vi.waitFor(() => { expect(many.files()[0].split("=== 緊急地震速報 EventID: 20240417230000 ===")).toHaveLength(3); }, { timeout: 10_000 });
     await many.log.close();
     expect(many.files()[0].split("--- 第1報 (予報)")).toHaveLength(3);
-    expect(many.log.dropped()).toBe(0);
   });
 
   // 実不具合の再発防止（r0 のレビュー）: EventID ごとの鎖と待ちの列では続報が待ちを追い越し、上限も鎖の数にしか効かなかった。
-  it("書き込みが終わらない間に 2 つの EventID の報を 70 件積むと、受けた順に書き、始めていない書き込みは 64 件で古い 5 件を捨てて数える", async () => {
+  it("書き込みが終わらない間に 2 つの EventID の報を 70 件積むと、受けた順に書き、始めていない書き込みは 64 件で古い 5 件を捨てる", async () => {
     const written: string[] = [];
     let release: () => void = () => {};
     const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -168,11 +167,11 @@ describe("P3-TO-T16 EEW ログ（spec §7、AC15）", () => {
     for (let index = 0; index < 70; index += 1) {
       log.record({ ...report, facts: { ...report.facts, serial: index, eventId: index % 2 === 0 ? "20240417230000" : "20240417230001" } });
     }
-    expect([written, log.dropped()]).toEqual([["0"], 5]);
+    expect(written).toEqual(["0"]);
     release();
     // 始めた 0 番は最後まで書き、1〜5 番を捨て、6〜69 番を受けた順に書く。
     await vi.waitFor(() => { expect(written).toEqual(["0", ...Array.from({ length: 64 }, (_, index) => String(index + 6))]); });
     await log.close();
-    expect([written.slice(65), log.dropped()]).toEqual([["close", "close"], 5]);
+    expect(written.slice(65)).toEqual(["close", "close"]);
   });
 });
