@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-  "sha256": "4c1cb9b19ffa691f227a033bd864f44a6f3aa4ab22422d18ee060e469a000d1b",
+  "sha256": "b6134969d42c533893cda0b95c3a10ee32d946539ea0b6f055cf263f5a35be47",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -60,6 +60,13 @@
     "status": "closed",
     "source": "発注前点検（統合担当、2026-11-18 13:2x。draft/ext2 を main 21a278d2 の上へ rebase した木 31540a8b）",
     "closed": "(1) decisionBranches は P4-TET2-D-VERSION の 1 つで確定（B、統合担当）、「起草案」は 0 件 (2) base は main 21a278d2（P4-AC13-REST-001 の配送の後。draftedFromOid の 912e951a の子孫）で、案 .dr-tmp/proposal-r1.diff はそのまま当たる（patch --dry-run rc 0） (3) 案を当てた木の check-contract は rc 0（PASS 159、他の契約の FAIL 0。P4-AC13-REST-001 が改訂した p3-final-review-fix.json:254・p3-terminal-output.json:698 は AC06 で改める行と別） (4) 後の作者裁定で前提が変わったものは無い",
+    "remaining": "なし"
+   },
+   {
+    "id": "Q-TET2-DELIVERY",
+    "status": "closed",
+    "source": "統合担当（2026-11-18 13:36）",
+    "closed": "配送: 実装 d058131d（実装の子 Sonnet、案 proposal-r1 と変更行が一致したので、同じ中身を r0・r1 の 2 本ずつのレビューが通した後の実装レビューは省いた。歯は製品の 3 行を base に戻して 3 本とも落ちる）。原文の改訂 bff8a7cc（AC06 (1) の (a) p3-final-review-fix.json の outOfScope の 1 つ目、(b) p3-terminal-external-text.json の outOfScope の 2 つ目・3 つ目、(c) p3-terminal-output.json の P3-TO-AC13。3 契約の封の取り直し、«» の付け直し 0）。Mac mini のゲート（rec-gate.sh、bff8a7cc）12 段 rc 0: tsc 3 本、reconstruction の vitest 153 file・1,676 passed・38 skipped、同じ数で shuffle、check-manifest・check-sequences・check-contract（PASS 158）、root の build と test 289 file・6,850 passed。AC06 (3) の台帳 138・139・142 は同じ日に作業ノートで解消にした",
     "remaining": "なし"
    }
   ],
