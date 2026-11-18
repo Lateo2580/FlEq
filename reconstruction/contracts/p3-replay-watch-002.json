@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "25d0e72d7f99d727e91c01035a9dd18d38b4f06f38ecac7fe52d5cff457ad995",
+    "sha256": "b7e219731a5e9baa0439ad01ac77e0d4d36b85a302df20c5d9af5878803a8182",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -464,8 +464,8 @@
         "requirement": "【発注 2】 ジェネレータの置き場と入口（D-AREA・D-CODES・D-FRAMES）: 新設の reconstruction/tools/telegram-gen/telegram-gen.mjs に export function generateTelegrams(input) と export function choices(family) の 2 つだけを置き、型の宣言は reconstruction/tools/telegram-gen/telegram-gen.d.mts（eew-e01 の .d.mts と同じ作法）。CLI は作らない。型の XML は fixtureIds の 13 本だけを frames.mjs の fixtureText で最初の呼出しに 1 回読み、Map に持つ。コード表は process.env.FLEQ_JMA_CODES が空でなければ、その path の xlsx を最初の呼出しに 1 回読む。読み取りは node だけで書き、依存を足さない（約 80 行）: (a) zip の末尾の End of Central Directory から central directory を読み、目当ての entry の local header を引いて、圧縮方式 8（deflate）は node:zlib の inflateRawSync で展開し、0（無圧縮）はそのまま使う。ほかの圧縮方式・暗号化（汎用 flag の bit 0）・zip64 は Error にする（コメント `shortcut: zip64・暗号化・deflate と無圧縮の外の圧縮方式は受けない。Excel の保存する xlsx がこれらを使うようになったら足す` を 1 行） (b) xl/workbook.xml の <sheet name=… r:id=…> と xl/_rels/workbook.xml.rels の Relationship の Id→Target から、シート名 \"22\"・\"23\"・\"24\"・\"41\"（D-TSUNAMI-AREA=A なので 31・35 は引かない）を file に引く（並びの番号では引かない。実物では \"24\" が sheet9.xml） (c) xl/sharedStrings.xml の <si> を順に読み、<rPh>（ふりがな）の中は飛ばし、<r> の中の <t> はつなぎ、&amp;・&lt;・&gt;・&quot;・&apos; と数値の文字参照を戻す (d) セルは <c r=\"B20\" t=\"s\"><v>（番号）</v></c> の形で、t=\"s\" なら <v> は sharedStrings の番号、無ければ <v> の値そのもの。空のセルは省かれるので、列は r の列の文字で合わせる（並びの位置で数えない） (e) 列の対応（実物の xlsx を読んで決めた列の文字。値は書かない）: シート 22・23・41 は A 列が Code・B 列が Name。シート 24 は A 列が細分区域の Code・B 列がその Name、D 列が市町村等の Code・E 列がその Name、G 列が震度観測点の Code・H 列がその Name（C・F・I 列はふりがなで読まない）。使う行は、シート 22 は A が 4 桁、23 は 2 桁、24 は A が 3 桁で D・G が 7 桁、41 は 3 桁の行だけ（見出し・空の行・備考の行を落とす）。シート 24 は 1 行が観測点 1 つで、A 列の細分区域の Code で区域に束ね、その中を D 列の市町村等の Code で束ね、G 列の観測点を行の順に並べる。同じ細分区域・市町村等の Code がまた出たとき、Name が前と同じなら同じ束に足し、違えば Error。同じ観測点の Code が 2 回出たら Error。シート 22・23・41 で同じ Code が 2 回出ても Error（実物ではどれも起きないことを起草時に数えた）。無いと（この読み取りが無いと）: xlsx を読む依存を足すか、抜き出した file を作ることになり、D-CODES の「資料と抜き出しを repo の外にも書かない」が守れない。。読めない・シートが無い・どれかのシートの行が 0・24 の行の欄が欠けるときは Error を投げる（黙って型の範囲へ落とさない）。抜き出した結果を file に書かない。choices(family) は { places: {code,name}[], areas: {code,name}[] } を返す。資料があるとき: places は震源を受ける分野（VXSE43・45・52・53 と津波 3 種）で震央地名 343 件、areas は VXSE51・53 で細分区域 188 件、VXSE43・45 で D-EEW-AREAS の 125 件。資料が無いとき: places は型に在る震央地名 3 件、areas は VXSE43・45 で 77_01_26 の 44 区域、VXSE51 で 32-35_07_01 の 37 区域、VXSE53 で 32-35_01_03 の 17 区域（Q-RW2-CODES (6)）。ほかの分野の areas は空。synth.ts・host.ts・http-sse.ts・replay.mjs・frames.mjs は変えない。先頭になぜのコメントを 2 行（watch へ注入する電文を作ること、骨組みは公開サンプルに限り、コード表は repo に入れず手元から読むこと） Q-RW2-IMPL-2 (3) のとおり、シート 24 で区域が 3 桁なのに市町村等・観測点が 7 桁でない行は Error にする。",
         "evidenceRefs": [
           "reconstruction/test/eew-e01/frames.mjs:17 «1deb9824a910d22b»",
-          "reconstruction/test/disaster/synth.ts:32 «ed7be20ea8f47d93»",
-          "reconstruction/test/disaster/synth.ts:38 «fac9f1acfa4c888f»",
+          "reconstruction/test/disaster/synth.ts:39 «ed7be20ea8f47d93»",
+          "reconstruction/test/disaster/synth.ts:45 «fac9f1acfa4c888f»",
           "reconstruction/cli/replay.mjs:11 «61c68a68792ae445»",
           "reconstruction/tools/corpus/manifest.json"
         ]
@@ -493,15 +493,15 @@
       },
       {
         "id": "P3-RW2-AC09",
-        "requirement": "【発注 2】 書き換え（草稿 AC03 を写し、値は資料があればコード表から、無ければ型から入れる）: EventID（eventIdAt(起点)）・Serial（既定 1。VXSE51・VXSE52・VTSE41 は型の空の <Serial/> のまま）・ReportDateTime・TargetDateTime・Control/DateTime・Control/Status（常に通常、D-STATUS）・InfoType（取消のときだけ取消）を head() の写しで書き、型の時刻は placed() の写しで OriginTime が起点になるよう全体を動かす（D-TIME）。震源: Hypocenter/Area の Name と Code（type=震央地名）を選んだ震央地名にし、jmx_eb:Coordinate は +緯度+経度-深さm/ と型と同じ全角の description、Magnitude は値と description（緯度・経度・M は toFixed(1)）。EEW は ReduceName を選んだ Name にし、ReduceCode は型のまま、LandOrSea は消す（D-CODES）。最大震度と区域: EEW は Forecast の ForecastInt を maxInt、Forecast 直下の ForecastLgInt を 0 にし（型の 2 が残ると全部が長周期階級 2 になる）、Pref（資料があればシート 22 の 9pp0 の行、無ければ型のその区域の Pref）→ Area（選んだ細分区域）の 1 本に縮め、Area に ForecastInt と Category（VXSE43 は警報 Code 10、VXSE45 は予報 Code 00）を書く（eewBody の写し）。EEW の Headline の Information は消し、Text は「<震央地名>で地震」にする（型の Code 31 が残ると VXSE45 も警報になる、eew.ts:446）。VXSE51 は Observation を Pref（資料があればシート 23 の市町村コードの頭 2 桁の行、無ければ型のその区域の Pref）→ Area の 1 本に作り直し、Observation 直下・Pref・Area の MaxInt を maxInt に、Headline の Information を 1 Item にする（headlineItems の写し）。VXSE53 は Observation を Pref → Area → その区域の全市町村 → 各市町村の全震度観測点に作り直し（資料があればシート 23・24 から、無ければ型のその区域の部分木をそのまま使う）、要素の並びと属性は型の先頭の Pref・Area・City・IntensityStation に合わせ、Observation 直下・Pref・Area・City の MaxInt と観測点の Int をすべて maxInt にする。Headline の 2 つの Information は、細分区域の 1 Item と、その区域の全市町村を並べた 1 Item に作り直す。津波 3 種は D-TSUNAMI-AREA に従う（A なら Serial〔VTSE51・52〕・取消・EventID・時刻と、渡されたときの震源・M・深さだけ）。地震情報と津波の Headline の Text は型のまま。欄の組み合わせ（要素の有無・回数・並び）は地震火山関連の解説資料と型に合わせ、型に無い要素は足さない（EEW の最終報の NextAdvisory を除く、AC10）。無いと: 型の EventID と時刻が残り、2 本目からは重複や古い報として捨てられる。Q-RW2-IMPL-2 (4)(5) のとおり、VXSE53 の maxInt が 1・2 のときは Headline の Information を出さず、VXSE43 も Headline の Information を消す（解説資料 11-2(2) の形と違う。見出しの区域が選んだ区域と食い違わないため。記録だけ）",
+        "requirement": "【発注 2】 書き換え（草稿 AC03 を写し、値は資料があればコード表から、無ければ型から入れる）: EventID（eventIdAt(起点)）・Serial（既定 1。VXSE51・VXSE52・VTSE41 は型の空の <Serial/> のまま）・ReportDateTime・TargetDateTime・Control/DateTime・Control/Status（常に通常、D-STATUS）・InfoType（取消のときだけ取消）を head() の写しで書き、型の時刻は placed() の写しで OriginTime が起点になるよう全体を動かす（D-TIME）。震源: Hypocenter/Area の Name と Code（type=震央地名）を選んだ震央地名にし、jmx_eb:Coordinate は +緯度+経度-深さm/ と型と同じ全角の description、Magnitude は値と description（緯度・経度・M は toFixed(1)）。EEW は ReduceName を選んだ Name にし、ReduceCode は型のまま、LandOrSea は消す（D-CODES）。最大震度と区域: EEW は Forecast の ForecastInt を maxInt、Forecast 直下の ForecastLgInt を 0 にし（型の 2 が残ると全部が長周期階級 2 になる）、Pref（資料があればシート 22 の 9pp0 の行、無ければ型のその区域の Pref）→ Area（選んだ細分区域）の 1 本に縮め、Area に ForecastInt と Category（VXSE43 は警報 Code 10、VXSE45 は予報 Code 00）を書く（eewBody の写し）。EEW の Headline の Information は消し、Text は「<震央地名>で地震」にする（型の Code 31 が残ると VXSE45 も警報になる、eew.ts:446）。VXSE51 は Observation を Pref（資料があればシート 23 の市町村コードの頭 2 桁の行、無ければ型のその区域の Pref）→ Area の 1 本に作り直し、Observation 直下・Pref・Area の MaxInt を maxInt に、Headline の Information を 1 Item にする（headlineItems の写し）。VXSE53 は Observation を Pref → Area → その区域の全市町村 → 各市町村の全震度観測点に作り直し（資料があればシート 23・24 から、無ければ型のその区域の部分木をそのまま使う）、要素の並びと属性は型の先頭の Pref・Area・City・IntensityStation に合わせ、Observation 直下・Pref・Area・City の MaxInt と観測点の Int をすべて maxInt にする。Headline の 2 つの Information は、細分区域の 1 Item と、その区域の全市町村を並べた 1 Item に作り直す。津波 3 種は D-TSUNAMI-AREA に従う（A なら Serial〔VTSE51・52〕・取消・EventID・時刻と、渡されたときの震源・M・深さだけ）。地震情報と津波の Headline の Text は型のまま。欄の組み合わせ（要素の有無・回数・並び）は地震火山関連の解説資料と型に合わせ、型に無い要素は足さない（EEW の最終報の NextAdvisory を除く、AC10）。無いと: 型の EventID と時刻が残り、2 本目からは重複や古い報として捨てられる。Q-RW2-IMPL-2 (4)(5) のとおり、VXSE53 の maxInt が 1・2 のときは Headline の Information を出さず、VXSE43 も Headline の Information を消す（解説資料 11-2(2) の形と違う。見出しの区域が選んだ区域と食い違わないため。記録だけ）【P4-PERSONA-WALK-TOOLS-001 の注記（2026-11-18、発注 3）: synth.ts の eewBody は、区域の ForecastLgInt を型の同じ予想震度の区域の値から取り Body の最大を区域の最大にし、区域の Category を筋書きの警報の区域で 10・ほかで 00 にする形に変わった（P4-PWT-AC06 (7)）。placed() と head() には本文の全角の日時の書き換えも足された。本 AC の生成器の決まり（Forecast 直下の ForecastLgInt を 0、VXSE43 は警報 Code 10・VXSE45 は予報 Code 00）は今のまま生成器の要件で、ここの『eewBody の写し』は 2026-11-14 の eewBody の形を指す】",
         "evidenceRefs": [
-          "reconstruction/test/disaster/synth.ts:28 «1cc48cf0cc53871b»",
-          "reconstruction/test/disaster/synth.ts:32 «ed7be20ea8f47d93»",
-          "reconstruction/test/disaster/synth.ts:38 «fac9f1acfa4c888f»",
-          "reconstruction/test/disaster/synth.ts:39 «617da94a8c5d29fb»",
-          "reconstruction/test/disaster/synth.ts:460 «fad26db42960bb3e»",
-          "reconstruction/test/disaster/synth.ts:261 «1d3bc67cac5f5fa8»",
-          "reconstruction/test/disaster/synth.ts:281 «77a76dd6ea97214c»",
+          "reconstruction/test/disaster/synth.ts:29 «1cc48cf0cc53871b»",
+          "reconstruction/test/disaster/synth.ts:39 «ed7be20ea8f47d93»",
+          "reconstruction/test/disaster/synth.ts:45 «fac9f1acfa4c888f»",
+          "reconstruction/test/disaster/synth.ts:46 «617da94a8c5d29fb»",
+          "reconstruction/test/disaster/synth.ts:554 «7acc42be842d68fc»",
+          "reconstruction/test/disaster/synth.ts:304 «1d3bc67cac5f5fa8»",
+          "reconstruction/test/disaster/synth.ts:324 «77a76dd6ea97214c»",
           "reconstruction/src/domains/eew/eew.ts:224 «f97c7c57cb7829b8»",
           "reconstruction/src/domains/eew/eew.ts:446 «df787884833265fb»",
           "reconstruction/src/domains/eew/eew.ts:448 «afaafcde30eca908»",
@@ -517,7 +517,7 @@
           "reconstruction/src/domains/eew/eew.ts:180 «febb29d41329b53e»",
           "reconstruction/src/domains/eew/eew.ts:178 «598613e1d0ffc4da»",
           "reconstruction/src/domains/eew/eew.ts:462 «f5f2e5ec7fb6673e»",
-          "reconstruction/test/disaster/synth.ts:512 «d83b121804560e91»"
+          "reconstruction/test/disaster/synth.ts:629 «d83b121804560e91»"
         ]
       },
       {
@@ -548,7 +548,7 @@
         "requirement": "【発注 2】 型と公開の範囲（草稿 AC08 にコード表の扱いを足す）: 型は fixtureIds の 13 本（jmaPublished・publicApproved・byteIdentical）だけを使い、dmdata の EEW 原本・personal の corpus・dmdataCaptured の報を読まない。作った XML を repo の中（test/fixtures・manifest・sequences）へ書かない。コード表とそこから抜き出した値、作った XML を repo に書かない（D-CODES）。作った XML に気象庁が作ったかのような表示を足さない。origin=replay を operation:test と同一視しない（spec:651）",
         "evidenceRefs": [
           "reconstruction/tools/corpus/manifest.json",
-          "reconstruction/test/disaster/synth.ts:125 «cd33b172aaf6448a»",
+          "reconstruction/test/disaster/synth.ts:168 «cd33b172aaf6448a»",
           "docs/specs/reconstruction-p0-contracts.md:651 «f1b501492ddebed2»"
         ]
       },

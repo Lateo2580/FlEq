@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "937e396de7be598e9d27c2202a7326f7d3c07975849f8162dee49d8a784294bf",
+    "sha256": "f93ec3f6a635287b13be16269eb79f4f3a6a8131eec5e2e67ee33e35f0054c8b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -193,6 +193,13 @@
         "source": "発注 3 の発注前点検（統合担当、2026-11-18。読むだけの子の下調べと作者の裁定 Q-PWT-R2-OBS）",
         "closed": "(1) base は main の f6a8805d（発注 2 の配送の後）。decisionBranches は 9 つとも確定で『起草案』は 0 件 (2) Q-PWT-T4-REST の 3 行: R2.md:32 は Q-PWT-R2-OBS=A で残す、T2-yu.md:24 は trial の T2-yu に Serial を進めた続報を挟む（AC06 (11)、allowedPaths の発注 3 に T2-yu を足した）、T2-yu.md:30 は発注 2 の AC04 (2) で直った: f6a8805d の木で T09 を T2-yu に 1 回流した（FLEQ_C22_SCENES=T2-yu、出力は .im-tmp の下、rc 0、blocked なし、場面 4〔23:30:09 ii・23:31:20 ii・23:52:10 v・23:58:40 v〕）。S4（23:58:40）の recovery.eewUnverified は fromWallMs 23:52:00・toWallMs 23:58:40 で、始まりは切断（23:52:10）の 10 秒前（20 秒以内。直す前は最後の data の 23:31:38 からで約 20 分早かった）。Q-PWT-T4-REST は閉じた。Q-PWT-PING も Q-PWT-PRECHECK-ORDER2 で閉じていたので、未解決の問いから 2 つとも外した (3) digest: AC08 (4) に、W1 の 3 つに加えて N1〜N3・R2・R1 の digest と合成を使う筋書きの synth.sourceSha256（scenario.ts:228）が変わることを書いた (4) AC09 (4) の P3-DC-SYNTH（:63）の注記に P4-PWT-D-NANKAI-M7 と R1 を名指した (5) R1 は AC09 の 8 回の外で digest が変わるが、記録は過去のものとして残し取り直さない（outOfScope、統合担当の決め） (6) 取り直しの置き場（Mac mini の ~/dev/pwt3-out/、写しは ~/dev/fleq-vault-archive/<日付>-pwt3/）と前日の 3 日分の展開（両方の機械、sha256 を確かめた、3,716・3,668・2,507 file）を AC09 (2) に書いた (7) 許可の外になりうる既存の決まり（P3-DC-T03 の Area の数、P3-DC-T09 の 1 MiB の余裕、scenario.ts の期待例 R2 :186・:188・N1 :203〜:205・N2 :211〜:213）は、落ちたら実装を止めて契約を改める（AC09 (2)） (8) W1 の 35 分の予算は、取り直しで W1 を 1 本先に回して確かめる (9) check-contract・check-manifest・check-sequences は rc 0",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT-REVIEW-ORDER3",
+        "status": "closed",
+        "source": "発注 3 の実装（branch impl/walk3: 43e7dadc→cee5e7cf→2d775ffb→fb50d76e、Opus の子）と実装レビュー（ヘルツ thread 01a1ed73 の r0〜r2、Opus の契約適合）、統合担当の配送の当て（2026-11-18）",
+        "closed": "(1) 経緯: 43e7dadc で AC06〜AC08 を入れた。ヘルツ r0 は条件付き GO（合成の値の P2 5 件）で cee5e7cf・2d775ffb（N 系の沖合の津波観測の推定を筋書きの大津波警報の区域から作る）で直し、r1 は NO-GO（EEW の Body の最大予測震度の位置）で fb50d76e（Headline の書き換えの後の位置で直し、T06 に値の確かめ）、r2 GO。Opus（契約適合）は 43e7dadc で条件付き GO（実装は AC06〜AC08 の字の内、条件は配送の当て: P3-DC-SYNTH への注記に限りの外の書き換えを名指すこと） (2) 統合担当の決め: T2-saori の到達予想時刻 18:45・高さ 10・3・1 m は合成の筋書きの値として受け入れる。臨時情報の伏せ字は、筋書きから決まる値は埋め、決まらない文は落とす。VTSE52 の推定の欄も直す範囲に入れた (3) 試験の無い項（Opus が挙げたもの、AC06 (8) の南海の M7 の 130→120 と (9) の R2 の VTSE41 の文面など）は、AC10 の評価の 1 巡で演じ手と評価者の file を読んで確かめる（試験は足さない。最小テストの限りの外） (4) formal の取り直し: N1・N2 の status は Fail だが、P3 の AC09 と同じ failingSummaries（U-E・U-T・U-Q の要約、P3-DC-PASS の 4 つ目で P4 へ持ち越し）によるもので、pass の 3 欄（inputRejections・capacityLosses・expectationsFailed）は 0。R1 は採取物が無く流していない（outOfScope の R1） (5) repo の外の改訂（AC03 (4)・AC07 (3)(4): render.py の COMMON の 1 文・千尋の BRIEF・省いた件数の注記）は ~/dev/fleq-vault-archive/2026-11-18-walk/walk3/render.py に当て済み。歩きの筋書きの一覧から W2・N3 を外すのは、評価の 1 巡（AC10）の準備で統合担当が行う (6) 配送の当て: AC09 (4) の p3-disaster-capacity.json の 2 つの注記（:63 には限りの外の書き換えと観測点の作り方を足した）、«» の付け直し（変えた 4 file を引く他の契約の ref 19 本と本契約の 39 本。字の変わったものは今の木の行を中身で選んだ）、p3-replay-watch-002.json の P3-RW2-AC09 に eewBody の形が変わった注記",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -311,18 +318,18 @@
           "reconstruction/src/cli/cli.ts:356 «1acb3d8b78e0a08b»",
           "reconstruction/src/cli/repl.ts:257 «3a1582ba24b82902»",
           "reconstruction/test/disaster/runner.ts:390 «5e673604f9bd2a84»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:172 «30813c92fc90f598»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:316 «519fa910823d5cca»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:330 «d5ba31c001610a3e»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:331 «df4e904760385a18»"
+          "reconstruction/test/final-gate/persona-scenes.test.ts:205 «30813c92fc90f598»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:362 «6ad6253d8535c7e2»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:375 «d5ba31c001610a3e»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:376 «df4e904760385a18»"
         ]
       },
       {
         "id": "P4-PWT-AC02",
         "requirement": "【発注 1】演じ手の通知の 20 件（計画 1、統合担当の決め『渡す量を絞る』の中の切り方を改める）: (1) 前の場面からの通知（門を通った試行と AC03 の切断の行）を、payload の level の段（cancel 4・critical 3・warning 2・normal 1・そのほか 0。取消は最上位に置く: 先に省くと演じ手は取り消されていない警報だけを見て、製品の画面に無い状態になる。統合担当の決め、2026-11-18 13:2x）の重い順、同じ段は新しい順に 20 件残し、時刻の順に戻して渡す。切断の行は段 0 (2) 題名ごとの件数（notificationCounts）と省いた件数（notificationsOmitted）は今と同じ数え方（全部の数、省いた数 = 全部 − 20） (3) 評価者の file は全部を時刻の順で持つ。計画の『desktop の試行には段の欄が無いので音の試行と組にする』近道は使わない（payload は desktop・sound とも level を持つ、Q-PWT-DRAFT-R0 (1)）。無いと: R2 の S6 の 03:20 の大津波警報への拡大、W1-09-21 の S8 の大島の L5 土砂（その日ただ 1 回の critical）が、後の軽い通知に押されて演じ手に渡らない（帳簿 R2.md:28・W1-2026-09-21.md:25・N3.md:31）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/persona-scenes.test.ts:255 «043c4345f173253e»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:261 «4226b8fcd90188e6»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:297 «043c4345f173253e»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:303 «4226b8fcd90188e6»",
           "reconstruction/contracts/p2-eew-unit.types.ts:105 «b01225dea5a2873d»",
           "reconstruction/src/units/seismic/seismic-unit.ts:1640 «f56694e0eb6ae6da»"
         ]
@@ -332,7 +339,7 @@
         "requirement": "【発注 1】端末の切断の行（帳簿 T2-naoto.md:40）と場面の注記: (1) dispatches の connectionLost ごとに、端末の出力（output.ts:388）と同じ字の desktop の 1 行『題 FlEq、本文 回線が切れました（HH:MM:SS から受信できていません）』を、その時刻を含む場面の通知に足す（前の場面の時刻より後で、場面の時刻以下）。時刻は切断の時点の最後の受信で、発注 1 では筋書きの frame と dispatches の connected・frame のうち切断の時刻以下の最も遅いもの（発注 2 で ping を足す、AC04 (2)）。行を出すのは接続中の切断だけ（dispatch の順で、その前の connected・connectionLost の最後が connected のとき）。接続の無い切断と、繋がり直さずに続く切断は 0 行（host.ts:234 は確立した接続の喪失でだけ lostConnections を増やし、端末の行は output.ts:410 の増えでだけ出る。発注 2 で r1 の『受信の無い切断は切断の時刻』を改めた、Q-PWT-REVIEW-ORDER2 (3)）。評価者の file の切断の行には stoppedBy: null を付ける。HH:MM:SS は JST（端末の時計の TZ を持ち込まない） (2) 門は通さない（端末の切断の知らせは adapter の門の外で、connection の分野は既定 on） (3) shortcut のコメント: 30 分で 3 回の『回線が不安定です』のまとめ・mute・connection の設定は写さない（試行 2 の切断は 1 回）。無いと: 直人が 02:48 の切断に気付く手掛かりが場面に無く、評価者が『切断の知らせが写らない』と読む (4) repo の外の改訂（統合担当が当てる、walk2/render.py の写し）: 省いた件数の行を『（場面の作り手の注記。画面には出ていません）このほかに通知が n 件あります（段の軽いものと古いものを省きました）。題名ごとの件数』に替える（帳簿 W1-2026-06-26.md:51、計画 8。AC02 で省くものが古いものだけでなくなるので字も合わせる）",
         "evidenceRefs": [
           "reconstruction/src/terminal/output.ts:388 «01619191811a14b8»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:61 «22dc129a2794fbaa»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:67 «22dc129a2794fbaa»",
           "reconstruction/test/disaster/runner.ts:589 «b784113a97704d3d»",
           "reconstruction/test/disaster/runner.ts:598 «b86b2331a8fc3dad»",
           "reconstruction/src/host/host.ts:234 «12503cfd5b79b4ea»",
@@ -361,12 +368,12 @@
         "id": "P4-PWT-AC05",
         "requirement": "【発注 2】persona-scenes.test.ts の接続の層・確認状態の行・T09 (2): (1) 接続の層（帳簿 N1.md:30）: AC09 の筋書きの場面の run にも、試行 2 と同じ形の始まりの操作（流し始めの時刻に watchEewWindow と connected）と、起動の取り直しの空の一覧を返す prepare（host と同じく startupPlan(classifications, restoredBoundaries, now) で unit と束を決める形で、決まった unit ごとに空の一覧、本文は取らない。classifications は人物の契約の区分〔発注 2 の時点は今の PERSONAS の人物、発注 3 で AC07 (1) の表〕。製品は契約の区分で束の型を絞る、recovery.ts:183。telegram.* の無い契約は startupPlan が null で、host と同じく attachRecovery を呼ばない）を渡す。AC09 の筋書きの場面の run には、接続から RECOVERY_GAP_MS（60 秒）と EEW_CONFIRM_MS（600 秒）の 2 点に tick を足す（製品は毎秒 tick する。毎秒にしないのは AC09 の長い筋書きの run の時間のため）。2 つの値は productMs が composition-root.ts:2388・:2392 の定義の行から読み、行の形が変わると例外で落ちる（黙って違う値にならない）。試行 2 は今どおり 1 秒ごと。W1 の筋書きが前日の 18:00 からでも 1 回 35 分の予算に収まるかは、発注 3 の発注前点検で統合担当が確かめる。無いと: AC09 の筋書きは接続の層が無く、確認状態が全部 startup のまま残る（shared-runtime.ts:220。消えるのは取り直しの採用〔composition-root.ts:2323〕と EEW の 10 分の確認だけ）ので、接続中なのに未確認の行が場面に出る (2) 確認状態の行（帳簿 T2-naoto.md:29）: 演じ手の file の screen の full の分野に、その分野の items の operation・confirmation・unconfirmed を添える（要約の分野と同じ 3 欄）。(1) と同じ発注で当てる（(1) より先だと AC09 の全分野に startup の行が出る）。無いと: 製品は items から『確認状態』の行を出す（client.ts・pure.ts）のに、場面に写らない (3) T09 (2)（P4-PWT-D-T09-MATCH=A、作者の裁定 2026-11-18 13:15）: 『AC09 の結果と gitHead も除いた本体の hash が一致』を『readScenario の digest が AC09 の結果の digest と一致』に替える。『AC09 の gitHead から reconstruction/src・reconstruction/test/disaster の差分が無い』はそのまま。index.json の ac09 の欄に digestMatches と sourceUnchanged を書く（bodyMatches は外す）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/persona-scenes.test.ts:293 «d6a4d25d0190c72d»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:158 «e5711bc287326f17»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:297 «0941ad5728997219»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:151 «bddc63b5ba4046e0»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:352 «345a62f905230b70»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:355 «58aabb802a643f84»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:335 «d6a4d25d0190c72d»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:191 «e5711bc287326f17»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:339 «0941ad5728997219»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:184 «bddc63b5ba4046e0»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:397 «345a62f905230b70»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:400 «58aabb802a643f84»",
           "reconstruction/test/disaster/runner.ts:731 «c8c066311a8b02d6»",
           "reconstruction/src/runtime/shared-runtime.ts:220 «abf0a52943848907»",
           "reconstruction/src/runtime/composition-root.ts:2323 «ae07006c387e9d07»",
@@ -380,20 +387,20 @@
         "id": "P4-PWT-AC06",
         "requirement": "【発注 3】合成の報の文面（計画 4、Q1=A）: synth.ts の既定のまま、報の件数・時刻・headType・流す順を変えずに文面だけを直す（例外は P4-PWT-D-M7-RELEASE=A の解除の VTSE41）。帳簿の行ごと: (1) 臨時情報（nankai、:553〜:556）の伏せ字（●●）を消し、VYSE51 の臨時解説の号を報ごとに増やす（N1.md:31・N2.md:68・N3.md:32・N3.md:33） (2) 観測点と予報区の対（gauges・tsunami51）を同じ沿岸の組にし、観測の本文の時刻を報の時刻に合わせる（N1.md:27・N2.md:50・R2.md:26・R2.md:29） (3) 震源の型の残りを筋書きの震源に揃える: 本震の VXSE53・VXSE51 の型（T53・T51 の熊本 M7.1）と本震の EEW の型（77_01_26 の豊後水道）、余震の EEW（aftershockEew、:577〜:583 の 77_01_01 の豊後水道 M4.2）、余震の VXSE53 の型の震源と『津波の心配なし』の付加文（大津波警報の間）（N1.md:23・N1.md:25・N1.md:26・N2.md:24・N2.md:32・N3.md:26・N3.md:29。件数〔十数件〕は P4 の通知の量） (4) 本震と余震の EEW の最後の報に最終報（NextAdvisory）を付ける（:512〜:519・:577〜:583、N2.md:79） (5) M7 級の余震の津波注意報に解除を足す（P4-PWT-D-M7-RELEASE=A。N2.md:72・N3.md:34） (6) 『これは訓練です』の型の文を消す（N3.md:36） (7) eewBody（:460〜:472）の予想の到達時刻（ArrivalTime）を報時刻より後にし、区域の ForecastLgInt の 0〜0 の固定を外す（N2.md:40 の道具の側）。区域の値は、その報の型の区域のうち同じ予想震度（ForecastInt の From）の区域の ForecastLgInt の最大、型に無い予想震度は型の最大（Body の Forecast 直下の ForecastLgInt、77_01_26 は 2）。Body の最大は区域の最大にする（U-E の state と表示に効くので決め方を固定する。統合担当の決め、2026-11-18 13:2x） (8) M7 級の余震の臨時情報は P4-PWT-D-NANKAI-M7=A（N2.md:64 の合成の側） (9) R2 の合成の VTSE41（r2、:643〜）の Headline と本文の文面を報の区分に合わせる（R2.md:27） (10) persona-scenes.test.ts の T2-saori（:94〜:110）: 別々の公開サンプルを 1 つの EventID に束ねた報の震源と時刻を揃え（T2-saori.md:24）、VXSE53 の『津波の心配なし』を外し（T2-saori.md:40）、津波の時刻を UTC でなく JST で渡し（T2-saori.md:32）、vtse41・observation の返す XML の Headline の『合成の報』を区分に合う文に替えて到達予想時刻と高さを入れる（T2-saori.md:28・T2-saori.md:36）。tsunami-fixture.ts は 16 の試験 file が使うので変えず、persona-scenes.test.ts の中で書き換える (11) 発注 3 の発注前点検で決めた 3 行（Q-PWT-PRECHECK-ORDER3）: R2.md:32（観測の表が黙って消える、合成の側）は直さない（作者の裁定 Q-PWT-R2-OBS=A、outOfScope）。T2-yu.md:24（第 3 報 23:30:11 の後に最終報 23:31:38 まで報が無い）は、persona-scenes.test.ts の trial の T2-yu の中で、77_01_03 の Serial を進めた複製を 23:30:11〜23:31:38 の間に数秒〜10 秒おきに挟み、最終報の Serial をその次の値に上げる（予報の続報は通知を出さないので、演じ手の通知の数は変わらない。T2 の試行は AC09 の外なので Q1 の件数は及ばない。統合担当の決め）。T2-yu.md:30（未確認の期間が 27 分）は発注 2 の AC04 (2) で直った（点検で T2-yu の T09 を流して確かめた）。行数の見込み: synth.ts に 60〜90 行、persona-scenes.test.ts に約 20 行。件数と時刻を変えないことは T06 で確かめる",
         "evidenceRefs": [
-          "reconstruction/test/disaster/synth.ts:460 «fad26db42960bb3e»",
-          "reconstruction/test/disaster/synth.ts:461 «a13f7428600b4392»",
-          "reconstruction/test/disaster/synth.ts:494 «0ab959ca1ccd4ab1»",
-          "reconstruction/test/disaster/synth.ts:516 «3fcf0ef0de535339»",
-          "reconstruction/test/disaster/synth.ts:553 «5c70ede5bceddb92»",
-          "reconstruction/test/disaster/synth.ts:555 «832784445fb26be9»",
-          "reconstruction/test/disaster/synth.ts:577 «acc2f8ddb1bee368»",
-          "reconstruction/test/disaster/synth.ts:586 «9ca6ad6971790a76»",
-          "reconstruction/test/disaster/synth.ts:592 «d01eee177269196c»",
-          "reconstruction/test/disaster/synth.ts:597 «59494864e0bbc224»",
-          "reconstruction/test/disaster/synth.ts:643 «6135cefdfc105d85»",
-          "reconstruction/test/disaster/synth.ts:749 «bae335c94c2eb177»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:98 «c59aa333b2002e31»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:107 «6d45a359520e8dd2»"
+          "reconstruction/test/disaster/synth.ts:554 «7acc42be842d68fc»",
+          "reconstruction/test/disaster/synth.ts:556 «df0051e2593b3fde»",
+          "reconstruction/test/disaster/synth.ts:608 «0ab959ca1ccd4ab1»",
+          "reconstruction/test/disaster/synth.ts:636 «4643f4f6f65d0bbd»",
+          "reconstruction/test/disaster/synth.ts:679 «3502092064370f9e»",
+          "reconstruction/test/disaster/synth.ts:683 «75ecc7d77d0c4db7»",
+          "reconstruction/test/disaster/synth.ts:729 «fc7f36e4bd9820ee»",
+          "reconstruction/test/disaster/synth.ts:738 «29715c14fab4a507»",
+          "reconstruction/test/disaster/synth.ts:746 «d01eee177269196c»",
+          "reconstruction/test/disaster/synth.ts:759 «36a01f6565f195cf»",
+          "reconstruction/test/disaster/synth.ts:810 «6135cefdfc105d85»",
+          "reconstruction/test/disaster/synth.ts:918 «bae335c94c2eb177»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:110 «c59aa333b2002e31»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:136 «85bc0f4db4984e51»"
         ]
       },
       {
@@ -404,11 +411,11 @@
           "reconstruction/src/host/host.ts:319 «b12e2853c7f700e8»",
           "reconstruction/src/host/host.ts:326 «d3d3ceac5d293407»",
           "reconstruction/src/recovery/recovery.ts:183 «dd6dac877ebbc725»",
-          "reconstruction/test/disaster/synth.ts:516 «3fcf0ef0de535339»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:203 «aec5d32b64d29ef6»",
-          "reconstruction/test/final-gate/persona-scenes.test.ts:307 «a2fa1f0c3f3e27d6»",
-          "reconstruction/test/disaster/scenario.ts:192 «2af8d68ee80c2872»",
-          "reconstruction/test/disaster/scenario.ts:197 «3e5391bd3a851e74»"
+          "reconstruction/test/disaster/synth.ts:636 «4643f4f6f65d0bbd»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:240 «95825b3328a5da66»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:349 «3cb96fa8f98ea07b»",
+          "reconstruction/test/disaster/scenario.ts:195 «2af8d68ee80c2872»",
+          "reconstruction/test/disaster/scenario.ts:200 «3e5391bd3a851e74»"
         ]
       },
       {
@@ -417,23 +424,23 @@
         "evidenceRefs": [
           "reconstruction/test/disaster/scenario.ts:82 «631608571e4b3e9b»",
           "reconstruction/test/disaster/scenario.ts:104 «ed8056c0461c1cd7»",
-          "reconstruction/test/disaster/scenario.ts:106 «7787fbf04fe9c089»",
-          "reconstruction/test/disaster/scenario.ts:110 «8c03773a5d6cfa05»",
+          "reconstruction/test/disaster/scenario.ts:109 «7787fbf04fe9c089»",
+          "reconstruction/test/disaster/scenario.ts:113 «1db3343f262089ae»",
           "reconstruction/test/disaster/disaster.test.ts:207 «90631b6a84c6d283»",
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «41a697c6cf92332c»"
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»"
         ]
       },
       {
         "id": "P4-PWT-AC09",
         "requirement": "配送（統合担当）: (1) 発注 1 と 2 の配送は AC09 を取り直さない（発注 1 は T09 (2) の範囲 reconstruction/src・reconstruction/test/disaster に差分を足さず、発注 2 は runner.ts の場面の口だけを変えて formal の run の本体を変えない）。ただし 11-15 の歩きで使った AC09 の結果の後にも src は変わっている（283a82bb の R3 ほか）ので、今の HEAD でも T09 (2) の無差分は成り立たない。歩きの前の取り直しは発注 3 の配送の 1 回で、それより前に歩き（T09 の門つきの it の AC09 の筋書き）を回さない (2) 発注 3 の配送で、統合担当が Mac mini で AC09 の 8 回（W1 の 3 日・W2・N1・N2・N3・R2）を P3-FG-AC09 と同じ formal の道具で取り直す（Q1=A）。前日の 3 日分は archive（item.json の sha256 を確かめる）を x-<日付>/ に無改変で展開し、MacBook と Mac mini の FLEQ_DISASTER_DATA の dir に置く。pass の 3 欄が全部 0 でなければ止めて報告する（outOfScope）。取り直した結果の gitHead が、歩きの T09 (2) の照合の基になる。置き場: Mac mini の出力は ~/dev/pwt3-out/、写しは ~/dev/fleq-vault-archive/<日付>-pwt3/（P3 の c3c-out・c3c-out2 を上書きしない）。前日の 3 日分は両方の機械の ~/dev/fleq-corpus-p0/20260923-capacity/ に x-2026-06-02・x-2026-06-25・x-2026-09-20 として展開済み（item.json の sha256 を確かめた、3,716・3,668・2,507 file、Q-PWT-PRECHECK-ORDER3）。W1 の 35 分の予算は、取り直しで W1 を 1 本先に回して確かめる。実装の実走か取り直しで、既存の決まりの許可の外になりうるもの（P3-DC-T03 の Area の数、P3-DC-T09 の 1 MiB の余裕、scenario.ts の期待例 R2 の :186・:188、N1 の :203〜:205、N2 の :211〜:213）が落ちたら、実装を止めて契約を改める（期待を緩めて通さない） (3) «» の付け直し（実装担当は触らない）: 変える file の行を引く他の契約の ref は 43: persona-scenes.test.ts:248 が 1（p3-pi-measure-blocked-test.json。発注 1 で行が下へずれ〔:248→:292〕、発注 2 では行がずれるだけ〔:292→:352〕。T09 が src と test/disaster の無差分を確かめる主張は P4-PWT-D-T09-MATCH=A でも真のまま）、runner.ts が 19（p3-disaster-pi-measure.json 11・p3-uw-canon.json 3・p3-final-review-fix.json 2・p3-unit-q-capacity.json 2・p3-weather-shape.json 1。他の契約の ref の行は :15〜:592 で、発注 2 でずれうるのは :589 の connectionLost の枝に行を足したときの p3-final-review-fix.json の :592 の 1 件だけ（ping の定数は runStage1 の後ろ〔:617 より後〕、factsOf・capture は :743・:806 で、どれも ref の行より後ろなので 0 件。2026-11-18 起草 r2 に grep で数え直した））、synth.ts が 13（p3-replay-watch-002.json 11・p3-uw-canon.json 2。発注 3 で 13 件とも配送の木で付け直しの道具に当てて読む。:460 の eewBody の行の字が変わりうる）、scenario.ts:112 が 1（p3-weather-shape.json。発注 3 の W1 の枝の中）、disaster.test.ts が 4（p3-disaster-pi-measure.json の :435・:441、p3-pi-measure-blocked-test.json の :488 は発注 3 の T07 の行の追加で下へずれる。p3-seismic-event-limit.json の :72 はずれない）、p3-final-gate.json:911・:995 が 2（p3-heat-sound-normal.json。(4) の改訂で字が変わる）、p3-disaster-capacity.json:57 が 3（p3-weather-shape.json 1・p3-uw-canon.json 2。(4) の改訂で字が変わる。W1 の 1 日の定義を引く主張が前日の 18:00 からでも真のままかを読む）。合わせて 43。行がずれただけなら .dr-tmp の reanchor-target.py、字が変わったら中身を読んで主張が真のままかを確かめてから reanchor-inplace.py で付け直し、改めた契約の meta.sha256 を取り直す。本契約の evidenceRefs も配送の木で取り直す (4) 原文の改訂（行の中の書き換え、行を足さない）: p3-final-gate.json の P3-FG-AC10 の requirement（:911）の (1) の末尾と、P3-FG-T09 の behavior（:995 の行の中）の (2) の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: AC09 の筋書きの場面の run は人物の契約で絞り、接続の層を足すので、AC09 の結果との照合は本体の hash でなく、絞る前の digest の一致と AC09 の gitHead からの src・test/disaster の無差分で行う（P4-PWT-D-T09-MATCH の作者の裁定）】』。p3-disaster-capacity.json の P3-DC-SCENARIOS の rule（:57）の W1 の節の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: W1 は前日の 18:00 から流し〔x-<前日>/ も要る〕、区切りと期待例はその日の 0 時から】』、P3-DC-SYNTH の rule（:63）の末尾に『【P4-PERSONA-WALK-TOOLS-001 の注記: 文面の作り物を直した〔件数と時刻は同じ。M7 級の余震の津波注意報の解除は P4-PWT-D-M7-RELEASE、M7 級の余震の VYSE50 の 130→120 は P4-PWT-D-NANKAI-M7。R1 も aftershockEew を使うので合成の列と digest が変わる〕】』。演じ手への文（walk2/render.py）は AC03 (4)・AC07 (3) (5) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
         "evidenceRefs": [
-          "reconstruction/test/final-gate/persona-scenes.test.ts:352 «345a62f905230b70»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:397 «345a62f905230b70»",
           "reconstruction/test/disaster/runner.ts:592 «6c53688a822b368b»",
-          "reconstruction/test/disaster/synth.ts:460 «fad26db42960bb3e»",
+          "reconstruction/test/disaster/synth.ts:554 «7acc42be842d68fc»",
           "reconstruction/contracts/p3-final-gate.json:911 «e3c066c6a3f4c09b»",
           "reconstruction/contracts/p3-final-gate.json:995 «a2c608eadb3ca5b6»",
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «41a697c6cf92332c»",
-          "reconstruction/contracts/p3-disaster-capacity.json:63 «9b3da0dd5bac13cd»"
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»",
+          "reconstruction/contracts/p3-disaster-capacity.json:63 «27eeb68a5aa6d5fc»"
         ]
       },
       {
