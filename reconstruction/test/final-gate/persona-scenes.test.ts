@@ -136,10 +136,11 @@ function head(id: string, unit: RuntimeUnitId, headType: string, receivedAtMs: n
 
 // 製品の定数（composition-root.ts の RECOVERY_GAP_MS〔P3-REC-D-COALESCE=A〕と EEW_CONFIRM_MS〔P3-REC-D-EEW-CONFIRM=B〕）。export されておらず src は
 // 本契約で変えないので、定義の行から読む（値を写すと製品を変えたときに古びる）。行が無ければ例外。
-function productMs(name: string): number {
-  const found = new RegExp(`^const ${name} = ([\\d_ *]+);`, "m").exec(readFileSync("reconstruction/src/runtime/composition-root.ts", "utf8"))?.[1];
-  if (found == null) throw new Error(`${name} is not defined in composition-root.ts`);
-  return found.split("*").reduce((product, factor) => product * Number(factor.trim().replace(/_/g, "")), 1);
+// 受けるのは整数 1 つか、整数 2 つの 1 回の積（10 * 60_000）だけ。ほかの書き方（** など）は読み違えないよう例外にする。
+function productMs(name: string, source = readFileSync("reconstruction/src/runtime/composition-root.ts", "utf8")): number {
+  const found = new RegExp(`^const ${name} = (\\d[\\d_]*)(?: \\* (\\d[\\d_]*))?;`, "m").exec(source);
+  if (found == null) throw new Error(`${name} is not defined as an integer or a product of two integers in composition-root.ts`);
+  return Number(found[1].replace(/_/g, "")) * Number((found[2] ?? "1").replace(/_/g, ""));
 }
 
 // P4-PWT-AC05 (1)（実不具合 N1.md:30）: AC09 の筋書きにも試行 2 と同じ始まりの操作と、起動の取り直しの空の一覧を渡す。無いと確認状態が全部 startup のまま残る。
@@ -273,11 +274,15 @@ function operationShown(screen: NonNullable<SceneCapture["fullScreen"]>, item: D
     || screen.notices.some((notice) => notice.operation === item.operation);
 }
 // P4-PWT-AC05 (2)（実不具合 T2-naoto.md:29）: 製品は EEW の items から確認状態の行を出す（chrome-eew の client.ts の renderStatus。ほかの分野の確認状態は
-// 描かない）ので、演じ手の screen の EEW の分野が full のとき、要約の分野と同じ 3 欄を添える（統合担当の裁定、2026-11-18 14:3x）。行は製品が見せる operation
-// だけ（実装レビュー: 見せない training・test の startup の行を渡していた）。要約の分野の行も、製品の要約の行と同じく summaryRowVisible で絞る。
+// 描かない）ので、演じ手の screen の EEW の分野に confirmations として 3 欄を添える（統合担当の裁定、2026-11-18 14:3x）。行は delivery によらず製品が見せる
+// operation だけ（operationShown。実装レビュー: 見せない training・test の startup の行を渡し、要約のときは津波の容量超過で見える training を落としていた）。
+// 要約の行は製品の要約の行と同じく summaryRowVisible で絞り、製品が要約の行を描く EEW と津波は描く欄（buildSummaryLine）だけを渡す。
 type Shown = NonNullable<SceneCapture["screen"]>["current"][string];
-type ActorDomain = Exclude<Shown, { delivery: "full" }>
-  | (Extract<Shown, { delivery: "full" }> & Readonly<{ items?: readonly Pick<DisplaySummaryItem, "operation" | "confirmation" | "unconfirmed">[] }>);
+type Summary = Exclude<Shown, { delivery: "full" }>;
+type DrawnRow = Pick<DisplaySummaryItem, "operation" | "activeCount" | "highestSeverity" | "updatedAt">;
+type ActorDomain = (Extract<Shown, { delivery: "full" }> | (Omit<Summary, "items"> & Readonly<{ items: readonly (Summary["items"][number] | DrawnRow)[] }>))
+  & Readonly<{ confirmations?: readonly Pick<DisplaySummaryItem, "operation" | "confirmation" | "unconfirmed">[] }>;
+const DRAWN_SUMMARIES = new Set(["eew", "tsunami"]);
 function actorScreen(scene: SceneCapture) {
   const { screen, fullScreen } = scene;
   // 2 つは同じ snapshot から作るので、片方だけ null にはならない。
@@ -286,9 +291,11 @@ function actorScreen(scene: SceneCapture) {
   for (const [key, domain] of Object.entries(fullScreen.current)) {
     const shown = screen.current[key];
     if (shown == null) continue;
-    if (shown.delivery !== "full") current[key] = { ...shown, items: shown.items.filter((item) => domain.items.some((row) => row.operation === item.operation && summaryRowVisible(row))) };
-    else current[key] = key !== "eew" ? shown
-      : { ...shown, items: domain.items.filter((item) => operationShown(fullScreen, item)).map(({ operation, confirmation, unconfirmed }) => ({ operation, confirmation, unconfirmed })) };
+    const drawn = shown.delivery === "full" ? shown : { ...shown, items: DRAWN_SUMMARIES.has(key)
+      ? domain.items.filter(summaryRowVisible).map(({ operation, activeCount, highestSeverity, updatedAt }) => ({ operation, activeCount, highestSeverity, updatedAt }))
+      : shown.items.filter((item) => domain.items.some((row) => row.operation === item.operation && summaryRowVisible(row))) };
+    current[key] = key !== "eew" ? drawn : { ...drawn, confirmations: domain.items.filter((item) => operationShown(fullScreen, item))
+      .map(({ operation, confirmation, unconfirmed }) => ({ operation, confirmation, unconfirmed })) };
   }
   return { ...screen, current };
 }
@@ -501,21 +508,31 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
     const subject = "normal/VTSE41/20110311144600", state = { forecasts: [{ subject, retainUntil: 90_000 }] }, rows = [{ subject, source: { subject } }];
     expect([factsOf(state, rows, 500), factsOf(state, rows, 500, false)]).toEqual([[{ subject, shown: true, until: 90_000, retainUntil: 90_000 }],
       [{ subject, shown: false, until: 90_000, retainUntil: 90_000 }]]);
-    // capture の経路: U-Q・U-T を要約にする筋書き（P3-DC-T09 と同じ組み立て）の場面で、要約の分野の事実は subject が残り shown が全部 false。
-    const t0 = jst("2026-06-26T00:00:00"), synthetic = synthesize("N1", 1, { t0Ms: t0 });
-    const quake = Buffer.from(synthetic.filter((item) => item.headType === "VXSE53").reduce((a, b) => b.body.byteLength > a.body.byteLength ? b : a).body).toString("utf8");
-    const forecast = Buffer.from(synthetic.find((item) => item.headType === "VTSE41")?.body ?? []).toString("utf8").replace(/<Comments>[\s\S]*?<\/Comments>/, "");
+    // capture の経路: U-E・U-T・U-Q を要約にする筋書き（P3-DC-T09 の組み立てに EEW と通常の津波 512 件を足す。実装レビュー r1 の再現）の場面で、
+    // 要約の分野の事実は subject が残り shown が全部 false。00:07 の訓練の津波報は容量超過で U-T の training に印が付く（有効件数は 0）。
+    const t0 = jst("2026-06-26T00:00:00"), synthetic = synthesize("N1", 1, { t0Ms: t0 }), body = (item: Frame | undefined) => Buffer.from(item?.body ?? []).toString("utf8");
+    const quake = body(synthetic.filter((item) => item.headType === "VXSE53").reduce((a, b) => b.body.byteLength > a.body.byteLength ? b : a));
+    const forecast = body(synthetic.find((item) => item.headType === "VTSE41")).replace(/<Comments>[\s\S]*?<\/Comments>/, "");
+    const eew = body(synthetic.filter((item) => item.headType === "VXSE45")[19]);
     const swap = (xml: string, index: number) => xml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${20260626000100 + index}</EventID>`);
-    const inputs = [0, 1, 2, 3].flatMap((index) => [...index < 3 ? [frame(t0 + index * MINUTE, "VXSE53", swap(quake, index))] : [],
-      frame(t0 + index * MINUTE + 1_000, "VTSE41", swap(forecast, index))]);
+    const small = (atMs: number, eventId: string) => vtse41({ eventId, at: new Date(atMs).toISOString(), areas: [{ code: "310", name: "千葉県九十九里・外房", kind: "51" }] });
+    const inputs = [...[0, 1, 2, 3].flatMap((index) => [...index < 3 ? [frame(t0 + index * 1_000, "VXSE53", swap(quake, index))] : [],
+      frame(t0 + index * 1_000 + 100, "VTSE41", swap(forecast, index))]), ...[0, 1, 2, 3, 4].map((index) => frame(t0 + 4_000 + index * 100, "VXSE45", swap(eew, 10 + index))),
+    ...Array.from({ length: 508 }, (_, index) => frame(t0 + 4_500 + index * 3, "VTSE41", small(t0 + 4_500 + index * 3, String(20260626100000 + index)))),
+    frame(t0 + 7 * MINUTE, "VXSE45", swap(eew, 20)), frame(t0 + 7 * MINUTE, "VTSE41", small(t0 + 7 * MINUTE, "20260626200000").replace("<Status>通常</Status>", "<Status>訓練</Status>"))]
+      .sort((a, b) => a.atMs - b.atMs);
     const scenes: SceneCapture[] = [];
-    await runStage1(ready("P4-PWT-T04a", inputs, t0, t0 + 10 * MINUTE), { scenes: { times: [t0 + 10 * MINUTE], write: (scene) => scenes.push(scene) } });
+    await runStage1(ready("P4-PWT-T04a", inputs, t0, t0 + 8 * MINUTE), { scenes: { times: [t0 + 7 * MINUTE], write: (scene) => scenes.push(scene) } });
     const summarized = Object.entries(scenes[0]?.screen?.current ?? {}).filter(([, domain]) => domain.delivery === "summary").map(([key]) => key);
-    const facts = ["U-Q", "U-T"].map((unit) => scenes[0]?.facts[unit] ?? []);
-    expect([summarized, facts.map((list) => list.length > 0 && list.every((item) => !item.shown))]).toEqual([["tsunami", "earthquake"], [true, true]]);
-    // 演じ手の要約の行は製品の要約の行と同じく normal と有効件数のある operation だけ（training・test は 0 件なので出ない）。
+    const facts = ["U-E", "U-T", "U-Q"].map((unit) => scenes[0]?.facts[unit] ?? []);
+    expect([summarized, facts.map((list) => list.length > 0 && list.every((item) => !item.shown))]).toEqual([["eew", "tsunami", "earthquake"], [true, true, true]]);
+    // 演じ手: 要約の行は normal と有効件数のある operation だけで、EEW と津波は描く欄だけ。EEW の確認状態の行は、要約でも製品と同じく津波の容量超過で
+    // 見える training を含む（pure.ts の operationVisible）。
     const actor = scenes[0] == null ? null : actorFile({}, scenes[0], []).screen;
-    expect(["tsunami", "earthquake"].map((key) => actor?.current[key]?.items?.map((item) => item.operation))).toEqual([["normal"], ["normal"]]);
+    expect(["eew", "tsunami", "earthquake"].map((key) => { const domain = actor?.current[key];
+      return domain?.delivery === "summary" ? domain.items.map((item) => Object.keys(item).sort().join()) : null; })).toEqual([
+      ["activeCount,highestSeverity,operation,updatedAt"], ["activeCount,highestSeverity,operation,updatedAt"], ["activeCount,confirmation,highestSeverity,operation,unconfirmed"]]);
+    expect(actor?.current["eew"]?.confirmations?.map((item) => item.operation)).toEqual(["normal", "training"]);
   });
 
   it("P4-PWT-T04 (b) the card of a connection loss starts at the last ping before the loss, the same time as the actor's line", async () => {
@@ -547,11 +564,14 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 2", () => {
     await runStage1(scenario, options({ times: [start, start + 10 * MINUTE - 1_000, start + 10 * MINUTE], write: (scene) => scenes.push(scene) }));
     const screens = scenes.map((scene) => actorFile({}, scene, []).screen);
     // 3 欄は EEW の分野だけで、製品が見せる operation だけ（training・test は EEW・容量超過・notice が無いので出ない）。
-    const rows = screens.map((screen) => Object.entries(screen?.current ?? {}).flatMap(([key, domain]) => domain.delivery === "full" && domain.items != null ? [[key, domain.items]] : []));
+    const rows = screens.map((screen) => Object.entries(screen?.current ?? {}).flatMap(([key, domain]) => domain.confirmations == null ? [] : [[key, domain.confirmations]]));
     const startup = { operation: "normal", confirmation: { state: "unconfirmed", confirmedAt: null }, unconfirmed: { startup: 1 } };
     expect(rows).toEqual([[["eew", [startup]]], [["eew", [startup]]],
       [["eew", [{ operation: "normal", confirmation: { state: "confirmed", confirmedAt: start + 10 * MINUTE }, unconfirmed: {} }]]]]);
     // 演じ手に渡らない U-Q の確認も製品と同じ時刻: 接続から 60 秒の tick の取り直し（最初の接続のきっかけ）で確かめ直す（評価者の写し）。
     expect(scenes[2]?.fullScreen?.current.earthquake.items[0].confirmation).toEqual({ state: "confirmed", confirmedAt: start + MINUTE });
+    // 2 点の tick の値の読み: 整数 1 つか 1 回の積だけを受け、** などは例外（実装レビュー r1: 10 ** 3 * 600 を 0 と読んだ）。
+    expect([productMs("X", "const X = 10 * 60_000;"), productMs("X", "const X = 60_000;")]).toEqual([600_000, 60_000]);
+    expect(() => productMs("X", "const X = 10 ** 3 * 600;")).toThrow();
   });
 });
