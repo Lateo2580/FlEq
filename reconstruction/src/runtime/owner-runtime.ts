@@ -771,6 +771,6 @@ function cardAreas(areas: CardAreas): Readonly<{ areas: CardAreas; dropped: bool
 
 export {
   adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews, recoveryResult, sameBase,
-  placeUnits, receiveOwner, refreshedViews, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
+  placeUnits, receiveOwner, refreshedViews, reportDateTime, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
 };
 export type { OwnerState, OwnerStep, ParserCompletion };

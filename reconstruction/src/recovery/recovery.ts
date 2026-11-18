@@ -6,7 +6,7 @@ import type { BodyResult, ListHead, ListPage, ListQuery, PollResult, PoolPositio
 import { familyFor } from "../decode-material/decode-material";
 import { TRANSIENT_TYPES, VISIBLE_TRANSIENT } from "../domains/local-bulletins/local-bulletins";
 import { exchange } from "../host/dmdata-rest";
-import { operationOf } from "../ingress/ingress";
+import { operationOf } from "../ingress/ingress"; import { reportDateTime } from "../runtime/owner-runtime";
 import { classifyHeadType, rowsByHeadType } from "../runtime/unit-coverage";
 
 // P3-RECOVERY-001【発注 1】: 起動時の一覧の辿り（穴 d）と、その頭だけで作るダイジェスト（H32）。本文は取らず、mailbox にも入れない。
@@ -212,14 +212,14 @@ const lapsedTransient = (unit: RuntimeUnitId, head: ListHead, nowWallMs: number)
 function bodiesFor(unit: RuntimeUnitId, heads: readonly ListHead[], nowWallMs = Date.now()): readonly ListHead[] {
   if (!recoverable(unit)) return [];
   // P3-REC-D-UW-PARTIALS=A: U-W の partial は同じ運用区分の窓の中の最新の取消でない VPWS50 より後に受けたものだけ（その区分に無ければ切らない）。
-  // 取消で切ると、1 つ前の VPWS50 から取消までの partial を取らないまま確認済みになる（4b-2 r1、統合担当の決め）。
-  const national = new Map<string, number>();
-  if (unit === "U-W") for (const head of heads) if (head.headType === "VPWS50" && head.infoType !== "取消")
-    national.set(head.operation, Math.max(national.get(head.operation) ?? -Infinity, head.receivedAtMs));
+  // 取消で切ると、1 つ前の VPWS50 から取消までの partial を取らないまま確認済みになる（4b-2 r1、統合担当の決め）。報時刻が基点と同じか新しいか読めない partial は落とさない（P4-URC-AC01）。
+  const national = new Map<string, ListHead>();
+  if (unit === "U-W") for (const head of heads) if (head.headType === "VPWS50" && head.infoType !== "取消" && head.receivedAtMs > (national.get(head.operation)?.receivedAtMs ?? -Infinity))
+    national.set(head.operation, head);
   const latest = new Map<string, ListHead>();
   for (const head of heads) {
     if (!bodyType(unit, head.headType) || lapsedTransient(unit, head, nowWallMs)) continue;
-    if (head.headType !== "VPWS50" && head.receivedAtMs <= (national.get(head.operation) ?? -Infinity)) continue;
+    const base = national.get(head.operation), at = reportDateTime(head.reportDateTime ?? ""), from = reportDateTime(base?.reportDateTime ?? ""); if (head.headType !== "VPWS50" && base != null && head.receivedAtMs <= base.receivedAtMs && (from == null || at != null && at < from)) continue; // 報時刻は本文の受理と同じ暦日の検査（Date.parse は 2 月 30 日も読む）。基点の報時刻が読めなければ受信時刻だけで切る
     const subject = N2[unit].latest ? bodyKey(unit, head) : null;
     const key = subject ?? `#${head.id}`;
     const found = latest.get(key);

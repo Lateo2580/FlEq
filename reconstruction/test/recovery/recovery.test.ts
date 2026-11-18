@@ -514,6 +514,71 @@ describe("P3-REC-T24 contractBoundary: the U-W bodies (AC12, AC02)", () => {
   });
 });
 
+// P4-URC-T01（P4-UW-RECOVERY-CUT-001 の AC01）: U-W の切りの総当たり。全国報 2・取消 1・partial 2 の報時刻・受信の順・運用区分の組合せ（P3-FRF-AC05 の申し送りの
+// 130,308 組）で、(1) 返すかどうかが規則どおり（直す前の受信時刻の切りのうち、報時刻が基点より古い partial だけを落とす。基点の報時刻が読めなければ直す前のまま）、
+// (2) 落とす partial は直す前の製品も落とす（部分集合）、(3) 直す前より多く返す partial は、基点より前に受け報時刻が基点と同じか新しいか読めないものだけ。
+describe("P4-URC-T01 regression: the U-W cut over every combination (AC01)", () => {
+  it("cuts a subset of the shipped cut, adding back only partials reported at or after the base or unreadable", () => {
+    type Spec = Readonly<{ id: string; headType: string; office: string; cancel: boolean; times: readonly (number | null | "x" | "absent")[]; operations: readonly ListHead["operation"][] }>;
+    const specs: readonly Spec[] = [
+      { id: "n1", headType: "VPWS50", office: "気象庁", cancel: false, times: ["absent", 1, 2, 3, null], operations: ["normal"] },
+      { id: "n2", headType: "VPWS50", office: "気象庁", cancel: false, times: ["absent", 1, 2, 3, "x"], operations: ["normal", "training"] },
+      { id: "c", headType: "VPWS50", office: "気象庁", cancel: true, times: ["absent", 2], operations: ["normal"] },
+      { id: "p1", headType: "VPWW55", office: "横浜地方気象台", cancel: false, times: ["absent", 1, 2, 3, null], operations: ["normal"] },
+      { id: "p2", headType: "VPWW58", office: "宇都宮地方気象台", cancel: false, times: ["absent", 1, 3, "x"], operations: ["normal", "training"] },
+    ];
+    const reported = (head: ListHead) => Date.parse(head.reportDateTime ?? "");
+    const permutations = <T,>(items: readonly T[]): T[][] => items.length <= 1 ? [[...items]]
+      : items.flatMap((item, index) => permutations([...items.slice(0, index), ...items.slice(index + 1)]).map((rest) => [item, ...rest]));
+    const readable = (head: ListHead) => Number.isFinite(reported(head));
+    const wrong: string[] = [], wider: string[] = [], extra: string[] = [];
+    const counts = { cases: 0, dropped: 0, added: 0, tiedCases: 0, tiedDropped: 0, tiedAdded: 0 };
+    let hertz: string[] | null = null;
+    const visit = (chosen: readonly ListHead[]) => {
+      // tie が -1 なら受信時刻は全部違い、0 以上なら tie 番目と次の頭が同じ受信時刻（同じ受信時刻の府県の報と全国報、r2 のヘルツ P2）。
+      for (const order of permutations(chosen)) for (let tie = -1; tie < Math.max(0, order.length - 1); tie += 1) {
+        const heads = order.map((head, index) => ({ ...head, receivedAtMs: 1_000_000 + (index > tie && tie >= 0 ? index - 1 : index) * 1_000 }));
+        const kept = new Set(bodiesFor("U-W", heads).map((item) => item.id));
+        const label = heads.map((head) => `${head.id}:${head.operation}:${head.reportDateTime ?? "null"}@${head.receivedAtMs}`).join(" ");
+        const tied = tie >= 0;
+        counts[tied ? "tiedCases" : "cases"] += 1;
+        for (const partial of heads.filter((head) => head.headType !== "VPWS50")) {
+          // 直す前の基点: 受信の最新の取消でない VPWS50（同じ受信時刻は先に見た方）。直す前はその受信時刻以下で受けた partial を落とした。
+          const base = heads.filter((head) => head.headType === "VPWS50" && head.operation === partial.operation && head.infoType !== "取消")
+            .reduce<ListHead | undefined>((found, head) => found == null || head.receivedAtMs > found.receivedAtMs ? head : found, undefined);
+          const before = base != null && partial.receivedAtMs <= base.receivedAtMs;
+          const drop = before && (!readable(base) || readable(partial) && reported(partial) < reported(base));
+          if (kept.has(partial.id) === drop) wrong.push(label);
+          if (kept.has(partial.id)) {
+            // (3) 直す前が落とした partial を返すのは、基点の報時刻が読め、partial の報時刻が同じか新しいか読めないときだけ。
+            if (before) { counts[tied ? "tiedAdded" : "added"] += 1; if (!readable(base) || readable(partial) && reported(partial) < reported(base)) extra.push(label); }
+            continue; // partial の鍵（官署×型）は組の中で 1 つずつなので、返さない partial は切りで落とした partial
+          }
+          counts[tied ? "tiedDropped" : "dropped"] += 1;
+          if (!before) wider.push(label); // (2) 直す前が残す partial を落とさない
+        }
+        if (!tied && heads.map((head) => `${head.id}:${head.reportDateTime}`).join(" ") === "n1:2026-09-21T14:00:00+09:00 n2:2026-09-21T13:50:00+09:00 p1:2026-09-21T13:55:00+09:00"
+          && heads.every((head) => head.operation === "normal")) hertz = [...kept];
+      }
+    };
+    const choose = (index: number, chosen: readonly ListHead[]): void => {
+      if (index === specs.length) { visit(chosen); return; }
+      const spec = specs[index];
+      if (spec.times.includes("absent")) choose(index + 1, chosen);
+      for (const time of spec.times) if (time !== "absent") for (const operation of spec.operations) {
+        // 報時刻 1・2・3 は 13:50・13:55・14:00（ヘルツの 3 報の列: 14:00 の全国報、遅れた 13:50 の全国報、13:55 の partial の順に受ける）。
+        const reportDateTime = time === null ? null : time === "x" ? "x" : `2026-09-21T${["13:50", "13:55", "14:00"][time - 1]}:00+09:00`;
+        choose(index + 1, [...chosen, { id: spec.id, unit: "U-W", headType: spec.headType, receivedAtMs: 0, operation, title: "t", headline: null, reportDateTime,
+          infoType: spec.cancel ? "取消" : "発表", serial: null, eventId: null, controlDateTime: null, controlStatus: operation === "normal" ? "通常" : "訓練", test: false,
+          editorialOffice: spec.office }]);
+      }
+    };
+    choose(0, []);
+    expect({ ...counts, wrong: wrong.slice(0, 5), wider: wider.slice(0, 5), extra: extra.slice(0, 5), hertz })
+      .toEqual({ cases: 130308, dropped: 51680, added: 68864, tiedCases: 477516, tiedDropped: 213034, tiedAdded: 283870, wrong: [], wider: [], extra: [], hertz: ["n2", "p1"] });
+  });
+});
+
 // P3-RECOVERY-READ-001: 2026-11-08 Mac mini の実配信で採った xmlReport の無い item（採ったままの bytes、Q-RR-RAW-ITEMS）。
 const nonXml: readonly Readonly<{ classification: string; item: unknown }>[] = JSON.parse(readFileSync("reconstruction/test/recovery/telegram-list-nonxml-real.json", "utf8"));
 const withoutXmlReport = (type: string, receivedAtMs: number) => {

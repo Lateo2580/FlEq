@@ -8,7 +8,7 @@ import type { OwnerReply } from "../../contracts/p3-execution-split.types";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { Mailbox } from "../../src/mailbox/mailbox";
-import { walkStart, windowOf } from "../../src/recovery/recovery";
+import { walkStart, windowOf } from "../../src/recovery/recovery"; import { weatherCurrentAreas, weatherCurrentDetail } from "../../src/units/weather-current/weather-current-public";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
 import { envelope, harnessedRoot, idleChannels, manualAdapter, park, seeded, startHarness, submit } from "../execution-split/owner-harness";
@@ -1107,6 +1107,80 @@ describe("P3-REC-T11 contractBoundary: the U-W entrance through the candidate (A
     await t.startup([uwHead("w1", "VPWW57", T0 - MINUTE)], "U-W");
     expect(uwResults(t)).toHaveLength(1);
     expect(t.h.unit("U-W").freshness.map((item) => [item.target.subject, item.freshnessSuspect])).toEqual([["normal/VPWW57/京都地方気象台", true]]);
+  });
+});
+
+// P4-URC-T02（P4-UW-RECOVERY-CUT-001 の AC01、範囲 α）: 切りの選び方を、製品の root と in-process の owner に通す。(a) は福井の府県の報と全国報、(b)(c) は京都の VPWW57 と 23 時台の全国報（X は 23:00）。
+describe("P4-URC-T02 regression: the U-W cut through the root and the owner (AC01)", () => {
+  const at = (minute: number) => `2020-06-22T23:${String(minute).padStart(2, "0")}:00+09:00`;
+  const listHead = (id: string, headType: string, receivedAtMs: number, reportDateTime: string, office: string, infoType = "発表"): ListHead =>
+    ({ ...uwHead(id, headType, receivedAtMs, office), reportDateTime, infoType });
+  const weather = () => setup(undefined, undefined, true, ["telegram.earthquake", "telegram.weather"]);
+  // [progress, U-W の normal の whole, 京都の partial の報時刻, 全国の現況の報時刻]
+  const covered = (t: Awaited<ReturnType<typeof setup>>) => [t.progress("U-W")?.state, t.whole("U-W"), kyotoRow(t)[0], t.h.unit("U-W").national.normal?.source.reportDateTimeRaw];
+
+  // R3 の場面の形（P3-WN-T03 と同じ組み方）: 福井の府県の報 fukui_L5 の L5 の区域を 43（L4）にした報と、同じ報時刻 06:51・Control/DateTime が 38 秒後の全国報
+  // （15_18_01_250630_VPWS50 の Kind をその区域だけ 03 にした報）。X はその区域が 03 の 06:41 の全国報。
+  const FUKUI = uwText("18_00_01_260830_VPWW55_fukui_L5"), BIG = uwText("15_18_01_250630_VPWS50");
+  const areaOf = (item: string) => /<Area>\s*<Name>[^<]*<\/Name>\s*<Code>(\d+)<\/Code>/.exec(item)?.[1] ?? "";
+  const raised = new Set([...FUKUI.matchAll(/<Item>([\s\S]*?)<\/Item>/g)].flatMap(([, inner]) => /<Kind>\s*<Name>[^<]*<\/Name>\s*<Code>33<\/Code>/.test(inner) ? [areaOf(inner)] : []));
+  const fukuiNational = (time: string, control: string) => uwAt(BIG, time).replace(/<DateTime>[^<]*<\/DateTime>/, `<DateTime>${control}</DateTime>`)
+    .replace(/<Item>([\s\S]*?)<\/Item>/g, (item: string, inner: string) => !raised.has(areaOf(inner)) ? item
+      : `<Item>${inner.replace(/<Kind>[\s\S]*?<\/Kind>\s*/g, "").replace("<Area>", "<Kind><Name>レベル３大雨警報</Name><Code>03</Code><Status>発表</Status></Kind><Area>")}</Item>`);
+
+  it("(a) R3: a partial raising areas to L4 (43) and a national report of the same report time still at 03, both missed while disconnected; the reconnect run shows 43 and confirms", async () => {
+    const t = await weather();
+    await uwLive(t, "VPWS50", fukuiNational("2026-08-30T06:41:00+09:00", "2026-08-29T21:41:40Z"));
+    await t.startup([], "U-W");
+    t.h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: t.sequence, clock: t.now });
+    t.advance(5 * MINUTE);
+    t.h.root.recordConnected(t.now.wallTimeMs);
+    t.bodies.set("p", xml(FUKUI.replace(/<Code>33<\/Code>/g, "<Code>43</Code>")));
+    t.bodies.set("a", xml(fukuiNational("2026-08-30T06:51:00+09:00", "2026-08-29T21:51:40Z")));
+    // 府県の報を受けた 38 秒後に同じ報時刻の全国報を受けた（2026-09-21 13:50 の横浜の形）。
+    const p = listHead("p", "VPWW55", t.now.wallTimeMs - 3 * MINUTE, "2026-08-30T06:51:00+09:00", "福井地方気象台"),
+      a = listHead("a", "VPWS50", t.now.wallTimeMs - 3 * MINUTE + 38_000, "2026-08-30T06:51:00+09:00", "気象庁");
+    t.listed = (plan) => plan.map(({ unit }) => ({ unit, kind: "listed", heads: [p, a] }));
+    t.advance(60_000);
+    t.h.root.tick(t.now);
+    await t.drive();
+    const view = t.h.root.state.mirror["U-W"].view, fukui = view.unit === "U-W" ? view.areas.filter((area) => area.prefecture === "18" && area.operation === "normal").map((area) => Object.keys(area.codes).sort()) : null;
+    // 書き換えた 7 区域の公開の行（合わせた後の勝った行）は 03 でなく 43。坂井市・永平寺町は fixture で元から 43 なので数えない（r4 のヘルツ P2）。
+    const state = t.h.unit("U-W"), area = weatherCurrentAreas(state).find((item) => item.prefecture === "18" && item.operation === "normal")!;
+    const detail = weatherCurrentDetail(state, { unit: "U-W", part: "areas", id: area.id, revision: area.revision, page: 0 }, { contentRevision: String(state.contentRevision) });
+    const shown = detail.kind === "ok" && detail.part !== "index" ? detail.rows.flatMap(({ row }) => raised.has(row[1]) && (row[2] === "03" || row[2] === "43") ? [`${row[1]}:${row[2]}`] : []) : null;
+    expect(shown).toEqual([...raised].map((code) => `${code}:43`));
+    // 採用の step の音の targets（[府県, 層, 区域, 現象, 段]）に 7 区域が L4 で入る。
+    expect(state.intents.map((item) => [...raised].every((code) => Array.isArray(item.payload.targets) && item.payload.targets.some((target) =>
+      Array.isArray(target) && target[2] === code && target[4] === 4)))).toEqual([true, true]);
+    // 区域の公開の Code に 43 が入り、確認が出る。採用の step の音（H27 の引上げ、recovered の info）が desktop と sound に 1 つずつ。
+    expect([t.fetched, t.progress("U-W")?.state, t.whole("U-W"), fukui?.map((codes) => codes.includes("43")), t.h.unit("U-W").intents.map((item) => [item.channel, item.payload.level])])
+      .toEqual([["p", "a"], "recovered", null, [true], [["desktop", "info"], ["sound", "info"]]]);
+  });
+
+  it("(b) the r2 column: P received after A is taken, so a live A and its cancel during the wait still end with P", async () => {
+    const t = await weather();
+    await uwLive(t, "VPWS50", uwAt(NATIONAL, at(0)));
+    let release!: () => void;
+    t.bodies.set("a", () => new Promise((done) => { release = () => done(xml(uwAt(NATIONAL, at(10)))); }));
+    t.bodies.set("p", xml(kyoto(5)));
+    void t.startup([listHead("a", "VPWS50", T0 - 2 * MINUTE, at(10), "気象庁"), listHead("p", "VPWW57", T0 - MINUTE, at(5), "京都地方気象台")], "U-W");
+    await t.drive();
+    await uwLive(t, "VPWS50", uwAt(NATIONAL, at(10)));
+    await uwLive(t, "VPWS50", uwCancel(NATIONAL, at(13)));
+    release();
+    await t.drive();
+    expect([t.fetched, ...covered(t)]).toEqual([["a", "p"], "recovered", null, [at(5)], at(0)]);
+  });
+
+  it("(c) a partial whose report time is not a calendar date (2月30日) is not cut; its body is unreadable and U-W is not confirmed", async () => {
+    const t = await weather();
+    await uwLive(t, "VPWS50", uwAt(NATIONAL, at(0)));
+    const invalid = "2020-02-30T23:05:00+09:00";
+    t.bodies.set("p", xml(uwAt(KYOTO, invalid)));
+    t.bodies.set("a", xml(uwAt(NATIONAL, at(10))));
+    await t.startup([listHead("p", "VPWW57", T0 - 2 * MINUTE, invalid, "京都地方気象台"), listHead("a", "VPWS50", T0 - MINUTE, at(10), "気象庁")], "U-W");
+    expect([t.fetched, ...covered(t)]).toEqual([["p", "a"], "unsatisfied", "unreadableReport", [], at(10)]);
   });
 });
 
