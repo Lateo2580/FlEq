@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "f4289831362501b7d6481cde70248bb3a8002b2d224394ccc0071b22ae1b50e8",
+    "sha256": "4115b0e70c482488cb2244b390f154a3f5fe85e9731d1a1d5cfca8a2142a4c8b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -31,7 +31,7 @@
         "ruling": "A（統合担当の決め、起草 r0）",
         "blocks": "なし",
         "ifNotChosen": "B の場面: 手で書き足した欄 note を持つ partial の報が保存にあると、B は U-W の保存ごと invalid にして起動の復元で捨てる。A は note だけを落として残りを読む",
-        "reason": "製品が保存に書く報は domain の snapshot()（weather-current.ts、subject・operation・scope・office・source・phenomena の 6 欄）と sourceFor（ReportRef の 9 欄）で作った形だけで、型の外の欄は出ない。起草の写しで、実の報から組んだ state の保存→読み戻し→encode の byte が一致した（P4-AC13R-T01）。直す前は型の外の欄が通って 16 MiB の数えにも入っていたが、それを頼る読み手は無い。B は拒否の集合を広げ、AC01 (3)（受理と拒否を直す前と同じにする）に反する"
+        "reason": "製品が保存に書く報は domain の snapshot()（weather-current.ts、subject・operation・scope・office・source・phenomena の 6 欄）と sourceFor（ReportRef の 9 欄）で作った形だけで、型の外の欄は出ない。起草の写しで、実の報から組んだ state の保存→読み戻し→encode の byte が一致した（P4-AC13R-T01）。直す前は型の外の欄が通って 16 MiB の数えにも入っていたが、それを頼る読み手は無い。復元した報が持つ Symbol の鍵 restoredAt も JSON には出ず、codec の decode を呼ぶ製品の 3 か所（checkpoint.ts の slot の確かめと owner-runtime.ts の起動の復元は JSON から読んだ payload、weather-current-unit.ts の restore() はその state を encode した値）はどれも restoredAt を持たない値を読むので、落としても振る舞いは変わらない（restore() は読み戻しの後で付け直す）。B は拒否の集合を広げ、AC01 (3)（受理と拒否を直す前と同じにする）に反する"
       },
       {
         "id": "P4-AC13R-D-SCOPE",
@@ -52,7 +52,7 @@
         "id": "Q-AC13R-DRAFT-R0",
         "status": "closed",
         "source": "起草 r0（2026-11-18、MacBook。worktree ~/dev/fleq-ac13r-draft〔branch draft/ac13r、HEAD 912e951a〕で案を当てて回した。案と試験は commit せず .dr-tmp/proposal-r0.diff に残し、木は本契約の file だけに戻した）",
-        "closed": "(1) 直す前の基準: P4-AC13R-T01・T02 を足しただけの木（製品は 912e951a のまま）で 2 本とも緑（rc 0）。測りの script（.dr-tmp/measure.cjs、reconstruction/dist の codec を呼ぶ）で、H=384・R=768 の保存の encode→読み戻し→encode の byte の sha256 が 5d326afc…dfe4b1、H=128・R=256 で c647e497…45006d (2) 案（proposal-r0.diff、src 2 file・試験 2 file）: tsc 3 本 rc 0。vitest（weather-current-unit・uw-canon・weather-notice・version-material・expiry-form・unit-wiring・shared-runtime・terminal/eew-log の 12 file）152 件 rc 0、test/terminal と test/cli の 42 file 346 件 rc 0。測りの sha256 は直す前と同じ（2 つとも） (3) 歯: 案をわざと壊して T01・T02 を回し、5 つとも落ちた。a 素直な走査（どれかの組が 2 を越えたら断る）→ T02、b 鍵に運用区分を入れる → T02、c 組み立ての鍵の順を変える（source を office の前）→ T01、d unconfirmed を組み立て忘れる → T01、e encode の側だけ鍵に運用区分を入れる → T02 (4) 『走査を 1 か所だけ替える』（2 か所とも同じ意味の式のまま）は振る舞いが同じなので試験では落ちない。AC01 (1) は helper 1 つを 2 か所から呼ぶ形で条文に書き、レビューで見る (5) 案を当てた木で check-contract が rc 0（157 契約 PASS）。weather-current-unit.ts は 856 行のまま、他契約の «» の付け直しは 0 件。本契約を足した木に案を当てると、FAIL は本契約の weather-current-unit.ts:263（行のずれ）だけで、reanchor-target.py を weather-current-unit.ts・eew-log.ts・eew-log.test.ts に当てると本契約の 5 件（:263→:261・:315→:317・:331→:333・eew-log.ts:85→:84・eew-log.test.ts:174→:173）が付け直り、check-contract が rc 0",
+        "closed": "(1) 直す前の基準: P4-AC13R-T01・T02 を足しただけの木（製品は 912e951a のまま）で 2 本とも緑（rc 0）。測りの script（.dr-tmp/measure.cjs、reconstruction/dist の codec を呼ぶ）で、H=384・R=768 の保存の encode→読み戻し→encode の byte の sha256 が 5d326afc…dfe4b1、H=128・R=256 で c647e497…45006d (2) 案（proposal-r0.diff、src 2 file・試験 2 file）: tsc 3 本 rc 0。vitest（weather-current-unit・uw-canon・weather-notice・version-material・expiry-form・unit-wiring・shared-runtime・terminal/eew-log の 12 file）152 件 rc 0、test/terminal と test/cli の 42 file 346 件 rc 0。測りの sha256 は直す前と同じ（2 つとも） (3) 歯: 案をわざと壊して T01・T02 を回し、5 つとも落ちた。a 素直な走査（どれかの組が 2 を越えたら断る）→ T02、b 鍵に運用区分を入れる → T02、c 組み立ての鍵の順を変える（source を office の前）→ T01、d unconfirmed を組み立て忘れる → T01、e encode の側だけ鍵に運用区分を入れる → T02 (4) 『走査を 1 か所だけ替える』（2 か所とも同じ意味の式のまま）は振る舞いが同じなので試験では落ちない。AC01 (1) は helper 1 つを 2 か所から呼ぶ形で条文に書き、レビューで見る (5) 案を当てた木で check-contract が rc 0（157 契約 PASS）。weather-current-unit.ts は 856 行のまま、他契約の «» の付け直しは 0 件。本契約を足した木に案を当てると、FAIL は本契約の weather-current-unit.ts:263（行のずれ）だけで、reanchor-target.py を weather-current-unit.ts・eew-log.ts・eew-log.test.ts に当てると本契約の 5 件（:263→:261・:315→:317・:331→:333・eew-log.ts:85→:84・eew-log.test.ts:174→:173）が付け直り、check-contract が rc 0 (6) 案を当てた木で weather-current-unit.test.ts と eew-log.test.ts を --sequence.shuffle で回し、seed 1794973240286 で 42 件 rc 0",
         "remaining": "なし"
       }
     ],
@@ -237,6 +237,13 @@
         "target": "reconstruction/test/",
         "stage": "implementation",
         "purpose": "全 reconstruction 試験（P4-AC13R-T01・T02 を含む）。AC02 (4) のほかの既存の試験の期待は変えない。落ちたら止めて報告する"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/weather-current-unit/weather-current-unit.test.ts reconstruction/test/terminal/eew-log.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/weather-current-unit/ と reconstruction/test/terminal/eew-log.test.ts",
+        "stage": "implementation",
+        "purpose": "永続化（U-W の codec）を触るので順の依存が無いことを見る（AGENTS.md の test:shuffle）。seed を成果物に書く"
       },
       {
         "command": "node reconstruction/tools/corpus/check-manifest.mjs",
