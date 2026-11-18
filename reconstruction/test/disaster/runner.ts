@@ -586,7 +586,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     switch (item.kind) {
       case "watchEewWindow": h.root.watchEewWindow(); break;
       case "connected": h.root.recordFrame(now.wallTimeMs); h.root.recordConnected(now.wallTimeMs); break;
-      case "connectionLost": h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: frameCount === 0 ? -1 : frameCount, clock: now }); break;
+      case "connectionLost": { const from = options.dispatches?.slice(0, index).filter((before) => before.kind === "connected").at(-1)?.atMs; if (from != null) h.root.recordFrame(Math.max(h.root.lastReceivedWallMs ?? -Infinity, from + Math.floor((now.wallTimeMs - from) / PING_INTERVAL_MS) * PING_INTERVAL_MS)); h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: frameCount === 0 ? -1 : frameCount, clock: now }); break; } // P4-PWT-AC04 (2)・P4-PWT-D-PING=A: 切断の前の最後の ping を 1 回だけ recordFrame に渡す（札の始まり）
       case "frame":
         received();
         await settled(submit(h, envelope(h.root.state.runId, item.frame.headType, `input-${++frameCount}`, item.frame.body, now, frameCount)));
@@ -594,7 +594,7 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
     }
     await settled(h.settle());
   }
-  // 本物の host の受信の口と同じ順（host.ts の onFrame: 札の始まりの frame の wall、最終受信）。ping は流さないので、札の始まりは最後の data か start の frame。
+  // 本物の host の受信の口と同じ順（host.ts の onFrame: 札の始まりの frame の wall、最終受信）。ping は 1 回ずつ流さず、connectionLost の枝が切断の前の最後の ping を渡す。
   function received(): void { h.root.recordFrame(now.wallTimeMs); h.root.recordInput(now.wallTimeMs); }
   const reached = top.peak;
   const result = { ...identity, status: pass ? "Pass" : "Fail", blocked: null,
@@ -615,6 +615,10 @@ async function runStage1(scenario: Scenario, options: RunOptions = {}): Promise<
   if (options.peakOut != null) writePeak(options.peakOut, { scenario: identity.scenario, digest: identity.digest, gitHead: identity.gitHead, effectiveLimits: EFFECTIVE_LIMITS }, reached);
   return { text: seal(result, options.out), result, scenes: scene?.result() ?? null };
 }
+
+// P4-PWT-AC04 (2)・Q-PWT-PING: dmdata の WS の ping の間隔。出どころは p3-e01-reaccept.json の P3-C4-RUNNER-LIVENESS（C2 の実接続の観測で間隔 20 秒・最大 20.3 秒。
+// dmdata の公式の資料に間隔の数字は無い）。無いと切断の札の始まりが最後の data になり、製品（ping でも recordFrame）より早まる。
+const PING_INTERVAL_MS = 20_000;
 
 // ---- P3-FINAL-GATE-001 の場面の口（発注 3b、AC10・P3-FG-D-SCENE-RULE・P3-FG-D-SCENE-TEXT） ----
 
@@ -740,7 +744,8 @@ function screenOf(snapshot: ScreenInput): SceneScreen {
 // 突き合わないので、府県の行の source（その府県の行の最も新しい報）で引く。ほかの 11 unit は view の行の subject と source の subject が同じ。
 const DISPLAY_UNTIL = ["currentUntil", "validUntil", "activeUntil", "visibleUntil"];
 type Limits = Readonly<{ display: number | null | undefined; retainUntil: number | null }>;
-function factsOf(state: object, rows: readonly Readonly<{ subject: string; source: Readonly<{ subject: string }> | null }>[], atMs: number): SceneFact[] {
+// full は分野が full で届いているか（P4-PWT-AC04 (1)、実不具合 N2.md:60）。要約の分野は view の行があっても画面に出ないので shown を false にし、until は行の有無のまま。
+function factsOf(state: object, rows: readonly Readonly<{ subject: string; source: Readonly<{ subject: string }> | null }>[], atMs: number, full = true): SceneFact[] {
   const shown = new Set(rows.flatMap((row) => row.source == null ? [row.subject] : [row.subject, row.source.subject]));
   const found = new Map<string, Limits>();
   const add = (item: Readonly<Record<string, unknown>>, parent: Limits | null): Limits => {
@@ -763,11 +768,11 @@ function factsOf(state: object, rows: readonly Readonly<{ subject: string; sourc
     const held = retainUntil ?? (typeof display === "number" ? display : null);
     if (held != null && held <= atMs) return [];
     const visible = shown.has(subject);
-    return [{ subject, shown: visible, until: typeof display === "number" ? display : display === undefined && visible ? retainUntil : null, retainUntil }];
+    return [{ subject, shown: visible && full, until: typeof display === "number" ? display : display === undefined && visible ? retainUntil : null, retainUntil }];
   });
 }
 
-// 場面の記録は観測だけ（結果の本体・adapter の delivered・合否を変えない。T09 (1)(2) が本体の hash で確かめる）。
+// 場面の記録は観測だけ（結果の本体・adapter の delivered・合否を変えない。T09 (1) が本体の hash で確かめる）。
 class SceneLog {
   readonly points: readonly Readonly<{ atMs: number; label: string; check: null; scene: true }>[];
   private readonly attempts: SceneAttempt[] = [];
@@ -803,7 +808,8 @@ class SceneLog {
 
   // 評価者の事実は選んだ時刻だけで factsOf を引く（P3-DPM-AC03 (1) の state を辿らない決まり）。
   capture(atMs: number, snapshot: DisplaySnapshot | null, h: Harness): void {
-    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, factsOf(h.unit(unit), h.root.state.mirror[unit].view.subjects, atMs)]));
+    const summarized = new Set(snapshot == null ? [] : DOMAIN_KEYS.filter((key) => snapshot.current[key].delivery === "summary").map((key) => DOMAINS[key]));
+    const facts = Object.fromEntries(runtimeUnits.map((unit) => [unit, factsOf(h.unit(unit), h.root.state.mirror[unit].view.subjects, atMs, !summarized.has(unit))]));
     const fullScreen = snapshot == null ? null : { connection: snapshot.connection, current: snapshot.current,
       recovery: { eewUnverified: snapshot.recovery.eewUnverified }, notices: snapshot.notices };
     this.options.write({ atMs, attempts: this.attempts.slice(this.written), screen: snapshot == null ? null : screenOf(snapshot), fullScreen, facts });
@@ -813,7 +819,7 @@ class SceneLog {
   result(): SceneResult { return { attempts: this.attempts, newSubjects: this.newSubjects, deadlines: this.deadlines }; }
 }
 
-export { ObservationTable, factsOf, runStage1, screenOf };
+export { ObservationTable, PING_INTERVAL_MS, factsOf, runStage1, screenOf };
 export type { Dispatch, Loss, RunOptions, SceneAttempt, SceneCapture, SceneResult };
 
 import type { DisplayConnectionView, DisplayDomainView, DisplayRecoveryView, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";
