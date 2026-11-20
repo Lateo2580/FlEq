@@ -85,7 +85,8 @@ function trial(id: string): Trial {
     const [first, third] = ["77_01_01_240613_VXSE45", "77_01_03_240613_VXSE45"].map((name) => shiftedBy(name, deltaA, a));
     const at = (iso: string) => jst(`2026-10-19T${iso}`);
     const other = { atMs: at("23:31:05"), xml: retimed("77_02_01_260101_VXSE45_PLUM", at("23:31:05"), b) };
-    const cancel = { atMs: at("23:31:20"), xml: retimed("77_01_33_240613_VXSE45", at("23:31:20"), b) };
+    // 取消の Serial は PLUM（Serial 3）の続きの 4（P4-PWT2-AC02 (3)、T2-yu#6。取消の型に震源を置く所は無いので震源は直さない）。
+    const cancel = { atMs: at("23:31:20"), xml: retimed("77_01_33_240613_VXSE45", at("23:31:20"), b, (xml) => xml.replace(/<Serial>\d+<\/Serial>/, "<Serial>4</Serial>")) };
     const finalAt = at("23:31:38");
     const frames = [first, third, other, cancel].map((item) => frame(item.atMs, "VXSE45", item.xml));
     // 第 3 報と最終報の間に、第 3 報の予報のまま Serial を進めた続報を 10 秒ごとに挟み、最終報も第 3 報から作る（P4-PWT-AC06 (11)、帳簿 T2-yu.md:24）。
@@ -138,7 +139,9 @@ function saori(id: string): Trial {
   frame(at("18:15:20"), "VTSE41", tsunami(at("18:15:20"), "51"))].sort((x, y) => x.atMs - y.atMs);
   // 切断中に出た報（一覧の頭と本文）。
   const missed: readonly (readonly [ListHead, string])[] = [
-    [head("m1", "U-Q", "VXSE53", at("18:16:50"), "震源・震度に関する情報", event, "1"), sameQuake(retimed("32-35_04_04_240613_VXSE53", at("18:16:50"), event))
+    // 時刻は切断（18:17:15）より後、規模は EEW の最後の報の Magnitude（P4-PWT2-AC02 (1)(2)、T2-saori#5・#10。震度の地域と津波の沿岸は公開の型の都合で直さない）。
+    [head("m1", "U-Q", "VXSE53", at("18:17:40"), "震源・震度に関する情報", event, "1"), sameQuake(retimed("32-35_04_04_240613_VXSE53", at("18:17:40"), event))
+      .replace(/<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/, /<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/.exec(last.xml)![0])
       .replace(/<ForecastComment[\s\S]*?<\/ForecastComment>/, "<ForecastComment codeType=\"固定付加文\"><Text>津波警報等（大津波警報・津波警報あるいは津波注意報）を発表中です。</Text><Code>0211</Code></ForecastComment>")],
     [head("m2", "U-T", "VTSE41", at("18:21:10"), "津波警報", event, null), tsunami(at("18:21:10"), "52")],
     [head("m3", "U-T", "VTSE51", at("18:23:00"), "津波観測に関する情報", event, "1"), observation({ eventId: event, at: jstText(at("18:23:00")), serial: 1,
@@ -266,13 +269,15 @@ function stoppedAt(attempt: SceneAttempt): "sound" | "category" | "mute" | null 
 const passed = (attempt: SceneAttempt): boolean => stoppedAt(attempt) == null;
 
 // 通知の 1 行。count は題名ごとの件数の鍵（音の試行は題名が無いので「（音）資材の名前」）、rank は 20 件に絞るときの段の重さ。
+// pair は同じ時刻・unit・subject の desktop と音を 1 行にまとめる鍵（切断の行は無い。P4-PWT2-AC01 (2)）。
 // 取消は最も重く置く（先に省くと、演じ手は取り消されていない警報だけを見て、製品の画面に無い状態になる。P4-PWT-AC02）。
-type Notice = Readonly<{ atMs: number; rank: number; count: string; json: Readonly<Record<string, JsonValue>> }>;
+type Notice = Readonly<{ atMs: number; rank: number; count: string; pair: string | null; json: Readonly<Record<string, JsonValue>> }>;
 const LEVEL_RANK: Readonly<Record<string, number>> = { cancel: 4, critical: 3, warning: 2, normal: 1 };
 const assetOf = (attempt: SceneAttempt): string | null => attempt.soundAsset?.replace(/^.*\//, "").replace(/\.wav$/, "") ?? null;
 function noticeOf(attempt: SceneAttempt): Notice {
   const { title, body, level } = attempt.payload;
   return { atMs: attempt.atMs, rank: LEVEL_RANK[String(level)] ?? 0, count: attempt.channel === "desktop" ? String(title ?? "") : `（音）${assetOf(attempt) ?? ""}`,
+    pair: `${attempt.atMs}\t${attempt.unit}\t${attempt.subject}`,
     json: attempt.channel === "desktop" ? { at: jstText(attempt.atMs), channel: "desktop", title: title ?? null, body: body ?? null }
       : { at: jstText(attempt.atMs), channel: "sound", sound: assetOf(attempt) } };
 }
@@ -287,7 +292,7 @@ function connectionNotices(dispatches: readonly Dispatch[], frames: readonly Fra
     if (item.kind !== "connectionLost" || last?.kind !== "connected") return [];
     const from = Math.max(last.atMs + Math.floor((item.atMs - last.atMs) / PING_INTERVAL_MS) * PING_INTERVAL_MS,
       ...frames.filter((frame) => frame.atMs <= item.atMs).map((frame) => frame.atMs), ...before.filter((step) => step.kind === "frame").map((step) => step.atMs));
-    return [{ atMs: item.atMs, rank: 0, count: "FlEq", json: { at: jstText(item.atMs), channel: "desktop", title: "FlEq",
+    return [{ atMs: item.atMs, rank: 0, count: "FlEq", pair: null, json: { at: jstText(item.atMs), channel: "desktop", title: "FlEq",
       body: `回線が切れました（${jstText(from).slice(11, 19)} から受信できていません）` } }];
   });
 }
@@ -295,13 +300,38 @@ function connectionNotices(dispatches: readonly Dispatch[], frames: readonly Fra
 // 演じ手には前の場面からの通知の 20 件と、題名ごとの件数と「ほか n 件」だけを渡す（統合担当の決め、SCENE-TEXT の追加の「渡す量を絞る」の内。
 // 23 時間分の 1,844 件を 1 場面で読む利用者はいない）。評価者の file は全部を持つ。
 const NOTIFICATION_LIMIT = 20;
-function notificationsOf(notices: readonly Notice[]): Readonly<{ notifications: JsonValue[]; notificationCounts: Record<string, number>; notificationsOmitted: number }> {
+// P4-PWT2-AC01 (2)（実不具合 W1-06-03#1 ほか族 S）: 同じ時刻・unit・subject の desktop と音の試行を 1 行にまとめ、行に sound（資材の名前か null）を持たせる。
+// 段は 2 つの重い方、件数の鍵は desktop の題名。無いと、音の無い desktop 通知を演じ手が鳴ったと読む。音だけの試行は音の行のまま。
+function paired(notices: readonly Notice[]): Notice[] {
+  const sounds = new Map<string, Notice>();
+  for (const notice of notices) if (notice.pair != null && notice.json["channel"] === "sound" && !sounds.has(notice.pair)) sounds.set(notice.pair, notice);
+  const used = new Set<Notice>();
+  const rows = notices.flatMap((notice): Notice[] => {
+    if (notice.json["channel"] !== "desktop") return [notice];
+    const sound = notice.pair == null ? undefined : sounds.get(notice.pair);
+    if (sound != null) { used.add(sound); sounds.delete(notice.pair ?? ""); }
+    return [{ ...notice, rank: Math.max(notice.rank, sound?.rank ?? 0), json: { ...notice.json, sound: sound?.json["sound"] ?? null } }];
+  });
+  return rows.filter((notice) => !used.has(notice));
+}
+function notificationsOf(all: readonly Notice[]): Readonly<{ notifications: JsonValue[]; notificationCounts: Record<string, number>; notificationsOmitted: number;
+  omittedCounts: Record<string, number>; omittedFrom: string | null; omittedTo: string | null }> {
+  const notices = paired(all);
   const counts: Record<string, number> = {};
   for (const notice of notices) counts[notice.count] = (counts[notice.count] ?? 0) + 1;
   // P4-PWT-AC02（実不具合: R2 S6 の 03:20 の大津波警報、W1-09-21 S8 の大島の L5 が新しい順の 20 件の切りで落ちた）: 段の重い順・同じ段は新しい順に残し、時刻の順に戻す。
-  const kept = notices.map((notice, index) => ({ notice, index })).sort((a, b) => b.notice.rank - a.notice.rank || b.index - a.index)
-    .slice(0, NOTIFICATION_LIMIT).sort((a, b) => a.index - b.index);
-  return { notifications: kept.map(({ notice }) => notice.json), notificationCounts: counts, notificationsOmitted: Math.max(0, notices.length - NOTIFICATION_LIMIT) };
+  // P4-PWT2-AC01 (1)（実不具合 N1#7・N2#9: 同じ題名の critical の 25 件が、題名の違う warning・normal の最終報や解除を押し出した）: 先に題名と段の組ごとの新しい 1 件を採り、残りの枠をその順で埋める。
+  const ordered = notices.map((notice, index) => ({ notice, index })).sort((a, b) => b.notice.rank - a.notice.rank || b.index - a.index);
+  const groups = new Set<string>();
+  const firsts = ordered.filter(({ notice }) => { const key = `${notice.count}\t${notice.rank}`; return !groups.has(key) && groups.add(key); }).slice(0, NOTIFICATION_LIMIT);
+  const chosen = new Set([...firsts, ...ordered.filter((item) => !firsts.includes(item))].slice(0, NOTIFICATION_LIMIT));
+  const kept = [...chosen].sort((a, b) => a.index - b.index);
+  // P4-PWT2-AC01 (3)（実不具合 R2#8・W1-06-03#7）: 省いた行だけの題名ごとの数と、省いた行の最初と最後の時刻。
+  const omitted = ordered.filter((item) => !chosen.has(item)).sort((a, b) => a.index - b.index);
+  const omittedCounts: Record<string, number> = {};
+  for (const { notice } of omitted) omittedCounts[notice.count] = (omittedCounts[notice.count] ?? 0) + 1;
+  return { notifications: kept.map(({ notice }) => notice.json), notificationCounts: counts, notificationsOmitted: omitted.length, omittedCounts,
+    omittedFrom: omitted.length === 0 ? null : jstText(omitted[0].notice.atMs), omittedTo: omitted.length === 0 ? null : jstText(omitted[omitted.length - 1].notice.atMs) };
 }
 // 時刻の順（同じ時刻は元の順、試行が切断の行より先）。
 const byTime = (list: readonly Notice[]): Notice[] => [...list].sort((a, b) => a.atMs - b.atMs);
@@ -757,5 +787,37 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+// ---- ペルソナ歩きの道具の直し（P4-PERSONA-WALK-TOOLS-002 の発注 1）。門なしで回す ----
+
+describe("P4-PERSONA-WALK-TOOLS-002 order 1", () => {
+  const sent = (atMs: number, title: string, level: "normal" | "warning" | "critical", channel: "desktop" | "sound" = "desktop", subject = "s"): SceneAttempt => ({
+    atMs, unit: "U-E", subject, channel, priorityGroup: "other", payload: { level, title, body: "b" },
+    soundAsset: channel === "sound" ? `reconstruction/assets/sounds/earthquake-eew-${level}.wav` : null });
+
+  it("P4-PWT2-T01 a title and level group keeps its newest row before the 20 are filled by weight", () => {
+    // 実不具合（N1#7・N2#9）: 同じ題名の critical 25 件が、題名 A の warning・normal（EEW の最終報の形）と題名 B の normal を 20 件の切りで押し出した。
+    const list = [sent(0, "A", "warning"), sent(1_000, "A", "normal"), sent(2_000, "B", "normal"), ...Array.from({ length: 25 }, (_, index) => sent((index + 3) * 1_000, "A", "critical"))];
+    const { notifications, notificationsOmitted, notificationCounts } = notificationsOf(list.map(noticeOf));
+    expect([notifications.map((item) => isRecord(item) ? item["at"] : null), notificationsOmitted, notificationCounts]).toEqual([
+      list.filter((item, index) => index < 3 || index >= 11).map((item) => jstText(item.atMs)), 8, { A: 27, B: 1 }]);
+  });
+
+  it("P4-PWT2-T02 a desktop and a sound of the same time, unit and subject are one row that carries the sound", () => {
+    // 実不具合（W1-06-03#1 ほか族 S）: 音の無い desktop 通知を演じ手が鳴ったと読んだ。評価者の file は試行ごとの行のまま。
+    const list = [sent(1_000, "A", "critical"), sent(1_000, "A", "critical", "sound"), sent(2_000, "B", "normal"), sent(3_000, "C", "warning", "sound")];
+    const { notifications, notificationCounts } = notificationsOf(list.map(noticeOf));
+    expect([notifications.map((item) => isRecord(item) ? [item["channel"], item["title"] ?? null, item["sound"]] : null), notificationCounts]).toEqual([
+      [["desktop", "A", "earthquake-eew-critical"], ["desktop", "B", null], ["sound", null, "earthquake-eew-warning"]], { A: 1, B: 1, "（音）earthquake-eew-warning": 1 }]);
+    expect(noticeOf(list[0]).json).toEqual({ at: jstText(1_000), channel: "desktop", title: "A", body: "b" });
+  });
+
+  it("P4-PWT2-T03 the omitted counts and times cover only the rows left out", () => {
+    // 実不具合（R2#8・W1-06-03#7）: 『このほかに N 件』の内訳が全部の数で、省いた通知の時刻の幅も分からなかった。
+    const list = Array.from({ length: 30 }, (_, index) => sent(index * 1_000, ["X", "Y", "Z"][Math.floor(index / 10)] ?? "", "normal"));
+    const { notificationsOmitted, omittedCounts, omittedFrom, omittedTo, notificationCounts } = notificationsOf(list.map(noticeOf));
+    expect([notificationsOmitted, omittedCounts, omittedFrom, omittedTo, notificationCounts]).toEqual([10, { X: 9, Y: 1 }, jstText(0), jstText(10_000), { X: 10, Y: 10, Z: 10 }]);
   });
 });
