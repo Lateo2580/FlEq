@@ -29,7 +29,7 @@ const MARKS = ["unconfirmed", "restored", "expiryPending", "capacityExceeded"];
 const BOOL = widest(true, false);
 const cut = (n) => ({ text: text(n), cut: BOOL });
 const nullable = (value) => widest(null, value);
-// 詳細の要求に要る参照（§2.1）: id＝sha256([unit, operation, subject]) の hex、rev＝source の三つ組の列の sha256 の hex
+// 詳細の要求に要る参照（§2.1）: id＝sha256([unit, operation, subject]) の hex、rev＝その part が返す view の object の JSON の sha256 の hex
 const REF = { id: text(64), rev: text(64) };
 
 const array = (n, item) => Array.from({ length: n }, () => item);
@@ -83,15 +83,20 @@ function earthquake(paintOperations, municipality) {
     eventId: text(LIMIT.eventId), operation: OPERATION, origin: nullable(text(LIMIT.time)), reportTime: nullable(text(LIMIT.time)),
     hypo: nullable(cut(LIMIT.hypocenter)), mag: nullable({ v: text(LIMIT.valueRaw), desc: text(LIMIT.description), cut: BOOL }),
     depth: nullable({ v: text(LIMIT.valueRaw), desc: text(LIMIT.description), cut: BOOL }), maxInt: LEVEL, cancelled: BOOL,
-    tsunami: nullable(cut(LIMIT.tsunamiEval)), strongest: array(8, "622"), omittedStrongest: MS, marks: MARKS, ref: REF,
+    tsunami: nullable(cut(LIMIT.tsunamiEval)), strongest: array(8, "622"), omittedStrongest: MS, marks: MARKS,
+    // 既知でない区域の件数（EEW・津波と同じ置き方、表 §1.1）。U-Q は同じ階層の重複を parser が断る（seismic.ts:125〜:129）ので dupAreas は持たない。
+    unknownAreas: MS,
+    // 日次行の ref は id だけが必ずあり、rev は同じ snapshot に event があるときだけ（表 §5.6）。
+    ref: { id: text(64), rev: nullable(text(64)) },
   };
-  const longPeriod = { eventId: text(LIMIT.eventId), operation: OPERATION, reportTime: nullable(text(LIMIT.time)), maxLg: LEVEL, marks: MARKS, ref: REF };
+  const longPeriod = { eventId: text(LIMIT.eventId), operation: OPERATION, reportTime: nullable(text(LIMIT.time)), maxLg: LEVEL, marks: MARKS, unknownAreas: MS, ref: REF };
   return bytes({
     rows: array(15, row),
     daily: array(3, { operation: OPERATION, count: MS, maxInt: LEVEL }),
-    composites: array(paintOperations, municipality ? municipalityComposite : subareaComposite),
+    // 合成は行に出ない地震（前の日・6 件目から）も含むので、合成ごとに既知でない区域の件数を持つ。
+    composites: array(paintOperations, { areas: municipality ? municipalityComposite : subareaComposite, unknownAreas: MS }),
     longPeriods: array(2, longPeriod), omittedLongPeriods: MS,
-    longPeriodComposites: array(paintOperations, array(188, ["622", COMP_LEVEL])),
+    longPeriodComposites: array(paintOperations, { areas: array(188, ["622", COMP_LEVEL]), unknownAreas: MS }),
   });
 }
 
