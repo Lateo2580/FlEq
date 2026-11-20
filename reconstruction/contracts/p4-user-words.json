@@ -1,0 +1,588 @@
+{
+ "meta": {
+  "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
+  "sha256": "f7f2d1ec32b021bbbf3e7a3a04e2554ce1066b88bb09f1748db2ba178a8d19a0",
+  "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+  "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+  "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+  "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+  "decisionBranches": [
+   {
+    "id": "P4-UW-D-TAB",
+    "kind": "作者",
+    "A": "電文の欄の TAB を、端末に書く手前（painter、color.ts:66 の置き換えの組）で半角の空白 1 字に替える。CR・U+0085・U+2028・U+2029・C1・DEL と同じ扱い（P3-TCC-D-SUBSTITUTE の組に TAB を足す）",
+    "B": "今のまま（TAB を生で書く。端末は次のタブ位置まで進むので、表の桁と帯の幅がずれうる）",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（計画 §5.2 の W0-1。作者に聞いていない）",
+    "ruling": "未",
+    "reason": "場面: 公開の fixture 302 本の XML の欄の値を全部読むと、TAB を含む欄は selected_xml/42_01_01_100514_VZSE40.xml（地震・津波に関するお知らせ）の Body の本文の 1 欄だけで、TAB は TAB 2 字だけの行にある。この報は U-M の短い形で出て、短い形の本文は Head の見出し文だけ（format.ts:745 の shortSentence、Body/Text は出さない）なので TAB は端末に届かない。加えて、本文を組む textLines（format.ts:238）・shortSentence（:727）・sentenceLines（:440）は行ごとに trim して空の行を捨てるので、行の頭と末尾の TAB は painter に届かない。TAB が painter に届くのは行の途中（表の欄の値、文の途中）だけ。なので、今の公開 fixture では A でも B でも端末の見え方は変わらない。違いが出るのは、XML の欄の途中に TAB が入った電文が来たとき: width()（format.ts:69）は TAB を 1 桁と数えるが、端末は TAB で次のタブ位置（8 桁ごと）まで進むので、B（今のまま）では TAB の後ろの字と行末の縦線・帯の罫線が最大 7 桁右へずれる。A は width() の数え方と同じ 1 桁の空白にするので桁がずれない。decode-material.ts:91（文字参照）と :110（生の字）は XML の決まりどおり TAB を通す。実の受信で TAB が来る件数は確かめていない。空白の整形は電文の値と意味を変えない（作者 2026-11-07、気象庁の留意事項 §3 の線は空白の整形を許す）。painter は端末の整形とプロンプトの字の全部が通るので電文の外の TAB も空白になるが、新築の src に TAB を含む字の literal は無い"
+   },
+   {
+    "id": "P4-UW-D-SESSION",
+    "kind": "作者",
+    "A": "起動画面のセッションの行を残し、字を「dmdata.jp に接続しました（接続番号 12345）」にする（format.ts:912 の行の中）",
+    "B": "セッションの行を消す（接続番号は REPL の status で見る、C8）",
+    "C": "今のまま「セッション開始: socketId=12345」",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "今の起動画面は作者裁定 P3-TL7-D-BANNER=A（2026-11-08「旧築のとおり」）で旧築の行の並び（未契約・セッション開始・区分・受信中）にした。監査（1-1）は「socketId の行は消すか status へ」と書く。A は行の並びと数を旧築のとおりに保ち、字だけを利用者の言葉にする（出る/出ないが変わらない）。B は出る行が 1 つ減るので、P3-TL7-D-BANNER を改めることになる。接続番号は dmdata.jp の socket の番号で、利用者が dmdata.jp の管理画面の接続の一覧と突き合わせるときに使える（REPL の status にも出る、repl.ts:239）。C は監査の指摘を残す"
+   },
+   {
+    "id": "P4-UW-D-BRIEFING-NAME",
+    "kind": "作者",
+    "A": "起動時のまとめの U-B の分野名を「気象防災速報」にする（format.ts:825 の行の中）",
+    "B": "「気象防災速報・記録的短時間大雨」にする",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "名前と中身の食い違い（監査 1-2、バックログの「名前と中身の食い違いを先に」）: U-B が受け持つのは VPOA50（記録的短時間大雨情報）と VPBS50（府県気象防災速報）の 2 種だけ（unit-coverage.ts:95・:96）。気象解説情報（VPZJ51・VPCJ51・VPFJ51）は U-M（「地方の情報」）の側に出る。fixture の VPBS50 の Head/Title は「千葉県気象防災速報（線状降水帯発生）」「網走・北見・紋別地方気象防災速報（記録的短時間大雨）」「滋賀県気象防災速報（短時間大雪）」の形で、記録的短時間大雨も気象防災速報の 1 つとして出ている。まとめの名前の列の幅（format.ts:861）は、そのまとめに載った unit の名前の最大＋3（最小 11）。A は 6 字（12 桁）で、U-B が載るまとめでは列が 11 桁から 15 桁に広がる（「気象の時系列」が載るときと同じ幅）。B は 30 桁で、U-B が載るまとめの列が 33 桁に広がり、件数の字が右へ寄る。どちらも digest.test.ts の期待は変わらない（U-B の載るまとめの期待が無い）。spec の「竜巻と記録的短時間大雨など（U-M）」（:19・:742・:1005）は VPOA50 が U-B なので食い違いが残っており、AC09 で同じに直す"
+   },
+   {
+    "id": "P4-UW-D-PRIOR-T8",
+    "kind": "作者",
+    "A": "T8（format.ts:1105）を「保持できる量の上限に達したため、この情報は FlEq の中に保持していません」にする",
+    "B": "今の字「容量の上限のため、この報は記録に入っていません」のまま",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "今の字は作者裁定 P3-TCN-D-NOTE=B（2026-11-12「文言は裁定の字のまま変えない」）。その後の作者裁定 B（2026-11-13）は監査の全部を P4 で直すと決めたが、字ごとには決めていない。A は印を付ける条件（作者裁定 P3-TCN-D-SCOPE）を変えず字だけを替える。断る条件は件数と byte の両方（seismic-unit.ts:639・:640）なので「量」とし、「記録」（監査 1-5 が中の言い方とした語）と「保存」（file への保存と読める）を避ける。N0 が直す desktop の通知の FAIL_BODY（監査 2-2）と語を揃える相手になる"
+   },
+   {
+    "id": "P4-UW-D-PRIOR-T9",
+    "kind": "作者",
+    "A": "T9（format.ts:807）を「<題名> を処理できませんでした。内容は気象庁の発表で確かめてください。」にする",
+    "B": "今の字「<題名> を処理できませんでした。」のまま",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "今の字は作者裁定 P3-TO-D-UNREADABLE（2026-11-03、「読めませんでした」は比喩なので「処理できませんでした」）。A は比喩を戻さず今の字を残し、後ろにすることを 1 文足すだけ。帯（P3-TL7-D-UNREADABLE-CODE=A）は変えない"
+   },
+   {
+    "id": "P4-UW-D-PRIOR-CONN",
+    "kind": "作者",
+    "A": "回線の字 4 つを AC01 の案にする: T10（startUncertain の言い直し）、T11（dmdata）・T12（noContract）・T13（回線が切れた帯の本文）の「繋ぎ直す」を「接続し直す」に",
+    "B": "4 つとも今の字のまま（REPL の C10 の「接続し直します」とは言い方が分かれる）",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "T10・T11 は作者 2026-11-01 の Q-TO-C-4 の表、T13 は同じ日の Q-TO-C-1 の図（spec:683）の字、T12 は P3-DMDATA-NO-CONTRACT-001（統合担当）の字。T10 の今の字は何が起きたか読めない（監査 1-7）。A の T10 は「機械」の語を使わない（Q-TO-C-4 の決め）。T11〜T13 は同じ画面の言い方を 1 つにするための揃えで、1 つの分岐にまとめた（分けると表の中で言い方が混ざる組がありうる）。プロンプトの札「繋ぎ直し N 回目」（output.ts:477、同じ Q-TO-C-1 の図）は A でも残す: 56 桁で外す札の割り付け（Q-TO6-NARROW）があり、字の数を変えると札の並びの試験 8 か所（prompt-current.test.ts・connection.test.ts）の期待も変わる。作者が揃えたいなら ruling に書けば足す"
+   },
+   {
+    "id": "P4-UW-D-WORDS",
+    "kind": "作者",
+    "A": "AC01 の T2・T3・T6・T7 と AC04 の C1〜C21 を表の案の字で直す",
+    "B": "表のうち作者が指した行だけ今の字に残し、ほかを案の字で直す（指した行は ruling に書く）",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない。表は作者に見せる）",
+    "ruling": "未",
+    "reason": "方向は作者裁定 B（2026-11-13）で決まっているが、言い直しの字は監査の子の案と起草の案で、作者は字を見ていない。どの行も出る/出ないと条件は変えず、字だけを替える（AC01・AC04）。案の字は比喩を使わない（監査の案のうち比喩の「合言葉」は採らない、監査の本文）。字は電文の値と意味に触れない（電文から来る字は 1 つも替えない）。計画の W0 の行（p4-order-plan.md:145 の「裁定不要」）との食い違いは、統合担当が計画の改訂でまとめて直す"
+   },
+   {
+    "id": "P4-UW-D-REPLAY",
+    "kind": "作者",
+    "A": "fleq --help の末尾の replay の 1 行（cli.ts:91）を今のまま出す",
+    "B": "--help から replay の行を消す（replay のコマンド自体は残す）",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "監査の「開発者向けとして外したもの」の 1 つで「P4 で隠すか決める」と書いてある。行は既に「（開発者向け、このリポジトリの中で使う）」と書いており、読み手が自分に関係ないと分かる。B は出る行が減るので作者の分岐。B にしても repo で使う人は cli.ts の help を見なくなるだけで、壊れるものは無い"
+   },
+   {
+    "id": "P4-UW-D-COMMANDER",
+    "kind": "作者",
+    "A": "commander が出す英語の字（知らない引数の「error: unknown option '--x'」、help の「Usage:」「Options:」）は今のまま残す",
+    "B": "日本語にする（cli.ts で commander の configureOutput と error code ごとの訳の表、help の見出しの書き換えを足す）",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（作者に聞いていない）",
+    "ruling": "未",
+    "reason": "監査は「commander の既定の英語が出る見込み（経路は確かめていない）」と書いた。起草で確かめた: commander（root の node_modules）の Command に exitOverride だけを付けた形で知らない引数を渡すと、標準エラーに「error: unknown option '--nope'」が出て、helpInformation は「Usage: fleq [options]」「Options:」で始まる。新築の cli.ts は configureOutput を使っていない（cli.ts:59）。B は error code ごとの訳の表と出力の差し替え（仕組み）を足し、cli.ts の行が増える（cli.ts は 43 か所の行の参照を持つ）。A は利用者が引数を間違えたときと --help のときだけ英語が出る"
+   },
+   {
+    "id": "P4-UW-D-LABEL-PATH",
+    "kind": "統合担当",
+    "A": "区分の日本語の名前は cli が持つ labelOf（cli.ts:181、表に無い値は生の字のまま）を、createTerminalOutput の startup に label として渡し、output.ts:397 で session の notice の classifications と missing に当てる。testMode は cli.ts:326 で TEST_MODE_LABELS の字にして渡す",
+    "B": "terminal の側（format.ts）に区分と testMode の名前の表を写す",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（統合担当が発注前に決める）",
+    "ruling": "未",
+    "reason": "名前の表は cli.ts:173・:177 に 1 つずつある（init の画面が使う）。B は同じ表が 2 つになり、区分を足したときに片方だけ直る。terminal から cli を import すると cli.ts が terminal/output を import しているので循環になる。A で足す仕組みは startup の label の 1 欄だけ（無いと: terminal が区分の日本語の名前を引けない）。照合（missing を引く）は今の英字の名前のまま行い、名前は notice に入れる時だけ当てる（運用区分の扱いを変えない、meta.operationContract）。start の frame の区分は外部の字で表に無い値がありうるが、labelOf は生の字を返し、制御の字は P4-TERMINAL-EXTERNAL-TEXT-002 が host で既に空白にしている"
+   },
+   {
+    "id": "P4-UW-D-ORDER",
+    "kind": "統合担当",
+    "A": "発注は 1 つ（AC01〜AC06 を 1 つの patch。どれも行の中の書き換え）",
+    "B": "端末（format.ts・output.ts・color.ts・writer-worker.ts）と CLI（cli.ts・settings.ts・repl.ts・repl-terminal.ts・host.ts・composition-root.ts）の 2 つに分ける",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（統合担当が発注前に決める）",
+    "ruling": "未",
+    "reason": "変えるのは字の literal とコメントで、全部が行の中の書き換え（AC07）。AC02 は format.ts・output.ts・cli.ts をまたぐので、B に分けると cli.ts を 2 つの発注が触る。計画 §3.2 の cli/ の所有の順は N0 → R0 で、W0 は Wave 1 なので N0 より前に配送する。B0 と並走しても、W0 が触る host.ts:507・composition-root.ts:463 は行の中なので、合流で当たるのは同じ行を B0 が触るときだけ"
+   },
+   {
+    "id": "P4-UW-D-RECOVERY-WORDS",
+    "kind": "統合担当",
+    "A": "--debug の行の「取り直し」（output.ts の debug の理由の字）は変えない。P4 のディスプレイの札「取り直し中」「取り直せなかった」（reconstruction-p0-contracts.md:3119）は W0 で決めず、札を描くカードの契約（計画 §5.2 の C2-2 の並び）へ送る",
+    "B": "W0 で --debug の行とディスプレイの札の字も「再取得」に揃える",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "起草案（統合担当が発注前に決める）",
+    "ruling": "未",
+    "reason": "バックログの項は「--debug の行の字と、P4 のディスプレイの札も揃えるかをここで決める」と書く。--debug の行は観察のための起動の読み手に向けた字で、P3-TERMINAL-RECOVERY-WORDING-001 の P3-TRW-D-DEBUG=A が同じ理由で残した。ディスプレイの字は各カードの契約が持つ（計画 §2.1 の W0 の行）ので、W0 が先に決めるとカードの板の往復の前に字が固まる"
+   }
+  ],
+  "questionResolutions": [
+   {
+    "id": "Q-UW-SCOPE",
+    "status": "closed",
+    "source": "起草（2026-11-21、worktree ~/dev/fleq-p4-w0、draft/p4-w0、main 7b45edd6 を読んだ）",
+    "closed": "範囲の読み: 計画 §2.1 の W0 の行の「端末 7・CLI の設定と REPL の 4 群」を、監査の §1（端末の 7 件）と §4（CLI の設定・REPL の字の群）と読んだ。監査の §2（desktop の通知の 5 件）は N0（計画 §2.1 の N0 の行と §8 の「N0 の desktop の通知の字」）、§3（chrome-eew の字）は P4 で作り直すディスプレイの各カードの契約へ送る（計画 §2.1 の W0 の行「ディスプレイの字は各カードの契約が持つ」）。「気象解説」の名と中身は監査の 1-2 と同じもの。ほかに W0 に入るのは、電文の欄の TAB（計画 §5.2 の W0-1）と入力の番号の注記の字（バックログの「入力の番号の注記の字を直す」）。計画 §6.1 の「AC10 の 2 回目・3 回目の P4 の材料 → C0・C2・E0・N0・W0（群ごと）」は FG で 1 件ずつ行き先を決める項で、W0 の依頼に無いので入れていない（レビュー r0 が帳簿 資料/2026-11-16-AC10-ずれの帳簿.md を読み、文言の行はディスプレイの「P4（文言・配置）」で端末・CLI の字の行は無いと確かめた。計画 :773 の行き先の W0 を外すのは統合担当の計画の改訂）。台帳 143 は計画 §5.3 の H=A で P4 では扱わない"
+   },
+   {
+    "id": "Q-UW-LEDGER",
+    "status": "closed",
+    "source": "起草（2026-11-21）。監査（Vault の判断カード 2026-11-13-利用者に見える字の監査、main 4f002a0c で監査、作者裁定 B 2026-11-13 夜「B で一気に直してしまいましょう」） の全部の行を 7b45edd6 の実物と突き合わせた",
+    "closed": "監査の 1 行ずつの行き先（直す＝本契約の AC、送る＝他の契約、残す＝理由つき）: §1 1-1 直す（T2・T3・T4、AC02） 1-2 直す（AC03） 1-3 直す（T6） 1-4 直す（T7） 1-5 直す（T8、P4-UW-D-PRIOR-T8） 1-6 直す（T9、帯は残す。P4-UW-D-PRIOR-T9） 1-7 直す（T10、P4-UW-D-PRIOR-CONN。同じ言い方の T11〜T13 も同じ分岐、プロンプトの札「繋ぎ直し N 回目」は残す）。1-1 の「未契約のため受信できません」の文（format.ts:911）は字を変えず、名前だけ AC02 で日本語にする。§2 2-1〜2-5 送る（N0、字ごとに作者へ見せる）。§3 送る（ディスプレイの各カードの契約。状態の札は C2）。§4 settings.ts:253・321〜322 直す（C1・C2） settings.ts:110・115、cli.ts:218・295 直す（C3、settings.ts:142 も同じ語） settings.ts:197 直す（C4） settings.ts:156・181 直す（C5・C6） repl.ts:44・239、repl-terminal.ts:44〜45 直す（C7・C8・C9。同じ語の repl.ts:55 も C21） repl.ts:247 直す（C10） repl.ts:365 直す（C11） repl.ts:247・414 直す（C10・C12） repl.ts:30 直す（C13） cli.ts:90 直す（C14） cli.ts:365・387 直す（C15・C16） writer-worker.ts:73、output.ts:36 直す（C17・C18） composition-root.ts:463 直す（C19） host.ts:507 直す（C20） cli.ts:59 の commander の英語 残す（P4-UW-D-COMMANDER=A の案。起草で英語が出ることを確かめた）。「開発者向けとして外したもの」: --debug の行は残す（P4-UW-D-RECOVERY-WORDS） replay の help は P4-UW-D-REPLAY。「見ていない所」: tips-data.ts（2,238 本）・eew-log.ts のログの file・診断の jsonl・ブラウザでの見え方は本契約でも見ていない（outOfScope）。監査の行番号は 4f002a0c のもので、7b45edd6 でも同じ行にある（format.ts の 768・775・806〜807・817・824〜825・859・911〜912・1105、settings.ts の 110・115・156・181・197・253・321〜322 ほか、起草で 1 行ずつ確かめた）"
+   },
+   {
+    "id": "Q-UW-REFS",
+    "status": "closed",
+    "source": "起草（2026-11-21）の点検。git grep -n \"<path>:[0-9]\" -- reconstruction/contracts を変える file ごとに回した",
+    "closed": "変える file を行番号で引く契約の行の数（7b45edd6、git grep -n の行の数。1 行に同じ file を 2 度引く行は 1 と数える）: terminal/format.ts 126、terminal/output.ts 129、cli/cli.ts 43、cli/settings.ts 12、cli/repl.ts 20、cli/repl-terminal.ts 0、terminal/writer-worker.ts 2、host/host.ts 283、runtime/composition-root.ts 228、runtime/owner-runtime.ts 76、terminal/color.ts 19、contracts-revision/version.ts と p3-bulletin-text-api.types.ts の注記の行は 0（レビュー r0 の走査では host.ts 280・composition-root.ts 227。数え方の違いで、どちらでも行を足せない結論は同じ）。行を 1 つでも足すと下の行の «» が全部ずれるので、本契約は行を足さず消さない（AC07）。書き換える行そのものを «» で引く他の契約: 実装の木（src と試験）で 19 本・13 契約 — format.ts:807（p3-terminal-external-text）、format.ts:816（p3-dmdata-no-contract）、format.ts:817（p3-dmdata-no-contract）、format.ts:912（p4-terminal-external-text2）、output.ts:397（p4-terminal-external-text2）、cli.ts:90（p3-terminal-output）、cli.ts:326（p3-dmdata-no-contract・p3-terminal-oversize）、cli.ts:365（p3-final-review-fix）、cli.ts:387（p3-repl-closed・p3-stop-save-wait）、settings.ts:115（p3-replay-watch-002）、host.ts:507（p3-diag-exit-flush・p3-diag-sink-retry）、composition-root.ts:463（p3-diag-sink-retry・p3-e05y-controldt）、color.ts:66（p4-terminal-external-text2）、digest.test.ts:62（p3-terminal-recovery-wording）、cli.test.ts:237（p3-dmdata-no-contract）。AC09（配送）で書き換える spec と契約の行で 10 本 — cli-terminal-output.md:117（p3-terminal-capacity-note・p3-terminal-layout）、cli-terminal-output.md:721（p3-dmdata-no-contract）、cli-terminal-output.md:742（p3-terminal-output）、cli-terminal-output.md:775（p3-recovery-digest-live・p3-terminal-output）、cli-terminal-output.md:928（p3-terminal-layout20・p3-terminal-layout7）、cli-terminal-output.md:1063（p3-terminal-windows）、p3-cli-repl.json:1236（p3-stop-save-wait）。本契約自身の evidenceRefs のうち書き換える行を引くものが 74 本。format.ts:911 は 3 か所から引かれるが字を変えない（名前は output.ts で当てる、AC02）。eew.test.ts の :131・:136・:138 を引く契約は 0。color.ts:66 の引き（p4-terminal-external-text2）は P4-UW-D-TAB=A のときだけ当たる"
+   },
+   {
+    "id": "Q-UW-SHAPE",
+    "status": "closed",
+    "source": "起草（2026-11-21）",
+    "closed": "字の literal を行の中で書き換える形にした。定数・表・helper を足さない（足すと行が増え、Q-UW-REFS の «» がずれる）。例外は AC02 の startup の label の 1 欄（P4-UW-D-LABEL-PATH）と、C11 の秒を COMMAND_DEADLINE_MS から作る式。既存の試験の期待は AC08 の表のとおりに行の中で替え、足す試験は TAB の 1 本（P4-UW-T01）だけ。字の置き換えは既存の試験が留めていて、新しい試験は同じ振る舞いの言い換えになる（P3-TERMINAL-RECOVERY-WORDING-001 の P3-TRW-T01 と同じ考え）"
+   },
+   {
+    "id": "Q-UW-REVIEW-R0",
+    "status": "closed",
+    "source": "起草 r0 のレビュー（契約適合＋品質、2026-11-21、条件付き GO、P1 0・P2 4・P3 14）と統合担当の指示、起草 r1（同じ worktree）",
+    "closed": "P2 を 4 件とも当てた: (1) 付け直しの数に試験の行（cli.test.ts:237・digest.test.ts:62）・本契約自身の evidenceRefs・AC09 で書き換える spec と p3-cli-repl.json:1236 を引く契約を足し、check-contract の想定の FAIL を契約の一覧にした（AC07 (3)・Q-UW-REFS・requiredCommands） (2) P4-UW-D-TAB の reason を事実に直した（VZSE40 は U-M の短い形で Body/Text を出さず、本文は行ごとに trim するので、今の公開 fixture では見え方が変わらない） (3) 案の字から「欄」（C6）と「記録」（T8）を外した (4) readPaths に試験 6 file と eew-log.ts・material.ts・dmdata-rest.ts・seismic-unit.ts を足した。P3 を 14 件とも当てた: T10 の案を lost・tooLarge・形の不正の 3 つを覆う字に、T8 を件数と byte の両方に合う「量」に、取りこぼしの「繋ぎ直します」（format.ts:816・:818・:889 を T11〜T13）と「WebSocket 再接続を試行」（repl.ts:55 を C21）を入れて言い方を「接続し直す」に揃えた、T2 の区切りを init と同じ「, 」に、C9 の未確認の文を eew-log.ts:118〜:128 で閉じた、settings.ts:218 を残す理由を C4 に書いた、T7 の数えの説明を national と released で分けた、P4-UW-D-PRIOR を T8・T9・CONN の 3 つに割った、計画の同期は統合担当と objective と AC09 に 1 行、AC09 の候補から spec:658 を外し U-M の呼び名の行（:19・:742・:1005）を足した、計画 §3.2 の cli/ の行も統合担当の計画の改訂に含めた、P4-UW-T01 を P3-TCC-T01 の行の中の書き換えにした、AC02 に testMode の欄の中身が表示の字になることを書いた、AC10 の材料は W0 が持つ群が無いことを Q-UW-SCOPE に書いた、Q-UW-REFS の数の数え方を書き D-TAB の日付を消した。当てなかったもの: なし。プロンプトの札「繋ぎ直し N 回目」（output.ts:477）は揃えず残した（P4-UW-D-PRIOR-CONN の reason、狭い幅の札の割り付けと試験 8 か所）"
+   }
+  ],
+  "operationContract": {
+   "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+   "rule": "運用区分の扱いを変えない。区分の照合（missing を引く）と testMode の値は今の英字の名前のまま行い、日本語の名前は端末に出す時だけ当てる"
+  }
+ },
+ "contract": {
+  "contractId": "P4-USER-WORDS-001",
+  "mode": "implementation",
+  "objective": "新築の端末と CLI が利用者に出す字のうち、開発の中の言い方・比喩・何が起きたか読めない字を、文脈を持たない人の言葉に直す（作者裁定 B、2026-11-13「B で一気に直してしまいましょう」。真実源は Vault の判断カード 2026-11-13-利用者に見える字の監査）。範囲は監査の §1 の端末の 7 件と §4 の CLI の設定・REPL の群（Q-UW-SCOPE）、「気象解説」の名と中身（U-B の分野名、AC03）、電文の欄の TAB（計画 §5.2 の W0-1、AC05）、入力の番号の注記のコメント（AC06）。desktop の通知の字は N0、ディスプレイの字は各カードの契約が持つ。場面: 起動のたびに「eew.warning は未契約のため受信できません」「区分: [telegram.earthquake, …]」「テスト電文: no」と設定の key と内部の値がそのまま出る（format.ts:911〜:912）。U-B の分野名「気象解説」の中身は記録的短時間大雨情報と府県気象防災速報で、気象解説情報は別の分野に出る（名前と中身の食い違い）。直し方は字の literal を行の中で書き換えるだけで、出す条件・色・行の順は変えず、行を足さない（変える file を行番号で引く契約の行が 900 を超える、Q-UW-REFS）。字は電文の値と意味に触れない（電文から来る字は 1 つも替えない。作者 2026-11-07、気象庁の留意事項 §3）。言い直しの字は作者に見せる（P4-UW-D-WORDS ほか、どれも起草案）。計画の W0 の行（「裁定不要」）と §3.2 の cli/ の行（W0 → N0 → R0）の同期は統合担当が計画の改訂で行う。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す（足すのは AC02 の startup の label の 1 欄だけ）。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+  "baseOid": "unassigned",
+  "cleanTreeRequired": true,
+  "readPaths": [
+   "AGENTS.md",
+   "reconstruction/contracts/p4-user-words.json",
+   "reconstruction/contracts/p4-order-plan.md",
+   "reconstruction/contracts/p3-terminal-control-chars.json",
+   "reconstruction/contracts/p4-terminal-external-text2.json",
+   "reconstruction/contracts/p3-terminal-recovery-wording.json",
+   "reconstruction/contracts/p3-terminal-layout7.json",
+   "docs/specs/cli-terminal-output.md",
+   "reconstruction/src/terminal/format.ts",
+   "reconstruction/src/terminal/output.ts",
+   "reconstruction/src/cli/cli.ts",
+   "reconstruction/src/cli/settings.ts",
+   "reconstruction/src/cli/repl.ts",
+   "reconstruction/src/cli/repl-terminal.ts",
+   "reconstruction/src/terminal/writer-worker.ts",
+   "reconstruction/src/host/host.ts",
+   "reconstruction/src/runtime/composition-root.ts",
+   "reconstruction/src/terminal/color.ts",
+   "reconstruction/src/decode-material/decode-material.ts",
+   "reconstruction/src/runtime/owner-runtime.ts",
+   "reconstruction/src/contracts-revision/version.ts",
+   "reconstruction/contracts/p3-bulletin-text-api.types.ts",
+   "reconstruction/src/runtime/unit-coverage.ts",
+   "reconstruction/test/terminal/startup.test.ts",
+   "reconstruction/test/terminal/eew.test.ts",
+   "reconstruction/test/terminal/digest.test.ts",
+   "reconstruction/test/host/host.test.ts",
+   "reconstruction/test/cli/cli.test.ts",
+   "reconstruction/test/cli/repl.test.ts",
+   "test/fixtures/37_01_01_240613_VXSE43.xml",
+   "test/fixtures/selected_xml/42_01_01_100514_VZSE40.xml",
+   "reconstruction/tsconfig.json",
+   "reconstruction/vitest.config.ts",
+   "reconstruction/test/terminal/layout12.test.ts",
+   "reconstruction/test/terminal/layout8.test.ts",
+   "reconstruction/test/terminal/capacity-note.test.ts",
+   "reconstruction/test/terminal/short.test.ts",
+   "reconstruction/test/terminal/connection.test.ts",
+   "reconstruction/test/terminal/windows.test.ts",
+   "reconstruction/src/terminal/eew-log.ts",
+   "reconstruction/src/terminal/material.ts",
+   "reconstruction/src/host/dmdata-rest.ts",
+   "reconstruction/src/units/seismic/seismic-unit.ts"
+  ],
+  "allowedPaths": [
+   "reconstruction/src/terminal/format.ts（AC01・AC03 の分だけ: :768・:775・:807・:816・:817・:818・:825・:859・:889・:912・:1105 の行の中の字。行を足さず消さない。1130 行のまま）",
+   "reconstruction/src/terminal/output.ts（AC02・AC04 の分だけ: :36・:132・:397 の行の中。713 行のまま）",
+   "reconstruction/src/cli/cli.ts（AC02・AC04 の分だけ: :90・:218・:295・:326・:365・:387 の行の中。412 行のまま）",
+   "reconstruction/src/cli/settings.ts（AC04 の分だけ: :110・:115・:142・:156・:181・:197・:253・:321・:322 の行の中。406 行のまま）",
+   "reconstruction/src/cli/repl.ts（AC04 の分だけ: :30・:44・:55・:238・:239・:247・:365・:414 の行の中。545 行のまま）",
+   "reconstruction/src/cli/repl-terminal.ts（AC04 の分だけ: :44・:45 の行の中。117 行のまま）",
+   "reconstruction/src/terminal/writer-worker.ts（AC04 の分だけ: :73 の行の中。73 行のまま）",
+   "reconstruction/src/host/host.ts（AC04 の分だけ: :507 の行の中。685 行のまま）",
+   "reconstruction/src/runtime/composition-root.ts（AC04 の分だけ: :463 の行の中。2487 行のまま）",
+   "reconstruction/src/terminal/color.ts（AC05 の分だけ、P4-UW-D-TAB=A のとき: :65・:66 の行の中。82 行のまま）",
+   "reconstruction/src/runtime/owner-runtime.ts（AC06 の分だけ: :749 のコメントの行の中。776 行のまま）",
+   "reconstruction/src/contracts-revision/version.ts（AC06 の分だけ: :111 のコメントの行の中）",
+   "reconstruction/contracts/p3-bulletin-text-api.types.ts（AC06 の分だけ: :5 のコメントの行の中）",
+   "reconstruction/test/terminal/startup.test.ts・digest.test.ts・layout12.test.ts・layout8.test.ts・capacity-note.test.ts・short.test.ts・connection.test.ts・windows.test.ts、reconstruction/test/host/host.test.ts、reconstruction/test/cli/cli.test.ts・repl.test.ts（AC08 の表の行の中だけ）",
+   "reconstruction/test/terminal/eew.test.ts（P4-UW-T01 の分だけ、P4-UW-D-TAB=A のとき: P3-TCC-T01 の :131・:136・:138 の行の中。行を足さない）",
+   "統合担当だけ（AC07 (3)・AC09・AC10、配送の commit）: docs/specs/cli-terminal-output.md と AC09 の契約の原文の改訂、AC07 (3) の «» の付け直しと meta.sha256。実装担当は触らない"
+  ],
+  "allowedGitCommands": [
+   "git status --porcelain",
+   "git rev-parse HEAD",
+   "git cat-file -e <oid>:reconstruction/contracts/p4-user-words.json",
+   "git diff --binary --no-ext-diff -- <allowed_paths>",
+   "git diff --check -- <allowed_paths>",
+   "git show <required-path-or-object>",
+   "git ls-files <required-path>"
+  ],
+  "moduleIds": [
+   "B01",
+   "B02",
+   "B03",
+   "B12",
+   "B13"
+  ],
+  "integrationContractIds": [],
+  "dependsOnContractIds": [
+   "P3-TERMINAL-OUTPUT-001",
+   "P3-CLI-REPL-001",
+   "P3-TERMINAL-LAYOUT-007",
+   "P3-TERMINAL-CONTROL-CHARS-001",
+   "P3-TERMINAL-CAPACITY-NOTE-001",
+   "P3-TERMINAL-EXTERNAL-TEXT-001",
+   "P3-DMDATA-NO-CONTRACT-001",
+   "P3-TERMINAL-RECOVERY-WORDING-001",
+   "P4-TERMINAL-EXTERNAL-TEXT-002",
+   "P3-FINAL-REVIEW-FIX-001"
+  ],
+  "publicTypes": [
+   "reconstruction/contracts/p3-dmdata-connect.types.ts#DmdataConnectFailure",
+   "reconstruction/contracts/p3-dmdata-connect.types.ts#DmdataTestMode"
+  ],
+  "publicFunctions": [
+   "口は変えない。createRenderer・checkSettings・runRepl・startP2Host・status() の引数と戻りの形は変えない。createTerminalOutput の options の startup にだけ label: (name: string) => string を足す（AC02、P4-UW-D-LABEL-PATH）。export・型・helper・定数を足さない（新築の export の末尾の形は変わらない）"
+  ],
+  "allowedDependencies": [
+   "既存の依存だけ。package.json・package-lock.json を変えない"
+  ],
+  "fixtureIds": [
+   "test__fixtures__37_01_01_240613_VXSE43",
+   "test__fixtures__selected_xml__42_01_01_100514_VZSE40"
+  ],
+  "sequenceIds": [
+   "O02",
+   "O10"
+  ],
+  "expectedDecisions": [],
+  "expectationEvidence": [],
+  "semanticDeadlines": [],
+  "deliveryDeadlines": [],
+  "retentionLimits": [],
+  "resourceLimits": [],
+  "workDeadline": null,
+  "persistenceUnits": [],
+  "persistedFields": [
+   "なし（保存の形を変えない。設定ファイルの key と値〔classifications・testMode・mute の until と rules〕は今の英字のまま。日本語の名前は端末に出す時だけ当てる）"
+  ],
+  "nonPersistedFields": [
+   "createTerminalOutput の startup.label と、日本語にした testMode の字（起動の間だけ）"
+  ],
+  "outOfScope": [
+   "desktop の通知の字（監査 §2 の 2-1〜2-5）: N0（P4-NOTICE-TEXT-SOUND-001）が字ごとに作者へ見せて直す",
+   "情報ディスプレイ（chrome-eew）の字（監査 §3）と P4 のディスプレイの札の字（「取り直し中」「取り直せなかった」を含む）: 各カードの契約（状態の札は C2）。P4-UW-D-RECOVERY-WORDS",
+   "--debug の行の字（output.ts の debug の行、format.ts の debug の notice）と npm run watch・replay の字: 開発者向けとして変えない（監査の「開発者向けとして外したもの」、P3-TRW-D-DEBUG と同じ線）",
+   "tips-data.ts（2,238 本の tip）・eew-log.ts のログの file の字・診断の jsonl・ブラウザでの見え方: 監査も本契約も見ていない",
+   "電文から来る字（見出し・本文・区域名・警報の名前・【訓練】・[訂正] など）: 変えない（作者 2026-11-07、気象庁の留意事項 §3）。TAB の置き換え（AC05）は空白の整形で値と意味を変えない",
+   "U-M の分野名「地方の情報」、プロンプトの札「繋ぎ直し N 回目」（output.ts:477、P4-UW-D-PRIOR-CONN の reason）、設定の key の名前（apiKey・classifications・mute など）、settings.ts:218 の共通の型、commander の英語（P4-UW-D-COMMANDER=A の案）: 変えない",
+   "計画 §6.1 の AC10 の 2 回目・3 回目の P4 の材料のうち W0 へ行く群: 帳簿の文言の行はディスプレイの「P4（文言・配置）」で端末・CLI の字の行は無いので、W0 が持つ群は無い（Q-UW-SCOPE、レビュー r0 の確かめ）",
+   "台帳 143（U-W の保存の読み戻しの 3 欄）: 計画 §5.3 の H=A で P5 の前の点検へ",
+   "旧築（src/）・旧築の spec（docs/specs/ui.md・engine.md・dmdata.md）・test/fixtures・manifest.json・sequences.json",
+   "P3-FG-T09 (2) は AC09 の gitHead から reconstruction/src に差分が無いことを見るので、本契約の配送の後の歩きは AC09 の取り直しが要る（取り直しは次の歩きの契約・FG の仕事で、本契約の合否に入れない）"
+  ],
+  "acceptanceChecks": [
+   {
+    "id": "P4-UW-AC01",
+    "requirement": "端末の字（監査 §1 と同じ言い方の取りこぼし、P4-UW-D-WORDS・P4-UW-D-SESSION・P4-UW-D-PRIOR-T8・P4-UW-D-PRIOR-T9・P4-UW-D-PRIOR-CONN）: 次の表の字を行の中で書き換える。出す条件・role（色と太字）・行の順・帯の段は変えない。表: T2（監査 1-1、format.ts:912 の区分の行、P4-UW-D-WORDS）: 今「区分: [${item.classifications.join(\", \")}]」→ 案「受信区分: ${item.classifications.join(\", \")}（例「受信区分: 緊急地震速報（予報）, 緊急地震速報（警報）」。名前は AC02 で日本語にする）」。根拠: 設定の内部の値が括弧つきで出ている。語「受信区分:」と区切り「, 」は init の確かめの画面（cli.ts:263）と同じ ／ T3（監査 1-1、format.ts:912 のテスト電文の行、P4-UW-D-WORDS）: 今「テスト電文: ${item.testMode}（例「テスト電文: no」）」→ 案「${item.testMode}（cli が渡す字を TEST_MODE_LABELS の字にするので「テスト電文を受信しない」の 1 行になる。AC02）」。根拠: 設定の値 no・including・only がそのまま出ている。日本語の字は cli.ts の TEST_MODE_LABELS に既にある ／ T4（監査 1-1、format.ts:912 のセッションの行、P4-UW-D-SESSION）: 今「セッション開始: socketId=${item.socketId}」→ 案「dmdata.jp に接続しました（接続番号 ${item.socketId}）」。根拠: socketId は dmdata の API の欄の名前。行を残すか消すかは作者の分岐（旧築のとおりの起動画面は作者裁定 P3-TL7-D-BANNER=A） ／ T6（監査 1-3、format.ts:859 の帯の題、P4-UW-D-WORDS）: 今「止まっていた間に出た情報（7 日前まで）」→ 案「FlEq が止まっていた間に出た情報（7 日前まで）」。根拠: 止まっていたのが FlEq か回線か読めない。この帯は起動時の取り直しの後に 1 回だけ出る（output.ts:643〜:645 の digestShown）ので FlEq の止まり。監査の案「止めていた」は利用者が止めた場合だけに読めるので「止まっていた」のまま主語を足す。題の幅は 38 桁から 45 桁 ／ T7（監査 1-4、format.ts:768・:775 の薄い字の行、P4-UW-D-WORDS）: 今「ほか N 区域は読んでいません／ほか N 予報区は読んでいません」→ 案「ほか N 区域は FlEq で処理していません／ほか N 予報区は FlEq で処理していません」。根拠: 誰が読んでいないのか分からない（利用者がまだ読んでいない、と読める）。数えているもの: 予報区（:775、national）は AREA_LIMIT（256）を越えて段にも表にも入れなかった Item だけ（material.ts:302〜:323、P3-TL8-AC02 (6)）。区域（:768、released）は AREA_LIMIT・行 100・延べ 512 を越えた Item と、Code の形が合わないか Area の Name が無い Item（material.ts:131〜:148、P3-TL12 の起草 p3-terminal-layout12.json:65）。越えた分は警報の段の判定にも使っていない。監査の案「表示を省略」は中身が分かっていて画面だけ省いた、と読めて意味を弱めるので採らず、主語を足して「処理していません」にする ／ T8（監査 1-5、format.ts:1105 の末尾の行、P4-UW-D-PRIOR-T8）: 今「容量の上限のため、この報は記録に入っていません」→ 案「保持できる量の上限に達したため、この情報は FlEq の中に保持していません」。根拠: 「容量」「報」「記録に入る」が中の言い方。断る条件は件数（seismic-unit.ts:639 の countOver）と byte（:640 の byteOver、GENERATION_LIMIT）の両方なので「件数」でなく「量」。印の意味は U-Q の state に入れなかったことで、監査の案「保存していません」は file への保存と読めるので「FlEq の中に保持していません」にする。今の字は作者裁定 P3-TCN-D-NOTE=B（2026-11-12「文言は裁定の字のまま変えない」）なので作者の分岐 ／ T9（監査 1-6、format.ts:807 の本文の 1 行、P4-UW-D-PRIOR-T9）: 今「<題名> を処理できませんでした。」→ 案「<題名> を処理できませんでした。内容は気象庁の発表で確かめてください。」。根拠: なぜか・何をすればよいかが無い。監査の案「内容を読み取れなかったため」は作者が比喩として除いた形（P3-TO-D-UNREADABLE の ruling「読めませんでした」は比喩、バックログの 2026-11-03）なので採らず、今の字の後ろにすることを足す。帯「処理できなかった電文 <コード>」は作者裁定 P3-TL7-D-UNREADABLE-CODE=A のまま変えない ／ T10（監査 1-7、format.ts:817 の startUncertain、P4-UW-D-PRIOR-CONN）: 今「接続を始められたか確かめられませんでした。自動で繋ぎ直します。」→ 案「dmdata.jp に接続の開始を求めましたが、成功したかどうかの返事を受け取れませんでした。自動で接続し直します。」。根拠: 何が起きたか読めない。startUncertain は start の要求の答えが来ない（lost）・大きすぎる（tooLarge）・2xx だが形が合わない、のどれか（dmdata-rest.ts:125〜:131）なので「返事を受け取れなかった」は 3 つとも覆う。今の字は作者 2026-11-01 の Q-TO-C-4 の表（spec:864）なので作者の分岐 ／ T11（T10 と同じ表、format.ts:816 の dmdata、P4-UW-D-PRIOR-CONN）: 今「dmdata.jp が接続を受け付けませんでした。しばらくしてから自動で繋ぎ直します。」→ 案「dmdata.jp が接続を受け付けませんでした。しばらくしてから自動で接続し直します。」。根拠: 同じ表と REPL（C10）で「繋ぎ直す」と「接続し直す」が混ざらないように揃える。Q-TO-C-4 の表の字 ／ T12（T10 と同じ表、format.ts:818 の noContract、P4-UW-D-PRIOR-CONN）: 今「…dmdata.jp で区分を契約すると、自動で繋ぎ直して受信を始めます。」→ 案「…dmdata.jp で区分を契約すると、自動で接続し直して受信を始めます。」。根拠: T11 と同じ。字は P3-DMDATA-NO-CONTRACT-001（統合担当の決め）だが、同じ表の言い方を 1 つの分岐で揃える ／ T13（T10 と同じ言い方、format.ts:889 の回線が切れた帯の本文、P4-UW-D-PRIOR-CONN）: 今「${from} から受信できていません。自動で繋ぎ直しています。」→ 案「${from} から受信できていません。自動で接続し直しています。」。根拠: T11 と同じ。字は作者 2026-11-01 の Q-TO-C-1（統合担当の図のとおり、spec:683）。プロンプトの札「繋ぎ直し N 回目」（output.ts:477）は残す（Q-UW-LEDGER）。(1) T3 は format.ts:912 の「テスト電文: 」の頭を消し、notice の testMode の字をそのまま 1 行にする（字は AC02 で cli が渡す） (2) T4 は P4-UW-D-SESSION が B なら行ごと消し、C なら今のまま (3) T8・T9 はそれぞれの D-PRIOR が B なら今のまま、T10〜T13 は P4-UW-D-PRIOR-CONN が B なら 4 つとも今のまま (4) T6 の題は 45 桁で、罫線の数は band が今の式で埋める（80 桁で 80−45−3 本） (5) 1-1 の「<名前> は未契約のため受信できません」（format.ts:911）は字を変えない（名前は AC02） (6) 足す仕組みは無い（字の書き換えだけ）",
+    "evidenceRefs": [
+     "reconstruction/src/terminal/format.ts:768 «e7989b933b8195d2»",
+     "reconstruction/src/terminal/format.ts:775 «5e0ee758856bec10»",
+     "reconstruction/src/terminal/format.ts:806 «4a38c33b794fc73e»",
+     "reconstruction/src/terminal/format.ts:807 «a3ddfb8eba4779a2»",
+     "reconstruction/src/terminal/format.ts:816 «41c70bdfbc884764»",
+     "reconstruction/src/terminal/format.ts:817 «52b0a698c38ab469»",
+     "reconstruction/src/terminal/format.ts:818 «dd45a1f38ccf2aea»",
+     "reconstruction/src/terminal/format.ts:859 «cca786352ea584aa»",
+     "reconstruction/src/terminal/format.ts:889 «b5bbaed356b2beab»",
+     "reconstruction/src/terminal/format.ts:911 «1bb65f57e524c4f2»",
+     "reconstruction/src/terminal/format.ts:912 «2a8cc6a9ee29d548»",
+     "reconstruction/src/terminal/format.ts:1105 «7a2c147c380bfff3»",
+     "reconstruction/src/terminal/output.ts:477 «09a1cec3fd45b59f»",
+     "reconstruction/src/units/seismic/seismic-unit.ts:639 «617ced34e0dc4548»",
+     "reconstruction/src/units/seismic/seismic-unit.ts:640 «dc717c781caac78a»",
+     "reconstruction/src/host/dmdata-rest.ts:125 «b8ee7d8dd9b6879f»",
+     "reconstruction/src/host/dmdata-rest.ts:129 «e64d416e82cecea6»",
+     "docs/specs/cli-terminal-output.md:683 «405395260410fc28»",
+     "docs/specs/cli-terminal-output.md:721 «c310d236d4cfdc06»",
+     "docs/specs/cli-terminal-output.md:778 «28bd6eb329e4f353»",
+     "docs/specs/cli-terminal-output.md:813 «2598da6109c7db41»",
+     "docs/specs/cli-terminal-output.md:864 «59a2c408cc77c4f2»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC02",
+    "requirement": "区分と testMode の日本語の名前（監査 1-1、P4-UW-D-LABEL-PATH=A）: (1) output.ts:132 の startup の型に label: (name: string) => string を足す（行の中） (2) output.ts:397 で session の notice の classifications を granted.map(startup.label)、missing を今の filter の後に .map(startup.label) にする。missing を引く照合は label を当てる前の英字の名前のまま (3) cli.ts:326 の startup の literal で testMode を TEST_MODE_LABELS[resolved.testMode]（「テスト電文を受信しない」など）にし、label: labelOf を足す。classifications は今のまま英字の配列（偽の dmdata〔FLEQ_WS_URL〕で null も今のまま） (4) 効き: 起動画面の「<名前> は未契約のため受信できません」の名前と「受信区分: …」の名前が CLASSIFICATION_LABELS の字になり（例「緊急地震速報（警報）は未契約のため受信できません」）、表に無い区分は生の字のまま。テスト電文の行は「テスト電文を受信しない」「テスト電文も受信する」「テスト電文だけ受信する」のどれか (5) 足す仕組みは startup の label の 1 欄（無いと: terminal が cli の区分の名前の表を引けず、表を写すと 2 つになる。terminal から cli を import すると循環） (6) notice の testMode（format.ts:44）と startup.testMode（output.ts:132）の欄の名と型（string）は変えず、中身が表示の字になる（照合に使う値ではない） (7) 行を足さない",
+    "evidenceRefs": [
+     "reconstruction/src/terminal/output.ts:132 «8dad8ff336ed792d»",
+     "reconstruction/src/terminal/output.ts:397 «eb86e420308d0139»",
+     "reconstruction/src/cli/cli.ts:173 «c362696bac8ee4df»",
+     "reconstruction/src/cli/cli.ts:177 «e27ea75a6a7d6f1d»",
+     "reconstruction/src/cli/cli.ts:181 «fa52646bad386406»",
+     "reconstruction/src/cli/cli.ts:263 «9fa44f6a07cffe63»",
+     "reconstruction/src/cli/cli.ts:326 «b9c492f5da23e6e8»",
+     "reconstruction/src/terminal/format.ts:44 «8809195943cbce4e»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC03",
+    "requirement": "起動時のまとめの U-B の分野名（監査 1-2・バックログの「名前と中身の食い違い」、P4-UW-D-BRIEFING-NAME）: format.ts:825 の \"U-B\": \"気象解説\" を A なら \"気象防災速報\"、B なら \"気象防災速報・記録的短時間大雨\" にする（行の中）。U-M の「地方の情報」は変えない（中身は気象解説情報・天候情報・竜巻注意情報・熱中症警戒アラート・地震の活動の情報などの 15 種で、1 つの電文の名前にまとめられない。誤りではなく大づかみの名前）。まとめの名前の列の幅（format.ts:861）はそのまとめに載った unit の名前の最大＋3（最小 11）なので、U-B が載るまとめでは A で 11 桁から 15 桁に広がる（「気象の時系列」が載るときと同じ幅）。B では 33 桁に広がる。digest.test.ts に U-B の載るまとめの期待は無い",
+    "evidenceRefs": [
+     "reconstruction/src/terminal/format.ts:825 «2eb406e63c52f9ff»",
+     "reconstruction/src/terminal/format.ts:861 «83e9ea34490a3bf7»",
+     "reconstruction/src/runtime/unit-coverage.ts:95 «5eed6a6ea0b164f3»",
+     "reconstruction/src/runtime/unit-coverage.ts:96 «5437cd7e08d4da42»",
+     "reconstruction/src/terminal/format.ts:838 «bfb49022735f6491»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC04",
+    "requirement": "CLI の設定と REPL の字（監査 §4 と同じ語の取りこぼし、P4-UW-D-WORDS）: 次の表の字を行の中で書き換える。出す条件・出す先（標準出力か標準エラー）・終了コード・設定ファイルの key と値の形は変えない。表: C1（監査 §4、settings.ts:253）: 今「今までの fleq の設定 ${from} は読めないので写しません」→ 案「旧版の fleq の設定ファイル ${from} を読み込めないか、中身が設定の形でないため、設定を引き継ぎません」。根拠: 「写す」「読めない」が中の言い方（:252 の条件は file が読めないか JSON の object でないとき） ／ C2（監査 §4、settings.ts:321・:322）: 今「（写さなかった key: …）／今までの fleq の設定 ${from} から ${n} 件を写しました」→ 案「（引き継がなかった項目: …）／旧版の fleq の設定 ${from} から ${n} 項目を引き継ぎました」。根拠: 「写す」「key」が中の言い方 ／ C3（監査 §4、settings.ts:110・:115・:142、cli.ts:218・:295）: 今「今までの fleq と同じ接続名は使えません／今までの fleq やほかの端末と違う名前」→ 案「旧版の fleq と同じ接続名は使えません（旧版を起動すると、同じ接続名の接続が切れるため）／旧版の fleq やほかの端末と違う名前」。根拠: 「今までの fleq」が何を指すか読めない。理由は P3-CLI-D-APPNAME の reason（旧築は起動のたびに同じ appName の socket を閉じる）。settings.ts:142 と cli.ts:218・:295 は監査の行の外だが同じ語なので揃える ／ C4（監査 §4、settings.ts:197）: 今「知らない欄です（:218 で「設定ファイル X の K が読めません: 知らない欄です。直すか消してください」）」→ 案「FlEq の設定項目にありません（:218 で「… の K が読めません: FlEq の設定項目にありません。直すか消してください」）」。根拠: 「欄」が中の言い方。:218 の 1 文は、知らない項目のほか型と値の誤り（各項目の reason、:198）にも共通の文で、型と値の誤りには「読めません」「直すか消してください」が合う。知らない項目のためだけに文を分けると :218 の行の形が変わるので、:218 は残し理由の字だけを替える ／ C5（監査 §4、settings.ts:156）: 今「情報ディスプレイの非 loopback 接続用アクセストークン」→ 案「情報ディスプレイのアクセストークン（今は 127.0.0.1 からだけ開くので使われません）」。根拠: 「非 loopback」が中の言い方。cli.ts:86 の --display-token の説明と同じ事実（D-REMOTE=B で R0 が設定を見直す） ／ C6（監査 §4、settings.ts:181）: 今「until（null か 0 以上の整数）と rules（…）の object」→ 案「until（ミュートの終わり。null か 0 以上の整数）と rules（…）の 2 つを持つ値」。根拠: 「object」が中の言い方（C4 で「欄」も中の言い方としたので使わない）。until・rules は設定ファイルに書く key の名前なので残す ／ C7（監査 §4、repl.ts:44）: 今「現在の WebSocket 接続状態、SocketID、再接続試行回数と、…」→ 案「dmdata.jp との接続の状態、接続番号、再接続を試した回数と、ミュートの状態（残り・条件）を表示します。」。根拠: WebSocket・SocketID が中の言い方 ／ C8（監査 §4、repl.ts:238・:239）: 今「  WebSocket 接続状態:／  SocketID: N」→ 案「  dmdata.jp との接続:／  接続番号: N」。根拠: 同上。T4 の「接続番号」と同じ語 ／ C9（監査 §4、repl-terminal.ts:44・:45）: 今「PLUM法フラグ／主要動到達フラグ／差分情報」→ 案「PLUM法による予測か／主要動が到達したか／前の報からの変化」。根拠: 「フラグ」「差分情報」が中の言い方（EEW ログの項目の名前、eewlog の設定の画面に出る）。diff の項目は前の報との M・深さ・最大予測震度の変化を書く（eew-log.ts:118〜:128） ／ C10（監査 §4、repl.ts:247）: 今「  受信の待ちを片付けてから繋ぎ直します。／  終了しています。」→ 案「  受信した電文の処理を終えてから接続し直します。／  FlEq を終了している途中のため、接続し直しません。」。根拠: 「片付ける」は比喩。「終了しています」は終わったのか途中か読めない ／ C11（監査 §4、repl.ts:365）: 今「  時間内に終わりませんでした: <line>」→ 案「  ${COMMAND_DEADLINE_MS / 1_000} 秒以内に終わりませんでした: <line>（処理は続いていることがあり、結果は表示しません）」。根拠: 何秒か、結果が後から出るかが無い。待ちは COMMAND_DEADLINE_MS（:14、5 秒）で、間に合わなかった結果は出さない（within の closed と late）。秒は定数から作り、字に 5 を書かない ／ C12（監査 §4、repl.ts:414）: 今「  終了しています。（display on の返事）」→ 案「  FlEq を終了している途中のため、情報ディスプレイを起動しません。」。根拠: C10 と同じ ／ C13（監査 §4、repl.ts:30）: 今「最も重い音」→ 案「最も緊急度の高い音」。根拠: 「重い」は比喩。「最も重い音」は spec の H 表の音の段の名前で、ほかの契約の条文の語としては残す（利用者に出るのは repl.ts:30 の mute の注意文と状態の行だけ、P3-CLI-AC15 (3)） ／ C14（監査 §4、cli.ts:90）: 今「CLI 自身の設定の出どころを標準エラーへ表示します」→ 案「設定値ごとの指定元を標準エラーへ、電文ごとの処理の行を端末へ表示します（開発者向け）」。根拠: 「出どころ」は比喩。--debug は設定の指定元（cli.ts:307〜:315）と電文ごとの debug の行（createTerminalOutput の debug）の 2 つを出すので両方を書く ／ C15（監査 §4、cli.ts:365）: 今「起動に失敗しました」→ 案「FlEq の起動に失敗しました。もう一度起動してください」。根拠: 次の手が無い。ここに来るのは Refusal・ポートの使用中・認証の失敗のどれでもない失敗だけ（:360〜:364） ／ C16（監査 §4、cli.ts:387）: 今「設定ファイル ${paths.file} に最後の変更を保存できたか確かめられません」→ 案「設定ファイル ${paths.file} に最後の変更が保存されたか確認できませんでした。fleq config show で設定を確かめてください」。根拠: 次の手が無い。:386 のコメントのとおり次の起動の状態は言い切らず、確かめ方（config show、cli.ts:96）を足す ／ C17（監査 §4、writer-worker.ts:73）: 今「端末への書き出しを待たずに行えないため、この端末には電文や返事を出しません」→ 案「この端末を書き込み用に開き直せないため、この端末には電文や返事を表示しません（受信と通知は続けます）」。根拠: 意味が取れない。条件は fd 1 の端末を O_NONBLOCK で開き直せないとき（:18〜:34）。受信と通知は止まらない（D-WRITER、:10） ／ C18（監査 §4、output.ts:36）: 今「端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません」→ 案「端末へ表示する処理が止まったため、以後この端末には電文や返事を表示しません（受信と通知は続けます）」。根拠: 「子プロセス」が中の言い方。受信を止めないことは spec:1063 ／ C19（監査 §4、composition-root.ts:463）: 今「${JSON.stringify(event)}（生の JSON だけ）」→ 案「診断ログに書けなかった記録: ${JSON.stringify(event)}」。根拠: 何の行か読めない。JSON は調べるのに要るので残し、前に 1 句を足す（標準エラーのこの行を JSON として読む試験・道具は無い。replay の JSON の誤りは reconstruction/cli/replay.mjs の別の口） ／ C20（監査 §4、host.ts:507）: 今「fleq host: dmdata socket close failed」→ 案「終了時に dmdata.jp との接続を閉じられませんでした」。根拠: 英語の内部の字。条件は終了時（releaseOwnSocket の呼び手は stop だけ、:525）の socket close の失敗を診断ログにも書けなかったとき（:506） ／ C21（C7 と同じ語、repl.ts:55 の retry の説明）: 今「WebSocket 再接続を試行」→ 案「dmdata.jp に接続し直す」。根拠: C7・C8 で WebSocket を中の言い方とした取りこぼし。言い方は T10〜T13・C10 の「接続し直す」。(1) C11 の秒は repl.ts:14 の COMMAND_DEADLINE_MS から式で作る（字に 5 を書かない） (2) settings.ts:218 の共通の 1 文は変えない（C4 の根拠） (3) 「今までの fleq」はコメント（settings.ts:10・:90・:99・:106・:113、repl.ts:10）では変えない（利用者に出ない） (4) 足す仕組みは無い",
+    "evidenceRefs": [
+     "reconstruction/src/cli/settings.ts:110 «7b3964b59cab469b»",
+     "reconstruction/src/cli/settings.ts:115 «e1733364fdc5fa0a»",
+     "reconstruction/src/cli/settings.ts:142 «ac7910255ab50d9f»",
+     "reconstruction/src/cli/settings.ts:156 «e130597bdd94f77d»",
+     "reconstruction/src/cli/settings.ts:181 «be7cec5d1089c50d»",
+     "reconstruction/src/cli/settings.ts:197 «179cdf9beffc8f14»",
+     "reconstruction/src/cli/settings.ts:218 «1dda7836c0f2b6e2»",
+     "reconstruction/src/cli/settings.ts:253 «d4641b1ca58cfb1a»",
+     "reconstruction/src/cli/settings.ts:321 «4ca6287d18b3b786»",
+     "reconstruction/src/cli/settings.ts:322 «660eea63c8e5fdb9»",
+     "reconstruction/src/cli/cli.ts:90 «d62936cb0fa4c51a»",
+     "reconstruction/src/cli/cli.ts:218 «3e710ce05be71b42»",
+     "reconstruction/src/cli/cli.ts:295 «78d2a1a3d89ca2d7»",
+     "reconstruction/src/cli/cli.ts:365 «45c330fe40429e51»",
+     "reconstruction/src/cli/cli.ts:387 «341aa9d2306d9933»",
+     "reconstruction/src/cli/repl.ts:14 «139c3c48fac641f6»",
+     "reconstruction/src/cli/repl.ts:30 «c8776c88f094f8f3»",
+     "reconstruction/src/cli/repl.ts:44 «007983aea299f1b0»",
+     "reconstruction/src/cli/repl.ts:238 «02040bb941c069e1»",
+     "reconstruction/src/cli/repl.ts:239 «49d9d3a397a5e1ef»",
+     "reconstruction/src/cli/repl.ts:247 «0307975e8903290d»",
+     "reconstruction/src/cli/repl.ts:365 «d545735b81df060d»",
+     "reconstruction/src/cli/repl.ts:414 «5decc46a6784ff30»",
+     "reconstruction/src/cli/repl-terminal.ts:44 «5a990a6c41bc4c67»",
+     "reconstruction/src/cli/repl-terminal.ts:45 «67b740eee0c2d1cc»",
+     "reconstruction/src/terminal/writer-worker.ts:73 «65bcba29dc463d41»",
+     "reconstruction/src/terminal/output.ts:36 «d2cef999188857c7»",
+     "reconstruction/src/runtime/composition-root.ts:463 «a25d8a6994e817af»",
+     "reconstruction/src/host/host.ts:507 «40d42c63c0470205»",
+     "reconstruction/src/cli/repl.ts:55 «e455fa9a76179375»",
+     "reconstruction/src/cli/settings.ts:198 «d9e3c7c4eeb1b3c3»",
+     "reconstruction/src/terminal/eew-log.ts:118 «e20412e3f2278cf3»",
+     "reconstruction/src/host/host.ts:525 «621db2621a2054e1»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC05",
+    "requirement": "電文の欄の TAB（計画 §5.2 の W0-1、P4-UW-D-TAB）: A なら color.ts:66 の置き換えの組 /[\\n\\r\\u007f-\\u009f\\u2028\\u2029]/g に \\t を足し（/[\\t\\n\\r\\u007f-\\u009f\\u2028\\u2029]/g、行の中）、:65 のなぜのコメントの中の字の並びに TAB を足す（行の中、TAB は width() で 1 桁と数えるが端末は次のタブ位置まで進むこと、P4-UW-D-TAB）。decode-material.ts は変えない（XML として TAB は正しい字なので断らない）。B なら本 AC は何もしない（P4-UW-T01 の書き換えもしない）。(1) 効き: 端末の整形とプロンプトの字の全部で TAB が半角の空白 1 字になる。組み（桁の数え方）は変わらない (2) 計算量: 今の置き換え 1 回の字の組が 1 つ増えるだけ (3) 足す仕組みは無い（無いと: 表の欄の TAB で行末の縦線と罫線がずれる）",
+    "evidenceRefs": [
+     "reconstruction/src/terminal/color.ts:65 «349ec545ce17b1ce»",
+     "reconstruction/src/terminal/color.ts:66 «74433470282859f4»",
+     "reconstruction/src/terminal/format.ts:69 «611fd1a0dac9ba37»",
+     "reconstruction/src/decode-material/decode-material.ts:91 «aae9ff3fc2b01cb1»",
+     "reconstruction/src/decode-material/decode-material.ts:110 «690114010dfd32bf»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC06",
+    "requirement": "入力の番号の注記（バックログの「入力の番号の注記の字を直す」、AC13 のウルトラコードの続き）: 次の 3 つのコメントの「起動をまたいでも inputId は重ならない」の言い切りを、「保存から戻したどの inputId よりも大きい番号から振る（保存に届かなかった番号は次の起動でもう一度振られうる）」の意味に行の中で直す: owner-runtime.ts:749、p3-bulletin-text-api.types.ts:5、version.ts:111（「host の番号は起動をまたいで増えるので、数の順は受けた順」）。場面: 重複の VXSE51 や保存しない U-E の current は保存に届かず、次の起動で同じ番号がもう一度振られた（probe で input-27・28）。害は無い（保存から戻るものは全部起点に数える）。コードは変えない。契約の注記（p3-bulletin-text-api.json の P3-BT-AC03、p3-uf-public.json の Q-UFP-REVISION の括弧書き）は統合担当が AC09 で直す",
+    "evidenceRefs": [
+     "reconstruction/src/runtime/owner-runtime.ts:749 «345f93358eb631a9»",
+     "reconstruction/contracts/p3-bulletin-text-api.types.ts:5 «3079007166783287»",
+     "reconstruction/src/contracts-revision/version.ts:111 «7e04826dd78cb095»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC07",
+    "requirement": "行の数と «»（Q-UW-REFS）: (1) 変える file の行の数を変えない（format.ts 1130・output.ts 713・cli.ts 412・settings.ts 406・repl.ts 545・repl-terminal.ts 117・writer-worker.ts 73・host.ts 685・composition-root.ts 2487・owner-runtime.ts 776・color.ts 82・version.ts と p3-bulletin-text-api.types.ts は今の数）。直した後の wc -l を成果物に書く (2) 試験の file も行を足さず消さない（P4-UW-T01 も P3-TCC-T01 の行の中の書き換え） (3) 統合担当だけ（配送の commit）。付け直しは行の中身から引き直し（reanchor-target.py）、ずれた木で current anchor を貼らない。順は (a) 本契約の «» を先に手で付け直して本契約の meta.sha256 を取り直す（書き換える行を引く本契約の evidenceRefs 74 本） (b) 実装の木で書き換えた src と試験の行を引く他の契約 19 本・13 契約（p3-diag-exit-flush・p3-diag-sink-retry・p3-dmdata-no-contract・p3-e05y-controldt・p3-final-review-fix・p3-repl-closed・p3-replay-watch-002・p3-stop-save-wait・p3-terminal-external-text・p3-terminal-output・p3-terminal-oversize・p3-terminal-recovery-wording・p4-terminal-external-text2） (c) AC09 で書き換える spec と契約の行を引く他の契約 10 本（(b) に無い契約は p3-recovery-digest-live・p3-terminal-capacity-note・p3-terminal-layout・p3-terminal-layout20・p3-terminal-layout7・p3-terminal-windows）。どれもその契約の meta.sha256 を取り直す",
+    "evidenceRefs": [
+     "reconstruction/contracts/check-contract.mjs",
+     "reconstruction/tools/corpus/check-manifest.mjs"
+    ]
+   },
+   {
+    "id": "P4-UW-AC08",
+    "requirement": "期待の変わる既存の試験（実装担当、行の中で替える。替える理由は作者裁定 B と本契約の分岐）: (1) terminal/startup.test.ts の :8 の startup の helper に label（試験の中の写像、例 (name) => name.toUpperCase()）を足し testMode を「テスト電文を受信しない」にする、:22〜:23 の session の期待を AC01・AC02 の字に、:30 の「セッション開始」の行の絞りを T4 の字に（P4-UW-D-SESSION が B なら行が無いことに） (2) host/host.test.ts:2239（P4-TET2-T02）の「区分: 」で始まる行の絞りと期待を「受信区分: 」と [\"受信区分: eew.forecast, x [2J    y\"] に（renderer に手で渡すので label は当たらない） (3) terminal/digest.test.ts の :33・:62 の帯の題と罫線の数（80−45−3） (4) terminal/layout12.test.ts の :116 の it の名前と :117 の期待、layout8.test.ts:97 の期待を T7 の字に (5) P4-UW-D-PRIOR-T8 が A のとき terminal/capacity-note.test.ts:11 の NOTE、P4-UW-D-PRIOR-T9 が A のとき terminal/short.test.ts の :89・:91 の本文、P4-UW-D-PRIOR-CONN が A のとき terminal/connection.test.ts の :24・:44・:61・:130（T13）、:107（T11）、:108（T10）、:173（T12） (6) cli/cli.test.ts の :237 の startup の期待（testMode を「テスト電文を受信しない」に、label: expect.any(Function) を足す。toEqual は欄の足りない期待で落ちる）、:154 の正規表現（「引き継がなかった項目: 」）、:274・:412 の期待（C16）、:329 の split の字（C3） (7) cli/repl.test.ts:235 の status の期待（C8） (8) terminal/windows.test.ts:27 の WARNING（C18）。ほかの期待は変えない。表に無い期待が落ちたら、変える前に試験名・旧の期待・理由を報告して止める",
+    "evidenceRefs": [
+     "reconstruction/test/terminal/startup.test.ts:8 «a14e6fb5102370fe»",
+     "reconstruction/test/host/host.test.ts:2239 «2fda84396d919d41»",
+     "reconstruction/test/terminal/digest.test.ts:33 «0c089f27ab33ef16»",
+     "reconstruction/test/terminal/layout12.test.ts:117 «7c27362e414afbd7»",
+     "reconstruction/test/terminal/layout8.test.ts:97 «0c3b43ee5de494d7»",
+     "reconstruction/test/terminal/capacity-note.test.ts:11 «160ebae10f3d7344»",
+     "reconstruction/test/terminal/short.test.ts:89 «0f1be509f02a9ade»",
+     "reconstruction/test/terminal/connection.test.ts:108 «3395463713c68439»",
+     "reconstruction/test/cli/cli.test.ts:154 «41bd1512004b7754»",
+     "reconstruction/test/cli/cli.test.ts:237 «8175e762e927cc2c»",
+     "reconstruction/test/cli/cli.test.ts:329 «066e1063f4bf3e83»",
+     "reconstruction/test/cli/repl.test.ts:235 «1de4c858c3031bd4»",
+     "reconstruction/test/terminal/windows.test.ts:27 «634b349b566e5bf2»",
+     "reconstruction/test/terminal/connection.test.ts:24 «221c12dbe96b8966»",
+     "reconstruction/test/terminal/connection.test.ts:173 «1c84647516f11f76»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC09",
+    "requirement": "原文の改訂（統合担当が配送の commit で当てる。実装担当は触らない。どれも行の中の書き換えで行を足さない）: 古い字を持つ行を、生きた条文（契約の contract の欄と spec）と当時の記録（meta の decisionBranches・questionResolutions）に分け、生きた条文だけを新しい字に替える（P3-TERMINAL-RECOVERY-WORDING-001 の P3-TRW-AC02 と同じ線）。起草の機械の grep の候補（統合担当が条文か記録かと、同じ字の別の意味〔「最も重い音」は音の段の考えの名、「起動に失敗しました」は情報ディスプレイの返事にもある〕を見て当てる）: spec cli-terminal-output.md の :19・:742・:1005（U-B の呼び名「気象解説」と、VPOA50 が U-B なのに U-M を「竜巻と記録的短時間大雨など」と呼ぶ食い違い）、:646（「気象解説」が U-B か気象解説情報かを確かめる）、:117（T8）、:683・:720・:721・:722（T10〜T13）、:775・:778（T6）、:810〜:815（T2〜T4 の図）、:928（Q-TO8-BANNER）、:1063（C18）。契約の contract の欄: p3-terminal-layout7.json:290、p3-final-review-fix.json:253・:287、p3-terminal-external-text.json:183・:274、p4-terminal-external-text2.json:192・:256、p3-cli-repl.json:962・:983・:1003・:1164・:1191・:1236・:1246・:1340・:1408・:1641、p3-dmdata-no-contract.json:282、p3-terminal-recovery-wording.json:67・:133、p3-terminal-layout12.json:272・:320、p3-terminal-layout8.json:250・:328、p3-terminal-capacity-note.json:113・:235・:273・:281・:361、p3-terminal-output.json:526・:615、p3-terminal-windows.json:257、p3-repl-closed.json:175・:210・:260、p3-replay-watch-002.json:401、p3-diag-sink-retry.json:374。P4-UW-D-TAB=A のとき: p3-terminal-control-chars.json の P3-TCC-D-SUBSTITUTE を引く条文（:205）と p4-terminal-external-text2.json の outOfScope の 1 つ目（XML の欄の TAB）を「P4-USER-WORDS-001 で painter の組に足した」に閉じる。入力の番号の注記: p3-bulletin-text-api.json:344（P3-BT-AC03 の括弧書き）と p3-uf-public.json:72（Q-UFP-REVISION の reason の括弧書き、後から足した注記なので記録でも直す）を AC06 の意味に。ここで書き換える行を «» で引く他の契約の行も同じ commit で付け直す（AC07 (3) の (c)）。変えた契約の封を取り直す。計画 p4-order-plan.md の W0 の行と §3.2 の cli/ の行の同期は統合担当が計画の改訂で行う",
+    "evidenceRefs": [
+     "docs/specs/cli-terminal-output.md:19 «bb51a54914e92c59»",
+     "docs/specs/cli-terminal-output.md:646 «51d988e05cb9b27c»",
+     "docs/specs/cli-terminal-output.md:742 «cbae0d4e14cf6207»",
+     "docs/specs/cli-terminal-output.md:1005 «883881c77212c5a8»",
+     "docs/specs/cli-terminal-output.md:1063 «08df5c5d828bb620»",
+     "reconstruction/contracts/p3-bulletin-text-api.json:344 «ae956aa85bf8fde5»",
+     "reconstruction/contracts/p3-uf-public.json:72 «764476ae12acce25»",
+     "docs/specs/cli-terminal-output.md:117 «f2e622e280f02e3b»",
+     "docs/specs/cli-terminal-output.md:683 «405395260410fc28»",
+     "docs/specs/cli-terminal-output.md:775 «f16f012995b53ec2»",
+     "docs/specs/cli-terminal-output.md:928 «ec51375f740e790d»",
+     "reconstruction/contracts/p3-cli-repl.json:1236 «5999edebc2f15d38»"
+    ]
+   },
+   {
+    "id": "P4-UW-AC10",
+    "requirement": "監査の帳簿（計画 §2.1 の W0 の行の「監査の 1 件ずつに直した・残したの記録」）: 統合担当は配送の記録（questionResolutions の配送の項）に、Q-UW-LEDGER の行ごとに「直した（commit）・送った（契約 ID）・残した（分岐 ID）」を書き、作業ノートのバックログの「利用者に見える字を…一気に直す」「電文の XML の欄の TAB」「入力の番号の注記の字」の 3 項を完了か待ちに動かす",
+    "evidenceRefs": [
+     "reconstruction/contracts/p4-order-plan.md:145 «03c455cd02aa1977»"
+    ]
+   }
+  ],
+  "testMapping": [
+   {
+    "testId": "P4-UW-T01",
+    "purpose": "acceptance",
+    "referenceIds": [
+     "P4-UW-AC05"
+    ],
+    "behavior": "受入条件（AC05、P4-UW-D-TAB=A のときだけ）。新しい describe・it は足さず、eew.test.ts の P3-TCC-T01（:129〜:140）を行の中で広げる: :136 の mark の配列に \"\\t\"（生の TAB）と \"&#9;\"（文字参照）を足し、:138 の判定の正規表現の組に \\t を足し（/[\\t\\r\\u007f-\\u009f\\u2028\\u2029]/）、:131 の it の名前の字の並びに TAB を足す。37_01_01_240613_VXSE43.xml の行動の文の途中に mark を入れた報が、mark を半角の空白 1 字にした報と同じ行の並びになり、出力に TAB が無いこと。直す前の製品では TAB の 2 つの mark で落ちる（実装の最初に確かめる）。行を足さないので、この file の行を引く «» は動かない（:131・:136・:138 を引く契約は 0 件）"
+   },
+   {
+    "testId": "P4-UW-T02",
+    "purpose": "acceptance",
+    "referenceIds": [
+     "P4-UW-AC01",
+     "P4-UW-AC02",
+     "P4-UW-AC04",
+     "P4-UW-AC08"
+    ],
+    "behavior": "受入条件（AC01・AC02・AC04 の字）。新しい試験は足さず、AC08 の表の既存の期待を行の中で新しい字に替える。今のコード（7b45edd6）に当てると表の it が落ち、AC01・AC02・AC04 の src で通る。startup.test.ts の label の写像は AC02 の label が missing と classifications の両方に当たることを留める（照合は写像の前の名前で行うので、未契約の行の数は今と同じ 2 行）。足さない理由: 字の置き換えは既存の it が留めていて、新しい it は同じ振る舞いの言い換えになる。字を留める試験の無い行（T5〔AC03〕・C1・C4〜C7・C9〜C15・C17・C19〜C21、AC06 のコメント）は試験を足さない（字の literal の書き換えで分岐が無い）"
+   }
+  ],
+  "requiredCommands": [
+   {
+    "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+    "cwd": ".",
+    "target": "reconstruction/tsconfig.json",
+    "stage": "implementation",
+    "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest より先。AC02 の startup の型）"
+   },
+   {
+    "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+    "cwd": ".",
+    "target": "reconstruction/tsconfig.test.json",
+    "stage": "implementation",
+    "purpose": "test/ を含む型検査（startup.test.ts の label）"
+   },
+   {
+    "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+    "cwd": ".",
+    "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+    "stage": "implementation",
+    "purpose": "reconstruction の型検査の一式"
+   },
+   {
+    "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+    "cwd": ".",
+    "target": "reconstruction/test/",
+    "stage": "implementation",
+    "purpose": "全 reconstruction 試験。AC08 の表の外の期待は変えない"
+   },
+   {
+    "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/terminal reconstruction/test/cli reconstruction/test/host/host.test.ts",
+    "cwd": ".",
+    "target": "reconstruction/test/",
+    "stage": "implementation",
+    "purpose": "期待を替えた試験の file が順を変えても通ること（host.test.ts は module の範囲の cleanups と owner を共有する）。seed を成果物に書く"
+   },
+   {
+    "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+    "cwd": ".",
+    "target": "reconstruction/tools/corpus/manifest.json",
+    "stage": "contract",
+    "purpose": "fixture を変えない確かめ"
+   },
+   {
+    "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+    "cwd": ".",
+    "target": "reconstruction/tools/corpus/sequences.json",
+    "stage": "contract",
+    "purpose": "sequences.json を変えない確かめ"
+   },
+   {
+    "command": "node reconstruction/contracts/check-contract.mjs",
+    "cwd": ".",
+    "target": "reconstruction/contracts/*.json",
+    "stage": "contract",
+    "purpose": "全契約。実装の木では、書き換えた行の «» が合わなくなって次の契約が FAIL するのが想定どおり（checker は契約ごとに最初の 1 件だけを出す）: 本契約 P4-USER-WORDS-001 と p3-diag-exit-flush・p3-diag-sink-retry・p3-dmdata-no-contract・p3-e05y-controldt・p3-final-review-fix・p3-repl-closed・p3-replay-watch-002・p3-stop-save-wait・p3-terminal-external-text・p3-terminal-output・p3-terminal-oversize・p3-terminal-recovery-wording・p4-terminal-external-text2（13 契約、AC07 (3) の (a)(b)）。付け直しは統合担当。この一覧の外の FAIL は想定外として報告する"
+   },
+   {
+    "command": "git diff --check -- <allowed_paths>",
+    "cwd": ".",
+    "target": "allowedPaths",
+    "stage": "implementation",
+    "purpose": "空白の誤り"
+   }
+  ],
+  "artifactRequirements": [
+   "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+   "最初の作業: 発注前点検で決まった分岐の ruling（P4-UW-D-TAB・SESSION・BRIEFING-NAME・PRIOR-T8・PRIOR-T9・PRIOR-CONN・WORDS・REPLAY・COMMANDER・LABEL-PATH）を読み、AC の「A なら・B なら」の枝を 1 つに決めてから書く。分岐に「未」が残っていたら着手せず blocked で返す",
+   "最小実装・最小テスト: 足す仕組みは AC02 の startup の label の 1 欄だけ。試験は P4-UW-T01（TAB、acceptance、P3-TCC-T01 の行の中の書き換え）と、AC08 の既存の期待の書き換え（P4-UW-T02、acceptance）。新しい helper・fixture・file を足さない",
+   "行の数: AC07 (1) の file ごとに直した後の wc -l を書く。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない",
+   "既存の試験の期待は AC08 の表のとおりにだけ変える。表に無い期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める。試験は XDG_CONFIG_HOME・作者の設定に触れない（cli.test.ts は今の一時の置き場のまま）。外への通信はしない",
+   "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
+   "残存として成果物に書く: (1) 区分の日本語の名前（AC02）は startup.test.ts の写像で配線だけを留め、CLASSIFICATION_LABELS の実の字の起動画面は試験で見ていない（偽の dmdata では classifications が null で起動画面の区分の行が出ない） (2) 端末での見え方は字の並びから導いたもので、実端末では見ていない（作者の目視は fleq-eyes で渡せる） (3) 長くなった字の折り返しは試験で見ていない（T2 は 5 区分で約 110 桁と今の約 86 桁より長く 80 桁で折れる、T9・T10・T13・C16・C17・C18 は 56 桁で折れる） (4) T8 の字は N0 が直す desktop の通知の FAIL_BODY（監査 2-2、seismic-unit.ts・tsunami-unit.ts）と語を揃える相手になる"
+  ],
+  "unresolvedQuestions": []
+ }
+}
