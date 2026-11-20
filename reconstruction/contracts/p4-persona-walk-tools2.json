@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "31231cdebc92ef9a9f546a28100c7a068ae5eb78e360bc6a224257cd6ea2d62d",
+    "sha256": "109fe304a82effabbb040d67232dbb5c70a752fa5d758e0ec2163516d20d7d0b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -111,6 +111,13 @@
         "status": "closed",
         "source": "確かめ直し（~/dev/p4-w0x0-recheck.md の X0-002 の節、条件付き GO・P1 0・P2 2・P3 3）と起草 r3（2026-11-21）",
         "closed": "(1) X0-P2-1: R2 の版 5 で落とす点を code 20102 で名指す形にした（20102 を先頭に固定する形は ① の順に例外を作るので採らない）。T04 は版 4 に 20102 があり版 5 に無いことを見る (2) X0-P2-2: AC03 (5) に R2 用の県の表（帯 0〜2、全部〔推測〕）と、EEW・VXSE51・VXSE53 をその表で作る形を書いた。今の bandOf は南海の県の表を side で選ぶだけ（synth.ts の STRONG・MIDDLE・EAST_STRONG・WEST_STRONG）なので、Side に R2 の値を足す。D-R2-QUAKE の A の区域の字を替え、ruling に替えたことを書いた（作者の A の意味は変えない） (3) P3-X1: objective の古い字を直した。P3-X2: 足す報の時刻と数を N 系の本震に倣って決めた。P3-X3: T04 に (5) を見る 1 文を足した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT2-PRECHECK",
+        "status": "closed",
+        "source": "発注前点検（統合担当、2026-11-21 08:1x。draft/p4-x0 を main a6d89277 の上へ rebase した木 3ad06f8f）",
+        "closed": "(1) decisionBranches は 6 本とも確定（作者裁定 D-R2-QUAKE=A 2026-11-21 07:51、統合担当の決め 5 本）、「起草案」は 0 件、contract の unresolvedQuestions は 0 件 (2) base は main a6d89277（draftedFromOid 7b45edd6 の子、差は docs/specs/reconstruction-display-design.md の追加だけで本契約の触る file に当たらない）、rebase は衝突なし、git merge-base --is-ancestor main HEAD が真 (3) rebase した木の check-contract は rc 0（PASS 162、WARN は 002・003 の baseOid 未割当だけ） (4) 後の作者裁定で前提が変わったものは無い: 同じ日の N0 の作者裁定（FLOOD-DEFAULT=B ほか）は CLI の既定の門を変えるが、persona-scenes.test.ts:258 は notificationSettingsFrom({}) から製品の既定の門を作るので、N0 の配送で門が変わっても写しのずれは起きない (5) 起草レビュー r0（条件付き GO、P2 10）と確かめ直し（条件付き GO、P2 2・P3 3）の条件は 576511ae で全部当てた（統合担当が AC03 の版 5 の 20102 の名指しと R2 用の県の表〔推測〕の行を開いて確かめた）",
         "remaining": "なし"
       }
     ],
