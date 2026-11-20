@@ -1,0 +1,339 @@
+{
+  "meta": {
+    "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
+    "sha256": "4275ffacf9c606d2ec0144ff8169812523684ed90355d8089499cf432aa0baa2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-PWT3-D-PLACE",
+        "kind": "作者",
+        "question": "族『読まれない場面』: 演じ手が避難先に移ったと考えた後の場面を、どう読ませるか",
+        "scene": "3 回目の歩き（2026-11-18 夜）の R2 で、2 系統の演じ手はどちらも 14:50 に家を出たと考え、S3〜S8 の 6 場面の画面と通知を読まなかった。03:20 の大津波警報への拡大の通知（前の契約で 20 件に残るようにしたもの）も読んでいない。N1 の S4〜S8、N2 の S4〜S8 も同じ（資料『ペルソナ歩きの手法と結果』の 3 回目、帳簿 R2#1）",
+        "A": "2 場面目からの演じ手への文の頭に『この場面のあなたは、FlEq の画面と通知を見聞きできる所にいます（どう移動したかは問いません）。』の 1 文を足す（render.py の字。人物の説明 BRIEF と答えの 5 項目は変えない）",
+        "B": "足さない。演じ手が読まなかった場面は評価から外し、その場面の画面は歩きで確かめない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "blocks": "発注 4（render.py の字）",
+        "ifNotChosen": "B の場面: R2 の S6（03:20 の大津波警報への拡大）と N2 の S8（16:00 の 2 つ目の本震）を、どちらの演じ手も読まない。新しい画面の歩きで、後半の画面と通知から状況が読めるかを確かめられない",
+        "reason": "歩きで確かめたいのは、画面と通知から状況が読めるかで、演じ手がどこにいるかではない。A は人物の説明を変えず、場面ごとの前提の 1 文だけを足す。人物への文なので作者が字を確かめる（前の契約の AC07 (4) と同じ扱い）"
+      },
+      {
+        "id": "P4-PWT3-D-PAGE",
+        "kind": "作者",
+        "question": "新しい画面がページを送るとき、演じ手にどのページを渡すか",
+        "priorRuling": "計画の P4-PLAN-D-WALK-SCREEN の裁定 A の原文: 「新しい描画の関数を capture の時点で呼び、返った行を場面に持たせる。…同じ snapshot・scene・ページで、演じ手用の行と製品が出す行を照合する。評価者用の内部の事実は今の別の出力のまま」「演じ手は製品が出す行だけを見る。ページの外・要約・隠れた行を『製品が出す行』に混ぜない」（p4-order-plan.md:613、作者裁定 2026-11-19 20:4x）。本分岐は『ページの外』の読みを決める",
+        "scene": "新しいディスプレイは、カードと今日の地震の行をページで送る（計画 §5.3 の K、D-ROTATION）。14:05 の場面で、その瞬間のページだけを渡すか、ページ送りの 1 巡を渡すかで、演じ手が読める行が変わる",
+        "A": "場面の時刻から 1 巡分のページを、ページごとに分けて渡す（各ページに『n ページ目、m 秒』を添える）。どのページにも載らない行は渡さない",
+        "B": "場面の時刻にちょうど出ているページだけを渡す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "blocks": "発注 3（裁定は D-ROTATION の後でよい）",
+        "ifNotChosen": "B の場面: 14:05 に 2 ページ目（今日の地震）が出ていると、演じ手は 1 ページ目の EEW のカードを見ない。どのページが出ているかは場面の時刻の秒で決まり、同じ筋書きでも作り直すたびに答えが変わりうる",
+        "reason": "D-WALK-SCREEN=A の『ページの外を混ぜない』は、どのページにも載らない行を指すと読んだ。通知で画面に近づいた利用者は数十秒は見るので、1 巡を見るのが普通の見方と考えた"
+      },
+      {
+        "id": "P4-PWT3-D-MAP",
+        "kind": "作者",
+        "question": "新しい画面の地図の塗りと印を、演じ手に渡すか",
+        "scene": "新しいディスプレイは、地図の塗りと印で区域を示す（M0・E0 発注 2）。EEW のカードが左の列から隠れると、その区域は地図の塗りだけに残る（計画 §2.1 の E0 の箇条、D-EEW-MANY）。行だけを渡すと、演じ手はその塗りを知らない",
+        "A": "製品が塗りと印を決める関数の戻り（区域ごとの色の役目と印）を、区域の名前と役目の名前の一覧にして渡す（例『地図: 熊本県阿蘇 震度 6 強の色』）。場面の作り手の写しと注記する",
+        "B": "地図は渡さない（『地図は文字にしていません』と注記する）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "blocks": "発注 3",
+        "ifNotChosen": "B の場面: 4 件目の EEW のカードが左の列から隠れた後、その区域の塗りは画面に出ているのに、演じ手は何も知らない。評価者はそれを見落としと数え、道具の作り物が評価に混ざる",
+        "reason": "塗りと印は製品が決めた出力なので、関数の戻りを文にするのは『製品が出すもの』の写しに当たる。色の値でなく役目の名前で写すのは、配置・色・字の大きさを P5 の本物の画面の歩きで確かめるため（P3 の歩きと同じ）"
+      },
+      {
+        "id": "P4-PWT3-D-MATCH",
+        "kind": "統合担当",
+        "A": "発注 3 の配送で、統合担当（親）が新しい画面を headless Chrome で開き、決まった snapshot 数枚（EEW のカード 1〜7 件・今日の地震・容量超過・training の行を含む）の DOM の字の行を取り、同じ snapshot・時刻・ページで行の関数が返す行と突き合わせる。子は記録に対して確かめる",
+        "B": "vitest の中で行の関数の戻りを確かめるだけにする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が本契約の発注前点検で確定する）",
+        "reason": "演じ手の行は行の関数から取るので、関数の戻りどうしを比べれば必ず一致する。D-WALK-SCREEN=A の『製品が出す行と照合する』は、DOM がその関数の行だけを描いていることを確かめて意味を持つ。ブラウザの実走は親が担う（CLAUDE.md、子の sandbox は listen できない）"
+      },
+      {
+        "id": "P4-PWT3-D-FG-WALK",
+        "kind": "統合担当",
+        "A": "発注 4 の歩きの 1 巡を、FG の即断候補 F の 1 巡に兼ねる。FG の木で T09 の場面を作り直し、演じ手の file が発注 4 の場面と同じ byte なら記録を使い回し、違えば FG で歩き直す",
+        "B": "X0 と FG で 2 回歩く",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が本契約の発注前点検で確定する。FG の起草と合わせる）",
+        "reason": "2 回の歩きは同じ道具・同じ合否（ずれの 1 件ずつに行き先）。場面の file の一致は LLM を呼ばずに機械で確かめられる。計画は X0 の歩きの検収（§3.1 の Wave 7）と FG の F（§5.3）を別に書いていて、2 回回すかを決めていない"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-PWT3-DRAFT-R0",
+        "status": "closed",
+        "source": "起草 r0（P4-PERSONA-WALK-TOOLS-002 の r0 から、統合担当の決め P4-PWT2-D-ORDER=A〔2026-11-21〕で割った）",
+        "closed": "(1) 本契約に置いたもの: 発注 3（場面の行を取る仕組み、AC01・T01）、発注 4（歩きの検収、AC02）、配送（AC03）、分岐 D-PLACE・D-PAGE・D-MAP・D-MATCH・D-FG-WALK、問い Q-PWT3-ROWS-FN・Q-PWT3-B0-TOOLS。帳簿の行き先 E のうち W1-06-03#4（AC01 (4)）と R2#1（AC02 (2)）、検収で足した族 2 つ（AC02 (2)(3)）。残りの 19 件は 002 (2) 計画の読み: X0 の行（p4-order-plan.md:146）、§3.1 の Wave 5（場面の行を取る仕組みは E0 発注 1・C0 発注 1 の後に先行してよい）と Wave 7（歩きの検収は T0・C1・C2 の後）、§5.1 の D-WALK-SCREEN=A（:613）、§5.3 の F（:727）、§8 の X0 の行（:946）。計画 §3.2 に道具の file の所有と、P4 の中の AC09 の取り直しの持ち主が無いので、前者は Q-PWT3-B0-TOOLS、後者は AC02 (4) に置いた (3) 変える file の行を引く他の契約の ref（«» つき）: runner.ts は 19（最大 :592、発注 3 は :640 より後ろだけなので 0 件）、persona-scenes.test.ts は p3-pi-measure-blocked-test.json の :397 が 1、前の契約は runner.ts 12・persona-scenes.test.ts 18。p3-final-gate.json:150 と p4-persona-walk-tools.json の P4-PWT-T05 の行を引く他の契約は 0 件",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT3-REVIEW-R1",
+        "status": "closed",
+        "source": "r1 のレビュー（~/dev/p4-x0-review-r0.md、003 条件付き GO・P1 0・P2 2・P3 5）と起草 r2",
+        "closed": "(1) X3-1: P4-PWT-T05 の 1 つ目の期待を評価者の fullScreen から読む形に替え、外すのは演じ手の画面の 3 欄の期待だけにした（AC01 (4)・AC03 (2)） (2) X3-2: AC02 (6) に起こす前の確かめ（ページ分けと地図の行）、Q-PWT3-ROWS-FN に M0・E0 発注 2・C0 発注 2 の行と地図も関数を通る証拠を足した (3) P3: :630 から（X3-P3a）、合流の順の字（X3-P3c）、D-PAGE に裁定の原文（X3-P3d）、capture と actorFile の字の違いの 1 行（X3-P3e）。X3-P3b（計画 :146 の改訂）は統合担当がまとめて行うので本契約に入れない (4) 002 の直さない訳を評価者に渡す行を AC02 (6) に足した（002 の AC02 (1)・AC03 (2) の訳と対）",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。本契約は検証の道具（reconstruction/test の下）と repo の外の演じ手への文だけを直し、受信・判定・通知・保存・描画の製品の挙動を変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P4-PERSONA-WALK-TOOLS-003",
+    "mode": "implementation",
+    "objective": "新築 P4 の脇の契約 X0 のうち、演じ手の画面を新しいディスプレイの描画の関数が返す行に替え（P4-PLAN-D-WALK-SCREEN=A、作者裁定 2026-11-19 20:4x）、新しい画面の上で歩きを 1 巡して検収する部分。前の契約 P4-PERSONA-WALK-TOOLS-001 の 3 回目の歩きの『道具』のうち W1-06-03#4（画面の写しの切り）と R2#1、統合担当が検収で足した族 2 つ（読まれない場面・人物の外の行）も持つ。新しい画面に依らない 19 件は P4-PERSONA-WALK-TOOLS-002。場面（2026-11-18 の発注 2 の実装レビュー）: 演じ手は製品の画面に出ない training・test の行と確認の欄を見て、製品が描く容量超過の行を見なかった。条件を写して揃えると 2 巡続けて別の行が欠けた（ヘルツ thread 01a1ed15 の r1・r2）。発注は 2 つ: 発注 3 は場面の行を取る仕組みで、S0・E0 発注 1・C0 発注 1 の配送の後。発注 4 は統合担当の歩きの検収で、T0・C1・C2 の配送と 002 の配送の後。製品のコード（reconstruction/src）は変えない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは各 AC に『無いと何が壊れるか』を書き、テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-persona-walk-tools3.json",
+      "reconstruction/contracts/p4-persona-walk-tools2.json",
+      "reconstruction/contracts/p4-persona-walk-tools.json",
+      "reconstruction/contracts/p4-order-plan.md",
+      "reconstruction/contracts/p3-final-gate.json",
+      "reconstruction/contracts/p2-snapshot-sse.types.ts",
+      "reconstruction/test/final-gate/persona-scenes.test.ts",
+      "reconstruction/test/disaster/runner.ts",
+      "reconstruction/src/display/chrome-eew/pure.ts",
+      "reconstruction/src/display/chrome-eew/client.ts",
+      "S0・E0・C0 の契約と、S0 が作る新しい描画の directory（名前は S0 で固定、計画 §3.2）"
+    ],
+    "allowedPaths": [
+      "発注 3: reconstruction/test/disaster/runner.ts（AC01 の分だけ: SceneCapture の型・SceneLog.capture と、screenOf とそれだけが使う定義の削除）、reconstruction/test/final-gate/persona-scenes.test.ts（AC01。actorScreen の置き換え、3b3 の (i)〜(iii) の削除、P4-PWT-T05 の 3 欄の期待の削除、末尾に describe「P4-PERSONA-WALK-TOOLS-002 order 3（P4-PERSONA-WALK-TOOLS-003）」）",
+      "発注 4: 統合担当だけ（repo の外の ~/dev/fleq-vault-archive/<日付>-walk4/ と、AC03 の原文の改訂）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-persona-walk-tools3.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P4-PERSONA-WALK-TOOLS-002",
+      "P4-PERSONA-WALK-TOOLS-001",
+      "P3-FINAL-GATE-001",
+      "P3-DISASTER-CAPACITY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
+    ],
+    "publicFunctions": [
+      "使う口（変えない）: runStage1・factsOf（runner.ts）、readScenario（scenario.ts）、S0 が export する行の関数（Q-PWT3-ROWS-FN、名前は S0 で固定）",
+      "変える口: 発注 3 で runner.ts の SceneCapture に snapshot（その時刻の DisplaySnapshot 全体か null）を足し、screen を外す。screenOf を末尾の export の一覧から外す。reconstruction/src の export・型・関数は足さない・変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__77_01_03_240613_VXSE45",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__77_01_33_240613_VXSE45",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM",
+      "test__fixtures__32-39_12_02_250206_VTSE41"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（製品の保存を変えない）"
+    ],
+    "nonPersistedFields": [
+      "なし（場面の file と index.json は repo の外の書き出し）"
+    ],
+    "outOfScope": [
+      "製品のコード（reconstruction/src）の変更。行の関数が製品の画面と違う行を返して見えても X0 では直さず、その描画の契約（S0・E0・C0・T0・C1・C2）へ報告する",
+      "帳簿の行き先 A・B・C・D・F・G の 50 件（製品の処理・作者の受け入れ・契約どおり・入力どおり・既にバックログ・P4 の新規）。U-Q の通知の『M不明』、洪水予報の既定、通知の量は P4 の製品の契約（N0 ほか）",
+      "AC09 の容量の結果の合否: 発注 4 の取り直しで pass の 3 欄が 0 でなければ止めて報告し、本契約では直さない。歩かない筋書き（W2・N3）と R1 の取り直し",
+      "端末の出力の歩き（CLI のロールプレイ）: 計画 §6.4 のとおり P4 の契約に入れない",
+      "配置・色・字の大きさ・視線の動き: P5 の本物の画面の歩き直し（p3plan:596）",
+      "dmdata からの新しい取得",
+      "新しい画面に依らない道具の直し（通知の選び方・試行 2 の data・合成の報）: P4-PERSONA-WALK-TOOLS-002"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-PWT3-AC01",
+        "requirement": "【発注 3】演じ手の画面を新しい描画の行に替える（P4-PLAN-D-WALK-SCREEN=A）。着手条件: S0 の配送で行の関数が export されている（Q-PWT3-ROWS-FN）、E0 発注 1・C0 発注 1 の配送、D-PAGE・D-MAP の裁定: (1) runner.ts の SceneLog.capture は、その時刻の snapshot 全体を SceneCapture に渡す（場面の口だけ。formal の run の本体を変えない） (2) persona-scenes.test.ts の actorFile は、screen の代わりに、行の関数を snapshot・場面の時刻・ページ（D-PAGE）で呼んで返った行を渡す。地図は D-MAP。どのページにも載らない行・要約で畳まれた行・隠れた行は渡さない。返った行を写すだけで、組み直しや表示の条件の写しはしない（条件を写して揃えると 2 巡続けて別の行が欠けた、ヘルツ thread 01a1ed15 の r1・r2）。発注 3 の時点で行の関数が描かない分野（津波・C1 の分野・C2 の状態）は、関数が返すままにする（場面の口で補わない） (3) 評価者の file は今の fullScreen と facts のまま (4) 引く: runner.ts の screenOf と、それだけが使う定義（screenValue・SCREEN_LIMITS・ORDER ほか）、persona-scenes.test.ts の actorScreen と 3b3 の (i)〜(iii)（screenOf を確かめる試験）。P4-PWT-T05 は、1 つ目の期待（起動の確認が製品どおりに外れる、今は演じ手の画面の current の delivery・items を読む）を評価者の fullScreen（fullScreen.current の各分野の items の同じ 3 欄）から読む形に替え、外すのは演じ手の画面に 3 欄が写る期待だけにする（既存の試験の期待を変える理由: D-WALK-SCREEN=A で演じ手の画面が snapshot の写しでなくなる）。帳簿 W1-06-03#4（洪水の水位を ORDER の無い古い側 5 件で切る）はこの削除で消える (5) 照合（D-MATCH=A）は配送で統合担当が行う。裁定 A の字は『描画の関数を capture の時点で呼ぶ』（p4-order-plan.md:613）で、本契約は capture で snapshot を持たせ actorFile で関数を呼ぶ。同じ snapshot・同じ時刻で呼ぶので返る行は同じ。無いと: 演じ手は製品が見せない training・test の行と確認の欄を見て、製品が描く容量超過の行を見ない（バックログ『ペルソナ歩きの演じ手の画面を、製品の描画に揃える』、chrome-eew は client.ts で要約・容量超過・確認状態の行を絞って描く）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-order-plan.md:613 «20fc32e9278e539a»",
+          "reconstruction/contracts/p4-order-plan.md:195 «71bfa9c95ace266d»",
+          "reconstruction/test/disaster/runner.ts:810 «abc2216e2d0eaee3»",
+          "reconstruction/test/disaster/runner.ts:729 «7f3e4a2f71a09085»",
+          "reconstruction/test/disaster/runner.ts:680 «e172a8b969f21df8»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:313 «a9c3b751af23fa0c»",
+          "reconstruction/src/display/chrome-eew/client.ts:99 «1369dc56229ccbdd»",
+          "reconstruction/src/display/chrome-eew/client.ts:149 «7b0bdcb63b7e2604»",
+          "reconstruction/src/display/chrome-eew/client.ts:155 «7526900a5990a6d8»",
+          "reconstruction/contracts/p3-final-gate.json:150 «2643b7929c5ca422»",
+          "reconstruction/contracts/p4-persona-walk-tools.json:319 «c313f376f5164a59»"
+        ]
+      },
+      {
+        "id": "P4-PWT3-AC02",
+        "requirement": "【発注 4、統合担当】歩きの検収（T0・C1・C2 の配送の後、計画 §8 の X0 の行）: (1) 道具の置き場: walk3 を写した新しい dir（~/dev/fleq-vault-archive/<日付>-walk4/）に置き、render.py（今は scenes3 を固定で読む）・extract.py・評価の依頼文の読む先と書く先を walk4 に改める。起こす前に walk4 の道具を grep して walk3・scenes3 の残りが 0 件であることを確かめる（3 回目は評価の依頼文が 2 回目の file を上書きする形だった、前の契約の Q-PWT-AC10-WALK3 (2)） (2) render.py の改訂（P4-PERSONA-WALK-TOOLS-002 の AC01 の data の側を読む字）: 族 S（COMMON の『FlEq の通知（デスクトップ通知と音）』を desktop と音を分けた字にし、desktop の行に『音: 名前』か『音なし』を書く）、族 注記（『このほかに通知が n 件あります（hh:mm〜hh:mm。段の軽いものと古いものを省きました）。省いた通知の題名ごとの件数』、時刻の幅は omittedFrom・omittedTo、件数は omittedCounts）、族 読まれない場面（D-PLACE=A の 1 文、帳簿 R2#1）、画面の欄は JSON でなく発注 3 の行（D-PAGE のページごと、D-MAP の地図）で出す (3) 人物の外の行（N1 の Claude の答え 8 本の末尾の『飛ばしたこと：』）: 演じ手の子を起こす前に出どころ（子に入る文か、依頼文か）を確かめて起こし方で止める。止められなければ extract.py で答えの 5 項目の後の行を落とす。評価の依頼文には 2 系統の読み飛ばしの扱いを書く (4) AC09 の取り直し: 歩きの木で、歩く 6 筋書き（W1 の 3 日・N1・N2・R2）を P3-FG-AC09 と同じ formal の道具で Mac mini で回す（P4 の間に src が変わるので P3-FG-T09 (2) の無差分のため）。pass の 3 欄が全部 0 でなければ止めて報告する (5) 同じ木で T09 の門つきの it を 6 筋書きと試行 2 の 3 つに回し、blocked 0 (6) 1 巡: 演じ手は 2 系統（Claude の Opus の子・ヘルツ）で 1 場面ずつ、評価者は筋書きごとに 1 体、帳簿は 1 件 1 行で空の行が 0 になるまで閉じない。起こす前に規模（演じ手 18 系列・評価者 9 体）を作者に伝えて承認を待つ。起こす前の確かめ: 演じ手の file に D-PAGE のページ分けと D-MAP の地図の行がある（ページ送りは C0 発注 2、地図の塗りと印は E0 発注 2・M0 が埋めるので、発注 3 の時点では無くてよいが、発注 4 では要る）。評価の依頼文には、002 で直さない訳を付けた作り物の一覧（T2-saori の公開サンプルの束ね、族 M、生成の観測点名、N2#5、R2#9 の ⑥）を訳と一緒に渡し、同じずれは訳の付いた行き先で受ける (7) 合格: 評価者の行き先『道具』が 0 件か、全部に理由（直せない訳か、次の歩きの契約へ送る訳）が付く。具体の確かめ: N2 の S8 に 16:00 の 2 つ目の本震の通知が残る（族 T）、W1 の desktop の行に音の有無が書かれる（族 S）、注記の内訳の合計が省いた数に一致する（族 注記）、演じ手の画面に training の行が無く容量超過の行がある（D-WALK-SCREEN）、R2 の S1 に地震の報がある（D-R2-QUAKE=A のとき） (8) D-FG-WALK=A のとき、FG の木で場面を作り直して演じ手の file を byte で比べ、同じなら FG の F の 1 巡に記録を使い回す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-order-plan.md:146 «6e0a1756c010f569»",
+          "reconstruction/contracts/p4-order-plan.md:197 «ffc2ffedf6957846»",
+          "reconstruction/contracts/p4-order-plan.md:727 «b9e5df326cbf2a11»",
+          "reconstruction/contracts/p4-order-plan.md:946 «2e3146c9c8bf203c»",
+          "reconstruction/contracts/p4-persona-walk-tools.json:216 «d28d70ef73d6eaa7»"
+        ]
+      },
+      {
+        "id": "P4-PWT3-AC03",
+        "requirement": "配送（統合担当）: (1) «» の付け直し（実装担当は触らない）: 発注 3 は runner.ts の :630 より後ろ（引く定義の SceneScreen :630・ScreenInput :637 を含む）だけを変え、他の契約の ref の最大は :592 なので 0 件。前の契約の runner.ts と persona-scenes.test.ts の ref（:748・:771・:812 ほか）と、persona-scenes.test.ts:397（p3-pi-measure-blocked-test.json、actorScreen の置き換えと 3b3 の削除でずれる）は付け直す。本契約の evidenceRefs も配送の木で取り直す。行がずれただけなら reanchor-target.py、字が変わったら中身を読んでから付け直し、改めた契約の meta.sha256 を取り直す (2) 原文の改訂（行の中の書き換え、行を足さない）: 発注 3 で p3-final-gate.json の P3-FG-D-SCENE-TEXT（:150 の行の中）の末尾に『【P4-PERSONA-WALK-TOOLS-003 の注記: 演じ手の画面は新しい描画の行〔P4-PLAN-D-WALK-SCREEN=A〕。snapshot の決まった欄の写しは評価者の file だけに残る。3b3 の試験 (i)〜(iii) は screenOf と一緒に引いた】』（3b3 の試験は testMapping に無く Q-FG-ORDER3-DELIVERY に記録がある）と、p4-persona-walk-tools.json の P4-PWT-T05 の behavior の末尾に、1 つ目の期待を評価者の fullScreen から読む形に替え、演じ手の画面の 3 欄の期待を外した注記 (3) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p3-final-gate.json:150 «2643b7929c5ca422»",
+          "reconstruction/contracts/p4-persona-walk-tools.json:507 «3364a3e5ff509c02»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-PWT3-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-PWT3-AC01"
+        ],
+        "behavior": "【発注 3】実不具合（バックログ『ペルソナ歩きの演じ手の画面を、製品の描画に揃える』）。training・test の要約の行と容量超過の要約を持つ小さい snapshot で、演じ手の file の画面が行の関数の戻りと同じで、容量超過の行があり、training・test の行が無い。評価者の file には fullScreen が残る。歯: 演じ手の画面を snapshot の写しに戻すと落ちる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式（発注 3 の時点で S0 が足した build があれば、発注前点検で足す）"
+      },
+      {
+        "command": "XDG_CONFIG_HOME=<一時 dir> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T09 は門つきで skip）。既存の試験の期待は変えない（変える必要があれば変える前に理由を報告する。AC01 (4) の P4-PWT-T05 と 3b3 の (i)〜(iii) は契約で決めた変更）"
+      },
+      {
+        "command": "XDG_CONFIG_HOME=<一時 dir> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/final-gate/persona-scenes.test.ts reconstruction/test/disaster/disaster.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/final-gate/ と reconstruction/test/disaster/",
+        "stage": "implementation",
+        "purpose": "順の依存が無いこと。seed を成果物に書く"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の木では AC03 (1) に並べた ref の FAIL だけが想定（付け直しは統合担当）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      },
+      {
+        "command": "FLEQ_DISASTER=1 FLEQ_DISASTER_SCENARIO=<W1:2026-06-03・W1:2026-06-26・W1:2026-09-21・N1・N2・R2 の 1 つ> FLEQ_DISASTER_DATA=$HOME/dev/fleq-corpus-p0/20260923-capacity FLEQ_DISASTER_DIGEST=<歩きの木の digest> FLEQ_DISASTER_OUT=<結果の file> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts reconstruction/test/disaster/disaster.test.ts -t formal",
+        "cwd": ".",
+        "target": "AC09 の 6 回（発注 4、Mac mini）",
+        "stage": "contract",
+        "purpose": "統合担当だけが回す（AC02 (4)）。実装担当は回さない"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果（AC09 の 6 回を除く）、未実行の検証と理由、残存リスク",
+      "発注ごとの最初の作業: その発注の試験だけを足した木で回し、直す前の道具で落ちることを確かめてから直す。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
+      "最小実装・最小テスト: 各 AC の『無いと』が足す仕組みの理由。試験は発注 3 の T01（regression）。新しい fixture・helper の file を足さない。発注 3 は足す前に引く（AC01 (4)）",
+      "reconstruction/src を変えない。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない。近道は shortcut: の形のコメント",
+      "試験を回すときは XDG_CONFIG_HOME を一時 dir に向ける（作者の本物の設定に書かない）。LLM（演じ手・評価者）は呼ばない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-PWT3-ROWS-FN",
+        "owner": "integrator",
+        "blocks": [
+          "発注 3",
+          "発注 4"
+        ],
+        "resolveBy": "S0 の起草の発注前点検（S0 の契約に、行の関数の export と、DOM の層がその関数の行だけを描く決まりを入れるか）",
+        "requiredEvidence": [
+          "S0 の契約の publicFunctions に、snapshot・時刻・ページから描く行（と地図の塗りの役目と印）を返す純粋な関数があり、vitest から import できる（DOM・EventSource に依らない。chrome-eew の pure.ts と client.ts の分け方と同じ）",
+          "E0 発注 1・C0 発注 1 のカードの行が、その関数を通って返る",
+          "M0・E0 発注 2・C0 発注 2 が埋める行（ページ送り）と地図の塗りと印も、同じ関数を通って返る（発注 4 の起こす前の確かめ、AC02 (6)）",
+          "無ければ: 発注 3 は依存（jsdom など）を足すか headless Chrome の DOM を読む形になり、src を変えない条件のまま組めるかを本契約で作り直す"
+        ]
+      },
+      {
+        "id": "Q-PWT3-B0-TOOLS",
+        "owner": "integrator",
+        "blocks": [
+          "発注 3"
+        ],
+        "resolveBy": "B0 の起草",
+        "requiredEvidence": [
+          "B0 が DisplaySnapshot の full.view を表示語彙に替えたとき、runner.ts（screenOf・factsOf・capture）と persona-scenes.test.ts の型の追従を B0 が持つか（計画 §3.2 に道具の file の行が無い）",
+          "発注 1（P4-PERSONA-WALK-TOOLS-002）は待たない。並べて走らせるときの persona-scenes.test.ts の合流の順は、統合担当が B0 と本契約の発注前点検で決める"
+        ]
+      }
+    ]
+  }
+}

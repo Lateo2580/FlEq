@@ -1,0 +1,375 @@
+{
+  "meta": {
+    "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
+    "sha256": "15c11b3c1de01427ecfb9888b15eb9000f258f86879831a8e7492b5275c1c9c1",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-PWT2-D-R2-QUAKE",
+        "kind": "作者",
+        "question": "R2（2011-03-11 の津波の再現）に、本震の地震と EEW の報を足すか",
+        "priorRuling": "「Q1=A: 合成の報の文面を synth.ts の既定のまま直す（件数と時刻は変えない）。AC09 の 8 回を Mac mini で取り直す（統合担当が配送で回す）。歩きのときだけ働く切り替えは足さない。」（p4-persona-walk-tools.json:131 の Q-PWT-RULINGS の closed、作者裁定 2026-11-18 12:34）。「(R2、1 run) 2011-03-11 14:46の地震の津波。VTSE41は14:49・15:00・15:12が気象庁サンプル（32-39_11_02・09・11。…）、15:30（北海道太平洋沿岸と伊豆諸島を大津波警報へ）・3/12 03:20（全予報区）・3/12 20:20と3/13 07:30（引き下げ）・3/13 17:58（全解除）が合成。VTSE51は14:50・15:01がサンプル…以後3/12 12:00まで20分ごとに合成…VTSE52は14:50・14:55がサンプル（61_11_01・02）で、以後3/11 20:00まで20分ごとに合成」（p3-disaster-capacity.json:57 の P3-DC-SCENARIOS の rule。地震と EEW の報は無い）。前例: P4-PWT-D-M7-RELEASE=A（p4-persona-walk-tools.json:97・:101、作者裁定 2026-11-18 13:15）が「Q1=A の『件数は変えない』をこの 1 か所だけ改める」形で解除の VTSE41 を足した",
+        "scene": "R2 の S1 で、沙織（EEW の警報・予報と地震・津波を契約）の画面と通知に、地震の報も EEW も 1 つも無かった。演じ手は震源も揺れの大きさも分からないと答えた（帳簿 R2#2）。合成の r2 は VTSE41・VTSE51・VTSE52 だけで組む（synth.ts の r2、P3-DC-SCENARIOS の R2 の決まり）",
+        "A": "R2 に、本震（2011-03-11 14:46）の EEW（VXSE45、警報の区域を含む報。N 系の本震の EEW と同じ eewBody で作る）・震度速報（VXSE51）・震源・震度に関する情報（VXSE53）を公開の型から数通足す。VXSE43 は足さない（沙織の契約は予報も受けるので、演じ手の流し方〔persona-scenes.test.ts の contracted〕と製品の host が VXSE43 を捨てる。VXSE43 で足すと S1 の EEW は 0 件のまま）。震源と規模は R2 の VTSE41 の型 32-39_11_11 の Earthquake（三陸沖、Ｍ８．９）に揃え、EEW の予測の区域は N 系の本震の EEW と同じ作り方で 2011 の震源から決める（実装担当が区域の一覧を成果物に書く）。R2 の小さい版 R2S（P3-DC-T02 の解除の 1 通、synth.ts の r2 の small）には足さない。前の契約の Q1=A の『件数は変えない』と P3-DC-SCENARIOS の R2 の決まりを、この点だけ改める。AC09 の R2 は 003 の発注 4 の取り直しで新しい列で測り、前の契約の P4-PWT-T06 の (atMs, headType) の hash の定数を取り直す",
+        "B": "足さない。帳簿 R2#2 の行き先は『直せない訳: R2 は津波の報だけの筋書き（P3-DC-SCENARIOS）』にする",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "blocks": "P4-PERSONA-WALK-TOOLS-002 の baseOid の割り当て（発注 2 の AC03 (5)）",
+        "ifNotChosen": "B の場面: R2 の S1 で、演じ手は『何が起きたか分からない』と答え続け、評価者はそれを毎回道具の作り物と数える。3 回目と同じずれが次の歩きにも出る",
+        "reason": "沙織の契約の区分の報が筋書きに無いのは、製品の欠けでなく合成の作り物。AC09 の R2 は 89 frame の小さい筋書きで、数通は器にほぼ効かない（P3-DC-SYNTH の『器は件数と文字列の長さで決まる』）。ただし作者裁定 Q1=A の字を改めるので作者へ"
+      },
+      {
+        "id": "P4-PWT2-D-AFTERSHOCK-COUNT",
+        "kind": "統合担当",
+        "question": "族 Q のうち、余震の EEW の始まりと件数（帳簿 N2#5）を変えるか",
+        "priorRuling": "「Q1=A: 合成の報の文面を synth.ts の既定のまま直す（件数と時刻は変えない）。AC09 の 8 回を Mac mini で取り直す（統合担当が配送で回す）。歩きのときだけ働く切り替えは足さない。」（p4-persona-walk-tools.json:131 の Q-PWT-RULINGS の closed、作者裁定 2026-11-18 12:34）。B はこの字の『件数と時刻は変えない』を改める。A は改めない",
+        "scene": "N2 で、本震の 3 秒後から余震の EEW が出て、同じ文面が約 800 件続いた（synth.ts の aftershocks の大森の式の c=0.05 時間と、aftershockEew）",
+        "A": "件数と時刻は変えない（前の契約の Q1=A のまま）。文面の型を増やし、同じ地震の規模を揃える所（AC03 (3)）だけ直す。N2#5 の行き先は『直せない訳: 作者裁定 Q1=A と AC09 の器の筋書き』",
+        "B": "余震の EEW の始まりと件数を改める（大森の式の c と、EEW を出す余震の規模の下限）。Q1=A と P3-DC-SYNTH を改める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21。作者に聞かない）",
+        "blocks": "なし（確定）",
+        "ifNotChosen": "B の場面: AC09 の N1・N2・N3 の負荷（frame 数）が変わり、P3 の AC09 の結果と並べて読めなくなる。B1 の容量の設計が N 系の数を使うなら、その数も取り直す",
+        "reason": "800 件の『同じ文面』は型を増やせば減る（N1#6）。件数そのものは通知の量として P4 の製品の側へ送ってある（資料の確定した行き先『通知の量』）。器の筋書きの負荷を、歩きの都合で変えない。A は作者裁定 Q1=A の字のままで、作者の裁定を改めない。改めない決めは統合担当が閉じられる（r0 のレビュー X2-P3c、統合担当の決め 2026-11-21）。B を出すのは作者の裁定を改めるときだけで、今は出さない",
+        "ruling": "A（統合担当の決め、2026-11-21）"
+      },
+      {
+        "id": "P4-PWT2-D-ORDER",
+        "kind": "統合担当",
+        "A": "契約を 2 本に割る。P4-PERSONA-WALK-TOOLS-002（本契約）は新しい画面に依らない発注 1（persona-scenes.test.ts）と発注 2（synth.ts）。P4-PERSONA-WALK-TOOLS-003 は場面の行を取る仕組み（発注 3）と歩きの検収（発注 4）。分岐と問いは効く発注の契約に置く",
+        "B": "1 本のまま、発注前点検をその発注を blocks に持つ分岐だけに絞って読む",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21。baseOid の前に起草案 0 件の決まりを読み替えない）",
+        "ruling": "A（統合担当の決め、2026-11-21）",
+        "reason": "003 の D-PAGE は D-ROTATION の裁定まで起草案で残るので、1 本のままだと発注 1・2 の baseOid を割り当てられない。本契約の baseOid は、本契約の分岐（作者 1〔D-R2-QUAKE〕・統合担当 3〔TITLE-FIRST・SOUND-PAIR・OMITTED〕）が確定した後（発注を割った baseOid にはしない。baseOid の前に起草案 0 件の決まりを保つ、統合担当の決め 2026-11-21。D-AFTERSHOCK-COUNT は統合担当の決めで閉じた）に割り当てる。発注 1 と 2 の配送の間に歩きを回さない。AC09 の取り直しは、P4 の間に reconstruction/src が変わるので 003 の発注 4 の 1 回（P3-FG-T09 (2) は AC09 の gitHead から src と test/disaster の無差分を見る）"
+      },
+      {
+        "id": "P4-PWT2-D-TITLE-FIRST",
+        "kind": "統合担当",
+        "A": "20 件を選ぶとき、まず題名（notificationCounts の鍵）と段の組ごとに新しい 1 件を、段の重い順・新しい順に採り、残りの枠を今の規則（段の重い順、同じ段は新しい順）で埋め、時刻の順に戻す",
+        "B": "EEW の最終報・津波の報・解除を、件数の上限から外す（評価者の案、N1.md の 7 番）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が本契約の発注前点検で確定する）",
+        "reason": "B は外す種類を名指しで増やすので、次の筋書きでは別の種類が押し出される。A は題名と段の組を先に 1 件ずつ残す。段も鍵に入れるのは、EEW の最終報が続報と同じ題名『緊急地震速報（予報）』で段だけが軽い（normal）ため。3 回目の場面の評価者の file に当てて確かめた（Q-PWT2-DRAFT-R0 (6)）: N2 の S8 に 16:00 の EEW（警報）・大津波警報・震度速報が残り、N1 の S2 に最終報が 1 件残り、R2 の S6 の 03:20 の大津波警報も残る。前の契約の P4-PWT-T02（同じ題名の normal 24 件）の期待は変わらない"
+      },
+      {
+        "id": "P4-PWT2-D-SOUND-PAIR",
+        "kind": "統合担当",
+        "A": "persona-scenes.test.ts で、同じ時刻・unit・subject の desktop と音の試行を 1 行にまとめ、行に sound（資材の名前か null）を持たせる。音だけの試行は今の音の行のまま。段は 2 つの重い方。render.py は desktop の行に『音: 名前』か『音なし』を書く（AC05 (2)）",
+        "B": "render.py の字だけで直す（同じ時刻に音の行が無ければ『音なし』と書く）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が本契約の発注前点検で確定する）",
+        "reason": "B は、20 件の切りで音の行だけが落ちたとき、鳴った通知に『音なし』と書く。A はまとめてから切るので起きない"
+      },
+      {
+        "id": "P4-PWT2-D-OMITTED",
+        "kind": "統合担当",
+        "A": "notificationCounts（全部の数）は今のまま残し、省いた行だけの題名ごとの数 omittedCounts と、省いた行の最初と最後の時刻（omittedFrom・omittedTo、JST）を足す。render.py は omittedCounts を出す。前の契約の P4-PWT-T02 の期待は変わらない",
+        "B": "数は全部のまま、render.py の字を『全体の題名ごとの件数（残した 20 件を含む）』に替える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が本契約の発注前点検で確定する）",
+        "reason": "演じ手が知りたいのは自分に見えていない分。B は『このほかに 126 件』と合計 146 の 2 つの数を読み比べさせる（帳簿 R2#8）。全部の数を置き換えると、配送済みの P4-PWT-T02 の期待（題名ごとの件数 {critical 1, cancel 1, normal 24}）が変わるので、欄を足す形にした"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-PWT2-DRAFT-R0",
+        "status": "closed",
+        "source": "起草 r0（2026-11-21、worktree ~/dev/fleq-p4-x0、branch draft/p4-x0、HEAD 7b45edd6）",
+        "closed": "(1) 帳簿の突き合わせ: walk3/ledger.md の行き先 E の 21 行を、ID で AC に 1 対 1 で当てた。AC01: N1#7・N2#9（族 T）、W1-06-03#1・W1-06-26#1・W1-09-21#2（族 S の data の側。字は 003 の AC02 (2)）、R2#8・W1-06-03#7（族 注記の data の側。字は 003 の AC02 (2)）。AC02: T2-saori#5・T2-saori#10・T2-yu#6。AC03: N1#5、N1#6・N2#6（族 Q の文面と規模）、N1#8・N2#8（族 M）、N2#7、R2#9、R2#2（D-R2-QUAKE）、N2#5（D-AFTERSHOCK-COUNT）。P4-PERSONA-WALK-TOOLS-003 の AC01: W1-06-03#4（行の関数に替わって消える）。003 の AC02: R2#1（族 読まれない場面、P4-PWT3-D-PLACE）。合わせて 7＋3＋9＋1＋1＝21。検収で足した族 2 つ（読まれない場面・人物の外の行）は 003 の AC02 (2)(3) (2) 計画の読み: 脇の表の X0 の行（p4-order-plan.md:146）、§3.1 の Wave 5・7、§5.1 の D-WALK-SCREEN=A（:613）、§5.3 の F、§8 の X0 の行（:946）。計画は、場面の行を取る仕組みと歩きの検収の 2 つしか X0 の時期を書いていない。新しい画面に依らない道具の残りの時期は無いので、P4-PWT2-D-ORDER で今すぐ発注できる分に置いた (3) 計画の §3.2 に、道具の file（runner.ts・persona-scenes.test.ts・synth.ts）の所有の行は無い（p4-order-plan.md を runner.ts・persona-scenes・test/disaster で grep して 0 件、AC09 は P2-A9-AC09 の字の 2 件だけ）。歩きの前の AC09 の取り直しの持ち主も計画に無いので、003 の AC02 (4) に置いた。B0 が snapshot の型を変えたときの道具の型の追従は 003 の Q-PWT3-B0-TOOLS に置いた (4) 変える file の行を引く他の契約の ref（git grep -n で «» の付いたもの）: persona-scenes.test.ts は p3-pi-measure-blocked-test.json の :397 が 1、前の契約 p4-persona-walk-tools.json が 18。runner.ts は 19（p3-disaster-pi-measure.json 11・p3-uw-canon.json 3・p3-final-review-fix.json 2・p3-unit-q-capacity.json 2・p3-weather-shape.json 1、最大の行は :592）、前の契約が 12。synth.ts は 13（p3-replay-watch-002.json 11・p3-uw-canon.json 2）、前の契約が 14。«» の無い行番号の言及（checker は見ないので、行を足すと黙ってずれる）: 完全な path で runner.ts 2（p3-notice-ledger.json・p3-unit-n-series.json の :188）・synth.ts 2（p3-unit-n-series.json の :626・p3-uw-canon.json の :718）、短い形で synth.ts の :20・:507・:643（p3-disaster-pi-measure.json）と :718（p3-uw-canon.json）。発注 2 で黙ってずれうるのは synth.ts の :507・:626・:643・:718 で、配送で字を確かめて書き直す。ずれうるもの（«» の付いた ref）: 発注 1 は persona-scenes.test.ts:397 の 1 件（:298 の notificationsOf より後ろ）と前の契約の ref。発注 2 は synth.ts の :465 より後ろの :554・:629・:887・:889 の 4 件（:554 は eewBody の行で字も変わりうる）と前の契約の ref。発注 3 は runner.ts の :640 より後ろだけを変えるので他の契約の ref は 0 件、前の契約の ref（:748・:771・:812 ほか）はずれる。原文の改訂（AC04 (2)）は行の中の書き換えで、p3-final-gate.json:150 と p4-persona-walk-tools.json:343 を引く他の契約は 0 件 (5) 基準の check-contract（7b45edd6、本契約を足す前）は rc 0 (6) 3 回目の場面（~/dev/fleq-vault-archive/2026-11-18-walk/scenes3/）の評価者の file に D-TITLE-FIRST の規則を当てた（門を通った行、desktop と同じ時刻の音を 1 行にまとめ、段は音の資材の名前から推した。評価者の file に段の欄が無いための近似）: N2 の S8（1,698 行）で 16:00:44 の EEW（警報）・16:03 の大津波警報・16:04 の震度速報が残る。N1 の S2（37 行）で EEW の最終報（04:01:11）が 1 件残る（18 件のうち 1 件。題名だけを鍵にすると、段の重い続報と同じ題名なので残らない）。R2 の S6 の 03:20 の大津波警報は残る。desktop と音の組: N2 の S8 は 1,580 の時刻で desktop と音が同じ時刻に並び、desktop だけの時刻は 0。W1-09-21 の S6 には音の無い desktop の行（千葉県土砂災害警報・注意報）がある (7) AC03 (1) の Condition『既に主要動到達と推測』は test/fixtures/37_01_02_240613_VXSE43.xml にあり、reconstruction/src の terminal/format.ts と terminal/eew-log.ts が読む",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT2-SPLIT-R1",
+        "status": "closed",
+        "source": "統合担当の決め（2026-11-21、r0 の報告への返答）と起草 r1",
+        "closed": "(1) 契約を 2 本に割った（P4-PWT2-D-ORDER=A）。本契約に発注 1・2、AC01〜AC03 と配送の AC04、T01〜T04、分岐 D-R2-QUAKE・D-AFTERSHOCK-COUNT・D-ORDER・D-TITLE-FIRST・D-SOUND-PAIR・D-OMITTED を置いた。r0 の D-PLACE・D-PAGE・D-MAP・D-MATCH・D-FG-WALK と Q-PWT2-ROWS-FN・Q-PWT2-B0-TOOLS は 003 へ移し、ID を P4-PWT3・Q-PWT3 に替えた (2) D-R2-QUAKE と D-AFTERSHOCK-COUNT に、改める前の裁定の原文（Q1=A、P3-DC-SCENARIOS の R2）と前例（P4-PWT-D-M7-RELEASE）を priorRuling に並べた (3) 評価 R2.md の 9 番の 6 点を 1 点ずつ読み、synth.ts の r2・gauges・gaugeElement・itemOf・LOWER と公開の型（32-39_11_11 の Kind と LastKind の組、VTSE51・VTSE52 の 13 file の観測点 84）で確かめて、AC03 (4) の ①〜⑥ に直す・直さない訳を書いた（直す 4、一部を直す 1、直さない 1）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT2-REVIEW-R1",
+        "status": "closed",
+        "source": "r1 のレビュー（~/dev/p4-x0-review-r0.md、002 条件付き GO・P1 0・P2 10・P3 5）と統合担当の決め（2026-11-21）、起草 r2",
+        "closed": "(1) X2-1: 契約はこれ以上割らず、発注ごとの baseOid にもしない（統合担当の決め）。D-AFTERSHOCK-COUNT を統合担当の決めで閉じ、作者の分岐は D-R2-QUAKE だけにした (2) X2-2: AC02 (1) を一部の直し（VXSE53 の規模）と、震度の地域・津波の沿岸の直さない訳にした。千葉沖にも豊後水道にも寄せられない理由を書いた (3) X2-3: AC02 (3) を取消の Serial だけの直しと訳にした（77_01_33 の Body は取り消しの文だけ、Serial 32。PLUM は Serial 3） (4) X2-4: AC03 (3) と T04 を VXSE45・VXSE52・VXSE53 にした（32-35_01_01 の VXSE51 に Magnitude が無いことを確かめた） (5) X2-5: ④ を forecastItems の全体の規則にし、T04 の 53 を R2 の 15:30 の報で、52 を N1 の +15 分の報で確かめる形にした。32-39_11_11 で 100・101・102・320 の前の区分が 51 で、53/51 の組が型にあることを確かめた。LastKind は製品が読まないので直さない訳にした（git grep で reconstruction/src の津波に LastKind 0 件） (6) X2-6: ⑤ は N を変えない、N を変えるのは ④ と ①②③ と書き、全部の解除で津波予報の行を載せない形を 32-39_13_07（60/62 の 5 行だけ）で確かめた。T06 の r2End の期待（persona-scenes.test.ts:661）は載せない形で変わらない (7) X2-7: 公開の型 13 file の Station 398 件は全部 FirstHeight を持つ（ArrivalTime 378、Condition『第１波の到達を確認』20）ことを数え、① を到達した点から載せる形にした (8) X2-8: ② を R2 だけにした (9) X2-9: 族 M を直さない訳にした（重ねない規則の先は日本海側の 22 区域だけ、警報の続く間の余震の報の形は型に無い） (10) X2-10: D-R2-QUAKE の A を VXSE45 にし、震源と規模（32-39_11_11 の三陸沖・Ｍ８．９）と R2S に足さないことを書いた (11) X2-11: ③ に R2 の coastal の先頭 20102 を書き、観測点の数を 87（Name と Code の組の異なり数）に直した (12) P3: :401 から（X2-P3a）、«» の無い過去の記録は書き直さない（X2-P3b）、T06 の hash の取り直しの注記と (7) の『例えば』（X2-P3d）、fixtureIds に型 24 本を足し、objective の『直す』を『扱う』に直した（X2-P3e）",
+        "remaining": "なし（計画 :146 の X0 の行の改訂は統合担当がまとめて行う）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。本契約は検証の道具（reconstruction/test の下）と repo の外の演じ手への文だけを直し、受信・判定・通知・保存・描画の製品の挙動を変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P4-PERSONA-WALK-TOOLS-002",
+    "mode": "implementation",
+    "objective": "新築 P4 の脇の契約 X0（計画 p4-order-plan.md の脇の表）のうち、新しい画面に依らない道具の直し。前の契約 P4-PERSONA-WALK-TOOLS-001 の AC10（3 回目の歩き、2026-11-18 夜）で評価者が『道具 → P4 の歩きの契約へ』と付けた 21 件（帳簿 walk3/ledger.md の行き先 E）のうち、演じ手の通知（族 T・族 S と族 注記の data の側）と試行 2 の data と合成の報の 19 件を扱う（1 件ずつ、直す・一部を直す・直さない訳のどれかを AC に書く。直さないのは族 M の 2 件と N2#5 と R2#9 の ⑥、R2#2 は作者の分岐しだい）。残りの W1-06-03#4 と R2#1、検収で足した族 2 つ、演じ手の画面を新しい描画の行に替える仕組み（P4-PLAN-D-WALK-SCREEN=A）と歩きの検収は P4-PERSONA-WALK-TOOLS-003。場面（2026-11-18 夜、N2 の S8）: 前の場面からの通知の 20 件が余震の震度 5 弱の報で埋まり、16:00 の 2 つ目の本震の警報と大津波警報が演じ手に渡らなかった（帳簿 N2#9）。発注は 2 つ（P4-PWT2-D-ORDER）: 発注 1 は persona-scenes.test.ts だけ、発注 2 は synth.ts。どちらも新しい画面に依らない。本契約の baseOid は、作者の分岐 D-R2-QUAKE の裁定と統合担当の 3 つの確定の後に割り当てる。製品のコード（reconstruction/src）は変えない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは各 AC に『無いと何が壊れるか』を書き、テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-persona-walk-tools2.json",
+      "reconstruction/contracts/p4-persona-walk-tools.json",
+      "reconstruction/contracts/p3-final-gate.json",
+      "reconstruction/contracts/p3-disaster-capacity.json",
+      "reconstruction/contracts/p3-cli-repl.types.ts",
+      "reconstruction/test/final-gate/persona-scenes.test.ts",
+      "reconstruction/test/disaster/runner.ts",
+      "reconstruction/test/disaster/synth.ts",
+      "reconstruction/test/disaster/scenario.ts"
+    ],
+    "allowedPaths": [
+      "発注 1: reconstruction/test/final-gate/persona-scenes.test.ts（AC01・AC02。notificationsOf・noticeOf・actorFile と試行 2 の trial・saori、末尾に describe「P4-PERSONA-WALK-TOOLS-002 order 1」）",
+      "発注 2: reconstruction/test/disaster/synth.ts（AC03）、reconstruction/test/final-gate/persona-scenes.test.ts（T04 の分だけ。末尾に describe「P4-PERSONA-WALK-TOOLS-002 order 2」）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-persona-walk-tools2.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "B02",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P4-PERSONA-WALK-TOOLS-001",
+      "P3-FINAL-GATE-001",
+      "P3-DISASTER-CAPACITY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-cli-repl.types.ts#NotificationGate"
+    ],
+    "publicFunctions": [
+      "使う口（変えない）: notificationsOf・noticeOf・actorFile（persona-scenes.test.ts の中）、synthesize（synth.ts）、readScenario・digestOf（scenario.ts）、createNotificationGate（notification-gate.ts）",
+      "変える口: なし（reconstruction/src と runner.ts の export・型・関数は足さない・変えない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__77_01_03_240613_VXSE45",
+      "test__fixtures__77_01_26_240613_VXSE45",
+      "test__fixtures__77_01_33_240613_VXSE45",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM",
+      "test__fixtures__32-39_12_02_250206_VTSE41",
+      "test__fixtures__32-39_11_11_250206_VTSE41",
+      "test__fixtures__32-39_13_07_250206_VTSE41",
+      "test__fixtures__37_01_02_240613_VXSE43",
+      "test__fixtures__32-39_11_10_250206_VTSE51",
+      "test__fixtures__32-39_11_03_250206_VTSE51",
+      "test__fixtures__32-39_12_05_250206_VTSE52",
+      "test__fixtures__38-39_02_02_250206_VTSE51",
+      "test__fixtures__38-39_03_03_210805_VTSE51",
+      "test__fixtures__61_11_01_250206_VTSE52",
+      "test__fixtures__61_11_02_250206_VTSE52",
+      "test__fixtures__synthetic_VTSE51_correction",
+      "test__fixtures__synthetic_VTSE51_fragmentA",
+      "test__fixtures__synthetic_VTSE51_fragmentB",
+      "test__fixtures__synthetic_VTSE52_correction",
+      "test__fixtures__synthetic_VTSE52_fragmentA",
+      "test__fixtures__synthetic_VTSE52_fragmentB",
+      "test__fixtures__32-35_01_02_240613_VXSE52",
+      "test__fixtures__32-35_04_03_240613_VXSE52",
+      "test__fixtures__32-35_06_02_100915_VXSE52",
+      "test__fixtures__33_12_01_240613_VXSE52",
+      "test__fixtures__32-35_01_03_240613_VXSE53",
+      "test__fixtures__32-35_04_04_240613_VXSE53",
+      "test__fixtures__32-39_05_12_100915_VXSE53",
+      "test__fixtures__32-35_01_01_260824_VXSE51"
+    ],
+    "sequenceIds": [
+      "O10"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（製品の保存を変えない）"
+    ],
+    "nonPersistedFields": [
+      "なし（場面の file と index.json は repo の外の書き出し）"
+    ],
+    "outOfScope": [
+      "帳簿の行き先 A・B・C・D・F・G の 50 件（製品の処理・作者の受け入れ・契約どおり・入力どおり・既にバックログ・P4 の新規）。U-Q の通知の『M不明』、洪水予報の既定、通知の量は P4 の製品の契約（N0 ほか）",
+      "AC09 の容量の結果の合否: 発注 4 の取り直しで pass の 3 欄が 0 でなければ止めて報告し、本契約では直さない。歩かない筋書き（W2・N3）と R1 の取り直し",
+      "切断の行の『回線が不安定です』のまとめ・mute・connection の分野の設定（前の契約の AC03 (3) の shortcut のまま）",
+      "dmdata からの新しい取得",
+      "製品のコード（reconstruction/src）と runner.ts の変更",
+      "発注 3・4（場面の行を取る仕組み、render.py などの repo の外の改訂、AC09 の取り直し、歩きの 1 巡）: P4-PERSONA-WALK-TOOLS-003"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-PWT2-AC01",
+        "requirement": "【発注 1】演じ手の通知の選び方と注記（persona-scenes.test.ts の notificationsOf・noticeOf・actorFile）: (1) 族 T（帳簿 N1#7・N2#9、P4-PWT2-D-TITLE-FIRST=A）: 20 件は、まず題名（notificationCounts の鍵）と段の組ごとに新しい 1 件を、段の重い順・新しい順に採り、残りの枠を今の規則（段の重い順、同じ段は新しい順）で埋め、時刻の順に戻す。無いと: N1 の S2 で EEW の最終報（18 件）が、S5〜S7 で続報の大津波警報と注意報の解除が、同じ題名の M5.9 の震源・震度情報（critical）に押し出される。N2 の S8 で 16:00 の 2 つ目の本震の警報・大津波警報・震度速報が、震度 5 弱の報に押し出される (2) 族 S の data の側（帳簿 W1-06-03#1・W1-06-26#1・W1-09-21#2、P4-PWT2-D-SOUND-PAIR=A）: 同じ時刻・unit・subject の desktop と音の試行を 1 行にまとめ、行に sound（資材の名前か null）を持たせる。段は 2 つの重い方、件数の鍵は desktop の題名。音だけの試行は今の音の行のまま。評価者の file は今どおり試行ごとの行に stoppedBy を付ける。3 回目の場面では、N2 の S8 の 1,580 の時刻で desktop と音が同じ時刻に並び、W1-09-21 の S6 には音の無い desktop の行がある（Q-PWT2-DRAFT-R0 (6)）。発注 1 の最初の作業で、同じ時刻の組の unit と subject も一致することを試行の列で確かめる（一致しなければ止めて報告）。無いと: 音の無いデスクトップ通知を演じ手が鳴ったと読み、W1 の 3 本で音を手掛かりに行動を組んだ (3) 族 注記の data の側（帳簿 R2#8・W1-06-03#7、P4-PWT2-D-OMITTED=A）: notificationCounts（全部の数）は今のまま残し、省いた行だけの題名ごとの数 omittedCounts と、省いた行の最初と最後の時刻（omittedFrom・omittedTo、JST の字）を足す。notificationsOmitted は全部の行の数 − 残した行の数のまま。(2) で行の数え方が変わる（desktop と音の組が 1 行）ことを前の契約の P4-PWT-AC02 (2) に注記する（AC04 (2)）。無いと: R2 の S6 で『このほかに 126 件』の後の内訳の合計が 146 になり、省いた通知の時刻の幅も分からない",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/persona-scenes.test.ts:273 «32d87611082d6018»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:302 «a5c0ffa817c16288»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:304 «8fa65ffda0214207»",
+          "reconstruction/contracts/p4-persona-walk-tools.json:343 «eab42980dcc35cec»",
+          "reconstruction/contracts/p4-persona-walk-tools.json:215 «06e9b0a8ec5d5c39»"
+        ]
+      },
+      {
+        "id": "P4-PWT2-AC02",
+        "requirement": "【発注 1】試行 2 の data（persona-scenes.test.ts の trial・saori。AC09 の外なので Q1=A は及ばない）: (1) T2-saori#5 は一部を直す。切断中に出た VXSE53（missed の m1、型 32-35_04_04 の Ｍ５．３）の規模を、同じ EventID の EEW の最後の報（77_01_26 の Ｍ６．７）の Magnitude の要素に置き換える。震度の地域（震度速報の熊本・VXSE53 の鹿児島）と津波の沿岸（豊後水道の地震で千葉県九十九里・外房に 10 m）は直さない。訳: 公開の EEW の型は 77_01（豊後水道 Ｍ６．７）と 37_01 だけで、試行の目的（繋がり直しの取り直しで大津波警報への引上げを拾う、P3-FG-D-T2-RECONNECT）に見合う地震を作れない。震源に寄せると Ｍ６．７ の豊後水道で大津波警報は出ない。千葉沖に寄せると、EEW の予測の区域（九州の細分区域）を persona-scenes.test.ts の中で作り直すことになり（synth.ts の eewAreas は export されていない）、前の契約の P4-PWT-T06 の震源の期待（豊後水道、persona-scenes.test.ts の :715）と銚子の組の期待（:717）も変わる。同じずれは次の歩きでも出るので、003 の AC02 (3) で評価者に訳の付いた作り物の一覧として渡す (2) T2-saori#10: 切断中に出た VXSE53（missed の m1、今は 18:16:50）の時刻を、切断の始まり（18:17:15）より後にする (3) T2-yu#6 は一部を直す。取消（77_01_33、型の Serial 32）の Serial を、PLUM（77_02_01、Serial 3）の続きの 4 にする。ほかは直さない。訳: 取消の型の Body は取り消しの文だけで、震源を置く所が無い（置けば公開の型に無い取消になる）。EventID は既に PLUM の b に替えてある（persona-scenes.test.ts:88）。5 弱の予報が予報のまま届くのは実際どおり（帳簿 T2-yu#6）。試験は足さない（試行の data の直しで、003 の発注 4 の評価で演じ手と評価者の file を読んで確かめる。前の契約の Q-PWT-REVIEW-ORDER3 (3) と同じ扱い）。無いと: 沙織の S2・S3・S5 で同じ地震の規模が報ごとに食い違い、S4 で取り直した報が切断より前の時刻に並ぶ",
+        "evidenceRefs": [
+          "reconstruction/test/final-gate/persona-scenes.test.ts:108 «a2e6c48a87afd2cf»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:141 «0bf4e2de8da0c432»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:88 «be5fc2bc733e6c1d»"
+        ]
+      },
+      {
+        "id": "P4-PWT2-AC03",
+        "requirement": "【発注 2】合成の報（synth.ts）。報の件数・時刻・headType・流す順は変えない（例外は (5) の D-R2-QUAKE=A のときの R2 だけ）。どの直しも、公開の型（fixtureIds）にある形だけを作る: (1) N1#5: EEW の区域の到達予想時刻を発生時刻から区域ごとに決め、同じ EventID の報では同じ値にする（報ごとに後ろへ動かさない）。報の時刻より前になった区域は、ArrivalTime の代わりに Condition『既に主要動到達と推測』を置く（公開の型 37_01_02 の VXSE43 と同じ形。製品の端末は terminal/format.ts と eew-log.ts でこの字を読む）。前の契約の AC06 (7) の『到達を報時刻より後にする』を改め、P4-PWT-T06 の到達の期待（after: true と区域の対の数え方）をこの規則に合わせて変える（既存の試験の期待を変える理由: 帳簿 N1#5） (2) 族 M（N1#8・N2#8）は直さない。訳: M7 級の余震の時刻（本震の +40 分・+9 時間）には、本震の VTSE41 が 66 区域の全部に区分を持つ（tsunamiSequence、引き下げは +36 時間）。大津波警報・津波警報の出ていない沿岸は日本海側の注意報の 22 区域だけなので、重ねない規則を当てると南海の余震の注意報が日本海側に出る別の作り物になる。警報の続く間の大きな余震の津波の報の形（別の EventID の注意報か、続いている報の更新か）は公開の型に無く、確かめられない。件数は Q1=A で減らせない (3) 族 Q（N1#6・N2#6）: 余震の VXSE52・VXSE53 の型を、公開の型（VXSE52 は 32-35_01_02・32-35_04_03・32-35_06_02・33_12_01、VXSE53 は 32-35_01_03・32-35_04_04・32-39_05_12）から順に回し、同じ文面の繰り返しを減らす。同じ地震の EEW（VXSE45）・震源に関する情報（VXSE52）・震源・震度に関する情報（VXSE53）の規模を 1 つの値に揃える（今は shock.magnitude が null で型の値が残る。N2#6 は VXSE52 の Ｍ６．６ と VXSE53 の Ｍ５．３。震度速報〔VXSE51〕の型は規模を持たない） (4) 津波観測（N2#7 と、評価 R2.md の 9 番の 6 点を 1 点ずつ）: ① 全点が同じ値・同じ時刻（R2 の S5 の沖合 4 点が 5.7 m・沿岸が 5.2 m、S6・S7 の全点が 10.0 m、第一波はどれも 14:56 押し。N2#7 の一律 1.2 m も同じ根の gaugeElement）は直す。高さは、区域の中で最も高い点を今の heightOf の値とし、ほかの点は code から決めた係数（0.5〜1.0 倍〔推測〕）で下げる。第一波の時刻は、その点の予報区の到達予想時刻から決める。版ごとの点の数の増やし方は今のまま、点を到達の早い順に並べ、その報の時刻までに到達した点から載せる。数を満たすのに到達前の点が要る報だけ、その点の第一波を今の形（報の 1 分前と発生の 10 分後の早い方）に寄せる（公開の型 13 file の Station は全部 FirstHeight を持ち〔ArrivalTime か Condition『第１波の到達を確認』〕、第一波の無い観測点の形は無い） ② 同じ点の第一波とセンサーが版で変わる（岩手沖９０ｋｍＡが型の 14:48 押し・水圧計から合成の 14:56 押し・ＧＰＳ波浪計へ）は、R2 だけ直す。型の地震と筋書きの地震が同じ R2 では、型にある実在の点は型の FirstHeight と Sensor を写して合成の版でも変えない。N 系（南海）は ① の規則で決める（2011 の点の第一波〔本震の 2 分後など〕を南海の筋書きに写さない） ③ 観測点名『青森県太平洋沿岸1』は一部を直す。公開 fixture の VTSE51・VTSE52 の 13 file にある実在の観測点 87（Name と Code の組の異なり数）を先に使う（沿岸は code の頭 3 桁で予報区に当て、沖合は VTSE52 の型の点）。R2 の coastal の先頭は 20102（むつ市関根浜）のまま置く（版 5 で落とす点で、scenario.ts の期待例 P3-C5-OBS-MERGE が確かめる中身。並びが変わると期待例は落ちずに空振りする）。足りない分は生成の名前のまま残す。残す訳: 沿岸 191・沖合の数は器の上界（P3-DC-SOURCES (8)）で減らせず、実在の観測点の一覧は repo に無く、新しい取得は outOfScope ④ 3/12 03:20 に続いている区域も『大津波警報：発表』（code 53）になるのは直す。forecastItems の全体の規則にする: 同じ EventID の前の VTSE41 で大津波警報だった区域は 32-39_11_11 の 52『大津波警報』の Item の形（LastKind 52）、この報で初めて大津波警報になった区域は今の 53『大津波警報：発表』の形。R2 は 15:30 の報で 100・101・102・320 が 53（前は 51）、ほかの大津波警報の区域が 52 になる。N 系も +3 分の報は 53、+15 分から +24 時間の 8 報は 52 になる。LastKind はほかの区分では直さない。訳: 製品は津波の LastKind を読まず（reconstruction/src の津波に LastKind の読みは 0 件）、前の区分を全部の区分に書くと公開の型に無い組（51/52・62/51 など）ができる ⑤ 3/12 20:20 に津波予報の区域が『津波注意報解除』になるのは直す（R2 だけに効く。N 系の区分は 32-39_12_02 の 53・51・62 と大津波警報で、津波予報が無い）。LOWER で forecast を released にせず forecast のまま残す（32-39_11_11 の 71/71 の形）。全部の解除の報（3/13 17:58）では、前が津波予報の区域の行を載せない（公開の型 32-39_13_07 の全解除は 60/62 の 5 行だけで、71 の行が無い）。載せると worded の active に津波予報が入り、題名と見出しが『津波予報』『津波予報（若干の海面変動）を発表しています。』になって、前の契約の P4-PWT-T06 の r2End の期待（題名『津波予報』・見出し『津波注意報を解除しました。』）が落ちる。載せない形ではこの期待は変わらない ⑥ 3/12 03:20 の本文の『東日本大震災クラスの津波が来襲します。』は直さない。訳: 今の気象庁の大津波警報の固定付加文（公開の型 32-39_11_11 の WarningComment の第 1 段落）で、前の契約の AC06 (6)(9) が大津波警報を含む報にだけ残す形にした。R2 は 2011 の津波を今の電文の形で流す筋書きなので、電文として正しい。N 系の文面を変えるのは ④ と ①②③ で、⑤ は N 系を変えない。①〜⑤ は文面と値だけで、報の件数・時刻は変えない (5) R2#2: D-R2-QUAKE=A のとき、分岐の A の字のとおり足す。B なら直さない (6) N2#5 は直さない（P4-PWT2-D-AFTERSHOCK-COUNT=A、統合担当の決め。訳は分岐の reason）。件数と時刻を変えないことは前の契約の P4-PWT-T06 で確かめる。T06 の (atMs, headType) の hash の定数（persona-scenes.test.ts の :616）を取り直すのは (5) の A のときだけで、理由を報告する (7) 止める条件: 既存の決まりの許可の外になりうるもの（P3-DC-T03 の Area の数、P3-DC-T09 の 1 MiB の余裕、scenario.ts の期待例 R2・N1・N2）が落ちたら、実装を止めて契約を改める（期待を緩めて通さない。前の契約の AC09 (2) と同じ）。例えば (5) の A、④ の N 系、①③ の観測点の並びで効きうる。無いと: 族 Q・観測点の作り物と、続いている大津波警報の『発表』と津波予報の『解除』が、次の歩きでも評価者に道具と数えられる（帳簿 N1#5・#6、N2#6・#7、R2#2・#9）",
+        "evidenceRefs": [
+          "reconstruction/test/disaster/synth.ts:401 «10a5a5ab1940fc12»",
+          "reconstruction/test/disaster/synth.ts:465 «839c883debe78835»",
+          "reconstruction/test/disaster/synth.ts:554 «7acc42be842d68fc»",
+          "reconstruction/test/disaster/synth.ts:710 «7437aafdc5ff8247»",
+          "reconstruction/test/disaster/synth.ts:729 «fc7f36e4bd9820ee»",
+          "reconstruction/test/disaster/synth.ts:810 «6135cefdfc105d85»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»",
+          "reconstruction/contracts/p3-disaster-capacity.json:63 «27eeb68a5aa6d5fc»",
+          "reconstruction/test/disaster/synth.ts:482 «72e961e277244596»",
+          "reconstruction/test/disaster/synth.ts:421 «220f8093e3a8be8c»",
+          "reconstruction/test/disaster/synth.ts:404 «a5540c5ec885f11b»",
+          "reconstruction/test/disaster/synth.ts:656 «817468c40f21135a»",
+          "reconstruction/test/final-gate/persona-scenes.test.ts:661 «7cf91c11f15cf600»"
+        ]
+      },
+      {
+        "id": "P4-PWT2-AC04",
+        "requirement": "配送（統合担当）: (1) «» の付け直し（実装担当は触らない）: 発注 1 は persona-scenes.test.ts:397（p3-pi-measure-blocked-test.json）の 1 件と、前の契約の persona-scenes.test.ts の ref。発注 2 は synth.ts の :554・:629（p3-replay-watch-002.json）・:887・:889（p3-uw-canon.json）の 4 件（:554 は eewBody の行で字も変わりうるので、中身を読んで主張が真のままかを確かめる）と、前の契約の synth.ts の ref。発注 2 の最初の変更は LOWER（:401）で、:401〜:464 を引く他の契約の ref は無いので、付け直しはこの 4 件。«» の無い synth.ts の言及（:20・:507・:643 は p3-disaster-pi-measure.json、:626 は p3-unit-n-series.json、:718 は p3-uw-canon.json）は日付つきの過去の記録（起草の時点の木を読んだ字）で、今の木で既に別の行を指すので書き直さない。本契約の evidenceRefs も配送の木で取り直す。行がずれただけなら reanchor-target.py、字が変わったら中身を読んでから付け直し、改めた契約の meta.sha256 を取り直す (2) 原文の改訂（行の中の書き換え、行を足さない）: 発注 1 で p4-persona-walk-tools.json の P4-PWT-AC02（:343）の末尾に『【P4-PERSONA-WALK-TOOLS-002 の注記: 20 件の選び方は題名と段の組ごとの 1 件を先に採る〔P4-PWT2-D-TITLE-FIRST〕。desktop と音の組は 1 行に数える〔P4-PWT2-D-SOUND-PAIR〕。省いた行だけの数と時刻の幅を別の欄に足す〔P4-PWT2-D-OMITTED〕】』。発注 2 で同じ file の P4-PWT-AC06 の (7) の到達の決め方と P4-PWT-T06 の behavior の末尾に、到達の規則を改めた注記（AC03 (1)）と、D-R2-QUAKE=A なら hash の定数を取り直した注記（AC03 (6)）。p3-disaster-capacity.json の P3-DC-SYNTH（:63）の末尾に文面の直しの注記、D-R2-QUAKE=A なら P3-DC-SCENARIOS（:57）の R2 の節の末尾に本震の報を足した注記 (3) check-contract・check-sequences・check-manifest が PASS（WARN は baseOid=unassigned の契約だけ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-persona-walk-tools.json:343 «eab42980dcc35cec»",
+          "reconstruction/contracts/p3-disaster-capacity.json:63 «27eeb68a5aa6d5fc»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-PWT2-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-PWT2-AC01"
+        ],
+        "behavior": "【発注 1】実不具合（N1#7・N2#9）。同じ題名の critical 25 件と、それより古い warning 1 件（題名 A）と normal 1 件（題名 A、EEW の最終報の形）と normal 1 件（題名 B）で、演じ手の 20 件に 3 件が残り、critical は新しい 17 件。前の契約の P4-PWT-T02 は変えずに緑。歯: 組の周を外すと落ち、鍵を題名だけにすると題名 A の normal が落ちる"
+      },
+      {
+        "testId": "P4-PWT2-T02",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-PWT2-AC01"
+        ],
+        "behavior": "【発注 1】実不具合（W1-06-03#1 ほか族 S）。同じ時刻・unit・subject の desktop と音の試行は 1 行（sound が資材の名前）、音の無い desktop の試行は sound が null、desktop の無い音の試行は音の行。評価者の file は試行ごとの行のまま。歯: まとめを外すと落ちる"
+      },
+      {
+        "testId": "P4-PWT2-T03",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-PWT2-AC01"
+        ],
+        "behavior": "【発注 1】実不具合（R2#8・W1-06-03#7）。30 行の通知で、omittedCounts の合計が notificationsOmitted（10）に一致し、omittedFrom・omittedTo が省いた行の最初と最後の時刻、notificationCounts は全部の 30。歯: omittedCounts を全部の数で作ると落ちる"
+      },
+      {
+        "testId": "P4-PWT2-T04",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-PWT2-AC03"
+        ],
+        "behavior": "【発注 2】受入条件。synthesize の N1・N2（t0 は固定の値）と R2 で: 同じ EventID の EEW の区域の到達予想時刻が報ごとに同じ（報の時刻を過ぎた区域は Condition『既に主要動到達と推測』）。同じ地震の EEW（VXSE45）・VXSE52・VXSE53 の規模が 1 つの値。R2 の 15:30 の VTSE41 で 100・101・102・320 の Kind が 53、それより前から大津波警報の区域が 52。N1 の +15 分の VTSE41 で大津波警報の区域が 52。R2 の 3/12 20:20 の VTSE41 で津波予報の区域が 71 のままで、3/13 17:58 の VTSE41 に Kind 71 の行も LastKind が津波予報の解除の行も無い（AC03 (4) ④⑤）。R2 の版 5 の VTSE51 で落とす点が 20102。件数と時刻は前の契約の P4-PWT-T06 が確かめる"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "XDG_CONFIG_HOME=<一時 dir> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（T09 は門つきで skip）。既存の試験の期待は変えない（変える必要があれば変える前に理由を報告する。AC03 (1) の P4-PWT-T06 の到達の期待は契約で決めた変更）"
+      },
+      {
+        "command": "XDG_CONFIG_HOME=<一時 dir> ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/final-gate/persona-scenes.test.ts reconstruction/test/disaster/disaster.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/final-gate/ と reconstruction/test/disaster/",
+        "stage": "implementation",
+        "purpose": "順の依存が無いこと。seed を成果物に書く"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の木では AC04 (1) に並べた ref の FAIL だけが想定（付け直しは統合担当）。ほかの FAIL は想定外として報告する"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "発注ごとの最初の作業: その発注の試験だけを足した木で回し、直す前の道具で落ちることを確かめてから直す。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
+      "最小実装・最小テスト: 各 AC の『無いと』が足す仕組みの理由。試験は発注 1 が 3 本（T01〜T03、どれも regression）、発注 2 が T04（acceptance）。新しい fixture・helper の file を足さない",
+      "reconstruction/src を変えない。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない。近道は shortcut: の形のコメント",
+      "試験を回すときは XDG_CONFIG_HOME を一時 dir に向ける（作者の本物の設定に書かない）。LLM（演じ手・評価者）は呼ばない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
