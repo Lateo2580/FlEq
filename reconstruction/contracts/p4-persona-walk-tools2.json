@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "109fe304a82effabbb040d67232dbb5c70a752fa5d758e0ec2163516d20d7d0b",
+    "sha256": "9649a44ef226f4db32f531003aa9688db2c09d987d47e8e2b0ca35241bd7ae09",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -130,7 +130,7 @@
     "contractId": "P4-PERSONA-WALK-TOOLS-002",
     "mode": "implementation",
     "objective": "新築 P4 の脇の契約 X0（計画 p4-order-plan.md の脇の表）のうち、新しい画面に依らない道具の直し。前の契約 P4-PERSONA-WALK-TOOLS-001 の AC10（3 回目の歩き、2026-11-18 夜）で評価者が『道具 → P4 の歩きの契約へ』と付けた 21 件（帳簿 walk3/ledger.md の行き先 E）のうち、演じ手の通知（族 T・族 S と族 注記の data の側）と試行 2 の data と合成の報の 19 件を扱う（1 件ずつ、直す・一部を直す・直さない訳のどれかを AC に書く。直さないのは族 M の 2 件と N2#5 と R2#9 の ⑥。R2#2 は D-R2-QUAKE=A〔作者裁定 2026-11-21 07:51〕で直す）。残りの W1-06-03#4 と R2#1、検収で足した族 2 つ、演じ手の画面を新しい描画の行に替える仕組み（P4-PLAN-D-WALK-SCREEN=A）と歩きの検収は P4-PERSONA-WALK-TOOLS-003。場面（2026-11-18 夜、N2 の S8）: 前の場面からの通知の 20 件が余震の震度 5 弱の報で埋まり、16:00 の 2 つ目の本震の警報と大津波警報が演じ手に渡らなかった（帳簿 N2#9）。発注は 2 つ（P4-PWT2-D-ORDER）: 発注 1 は persona-scenes.test.ts だけ、発注 2 は synth.ts。どちらも新しい画面に依らない。本契約の分岐は全部確定した（作者裁定 1・統合担当の決め 5、2026-11-21）。製品のコード（reconstruction/src）は変えない。最小実装・最小テスト（AGENTS.md §コーディング規約）: 足す仕組みは各 AC に『無いと何が壊れるか』を書き、テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
-    "baseOid": "unassigned",
+    "baseOid": "90ab690f0dda3946320c465029e5899e266053a0",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
