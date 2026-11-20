@@ -62,7 +62,7 @@ function painter(level: ColorLevel): Paint {
   const instance = new chalk.Instance({ level });
   const styled = new Map<Role, chalk.Chalk>();
   return (role, raw) => {
-    // 電文の TAB・CR・U+0085・U+2028・U+2029 は端末で行の頭へ戻るなどして前の字を上書きしうる。TAB は width() で 1 桁と数えるが端末は次のタブ位置まで進み、表の桁と帯の幅がずれる。ほかの C1 と DEL も制御として読まれうる。端末の整形とプロンプトの字は全部ここを通り、どれも幅 1 桁と数えて組んであるので、色の水準によらず半角の空白 1 字に替えれば組みは変わらない。文でない欄（帯の題名・地域名・震源名・表の欄）の LF は縦線の無い行を始めるので同じく替える（文の LF は seg に入る前に段落として割るのでここに届かない。台帳 134・136、P3-TERMINAL-CONTROL-CHARS-001、P3-TERMINAL-EXTERNAL-TEXT-001、P3-TCC-D-SUBSTITUTE）
+    // 電文の CR・U+0085・U+2028・U+2029 は端末で行の頭へ戻るなどして前の字を上書きしうる。TAB は width() で 1 桁と数えるが端末は次のタブ位置まで進み、表の桁と帯の幅がずれる。ほかの C1 と DEL も制御として読まれうる。端末の整形とプロンプトの字は全部ここを通り、どれも幅 1 桁と数えて組んであるので、色の水準によらず半角の空白 1 字に替えれば組みは変わらない。文でない欄（帯の題名・地域名・震源名・表の欄）の LF は縦線の無い行を始めるので同じく替える（文の LF は seg に入る前に段落として割るのでここに届かない。台帳 134・136、P3-TERMINAL-CONTROL-CHARS-001、P3-TERMINAL-EXTERNAL-TEXT-001、P3-TCC-D-SUBSTITUTE）
     const text = raw.replace(/[\t\n\r\u007f-\u009f\u2028\u2029]/g, " ");
     if (role == null || text === "") return text;
     let paint = styled.get(role);

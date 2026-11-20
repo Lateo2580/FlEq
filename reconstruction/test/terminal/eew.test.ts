@@ -133,7 +133,7 @@ describe("P3-TCC-T01 端末の制御の字", () => {
       transform: (xml: string) => xml.replace("<Text>強い揺れに警戒してください。</Text>", `<Text>強い揺れに${mark}警戒してください。</Text>`) }])[0]);
     const spaced = lines(" ");
     expect(spaced.map(plain)).toContain("  強い揺れに 警戒してください。");
-    for (const mark of ["&#13;", "&#9;", "\u0085", "\u2028", "\u2029", "\u009b", "\u007f"]) {
+    for (const mark of ["&#13;", "&#9;", "\t", "\u0085", "\u2028", "\u2029", "\u009b", "\u007f"]) {
       const shown = lines(mark);
       expect([mark, shown.some((text) => /[\t\r\u007f-\u009f\u2028\u2029]/.test(text)), shown]).toEqual([mark, false, spaced]);
     }
