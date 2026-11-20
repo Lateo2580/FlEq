@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "da9344dde620ec512d7c59b4c7d165cb3e3f61a2",
-    "sha256": "bc6fc6588f2a6e7d181496851afb33c4e3c74d5d0ab1a5f60f207c31280d10b3",
+    "sha256": "2cb53afa4d5c37e024bbf1b51f6cab16918981f76569662148fa54dd35bebdff",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -194,7 +194,7 @@
           "reconstruction/src/host/dmdata-rest.ts:111 «ddda2bb1f060c70d»",
           "reconstruction/src/host/host.ts:505 «8a6439db0a05719b»",
           "reconstruction/src/host/host.ts:506 «2e216ed79c0e253d»",
-          "reconstruction/src/host/host.ts:507 «40d42c63c0470205»",
+          "reconstruction/src/host/host.ts:507 «92c48ac72476e3ed»",
           "reconstruction/src/host/host.ts:525 «621db2621a2054e1»",
           "reconstruction/src/host/host.ts:528 «d86c2345f8003ce4»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:339 «d3f0cfecdad3078b»",

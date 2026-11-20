@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "95612a629bc06e8aadc2732ad770ac5991de6b3e",
-    "sha256": "25fdc6f28795f9737b11c3ddb67a4eebce1a0f349f6cd5536246d77ff9399936",
+    "sha256": "5b5d5a93720bc9e8046ca5c5599bf7be6f1d6d4a1e6f19e4ac65016043547ef7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -202,7 +202,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-TCC-AC01",
-        "requirement": "方式（Q-TCC-SITE・P3-TCC-D-SUBSTITUTE・P3-TCC-D-SCOPE・P3-TCC-D-PLACE=A）: (1) color.ts の painter が返す関数の頭の :64 の return (role, text) => { を return (role, raw) => { にし、その下になぜのコメントの行と、const text = raw の CR・U+007F〜U+009F・U+2028・U+2029 を 1 字ずつ D-SUBSTITUTE の字に替えた字列、の行を足す（D-SUBSTITUTE=A なら raw.replace(/[\\r\\u007f-\\u009f\\u2028\\u2029]/g, \" \")。元の :65 から後は text のまま）。替えるのは色の水準によらない（NO_COLOR・端末でない＝水準 0 でも替える。painter は水準 0 でも role が null でも同じ関数を返し、置き換えは色付けより前）。D-SCOPE=B なら字の組を CR・U+2028・U+2029 だけに）。D-SUBSTITUTE=B なら替える字を全角の空白にし、format.ts の WIDE の表の最初の行の頭に [0x000d, 0x000d], [0x007f, 0x009f], [0x2028, 0x2029] を足す（行の数を変えない。なぜのコメントに、対で保つことを書く）。D なら \"\" にし、charWidth でその字を 0 桁と数える【P3-TERMINAL-EXTERNAL-TEXT-001 で字の組の頭に \\n を足した】 (2) U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く（生の字は行の終わりとして読まれる） (3) なぜのコメントは関数の中の独立した行に書く（端末が CR などで前の字を上書きしうること、どの字も幅 1 桁と数えて組んであるので 1 桁の字に替えれば組みは変わらないこと、色の水準によらないこと、台帳 134、P3-TERMINAL-CONTROL-CHARS-001、D-SUBSTITUTE の ID）。output.ts のプロンプトの「TTY でなければ字を変えない」のコメントは色の符号のことで、本契約は output.ts を変えない（AGENTS.md の、既存のコメントは触った関数の中だけ合わせる）。P3-TP-AC10 の原文は AC04 (5) で統合担当が改める (4) 足す仕組みは無い（既にある関数の頭で字を替える 1 行。無いと: 生の CR などが端末へ届き、前の字を上書きする）。export・型・設定・helper を足さない (5) D-SUBSTITUTE が C に決まったときは置き場が欄ごとになるので、統合担当が本契約を改訂してから発注する。起草の写しの案（color.ts の差分、D-SUBSTITUTE=A・D-SCOPE=A の形）がこの形",
+        "requirement": "方式（Q-TCC-SITE・P3-TCC-D-SUBSTITUTE・P3-TCC-D-SCOPE・P3-TCC-D-PLACE=A）: (1) color.ts の painter が返す関数の頭の :64 の return (role, text) => { を return (role, raw) => { にし、その下になぜのコメントの行と、const text = raw の CR・U+007F〜U+009F・U+2028・U+2029 を 1 字ずつ D-SUBSTITUTE の字に替えた字列、の行を足す（D-SUBSTITUTE=A なら raw.replace(/[\\r\\u007f-\\u009f\\u2028\\u2029]/g, \" \")。元の :65 から後は text のまま）。替えるのは色の水準によらない（NO_COLOR・端末でない＝水準 0 でも替える。painter は水準 0 でも role が null でも同じ関数を返し、置き換えは色付けより前）。D-SCOPE=B なら字の組を CR・U+2028・U+2029 だけに）。D-SUBSTITUTE=B なら替える字を全角の空白にし、format.ts の WIDE の表の最初の行の頭に [0x000d, 0x000d], [0x007f, 0x009f], [0x2028, 0x2029] を足す（行の数を変えない。なぜのコメントに、対で保つことを書く）。D なら \"\" にし、charWidth でその字を 0 桁と数える【P3-TERMINAL-EXTERNAL-TEXT-001 で字の組の頭に \\n を足した】 (2) U+2028・U+2029 は TS の正規表現の中に生の字で書かず \\u のエスケープで書く（生の字は行の終わりとして読まれる） (3) なぜのコメントは関数の中の独立した行に書く（端末が CR などで前の字を上書きしうること、どの字も幅 1 桁と数えて組んであるので 1 桁の字に替えれば組みは変わらないこと、色の水準によらないこと、台帳 134、P3-TERMINAL-CONTROL-CHARS-001、D-SUBSTITUTE の ID）。output.ts のプロンプトの「TTY でなければ字を変えない」のコメントは色の符号のことで、本契約は output.ts を変えない（AGENTS.md の、既存のコメントは触った関数の中だけ合わせる）。P3-TP-AC10 の原文は AC04 (5) で統合担当が改める (4) 足す仕組みは無い（既にある関数の頭で字を替える 1 行。無いと: 生の CR などが端末へ届き、前の字を上書きする）。export・型・設定・helper を足さない (5) D-SUBSTITUTE が C に決まったときは置き場が欄ごとになるので、統合担当が本契約を改訂してから発注する。起草の写しの案（color.ts の差分、D-SUBSTITUTE=A・D-SCOPE=A の形）がこの形【TAB は P4-USER-WORDS-001 で painter の組に足した（P4-UW-D-TAB=A）】",
         "evidenceRefs": [
           "reconstruction/src/terminal/format.ts:1061 «755abe53d647e5dd»",
           "reconstruction/src/terminal/format.ts:1070 «131c1afbb095e63e»",

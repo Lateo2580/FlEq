@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e340e4c8aa03de71a4373e38284ca954555ee6db",
-    "sha256": "599fe04347acf055d617b3f76f18f2f5783fcbb2c43a4d1f6fa8a083f7f58fdb",
+    "sha256": "63e2180b81ac9414c090c5d2d88f675a627b272d9c5879ab0eab67d499255e27",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -341,7 +341,7 @@
       },
       {
         "id": "P3-BT-AC03",
-        "requirement": "owner の答え（P3-BT-D-VISIBLE・P3-BT-D-NANKAI-SAVED）: (1) detailOwner は unit が U-V なら state の bulletins、U-N なら state の information を、owner-runtime.ts の 1 つの関数で読む。volcano-unit.ts と nankai-unit.ts は変えない (2) id と同じ subject の記録が無い（retainUntil で消えた、件数の上限で退去した、U-V の再起動の後）、effective が active でない（取消、U-N の expired）、expiryPending が true のときは { kind: error, reason: versionChanged, revision: null } (3) 記録はあるが、その source の 3 つの欄を AC01 (2) の順で JSON.stringify した revision が要求と違う（同じ subject が新しい報で置き換えられた）ときは versionChanged に今の revision を載せる。再起動の後に採番が戻って inputId が同じでも、記録が置き換わったのなら時刻の欄が違うので一致しない。（P3-FINAL-REVIEW-FIX-001 の後は、保存にある input-N の次から振るので起動をまたいでも重ならない。ここの決めは変えない）退去を挟む列は P3-BT-D-KEY の残存リスクのとおり (4) 一致すれば ok で、id は subject、revision は今の revision。電文に欄が無ければ text・nextAdvisory は null のまま ok (5) owner の state に unit が無ければ unavailable (6) 読むだけで、state も期限も動かさない (7) 答えを ok にする記録は toVolcanoView と toNankaiView が見出しを載せる記録と同じ。見出しに無い報の本文を返さない (8) U-V の解説は復元の後に空から始まるので、再起動の前の id は (2) の答えになる。U-N の情報は保存していて復元の後も source と本文が同じなので、新しい streamId で要求すれば ok になる",
+        "requirement": "owner の答え（P3-BT-D-VISIBLE・P3-BT-D-NANKAI-SAVED）: (1) detailOwner は unit が U-V なら state の bulletins、U-N なら state の information を、owner-runtime.ts の 1 つの関数で読む。volcano-unit.ts と nankai-unit.ts は変えない (2) id と同じ subject の記録が無い（retainUntil で消えた、件数の上限で退去した、U-V の再起動の後）、effective が active でない（取消、U-N の expired）、expiryPending が true のときは { kind: error, reason: versionChanged, revision: null } (3) 記録はあるが、その source の 3 つの欄を AC01 (2) の順で JSON.stringify した revision が要求と違う（同じ subject が新しい報で置き換えられた）ときは versionChanged に今の revision を載せる。再起動の後に採番が戻って inputId が同じでも、記録が置き換わったのなら時刻の欄が違うので一致しない。（P3-FINAL-REVIEW-FIX-001 の後は、保存から戻したどの inputId よりも大きい番号から振る（保存に届かなかった番号は次の起動でもう一度振られうる）。ここの決めは変えない）退去を挟む列は P3-BT-D-KEY の残存リスクのとおり (4) 一致すれば ok で、id は subject、revision は今の revision。電文に欄が無ければ text・nextAdvisory は null のまま ok (5) owner の state に unit が無ければ unavailable (6) 読むだけで、state も期限も動かさない (7) 答えを ok にする記録は toVolcanoView と toNankaiView が見出しを載せる記録と同じ。見出しに無い報の本文を返さない (8) U-V の解説は復元の後に空から始まるので、再起動の前の id は (2) の答えになる。U-N の情報は保存していて復元の後も source と本文が同じなので、新しい streamId で要求すれば ok になる",
         "evidenceRefs": [
           "reconstruction/src/units/volcano/volcano-unit.ts:446 «ee055f152374fab0»",
           "reconstruction/src/units/volcano/volcano-unit.ts:454 «52be15e3cf8aa683»",

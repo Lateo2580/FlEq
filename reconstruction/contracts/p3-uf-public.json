@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3fe5dd693e3472ba1d3383731deb32ed4a16d779",
-    "sha256": "4734b8d2848315415030cc613de60907d7df9a67f8a9fce7bedc748f88895044",
+    "sha256": "2575c79dff5dcc6e47e7fead04cff5f60114b264ec7500d0517e10611482f088",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -69,7 +69,7 @@
         "source": "統合担当の決定（ヘルツのレビューH1・H3）。weather-timeseries-unit.tsの容量の退去（非normalのsubjectをgateごと消す）・contentRevisionの進め方、host.tsのinputIdの作り方、composition-root.tsのstreamIdの読み合わせ",
         "closed": "詳細の鍵は短い2つの値: id＝P2-A8-NOTICE.identityのtargetIdと同じ作り方（SHA256(UTF8(JSON.stringify([\"U-F\", operation, subject])))の小文字hex64）、revision＝そのsubjectのobjectを作ったstepでU-Fのunitが進めた内容版（reduceWeatherTimeseriesUnitが差分のafterのsubjectのobjectに、そのstepのcontentRevisionを記録する。10進で16桁以下）。世代は保存せず、公開形式のcacheから作らない（cacheを作り直しても変わらない）。unitの内容版はrunの中で単調に増え、1つのstepで公開されるのは各subjectの最後のobjectだけなので、退去してからの再作成も別のrevisionになる（ヘルツの列: t1保持→t3 unavailable〔lastKnown=t1〕→退去→t2再受理→t3 unavailable〔lastKnown=t2〕）。runをまたぐ照合はstreamId（runごとのrandomUUID）で切る。stateに入るsubjectのobjectはどれもreduceの差分を通る（restoreも全subjectの差分を出す）ので、製品の経路では記録の無いobjectは無い。試験がreduceを通さず手で組んだstateのobjectだけは記録が無く、revisionは\"0\"になる（配送のcommitでP3-UFP-AC09により統合担当が追記）",
         "remaining": "なし",
-        "reason": "報時刻・Serial・InfoType・effective・lastKnownの有無では、training/testのsubjectが容量の退去でgateごと消えた後の再受理で同じ値に戻り、違うlastKnownを同じ版として返しうる。inputIdはrunごとにinput-1から振り直す。（P3-FINAL-REVIEW-FIX-001 の後は、保存にある input-N の次から振るので起動をまたいでも重ならない。ここの決めは変えない）生の文字列を鍵にするとURLの1,024 byteに入らない"
+        "reason": "報時刻・Serial・InfoType・effective・lastKnownの有無では、training/testのsubjectが容量の退去でgateごと消えた後の再受理で同じ値に戻り、違うlastKnownを同じ版として返しうる。inputIdはrunごとにinput-1から振り直す。（P3-FINAL-REVIEW-FIX-001 の後は、保存から戻したどの inputId よりも大きい番号から振る（保存に届かなかった番号は次の起動でもう一度振られうる）。ここの決めは変えない）生の文字列を鍵にするとURLの1,024 byteに入らない"
       },
       {
         "id": "Q-UFP-INDEX",

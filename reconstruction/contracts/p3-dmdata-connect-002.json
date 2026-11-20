@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "d117ca8ea3d593ddb3803724af6b078f34ff09cac62a5fd5cc67da618170d23e",
+    "sha256": "7984d6ada3a781864d73652d13c120bc5927c5d2e7a239c2c7b1354ee752ef8e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -273,7 +273,7 @@
       },
       {
         "id": "P3-DC2-AC02",
-        "requirement": "繋ぎ直しの数（P3-DC2-D-COUNT）: 繋ぎ直しの数 n は host の run の中だけの数（保存しない）。(1) 増やすのは scheduleReconnect が新しい timer を張る時の 1 か所だけ（C18 発注 2 が :239 の試行の終わりで数えている所〔opened で 0、ほかで 1 増やす〕は除き、この 1 か所に移す）。停止中（stopping != null）と、既に timer がある時（:253）は張らず、数えない。試行が走っている間は timer を張る経路が無い（AC05 の (j)、P3-CLI-AC16 の (6)、C18 発注 2 の配送 33a6f9cc で改訂） (2) n を 0 に戻すのは、確立した接続を失った時（dispatchLost の中、AC09 の確立した時刻があるとき）に、『失った時の monotonic − 確立した時刻』が 60_000 ms 以上だった時だけ（P3-DC2-D-RESET）。時刻は host の config.clock() の monotonicMs（onFrame の entry と生存監視の lastFrameAt と同じ時計） で、失った時の値は dispatchLost が connectionLost に渡す clock() の読みを使う。60 秒より短ければ数え続ける。比べは dispatchLost の 1 回で、timer を足さない。比べの後に timer を張るので、長く続いた接続を失った後の待ちは n＝1 の 5 秒。{ wsUrl } は open（:409）で 0 に戻す（固定 5 秒、P2-A10-HOST） (2') HostStatus.failedAttempts は、確立している間（確立した時刻がある間）は 0、ほかは n。繋がっている間の REPL の status に『再接続試行: #n』を出さないため（P3-CLI-AC14 の (3)。旧築は open で 0、ws-client.ts:381） (3) 数えないもの: 401・403（timer を張らない）、過負荷の切断（timer を通らない）、停止の後の試行の終わり (4) C18 の reconnect()（P3-CLI-D-O2-RETRY）は timer を止めて試みを始めるだけで数を変えない。その試みが失敗すれば (1) で 1 つ増える (5) HostStatus.failedAttempts のコメント（p3-cli-repl.types.ts:83）と C18 の P3-CLI-AC16 の (7) の定義を、この定義に改める（コメントは実装、条文は AC08 の (2)）。REPL の status の『再接続試行: #n』（P3-CLI-AC14 の (3)、1 以上で出す）の文は変えない",
+        "requirement": "繋ぎ直しの数（P3-DC2-D-COUNT）: 繋ぎ直しの数 n は host の run の中だけの数（保存しない）。(1) 増やすのは scheduleReconnect が新しい timer を張る時の 1 か所だけ（C18 発注 2 が :239 の試行の終わりで数えている所〔opened で 0、ほかで 1 増やす〕は除き、この 1 か所に移す）。停止中（stopping != null）と、既に timer がある時（:253）は張らず、数えない。試行が走っている間は timer を張る経路が無い（AC05 の (j)、P3-CLI-AC16 の (6)、C18 発注 2 の配送 33a6f9cc で改訂） (2) n を 0 に戻すのは、確立した接続を失った時（dispatchLost の中、AC09 の確立した時刻があるとき）に、『失った時の monotonic − 確立した時刻』が 60_000 ms 以上だった時だけ（P3-DC2-D-RESET）。時刻は host の config.clock() の monotonicMs（onFrame の entry と生存監視の lastFrameAt と同じ時計） で、失った時の値は dispatchLost が connectionLost に渡す clock() の読みを使う。60 秒より短ければ数え続ける。比べは dispatchLost の 1 回で、timer を足さない。比べの後に timer を張るので、長く続いた接続を失った後の待ちは n＝1 の 5 秒。{ wsUrl } は open（:409）で 0 に戻す（固定 5 秒、P2-A10-HOST） (2') HostStatus.failedAttempts は、確立している間（確立した時刻がある間）は 0、ほかは n。繋がっている間の REPL の status に『繋ぎ直しの試行: #n』（P4-USER-WORDS-001 で改めた）を出さないため（P3-CLI-AC14 の (3)。旧築は open で 0、ws-client.ts:381） (3) 数えないもの: 401・403（timer を張らない）、過負荷の切断（timer を通らない）、停止の後の試行の終わり (4) C18 の reconnect()（P3-CLI-D-O2-RETRY）は timer を止めて試みを始めるだけで数を変えない。その試みが失敗すれば (1) で 1 つ増える (5) HostStatus.failedAttempts のコメント（p3-cli-repl.types.ts:83）と C18 の P3-CLI-AC16 の (7) の定義を、この定義に改める（コメントは実装、条文は AC08 の (2)）。REPL の status の『再接続試行: #n』（P3-CLI-AC14 の (3)、1 以上で出す）の文は変えない",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:253 «b5c88d613d98209e»",
           "reconstruction/src/host/host.ts:254 «09a0bda74b46a585»",

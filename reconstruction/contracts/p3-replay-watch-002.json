@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "b7e219731a5e9baa0439ad01ac77e0d4d36b85a302df20c5d9af5878803a8182",
+    "sha256": "9d949d2191b658a289023ab179978f85cbcc2b798745c693c79782152fe8fc60",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -398,7 +398,7 @@
     "acceptanceChecks": [
       {
         "id": "P3-RW2-AC01",
-        "requirement": "【発注 1】 いつもの fleq の口と守り（D-SHAPE・D-CLI-LINES）: reconstruction/src/cli/cli.ts の startMonitor で、(1) 環境変数 FLEQ_WS_URL が空でない文字列なら startP2Host に dmdata の代わりに { wsUrl: <その値>, origin: \"replay\" } を渡す。他の引数（stateDirectory・diagnosticDirectory・displayPort・notificationGate・clock・observe）は今のまま。flag は足さない (2) FLEQ_WS_URL があるとき、settingsPaths().directory が os.tmpdir() の下でなければ Refusal「FLEQ_WS_URL は設定の場所が一時 directory の下のときだけ使えます（npm run watch から起こしてください）」で断る（終了 code 1、host を起こさない）。比べるのは両方の realpath（macOS の /var と /private/var を揃えるため。設定の場所が無ければ断る）で、path.relative が '' でも '..' 始まりでも絶対 path でもないときだけ下とみなす。無いと: 本番の fleq-next に偽の電文が保存され、本番の設定で鳴る（001 の T13 の代わり） (3) 守りは startMonitor の後に置く関数 1 つにまとめ、startP2Host の引数の dmdata の 1 行をその場で `...(<守りの関数>(paths) ?? { dmdata: ... })` の 1 行に置き換える。その try の catch の頭に `if (error instanceof Refusal) throw error;` を 1 行足す（無いと守りの Refusal が「起動に失敗しました」に化ける）。344 行より前に行を足さない（import の名前は既存の :1・:2 の行にその場で足し、node:os の import は :1 の行の末尾に書く。D-CLI-LINES）。cli.ts は C18 の file なので直列合流で入れ、C18 発注 3 はこの上で起草する。apiKey・appName の要求（通常起動の検査）は変えず、watch が仮の値で満たす（AC02）",
+        "requirement": "【発注 1】 いつもの fleq の口と守り（D-SHAPE・D-CLI-LINES）: reconstruction/src/cli/cli.ts の startMonitor で、(1) 環境変数 FLEQ_WS_URL が空でない文字列なら startP2Host に dmdata の代わりに { wsUrl: <その値>, origin: \"replay\" } を渡す。他の引数（stateDirectory・diagnosticDirectory・displayPort・notificationGate・clock・observe）は今のまま。flag は足さない (2) FLEQ_WS_URL があるとき、settingsPaths().directory が os.tmpdir() の下でなければ Refusal「FLEQ_WS_URL は設定の場所が一時 directory の下のときだけ使えます（npm run watch から起こしてください）」で断る（終了 code 1、host を起こさない）。比べるのは両方の realpath（macOS の /var と /private/var を揃えるため。設定の場所が無ければ断る）で、path.relative が '' でも '..' 始まりでも絶対 path でもないときだけ下とみなす。無いと: 本番の fleq-next に偽の電文が保存され、本番の設定で鳴る（001 の T13 の代わり） (3) 守りは startMonitor の後に置く関数 1 つにまとめ、startP2Host の引数の dmdata の 1 行をその場で `...(<守りの関数>(paths) ?? { dmdata: ... })` の 1 行に置き換える。その try の catch の頭に `if (error instanceof Refusal) throw error;` を 1 行足す（無いと守りの Refusal が「FlEq の起動に失敗しました」に化ける）。344 行より前に行を足さない（import の名前は既存の :1・:2 の行にその場で足し、node:os の import は :1 の行の末尾に書く。D-CLI-LINES）。cli.ts は C18 の file なので直列合流で入れ、C18 発注 3 はこの上で起草する。apiKey・appName の要求（通常起動の検査）は変えず、watch が仮の値で満たす（AC02）",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:42 «a43e972375d56f84»",
           "reconstruction/src/host/host.ts:581 «55fd8425a0e9b014»",
@@ -414,7 +414,7 @@
         "evidenceRefs": [
           "reconstruction/src/cli/settings.ts:37 «7a35f04b725adcdc»",
           "reconstruction/src/cli/settings.ts:152 «0b91e4d9c4f68711»",
-          "reconstruction/src/cli/settings.ts:115 «e1733364fdc5fa0a»",
+          "reconstruction/src/cli/settings.ts:115 «21985b6af900e76b»",
           "reconstruction/src/cli/repl.ts:255 «f5460e64bc05561d»",
           "reconstruction/src/cli/notification-gate.ts:67 «2035e81c5451c745»",
           "reconstruction/src/cli/notification-gate.ts:58 «f68e9eabe533fdab»",

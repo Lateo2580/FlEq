@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-  "sha256": "b6134969d42c533893cda0b95c3a10ee32d946539ea0b6f055cf263f5a35be47",
+  "sha256": "cc0cc2e73b6ef3bdb2d91756e161ca9a9cfd20f497a131e0284ab196bc175e86",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -162,7 +162,7 @@
    "HostStatus.classifications（今の接続の間だけ）"
   ],
   "outOfScope": [
-   "XML の欄の TAB（decode-material.ts の :110 が C0 のうち TAB・LF・CR を通し、painter は TAB を替えないので、電文の欄の TAB が表の桁をずらしうる）: 本契約の外。替えると今の電文の見え方が変わるので、作者の分岐として統合担当が扱う",
+   "XML の欄の TAB（decode-material.ts の :110 が C0 のうち TAB・LF・CR を通し、painter は TAB を替えないので、電文の欄の TAB が表の桁をずらしうる）: 本契約の外。替えると今の電文の見え方が変わるので、作者の分岐として統合担当が扱う【TAB は P4-USER-WORDS-001 で painter の組に足した（P4-UW-D-TAB=A）】",
    "painter（color.ts の :66）の字の組と、2 重の塗り（format.ts と prompt-current.ts）: 変えない（Q-TET2-SHAPE）",
    "一覧の headline・reportDateTime: headOf は替えない。digest の headline は端末に出ず（format.ts の digest は title だけを書く）ディスプレイの snapshot にだけ載る。reportDateTime は端末では minuteOf（format.ts:207）が数字の 2 組だけを取る。P3-TERMINAL-EXTERNAL-TEXT-001 の outOfScope の「（と headline）」はこの 1 行で閉じる",
    "ディスプレイ（chrome-eew）は snapshot.recovery.digest を描かない（client.ts に digest の読みが無い）。SSE の JSON は制御の字を escape して運ぶ。AC01 の後は digest の題名の制御の字が空白になって届く",
@@ -189,13 +189,13 @@
    },
    {
     "id": "P4-TET2-AC02",
-    "requirement": "start の区分（台帳 139）: (1) acceptStart（host.ts:284 の行の中）で、startClassifications に入れる時だけ各区分を item.replace(<AC01 (1) と同じ字の組>, \" \") にする (2) 設定の区分との照合（dmdataSubscriptionNarrowed）と forecastGranted は替える前の字のまま（既知の区分の名前は制御の字を含まないので、替えても照合の結果は同じだが、照合を替えた字に寄せない） (3) 文字列の配列でない区分は今どおり start を受けない（:282） (4) 効き: status() の classifications（:655）→ 起動画面の「区分: [...]」の行（output.ts:397 → format.ts:912）。missing は既知の名前から引くので変わらない。repl の status の行は区分を出さない (5) 制御の字の無い区分は 1 字も変わらない (6) なぜのコメントは :284 の行末に 1 つ（区分は「区分:」の行へ字のまま出ること、照合は替える前の字で行うこと、台帳 139、P4-TERMINAL-EXTERNAL-TEXT-002） (7) 足す仕組みは無い（無いと: start の frame の区分の ESC が起動画面に生で書かれる）",
+    "requirement": "start の区分（台帳 139）: (1) acceptStart（host.ts:284 の行の中）で、startClassifications に入れる時だけ各区分を item.replace(<AC01 (1) と同じ字の組>, \" \") にする (2) 設定の区分との照合（dmdataSubscriptionNarrowed）と forecastGranted は替える前の字のまま（既知の区分の名前は制御の字を含まないので、替えても照合の結果は同じだが、照合を替えた字に寄せない） (3) 文字列の配列でない区分は今どおり start を受けない（:282） (4) 効き: status() の classifications（:655）→ 起動画面の「受信区分: ...」の行（output.ts:397 → format.ts:912）。missing は既知の名前から引くので変わらない。repl の status の行は区分を出さない (5) 制御の字の無い区分は 1 字も変わらない (6) なぜのコメントは :284 の行末に 1 つ（区分は「受信区分:」の行へ字のまま出ること、照合は替える前の字で行うこと、台帳 139、P4-TERMINAL-EXTERNAL-TEXT-002） (7) 足す仕組みは無い（無いと: start の frame の区分の ESC が起動画面に生で書かれる）",
     "evidenceRefs": [
      "reconstruction/src/host/host.ts:73 «250c72537d35e895»",
      "reconstruction/src/host/host.ts:282 «f1732e7c162f8244»",
      "reconstruction/src/host/host.ts:655 «0a2590187d4f7b27»",
-     "reconstruction/src/terminal/output.ts:397 «eb86e420308d0139»",
-     "reconstruction/src/terminal/format.ts:912 «2a8cc6a9ee29d548»"
+     "reconstruction/src/terminal/output.ts:397 «afcf148c92294947»",
+     "reconstruction/src/terminal/format.ts:912 «1853cfa4ff5c844e»"
     ]
    },
    {
@@ -215,7 +215,7 @@
     "id": "P4-TET2-AC04",
     "requirement": "変えないもの: (1) painter（color.ts:66）・format.ts・output.ts・decode-material.ts は変えない。XML の電文の出力は 1 字も変わらない (2) 行の数: recovery.ts 526 行・host.ts 685 行・update-check.ts 98 行のまま。3 file と 3 つの試験 file を引く他の契約の «» は 327 件（host.ts 271・recovery.ts 37・update-check.ts 4・host.test.ts 14・recovery.test.ts 1）で、変える 3 行（recovery.ts:510・host.ts:284・update-check.ts:47）を引くものは 0 件。試験は file の末尾に足すので行は動かない。付け直しは 0 個（起草の写しで、案を当てた木の check-contract が PASS） (3) 既存の試験の期待（expect の値）は変えない",
     "evidenceRefs": [
-     "reconstruction/src/terminal/color.ts:66 «74433470282859f4»",
+     "reconstruction/src/terminal/color.ts:66 «2093fe5bc3895d94»",
      "reconstruction/src/decode-material/decode-material.ts:110 «690114010dfd32bf»"
     ]
    },
@@ -253,7 +253,7 @@
      "P4-TET2-AC02",
      "P4-TET2-AC05"
     ],
-    "behavior": "実不具合の再発防止（台帳 139）。host.test.ts の末尾に「import { createRenderer } from \"../../src/terminal/format\";」と自前の describe「P4-TET2-T02 …」を足し、it を 1 つ置く。localServer → startP2Host({ wsUrl, ...directories(), displayPort: null, clock, observe: null })、socket が 1 つになるのを待ち、start の frame（socketId 1、classifications [\"eew.forecast\", \"x\\u001b[2J\\u0007\\t\\r\\u0085y\"]、time は startTime()）を送り、host.status().classifications が null でなくなるのを until で待つ。その区分を createRenderer(0).render の session の notice（socketId 1・missing []・testMode \"no\"）に渡し、「区分: 」で始まる行が [\"区分: [eew.forecast, x [2J    y]\"] と等しい。wsUrl の起動は socketId が null で output.ts:397 の起動画面を出さないので、status の区分を renderer に渡す（残存 (1)）。直す前の製品では「区分: [eew.forecast, x<ESC>[2J<BEL><TAB>  y]」で落ちる"
+    "behavior": "実不具合の再発防止（台帳 139）。host.test.ts の末尾に「import { createRenderer } from \"../../src/terminal/format\";」と自前の describe「P4-TET2-T02 …」を足し、it を 1 つ置く。localServer → startP2Host({ wsUrl, ...directories(), displayPort: null, clock, observe: null })、socket が 1 つになるのを待ち、start の frame（socketId 1、classifications [\"eew.forecast\", \"x\\u001b[2J\\u0007\\t\\r\\u0085y\"]、time は startTime()）を送り、host.status().classifications が null でなくなるのを until で待つ。その区分を createRenderer(0).render の session の notice（socketId 1・missing []・testMode \"no\"）に渡し、「受信区分: 」で始まる行が [\"受信区分: eew.forecast, x [2J    y\"] と等しい。wsUrl の起動は socketId が null で output.ts:397 の起動画面を出さないので、status の区分を renderer に渡す（残存 (1)）。直す前の製品では「区分: [eew.forecast, x<ESC>[2J<BEL><TAB>  y]」で落ちる"
    },
    {
     "testId": "P4-TET2-T03",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "5f3095d7e324384b93ee126181d6d8cbac9cb9dc",
-    "sha256": "a5044333526ba8992b9a6f8d05e39298000e42543b8e307c1469e6b825e089b9",
+    "sha256": "c6da85dc11b34ef483a335b4f141c270f75793dbe96f145208901740c33b974a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -266,7 +266,7 @@
           "reconstruction/src/cli/cli.ts:298 «7b71c5089bd9e2b7»",
           "reconstruction/src/cli/cli.ts:304 «d912fd0446522ae7»",
           "reconstruction/src/cli/cli.ts:187 «73019f2eb1d207f7»",
-          "reconstruction/src/cli/cli.ts:326 «b9c492f5da23e6e8»",
+          "reconstruction/src/cli/cli.ts:326 «98aa13ecc149fe49»",
           "reconstruction/src/cli/cli.ts:354 «50619ac50a9cc3bb»",
           "reconstruction/src/terminal/output.ts:395 «d8d3a650b9e35ea3»",
           "reconstruction/src/terminal/format.ts:911 «1bb65f57e524c4f2»",
@@ -279,12 +279,12 @@
       },
       {
         "id": "P3-NC-AC03",
-        "requirement": "noContract の理由と状態: (1) refused が noContract を返すと、試行の終わり（host.ts:239）が HostStatus.lastFailure を \"noContract\" にする（今の仕組みのまま。retryLater の failure をそのまま写す） (2) p3-dmdata-connect.types.ts の DmdataConnectFailure（:24）に \"noContract\" を足す。HostStatus.lastFailure（p3-cli-repl.types.ts）はこの union を使うので変えない (3) format.ts の FAILURE_TEXT（:802、全部の理由に文を求める Record）の startUncertain の行（:807）の後に noContract の文「dmdata.jp に有効な契約がありません。dmdata.jp で区分を契約すると、自動で繋ぎ直して受信を始めます。」（P3-NC-D-RUNNING-LOSS=A）を 1 行足し、:801 のコメントの「理由 5 種」を 6 種にする (4) close 4807（dmdata が WebSocket を閉じるときに付ける理由の番号。4807 は接続中の区分を解約し、ほかに接続中の区分が無いとき）は今の切断の経路（host.ts:418、lastFailure は network）を通り、次の試行の 402 で noContract になる（P3-NC-D-CLOSE-4807。close code は読まない） (5) 一度も受信していない間に lastFailure が noContract になると、端末は今の P3-TO-AC10 (5) の規則（output.ts:392）でその文を 1 回出す (6) 起動の最初の試行の noContract も繋ぎ直しの試行と同じに扱う: startP2Host は reject せずに resolve し（host.ts の :581・:583 は変えない）、今の :585〜:587 の経路で繋ぎ直しを予約する。場面: 契約の更新に失敗して 03:00〜10:00 に契約が切れていた間の 04:00:00 に、停電から戻った Pi で FlEq が自動で起動する。回線がまだ無く、GET /contract は答えが来ず、04:00:15 に AC02 (4) の 2 行が出て設定の区分のまま host を起こす。最初の試行は回線が無く network の文が出る。04:02 に回線が戻り、次の試行の socket.start が 402 を返すと、noContract の文が 1 行出て、120 秒ごとに試す。10:00 に契約が戻ると次の試行（最長 120 秒後）で start が通り、起動画面の区分の行（「セッション開始: socketId=…」ほか、spec §6.7）が出て受信を始める",
+        "requirement": "noContract の理由と状態: (1) refused が noContract を返すと、試行の終わり（host.ts:239）が HostStatus.lastFailure を \"noContract\" にする（今の仕組みのまま。retryLater の failure をそのまま写す） (2) p3-dmdata-connect.types.ts の DmdataConnectFailure（:24）に \"noContract\" を足す。HostStatus.lastFailure（p3-cli-repl.types.ts）はこの union を使うので変えない (3) format.ts の FAILURE_TEXT（:802、全部の理由に文を求める Record）の startUncertain の行（:807）の後に noContract の文「dmdata.jp に有効な契約がありません。dmdata.jp で区分を契約すると、自動で繋ぎ直して受信を始めます。」（P3-NC-D-RUNNING-LOSS=A）を 1 行足し、:801 のコメントの「理由 5 種」を 6 種にする (4) close 4807（dmdata が WebSocket を閉じるときに付ける理由の番号。4807 は接続中の区分を解約し、ほかに接続中の区分が無いとき）は今の切断の経路（host.ts:418、lastFailure は network）を通り、次の試行の 402 で noContract になる（P3-NC-D-CLOSE-4807。close code は読まない） (5) 一度も受信していない間に lastFailure が noContract になると、端末は今の P3-TO-AC10 (5) の規則（output.ts:392）でその文を 1 回出す (6) 起動の最初の試行の noContract も繋ぎ直しの試行と同じに扱う: startP2Host は reject せずに resolve し（host.ts の :581・:583 は変えない）、今の :585〜:587 の経路で繋ぎ直しを予約する。場面: 契約の更新に失敗して 03:00〜10:00 に契約が切れていた間の 04:00:00 に、停電から戻った Pi で FlEq が自動で起動する。回線がまだ無く、GET /contract は答えが来ず、04:00:15 に AC02 (4) の 2 行が出て設定の区分のまま host を起こす。最初の試行は回線が無く network の文が出る。04:02 に回線が戻り、次の試行の socket.start が 402 を返すと、noContract の文が 1 行出て、120 秒ごとに試す。10:00 に契約が戻ると次の試行（最長 120 秒後）で start が通り、起動画面の区分の行（「dmdata.jp に接続しました（socketId=…）」ほか、spec §6.7）が出て受信を始める",
         "evidenceRefs": [
           "reconstruction/src/host/host.ts:239 «741773806b2db564»",
           "reconstruction/contracts/p3-dmdata-connect.types.ts:24 «e4d4d825e9e90dca»",
           "reconstruction/src/terminal/format.ts:812 «eaaa9074375c6393»",
-          "reconstruction/src/terminal/format.ts:817 «52b0a698c38ab469»",
+          "reconstruction/src/terminal/format.ts:817 «da7ff02b2780f3d2»",
           "reconstruction/src/host/host.ts:418 «1bdbd2fc0594394f»",
           "reconstruction/src/terminal/output.ts:403 «92bb7c565c6e5b2b»",
           "reconstruction/src/terminal/format.ts:811 «e416b1b6ab4e03af»",
@@ -313,11 +313,11 @@
           "reconstruction/src/host/host.ts:366 «3ca67678bb8158a8»",
           "reconstruction/src/host/host.ts:579 «ef97415fc6486b6f»",
           "reconstruction/src/terminal/output.ts:370 «a594472a25db784a»",
-          "docs/specs/cli-terminal-output.md:721 «c310d236d4cfdc06»",
+          "docs/specs/cli-terminal-output.md:721 «23f6692cd6b16080»",
           "docs/specs/cli-terminal-output.md:824 «f6b0c61fc02c92e4»",
           "docs/specs/reconstruction-p0-contracts.md:2288 «c222547f5dcd1259»",
           "reconstruction/test/cli/cli.test.ts:77 «b3981b060c99b3e7»",
-          "reconstruction/test/cli/cli.test.ts:237 «8175e762e927cc2c»",
+          "reconstruction/test/cli/cli.test.ts:237 «7c27155f28feed05»",
           "reconstruction/test/cli/cli.test.ts:253 «87cbbfd8e2c9176d»"
         ]
       },

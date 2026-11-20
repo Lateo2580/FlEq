@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "86d471fbcb4bf9d3e1be4223fc2e5676ddfb9254",
-    "sha256": "60ed63b470fbc1a74dc4c088cb1377fa1ff91bc20d8e1210f552b87dd6f65e91",
+    "sha256": "4a5da6d40432afbef4a417bbac0a603aebb01de22c9c0450ccc49bd4346138c1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -180,7 +180,7 @@
     "outOfScope": [
       "REST（取り直し）と replay の枝の head.type: REST は recovery.ts の passed が表の鍵だけを通し、replay は試験と道具の入口（Q-TET-WS-ONLY）",
       "REST の一覧の JSON の xmlReport.head.title（と headline）: recovery.ts の headOf が文字列かだけを確かめ、bounded（recovery.ts の :476 の関数、byte の長さだけを切る）を通って RecoveryDigestHead の title になり、端末の取り直しの一覧の行（format.ts の digest の「  HH:MM  <title>」）に出る。decode-material の字の検査を通らない外部の字なので、ESC などの C0 はそのまま端末へ書かれうる（LF・CR・C1 は painter で空白になる）。135 と同じ族だが本契約の裁定の外で、統合担当が別の台帳の項にする【P4-TERMINAL-EXTERNAL-TEXT-002 で直した（headline は端末に出ないので直さない）】",
-      "WS の head.type の長さの上限（Q-TET-PATTERN）と、head.type 以外の WS の JSON の欄（id・classification など）。起草レビュー r1 で読んだ事実: start の frame の classifications は文字列の配列かだけを確かめ（host.ts:282）、host.ts:284 → :655 → output.ts:397 の「区分: [...]」の行に字のまま出る（ESC などの C0 はそのまま書かれうる）。135・138 と同じ族で、統合担当が台帳の項にする【classifications は P4-TERMINAL-EXTERNAL-TEXT-002 で直した】",
+      "WS の head.type の長さの上限（Q-TET-PATTERN）と、head.type 以外の WS の JSON の欄（id・classification など）。起草レビュー r1 で読んだ事実: start の frame の classifications は文字列の配列かだけを確かめ（host.ts:282）、host.ts:284 → :655 → output.ts:397 の「受信区分: ...」の行に字のまま出る（ESC などの C0 はそのまま書かれうる）。135・138 と同じ族で、統合担当が台帳の項にする【classifications は P4-TERMINAL-EXTERNAL-TEXT-002 で直した】",
       "decode-material.ts の字の決まりと、TAB・幅 0 の字の扱い（P3-TERMINAL-CONTROL-CHARS-001 の outOfScope のまま）",
       "文（textLines・sentenceLines・見出し文・表の行）の LF の分け方: seg に入る前に割るので painter に届かず、今のまま（Q-TET-LF）",
       "output.ts の inputDropped（r0 の :639 の直し）: AC03 のとおり要らない",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fd1d82c2af1ddce7c7a692bfeb75491626f424fb",
-    "sha256": "6c5ffc49bb2ac2a2f3e96120a072cffae7306d4da5d2504f53a530cf7da18c95",
+    "sha256": "b6a92b7ece6aa2ceb14373725c67d9ab9af5919deca7906fe7f5f7100831bdf8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -247,7 +247,7 @@
       },
       {
         "id": "P3-TL8-AC02",
-        "requirement": "表（Q-TO9-VPWS50-TARGET、P3-TL8-D-ROWS）: (1) 段が警報以上（warning・purple・top）の報は、帯の直下（要点のまとまり。VPWS50 の見出し文は空）に、その段の今の Kind を Code ごとに 1 行ずつ、Code の昇順に出す（層で出た順にすると予報区の出入りで並びが入れ替わり、AC04 の比べで出し直しになる） (2) 左の列はその Code の最初の Kind の Name（電文の字のまま）、右の列はその Code の今の Kind を持つ Item の Area の Name を電文の順に並べる（同じ Item は 1 回） (3) 右の列は全角の空白で区切り（Q-TO-Q-1）、入らなければ名前の境で折り、折り返した行にも左の列を薄い字で出す（Q-TO5-MONTHLY-ROW。format.ts の listTable の形） (4) 表の上下に罫線を足さない。段の理由の行と見出し文の行は出さない (5) 56・80・100 桁で、どの行も桁数を越えない（P3-TO-AC04 (5)）。15_18_01 の 60 桁の行は spec §5.4 の図のとおり (6) Item は層の電文の順に AREA_LIMIT（256）まで読み、越えた Item は段にも表にも入れず、その数 n を表の下（表の無い注意報だけの報と plain の報では帯の直下の並びの下）に薄い字の「ほか n 予報区は読んでいません」の 1 行で出す。段によらず n > 0 なら出す（全国の府県予報区等は 64 で、実物では出ない）",
+        "requirement": "表（Q-TO9-VPWS50-TARGET、P3-TL8-D-ROWS）: (1) 段が警報以上（warning・purple・top）の報は、帯の直下（要点のまとまり。VPWS50 の見出し文は空）に、その段の今の Kind を Code ごとに 1 行ずつ、Code の昇順に出す（層で出た順にすると予報区の出入りで並びが入れ替わり、AC04 の比べで出し直しになる） (2) 左の列はその Code の最初の Kind の Name（電文の字のまま）、右の列はその Code の今の Kind を持つ Item の Area の Name を電文の順に並べる（同じ Item は 1 回） (3) 右の列は全角の空白で区切り（Q-TO-Q-1）、入らなければ名前の境で折り、折り返した行にも左の列を薄い字で出す（Q-TO5-MONTHLY-ROW。format.ts の listTable の形） (4) 表の上下に罫線を足さない。段の理由の行と見出し文の行は出さない (5) 56・80・100 桁で、どの行も桁数を越えない（P3-TO-AC04 (5)）。15_18_01 の 60 桁の行は spec §5.4 の図のとおり (6) Item は層の電文の順に AREA_LIMIT（256）まで読み、越えた Item は段にも表にも入れず、その数 n を表の下（表の無い注意報だけの報と plain の報では帯の直下の並びの下）に薄い字の「ほか n 予報区は FlEq で処理していません」の 1 行で出す。段によらず n > 0 なら出す（全国の府県予報区等は 64 で、実物では出ない）",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:656 «9c66f8919dbc34b0»",
           "docs/specs/cli-terminal-output.md:552 «953e49bd94938d6b»",
@@ -325,7 +325,7 @@
           "P3-TL8-AC04",
           "P3-TL8-AC05"
         ],
-        "behavior": "契約境界。府県予報区等の Warning の type を書き換えた報（層が無い）は対象が全国で表が無く段の理由の行が今のまま出て、2 通続けても 2 通とも出る。層の Item を 257 にした報は「ほか 1 予報区は読んでいません」の行が出て、段と表は先頭の 256 の Item だけで決まる。1 つの Item に同じ Code の Kind を 2 つ持たせた報も行は 1 つで、その予報区は 1 回"
+        "behavior": "契約境界。府県予報区等の Warning の type を書き換えた報（層が無い）は対象が全国で表が無く段の理由の行が今のまま出て、2 通続けても 2 通とも出る。層の Item を 257 にした報は「ほか 1 予報区は FlEq で処理していません」の行が出て、段と表は先頭の 256 の Item だけで決まる。1 つの Item に同じ Code の Kind を 2 つ持たせた報も行は 1 つで、その予報区は 1 回"
       }
     ],
     "requiredCommands": [

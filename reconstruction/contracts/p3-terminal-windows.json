@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "560a2d7708e895733eb23416d64d25c7a6268272",
-    "sha256": "a29360981d1b2f5a839079b6ddc6e3ec15e936801fd3a5fb97627984f276adda",
+    "sha256": "1ee25fc93ea5a16f2b373ea23b27f04f2d29624fc120a3325ae663148d863912",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -254,9 +254,9 @@
       },
       {
         "id": "P3-TW-AC04",
-        "requirement": "子の失敗（P3-TW-D-FAIL）: (1) 起動の失敗（fork の同期の例外、error event）、途中の消滅（exit event）、IPC の切断（disconnect event、child.send の callback の error）を 1 つの処理に集める (2) 列は今の fail と同じ: 残りを捨てて数え、以後は積まずに数えるだけ。受信・通知の試行・REPL の入力を止めず、process を落とさない (3) 子が生きていれば child.kill() を呼ぶ (4) 1 run に 1 回だけ、標準エラーへ「端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません」の 1 行を書く試みをする。main は書かず、spawn(process.execPath, [\"-e\", \"process.stderr.write(process.argv[1])\", 文字], { stdio: [\"ignore\", \"ignore\", \"inherit\"] }) に error の listener と unref を付けて書かせる。spawn の同期の例外は諦める。試みが失敗すると知らせなしになる (5) close の開始の後は知らせない (6) 子を立て直さない。無いと: 列が黙って止まり、以後の出力が理由もなく消える",
+        "requirement": "子の失敗（P3-TW-D-FAIL）: (1) 起動の失敗（fork の同期の例外、error event）、途中の消滅（exit event）、IPC の切断（disconnect event、child.send の callback の error）を 1 つの処理に集める (2) 列は今の fail と同じ: 残りを捨てて数え、以後は積まずに数えるだけ。受信・通知の試行・REPL の入力を止めず、process を落とさない (3) 子が生きていれば child.kill() を呼ぶ (4) 1 run に 1 回だけ、標準エラーへ「端末へ表示する処理が止まったため、以後この端末には電文や返事を表示しません（受信と通知は続けます）」の 1 行を書く試みをする。main は書かず、spawn(process.execPath, [\"-e\", \"process.stderr.write(process.argv[1])\", 文字], { stdio: [\"ignore\", \"ignore\", \"inherit\"] }) に error の listener と unref を付けて書かせる。spawn の同期の例外は諦める。試みが失敗すると知らせなしになる (5) close の開始の後は知らせない (6) 子を立て直さない。無いと: 列が黙って止まり、以後の出力が理由もなく消える",
         "evidenceRefs": [
-          "docs/specs/cli-terminal-output.md:1063 «08df5c5d828bb620»"
+          "docs/specs/cli-terminal-output.md:1063 «dc9d31057eddce8e»"
         ]
       },
       {

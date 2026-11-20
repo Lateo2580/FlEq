@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "de25f61a888794cc2c3e562c3c968df3d81b1685",
-    "sha256": "08e6ab52103e1bde326e212593b799e07f6b7d6b2665ca7570a0ed0614b8bc64",
+    "sha256": "88f75226a708f94240c2ef42f5fca9260c3b8368c000d1ec085b031c8a4dcec2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -160,7 +160,7 @@
           "reconstruction/src/cli/cli.ts:381 «9e814ba6be570a8b»",
           "reconstruction/src/cli/cli.ts:384 «075e894e8828dd94»",
           "reconstruction/src/cli/cli.ts:385 «fab94c37e644e238»",
-          "reconstruction/src/cli/cli.ts:387 «341aa9d2306d9933»",
+          "reconstruction/src/cli/cli.ts:387 «e9aec6fe56891983»",
           "reconstruction/src/cli/cli.ts:388 «3500973c5041ae4a»",
           "reconstruction/src/cli/cli.ts:394 «e644ea41ec7c178a»",
           "reconstruction/src/cli/cli.ts:395 «851cf0887837b4d7»",
@@ -173,7 +173,7 @@
           "reconstruction/src/runtime/composition-root.ts:1805 «5d65895f36340616»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:302 «0982cc16635b9129»",
           "reconstruction/test/checkpoint-shutdown/review-regressions.test.ts:475 «4aa6aced5e54f132»",
-          "reconstruction/contracts/p3-cli-repl.json:1236 «5999edebc2f15d38»",
+          "reconstruction/contracts/p3-cli-repl.json:1236 «3f44b095ec84c40b»",
           "reconstruction/contracts/p3-repl-closed.json:13 «a76c9bff78bc6147»",
           "reconstruction/contracts/p2-checkpoint-shutdown.json:411 «b7e8914d276157dd»",
           "reconstruction/contracts/p3-execution-lifecycle.json:720 «43270efa8e841d25»"
@@ -183,7 +183,7 @@
         "id": "P3-SSW-AC02",
         "requirement": "他の契約の文（実装はしない。原文の改訂として、統合担当が配送の commit で当てる。行の数は変えない）: p3-cli-repl.json の 1236 行（P3-CLI-AC18 の requirement）の (3) は、終了の code を「ShutdownSummary.code」とだけ書き、stop() が reject したときを書いていない。artifactRequirements の原文の改訂 (1) の文を足す。AC18 (3) の待ちの決まり（stop() が終わった後も 5 秒まで待つ）は変わらない",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-cli-repl.json:1236 «5999edebc2f15d38»"
+          "reconstruction/contracts/p3-cli-repl.json:1236 «3f44b095ec84c40b»"
         ]
       }
     ],

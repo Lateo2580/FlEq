@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fdaf4589b3ccc8b0afed7d1db13c98470d491f72",
-    "sha256": "97f44cbb19bdd365c131a27324c6572ef8605f5bd6cc041f5eaef34fce9a88b1",
+    "sha256": "90664968731db9763b6895725823a6b0c866b32817a89fb30ada6b779608b566",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -196,7 +196,7 @@
           "reconstruction/test/eew-e01/evidence/p3-harness/manifest-dyl-e05y.json:410 «a31ef8ca10a62699»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:342 «4ab584a7d8cb2623»",
           "reconstruction/src/checkpoint/persistent-diagnostic-sink.ts:346 «281d7d91cf5812bf»",
-          "reconstruction/src/runtime/composition-root.ts:463 «a25d8a6994e817af»",
+          "reconstruction/src/runtime/composition-root.ts:463 «25ed9f9596d7ee73»",
           "reconstruction/test/eew-e01/run.mjs:216 «9f9135a231aea79d»",
           "reconstruction/test/eew-e01/run.mjs:1505 «a9f157d983a0ed75»"
         ]
