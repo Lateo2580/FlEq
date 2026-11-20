@@ -107,12 +107,12 @@ function legacyAppName(context: Context): string {
 function appNameShape(value: string): string | null {
   if (value === "") return "接続名が空です";
   if (Buffer.byteLength(value, "utf8") > APP_NAME_MAX_BYTES) return "接続名は 24 バイトまでです（日本語は 1 字 3 バイト）";
-  if (value === LEGACY_APP_NAME) return "今までの fleq と同じ接続名は使えません";
+  if (value === LEGACY_APP_NAME) return "旧版の fleq と同じ接続名は使えません（旧版を起動すると、同じ接続名の接続が切れるため）";
   return null;
 }
 /** appName の問題を 1 文で返す。問題が無ければ null。set・init・通常起動で使う（今までの fleq の設定との照合を含む）。 */
 function appNameProblem(value: string, context: Context): string | null {
-  return appNameShape(value) ?? (value === legacyAppName(context) ? "今までの fleq と同じ接続名は使えません" : null);
+  return appNameShape(value) ?? (value === legacyAppName(context) ? "旧版の fleq と同じ接続名は使えません（旧版を起動すると、同じ接続名の接続が切れるため）" : null);
 }
 
 /** 設定ファイルの mute の欄を確かめて組み立てる（P3-CLI-AC17 (1)）。外れたら null。 */
@@ -139,7 +139,7 @@ const BOOL = "true か false";
 const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
   apiKey: { kind: "string", description: "dmdata.jp APIキー", reason: "空白だけでない文字列",
     check: (v, o) => typeof v === "string" && v.trim() !== "" && put(o, "apiKey", v) },
-  appName: { kind: "string", description: "dmdata の接続名。今までの fleq やほかの端末と違う名前にします",
+  appName: { kind: "string", description: "dmdata の接続名。旧版の fleq やほかの端末と違う名前にします",
     reason: "UTF-8 で 1〜24 バイト、fleq 以外",
     check: (v, o) => typeof v === "string" && appNameShape(v) == null && put(o, "appName", v) },
   classifications: { kind: "list", description: `受信区分 (カンマ区切り: ${CLASSIFICATIONS.join(",")})`,
@@ -153,7 +153,7 @@ const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
     check: (v, o) => isInt(v, 1, 65535) && put(o, "displayPort", v) },
   displayHost: { kind: "string", description: "情報ディスプレイのバインド先 (今は 127.0.0.1 だけ)", reason: "127.0.0.1 だけ",
     check: (v, o) => v === "127.0.0.1" && put(o, "displayHost", v) },
-  displayToken: { kind: "string", description: "情報ディスプレイの非 loopback 接続用アクセストークン", reason: "空でない文字列",
+  displayToken: { kind: "string", description: "情報ディスプレイのアクセストークン（今は 127.0.0.1 からだけ開くので使われません）", reason: "空でない文字列",
     check: (v, o) => nonEmpty(v) && put(o, "displayToken", v) },
   summaryInterval: { kind: "number", description: "定期受信要約の間隔 (分, 1〜1440)", reason: "1〜1440 の 10 進の整数",
     check: (v, o) => isInt(v, 1, 1440) && put(o, "summaryInterval", v) },
@@ -178,7 +178,7 @@ const FIELDS: Readonly<Record<keyof FleqSettings, Field>> = {
   eewLogFields: { kind: "map", description: "EEW ログに記録する項目ごとの on/off", reason: "項目の名前と true か false の組",
     check: (v, o) => { const map = boolMap(EEW_LOG_FIELDS, v); return map != null && put(o, "eewLogFields", map); } },
   mute: { kind: "map", description: "ミュートの終わりと条件（REPL の mute で変える）",
-    reason: `until（null か 0 以上の整数）と rules（分野と ${MUTE_LEVELS.join("・")} の組の配列、重複なし、${MUTE_RULE_LIMIT} 件まで）の object`,
+    reason: `until（ミュートの終わり。null か 0 以上の整数）と rules（分野と ${MUTE_LEVELS.join("・")} の組の配列、重複なし、${MUTE_RULE_LIMIT} 件まで）の 2 つを持つ値`,
     check: (v, o) => { const mute = persistedMute(v); return mute != null && put(o, "mute", mute); } },
 };
 // notify の欄の key は 18 分野と connection（P3-CLI-AC24 (1)）。mute の検査と移行は 18 分野のまま。check は呼ばれる時に読むので FIELDS の後に置ける。
@@ -194,7 +194,7 @@ function checkSettings(raw: unknown): Checked {
   const out: Out = {};
   for (const [key, value] of Object.entries(raw)) {
     const field = fieldOf(key);
-    if (field == null) return { ok: false, key, reason: "知らない欄です" };
+    if (field == null) return { ok: false, key, reason: "FlEq の設定項目にありません" };
     if (!field.check(value, out)) return { ok: false, key, reason: field.reason };
   }
   return { ok: true, settings: out };
@@ -250,7 +250,7 @@ function migrateLegacy(context: Context): Loaded {
   const from = legacyFile();
   const parsed = read.kind === "text" ? parseJson(read.text) : undefined;
   if (!isRecord(parsed)) {
-    process.stderr.write(`今までの fleq の設定 ${from} は読めないので写しません\n`);
+    process.stderr.write(`旧版の fleq の設定ファイル ${from} を読み込めないか、中身が設定の形でないため、設定を引き継ぎません\n`);
     return none;
   }
   const out: Out = {};
@@ -318,8 +318,8 @@ async function commitSettings(loaded: Loaded, next: FleqSettings): Promise<void>
   if (failed != null) throw new Refusal(`設定ファイル ${settingsPaths().file} を書けません（${failed}）`);
   const { migration } = loaded;
   if (migration == null) return;
-  const skipped = migration.skipped.length > 0 ? `（写さなかった key: ${migration.skipped.join(", ")}）` : "";
-  process.stderr.write(`今までの fleq の設定 ${migration.from} から ${migration.copied} 件を写しました${skipped}\n`);
+  const skipped = migration.skipped.length > 0 ? `（引き継がなかった項目: ${migration.skipped.join(", ")}）` : "";
+  process.stderr.write(`旧版の fleq の設定 ${migration.from} から ${migration.copied} 項目を引き継ぎました${skipped}\n`);
 }
 
 /** 読んだ後に設定 file が変わっていないか（無い file は無いままか）。 */

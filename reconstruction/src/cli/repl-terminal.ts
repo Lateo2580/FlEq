@@ -41,8 +41,8 @@ const CLOCK_NEXT: Readonly<Record<ClockMode, ClockMode>> = { elapsed: "clock", c
 // 旧築 EEW_LOG_FIELD_LABELS・EEW_LOG_FIELD_GROUPS（settings-handlers.ts）。
 const FIELD_LABELS: Readonly<Record<EewLogField, string>> = {
   hypocenter: "震源情報", originTime: "発生時刻", coordinates: "緯度・経度", magnitude: "M値・深さ", forecastIntensity: "最大予測震度",
-  maxLgInt: "最大予測長周期階級", forecastAreas: "予測震度地域リスト", lgIntensity: "地域別長周期階級", isPlum: "PLUM法フラグ",
-  hasArrived: "主要動到達フラグ", diff: "差分情報", maxIntChangeReason: "震度変化理由",
+  maxLgInt: "最大予測長周期階級", forecastAreas: "予測震度地域リスト", lgIntensity: "地域別長周期階級", isPlum: "PLUM法による予測か",
+  hasArrived: "主要動が到達したと推測されたか", diff: "前の情報からの変化", maxIntChangeReason: "震度変化理由",
 };
 const FIELD_GROUPS: readonly Readonly<{ label: string; fields: readonly EewLogField[] }>[] = [
   { label: "震源", fields: ["hypocenter", "originTime", "coordinates"] }, { label: "規模", fields: ["magnitude"] },

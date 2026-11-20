@@ -108,7 +108,7 @@ function nextMark(mark: ReportRef | null, candidate: ReportRef): ReportRef {
 
 // 並べの最後の決め手の inputId の比べ（P3-FINAL-REVIEW-FIX-001）。字では "input-10" が "input-9" より前に並ぶ。input-N の形の id の群を先、ほかの群を後に固定し、
 // 群の中では番号を数（先頭の 0 を除いた桁数→字の順、数が同じなら id の字の順）で、ほかは id の字の順で比べる。群の順を先に決めるので、混ざっても全順序になる。
-// host の番号は起動をまたいで増えるので、数の順は受けた順。
+// host の番号は保存から戻したどの番号よりも大きい所から振るので、数の順は受けた順（保存に届かなかった番号は次の起動でもう一度振られうる）。
 function compareInputId(left: string, right: string): number {
   const a = /^input-(\d+)$/.exec(left)?.[1].replace(/^0+(?=\d)/, ""), b = /^input-(\d+)$/.exec(right)?.[1].replace(/^0+(?=\d)/, "");
   if ((a == null) !== (b == null)) return a == null ? 1 : -1;

@@ -128,14 +128,14 @@ describe("P3-TL-T02 続報の変化", () => {
 // P3-TCC-T01（台帳 134）: 端末へ書く手前で電文の制御の字を替える（P3-TERMINAL-CONTROL-CHARS-001）。
 describe("P3-TCC-T01 端末の制御の字", () => {
   // 旧は CR などを生で書き、端末は CR で行の頭へ戻って「強い揺れに」を上書きしうる。書く手前で半角の空白 1 字に替え、組みは空白を置いた報と同じ。
-  it("行動の文に CR（文字参照）・U+0085・U+2028・U+2029・C1・DEL があっても生で書かず、同じ所に半角の空白を置いた報と同じ行になる", () => {
+  it("行動の文に TAB・CR（文字参照）・U+0085・U+2028・U+2029・C1・DEL があっても生で書かず、同じ所に半角の空白を置いた報と同じ行になる", () => {
     const lines = (mark: string) => terminal(80, 3)(eewUnits([{ path: "37_01_01_240613_VXSE43.xml",
       transform: (xml: string) => xml.replace("<Text>強い揺れに警戒してください。</Text>", `<Text>強い揺れに${mark}警戒してください。</Text>`) }])[0]);
     const spaced = lines(" ");
     expect(spaced.map(plain)).toContain("  強い揺れに 警戒してください。");
-    for (const mark of ["&#13;", "\u0085", "\u2028", "\u2029", "\u009b", "\u007f"]) {
+    for (const mark of ["&#13;", "&#9;", "\u0085", "\u2028", "\u2029", "\u009b", "\u007f"]) {
       const shown = lines(mark);
-      expect([mark, shown.some((text) => /[\r\u007f-\u009f\u2028\u2029]/.test(text)), shown]).toEqual([mark, false, spaced]);
+      expect([mark, shown.some((text) => /[\t\r\u007f-\u009f\u2028\u2029]/.test(text)), shown]).toEqual([mark, false, spaced]);
     }
   });
 });

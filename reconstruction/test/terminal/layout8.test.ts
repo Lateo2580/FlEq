@@ -94,7 +94,7 @@ describe("P3-TL8 全国の集約通報の帯と表", () => {
     const names = Array.from({ length: 257 }, (_, index) => `予報区${index + 1}`);
     const many = vpws50(layerOf(...names.map((name, index) => index === 256 ? item(name, kind("大雨特別警報", "33"), kind("波浪警報", "07")) : item(name, kind("波浪警報", "07")))));
     expect([many.level, many.national]).toEqual(["warning", { rows: [{ label: "波浪警報", areas: names.slice(0, 256) }], others: 1 }]);
-    expect(render(many).at(-2)).toBe("ほか 1 予報区は読んでいません");
+    expect(render(many).at(-2)).toBe("ほか 1 予報区は FlEq で処理していません");
     const twice = vpws50(layerOf(item("宗谷地方", kind("波浪警報", "07"), kind("波浪警報", "07", "継続")), item("根室地方", kind("波浪警報", "07"))));
     expect(twice.national).toEqual({ rows: [{ label: "波浪警報", areas: ["宗谷地方", "根室地方"] }], others: 0 });
   });

@@ -8,7 +8,7 @@ import { at, harness, inputDoneOf, reportOf, terminal } from "./terminal-fixture
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(at(21, 20, 0)); });
 afterEach(() => { vi.useRealTimers(); });
 
-const NOTE = "容量の上限のため、この報は記録に入っていません";
+const NOTE = "保持できる量の上限に達したため、この情報は FlEq の中に保持していません";
 
 // U-Q・U-T の refuse が返す outcome の形（seismic-unit.ts の refuse）。transition だけ替えて普通の採用にもする。
 const mark = (unit: RuntimeUnitId, report: TerminalReport, inputId: string, transition = "unavailable"): RuntimePublishedOutcome => ({

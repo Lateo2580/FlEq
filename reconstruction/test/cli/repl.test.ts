@@ -232,7 +232,7 @@ describe("P3-CLI-REPL-001 発注 2 の REPL と通知の門", () => {
     ({ repl } = start(settingsOf(), undefined, host));
     stdout = "";
     await type("status", "display on", "retry");
-    expect(stdout).toBe("\n  WebSocket 接続状態:\n  状態: 切断\n  SocketID: 77\n  再接続試行: #2\n  ミュート: なし\n\n"
+    expect(stdout).toBe("\n  dmdata.jp との接続:\n  状態: 切断\n  socketId: 77\n  繋ぎ直しの試行: #2\n  ミュート: なし\n\n"
       + "  情報ディスプレイのポート 7789 は使われています\n  既に接続中です。\n");
     repl.close();
     // (e) mute 1h の後に設定ファイルから起こし直しても mute のまま。時間なしの mute も同じで until は null

@@ -765,14 +765,14 @@ function shortForm(report: Extract<TerminalReport, { kind: "short" }>, ctx: Ctx)
   // 理由の行がある報は見出し文と同じく 2 桁下げる（Q-TO7-REASON-INDENT）。
   const { released } = report, shift = reason.length === 0 ? "" : "  ";
   const releases = released == null ? [] : [...listTable(null, released.rows.map((row) => ({ label: seg(`${row.label} 解除`), rest: seg(`${row.label} 解除`, "dim"),
-    items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body - width(shift)), ...released.others === 0 ? [] : [line(seg(`ほか ${released.others} 区域は読んでいません`, "dim"))]]
+    items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body - width(shift)), ...released.others === 0 ? [] : [line(seg(`ほか ${released.others} 区域は FlEq で処理していません`, "dim"))]]
     .map((item) => shift === "" ? item : { ...item, segs: [seg(shift), ...item.segs] });
   // 全国の集約通報（P3-TL8-AC02・AC03）: 表は要点のまとまりに置き（罫線なし）、理由の行と見出し文の行は出さない。警報以上は Code ごとの行で折り返した行にも左の列を薄い字、
   // 注意報だけの報は Kind の名前の並び（続きの行は字下げしない）、今の Kind の無い報は行なし。読まなかった予報区は段によらず薄い字の 1 行。
   const { national } = report;
   const nationwide = national == null ? null : [...report.level === "caution" ? flow([], national.rows.map((row) => [seg(row.label)]), ctx.body, 0)
     : listTable(null, national.rows.map((row) => ({ label: seg(row.label), rest: seg(row.label, "dim"), items: row.areas.map((area) => [seg(area)]) })), 0, ctx.body),
-    ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は読んでいません`, "dim"))]];
+    ...national.others === 0 ? [] : [line(seg(`ほか ${national.others} 予報区は FlEq で処理していません`, "dim"))]];
   return compose(band(title, roles, clockOf(head.reportDateTimeRaw), ctx), roles,
     { summary: nationwide ?? [...reason, ...sentences, ...riskLines(report.riskRows, ctx.body), ...typhoonLines(report.probability, ctx.body), ...releases, ...activity], tables, supplement: [...supplement, ...towns], tail: line(seg(office, "dim")), recap: [] }, ctx);
 }
@@ -814,7 +814,7 @@ const FAILURE_TEXT: Readonly<Record<DmdataConnectFailure, string>> = {
   authRejected: "API キーが dmdata.jp に受け付けられませんでした。fleq init か fleq config set apiKey <key> で設定し直してください。",
   capacity: "この API キーで開ける接続の数が上限に達しています。ほかのパソコンなどで動いている FlEq を止めるか、dmdata.jp の契約の接続数を確かめてください。",
   dmdata: "dmdata.jp が接続を受け付けませんでした。しばらくしてから自動で繋ぎ直します。",
-  startUncertain: "接続を始められたか確かめられませんでした。自動で繋ぎ直します。",
+  startUncertain: "dmdata.jp に接続の開始を求めましたが、成功したかどうかを確かめられませんでした。自動で繋ぎ直します。",
   noContract: "dmdata.jp に有効な契約がありません。dmdata.jp で区分を契約すると、自動で繋ぎ直して受信を始めます。",
 };
 const CONN_LOST: BandRoles = { band: "connLost", rule: "connLost", bar: "barPlain", fill: false };
@@ -822,7 +822,7 @@ const CONN_RESTORED: BandRoles = { band: "connRestored", rule: "connRestored", b
 // 起動時のまとめの分野の名前（spec §6.6 の図は 津波・地震・気象警報。ほかは unit の受け持ちの名前）。
 const UNIT_NAMES: Readonly<Record<RuntimeUnitId, string>> = {
   "U-E": "緊急地震速報", "U-W": "気象警報", "U-F": "気象の時系列", "U-T": "津波", "U-Q": "地震", "U-N": "南海トラフ", "U-V": "火山",
-  "U-L": "土砂災害", "U-R": "洪水", "U-B": "気象解説", "U-M": "地方の情報", "U-Y": "台風",
+  "U-L": "土砂災害", "U-R": "洪水", "U-B": "気象防災速報", "U-M": "地方の情報", "U-Y": "台風",
 };
 // Q-TO8-NO-CODE: まとめの「ほか」の題名。実物の電文の Control の Title から（Ｒ０６）・（Ｈ３０）と末尾の a を除いた名前。
 // 4 字の鍵は番号が河川・海域・台風の割当で種類の違いでない型（VXKO50〜89、VXSU50〜59 など）。まとめに載る unit の ready の型を全部覆う（P3-TL7-T02）。
@@ -856,7 +856,7 @@ function digest(view: RecoveryDigestView, ctx: Ctx): Line[] {
   });
   // 全部 0 件なら帯ごと出さない（作者裁定 A。C16 の不具合で再起動のたびに beforeWindow が立ち、帯と 1 行が毎回出るため）。
   if (units.length === 0) return [];
-  const lines: Line[] = [...band("止まっていた間に出た情報（7 日前まで）", BAND_ROLES.plain, null, ctx)];
+  const lines: Line[] = [...band("FlEq が止まっていた間に出た情報（7 日前まで）", BAND_ROLES.plain, null, ctx)];
   if (view.units.some((unit) => unit.beforeWindow)) lines.push(line(seg("7 日より前の情報は再取得していません", "dim")));
   const size = Math.max(11, ...units.map(({ unit }) => width(UNIT_NAMES[unit.unit]) + 3));
   const digits = Math.max(0, ...units.map(({ total }) => total == null ? 0 : String(total).length));
@@ -909,7 +909,7 @@ function notice(item: TerminalNotice, ctx: Ctx): Line[] {
         : [line(), line(seg(name, "banner")), line(seg("  "), seg(subtitle, "banner")), line()];
     }
     case "session": return [...item.missing.map((name) => line(seg(`${name} は未契約のため受信できません`, "warn"))),
-      line(seg(`セッション開始: socketId=${item.socketId}`)), line(seg(`区分: [${item.classifications.join(", ")}]`)), line(seg(`テスト電文: ${item.testMode}`)),
+      line(seg(`dmdata.jp に接続しました（socketId=${item.socketId}）`)), line(seg(`受信区分: ${item.classifications.join(", ")}`)), line(seg(item.testMode)),
       line(seg("リアルタイム受信中...", "connRestored")), line(seg("help でコマンド一覧を表示（終了は quit か Ctrl+C）", "dim"))];
     default: { const unknown: never = item; throw new Error(`unknown terminal notice ${String(unknown)}`); }
   }
@@ -1102,7 +1102,7 @@ function createRenderer(level: ColorLevel): Readonly<{ render(batch: TerminalBat
             const { report } = unit;
             const block = report.kind === "seismic" ? seismic(report, ctx, unit.cancelled) : report.kind === "tsunami" ? tsunami(report, memory, ctx) : shortForm(report, ctx);
             // P3-TCN-AC02・D-PLACE=B: 記録に入らなかった続報だけ、末尾の行の後に 1 行。compose の後に足すので末尾の再掲の数えに入らない。
-            out += emit(paintBlock(unit.unrecorded === true ? { ...block, body: [...block.body, line(seg("容量の上限のため、この報は記録に入っていません", "warn"))] } : block, ctx, paint), unit.prompt);
+            out += emit(paintBlock(unit.unrecorded === true ? { ...block, body: [...block.body, line(seg("保持できる量の上限に達したため、この情報は FlEq の中に保持していません", "warn"))] } : block, ctx, paint), unit.prompt);
             break;
           }
           case "unreadable": out += emit(paintBlock(unreadable(unit.card, ctx), ctx, paint), unit.prompt); break;

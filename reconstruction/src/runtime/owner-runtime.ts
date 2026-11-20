@@ -746,7 +746,7 @@ function bulletinText(records: readonly (VolcanoBulletin | NankaiInformation)[] 
   if (records == null) return { kind: "error", reason: "unavailable", revision: null };
   const record = records.find((item) => item.subject === request.id);
   if (record == null || record.effective !== "active" || record.expiryPending === true) return { kind: "error", reason: "versionChanged", revision: null };
-  // 時刻の欄を含む鍵は P3-BT-D-KEY のまま（決めた時は採番が起動ごとに戻っていた。P3-FINAL-REVIEW-FIX-001 の後は起動をまたいでも inputId は重ならない）。
+  // 時刻の欄を含む鍵は P3-BT-D-KEY のまま（決めた時は採番が起動ごとに戻っていた。P3-FINAL-REVIEW-FIX-001 の後は、保存から戻したどの inputId よりも大きい番号から振る。保存に届かなかった番号は次の起動でもう一度振られうる）。
   const { inputId, reportDateTimeRaw, controlDateTimeRaw } = record.source, revision = JSON.stringify([inputId, reportDateTimeRaw, controlDateTimeRaw]);
   if (revision !== request.revision) return { kind: "error", reason: "versionChanged", revision };
   return { kind: "ok", part: "text", id: record.subject, revision, text: record.text, nextAdvisory: record.nextAdvisory };

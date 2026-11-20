@@ -27,7 +27,7 @@ const CATEGORY_ALIASES: ReadonlyMap<string, LegacyNotifyCategory> = new Map<stri
 ]);
 const MUTE_LEVELS: readonly MuteRule["level"][] = ["normal", "warning", "critical"];
 // AC15 (3): H 表の音の名前。
-const LEVEL_WORDS: Readonly<Record<MuteRule["level"], string>> = { normal: "普通の音以上", warning: "警報の音以上", critical: "最も重い音" };
+const LEVEL_WORDS: Readonly<Record<MuteRule["level"], string>> = { normal: "普通の音以上", warning: "警報の音以上", critical: "最も重大な情報の音" };
 
 type Group = "info" | "status" | "settings" | "operation";
 const GROUP_LABELS: Readonly<Record<Group, string>> = { info: "情報", status: "ステータス", settings: "設定", operation: "操作" };
@@ -41,7 +41,7 @@ const ENTRIES: readonly Entry[] = [
     detail: "引数なし: 全コマンドをカテゴリ別に一覧表示 (help と同じ)\n  commands <category>: カテゴリで絞り込み (info / status / settings / operation)\n  commands <query>: 名前・説明で検索" },
   { name: "?", kind: "help", group: "info", description: "help のエイリアス" },
   { name: "status", kind: "status", group: "status", description: "接続とミュートの状態を表示", alias: "stat",
-    detail: "現在の WebSocket 接続状態、SocketID、再接続試行回数と、ミュートの状態（残り・条件）を表示します。" },
+    detail: "dmdata.jp との接続の状態、socketId、繋ぎ直しを試した回数と、ミュートの状態（残り・条件）を表示します。" },
   { name: "config", kind: "config", group: "status", description: "現在の設定を表示", alias: "conf", detail: "Configファイルに保存された設定を一覧表示します。" },
   { name: "notify", kind: "notify", group: "settings", description: "通知設定の表示・切替 (例: notify eew on)", alias: "noti",
     detail: `引数なし: 現在の通知設定を一覧表示\n  notify <category>: 今の状態を表示\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: ${NOTIFY_KEYS.join(", ")}`,
@@ -52,7 +52,7 @@ const ENTRIES: readonly Entry[] = [
   { name: "mute", kind: "mute", group: "settings", description: "通知を一時ミュート (例: mute 30m)",
     detail: "mute: 時間の制限なしでミュート (mute off まで)\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute [<duration>] <category>:<normal|warning|critical>[,...]: 条件に当たる通知だけ鳴らしてミュート\n  mute off: ミュート解除",
     subcommands: { "<duration>": "指定時間ミュート (例: 30m, 1h)", "<category>:<level>": "条件に当たる通知だけ鳴らしてミュート", off: "ミュート解除" } },
-  { name: "retry", kind: "retry", group: "operation", description: "WebSocket 再接続を試行", detail: "切断中の場合に手動で再接続を試みます。" },
+  { name: "retry", kind: "retry", group: "operation", description: "dmdata.jp に繋ぎ直す", detail: "切断中の場合に手動で繋ぎ直します。" },
   { name: "display", kind: "display", group: "operation", description: "情報ディスプレイの状態表示 / 起動 / 停止",
     detail: "display: サーバの稼働状態・ポート・接続クライアント数を表示\n  display on: ディスプレイサーバを起動\n  display off: ディスプレイサーバを停止",
     subcommands: { on: "ディスプレイサーバを起動", off: "ディスプレイサーバを停止" } },
@@ -235,16 +235,16 @@ function commandsLines(query: string | null, values: Readonly<Record<string, str
 }
 
 function statusLines(status: HostStatus, mute: string | null): string[] {
-  const lines = ["", "  WebSocket 接続状態:", `  状態: ${status.connection === "connected" ? "接続中" : "切断"}`];
-  if (status.socketId != null) lines.push(`  SocketID: ${status.socketId}`);
-  if (status.failedAttempts > 0) lines.push(`  再接続試行: #${status.failedAttempts}`);
+  const lines = ["", "  dmdata.jp との接続:", `  状態: ${status.connection === "connected" ? "接続中" : "切断"}`];
+  if (status.socketId != null) lines.push(`  socketId: ${status.socketId}`);
+  if (status.failedAttempts > 0) lines.push(`  繋ぎ直しの試行: #${status.failedAttempts}`);
   lines.push(`  ${mute ?? "ミュート: なし"}`, ""); // P3-CLI-D-O3-STATUS
   return lines;
 }
 
 const RETRY_TEXT: Readonly<Record<ReturnType<HostCommandPort["reconnect"]>, string>> = {
   connected: "  既に接続中です。", started: "  再接続を試行中...", connecting: "  接続を試しています。",
-  draining: "  受信の待ちを片付けてから繋ぎ直します。", stopping: "  終了しています。",
+  draining: "  受信した情報の処理を終えてから繋ぎ直します。", stopping: "  FlEq を終了している途中のため、繋ぎ直しません。",
 };
 
 // ── 通知の設定（P3-CLI-AC15 (1)・AC19 (4)） ──
@@ -362,7 +362,7 @@ function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promis
     let deadline: NodeJS.Timeout | undefined;
     const result = await Promise.race([task, new Promise<typeof late>((done) => { deadline = setTimeout(() => done(late), COMMAND_DEADLINE_MS); })]);
     clearTimeout(deadline); if (closed) return; // 閉じた後に返った結果は出さない
-    for (const text of result === late ? [`  時間内に終わりませんでした: ${line}`] : show(result)) out(text);
+    for (const text of result === late ? [`  ${COMMAND_DEADLINE_MS / 1_000} 秒以内に終わりませんでした: ${line}（処理は続いていることがあり、結果は表示しません）`] : show(result)) out(text);
   };
 
   const run = async (parsed: ReplCommand, line: string): Promise<void> => {
@@ -411,7 +411,7 @@ function runRepl(options: ReplOptions): Readonly<{ close(): void; idle(): Promis
           await within(host.openDisplay(options.displayPort), line, (result) => [
             result.kind === "opened" ? `  情報ディスプレイを起動しました (ポート ${result.port})` : result.kind === "alreadyOpen" ? "  情報ディスプレイは既に稼働中です"
               : result.kind === "portInUse" ? `  情報ディスプレイのポート ${options.displayPort} は使われています`
-              : result.kind === "failed" ? "  情報ディスプレイの起動に失敗しました" : "  終了しています。"]);
+              : result.kind === "failed" ? "  情報ディスプレイの起動に失敗しました" : "  FlEq を終了している途中のため、情報ディスプレイを起動しません。"]);
           return;
         }
         await within(host.closeDisplay(), line, (result) => [result === "closed" ? "  情報ディスプレイを停止しました" : "  情報ディスプレイは起動していません"]);

@@ -24,7 +24,7 @@ vi.mock("../../src/terminal/eew-log", () => ({ createEewLog: () => ({ set() {}, 
 const REPO = join(__dirname, "../../..");
 const HARNESS = join(__dirname, "windows-harness.cjs");
 const WRITER = join(REPO, "reconstruction/dist/src/terminal/writer-child.js");
-const WARNING = "端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません\n";
+const WARNING = "端末へ表示する処理が止まったため、以後この端末には電文や返事を表示しません（受信と通知は続けます）\n";
 const line = (text: string): TerminalBatch => ({ columns: 80, dropped: 0, units: [{ kind: "line", text }] });
 
 type Fake = EventEmitter & { sent: unknown[]; send: (batch: unknown, done: (error: Error | null) => void) => void; kill: ReturnType<typeof vi.fn>; unref(): void; channel: { unref(): void } };

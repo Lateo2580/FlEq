@@ -30,7 +30,7 @@ describe("P3-TO-T15 起動時のまとめ（spec §6.6、AC14）", () => {
     h.output.sink.digest(DIGEST);
     h.output.sink.digest(DIGEST);
     expect(h.lines).toEqual([
-      `━ 止まっていた間に出た情報（7 日前まで） ${"━".repeat(80 - 38 - 3)}`,
+      `━ FlEq が止まっていた間に出た情報（7 日前まで） ${"━".repeat(80 - 45 - 3)}`,
       "7 日より前の情報は再取得していません",
       "津波       再取得に失敗しました",
       "地震         5 件",
@@ -59,7 +59,7 @@ describe("P3-TO-T15 起動時のまとめ（spec §6.6、AC14）", () => {
     await quiet.output.close();
     const failed = harness();
     failed.output.sink.digest({ units: [...empty.units, { unit: "U-T", beforeWindow: false, kind: "unsatisfied", reason: "fetchFailed" }] });
-    expect(failed.lines).toEqual([`━ 止まっていた間に出た情報（7 日前まで） ${"━".repeat(80 - 38 - 3)}`, "7 日より前の情報は再取得していません", "津波       再取得に失敗しました"]);
+    expect(failed.lines).toEqual([`━ FlEq が止まっていた間に出た情報（7 日前まで） ${"━".repeat(80 - 45 - 3)}`, "7 日より前の情報は再取得していません", "津波       再取得に失敗しました"]);
     await failed.output.close();
   });
 });

@@ -2236,6 +2236,6 @@ describe("P4-TET2-T02 start の区分の制御の字", () => {
     await until(() => host.status().classifications != null);
     const text = createRenderer(0).render({ columns: 80, dropped: 0, units: [{ kind: "notice",
       notice: { kind: "session", socketId: 1, classifications: host.status().classifications ?? [], missing: [], testMode: "no" }, prompt: null }] });
-    expect(text.split("\n").filter((line) => line.startsWith("区分: "))).toEqual(["区分: [eew.forecast, x [2J    y]"]);
+    expect(text.split("\n").filter((line) => line.startsWith("受信区分: "))).toEqual(["受信区分: eew.forecast, x [2J    y"]);
   });
 });

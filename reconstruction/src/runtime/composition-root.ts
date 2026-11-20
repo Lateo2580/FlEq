@@ -460,7 +460,7 @@ class RuntimeCompositionRoot {
     const diagnosticFileSystem = options.diagnosticFileSystem ?? nodeDiagnosticFileSystem();
     this.diagnostics = new PersistentDiagnosticSink(config.diagnosticDirectory, this.measuring == null ? diagnosticFileSystem
       : countedDiagnosticFileSystem(diagnosticFileSystem, this.measuring.publisher), () => this.clock().wallTimeMs,
-      options.reportFailure ?? ((event) => { process.stderr.write(`${JSON.stringify(event)}\n`); }), this.measuring == null ? undefined : (bytes) => this.measureSummary(bytes));
+      options.reportFailure ?? ((event) => { process.stderr.write(`診断ログに書けなかった記録: ${JSON.stringify(event)}\n`); }), this.measuring == null ? undefined : (bytes) => this.measureSummary(bytes));
     this.checkpoint = new CheckpointWriter((unit) => codecs[unit] != null, (event) => { this.diagnostics.enqueueDiagnostic(event); }, RECOVERABLE_UNITS);
   }
 

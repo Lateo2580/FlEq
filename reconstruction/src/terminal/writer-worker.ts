@@ -70,4 +70,4 @@ parentPort!.on("message", (batch: TerminalBatch) => {
   parentPort!.postMessage("done");
 });
 // 返事の口を作った後に出す（警告の失敗で返事が止まらないように）。
-if (fd == null) warnWithoutWaiting("端末への書き出しを待たずに行えないため、この端末には電文や返事を出しません\n");
+if (fd == null) warnWithoutWaiting("この端末を書き込み用に開き直せないため、この端末には電文や返事を表示しません（受信と通知は続けます）\n");

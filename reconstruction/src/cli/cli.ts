@@ -87,7 +87,7 @@ function buildProgram(context: Context, settle: (task: () => Promise<number> | n
       if (!checkSettings({ displayToken: text }).ok) throw new InvalidArgumentError("空でない文字列を指定してください");
       return text;
     })
-    .option("--debug", "CLI 自身の設定の出どころを標準エラーへ表示します")
+    .option("--debug", "設定値ごとの指定元を標準エラーへ、情報ごとの処理の行を端末へ表示します（開発者向け）")
     .addHelpText("after", "\n  replay <fixtureId...>  保存してある電文を流して画面の出方を確かめる（開発者向け、このリポジトリの中で使う）")
     .action((options: RunOptions) => settle(() => startMonitor(options, context)));
 
@@ -215,7 +215,7 @@ async function runInit(context: Context): Promise<number> {
       out("APIキーは必須です。");
     }
 
-    out("\n[2/5] 接続名（appName）\n今までの fleq やほかの端末と違う名前にします。");
+    out("\n[2/5] 接続名（appName）\n旧版の fleq やほかの端末と違う名前にします。");
     if (existing.appName != null) out(`現在: ${existing.appName}`);
     let appName = "";
     for (;;) {
@@ -292,7 +292,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     throw new Refusal("APIキーがありません。次のどれかで指定してください:\n  fleq init\n  fleq config set apiKey <key>\n  fleq --api-key <key>\n  DMDATA_API_KEY=<key> fleq");
   }
   if (settings.appName == null || appNameProblem(settings.appName, context) != null) {
-    throw new Refusal("dmdata の接続名（appName）を、今までの fleq やほかの端末と違う名前で設定してください: fleq config set appName <名前>");
+    throw new Refusal("dmdata の接続名（appName）を、旧版の fleq やほかの端末と違う名前で設定してください: fleq config set appName <名前>");
   }
   const appName = settings.appName;
   const classifications = pick(["引数", options.classifications], ["設定ファイル", settings.classifications]); if (!process.env.FLEQ_WS_URL && classifications.value == null) throw new Refusal("受信区分が設定されていません。fleq init で設定してください"); // P3-NC-AC02 (1): 5 区分の既定で契約の無い区分を申し込まない
@@ -323,7 +323,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
   // host が自分で止まったまま正常に戻る（P3-CLI-D-SIGNAL）。無いと: 終了 code が要約の code にならず、待ちが終わらない。
   type Host = Awaited<ReturnType<typeof startP2Host>>;
   let host: Host | null = null;
-  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput({ clock, notification, summaryInterval: summaryInterval.value, tipInterval: settings.waitTipIntervalMin, debug: options.debug === true, eewLog: { directory: join(paths.directory, "eew-logs"), enabled: settings.eewLog === true, fields: settings.eewLogFields ?? {} }, updateCheck: { directory: paths.directory, env: process.env }, startup: { appName, version: packageVersion(), testMode: resolved.testMode, classifications: process.env.FLEQ_WS_URL ? null : resolved.classifications } }); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）。【発注 2】AC10 (4)・AC11 (2)・AC12 (2)・AC13・AC15・AC17 の値
+  let repl: ReturnType<typeof runRepl> | null = null; const terminal = createTerminalOutput({ clock, notification, summaryInterval: summaryInterval.value, tipInterval: settings.waitTipIntervalMin, debug: options.debug === true, eewLog: { directory: join(paths.directory, "eew-logs"), enabled: settings.eewLog === true, fields: settings.eewLogFields ?? {} }, updateCheck: { directory: paths.directory, env: process.env }, startup: { appName, version: packageVersion(), testMode: TEST_MODE_LABELS[resolved.testMode], classifications: process.env.FLEQ_WS_URL ? null : resolved.classifications, label: labelOf } }); // P3-TO-AC02: 起動の後の出力は端末の列を通す（終わりで close）。【発注 2】AC10 (4)・AC11 (2)・AC12 (2)・AC13・AC15・AC17 の値
   let stopping: ReturnType<Host["stop"]> | null = null;
   let wake: () => void = () => {};
   const asked = new Promise<void>((resolve) => { wake = resolve; });
@@ -362,7 +362,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
       // shortcut: 認証の失敗は host の Error の message との照合で見分ける。host の失敗が型になったら置き換える。
       if (code === "EADDRINUSE") throw new Refusal(`情報ディスプレイのポート ${resolved.port} は使われています。--display-port で別の番号を指定してください`);
       if (error instanceof Error && error.message === "dmdata authentication rejected") throw new Refusal("dmdata の認証に失敗しました。APIキーを確かめてください");
-      throw new Refusal("起動に失敗しました");
+      throw new Refusal("FlEq の起動に失敗しました");
     }
     if (requested) stopping ??= host.stop();
     else {
@@ -384,7 +384,7 @@ async function startMonitor(options: RunOptions, context: Context): Promise<numb
     if (typeof saved === "string") { fail(saved); return code === 0 ? 1 : code; }
     if (saved) return code;
     // rename の後の directory の sync だけが残っていることもあるので、次の起動の状態を言い切らない。
-    fail(`設定ファイル ${paths.file} に最後の変更を保存できたか確かめられません`);
+    fail(`設定ファイル ${paths.file} に最後の変更が保存されたか確認できませんでした。fleq config show で設定を確かめてください`);
     return code === 0 ? 1 : code;
   } finally {
     repl?.close();

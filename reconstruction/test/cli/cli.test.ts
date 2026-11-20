@@ -151,12 +151,12 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     const before = { bytes: readFileSync(legacy), mode: statSync(legacy).mode, mtime: statSync(legacy).mtimeMs, names: readdirSync(legacyDirectory()) };
     expect(await runCli(["config", "show"])).toBe(0);
     expect(readConfig()).toEqual({ apiKey: "legacy-key-1234", classifications: ["telegram.earthquake"], notify: { weather: true } });
-    expect(stderr).toMatch(/写さなかった key: .*appName.*backup.*displayPort/);
+    expect(stderr).toMatch(/引き継がなかった項目: .*appName.*backup.*displayPort/);
     expect(readFileSync(legacy).equals(before.bytes)).toBe(true);
     expect([statSync(legacy).mode, statSync(legacy).mtimeMs, readdirSync(legacyDirectory())]).toEqual([before.mode, before.mtime, before.names]);
     clear();
     await runCli(["config", "show"]);
-    expect(stderr).not.toContain("写しました");
+    expect(stderr).not.toContain("引き継ぎました");
     expect(await runCli(["config", "set", "appName", "fleq-mac"])).toBe(1);
   });
 
@@ -234,7 +234,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     let { stop, result, before } = await startRepl(3);
     expect(mocks.startP2Host.mock.calls[0][0]).toMatchObject({ displayPort: null });
     expect(typeof mocks.startP2Host.mock.calls[0][0].notificationGate).toBe("function");
-    expect(mocks.startup).toEqual({ appName: "fleq-new-test", version: JSON.parse(readFileSync("package.json", "utf8")).version, testMode: "no", classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"] });
+    expect(mocks.startup).toEqual({ appName: "fleq-new-test", version: JSON.parse(readFileSync("package.json", "utf8")).version, testMode: "テスト電文を受信しない", classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano", "telegram.weather"], label: expect.any(Function) });
     // (a) quit は stop を 1 回呼び、要約の code で戻る
     mocks.readline!.line("quit");
     expect(await result).toBe(3);
@@ -271,7 +271,7 @@ describe("P3-CLI-REPL-001 発注 1", () => {
       expect(stderr, stall).toBe("");
       vi.advanceTimersByTime(1);
       expect(await result, stall).toBe(1);
-      expect(stderr, stall).toBe(`設定ファイル ${configFile()} に最後の変更を保存できたか確かめられません\n`);
+      expect(stderr, stall).toBe(`設定ファイル ${configFile()} に最後の変更が保存されたか確認できませんでした。fleq config show で設定を確かめてください\n`);
       // rename の後で止めたときは、file はもう新しい中身（文は次の起動の値を言い切らない）。
       if (stall === "directorySync") expect(readConfig()).toMatchObject({ notify: { eew: false } });
       writes.release();
@@ -326,14 +326,14 @@ describe("P3-CLI-REPL-001 発注 1", () => {
     clear();
     expect(await runCli(["init"])).toBe(0);
     expect(readConfig()).toMatchObject({ apiKey: "k0legacy1234", sound: false, appName: "fleq-new-test" });
-    expect(stdout.split("今までの fleq と同じ接続名は使えません")).toHaveLength(2);
+    expect(stdout.split("旧版の fleq と同じ接続名は使えません")).toHaveLength(2);
     // (d) 対話の途中で別の端末が保存したら、Y でも上書きせず code 1（途中の変更を消さない）
     rmSync(join(tmp, "fleq-next"), { recursive: true });
     mocks.answers.push("", "fleq-new-test", "", "", () => { writeAt(join(tmp, "fleq-next"), { apiKey: "other-terminal" }); return "Y"; });
     clear();
     expect(await runCli(["init"])).toBe(1);
     expect(stderr).toContain("途中で変わりました");
-    expect(stderr).not.toContain("写しました");
+    expect(stderr).not.toContain("引き継ぎました");
     expect(readConfig()).toEqual({ apiKey: "other-terminal" });
   });
 
@@ -409,7 +409,7 @@ it("5 秒の期限を過ぎてから分かった保存の失敗は、確かめ�
   while (!writes.reached || vi.getTimerCount() === 0) await new Promise((done) => setImmediate(done));
   vi.advanceTimersByTime(5_000);
   expect(await result).toBe(1);
-  const deadline = `設定ファイル ${configFile()} に最後の変更を保存できたか確かめられません\n`;
+  const deadline = `設定ファイル ${configFile()} に最後の変更が保存されたか確認できませんでした。fleq config show で設定を確かめてください\n`;
   expect(stderr).toBe(deadline);
   // rename を空でない directory へ向けて、Windows でも権限に頼らず書き込みを失敗させる。
   rmSync(configFile());

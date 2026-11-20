@@ -504,7 +504,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
     clearTimeout(timer);
     if (outcome === "ok") return;
     const recorded = note("WARN", "dmdataSocketCloseFailed");
-    if (recorded.kind === "dropped" && recorded.reason === "sinkUnavailable") process.stderr.write("fleq host: dmdata socket close failed\n");
+    if (recorded.kind === "dropped" && recorded.reason === "sinkUnavailable") process.stderr.write("終了時に dmdata.jp との接続を閉じられませんでした\n");
   }
 
   // P3-REC-AC03 (6): 一覧の歩きだけを停止の開始で打ち切る。halt は接続の後始末（DELETE）用で停止の開始では abort しないので、歩きには使わない。

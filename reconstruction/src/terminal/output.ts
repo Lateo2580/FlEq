@@ -33,7 +33,7 @@ const QUEUE_BYTES = 1024 * 1024, SEND_BYTES = 64 * 1024, CLOSE_MS = 1_000;
 // DLV-01: 回線の状態を 1 秒ごとに読む（変化を知らせる口は無い、P3-DC2-AC08 (7)）。要約の区切りと tips の待ちも同じ tick で見る。
 // Q-TO-C-3: 30 分で 3 回切れたら「回線が不安定です」にまとめ、30 分続けて繋がるまで切断の通知を出さない。
 const TICK_MS = 1_000, UNSTABLE_MS = 30 * 60_000, DEFAULT_TIP_MINUTES = 30;
-const CHILD_LOST = "端末へ書き出す子プロセスが止まったため、この端末には電文や返事を出しません";
+const CHILD_LOST = "端末へ表示する処理が止まったため、以後この端末には電文や返事を表示しません（受信と通知は続けます）";
 // P3-TL10-AC01 (4): 降灰予報（定時）のまとまりの区切り（U-V の通知のまとめ P3-C9-BATCH と同じ数）。
 const ASH_QUIET_MS = 8_000, ASH_MAX_MS = 90_000, ASH_LIMIT = 20;
 // P3-TL11-AC01 (4)・D-TS-LIMIT=A: 気象警報・注意報時系列情報のまとまりの上限（全国 64 の府県予報区等）。最後の報から 8 秒は降灰と同じ。最初の報からは 180 秒（実測の 31 便の幅が 119〜144 秒で 90 秒では割れる、Q-TL15-TS-INTERVAL）。
@@ -129,7 +129,7 @@ type TerminalOptions = Readonly<{
   // AC13: 無しは確かめない。
   updateCheck?: Omit<UpdateCheck, "now">;
   // P3-TL7-AC04: 起動画面（spec §6.7）。classifications は求めた区分で、偽の dmdata（FLEQ_WS_URL）では null（区分の行を出さない）。
-  startup?: Readonly<{ appName: string; version: string; testMode: string; classifications: readonly string[] | null }>;
+  startup?: Readonly<{ appName: string; version: string; testMode: string; classifications: readonly string[] | null; label: (name: string) => string }>;
 }>;
 
 // AC11 (3)・P3-TO-D-SUMMARY: 分野は §6.2 の 6 つ。U-M の地震の解説（VXSE56・VXSE60・VZSE40）は地震に数える。
@@ -394,7 +394,7 @@ function createTerminalOutput(options: TerminalOptions = {}): TerminalOutput {
     const { startup } = options, granted = next.classifications;
     if (!sessionShown && startup?.classifications != null && next.connection === "connected" && next.socketId != null && granted != null) {
       sessionShown = true;
-      notice({ kind: "session", socketId: next.socketId, classifications: granted, missing: startup.classifications.filter((name) => !granted.includes(name)), testMode: startup.testMode });
+      notice({ kind: "session", socketId: next.socketId, classifications: granted.map(startup.label), missing: startup.classifications.filter((name) => !granted.includes(name)).map(startup.label), testMode: startup.testMode });
     }
     // AC10 (5): 一度も受信していない間だけ、理由が変わったときに 1 回出す。
     if (next.lastFrameWallMs != null) received = true;

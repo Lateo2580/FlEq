@@ -113,8 +113,8 @@ describe("P3-TL12 気象警報・注意報の帯の題名と解除の行", () =>
   });
 
   // P3-TL12-T03 acceptance / AC01・AC03・AC04
-  it("T03 (e) 257 区域の報は解除の行の最後に薄い字の「ほか 1 区域は読んでいません」", () => {
-    expect(render(short(RELEASE, "U-W", many(257))).at(-2)).toBe("ほか 1 区域は読んでいません");
+  it("T03 (e) 257 区域の報は解除の行の最後に薄い字の「ほか 1 区域は FlEq で処理していません」", () => {
+    expect(render(short(RELEASE, "U-W", many(257))).at(-2)).toBe("ほか 1 区域は FlEq で処理していません");
   });
 
   // P3-TL12-T03 acceptance / AC01・AC03・AC04
