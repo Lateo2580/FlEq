@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-  "sha256": "faef00c8393bc241ce94f77e5fb3071f72b45c67d54d9485a9a1916b001ee588",
+  "sha256": "cedcfb8e75687c3993d6afc5e47dbadeabdbb4a232be8211bde4294f747aeaed",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -207,6 +207,13 @@
     "status": "closed",
     "source": "確かめ直し（2026-11-21、W0 の節、条件付き GO、P2 3・P3 5）と統合担当の指示",
     "closed": "P2-1: 3-1 の語の表（07:51）に揃えた（C13「最も重大な情報の音」、C9「前の情報からの変化」、C7「繋ぎ直しを試した回数」、repl.ts:55 の detail を C21 に、:240「繋ぎ直しの試行: #N」を C22 に足した。他の契約の «» は 0） P2-2: cli.test.ts:159・:336 の否定の期待を「引き継ぎました」にする項を AC08 (6) に足した P3: 付け直しの数を数え直した（本契約 70 本、spec:646 と AC09 の契約の注記 2 行を含む）、requiredCommands を 13 契約と書いた、D-SESSION の A と reason に語が socketId に改まったことを足した、objective の「どれも起草案」を確定に直した、C10・C14 の文の中の「電文」を「情報」にした（名前と帯は変えない、AC04 (4)）。C19 の「記録」はログの 1 行の意味で 3-1 の組の語と別なので残す"
+   },
+   {
+    "id": "Q-UW-PRECHECK",
+    "status": "closed",
+    "source": "発注前点検（統合担当、2026-11-21 08:2x。draft/p4-w0 を main 11f61b32 の上へ rebase した木 8ffd73ac）",
+    "closed": "(1) decisionBranches は 13 本とも確定（作者裁定 2026-11-21 07:45・07:51 の 10 本、統合担当の決め 3 本）、「起草案」は 0 件 (2) base は main 11f61b32（draftedFromOid 7b45edd6 の子孫。間に入ったのは docs/specs/reconstruction-display-design.md の追加と P4-PERSONA-WALK-TOOLS-002・003 の契約の追加と baseOid の割り当てで、本契約の触る file〔format.ts・output.ts・cli.ts・settings.ts・repl.ts・repl-terminal.ts・writer-worker.ts・composition-root.ts・host.ts・owner-runtime.ts・color.ts と試験〕に当たらない）、rebase は衝突なし、git merge-base --is-ancestor main HEAD が真 (3) rebase した木の check-contract は rc 0（WARN は本契約と P4-PERSONA-WALK-TOOLS-003 の baseOid 未割当だけ） (4) 後の作者裁定で前提が変わったものは無い: 同じ日の N0 の作者裁定（D-TEXT の R10 の字）は W0 の T8 と同じ語（保持できる量の上限・この情報）で揃っている。3-1 の語の表（07:51）は確かめ直しで当て終えた (5) 起草レビュー r0（条件付き GO、P2 4・P3 14）、意味の動きの見直し（作者の問い 07:0x）、確かめ直し（条件付き GO、P2 2・P3 5）の条件は 8ffd73ac までで全部当てた（統合担当が C13・C7・C9・C22 の案の字と AC08 (6) の cli.test.ts:159・:336 の行を開いて確かめた）",
+    "remaining": "なし"
    }
   ],
   "operationContract": {
