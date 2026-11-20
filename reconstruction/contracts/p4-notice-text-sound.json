@@ -1,0 +1,758 @@
+{
+  "meta": {
+    "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
+    "sha256": "d681c3843eda282bf687303f91d32574f34e13d1dd33244d2d39e740ab197276",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-NTS-D-FLOOD-DEFAULT",
+        "kind": "作者",
+        "planRef": "計画 §5.2 の N0-1",
+        "priorRulings": [
+          "Q-CLI-O2-AUTHOR（P3-CLI-REPL-001、p3-cli-repl.json:599、2026-10-31 夕、作者「どちらも推奨でお願いします」）の原文:「残りの 10 分野（tornado・briefing・earlyWeather・weatherWarningTimeseries・climateInfo・weatherExplanation・heatAlert・typhoonAnalysis・typhoonProbability・floodForecast）は旧築どおり既定で切る」「うるさい分野を減らすのは、分野を切らずに 16.2.2 の条件の設定で絞る形にする」",
+          "P3-C11-NOTICE-LEVELS=E（P3-UNIT-R-001、2026-10-10 朝の作者裁定）の原文:「河川ごとの段階（level）を採用前の記録と比べる。上がった河川…があれば、A の表〔レベル5 critical、レベル4とレベル3 warning、レベル2 normal、表に無い code と kinds 空は warning〕を上がった河川の最大に当てる。上がった河川が無く河川の段階が変わった報（下がった、河川が増減した）は normal。…解除（ended）と inactiveAdoption は normal、取消は cancel、訂正は事実が同じでも作る」に加えて「観測所の現況（levels の i=0）のレベルの全観測所の最大が採用前の記録より上がり、上がった先が 2 以上の報も鳴らす」",
+          "P3-WN-D-H11-SCOPE=B（P3-WEATHER-NOTICE-001、2026-11-01 朝の作者裁定）の原文:「洪水（U-R、分野 floodForecast は既定 off）は触らない」",
+          "P3-CLI-D-O2-CRITICAL=A（P3-CLI-REPL-001）: 分野を切った通知は critical でも止める"
+        ],
+        "currentOutputs": "今 floodForecast を on にした人に U-R が出す通知（どれも normal の operation では desktop＋音、channelsOf は operation だけで決まる）: 河川の段階の引上げ（L5 critical・L4 と L3 warning・L2 normal・表に無い code は warning）、観測所の現況の最大が 2 以上へ上がった報（同じ表）、引上げの無い河川の段階の変化（下がった・河川の増減）は normal、kinds 空の初めての報は warning、訂正は事実が同じでも作る、解除（released・inactiveAdoption）は normal、取消は cancel、期限切れは info の desktop だけ、取り直しの引上げ（H27）は info の desktop＋音（flood-unit.ts の noticeOf・:378〜:379 の notify・:255 の channelsOf）",
+        "A": "既定 on、通知は今のまま（上の currentOutputs が、設定に floodForecast の欄の無い全員に desktop＋音で届く。L2 の観測の上昇・河川の増減・解除も鳴る。土砂の L4 は鳴らず河川の L2 は鳴る並び〔2 回目の歩きの p1〕が既定で現れる）",
+        "B": "既定 on にし、U-R の live の通知を H11 と P3-WN-D-RAISE=A（U-L・U-W は引上げだけで知らせ、引下げ・解除・変化の無い続報・事実の同じ訂正は作らない）に揃える: 河川の段階が L4・L5 へ上がった報だけ作る（L5 は critical の desktop＋音、L4 は P4-NTS-D-L4-SOUND のとおり）。表に無い code の河川の引上げは今どおり warning の desktop＋音（fail-bright、U-L の表に無い code と同じ）。L2・L3 への引上げ、下がった・増減、kinds 空、解除、事実の同じ訂正は作らない。観測所の現況の上昇は P4-NTS-D-FLOOD-OBSERVED のとおり。取消（H19）・期限切れ（desktop だけ）・H27 は今のまま。P3-C11-NOTICE-LEVELS=E を置き換え、H11-SCOPE=B の「洪水は触らない」を改める",
+        "C": "既定 off のまま、floodForecast の critical（L5）だけ分野の門を通す（P3-CLI-D-O2-CRITICAL=A に floodForecast だけの例外を作る）。on にした人の通知は今のまま",
+        "D": "今のまま（既定 off、L5 も止まる）",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "起草案",
+        "migration": "既定 on が届くのは、設定ファイルの notify に floodForecast の欄が無い人だけ。旧築は通知の分野を 1 つでも切り替えると 18 分野を全部書く（src/engine/notification/notifier.ts:1187、p3-cli-repl.json:599）ので、旧築で一度でも切り替えた人の移行後の設定には floodForecast: false が明示で残り、A・B の既定の on は届かない（その人は REPL の notify で on にする）。作者の Pi の旧築の設定は notify が地震系の 7 分野だけで floodForecast の欄が無い（2026-10-31 夕の ssh、同じ行）ので届く。B の段の表は、明示で on にしている人の通知も狭める",
+        "reason": "今は floodForecast が既定 off で、分野を切った通知は critical でも止まるので、氾濫特別警報（L5）も画面にだけ出る。3 回目の歩き（既定の門を通した後）で、川沿いに住む千尋（W1）には勝浦川 L4・古座川 L5・山国川 L4・善福寺川 L4 が通知も音も無く、06-26 の夜は届いた音が 0 件だった。Q-CLI-O2-AUTHOR の既定 off は、うるさい分野を条件で絞る前提の裁定だった。A は U-R の 10 種の出口を全員に鳴らすので、その前提（うるささ）に当たる。B は U-W・U-L と同じ「L4・L5 の引上げだけ」に狭めてから既定 on にするので、L5 を必ず届けつつ L2・解除・増減の音を増やさない。C は分野の on/off の約束に例外を 1 つ作り、L4 は届かない",
+        "affects": [
+          "AC07",
+          "P4-NTS-T05"
+        ]
+      },
+      {
+        "id": "P4-NTS-D-FLOOD-OBSERVED",
+        "kind": "作者",
+        "dependsOn": "P4-NTS-D-FLOOD-DEFAULT=B のときだけ問う（A・C・D なら今の E のまま）",
+        "priorRulings": [
+          "P3-C11-NOTICE-LEVELS=E（2026-10-10 朝の作者裁定）の足し:「観測所の現況（levels の i=0）のレベルの全観測所の最大が採用前の記録より上がり、上がった先が 2 以上の報も鳴らす。段階は現況のレベルの最大を同じ表に当てる（5 critical、4・3 warning、2 normal）」（flood-unit.ts:221）"
+        ],
+        "A": "観測所の現況の最大が L4・L5 へ上がった報も作る（段は河川の段階の引上げと同じ表で大きい方。L2・L3 への上昇では作らない）",
+        "B": "観測所の現況の上昇では作らない（河川の段階の引上げだけ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "reason": "観測所の現況のレベルは、予報の段階の引上げ（次の報）より先に上がりうる。B だと現況が氾濫危険水位（L4 相当）を越えても、予報の報が上がるまで知らせない。A は E の足しを L4・L5 に狭めて残す",
+        "affects": [
+          "AC07",
+          "P4-NTS-T05"
+        ]
+      },
+      {
+        "id": "P4-NTS-D-L4-SOUND",
+        "kind": "作者",
+        "priorRulings": [
+          "P3-WN-D-H11-SCOPE=B（2026-11-01 朝の作者裁定）:「危険警報（L4）で desktop、特別警報（L5）で desktop＋音、U-L の L2・L3 は通知を作らない」"
+        ],
+        "A": "H11 のまま: 警戒レベル 4 の相当（気象の危険警報、土砂災害警戒情報の L4、D-FLOOD-DEFAULT=B のときの洪水の L4）は desktop だけで音を鳴らさない",
+        "B": "レベル 4 も warning の音を鳴らす（U-W・U-L・D-FLOOD-DEFAULT=B のときの U-R の L4 の live の通知を desktop＋音にする。P3-WN-D-H11-SCOPE=B と spec §16 の H11 の L4 の分を改める。取り直しの H27 は今も L4 で desktop＋音、P3-WN-D-H27-L4=A）",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "起草案",
+        "reason": "警戒レベル 4 は避難の段だが、今の新築は土砂と気象の危険警報の L4 で音を鳴らさない（landslide-unit.ts の H11 のコメント、P3-WN-AC08）。H11 の見直しの根拠になるのは土砂の L4 の分: 3 回目の歩きの W1 で、L4 の土砂は desktop だけだった（資料「ペルソナ歩きの手法と結果」の 3 回目の節が、河川の L4 が届かない〔門の floodForecast の既定 off による〕と、土砂の L4 が desktop だけ〔H11 による〕を分けて書いている）。河川の L4 は D-FLOOD-DEFAULT の側の話。B は L4 の音を足すので、U-L・U-W・U-R の 1 報あたりの intent が最大 1 件増える（各 unit の 128 件の器と退去の順は変えない）",
+        "affects": [
+          "AC08",
+          "P4-NTS-T06"
+        ]
+      },
+      {
+        "id": "P4-NTS-D-SOUND-CLASH",
+        "kind": "作者",
+        "priorRulings": [
+          "2026-09-14 の作者裁定（通知音の内製化 A、聴き比べ 6 巡）と 2026-09-15 の裁定 B（新築の通知 intent に載せる）で決めた分野別根音表 v1: 気象 C4・火山 G4・地震と EEW C5・津波 F5、critical は 1 オクターブ上の短三和音（12,15,19、津波は 12,13,18）（sound-design-system.md の「分野別根音表 v1」）"
+        ],
+        "A": "根音表 v1 のまま（気象の critical と地震・EEW の warning が同じ 3 音）",
+        "B": "気象の critical の和音を、地震・EEW の warning（C5-E♭5-G5）と 3 音が重ならない高さにする。候補の音は統合担当が 2〜3 本を生成し、作者が聞き比べて 1 本に決める（在席の作業）。ほかの 19 本は変えない",
+        "recommended": "B",
+        "provisional": "B",
+        "status": "起草案",
+        "reason": "気象の critical は C5-E♭5-G5 の 3 回（減衰 14）、地震・EEW の warning は C5-E♭5-G5 の 2 回（減衰 9）（render-sounds.mjs の roots と critical の行）。20 本のうち 3 音が全部同じ組はこの 1 組だけ。2 回目の歩きで「L5 の音で地震かと思った」（W1-06-03:48）と「音の聞き分け」（W1-06-26:47）が出ている。分野で音を分ける規則の目的が、この組で効かない。正規化の見込み: 生成器の式で 20 本のピークの最大は tsunami-critical（0.9238）で、weather-critical は上位 6 本に入らない（起草レビューがメモリの上で回した値）。新しい高さのピークが 0.9238 を越えなければ、ほかの 19 本の正規化は変わらない",
+        "affects": [
+          "AC09"
+        ]
+      },
+      {
+        "id": "P4-NTS-D-TEXT",
+        "kind": "作者",
+        "A": "rows の各行を「recommended」のとおりにする（案の行は案の字、「変えない」の行は今の字のまま）",
+        "B": "作者が行ごとに「案」か「変えない」を選ぶ（選ばなかった行は A のとおり）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案",
+        "reason": "desktop の通知の字は字ごとに作者へ見せる（計画 §8、バックログの「利用者に見える字」の項）。字は電文の値と意味を変えない（作者 2026-11-07、気象庁の留意事項 §3）: R1・R2・R5 は電文の字そのもの、R3 は並べる順だけ、R6 は電文の震源の名を添えるだけで、値を書き換えない。R9〜R13 は FlEq が自分で出す字（電文の字でない）。呼びかけの文言（H10）と開発の中の言い換え（「窓」「枠」「機械」「読めなかった」など）は入れない。r0 の R4（津波の引下げの題）は FlEq の前の記録から作る字で電文の LastKind ではないので、R8（出し直しの印）は当たる場面が無いので外した（Q-NTS-R1-REMOVED）",
+        "rows": [
+          {
+            "no": "R1",
+            "order": "発注 1",
+            "where": "U-Q の通知の本文の M（seismic-unit.ts の magnitudeLabel）",
+            "now": "（震源名） / M不明 / 最大震度…（規模が数でなく description が「Ｍ８を超える巨大地震」の報。気象庁サンプル 33_12_01_240613_VXSE52）",
+            "proposal": "（震源名） / M8を超える巨大地震 / 最大震度…（description を NFKC で半角にした字。端末の地震の行と EEW の通知と同じ字）",
+            "gain": "巨大地震だと通知で分かる（3 回目の歩きの族 N、N1#1・N2#1）",
+            "recommended": "案"
+          },
+          {
+            "no": "R2",
+            "order": "発注 1",
+            "where": "U-Q の通知の本文の M（数の規模で小数が 0 の報）",
+            "now": "… / M7 / …（電文は 7.0。今の fixture にこの形の報は無く、合成の synthetic_VXSE53_station_values は M3.0）",
+            "proposal": "… / M7.0 / …（小数 1 桁。端末の magnitudeText と EEW の通知の toFixed(1) と同じ字）",
+            "gain": "端末・EEW と同じ字になり、電文の字と同じ桁で出る",
+            "recommended": "案"
+          },
+          {
+            "no": "R3",
+            "order": "発注 2",
+            "where": "U-T の予報の通知の本文の区域の並び（tsunami-unit.ts の受信の予報の通知）",
+            "now": "区分の名の並びの後に、引き上がった区域を先に、残りは電文の順（予報区の番号の順）で先頭 3 区域。題が「大津波警報」でも本文の先頭が津波注意報の区域になりうる（2 回目の歩きの R2:31、3 回目の N1#4）",
+            "proposal": "区分の重い順（大津波警報 → 津波警報 → 区分の分からない区域 → 津波注意報 → 津波予報）に並べ、同じ区分の中は引き上がった区域を先に、その中は電文の順。先頭 3 区域を出す数は変えない",
+            "gain": "題の区分の区域が本文の先頭に来る。震源に近い区域を先にする並びは位置の資料が要るので入れない",
+            "recommended": "案"
+          },
+          {
+            "no": "R5",
+            "order": "発注 2",
+            "where": "U-T の予報の通知の本文の区分の名（電文の Kind/Name）",
+            "now": "大津波警報：発表・大津波警報・津波警報",
+            "proposal": "変えない（電文の Kind/Name の字。「：発表」は今回新たに発表された区域の印で、まとめると意味が落ちる）",
+            "gain": "—（3 回目の R2#4 は受け入れの扱い）",
+            "recommended": "変えない"
+          },
+          {
+            "no": "R6",
+            "order": "発注 2",
+            "where": "EEW の通知の本文（仮定震源の報。eew.ts の通知の本文）",
+            "now": "仮定震源 / 最大予測震度…",
+            "proposal": "石川県能登地方（仮定震源） / 最大予測震度…（電文の震源の名に「（仮定震源）」を添える。名が無ければ今の「仮定震源」。P2-EEW-UNIT-001 の「仮定震源の一語に置き換え」を改める。端末の EEW の行の字は「（仮定の震源、PLUM法で推定）」で揃っていない。揃えるなら通知も「（仮定の震源）」にする案がある）",
+            "gain": "どの辺りの揺れか通知で分かる（2 回目の T2-yu:18）。2 つの地震の通知の見分け（3 回目の N2#4）にも効く",
+            "recommended": "案（字は「（仮定震源）」。端末と揃えるかは作者が選ぶ）"
+          },
+          {
+            "no": "R7",
+            "order": "発注 2",
+            "where": "EEW の最終報で危険が増した報の本文の頭",
+            "now": "最終報: 続報: …",
+            "proposal": "変えない（P3-NL-D-FINAL-OVERLAP=A で作者が決めた順。案にするなら「最終報: …」で続報の頭書きを落とす）",
+            "gain": "—（3 回目の T2-saori#4）",
+            "recommended": "変えない"
+          },
+          {
+            "no": "R9",
+            "order": "発注 2",
+            "where": "EEW・U-T の読めない報の通知（eew-unit.ts・tsunami-unit.ts・notice-mark.ts）",
+            "now": "題「緊急地震速報（読めない報）を受信」「津波の情報（読めない報）を受信」、本文「受信 HH:MM。内容を読めませんでした」",
+            "proposal": "題「緊急地震速報（内容を表示できない報）を受信」「津波の情報（内容を表示できない報）を受信」、本文「受信 HH:MM。内容を表示できませんでした」（監査カードの案の「気象庁の発表を確認してください」は呼びかけなので入れない、H10）",
+            "gain": "「読めない」が解析の失敗の言い換えであることを利用者に見せない（監査 2-1）",
+            "recommended": "案"
+          },
+          {
+            "no": "R10",
+            "order": "発注 2",
+            "where": "U-Q・U-T の容量の拒否の通知（seismic-unit.ts・tsunami-unit.ts の失敗の通知）",
+            "now": "題の頭「【処理できていません】」、本文「容量の上限のため、この報を処理できていません。」",
+            "proposal": "題の頭「【表示できず】」、本文「保持できる件数の上限に達したため、この情報を表示できませんでした。」（W0 の端末の字〔P4-USER-WORDS-001 の T8、P4-UW-D-PRIOR の案「保持できる件数の上限に達したため、この情報は記録していません」〕と「保持できる件数の上限」「この情報」の語を揃える。動詞は場面が違うので「表示できませんでした」）",
+            "gain": "「容量」「報」「処理」の中の言い方を除く（監査 2-2）",
+            "recommended": "案"
+          },
+          {
+            "no": "R11",
+            "order": "発注 2",
+            "where": "記録的短時間大雨情報（VPOA50）の通知の題と本文の両方の末尾（briefing-unit.ts の UNCONFIRMED。題と本文の組み立ての行と、:285・:287 のコメントの字）",
+            "now": "題「東京都記録的短時間大雨情報（対応電文未確認）」、本文「…（対応電文未確認）」",
+            "proposal": "題・本文とも末尾を「（詳しい情報はまだ届いていません）」（telegram-foundation.md の「同等の qualifier」の範囲。題と本文の上限〔NOTICE_BOUNDS〕から付け足しの長さを引く今の式はそのまま）",
+            "gain": "何が未確認か分かる（監査 2-3）",
+            "recommended": "案"
+          },
+          {
+            "no": "R12",
+            "order": "発注 2",
+            "where": "保存待ちで遅れて鳴らす U-Q・U-T の通知の題の頭（P3-CC-D-PENDING=A）",
+            "now": "【HH:MM 発表】",
+            "proposal": "【HH:MM 発表・遅れて通知】",
+            "gain": "遅れて届いたと分かる（監査 2-4）",
+            "recommended": "案"
+          },
+          {
+            "no": "R13",
+            "order": "発注 2",
+            "where": "洪水予報の期限の通知の題の頭（flood-unit.ts）",
+            "now": "題「[期限切れ] {title}」、本文「{areaName}の洪水予報は36時間続報がなく、現況を確認できません」（作者裁定 P3-C11-ACTIVE-EXPIRY=D、2026-10-10 朝の原文の字）",
+            "proposal": "題の頭を「[続報なし] 」にする（本文は変えない）。2026-11-13 の作者裁定 B（利用者に見える字を P4 で一気に直す）の範囲で D の題の字を改める",
+            "gain": "警報の解除に読めない（監査 2-5）",
+            "recommended": "案"
+          }
+        ],
+        "affects": [
+          "AC01",
+          "AC02",
+          "AC04",
+          "AC05"
+        ]
+      },
+      {
+        "id": "P4-NTS-D-VOLUME",
+        "kind": "作者",
+        "A": "U-T の予報の続報で、区域・区分・観測が前の記録と同じ報（今の採用の semantic が偽になる報）は通知を作らない",
+        "B": "同じ中身の続報は desktop だけ（音を作らない）",
+        "C": "今のまま（有効な間の続報は毎回 normal の desktop＋音）",
+        "recommended": "A",
+        "provisional": "未定（Q-NTS-VOLUME-COUNT の数えの後に作者へ出す）",
+        "status": "起草案",
+        "reason": "2 回目の歩きで「通知 60 秒で 32 件」（N2・沙織、族 A3）と「余震の予報ごと・同じ本文の続報」が P4 へ送られた。今の U-T は、予報が有効な間の続報を、何も上がらなくても「残った区分の段」として normal で知らせる（tsunami-unit.ts の remaining、既存の試験の continued が desktop:normal・sound:normal を持つ）。余震ごとの新しい EventID の注意報の発令は新しい事実なので、この分岐の外（減らさない）。どの unit・遷移が 32 件を作ったかは数えていないので、数えた表を見てから A・B・C を作者へ出す",
+        "affects": [
+          "AC10",
+          "P4-NTS-T07"
+        ]
+      },
+      {
+        "id": "P4-NTS-D-M-RULE",
+        "kind": "統合担当",
+        "A": "端末と同じ規則: 規模が数なら小数 1 桁の「M7.0」、数でなく description が空でなければ description（NFKC・前後の空白を除く・32 字で切る）、どちらでもなければ「M不明」。range は今の字のまま",
+        "B": "EEW と同じ規則: description に「巨大地震」を含むときだけ description",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21 起草）",
+        "ruling": "A（統合担当、2026-11-21 起草。fixture の Magnitude の description は「Ｍ８を超える巨大地震」10 件・「ＭX．Y」の数の規模・無し、の 3 種で、規模が数でない報の description は巨大地震の 1 種だけ。A と B は今の fixture で同じ字になり、A は端末と同じ規則で 1 つ少ない条件で済む）",
+        "reason": "旧築の spec（telegram-foundation.md:1574）は「巨大 Magnitude は description を表示源」で「『M8超』等への意味的短縮はしない」（作者裁定 2026-08-09）。新築の端末の magnitudeText は数でなければ description、EEW は巨大地震のときだけ description。U-Q の通知だけが description を見ない。32 字の切り詰めは保存する intent の本文の上限のためで、U-Q の値の raw の上限（seismic-unit.ts の値の切り詰め、32 字）と同じ。気象庁の運用の description は最長で「Ｍ８を超える巨大地震」の 10 字なので今は効かず、意味を縮める短縮はしない"
+      },
+      {
+        "id": "P4-NTS-D-SEQUENCES",
+        "kind": "統合担当",
+        "A": "R11・R13 が案に裁定されたら、統合担当が配送で sequences.json の expected:O08:17（題「東京都記録的短時間大雨情報（対応電文未確認）」）と expected:O07:62（題「[期限切れ] ○○川上流レベル３氾濫警報（継続）」）の字を新しい字に改め、全契約の meta.sequencesSha256 と meta.sha256 を取り直す",
+        "B": "sequences.json の字は変えず、古い期待として残す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21 r1）",
+        "ruling": "A（統合担当、2026-11-21 r1。B は製品の字と期待の字が食い違ったまま残り、次に期待を読む契約が古い字を正として書く）",
+        "reason": "起草レビュー r0 の P2-5"
+      },
+      {
+        "id": "P4-NTS-D-ORDER",
+        "kind": "統合担当",
+        "A": "発注 1（U-Q の M の字。AC01）、発注 2（題と本文の字。AC02・AC04・AC05）、発注 3（音と既定と量。AC07〜AC10）の 3 つに割る（P4-NTS-D-ORDER）。r0 の AC03（津波の引下げの題）と AC06（出し直しの印）は r1 で外した（Q-NTS-R1-REMOVED）。各発注は自分の AC と testMapping の行だけを持ち、作者の分岐 1 つが他の発注を止めない。着手条件: 発注 1 は E0 発注 1 の配送の後（計画 §3.2 の seismic-unit.ts の直列 B0 → E0 発注 1 → N0）。発注 2 は発注 1 と B0 の配送の後で T0 の前（tsunami-unit.ts の直列 B0 → N0 → T0）、P4-NTS-D-TEXT の裁定。発注 3 は P4-NTS-D-FLOOD-DEFAULT・P4-NTS-D-FLOOD-OBSERVED・P4-NTS-D-L4-SOUND・P4-NTS-D-SOUND-CLASH の裁定（SOUND-CLASH=B なら作者の聞き比べ）と、AC10 だけは Q-NTS-VOLUME-COUNT と P4-NTS-D-VOLUME の裁定。R0 は発注 3 の後に notification-gate.ts を触る",
+        "B": "1 本の発注で全部を当てる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21 起草、r1 で発注 2 の AC を改めた）",
+        "ruling": "A（統合担当、2026-11-21 起草。作者の分岐が 6 つあり、1 本にすると分岐 1 つで全体が止まる）",
+        "reason": "M の字は B0 の値取りを待たない（Q-NTS-ENTRY の (1)）。待つのは file の直列だけ"
+      },
+      {
+        "id": "P4-NTS-D-LINES",
+        "kind": "統合担当",
+        "A": "製品の file は行を足さず消さない（書き換える行の中で直す）。試験は各試験 file の末尾に describe を足す。他の契約と本契約が «» で引く行のうち中身が変わる行は AC12 (3) に列挙し、統合担当が配送で付け直す",
+        "B": "行を足して読みやすく組み直す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21 起草）",
+        "ruling": "A（統合担当、2026-11-21 起草。seismic-unit.ts を引く契約の行は 146、tsunami-unit.ts は 105、eew.ts は 136 で、ほとんどが «» 付き。行を足すとその後ろの全部が動く）",
+        "reason": "Q-NTS-LINEREFS の数"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-NTS-ENTRY",
+        "status": "closed",
+        "source": "起草（2026-11-21、worktree ~/dev/fleq-p4-n0 の 7b45edd6 を読んだ）",
+        "closed": "(1) B0 を待つか: U-Q の通知の M の字は B0 を待たない。SeismicHypocenter は magnitudeDescription を型（p3-seismic-unit.types.ts:44）・parser（domains/seismic/seismic.ts の hypocenterOf）・保存の読み戻し（seismic-unit.ts の codec）に既に持ち、payloadOf は hypocenter を手にしている（:538 の magnitudeLabel の呼び出し）。値を足すのは要らず、待つのは計画 §3.2 の file の直列（B0 → E0 発注 1 → N0）だけ。巨大地震の報は condition「不明」・値 NaN で、decode-material の materialValue が kind unknown にする (2) B0 を待つ部分（N0 の外）: 津波の通知に地震が分からない（2 回目の N1:32）は、U-T の parser と記録に震源の値が無い（domains/tsunami/tsunami.ts と p3-tsunami-unit.types.ts に Earthquake・震源・Magnitude の読みが無い）。津波の引下げの題（3 回目の R2#5）は電文の LastKind を読む要があり、これも parser が読まない。河川の通知に県名が無い（W1-06-03:24）も、U-R が持つ予報区域名で足りるかを確かめていない。どれも受け手の契約が未定なので Q-NTS-VALUE-OWNER に置く (3) 通知音の分野別化は新築に入っている（Q-NTS-SOUND-DOMAIN） (4) L4 と L2 の並び: 2 回目の歩きの所見は門の前の通知（道具の作り物 t2）で、既定の門（竜巻・解説・洪水予報・briefing などが off）の後は、3 回目の「洪水予報の L4・L5 が通知も音も無い」に入れ替わっていた（資料「ペルソナ歩きの手法と結果」の 3 回目の節と道具の直し計画の 2）。そこで並びの直しは P4-NTS-D-FLOOD-DEFAULT・P4-NTS-D-FLOOD-OBSERVED・P4-NTS-D-L4-SOUND の作者の分岐にした (5) 監査カード §2 の desktop の通知の 5 件（2-1〜2-5）は計画の N0 の行（p4-order-plan.md の §2.1）にも W0 の行（端末 7・CLI）にも無く、N0 の検収が引くバックログの項にあたるので N0 に入れた（P4-NTS-D-TEXT の R9〜R13。監査カードの行番号は 4f002a0c の時点の値なので字で探した。2026-11-21 に p4-w0-draft が、W0 は §2 を拾わず P4-USER-WORDS-001 の outOfScope と Q-UW-LEDGER に「§2 は N0 へ送る」と書いたと返した。計画 §2.1 の N0 の行への書き足しは AC12 (5)） (6) 3 回目の歩きの P4 の論点のうち通知の字にあたるもの: N1#4（区域の並び、R3）、R2#4（区分の字の重複、R5）、R2#5（引下げ、Q-NTS-VALUE-OWNER へ）、T2-saori#4（最終報: 続報:、R7）、N2#4（警報と予報の地震の見分け、R6 の地名で一部）。T2-saori#6（音を使わない人への津波警報の引上げ）は画面を起こす話で R0・S1 の側、W1-06-03:40（区分の mute）は R0、W1-09-21:25（通知の履歴）は C2"
+      },
+      {
+        "id": "Q-NTS-R1-REMOVED",
+        "status": "closed",
+        "source": "起草レビュー r0（NO-GO、P2-1・P2-2・P2-3）を当てた r1（2026-11-21）",
+        "closed": "(a) 出し直しの印（r0 の R8・AC06・T04・P4-NTS-D-REDELIVERY・P4-NTS-D-STAMP-PLACE）を外した。r0 の前提「新築は通知の at-least-once を許す（spec:966）」は誤りで、spec:966 は「送信後・delivered 保存前 crash の intent は通知したか不明として出し直さない」。H48（spec:3075）が鳴らし直しを許すのは、結果の分からずに終わった音を 1 回だけ（notification-delivery.ts:130 の replayable は channel が sound のときだけ）。desktop の再試行は notStarted（何も出していない）だけで、timeout・上位群の中断・起動後の失敗は通知したか不明で expired になる。同じ報の desktop が 2 件並ぶ道は、配送層の外の 2 つしか見つからなかった: 取り直しの H27（題に「（HH:MM 発表）」が既にあり、r0 の印も足さない側）と、旧築との切替・rollback の重複窓（§6.6、旧築の通知で新築の字は届かない）。どちらも R8 で字が変わらないので、R8・AC06 (5) が効く場面は無い。バックログの「通知の出し直しと新しい報を文面で見分けられるようにする」の出どころは観測ではなく講義第 4 回の質問（2026-10-16、「重大な通知が 2 回鳴った場合、どちらが真の通知か分からなくなる」）で、項の「出し直しは同じ intent・同じ文面」も同じ誤った前提から書いていた。質問への答えは「音は結果の分からないときに 1 回だけ鳴らし直すことがあり、そのとき desktop は 1 件。desktop が 2 件なら別の報」。統合担当がこの答えと前提の訂正をバックログの項に書いて完了へ移す（AC12 (4)）。同じ字の別の報（同じ中身の続報）を減らすのは P4-NTS-D-VOLUME の側 (b) 津波の引下げの題（r0 の R4・AC03・T02 の (b)）を外した。r0 の案は FlEq の前の記録の題（forecastTitle(existing, false)）から「（津波警報から切り替え）」を作る形で、電文の値ではない。電文の各 Item は前の区分を LastKind として持つ（32-39_11_02_250206_VTSE41 に 44 か所）が、domains/tsunami/tsunami.ts と p3-tsunami-unit.types.ts は LastKind を読まない。切断の間に途中の報を落とすと、気象庁が出していない切り替えを字にする（電文の値と意味を変えない、作者 2026-11-07 に当たる）。LastKind を読む parser・型の変更は Q-NTS-VALUE-OWNER へ送る (c) r0 の P2-3（R12 の新しい題が AC06 の除外の字に当たらない）は AC06 を外したので当たらない"
+      },
+      {
+        "id": "Q-NTS-SOUND-DOMAIN",
+        "status": "closed",
+        "source": "起草（2026-11-21）",
+        "closed": "バックログの「通知音の分野別化（分野 × 段階、津波は不協和音）」は新築に入っている: notification-delivery.ts が payload の domain と level から reconstruction/assets/sounds/<domain>-<level>.wav を選び（:15）、WAV は weather・volcano・earthquake-eew・tsunami × 5 段の 20 本、生成器 render-sounds.mjs が根音表 v1（気象 C4・火山 G4・地震と EEW C5・津波 F5、津波だけ 0,1,6）で作る（P2-NOTIFICATION-DELIVERY-001 の A7、sound-design-system.md の「分野別根音表 v1」）。各 unit の payload の domain は、U-Q・U-E・U-N・U-M の地震の解説が earthquake-eew、U-T が tsunami、U-V が volcano、気象の各 unit が weather。N0 で足す実装は無く、統合担当がバックログの項を完了へ移す（AC12 (4)）。残った論点は気象の critical と地震の warning の音の重なり（P4-NTS-D-SOUND-CLASH）"
+      },
+      {
+        "id": "Q-NTS-LINEREFS",
+        "status": "closed",
+        "source": "起草（2026-11-21、git grep -n で reconstruction/contracts の *.json と *.md を引いた）。r1 で起草レビュー r0 の P2-4 を当てて数え直した",
+        "closed": "変えうる file を「<path>:<数字>」で引く契約の行の数: seismic-unit.ts 146（全部 «» 付き）、tsunami-unit.ts 105（«» 付き 104）、eew.ts 136（«» 付き 135）、briefing-unit.ts 52、landslide-unit.ts 54、flood-unit.ts 37、eew-unit.ts 34、notification-delivery.ts 31、notice-mark.ts 19、notification-gate.ts 16（«» 付き 15）、render-sounds.mjs 0。basename だけで引く行（同名の別 file を含みうる）は別に seismic-unit.ts 54・tsunami-unit.ts 53・eew.ts 64。N0 が中身を書き換えうる行を引く他の契約の «»（r0 は notification-gate.ts:36 の 2 件を文の参照と誤って数えていた）: notification-gate.ts:34（p3-weather-notice.json:714、AC07 で既定のコメントの字が変わる）、notification-gate.ts:36（p3-heat-sound-normal.json:157・p4-persona-walk-tools.json:330、AC07 で ON_BY_DEFAULT が変わる）、landslide-unit.ts:168（p3-weather-notice.json:688、D-L4-SOUND=B で H11 のコメントが変わる）、flood-unit.ts:221（p3-unreadable-mark.json:670、D-FLOOD-DEFAULT=B で観測の上昇の行が変わる）、flood-unit.ts:379（p3-h27-live-units.json:311、D-FLOOD-DEFAULT=B で notify の式が変わる）。R7 を案にしたときだけ eew.ts:687（p3-notice-ledger.json:652）も外れる（:686 は level の行で R7 では変わらない）。変えない «» の行: notification-gate.ts:35（p3-weather-notice.json:712）、landslide-unit.ts:173（levelFor の宣言、p3-weather-notice.json:689。AC08 は宣言の行を変えない）、tsunami-unit.ts:171・:462（p3-currency-coverage.json）、eew.ts:686。«» の無い文の参照は eew.ts:677〜:687（p3-eew-facts.json:67）、landslide-unit.ts:167（p3-notice-ledger.json:132）、tsunami-unit.ts:455（p3-persist-premises.md:93）、notification-gate.ts:35（p4-order-plan.md:181）で checker に掛からない。本契約自身の evidenceRefs も各発注の後に外れる（AC12 (3) の (b)）。sound-design-system.md を引く «» は 17 行で、AC09 は :56 の行の中だけを書き換える（:44・:46・:60・:62 は引かれている）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。training・test は今どおり desktop だけ（音を作らない）で、【訓練】【試験】の頭書きと訓練の電文の前書きを変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P4-NOTICE-TEXT-SOUND-001",
+    "mode": "implementation",
+    "objective": "desktop の通知の題と本文と音を、利用者が通知だけで読み分けられる形に直す（計画 p4-order-plan.md の脇の N0）。(1) U-Q の通知が「Ｍ８を超える巨大地震」を「M不明」と出す（3 回目の歩きの族 N）。端末と EEW と同じく description を出す (2) 津波の通知の区域の並び・EEW の仮定震源の地名と、監査カード §2 の desktop の 5 件の字を、作者へ 1 件ずつ見せる表（P4-NTS-D-TEXT の rows）のとおりに直す (3) 洪水予報（L4・L5）が既定の門で止まり、氾濫特別警報も鳴らない。既定と U-R の通知の範囲とレベル 4 の音を作者の裁定で決め直す (4) 気象の critical の音が地震・EEW の warning と同じ 3 音で、L5 の音を地震と取り違える (5) 同じ中身の津波の続報が毎回鳴る（数えてから決める）。発注 1（U-Q の M の字。AC01）、発注 2（題と本文の字。AC02・AC04・AC05）、発注 3（音と既定と量。AC07〜AC10）の 3 つに割る（P4-NTS-D-ORDER）。r0 の AC03（津波の引下げの題）と AC06（出し直しの印）は r1 で外した（Q-NTS-R1-REMOVED）。各発注は自分の AC と testMapping の行だけを持ち、作者の分岐 1 つが他の発注を止めない。字は電文の値と意味を変えない（作者 2026-11-07）。最小実装・最小テスト（AGENTS.md §コーディング規約）: 仕組みを足すときは無いと何が壊れるかを 1 行で示す。テストは受入条件・契約境界・実不具合・corpus 履歴に限り、追加した各テストがどれに当たるかを成果物に 1 行で書く",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-notice-text-sound.json",
+      "reconstruction/contracts/p4-order-plan.md",
+      "reconstruction/contracts/p3-seismic-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-notice-ledger.json",
+      "reconstruction/contracts/p3-weather-notice.json",
+      "reconstruction/contracts/p3-flood-unit.json",
+      "reconstruction/contracts/p3-landslide-unit.json",
+      "reconstruction/contracts/p3-cli-repl.json",
+      "reconstruction/contracts/p2-notification-delivery.json",
+      "reconstruction/contracts/p3-unreadable-mark.json",
+      "reconstruction/contracts/p3-currency-coverage.json",
+      "reconstruction/contracts/p3-unit-q-capacity.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p3-h27-live-units.json",
+      "reconstruction/contracts/p3-heat-sound-normal.json",
+      "reconstruction/contracts/p3-seismic-unit.types.ts",
+      "reconstruction/src/units/seismic/seismic-unit.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/src/units/notice-mark.ts",
+      "reconstruction/src/units/briefing/briefing-unit.ts",
+      "reconstruction/src/units/flood/flood-unit.ts",
+      "reconstruction/src/units/landslide/landslide-unit.ts",
+      "reconstruction/src/units/weather-current/weather-current-notice.ts",
+      "reconstruction/src/cli/notification-gate.ts",
+      "reconstruction/src/notification-delivery/notification-delivery.ts",
+      "reconstruction/src/notification-delivery/render-sounds.mjs",
+      "reconstruction/src/terminal/format.ts",
+      "docs/specs/sound-design-system.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "docs/specs/telegram-foundation.md",
+      "reconstruction/src/cli/settings.ts",
+      "reconstruction/tools/corpus/sequences.json",
+      "reconstruction/test/seismic-unit/seismic-unit.test.ts",
+      "reconstruction/test/seismic-unit/seismic-fixture.ts",
+      "reconstruction/test/tsunami-unit/tsunami-unit.test.ts",
+      "reconstruction/test/tsunami-unit/tsunami-fixture.ts",
+      "reconstruction/test/eew-unit/eew-unit.test.ts",
+      "reconstruction/test/cli/repl.test.ts",
+      "reconstruction/test/flood-unit/flood-unit.test.ts",
+      "reconstruction/test/landslide-unit/landslide-unit.test.ts",
+      "reconstruction/test/weather-notice/weather-notice.test.ts",
+      "reconstruction/test/final-gate/persona-scenes.test.ts",
+      "test/fixtures/33_12_01_240613_VXSE52.xml",
+      "test/fixtures/synthetic_phase5a_magnitude_unknown.xml",
+      "test/fixtures/synthetic_VXSE53_station_values.xml",
+      "test/fixtures/77_02_01_260101_VXSE45_PLUM.xml",
+      "test/fixtures/16_00_01_260603_VXKO70_kozagawa_l5.xml",
+      "test/fixtures/15_16_01_241031_VPWW56.xml",
+      "reconstruction/tsconfig.json",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/units/seismic/seismic-unit.ts（発注 1 の AC01: magnitudeLabel の宣言・unknown・number の行と :538 の行の中。発注 2 の AC05: :774・:1119・:1129 の行の中。行を足さず消さない。1,710 行のまま）",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts（発注 2 の AC02・AC05: :456〜:459・:178・:724・:733・:1003・:1232 の行の中。発注 3 の AC10: Q-NTS-VOLUME-COUNT の後に決め直す範囲で :462 を除く。行を足さず消さない。1,309 行のまま）",
+      "reconstruction/src/domains/eew/eew.ts（発注 2 の AC04: :677 の行の中。R7 を案に裁定したときだけ :687 の行の中）",
+      "reconstruction/src/units/eew/eew-unit.ts（発注 2 の AC05: :349 の行の中）",
+      "reconstruction/src/units/notice-mark.ts（発注 2 の AC05: :224 の行の中）",
+      "reconstruction/src/units/briefing/briefing-unit.ts（発注 2 の AC05: :40 の行の中と、:285・:287 のコメントの字）",
+      "reconstruction/src/units/flood/flood-unit.ts（発注 2 の AC05: :436 の行の中。発注 3 の AC07: :190・:191、noticeOf〔:209〜:222〕の中、:378〜:379 の中。D-L4-SOUND=A のときだけ :255・:386・:790 の行の中）",
+      "reconstruction/src/cli/notification-gate.ts（発注 3 の AC07: :34 と :36 の行の中）",
+      "reconstruction/src/units/landslide/landslide-unit.ts（発注 3 の AC08: :167・:168 のコメントと、levelFor の本体〔宣言の :173 を除く〕・:205 の行の中）",
+      "reconstruction/src/units/weather-current/weather-current-notice.ts（発注 3 の AC08: :260・:263 の行の中）",
+      "reconstruction/src/notification-delivery/render-sounds.mjs（発注 3 の AC09: weather の critical の高さを決める行の中）",
+      "reconstruction/assets/sounds/weather-critical.wav（発注 3 の AC09: 生成し直した 1 本だけ）",
+      "docs/specs/sound-design-system.md（発注 3 の AC09: :56 の行の中だけ）",
+      "reconstruction/test/ の各試験 file（testMapping の T01〜T07 の describe を file の末尾に足すことと、AC05 (8) の字の置き換えと、AC11 (5) で報告して承認を得た期待の書き換えだけ）",
+      "統合担当だけ（AC12、配送の commit）: AC12 (2) に挙げた契約 JSON（原文の改訂と meta.sha256）、AC12 (3) の «» の付け直し、reconstruction/tools/corpus/sequences.json と全契約の meta.sequencesSha256（P4-NTS-D-SEQUENCES=A のとき）、docs/specs/reconstruction-p0-contracts.md（H11 の L4 の分）、reconstruction/contracts/p4-order-plan.md（§2.1 の N0 の行）、本契約の questionResolutions"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-notice-text-sound.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M06",
+      "M07",
+      "M13",
+      "M17",
+      "B02",
+      "B09",
+      "B12"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-UNIT-Q-001",
+      "P3-TSUNAMI-UNIT-001",
+      "P2-EEW-UNIT-001",
+      "P2-NOTIFICATION-DELIVERY-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-CLI-REPL-001",
+      "P3-WEATHER-NOTICE-001",
+      "P3-UNIT-R-001",
+      "P3-UNIT-L-001",
+      "P3-UNIT-B-001",
+      "P3-UNREADABLE-MARK-001",
+      "P3-CURRENCY-COVERAGE-001",
+      "P3-UNIT-Q-CAPACITY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicHypocenter",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#NotificationIntent",
+      "reconstruction/contracts/p3-cli-repl.types.ts#LegacyNotifyCategory"
+    ],
+    "publicFunctions": [
+      "口は変えない。各 unit の reduce・codec・createNotificationGate の引数と戻りの型、NotificationIntent・SeismicHypocenter・LegacyNotifyCategory の形は変えない。export・型・helper・設定・定数を足さない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__33_12_01_240613_VXSE52",
+      "test__fixtures__synthetic_phase5a_magnitude_unknown",
+      "test__fixtures__synthetic_VXSE53_station_values",
+      "test__fixtures__77_02_01_260101_VXSE45_PLUM",
+      "test__fixtures__16_00_01_260603_VXKO70_kozagawa_l5",
+      "test__fixtures__15_16_01_241031_VPWW56",
+      "test__fixtures__32-39_11_02_250206_VTSE41"
+    ],
+    "sequenceIds": [
+      "O07",
+      "O08"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（保存の形・schema を変えない。intent の payload の字は AC01・AC02・AC04・AC05 で中身が変わるが欄は同じ）"
+    ],
+    "nonPersistedFields": [
+      "通知の門の既定（設定ファイルに書かない分野の値。設定ファイルの形は変えない）"
+    ],
+    "outOfScope": [
+      "出し直しの印（r0 の R8・AC06）: 当たる場面が無いので外した（Q-NTS-R1-REMOVED の (a)）",
+      "津波の引下げの題（r0 の R4・AC03、3 回目の R2#5）: 電文の LastKind を読む parser・型の変更が要る。受け手は Q-NTS-VALUE-OWNER（Q-NTS-R1-REMOVED の (b)）",
+      "津波の通知に地震（震源・規模）を出すこと（2 回目の N1:32）: U-T の parser と記録に震源の値が無い。受け手は Q-NTS-VALUE-OWNER で決める",
+      "河川の通知に県名・市区町村を出すこと（W1-06-03:24）: 値の有無を確かめていない。カードの側は計画の C1-4。通知の側は Q-NTS-VALUE-OWNER",
+      "震源に近い津波予報区を先に並べること（3 回目の N1#4 の後半）: 予報区の位置の資料（G0）が要る。R3 は区分の重い順まで",
+      "取り直しの引下げの通知（tsunami-unit.ts の loweredNotice）の題と並び: 変えない",
+      "区分の mute の見つけやすさ（W1-06-03:40）と地域設定: R0。通知の履歴（W1-09-21:25）: C2。音を使わない人に津波警報の引上げを届けること（T2-saori#6）: R0・S1（画面を起こす報の範囲）",
+      "余震ごとの新しい EventID の津波注意報の発令や地震の報の通知を減らすこと: 新しい事実なので D-VOLUME の外",
+      "旧築（src/）の通知と音（assets/sounds の 5 本と scripts/render-sounds.mjs）: 変えない",
+      "chrome-eew とディスプレイの字: 各カードの契約（計画の E0・T0・C0〜C2）",
+      "端末と CLI の字: W0（監査カードの §1・§4）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-NTS-AC01",
+        "requirement": "発注 1。U-Q の通知の M の字（P4-NTS-D-TEXT の R1・R2、P4-NTS-D-M-RULE=A）: (1) seismic-unit.ts の magnitudeLabel を、規模が kind unknown で description（hypocenter.magnitudeDescription）が NFKC・trim の後に空でなければその字を 32 字で切って返し、空か null なら「M不明」を返す形にする。kind number は「M」＋value.toFixed(1)（7.0 は「M7.0」）。missing・empty は null、range と text は今の字のまま (2) 呼び出し（:538）で hypocenter.magnitudeDescription を渡す。長周期（VXSE62）の本文は M を出さないので変えない (3) 書き換えるのは magnitudeLabel の宣言の行・unknown の行・number の行と :538 の行の中だけで、行を足さず消さない（1,710 行のまま） (4) 効き: 33_12_01_240613_VXSE52（気象庁サンプル）の desktop の本文が「M8を超える巨大地震」を含み、synthetic_phase5a_magnitude_unknown（description 無し）は今どおり「M不明」、synthetic_VXSE53_station_values（Ｍ３．０）は「M3.0」 (5) intent の payload の body は保存されるので、器の最悪の計算（P3-UNIT-Q-CAPACITY-001）が通知の本文の最大を数えているなら、増える分（description 32 字）がその中に入ることを確かめて成果物に書く。入らなければ止めて報告する (6) なぜのコメントは magnitudeLabel の宣言の行末に 1 つ（端末の magnitudeText と同じ規則、telegram-foundation.md の「巨大 Magnitude は description を表示源」、32 字は器の上限で今の description は 10 字、P4-NOTICE-TEXT-SOUND-001）",
+        "evidenceRefs": [
+          "reconstruction/src/units/seismic/seismic-unit.ts:507 «fdda67333ceb0aef»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:538 «5a3adc91fb7c8bcf»",
+          "reconstruction/contracts/p3-seismic-unit.types.ts:44 «74371dbd11975aab»",
+          "reconstruction/src/terminal/format.ts:328 «3c54fc05519ed1c0»",
+          "reconstruction/src/domains/eew/eew.ts:434 «2b46943f689acf61»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:410 «62720b11a8c3c644»",
+          "test/fixtures/33_12_01_240613_VXSE52.xml",
+          "test/fixtures/synthetic_phase5a_magnitude_unknown.xml",
+          "test/fixtures/synthetic_VXSE53_station_values.xml"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC02",
+        "requirement": "発注 2。U-T の予報の通知の本文の区域の並び（R3）: (1) 受信の予報の通知で、entries を区分の重い順（majorWarning → warning → unknown → advisory → forecast、classOf の区分）に並べ、同じ区分の中は引き上がった区域を先に、その中は電文の順にする（安定な並べ替え）。先頭 3 区域と区分の名の並び（Set の順も同じ並べ替えの後の順）と headline は今どおり (2) 書き換えるのは :456〜:459 の行の中だけ（行を足さない。区分は :456 の candidate.areas から entries を組む時に classOf で持たせる。:456〜:459 を引く «» は無い）。P3-TSUNAMI-UNIT-001 の Q-NOTICE.payload の「escalation では上がった区域を先に並べる」は、統合担当が配送で「区分の重い順、同じ区分の中で上がった区域を先」に改める（AC12） (3) 計算量: 並べ替えは報 1 つの区域の数（電文の Item の数）の n log n で、全件×全件の走査をしない (4) 取り直しの引下げの通知（loweredNotice）の並びは変えない（outOfScope）",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:456 «23d4b33e0315d0ed»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:459 «d2f577bc573c48c8»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:460 «0063b3352dd7a687»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC04",
+        "requirement": "発注 2。EEW の仮定震源の地名（R6）: (1) eew.ts の通知の本文の部品（:677）で、仮定震源のとき noticeSource.hypocenter が空でなければ「<震源の名>（仮定震源）」（作者が R6 で端末と揃える字を選んだらその字）、空か null なら今の「仮定震源」にする (2) 書き換えるのは :677 の行の中だけ。:686（level の行）は触らない。:687（最終報と続報の頭書き）は R7 が「変えない」のとき触らない。R7 が案に裁定されたときだけ :687 の行の中で「続報: 」を落とし、AC12 の付け直しの相手に p3-notice-ledger.json:652 を足す (3) 効き: 77_02_01_260101_VXSE45_PLUM の desktop の本文が「石川県能登地方（仮定震源）」で始まる",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:677 «111fbaef96a30782»",
+          "reconstruction/src/domains/eew/eew.ts:687 «3d6dabee6f218462»",
+          "reconstruction/src/terminal/format.ts:682 «77bb380a447f2b47»",
+          "test/fixtures/77_02_01_260101_VXSE45_PLUM.xml"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC05",
+        "requirement": "発注 2。監査カード §2 の 5 件（R9〜R13）: (1) R9: eew-unit.ts:349 と tsunami-unit.ts:1003・:1232 の題、notice-mark.ts:224 と tsunami-unit.ts:1003 の本文 (2) R10: seismic-unit.ts:774 と tsunami-unit.ts:178 の FAIL_BODY、seismic-unit.ts:1119 と tsunami-unit.ts:724 の題の頭 (3) R11: briefing-unit.ts:40 の UNCONFIRMED（題と本文の両方の末尾に付く、:298〜:299）と、:285・:287 のコメントの字 (4) R12: seismic-unit.ts:1129 と tsunami-unit.ts:733 の tag（tag の照合〔startsWith〕は同じ字を見続ける） (5) R13: flood-unit.ts:436 の題の頭 (6) どれも行の中の字の置き換えだけで行を足さない。題・本文の byte が変わるので、各 unit の器の最悪の計算（failure の通知・読めない報の通知・NOTICE_BOUNDS の cut）が今の字の長さを前提にしていないかを grep で確かめ、前提にしている所は止めて報告する（字が長くなる R9・R10・R11・R12 が対象） (7) 保存の読み戻し（codec）がこれらの字を照合しているなら、照合を新しい字に揃える。新築は P5 の前なので、古い字の保存の読み戻しは作らない（作者裁定 2026-10-20、保存の初期化は可） (8) 既存の試験の期待の書き換えを許す: 作者が案に裁定した行の旧い字を照合する expect は、新しい字への置き換えに限って書き換えてよい（AC11 (5) の「報告して止まる」の例外）。起草の grep で当たった file と理由: flood-corpus.test.ts・flood-unit.test.ts・expiry-form.test.ts（R13 の題「[期限切れ]」）、briefing-unit.test.ts・briefing-corpus.test.ts（R11 の「（対応電文未確認）」）、eew-unit.test.ts（R9 の EEW の読めない報の題と本文、R6 の「仮定震源」の本文）、unreadable-order4.test.ts・unreadable-mark.test.ts・unreadable-compare.test.ts・recovery-adopt.test.ts・chrome-eew/tsunami.test.ts（R9 の読めない報の題と本文）、seismic-unit.test.ts・seismic-capacity.test.ts（R10・R12 の題の頭と FAIL_BODY）、tsunami-unit.test.ts（R9・R10・R12）、integration/notification-wiring.test.ts（R9〜R13 の題）、nankai-unit.test.ts（照合の行があれば R12）。数は照合の行で 11 file・34 行、コメントを含めると 16 file・46 行（起草レビュー r0 の数え方）。実装者は実際に書き換えた file と件数と行ごとの R の番号を成果物に書く。期待の意味が変わるもの（件数・段・channel・intent の有無）は今どおり止めて報告する",
+        "evidenceRefs": [
+          "reconstruction/src/units/eew/eew-unit.ts:349 «38e27798ea46d61d»",
+          "reconstruction/src/units/notice-mark.ts:224 «4cadb187e3f7c96e»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1003 «3f1a320637236f76»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1232 «c9dab632c2f2f76b»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:774 «b933af310765c893»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:178 «b933af310765c893»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1119 «ddede1bb863e59aa»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:724 «ddede1bb863e59aa»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:40 «d36b89350e869a5e»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:298 «f60eaf7841e7b39d»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1129 «9d658001e2514672»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:733 «9d658001e2514672»",
+          "reconstruction/src/units/flood/flood-unit.ts:436 «c8170031e8c53ce3»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC07",
+        "requirement": "発注 3。洪水予報の既定と U-R の通知（P4-NTS-D-FLOOD-DEFAULT と P4-NTS-D-FLOOD-OBSERVED の裁定のとおり。以下は推奨 B・A の形）: (1) notification-gate.ts の ON_BY_DEFAULT（:36 の行の中）に floodForecast を足し、:34 のコメントの「残りの 10 分野は off」を今の数に直す。:35 の行は変えない (2) flood-unit.ts の live の通知を、河川の段階が L4・L5 へ上がった報（表に無い code の河川の引上げは warning）と、FLOOD-OBSERVED=A のときの観測所の現況の最大が L4・L5 へ上がった報だけにする。段は L5 critical・L4 は D-L4-SOUND の段と channel・表に無い code は warning。L2・L3 への引上げ、下がった・増減、kinds 空の初めての報、解除（released・inactiveAdoption）、事実の同じ訂正は intent を作らない。訂正で L4・L5 への引上げを含むものは作る。取消（H19、cancel）・期限切れ（info の desktop だけ）・取り直しの H27 は今のまま (3) 書き換える行: :190・:191（段の表）、noticeOf（:209〜:222）の中、:378〜:379（notify の式）の中。D-L4-SOUND=A のときだけ :255（channelsOf）と、それを渡す :386・:790 の行の中で L4 を desktop だけにする。行を足さない (4) 設定ファイルに floodForecast を書いている人の値は今どおり優先する（notifyEnabled）。旧築から運んだ設定に floodForecast: false が明示で残る人には既定の on は届かない（D-FLOOD-DEFAULT の migration） (5) 既存の試験の期待のうち、U-R の L2・L3・下がった・増減・解除・観測の上昇の intent を確かめるもの（flood-unit.test.ts ほか）と、cli の repl.test.ts の P3-WN-T10 の期待（既定の分野）、final-gate の persona-scenes.test.ts の既定の門の結果は変わる。変わる期待は変える前に試験名・旧の期待・理由を一覧にして報告し、統合担当の承認の後に書き換える (6) «» の外れる他の契約の行: notification-gate.ts:34・:36、flood-unit.ts:221・:379（AC12 (3)）",
+        "evidenceRefs": [
+          "reconstruction/src/cli/notification-gate.ts:36 «752b5a0900fb0bb1»",
+          "reconstruction/src/cli/notification-gate.ts:20 «38bbf6113b4e8474»",
+          "reconstruction/src/cli/notification-gate.ts:60 «b0d3bd2becc7ec1c»",
+          "reconstruction/src/units/flood/flood-unit.ts:190 «a366a588f92b9b0a»",
+          "reconstruction/src/units/flood/flood-unit.ts:210 «5ab4fe26f3118882»",
+          "reconstruction/src/units/flood/flood-unit.ts:221 «d0ad64d52d99a014»",
+          "reconstruction/src/units/flood/flood-unit.ts:255 «910010fc84c524b7»",
+          "reconstruction/src/units/flood/flood-unit.ts:378 «6db1686ec416f4c1»",
+          "reconstruction/src/units/flood/flood-unit.ts:379 «51fc5ee0c300a65d»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC08",
+        "requirement": "発注 3。レベル 4 の音（P4-NTS-D-L4-SOUND の裁定のとおり。以下は推奨 B の形）: (1) landslide-unit.ts の live の L4 の引上げを desktop＋warning の音にする（levelFor の本体の loud の決め方〔宣言の :173 は変えない〕と :205 の channels）。H11 のコメント :167〜:168 を改める（:168 は p3-weather-notice.json:688 が «» で引くので AC12 で付け直す） (2) U-W の L4 も同じく desktop＋warning の音にする: weather-current-notice.ts の :260（loud の決め方）と :263（intentsOf に渡す loud）の行の中。他の契約の «» は無い (3) U-R は AC07 の段の表で L4 を同じ形にする (4) 取消の音（P3-WN-D-CANCEL-HEARD=A の「L5 が無ければ desktop だけ」）と取り直しの H27（P3-WN-D-H27-L4=A）は変えない (5) 1 報あたりの intent が最大 1 件増える。各 unit の 128 件の器と A7 の退去の順は変えず、器の最悪の計算が L4 の音の intent を数えていない所があれば止めて報告する",
+        "evidenceRefs": [
+          "reconstruction/src/units/landslide/landslide-unit.ts:167 «80d10c94ad63762f»",
+          "reconstruction/src/units/landslide/landslide-unit.ts:205 «b22311732c373e05»",
+          "reconstruction/src/units/weather-current/weather-current-notice.ts:260 «eb5e1634518000be»",
+          "reconstruction/src/units/weather-current/weather-current-notice.ts:263 «344536e421dbf184»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC09",
+        "requirement": "発注 3。気象の critical の音（P4-NTS-D-SOUND-CLASH の裁定のとおり。以下は推奨 B の形）: (1) render-sounds.mjs で weather の critical だけ、和音の高さを地震・EEW の warning（C5-E♭5-G5）と 3 音が重ならない組にする。候補は統合担当が 2〜3 本を reconstruction の外（worktree の未追跡）に生成し、作者が聞き比べて 1 本に決めてから実装する (2) 生成器は weather-critical.wav の 1 本だけが変わり、ほかの 19 本の sha256 が変わらないことを生成の前後で比べて成果物に書く（共通ピークの正規化は 20 本の最大〔今は tsunami-critical の 0.9238〕で決まる。新しい音のピークがそれを越えて 19 本が変わるなら止めて報告する） (3) sound-design-system.md の分野別根音表 v1 の段階表に、気象の critical の例外を :56 の行の中で書く（行を足さない。:44・:46・:60・:62 は他の契約が引く） (4) 試験は足さない（音の高さは生成器の式と聞き比べで決まり、試験で守る振る舞いが無い）。代わりに 20 本の sha256 と生成器の sha256 を成果物に書く（P2-NOTIFICATION-DELIVERY-001 の配送証拠と同じ形）",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/render-sounds.mjs:6 «5f1397552200fb4e»",
+          "reconstruction/src/notification-delivery/render-sounds.mjs:15 «c9fe30bf9c6548ed»",
+          "docs/specs/sound-design-system.md:44 «a365a81cf291faec»",
+          "docs/specs/sound-design-system.md:46 «cbd92a61248d4886»",
+          "docs/specs/sound-design-system.md:56 «719883924cf13057»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC10",
+        "requirement": "発注 3。通知の量（P4-NTS-D-VOLUME の裁定のとおり。Q-NTS-VOLUME-COUNT が閉じるまで着手しない。以下は推奨 A の形）: (1) U-T の受信の予報で、区域・区分・観測・無効の印・警報の注釈が前の記録と同じで、引き上がった区域が無く、遷移が updated の報は intent を作らない。発令・解除・取消・訂正（infoRank 2）は今どおり作る (2) 今の semantic は fresh を作った後（tsunami-unit.ts の adopt に渡す前の行）で計算するので、fresh の行の中だけでは同じ式を複製するしかない。書き換える行の範囲は、Q-NTS-VOLUME-COUNT の後の発注 3 の起草の確定で決め直す（:462 は p3-currency-coverage.json:464 が «» で引くので触らない） (3) 既存の試験 tsunami-unit.test.ts の continued の期待（desktop:normal・sound:normal の pending）は変わる。変える前に報告して止まる (4) 数えた表に U-T 以外の主因（U-Q の余震の報の連なりなど）が出たら、この AC を作者の裁定のとおり書き直してから着手する",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:454 «86eeba443ca06f60»",
+          "reconstruction/test/tsunami-unit/tsunami-unit.test.ts:538 «c2dad0f1bb2894a4»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC11",
+        "requirement": "全発注に共通: (1) 字は電文の値と意味を変えない（作者 2026-11-07、気象庁の留意事項 §3）。電文の字（震源の名・Kind/Name・Head/Title・Headline・description）は書き換えず、並べる順・添える字・切り詰めだけを足す。FlEq の記録から推した事実（前の記録の区分など）を電文の事実のように字にしない。NFKC（全角を半角へ）は端末と EEW の通知が既にしている整形で、R1 の description にだけ当てる (2) 呼びかけの文言を出さない（H10）。利用者の目に触れる字に開発の中の言い換え（「窓」「枠」「機械」「読めなかった」など）を使わない (3) training・test の頭書き（【訓練】【試験】・訓練の電文の前書き）と channel（desktop だけ）は変えない (4) 受信経路で全件×全件の走査と state・intent 全体の直列化をしない（AGENTS.md の受信経路の計算量） (5) 既存の試験の期待（expect の値）は変えない。変える要があれば、変える前に試験名・旧の期待・理由を報告して止める。例外は AC05 (8) の字の置き換えだけ。AC07 (5)・AC10 (3) に挙げた期待も報告して止まる側。場面や evidence の JSON（final-gate・disaster・notification-delivery の evidence）は書き換えない (6) 試験は XDG_CONFIG_HOME を一時 dir にして回し、作者の本物の設定（新築の設定は fleq-next で、XDG_CONFIG_HOME が無ければ macOS は ~/Library/Application Support/fleq-next、reconstruction/src/cli/settings.ts の設定の場所）に書かない。外への通信と実の OS の通知・音の spawn をしない（adapter の試験は今の偽の spawn のまま） (7) 行の数: 書き換える製品の file は行を足さず消さない（P4-NTS-D-LINES=A）。直した後の各 file の wc -l を成果物に書く",
+        "evidenceRefs": [
+          "reconstruction/src/notification-delivery/notification-delivery.ts:15 «1c1164fe384404a1»",
+          "reconstruction/src/cli/notification-gate.ts:36 «752b5a0900fb0bb1»"
+        ]
+      },
+      {
+        "id": "P4-NTS-AC12",
+        "requirement": "統合担当だけ（配送の commit）: (1) 各発注の配送で、作者の裁定のとおりに P4-NTS-D-TEXT の rows の表を作者へ見せた記録（日時・選んだ行）を questionResolutions に書く (2) 原文の改訂（裁定された行と分岐ごと。改訂した契約の meta.sha256 を取り直す）: R3 は P3-TSUNAMI-UNIT-001 の Q-NOTICE.payload の並び。R6 は p2-eew-unit.json の「仮定震源要素なら震源名と M を『仮定震源』一語に置き換え」「本文を作るときだけ震源名を仮定震源へ置換する」の 2 か所。R9 は p3-unreadable-mark.json・p3-recovery.json・p3-final-review-fix.json の字。R10 は p3-currency-coverage.json。R11 は p3-briefing-unit.json・p3-notice-ledger.json・p3-weather-notice.json・p3-terminal-layout10.json・p3-terminal-rain-evict.json。R12 は p3-currency-coverage.json・p3-seismic-unit.json・p3-tsunami-unit.json。R13 は p3-flood-unit.json（P3-C11-ACTIVE-EXPIRY=D の題の字）・p3-expiry-form.json。R7 を案にしたときは P3-NOTICE-LEDGER-001 の P3-NL-D-FINAL-OVERLAP。D-FLOOD-DEFAULT・D-FLOOD-OBSERVED は P3-UNIT-R-001 の P3-C11-NOTICE-LEVELS、P3-CLI-REPL-001 の Q-CLI-O2-AUTHOR の既定の分野、P3-WEATHER-NOTICE-001 の H11-SCOPE の「洪水は触らない」。D-L4-SOUND=B は P3-WEATHER-NOTICE-001 の AC08 と spec §16 の H11 の L4 の分。D-SOUND-CLASH=B は sound-design-system.md（AC09）。sequences.json は P4-NTS-D-SEQUENCES=A のとおり expected:O08:17（R11）と expected:O07:62（R13）の字を改め、全契約の meta.sequencesSha256 と meta.sha256 を取り直す (3) «» の付け直し: (a) 他の契約の行: notification-gate.ts:34（p3-weather-notice.json:714）、notification-gate.ts:36（p3-heat-sound-normal.json:157・p4-persona-walk-tools.json:330）、landslide-unit.ts:168（p3-weather-notice.json:688、D-L4-SOUND=B のとき）、flood-unit.ts:221（p3-unreadable-mark.json:670）と :379（p3-h27-live-units.json:311）（D-FLOOD-DEFAULT=B のとき）、R7 を案にしたときの eew.ts:687（p3-notice-ledger.json:652） (b) 本契約自身の evidenceRefs: 発注 1 の後は seismic-unit.ts:507・:538。発注 2 の後は tsunami-unit.ts:456・:459・:460・:178・:724・:733・:1003・:1232、seismic-unit.ts:774・:1119・:1129、eew.ts:677、eew-unit.ts:349、notice-mark.ts:224、briefing-unit.ts:40・:298、flood-unit.ts:436。発注 3 の後は notification-gate.ts:36、landslide-unit.ts:167、flood-unit.ts:190・:210・:221・:255・:378・:379、weather-current-notice.ts:260・:263、render-sounds.mjs:15、sound-design-system.md:56、tsunami-unit.test.ts:538。reconstruction 外の道具 reanchor-target.py で anchor の中身から付け直し、付け直した契約の meta.sha256 も取り直して check-contract・check-sequences を回す。列挙の外の FAIL は想定外として止める (4) バックログ: 「通知音の分野別化」を完了へ（Q-NTS-SOUND-DOMAIN）。「通知の出し直しと新しい報を文面で見分けられるようにする」は前提の訂正と講義の質問への答えを書いて完了へ（Q-NTS-R1-REMOVED の (a)）。「U-Q の通知の M」「洪水予報の既定」の項に配送の commit を刻む (5) 計画 p4-order-plan.md §2.1 の N0 の行に、監査カード §2 の 5 件を N0 で拾ったこと（W0 の行の外）を書き足す",
+        "evidenceRefs": [
+          "docs/specs/sound-design-system.md:56 «719883924cf13057»",
+          "reconstruction/src/cli/notification-gate.ts:36 «752b5a0900fb0bb1»",
+          "reconstruction/src/notification-delivery/notification-delivery.ts:130 «9a4c13af22c9edd9»",
+          "docs/specs/reconstruction-p0-contracts.md:966 «17a8cabae704311a»",
+          "docs/specs/reconstruction-p0-contracts.md:3075 «0e06bccef4d096b1»",
+          "test/fixtures/32-39_11_02_250206_VTSE41.xml"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-NTS-T01",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-NTS-AC01"
+        ],
+        "behavior": "実不具合の再発防止（3 回目の歩きの族 N）。seismic-unit.test.ts の末尾に describe を 1 つ足し、33_12_01_240613_VXSE52・synthetic_phase5a_magnitude_unknown・synthetic_VXSE53_station_values を今の試験の helper（seismic-fixture.ts）で U-Q に通し、desktop の intent の本文を 1 つの expect で比べる: 1 本目は「M8を超える巨大地震」を含む、2 本目は「M不明」を含む、3 本目は「M3.0」を含む（小数 1 桁。7.0 の形の fixture は無い）。fixture を足さない"
+      },
+      {
+        "testId": "P4-NTS-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-NTS-AC02"
+        ],
+        "behavior": "受入条件（R3）。tsunami-unit.test.ts の末尾に describe を 1 つ足し、今の send の helper で、大津波警報の区域が電文の後ろにあり、津波注意報の区域が先頭で引き上がる報の本文の区域の先頭が、大津波警報の区域になることを 1 つの it で確かめる"
+      },
+      {
+        "testId": "P4-NTS-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-NTS-AC04"
+        ],
+        "behavior": "受入条件（R6）。eew-unit.test.ts の末尾に describe を 1 つ足し、77_02_01_260101_VXSE45_PLUM を通した desktop の本文が「石川県能登地方（仮定震源） / 」（作者が端末と揃える字を選んだらその字）で始まることを確かめる"
+      },
+      {
+        "testId": "P4-NTS-T05",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-NTS-AC07"
+        ],
+        "behavior": "受入条件（D-FLOOD-DEFAULT・D-FLOOD-OBSERVED の裁定の形）。repl.test.ts の末尾に describe を 1 つ足し、設定の無い門で U-R の L5 の desktop と sound の attempt が通ることと、設定で floodForecast を off にした門で止まることを確かめる。flood-unit.test.ts の末尾にも describe を 1 つ足し、16_00_01_260603_VXKO70_kozagawa_l5 で L5 の critical を作り、L2・L3 への引上げと解除で intent を作らないことを確かめる。XDG_CONFIG_HOME は一時 dir"
+      },
+      {
+        "testId": "P4-NTS-T06",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-NTS-AC08"
+        ],
+        "behavior": "受入条件（D-L4-SOUND の裁定の形）。landslide-unit.test.ts の末尾に describe を 1 つ足し、15_16_01_241031_VPWW56 の L4 の引上げで desktop と sound の 2 件（warning）を作ることを確かめる。U-W の L4 は weather-notice.test.ts の末尾の 1 つの it で同じことを確かめる"
+      },
+      {
+        "testId": "P4-NTS-T07",
+        "purpose": "regression",
+        "referenceIds": [
+          "P4-NTS-AC10"
+        ],
+        "behavior": "実不具合の再発防止（2 回目の歩きの通知の量）。tsunami-unit.test.ts の末尾の describe に、同じ区域・同じ区分の続報で intent を作らず、区分の上がる続報では作る、を 1 つの it で確かめる。D-VOLUME の裁定が A でなければこの行を裁定の形に書き直す"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査と reconstruction/dist/ の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（足した it）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "XDG_CONFIG_HOME=\"$(mktemp -d)\" ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（その発注の T を含む）。XDG_CONFIG_HOME を一時 dir にして作者の本物の設定に書かない（AC11 (6)）。列挙の外の落ちは止めて報告する"
+      },
+      {
+        "command": "XDG_CONFIG_HOME=\"$(mktemp -d)\" ./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/cli/repl.test.ts reconstruction/test/tsunami-unit/tsunami-unit.test.ts reconstruction/test/flood-unit/flood-unit.test.ts",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "門の設定と unit の state を試験の間で共有しうる file を順を変えても通す。seed を成果物に書く"
+      },
+      {
+        "command": "node reconstruction/src/notification-delivery/render-sounds.mjs <worktree の未追跡の dir>",
+        "cwd": ".",
+        "target": "reconstruction/assets/sounds/",
+        "stage": "implementation",
+        "purpose": "発注 3 の AC09 だけ。生成の前後で 20 本の sha256 を比べ、weather-critical.wav の 1 本だけが変わることを確かめる（引数の書き方は生成器の今の形に従う）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "実装者は sequences.json を変えない。統合担当が P4-NTS-D-SEQUENCES=A で改めた後も通ること"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装の後に FAIL になるのは AC12 (3) の (a)(b) に列挙した «» だけの見込み。それ以外の FAIL は想定外として報告する"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: その発注の T だけを足した木で試験 file を回し、受入の形で落ちることを確かめてから製品を直す。違う落ち方なら止めて、試験名と actual・expected を添えて報告する",
+      "最小実装・最小テスト: 足す仕組みは無い（どれも行の中の字・並び・段の表の書き換え）。試験は T01〜T03・T05〜T07 で、新しい helper・fixture・試験 file を足さない。各テストが受入条件・契約境界・実不具合・corpus 履歴のどれに当たるかを 1 行で書く",
+      "行の数: 書き換えた製品の file の wc -l を成果物に書く（行を足さない）。足すコメントは『なぜ』と根拠の ID だけを日本語で、行番号を書かない",
+      "作者へ見せる字: 発注 1・2 の成果物に、P4-NTS-D-TEXT の rows の各行について、実装の後の実際の desktop の題と本文（試験の actual から写す）を今の字と並べた表を付ける（統合担当がそれを作者へ見せる）",
+      "既存の試験の期待の書き換え: AC05 (8) で書き換えた file・件数・行ごとの R の番号の一覧を付ける",
+      "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: 器の最悪の計算を確かめた所（AC01 (5)・AC05 (6)・AC08 (5)）と、その結論"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-NTS-AUTHOR-RULINGS",
+        "owner": "user",
+        "blocks": [
+          "P4-NTS-AC02",
+          "P4-NTS-AC04",
+          "P4-NTS-AC05",
+          "P4-NTS-AC07",
+          "P4-NTS-AC08",
+          "P4-NTS-AC09"
+        ],
+        "resolveBy": "各発注の baseOid を割り当てる前（発注 1 は P4-NTS-D-TEXT の R1・R2 だけで着手できる）",
+        "requiredEvidence": [
+          "P4-NTS-D-TEXT（rows の各行と R6 の字）・P4-NTS-D-FLOOD-DEFAULT・P4-NTS-D-FLOOD-OBSERVED・P4-NTS-D-L4-SOUND・P4-NTS-D-SOUND-CLASH の作者の裁定",
+          "P4-NTS-D-SOUND-CLASH=B のときの聞き比べの結果（選んだ 1 本の生成の式）"
+        ]
+      },
+      {
+        "id": "Q-NTS-VOLUME-COUNT",
+        "owner": "integrator",
+        "blocks": [
+          "P4-NTS-AC10"
+        ],
+        "resolveBy": "発注 3 の起草の確定の前",
+        "requiredEvidence": [
+          "persona-scenes.test.ts の N2 の筋書き（synth.ts）を今の既定の門に通し、60 秒に 32 件が出た区間の通知を unit × transition × level × channel で数えた表",
+          "表を見て P4-NTS-D-VOLUME の選択肢を作り直したものと、その作者の裁定"
+        ]
+      },
+      {
+        "id": "Q-NTS-VALUE-OWNER",
+        "owner": "integrator",
+        "blocks": [
+          "P4-NTS-AC02"
+        ],
+        "resolveBy": "発注 2 の baseOid を割り当てる前",
+        "requiredEvidence": [
+          "津波の通知に震源・規模を出すか（U-T の parser・型・保存に値を足す契約。B0 か T0 か別の契約か）の受け手",
+          "津波の引下げの題に電文の LastKind を使うか（U-T の parser・型に LastKind を足す契約）の受け手",
+          "河川の通知の県名に U-R の予報区域名で足りるかを fixture（VXKO5x）の実物で確かめた結果と受け手"
+        ]
+      }
+    ]
+  }
+}
