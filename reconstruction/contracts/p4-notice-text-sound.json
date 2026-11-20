@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "d681c3843eda282bf687303f91d32574f34e13d1dd33244d2d39e740ab197276",
+    "sha256": "2c4ddefec8d2c5d1eba4f889d71e8deab814c5516ecbc2cd3600c351b6e23daf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -24,13 +24,14 @@
         "D": "今のまま（既定 off、L5 も止まる）",
         "recommended": "B",
         "provisional": "B",
-        "status": "起草案",
+        "status": "確定（作者裁定 2026-11-21 06:41）",
         "migration": "既定 on が届くのは、設定ファイルの notify に floodForecast の欄が無い人だけ。旧築は通知の分野を 1 つでも切り替えると 18 分野を全部書く（src/engine/notification/notifier.ts:1187、p3-cli-repl.json:599）ので、旧築で一度でも切り替えた人の移行後の設定には floodForecast: false が明示で残り、A・B の既定の on は届かない（その人は REPL の notify で on にする）。作者の Pi の旧築の設定は notify が地震系の 7 分野だけで floodForecast の欄が無い（2026-10-31 夕の ssh、同じ行）ので届く。B の段の表は、明示で on にしている人の通知も狭める",
         "reason": "今は floodForecast が既定 off で、分野を切った通知は critical でも止まるので、氾濫特別警報（L5）も画面にだけ出る。3 回目の歩き（既定の門を通した後）で、川沿いに住む千尋（W1）には勝浦川 L4・古座川 L5・山国川 L4・善福寺川 L4 が通知も音も無く、06-26 の夜は届いた音が 0 件だった。Q-CLI-O2-AUTHOR の既定 off は、うるさい分野を条件で絞る前提の裁定だった。A は U-R の 10 種の出口を全員に鳴らすので、その前提（うるささ）に当たる。B は U-W・U-L と同じ「L4・L5 の引上げだけ」に狭めてから既定 on にするので、L5 を必ず届けつつ L2・解除・増減の音を増やさない。C は分野の on/off の約束に例外を 1 つ作り、L4 は届かない",
         "affects": [
           "AC07",
           "P4-NTS-T05"
-        ]
+        ],
+        "ruling": "B（作者裁定 2026-11-21 06:41「群1については全て推奨で進めてください」、判断カード「P4 Wave0 の作者の問い」の群 1）"
       },
       {
         "id": "P4-NTS-D-FLOOD-OBSERVED",
@@ -43,12 +44,13 @@
         "B": "観測所の現況の上昇では作らない（河川の段階の引上げだけ）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案",
+        "status": "確定（作者裁定 2026-11-21 06:41）",
         "reason": "観測所の現況のレベルは、予報の段階の引上げ（次の報）より先に上がりうる。B だと現況が氾濫危険水位（L4 相当）を越えても、予報の報が上がるまで知らせない。A は E の足しを L4・L5 に狭めて残す",
         "affects": [
           "AC07",
           "P4-NTS-T05"
-        ]
+        ],
+        "ruling": "A（作者裁定 2026-11-21 06:41「群1については全て推奨で進めてください」、判断カード「P4 Wave0 の作者の問い」の群 1）"
       },
       {
         "id": "P4-NTS-D-L4-SOUND",
@@ -60,12 +62,13 @@
         "B": "レベル 4 も warning の音を鳴らす（U-W・U-L・D-FLOOD-DEFAULT=B のときの U-R の L4 の live の通知を desktop＋音にする。P3-WN-D-H11-SCOPE=B と spec §16 の H11 の L4 の分を改める。取り直しの H27 は今も L4 で desktop＋音、P3-WN-D-H27-L4=A）",
         "recommended": "B",
         "provisional": "B",
-        "status": "起草案",
+        "status": "確定（作者裁定 2026-11-21 06:41）",
         "reason": "警戒レベル 4 は避難の段だが、今の新築は土砂と気象の危険警報の L4 で音を鳴らさない（landslide-unit.ts の H11 のコメント、P3-WN-AC08）。H11 の見直しの根拠になるのは土砂の L4 の分: 3 回目の歩きの W1 で、L4 の土砂は desktop だけだった（資料「ペルソナ歩きの手法と結果」の 3 回目の節が、河川の L4 が届かない〔門の floodForecast の既定 off による〕と、土砂の L4 が desktop だけ〔H11 による〕を分けて書いている）。河川の L4 は D-FLOOD-DEFAULT の側の話。B は L4 の音を足すので、U-L・U-W・U-R の 1 報あたりの intent が最大 1 件増える（各 unit の 128 件の器と退去の順は変えない）",
         "affects": [
           "AC08",
           "P4-NTS-T06"
-        ]
+        ],
+        "ruling": "B（作者裁定 2026-11-21 06:41「群1については全て推奨で進めてください」、判断カード「P4 Wave0 の作者の問い」の群 1）"
       },
       {
         "id": "P4-NTS-D-SOUND-CLASH",
@@ -77,11 +80,12 @@
         "B": "気象の critical の和音を、地震・EEW の warning（C5-E♭5-G5）と 3 音が重ならない高さにする。候補の音は統合担当が 2〜3 本を生成し、作者が聞き比べて 1 本に決める（在席の作業）。ほかの 19 本は変えない",
         "recommended": "B",
         "provisional": "B",
-        "status": "起草案",
+        "status": "確定（作者裁定 2026-11-21 06:41）",
         "reason": "気象の critical は C5-E♭5-G5 の 3 回（減衰 14）、地震・EEW の warning は C5-E♭5-G5 の 2 回（減衰 9）（render-sounds.mjs の roots と critical の行）。20 本のうち 3 音が全部同じ組はこの 1 組だけ。2 回目の歩きで「L5 の音で地震かと思った」（W1-06-03:48）と「音の聞き分け」（W1-06-26:47）が出ている。分野で音を分ける規則の目的が、この組で効かない。正規化の見込み: 生成器の式で 20 本のピークの最大は tsunami-critical（0.9238）で、weather-critical は上位 6 本に入らない（起草レビューがメモリの上で回した値）。新しい高さのピークが 0.9238 を越えなければ、ほかの 19 本の正規化は変わらない",
         "affects": [
           "AC09"
-        ]
+        ],
+        "ruling": "B（作者裁定 2026-11-21 06:41「群1については全て推奨で進めてください」、判断カード「P4 Wave0 の作者の問い」の群 1）"
       },
       {
         "id": "P4-NTS-D-TEXT",
