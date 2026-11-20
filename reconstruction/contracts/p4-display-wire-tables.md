@@ -154,7 +154,7 @@ owner は、表示差分があるか内容版が変わったときだけ view �
   - 省いた項目は index で示すだけで、ほかのページでは読めない。U-F は「実例の全ページで omitted が 0 件」を試験で確かめる（P3-UFP-T08）。B0 も通常合法 corpus で省略 0 件を受入にする（spec:1341 の最後の文）。
   - r2 で置いた 64 行・16 KiB などの数は消した。
 - **版**（確かめ (ii)）: U-F・U-W の対象 1 件は id＝`JSON.stringify([unit, operation, subject])` の sha256 の hex、revision＝その object を作った step の内容版（`p2-weather-timeseries-unit.types.ts:126`〜`:129`、`p3-uw-canon.types.ts:16`〜`:19`）。U-V・U-N の本文は id＝subject、revision＝source の三つ組の JSON（spec:1339 の 4）。
-  - B0 の新しい part は id を U-F・U-W と同じ sha256 にし、rev を「その part が返す view の object（U-E は current、U-T は予報・観測の subject、U-Q は event、U-L などは現況の要素、カードの原文はカードの view）の `JSON.stringify` の sha256 の hex」にする。格納幅は 64 桁のまま。
+  - B0 の新しい part は id を U-F・U-W と同じ sha256 にし、rev を「その part が返す view の object（U-E は current、U-T は予報・観測の subject、U-Q は event、U-L などは現況の要素）の `JSON.stringify` の sha256 の hex」にする。読めない報のカードの原文（`raw`）はこの規則から外し、§2.2 の例外の形（id＝カードの inputId、rev＝`receivedAt`）だけで決める。格納幅は 64 桁のまま。
   - 倣う所: U-W の revision は「この object を作った step の内容版」（`p3-uw-canon.types.ts:19`）で、返す内容が変わらなければ版も据え置く（`weather-current-public.ts:135`〜`:136` の、行が同じなら前の object を使い回す所）。B0 は同じ性質（返す内容が変われば版が変わり、変わらなければ同じ）を、unit の state に版の欄を足さずに持たせる。owner は要求を受けたとき、その object を同じ view の形にして同じ式で作り直して照合する。
   - source の三つ組だけでは足りない例（ヘルツの 3 巡目 #2）: 土砂の held の報では `{ ...existing, unconfirmed: version.mark }` を作り、source は変わらない（`landslide-unit.ts:282`）。表示差分が出て（`:284`）、内容版が進み（`:520`）、view は `shown(item)` で印を残したまま返す（`:529`、`notice-mark.ts:164`）。source の列の hash なら rev が同じになり古い応答が通るが、object の JSON の hash なら印の分だけ変わる。
   - U-Q の event は寄与ごとに source を持ち（`p3-seismic-unit.types.ts:207`）、どの寄与が変わっても event の object が変わるので、同じ式で閉じる。
@@ -175,7 +175,7 @@ owner は、表示差分があるか内容版が変わったときだけ view �
 | nankai・volcano（U-N・U-V） | 本文は既存（P3-BULLETIN-TEXT-API-001）、索引は U-W の `index` | `part=index` を足す（要約に subject が無いため。subject と revision の組 約 170 byte × 64 件で要約 4 KiB に入らない、`nankai-unit.ts:31`・`volcano-unit.ts:35`） | `part=index`・`revision=contentRevision`・`page` | urgent | C1（C1-1） |
 | localBulletins（U-M） | 同上 | 本文の unit に `U-M` を足す（地震の解説、計画:177） | 同上 | deferred | C1 |
 | landslide・flood・briefing・typhoon | 索引は U-W の `index`、項目は U-W の `areas` | 項目は今の view の現況の要素 | 同上 | deferred | C1。要約の「詳細は個別取得」から（spec:1330） |
-| 読めない報のカード | U-V・U-N の本文 1 件 | `raw`（id＝カードの inputId、rev＝`receivedAt`）。原文は 16,382 byte まで（`checkpoint.ts:688`）で 1 応答に入る | — | そのカードの unit の owner | C2。操作 |
+| 読めない報のカード | U-V・U-N の本文 1 件 | `raw`（§2.1 の rev の共通規則の例外: id＝カードの inputId、rev＝`receivedAt`）。カードは inputId と受信時刻で 1 枚に決まり、原文が器の都合で外れたかは応答の中の `rawDropped`・`rawCut` で返す（版の不一致にしない）。原文は 16,382 byte まで（`checkpoint.ts:688`）で 1 応答に入る | — | そのカードの unit の owner | C2。操作 |
 
 urgent の場所の詳細は、開始済みの射影の非中断区間も E01 の負荷条件に含める（spec:1288）。
 
@@ -298,6 +298,7 @@ metadata だけの更新は今の参照の使い回し（`view-projector.ts:571`
 | §3.2 に行を足す: `composition-root.ts:2438`・`owner-runtime.ts`（`detailOwner`）・`p2-snapshot-sse.json`（P2-A8-COST） | B0 の所有。P2-A8-COST の例外は T0 で消す | 詳細の union を B0 が全部作る。移行中の例外 |
 | §3.1 の Wave | B0 実装の前に G0 の既知コードの表。台帳 98 は B0 の後・E0 発注 1 の前。T0 に旧の経路の撤去と版上げ。PI 発注 1 の段 1 は二重の射影の下で走ると書く | §1.1、§3.2 |
 | §2.1 の B0 の依存 | 「G0 の既知コードの表」を足す | §1.1 |
+| PM（`P4-DISPLAY-MEASURE-001`）へ送る項 | spec:1288 の開始済みの射影の非中断区間の測定に、詳細の rev の作り直し（owner が要求ごとに object を view の形にして sha256 を作る分）を含める | ヘルツの 4 巡目の証拠不足（版の作り直しの実時間）。urgent の場所の詳細は EEW と同じ owner で走る（§2.2） |
 
 ## 10. ヘルツの再レビュー（r2）と統合担当の指示への対応
 
