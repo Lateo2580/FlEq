@@ -483,7 +483,7 @@ describe("P2 EEW unit", () => {
       [decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
         xml.replace(/<Serial>[^<]*<\/Serial>/, "<Serial>0</Serial>").replace(/<Intensity>[\s\S]*?<\/Intensity>/, "")), "identityInvalid"],
       [decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) =>
-        xml.replace(/<Intensity>[\s\S]*?<\/Intensity>/, "")), "requiredStructureMissing"],
+        xml.replace(/<Forecast>[\s\S]*<\/Forecast>/, "")), "requiredStructureMissing"], // P4-ENI-AC04 (1): Intensity の中の Forecast 欠け（Intensity ごとの欠けは P4-ENI-T01 で受ける）
       [decodeFixture("77_01_30_260101_VXSE45_FINAL", "VXSE45", (xml) =>
         xml.replace("<Code>999</Code>", "<Code>bad</Code>").replace("<NextAdvisory>この情報をもって、緊急地震速報：最終報とします。</NextAdvisory>", "")), "requiredStructureInvalid"],
     ];
@@ -1826,5 +1826,71 @@ describe("P3 EEW report facts", () => {
     const others = JSON.stringify([step.state.gates, eewUnitCodec.encode(step.state), step.intents, step.diagnostics]), shown = JSON.stringify([step.state.current, toEewView(step.state), step.displayChanges]);
     for (const text of ["高知県西部", "2024-04-17T23:15:02+09:00", "+33.2+132.4-30000/"]) expect(others).not.toContain(text);
     expect(shown).toContain("+33.2+132.4-30000/"); // P4-DW-AC06 (2): B0 の例外で current と view に震央（Coordinate の生の字）が載る。gates・encode・intents・diagnostics には載らない（上の行）
+  });
+});
+
+// P4-EEW-NO-INTENSITY-001（台帳 98）: 深さ 150km 超・観測点 1 点の EEW は Body/Intensity を持たない（解説資料 Ⅱ.21-7、
+// sources/manual/地震火山関連_解説資料.txt:4175〜:4180）。手製の形は fixture から解説資料が出現しないとする要素だけを消して作る。
+describe("P4 EEW without Intensity", () => {
+  const noIntensity = (xml: string) => xml.replace(/<Intensity>[\s\S]*<\/Intensity>/, "");
+  // VXSE43 は Body/Comments（WarningComment）も消す。Comments は警報を発表している Pref・Area があるときだけ出る（:4787〜:4793）。
+  const noIntensity43 = (xml: string) => noIntensity(xml).replace(/<Comments>[\s\S]*<\/Comments>/, "");
+  const missing = { kind: "missing" };
+  const unknownPrediction = { maximum: { from: missing, to: missing, condition: null, description: null }, areaCoverage: "none", areas: [] };
+  const reportOf = (step: ReturnType<typeof receive>) => {
+    const outcome = step.outcomes[0];
+    if (outcome == null || outcome.kind !== "accepted") throw new Error("no accepted outcome");
+    const report = outcome.subjects[0].facts.report;
+    if (report == null || typeof report !== "object" || Array.isArray(report)) throw new Error("no report");
+    return report as Readonly<Record<string, unknown>>;
+  };
+
+  // 受入条件 P4-ENI-AC01: Intensity の無い報を受け、震源・M・深さを元の fixture と同じに読む。
+  it("P4-ENI-T01 acceptance / AC01: accepts a VXSE45 and a VXSE43 without Intensity and keeps the hypocenter facts", () => {
+    for (const [file, head, edit, warningClass] of [["77_01_01_240613_VXSE45", "VXSE45", noIntensity, "forecast"],
+      ["37_01_01_240613_VXSE43", "VXSE43", noIntensity43, "warning"]] as const) {
+      const original = receive(emptyState(), decodeFixture(file, head));
+      const step = receive(emptyState(), decodeFixture(file, head, edit));
+      expect(step.decisions[0]).toMatchObject({ decision: "changed" });
+      expect(step.state.current[0]).toMatchObject({ warningClass, prediction: unknownPrediction, reportAreas: [],
+        maxLgInt: null, detectOnly: false });
+      const [before, after] = [original.state.current[0], step.state.current[0]];
+      expect([after.hypocenterName, after.magnitude, after.depthRaw, after.coordinateRaw])
+        .toEqual([before.hypocenterName, before.magnitude, before.depthRaw, before.coordinateRaw]);
+      const [reportBefore, reportAfter] = [reportOf(original), reportOf(step)];
+      for (const key of ["hypocenter", "coordinate", "magnitude", "originTimeRaw"] as const)
+        expect(reportAfter[key]).toEqual(reportBefore[key]);
+      expect([reportAfter.maxLgInt, reportAfter.maxIntChangeReasonRaw, reportAfter.areas]).toEqual([null, null, []]);
+    }
+  });
+
+  // 受入条件 P4-ENI-AC03: 通知はほかの EEW と同じ判定で、本文の最大予測震度は既定の「不明」。
+  it("P4-ENI-T02 acceptance / AC03: notifies like any EEW, once per report, and keeps the earlier prediction", () => {
+    const forecast = decodeFixture("77_01_01_240613_VXSE45", "VXSE45", noIntensity);
+    const first = receive(emptyState(), forecast);
+    expect(first.intents.map((item) => [item.channel, item.payload.level])).toEqual([["desktop", "warning"], ["sound", "warning"]]);
+    expect(first.intents[0].payload.body).toContain("最大予測震度不明");
+    expect(receive(first.state, forecast).intents).toEqual([]);
+    const warning = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43", noIntensity43));
+    expect(warning.intents.map((item) => item.payload.level)).toEqual(["critical", "critical"]);
+    const known = receive(emptyState(), decodeFixture("77_01_01_240613_VXSE45", "VXSE45"));
+    const later = receive(known.state, decodeFixture("77_01_03_240613_VXSE45", "VXSE45", noIntensity));
+    expect(later.intents).toEqual([]);
+    expect(later.state.current[0].retainedPrediction)
+      .toEqual({ prediction: known.state.current[0].prediction, source: known.state.current[0].source });
+  });
+
+  // 契約境界 P4-ENI-AC01・AC02: 断るのは Intensity があって Forecast か全体の ForecastInt が無い報と、Intensity の開き閉じの tag だけが欠けた報。
+  it("P4-ENI-T03 contractBoundary / AC02: still refuses a broken Intensity and a Forecast left directly under Body", () => {
+    const cases: readonly (readonly [(xml: string) => string, string])[] = [
+      [(xml) => xml.replace("<Intensity>", "").replace("</Intensity>", ""), "requiredStructureInvalid"],
+      [(xml) => xml.replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/, ""), "requiredStructureMissing"],
+    ];
+    for (const [edit, reason] of cases) {
+      const state = emptyState();
+      const rejected = receive(state, decodeFixture("77_01_01_240613_VXSE45", "VXSE45", edit));
+      expect(rejected.decisions[0]).toMatchObject({ decision: "rejected", reason });
+      expect(rejected.state).toBe(state);
+    }
   });
 });

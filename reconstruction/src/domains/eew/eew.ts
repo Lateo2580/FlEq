@@ -188,17 +188,17 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
     const maximumNodes = forecastNodes.flatMap((node) => elements(node, "ForecastInt"));
     const prefs = forecastNodes.flatMap((node) => elements(node, "Pref"));
     const areas = prefs.flatMap((pref) => elements(pref, "Area"));
-    if (intensityNodes.length === 0 || forecastNodes.length === 0 || maximumNodes.length === 0
+    if (intensityNodes.length > 0 && (forecastNodes.length === 0 || maximumNodes.length === 0 // 台帳 98・P4-ENI-AC01: Intensity 無し（解説資料 Ⅱ.21-7）は断らず受ける
       || (family === "VXSE43" && areas.length === 0)
-      || areas.some((area) => elements(area, "ForecastInt").length === 0))
+      || areas.some((area) => elements(area, "ForecastInt").length === 0)))
       return { kind: "rejected", reason: "requiredStructureMissing", diagnostic: diagnostic(material, "requiredStructureMissing") };
-    if (intensityNodes.length !== 1 || forecastNodes.length !== 1 || maximumNodes.length !== 1
+    if (intensityNodes.length > 1 || (intensityNodes.length === 0 ? first(body, "Forecast") != null : forecastNodes.length !== 1 || maximumNodes.length !== 1)
       || prefs.some((pref) => elements(pref, "Area").length === 0)
       || areas.some((area) => elements(area, "ForecastInt").length !== 1))
       return { kind: "rejected", reason: "requiredStructureInvalid", diagnostic: diagnostic(material, "requiredStructureInvalid") };
 
     const values = leafValues(material);
-    const maximum = intensity(maximumNodes[0], null, values);
+    const maximum = maximumNodes.length === 0 ? { from: { kind: "missing" as const }, to: { kind: "missing" as const }, condition: null, description: null } : intensity(maximumNodes[0], null, values);
     const validCode = (node: XmlElement): boolean => {
       const codes = elements(node, "Code");
       return codes.length === 1 && /^\d+$/.test(scalar(codes[0])?.trim() ?? "");
@@ -625,10 +625,10 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   let maximumPriority = -1;
   let maximumOpen = false;
   let uncertain = 0;
-  const predictions = candidate.prediction == null ? []
+  const predictions = candidate.prediction == null || forecast == null ? []
     : [...candidate.prediction.areas.map((area) => area.intensity), candidate.prediction.maximum];
   // Arrival/PLUM conditions on Area remain raw prediction evidence, not intensity qualifiers.
-  const forecastIntNodes = candidate.prediction == null ? [] : [
+  const forecastIntNodes = candidate.prediction == null || forecast == null ? [] : [
     ...elements(forecast!, "Pref").flatMap((pref) => elements(pref, "Area")).map((area) => first(area, "ForecastInt")!),
     first(forecast!, "ForecastInt")!,
   ];
@@ -857,8 +857,8 @@ function eewCurrentReport(body: XmlElement, earthquake: XmlElement | null, famil
   const lgText = (name: string): string | null => { const node = lg == null ? null : first(lg, name); return node == null ? null : scalar(node); };
   const textNode = first(body, "Text");
   const text = textNode == null ? null : scalar(textNode);
-  // P4-DW-AC09: VXSE45・非取消（current は非取消だけ）・Intensity と全体の ForecastInt がある（受理の必須）・区域 0 件・OriginTime が無い・Text がある。
-  const detectOnly = family === "VXSE45" && prediction != null && prediction.areas.length === 0
+  // P4-DW-AC09: VXSE45・非取消（current は非取消だけ）・Intensity と全体の ForecastInt がある（P4-ENI-AC01 (7): 受理は Intensity の無い報も受けるので、ここで見る）・区域 0 件・OriginTime が無い・Text がある。
+  const detectOnly = family === "VXSE45" && prediction != null && prediction.areas.length === 0 && first(body, "Intensity") != null
     && (earthquake == null || first(earthquake, "OriginTime") == null) && text != null && text !== "";
   // 場所の文は Text の 2 行目の空白の並びの前（作者裁定 2026-11-19）。切り出せなければ null で、画面は場所の行を詰める。
   const place = detectOnly ? /^(\S+)\s+/.exec(text.split(/\r?\n/)[1] ?? "")?.[1] ?? null : null;

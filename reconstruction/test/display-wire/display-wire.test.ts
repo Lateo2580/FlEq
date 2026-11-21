@@ -438,8 +438,8 @@ describe("P4-DW-T09 acceptance: values added to the EEW card and the quake rows"
     expect(detect((xml) => xml.replace("</ForecastLgInt>", "</ForecastLgInt><Pref><Name>石川</Name><Code>9170</Code><Area><Name>石川県能登</Name><Code>390</Code><ForecastInt><From>5-</From><To>5-</To></ForecastInt></Area></Pref>")).detectOnly).toBe(false);
     const asVxse43 = eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace(/<OriginTime>[^<]*<\/OriginTime>/, "").replace("</Intensity>", "</Intensity><Text>a\nb c</Text>"), "VXSE43");
     expect(asVxse43.state.current[0]?.detectOnly ?? false).toBe(false);
-    // 取消と Intensity の無い報は current を作らない（台帳 98 は別の契約）。
-    expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace(/<Intensity>[\s\S]*<\/Intensity>/, ""), "VXSE45").state.current).toEqual([]);
+    // P4-ENI-AC04 (2)・AC01 (7): OriginTime が無く Text のある Intensity の無い報は current を作るが、detectOnly は偽・place は null（台帳 98）。
+    expect([detect((xml) => xml.replace(/<Intensity>[\s\S]*<\/Intensity>/, "")).detectOnly, detect((xml) => xml.replace(/<Intensity>[\s\S]*<\/Intensity>/, "")).place]).toEqual([false, null]);
     // 非取消: 取消の報は current を作らない。Intensity はあるが全体の ForecastInt が無い報も受理しない（台帳 98 は別の契約）。
     expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>"), "VXSE45").state.current).toEqual([]);
     expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/, ""), "VXSE45").state.current).toEqual([]);
