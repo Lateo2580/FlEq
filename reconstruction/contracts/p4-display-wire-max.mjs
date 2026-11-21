@@ -140,28 +140,28 @@ const groups = {
 };
 const rows = Object.entries(groups).map(([name, group]) => ({ name, ...total(group) }));
 
-// ---- 共通部の H17・H39（表 §13）。理由の生の行は詳細の part=losses で読む（共通部に入れない）----
+// ---- 共通部（表 §12、今の型のまま）----
 // 今の共通部の上界（connection・worker・persistence・recovery〔digest 16,384・EEW の札 2,048・進み具合 4,096〕・channels・版）。
 // p3-recovery.json:952 の保守の再計算 49,443 をそのまま使う（共通部は 65,536 を超えると snapshot 全体が断られる、P2-A8-RES-04）。
 const COMMON_EXISTING = 49443;
-const UNITS = 12;
-const tally = widest(null, [MS, MS]); // [件数, 最後に足した時刻]
-const lossRow = { unit: "U-E", dropped: tally, evicted: tally, missed: tally, outcomeUnknown: tally, unreadable: tally,
-  // hole は件数の分からない欠けの有無（InputBoundaries.hasHole、取り直しで解けた印の穴は数えない、P3-RB-AC07 (3)）。
-  hole: BOOL };
-const removal = { unit: "U-E", operation: OPERATION, reason: widest("cancelled", "expired", "evicted", "unknown"), at: MS, ref: { id: text(64) } };
-const h17h39 = { losses: array(UNITS, lossRow), removals: { items: array(32, removal), omitted: MS } };
-// 共通部の object に足す鍵 2 つの分（外の括弧 2 を除き、前の鍵との区切り 1 を足す）。
-const commonAdded = bytes(h17h39) - 2 + 1;
-const common = { existing: COMMON_EXISTING, h17h39: commonAdded, sum: COMMON_EXISTING + commonAdded, margin: 65536 - COMMON_EXISTING - commonAdded };
+const common = { existing: COMMON_EXISTING, margin: 65536 - COMMON_EXISTING };
 
-// ---- 新しい経路の 1 MiB（表 §12）----
-// 9 分野は分野ごとに max（予算内の full ≤ 65,536、要約 ≤ 3,734）＝ 65,536。全体が 1 MiB を超えたら予算超過の分野を要約にする今の規則
-// （view-projector.ts:35〜:37）を新しい経路にも当て、保護 3 分野は要約にしない。
+// ---- 新しい経路の全体（表 §3.2）----
+// 新しい経路は保護 3 分野と共通部だけ（9 分野は B0 の後の契約が足す）。予算いっぱいの通知と共通部を足しても 1 MiB に入るので、縮退の規則は要らない。
 const ruled = rows.find((row) => row.name === "A短");
-const mebibyte = { nine: 9 * 65536, notices: 131072, common: 65536, protected: ruled.sum,
-  sum: 9 * 65536 + 131072 + 65536 + ruled.sum, margin: 1048576 - (9 * 65536 + 131072 + 65536 + ruled.sum) };
+const newPath = { protected: ruled.sum, notices: 131072, common: 65536, sum: ruled.sum + 131072 + 65536, margin: 1048576 - (ruled.sum + 131072 + 65536) };
 
-console.log(JSON.stringify({ groups: rows, common, mebibyte }, null, 1));
-// 裁定の組は A短（作者裁定 2026-11-21 08:24）。保護 3 分野・共通部・1 MiB のどれかが負なら失敗にする。
-if (ruled.margin < 0 || common.margin < 0 || mebibyte.margin < 0) process.exitCode = 1;
+// ---- U-Q の当日の行に足す欄の増え（表 §4、契約 AC16）----
+// 復元の境界（seismic-unit.ts の boundedValue と recent）は字の長さだけを確かめるので、保存の byte は 1 字が JSON の escape で
+// \u00XX の 6 byte になる最悪で数える（1 字 3 byte では足りない）。strongest の区域コードは decode が 1〜8 桁の数字かを確かめる前提。
+const esc = (n) => "\u0001".repeat(n);
+const mv = widest({ kind: "text", value: esc(32), raw: esc(32) }, { kind: "range", bound: "upper", value: -1.2345678901234567e-300, raw: esc(32) },
+  { kind: "missing" });
+const rowAdded = { depth: mv, magnitudeDescription: nullable(esc(32)), tsunamiComment: nullable(esc(128)), strongest: array(8, "99999999"), omittedStrongest: MS };
+// 行の object に足す鍵の分（外の括弧 2 を除き、前の鍵との区切り 1 を足す）。区分 3 × 5 行。
+const recentRow = bytes(rowAdded) - 2 + 1;
+const seismicRecent = { perRow: recentRow, rows: 15, growth: 15 * recentRow };
+
+console.log(JSON.stringify({ groups: rows, common, newPath, seismicRecent }, null, 1));
+// 裁定の組は A短（作者裁定 2026-11-21 08:24）。保護 3 分野・共通部・新しい経路の全体のどれかが負なら失敗にする。
+if (ruled.margin < 0 || common.margin < 0 || newPath.margin < 0) process.exitCode = 1;
