@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "dc805187ce91949a66f62c9deaf60096b988bc20",
-  "sha256": "c59fc275db37f0bae36ff5f541b07e26a2800eeeddf5c2214ccaacefb87641a6",
+  "sha256": "d2aa23cf60699acc5fd267d435c231f8f07e22c97b0f153d44524bc927e74d28",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -249,7 +249,7 @@
   "contractId": "P4-DISPLAY-WIRE-001",
   "mode": "implementation",
   "objective": "ブラウザへ送る表示の wire（保護 3 分野の表示の形・区域の規則・型と文字列の上限・合成 1 枚・今の型のままの共通部・詳細の要求と応答）を作り、保護 3 分野の型の最大が 262,144 byte 以下であることを試験で示して D-H37-EXPECT を閉じる（計画 §2.1 の B0、§4.1）。9 分野の語彙と H17・H39 の値は B0 の後の別の契約（P4-DW-D-SCOPE-NARROW）。真実源は表 reconstruction/contracts/p4-display-wire-tables.md と script reconstruction/contracts/p4-display-wire-max.mjs。計画の同期は統合担当",
-  "baseOid": "unassigned",
+  "baseOid": "cee96025b244fd5c0e5cb8a71d02af6e3d9a48dd",
   "cleanTreeRequired": true,
   "readPaths": [
    "AGENTS.md",
