@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "cb8368c175e16ebfa3a9237f0f3aad574e0e624474b7014a1555ebeb91ce9e85",
+    "sha256": "64861cccfba98b048d02cac16bbdb1eb699d7f5716b6b0df37c35759765acb40",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -307,6 +307,12 @@
         "status": "closed",
         "source": "統合担当の数え（2026-11-21、repo の外の ~/dev/p4-n0-volume-count.md。場面の記録は ~/dev/fleq-vault-archive の 2026-11-15-c3c/scenes2/N2 と 2026-11-18-walk/scenes3/N2 の 02-evaluator.json）",
         "closed": "N2 の 60 秒 32 件は 100% U-E（余震の第 1 報 17・本震の続報 15）で、U-T は 0 件。U-T の同じ中身の予報の続報は N2 の全区間で 14 件（04:00 と 16:00 の 2 つの本震の大津波警報の続報 7 件ずつ）。全区間の desktop 3,061 件の内訳は U-E 1,448・U-Q 1,376・U-T 212（うち観測 info 190、余震の注意報の発令 4）・U-N 25。AC10 (4) の「U-T 以外が主因なら書き直す」の条件に当たったので、AC10 を作者裁定 A の中身に書き直した。U-E と U-Q の量（余震の EEW の第 1 報と最終報、余震の地震の報）は N0 では減らさない。余震の EEW の頻度は合成の推測で、歩きの道具の側（族 Q）が持つ"
+      },
+      {
+        "id": "Q-NTS-AUTHOR-RULINGS",
+        "status": "closed",
+        "source": "作者の聞き比べ（2026-11-21 17:1x、作者「候補Bでお願いします！」）。候補は repo の外の ~/dev/fleq-vault-archive/2026-11-21-sound-clash/（生成器 make.mjs sha256 19bb82e1…、候補 B の WAV sha256 af51b2c8…）",
+        "closed": "P4-NTS-D-SOUND-CLASH=B の 1 本は候補 B: 気象の critical の和音を D♭5-E5-A♭5 にする。生成の式は render-sounds.mjs と同じで、weather の critical だけ短三和音 [0, 3, 7] に足す半音を 12 から 13 に替える（根音 C4 261.63 Hz の 13・16・20 半音上）。地震・EEW の warning（C5-E♭5-G5）とも、ほかの 3 分野の warning・critical とも 1 音も重ならない。候補のピークは製品の 20 本のピーク（tsunami-critical の 0.9238）を越えず、ほかの 19 本の sha256 は変わらない見込み（AC09 (2) で生成の前後を比べて確かめる）"
       }
     ],
     "operationContract": {
@@ -563,7 +569,7 @@
       },
       {
         "id": "P4-NTS-AC09",
-        "requirement": "発注 3。気象の critical の音（P4-NTS-D-SOUND-CLASH の裁定のとおり。以下は推奨 B の形）: (1) render-sounds.mjs で weather の critical だけ、和音の高さを地震・EEW の warning（C5-E♭5-G5）と 3 音が重ならない組にする。候補は統合担当が 2〜3 本を reconstruction の外（worktree の未追跡）に生成し、作者が聞き比べて 1 本に決めてから実装する (2) 生成器は weather-critical.wav の 1 本だけが変わり、ほかの 19 本の sha256 が変わらないことを生成の前後で比べて成果物に書く（共通ピークの正規化は 20 本の最大〔今は tsunami-critical の 0.9238〕で決まる。新しい音のピークがそれを越えて 19 本が変わるなら止めて報告する） (3) sound-design-system.md の分野別根音表 v1 の段階表に、気象の critical の例外を :56 の行の中で書く（行を足さない。:44・:46・:60・:62 は他の契約が引く） (4) 試験は足さない（音の高さは生成器の式と聞き比べで決まり、試験で守る振る舞いが無い）。代わりに 20 本の sha256 と生成器の sha256 を成果物に書く（P2-NOTIFICATION-DELIVERY-001 の配送証拠と同じ形）",
+        "requirement": "発注 3。気象の critical の音（P4-NTS-D-SOUND-CLASH の裁定のとおり。以下は推奨 B の形）: (1) render-sounds.mjs で weather の critical だけ、和音を作者が聞き比べで選んだ候補 B の D♭5-E5-A♭5 にする（短三和音 [0, 3, 7] に足す半音を 12 から 13 へ。地震・EEW の warning の C5-E♭5-G5 と 3 音とも重ならない。Q-NTS-AUTHOR-RULINGS） (2) 生成器は weather-critical.wav の 1 本だけが変わり、ほかの 19 本の sha256 が変わらないことを生成の前後で比べて成果物に書く（共通ピークの正規化は 20 本の最大〔今は tsunami-critical の 0.9238〕で決まる。新しい音のピークがそれを越えて 19 本が変わるなら止めて報告する） (3) sound-design-system.md の分野別根音表 v1 の段階表に、気象の critical の例外を :56 の行の中で書く（行を足さない。:44・:46・:60・:62 は他の契約が引く） (4) 試験は足さない（音の高さは生成器の式と聞き比べで決まり、試験で守る振る舞いが無い）。代わりに 20 本の sha256 と生成器の sha256 を成果物に書く（P2-NOTIFICATION-DELIVERY-001 の配送証拠と同じ形）",
         "evidenceRefs": [
           "reconstruction/src/notification-delivery/render-sounds.mjs:6 «5f1397552200fb4e»",
           "reconstruction/src/notification-delivery/render-sounds.mjs:15 «c9fe30bf9c6548ed»",
@@ -736,17 +742,6 @@
       "残存として成果物に書く: 器の最悪の計算を確かめた所（AC01 (5)・AC05 (6)・AC08 (5)）と、その結論"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-NTS-AUTHOR-RULINGS",
-        "owner": "user",
-        "blocks": [
-          "P4-NTS-AC09"
-        ],
-        "resolveBy": "発注 3 の baseOid を割り当てる前",
-        "requiredEvidence": [
-          "P4-NTS-D-SOUND-CLASH=B（作者裁定 2026-11-21 06:41）の聞き比べの結果: 統合担当が作る 2〜3 本の候補から作者が選んだ 1 本の生成の式（ほかの作者の分岐は 2026-11-21 06:41・07:45・07:57 に全部裁定済み）"
-        ]
-      },
       {
         "id": "Q-NTS-VALUE-OWNER",
         "owner": "integrator",
