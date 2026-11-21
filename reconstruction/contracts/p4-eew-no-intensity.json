@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "1c36b75d27241729d857e44d40365f647f18089976de618c79999ba5b54c84c2",
+    "sha256": "63e22d3593dfcfd26573ff6a2d970277fea9b7a3ab2e4bea8b58d4e36b7b2089",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -62,7 +62,7 @@
     "contractId": "P4-EEW-NO-INTENSITY-001",
     "mode": "implementation",
     "objective": "台帳 98 の直し。深さ 150km より深い地震と観測点 1 点の震度予測の緊急地震速報は Body/Intensity を持たない（解説資料 Ⅱ.21-7（imozuru の sources/manual/地震火山関連_解説資料.txt:4175〜:4180「2．Intensity【震度・長周期地震動階級】（0 回/1 回）…以下の場合本要素は出現しない。○震源の深さが 150ｋm より深く推定された場合。（PLUM 法による 2 点以上での震度予測がある場合を除く。）○観測点 1 点による震度予測の場合。」））。今の新築はこの報を requiredStructureMissing で丸ごと断るので、読めない報のカードと「緊急地震速報（読めない報）を受信」の通知になり、読める震源・M・深さが出ない。H51（受けて読めた中身を残す）に従って受け、予測は最大予測震度の From・To とも missing・区域 0 件にする。通知はほかの EEW と同じ判定で鳴る（作者裁定 D-B0-NO-INTENSITY=A、2026-11-21 08:24）",
-    "baseOid": "unassigned",
+    "baseOid": "606a6ceeee4494561b0281ac584eae90fb336d17",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
