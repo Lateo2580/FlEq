@@ -157,7 +157,7 @@ async function fetchWindow(apiKey: string, startMs: number, loadPage: PageLoader
 
 function windowIdentity(items: readonly PreparedItem[]): string {
   return identity([...items].sort((a, b) => b.receivedAtMs - a.receivedAtMs || codeUnitCompare(a.id, b.id)).map((x) => [
-    x.id, x.url, x.receivedAtMs, x.eventId, x.meta.reportDateTime.raw, x.meta.reportDateTime.epochMs,
+    x.id, x.url, x.receivedAtMs, x.meta.eventId.value, x.meta.reportDateTime.raw, x.meta.reportDateTime.epochMs,
     ...serialIdentity(x.meta), x.meta.infoType.raw, x.meta.infoType.value,
   ]));
 }

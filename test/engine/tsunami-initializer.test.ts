@@ -381,6 +381,21 @@ describe("restoreTsunamiState bounded multi-event batch", () => {
     expect(persist).toHaveBeenCalledTimes(1);
   });
 
+  // 並びの後ろの番号だけ変わった一覧は、先頭の番号が同じでも安定と見なさない。
+  it("§5.12 EventID の並びの後ろが変わった一覧を安定と見なさず次の round へ進む", async () => {
+    const ab = active("x", "A B", "2026-07-28T20:00:00Z", NOW - 10_000);
+    const ac = active("x", "A C", "2026-07-28T20:00:00Z", NOW - 10_000);
+    parsedById.set("x", ab);
+    mockBody.mockResolvedValue({ kind: "ok", xml: XML });
+    mockList.mockResolvedValueOnce(response([itemFor(ab)]))
+      .mockImplementationOnce(async () => { parsedById.set("x", ac); return response([itemFor(ac)]); })
+      .mockResolvedValueOnce(response([itemFor(ac)]))
+      .mockResolvedValueOnce(response([itemFor(ac)]));
+    const result = await restoreTsunamiState("key", new TsunamiStateHolder(), new TelegramRevisionGate(), vi.fn(), undefined, { now: () => NOW });
+    expect(result).toEqual(expect.objectContaining({ kind: "complete" }));
+    expect(mockList).toHaveBeenCalledTimes(4);
+  });
+
   it("§5.13 gate-only A/B duplicate anchors reconstruct each EventID and callback once", async () => {
     const a = active("a", "A", "2026-07-28T20:00:00Z", NOW - 20_000);
     const b = active("b", "B", "2026-07-28T20:01:00Z", NOW - 10_000);
