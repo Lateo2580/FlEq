@@ -146,5 +146,2108 @@
       }
     ],
     "attribution": "出典：気象庁ホームページ（https://www.jma.go.jp/jma/kishou/know/jishin/joho/tsunami-yohoku.html）の「津波予報区に対応する市町村対応表」（令和８年３月26日時点）を加工して作成。加工：FlEq"
+  },
+  "projection": {
+    "source": {
+      "path": "display/maps/quake/insets.v1.json",
+      "sha256": "1855a8a4f1c39a8f17b40caad96f732bad32b671791aa3ac2fb36e642adc33d8"
+    },
+    "crs": {
+      "name": "JGD2011",
+      "epsg": 6668,
+      "archivePrjPolicy": "absent",
+      "source": "display/maps/quake/source.lock.json"
+    },
+    "projectionInsetsVersion": "jma-quake-projection-insets-v1",
+    "viewBox": [
+      0,
+      0,
+      1000,
+      800
+    ],
+    "mainProjection": {
+      "type": "conicConformal",
+      "parallels": [
+        30,
+        40
+      ],
+      "rotate": [
+        -137,
+        0,
+        0
+      ],
+      "center": [
+        0,
+        36
+      ],
+      "scale": 1800,
+      "translate": [
+        500,
+        320
+      ]
+    },
+    "insets": [
+      {
+        "id": "okinawa",
+        "label": "沖縄・先島",
+        "geographicBounds": [
+          122,
+          20,
+          136,
+          30
+        ],
+        "frame": [
+          40,
+          600,
+          360,
+          170
+        ],
+        "labelPosition": [
+          52,
+          632
+        ],
+        "projection": {
+          "type": "mercator",
+          "center": [
+            128,
+            25
+          ],
+          "scale": 850,
+          "translate": [
+            220,
+            690
+          ]
+        }
+      },
+      {
+        "id": "ogasawara",
+        "label": "小笠原等",
+        "geographicBounds": [
+          136,
+          20,
+          155,
+          30
+        ],
+        "frame": [
+          600,
+          600,
+          360,
+          170
+        ],
+        "labelPosition": [
+          612,
+          632
+        ],
+        "projection": {
+          "type": "mercator",
+          "center": [
+            145,
+            25
+          ],
+          "scale": 760,
+          "translate": [
+            780,
+            690
+          ]
+        }
+      }
+    ],
+    "referencePoints": [
+      [
+        141.35,
+        43.06
+      ],
+      [
+        139.69,
+        35.68
+      ],
+      [
+        130.42,
+        33.59
+      ],
+      [
+        127.68,
+        26.21
+      ],
+      [
+        142.19,
+        27.09
+      ]
+    ]
+  },
+  "layers": {
+    "pref": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20190125_AreaInformationPrefectureEarthquake_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2019-01-25",
+        "retrievedAt": "2026-11-21",
+        "archive": "20190125_AreaInformationPrefectureEarthquake_GIS.zip",
+        "archiveSha256": "5f36a66e2a2bbdc2eb04d4c7be0dc9d710903040d4b721716a0b1368d80da235",
+        "shapefileBaseName": "地震情報／都道府県等",
+        "codeField": "code"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「地震情報／都道府県等」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 47,
+      "distinctCodeCount": 47,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 47,
+      "crsControlPoints": [
+        {
+          "code": "01",
+          "coordinate": [
+            139.7993581,
+            41.3518656
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "13",
+          "coordinate": [
+            139.8937781,
+            35.7827464
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "47",
+          "coordinate": [
+            123.7546467,
+            24.0632969
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "47",
+          "target": "okinawa"
+        },
+        {
+          "code": "13",
+          "target": "main"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "47",
+          "ratio": 0.9595
+        },
+        "zoom": {
+          "code": "47",
+          "ratio": 0.9966
+        }
+      },
+      "knownGapsAndExclusions": [],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/pref.overview.v1.json",
+          "sha256": "d6db7ae1c81672ef4fb0fcbe4aff00aa34ca1a59e8a2138e421ff4f240d610a8",
+          "bytes": 337632,
+          "codeCount": 47,
+          "vertexCount": 15997
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/pref.zoom.v1.json",
+          "sha256": "530c4355d90adc6de9023703c20841ff038ac36ac9ac746a03f666cf959f61e5",
+          "bytes": 2447459,
+          "codeCount": 47,
+          "vertexCount": 117366
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/pref.anchors.v1.json",
+          "sha256": "cab4724017a48f62545602df5afbdb92eb4b69b43efef7eb595770a86990c2ce",
+          "bytes": 4384
+        }
+      }
+    },
+    "forecastLocalE": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20240520_AreaForecastLocalE_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2024-05-20",
+        "retrievedAt": "2026-11-21",
+        "archive": "20240520_AreaForecastLocalE_GIS.zip",
+        "archiveSha256": "92f3c9a51fc0681970672e3e77cb81d9d7885822e55b6ca6aefcb4ea6d20705f",
+        "shapefileBaseName": "地震情報／細分区域",
+        "codeField": "code"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「地震情報／細分区域」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 194,
+      "distinctCodeCount": 188,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 188,
+      "crsControlPoints": [
+        {
+          "code": "135",
+          "coordinate": [
+            142.1333414,
+            44.9021575
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "350",
+          "coordinate": [
+            139.5627858,
+            35.7615952
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "774",
+          "coordinate": [
+            129.2012958,
+            29.1590364
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "774",
+          "target": "okinawa"
+        },
+        {
+          "code": "359",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "359",
+          "ratio": 0.6708
+        },
+        "zoom": {
+          "code": "359",
+          "ratio": 0.9714
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "色丹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "国後島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "択捉島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鷹島(甑島南方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "津倉瀬(宇治群島北東方）",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "うるま市・金武町境界部地先の埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/forecastLocalE.overview.v1.json",
+          "sha256": "a1c900b5d4d29f88e477d0a82f09c4e572226970fc385e73869f8727e13e56f6",
+          "bytes": 456506,
+          "codeCount": 188,
+          "vertexCount": 21080
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/forecastLocalE.zoom.v1.json",
+          "sha256": "91e22376e5bc11f0f874d3287096348532af6f05d567b7f2f39c08c055f9cb86",
+          "bytes": 2953754,
+          "codeCount": 188,
+          "vertexCount": 141110
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/forecastLocalE.anchors.v1.json",
+          "sha256": "65deb439024cd8227e85ce388e9c62dadc248dc614f4c22b4a5735ab346d3866",
+          "bytes": 17584
+        }
+      }
+    },
+    "city": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20241128_AreaInformationCity_quake_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2024-11-28",
+        "retrievedAt": "2026-11-21",
+        "archive": "20241128_AreaInformationCity_quake_GIS.zip",
+        "archiveSha256": "56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65",
+        "shapefileBaseName": "市町村等（地震津波関係）",
+        "codeField": "regioncode"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「市町村等（地震津波関係）」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 1910,
+      "distinctCodeCount": 1894,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 1894,
+      "crsControlPoints": [
+        {
+          "code": "0110100",
+          "coordinate": [
+            141.3552008,
+            43.0685867
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "1310100",
+          "coordinate": [
+            139.7314994,
+            35.6814953
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "4630400",
+          "coordinate": [
+            129.5953297,
+            29.4770761
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "4630400",
+          "target": "okinawa"
+        },
+        {
+          "code": "1342100",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "4735400",
+          "ratio": 0.1853
+        },
+        "zoom": {
+          "code": "3736400",
+          "ratio": 0.8872
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "色丹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "国後島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "択捉島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "市川市・船橋市境界地先の土地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鳥島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "ベヨネース列岩",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "須美寿島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "孀婦岩",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "荒川河口部",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "名古屋港口埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鰹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "羽島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鷹島(甑島南方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "津倉瀬(宇治群島北東方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "うるま市・金武町境界部地先の埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "中央防波堤外側廃棄物処理場(中潮橋南側）",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735400",
+          "lod": "overview",
+          "ratio": 0.1853,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3835600",
+          "lod": "overview",
+          "ratio": 0.1906,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2342400",
+          "lod": "overview",
+          "ratio": 0.1993,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4238300",
+          "lod": "overview",
+          "ratio": 0.2493,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1632100",
+          "lod": "overview",
+          "ratio": 0.2662,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3736400",
+          "lod": "overview",
+          "ratio": 0.2813,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1122300",
+          "lod": "overview",
+          "ratio": 0.3167,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735600",
+          "lod": "overview",
+          "ratio": 0.3338,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735300",
+          "lod": "overview",
+          "ratio": 0.3378,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3534100",
+          "lod": "overview",
+          "ratio": 0.3524,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2234100",
+          "lod": "overview",
+          "ratio": 0.3635,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2942400",
+          "lod": "overview",
+          "ratio": 0.4201,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2610200",
+          "lod": "overview",
+          "ratio": 0.4344,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2142100",
+          "lod": "overview",
+          "ratio": 0.4539,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1342100",
+          "lod": "overview",
+          "ratio": 0.4636,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1558600",
+          "lod": "overview",
+          "ratio": 0.4817,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1340200",
+          "lod": "overview",
+          "ratio": 0.4877,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2620800",
+          "lod": "overview",
+          "ratio": 0.4989,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "1342100",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "1632100",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/city.overview.v1.json",
+          "sha256": "7b244d5407fa96d4a133f93aedcfdace7153beb4b5a78d72f8eee9e05b3babea",
+          "bytes": 1183260,
+          "codeCount": 1894,
+          "vertexCount": 47915
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/city.zoom.v1.json",
+          "sha256": "798cb481f5b43d4f51a3bd7b87b66830e5b5ee73b591d00fdf904632771406e6",
+          "bytes": 4799418,
+          "codeCount": 1894,
+          "vertexCount": 221799
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/city.anchors.v1.json",
+          "sha256": "47bd411bf902493d26135b628beda0a726bbfd591e225326b9d5d5c75583d048",
+          "bytes": 184360
+        }
+      }
+    },
+    "tsunamiArea": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20240520_AreaTsunami_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2024-05-20",
+        "retrievedAt": "2026-11-21",
+        "archive": "20240520_AreaTsunami_GIS.zip",
+        "archiveSha256": "735e2ed36befa8d9511f01e6a0e503e01e7824b5125a71326f3f623d808a7eb9",
+        "shapefileBaseName": "津波予報区",
+        "codeField": "code"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「津波予報区」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-simplify",
+            "0.1%"
+          ],
+          "zoom": [
+            "-simplify",
+            "1%"
+          ]
+        }
+      },
+      "geometryType": "polyline",
+      "featureCount": 70,
+      "distinctCodeCount": 67,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 66,
+      "crsControlPoints": [
+        {
+          "code": "120",
+          "coordinate": [
+            144.2949467,
+            44.0082624
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "312",
+          "coordinate": [
+            139.9720681,
+            35.6709007
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "800",
+          "coordinate": [
+            127.6752776,
+            26.0766036
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "800",
+          "target": "okinawa"
+        },
+        {
+          "code": "321",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "400",
+          "ratio": 0.2091
+        },
+        "zoom": {
+          "code": "210",
+          "ratio": 0.3591
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "0",
+          "name": "帰属未定1",
+          "reason": "津波予報区に帰属しない線（コード 0 は sheet 31 に無い）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "0",
+          "name": "帰属未定2",
+          "reason": "津波予報区に帰属しない線（コード 0 は sheet 31 に無い）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "0",
+          "name": "帰属未定3",
+          "reason": "津波予報区に帰属しない線（コード 0 は sheet 31 に無い）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "0",
+          "name": "帰属未定4",
+          "reason": "津波予報区に帰属しない線（コード 0 は sheet 31 に無い）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "400",
+          "lod": "overview",
+          "ratio": 0.2091,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "321",
+          "lod": "overview",
+          "ratio": 0.2212,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "731",
+          "lod": "overview",
+          "ratio": 0.2267,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "520",
+          "lod": "overview",
+          "ratio": 0.2312,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "220",
+          "lod": "overview",
+          "ratio": 0.2496,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "530",
+          "lod": "overview",
+          "ratio": 0.2512,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "751",
+          "lod": "overview",
+          "ratio": 0.2592,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "210",
+          "lod": "overview",
+          "ratio": 0.2629,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "600",
+          "lod": "overview",
+          "ratio": 0.2754,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "740",
+          "lod": "overview",
+          "ratio": 0.2857,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "730",
+          "lod": "overview",
+          "ratio": 0.2916,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "720",
+          "lod": "overview",
+          "ratio": 0.2931,
+          "reason": "全体図用（overview）の間引きで線の長さが元の 3 割を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/tsunamiArea.overview.v1.json",
+          "sha256": "9da2dde49854b0aababbba0064023f9886221f7d8bd1593ebbe41df834f3653c",
+          "bytes": 202871,
+          "codeCount": 66,
+          "vertexCount": 9419
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/tsunamiArea.zoom.v1.json",
+          "sha256": "f5c5834809fa360315214f69bc75c09f3b1e66df2e232ecf5739f328674a91a8",
+          "bytes": 1866321,
+          "codeCount": 66,
+          "vertexCount": 89382
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/tsunamiArea.anchors.v1.json",
+          "sha256": "274ca217566a8a5f5654a7f4f4f059964035cd0be0ed469e7a812081359bc56e",
+          "bytes": 6211
+        }
+      }
+    },
+    "weatherPrefecture": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20190125_AreaForecastLocalM_prefecture_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2019-01-25",
+        "retrievedAt": "2026-11-21",
+        "archive": "20190125_AreaForecastLocalM_prefecture_GIS.zip",
+        "archiveSha256": "f4e32e21a806120eac86c529ff9e5ed8130b13ac9e5988c2e8a4a8f4093ddce0",
+        "shapefileBaseName": "府県予報区等",
+        "codeField": "code"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「府県予報区等」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 64,
+      "distinctCodeCount": 64,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 64,
+      "crsControlPoints": [
+        {
+          "code": "011000",
+          "coordinate": [
+            142.8430247,
+            44.6884142
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "130000",
+          "coordinate": [
+            139.8937781,
+            35.7827464
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "471000",
+          "coordinate": [
+            127.6752776,
+            26.0766036
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "471000",
+          "target": "okinawa"
+        },
+        {
+          "code": "130000",
+          "target": "main"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "472000",
+          "ratio": 0.9127
+        },
+        "zoom": {
+          "code": "471000",
+          "ratio": 0.9958
+        }
+      },
+      "knownGapsAndExclusions": [],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/weatherPrefecture.overview.v1.json",
+          "sha256": "afe11d8afca877bf6b7d4671e0dfbadb5764d4439cd03261061f977b0ba4af7f",
+          "bytes": 354858,
+          "codeCount": 64,
+          "vertexCount": 16737
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/weatherPrefecture.zoom.v1.json",
+          "sha256": "fc09d3b7ec06ebc91e1c3cf0743bf4566ac7135a6381129c9ab099ddbf0d217e",
+          "bytes": 2574349,
+          "codeCount": 64,
+          "vertexCount": 123389
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/weatherPrefecture.anchors.v1.json",
+          "sha256": "edc24607092616d9a2a325214b79ae7db0c3475019d67640ffe19881488de3f1",
+          "bytes": 6223
+        }
+      }
+    },
+    "weatherPrimary": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20190125_AreaForecastLocalM_1saibun_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2019-01-25",
+        "retrievedAt": "2026-11-21",
+        "archive": "20190125_AreaForecastLocalM_1saibun_GIS.zip",
+        "archiveSha256": "1a085be077321738f301fe0e321f66539b5b2e7d6c9865b3cb263d19dd5c7939",
+        "shapefileBaseName": "一次細分区域等",
+        "codeField": "code"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「一次細分区域等」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 143,
+      "distinctCodeCount": 142,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 142,
+      "crsControlPoints": [
+        {
+          "code": "011000",
+          "coordinate": [
+            142.8430247,
+            44.6884142
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "130010",
+          "coordinate": [
+            139.1002819,
+            35.8671887
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "471010",
+          "coordinate": [
+            127.6752776,
+            26.0766036
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "471010",
+          "target": "okinawa"
+        },
+        {
+          "code": "130040",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "130040",
+          "ratio": 0.6708
+        },
+        "zoom": {
+          "code": "130040",
+          "ratio": 0.9724
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "うるま市・金武町境界部地先の埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/weatherPrimary.overview.v1.json",
+          "sha256": "7bade6e98580e06d4cbc93351d1e17469a70f0d07d6174a9d92f8b9fe3b56b55",
+          "bytes": 445334,
+          "codeCount": 142,
+          "vertexCount": 20731
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/weatherPrimary.zoom.v1.json",
+          "sha256": "7e4d9f906dab435033ff7413bded5b05542baff3cce1173dcae15fb031942b53",
+          "bytes": 2916853,
+          "codeCount": 142,
+          "vertexCount": 139518
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/weatherPrimary.anchors.v1.json",
+          "sha256": "ff1f06017269825fbdbfbd55cd4bdf4a7b4f673e99e6f2d209bc89fa7f02dd4e",
+          "bytes": 13722
+        }
+      }
+    },
+    "weatherGroup": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20230517_AreaForecastLocalM_matome_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2023-05-17",
+        "retrievedAt": "2026-11-21",
+        "archive": "20230517_AreaForecastLocalM_matome_GIS.zip",
+        "archiveSha256": "0945e5feabe632413e280f5ca1b7c16cb2469f8671b2066039423f61ff354e06",
+        "shapefileBaseName": "市町村等をまとめた地域等",
+        "codeField": "code"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「市町村等をまとめた地域等」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 384,
+      "distinctCodeCount": 375,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 375,
+      "crsControlPoints": [
+        {
+          "code": "011011",
+          "coordinate": [
+            141.6239732,
+            45.0852458
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "130011",
+          "coordinate": [
+            139.7380491,
+            35.7802207
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "471011",
+          "coordinate": [
+            127.6752776,
+            26.0766036
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "471011",
+          "target": "okinawa"
+        },
+        {
+          "code": "130040",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "471013",
+          "ratio": 0.2193
+        },
+        "zoom": {
+          "code": "471013",
+          "ratio": 0.9499
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "色丹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "国後島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "択捉島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "名古屋港口埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "羽島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鷹島(甑島南方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "津倉瀬(宇治群島北東方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "うるま市・金武町境界部地先の埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "中央防波堤外側廃棄物処理場(中潮橋南側）",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "471013",
+          "lod": "overview",
+          "ratio": 0.2193,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/weatherGroup.overview.v1.json",
+          "sha256": "7674614858a989173a955fdfaf6b357387e406c58d4fd25647d4cf689661e8a3",
+          "bytes": 586057,
+          "codeCount": 375,
+          "vertexCount": 26412
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/weatherGroup.zoom.v1.json",
+          "sha256": "92def8910625575b8dbc7dc90713e8beb80e359416307a7219d2f693492a883c",
+          "bytes": 3385929,
+          "codeCount": 375,
+          "vertexCount": 161007
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/weatherGroup.anchors.v1.json",
+          "sha256": "0f0ddc94a8fb5378f5e0d7b331ac0a1811991e2f3a9ee1e50704b11690b9aab4",
+          "bytes": 36134
+        }
+      }
+    },
+    "weatherCity": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20260226_AreaInformationCity_weather_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2026-02-26",
+        "retrievedAt": "2026-11-21",
+        "archive": "20260226_AreaInformationCity_weather_GIS.zip",
+        "archiveSha256": "a3a847ca6e1fddb87a622a42b40c735b8e8400b0089dced75cbfe8030fac958c",
+        "shapefileBaseName": "市町村等（気象警報等）",
+        "codeField": "regioncode"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「市町村等（気象警報等）」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 1821,
+      "distinctCodeCount": 1805,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 1805,
+      "crsControlPoints": [
+        {
+          "code": "0110000",
+          "coordinate": [
+            141.4493925,
+            43.1626333
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "1310100",
+          "coordinate": [
+            139.7585511,
+            35.6685882
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "4720100",
+          "coordinate": [
+            127.643207,
+            26.2179367
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "4720100",
+          "target": "okinawa"
+        },
+        {
+          "code": "1342100",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "4735400",
+          "ratio": 0.1853
+        },
+        "zoom": {
+          "code": "3736400",
+          "ratio": 0.8872
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "色丹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "国後島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "択捉島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "市川市・船橋市境界地先の土地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鳥島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "ベヨネース列岩",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "須美寿島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "孀婦岩",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "荒川河口部",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "名古屋港口埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鰹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "羽島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鷹島(甑島南方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "津倉瀬(宇治群島北東方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "うるま市・金武町境界部地先の埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "中央防波堤外側廃棄物処理場(中潮橋南側）",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735400",
+          "lod": "overview",
+          "ratio": 0.1853,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3835600",
+          "lod": "overview",
+          "ratio": 0.1906,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4238300",
+          "lod": "overview",
+          "ratio": 0.2493,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1632100",
+          "lod": "overview",
+          "ratio": 0.2662,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3736400",
+          "lod": "overview",
+          "ratio": 0.2813,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "0148402",
+          "lod": "overview",
+          "ratio": 0.3068,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4221202",
+          "lod": "overview",
+          "ratio": 0.3076,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2620800",
+          "lod": "overview",
+          "ratio": 0.31,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1122300",
+          "lod": "overview",
+          "ratio": 0.3167,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735600",
+          "lod": "overview",
+          "ratio": 0.3338,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735300",
+          "lod": "overview",
+          "ratio": 0.3378,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3534100",
+          "lod": "overview",
+          "ratio": 0.3524,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2234100",
+          "lod": "overview",
+          "ratio": 0.3635,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2942400",
+          "lod": "overview",
+          "ratio": 0.4201,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2142100",
+          "lod": "overview",
+          "ratio": 0.4539,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1342100",
+          "lod": "overview",
+          "ratio": 0.4636,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1558600",
+          "lod": "overview",
+          "ratio": 0.4817,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1340200",
+          "lod": "overview",
+          "ratio": 0.4877,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "1342100",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "1632100",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "2342400",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "2620800",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/weatherCity.overview.v1.json",
+          "sha256": "05e586a77b5ff37108866e39c2fc2b8a0d696f65537bd3e8728408f6dc14cd7c",
+          "bytes": 1348582,
+          "codeCount": 1805,
+          "vertexCount": 56311
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/weatherCity.zoom.v1.json",
+          "sha256": "d1d69aa7aeb328a2a22cf8a8c3654c06ec6b6a2435b3e807f7ae75cc058ab946",
+          "bytes": 4957373,
+          "codeCount": 1805,
+          "vertexCount": 229841
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/weatherCity.anchors.v1.json",
+          "sha256": "7c55724993224cf75c61f83a5180a7fa8d3ac5f1ddd52669822396179320d0c5",
+          "bytes": 175704
+        }
+      }
+    },
+    "floodCity": {
+      "source": {
+        "url": "https://www.data.jma.go.jp/developer/gis/20241025_AreaInformationCity_river_GIS.zip",
+        "page": "https://www.data.jma.go.jp/developer/gis.html",
+        "version": "2024-10-25",
+        "retrievedAt": "2026-11-21",
+        "archive": "20241025_AreaInformationCity_river_GIS.zip",
+        "archiveSha256": "cea9d3ac5601ab2d430f41899dd60239545ae380f741f882f71ed878dc2e32a8",
+        "shapefileBaseName": "市町村等（指定河川洪水予報）",
+        "codeField": "regioncode"
+      },
+      "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+      "sourceNotice": "この地図の作成に当たっては、国土地理院長の承認を得て、同院発行の数値地図25000（空間データ基盤）、数値地図（国土基本情報）、電子国土基本図（地図情報）を使用した。\n（承認番号　平30情使 第401号・令２情使 第125号・令３情使 第90号・令３情使 第123号・令３情使 第648号・令４情使 第437号・令５情使 第71号・令６情使 第382号・令７情使 第395号）",
+      "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「市町村等（指定河川洪水予報）」を加工して作成。加工：FlEq",
+      "transform": {
+        "script": "reconstruction/tools/gis/build-shapes.mjs",
+        "node": "v26.12.1",
+        "mapshaper": "0.7.49",
+        "args": {
+          "overview": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "0.1%",
+            "keep-shapes",
+            "-clean"
+          ],
+          "zoom": [
+            "-clean",
+            "rewind",
+            "only-arcs",
+            "-simplify",
+            "1%",
+            "keep-shapes",
+            "-clean"
+          ]
+        }
+      },
+      "geometryType": "polygon",
+      "featureCount": 1757,
+      "distinctCodeCount": 1741,
+      "multiFeatureCodes": {},
+      "expectedCodeCount": 1741,
+      "crsControlPoints": [
+        {
+          "code": "0110000",
+          "coordinate": [
+            141.4493925,
+            43.1626333
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "1310100",
+          "coordinate": [
+            139.7585511,
+            35.6685882
+          ],
+          "tolerance": 5e-08
+        },
+        {
+          "code": "4720100",
+          "coordinate": [
+            127.643207,
+            26.2179367
+          ],
+          "tolerance": 5e-08
+        }
+      ],
+      "projectionTargetChecks": [
+        {
+          "code": "4720100",
+          "target": "okinawa"
+        },
+        {
+          "code": "1342100",
+          "target": "ogasawara"
+        }
+      ],
+      "areaRatioMin": {
+        "overview": {
+          "code": "4735400",
+          "ratio": 0.1853
+        },
+        "zoom": {
+          "code": "3736400",
+          "ratio": 0.8872
+        }
+      },
+      "knownGapsAndExclusions": [
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "色丹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "国後島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "択捉島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "市川市・船橋市境界地先の土地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鳥島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "ベヨネース列岩",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "須美寿島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "孀婦岩",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "荒川河口部",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "名古屋港口埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鰹島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "羽島",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "鷹島(甑島南方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "津倉瀬(宇治群島北東方)",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "うるま市・金武町境界部地先の埋立地",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "excludedFeature",
+          "sourceCode": "",
+          "name": "中央防波堤外側廃棄物処理場(中潮橋南側）",
+          "reason": "元の地物にコードが無い（コードによる塗りに使えない）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735400",
+          "lod": "overview",
+          "ratio": 0.1853,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3835600",
+          "lod": "overview",
+          "ratio": 0.1906,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4238300",
+          "lod": "overview",
+          "ratio": 0.2493,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1632100",
+          "lod": "overview",
+          "ratio": 0.2662,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3736400",
+          "lod": "overview",
+          "ratio": 0.2813,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2620800",
+          "lod": "overview",
+          "ratio": 0.31,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1122300",
+          "lod": "overview",
+          "ratio": 0.3167,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735600",
+          "lod": "overview",
+          "ratio": 0.3338,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "4735300",
+          "lod": "overview",
+          "ratio": 0.3378,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3534100",
+          "lod": "overview",
+          "ratio": 0.3524,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2234100",
+          "lod": "overview",
+          "ratio": 0.3635,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2942400",
+          "lod": "overview",
+          "ratio": 0.4201,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "2142100",
+          "lod": "overview",
+          "ratio": 0.4539,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1342100",
+          "lod": "overview",
+          "ratio": 0.4636,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1558600",
+          "lod": "overview",
+          "ratio": 0.4817,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "1340200",
+          "lod": "overview",
+          "ratio": 0.4877,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "reducedArea",
+          "code": "3430200",
+          "lod": "overview",
+          "ratio": 0.4605,
+          "reason": "全体図用（overview）の間引きで面積が元の半分を下回る。zoom では基準を満たす（P4-GIS-D-OVERVIEW-REDUCED=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "1342100",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "1632100",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "2342400",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        },
+        {
+          "kind": "anchorOutsideOverview",
+          "code": "2620800",
+          "lod": "overview",
+          "reason": "zoom の代表点が全体図用（overview）の形の外に出てよい（P4-GIS-D-ANCHOR-OVERVIEW=A）"
+        }
+      ],
+      "outputs": {
+        "overview": {
+          "path": "reconstruction/assets/gis/shapes/floodCity.overview.v1.json",
+          "sha256": "b25c8da897b890d9adbd05bd7485eb08e8a1f3fc7cde71c4624849bd06f0ef2f",
+          "bytes": 1132284,
+          "codeCount": 1741,
+          "vertexCount": 46190
+        },
+        "zoom": {
+          "path": "reconstruction/assets/gis/shapes/floodCity.zoom.v1.json",
+          "sha256": "380c2a22933723f0877e69b02d3e3ef1f496267dd7df9da09fe7fc6f95e89e18",
+          "bytes": 4711706,
+          "codeCount": 1741,
+          "vertexCount": 218308
+        },
+        "anchors": {
+          "path": "reconstruction/assets/gis/shapes/floodCity.anchors.v1.json",
+          "sha256": "0a1dfed3b481b682c9dd1bcea88ae9d6e73ec16e651f10847a82c5fbd7e8c562",
+          "bytes": 169512
+        }
+      }
+    }
+  },
+  "membership": {
+    "output": {
+      "path": "reconstruction/assets/gis/area-membership.v1.json",
+      "sha256": "c3b836d08fc5b042b0b77eff65d77eeb189e5f369a9ac5f28aef431c345001e2"
+    },
+    "source": {
+      "layers": [
+        "pref",
+        "city",
+        "forecastLocalE"
+      ],
+      "note": "向きを直した後・間引く前の city と forecastLocalE の inner の点（同じコードの地物が複数あれば面積が最大の地物の点）が、向きを直した後・間引く前の pref の形のどれに入るか（Q-G0-PREF-MEMBERSHIP）"
+    },
+    "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+    "transform": {
+      "script": "reconstruction/tools/gis/build-shapes.mjs",
+      "node": "v26.12.1",
+      "mapshaper": "0.7.49",
+      "args": [
+        "<archiveDir>"
+      ]
+    },
+    "expectedCodeCount": {
+      "city": 1894,
+      "forecastLocalE": 188
+    },
+    "knownGapsAndExclusions": [],
+    "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「地震情報／都道府県等」「地震情報／細分区域」「市町村等（地震津波関係）」を加工して作成。加工：FlEq"
   }
 }
