@@ -169,7 +169,7 @@ const bySubject = (left: Readonly<{ subject: string }>, right: Readonly<{ subjec
 
 // ---- EEW ----
 
-type EewEntry = Readonly<{ subject: string; key: string; operation: Operation; reportMs: number; family: string; object: EewCurrent;
+type EewEntry = Readonly<{ subject: string; key: string; operation: Operation; reportMs: number; family: string;
   paints: readonly (readonly [string, number])[]; header: Omit<EewCardHeader, "letter">; rows: readonly EewAreaRow[]; mini: readonly EewMini[]; top: readonly EewAreaRow[] }>;
 // カードは（運用区分、EventID）ごとに 1 枚（DS-LAYOUT-05「地震ごと」、統合担当の決め 2026-11-21）。6 枚の上限と omitted も EventID で数える。
 type EewProjection = {
@@ -203,7 +203,7 @@ function eewEntry(current: EewCurrent, counts: Counts): EewEntry {
   const maximum: EewPredictionIntensity = current.prediction.maximum;
   return {
     subject: current.subject, key: `${current.operation}/${current.eventId}`, operation: current.operation, reportMs: Date.parse(current.source.reportDateTimeRaw),
-    family: current.family, object: current, paints: kept.map((item) => [item.row.c, slotOf(item.paint)] as const),
+    family: current.family, paints: kept.map((item) => [item.row.c, slotOf(item.paint)] as const),
     header: {
       eventId: current.eventId, operation: current.operation, warning: current.warningClass === "warning", serial: current.serial, final: current.terminal,
       reportTime: bounded(current.source.reportDateTimeRaw, WIRE_LIMITS.time), max: { f: level(maximum.from), t: level(maximum.to) },
@@ -299,8 +299,8 @@ function eewWire(projection: EewProjection): EewWire {
 
 // ---- 津波 ----
 
-type ForecastEntry = Readonly<{ subject: string; operation: Operation; weight: number; reportMs: number; object: unknown; paints: readonly (readonly [string, number])[]; wire: TsunamiForecastWire }>;
-type ObservationEntry = Readonly<{ subject: string; operation: Operation; object: unknown; heights: readonly (readonly [code: string, raw: string, value: number])[] }>;
+type ForecastEntry = Readonly<{ subject: string; operation: Operation; weight: number; reportMs: number; paints: readonly (readonly [string, number])[]; wire: TsunamiForecastWire }>;
+type ObservationEntry = Readonly<{ subject: string; operation: Operation; heights: readonly (readonly [code: string, raw: string, value: number])[] }>;
 type TsunamiProjection = {
   readonly forecasts: Map<string, ForecastEntry>; readonly ranked: ForecastEntry[]; readonly observations: Map<string, ObservationEntry>;
   readonly composite: Ranked; readonly values: Map<string, TsunamiAreaClass>; readonly observed: Map<string, Map<string, Readonly<{ count: number; value: number }>>>;
@@ -330,7 +330,7 @@ function forecastEntry(forecast: MarkViewed<TsunamiForecastSubject>, counts: Cou
   const rows = [...byCode.values()];
   const weight = Math.max(-1, ...rows.map((row) => TSUNAMI_WEIGHT[row.k]), ...unkeyed.map((item) => TSUNAMI_WEIGHT[classOf(item.kindCode)]));
   return {
-    subject: forecast.subject, operation: forecast.operation, weight, reportMs: Date.parse(forecast.source.reportDateTimeRaw), object: forecast,
+    subject: forecast.subject, operation: forecast.operation, weight, reportMs: Date.parse(forecast.source.reportDateTimeRaw),
     paints: rows.map((row) => [row.c, TSUNAMI_ORDER.length - 1 - TSUNAMI_ORDER.indexOf(row.k)] as const),
     wire: {
       eventId: forecast.eventId, operation: forecast.operation, serial: safeNumber(forecast.source.serialRaw),
@@ -350,7 +350,7 @@ function observationEntry(observation: MarkViewed<TsunamiObservationSubject>, co
     if (station.areaCode != null && TSUNAMI_SET.has(station.areaCode) && height != null && raw != null)
       heights.push([station.areaCode, cutText(raw, WIRE_LIMITS.height).text, heightValue(height)]);
   }
-  return { subject: observation.subject, operation: observation.operation, object: observation, heights };
+  return { subject: observation.subject, operation: observation.operation, heights };
 }
 function projectTsunami(projection: TsunamiProjection | null, view: RuntimeViews["U-T"], changes: readonly Change[], counts: Counts): TsunamiProjection {
   const state: TsunamiProjection = projection ?? { forecasts: new Map(), ranked: [], observations: new Map(), composite: new Map(), values: new Map(), observed: new Map(),
@@ -421,9 +421,9 @@ function tsunamiWire(projection: TsunamiProjection, counts: Counts): TsunamiWire
 
 // ---- 地震 ----
 
-type QuakeEntry = Readonly<{ subject: string; operation: Operation; object: unknown; paints: readonly (readonly [string, number])[]; unknownPaint: number; unknownAreas: number;
+type QuakeEntry = Readonly<{ subject: string; operation: Operation; paints: readonly (readonly [string, number])[]; unknownPaint: number; unknownAreas: number;
   marks: readonly DisplayStateMark[]; ref: DisplayDetailRef }>;
-type LongEntry = Readonly<{ subject: string; operation: Operation; object: unknown; paints: readonly (readonly [string, number])[]; unknownPaint: number; reportMs: number; wire: LongPeriodWire }>;
+type LongEntry = Readonly<{ subject: string; operation: Operation; paints: readonly (readonly [string, number])[]; unknownPaint: number; reportMs: number; wire: LongPeriodWire }>;
 type QuakeProjection = {
   readonly events: Map<string, QuakeEntry>; readonly longs: Map<string, LongEntry>; readonly longRanked: LongEntry[];
   readonly composite: Ranked; readonly values: Map<string, number>; paints: readonly DisplayPaint[]; unknown: number;
@@ -470,13 +470,13 @@ function projectQuake(projection: QuakeProjection | null, view: RuntimeViews["U-
     if (record == null) continue;
     if ("sources" in record) {
       const read = itemPaints(record.intensity?.items ?? [], "city", (item) => intensityLevel(item.maxInt), counts);
-      const entry: QuakeEntry = { subject: record.subject, operation: record.operation, object: record, paints: read.paints, unknownPaint: read.unknownPaint,
+      const entry: QuakeEntry = { subject: record.subject, operation: record.operation, paints: read.paints, unknownPaint: read.unknownPaint,
         unknownAreas: read.unknownAreas, marks: marksOf(record), ref: refOf("U-Q", record.operation, record.subject, record, counts) };
       state.events.set(change.subject, entry);
       if (entry.operation === "normal") { applyRefs(state.composite, 10, entry.paints, 1, changed); state.unknown += entry.unknownPaint; }
     } else {
       const read = itemPaints(record.intensity?.items ?? [], "area", (item) => lgSeismic(item.maxLgInt), counts);
-      const entry: LongEntry = { subject: record.subject, operation: record.operation, object: record, paints: read.paints, unknownPaint: read.unknownPaint,
+      const entry: LongEntry = { subject: record.subject, operation: record.operation, paints: read.paints, unknownPaint: read.unknownPaint,
         reportMs: Date.parse(record.source.reportDateTimeRaw),
         wire: { eventId: record.eventId, operation: record.operation, reportTime: bounded(record.source.reportDateTimeRaw, WIRE_LIMITS.time),
           maxLg: record.intensity == null ? null : lgSeismic(record.intensity.maxLgInt), marks: marksOf(record), unknownAreas: read.unknownAreas,
