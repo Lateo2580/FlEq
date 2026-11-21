@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "15d5885c693d176979f1e3e60e3a63b3c7344240",
-    "sha256": "8c4422017f734c7daf75aaf17b656d2862281d57420b139ec37082bbbc5d804d",
+    "sha256": "0cbe27f9e0e1db7a7847990d72cc1d8a449eb57de4ef154ca1bc58bc37e6acaf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -229,7 +229,7 @@
       {
         "id": "Q-ENUM",
         "status": "frozen（表外Kind・Area/Code欠落はP3-C5-KIND-ENUM=B、作者裁定 2026-10-06）",
-        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性（14桁の数字）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはforecasts/observations/intents/persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
+        "priorityRule": "A1共通検証（運用区分・ReportDateTime）の後、EventID存在→EventID妥当性（14桁の数字を空白で並べた 1 つ以上。鍵は先頭の番号、P4-TSUNAMI-MULTI-EVENT-001）→InfoType別の必須構造の存在→必須構造の妥当性の順で、最初の一RejectionReasonだけを返す。rejectedはforecasts/observations/intents/persistenceを含むstate全体と参照を変えず、diagnosticだけを返す",
         "familyTable": [
           {
             "family": "VTSE41",
@@ -257,7 +257,7 @@
       {
         "id": "I-U-T",
         "status": "frozen",
-        "subjects": "VTSE41は`${operation}/VTSE41/${eventId}`（O09:14の期待と同じ）。VTSE51/52は`${operation}/tsunamiObservation:${family}/${eventId}`（O05:2・3の期待と同じ）。一入力は一subjectだけを変える（観測subjectのforecastEndedへの移行だけは、同じoperation・EventIDのVTSE41の採用と同じ一回の参照交換で行う）",
+        "subjects": "VTSE41は`${operation}/VTSE41/${eventId}`（O09:14の期待と同じ）。VTSE51/52は`${operation}/tsunamiObservation:${family}/${eventId}`（O05:2・3の期待と同じ）。eventId は Head/EventID の並びの先頭の番号（P4-TSUNAMI-MULTI-EVENT-001）。一入力は一subjectだけを変える（観測subjectのforecastEndedへの移行だけは、同じoperation・EventIDのVTSE41の採用と同じ一回の参照交換で行う）",
         "forecastSemantics": "VTSE41の発表・訂正はsubjectの区域集合を報の区域集合で置き換える（報に無い区域はnone）。effectiveは注意報以上（unknownを含む）の区域が一つでもあればactive、無ければreleased。releasedも報の区域（予報・解除）を保ち、areas=[]にするのはcancelledだけ。区域ごとの変化はTsunamiTransitionRecordで返す（P3-C5-TRANSITION-BASIS=A）。transitionは前がnone/releasedで後がforecast以上のとき、subjectが前にactiveでなければissued、activeならexpanded。両方forecast以上で順位が上がればupgraded、下がればdowngraded、前がforecast以上で後がnone/releasedならreleased（前も後もnone/releasedなら変化に数えない）。unkeyedAreasのkindCodeも表の区分（表外はunknown）でeffectiveと残った区分の段階には数えるが、TsunamiTransitionRecord・escalation・§7.5の系列の判定には入れない",
         "observationSemantics": "P3-C5-OBS-MERGE=A・P3-C5-OBS-LIFETIME=A。VTSE51とVTSE52はwatermark・station・取消を互いに共有しない。観測の取消はそのsubjectだけをcancelled（stationsを捨ててwatermarkだけ）にする。VTSE41の取消は観測を取り消さないが、P3-C5-OBS-LIFETIMEによりforecastEndedにする",
         "deadlines": "nextDeadlineは、activeの観測のvalidUntil、非activeのsubjectのretainUntil、intentのexpiresAtの最小。期限処理は到来分だけを回収し、到来していなければ同じstate参照と空の結果を返す",
@@ -985,7 +985,7 @@
         "referenceIds": [
           "P3-C5-AC01"
         ],
-        "behavior": "VTSE41/51/52のQ-ENUMの各不備（EventID欠落・14桁でない、VTSE51/52のSerial、必須構造の欠落・不正、区域・stationの重複）で最初の一reasonを返しstate参照が不変。表外Kind（unknown）とArea/Code欠落（unkeyedAreas）は採用（P3-C5-KIND-ENUM=B）。取消の縮退とVTSE52の空Areaは受理。coverage表と実行場所の行（VTSE41→U-T・urgent）"
+        "behavior": "VTSE41/51/52のQ-ENUMの各不備（EventID欠落・14桁の数字の並びでない、VTSE51/52のSerial、必須構造の欠落・不正、区域・stationの重複）で最初の一reasonを返しstate参照が不変。表外Kind（unknown）とArea/Code欠落（unkeyedAreas）は採用（P3-C5-KIND-ENUM=B）。取消の縮退とVTSE52の空Areaは受理。coverage表と実行場所の行（VTSE41→U-T・urgent）"
       },
       {
         "testId": "P3-C5-T02",

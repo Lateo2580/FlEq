@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "39844d4d94050974f9ad08ad4951d8ea4a193696",
-    "sha256": "23fcbfa7d20781fe913a35ccf97a963ec3450f09d457ac9dcd8bccfe3e9b27a1",
+    "sha256": "0ea71a63586306ea9e2997978951b686764ca83bdda0b6c8496737736838a931",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -349,7 +349,7 @@
       },
       {
         "id": "P3-TL2-AC09",
-        "requirement": "津波の続報（Q-TO3-TSUNAMI-FOLLOW）: (1) 同じ operation・EventID の前の VTSE41 と比べ、区分が上がった地域を要点に「<区分>に引き上げ  <地域名>」の形で区分ごとに、重い順に出す。区分の順は大津波警報、津波警報、津波注意報、それ以外（津波予報、解除、前の報に無い地域）で、「それ以外」への変化は出さない (2) 入らない地域は「ほか n 地域」と書く (3) VTSE41 の報にだけ出し、覚えも VTSE41 でだけ更新する。覚えの無い報には出さない。取消で覚えを消す。覚えは保存しない",
+        "requirement": "津波の続報（Q-TO3-TSUNAMI-FOLLOW）: (1) 同じ operation・EventID（並びの報は先頭の番号、P4-TSUNAMI-MULTI-EVENT-001）の前の VTSE41 と比べ、区分が上がった地域を要点に「<区分>に引き上げ  <地域名>」の形で区分ごとに、重い順に出す。区分の順は大津波警報、津波警報、津波注意報、それ以外（津波予報、解除、前の報に無い地域）で、「それ以外」への変化は出さない (2) 入らない地域は「ほか n 地域」と書く (3) VTSE41 の報にだけ出し、覚えも VTSE41 でだけ更新する。覚えの無い報には出さない。取消で覚えを消す。覚えは保存しない",
         "evidenceRefs": [
           "docs/specs/cli-terminal-output.md:402 «0c3dfe36e9c5d7fc»"
         ]

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "38831d5951781a669358c214cba6a506b60c28b3",
-    "sha256": "aa4d8179056e2023fb071667a7df58aed90466b69f63de0ee72208f7e2654e56",
+    "sha256": "8c1cea437ae026613cc1e68edf0a95e3ad5f4e121c63feac24c025b91e6668eb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -207,7 +207,7 @@
           "reconstruction/src/runtime/owner-runtime.ts:492 «7ee17b97df6aaa29»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:431 «4a5b72853fa52460»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:518 «a44bf3e895ec2d1d»",
-          "reconstruction/contracts/p3-tsunami-unit.json:260 «a898a5a89848fb6c»"
+          "reconstruction/contracts/p3-tsunami-unit.json:260 «1dd240825aefb187»"
         ]
       },
       {
@@ -216,7 +216,7 @@
         "evidenceRefs": [
           "reconstruction/src/units/tsunami/tsunami-unit.ts:447 «3a9e9ff9eefec5ea»",
           "reconstruction/src/domains/tsunami/tsunami.ts:228 «670d1b4a65feeaaf»",
-          "reconstruction/contracts/p3-tsunami-unit.json:260 «a898a5a89848fb6c»"
+          "reconstruction/contracts/p3-tsunami-unit.json:260 «1dd240825aefb187»"
         ]
       },
       {
@@ -226,7 +226,7 @@
           "reconstruction/src/domains/tsunami/tsunami.ts:208 «f20caa9083c37467»",
           "reconstruction/src/domains/tsunami/tsunami.ts:210 «f2ed2b96f49a1552»",
           "reconstruction/test/tsunami-unit/tsunami-unit.test.ts:98 «b3086512d58c9014»",
-          "reconstruction/contracts/p3-tsunami-unit.json:232 «e96f00cf2273778e»"
+          "reconstruction/contracts/p3-tsunami-unit.json:232 «e1897c81a99c5532»"
         ]
       },
       {
@@ -361,7 +361,7 @@
       "既存の試験の期待を変えない（E13 の件数は統合担当が発注前の commit で替える）。変える要が出たら止めて、試験名・旧の期待・理由を報告する",
       "試験の設定の隔離: N/A（owner・reducer・端末の整形だけを呼び、設定を読まない）",
       "旧築（src/）を変えない。test/fixtures は統合担当の発注前の commit で変わるので、旧築の build と test は統合担当がその commit で回す（requiredCommands の preparation）",
-      "残存として成果物に書く: 資料が認めるのは、システム障害で発信官署が異なる・複数地震が連続するなどで同じ地震でも番号が一貫しない場合もあること（共通別紙イ 4.(2)、:1829〜:1830）まで。ここからは推論: そのとき先頭の番号を変える報（順の入れ替え・先頭を外す）が来ると別の記録になり、前の注意報が期限なしで残る（P4-TME-D-IDENTITY=A の弱み）。また B の番号だけの記録が先にある所へ「A B」の報が来ると、A の記録に続き、B の記録は残る（B の注意報が期限なしで残りうる）。並びの最大の数は資料に無く、上限を置かない。取り直しで、保存の後の停止中に出た解除より古い報が遅れて一覧に届くと、bodiesFor は receivedAtMs が最大の 1 件を選ぶので解除を取りこぼしうる。EventID が 1 つの報でも今の main で同じく起きるので、本契約の範囲外で今の main と同じ"
+      "残存として成果物に書く: 資料が認めるのは、システム障害で発信官署が異なる・複数地震が連続するなどで同じ地震でも番号が一貫しない場合もあること（共通別紙イ 4.(2)、:1829〜:1830）まで。ここからは推論: そのとき先頭の番号を変える報（順の入れ替え・先頭を外す）が来ると別の記録になり、前の注意報が期限なしで残る（P4-TME-D-IDENTITY=A の弱み）。また B の番号だけの記録が先にある所へ「A B」の報が来ると、A の記録に続き、B の記録は残る（B の注意報が期限なしで残りうる）。並びの最大の数は資料に無く、上限を置かない。取り直しで、保存の後の停止中に出た解除より古い報が遅れて一覧に届くと、bodiesFor は receivedAtMs が最大の 1 件を選ぶので解除を取りこぼしうる。EventID が 1 つの報でも今の main で同じく起きるので、本契約の範囲外で今の main と同じ また、実装の品質レビュー（2026-11-22）で次の 2 つを残すと決めた: (1) 区切りが CR の並び（XML の文字参照 &#xD; で渡されたもの）は受理されるが、端末の末尾の EventID（format.ts:480）は字のままなので、生の CR が端末に届き行頭を上書きしうる。気象庁の公式サンプルの区切りは半角スペース (2) 番号を多く並べた報（半角スペースで 274 個、4,109 字）は受理されても、端末の材料の既存の 4,096 字の上限で末尾が「…」になる"
     ],
     "unresolvedQuestions": []
   }
