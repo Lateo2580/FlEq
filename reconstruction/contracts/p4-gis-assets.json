@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "e67076d1105233fb69d38aa5288bc0bdb6cfc28cf05dccdb71da5e4b14cb635f",
+    "sha256": "5464f9b0f2bd0abb088c31f36ed6c0d0b4b66af95de326f09e4f6ba16a6bbbaf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -136,13 +136,13 @@
         "kind": "統合担当",
         "blocks": "なし（決め済み）",
         "question": "発注 1 の入力のコード表の版",
-        "A": "地震火山関連コード表の公開中の最新の版 R8.10.19（2026-10-19、手元と同じ版）。点検で公開中の個別コード表の zip を取り、中の地震火山関連コード表の更新履歴の最後の行が R8.10.19 のままかと、xlsx の sha256 を確かめる",
-        "B": "個別コード表の zip の日付（2026-11-18）に合わせて、気象側の更新まで待つ・取り直す",
+        "A": "地震火山関連コード表の公開中の版 R8.11.18（個別コード表の zip jmaxml_20261118_Code.zip の中の xlsx）。sheet 24・31・82 は R8.10.19 と同じ。10-19 版は今は公開されておらず再取得できない",
+        "B": "手元の R8.10.19 版の写し（公開されておらず、元 archive の hash で出どころを示せない）",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（統合担当の決め 2026-11-21 17:51）",
-        "reason": "手元の地震火山関連コード表の更新履歴 sheet の最後の行は R8.10.19（sheet 24・25・26 の更新）。2026-11-18 の更新は気象側の xlsx（AreaInformationCity-AreaForecastLocalM）で、発注 1 が読む sheet 24・31 には響かない（統合担当の起草レビュー）",
-        "ruling": "A"
+        "status": "確定（統合担当の決め 2026-11-21 18:2x）",
+        "ruling": "A（2026-11-21 17:51 に「R8.10.19 が最新」の前提で確定したのを、18:2x に改めた。理由: 点検 P2 で公開中の xlsx が R8.11.18（更新履歴に sheet 23 の更新と sheet 83 の追加の 2 行）と分かり、10-19 版は再取得できない。発注 1 が読む sheet 24・31・82 は差 0 なので、表の中身は変わらない）",
+        "reason": "spec:1727 は元 archive の hash を持たせる。公開中の zip から取れる版を入力にすれば、zip の sha256 から出力まで再現できる。sheet 24・31・82 の件数とコードは R8.10.19 と同じ（AC05 の P2）"
       },
       {
         "id": "P4-GIS-I-TSUNAMI-GROUP",
@@ -298,7 +298,7 @@
       "reconstruction/vitest.config.ts",
       "reconstruction/tools/corpus/check-manifest.mjs",
       "test/fixtures/（AC03 の corpus の照合。VXSE・VTSE の xml を読むだけ）",
-      "reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx（統合担当が点検 P2 の後に置く入力）"
+      "reconstruction/assets/gis/source/code-20261118/earthquake-volcano-codes.xlsx（入力。統合担当が点検 P2 で置いた R8.11.18 版、AC05）"
     ],
     "allowedPaths": [
       "reconstruction/tools/gis/build-known-codes.mjs（【発注 1】新しい file。node の組み込み〔node:fs・node:zlib・node:crypto・node:path・node:url〕だけ）",
@@ -386,7 +386,7 @@
       },
       {
         "id": "P4-GIS-AC02",
-        "requirement": "【発注 1】件数と表の中の整合。(1) 件数は点検 P2 で決めた版で数えた値を manifest の expectedCodeCount に書き、生成の script と試験がそれと照合する。2026-10-19 版の値は forecastLocalE 188・city 1,894・tsunamiArea 66・tsunamiAreaGroup 32（起草の probe と p4-gis-assets-sources.md）。版の値がこれと違えば、増えた・消えたコードと名前を列挙して統合担当へ返し、そこで止める（blocked） (2) コードの形: 3 桁・7 桁・3 桁・3 桁の数字。各配列の中でコードは重ならない。city の同じコードが sheet 24 の複数の行で違う名前か違う細分区域を持てば、生成を止める（2026-10-19 版では 0 件） (3) 津波: 備考（D 列）が「津波予報区」で始まる行を tsunamiArea にする（完全一致だと 65 になる。120 は「津波予報区（領域表現としても使用）」）。備考が「結合表現」「領域表現」で始まる行を tsunamiAreaGroup にし、members は備考の括弧の中のコードを取る。members は全部 tsunamiArea にあること。どれにも当たらない備考の行があれば生成を止める (4) 表の中の未知 0 件: city の全行の forecastLocalE が forecastLocalE の表にあり、forecastLocalE の全コードに city が 1 つ以上ある。corpus の電文のコードとの照合は AC03（corpus には表に無いコードが意図して入っているので、ここで 0 件とは言わない）",
+        "requirement": "【発注 1】件数と表の中の整合。(1) 件数は点検 P2 で決めた版で数えた値を manifest の expectedCodeCount に書き、生成の script と試験がそれと照合する。R8.11.18 版（入力）と 2026-10-19 版で同じ値は forecastLocalE 188・city 1,894・tsunamiArea 66・tsunamiAreaGroup 32（AC05 の P2、起草の probe と p4-gis-assets-sources.md）。版の値がこれと違えば、増えた・消えたコードと名前を列挙して統合担当へ返し、そこで止める（blocked） (2) コードの形: 3 桁・7 桁・3 桁・3 桁の数字。各配列の中でコードは重ならない。city の同じコードが sheet 24 の複数の行で違う名前か違う細分区域を持てば、生成を止める（2026-10-19 版では 0 件） (3) 津波: 備考（D 列）が「津波予報区」で始まる行を tsunamiArea にする（完全一致だと 65 になる。120 は「津波予報区（領域表現としても使用）」）。備考が「結合表現」「領域表現」で始まる行を tsunamiAreaGroup にし、members は備考の括弧の中のコードを取る。members は全部 tsunamiArea にあること。どれにも当たらない備考の行があれば生成を止める (4) 表の中の未知 0 件: city の全行の forecastLocalE が forecastLocalE の表にあり、forecastLocalE の全コードに city が 1 つ以上ある。corpus の電文のコードとの照合は AC03（corpus には表に無いコードが意図して入っているので、ここで 0 件とは言わない）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-assets-sources.md:31 «ef8179eae17e7bb4»",
           "reconstruction/contracts/p4-gis-assets-sources.md:33 «530242af50c966d6»",
@@ -418,7 +418,7 @@
       },
       {
         "id": "P4-GIS-AC05",
-        "requirement": "【発注 1 の点検、統合担当が baseOid の割当の前に行う】P1 1,892 と 1,894（閉じた。統合担当が 2026-11-21 に確かめた、p4-gis-assets-sources.md の §6.3）: 20241128_AreaInformationCity_quake_GIS.zip は 153,820,798 byte・sha256 が lock の値と一致。dbf は地物 1,910、regioncode の異なり 1,894、空のコードの地物 16、重なり 0。1310300 港区と 1310800 江東区は 1 地物ずつある。発注 1 の表は変えない（P4-GIS-I-KNOWN-SOURCE=A。B0 の型の最大値は script の 1,894 のまま）。P4-GIS-D-CITY-GAP の条件は起きなかった。旧築の資材の 1,892 は旧築の build の側で落ちた数（発注 2 の点検、AC07）。manifest の geometryCheck にこの結果を書く。P2 版: 公開中の個別コード表の zip を取り、地震火山関連コード表の sheet 24・31 を 2026-10-19 版と同じ読み方で比べ、版を決めて（P4-GIS-I-CODE-VERSION）、件数が AC02 の 2026-10-19 版の値と違えば B0 の script（p4-display-wire-max.mjs の 1894 を書いた行）と型の最大値の試験の数え直しを B0 へ送ってから、xlsx を reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx に置き、zip と xlsx の sha256 を控える。P3 spec の数の改訂: spec:1696・:1733 と D-AC13（spec:1850）の「1,892 区域」を、P1 の結果に合わせて「既知はコード表の N、形は M」の形に統合担当が行の中だけで直す（行を足さない、発注 1 の配送で当てる）。この 3 行を evidenceRefs で引く契約は本契約だけ（:1696・:1733、起草で grep。:1850 は 0 件）なので、配送で本契約の «» を付け直す",
+        "requirement": "【発注 1 の点検、統合担当が baseOid の割当の前に行う】P1 1,892 と 1,894（閉じた。統合担当が 2026-11-21 に確かめた、p4-gis-assets-sources.md の §6.3）: 20241128_AreaInformationCity_quake_GIS.zip は 153,820,798 byte・sha256 が lock の値と一致。dbf は地物 1,910、regioncode の異なり 1,894、空のコードの地物 16、重なり 0。1310300 港区と 1310800 江東区は 1 地物ずつある。発注 1 の表は変えない（P4-GIS-I-KNOWN-SOURCE=A。B0 の型の最大値は script の 1,894 のまま）。P4-GIS-D-CITY-GAP の条件は起きなかった。旧築の資材の 1,892 は旧築の build の側で落ちた数（発注 2 の点検、AC07）。manifest の geometryCheck にこの結果を書く。P2 版（閉じた。2026-11-21 18:1x に点検）: zip は https://xml.kishou.go.jp/jmaxml_20261118_Code.zip（tec_material.html の「コード管理表及び個別コード表」）、1,585,488 byte、sha256 194122222848f42d61a3461f79822d5b84d3dc4d1dc9d246cc5ffc7f07d47198。中の「地震火山関連コード表.xlsx」は 651,552 byte、sha256 5922b5509925af01b748c1cb4464f1c9a4069c5bf20ca023eacef9e6af67711e で、更新履歴の末尾は「R8.11.18 sheet 23 火山灰警報等の運用開始に伴う更新。」と「R8.11.18 sheet 83 火山灰警報等の運用開始に伴う新規コード表の追加。」の 2 行（R8.10.19 版の写しより 2 行多い）。sheet 24・31・82 を xlsx-probe の読み方で R8.10.19 版と比べ、件数は細分区域 188・市区町村 1,894・津波予報区 66・結合と領域の表現 32・火山 120 で同じ、コードの増減と名前・所属の変化は 0。版は R8.11.18（P4-GIS-I-CODE-VERSION、18:2x）とし、xlsx を reconstruction/assets/gis/source/code-20261118/earthquake-volcano-codes.xlsx に置いた（元の file 名「地震火山関連コード表.xlsx」は manifest に書く）。件数が AC02 の値と同じなので、B0 の script（p4-display-wire-max.mjs の 1894）と型の最大値の試験の数え直しは要らない。P3 spec の数の改訂: spec:1696・:1733 と D-AC13（spec:1850）の「1,892 区域」を、P1 の結果に合わせて「既知はコード表の N、形は M」の形に統合担当が行の中だけで直す（行を足さない、発注 1 の配送で当てる）。この 3 行を evidenceRefs で引く契約は本契約だけ（:1696・:1733、起草で grep。:1850 は 0 件）なので、配送で本契約の «» を付け直す",
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-assets-sources.md:156 «02de6cd7264b2595»",
           "reconstruction/contracts/p4-gis-assets-sources.md:158 «322035c74224c9df»",
@@ -519,7 +519,7 @@
     ],
     "requiredCommands": [
       {
-        "command": "node reconstruction/tools/gis/build-known-codes.mjs reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx",
+        "command": "node reconstruction/tools/gis/build-known-codes.mjs reconstruction/assets/gis/source/code-20261118/earthquake-volcano-codes.xlsx",
         "cwd": ".",
         "target": "reconstruction/assets/gis/known-codes.v1.json",
         "stage": "implementation",
@@ -584,8 +584,7 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最初の作業: 入力の xlsx が reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx にあり、sha256 が manifest の下書き（統合担当が点検 P2 で控えた値）と一致するかを確かめる。無いか違えば着手せず blocked で返す",
-      "path の <版の日付> は、統合担当が点検 P2 で版を決めた後、baseOid の割当のときに実の日付（例 20261118）へ置き換える（readPaths・requiredCommands も同じ）",
+      "最初の作業: 入力の xlsx が reconstruction/assets/gis/source/code-20261118/earthquake-volcano-codes.xlsx にあり、sha256 が 5922b5509925af01b748c1cb4464f1c9a4069c5bf20ca023eacef9e6af67711e（AC05 の P2）と一致するかを確かめる。無いか違えば着手せず blocked で返す",
       "最小実装・最小テスト: 足す仕組みは生成の script 1 本とその型の .d.mts・生成物 1 本・manifest 1 本・試験 1 file。zip と xlsx の読みは script の中に閉じ、汎用の xlsx の部品・設定・CLI の選択肢を足さない。試験は P4-GIS-T01（acceptance、AC01・AC02 の件数・AC04）と T03（corpusHistory、AC03）の 2 つだけ。AC02 の整合は生成の script が止める",
       "生成の script の失敗は理由つきで止める（sheet が無い・列の見出しが Code/Name でない・件数が manifest と違う・所属が 2 つ・備考が分けられない）。黙って行を飛ばさない",
       "報告に、表ごとの件数と、AC03 の一覧と照合した結果（一致か、違ったコード）を書く"
