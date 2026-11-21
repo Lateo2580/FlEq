@@ -70,6 +70,7 @@
     "@types/node-notifier": "^8.0.5",
     "@types/ws": "^8.18.0",
     "commit-and-tag-version": "^12.6.1",
+    "mapshaper": "0.7.49",
     "typescript": "^7.0.2",
     "typescript6": "npm:typescript@^6.0.3",
     "vitest": "^4.0.18"
