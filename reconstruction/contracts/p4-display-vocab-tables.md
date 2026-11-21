@@ -15,8 +15,8 @@
 - 上限の無い字は snapshot で切って印、詳細では切らない（§3.2）。
 - 要約は今の形（4 KiB 以下、カードを持たない）に戻す。要約の間も 9 分野の全項目を詳細から開ける（§5.3）。公開する snapshot は、全体が 1 MiB 以下ならそのまま、超えたら 65,536 を超えた 9 分野を要約にした後で 967,258 以下（§4.1）。
 - 包みの items（件数の見出し）は旧の射影から借りず、新しい経路が受けた差分（停止の確定の差分を 1 度だけ当てたもの）から数える。保護 3 分野も同じ直しに入れる（§4.3）。
-- 直列: `display-wire.ts` は B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1（計画 db2b32d7）。`http-sse.ts` に手を入れるかは統合担当の分岐（§5.5）。
-- 作者の分岐は 1 件: 1 件で 1 応答に入らない詳細の項目（U-R の最悪 105,549 byte）を要約の間どう扱うか（§3.2、P4-DV-D-ITEM-OVERSIZE）。
+- 直列: `display-wire.ts` は B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1（計画 db2b32d7・3f778efc）。`http-sse.ts` は B0 → 本契約（9 分野の詳細の part と part=unreadable）→ B1 → R0 → T0（P4-DV-D-HTTP-PARTS=A で確定、計画 3f778efc の :230）。
+- 作者の分岐は 1 件: 1 件で 1 応答に入らない詳細の項目の扱い（§3.2、P4-DV-D-ITEM-OVERSIZE）。
 
 ## 1. 語彙の形
 
@@ -35,7 +35,7 @@
 
 | 欄 | 形 | 写すもの |
 |---|---|---|
-| `id` | 64 桁の hex | sha256(JSON.stringify([unit, operation, subject]))。volcano.shortfall は subject の代わりに shortfall の `id` 欄 |
+| `id` | 64 桁の hex | sha256(JSON.stringify([unit, operation, subject]))。volcano.shortfall の subject は unit が使う形 `${operation}/shortfall/${id}`（`volcano-unit.ts:1280`）で、通常の記録の subject と同じ hash の入力にならない（復元の境界は shortfall の id を ASCII 64 字以内しか見ず、記録の subject との重なりを検査しない、`volcano-unit.ts:1610`・`:1641`） |
 | `rev` | 字 | その項目の版。view の object の JSON の sha256 の hex（B0 の DisplayDetailRef の rev と同じ式）。U-W・U-F は公開形の revision。§5.5 の part=item・unreadable の要求に使う |
 | `k` | 閉じたコード（§1.4 の 17 種） | view の配列の種類 |
 | `op` | Operation | 記録の operation |
@@ -164,7 +164,7 @@
 |---|---|---|---|
 | subjects | SubjectOutcome の列（facts が辞書、件数・字の上限なし） | 載せない | B0 も載せない（B0 の表 §1.2 の「wire に載せない欄」）。消えた理由と件数は P4-REMOVAL-LOSS-001 が outcome から作る |
 | unreadableCards | UnreadableCardView の列。U-M は 16 枚・ほかは 8 枚、U-Y は 1 枚に areas を 384 件・24,576 byte まで（`checkpoint.ts:689`〜`:691`） | full の包みの `cards`（B0 の `DisplayWireCard`。題 96・見出し 384 byte で切る、D-B0-CARD-TEXT=A を当てる、P4-DV-D-CARD-TEXT-9）。原文は B0 の part=raw。要約はカードを持たない（旧の要約と同じ） | 同じ部品（読めない報のカード）を 12 分野で 1 つにする。カードの byte は full の包みの 65,536 に入れて数える |
-| unreadableView | `{ parts: {site, scope?, raw}[], headline, addition?, rawDropped?, partsCut? }`。parts 16 件・scope は JSON 長 128 byte・site は分野別の閉じた集合（ヘルツの返事 5）、部分の原文は 1 件 1,538 byte まで（`unreadable.ts:13`） | 見出しの `unread`（真偽）と一覧 role `unreadable`（rows `[site, scope, raw]`、facts に headline・addition・rawDropped・partsCut）。部分の原文（raw が真）は §5.5 の part=unreadable で開く | 上限のある構造なので snapshot に載る。U-W・U-F・U-N・U-V・U-M は項目を返す詳細が要約の索引か part=item にしか無いので、snapshot に置かないと full の間に parts を読む所が無い |
+| unreadableView | `{ parts: {site, scope?, raw}[], headline, addition?, rawDropped?, partsCut? }`。欠片の鍵は (site, scope)（`unreadable.ts:88`）で、1 つの印に parts 16 件まで（U-F の addition の欠片も 16 件に入る）。U-V の警報は陸上の印と海上の印（marineUnreadableView）を別々に持つので 1 項目で 32 件まで。scope は JSON 長 128 byte・site は分野別の閉じた集合、部分の原文と見出しの原文は各 1,538 byte まで（`unreadable.ts:13`・`:228`） | 見出しの `unread`（真偽）と一覧 role `unreadable`・`marineUnreadable`（rows `[site, scope, raw]`、facts に headline・addition・rawDropped・partsCut）。部分の原文（raw が真）は §5.5 の part=unreadable で開く | 上限のある構造なので snapshot に載る。U-W・U-F・U-N・U-V・U-M は項目を返す詳細が要約の索引か part=item にしか無いので、snapshot に置かないと full の間に parts を読む所が無い |
 
 ## 3. 上限の表
 
@@ -183,7 +183,7 @@
 | U-W の affectedScope | unavailable の facts。上限なし | 載せない（§2.1） |
 | U-R 浸水区域の stationCode・cityCode・件数 | 専用の上限なし、全体 32,768 byte | 鍵と件数は切らない、名前の 4 欄は §3.2 |
 | U-W の府県・府県表示鍵 | 府県は 1〜2 桁、府県表示鍵は最大 16 字 | 事実の行 prefecture（切らない） |
-| 有限の列 | M の tags 16 語 × 24、F の knownCodes 最大 11 種、unreadable parts 16 件・scope 128 byte、R の局別 riverCodes 最大 4 | §2 のとおり切らない |
+| 有限の列 | M の tags 16 語 × 24、F の knownCodes 最大 11 種、unreadable parts は 1 つの印に 16 件（U-V の警報は陸上・海上の両側で 32 件）・scope 128 byte、R の局別 riverCodes 最大 4 | §2 のとおり切らない |
 | 入力 XML | 本文・要素の字（text node 16,384 字、`decode-material.ts:26`）・ノード数に上限 | 上限なしの字の欄の真の上限は 16,384 字（escape の最悪で 98,304 byte） |
 
 ### 3.2 新しく切る欄（snapshot だけで切り、詳細では切らない）
@@ -197,7 +197,7 @@
 | 9 分野の読めない報のカードの題・見出し（D-B0-CARD-TEXT=A を当てる） | 題 96・見出し 384 | `cut: true` | 題の 33 字目ほど・見出しの 129 字目ほどから後 | B0 の part=raw の原文 |
 
 - 詳細（索引の項目と part=item）は同じ関数で作り、切る段だけを外す（上限の表を渡さない）。型は snapshot と同じで、snapshot で `DisplayCutText` の欄は詳細でも `DisplayCutText`（`cut: false`）にする（k ごとの閉じた union を 1 つに保つ）。
-- 詳細の 1 件が 1 応答の 65,536 byte に入らないことは合法の電文でもありうる: U-R の 1 件は escape の最悪（1 字 6 byte・数は最長の表現）で、浸水想定地区を除いて 72,781 byte、浸水想定地区の上限 32,768 を足して 105,549 byte と見積もった（flood.ts の BOUNDS・LIMITS から node で組んだ形。実の電文はずっと小さい）。そのとき part=item は B0 の 503、索引はその項目を印で示すだけになり、要約の間はその項目の中身が読めない（作者の分岐 P4-DV-D-ITEM-OVERSIZE）。
+- 詳細の 1 件が 1 応答の 65,536 byte に入らないことは合法の電文でもありうる: U-R の 1 件は escape の最悪（1 字 6 byte・数は最長の表現）で、浸水想定地区を除いて 72,781 byte、浸水想定地区の上限 32,768 を足して 105,549 byte と見積もった（flood.ts の BOUNDS・LIMITS から node で組んだ形）。U-W も異なる 2 コードに各 16,384 字の名前があれば全文だけで 98,304 byte になる。そのとき part=item は B0 の 503、索引はその項目を印で示すだけになる。その項目が 1 応答に入らない間は、snapshot で切った字の続き（full の間も戻らない）と、要約の間のその項目の中身が読めない（作者の分岐 P4-DV-D-ITEM-OVERSIZE）。
 - U-F の office の 2 つの切れ目: snapshot は escape 後の 256 byte（`WIRE_LIMITS` と同じ単位）、U-F の既存の索引は素の UTF-8 の 256 byte（`weather-timeseries-unit.ts:613`〜`:623`、孤立サロゲートは U+FFFD）。引用符・バックスラッシュ・制御文字を含む官署名では snapshot の方が手前で切れる。揃えずに両方を残す（既存の索引は P3-UF-PUBLIC-001 の形）。
 - unit が字数の上限を持つ欄（BOUNDS・LIMITS、UTF-16 の長さ）は新しく切らない。wire の上限はその字数 × 6 byte（escape の最悪）。
 - 鍵（区域 Code・Kind/Code・stationCode・cityCode）は切らない（切ると別の区域に読める）。
@@ -234,7 +234,7 @@
 - 差分の併せ方: 同じ (unit, operation, subject) の差分が 1 回の公開に 2 回以上あれば、最初の before と最後の after を使う（`projectSnapshot` と同じ）。B0 の `changesOf` は after だけを残すが、items の数えは before が要る。
 - 直し: 新しい経路は 12 分野とも自分の `projectDomain` の state を持ち、自分が受けた差分（`wireChanges` と step の差分を合わせ、停止の確定の差分を 1 度だけ当てたもの）と確認の状態（`state.confirmation`、`composition-root.ts:239` と同じ）から items を数える。`view-projector.ts` は `projectDomain` と 12 個の tally の関数を file の最後の新しい export の行で出すだけで、旧の出力と `:932` の export の行は変えない。保護 3 分野も同じ直しに入れる（B0 の file を開いて、同じ借り方であることを確かめた）。
 - 受入の試験（ヘルツのイベント列、U-R・同じ運用区分）: (1) 有効な洪水 1 件を受ける → 新しい経路の items の activeCount 1 (2) 期限で消える → 0 (3) 再起動して別の有効な記録を復元 → 1 (4) 取り直しを採用（有効 1 件のまま）→ 1 (5) その 1 件の期限が shutdown の入力と cutoff の間に来て、停止の確定で回収される (6) 次の公開で、full でも要約でも activeCount が 0、語彙の項目も 0 件、索引の項目も 0 件。
-- 費用: `projectDomain` は配送済みの増分の計算（P2-A8-COST）で、移行中は旧と新で 2 回走る（B0 の二重の射影と同じ扱い）。
+- 費用: `projectDomain` は配送済みの増分の計算（P2-A8-COST）で、移行中は旧と新で 2 回走る（B0 の二重の射影と同じ扱い）。変わった subject の数 K に比例する分のほか、分野ごとに索引の写し（areaRefs・severityRefs・timeRefs の Map の写し、`view-projector.ts:583`〜`:585`）と時刻の走査（`latest`）が索引の大きさ N に比例する（旧の射影と同じ O(N)、全件×全件ではない）。
 - `projectDomain` は最初の射影の差分が view を覆わないと止まる（`view-projector.ts` の startup の検査）。製品では起動の step の差分が全部の subject を足す（P2-A1-DISPLAY-CHANGES）ので覆う。B0 の試験の補助 `wire(units, changes, null)` には覆わない形の呼び出しがありうるので、実装は期待を変えずに補助で差分を組み直し、直した呼び出しの数を成果物に書く。
 - 画面のお知らせ（notices）は今も旧の射影から借りる（本契約の範囲外、§10）。
 
@@ -271,25 +271,25 @@
 | U-F | U-F の P3 の索引（既存の口・既存の URL） | subject ごとの current・lastKnown。語彙の項目そのものは §5.5 の part=item |
 | U-N・U-V・U-L・U-R・U-B・U-M・U-Y | B0 の新しい経路の part=index（包みの contentRevision） | 全部の項目（§5.1 の item の項目） |
 
-- 索引のページ: 1 ページに 32 件まで。HTTP の本文を wrapper 込みで加算して 65,536 に入らない項目は、そのページに置かず次のページの先頭へ繰り越す（ページの境は先頭から詰めて決める）。1 件だけで 1 ページに入らない項目は、そのページに `{ index, reason: "pageBudget", id, revision }` で示し、次のページへ進む（part=item も 1 応答に入らないので、中身は full に戻るまで読めない。§3.2、P4-DV-D-ITEM-OVERSIZE）。pageCount は全部の項目を覆うページの数。
-- ページの境を決めるには前のページの項目の byte が要る。統合担当の決め 8（当該ページだけを変換）と合わせるため、owner は索引の版（unit の state の object）ごとに 1 度だけ境を数えて持つ（P4-DV-D-INDEX-PAGING）。
+- 索引のページ: 1 ページに 32 件まで。HTTP の本文を wrapper 込みで加算して 65,536 に入らない項目は、そのページに置かず次のページの先頭へ繰り越す（ページの境は先頭から詰めて決める）。1 件だけで 1 ページに入らない項目は、そのページに `{ index, reason: "pageBudget", id, revision }` で示し、次のページへ進む（part=item も 1 応答に入らないので、その間は中身が読めない。§3.2、P4-DV-D-ITEM-OVERSIZE）。pageCount は全部の項目を覆うページの数。
+- ページの境を決めるには前のページの項目の byte が要る。統合担当の決め 8（当該ページだけを変換）と合わせるため、owner は索引の版（unit の state の object）ごとに 1 度だけ全部の項目を変換して境を数えて持つ（P4-DV-D-INDEX-PAGING=A）。この版ごとの 1 回の変換の手間は、PM（P4-DISPLAY-MEASURE-001）へ送る測定の項目に足す（spec:1288 の開始済みの射影の非中断区間、B0 の表 §9 の rev の作り直しと同じ扱い）。
 
 ### 5.4 開け直す型と変える配送済みの契約
 
 | 開け直すもの | 所 | «» の行 | 変え方 |
 |---|---|---|---|
-| `p4-display-wire.types.ts` | `DisplayWireSnapshot`（:102〜:119）の current に 9 分野、`DisplayWireVersion`（:101）を v2、`WireIndexEntry`（:134〜:138）の item を索引用の語彙の型、`WireDetailRequest`・`WireDetailResponse` に §5.5 の part（P4-DV-D-HTTP-PARTS が A のとき）、語彙の型 | 0（どの契約も引かない） | 行の中と file の最後 |
+| `p4-display-wire.types.ts` | `DisplayWireSnapshot`（:102〜:119）の current に 9 分野、`DisplayWireVersion`（:101）を v2、`WireIndexEntry`（:134〜:138）の item を索引用の語彙の型にし、使わなくなる `part: "text"` の項目（:136）を外す（足す前に引く）、`WireDetailRequest`・`WireDetailResponse` に §5.5 の part、語彙の型 | 0（どの契約も引かない） | 行の中と file の最後 |
 | `display-wire.ts` | 9 分野の射影・要約の規則・12 分野の items（§4.3）。`WIRE_LIMITS` と `cutText` を `display-vocab.ts` から import して再 export | 0 | 行の中と file の最後 |
 | 新しい file `display-vocab.ts`（`reconstruction/src/view-projector/`） | view の要素 → 語彙の項目の純粋な関数（snapshot は切る、詳細は切らない）、`WIRE_LIMITS`、`cutText` | — | 新しい file。contracts の型だけを import する |
 | `view-projector.ts` | `projectDomain` と 12 個の tally の関数を file の最後の新しい export の行で出す | :906・:932 が引かれる。最後の行（:936）より後は 0 | file の最後に 1 行足すだけ |
 | `owner-runtime.ts` | `wireIndex`（:872）の 7 分野の項目、ページの境（§5.3）、§5.5 の part | :774 より後は 0 | :774 より後の行の中。import も :774 より後に置く |
 | `composition-root.ts` | `wireInput`（:2497〜:2506）に 9 分野の view と `state.confirmation` を足し、旧の射影の domains を渡さない | :2462 より後は 0 | :2462 より後の行の中 |
-| `http-sse.ts` | `parseWireDetail`（:362〜:380）に §5.5 の part（P4-DV-D-HTTP-PARTS が A のとき） | :258 より後は 0 | :258 より後の行の中 |
+| `http-sse.ts` | `parseWireDetail`（:362〜:380）に §5.5 の part（P4-DV-D-HTTP-PARTS=A） | :258 より後は 0 | :258 より後の行の中 |
 | 試験の期待 4 か所 | `test/display-wire/wire-client.ts:5`（版の字）、`display-wire-root.test.ts:84`〜`:85`（current の鍵と包みの鍵、:80 の it の題）、同じ file の :130〜:144 の it、`display-wire-detail.test.ts:74`〜`:103`（U-N・U-V の text の項目を item の項目の ref から開く）と :138（U-M の索引の revision が view の object の sha256 になる） | 0 | 行の中 |
 | 試験の補助 2 か所 | `test/display-wire/display-wire-fixture.ts:82`、`display-wire-root.test.ts:135`（views に 9 分野の view と confirmation を足す）。期待は変えない | 0 | 行の中 |
-| P4-DISPLAY-WIRE-001 の条文（配送の時に統合担当が行の中に本契約の ID の注記を書き、meta.sha256 を取り直す。p4-display-wire.json の行を引く契約は 0） | contract.objective（保護 3 分野と共通部だけ）、AC01（9 分野は載せない・旧の射影から items を写す）、AC08（payload は分野の DTO・U-N・U-V・U-M の索引は text の項目）、RES-03（377,434・縮退の規則を持たない）、P4-DW-D-DETAIL-PAYLOAD の reason、P4-DW-D-STRING-SOURCE（表の置き場が display-vocab.ts に）、P4-DW-D-SCOPE-NARROW の A（後の契約を 1 本と読める字）、P4-DW-T08 の behavior（9 分野も無い）、outOfScope の 9 分野の行 | 0 | 行の中 |
-| `p4-display-wire-tables.md`（配送の時に統合担当） | §3.2 の「上界 377,434 …縮退の規則を持たない」の行（:206）、読める組の表の「B0 の後・Wave 3 の前」の行（:215）、§2.2 の U-N・U-V（:177）・U-M（:178）・U-L・U-R・U-B・U-Y（:179）の行、§2.3 の参照の表の項目の行（:190）と U-N・U-V の本文の行（:192）に本契約の ID の注記。計画:210 の「各配送で読める組を B0 の表に書く」に従う | :206・:215・:192 などを本契約と B0 の AC が引く（行の中を変えたら付け直す） | 行の中 |
-| 計画 `p4-order-plan.md` の残り（配送の時に統合担当） | §2.1 の「20 本」（:103・:104 の数）、§3.2 の :223 の「B1 は要約の規則だけ」を「新しい経路の 9 分野の要約の規則は P4-DISPLAY-VOCAB-001、B1 は予算の配り方と公開頻度」に、spec §8.3 の 4（:1398、E13a を先に検収）と計画 §1.1 の 6 との順の根拠（本契約の要約の規則は今の規則の写しで、E13a の検収と分野予算の変更は B1） | 計画の行を引く契約あり（行の中で直す） | 行の中 |
+| P4-DISPLAY-WIRE-001 の条文（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (a)） | contract.objective、AC01、AC08、RES-03、P4-DW-D-DETAIL-PAYLOAD の reason、P4-DW-D-STRING-SOURCE、P4-DW-D-SCOPE-NARROW の A、P4-DW-T08 の behavior、outOfScope の 9 分野の行。行の中に本契約の ID の注記を書き meta.sha256 を取り直す（p4-display-wire.json の行を引く契約は 0） | 0 | 行の中 |
+| `p4-display-wire-tables.md`（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (b)） | :177・:178・:179（§2.2 の U-N・U-V・U-M・U-L・U-R・U-B・U-Y の行）、:190・:192（§2.3 の参照の表の項目と本文の行）、:206（§3.2 の 377,434・縮退の規則を持たない）、:215（読める組の表の B0 の後の行）に本契約の ID の注記。:192 は B0 の AC08 が «» で引くので付け直す | :192 を B0 の AC08、:206・:215 を本契約が引く（行の中を変えたら付け直す） | 行の中 |
+| 計画 `p4-order-plan.md`（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (c)） | 済み: 統合担当が 3f778efc で :192（Wave 2）・:223（snapshot の型の直列）・:230（http-sse.ts の直列）を行の中で直した。配送で触る行は無い | — | — |
 
 - :130〜:144 の it の直し方（B0 の P4-DW-T08 の条文を残す）: 本契約の後は 12 分野とも新しい経路に載るので、U-F だけが変わる step では新しい経路も変わる。新しい経路に載らない欄だけが変わる受信の step は、もう組めない: 表示差分は必ず分野の contentRevision を上げて包みに載り、期限の欄も載り（決め 2）、notices は旧から借り、共通部の connection・worker は両方の比べが全部の欄を見る（`sameSnapshot` と `comparable`）。旧だけが変わるのは旧の経路の要約の切替（12 分野の view の形の合計が 1 MiB を越える）だけで、試験で組むには 1 MiB の view が要る。it は「旧の射影が projected を返す step で、新しい経路の入力（差分・views・共通部）が前と同じなら新しい経路は unchanged」を、旧の射影の入力だけを変えて組む形に書き換える。経路ごとの公開の独立は :104 の it（旧の射影を unchanged に固定）が逆向きを見る。
 - `display-vocab.ts` が無いと壊れる振る舞い: owner（worker）と publisher（main）が同じ項目を別々に組み、snapshot と詳細で語彙が食い違う。owner-runtime は unit・domain の module を読むと循環する（`owner-runtime.ts` の詳細の写しのコメント）。
@@ -301,7 +301,7 @@
 | part | 要求 | 応答 | 無いと壊れる振る舞い |
 |---|---|---|---|
 | `item` | `{ unit: 9 分野, part: "item", id, revision }`（page なし。id は `VocabItem.id`、revision は view の object の sha256。U-W・U-F は公開形の id・revision） | 切らない語彙の項目 1 件 | U-W の Kind/Name・U-F の官署名の全文がどこからも読めない（U-W の詳細の行は pageBudget で繰り越さず、U-F の索引は 256 byte で切る） |
-| `unreadable` | `{ unit: 9 分野, part: "unreadable", id, revision }` | その項目の読めない印の parts の原文（site と raw、1 件 1,538 byte まで・16 件）と見出しの原文 | 一覧 unreadable の raw が真の部分の原文を開く part が無い（H51、契約適合の証拠不足） |
+| `unreadable` | `{ unit: 9 分野, part: "unreadable", id, revision }` | `{ sides: [{ side: "land" か "marine", parts: [{ site, scope か null, raw か null }], headline か null }] }`。side は印ごと（U-V の警報だけ marine を持ち、ほかは land だけ）。parts は欠片の鍵 (site, scope) ごとに 1 件で、U-F の付加事項は site `addition` の欠片として parts に入る（view では一覧から外し addition の真偽にした分、`unreadable.ts:325`〜`:328`）。両側で parts 32 件・見出し 2 つまで、1 件 1,538 byte で数えて 58,004 byte ほどで 1 応答に入る | 一覧 unreadable の raw が真の部分の原文を開く part が無い（H51、契約適合の証拠不足） |
 
 - どちらも owner の `wireDetail` で読むだけ（state も期限も動かさない）、1 応答 65,536 を越えたら B0 の 503。U-W の要求は今の U-W の口（part は index・areas・lastKnown）と part の名が重ならないので、owner の振り分け（`isWireDetail`）で part=item・unreadable の U-W・U-F を新しい part に送る。
 - `http-sse.ts` の `parseWireDetail` を触るので、計画 §3.2 の `http-sse.ts` の直列（B0 → B1 → R0 → T0）に本契約を入れる: B0 → 本契約 → B1 → R0 → T0。
@@ -317,7 +317,7 @@
 | 5. 公開の比べ | 分野の wire は変わらなければ前の object を使い、参照で比べる（B0 の sameSnapshot） | 定数 |
 | 6. 最初の射影 | 9 分野の view を 1 回だけ全部読む（P2-A8-COST の最初の 1 回） | 起動と streamId の変わり目だけ |
 | 7. view の固定の部分 | 表示差分に来ない欄（U-V の `shortfalls`、U-W の `freshnessSuspectCount`。`view-projector.ts:452` の fixedBytes が要素の外に数える部分）だけを、view の object が前の step と違うときに読み直す（`view-projector.ts:571` の条件と同じ） | 固定の部分の大きさ（U-V の shortfalls の件数） |
-| 8. items（§4.3） | 12 分野の `projectDomain` を差分だけで回す（配送済みの増分の計算） | 変わった subject の数 |
+| 8. items（§4.3） | 12 分野の `projectDomain` を差分だけで回す（配送済みの増分の計算） | 変わった subject の数 K に比例する分と、変わった分野ごとの索引の Map の写しと時刻の走査の O(N)（`view-projector.ts:583`〜`:585`、旧の射影と同じ） |
 
 - 詳細の索引の境は要求の側（受信経路の外）で、unit の state の版ごとに 1 度だけ数える（§5.3）。
 
@@ -327,7 +327,7 @@
 |---|---|---|
 | `display-wire.ts`・`p4-display-wire.types.ts` | B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1 → C2 → T0 | 計画 db2b32d7 の §3.2 の行（統合担当が書いた） |
 | `owner-runtime.ts` の `wireIndex`・`wireDetail` | B0 → 本契約 | 同じ関数の中 |
-| `http-sse.ts` | B0 → 本契約 → B1 → R0 → T0（P4-DV-D-HTTP-PARTS が A のとき） | 計画 §3.2 の `http-sse.ts` の行に本契約を入れる案（統合担当が決める） |
+| `http-sse.ts` | B0 → 本契約 → B1 → R0 → T0 | 計画 3f778efc の :230（P4-DV-D-HTTP-PARTS=A で確定） |
 | `view-projector.ts` | 本契約は file の最後に export の行を足すだけ。B1 の要約の規則（:904〜:906）とぶつからない | §4.3 |
 | C0 発注 1（Wave 3） | 本契約の後 | U-W の語彙を読む |
 
@@ -344,16 +344,16 @@
 | P4-DV-D-UNBOUNDED-TEXT | 統合担当・確定 | 上限の無い字 | snapshot で切って印、詳細では切らない | どちらでも切る、切らない |
 | P4-DV-D-UNREADABLE-PARTS | 統合担当・確定 | 読めない印の parts | snapshot に一覧、部分の原文は part=unreadable | 真偽だけ |
 | P4-DV-D-CARD-TEXT-9 | 統合担当・確定 | 9 分野のカードの題と見出し | D-B0-CARD-TEXT=A を当てる | 1,536 byte のまま |
-| P4-DV-D-DETAIL-SCOPE | 統合担当・起草案 | 語彙に変える詳細 | ★A 9 分野の索引の項目と §5.5 の part だけ | B 保護 3 分野の行も |
+| P4-DV-D-DETAIL-SCOPE | 統合担当・確定 | 語彙に変える詳細 | 9 分野の索引の項目と §5.5 の part だけ | 保護 3 分野の行も |
 | P4-DV-D-ORDER | 統合担当・確定 | display-wire.ts の直列 | B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 | — |
 | P4-DV-D-ITEM-ID | 統合担当・確定 | 安定した ID | 全項目に id、並びも id | — |
 | P4-DV-D-EXPIRY | 統合担当・確定 | 表示の期限 | 全部写す | — |
 | P4-DV-D-OWN-ITEMS | 統合担当・確定 | 包みの items | 新しい経路の差分から数える（保護 3 分野も） | 旧から借りる |
-| P4-DV-D-HTTP-PARTS | 統合担当・起草案 | part=item・unreadable と http-sse.ts の直列 | ★A 本契約で足し、http-sse.ts の直列を B0 → 本契約 → B1 → R0 → T0 に | B 足さない（U-F の官署名の 257 byte 目から後と部分の原文が読めない） |
-| P4-DV-D-ITEM-OVERSIZE | 作者・起草案 | 1 件で 1 応答（65,536 byte）に入らない詳細の項目（U-R の escape の最悪で 105,549 byte） | ★A 索引に印（id・revision）だけを出し、要約の間はその項目の中身が読めない（旧の要約と同じく。full に戻れば snapshot で読める）。実の電文は届かない | B part=item をページに切り（stations・浸水想定地区の rows を 1 ページずつ）、要約の間も読めるようにする |
-| P4-DV-D-INDEX-PAGING | 統合担当・起草案 | 索引のページの境 | ★A 繰り越し、境は state の版ごとに 1 度数えて持つ | B 32 件の固定ページで当該ページだけ変換し、省いた項目は id と revision の印から part=item で開く（HTTP-PARTS=A が要る） |
+| P4-DV-D-HTTP-PARTS | 統合担当・確定 | part=item・unreadable と http-sse.ts の直列 | 本契約で足し、http-sse.ts の直列を B0 → 本契約 → B1 → R0 → T0 に | 足さない（U-F の官署名の 257 byte 目から後と部分の原文が読めない） |
+| P4-DV-D-ITEM-OVERSIZE | 作者・起草案 | 1 件で 1 応答（65,536 byte）に入らない詳細の項目（U-R の escape の最悪 105,549 byte、U-W の 2 コードに各 16,384 字の名前で 98,304 byte） | ★A 索引に印 `{ index, reason: "pageBudget", id, revision }` だけを出し、part=item は B0 の 503。その項目が 1 応答に入らない間は、snapshot で切った字の続き（full の間も戻らない）と、要約の間のその項目の中身が読めない。実の電文では起きない見込み。A が成り立つのは B1 の通常合法最大の manifest（E13a）が最悪の 1 件を含まない場合だけで、含むなら spec:1341（通常合法 corpus の全ページで省略 0 件）で受入不可なので B に替える | B part=item をページに切り、1 件が 1 応答を超えうる 9 分野の項目の全部（U-W の phenomena と areas の一覧、U-R の stations・浸水想定地区の rows、U-Y の区域の rows、U-V の市町村の一覧、U-L の区域の一覧など、一覧と専用部品の rows）を 1 ページずつ返す。既存の U-W の areas の詳細も超えた行を繰り越さない（`weather-current-public.ts:290`）ので同じ形で直す |
+| P4-DV-D-INDEX-PAGING | 統合担当・確定 | 索引のページの境 | 繰り越し、境は state の版ごとに 1 度数えて持つ（版ごとの変換の手間は PM の測定へ） | 32 件の固定ページで当該ページだけ変換し、省いた項目は印から part=item で開く |
 
-- 作者の分岐は 1 件（P4-DV-D-ITEM-OVERSIZE）。統合担当の決め 1〜10 は画面から何も落ちない側を選んだが、1 件で 1 応答に入らない項目（U-R の最悪 105,549 byte）は要約の間に中身が読めない。
+- 作者の分岐は 1 件（P4-DV-D-ITEM-OVERSIZE）。統合担当の決め 1〜10 は画面から何も落ちない側を選んだが、1 件で 1 応答に入らない項目は、その間 snapshot で切った字の続きと要約の間の中身が読めない。
 
 ## 10. 未確認と証拠不足
 

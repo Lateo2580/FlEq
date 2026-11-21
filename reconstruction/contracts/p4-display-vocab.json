@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "282060db4849019a570518602a8495706ab62ca7571d3260a4fa2731967dae4e",
+    "sha256": "9da62c14057bfa40b11d165cfbfa8bb32cf1fb0d065837b9882cfc410ddd084c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -27,7 +27,7 @@
         "provisional": "A",
         "status": "確定（統合担当の決め 2026-11-21、r1 の直しの依頼）",
         "ruling": "A（統合担当の決め 5。詳細で全文が読めるので作者の分岐にしない）",
-        "reason": "表 §3.2。上限なしの欄の真の上限は text node の 16,384 字（decode-material.ts:26）。snapshot で切らないと 1 欄で分野が要約になる。詳細で切らないので電文の字は失われない（spec:1325）。U-F の office は snapshot が escape 後の 256 byte、既存の索引が素の UTF-8 の 256 byte（weather-timeseries-unit.ts:613〜:623）で、2 つの切れ目を条文に残す。詳細の 1 件が 65,536 byte を超える作り物の入力だけは B0 の 503（残存）"
+        "reason": "表 §3.2。上限なしの欄の真の上限は text node の 16,384 字（decode-material.ts:26）。snapshot で切らないと 1 欄で分野が要約になる。詳細で切らないので電文の字は失われない（spec:1325）。U-F の office は snapshot が escape 後の 256 byte、既存の索引が素の UTF-8 の 256 byte（weather-timeseries-unit.ts:613〜:623）で、2 つの切れ目を条文に残す。詳細の 1 件が 1 応答に入らないとき（U-R の escape の最悪 105,549 byte、U-W の 2 コードに各 16,384 字の名前で 98,304 byte など、合法の電文でもありうる）は B0 の 503 で、その間は snapshot で切った字の続きが読めない。扱いは作者の分岐 P4-DV-D-ITEM-OVERSIZE（A が成り立つのは E13a の通常合法最大が最悪の 1 件を含まない場合だけ）"
       },
       {
         "id": "P4-DV-D-UNREADABLE-PARTS",
@@ -76,7 +76,7 @@
       {
         "id": "P4-DV-D-ITEM-ID",
         "kind": "統合担当",
-        "A": "全部の語彙の項目に id＝sha256(JSON.stringify([unit, operation, subject]))（B0 の詳細の id と同じ式。volcano.shortfall は subject の代わりに shortfall の id 欄）を持たせ、wire の項目の並びも id の昇順にする",
+        "A": "全部の語彙の項目に id＝sha256(JSON.stringify([unit, operation, subject]))（B0 の詳細の id と同じ式。volcano.shortfall の subject は ${operation}/shortfall/${id}（volcano-unit.ts:1280））を持たせ、wire の項目の並びも id の昇順にする",
         "B": "id を持たせず ref だけにする（r0）",
         "recommended": "A",
         "provisional": "A",
@@ -120,13 +120,13 @@
       {
         "id": "P4-DV-D-ITEM-OVERSIZE",
         "kind": "作者",
-        "A": "1 件で 1 応答（65,536 byte）に入らない詳細の項目は、索引に { index, reason: \"pageBudget\", id, revision } の印だけを出し、part=item は B0 の 503 を返す。要約の間はその項目の中身が読めない（旧の要約と同じく。分野が full に戻れば snapshot で読める）",
-        "B": "part=item をページに切り（U-R の stations と浸水想定地区の rows、U-Y の区域の rows を 1 ページずつ）、要約の間も全部を読めるようにする",
+        "A": "1 件で 1 応答（65,536 byte）に入らない詳細の項目は、索引に { index, reason: \"pageBudget\", id, revision } の印だけを出し、part=item は B0 の 503 を返す。その項目が 1 応答に入らない間は、snapshot で切った字の続き（full の間も戻らない）と、要約の間のその項目の中身が読めない",
+        "B": "part=item をページに切り、1 件が 1 応答を超えうる 9 分野の項目の全部（U-W の phenomena と areas の一覧、U-R の stations と浸水想定地区の rows、U-Y の区域の rows、U-V の市町村の一覧、U-L の区域の一覧など、一覧と専用部品の rows）を 1 ページずつ返す。既存の U-W の areas の詳細も超えた行を繰り越さない（weather-current-public.ts:290）ので同じ形で直す",
         "recommended": "A",
         "provisional": "A",
         "status": "起草案（作者に聞いていない）",
         "ruling": "未",
-        "reason": "表 §3.2・§5.3。U-R の 1 件は escape の最悪で浸水想定地区を除いて 72,781 byte、上限 32,768 を足して 105,549 byte（flood.ts の BOUNDS・LIMITS から node で組んだ見積もり）で、合法の電文でも 1 応答に入らないことがある。A で画面から消えるのは、その分野が要約の間のその項目の中身（題・区域・水位）。実の電文の U-R の 1 件はずっと小さいので届かない見込み。B は part=item のページの規則を 1 つ足す。ほかの 8 分野の 1 件の最大は数えていない"
+        "reason": "表 §3.2・§5.3・§9。U-R の 1 件は escape の最悪で浸水想定地区を除いて 72,781 byte、上限 32,768 を足して 105,549 byte（flood.ts の BOUNDS・LIMITS から node で組んだ見積もり）、U-W も異なる 2 コードに各 16,384 字の名前があれば全文だけで 98,304 byte で、合法の電文でも 1 応答に入らないことがある。A で画面から消えるのは、その項目が 1 応答に入らない間の、snapshot で切った字の続き（full の間も戻らない）と、要約の間のその項目の中身。推奨は A（実の電文では起きない見込み）。ただし A が成り立つのは B1 の通常合法最大の manifest（E13a）が最悪の 1 件を含まない場合だけで、含むなら spec:1341（通常合法 corpus の全ページで省略 0 件）で受入不可なので B に替える。B は part=item のページの規則を 1 つ足す。ほかの分野の 1 件の最大は数えていない"
       },
       {
         "id": "P4-DV-D-INDEX-PAGING",
@@ -144,8 +144,8 @@
       {
         "id": "Q-DV-DRAFT-FACTS",
         "status": "closed",
-        "source": "2026-11-21 起草 r0（main 37fbd7f3）と r1（draft/p4-vocab 3434966e、main db2b32d7 の上。走らせたのは check-contract と p4-display-wire-max.mjs だけ）",
-        "closed": "(1) 入力: 事実の表 r0（repo 外、093dc8b9）とヘルツの確かめ（repo 外、37fbd7f3）。食い違いはヘルツの返事 5 を正にした（表 §3.1） (2) 9 分野の domain・unit・型の file は 093dc8b9 と db2b32d7 の間で変わっていない (3) Kind/Code は受理で 2 桁の数字に限る（weather-current.ts:284）ので辞書の鍵は 100 個まで、names は codes の部分集合 (4) 予算: script の newPath.sum 377,434 に 9 × 65,536 を足して 967,258（要約にした後の上界）、全公開の上界は 1,048,576 (5) 触る file の «»: p4-display-wire.types.ts と display-wire.ts を引く契約は 0、owner-runtime.ts の最後の «» は :774（wireIndex は :872）、composition-root.ts の最後の «» は :2462（wireInput は :2497）、view-projector.ts は :906・:932 が引かれ最後の行は :936、http-sse.ts の最後の «» は :258（parseWireDetail は :362）、p4-display-wire.json の行を引く契約は 0 (6) G0 の既知コードの表は forecastLocalE・city・tsunamiArea・tsunamiAreaGroup だけで、U-W の区域の 5 層は無い (7) display-wire.ts は domains/seismic・domains/tsunami を import する（owner-runtime から読むと循環する）ので上限の表と cutText は display-vocab.ts へ移す。display-wire.test.ts:21 が display-wire から WIRE_LIMITS・WIRE_COUNTS を import する (8) U-V の shortfalls と U-W の freshnessSuspectCount は表示差分に来ない view の固定の部分（view-projector.ts の fixedBytes） (9) U-F の詳細は current と lastKnown が同じ id と revision で開く、U-F の公開形に retainUntil は無い (10) 保護 3 分野の包みの items も旧の射影から借りる（display-wire.ts:622・:624・:626）、停止の確定の差分は wireChanges にだけ積まれる（composition-root.ts:1601） (11) 9 分野のカードは U-M が 16 枚、U-Y は 1 枚に区域列 24,576 byte まで（checkpoint.ts:689〜:691）、保護 3 分野のカードは区域列を持たない (12) 表示の終わりに効く期限は表 §1.5（各 unit の displayMin・deadlineOf・shownDeadline と view の型を読んだ。U-V の解説の view に validUntil は無く retainUntil が効く） (13) U-R の 1 件の view の最大は escape の最悪で 105,549 byte（浸水想定地区 32,768 を含む、node で組んだ見積もり） (14) 新しい経路に載らない欄だけが変わる受信の step は組めない（表示差分は contentRevision を上げ、期限の欄も載り、notices は旧から借り、connection・worker は両方の比べが全部の欄を見る）。旧だけが変わるのは旧の経路の要約の切替だけなので、:130 の it は射影の入力で組む",
+        "source": "2026-11-21 起草 r0（main 37fbd7f3）と r1・r2（draft/p4-vocab 3434966e、main db2b32d7 の上。走らせたのは check-contract と p4-display-wire-max.mjs だけ）",
+        "closed": "(1) 入力: 事実の表 r0（repo 外、093dc8b9）とヘルツの確かめ（repo 外、37fbd7f3）。食い違いはヘルツの返事 5 を正にした（表 §3.1） (2) 9 分野の domain・unit・型の file は 093dc8b9 と db2b32d7 の間で変わっていない (3) Kind/Code は受理で 2 桁の数字に限る（weather-current.ts:284）ので辞書の鍵は 100 個まで、names は codes の部分集合 (4) 予算: script の newPath.sum 377,434 に 9 × 65,536 を足して 967,258（要約にした後の上界）、全公開の上界は 1,048,576 (5) 触る file の «»: p4-display-wire.types.ts と display-wire.ts を引く契約は 0、owner-runtime.ts の最後の «» は :774（wireIndex は :872）、composition-root.ts の最後の «» は :2462（wireInput は :2497）、view-projector.ts は :906・:932 が引かれ最後の行は :936、http-sse.ts の最後の «» は :258（parseWireDetail は :362）、p4-display-wire.json の行を引く契約は 0 (6) G0 の既知コードの表は forecastLocalE・city・tsunamiArea・tsunamiAreaGroup だけで、U-W の区域の 5 層は無い (7) display-wire.ts は domains/seismic・domains/tsunami を import する（owner-runtime から読むと循環する）ので上限の表と cutText は display-vocab.ts へ移す。display-wire.test.ts:21 が display-wire から WIRE_LIMITS・WIRE_COUNTS を import する (8) U-V の shortfalls と U-W の freshnessSuspectCount は表示差分に来ない view の固定の部分（view-projector.ts の fixedBytes） (9) U-F の詳細は current と lastKnown が同じ id と revision で開く、U-F の公開形に retainUntil は無い (10) 保護 3 分野の包みの items も旧の射影から借りる（display-wire.ts:622・:624・:626）、停止の確定の差分は wireChanges にだけ積まれる（composition-root.ts:1601） (11) 9 分野のカードは U-M が 16 枚、U-Y は 1 枚に区域列 24,576 byte まで（checkpoint.ts:689〜:691）、保護 3 分野のカードは区域列を持たない (12) 表示の終わりに効く期限は表 §1.5（各 unit の displayMin・deadlineOf・shownDeadline と view の型を読んだ。U-V の解説の view に validUntil は無く retainUntil が効く） (13) U-R の 1 件の view の最大は escape の最悪で 105,549 byte（浸水想定地区 32,768 を含む、node で組んだ見積もり） (14) 新しい経路に載らない欄だけが変わる受信の step は組めない（表示差分は contentRevision を上げ、期限の欄も載り、notices は旧から借り、connection・worker は両方の比べが全部の欄を見る）。旧だけが変わるのは旧の経路の要約の切替だけなので、:130 の it は射影の入力で組む (15) r2: 欠片の鍵は (site, scope)（unreadable.ts:88）、U-V の警報は陸上・海上の印を別に持つ、U-F の付加事項は site addition の欠片で view では addition の真偽（unreadable.ts:325〜:328）、見出しの原文も 1,538 byte まで（:228）。shortfall の subject は ${operation}/shortfall/${id}（volcano-unit.ts:1280）。projectDomain は変わった分野ごとに索引の Map を写す（view-projector.ts:584〜:585）",
         "remaining": "発注前点検で、baseOid の木の owner-runtime.ts・composition-root.ts・view-projector.ts・http-sse.ts の最後の «» の行を数え直す（統合担当）"
       },
       {
@@ -215,15 +215,15 @@
       "test/fixtures/**"
     ],
     "allowedPaths": [
-      "reconstruction/contracts/p4-display-wire.types.ts（DisplayWireVersion を v2、DisplayWireSnapshot の current に 9 分野、WireIndexEntry の item を索引用の語彙の型、語彙の型、P4-DV-D-HTTP-PARTS が A なら WireDetailRequest・WireDetailResponse に part=item・unreadable。この file を引く «» は 0）",
+      "reconstruction/contracts/p4-display-wire.types.ts（DisplayWireVersion を v2、DisplayWireSnapshot の current に 9 分野、WireIndexEntry の item を索引用の語彙の型にし、使わなくなる part: \"text\" の項目を外す〔足す前に引く〕、WireDetailRequest・WireDetailResponse に part=item・unreadable、語彙の型。この file を引く «» は 0）",
       "reconstruction/src/view-projector/display-vocab.ts（新しい file。view の要素 → 語彙の項目の純粋な関数、WIRE_LIMITS、cutText。contracts の型だけを import する）",
       "reconstruction/src/view-projector/display-wire.ts（9 分野の射影・要約の規則・12 分野の items。WIRE_LIMITS と cutText は display-vocab.ts から import して再 export。この file を引く «» は 0）",
       "reconstruction/src/view-projector/view-projector.ts（file の最後に export の行を 1 つ足すだけ: projectDomain と 12 個の tally の関数。:936 より前の行を足さず変えない）",
-      "reconstruction/src/runtime/owner-runtime.ts（:774 より後の行の中だけ: wireIndex の項目と境、P4-DV-D-HTTP-PARTS が A なら wireDetail と isWireDetail の part=item・unreadable、display-vocab の import。:774 より前の行を足さず変えない）",
+      "reconstruction/src/runtime/owner-runtime.ts（:774 より後の行の中だけ: wireIndex の項目と境、wireDetail と isWireDetail の part=item・unreadable、display-vocab の import。:774 より前の行を足さず変えない）",
       "reconstruction/src/runtime/composition-root.ts（:2462 より後の行の中だけ: wireInput に 9 分野の view と state.confirmation。:2462 より前の行を足さず変えない）",
-      "reconstruction/src/http-sse/http-sse.ts（P4-DV-D-HTTP-PARTS が A のときだけ、:258 より後の parseWireDetail の行の中。:258 より前の行を足さず変えない）",
+      "reconstruction/src/http-sse/http-sse.ts（:258 より後の parseWireDetail の行の中だけ: part=item・unreadable。:258 より前の行を足さず変えない。直列は B0 → 本契約 → B1 → R0 → T0、計画 3f778efc の :230）",
       "reconstruction/test/display-wire/**（新しい試験 P4-DV-T01〜T07 と、AC07 (3) の期待 4 か所〔wire-client.ts:5、display-wire-root.test.ts:80・:84〜:85、同じ file の :130〜:144 の it、display-wire-detail.test.ts:74〜:103・:138〕と補助 2 か所〔display-wire-fixture.ts:82、display-wire-root.test.ts:135〕）",
-      "統合担当だけ（配送の commit）: p4-display-wire.json の AC07 (4) の行の中への注記と meta.sha256、p4-display-wire-tables.md の :206・:215 の行の中への注記（引く «» の付け直し）、p4-order-plan.md の AC07 (4) の残りの行の中。実装担当は触らない"
+      "統合担当だけ（配送の commit）。統合担当の配送の一覧（AC07 (4)・allowedPaths・表 §5.4 は同じ列挙）: (a) p4-display-wire.json の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行に本契約の ID の注記を行の中で書き meta.sha256 を取り直す (b) p4-display-wire-tables.md の :177・:178・:179・:190・:192・:206・:215 の行の中に本契約の ID の注記（:192 は B0 の AC08 が «» で引くので付け直す） (c) 計画 p4-order-plan.md は済み（統合担当が 3f778efc で :192・:223・:230 を直した）。実装担当は触らない"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -353,7 +353,8 @@
       "保護 3 分野の詳細の行と、U-W・U-F・U-N・U-V の既存の詳細の口の形（P4-DV-D-DETAIL-SCOPE=A）",
       "新しい経路の notices を旧の射影から借りること（停止の確定の差分で消えた記録のお知らせ。表 §10）",
       "T0: 旧 /events の経路と旧の出力の撤去",
-      "旧築（src/）・test/fixtures・manifest.json・sequences.json・p4-display-wire-max.mjs"
+      "旧築（src/）・test/fixtures・manifest.json・sequences.json・p4-display-wire-max.mjs",
+      "PM（P4-DISPLAY-MEASURE-001）: 索引の版ごとの 1 回の変換（P4-DV-D-INDEX-PAGING=A）を spec:1288 の開始済みの射影の非中断区間の測定に含めること（統合担当が PM へ送る項に足す）"
     ],
     "acceptanceChecks": [
       {
@@ -362,15 +363,15 @@
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:32 «c0aea1878e65aed9»",
           "reconstruction/contracts/p4-display-vocab-tables.md:31 «caed0b4c7878b149»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:38 «7a9ab3fcbf2ab368»",
           "reconstruction/contracts/p4-display-vocab-tables.md:79 «1b352bd0e7476907»",
           "reconstruction/contracts/p4-display-wire.types.ts:101 «7be82f8fe57546bb»",
-          "reconstruction/contracts/p4-display-wire.types.ts:102 «e62cf3b5db665b78»"
+          "reconstruction/contracts/p4-display-wire.types.ts:102 «e62cf3b5db665b78»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:38 «f5df172642868172»"
         ]
       },
       {
         "id": "P4-DV-AC02",
-        "requirement": "行き先と写し方（表 §1.3・§1.5・§2）: 全部の項目に id＝sha256(JSON.stringify([unit, operation, subject]))（volcano.shortfall は shortfall の id 欄）と rev（view の object の JSON の sha256、U-W・U-F は公開形の revision）を持たせ、wire の項目の並びは id の昇順。表示の期限の欄は表 §1.5 のとおり全部写す。表 1 の ✕ 26 欄は表 §2.1・§2.2（snapshot の一覧 23・専用部品 3・詳細だけ 0）、共通の 3 種は表 §2.4、U-W の表示差分の unavailable・freshness・currentActive・currentScope は載せない。辞書は鍵の昇順の一覧 1 つ: U-W は codes を基準に一覧 phenomena の rows [Kind/Code, Kind/Name か null, 区域の数]（names は codes の部分集合なので名前の無い Code は null）。構造の列は group ごとの一覧（group の単値は一覧の facts）。VocabList は { role, label, sys, cols, facts, rows, omitted }（sys は鍵が DisplayAreaSystem の区域 Code のときだけ）。MaterialValue は表 §1.3 の sv の表（kind ごとに value・bound・raw）。副の ReportRef は unconfirmed が印・marineUnconfirmed が真偽・marineSource が主の source と同じ規則の事実の行。unit が上限を持つ字は素の字、§3.2 で切る欄だけ DisplayCutText。今の view の欄を落とさない（載せない欄は表 §1.3 の列挙だけ）・足さない（id は足す）",
+        "requirement": "行き先と写し方（表 §1.3・§1.5・§2）: 全部の項目に id＝sha256(JSON.stringify([unit, operation, subject]))（volcano.shortfall の subject は unit が使う形 ${operation}/shortfall/${id}、volcano-unit.ts:1280。shortfall の id をそのまま使うと通常の記録の subject と同じ hash の入力になりうる）と rev（view の object の JSON の sha256、U-W・U-F は公開形の revision）を持たせ、wire の項目の並びは id の昇順。表示の期限の欄は表 §1.5 のとおり全部写す。表 1 の ✕ 26 欄は表 §2.1・§2.2（snapshot の一覧 23・専用部品 3・詳細だけ 0）、共通の 3 種は表 §2.4、U-W の表示差分の unavailable・freshness・currentActive・currentScope は載せない。辞書は鍵の昇順の一覧 1 つ: U-W は codes を基準に一覧 phenomena の rows [Kind/Code, Kind/Name か null, 区域の数]（names は codes の部分集合なので名前の無い Code は null）。構造の列は group ごとの一覧（group の単値は一覧の facts）。VocabList は { role, label, sys, cols, facts, rows, omitted }（sys は鍵が DisplayAreaSystem の区域 Code のときだけ）。MaterialValue は表 §1.3 の sv の表（kind ごとに value・bound・raw）。副の ReportRef は unconfirmed が印・marineUnconfirmed が真偽・marineSource が主の source と同じ規則の事実の行。unit が上限を持つ字は素の字、§3.2 で切る欄だけ DisplayCutText。今の view の欄を落とさない（載せない欄は表 §1.3 の列挙だけ）・足さない（id は足す）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:73 «3017c8940c080bbb»",
           "reconstruction/contracts/p4-display-vocab-tables.md:70 «06482b25579bede5»",
@@ -380,7 +381,9 @@
           "reconstruction/contracts/p4-display-vocab-tables.md:97 «ad96899e339dc8df»",
           "reconstruction/contracts/p4-display-vocab-tables.md:117 «b63c4331fe61b5f3»",
           "reconstruction/contracts/p4-display-vocab-tables.md:150 «da6700febe81e907»",
-          "reconstruction/src/domains/weather-current/weather-current.ts:284 «c5e9169cb8544d1c»"
+          "reconstruction/src/domains/weather-current/weather-current.ts:284 «c5e9169cb8544d1c»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:38 «f5df172642868172»",
+          "reconstruction/src/units/volcano/volcano-unit.ts:1280 «181727291b37dbec»"
         ]
       },
       {
@@ -413,56 +416,57 @@
       },
       {
         "id": "P4-DV-AC05",
-        "requirement": "詳細の応答（表 §5、P4-DW-D-DETAIL-PAYLOAD=B が送った分、P4-DV-D-DETAIL-SCOPE・P4-DV-D-INDEX-PAGING）: (1) U-N・U-V・U-L・U-R・U-B・U-M・U-Y の索引は、全部の項目（U-N の現況・情報、U-V の警報・噴火・降灰・解説・不足、U-M の竜巻・熱中症・短命、U-L・U-R・U-B・U-Y の項目）を { id, revision, operation, part: \"item\", item } で出す。item は索引に出る 15 種の閉じた共用体で、unit ごとに出せる種類を型で縛る。U-N の情報と U-V の解説の本文の参照（id は生の subject、rev は三つ組）は item の ref に移し、text の項目は出さない。U-M の text の項目は外す (2) id と revision は元の view の object で作る（今の式のまま）。語彙への変換は snapshot と同じ関数（display-vocab.ts、詳細は切らない）で、要求ごとに返すページの項目だけを変える (3) ページは 32 件まで、65,536 に入らない項目は次のページの先頭へ繰り越す。1 件だけで入らない項目は { index, reason: \"pageBudget\", id, revision } で示す（中身の扱いは P4-DV-D-ITEM-OVERSIZE の裁定に従う）。境は索引の版ごとに 1 度だけ数える（P4-DV-D-INDEX-PAGING の裁定に従う） (4) ほかの part（各分野の index の参照・U-N・U-V の本文・保護 3 分野の areas・stations・comment・event・raw・U-W・U-F の既存の part）は変えない (5) snapshot の項目の ref は表 §5.2。display-vocab.ts は contracts の型だけを import する（owner-runtime が unit・domain の module を読むと循環する）",
+        "requirement": "詳細の応答（表 §5、P4-DW-D-DETAIL-PAYLOAD=B が送った分、P4-DV-D-DETAIL-SCOPE・P4-DV-D-INDEX-PAGING）: (1) U-N・U-V・U-L・U-R・U-B・U-M・U-Y の索引は、全部の項目（U-N の現況・情報、U-V の警報・噴火・降灰・解説・不足、U-M の竜巻・熱中症・短命、U-L・U-R・U-B・U-Y の項目）を { id, revision, operation, part: \"item\", item } で出す。item は索引に出る 15 種の閉じた共用体で、unit ごとに出せる種類を型で縛る。U-N の情報と U-V の解説の本文の参照（id は生の subject、rev は三つ組）は item の ref に移し、text の項目は出さない。U-M の text の項目は外す。使わなくなる WireIndexEntry の part: \"text\" の型は外す（足す前に引く） (2) id と revision は元の view の object で作る（今の式のまま）。語彙への変換は snapshot と同じ関数（display-vocab.ts、詳細は切らない）で、要求ごとに返すページの項目だけを変える (3) ページは 32 件まで、65,536 に入らない項目は次のページの先頭へ繰り越す。1 件だけで入らない項目は { index, reason: \"pageBudget\", id, revision } で示す（中身の扱いは P4-DV-D-ITEM-OVERSIZE の裁定に従う）。境は索引の版ごとに 1 度だけ全部の項目を変換して数える（P4-DV-D-INDEX-PAGING=A）。この版ごとの 1 回の変換の手間は PM（P4-DISPLAY-MEASURE-001）へ送る測定の項目に足す（spec:1288 の開始済みの射影の非中断区間、B0 の rev の作り直しと同じ扱い） (4) ほかの part（各分野の index の参照・U-N・U-V の本文・保護 3 分野の areas・stations・comment・event・raw・U-W・U-F の既存の part）は変えない (5) snapshot の項目の ref は表 §5.2。display-vocab.ts は contracts の型だけを import する（owner-runtime が unit・domain の module を読むと循環する）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:247 «3a1956a40ea1921a»",
           "reconstruction/contracts/p4-display-vocab-tables.md:248 «3b5f13ea39997a38»",
           "reconstruction/contracts/p4-display-vocab-tables.md:255 «7ac02826031ec71d»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:274 «a2d0526de70e4e10»",
           "reconstruction/contracts/p4-display-vocab-tables.md:264 «a709ae58cee52fd3»",
           "reconstruction/contracts/p4-display-vocab-tables.md:295 «0a287d9bd94f1288»",
           "reconstruction/src/runtime/owner-runtime.ts:874 «3c092f33c8332427»",
-          "reconstruction/contracts/p4-display-wire.types.ts:134 «458b5ab35804c396»"
+          "reconstruction/contracts/p4-display-wire.types.ts:134 «458b5ab35804c396»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:275 «4866a60c8ee125ef»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:274 «0cbd398d7e5a287e»"
         ]
       },
       {
         "id": "P4-DV-AC06",
-        "requirement": "受信経路の計算量（AGENTS.md、表 §6）: 受信 1 回で、9 分野の項目を作り直して直列化するのはその step の表示差分の subject だけ（K 件）。並びは変わった K 件を id で並べて前の並び（N 件）と 1 度だけ併合し（O(N ＋ K log K)、1 件ごとの splice の O(KN) にしない）、分野の byte は変わった項目の byte の差を足し引きする。全件×全件の走査と、分野・view・snapshot の全体の直列化（JSON.stringify での byte 計量・変更検出を含む）をしない。表示差分に来ない view の固定の部分（U-V の shortfalls、U-W の freshnessSuspectCount）だけは、view の object が前の step と違うときに読み直す。12 分野の items は projectDomain を差分だけで回す。変わらない分野は前の wire の object を使い、公開の比べは参照で比べる。全部の view を読むのは最初の射影の 1 回だけ（P2-A8-COST）。計数（作り直した項目の数・直列化した項目の数・併合で動かした要素の数）を試験から読める形にする",
+        "requirement": "受信経路の計算量（AGENTS.md、表 §6）: 受信 1 回で、9 分野の項目を作り直して直列化するのはその step の表示差分の subject だけ（K 件）。並びは変わった K 件を id で並べて前の並び（N 件）と 1 度だけ併合し（O(N ＋ K log K)、1 件ごとの splice の O(KN) にしない）、分野の byte は変わった項目の byte の差を足し引きする。全件×全件の走査と、分野・view・snapshot の全体の直列化（JSON.stringify での byte 計量・変更検出を含む）をしない。表示差分に来ない view の固定の部分（U-V の shortfalls、U-W の freshnessSuspectCount）だけは、view の object が前の step と違うときに読み直す。12 分野の items は projectDomain を差分だけで回す（変わった subject の数 K に比例する分のほか、変わった分野ごとに索引の Map の写しと時刻の走査が索引の大きさ N に比例する。旧の射影と同じ O(N) で、全件×全件ではない）。変わらない分野は前の wire の object を使い、公開の比べは参照で比べる。全部の view を読むのは最初の射影の 1 回だけ（P2-A8-COST）。計数（作り直した項目の数・直列化した項目の数・併合で動かした要素の数）を試験から読める形にする",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:313 «ae884e2c70f8d459»",
           "reconstruction/contracts/p4-display-vocab-tables.md:314 «11742730bdc0e804»",
           "reconstruction/contracts/p4-display-vocab-tables.md:315 «64c180e7e86ab5a7»",
           "reconstruction/contracts/p4-display-vocab-tables.md:319 «e8f55d5b1c67651a»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:320 «c1919b0fa0391302»",
           "reconstruction/src/view-projector/view-projector.ts:571 «5c9a84c4195877a7»",
-          "AGENTS.md"
+          "AGENTS.md",
+          "reconstruction/contracts/p4-display-vocab-tables.md:320 «a4b033c7472c81e6»"
         ]
       },
       {
         "id": "P4-DV-AC07",
-        "requirement": "開け直す配送済みの型と契約（表 §5.4）: (1) p4-display-wire.types.ts の DisplayWireSnapshot に 9 分野、DisplayWireVersion を v2、WireIndexEntry の item を索引用の語彙の型、語彙の型、P4-DV-D-HTTP-PARTS が A なら WireDetailRequest・WireDetailResponse に part=item・unreadable（この file を引く «» は 0）。(2) owner-runtime.ts は :774 より後の行の中だけ、composition-root.ts は :2462 より後の行の中だけ（wireInput に 9 分野の view と state.confirmation、旧の射影の domains は渡さない）、view-projector.ts は file の最後に export の行を 1 つ足すだけ（projectDomain と tally の関数、:906・:932 は変えない）、http-sse.ts は P4-DV-D-HTTP-PARTS が A のとき :258 より後の parseWireDetail の行の中だけ。付け直し 0 の見込み。(3) 既存の試験の期待を変えるのは 4 か所だけ: test/display-wire/wire-client.ts:5（版の字）、display-wire-root.test.ts:84〜:85（current の鍵と包みの鍵、:80 の it の題）、同じ file の :130〜:144 の it（B0 の P4-DW-T08 の条文を残す形: 旧の射影の入力だけが変わり、新しい経路の差分・views・共通部が前と同じ step で、旧が projected でも新しい経路は unchanged）、display-wire-detail.test.ts:74〜:103 と :138（U-N・U-V の本文を item の ref から開く、U-M の索引の revision が view の object の sha256 になる）。試験の補助は display-wire-fixture.ts:82 と display-wire-root.test.ts:135 の views と confirmation を足すことと、最初の射影の差分が view を覆わない wire(units, changes, null) の呼び出しの差分を組み直すこと（projectDomain の startup の検査）で、期待は変えない。直した呼び出しの数を成果物に書く。(4) 配送の時に統合担当が行の中に本契約の ID の注記を書く: P4-DISPLAY-WIRE-001 の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行（meta.sha256 を取り直す）、p4-display-wire-tables.md の :206（377,434・縮退の規則を持たない）・:215（読める組の表の B0 の後の行）・§2.2 の :177〜:179（U-N・U-V・U-M・U-L・U-R・U-B・U-Y の詳細の形）・§2.3 の :190・:192（参照の表の項目と本文の行。:192 は B0 の AC08 が引くので付け直す）、計画の残り（§2.1 の 20 本、:223 の「B1 は要約の規則だけ」、spec §8.3 の 4〔:1398〕と計画 §1.1 の 6 との順の根拠）。(5) p3-execution-split.types.ts・旧 /events の出力・P2-A8-COST は変えない",
+        "requirement": "開け直す配送済みの型と契約（表 §5.4）: (1) p4-display-wire.types.ts の DisplayWireSnapshot に 9 分野、DisplayWireVersion を v2、WireIndexEntry の item を索引用の語彙の型にし、使わなくなる part: \"text\" の項目を外す（足す前に引く）、語彙の型、WireDetailRequest・WireDetailResponse に part=item・unreadable（この file を引く «» は 0）。(2) owner-runtime.ts は :774 より後の行の中だけ、composition-root.ts は :2462 より後の行の中だけ（wireInput に 9 分野の view と state.confirmation、旧の射影の domains は渡さない）、view-projector.ts は file の最後に export の行を 1 つ足すだけ（projectDomain と tally の関数、:906・:932 は変えない）、http-sse.ts は :258 より後の parseWireDetail の行の中だけ。付け直し 0 の見込み。(3) 既存の試験の期待を変えるのは 4 か所だけ: test/display-wire/wire-client.ts:5（版の字）、display-wire-root.test.ts:84〜:85（current の鍵と包みの鍵、:80 の it の題）、同じ file の :130〜:144 の it（B0 の P4-DW-T08 の条文を残す形: 旧の射影の入力だけが変わり、新しい経路の差分・views・共通部が前と同じ step で、旧が projected でも新しい経路は unchanged）、display-wire-detail.test.ts:74〜:103 と :138（U-N・U-V の本文を item の ref から開く、U-M の索引の revision が view の object の sha256 になる）。試験の補助は display-wire-fixture.ts:82 と display-wire-root.test.ts:135 の views と confirmation を足すことと、最初の射影の差分が view を覆わない wire(units, changes, null) の呼び出しの差分を組み直すこと（projectDomain の startup の検査）で、期待は変えない。直した呼び出しの数を成果物に書く。(4) 統合担当の配送の一覧（AC07 (4)・allowedPaths・表 §5.4 は同じ列挙）: (a) p4-display-wire.json の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行に本契約の ID の注記を行の中で書き meta.sha256 を取り直す (b) p4-display-wire-tables.md の :177・:178・:179・:190・:192・:206・:215 の行の中に本契約の ID の注記（:192 は B0 の AC08 が «» で引くので付け直す） (c) 計画 p4-order-plan.md は済み（統合担当が 3f778efc で :192・:223・:230 を直した）。(5) p3-execution-split.types.ts・旧 /events の出力・P2-A8-COST は変えない",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-display-vocab-tables.md:281 «3f9c68482c66451d»",
           "reconstruction/contracts/p4-display-vocab-tables.md:284 «203f84889af1e644»",
           "reconstruction/contracts/p4-display-vocab-tables.md:288 «63519ad77a31463c»",
           "reconstruction/contracts/p4-display-vocab-tables.md:289 «62af22ef6c204c1f»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:290 «8f0daa02c9cdadd5»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:291 «cc09012dd0479b4c»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:292 «a70c148995ab7720»",
           "reconstruction/contracts/p4-display-vocab-tables.md:294 «1467230dd54c72a4»",
           "reconstruction/test/display-wire/wire-client.ts:5 «0c92d174ad766130»",
           "reconstruction/test/display-wire/display-wire-root.test.ts:143 «f1f1eacc7dc696f0»",
           "reconstruction/contracts/p4-display-wire-tables.md:206 «6e4d7b2c0fd08346»",
-          "reconstruction/src/runtime/composition-root.ts:2497 «8ef6fffccb3e27cc»"
+          "reconstruction/src/runtime/composition-root.ts:2497 «8ef6fffccb3e27cc»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:290 «35bdb79a2515c794»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:291 «55260a59716bb67d»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:292 «ed74bfdf8997880f»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:281 «4c8659d7b1b1084c»"
         ]
       },
       {
         "id": "P4-DV-AC08",
-        "requirement": "読めない印とカード（表 §2.4、P4-DV-D-UNREADABLE-PARTS・P4-DV-D-CARD-TEXT-9）: unreadableView と U-V の marineUnreadableView は、見出しの unread（真偽）と一覧 role unreadable・marineUnreadable（rows [site, scope, raw]、facts に headline・addition・rawDropped・partsCut）で snapshot に載せる。部分の原文（raw が真）は part=unreadable で開く（P4-DV-D-HTTP-PARTS の裁定に従う）。unreadableCards は B0 の DisplayWireCard（題 96・見出し 384 byte で切る）を 9 分野の full の包みの cards にそのまま使い、原文は B0 の part=raw で開く。要約はカードを持たない",
+        "requirement": "読めない印とカード（表 §2.4、P4-DV-D-UNREADABLE-PARTS・P4-DV-D-CARD-TEXT-9）: unreadableView と U-V の marineUnreadableView は、見出しの unread（真偽）と一覧 role unreadable・marineUnreadable（rows [site, scope, raw]、facts に headline・addition・rawDropped・partsCut）で snapshot に載せる。parts は欠片の鍵 (site, scope) ごとに 1 件で 1 つの印に 16 件まで、U-V の警報は陸上と海上の両側で 32 件まで。部分の原文（raw が真）は part=unreadable で開く（AC12）。unreadableCards は B0 の DisplayWireCard（題 96・見出し 384 byte で切る）を 9 分野の full の包みの cards にそのまま使い、原文は B0 の part=raw で開く。要約はカードを持たない",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-display-vocab-tables.md:167 «d927070250b99f87»",
           "reconstruction/contracts/p4-display-vocab-tables.md:166 «81e0fb305fca3941»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:165 «d4433b7923d0ae6f»"
+          "reconstruction/contracts/p4-display-vocab-tables.md:165 «d4433b7923d0ae6f»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:167 «4d388499cdee4778»"
         ]
       },
       {
@@ -492,17 +496,21 @@
           "reconstruction/contracts/p4-display-vocab-tables.md:238 «d23ffc21008b5de8»",
           "reconstruction/contracts/p4-display-vocab-tables.md:236 «2117db609679a212»",
           "reconstruction/src/view-projector/display-wire.ts:622 «e5ca8523c90e1de9»",
-          "reconstruction/src/runtime/composition-root.ts:1601 «c1b5e13b830e8731»"
+          "reconstruction/src/runtime/composition-root.ts:1601 «c1b5e13b830e8731»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:237 «32d70f87a9afbf8b»"
         ]
       },
       {
         "id": "P4-DV-AC12",
-        "requirement": "新しい part（表 §5.5、P4-DV-D-HTTP-PARTS が A のときだけ）: part=item は { unit: 9 分野, part: \"item\", id, revision }（page なし。id と revision は snapshot の項目の id と rev）で切らない語彙の項目 1 件を返す。part=unreadable は同じ要求の形で、その項目の読めない印の parts の原文（site と raw）と見出しの原文を返す。どちらも owner の wireDetail で読むだけ（state も期限も動かさない）、版が違えば 409 versionChanged、対象が消えていれば revision: null、1 応答 65,536 を越えたら B0 の 503 responseTooLarge。U-W・U-F は公開形の id と revision で開き、今の U-W の口（index・areas・lastKnown）と part の名が重ならないよう owner の振り分けで分ける。http-sse.ts の parseWireDetail（:258 より後）に 2 つの part を足す。B なら本 AC は外し、残存に「U-F の官署名の 257 byte 目から後と部分の原文は新しい経路で読めない」を書く",
+        "requirement": "新しい part（表 §5.5、P4-DV-D-HTTP-PARTS=A）: part=item は { unit: 9 分野, part: \"item\", id, revision }（page なし。id と revision は snapshot の項目の id と rev）で切らない語彙の項目 1 件を返す。part=unreadable は同じ要求の形で { sides: [{ side: \"land\" か \"marine\", parts: [{ site, scope か null, raw か null }], headline か null }] } を返す: side は印ごと（U-V の警報だけ海上の印 marineUnreadable を marine で持ち、ほかは land だけ）、parts は欠片の鍵 (site, scope) ごとに 1 件（unreadable.ts:88）で、U-F の付加事項は site addition の欠片として parts に入る（view では一覧から外し addition の真偽にした分）。両側で parts 32 件・見出し 2 つまで（1 件 1,538 byte で 58,004 byte ほど、1 応答に入る）。部分の原文は XML の断片だが、spec §16.4 の H51（印は表に出し、原文は折り畳んで読みたい人が開く形、spec:3191）が spec:1344 の「生 XML を wire 型へ入れない」より優先する: 断片は詳細の part で開くときだけ返し、snapshot の wire 型には入れない。どちらの part も owner の wireDetail で読むだけ（state も期限も動かさない）、版が違えば 409 versionChanged、対象が消えていれば revision: null、1 応答 65,536 を越えたら B0 の 503 responseTooLarge（P4-DV-D-ITEM-OVERSIZE）。U-W・U-F は公開形の id と revision で開き、今の U-W の口（index・areas・lastKnown）と part の名が重ならないよう owner の振り分けで分ける。http-sse.ts の parseWireDetail（:258 より後）に 2 つの part を足す",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:303 «61e6640fea7093ea»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:304 «93fce74d40f9aa54»",
           "reconstruction/contracts/p4-display-vocab-tables.md:307 «1fb96163c2a79303»",
-          "reconstruction/src/http-sse/http-sse.ts:362 «333b13af0ff34790»"
+          "reconstruction/src/http-sse/http-sse.ts:362 «333b13af0ff34790»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:304 «25e1ffb2325c8ffc»",
+          "docs/specs/reconstruction-p0-contracts.md:3191 «b1a9d099269c81e5»",
+          "docs/specs/reconstruction-p0-contracts.md:1344 «9e0989be4625def9»",
+          "reconstruction/src/units/unreadable.ts:88 «8af5e3e637262114»"
         ]
       }
     ],
@@ -516,7 +524,7 @@
           "P4-DV-AC08",
           "P4-DV-AC09"
         ],
-        "behavior": "受入条件。fixtureIds の 9 分野の電文を受けた後の新しい経路の snapshot で、schemaVersion が p4-display-wire-v2、current の鍵が表 §1.1 の 12 の並び、semanticRevision が同じ順、どの包みにも view が無い。9 分野の各項目について、id が sha256([unit, operation, subject])、rev が view の object の JSON の sha256（U-W・U-F は公開形の revision）、wire の項目が id の昇順、view の要素の欄（表 §1.3 の載せない欄を除く）が facts・lists・texts・special・見出しのどこかに全部現れ（view の要素から欄の名を数えて照らす）、表 §1.5 の期限の欄が全部ある。U-W の phenomena の rows が codes の鍵と同じ数で names に無い Code の名前が null、U-V の噴煙の sv が表 §1.3 の kind ごとの形。facts の label と一覧の role が k ごとの閉じた union 型の外に出ないことを型の試験（@ts-expect-error）で示す。読めない印のある項目は unread が真で一覧 unreadable の rows が parts と同じ数"
+        "behavior": "受入条件。fixtureIds の 9 分野の電文を受けた後の新しい経路の snapshot で、schemaVersion が p4-display-wire-v2、current の鍵が表 §1.1 の 12 の並び、semanticRevision が同じ順、どの包みにも view が無い。9 分野の各項目について、id が sha256([unit, operation, subject])（volcano.shortfall は subject を ${operation}/shortfall/${id} にし、shortfall の id を通常の記録の subject と同じ字にした手製の形でも id が重ならない）、rev が view の object の JSON の sha256（U-W・U-F は公開形の revision）、wire の項目が id の昇順、view の要素の欄（表 §1.3 の載せない欄を除く）が facts・lists・texts・special・見出しのどこかに全部現れ（view の要素から欄の名を数えて照らす）、表 §1.5 の期限の欄が全部ある。U-W の phenomena の rows が codes の鍵と同じ数で names に無い Code の名前が null、U-V の噴煙の sv が表 §1.3 の kind ごとの形。facts の label と一覧の role が k ごとの閉じた union 型の外に出ないことを型の試験（@ts-expect-error）で示す。読めない印のある項目は unread が真で一覧 unreadable の rows が parts と同じ数"
       },
       {
         "testId": "P4-DV-T02",
@@ -565,7 +573,7 @@
         "referenceIds": [
           "P4-DV-AC12"
         ],
-        "behavior": "受入条件（P4-DV-D-HTTP-PARTS が A のときだけ）。新しい経路の詳細の HTTP で、U-W の part=item が切らない Kind/Name を、U-F の part=item が 257 byte を越える官署名の全文を返す。読めない印のある項目の part=unreadable が parts の原文を返す。版の違いで 409、消えた対象で revision: null、今の U-W の口の part=areas・index・lastKnown は今の答えのまま"
+        "behavior": "受入条件。新しい経路の詳細の HTTP で、U-W の part=item が切らない Kind/Name を、U-F の part=item が 257 byte を越える官署名の全文を返す。part=unreadable は、同じ site で scope の違う 2 つの欠片を別々の parts で返し、U-V の警報で陸上と海上の印が並ぶときは land と marine の 2 つの side に分けて parts と見出しを返し、U-F の付加事項は site addition の欠片で返す。版の違いで 409、消えた対象で revision: null、今の U-W の口の part=areas・index・lastKnown は今の答えのまま"
       }
     ],
     "requiredCommands": [
@@ -642,8 +650,8 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最初の作業: decisionBranches の ruling を読む。起草案（作者の P4-DV-D-ITEM-OVERSIZE、統合担当の P4-DV-D-DETAIL-SCOPE・P4-DV-D-HTTP-PARTS・P4-DV-D-INDEX-PAGING）のどれかに「未」が残っていたら着手せず blocked で返す",
-      "順序: display-wire.ts・p4-display-wire.types.ts の直列は B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1（P4-DV-D-ORDER）。http-sse.ts は P4-DV-D-HTTP-PARTS の裁定に従う。baseOid は統合担当が割り当てる",
+      "最初の作業: decisionBranches の ruling を読む。作者の分岐 P4-DV-D-ITEM-OVERSIZE の ruling が「未」なら着手せず blocked で返す（統合担当の分岐はどれも確定）",
+      "順序: display-wire.ts・p4-display-wire.types.ts の直列は B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1（P4-DV-D-ORDER）。http-sse.ts の直列は B0 → 本契約 → B1 → R0 → T0（計画 3f778efc の :230）。baseOid は統合担当が割り当てる",
       "最小実装・最小テスト: 足す file は display-vocab.ts の 1 つだけ。items は projectDomain を使う。追加した試験ごとに対応（受入条件・契約境界・実不具合・corpus 履歴）を 1 行で書く",
       "既存の試験の期待は AC07 (3) の 4 か所のほかに変えない。変える要が出たら止めて報告する",
       "行: owner-runtime.ts の :774 より前、composition-root.ts の :2462 より前、view-projector.ts の :936 より前、http-sse.ts の :258 より前の行を足さず変えない。check-contract の FAIL が出たら契約と行を全部書く",
