@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "38831d5951781a669358c214cba6a506b60c28b3",
-    "sha256": "42de13cf9e0204d87e7c72d727bf2920457367f754cfdc4fd390b2b74513003d",
+    "sha256": "2fe587004054ce089332875dd13d62040a60119dbd040044dce1b1a38e16f8a7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -56,11 +56,11 @@
         "kind": "統合担当",
         "A": "取り直しの一覧のキー（recovery.ts:201 の bodyKey）を変えない。「A」と「A B」は別のキーのまま、並びの字の数だけ本文を取る",
         "B": "U-T の bodyKey だけ、頭の EventID を並びの先頭の番号にして束ねる（recovery.ts:201 の行の中、xs:list の 4 種で分ける）",
-        "recommended": "B",
-        "provisional": "B",
-        "status": "確定（統合担当の決め、2026-11-22 07:3x）",
-        "ruling": "B（統合担当の決め 2026-11-22 07:3x。bodiesFor は最新だけで足りる型を subject〔運用区分・型・bodyKey〕ごとに最新の 1 件だけ本文にする作りで、P4-TME-D-IDENTITY=A で「A」と「A B」は同じ記録になった。bodyKey の EventID を先頭の番号にすれば同じ記録の古い報の本文を余分に取らず、最後の状態は同じで、上限 300 にも当たりにくくなる。画面から落ちるものは無い。IDENTITY=A と今の bodiesFor の原則から一つに決まるので作者に上げない。r1 の起草案の推奨 A は覆した）",
-        "reason": "今のコード: bodiesFor（recovery.ts:212〜:228）は bodyKey ごとに最後に受けた頭 1 件を本文にし、composition-root.ts:2162〜:2164 はその件数を本文の上限 300（composition-root.ts:2390、P3-REC-RES-03）の残りから引き、残りを超えた unit とその後の unit を全部 recoveryLimit にする。数える順は WALK_ORDER（recovery.ts:16）で U-T が先頭、U-T が取り直すのは VTSE41 だけ（7 日、N2）。A では「A」と「A B」の 2 つの字を持つ event は VTSE41 の本文を 2 通取る（並びの字が k 種なら k 通）。採る記録は unit の版の比べで同じになる。\n画面の差（出る・出ないが変わる）: 本文の合計が 300 の手前にあり、多く取った通数でそれを超えるときだけ、超えた所の unit とその後の unit（U-V・U-Q・U-N…）が取り直しの結果を recoveryLimit として示し、その unit の取り直しの報は採られない。U-T 自身が当たるのは U-T のキーだけで 300 を超えるときで、そのときは解除の本文も採られない。B ならこの差は無い。多く取る通数は 7 日の中の「先頭の番号が同じで字が違う」event の数（資料の例では 1 event に 1 通）。\n費用: A は 0。B は recovery.ts:201 の行の中（本契約の AC05 が «» で引く行なので付け直しが要る）と、取り直しの試験 1 本（reconstruction/test/recovery/recovery.test.ts に、A と A B の頭を並べた一覧で本文が 1 通になることを足す）、xs:list の分け方が tsunami.ts と recovery.ts の 2 か所になる。\n起草案の推奨は A だった（差が出るのは合計が上限の数通手前の取り直しだけ、B は分け方を 2 か所に持つ）。統合担当の決めで B（ruling）"
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-22 07:4x）",
+        "ruling": "A（統合担当の決め 2026-11-22 07:4x。recovery.ts を変えない。bodiesFor は同じキーの中で receivedAtMs が最大の 1 件を選び、unit は Control/DateTime で新旧を決めるので、キーを束ねるほど落とす報が増える。r1 のレビュー〔ヘルツ〕で B は 2 つの場面で成り立たなかった: (1) A の正常な注意報と「A ＋13 桁」の不正な報が一覧にあると、束ねて正常な報が落ちる (2) A の注意報を保存し、停止中に A B の解除が出て、遅れて古い A の注意報が届くと解除を取れない。A では recovery.ts:82 が EventID の字をそのまま頭に持つので「A」と「A B」は別のキーのままで、今の main と同じ本文の数で何も落ちない。ヘルツの直し方〔文法を満たすときだけ束ねる・候補を版で選ぶ〕は recovery の共通部の作り直しで範囲の外。経緯: 起草案の推奨 A → 07:3x に B → r1 のレビューで 07:4x に A に戻した）",
+        "reason": "今のコード: bodiesFor（recovery.ts:212〜:228）は bodyKey ごとに最後に受けた頭 1 件を本文にし、composition-root.ts:2162〜:2164 はその件数を本文の上限 300（composition-root.ts:2390、P3-REC-RES-03）の残りから引き、残りを超えた unit とその後の unit を全部 recoveryLimit にする。数える順は WALK_ORDER（recovery.ts:16）で U-T が先頭、U-T が取り直すのは VTSE41 だけ（7 日、N2）。A では「A」と「A B」の 2 つの字を持つ event は VTSE41 の本文を 2 通取る（並びの字が k 種なら k 通）。採る記録は unit の版の比べで同じになる。\n画面の差（出る・出ないが変わる）: 本文の合計が 300 の手前にあり、多く取った通数でそれを超えるときだけ、超えた所の unit とその後の unit（U-V・U-Q・U-N…）が取り直しの結果を recoveryLimit として示し、その unit の取り直しの報は採られない。U-T 自身が当たるのは U-T のキーだけで 300 を超えるときで、そのときは解除の本文も採られない。B は束ねる分だけ落とす報が出る（ruling の (1)(2)）。多く取る通数は 7 日の中の「先頭の番号が同じで字が違う」event の数（資料の例では 1 event に 1 通）。\n費用: A は 0。B は recovery.ts:201 の行の中（本契約の AC05 が «» で引く行なので付け直しが要る）と、取り直しの試験 1 本（reconstruction/test/recovery/recovery.test.ts に、A と A B の頭を並べた一覧で本文が 1 通になることを足す）、xs:list の分け方が tsunami.ts と recovery.ts の 2 か所になる。\n推奨は A（ruling）"
       }
     ],
     "questionResolutions": [
@@ -68,7 +68,7 @@
         "id": "Q-TME-DRAFT-FACTS",
         "status": "closed",
         "source": "2026-11-22 起草（draft/p4-tme、main 38831d59 の木を読んだ。走らせていない）",
-        "closed": "(1) 断る所: tsunami.ts:207 で eventIdRaw を trim し、:211 で `/^\\d{14}$/`・Head/EventID が 1 個・その字が eventIdRaw と同じ、のどれかが外れると identityInvalid。並びの字は最初の検査で外れる。:211 は他の契約が «» で引かない（tsunami.ts を引く «» は :18・:56・:199・:215・:224・:225・:245・:268） (2) 鍵: subject は :228〜:229 で eventId をそのまま含む。記録の eventId は観測と予報を結ぶ（tsunami-unit.ts:271 の退去・:431 の OBS-LIFETIME・:518 の観測の状態）。codec は 14 桁を確かめる（:1090・:1139）。確認の範囲（shared-runtime.ts:107）も U-T の event に 14 桁を求める。wire の eventId は 40 字まで（display-wire.ts:31。番号 3 つの並びは 44 字） (3) 取り直し: recovery.ts:201 の bodyKey は一覧の頭の EventID の字をそのまま鍵にするので、「A」と「A B」は別の鍵になり、bodiesFor（:212〜:228）がそれぞれの最新を受けた順に並べて本文にする（composition-root.ts:2162）。頭の EventID の使い道はこの鍵だけで、U-T の確認の範囲は採った記録の eventId から作る（shared-runtime.ts:359、tsunami-unit.ts:940）。P4-TME-D-IDENTITY=A では 2 通とも同じ subject に入り、unit が Control/DateTime で比べる（新しい報が勝つ）ので、変えなくても採る記録は合う（r1 の訂正: 変えなければ取る本文が並びの字の数だけ多く、本文の上限 300 に当たる所では後ろの unit が recoveryLimit になる。P4-TME-D-RECOVERY-KEY=B で U-T の bodyKey を先頭の番号で束ね、最新の 1 件だけ取る） (4) 端末: terminal/material.ts:40 は Head/EventID の字をそのまま読み、:375〜:382 は U-T が採った報（と観測の無い VTSE51）だけを端末に出す。本契約の後は並びの報の行が出て、末尾の EventID は並びの字のまま（format.ts の footer）。字は変えない。r1 の追記: format.ts:482 は Head/EventID の全文の字を VTSE41 の続報の覚え（前報との比べ）のキーにも使うので、A の注意報の後の「A B」の警報で「津波警報に引き上げ」の行が出ず、「A B」の取消で A の覚えが残る（ヘルツの r0 の P2）。P4-TME-AC06 でキーを先頭の番号にする (5) 旧築: src/dmdata/telegram-parser.ts は EventID の字をそのまま持つ（統合担当の確かめ） (6) 公式サンプル（~/research/fleq-jma-premises/sources/samples、2026-09-17 の zip）: 38-39_02_01（VTSE41・05:56・20151114055157・津波注意報 62 が 771・772・773、予報 71 が 7 区域）、_02（VTSE51・05:58・同じ番号 1 つ・Observation が無い満潮時刻と到達予想時刻の報）、_03（VTSE51・06:55・並び・観測点 9）、_04（VTSE41・07:20・並び・津波注意報解除 60 が 771・772・773 だけ）、_05（VTSE51・07:24・並び・観測点 1）。Control/DateTime は 20:56:28Z → 20:58:04Z → 21:55:29Z → 22:20:01Z → 22:24:10Z と増え、Status は全部「通常」。repo の test/fixtures にあるのは _02 だけで、research の _02 は fixture と sha256 が同じ（68897ac0…）。_01・_03・_04・_05 の sha256 と byte: 4696346eec53cb405e93ec6ba941230a9d857308232b075b7f5b0bb91b9705d4・10753、29a5a79ae45314fe76211f3f1f9b780948e1b2c2e9ca49ffe7ef4166f7551014・13573、8171a3dd83677d2b44076fb95726645ff5f37104aaceef88e2e3a02da15bc819・4570、92ffaa2cfcb55b88c91ad2805d65b0092c3b104fe400f08105ce3bd333cb545e・5675 (7) 今の木の帰結（コードからの推論）: _01 は受理、_02 は noObservation、_03・_04・_05 は identityInvalid で断られ、注意報の subject が active のまま残る (8) 既存の試験: tsunami-unit.test.ts:98 は 13 桁の番号 1 つを identityInvalid と見る（本契約の後も同じ）。並びの字を使う既存の試験は無い",
+        "closed": "(1) 断る所: tsunami.ts:207 で eventIdRaw を trim し、:211 で `/^\\d{14}$/`・Head/EventID が 1 個・その字が eventIdRaw と同じ、のどれかが外れると identityInvalid。並びの字は最初の検査で外れる。:211 は他の契約が «» で引かない（tsunami.ts を引く «» は :18・:56・:199・:215・:224・:225・:245・:268） (2) 鍵: subject は :228〜:229 で eventId をそのまま含む。記録の eventId は観測と予報を結ぶ（tsunami-unit.ts:271 の退去・:431 の OBS-LIFETIME・:518 の観測の状態）。codec は 14 桁を確かめる（:1090・:1139）。確認の範囲（shared-runtime.ts:107）も U-T の event に 14 桁を求める。wire の eventId は 40 字まで（display-wire.ts:31。番号 3 つの並びは 44 字） (3) 取り直し: recovery.ts:201 の bodyKey は一覧の頭の EventID の字をそのまま鍵にするので、「A」と「A B」は別の鍵になり、bodiesFor（:212〜:228）がそれぞれの最新を受けた順に並べて本文にする（composition-root.ts:2162）。頭の EventID の使い道はこの鍵だけで、U-T の確認の範囲は採った記録の eventId から作る（shared-runtime.ts:359、tsunami-unit.ts:940）。P4-TME-D-IDENTITY=A では 2 通とも同じ subject に入り、unit が Control/DateTime で比べる（新しい報が勝つ）ので、変えなくても採る記録は合う（r1 の訂正: 変えなければ取る本文が並びの字の数だけ多く、本文の上限 300 に当たる所では後ろの unit が recoveryLimit になる。P4-TME-D-RECOVERY-KEY=A で変えない。並びの報 1 通分だけ本文が多いのは今の main と同じ数） (4) 端末: terminal/material.ts:40 は Head/EventID の字をそのまま読み、:375〜:382 は U-T が採った報（と観測の無い VTSE51）だけを端末に出す。本契約の後は並びの報の行が出て、末尾の EventID は並びの字のまま（format.ts の footer）。字は変えない。r1 の追記: format.ts:482 は Head/EventID の全文の字を VTSE41 の続報の覚え（前報との比べ）のキーにも使うので、A の注意報の後の「A B」の警報で「津波警報に引き上げ」の行が出ず、「A B」の取消で A の覚えが残る（ヘルツの r0 の P2）。P4-TME-AC06 でキーを先頭の番号にする (5) 旧築: src/dmdata/telegram-parser.ts は EventID の字をそのまま持つ（統合担当の確かめ） (6) 公式サンプル（~/research/fleq-jma-premises/sources/samples、2026-09-17 の zip）: 38-39_02_01（VTSE41・05:56・20151114055157・津波注意報 62 が 771・772・773、予報 71 が 7 区域）、_02（VTSE51・05:58・同じ番号 1 つ・Observation が無い満潮時刻と到達予想時刻の報）、_03（VTSE51・06:55・並び・観測点 9）、_04（VTSE41・07:20・並び・津波注意報解除 60 が 771・772・773 だけ）、_05（VTSE51・07:24・並び・観測点 1）。Control/DateTime は 20:56:28Z → 20:58:04Z → 21:55:29Z → 22:20:01Z → 22:24:10Z と増え、Status は全部「通常」。repo の test/fixtures にあるのは _02 だけで、research の _02 は fixture と sha256 が同じ（68897ac0…）。_01・_03・_04・_05 の sha256 と byte: 4696346eec53cb405e93ec6ba941230a9d857308232b075b7f5b0bb91b9705d4・10753、29a5a79ae45314fe76211f3f1f9b780948e1b2c2e9ca49ffe7ef4166f7551014・13573、8171a3dd83677d2b44076fb95726645ff5f37104aaceef88e2e3a02da15bc819・4570、92ffaa2cfcb55b88c91ad2805d65b0092c3b104fe400f08105ce3bd333cb545e・5675 (7) 今の木の帰結（コードからの推論）: _01 は受理、_02 は noObservation、_03・_04・_05 は identityInvalid で断られ、注意報の subject が active のまま残る (8) 既存の試験: tsunami-unit.test.ts:98 は 13 桁の番号 1 つを identityInvalid と見る（本契約の後も同じ）。並びの字を使う既存の試験は無い",
         "remaining": "発注前点検で、baseOid の木で tsunami.ts の行の番号と «» の数を数え直す（統合担当）"
       },
       {
@@ -101,8 +101,6 @@
       "reconstruction/src/runtime/owner-runtime.ts",
       "reconstruction/src/terminal/format.ts",
       "reconstruction/test/terminal/**",
-      "reconstruction/src/recovery/recovery.ts",
-      "reconstruction/test/recovery/**",
       "reconstruction/contracts/p3-terminal-layout2.json",
       "test/fixtures/38-39_02_01_250206_VTSE41.xml（統合担当が発注前に置く）",
       "test/fixtures/38-39_02_02_250206_VTSE51.xml",
@@ -113,12 +111,10 @@
     ],
     "allowedPaths": [
       "reconstruction/src/domains/tsunami/tsunami.ts（:207 と :211 の行の中だけ。:208〜:210 は変えない〔本契約が «» で引く〕。行を足さず消さない〔273 行のまま〕。:215・:224・:225 ほかを他の契約が «» で引く）",
-      "reconstruction/src/recovery/recovery.ts（:201 の bodyKey の行の中だけ。行を足さず消さない〔526 行のまま〕。:200 ほかを他の契約が «» で引く）",
-      "reconstruction/test/recovery/recovery.test.ts（末尾に P4-TME-T05 を 1 本足す。既存の試験の期待は変えない）",
       "reconstruction/src/terminal/format.ts（:482 の followKey の行の中だけ。行を足さず消さない〔1130 行のまま〕。:488 を他の契約が «» で引く）",
       "reconstruction/test/tsunami-unit/tsunami-multi-event.test.ts（新規。P4-TME-T01〜T04）",
       "統合担当だけ（発注前の commit。実装担当は触らない。行は HEAD 62ee388e の木の番号で、発注前点検で数え直す）: (1) test/fixtures に 38-39_02_01_250206_VTSE41.xml・38-39_02_03_250206_VTSE51.xml・38-39_02_04_250206_VTSE41.xml・38-39_02_05_250206_VTSE51.xml を公式サンプルの zip と同じ bytes で置く（sha256・byte は Q-TME-DRAFT-FACTS (6)） (2) reconstruction/tools/corpus/manifest.json: :77（38-39_02_02）の前に _01 の 1 行、後に _03・_04・_05 の 3 行（path の順）。欄は :77 に倣い（jmaPublished・byteIdentical・confirmedOriginal・publicApproved、classification telegram.earthquake、headType は file 名の型）、documentTimes（report／target、+09:00）は _01 2015-11-14T05:56:00／05:56:00、_03 06:55:00／06:52:00、_04 07:20:00／07:20:00、_05 07:24:00／07:10:00。meta.sha256 を取り直す。:78 より後が 4 行ずれ、p3-e05p-typhoon.json:233〜:235・:298 が引く :117〜:119・:243 は :121〜:123・:247 になる（中身は同じ） (3) reconstruction/tools/corpus/check-manifest.mjs の :33・:62・:97 の 323→327、:34 の 302→306、:149 の「302 XML」→「306 XML」（PASS の行は 327 fixtures、confirmedOriginal 157→161） (4) reconstruction/tools/corpus/README.md の :5 の「323件=XML302+JSON21」→「327件=XML306+JSON21」と追加の記録の 1 文、:44 の「全323件」→「全327件」 (5) reconstruction/contracts/p1-parser-boundary.json: :84 の「全323 fixture」→327、fixtureIds の :223（38-39_02_02）の前に _01・後に _03〜_05、:552 の「XML 302件」→306、:569 の「全302 XML」→306、:580 の「323 fixture台帳」→327。fixtureIds の 4 行で :223 より後が 4 行ずれ、他の契約が引く :474・:476・:479・:511・:535・:555・:557・:558・:566 が +4（中身は同じ。:46・:148 はずれない） (6) reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:46 の 302→306、:48・:50 の 301→305 (7) reconstruction/test/tsunami-unit/tsunami-unit.test.ts:628（E13）の changed の件数 26→30（_01・_03・_04・_05 が空の state から changed になる見込み、コードからの推論。:627 の noChange の 2 本は変わらない）。この commit から実装の commit までの間、E13 は _03 の identityInvalid で例外を投げて落ちる（:628 の値によらない）。赤になるのが確かなのは E13 で、ほかに _03〜_05 を通す試験（display-wire-detail.test.ts の全 corpus を owner へ渡す試験、(11) の端末の試験）が赤になるかは未実走。統合担当はこの commit で reconstruction の vitest を回して baseOid で赤の試験を記録し、main へは配送で実装と一緒に入れる (8) reconstruction/tools/corpus/sequences.json の meta.manifestSha256 と meta.sha256、全契約（2026-11-22 で 168 本、本契約を含む）の meta.manifestSha256・meta.sequencesSha256 を raw の文字列の置き換えで新しい値にし、meta.sha256 を hashConvention で取り直す。p3-e05p-classify.json:343 が p3-measure-harness.json:4（meta.sha256 の行）を引くので、p3-measure-harness の自己 digest を確定してから :343 を付け直し、最後に p3-e05p-classify の自己 digest を取る（前例 P3-SEQ-O10-O06-001 の配送の (2)〜(4)） (9) «» の付け直しは ~/dev/fleq-vault-archive/tools/reanchor-target.py で manifest.json と p1-parser-boundary.json を target に回す (10) 本契約の fixtureIds に 4 本を足し、readPaths の「（統合担当が発注前に置く）」を外す (11) check-manifest・check-sequences・check-contract の 3 本と、旧築の npm run build && npm test（test/fixtures を全件で回す test/engine/telegram-foundation/phase1-shadow.test.ts・test/ui/width-contract.test.ts を含む）を回す。reconstruction/test/eew-e01 の試験は P1-PARSER-BOUNDARY-001 の digest を取り直すまで落ちる（前例 Q-WOO-PROBE の (6)）。manifest の件数を数える reconstruction の試験は (6)(7) のほかに見つからなかった（display-wire-detail.test.ts の全 corpus の回しは件数を数えない。2026-11-22 の grep、未実走）。test/fixtures を直に回す新築の試験（reconstruction/test/terminal の width.test.ts・layout6.test.ts・digest.test.ts）にも 4 本が入る。固定の件数は無く下限だけだが、width.test.ts の「元の字に … が無い報は描いても … を出さない」「地域名が全部出る」に 4 本が通るかは未実走",
-      "統合担当だけ（配送の commit。実装担当は触らない）: (1) p3-tsunami-unit.json の :232（priorityRule の「EventID妥当性（14桁の数字）」）・:260（subjects）・:988（P3-C5-T01 の behavior）の行の中と meta.sha256（AC05 (3)） (2) p3-terminal-layout2.json:352（P3-TL2-AC09 (1)）の「同じ operation・EventID」の後に「（並びの報は先頭の番号、P4-TSUNAMI-MULTI-EVENT-001）」を足し、meta.sha256 を取り直す (3) p4-order-plan.md の :179（§2.3 の P3-TSUNAMI-UNIT-001 の行）の触る契約に本契約を、:226（§3.2 の tsunami-unit.ts の行）に「P4-TSUNAMI-MULTI-EVENT-001 は直列の外（tsunami.ts と format.ts の行の中だけ、P4-TME-D-ORDER=A）」を、行の中だけで足す（:228 を他の契約が «» で引くので行を足さない）"
+      "統合担当だけ（配送の commit。実装担当は触らない）: (1) p3-tsunami-unit.json の :232（priorityRule の「EventID妥当性（14桁の数字）」）・:260（subjects）・:988（P3-C5-T01 の behavior）の行の中と meta.sha256（AC05 (3)） (2) p3-terminal-layout2.json:352（P3-TL2-AC09 (1)）の「同じ operation・EventID」の後に「（並びの報は先頭の番号、P4-TSUNAMI-MULTI-EVENT-001）」を足し、meta.sha256 を取り直す (3) p4-order-plan.md の :179（§2.3 の P3-TSUNAMI-UNIT-001 の行）の触る契約に本契約を足し、同じ行に「本契約は P3-TERMINAL-LAYOUT-002 の :352〔P3-TL2-AC09〕も改める」を添え（§2.3 に P3-TERMINAL-LAYOUT-002 の行は無く、行を足さない）、:226（§3.2 の tsunami-unit.ts の行）に「P4-TSUNAMI-MULTI-EVENT-001 は直列の外（tsunami.ts と format.ts の行の中だけ、P4-TME-D-ORDER=A）」を、行の中だけで足す（:228 を他の契約が «» で引くので行を足さない）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -175,7 +171,7 @@
       "地震（seismic.ts）・EEW（eew.ts）・長周期地震動の観測情報の EventID の検査（P4-TME-D-SCOPE=A）",
       "並びの全部の番号を画面・通知に出すこと。端末の末尾の EventID は今の Head/EventID の字のまま（P4-TME-AC06）",
       "津波の電文の Body/Earthquake（震源・M）を読むこと（読み通し T-10、N0 の範囲の外の論点）",
-      "取り直しの一覧の U-T 以外の型の bodyKey と、本文の上限 300（composition-root.ts:2390）。U-T の bodyKey は先頭の番号で束ねる（P4-TME-D-RECOVERY-KEY=B、P4-TME-AC07）ので「A」と「A B」の本文は最新の 1 件だけ取り、上限の残りを今より多く使わない",
+      "取り直しの一覧のキー（recovery.ts:201 の bodyKey）と本文の上限 300（composition-root.ts:2390）。P4-TME-D-RECOVERY-KEY=A で変えない: recovery.ts:82 が EventID の字をそのまま頭に持つので「A」と「A B」は別のキーのままで、同じ地震の並びの報 1 通分だけ本文が多い。今の main でも並びの報の本文を取る（取ってから断る）ので、本文の数は今の main と同じ（Q-TME-DRAFT-FACTS (3)、分岐の reason）",
       "VTSE41 の若干の海面変動の有効期限（T0）と、active の注意報が期限を持たないこと（読み通し T-02 の後半。本契約は解除の報が断られない所まで）",
       "U-T の保存の形式・codec・schemaVersion、wire と view の型",
       "旧築（src/）",
@@ -195,7 +191,7 @@
       },
       {
         "id": "P4-TME-AC02",
-        "requirement": "続く（corpus 履歴、公式サンプルの 2015-11-14 の列、P4-TME-D-IDENTITY=A）: 空の state から 38-39_02_01 → _02 → _03 → _04 → _05 を順に受けると (1) _01: changed、記録 normal/VTSE41/20151114055157 が active で 771・772・773 が advisory (2) _02: unchanged（noObservation、今のまま） (3) _03: changed（今は identityInvalid）、観測の記録 normal/tsunamiObservation:VTSE51/20151114055157 が active（予報の記録が active なので） (4) _04: changed（今は identityInvalid）、同じ予報の記録が released で 771・772・773 が released、同じ採用の中で _03 の観測の記録が forecastEnded（P3-C5-OBS-LIFETIME=A） (5) _05: changed、観測の記録は forecastEnded のまま (6) 終わりの state で active の VTSE41 の記録は 0 件、記録の subject は予報 1・観測 1 の 2 件だけ（並びの字の subject が無い） (7) owner（receiveOwner）を通したどの step でも、U-T の読めない報のカード（unreadableCards）が増えず、subject が normal/unreadable の読めない報の通知の intent を作らない（P3-UM-AC12。カードと通知は owner が作り、reducer だけでは出ない）。各 step の期待はコードからの推論で、未実走",
+        "requirement": "続く（corpus 履歴、公式サンプルの 2015-11-14 の列、P4-TME-D-IDENTITY=A）: 空の state から 38-39_02_01 → _02 → _03 → _04 → _05 を順に受けると (1) _01: changed、記録 normal/VTSE41/20151114055157 が active で 771・772・773 が advisory (2) _02: unchanged（reason は unit の noChange。noObservation は parse の段の字で、今のまま） (3) _03: changed（今は identityInvalid）、観測の記録 normal/tsunamiObservation:VTSE51/20151114055157 が active（予報の記録が active なので） (4) _04: changed（今は identityInvalid）、同じ予報の記録が released で 771・772・773 が released、同じ採用の中で _03 の観測の記録が forecastEnded（P3-C5-OBS-LIFETIME=A） (5) _05: changed、観測の記録は forecastEnded のまま (6) 終わりの state で active の VTSE41 の記録は 0 件、記録の subject は予報 1・観測 1 の 2 件だけ（並びの字の subject が無い） (7) owner（receiveOwner）を通したどの step でも、U-T の読めない報のカード（unreadableCards）が増えず、subject が normal/unreadable の読めない報の通知の intent を作らない（P3-UM-AC12。カードと通知は owner が作り、reducer だけでは出ない）。各 step の期待はコードからの推論で、未実走",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:492 «7ee17b97df6aaa29»",
           "reconstruction/src/units/tsunami/tsunami-unit.ts:431 «4a5b72853fa52460»",
@@ -232,14 +228,6 @@
           "reconstruction/src/units/tsunami/tsunami-unit.ts:271 «9b69b4f8484ea8bc»",
           "reconstruction/src/runtime/shared-runtime.ts:107 «d3e2db312235b52f»",
           "reconstruction/src/view-projector/display-wire.ts:31 «1bcf7c6615a2f960»"
-        ]
-      },
-      {
-        "id": "P4-TME-AC07",
-        "requirement": "取り直し（P4-TME-D-RECOVERY-KEY=B）: U-T の取り直しの一覧は、頭の EventID を並びの先頭の番号（分け方は AC01 (5) と同じ）にした bodyKey で束ね、同じ記録の報は最後に受けた 1 件だけ本文を取る（recovery.ts:201 の bodyKey の行の中だけ）。「A」の頭と「A B」の頭が一覧にあれば本文は後に受けた「A B」の 1 件。U-T 以外の unit の bodyKey と、番号 1 つの頭のキーは今と同じ",
-        "evidenceRefs": [
-          "reconstruction/src/recovery/recovery.ts:16 «397c7c64d9eb1670»",
-          "reconstruction/src/recovery/recovery.ts:212 «d71734fd34553067»"
         ]
       },
       {
@@ -285,14 +273,6 @@
           "P4-TME-AC06"
         ],
         "behavior": "契約境界。端末の整形だけを呼ぶ（reconstruction/test/terminal の terminal-fixture の decodeFixture・reportUnit・terminal と terminalReport、layout2.test.ts の P3-TL2-T09 と同じ形）。38-39_02_01（A の注意報）の後に、38-39_02_04 の区域を津波警報（Code 51・Name 津波警報）に替えた報（A B）を出すと「津波警報に引き上げ  」で始まる行が出て、末尾の EventID は「20151114055157 20151114061750」の字のまま。38-39_02_04 の InfoType を取消に替えた報（A B）を挟むと、その後の同じ警報の報に「引き上げ」の行が出ない"
-      },
-      {
-        "testId": "P4-TME-T05",
-        "purpose": "acceptance",
-        "referenceIds": [
-          "P4-TME-AC07"
-        ],
-        "behavior": "受入条件。reconstruction/test/recovery/recovery.test.ts の末尾。bodiesFor（recovery.ts から import 済み）に U-T の VTSE41 の頭 2 件（同じ operation、EventID「20151114055157」と、後に受けた「20151114055157 20151114061750」）を渡すと、本文は後の「20151114055157 20151114061750」の頭 1 件だけ"
       }
     ],
     "requiredCommands": [
@@ -322,7 +302,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。実装で中身の変わる行（tsunami.ts:207・:211、format.ts:482、recovery.ts:201）は本契約を含めどの契約も «» で引かない（本契約は :208・:210・:199・:228、format.ts:480・:504、recovery.ts:16・:212 を引く。2026-11-22 r1 で付け替えた。recovery.ts:201 を引いていたのは本契約の AC05 だけで、外した）ので、実装の後も FAIL 0。配送の原文の改訂（AC05 (3)）で変わる p3-tsunami-unit.json の :232・:260 を引く本契約の 3 件は、統合担当が配送の commit で付け直す"
+        "purpose": "全契約。実装で中身の変わる行（tsunami.ts:207・:211、format.ts:482）は本契約を含めどの契約も «» で引かない（本契約は :208・:210・:199・:228、format.ts:480・:504 を引く。2026-11-22 r1 で付け替えた）ので、実装の後も FAIL 0。配送の原文の改訂（AC05 (3)）で変わる p3-tsunami-unit.json の :232・:260 を引く本契約の 3 件は、統合担当が配送の commit で付け直す"
       },
       {
         "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
@@ -363,14 +343,14 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "最初の作業: 分岐の ruling を読む。P4-TME-D-IDENTITY・P4-TME-D-FORMAT・P4-TME-D-SCOPE・P4-TME-D-ORDER に「未」が残っていたら着手せず blocked で返す。次に、直す前の木で T01 を書いて走らせ、_03・_04・_05 が identityInvalid で断られ終わりに active の VTSE41 が残ること（今の欠け）を確かめて報告する。違えば止めて報告する。直す前の木（baseOid）では E13（tsunami-unit.test.ts の changed の件数）が _03 で例外を投げて落ちる（統合担当の発注前の commit が fixture を足し、件数を直した後の 30 にしたため）。直した後に E13 が通らなければ（changed が 30 件でない・例外）、期待を変えずに止めて、実の件数と fixture を報告する。直した後に AC02 のどれかの step が期待と違えば（例: _03〜_05 の本文が識別の後の検査で読めない所の印を作る）、コードも期待も合わせずに止めて、step・欄・実の値を報告する（AC02 の期待は _03〜_05 の本文を識別の後まで通したことの無いコードからの推論）",
-      "順序: 発注の前に統合担当が 4 本の fixture を置く（Q-TME-FIXTURES）。P4-TME-D-IDENTITY=A なら tsunami-unit.ts の §3.2 の直列の外（P4-TME-D-ORDER）。baseOid は統合担当が割り当てる",
-      "最小実装・最小テスト: 足す仕組みは無い（識別の 2 行と端末の続報の覚えの 1 行と取り直しの bodyKey の 1 行の中で並びを分けて先頭をキーにするだけ）。新しい helper・型・定数を足さない。手製の形（T02・T03・T04）は試験の中で既存の fixture の文字列から作り、fixture の file を足さない。追加した試験ごとに対応（corpus 履歴・契約境界）を 1 行で書く",
+      "順序: 発注の前に統合担当が 4 本の fixture を置く（Q-TME-FIXTURES）。P4-TME-D-IDENTITY=A なら tsunami-unit.ts の §3.2 の直列の外（P4-TME-D-ORDER）。baseOid は統合担当が割り当てる。発注前の commit を main の外に置く運びでは baseOid が履歴から外れうるので、配送は発注前の commit の上に積み、push の前に git merge-base --is-ancestor <baseOid> HEAD を確かめる（統合担当）",
+      "最小実装・最小テスト: 足す仕組みは無い（識別の 2 行と端末の続報の覚えの 1 行の中で並びを分けて先頭をキーにするだけ）。新しい helper・型・定数を足さない。手製の形（T02・T03・T04）は試験の中で既存の fixture の文字列から作り、fixture の file を足さない。追加した試験ごとに対応（corpus 履歴・契約境界）を 1 行で書く",
       "受信経路の計算量: 並びを分けるのは報 1 通の EventID の字の 1 回の走査だけで、state の記録との突き合わせを足さない",
-      "行の数: tsunami.ts・format.ts・recovery.ts の直した後の wc -l を書き、273 行・1130 行・526 行のままであること。足すコメントは「なぜ」と根拠の ID（P4-TME-AC01、共通別紙イ）だけを日本語で、行番号を書かない",
+      "行の数: tsunami.ts と format.ts の直した後の wc -l を書き、273 行・1130 行のままであること。足すコメントは「なぜ」と根拠の ID（P4-TME-AC01、共通別紙イ）だけを日本語で、行番号を書かない",
       "既存の試験の期待を変えない（E13 の件数は統合担当が発注前の commit で替える）。変える要が出たら止めて、試験名・旧の期待・理由を報告する",
-      "試験の設定の隔離: N/A（owner・reducer・端末の整形・bodiesFor だけを呼び、設定を読まない）",
+      "試験の設定の隔離: N/A（owner・reducer・端末の整形だけを呼び、設定を読まない）",
       "旧築（src/）を変えない。test/fixtures は統合担当の発注前の commit で変わるので、旧築の build と test は統合担当がその commit で回す（requiredCommands の preparation）",
-      "残存として成果物に書く: 資料が認めるのは、システム障害で発信官署が異なる・複数地震が連続するなどで同じ地震でも番号が一貫しない場合もあること（共通別紙イ 4.(2)、:1829〜:1830）まで。ここからは推論: そのとき先頭の番号を変える報（順の入れ替え・先頭を外す）が来ると別の記録になり、前の注意報が期限なしで残る（P4-TME-D-IDENTITY=A の弱み）。また B の番号だけの記録が先にある所へ「A B」の報が来ると、A の記録に続き、B の記録は残る（B の注意報が期限なしで残りうる）。並びの最大の数は資料に無く、上限を置かない"
+      "残存として成果物に書く: 資料が認めるのは、システム障害で発信官署が異なる・複数地震が連続するなどで同じ地震でも番号が一貫しない場合もあること（共通別紙イ 4.(2)、:1829〜:1830）まで。ここからは推論: そのとき先頭の番号を変える報（順の入れ替え・先頭を外す）が来ると別の記録になり、前の注意報が期限なしで残る（P4-TME-D-IDENTITY=A の弱み）。また B の番号だけの記録が先にある所へ「A B」の報が来ると、A の記録に続き、B の記録は残る（B の注意報が期限なしで残りうる）。並びの最大の数は資料に無く、上限を置かない。取り直しで、保存の後の停止中に出た解除より古い報が遅れて一覧に届くと、bodiesFor は receivedAtMs が最大の 1 件を選ぶので解除を取りこぼしうる。EventID が 1 つの報でも今の main で同じく起きるので、本契約の範囲外で今の main と同じ"
     ],
     "unresolvedQuestions": [
       {
