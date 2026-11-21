@@ -479,7 +479,7 @@ function tsunami(report: Extract<TerminalReport, { kind: "tsunami" }>, memory: M
   const title = `${base ?? head.headType}${statusMark(head.status)}${cancel ? " 取消" : ""}`;
   const time = clockOf(reportRaw), bandLines = band(title, roles, time, ctx), tail = footer(head.headType, head.eventId);
   // 区分の覚えは同じ運用区分・EventID の前の VTSE41 だけ（P3-TL2-AC09）。取消で消す。
-  const followKey = head.eventId == null ? null : `${head.status}/${head.eventId}`;
+  const followKey = head.eventId == null ? null : `${head.status}/${head.eventId.trim().split(/[ \t\n\r]+/)[0]}`; // P4-TME-AC06: 鍵は並びの先頭の番号
   if (cancel) {
     if (head.headType === "VTSE41" && followKey != null) memory.tsunami.delete(followKey);
     return compose(bandLines, roles, { summary: textLines(head.headline, ctx.body), tables: [], supplement: [], tail, recap: [] }, ctx);

@@ -204,11 +204,11 @@ function parseTsunami(material: DecodedMaterial): ParseResult {
   const family = material.headType === "VTSE41" || material.headType === "VTSE51" || material.headType === "VTSE52"
     ? material.headType : null;
   if (family == null) return reject("requiredStructureInvalid");
-  const eventId = material.eventIdRaw.trim();
+  const raw = material.eventIdRaw.trim(), parts = raw.split(/[ \t\n\r]+/), eventId = parts[0]; // P4-TME-AC01: 寄与する地震が複数なら番号を空白で並べる（共通別紙イ 3.）。鍵は先頭の番号
   if (eventId === "") return reject("identityMissing");
   const head = children(material.xml, "Head")[0] ?? null;
   const eventNodes = children(head, "EventID");
-  if (!/^\d{14}$/.test(eventId) || eventNodes.length !== 1 || scalar(eventNodes[0]) !== eventId) return reject("identityInvalid");
+  if (!parts.every((part) => /^\d{14}$/.test(part)) || eventNodes.length !== 1 || scalar(eventNodes[0]) !== raw) return reject("identityInvalid");
   // P3-UM-AC01 (2): 同じ所を印の part にもする（WARN は所ごとに 1 件のまま、part は (site, scope) ごと）。
   const warnings = new Map<string, "requiredStructureMissing" | "requiredStructureInvalid">();
   const notes = unreadableNotes();
