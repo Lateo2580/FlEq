@@ -1,0 +1,336 @@
+{
+  "meta": {
+    "draftedFromOid": "38831d5951781a669358c214cba6a506b60c28b3",
+    "sha256": "56e33e0e3f59095e812e07e14ae84946569657fabf6f8c7cb5757d3ac4568e9f",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-TME-D-IDENTITY",
+        "kind": "作者",
+        "A": "並びの先頭の地震識別番号を記録の鍵にする。subject（`${operation}/VTSE41/${eventId}`・`${operation}/tsunamiObservation:${family}/${eventId}`）と記録の eventId は 14 桁の番号 1 つのまま。前の単独の報（20151114055157）の記録に、並びの報（20151114055157 20151114061750）がそのまま続く。並びの残りの番号は記録に持たない",
+        "B": "並びの番号のどれかが重なる記録に続ける。記録に並び全体を持ち、受けるたびに同じ operation の記録の並びと突き合わせる。鍵は最初に受けた報の先頭の番号",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（作者の裁定待ち）",
+        "ruling": "未",
+        "reason": "資料: 気象庁は並びの報を前の単独の報と同じ情報単位として扱う。出現例 6（解説資料の共通別紙イ、:2010〜:2039）は 18:43 に「20100714184000」で津波注意報を出し、18:50 に第 2 の地震を足して「20100714184000 20100714185000」で切り替え、21:00 の解除も同じ並び。共通別紙ウ（取消電文の運用）の例 2（:2060〜:2064）は、A の番号だけの報と A・B の報を、A・B の取消 1 通で全部取り消す（A だけの取消は出さない）。共通別紙イ 4.(2)（:1826〜:1828）は「いったん割り振られた地震識別番号は…その後の電文の EventID の内容に出現する」。資料に無いこと: 並びの順の規則（例では後ろに足すだけ）、番号を並びから外すこと、並びの最大の数。\n場面（2015-11-14 の公式サンプルの列）: 05:56 に 20151114055157 で種子島・屋久島地方ほか 3 区域に津波注意報、06:55・07:24 の観測と 07:20 の解除は「20151114055157 20151114061750」。A では 07:20 の解除で 05:56 の注意報の記録が released になり、注意報のカードが消える。B でも同じ。A と B の画面が分かれるのは、気象庁が先頭の番号を変える報（順を入れ替える・先頭を外す）を出したときだけで、A はそのとき新しい記録を作り、前の記録の注意報が期限なしで残る（VTSE41 の active は retainUntil を持たない）。B は残さない。\n費用: A は tsunami.ts の識別の 2 行の中だけで、保存の形・codec（tsunami-unit.ts:1090・:1139・:1144 の 14 桁の検査）・確認の範囲（shared-runtime.ts:107）・wire の eventId の上限 40 字（display-wire.ts:31）・観測と予報の結び付き（tsunami-unit.ts:271・:431・:518 の eventId の一致）を変えない。B は記録に並びの欄を足すので保存の形と codec が変わり（新築の開発の保存は P5 の前は初期化してよい、p4-order-plan.md:167）、並びが 2 つの記録に重なる報（A の記録と B の記録が別にある所へ「A B」）で続ける先が 1 つに決まらず、「一入力は一subjectだけを変える」（p3-tsunami-unit.json:260）を破る。\n出さない案（並び全体の字をそのまま鍵にする。旧築の telegram-parser.ts と同じ字）: 07:20 の解除が別の記録になり、05:56 の注意報の記録が active のまま残る。共通別紙ウの例 2 の取消も A だけの記録に届かない。資料の運用と合わないので案に入れない。\n推奨は A: 資料が示す運用（後ろに足す・番号を外さない）の範囲で B と同じ画面になり、変える所が 2 行で済む。A の弱み（先頭の番号が変わる報）は資料に無い形で、来たら読めない報ではなく別の注意報のカードとして残る"
+      },
+      {
+        "id": "P4-TME-D-FORMAT",
+        "kind": "統合担当",
+        "A": "Head/EventID の字（前後の空白を除いた後）を xs:list の空白（半角スペース・タブ・LF・CR）の並びで分け、各要素が 14 桁の数字なら通す。全角スペース（U+3000）と NBSP は区切りにしない（JS の \\s とは違う。xs:list の空白は 4 種だけ）",
+        "B": "半角スペース 1 個の区切りだけを通す（`^\\d{14}( \\d{14})*$`）。改行・タブ・連続の空白は identityInvalid",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-22 00:1x）",
+        "ruling": "A（統合担当の決め 2026-11-22 00:1x。整理表 :195 の ※２ が xs:list と定め、XML Schema の list は空白 4 種で区切る）",
+        "reason": "運用整理表の ※２（jma-2026-head-control-list.txt:195）は「要因となる地震識別番号を xs:list 型で列挙する」、共通別紙イ 3.（:1819〜:1820）は「半角スペースで区切って列挙」。xs:list は空白の並びを 1 つの区切りとして読む型なので、A はスキーマどおりの字を全部通し、B は気象庁の例の字だけを通す。気象庁が出す字（公式サンプル 3 通）はどちらでも通り、画面は分かれない。同じ番号が並びに 2 度出る字は資料に無く、A の鍵（先頭）では害が無いので断らない（検査を足さない）"
+      },
+      {
+        "id": "P4-TME-D-SCOPE",
+        "kind": "統合担当",
+        "A": "津波の 3 種（VTSE41・VTSE51・VTSE52）だけで並びを受ける。地震（U-Q の seismic.ts）・EEW（eew.ts）・長周期地震動の観測情報は今の「14 桁の番号 1 つ」の検査のまま",
+        "B": "EventID を読む全分野で並びを受ける",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-22 00:1x）",
+        "ruling": "A（統合担当の決め 2026-11-22 00:1x。番号を並べるのは共通別紙イ 3. の (10)〜(12) の津波 3 種だけ）",
+        "reason": "共通別紙イ 3.（:1815〜:1821）: 1.(1)〜(9)（震度速報・地震情報 5 種・緊急地震速報の警報・予報・配信テスト）は「1 つの地震識別番号のみ」、(10)〜(12)（津波警報・注意報・予報、津波情報、沖合の津波観測に関する情報）は「1 つ又は複数」。運用整理表で ※２ が付くのも 38 津波情報・39 津波警報・注意報・予報・61 沖合の津波観測に関する情報の 3 行だけで、78 長周期地震動に関する観測情報は ※１ だけ（:91・:96・:128・:153）。B は資料に無い形を受けるために地震と EEW の識別を緩める"
+      },
+      {
+        "id": "P4-TME-D-ORDER",
+        "kind": "統合担当",
+        "A": "先に出す。P4-TME-D-IDENTITY=A なら本契約は tsunami.ts の 2 行の中と新しい試験 file だけを触り、p4-order-plan.md §3.2 の tsunami-unit.ts の行（B0 → P4-REMOVAL-LOSS-001 → N0 → T0）の直列に入らない。B0 は配送済み。P4-REMOVAL-LOSS-001 の r0 はこの木に無く起草で読んでいないので、tsunami.ts を触らないことは統合担当が発注前に確かめる（触らなければ並走できる）。発注前の fixture の追加（manifest と件数の波及）と配送の p3-tsunami-unit.json の行の中の改訂は、統合担当の直列合流で他の契約と順に当てる",
+        "B": "§3.2 の行に入れる: B0 → 本契約 → P4-REMOVAL-LOSS-001 → N0 → T0。試験は tsunami-unit.test.ts の末尾に足す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-22 00:1x）",
+        "ruling": "A（統合担当の決め 2026-11-22 00:1x。P4-TME-D-IDENTITY が A のとき。B なら §3.2 の直列 B0 → 本契約 → P4-REMOVAL-LOSS-001 に入れる。P4-REMOVAL-LOSS-001 r0 は tsunami.ts を触る file に挙げていない〔draft/p4-rl b63cc781 の表 §4〕。発注前点検でもう 1 度確かめる）",
+        "reason": "今の新築は並びの報を全部 identityInvalid で断り（tsunami.ts:211）、保護 3 分野の津波で、解除の報が断られると注意報が期限なしで残り、読めない報のカードが 1 枚増える（読み通しの T-02、コードからの推論）。受理の欠けなので早い方がよい。A は §3.2 の行が守る tsunami-unit.ts を触らないので直列を待つ理由が無い。p3-tsunami-unit.json は §3.2 の行に入るが、本契約で変えるのは統合担当が配送の commit で当てる :232・:260・:988 の行の中だけで、N0 の発注は tsunami-unit.ts の行の中だけ（p4-notice-text-sound.json の allowedPaths）。P4-TME-D-IDENTITY=B なら tsunami-unit.ts の codec と p3-tsunami-unit.types.ts を変えるので B（§3.2 の直列、p4-order-plan.md:226）にする"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-TME-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-22 起草（draft/p4-tme、main 38831d59 の木を読んだ。走らせていない）",
+        "closed": "(1) 断る所: tsunami.ts:207 で eventIdRaw を trim し、:211 で `/^\\d{14}$/`・Head/EventID が 1 個・その字が eventIdRaw と同じ、のどれかが外れると identityInvalid。並びの字は最初の検査で外れる。:211 は他の契約が «» で引かない（tsunami.ts を引く «» は :18・:56・:199・:215・:224・:225・:245・:268） (2) 鍵: subject は :228〜:229 で eventId をそのまま含む。記録の eventId は観測と予報を結ぶ（tsunami-unit.ts:271 の退去・:431 の OBS-LIFETIME・:518 の観測の状態）。codec は 14 桁を確かめる（:1090・:1139）。確認の範囲（shared-runtime.ts:107）も U-T の event に 14 桁を求める。wire の eventId は 40 字まで（display-wire.ts:31。番号 3 つの並びは 44 字） (3) 取り直し: recovery.ts:201 の bodyKey は一覧の頭の EventID の字をそのまま鍵にするので、「A」と「A B」は別の鍵になり、bodiesFor（:212〜:228）がそれぞれの最新を受けた順に並べて本文にする（composition-root.ts:2162）。頭の EventID の使い道はこの鍵だけで、U-T の確認の範囲は採った記録の eventId から作る（shared-runtime.ts:359、tsunami-unit.ts:940）。P4-TME-D-IDENTITY=A では 2 通とも同じ subject に入り、unit が Control/DateTime で比べる（新しい報が勝つ）ので、変えなくても結果は合う（取る本文が 1 通多く、RES-03 の本文の件数を 1 つ多く使うだけ） (4) 端末: terminal/material.ts:40 は Head/EventID の字をそのまま読み、:375〜:382 は U-T が採った報（と観測の無い VTSE51）だけを端末に出す。本契約の後は並びの報の行が出て、末尾の EventID は並びの字のまま（format.ts の footer）。字は変えない (5) 旧築: src/dmdata/telegram-parser.ts は EventID の字をそのまま持つ（統合担当の確かめ） (6) 公式サンプル（~/research/fleq-jma-premises/sources/samples、2026-09-17 の zip）: 38-39_02_01（VTSE41・05:56・20151114055157・津波注意報 62 が 771・772・773、予報 71 が 7 区域）、_02（VTSE51・05:58・同じ番号 1 つ・Observation が無い満潮時刻と到達予想時刻の報）、_03（VTSE51・06:55・並び・観測点 9）、_04（VTSE41・07:20・並び・津波注意報解除 60 が 771・772・773 だけ）、_05（VTSE51・07:24・並び・観測点 1）。Control/DateTime は 20:56:28Z → 20:58:04Z → 21:55:29Z → 22:20:01Z → 22:24:10Z と増え、Status は全部「通常」。repo の test/fixtures にあるのは _02 だけで、research の _02 は fixture と sha256 が同じ（68897ac0…）。_01・_03・_04・_05 の sha256 と byte: 4696346eec53cb405e93ec6ba941230a9d857308232b075b7f5b0bb91b9705d4・10753、29a5a79ae45314fe76211f3f1f9b780948e1b2c2e9ca49ffe7ef4166f7551014・13573、8171a3dd83677d2b44076fb95726645ff5f37104aaceef88e2e3a02da15bc819・4570、92ffaa2cfcb55b88c91ad2805d65b0092c3b104fe400f08105ce3bd333cb545e・5675 (7) 今の木の帰結（コードからの推論）: _01 は受理、_02 は noObservation、_03・_04・_05 は identityInvalid で断られ、注意報の subject が active のまま残る (8) 既存の試験: tsunami-unit.test.ts:98 は 13 桁の番号 1 つを identityInvalid と見る（本契約の後も同じ）。並びの字を使う既存の試験は無い",
+        "remaining": "発注前点検で、baseOid の木で tsunami.ts の行の番号と «» の数を数え直す（統合担当）"
+      },
+      {
+        "id": "Q-TME-SOURCE",
+        "status": "closed",
+        "source": "2026-11-22 起草（imozuru の sources/manual/地震火山関連_解説資料.txt・sources/jma-2026-head-control-list.txt を読んだ）",
+        "closed": "EventID の運用の写し: (1) 並び: 津波に関連する情報では当該警報等に寄与している地震の番号を書くので、1 つの電文に複数の番号が出ることがある（解説資料 :240〜:244）。(10)〜(12) の電文は 1 つ又は複数の番号を半角スペースで区切って列挙する（共通別紙イ 3.、:1815〜:1821）。運用整理表 ※２ は xs:list 型（:195） (2) 範囲: (1)〜(9) は 1 つだけ（:1816〜:1817） (3) 番号: 14 桁、気象庁のシステムが処理を始めた時刻を割り振り、いったん割り振った番号はその地震のその後の電文に出現する。編集官署が変わる・複数の地震が続くと同じ地震でも番号が一貫しないことがある（:1822〜:1830） (4) 追加の向き: 出現例 6（:2010〜:2039）は第 2 の地震の番号を後ろに足し、観測の情報と解除まで同じ並び (5) 取消: InfoType「取消」は独立した情報単位の全体を取り消す。例 2 は A の報と A・B の報を A・B の取消 1 通で取り消し、A だけの取消は出さない（共通別紙ウ、:2048〜:2064） (6) 独立した情報単位: Control/Title・Control/Status・地震識別番号の組み合わせが一致する一連の情報、津波に関連する情報は複数の番号を持つ場合がある（運用整理表 ※１、:194）。字どおりには並びの字が組み合わせの一部に読めるが、(4)(5) の例が並びの報を前の報と同じ単位として扱う (7) 資料に無いこと: 並びの順の規則、番号を並びから外すこと、並びの最大の数、同じ番号の重複",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。鍵は運用区分ごとに今と同じ形（`${operation}/…/${eventId}`）で作り、訓練・試験の並びの報が通常の記録に続くことはない"
+    }
+  },
+  "contract": {
+    "contractId": "P4-TSUNAMI-MULTI-EVENT-001",
+    "mode": "implementation",
+    "objective": "津波の電文の Head/EventID は、警報等に寄与する地震が 2 つ以上あると番号を空白で並べる（解説資料 :240〜:244、共通別紙イ 3.）。今の新築はこの報を identityInvalid で断る（tsunami.ts:211）ので、公式サンプルの 2015-11-14 の列では 06:55 の観測・07:20 の解除・07:24 の観測が断られ、05:56 の津波注意報が期限なしで残り、読めない報のカードが増える。並びの報を受け、前の単独の番号の報と同じ記録に続けて、解除で注意報を消す（P4-TME-D-IDENTITY）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-tsunami-multi-event.json",
+      "reconstruction/contracts/p3-tsunami-unit.json",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts",
+      "reconstruction/src/domains/tsunami/tsunami.ts",
+      "reconstruction/src/units/tsunami/tsunami-unit.ts",
+      "reconstruction/test/tsunami-unit/**",
+      "test/fixtures/38-39_02_01_250206_VTSE41.xml（統合担当が発注前に置く）",
+      "test/fixtures/38-39_02_02_250206_VTSE51.xml",
+      "test/fixtures/38-39_02_03_250206_VTSE51.xml（統合担当が発注前に置く）",
+      "test/fixtures/38-39_02_04_250206_VTSE41.xml（統合担当が発注前に置く）",
+      "test/fixtures/38-39_02_05_250206_VTSE51.xml（統合担当が発注前に置く）",
+      "test/fixtures/38-39_03_01_210805_VTSE41.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/tsunami/tsunami.ts（:207〜:211 の行の中だけ。行を足さず消さない〔273 行のまま〕。:215・:224・:225 ほかを他の契約が «» で引く）",
+      "reconstruction/test/tsunami-unit/tsunami-multi-event.test.ts（新規。P4-TME-T01〜T03）",
+      "統合担当だけ（発注前の commit）: test/fixtures に 38-39_02_01・_03・_04・_05 の 4 本を公式サンプルの zip と同じ bytes で置き、reconstruction/tools/corpus/manifest.json に 4 行（38-39_02_02 の行の前後、path の順）、check-manifest.mjs の件数（323→327・302→306 の 5 か所）、README.md の :5・:44、p1-parser-boundary.json の件数の文と fixtureIds、p1-parser-boundary.test.ts の件数、sequences.json の meta.manifestSha256 と各契約の meta の digest の取り直し。実装担当は触らない",
+      "統合担当だけ（配送の commit）: p3-tsunami-unit.json の :232（priorityRule の「EventID妥当性（14桁の数字）」）・:260（subjects）・:988（P3-C5-T01 の behavior）の行の中と meta.sha256（AC05 (3)）。実装担当は触らない"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-tsunami-multi-event.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M04"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P3-TSUNAMI-UNIT-001",
+      "P4-DISPLAY-WIRE-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiForecastSubject",
+      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiObservationSubject"
+    ],
+    "publicFunctions": [
+      "口は変えない（parseTsunami と U-T の reducer のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__38-39_02_02_250206_VTSE51",
+      "test__fixtures__38-39_03_01_210805_VTSE41"
+    ],
+    "sequenceIds": [
+      "O05",
+      "O09"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（P4-TME-D-IDENTITY=A では記録の eventId は 14 桁の番号 1 つのまま、codec と schemaVersion を変えない）"
+    ],
+    "nonPersistedFields": [
+      "並びの 2 番目より後の番号（読んで捨てる。outcome・view・wire にも出さない）"
+    ],
+    "outOfScope": [
+      "地震（seismic.ts）・EEW（eew.ts）・長周期地震動の観測情報の EventID の検査（P4-TME-D-SCOPE=A）",
+      "並びの全部の番号を画面・端末・通知に出すこと（端末は今も Head/EventID の字をそのまま読む）",
+      "津波の電文の Body/Earthquake（震源・M）を読むこと（読み通し T-10、N0 の範囲の外の論点）",
+      "取り直しの一覧の鍵（recovery.ts:201 の bodyKey）。「A」と「A B」は別の鍵のまま、取る本文が 1 通多いだけで結果は unit の版の比べで合う（Q-TME-DRAFT-FACTS (3)）",
+      "VTSE41 の若干の海面変動の有効期限（T0）と、active の注意報が期限を持たないこと（読み通し T-02 の後半。本契約は解除の報が断られない所まで）",
+      "U-T の保存の形式・codec・schemaVersion、wire と view の型",
+      "旧築（src/）",
+      "sequences.json の系列に 2015-11-14 の列を足すこと（試験は本契約の試験 file の中で流す）",
+      "spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-TME-AC01",
+        "requirement": "受ける（P4-TME-D-SCOPE=A・P4-TME-D-FORMAT=A）: (1) VTSE41・VTSE51・VTSE52 で、Head/EventID の字（前後の空白を除く）が空白の並びで区切った 14 桁の数字 1 つ以上なら identity を通す (2) 記録の鍵の eventId は並びの先頭の番号（P4-TME-D-IDENTITY=A）。subject の形（`${operation}/VTSE41/${eventId}`・`${operation}/tsunamiObservation:${family}/${eventId}`）、Head/EventID が 1 個であること、その字が eventIdRaw と同じことの検査は今のまま (3) 番号が 1 つの報の読みは今と同じ（subject・eventId・reason が変わらない） (4) 識別の後の検査（InfoType・Serial・Body）の順と reason は今のまま",
+        "evidenceRefs": [
+          "reconstruction/src/domains/tsunami/tsunami.ts:207 «d8389355b4f02ce0»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:211 «7e592dbca3bd783b»",
+          "reconstruction/src/domains/tsunami/tsunami.ts:228 «670d1b4a65feeaaf»",
+          "docs/specs/reconstruction-p0-contracts.md:534 «92491768609ba6ce»"
+        ]
+      },
+      {
+        "id": "P4-TME-AC02",
+        "requirement": "続く（corpus 履歴、公式サンプルの 2015-11-14 の列、P4-TME-D-IDENTITY=A）: 空の state から 38-39_02_01 → _02 → _03 → _04 → _05 を順に受けると (1) _01: changed、記録 normal/VTSE41/20151114055157 が active で 771・772・773 が advisory (2) _02: unchanged（noObservation、今のまま） (3) _03: changed（今は identityInvalid）、観測の記録 normal/tsunamiObservation:VTSE51/20151114055157 が active（予報の記録が active なので） (4) _04: changed（今は identityInvalid）、同じ予報の記録が released で 771・772・773 が released、同じ採用の中で _03 の観測の記録が forecastEnded（P3-C5-OBS-LIFETIME=A） (5) _05: changed、観測の記録は forecastEnded のまま (6) 終わりの state で active の VTSE41 の記録は 0 件、記録の subject は予報 1・観測 1 の 2 件だけ（並びの字の subject が無い） (7) どの step でも読めない報の印と失敗の通知（P3-NL-AC02 の固定の subject）を作らない。各 step の期待はコードからの推論で、未実走",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:431 «4a5b72853fa52460»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:518 «a44bf3e895ec2d1d»",
+          "reconstruction/contracts/p3-tsunami-unit.json:260 «a898a5a89848fb6c»"
+        ]
+      },
+      {
+        "id": "P4-TME-AC03",
+        "requirement": "取消（共通別紙ウの例 2）: 番号 1 つの報（38-39_02_01）の記録は、並び（20151114055157 20151114061750）を持つ VTSE41 の取消 1 通で cancelled になる。今の規則（取消の前に active だった subject だけ通知する、P3-NL-AC09 (1)）は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/domains/tsunami/tsunami.ts:228 «670d1b4a65feeaaf»",
+          "reconstruction/contracts/p3-tsunami-unit.json:260 «a898a5a89848fb6c»"
+        ]
+      },
+      {
+        "id": "P4-TME-AC04",
+        "requirement": "断るものは今のまま: (1) 並びの中に 14 桁の数字でない要素がある（13 桁・15 桁・数字の外の字・区切りの外の字〔カンマなど〕）なら identityInvalid、state は同じ参照 (2) Head/EventID が 2 個以上なら identityInvalid、空なら identityMissing（今のまま） (3) 番号 1 つで 14 桁でない報は identityInvalid（tsunami-unit.test.ts:98 の期待のまま）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/tsunami/tsunami.ts:211 «7e592dbca3bd783b»",
+          "reconstruction/test/tsunami-unit/tsunami-unit.test.ts:98 «b3086512d58c9014»",
+          "reconstruction/contracts/p3-tsunami-unit.json:232 «e96f00cf2273778e»"
+        ]
+      },
+      {
+        "id": "P4-TME-AC05",
+        "requirement": "変えないものと統合担当の改訂: (1) 記録の eventId が 14 桁の番号 1 つのままなので、codec の検査（tsunami-unit.ts:1090・:1139・:1144）、確認の範囲（shared-runtime.ts:107）、wire の eventId の上限（display-wire.ts:31）、観測と予報の結び付き（tsunami-unit.ts:271・:431・:518）を変えない。変える要が出たら止めて報告する (2) tsunami-unit.ts・p3-tsunami-unit.types.ts・既存の試験の期待を変えない (3) 統合担当が配送の commit で p3-tsunami-unit.json の行の中を改める: :232 の「EventID妥当性（14桁の数字）」を「EventID妥当性（14桁の数字を空白で並べた 1 つ以上。鍵は先頭の番号、P4-TSUNAMI-MULTI-EVENT-001）」の趣旨に、:260 の subjects の末尾に「eventId は Head/EventID の並びの先頭の番号（P4-TSUNAMI-MULTI-EVENT-001）」を、:988 の「14桁でない」を「14桁の数字の並びでない」に。meta.sha256 を取り直し、:232・:260 を引く «»（本契約を含む）を付け直す",
+        "evidenceRefs": [
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1090 «210519baf46d5d62»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1139 «763f748e86f09ea4»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:1144 «1d781a2fed40e33b»",
+          "reconstruction/src/units/tsunami/tsunami-unit.ts:271 «9b69b4f8484ea8bc»",
+          "reconstruction/src/runtime/shared-runtime.ts:107 «d3e2db312235b52f»",
+          "reconstruction/src/view-projector/display-wire.ts:31 «1bcf7c6615a2f960»",
+          "reconstruction/src/recovery/recovery.ts:201 «6be278cd3569095e»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-TME-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P4-TME-AC01",
+          "P4-TME-AC02"
+        ],
+        "behavior": "corpus 履歴。test/fixtures の 38-39_02_01〜_05 をそのままの bytes で空の state から順に reducer へ渡し、AC02 (1)〜(7) を step ごとに確かめる（各 step の decision・予報と観測の記録の subject と effective、_01 と _04 の 3 区域の areaClass、終わりの記録の件数、読めない報の印と失敗の通知が 0）。時計は各報の ReportDateTime に合わせる（観測の 24 時間の失効を跨がない）。試験のコメントに解説資料の共通別紙イ 3.・出現例 6・P4-TME-AC02 を書く"
+      },
+      {
+        "testId": "P4-TME-T02",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P4-TME-AC03"
+        ],
+        "behavior": "契約境界。38-39_02_01 を受けた後に、38-39_03_01（VTSE41 の取消）の EventID を「20151114055157 20151114061750」に、Control/DateTime・ReportDateTime・TargetDateTime を _01 より後（_04 より前）に替えた報を受けると、記録 normal/VTSE41/20151114055157 が cancelled（区域 0 件）。替えるのは EventID と時刻の要素だけ"
+      },
+      {
+        "testId": "P4-TME-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P4-TME-AC01",
+          "P4-TME-AC04"
+        ],
+        "behavior": "契約境界。38-39_02_04 の EventID だけを替える: (a)「20151114055157 2015111406175」（2 番目が 13 桁）と「20151114055157,20151114061750」は identityInvalid で state は同じ参照 (b)「20151114055157\\n20151114061750」（改行の区切り）は受理され、記録の subject が normal/VTSE41/20151114055157（P4-TME-D-FORMAT=A の境界）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "npm run build && npm test",
+        "cwd": ".",
+        "target": "test/fixtures",
+        "stage": "preparation",
+        "purpose": "統合担当の発注前の commit（test/fixtures に 4 本を足す）で旧築の build と test が通ること"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（発注前の commit の後は 327 件）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O05・O09 の参照（本契約は sequences の step を変えない）"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。tsunami.ts の :207〜:211 は «» で引かれないので、実装の後も FAIL 0"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P1-T01 の件数を含む）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: 分岐の ruling を読む。P4-TME-D-IDENTITY・P4-TME-D-FORMAT・P4-TME-D-SCOPE・P4-TME-D-ORDER に「未」が残っていたら着手せず blocked で返す。次に、直す前の木で T01 を書いて走らせ、_03・_04・_05 が identityInvalid で断られ終わりに active の VTSE41 が残ること（今の欠け）を確かめて報告する。違えば止めて報告する。直した後に AC02 のどれかの step が期待と違えば（例: _03〜_05 の本文が識別の後の検査で読めない所の印を作る）、コードも期待も合わせずに止めて、step・欄・実の値を報告する（AC02 の期待は _03〜_05 の本文を識別の後まで通したことの無いコードからの推論）",
+      "順序: 発注の前に統合担当が 4 本の fixture を置く（Q-TME-FIXTURES）。P4-TME-D-IDENTITY=A なら tsunami-unit.ts の §3.2 の直列の外（P4-TME-D-ORDER）。baseOid は統合担当が割り当てる",
+      "最小実装・最小テスト: 足す仕組みは無い（識別の 2 行の中で並びを分けて先頭を鍵にするだけ）。新しい helper・型・定数を足さない。手製の形（T02・T03）は試験の中で既存の fixture の文字列から作り、fixture の file を足さない。追加した試験ごとに対応（corpus 履歴・契約境界）を 1 行で書く",
+      "受信経路の計算量: 並びを分けるのは報 1 通の EventID の字の 1 回の走査だけで、state の記録との突き合わせを足さない",
+      "行の数: tsunami.ts の直した後の wc -l を書き、273 行のままであること。足すコメントは「なぜ」と根拠の ID（P4-TME-AC01、共通別紙イ）だけを日本語で、行番号を書かない",
+      "既存の試験の期待を変えない。変える要が出たら止めて、試験名・旧の期待・理由を報告する",
+      "試験の設定の隔離: N/A（reducer だけを呼び、設定を読まない）",
+      "旧築（src/）を変えない。test/fixtures は統合担当の発注前の commit で変わるので、旧築の build と test は統合担当がその commit で回す（requiredCommands の preparation）",
+      "残存として成果物に書く: 先頭の番号を変える報（順の入れ替え・先頭を外す）は資料に無く、来たら別の記録になり前の注意報が残る（P4-TME-D-IDENTITY=A の弱み）。並びの最大の数は資料に無く、上限を置かない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-TME-FIXTURES",
+        "owner": "integrator",
+        "blocks": [
+          "baseOid の割り当て",
+          "P4-TME-T01"
+        ],
+        "resolveBy": "発注前点検（統合担当の commit で 4 本を置き、fixtureIds と readPaths の注記を r1 で直す）",
+        "requiredEvidence": [
+          "test/fixtures の 38-39_02_01・_03・_04・_05 の sha256 と byte が公式サンプルの zip（https://xml.kishou.go.jp/jmaxml_20260917_Samples.zip）の同名と一致すること（起草で読んだ research の写しの値は Q-TME-DRAFT-FACTS (6)）",
+          "manifest の 4 行（acquisition jmaPublished・modification byteIdentical・distribution publicApproved、38-39_02_02 の行に倣う）と check-manifest の PASS（327 件=XML306+JSON21）",
+          "旧築の build と test、P1-T01 の件数の PASS"
+        ]
+      }
+    ]
+  }
+}
