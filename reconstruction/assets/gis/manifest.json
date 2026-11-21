@@ -20,7 +20,7 @@
     },
     "expectedCodeCount": { "forecastLocalE": 188, "city": 1894, "tsunamiArea": 66, "tsunamiAreaGroup": 32 },
     "knownGapsAndExclusions": [],
-    "geometryCheck": "20241128_AreaInformationCity_quake_GIS.zip（153,820,798 byte）の dbf は地物 1,910、regioncode の異なり 1,894、空のコードの地物 16、重なり 0。表は変えない（P4-GIS-I-KNOWN-SOURCE=A）",
+    "geometryCheck": "20241128_AreaInformationCity_quake_GIS.zip（153,820,798 byte、sha256 56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65 は lock の値と一致）の dbf は地物 1,910、regioncode の異なり 1,894、空のコードの地物 16、重なり 0。1310300 港区と 1310800 江東区は 1 地物ずつある。表は変えない（P4-GIS-I-KNOWN-SOURCE=A）",
     "attribution": "出典：気象庁ホームページ（https://xml.kishou.go.jp/tec_material.html）の個別コード表（地震火山関連コード表、R8.11.18）を加工して作成。加工：FlEq"
   }
 }

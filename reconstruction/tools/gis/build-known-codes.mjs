@@ -119,9 +119,6 @@ export function buildKnownCodes(xlsx) {
   const rows24 = sheetData(files, shared, "24", { B: "Name", D: "Code", E: "Name" });
   const forecastLocalE = collect("forecastLocalE", rows24.map((r) => [need("sheet 24", "A", r, /^\d{3}$/), r.B ?? ""]));
   const cityRows = collect("city", rows24.map((r) => [need("sheet 24", "D", r, /^\d{7}$/), { name: r.E ?? "", forecastLocalE: r.A }]));
-  for (const [code, name] of [...forecastLocalE, ...cityRows.map(([c, v]) => [c, v.name])]) {
-    if (name === "") throw new Error(`名前が空のコード ${code}`);
-  }
 
   // sheet 31: 備考が「津波予報区」で始まれば予報区、「結合表現」「領域表現」で始まれば結合表現・領域表現
   const rows31 = sheetData(files, shared, "31", { B: "Name" });
@@ -139,6 +136,10 @@ export function buildKnownCodes(xlsx) {
   }
   const tsunamiArea = collect("tsunamiArea", area);
   const tsunamiAreaGroup = collect("tsunamiAreaGroup", group);
+  // 名前の無いコードは止める（sharedStrings の添字が範囲外で cell が落ちた場合も、ここで空の名前になる）
+  for (const [code, name] of [...forecastLocalE, ...cityRows.map(([c, v]) => [c, v.name]), ...tsunamiArea, ...tsunamiAreaGroup.map(([c, v]) => [c, v.name])]) {
+    if (name === "") throw new Error(`名前が空のコード ${code}`);
+  }
   const areaCodes = new Set(tsunamiArea.map(([c]) => c));
   for (const [code, g] of tsunamiAreaGroup) {
     for (const m of g.members) if (!areaCodes.has(m)) throw new Error(`tsunamiAreaGroup ${code} の members ${m} が tsunamiArea に無い`);

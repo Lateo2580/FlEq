@@ -74,6 +74,7 @@ describe("P4-GIS 既知コードの表", () => {
       synthetic_phase4a_VXSE53_special: ["990", "9900100", "9900200"],
       synthetic_phase4a_VXSE62_special: ["990", "991", "992"],
     });
+    expect(tsunamiBodyCodes.size).toBeGreaterThan(0); // 拾えていないと下の 0 回が空振りで通る
     for (const g of table.tsunamiAreaGroup) expect(tsunamiBodyCodes.has(g.code)).toBe(false);
   });
 });
