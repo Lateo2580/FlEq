@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "49d216ebd0b59dfd9c381720cc70abaa0b1eabb340132d5123a9435b5758a8ea",
+    "sha256": "920f26bab77375fa12c737cbeda17920db090a42a61ddbd6a95e9e202c8d8644",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -206,7 +206,7 @@
         "id": "P4-PWT3-AC02",
         "requirement": "【発注 4、統合担当】歩きの検収（T0・C1・C2 の配送の後、計画 §8 の X0 の行）: (1) 道具の置き場: walk3 を写した新しい dir（~/dev/fleq-vault-archive/<日付>-walk4/）に置き、render.py（今は scenes3 を固定で読む）・extract.py・評価の依頼文の読む先と書く先を walk4 に改める。起こす前に walk4 の道具を grep して walk3・scenes3 の残りが 0 件であることを確かめる（3 回目は評価の依頼文が 2 回目の file を上書きする形だった、前の契約の Q-PWT-AC10-WALK3 (2)） (2) render.py の改訂（P4-PERSONA-WALK-TOOLS-002 の AC01 の data の側を読む字）: 族 S（COMMON の『FlEq の通知（デスクトップ通知と音）』を desktop と音を分けた字にし、desktop の行に『音: 名前』か『音なし』を書く）、族 注記（『このほかに通知が n 件あります（hh:mm〜hh:mm。段の軽いものと古いものを省きました）。省いた通知の題名ごとの件数』、時刻の幅は omittedFrom・omittedTo、件数は omittedCounts）、族 読まれない場面（D-PLACE=A の 1 文、帳簿 R2#1）、画面の欄は JSON でなく発注 3 の行（D-PAGE のページごと、D-MAP の地図）で出す (3) 人物の外の行（N1 の Claude の答え 8 本の末尾の『飛ばしたこと：』）: 演じ手の子を起こす前に出どころ（子に入る文か、依頼文か）を確かめて起こし方で止める。止められなければ extract.py で答えの 5 項目の後の行を落とす。評価の依頼文には 2 系統の読み飛ばしの扱いを書く (4) AC09 の取り直し: 歩きの木で、歩く 6 筋書き（W1 の 3 日・N1・N2・R2）を P3-FG-AC09 と同じ formal の道具で Mac mini で回す（P4 の間に src が変わるので P3-FG-T09 (2) の無差分のため）。pass の 3 欄が全部 0 でなければ止めて報告する (5) 同じ木で T09 の門つきの it を 6 筋書きと試行 2 の 3 つに回し、blocked 0 (6) 1 巡: 演じ手は 2 系統（Claude の Opus の子・ヘルツ）で 1 場面ずつ、評価者は筋書きごとに 1 体、帳簿は 1 件 1 行で空の行が 0 になるまで閉じない。起こす前に規模（演じ手 18 系列・評価者 9 体）を作者に伝えて承認を待つ。起こす前の確かめ: 演じ手の file に D-PAGE のページ分けと D-MAP の地図の行がある（ページ送りは C0 発注 2、地図の塗りと印は E0 発注 2・M0 が埋めるので、発注 3 の時点では無くてよいが、発注 4 では要る）。評価の依頼文には、002 で直さない訳を付けた作り物の一覧（T2-saori の公開サンプルの束ね、族 M、生成の観測点名、N2#5、R2#9 の ⑥）を訳と一緒に渡し、同じずれは訳の付いた行き先で受ける (7) 合格: 評価者の行き先『道具』が 0 件か、全部に理由（直せない訳か、次の歩きの契約へ送る訳）が付く。具体の確かめ: N2 の S8 に 16:00 の 2 つ目の本震の通知が残る（族 T）、W1 の desktop の行に音の有無が書かれる（族 S）、注記の内訳の合計が省いた数に一致する（族 注記）、演じ手の画面に training の行が無く容量超過の行がある（D-WALK-SCREEN）、R2 の S1 に地震の報がある（D-R2-QUAKE=A のとき） (8) D-FG-WALK=A のとき、FG の木で場面を作り直して演じ手の file を byte で比べ、同じなら FG の F の 1 巡に記録を使い回す",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-order-plan.md:146 «6e0a1756c010f569»",
+          "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
           "reconstruction/contracts/p4-order-plan.md:197 «ffc2ffedf6957846»",
           "reconstruction/contracts/p4-order-plan.md:727 «b9e5df326cbf2a11»",
           "reconstruction/contracts/p4-order-plan.md:946 «2e3146c9c8bf203c»",

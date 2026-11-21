@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-  "sha256": "904cce5d4eb80cd13aa28947d882e8c7fda7b9d7fe468cb79893f6794b73e035",
+  "sha256": "bb144eb53af633a9e8424191b13f845a1d561211645219ae62885dbc8d0ae72c",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -535,7 +535,7 @@
     "id": "P4-UW-AC10",
     "requirement": "監査の帳簿（計画 §2.1 の W0 の行の「監査の 1 件ずつに直した・残したの記録」）: 統合担当は配送の記録（questionResolutions の配送の項）に、Q-UW-LEDGER の行ごとに「直した（commit）・送った（契約 ID）・残した（分岐 ID）」を書き、作業ノートのバックログの「利用者に見える字を…一気に直す」「電文の XML の欄の TAB」「入力の番号の注記の字」の 3 項を完了か待ちに動かす",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-order-plan.md:145 «03c455cd02aa1977»"
+     "reconstruction/contracts/p4-order-plan.md:145 «6fe7bdeab760cb99»"
     ]
    }
   ],
