@@ -460,7 +460,7 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const predictionChanged = previous != null ? !isDeepStrictEqual(previous.prediction, candidate.prediction)
     : gate != null && candidate.serial === gate.serial ? gate.predictionKey !== predictionKey : !candidate.terminal;
   const projected: EewCurrent | null = candidate.cancelled || candidate.terminal ? null : {
-    subject: candidate.subject, operation: candidate.operation, family: candidate.family,
+    subject: candidate.subject, operation: candidate.operation, family: candidate.family, ...eewCurrentReport(body, earthquake, candidate.family, candidate.prediction),
     eventId, warningClass,
     source: candidate.source, serial: candidate.serial, terminal: false, prediction: candidate.prediction!, retainedPrediction,
     isAssumedHypocenter: assumed, reportAreas: eewReportFacts(body, headline, earthquake, forecast, candidate.cancelled, assumed).areas,
@@ -490,8 +490,8 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     const unconfirmed = version.kind === "held" ? version.mark : null;
     const gates = unconfirmed != null && unconfirmed !== gate?.unconfirmed
       ? state.gates.map((item) => item === gate ? { ...item, unconfirmed } : item) : state.gates;
-    return { state: gates === state.gates ? state : { ...state, gates }, nextDeadline: nextEewDeadline(state),
-      decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged",
+    const marked = previous != null && unconfirmed != null && previous.unconfirmed !== unconfirmed ? { ...previous, unconfirmed } : null; if (marked != null && previous != null) changed(previous, marked); // P4-DW-D-EEW-UNCONFIRMED=A: 版は前のまま、印だけを current に写して表示差分を出す
+    return { state: gates === state.gates && marked == null ? state : { ...state, gates, ...marked == null ? {} : { current: state.current.map((item) => item === previous ? marked : item) } }, nextDeadline: nextEewDeadline(state), decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "unchanged",
         reason: version.kind === "duplicate" ? "duplicate" : "stale" }], intents: [], outcomes: [], diagnostics: missing };
   }
   const prefix = candidate.operation === "normal" ? "" : candidate.operation === "training" ? "【訓練】" : "【試験】";
@@ -822,7 +822,7 @@ function eewReportFacts(body: XmlElement, headline: XmlElement | null, earthquak
     maxIntChangeReasonRaw: text(appendix, "MaxIntChangeReason"),
     maxLgInt: lgInt(fc),
     areas: fc == null ? [] : elements(fc, "Pref").flatMap((pref) => elements(pref, "Area")).map((item) => ({
-      code: text(item, "Code")?.trim() ?? "", name: text(item, "Name"), lgInt: lgInt(item), arrivalTimeRaw: text(item, "ArrivalTime"),
+      code: text(item, "Code")?.trim() ?? "", name: text(item, "Name"), lgInt: lgInt(item), arrivalTimeRaw: text(item, "ArrivalTime"), kindCodeRaw: text(categoryKind(item), "Code"),
     })),
     nextAdvisory: text(body, "NextAdvisory"),
     cancelText: cancelled ? text(body, "Text") : null, warningComment: text(first(first(body, "Comments") ?? body, "WarningComment"), "Text"),
@@ -834,3 +834,35 @@ function withReport(subject: SubjectOutcome, report: EewReportFacts): SubjectOut
 }
 
 export { reduceEew, nextEewDeadline, reclaimEewLifetime, expiredOutcome, dirty, notificationArrayBytes, noticeAt };
+
+// P4-DW-AC09: 区域の Category/Kind（到達の状況は Kind/Code の下 1 桁、地震火山関連コード表）。Category が無ければ null。
+function categoryKind(area: XmlElement): XmlElement | null {
+  const category = first(area, "Category");
+  return category == null ? null : first(category, "Kind");
+}
+
+// P4-DW-AC09（P3-EEW-FACTS-001 の例外、P4-DW-AC06 (2)）: current に載せる震源名・M・深さ・震央・長周期の最大（カードの見出し、表 §1.2）・検知だけの報・場所の文。値は XML の生の字のまま。
+// 深さは Coordinate の深さの成分（m、符号つき）の生の字。採った報ごとに線形 1 回で読む。
+function eewCurrentReport(body: XmlElement, earthquake: XmlElement | null, family: EewFamily, prediction: EewPrediction | null):
+  Pick<EewCurrent, "hypocenterName" | "magnitude" | "depthRaw" | "coordinateRaw" | "maxLgInt" | "detectOnly" | "place"> {
+  const area = earthquake == null ? null : first(first(earthquake, "Hypocenter") ?? earthquake, "Area");
+  const name = area == null ? null : first(area, "Name");
+  const coordinates = (area == null ? [] : elements(area)).filter((node) => node.name.endsWith("Coordinate"));
+  const coordinate = coordinates.find((node) => attribute(node, "type") !== "震源位置（度分）") ?? coordinates[0] ?? null;
+  const coordinateRaw = coordinate == null ? null : scalar(coordinate);
+  const depthRaw = coordinateRaw?.match(/^[+-][\d.]+[+-][\d.]+([+-][\d.]+)\/$/)?.[1] ?? null;
+  const magnitude = earthquake == null ? null : elements(earthquake).find((node) => node.name === "Magnitude" || node.name.endsWith(":Magnitude")) ?? null;
+  const magnitudeRaw = magnitude == null ? null : scalar(magnitude);
+  const forecast = first(first(body, "Intensity") ?? body, "Forecast"), lg = forecast == null ? null : first(forecast, "ForecastLgInt");
+  const lgText = (name: string): string | null => { const node = lg == null ? null : first(lg, name); return node == null ? null : scalar(node); };
+  const textNode = first(body, "Text");
+  const text = textNode == null ? null : scalar(textNode);
+  // P4-DW-AC09: VXSE45・非取消（current は非取消だけ）・Intensity と全体の ForecastInt がある（受理の必須）・区域 0 件・OriginTime が無い・Text がある。
+  const detectOnly = family === "VXSE45" && prediction != null && prediction.areas.length === 0
+    && (earthquake == null || first(earthquake, "OriginTime") == null) && text != null && text !== "";
+  // 場所の文は Text の 2 行目の空白の並びの前（作者裁定 2026-11-19）。切り出せなければ null で、画面は場所の行を詰める。
+  const place = detectOnly ? /^(.+?)[\s　]+/.exec(text.split(/\r?\n/)[1] ?? "")?.[1] ?? null : null;
+  return { hypocenterName: name == null ? null : scalar(name), magnitude: magnitude == null || magnitudeRaw == null ? null
+    : { raw: magnitudeRaw, description: attribute(magnitude, "description") }, depthRaw, coordinateRaw,
+    maxLgInt: lg == null ? null : { from: lgText("From"), to: lgText("To") }, detectOnly, place };
+}

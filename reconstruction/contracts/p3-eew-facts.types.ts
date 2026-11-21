@@ -11,7 +11,7 @@ export type EewReportArea = Readonly<{
   code: string;
   name: string | null;
   lgInt: EewLgIntRaw | null;
-  arrivalTimeRaw: string | null;
+  arrivalTimeRaw: string | null; kindCodeRaw: string | null; // P4-DW-AC09: Category/Kind/Code の生の字（無ければ null）
 }>;
 
 export type EewReportFacts = Readonly<{

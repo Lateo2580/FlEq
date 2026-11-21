@@ -147,7 +147,7 @@ export type LongPeriodSubject = Readonly<{
 // event だけを数える。全部の寄与が取消になった地震は件数から引き、最大震度を数え直す（P3-QC-AC07、H18）。recent は新しい順に最大 5 行、
 // counted は数えた [EventID, 段階（I-U-Q.intensityScale の rank）] の組で最大 2048 組（P3-C7-DAILY、P3-QC-D-DAILY-MAX=A）。
 // 文字列の上限（P3-C7-DAILY）: originTimeRaw・reportDateTimeRaw は 40 文字を超えたら null、hypocenterName は 64 文字に切り詰め、
-// magnitude・maxInt の raw と value は 32 文字に切り詰める。1 行の最大は 1,206 byte（JSON で 1 文字 3 byte、ReportDateTime 25 文字、I-U-Q.capacityReserve）。
+// magnitude・maxInt の raw と value は 32 文字に切り詰める。1 行の最大は 1,206 byte（JSON で 1 文字 3 byte、ReportDateTime 25 文字、I-U-Q.capacityReserve）。P4-DW-AC16: 足した欄は 1 行 1,572 byte（1 字 6 byte）を MEMORY_GROWTH に足す。
 export type SeismicRecentQuake = Readonly<{
   eventId: string;
   originTimeRaw: string | null;
@@ -155,7 +155,7 @@ export type SeismicRecentQuake = Readonly<{
   hypocenterName: string | null;
   magnitude: MaterialValue;
   maxInt: SeismicIntensityValue;
-  cancelled: boolean;
+  cancelled: boolean; depth: MaterialValue; magnitudeDescription: string | null; tsunamiComment: string | null; strongest: readonly string[]; omittedStrongest: number; // P4-DW-AC16 (2): depth は magnitude と同じ上限、magnitudeDescription 32 字、tsunamiComment 128 字（VXSE52・VXSE53 の評価の文だけ）、strongest は震度速報だけの行の最も強い地域のコード 8 個まで
 }>;
 
 export type SeismicDailyHistory = Readonly<{
@@ -177,7 +177,7 @@ export type SeismicNotificationPayload = Readonly<{
 export type SeismicIntent = NotificationIntent & Readonly<{ payload: SeismicNotificationPayload }>;
 
 export type SeismicUnitState = Readonly<{
-  schemaVersion: "p3-seismic-unit-v8";
+  schemaVersion: "p3-seismic-unit-v9";
   contentRevision: number;
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
@@ -189,7 +189,7 @@ export type SeismicUnitState = Readonly<{
 }>;
 
 export type PersistedSeismicUnit = Readonly<{
-  schemaVersion: "p3-seismic-unit-v8";
+  schemaVersion: "p3-seismic-unit-v9";
   earthquakes: readonly EarthquakeEvent[];
   longPeriods: readonly LongPeriodSubject[];
   daily: Readonly<Record<Operation, SeismicDailyHistory>>;
@@ -253,5 +253,5 @@ export type SeismicUnitStep = Readonly<{
 }>;
 
 export type SeismicUnitCodec = UnitCodec<SeismicUnitState, PersistedSeismicUnit> & Readonly<{
-  schemaVersion: "p3-seismic-unit-v8";
+  schemaVersion: "p3-seismic-unit-v9";
 }>;

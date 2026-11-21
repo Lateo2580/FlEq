@@ -32,7 +32,7 @@ const HOUR = 3_600_000;
 // Control/DateTime と印の分＋HOLD_GROWTH＋通知の印（寄与 512×4・長周期 256）＋失敗の印−外した終端 intent の予算 131,072
 // ＋P3-UNIT-Q-CAPACITY-001 の増え（cancelledSummary 512×372・counted 3×2048×4・記憶の guard 768×50、P3-QC-AC05）。
 const MARK = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = EVENT_LIMIT * 4 * MARK, NOTICE_GROWTH = CONTRIBUTION_MARKS + 256 * MARK;
-const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50;
+const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50 + 3 * 5 * 1_572;
 const RESERVE_HEAD = EVENT_LIMIT * 1_833 + 256 * 530 + 283_209 + (EVENT_LIMIT * 4 + 256) * 49; const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - (RESERVE_HEAD - 1_470_281) - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072 - MEMORY_GROWTH - (EVENT_LIMIT + 256) * 21;
 const RESERVE_BYTES = RESERVE_HEAD + NOTICE_GROWTH + MEMORY_GROWTH;
 const ORIGIN = Date.parse("2026-07-28T16:27:00+09:00");
@@ -1158,7 +1158,7 @@ function budgetState(now: number): SeismicUnitState {
   const history = (prefix: string): SeismicDailyHistory => ({ dayKey: new Date(now + 32_400_000).toISOString().slice(0, 10), count: 9_999,
     maxInt: text(32), counted: Array.from({ length: 2048 }, (_, index) => [id40(prefix, index), 9] as const),
     recent: Array.from({ length: 5 }, (_, index) => ({ eventId: id40(prefix, index), originTimeRaw: wide(40), reportDateTimeRaw: "2099-01-01T08:59:59+09:00",
-      hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false })) });
+      hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false, depth: text(32), magnitudeDescription: wide(32), tsunamiComment: wide(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER })) });
   const intent = (index: number): SeismicIntent => {
     const eventId = id40("i", index), subject = `normal/VXSE53/${eventId}`;
     return { id: `U-Q:${subject}:${index}:desktop`, unit: "U-Q", subject, operation: "normal", source: source("normal", "VXSE53", eventId, "発表"),

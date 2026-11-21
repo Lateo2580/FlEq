@@ -140,7 +140,7 @@ type CompositionOptions = Readonly<{
   measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" | "generationRaised" }>) => void;
   // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
   display?: Readonly<{
-    publish: (snapshot: DisplaySnapshot) => void;
+    publish: (snapshot: DisplaySnapshot) => void; publishWire?: (snapshot: DisplayWireSnapshot) => void; // P4-DW-AC01: 新しい経路への公開（P4-DW-D-LEGACY=A、旧の publish とは別に判定する）
     onMarker?: (marker: Readonly<{ point: "T3"; clock: "node"; monotonicMs: number }>, version: DisplayVersion) => void;
     // Keeps /healthz and heartbeat on the same worker view as the snapshot (P2-A8-AC04).
     setWorker?: (worker: DisplayWorkerView) => void; mirror?: (mirror: RuntimeMirror) => void; // P3-TP-AC06 (2): 表示の予算の影響を受けない view の口（入力の行の現況）
@@ -434,7 +434,7 @@ class RuntimeCompositionRoot {
   private snapshotWorker: DisplayWorkerView = { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null };
   private readonly display: CompositionOptions["display"];
   private streamId = "";
-  private projection: SnapshotProjectionState | null = null;
+  private projection: SnapshotProjectionState | null = null; private wireProjection: DisplayWireState | null = null; // P4-DW-AC01: 新しい経路の射影の state（保存しない）
   private noticeTimer: NodeJS.Timeout | null = null;
   // P3-NL-AC07 (7): 保存の ack を待つ予約の最短の締切の timer（noticeTimer とは別の 1 本。project が noticeTimer を毎回外すので共用しない）。
   private ackTimer: NodeJS.Timeout | null = null;
@@ -983,13 +983,13 @@ class RuntimeCompositionRoot {
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
       this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), this.projection);
-    this.projection = result.state;
+    this.projection = result.state; const wire = projectDisplayWire(wireInput(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), state.mirror, result.state), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
     if (display != null) {
       // A display callback failure surfaces like a notification dispatch failure, after state is adopted.
       const guard = (call: () => void) => { try { call(); } catch (error) { void Promise.reject(error); } };
-      if (stopped) guard(() => display.setWorker?.(worker)); guard(() => display.mirror?.(state.mirror));
+      if (stopped) guard(() => display.setWorker?.(worker)); guard(() => display.mirror?.(state.mirror)); if (wire.kind === "projected") guard(() => display.publishWire?.(wire.snapshot)); // P4-DW-AC01: 新しい経路の公開は旧の projected の分岐の外
       if (result.kind === "projected") {
         const { streamId, semanticRevision, sequence } = result.snapshot;
         guard(() => display.onMarker?.({ point: "T3", clock: "node", monotonicMs: performance.now() },
@@ -2435,7 +2435,7 @@ type Freshness = {
 };
 
 const DETAIL_LIMIT = 8;
-const DETAIL_MS = 2_000; type DetailRequest = WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest; type DetailResponse = WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse;
+const DETAIL_MS = 2_000; type DetailRequest = WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest | WireDetailRequest; type DetailResponse = WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse | WireDetailResponse; // P4-DW-AC08
 type DetailEntry = { place: ExecutionPlace; request: DetailRequest; resolve: (response: DetailResponse) => void;
   due: number; timer: NodeJS.Timeout; settled: boolean; released: boolean };
 
@@ -2485,3 +2485,15 @@ function reflectUnsaved(measuring: Measuring, mirror: RuntimeMirror, deltas: rea
 export { RuntimeCompositionRoot, countedCheckpointFileSystem, linkedRuntimeCalls, linkedUnitCodecs, linkedUnitTable, nodeCheckpointFileSystem,
   nodeDiagnosticFileSystem, places, sharedClock, snapshotInput, writeCounters };
 export type { CompositionOptions, NotificationCalls, ProjectedStep, PublisherInput, RecoveryIo, ShutdownHooks, WriteCounters };
+
+// ---- P4-DISPLAY-WIRE-001（B0）: 新しい経路の入力。import は行を足さない書き方のため file の最後に置く（宣言は巻き上がる） ----
+import type { DisplayWireSnapshot, WireDetailRequest, WireDetailResponse } from "../../contracts/p4-display-wire.types";
+import { projectDisplayWire } from "../view-projector/display-wire";
+import type { DisplayWireInput, DisplayWireState } from "../view-projector/display-wire";
+
+// 新しい経路の入力。保護 3 分野の view は読めない報のカードを含む形で渡し、分野の items と画面のお知らせは旧の射影の state から写す（公開の判定には使わない）。
+function wireInput(projection: SnapshotProjectionInput, mirror: RuntimeMirror, previous: SnapshotProjectionState): DisplayWireInput {
+  const eew = viewOf(mirror["U-E"]), tsunami = viewOf(mirror["U-T"]), earthquake = viewOf(mirror["U-Q"]);
+  if (eew.unit !== "U-E" || tsunami.unit !== "U-T" || earthquake.unit !== "U-Q") throw new Error("mirror view of another unit");
+  return { projection, views: { eew, tsunami, earthquake }, domains: previous.domains, notices: previous.notices };
+}

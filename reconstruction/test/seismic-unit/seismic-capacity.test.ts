@@ -20,7 +20,7 @@ const L = seismicUnitCodec.maxEnvelopeBytes!;
 // 器 L と予約の式（P3-SEL-AC06）。seismic-unit.ts の GENERATION_LIMIT・RESERVE_BYTES と同じ字の式で、件数の項は EVENT_LIMIT で書く。
 // 強震保持の印の増え（HOLD_GROWTH）は 1 event あたり 1,864 B（寄与 4 つ分、LONGEST_REF から決まる）。
 const NOTICE_GROWTH = EVENT_LIMIT * 4 * noticeMarkBytes("notice") + 256 * noticeMarkBytes("notice");
-const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50;
+const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50 + 3 * 5 * 1_572;
 const RESERVE_HEAD = EVENT_LIMIT * 1_833 + 256 * 530 + 283_209 + (EVENT_LIMIT * 4 + 256) * 49;
 const RESERVE = RESERVE_HEAD + NOTICE_GROWTH + MEMORY_GROWTH;
 const EXPECTED_L = 4_194_304 + 121_513 + (RESERVE_HEAD - 1_470_281) + EVENT_LIMIT * 1_864 + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
@@ -46,7 +46,7 @@ const step = (state: SeismicUnitState, material: DecodedMaterial, basis: WallBas
 const unmarked = (state: SeismicUnitState) => state.earthquakes.filter((item) => item.expiryPending !== true && item.contributions.some((entry) => entry.effective === "active")).length
   + state.longPeriods.filter((item) => item.expiryPending !== true && item.effective === "active").length;
 function generation(state: SeismicUnitState): number {
-  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v8", unit: "U-Q", generation: 0, capturedAt: 0,
+  return serializedEnvelope({ schemaVersion: "p3-seismic-unit-v9", unit: "U-Q", generation: 0, capturedAt: 0,
     payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0) + unmarked(state) * PENDING_MARK_BYTES;
 }
@@ -416,7 +416,7 @@ describe("P3-UNIT-Q-CAPACITY-001 U-Q capacity", () => {
   it("P3-QC-T02 contractBoundary / P3-QC-AC02・AC04・AC05: L, RESERVE, S, S_f, T_f, N_guard, N_keep and the cases at their bounds", () => {
     // P3-UM-RES-09: 前の器＋記録の上限（寄与 512×4＋長周期 256）×印 1 件＋原文の予算＋カード。
     // RESERVE は 512 のときの 1,958,729 に、1 event あたり 2,859（取消記憶 1,833＋49×4、通知の印 102×4、cancelledSummary 372、guard 50）を足した値。
-    expect([L, RESERVE]).toEqual([EXPECTED_L, 1_958_729 + (EVENT_LIMIT - 512) * 2_859]);
+    expect([L, RESERVE]).toEqual([EXPECTED_L, 1_958_729 + (EVENT_LIMIT - 512) * 2_859 + 3 * 5 * 1_572]); // P4-DW-AC16: 当日の行に足した 5 欄の増え分（この字は MEMORY_GROWTH の写しを通らないので足す）
     // N_guard の式（P3-QC-AC04 (1)）。S は最大の実例の守る地震（VXSE51＋53＋61 の event と VXSE62）の観測点つき、S_f は畳んだ後、
     // T_f は最大の実例を守らない報として受けて畳んだ後（event 1 件）。
     const EVENT = "20260728162718";
@@ -697,7 +697,7 @@ function reserveState(now: number): SeismicUnitState {
   const history = (prefix: string) => ({ dayKey: "2099-01-01", count: 9_999, maxInt: text(32),
     counted: Array.from({ length: 2048 }, (_, index) => [id40(prefix, index), 9] as const),
     recent: Array.from({ length: 5 }, (_, index) => ({ eventId: id40(prefix, index), originTimeRaw: wide(40), reportDateTimeRaw: time,
-      hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false })) });
+      hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false, depth: text(32), magnitudeDescription: wide(32), tsunamiComment: wide(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER })) });
   return { ...emptyState(), earthquakes, longPeriods, daily: { normal: history("n"), training: history("t"), test: history("s") } };
 }
 

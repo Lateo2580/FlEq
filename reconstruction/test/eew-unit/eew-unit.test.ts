@@ -1788,8 +1788,8 @@ describe("P3 EEW report facts", () => {
       accuracy: { epicenterRank: "4", depthRank: "4", magnitudeRank: "4", magnitudeCalculationCount: "5" },
       isAssumedHypocenter: false, maxIntChangeReasonRaw: "0", maxLgInt: { from: "1", to: "1" },
       areas: [
-        { code: "622", name: "愛媛県南予", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: null },
-        { code: "632", name: "高知県西部", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: "2024-04-17T23:15:02+09:00" },
+        { code: "622", name: "愛媛県南予", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: null, kindCodeRaw: "11" },
+        { code: "632", name: "高知県西部", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: "2024-04-17T23:15:02+09:00", kindCodeRaw: "10" },
       ],
       nextAdvisory: null, cancelText: null, warningComment: "強い揺れに警戒してください。",
     });
@@ -1825,6 +1825,6 @@ describe("P3 EEW report facts", () => {
     expect(JSON.stringify(subjectOf(step).facts)).toContain("高知県西部");
     const others = JSON.stringify([step.state.gates, eewUnitCodec.encode(step.state), step.intents, step.diagnostics]), shown = JSON.stringify([step.state.current, toEewView(step.state), step.displayChanges]);
     for (const text of ["高知県西部", "2024-04-17T23:15:02+09:00", "+33.2+132.4-30000/"]) expect(others).not.toContain(text);
-    expect(shown).not.toContain("+33.2+132.4-30000/"); // P3-VAT-AC01: 区域の名前と到達時刻だけが current と view へ渡る
+    expect(shown).toContain("+33.2+132.4-30000/"); // P4-DW-AC06 (2): B0 の例外で current と view に震央（Coordinate の生の字）が載る。gates・encode・intents・diagnostics には載らない（上の行）
   });
 });

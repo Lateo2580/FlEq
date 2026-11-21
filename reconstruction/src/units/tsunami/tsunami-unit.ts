@@ -940,7 +940,7 @@ function reduceTsunamiUnit(state: TsunamiUnitState, input: TsunamiInput): Tsunam
         operation: item.operation, kind: "event" as const, eventId: current.eventId }] }] : [];
     }), ...uncovered === true ? [{ source: "capacityExceeded" as const,
       scopes: [{ unit: "U-T" as const, operation: input.material.operation, kind: "unit" as const }] }] : []];
-  return { ...step, state: displayChanges.length !== 0 ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state,
+  return { ...step, state: displayChanges.length !== 0 || [...merged.values()].some(({ before, after }) => (before != null && "stations" in before && before.effective === "expired") !== (after != null && "stations" in after && after.effective === "expired")) ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state, // P4-DW-AC07 (1): 閉じた印の集合が変わった step（期限待ち→expired・記録の削除）も内容版を上げる。読むのはこの step で変わった記録だけ
     displayChanges, confirmationEvidence };
 }
 
@@ -950,7 +950,7 @@ function toTsunamiView(state: TsunamiUnitState): TsunamiUnitView {
   return { unit: "U-T", semanticRevision: active.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}:`
     + `${item.source.infoTypeRaw}`).sort().join("|"), contentRevision: String(state.contentRevision),
   subjects: active.map((item) => subjectOutcome(item)), forecasts: forecasts.map((item) => shown(item)),
-  observations: observations.map((item) => shown(item)) };
+  observations: observations.map((item) => shown(item)), closedObservations: ((of: (operation: Operation) => TsunamiUnitView["closedObservations"][Operation]) => ({ normal: of("normal"), training: of("training"), test: of("test") }))((operation) => { const closed = state.observations.flatMap((item) => item.operation === operation && item.effective === "expired" && item.retainUntil != null ? [{ eventId: item.eventId, family: item.family, closedAt: item.retainUntil - RETAIN_MS }] : []).sort((left, right) => right.closedAt - left.closedAt || (left.eventId < right.eventId ? -1 : left.eventId > right.eventId ? 1 : left.family < right.family ? -1 : 1)); return { items: closed.slice(0, 4), omitted: Math.max(0, closed.length - 4) }; }) }; // P4-DW-AC07 (1): 閉じた印は運用区分ごとに新しい 4 件と件数
 }
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 3、P3-REC-AC06 (a)・AC10） ----

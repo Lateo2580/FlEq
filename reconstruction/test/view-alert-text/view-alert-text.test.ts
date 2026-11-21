@@ -46,7 +46,7 @@ describe("P3-VIEW-ALERT-TEXT-001 EEW", () => {
   it("P3-VAT-T01 acceptance / AC01: the view carries each area's name, long-period class and arrival time in prediction.areas order", () => {
     const current = toEewView(eewStep(emptyEew(), fixture("37_01_01_240613_VXSE43"), "VXSE43", "a").state).current[0];
     expect(current.reportAreas.map((area) => area.code)).toEqual(current.prediction.areas.map((area) => area.code));
-    expect(current.reportAreas[1]).toEqual({ code: "632", name: "高知県西部", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: "2024-04-17T23:15:02+09:00" });
+    expect(current.reportAreas[1]).toEqual({ code: "632", name: "高知県西部", lgInt: { from: "0", to: "0" }, arrivalTimeRaw: "2024-04-17T23:15:02+09:00", kindCodeRaw: "10" });
     expect(current.reportAreas[0].arrivalTimeRaw).toBeNull();
     expect(current.prediction.areas[0].intensity.condition).toBe("既に主要動到達と推測");
     expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45"), "VXSE45", "b").state.current[0].reportAreas).toEqual([]);

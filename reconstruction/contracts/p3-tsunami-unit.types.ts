@@ -159,7 +159,11 @@ export type TsunamiUnitView = SharedUnitView & Readonly<{
   unit: "U-T";
   forecasts: readonly MarkViewed<TsunamiForecastSubject>[];
   observations: readonly MarkViewed<TsunamiObservationSubject>[];
+  // P4-DW-AC07 (1): 観測の表が期限で閉じた印（expired の記録）。運用区分ごとに閉じた時刻の新しい 4 件と、残りの件数。closedAt は retainUntil − 7 日
+  closedObservations: Readonly<Record<Operation, Readonly<{ items: readonly TsunamiClosedObservation[]; omitted: number }>>>;
 }>;
+
+export type TsunamiClosedObservation = Readonly<{ eventId: string; family: TsunamiObservationFamily; closedAt: number }>;
 
 export type TsunamiInput =
   | Readonly<{ kind: "receive"; material: DecodedMaterial; clock: ClockReading; basis?: WallBasis }>

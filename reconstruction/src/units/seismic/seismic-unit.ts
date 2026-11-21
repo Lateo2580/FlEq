@@ -33,7 +33,7 @@ import type { RawPlan } from "../unreadable";
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v8" as const;
+const SCHEMA = "p3-seismic-unit-v9" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
 const EVENT_LIMIT = 1024, LONG_PERIOD_LIMIT = 256;
@@ -55,9 +55,9 @@ const RECENT_LIMIT = 5, COUNTED_LIMIT = 2048;
 // P3-QC-AC05 (2)(3)・Q-QC-BYTES (3): 退去できない記録に本契約が足す欄の最悪の分。取り消した地震の一覧の印（震源名 64 文字・発生時刻 40 文字を
 // 1 文字 3 byte）、当日の数えた組の段階（`["id",9]` は `"id"` より 4 byte 多い）、記憶にも残る守りの欄（from は有限な数の JSON の最長 25 文字）。
 const SUMMARY_BYTES = sizeOf(`,"cancelledSummary":${JSON.stringify({ hypocenterName: "あ".repeat(64), originTimeRaw: "あ".repeat(40) })}`);
-const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.0000012345678901234567, on: 3 })}`);
-const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
-  + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * GUARD_BYTES;
+const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.0000012345678901234567, on: 3 })}`); // P4-DW-AC16 (3): 当日の行に足す欄（depth・magnitudeDescription・tsunamiComment・strongest・omittedStrongest）の上限いっぱいを、復元の境界と同じ字の長さの単位で 1 字 6 byte（escape の最悪）に数える
+const RECENT_GROWTH = OPERATIONS.length * RECENT_LIMIT * (sizeOf(JSON.stringify({ depth: { kind: "text", value: "\u0001".repeat(32), raw: "\u0001".repeat(32) }, magnitudeDescription: "\u0001".repeat(32), tsunamiComment: "\u0001".repeat(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER })) - 1); const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
+  + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * GUARD_BYTES + RECENT_GROWTH;
 // 4 MiB に、同時最大状態の Control/DateTime と印の分（121,513）と強震保持の増え分を足す。Q-QC-DECIDED (1): 退去できない記録の増えと同じ分だけ広げる。
 // P3-UM-RES-09: 読めない所の印（寄与 1024×4 と長周期 256 の全部）・原文の予算・カードの分も足す。P3-SEV-RES-01: 全部の記録に付く保留の印の分も足す。
 const GENERATION_LIMIT = 4_194_304 + 121_513 + EVENT_LIMIT * 1_833 + LONG_PERIOD_LIMIT * 530 + 283_209 + (EVENT_LIMIT * 4 + LONG_PERIOD_LIMIT) * 49 - 1_470_281 + HOLD_GROWTH + NOTICE_GROWTH + FAILURE_MARKS_MAX_BYTES - 131_072 + MEMORY_GROWTH
@@ -475,8 +475,8 @@ function nextHistory(history: SeismicDailyHistory, candidate: EarthquakeCandidat
       const row: SeismicRecentQuake = active || found == null ? { eventId: candidate.eventId,
         originTimeRaw: boundTime(view.originTimeRaw), reportDateTimeRaw: boundTime(candidate.source.reportDateTimeRaw),
         hypocenterName: view.hypocenter?.name == null ? null : cut(view.hypocenter.name, 64),
-        magnitude: boundValue(view.hypocenter?.magnitude ?? { kind: "missing" }),
-        maxInt: boundIntensity(view.intensity?.maxInt ?? { kind: "missing" }), cancelled: !active }
+        magnitude: boundValue(view.hypocenter?.magnitude ?? { kind: "missing" }), depth: boundValue(view.hypocenter?.depthKm ?? { kind: "missing" }), magnitudeDescription: view.hypocenter?.magnitudeDescription == null ? null : cut(view.hypocenter.magnitudeDescription, 32),
+        maxInt: boundIntensity(view.intensity?.maxInt ?? { kind: "missing" }), tsunamiComment: view.tsunamiCommentFamily == null || view.tsunamiCommentFamily === "VXSE51" || view.tsunamiComment?.text == null ? null : cut(view.tsunamiComment.text, 128), ...((codes: readonly string[]) => ({ strongest: codes.slice(0, 8), omittedStrongest: Math.max(0, codes.length - 8) }))(view.sources.length === 0 || view.sources.some((item) => item.family !== "VXSE51") || view.intensity == null || view.intensity.maxInt.kind === "fromTo" ? [] : view.intensity.items.flatMap((item) => item.level === "area" && item.code != null && /^\d{1,8}$/.test(item.code) && item.maxInt.kind !== "fromTo" && view.intensity != null && view.intensity.maxInt.kind !== "fromTo" && knownStage(item.maxInt) != null && knownStage(item.maxInt) === knownStage(view.intensity.maxInt) ? [item.code] : [])), cancelled: !active } // P4-DW-AC09: 震度速報だけの行の最も強い地域のコード（8 個まで、残りは件数）
         : { ...found, cancelled: true };
       next = { ...next, recent: [row, ...next.recent.filter((item) => item.eventId !== candidate.eventId)].slice(0, RECENT_LIMIT) };
     }
@@ -1592,14 +1592,14 @@ function boundedValue(value: MaterialValue): boolean {
 }
 function recent(value: unknown): SeismicRecentQuake | null {
   const row = record(value);
-  const magnitude = materialValue(row?.magnitude), maxInt = intensityValue(row?.maxInt);
-  if (row == null || magnitude == null || maxInt == null || !isText(row.eventId) || !validEventId(row.eventId)
+  const magnitude = materialValue(row?.magnitude), maxInt = intensityValue(row?.maxInt), depth = materialValue(row?.depth), listed: unknown = row?.strongest; // P4-DW-AC16 (2): 足した欄も項目ごとに確かめる
+  const strongest = Array.isArray(listed) && listed.length <= 8 ? listed.flatMap((code: unknown) => typeof code === "string" && /^\d{1,8}$/.test(code) ? [code] : []) : null; if (row == null || magnitude == null || maxInt == null || !isText(row.eventId) || !validEventId(row.eventId)
     || !textOrNull(row.originTimeRaw) || !textOrNull(row.reportDateTimeRaw) || !textOrNull(row.hypocenterName)
     || typeof row.cancelled !== "boolean" || (row.originTimeRaw?.length ?? 0) > 40 || (row.reportDateTimeRaw?.length ?? 0) > 40
-    || (row.hypocenterName?.length ?? 0) > 64 || !boundedValue(magnitude)
+    || (row.hypocenterName?.length ?? 0) > 64 || !boundedValue(magnitude) || depth == null || !boundedValue(depth) || !textOrNull(row.magnitudeDescription) || (row.magnitudeDescription?.length ?? 0) > 32 || !textOrNull(row.tsunamiComment) || (row.tsunamiComment?.length ?? 0) > 128 || strongest == null || !Array.isArray(listed) || strongest.length !== listed.length || typeof row.omittedStrongest !== "number" || !Number.isSafeInteger(row.omittedStrongest) || row.omittedStrongest < 0
     || !(maxInt.kind === "fromTo" ? boundedValue(maxInt.from) && boundedValue(maxInt.to) : boundedValue(maxInt))) return null;
   return { eventId: row.eventId, originTimeRaw: row.originTimeRaw, reportDateTimeRaw: row.reportDateTimeRaw,
-    hypocenterName: row.hypocenterName, magnitude, maxInt, cancelled: row.cancelled };
+    hypocenterName: row.hypocenterName, magnitude, depth, magnitudeDescription: row.magnitudeDescription, maxInt, tsunamiComment: row.tsunamiComment, strongest, omittedStrongest: row.omittedStrongest, cancelled: row.cancelled };
 }
 // [EventID, 段階]。段階は I-U-Q.intensityScale の rank（0〜9 の整数、P3-QC-D-DAILY-MAX=A）。
 function pair(value: unknown): Counted[number] | null {

@@ -36,7 +36,7 @@ function snapshot(forecasts: readonly TsunamiForecastSubject[], tsunamiRevision 
     channels: { desktop: "available", sound: "available" },
     current: { eew: { unit: "U-E", ...summary }, weatherCurrent: { unit: "U-W", ...summary }, weatherTimeseries: { unit: "U-F", ...summary },
       tsunami: { unit: "U-T", contentRevision: tsunamiRevision, items, delivery: "full",
-        view: { unit: "U-T", semanticRevision: "", contentRevision: tsunamiRevision, subjects: [], forecasts, observations: [] } },
+        view: { unit: "U-T", semanticRevision: "", contentRevision: tsunamiRevision, subjects: [], forecasts, observations: [], closedObservations: { normal: { items: [], omitted: 0 }, training: { items: [], omitted: 0 }, test: { items: [], omitted: 0 } } } },
       earthquake: { unit: "U-Q", ...summary },
       nankai: { unit: "U-N", ...summary }, volcano: { unit: "U-V", ...summary },
       landslide: { unit: "U-L", ...summary }, flood: { unit: "U-R", ...summary },

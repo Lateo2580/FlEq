@@ -32,8 +32,8 @@ const DETAIL_URL_BYTES = 1_024;
 const DETAIL_MS = 2_000;
 const DETAIL_STATUS = { ok: 200, invalidRequest: 400, versionChanged: 409, busy: 429, unavailable: 503, timeout: 504 } as const;
 
-type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest }>) =>
-  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse>; done: () => void }>;
+type DetailPort = (request: Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest | WireDetailRequest }>) =>
+  Readonly<{ response: Promise<WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse | WireDetailResponse>; done: () => void }>; // P4-DW-AC08: 新しい part
 
 // 欄は項目ごとに確かめて組み立てる。重複・欠け・形の違いは invalid。
 function parseDetail(url: string): Readonly<{ streamId: string; detail: WeatherTimeseriesDetailRequest }> | null {
@@ -79,7 +79,7 @@ function serveDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, 
     if (ended || answered || response.destroyed) return;
     answered = true;
     // 書き出しの時点で期限を過ぎていれば、答えの中身にかかわらず timeout を書く。
-    const answer: WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse = performance.now() - admitted >= DETAIL_MS
+    const answer: WeatherTimeseriesDetailResponse | WeatherCurrentDetailResponse | BulletinTextResponse | WireDetailResponse = performance.now() - admitted >= DETAIL_MS
       ? { kind: "error", reason: "timeout", revision: null } : result;
     sendJson(response, DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason], JSON.stringify({ streamId: parsed.streamId, ...answer }));
   });
@@ -148,7 +148,7 @@ type DisplayServerOptions = Readonly<{
   // AC15: A9 HTML entry and flat ES module directory, served same-origin; absent keeps the 3 endpoints only.
   browserAssets?: Readonly<{ htmlPath: string; moduleDirectory: string }>;
   // P3-UFP-AC08: 無ければ詳細の経路は出さない（404）。
-  detail?: DetailPort;
+  detail?: DetailPort; wireAssets?: Readonly<{ htmlPath: string; moduleDirectory: string }>; // P4-DW-AC01: 新しい描画の骨組み（無ければ出さない）
 }>;
 
 // The Node http owner of the latest snapshot and the ServerResponse objects (B11).
@@ -157,7 +157,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
   let latest: DisplaySnapshot | null = null;
   let latestJson = "";
   let worker = options.worker;
-  const clients = new Set<Client>();
+  const clients = new Set<Client>(); const wireClients = new Set<WireClient>(); let wireText: string | null = null, wireVersion: DisplayVersion | null = null; const wireBeat = setInterval(() => beatWire(wireClients, { worker, latestVersion: wireVersion, emittedAt: Date.now() }), HEARTBEAT_MS); wireBeat.unref(); // P4-DW-D-LEGACY=A: 新しい経路の client と最後の 1 通（直列化は公開ごとに 1 回）。heartbeat は旧の /events と同じ間隔（無受信の判定を同じに効かせる）
 
   const deliver = (client: Client, input: SseClientInput) => {
     const transition = handleSse(client.state, input, performance.now());
@@ -195,7 +195,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
     const path = request.url?.split("?")[0];
     if (request.method !== "GET") return json(response, 405, JSON.stringify({ reason: "methodNotAllowed" }));
     const assets = options.browserAssets;
-    if (assets != null && path === "/") return asset(response, assets.htmlPath, "text/html; charset=utf-8");
+    const wire = options.wireAssets, wireModule = wire == null || path == null ? null : WIRE_MODULE_PATH.exec(path)?.[1]; if (wire != null && path === WIRE_HTML_PATH) return asset(response, wire.htmlPath, "text/html; charset=utf-8"); if (wire != null && wireModule != null) return asset(response, join(wire.moduleDirectory, `${wireModule}.js`), "text/javascript; charset=utf-8"); if (assets != null && path === "/") return asset(response, assets.htmlPath, "text/html; charset=utf-8"); // P4-DW-AC01: 新しい描画の path
     const moduleName = assets == null || path == null ? null : MODULE_PATH.exec(path)?.[1];
     if (assets != null && moduleName != null)
       return asset(response, join(assets.moduleDirectory, `${moduleName}.js`), "text/javascript; charset=utf-8");
@@ -206,7 +206,7 @@ async function startDisplayServer(options: DisplayServerOptions) {
       return json(response, result.status, result.status === 200 ? latestJson : JSON.stringify(result.body));
     }
     if ((path === DETAIL_PATH || path === WEATHER_DETAIL_PATH || BULLETIN_TEXT_UNITS.has(path ?? "")) && options.detail != null) return serveDetail(options.detail, request, response);
-    if (path !== "/events") return json(response, 404, JSON.stringify({ reason: "notFound" }));
+    if (path === WIRE_EVENTS_PATH) return openWire(wireClients, response, wireText); if (path === WIRE_DETAIL_PATH && options.detail != null) return serveWireDetail(options.detail, request, response); if (path !== "/events") return json(response, 404, JSON.stringify({ reason: "notFound" })); // P4-DW-AC01: 新しい SSE の経路は /events の 404 の判定の前
     if (clients.size >= CLIENT_LIMIT) return json(response, 503, JSON.stringify({ reason: "clientLimit" }));
     response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store",
       connection: "keep-alive" });
@@ -256,10 +256,17 @@ async function startDisplayServer(options: DisplayServerOptions) {
     setWorker(next: DisplayWorkerView) { worker = next; },
     heartbeat,
     async close() {
-      clearInterval(interval);
-      for (const client of clients) client.response.destroy();
+      clearInterval(interval); clearInterval(wireBeat);
+      for (const client of clients) client.response.destroy(); for (const client of wireClients) client.response.destroy();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
+    // P4-DW-AC01: 新しい経路への公開。直列化は公開ごとに 1 回で、経路の全 client が共有する（P2-A8-COST の移行中の例外）。
+    publishWire(snapshot: DisplayWireSnapshot) {
+      wireText = `event: snapshot\nid: ${snapshot.sequence}\ndata: ${JSON.stringify(snapshot)}\n\n`;
+      wireVersion = { streamId: snapshot.streamId, semanticRevision: snapshot.semanticRevision, sequence: snapshot.sequence };
+      for (const client of wireClients) writeWire(client, wireText);
+    },
+    wireClientCount: () => wireClients.size,
   };
 }
 
@@ -306,3 +313,95 @@ function parseBulletinText(url: string, unit: BulletinTextRequest["unit"]): Read
 }
 
 export { handleHealth, handleSnapshot, handleSse, serveDetail, startDisplayServer };
+
+// ---- P4-DISPLAY-WIRE-001（B0）: 新しい経路（P4-DW-D-LEGACY=A）。import は行を足さない書き方のため file の最後に置く（宣言は巻き上がる） ----
+import type { DisplayWireSnapshot, WireDetailRequest, WireDetailResponse } from "../../contracts/p4-display-wire.types";
+
+const WIRE_EVENTS_PATH = "/api/display/wire/events";
+const WIRE_HTML_PATH = "/display";
+// 名前の白い表が path の確かめ（/chrome-eew/ と同じ形、AC15）。
+const WIRE_MODULE_PATH = /^\/display\/([a-z0-9-]+)\.js$/;
+// 1 client に待ちの 1 通（P2-SNAPSHOT-SSE-001 の AC03 と同じ規則）。旧の handleSse は旧の snapshot の型に結び付いているので、同じ規則を字の 1 通で持つ。
+type WireClient = { response: ServerResponse; waiting: string | null; blocked: boolean; timer: NodeJS.Timeout | null };
+function writeWire(client: WireClient, text: string): void {
+  if (client.blocked) { client.waiting = text; return; }
+  if (client.response.write(text)) return;
+  // 書けなかった最初の時から 5 秒で切る。待ちの間の新しい 1 通は待ちを置き換えるだけで、期限を延ばさない。
+  client.blocked = true;
+  client.timer = setTimeout(() => client.response.destroy(), SLOW_CLIENT_MS);
+  client.timer.unref();
+}
+// heartbeat は書けない間は落とす（旧の handleSse と同じ）。中身は旧と同じ形（worker・最後の版・送った時刻）。
+function beatWire(clients: ReadonlySet<WireClient>, data: Readonly<{ worker: DisplayWorkerView; latestVersion: DisplayVersion | null; emittedAt: number }>): void {
+  const text = `event: heartbeat\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of clients) if (!client.blocked) writeWire(client, text);
+}
+function openWire(clients: Set<WireClient>, response: ServerResponse, latest: string | null): void {
+  if (clients.size >= CLIENT_LIMIT) return sendJson(response, 503, JSON.stringify({ reason: "clientLimit" }));
+  response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", connection: "keep-alive" });
+  response.flushHeaders();
+  const client: WireClient = { response, waiting: null, blocked: false, timer: null };
+  clients.add(client);
+  response.on("drain", () => {
+    if (client.timer != null) clearTimeout(client.timer);
+    const waiting = client.waiting;
+    Object.assign(client, { blocked: false, waiting: null, timer: null });
+    if (waiting != null) writeWire(client, waiting);
+  });
+  response.on("close", () => {
+    if (client.timer != null) clearTimeout(client.timer);
+    clients.delete(client);
+  });
+  if (latest != null) writeWire(client, latest);
+}
+
+// P4-DW-AC08: 新しい part の詳細の経路（1 本の path で unit と part を欄で受ける）。欄は項目ごとに確かめて組み立て、重複・欠け・形の違いは invalid。
+const WIRE_DETAIL_PATH = "/api/display/wire/detail";
+const INDEX_UNITS = ["U-T", "U-Q", "U-N", "U-V", "U-M", "U-L", "U-R", "U-B", "U-Y"] as const;
+const CARD_UNITS = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const;
+function parseWireDetail(url: string): Readonly<{ streamId: string; detail: WireDetailRequest }> | null {
+  const query = detailQuery(url);
+  if (query == null) return null;
+  const { params, one } = query;
+  const streamId = one("streamId"), unit = one("unit"), part = one("part"), id = one("id"), revision = one("revision"), pageText = one("page");
+  if (streamId == null || !/^[\w-]{1,64}$/.test(streamId) || revision == null) return null;
+  const page = pageText != null && /^\d{1,9}$/.test(pageText) ? Number(pageText) : null;
+  const hex = (value: string | null): value is string => value != null && /^[0-9a-f]{64}$/.test(value);
+  const index = INDEX_UNITS.find((item) => item === unit), card = CARD_UNITS.find((item) => item === unit);
+  if (part === "index") return index != null && page != null && !params.has("id") && /^\d{1,16}$/.test(revision) ? { streamId, detail: { unit: index, part, revision, page } } : null;
+  if (part === "raw") return card != null && id != null && validInputId(id) && /^-?\d{1,16}$/.test(revision) && !params.has("page") ? { streamId, detail: { unit: card, part, id, revision } } : null;
+  if (!hex(id) || !hex(revision)) return null;
+  if (part === "comment") return unit === "U-T" && !params.has("page") ? { streamId, detail: { unit, part, id, revision } } : null;
+  if (page == null) return null;
+  if (part === "areas" && (unit === "U-E" || unit === "U-T")) return unit === "U-E" ? { streamId, detail: { unit, part, id, revision, page } } : { streamId, detail: { unit, part, id, revision, page } };
+  if (part === "stations" && unit === "U-T") return { streamId, detail: { unit, part, id, revision, page } };
+  if (part === "event" && unit === "U-Q") return { streamId, detail: { unit, part, id, revision, page } };
+  return null;
+}
+// 答えと期限は serveDetail と同じ規則（受付から 2 秒、root の答えを先に書くため microtask を 1 回待つ）。serveDetail は配送済みの part の読み取りを
+// 中に持ち、行を足さない書き方では差し替えられないので、同じ手順をここに持つ。
+function serveWireDetail(detail: DetailPort, request: Pick<IncomingMessage, "url">, response: ServerResponse): void {
+  const admitted = performance.now();
+  const parsed = parseWireDetail(request.url ?? "");
+  if (parsed == null) return sendJson(response, 400, JSON.stringify({ kind: "error", reason: "invalidRequest", revision: null }));
+  const { response: pending, done } = detail(parsed);
+  let closed = false, answered = false;
+  const finish = () => { if (closed) return; closed = true; clearTimeout(timer); done(); };
+  const timer = setTimeout(() => {
+    void Promise.resolve().then(() => {
+      if (!closed && !answered) { answered = true; sendJson(response, 504, JSON.stringify({ streamId: parsed.streamId, kind: "error", reason: "timeout", revision: null })); }
+      if (response.writableFinished !== true) response.destroy();
+      finish();
+    });
+  }, Math.max(0, Math.ceil(DETAIL_MS - (performance.now() - admitted))));
+  timer.unref(); // 期限の timer は process を止めない
+  response.once("finish", finish);
+  response.once("close", finish);
+  void pending.then((result) => {
+    if (closed || answered || response.destroyed) return;
+    answered = true;
+    const answer = performance.now() - admitted >= DETAIL_MS ? { kind: "error" as const, reason: "timeout" as const, revision: null } : result;
+    const status = DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason];
+    sendJson(response, status, JSON.stringify({ streamId: parsed.streamId, ...answer }));
+  });
+}

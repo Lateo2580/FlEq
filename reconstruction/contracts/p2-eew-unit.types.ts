@@ -44,7 +44,7 @@ export type EewCurrent = Readonly<{
   serial: number;
   terminal: boolean;
   prediction: EewPrediction;
-  isAssumedHypocenter: boolean; reportAreas: readonly EewReportArea[]; // P3-VAT-AC01: 最新の報の区域。prediction.areas と同じ順・件数で、同じ添字で対応する
+  isAssumedHypocenter: boolean; reportAreas: readonly EewReportArea[]; hypocenterName: string | null; magnitude: Readonly<{ raw: string; description: string | null }> | null; depthRaw: string | null; coordinateRaw: string | null; maxLgInt: Readonly<{ from: string | null; to: string | null }> | null; detectOnly: boolean; place: string | null; unconfirmed?: ReportRef; // P3-VAT-AC01: 最新の報の区域。prediction.areas と同じ順・件数で、同じ添字で対応する。P4-DW-AC09・AC07 (2): 震源名・M・深さ・震央・長周期の最大・検知だけの報・場所の文（生の字）と未確認の印（gate と同じく非保存）
   // Non-durable evidence from one report; prediction/source above remain the latest report.
   retainedPrediction: Readonly<{ prediction: EewPrediction; source: ReportRef }> | null;
 }>;
