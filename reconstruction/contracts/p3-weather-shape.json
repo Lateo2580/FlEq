@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f7485e896ec590097a4749a4bc09ab534bb89b2",
-    "sha256": "ac2849122f52d3a6c536858a18aa9d68e40b18d9779bb9c9b4fbd0e9fe27468d",
+    "sha256": "91f92dfd98a8c2796ede56f79820885c2cbb22fa99ecaf4c1b311f53d34c949f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -333,7 +333,7 @@
         "id": "P3-WS-AC06",
         "requirement": "W1で効きを確かめる（Q-WS-REMEASURE、P3-DISASTER-CAPACITY-001のQ-DC-REMEASURE）: 配送のcommitを含むgitHeadで、W1の3日（x-2026-06-03・06-26・09-21、digestはce6906ce82231fd5…・5def07d4bfd39dc7…・7dfcba859ba93383…で、前の結果と同じ入力）を同じ道具（reconstruction/test/disaster/のFLEQ_DISASTERの正式のrun）で測り直し、(1) 3日ともrealInvalidに『VPWP50 rejected:』で始まる鍵が無い（前は133・265・149） (2) 3日とも期待例『VPWP50の官署のU-F subjectが全部ある』がok (3) U-F.bytesとU-F.subjectsの最大と時刻、U-Fの要約の有無を前の結果と並べる（前の最大は6,832,624・2,890,096・5,975,577 byte、38・16・33件）。09-21は前のFailがこの期待例だけだったので全体のPassを見込む（推測）。Passでなければ原因を書いて作者に出す。06-03・06-26のU-Wの容量の拒否は本契約の外（③）",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «7b2074451152d8b3»",
           "reconstruction/contracts/p3-disaster-capacity.json:704 «d2a50e29fe30ea49»",
           "reconstruction/test/disaster/runner.ts:535 «f7e985c22367465f»",
           "reconstruction/test/disaster/scenario.ts:115 «c9c643316263b5a4»"

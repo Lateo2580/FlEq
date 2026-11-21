@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "e2bd163be50e82e5153ef4ae1e50b243c6c8ea550bbd86e32318876c30564210",
+    "sha256": "73c4e27bbaaf76bbe0278fa6a6024a5c75f78296e7c1c1048db9372e24de3e5b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -620,10 +620,10 @@
         "id": "P3-UWC-AC10",
         "requirement": "配送のcommitで統合担当が改める原文（実装担当は変えない）。(1) p3-disaster-capacity.json:57（W2の『×7 family（VPWW55・57〜61・VPNO50）』→6 family、『上界406』→348、区切りの『128・256・406』→『128・256・348』）・:87（行き先の『406鍵と取消の履歴』→本契約）・:406（U-Wの件数の上限『partial 128』→normal 384・training/test 64）・:508（T04の(a)『partial 128件』→384件） (2) reconstruction/test/disaster/synth.ts:718〜:723（W2_FAMILIESからVPNO50を外し、コメントの7 family・406を直す。行の数は変えない）、runner.ts:105（U-Wの件数の器を384と64の2つに）・:195（U-Wのbyteの器をweatherCurrentUnitCodec.maxEnvelopeBytesに。importは既存のimportの行に足して行を足さない）・:206（OPTIONSの文言） (3) p3-persist-premises.md:290（現状の行の後に本契約の値を書く）・:292（348〜406→348、上限384）・:295（見積もりの406の場合を外す） (4) p3-order-plan.md:421の『406鍵』→348鍵 (5) docs/specs/reconstruction-p0-contracts.md:572（partial128・partial履歴8→normal 384・training/test 64・partial履歴2）・:395（M06の『partial8』→2）・:514（『履歴8』→2）・:1782（O06の『partial履歴8』→2）・:2183（『partial8』→2）と、H38の行の行き先（:3065）を本契約に。詳細の口がU-Fだけを例外にしている行（:374・:380・:1238・:1247・:1264・:1336・:1337）を『U-F・U-W（P3-UF-PUBLIC-001・本契約）』に改める (6) p2-weather-current-unit.json:44・:84・:92・:194・:306・:307・:313・:314・:499・:551・:666・:695（partial128・履歴8の文言と上限の値。:44の『合算上限』と:307・:314の『combined』は、normalとtraining・testを分ける本契約の意味に書き直す。数の置き換えだけでは済まない）と、schemaVersionの記述（:381） (7) p3-uf-public.json:135（Q-UFP-UW-VIEWのremainingに本契約で閉じたことを書く）・:316（P3-UFP-RES-06の『deferredのownerだけ』→deferredとweatherCurrent、停止はplaceごと）・:457（P3-UFP-AC07(3)(6)の『deferredのownerへ送るdetail』→要求のunitの持ち主のplace）・:600（P3-UFP-T09の『ownerの停止でin-flightの1件と待ちの全部がunavailable』→止まったplace行きだけ） (8) p2-snapshot-sse.json:63（activeCountのU-Wは『activeな(operation, 府県)の数』、D-GROUP）・:357・:359（U-Wの件数の上限の値） (9) p3-execution-lifecycle.json:397（『detail〔deferredだけが使う〕』→deferredとweatherCurrentが使う）・:457（P3-C3B-AC01の『deferredのownerのdetail』→deferredとweatherCurrentのownerのdetail）・:476（停止したplace行きのdetailだけにunavailableを返す、Q-UWC-DETAIL-STOP） (10) p3-execution-split.json:543・:544（P3-C3A-RES-09の『detailはdeferredのownerだけ』→deferredとweatherCurrent）・:749（P3-C3A-AC15の同じ記述） (11) p2-shared-runtime.json:222（P2-A1-DISPLAY-CHANGES.portのU-Wの表示の行の形: 府県の行と監視の行〔currentActive・currentScope〕、P3-UWC-AC05(2)） (12) reconstruction/tools/corpus/sequences.jsonのO06の字: :17219の『partial履歴8』、:17292〜:17572の9行の『partial履歴8。9版目で上限一致、10版目で最古履歴を回収』、:17941の『partial128以下/各履歴8』を本契約の値（partial履歴2、normal 384・training/test 64）に改める どれも行の中身の書き換えで、行を足さない。付け直しはP3-UWC-AC12",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «7b2074451152d8b3»",
           "reconstruction/contracts/p3-disaster-capacity.json:87 «f33f3b8008824a74»",
-          "reconstruction/test/disaster/synth.ts:887 «67b299d1d325861b»",
-          "reconstruction/test/disaster/synth.ts:889 «101455386f246e47»",
+          "reconstruction/test/disaster/synth.ts:972 «67b299d1d325861b»",
+          "reconstruction/test/disaster/synth.ts:974 «101455386f246e47»",
           "reconstruction/test/disaster/runner.ts:105 «6bf8a162699845f6»",
           "reconstruction/test/disaster/runner.ts:195 «848d0f7dcf7ea5fc»",
           "reconstruction/test/disaster/runner.ts:206 «b15251914ccb531e»",
@@ -648,7 +648,7 @@
         "id": "P3-UWC-AC11",
         "requirement": "実装の後の実測（統合担当、配送の前、Mac mini）。順は 実装のpatch→AC10の(2)の道具の直し（runner.ts:105の件数の器を先に384と64へ。128のままだと06-03の145件が113%でFailと出る）→測り→配送。その木で、W1の3日（1日ずつ3 run）とW2（W1の3日の後に348鍵を埋める1 run）を流す。合格: (1) U-Wの入力の拒否（容量）が0件 (2) U-Wの保存（codecのencodeの実のbyte）の最大が器（GENERATION_BYTES）以下で、最大の値と比を記録する (3) 各区切りでU-Wのviewのbyte（projectorの数え）を記録し、snapshotの合計が1 MiB以下の区切りではU-Wがfullで配られる（要約の規則P2-A8-RES-06は変えない。他の分野で合計が1 MiBを越えた区切りでU-Wが要約になるのは規則どおりで、合否に数えない） (4) W1・W2の期待例（p3-disaster-capacity.jsonのP3-DC-SCENARIOS）は今どおり。どれかが満たせなければ配送せず、数と区切りの時刻を作者に報告する（器を広げるか、P3-UWC-D-BYTE-ORDERの順で足りるかを作者が決める）。推測の約11 MB（Q-UWC-SIZE）はここで実測に置き換える",
         "evidenceRefs": [
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»",
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «7b2074451152d8b3»",
           "reconstruction/contracts/p3-order-plan.md:543 «24054c0441552dee»",
           "reconstruction/contracts/p3-order-plan.md:559 «036a201be6bf98eb»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:45 «646c8b5ca91f8c03»"

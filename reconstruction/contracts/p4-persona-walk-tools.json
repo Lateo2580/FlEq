@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "912e951aae9835dd0bf2f44a7424e3fe920481e9",
-    "sha256": "f703bd8a273ce91177359233833e4a36fdecc93a7016499a4d2ba8fda0b1fe71",
+    "sha256": "4f328225f84cbe73e487ae2733930aab71589abd052db338df52414ba97f78e9",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -399,20 +399,20 @@
       },
       {
         "id": "P4-PWT-AC06",
-        "requirement": "【発注 3】合成の報の文面（計画 4、Q1=A）: synth.ts の既定のまま、報の件数・時刻・headType・流す順を変えずに文面だけを直す（例外は P4-PWT-D-M7-RELEASE=A の解除の VTSE41）。帳簿の行ごと: (1) 臨時情報（nankai、:553〜:556）の伏せ字（●●）を消し、VYSE51 の臨時解説の号を報ごとに増やす（N1.md:31・N2.md:68・N3.md:32・N3.md:33） (2) 観測点と予報区の対（gauges・tsunami51）を同じ沿岸の組にし、観測の本文の時刻を報の時刻に合わせる（N1.md:27・N2.md:50・R2.md:26・R2.md:29） (3) 震源の型の残りを筋書きの震源に揃える: 本震の VXSE53・VXSE51 の型（T53・T51 の熊本 M7.1）と本震の EEW の型（77_01_26 の豊後水道）、余震の EEW（aftershockEew、:577〜:583 の 77_01_01 の豊後水道 M4.2）、余震の VXSE53 の型の震源と『津波の心配なし』の付加文（大津波警報の間）（N1.md:23・N1.md:25・N1.md:26・N2.md:24・N2.md:32・N3.md:26・N3.md:29。件数〔十数件〕は P4 の通知の量） (4) 本震と余震の EEW の最後の報に最終報（NextAdvisory）を付ける（:512〜:519・:577〜:583、N2.md:79） (5) M7 級の余震の津波注意報に解除を足す（P4-PWT-D-M7-RELEASE=A。N2.md:72・N3.md:34） (6) 『これは訓練です』の型の文を消す（N3.md:36） (7) eewBody（:460〜:472）の予想の到達時刻（ArrivalTime）を報時刻より後にし、区域の ForecastLgInt の 0〜0 の固定を外す（N2.md:40 の道具の側）。区域の値は、その報の型の区域のうち同じ予想震度（ForecastInt の From）の区域の ForecastLgInt の最大、型に無い予想震度は型の最大（Body の Forecast 直下の ForecastLgInt、77_01_26 は 2）。Body の最大は区域の最大にする（U-E の state と表示に効くので決め方を固定する。統合担当の決め、2026-11-18 13:2x） (8) M7 級の余震の臨時情報は P4-PWT-D-NANKAI-M7=A（N2.md:64 の合成の側） (9) R2 の合成の VTSE41（r2、:643〜）の Headline と本文の文面を報の区分に合わせる（R2.md:27） (10) persona-scenes.test.ts の T2-saori（:94〜:110）: 別々の公開サンプルを 1 つの EventID に束ねた報の震源と時刻を揃え（T2-saori.md:24）、VXSE53 の『津波の心配なし』を外し（T2-saori.md:40）、津波の時刻を UTC でなく JST で渡し（T2-saori.md:32）、vtse41・observation の返す XML の Headline の『合成の報』を区分に合う文に替えて到達予想時刻と高さを入れる（T2-saori.md:28・T2-saori.md:36）。tsunami-fixture.ts は 16 の試験 file が使うので変えず、persona-scenes.test.ts の中で書き換える (11) 発注 3 の発注前点検で決めた 3 行（Q-PWT-PRECHECK-ORDER3）: R2.md:32（観測の表が黙って消える、合成の側）は直さない（作者の裁定 Q-PWT-R2-OBS=A、outOfScope）。T2-yu.md:24（第 3 報 23:30:11 の後に最終報 23:31:38 まで報が無い）は、persona-scenes.test.ts の trial の T2-yu の中で、77_01_03 の Serial を進めた複製を 23:30:11〜23:31:38 の間に数秒〜10 秒おきに挟み、最終報の Serial をその次の値に上げる（予報の続報は通知を出さないので、演じ手の通知の数は変わらない。T2 の試行は AC09 の外なので Q1 の件数は及ばない。統合担当の決め）。T2-yu.md:30（未確認の期間が 27 分）は発注 2 の AC04 (2) で直った（点検で T2-yu の T09 を流して確かめた）。行数の見込み: synth.ts に 60〜90 行、persona-scenes.test.ts に約 20 行。件数と時刻を変えないことは T06 で確かめる",
+        "requirement": "【発注 3】合成の報の文面（計画 4、Q1=A）: synth.ts の既定のまま、報の件数・時刻・headType・流す順を変えずに文面だけを直す（例外は P4-PWT-D-M7-RELEASE=A の解除の VTSE41）。帳簿の行ごと: (1) 臨時情報（nankai、:553〜:556）の伏せ字（●●）を消し、VYSE51 の臨時解説の号を報ごとに増やす（N1.md:31・N2.md:68・N3.md:32・N3.md:33） (2) 観測点と予報区の対（gauges・tsunami51）を同じ沿岸の組にし、観測の本文の時刻を報の時刻に合わせる（N1.md:27・N2.md:50・R2.md:26・R2.md:29） (3) 震源の型の残りを筋書きの震源に揃える: 本震の VXSE53・VXSE51 の型（T53・T51 の熊本 M7.1）と本震の EEW の型（77_01_26 の豊後水道）、余震の EEW（aftershockEew、:577〜:583 の 77_01_01 の豊後水道 M4.2）、余震の VXSE53 の型の震源と『津波の心配なし』の付加文（大津波警報の間）（N1.md:23・N1.md:25・N1.md:26・N2.md:24・N2.md:32・N3.md:26・N3.md:29。件数〔十数件〕は P4 の通知の量） (4) 本震と余震の EEW の最後の報に最終報（NextAdvisory）を付ける（:512〜:519・:577〜:583、N2.md:79） (5) M7 級の余震の津波注意報に解除を足す（P4-PWT-D-M7-RELEASE=A。N2.md:72・N3.md:34） (6) 『これは訓練です』の型の文を消す（N3.md:36） (7) eewBody（:460〜:472）の予想の到達時刻（ArrivalTime）を報時刻より後にし、区域の ForecastLgInt の 0〜0 の固定を外す（N2.md:40 の道具の側）。区域の値は、その報の型の区域のうち同じ予想震度（ForecastInt の From）の区域の ForecastLgInt の最大、型に無い予想震度は型の最大（Body の Forecast 直下の ForecastLgInt、77_01_26 は 2）。Body の最大は区域の最大にする（U-E の state と表示に効くので決め方を固定する。統合担当の決め、2026-11-18 13:2x） (8) M7 級の余震の臨時情報は P4-PWT-D-NANKAI-M7=A（N2.md:64 の合成の側） (9) R2 の合成の VTSE41（r2、:643〜）の Headline と本文の文面を報の区分に合わせる（R2.md:27） (10) persona-scenes.test.ts の T2-saori（:94〜:110）: 別々の公開サンプルを 1 つの EventID に束ねた報の震源と時刻を揃え（T2-saori.md:24）、VXSE53 の『津波の心配なし』を外し（T2-saori.md:40）、津波の時刻を UTC でなく JST で渡し（T2-saori.md:32）、vtse41・observation の返す XML の Headline の『合成の報』を区分に合う文に替えて到達予想時刻と高さを入れる（T2-saori.md:28・T2-saori.md:36）。tsunami-fixture.ts は 16 の試験 file が使うので変えず、persona-scenes.test.ts の中で書き換える (11) 発注 3 の発注前点検で決めた 3 行（Q-PWT-PRECHECK-ORDER3）: R2.md:32（観測の表が黙って消える、合成の側）は直さない（作者の裁定 Q-PWT-R2-OBS=A、outOfScope）。T2-yu.md:24（第 3 報 23:30:11 の後に最終報 23:31:38 まで報が無い）は、persona-scenes.test.ts の trial の T2-yu の中で、77_01_03 の Serial を進めた複製を 23:30:11〜23:31:38 の間に数秒〜10 秒おきに挟み、最終報の Serial をその次の値に上げる（予報の続報は通知を出さないので、演じ手の通知の数は変わらない。T2 の試行は AC09 の外なので Q1 の件数は及ばない。統合担当の決め）。T2-yu.md:30（未確認の期間が 27 分）は発注 2 の AC04 (2) で直った（点検で T2-yu の T09 を流して確かめた）。行数の見込み: synth.ts に 60〜90 行、persona-scenes.test.ts に約 20 行。件数と時刻を変えないことは T06 で確かめる【P4-PERSONA-WALK-TOOLS-002 発注 2 の注記: (7) の到達は、発生時刻から区域の並びの順に決め、同じ EventID の報では同じ値にした。報の時刻を過ぎた区域は Condition『既に主要動到達と推測』で、Kind は 11・01（P4-PWT2-AC03 (1)）】",
         "evidenceRefs": [
-          "reconstruction/test/disaster/synth.ts:554 «7acc42be842d68fc»",
-          "reconstruction/test/disaster/synth.ts:556 «df0051e2593b3fde»",
-          "reconstruction/test/disaster/synth.ts:608 «0ab959ca1ccd4ab1»",
-          "reconstruction/test/disaster/synth.ts:636 «4643f4f6f65d0bbd»",
-          "reconstruction/test/disaster/synth.ts:679 «3502092064370f9e»",
-          "reconstruction/test/disaster/synth.ts:683 «75ecc7d77d0c4db7»",
-          "reconstruction/test/disaster/synth.ts:729 «fc7f36e4bd9820ee»",
-          "reconstruction/test/disaster/synth.ts:738 «29715c14fab4a507»",
-          "reconstruction/test/disaster/synth.ts:746 «d01eee177269196c»",
-          "reconstruction/test/disaster/synth.ts:759 «36a01f6565f195cf»",
-          "reconstruction/test/disaster/synth.ts:810 «6135cefdfc105d85»",
-          "reconstruction/test/disaster/synth.ts:918 «bae335c94c2eb177»",
+          "reconstruction/test/disaster/synth.ts:596 «7acc42be842d68fc»",
+          "reconstruction/test/disaster/synth.ts:598 «df0051e2593b3fde»",
+          "reconstruction/test/disaster/synth.ts:657 «0ab959ca1ccd4ab1»",
+          "reconstruction/test/disaster/synth.ts:685 «4643f4f6f65d0bbd»",
+          "reconstruction/test/disaster/synth.ts:730 «3502092064370f9e»",
+          "reconstruction/test/disaster/synth.ts:734 «75ecc7d77d0c4db7»",
+          "reconstruction/test/disaster/synth.ts:785 «fc7f36e4bd9820ee»",
+          "reconstruction/test/disaster/synth.ts:794 «29715c14fab4a507»",
+          "reconstruction/test/disaster/synth.ts:802 «d01eee177269196c»",
+          "reconstruction/test/disaster/synth.ts:815 «36a01f6565f195cf»",
+          "reconstruction/test/disaster/synth.ts:888 «b8260226f111edf3»",
+          "reconstruction/test/disaster/synth.ts:1003 «bae335c94c2eb177»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:111 «c59aa333b2002e31»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:137 «85bc0f4db4984e51»"
         ]
@@ -425,7 +425,7 @@
           "reconstruction/src/host/host.ts:319 «b12e2853c7f700e8»",
           "reconstruction/src/host/host.ts:326 «d3d3ceac5d293407»",
           "reconstruction/src/recovery/recovery.ts:183 «dd6dac877ebbc725»",
-          "reconstruction/test/disaster/synth.ts:636 «4643f4f6f65d0bbd»",
+          "reconstruction/test/disaster/synth.ts:685 «4643f4f6f65d0bbd»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:243 «95825b3328a5da66»",
           "reconstruction/test/final-gate/persona-scenes.test.ts:379 «3cb96fa8f98ea07b»",
           "reconstruction/test/disaster/scenario.ts:195 «2af8d68ee80c2872»",
@@ -441,7 +441,7 @@
           "reconstruction/test/disaster/scenario.ts:109 «7787fbf04fe9c089»",
           "reconstruction/test/disaster/scenario.ts:113 «1db3343f262089ae»",
           "reconstruction/test/disaster/disaster.test.ts:207 «90631b6a84c6d283»",
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»"
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «7b2074451152d8b3»"
         ]
       },
       {
@@ -450,11 +450,11 @@
         "evidenceRefs": [
           "reconstruction/test/final-gate/persona-scenes.test.ts:427 «345a62f905230b70»",
           "reconstruction/test/disaster/runner.ts:592 «6c53688a822b368b»",
-          "reconstruction/test/disaster/synth.ts:554 «7acc42be842d68fc»",
+          "reconstruction/test/disaster/synth.ts:596 «7acc42be842d68fc»",
           "reconstruction/contracts/p3-final-gate.json:911 «e3c066c6a3f4c09b»",
           "reconstruction/contracts/p3-final-gate.json:995 «a2c608eadb3ca5b6»",
-          "reconstruction/contracts/p3-disaster-capacity.json:57 «d86c1cdc3c0f079c»",
-          "reconstruction/contracts/p3-disaster-capacity.json:63 «27eeb68a5aa6d5fc»"
+          "reconstruction/contracts/p3-disaster-capacity.json:57 «7b2074451152d8b3»",
+          "reconstruction/contracts/p3-disaster-capacity.json:63 «cdaad6bc890d490c»"
         ]
       },
       {
@@ -512,7 +512,7 @@
         "referenceIds": [
           "P4-PWT-AC06"
         ],
-        "behavior": "【発注 3】受入条件（Q1=A、件数と時刻を変えない）。synthesize の N1・N2（t0 は固定の値）・R2 の (atMs, headType) の列から P4-PWT-D-M7-RELEASE=A の解除の VTSE41 を除いた列の sha256 が、発注 3 の前の synth.ts で取った値（実装担当が直す前に取り、試験の定数にする）と一致し、解除の VTSE41 は M7 級の余震ごとに 1 通で、本文に『●』『これは訓練です』が無く、VYSE51 の号が報ごとに増え、各 EventID の EEW の最後の報に最終報があり、本震の EEW の区域の ForecastLgInt が AC06 (7) の決め方の値（Body の最大は区域の最大）"
+        "behavior": "【発注 3】受入条件（Q1=A、件数と時刻を変えない）。synthesize の N1・N2（t0 は固定の値）・R2 の (atMs, headType) の列から P4-PWT-D-M7-RELEASE=A の解除の VTSE41 を除いた列の sha256 が、発注 3 の前の synth.ts で取った値（実装担当が直す前に取り、試験の定数にする）と一致し、解除の VTSE41 は M7 級の余震ごとに 1 通で、本文に『●』『これは訓練です』が無く、VYSE51 の号が報ごとに増え、各 EventID の EEW の最後の報に最終報があり、本震の EEW の区域の ForecastLgInt が AC06 (7) の決め方の値（Body の最大は区域の最大）【P4-PERSONA-WALK-TOOLS-002 発注 2 の注記: 到達の期待は P4-PWT2-AC03 (1) の規則に合わせた（ArrivalTime があれば報の時刻以後、Condition の区域を含めて区域の対を数える。警報の区域は Kind 10・11、予報は 00・01）。D-R2-QUAKE=A で R2 に本震の 17 通を足したので hash の定数を取り直した（N1 2,651 通・N2 5,313 通の (atMs, headType) は id ごとに旧 synth.ts と一致）】"
       },
       {
         "testId": "P4-PWT-T07",
