@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "dc805187ce91949a66f62c9deaf60096b988bc20",
-  "sha256": "357640982fc7740c4d083555d0d964bc1fdec09c92d1a6eedd800ccda6ea1869",
+  "sha256": "8548ec32701bcde6ce79871b0e066f68d048ca7c190356a2dd2ad8027d53e73e",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
   "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -203,7 +203,18 @@
     "provisional": "A",
     "status": "確定（統合担当の決め 2026-11-21。spec:1636 の決まりで閉じ、作者に出し直さない）",
     "ruling": "A（統合担当、2026-11-21）",
-    "reason": "spec:1636「通常運用の危険区域・緊急表示を訓練側の取消・camera 要求で隠さない条件を P4 前に固定する」。B では訓練の EEW が 6 枚を埋めた後の通常の EEW がカードに出ない。判断カード 2-1 が裁定したのは地図の塗りだけで、6 枚の数え方は裁定していない。E0-1 の板（DS-OPEN-31）へ渡す仮の規則（表 §1.2）"
+    "reason": "spec:1636「通常運用の危険区域・緊急表示を訓練側の取消・camera 要求で隠さない条件を P4 前に固定する」。B では訓練の EEW が 6 枚を埋めた後の通常の EEW がカードに出ない。判断カード 2-1 が裁定したのは地図の塗りだけで、6 枚の数え方は裁定していない。E0-1 の板（DS-OPEN-31）へ渡す仮の規則（表 §1.2）。外した訓練・試験の報が後で枠が空いたときにカードへ戻るか、外れたカードの札の字をどうするかも E0-1 の板へ渡す（表 §1.2）"
+   },
+   {
+    "id": "P4-DW-D-LOSS-DETAIL",
+    "kind": "統合担当",
+    "A": "H39 の共通部は分野と 5 区分の件数のまま。理由の生の行（unit ごとの [reason, count, lastAt]、最大 9 行）は詳細の part=losses で開いて読む（表 §2.2・§13.2）",
+    "B": "理由の生の行を共通部に置く（12 unit で 11,017 byte。区分の行からの増え 7,704 が共通部の余りを超える）／C 理由を出さない（spec 16.2.6 の「理由は開けば読める」を満たさず、C2 が出すには B0 の wire と型を開け直す）",
+    "recommended": "A",
+    "provisional": "A",
+    "status": "確定（統合担当の決め 2026-11-21 18:1x）",
+    "ruling": "A（統合担当、2026-11-21 18:1x。契約 r1 の契約適合レビューの N-P2-3 の案 (b)）",
+    "reason": "spec 16.2.6（spec:3152）は「まとめには分野と件数だけを出す。理由は開けば読める」。初期画面は件数のままで、理由は開けば読めるので、作者の画面の出る・出ないは変わらない"
    }
   ],
   "questionResolutions": [
@@ -234,8 +245,8 @@
    {
     "id": "Q-DW-ANCHORS",
     "status": "closed",
-    "source": "表 §4 の数を dc805187 で数え、r1 で 520f9da7 の実物で数え直した（«» の形で引く行、本契約を除く）",
-    "closed": "変える file を «» で引く行: eew.ts 135・seismic-unit.ts 146・tsunami-unit.ts 104・view-projector.ts 93・http-sse.ts 20・owner-runtime.ts 76・owner-host.ts 50・checkpoint.ts 46・composition-root.ts 227・p3-execution-split.types.ts 21・p2-snapshot-sse.types.ts 21・p2-eew-unit.types.ts 7・p3-seismic-unit.types.ts 3・p3-eew-facts.types.ts 1・p3-tsunami-unit.types.ts 0。中身が変わる行の付け直しは 11 件: eew.ts :489（1）・:495（3）、tsunami-unit.ts :943（1）、p3-execution-split.types.ts :73（1）・:142（2）、owner-runtime.ts :737（1）・:84（1、U-Q の版の字）、p2-snapshot-sse.json :99（1、P2-A8-COST の改訂）。付け直し 0 の書き方（表 §4）: http-sse.ts は :35・:160・:198〜:201・:209 の行の中と :258 より後（:204・:208・:232・:245・:258 は変えない）。composition-root.ts は :143・:437・:556・:822・:986・:997・:2438 の行の中と :2462 より後（:985・:2439 は変えない）。owner-host.ts は :299・:405 の行の中（:300・:404 は変えない）。checkpoint.ts は :842 の行の中（:845 は変えない）。p3-execution-split.types.ts:100 は行の末尾。seismic-unit.ts は :36・:57〜:60・:477〜:479・:1593〜:1602 の行の中（:39・:63・:66・:69 は変えない）。p3-seismic-unit.types.ts は :150・:158・:180・:192・:256 の行の中（:86・:138・:161 は変えない）。eew.ts:825 は行の末尾（:824 は変えない）。landslide・flood・briefing・typhoon・nankai・volcano の unit の file は最後に足す（影響 0）"
+    "source": "表 §4 の数を dc805187 で数え、r1 で 520f9da7、r2 で main 362732fe の契約で数え直した（«» の形で引く行、本契約を除く）",
+    "closed": "変える file を «» で引く行（main 362732fe）: eew.ts 135・seismic-unit.ts 148・tsunami-unit.ts 104・view-projector.ts 93・http-sse.ts 20・owner-runtime.ts 77・owner-host.ts 50・composition-root.ts 228・p3-execution-split.types.ts 21・p2-snapshot-sse.types.ts 21・p2-eew-unit.types.ts 7・p3-seismic-unit.types.ts 3・p3-eew-facts.types.ts 1・p3-tsunami-unit.types.ts 0・p3-bulletin-text-api.types.ts 1（:5）・seismic-capacity.test.ts 6。中身が変わる行の付け直しは 11 件: eew.ts :489（1）・:495（3）、tsunami-unit.ts :943（1）、p3-execution-split.types.ts :73（1）・:142（2）、owner-runtime.ts :737（1）・:84（1、U-Q の版の字）、p2-snapshot-sse.json :99（1、P2-A8-COST の改訂）。付け直し 0 の書き方（表 §4）: http-sse.ts は :35・:160・:198〜:201・:209 の行の中と :258 より後（:204・:208・:232・:245・:258 は変えない）。composition-root.ts は :143・:437・:556・:822・:986・:997・:2438 の行の中と :2462 より後（:985・:2439・:2459・:2462 は変えない）。owner-host.ts は :299・:405 の行の中（:300・:404 は変えない）。p3-execution-split.types.ts:100 は行の末尾。seismic-unit.ts は :36・:57〜:60・:477〜:479・:1593〜:1602 の行の中（:39・:63・:66・:69 は変えない）。p3-seismic-unit.types.ts は :150・:158・:180・:192・:256 の行の中（:86・:138・:161 は変えない）。seismic-capacity.test.ts は :23 の行の中（:416 ほか 6 件は変えない）。eew.ts:825 は行の末尾（:824 は変えない）。p3-bulletin-text-api.types.ts は最後の «»（:5）より後。landslide・flood・briefing・typhoon・nankai・volcano の unit の file は最後に足す（影響 0）。checkpoint.ts は変えない（hasHole を読むだけ）"
    }
   ],
   "operationContract": {
@@ -318,7 +329,13 @@
    "reconstruction/test/seismic-unit/seismic-unit.test.ts",
    "src/engine/display/protocol.ts",
    "src/types.ts",
-   "reconstruction/contracts/p3-notice-ledger.json"
+   "reconstruction/contracts/p3-notice-ledger.json",
+   "reconstruction/contracts/p3-recovery-boundary.json",
+   "reconstruction/test/disaster/pi-measure.mjs",
+   "reconstruction/src/domains/landslide/landslide.ts",
+   "reconstruction/src/domains/briefing/briefing.ts",
+   "reconstruction/src/domains/nankai/nankai.ts",
+   "reconstruction/src/domains/volcano/volcano.ts"
   ],
   "allowedPaths": [
    "reconstruction/contracts/p4-display-wire.types.ts（新しい file。表示語彙・共通部・詳細の要求と応答の別名）",
@@ -327,18 +344,17 @@
    "reconstruction/src/runtime/composition-root.ts（行の中: :143〔display の口に新しい経路の公開〕・:437〔新しい射影の state と unit ごとの losses の field〕・:556・:822〔delta の losses を写す〕・:986〔新しい射影を呼ぶ〕・:997〔新しい経路へ公開〕・:2438〔DetailRequest・DetailResponse〕。関数を足すのは :2462 より後だけ。:985 は変えない）",
    "reconstruction/src/runtime/owner-runtime.ts（:737 の行の中、:84 の行の中〔U-Q の初期 state の版の字〕、file の最後の振り分けの関数）",
    "reconstruction/src/runtime/owner-host.ts（:299・:405 の行の中で delta に unit の losses を載せる）",
-   "reconstruction/src/checkpoint/checkpoint.ts（:842 の行の中に、InputBoundaries の unit の穴の種類だけを返す読むだけの関数を足す。:845 は変えない）",
    "reconstruction/contracts/p3-execution-split.types.ts（:73・:142 の行の中で別名を足す、:100 の行の末尾に OwnerUnitDelta の losses?）",
    "reconstruction/contracts/p2-eew-unit.types.ts（:47 の行の末尾）",
    "reconstruction/src/domains/eew/eew.ts（:836 より後の読む関数、:463 の行の末尾、held の分岐 :489〜:495 の行の中、:825 の行の末尾〔区域の Kind/Code〕）",
    "reconstruction/contracts/p3-eew-facts.types.ts（:14 の行の末尾）",
    "reconstruction/contracts/p3-seismic-unit.types.ts（:158 の行の末尾〔行の欄〕、:150〔1 行の最大のコメント〕・:180・:192・:256〔版の字〕の行の中）",
    "reconstruction/src/units/seismic/seismic-unit.ts（行の中: :36〔SCHEMA の版〕・:57〜:60〔増え分の定数と MEMORY_GROWTH〕・:477〜:479〔行を作る所〕・:1593〜:1602〔decode の recent〕。:63・:69 は変えない）",
-   "reconstruction/test/seismic-unit/seismic-fixture.ts・reconstruction/test/seismic-unit/seismic-capacity.test.ts・reconstruction/test/shared-runtime/shared-runtime.test.ts（U-Q の版の字だけ）、reconstruction/test/seismic-unit/seismic-unit.test.ts（:35 の MEMORY_GROWTH の写しに同じ増え分を足すだけ。AC16）",
+   "reconstruction/test/seismic-unit/seismic-fixture.ts・reconstruction/test/seismic-unit/seismic-capacity.test.ts・reconstruction/test/shared-runtime/shared-runtime.test.ts（U-Q の版の字だけ）、reconstruction/test/seismic-unit/seismic-unit.test.ts（:35 の MEMORY_GROWTH の写しに同じ増え分を足すだけ）・reconstruction/test/seismic-unit/seismic-capacity.test.ts（:23 の MEMORY_GROWTH の写しに同じ増え分を足すだけ、行の中。AC16）",
    "reconstruction/contracts/p3-tsunami-unit.types.ts（closedObservations）",
    "reconstruction/src/units/tsunami/tsunami-unit.ts（:943 の行の中、:953 の行の末尾）",
    "reconstruction/src/units/local-bulletins/local-bulletins-unit.ts・reconstruction/src/domains/local-bulletins/local-bulletins.ts・reconstruction/contracts/p3-bulletin-text-api.types.ts（地震の解説の本文と索引。どれも最後の «» より後）",
-   "reconstruction/src/units/landslide/・flood/・briefing/・typhoon/・nankai/・volcano/ の unit の file（索引の part だけ。file の最後に足す。«» の影響 0）",
+   "reconstruction/src/units/landslide/・flood/・briefing/・typhoon/・nankai/・volcano/ の unit の file（索引の part と U-R の part=inundation だけ。file の最後に足す。«» の影響 0）",
    "reconstruction/test/display-wire/（新しい directory。P4-DW-T01〜T12）"
   ],
   "allowedGitCommands": [
@@ -371,7 +387,7 @@
    "P3-VIEW-ALERT-TEXT-001",
    "P3-UNREADABLE-MARK-001",
    "P3-NOTICE-LEDGER-001",
-   "P3-VERSION-MATERIAL-001"
+   "P3-RECOVERY-BOUNDARY-001"
   ],
   "publicTypes": [
    "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot",
@@ -448,7 +464,7 @@
     "target": "新しい経路の共通部（notices を除く）",
     "limit": 65536,
     "unit": "UTF-8 JSON bytes",
-    "scope": "今の共通部の上界 49,443 ＋ H17・H39 の 8,525 ＝ 57,968（AC15）。超えると snapshot 全体が断られる（P2-A8-RES-04 と同じ）",
+    "scope": "今の共通部の上界 49,443 ＋ H17・H39 の 8,417 ＝ 57,860（AC15）。理由の生の行は詳細の part=losses で、共通部に入らない。超えると snapshot 全体が断られる（P2-A8-RES-04 と同じ）",
     "source": "表 §13.3・p3-recovery.json:952・script の common"
    }
   ],
@@ -482,9 +498,9 @@
     "id": "P4-DW-AC01",
     "requirement": "表示語彙と新しい経路（P4-DW-D-LEGACY=A・P4-DW-D-VOCAB=A）: B0 は新しい file（reconstruction/contracts/p4-display-wire.types.ts・reconstruction/src/view-projector/display-wire.ts）に表示語彙と射影を置き、新しい SSE の経路で display だけの完全 snapshot を配る。完全 snapshot は 1 通で、保護 3 分野（表 §1、AC02〜AC04）・9 分野（表 §12、AC14）・共通部（表 §13、AC15）の全部を持つ。新しい snapshot に旧の current.<分野>.view を入れない。旧 /events は今の projector の出力のまま変えない（p2-snapshot-sse.types.ts・view-projector.ts は T0 まで変えない）。新しい描画の骨組みを別の path に出す最小の経路を http-sse.ts に作る（計画:229）。display の版が自分の版でないときは未知の payload を描かず非対応を出す（spec §8.3）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:193 «d692f7ea304b6dd0»",
-     "reconstruction/contracts/p4-display-wire-tables.md:200 «e1179e418c4071d2»",
-     "reconstruction/contracts/p4-display-wire-tables.md:382 «efdc1a9426b9de36»",
+     "reconstruction/contracts/p4-display-wire-tables.md:195 «d692f7ea304b6dd0»",
+     "reconstruction/contracts/p4-display-wire-tables.md:202 «e1179e418c4071d2»",
+     "reconstruction/contracts/p4-display-wire-tables.md:399 «efdc1a9426b9de36»",
      "reconstruction/contracts/p4-order-plan.md:111 «ba5c4f5237a43520»"
     ]
    },
@@ -500,9 +516,9 @@
    },
    {
     "id": "P4-DW-AC03",
-    "requirement": "型の上限・文字列の上限・有限のコード（表 §1.2・§1.3、P4-DW-D-STRING-SOURCE・P4-DW-D-CONDITION-CODE）: 件数の上限と、超えた分の画面と残す順を表 §1.2 のとおりにする（EEW のカード 6 枚・津波の EventID 3 件〔P4-DW-D-TSUNAMI-COUNT=A〕・コードなし予報区 8 行・閉じた観測の印は区分ごとに 4 件・今日の地震は区分ごとに 5 行・長周期の見出し 2 件）。EEW 6 枚・今日の地震の行・長周期・市区町村の塗りは板待ちの仮の数（E0-1・C0・長周期・M0-1）で、後の契約が数を変えたら AC04 の試験で数え直す。EEW のカード 6 枚は運用区分をまたいで数え、6 枚とも最終報の前の 7 件目は B0 の仮の規則（P4-DW-D-SEVENTH-OPERATION=A: 7 件目が通常の報で訓練・試験のカードがあれば、出た順の最も古い訓練・試験のカードを外して入れ、外した報は件数だけ。7 件目が訓練・試験の報か 6 枚とも通常の報なら、7 件目は合成〔通常の報だけ〕と件数）。最終報の出たカードと入れ替える規則（DS-LAYOUT-07）は E0 が置く。文字列の上限は escape 後の JSON の byte（引用符を除く、runtime-diagnostic.ts の boundedString と同じ単位）で、切るときは字の境で切り欄ごとに cut: true を付ける。WarningComment は 2,048 byte（P4-DW-D-TSUNAMI-COMMENT=A）、読めない報のカードの題 96 byte・見出し 384 byte で、どちらも {text, cut}（P4-DW-D-CARD-TEXT=A、保存の 1,536 byte は変えない）。段・区分・Condition・到達の状況は有限のコードで、表外の値は −2 か unknown と印（H51）。詳細の参照 ref は id 64・rev 64 の hex で、日次行の ref の rev は event があるときだけ（表 §5.6）",
+    "requirement": "型の上限・文字列の上限・有限のコード（表 §1.2・§1.3、P4-DW-D-STRING-SOURCE・P4-DW-D-CONDITION-CODE）: 件数の上限と、超えた分の画面と残す順を表 §1.2 のとおりにする（EEW のカード 6 枚・津波の EventID 3 件〔P4-DW-D-TSUNAMI-COUNT=A〕・コードなし予報区 8 行・閉じた観測の印は区分ごとに 4 件・今日の地震は区分ごとに 5 行・長周期の見出し 2 件）。EEW 6 枚・今日の地震の行・長周期・市区町村の塗りは板待ちの仮の数（E0-1・C0・長周期・M0-1）で、後の契約が数を変えたら AC04 の試験で数え直す。EEW のカード 6 枚は運用区分をまたいで数え、6 枚とも最終報の前の 7 件目は B0 の仮の規則（P4-DW-D-SEVENTH-OPERATION=A: 7 件目が通常の報で訓練・試験のカードがあれば、出た順の最も古い訓練・試験のカードを外して入れ、外した報は件数だけ。7 件目が訓練・試験の報か 6 枚とも通常の報なら、7 件目は合成〔通常の報だけ〕と件数）。最終報の出たカードと入れ替える規則（DS-LAYOUT-07）と、外した訓練・試験の報が後でカードへ戻るか・外れたカードの札の字は E0 が置く（E0-1 の板）。文字列の上限は escape 後の JSON の byte（引用符を除く、runtime-diagnostic.ts の boundedString と同じ単位）で、切るときは字の境で切り欄ごとに cut: true を付ける。WarningComment は 2,048 byte（P4-DW-D-TSUNAMI-COMMENT=A）、読めない報のカードの題 96 byte・見出し 384 byte で、どちらも {text, cut}（P4-DW-D-CARD-TEXT=A、保存の 1,536 byte は変えない）。段・区分・Condition・到達の状況は有限のコードで、表外の値は −2 か unknown と印（H51）。詳細の参照 ref は id 64・rev 64 の hex で、日次行の ref の rev は event があるときだけ（表 §5.6）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:51 «6477b4af18278a1e»",
+     "reconstruction/contracts/p4-display-wire-tables.md:51 «3cdc613282941a3c»",
      "reconstruction/contracts/p4-display-wire-tables.md:55 «60bac92522eec114»",
      "reconstruction/contracts/p4-display-wire-tables.md:59 «70a8c970c9c65b5c»",
      "reconstruction/contracts/p4-display-wire-tables.md:61 «7f0991c9aa0fd8e3»",
@@ -524,22 +540,22 @@
     "id": "P4-DW-AC05",
     "requirement": "P2-A8-COST の継承の計数と受信経路の計算量（計画:111 の検収 ID、AGENTS.md）: metadata だけの更新では内容の走査 0（view-projector.ts の参照の使い回しを保つ）、変わった subject だけを計量、要約→full で数え直さない、公開ごとの直列化は経路ごとに 1 回で各経路の全 client が共有。合成 1 枚の更新は表 §5.1 の 3 つを別々に数える: (1) 変わった subject の before と after の区域を読む回数、(2) 参照数が変わった既知区域ごとに段 10 を上から見て最大を引き直す回数（鍵 op|eewPaint|code|段 と op|eewPaint|code|?、applyRefs の 0 なら削除）、(3) 公開する配列を塗る区分ごとに既知区域の数で組む回数。容量付近の 1 件の更新・取消・metadata だけの更新・full への復帰で、ほかの EEW の区域を読まないことを試験で数える。ほかの合成も同じ形にする（表 §5.1 の 4〜7）: (4) 地震の合成（観測の震度・長周期）と (5) 津波の合成は、その step で変わった subject の before と after の区域だけを読み、参照数が変わった既知区域ごとに段を上から見て引き直す（event の数・EventID の数に比例しない）。(6) 閉じた観測の印の集合は、その step で変わった記録の before と after だけから足し引きし、全記録を走査しない。(7) 9 分野の語彙は表示差分のあった subject の item だけを作り直して数える。H17 の消えた理由はその step の displayChanges・outcomes を鍵の Map で引く（表 §13.2）。試験で数える回数: EEW の (1)〜(3)、地震・津波の合成で読んだ区域の数と引き直した既知区域の数、閉じた印で読んだ記録の数、9 分野で作り直した item の数。全件×全件の走査と state・intent 全体の直列化をしない。rev の sha256 は表示差分のあった subject の object だけで作る",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:237 «af2372374141bd05»",
-     "reconstruction/contracts/p4-display-wire-tables.md:238 «1e5606d625908eb7»",
-     "reconstruction/contracts/p4-display-wire-tables.md:240 «85020ae7332f5d94»",
-     "reconstruction/contracts/p4-display-wire-tables.md:241 «21af22a18a687def»",
-     "reconstruction/contracts/p4-display-wire-tables.md:242 «a45df67df76672a1»",
-     "reconstruction/contracts/p4-display-wire-tables.md:195 «7c80f675a983074a»"
+     "reconstruction/contracts/p4-display-wire-tables.md:238 «af2372374141bd05»",
+     "reconstruction/contracts/p4-display-wire-tables.md:239 «1e5606d625908eb7»",
+     "reconstruction/contracts/p4-display-wire-tables.md:241 «85020ae7332f5d94»",
+     "reconstruction/contracts/p4-display-wire-tables.md:242 «21af22a18a687def»",
+     "reconstruction/contracts/p4-display-wire-tables.md:243 «a45df67df76672a1»",
+     "reconstruction/contracts/p4-display-wire-tables.md:197 «7c80f675a983074a»"
     ]
    },
    {
     "id": "P4-DW-AC06",
     "requirement": "配送済み契約の原文改訂（B0 の配送で統合担当が当てる）: (1) P2-SNAPSHOT-SSE-001 の P2-A8-COST（p2-snapshot-sse.json:99 の「最終配送 JSON ≤ 1 MiB の直列化は一公開につき 1 回」）に、B0〜T0 の例外（経路ごとに 1 回、各経路の全 client が共有、計数は経路ごとと合計の両方、T0 で 1 回へ戻す）を足す。理由は「新築が Pi で動く前」ではなく、PI 発注 1 の Pi の段 1 は二重の射影の下で走る（段 1 の記録に書き、公開の費用に依る値は段 1 で決めない）。(2) P3-EEW-FACTS-001 の p3-eew-facts.json:237 の (3)「report を EewCurrent・…に入れない。表示の wire の byte は変わらない」に、B0 の例外（EewCurrent に震源名・M・深さ・震央の位置・検知だけの報・場所の文・未確認の印を、EewReportArea に Kind/Code を足す。facts の report は今のまま outcome にだけ置く）を足す。(3) 版の字を書いた配送済みの条文（p3-seismic-expiry-view.json:194 の schemaVersion p3-seismic-unit-v8 など）と、U-Q の上界の字 283_209 を書いた条文（p3-seismic-event-limit.json:271 など）は改訂しない。その契約が版を上げた時の記録で、今の版の真実源は seismic-unit.ts の SCHEMA と型。283_209 は直さず MEMORY_GROWTH に足す（AC16）。器と予約の合計を書いた条文（p3-seismic-event-limit.json の器 26,519,529 の見込み、p3-disaster-pi-measure.json・p3-final-gate.json の測りの記録）も、その配送の時点の値の記録なので改訂しない（B0 の後の値は実装が dist の export で数えて成果物に書く）。(4) P3-EXECUTION-SPLIT-001 の nonPersistedFields（publisher の mirror は公開 view・persistence・pending intent）は改訂しない。losses は mirror でなく composition-root の別の field に持ち、mirror と同じく owner の返信だけで更新する",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:195 «7c80f675a983074a»",
-     "reconstruction/contracts/p4-display-wire-tables.md:211 «98ac1d10bccd8b94»",
-     "reconstruction/contracts/p4-display-wire-tables.md:217 «57c9623e9aeb4b3f»",
-     "reconstruction/contracts/p4-display-wire-tables.md:225 «b5fafb2eed28a66c»"
+     "reconstruction/contracts/p4-display-wire-tables.md:197 «7c80f675a983074a»",
+     "reconstruction/contracts/p4-display-wire-tables.md:213 «98ac1d10bccd8b94»",
+     "reconstruction/contracts/p4-display-wire-tables.md:219 «57c9623e9aeb4b3f»",
+     "reconstruction/contracts/p4-display-wire-tables.md:226 «b5fafb2eed28a66c»"
     ]
    },
    {
@@ -548,28 +564,30 @@
     "evidenceRefs": [
      "reconstruction/contracts/p4-display-wire-tables.md:141 «999a8e10920c072c»",
      "reconstruction/contracts/p4-display-wire-tables.md:145 «857a637b2dc36957»",
-     "reconstruction/contracts/p4-display-wire-tables.md:268 «691a4693d583e1c1»",
+     "reconstruction/contracts/p4-display-wire-tables.md:269 «691a4693d583e1c1»",
      "reconstruction/src/runtime/owner-runtime.ts:312 «be3f4e972d8f8f84»"
     ]
    },
    {
     "id": "P4-DW-AC08",
-    "requirement": "詳細の要求・応答・ページ（表 §2、配送済みの形に倣う）: 新しい part（U-E の areas、U-T の index・areas・stations・comment、U-Q の index・event、U-N・U-V・U-M の index、U-M の本文、U-L・U-R・U-B・U-Y の index、読めない報のカードの raw）は、U-W の索引とページ（1 ページの件数を固定し、HTTP の本文を wrapper 込みで加算して数え、入らない項目は { index, reason: \"pageBudget\" } で省く、P3-UWC-AC06 (3)・P3-UWC-RES-05）と U-V・U-N の本文 1 件の形に倣う。要求は unit・part・id・revision・page（operation は id の sha256 に入るので要求に持たない。U-W の要求と同じ。索引の項目には operation を載せる）。id は sha256(JSON.stringify([unit, operation, subject])) の hex、rev はその part が返す view の object の JSON.stringify の sha256 の hex（返す内容が変われば変わる。読めない報のカードの raw だけは例外で id＝inputId・rev＝receivedAt、原文が外れたかは応答の rawDropped・rawCut で返す）。索引は分野の contentRevision で照合する。版が違えば 409 versionChanged、対象が消えていれば revision: null。要約になった U-N・U-V・U-M は part=index で最初の要求を組む。B0 は p3-execution-split.types.ts の detail・detailDone、composition-root.ts の DetailRequest・DetailResponse、http-sse.ts の DetailPort、owner-runtime.ts の detailOwner の union を全部作り、C1 は触らない。通常合法 corpus の全ページで省略 0 件（spec:1341、P3-UFP-T08 の前例）",
+    "requirement": "詳細の要求・応答・ページ（表 §2、配送済みの形に倣う）: 新しい part（U-E の areas、U-T の index・areas・stations・comment、U-Q の index・event、U-N・U-V・U-M の index、U-M の本文、U-L・U-R・U-B・U-Y の index、U-R の inundation、12 unit の losses、読めない報のカードの raw）は、U-W の索引とページ（1 ページの件数を固定し、HTTP の本文を wrapper 込みで加算して数え、入らない項目は { index, reason: \"pageBudget\" } で省く、P3-UWC-AC06 (3)・P3-UWC-RES-05）と U-V・U-N の本文 1 件の形に倣う。要求は unit・part・id・revision・page（operation は id の sha256 に入るので要求に持たない。U-W の要求と同じ。索引の項目には operation を載せる）。id は sha256(JSON.stringify([unit, operation, subject])) の hex、rev はその part が返す view の object の JSON.stringify の sha256 の hex（返す内容が変われば変わる。読めない報のカードの raw だけは例外で id＝inputId・rev＝receivedAt、原文が外れたかは応答の rawDropped・rawCut で返す）。索引は分野の contentRevision で照合する。losses は H39 の理由の生の行（unit の LossTally をそのまま、[reason, count, lastAt]、最大 9 行で 1 ページ）で、要求は unit・part・revision・page（id を持たない）、rev はその unit の LossTally の列の JSON の sha256（P4-DW-D-LOSS-DETAIL、spec 16.2.6「理由は開けば読める」）。U-R の inundation は浸水想定地区の group の text と区域を電文の字のまま返し、wire で 1,536 byte に切った区域の字の残りを読む（表 §12.2）。版が違えば 409 versionChanged、対象が消えていれば revision: null。要約になった U-N・U-V・U-M は part=index で最初の要求を組む。B0 は p3-execution-split.types.ts の detail・detailDone、composition-root.ts の DetailRequest・DetailResponse、http-sse.ts の DetailPort、owner-runtime.ts の detailOwner の union を全部作り、C1 は触らない。通常合法 corpus の全ページで省略 0 件（spec:1341、P3-UFP-T08 の前例）",
     "evidenceRefs": [
      "reconstruction/contracts/p4-display-wire-tables.md:156 «1b9b2ba4815612dd»",
      "reconstruction/contracts/p4-display-wire-tables.md:160 «cbdcc44767094613»",
      "reconstruction/contracts/p4-display-wire-tables.md:174 «e86ba90cbeff6b78»",
      "reconstruction/contracts/p4-display-wire-tables.md:166 «206dc9e982eeeb03»",
      "reconstruction/src/units/weather-current/weather-current-public.ts:293 «79073a96e6013c8a»",
-     "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»"
+     "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»",
+     "reconstruction/contracts/p4-display-wire-tables.md:181 «483dca5e55cea5ab»",
+     "reconstruction/contracts/p4-display-wire-tables.md:182 «fda8c1d673fa1194»"
     ]
    },
    {
     "id": "P4-DW-AC09",
     "requirement": "wire に足す値（計画 §4.1、表 §1.2・§5.4）: EEW のカードに震源名・M・深さ・震央の位置（Coordinate の生の字）・最大予測震度のみの報の場所の文と、検知だけの報の真偽 detectOnly（VXSE45・非取消・Intensity と全体の ForecastInt がある・区域 0 件・OriginTime が無い・非取消の Body/Text がある、を全部満たすときだけ真。1 つでも欠ければふつうの報として描き、Text を場所の文に使わない）。場所の文は Text の 2 行目の空白の並びの前を切り出し、切り出せないとき（2 行目が無い・空白の並びが無い・切り出した字が空）は null にして画面は場所の行を詰める（計画:257、作者裁定 2026-11-19）。切り出した字は 192 byte で切り cut の印を付ける。M と深さは仮定震源の報で出さない（A15b）。大カードの区域の行に到達の状況のコード（Kind/Code の下 1 桁）。今日の地震の行に深さ・M の description・津波の評価の文（津波のコードの文だけ）・震度速報だけの行の最も強い地域のコード、運用区分ごとに当日の件数と最大震度（取消を除く、H18）。退去の理由・件数の不明・通知の結果の不明（H17・H39）は AC15。新しい描画は区域名を G0 の表から引く（P4-DW-D-COMPOSITE）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:262 «225b707762089350»",
-     "reconstruction/contracts/p4-display-wire-tables.md:263 «7383c0c102416875»",
+     "reconstruction/contracts/p4-display-wire-tables.md:263 «225b707762089350»",
+     "reconstruction/contracts/p4-display-wire-tables.md:264 «7383c0c102416875»",
      "reconstruction/contracts/p4-order-plan.md:255 «6f1704334f58fd36»",
      "reconstruction/contracts/p4-order-plan.md:257 «baa609b63f4cf1a2»"
     ]
@@ -599,9 +617,9 @@
     "id": "P4-DW-AC12",
     "requirement": "配送済みの契約の行参照: 変える file を «» で引く行は Q-DW-ANCHORS の数で、行を足さない書き方（表 §4、Q-DW-ANCHORS の「付け直し 0 の書き方」）にする。中身の変わる行の «» は統合担当が配送の時に付け直す（Q-DW-ANCHORS の 11 件。本契約の実装の木では、該当の契約が check-contract で FAIL するのは想定どおり。成果物に FAIL した契約と行を全部書く）。保存の形を変えるのは U-Q の daily.recent だけ（AC16）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:207 «df73af59343e5ee8»",
-     "reconstruction/contracts/p4-display-wire-tables.md:213 «03e7d25b90c8922c»",
-     "reconstruction/contracts/p4-display-wire-tables.md:218 «96fe4a78c3078c76»"
+     "reconstruction/contracts/p4-display-wire-tables.md:209 «801ffbbf8e5817d7»",
+     "reconstruction/contracts/p4-display-wire-tables.md:215 «03e7d25b90c8922c»",
+     "reconstruction/contracts/p4-display-wire-tables.md:220 «85613222888e42e2»"
     ]
    },
    {
@@ -616,32 +634,35 @@
     "id": "P4-DW-AC14",
     "requirement": "9 分野の表示語彙（表 §12、P4-DW-D-VOCAB=A・P4-DW-D-NEW-PATH-BUDGET=A）: (1) 語彙は判別共用体（共通の見出し・事実の行・区域の一覧・文章と型付きの値）で、形と上限は表 §12.1。型付きの値 sv の種類は旧築の意味の数値（exact・lowerBound〔≥〕・range〔↔〕・unknown〔?〕・empty〔∅〕・missing）。(2) 9 分野（weatherCurrent・weatherTimeseries・nankai・volcano・landslide・flood・briefing・localBulletins・typhoon）は、今の view の欄を表 §12.5 の表のとおり語彙の種へ写す。落とさない・足さない。載せない欄は表 §12.5 の冒頭の列挙だけ。分野の包みは今の DisplayDomainView のまま（full のときは view の代わりに display）。(3) 台風の予報円と水位のミニグラフは専用部品（表 §12.3）で、view の形のまま、unit の上限のまま。投影後の座標と SVG path は入れない。(4) 字の上限は、unit が字数の上限を持つ欄はその字数 × 6 byte（wire で新しく切らない）、持たない欄は 1,536 byte で切って cut の印（表 §12.2）。上限の表は display-wire.ts の 1 つ。(5) 新しい経路の 1 MiB は今の規則をそのまま当てる: 全体が 1,048,576 byte を超えたら 65,536 を超えた 9 分野を今の要約の形にし、保護 3 分野は要約にしない。上界は 9 × 65,536 ＋ 通知 131,072 ＋ 共通部 65,536 ＋ 保護 3 分野 182,062 ＝ 968,494（script）。(6) どれを描くかは C0・C1 の板で、B0 は描かない",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:383 «faba09653063eb7f»",
-     "reconstruction/contracts/p4-display-wire-tables.md:387 «eb2db0129b87f53d»",
-     "reconstruction/contracts/p4-display-wire-tables.md:420 «1156692dbc13eb89»",
-     "reconstruction/contracts/p4-display-wire-tables.md:410 «1d836171ac1d6751»",
+     "reconstruction/contracts/p4-display-wire-tables.md:400 «faba09653063eb7f»",
+     "reconstruction/contracts/p4-display-wire-tables.md:404 «eb2db0129b87f53d»",
+     "reconstruction/contracts/p4-display-wire-tables.md:442 «1156692dbc13eb89»",
+     "reconstruction/contracts/p4-display-wire-tables.md:432 «1d836171ac1d6751»",
      "reconstruction/contracts/p4-order-plan.md:248 «2e7e76ec6da232b3»",
      "reconstruction/contracts/p4-order-plan.md:249 «57be55264e60aca8»"
     ]
    },
    {
     "id": "P4-DW-AC15",
-    "requirement": "共通部（表 §13）: (1) 版の欄・connection・worker・persistence・recovery・channels・notices は今の snapshot の型の形のまま写す。(2) H39 の件数 losses は unit ごとに 1 行（dropped・evicted・missed・outcomeUnknown・unreadable の [件数, 最後の時刻] か null と hole）。LossReason 20 語の区分は表 §13.2 の表のとおり。hole は publisher の InputBoundaries の unit の最古の穴の種類で、checkpoint.ts:842 の行の中に足す読むだけの関数で読む（boundary(unit) は位置が無いと null を返して穴の種類も落とすので使わない）。件数の分からない欠けを 0 件と出さない。U-E・U-F は穴を持たないので hole は常に null で、EEW の切れていた間は今の recovery.eewUnverified（H28）で出る。件数は owner が持つ間だけ（行は lastAt＋24 時間で外れる、P3-NL-AC14 の (6)）。運ぶ道は owner の state の losses → OwnerUnitDelta の losses?（変わった step だけ書く）→ composition-root の unit ごとの field。旧 /events の出力と unit の view は変えない。(3) H17 の消えた理由 removals は新しい 32 件と外した件数。reason は表 §13.2 の (1)〜(5) で決め（cancelled・expired・evicted、released は載せない）、分からない消え方は unknown（H51）。(4) 共通部に足す分の最大は 8,525 byte で、今の共通部の上界 49,443（p3-recovery.json:952）と合わせて 57,968 ≤ 65,536（script の common、RES-04）。描くのは C2",
+    "requirement": "共通部（表 §13）: (1) 版の欄・connection・worker・persistence・recovery・channels・notices は今の snapshot の型の形のまま写す。(2) H39 の件数 losses は unit ごとに 1 行（dropped・evicted・missed・outcomeUnknown・unreadable の [件数, 最後の時刻] か null と、件数の分からない欠けの有無 hole）。LossReason 20 語の区分は表 §13.2 の表のとおり。hole は publisher の InputBoundaries.hasHole(unit) をそのまま読み、取り直しで解けた印の穴（confirmable）は数えない（P3-RB-AC07 (3)、checkpoint.ts は変えない）。件数の分からない欠けを 0 件と出さない。U-E・U-F は穴を持たないので hole は常に false で、EEW の切れていた間は今の recovery.eewUnverified（H28）で出る。件数は owner が持つ間だけ（行は lastAt＋24 時間で外れる、P3-NL-AC14 の (6)）。運ぶ道は owner の state の losses → OwnerUnitDelta の losses? → composition-root の unit ごとの field。losses? を書くかは、pendingIntents と同じく前に報告した losses の参照と今の参照を比べて決める（step の前と後では比べない）。capture が 24 時間を過ぎた行を外したとき（owner-runtime.ts の capture の後始末）は changed を呼ばないが、続く保存の返信の delta で届く。初期画面は分野と 5 区分の件数だけで、理由の生の行は詳細の part=losses で開いて読む（AC08、P4-DW-D-LOSS-DETAIL）。旧 /events の出力と unit の view は変えない。(3) H17 の消えた理由 removals は新しい 32 件と外した件数。reason は表 §13.2 の (1)〜(5) で決め（cancelled・expired・evicted、released は載せない）、分からない消え方は unknown（H51）。(4) 共通部に足す分の最大は 8,417 byte で、今の共通部の上界 49,443（p3-recovery.json:952）と合わせて 57,860 ≤ 65,536（script の common、RES-04）。描くのは C2。(5) 計画:111・:267 が B0 に挙げる H11 は B0 の範囲外で、新しい値を作らない。気象の危険警報・特別警報の画面のお知らせに要る事実は U-W の公開形の codes（表 §12.5）と通知したか不明の件数で wire に載り、お知らせを出す規則と見せ方は C2（計画:126）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:458 «b896df2bb307576a»",
-     "reconstruction/contracts/p4-display-wire-tables.md:466 «a6b7a4856f7cd5f5»",
-     "reconstruction/contracts/p4-display-wire-tables.md:478 «a0b83e07f86e3ea5»",
-     "reconstruction/contracts/p4-display-wire-tables.md:484 «7df9471362088c98»",
+     "reconstruction/contracts/p4-display-wire-tables.md:480 «b896df2bb307576a»",
+     "reconstruction/contracts/p4-display-wire-tables.md:488 «a6b7a4856f7cd5f5»",
+     "reconstruction/contracts/p4-display-wire-tables.md:502 «a0b83e07f86e3ea5»",
+     "reconstruction/contracts/p4-display-wire-tables.md:508 «c909dfb82d9688d5»",
      "reconstruction/contracts/p4-order-plan.md:268 «59dce5faa5aff731»",
-     "reconstruction/contracts/p4-display-wire-tables.md:471 «48b162e04eff03fa»"
+     "reconstruction/contracts/p4-display-wire-tables.md:493 «988c6e832263c6ea»",
+     "reconstruction/contracts/p4-display-wire-tables.md:496 «5e59a8b0e56ae700»",
+     "reconstruction/contracts/p4-display-wire-tables.md:497 «f8d36b88960b2d59»",
+     "docs/specs/reconstruction-p0-contracts.md:3152 «47248045797d0f7e»"
     ]
    },
    {
     "id": "P4-DW-AC16",
-    "requirement": "U-Q の保存の版上げ（P4-DW-D-QROW=A、P3-MIG-AC02 (2)、前例 P3-SEISMIC-EXPIRY-VIEW-001 の AC の (1)〜(4)）: (1) schemaVersion を p3-seismic-unit-v9 に上げる（seismic-unit.ts:36 の SCHEMA、型の :180・:192・:256、owner-runtime.ts:84 の U-Q の初期 state、試験の 3 か所〔seismic-fixture.ts・seismic-capacity.test.ts・shared-runtime.test.ts の版の字〕）。discardableSchemaVersions に足さず、旧い形を読む移行を作らない。(2) SeismicRecentQuake に depth（MaterialValue、magnitude と同じ 32 字の上限）・magnitudeDescription（32 字）・tsunamiComment（128 字）・strongest（区域コード 8 個）・omittedStrongest を足し、行を作る所（seismic-unit.ts の :477〜:479）で入れる。decode（:1593〜:1602 の recent）は新しい欄を項目ごとに確かめて組み立てる（確かめた後に全体を as で言い換えない）。上限の外は invalid。(3) 上界は «» 0 の行（:57〜:60）に増え分の定数（表 §4 の U-Q の増え分、sizeOf で数える）を置いて MEMORY_GROWTH に足す。:63 の GENERATION_LIMIT と :69 の RESERVE_BYTES の行、283_209 は変えない。試験の写し seismic-unit.test.ts の MEMORY_GROWTH（:35）に同じ増え分を足す。ほかに上界の数で期待が動く既存の試験があれば、変える前に試験名・旧の期待・理由を報告して止める。(4) 新しい欄のある行は encode→JSON→decode で同じ state になる。(5) 配送の手順は artifactRequirements（開発機の古い slot は作者の了承で消し、Pi は旧築なので消さない）",
+    "requirement": "U-Q の保存の版上げ（P4-DW-D-QROW=A、P3-MIG-AC02 (2)、前例 P3-SEISMIC-EXPIRY-VIEW-001 の AC の (1)〜(4)）: (1) schemaVersion を p3-seismic-unit-v9 に上げる（seismic-unit.ts:36 の SCHEMA、型の :180・:192・:256、owner-runtime.ts:84 の U-Q の初期 state、試験の 3 か所〔seismic-fixture.ts・seismic-capacity.test.ts・shared-runtime.test.ts の版の字〕）。discardableSchemaVersions に足さず、旧い形を読む移行を作らない。(2) SeismicRecentQuake に depth（MaterialValue、magnitude と同じ 32 字の上限）・magnitudeDescription（32 字）・tsunamiComment（128 字）・strongest（区域コード 8 個）・omittedStrongest を足し、行を作る所（seismic-unit.ts の :477〜:479）で入れる。decode（:1593〜:1602 の recent）は新しい欄を項目ごとに確かめて組み立てる（確かめた後に全体を as で言い換えない）。上限の外は invalid。(3) 上界は «» 0 の行（:57〜:60）に増え分の定数（表 §4 の U-Q の増え分、sizeOf で数える）を置いて MEMORY_GROWTH に足す。:63 の GENERATION_LIMIT と :69 の RESERVE_BYTES の行、283_209 は変えない。試験の写し seismic-unit.test.ts の MEMORY_GROWTH（:35）と seismic-capacity.test.ts の MEMORY_GROWTH（:23、:25 の RESERVE と :26 の EXPECTED_L が使う）に同じ増え分を足す。ほかに上界の数で期待が動く既存の試験があれば、変える前に試験名・旧の期待・理由を報告して止める。(4) 新しい欄のある行は encode→JSON→decode で同じ state になる。(5) 配送の手順は artifactRequirements（開発機の古い slot は作者の了承で消し、Pi は旧築なので消さない）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:218 «96fe4a78c3078c76»",
-     "reconstruction/contracts/p4-display-wire-tables.md:229 «c06335b7492e4443»",
+     "reconstruction/contracts/p4-display-wire-tables.md:220 «85613222888e42e2»",
+     "reconstruction/contracts/p4-display-wire-tables.md:230 «c06335b7492e4443»",
      "reconstruction/contracts/p3-seismic-expiry-view.json:272 «d7af8320c30b079e»",
      "reconstruction/contracts/p3-seismic-expiry-view.json:435 «3b854b49f8e16d13»"
     ]
@@ -696,7 +717,7 @@
     "referenceIds": [
      "P4-DW-AC08"
     ],
-    "behavior": "受入条件（詳細）。新しい part が wrapper 込み 65,536 byte 以下で、入らない項目を pageBudget で省く。返す object が変われば rev が変わる（土砂の held のように source が同じで中身が変わる例を含む）。要求は operation を持たない。通常合法 corpus（manifest.json の fixture のうち各 unit が受理するもの全部を通した view）の全ページで省略 0 件"
+    "behavior": "受入条件（詳細）。新しい part が wrapper 込み 65,536 byte 以下で、入らない項目を pageBudget で省く。返す object が変われば rev が変わる（土砂の held のように source が同じで中身が変わる例を含む）。要求は operation を持たない。通常合法 corpus（manifest.json の fixture のうち各 unit が受理するもの全部を通した view）の全ページで省略 0 件。part=losses は unit の LossTally を 1 ページで返し、行が変われば rev が変わる。U-R の part=inundation は wire で切った区域の字の全部を返す"
    },
    {
     "testId": "P4-DW-T07",
@@ -736,7 +757,7 @@
     "referenceIds": [
      "P4-DW-AC15"
     ],
-    "behavior": "受入条件（共通部と H17・H39）。LossReason 20 語がそれぞれ表 §13.2 の区分に足され、hole のある unit は件数の不明が出る（0 件と出ない）。取消・期限切れ・押し出し・分からない消え方が removals の reason で分かれ、通常の解除は載らず、33 件目で最も古い 1 件が外れて omitted が増える。共通部は 65,536 以下で、/events の出力は変わらない"
+    "behavior": "受入条件（共通部と H17・H39）。LossReason 20 語がそれぞれ表 §13.2 の区分に足され、hasHole が真の unit は件数の不明が出て（0 件と出ない）、取り直しで解けた印の穴だけの unit は出ない。capture が 24 時間を過ぎた行を外した後の保存の返信で、新しい経路の losses から外れる。理由の生の行は詳細の part=losses で読める。取消・期限切れ・押し出し・分からない消え方が removals の reason で分かれ、通常の解除は載らず、33 件目で最も古い 1 件が外れて omitted が増える。共通部は 65,536 以下で、/events の出力は変わらない"
    },
    {
     "testId": "P4-DW-T12",
@@ -825,8 +846,8 @@
    "最小実装・最小テスト: 足す仕組みごとに、無いと何が壊れるかを 1 行（AC13）。追加した各試験が受入条件・契約の境界・実際の不具合・corpus 履歴のどれに当たるかを 1 行",
    "受信経路の計算量: AC05 の回数（EEW の (1)〜(3)、地震・津波の合成で読んだ区域の数と引き直した既知区域の数、閉じた印で読んだ記録の数、9 分野で作り直した item の数）と、ほかの EEW の区域を読む回数 0 を試験の出力で書く",
    "check-contract の FAIL の一覧（AC12）: 中身の変わる行を引く契約と行を全部書く（Q-DW-ANCHORS の 11 件のほかに出たら、それも書く）",
-   "既存の試験の期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める。ただし AC16 の版の字 3 か所と seismic-unit.test.ts の MEMORY_GROWTH の写しは本契約が認める変更。試験は XDG_CONFIG_HOME を一時の置き場へ向ける",
-   "残存として書く: projector に通した型の最大と表 §1.4 の差、旧 /events に欄を足したことで C4・C6 の manifest の旧 full が予算に入るか、二重の射影の時間（PI 発注 1 の段 1 で見る）、旧の経路で full の分野が新しい経路で要約になる場合（表 §12.4）、H17 の消えた理由で unknown が出た unit（表 §8）、U-Q の listed の期限待ちの扱い（表 §1.6）、最大予測震度のみの報の場所の文の根拠が事例 2 つ（表 §5.4）、震央地名の最長、1,892 と 1,894（表 §8）",
+   "既存の試験の期待を変える要があれば、変える前に試験名・旧の期待・理由を報告して止める。ただし AC16 の版の字 3 か所と seismic-unit.test.ts:35・seismic-capacity.test.ts:23 の MEMORY_GROWTH の写しは本契約が認める変更。試験は XDG_CONFIG_HOME を一時の置き場へ向ける",
+   "残存として書く: projector に通した型の最大と表 §1.4 の差、旧 /events に欄を足したことで C4・C6 の manifest の旧 full が予算に入るか、二重の射影の時間（PI 発注 1 の段 1 で見る）、旧の経路で full の分野が新しい経路で要約になる場合（表 §12.4）、H17 の消えた理由で unknown が出た unit（表 §8）、U-Q の listed の期限待ちの扱い（表 §1.6）、最大予測震度のみの報の場所の文の根拠が事例 2 つ（表 §5.4）、震央地名の最長、1,892 と 1,894（表 §8）、pi-measure.mjs（reconstruction/test/disaster/pi-measure.mjs:356）は dist の U-Q の maxEnvelopeBytes を山の記録の effectiveLimits と照らすので、B0 で器が広がると B0 より前に取った山の記録は limitMismatch で止まる（その記録で測り直すなら B0 の後の build で山を取り直す）、U-M の transient の tags の 1 語が 1,536 byte を超えたとき残りを読む所が無い（表 §12.2）",
    "配送の手順（統合担当）: (1) AC06 の原文改訂を当てる (2) Q-DW-ANCHORS の 11 件の «» を付け直す (3) U-Q の版上げ（P3-MIG-AC02 (2)）: 開発機の新築の stateDirectory の U-Q-A.json・U-Q-B.json のうち、slot の schemaVersion が p3-seismic-unit-v9 でないものを、作者の了承を得て消す。今の版の slot は消さない。Pi は旧築なので消さない"
   ],
   "unresolvedQuestions": [

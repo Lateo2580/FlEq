@@ -140,14 +140,15 @@ const groups = {
 };
 const rows = Object.entries(groups).map(([name, group]) => ({ name, ...total(group) }));
 
-// ---- 共通部の H17・H39（表 §13）----
+// ---- 共通部の H17・H39（表 §13）。理由の生の行は詳細の part=losses で読む（共通部に入れない）----
 // 今の共通部の上界（connection・worker・persistence・recovery〔digest 16,384・EEW の札 2,048・進み具合 4,096〕・channels・版）。
 // p3-recovery.json:952 の保守の再計算 49,443 をそのまま使う（共通部は 65,536 を超えると snapshot 全体が断られる、P2-A8-RES-04）。
 const COMMON_EXISTING = 49443;
 const UNITS = 12;
 const tally = widest(null, [MS, MS]); // [件数, 最後に足した時刻]
 const lossRow = { unit: "U-E", dropped: tally, evicted: tally, missed: tally, outcomeUnknown: tally, unreadable: tally,
-  hole: widest(null, "refused", "disconnected", "restarted") };
+  // hole は件数の分からない欠けの有無（InputBoundaries.hasHole、取り直しで解けた印の穴は数えない、P3-RB-AC07 (3)）。
+  hole: BOOL };
 const removal = { unit: "U-E", operation: OPERATION, reason: widest("cancelled", "expired", "evicted", "unknown"), at: MS, ref: { id: text(64) } };
 const h17h39 = { losses: array(UNITS, lossRow), removals: { items: array(32, removal), omitted: MS } };
 // 共通部の object に足す鍵 2 つの分（外の括弧 2 を除き、前の鍵との区切り 1 を足す）。
