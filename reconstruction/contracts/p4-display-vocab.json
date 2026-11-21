@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "e59e254894e154be2e96f1f606a980b243ce796fd5e72b4dbcb60e57bde46d94",
+    "sha256": "2fab8248b86d8d354c34f7746879f7554f4f04152f30ac8557899cf4ab7f0201",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -124,8 +124,8 @@
         "B": "part=item をページに切り、1 件が 1 応答を超えうる 9 分野の項目の全部（U-W の phenomena と areas の一覧、U-R の stations と浸水想定地区の rows、U-Y の区域の rows、U-V の市町村の一覧、U-L の区域の一覧など、一覧と専用部品の rows）を 1 ページずつ返す。既存の U-W の areas の詳細も超えた行を繰り越さない（weather-current-public.ts:290）ので同じ形で直す（B を選ぶときは、発注の前に統合担当が allowedPaths に weather-current-public.ts を足し、AC05 と outOfScope の「既存の口を変えない」を改め、受入条件を足してから発注する。B でも、1 行・1 つの値だけで 1 応答を超えるもの〔U-W の名前は 16,384 コードポイントまで受理し、4 byte の字なら名前だけで 65,536 byte、decode-material.ts:117・weather-current.ts:294〕は行の単位では切れず、読めないまま残る。値を切る規則を足すかは B の裁定の時に決める）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（作者に聞いていない）",
-        "ruling": "未",
+        "status": "確定（作者裁定 2026-11-22 06:5x）",
+        "ruling": "A（作者の原文「では、カード8はAで進め、ほかも推奨でお願いします！」（2026-11-22 06:5x）。判断カード 2026-11-22-P4-消えた理由と9分野の語彙 の 7）",
         "reason": "表 §3.2・§5.3・§9。U-R の 1 件は escape の最悪で浸水想定地区を除いて 72,781 byte、上限 32,768 を足して 105,549 byte（flood.ts の BOUNDS・LIMITS から node で組んだ見積もり）、U-W も異なる 2 コードに各 16,384 字の名前があれば全文だけで 98,304 byte で、合法の電文でも 1 応答に入らないことがある。A で画面から消えるのは、その項目が 1 応答に入らない間の、snapshot で切った字の続き（full の間も戻らない）と、要約の間のその項目の中身。推奨は A（実の電文では起きない見込み）。ただし A が成り立つのは B1 の通常合法最大の manifest（E13a）が最悪の 1 件を含まない場合だけで、含むなら spec:1341（通常合法 corpus の全ページで省略 0 件）で受入不可なので B に替える。B は part=item のページの規則を 1 つ足す。ほかの分野の 1 件の最大は数えていない"
       },
       {
