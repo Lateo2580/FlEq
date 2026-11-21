@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "5464f9b0f2bd0abb088c31f36ed6c0d0b4b66af95de326f09e4f6ba16a6bbbaf",
+    "sha256": "00996929395724d581738fdf3f8b00bb469d0747cda34292f3ce391d4ac4fd63",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -270,6 +270,13 @@
         "status": "closed",
         "source": "起草 r1（統合担当の起草レビューの P1）",
         "closed": "r0 の『市区町村→津波予報区の表は無い』は誤り。気象庁の対応表（令和８年３月26日時点の PDF）があり、spec:3094 の『気象庁の対応表』はこれ。PDF を取って数え直した（82 セル・675 行・sheet 24 の Name と完全一致 580 行、北方領土の 6 村は 7 桁が無い）。675 は名前の項目の数で、統合担当の裏取りで成立。レビューの 641・583・21 は数え方の誤りとして捨てた。P4-GIS-D-TSUNAMI-REGION を組み直し、表は発注 2 の独立の AC（P4-GIS-AC11）にした",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-GIS-PRECHECK-ORDER1",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-21 18:2x、main 362732fe の上に rebase した draft/p4-g0）",
+        "closed": "(1) decisionBranches は作者 6・統合担当 9 とも確定で「起草案」0 件（Q-G0-ORDER-SPLIT は閉じた） (2) AC05 の P1（archive の 2 区は形あり）・P2（入力は R8.11.18、sheet 24・31・82 は R8.10.19 と差 0）は閉じた。P3（spec:1696・:1733・:1850 の数）は発注 1 の配送で当てる (3) 後の作者裁定で前提が変わったもの: なし（地図の 6 問は 17:51 に裁定、火山の KML は問い Q-GIS-VOLCANO-KML-TERMS で発注 2 の前） (4) 発注 1 が変える file は新しい file（known-codes.v1.json・build-known-codes.mjs と .d.mts・manifest・試験）と、配送で行の中を直す spec の 3 行だけで、spec の 3 行を «» で引く契約は本契約だけ (5) readPaths の 14 は全部実在、dependsOn・integration は空 (6) check-contract rc 0（WARN は本契約と P4-PERSONA-WALK-TOOLS-003 の baseOid 未割当だけ） (7) B0（P4-DISPLAY-WIRE-001、draft/p4-b0）は本契約の発注 1 の配送の後に readPaths と dependsOn へ本契約を足して baseOid を割り当てる（B0 の artifactRequirements の最初の作業）",
         "remaining": "なし"
       }
     ],
