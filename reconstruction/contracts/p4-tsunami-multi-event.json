@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "38831d5951781a669358c214cba6a506b60c28b3",
-    "sha256": "2fe587004054ce089332875dd13d62040a60119dbd040044dce1b1a38e16f8a7",
+    "sha256": "2212b69cf74cc479453a0f47afff9d478c21ae49ac111b739cf61c8b53faa05a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
-    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
+    "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -77,6 +77,13 @@
         "source": "2026-11-22 起草（imozuru の sources/manual/地震火山関連_解説資料.txt・sources/jma-2026-head-control-list.txt を読んだ）",
         "closed": "EventID の運用の写し: (1) 並び: 津波に関連する情報では当該警報等に寄与している地震の番号を書くので、1 つの電文に複数の番号が出ることがある（解説資料 :240〜:244）。(10)〜(12) の電文は 1 つ又は複数の番号を半角スペースで区切って列挙する（共通別紙イ 3.、:1815〜:1821）。運用整理表 ※２ は xs:list 型（:195） (2) 範囲: (1)〜(9) は 1 つだけ（:1816〜:1817） (3) 番号: 14 桁、気象庁のシステムが処理を始めた時刻を割り振り、いったん割り振った番号はその地震のその後の電文に出現する。編集官署が変わる・複数の地震が続くと同じ地震でも番号が一貫しないことがある（:1822〜:1830） (4) 追加の向き: 出現例 6（:2010〜:2039）は第 2 の地震の番号を後ろに足し、観測の情報と解除まで同じ並び (5) 取消: InfoType「取消」は独立した情報単位の全体を取り消す。例 2 は A の報と A・B の報を A・B の取消 1 通で取り消し、A だけの取消は出さない（共通別紙ウ、:2048〜:2064） (6) 独立した情報単位: Control/Title・Control/Status・地震識別番号の組み合わせが一致する一連の情報、津波に関連する情報は複数の番号を持つ場合がある（運用整理表 ※１、:194）。字どおりには並びの字が組み合わせの一部に読めるが、(4)(5) の例が並びの報を前の報と同じ単位として扱う (7) 資料に無いこと: 並びの順の規則、番号を並びから外すこと、並びの最大の数、同じ番号の重複",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-TME-FIXTURES",
+        "status": "closed",
+        "source": "統合担当の発注前の commit（2026-11-22 08:0x、branch impl/tme、main c5a35896 の上。代理の子が allowedPaths の発注前の項の (1)〜(11) を当てた）",
+        "closed": "(1) fixture: test/fixtures に 38-39_02_01_250206_VTSE41・38-39_02_03_250206_VTSE51・38-39_02_04_250206_VTSE41・38-39_02_05_250206_VTSE51 を research の samples（2026-09-17 の zip を展開した写し）から bytes のまま写した。sha256・byte は Q-TME-DRAFT-FACTS (6) と 4 本とも一致（4696346e…05d4・10753、29a5a79a…1014・13573、8171a3dd…c819・4570、92ffaa2c…545e・5675）。同じ写しの 38-39_02_02 は、2026-10-13 に zip と照合した fixture と sha256 が同じ (2) manifest.json: :77 に _01、:79〜:81 に _03〜_05（:78 の 38-39_02_02 の行に倣う。jmaPublished・byteIdentical・confirmedOriginal・publicApproved、telegram.earthquake、headType は file 名の型、documentTimes は (2) のとおり）。meta.sha256 は aae08bb8…3c70。:78 より後が 4 行ずれ、p3-e05p-typhoon.json の «» を :121〜:123・:247 に付け直した (3) check-manifest.mjs の :33・:62・:97 を 327、:34 を 306、:149 を「306 XML」にした (4) README の :5 を「327件=XML306+JSON21」にして追加の記録を足し、:44 を「全327件」にした (5) p1-parser-boundary.json の :84 を 327、fixtureIds の :223（_01）と :225〜:227（_03〜_05）を足し、ずれた後の :556・:573・:584 を 306・306・327 にした。«» の付け直しは p3-weather-light-step1・p3-weather-light-step2・p3-xml-tree-compact の :511→515・:555→559・:557→561・:558→562・:566→570。«» の無い地の文の行番号（:474〜・:476〜・:479〜・:535〜）は閉じた記録なので変えない (6) p1-parser-boundary.test.ts の :46 を 306、:48・:50 を 305 にした (7) tsunami-unit.test.ts:628（E13）の changed の件数を 30 にした (8) sequences.json の meta.manifestSha256 と meta.sha256（b56e6a9a…3de6）、全 168 契約の meta.manifestSha256・meta.sequencesSha256 を raw の置き換えで直し、meta.sha256 を取り直した。p3-measure-harness の自己 digest を取った後に p3-e05p-classify.json:343 の anchor を 6a1065dafe978423 に付け直し、p3-e05p-classify を最後に取った (9) reanchor-target.py を manifest.json と p1-parser-boundary.json を target に回した。契約の本文の «»（path 付き 8,763 件）が今の木の行の中身と全部合う (10) 本契約の fixtureIds に 4 本を足し、readPaths の「（統合担当が発注前に置く）」を外した (11) check-manifest rc 0（327 fixtures、306 XML + 21 JSON、confirmedOriginal 161）・check-sequences rc 0・check-contract rc 0",
+        "remaining": "統合担当: (a) 旧築の npm run build && npm test（phase1-shadow.test.ts・width-contract.test.ts を含む）と P1-T01 の件数の PASS を Mac mini で確かめる (b) この commit で reconstruction の vitest を回し、赤の試験を記録する（E13 は _03 の identityInvalid で落ちる見込み。display-wire-detail.test.ts と terminal の width・layout6・digest は未実走） (c) zip そのものとの照合: 2026-11-22 08:0x に https://xml.kishou.go.jp/jmaxml_20260917_Samples.zip が 404 を返し、できていない (d) baseOid の割り当て"
       }
     ],
     "operationContract": {
@@ -102,11 +109,11 @@
       "reconstruction/src/terminal/format.ts",
       "reconstruction/test/terminal/**",
       "reconstruction/contracts/p3-terminal-layout2.json",
-      "test/fixtures/38-39_02_01_250206_VTSE41.xml（統合担当が発注前に置く）",
+      "test/fixtures/38-39_02_01_250206_VTSE41.xml",
       "test/fixtures/38-39_02_02_250206_VTSE51.xml",
-      "test/fixtures/38-39_02_03_250206_VTSE51.xml（統合担当が発注前に置く）",
-      "test/fixtures/38-39_02_04_250206_VTSE41.xml（統合担当が発注前に置く）",
-      "test/fixtures/38-39_02_05_250206_VTSE51.xml（統合担当が発注前に置く）",
+      "test/fixtures/38-39_02_03_250206_VTSE51.xml",
+      "test/fixtures/38-39_02_04_250206_VTSE41.xml",
+      "test/fixtures/38-39_02_05_250206_VTSE51.xml",
       "test/fixtures/38-39_03_01_210805_VTSE41.xml"
     ],
     "allowedPaths": [
@@ -146,7 +153,11 @@
       "既存の依存だけ"
     ],
     "fixtureIds": [
+      "test__fixtures__38-39_02_01_250206_VTSE41",
       "test__fixtures__38-39_02_02_250206_VTSE51",
+      "test__fixtures__38-39_02_03_250206_VTSE51",
+      "test__fixtures__38-39_02_04_250206_VTSE41",
+      "test__fixtures__38-39_02_05_250206_VTSE51",
       "test__fixtures__38-39_03_01_210805_VTSE41"
     ],
     "sequenceIds": [
@@ -352,21 +363,6 @@
       "旧築（src/）を変えない。test/fixtures は統合担当の発注前の commit で変わるので、旧築の build と test は統合担当がその commit で回す（requiredCommands の preparation）",
       "残存として成果物に書く: 資料が認めるのは、システム障害で発信官署が異なる・複数地震が連続するなどで同じ地震でも番号が一貫しない場合もあること（共通別紙イ 4.(2)、:1829〜:1830）まで。ここからは推論: そのとき先頭の番号を変える報（順の入れ替え・先頭を外す）が来ると別の記録になり、前の注意報が期限なしで残る（P4-TME-D-IDENTITY=A の弱み）。また B の番号だけの記録が先にある所へ「A B」の報が来ると、A の記録に続き、B の記録は残る（B の注意報が期限なしで残りうる）。並びの最大の数は資料に無く、上限を置かない。取り直しで、保存の後の停止中に出た解除より古い報が遅れて一覧に届くと、bodiesFor は receivedAtMs が最大の 1 件を選ぶので解除を取りこぼしうる。EventID が 1 つの報でも今の main で同じく起きるので、本契約の範囲外で今の main と同じ"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-TME-FIXTURES",
-        "owner": "integrator",
-        "blocks": [
-          "baseOid の割り当て",
-          "P4-TME-T01"
-        ],
-        "resolveBy": "統合担当の発注前の commit（4 本を置き、同じ commit で本契約の fixtureIds と readPaths の注記を直す。波及の一覧は allowedPaths の発注前の項）",
-        "requiredEvidence": [
-          "test/fixtures の 38-39_02_01・_03・_04・_05 の sha256 と byte が公式サンプルの zip（https://xml.kishou.go.jp/jmaxml_20260917_Samples.zip）の同名と一致すること（起草で読んだ research の写しの値は Q-TME-DRAFT-FACTS (6)）",
-          "manifest の 4 行（acquisition jmaPublished・modification byteIdentical・distribution publicApproved、38-39_02_02 の行に倣う）と check-manifest の PASS（327 件=XML306+JSON21）",
-          "旧築の build と test、P1-T01 の件数の PASS"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }
