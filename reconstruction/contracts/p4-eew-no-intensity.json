@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "86a05aeaae453c36dd4a323e4a1b283bda665b40f4f7078e50158b314628aa57",
+    "sha256": "460c89d443a912650dca0573f71b3c3e45401bbdb26c935d744f225403e286ba",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -75,9 +75,9 @@
       "test/fixtures/37_01_01_240613_VXSE43.xml"
     ],
     "allowedPaths": [
-      "reconstruction/src/domains/eew/eew.ts（:191〜:197・:201・:628〜:633 の行の中だけ。:426 は P4-ENI-D-BODY-FORECAST=B のときだけ。行を足さず消さない。:190・:630 は p3-eew-facts が «» で引くので中身を変えない）",
+      "reconstruction/src/domains/eew/eew.ts（:191〜:197・:201・:628〜:638 の行の中だけ。:426 は触らない。行を足さず消さない。:190・:630 は p3-eew-facts が «» で引くので中身を変えない）",
       "reconstruction/test/eew-unit/eew-unit.test.ts（AC04 の :485〜:486 の行の中の書き換えと、file の最後の it の後に P4-ENI-T01〜T03 を足す。:1488 より前に行を足さない）",
-      "統合担当だけ（配送の commit）: p2-eew-unit.json の :94・:100 の行の中（AC05 (2)）と meta.sha256、p3-replay-watch-002.json:489 の «» の付け直しと meta.sha256、p3-persist-premises.md §13 への解消の注記。実装担当は触らない"
+      "統合担当だけ（配送の commit）: p2-eew-unit.json の :94・:100 の行の中（AC05 (2)）と meta.sha256、p3-replay-watch-002.json:489 の «» の付け直しと meta.sha256、p3-persist-premises.md:509 の行の中への解消の注記（AC05 (4)）と、それに伴う本契約の :509 の «» と meta.sha256 の付け直し。実装担当は触らない"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -144,7 +144,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-ENI-AC01",
-        "requirement": "受ける（台帳 98、H51、P4-ENI-D-FAMILY=A）: (1) VXSE43・VXSE45 の非取消で Body/Intensity が 1 つも無い報は requiredStructureMissing でも requiredStructureInvalid でも断らず、今の検査（封筒・identity・Body）を通れば受ける (2) prediction は maximum が { from: missing, to: missing, condition: null, description: null }、areaCoverage が none、areas が 0 件で、warningAreas は 0 件 (3) 受けるかは Intensity が無いことだけで決め、深さ・観測点の数・PLUM・Magnitude を読まない（観測点 1 点の報は深さが浅いことがある） (4) terminal でない報は current を作り、reportAreas は 0 件、warningClass は今の規則（eew.ts:448。VXSE43 と Headline の Kind 31 は warning）、isAssumedHypocenter は今の読み (5) outcome の facts.report（震源名・LandOrSea・OriginTime・ArrivalTime・座標・M・精度・NextAdvisory・WarningComment）は Intensity のある報と同じに読み、Intensity の中から来る欄（maxLgInt・maxIntChangeReasonRaw・areas）は null か 0 件 (6) 例外を投げない（:201 の maximumNodes[0]、:632〜:633 の forecast!）",
+        "requirement": "受ける（台帳 98、H51、P4-ENI-D-FAMILY=A）: (1) VXSE43・VXSE45 の非取消で Body/Intensity が 1 つも無い報は requiredStructureMissing でも requiredStructureInvalid でも断らず、今の検査（封筒・identity・Body）を通れば受ける (2) prediction は maximum が { from: missing, to: missing, condition: null, description: null }、areaCoverage が none、areas が 0 件で、warningAreas は 0 件 (3) 受けるかは Intensity が無いことだけで決め、深さ・観測点の数・PLUM・Magnitude を読まない（観測点 1 点の報は深さが浅いことがある） (4) terminal でない報は current を作り、reportAreas は 0 件、warningClass は今の規則（eew.ts:448。VXSE43 と Headline の Kind 31 は warning）、isAssumedHypocenter は今の読み (5) outcome の facts.report（震源名・LandOrSea・OriginTime・ArrivalTime・座標・M・精度・NextAdvisory・WarningComment）は Intensity のある報と同じに読み、Intensity の中から来る欄（maxLgInt・maxIntChangeReasonRaw・areas）は null か 0 件 (6) 例外を投げない（:201 の maximumNodes[0]、:632〜:633 の forecast!、:637〜:638 の qualifier の node）。forecast が無ければ :628 の predictions も :631 の forecastIntNodes も空にする（:628 だけ非空だと :637 で node が undefined になる）",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:185 «c96e5efe00dff141»",
           "reconstruction/src/domains/eew/eew.ts:448 «afaafcde30eca908»",
@@ -154,7 +154,7 @@
       },
       {
         "id": "P4-ENI-AC02",
-        "requirement": "断るものは今のまま: (1) Intensity があって Forecast か全体の ForecastInt が無い報は requiredStructureMissing（解説資料の Forecast は 0/1 回だが、EEW で出ないのはリアルタイム震度電文だけ） (2) Intensity・Forecast・全体の ForecastInt の 2 個以上、Area の無い Pref、Area の ForecastInt の 0 個・2 個以上は今の reason のまま (3) VXSE43 で Intensity があり区域 0 件は requiredStructureMissing のまま (4) identity の検査が先（Serial 0 で Intensity の無い報は identityInvalid、eew-unit.test.ts:484） (5) 取消の扱いは変えない (6) P4-ENI-D-BODY-FORECAST=A なら、非取消で Intensity が無く Body 直下に Forecast がある報は requiredStructureInvalid（B なら AC01 の形で受け、その Forecast を読まない）",
+        "requirement": "断るものは今のまま: (1) Intensity があって Forecast か全体の ForecastInt が無い報は requiredStructureMissing（解説資料の Forecast は 0/1 回だが、EEW で出ないのはリアルタイム震度電文だけ） (2) Intensity・Forecast・全体の ForecastInt の 2 個以上、Area の無い Pref、Area の ForecastInt の 0 個・2 個以上は今の reason のまま (3) VXSE43 で Intensity があり区域 0 件は requiredStructureMissing のまま (4) identity の検査が先（Serial 0 で Intensity の無い報は identityInvalid、eew-unit.test.ts:484） (5) 取消の扱いは変えない (6) 非取消で Intensity が無く Body の直下に Forecast がある報は requiredStructureInvalid（P4-ENI-D-BODY-FORECAST=A）。この形は reason が今の requiredStructureMissing から requiredStructureInvalid に変わる（既存の試験に無い形）",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:185 «c96e5efe00dff141»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:484 «888eed43bd32027f»",
@@ -163,7 +163,7 @@
       },
       {
         "id": "P4-ENI-AC03",
-        "requirement": "通知はほかの EEW と同じ判定（作者裁定 D-B0-NO-INTENSITY=A）: (1) その EventID の第 1 報が Intensity の無い報なら、今の規則どおり desktop と sound の intent を作る。level は VXSE45 で warning、VXSE43（warning）で critical、title は今のまま (2) 本文の最大予測震度は ForecastInt を読まず、今の既定の「最大予測震度不明」（eew.ts:623、Q-ENI-NOTICE-TEXT） (3) 同じ報の受け直しでは作らない（P3-NL-AC04 (4)）。通知した第 1 報の後に Intensity の無い続報が来ても、訂正・最終報・警報への切替でなければ作らない (4) この報は危険の増加（hazardIncrease）を起こさず、notifiedMaximumRank を下げない（maximumRank は −1）。今の規則の帰結として、Intensity の無い VXSE43 を通知した後に最大予測震度の数値のある警報の続報が来ると、rank が −1 より上がるので「続報: 」で鳴る（eew.ts:671〜:672 の規則のまま） (5) 直前の current に既知の予測があれば retainedPrediction にその予測と source を持つ（P2-A4 の AC02 の規則、eew.ts:452。規則は変えない）",
+        "requirement": "通知はほかの EEW と同じ判定（作者裁定 D-B0-NO-INTENSITY=A）: (1) その EventID の第 1 報が Intensity の無い報なら、今の規則どおり desktop と sound の intent を作る。level は warningClass が forecast なら warning、warning なら critical（今の :686 のまま。最終報だけに当たる報は normal）、title は今のまま (2) 本文の最大予測震度は ForecastInt を読まず、今の既定の「最大予測震度不明」（eew.ts:623、Q-ENI-NOTICE-TEXT） (3) 同じ報の受け直しでは作らない（P3-NL-AC04 (4)）。通知した第 1 報の後に Intensity の無い続報が来ても、訂正・最終報・警報への切替でなければ作らない (4) この報は危険の増加（hazardIncrease）を起こさず、notifiedMaximumRank を下げない（maximumRank は −1）。今の規則の帰結として、Intensity の無い VXSE43 を通知した後に最大予測震度の数値のある警報の続報が来ると、rank が −1 より上がるので「続報: 」で鳴る（eew.ts:671〜:672 の規則のまま） (5) 直前の current に既知の予測があれば retainedPrediction にその予測と source を持つ（P2-A4 の AC02 の規則、eew.ts:452。規則は変えない）",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:623 «fc3e8a7366e9202e»",
           "reconstruction/src/domains/eew/eew.ts:676 «a4f91827021c45b4»",
@@ -180,7 +180,7 @@
       },
       {
         "id": "P4-ENI-AC05",
-        "requirement": "変えないものと統合担当の改訂: (1) EewPrediction・EewCurrent・view・wire の型、U-E の保存の形式・codec・schemaVersion（p2-eew-unit-v5）を変えない。変える要が出たら止めて報告する (2) 統合担当が配送の commit で p2-eew-unit.json の familyTable の required（:94 の VXSE43、:100 の VXSE45）を行の中で改める。字は「非取消で Body/Intensity があれば Intensity/Forecast/全体ForecastInt（VXSE43 は加えて少なくとも一つの Pref/Area/ForecastInt）。Body/Intensity の無い非取消の報（解説資料 Ⅱ.21-7）は受け、prediction は maximum の From・To とも missing・区域 0 件（P4-EEW-NO-INTENSITY-001）。全入力で非空EventIDと正整数Serial」の趣旨 (3) eew.ts の行の数を変えない（B0 の配送後の行数のまま）。中身の変わる行のうち «» で引かれるのは :191（p3-replay-watch-002.json:489、RW2-AC08。generator が EEW の maxInt を必須にする決まりは本契約で変えない）だけで、統合担当が付け直す",
+        "requirement": "変えないものと統合担当の改訂: (1) EewPrediction・EewCurrent・view・wire の型、U-E の保存の形式・codec・schemaVersion（p2-eew-unit-v5）を変えない。変える要が出たら止めて報告する (2) 統合担当が配送の commit で p2-eew-unit.json の familyTable の required（:94 の VXSE43、:100 の VXSE45）を行の中で改める。字は「非取消で Body/Intensity があれば Intensity/Forecast/全体ForecastInt（VXSE43 は加えて少なくとも一つの Pref/Area/ForecastInt）。Body/Intensity の無い非取消の報（解説資料 Ⅱ.21-7）は受け、prediction は maximum の From・To とも missing・区域 0 件（P4-EEW-NO-INTENSITY-001）。全入力で非空EventIDと正整数Serial」の趣旨 (3) eew.ts の行の数を変えない（B0 の配送後の行数のまま）。中身の変わる行のうち «» で引かれるのは :191（p3-replay-watch-002.json:489、RW2-AC08。generator が EEW の maxInt を必須にする決まりは本契約で変えない）だけで、統合担当が付け直す (4) 統合担当が配送の commit で p3-persist-premises.md:509 の行の中に解消の注記を書く。注記には「H51 の :509 が受ける候補にした Forecast・ForecastInt の欠けは、本契約では断るまま（AC02 (1)）にした」の 1 文を添える。行の中身が変わるので、本契約の AC01 が :509 を引く «» と本契約の meta.sha256 は、統合担当が同じ配送の時に付け直す (5) p2-eew-unit.json の legalMissing（:93 の VXSE43、:99 の VXSE45）も、(2) と同じ commit で行の中を改める。「非取消で Body/Intensity が無い報（解説資料 Ⅱ.21-7）は合法の欠けで、Forecast・Pref・Area も要求しない」の趣旨を足す（required だけ改めると、同じ familyTable の中で合法の欠けの列と食い違う）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-eew-unit.json",
           "reconstruction/contracts/p3-replay-watch-002.json"
@@ -194,7 +194,7 @@
         "referenceIds": [
           "P4-ENI-AC01"
         ],
-        "behavior": "受入条件。手製の形: 77_01_01 の VXSE45 と 37_01_01 の VXSE43 から <Intensity>…</Intensity> の要素を丸ごと消す（消すのは解説資料 Ⅱ.21-7 が「出現しない」とする Intensity だけで、深さや他の要素は変えない。試験のコメントに台帳 98・解説資料 Ⅱ.21-7・P4-ENI-AC01 を書く）。どちらも decision changed、current の prediction が { maximum の from・to が missing、condition・description が null、areaCoverage none、areas 0 件 }、reportAreas 0 件。VXSE43 は warningClass warning。outcome の facts.report の hypocenter・coordinate・magnitude・originTimeRaw が元の fixture を受けたときと同じ"
+        "behavior": "受入条件。手製の形: 77_01_01 の VXSE45 と 37_01_01 の VXSE43 から <Intensity>…</Intensity> の要素を丸ごと消す（消すのは解説資料が出現しないとする要素だけ: 両方で Intensity（Ⅱ.21-7、:4175〜:4180）、VXSE43 では加えて Body/Comments（WarningComment。Comments は警報を発表している Pref・Area が一つでもあるときだけ出る、:4787〜:4793）。深さや他の要素は変えない。試験のコメントに台帳 98・解説資料 Ⅱ.21-7・P4-ENI-AC01 を書く）。どちらも decision changed、current の prediction が { maximum の from・to が missing、condition・description が null、areaCoverage none、areas 0 件 }、reportAreas 0 件。VXSE43 は warningClass warning。outcome の facts.report の hypocenter・coordinate・magnitude・originTimeRaw が元の fixture を受けたときと同じ"
       },
       {
         "testId": "P4-ENI-T02",
@@ -211,7 +211,7 @@
           "P4-ENI-AC01",
           "P4-ENI-AC02"
         ],
-        "behavior": "契約境界。(a) 77_01_01 の Intensity の開き・閉じの tag だけを消して Forecast を Body 直下に残すと、P4-ENI-D-BODY-FORECAST=A なら requiredStructureInvalid で state は同じ参照（B なら decision changed、prediction は T01 と同じ、reportAreas 0 件）、どちらも例外なし (b) 77_01_01 で Intensity の中の ForecastInt（全体のもの）を消すと requiredStructureMissing、state は同じ参照。Forecast を消す形は AC04 で書き換えた P2-A4-T01 の行が見る"
+        "behavior": "契約境界。(a) 77_01_01 の Intensity の開き・閉じの tag だけを消して Forecast を Body 直下に残すと、requiredStructureInvalid で state は同じ参照、例外なし（P4-ENI-D-BODY-FORECAST=A） (b) 77_01_01 で Intensity の中の ForecastInt（全体のもの）を消すと requiredStructureMissing、state は同じ参照。Forecast を消す形は AC04 で書き換えた P2-A4-T01 の行が見る"
       }
     ],
     "requiredCommands": [
@@ -279,8 +279,9 @@
       "最小実装・最小テスト: 足す仕組みは無い（判定の条件を行の中で直すだけ）。新しい helper・型・fixture の file を足さない。手製の形は試験の中で既存の fixture の文字列から作る。追加した試験ごとに対応（受入条件・契約境界）を 1 行で書く",
       "行の数: eew.ts の直した後の wc -l を書き、B0 の配送後の行数と同じであること。足すコメントは「なぜ」と根拠の ID（台帳 98・P4-ENI-AC01）だけを日本語で、行番号を書かない",
       "既存の試験の期待は AC04 の 1 行のほかに変えない。変える要が出たら止めて報告する",
+      "試験の設定の隔離: N/A（eew-unit の試験は reducer だけを呼び、設定を読まない）",
       "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: 実の深発・観測点 1 点の電文は手元に無く、試験は手製の形だけで見ている（Intensity の他にどの要素が欠けるかは解説資料に書かれていない）"
+      "残存として成果物に書く: 実の深発・観測点 1 点の電文は手元に無く、試験は手製の形だけで見ている（解説資料が書くのは、Intensity が出ないこと〔:4175〜:4180〕と、Comments が警報の Pref・Area のあるときだけ出ること〔:4787〜:4793〕まで。Headline・Earthquake ほかの要素がこの報でどうなるかは書かれていない）"
     ],
     "unresolvedQuestions": []
   }
