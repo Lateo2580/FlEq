@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "37fbd7f3cf6a175af75067c0ad34efb590b1971d",
-    "sha256": "19c58a1c2755009717b256888f1e39a606c42a327cba6a71252b5237c4a29ea3",
+    "sha256": "7efb702f58afe70df476faee9f180bc2bfb075ccc4c39027420b4a3ecf52cd0a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -16,7 +16,7 @@
         "provisional": "A",
         "status": "確定（作者裁定 2026-11-22 06:5x）",
         "ruling": "A（作者の原文「では、カード8はAで進め、ほかも推奨でお願いします！」（2026-11-22 06:5x）。判断カード 2026-11-22-P4-消えた理由と9分野の語彙 の 1）",
-        "reason": "表 §1.3・§1.4 の 2。restore の中で消える原因は時間（期限と保持の期限）だけで、取消・解除は無いと読んだ（ヘルツの返事の 2。止まっている間に出た取消・解除は起動の後の取り直しの採用で届き、AC03 で理由が付く）。各 unit の codec が読み戻しで容量を越えた記録を削るかは読んでいない（表 §6）。起動の後の画面は新しい stream で、消えたものは前の stream の画面にしか無い。B は 9 unit の restore と owner の渡し方（owner-runtime.ts:438）を開け、起動の直後に前の回の終わりが並ぶ。U-R だけは restore の後の期限の回収で追加と消失が restored の返信に並ぶと読んだ（owner-host.ts:286。試験では見ていない）ので、A でも B でも揃える要がある。A では「止まっている間に期限で終わったこと」そのものはどこにも残らない（H32 のダイジェストは止まっていた間に出た電文を dmdata の一覧から作るもので〔spec 16.2.3〕、新しい電文が無く期限で終わっただけのものは載らない。判断カードの 1 の「分かっていること」）"
+        "reason": "表 §1.3・§1.4 の 2。restore の中で消える原因は時間（期限と保持の期限）だけで、取消・解除は無いと読んだ（ヘルツの返事の 2。止まっている間に出た取消・解除は起動の後の取り直しの採用で届き、AC03 で理由が付く）。A では restore の差分はどの原因でも一覧に載らない（AC04 (2)）ので、codec が読み戻しで記録を削るかは振る舞いを変えない。起動の後の画面は新しい stream で、消えたものは前の stream の画面にしか無い。B は 9 unit の restore と owner の渡し方（owner-runtime.ts:438）を開け、起動の直後に前の回の終わりが並ぶ。U-R だけは restore の後の期限の回収で追加と消失が restored の返信に並ぶと読んだ（owner-host.ts:285〜:286 で restoreOwner の直後に deadlineOwner を当てる）ので、A でも B でも揃える要がある。A では「止まっている間に期限で終わったこと」そのものはどこにも残らない（H32 のダイジェストは止まっていた間に出た電文を dmdata の一覧から作るもので〔spec 16.2.3〕、新しい電文が無く期限で終わっただけのものは載らない。判断カードの 1 の「分かっていること」）"
       },
       {
         "id": "P4-RL-D-MIXED",
@@ -69,9 +69,9 @@
         "B": "collect が先に消すので expired にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（作者裁定 2026-11-22 06:5x、判断カードの 2 で作者に見せた）",
-        "ruling": "A（作者の原文「では、カード8はAで進め、ほかも推奨でお願いします！」（2026-11-22 06:5x）。判断カード 2026-11-22-P4-消えた理由と9分野の語彙 の 2 の「付けて決めたいこと」）",
-        "reason": "表 §1.2 の受信の中の回収 (b)。どちらでも画面には理由が出る。A は遅れて届いた取消を期限切れと出さない。消える所（unit の receive）で受けた報の subject と transition を知っているので、下流の突き合わせにならない。B の根拠: H17 は遅着の扱いを決めておらず、D-VANISHED=A と collect を受理の前に回す今の順では、報を受けた時には記録が既に期限で消えていて、取消の accepted も subjects が空になる（ヘルツの返事の 1 (e)）。A は collect の消した subject と受けた報の subject を受信の中で突き合わせる 1 段を足す。どちらの語を出すかで出る・出ないは変わらないが、出る字が変わるので判断カードの 2 で作者に見せ、A で確定した"
+        "status": "確定（作者裁定 2026-11-22、A から B に変えた）",
+        "ruling": "B（作者裁定 2026-11-22 で A から B に変えた。作者の選択肢の原文「「期限切れ」と出す」。前の ruling は A〔作者の原文「では、カード8はAで進め、ほかも推奨でお願いします！」、判断カード 2026-11-22-P4-消えた理由と9分野の語彙 の 2 の「付けて決めたいこと」〕）。理由と材料（repo の外の p4-rl-late-facts.md、HEAD 45bdefda の木で開いて確かめた事実）: A と B で字が分かれるのは、消える記録と取消・解除・置き換えが同じ入力に入るときだけ。(b) 前置きの回収（owner-runtime.ts:483〜:484）と (c) owner-host の forced 回収（owner-host.ts:121）では、表示の期限からその owner が次の期限の要求を処理するまでの 1 tick 未満（host.ts:33 の TICK_MS = 1,000）に取消が同じ入力で届くとき、(a) 受信の中の回収では U-L で取消・解除が報時刻から 6 時間以上遅れて取り直しで届くとき（landslide-unit.ts:37・:154・:159・:357）。ふつうの順（期限の入力が先に消し、取消が後）は 12 unit とも A と B で同じ。A の費用は字が分かれうる 21 か所（(a) 1・(b) 10・(c) 10）で、U-B の (b)(c) は置き換えと alias の相手を期限の後の記録から引けず（briefing-unit.ts:89〜:96・:155〜:156・:467）、U-N の (b)(c) は「調査終了」が効く条件が期限の記憶から消える（nankai-unit.ts:140・:544〜:547）",
+        "reason": "表 §1.2 の受信の中の回収 (b)。どちらでも画面には理由が出る。A は遅れて届いた取消を期限切れと出さない。消える所（unit の receive）で受けた報の subject と transition を知っているので、下流の突き合わせにならない。B の根拠: H17 は遅着の扱いを決めておらず、D-VANISHED=A と collect を受理の前に回す今の順では、報を受けた時には記録が既に期限で消えていて、取消の accepted も subjects が空になる（ヘルツの返事の 1 (e)）。A は collect の消した subject と受けた報の subject を受信の中で突き合わせる 1 段を足す。どちらの語を出すかで出る・出ないは変わらないが、出る字が変わるので判断カードの 2 で作者に見せ、A で確定した。【r3: 作者裁定で B に変えたので、r2 で A のために足した claims（前置きのある 10 unit の step の欄と owner の置き換え）は外した】"
       },
       {
         "id": "P4-RL-D-HOLE",
@@ -91,8 +91,8 @@
         "B": "B0 の表 r7 §13.2 の 5 区分（dropped・evicted・missed・outcomeUnknown・unreadable）の件数を運び、理由の行は詳細の part=losses で開く",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（統合担当の決め、2026-11-22 07:0x）",
-        "ruling": "A（統合担当の決め 2026-11-22 07:0x。推奨のまま。同日の作者裁定（判断カードの 1〜5 と LATE）で前提が動かないことを確かめた。共通部の残りが負なら B に替える条件はそのまま）。B に替えるときは詳細の API（http-sse.ts の part=losses）が要り、http-sse.ts は本契約の allowedPaths にも計画の http-sse.ts の直列にも無いので、契約を改めてから替える（契約適合のレビューの r1 の P3）",
+        "status": "確定（統合担当の決め 2026-11-22、ruling の条件どおり A から B に替えた）",
+        "ruling": "B（統合担当の決め 2026-11-22。前の ruling A に書いてあった「共通部の残りが負なら B に替える」条件どおり。r3 の見積もりで A の形の余りが −304 になった）。wire の H39 の欄は unit ごとに 5 区分（dropped・evicted・missed・outcomeUnknown・unreadable）の件数と、詳細を開くための rev を運び、理由の行（LossTally の reason・count・lastAt）は詳細の part=losses で開く（spec 16.2.6「理由は開けば読める」を詳細で満たす）。区分は B0 の表 r7（f3b61acf の p4-display-wire-tables.md §13.2）の表と同じで、本契約の表 §2.1 の 16.2.6 の箇条とも同じ。共通部の見積もり（r3 と同じ数え方: 契約の形の最長の値を python で JSON にし、時刻と件数は Number.MAX_SAFE_INTEGER、id と rev は 64 字）: 消えた理由の一覧 9,901・H39 の欄 2,942・欄名 22 で 12,865、余り 16,093 − 12,865 = 3,228（0 以上）。前の A の形の見積もりは H39 の欄 6,474 で合計 16,397、余り −304 だった。http-sse.ts を allowedPaths に足し、http-sse.ts の直列は B0 → P4-DISPLAY-VOCAB-001 → 本契約 → B1 → R0 → T0（計画 §3.2 の行の書き直しは統合担当の配送の項）",
         "reason": "表 §3。spec 16.2.6 の「理由は開けば読める」を、A は詳細の API（http-sse.ts の part）を足さずに満たす。r7 は lastAt を含む生の行が 11,017 byte で共通部の余りを越えたので 5 区分にした。lastAt を外すと約 6,000 byte の見積もり。A は script で共通部の余り（65,536 − 49,443 ＝ 16,093、B0 の表 §12）が負にならないときだけ採り、負なら B に替える"
       },
       {
@@ -103,19 +103,30 @@
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当の決め、2026-11-22 07:0x）",
-        "ruling": "A（統合担当の決め 2026-11-22 07:0x。推奨のまま。同日の作者裁定（判断カードの 1〜5 と LATE）で前提が動かないことを確かめた。N0 発注 3 は本契約より先でよい〔計画 §1.3 の N0 の行の統合担当の既定〕。P4-TSUNAMI-MULTI-EVENT-001 は IDENTITY=A で直列の外で先に入る〔同契約の P4-TME-D-ORDER〕）。【統合担当の決め 2026-11-22: E0 発注 1 は本契約の発注 2 の後（本契約 → E0 発注 1 の直列は発注 2 まで含めて読む。E0 は本契約の removal を読むので、unknown しか来ない発注 1 の後では足りない）。本契約の実装は P4-DISPLAY-VOCAB-001 の実装の後（display-wire.ts の直列どおり）で、wire の版は v3。計画 §3.2 の行の書き直しは統合担当の配送の項（allowedPaths の最後）】",
+        "ruling": "A（統合担当の決め 2026-11-22 07:0x。推奨のまま。同日の作者裁定（判断カードの 1〜5 と LATE）で前提が動かないことを確かめた。N0 発注 3 は本契約より先でよい〔計画 §1.3 の N0 の行の統合担当の既定〕。P4-TSUNAMI-MULTI-EVENT-001 は IDENTITY=A で直列の外で先に入る〔同契約の P4-TME-D-ORDER〕）。【統合担当の決め 2026-11-22: E0 発注 1 は本契約の発注 2 の後（本契約 → E0 発注 1 の直列は発注 2 まで含めて読む。E0 は本契約の removal を読むので、unknown しか来ない発注 1 の後では足りない）。本契約の実装は P4-DISPLAY-VOCAB-001 の実装の後（display-wire.ts の直列どおり）で、wire の版は v3。計画 §3.2 の行の書き直しは統合担当の配送の項（allowedPaths の最後）】。【統合担当の決め 2026-11-22: http-sse.ts（part=losses、P4-RL-D-H39-SHAPE=B）の直列は B0 → P4-DISPLAY-VOCAB-001 → 本契約 → B1 → R0 → T0】",
         "reason": "表 §4。P4-DW-D-SCOPE-NARROW は 9 分野の語彙と H17・H39 を B0 の後の別の契約に送り、語彙の契約は今夜起草中（draft/p4-vocab）。本契約が wire に足すものは分野の語彙に依らない（id と理由と件数）ので、語彙の後に足しても形は変わらない。A では消えた理由の一覧の id を、語彙の契約が作る 9 分野の要素の ref と結べる。unit の file は E0 発注 1・N0・T0 が eew.ts・seismic-unit.ts・tsunami-unit.ts を触る前に入れないと、12 unit の消える所の書き換えが 3 本の契約とぶつかる"
       },
       {
         "id": "P4-RL-D-SPLIT",
         "kind": "統合担当",
-        "A": "2 発注。発注 1: 型（removal を必ず持つ判別共用体、AC03 (5) の departed と AC04 (4) の dueWallMs の欄、前置きのある 10 unit の step と OwnerStep の claims の欄）・owner（候補の Map、AC02 (3) (b) の前置きの回収の置き換え、AC04 (4) の復元版の抑止）・publisher（losses・欠け・H28 の区間）・wire（版 v3 と試験の client）・checkpoint・U-F の件数。12 unit は after が null の差分を作る所（reduce の合流、10 unit の recoveryChanges、U-W の rowChanges）で unknown を付ける。発注 2: 12 unit の消える所に理由を付け、府県の行の規則と P4-RL-D-LATE と、unit が departed・claims・dueWallMs を作ることと候補の原因の集め（AC03 (5)）を入れる",
+        "A": "2 発注。発注 1: 型（removal を必ず持つ判別共用体、AC03 (5) の departed と AC04 (4) の dueWallMs の欄）・owner（候補の Map、AC04 (4) の復元版の抑止）・publisher（losses・欠け・H28 の区間）・wire（版 v3 と試験の client、H39 の 5 区分と rev）・詳細の part=losses（http-sse.ts・owner-runtime.ts の wireDetail）・checkpoint・U-F の件数。12 unit は after が null の差分を作る所（reduce の合流、10 unit の recoveryChanges、U-W の rowChanges）で unknown を付ける。発注 2: 12 unit の消える所に理由を付け、府県の行の規則と P4-RL-D-LATE と、unit が departed（weather-current-public.ts の府県別の行数の読み出しを含む）と dueWallMs を作ることと候補の原因の集め（AC03 (5)）を入れる",
         "B": "1 発注",
         "recommended": "A",
         "provisional": "A",
         "status": "確定（統合担当の決め、2026-11-22 07:0x）",
         "ruling": "A（統合担当の決め 2026-11-22 07:0x。推奨のまま。同日の作者裁定（判断カードの 1〜5 と LATE）で前提が動かないことを確かめた）",
         "reason": "表 §4。触る file が 25 を越え、«» で引かれる行が約 1,500 本ある。発注 1 は unit の file を after が null の差分を作る数行ずつだけ触る。E0 発注 1 は発注 2 の後（ORDER の 2026-11-22 の決め）。新しい wire は S0 まで試験の client だけなので、発注 1 と 2 の間に unknown だけが流れても画面は変わらない"
+      },
+      {
+        "id": "P4-RL-D-CLOCK-PENDING",
+        "kind": "作者",
+        "A": "時計の確認が済む前（host の wallBasis が unverified）に期限の印（expiryPending）が立って表示から外れた行に「期限切れ」（expired）と出す。範囲は 10 unit（U-Q・U-R・U-L・U-Y・U-B・U-M・U-V・U-T・U-N・U-F）",
+        "B": "U-Q と U-R にだけ expired を当て、ほかの 8 分野には当てない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（作者裁定 2026-11-22）",
+        "ruling": "expired（10 unit。作者の選択肢の原文「「期限切れ」と出す」と、範囲は「8 分野にも当てる」）",
+        "reason": "問い: 時計の確認が済む前に期限で外れた行に、どの理由を出すか。外れた原因は期限で、時計の状態は別の表示が出す。消える点は印が立って表示から外れる分岐で、保留の確定（verified の回収）の時は表示の差分が無い。印を立てる所（HEAD 45bdefda で開いた）: U-Q seismic-unit.ts:1185・:1187、U-T tsunami-unit.ts:146、U-R flood-unit.ts:466、U-N nankai-unit.ts:539・:565、U-Y typhoon-unit.ts:492、U-F weather-timeseries-unit.ts:130、U-L landslide-unit.ts:409、U-B briefing-unit.ts:96、U-M local-bulletins-unit.ts:565、U-V volcano-unit.ts:1199〜:1205。awaiting の間はどの unit も回収しない（briefing-unit.ts:581、flood-unit.ts:455、landslide-unit.ts:401、local-bulletins-unit.ts:589、nankai-unit.ts:526、seismic-unit.ts:1196、tsunami-unit.ts:767、typhoon-unit.ts:512、volcano-unit.ts:1175、weather-timeseries-unit.ts:117）"
       }
     ],
     "questionResolutions": [
@@ -124,13 +135,13 @@
         "status": "closed",
         "source": "2026-11-21 起草（main 37fbd7f3 の木を読んだ。走らせていない）",
         "closed": "(1) 最初の作業の表（p4-removal-loss-tables.md §1）: after が null の差分に unit が理由を載せる形は、21 組の全部（単独と混在）・受信の中の回収 (b) の 4 unit・U-W と U-Q の鍵の食い違い・前置きの期限と受信の平らな返信（owner-host.ts:135）・停止の確定（composition-root.ts:1601 は displayChanges だけを積む）・停止の入力を満たす。満たさないのは取り直しの採用（owner-runtime.ts:708〜:709 が正味の差分を recoveryChanges の state の比べで作り直す）と restore（owner-runtime.ts:438 が after の null を捨てる）で、扱いは表 §1.4 (2) 行が残る差分（U-W の府県の行の一部）は形の外（P4-RL-D-CELL） (3) 理由は outcome の transition の字から引かない（解除が ended と released、期限切れが expired・noActiveItems・ended・evidence に分かれる、事実の表 §2.3） (4) U-E と U-F は recoveryChanges を持たず取り直しの対象でない (5) U-R の restore は collect を呼ばず全部を戻し（flood-unit.ts の restore）、owner-host の restore は restoreOwner の直後に deadlineOwner（owner-host.ts:286）を当てて両方の output を restored の返信に載せるので、U-R は期限を過ぎた見える記録の追加と消失が restored の返信に並ぶと読んだ（2 つの読みを結んだもので、走らせても試験で見てもいない）。U-F の restore の collect は無言（weather-timeseries-unit.ts:483） (6) LossTally は owner の state だけにあり publisher に届かない。U-F は UNIT_EVICTION（checkpoint.ts:648）に無く、退去の診断も無い (7) wire の B0 の ref.id は sha256([unit, operation, subject])（display-wire.ts:114）で、消えた理由の一覧の id に使える",
-        "remaining": "9 unit の消える所の行はヘルツの返事の行番号で書いた。発注前点検で行の中身を読み直す（統合担当）"
+        "remaining": "無い（r3 で表 §1.2 の各行を HEAD 45bdefda の木で開いて確かめた。U-N の押出は nankai-unit.ts:414・:492 に直した）"
       },
       {
         "id": "Q-RL-MIXED-FREQUENCY",
         "status": "closed",
         "source": "2026-11-22 未明の量り（repo の外の p4-uw-mixed-cell-count.md。main 034c515d の reconstruction/dist で U-W の reduce を直に呼び、owner・publisher は通らない）と、統合担当の原文の確かめ（weather-current.ts:664〜:697）",
-        "closed": "(1) corpus の U-W の報 21 本を時刻順に流して（採用 18 step、府県の行 94、府県の行の変化 248）、府県の行が消えた（after が null の）回は 0、原因が 2 つ以上で消えた回も 0。sequence の並び（O03・O04・O06・O09・O10）でも 0。分母 0 の 0 で、頻度が低い証拠ではない。corpus に U-W の取消は無く、容量に届く量も無い (2) 行が残って区域・現象が減った回は 4 step・6 行（入れ替わりを含めて 8 step・12 行）。原因は報の更新 5（解除を含む）・VPNO50 の終了 1、取消と押し出しは 0 (3) ふつうの報の status 解除では府県の行は消えない。解除の区域も行を作り（勝つ行が 1 つ以上で行を作る、weather-current-public.ts:165）、福井の警報→解除の 2 本だけを流すと normal/area/18 は区域 14→0・行は残る。VPNO50 の終了は endSnapshot（weather-current.ts:547〜:558）が 3x の行を外すので、府県の行が特別警報だけなら消えうる（読みだけで走らせていない） (4) 1 回の受信の reduce で原因の違う 2 つが同じ府県の行を消す処理は無い: 件数の退去（:664〜:670）は normal を退去させず training・test の最古の partial だけ、取消（:634〜:659）はその前に return、履歴の深さの退去（:672〜:697）は current を外さない、byte の退去（weather-current-unit.ts:440・:443）は normal の候補のときに training・test の current だけを外す（normal の行とは別の subject）。コードの読みで、試験では見ていない (5) 陽性の対照: 京都の VPWW57 を取消に書き換えた 1 本で historyUnavailable の unavailable になり、normal/area/26 が区域 10 → after null になった",
+        "closed": "(1) corpus の U-W の報 21 本を時刻順に流して（採用 18 step、府県の行 94、府県の行の変化 248）、府県の行が消えた（after が null の）回は 0、原因が 2 つ以上で消えた回も 0。sequence の並び（O03・O04・O06・O09・O10）でも 0。分母 0 の 0 で、頻度が低い証拠ではない。corpus に U-W の取消は無く、容量に届く量も無い (2) 行が残って区域・現象が減った回は 4 step・6 行（入れ替わりを含めて 8 step・12 行）。原因は報の更新 5（解除を含む）・VPNO50 の終了 1、取消と押し出しは 0 (3) ふつうの報の status 解除では府県の行は消えない。解除の区域も行を作り（勝つ行が 1 つ以上で行を作る、weather-current-public.ts:165）、福井の警報→解除の 2 本だけを流すと normal/area/18 は区域 14→0・行は残る。VPNO50 の終了は endSnapshot（weather-current.ts:547〜:558）が 3x の行を外すので、府県の行が特別警報だけなら消える（r3 で確かめた: endSnapshot は 3x の行を外し〔:554〕、勝つ行が 0 の府県は行を作らない〔weather-current-public.ts:165〕） (4) 1 回の受信の reduce で原因の違う 2 つが同じ府県の行を消す処理は無い: 件数の退去（:664〜:670）は normal を退去させず training・test の最古の partial だけ、取消（:634〜:659）はその前に return、履歴の深さの退去（:672〜:697）は current を外さない、byte の退去（weather-current-unit.ts:440・:443）は normal の候補のときに training・test の current だけを外す（normal の行とは別の subject）。r3 で weather-current.ts:625〜:705 と weather-current-unit.ts:420〜:446 を開いて確かめた (5) 陽性の対照: 京都の VPWW57 を取消に書き換えた 1 本で historyUnavailable の unavailable になり、normal/area/26 が区域 10 → after null になった",
         "remaining": "取り直しの採用で 2 つ以上の原因で府県の行が消える回の頻度は量っていない（公式サンプルは許可の外で入れていない）"
       },
       {
@@ -172,19 +183,21 @@
       "reconstruction/src/domains/eew/eew.ts",
       "reconstruction/src/domains/weather-current/weather-current.ts",
       "reconstruction/src/units/**",
-      "reconstruction/test/**"
+      "reconstruction/test/**",
+      "reconstruction/src/http-sse/http-sse.ts"
     ],
     "allowedPaths": [
       "reconstruction/contracts/p2-shared-runtime.types.ts（RuntimeDisplayChange の判別共用体と DisplayRemoval、after が null でない側の departed と null の側の dueWallMs、LossReason と DiagnosticReason に U-F の退去の 1 語）",
-      "前置きの期限を持つ 10 unit の step の型（reconstruction/contracts/p2-eew-unit.types.ts と p3-*-unit.types.ts の *UnitStep。U-W・U-F は除く）に任意の claims の 1 欄（発注 1。無いと: 前置きの期限の後に受けた取消・解除の原因が unit から owner に届かない、AC01 (6)）",
+      "reconstruction/src/units/weather-current/weather-current-public.ts（cellsOf の cache から府県別の行の数を読む関数を 1 つ export する、発注 2。無いと: VPNO50 の終了で 3x の行が全部外れた府県を「外れた」と判定できず〔公開の areaKeys は行の無い府県も返す〕、ended が departed に入らない、AC02 (2)）",
       "reconstruction/contracts/p3-execution-split.types.ts（OwnerUnitDelta に losses）",
-      "reconstruction/contracts/p4-display-wire.types.ts と reconstruction/contracts/p4-display-wire-max.mjs（AC08）",
+      "reconstruction/contracts/p4-display-wire.types.ts と reconstruction/contracts/p4-display-wire-max.mjs（AC08。WireDetailRequest・WireDetailResponse に part=losses）",
+      "reconstruction/src/http-sse/http-sse.ts（parseWireDetail の行の中で part=losses を受ける、行を足さない、発注 1。直列は B0 → P4-DISPLAY-VOCAB-001 → 本契約 → B1 → R0 → T0。無いと: H39 の理由を開く要求が受けられない、AC08 (7)）",
       "reconstruction/src/runtime/owner-runtime.ts・owner-host.ts・shared-runtime.ts・composition-root.ts（AC03〜AC07）",
       "reconstruction/src/checkpoint/checkpoint.ts（UNIT_EVICTION に U-F、AC06 の印）と reconstruction/src/checkpoint/persistent-diagnostic-sink.ts（U-F の退去の語）",
       "reconstruction/src/view-projector/display-wire.ts（AC08）",
       "12 unit の reducer（reconstruction/src/units/*/…-unit.ts）と、変化を作る domain の file（reconstruction/src/domains/eew/eew.ts・reconstruction/src/domains/weather-current/weather-current.ts。ほかの domain の file に消える所があれば、触る前に file:行を報告して止める）",
       "reconstruction/test/ の、AC10 の書き換えと testMapping の試験の追加。reconstruction/test/display-wire/wire-client.ts の VERSION を v3 に（発注 1、AC08 (1)）",
-      "統合担当だけ（配送の commit）: 行を足した file を引く他の契約の «» の付け直しと各 meta.sha256。計画 p4-order-plan.md §3.2 の直列の行に「E0 発注 1 は本契約の発注 2 の後」を書く（ORDER の 2026-11-22 の決め）。本契約の display-wire.ts の «»（AC01・AC08 の evidenceRefs）を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直す。N0（P4-NOTICE-TEXT-SOUND-001）の allowedPaths と本文が素の行番号と行数で引く本契約の触る file（計画 :224 の eew-unit.ts・flood-unit.ts・landslide-unit.ts・briefing-unit.ts と seismic-unit.ts・tsunami-unit.ts）の行は «» でないので付け直しの道具で直らず、N0 の字を書き直す"
+      "統合担当だけ（配送の commit）: 行を足した file を引く他の契約の «» の付け直しと各 meta.sha256。計画 p4-order-plan.md §3.2 の直列の行に「E0 発注 1 は本契約の発注 2 の後」を書く（ORDER の 2026-11-22 の決め）。本契約の display-wire.ts の «»（AC01・AC08 の evidenceRefs）を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直す。N0（P4-NOTICE-TEXT-SOUND-001）の allowedPaths と本文が素の行番号と行数で引く本契約の触る file（計画 :224 の eew-unit.ts・flood-unit.ts・landslide-unit.ts・briefing-unit.ts と seismic-unit.ts・tsunami-unit.ts）の行は «» でないので付け直しの道具で直らず、N0 の字を書き直す。計画 §3.2 の http-sse.ts の行に本契約（part=losses）を B0 → P4-DISPLAY-VOCAB-001 → 本契約 → B1 → R0 → T0 の位置で書き足す"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -218,19 +231,10 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts#LossReason",
       "reconstruction/contracts/p3-execution-split.types.ts#OwnerUnitDelta",
       "reconstruction/contracts/p4-display-wire.types.ts#DisplayWireSnapshot",
-      "reconstruction/contracts/p2-eew-unit.types.ts#EewUnitStep",
-      "reconstruction/contracts/p3-tsunami-unit.types.ts#TsunamiUnitStep",
-      "reconstruction/contracts/p3-seismic-unit.types.ts#SeismicUnitStep",
-      "reconstruction/contracts/p3-nankai-unit.types.ts#NankaiUnitStep",
-      "reconstruction/contracts/p3-flood-unit.types.ts#FloodUnitStep",
-      "reconstruction/contracts/p3-typhoon-unit.types.ts#TyphoonUnitStep",
-      "reconstruction/contracts/p3-briefing-unit.types.ts#BriefingUnitStep",
-      "reconstruction/contracts/p3-local-bulletins-unit.types.ts#LocalBulletinsUnitStep",
-      "reconstruction/contracts/p3-landslide-unit.types.ts#LandslideUnitStep",
-      "reconstruction/contracts/p3-volcano-unit.types.ts#VolcanoUnitStep"
+      "reconstruction/contracts/p4-display-wire.types.ts#WireDetailRequest"
     ],
     "publicFunctions": [
-      "口は変えない（各 unit の reduce の引数、owner の要求と返信の種類、projectDisplayWire）。前置きの期限を持つ 10 unit の reduce が返す step に任意の claims を足す（AC01 (6)）。adoptRecoveryOwner は owner-runtime の内側の関数で、引数に候補の Map を足してよい"
+      "口は変えない（各 unit の reduce、owner の要求と返信の種類、projectDisplayWire）。詳細の要求に part=losses を 1 つ足す（AC08 (7)、要求の種類 detail は同じ）。adoptRecoveryOwner は owner-runtime の内側の関数で、引数に候補の Map を足してよい。weather-current-public.ts に府県別の行の数を読む関数を 1 つ export する（AC02 (2)）"
     ],
     "allowedDependencies": [
       "既存の依存だけ"
@@ -283,7 +287,7 @@
     ],
     "nonPersistedFields": [
       "RuntimeDisplayChange.removal（差分にだけ載る）",
-      "RuntimeDisplayChange の departed と dueWallMs（差分にだけ載り、owner-host の候補と owner の復元版の抑止だけが読む）と、unit の step と OwnerStep の claims（AC01 (6)。OwnerOutput と wire に載せない）",
+      "RuntimeDisplayChange の departed と dueWallMs（差分にだけ載り、owner-host の候補と owner の復元版の抑止だけが読む）",
       "取り直しの候補の Map（owner-host の手元。基点にあったキーの removal と AC03 (5) の府県の行の原因）",
       "owner の手元の復元版の表示のキーと object（AC04 (4)。時計の確定の後の最初の回収で捨てる）",
       "publisher の mirror の losses と H28 の区間の値（P4-RL-D-EEW-WINDOW=A）",
@@ -305,7 +309,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-RL-AC01",
-        "requirement": "消えた理由の型と運び（表 §1.1）: (1) DisplayRemoval は表 §1.1 の閉集合（mixed は P4-RL-D-MIXED=B で、取り直しの採用の正味の差分だけが付ける、AC03 (5)。expiredWhileStopped は AC04 (4) の owner の置き換えだけが付ける）。RuntimeDisplayChange は after が null のとき removal を必ず持ち、null でないとき持たない判別共用体にする。null でない側は U-W の府県の行の departed（AC03 (5)）を、null の側は期限の回収の dueWallMs（AC04 (4)）を任意に持つ（無いと: 12 unit のどれかが理由を付け忘れてもコンパイラが止めない） (2) removal の定義は after が null かつ before が null でない差分 (3) 同じ subject の変化をまとめる所（各 unit の merged と push、owner の output、publisher の wireChanges、display-wire の changesOf）は最初の before と最後の after を取り、removal は最後の変化が after を null にしたときのその変化の removal。後から after が null でない変化が来たら removal は無い (4) 前置きの期限と受信が 1 つの返信に並んでも（owner-host.ts の output）、停止の確定（composition-root.ts:1601 の wireChanges）でも、差分ごとの removal が新しい射影に届く (5) 理由は outcome の transition の字から引かない。outcome・LossTally を下流で突き合わせて理由を決めない（B0 の表 r7 §13.2 の決め方を採らない） (6) claims: 前置きの期限を持つ 10 unit（reclaimDeadlineBeforeReceive、U-E・U-T・U-Q・U-N・U-R・U-Y・U-B・U-M・U-L・U-V）の step に任意の値 claims（要素は { operation, subject, cause }。cause は cancelled・ended・replaced）を足す。受理した報が取消・解除・置き換えた表示のキーで、記録が既に無くても作る。表示差分の外に持ち、owner-runtime は OwnerStep に集めて OwnerOutput に載せない（publisher・wire に届かない、保存しない）。読み手は AC02 (3) (b) だけ。無いと: 相手の記録が前置きの回収で既に消えていて差分が無いので、期限を過ぎて届いた取消・解除の原因が owner に届かない。departed と dueWallMs は差分そのものに載るので差分の欄にする",
+        "requirement": "消えた理由の型と運び（表 §1.1）: (1) DisplayRemoval は表 §1.1 の閉集合（mixed は P4-RL-D-MIXED=B で、取り直しの採用の正味の差分だけが付ける、AC03 (5)。expiredWhileStopped は AC04 (4) の owner の置き換えだけが付ける）。RuntimeDisplayChange は after が null のとき removal を必ず持ち、null でないとき持たない判別共用体にする。null でない側は U-W の府県の行の departed（AC03 (5)）を、null の側は期限の回収の dueWallMs（AC04 (4)）を任意に持つ（無いと: 12 unit のどれかが理由を付け忘れてもコンパイラが止めない） (2) removal の定義は after が null かつ before が null でない差分 (3) 同じ subject の変化をまとめる所（各 unit の merged と push、owner の output、publisher の wireChanges、display-wire の changesOf）は最初の before と最後の after を取り、removal は最後の変化が after を null にしたときのその変化の removal。後から after が null でない変化が来たら removal は無い (4) 前置きの期限と受信が 1 つの返信に並んでも（owner-host.ts の output）、停止の確定（composition-root.ts:1601 の wireChanges）でも、差分ごとの removal が新しい射影に届く (5) 理由は outcome の transition の字から引かない。outcome・LossTally を下流で突き合わせて理由を決めない（B0 の表 r7 §13.2 の決め方を採らない）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.types.ts:235 «977307e0b9285bf6»",
           "reconstruction/src/runtime/owner-host.ts:421 «910631e381d4aaba»",
@@ -317,7 +321,7 @@
       },
       {
         "id": "P4-RL-AC02",
-        "requirement": "unit の消える所（表 §1.2、ヘルツの返事の 4 の 21 組と各 unit の取消・解除の行）: (1) 12 unit は、表 §1.2 の各行の消える所で理由を付ける: 容量の退去は evicted、期限の回収で表示から外れたときは expired（時計の確認待ちで expiryPending が立って表示から外れるとき〔U-Q は seismic-unit.ts:94 の onScreen と :1185〜:1188、U-R は flood-unit.ts:466〕を含み、消える点はその分岐。保留の確定の時は表示の差分が無いので付けない。作者裁定 2026-11-22、選択肢の原文「「期限切れ」と出す」）、保持の期限の削除（U-Q の取消済みの地震、U-F の retainUntil）は retentionEnded、取消の受理は cancelled、解除・最終報・消滅・確率 zero は ended、U-B の replaced・aliased は replaced（U-W の府県の行は (2)） (2) U-W の府県の行（operation/area/府県）は、府県に勝つ行が 1 つも残らないときだけ消える（weather-current-public.ts:165）。解除の区域も行を作るので、ふつうの報の status 解除（weather-current.ts:724〜:725）では行は消えず、行が残る差分になって理由を付けない（P4-RL-D-CELL=A、Q-RL-MIXED-FREQUENCY (3)）。行が消えたときは、その step で府県から外れた報（報の before の cellsOf がその府県に 1 つ以上の行を持ち、after が null か after の cellsOf のその府県の行が 0。cellsOf は weather-current-public.ts の報ごとの府県別の行で、VPNO50 の終了が 3x の行を外した後の空の府県も 0 と数える）の原因から決める: 取消は cancelled（戻す版が無い取消〔系列の初報の取消、historyUnavailable、weather-current.ts:635〜:636〕も cancelled。spec H17「取消は画面に出し」による。読めない印は監視の行の側の話で removal の語にしない。統合担当の決め 2026-11-22 の 1）、件数の退去（weather-current.ts:664〜:670）と byte の退去（weather-current-unit.ts:440・:443）は evicted、VPNO50 の終了（weather-current.ts:547〜:558 の endSnapshot が 3x の行を外す）は ended、全国報の入れ替え（:700〜:702 の displaced）と報の更新（:703）は replaced。1 回の受信の reduce では原因の違う 2 つが同じ府県の行を消す処理は無い（Q-RL-MIXED-FREQUENCY (4)）ので、受信の step の行には原因の 1 語を付ける（mixed は付けない、AC01 (1)）。2 つ以上が重なる所を見つけたら、付けずに止めて file:行を報告する（この読みはコードの読みで、試験では見ていない）。容量の unavailable（capacityUnavailable、weather-current-unit.ts:486）で報の current が外れて行が消える回があるかは起草で読んでいない。あれば止めて file:行を報告する（語は統合担当が決める）。情報を持たない監視の行（before.current が null）は、報の原因があればその語、無く coverageConfirmed で印が解けたなら markCleared (3) 期限を過ぎて届いた報（P4-RL-D-LATE=A）: (a) 受信の中の回収（U-Q・U-L・U-N・U-V の collect）と U-B の遅着の採用で消えた subject は expired。同じ受信で受けた報の取消・解除・置き換えの相手と同じなら、その報の原因（cancelled・ended・replaced） (b) 前置きの期限（reclaimDeadlineBeforeReceive を持つ 10 unit、owner-runtime.ts:483）は同じ入力の受信より前に別の reduce の呼び出しで回収するので、受信の reduce からは相手が見えない。受信の step は、受理した報が取消・解除・置き換えた表示のキーと原因を claims（AC01 (6)）に入れ（記録が既に無くても、その unit のキーの規則で作る）、receiveOwner はその入力の前置きの回収の after が null の差分のうちキーが同じものの removal をその原因に置き換える。前置きの回収のほかの差分（同じ時に期限で消えた別の subject）は expired のまま。outcome の transition は読まない（AC01 (5)）。無いと: 前置きのある unit では、期限を過ぎて届いた取消・解除が全部 expired になる（LATE=A と食い違う、ヘルツの r1 の確かめの P1） (4) unknown は、unit が原因を知らない所だけに付ける。after が null の差分を作る所は reduce の合流のほかに、10 unit の recoveryChanges（U-E・U-F に無い）と U-W の rowChanges（reduce と recoveryChanges の両方が使う）がある。recoveryChanges の removal は unknown のままでよい（採用で AC03 の Map の値に置き換わる）。U-W の rowChanges は reduce の側で (2) の府県の行の規則を当てる。発注 2 の成果物に、unit ごとの unknown を付けた所の file:行と理由を列挙する（0 件なら 0 件と書く） (5) U-E は eew.ts の changed(before, after) の呼び出しで付ける: 期限 :380 は expired、退去 :593 は evicted、終端の current :596（:462 で candidate.cancelled か terminal なら projected が null）は candidate.cancelled なら cancelled、terminal なら ended",
+        "requirement": "unit の消える所（表 §1.2、ヘルツの返事の 4 の 21 組と各 unit の取消・解除の行）: (1) 12 unit は、表 §1.2 の各行の消える所で理由を付ける: 容量の退去は evicted、期限の回収で表示から外れたときは expired（時計の確認が済む前に期限の印 expiryPending が立って表示から外れるときを含み、消える点はその分岐。10 unit の印を立てる所は P4-RL-D-CLOCK-PENDING の reason。保留の確定の時は表示の差分が無いので付けない。作者裁定 2026-11-22）、保持の期限の削除（U-Q の取消済みの地震、U-F の retainUntil）は retentionEnded、取消の受理は cancelled、解除・最終報・消滅・確率 zero は ended、U-B の replaced・aliased は replaced（U-W の府県の行は (2)） (2) U-W の府県の行（operation/area/府県）は、府県に勝つ行が 1 つも残らないときだけ消える（weather-current-public.ts:165）。解除の区域も行を作るので、ふつうの報の status 解除（weather-current.ts:724〜:725）では行は消えず、行が残る差分になって理由を付けない（P4-RL-D-CELL=A、Q-RL-MIXED-FREQUENCY (3)）。行が消えたときは、その step で府県から外れた報（報の before がその府県に 1 つ以上の行を持ち、after が null か after のその府県の行が 0。行の数は weather-current-public.ts の cellsOf〔:56〜:78、報ごとに WeakMap の cellCache に持つ〕の府県別の行の配列の長さで、同じ file から読み出す関数を 1 つ export する。公開の areaKeys〔:191〜:193〕は行の無い府県も返す〔cellsOf は :74 で空の配列も入れる〕ので使えない。VPNO50 の終了が 3x の行を全部外した府県は 0 になる）の原因から決める: 取消は cancelled（戻す版が無い取消〔系列の初報の取消、historyUnavailable、weather-current.ts:635〜:636〕も cancelled。spec H17「取消は画面に出し」による。読めない印は監視の行の側の話で removal の語にしない。統合担当の決め 2026-11-22 の 1）、件数の退去（weather-current.ts:664〜:670）と byte の退去（weather-current-unit.ts:440・:443）は evicted、VPNO50 の終了（weather-current.ts:547〜:558 の endSnapshot が 3x の行を外す）は ended、全国報の入れ替え（:700〜:702 の displaced）と報の更新（:703）は replaced。1 回の受信の reduce では原因の違う 2 つが同じ府県の行を消す処理は無い（Q-RL-MIXED-FREQUENCY (4)）ので、受信の step の行には原因の 1 語を付ける（mixed は付けない、AC01 (1)）。2 つ以上が重なる所を見つけたら、付けずに止めて file:行を報告する。容量の unavailable（capacityUnavailable、weather-current-unit.ts:486。domain の addUnavailable〔weather-current.ts:465〜:472〕が候補の報の今の current を外す）で行が消えたときは evicted（統合担当が受けた 2026-11-22。理由: 報の current は容量で外れたので、押し出しと同じ語にする）。情報を持たない監視の行（before.current が null）は、報の原因があればその語、無く coverageConfirmed で印が解けたなら markCleared (3) 期限を過ぎて届いた報（P4-RL-D-LATE=B、作者裁定 2026-11-22）: 期限の回収（受信の中の collect〔U-Q・U-L・U-N・U-V〕、U-B の遅着の採用、前置きの回収〔owner-runtime.ts:483〜:484〕、owner-host の forced 回収〔owner-host.ts:121〕、期限の入力）が先に表示から外した subject は expired。同じ入力で受けた報がその subject の取消・解除・置き換えでも、その報の原因に置き換えない。同じ reduce で報の受理と回収が並ぶとき（U-L の遅れた取消・解除を採用して同じ reduce で回収する、landslide-unit.ts:357）も、合流（AC01 (3)）は最後に記録を消した回収の expired を取る (4) unknown は、unit が原因を知らない所だけに付ける。after が null の差分を作る所は reduce の合流のほかに、10 unit の recoveryChanges（U-E・U-F に無い）と U-W の rowChanges（reduce と recoveryChanges の両方が使う）がある。recoveryChanges の removal は unknown のままでよい（採用で AC03 の Map の値に置き換わる）。U-W の rowChanges は reduce の側で (2) の府県の行の規則を当てる。発注 2 の成果物に、unit ごとの unknown を付けた所の file:行と理由を列挙する（0 件なら 0 件と書く） (5) U-E は eew.ts の changed(before, after) の呼び出しで付ける: 期限 :380 は expired、退去 :593 は evicted、終端の current :596（:462 で candidate.cancelled か terminal なら projected が null）は candidate.cancelled なら cancelled、terminal なら ended",
         "evidenceRefs": [
           "reconstruction/src/units/flood/flood-unit.ts:411 «719291f33158e506»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:780 «4fc17fd25a722488»",
@@ -337,7 +341,7 @@
       },
       {
         "id": "P4-RL-AC04",
-        "requirement": "restore（表 §1.4 の 2、P4-RL-D-RESTART=A）: (1) owner の restore は今どおり after が null でない差分だけを渡す（owner-runtime.ts:438） (2) publisher は restored の返信の差分を wire の消えた理由の一覧に載せない（U-R の restore の後の期限の回収の差分を含む）。差分は射影の要素の出し入れには今どおり使う (3) 8 unit の restore の collect と U-F の restore は変えない。止まっている間に期限で終わったことそのものは画面のどこにも残らない（H32 の起動時のダイジェストは止まっていた間に出た電文を dmdata の一覧から作るもので〔spec 16.2.3〕、新しい電文が無く期限で終わっただけのものは載らない） (4) 時計の確認待ちの restore（host の wallBasis が awaiting、host.ts:130〜:133）では、awaiting の間は期限の回収を見送る unit（U-T・U-N・U-Q・U-R・U-Y・U-F・U-L・U-B・U-M・U-V。例: flood-unit.ts:455 の shows）の回収が restored の返信の後の期限の step に出る。owner は restored の返信の差分の after を表示のキーごとに手元に持ち（保存しない。basis が verified の最初の step の後の最初の回収が済んだら捨てる）、その間の期限の回収で after が null になった差分のうち、次の 2 つを満たすものの removal を expiredWhileStopped に置き換える。publisher はこの語の差分を消えた理由の一覧に載せない（射影の要素の出し入れには使う）: (a) before が restored の返信の after と同じ中身（起動の後に更新されていない版。差分の before は unit が毎回作り直すので object の参照では比べられない〔flood-unit.ts:577 の displaySubject〕。比べは 1 行の中身の比べで、1 行の大きさに比例する） (b) その差分の dueWallMs（unit が付ける、記録の表示の期限。AC01 (1)）が、restore の時の wall（その step の wall −〔その step の monotonic − restore の monotonic〕）以下。どちらかを満たさない差分（起動の後に更新された版、起動の後に期限が来た記録）は expired のまま一覧に載る。無いと: 停止中に期限が来ていた記録が、時計の確認待ちの後の最初の回収で「期限切れ」として一覧に出る（P4-RL-D-RESTART=A と食い違う、ヘルツの r1 の確かめの P1）。unit は期限の回収の after が null の差分に dueWallMs を付ける（発注 2）。owner の置き換えは発注 1",
+        "requirement": "restore（表 §1.4 の 2、P4-RL-D-RESTART=A）: (1) owner の restore は今どおり after が null でない差分だけを渡す（owner-runtime.ts:438） (2) publisher は restored の返信の差分を wire の消えた理由の一覧に載せない（U-R の restore の後の期限の回収の差分を含む）。差分は射影の要素の出し入れには今どおり使う (3) 8 unit の restore の collect と U-F の restore は変えない。止まっている間に期限で終わったことそのものは画面のどこにも残らない（H32 の起動時のダイジェストは止まっていた間に出た電文を dmdata の一覧から作るもので〔spec 16.2.3〕、新しい電文が無く期限で終わっただけのものは載らない） (4) 時計の確認待ちの restore（host の wallBasis が awaiting、host.ts:130〜:133）では、awaiting の間は期限の回収を見送る unit（U-T・U-N・U-Q・U-R・U-Y・U-F・U-L・U-B・U-M・U-V。例: flood-unit.ts:455 の shows）の回収が restored の返信の後の期限の step に出る。owner は restored の返信の差分の after を表示のキーごとに手元に持ち（保存しない。basis が verified の最初の step の後の最初の回収が済んだら捨てる）、その間の期限の回収（期限の入力・前置きの回収・owner-host.ts:121 の forced 回収）で after が null になった差分のうち、次の 2 つを満たすものの removal を expiredWhileStopped に置き換える。publisher はこの語の差分を消えた理由の一覧に載せない（射影の要素の出し入れには使う）: (a) before が restored の返信の after と同じ中身（起動の後に更新されていない版。差分の before は unit の合流が記録から毎回作り直すので object の参照では比べられない〔flood-unit.ts:577 の displaySubject〕。restore と期限の回収の差分はどちらも unit の reduce の合流 1 か所〔各 unit の displayChanges.push は 1 か所〕が作るので、記録が同じなら中身も同じ。比べは 1 行の中身の比べ〔isDeepStrictEqual〕で、1 行の大きさに比例する） (b) その差分の dueWallMs（unit が付ける、記録の表示の期限。AC01 (1)）が、restore の時の wall（その step の wall −〔その step の monotonic − restore の monotonic〕）以下。どちらかを満たさない差分（起動の後に更新された版、起動の後に期限が来た記録）は expired のまま一覧に載る。無いと: 停止中に期限が来ていた記録が、時計の確認待ちの後の最初の回収で「期限切れ」として一覧に出る（P4-RL-D-RESTART=A と食い違う、ヘルツの r1 の確かめの P1）。unit は期限の回収の after が null の差分に dueWallMs を付ける（発注 2）。owner の置き換えは発注 1",
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:438 «b02e82be25ca893c»",
           "reconstruction/contracts/p4-removal-loss-tables.md"
@@ -345,7 +349,7 @@
       },
       {
         "id": "P4-RL-AC05",
-        "requirement": "H39 の件数を運ぶ（表 §2.1・§2.2）: (1) OwnerUnitDelta に losses（unit の LossTally の行、null は変わらない）を足す。owner-host は pendingIntents と同じく前に報告した losses の参照と今の参照を比べ、違えば書く。restored の返信は全 unit の行を書く (2) publisher の mirror は unit ごとの losses を持ち、applyDeltas が null なら前のまま (3) U-F の退去に INFO の診断を足す。数えるのは、容量のために training・test の lastKnown（保持していた版）だけを外す所（weather-timeseries-unit.ts:190〜:197）と subject を外す所の両方で、それぞれ 1 件。最後に採用した state に残った分だけ数え、拒否で戻した仮の state の分は数えない（:294 の P3-UM-AC03 (4) と同じ）。LossReason・DiagnosticReason・UNIT_EVICTION・persistent-diagnostic-sink の既知の理由に U-F の退去の 1 語を足す。数え方はほかは P3-NL-AC14 (4) のまま (4) 足す語は weatherTimeseriesCapacityEvicted（32 字、既存の *CapacityEvicted と同じ名づけ）。LOSS_TALLY_MAX_BYTES（checkpoint.ts、閉集合の長い順の 9 語）は、今の 9 番目（22 字の tsunamiCapacityEvicted ほか）がこの語に替わるので 10 byte 増え、これを足す 12 unit の envelope の上限の予約（各 unit の maxEnvelopeBytes の式）も 10 byte ずつ増える。成果物に旧と新の値を書く。U-W の読み戻し（weather-current-unit.ts:302、GENERATION_BYTES は固定で予約込みの上界）のように予約込みで読み戻す unit は、予約が 10 byte 増えると旧い上限直前の保存（余りが 0〜9 byte）を拒むので、読み戻しは増やす前の予約の境界で受け入れ、受理と encode だけを新しい予約で見る。同じ形の unit を成果物に file:行で列挙する (5) 旧 /events の出力と view は変えない",
+        "requirement": "H39 の件数を運ぶ（表 §2.1・§2.2）: (1) OwnerUnitDelta に losses（unit の LossTally の行、null は変わらない）を足す。owner-host は pendingIntents と同じく前に報告した losses の参照と今の参照を比べ、違えば書く。restored の返信は全 unit の行を書く (2) publisher の mirror は unit ごとの losses を持ち、applyDeltas が null なら前のまま (3) U-F の退去に INFO の診断を足す。数えるのは、容量のために training・test の lastKnown（保持していた版）だけを外す所（weather-timeseries-unit.ts:190〜:197）と subject を外す所（:262〜:269）の両方で、それぞれ 1 件。最後に採用した state に残った分だけ数え、拒否で戻した仮の state の分は数えない（:294 の P3-UM-AC03 (4) と同じ）。LossReason・DiagnosticReason・UNIT_EVICTION・persistent-diagnostic-sink の既知の理由に U-F の退去の 1 語を足す。数え方はほかは P3-NL-AC14 (4) のまま (4) 足す語は seriesCapacityEvicted（21 字。統合担当が受けた 2026-11-22。理由: 既存の名づけの 32 字では予約が増え、下の境界の問題が起きる）。LOSS_TALLY_MAX_BYTES（checkpoint.ts:659〜:661）は閉集合の長い順の 9 語で作り、今の 9 番目は 22 字（typhoonCapacityEvicted・volcanoCapacityEvicted・tsunamiCapacityEvicted・seismicCapacityEvicted）なので、21 字の語は 9 語に入らず値は変わらない。12 unit の envelope の予約（各 unit の emptyEnvelopeBytes が LOSS_TALLY_MAX_BYTES を足す。maxEnvelopeBytes は各 unit の固定の値）も変わらず、保存の上限の境界は前と同じ。無いと（既存の *CapacityEvicted と同じ名づけの 32 字の weatherTimeseriesCapacityEvicted にすると）: 予約が 10 byte 増え、上限の余りが 0〜9 byte の保存は読み戻しの直後の encode（owner-runtime.ts:426、U-W は weather-current-unit.ts:642 の例外）で起動できない（ヘルツの r2 の確かめの P1） (5) 旧 /events の出力と view は変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p3-execution-split.types.ts:94 «94bee2fca10424c6»",
           "reconstruction/src/checkpoint/checkpoint.ts:648 «5f5ee5da34a0fabd»",
@@ -374,7 +378,7 @@
       },
       {
         "id": "P4-RL-AC08",
-        "requirement": "wire（表 §3）: (1) 版を p4-display-wire-v3 に上げる（display-wire.ts の VERSION と DisplayWireVersion。P4-DISPLAY-VOCAB-001 が v2 にした後、P4-RL-D-ORDER=A）。試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）も v3 にする（無いと: 版を固定した client が新しい snapshot を unsupported にし、既存の描画の試験が落ちる） (2) 消えた理由の一覧: 1 件は { unit, operation, reason, at, ref: { id } }。id は B0 の ref と同じ sha256([unit, operation, subject])。at は射影した時の publisher の wall。reason が expired の項目は、消える前の記録の最終更新の時刻 updatedAt（before の記録の報時刻。unit の view の行が報時刻を持たなければ null）も運ぶ（無いと: 期限切れの後に初めて画面を開いた人に、C2 が H23〔spec:3050〕の最終更新を出せない）。載せるのは before.current が null でない差分だけで、removal が markCleared と expiredWhileStopped の差分は載せない（AC04 (4)）。一覧は stream ごとで、分野（unit）ごとに新しい 4 件を残し、5 件目が来たらその分野の最も古い 1 件を落として分野ごとの外した件数を 1 増やす（12 分野で最大 48 件、P4-RL-D-WIRE-CAP=B、RL-RET-01） (3) H39 の欄: unit ごとに LossTally の行（reason と count、lastAt は載せない）をそのまま運び、区分の和は描画が出す（P4-RL-D-H39-SHAPE=A）。AC06 の欠け、U-E に AC07 の値。(4) の余りが負なら止めて報告し、統合担当が ruling の条件どおり B（5 区分の件数と詳細の part=losses）に替えるかを決める (4) 足すものは共通部の勘定（RL-RES-01）に入れ、script p4-display-wire-max.mjs に足して最大の byte と余りを出す。余りが負なら止めて報告する (5) 消えた理由の一覧と H39 の欄は変わらなければ前の snapshot の object を使い、sameSnapshot は参照で比べる（全体を直列化しない） (6) 新しい描画が読む形で、9 分野の要素が無い間も id と理由は運ぶ",
+        "requirement": "wire（表 §3）: (1) 版を p4-display-wire-v3 に上げる（display-wire.ts の VERSION と DisplayWireVersion。P4-DISPLAY-VOCAB-001 が v2 にした後、P4-RL-D-ORDER=A）。試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）も v3 にする（無いと: 版を固定した client が新しい snapshot を unsupported にし、既存の描画の試験が落ちる） (2) 消えた理由の一覧: 1 件は { unit, operation, reason, at, ref: { id } }。id は B0 の ref と同じ sha256([unit, operation, subject])。at は射影した時の publisher の wall。reason が expired の項目は、消える前の記録の最終更新の時刻 updatedAt（before の記録の報時刻。unit の view の行が報時刻を持たなければ null）も運ぶ（無いと: 期限切れの後に初めて画面を開いた人に、C2 が H23〔spec:3050〕の最終更新を出せない）。載せるのは before.current が null でない差分だけで、removal が markCleared と expiredWhileStopped の差分は載せない（AC04 (4)）。一覧は stream ごとで、分野（unit）ごとに新しい 4 件を残し、5 件目が来たらその分野の最も古い 1 件を落として分野ごとの外した件数を 1 増やす（12 分野で最大 48 件、P4-RL-D-WIRE-CAP=B、RL-RET-01） (3) H39 の欄（P4-RL-D-H39-SHAPE=B）: unit ごとに { dropped, evicted, missed, outcomeUnknown, unreadable, hole, rev }。区分の件数は unit の LossTally の count を区分ごとに足す（安全な整数で飽和）: dropped は notificationExpired・notificationExpiredClockUnverified・notificationCapacityEvicted、evicted は 12 unit の *CapacityEvicted（U-F は seriesCapacityEvicted）・seismicStationsFolded・noticeMarkEvicted・unreadableDropped、missed は capacityRejected、outcomeUnknown は notificationOutcomeUnknown、unreadable は unreadableReport（表 §2.1、B0 の表 r7 §13.2 と同じ）。hole は AC06 の欠け（U-E・U-F は null）。rev はその unit の LossTally の行の JSON の sha256 の hex（B0 の rev と同じ作り、display-wire.ts:114）で、part=losses の revision に使う。U-E にだけ AC07 の値。無いと（A の形の LossTally の行をそのまま運ぶと）: 共通部の余りが −304 になり script が exit 1 になる（P4-RL-D-H39-SHAPE の ruling） (4) 足すものは共通部の勘定（RL-RES-01）に入れ、script p4-display-wire-max.mjs に足して最大の byte と余りを出す。余りが負なら止めて報告する (5) 消えた理由の一覧と H39 の欄は変わらなければ前の snapshot の object を使い、sameSnapshot は参照で比べる（全体を直列化しない） (6) 新しい描画が読む形で、9 分野の要素が無い間も id と理由は運ぶ (7) 詳細の part=losses（P4-RL-D-H39-SHAPE=B、spec 16.2.6「理由は開けば読める」）: 要求は { unit: 12 unit のどれか, part: \"losses\", revision }（id と page を持たない。part=raw と同じく unit で受ける）、応答は { kind: \"ok\", part: \"losses\", unit, revision, rows: LossTally の行 }（reason・count・lastAt、unit ごとに最大 9 行）。B0 と P4-DISPLAY-VOCAB-001 の置き方に倣う: 型は p4-display-wire.types.ts の WireDetailRequest・WireDetailResponse に 1 つずつ足す（VOCAB の part=item・unreadable と同じ）。http-sse.ts は parseWireDetail（:362〜:380。VOCAB の後は VOCAB が足した part の後）の行の中で part=losses を受け、行を足さない。owner-runtime.ts は isWireDetail（:836〜:838）が part=losses を U-W・U-F でも新しい経路へ回すようにし（今は part=raw だけが U-W を通す）、wireDetail（:908〜）が owner の state.losses[unit]（owner-runtime.ts:47）を読むだけ（state も期限も動かさない）。revision がその unit の今の rev と違えば versionChanged と今の rev（wireChanged、:839）、行が無ければ rows は空。composition-root は詳細を unit の place へ回す今の振り分け（composition-root.ts:1844）のままで変えない。最大は 9 行で 1,013 byte（最長の 9 語・count と lastAt を最長にして数えた）で、1 応答の上限 65,536（http-sse.ts:359 の WIRE_DETAIL_BYTES）に入る。publisher の mirror の行と owner の行は capture の行の外し（owner-runtime.ts:590〜:594）の後、次の delta まで食い違うことがあり、その間は versionChanged の rev で開き直す。無いと: 5 区分の件数だけでは理由を開けず、spec 16.2.6 の「理由は開けば読める」を満たさない",
         "evidenceRefs": [
           "reconstruction/src/view-projector/display-wire.ts:27 «5a844119dca37fb1»",
           "reconstruction/src/view-projector/display-wire.ts:114 «cf938dd4f7293b2e»",
@@ -384,7 +388,7 @@
       },
       {
         "id": "P4-RL-AC09",
-        "requirement": "計算量と保存（表 §5、AGENTS.md の受信経路の計算量）: (1) 受信 1 回で、理由の付与は変化の数に比例し、府県の行の規則は作り直す府県の数に比例する。候補の Map は shadow の差分の数に比例し、AC03 (5) の府県の行の原因の集めは shadow の step ごとに作り直す府県の数に比例する。U-W の departed は、作り直す府県を集める走査（weather-current-unit.ts:769〜:771、current が変わった報の before・after の府県を 1 回ずつ見る）の中で、報の before と after の cellsOf の府県ごとの行の数を比べ（cellsOf は報ごとに cache される）、正から 0 になった府県の行の差分に原因を足すだけで、変わった報の府県の数の和に比例する。前置きの回収の置き換え（AC02 (3) (b)）は、その入力の前置きの差分をキーの Map にして受信の claims を 1 回ずつ引く。復元版の抑止（AC04 (4)）は差分ごとにキーで 1 回引く。全件×全件にしない。件数の運びは unit ごとに最大 9 行。wire の一覧の追加は 1 件 O(1)。全件×全件の走査、state・intent・view の全体の直列化をしない (2) unit の payload と codec と schemaVersion は変えない。envelope の losses の閉集合に U-F の 1 語が増えるだけで、版の移行は作らない（新築の開発の保存は P5 の前は初期化してよい、p3-order-plan.md の 2026-10-20 作者裁定） (3) 変える要が出たら止めて報告する",
+        "requirement": "計算量と保存（表 §5、AGENTS.md の受信経路の計算量）: (1) 受信 1 回で、理由の付与は変化の数に比例し、府県の行の規則は作り直す府県の数に比例する。候補の Map は shadow の差分の数に比例し、AC03 (5) の府県の行の原因の集めは shadow の step ごとに作り直す府県の数に比例する。U-W の departed は、作り直す府県を集める走査（weather-current-unit.ts:769〜:771、current が変わった報の before・after の府県を 1 回ずつ見る）の中で、報の before と after の府県ごとの行の数（cellsOf の cache から読む、AC02 (2)）を比べ、正から 0 になった府県の行の差分に原因を足すだけで、変わった報の府県の数の和に比例する。復元版の抑止（AC04 (4)）は差分ごとにキーで 1 回引く。全件×全件にしない。件数の運びは unit ごとに最大 9 行。wire の一覧の追加は 1 件 O(1)。全件×全件の走査、state・intent・view の全体の直列化をしない (2) unit の payload と codec と schemaVersion は変えない。envelope の losses の閉集合に U-F の 1 語が増えるだけで、LOSS_TALLY_MAX_BYTES と envelope の予約は変わらず（AC05 (4)）、版の移行は作らない（新築の開発の保存は P5 の前は初期化してよい、p3-order-plan.md の 2026-10-20 作者裁定） (3) 変える要が出たら止めて報告する",
         "evidenceRefs": [
           "reconstruction/contracts/p3-order-plan.md:498 «1aac26053468e4aa»",
           "AGENTS.md"
@@ -392,7 +396,7 @@
       },
       {
         "id": "P4-RL-AC10",
-        "requirement": "既存の試験の扱い（AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: (1) 型の変更で、試験の中で差分を組み立てる literal（corpus.test.ts・display-wire.test.ts・shared-runtime.test.ts の after: null の差分）に removal を足すのは期待の変更でないので許す (2) toMatchObject で after: null を見る期待（typhoon・weather-timeseries・eew・tsunami・uw-canon・weather-current の各 unit の試験）は変えない (3) envelope の上限の数を固定で見る試験があり、その数が AC05 (4) の 10 byte だけ動くなら、その数の書き換えは許す（試験名と旧・新の数を成果物に書く） (4) 版を固定した試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）を v3 にするのは許す（AC08 (1)） (5) この 4 つのほかに既存の試験の期待を変える要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+        "requirement": "既存の試験の扱い（AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: (1) 型の変更で、試験の中で差分を組み立てる literal（corpus.test.ts・display-wire.test.ts・shared-runtime.test.ts の after: null の差分）に removal を足すのは期待の変更でないので許す (2) toMatchObject で after: null を見る期待（typhoon・weather-timeseries・eew・tsunami・uw-canon・weather-current の各 unit の試験）は変えない (3) 版を固定した試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）を v3 にするのは許す（AC08 (1)） (4) この 3 つのほかに既存の試験の期待を変える要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
         "evidenceRefs": [
           "reconstruction/test/display-wire/display-wire.test.ts",
           "reconstruction/test/shared-runtime/shared-runtime.test.ts",
@@ -407,7 +411,7 @@
         "referenceIds": [
           "P4-RL-AC02"
         ],
-        "behavior": "発注 2。受入条件。12 unit の試験 file に 1 つずつの it で、表 §1.2 のその unit の行（取消・解除の行を含む）の単独の回を 1 つの表で回す（例: U-R は容量の退去で evicted、期限の回収で expired、取消で cancelled、解除で ended。U-E は取消で cancelled、最終報で ended）。after が null の差分の removal を見る。U-W の府県の行の ended は VPNO50 の終了で府県の行が特別警報だけのときにしか起きない（読みだけで走らせていない、Q-RL-MIXED-FREQUENCY (3)）。作れなければ止めて報告する（ほかの unit も、表の行が表示から外れる差分を作らない形〔例: U-B の解除は表示に残る〕なら止めて報告する）。試験のコメントに表 §1.2 と P4-RL-AC02 を書く"
+        "behavior": "発注 2。受入条件。12 unit の試験 file に 1 つずつの it で、表 §1.2 のその unit の行（取消・解除の行を含む）の単独の回を 1 つの表で回す（例: U-R は容量の退去で evicted、期限の回収で expired、取消で cancelled、解除で ended。U-E は取消で cancelled、最終報で ended。U-Q は時計が unverified の間に期限の印が立って表示から外れた地震の行〔seismic-unit.ts:1185〕が expired、P4-RL-D-CLOCK-PENDING）。after が null の差分の removal を見る。U-W の府県の行の ended は VPNO50 の終了で府県の行が特別警報だけのときにしか起きない（Q-RL-MIXED-FREQUENCY (3)）。作れなければ止めて報告する（ほかの unit も、表の行が表示から外れる差分を作らない形〔例: U-B の解除は表示に残る〕なら止めて報告する）。試験のコメントに表 §1.2 と P4-RL-AC02 を書く"
       },
       {
         "testId": "P4-RL-T02",
@@ -416,7 +420,7 @@
           "P4-RL-AC02",
           "P4-RL-AC03"
         ],
-        "behavior": "発注 2。契約境界。(a) U-W の取り直しの採用を通常の経路（recovery.ts の bodiesFor の選び → owner-host の候補 → adoptRecoveryOwner）で通す: 一覧に、府県 P に区域を持つ府県の報 X（系列の初報）の取消（報時刻 T）と、それより後に受けた別の官署の全国報 Y′（報時刻 T、P を持たない、live の全国報 Y より新しい版）を置く。X の取消は報時刻が基点 Y′ と同じなので落ちない（recovery.ts:222、P4-URC-AC01）。Y′ は live の Y より新しいので取り直しの全国報の版の比べ（weather-current.ts:733 の olderNational）で断られない。X の区域は P の行に出ている（Y に負けていない）。候補の 1 つ目の step で X が P から外れ（戻す版の無い取消、cancelled。P の行は Y が残し、行の中身が変わるので差分に departed が付く）、2 つ目の step で Y が P から外れる（全国報の入れ替え、replaced）。採用の正味の差分で P の行の removal は mixed（集めた原因 {cancelled, replaced}）。X の取消だけの候補では P の行は残り removal は無い（P4-RL-D-MIXED=B、AC03 (5)） (b) U-W: 取消で戻す版が無い報（系列の初報の取消、historyUnavailable）で府県の行が消えると cancelled (c) U-L: 期限を過ぎて届いた取消を receiveOwner から通す。前置きの期限の回収（owner-runtime.ts:483）で消えた取消の相手の subject の removal が cancelled、同じ前置きの回収で消えた別の官署の subject は expired のまま（P4-RL-D-LATE=A、AC02 (3) (b)）"
+        "behavior": "発注 2。契約境界。(a) U-W の取り直しの採用を通常の経路（recovery.ts の bodiesFor の選び → owner-host の候補 → adoptRecoveryOwner）で通す: 一覧に、府県 P に区域を持つ府県の報 X（系列の初報）の取消（報時刻 T）と、それより後に受けた別の官署の全国報 Y′（報時刻 T、P を持たない、live の全国報 Y より新しい版）を置く。X の取消は報時刻が基点 Y′ と同じなので落ちない（recovery.ts:222、P4-URC-AC01）。Y′ は live の Y より新しいので取り直しの全国報の版の比べ（weather-current.ts:733 の olderNational）で断られない。X の区域は P の行に出ている（Y に負けていない）。候補の 1 つ目の step で X が P から外れ（戻す版の無い取消、cancelled。P の行は Y が残し、行の中身が変わるので差分に departed が付く）、2 つ目の step で Y が P から外れる（全国報の入れ替え、replaced）。採用の正味の差分で P の行の removal は mixed（集めた原因 {cancelled, replaced}）。X の取消だけの候補では P の行は残り removal は無い（P4-RL-D-MIXED=B、AC03 (5)） (b) U-W: 取消で戻す版が無い報（系列の初報の取消、historyUnavailable）で府県の行が消えると cancelled (c) U-L: 表示の期限を過ぎた記録の取消を、同じ入力の前置きの回収（owner-runtime.ts:483）の後に receiveOwner から通す。前置きの回収が消した取消の相手の subject の removal は expired のまま（P4-RL-D-LATE=B、AC02 (3)）"
       },
       {
         "testId": "P4-RL-T03",
@@ -441,7 +445,7 @@
           "P4-RL-AC05",
           "P4-RL-AC07"
         ],
-        "behavior": "発注 1。受入条件。(a) 容量の退去で件数が増えた owner の返信の delta が losses を持ち、publisher の mirror と新しい射影の H39 の欄に届く。件数の変わらない返信の delta の losses は null (b) U-F の training・test の lastKnown だけを外す退去と subject の退去で、U-F の退去の語の件数がそれぞれ 1 増え、拒否で戻した仮の state の分は増えない (c) EEW の切断から 10 分の tick の後、H39 の U-E の欄の区間の件数が 1 で最後の区間の from・to が札の区間と同じ (d) U-W の旧い予約で上限直前（余り 0〜9 byte）の保存を読み戻せる（AC05 (4)）"
+        "behavior": "発注 1。受入条件。(a) 容量の退去で件数が増えた owner の返信の delta が losses を持ち、publisher の mirror と新しい射影の H39 の欄に届く。件数の変わらない返信の delta の losses は null (b) U-F の training・test の lastKnown だけを外す退去と subject の退去で、U-F の退去の語の件数がそれぞれ 1 増え、拒否で戻した仮の state の分は増えない (c) EEW の切断から 10 分の tick の後、H39 の U-E の欄の区間の件数が 1 で最後の区間の from・to が札の区間と同じ (d) LOSS_TALLY_MAX_BYTES が U-F の語を足す前の値と同じ（AC05 (4)。値を固定の数で見る）"
       },
       {
         "testId": "P4-RL-T06",
@@ -457,7 +461,7 @@
         "referenceIds": [
           "P4-RL-AC08"
         ],
-        "behavior": "発注 1。契約境界。(a) script p4-display-wire-max.mjs の共通部の余りが負でないことを、script の出力の数と照らす (b) ある分野の消えた理由が 5 件目になると、その分野の最も古い 1 件が落ちてその分野の外した件数が 1 増え、ほかの分野の 4 件は残る（P4-RL-D-WIRE-CAP=B） (c) 新しい streamId で消えた理由の一覧が空に戻る (d) 変わらない step で消えた理由の一覧と H39 の欄が前の snapshot と同じ参照"
+        "behavior": "発注 1。契約境界。(a) script p4-display-wire-max.mjs の共通部の余りが負でないことを、script の出力の数と照らす (b) ある分野の消えた理由が 5 件目になると、その分野の最も古い 1 件が落ちてその分野の外した件数が 1 増え、ほかの分野の 4 件は残る（P4-RL-D-WIRE-CAP=B） (c) 新しい streamId で消えた理由の一覧が空に戻る (d) 変わらない step で消えた理由の一覧と H39 の欄が前の snapshot と同じ参照 (e) H39 の欄の 5 区分の件数がその unit の LossTally の区分の和で、rev で part=losses を開くと同じ行が返る。古い rev では versionChanged と今の rev が返る（P4-RL-D-H39-SHAPE=B、AC08 (3)(7)）"
       },
       {
         "testId": "P4-RL-T08",
@@ -551,14 +555,14 @@
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "最初の作業: decisionBranches の 10 件は 2026-11-22 に確定し、AC と testMapping はその ruling の字で書いてある。発注 1 は P4-RL-D-SPLIT=A の範囲だけ。発注 1 の完了は T04 (c)(d)・T05・T06・T07 が緑で、発注 2 は全部が緑。本契約の実装は P4-DISPLAY-VOCAB-001 の実装の後の木で始める（ORDER の 2026-11-22 の決め）",
-      "最小実装: 足す仕組みは DisplayRemoval の型、候補の Map（removal と AC03 (5) の府県の行の原因）、差分の departed と dueWallMs、claims（10 unit の step と OwnerStep の欄、AC01 (6)）、前置きの回収の置き換え（AC02 (3) (b)）、復元版の抑止（AC04 (4)）、OwnerUnitDelta と mirror の losses、U-F の退去の語、欠けの印（P4-RL-D-HOLE=B）、H28 の区間の値、wire の 2 つの欄だけ。各々の「無いと何が壊れるか」は表 §1.1・§1.4・§2・§3 にある。ほかに helper・型・層を足すなら、無いと何が壊れるかを 1 行で成果物に書く",
+      "最小実装: 足す仕組みは DisplayRemoval の型、候補の Map（removal と AC03 (5) の府県の行の原因）、差分の departed と dueWallMs、府県別の行の数の読み出し（weather-current-public.ts）、復元版の抑止（AC04 (4)）、OwnerUnitDelta と mirror の losses、U-F の退去の語、欠けの印（P4-RL-D-HOLE=B）、H28 の区間の値、wire の 2 つの欄と詳細の part=losses だけ。各々の「無いと何が壊れるか」は表 §1.1・§1.4・§2・§3 にある。ほかに helper・型・層を足すなら、無いと何が壊れるかを 1 行で成果物に書く",
       "最小テスト: 追加した試験ごとに対応（受入条件・契約境界・実不具合）を 1 行で書く。testMapping の 9 本のほかに足さない",
       "AC02 (4): 発注 2 の成果物に unit ごとの unknown を付けた所の file:行と理由を列挙する",
       "行の数: «» で引かれる行が多い（表 §4。合計約 1,500 本）。行の中の書き換えを原則にし、行を足した file と足した位置を成果物に列挙する。check-contract の FAIL の一覧を付ける",
       "試験の設定の隔離: 試験は unit の reducer・owner・publisher を直接呼び、作者の設定の file を読まない形にする。設定や保存の dir を使う試験は XDG_CONFIG_HOME と保存の dir を一時の dir にする",
       "既存の試験の期待は AC10 のほかに変えない。変える要が出たら止めて報告する",
       "旧築（src/）と test/fixtures を変えない",
-      "残存として成果物に書く: U-W の府県の行が取り直しの採用で 2 つ以上の原因で消える回の実の頻度は量れていない（手元の corpus では府県の行が消えた回が 0 で分母 0、Q-RL-MIXED-FREQUENCY、表 §6）。U-Q・U-N・U-V・U-B ほか前置きのある unit の受信の側（AC02 (3) (b) の claims を作る所）と、awaiting で回収を見送る 10 unit の restore の後の回収の形（AC04 (4)）は、U-L と U-R のほかは起草で読んでいない"
+      "残存として成果物に書く: U-W の府県の行が取り直しの採用で 2 つ以上の原因で消える回の実の頻度は量れていない（手元の corpus では府県の行が消えた回が 0 で分母 0、Q-RL-MIXED-FREQUENCY、表 §6）"
     ],
     "unresolvedQuestions": [
       {
@@ -569,10 +573,10 @@
         ],
         "resolveBy": "発注前点検（baseOid を割り当てる木で）",
         "requiredEvidence": [
-          "表 §1.2 の 12 unit の消える所の行を baseOid の木で読み直した記録。N0 発注 3 と P4-TSUNAMI-MULTI-EVENT-001 が先に入っていれば、その後の木で読み直す（P4-RL-D-ORDER=A、計画 §1.3 の N0 の行、P4-TME-D-ORDER）",
+          "表 §1.2 の 12 unit の消える所の行（r3 で HEAD 45bdefda の木で開いて確かめた）が baseOid の木で動いていないことの確かめ。N0 発注 3 と P4-TSUNAMI-MULTI-EVENT-001 が先に入っていれば、その後の木で確かめる（P4-RL-D-ORDER=A、計画 §1.3 の N0 の行、P4-TME-D-ORDER）",
           "P4-DISPLAY-VOCAB-001 が display-wire.ts・p4-display-wire.types.ts・共通部の勘定に足したものと、本契約の足すものの合計の script の出力",
           "本契約の display-wire.ts の «»（AC01 の :580、AC08 の :27・:114）を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直した記録と、版が v3 であること（ORDER の 2026-11-22 の決め）",
-          "表 §1.2 の取消・解除の行（r2 で足した、起草で 1 行ずつは読んでいない）の行の中身"
+          "script p4-display-wire-max.mjs の共通部の余りが負でないこと（H39-SHAPE=B の見積もりは余り 3,228、P4-RL-D-H39-SHAPE の ruling。負なら発注しない）"
         ]
       },
       {
