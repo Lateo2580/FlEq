@@ -413,7 +413,7 @@ function itemOf(grade: Exclude<Grade, "released">, kept: boolean): string {
       .exec(xml.slice(xml.indexOf("<Body")))![0];
     const base = fixture("32-39_12_02_250206_VTSE41"), sample = fixture("32-39_11_11_250206_VTSE41");
     gradeItems = { major: pick(base, "53"), warning: pick(base, "51"), advisory: pick(base, "62"), forecast: pick(sample, "71"),
-      majorKept: pick(sample, "52", "52"), forecastKept: pick(sample, "71", "71") };
+      majorKept: pick(base, "53").replace(/<Category>[\s\S]*?<\/Category>/, /<Category>[\s\S]*?<\/Category>/.exec(pick(sample, "52", "52"))![0]), forecastKept: pick(sample, "71", "71") };
   }
   return kept ? grade === "major" ? gradeItems.majorKept : grade === "forecast" ? gradeItems.forecastKept : gradeItems[grade] : gradeItems[grade];
 }
@@ -472,14 +472,14 @@ function worded(xml: string, rows: readonly Forecast[]): string {
 // 足りない分は coasts を順に回し、code は予報区の code に base からの 2 桁、名前は予報区の名前に通し番号の生成のまま残す
 // （実在の観測点の一覧は repo に無く、191・420 は器の上界で減らせない）。
 // arrivalMs は第 1 波の到達（その点の予報区の到達予想、型の点を写す R2 は型の ArrivalTime）で、観測点は到達の早い順に並べる。
-type Gauge = Readonly<{ coast: Coast; name: string; code: string; arrivalMs: number; typed?: Readonly<{ initial: string | null; sensor: string | null }> }>;
+type Typed = Readonly<{ arrivalMs: number; initial: string | null; sensor: string | null }>;
+type Gauge = Readonly<{ coast: Coast; name: string; code: string; arrivalMs: number; lead: boolean; typed?: Typed }>;
 const COASTAL_TYPES = ["32-39_11_03_250206_VTSE51", "32-39_11_10_250206_VTSE51", "38-39_02_02_250206_VTSE51", "38-39_03_03_210805_VTSE51",
   "synthetic_VTSE51_correction", "synthetic_VTSE51_fragmentA", "synthetic_VTSE51_fragmentB"];
 const OFFSHORE_TYPES = ["32-39_12_05_250206_VTSE52", "61_11_01_250206_VTSE52", "61_11_02_250206_VTSE52", "synthetic_VTSE52_correction",
   "synthetic_VTSE52_fragmentA", "synthetic_VTSE52_fragmentB"];
 // R2 は同じ地震の型（2011）の Observation の点の第 1 波と Sensor を写す。N 系に 2011 の第 1 波を写さない。
 const R2_COASTAL_TYPE = "32-39_11_10_250206_VTSE51", R2_OFFSHORE_TYPES = ["61_11_01_250206_VTSE52", "61_11_02_250206_VTSE52"];
-type Typed = Readonly<{ arrivalMs: number; initial: string | null; sensor: string | null }>;
 function typedStations(names: readonly string[]): Map<string, Typed> {
   const out = new Map<string, Typed>();
   for (const name of names) {
@@ -493,16 +493,19 @@ function typedStations(names: readonly string[]): Map<string, Typed> {
 }
 function gauges(types: readonly string[], count: number, zones: ReadonlyMap<string, Forecast>, coasts: readonly Coast[], base: number, typedFrom: readonly string[] = []): Gauge[] {
   const typed = typedStations(typedFrom), seen = new Set<string>();
+  // coasts は zones の部分集合（呼び出しが同じ行から作る）。
   const reach = (coast: Coast, code: string) => typed.get(code)?.arrivalMs ?? zones.get(coast.code)!.arrivalMs;
   const real = types.flatMap((name) => [...fixture(name).matchAll(/<Station>\s*<Name>([^<]*)<\/Name>\s*<Code>([^<]*)<\/Code>/g)])
     .flatMap(([, name, code]) => coasts.filter((coast) => coast.code === code.slice(0, 3) && !seen.has(`${name}\0${code}`) && seen.add(`${name}\0${code}`))
-      .map((coast): Gauge => ({ coast, name, code, arrivalMs: reach(coast, code), typed: typed.has(code) ? typed.get(code) : undefined })));
+      .map((coast): Gauge => ({ coast, name, code, arrivalMs: reach(coast, code), lead: false, typed: typed.get(code) })));
   const out: Gauge[] = real.slice(0, count);
   for (let k = 0; out.length < count; k++) {
     const coast = coasts[k % coasts.length], n = Math.floor(k / coasts.length);
-    out.push({ coast, name: `${coast.name}${n + 1}`, code: `${coast.code}${base + n}`, arrivalMs: reach(coast, "") });
+    out.push({ coast, name: `${coast.name}${n + 1}`, code: `${coast.code}${base + n}`, arrivalMs: reach(coast, ""), lead: false });
   }
-  return out.sort((a, b) => a.arrivalMs - b.arrivalMs);
+  // lead（区域の中で最も高い点）は並びの中で区域ごとに 1 回だけ決める。報ごとに決めると、R2 の版 5 で 20102 を落とした時に 20101 が繰り上がり、同じ点の最大波が下がる。
+  const led = new Set<string>();
+  return out.sort((a, b) => a.arrivalMs - b.arrivalMs).map((gauge) => ({ ...gauge, lead: !led.has(gauge.coast.code) && (led.add(gauge.coast.code), true) }));
 }
 
 // 観測の高さ: 区分の公式の基準の範囲〔公式、P3-DC-SOURCES (11)〕。大津波警報の区域は 3 時間で想定の 10 m〔公式、p.13〕まで上げる。
@@ -527,7 +530,7 @@ function gaugeLines(list: readonly Gauge[], zones: ReadonlyMap<string, Forecast>
   const items = new Map<string, string[]>();
   for (const gauge of list) {
     const lines = items.get(gauge.coast.code) ?? [];
-    lines.push(gaugeElement(gauge, zones.get(gauge.coast.code)?.grade ?? "advisory", at, origin, sensor, lines.length === 0));
+    lines.push(gaugeElement(gauge, zones.get(gauge.coast.code)?.grade ?? "advisory", at, origin, sensor, gauge.lead));
     items.set(gauge.coast.code, lines);
   }
   return items;
@@ -596,7 +599,9 @@ function eewBody(template: string, at: number, origin: number, eventId: string, 
   // 最後の報に最終報（P4-PWT-AC06 (4)）。無いと、EEW は最後の報の後も続報を待つ状態のまま残る。
   if (final) xml = xml.replace("</Body>", "<NextAdvisory>この情報をもって、緊急地震速報：最終報とします。</NextAdvisory></Body>");
   if (areas == null) return xml;
-  const kind = (code: string) => warned.has(code) ? "<Kind><Name>緊急地震速報（警報）</Name><Code>10</Code></Kind>" : "<Kind><Name>緊急地震速報（予報）</Name><Code>00</Code></Kind>";
+  // 到達済み（Condition）の区域は 11（警報）・01（予報）。公開の型で Condition が付くのはこの 2 つだけ（37_01_02・77_01_26・77_01_03・37_01_01）。
+  const kind = (code: string, reached: boolean) => warned.has(code) ? `<Kind><Name>緊急地震速報（警報）</Name><Code>${reached ? 11 : 10}</Code></Kind>`
+    : `<Kind><Name>緊急地震速報（予報）</Name><Code>${reached ? "01" : "00"}</Code></Kind>`;
   // 区域の長周期の階級は、型の区域のうち同じ予想震度の区域の最大で、型に無い予想震度は型の Body の値。到達は発生から区域の順に決める（P4-PWT2-AC03 (1)、AC06 (7) を改めた）。
   const source = template.slice(template.indexOf("<Body"));
   const lgOf = new Map<string, number>();
@@ -606,9 +611,10 @@ function eewBody(template: string, at: number, origin: number, eventId: string, 
   const lgs = areas.map((item) => lgOf.get(item.int) ?? top);
   // 到達は発生時刻から区域の並びの順に決め、同じ EventID の報では同じ値（P4-PWT2-AC03 (1)）。報の時刻より前の区域は 37_01_02 の Condition の形。
   // 無いと、到達が報ごとに後ろへ動き、続報のたびに同じ区域の到達が遅くなる。
-  const arrival = (index: number) => origin + 10 * SECOND + 2 * SECOND * index < at ? "<Condition>既に主要動到達と推測</Condition>"
+  const reached = (index: number) => origin + 10 * SECOND + 2 * SECOND * index < at;
+  const arrival = (index: number) => reached(index) ? "<Condition>既に主要動到達と推測</Condition>"
     : `<ArrivalTime>${jst(origin + 10 * SECOND + 2 * SECOND * index)}</ArrivalTime>`;
-  const blocks = areas.map((item, index) => `<Pref><Name>${item.pref.name}</Name><Code>${item.pref.code}</Code><Area><Name>${item.area.name}</Name><Code>${item.area.code}</Code><Category>${kind(item.area.code)}</Category><ForecastInt><From>${item.int}</From><To>${item.int}</To></ForecastInt><ForecastLgInt><From>${lgs[index]}</From><To>${lgs[index]}</To></ForecastLgInt>${arrival(index)}</Area></Pref>`);
+  const blocks = areas.map((item, index) => `<Pref><Name>${item.pref.name}</Name><Code>${item.pref.code}</Code><Area><Name>${item.area.name}</Name><Code>${item.area.code}</Code><Category>${kind(item.area.code, reached(index))}</Category><ForecastInt><From>${item.int}</From><To>${item.int}</To></ForecastInt><ForecastLgInt><From>${lgs[index]}</From><To>${lgs[index]}</To></ForecastLgInt>${arrival(index)}</Area></Pref>`);
   const body = xml.indexOf("<Body");
   const first = xml.indexOf("<Pref>", body), last = xml.lastIndexOf("</Pref>") + "</Pref>".length;
   xml = xml.slice(0, first) + blocks.join("") + xml.slice(last);

@@ -676,8 +676,8 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
     const ofMain = (headType: string) => lists.N1.filter((item) => item.headType === headType && tag(text(item), "EventID") === main);
     const codesOf = (item: Frame, pattern: RegExp) => [...text(item).matchAll(pattern)].map((match) => match[1]).sort().join();
     const kinds = (item: Frame, code: string) => codesOf(item, new RegExp(`<Area><Name>[^<]*</Name><Code>(\\d+)</Code><Category><Kind><Name>[^<]*</Name><Code>${code}</Code>`, "g"));
-    const warnedAt = (item: Frame) => kinds(ofMain("VXSE43").filter((warning) => warning.atMs <= item.atMs).at(-1)!, "10");
-    expect(ofMain("VXSE45").filter((item) => kinds(item, "10") !== warnedAt(item) || codesOf(item, /<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><Category>/g) !== [kinds(item, "10"), kinds(item, "00")].filter((list) => list !== "").join().split(",").sort().join()
+    const warnedAt = (item: Frame) => kinds(ofMain("VXSE43").filter((warning) => warning.atMs <= item.atMs).at(-1)!, "1[01]");
+    expect(ofMain("VXSE45").filter((item) => kinds(item, "1[01]") !== warnedAt(item) || codesOf(item, /<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><Category>/g) !== [kinds(item, "1[01]"), kinds(item, "0[01]")].filter((list) => list !== "").join().split(",").sort().join()
       || codesOf({ ...item, body: Buffer.from(/<Information type="緊急地震速報（細分区域）">[\s\S]*?<\/Information>/.exec(text(item))?.[0] ?? "") }, /<Code>(\d+)<\/Code><\/Area>/g) !== warnedAt(item))
       .map((item) => tag(text(item), "Serial"))).toEqual([]);
     // 同じ地震の確定した報（地震と津波）は規模が 1 つ、震源は筋書きの震源。M7 級の余震も同じ。
@@ -849,6 +849,25 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
       expect(seen.filter((area) => area.arrival != null && area.arrival !== arrivals.get(`${area.eventId}:${area.code}`))).toEqual([]);
     }
     expect(conditions).toBeGreaterThan(0);
+    // 到達済み（Condition）の区域の Kind は 11（警報）か 01（予報）（公開の型の形）。
+    const reachedKinds = [lists.N1, lists.N2, lists.R2].flatMap((list) => list.filter((report) => report.headType === "VXSE45" || report.headType === "VXSE43")
+      .flatMap((report) => [...text(report).matchAll(/<Code>(\d+)<\/Code><\/Kind><\/Category><ForecastInt>(?:(?!<\/Area>)[\s\S])*?<Condition>既に主要動到達と推測/g)].map((match) => match[1])));
+    expect([reachedKinds.length > 0, reachedKinds.filter((kind) => kind !== "11" && kind !== "01")]).toEqual([true, []]);
+    // 同じ点の最大波の高さは、版を追って下がらない（区域の最初の点の決め方が版で変わらない）。
+    const falls = [lists.N1, lists.N2, lists.R2].map((list) => {
+      const last = new Map<string, number>();
+      let count = 0;
+      for (const report of list.filter((item) => /^synth:.*VTSE5[12]$/.test(item.source))) {
+        const xml = text(report), eventId = tag(xml, "EventID");
+        for (const [, code, height] of xml.slice(xml.indexOf("<Observation>"), xml.indexOf("</Observation>")).matchAll(/<Station><Name>[^<]*<\/Name><Code>(\d+)<\/Code>[\s\S]*?TsunamiHeight[^>]*>([^<]*)</g)) {
+          const key = `${eventId}:${report.headType}:${code}`;
+          if (last.has(key) && Number(height) < last.get(key)!) count++;
+          last.set(key, Number(height));
+        }
+      }
+      return count;
+    });
+    expect(falls).toEqual([0, 0, 0]);
     // (3) 余震の EventID ごとに、EEW・震源に関する情報・震源・震度に関する情報の規模は 1 つ。
     const magnitudes = (list: readonly Frame[]) => {
       const events = new Set(list.filter((item) => item.source.startsWith("synth:aftershock:")).map((item) => tag(text(item), "EventID")));
@@ -867,7 +886,7 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
     const n1 = lists.N1.filter((item) => item.source === "synth:VTSE41" && tag(text(item), "EventID") === tag(text(lists.N1.find((report) => report.headType === "VXSE51")!), "EventID"));
     expect([majors(n1[0]).every(([, kind]) => kind === "53"), majors(n1[1]).every(([, kind]) => kind === "52"), majors(n1[1]).length > 0]).toEqual([true, true, true]);
     // (4)⑤ R2 の 3/12 20:20 は津波予報の区域が 71 のまま、3/13 17:58 の全解除には津波予報（71）の行も、前が津波予報の行も無い。
-    const forecastRows = (item: Frame) => text(item).match(/<Code>71<\/Code>/g)?.length ?? 0;
+    const forecastRows = (item: Frame) => [...kinds(item).values()].filter((kind) => kind === "71").length;
     expect([forecastRows(r2At("2011-03-12T20:20:00")) > 0, forecastRows(r2At("2011-03-13T17:58:00"))]).toEqual([true, 0]);
     // (4)③ R2 の VTSE51: 版 4 に観測点 20102、版 5 に無い。観測点は同じ版の中で高さと第 1 波が全点同じではない（①）。
     const coastal = lists.R2.filter((item) => item.source === "synth:R2:VTSE51"), observationOf = (xml: string) => xml.slice(xml.indexOf("<Observation>"), xml.indexOf("</Observation>"));
@@ -882,6 +901,7 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
       ofR2("VXSE51").map((item) => item.atMs), ofR2("VXSE53").map((item) => item.atMs)]).toEqual([15, 14, false, [jst("2011-03-11T14:50:00")], [jst("2011-03-11T14:54:00")]]);
     const order = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"], prefs = [...text(ofR2("VXSE51")[0]).matchAll(/<Pref>\s*<Name>([^<]*)<\/Name><Code>\d+<\/Code><MaxInt>([^<]*)</g)];
     const top = prefs.reduce((max, match) => order.indexOf(match[2]) > order.indexOf(max) ? match[2] : max, "0");
+    expect(prefs.length).toBeGreaterThan(0);
     expect(prefs.filter((match) => match[2] === top).map((match) => match[1]).every((name) => ["宮城県", "福島県", "茨城県", "栃木県"].includes(name))).toBe(true);
   }, 180_000);
 });
