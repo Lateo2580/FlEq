@@ -270,3 +270,62 @@ W05 のページ:
 - 気象庁の GIS の承認は使用承認（「情使」）。地理院の承認申請 Q&A の Q1-24「使用承認を得て作成した成果を更に複製・使用する場合は、申請は不要です。」。二次利用で承認番号の表示を引き継ぐかは、Q&A・利用手続フロー（https://www.gsi.go.jp/common/000223838.pdf）とその注に書かれていない
 - 地理院の Q5-2「承認書に記載される承認番号及び出所の明示の文言については、必ず明示しなければなりません。システムやWebサイトの場合には、原則、地図等が表示画面に表示されている間は、常に表示画面に見えるように掲載し、出力図にも印刷されるように加工してください。」は承認を得た者に向けた定めで、二次利用者の義務としては書かれていない
 - 出典を書く場所の定め: 気象庁ホームページの利用規約は場所を定めず、書き方の例だけ。公共データ利用規約 1.1 は「URLリンクが使える場合は（）内のURLは該当する文言からリンクを張る形にすることもできます。」。CC BY 4.0 の第3条(a)(2)「媒体・方法・文脈に照らして、いかなる合理的な方法でも満たすことができます。」
+
+## 8. 発注 2 の点検（AC12 の P1・P2・P3・P5・P8）の結果（2026-11-21 夜）
+
+上の行は書き換えず、ここに足す。子が Mac mini で集めた ~/dev/p4-g0o2-precheck-r0.md（repo の外）から写した。mapshaper 0.7.49・node v26.12.1。P4（package.json）と P6（PDF）はしていない。
+
+### 8.1 P1 資材（取得 2026-11-21 22:56 JST、byte・sha256・last-modified）
+
+- pref: 20190125_AreaInformationPrefectureEarthquake_GIS.zip、97,394,968 byte、sha256 5f36a66e2a2bbdc2eb04d4c7be0dc9d710903040d4b721716a0b1368d80da235、Mon, 10 Feb 2025 05:10:53 GMT、地震情報／都道府県等.dbf・.shp・.shx
+- forecastLocalE: 20240520_AreaForecastLocalE_GIS.zip、110,642,970 byte、sha256 92f3c9a51fc0681970672e3e77cb81d9d7885822e55b6ca6aefcb4ea6d20705f（lock と一致）、Mon, 10 Feb 2025 05:10:48 GMT、地震情報／細分区域.dbf・.shp・.shx
+- city: 20241128_AreaInformationCity_quake_GIS.zip、153,820,798 byte、sha256 56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65（lock と一致）、Mon, 10 Feb 2025 05:10:55 GMT、市町村等（地震津波関係）.dbf・.shp・.shx
+- tsunamiArea: 20240520_AreaTsunami_GIS.zip、93,554,392 byte、sha256 735e2ed36befa8d9511f01e6a0e503e01e7824b5125a71326f3f623d808a7eb9、Mon, 10 Feb 2025 05:10:49 GMT、津波予報区.dbf・.shp・.shx
+- weatherPrefecture: 20190125_AreaForecastLocalM_prefecture_GIS.zip、99,811,014 byte、sha256 f4e32e21a806120eac86c529ff9e5ed8130b13ac9e5988c2e8a4a8f4093ddce0、Mon, 10 Feb 2025 05:10:49 GMT、府県予報区等.dbf・.shp・.shx
+- weatherPrimary: 20190125_AreaForecastLocalM_1saibun_GIS.zip、105,851,810 byte、sha256 1a085be077321738f301fe0e321f66539b5b2e7d6c9865b3cb263d19dd5c7939、Mon, 10 Feb 2025 05:10:49 GMT、一次細分区域等.dbf・.shp・.shx
+- weatherGroup: 20230517_AreaForecastLocalM_matome_GIS.zip、120,107,451 byte、sha256 0945e5feabe632413e280f5ca1b7c16cb2469f8671b2066039423f61ff354e06、Mon, 10 Feb 2025 05:10:36 GMT、市町村等をまとめた地域等/市町村等をまとめた地域等.dbf・.shp・.shx（sub directory の中）
+- weatherCity: 20260226_AreaInformationCity_weather_GIS.zip、153,789,367 byte、sha256 a3a847ca6e1fddb87a622a42b40c735b8e8400b0089dced75cbfe8030fac958c、Thu, 26 Feb 2026 01:52:55 GMT、気象警報等/市町村等（気象警報等）.dbf・.shp・.shx（directory の名前と shapefile の名前が違う）
+- floodCity: 20241025_AreaInformationCity_river_GIS.zip、152,166,880 byte、sha256 cea9d3ac5601ab2d430f41899dd60239545ae380f741f882f71ed878dc2e32a8、Mon, 10 Feb 2025 05:10:51 GMT、市町村等（指定河川洪水予報）/市町村等（指定河川洪水予報）.dbf・.shp・.shx
+- 気象警報の候補の残り 2 本: 20241025_AreaInformationCity_weather_GIS.zip（152,723,701 byte、sha256 67979f443155e7b9bc7b041f531de60c66d160990037b3270e63431ee365ccce）、20260114_AreaInformationCity_weather_GIS.zip（153,677,700 byte、sha256 aac1d0e30aab488850b263c76de150a97a74e0217a7c8ce10b77a7311e9721ef）
+- 全部の zip で .shp・.shx・.dbf が 1 つずつ、.prj と .cpg は 0。zip の entry 名は UTF-8 の旗が無い cp932。dbf の字は UTF-8 で、点検の mapshaper には encoding=utf8 を渡した（渡さないときの振る舞いは未確認）
+- dbf のコードの欄: pref は code（C 2）、forecastLocalE・tsunamiArea は code（C 3）、weatherPrefecture・weatherPrimary・weatherGroup は code（C 6）、city・weatherCity・floodCity は regioncode（C 7）
+- dbf の数（地物・コードの異なり・空のコード）: pref 47・47・0、forecastLocalE 194・188・6、city 1,910・1,894・16、tsunamiArea 70・67・0（コード「0」の 4 地物）、weatherPrefecture 64・64・0、weatherPrimary 143・142・1、weatherGroup 384・375・9、weatherCity 1,821・1,805・16、floodCity 1,757・1,741・16
+- 9 層とも、形の無い既知のコード（gap）は 0、既知の集合に無いコードは tsunamiArea のコード「0」だけ。同じコードの地物が 2 つ以上なのも tsunamiArea のコード「0」だけ。floodCity は gap 0 で、P4-GIS-D-FLOOD-AREA=A の前提（GIS の regioncode とコード表の K 列が同じ体系）は保たれた
+- excludedFeature の name: forecastLocalE の 6 と city の 16 は lock の emptyCodeFeatureAllowlist と字まで一致。weatherCity と floodCity の 16 は city の 16 と同じ字。weatherGroup の 9 は 色丹島／国後島／択捉島／名古屋港口埋立地／羽島／鷹島(甑島南方)／津倉瀬(宇治群島北東方)／うるま市・金武町境界部地先の埋立地／中央防波堤外側廃棄物処理場(中潮橋南側）。weatherPrimary の 1 は うるま市・金武町境界部地先の埋立地。tsunamiArea は帰属未定1〜4。pref と weatherPrefecture は 0
+
+### 8.2 P2 気象警報の版（Q-G0-WEATHER-VERSION）
+
+- test/fixtures の VPWW の xml 16 本の Body の Area（属性なし）直下の Code（属性なし・7 桁）の異なりは 88。3 本とも未知 0 で、fixture では決まらない（88 の先頭 2 桁は 01・18・26・32・37 だけで、3 本の差の市に当たらない）。Pi の受信記録は repo に無く、Pi には繋いでいない
+- コード表（R8.11.18 の気象警報の列が 1 の 1,805）との差: 20241025 は zip にだけある 9・表にだけある 26、20260114 は 8・17、20260226 は 0・0（過不足なく一致）
+- 選ぶ版: 20260226_AreaInformationCity_weather_GIS.zip。手順の同数の決まり（注記の「予定」の日付 2026-03-17・2026-05 下旬が過ぎた中で新しい 1 本）と、コード表との一致の両方で決まる。未知 0、コード表との差 0
+
+### 8.3 P3 区域コードの表の入力
+
+- jmaxml_20261118_Code.zip の sha256 は AC05 の P2 の値と一致。中の 20261118_AreaInformationCity-AreaForecastLocalM.xlsx は 385,082 byte、sha256 3c410605201b9250df2763ea77986e96553bb38655de4b4f646fd914e0ae96d6（repo にはまだ置いていない）
+- sheet「AreaInformationCity」: 見出しは値のある行の 3 行目で、A「@code」・C「@name」・E「属する「市町村等をまとめた地域等」\r\n(AreaForecastLocalMの@code値)」・F「"気象警報・注意報"及び\r\n"気象特別警報報知"で使用」・K「"指定河川洪水予報"で使用」（字は \r\n を含む）
+- sheet「AreaForecastLocalM（関係表　警報・注意報」（括弧が閉じず全角空白を含む）: 見出しは 3 行目で、A「コード\r\n(@code)」・B 名称（まとめた地域等）・C コード・D 名称（一次細分区域等）・E コード・F 名称（府県予報区等）。データ 375 行
+- sheet「AreaForecastLocalM（コード表）」: 見出しは 4 行目で、A「@code」・B「@name」・D「「市町村等をまとめた地域等」対象」・E「「一次細分区域等」対象」・F「「府県予報区等」対象」（旗は 0 と 1）
+- 見出しの A が「Code」でないので、build-known-codes.mjs の sheetData（A が「Code」の行を見出しとする）はそのままでは読めない。地震火山関連コード表の sheet 23 は name「23」、見出し A「Code」・B「Name」で sheetData で読める
+- R8.11.18 の件数: 府県予報区等 64・一次細分区域等 142・まとめた地域等 375・気象警報の列が 1 の 1,805・指定河川洪水予報の列が 1 の 1,741（20261019 版と同じ）、sheet 23 の県 47（01 北海道〜47 沖縄県）
+- 関係表の A・C・E の異なりは 375・142・64 でコード表の旗の集合と一致し、一次細分→府県予報区は 1 つに決まる。気象警報の列が 1 でまとめた地域等の列が空か 0 の行は 0（全 2,082 行では 183 で 20261019 版と同じ）。1,805 行のまとめた地域等は全部 375 の中にある
+- 気象の層の inset の control point（名前で選んだ）: weatherPrefecture 471000→okinawa（小笠原の別のコードは無く 130000→main）、weatherPrimary 471010→okinawa・130040→ogasawara、weatherGroup 471011→okinawa・130040→ogasawara、weatherCity と floodCity 4720100→okinawa・1342100→ogasawara
+
+### 8.4 P8 下見（9 層×2 LOD、全国の弧、`-filter` なし）
+
+- 照らしの確かめ: city の向きを直した後の this.area と、0.1%・1% の面積の比は §7.2 の値と 3 桁で一致した。地物数は向きの直しの前後と最後の -clean の後で 9 層とも dbf のまま
+- (i) -clean rewind only-arcs の前と後の this.area: 符号か相対差 1e-9 を超える差で変わったのは city の 1310300・1310800・1311100 だけ（期待どおり）。完全一致で数えると全部の面の層で 33〜275 地物が変わり、符号の変わらない地物の相対差の最大は 3.3e-15〜6.6e-15（足す順の浮動小数の誤差）
+- (ii) zoom（1%）で面積の比 0.5・長さの比 0.3 を下回るコードは 9 層とも 0。overview（0.1%）では 66: city 18（最小 4735400 座間味村 0.1853）、tsunamiArea 12（最小 400 三重県南部 0.2091）、weatherGroup 1（471013 0.2193）、weatherCity 18、floodCity 17。pref・forecastLocalE・weatherPrefecture・weatherPrimary は 0
+- (ii) の overview の city の 18: 4735400 0.1853・3835600 0.1906・2342400 0.1993・4238300 0.2493・1632100 0.2662・3736400 0.2813・1122300 0.3167・4735600 0.3338・4735300 0.3378・3534100 0.3524・2234100 0.3635・2942400 0.4201・2610200 0.4344・2142100 0.4539・1342100 0.4636・1558600 0.4817・1340200 0.4877・2620800 0.4989
+- (ii) の overview の weatherCity の 18: 4735400・3835600・4238300・1632100・3736400・0148402 0.3068・4221202 0.3076・2620800 0.31・1122300・4735600・4735300・3534100・2234100・2942400・2142100・1342100・1558600・1340200。floodCity の 17: weatherCity の 18 から 0148402・4221202 を除き 3430200 0.4605 を足したもの
+- (ii) の overview の tsunamiArea の 12（長さの比）: 400 0.2091・321 0.2212・731 0.2267・520 0.2312・220 0.2496・530 0.2512・751 0.2592・210 0.2629・600 0.2754・740 0.2857・730 0.2916・720 0.2931
+- (iii) zoom の代表点が overview の形の外に出るコード: city の 1342100・1632100、weatherCity と floodCity の 1342100・1632100・2342400・2620800。overview の地物の inner の点に替えると 4 つとも zoom の形の中に入るが、1342100 小笠原村の overview の点は緯度 24.78（硫黄島の側）で、zoom の点は 26.65（父島）。null の代表点は 9 層とも 0
+- (iv) projectionTargetChecks: 契約の値と 8.3 の気象の値の 18 組が全部一致（tsunamiArea の 800→okinawa・321→ogasawara を含む）
+- T05: city の overview と zoom の両方に 3 区があり、経緯度の平面の面積は §7.2 の値の 0.660〜1.001 倍（全部 0.5 倍以上）
+- 最後の -clean の後で消えたコードは 9 層・2 LOD とも 0。既知のコードの空の geometry は 0。出力の全座標は経度 120〜155・緯度 20〜46 の中
+- weatherCity（20260226）だけ、-simplify の「intersections could not be repaired」が overview 309・zoom 458（city は 6・6、ほかは 0〜6）、最後の -clean が消した slivers が 177・252（ほかの層は 2〜11）。原因と、ほかの 2 本の版との違いは確かめていない
+- 生成物の byte は点検の報告に無い（量っていない）
+
+### 8.5 P5 県の所属（Q-G0-PREF-MEMBERSHIP）
+
+- 点は向きを直した後・間引く前の city と forecastLocalE の this.innerX・this.innerY、面は向きを直した後・間引く前の pref。mapshaper の -points と -join（count と collect）で数え、2 枚重ねた pref で 2 を数えられることも確かめた
+- city の 1,894 と forecastLocalE の 188 は全部ちょうど 1 県に入り、47 県の全部に city と forecastLocalE が 1 つ以上入り、forecastLocalE とそこに属する city の県の食い違いは 0（参考: city の県と 7 桁の先頭 2 桁の違いも 0。決め方には使わない）
