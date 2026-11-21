@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "617be06c0ce3f863e11427d481f0f279c2184da931ee74d9bea3249ef2152856",
+    "sha256": "793c79e95fccfb47f2c1a478e7ecc4f081dd07ab5dc4ac9c8642cd7f8a974d88",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -284,7 +284,7 @@
         },
         "status": "起草案",
         "blocks": "発注 2 の baseOid",
-        "reason": "spec:1675 は LOD で代表点を変えないので、C は spec の改訂が要る。B は小笠原村の名札を人の住まない側へ動かす。A は名札が人の住む島を指したままで、外れるのは全体図の粗い形のときだけ。P4-GIS-D-OVERVIEW-REDUCED で B（全体図の率を上げる）を選ぶと、父島の輪が残り外れが減る見込みがある（量っていない）"
+        "reason": "spec:1675 は LOD で代表点を変えないので、C は spec の改訂が要る。B は小笠原村の名札を母島から別の島へ動かす（前の子の報告では硫黄島の側、島の当て方は輪の位置からの推定）。A は名札が人の住む島を指したままで、外れるのは全体図の粗い形のときだけ。全体図の率を 0.2% 以上にすると 4 区域とも外れが 0（2026-11-22 未明に Mac mini で量った、0.2% で 9 層 10.6 MB・0.1% の 1.36 倍）。小笠原村の zoom の点は母島の輪の中にあり、0.1% で外に出るのは母島の輪が 4 頂点に縮んで北へ寄るため（父島の輪は全部の段で残る）"
       },
       {
         "id": "P4-GIS-I-REWIND-TOLERANCE",
