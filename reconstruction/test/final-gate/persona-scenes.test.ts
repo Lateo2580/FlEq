@@ -642,8 +642,9 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
     const lists = { N1: synthesize("N1", 1, { t0Ms: t0 }), N2: synthesize("N2", 1, { t0Ms: t0 }), R2: synthesize("R2", 1) };
     const release = (item: Frame) => item.source === "synth:M7:VTSE41:release";
     // 受入条件（Q1=A）: 解除の VTSE41（P4-PWT-D-M7-RELEASE=A）を除いた (atMs, headType) の列は、発注 3 の前の synth.ts で取った値と同じ。
+    // P4-PWT2-AC03 (5)（D-R2-QUAKE=A）で R2 に本震の報 17 通（EEW 15・VXSE51・VXSE53、89→106 通）を足したので取り直した。N1・N2 の列は前の値のまま（2 つの synth.ts で id ごとに照合）。
     expect(sha256(Object.entries(lists).map(([id, list]) => `${id}\n${list.filter((item) => !release(item)).map((item) => `${item.atMs}\t${item.headType}\n`).join("")}`).join("")))
-      .toBe("caef02f1fdf3eb80e9e884418000f50e5f468c8f92f52462621b2111081be345");
+      .toBe("5330afc2a19552b6355d50762e796b96111eed9dfc2fbb39d83750b56c151487");
     // 解除は M7 級の余震の注意報ごとに 1 通で、同じ EventID。
     const eventIds = (list: readonly Frame[], source: string) => list.filter((item) => item.source === source).map((item) => tag(text(item), "EventID"));
     expect([lists.N1, lists.N2].map((list) => eventIds(list, "synth:M7:VTSE41:release"))).toEqual([lists.N1, lists.N2].map((list) => eventIds(list, "synth:M7:VTSE41")));
@@ -659,14 +660,14 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
       return [...reports].filter(([, items]) => items.map((item) => text(item).includes("<NextAdvisory>")).join() !== [...items.slice(1).map(() => false), true].join()).map(([eventId]) => eventId);
     };
     expect([lists.N1, lists.N2].map(unfinished)).toEqual([[], []]);
-    // 本震の EEW の区域の ForecastLgInt は型の同じ予想震度の区域の最大（型に無い 6 強は型の最大）、Body は区域の最大、到達は報時刻より後（AC06 (7)）。
+    // 本震の EEW の区域の ForecastLgInt は型の同じ予想震度の区域の最大（型に無い 6 強は型の最大）、Body は区域の最大、到達は報時刻以後で、報時刻より前の区域は Condition（P4-PWT2-AC03 (1)）。
     const main = tag(text(lists.N1.find((item) => item.headType === "VXSE51")!), "EventID");
     const lg = (headType: string, serial: string) => {
       const xml = text(lists.N1.find((item) => item.headType === headType && tag(text(item), "EventID") === main && tag(text(item), "Serial") === serial)!);
       const body = xml.slice(xml.indexOf("<Body")), reported = Date.parse(tag(xml, "ReportDateTime")!);
-      const areas = [...body.matchAll(/<\/Category><ForecastInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastInt><ForecastLgInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastLgInt><ArrivalTime>([^<]*)</g)];
+      const areas = [...body.matchAll(/<\/Category><ForecastInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastInt><ForecastLgInt><From>([^<]*)<\/From><To>[^<]*<\/To><\/ForecastLgInt>(?:<ArrivalTime>([^<]*)<|<Condition>)/g)];
       return { pairs: [...new Set(areas.map(([, int, lgInt]) => `${int}:${lgInt}`))].sort(), body: /<Forecast>[\s\S]*?<ForecastLgInt><From>([^<]*)</.exec(body)?.[1],
-        after: areas.every(([, , , arrival]) => Date.parse(arrival) > reported) };
+        after: areas.every(([, , , arrival]) => arrival == null || Date.parse(arrival) >= reported) };
     };
     // VXSE45 は 188 区域の 20 報目、VXSE43 は最後の 10 報目（震度 4 の区域はまだ無い）。
     expect([lg("VXSE45", "20"), lg("VXSE43", "10")]).toEqual([{ pairs: ["4:1", "5-:2", "6+:2"], body: "2", after: true }, { pairs: ["5-:0", "6+:1"], body: "1", after: true }]);
@@ -820,4 +821,67 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 1", () => {
     const { notificationsOmitted, omittedCounts, omittedFrom, omittedTo, notificationCounts } = notificationsOf(list.map(noticeOf));
     expect([notificationsOmitted, omittedCounts, omittedFrom, omittedTo, notificationCounts]).toEqual([10, { X: 9, Y: 1 }, jstText(0), jstText(10_000), { X: 10, Y: 10, Z: 10 }]);
   });
+});
+
+// ---- ペルソナ歩きの道具の直し（P4-PERSONA-WALK-TOOLS-002 の発注 2）。門なしで回す ----
+
+describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
+  const text = (item: Frame) => Buffer.from(item.body).toString("utf8");
+
+  it("P4-PWT2-T04 the synthesized reports keep one arrival, one magnitude and the continuing kinds, and R2 has its own main shock", () => {
+    // 受入条件（AC03）: N1・N2（t0 は固定）と R2 の合成の報。件数と時刻は P4-PWT-T06 が確かめる。
+    const t0 = jst("2026-06-26T00:00:00");
+    const lists = { N1: synthesize("N1", 1, { t0Ms: t0 }), N2: synthesize("N2", 1, { t0Ms: t0 }), R2: synthesize("R2", 1) };
+    // (1) EEW の区域の到達は同じ EventID の報で同じ値。報の時刻より前の区域は Condition『既に主要動到達と推測』、そうでなければ ArrivalTime。
+    let conditions = 0;
+    for (const list of [lists.N1, lists.N2, lists.R2]) {
+      const arrivals = new Map<string, string>(), seen: { eventId: string | null; code: string; reported: number; arrival: string | null }[] = [];
+      for (const item of list.filter((report) => report.headType === "VXSE45" || report.headType === "VXSE43")) {
+        const xml = text(item), eventId = tag(xml, "EventID"), reported = Date.parse(tag(xml, "ReportDateTime")!);
+        for (const [, code, arrival] of xml.matchAll(/<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><Category>(?:(?!<\/Area>)[\s\S])*?<\/ForecastLgInt>(?:<ArrivalTime>([^<]*)<\/ArrivalTime>|<Condition>既に主要動到達と推測<\/Condition>)<\/Area>/g)) {
+          seen.push({ eventId, code, reported, arrival: arrival ?? null });
+          if (arrival != null) arrivals.set(`${eventId}:${code}`, arrival);
+        }
+      }
+      conditions += seen.filter((area) => area.arrival == null).length;
+      expect(seen.filter((area) => { const known = arrivals.get(`${area.eventId}:${area.code}`);
+        return area.arrival == null ? known != null && Date.parse(known) >= area.reported : Date.parse(area.arrival) < area.reported; })).toEqual([]);
+      expect(seen.filter((area) => area.arrival != null && area.arrival !== arrivals.get(`${area.eventId}:${area.code}`))).toEqual([]);
+    }
+    expect(conditions).toBeGreaterThan(0);
+    // (3) 余震の EventID ごとに、EEW・震源に関する情報・震源・震度に関する情報の規模は 1 つ。
+    const magnitudes = (list: readonly Frame[]) => {
+      const events = new Set(list.filter((item) => item.source.startsWith("synth:aftershock:")).map((item) => tag(text(item), "EventID")));
+      return [...events].map((eventId) => new Set(list.filter((item) => /^VXSE(45|52|53)$/.test(item.headType) && tag(text(item), "EventID") === eventId)
+        .map((item) => /<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/.exec(text(item))?.[0])).size);
+    };
+    expect([lists.N1, lists.N2].map((list) => magnitudes(list).filter((size) => size !== 1))).toEqual([[], []]);
+    // (4) 津波の区分の Kind: R2 の 15:30 は新しく大津波警報の 100・101・102・320 が 53、続く大津波警報の区域は 52。N の +3 分は全部 53、+15 分は全部 52。
+    const kinds = (item: Frame | undefined) => new Map([...text(item!).matchAll(/<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>\s*<Category>\s*<Kind><Name>[^<]*<\/Name><Code>(\d+)<\/Code>/g)]
+      .map(([, code, kind]) => [code, kind]));
+    const majors = (item: Frame | undefined) => [...kinds(item)].filter(([, kind]) => kind === "52" || kind === "53");
+    const r2At = (iso: string) => lists.R2.find((item) => item.source === "synth:R2:VTSE41" && item.atMs === jst(iso))!;
+    const raised = majors(r2At("2011-03-11T15:30:00"));
+    expect([raised.filter(([, kind]) => kind === "53").map(([code]) => code).sort(), raised.some(([, kind]) => kind === "52")]).toEqual([["100", "101", "102", "320"], true]);
+    expect(majors(r2At("2011-03-12T03:20:00")).filter(([, kind]) => kind === "53")).toEqual([]);
+    const n1 = lists.N1.filter((item) => item.source === "synth:VTSE41" && tag(text(item), "EventID") === tag(text(lists.N1.find((report) => report.headType === "VXSE51")!), "EventID"));
+    expect([majors(n1[0]).every(([, kind]) => kind === "53"), majors(n1[1]).every(([, kind]) => kind === "52"), majors(n1[1]).length > 0]).toEqual([true, true, true]);
+    // (4)⑤ R2 の 3/12 20:20 は津波予報の区域が 71 のまま、3/13 17:58 の全解除には津波予報（71）の行も、前が津波予報の行も無い。
+    const forecastRows = (item: Frame) => text(item).match(/<Code>71<\/Code>/g)?.length ?? 0;
+    expect([forecastRows(r2At("2011-03-12T20:20:00")) > 0, forecastRows(r2At("2011-03-13T17:58:00"))]).toEqual([true, 0]);
+    // (4)③ R2 の VTSE51: 版 4 に観測点 20102、版 5 に無い。観測点は同じ版の中で高さと第 1 波が全点同じではない（①）。
+    const coastal = lists.R2.filter((item) => item.source === "synth:R2:VTSE51"), observationOf = (xml: string) => xml.slice(xml.indexOf("<Observation>"), xml.indexOf("</Observation>"));
+    const serial = (n: number) => observationOf(text(coastal.find((item) => tag(text(item), "Serial") === String(n))!));
+    expect([serial(4).includes("<Code>20102</Code>"), serial(5).includes("<Code>20102</Code>")]).toEqual([true, false]);
+    const last = observationOf(text(coastal.at(-1)!)), distinct = (pattern: RegExp) => new Set([...last.matchAll(pattern)].map((match) => match[1])).size;
+    expect([distinct(/<jmx_eb:TsunamiHeight[^>]*>([^<]*)</g) > 1, distinct(/<FirstHeight>\s*<ArrivalTime>([^<]*)</g) > 1]).toEqual([true, true]);
+    // (5) R2 の本震: R2 の EventID の VXSE45 15 報（最後だけ最終報）・VXSE51（14:50）・VXSE53（14:54）、VXSE43 は無く、VXSE51 の最大の震度の府県は帯 0 の県。
+    const ofR2 = (headType: string) => lists.R2.filter((item) => item.headType === headType && tag(text(item), "EventID") === "20110311144640");
+    const eew = ofR2("VXSE45");
+    expect([eew.length, eew.map((item) => text(item).includes("<NextAdvisory>")).lastIndexOf(true), lists.R2.some((item) => item.headType === "VXSE43"),
+      ofR2("VXSE51").map((item) => item.atMs), ofR2("VXSE53").map((item) => item.atMs)]).toEqual([15, 14, false, [jst("2011-03-11T14:50:00")], [jst("2011-03-11T14:54:00")]]);
+    const order = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"], prefs = [...text(ofR2("VXSE51")[0]).matchAll(/<Pref>\s*<Name>([^<]*)<\/Name><Code>\d+<\/Code><MaxInt>([^<]*)</g)];
+    const top = prefs.reduce((max, match) => order.indexOf(match[2]) > order.indexOf(max) ? match[2] : max, "0");
+    expect(prefs.filter((match) => match[2] === top).map((match) => match[1]).every((name) => ["宮城県", "福島県", "茨城県", "栃木県"].includes(name))).toBe(true);
+  }, 180_000);
 });
