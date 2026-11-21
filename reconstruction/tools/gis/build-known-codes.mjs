@@ -10,7 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const assetsDir = join(here, "../../assets/gis");
 
 // zip の central directory から名前→中身を引く。xlsx は deflate（8）か無圧縮（0）だけ。
-function unzip(buf) {
+export function unzip(buf) {
   let eocd = buf.length - 22;
   while (eocd >= 0 && buf.readUInt32LE(eocd) !== 0x06054b50) eocd--;
   if (eocd < 0) throw new Error("zip の end of central directory が無い");
@@ -43,7 +43,7 @@ const decode = (s) =>
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 
 // ふりがな（rPh）を落としてから <t> を連結する。落とさないと「一覧イチラン」のように読みが付く
-const siText = (si) =>
+export const siText = (si) =>
   decode([...si.replace(/<rPh\b.*?<\/rPh>/gs, "").matchAll(/<t\b[^>]*?(?:\/>|>(.*?)<\/t>)/gs)].map((m) => m[1] ?? "").join(""));
 
 // sheet の XML → 値のある cell だけの行（{列: 字}）の並び。値のある cell が無い行は飛ばす
@@ -68,8 +68,9 @@ function sheetRows(xml, shared) {
   return rows;
 }
 
-// sheet 名は trim して引く（「82 」のように末尾に空白の入る名前がある）。見出し（Code/Name）の行より後がデータ
-function sheetData(files, shared, sheetName, headers) {
+// sheet 名は trim して引く（「82 」のように末尾に空白の入る名前がある）。A 列が headerA の見出しの行より後がデータ
+// headerA は気象の区域コードの表の「@code」などのため（P4-GIS-I-AREA-CODE-HEADER）
+export function sheetData(files, shared, sheetName, headers, headerA = "Code") {
   const wb = files.get("xl/workbook.xml")?.toString("utf8");
   const rels = files.get("xl/_rels/workbook.xml.rels")?.toString("utf8");
   if (wb == null || rels == null) throw new Error("workbook.xml が無い");
@@ -81,8 +82,8 @@ function sheetData(files, shared, sheetName, headers) {
   const xml = files.get(`xl/${target}`)?.toString("utf8");
   if (xml == null) throw new Error(`sheet ${sheetName} の本体 ${target} が無い`);
   const rows = sheetRows(xml, shared);
-  const h = rows.findIndex((r) => r.A === "Code");
-  if (h < 0) throw new Error(`sheet ${sheetName} に Code の見出しが無い`);
+  const h = rows.findIndex((r) => r.A === headerA);
+  if (h < 0) throw new Error(`sheet ${sheetName} に ${headerA} の見出しが無い`);
   for (const [col, want] of Object.entries(headers)) {
     if (rows[h][col] !== want) throw new Error(`sheet ${sheetName} の ${col} 列の見出しが ${want} でない: ${rows[h][col]}`);
   }
