@@ -105,7 +105,9 @@ function earthquake(paintOperations, municipality) {
 const WRAPPER = 3882;
 // 読めない報のカード 8 枚（checkpoint.ts:688〜:690）。1 枚の題と見出し以外の欄は r3 §3 の 459 byte。
 const CARD_OTHER = 3531 - 2 * 1536;
-const cards = (title, headline) => 8 * (CARD_OTHER + title + headline) + 28;
+// 短く切るカードは題と見出しを {text, cut} にする（表 §1.3、契約 AC03）。字の欄を object にした分の増え（1 欄 21 byte）。
+const CUT_OVERHEAD = bytes(cut(0)) - bytes(text(0));
+const cards = (title, headline, cutMarks) => 8 * (CARD_OTHER + title + headline + (cutMarks ? 2 * CUT_OVERHEAD : 0)) + 28;
 
 function total({ paint, events, municipality, shortCards, fullComment }) {
   const paintOperations = paint === "operation" ? 3 : 1;
@@ -113,7 +115,7 @@ function total({ paint, events, municipality, shortCards, fullComment }) {
     eew: eew(paintOperations),
     tsunami: tsunami(events, paintOperations, fullComment ? LIMIT.commentFull : LIMIT.comment),
     earthquake: earthquake(paintOperations, municipality),
-    wrapperAndCards: 3 * WRAPPER + 3 * (shortCards ? cards(LIMIT.cardTitleShort, LIMIT.cardHeadlineShort) : cards(LIMIT.cardTitle, LIMIT.cardHeadline)),
+    wrapperAndCards: 3 * WRAPPER + 3 * (shortCards ? cards(LIMIT.cardTitleShort, LIMIT.cardHeadlineShort, true) : cards(LIMIT.cardTitle, LIMIT.cardHeadline, false)),
   };
   const sum = Object.values(parts).reduce((a, b) => a + b, 0);
   return { ...parts, sum, margin: 262144 - sum };
@@ -137,5 +139,28 @@ const groups = {
   "区分ごと＋短＋細分区域": { ...base, paint: "operation", shortCards: true, municipality: false },
 };
 const rows = Object.entries(groups).map(([name, group]) => ({ name, ...total(group) }));
-console.log(JSON.stringify(rows, null, 1));
-if (rows.find((row) => row.name === "A").margin < 0) process.exitCode = 1;
+
+// ---- 共通部の H17・H39（表 §13）----
+// 今の共通部の上界（connection・worker・persistence・recovery〔digest 16,384・EEW の札 2,048・進み具合 4,096〕・channels・版）。
+// p3-recovery.json:952 の保守の再計算 49,443 をそのまま使う（共通部は 65,536 を超えると snapshot 全体が断られる、P2-A8-RES-04）。
+const COMMON_EXISTING = 49443;
+const UNITS = 12;
+const tally = widest(null, [MS, MS]); // [件数, 最後に足した時刻]
+const lossRow = { unit: "U-E", dropped: tally, evicted: tally, missed: tally, outcomeUnknown: tally, unreadable: tally,
+  hole: widest(null, "refused", "disconnected", "restarted") };
+const removal = { unit: "U-E", operation: OPERATION, reason: widest("cancelled", "expired", "evicted", "unknown"), at: MS, ref: { id: text(64) } };
+const h17h39 = { losses: array(UNITS, lossRow), removals: { items: array(32, removal), omitted: MS } };
+// 共通部の object に足す鍵 2 つの分（外の括弧 2 を除き、前の鍵との区切り 1 を足す）。
+const commonAdded = bytes(h17h39) - 2 + 1;
+const common = { existing: COMMON_EXISTING, h17h39: commonAdded, sum: COMMON_EXISTING + commonAdded, margin: 65536 - COMMON_EXISTING - commonAdded };
+
+// ---- 新しい経路の 1 MiB（表 §12）----
+// 9 分野は分野ごとに max（予算内の full ≤ 65,536、要約 ≤ 3,734）＝ 65,536。全体が 1 MiB を超えたら予算超過の分野を要約にする今の規則
+// （view-projector.ts:35〜:37）を新しい経路にも当て、保護 3 分野は要約にしない。
+const ruled = rows.find((row) => row.name === "A短");
+const mebibyte = { nine: 9 * 65536, notices: 131072, common: 65536, protected: ruled.sum,
+  sum: 9 * 65536 + 131072 + 65536 + ruled.sum, margin: 1048576 - (9 * 65536 + 131072 + 65536 + ruled.sum) };
+
+console.log(JSON.stringify({ groups: rows, common, mebibyte }, null, 1));
+// 裁定の組は A短（作者裁定 2026-11-21 08:24）。保護 3 分野・共通部・1 MiB のどれかが負なら失敗にする。
+if (ruled.margin < 0 || common.margin < 0 || mebibyte.margin < 0) process.exitCode = 1;
