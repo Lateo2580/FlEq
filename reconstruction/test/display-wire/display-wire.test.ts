@@ -286,13 +286,13 @@ describe("P4-DW-T02 contractBoundary: the work per update", () => {
       reportAreas: clones[5].reportAreas.slice(0, 1) };
     const step1 = await wire({ eew: { ...first.state, current: clones.map((item) => item === clones[5] ? updated : item) } }, [eewChange(clones[5], updated)], result.state);
     // (1) 変わった subject の before 3 区域と after 1 区域、(2) 参照数が変わった 3 区域、(3) 配列を 1 回組む。ほかの EEW の区域は読まない。
-    expect(step1.counts.eew).toEqual({ read: 4, recomputed: 3, built: 1 });
+    expect(step1.counts.eew).toEqual({ read: 4, recomputed: 3, built: 1, hashed: 1 });
     const remaining = clones.map((item) => item === clones[5] ? updated : item).filter((item) => item !== clones[6]);
     const step2 = await wire({ eew: { ...first.state, current: remaining } }, [eewChange(clones[6], null)], step1.state);
-    expect(step2.counts.eew).toEqual({ read: 3, recomputed: 3, built: 1 });
+    expect(step2.counts.eew).toEqual({ read: 3, recomputed: 3, built: 1, hashed: 0 });
     // metadata だけ（表示差分なし）は内容を読まない。
     const step3 = await wire({ eew: { ...first.state, current: remaining } }, [], step2.state);
-    expect(step3.counts.eew).toEqual({ read: 0, recomputed: 0, built: 0 });
+    expect(step3.counts.eew).toEqual({ read: 0, recomputed: 0, built: 0, hashed: 0 });
     expect(step3.kind).toBe("unchanged");
     result = projected(step2);
     expect(result.snapshot.current.eew.wire.composites[0]).toEqual([["622", 5], ["632", 4], ["752", 3]]);

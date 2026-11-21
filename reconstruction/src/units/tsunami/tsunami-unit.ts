@@ -1312,7 +1312,7 @@ export { recoveryChanges, recoveryNotices, reduceTsunamiUnit, toTsunamiView, tsu
 // 閉じた印の集合（expired の記録）を運用区分ごとに閉じた時刻の新しい順で持ち、observations の配列に結び付ける（保存しない）。受信の step では
 // その step で変わった記録の before と after だけから足し引きし、全記録を走査しない。結び付けの無い配列（復元・codec の読み戻しの直後）は 1 回だけ数える。
 type ClosedEntry = TsunamiUnitView["closedObservations"][Operation]["items"][number] & Readonly<{ subject: string }>;
-type ClosedSet = Readonly<Record<Operation, readonly ClosedEntry[]>>;
+type ClosedSet = Readonly<Record<Operation, ClosedEntry[]>>;
 const closedSets = new WeakMap<readonly TsunamiObservationSubject[], ClosedSet>();
 const closedOrder = (left: ClosedEntry, right: ClosedEntry) => right.closedAt - left.closedAt || (left.subject < right.subject ? -1 : left.subject > right.subject ? 1 : 0);
 const closedOf = (value: Subject | null): ClosedEntry | null => value != null && "stations" in value && value.effective === "expired" && value.retainUntil != null
@@ -1326,30 +1326,26 @@ function closedAll(observations: readonly TsunamiObservationSubject[]): ClosedSe
   closedSets.set(observations, all);
   return all;
 }
-// 前の配列の集合があれば変わった記録で足し引きして次の配列に結び付ける。集合が変わったかを返す（内容版を上げる条件）。
+// 前の配列の集合があれば、変わった記録で足し引きして次の配列に移す（その場で書き換え、複製しない）。前の配列からは外すので、前の state の
+// view をもう一度作るときは数え直す。集合が変わったかを返す（内容版を上げる条件）。
 function closedStep(before: readonly TsunamiObservationSubject[], after: readonly TsunamiObservationSubject[],
   changes: Iterable<Readonly<{ before: Subject | null; after: Subject | null }>>): boolean {
-  const previous = closedSets.get(before);
+  const lists = closedSets.get(before);
   let moved = false;
-  // 区分の配列は最初に書き換える時だけ複製する（変わらない区分は前の配列を共有する）。
-  const next: Record<Operation, readonly ClosedEntry[]> | null = previous == null ? null : { ...previous }, written = new Map<Operation, ClosedEntry[]>();
   for (const change of changes) {
     const old = closedOf(change.before), fresh = closedOf(change.after);
     if (old?.closedAt === fresh?.closedAt && old?.subject === fresh?.subject) continue;
     moved = true;
-    if (next == null) continue;
+    if (lists == null) continue;
     for (const [entry, add] of [[old, false], [fresh, true]] as const) {
       if (entry == null) continue;
-      const operation = change.before?.operation ?? change.after!.operation;
-      const list = written.get(operation) ?? [...next[operation]];
-      written.set(operation, list);
-      next[operation] = list;
+      const list = lists[change.before?.operation ?? change.after!.operation];
       let low = 0, high = list.length;
       while (low < high) { const middle = (low + high) >> 1; if (closedOrder(list[middle], entry) < 0) low = middle + 1; else high = middle; }
       if (add) list.splice(low, 0, entry); else if (low < list.length && list[low].subject === entry.subject) list.splice(low, 1);
     }
   }
-  if (next != null && after !== before) closedSets.set(after, moved ? next : previous!);
+  if (lists != null && after !== before) { closedSets.delete(before); closedSets.set(after, lists); }
   return moved;
 }
 function closedView(observations: readonly TsunamiObservationSubject[]): TsunamiUnitView["closedObservations"] {

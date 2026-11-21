@@ -356,7 +356,7 @@ function openWire(clients: Set<WireClient>, response: ServerResponse, latest: st
 }
 
 // P4-DW-AC08: 新しい part の詳細の経路（1 本の path で unit と part を欄で受ける）。欄は項目ごとに確かめて組み立て、重複・欠け・形の違いは invalid。
-const WIRE_DETAIL_PATH = "/api/display/wire/detail";
+const WIRE_DETAIL_PATH = "/api/display/wire/detail", WIRE_DETAIL_BYTES = 65_536;
 const INDEX_UNITS = ["U-T", "U-Q", "U-N", "U-V", "U-M", "U-L", "U-R", "U-B", "U-Y"] as const;
 const CARD_UNITS = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const;
 function parseWireDetail(url: string): Readonly<{ streamId: string; detail: WireDetailRequest }> | null {
@@ -401,7 +401,9 @@ function serveWireDetail(detail: DetailPort, request: Pick<IncomingMessage, "url
     if (closed || answered || response.destroyed) return;
     answered = true;
     const answer = performance.now() - admitted >= DETAIL_MS ? { kind: "error" as const, reason: "timeout" as const, revision: null } : result;
-    const status = DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason];
-    sendJson(response, status, JSON.stringify({ streamId: parsed.streamId, ...answer }));
+    // 返す直前に本文の全体を確かめる（直列化はこの 1 回だけ）。越えたら 200 にせず 503 と reason を返す（P4-DW-RES-02）。
+    const text = JSON.stringify({ streamId: parsed.streamId, ...answer });
+    if (Buffer.byteLength(text) > WIRE_DETAIL_BYTES) return sendJson(response, 503, JSON.stringify({ streamId: parsed.streamId, kind: "error", reason: "responseTooLarge", revision: null }));
+    sendJson(response, DETAIL_STATUS[answer.kind === "ok" ? "ok" : answer.reason], text);
   });
 }

@@ -957,8 +957,12 @@ function wireDetail(state: OwnerState, request: WireDetailRequest): WireDetailRe
   const items = intensity?.items ?? [], pageCount = Math.max(1, Math.ceil(items.length / WIRE_ITEM_PAGE));
   let event: WireEventHeader | WireLongPeriodHeader = { ...rest, intensity: intensity == null ? null : { maxInt: intensity.maxInt, maxLgInt: intensity.maxLgInt, lgCategory: intensity.lgCategory } };
   const omittedFields: WireOmittedField[] = [];
+  // 不変条件: 見出しは、本文に出うるもの（最長の streamId・omittedFields の最大・このページの全項目ぶんの省略の行）を先に引いて入る大きさにする。
+  // 項目は wirePage がその差額だけで置くので、本文の全体が 65,536 byte を越えない（U-W の加算と同じ形、P3-UWC-AC06 (3)）。
+  const start = Number.isSafeInteger(request.page) && request.page >= 0 ? request.page * WIRE_ITEM_PAGE : 0, end = Math.min(items.length, start + WIRE_ITEM_PAGE);
+  const omittedLines = Array.from({ length: Math.max(0, end - start) }, (_, index): WireOmitted => ({ index: start + index, reason: "pageBudget" }));
   const headerBytes = () => Buffer.byteLength(JSON.stringify({ streamId: WIRE_STREAM_ID, kind: "ok", part: "event", id: request.id, revision: found.revision, page: request.page,
-    pageCount, event, omittedFields, itemCount: items.length, items: [], omitted: [] }));
+    pageCount, itemCount: items.length, items: [], omitted: omittedLines, event, omittedFields: WIRE_OMITTABLE }));
   for (const field of WIRE_OMITTABLE) {
     if (headerBytes() <= WIRE_RESPONSE_BYTES) break;
     const shrunk = omitField(event, field);

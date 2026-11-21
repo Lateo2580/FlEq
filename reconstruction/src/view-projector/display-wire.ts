@@ -109,15 +109,18 @@ function marksOf(record: Readonly<{ unconfirmed?: ReportRef; unavailable?: Subje
   if (record.unavailable != null) marks.push("capacityExceeded");
   return marks;
 }
-const refOf = (unit: RuntimeUnitId, operation: Operation, subject: string, object: unknown): DisplayDetailRef =>
-  ({ id: sha256([unit, operation, subject]), rev: sha256(object) });
+const refOf = (unit: RuntimeUnitId, operation: Operation, subject: string, object: unknown, counts: Counts): DisplayDetailRef => {
+  counts.hashed++;
+  return { id: sha256([unit, operation, subject]), rev: sha256(object) };
+};
 
 // ---- 合成の参照数（表 §5.1） ----
 
 // 区域ごとに段の参照数を持つ。最後の欄は既知でない段の参照（鍵 op|…|code|? に当たる）。0 になったら区域を消す（applyRefs の 0 なら削除）。
 type Ranked = Map<string, number[]>;
-type Counts = { read: number; recomputed: number; built: number };
-const freshCounts = (): Counts => ({ read: 0, recomputed: 0, built: 0 });
+// hashed は詳細の参照の rev を作った回数（表示差分のあった subject だけ、P4-DW-AC05）。
+type Counts = { read: number; recomputed: number; built: number; hashed: number };
+const freshCounts = (): Counts => ({ read: 0, recomputed: 0, built: 0, hashed: 0 });
 function applyRefs(composite: Ranked, slots: number, refs: readonly (readonly [code: string, slot: number])[], delta: 1 | -1, changed: Set<string>): void {
   for (const [code, slot] of refs) {
     const counts = composite.get(code) ?? Array.from({ length: slots + 1 }, () => 0);
@@ -171,9 +174,9 @@ type EewEntry = Readonly<{ subject: string; key: string; operation: Operation; r
 // カードは（運用区分、EventID）ごとに 1 枚（DS-LAYOUT-05「地震ごと」、統合担当の決め 2026-11-21）。6 枚の上限と omitted も EventID で数える。
 type EewProjection = {
   readonly entries: Map<string, EewEntry>; readonly events: Map<string, Set<string>>; shown: string[]; readonly letters: Map<string, EewCardLetter>;
-  // カードに出られなかった通常の報の EventID（来た順）。枠が空いたら先に来たものから入る（spec:1636 の向き、統合担当の決め）。
-  waiting: string[]; last: number;
-  readonly composite: Ranked; readonly values: Map<string, number>; paints: readonly DisplayPaint[]; view: unknown; built: EewWire | null;
+  // カードに出られなかった通常の報の EventID（Map の入れた順が来た順）。枠が空いたら先に来たものから入る（spec:1636 の向き、統合担当の決め）。
+  readonly waiting: Map<string, true>; last: number;
+  readonly composite: Ranked; readonly values: Map<string, number>; paints: readonly DisplayPaint[]; built: EewWire | null;
 };
 const slotOf = (value: DisplayLevel): number => value != null && value >= 0 && value <= 9 ? value : 10;
 function eewEntry(current: EewCurrent, counts: Counts): EewEntry {
@@ -210,7 +213,7 @@ function eewEntry(current: EewCurrent, counts: Counts): EewEntry {
       epi: cutOrNull(current.coordinateRaw, WIRE_LIMITS.coordinate), assumed, detectOnly: current.detectOnly,
       place: cutOrNull(current.place, WIRE_LIMITS.place), lg: { f: lgLevel(current.maxLgInt?.from ?? null), t: lgLevel(current.maxLgInt?.to ?? null) },
       unread: false, marks: marksOf(current), unknownAreas, dupAreas: rowsSeen - kept.length,
-      ref: refOf("U-E", current.operation, current.subject, current),
+      ref: refOf("U-E", current.operation, current.subject, current, counts),
     },
     rows: kept.map((item) => item.row), mini: kept.map((item) => [item.row.c, item.mini] as const), top,
   };
@@ -222,22 +225,11 @@ function nextLetter(letters: ReadonlyMap<string, EewCardLetter>, last: number): 
   for (let index = last + 1; index < LETTERS.length; index++) if (!used.has(LETTERS[index])) return index;
   return LETTERS.findIndex((letter) => !used.has(letter));
 }
-// view が変わったのに表示差分が無い step（停止の確定の返信は表示差分を publisher の射影に渡さない）は、view の subject を記録と照らして差分を作る。
-// 照らすのは subject の参照だけで、区域を読むのは変わった subject だけ。
-function reconciled<T extends Readonly<{ subject: string }>>(items: readonly T[], kept: ReadonlyMap<string, Readonly<{ object: unknown }>>, same: (left: unknown, right: T) => boolean,
-  after: (item: T) => Change["after"]): Change[] {
-  const changes: Change[] = [], present = new Set<string>();
-  for (const item of items) { present.add(item.subject); const entry = kept.get(item.subject); if (entry == null || !same(entry.object, item)) changes.push({ subject: item.subject, after: after(item) }); }
-  for (const subject of kept.keys()) if (!present.has(subject)) changes.push({ subject, after: null });
-  return changes;
-}
-function projectEew(projection: EewProjection | null, view: RuntimeViews["U-E"], given: readonly Change[], counts: Counts): EewProjection {
-  const state: EewProjection = projection ?? { entries: new Map(), events: new Map(), shown: [], letters: new Map(), waiting: [], last: -1, composite: new Map(),
-    values: new Map(), paints: [], view: null, built: null };
-  const changes = given.length !== 0 || view === state.view ? given : reconciled(view.current, state.entries, (left, right) => left === right,
-    (item) => ({ unit: "U-E", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] }));
-  state.view = view;
-  if (changes.length === 0) return state;
+// 読むのは owner の表示差分だけ（view の object は worker を越えるたびに別の参照になるので、参照で比べない、P4-DW-AC05）。
+function projectEew(projection: EewProjection | null, changes: readonly Change[], counts: Counts): EewProjection {
+  const state: EewProjection = projection ?? { entries: new Map(), events: new Map(), shown: [], letters: new Map(), waiting: new Map(), last: -1, composite: new Map(),
+    values: new Map(), paints: [], built: null };
+  if (changes.length === 0 && projection != null) return state;
   const changed = new Set<string>();
   const show = (key: string) => { state.last = nextLetter(state.letters, state.last); state.letters.set(key, LETTERS[state.last]); state.shown.push(key); };
   for (const change of changes) {
@@ -256,7 +248,7 @@ function projectEew(projection: EewProjection | null, view: RuntimeViews["U-E"],
         state.events.delete(before.key);
         state.shown = state.shown.filter((key) => key !== before.key);
         state.letters.delete(before.key);
-        state.waiting = state.waiting.filter((key) => key !== before.key);
+        state.waiting.delete(before.key);
       }
       continue;
     }
@@ -270,13 +262,13 @@ function projectEew(projection: EewProjection | null, view: RuntimeViews["U-E"],
     // 7 件目が訓練・試験の報か 6 枚とも通常の報なら、カードに出ず件数（通常なら合成）に入る（仮）。外した訓練・試験の報は戻さない（E0-1 の板）。
     if (state.shown.length >= WIRE_COUNTS.eewCards) {
       const victim = entry.operation === "normal" ? state.shown.find((key) => key.split("/")[0] !== "normal") : undefined;
-      if (victim == null) { if (entry.operation === "normal") state.waiting.push(entry.key); continue; }
+      if (victim == null) { if (entry.operation === "normal") state.waiting.set(entry.key, true); continue; }
       state.shown = state.shown.filter((key) => key !== victim);
       state.letters.delete(victim);
     }
     show(entry.key);
   }
-  while (state.shown.length < WIRE_COUNTS.eewCards && state.waiting.length !== 0) show(state.waiting.shift()!);
+  for (const key of state.waiting.keys()) { if (state.shown.length >= WIRE_COUNTS.eewCards) break; state.waiting.delete(key); show(key); }
   if (state.letters.size === 0) state.last = -1;
   recompute(state.composite, state.values, changed, (slot) => slot, -1, counts);
   if (changed.size !== 0 || projection == null) state.paints = buildPaints(SUBAREAS, state.values, counts);
@@ -313,22 +305,13 @@ type TsunamiProjection = {
   readonly forecasts: Map<string, ForecastEntry>; readonly ranked: ForecastEntry[]; readonly observations: Map<string, ObservationEntry>;
   readonly composite: Ranked; readonly values: Map<string, TsunamiAreaClass>; readonly observed: Map<string, Map<string, Readonly<{ count: number; value: number }>>>;
   readonly maxima: Map<string, string>; forecastPaints: readonly (readonly [string, TsunamiAreaClass])[]; observedPaints: readonly (readonly [string, string])[];
-  view: unknown; closed: TsunamiUnitView["closedObservations"] | null; built: TsunamiWire | null;
+  revision: string | null; closed: TsunamiUnitView["closedObservations"] | null; built: TsunamiWire | null;
 };
 // 予報区の行を載せる EventID は 3 件（P4-DW-D-TSUNAMI-COUNT=A）。通常の報が訓練・試験より先（spec:1636 を当てる、統合担当の決め 2026-11-21）、
 // その中で最も重い区分が上、同じ区分は新しい発表が上（表 §1.2）。外したものは件数に数える。
 const forecastOrder = (left: ForecastEntry, right: ForecastEntry) => normalFirst(left, right) || right.weight - left.weight || right.reportMs - left.reportMs || bySubject(left, right);
 const classOf = (kindCode: string): TsunamiAreaClass => KIND_CLASS.get(kindCode) ?? "unknown";
 const heightValue = (value: MaterialValue): number => value.kind === "number" ? value.value : value.kind === "range" ? value.value + (value.bound === "lower" ? 1e-9 : -1e-9) : -Infinity;
-// shown は印の付いた記録を毎回新しい object にするので、中身の参照で照らす（停止の確定の後の照らし合わせ用）。
-type TsunamiShown = MarkViewed<TsunamiForecastSubject | TsunamiObservationSubject>;
-function sameTsunami(left: unknown, right: TsunamiShown): boolean {
-  if (left === right) return true;
-  if (typeof left !== "object" || left == null || !("source" in left)) return false;
-  const pick = (value: object, key: string): unknown => key in value ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
-  return ["source", "areas", "unkeyedAreas", "stations", "unconfirmed", "unavailable", "expiryPending", "warningComment", "effective"].every((key) => pick(left, key) === pick(right, key))
-    && (pick(left, "unreadableView") == null) === (pick(right, "unreadableView") == null);
-}
 function forecastEntry(forecast: MarkViewed<TsunamiForecastSubject>, counts: Counts): ForecastEntry {
   const byCode = new Map<string, TsunamiForecastRow>();
   let unknownAreas = 0, keyed = 0;
@@ -353,7 +336,7 @@ function forecastEntry(forecast: MarkViewed<TsunamiForecastSubject>, counts: Cou
       eventId: forecast.eventId, operation: forecast.operation, serial: safeNumber(forecast.source.serialRaw),
       reportTime: bounded(forecast.source.reportDateTimeRaw, WIRE_LIMITS.time), comment: cutOrNull(forecast.warningComment, WIRE_LIMITS.comment),
       unread: forecast.unreadableView != null, marks: marksOf(forecast), omittedUnkeyed: Math.max(0, unkeyed.length - WIRE_COUNTS.unkeyed),
-      unknownAreas, dupAreas: keyed - rows.length, ref: refOf("U-T", forecast.operation, forecast.subject, forecast), rows,
+      unknownAreas, dupAreas: keyed - rows.length, ref: refOf("U-T", forecast.operation, forecast.subject, forecast, counts), rows,
       unkeyed: unkeyed.slice(0, WIRE_COUNTS.unkeyed).map((item) => ({ name: cutText(item.name, WIRE_LIMITS.unkeyedName), k: classOf(item.kindCode) })),
     },
   };
@@ -369,16 +352,12 @@ function observationEntry(observation: MarkViewed<TsunamiObservationSubject>, co
   }
   return { subject: observation.subject, operation: observation.operation, object: observation, heights };
 }
-function projectTsunami(projection: TsunamiProjection | null, view: RuntimeViews["U-T"], given: readonly Change[], counts: Counts): TsunamiProjection {
+function projectTsunami(projection: TsunamiProjection | null, view: RuntimeViews["U-T"], changes: readonly Change[], counts: Counts): TsunamiProjection {
   const state: TsunamiProjection = projection ?? { forecasts: new Map(), ranked: [], observations: new Map(), composite: new Map(), values: new Map(), observed: new Map(),
-    maxima: new Map(), forecastPaints: [], observedPaints: [], view: null, closed: null, built: null };
-  const kept = new Map<string, Readonly<{ object: unknown }>>([...state.forecasts, ...state.observations]);
-  const after = (item: TsunamiShown): Change["after"] => ({ unit: "U-T", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] });
-  const changes = given.length !== 0 || view === state.view ? given : reconciled<TsunamiShown>([...view.forecasts, ...view.observations], kept, sameTsunami, after);
-  state.view = view;
-  // 閉じた印は unit が区分ごとに並べた新しい 4 件と件数を写す（P4-DW-AC07 (1)）。中身が同じなら作り直さない（12 件までの比べ）。
-  if (state.closed == null || !sameClosed(view.closedObservations, state.closed)) { state.closed = view.closedObservations; state.built = null; }
-  if (changes.length === 0) return state;
+    maxima: new Map(), forecastPaints: [], observedPaints: [], revision: null, closed: null, built: null };
+  // 閉じた印は unit が区分ごとに並べた新しい 4 件と件数を写す（P4-DW-AC07 (1)）。集合が変われば unit が内容版を上げるので、内容版で読む。
+  if (view.contentRevision !== state.revision) { state.revision = view.contentRevision; state.closed = view.closedObservations; state.built = null; }
+  if (changes.length === 0 && projection != null) return state;
   const changed = new Set<string>(), observedChanged = new Set<string>();
   const applyHeights = (heights: ObservationEntry["heights"], delta: 1 | -1) => {
     for (const [code, raw, value] of heights) {
@@ -449,18 +428,10 @@ type QuakeProjection = {
   readonly events: Map<string, QuakeEntry>; readonly longs: Map<string, LongEntry>; readonly longRanked: LongEntry[];
   readonly composite: Ranked; readonly values: Map<string, number>; paints: readonly DisplayPaint[]; unknown: number;
   readonly longComposite: Ranked; readonly longValues: Map<string, number>; longPaints: readonly DisplayPaint[]; longUnknown: number;
-  view: unknown; daily: unknown; built: EarthquakeWire | null;
+  revision: string | null; built: EarthquakeWire | null;
 };
 // 長周期の見出しは 2 件（表 §1.2、板待ちの仮の数）。通常の報が先（spec:1636 を当てる、統合担当の決め 2026-11-21）、その中で新しい順。外したものは件数。
 const longOrder = (left: LongEntry, right: LongEntry) => normalFirst(left, right) || right.reportMs - left.reportMs || bySubject(left, right);
-type QuakeShown = EarthquakeEventView | MarkViewed<LongPeriodSubject>;
-function sameQuake(left: unknown, right: QuakeShown): boolean {
-  if (left === right || "sources" in right) return left === right;
-  if (typeof left !== "object" || left == null) return false;
-  const pick = (value: object, key: string): unknown => key in value ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
-  return ["source", "intensity", "unconfirmed", "unavailable", "expiryPending", "effective"].every((key) => pick(left, key) === pick(right, key))
-    && (pick(left, "unreadableView") == null) === (pick(right, "unreadableView") == null);
-}
 // 地域（細分区域）と市区町村の要素を区域の規則に通す。塗るのは level の合う既知コードだけ、既知でないコードは件数（P4-DW-AC02）。
 function itemPaints(items: readonly SeismicIntensityItem[], paintLevelOf: "city" | "area", value: (item: SeismicIntensityItem) => DisplayLevel,
   counts: Counts): Readonly<{ paints: (readonly [string, number])[]; unknownPaint: number; unknownAreas: number }> {
@@ -479,15 +450,12 @@ function itemPaints(items: readonly SeismicIntensityItem[], paintLevelOf: "city"
   }
   return { paints: [...paints], unknownPaint, unknownAreas };
 }
-function projectQuake(projection: QuakeProjection | null, view: RuntimeViews["U-Q"], given: readonly Change[], counts: Counts): QuakeProjection {
+function projectQuake(projection: QuakeProjection | null, view: RuntimeViews["U-Q"], changes: readonly Change[], counts: Counts): QuakeProjection {
   const state: QuakeProjection = projection ?? { events: new Map(), longs: new Map(), longRanked: [], composite: new Map(), values: new Map(), paints: [], unknown: 0,
-    longComposite: new Map(), longValues: new Map(), longPaints: [], longUnknown: 0, view: null, daily: null, built: null };
-  const kept = new Map<string, Readonly<{ object: unknown }>>([...state.events, ...state.longs]);
-  const after = (item: QuakeShown): Change["after"] => ({ unit: "U-Q", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] });
-  const changes = given.length !== 0 || view === state.view ? given : reconciled<QuakeShown>([...view.earthquakes, ...view.longPeriods], kept, sameQuake, after);
-  state.view = view;
-  if (view.daily !== state.daily) { state.daily = view.daily; state.built = null; }
-  if (changes.length === 0) return state;
+    longComposite: new Map(), longValues: new Map(), longPaints: [], longUnknown: 0, revision: null, built: null };
+  // 当日の行は当日履歴が変わると unit が内容版を上げるので、内容版で読む（P3-C7-SEM-04）。
+  if (view.contentRevision !== state.revision) { state.revision = view.contentRevision; state.built = null; }
+  if (changes.length === 0 && projection != null) return state;
   const changed = new Set<string>(), longChanged = new Set<string>();
   for (const change of changes) {
     const oldEvent = state.events.get(change.subject), oldLong = state.longs.get(change.subject);
@@ -503,7 +471,7 @@ function projectQuake(projection: QuakeProjection | null, view: RuntimeViews["U-
     if ("sources" in record) {
       const read = itemPaints(record.intensity?.items ?? [], "city", (item) => intensityLevel(item.maxInt), counts);
       const entry: QuakeEntry = { subject: record.subject, operation: record.operation, object: record, paints: read.paints, unknownPaint: read.unknownPaint,
-        unknownAreas: read.unknownAreas, marks: marksOf(record), ref: refOf("U-Q", record.operation, record.subject, record) };
+        unknownAreas: read.unknownAreas, marks: marksOf(record), ref: refOf("U-Q", record.operation, record.subject, record, counts) };
       state.events.set(change.subject, entry);
       if (entry.operation === "normal") { applyRefs(state.composite, 10, entry.paints, 1, changed); state.unknown += entry.unknownPaint; }
     } else {
@@ -512,7 +480,7 @@ function projectQuake(projection: QuakeProjection | null, view: RuntimeViews["U-
         reportMs: Date.parse(record.source.reportDateTimeRaw),
         wire: { eventId: record.eventId, operation: record.operation, reportTime: bounded(record.source.reportDateTimeRaw, WIRE_LIMITS.time),
           maxLg: record.intensity == null ? null : lgSeismic(record.intensity.maxLgInt), marks: marksOf(record), unknownAreas: read.unknownAreas,
-          ref: refOf("U-Q", record.operation, record.subject, record) } };
+          ref: refOf("U-Q", record.operation, record.subject, record, counts) } };
       state.longs.set(change.subject, entry);
       insertSorted(state.longRanked, entry, longOrder);
       if (entry.operation === "normal") { applyRefs(state.longComposite, 10, entry.paints, 1, longChanged); state.longUnknown += entry.unknownPaint; }
@@ -596,10 +564,8 @@ type DisplayWireInput = Readonly<{
   notices: readonly VisibleNotice[];
 }>;
 // seen は公開した snapshot を作った欄（参照の比べにだけ使い、snapshot には載せない）。
-type Seen = Readonly<{
-  persistence: SnapshotProjectionInput["persistence"];
-  eewCards: readonly UnreadableCardView[] | undefined; tsunamiCards: readonly UnreadableCardView[] | undefined; quakeCards: readonly UnreadableCardView[] | undefined;
-}>;
+// 共通部と読めない報のカードも worker を越えて来るので、参照ではなく欄で比べる（どちらも件数の上限が決まっている）。
+type Seen = Readonly<{ persistence: string }>;
 type DisplayWireState = Readonly<{
   streamId: string; snapshot: DisplayWireSnapshot | null; seen: Seen | null;
   eew: EewProjection | null; tsunami: TsunamiProjection | null; earthquake: QuakeProjection | null;
@@ -619,8 +585,8 @@ function changesOf(changes: readonly RuntimeDisplayChange[], unit: "U-E" | "U-T"
 // 共通部と分野の包みの比べ（全体を直列化しない、P4-DW-AC05）。比べないのは sequence と generatedAt。
 function sameSnapshot(left: DisplayWireSnapshot, right: Omit<DisplayWireSnapshot, "sequence" | "generatedAt">): boolean {
   const sameDomain = <D extends Readonly<{ contentRevision: string; items: readonly unknown[]; wire: unknown; cards: readonly unknown[] }>>(a: D, b: D) =>
-    a.wire === b.wire && a.contentRevision === b.contentRevision && a.items.every((item, index) => item === b.items[index])
-    && a.cards.length === b.cards.length && a.cards.every((card, index) => card === b.cards[index]);
+    // wire とカードはこの射影が作った object（変わらなければ前の object を使う）。items は旧の射影が view の出し直しで作り直すので欄で比べる（3 行の固定）。
+    a.wire === b.wire && a.contentRevision === b.contentRevision && JSON.stringify(a.items) === JSON.stringify(b.items) && a.cards === b.cards;
   const units = (a: DisplayWireSnapshot["persistence"], b: DisplayWireSnapshot["persistence"]) => UNIT_IDS.every((unit) => a[unit] === b[unit]);
   return left.streamId === right.streamId && left.semanticRevision === right.semanticRevision
     && left.connection.state === right.connection.state && left.connection.disconnectedAt === right.connection.disconnectedAt
@@ -636,42 +602,35 @@ function sameSnapshot(left: DisplayWireSnapshot, right: Omit<DisplayWireSnapshot
     && left.notices.length === right.notices.length && left.notices.every((notice, index) => notice === right.notices[index]);
 }
 
-function sameClosed(left: TsunamiUnitView["closedObservations"], right: TsunamiUnitView["closedObservations"]): boolean {
-  return left === right || OPERATIONS.every((operation) => left[operation].omitted === right[operation].omitted
-    && left[operation].items.length === right[operation].items.length && left[operation].items.every((item, index) => {
-      const other = right[operation].items[index];
-      return item.eventId === other.eventId && item.family === other.family && item.closedAt === other.closedAt;
-    }));
-}
-
 // 新しい経路の射影。自分の前の snapshot と比べて変わったときだけ projected を返し、旧の射影の projected・unchanged・rejected に依らない（P4-DW-AC01）。
 function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState | null): DisplayWireResult {
   const base = previous != null && previous.streamId === input.projection.streamId ? previous : null;
   const counts: DisplayWireCounts = { eew: freshCounts(), tsunami: freshCounts(), earthquake: freshCounts() };
   const source = input.projection;
   const { eew: eewView, tsunami: tsunamiView, earthquake: quakeView } = input.views;
-  const eew = projectEew(base?.eew ?? null, eewView, changesOf(source.displayChanges, "U-E"), counts.eew);
+  const eew = projectEew(base?.eew ?? null, changesOf(source.displayChanges, "U-E"), counts.eew);
   const tsunami = projectTsunami(base?.tsunami ?? null, tsunamiView, changesOf(source.displayChanges, "U-T"), counts.tsunami);
   const earthquake = projectQuake(base?.earthquake ?? null, quakeView, changesOf(source.displayChanges, "U-Q"), counts.earthquake);
-  const published = base?.snapshot ?? null, last = base?.seen ?? undefined;
-  // カードの配列が同じ object のままなら、前に作ったカードを使う。
-  const cardsOf = (cards: readonly UnreadableCardView[] | undefined, previousCards: readonly UnreadableCardView[] | undefined,
-    previousWire: readonly DisplayWireCard[] | undefined): readonly DisplayWireCard[] =>
-    previousWire !== undefined && cards === previousCards ? previousWire : (cards ?? []).map(wireCard);
+  const published = base?.snapshot ?? null, last = base?.seen ?? undefined, persistenceKey = JSON.stringify(source.persistence);
+  // カード（unit ごとに 8 枚まで、P3-UM-AC11）は欄が同じなら前に作ったカードを使う。
+  const cardsOf = (cards: readonly UnreadableCardView[] | undefined, previousWire: readonly DisplayWireCard[] | undefined): readonly DisplayWireCard[] => {
+    const next = (cards ?? []).map(wireCard);
+    return previousWire !== undefined && next.length === previousWire.length && next.every((card, index) => JSON.stringify(card) === JSON.stringify(previousWire[index]))
+      ? previousWire : next;
+  };
   const current: DisplayWireSnapshot["current"] = {
     eew: { unit: "U-E", contentRevision: eewView.contentRevision, items: input.domains.eew.full.items, wire: eewWire(eew),
-      cards: cardsOf(eewView.unreadableCards, last?.eewCards, published?.current.eew.cards) },
+      cards: cardsOf(eewView.unreadableCards, published?.current.eew.cards) },
     tsunami: { unit: "U-T", contentRevision: tsunamiView.contentRevision, items: input.domains.tsunami.full.items, wire: tsunamiWire(tsunami, counts.tsunami),
-      cards: cardsOf(tsunamiView.unreadableCards, last?.tsunamiCards, published?.current.tsunami.cards) },
+      cards: cardsOf(tsunamiView.unreadableCards, published?.current.tsunami.cards) },
     earthquake: { unit: "U-Q", contentRevision: quakeView.contentRevision, items: input.domains.earthquake.full.items, wire: quakeWire(earthquake, quakeView),
-      cards: cardsOf(quakeView.unreadableCards, last?.quakeCards, published?.current.earthquake.cards) },
+      cards: cardsOf(quakeView.unreadableCards, published?.current.earthquake.cards) },
   };
   const shell: Omit<DisplayWireSnapshot, "sequence" | "generatedAt"> = {
     schemaVersion: VERSION, streamId: source.streamId,
     semanticRevision: JSON.stringify([eewView.contentRevision, tsunamiView.contentRevision, quakeView.contentRevision]),
     connection: source.connection, worker: source.worker,
-    persistence: published != null && last != null && UNIT_IDS.every((unit) => source.persistence[unit] === last.persistence[unit])
-      ? published.persistence : boundedPersistence(source.persistence),
+    persistence: published != null && last != null && persistenceKey === last.persistence ? published.persistence : boundedPersistence(source.persistence),
     recovery: source.recovery,
     channels: { desktop: channel(source.notificationChannels.desktop, source.channelProbeComplete, source.channelFailing.desktop),
       sound: channel(source.notificationChannels.sound, source.channelProbeComplete, source.channelFailing.sound) },
@@ -680,7 +639,7 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
   if (published != null && sameSnapshot(published, shell))
     return { kind: "unchanged", state: { streamId: source.streamId, snapshot: published, seen: last ?? null, eew, tsunami, earthquake }, counts };
   const snapshot: DisplayWireSnapshot = { ...shell, sequence: (published?.sequence ?? 0) + 1, generatedAt: source.generatedAt };
-  const seen: Seen = { persistence: source.persistence, eewCards: eewView.unreadableCards, tsunamiCards: tsunamiView.unreadableCards, quakeCards: quakeView.unreadableCards };
+  const seen: Seen = { persistence: persistenceKey };
   return { kind: "projected", state: { streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake }, snapshot, counts };
 }
 

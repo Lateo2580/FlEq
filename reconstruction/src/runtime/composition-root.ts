@@ -434,7 +434,7 @@ class RuntimeCompositionRoot {
   private snapshotWorker: DisplayWorkerView = { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null };
   private readonly display: CompositionOptions["display"];
   private streamId = "";
-  private projection: SnapshotProjectionState | null = null; private wireProjection: DisplayWireState | null = null; // P4-DW-AC01: 新しい経路の射影の state（保存しない）
+  private projection: SnapshotProjectionState | null = null; private wireProjection: DisplayWireState | null = null; private wireChanges: readonly RuntimeDisplayChange[] = []; // P4-DW-AC01: 新しい経路の射影の state と、停止の確定で採った表示差分（どちらも保存しない）
   private noticeTimer: NodeJS.Timeout | null = null;
   // P3-NL-AC07 (7): 保存の ack を待つ予約の最短の締切の timer（noticeTimer とは別の 1 本。project が noticeTimer を毎回外すので共用しない）。
   private ackTimer: NodeJS.Timeout | null = null;
@@ -983,7 +983,7 @@ class RuntimeCompositionRoot {
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
       this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), this.projection);
-    this.projection = result.state; const wire = projectDisplayWire(wireInput(state, displayChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
+    this.projection = result.state; const wireChanges = this.wireChanges.length === 0 ? displayChanges : [...this.wireChanges, ...displayChanges]; this.wireChanges = []; const wire = projectDisplayWire(wireInput(state, wireChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
     if (display != null) {
@@ -1598,7 +1598,7 @@ class RuntimeCompositionRoot {
       return;
     }
     finalization.fixed.add(place);
-    this.absorb(place, reply.output, null, finalization.cutoff);
+    if (this.absorb(place, reply.output, null, finalization.cutoff) && reply.output.displayChanges.length !== 0) this.wireChanges = [...this.wireChanges, ...reply.output.displayChanges]; // P4-DW-AC01: 停止の確定で採った表示差分は次の公開で新しい射影にだけ渡す（旧の射影には渡さない）
   }
 
   // Owners treated as stopped are not waited for (P3-C3B-AC03).

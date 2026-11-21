@@ -13,7 +13,7 @@ import { reduceEewUnit, toEewView } from "../../src/units/eew/eew-unit";
 import { emptyDaily, toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { projectDisplayWire } from "../../src/view-projector/display-wire";
-import type { DisplayWireResult, DisplayWireState } from "../../src/view-projector/display-wire";
+import type { DisplayWireInput, DisplayWireResult, DisplayWireState } from "../../src/view-projector/display-wire";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { projectionInput, startup } from "../snapshot-sse/projection-fixture";
 
@@ -75,9 +75,11 @@ async function baseInput(): Promise<Base> {
   return base;
 }
 type Units = Readonly<{ eew?: EewUnitState; tsunami?: TsunamiUnitState; quake?: SeismicUnitState }>;
-async function wire(units: Units, changes: readonly RuntimeDisplayChange[], previous: DisplayWireState | null): Promise<DisplayWireResult> {
+// edit は worker を越えた写し（structuredClone）やカードの付いた view を試験が作るための口。
+async function wire(units: Units, changes: readonly RuntimeDisplayChange[], previous: DisplayWireState | null,
+  edit: (views: DisplayWireInput["views"]) => DisplayWireInput["views"] = (views) => views): Promise<DisplayWireResult> {
   const { input, old } = await baseInput();
-  const views = { eew: toEewView(units.eew ?? emptyEew()), tsunami: toTsunamiView(units.tsunami ?? emptyTsunami()), earthquake: toSeismicView(units.quake ?? emptyQuake()) };
+  const views = edit({ eew: toEewView(units.eew ?? emptyEew()), tsunami: toTsunamiView(units.tsunami ?? emptyTsunami()), earthquake: toSeismicView(units.quake ?? emptyQuake()) });
   return projectDisplayWire({ projection: { ...input, displayChanges: changes },
     views, domains: old.domains, notices: old.notices }, previous);
 }
