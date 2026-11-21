@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "37fbd7f3cf6a175af75067c0ad34efb590b1971d",
-    "sha256": "7efb702f58afe70df476faee9f180bc2bfb075ccc4c39027420b4a3ecf52cd0a",
+    "sha256": "4346e1faa767da7dcde43e406565edffea8e9e9f174272b29457eada6dd171b7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
-    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
-    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
+    "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -64,11 +64,11 @@
       },
       {
         "id": "P4-RL-D-LATE",
-        "kind": "統合担当",
+        "kind": "作者",
         "A": "受信の中の回収（期限を過ぎて届いた報、U-Q・U-L・U-N・U-V の collect と U-B の遅着の採用）で消えた subject が、同じ受信で受けた報の取消・解除・置き換えの相手と同じなら、removal はその報の原因（cancelled・ended・replaced）にする",
         "B": "collect が先に消すので expired にする",
-        "recommended": "A",
-        "provisional": "A",
+        "recommended": "B",
+        "provisional": "B",
         "status": "確定（作者裁定 2026-11-22、A から B に変えた）",
         "ruling": "B（作者裁定 2026-11-22 で A から B に変えた。作者の選択肢の原文「「期限切れ」と出す」。前の ruling は A〔作者の原文「では、カード8はAで進め、ほかも推奨でお願いします！」、判断カード 2026-11-22-P4-消えた理由と9分野の語彙 の 2 の「付けて決めたいこと」〕）。理由と材料（repo の外の p4-rl-late-facts.md、HEAD 45bdefda の木で開いて確かめた事実）: A と B で字が分かれるのは、消える記録と取消・解除・置き換えが同じ入力に入るときだけ。(b) 前置きの回収（owner-runtime.ts:483〜:484）と (c) owner-host の forced 回収（owner-host.ts:121）では、表示の期限からその owner が次の期限の要求を処理するまでの 1 tick 未満（host.ts:33 の TICK_MS = 1,000）に取消が同じ入力で届くとき、(a) 受信の中の回収では U-L で取消・解除が報時刻から 6 時間以上遅れて取り直しで届くとき（landslide-unit.ts:37・:154・:159・:357）。ふつうの順（期限の入力が先に消し、取消が後）は 12 unit とも A と B で同じ。A の費用は字が分かれうる 21 か所（(a) 1・(b) 10・(c) 10）で、U-B の (b)(c) は置き換えと alias の相手を期限の後の記録から引けず（briefing-unit.ts:89〜:96・:155〜:156・:467）、U-N の (b)(c) は「調査終了」が効く条件が期限の記憶から消える（nankai-unit.ts:140・:544〜:547）",
         "reason": "表 §1.2 の受信の中の回収 (b)。どちらでも画面には理由が出る。A は遅れて届いた取消を期限切れと出さない。消える所（unit の receive）で受けた報の subject と transition を知っているので、下流の突き合わせにならない。B の根拠: H17 は遅着の扱いを決めておらず、D-VANISHED=A と collect を受理の前に回す今の順では、報を受けた時には記録が既に期限で消えていて、取消の accepted も subjects が空になる（ヘルツの返事の 1 (e)）。A は collect の消した subject と受けた報の subject を受信の中で突き合わせる 1 段を足す。どちらの語を出すかで出る・出ないは変わらないが、出る字が変わるので判断カードの 2 で作者に見せ、A で確定した。【r3: 作者裁定で B に変えたので、r2 で A のために足した claims（前置きのある 10 unit の step の欄と owner の置き換え）は外した】"
