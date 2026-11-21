@@ -1,6 +1,6 @@
-# P4 B0 表示の wire の表 r10（P4-DISPLAY-WIRE-001 の起草の最初の成果物）
+# P4 B0 表示の wire の表 r11（P4-DISPLAY-WIRE-001 の起草の最初の成果物）
 
-- 起草日: 2026-11-21（起草の子 r0。同日 r1 で統合担当の決め 5 つ、r2 でヘルツの総合レビュー〔base 35a54c81、NO-GO〕の 12 件、r3 でヘルツの再レビュー〔base 7ca0ea5e、NO-GO〕と統合担当の進め方の 3 つの変更、r4 でヘルツの 3 巡目〔base 516dc575、NO-GO〕の残り 3 件〔作者裁定 2026-11-21 07:51: 直してヘルツには閉じたかだけを見てもらう〕を当てた。対応は §10。r5 は契約 r0 の起草の時の呼び名で、本文は r4 のまま。r6 で契約 r0 の契約適合レビュー〔NO-GO、P1 1・P2 8・P3 16〕を当て、§12・§13 を足した。対応は §11。r7 で契約 r1 の契約適合レビュー〔条件付き GO、N-P2 2・P3 7〕を当てた。対応は §11.2。r8 でヘルツの r2 のレビュー〔NO-GO、P1 2・P2 11〕を受けて範囲を絞った〔統合担当の決め 18:3x〕: 9 分野の語彙（r6〜r7 の §12）と H17・H39（§13 の足した分）を外し、新しい経路は保護 3 分野と今の型のままの共通部にした。外した中身は f3b61acf に残る。対応は §11.3。r9 でヘルツの r3 のレビュー〔条件付き GO、P2 2〕を当てた。対応は §11.4。r10 は発注前点検: draft/p4-b0 を main f196a1cc〔G0 発注 1 の配送・計画の改訂 2d107524〕の上に載せ直し、G0 の既知コードの表を依存と readPaths に足して Q-DW-G0-CODES を閉じた）
+- 起草日: 2026-11-21（起草の子 r0。同日 r1 で統合担当の決め 5 つ、r2 でヘルツの総合レビュー〔base 35a54c81、NO-GO〕の 12 件、r3 でヘルツの再レビュー〔base 7ca0ea5e、NO-GO〕と統合担当の進め方の 3 つの変更、r4 でヘルツの 3 巡目〔base 516dc575、NO-GO〕の残り 3 件〔作者裁定 2026-11-21 07:51: 直してヘルツには閉じたかだけを見てもらう〕を当てた。対応は §10。r5 は契約 r0 の起草の時の呼び名で、本文は r4 のまま。r6 で契約 r0 の契約適合レビュー〔NO-GO、P1 1・P2 8・P3 16〕を当て、§12・§13 を足した。対応は §11。r7 で契約 r1 の契約適合レビュー〔条件付き GO、N-P2 2・P3 7〕を当てた。対応は §11.2。r8 でヘルツの r2 のレビュー〔NO-GO、P1 2・P2 11〕を受けて範囲を絞った〔統合担当の決め 18:3x〕: 9 分野の語彙（r6〜r7 の §12）と H17・H39（§13 の足した分）を外し、新しい経路は保護 3 分野と今の型のままの共通部にした。外した中身は f3b61acf に残る。対応は §11.3。r9 でヘルツの r3 のレビュー〔条件付き GO、P2 2〕を当てた。対応は §11.4。r10 は発注前点検: draft/p4-b0 を main f196a1cc〔G0 発注 1 の配送・計画の改訂 2d107524〕の上に載せ直し、G0 の既知コードの表を依存と readPaths に足して Q-DW-G0-CODES を閉じた。r11 は B0 の実装の配送の字の下ごしらえで、実装の契約適合レビュー〔GO〕が挙げた字を当てた。記録は file の最後）
 - base: `7ca0ea5e0c40a7619158eb0d5467666147a76d59`（branch draft/p4-b0）。
 - 目的: 契約の JSON を書く前に、型の上限・区域の扱い・分野ごとの詳細の形・新旧の wire の切替点・配送済みの契約を変える所を表にする。
 - 根拠: 計画 `reconstruction/contracts/p4-order-plan.md`（以下「計画:行」）、表示設計 spec `docs/specs/reconstruction-display-design.md`（以下「DS-…」の ID）、spec `docs/specs/reconstruction-p0-contracts.md`（以下「spec:行」）、容量の設計 `~/dev/p4-b1-capacity-r0.md`〜`-r3.md`（以下「r0」〜「r3」）、G0 の資材 `~/dev/p4-g0-assets-r0.md`（以下「G0:行」）、解説資料の読み通し `~/dev/p4-jma-readthrough-eew-quake-r0.md`（以下「読み通し」）、解説資料の原文（以下「解説:行」）と地震火山関連コード表（以下「コード表:行」）。repo の外の文書は契約の readPaths に入らないので、B0 の実装に要る中身は本表に写した。
@@ -11,14 +11,14 @@
 
 ## 0. 結論
 
-- 保護 3 分野の最悪の組（訓練・試験は地図に塗らない・津波 3 件・行 15・市区町村の塗り・読めない報のカードは今の長さ）は 243,262 byte、262,144 の余りは 18,882（§1.4 の組 A、script の出力）。
+- 保護 3 分野の最悪の組（訓練・試験は地図に塗らない・津波 3 件・行 15・市区町村の塗り・読めない報のカードは今の長さ）は 243,262 byte、262,144 の余りは 18,882（§1.4 の組 A、script の出力。r11 の値は 242,026・余り 20,118）。
 - r2 の 234,495 から増えたのは、null が番号より長い欄を null で数えた、閉じた観測の印を 3 区分とも数えた、詳細を開く参照（id と rev、各 128 byte ほど）をカード・見出し・行に足した分。
-- 読めない報のカードを短くすると 182,062（余り 80,082）。r6 で、短いカードの題と見出しを {text, cut} にした分（1 枚 42 byte、3 分野 24 枚で 1,008）を足した。区分ごとに塗る形はカードが今の長さだと −52,047 で入らず、短くすると 9,153 で入る。付加文（WarningComment）を全部載せる形は、区分ごと＋短いカードでは −58,431 で入らない（§6 の数は裁定の時の r5 のまま）。
+- 読めない報のカードを短くすると 180,826（余り 81,318。r11 で閉じた印の `ref` を外して −1,836、strongest を 8 桁で数えて ＋600、どの組も −1,236）。r6 で、短いカードの題と見出しを {text, cut} にした分（1 枚 42 byte、3 分野 24 枚で 1,008）を足した。区分ごとに塗る形はカードが今の長さだと −52,047 で入らず、短くすると 10,389 で入る。付加文（WarningComment）を全部載せる形は、区分ごと＋短いカードでは −57,195 で入らない（§6 の数は裁定の時の r5 のまま）。
 - 詳細の節は配送済みの形に倣う（§2）。ページの切り方は U-W の「wrapper 込みの byte を加算で数え、入らない項目は `{ index, reason: "pageBudget" }` で省く」（P3-UWC-AC06 (3)・P3-UWC-RES-05）をそのまま使う。版は U-F・U-W の id（sha256）と、その part が返す view の object の JSON の sha256 を rev にする形（返す内容が変われば必ず変わる。格納幅は 64 桁のまま）。
 - U-E の未知区域・未知 Condition は、H43 と同じ原文（part=raw）からは読めない。受理した EEW の原文は保存しない（`eew-unit.ts:20`「U-E の記録は印を持たない」）。U-W の `areas` に倣う U-E の `areas` で、current の区域の全行から読む。カードには参照（id と rev）を載せ、byte に数えた。
 - r4（ヘルツの 3 巡目）: 地震の既知でない区域の件数（行・長周期の見出し・合成ごと）を script に足して数え直した（§1.4）。詳細の rev は、その part が返す view の object の JSON の sha256 にした（§2.1、土砂の held の例）。U-Q の既知でない区域を読む part は `event` に揃えた。日次行の `ref` の rev は欠けうる形にした（§5.6）。
 - wire に足す欄の全部について、値が変わる遷移が内容版か表示差分を動かすかを §1.6 に並べた。動かないのは 2 つ（津波の閉じた観測の印、EEW の未確認の印）で、直しを §4 に足した。
-- r8: 新しい経路は保護 3 分野と共通部（今の型のまま）だけ。上界は保護 3 分野 182,062 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 378,670 で 1 MiB に入るので、縮退の規則は要らない（script の出力）。9 分野の語彙と H17・H39 は B0 の後の別の契約が `display-wire.ts` の直列で足す（§3.2）。
+- r8: 新しい経路は保護 3 分野と共通部（今の型のまま）だけ。上界は保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 377,434 で 1 MiB に入るので、縮退の規則は要らない（script の出力）。9 分野の語彙と H17・H39 は B0 の後の別の契約が `display-wire.ts` の直列で足す（§3.2）。
 
 ## 1. 型の上限の表
 
@@ -95,19 +95,19 @@ wire に載せない欄: view の `semanticRevision`、U-Q の `daily.counted`�
 
 | 組 | 地図を塗る区分 | 津波 | 地震の塗り | カード | 付加文 | EEW | 津波 | 地震 | wrapper＋カード | 合計 | 余り |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| **A** | 通常だけ | 3 件 | 市区町村 | 今 | 2,048 byte | 27,656 | 64,296 | 54,836 | 96,474 | **243,262** | **18,882** |
-| A短 | 通常だけ | 3 件 | 市区町村 | 短 | 2,048 byte | 27,656 | 64,296 | 54,836 | 35,274 | 182,062 | 80,082 |
-| A-B | 通常だけ | 3 件 | 細分区域 | 今 | 2,048 byte | 27,656 | 64,296 | 28,494 | 96,474 | 216,920 | 45,224 |
-| A-C | 通常だけ | 2 件 | 市区町村 | 今 | 2,048 byte | 27,656 | 45,229 | 54,836 | 96,474 | 224,195 | 37,949 |
-| R | 区分ごと | 3 件 | 市区町村 | 今 | 2,048 byte | 29,741 | 72,008 | 115,968 | 96,474 | 314,191 | −52,047 |
-| R短 | 区分ごと | 3 件 | 市区町村 | 短 | 2,048 byte | 29,741 | 72,008 | 115,968 | 35,274 | 252,991 | 9,153 |
-| R-B | 区分ごと | 3 件 | 細分区域 | 今 | 2,048 byte | 29,741 | 72,008 | 36,942 | 96,474 | 235,165 | 26,979 |
-| R-C | 区分ごと | 2 件 | 市区町村 | 今 | 2,048 byte | 29,741 | 52,941 | 115,968 | 96,474 | 295,124 | −32,980 |
-| 付加文全部 | 通常だけ | 3 件 | 市区町村 | 今 | 全部 | 27,656 | 131,880 | 54,836 | 96,474 | 310,846 | −48,702 |
-| 付加文全部＋短 | 通常だけ | 3 件 | 市区町村 | 短 | 全部 | 27,656 | 131,880 | 54,836 | 35,274 | 249,646 | 12,498 |
-| 区分ごと＋短＋付加文全部 | 区分ごと | 3 件 | 市区町村 | 短 | 全部 | 29,741 | 139,592 | 115,968 | 35,274 | 320,575 | −58,431 |
-| 同上＋津波 2 件 | 区分ごと | 2 件 | 市区町村 | 短 | 全部 | 29,741 | 97,997 | 115,968 | 35,274 | 278,980 | −16,836 |
-| 区分ごと＋短＋細分区域 | 区分ごと | 3 件 | 細分区域 | 短 | 2,048 byte | 29,741 | 72,008 | 36,942 | 35,274 | 173,965 | 88,179 |
+| **A** | 通常だけ | 3 件 | 市区町村 | 今 | 2,048 byte | 27,656 | 62,460 | 55,436 | 96,474 | **242,026** | **20,118** |
+| A短 | 通常だけ | 3 件 | 市区町村 | 短 | 2,048 byte | 27,656 | 62,460 | 55,436 | 35,274 | 180,826 | 81,318 |
+| A-B | 通常だけ | 3 件 | 細分区域 | 今 | 2,048 byte | 27,656 | 62,460 | 29,094 | 96,474 | 215,684 | 46,460 |
+| A-C | 通常だけ | 2 件 | 市区町村 | 今 | 2,048 byte | 27,656 | 43,393 | 55,436 | 96,474 | 222,959 | 39,185 |
+| R | 区分ごと | 3 件 | 市区町村 | 今 | 2,048 byte | 29,741 | 70,172 | 116,568 | 96,474 | 312,955 | −50,811 |
+| R短 | 区分ごと | 3 件 | 市区町村 | 短 | 2,048 byte | 29,741 | 70,172 | 116,568 | 35,274 | 251,755 | 10,389 |
+| R-B | 区分ごと | 3 件 | 細分区域 | 今 | 2,048 byte | 29,741 | 70,172 | 37,542 | 96,474 | 233,929 | 28,215 |
+| R-C | 区分ごと | 2 件 | 市区町村 | 今 | 2,048 byte | 29,741 | 51,105 | 116,568 | 96,474 | 293,888 | −31,744 |
+| 付加文全部 | 通常だけ | 3 件 | 市区町村 | 今 | 全部 | 27,656 | 130,044 | 55,436 | 96,474 | 309,610 | −47,466 |
+| 付加文全部＋短 | 通常だけ | 3 件 | 市区町村 | 短 | 全部 | 27,656 | 130,044 | 55,436 | 35,274 | 248,410 | 13,734 |
+| 区分ごと＋短＋付加文全部 | 区分ごと | 3 件 | 市区町村 | 短 | 全部 | 29,741 | 137,756 | 116,568 | 35,274 | 319,339 | −57,195 |
+| 同上＋津波 2 件 | 区分ごと | 2 件 | 市区町村 | 短 | 全部 | 29,741 | 96,161 | 116,568 | 35,274 | 277,744 | −15,600 |
+| 区分ごと＋短＋細分区域 | 区分ごと | 3 件 | 細分区域 | 短 | 2,048 byte | 29,741 | 70,172 | 37,542 | 35,274 | 172,729 | 89,415 |
 
 - EEW は C＝1・C＝2・C＝6 の最大（script の `eew()`）。
 - 型の最大値の試験（決め 4）は、裁定で選ばれた組（A短）の形で組む。script は、組 A短 の余り・共通部の余り（§12）・新しい経路の全体の余り（§3.2）のどれかが負なら exit 1 で終わる。
@@ -135,9 +135,9 @@ owner は、表示差分があるか内容版が変わったときだけ view �
 
 | 欄 | 値が変わる遷移 | 表示差分か内容版を動かすか | 直し |
 |---|---|---|---|
-| EEW のカードの欄（震源名・M・深さ・震央・仮定震源・検知だけ・場所の文・最大予測震度・区域の行・最小の欄・`unknownAreas`・`dupAreas`・最終・`ref`） | 新しい版を採る（current を作り直す）・取消・期限切れ・退去 | 動かす（`eew.ts:596` の `previous !== projected`、`:380`・`:593`。内容版は `eew-unit.ts:322`〜`:323`） | 無し |
+| EEW のカードの欄（震源名・M・深さ・震央・仮定震源・検知だけ・場所の文・最大予測震度・区域の行・最小の欄・`unknownAreas`・`dupAreas`・最終・`ref`） | 新しい版を採る（current を作り直す）・取消・期限切れ・退去 | 動かす（`eew.ts:596` の `previous !== projected`、`:380`・`:593`。内容版は `eew-unit.ts:322`〜`:323`。r11: 採用の版でも gate の未確認の印を current に写すので、印だけが変わる採用でも :596 の比べで表示差分が出る〔:596・:598 の行の中〕） | 無し |
 | EEW の札の字・出ているカード | EEW の表示差分 | projector の state で、表示差分のたびに決め直す | 無し |
-| EEW の状態の印「未確認」 | 版を決められない報（held）で gate に印が付く（`eew.ts:489`〜`:495`） | **動かさない**（gate だけを変え、current も表示差分も変えない） | §4: held の分岐で、current のある subject は印を写した current を作って `changed` を呼ぶ。:489（1 ref）・:495（3 refs）の reanchor が要る。印を EEW のカードに出さない形もある（今の view にこの印は無い） |
+| EEW の状態の印「未確認」 | 版を決められない報（held）で gate に印が付く（`eew.ts:489`〜`:495`） | **動かさない**（gate だけを変え、current も表示差分も変えない） | §4: held の分岐で、current のある subject は印を写した current を作って `changed` を呼ぶ。:489（1 ref）・:495（3 refs）の reanchor が要る。r11: 採用の版でも印を current に写す（:596・:598 の行の中、AC07 (2)）。印を EEW のカードに出さない形もある（今の view にこの印は無い） |
 | 津波の予報の欄（行・付加文・`unknownAreas`・`dupAreas`・`omittedUnkeyed`・`ref`） | 版を採る・取消・解除 | 動かす（`tsunami-unit.ts:927`〜`:930`、内容版は :943） | 無し |
 | 津波の観測の最大の合成 | 観測の版を採る・期限切れ・期限待ち | 動かす（見える↔見えないが変わる、`:131` の `visible`） | 無し |
 | 津波の閉じた観測の印 | active → expired | 動かす（見えるから見えないへ） | 無し |
@@ -171,11 +171,11 @@ owner は、表示差分があるか内容版が変わったときだけ view �
 |---|---|---|---|---|---|
 | eew（U-E） | U-W の `areas`（行のページ・pageBudget） | id・rev は §2.1。行は current の区域の全行（未知コード・重なった行・Condition の字） | 要約にしない（H37） | urgent | E0。印からの操作 |
 | tsunami（U-T） | 索引は U-W の `index`、予報区と観測点は U-W の `areas`、付加文は U-V・U-N の本文 1 件 | part は `index`・`areas`（既知・未知・コードなしの全行）・`stations`・`comment`。付加文は 4,096 字で、escape の最悪 24,576 byte でも 1 応答に入る | 要約にしない（H37） | urgent | T0。D-B0-TSUNAMI-DETAIL |
-| earthquake（U-Q） | 索引は U-W の `index`、震度の要素は U-W の `areas` | part は `index`・`event`（震度の要素と既知でない区域。U-Q の既知でない区域を読む part は `event` だけで、`areas` は置かない）。rev は event の object の JSON の sha256（§2.1） | 要約にしない（H37） | seismic | C0 発注 2。行から開く操作 |
+| earthquake（U-Q） | 索引は U-W の `index`、震度の要素は U-W の `areas` | part は `index`・`event`（震度の要素と既知でない区域。U-Q の既知でない区域を読む part は `event` だけで、`areas` は置かない）。rev は event の object の JSON の sha256（§2.1）。r11: 長周期の見出しの `ref` も `event` の part で開く。`event` の応答は、見出しの欄が 1 応答に入らないとき、その欄の値を外して欄の名を `omittedFields` に挙げる | 要約にしない（H37） | seismic | C0 発注 2。行から開く操作 |
 | weatherCurrent（U-W） | 既存（P3-UW-CANON-001） | 無し | 既存（`part=index`・`revision=contentRevision`） | weatherCurrent | C0 |
 | weatherTimeseries（U-F） | 既存（P3-UF-PUBLIC-001） | 無し | 既存 | deferred | C1 |
 | nankai・volcano（U-N・U-V） | 本文は既存（P3-BULLETIN-TEXT-API-001）、索引は U-W の `index` | `part=index` を足す（要約に subject が無いため。subject と revision の組 約 170 byte × 64 件で要約 4 KiB に入らない、`nankai-unit.ts:31`・`volcano-unit.ts:35`） | `part=index`・`revision=contentRevision`・`page` | urgent | C1（C1-1） |
-| localBulletins（U-M） | 同上 | 本文の unit に `U-M` を足す（地震の解説、計画:177） | 同上 | deferred | C1 |
+| localBulletins（U-M） | 索引は U-W の `index` | part は `index` だけ。本文の part は B0 で足さない（r11: TransientCurrent に本文の欄が無く、地震の解説の本文は計画:177 の行の契約の仕事） | 同上 | deferred | C1 |
 | landslide・flood・briefing・typhoon | 索引は U-W の `index`、項目は U-W の `areas` | 項目は今の view の現況の要素 | 同上 | deferred | C1。要約の「詳細は個別取得」から（spec:1330） |
 | 読めない報のカード | U-V・U-N の本文 1 件 | `raw`（§2.1 の rev の共通規則の例外: id＝カードの inputId、rev＝`receivedAt`）。カードは inputId と受信時刻で 1 枚に決まり、原文が器の都合で外れたかは応答の中の `rawDropped`・`rawCut` で返す（版の不一致にしない）。原文は 16,382 byte まで（`checkpoint.ts:688`）で 1 応答に入る | — | そのカードの unit の owner | C2。操作 |
 
@@ -187,9 +187,9 @@ urgent の場所の詳細は、開始済みの射影の非中断区間も E01 �
 
 | part | id | revision | 参照を持つ所 |
 |---|---|---|---|
-| U-E の `areas`、U-T の `areas`・`stations`・`comment`、U-Q の `event`、U-L・U-R・U-B・U-Y の項目 | sha256(JSON.stringify([unit, operation, subject])) の hex | その part が返す view の object の JSON の sha256 の hex（§2.1） | snapshot のカード・見出し・行の `ref`（保護 3 分野）、索引の項目（U-L・U-R・U-B・U-Y） |
+| U-E の `areas`、U-T の `areas`・`stations`・`comment`、U-Q の `event`（長周期の見出しの `ref` もここで開く、r11）、U-L・U-R・U-B・U-Y の項目 | sha256(JSON.stringify([unit, operation, subject])) の hex | その part が返す view の object の JSON の sha256 の hex（§2.1） | snapshot のカード・見出し・行の `ref`（保護 3 分野）、索引の項目（U-L・U-R・U-B・U-Y） |
 | 各分野の `index`（U-T・U-Q・U-N・U-V・U-M・U-L・U-R・U-B・U-Y） | 持たない | 分野の contentRevision（U-W・U-F の index と同じ） | 分野の包みの contentRevision |
-| U-N・U-V・U-M の本文 `text`（P3-BULLETIN-TEXT-API-001） | view の生の subject | view の source の inputId・reportDateTimeRaw・controlDateTimeRaw を順に並べた JSON 配列の字（spec:1339 の 4、`p3-bulletin-text-api.types.ts:3`〜`:7`） | U-N・U-V・U-M の `index` の項目が、この id と revision をそのまま載せる（hash にしない） |
+| U-N・U-V の本文 `text`（P3-BULLETIN-TEXT-API-001。U-M の本文は B0 で足さない、r11） | view の生の subject | view の source の inputId・reportDateTimeRaw・controlDateTimeRaw を順に並べた JSON 配列の字（spec:1339 の 4、`p3-bulletin-text-api.types.ts:3`〜`:7`） | U-N・U-V の `index` の項目が、この id と revision をそのまま載せる（hash にしない） |
 | 読めない報のカードの `raw` | カードの inputId | `receivedAt` | カードの欄 |
 | U-W・U-F の既存の part | 今のまま（P3-UW-CANON-001・P3-UF-PUBLIC-001） | 今のまま | 今のまま |
 
@@ -203,7 +203,7 @@ urgent の場所の詳細は、開始済みの射影の非中断区間も E01 �
 
 ### 3.2 移行中（B0〜T0）: SSE を分ける（I-B0-LEGACY=A）
 
-- 旧 `/events` は今の projector の出力のまま。新しい描画は新しい経路で `display` だけの snapshot を受ける。1 MiB の判定は経路ごと。旧は今の規則。新は保護 3 分野と共通部だけで、上界 378,670（保護 3 分野 182,062 ＋ 通知 131,072 ＋ 共通部 65,536、script の newPath）が 1 MiB に入るので縮退の規則を持たない。保護 3 分野は要約にしない（H37）。
+- 旧 `/events` は今の projector の出力のまま。新しい描画は新しい経路で `display` だけの snapshot を受ける。1 MiB の判定は経路ごと。旧は今の規則。新は保護 3 分野と共通部だけで、上界 377,434（保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536、script の newPath）が 1 MiB に入るので縮退の規則を持たない。保護 3 分野は要約にしない（H37）。
 - 公開の判定は経路ごとに独立（r8、ヘルツの r2 のレビュー）。旧の公開（`composition-root.ts:997`）は旧の projector の projected の分岐（:993、`view-projector.ts:927`）の内側にあり、旧の snapshot が同じなら unchanged で公開しない。新しい射影は自分の前の snapshot と比べて変わったときだけ公開し、旧の projected・unchanged・rejected に依らない。新しい射影を呼ぶのは :986 の行の中、新しい経路への公開は :992 の行の中（旧の projected の分岐の外）。例: 震源名だけが変わる EEW の続報では、表示差分で U-E の contentRevision が進み（`eew-unit.ts:322`）、旧の要約にも載る（`view-projector.ts:753`・`:763`・`:887`・`:927`）ので、旧が要約の間でも両経路とも公開する（r9 で直した。r8 の「旧は unchanged」は起きない）。独立は、旧の projector の戻り値を unchanged に固定した境界の試験で確かめる（新しい経路は自分の前の snapshot との差分で公開する）。
 - 旧画面と runner の保証は今と同じ規則（全体超過のとき予算超過の旧分野を要約）。B0 が旧 view に欄を足す（§4 の EEW・地震の行など）ので、C4・C6 の manifest で旧 full が予算に入ることは B0 で数え直す（ヘルツの証拠不足）。
 - 費用: 公開ごとに射影と直列化が経路ごとに 1 回ずつ、計 2 回。これは配送済みの P2-A8-COST（`p2-snapshot-sse.json:99`「最終配送 JSON ≤ 1 MiB の直列化は一公開につき 1 回」）とぶつかるので、§4 で移行中の例外として改める。
@@ -232,7 +232,7 @@ urgent の場所の詳細は、開始済みの射影の非中断区間も E01 �
 | `P3-EEW-FACTS-001` | `p3-eew-facts.types.ts:14`（区域の Kind/Code）と契約の文（`p3-eew-facts.json:237` に例外） | 1 | :14 は 0 ref | :14 の末尾、読む所は `eew.ts:825` の末尾 | B0 | 無し |
 | `P3-UNIT-Q-001` | `p3-seismic-unit.types.ts`: :158（行の欄）・:180・:192・:256（版の字）。`seismic-unit.ts`: :36（SCHEMA）・:477〜:479（行を作る所）・:1593〜:1602（decode で行を項目ごとに組み立てる）・:57〜:60（増え分の定数と MEMORY_GROWTH）。`owner-runtime.ts:84`（U-Q の初期 state の版）。試験 3 file の版の字（`test/seismic-unit/seismic-fixture.ts`・`seismic-capacity.test.ts`・`test/shared-runtime/shared-runtime.test.ts`） | 3・148・77 | types は :86・:138・:161 に 1 ref ずつで、変える行は 0。seismic-unit は :39 に 2・:63 に 6・:66 に 3・:69 に 4 で、変える行は 0。owner-runtime.ts:84 は 1 ref（p3-unit-q-capacity）。:478 に行を足すと 75 行 109 refs | どれも行の中か行の末尾。上界は «» 0 の :57〜:60 に増え分の定数を置いて MEMORY_GROWTH に足す（:63 の GENERATION_LIMIT と :69 の RESERVE_BYTES は MEMORY_GROWTH を足しているので中身が変わらない）。`283_209` は直さない。付け直しは owner-runtime.ts:84 の 1 件 | B0 → E0 発注 1 → N0 | **有り**。版を p3-seismic-unit-v9 に上げ、旧い形を読む移行を作らない（discardableSchemaVersions に足さない、P3-MIG-AC02 (2)）。開発機の古い slot は作者の了承で消し、Pi は旧築なので消さない |
 | `P3-EXECUTION-SPLIT-001` | `p3-execution-split.types.ts:73`・`:142`（詳細の要求と応答）、`owner-runtime.ts:737` | 21・77 | :73・:142・:737 は中身 1・2・1 refs | 別名を足す。reanchor 4 件 | B0 | 無し |
-| `P3-UNIT-M-001`・`P3-BULLETIN-TEXT-API-001` | `local-bulletins.ts`・`local-bulletins-unit.ts`・`p3-bulletin-text-api.types.ts` | 11・20・1（:5） | 最後の «» より後で 0 | 最後の «» より後 | B0（C1 が描く） | 本文を保存しないなら無し |
+| `P3-UNIT-M-001`・`P3-BULLETIN-TEXT-API-001` | `local-bulletins.ts`・`local-bulletins-unit.ts`・`p3-bulletin-text-api.types.ts`（r11: U-M の index の part だけ。本文の part は足さない） | 11・20・1（:5） | 最後の «» より後で 0 | 最後の «» より後 | B0（C1 が描く） | 本文を保存しないなら無し |
 | `P3-TSUNAMI-UNIT-001` | `p3-tsunami-unit.types.ts`（`closedObservations`）・`tsunami-unit.ts:953`（view）・`:943`（内容版の条件に閉じた印の集合の変化を足す） | 0・104 | :943 は中身 1 ref、:950 は中身 1 ref | view は :953 の末尾、:943 は行の中で書き換え（reanchor 1 件） | B0 → N0 → T0 | 無し（保存の中身から作る） |
 | `P3-UNIT-L-001`・`P3-UNIT-R-001`・`P3-UNIT-B-001`・`P3-UNIT-Y-001`・`P3-UNIT-N-001`・`P3-UNIT-V-001` | landslide・flood・briefing・typhoon・nankai・volcano の unit の file（索引の part） | — | file の最後に足すので 0 | file の最後に足す。«» の影響 0 | B0（C1 が描く） | 無し |
 | 配送済みの条文に残る版の字（`p3-seismic-expiry-view.json:194` の「schemaVersion p3-seismic-unit-v8」など） | 改訂しない | — | — | その契約が版を上げた時の記録で、今の版の真実源は `seismic-unit.ts` の SCHEMA と型。U-Q の上界の字 `283_209` を書いた条文（`p3-seismic-event-limit.json:271` など）も、B0 は `283_209` を直さず MEMORY_GROWTH に足すので改訂しない。器と予約の合計を書いた条文（`p3-seismic-event-limit.json` の器 26,519,529 の見込み〔:191〕、`p3-disaster-pi-measure.json`・`p3-final-gate.json` の測りの記録）も、その配送の時点の値の記録なので改訂しない。B0 の後の器と予約は実装が dist の export で数えて成果物に書く | — | — |
@@ -276,7 +276,7 @@ metadata だけの更新は今の参照の使い回し（`view-projector.ts:571`
 
 ### 5.5 津波の観測が閉じた印
 
-- 値: `closedObservations`（運用区分・EventID・family・閉じた時刻＝`retainUntil − RETAIN_MS`・`ref`）。区分ごとに新しい 4 件と件数。
+- 値: `closedObservations`（運用区分・EventID・family・閉じた時刻＝`retainUntil − RETAIN_MS`）。`ref` は持たない（開ける part が無い、r11）。区分ごとに新しい 4 件と件数。
 - 出す版: active → expired の版（表示差分あり）と、期限待ち → expired の版（§4 の :943 の直しで内容版が上がる）。
 - 消す版: 記録が消える版（保持期限 7 日、:778〜:781。§4 の直しで内容版が上がる）か、同じ観測が active に戻った版。
 - 画面に何日出すかは T0 の板（T0-2）で、値が出ている範囲の中で決める。
@@ -453,5 +453,11 @@ metadata だけの更新は今の参照の使い回し（`view-projector.ts:571`
 - 小さいカードの最小の欄 `["622",null]`、合成の 1 区域 `["622",-1]`、市区町村の合成 `["2230600",-1]`
 - 津波の予報の見出し: `{"eventId":"<40>","operation":"training","serial":MS,"reportTime":"<40>","comment":{"text":"<2048>","cut":false},"unread":false,"marks":[…],"omittedUnkeyed":MS,"unknownAreas":MS,"dupAreas":MS,"ref":{…}}`
 - 津波の予報区の行: `{"c":"100","k":"majorWarning","first":{"raw":"<40>","cond":{"text":"<48>","cut":false}},"h":{"raw":"<24>","cut":false}}`
-- 閉じた観測の印: `{"eventId":"<40>","family":"VTSE51","closedAt":MS,"ref":{…}}`
-- 今日の地震の行（`unknownAreas` と、rev が欠けうる `ref` を含む）: `{"eventId":"<40>","operation":"training","origin":"<40>","reportTime":"<40>","hypo":{…},"mag":{…},"depth":{…},"maxInt":null,"cancelled":false,"tsunami":{"text":"<384>","cut":false},"strongest":["622",…8 つ],"omittedStrongest":MS,"marks":[…],"unknownAreas":MS,"ref":{"id":"<64>","rev":"<64> か null"}}`
+- 閉じた観測の印: `{"eventId":"<40>","family":"VTSE51","closedAt":MS}`（r11 で `ref` を外した）
+- 今日の地震の行（`unknownAreas` と、rev が欠けうる `ref` を含む）: `{"eventId":"<40>","operation":"training","origin":"<40>","reportTime":"<40>","hypo":{…},"mag":{…},"depth":{…},"maxInt":null,"cancelled":false,"tsunami":{"text":"<384>","cut":false},"strongest":["<8 桁>",…8 つ],"omittedStrongest":MS,"marks":[…],"unknownAreas":MS,"ref":{"id":"<64>","rev":"<64> か null"}}`
+
+## r11 の改訂（B0 の実装の配送の下ごしらえ、実装の契約適合レビュー〔GO〕が挙げた字）
+
+- script の値: 閉じた印の `ref` を外し（−1,836）、strongest を 8 桁で数えた（＋600）。§0・§1.4 の 13 組はどれも −1,236、§3.2 の新しい経路の全体は 377,434。数は実装の配送の後の script の出力に、統合担当が合わせ直す。
+- 閉じた印の `ref` を外した（§5.5・付録 A）。採用の版でも未確認の印を current に写す（§1.6）。U-Q の `event` に `omittedFields`、長周期の見出しの `ref` は `event` で開く、U-M の本文の part は足さない（§2.2・§2.3）。
+- 仮の決め 7 つと残存は契約の decisionBranches・artifactRequirements に書いた。

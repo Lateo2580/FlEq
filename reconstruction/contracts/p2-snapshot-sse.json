@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "585d2f4f858e350c6965d83019ba7e4842285b3c",
-    "sha256": "a825371eb2258a09f53d3be14e5849809345d491767a4b4d267f8db06956191c",
+    "sha256": "9d12d2323eed29ae6f92d0a2a049d18c8447ffec63cbc2356558896a1fa852f8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -96,7 +96,7 @@
         "upstream": "A1がRuntimeState.viewsを所有する。供給と変更集合の正本はA1 P2-A1-DISPLAY-CHANGES。A3はto*Viewを呼ばず具体型unionを渡すだけ。A4〜A6は保存ack/intent配送等で公開内容が変わらなければviewとその子要素を参照再利用する。viewからpersistenceを分離し既存RuntimeState.units[unit].persistence→snapshot.persistenceでmetadata更新する。",
         "projector": "projectSnapshot(input,previous:SnapshotProjectionState|null)は前回の三つのDisplayDomainProjectionを受け取り更新済みstateを返す。各full viewの参照、集計items、JSON byte数と区域/階級/時刻の参照件数を保持するだけ。初回は全viewを一度走査、通常はdisplayChanges.before/afterの変更subjectの公開要素だけを計量/集計して差引く。削除はbeforeだけ、追加はafterだけ。操作別の最大階級/時刻を参照件数から求め、零になったkeyは削除する。索引のkey数は保持viewの区域/階級/時刻の寄与数以下で、過去世代の寄与を残さない。汎用cache/factory/registryを作らない。 U-EのeventRefsはP2-A8-NOTICEの固定event集計のみ。最大値の再選択は集計索引だけを参照し、subject本文へ戻らない。 公開拒否時にも内部採用を継続する規則はP2-A8-PUBLICATIONを正本とする。",
         "summaryReturn": "summary配送中も最新のfull view参照とそのbyte/集計索引を更新・保持する。総量が予算内へ戻ればそれをfullとして再利用し、上流全state/全subjectの再射影・再計量をしない。SSE/HTTPは最新配送snapshot一枚だけを持ち、内部射影stateやfull viewの過去世代は配信しない。",
-        "accounting": "metadataだけ(保存ack/probe/channel/connection/確認状態/worker)とheartbeatでは全unitの内容要素走査0、subjectの射影/byte計量0。確認集計はA1が維持する固定9slotのcounts/confirmedScopeCountだけ。版/キー/区切り/配列要素数のJSON構造費用は定数または変更件数で補正する。容量判定・変更検出のための上流UnitState全量JSON.stringifyは全入力で0。最終配送JSON<=1MiBの直列化は別カウンタで一公開につき1回、HTTP/SSE clientごとに再直列化しない。heartbeatは小さい専用payloadのみ。JSON byte長計量は変更要素の文字列をJSON escapeした長さの和で行い、state丸ごとの文字列化を代用しない。 （admission件数のみの更新はP3-CURRENCY-COVERAGE-001で件数ごと廃止。） 限定例外（台帳49、A10 P2-A10-AC15）: U-E/U-W/U-FのsemanticRevision組立てと本射影のfixedBytesによるview固定部の直列化はO(N)のまま既知例外とし、対象はこの二つ、上限はRES-07の保持上限、回数・時間はA10が別計数で報告し、再検討はE01正式対象の未達が射影・整形へ帰属した時かP3の受信経路契約前とする。上流UnitState全量JSON.stringify0と最終配送JSON一公開一回は免除しない。",
+        "accounting": "metadataだけ(保存ack/probe/channel/connection/確認状態/worker)とheartbeatでは全unitの内容要素走査0、subjectの射影/byte計量0。確認集計はA1が維持する固定9slotのcounts/confirmedScopeCountだけ。版/キー/区切り/配列要素数のJSON構造費用は定数または変更件数で補正する。容量判定・変更検出のための上流UnitState全量JSON.stringifyは全入力で0。最終配送JSON<=1MiBの直列化は別カウンタで一公開につき1回、HTTP/SSE clientごとに再直列化しない。heartbeatは小さい専用payloadのみ。JSON byte長計量は変更要素の文字列をJSON escapeした長さの和で行い、state丸ごとの文字列化を代用しない。 （admission件数のみの更新はP3-CURRENCY-COVERAGE-001で件数ごと廃止。） 限定例外（台帳49、A10 P2-A10-AC15）: U-E/U-W/U-FのsemanticRevision組立てと本射影のfixedBytesによるview固定部の直列化はO(N)のまま既知例外とし、対象はこの二つ、上限はRES-07の保持上限、回数・時間はA10が別計数で報告し、再検討はE01正式対象の未達が射影・整形へ帰属した時かP3の受信経路契約前とする。上流UnitState全量JSON.stringify0と最終配送JSON一公開一回は免除しない。（P4-DISPLAY-WIRE-001 の P4-DW-AC06 (1) により統合担当が改訂: B0〜T0 の移行中は旧 /events と新しい経路の 2 本があり、最終配送 JSON の直列化は経路ごとに一公開につき 1 回で、各経路の全 client が共有する。計数は経路ごとと合計の両方。T0 で旧の経路を消して 1 回へ戻す。PI 発注 1 の Pi の段 1 は二重の射影の下で走るので、公開の費用に依る値は段 1 で決めない）",
         "acceptance": "全unit保持上限付近でEEW1件/metadataのみ/U-W1subject/U-F1subjectを各100回(測定前10回warmup)実行。A1 view生成回数と走査要素数、A8射影/byte計量対象subjectと要素数、上流全量stringify回数、最終JSON直列化回数、msのp50/p99を別記録。EEW更新時U-W/U-F=0、metadataは全unit=0、W/F単件時は当該subjectのbefore/afterだけ(副作用で実際に退去したsubjectは明示deltaに含めて別計数)。F retainUntil削除でoutcomes=[]でもbyte/集計/noticeが減る。summary→fullは未変更subject再計量0。時間閾値は未測定で置かず、上記回数/集合一致を合否にする。"
       },
       {

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "447bea9c4d4ffe0f13ce87520d3eb38964f4dd4b",
-    "sha256": "80dc6e3957794b1f26992f19ae9de0e60cdb69f34a2ddfd3b3a759a5455896b2",
+    "sha256": "0e086637f5febce0819f490f56b89c33724bd660d84f3a8eb5ed89dd5b9caffb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -234,7 +234,7 @@
       },
       {
         "id": "P3-EWF-AC02",
-        "requirement": "出る所と出ない所: (1) report が出るのは採った報（transition が activated・updated・released・cancelled）の outcome だけで、作るのは eew.ts:726 の 1 か所。(2) 出ない所: 取り直し（origin=recovery）の報（eew.ts:420 で outcome が無い）、unchanged（duplicate・stale）・capacityExceeded・取消だけの intent（cancelOnly、eew.ts:518）の return（outcome は []）、expiredOutcome（facts は今の 4 key のまま、eew.ts:390）。(3) report を EewCurrent・EewGate（noticeSource を含む）・currentSubject の view（eew-unit.ts:265〜266）・codec（eew-unit.ts:292）・decision・診断・通知の intent と payload・displayChanges に入れない。表示の wire の byte は変わらない（view-projector は outcome の facts から eventId だけを読む、view-projector.ts:784）。(4) codec の decode の後（再起動の後）は前の報の report が無く、再起動の後の最初の報は差分なし（旧築も activeFiles を memory にだけ持つ、eew-logger.ts:122・:236）。続けるかは C19 が決める。【P3-FINAL-REVIEW-FIX-001 の注記（R12）: P3-VAT-AC01 (4) で eew.ts:466 の行（EewCurrent の reportAreas）に helper の 2 か所目の呼び出しが足された。「作るのは eew.ts:726 の 1 か所」はその後の実装では helper を呼ぶ所が 2 か所と読む。採った報の outcome に report を出すのは今も :726 だけ】",
+        "requirement": "出る所と出ない所: (1) report が出るのは採った報（transition が activated・updated・released・cancelled）の outcome だけで、作るのは eew.ts:726 の 1 か所。(2) 出ない所: 取り直し（origin=recovery）の報（eew.ts:420 で outcome が無い）、unchanged（duplicate・stale）・capacityExceeded・取消だけの intent（cancelOnly、eew.ts:518）の return（outcome は []）、expiredOutcome（facts は今の 4 key のまま、eew.ts:390）。(3) report を EewCurrent・EewGate（noticeSource を含む）・currentSubject の view（eew-unit.ts:265〜266）・codec（eew-unit.ts:292）・decision・診断・通知の intent と payload・displayChanges に入れない。表示の wire の byte は変わらない（view-projector は outcome の facts から eventId だけを読む、view-projector.ts:784）。(4) codec の decode の後（再起動の後）は前の報の report が無く、再起動の後の最初の報は差分なし（旧築も activeFiles を memory にだけ持つ、eew-logger.ts:122・:236）。続けるかは C19 が決める。【P3-FINAL-REVIEW-FIX-001 の注記（R12）: P3-VAT-AC01 (4) で eew.ts:466 の行（EewCurrent の reportAreas）に helper の 2 か所目の呼び出しが足された。「作るのは eew.ts:726 の 1 か所」はその後の実装では helper を呼ぶ所が 2 か所と読む。採った報の outcome に report を出すのは今も :726 だけ】【P4-DISPLAY-WIRE-001 の注記（P4-DW-AC06 (2)、統合担当が改訂）: (3) の例外として、B0 は EewCurrent に震源名・M・深さ・震央の位置・検知だけの報・場所の文・未確認の印・maxLgInt を、EewReportArea に Kind/Code を足した。表示の wire の byte はその分だけ変わる。facts の report は今のまま outcome にだけ置く】",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:726 «84c24ffe39cdf683»",
           "reconstruction/src/domains/eew/eew.ts:420 «600b090d43fc380f»",
