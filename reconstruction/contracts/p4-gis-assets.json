@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "95e9fdc76868d4765065cbc86a6a2b16d834506511854f13d974b1b2ed097644",
+    "sha256": "658fc93b73890d4e047356dc28f503fa573f3773ff3e34aaf69c674d573fa9de",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -278,6 +278,13 @@
         "source": "統合担当の発注前点検（2026-11-21 18:2x、main 362732fe の上に rebase した draft/p4-g0）",
         "closed": "(1) decisionBranches は作者 6・統合担当 9 とも確定で「起草案」0 件（Q-G0-ORDER-SPLIT は閉じた） (2) AC05 の P1（archive の 2 区は形あり）・P2（入力は R8.11.18、sheet 24・31・82 は R8.10.19 と差 0）は閉じた。P3（spec:1696・:1733・:1850 の数）は発注 1 の配送で当てる (3) 後の作者裁定で前提が変わったもの: なし（地図の 6 問は 17:51 に裁定、火山の KML は問い Q-GIS-VOLCANO-KML-TERMS で発注 2 の前） (4) 発注 1 が変える file は新しい file（known-codes.v1.json・build-known-codes.mjs と .d.mts・manifest・試験）と、配送で行の中を直す spec の 3 行だけで、spec の 3 行を «» で引く契約は本契約だけ (5) readPaths の 14 は全部実在、dependsOn・integration は空 (6) check-contract rc 0（WARN は本契約と P4-PERSONA-WALK-TOOLS-003 の baseOid 未割当だけ） (7) B0（P4-DISPLAY-WIRE-001、draft/p4-b0）は本契約の発注 1 の配送の後に readPaths と dependsOn へ本契約を足して baseOid を割り当てる（B0 の artifactRequirements の最初の作業）",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-GIS-DELIVERY-ORDER1",
+        "status": "closed",
+        "source": "発注 1 の配送（統合担当、2026-11-21 19:0x。実装 163802b8・2fb20503〔Sonnet の子、main 2d107524 の上へ rebase。baseOid 0a78b80d はその祖先〕）",
+        "closed": "(1) 実装: reconstruction/assets/gis/known-codes.v1.json（細分区域 188・市区町村 1,894・津波予報区 66・結合と領域の表現 32、sha256 f889b479…、2 回の生成で同じ byte）、manifest.json、tools/gis/build-known-codes.mjs と .d.mts（依存なし、zip は node:zlib の inflateRawSync で読む）、test/gis/known-codes.test.ts（T01・T03）。入力は R8.11.18 の xlsx（sha256 5922b550…） (2) レビュー: 契約適合 GO（P3: T03 の津波の Body の空振り、geometryCheck に archive の sha256 と 2 区 → 2fb20503 で当てた）、品質 条件付き GO（P2: 津波予報区と結合・領域の表現の空の名前で止まらない → 4 表とも検査、2fb20503）。品質が python で別に読み直して 2,180 件が一致 (3) Mac mini のゲート 12 段（rec-gate-par.sh、2fb20503、286 秒）: tsc 3 本・reconstruction の vitest 154 file・1,691 passed・38 skipped と shuffle・checker 3 本・build・旧築の test 289 file・6,850 passed、全部 rc 0 (4) AC05 の P3 を当てた: spec:1696・:1733・:1850 の「1,892」を行の中で 1,894 に直し、本契約の 2 つの «» を付け直した (5) 申し送り: manifest の欄の名前 knownGapsAndExclusions と AC07 の字「knownGaps」を発注 2 の起草で揃える。geometryCheck は knownCodes の行に置いた（発注 2 で市区町村の層の行へ移すか参照するかを決める） (6) B0（P4-DISPLAY-WIRE-001）は、本配送の後に readPaths と dependsOn へ本契約と known-codes.v1.json を足して baseOid を割り当てる",
+        "remaining": "発注 2（形）"
       }
     ],
     "operationContract": {
@@ -400,7 +407,7 @@
           "reconstruction/contracts/p4-gis-assets-sources.md:37 «07fe64974eec75e5»",
           "reconstruction/contracts/p4-gis-assets-sources.md:34 «24c14a05caa17925»",
           "display/maps/quake/source.lock.json:20 «4e53f9a42f8d3ba6»",
-          "docs/specs/reconstruction-p0-contracts.md:1733 «d98bf0e9cca33736»"
+          "docs/specs/reconstruction-p0-contracts.md:1733 «254368c57eb01508»"
         ]
       },
       {
@@ -434,7 +441,7 @@
           "display/scripts/build-quake-map-assets.mjs:459 «6823e03097672ac4»",
           "display/scripts/build-quake-map-assets.mjs:464 «0d0871e227c586f3»",
           "reconstruction/contracts/p4-gis-assets-sources.md:164 «48854b2d2dcc68f4»",
-          "docs/specs/reconstruction-p0-contracts.md:1696 «2ea360698f307fae»"
+          "docs/specs/reconstruction-p0-contracts.md:1696 «8a18ae48f8e8e49a»"
         ]
       },
       {
@@ -464,7 +471,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1731 «d57fed2a6e2a0b3c»",
           "docs/specs/reconstruction-p0-contracts.md:1732 «c8b379c441c3b04a»",
-          "docs/specs/reconstruction-p0-contracts.md:1733 «d98bf0e9cca33736»",
+          "docs/specs/reconstruction-p0-contracts.md:1733 «254368c57eb01508»",
           "docs/specs/reconstruction-p0-contracts.md:1737 «ceb163ceeb0f881a»"
         ]
       },
