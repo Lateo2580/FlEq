@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "knownCodes": {
+    "output": { "path": "reconstruction/assets/gis/known-codes.v1.json", "sha256": "f889b47937ed034d270875f48a1b52267383b3439b1b9e178c9ed3858d02e868" },
+    "source": {
+      "url": "https://xml.kishou.go.jp/jmaxml_20261118_Code.zip",
+      "page": "https://xml.kishou.go.jp/tec_material.html",
+      "version": "R8.11.18（2026-11-18）",
+      "retrievedAt": "2026-11-21",
+      "archiveSha256": "194122222848f42d61a3461f79822d5b84d3dc4d1dc9d246cc5ffc7f07d47198",
+      "inputPath": "reconstruction/assets/gis/source/code-20261118/earthquake-volcano-codes.xlsx",
+      "inputOriginalName": "地震火山関連コード表.xlsx",
+      "inputSha256": "5922b5509925af01b748c1cb4464f1c9a4069c5bf20ca023eacef9e6af67711e"
+    },
+    "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+    "transform": {
+      "script": "reconstruction/tools/gis/build-known-codes.mjs",
+      "node": "v26.12.1",
+      "args": ["reconstruction/assets/gis/source/code-20261118/earthquake-volcano-codes.xlsx"]
+    },
+    "expectedCodeCount": { "forecastLocalE": 188, "city": 1894, "tsunamiArea": 66, "tsunamiAreaGroup": 32 },
+    "knownGapsAndExclusions": [],
+    "geometryCheck": "20241128_AreaInformationCity_quake_GIS.zip（153,820,798 byte）の dbf は地物 1,910、regioncode の異なり 1,894、空のコードの地物 16、重なり 0。表は変えない（P4-GIS-I-KNOWN-SOURCE=A）",
+    "attribution": "出典：気象庁ホームページ（https://xml.kishou.go.jp/tec_material.html）の個別コード表（地震火山関連コード表、R8.11.18）を加工して作成。加工：FlEq"
+  }
+}
