@@ -1835,14 +1835,16 @@ describe("P4 EEW without Intensity", () => {
   const noIntensity = (xml: string) => xml.replace(/<Intensity>[\s\S]*<\/Intensity>/, "");
   // VXSE43 は Body/Comments（WarningComment）も消す。Comments は警報を発表している Pref・Area があるときだけ出る（:4787〜:4793）。
   const noIntensity43 = (xml: string) => noIntensity(xml).replace(/<Comments>[\s\S]*<\/Comments>/, "");
+  type JsonValue = import("../../contracts/p2-shared-runtime.types").JsonValue;
+  const isList = (value: JsonValue | undefined): value is readonly JsonValue[] => Array.isArray(value);
   const missing = { kind: "missing" };
   const unknownPrediction = { maximum: { from: missing, to: missing, condition: null, description: null }, areaCoverage: "none", areas: [] };
   const reportOf = (step: ReturnType<typeof receive>) => {
     const outcome = step.outcomes[0];
     if (outcome == null || outcome.kind !== "accepted") throw new Error("no accepted outcome");
     const report = outcome.subjects[0].facts.report;
-    if (report == null || typeof report !== "object" || Array.isArray(report)) throw new Error("no report");
-    return report as Readonly<Record<string, unknown>>;
+    if (report == null || typeof report !== "object" || isList(report)) throw new Error("no report");
+    return report;
   };
 
   // 受入条件 P4-ENI-AC01: Intensity の無い報を受け、震源・M・深さを元の fixture と同じに読む。
@@ -1885,6 +1887,8 @@ describe("P4 EEW without Intensity", () => {
     const cases: readonly (readonly [(xml: string) => string, string])[] = [
       [(xml) => xml.replace("<Intensity>", "").replace("</Intensity>", ""), "requiredStructureInvalid"],
       [(xml) => xml.replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/, ""), "requiredStructureMissing"],
+      // 統合担当の決め（D-BODY-FORECAST=A と同じ考え）: Body 直下の ForecastInt だけの報も、最大予測震度を黙って捨てず断る。
+      [(xml) => xml.replace(/<\/?(?:Intensity|Forecast)>/g, ""), "requiredStructureInvalid"],
     ];
     for (const [edit, reason] of cases) {
       const state = emptyState();

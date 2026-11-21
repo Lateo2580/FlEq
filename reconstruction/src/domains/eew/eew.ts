@@ -192,7 +192,7 @@ function validateCandidate(material: DecodedMaterial): CandidateResult {
       || (family === "VXSE43" && areas.length === 0)
       || areas.some((area) => elements(area, "ForecastInt").length === 0)))
       return { kind: "rejected", reason: "requiredStructureMissing", diagnostic: diagnostic(material, "requiredStructureMissing") };
-    if (intensityNodes.length > 1 || (intensityNodes.length === 0 ? first(body, "Forecast") != null : forecastNodes.length !== 1 || maximumNodes.length !== 1)
+    if (intensityNodes.length > 1 || (intensityNodes.length === 0 ? first(body, "Forecast") != null || first(body, "ForecastInt") != null : forecastNodes.length !== 1 || maximumNodes.length !== 1)
       || prefs.some((pref) => elements(pref, "Area").length === 0)
       || areas.some((area) => elements(area, "ForecastInt").length !== 1))
       return { kind: "rejected", reason: "requiredStructureInvalid", diagnostic: diagnostic(material, "requiredStructureInvalid") };
