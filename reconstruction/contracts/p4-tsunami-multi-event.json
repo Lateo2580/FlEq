@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "38831d5951781a669358c214cba6a506b60c28b3",
-    "sha256": "9185bea2d6ad5d8114aa8d593b15468275cc51e51b76cfe54ad9d5886cafb6b1",
+    "sha256": "aa4d8179056e2023fb071667a7df58aed90466b69f63de0ee72208f7e2654e56",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -95,7 +95,7 @@
     "contractId": "P4-TSUNAMI-MULTI-EVENT-001",
     "mode": "implementation",
     "objective": "津波の電文の Head/EventID は、警報等に寄与する地震が 2 つ以上あると番号を空白で並べる（解説資料 :240〜:244、共通別紙イ 3.）。今の新築はこの報を identityInvalid で断る（tsunami.ts:211）ので、公式サンプルの 2015-11-14 の列では 06:55 の観測・07:20 の解除・07:24 の観測が断られ、05:56 の津波注意報が期限なしで残り、読めない報のカードが増える。並びの報を受け、前の単独の番号の報と同じ記録に続けて、解除で注意報を消す（P4-TME-D-IDENTITY）。端末の続報の覚え（前報との比べ）も同じ先頭の番号をキーにする（P4-TME-AC06）",
-    "baseOid": "unassigned",
+    "baseOid": "c758497fcdd45b0414a2055a2b852f428f0fee06",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
