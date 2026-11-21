@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "d5e624353b9a5d1d584044b4eb672986e5195da54e8226f4a2e67078fa1ee18c",
+    "sha256": "3ebe33c00f7cc4a71e95e75218ceb679e14164b3b4161fb8f7338379de8a0561",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -20,28 +20,30 @@
           "A": "市区町村の層に寄った地図で、港区と江東区の塗り（全体図の細分区域の塗りと、カードの行は残る）",
           "B": "消えるものは無い。ただし N03 は地理院の承認（複製）が付き、申請が要るかは未確認（p4-gis-assets-sources.md:135）。気象庁の形と境が合わず、隣の区と重なるか隙間が出うる"
         },
-        "status": "起草案",
-        "blocks": "発注 2 の P4-GIS-AC07 の市区町村の層だけ。発注 1 は止めない",
-        "reason": "旧 build は archive の地物から数えた件数を 1,892 と照合して通っている（build-quake-map-assets.mjs:459・:464）ので、archive に 2 区のコードが無い見込みが高い。B は出どころの違う形を 2 つだけ混ぜ、承認の要否が未確認"
+        "status": "確定（作者裁定 2026-11-21 17:51）",
+        "blocks": "なし（裁定済み）",
+        "reason": "旧 build は archive の地物から数えた件数を 1,892 と照合して通っている（build-quake-map-assets.mjs:459・:464）ので、archive に 2 区のコードが無い見込みが高い。B は出どころの違う形を 2 つだけ混ぜ、承認の要否が未確認",
+        "ruling": "A（作者の原文「地図についてはすべて推奨でお願いします。」（2026-11-21 17:51））"
       },
       {
         "id": "P4-GIS-D-VOLCANO-MAP",
         "kind": "作者",
-        "question": "火山を地図にどう出すか（火山の静的な位置と、噴火警報の警戒範囲の形は、どちらも見つかっていない）",
-        "scene": "桜島に噴火警報（火口周辺）レベル 3 が出る。電文には火山の緯度経度（Coordinate、解説資料:6493）と、対象の市町村（鹿児島市）のコードがある。警戒範囲の円や形は電文に無い（p4-gis-assets-sources.md:182）。平常時に 117 火山の点を置く座標の表はコード表に無い（同:181）",
-        "A": "電文の Coordinate の位置に、警戒レベルの色の点を描く。市町村は塗らない。「火口から約 N km」などは本文の字のまま",
-        "B": "A の点に加えて、電文の対象の市町村を噴火警報の色で塗る（発注 2 で「市町村等（火山関係）」の層を作る）",
-        "C": "地図に火山を出さず、カードだけにする",
+        "question": "火山を地図にどう出すか（警戒範囲の形は電文に無い。火山の平常時の位置は気象庁の活火山分布〔KML、111 点〕にある）",
+        "scene": "御嶽山に噴火速報（VFVO56）が出る。噴火速報は火山の緯度経度（Coordinate）を持たない（corpus の 5 本とも、p4-gis-assets-sources.md:215）。その後の噴火警報（VFVO50）は Coordinate と対象の市町村のコードを持つ。警戒範囲の円や形は電文に無い（同:182）。気象庁の日本活火山総覧の活火山分布（KML）は 111 火山の緯度経度を持ち、名前はコード表 sheet 82 の Name と 111 とも完全一致する（同:211・:213・:214）",
+        "A": "警報・速報の出ている火山に、警戒レベルの色の点を描く。位置は KML の静的な位置（火山のコード→KML の名前は、111 行を 1 行ずつ照合した表を発注 2 で作る）。KML に無い火口ごとの 6 コード（草津白根山の 2・霧島山の 4）だけは電文の Coordinate を使い、Coordinate の無い報では点を出さない。市町村は塗らない。「火口から約 N km」などは本文の字のまま",
+        "B": "電文の Coordinate の位置にだけ点を描く（静的な表を使わない）。市町村は塗らない",
+        "C": "A の点に加えて、電文の対象の市町村を噴火警報の色で塗る（発注 2 で「市町村等（火山関係）」の層を作る）",
         "recommended": "A",
         "provisional": "A",
         "screenLoss": {
-          "A": "対象の市町村の塗りと、電文が来る前の火山の点",
-          "B": "電文が来る前の火山の点。火口周辺だけの警報でも鹿児島市の全域が色になる",
-          "C": "地図の火山の全部（点も塗りも）"
+          "A": "対象の市町村の塗り。火口ごとの 6 コードで噴火速報だけが来たときの点。電文の Coordinate の火口の位置（点は KML の山頂などの位置で、報ごとに動かない）。警報の出ていない火山の点（111 点を平常時から置く形は案にしていない）",
+          "B": "噴火速報（VFVO56）は Coordinate を持たないので、噴火速報だけが来たときは点が出ない。対象の市町村の塗り",
+          "C": "火口周辺だけの警報でも、対象の市町村（桜島なら鹿児島市）の全域が色になる"
         },
         "status": "起草案",
-        "blocks": "発注 2 の P4-GIS-AC10 の火山の行（B のときだけ層を 1 つ足す）。発注 1 は止めない",
-        "reason": "A は電文にある位置だけを描き、spec が禁じる警戒半径の自作（spec:1722）をしない。B の市町村の塗りは電文の値だが、火口周辺の警報で市全体を塗ると、危ない範囲を広く見せる"
+        "blocks": "発注 2 の P4-GIS-AC10 の火山の行（A・C は KML の位置の表、C は層を 1 つ足す）。発注 1 は止めない",
+        "reason": "A は気象庁の公的な位置だけを使い、警戒半径を自作しない（spec:1722）。同じ火山の点が報ごとに動かないよう、位置の出どころを KML に寄せる。噴火速報は最初に来る報で、B ではその時に地図に何も出ない。C の市町村の塗りは電文の値だが、火口周辺の警報で市全体を塗ると、危ない範囲を広く見せる",
+        "ruling": "未（作者は 2026-11-21 17:51 に推奨で裁定したが、そのとき見せた A は電文の Coordinate だけの形〔今の B〕。r1 で KML の位置が見つかり A の中身が変わったので、統合担当の合図まで起草案）"
       },
       {
         "id": "P4-GIS-D-RIVER-LINE",
@@ -56,9 +58,10 @@
           "A": "河川の線と観測所の点",
           "B": "区間の区切り（警戒の区間の外まで同じ線になる）。W05 を自分で取らない利用者には何も出ない"
         },
-        "status": "起草案",
-        "blocks": "発注 2 の P4-GIS-AC10 の河川の行。発注 1 は止めない",
-        "reason": "FlEq は npm で公開する。W05 の「非商用」は複製物の再配布を除くので同梱できず、区間の区切りも持たない（spec:1723 の河川・区間の対応を満たさない）"
+        "status": "確定（作者裁定 2026-11-21 17:51）",
+        "blocks": "なし（裁定済み）",
+        "reason": "FlEq は npm で公開する。W05 の「非商用」は複製物の再配布を除くので同梱できず、区間の区切りも持たない（spec:1723 の河川・区間の対応を満たさない）",
+        "ruling": "A（作者の原文「地図についてはすべて推奨でお願いします。」（2026-11-21 17:51））"
       },
       {
         "id": "P4-GIS-D-FLOOD-AREA",
@@ -73,28 +76,28 @@
           "A": "予報区域と地区の単位の形（市町村の全域が塗られ、浸水想定地区の外も色が付く）",
           "B": "地図の洪水の全部（バックログ:336 の洪水予報の区域塗りは入らない）"
         },
-        "status": "起草案",
-        "blocks": "発注 2 の P4-GIS-AC10 の洪水の行。発注 1 は止めない",
-        "reason": "A の塗りは電文の浸水想定地区が挙げた市町村だけで、根拠の無い県全域・市全域の塗り（spec:1723）に当たらない。計画は洪水予報の区域塗りを G0 と M0 に入れている（計画:113）。電文の府県予報区（6 桁）で塗る形は県全域の塗りになるので案にしない"
+        "status": "確定（作者裁定 2026-11-21 17:51）",
+        "blocks": "なし（裁定済み）",
+        "reason": "A の塗りは電文の浸水想定地区が挙げた市町村だけで、根拠の無い県全域・市全域の塗り（spec:1723）に当たらない。計画は洪水予報の区域塗りを G0 と M0 に入れている（計画:113）。電文の府県予報区（6 桁）で塗る形は県全域の塗りになるので案にしない",
+        "ruling": "A（作者の原文「地図についてはすべて推奨でお願いします。」（2026-11-21 17:51））"
       },
       {
         "id": "P4-GIS-D-TSUNAMI-REGION",
         "kind": "作者",
-        "question": "地域設定で、市区町村から津波予報区を引く表が無い。設定した地域の津波をどう決めるか",
-        "scene": "利用者が地域設定で神奈川県藤沢市を選ぶ。EEW の区域（細分区域）は市区町村から引ける（コード表 sheet 24、p4-gis-assets-sources.md:51）。津波予報区（相模湾・三浦半島）を市区町村から引く表は、読んだコード表と解説資料のどこにも無い（同:53）。spec は「気象庁の対応表で市区町村から引く」と書いている（spec:3094）",
-        "A": "地域設定で津波予報区を別に選ぶ（66 から選ぶ。内陸の人は選ばない。既定は選ばない）",
-        "B": "地域設定に津波を持たない。津波はいつも全国の形で出す",
-        "C": "発注 2 で津波予報区の形と市区町村の形の重なりから表を作る（気象庁の表ではなく、こちらで作った対応になる）",
+        "question": "地域設定で選んだ市区町村から、設定した地域の津波予報区をどう決めるか",
+        "scene": "利用者が地域設定で神奈川県横須賀市を選ぶ。EEW の区域（細分区域）はコード表 sheet 24 で市区町村から引ける（p4-gis-assets-sources.md:51）。津波予報区は、気象庁の「津波予報区に対応する市町村対応表」（令和８年３月26日時点、PDF）が市町村の名前で引く（同:202〜:206）。横須賀市は「観音崎の北」が東京湾内湾、「観音崎の南・相模湾沿岸」が相模湾・三浦半島に分かれて載る。表は沿岸の市町村だけを載せ、栃木県の市町村は 1 つも無い。spec は「気象庁の対応表で市区町村から引く」と書いている（spec:3094）",
+        "A": "気象庁の対応表から「市区町村 7 桁 → 津波予報区」の表を作る（発注 2 の P4-GIS-AC11）。名前→7 桁は（都道府県名、市町村名）を鍵に 1 行ずつ手で照合した表を成果物に入れ、完全一致した 580 行も行として持つ。政令市（PDF は市の名前、コード表は区ごと）は 1 区 1 行で全部の区に当て、北九州市は PDF が名指しした区だけに当てる。2 つの予報区に分かれる市町村は両方の予報区を設定した地域にする。表に載らない市区町村（内陸と、北九州市の八幡東区・八幡西区）は津波の設定した地域を持たない",
+        "B": "地域設定で津波予報区を別に選ぶ（66 から選ぶ。内陸の人は選ばない。既定は選ばない）。spec:3094 を改訂する",
         "recommended": "A",
         "provisional": "A",
         "screenLoss": {
-          "A": "市区町村を選ぶだけで津波予報区が決まる手軽さ（もう 1 つ選ぶ）",
-          "B": "設定した沿岸の津波を「設定した地域」として目立たせる表示",
-          "C": "消えるものは無い。ただし気象庁が出していない対応を画面の判断に使い、海に面しない市区町村の扱いを自分で決めることになる"
+          "A": "分かれる市町村（名前で数えて 22）で、自分の側でない予報区も設定した地域として目立つ。政令市の内陸の区（例 静岡市葵区・横浜市青葉区）も、その市の予報区が設定した地域になる",
+          "B": "市区町村を選ぶだけで津波予報区が決まる手軽さ（もう 1 つ選ぶ）"
         },
         "status": "起草案",
-        "blocks": "R0（P4-SETTINGS-REGION-001）の起草と、spec:3094 の改訂。G0 の発注 1・2 は止めない",
-        "reason": "A は気象庁のコードだけで組め、推測の対応を作らない（p4-gis-assets-sources.md:22 の禁止）。C は形の重なりで、海岸線の扱いの誤りが利用者の画面の判断に直結する"
+        "blocks": "発注 2 の P4-GIS-AC11 だけ（A のとき作る）と R0 の起草。G0 の発注 1 とほかの発注 2 の AC は止めない",
+        "reason": "A は spec:3094 が指す気象庁の対応表そのままで、spec の改訂が要らない。照合は気象庁の表の名前を 1 行ずつ記録する形で、部分一致・先頭一致の自動の当てはめはしない（p4-gis-assets-sources.md:22 の禁止）。分かれる市町村と政令市の区は、表が市の単位でしか書いていないので、狭い側に寄せる根拠が無い",
+        "ruling": "未（作者は 2026-11-21 17:51 に推奨で裁定したが、A の細部〔政令市の内陸の区・北九州市の名指しの区だけ・北方領土の 6 村の除外〕は作者に見せていないので、統合担当の合図まで起草案）"
       },
       {
         "id": "P4-GIS-D-ATTRIBUTION",
@@ -109,105 +112,114 @@
           "A": "主画面で出典がいつも見えること",
           "B": "主画面の地図の隅の 1 行分の場所"
         },
-        "status": "起草案",
-        "blocks": "S0 と R0 の表示の条文（字は G0 の manifest の attribution から引く）。G0 の発注 1・2 は止めない",
-        "reason": "規約は出典を書く置き場を定めていない（p4-gis-assets-sources.md:72〜:79）。配布物と設定画面の記載で足りるかは Q-G0-ATTRIBUTION-PLACE で確かめる。主画面に解説の字を足さない（ペルソナの懸念に解説を足さない作者の方針）"
+        "status": "確定（作者裁定 2026-11-21 17:51）",
+        "blocks": "なし（裁定済み）",
+        "reason": "規約は出典を書く置き場を定めていない（p4-gis-assets-sources.md:72〜:79）。配布物と設定画面の記載で足りるかは Q-G0-ATTRIBUTION-PLACE で確かめる。主画面に解説の字を足さない（ペルソナの懸念に解説を足さない作者の方針）",
+        "ruling": "A（作者の原文「地図についてはすべて推奨でお願いします。」（2026-11-21 17:51））"
       },
       {
         "id": "P4-GIS-I-KNOWN-SOURCE",
         "kind": "統合担当",
-        "blocks": "発注 1（P4-GIS-AC01・AC02・AC05）",
+        "blocks": "なし（決め済み）",
         "question": "既知の区域（B0 が塗り・行を出す区域）の出どころをコード表にするか、GIS にするか",
         "A": "コード表（2026-10-19 版で細分区域 188・市区町村等 1,894・津波予報区 66）。GIS は形の出どころで、形の無い既知の区域は発注 2 で件数と対象を出す",
         "B": "GIS の地物（市区町村等 1,892）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "spec:1725 は区域名の表を元資料の code・name・所属で持つとし、電文のコードはコード表の体系。B にすると、コード表にある港区・江東区の行がカードから消え、既知でない区域に数えられる。A なら B0 の型の最大値（script の 1,894）は動かない"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "spec:1725 は区域名の表を元資料の code・name・所属で持つとし、電文のコードはコード表の体系。B にすると、コード表にある港区・江東区の行がカードから消え、既知でない区域に数えられる。A なら B0 の型の最大値（script の 1,894）は動かない。版を替えて件数が 1,894 でなくなったら、B0 の script（p4-display-wire-max.mjs の 1894 を書いた行）と型の最大値の試験の数え直しが要る（AC05 の P2）",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-CODE-VERSION",
         "kind": "統合担当",
-        "blocks": "発注 1（P4-GIS-AC02・AC05）",
+        "blocks": "なし（決め済み）",
         "question": "発注 1 の入力のコード表の版",
-        "A": "公開中の最新（2026-11-18 版、jmaxml_20261118_Code.zip）を点検で取り、2026-10-19 版との差を AC02 の件数と区域で manifest に書く",
-        "B": "手元の 2026-10-19 版",
+        "A": "地震火山関連コード表の公開中の最新の版 R8.10.19（2026-10-19、手元と同じ版）。点検で公開中の個別コード表の zip を取り、中の地震火山関連コード表の更新履歴の最後の行が R8.10.19 のままかと、xlsx の sha256 を確かめる",
+        "B": "個別コード表の zip の日付（2026-11-18）に合わせて、気象側の更新まで待つ・取り直す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "11-18 版は AreaInformationCity を更新している（p4-gis-assets-sources.md:164〜:166）。古い版で表を凍結すると、今の電文のコードが既知でない区域に落ちうる"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "手元の地震火山関連コード表の更新履歴 sheet の最後の行は R8.10.19（sheet 24・25・26 の更新）。2026-11-18 の更新は気象側の xlsx（AreaInformationCity-AreaForecastLocalM）で、発注 1 が読む sheet 24・31 には響かない（統合担当の起草レビュー）",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-TSUNAMI-GROUP",
         "kind": "統合担当",
-        "blocks": "発注 1（P4-GIS-AC01・AC02・AC03）",
+        "blocks": "なし（決め済み）",
         "question": "津波予報区のコード表の 98 のうち、結合表現・領域表現の 32 を既知の区域に入れるか",
         "A": "入れない。既知（塗る・行を出す）は備考が「津波予報区」で始まる 66（120 オホーツク海沿岸は「津波予報区（領域表現としても使用）」でこちらに入る）。32 は tsunamiAreaGroup に分け、構成する予報区のコードを備考から取る",
         "B": "98 を全部既知にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "corpus の VTSE の 32 のコードは Head の Headline の Information type=\"津波予報領域表現\" にだけ 17 回出て、Body には 0 回（起草の probe、2026-11-21）。B0 は Body から作った unit の view を読む。B にすると Headline を読まないのに既知の数だけが増える"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "corpus の VTSE の 32 のコードは Head の Headline の Information type=\"津波予報領域表現\" にだけ 17 回出て、Body には 0 回（起草の probe、2026-11-21）。B0 は Body から作った unit の view を読む。B にすると Headline を読まないのに既知の数だけが増える",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-XLSX-NODEP",
         "kind": "統合担当",
-        "blocks": "発注 1（P4-GIS-AC01・AC04）",
+        "blocks": "なし（決め済み）",
         "question": "発注 1 の xlsx の読み方",
         "A": "依存を足さずに読む（node:zlib の inflateRawSync で zip の中央目録から entry を取り、sharedStrings の rPh〔ふりがな〕を落とし、sheet の row と c を読む）。入力の xlsx は統合担当が repo に置く",
         "B": "統合担当が CSV か JSON に写した物を入力にする",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "起草の probe（60 行、node の組み込みだけ）で sheet 22・23・24・31 を読め、件数は 56・47・188／1,894・98 だった。A は元の xlsx の sha256 から出力まで再現でき、spec:1727 の元資料の hash と変換の版・引数をそのまま持てる。B は写しの手順が manifest の外に出る"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "起草の probe（60 行、node の組み込みだけ）で sheet 22・23・24・31 を読め、件数は 56・47・188／1,894・98 だった。A は元の xlsx の sha256 から出力まで再現でき、spec:1727 の元資料の hash と変換の版・引数をそのまま持てる。B は写しの手順が manifest の外に出る",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-DEP",
         "kind": "統合担当",
-        "blocks": "発注 2（P4-GIS-AC06）",
+        "blocks": "なし（決め済み）",
         "question": "発注 2 の shapefile の読みと間引きの道具",
         "A": "mapshaper を root の devDependencies に完全な版（^ を付けない）で 1 本足し、G0 の build の script だけが使う。生成物は hash 付きで commit し、実行時は依存なし",
         "B": "依存を足さず、shp・dbf の読みと間引きを自前で書く",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "計画は依存を足すのを G0 か S0 の 1 本に限り、mapshaper は G0 の build の時だけ使うとしている（計画:233・:720）。B は間引きと位相の保持を自前で持つことになり、LOD 2（境界がずれない）の確かめが重くなる。版は旧築の display/package.json の ^0.7.49 を借りず、発注 2 の起草で決める"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "計画は依存を足すのを G0 か S0 の 1 本に限り、mapshaper は G0 の build の時だけ使うとしている（計画:233・:720）。B は間引きと位相の保持を自前で持つことになり、LOD 2（境界がずれない）の確かめが重くなる。版は旧築の display/package.json の ^0.7.49 を借りず、発注 2 の起草で決める",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-PREF",
         "kind": "統合担当",
-        "blocks": "発注 2（P4-GIS-AC07）",
+        "blocks": "なし（決め済み）",
         "question": "47 県の輪郭の作り方",
         "A": "気象庁「地震情報／都道府県等」の GIS（2 桁、47）をそのまま使い、細分区域の dissolve をしない。spec:1703〜:1705・:1724 は統合担当が改訂する",
         "B": "spec のとおり、細分区域を県の対応表で dissolve する（対応表は別に要る）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "細分区域→県の静的な表は見つかっていない（p4-gis-assets-sources.md:189）。B は spec が禁じる名前からの推測を避けるために、まず表を作る仕事が要る。A は同じ気象庁の GIS の公式の県の形（同:30、同:193）"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "細分区域→県の静的な表は見つかっていない（p4-gis-assets-sources.md:189）。B は spec が禁じる名前からの推測を避けるために、まず表を作る仕事が要る。A は同じ気象庁の GIS の公式の県の形（同:30、同:193）",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-WEATHER-VERSION",
         "kind": "統合担当",
-        "blocks": "発注 2（P4-GIS-AC07）",
+        "blocks": "なし（決め済み）",
         "question": "気象警報の「市町村等（気象警報等）」の GIS 3 本（2024-10-25・2026-01-14・2026-02-26）のどれを使うか",
         "A": "発注 2 の点検で、corpus と Pi の受信記録の気象警報のコードと突き合わせて、未知の少ない 1 本を選ぶ。選んだ理由と未知の件数を manifest に書く",
         "B": "最新の 2026-02-26 版を突き合わせなしで使う",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "ページの注記は「予定」のままで、どれが今の電文に合うか未確認（p4-gis-assets-sources.md:41・:175）"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "ページの注記は「予定」のままで、どれが今の電文に合うか未確認（p4-gis-assets-sources.md:41・:175）",
+        "ruling": "A"
       },
       {
         "id": "P4-GIS-I-PROJECTION",
         "kind": "統合担当",
-        "blocks": "発注 2（P4-GIS-AC09）",
+        "blocks": "なし（決め済み）",
         "question": "緯度経度→画面の投影を G0 のどこに置くか",
         "A": "G0 は投影の値（方式・中心・縮尺・離島の inset と、その判定の control point）を manifest に固定する。値を当てる関数は M0 が自分の directory に 1 つ持つ（震央・火山・台風で共有、R49）",
         "B": "G0 が reconstruction/src/display/ の下に投影の関数を置く",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の決めの候補）",
-        "reason": "reconstruction/src/display/ の directory の名前は S0 が決め、カードと地図の契約は自分の部品の directory だけを持つ（計画 §3.2）。G0 は Wave 1 で S0 より前に配送する"
+        "status": "確定（統合担当の決め 2026-11-21 17:51）",
+        "reason": "reconstruction/src/display/ の directory の名前は S0 が決め、カードと地図の契約は自分の部品の directory だけを持つ（計画 §3.2）。G0 は Wave 1 で S0 より前に配送する",
+        "ruling": "A"
       }
     ],
     "questionResolutions": [
@@ -216,7 +228,21 @@
         "status": "closed",
         "source": "起草 r0（2026-11-21、worktree ~/dev/fleq-p4-g0、branch draft/p4-g0、HEAD ad640c6b）",
         "closed": "(1) 入手元・版・利用条件・期待コード数は p4-gis-assets-sources.md（~/dev/p4-g0-assets-r0.md の写し、引くために repo に置いた）から引いた (2) 発注 1 の件数と AC03 の一覧は、起草の probe（node の組み込みだけで xlsx を読む 60 行、repo に入れていない）で 2026-10-19 版の地震火山関連コード表を数えた値 (3) B0 が読む形: B0 の表 r5 §1.1 の既知コード（細分区域 188・津波予報区 66・市区町村 1,894）に合わせ、型を p4-gis-assets.types.ts に置いた。この木に B0 の契約は無いので dependsOnContractIds には書かない (4) 作者の分岐 6 つは画面の出る・出ないが変わるものだけ（火山の静的な位置と警戒範囲の形は 1 つの分岐 P4-GIS-D-VOLCANO-MAP にまとめた）。統合担当の決めの候補 8 つ（発注 1 を止めるのは 4 つ） (5) 洪水の電文の浸水想定地区の CityCode と、AC03 の拾い方は起草の probe で corpus を数えて確かめた",
-        "remaining": "作者の分岐 6 つと統合担当の候補 8 つの裁定、unresolvedQuestions の 8 つ"
+        "remaining": "作者の分岐 P4-GIS-D-VOLCANO-MAP と P4-GIS-D-TSUNAMI-REGION の統合担当の合図（ほかの 4 本と統合担当の候補 8 本は 2026-11-21 17:51 に確定）、unresolvedQuestions の 7 つ"
+      },
+      {
+        "id": "Q-GIS-VOLCANO-STATIC",
+        "status": "closed",
+        "source": "起草 r1（2026-11-21、統合担当の起草レビューの P2-5）",
+        "closed": "見つかった。気象庁の日本活火山総覧（第4版）Web掲載版の付録「活火山分布（KML形式）」に 111 火山の緯度経度がある（zip の sha256 と版は p4-gis-assets-sources.md の §6.2）。名前は 111 とも sheet 82 の Name と完全一致し、KML に無いのは火口ごとの 6 コードと 900〜902。P4-GIS-D-VOLCANO-MAP の A をこの位置を使う形に組み直し、r0 の A（電文の Coordinate だけ）は B に移した",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-GIS-TSUNAMI-TABLE",
+        "status": "closed",
+        "source": "起草 r1（統合担当の起草レビューの P1）",
+        "closed": "r0 の『市区町村→津波予報区の表は無い』は誤り。気象庁の対応表（令和８年３月26日時点の PDF）があり、spec:3094 の『気象庁の対応表』はこれ。PDF を取って数え直した（82 セル・675 行・sheet 24 の Name と完全一致 580 行、北方領土の 6 村は 7 桁が無い）。レビューの 641・583 とは数え方が違い、差の内訳は確かめていない。P4-GIS-D-TSUNAMI-REGION を組み直し、表は発注 2 の独立の AC（P4-GIS-AC11）にした",
+        "remaining": "なし"
       }
     ],
     "operationContract": {
@@ -251,8 +277,8 @@
       "reconstruction/tools/gis/build-known-codes.d.mts（【発注 1】新しい file。buildKnownCodes の型だけ。試験の .ts が .mjs を import する前例 reconstruction/test/eew-e01/adoption.d.mts に倣う）",
       "reconstruction/assets/gis/known-codes.v1.json（【発注 1】新しい file。生成物。手で直さない）",
       "reconstruction/assets/gis/manifest.json（【発注 1】新しい file。発注 2 は同じ file に行を足す）",
-      "reconstruction/test/gis/known-codes.test.ts（【発注 1】新しい file。P4-GIS-T01〜T03）",
-      "reconstruction/tools/gis/ の build の script 1 本（【発注 2・案、発注 2 の起草で確定】）、reconstruction/assets/gis/ の層ごとの生成物、reconstruction/assets/gis/manifest.json の行の追加、package.json と package-lock.json（P4-GIS-I-DEP=A の devDependencies の 1 行だけ）、reconstruction/test/gis/ の試験 1 file"
+      "reconstruction/test/gis/known-codes.test.ts（【発注 1】新しい file。P4-GIS-T01・T03）",
+      "reconstruction/tools/gis/ の build の script 1 本（【発注 2・案、発注 2 の起草で確定】）、reconstruction/assets/gis/ の層ごとの生成物、reconstruction/assets/gis/manifest.json の行の追加、package.json と package-lock.json（P4-GIS-I-DEP=A の devDependencies の 1 行だけ）、reconstruction/test/gis/ の試験 1 file。AC11 は reconstruction/assets/gis/source/ に PDF と転記と照合表、出力の表 1 本"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -321,7 +347,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-GIS-AC01",
-        "requirement": "【発注 1】既知コードの表を reconstruction/assets/gis/known-codes.v1.json に、形は reconstruction/contracts/p4-gis-assets.types.ts の KnownCodeTable で置く。(1) 欄と出どころ（地震火山関連コード表）: forecastLocalE＝sheet 24 の A〜B 列の 3 桁、city＝sheet 24 の D〜E 列の 7 桁と同じ行の A 列（所属の細分区域）、tsunamiArea と tsunamiAreaGroup＝sheet 31（AC02 (3) の分け方）。EEW の府県予報区（sheet 22、56）と都道府県（sheet 23、47）は B0 の表 §1.1 の既知コードに無く読み手がいないので入れない（区域名の表が要る契約が出たら発注 2 で同じ読み方で足す）。sheet は workbook.xml の sheet の name を trim して引く（「82 」のように末尾に空白の入る名前がある） (2) 名前は Name 列の字のまま。sharedStrings の rPh（ふりがな）は落とす（落とさないと「一覧イチラン」のように読みが付く）。&amp; などの実体参照は戻す (3) コードは字のまま持ち、数に直さない（先頭の 0 を落とさない。0123500 など） (4) 各配列はコードの昇順。同じ入力から毎回同じ byte（JSON.stringify(table) に改行 1 つ）。schemaVersion は 1 (5) 所属は出どころにあるものだけ: city→細分区域だけを持つ。細分区域→EEW の府県予報区と、市区町村・細分区域→県は欄を作らない（静的な表が無い、p4-gis-assets-sources.md:52・:189。発注 2 の Q-G0-PREF-MEMBERSHIP）。無いと壊れる振る舞い: B0 の区域の規則（既知だけ塗り・行を出し、既知でないものは件数と印）と型の最大値の試験が、既知の区域の集合を持てない",
+        "requirement": "【発注 1】既知コードの表を reconstruction/assets/gis/known-codes.v1.json に、形は reconstruction/contracts/p4-gis-assets.types.ts の KnownCodeTable で置く。(1) 欄と出どころ（地震火山関連コード表）: forecastLocalE＝sheet 24 の A〜B 列の 3 桁、city＝sheet 24 の D〜E 列の 7 桁と同じ行の A 列（所属の細分区域）、tsunamiArea と tsunamiAreaGroup＝sheet 31（AC02 (3) の分け方）。EEW の府県予報区（sheet 22、56）と都道府県（sheet 23、47）は B0 の表 §1.1 の既知コードに無く読み手がいないので入れない（区域名の表が要る契約が出たら発注 2 で同じ読み方で足す）。sheet は workbook.xml の sheet の name を trim して引く（「82 」のように末尾に空白の入る名前がある） (2) 名前は Name 列の字のまま。sharedStrings の rPh（ふりがな）は落とす（落とさないと「一覧イチラン」のように読みが付く）。&amp; などの実体参照は戻す (3) コードは字のまま持ち、数に直さない（先頭の 0 を落とさない。0123500 など）。値のある cell が 1 つも無い行（値の無い c の要素だけの行を含む）は飛ばし、値はあるのにコードの列が形に合わない行があれば止める（起草の probe では、飛ばす行が sheet 24 に 11・sheet 31 に 457、止める行は 0） (4) 各配列はコードの昇順。同じ入力から毎回同じ byte（JSON.stringify(table) に改行 1 つ）。schemaVersion は 1 (5) 所属は出どころにあるものだけ: city→細分区域だけを持つ。細分区域→EEW の府県予報区と、市区町村・細分区域→県は欄を作らない（静的な表が無い、p4-gis-assets-sources.md:52・:189。発注 2 の Q-G0-PREF-MEMBERSHIP）。無いと壊れる振る舞い: B0 の区域の規則（既知だけ塗り・行を出し、既知でないものは件数と印）と型の最大値の試験が、既知の区域の集合を持てない",
         "evidenceRefs": [
           "reconstruction/contracts/p4-order-plan.md:113 «69f66e7e7a5aa3d7»",
           "docs/specs/reconstruction-p0-contracts.md:1725 «7b6a82a6cd30afe3»",
@@ -344,7 +370,7 @@
       },
       {
         "id": "P4-GIS-AC03",
-        "requirement": "【発注 1】corpus 履歴。test/fixtures の file 名に VXSE・VTSE を含む xml の Body の中で、要素 City と Area の直下の Code のうち属性を持たず中身のあるもの（City は city、VXSE の Area は forecastLocalE、VTSE の Area は tsunamiArea と照合する）を拾う。拾わないもの: 属性の付いた Code（震源の Area の Code type=\"震央地名\" など 48 件）、空の Code（VTSE52 の沖合の区域など 5 件、コードの無い区域は B0 の表 §1.1 の名前の行）、Pref・Station の Code。この拾い方で表と照合し、表に無いものが次の一覧と一致すること（一覧の外が出たら試験が落ちる。一覧の中が消えても落ちる）。旧市町村（気象庁の 240613 版の例の電文が古いコードを持つ）: 32-35_01_03_240613_VXSE53 の 1936100・1936200・2213100・2213300・2213500・2213600・2213700・2236100・2250300・2348200・2360300、32-35_04_04_240613_VXSE53 の 4320100・4530100・4536200・4644300・4699900。手製と試験の区域: 77_01_30_260101_VXSE45_FINAL の 999、synthetic_VXSE53_station_values の 990・9900100、synthetic_phase4a_VXSE45_special の 990・991・992、synthetic_phase4a_VXSE51_special の 990・991、synthetic_phase4a_VXSE53_special の 990・9900100・9900200、synthetic_phase4a_VXSE62_special の 990・991・992（起草の probe、2026-10-19 版の表で数えた。版を替えて一覧が変われば、変わったコードを成果物に書き、増えた分は統合担当へ返す）。tsunamiAreaGroup の 32 のコードは Head の中にだけ出て、Body には 0 回であること（32-39_11_02_250206_VTSE41 の Headline など）。B0 はこの一覧のコードを既知でない区域に数える（spec §8.10 の LOD 7: 地図に出なかった情報を「対象なし」にしない）",
+        "requirement": "【発注 1】corpus 履歴。test/fixtures の file 名に VXSE・VTSE を含む xml の Body の中で、要素 City と Area の直下の Code のうち属性を持たず中身のあるもの（City は city、VXSE の Area は forecastLocalE、VTSE の Area は tsunamiArea と照合する）を拾う。対象は test/fixtures の下の directory まで含む全部。拾わないもの: 属性の付いた Code（48 件で、全部 Hypocenter の Area の Code type=\"震央地名\"。test/fixtures の直下で 41、selected_xml と telegram-foundation で 7）、空の Code（VTSE52 の沖合の区域など 5 件、コードの無い区域は B0 の表 §1.1 の名前の行）、Pref・Station の Code。この拾い方で表と照合し、表に無いものが次の一覧と一致すること（一覧の外が出たら試験が落ちる。一覧の中が消えても落ちる）。旧市町村（気象庁の 240613 版の例の電文が古いコードを持つ）: 32-35_01_03_240613_VXSE53 の 1936100・1936200・2213100・2213300・2213500・2213600・2213700・2236100・2250300・2348200・2360300、32-35_04_04_240613_VXSE53 の 4320100・4530100・4536200・4644300・4699900。手製と試験の区域: 77_01_30_260101_VXSE45_FINAL の 999、synthetic_VXSE53_station_values の 990・9900100、synthetic_phase4a_VXSE45_special の 990・991・992、synthetic_phase4a_VXSE51_special の 990・991、synthetic_phase4a_VXSE53_special の 990・9900100・9900200、synthetic_phase4a_VXSE62_special の 990・991・992（起草の probe、2026-10-19 版の表で数えた。版を替えて一覧が変われば、変わったコードを成果物に書き、増えた分は統合担当へ返す）。tsunamiAreaGroup の 32 のコードは Head の中にだけ出て、Body には 0 回であること（32-39_11_02_250206_VTSE41 の Headline など）。B0 はこの一覧のコードを既知でない区域に数える（spec §8.10 の LOD 7: 地図に出なかった情報を「対象なし」にしない）",
         "evidenceRefs": [
           "test/fixtures/32-39_11_02_250206_VTSE41.xml:23 «365d99a136d127be»",
           "test/fixtures/32-39_11_02_250206_VTSE41.xml:27 «544b169fc6c91a98»",
@@ -364,7 +390,7 @@
       },
       {
         "id": "P4-GIS-AC05",
-        "requirement": "【発注 1 の点検、統合担当が baseOid の割当の前に行う】P1（最初に確かめる）1,892 と 1,894: 旧築の lock の archive（20241128_AreaInformationCity_quake_GIS.zip）を取り、sha256 が lock の値と一致するのを確かめ、dbf の regioncode と name を読んで、1310300（港区）と 1310800（江東区）の地物があるか、港区・江東区の名前の地物がどのコードを持つかを書く。結果は manifest の geometryCheck に置き、発注 1 の表は変えない（P4-GIS-I-KNOWN-SOURCE=A。B0 の型の最大値は script の 1,894 のまま）。無ければ P4-GIS-D-CITY-GAP を作者へ出す。P2 版: 公開中の個別コード表の zip を取り、地震火山関連コード表の sheet 24・31 を 2026-10-19 版と同じ読み方で比べ、版を決めて（P4-GIS-I-CODE-VERSION）xlsx を reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx に置き、zip と xlsx の sha256 を控える。P3 spec の数の改訂: spec:1696・:1733 と D-AC13 の「1,892 区域」を、P1 の結果に合わせて「既知はコード表の N、形は M」の形に統合担当が直す（発注 1 の配送で当てる）",
+        "requirement": "【発注 1 の点検、統合担当が baseOid の割当の前に行う】P1（最初に確かめる）1,892 と 1,894: 旧築の lock の archive（20241128_AreaInformationCity_quake_GIS.zip）を取り、sha256 が lock の値と一致するのを確かめ、dbf の regioncode と name を読んで、1310300（港区）と 1310800（江東区）の地物があるか、港区・江東区の名前の地物がどのコードを持つかを書く。結果は manifest の geometryCheck に置き、発注 1 の表は変えない（P4-GIS-I-KNOWN-SOURCE=A。B0 の型の最大値は script の 1,894 のまま）。無ければ P4-GIS-D-CITY-GAP を作者へ出す。P2 版: 公開中の個別コード表の zip を取り、地震火山関連コード表の sheet 24・31 を 2026-10-19 版と同じ読み方で比べ、版を決めて（P4-GIS-I-CODE-VERSION）、件数が AC02 の 2026-10-19 版の値と違えば B0 の script（p4-display-wire-max.mjs の 1894 を書いた行）と型の最大値の試験の数え直しを B0 へ送ってから、xlsx を reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx に置き、zip と xlsx の sha256 を控える。P3 spec の数の改訂: spec:1696・:1733 と D-AC13（spec:1850）の「1,892 区域」を、P1 の結果に合わせて「既知はコード表の N、形は M」の形に統合担当が行の中だけで直す（行を足さない、発注 1 の配送で当てる）。この 3 行を evidenceRefs で引く契約は本契約だけ（:1696・:1733、起草で grep。:1850 は 0 件）なので、配送で本契約の «» を付け直す",
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-assets-sources.md:156 «02de6cd7264b2595»",
           "reconstruction/contracts/p4-gis-assets-sources.md:158 «322035c74224c9df»",
@@ -418,17 +444,29 @@
       },
       {
         "id": "P4-GIS-AC10",
-        "requirement": "【発注 2】手に入らない資材の扱いは作者の分岐の裁定に従う: 火山（P4-GIS-D-VOLCANO-MAP、B なら市町村等〔火山関係〕の層を足す）、河川の線と観測所（P4-GIS-D-RIVER-LINE）、洪水予報の区域（P4-GIS-D-FLOOD-AREA、A なら市町村等〔指定河川洪水予報〕の層を足す）、市区町村→津波予報区（P4-GIS-D-TSUNAMI-REGION、C のときだけ G0 が表を作る）。どの案でも、電文に無い警戒の半径を計算して描く・根拠なく県全域や市全域を塗る・名前やコードの先頭から対応を推測する形の資材は作らない。裁定の前に発注 2 の起草を閉じない",
+        "requirement": "【発注 2】手に入らない資材の扱いは作者の分岐の裁定に従う: 火山（P4-GIS-D-VOLCANO-MAP、C なら市町村等〔火山関係〕の層を足す）、河川の線と観測所（P4-GIS-D-RIVER-LINE）、洪水予報の区域（P4-GIS-D-FLOOD-AREA、A なら市町村等〔指定河川洪水予報〕の層を足す）、市区町村→津波予報区（P4-GIS-D-TSUNAMI-REGION、A なら P4-GIS-AC11）。火山の位置の表は、A・C なら KML の 111 の名前と sheet 82 の Name を 1 行ずつ照合した表（火口ごとの 6 コードは表に無いと書く）。どの案でも、電文に無い警戒の半径を計算して描く・根拠なく県全域や市全域を塗る・名前の部分一致やコードの先頭一致で自動に当てはめる形の資材は作らない（公的な表の名前を 1 行ずつ照合して記録するのは当てはめに当たらない）。裁定の前に発注 2 の起草を閉じない",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-gis-assets-sources.md:181 «2af654a7a8bfdb30»",
+          "reconstruction/contracts/p4-gis-assets-sources.md:213 «c15d13119fc793b7»",
+          "reconstruction/contracts/p4-gis-assets-sources.md:214 «24badf47484ad330»",
+          "reconstruction/contracts/p4-gis-assets-sources.md:215 «190940b805dddec8»",
           "reconstruction/contracts/p4-gis-assets-sources.md:182 «30b2ae3cb46356fd»",
           "reconstruction/contracts/p4-gis-assets-sources.md:183 «028f2cfd2526019f»",
           "reconstruction/contracts/p4-gis-assets-sources.md:185 «200f51d47f05c3e3»",
-          "reconstruction/contracts/p4-gis-assets-sources.md:187 «d92af60fb4d7a14c»",
           "docs/specs/reconstruction-p0-contracts.md:1722 «8a5776d2b41de8d7»",
           "docs/specs/reconstruction-p0-contracts.md:1723 «ebeb35db0caee183»",
           "test/fixtures/16_00_01_260603_VXKO70_kozagawa_l5.xml:118 «b110365c39bd7b9d»",
           "test/fixtures/16_00_01_260603_VXKO70_kozagawa_l5.xml:130 «92612ad0753602fd»"
+        ]
+      },
+      {
+        "id": "P4-GIS-AC11",
+        "requirement": "【発注 2、P4-GIS-D-TSUNAMI-REGION=A のときだけ。ほかの発注 2 の AC と依存の裁定を待たない】市区町村→津波予報区の表。入力: 気象庁の「津波予報区に対応する市町村対応表」の PDF（版と sha256 は p4-gis-assets-sources.md の §6.1、repo に置く）と、その転記（津波予報区・都道府県名・市町村名の行、PDF のとおりの字）。build に PDF の解析を入れない。照合表: （都道府県名、市町村名）を鍵に、7 桁のコード（sheet 24 の city）を 1 行ずつ持つ。完全一致した行も持つ。政令市は 1 区 1 行（区への展開を『市名で始まる区』の規則にしない）、北九州市は PDF が名指しした区だけ、2 つの予報区に分かれる市町村は両方の行。除外は理由つきの一覧（北方領土の 6 村: sheet 24 に 7 桁のコードが無い）。出力: 7 桁 → 津波予報区のコード（66 のうち 1〜2）の表を reconstruction/assets/gis/ に置き、manifest に AC04 と同じ欄を持つ。受入: 転記の全行が照合表の行か除外の一覧に当たり、一覧の外で照合できない行が 0。転記の津波予報区の名前は 66 と過不足なく一致。照合表の 7 桁は全部 city にある。起草の数え（82 セル・675 行・完全一致 580、§6.1）は参考で、転記で数え直した値を成果物に書く。市区町村→EEW の区域は発注 1 の city.forecastLocalE で、計画:113 の『市区町村→EEW の区域・津波予報区の表』はこの 2 つで揃う。無いと壊れる振る舞い: 地域設定（H50、spec:3094）が市区町村から津波予報区を引けない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-gis-assets-sources.md:202 «6924388a8a813250»",
+          "reconstruction/contracts/p4-gis-assets-sources.md:205 «60442b2eec265b8d»",
+          "reconstruction/contracts/p4-gis-assets-sources.md:206 «fdb6d8091bed8c86»",
+          "reconstruction/contracts/p4-order-plan.md:113 «69f66e7e7a5aa3d7»",
+          "docs/specs/reconstruction-p0-contracts.md:3094 «825ec0860a56166e»"
         ]
       }
     ],
@@ -438,17 +476,10 @@
         "purpose": "acceptance",
         "referenceIds": [
           "P4-GIS-AC01",
+          "P4-GIS-AC02",
           "P4-GIS-AC04"
         ],
-        "behavior": "【発注 1】受入条件。repo に置いた入力の xlsx の sha256 が manifest と一致し、buildKnownCodes(xlsx) の出力が reconstruction/assets/gis/known-codes.v1.json の byte と一致し、その sha256 が manifest と一致する。出力を KnownCodeTable として読み、名前にふりがなが付かず（例: city の 0123500 が「石狩市」）、先頭の 0 が残る"
-      },
-      {
-        "testId": "P4-GIS-T02",
-        "purpose": "acceptance",
-        "referenceIds": [
-          "P4-GIS-AC02"
-        ],
-        "behavior": "【発注 1】受入条件。表ごとの件数が manifest の expectedCodeCount と一致し、コードの形・重なり 0・city の所属が forecastLocalE の表にあること・forecastLocalE の全コードに city があること・tsunamiAreaGroup の members が全部 tsunamiArea にあること"
+        "behavior": "【発注 1】受入条件。repo に置いた入力の xlsx の sha256 が manifest と一致し、buildKnownCodes(xlsx) の出力が reconstruction/assets/gis/known-codes.v1.json の byte と一致し、その sha256 が manifest と一致する。出力を KnownCodeTable として読み、表ごとの件数が manifest の expectedCodeCount と一致し、名前にふりがなが付かず（例: city の 0123500 が「石狩市」）、先頭の 0 が残る。AC02 の (2)〜(4) の整合は生成の script の失敗で止める（試験で言い換えない）"
       },
       {
         "testId": "P4-GIS-T03",
@@ -493,7 +524,7 @@
         "cwd": ".",
         "target": "reconstruction/test/",
         "stage": "implementation",
-        "purpose": "全 reconstruction 試験（P4-GIS-T01〜T03 を含む）"
+        "purpose": "全 reconstruction 試験（P4-GIS-T01・T03 を含む）"
       },
       {
         "command": "node reconstruction/tools/corpus/check-manifest.mjs",
@@ -514,7 +545,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。発注 1 は契約の引く行を変えないので FAIL 0 のまま"
+        "purpose": "全契約。実装者の木では FAIL 0（発注 1 は契約の引く行を変えない）。統合担当が配送で AC05 の P3 の spec を直すと、本契約の spec:1696・:1733 の «» が FAIL するのが想定どおりで、配送で付け直す"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -528,7 +559,7 @@
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
       "最初の作業: 入力の xlsx が reconstruction/assets/gis/source/code-<版の日付>/earthquake-volcano-codes.xlsx にあり、sha256 が manifest の下書き（統合担当が点検 P2 で控えた値）と一致するかを確かめる。無いか違えば着手せず blocked で返す",
       "path の <版の日付> は、統合担当が点検 P2 で版を決めた後、baseOid の割当のときに実の日付（例 20261118）へ置き換える（readPaths・requiredCommands も同じ）",
-      "最小実装・最小テスト: 足す仕組みは生成の script 1 本とその型の .d.mts・生成物 1 本・manifest 1 本・試験 1 file。zip と xlsx の読みは script の中に閉じ、汎用の xlsx の部品・設定・CLI の選択肢を足さない。試験は P4-GIS-T01（acceptance、AC01・AC04）・T02（acceptance、AC02）・T03（corpusHistory、AC03）の 3 つだけ",
+      "最小実装・最小テスト: 足す仕組みは生成の script 1 本とその型の .d.mts・生成物 1 本・manifest 1 本・試験 1 file。zip と xlsx の読みは script の中に閉じ、汎用の xlsx の部品・設定・CLI の選択肢を足さない。試験は P4-GIS-T01（acceptance、AC01・AC02 の件数・AC04）と T03（corpusHistory、AC03）の 2 つだけ。AC02 の整合は生成の script が止める",
       "生成の script の失敗は理由つきで止める（sheet が無い・列の見出しが Code/Name でない・件数が manifest と違う・所属が 2 つ・備考が分けられない）。黙って行を飛ばさない",
       "報告に、表ごとの件数と、AC03 の一覧と照合した結果（一致か、違ったコード）を書く"
     ],
@@ -541,8 +572,7 @@
         ],
         "resolveBy": "発注 1 の発注前点検",
         "requiredEvidence": [
-          "発注 1 を止める統合担当の候補 4 つ（P4-GIS-I-KNOWN-SOURCE・I-CODE-VERSION・I-TSUNAMI-GROUP・I-XLSX-NODEP）の決め",
-          "起草案の作者の分岐（P4-GIS-D-* の 6 つ）が全部発注 2 の AC か他の契約だけを止めることの確認と、「baseOid の割当前に起草案 0 件」を発注ごとに読む決め"
+          "残る起草案は P4-GIS-D-VOLCANO-MAP と P4-GIS-D-TSUNAMI-REGION の 2 本で、止めるのは発注 2 の P4-GIS-AC10 の火山の行と P4-GIS-AC11 と R0 の起草だけ（統合担当の候補 8 本と作者の分岐 4 本は 2026-11-21 17:51 に確定）。「baseOid の割当前に起草案 0 件」を発注ごとに読むか、作者の出し直しを待つかの決め"
         ]
       },
       {
@@ -611,17 +641,6 @@
         "resolveBy": "発注 2 の起草",
         "requiredEvidence": [
           "気象庁の規約・公共データ利用規約・CC BY 4.0 に、出典を書く場所の定めがあるか。無ければ、配布物（README・manifest）と設定画面の記載で足りるとする根拠"
-        ]
-      },
-      {
-        "id": "Q-G0-VOLCANO-STATIC",
-        "owner": "integrator",
-        "blocks": [
-          "P4-GIS-AC10"
-        ],
-        "resolveBy": "P4-GIS-D-VOLCANO-MAP の作者裁定の前",
-        "requiredEvidence": [
-          "電文が来る前に火山の点を置ける公的な位置の表（気象庁の活火山のページなど）があるか。見つかれば P4-GIS-D-VOLCANO-MAP に案を足す"
         ]
       }
     ]
