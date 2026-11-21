@@ -1,0 +1,287 @@
+{
+  "meta": {
+    "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
+    "sha256": "86a05aeaae453c36dd4a323e4a1b283bda665b40f4f7078e50158b314628aa57",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
+    "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-ENI-D-FAMILY",
+        "kind": "統合担当",
+        "A": "VXSE43 と VXSE45 の両方で、Body/Intensity の無い非取消の報を受ける。VXSE43 の区域 0 件の拒否（eew.ts:192）は Intensity のある報にだけ掛ける",
+        "B": "VXSE45 だけで受ける。VXSE43 の Intensity の無い報は今どおり requiredStructureMissing（区域 0 件の拒否が掛かる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21 17:3x）",
+        "ruling": "A（H51 の洗い出し p3-persist-premises.md §13 の「予測は「不明」の印、VXSE43 は警報のまま」に倣う）",
+        "reason": "解説資料 Ⅱ.21-7 の Intensity が出ない条件は節の全種（警報・地震動予報・予報）に掛かり、family で分けていない。H51 の洗い出し（2026-10-21 統合担当、p3-persist-premises.md:509）は VXSE43 も警報のまま受けると書き、B0 の表 §5.2 と作者裁定 D-B0-NO-INTENSITY=A（2026-11-21 08:24）も family で分けない。警報の基準は予測震度なので、Intensity の無い VXSE43 は実際には来ないと見込むが、来たときに B は読めない報のカードと「緊急地震速報（読めない報）を受信」の通知（VXSE43 は critical、P3-UM-AC12）になり、震源・M・深さが出ない。A ではふつうの警報の報として受け、warningClass が warning のまま（eew.ts:448）で critical が鳴り、本文に震源と M が出る。A は既存の試験 P2-A4-T01 の 1 行（eew-unit.test.ts:485〜:486、VXSE43 から Intensity を消すと requiredStructureMissing）の期待を変えるので、AC04 でその行の書き換えを決める"
+      },
+      {
+        "id": "P4-ENI-D-BODY-FORECAST",
+        "kind": "統合担当",
+        "A": "非取消で Body/Intensity が無く、Body の直下に Forecast がある報（Intensity の要素だけが欠けた形）は requiredStructureInvalid で断る（:195〜:197 の行の中）",
+        "B": "Intensity の無い報として受け、Body 直下の Forecast は予測・reportAreas・通知のどれにも読まない（:426 の Body への回り道を Intensity が無いときに使わない）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-21 17:3x）",
+        "ruling": "A（存在する node の shape 不正は requiredStructureInvalid の今の規則に揃える）",
+        "reason": "解説資料の形に Body 直下の Forecast は無い。B はそこにある最大予測震度を黙って捨てる。H51 の洗い出し（p3-persist-premises.md §13）は、残りを読むのに推測が要るか警報級の値を黙って落としうる欠けを C（拒否のまま読めない報のカード）に分けている。A は今の「存在する node の shape 不正は requiredStructureInvalid」（p2-eew-unit.json の familyTable の invalid）とも揃い、:426 を触らずに済む（A なら受けた Intensity の無い報で :426 の forecast は必ず null）"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-ENI-DRAFT-FACTS",
+        "status": "closed",
+        "source": "2026-11-21 起草（main ad640c6b の木を読んだ。走らせていない）",
+        "closed": "(1) 断る所: 非取消で Intensity が 0 個だと eew.ts:191 で requiredStructureMissing、そこを通しても :195 の intensityNodes.length !== 1 で requiredStructureInvalid、:201 は maximumNodes[0] が無く intensity() の elements(undefined) で例外になる (2) 受けた後: :426 の forecast は Intensity が無いと Body 直下の Forecast を探す（合法の形では null）。:628〜:633 は prediction が非 null なら forecast! を読むので、forecast が null だと :632 で例外、Body 直下に Forecast があると添字がずれる (3) 通知: 最大予測震度の既定の字は :623 の「不明」で、ForecastInt を読まなければ本文は「最大予測震度不明」、maximumRank は −1。noticed の照合（:676）と第 1 報・警報の切替の判定は prediction を読まない。notifiedMaximumRank の −1 は codec が受ける（eew-unit.ts:84） (4) 保持: maximum の From・To が missing の報は既知根拠が無いので、P2-A4 の AC02 の規則（eew.ts:452）で直前の current の既知の予測を retainedPrediction に持つ。この規則は変えない (5) 読む側: 端末（format.ts:646）は最大予測震度の無い facts を「不明」、chrome-eew（pure.ts:60）は missing を「不明」と描く。From・To の missing と区域 0 件（synthetic_phase4a_VXSE45_regionless）はどちらも今も合法の形で、組で来るのが新しいだけ (6) 実例: test/fixtures の VXSE43・VXSE45 16 通で Intensity が無いのは取消の 2 通だけ（37_01_03・77_01_33）。解説資料と公式サンプル 33 通（P4 の解説資料の読み通し E-11）にも深発・観測点 1 点の全文の事例は無い。試験は手製の形にする (7) «»: eew.ts を «» で引く行は 135 本（最大 836 行）。直す行のうち :191 を p3-replay-watch-002.json:489 が引き、:190（直さない）と :630（直さない）を p3-eew-facts.json が引く。行を足すと :191 より後の 122 本がずれる。p2-eew-unit.json の :93〜:101 を引く契約は無い（:104・:107 は引かれる）。本契約の «» は直す行を引かない（eew.ts :185・:448・:452・:623・:676、試験 :484 ほか） (8) B0（P4-DISPLAY-WIRE-001、draft/p4-b0 の 520f9da7）は eew.ts を :836 より後の読む関数・:463 の行の末尾・:489〜:495 の行の中だけで触り、:836 までの行の番号を変えない。B0 の detectOnly は Intensity があることを条件にするので、本契約の報では偽",
+        "remaining": "B0 の配送後に、baseOid の木で eew.ts の行の番号と «» の数を数え直す（統合担当）"
+      },
+      {
+        "id": "Q-ENI-NOTICE-TEXT",
+        "status": "closed",
+        "source": "2026-11-21 起草",
+        "closed": "Intensity の無い報の通知の本文は、今の既定の字の「<震源名> / <M> / 最大予測震度不明」になる（eew.ts:623・:677〜:679）。ForecastInt の From・To が「不明」の報と同じ字で、新しい字は足さない。作者裁定 D-B0-NO-INTENSITY=A は「音はほかの EEW と同じ判定」で、本文の字は決めていない。字を変えるなら N0（通知の字）か E0 の板で扱い、本契約では変えない",
+        "remaining": "なし"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。Intensity の無い報も、訓練・試験は今どおり subject（運用区分を含む）ごとに受け、通知の区分の規則も今のまま"
+    }
+  },
+  "contract": {
+    "contractId": "P4-EEW-NO-INTENSITY-001",
+    "mode": "implementation",
+    "objective": "台帳 98 の直し。深さ 150km より深い地震と観測点 1 点の震度予測の緊急地震速報は Body/Intensity を持たない（解説資料 Ⅱ.21-7（imozuru の sources/manual/地震火山関連_解説資料.txt:4175〜:4180「2．Intensity【震度・長周期地震動階級】（0 回/1 回）…以下の場合本要素は出現しない。○震源の深さが 150ｋm より深く推定された場合。（PLUM 法による 2 点以上での震度予測がある場合を除く。）○観測点 1 点による震度予測の場合。」））。今の新築はこの報を requiredStructureMissing で丸ごと断るので、読めない報のカードと「緊急地震速報（読めない報）を受信」の通知になり、読める震源・M・深さが出ない。H51（受けて読めた中身を残す）に従って受け、予測は最大予測震度の From・To とも missing・区域 0 件にする。通知はほかの EEW と同じ判定で鳴る（作者裁定 D-B0-NO-INTENSITY=A、2026-11-21 08:24）",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-eew-no-intensity.json",
+      "reconstruction/contracts/p2-eew-unit.json",
+      "reconstruction/contracts/p2-eew-unit.types.ts",
+      "reconstruction/contracts/p3-eew-facts.types.ts",
+      "reconstruction/contracts/p3-persist-premises.md",
+      "reconstruction/contracts/p4-display-wire.json",
+      "reconstruction/src/domains/eew/eew.ts",
+      "reconstruction/src/units/eew/eew-unit.ts",
+      "reconstruction/src/terminal/format.ts",
+      "reconstruction/src/display/chrome-eew/pure.ts",
+      "reconstruction/test/eew-unit/**",
+      "test/fixtures/77_01_01_240613_VXSE45.xml",
+      "test/fixtures/77_01_03_240613_VXSE45.xml",
+      "test/fixtures/37_01_01_240613_VXSE43.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/src/domains/eew/eew.ts（:191〜:197・:201・:628〜:633 の行の中だけ。:426 は P4-ENI-D-BODY-FORECAST=B のときだけ。行を足さず消さない。:190・:630 は p3-eew-facts が «» で引くので中身を変えない）",
+      "reconstruction/test/eew-unit/eew-unit.test.ts（AC04 の :485〜:486 の行の中の書き換えと、file の最後の it の後に P4-ENI-T01〜T03 を足す。:1488 より前に行を足さない）",
+      "統合担当だけ（配送の commit）: p2-eew-unit.json の :94・:100 の行の中（AC05 (2)）と meta.sha256、p3-replay-watch-002.json:489 の «» の付け直しと meta.sha256、p3-persist-premises.md §13 への解消の注記。実装担当は触らない"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-eew-no-intensity.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M01"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P2-EEW-UNIT-001",
+      "P3-NOTICE-LEDGER-001",
+      "P3-EEW-FACTS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewPrediction",
+      "reconstruction/contracts/p2-eew-unit.types.ts#EewCurrent"
+    ],
+    "publicFunctions": [
+      "口は変えない（reduceEewUnit のまま）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__77_01_01_240613_VXSE45",
+      "test__fixtures__77_01_03_240613_VXSE45",
+      "test__fixtures__37_01_01_240613_VXSE43"
+    ],
+    "sequenceIds": [
+      "O07"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [
+      "なし（current と retainedPrediction は保存しない。notices の notifiedMaximumRank の −1 は今も codec が受ける値）"
+    ],
+    "nonPersistedFields": [
+      "なし"
+    ],
+    "outOfScope": [
+      "カードと札の描き方（E0。作者裁定 D-B0-NO-INTENSITY=A の「最大予測震度の札は値を出さない形」の字は E0 の板）。retainedPrediction に残る前の報の予測を札がどう扱うかも E0",
+      "最大予測震度のみの報（「非常に強い揺れを検知・最大予測震度のみ」。OriginTime と Pref が無く Intensity と全体の ForecastInt は残り、Text に観測点の所在地）。今も断られず、見分けと場所の文は B0 の detectOnly（B0 の表 §5.4）。本契約の対象は Intensity が 1 つも無い報だけ",
+      "wire と view の型（B0 の表 §5.2「view の型は変えない」）、EewCurrent に B0 が足す欄の読み",
+      "通知の字（Q-ENI-NOTICE-TEXT。今の既定の「最大予測震度不明」のまま。変えるなら N0 か E0）",
+      "端末の整形（format.ts）と chrome-eew。今の読みが missing を「不明」と描くことを起草で読んだだけで、変えない",
+      "非取消の Body/Text を読むこと（E-05、B0 の場所の文）",
+      "リアルタイム震度電文（Intensity/Observation、新築は受けない）",
+      "U-E の state・保存の形式・codec・schemaVersion",
+      "旧築（src/）と test/fixtures（fixture の file を足さない）",
+      "spec 本体の編集"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-ENI-AC01",
+        "requirement": "受ける（台帳 98、H51、P4-ENI-D-FAMILY=A）: (1) VXSE43・VXSE45 の非取消で Body/Intensity が 1 つも無い報は requiredStructureMissing でも requiredStructureInvalid でも断らず、今の検査（封筒・identity・Body）を通れば受ける (2) prediction は maximum が { from: missing, to: missing, condition: null, description: null }、areaCoverage が none、areas が 0 件で、warningAreas は 0 件 (3) 受けるかは Intensity が無いことだけで決め、深さ・観測点の数・PLUM・Magnitude を読まない（観測点 1 点の報は深さが浅いことがある） (4) terminal でない報は current を作り、reportAreas は 0 件、warningClass は今の規則（eew.ts:448。VXSE43 と Headline の Kind 31 は warning）、isAssumedHypocenter は今の読み (5) outcome の facts.report（震源名・LandOrSea・OriginTime・ArrivalTime・座標・M・精度・NextAdvisory・WarningComment）は Intensity のある報と同じに読み、Intensity の中から来る欄（maxLgInt・maxIntChangeReasonRaw・areas）は null か 0 件 (6) 例外を投げない（:201 の maximumNodes[0]、:632〜:633 の forecast!）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:185 «c96e5efe00dff141»",
+          "reconstruction/src/domains/eew/eew.ts:448 «afaafcde30eca908»",
+          "reconstruction/contracts/p3-persist-premises.md:509 «90cf15a383442843»",
+          "reconstruction/contracts/p3-eew-facts.types.ts"
+        ]
+      },
+      {
+        "id": "P4-ENI-AC02",
+        "requirement": "断るものは今のまま: (1) Intensity があって Forecast か全体の ForecastInt が無い報は requiredStructureMissing（解説資料の Forecast は 0/1 回だが、EEW で出ないのはリアルタイム震度電文だけ） (2) Intensity・Forecast・全体の ForecastInt の 2 個以上、Area の無い Pref、Area の ForecastInt の 0 個・2 個以上は今の reason のまま (3) VXSE43 で Intensity があり区域 0 件は requiredStructureMissing のまま (4) identity の検査が先（Serial 0 で Intensity の無い報は identityInvalid、eew-unit.test.ts:484） (5) 取消の扱いは変えない (6) P4-ENI-D-BODY-FORECAST=A なら、非取消で Intensity が無く Body 直下に Forecast がある報は requiredStructureInvalid（B なら AC01 の形で受け、その Forecast を読まない）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:185 «c96e5efe00dff141»",
+          "reconstruction/test/eew-unit/eew-unit.test.ts:484 «888eed43bd32027f»",
+          "reconstruction/contracts/p2-eew-unit.json"
+        ]
+      },
+      {
+        "id": "P4-ENI-AC03",
+        "requirement": "通知はほかの EEW と同じ判定（作者裁定 D-B0-NO-INTENSITY=A）: (1) その EventID の第 1 報が Intensity の無い報なら、今の規則どおり desktop と sound の intent を作る。level は VXSE45 で warning、VXSE43（warning）で critical、title は今のまま (2) 本文の最大予測震度は ForecastInt を読まず、今の既定の「最大予測震度不明」（eew.ts:623、Q-ENI-NOTICE-TEXT） (3) 同じ報の受け直しでは作らない（P3-NL-AC04 (4)）。通知した第 1 報の後に Intensity の無い続報が来ても、訂正・最終報・警報への切替でなければ作らない (4) この報は危険の増加（hazardIncrease）を起こさず、notifiedMaximumRank を下げない（maximumRank は −1）。今の規則の帰結として、Intensity の無い VXSE43 を通知した後に最大予測震度の数値のある警報の続報が来ると、rank が −1 より上がるので「続報: 」で鳴る（eew.ts:671〜:672 の規則のまま） (5) 直前の current に既知の予測があれば retainedPrediction にその予測と source を持つ（P2-A4 の AC02 の規則、eew.ts:452。規則は変えない）",
+        "evidenceRefs": [
+          "reconstruction/src/domains/eew/eew.ts:623 «fc3e8a7366e9202e»",
+          "reconstruction/src/domains/eew/eew.ts:676 «a4f91827021c45b4»",
+          "reconstruction/src/domains/eew/eew.ts:452 «ac6aca51fa59b117»",
+          "reconstruction/src/units/eew/eew-unit.ts:84 «3f989ae20018410e»"
+        ]
+      },
+      {
+        "id": "P4-ENI-AC04",
+        "requirement": "既存の試験の期待の書き換え（P4-ENI-D-FAMILY=A の帰結、AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: P2-A4-T01 の cases の 1 行（eew-unit.test.ts:485〜:486、37_01_01 の VXSE43 から Intensity を消して requiredStructureMissing）は、本契約で受けるようになるので、同じ 2 行の中で「Intensity の中の Forecast を消す」形に書き換え、期待は requiredStructureMissing のまま（AC02 (1) の境界になる）。この行のほかに既存の試験の期待を変える要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+        "evidenceRefs": [
+          "reconstruction/test/eew-unit/eew-unit.test.ts:484 «888eed43bd32027f»"
+        ]
+      },
+      {
+        "id": "P4-ENI-AC05",
+        "requirement": "変えないものと統合担当の改訂: (1) EewPrediction・EewCurrent・view・wire の型、U-E の保存の形式・codec・schemaVersion（p2-eew-unit-v5）を変えない。変える要が出たら止めて報告する (2) 統合担当が配送の commit で p2-eew-unit.json の familyTable の required（:94 の VXSE43、:100 の VXSE45）を行の中で改める。字は「非取消で Body/Intensity があれば Intensity/Forecast/全体ForecastInt（VXSE43 は加えて少なくとも一つの Pref/Area/ForecastInt）。Body/Intensity の無い非取消の報（解説資料 Ⅱ.21-7）は受け、prediction は maximum の From・To とも missing・区域 0 件（P4-EEW-NO-INTENSITY-001）。全入力で非空EventIDと正整数Serial」の趣旨 (3) eew.ts の行の数を変えない（B0 の配送後の行数のまま）。中身の変わる行のうち «» で引かれるのは :191（p3-replay-watch-002.json:489、RW2-AC08。generator が EEW の maxInt を必須にする決まりは本契約で変えない）だけで、統合担当が付け直す",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-eew-unit.json",
+          "reconstruction/contracts/p3-replay-watch-002.json"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-ENI-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-ENI-AC01"
+        ],
+        "behavior": "受入条件。手製の形: 77_01_01 の VXSE45 と 37_01_01 の VXSE43 から <Intensity>…</Intensity> の要素を丸ごと消す（消すのは解説資料 Ⅱ.21-7 が「出現しない」とする Intensity だけで、深さや他の要素は変えない。試験のコメントに台帳 98・解説資料 Ⅱ.21-7・P4-ENI-AC01 を書く）。どちらも decision changed、current の prediction が { maximum の from・to が missing、condition・description が null、areaCoverage none、areas 0 件 }、reportAreas 0 件。VXSE43 は warningClass warning。outcome の facts.report の hypocenter・coordinate・magnitude・originTimeRaw が元の fixture を受けたときと同じ"
+      },
+      {
+        "testId": "P4-ENI-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-ENI-AC03"
+        ],
+        "behavior": "受入条件。(a) T01 の形の VXSE45 を空の state に受けると intent は desktop と sound の 2 件、level warning、本文に「最大予測震度不明」。同じ材料をもう一度受けると intent 0 件 (b) T01 の形の VXSE43 を空の state に受けると level critical の 2 件 (c) 元の 77_01_01 を受けた後に 77_01_03 から Intensity を消した報を受けると intent 0 件、current の retainedPrediction が 77_01_01 の prediction と source"
+      },
+      {
+        "testId": "P4-ENI-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P4-ENI-AC01",
+          "P4-ENI-AC02"
+        ],
+        "behavior": "契約境界。(a) 77_01_01 の Intensity の開き・閉じの tag だけを消して Forecast を Body 直下に残すと、P4-ENI-D-BODY-FORECAST=A なら requiredStructureInvalid で state は同じ参照（B なら decision changed、prediction は T01 と同じ、reportAreas 0 件）、どちらも例外なし (b) 77_01_01 で Intensity の中の ForecastInt（全体のもの）を消すと requiredStructureMissing、state は同じ参照。Forecast を消す形は AC04 で書き換えた P2-A4-T01 の行が見る"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O07 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。eew.ts の行の中身を変えた後、:191 を引く p3-replay-watch-002 だけが落ち、本契約を含むほかの «» が全部通ること（:191 は統合担当が付け直す）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: 分岐の ruling を読む。P4-ENI-D-FAMILY・P4-ENI-D-BODY-FORECAST に「未」が残っていたら着手せず blocked で返す",
+      "順序: eew.ts を触る順は B0（P4-DISPLAY-WIRE-001）→ 本契約 → E0 発注 1（B0 の表 §9）。B0 の契約は起草の時点で main に無いので dependsOnContractIds に入れていない。統合担当は B0 の配送後に dependsOnContractIds へ P4-DISPLAY-WIRE-001 を足し、baseOid をその後の commit に割り当て、eew.ts の直す行の番号と «» の数（Q-ENI-DRAFT-FACTS (7)）を数え直す",
+      "最小実装・最小テスト: 足す仕組みは無い（判定の条件を行の中で直すだけ）。新しい helper・型・fixture の file を足さない。手製の形は試験の中で既存の fixture の文字列から作る。追加した試験ごとに対応（受入条件・契約境界）を 1 行で書く",
+      "行の数: eew.ts の直した後の wc -l を書き、B0 の配送後の行数と同じであること。足すコメントは「なぜ」と根拠の ID（台帳 98・P4-ENI-AC01）だけを日本語で、行番号を書かない",
+      "既存の試験の期待は AC04 の 1 行のほかに変えない。変える要が出たら止めて報告する",
+      "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
+      "残存として成果物に書く: 実の深発・観測点 1 点の電文は手元に無く、試験は手製の形だけで見ている（Intensity の他にどの要素が欠けるかは解説資料に書かれていない）"
+    ],
+    "unresolvedQuestions": []
+  }
+}
