@@ -189,7 +189,7 @@ P3 計画は「P4 は描画だけを受け取る」と書いた（p3plan:484）�
 ```text
 Wave 0（起草だけ）: B1 の容量の設計の最初の 1 手（受理・保持・復元の上限から保護 3 分野の最大を出す）、表示設計 spec（作者と板）、B0、G0（資材の入手と利用条件）、解説資料の読み通し、N0・W0・X0 の起草、§5.1 の D-SCREEN・D-REMOTE・D-R58・D-WALK-SCREEN・D-EEW-MANY の裁定
 Wave 1: G0 発注 1（既知コードの表）→ B0 実装 ∥ G0 発注 2（形。発注 1 の後）∥ W0（配送済み、main ad640c6b）
-Wave 2: B1 実装（B0 の後）∥ S0（B0・裁定・表示設計 spec の後）∥ S1 の起草 ∥ P4-DISPLAY-VOCAB-001（9 分野の語彙、B0 の後・Wave 3 の前）→ P4-REMOVAL-LOSS-001（H17・H39、12 unit の reducer、r0 は起草済みで作者の分岐 5 の裁定待ち）∥ P4-EEW-NO-INTENSITY-001（済み）
+Wave 2: B1 実装（B0・P4-DISPLAY-VOCAB-001・P4-REMOVAL-LOSS-001 の後、`display-wire.ts` と `http-sse.ts` の直列）∥ S0（B0・裁定・表示設計 spec の後）∥ S1 の起草 ∥ P4-DISPLAY-VOCAB-001（9 分野の語彙、B0 の後・Wave 3 の前）→ P4-REMOVAL-LOSS-001（H17・H39、12 unit の reducer、r0 は起草済みで作者の分岐 5 の裁定待ち）∥ P4-EEW-NO-INTENSITY-001（済み）
 Wave 3: M0 発注 1（S0・G0 発注 2）∥ E0 発注 1（S0・P4-EEW-NO-INTENSITY-001）∥ C0 発注 1（S0）∥ C2（S0・B0）
 Wave 4: PI 発注 1（S0・M0 発注 1・E0 発注 1。段 1 は B0 の二重の射影の下で走るので、公開の費用に依る値は段 1 で決めない、B0 の表 §3.2）→ S1 実装（N15 と受信演出の camera の規則の後）∥ N0（E0 発注 1 の後。U-Q・U-T の file を B0・E0 発注 1 の後に触る）→ R0（G0・C0 発注 1・E0 発注 1・N0。CLI の file を N0 の後に触る）
 Wave 5: M0 発注 2（S1・PI 発注 1）∥ E0 発注 2（M0 発注 1・S1。新しい画面を別の path に出し、EEW の runner を向ける）∥ C0 発注 2（S1・M0 発注 1）∥ C1（C0 の後、分野ごとに並べる）∥ X0 の場面の行を取る仕組み
@@ -220,14 +220,14 @@ Wave 7: PI 発注 2（T0・S1・M0 発注 2・C0・C2・R0）→ PM 発注 1（�
 
 | 衝突源 | 所有と編集順 | 並走時の規則 |
 |---|---|---|
-| `reconstruction/contracts/p2-snapshot-sse.types.ts`・`reconstruction/src/view-projector/view-projector.ts` と、B0 の新しい file（`p4-display-wire.types.ts`・`display-wire.ts`）、`composition-root.ts:2438` の詳細の union・`owner-runtime.ts` の `detailOwner`・`p2-snapshot-sse.json` の P2-A8-COST | B0（新しい file）→ B1 → E0 発注 1（`display-wire.ts` の札の字と選ぶ規則だけ）→ C2（notices の描画だけ。値は P4-REMOVAL-LOSS-001）→ T0（旧の経路と旧の出力の撤去・版上げ） | 直列。B1 は要約の規則（`view-projector.ts:904`〜`:906`）と公開頻度だけ。B0 → P4-DISPLAY-VOCAB-001 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1 の順で Wave 3 の前にこの直列へ入る。詳細の union と `detailOwner` は B0 が全部作り、P2-A8-COST の移行中の例外は B0 が入れて T0 が消す（B0 の表 §9） |
+| `reconstruction/contracts/p2-snapshot-sse.types.ts`・`reconstruction/src/view-projector/view-projector.ts` と、B0 の新しい file（`p4-display-wire.types.ts`・`display-wire.ts`）、`composition-root.ts:2438` の詳細の union・`owner-runtime.ts` の `detailOwner`・`p2-snapshot-sse.json` の P2-A8-COST | B0（新しい file）→ P4-DISPLAY-VOCAB-001 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1（`display-wire.ts` の札の字と選ぶ規則だけ）→ C2（notices の描画だけ。値は P4-REMOVAL-LOSS-001）→ T0（旧の経路と旧の出力の撤去・版上げ） | 直列。B1 は要約の規則（`view-projector.ts:904`〜`:906`）と公開頻度だけ。B0 → P4-DISPLAY-VOCAB-001 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1 の順で Wave 3 の前にこの直列へ入る。詳細の union と `detailOwner` は B0 が全部作り、P2-A8-COST の移行中の例外は B0 が入れて T0 が消す（B0 の表 §9） |
 | 各 unit の view 型（`p2-eew-unit.types.ts`・`p3-seismic-unit.types.ts`・`p3-tsunami-unit.types.ts` ほか）と `reconstruction/src/domains/eew/eew.ts`・`p2-eew-unit.json` | B0（§2.3 の欄だけ）→ P4-EEW-NO-INTENSITY-001（`eew.ts`・`p2-eew-unit.types.ts`・`p2-eew-unit.json` の台帳 98 の分）→ P4-REMOVAL-LOSS-001（12 unit の reducer）→ E0 発注 1（寿命の分だけ） | 直列 |
 | `reconstruction/src/units/seismic/seismic-unit.ts`（今日の地震の行と通知の M、:472・:507）と `p3-seismic-unit.json`・対応の試験 | B0（値取り）→ P4-REMOVAL-LOSS-001 → E0 発注 1（EventID の突き合わせ）→ N0（通知の字） | 直列。§3.1 の Wave と §7 も同じ順で数える |
 | `reconstruction/src/units/tsunami/tsunami-unit.ts`（通知と view、:149・:947）と `p3-tsunami-unit.json`・対応の試験 | B0（期限で閉じた値）→ P4-REMOVAL-LOSS-001 → N0（通知の区域の並び）→ T0（有効期限） | 直列 |
 | `reconstruction/src/display/`（新しい描画の directory、名前は S0 で固定） | S0 が骨組みを作り、各カードの契約は自分の部品の directory だけを持つ | 共有の配置の宣言値と色 token の file は S0 の所有。カードの契約は 1 行の登録だけを足し、統合担当が直列に合流する |
 | GIS 資材の生成物（G0）と、それを読む B0・地図の描画（M0）・R0 | G0 発注 1（既知コードの表 `reconstruction/assets/gis/known-codes.v1.json`）→ B0、G0 発注 2（形）→ M0 | 資材の生成物は hash 付きで commit し、B0・M0・R0 は読むだけ |
 | `reconstruction/src/display/chrome-eew/` と `reconstruction/test/eew-e01/**`、`reconstruction/src/host/host.ts` の画面の入口 | E0 発注 2（新しい画面の別の path と EEW の runner）→ T0（`/` の切替と津波の runner）→ PM → FG（旧の資材・設定・anchor の削除） | 2 つの画面（chrome-eew と新しい画面）を別の path で配る最小の経路は B0 が `http-sse.ts` に作り、E0 発注 2 は host の指定と runner だけを替える。C4・C6 の版付きの結果（evidence）は書き換えない |
-| `reconstruction/src/http-sse/http-sse.ts`（詳細の API・設定の変更・接続元） | B0（分野ごとの詳細の API は §4.1 の表のとおり B0 が全部作る）→ B1（遅い客の切断）→ R0（設定の変更。127.0.0.1 からだけ受け、合言葉は作らない、D-REMOTE=B）→ T0（旧の経路の撤去、B0 の表 §3.2） | 直列。C1 はこの file を触らず、B0 の詳細の API を読むだけ |
+| `reconstruction/src/http-sse/http-sse.ts`（詳細の API・設定の変更・接続元） | B0（分野ごとの詳細の API は §4.1 の表のとおり B0 が全部作る）→ P4-DISPLAY-VOCAB-001（9 分野の詳細の part と部分の原文の part=unreadable）→ B1（遅い客の切断）→ R0（設定の変更。127.0.0.1 からだけ受け、合言葉は作らない、D-REMOTE=B）→ T0（旧の経路の撤去、B0 の表 §3.2） | 直列。C1 はこの file を触らず、B0 の詳細の API を読むだけ |
 | `reconstruction/src/cli/`（設定）・notification-gate | N0 → R0 | 直列 |
 | `sequences.json` と派生 fixture、spec、表示設計 spec | 統合担当 | 契約のレーンは期待値を変えない。spec の改訂は §4.6 |
 | 依存（package.json・lockfile） | 足すときは S0 か G0 の 1 本だけ（§5.3 の即断候補 A） | 版を固定する。`@latest` にしない |
