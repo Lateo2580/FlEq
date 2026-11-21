@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "920f26bab77375fa12c737cbeda17920db090a42a61ddbd6a95e9e202c8d8644",
+    "sha256": "bd21ef99d91c87e010de50a7101430aefe75f9104e00dbd3f0dd19a6f203935a",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -90,6 +90,13 @@
         "source": "r1 のレビュー（~/dev/p4-x0-review-r0.md、003 条件付き GO・P1 0・P2 2・P3 5）と起草 r2",
         "closed": "(1) X3-1: P4-PWT-T05 の 1 つ目の期待を評価者の fullScreen から読む形に替え、外すのは演じ手の画面の 3 欄の期待だけにした（AC01 (4)・AC03 (2)） (2) X3-2: AC02 (6) に起こす前の確かめ（ページ分けと地図の行）、Q-PWT3-ROWS-FN に M0・E0 発注 2・C0 発注 2 の行と地図も関数を通る証拠を足した (3) P3: :630 から（X3-P3a）、合流の順の字（X3-P3c）、D-PAGE に裁定の原文（X3-P3d）、capture と actorFile の字の違いの 1 行（X3-P3e）。X3-P3b（計画 :146 の改訂）は統合担当がまとめて行うので本契約に入れない (4) 002 の直さない訳を評価者に渡す行を AC02 (6) に足した（002 の AC02 (1)・AC03 (2) の訳と対）",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-PWT3-B0-TOOLS",
+        "status": "closed",
+        "source": "B0（P4-DISPLAY-WIRE-001）の配送（main 5e013012）と統合担当の確かめ（2026-11-21 23:3x）",
+        "closed": "B0 は旧の /events と DisplaySnapshot の full.view を今のまま T0 まで残す形で配送した（I-B0-LEGACY=A、B0 の AC01）。reconstruction/contracts/p2-snapshot-sse.types.ts と reconstruction/src/view-projector/view-projector.ts は 093dc8b9 から main 37fbd7f3 まで変わっていない（git diff --stat が空）。新しい経路は別の型（p4-display-wire.types.ts）で、P4-DISPLAY-VOCAB-001 も新しい経路だけを変える。よって runner.ts（screenOf・factsOf・capture）と persona-scenes.test.ts（p2-snapshot-sse.types を import）の型の追従は B0 にも P4-DISPLAY-VOCAB-001 にも要らない。旧の full.view を消す T0 が、その配送で道具の読み先の追従を持つ（計画 §3.2 の chrome-eew と host.ts の画面の入口の行の T0、E0 発注 2 で新しい画面を別の path に出す）",
+        "remaining": "T0 の起草で、runner.ts と persona-scenes.test.ts の読み先を新しい経路へ移すことを allowedPaths と AC に入れる"
       }
     ],
     "operationContract": {
@@ -325,18 +332,6 @@
           "E0 発注 1・C0 発注 1 のカードの行が、その関数を通って返る",
           "M0・E0 発注 2・C0 発注 2 が埋める行（ページ送り）と地図の塗りと印も、同じ関数を通って返る（発注 4 の起こす前の確かめ、AC02 (6)）",
           "無ければ: 発注 3 は依存（jsdom など）を足すか headless Chrome の DOM を読む形になり、src を変えない条件のまま組めるかを本契約で作り直す"
-        ]
-      },
-      {
-        "id": "Q-PWT3-B0-TOOLS",
-        "owner": "integrator",
-        "blocks": [
-          "発注 3"
-        ],
-        "resolveBy": "B0 の起草",
-        "requiredEvidence": [
-          "B0 が DisplaySnapshot の full.view を表示語彙に替えたとき、runner.ts（screenOf・factsOf・capture）と persona-scenes.test.ts の型の追従を B0 が持つか（計画 §3.2 に道具の file の行が無い）",
-          "発注 1（P4-PERSONA-WALK-TOOLS-002）は待たない。並べて走らせるときの persona-scenes.test.ts の合流の順は、統合担当が B0 と本契約の発注前点検で決める"
         ]
       }
     ]
