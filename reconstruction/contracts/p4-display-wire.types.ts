@@ -1,5 +1,5 @@
 import type { Operation } from "./p1-parser-boundary.types";
-import type { RuntimeUnitId, UnreadableCardView } from "./p2-shared-runtime.types";
+import type { MarkViewed, RuntimeUnitId, UnreadableCardView } from "./p2-shared-runtime.types";
 import type {
   DisplayChannelView,
   DisplayConnectionView,
@@ -12,13 +12,12 @@ import type { PersistenceStatus, UnitId } from "./p2-shared-runtime.types";
 import type { TsunamiAreaClass, TsunamiForecastArea, TsunamiObservationFamily, TsunamiStation, TsunamiUnkeyedArea } from "./p3-tsunami-unit.types";
 import type { EewPredictionIntensity } from "./p2-eew-unit.types";
 import type { EewReportArea } from "./p3-eew-facts.types";
-import type { EarthquakeEventView, SeismicIntensityItem, SeismicIntensityObservation } from "./p3-seismic-unit.types";
+import type { EarthquakeEventView, LongPeriodSubject, SeismicIntensityItem, SeismicIntensityObservation } from "./p3-seismic-unit.types";
 import type { WeatherTimeseriesDetailError } from "./p2-weather-timeseries-unit.types";
 import type { LandslideUnitView } from "./p3-landslide-unit.types";
 import type { FloodUnitView } from "./p3-flood-unit.types";
 import type { BriefingUnitView } from "./p3-briefing-unit.types";
 import type { TyphoonUnitView } from "./p3-typhoon-unit.types";
-import type { LocalBulletinsUnitView } from "./p3-local-bulletins-unit.types";
 
 // P4-DISPLAY-WIRE-001（B0）: 新しい経路が配る表示の wire（保護 3 分野と今の型のままの共通部）。
 // 鍵の名前は表 p4-display-wire-tables.md の付録 A と script p4-display-wire-max.mjs と同じ（型の最大値の試験が script の数と照らす、P4-DW-AC04）。
@@ -63,7 +62,8 @@ export type TsunamiForecastWire = Readonly<{
   marks: readonly DisplayStateMark[]; omittedUnkeyed: number; unknownAreas: number; dupAreas: number; ref: DisplayDetailRef;
   rows: readonly TsunamiForecastRow[]; unkeyed: readonly TsunamiUnkeyedRow[];
 }>;
-export type TsunamiClosedWire = Readonly<{ eventId: string; family: TsunamiObservationFamily; closedAt: number; ref: DisplayDetailRef }>;
+// 閉じた印は開ける part が無いので詳細の参照を持たない（統合担当の決め 2026-11-21）。
+export type TsunamiClosedWire = Readonly<{ eventId: string; family: TsunamiObservationFamily; closedAt: number }>;
 export type TsunamiWire = Readonly<{
   forecasts: readonly TsunamiForecastWire[]; omittedEvents: number;
   composites: readonly Readonly<{ forecast: readonly (readonly [code: string, cls: TsunamiAreaClass])[]; observed: readonly (readonly [code: string, height: string])[] }>[];
@@ -130,23 +130,26 @@ export type WireDetailRequest =
   | Readonly<{ unit: RuntimeUnitId; part: "raw"; id: string; revision: string }>;
 
 export type EewAreaDetail = Readonly<{ code: string; intensity: EewPredictionIntensity; report: EewReportArea | null }>;
-type LocalItem = LocalBulletinsUnitView["tornado"][number] | LocalBulletinsUnitView["heat"][number] | LocalBulletinsUnitView["transient"][number];
-// 索引の項目: 保護 2 分野は part への参照、U-N・U-V は配送済みの本文の口の id と revision、ほかは現況の要素（DTO）そのもの。
+// 索引の項目: 保護 2 分野は part への参照、U-N・U-V・U-M は本文の口の id と revision（生の subject と三つ組）、ほかは現況の要素（DTO）そのもの。
 export type WireIndexEntry =
   | Readonly<{ id: string; revision: string; operation: Operation; part: "areas" | "stations" | "comment" | "event" }>
   | Readonly<{ id: string; revision: string; operation: Operation; part: "text" }>
   | Readonly<{ id: string; revision: string; operation: Operation; part: "item"; item: LandslideUnitView["currents"][number] | FloodUnitView["currents"][number]
-      | BriefingUnitView["currents"][number] | TyphoonUnitView["analysis"][number] | TyphoonUnitView["probability"][number] | LocalItem }>;
+      | BriefingUnitView["currents"][number] | TyphoonUnitView["analysis"][number] | TyphoonUnitView["probability"][number] }>;
 export type WireOmitted = Readonly<{ index: number; reason: "pageBudget" }>;
 type WirePage<Part extends string, Item> = Readonly<{ kind: "ok"; part: Part; revision: string; page: number; pageCount: number; itemCount: number;
   items: readonly Readonly<{ index: number; item: Item }>[]; omitted: readonly WireOmitted[] }>;
 export type WireEventHeader = Omit<EarthquakeEventView, "intensity"> & Readonly<{ intensity: Omit<SeismicIntensityObservation, "items"> | null }>;
+// 長周期の見出しの ref で開く形（U-Q の view の長周期の記録から震度の要素を除いたもの）。
+export type WireLongPeriodHeader = Omit<MarkViewed<LongPeriodSubject>, "intensity"> & Readonly<{ intensity: Omit<SeismicIntensityObservation, "items"> | null }>;
+// 見出しが 1 応答の予算に入らないときに値を外した欄（null・空にするか欄ごと消す）。
+export type WireOmittedField = "hypocenter" | "headline" | "title" | "tsunamiComment" | "sources" | "unreadableView" | "unavailable" | "cancelledSummary" | "strongHold";
 export type WireDetailResponse =
   // 索引は U-W の索引と同じ欄の名（entries）。入らない項目は omitted の index で示す。
   | Readonly<{ kind: "ok"; part: "index"; revision: string; page: number; pageCount: number; entryCount: number; entries: readonly WireIndexEntry[]; omitted: readonly WireOmitted[] }>
   | (WirePage<"areas", EewAreaDetail | TsunamiForecastArea | TsunamiUnkeyedArea> & Readonly<{ id: string }>)
   | (WirePage<"stations", TsunamiStation> & Readonly<{ id: string }>)
-  | (WirePage<"event", SeismicIntensityItem> & Readonly<{ id: string; event: WireEventHeader }>)
+  | (WirePage<"event", SeismicIntensityItem> & Readonly<{ id: string; event: WireEventHeader | WireLongPeriodHeader; omittedFields: readonly WireOmittedField[] }>)
   | Readonly<{ kind: "ok"; part: "comment"; id: string; revision: string; text: string }>
   | Readonly<{ kind: "ok"; part: "raw"; id: string; revision: string; raw: string | null; rawCut: boolean; rawDropped: boolean }>
   | WeatherTimeseriesDetailError;

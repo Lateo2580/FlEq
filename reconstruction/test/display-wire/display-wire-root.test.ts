@@ -42,7 +42,7 @@ const renamed = (serial: number, name: string) => VXSE43.replace("<Serial>1</Ser
 async function boot(server?: Awaited<ReturnType<typeof startDisplayServer>>) {
   const path = mkdtempSync(join(tmpdir(), "fleq-dw-"));
   directories.push(path);
-  const at = { wallTimeMs: Date.parse("2024-04-17T23:15:00+09:00"), monotonicMs: 1 };
+  let at = { wallTimeMs: Date.parse("2024-04-17T23:15:00+09:00"), monotonicMs: 1 };
   const published: DisplaySnapshot[] = [], wires: DisplayWireSnapshot[] = [];
   const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"), legacyStateDirectory: join(path, "old"),
     diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs, { clock: () => at, notificationAdapter: manualAdapter().adapter,
@@ -52,7 +52,7 @@ async function boot(server?: Awaited<ReturnType<typeof startDisplayServer>>) {
   await startHarness(h, "dw", at);
   let sequence = 0;
   const send = (xml: string) => submit(h, envelope("dw", "VXSE43", `dw-${++sequence}`, Buffer.from(xml), at, sequence));
-  return { h, published, wires, send };
+  return { h, published, wires, send, move: (ms: number) => { at = { wallTimeMs: at.wallTimeMs + ms, monotonicMs: at.monotonicMs + ms }; return at; } };
 }
 type Stream = { response: IncomingMessage; frames: string[] };
 function open(port: number, path: string): Promise<Stream> {
@@ -111,6 +111,20 @@ describe("P4-DW-T08 acceptance: the new path", () => {
     expect(t.wires.length).toBeGreaterThan(wired);
     expect(t.wires[wired].sequence).toBe(t.wires[wired - 1].sequence + 1);
     expect(t.wires.at(-1)!.current.eew.wire.cards[0].hypo?.text).toBe("四国沖");
+  });
+
+  // 実際の不具合の再発防止（ヘルツ H1）: 停止の確定（finalizeDone）で失効した EEW の表示差分は publisher の射影に渡らない。次の公開で
+  // view を記録と照らし、失効したカードと区域を消す。
+  it("drops an EEW that expires inside the shutdown finalization from the next publication", async () => {
+    const t = await boot();
+    await t.send(VXSE43);
+    expect(t.wires.at(-1)!.current.eew.wire.cards).toHaveLength(1);
+    const stopAt = t.move(600_000);
+    await t.h.root.shutdownRuntime(0, stopAt);
+    await t.h.settle();
+    const last = t.wires.at(-1)!;
+    expect(t.h.root.state.mirror["U-E"].view.unit === "U-E" && t.h.root.state.mirror["U-E"].view.current).toEqual([]);
+    expect([last.current.eew.wire.cards, last.current.eew.wire.composites, last.current.eew.wire.omitted]).toEqual([[], [[]], 0]);
   });
 
   it("does not publish the new path for a step that changes only the old snapshot", async () => {

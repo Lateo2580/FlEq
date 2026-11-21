@@ -21,6 +21,8 @@ import { toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { toTyphoonView } from "../../src/units/typhoon/typhoon-unit";
 import { eewStep, eewXml, emptyEew, material, projected, wire } from "./display-wire-fixture";
+import { decodeFixture, receive as receiveQuake } from "../seismic-unit/seismic-fixture";
+import { clock } from "../tsunami-unit/tsunami-fixture";
 
 const AT = "2099-01-01T09:00:00+09:00";
 const empty = (place: ExecutionPlace): OwnerState => restoreOwner({ runId: "run", place, clock: { wallTimeMs: Date.parse(AT), monotonicMs: 1 },
@@ -91,6 +93,8 @@ describe("P4-DW-T06 acceptance: the detail parts", () => {
         expect([unit, index.omitted]).toEqual([unit, []]);
         for (const item of index.entries) {
           if (item.part === "text") {
+            // U-M の本文の口は B0 の後の契約が足す（索引は生の subject と三つ組だけ）。
+            if (unit === "U-M") continue;
             if (unit !== "U-N" && unit !== "U-V") throw new Error("text entry");
             const text = detailOwner(state, { unit, part: "text", id: item.id, revision: item.revision });
             expect(text).toMatchObject({ kind: "ok", part: "text", id: item.id });
@@ -130,13 +134,56 @@ describe("P4-DW-T06 acceptance: the detail parts", () => {
     const landslide = toLandslideView(units("U-L")["U-L"]!), flood = toFloodView(units("U-R")["U-R"]!), briefing = toBriefingView(units("U-B")["U-B"]!);
     const typhoon = toTyphoonView(units("U-Y")["U-Y"]!);
     expect(revisions("U-T")).toEqual([...tsunami.forecasts, ...tsunami.observations].map(sha));
-    expect(revisions("U-Q")).toEqual(quake.earthquakes.map(sha));
-    expect(revisions("U-M")).toEqual([...local.tornado, ...local.heat, ...local.transient].map(sha));
+    expect(revisions("U-Q")).toEqual([...quake.earthquakes, ...quake.longPeriods].map(sha));
+    expect(revisions("U-M")).toEqual([...local.tornado, ...local.heat, ...local.transient].map(({ source }) => JSON.stringify([source.inputId, source.reportDateTimeRaw, source.controlDateTimeRaw])));
     expect(revisions("U-L")).toEqual(landslide.currents.map(sha));
     expect(revisions("U-R")).toEqual(flood.currents.map(sha));
     expect(revisions("U-B")).toEqual(briefing.currents.map(sha));
     expect(revisions("U-Y")).toEqual([...typhoon.analysis, ...typhoon.probability].map(sha));
     expect(quake.earthquakes.length + tsunami.forecasts.length).toBeGreaterThan(0);
+  });
+
+  it("opens a long-period heading by its ref, and builds the same view as toSeismicView for marked, capacity-refused and cancelled events", async () => {
+    const seismic = empty("seismic");
+    const lpMaterial = decodeFixture("synthetic_phase4a_VXSE62_special");
+    const lp = receiveQuake(seismic.units["U-Q"]!, lpMaterial, clock(Date.parse(lpMaterial.reportDateTimeRaw) + 1000));
+    const quake = receiveQuake(lp.state, decodeFixture("32-35_01_03_240613_VXSE53"), clock(Date.parse("2009-10-01T13:51:00+09:00")));
+    const event = quake.state.earthquakes[0];
+    // 読めない印・容量の印・取り消した地震の一覧の印の付いた event（owner の写しと toView がずれると ref が毎回 409 になる）。
+    const marked = { ...event, unavailable: [{ reason: "capacityExceeded" as const, source: event.contributions[0].source }],
+      contributions: event.contributions.map((item) => ({ ...item, unreadable: { parts: [{ site: "intensity", reason: "requiredStructureInvalid" as const, raw: "<x/>" }], headline: null } })) };
+    const cancelled = { ...event, eventId: "20091001134501", contributions: event.contributions.map((item) => ({ ...item, effective: "cancelled" as const })),
+      cancelledSummary: { hypocenterName: "取消の震源", originTimeRaw: "2009-10-01T13:45:00+09:00" } };
+    const state = { ...quake.state, earthquakes: [marked, cancelled] };
+    const owner: OwnerState = { ...seismic, units: { ...seismic.units, "U-Q": state } };
+    const index = ask(owner, { unit: "U-Q", part: "index", revision: String(state.contentRevision), page: 0 });
+    if (index.kind !== "ok" || index.part !== "index" || !("omitted" in index)) throw new Error("index");
+    const view = toSeismicView(state);
+    const sha = (value: unknown) => createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
+    expect(index.entries.map((entry) => entry.revision)).toEqual([...view.earthquakes, ...view.longPeriods].map(sha));
+    expect(view.earthquakes.map((item) => [item.unavailable != null, item.cancelledSummary != null, item.unreadableView != null])).toEqual([[true, false, true], [false, true, false]]);
+    // 長周期の見出しの ref（wire が作る形）で event の part を開ける。
+    const heading = projected(await wire({ quake: lp.state }, lp.displayChanges, null)).snapshot.current.earthquake.wire.longPeriods[0];
+    const opened = ask({ ...seismic, units: { ...seismic.units, "U-Q": lp.state } }, { unit: "U-Q", part: "event", id: heading.ref.id, revision: heading.ref.rev, page: 0 });
+    expect(opened).toMatchObject({ kind: "ok", part: "event", id: heading.ref.id, omittedFields: [] });
+  });
+
+  it("keeps the event heading inside the page budget, naming the fields it leaves out", () => {
+    const seismic = empty("seismic");
+    const quake = receiveQuake(seismic.units["U-Q"]!, decodeFixture("32-35_01_03_240613_VXSE53"), clock(Date.parse("2009-10-01T13:51:00+09:00")));
+    const event = quake.state.earthquakes[0];
+    // 4 byte の字 16,384 個の震源名（65,536 byte）。
+    const huge = { ...event, contributions: event.contributions.map((item) => item.hypocenter == null ? item : { ...item, hypocenter: { ...item.hypocenter, name: "\u{20BB7}".repeat(16_384) } }) };
+    const state = { ...quake.state, earthquakes: [huge] };
+    const owner: OwnerState = { ...seismic, units: { ...seismic.units, "U-Q": state } };
+    const index = ask(owner, { unit: "U-Q", part: "index", revision: String(state.contentRevision), page: 0 });
+    if (index.kind !== "ok" || index.part !== "index" || !("omitted" in index)) throw new Error("index");
+    const entry = index.entries[0];
+    const page = ask(owner, { unit: "U-Q", part: "event", id: entry.id, revision: entry.revision, page: 0 });
+    if (page.kind !== "ok" || page.part !== "event") throw new Error("event");
+    expect(page.omittedFields).toEqual(["hypocenter"]);
+    expect(page.event.hypocenter).toBeNull();
+    expect(bodyBytes(page)).toBeLessThanOrEqual(65_536);
   });
 
   it("returns a card's raw text by its inputId and receivedAt, and the HTTP path reads the request field by field", async () => {

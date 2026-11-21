@@ -983,7 +983,7 @@ class RuntimeCompositionRoot {
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
       this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), this.projection);
-    this.projection = result.state; const wire = projectDisplayWire(wireInput(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), state.mirror, result.state), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る
+    this.projection = result.state; const wire = projectDisplayWire(wireInput(state, displayChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
     if (display != null) {
@@ -2490,10 +2490,17 @@ export type { CompositionOptions, NotificationCalls, ProjectedStep, PublisherInp
 import type { DisplayWireSnapshot, WireDetailRequest, WireDetailResponse } from "../../contracts/p4-display-wire.types";
 import { projectDisplayWire } from "../view-projector/display-wire";
 import type { DisplayWireInput, DisplayWireState } from "../view-projector/display-wire";
+import type { DisplayRecoveryView } from "../../contracts/p2-snapshot-sse.types";
 
-// 新しい経路の入力。保護 3 分野の view は読めない報のカードを含む形で渡し、分野の items と画面のお知らせは旧の射影の state から写す（公開の判定には使わない）。
-function wireInput(projection: SnapshotProjectionInput, mirror: RuntimeMirror, previous: SnapshotProjectionState): DisplayWireInput {
-  const eew = viewOf(mirror["U-E"]), tsunami = viewOf(mirror["U-T"]), earthquake = viewOf(mirror["U-Q"]);
+// 新しい経路の入力。新しい経路が読む欄だけを組み（旧の入力の 12 分野の view と確認の状態は組まない）、旧の snapshotInput と同じ式で写す。
+// 分野の items と画面のお知らせは旧の射影の state から写す（公開の判定には使わない）。
+function wireInput(state: PublisherState, displayChanges: readonly RuntimeDisplayChange[], streamId: string, nowMs: number, connection: DisplayConnectionView,
+  worker: DisplayWorkerView, recovery: Omit<DisplayRecoveryView, "restoration">, failing: Readonly<Record<NotificationChannel, boolean>>, previous: SnapshotProjectionState): DisplayWireInput {
+  const eew = viewOf(state.mirror["U-E"]), tsunami = viewOf(state.mirror["U-T"]), earthquake = viewOf(state.mirror["U-Q"]);
   if (eew.unit !== "U-E" || tsunami.unit !== "U-T" || earthquake.unit !== "U-Q") throw new Error("mirror view of another unit");
-  return { projection, views: { eew, tsunami, earthquake }, domains: previous.domains, notices: previous.notices };
+  const date = new Date(nowMs);
+  const persistence = Object.fromEntries(runtimeUnits.map((unit) => [unit, state.mirror[unit].persistence]));
+  return { projection: { streamId, generatedAt: Number.isNaN(date.getTime()) ? String(nowMs) : date.toISOString(), connection, worker, persistence,
+    recovery: { restoration: state.restoration, ...recovery }, notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
+    channelFailing: failing, displayChanges }, views: { eew, tsunami, earthquake }, domains: previous.domains, notices: previous.notices };
 }

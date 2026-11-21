@@ -779,8 +779,9 @@ export type { OwnerState, OwnerStep, ParserCompletion };
 import { createHash } from "node:crypto";
 import type { Operation } from "../../contracts/p1-parser-boundary.types";
 import type { ReportRef as WireReportRef, RuntimeUnitStates as WireUnitStates } from "../../contracts/p2-shared-runtime.types";
-import type { EewAreaDetail, WireDetailRequest, WireDetailResponse, WireIndexEntry, WireOmitted } from "../../contracts/p4-display-wire.types";
-import type { EarthquakeContribution, EarthquakeEvent, EarthquakeEventView, EarthquakeFamily, SeismicIntensityItem } from "../../contracts/p3-seismic-unit.types";
+import type { EewAreaDetail, WireDetailRequest, WireDetailResponse, WireEventHeader, WireIndexEntry, WireLongPeriodHeader, WireOmitted, WireOmittedField } from "../../contracts/p4-display-wire.types";
+import type { MarkViewed as WireMarkViewed } from "../../contracts/p2-shared-runtime.types";
+import type { EarthquakeContribution, EarthquakeEvent, EarthquakeEventView, EarthquakeFamily, LongPeriodSubject, SeismicIntensityItem } from "../../contracts/p3-seismic-unit.types";
 import type { TsunamiForecastSubject, TsunamiObservationSubject } from "../../contracts/p3-tsunami-unit.types";
 import { shown } from "../units/notice-mark";
 import { markView } from "../units/unreadable";
@@ -822,6 +823,8 @@ function quakeView(event: EarthquakeEvent): EarthquakeEventView {
     ...marks.length === 0 ? {} : { unreadableView: marks } };
 }
 // U-Q の view に載る event（active の寄与を持ち保留の印が無いか、取り消した地震の一覧の印を持つ）。
+// U-Q の view に載る長周期（active で保留の印が無い記録に印の写しを当てたもの、toSeismicView と同じ）。
+const longViews = (records: readonly LongPeriodSubject[]) => records.filter((item) => item.effective === "active" && item.expiryPending !== true).map((item) => shown(item));
 const quakeViews = (events: readonly EarthquakeEvent[]) => events.filter((event) => event.contributions.some((item) => item.effective === "active")
   && event.expiryPending !== true || event.cancelledSummary != null).map(quakeView);
 
@@ -874,16 +877,17 @@ function wireIndex(state: OwnerState, unit: Extract<WireDetailRequest, { part: "
       return { revision: String(value.contentRevision), entries: [...view.forecasts.flatMap((item): WireIndexEntry[] => [{ ...entryOf(unit, item), part: "areas" },
         ...item.warningComment == null ? [] : [{ ...entryOf(unit, item), part: "comment" as const }]]), ...view.observations.map((item): WireIndexEntry => ({ ...entryOf(unit, item), part: "stations" }))] }; }
     case "U-Q": { const value = units["U-Q"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: quakeViews(value.earthquakes).map((item): WireIndexEntry => ({ ...entryOf(unit, item), part: "event" })) }; }
+      return { revision: String(value.contentRevision), entries: [...quakeViews(value.earthquakes), ...longViews(value.longPeriods)].map((item): WireIndexEntry => ({ ...entryOf(unit, item), part: "event" })) }; }
     // 本文の口の id は view の生の subject、revision は source の三つ組の JSON 配列の字（P3-BT-D-KEY、hash にしない）。
     case "U-V": case "U-N": { const records = unit === "U-V" ? units["U-V"]?.bulletins : units["U-N"]?.information; const value = units[unit]; if (records == null || value == null) return null;
       return { revision: String(value.contentRevision), entries: records.flatMap((record): WireIndexEntry[] => record.effective !== "active" || record.expiryPending === true ? []
         : [{ id: record.subject, revision: JSON.stringify([record.source.inputId, record.source.reportDateTimeRaw, record.source.controlDateTimeRaw]), operation: record.operation, part: "text" }]) }; }
     // 現況の要素は各 unit の toView と同じく「active で保留の印が無い」記録に印の写しを当てたもの（U-R は比べの欄を外す、U-B は released も載る）。
+    // U-M の索引は U-N・U-V と同じく生の subject と source の三つ組を載せる（AC08。本文の口は B0 の後の契約が足す）。
     case "U-M": { const value = units["U-M"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: items([...value.tornado.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : []),
-        ...value.heat.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : []),
-        ...value.transient.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : [])]) }; }
+      return { revision: String(value.contentRevision), entries: [...value.tornado, ...value.heat, ...value.transient].flatMap((record): WireIndexEntry[] => record.effective !== "active"
+        || record.expiryPending === true ? [] : [{ id: record.subject, revision: JSON.stringify([record.source.inputId, record.source.reportDateTimeRaw, record.source.controlDateTimeRaw]),
+          operation: record.operation, part: "text" }]) }; }
     case "U-L": { const value = units["U-L"]; if (value == null) return null;
       return { revision: String(value.contentRevision), entries: items(value.currents.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : [])) }; }
     case "U-R": { const value = units["U-R"]; if (value == null) return null;
@@ -944,11 +948,49 @@ function wireDetail(state: OwnerState, request: WireDetailRequest): WireDetailRe
     return paged == null ? wireInvalid : { kind: "ok", part: "areas", id: request.id, revision: found.revision, page: request.page, ...paged };
   }
   const value = units["U-Q"]; if (value == null) return wireUnavailable;
-  const found = locate("U-Q", quakeViews(value.earthquakes), request.id);
+  // 長周期の見出しの ref もこの part で開ける（見出しは地震と同じ U-Q の event の形）。
+  const found = locate<EarthquakeEventView | WireMarkViewed<LongPeriodSubject>>("U-Q", [...quakeViews(value.earthquakes), ...longViews(value.longPeriods)], request.id);
   if (found == null || found.revision !== request.revision) return wireChanged(found?.revision ?? null);
-  // event の見出し（震度の要素を除く）を各ページに載せ、震度の要素をページに切る。既知でない区域もここで読む（表 §1.1）。
+  // 見出し（震度の要素を除く）を各ページに載せ、震度の要素をページに切る。見出しも 1 応答の予算に入れ、入らないときは大きい欄から値を外して
+  // omittedFields に名を挙げる（黙って切らない）。既知でない区域もここで読む（表 §1.1）。
   const { intensity, ...rest } = found.object;
-  const event = { ...rest, intensity: intensity == null ? null : { maxInt: intensity.maxInt, maxLgInt: intensity.maxLgInt, lgCategory: intensity.lgCategory } };
-  const paged = wirePage(request.page, WIRE_ITEM_PAGE, intensity?.items ?? [], (pageCount) => ({ kind: "ok", part: "event", id: request.id, revision: found.revision, page: request.page, pageCount, event }));
-  return paged == null ? wireInvalid : { kind: "ok", part: "event", id: request.id, revision: found.revision, page: request.page, ...paged, event };
+  const items = intensity?.items ?? [], pageCount = Math.max(1, Math.ceil(items.length / WIRE_ITEM_PAGE));
+  let event: WireEventHeader | WireLongPeriodHeader = { ...rest, intensity: intensity == null ? null : { maxInt: intensity.maxInt, maxLgInt: intensity.maxLgInt, lgCategory: intensity.lgCategory } };
+  const omittedFields: WireOmittedField[] = [];
+  const headerBytes = () => Buffer.byteLength(JSON.stringify({ streamId: WIRE_STREAM_ID, kind: "ok", part: "event", id: request.id, revision: found.revision, page: request.page,
+    pageCount, event, omittedFields, itemCount: items.length, items: [], omitted: [] }));
+  for (const field of WIRE_OMITTABLE) {
+    if (headerBytes() <= WIRE_RESPONSE_BYTES) break;
+    const shrunk = omitField(event, field);
+    if (shrunk !== event) { event = shrunk; omittedFields.push(field); }
+  }
+  const header = event;
+  const paged = wirePage(request.page, WIRE_ITEM_PAGE, items, (count) => ({ kind: "ok", part: "event", id: request.id, revision: found.revision, page: request.page, pageCount: count, event: header, omittedFields }));
+  return paged == null ? wireInvalid : { kind: "ok", part: "event", id: request.id, revision: found.revision, page: request.page, ...paged, event: header, omittedFields };
+}
+// 見出しの欄を大きくなりうる順に外す（null・空・欄ごと消す）。外せる欄が無ければ同じ object を返す。
+const WIRE_OMITTABLE: readonly WireOmittedField[] = ["hypocenter", "headline", "title", "tsunamiComment", "sources", "unreadableView", "unavailable", "cancelledSummary", "strongHold"];
+function omitField(event: WireEventHeader | WireLongPeriodHeader, field: WireOmittedField): WireEventHeader | WireLongPeriodHeader {
+  if ("sources" in event) {
+    const { unreadableView: _view, unavailable: _unavailable, cancelledSummary: _summary, ...bare } = event;
+    switch (field) {
+      case "hypocenter": return event.hypocenter == null ? event : { ...event, hypocenter: null };
+      case "tsunamiComment": return event.tsunamiComment == null ? event : { ...event, tsunamiComment: null };
+      case "sources": return event.sources.length === 0 ? event : { ...event, sources: [] };
+      case "strongHold": return event.strongHold == null ? event : { ...event, strongHold: null };
+      case "unreadableView": return event.unreadableView == null ? event : { ...bare, ...event.unavailable == null ? {} : { unavailable: event.unavailable }, ...event.cancelledSummary == null ? {} : { cancelledSummary: event.cancelledSummary } };
+      case "unavailable": return event.unavailable == null ? event : { ...bare, ...event.unreadableView == null ? {} : { unreadableView: event.unreadableView }, ...event.cancelledSummary == null ? {} : { cancelledSummary: event.cancelledSummary } };
+      case "cancelledSummary": return event.cancelledSummary == null ? event : { ...bare, ...event.unreadableView == null ? {} : { unreadableView: event.unreadableView }, ...event.unavailable == null ? {} : { unavailable: event.unavailable } };
+      default: return event;
+    }
+  }
+  const { unreadableView: _view, unavailable: _unavailable, ...bare } = event;
+  switch (field) {
+    case "hypocenter": return event.hypocenter == null ? event : { ...event, hypocenter: null };
+    case "headline": return event.headline == null ? event : { ...event, headline: null };
+    case "title": return event.title === "" ? event : { ...event, title: "" };
+    case "unreadableView": return event.unreadableView == null ? event : { ...bare, ...event.unavailable == null ? {} : { unavailable: event.unavailable } };
+    case "unavailable": return event.unavailable == null ? event : { ...bare, ...event.unreadableView == null ? {} : { unreadableView: event.unreadableView } };
+    default: return event;
+  }
 }

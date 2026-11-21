@@ -2,18 +2,22 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 import type { EewCurrent } from "../../contracts/p2-eew-unit.types";
-import type { JsonValue, ReportRef, RuntimeDisplayChange } from "../../contracts/p2-shared-runtime.types";
+import type { DiagnosticReason, JsonValue, ReportRef, RuntimeDisplayChange } from "../../contracts/p2-shared-runtime.types";
+import type { DisplayAreaSystem, DisplaySummaryItem } from "../../contracts/p2-snapshot-sse.types";
+import { CARD_TEXT } from "../../src/checkpoint/checkpoint";
 import type { EarthquakeEventView, SeismicRecentQuake } from "../../contracts/p3-seismic-unit.types";
 import type { TsunamiObservationSubject } from "../../contracts/p3-tsunami-unit.types";
 import type { KnownCodeTable } from "../../contracts/p4-gis-assets.types";
 import type {
-  DisplayCutText, DisplayDetailRef, DisplayPaint, DisplayStateMark, DisplayValueText, EarthquakeRowWire, EarthquakeWire, EewAreaRow, EewCardHeader,
+  DisplayCutText, DisplayDetailRef, DisplayPaint, DisplayStateMark, DisplayValueText, DisplayWireCard, EarthquakeRowWire, EarthquakeWire, EewAreaRow, EewCardHeader,
   EewMini, EewWire, LongPeriodWire, TsunamiClosedWire, TsunamiForecastRow, TsunamiForecastWire, TsunamiWire,
 } from "../../contracts/p4-display-wire.types";
 import known from "../../assets/gis/known-codes.v1.json";
-import { currentSubject } from "../../src/units/eew/eew-unit";
+import { currentSubject, reduceEewUnit } from "../../src/units/eew/eew-unit";
 import { reduceSeismicUnit, seismicUnitCodec, toSeismicView } from "../../src/units/seismic/seismic-unit";
 import { reduceTsunamiUnit, toTsunamiView, tsunamiUnitCodec } from "../../src/units/tsunami/tsunami-unit";
+import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
+import { deadlineOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import { WIRE_COUNTS, WIRE_LIMITS } from "../../src/view-projector/display-wire";
 import { decodeFixture, receive as receiveQuake, vxse53 } from "../seismic-unit/seismic-fixture";
 import { clock, decodeXml, observation, receive as receiveTsunami, vtse41 } from "../tsunami-unit/tsunami-fixture";
@@ -57,25 +61,43 @@ describe("P4-DW-T01 contractBoundary: the protected three fit 262,144 bytes", ()
     const forecast: TsunamiForecastWire = { eventId: x(WIRE_LIMITS.eventId), operation: "training", serial: MS, reportTime: x(WIRE_LIMITS.time),
       comment: cut(WIRE_LIMITS.comment), unread: false, marks, omittedUnkeyed: MS, unknownAreas: MS, dupAreas: MS, ref,
       rows: Array.from({ length: tsunamiAreas }, () => forecastRow), unkeyed: Array.from({ length: WIRE_COUNTS.unkeyed }, () => ({ name: cut(WIRE_LIMITS.unkeyedName), k: "majorWarning" as const })) };
-    const closed: TsunamiClosedWire = { eventId: x(WIRE_LIMITS.eventId), family: "VTSE51", closedAt: MS, ref };
+    const closed: TsunamiClosedWire = { eventId: x(WIRE_LIMITS.eventId), family: "VTSE51", closedAt: MS };
     const tsunami: TsunamiWire = { forecasts: Array.from({ length: WIRE_COUNTS.tsunamiEvents }, () => forecast), omittedEvents: MS,
       composites: [{ forecast: Array.from({ length: tsunamiAreas }, () => ["100", "majorWarning"] as const), observed: Array.from({ length: tsunamiAreas }, () => ["100", x(WIRE_LIMITS.height)] as const) }],
       closed: Array.from({ length: 3 }, () => ({ items: Array.from({ length: WIRE_COUNTS.closed }, () => closed), omitted: MS })) };
     const quakeRow: EarthquakeRowWire = { eventId: x(WIRE_LIMITS.eventId), operation: "training", origin: x(WIRE_LIMITS.time), reportTime: x(WIRE_LIMITS.time),
       hypo: cut(WIRE_LIMITS.hypocenter), mag: value(), depth: value(), maxInt: null, cancelled: false, tsunami: cut(WIRE_LIMITS.tsunamiEval),
-      strongest: Array.from({ length: 8 }, () => "622"), omittedStrongest: MS, marks, unknownAreas: MS, ref: { id: x(64), rev: x(64) } };
+      strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: MS, marks, unknownAreas: MS, ref: { id: x(64), rev: x(64) } };
     const longPeriod: LongPeriodWire = { eventId: x(WIRE_LIMITS.eventId), operation: "training", reportTime: x(WIRE_LIMITS.time), maxLg: null, marks, unknownAreas: MS, ref };
     // 今日の地震は区分ごとに 5 行（U-Q の recent の上限、板待ちの仮の数）。
     const quake: EarthquakeWire = { rows: Array.from({ length: 15 }, () => quakeRow), daily: Array.from({ length: 3 }, () => ({ operation: "training" as const, count: MS, maxInt: null })),
       composites: [{ areas: paint("2230600", cities), unknownAreas: MS }], longPeriods: [longPeriod, longPeriod], omittedLongPeriods: MS,
       longPeriodComposites: [{ areas: paint("622", subareas), unknownAreas: MS }] };
-    // wrapper は summary の包みの最大 3,882、読めない報のカードは題と見出し以外の 459 byte と、切った題・見出しの {text, cut}（8 枚、配列の括弧と区切り 28）。
-    const cardBytes = 8 * (459 + Buffer.byteLength(JSON.stringify(cut(WIRE_LIMITS.cardTitle))) - 2 + Buffer.byteLength(JSON.stringify(cut(WIRE_LIMITS.cardHeadline))) - 2) + 28;
-    const total = eewBytes + Buffer.byteLength(JSON.stringify(tsunami)) + Buffer.byteLength(JSON.stringify(quake)) + 3 * 3882 + 3 * cardBytes;
+    // 分野の包み（unit・contentRevision・items 3 つ）と読めない報のカード 8 枚も型の最大の形で組む。
+    const counts = (keys: readonly string[]) => Object.fromEntries(keys.map((key) => [key, MS]));
+    const item = (informationType: DisplaySummaryItem["informationType"], systems: readonly DisplayAreaSystem[]): DisplaySummaryItem => ({ operation: "training", informationType,
+      activeCount: MS, highestSeverity: "specialWarning", areaCounts: counts(systems), updatedAt: MS,
+      unavailable: counts(["capacityExceeded", "historyUnavailable", "coverageIncomplete"]),
+      unconfirmed: counts(["startup", "disconnected", "scopeCapacity", "scopeRetired", "capacityExceeded", "freshnessSuspect", "unreadableReport"]),
+      unknownCode: counts(["unknown", "missing", "empty"]),
+      freshness: counts(["headMissing", "reportDateTimeMissing", "reportDateTimeInvalid", "identityMissing", "identityInvalid", "requiredStructureMissing", "requiredStructureInvalid", "stale"]),
+      confirmation: { state: "unconfirmed", confirmedAt: MS } });
+    // 保護 3 分野のカードは区域の一覧（U-Y だけが持つ）を持たない。理由の語は DiagnosticReason の最長の語。
+    const card: DisplayWireCard = { kind: "unidentified", inputId: x(64), headType: x(CARD_TEXT.headType), operation: "training", receivedAt: MS,
+      reason: "notificationExpiredClockUnverified" satisfies DiagnosticReason, title: cut(WIRE_LIMITS.cardTitle), headline: cut(WIRE_LIMITS.cardHeadline),
+      reportDateTimeRaw: x(CARD_TEXT.reportDateTimeRaw), rawCut: false, rawDropped: true, count: MS, hasRaw: false };
+    const domain = <W>(unit: "U-E" | "U-T" | "U-Q", wire: W, informationType: DisplaySummaryItem["informationType"], systems: readonly DisplayAreaSystem[]) =>
+      Buffer.byteLength(JSON.stringify({ unit, contentRevision: String(MS), items: [item(informationType, systems), item(informationType, systems), item(informationType, systems)],
+        wire, cards: Array.from({ length: 8 }, () => card) })) - Buffer.byteLength(JSON.stringify(wire));
+    const wrappers = domain("U-E", 0, "eew", ["eewArea"]) + domain("U-T", 0, "tsunami", ["tsunamiForecastArea", "tsunamiStation"])
+      + domain("U-Q", 0, "earthquake", ["prefecture", "seismicArea", "municipality"]);
+    const parts = [eewBytes, Buffer.byteLength(JSON.stringify(tsunami)), Buffer.byteLength(JSON.stringify(quake))];
+    const total = parts.reduce((sum, value) => sum + value, 0) + wrappers;
     const script: unknown = JSON.parse(execFileSync(process.execPath, ["reconstruction/contracts/p4-display-wire-max.mjs"], { encoding: "utf8" }));
     const groups = typeof script === "object" && script != null && "groups" in script && Array.isArray(script.groups) ? script.groups : [];
     const ruled = groups.find((group: { name?: unknown }) => group.name === "A短");
-    expect(total).toBe(ruled?.sum);
+    // 保護 3 分野の wire は script の組 A短 と同じ数。包みとカードは型から組んだ数で、script の 3 × 3,882 と 459 byte の置き値とは違う（成果物に書く）。
+    expect(parts).toEqual([ruled?.eew, ruled?.tsunami, ruled?.earthquake]);
     expect(total).toBeLessThanOrEqual(262_144);
   });
 });
@@ -198,6 +220,61 @@ describe("P4-DW-T04 acceptance: normal reports first when the tsunami and long-p
   });
 });
 
+describe("P4-DW-T04 acceptance: one card per EventID, refill, expiry and eviction", () => {
+  it("shows one card for the VXSE45 and VXSE43 of the same EventID with the newer report", async () => {
+    const forecast = eewStep(emptyEew(), eewXml({ eventId: eewId(1), at: AT, family: "VXSE45", areas: [["622", "3", "3"]] }), "VXSE45");
+    const warning = eewStep(forecast.state, eewXml({ eventId: eewId(1), at: at(1), family: "VXSE43", areas: [["622", "5-", "5-"], ["632", "4", "4"]] }));
+    expect(warning.state.current).toHaveLength(2);
+    const wired = projected(await wire({ eew: warning.state }, [...forecast.displayChanges, ...warning.displayChanges], null)).snapshot.current.eew.wire;
+    expect(wired.cards.map((card) => [card.letter, card.warning, "rows" in card ? card.rows.length : -1])).toEqual([["A", true, 2]]);
+    expect(wired.omitted).toBe(0);
+  });
+
+  it("puts a waiting normal report on the card freed by a cancel, first come first", async () => {
+    let state = emptyEew();
+    const changes: RuntimeDisplayChange[] = [];
+    for (const index of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const step = eewStep(state, eewXml({ eventId: eewId(index), at: at(index), areas: [["622", "3", "3"]] }));
+      state = step.state;
+      changes.push(...step.displayChanges);
+    }
+    let result = projected(await wire({ eew: state }, changes, null));
+    expect([result.snapshot.current.eew.wire.cards.length, result.snapshot.current.eew.wire.omitted]).toEqual([6, 2]);
+    const cancel = eewStep(state, eewXml({ eventId: eewId(2), at: at(20), serial: 2, cancel: true }));
+    result = projected(await wire({ eew: cancel.state }, cancel.displayChanges, result.state));
+    expect(result.snapshot.current.eew.wire.cards.map((card) => [card.eventId, card.letter])).toEqual([[eewId(1), "A"], [eewId(3), "C"], [eewId(4), "D"],
+      [eewId(5), "E"], [eewId(6), "F"], [eewId(7), "B"]]);
+    expect(result.snapshot.current.eew.wire.omitted).toBe(1);
+  });
+
+  it("falls back to the next level when the strongest EEW expires", async () => {
+    const strong = eewStep(emptyEew(), eewXml({ eventId: eewId(1), at: AT, areas: [["622", "6+", "6+"]] }));
+    const weak = eewStep(strong.state, eewXml({ eventId: eewId(2), at: at(30), areas: [["622", "4", "4"]] }));
+    let result = projected(await wire({ eew: weak.state }, [...strong.displayChanges, ...weak.displayChanges], null));
+    const expired = reduceEewUnit(weak.state, { kind: "deadline", clock: { wallTimeMs: Date.parse(AT) + 600_000 + 10, monotonicMs: 0 } });
+    expect(expired.state.current.map((item) => item.eventId)).toEqual([eewId(2)]);
+    result = projected(await wire({ eew: expired.state }, expired.displayChanges, result.state));
+    expect(result.snapshot.current.eew.wire.composites).toEqual([[["622", 4]]]);
+  });
+
+  it("removes the card of a training EEW evicted for capacity and lets the normal report in", async () => {
+    const first = eewStep(emptyEew(), eewXml({ eventId: eewId(0), at: AT, status: "訓練", areas: [["622", "3", "3"]] }));
+    const template = first.state.current[0], gate = first.state.gates[0];
+    const ids = Array.from({ length: 512 }, (_, index) => eewId(index));
+    const current = ids.map((id) => ({ ...template, eventId: id, subject: `training/VXSE43/${id}`, source: { ...template.source, subject: `training/VXSE43/${id}` } }));
+    const full = { ...first.state, current, gates: current.map((item) => ({ ...gate, subject: item.subject, source: item.source })) };
+    let result = projected(await wire({ eew: full }, current.map((item) => eewChange(null, item)), null));
+    expect([result.snapshot.current.eew.wire.cards.length, result.snapshot.current.eew.wire.omitted]).toEqual([6, 506]);
+    const normal = eewStep(full, eewXml({ eventId: "20990101009999", at: at(5), areas: [["632", "4", "4"]] }));
+    expect(normal.displayChanges.some((change) => change.after == null)).toBe(true);
+    result = projected(await wire({ eew: normal.state }, normal.displayChanges, result.state));
+    const cards = result.snapshot.current.eew.wire.cards;
+    expect(cards.some((card) => card.operation === "normal")).toBe(true);
+    expect(cards).toHaveLength(6);
+    expect(result.snapshot.current.eew.wire.composites).toEqual([[["632", 4]]]);
+  });
+});
+
 // 契約の境界 P4-DW-AC05（P2-A8-COST の継承の計数と受信経路の計算量）。
 describe("P4-DW-T02 contractBoundary: the work per update", () => {
   it("reads only the changed subject's areas near capacity, for EEW, earthquake and tsunami", async () => {
@@ -210,10 +287,11 @@ describe("P4-DW-T02 contractBoundary: the work per update", () => {
     const step1 = await wire({ eew: { ...first.state, current: clones.map((item) => item === clones[5] ? updated : item) } }, [eewChange(clones[5], updated)], result.state);
     // (1) 変わった subject の before 3 区域と after 1 区域、(2) 参照数が変わった 3 区域、(3) 配列を 1 回組む。ほかの EEW の区域は読まない。
     expect(step1.counts.eew).toEqual({ read: 4, recomputed: 3, built: 1 });
-    const step2 = await wire({ eew: { ...first.state, current: clones.filter((item) => item !== clones[6]) } }, [eewChange(clones[6], null)], step1.state);
+    const remaining = clones.map((item) => item === clones[5] ? updated : item).filter((item) => item !== clones[6]);
+    const step2 = await wire({ eew: { ...first.state, current: remaining } }, [eewChange(clones[6], null)], step1.state);
     expect(step2.counts.eew).toEqual({ read: 3, recomputed: 3, built: 1 });
     // metadata だけ（表示差分なし）は内容を読まない。
-    const step3 = await wire({ eew: { ...first.state, current: clones.filter((item) => item !== clones[6]) } }, [], step2.state);
+    const step3 = await wire({ eew: { ...first.state, current: remaining } }, [], step2.state);
     expect(step3.counts.eew).toEqual({ read: 0, recomputed: 0, built: 0 });
     expect(step3.kind).toBe("unchanged");
     result = projected(step2);
@@ -249,6 +327,34 @@ describe("P4-DW-T02 contractBoundary: the work per update", () => {
     expect(tsunamiMoved.counts.tsunami.recomputed).toBe(0 + 2);
   });
 
+  it("keeps the closed marks from the changed records, without reading every expired record on each view", () => {
+    const source = (index: number): ReportRef => ({ inputId: `input-${index}`, origin: "replay", operation: "normal", family: "VTSE51",
+      subject: `normal/tsunamiObservation:VTSE51/E${index}`, reportDateTimeRaw: AT, controlDateTimeRaw: AT, serialRaw: "1", infoTypeRaw: "発表" });
+    let reads = 0;
+    const counted = (index: number): TsunamiObservationSubject => {
+      const record = { subject: `normal/tsunamiObservation:VTSE51/E${index}`, eventId: `E${index}`, operation: "normal" as const, family: "VTSE51" as const,
+        source: source(index), controlDateTimeRaw: AT, effective: "expired" as const, stations: [], estimations: [], validUntil: null, retainUntil: 0 };
+      // 閉じた時刻（retainUntil）を読むたびに数える。
+      Object.defineProperty(record, "retainUntil", { get: () => { reads++; return Date.parse(AT) + 604_800_000 + index * 1000; }, enumerable: true });
+      return record;
+    };
+    const live = receiveTsunami(emptyTsunami(), decodeXml(observation({ at: AT, serial: 1, stations: [{ code: "21001", height: "0.3" }] }), "VTSE51"), clock(Date.parse(AT) + 1000));
+    const base = { ...live.state, observations: [...Array.from({ length: 50 }, (_, index) => counted(index)), ...live.state.observations] };
+    toTsunamiView(base);
+    reads = 0;
+    const validUntil = live.state.observations[0].validUntil!;
+    // step の中の期限の回収は既存の走査で期限切れの記録を読む（P3 の reducer）。数えるのは view を作るときの読み直し。
+    const closed = reduceTsunamiUnit(base, { kind: "deadline", clock: clock(validUntil + 1), basis: "verified" });
+    reads = 0;
+    const view = toTsunamiView(closed.state);
+    toTsunamiView(closed.state);
+    toTsunamiView(closed.state);
+    // 3 回の view で、閉じた印のために期限切れの記録を読み直さない（変わった 1 件は step の中で足し引きした）。
+    expect(reads).toBe(0);
+    expect(view.closedObservations.normal.items[0]).toEqual({ eventId: "20990101000011", family: "VTSE51", closedAt: validUntil });
+    expect(view.closedObservations.normal.omitted).toBe(47);
+  });
+
   it("reads only the closed marks the unit listed, however many records expired", async () => {
     const source = (index: number): ReportRef => ({ inputId: `input-${index}`, origin: "replay", operation: "normal", family: "VTSE51",
       subject: `normal/tsunamiObservation:VTSE51/E${index}`, reportDateTimeRaw: AT, controlDateTimeRaw: AT, serialRaw: "1", infoTypeRaw: "発表" });
@@ -279,6 +385,33 @@ describe("P4-DW-T05 regression: values that did not reach the screen", () => {
     expect(toTsunamiView(deleted.state).closedObservations.normal).toEqual({ items: [], omitted: 0 });
   });
 
+  it("re-emits the U-T view from the owner when only the closed set changes", () => {
+    const owner = restoreOwner({ runId: "run", place: "urgent", clock: { wallTimeMs: Date.parse(AT), monotonicMs: 1 }, restored: { "U-E": { kind: "empty" }, "U-T": { kind: "empty" },
+      "U-N": { kind: "empty" }, "U-V": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+    const xml = observation({ at: AT, serial: 1, stations: [{ code: "21001", height: "0.3" }] });
+    const decoded = decodeXml(xml, "VTSE51");
+    const received = receiveOwner(owner, { runId: "run", inputId: decoded.inputId, result: { kind: "decoded", material: decoded } }, { wallTimeMs: Date.parse(AT) + 1000, monotonicMs: 2 }, linkedUnitTable);
+    const validUntil = received.state.units["U-T"]!.observations[0].validUntil!;
+    const pending = deadlineOwner(received.state, { wallTimeMs: validUntil + 1, monotonicMs: 3 }, linkedUnitTable, "unverified");
+    const closed = deadlineOwner(pending.state, { wallTimeMs: validUntil + 2, monotonicMs: 4 }, linkedUnitTable, "verified");
+    const view = closed.views.find((item) => item.unit === "U-T");
+    expect(view?.unit === "U-T" ? view.closedObservations.normal.items.length : -1).toBe(1);
+  });
+
+  it("keeps the unconfirmed mark on the current when a timed report is adopted after a held one without a readable time", () => {
+    const first = eewStep(emptyEew(), eewXml({ eventId: eewId(1), at: AT, areas: [["622", "4", "4"]] }));
+    const untimed = eewXml({ eventId: eewId(1), at: AT, serial: 2, areas: [["622", "5-", "5-"]] }).replace(/<DateTime>[^<]*<\/DateTime>/, "<DateTime></DateTime>");
+    const held = eewStep(first.state, untimed);
+    expect(held.decisions[0]).toMatchObject({ decision: "unchanged" });
+    expect(held.state.current[0].unconfirmed).toBeDefined();
+    const adopted = eewStep(held.state, eewXml({ eventId: eewId(1), at: at(3), serial: 3, areas: [["622", "5+", "5+"]] }));
+    expect(adopted.decisions[0]).toMatchObject({ decision: "changed" });
+    expect(adopted.state.gates[0].unconfirmed).toBeDefined();
+    expect(adopted.state.current[0].unconfirmed).toBe(adopted.state.gates[0].unconfirmed);
+    const after = adopted.displayChanges[0].after;
+    expect(after?.unit === "U-E" ? after.current?.unconfirmed : null).toBe(adopted.state.gates[0].unconfirmed);
+  });
+
   it("copies the unconfirmed mark of a held EEW report to its current with a display change, keeping the decision and the version", () => {
     const first = eewStep(emptyEew(), eewXml({ eventId: eewId(1), at: AT, areas: [["622", "4", "4"]] }));
     const held = eewStep(first.state, eewXml({ eventId: eewId(1), at: AT, areas: [["622", "5-", "5-"]] }));
@@ -307,6 +440,15 @@ describe("P4-DW-T09 acceptance: values added to the EEW card and the quake rows"
     expect(asVxse43.state.current[0]?.detectOnly ?? false).toBe(false);
     // 取消と Intensity の無い報は current を作らない（台帳 98 は別の契約）。
     expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace(/<Intensity>[\s\S]*<\/Intensity>/, ""), "VXSE45").state.current).toEqual([]);
+    // 非取消: 取消の報は current を作らない。Intensity はあるが全体の ForecastInt が無い報も受理しない（台帳 98 は別の契約）。
+    expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>"), "VXSE45").state.current).toEqual([]);
+    expect(eewStep(emptyEew(), fixture("77_01_01_240613_VXSE45").replace(/<ForecastInt>[\s\S]*?<\/ForecastInt>/, ""), "VXSE45").state.current).toEqual([]);
+    // 2 行目が空白で始まると、切り出した字が空なので null。192 byte を越える場所の文は wire で切って印を付ける。
+    expect(detect((xml) => xml.replace("石川県能登地方　　震度５弱程度以上", "　　震度５弱程度以上")).place).toBeNull();
+    const longPlace = detect((xml) => xml.replace("石川県能登地方　　", `${"能".repeat(80)}　　`));
+    expect(longPlace.place).toBe("能".repeat(80));
+    const longCard = projected(await wire({ eew: { ...emptyEew(), current: [longPlace] } }, [eewChange(null, longPlace)], null)).snapshot.current.eew.wire.cards[0];
+    expect(longCard.place).toEqual({ text: "能".repeat(64), cut: true });
     expect(detect((xml) => xml.replace("\n石川県能登地方　　震度５弱程度以上", "")).place).toBeNull();
     expect(detect((xml) => xml.replace("石川県能登地方　　震度５弱程度以上", "石川県能登地方")).place).toBeNull();
     // 仮定震源の報は M と深さを出さない。

@@ -593,9 +593,9 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
     if (evicted.has(item.subject)) changed(item, null);
     return item.subject !== candidate.subject && !evicted.has(item.subject);
   });
-  if (previous !== projected) changed(previous ?? null, projected);
+  const shownCurrent = projected == null || version.mark == null ? projected : { ...projected, unconfirmed: version.mark }; if (previous !== shownCurrent) changed(previous ?? null, shownCurrent); // P4-DW-D-EEW-UNCONFIRMED=A: 採用の版でも gate と同じ未確認の印を current に写す
   let gates = state.gates.filter((item) => item.subject !== candidate.subject && !evicted.has(item.subject));
-  if (projected != null) currents = [...currents, projected];
+  if (shownCurrent != null) currents = [...currents, shownCurrent];
   const nextGate: EewGate = {
     subject: candidate.subject, operation: candidate.operation, family: candidate.family,
     serial: candidate.serial, terminal: candidate.terminal, source: candidate.source, noticeSource,
@@ -861,7 +861,7 @@ function eewCurrentReport(body: XmlElement, earthquake: XmlElement | null, famil
   const detectOnly = family === "VXSE45" && prediction != null && prediction.areas.length === 0
     && (earthquake == null || first(earthquake, "OriginTime") == null) && text != null && text !== "";
   // 場所の文は Text の 2 行目の空白の並びの前（作者裁定 2026-11-19）。切り出せなければ null で、画面は場所の行を詰める。
-  const place = detectOnly ? /^(.+?)[\s　]+/.exec(text.split(/\r?\n/)[1] ?? "")?.[1] ?? null : null;
+  const place = detectOnly ? /^(\S+)\s+/.exec(text.split(/\r?\n/)[1] ?? "")?.[1] ?? null : null;
   return { hypocenterName: name == null ? null : scalar(name), magnitude: magnitude == null || magnitudeRaw == null ? null
     : { raw: magnitudeRaw, description: attribute(magnitude, "description") }, depthRaw, coordinateRaw,
     maxLgInt: lg == null ? null : { from: lgText("From"), to: lgText("To") }, detectOnly, place };

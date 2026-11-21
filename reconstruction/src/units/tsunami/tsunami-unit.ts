@@ -940,7 +940,7 @@ function reduceTsunamiUnit(state: TsunamiUnitState, input: TsunamiInput): Tsunam
         operation: item.operation, kind: "event" as const, eventId: current.eventId }] }] : [];
     }), ...uncovered === true ? [{ source: "capacityExceeded" as const,
       scopes: [{ unit: "U-T" as const, operation: input.material.operation, kind: "unit" as const }] }] : []];
-  return { ...step, state: displayChanges.length !== 0 || [...merged.values()].some(({ before, after }) => (before != null && "stations" in before && before.effective === "expired") !== (after != null && "stations" in after && after.effective === "expired")) ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state, // P4-DW-AC07 (1): 閉じた印の集合が変わった step（期限待ち→expired・記録の削除）も内容版を上げる。読むのはこの step で変わった記録だけ
+  return { ...step, state: closedStep(state.observations, step.state.observations, merged.values()) || displayChanges.length !== 0 ? { ...step.state, contentRevision: state.contentRevision + 1 } : step.state, // P4-DW-AC07 (1): 閉じた印の集合が変わった step（期限待ち→expired・記録の削除）も内容版を上げる。集合はこの step で変わった記録から足し引きする（AC05 (6)）
     displayChanges, confirmationEvidence };
 }
 
@@ -950,7 +950,7 @@ function toTsunamiView(state: TsunamiUnitState): TsunamiUnitView {
   return { unit: "U-T", semanticRevision: active.map((item) => `${item.subject}:${item.source.reportDateTimeRaw}:${item.source.serialRaw}:`
     + `${item.source.infoTypeRaw}`).sort().join("|"), contentRevision: String(state.contentRevision),
   subjects: active.map((item) => subjectOutcome(item)), forecasts: forecasts.map((item) => shown(item)),
-  observations: observations.map((item) => shown(item)), closedObservations: ((of: (operation: Operation) => TsunamiUnitView["closedObservations"][Operation]) => ({ normal: of("normal"), training: of("training"), test: of("test") }))((operation) => { const closed = state.observations.flatMap((item) => item.operation === operation && item.effective === "expired" && item.retainUntil != null ? [{ eventId: item.eventId, family: item.family, closedAt: item.retainUntil - RETAIN_MS }] : []).sort((left, right) => right.closedAt - left.closedAt || (left.eventId < right.eventId ? -1 : left.eventId > right.eventId ? 1 : left.family < right.family ? -1 : 1)); return { items: closed.slice(0, 4), omitted: Math.max(0, closed.length - 4) }; }) }; // P4-DW-AC07 (1): 閉じた印は運用区分ごとに新しい 4 件と件数
+  observations: observations.map((item) => shown(item)), closedObservations: closedView(state.observations) }; // P4-DW-AC07 (1): 閉じた印は運用区分ごとに新しい 4 件と件数
 }
 
 // ---- 取り直しの採用の step（P3-RECOVERY-001 発注 3、P3-REC-AC06 (a)・AC10） ----
@@ -1307,3 +1307,54 @@ function loweredNotice(live: TsunamiUnitState, candidate: TsunamiUnitState, rais
 }
 
 export { recoveryChanges, recoveryNotices, reduceTsunamiUnit, toTsunamiView, tsunamiUnit, tsunamiUnitCodec };
+
+// ---- P4-DISPLAY-WIRE-001（B0）: 津波の観測の表が閉じた印（P4-DW-AC07 (1)・AC05 (6)）。行を足さない書き方のため file の最後に置く ----
+// 閉じた印の集合（expired の記録）を運用区分ごとに閉じた時刻の新しい順で持ち、observations の配列に結び付ける（保存しない）。受信の step では
+// その step で変わった記録の before と after だけから足し引きし、全記録を走査しない。結び付けの無い配列（復元・codec の読み戻しの直後）は 1 回だけ数える。
+type ClosedEntry = TsunamiUnitView["closedObservations"][Operation]["items"][number] & Readonly<{ subject: string }>;
+type ClosedSet = Readonly<Record<Operation, readonly ClosedEntry[]>>;
+const closedSets = new WeakMap<readonly TsunamiObservationSubject[], ClosedSet>();
+const closedOrder = (left: ClosedEntry, right: ClosedEntry) => right.closedAt - left.closedAt || (left.subject < right.subject ? -1 : left.subject > right.subject ? 1 : 0);
+const closedOf = (value: Subject | null): ClosedEntry | null => value != null && "stations" in value && value.effective === "expired" && value.retainUntil != null
+  ? { eventId: value.eventId, family: value.family, closedAt: value.retainUntil - RETAIN_MS, subject: value.subject } : null;
+function closedAll(observations: readonly TsunamiObservationSubject[]): ClosedSet {
+  const found = closedSets.get(observations);
+  if (found != null) return found;
+  const all: Record<Operation, ClosedEntry[]> = { normal: [], training: [], test: [] };
+  for (const item of observations) { const entry = closedOf(item); if (entry != null) all[item.operation].push(entry); }
+  for (const operation of ["normal", "training", "test"] as const) all[operation].sort(closedOrder);
+  closedSets.set(observations, all);
+  return all;
+}
+// 前の配列の集合があれば変わった記録で足し引きして次の配列に結び付ける。集合が変わったかを返す（内容版を上げる条件）。
+function closedStep(before: readonly TsunamiObservationSubject[], after: readonly TsunamiObservationSubject[],
+  changes: Iterable<Readonly<{ before: Subject | null; after: Subject | null }>>): boolean {
+  const previous = closedSets.get(before);
+  let moved = false;
+  // 区分の配列は最初に書き換える時だけ複製する（変わらない区分は前の配列を共有する）。
+  const next: Record<Operation, readonly ClosedEntry[]> | null = previous == null ? null : { ...previous }, written = new Map<Operation, ClosedEntry[]>();
+  for (const change of changes) {
+    const old = closedOf(change.before), fresh = closedOf(change.after);
+    if (old?.closedAt === fresh?.closedAt && old?.subject === fresh?.subject) continue;
+    moved = true;
+    if (next == null) continue;
+    for (const [entry, add] of [[old, false], [fresh, true]] as const) {
+      if (entry == null) continue;
+      const operation = change.before?.operation ?? change.after!.operation;
+      const list = written.get(operation) ?? [...next[operation]];
+      written.set(operation, list);
+      next[operation] = list;
+      let low = 0, high = list.length;
+      while (low < high) { const middle = (low + high) >> 1; if (closedOrder(list[middle], entry) < 0) low = middle + 1; else high = middle; }
+      if (add) list.splice(low, 0, entry); else if (low < list.length && list[low].subject === entry.subject) list.splice(low, 1);
+    }
+  }
+  if (next != null && after !== before) closedSets.set(after, moved ? next : previous!);
+  return moved;
+}
+function closedView(observations: readonly TsunamiObservationSubject[]): TsunamiUnitView["closedObservations"] {
+  const all = closedAll(observations);
+  const of = (operation: Operation) => ({ items: all[operation].slice(0, 4).map(({ eventId, family, closedAt }) => ({ eventId, family, closedAt })),
+    omitted: Math.max(0, all[operation].length - 4) });
+  return { normal: of("normal"), training: of("training"), test: of("test") };
+}

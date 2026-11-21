@@ -68,7 +68,7 @@ function tsunami(events, paintOperations, commentLimit) {
     h: nullable({ raw: text(LIMIT.height), cut: BOOL }) };
   const unkeyed = { name: cut(LIMIT.unkeyedName), k: TSUNAMI_CLASS };
   const forecast = { ...header, rows: array(66, row), unkeyed: array(8, unkeyed) };
-  const closed = { eventId: text(LIMIT.eventId), family: widest("VTSE51", "VTSE52"), closedAt: MS, ref: REF };
+  const closed = { eventId: text(LIMIT.eventId), family: widest("VTSE51", "VTSE52"), closedAt: MS }; // 閉じた印は開ける part が無いので ref を持たない（統合担当の決め 2026-11-21）
   return bytes({
     forecasts: array(events, forecast), omittedEvents: MS,
     composites: array(paintOperations, { forecast: array(66, ["100", TSUNAMI_CLASS]), observed: array(66, ["100", text(LIMIT.height)]) }),
@@ -83,10 +83,10 @@ function earthquake(paintOperations, municipality) {
     eventId: text(LIMIT.eventId), operation: OPERATION, origin: nullable(text(LIMIT.time)), reportTime: nullable(text(LIMIT.time)),
     hypo: nullable(cut(LIMIT.hypocenter)), mag: nullable({ v: text(LIMIT.valueRaw), desc: text(LIMIT.description), cut: BOOL }),
     depth: nullable({ v: text(LIMIT.valueRaw), desc: text(LIMIT.description), cut: BOOL }), maxInt: LEVEL, cancelled: BOOL,
-    tsunami: nullable(cut(LIMIT.tsunamiEval)), strongest: array(8, "622"), omittedStrongest: MS, marks: MARKS,
+    tsunami: nullable(cut(LIMIT.tsunamiEval)), strongest: array(8, "99999999"), omittedStrongest: MS, marks: MARKS,
     // 既知でない区域の件数（EEW・津波と同じ置き方、表 §1.1）。U-Q は同じ階層の重複を parser が断る（seismic.ts:125〜:129）ので dupAreas は持たない。
     unknownAreas: MS,
-    // 日次行の ref は id だけが必ずあり、rev は同じ snapshot に event があるときだけ（表 §5.6）。
+    // 最も強い地域のコードは decode が通す 8 桁で数える（統合担当の決め 2026-11-21）。日次行の ref は id だけが必ずあり、rev は同じ snapshot に event があるときだけ（表 §5.6）。
     ref: { id: text(64), rev: nullable(text(64)) },
   };
   const longPeriod = { eventId: text(LIMIT.eventId), operation: OPERATION, reportTime: nullable(text(LIMIT.time)), maxLg: LEVEL, marks: MARKS, unknownAreas: MS, ref: REF };

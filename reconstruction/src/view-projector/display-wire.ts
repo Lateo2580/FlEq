@@ -145,14 +145,36 @@ function buildPaints<Value>(codes: readonly string[], values: ReadonlyMap<string
   return paints;
 }
 
+// ---- 射影の state（保存しない） ----
+// state は 1 本の列でだけ使う（前の state を別の入力にもう一度渡さない）。受信 1 件の手間を変わった subject と区域に比例させるため、
+// Map・参照数・並びの配列はその場で書き換え、全件の複製をしない（P4-DW-AC05、表 §5.1）。
+
+// 並びの配列に二分探索で入れる・外す（並べ替え直さない）。
+function insertSorted<T>(list: T[], item: T, compare: (left: T, right: T) => number): void {
+  let low = 0, high = list.length;
+  while (low < high) { const middle = (low + high) >> 1; if (compare(list[middle], item) <= 0) low = middle + 1; else high = middle; }
+  list.splice(low, 0, item);
+}
+function removeSorted<T>(list: T[], item: T, compare: (left: T, right: T) => number): void {
+  let low = 0, high = list.length;
+  while (low < high) { const middle = (low + high) >> 1; if (compare(list[middle], item) < 0) low = middle + 1; else high = middle; }
+  for (let index = low; index < list.length && compare(list[index], item) === 0; index++) if (list[index] === item) { list.splice(index, 1); return; }
+}
+const normalFirst = (left: Readonly<{ operation: Operation }>, right: Readonly<{ operation: Operation }>) =>
+  Number(right.operation === "normal") - Number(left.operation === "normal");
+const bySubject = (left: Readonly<{ subject: string }>, right: Readonly<{ subject: string }>) => left.subject < right.subject ? -1 : left.subject > right.subject ? 1 : 0;
+
 // ---- EEW ----
 
-type EewEntry = Readonly<{ subject: string; operation: Operation; paints: readonly (readonly [string, number])[]; header: Omit<EewCardHeader, "letter">;
-  rows: readonly EewAreaRow[]; mini: readonly EewMini[]; top: readonly EewAreaRow[] }>;
-type EewProjection = Readonly<{
-  entries: ReadonlyMap<string, EewEntry>; shown: readonly string[]; letters: ReadonlyMap<string, EewCardLetter>; last: number;
-  composite: Ranked; values: ReadonlyMap<string, number>; paints: readonly DisplayPaint[]; wire: EewWire | null;
-}>;
+type EewEntry = Readonly<{ subject: string; key: string; operation: Operation; reportMs: number; family: string; object: EewCurrent;
+  paints: readonly (readonly [string, number])[]; header: Omit<EewCardHeader, "letter">; rows: readonly EewAreaRow[]; mini: readonly EewMini[]; top: readonly EewAreaRow[] }>;
+// カードは（運用区分、EventID）ごとに 1 枚（DS-LAYOUT-05「地震ごと」、統合担当の決め 2026-11-21）。6 枚の上限と omitted も EventID で数える。
+type EewProjection = {
+  readonly entries: Map<string, EewEntry>; readonly events: Map<string, Set<string>>; shown: string[]; readonly letters: Map<string, EewCardLetter>;
+  // カードに出られなかった通常の報の EventID（来た順）。枠が空いたら先に来たものから入る（spec:1636 の向き、統合担当の決め）。
+  waiting: string[]; last: number;
+  readonly composite: Ranked; readonly values: Map<string, number>; paints: readonly DisplayPaint[]; view: unknown; built: EewWire | null;
+};
 const slotOf = (value: DisplayLevel): number => value != null && value >= 0 && value <= 9 ? value : 10;
 function eewEntry(current: EewCurrent, counts: Counts): EewEntry {
   // 同じ報の中の同じコードは最も重い段で 1 回数え、1 行にまとめる（同じ段なら到達予想時刻の早い行）。既知でないコードは件数だけ（P4-DW-AC02）。
@@ -177,8 +199,8 @@ function eewEntry(current: EewCurrent, counts: Counts): EewEntry {
   const assumed = current.isAssumedHypocenter;
   const maximum: EewPredictionIntensity = current.prediction.maximum;
   return {
-    subject: current.subject, operation: current.operation,
-    paints: kept.map((item) => [item.row.c, slotOf(item.paint)] as const),
+    subject: current.subject, key: `${current.operation}/${current.eventId}`, operation: current.operation, reportMs: Date.parse(current.source.reportDateTimeRaw),
+    family: current.family, object: current, paints: kept.map((item) => [item.row.c, slotOf(item.paint)] as const),
     header: {
       eventId: current.eventId, operation: current.operation, warning: current.warningClass === "warning", serial: current.serial, final: current.terminal,
       reportTime: bounded(current.source.reportDateTimeRaw, WIRE_LIMITS.time), max: { f: level(maximum.from), t: level(maximum.to) },
@@ -200,68 +222,113 @@ function nextLetter(letters: ReadonlyMap<string, EewCardLetter>, last: number): 
   for (let index = last + 1; index < LETTERS.length; index++) if (!used.has(LETTERS[index])) return index;
   return LETTERS.findIndex((letter) => !used.has(letter));
 }
-function projectEew(previous: EewProjection | null, changes: readonly Change[], counts: Counts): EewProjection {
-  if (previous != null && changes.length === 0) return previous;
-  const entries = new Map(previous?.entries ?? []), letters = new Map(previous?.letters ?? []), composite: Ranked = new Map(previous?.composite ?? []);
-  for (const [code, slots] of composite) composite.set(code, [...slots]);
-  const values = new Map(previous?.values ?? []), changed = new Set<string>();
-  let shown = [...previous?.shown ?? []], last = previous?.last ?? -1;
+// view が変わったのに表示差分が無い step（停止の確定の返信は表示差分を publisher の射影に渡さない）は、view の subject を記録と照らして差分を作る。
+// 照らすのは subject の参照だけで、区域を読むのは変わった subject だけ。
+function reconciled<T extends Readonly<{ subject: string }>>(items: readonly T[], kept: ReadonlyMap<string, Readonly<{ object: unknown }>>, same: (left: unknown, right: T) => boolean,
+  after: (item: T) => Change["after"]): Change[] {
+  const changes: Change[] = [], present = new Set<string>();
+  for (const item of items) { present.add(item.subject); const entry = kept.get(item.subject); if (entry == null || !same(entry.object, item)) changes.push({ subject: item.subject, after: after(item) }); }
+  for (const subject of kept.keys()) if (!present.has(subject)) changes.push({ subject, after: null });
+  return changes;
+}
+function projectEew(projection: EewProjection | null, view: RuntimeViews["U-E"], given: readonly Change[], counts: Counts): EewProjection {
+  const state: EewProjection = projection ?? { entries: new Map(), events: new Map(), shown: [], letters: new Map(), waiting: [], last: -1, composite: new Map(),
+    values: new Map(), paints: [], view: null, built: null };
+  const changes = given.length !== 0 || view === state.view ? given : reconciled(view.current, state.entries, (left, right) => left === right,
+    (item) => ({ unit: "U-E", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] }));
+  state.view = view;
+  if (changes.length === 0) return state;
+  const changed = new Set<string>();
+  const show = (key: string) => { state.last = nextLetter(state.letters, state.last); state.letters.set(key, LETTERS[state.last]); state.shown.push(key); };
   for (const change of changes) {
-    const before = entries.get(change.subject);
+    const before = state.entries.get(change.subject);
+    const current = change.after?.unit === "U-E" ? change.after.current : null;
     if (before != null) {
       counts.read += before.paints.length;
-      if (before.operation === "normal") applyRefs(composite, 10, before.paints, -1, changed);
-      entries.delete(change.subject);
+      if (before.operation === "normal") applyRefs(state.composite, 10, before.paints, -1, changed);
     }
-    const current = change.after?.unit === "U-E" ? change.after.current : null;
-    const wasShown = shown.includes(change.subject);
     if (current == null) {
-      if (wasShown) { shown = shown.filter((subject) => subject !== change.subject); letters.delete(change.subject); }
+      if (before == null) continue;
+      state.entries.delete(change.subject);
+      const subjects = state.events.get(before.key);
+      subjects?.delete(change.subject);
+      if (subjects != null && subjects.size === 0) {
+        state.events.delete(before.key);
+        state.shown = state.shown.filter((key) => key !== before.key);
+        state.letters.delete(before.key);
+        state.waiting = state.waiting.filter((key) => key !== before.key);
+      }
       continue;
     }
     const entry = eewEntry(current, counts);
-    entries.set(change.subject, entry);
-    if (entry.operation === "normal") applyRefs(composite, 10, entry.paints, 1, changed);
-    if (wasShown || before != null) continue;
-    // 6 枚とも最終報の前の 7 件目（P4-DW-D-SEVENTH-OPERATION=A）: 通常の報は訓練・試験のカードの出た順の最も古いものを外して入る（仮、P4-DW-D-SEVENTH-OPERATION）。
-    // 7 件目が訓練・試験の報か、6 枚とも通常の報なら、カードに出ず件数（通常なら合成）に入る（仮）。外した報はカードへ戻さない（E0-1 の板）。
-    if (shown.length >= WIRE_COUNTS.eewCards) {
-      const victim = entry.operation === "normal" ? shown.find((subject) => entries.get(subject)?.operation !== "normal") : undefined;
-      if (victim == null) continue;
-      shown = shown.filter((subject) => subject !== victim);
-      letters.delete(victim);
+    state.entries.set(change.subject, entry);
+    if (entry.operation === "normal") applyRefs(state.composite, 10, entry.paints, 1, changed);
+    const subjects = state.events.get(entry.key);
+    if (subjects != null) { subjects.add(change.subject); continue; }
+    state.events.set(entry.key, new Set([change.subject]));
+    // 6 枚とも最終報の前の 7 件目（P4-DW-D-SEVENTH-OPERATION=A）: 通常の報は訓練・試験のカードの出た順の最も古いものを外して入る（仮）。
+    // 7 件目が訓練・試験の報か 6 枚とも通常の報なら、カードに出ず件数（通常なら合成）に入る（仮）。外した訓練・試験の報は戻さない（E0-1 の板）。
+    if (state.shown.length >= WIRE_COUNTS.eewCards) {
+      const victim = entry.operation === "normal" ? state.shown.find((key) => key.split("/")[0] !== "normal") : undefined;
+      if (victim == null) { if (entry.operation === "normal") state.waiting.push(entry.key); continue; }
+      state.shown = state.shown.filter((key) => key !== victim);
+      state.letters.delete(victim);
     }
-    last = nextLetter(letters, last);
-    letters.set(change.subject, LETTERS[last]);
-    shown.push(change.subject);
+    show(entry.key);
   }
-  if (letters.size === 0) last = -1;
-  recompute(composite, values, changed, (slot) => slot, -1, counts);
-  const paints = changed.size === 0 && previous != null ? previous.paints : buildPaints(SUBAREAS, values, counts);
-  return { entries, shown, letters, last, composite, values, paints, wire: null };
+  while (state.shown.length < WIRE_COUNTS.eewCards && state.waiting.length !== 0) show(state.waiting.shift()!);
+  if (state.letters.size === 0) state.last = -1;
+  recompute(state.composite, state.values, changed, (slot) => slot, -1, counts);
+  if (changed.size !== 0 || projection == null) state.paints = buildPaints(SUBAREAS, state.values, counts);
+  state.built = null;
+  return state;
+}
+// その EventID の報のうち新しい方の family の current をカードにする（同じ時刻なら VXSE43）。
+function cardEntry(projection: EewProjection, key: string): EewEntry | null {
+  let best: EewEntry | null = null;
+  for (const subject of projection.events.get(key) ?? []) {
+    const entry = projection.entries.get(subject);
+    if (entry != null && (best == null || entry.reportMs > best.reportMs || entry.reportMs === best.reportMs && entry.family === "VXSE43")) best = entry;
+  }
+  return best;
 }
 function eewWire(projection: EewProjection): EewWire {
-  const cards = projection.shown.flatMap((subject): EewCard[] => {
-    const entry = projection.entries.get(subject), letter = projection.letters.get(subject);
+  if (projection.built != null) return projection.built;
+  const count = projection.shown.length;
+  const cards = projection.shown.flatMap((key): EewCard[] => {
+    const entry = cardEntry(projection, key), letter = projection.letters.get(key);
     if (entry == null || letter == null) return [];
     const header = { ...entry.header, letter };
-    return [projection.shown.length === 1 ? { ...header, rows: entry.rows }
-      : projection.shown.length === 2 ? { ...header, mini: entry.mini, top: entry.top } : { ...header, mini: entry.mini }];
+    return [count === 1 ? { ...header, rows: entry.rows } : count === 2 ? { ...header, mini: entry.mini, top: entry.top } : { ...header, mini: entry.mini }];
   });
-  return { cards, composites: [projection.paints], omitted: projection.entries.size - cards.length };
+  projection.built = { cards, composites: [projection.paints], omitted: projection.events.size - cards.length };
+  return projection.built;
 }
 
 // ---- 津波 ----
 
-type ForecastEntry = Readonly<{ operation: Operation; weight: number; reportMs: number; paints: readonly (readonly [string, number])[]; wire: TsunamiForecastWire }>;
-type ObservationEntry = Readonly<{ operation: Operation; heights: readonly (readonly [code: string, raw: string, value: number])[] }>;
-type TsunamiProjection = Readonly<{
-  forecasts: ReadonlyMap<string, ForecastEntry>; observations: ReadonlyMap<string, ObservationEntry>;
-  composite: Ranked; values: ReadonlyMap<string, TsunamiAreaClass>; observed: Map<string, Map<string, Readonly<{ count: number; value: number }>>>;
-  maxima: ReadonlyMap<string, string>; forecastPaints: readonly (readonly [string, TsunamiAreaClass])[]; observedPaints: readonly (readonly [string, string])[];
-}>;
+type ForecastEntry = Readonly<{ subject: string; operation: Operation; weight: number; reportMs: number; object: unknown; paints: readonly (readonly [string, number])[]; wire: TsunamiForecastWire }>;
+type ObservationEntry = Readonly<{ subject: string; operation: Operation; object: unknown; heights: readonly (readonly [code: string, raw: string, value: number])[] }>;
+type TsunamiProjection = {
+  readonly forecasts: Map<string, ForecastEntry>; readonly ranked: ForecastEntry[]; readonly observations: Map<string, ObservationEntry>;
+  readonly composite: Ranked; readonly values: Map<string, TsunamiAreaClass>; readonly observed: Map<string, Map<string, Readonly<{ count: number; value: number }>>>;
+  readonly maxima: Map<string, string>; forecastPaints: readonly (readonly [string, TsunamiAreaClass])[]; observedPaints: readonly (readonly [string, string])[];
+  view: unknown; closed: TsunamiUnitView["closedObservations"] | null; built: TsunamiWire | null;
+};
+// 予報区の行を載せる EventID は 3 件（P4-DW-D-TSUNAMI-COUNT=A）。通常の報が訓練・試験より先（spec:1636 を当てる、統合担当の決め 2026-11-21）、
+// その中で最も重い区分が上、同じ区分は新しい発表が上（表 §1.2）。外したものは件数に数える。
+const forecastOrder = (left: ForecastEntry, right: ForecastEntry) => normalFirst(left, right) || right.weight - left.weight || right.reportMs - left.reportMs || bySubject(left, right);
 const classOf = (kindCode: string): TsunamiAreaClass => KIND_CLASS.get(kindCode) ?? "unknown";
 const heightValue = (value: MaterialValue): number => value.kind === "number" ? value.value : value.kind === "range" ? value.value + (value.bound === "lower" ? 1e-9 : -1e-9) : -Infinity;
+// shown は印の付いた記録を毎回新しい object にするので、中身の参照で照らす（停止の確定の後の照らし合わせ用）。
+type TsunamiShown = MarkViewed<TsunamiForecastSubject | TsunamiObservationSubject>;
+function sameTsunami(left: unknown, right: TsunamiShown): boolean {
+  if (left === right) return true;
+  if (typeof left !== "object" || left == null || !("source" in left)) return false;
+  const pick = (value: object, key: string): unknown => key in value ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
+  return ["source", "areas", "unkeyedAreas", "stations", "unconfirmed", "unavailable", "expiryPending", "warningComment", "effective"].every((key) => pick(left, key) === pick(right, key))
+    && (pick(left, "unreadableView") == null) === (pick(right, "unreadableView") == null);
+}
 function forecastEntry(forecast: MarkViewed<TsunamiForecastSubject>, counts: Counts): ForecastEntry {
   const byCode = new Map<string, TsunamiForecastRow>();
   let unknownAreas = 0, keyed = 0;
@@ -280,7 +347,7 @@ function forecastEntry(forecast: MarkViewed<TsunamiForecastSubject>, counts: Cou
   const rows = [...byCode.values()];
   const weight = Math.max(-1, ...rows.map((row) => TSUNAMI_WEIGHT[row.k]), ...unkeyed.map((item) => TSUNAMI_WEIGHT[classOf(item.kindCode)]));
   return {
-    operation: forecast.operation, weight, reportMs: Date.parse(forecast.source.reportDateTimeRaw),
+    subject: forecast.subject, operation: forecast.operation, weight, reportMs: Date.parse(forecast.source.reportDateTimeRaw), object: forecast,
     paints: rows.map((row) => [row.c, TSUNAMI_ORDER.length - 1 - TSUNAMI_ORDER.indexOf(row.k)] as const),
     wire: {
       eventId: forecast.eventId, operation: forecast.operation, serial: safeNumber(forecast.source.serialRaw),
@@ -300,82 +367,100 @@ function observationEntry(observation: MarkViewed<TsunamiObservationSubject>, co
     if (station.areaCode != null && TSUNAMI_SET.has(station.areaCode) && height != null && raw != null)
       heights.push([station.areaCode, cutText(raw, WIRE_LIMITS.height).text, heightValue(height)]);
   }
-  return { operation: observation.operation, heights };
+  return { subject: observation.subject, operation: observation.operation, object: observation, heights };
 }
-function projectTsunami(previous: TsunamiProjection | null, changes: readonly Change[], counts: Counts): TsunamiProjection {
-  if (previous != null && changes.length === 0) return previous;
-  const forecasts = new Map(previous?.forecasts ?? []), observations = new Map(previous?.observations ?? []);
-  const composite: Ranked = new Map([...previous?.composite ?? []].map(([code, slots]) => [code, [...slots]]));
-  const values = new Map(previous?.values ?? []), changed = new Set<string>();
-  const observed = new Map([...previous?.observed ?? []].map(([code, heights]) => [code, new Map(heights)]));
-  const maxima = new Map(previous?.maxima ?? []), observedChanged = new Set<string>();
+function projectTsunami(projection: TsunamiProjection | null, view: RuntimeViews["U-T"], given: readonly Change[], counts: Counts): TsunamiProjection {
+  const state: TsunamiProjection = projection ?? { forecasts: new Map(), ranked: [], observations: new Map(), composite: new Map(), values: new Map(), observed: new Map(),
+    maxima: new Map(), forecastPaints: [], observedPaints: [], view: null, closed: null, built: null };
+  const kept = new Map<string, Readonly<{ object: unknown }>>([...state.forecasts, ...state.observations]);
+  const after = (item: TsunamiShown): Change["after"] => ({ unit: "U-T", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] });
+  const changes = given.length !== 0 || view === state.view ? given : reconciled<TsunamiShown>([...view.forecasts, ...view.observations], kept, sameTsunami, after);
+  state.view = view;
+  // 閉じた印は unit が区分ごとに並べた新しい 4 件と件数を写す（P4-DW-AC07 (1)）。中身が同じなら作り直さない（12 件までの比べ）。
+  if (state.closed == null || !sameClosed(view.closedObservations, state.closed)) { state.closed = view.closedObservations; state.built = null; }
+  if (changes.length === 0) return state;
+  const changed = new Set<string>(), observedChanged = new Set<string>();
   const applyHeights = (heights: ObservationEntry["heights"], delta: 1 | -1) => {
     for (const [code, raw, value] of heights) {
-      const area = observed.get(code) ?? new Map<string, Readonly<{ count: number; value: number }>>();
+      const area = state.observed.get(code) ?? new Map<string, Readonly<{ count: number; value: number }>>();
       const count = (area.get(raw)?.count ?? 0) + delta;
       if (count === 0) area.delete(raw); else area.set(raw, { count, value });
-      if (area.size === 0) observed.delete(code); else observed.set(code, area);
+      if (area.size === 0) state.observed.delete(code); else state.observed.set(code, area);
       observedChanged.add(code);
     }
   };
   for (const change of changes) {
     const record = change.after?.unit === "U-T" ? change.after.current : null;
-    const oldForecast = forecasts.get(change.subject), oldObservation = observations.get(change.subject);
+    const oldForecast = state.forecasts.get(change.subject), oldObservation = state.observations.get(change.subject);
     counts.read += (oldForecast?.paints.length ?? 0) + (oldObservation?.heights.length ?? 0);
-    if (oldForecast != null) { if (oldForecast.operation === "normal") applyRefs(composite, 7, oldForecast.paints, -1, changed); forecasts.delete(change.subject); }
-    if (oldObservation != null) { if (oldObservation.operation === "normal") applyHeights(oldObservation.heights, -1); observations.delete(change.subject); }
+    if (oldForecast != null) {
+      if (oldForecast.operation === "normal") applyRefs(state.composite, 7, oldForecast.paints, -1, changed);
+      state.forecasts.delete(change.subject);
+      removeSorted(state.ranked, oldForecast, forecastOrder);
+    }
+    if (oldObservation != null) { if (oldObservation.operation === "normal") applyHeights(oldObservation.heights, -1); state.observations.delete(change.subject); }
     if (record == null) continue;
     if ("stations" in record) {
       const entry = observationEntry(record, counts);
-      observations.set(change.subject, entry);
+      state.observations.set(change.subject, entry);
       if (entry.operation === "normal") applyHeights(entry.heights, 1);
     } else {
       const entry = forecastEntry(record, counts);
-      forecasts.set(change.subject, entry);
-      if (entry.operation === "normal") applyRefs(composite, 7, entry.paints, 1, changed);
+      state.forecasts.set(change.subject, entry);
+      insertSorted(state.ranked, entry, forecastOrder);
+      if (entry.operation === "normal") applyRefs(state.composite, 7, entry.paints, 1, changed);
     }
   }
-  recompute(composite, values, changed, (slot) => TSUNAMI_ORDER[TSUNAMI_ORDER.length - 1 - slot], "unknown", counts);
+  recompute(state.composite, state.values, changed, (slot) => TSUNAMI_ORDER[TSUNAMI_ORDER.length - 1 - slot], "unknown", counts);
   for (const code of observedChanged) {
     counts.recomputed++;
-    const area = observed.get(code);
-    if (area == null) { maxima.delete(code); continue; }
+    const area = state.observed.get(code);
+    if (area == null) { state.maxima.delete(code); continue; }
     let best: string | null = null, top = -Infinity;
     for (const [raw, { value }] of area) if (best == null || value > top || value === top && raw < best) { best = raw; top = value; }
-    if (best != null) maxima.set(code, best);
+    if (best != null) state.maxima.set(code, best);
   }
-  return { forecasts, observations, composite, values, observed, maxima,
-    forecastPaints: changed.size === 0 && previous != null ? previous.forecastPaints : buildPaints(TSUNAMI_AREAS, values, counts),
-    observedPaints: observedChanged.size === 0 && previous != null ? previous.observedPaints : buildPaints(TSUNAMI_AREAS, maxima, counts) };
+  if (changed.size !== 0 || projection == null) state.forecastPaints = buildPaints(TSUNAMI_AREAS, state.values, counts);
+  if (observedChanged.size !== 0 || projection == null) state.observedPaints = buildPaints(TSUNAMI_AREAS, state.maxima, counts);
+  state.built = null;
+  return state;
 }
-function tsunamiWire(projection: TsunamiProjection, view: TsunamiUnitView, counts: Counts): TsunamiWire {
-  // 予報区の行を載せる EventID は 3 件（P4-DW-D-TSUNAMI-COUNT=A）。通常の報が訓練・試験より先（spec:1636 を当てる、統合担当の決め 2026-11-21）、
-  // その中で最も重い区分が上、同じ区分は新しい発表が上（表 §1.2）。外したものは件数に数える。
-  const ranked = [...projection.forecasts.values()].sort((left, right) => Number(right.operation === "normal") - Number(left.operation === "normal")
-    || right.weight - left.weight || right.reportMs - left.reportMs);
-  // 閉じた観測の印は 3 区分とも、unit が区分ごとに並べた新しい 4 件と件数を写す（P4-DW-AC07 (1)）。
-  const closed = OPERATIONS.map((operation) => {
-    const group = view.closedObservations[operation];
-    return { items: group.items.map((item) => {
+function tsunamiWire(projection: TsunamiProjection, counts: Counts): TsunamiWire {
+  if (projection.built != null) return projection.built;
+  const closed = projection.closed;
+  const built: TsunamiWire = { forecasts: projection.ranked.slice(0, WIRE_COUNTS.tsunamiEvents).map((item) => item.wire),
+    omittedEvents: Math.max(0, projection.ranked.length - WIRE_COUNTS.tsunamiEvents),
+    composites: [{ forecast: projection.forecastPaints, observed: projection.observedPaints }],
+    // 閉じた印は開ける part が無いので ref を付けない（統合担当の決め 2026-11-21、契約適合レビューの P3-5）。
+    closed: OPERATIONS.map((operation) => closed == null ? { items: [], omitted: 0 } : { items: closed[operation].items.map((item) => {
       counts.read++;
-      return { eventId: item.eventId, family: item.family, closedAt: item.closedAt,
-        ref: refOf("U-T", operation, `${operation}/tsunamiObservation:${item.family}/${item.eventId}`, item) };
-    }), omitted: group.omitted };
-  });
-  return { forecasts: ranked.slice(0, WIRE_COUNTS.tsunamiEvents).map((item) => item.wire), omittedEvents: Math.max(0, ranked.length - WIRE_COUNTS.tsunamiEvents),
-    composites: [{ forecast: projection.forecastPaints, observed: projection.observedPaints }], closed };
+      return { eventId: item.eventId, family: item.family, closedAt: item.closedAt };
+    }), omitted: closed[operation].omitted }) };
+  projection.built = built;
+  return built;
 }
 
 // ---- 地震 ----
 
-type QuakeEntry = Readonly<{ operation: Operation; paints: readonly (readonly [string, number])[]; unknownPaint: number; unknownAreas: number;
+type QuakeEntry = Readonly<{ subject: string; operation: Operation; object: unknown; paints: readonly (readonly [string, number])[]; unknownPaint: number; unknownAreas: number;
   marks: readonly DisplayStateMark[]; ref: DisplayDetailRef }>;
-type LongEntry = Readonly<{ operation: Operation; paints: readonly (readonly [string, number])[]; unknownPaint: number; reportMs: number; wire: LongPeriodWire }>;
-type QuakeProjection = Readonly<{
-  events: ReadonlyMap<string, QuakeEntry>; longs: ReadonlyMap<string, LongEntry>;
-  composite: Ranked; values: ReadonlyMap<string, number>; paints: readonly DisplayPaint[]; unknown: number;
-  longComposite: Ranked; longValues: ReadonlyMap<string, number>; longPaints: readonly DisplayPaint[]; longUnknown: number;
-}>;
+type LongEntry = Readonly<{ subject: string; operation: Operation; object: unknown; paints: readonly (readonly [string, number])[]; unknownPaint: number; reportMs: number; wire: LongPeriodWire }>;
+type QuakeProjection = {
+  readonly events: Map<string, QuakeEntry>; readonly longs: Map<string, LongEntry>; readonly longRanked: LongEntry[];
+  readonly composite: Ranked; readonly values: Map<string, number>; paints: readonly DisplayPaint[]; unknown: number;
+  readonly longComposite: Ranked; readonly longValues: Map<string, number>; longPaints: readonly DisplayPaint[]; longUnknown: number;
+  view: unknown; daily: unknown; built: EarthquakeWire | null;
+};
+// 長周期の見出しは 2 件（表 §1.2、板待ちの仮の数）。通常の報が先（spec:1636 を当てる、統合担当の決め 2026-11-21）、その中で新しい順。外したものは件数。
+const longOrder = (left: LongEntry, right: LongEntry) => normalFirst(left, right) || right.reportMs - left.reportMs || bySubject(left, right);
+type QuakeShown = EarthquakeEventView | MarkViewed<LongPeriodSubject>;
+function sameQuake(left: unknown, right: QuakeShown): boolean {
+  if (left === right || "sources" in right) return left === right;
+  if (typeof left !== "object" || left == null) return false;
+  const pick = (value: object, key: string): unknown => key in value ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
+  return ["source", "intensity", "unconfirmed", "unavailable", "expiryPending", "effective"].every((key) => pick(left, key) === pick(right, key))
+    && (pick(left, "unreadableView") == null) === (pick(right, "unreadableView") == null);
+}
 // 地域（細分区域）と市区町村の要素を区域の規則に通す。塗るのは level の合う既知コードだけ、既知でないコードは件数（P4-DW-AC02）。
 function itemPaints(items: readonly SeismicIntensityItem[], paintLevelOf: "city" | "area", value: (item: SeismicIntensityItem) => DisplayLevel,
   counts: Counts): Readonly<{ paints: (readonly [string, number])[]; unknownPaint: number; unknownAreas: number }> {
@@ -394,68 +479,79 @@ function itemPaints(items: readonly SeismicIntensityItem[], paintLevelOf: "city"
   }
   return { paints: [...paints], unknownPaint, unknownAreas };
 }
-function projectQuake(previous: QuakeProjection | null, changes: readonly Change[], counts: Counts): QuakeProjection {
-  if (previous != null && changes.length === 0) return previous;
-  const events = new Map(previous?.events ?? []), longs = new Map(previous?.longs ?? []);
-  const copy = (ranked: Ranked | undefined): Ranked => new Map([...ranked ?? []].map(([code, slots]) => [code, [...slots]]));
-  const composite = copy(previous?.composite), longComposite = copy(previous?.longComposite);
-  const values = new Map(previous?.values ?? []), longValues = new Map(previous?.longValues ?? []);
+function projectQuake(projection: QuakeProjection | null, view: RuntimeViews["U-Q"], given: readonly Change[], counts: Counts): QuakeProjection {
+  const state: QuakeProjection = projection ?? { events: new Map(), longs: new Map(), longRanked: [], composite: new Map(), values: new Map(), paints: [], unknown: 0,
+    longComposite: new Map(), longValues: new Map(), longPaints: [], longUnknown: 0, view: null, daily: null, built: null };
+  const kept = new Map<string, Readonly<{ object: unknown }>>([...state.events, ...state.longs]);
+  const after = (item: QuakeShown): Change["after"] => ({ unit: "U-Q", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] });
+  const changes = given.length !== 0 || view === state.view ? given : reconciled<QuakeShown>([...view.earthquakes, ...view.longPeriods], kept, sameQuake, after);
+  state.view = view;
+  if (view.daily !== state.daily) { state.daily = view.daily; state.built = null; }
+  if (changes.length === 0) return state;
   const changed = new Set<string>(), longChanged = new Set<string>();
-  let unknown = previous?.unknown ?? 0, longUnknown = previous?.longUnknown ?? 0;
   for (const change of changes) {
-    const oldEvent = events.get(change.subject), oldLong = longs.get(change.subject);
+    const oldEvent = state.events.get(change.subject), oldLong = state.longs.get(change.subject);
     counts.read += (oldEvent?.paints.length ?? 0) + (oldLong?.paints.length ?? 0);
-    if (oldEvent != null) { if (oldEvent.operation === "normal") { applyRefs(composite, 10, oldEvent.paints, -1, changed); unknown -= oldEvent.unknownPaint; } events.delete(change.subject); }
-    if (oldLong != null) { if (oldLong.operation === "normal") { applyRefs(longComposite, 10, oldLong.paints, -1, longChanged); longUnknown -= oldLong.unknownPaint; } longs.delete(change.subject); }
+    if (oldEvent != null) { if (oldEvent.operation === "normal") { applyRefs(state.composite, 10, oldEvent.paints, -1, changed); state.unknown -= oldEvent.unknownPaint; } state.events.delete(change.subject); }
+    if (oldLong != null) {
+      if (oldLong.operation === "normal") { applyRefs(state.longComposite, 10, oldLong.paints, -1, longChanged); state.longUnknown -= oldLong.unknownPaint; }
+      state.longs.delete(change.subject);
+      removeSorted(state.longRanked, oldLong, longOrder);
+    }
     const record = change.after?.unit === "U-Q" ? change.after.current : null;
     if (record == null) continue;
     if ("sources" in record) {
-      const view: EarthquakeEventView = record;
-      const read = itemPaints(view.intensity?.items ?? [], "city", (item) => intensityLevel(item.maxInt), counts);
-      const entry: QuakeEntry = { operation: view.operation, paints: read.paints, unknownPaint: read.unknownPaint, unknownAreas: read.unknownAreas,
-        marks: marksOf(view), ref: refOf("U-Q", view.operation, view.subject, view) };
-      events.set(change.subject, entry);
-      if (entry.operation === "normal") { applyRefs(composite, 10, entry.paints, 1, changed); unknown += entry.unknownPaint; }
+      const read = itemPaints(record.intensity?.items ?? [], "city", (item) => intensityLevel(item.maxInt), counts);
+      const entry: QuakeEntry = { subject: record.subject, operation: record.operation, object: record, paints: read.paints, unknownPaint: read.unknownPaint,
+        unknownAreas: read.unknownAreas, marks: marksOf(record), ref: refOf("U-Q", record.operation, record.subject, record) };
+      state.events.set(change.subject, entry);
+      if (entry.operation === "normal") { applyRefs(state.composite, 10, entry.paints, 1, changed); state.unknown += entry.unknownPaint; }
     } else {
-      const long: MarkViewed<LongPeriodSubject> = record;
-      const read = itemPaints(long.intensity?.items ?? [], "area", (item) => lgSeismic(item.maxLgInt), counts);
-      const entry: LongEntry = { operation: long.operation, paints: read.paints, unknownPaint: read.unknownPaint, reportMs: Date.parse(long.source.reportDateTimeRaw),
-        wire: { eventId: long.eventId, operation: long.operation, reportTime: bounded(long.source.reportDateTimeRaw, WIRE_LIMITS.time),
-          maxLg: long.intensity == null ? null : lgSeismic(long.intensity.maxLgInt), marks: marksOf(long), unknownAreas: read.unknownAreas,
-          ref: refOf("U-Q", long.operation, long.subject, long) } };
-      longs.set(change.subject, entry);
-      if (entry.operation === "normal") { applyRefs(longComposite, 10, entry.paints, 1, longChanged); longUnknown += entry.unknownPaint; }
+      const read = itemPaints(record.intensity?.items ?? [], "area", (item) => lgSeismic(item.maxLgInt), counts);
+      const entry: LongEntry = { subject: record.subject, operation: record.operation, object: record, paints: read.paints, unknownPaint: read.unknownPaint,
+        reportMs: Date.parse(record.source.reportDateTimeRaw),
+        wire: { eventId: record.eventId, operation: record.operation, reportTime: bounded(record.source.reportDateTimeRaw, WIRE_LIMITS.time),
+          maxLg: record.intensity == null ? null : lgSeismic(record.intensity.maxLgInt), marks: marksOf(record), unknownAreas: read.unknownAreas,
+          ref: refOf("U-Q", record.operation, record.subject, record) } };
+      state.longs.set(change.subject, entry);
+      insertSorted(state.longRanked, entry, longOrder);
+      if (entry.operation === "normal") { applyRefs(state.longComposite, 10, entry.paints, 1, longChanged); state.longUnknown += entry.unknownPaint; }
     }
   }
-  recompute(composite, values, changed, (slot) => slot, -1, counts);
-  recompute(longComposite, longValues, longChanged, (slot) => slot, -1, counts);
-  return { events, longs, composite, values, unknown, longComposite, longValues, longUnknown,
-    paints: changed.size === 0 && previous != null ? previous.paints : buildPaints(CITIES, values, counts),
-    longPaints: longChanged.size === 0 && previous != null ? previous.longPaints : buildPaints(SUBAREAS, longValues, counts) };
+  recompute(state.composite, state.values, changed, (slot) => slot, -1, counts);
+  recompute(state.longComposite, state.longValues, longChanged, (slot) => slot, -1, counts);
+  if (changed.size !== 0 || projection == null) state.paints = buildPaints(CITIES, state.values, counts);
+  if (longChanged.size !== 0 || projection == null) state.longPaints = buildPaints(SUBAREAS, state.longValues, counts);
+  state.built = null;
+  return state;
 }
 function quakeRow(row: SeismicRecentQuake, operation: Operation, event: QuakeEntry | undefined): EarthquakeRowWire {
   const subject = `${operation}/earthquake/${row.eventId}`;
+  // 最も強い地域のコードも区域の規則を通す（既知の細分区域だけ、既知でないものは件数、P4-DW-AC02）。
+  const strongest = row.strongest.filter((code) => SUBAREA_SET.has(code));
   return {
     eventId: row.eventId, operation, origin: bounded(row.originTimeRaw, WIRE_LIMITS.time), reportTime: bounded(row.reportDateTimeRaw, WIRE_LIMITS.time),
     hypo: cutOrNull(row.hypocenterName, WIRE_LIMITS.hypocenter), mag: valueText(rawOf(row.magnitude), row.magnitudeDescription),
     depth: valueText(rawOf(row.depth), null), maxInt: intensityLevel(row.maxInt), cancelled: row.cancelled,
-    tsunami: cutOrNull(row.tsunamiComment, WIRE_LIMITS.tsunamiEval), strongest: row.strongest, omittedStrongest: row.omittedStrongest,
-    marks: event?.marks ?? [], unknownAreas: event?.unknownAreas ?? 0,
+    tsunami: cutOrNull(row.tsunamiComment, WIRE_LIMITS.tsunamiEval), strongest, omittedStrongest: row.omittedStrongest,
+    // event があればその既知でない区域の件数（地域の要素を含む）、無ければ最も強い地域のうち既知でないコードの数。
+    marks: event?.marks ?? [], unknownAreas: event?.unknownAreas ?? row.strongest.length - strongest.length,
     // 日次行の ref は id を必ず持ち、rev は同じ snapshot に event があるときだけ（表 §5.6）。
     ref: { id: sha256(["U-Q", operation, subject]), rev: event?.ref.rev ?? null },
   };
 }
 function quakeWire(projection: QuakeProjection, view: SeismicUnitView): EarthquakeWire {
-  // 長周期の見出しは 2 件（表 §1.2、板待ちの仮の数）。通常の報が先（spec:1636 を当てる、統合担当の決め 2026-11-21）、その中で新しい順。外したものは件数。
-  const longs = [...projection.longs.values()].sort((left, right) => Number(right.operation === "normal") - Number(left.operation === "normal") || right.reportMs - left.reportMs);
-  return {
+  if (projection.built != null) return projection.built;
+  projection.built = {
     rows: OPERATIONS.flatMap((operation) => view.daily[operation].recent.map((row) => quakeRow(row, operation, projection.events.get(`${operation}/earthquake/${row.eventId}`)))),
     daily: OPERATIONS.map((operation) => ({ operation, count: view.daily[operation].count,
       maxInt: view.daily[operation].maxInt == null ? null : level(view.daily[operation].maxInt) })),
     composites: [{ areas: projection.paints, unknownAreas: projection.unknown }],
-    longPeriods: longs.slice(0, WIRE_COUNTS.longPeriods).map((item) => item.wire), omittedLongPeriods: Math.max(0, longs.length - WIRE_COUNTS.longPeriods),
+    longPeriods: projection.longRanked.slice(0, WIRE_COUNTS.longPeriods).map((item) => item.wire),
+    omittedLongPeriods: Math.max(0, projection.longRanked.length - WIRE_COUNTS.longPeriods),
     longPeriodComposites: [{ areas: projection.longPaints, unknownAreas: projection.longUnknown }],
   };
+  return projection.built;
 }
 
 // ---- 共通部（今の型のまま、表 §12） ----
@@ -488,17 +584,20 @@ const runtimeUnit = (value: string): UnitId | undefined => UNIT_IDS.find((unit) 
 // ---- 射影 ----
 
 type Change = Readonly<{ subject: string; after: RuntimeDisplayChange["after"] }>;
+// 新しい経路が読む共通部の欄（旧の射影の入力から、新しい経路が使う欄だけ。publisher は公開ごとに 1 回だけ組む）。
+type DisplayWireSource = Pick<SnapshotProjectionInput, "streamId" | "generatedAt" | "connection" | "worker" | "persistence" | "recovery" | "notificationChannels"
+  | "channelProbeComplete" | "channelFailing" | "displayChanges">;
 type DisplayWireInput = Readonly<{
-  projection: SnapshotProjectionInput;
-  // 保護 3 分野の view（読めない報のカードを含む形。projection の同じ欄と同じ object）。
+  projection: DisplayWireSource;
+  // 保護 3 分野の view（読めない報のカードを含む形）。
   views: Readonly<{ eew: RuntimeViews["U-E"]; tsunami: RuntimeViews["U-T"]; earthquake: RuntimeViews["U-Q"] }>;
   // 分野の items（確認の状態・件数）と画面のお知らせは旧の射影の state から写す（公開の判定には使わない、P4-DW-AC01）。
   domains: SnapshotProjectionState["domains"];
   notices: readonly VisibleNotice[];
 }>;
-// seen は公開した snapshot を作った view の欄（参照の比べにだけ使い、snapshot には載せない）。
+// seen は公開した snapshot を作った欄（参照の比べにだけ使い、snapshot には載せない）。
 type Seen = Readonly<{
-  closed: TsunamiUnitView["closedObservations"]; daily: SeismicUnitView["daily"]; persistence: SnapshotProjectionInput["persistence"];
+  persistence: SnapshotProjectionInput["persistence"];
   eewCards: readonly UnreadableCardView[] | undefined; tsunamiCards: readonly UnreadableCardView[] | undefined; quakeCards: readonly UnreadableCardView[] | undefined;
 }>;
 type DisplayWireState = Readonly<{
@@ -550,33 +649,22 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
   const base = previous != null && previous.streamId === input.projection.streamId ? previous : null;
   const counts: DisplayWireCounts = { eew: freshCounts(), tsunami: freshCounts(), earthquake: freshCounts() };
   const source = input.projection;
-  const eewChanges = changesOf(source.displayChanges, "U-E"), tsunamiChanges = changesOf(source.displayChanges, "U-T"), quakeChanges = changesOf(source.displayChanges, "U-Q");
-  const eew = projectEew(base?.eew ?? null, eewChanges, counts.eew);
-  const tsunami = projectTsunami(base?.tsunami ?? null, tsunamiChanges, counts.tsunami);
-  const earthquake = projectQuake(base?.earthquake ?? null, quakeChanges, counts.earthquake);
-  const published = base?.snapshot ?? null;
-  // view が同じ object のままなら分野の wire も前の object を使う（metadata だけの更新で内容を走査しない）。
-  const reuse = <V, W>(view: V, previousView: V | undefined, previousWire: W | undefined, build: () => W): W =>
-    previousWire !== undefined && view === previousView ? previousWire : build();
   const { eew: eewView, tsunami: tsunamiView, earthquake: quakeView } = input.views;
-  const eewWireValue = eew === base?.eew && published != null ? published.current.eew.wire : eewWire(eew);
-  // 閉じた印は view を出し直すたびに別の object になるので、区分ごとの 4 件と件数を欄で比べる（12 件まで）。
-  const tsunamiWireValue = tsunami === base?.tsunami && published != null && base?.seen != null && sameClosed(tsunamiView.closedObservations, base.seen.closed)
-    ? published.current.tsunami.wire : tsunamiWire(tsunami, tsunamiView, counts.tsunami);
-  const quakeWireValue = earthquake === base?.earthquake && published != null
-    ? reuse(quakeView.daily, base?.seen?.daily, published.current.earthquake.wire, () => quakeWire(earthquake, quakeView))
-    : quakeWire(earthquake, quakeView);
-  const cardsOf = <V extends Readonly<{ unreadableCards?: readonly UnreadableCardView[] }>>(view: V, previousCards: readonly UnreadableCardView[] | undefined,
+  const eew = projectEew(base?.eew ?? null, eewView, changesOf(source.displayChanges, "U-E"), counts.eew);
+  const tsunami = projectTsunami(base?.tsunami ?? null, tsunamiView, changesOf(source.displayChanges, "U-T"), counts.tsunami);
+  const earthquake = projectQuake(base?.earthquake ?? null, quakeView, changesOf(source.displayChanges, "U-Q"), counts.earthquake);
+  const published = base?.snapshot ?? null, last = base?.seen ?? undefined;
+  // カードの配列が同じ object のままなら、前に作ったカードを使う。
+  const cardsOf = (cards: readonly UnreadableCardView[] | undefined, previousCards: readonly UnreadableCardView[] | undefined,
     previousWire: readonly DisplayWireCard[] | undefined): readonly DisplayWireCard[] =>
-    reuse(view.unreadableCards, previousCards, previousWire, () => (view.unreadableCards ?? []).map(wireCard));
-  const last = base?.seen ?? undefined;
+    previousWire !== undefined && cards === previousCards ? previousWire : (cards ?? []).map(wireCard);
   const current: DisplayWireSnapshot["current"] = {
-    eew: { unit: "U-E", contentRevision: eewView.contentRevision, items: input.domains.eew.full.items, wire: eewWireValue,
-      cards: cardsOf(eewView, last?.eewCards, published?.current.eew.cards) },
-    tsunami: { unit: "U-T", contentRevision: tsunamiView.contentRevision, items: input.domains.tsunami.full.items, wire: tsunamiWireValue,
-      cards: cardsOf(tsunamiView, last?.tsunamiCards, published?.current.tsunami.cards) },
-    earthquake: { unit: "U-Q", contentRevision: quakeView.contentRevision, items: input.domains.earthquake.full.items, wire: quakeWireValue,
-      cards: cardsOf(quakeView, last?.quakeCards, published?.current.earthquake.cards) },
+    eew: { unit: "U-E", contentRevision: eewView.contentRevision, items: input.domains.eew.full.items, wire: eewWire(eew),
+      cards: cardsOf(eewView.unreadableCards, last?.eewCards, published?.current.eew.cards) },
+    tsunami: { unit: "U-T", contentRevision: tsunamiView.contentRevision, items: input.domains.tsunami.full.items, wire: tsunamiWire(tsunami, counts.tsunami),
+      cards: cardsOf(tsunamiView.unreadableCards, last?.tsunamiCards, published?.current.tsunami.cards) },
+    earthquake: { unit: "U-Q", contentRevision: quakeView.contentRevision, items: input.domains.earthquake.full.items, wire: quakeWire(earthquake, quakeView),
+      cards: cardsOf(quakeView.unreadableCards, last?.quakeCards, published?.current.earthquake.cards) },
   };
   const shell: Omit<DisplayWireSnapshot, "sequence" | "generatedAt"> = {
     schemaVersion: VERSION, streamId: source.streamId,
@@ -590,12 +678,11 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
     current, notices: input.notices,
   };
   if (published != null && sameSnapshot(published, shell))
-    return { kind: "unchanged", state: { streamId: source.streamId, snapshot: published, seen: base?.seen ?? null, eew, tsunami, earthquake }, counts };
+    return { kind: "unchanged", state: { streamId: source.streamId, snapshot: published, seen: last ?? null, eew, tsunami, earthquake }, counts };
   const snapshot: DisplayWireSnapshot = { ...shell, sequence: (published?.sequence ?? 0) + 1, generatedAt: source.generatedAt };
-  const seen: Seen = { closed: tsunamiView.closedObservations, daily: quakeView.daily, persistence: source.persistence,
-    eewCards: eewView.unreadableCards, tsunamiCards: tsunamiView.unreadableCards, quakeCards: quakeView.unreadableCards };
+  const seen: Seen = { persistence: source.persistence, eewCards: eewView.unreadableCards, tsunamiCards: tsunamiView.unreadableCards, quakeCards: quakeView.unreadableCards };
   return { kind: "projected", state: { streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake }, snapshot, counts };
 }
 
 export { WIRE_COUNTS, WIRE_LIMITS, cutText, projectDisplayWire };
-export type { DisplayWireCounts, DisplayWireInput, DisplayWireResult, DisplayWireState };
+export type { DisplayWireCounts, DisplayWireInput, DisplayWireResult, DisplayWireSource, DisplayWireState };

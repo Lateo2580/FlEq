@@ -78,7 +78,7 @@ type Units = Readonly<{ eew?: EewUnitState; tsunami?: TsunamiUnitState; quake?: 
 async function wire(units: Units, changes: readonly RuntimeDisplayChange[], previous: DisplayWireState | null): Promise<DisplayWireResult> {
   const { input, old } = await baseInput();
   const views = { eew: toEewView(units.eew ?? emptyEew()), tsunami: toTsunamiView(units.tsunami ?? emptyTsunami()), earthquake: toSeismicView(units.quake ?? emptyQuake()) };
-  return projectDisplayWire({ projection: { ...input, eew: views.eew, tsunami: views.tsunami, earthquake: views.earthquake, displayChanges: changes },
+  return projectDisplayWire({ projection: { ...input, displayChanges: changes },
     views, domains: old.domains, notices: old.notices }, previous);
 }
 function projected(result: DisplayWireResult): Extract<DisplayWireResult, { kind: "projected" }> {
