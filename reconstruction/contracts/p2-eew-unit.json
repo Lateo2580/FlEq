@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "fc7006e2380edf9a97b601d124341ba4bd7f7f42",
-    "sha256": "bcb00cd5f4ece0b6fdf7051456341863ca05c296813dbbb31b3b6c2e386cb5ac",
+    "sha256": "427f0a04f8935b64d475f31152fc0ca808ff10d76ad2370becf0915bf0417b57",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -90,14 +90,14 @@
         "familyTable": [
           {
             "family": "VXSE43",
-            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。発表ではHeadline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
-            "required": "非取消ではBody/Intensity/Forecast/全体ForecastIntと少なくとも一つのPref/Area/ForecastInt。全入力で非空EventIDと正整数Serial",
+            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。発表ではHeadline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可。非取消でBody/Intensityが無い報（解説資料Ⅱ.21-7、深さ150km超・観測点1点）は合法の欠けで、Forecast/Pref/Areaも要求しない（P4-EEW-NO-INTENSITY-001）",
+            "required": "非取消でBody/Intensityがあれば、Intensity/Forecast/全体ForecastIntと少なくとも一つのPref/Area/ForecastInt。Body/Intensityの無い非取消の報は受け、predictionは最大予測震度のFrom・Toともmissing・区域0件（P4-EEW-NO-INTENSITY-001。Body直下のForecast・ForecastIntはrequiredStructureInvalid）。全入力で非空EventIDと正整数Serial",
             "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
           },
           {
             "family": "VXSE45",
-            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。非取消でも区域Pref/Areaは0件を許しareaCoverage=noneとする。Headline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可",
-            "required": "非取消ではBody/Intensity/Forecast/全体ForecastInt。全入力で非空EventIDと正整数Serial",
+            "legalMissing": "InfoType=取消ではBodyはTextだけでよくEarthquake/Intensity/Forecast/Pref/Areaを要求しない。非取消でも区域Pref/Areaは0件を許しareaCoverage=noneとする。Headline.Text、Comments、NextAdvisory、Earthquake内の補助詳細は欠落可。非取消でBody/Intensityが無い報（解説資料Ⅱ.21-7、深さ150km超・観測点1点）は合法の欠けで、Forecast/Pref/Areaも要求しない（P4-EEW-NO-INTENSITY-001）",
+            "required": "非取消でBody/Intensityがあれば、Intensity/Forecast/全体ForecastInt。Body/Intensityの無い非取消の報は受け、predictionは最大予測震度のFrom・Toともmissing・区域0件（P4-EEW-NO-INTENSITY-001。Body直下のForecast・ForecastIntはrequiredStructureInvalid）。全入力で非空EventIDと正整数Serial",
             "invalid": "非取消の必須node欠落、空または非scalar EventID/Serial、全体ForecastIntが固定EewPredictionIntensity shapeへ射影不能、存在するPref/Areaのcode欠落・不正またはshape不正。From/Toのmissing/empty/unknown/range自体は拒否理由にしない"
           }
         ],

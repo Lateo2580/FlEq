@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "91fc093bd8d0c1ace8e29328f6afbaeafadb701b",
-    "sha256": "b4c85eaefbcbd7d7b7ebdadd2d9824bed93cf28ec5c9fca9e2a73120688ed714",
+    "sha256": "74d7077820581befcc6148fa59baeda0cd93a762727012b9cd74db03141b6032",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -479,14 +479,14 @@
       },
       {
         "id": "P3-RW2-AC08",
-        "requirement": "【発注 2】 入力と範囲の検査（草稿 AC02 を写して改める）: generateTelegrams は範囲外を例外にせず { kind: \"rejected\", reason, field } を返す。欄が無い・null・空文字は渡していない扱い。lat・lon・depthKm・magnitude・serial・reports は number で受ける。family は VXSE43・VXSE45・VXSE51・VXSE52・VXSE53・VTSE41・VTSE51・VTSE52（他は unknownFamily）。originTime は時差つき ISO 8601（秒未満は切り捨て、既定は秒に切り捨てた今。読めない・生成した時刻より後は originTimeInvalid、D-TIME）。placeCode は choices(family).places のコード（placeUnknown）、lat は 0〜90・lon は 0〜180 で小数 1 桁まで（coordinateOutOfRange）、depthKm は 0〜700 の整数（depthOutOfRange）、magnitude は 0.0〜9.9 の小数 1 桁まで（magnitudeOutOfRange）。maxInt は 1・2・3・4・5-・5+・6-・6+・7 で、VXSE51 は 3 以上・VXSE43 は 5- 以上（intensityOutOfRange）。areaCode は choices(family).areas のコード（areaUnknown）。serial は 1〜999 の整数で既定 1、列の最後の報の番号が 999 を超えても serialOutOfRange。reports は 1〜60（reportsOutOfRange）、end は none・final・cancel（endInvalid）。組合せ: VXSE51 に震源の欄、VXSE52 と津波 3 種に maxInt・areaCode、VXSE51・VXSE52・VTSE41 に serial、EEW 以外に reports・end を渡したら fieldNotInFamily。cancel=true に震源の欄・maxInt・areaCode・reports・end を添えたら cancelWithContent、VXSE52・VXSE53・VTSE52 の cancel は cancelTemplateMissing（D-CANCEL）。必須の欠け（取消でない VXSE52・53 と EEW の震源の欄〔placeCode・lat・lon・depthKm・magnitude〕、VXSE51・53 と EEW の maxInt・areaCode）は missingField。津波 3 種の震源の欄は任意。reason は閉じた一覧で、足すのは契約の改訂。無いと: 範囲外の値が parser の拒否になり、作った側の誤りか製品の誤りか見分けられない。Q-RW2-IMPL-2 (2)(10) のとおり、津波 3 種の震源の欄は渡すなら 5 つそろえ、欠ければ missingField。cancel が boolean でなければ fieldNotInFamily（field は cancel）",
+        "requirement": "【発注 2】 入力と範囲の検査（草稿 AC02 を写して改める）: generateTelegrams は範囲外を例外にせず { kind: \"rejected\", reason, field } を返す。欄が無い・null・空文字は渡していない扱い。lat・lon・depthKm・magnitude・serial・reports は number で受ける。family は VXSE43・VXSE45・VXSE51・VXSE52・VXSE53・VTSE41・VTSE51・VTSE52（他は unknownFamily）。originTime は時差つき ISO 8601（秒未満は切り捨て、既定は秒に切り捨てた今。読めない・生成した時刻より後は originTimeInvalid、D-TIME）。placeCode は choices(family).places のコード（placeUnknown）、lat は 0〜90・lon は 0〜180 で小数 1 桁まで（coordinateOutOfRange）、depthKm は 0〜700 の整数（depthOutOfRange）、magnitude は 0.0〜9.9 の小数 1 桁まで（magnitudeOutOfRange）。maxInt は 1・2・3・4・5-・5+・6-・6+・7 で、VXSE51 は 3 以上・VXSE43 は 5- 以上（intensityOutOfRange）。areaCode は choices(family).areas のコード（areaUnknown）。serial は 1〜999 の整数で既定 1、列の最後の報の番号が 999 を超えても serialOutOfRange。reports は 1〜60（reportsOutOfRange）、end は none・final・cancel（endInvalid）。組合せ: VXSE51 に震源の欄、VXSE52 と津波 3 種に maxInt・areaCode、VXSE51・VXSE52・VTSE41 に serial、EEW 以外に reports・end を渡したら fieldNotInFamily。cancel=true に震源の欄・maxInt・areaCode・reports・end を添えたら cancelWithContent、VXSE52・VXSE53・VTSE52 の cancel は cancelTemplateMissing（D-CANCEL）。必須の欠け（取消でない VXSE52・53 と EEW の震源の欄〔placeCode・lat・lon・depthKm・magnitude〕、VXSE51・53 と EEW の maxInt・areaCode）は missingField。津波 3 種の震源の欄は任意。reason は閉じた一覧で、足すのは契約の改訂。無いと: 範囲外の値が parser の拒否になり、作った側の誤りか製品の誤りか見分けられない。Q-RW2-IMPL-2 (2)(10) のとおり、津波 3 種の震源の欄は渡すなら 5 つそろえ、欠ければ missingField。cancel が boolean でなければ fieldNotInFamily（field は cancel）〔P4-EEW-NO-INTENSITY-001 で parser は Body/Intensity の無い EEW を受けるようにした（eew.ts:191 は Intensity があって Forecast か全体の ForecastInt の無い報を断る）。generator が EEW の maxInt を必須にする決まりは変えない〕",
         "evidenceRefs": [
           "reconstruction/src/domains/seismic/seismic.ts:21 «3b05587c2ec9938e»",
           "reconstruction/src/domains/seismic/seismic.ts:151 «b3f3cdab9119dc3c»",
           "reconstruction/src/domains/seismic/seismic.ts:164 «30ca2dcef270c650»",
           "reconstruction/src/domains/seismic/seismic.ts:58 «bea708f11d7f8613»",
           "reconstruction/src/domains/tsunami/tsunami.ts:225 «e08676bd75cb64dc»",
-          "reconstruction/src/domains/eew/eew.ts:191 «6ffd42e48eda4196»",
+          "reconstruction/src/domains/eew/eew.ts:191 «795586e02eea0b76»",
           "reconstruction/src/domains/seismic/seismic.ts:217 «1b174318d79f0919»",
           "reconstruction/test/eew-e01/frames.mjs:37 «c4b177f6972e7760»"
         ]

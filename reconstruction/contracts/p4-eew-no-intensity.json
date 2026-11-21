@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "63e22d3593dfcfd26573ff6a2d970277fea9b7a3ab2e4bea8b58d4e36b7b2089",
+    "sha256": "f448063c29eae0223b4be81e28beb0343c767155f7cc9678c20d533038c7dde5",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -27,7 +27,7 @@
         "provisional": "A",
         "status": "確定（統合担当の決め、2026-11-21 17:3x）",
         "ruling": "A（存在する node の shape 不正は requiredStructureInvalid の今の規則に揃える）",
-        "reason": "解説資料の形に Body 直下の Forecast は無い。B はそこにある最大予測震度を黙って捨てる。H51 の洗い出し（p3-persist-premises.md §13）は、残りを読むのに推測が要るか警報級の値を黙って落としうる欠けを C（拒否のまま読めない報のカード）に分けている。A は今の「存在する node の shape 不正は requiredStructureInvalid」（p2-eew-unit.json の familyTable の invalid）とも揃い、:426 を触らずに済む（A なら受けた Intensity の無い報で :426 の forecast は必ず null）"
+        "reason": "解説資料の形に Body 直下の Forecast は無い。B はそこにある最大予測震度を黙って捨てる。H51 の洗い出し（p3-persist-premises.md §13）は、残りを読むのに推測が要るか警報級の値を黙って落としうる欠けを C（拒否のまま読めない報のカード）に分けている。A は今の「存在する node の shape 不正は requiredStructureInvalid」（p2-eew-unit.json の familyTable の invalid）とも揃い、:426 を触らずに済む（A なら受けた Intensity の無い報で :426 の forecast は必ず null）。統合担当の決め（2026-11-21 21:3x、実装レビューから）: Intensity が無く Body の直下に ForecastInt だけがある報（Forecast は無い）も、同じ考えで requiredStructureInvalid で断る（eew.ts:195 の行の中）"
       }
     ],
     "questionResolutions": [
@@ -50,6 +50,13 @@
         "status": "closed",
         "source": "発注前点検（2026-11-21、B0 を配送した main 5e013012 の上に載せ直した draft/p4-l98 の 8ac17fb0）",
         "closed": "(1) decisionBranches は統合担当 2 件（P4-ENI-D-FAMILY・P4-ENI-D-BODY-FORECAST）とも確定で「起草案」0 件 (2) 後の作者裁定で前提が変わったもの: なし。D-B0-NO-INTENSITY=A（2026-11-21 08:24）は P4-DW-D-NO-INTENSITY として B0 の契約で確定のまま。B0 の配送で前提が 1 つ変わった: B0 の detectOnly（eew.ts:861）は Intensity を読まず受理の必須に頼る（:860）ので、本契約の後は Intensity の無い報で真になりうる。AC01 (7) と AC04 (2) を足して閉じた (3) 行の読み直し: B0 は eew.ts に :836 より後の 32 行（:837〜:868）を足し、:463・:493〜:494・:596・:598・:825 を行の中で変えた。本契約が引く :185・:190〜:201・:426・:448・:452・:623・:628〜:638・:671〜:672・:676・:686 は番号も中身も起草のときのまま、試験の :484〜:486 も同じ（1830 行のまま）。主張は全部まだ真 (4) 変える行を «» で引く他の契約（main 5e013012 で数え直し）: eew.ts は全 141 本のうち :191 の 1 本（p3-replay-watch-002）。:630 は p3-eew-facts が引くが中身を変えない。:860〜:861 を引く契約は無い。p2-eew-unit.json の :93・:94・:99・:100、eew-unit.test.ts の :485〜:486、display-wire.test.ts の :441〜:442 を引く契約は無い。p3-persist-premises.md:509 を引くのは本契約だけ (5) B0 の試験で期待が動くのは P4-DW-T09 の :441〜:442 の 1 か所（Intensity の無い VXSE45 は current を作らない）。:443〜:445 の取消と全体の ForecastInt の無い報は current を作らないまま。ほかの display-wire の試験の Intensity は fixture の中の形（display-wire-fixture.ts:52）で、本契約で変わらない (6) readPaths の 17 は全部実在。dependsOn の 4 件（P4-DISPLAY-WIRE-001 を足した）は main に実在 (7) check-contract と check-sequences の rc は本契約の meta.sha256 を取り直した後に回した（統合担当への返事に書く）",
+        "remaining": "なし"
+      },
+      {
+        "id": "Q-ENI-DELIVERY",
+        "status": "closed",
+        "source": "配送（統合担当、2026-11-21。実装 fe2b5d56・cab61da6〔impl/p4-l98、baseOid 606a6cee（a8220ff0 で割り当て）の上〕）",
+        "closed": "(1) 実装: eew.ts の :191・:193・:195・:201（Intensity の無い報を受け、最大予測震度を missing にする）、:628・:631（forecast が無ければ predictions と forecastIntNodes を空に）、:860〜:861（detectOnly に Intensity があることを足す）を行の中で直した。868 行のまま。試験は eew-unit.test.ts に P4-ENI-T01〜T03、cab61da6 で Body 直下の ForecastInt だけの報も Invalid で断る直しと、試験の補助の as を型ガードにした (2) レビュー（契約適合と品質を 1 本、Opus）GO。確かめた境: 受ける（77_01_01 の VXSE45 と 37_01_01 の VXSE43 から Intensity〔VXSE43 は Comments も〕を消すと changed、予測は missing・区域 0 件、震源・M・深さ・座標は元と同じ、maxLgInt null）、断る（Intensity の開き閉じの tag だけ欠けると Invalid、全体の ForecastInt の欠けは Missing、Body 直下の ForecastInt だけも Invalid）、通知の続き方（第 1 報で warning・VXSE43 は critical の 2 件、本文「最大予測震度不明」、受け直しと続報で 0 件、既知の予測の後の続報で retainedPrediction が前の報の組）、detectOnly（OriginTime が無く Text のある Intensity の無い報で偽・place null） (3) 期待を変えた既存の試験 2 か所: eew-unit.test.ts の P2-A4-T01 の 1 行（VXSE43 から Intensity を消して Missing → Intensity の中の Forecast を消して Missing、AC04 (1)）、display-wire.test.ts の P4-DW-T09 の 1 行（Intensity の無い報は current を作らない → 作って detectOnly 偽・place null、AC04 (2)） (4) 統合担当の決め（21:3x）: Intensity が無く Body 直下に ForecastInt だけがある報も requiredStructureInvalid（AC02・T03 (c)・P4-ENI-D-BODY-FORECAST の reason） (5) 統合担当の改訂を当てた: p2-eew-unit.json の familyTable の legalMissing と required（:93・:94・:99・:100）を行の中で改め meta.sha256 を取り直した、p3-persist-premises.md:509 の行の中に解消の注記を書き本契約の «» を付け直した、p3-replay-watch-002.json の eew.ts:191 の «» を付け直し RW2-AC08 に注記（generator の maxInt の必須は変えない）を足して meta.sha256 を取り直した (6) Mac mini のゲート: Mac mini のゲート 12 段（rec-gate-par.sh、cab61da6、280 秒）: tsc 3 本・reconstruction の vitest 1,729 passed・38 skipped と shuffle・check-manifest・check-sequences・build・旧築の test 6,850 passed は rc 0、check-contract の rc 1 は p3-replay-watch-002 の eew.ts:191 の 1 件だけ（配送で付け直した後の木で FAIL 0） (7) 残存: 実の深発・観測点 1 点の電文は手元に無く、試験は手製の形だけで見ている",
         "remaining": "なし"
       }
     ],
@@ -159,7 +166,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:185 «c96e5efe00dff141»",
           "reconstruction/src/domains/eew/eew.ts:448 «afaafcde30eca908»",
-          "reconstruction/contracts/p3-persist-premises.md:509 «90cf15a383442843»",
+          "reconstruction/contracts/p3-persist-premises.md:509 «a5956ce0472babfa»",
           "reconstruction/contracts/p3-eew-facts.types.ts",
           "reconstruction/src/view-projector/display-wire.ts",
           "reconstruction/contracts/p4-display-wire.json"
@@ -167,7 +174,7 @@
       },
       {
         "id": "P4-ENI-AC02",
-        "requirement": "断るものは今のまま: (1) Intensity があって Forecast か全体の ForecastInt が無い報は requiredStructureMissing（解説資料の Forecast は 0/1 回だが、EEW で出ないのはリアルタイム震度電文だけ） (2) Intensity・Forecast・全体の ForecastInt の 2 個以上、Area の無い Pref、Area の ForecastInt の 0 個・2 個以上は今の reason のまま (3) VXSE43 で Intensity があり区域 0 件は requiredStructureMissing のまま (4) identity の検査が先（Serial 0 で Intensity の無い報は identityInvalid、eew-unit.test.ts:484） (5) 取消の扱いは変えない (6) 非取消で Intensity が無く Body の直下に Forecast がある報は requiredStructureInvalid（P4-ENI-D-BODY-FORECAST=A）。この形は reason が今の requiredStructureMissing から requiredStructureInvalid に変わる（既存の試験に無い形）",
+        "requirement": "断るものは今のまま: (1) Intensity があって Forecast か全体の ForecastInt が無い報は requiredStructureMissing（解説資料の Forecast は 0/1 回だが、EEW で出ないのはリアルタイム震度電文だけ） (2) Intensity・Forecast・全体の ForecastInt の 2 個以上、Area の無い Pref、Area の ForecastInt の 0 個・2 個以上は今の reason のまま (3) VXSE43 で Intensity があり区域 0 件は requiredStructureMissing のまま (4) identity の検査が先（Serial 0 で Intensity の無い報は identityInvalid、eew-unit.test.ts:484） (5) 取消の扱いは変えない (6) 非取消で Intensity が無く Body の直下に Forecast がある報は requiredStructureInvalid（P4-ENI-D-BODY-FORECAST=A）。この形は reason が今の requiredStructureMissing から requiredStructureInvalid に変わる（既存の試験に無い形）。Intensity が無く Body の直下に ForecastInt だけがある報（Forecast は無い）も requiredStructureInvalid（統合担当の決め 2026-11-21 21:3x、P4-ENI-D-BODY-FORECAST と同じ考え）",
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:185 «c96e5efe00dff141»",
           "reconstruction/test/eew-unit/eew-unit.test.ts:484 «888eed43bd32027f»",
@@ -225,7 +232,7 @@
           "P4-ENI-AC01",
           "P4-ENI-AC02"
         ],
-        "behavior": "契約境界。(a) 77_01_01 の Intensity の開き・閉じの tag だけを消して Forecast を Body 直下に残すと、requiredStructureInvalid で state は同じ参照、例外なし（P4-ENI-D-BODY-FORECAST=A） (b) 77_01_01 で Intensity の中の ForecastInt（全体のもの）を消すと requiredStructureMissing、state は同じ参照。Forecast を消す形は AC04 で書き換えた P2-A4-T01 の行が見る"
+        "behavior": "契約境界。(a) 77_01_01 の Intensity の開き・閉じの tag だけを消して Forecast を Body 直下に残すと、requiredStructureInvalid で state は同じ参照、例外なし（P4-ENI-D-BODY-FORECAST=A） (b) 77_01_01 で Intensity の中の ForecastInt（全体のもの）を消すと requiredStructureMissing、state は同じ参照。Forecast を消す形は AC04 で書き換えた P2-A4-T01 の行が見る (c) 77_01_01 で Intensity と Forecast の開き・閉じの tag を消して ForecastInt を Body 直下に残すと requiredStructureInvalid、state は同じ参照（統合担当の決め 21:3x）"
       }
     ],
     "requiredCommands": [
