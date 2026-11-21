@@ -78,5 +78,73 @@
     },
     "knownGapsAndExclusions": [],
     "attribution": "出典：気象庁ホームページ（https://xml.kishou.go.jp/tec_material.html）の個別コード表（地震火山関連コード表、AreaInformationCity・AreaForecastLocalM コード表、R8.11.18）を加工して作成。加工：FlEq"
+  },
+  "tsunamiRegion": {
+    "output": {
+      "path": "reconstruction/assets/gis/tsunami-region.v1.json",
+      "sha256": "4884823475ebe5994f27c037c41c888239e9e79f9807d252a72482b3c3826e46"
+    },
+    "source": {
+      "url": "https://www.jma.go.jp/jma/kishou/know/jishin/joho/tsunami-yohoku/tsunami_shichouson.pdf",
+      "page": "https://www.jma.go.jp/jma/kishou/know/jishin/joho/tsunami-yohoku.html",
+      "version": "令和８年３月26日時点",
+      "retrievedAt": "2026-11-21",
+      "inputPath": "reconstruction/assets/gis/source/tsunami-shichouson/tsunami_shichouson.pdf",
+      "inputSha256": "95bff15af52ef6489e230e1a5f97fe9439cc248806721f1d12f5f0248566476b",
+      "transcriptionPath": "reconstruction/assets/gis/source/tsunami-shichouson/transcription.tsv",
+      "transcriptionSha256": "5db00f487eaf629ad0dbf437d1519bd580ceea0860870adce888b0b01d9c70cc",
+      "matchPath": "reconstruction/assets/gis/source/tsunami-shichouson/match.tsv",
+      "matchSha256": "7d793fc086525df3bde8e50a50b1badf62a2d9366d1dad43b66134d62acd6f90"
+    },
+    "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+    "transform": {
+      "script": "reconstruction/tools/gis/build-tsunami-region.mjs",
+      "node": "v26.12.1",
+      "args": []
+    },
+    "expectedCodeCount": {
+      "transcriptionItems": 675,
+      "tsunamiArea": 66,
+      "rows": 765
+    },
+    "knownGapsAndExclusions": [
+      {
+        "kind": "excludedRow",
+        "prefecture": "北海道（根室地方）",
+        "name": "色丹村",
+        "reason": "sheet 24 に 7 桁のコードが無い（北方領土、P4-GIS-I-TSUNAMI-CITY-DETAIL）"
+      },
+      {
+        "kind": "excludedRow",
+        "prefecture": "北海道（根室地方）",
+        "name": "国後泊村",
+        "reason": "sheet 24 に 7 桁のコードが無い（北方領土、P4-GIS-I-TSUNAMI-CITY-DETAIL）"
+      },
+      {
+        "kind": "excludedRow",
+        "prefecture": "北海道（根室地方）",
+        "name": "留夜別村",
+        "reason": "sheet 24 に 7 桁のコードが無い（北方領土、P4-GIS-I-TSUNAMI-CITY-DETAIL）"
+      },
+      {
+        "kind": "excludedRow",
+        "prefecture": "北海道（根室地方）",
+        "name": "留別村",
+        "reason": "sheet 24 に 7 桁のコードが無い（北方領土、P4-GIS-I-TSUNAMI-CITY-DETAIL）"
+      },
+      {
+        "kind": "excludedRow",
+        "prefecture": "北海道（根室地方）",
+        "name": "紗那村",
+        "reason": "sheet 24 に 7 桁のコードが無い（北方領土、P4-GIS-I-TSUNAMI-CITY-DETAIL）"
+      },
+      {
+        "kind": "excludedRow",
+        "prefecture": "北海道（根室地方）",
+        "name": "蘂取村",
+        "reason": "sheet 24 に 7 桁のコードが無い（北方領土、P4-GIS-I-TSUNAMI-CITY-DETAIL）"
+      }
+    ],
+    "attribution": "出典：気象庁ホームページ（https://www.jma.go.jp/jma/kishou/know/jishin/joho/tsunami-yohoku.html）の「津波予報区に対応する市町村対応表」（令和８年３月26日時点）を加工して作成。加工：FlEq"
   }
 }
