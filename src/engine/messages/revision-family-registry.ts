@@ -29,7 +29,7 @@ import {
   TELEGRAM_REVISION_MAX_ENTRIES,
   type CancellationPolicy,
 } from "./telegram-revision-gate";
-import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "./tsunami-state";
+import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY, tsunamiPrimaryEventId } from "./tsunami-state";
 import {
   VPWW56_MAX_SUBJECTS,
   VPWW56_TOMBSTONE_RETENTION_MS,
@@ -167,7 +167,7 @@ function eventSubject(meta: TelegramMeta, prefix: string, includeType = true): s
 }
 
 export function tsunamiStateSubjectKey(meta: TelegramMeta): string | null {
-  return eventSubject(meta, "tsunami", false);
+  const id = meta.eventId.valid ? nonBlank(meta.eventId.value) : null; return id == null ? null : `tsunami:${tsunamiPrimaryEventId(id)}`;
 }
 
 function transientEventPolicy<TParsed>(options: {

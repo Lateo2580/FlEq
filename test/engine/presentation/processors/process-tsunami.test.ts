@@ -115,6 +115,43 @@ describe("processTsunami", () => {
     expect(tsunamiState.getPersistedKeyedActive()).toEqual([]);
   });
 
+  // 2 つの地震が寄与すると EventID が並ぶ（解説資料 共通別紙イ、2015-11-14 の列の _04）。
+  it("EventID が並ぶ全解除が先頭の番号の警報を消す", () => {
+    const tsunamiState = new TsunamiStateHolder();
+    const revisionGate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ tsunamiState, revisionGate });
+    const releaseXml = fs.readFileSync("test/fixtures/32-39_13_07_250206_VTSE41.xml", "utf8")
+      .replace("20181204180000", "20110311144640 20110311150000")
+      .replace("2018-12-04T19:30:00+09:00", "2011-03-11T15:30:00+09:00");
+
+    expect(processTsunami(createMockWsDataMessage(FIXTURE_VTSE41_WARN), deps).kind).toBe("ok");
+    expect(processTsunami(createMockWsDataMessageFromXml(releaseXml, "VTSE41"), deps).kind).toBe("ok");
+    expect(tsunamiState.getLevel()).toBeNull();
+    expect(tsunamiState.getPersistedKeyedActive()).toEqual([]);
+    expect(revisionGate.exportDurableEntries().map((entry) => entry.stateSubjectKey))
+      .toEqual(["tsunami:20110311144640"]);
+  });
+
+  // 取消の例 2（解説資料）: 番号 A の報と A・B の報を、A・B の取消 1 通で取り消す。
+  it("EventID が並ぶ取消が先頭の番号の報をまとめて取り消す", () => {
+    const tsunamiState = new TsunamiStateHolder();
+    const revisionGate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ tsunamiState, revisionGate });
+    const multiXml = fs.readFileSync("test/fixtures/32-39_11_02_250206_VTSE41.xml", "utf8")
+      .replace("20110311144640", "20110311144640 20110311150000")
+      .replace("2011-03-11T14:49:00+09:00", "2011-03-11T15:10:00+09:00");
+    const cancelXml = fs.readFileSync("test/fixtures/38-39_03_01_210805_VTSE41.xml", "utf8")
+      .replace("20210805103531", "20110311144640 20110311150000");
+
+    expect(processTsunami(createMockWsDataMessage(FIXTURE_VTSE41_WARN), deps).kind).toBe("ok");
+    expect(processTsunami(createMockWsDataMessageFromXml(multiXml, "VTSE41"), deps).kind).toBe("ok");
+    expect(processTsunami(createMockWsDataMessageFromXml(cancelXml, "VTSE41"), deps).kind).toBe("ok");
+    expect(tsunamiState.getLevel()).toBeNull();
+    expect(revisionGate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:20110311144640", cancelled: true }),
+    ]);
+  });
+
   it("パース失敗 → parse-failed", () => {
     const tsunamiState = new TsunamiStateHolder();
     const msg = { type: "data" as const, version: "2.0", classification: "telegram.earthquake", id: "bad", passing: [], head: { type: "VTSE41", author: "気象庁", time: new Date().toISOString(), test: false, xml: true }, format: "xml" as const, compression: null, encoding: "utf-8" as const, body: "invalid" };

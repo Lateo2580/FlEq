@@ -76,8 +76,16 @@ function tsunamiForecastStateKey(
 function tsunamiEventId(info: ParsedTsunamiInfo): string | null {
   const eventId = info.meta.eventId;
   return eventId.valid && eventId.value != null && eventId.value.trim() !== ""
-    ? eventId.value
+    ? tsunamiPrimaryEventId(eventId.value)
     : null;
+}
+
+/**
+ * 2 つの地震が寄与する津波の報は EventID を空白で区切って並べ、先頭は最初の報の番号のまま解除まで続く
+ * （気象庁の津波の解説資料 共通別紙イ・ウ）。状態・gate・復元の鍵は先頭の番号に寄せる。
+ */
+export function tsunamiPrimaryEventId(eventId: string): string {
+  return eventId.trim().split(/\s+/)[0];
 }
 
 /**
@@ -212,7 +220,7 @@ export class TsunamiStateHolder
 
   /** canonical EventID envelope の有無だけを調べる。aggregate lastInfo は使わない。 */
   hasPersistedEvent(eventId: string): boolean {
-    return this.eventInfos.has(eventId);
+    return this.eventInfos.has(tsunamiPrimaryEventId(eventId));
   }
 
   /**

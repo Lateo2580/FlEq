@@ -69,7 +69,7 @@ import {
   weatherOfficeWatermarkKey,
 } from "../messages/weather-stream-key";
 import {
-  TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY,
+  TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY, tsunamiPrimaryEventId,
 } from "../messages/tsunami-state";
 import {
   compareTsunamiRevisionIdentity,
@@ -5792,7 +5792,7 @@ function persistedTsunamiSubjectFromUnknown(value: unknown): string | null {
   return eventId.valid === true
     && typeof eventId.value === "string"
     && eventId.value.trim() !== ""
-    ? `tsunami:${eventId.value}`
+    ? `tsunami:${tsunamiPrimaryEventId(eventId.value)}`
     : null;
 }
 

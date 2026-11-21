@@ -241,6 +241,16 @@ describe("restoreTsunamiState bounded multi-event batch", () => {
     expect(state.hasPersistedEvent("B")).toBe(true);
   });
 
+  it("EventID が並ぶ続報を持つ保存から、並びの全解除で先頭の番号を消す", async () => {
+    const a0 = active("a0", "A", "2026-07-28T20:00:00Z", NOW - 40_000);
+    const m1 = active("m1", "A B", "2026-07-28T20:01:00Z", NOW - 39_000, "津波注意報");
+    const release = active("m2", "A B", "2026-07-28T20:02:00Z", NOW - 38_000, "津波予報");
+    install([a0, m1, release]);
+    const state = new TsunamiStateHolder(); const gate = new TelegramRevisionGate(); seed(a0, state, gate); seed(m1, state, gate);
+    expect((await restore(state, gate)).kind).toBe("complete");
+    expect(state.hasPersistedEvent("A")).toBe(false);
+  });
+
   it("§5.7 paginates both full scans with an opaque cursor and fetches bodies between scans", async () => {
     const a = active("a", "A", "2026-07-28T20:00:00Z", NOW - 10_000);
     parsedById.set("a", a);

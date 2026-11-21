@@ -6,7 +6,7 @@ import * as log from "../../logger";
 import type { StandbyPersistenceAdmissionCoordinator } from "../display/standby-persistence-admission";
 import { compareTsunamiRevisionIdentity, tsunamiActiveMatchesGate, tsunamiInfoTypePrecedence } from "../messages/tsunami-persistence-identity";
 import { TelegramRevisionGate, type PersistedTelegramRevisionGateEntryV2, type TelegramRevisionDecision, type TelegramRevisionGateSnapshot } from "../messages/telegram-revision-gate";
-import { TsunamiStateHolder, type TsunamiStateSnapshot } from "../messages/tsunami-state";
+import { TsunamiStateHolder, tsunamiPrimaryEventId, type TsunamiStateSnapshot } from "../messages/tsunami-state";
 import { createTsunamiRevisionGateInput, processTsunami } from "../presentation/processors/process-tsunami";
 import { strictRestReceivedTimeMs, toWsDataMessageFromRestBody } from "./telegram-adapter";
 import { isTsunamiReleaseOnlyForecast } from "../../utils/tsunami-kind";
@@ -102,7 +102,7 @@ function prepareListItem(item: TelegramListItem): PreparedItem {
     ...createdMeta,
     reportDateTime: parseStrictReportDateTime(head.reportDateTime, DATE_LIMIT_MS),
   };
-  const eventId = meta.eventId.value?.trim() ?? "";
+  const eventId = tsunamiPrimaryEventId(meta.eventId.value ?? "");
   if (!meta.type.valid || !meta.eventId.valid || eventId === "" || !meta.reportDateTime.valid
     || meta.reportDateTime.epochMs == null || !meta.infoType.valid || meta.infoType.value == null
     || (!serialMissing(meta) && (!meta.serial.valid || meta.serial.numeric == null))) fail("listItemInvalid");
@@ -279,7 +279,7 @@ function planCoverage(items: readonly StagedItem[], state: TsunamiStateHolder, g
   const byEvent = new Map<string, StagedItem[]>();
   for (const item of ordered) byEvent.set(item.eventId, [...(byEvent.get(item.eventId) ?? []), item]);
   const active = new Map(state.getPersistedKeyedActive().flatMap((x) => {
-    const id = x.meta.eventId.value?.trim(); return id ? [[id, x] as const] : [];
+    const id = x.meta.eventId.value?.trim(); return id ? [[tsunamiPrimaryEventId(id), x] as const] : [];
   }));
   const bySubject = new Map<string, PersistedTelegramRevisionGateEntryV2[]>();
   for (const entry of gateEntries(gate)) bySubject.set(entry.stateSubjectKey, [...(bySubject.get(entry.stateSubjectKey) ?? []), entry]);
