@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "00996929395724d581738fdf3f8b00bb469d0747cda34292f3ce391d4ac4fd63",
+    "sha256": "1fd59b6247f5589aa4ce5f8a9a9f8dd463fafb92cc5bb51a57817142ef8840e6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "33f7c44d5de81cd6e7f68907d0bc96ac69bd980847b2eedfa7cb19f87a6d0092",
     "sequencesSha256": "4b9e8cb50b9700dfbde3b4ff62b574bbc845c858acab86579c8a31459926435a",
@@ -289,7 +289,7 @@
     "contractId": "P4-GIS-ASSETS-001",
     "mode": "implementation",
     "objective": "新築 P4 の G0（計画 p4-order-plan.md の土台の表の G0 の行）。地図と区域名の静的な資材を、入手元・版・利用条件・hash の付いた生成物として repo に置く。2 発注に割る。発注 1 は既知コードの表（細分区域・市区町村等と所属の細分区域・津波予報区と結合表現の code と name。B0 の表 §1.1 の既知コード 3 種）だけで、依存を足さずにコード表の xlsx から作り、reconstruction/assets/gis/known-codes.v1.json として hash 付きで commit する。B0（P4-DISPLAY-WIRE-001、未配送。B0 の未解決の問い Q-DW-G0-CODES）の区域の規則と型の最大値の試験、M0、R0 はこの表を読むだけ。発注 2 は形（細分区域・市区町村・県・津波予報区・気象警報の層、LOD、代表点、投影の値）で、作者の分岐 6 つの裁定を待つ所がある。実行時の dissolve と一般化はしない",
-    "baseOid": "unassigned",
+    "baseOid": "0a78b80dc2a193577ca27dab8abcc46d6592c790",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
