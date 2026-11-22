@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "37fbd7f3cf6a175af75067c0ad34efb590b1971d",
-    "sha256": "77d8f4c543468f20dc4f0c0d89bd4902ad1aa81409bd006cefd7c6f64fbba889",
+    "sha256": "8790f2e3fefae7fc1d4a5ee56bd1440919c12de27c12cba4cc2ddf8db173aaee",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -168,7 +168,7 @@
     "contractId": "P4-REMOVAL-LOSS-001",
     "mode": "implementation",
     "objective": "H17 の消えた理由と H39 の件数の値を作る（P4-DW-D-SCOPE-NARROW で B0 から外した分、台帳 144〜146）。消えた理由は、after が null の表示差分に unit が消える所で載せ（取消・解除・期限切れ・保持の期限・押し出し・置き換え・印が解けた・原因が複数・停止中の期限切れ・理由不明）、owner の返信・停止の確定・取り直しの採用を通して新しい wire に運ぶ。理由が分からない消え方は unknown として運び（作者裁定 2026-11-21 22:2x）、ふだんの消え方は unit の側で理由を残して unknown をめったに出さない。H39 は owner の LossTally を publisher へ運び、件数の分からない欠けと H28 の 10 分で外した EEW の未確認の区間と合わせて wire に載せる。描き方と何秒出すかは C2 の板。設計の表は reconstruction/contracts/p4-removal-loss-tables.md",
-    "baseOid": "unassigned",
+    "baseOid": "4a65472fef6ba2a1ab55b9595d26a15f1f7f65cc",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
