@@ -287,9 +287,9 @@
 | `http-sse.ts` | `parseWireDetail`（:362〜:380）に §5.5 の part（P4-DV-D-HTTP-PARTS=A） | :258 より後は 0 | :258 より後の行の中 |
 | 試験の期待 4 か所 | `test/display-wire/wire-client.ts:5`（版の字）、`display-wire-root.test.ts:84`〜`:85`（current の鍵と包みの鍵、:80 の it の題）、同じ file の :130〜:144 の it、`display-wire-detail.test.ts:74`〜`:103`（U-N・U-V の text の項目を item の項目の ref から開く）と :138（U-M の索引の revision が view の object の sha256 になる） | 0 | 行の中 |
 | 試験の補助 2 か所 | `test/display-wire/display-wire-fixture.ts:82`、`display-wire-root.test.ts:135`（views に 9 分野の view と confirmation を足す）。期待は変えない | 0 | 行の中 |
-| P4-DISPLAY-WIRE-001 の条文（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (a)） | contract.objective、AC01、AC08、RES-03、P4-DW-D-DETAIL-PAYLOAD の reason、P4-DW-D-STRING-SOURCE、P4-DW-D-SCOPE-NARROW の A、P4-DW-T08 の behavior、outOfScope の 9 分野の行。行の中に本契約の ID の注記を書き meta.sha256 を取り直す（p4-display-wire.json の行は P4-REMOVAL-LOSS-001 が :189〔P4-DW-D-SCOPE-NARROW の A〕を引くので配送で付け直す、§12） | 0 | 行の中 |
-| `p4-display-wire-tables.md`（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (b)） | :177・:178・:179（§2.2 の U-N・U-V・U-M・U-L・U-R・U-B・U-Y の行）、:190・:192（§2.3 の参照の表の項目と本文の行）、:206（§3.2 の 377,434・縮退の規則を持たない）、:215（読める組の表の B0 の後の行）に本契約の ID の注記。:192 は B0 の AC08 が、:206・:215 は B0 の AC01 が «» で引くので付け直す | :192 を B0 の AC08、:206・:215 を B0 の AC01 と本契約が引く（行の中を変えたら付け直す） | 行の中 |
-| P4-TSUNAMI-MULTI-EVENT-001・P4-REMOVAL-LOSS-001 の «»（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (d)、発注前点検で足した） | TME の `display-wire.ts:31`（配送の木では `display-vocab.ts` の `WIRE_LIMITS` の行）、REMOVAL-LOSS の `display-wire.ts:27`・`:114`・`:580` と `p4-display-wire.json:189` を配送の木の行に付け直し、両契約の meta.sha256 を取り直す | 本契約の実装の後の check-contract はこの 2 契約で FAIL しうる（見込みの FAIL、AC07 (2)） | 行の中 |
+| P4-DISPLAY-WIRE-001 の条文（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (a)） | contract.objective、AC01、AC08、RES-03、P4-DW-D-DETAIL-PAYLOAD の reason、P4-DW-D-STRING-SOURCE、P4-DW-D-SCOPE-NARROW の A、P4-DW-T08 の behavior、outOfScope の 9 分野の行。行の中に本契約の ID の注記を書き meta.sha256 を取り直す（p4-display-wire.json の行は P4-REMOVAL-LOSS-001 が :189〔P4-DW-D-SCOPE-NARROW の A〕を引くので配送で付け直す、§12） | P4-REMOVAL-LOSS-001 が :189 を引く（(d)） | 行の中 |
+| `p4-display-wire-tables.md`（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (b)） | :177・:178・:179（§2.2 の U-N・U-V・U-M・U-L・U-R・U-B・U-Y の行）、:190・:192（§2.3 の参照の表の項目と本文の行）、:206（§3.2 の 377,434・縮退の規則を持たない）、:215（読める組の表の B0 の後の行）に本契約の ID の注記。:192 は B0 の AC08 が、:206・:215 は B0 の AC01 が «» で引くので付け直す | :192 を B0 の AC08、:206 を B0 の AC01 と本契約、:215 を B0 の AC01 が引く（行の中を変えたら付け直す） | 行の中 |
+| P4-TSUNAMI-MULTI-EVENT-001・P4-REMOVAL-LOSS-001 の «»（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (d)、発注前点検で足した） | TME の `display-wire.ts:31`（配送の木では `display-vocab.ts` の `WIRE_LIMITS` の行）、REMOVAL-LOSS の `display-wire.ts:27`・`:114`・`:580` と `p4-display-wire.json:189` を配送の木の行に付け直し、両契約の meta.sha256 を取り直す。本契約自身の «»（p4-display-wire.types.ts:101・:102・:134、display-wire.ts:622、owner-runtime.ts:874、composition-root.ts:2497、http-sse.ts:362、test/display-wire/ の wire-client.ts:5・display-wire-root.test.ts:143・display-wire.test.ts:21、p4-display-wire-tables.md:206）も配送の木の行に付け直す | 本契約の実装の後の check-contract はこの 2 契約と本契約で FAIL しうる（見込みの FAIL、AC07 (2)） | 行の中 |
 | 計画 `p4-order-plan.md`（統合担当の配送の一覧（AC07 (4)・allowedPaths と同じ列挙） (c)） | 済み: 統合担当が 3f778efc で :192（Wave 2）・:223（snapshot の型の直列）・:230（http-sse.ts の直列）を行の中で直した。配送で触る行は無い | — | — |
 
 - :130〜:144 の it の直し方（B0 の P4-DW-T08 の条文を残す）: 本契約の後は 12 分野とも新しい経路に載るので、U-F だけが変わる step では新しい経路も変わる。新しい経路に載らない欄だけが変わる受信の step は、もう組めない: 表示差分は必ず分野の contentRevision を上げて包みに載り、期限の欄も載り（決め 2）、notices は旧から借り、共通部の connection・worker は両方の比べが全部の欄を見る（`sameSnapshot` と `comparable`）。旧だけが変わるのは旧の経路の要約の切替（12 分野の view の形の合計が 1 MiB を越える）だけで、試験で組むには 1 MiB の view が要る。it は「旧の射影が projected を返す step で、新しい経路の入力（差分・views・共通部）が前と同じなら新しい経路は unchanged」を、旧の射影の入力だけを変えて組む形に書き換える。経路ごとの公開の独立は :104 の it（旧の射影を unchanged に固定）が逆向きを見る。
@@ -361,7 +361,7 @@
 - 証拠不足: 語彙の形の 9 分野の実の byte（corpus と災害の日の筋書き）は数えていない。旧の経路で full の分野が新しい経路で要約になる場合の数は B1。
 - 証拠不足: U-Y の probability の 384 区域の 1 行の byte（cols の形で 1 行 60〜120 byte の見込み）は script に通していない。U-R の 1 件の 105,549 byte は view の形の見積もりで、語彙の形では cols の分だけ変わる。9 分野の実の電文の 1 件の最大は発注前点検で写した（§12.3）。語彙の形の実の byte は実装が無いので、成果物の残存に書かせる（artifactRequirements）。
 - 確かめた（発注前点検 2026-11-22）: U-V・U-N の view を作る関数（`toVolcanoView`・`toNankaiView`）を開き、§2 の U-V の 6 欄と U-N の行と突き合わせて食い違いは 0（§12.4）。
-- 確かめた（発注前点検 2026-11-22）: 新しい経路の notices は旧の射影から借りるので、停止の確定の差分で消えた記録のお知らせが expiresAt まで残る並びが組める（§12.5）。受け手は P4-REMOVAL-LOSS-001（同契約の Q-RL-PRECHECK に統合担当が書いた）。
+- 確かめた（発注前点検 2026-11-22）: 新しい経路の notices は旧の射影から借りるので、停止の確定の差分で消えた記録のお知らせが expiresAt まで残る並びが組める（§12.5）。扱いは P4-REMOVAL-LOSS-001 の発注前点検で決める（同契約の Q-RL-PRECHECK に、閉じる条文にするか受け手を名指すかを統合担当が書いた）。
 
 ## 11. r1 の対応（統合担当の決め 10 個とレビュー）
 
@@ -382,17 +382,17 @@
 
 ### 12.1 «» の数え直し
 
-- 本契約が変える file の最後の «»（本契約を除く全契約）は、`owner-runtime.ts` :774（P4-UW-RECOVERY-CUT-001）、`composition-root.ts` :2462（P3-E05P-TYPHOON-001）、`view-projector.ts` :932（P3-WEATHER-SHAPE-001、最後の行は :936）、`http-sse.ts` :258（P3-CLI-REPL-001）で、起草の時と同じ。起草の木 3434966e から 9c79d678 までに、これらの file と `display-wire.ts`・`p4-display-wire.types.ts`・`test/display-wire/` は変わっていない（変わったのは `tsunami.ts` と `format.ts` の 2 行ずつ）。
+- 本契約が変える file の最後の «»（本契約を除く全契約）は、`owner-runtime.ts` :774（P4-UW-RECOVERY-CUT-001）、`composition-root.ts` :2462（P3-E05P-TYPHOON-001）、`view-projector.ts` :932（P3-WEATHER-SHAPE-001、最後の行は :936）、`http-sse.ts` :258（P3-CLI-REPL-001）で、起草の時と同じ。起草の木 3434966e から 9c79d678 までに、これらの file と `display-wire.ts`・`p4-display-wire.types.ts`・`test/display-wire/` は変わっていない（変わったのは `tsunami.ts` の 2 行と `format.ts` の 1 行）。
 - 起草の時の「`display-wire.ts` を引く «» は 0」「`p4-display-wire.json` の行を引く契約は 0」は、いまの木では成り立たない。起草の後に入った 2 契約が引く:
   - P4-TSUNAMI-MULTI-EVENT-001（配送済み）: `display-wire.ts:31`（`WIRE_LIMITS` の eventId の行）。本契約は `WIRE_LIMITS` を `display-vocab.ts` へ移すので外れる。
   - P4-REMOVAL-LOSS-001（未割当）: `display-wire.ts:27`（`VERSION`、本契約が v2 にする）・`:114`（`refOf`）・`:580`、`p4-display-wire.json:189`（P4-DW-D-SCOPE-NARROW の A、配送の一覧 (a) で注記を書く行）。
-- check-contract は baseOid が未割当の契約の «» も照合する（P4-REMOVAL-LOSS-001 も PASS の行に出る）。付け直さないと本契約の配送の commit で CI が赤になるので、統合担当の配送の一覧に (d) を足した（AC07 (4)・allowedPaths・§5.4 の 3 か所）。
+- check-contract は baseOid が未割当の契約の «» も照合する（P4-REMOVAL-LOSS-001 も PASS の行に出る）。付け直さないと本契約の配送の commit で CI が赤になるので、統合担当の配送の一覧に (d) を足した（AC07 (4)・allowedPaths・§5.4 の 3 か所）。(d) には本契約自身の «» で実装の後に外れうる行も並べた。
 - `p4-display-wire-tables.md` の :206・:215 は本契約のほかに B0 の AC01 も引く（:192 は B0 の AC08）。配送の一覧 (b) の字を直した。
-- 実装担当への字: 実装の後の check-contract は、上の 2 契約と本契約自身の «»（変える file の境より後の行）で FAIL しうる。見込みの FAIL で、統合担当が配送で付け直す。実装担当は FAIL の契約と行を全部書いて返し、付け直さない（AC07 (2)、artifactRequirements）。
+- 実装担当への字: 実装の後の check-contract は、上の 2 契約と本契約自身の «»（(d) に並べた行）で FAIL しうる。見込みの FAIL で、統合担当が配送で付け直す。check-contract は契約ごとに最初の FAIL で止まるので、実装担当は FAIL の出た契約と行を書いて返し、付け直さない（AC07 (2)、requiredCommands、artifactRequirements）。
 
 ### 12.2 U-W・U-F の part=item・unreadable の経路
 
-- 経路: `http-sse.ts` の path の振り分け（:208、境より前、変えない）→ `parseWireDetail`（:362〜:379、境より後）→ `composition-root.ts` の詳細の union（:2438、`WireDetailRequest` の別名を引くので型の変更がそのまま届く）と unit による行き先（:1845 の `executionPlaces`。`unit-coverage.ts` で U-W は weatherCurrent、U-F は deferred の owner）→ `owner-runtime.ts` の `detailOwner`（:737、境より前、`isWireDetail` を先に見る）→ `isWireDetail`・`wireDetail`（:836〜:838・:908〜、境より後）。
+- 経路: `http-sse.ts` の path の振り分け（:209、境より前、変えない）→ `parseWireDetail`（:362〜:379、境より後）→ `composition-root.ts` の詳細の union（:2438、`WireDetailRequest` の別名を引くので型の変更がそのまま届く）と unit による行き先（:1844 の `executionPlaces`。`unit-coverage.ts` で U-W は weatherCurrent、U-F は deferred の owner）→ `owner-runtime.ts` の `detailOwner`（:737、境より前、`isWireDetail` を先に見る）→ `isWireDetail`・`wireDetail`（:836〜:838・:908〜、境より後）。
 - 境より前の行と `p3-execution-split.types.ts`（:73・:142 は型の名前を引くだけ）で変える行は 0。
 - 実装で踏みやすい所が 2 つあり、AC12 に書いた:
   - `isWireDetail` は今、U-W を外し、`WIRE_UNITS` に U-F が無い。直さないと U-W の part=item・unreadable は `weatherCurrentDetail` へ、U-F は `bulletinText`（U-N の information を読む）へ着く。
@@ -414,8 +414,8 @@
 
 ### 12.5 新しい経路の notices（§10 の未確認 2）
 
-- 新しい経路は notices を旧の射影の state から写す（`composition-root.ts:2507` の `notices: previous.notices` → `display-wire.ts` の `notices: input.notices`）。旧の射影の notice は差分（`view-projector.ts:831`）・取消の outcome・TTL（`:861`）でしか消えず、停止の確定の差分は新しい経路にだけ渡る（`composition-root.ts:1601`）。
-- 組める並び（U-E）: t=0 に報時刻から 595 秒たった EEW の新しい報を受ける（currentUntil は t+5s、旧の射影の notice の expiresAt は t+15s）→ t+2s に停止が始まる → t+6s の確定で期限の回収が差分を出し、新しい経路の U-E は current を外す → 旧の射影は差分を受けないので「緊急地震速報を確認」の notice が新しい経路に t+15s まで残る（U-W・U-F は 60 秒）。最後の段がそれより前なら、最後の snapshot に残る。
+- 新しい経路は notices を旧の射影の state から写す（`composition-root.ts:2505` の `notices: previous.notices` → `display-wire.ts` の `notices: input.notices`）。旧の射影の notice は差分（`view-projector.ts:831`）・取消の outcome・TTL（`:861`）でしか消えず、停止の確定の差分は新しい経路にだけ渡る（`composition-root.ts:1601`）。
+- 組める並び（U-E）: t=0 に報時刻から 595 秒たった EEW の新しい報を受ける（currentUntil は t+5s、旧の射影の notice の expiresAt は t+15s）→ t+2s に停止が始まる → t+6s の確定で期限の回収が差分を出し、新しい経路の U-E は current を外す → 旧の射影は差分を受けないので「緊急地震速報を確認」の notice が新しい経路に t+15s まで残る（ほかの 11 unit は 60 秒、`view-projector.ts` の TTL）。最後の段がそれより前なら、最後の snapshot に残る。
 - 本契約の範囲（9 分野の語彙と items）の外。受け持つ字は P4-REMOVAL-LOSS-001・計画の B1 の行のどちらにも無かったので、統合担当が P4-REMOVAL-LOSS-001 の Q-RL-PRECHECK に「消え方の届け方で閉じる条文にするか、閉じないなら受け手を名指す」を足した。新築は切替の前なので、画面に出るのは新しい経路を開いた試しの画面だけ。
 
 ### 12.6 そのほか

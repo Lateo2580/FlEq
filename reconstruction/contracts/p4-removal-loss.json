@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "37fbd7f3cf6a175af75067c0ad34efb590b1971d",
-    "sha256": "2b934c948fd07392396842a8d6f7fad3bb3d9b2b91a4cb7b6879392a72ff37b1",
+    "sha256": "73f87204ccb00b0a767124da7126d4fa7d0fa9d2f409604ea7c6fd730c8b2028",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -576,7 +576,7 @@
           "表 §1.2 の 12 unit の消える所の行（r3 で HEAD 45bdefda の木で開いて確かめた）が baseOid の木で動いていないことの確かめ。N0 発注 3 と P4-TSUNAMI-MULTI-EVENT-001 が先に入っていれば、その後の木で確かめる（P4-RL-D-ORDER=A、計画 §1.3 の N0 の行、P4-TME-D-ORDER）",
           "P4-DISPLAY-VOCAB-001 が display-wire.ts・p4-display-wire.types.ts・共通部の勘定に足したものと、本契約の足すものの合計の script の出力",
           "本契約の display-wire.ts の «»（AC01 の :580、AC08 の :27・:114）と p4-display-wire.json:189 の «» を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直した記録（P4-DISPLAY-VOCAB-001 の配送で統合担当が付け直す、同契約の AC07 (4) の (d)。点検ではその行が本契約の主張のままかを読み直す）と、版が v3 であること（ORDER の 2026-11-22 の決め）",
-          "新しい経路の notices は旧の射影の state から写す（composition-root.ts の wireInput の notices: previous.notices）ので、停止の確定の差分で消えた記録のお知らせが expiresAt（U-E 15 秒、U-W・U-F 60 秒）まで新しい経路に残る並びが組める（P4-DISPLAY-VOCAB-001 の表 §12.5）。本契約の消え方の届け方（P4-RL-AC01 の停止の確定の差分）で閉じる条文にするか、閉じないなら受け手を名指す（統合担当、P4-DISPLAY-VOCAB-001 の発注前点検 2026-11-22 で足した）",
+          "新しい経路の notices は旧の射影の state から写す（composition-root.ts の wireInput の notices: previous.notices）ので、停止の確定の差分で消えた記録のお知らせが expiresAt（U-E 15 秒、ほかの 11 unit 60 秒、view-projector.ts の TTL）まで新しい経路に残る並びが組める（P4-DISPLAY-VOCAB-001 の表 §12.5）。本契約の消え方の届け方（P4-RL-AC01 の停止の確定の差分）で閉じる条文にするか、閉じないなら受け手を名指す（統合担当、P4-DISPLAY-VOCAB-001 の発注前点検 2026-11-22 で足した）",
           "script p4-display-wire-max.mjs の共通部の余りが負でないこと（H39-SHAPE=B の見積もりは余り 3,228、P4-RL-D-H39-SHAPE の ruling。負なら発注しない）"
         ]
       },

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "f0a724d3c47eb8ae41953ce70263aa473cfe6c51c0fe1afd6207379e0c489781",
+    "sha256": "cd22b17b69a594adb7198ef594cc14c20c1ec066d6a951d98247c987160d3dea",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -137,7 +137,7 @@
         "provisional": "A",
         "status": "確定（統合担当の決め、発注前点検 2026-11-22）",
         "ruling": "A（統合担当の決め、発注前点検 2026-11-22。画面の出る・出ないは変わらないので作者の分岐にしない）",
-        "reason": "表 §12.6。P2-A8-COST は 1 回の射影の規則で回数に触れず（p2-snapshot-sse.json の P2-A8-COST の projector）、B0 の例外は直列化の回数と段 1 の記録だけ（P4-DW-AC05・P4-DW-AC06 (1)）。B0 の新しい経路は items を旧の射影から借りていた（composition-root.ts の wireInput の domains: previous.domains）ので、projectDomain の 2 回目は本契約が初めて。B は台帳 147 の誤り（停止の確定で消えた記録を有効と数えたまま公開する）に戻る"
+        "reason": "表 §12.6。P2-A8-COST は 1 回の射影の規則で回数に触れず（p2-snapshot-sse.json の P2-A8-COST の projector）、B0 の例外は直列化の回数と段 1 の記録だけ（P4-DW-AC05・P4-DW-AC06 (1)）。B0 の新しい経路は items を旧の射影から借りていた（composition-root.ts の wireInput の domains: previous.domains）ので、projectDomain の 2 回目は本契約が初めて。B は台帳 147 の誤り（停止の確定で消えた記録を有効と数えたまま公開する）に戻る。p2-snapshot-sse.json の P2-A8-COST の字は変えない（AC07 (5)。:97・:99 を P3-UF-PUBLIC-001 が引く）。2 回走ることは本分岐と計画 Wave 4 の PI 発注 1 の行で読む"
       },
       {
         "id": "P4-DV-D-INDEX-PAGING",
@@ -177,7 +177,7 @@
         "id": "Q-DV-PRECHECK",
         "status": "closed",
         "source": "統合担当の発注前点検（2026-11-22、main 9c79d678。子 2 体の読みを統合担当が行を開いて確かめた）",
-        "closed": "(1) «» の数え直し: 変える file の最後の «» は起草の時と同じ。display-wire.ts は P4-TSUNAMI-MULTI-EVENT-001 と P4-REMOVAL-LOSS-001 が、p4-display-wire.json は P4-REMOVAL-LOSS-001 が引くので、配送の一覧に (d) を足し、:206・:215 を B0 の AC01 も引くことを (b) に書いた（AC07、表 §12.1） (2) U-W・U-F の part=item・unreadable は境より後の行だけで足り、isWireDetail と hex の検査の位置を AC12 に書いた（表 §12.2） (3) projectDomain の 2 回の走行は P4-DV-D-DOUBLE-PROJECTION で決めた (4) ITEM-OVERSIZE の reason に実の電文の 1 件の最大を写し、A の成り立つ条件を計画 §4.3 の 6 に書いた（表 §12.3） (5) U-V・U-N の view を作る関数と表 §2 の食い違いは 0（表 §12.4） (6) 停止の確定で消えた記録のお知らせは P4-REMOVAL-LOSS-001 の Q-RL-PRECHECK へ（表 §12.5） (7) Q-DV-UW-AREA-NAMES と Q-DV-UF-RETAIN は事実を書き直して開けたまま（止めるのは C0 発注 1 と C1） (8) 作者の分岐と統合担当の分岐に起草案は無い（どれも確定）",
+        "closed": "(1) «» の数え直し: 変える file の最後の «» は起草の時と同じ。display-wire.ts は P4-TSUNAMI-MULTI-EVENT-001 と P4-REMOVAL-LOSS-001 が、p4-display-wire.json は P4-REMOVAL-LOSS-001 が引くので、配送の一覧に (d) を足し、:206・:215 を B0 の AC01 も引くことを (b) に書いた（AC07、表 §12.1） (2) U-W・U-F の part=item・unreadable は境より後の行だけで足り、isWireDetail と hex の検査の位置を AC12 に書いた（表 §12.2） (3) projectDomain の 2 回の走行は P4-DV-D-DOUBLE-PROJECTION で決めた (4) ITEM-OVERSIZE の reason に実の電文の 1 件の最大を写し、A の成り立つ条件を計画 §4.3 の 6 に書いた（表 §12.3） (5) U-V・U-N の view を作る関数と表 §2 の食い違いは 0（表 §12.4） (6) 停止の確定で消えた記録のお知らせは P4-REMOVAL-LOSS-001 の Q-RL-PRECHECK で扱いを決める（表 §12.5） (9) 点検の直しの契約適合レビュー（2deaaec2、条件付き GO、P2 3・P3 8・証拠不足 2）を当てた (7) Q-DV-UW-AREA-NAMES と Q-DV-UF-RETAIN は事実を書き直して開けたまま（止めるのは C0 発注 1 と C1） (8) 作者の分岐と統合担当の分岐に起草案は無い（どれも確定）",
         "remaining": "なし"
       }
     ],
@@ -235,13 +235,13 @@
     "allowedPaths": [
       "reconstruction/contracts/p4-display-wire.types.ts（DisplayWireVersion を v2、DisplayWireSnapshot の current に 9 分野、WireIndexEntry の item を索引用の語彙の型にし、使わなくなる part: \"text\" の項目を外す〔足す前に引く〕、WireDetailRequest・WireDetailResponse に part=item・unreadable、語彙の型。この file を引く «» は 0）",
       "reconstruction/src/view-projector/display-vocab.ts（新しい file。view の要素 → 語彙の項目の純粋な関数、WIRE_LIMITS、cutText。contracts の型だけを import する）",
-      "reconstruction/src/view-projector/display-wire.ts（9 分野の射影・要約の規則・12 分野の items。WIRE_LIMITS と cutText は display-vocab.ts から import して再 export。この file を引く «» は 0）",
+      "reconstruction/src/view-projector/display-wire.ts（9 分野の射影・要約の規則・12 分野の items。WIRE_LIMITS と cutText は display-vocab.ts から import して再 export。この file は P4-TSUNAMI-MULTI-EVENT-001〔:31〕と P4-REMOVAL-LOSS-001〔:27・:114・:580〕が引き、配送で統合担当が付け直す〔AC07 (4) の (d)〕）",
       "reconstruction/src/view-projector/view-projector.ts（file の最後に export の行を 1 つ足すだけ: projectDomain と 12 個の tally の関数。:936 より前の行を足さず変えない）",
       "reconstruction/src/runtime/owner-runtime.ts（:774 より後の行の中だけ: wireIndex の項目と境、wireDetail と isWireDetail の part=item・unreadable、display-vocab の import。:774 より前の行を足さず変えない）",
       "reconstruction/src/runtime/composition-root.ts（:2462 より後の行の中だけ: wireInput に 9 分野の view と state.confirmation。:2462 より前の行を足さず変えない）",
       "reconstruction/src/http-sse/http-sse.ts（:258 より後の parseWireDetail の行の中だけ: part=item・unreadable。:258 より前の行を足さず変えない。直列は B0 → 本契約 → B1 → R0 → T0、計画 3f778efc の :230）",
       "reconstruction/test/display-wire/**（新しい試験 P4-DV-T01〜T07 と、AC07 (3) の期待 4 か所〔wire-client.ts:5、display-wire-root.test.ts:80・:84〜:85、同じ file の :130〜:144 の it、display-wire-detail.test.ts:74〜:103・:138〕と補助 2 か所〔display-wire-fixture.ts:82、display-wire-root.test.ts:135〕）",
-      "統合担当だけ（配送の commit）。統合担当の配送の一覧（AC07 (4)・allowedPaths・表 §5.4 は同じ列挙）: (a) p4-display-wire.json の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行に本契約の ID の注記を行の中で書き meta.sha256 を取り直す (b) p4-display-wire-tables.md の :177・:178・:179・:190・:192・:206・:215 の行の中に本契約の ID の注記（:192 は B0 の AC08 が、:206・:215 は B0 の AC01 が «» で引くので付け直す） (c) 計画 p4-order-plan.md は済み（統合担当が 3f778efc で :192・:223・:230 を直した） (d) P4-TSUNAMI-MULTI-EVENT-001 の display-wire.ts:31（WIRE_LIMITS の eventId の行。配送の木では display-vocab.ts の行）と、P4-REMOVAL-LOSS-001 の display-wire.ts:27・:114・:580 と p4-display-wire.json:189 の «» を配送の木の行に付け直し、両契約の meta.sha256 を取り直す（発注前点検 2026-11-22、表 §12）。実装担当は触らない"
+      "統合担当だけ（配送の commit）。統合担当の配送の一覧（AC07 (4)・allowedPaths・表 §5.4 は同じ列挙）: (a) p4-display-wire.json の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行に本契約の ID の注記を行の中で書き meta.sha256 を取り直す (b) p4-display-wire-tables.md の :177・:178・:179・:190・:192・:206・:215 の行の中に本契約の ID の注記（:192 は B0 の AC08 が、:206・:215 は B0 の AC01 が «» で引くので付け直す） (c) 計画 p4-order-plan.md は済み（統合担当が 3f778efc で :192・:223・:230 を直した） (d) P4-TSUNAMI-MULTI-EVENT-001 の display-wire.ts:31（WIRE_LIMITS の eventId の行。配送の木では display-vocab.ts の行）と、P4-REMOVAL-LOSS-001 の display-wire.ts:27・:114・:580 と p4-display-wire.json:189 の «» を配送の木の行に付け直し、両契約の meta.sha256 を取り直す。本契約自身の «»（p4-display-wire.types.ts:101・:102・:134、display-wire.ts:622、owner-runtime.ts:874、composition-root.ts:2497、http-sse.ts:362、test/display-wire/ の wire-client.ts:5・display-wire-root.test.ts:143・display-wire.test.ts:21、p4-display-wire-tables.md:206）も配送の木の行に付け直す（発注前点検 2026-11-22、表 §12）。実装担当は触らない"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -363,7 +363,7 @@
       "新しい経路の snapshot"
     ],
     "outOfScope": [
-      "新しい経路の notices を新しい経路の差分で無効にすること（停止の確定の差分で消えた記録のお知らせが expiresAt まで残る並び、表 §12.5）: P4-REMOVAL-LOSS-001（同契約の Q-RL-PRECHECK に統合担当が書いた）",
+      "新しい経路の notices を新しい経路の差分で無効にすること（停止の確定の差分で消えた記録のお知らせが expiresAt まで残る並び、表 §12.5）: 本契約の外。P4-REMOVAL-LOSS-001 の発注前点検（Q-RL-PRECHECK）で、閉じる条文にするか受け手を名指すかを決める",
       "H17・H39 の値（退去の理由・件数の不明・通知の結果の不明）と H11 の画面のお知らせの値: P4-REMOVAL-LOSS-001（display-wire.ts の直列で本契約の後）",
       "U-M の地震の解説（VXSE56・VXSE60・VZSE40）の本文: P4-QUAKE-COMMENTARY-TEXT-001（表 §8）",
       "B1（P4-DISPLAY-CAPACITY-001）: 9 分野の予算の配り方・落ちる順・残す順位・公開頻度・E13a の検収。本契約は今の要約の規則を新しい経路に当てるだけ",
@@ -463,7 +463,7 @@
       },
       {
         "id": "P4-DV-AC07",
-        "requirement": "開け直す配送済みの型と契約（表 §5.4）: (1) p4-display-wire.types.ts の DisplayWireSnapshot に 9 分野、DisplayWireVersion を v2、WireIndexEntry の item を索引用の語彙の型にし、使わなくなる part: \"text\" の項目を外す（足す前に引く）、語彙の型、WireDetailRequest・WireDetailResponse に part=item・unreadable（この file を引く «» は 0）。(2) owner-runtime.ts は :774 より後の行の中だけ、composition-root.ts は :2462 より後の行の中だけ（wireInput に 9 分野の view と state.confirmation、旧の射影の domains は渡さない）、view-projector.ts は file の最後に export の行を 1 つ足すだけ（projectDomain と tally の関数、:906・:932 は変えない）、http-sse.ts は :258 より後の parseWireDetail の行の中だけ。これらの行を引く «» はほかの契約に無い。ただし display-wire.ts は P4-TSUNAMI-MULTI-EVENT-001（:31）と P4-REMOVAL-LOSS-001（:27・:114・:580）が、p4-display-wire.json は P4-REMOVAL-LOSS-001（:189）が引くので、実装の後の check-contract はこの 2 契約と本契約自身の «»（変える file の境より後の行）で FAIL しうる。見込みの FAIL で、統合担当が配送で付け直す（(4) の (d)）。実装担当は FAIL の契約と行を全部書いて返し、付け直さない（発注前点検 2026-11-22、表 §12）。(3) 既存の試験の期待を変えるのは 4 か所だけ: test/display-wire/wire-client.ts:5（版の字）、display-wire-root.test.ts:84〜:85（current の鍵と包みの鍵、:80 の it の題）、同じ file の :130〜:144 の it（B0 の P4-DW-T08 の条文を残す形: 旧の射影の入力だけが変わり、新しい経路の差分・views・共通部が前と同じ step で、旧が projected でも新しい経路は unchanged）、display-wire-detail.test.ts:74〜:103 と :138（U-N・U-V の本文を item の ref から開く、U-M の索引の revision が view の object の sha256 になる）。試験の補助は display-wire-fixture.ts:82 と display-wire-root.test.ts:135 の views と confirmation を足すことと、最初の射影の差分が view を覆わない wire(units, changes, null) の呼び出しの差分を組み直すこと（projectDomain の startup の検査）で、期待は変えない。直した呼び出しの数を成果物に書く。(4) 統合担当の配送の一覧（AC07 (4)・allowedPaths・表 §5.4 は同じ列挙）: (a) p4-display-wire.json の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行に本契約の ID の注記を行の中で書き meta.sha256 を取り直す (b) p4-display-wire-tables.md の :177・:178・:179・:190・:192・:206・:215 の行の中に本契約の ID の注記（:192 は B0 の AC08 が、:206・:215 は B0 の AC01 が «» で引くので付け直す） (c) 計画 p4-order-plan.md は済み（統合担当が 3f778efc で :192・:223・:230 を直した） (d) P4-TSUNAMI-MULTI-EVENT-001 の display-wire.ts:31（WIRE_LIMITS の eventId の行。配送の木では display-vocab.ts の行）と、P4-REMOVAL-LOSS-001 の display-wire.ts:27・:114・:580 と p4-display-wire.json:189 の «» を配送の木の行に付け直し、両契約の meta.sha256 を取り直す（発注前点検 2026-11-22、表 §12）。(5) p3-execution-split.types.ts・旧 /events の出力・P2-A8-COST は変えない",
+        "requirement": "開け直す配送済みの型と契約（表 §5.4）: (1) p4-display-wire.types.ts の DisplayWireSnapshot に 9 分野、DisplayWireVersion を v2、WireIndexEntry の item を索引用の語彙の型にし、使わなくなる part: \"text\" の項目を外す（足す前に引く）、語彙の型、WireDetailRequest・WireDetailResponse に part=item・unreadable（この file を引く «» は 0）。(2) owner-runtime.ts は :774 より後の行の中だけ、composition-root.ts は :2462 より後の行の中だけ（wireInput に 9 分野の view と state.confirmation、旧の射影の domains は渡さない）、view-projector.ts は file の最後に export の行を 1 つ足すだけ（projectDomain と tally の関数、:906・:932 は変えない）、http-sse.ts は :258 より後の parseWireDetail の行の中だけ。これらの行を引く «» はほかの契約に無い。ただし display-wire.ts は P4-TSUNAMI-MULTI-EVENT-001（:31）と P4-REMOVAL-LOSS-001（:27・:114・:580）が、p4-display-wire.json は P4-REMOVAL-LOSS-001（:189）が引くので、実装の後の check-contract はこの 2 契約と本契約自身の «»（(4) の (d) に並べた行）で FAIL しうる。見込みの FAIL で、統合担当が配送で付け直す（(4) の (d)）。check-contract は契約ごとに最初の FAIL で止まるので、実装担当は FAIL の出た契約と行を書いて返し、付け直さない（発注前点検 2026-11-22、表 §12）。(3) 既存の試験の期待を変えるのは 4 か所だけ: test/display-wire/wire-client.ts:5（版の字）、display-wire-root.test.ts:84〜:85（current の鍵と包みの鍵、:80 の it の題）、同じ file の :130〜:144 の it（B0 の P4-DW-T08 の条文を残す形: 旧の射影の入力だけが変わり、新しい経路の差分・views・共通部が前と同じ step で、旧が projected でも新しい経路は unchanged）、display-wire-detail.test.ts:74〜:103 と :138（U-N・U-V の本文を item の ref から開く、U-M の索引の revision が view の object の sha256 になる）。試験の補助は display-wire-fixture.ts:82 と display-wire-root.test.ts:135 の views と confirmation を足すことと、最初の射影の差分が view を覆わない wire(units, changes, null) の呼び出しの差分を組み直すこと（projectDomain の startup の検査）で、期待は変えない。直した呼び出しの数を成果物に書く。保護 3 分野の items を projectDomain で数え直して display-wire.test.ts・display-wire-r3.test.ts の counts の期待が動くなら、変える前に止めて報告する（発注前点検では実装が無いので確かめられなかった）。(4) 統合担当の配送の一覧（AC07 (4)・allowedPaths・表 §5.4 は同じ列挙）: (a) p4-display-wire.json の contract.objective・AC01・AC08・RES-03・P4-DW-D-DETAIL-PAYLOAD の reason・P4-DW-D-STRING-SOURCE・P4-DW-D-SCOPE-NARROW の A・P4-DW-T08 の behavior・outOfScope の 9 分野の行に本契約の ID の注記を行の中で書き meta.sha256 を取り直す (b) p4-display-wire-tables.md の :177・:178・:179・:190・:192・:206・:215 の行の中に本契約の ID の注記（:192 は B0 の AC08 が、:206・:215 は B0 の AC01 が «» で引くので付け直す） (c) 計画 p4-order-plan.md は済み（統合担当が 3f778efc で :192・:223・:230 を直した） (d) P4-TSUNAMI-MULTI-EVENT-001 の display-wire.ts:31（WIRE_LIMITS の eventId の行。配送の木では display-vocab.ts の行）と、P4-REMOVAL-LOSS-001 の display-wire.ts:27・:114・:580 と p4-display-wire.json:189 の «» を配送の木の行に付け直し、両契約の meta.sha256 を取り直す。本契約自身の «»（p4-display-wire.types.ts:101・:102・:134、display-wire.ts:622、owner-runtime.ts:874、composition-root.ts:2497、http-sse.ts:362、test/display-wire/ の wire-client.ts:5・display-wire-root.test.ts:143・display-wire.test.ts:21、p4-display-wire-tables.md:206）も配送の木の行に付け直す（発注前点検 2026-11-22、表 §12）。(5) p3-execution-split.types.ts・旧 /events の出力・P2-A8-COST は変えない",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:284 «203f84889af1e644»",
           "reconstruction/contracts/p4-display-vocab-tables.md:288 «63519ad77a31463c»",
@@ -473,8 +473,8 @@
           "reconstruction/test/display-wire/display-wire-root.test.ts:143 «f1f1eacc7dc696f0»",
           "reconstruction/contracts/p4-display-wire-tables.md:206 «6e4d7b2c0fd08346»",
           "reconstruction/src/runtime/composition-root.ts:2497 «8ef6fffccb3e27cc»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:290 «90465616a5dabca2»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:291 «0fe371c5ad1915f8»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:290 «8599a3086de1c895»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:291 «b2f397b19bee0e8f»",
           "reconstruction/contracts/p4-display-vocab-tables.md:293 «ed74bfdf8997880f»",
           "reconstruction/contracts/p4-display-vocab-tables.md:281 «4c8659d7b1b1084c»"
         ]
@@ -657,7 +657,7 @@
         "cwd": ".",
         "target": "reconstruction/contracts/*.json",
         "stage": "contract",
-        "purpose": "全契約。本契約の «» と、触る file を引く他の契約の «» が全部通ること（付け直し 0 の見込み）"
+        "purpose": "全契約。実装の後は AC07 (2) の見込みの FAIL（P4-TSUNAMI-MULTI-EVENT-001・P4-REMOVAL-LOSS-001・本契約自身の «»、AC07 (4) の (d) に並べた行）がありうる。check-contract は契約ごとに最初の FAIL で止まるので、FAIL の出た契約と行を書いて返す（付け直さない）。この 3 契約のほかで FAIL が出たら止めて報告する"
       },
       {
         "command": "git diff --check -- <allowed_paths>",
@@ -673,10 +673,10 @@
       "順序: display-wire.ts・p4-display-wire.types.ts の直列は B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1（P4-DV-D-ORDER）。http-sse.ts の直列は B0 → 本契約 → B1 → R0 → T0（計画 3f778efc の :230）。baseOid は統合担当が割り当てる",
       "最小実装・最小テスト: 足す file は display-vocab.ts の 1 つだけ。items は projectDomain を使う。追加した試験ごとに対応（受入条件・契約境界・実不具合・corpus 履歴）を 1 行で書く",
       "既存の試験の期待は AC07 (3) の 4 か所のほかに変えない。変える要が出たら止めて報告する",
-      "行: owner-runtime.ts の :774 より前、composition-root.ts の :2462 より前、view-projector.ts の :936 より前、http-sse.ts の :258 より前の行を足さず変えない。check-contract の FAIL が出たら契約と行を全部書く（AC07 (2) の見込みの FAIL も書く。ほかの契約の «» を付け直さない）",
+      "行: owner-runtime.ts の :774 より前、composition-root.ts の :2462 より前、view-projector.ts の :936 より前、http-sse.ts の :258 より前の行を足さず変えない。check-contract の FAIL が出たら契約と行を全部書く（AC07 (2) の見込みの FAIL も書く。check-contract は契約ごとに最初の FAIL で止まる。ほかの契約の «» を付け直さない）",
       "試験の設定の隔離: XDG_CONFIG_HOME を一時の置き場へ向ける（requiredCommands のとおり）",
       "旧築（src/）と test/fixtures を変えない。変えないので旧築の build と test は要らない",
-      "残存として成果物に書く: 語彙の形の 9 分野の実の byte（corpus の最大と、旧の経路で full の分野が新しい経路で要約になる場合）、1 件で 1 応答に入らない詳細の項目（P4-DV-D-ITEM-OVERSIZE）、要約の間は読めない報のカードが出ないこと（旧と同じ）、新しい経路の notices を旧から借りていること（停止の確定の差分で消えた記録のお知らせが expiresAt まで残る。受け手は P4-REMOVAL-LOSS-001、表 §12.5）"
+      "残存として成果物に書く: 語彙の形の 9 分野の実の byte（corpus の最大と、旧の経路で full の分野が新しい経路で要約になる場合）、1 件で 1 応答に入らない詳細の項目（P4-DV-D-ITEM-OVERSIZE）、要約の間は読めない報のカードが出ないこと（旧と同じ）、新しい経路の notices を旧から借りていること（停止の確定の差分で消えた記録のお知らせが expiresAt まで残る。扱いは P4-REMOVAL-LOSS-001 の Q-RL-PRECHECK で決める、表 §12.5）"
     ],
     "unresolvedQuestions": [
       {
