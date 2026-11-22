@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "ad640c6ba31d25b33db6ef561dd0da66ef2d0978",
-    "sha256": "517d43676df03b0ea94fed6e17a73afe1d918aa760057d6cf448cbcaf7f62856",
+    "sha256": "49a149445a37ca00ce93f15395c84af06f67ee809e2812491530b417e2c6b0bf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -465,9 +465,9 @@
       "reconstruction/assets/gis/known-codes.v1.json（【発注 1】新しい file。生成物。手で直さない）",
       "reconstruction/assets/gis/manifest.json（【発注 1】新しい file。発注 2 は同じ file に行を足す）",
       "reconstruction/test/gis/known-codes.test.ts（【発注 1】新しい file。P4-GIS-T01・T03）",
-      "reconstruction/tools/gis/build-known-codes.mjs（【発注 2】unzip と sheetData の 2 つの関数に export を付ける行だけ。出力の byte は変えない）",
-      "reconstruction/tools/gis/build-area-codes.mjs（【発注 2】新しい file。node の組み込みと build-known-codes.mjs の unzip・sheetData だけ）",
-      "reconstruction/tools/gis/build-shapes.mjs（【発注 2】新しい file。node の組み込みと、build-known-codes.mjs の unzip〔zip の中の .shp・.shx・.dbf の名前と .prj の有無の確かめ〕と、child_process で root の node_modules/mapshaper/bin/mapshaper を呼ぶ）",
+      "reconstruction/tools/gis/build-known-codes.mjs（【発注 2】unzip・sheetData・collect・need に export を付け、xlsx から sheet を引く workbook を足して buildKnownCodes がそれを使う。sheetData の見出しの A 列は引数 headerA で、既定は Code〔P4-GIS-I-AREA-CODE-HEADER〕。出力の byte は変えない。2026-11-22 の配送で実物に合わせて改めた）",
+      "reconstruction/tools/gis/build-area-codes.mjs（【発注 2】新しい file。node の組み込みと build-known-codes.mjs の workbook・need・collect だけ。2026-11-22 の配送で実物に合わせて改めた）",
+      "reconstruction/tools/gis/build-shapes.mjs（【発注 2】新しい file。node の組み込みと、zip の central directory から名前だけを読む関数〔.shp・.shx・.dbf の名前と .prj の有無の確かめ。名前は cp932 で読み、中身は展開しない。build-known-codes.mjs の unzip は名前を UTF-8 で読み中身も全部展開するので使わない〕と、child_process で node の子の process から root の node_modules/mapshaper の mapshaper.js を呼ぶ〔bin/mapshaper は標準出力を非同期に書いた直後に process.exit するので、macOS の pipe で 65,536 byte で切れる〕。2026-11-22 の配送で実物に合わせて改めた）",
       "reconstruction/tools/gis/build-tsunami-region.mjs（【発注 2】新しい file。node の組み込みだけ、AC11）",
       "reconstruction/assets/gis/area-codes.v1.json・area-membership.v1.json・tsunami-region.v1.json（【発注 2】新しい file。生成物。手で直さない）",
       "reconstruction/assets/gis/shapes/（【発注 2】新しい directory。AC07 の表の層ごとに <層>.overview.v1.json・<層>.zoom.v1.json・<層>.anchors.v1.json の 27 file。生成物。手で直さない）",
@@ -553,7 +553,7 @@
         "id": "P4-GIS-AC01",
         "requirement": "【発注 1】既知コードの表を reconstruction/assets/gis/known-codes.v1.json に、形は reconstruction/contracts/p4-gis-assets.types.ts の KnownCodeTable で置く。(1) 欄と出どころ（地震火山関連コード表）: forecastLocalE＝sheet 24 の A〜B 列の 3 桁、city＝sheet 24 の D〜E 列の 7 桁と同じ行の A 列（所属の細分区域）、tsunamiArea と tsunamiAreaGroup＝sheet 31（AC02 (3) の分け方）。EEW の府県予報区（sheet 22、56）と都道府県（sheet 23、47）は B0 の表 §1.1 の既知コードに無く読み手がいないので入れない（区域名の表が要る契約が出たら発注 2 で同じ読み方で足す）。sheet は workbook.xml の sheet の name を trim して引く（「82 」のように末尾に空白の入る名前がある） (2) 名前は Name 列の字のまま。sharedStrings の rPh（ふりがな）は落とす（落とさないと「一覧イチラン」のように読みが付く）。&amp; などの実体参照は戻す (3) コードは字のまま持ち、数に直さない（先頭の 0 を落とさない。0123500 など）。値のある cell が 1 つも無い行（値の無い c の要素だけの行を含む）は飛ばし、値はあるのにコードの列が形に合わない行があれば止める（起草の probe では、飛ばす行が sheet 24 に 11・sheet 31 に 457、止める行は 0） (4) 各配列はコードの昇順。同じ入力から毎回同じ byte（JSON.stringify(table) に改行 1 つ）。schemaVersion は 1 (5) 所属は出どころにあるものだけ: city→細分区域だけを持つ。細分区域→EEW の府県予報区と、市区町村・細分区域→県は欄を作らない（静的な表が無い、p4-gis-assets-sources.md:52・:189。発注 2 の Q-G0-PREF-MEMBERSHIP）。無いと壊れる振る舞い: B0 の区域の規則（既知だけ塗り・行を出し、既知でないものは件数と印）と型の最大値の試験が、既知の区域の集合を持てない",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-order-plan.md:113 «69f66e7e7a5aa3d7»",
+          "reconstruction/contracts/p4-order-plan.md:113 «143428ef3875c6ab»",
           "docs/specs/reconstruction-p0-contracts.md:1725 «7b6a82a6cd30afe3»",
           "reconstruction/contracts/p4-gis-assets-sources.md:51 «8baceba677d1b69f»",
           "reconstruction/contracts/p4-gis-assets-sources.md:52 «aa55f2476ad73b2d»",
@@ -624,7 +624,7 @@
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1720 «9d00197c5e5ae404»",
           "docs/specs/reconstruction-p0-contracts.md:1721 «3c87a1a58035b69f»",
-          "docs/specs/reconstruction-p0-contracts.md:1724 «7c0bf6db46014acc»",
+          "docs/specs/reconstruction-p0-contracts.md:1724 «014de5bcd86ad48c»",
           "display/maps/quake/source.lock.json:44 «f2d2b512027f5c49»",
           "reconstruction/contracts/p4-gis-assets-sources.md:41 «3ee0d52d863f5cb9»",
           "reconstruction/contracts/p4-order-plan.md:723 «8812c66294b38f8f»",
@@ -662,7 +662,7 @@
         "id": "P4-GIS-AC09",
         "requirement": "【発注 2】投影の値と代表点。(1) manifest.projection に、旧築の display/maps/quake/insets.v1.json の projectionInsetsVersion・viewBox・mainProjection・insets（id・label・geographicBounds・frame・labelPosition・projection）・referencePoints を値のまま写し、写し元の path と sha256、lock の projection（JGD2011・EPSG 6668・archivePrjPolicy absent）を添える（P4-GIS-I-PROJECTION=A。値を当てる関数は M0）。形と代表点は経緯度のまま（P4-GIS-I-SHAPE-FORM） (2) 代表点: 層ごと・コードごとに 1 つ。面の層は zoom の地物のうち面積が最大の地物の mapshaper の this.innerX・this.innerY（最大の輪の中の点で、重心が海や区域の外に出る形でも区域の中に置く）。this.innerX が null のとき（findAnchorPoint は形がつぶれた地物で null を返す、mapshaper.js:18564-18582）は、同じコードの次に面積の大きい地物で取り、全部 null なら止めて統合担当へ返す。線の層は最長の部分の真ん中の頂点（添字の中央）。bounds はそのコードの zoom の全部の地物の範囲 [西, 南, 東, 北]。複数の島と飛び地では bounds の中心と代表点が別になる（spec:1714）。<層>.anchors.v1.json（AreaAnchorTable）に書く (3) 面の層の代表点は、同じコードの overview の形の中にもあること（LOD を替えても代表点を変えない、spec:1675）。P4-GIS-D-ANCHOR-OVERVIEW=A（作者裁定 2026-11-22）で決めた: 代表点は zoom の点のまま 1 区域 1 点を保つ。overview の形の外に出てよい（層, コード）は p4-gis-assets-sources.md §8.4 の (iii) の 10 組（city の 1342100・1632100、weatherCity と floodCity の 1342100・1632100・2342400・2620800）で、実装担当が build の前に manifest の knownGapsAndExclusions へ kind「anchorOutsideOverview」で写す。一覧の外の組が外れたとき、また一覧の組が外れなくなったときは、コードと点を並べて止め、統合担当へ返す (4) 離島の inset の判定の control point: 層ごとに manifest の projectionTargetChecks に code と target（main・okinawa・ogasawara）を持ち、代表点がその inset の geographicBounds の中にあるか（main はどの inset の中でもない）を照らす。値（AC12 の P8 (iv) で 18 組とも代表点と照らして一致、p4-gis-assets-sources.md §8.4）: forecastLocalE 774→okinawa・359→ogasawara、city 4630400→okinawa・1342100→ogasawara、pref 47→okinawa・13→main、tsunamiArea 800→okinawa・321→ogasawara。weatherPrefecture 471000→okinawa・130000→main（小笠原の別のコードは無い）、weatherPrimary 471010→okinawa・130040→ogasawara、weatherGroup 471011→okinawa・130040→ogasawara、weatherCity と floodCity 4720100→okinawa・1342100→ogasawara（AC12 の P3、同 §8.3）。申し送り（M0）: 旧築は地物の外接矩形の中心で inset を 1 つ選んだ（display/scripts/build-quake-map-assets.mjs:266）が、pref の 13（本土と小笠原）と 46（本土と奄美）は 1 地物の中に main と inset の部分を持つので、M0 の関数は部分（輪）ごとに判定する。無いと壊れる振る舞い: 投影の値が無いと震央・火山・台風の点と区域の形が別の式でずれる（R49）。代表点が無いと名札と引き出し線が海の上や区域の外を指す（spec:1714）",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-order-plan.md:113 «69f66e7e7a5aa3d7»",
+          "reconstruction/contracts/p4-order-plan.md:113 «143428ef3875c6ab»",
           "docs/specs/reconstruction-p0-contracts.md:1711 «6e756d8232e7364c»",
           "docs/specs/reconstruction-p0-contracts.md:1714 «9fb50d35e2308b0c»",
           "display/maps/quake/insets.v1.json:6 «9759638c6e34ab64»",
@@ -697,7 +697,7 @@
           "reconstruction/contracts/p4-gis-assets-sources.md:202 «6924388a8a813250»",
           "reconstruction/contracts/p4-gis-assets-sources.md:205 «60442b2eec265b8d»",
           "reconstruction/contracts/p4-gis-assets-sources.md:208 «c089b02010b42c73»",
-          "reconstruction/contracts/p4-order-plan.md:113 «69f66e7e7a5aa3d7»",
+          "reconstruction/contracts/p4-order-plan.md:113 «143428ef3875c6ab»",
           "docs/specs/reconstruction-p0-contracts.md:3094 «825ec0860a56166e»"
         ]
       },
@@ -743,14 +743,14 @@
       },
       {
         "id": "P4-GIS-AC13",
-        "requirement": "【発注 2 の配送、統合担当が行の中だけ直す（行を足さない）】原文の改訂（P4-GIS-I-PREF・P4-GIS-I-PROJECTION・P4-GIS-D-RIVER-LINE と AC05 の P1 の約束の段）。spec: (1) spec:421 の D01 の「都道府県 dissolve」を「都道府県は気象庁の都道府県等の GIS をそのまま使う」に、「既存 1,892 区域」を「1,894 区域」に (2) spec:1695 の AreaForecastLocalE の「県対応表を介して dissolve し、全体図の県輪郭を生成する」を、県の輪郭は都道府県等の GIS から作り細分区域の dissolve をしない形に (3) spec:1703 と :1705 の段落を同じ形に（名前の部分一致やコードの先頭から県を決めない約束は残し、所属は形の包含で確かめると書く） (4) spec:1724 の都道府県の行を「気象庁の都道府県等の GIS（2 桁、47）、所属は形の包含で確かめる」に。計画 p4-order-plan.md:113 の G0 の行: 直すのは (5)「47 県・1,892 区域」を 1,894 に (6)「河川・区間・観測点と洪水予報の区域」を「洪水予報の区域（市町村等〔指定河川洪水予報〕）」に（P4-GIS-D-RIVER-LINE=A で河川・区間・観測点は持たない） (7)「緯度経度→画面の投影 1 つ」を「投影の値（関数は M0）」に（P4-GIS-I-PROJECTION=A）。意図して残すのは「火山の位置と提供される警戒範囲」（P4-GIS-D-VOLCANO-MAP=A で G0 は火山の資材を作らないが、AC10 のとおり改めない）。spec:421・:1695・:1703・:1705 を «» で引く契約は無く、spec:1724 と計画:113 を引くのは本契約だけ（2026-11-21 の git grep）なので、配送で本契約の «» を付け直す。無いと壊れる振る舞い: 次の契約の起草が spec と計画の dissolve・1,892・河川の線・投影の字を読み、配送した資材と違う前提で書く",
+        "requirement": "【発注 2 の配送、統合担当が行の中だけ直す（行を足さない）】原文の改訂（P4-GIS-I-PREF・P4-GIS-I-PROJECTION・P4-GIS-D-RIVER-LINE と AC05 の P1 の約束の段）。spec: (1) spec:421 の D01 の「都道府県 dissolve」を「都道府県は気象庁の都道府県等の GIS をそのまま使う」に、「既存 1,892 区域」を「1,894 区域」に (2) spec:1695 の AreaForecastLocalE の「県対応表を介して dissolve し、全体図の県輪郭を生成する」を、県の輪郭は都道府県等の GIS から作り細分区域の dissolve をしない形に (3) spec:1703 と :1705 の段落を同じ形に（名前の部分一致やコードの先頭から県を決めない約束は残し、所属は形の包含で確かめると書く） (4) spec:1724 の都道府県の行を「気象庁の都道府県等の GIS（2 桁、47）、所属は形の包含で確かめる」に。計画 p4-order-plan.md:113 の G0 の行: 直すのは (5)「47 県・1,892 区域」を 1,894 に (6)「河川・区間・観測点と洪水予報の区域」を「洪水予報の区域（市町村等〔指定河川洪水予報〕）」に（P4-GIS-D-RIVER-LINE=A で河川・区間・観測点は持たない） (7)「緯度経度→画面の投影 1 つ」を「投影の値（関数は M0）」に（P4-GIS-I-PROJECTION=A）。意図して残すのは「火山の位置と提供される警戒範囲」（P4-GIS-D-VOLCANO-MAP=A で G0 は火山の資材を作らないが、AC10 のとおり改めない）。spec:421・:1695・:1703・:1705 を «» で引く契約は無く、spec:1724 と計画:113 を引くのは本契約だけ（2026-11-21 の git grep）なので、配送で本契約の «» を付け直す。無いと壊れる振る舞い: 次の契約の起草が spec と計画の dissolve・1,892・河川の線・投影の字を読み、配送した資材と違う前提で書く。配送の記録（2026-11-22、統合担当）: (1)〜(7) を行の中だけで当て、本契約の «» を付け直した。実装担当が挙げた契約の字から外れた所 6 つ（mapshaper の呼び方・zip の名前の読み・build-known-codes.mjs の export・代表点と範囲を 5 桁に丸める・manifest に足した字・control point と範囲の照らし方）は、契約適合のレビューで全部採用とし、allowedPaths の 3 項を実物に合わせて改めた。統合担当の決め: P4-GIS-I-WEATHER-CITY-REPAIR=A の数は manifest の weatherCity の行の mapshaperRepair に記録した（overview の直せない交差 309・消した細い隙間 177、zoom 458・252）。tsunamiArea の multiFeatureCodes は残した地物だけで数える（{}。コード「0」の 4 地物は excludedFeature に載っている）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-p0-contracts.md:421 «4f150716d6dfb0c9»",
-          "docs/specs/reconstruction-p0-contracts.md:1695 «cbf31416f831a89a»",
-          "docs/specs/reconstruction-p0-contracts.md:1703 «d6f5087a53368254»",
-          "docs/specs/reconstruction-p0-contracts.md:1705 «246c50b57f452772»",
-          "docs/specs/reconstruction-p0-contracts.md:1724 «7c0bf6db46014acc»",
-          "reconstruction/contracts/p4-order-plan.md:113 «69f66e7e7a5aa3d7»"
+          "docs/specs/reconstruction-p0-contracts.md:421 «fd721826f213cd31»",
+          "docs/specs/reconstruction-p0-contracts.md:1695 «c1a24d6024ed970a»",
+          "docs/specs/reconstruction-p0-contracts.md:1703 «2b266f5749ddd203»",
+          "docs/specs/reconstruction-p0-contracts.md:1705 «ee8636857177c9a8»",
+          "docs/specs/reconstruction-p0-contracts.md:1724 «014de5bcd86ad48c»",
+          "reconstruction/contracts/p4-order-plan.md:113 «143428ef3875c6ab»"
         ]
       }
     ],
