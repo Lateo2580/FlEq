@@ -23,6 +23,7 @@ import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { projectDisplayWire } from "../../src/view-projector/display-wire";
 import type { DisplayWireInput, DisplayWireResult, DisplayWireState } from "../../src/view-projector/display-wire";
 import { runStage1 } from "../disaster/runner";
+import { shiftTimestamps } from "../eew-e01/frames.mjs";
 import { readScenario } from "../disaster/scenario";
 import type { Scenario } from "../disaster/scenario";
 import { synthesize } from "../disaster/synth";
@@ -191,8 +192,9 @@ const cardOf = (inputId: string, areas: number): UnreadableCardView => ({ kind: 
   reason: "xmlInvalid", title: null, headline: null, reportDateTimeRaw: null, rawCut: false, count: 1, hasRaw: true,
   areas: Array.from({ length: areas }, () => ({ code: "1000000", name: "地域", value: 0 })) });
 
-// E6 の部品。U-Q は B0 の最大の形の数（区分ごとに 5 行の 15 行、通常の報が既知の市町村 1,894 を全部持つ合成の段）。長周期は入れていない。
-function quakeAtShape(): Readonly<{ state: SeismicUnitState; changes: RuntimeDisplayChange[] }> {
+// E6 の部品。U-Q は B0 の最大の形の数（区分ごとに 5 行の 15 行、通常の報が既知の市町村 1,894 を全部持つ合成の段、長周期の見出し 2 件〔B0 の表の上限〕）。
+// 長周期は synthetic_phase4a_VXSE62_special の写しの EventID と時刻を替えた 2 件。
+function quakeAtShape(longPeriods = 2): Readonly<{ state: SeismicUnitState; changes: RuntimeDisplayChange[] }> {
   let state = emptyQuake();
   const changes: RuntimeDisplayChange[] = [];
   const cities = table.city.map(({ code }, index) => `<City><Name>市${code}</Name><Code>${code}</Code><MaxInt>${["1", "2", "3", "4", "5-"][index % 5]}</MaxInt></City>`).join("");
@@ -205,6 +207,14 @@ function quakeAtShape(): Readonly<{ state: SeismicUnitState; changes: RuntimeDis
       changes.push(...step.displayChanges);
     }
   });
+  const lg = fixture("synthetic_phase4a_VXSE62_special"), lgAt = Date.parse("2026-08-01T21:02:00+09:00");
+  for (let index = 0; index < longPeriods; index++) {
+    const at = Date.parse("2099-01-01T09:20:00+09:00") + index * 60_000;
+    const xml = shiftTimestamps(lg, at - lgAt).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>2099010109${String(20 + index).padStart(4, "0")}</EventID>`);
+    const step = receiveQuake(state, decodeQuake(xml, "VXSE62"), clock(at + 1000));
+    state = step.state;
+    changes.push(...step.displayChanges);
+  }
   return { state, changes };
 }
 // 通知は P2-A8-RES-03 の上限の 64 件（1 件約 1.9 KB で 131,072 の手前）。
@@ -319,7 +329,8 @@ describe("P4-DC-T06 acceptance: the normal legal maximum (E13a)", () => {
     const per = commonOf(run(1)) - commonOf(run(0)), heads = Math.floor((65_536 - commonOf(run(0))) / per);
     const snapshot = run(heads);
     const parts = { common: commonOf(snapshot), notices: bytes(snapshot.notices), eew: bytes(snapshot.current.eew), tsunami: bytes(snapshot.current.tsunami),
-      earthquake: bytes(snapshot.current.earthquake), total: bytes(snapshot), full: fullTotalOf(snapshot) };
+      earthquake: bytes(snapshot.current.earthquake), total: bytes(snapshot), full: fullTotalOf(snapshot),
+      fixed: bytes({ ...snapshot, current: { eew: snapshot.current.eew, tsunami: snapshot.current.tsunami, earthquake: snapshot.current.earthquake } }) };
     console.info(`[P4-DC-T06 E6] ${JSON.stringify(parts)}`);
     expect([parts.common > 65_536 - per && parts.common <= 65_536, parts.notices > 120_000 && parts.notices <= 131_072, parts.full > MIB]).toEqual([true, true, true]);
     // 止まる所を実の byte で数え直す: B の順に 65,536 を越えた分野を 1 つずつ要約にし、1,048,576 以下になった所で止まる。
@@ -334,6 +345,8 @@ describe("P4-DC-T06 acceptance: the normal legal maximum (E13a)", () => {
       total += domain.delivery === "summary" ? bytes(domain) - full : 0;
     }
     expect(VOCAB_KEYS.filter((key) => snapshot.current[key].delivery === "summary")).toEqual(VOCAB_KEYS.filter((key) => expected.includes(key)));
+    expect(bytes(snapshot)).toBeLessThanOrEqual(MIB);
+    expect([snapshot.current.earthquake.wire.longPeriods.length, snapshot.current.earthquake.wire.omittedLongPeriods]).toEqual([2, 0]);
     expect([bytes(snapshot), expected.length >= 2, VOCAB_KEYS.some((key) => !expected.includes(key) && bytes(snapshot.current[key]) > 65_536)])
       .toEqual([total, true, true]);
     expectE4(snapshot);
