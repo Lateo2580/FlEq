@@ -133,7 +133,7 @@ function publicArea(operation: Operation, prefecture: string, cells: readonly Ce
     codes: Object.fromEntries([...regions].sort(([left], [right]) => compareText(left, right)).map(([code, seen]) => [code, seen.size])), names: Object.fromEntries(names),
     cellCount: cells.length, restoredCellCount };
   if (previous != null && previous.cells.length === cells.length && isDeepStrictEqual({ ...previous.area, revision: "" }, { ...fields, revision: "" })
-    && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return { area: previous.area, cells }; // cells は今の報の出どころにする（P4-RL-AC02 (2) の負かした報の判定が source を参照で比べる）
+    && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return previous.cells.every((cell, index) => cell === cells[index]) ? previous : { area: previous.area, cells }; // cells は今の報の出どころにする（P4-RL-AC02 (2) の負かした報の判定が source を参照で比べる）。行の参照が全部同じなら entry ごと使い回す（通知の levelCache を外さない）
   return { area: { ...fields, revision }, cells };
 }
 
