@@ -1,9 +1,13 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DecodedMaterial } from "../../contracts/p1-parser-boundary.types";
 import type { EewUnitState } from "../../contracts/p2-eew-unit.types";
-import type { RuntimeDisplayChange, UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
+import type { JsonValue, RuntimeDisplayChange, UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
+import type { VisibleNotice } from "../../contracts/p2-snapshot-sse.types";
+import type { RecoveryDigestHead } from "../../contracts/p3-recovery.types";
+import type { SeismicUnitState } from "../../contracts/p3-seismic-unit.types";
 import type { ExecutionPlace } from "../../contracts/p3-execution-split.types";
 import type { TsunamiAreaClass, TsunamiUnitState } from "../../contracts/p3-tsunami-unit.types";
 import type { KnownCodeTable } from "../../contracts/p4-gis-assets.types";
@@ -13,6 +17,9 @@ import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition
 import { detailOwner, receiveOwner, restoreOwner } from "../../src/runtime/owner-runtime";
 import type { OwnerState } from "../../src/runtime/owner-runtime";
 import { executionPlaces, placeOfHeadType, runtimeUnits } from "../../src/runtime/unit-coverage";
+import { toEewView } from "../../src/units/eew/eew-unit";
+import { toSeismicView } from "../../src/units/seismic/seismic-unit";
+import { toTsunamiView } from "../../src/units/tsunami/tsunami-unit";
 import { projectDisplayWire } from "../../src/view-projector/display-wire";
 import type { DisplayWireInput, DisplayWireResult, DisplayWireState } from "../../src/view-projector/display-wire";
 import { runStage1 } from "../disaster/runner";
@@ -20,8 +27,9 @@ import { readScenario } from "../disaster/scenario";
 import type { Scenario } from "../disaster/scenario";
 import { synthesize } from "../disaster/synth";
 import type { Frame } from "../disaster/synth";
+import { decodeXml as decodeQuake, receive as receiveQuake, vxse53 } from "../seismic-unit/seismic-fixture";
 import { clock, decodeXml, receive as receiveTsunami } from "../tsunami-unit/tsunami-fixture";
-import { baseInput, eewStep, eewXml, emptyEew, emptyTsunami, material, projected, quietLosses, wire } from "./display-wire-fixture";
+import { baseInput, eewStep, eewXml, emptyEew, emptyQuake, emptyTsunami, material, projected, quietLosses, wire } from "./display-wire-fixture";
 import type { EewArea } from "./display-wire-fixture";
 
 // P4-DISPLAY-CAPACITY-001 の T06（通常合法最大の manifest、E13a、表 §8）。
@@ -79,16 +87,24 @@ function withViews(views: Views, step: ReturnType<typeof receive>): Views {
   }
   return next;
 }
-// 詳細の part=item の 1 応答（http-sse が直列化する {streamId, ...答え}、streamId は composition root の randomUUID の 36 字）。
-function itemResponseBytes(owner: OwnerState, unit: "U-Y" | "U-R", snapshot: DisplayWireSnapshot): number {
+// 詳細の part=item の 1 応答（http-sse が直列化する {streamId, ...答え}、streamId は composition root の randomUUID の 36 字）。量る項目は、unit の記録から
+// 先に組んだ id（unit・operation・subject の sha256、P4-DV の項目の id）で選ぶ。記録が 0 件か、snapshot にその id が無ければ落ちる。
+const sha = (value: unknown) => createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
+async function itemAnswers(xml: string, headType: string, unit: "U-Y" | "U-R"): Promise<readonly number[]> {
+  const step = receive(xml, headType);
+  const typhoon = step.state.units["U-Y"], flood = step.state.units["U-R"];
+  const records = unit === "U-Y" ? typhoon?.probability ?? [] : flood?.currents ?? [];
+  expect(records.length).toBeGreaterThan(0);
+  const snapshot = projected(await project(withViews(await baseViews(), step), step.displayChanges, null)).snapshot;
   const domain = unit === "U-Y" ? snapshot.current.typhoon : snapshot.current.flood;
-  if (domain.delivery !== "full") throw new Error(`${unit} summary`);
-  const sizes = domain.wire.items.map((item) => {
-    const response = detailOwner(owner, { unit, part: "item", id: item.id, revision: item.rev } satisfies WireDetailRequest);
+  return records.map((record) => {
+    const id = sha([unit, record.operation, record.subject]);
+    const item = domain.delivery === "full" ? domain.wire.items.find((entry) => entry.id === id) : undefined;
+    if (item == null) throw new Error(`${unit} item ${record.subject} is not in the snapshot`);
+    const response = detailOwner(step.state, { unit, part: "item", id, revision: item.rev } satisfies WireDetailRequest);
     expect(response.kind).toBe("ok");
     return bytes({ streamId: "0".repeat(36), ...response });
   });
-  return Math.max(...sizes);
 }
 
 // E4: VXSE45 の写しの EventID と区域を替え、既知の細分区域 188 を全部持たせる（段は EventID ごとにずらす）。
@@ -175,18 +191,54 @@ const cardOf = (inputId: string, areas: number): UnreadableCardView => ({ kind: 
   reason: "xmlInvalid", title: null, headline: null, reportDateTimeRaw: null, rawCut: false, count: 1, hasRaw: true,
   areas: Array.from({ length: areas }, () => ({ code: "1000000", name: "地域", value: 0 })) });
 
+// E6 の部品。U-Q は B0 の最大の形の数（区分ごとに 5 行の 15 行、通常の報が既知の市町村 1,894 を全部持つ合成の段）。長周期は入れていない。
+function quakeAtShape(): Readonly<{ state: SeismicUnitState; changes: RuntimeDisplayChange[] }> {
+  let state = emptyQuake();
+  const changes: RuntimeDisplayChange[] = [];
+  const cities = table.city.map(({ code }, index) => `<City><Name>市${code}</Name><Code>${code}</Code><MaxInt>${["1", "2", "3", "4", "5-"][index % 5]}</MaxInt></City>`).join("");
+  (["通常", "訓練", "試験"] as const).forEach((operation, kind) => {
+    for (let index = 0; index < 5; index++) {
+      const at = new Date(Date.parse("2099-01-01T09:00:00+09:00") + (kind * 5 + index) * 60_000).toISOString().replace(/\.\d{3}Z$/, "+00:00");
+      const step = receiveQuake(state, decodeQuake(vxse53({ eventId: `2099010109${String(kind * 5 + index).padStart(4, "0")}`, at, maxInt: "5-", operation,
+        city: operation === "通常" ? cities : "" }), "VXSE53"), clock(Date.parse(at) + 1000));
+      state = step.state;
+      changes.push(...step.displayChanges);
+    }
+  });
+  return { state, changes };
+}
+// 通知は P2-A8-RES-03 の上限の 64 件（1 件約 1.9 KB で 131,072 の手前）。
+const NOTICES: readonly VisibleNotice[] = Array.from({ length: 64 }, (_, index) => ({ id: sha(["notice", index]), targetId: sha(["target", index]), unit: "U-W",
+  kind: "unavailable", operation: "normal", text: "通".repeat(590), source: null, expiresAt: Date.parse("2099-01-02T00:00:00+09:00") }));
+const head: RecoveryDigestHead = { headType: "VPWW54", operation: "normal", title: "題".repeat(80), headline: "見".repeat(80), reportDateTime: "2099-01-01T09:00:00+09:00", receivedAt: 1 };
+const digestOf = (heads: number) => ({ units: [{ unit: "U-W" as const, beforeWindow: false, kind: "listed" as const, heads: Array.from({ length: heads }, () => head), omitted: {} }] });
+const VOCAB_KEYS = ["weatherCurrent", "weatherTimeseries", "nankai", "volcano", "landslide", "flood", "briefing", "localBulletins", "typhoon"] as const;
+const B_ORDER = ["weatherTimeseries", "localBulletins", "typhoon", "briefing", "landslide", "flood", "weatherCurrent", "volcano", "nankai"] as const;
+const fullTotalOf = (snapshot: DisplayWireSnapshot) => VOCAB_KEYS.reduce((sum, key) => {
+  const domain = snapshot.current[key];
+  return domain.delivery === "summary" ? sum - bytes(domain) + domain.originalBytes : sum;
+}, bytes(snapshot));
+// runner が全部の入力を流した結果か（blocked は 0 フレームで返る、runner の blocked の枝）。
+const isRecord = (value: JsonValue | undefined): value is Readonly<{ [key: string]: JsonValue }> => typeof value === "object" && value != null && !Array.isArray(value);
+function expectRan(result: Readonly<Record<string, JsonValue>>, scenario: Scenario) {
+  const timing = result["timing"];
+  expect(result["status"]).not.toBe("blocked");
+  expect([isRecord(timing) ? timing["frames"] : null, seen.publications.length > 0]).toEqual([scenario.kind === "ready" ? scenario.frames.length : -1, true]);
+}
+
 // 受入条件 P4-DC-AC06（E13a、統合担当の決め 1）。
 describe("P4-DC-T06 acceptance: the normal legal maximum (E13a)", () => {
-  it("E1・E2: one U-Y item over every code-table area and the largest real U-R item each answer part=item within 65,536 bytes", async () => {
-    const answer = async (xml: string, headType: string, unit: "U-Y" | "U-R") => {
-      const step = receive(xml, headType);
-      return itemResponseBytes(step.state, unit, projected(await project(withViews(await baseViews(), step), step.displayChanges, null)).snapshot);
-    };
+  it("E1: one U-Y probability item over every code-table area answers part=item within 65,536 bytes", async () => {
     // 確率を全部 100 にすると、1% 以上の区域だけを持つ unit がコード表の全区域を残す（そのままの電文より大きい）。
     const original = fixture("76_01_01_200630_VPTA50"), vpta = original.replace(/>(\d+)<\/FiftyKtWindProbability>/g, ">100</FiftyKtWindProbability>");
-    const [e1, untouched, e2] = [await answer(vpta, "VPTA50", "U-Y"), await answer(original, "VPTA50", "U-Y"), await answer(fixture("16_12_01_260312_VXKO50"), "VXKO50", "U-R")];
-    expect(e1).toBeGreaterThan(untouched);
-    expect([e1 <= 65_536, e2 <= 65_536]).toEqual([true, true]);
+    const [all, untouched] = [await itemAnswers(vpta, "VPTA50", "U-Y"), await itemAnswers(original, "VPTA50", "U-Y")];
+    expect(Math.max(...all)).toBeGreaterThan(Math.max(...untouched));
+    expect(all.every((size) => size <= 65_536)).toBe(true);
+  });
+
+  it("E2: every U-R item of the largest real flood telegram answers part=item within 65,536 bytes", async () => {
+    const sizes = await itemAnswers(fixture("16_12_01_260312_VXKO50"), "VXKO50", "U-R");
+    expect(sizes.every((size) => size <= 65_536)).toBe(true);
   });
 
   it("E3: U-W stays full within 1 MiB for one national VPWS50 and for a day of normal and training national VPWS50", async () => {
@@ -251,16 +303,39 @@ describe("P4-DC-T06 acceptance: the normal legal maximum (E13a)", () => {
     expect([...eew.composites[0]].sort()).toEqual([...top].sort());
   });
 
-  it("E6: with the nine domains over 1 MiB the summaries stop in the B order and the E4・E5 sets stay whole", async () => {
-    const tsunami = e5State(), eew = e4State();
-    const snapshot = projected(await wire({ eew: eew.state, tsunami: tsunami.state }, [...eew.changes, ...tsunami.changes], null, (views) => ({ ...views,
-      weatherTimeseries: { ...views.weatherTimeseries, unreadableCards: [cardOf("f", 2_000)] }, landslide: { ...views.landslide, unreadableCards: [cardOf("l", 8_000)] },
-      flood: { ...views.flood, unreadableCards: [cardOf("r", 6_000)] }, weatherCurrent: { ...views.weatherCurrent, unreadableCards: [cardOf("w", 9_000)] } }))).snapshot;
-    expect(bytes(snapshot)).toBeLessThanOrEqual(MIB);
-    // 越えた 4 分野（U-F・U-L・U-R・U-W）のうち、B の順の先頭から入るまで（U-F と U-L で入り、U-R・U-W は full）。
-    expect(Object.entries(snapshot.current).filter(([, domain]) => "delivery" in domain && domain.delivery === "summary").map(([key]) => key))
-      .toEqual(["weatherTimeseries", "landslide"]);
-    expect(bytes(snapshot.current.flood) > 65_536 && bytes(snapshot.current.weatherCurrent) > 65_536).toBe(true);
+  it("E6: with the protected three, the notices and the common part near their bounds, the nine domains over 1 MiB stop in the B order and the E4・E5 sets stay whole", async () => {
+    const tsunami = e5State(), eew = e4State(), quake = quakeAtShape();
+    // 1 step 目は view を覆う差分（wire の covering）で保護 3 分野を入れる。2 step 目に通知・共通部・9 分野のカードを足す。
+    const first = await wire({ eew: eew.state, tsunami: tsunami.state, quake: quake.state }, [...eew.changes, ...tsunami.changes, ...quake.changes], null);
+    const { input } = await baseInput();
+    const base = await baseViews();
+    const views: Views = { ...base, eew: toEewView(eew.state), tsunami: toTsunamiView(tsunami.state), earthquake: toSeismicView(quake.state),
+      weatherTimeseries: { ...base.weatherTimeseries, unreadableCards: [cardOf("f", 2_000)] }, landslide: { ...base.landslide, unreadableCards: [cardOf("l", 8_000)] },
+      flood: { ...base.flood, unreadableCards: [cardOf("r", 6_000)] }, weatherCurrent: { ...base.weatherCurrent, unreadableCards: [cardOf("w", 9_000)] } };
+    const run = (heads: number) => projected(projectDisplayWire({ projection: { ...input, displayChanges: [], recovery: { ...input.recovery, digest: digestOf(heads) } },
+      views, confirmation: input.confirmation, notices: NOTICES, removalLoss: quietLosses }, first.state)).snapshot;
+    // 共通部は復旧の digest の頭の数で 65,536 の手前に合わせる（頭 1 つは同じ byte）。
+    const commonOf = (snapshot: DisplayWireSnapshot) => bytes({ ...snapshot, current: {}, notices: [] });
+    const per = commonOf(run(1)) - commonOf(run(0)), heads = Math.floor((65_536 - commonOf(run(0))) / per);
+    const snapshot = run(heads);
+    const parts = { common: commonOf(snapshot), notices: bytes(snapshot.notices), eew: bytes(snapshot.current.eew), tsunami: bytes(snapshot.current.tsunami),
+      earthquake: bytes(snapshot.current.earthquake), total: bytes(snapshot), full: fullTotalOf(snapshot) };
+    console.info(`[P4-DC-T06 E6] ${JSON.stringify(parts)}`);
+    expect([parts.common > 65_536 - per && parts.common <= 65_536, parts.notices > 120_000 && parts.notices <= 131_072, parts.full > MIB]).toEqual([true, true, true]);
+    // 止まる所を実の byte で数え直す: B の順に 65,536 を越えた分野を 1 つずつ要約にし、1,048,576 以下になった所で止まる。
+    let total = parts.full;
+    const expected: string[] = [];
+    for (const key of B_ORDER) {
+      if (total <= MIB) break;
+      const domain = snapshot.current[key];
+      const full = domain.delivery === "summary" ? domain.originalBytes : bytes(domain);
+      if (full <= 65_536) continue;
+      expected.push(key);
+      total += domain.delivery === "summary" ? bytes(domain) - full : 0;
+    }
+    expect(VOCAB_KEYS.filter((key) => snapshot.current[key].delivery === "summary")).toEqual(VOCAB_KEYS.filter((key) => expected.includes(key)));
+    expect([bytes(snapshot), expected.length >= 2, VOCAB_KEYS.some((key) => !expected.includes(key) && bytes(snapshot.current[key]) > 65_536)])
+      .toEqual([total, true, true]);
     expectE4(snapshot);
     expectE5(snapshot);
   });
@@ -277,6 +352,7 @@ describe("P4-DC-T06 acceptance: the normal legal maximum (E13a)", () => {
     const scenario: Scenario = { kind: "ready", id: "P4-DC-T06", frames: inputs, digest: "P4-DC-T06", startMs: inputs[0].atMs, endMs: t0 + 10 * MINUTE, checkpoints: [],
       expectations: [], synth: null, t0: null };
     const { result } = await runStage1(scenario);
+    expectRan(result, scenario);
     // 旧の経路はこの入力で U-T・U-Q を要約にする（P3-DC-T09）。新しい経路は保護 3 分野を要約にせず、全体は 1 MiB 以下。
     expect(result["status"]).toBe("Fail");
     expect(seen.publications.length).toBeGreaterThan(0);
@@ -291,7 +367,8 @@ describe.runIf(E7_DATA != null)("P4-DC-T06 E7: the disaster and archive days on 
     it(`${id}: no summary and every snapshot within 1 MiB`, async () => {
       const scenario = readScenario({ id, dataDir: E7_DATA ?? null, expectedDigest: null });
       expect(scenario.kind).toBe("ready");
-      await runStage1(scenario);
+      const { result } = await runStage1(scenario);
+      expectRan(result, scenario);
       const most = Math.max(...seen.publications.map((item) => item.bytes));
       console.info(`[P4-DC-T06 E7] ${id} publications=${seen.publications.length} maxBytes=${most} summaries=${seen.publications.filter((item) => item.summaries > 0).length}`);
       expect([seen.publications.filter((item) => item.summaries > 0).length, most <= MIB]).toEqual([0, true]);

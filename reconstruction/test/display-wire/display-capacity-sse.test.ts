@@ -117,16 +117,16 @@ describe("P4-DC-T04 acceptance: the publication hold", () => {
     const path = mkdtempSync(join(tmpdir(), "fleq-dc-"));
     directories.push(path);
     let at = { wallTimeMs: startMs, monotonicMs: 1 };
-    const calls: string[] = [], wires: DisplayWireSnapshot[] = [], flushed: (() => void)[] = [];
+    const calls: string[] = [], wires: DisplayWireSnapshot[] = [], flushing: (() => void)[] = [], flushed: (() => void)[] = [];
     const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"), legacyStateDirectory: join(path, "old"),
       diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs, { clock: () => at, notificationAdapter: manualAdapter().adapter,
       display: { publish: () => {}, publishWire: (snapshot, urgent) => { calls.push(urgent ? "urgent" : "held"); wires.push(snapshot); server.publishWire(snapshot, urgent); },
-        flushWire: () => { calls.push("flush"); server.flushWire(); for (const look of flushed) look(); } } });
+        flushWire: () => { for (const look of flushing) look(); calls.push("flush"); server.flushWire(); for (const look of flushed) look(); } } });
     harnesses.push(h);
     await startHarness(h, "dc", at);
     let sequence = 0;
     const send = (headType: string, xml: string) => submit(h, envelope("dc", headType, `dc-${++sequence}`, Buffer.from(xml), at, sequence));
-    return { h, calls, wires, flushed, send, move: (ms: number) => { at = { wallTimeMs: at.wallTimeMs + ms, monotonicMs: at.monotonicMs + ms }; return at; } };
+    return { h, calls, wires, flushing, flushed, send, move: (ms: number) => { at = { wallTimeMs: at.wallTimeMs + ms, monotonicMs: at.monotonicMs + ms }; return at; } };
   }
   const VPBS50 = readFileSync("test/fixtures/82_01_01_260324_VPBS50.xml", "utf8");
   // 同じ系列の続報（Serial を進め、送信と報の時刻を 10 分後へ、見出しの字を替える）。
@@ -170,7 +170,6 @@ describe("P4-DC-T04 acceptance: the publication hold", () => {
   });
 
   it("(b) publishes the held update at the shutdown completion after an owner stopped first, and no publication follows the close", async () => {
-    // 停止の段の期限（timer）は偽の時計を進めて越える。harness の settle は setImmediate と実の時計で待つ。
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const server = await startDisplayServer({ host: "127.0.0.1", port: 0, worker: WORKER });
     let closed = false;
@@ -186,29 +185,31 @@ describe("P4-DC-T04 acceptance: the publication hold", () => {
       await t.send("VPBS50", VPBS50);
       server.flushWire();
       const before = t.calls.length;
-      // root が flushWire を呼んだ時点で、最後に書いた 1 通が最後に射影した snapshot（保留の分）になっている。
-      const atFlush: [number | undefined, number | undefined][] = [];
-      t.flushed.push(() => atFlush.push([ids(opened[0]).at(-1), t.wires.at(-1)?.sequence]));
-      // 停止の要求。U-B の記録は停止の確定で期限を過ぎ、その差分（expired、待つ側）が保留に入る。停止の完了は表示が同じで unchanged。
+      // root が flushWire を呼ぶ直前と直後の、書いた版・最後に射影した版・書いた数・偽の timer の数。
+      const looks: Readonly<{ written: number | undefined; last: number | undefined; count: number; timers: number }>[] = [];
+      const look = () => looks.push({ written: ids(opened[0]).at(-1), last: t.wires.at(-1)?.sequence, count: ids(opened[0]).length, timers: vi.getTimerCount() });
+      t.flushing.push(look); t.flushed.push(look);
+      // 停止の要求（U-B の記録は停止の確定で期限を過ぎ、その差分〔expired、待つ側〕が保留に入る）。直後に注入の時計を段の期限の先へ進めるので、各段は
+      // timer を張らずに期限切れで進み、偽の時計は進まない（保留の 1,000ms の timer は停止の完了まで発火しない）。
       let stopped = false;
       void t.h.root.shutdownRuntime(0, t.move(3 * 86_400_000)).then(() => { stopped = true; });
-      while (!stopped) await vi.advanceTimersByTimeAsync(500);
-      await t.h.settle();
-      expect(t.h.root.state.shutdown.stage).toBe("completed");
+      t.move(600_000);
+      for (let index = 0; index < 200 && !stopped; index++) await t.h.settle();
+      expect([stopped, t.h.root.state.shutdown.stage]).toEqual([true, "completed"]);
       const calls = t.calls.slice(before);
-      expect(calls.indexOf("held")).toBeGreaterThanOrEqual(0);
       expect(calls.indexOf("flush")).toBeGreaterThan(calls.indexOf("held"));
-      expect(atFlush.length).toBeGreaterThan(0);
-      expect(atFlush.every(([written, last]) => written === last)).toBe(true);
-      // close の前に最後に書いた 1 通は最後に射影した snapshot（保留の分を含む）。
-      expect(ids(opened[0]).at(-1)).toBe(t.wires.at(-1)!.sequence);
-      const written = ids(opened[0]).length;
+      expect(calls.indexOf("held")).toBeGreaterThanOrEqual(0);
+      // flushWire の直前は送った版が保留中の版より古く、保留の timer が 1 つある。直後は一致し、書いた数が 1 増え、保留の timer は取り消されている。
+      const [atStart, atEnd] = looks;
+      expect([looks.length, (atStart.written ?? 0) < (atStart.last ?? 0)]).toEqual([2, true]);
+      expect([atEnd.written === atEnd.last, atEnd.count - atStart.count, atStart.timers - atEnd.timers]).toEqual([true, 1, 1]);
       stream.destroy();
       await server.close();
       closed = true;
-      // 最初の保留から 1,000ms の古い期限の後まで進めても、取り消した timer は発火しない。
+      // close の後に偽の時計を進めても、新しい経路の公開（snapshot の直列化）は起きない。
+      const stringify = vi.spyOn(JSON, "stringify");
       vi.advanceTimersByTime(5_000);
-      expect(ids(opened[0])).toHaveLength(written);
+      expect(stringify.mock.calls.filter(([value]) => t.wires.includes(value))).toEqual([]);
     } finally {
       if (!closed) await server.close();
     }
@@ -274,23 +275,42 @@ describe("P4-DC-T05 contractBoundary: slow clients", () => {
     } finally { await t.close(); }
   });
 
-  it("cuts a client whose one write never drains 5 s later, keeps a healthy client of a big snapshot, and the slow one does not hold the others", async () => {
-    const t = await open(3);
-    const [stuck, healthy, other] = t.opened;
-    t.controlled.add(stuck); t.controlled.add(healthy);
+  it("cuts a client whose one write never drains 5 s later", async () => {
+    const t = await open(1);
+    const [stuck] = t.opened;
+    t.controlled.add(stuck);
+    try {
+      t.publish();
+      t.to(4_999);
+      expect(stuck.destroyed).toBe(false);
+      t.to(5_000);
+      expect(stuck.destroyed).toBe(true);
+    } finally { await t.close(); }
+  });
+
+  it("keeps a healthy client whose big snapshot returned false and drained 20 ms later", async () => {
+    const t = await open(1);
+    const [healthy] = t.opened;
+    t.controlled.add(healthy);
     try {
       t.publish();
       t.to(20); healthy.emit("drain");
       t.controlled.delete(healthy); // 排出した後の健康な客は書ける
-      t.to(4_999);
-      expect([stuck.destroyed, healthy.destroyed]).toEqual([false, false]);
-      t.to(5_000);
-      expect([stuck.destroyed, healthy.destroyed]).toEqual([true, false]);
-      // 遅い客がいる間も、ほかの client は公開ごとに書き続ける（spec:1405）。
-      t.publish(); t.publish();
-      expect(t.ids(other)).toEqual([1, 2, 3]);
+      t.publish();
       t.to(12_000);
-      expect(healthy.destroyed).toBe(false);
+      expect([healthy.destroyed, t.ids(healthy)]).toEqual([false, [1, 2]]);
+    } finally { await t.close(); }
+  });
+
+  it("keeps writing to the other clients while one client is blocked (spec:1405)", async () => {
+    const t = await open(2);
+    const [stuck, other] = t.opened;
+    t.controlled.add(stuck);
+    try {
+      t.publish();
+      t.to(1_000); t.publish();
+      t.to(2_000); t.publish();
+      expect([t.ids(stuck), t.ids(other), stuck.destroyed]).toEqual([[1], [1, 2, 3], false]);
     } finally { await t.close(); }
   });
 });
