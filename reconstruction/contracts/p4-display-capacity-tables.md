@@ -1,6 +1,6 @@
-# P4-DISPLAY-CAPACITY-001 の設計の表 r1（B1: 画面へ送る snapshot の容量・要約になる順・公開頻度・遅い客の切断）
+# P4-DISPLAY-CAPACITY-001 の設計の表 r2（B1: 画面へ送る snapshot の容量・要約になる順・公開頻度・遅い客の切断）
 
-- 起草日: 2026-11-22（起草の子 r0。統合担当の決め 5 つと作者裁定 P4-DC-D-SUMMARY-ORDER=B〔2026-11-22 17:55〕を当てた。同日 r1 で r0〔93c14c9a〕のレビュー 2 本〔ヘルツ Astra high NO-GO・契約適合 Opus 条件付き GO〕と統合担当の決めを当てた。対応は §12）。
+- 起草日: 2026-11-22（起草の子 r0。統合担当の決め 5 つと作者裁定 P4-DC-D-SUMMARY-ORDER=B〔2026-11-22 17:55〕を当てた。同日 r1 で r0〔93c14c9a〕のレビュー 2 本〔ヘルツ Astra high NO-GO・契約適合 Opus 条件付き GO〕と統合担当の決めを当てた。対応は §12。r2 で r1〔366e9919〕の再レビュー〔ヘルツ 条件付き GO・契約適合 GO〕を当て、計画を同期した。対応は §13）。
 - base: main `4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835`（branch draft/p4-b1）。
 - 範囲の真実源: 計画 `reconstruction/contracts/p4-order-plan.md` の B1 の行（:112）・§4.3・§3.2（:223・:230）・§1.2 の容量の行。計画は書き換えない（直す候補は §9）。
 - 数の真実源: 計測 r4（`~/dev/p4-b1-capacity-r4.md`、main 4f4a9a52 の新しい経路、§1〜§7。repo の外なので、実装に要る数は本表に写した）。r0〜r3 は B0 の前の main の見積もりで、本表は引かない。B0 の表 `p4-display-wire-tables.md` §1.4・§1.5、① の表 `p4-display-vocab-tables.md` §4・§12.3・§12.7、script `p4-display-wire-max.mjs`。
@@ -113,7 +113,7 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 - 保留の枠は 1 つ（最後に射影した snapshot の object、まだ直列化しない）と、最初に保留した時刻から 1,000ms の timer 1 つ。
 - 「公開」の終点はサーバーの公開（`publishWire`・timer・`flushWire` が wireText を作る時点）。客に届くのはその後の書き込みで、詰まっている客には drain の後に最新が届く（途中の版は上書きで飛ぶ）。
 - `publishWire(snapshot, urgent)`: urgent なら timer を止め、この snapshot を直列化して全 client に書き、保留と timer を空にする。urgent でなければ保留を置き換え、timer が無ければ 1,000ms の timer を張る。後から来た更新は timer を延ばさない（最大の待ち 1,000ms と timer の遅れ）。
-- timer の発火と `flushWire()` は、保留があれば直列化して全 client に書き、保留と timer を空に戻す（直列化は公開 1 回に 1 回で、全 client が共有する。P2-A8-COST）。`flushWire` は保留が無ければ何もしない。発火の後の次の通常の更新は新しい窓を数える。
+- timer の発火と `flushWire()` は、保留があれば直列化して全 client に書き、予約済みの timer を clearTimeout で取り消してから保留を空に戻す（urgent の公開も同じ。取り消した timer が close の後に発火しない）（直列化は公開 1 回に 1 回で、全 client が共有する。P2-A8-COST）。`flushWire` は保留が無ければ何もしない。発火の後の次の通常の更新は新しい窓を数える。
 - 停止の完了（r1、ヘルツの H1）: composition root の project は、`state.shutdown.stage` が completed のとき（`composition-root.ts` の :982 の `stopped`）、結果が projected なら `publishWire(snapshot, true)`、unchanged なら `flushWire()` を呼ぶ（:992 の行の中）。owner が 1 つ先に止まると監視が worker を stopped にする（:687・:735・:1019）ので、停止の完了の公開は表示が同じで unchanged になりうる。worker.state の変化に頼ると、その後の host の close（`host.ts` の :536）で保留が捨てられる。
 - close は timer を止める（停止の完了の project が先に保留を出すので、その時に保留は残っていない）。
 - 射影は毎 step 走り、snapshot は state の累積なので、待たない公開と timer の公開はどれも保留の分を含む（下の (b)(d)）。
@@ -137,13 +137,14 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 - 直すのは新しい経路の `WireClient`（:325）・`writeWire`・`openWire` だけ。旧の `/events`（`handleSse`）は T0 が経路ごと消すので変えない（P2-SNAPSHOT-SSE-001 の AC03 も変えない）。
 - 規則（P4-DC-D-SLOW-CLIENT）: client ごとに 2 つの始まりを持ち、どちらかが 5 秒続けば切る。
   - (i) 書き込みの詰まり: write が false を返した時刻。drain で消す。上書きが無い間は spec:1389 の「排出できない状態が 5 秒」をそのまま当て、1 回の write が 5 秒 drain しない客を切る。
-  - (ii) 版の飛び: 待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻。drain の時点で待ちが空なら消す。drain で待ちを書いて write が true でも消す。待ちを書いて false なら (ii) は残し、(i) をその時刻から数え直す。
+  - (ii) 版の飛び: 待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻。drain の時点で待ちが空なら消す。drain で待ちを書いて write が true でも消す。前の drain からこの drain までの間に上書きが 1 回も無ければ消す（上書きの無い排出の周期が 1 回成立したら解く、r2）。待ちを書いて false なら (ii) は残し、(i) をその時刻から数え直す。
 - 読み: 版を 1 つでも飛ばした客だけが慢性の候補。毎回 drain して全部の版を送れている客は、write が毎回 false でも (i) が drain で消え、(ii) は上書きが無いので立たない。write が false を返すのは buffer が highWaterMark を越えたときで、大きな snapshot では健康な客にも返る。
 
 | 列 | 期待 |
 |---|---|
 | 毎回送れている客: 大きい緊急の公開が 0.5 秒ごとに来て write が毎回 false、次の公開の前に毎回 drain（待ちなし）が来る | 切らない（ヘルツの r0 の列） |
 | 上書きが続く客: t0 に false、t0＋0.3s と t0＋0.6s に次の版（待ちが上書きされる、(ii) の始まり t0＋0.6s）、以後 drain の時点で毎回待ちがあり、待ちを書くと false、その間にまた上書き | t0＋0.6s＋5s で切る |
+| 回復した客: t=0 に A の write false → B を待ちに置き C で上書き（(ii) が 10ms に立つ）→ 以後 20ms ごとの drain の直前に 1 通だけ来て毎回書けて false、上書き 0 | 切らない。(ii) は上書きの無い排出の周期が成立した次の drain で解ける（r2、ヘルツの再レビューの 1。無いと t=5,010ms に切れる） |
 | 1 回の write が drain しない客: t0 に false、次の版は来ない、drain も来ない | t0＋5s で切る（(i)） |
 | 大きな snapshot の健康な客: t0 に 1 MiB を書いて false、t0＋20ms に drain（待ちなし） | 切らない。始まりは消える |
 | 8 client 中 1 つが遅い | ほかの client は書き続ける（spec:1405） |
@@ -210,7 +211,7 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 | file | 変える所 | 他の契約の «»（今の木） | 書き方 |
 |---|---|---|---|
 | `reconstruction/src/view-projector/display-wire.ts` | :692〜:694 の結果の型に `urgent`、:866〜:872 の要約の選び（B）、待つ・待たないの判定（projectDisplayWire の中、:830 より後）、:962 の export | :30・:101・:697（P4-REMOVAL-LOSS-001）、:830（P4-DISPLAY-VOCAB-001）。:830 より後を引く «» は 0 | :830 より前は行の中の書き換えだけ（:694 は行の中）。:830 より後は行を足してよい |
-| `reconstruction/src/http-sse/http-sse.ts` | :264〜:268 の `publishWire`（保留）、`flushWire`（既存の :269 の行に置く）、:325 の `WireClient` の欄、:326〜:356 の `writeWire`・`openWire` の drain の扱い、`close` の保留の timer | :204（P3-UF-PUBLIC-001）・:208（P3-UW-CANON-001）・:232（P3-PI-HARNESS-001）・:245・:258（P3-CLI-REPL-001）・:363（P4-DISPLAY-VOCAB-001）。ほかは :165 以前 | :363 より前は行の中の書き換えだけ（保留と始まりの欄は既存の行に置く）。どうしても行を足すなら、足した位置より後ろの 6 本のうち該当するものを配送の一覧に載せる |
+| `reconstruction/src/http-sse/http-sse.ts` | :264〜:268 の `publishWire`（保留）、`flushWire`（既存の :269 の行に置く）、:325 の `WireClient` の欄、:326〜:356 の `writeWire`・`openWire` の drain の扱い、`close` の保留の timer | :165（P3-SEISMIC-PLACE-001）・:204（P3-UF-PUBLIC-001）・:208（P3-UW-CANON-001）・:232（P3-PI-HARNESS-001）・:245・:258（P3-CLI-REPL-001）・:363（P4-DISPLAY-VOCAB-001）。ほかは :165 より前 | :363 より前は行の中の書き換えだけ（保留と始まりの欄は既存の行に置く）。どうしても行を足すなら、足した位置より後ろの 7 本のうち該当するものを配送の一覧に載せる |
 | `reconstruction/src/runtime/composition-root.ts` | :143 の display の型に `publishWire?(snapshot, urgent)` と `flushWire?()`、:992 の呼びに `wire.urgent \|\| stopped` と unchanged のときの `flushWire` | :143 と :992 を引く «» は 0。前後に多数（:142・:150・:985・:1009 ほか） | 行の中の書き換えだけ（行を足さない） |
 | `reconstruction/test/`（新しい試験の file と、既存の試験の差分の組み立て） | testMapping | `runner.ts` は 34 本が引くので変えない。`display-wire-root.test.ts` の :161 を P4-DISPLAY-VOCAB-001 が引く（:50 と :164 の試験を書き換えて行が動いたら付け直す） | 新しい file に置く |
 
@@ -241,3 +242,14 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 | C6 | AC03 (5)、T03（U-R で expired と cancelled を分けた）、§7 の 170 本、統合担当の項の RES-03、AC06 (1) の eew.wire.omitted、AC02 (1)(4)・T02、§9 の 8〜10、Q-DC-SPEC-REVISION、Q-DC-URGENT-REMAINING の closed |
 | C7 U-F の数 | §0・§2.2、SUMMARY-ORDER の reason |
 
+## 13. r2 の対応（r1 の再レビューと統合担当の決め、2026-11-22）
+
+| 指摘 | 当てた所 |
+|---|---|
+| ヘルツ 1（P2）(ii) が一度立つと解けない | §5（規則と回復した客の列）、P4-DC-D-SLOW-CLIENT、AC05、RES-02、T05 |
+| ヘルツ 2（証拠不足）timer の取り消し | §4.3、AC04 (3)、T04 (b)（古い期限の後まで進めて close の後に公開が無い） |
+| 契約適合 3 «» の :165 | §10、allowedPaths、artifactRequirements（7 本） |
+| 契約適合 4 U-W の Kind だけの解除 | Q-DC-URGENT-REMAINING の closed（最大 1 秒待つ側） |
+| 契約適合 5 H37-EXPECT の A の字 | meta の P4-DC-D-H37-EXPECT |
+| 契約適合 6 readPaths | `weather-current-unit.ts`・`host.ts` を足した（どちらも実在） |
+| 計画の同期 | §9 の 1〜10 と D-H37-EXPECT を計画の :3・:52・:68・:69・:112・:123・:171・:223・:230・:317・:321・:325・:326・:400・:641・:940 に行の中で当てた（行の数は変えていない）。本契約が引く計画の «»（:314〜:327）は付け直した。ほかの契約が引く計画の行（:10・:19・:41・:111・:113・:145 ほか）は書き換えていない |

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835",
-    "sha256": "e421b2f31ca27604b5031e06ad3974bdbe5a4cc59ea8447fe08f6903618fb612",
+    "sha256": "370f3862893803dcc1703a914cfe05b439b0a579e7efcd3f39d1369514c851f6",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -32,7 +32,7 @@
       {
         "id": "P4-DC-D-H37-EXPECT",
         "kind": "統合担当",
-        "A": "O09:21 と津波の 5 本（O09:28・37・46・55・64）の期待を「要約に落ちず、型の上限を超えた分は件数と詳細の取得に回る（B0 の表 §1.5）」へ書き換える。書き換えは sequences.json の 6 つの expectation の input.required と（津波の 5 本は）checks の 3 つ目で、統合担当が配送で当てる",
+        "A": "O09:21 と津波の 5 本（O09:28・37・46・55・64）の期待を「要約に落ちない（H37）。型の上限を超えた分は件数と詳細の取得に回る」へ書き換える。O09:21 は、B0 のカードの上限を越えた報は件数（通常の報は合成の塗りにも入る）、既知でない区域は件数と印で詳細は U-E の areas（表 §7）。書き換えは sequences.json の 6 つの expectation の input.required と（津波の 5 本は）checks の 3 つ目の丸ごとの置き換えで、統合担当が配送で当てる",
         "B": "期待を書き換えず、要約に落ちる形を残す（新しい経路では保護 3 分野が要約の形を持たないので成り立たない）",
         "recommended": "A",
         "provisional": "A",
@@ -76,13 +76,13 @@
       {
         "id": "P4-DC-D-SLOW-CLIENT",
         "kind": "統合担当",
-        "A": "新しい経路の客ごとに 2 つの始まりを持つ。(i) 書き込みの詰まり: write が false を返した時刻。drain で消す。5 秒 drain しなければ切る（spec:1389 の「排出できない状態が 5 秒」をそのまま当てる） (ii) 版の飛び: 待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻。drain の時点で待ちが空なら消す（drain で待ちを書いて write が true でも消す）。待ちを書いて false なら (ii) は残し、(i) をその時刻から数え直す。(ii) が 5 秒続けば切る。旧の /events（handleSse）は T0 が経路ごと消すので変えない",
+        "A": "新しい経路の客ごとに 2 つの始まりを持つ。(i) 書き込みの詰まり: write が false を返した時刻。drain で消す。5 秒 drain しなければ切る（spec:1389 の「排出できない状態が 5 秒」をそのまま当てる） (ii) 版の飛び: 待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻。drain の時点で待ちが空なら消す（drain で待ちを書いて write が true でも消す）。前の drain からこの drain までの間に上書きが 1 回も無ければ消す（上書きの無い排出の周期が 1 回成立したら解く）。待ちを書いて false なら (ii) は残し、(i) をその時刻から数え直す。(ii) が 5 秒続けば切る。旧の /events（handleSse）は T0 が経路ごと消すので変えない",
         "B": "r0 の形: drain の時点で待ちが無いときと write が true のときだけ始まりを消す（毎回 drain して全部の版を送れている客でも、大きい公開が drain の直前に届き続けると 5 秒で切れる）",
         "recommended": "A",
         "provisional": "A",
-        "status": "確定（統合担当の決め 4、2026-11-22。r1 でヘルツの H2 の決めに替えた。旧の経路を外したのは起草の子の当てはめ）",
+        "status": "確定（統合担当の決め 4、2026-11-22。r1 でヘルツの H2 の決めに替え、r2 で (ii) を解く条件に上書きの無い排出の周期を足した。旧の経路を外したのは起草の子の当てはめ）",
         "ruling": "A（統合担当の決め 2026-11-22、ヘルツの r0 レビュー H2）",
-        "reason": "表 §5、O11:6。spec:1389 の「排出できない状態が 5 秒」を、版を 1 つでも飛ばした客だけを慢性の候補にする形で読む: 毎回 drain して全部の版を送れている客は、write が毎回 false でも (i) が drain で消え、(ii) は上書きが無いので立たず、切られない。上書きが続く客は (ii) が 5 秒で切る。上書きが無い間は (i) で、1 回の write が 5 秒 drain しない客を切る。write が false を返すのは buffer が highWaterMark を越えたときで、大きな snapshot では健康な客にも返る"
+        "reason": "表 §5、O11:6。spec:1389 の「排出できない状態が 5 秒」を、版を 1 つでも飛ばした客だけを慢性の候補にする形で読む: 毎回 drain して全部の版を送れている客は、write が毎回 false でも (i) が drain で消え、(ii) は上書きが無いので立たず、切られない。上書きが続く客は (ii) が 5 秒で切る。上書きが無い間は (i) で、1 回の write が 5 秒 drain しない客を切る。write が false を返すのは buffer が highWaterMark を越えたときで、大きな snapshot では健康な客にも返る。r2（ヘルツの再レビューの 1）: (ii) は、上書きの無い排出の周期が 1 回成立したら解く。無いと、一度だけ版を飛ばした後に、drain の直前に 1 通ずつ届いて毎回書けている（上書き 0）回復した客が、drain の時に待ちが空にならないので 5 秒で切れる"
       },
       {
         "id": "P4-DC-D-BOUND-CONST",
@@ -109,6 +109,13 @@
     ],
     "questionResolutions": [
       {
+        "id": "Q-DC-R2-REVIEW",
+        "status": "closed",
+        "source": "r1（366e9919）の再レビュー（ヘルツ 条件付き GO〔P2 1〕、契約適合 GO〔P3 5〕）と統合担当の決め（2026-11-22）",
+        "closed": "1 (ii) を解く条件に上書きの無い排出の周期（P4-DC-D-SLOW-CLIENT、AC05、RES-02、T05、表 §5）。2 timer の clearTimeout（AC04 (3)）と T04 (b) の古い期限の後まで。3 «» の一覧に http-sse.ts:165（7 本）。4 Q-DC-URGENT-REMAINING の closed に U-W の Kind だけの解除。5 P4-DC-D-H37-EXPECT の A の字。6 readPaths に weather-current-unit.ts と host.ts。7 計画の同期（行の中の書き換えだけ: :3・:52・:68・:69・:112・:123・:171・:223・:230・:317・:321・:325・:326・:400・:641・:940）",
+        "remaining": "なし"
+      },
+      {
         "id": "Q-DC-R1-REVIEW",
         "status": "closed",
         "source": "r0（93c14c9a）のレビュー 2 本（ヘルツ Astra high NO-GO、契約適合 Opus 条件付き GO）と統合担当の決め（2026-11-22）",
@@ -119,7 +126,7 @@
         "id": "Q-DC-URGENT-REMAINING",
         "status": "closed",
         "source": "統合担当の決め 2026-11-22（r0 の受け取り）",
-        "closed": "受け入れる。U-B の解除で表示に残る記録と U-F の取消で残る記録は removal を持たないので、統合担当の決め 3 の「全分野の取消・解除」の判定に入れず、待つ側（最大 1 秒、P4-DC-DLV-01）に置く。両 unit の差分で解除・取消を見分ける比べを足さない（最小実装）。plan:321 と判断カードの字（「緊急の報や取消」「全分野の取消・解除」）との違いは、統合担当がカードを訂正済み（2026-11-22 夜）。計画の字の同期は表 §9",
+        "closed": "受け入れる。U-B の解除で表示に残る記録と U-F の取消で残る記録は removal を持たないので、統合担当の決め 3 の「全分野の取消・解除」の判定に入れず、待つ側（最大 1 秒、P4-DC-DLV-01）に置く。両 unit の差分で解除・取消を見分ける比べを足さない（最小実装）。plan:321 と判断カードの字（「緊急の報や取消」「全分野の取消・解除」）との違いは、統合担当がカードを訂正済み（2026-11-22 夜）。計画の字の同期は表 §9。U-W で区域を保ったまま Kind だけ減る解除（同じ区域で警報が 1 つだけ解除）も [層, Code] の集合から要素が消えないので最大 1 秒待つ側に置く（r2、契約適合の再レビューの 4。判断カードの訂正は統合担当が足す）",
         "remaining": "なし"
       },
       {
@@ -164,14 +171,16 @@
       "reconstruction/src/units/tsunami/tsunami-unit.ts",
       "reconstruction/test/**",
       "reconstruction/tools/corpus/sequences.json",
-      "test/fixtures/**"
+      "test/fixtures/**",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/src/host/host.ts"
     ],
     "allowedPaths": [
       "reconstruction/src/view-projector/display-wire.ts（AC01・AC03・AC07。結果の型 :692〜:694 に urgent を行の中で足す、要約の選び :866〜:872、待つ・待たないの判定は projectDisplayWire の中で :830 より後、末尾の export の行 :962。:830 より前に行を足さない〔:30・:101・:697・:830 を P4-REMOVAL-LOSS-001・P4-DISPLAY-VOCAB-001 が引く〕）",
-      "reconstruction/src/http-sse/http-sse.ts（AC04・AC05。publishWire の保留 :264〜:268、保留を出す flushWire（既存の :269 の行に置く）、close の保留の timer、WireClient の欄 :325 と writeWire と openWire の drain の扱い :326〜:356〔AC05 だけ。:209 の openWire の呼びとつないだ時の書き込みは変えない、P4-DC-D-HOLD-CONNECT=B〕。:363 より前は行の中の書き換えだけ（保留と始まりの欄は既存の行に置く）。どうしても行を足すなら、:204〔P3-UF-PUBLIC-001〕・:208〔P3-UW-CANON-001〕・:232〔P3-PI-HARNESS-001〕・:245・:258〔P3-CLI-REPL-001〕・:363〔P4-DISPLAY-VOCAB-001〕のうち足した位置より後の行を成果物に書く。旧の handleSse と /events は変えない）",
+      "reconstruction/src/http-sse/http-sse.ts（AC04・AC05。publishWire の保留 :264〜:268、保留を出す flushWire（既存の :269 の行に置く）、close の保留の timer、WireClient の欄 :325 と writeWire と openWire の drain の扱い :326〜:356〔AC05 だけ。:209 の openWire の呼びとつないだ時の書き込みは変えない、P4-DC-D-HOLD-CONNECT=B〕。:363 より前は行の中の書き換えだけ（保留と始まりの欄は既存の行に置く）。どうしても行を足すなら、:165〔P3-SEISMIC-PLACE-001〕・:204〔P3-UF-PUBLIC-001〕・:208〔P3-UW-CANON-001〕・:232〔P3-PI-HARNESS-001〕・:245・:258〔P3-CLI-REPL-001〕・:363〔P4-DISPLAY-VOCAB-001〕のうち足した位置より後の行を成果物に書く。旧の handleSse と /events は変えない）",
       "reconstruction/src/runtime/composition-root.ts（AC04。:143 の display の型に publishWire?(snapshot, urgent: boolean) と flushWire?(): void、:992 の呼びに wire.urgent || stopped と、unchanged のとき stopped なら flushWire。どちらも行の中の書き換えで、行を足さない）",
       "reconstruction/test/ の新しい試験の file（testMapping）と、AC08 が許す既存の試験の書き換え。reconstruction/test/disaster/runner.ts は変えない（34 本の «» が引く）",
-      "統合担当だけ（配送の commit）: sequences.json の 6 つの expectation の書き換え（AC09、表 §7）と全契約（170 本）の sequencesSha256・meta.sha256 の取り直し、P4-DISPLAY-VOCAB-001 の P4-DV-D-SUMMARY-RULE・P4-DV-RES-01・P4-DV-RES-03〔上界は 1,048,576、967,258 は予算を越えた分野を全部要約にしたときだけ〕・AC04 の要約の規則の字と ① の表 §4.2 の改訂、P4-DISPLAY-WIRE-001 の RES-03 の注記（VOCAB の後の規則を B に）、http-sse.ts の :363 より前に行が足されたときの 6 本の «» と、display-wire-root.test.ts の行が動いたときの P4-DISPLAY-VOCAB-001 の :161 の «» の付け直し、計画の同期（表 §9）"
+      "統合担当だけ（配送の commit）: sequences.json の 6 つの expectation の書き換え（AC09、表 §7）と全契約（170 本）の sequencesSha256・meta.sha256 の取り直し、P4-DISPLAY-VOCAB-001 の P4-DV-D-SUMMARY-RULE・P4-DV-RES-01・P4-DV-RES-03〔上界は 1,048,576、967,258 は予算を越えた分野を全部要約にしたときだけ〕・AC04 の要約の規則の字と ① の表 §4.2 の改訂、P4-DISPLAY-WIRE-001 の RES-03 の注記（VOCAB の後の規則を B に）、http-sse.ts の :363 より前に行が足されたときの 7 本の «» と、display-wire-root.test.ts の行が動いたときの P4-DISPLAY-VOCAB-001 の :161 の «» の付け直し、計画の同期（表 §9）"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -255,7 +264,7 @@
         "id": "P4-DC-RES-02",
         "target": "遅い客の詰まり",
         "limit": 5000,
-        "unit": "ms（単調時計。(i) 書き込みの詰まりは false を返した write から drain まで、(ii) 版の飛びは最初の上書きから drain で待ちが空になるまで）",
+        "unit": "ms（単調時計。(i) 書き込みの詰まりは false を返した write から drain まで、(ii) 版の飛びは最初の上書きから、drain で待ちが空になるか上書きの無い排出の周期が 1 回成立するまで）",
         "scope": "新しい経路だけ。(i)・(ii) のどちらかが 5,000ms 続けば切る（P4-DC-D-SLOW-CLIENT）",
         "source": "表 §5、spec:1389"
       }
@@ -319,7 +328,7 @@
       },
       {
         "id": "P4-DC-AC04",
-        "requirement": "保留（表 §4.3・§4.4、P4-DC-DLV-01・P4-DC-RET-01）: (1) composition root は :992 で publishWire に wire.urgent || stopped を渡し（stopped は :982 の state.shutdown.stage が completed）、結果が unchanged で stopped なら flushWire を呼ぶ（行の中） (2) http-sse の publishWire は urgent なら timer を止めてその snapshot を直列化 1 回で全 client に書き、保留と timer を空にする。urgent でなければ保留を置き換え、timer が無ければ 1,000ms の timer を張る（延ばさない） (3) timer の発火と flushWire は保留があれば直列化 1 回で全 client に書き、保留と timer を空に戻す（flushWire は保留が無ければ何もしない） (4) heartbeat の latestVersion は最後に書いた snapshot の版 (5) イベント列の期待（「公開」の終点はサーバーの公開、publishWire・timer・flushWire が wireText を作る時点）: (a) 保留中に開いた詳細は 409 versionChanged、次の公開の版で開ける（P4-DC-D-HOLD-DETAIL=A） (b) owner が 1 つ先に止まり（監視が worker を stopped にする）→ 停止の要求 → 通常の更新が保留 → 停止の完了（表示が同じで unchanged）→ close の列で、停止の完了の root の project が保留を公開し、close の前に最後に作った wireText が保留の分を含む (c) 保留中につないだ客には最後に公開した snapshot（wireText）をそのまま書き、保留を先に公開しない。保留の分は 1 秒以内の次の公開で全客に届く（P4-DC-D-HOLD-CONNECT=B） (d) 緊急の公開は保留の分を含み、保留と timer を捨てる (e) 続く通常の更新は 1,000ms を越えて待たせず、発火の後の次の通常の更新は新しい窓（もう 1 回 1,000ms 以内）で公開する (6) client に届く sequence は増えるだけで飛ぶ（spec:1387 の置き換えと同じ） (7) 詰まっている客には drain の後に最新が届き（途中の版は上書きで飛ぶ）、停止の最後の snapshot が close までに詰まった客へ届かないことはありうる（残存）",
+        "requirement": "保留（表 §4.3・§4.4、P4-DC-DLV-01・P4-DC-RET-01）: (1) composition root は :992 で publishWire に wire.urgent || stopped を渡し（stopped は :982 の state.shutdown.stage が completed）、結果が unchanged で stopped なら flushWire を呼ぶ（行の中） (2) http-sse の publishWire は urgent なら timer を止めてその snapshot を直列化 1 回で全 client に書き、保留と timer を空にする。urgent でなければ保留を置き換え、timer が無ければ 1,000ms の timer を張る（延ばさない） (3) timer の発火と flushWire は保留があれば直列化 1 回で全 client に書き、予約済みの timer を clearTimeout で取り消してから保留を空に戻す（flushWire は保留が無ければ何もしない。urgent の公開も同じく timer を取り消す） (4) heartbeat の latestVersion は最後に書いた snapshot の版 (5) イベント列の期待（「公開」の終点はサーバーの公開、publishWire・timer・flushWire が wireText を作る時点）: (a) 保留中に開いた詳細は 409 versionChanged、次の公開の版で開ける（P4-DC-D-HOLD-DETAIL=A） (b) owner が 1 つ先に止まり（監視が worker を stopped にする）→ 停止の要求 → 通常の更新が保留 → 停止の完了（表示が同じで unchanged）→ close の列で、停止の完了の root の project が保留を公開し、close の前に最後に作った wireText が保留の分を含む (c) 保留中につないだ客には最後に公開した snapshot（wireText）をそのまま書き、保留を先に公開しない。保留の分は 1 秒以内の次の公開で全客に届く（P4-DC-D-HOLD-CONNECT=B） (d) 緊急の公開は保留の分を含み、保留と timer を捨てる (e) 続く通常の更新は 1,000ms を越えて待たせず、発火の後の次の通常の更新は新しい窓（もう 1 回 1,000ms 以内）で公開する (6) client に届く sequence は増えるだけで飛ぶ（spec:1387 の置き換えと同じ） (7) 詰まっている客には drain の後に最新が届き（途中の版は上書きで飛ぶ）、停止の最後の snapshot が close までに詰まった客へ届かないことはありうる（残存）",
         "evidenceRefs": [
           "reconstruction/src/runtime/composition-root.ts:143 «1207a02bec183795»",
           "reconstruction/src/runtime/composition-root.ts:982 «38ad5325a93cc186»",
@@ -333,13 +342,13 @@
           "docs/specs/reconstruction-p0-contracts.md:1387 «a0c8665912cd9df7»",
           "docs/specs/reconstruction-p0-contracts.md:1390 «fe02c39d22b8ac89»",
           "reconstruction/src/runtime/owner-runtime.ts:847 «44da29fae103fcf5»",
-          "reconstruction/contracts/p4-order-plan.md:321 «c42212661d99a4e7»",
+          "reconstruction/contracts/p4-order-plan.md:321 «43f0ff2fcc977b67»",
           "reconstruction/contracts/p4-display-capacity-tables.md"
         ]
       },
       {
         "id": "P4-DC-AC05",
-        "requirement": "遅い客の切断（統合担当の決め 4、P4-DC-D-SLOW-CLIENT、表 §5、O11:6、P4-DC-RES-02）: 新しい経路の client ごとに (i) 書き込みの詰まりの始まり（write が false を返した時刻、drain で消す）と (ii) 版の飛びの始まり（待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻、drain の時点で待ちが空なら消す。drain で待ちを書いて true でも消す。false なら (ii) は残し (i) をその時刻から数え直す）を持ち、どちらかが 5 秒続けば切る。待ちの間の新しい 1 通は待ちを置き換えるだけ。表 §5 の列の期待を満たす（上書きが続く客は (ii) で 5 秒、1 回の write が 5 秒 drain しない客は (i) で切る。毎回 drain して全部の版を送れている客〔大きい緊急の公開が drain の直前に 1 通ずつ来て write が毎回 false〕と、大きな snapshot の健康な客は切らない。遅い 1 つがほかの client を待たせない）。旧の handleSse は変えない",
+        "requirement": "遅い客の切断（統合担当の決め 4、P4-DC-D-SLOW-CLIENT、表 §5、O11:6、P4-DC-RES-02）: 新しい経路の client ごとに (i) 書き込みの詰まりの始まり（write が false を返した時刻、drain で消す）と (ii) 版の飛びの始まり（待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻、drain の時点で待ちが空なら消す。drain で待ちを書いて true でも消す。前の drain からこの drain までの間に上書きが 1 回も無ければ消す。false なら (ii) は残し (i) をその時刻から数え直す）を持ち、どちらかが 5 秒続けば切る。待ちの間の新しい 1 通は待ちを置き換えるだけ。表 §5 の列の期待を満たす（上書きが続く客は (ii) で 5 秒、1 回の write が 5 秒 drain しない客は (i) で切る。毎回 drain して全部の版を送れている客〔大きい緊急の公開が drain の直前に 1 通ずつ来て write が毎回 false〕と、一度だけ版を飛ばした後に上書きの無い排出に戻った客と、大きな snapshot の健康な客は切らない。遅い 1 つがほかの client を待たせない）。旧の handleSse は変えない",
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:24 «213b534838ef9531»",
           "reconstruction/src/http-sse/http-sse.ts:325 «6fa6d21f1def713c»",
@@ -362,7 +371,7 @@
           "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
           "docs/specs/reconstruction-p0-contracts.md:2048 «54e6ee9359f039ec»",
           "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»",
-          "reconstruction/contracts/p4-order-plan.md:325 «3a8dc4e1e8922ae4»",
+          "reconstruction/contracts/p4-order-plan.md:325 «8875aee6fa66ccac»",
           "reconstruction/contracts/p4-order-plan.md:327 «4a748f3be7de2825»",
           "reconstruction/contracts/p4-display-wire.types.ts:53 «be8bce85916c1286»",
           "reconstruction/contracts/p4-display-capacity-tables.md"
@@ -398,7 +407,7 @@
           "reconstruction/tools/corpus/sequences.json#unmet:O09:21",
           "reconstruction/tools/corpus/sequences.json#unmet:O09:28",
           "reconstruction/tools/corpus/sequences.json#unmet:O09:64",
-          "reconstruction/contracts/p4-order-plan.md:326 «9b32ed42efd8a6db»",
+          "reconstruction/contracts/p4-order-plan.md:326 «7c5f02835991f9fc»",
           "docs/specs/reconstruction-p0-contracts.md:3064 «79084e1c731015a0»",
           "reconstruction/contracts/p4-display-capacity-tables.md"
         ]
@@ -443,7 +452,7 @@
         "referenceIds": [
           "P4-DC-AC04"
         ],
-        "behavior": "受入条件。startDisplayServer の新しい経路と fake timers で、表 §4.4 の (c)〜(e) を実際に書かれた版で見る（(c) は保留中につないだ客に最後に公開した 1 通が届き、保留は timer の公開で届く。(e) は 1 つ目の窓の発火の後に、通常の更新の 2 つ目の窓が 1,000ms 以内に公開されるまで続ける）。(a) は composition root の harness で、保留中の 9 分野の項目の part=item を画面の古い revision で開くと 409、保留が公開された後の版で 200。(b) は harness で、owner 1 つの先行停止 → 停止の要求 → 通常の更新が保留 → 停止の完了（unchanged）→ close の列を流し、close の前に最後に書かれた 1 通が保留の分を含む。全 client で直列化 1 回の検査は既存の 2 客の試験（display-wire-root.test.ts の :164 の試験）に任せる"
+        "behavior": "受入条件。startDisplayServer の新しい経路と fake timers で、表 §4.4 の (c)〜(e) を実際に書かれた版で見る（(c) は保留中につないだ客に最後に公開した 1 通が届き、保留は timer の公開で届く。(e) は 1 つ目の窓の発火の後に、通常の更新の 2 つ目の窓が 1,000ms 以内に公開されるまで続ける）。(a) は composition root の harness で、保留中の 9 分野の項目の part=item を画面の古い revision で開くと 409、保留が公開された後の版で 200。(b) は harness で、owner 1 つの先行停止 → 停止の要求 → 通常の更新が保留 → 停止の完了（unchanged）→ close の列を流し、close の前に最後に書かれた 1 通が保留の分を含み、fake timers を古い期限（最初の保留から 1,000ms）の時刻の後まで進めても、close の後に公開が起きない（取り消した timer が発火しない）。全 client で直列化 1 回の検査は既存の 2 客の試験（display-wire-root.test.ts の :164 の試験）に任せる"
       },
       {
         "testId": "P4-DC-T05",
@@ -451,7 +460,7 @@
         "referenceIds": [
           "P4-DC-AC05"
         ],
-        "behavior": "契約境界（O11:6 の SSE の側）。表 §5 の列を、write の結果と drain を制御できる client（ServerResponse の write を差し替えた形か小さい highWaterMark の socket）と fake timers で流す: 毎回 drain して全部の版を送れている客（大きい緊急の公開が drain の直前に 1 通ずつ来て write が毎回 false）は切らない、上書きが続く客は最初の上書きから 5 秒で切る、1 回の write が 5 秒 drain しない客は切る、大きな snapshot の健康な客は切らない、遅い 1 つがほかの client を待たせない"
+        "behavior": "契約境界（O11:6 の SSE の側）。表 §5 の列を、write の結果と drain を制御できる client（ServerResponse の write を差し替えた形か小さい highWaterMark の socket）と fake timers で流す: 毎回 drain して全部の版を送れている客（大きい緊急の公開が drain の直前に 1 通ずつ来て write が毎回 false）は切らない、上書きが続く客は最初の上書きから 5 秒で切る、回復した客（t=0 に A の write false → B を待ちに置き C で上書き〔(ii) が 10ms に立つ〕→ 以後 20ms ごとの drain の直前に 1 通だけ来て毎回書けて false、上書き 0）は (ii) が次の drain で解けて切らない、1 回の write が 5 秒 drain しない客は切る、大きな snapshot の健康な客は切らない、遅い 1 つがほかの client を待たせない"
       },
       {
         "testId": "P4-DC-T06",
@@ -549,7 +558,7 @@
       "最小テスト: 追加した試験ごとに対応（受入条件・契約境界・実不具合・corpus 履歴）を 1 行で書く。testMapping の 7 本のほかに足さない",
       "export の末尾形: 新しい export は既存の末尾の export { … } の行に足す（export function・export const にしない。parser-boundary の P1-T04 が数える）。vitest の全体で P1-T04 を含む parser-boundary の試験を回したことを書く",
       "受信経路の計算量（AGENTS.md）: 要約の選びは 1 回の公開で 9 回まで、待つ・待たないの判定は差分の数と差分の subject の区域の数に比例。全 state・全 snapshot の直列化を足さない（直列化は公開 1 回に 1 回、全 client で共有）。成果物に、足した処理ごとの計算量を 1 行で書く",
-      "行の数: display-wire.ts は :830 より前に行を足さない。composition-root.ts は行を足さない。http-sse.ts は :363 より前は行の中の書き換えだけ（足したら位置と、後ろになる «» の 6 本〔:204・:208・:232・:245・:258・:363〕を書く）。check-contract の FAIL の一覧を付ける",
+      "行の数: display-wire.ts は :830 より前に行を足さない。composition-root.ts は行を足さない。http-sse.ts は :363 より前は行の中の書き換えだけ（足したら位置と、後ろになる «» の 7 本〔:165・:204・:208・:232・:245・:258・:363〕を書く）。check-contract の FAIL の一覧を付ける",
       "試験の設定の隔離: 試験は作者の設定の file を読まない。保存の dir を使う試験は XDG_CONFIG_HOME と保存の dir を一時の dir にする",
       "品質レビューはヘルツ（Astra high、新規 read-only スレッド。保留と timer と切断の状態機械を含む）、契約適合レビューは Claude（Opus）を同じ固定 patch に並行で当てる（CLAUDE.md のレビュー方針、計画:15）",
       "残存として成果物に書く: E7 を流していない（採取物は repo の外）、E8 は統合担当が r4 の道具で流す（repo に入れない）、U-R の受理上限の 1 件は parser を通していない（Q-DC-UR-ITEM-LIMIT）、U-B の解除・U-F の取消で残る記録は待つ側（Q-DC-URGENT-REMAINING で受け入れ済み）、詰まっている客には drain の後に最新が届き途中の版は飛ぶ、停止の最後の snapshot が close までに詰まった客へ届かないことはありうる",
