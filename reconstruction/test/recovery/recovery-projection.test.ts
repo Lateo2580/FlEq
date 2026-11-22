@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto"; import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import type { ClockReading, NotificationResult, RuntimeDisplayChange, RuntimeUnitId, RuntimeUnitStates } from "../../contracts/p2-shared-runtime.types";
+import type { ClockReading, DisplayRemoval, NotificationResult, RuntimeDisplayChange, RuntimeUnitId, RuntimeUnitStates } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import type { BodyResult, ListHead, UnitWalk, UnitWalkResult } from "../../contracts/p3-recovery.types";
 import type { OwnerReply } from "../../contracts/p3-execution-split.types"; import type { DisplayWireSnapshot } from "../../contracts/p4-display-wire.types";
@@ -10,7 +10,7 @@ import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpo
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { walkStart } from "../../src/recovery/recovery";
 import { linkedUnitCodecs, linkedUnitTable, snapshotInput } from "../../src/runtime/composition-root";
-import { initialUnits } from "../../src/runtime/owner-runtime";
+import { initialUnits, noteRemovals } from "../../src/runtime/owner-runtime";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
 import { observation, vtse41 } from "../tsunami-unit/tsunami-fixture";
@@ -406,21 +406,40 @@ describe("P3-REC-T21 acceptance: the adopt step's net displayChanges (AC07, Q-RE
     expectProjection(t);
   });
 
-  // 契約境界 P4-RL-T04 (d)（発注 1）: 採用の step の期限で消えた基点の記録は、候補の Map を通って新しい射影の消えた理由の一覧に unit の付けた語（発注 1 は unknown）で載る。
-  it("P4-RL-T04 (d) contractBoundary / AC01,AC03: a base record the adopt step's deadline removes reaches the new path's removal list", async () => {
+  // 受入条件 P4-RL-T03（P4-RL-AC03 (1)〜(4)。発注 1 の T04 (d) の期待 unknown を、発注 2 で U-R の期限の回収が付ける expired に替えた、統合担当の許し 2026-11-22）:
+  // 採用の step の期限で消えた基点の記録は expired、候補の本文の取消で消えた記録は cancelled で、採用の正味の差分と新しい射影の一覧に載る。
+  it("P4-RL-T03 acceptance / P4-RL-AC03: the adopt's net removals are cancelled from a body and expired from the adopt step's deadline", async () => {
     const t = await setup(), old = T0 - 36 * HOUR + 4_000;
     const flood = (eventId: string, at: number) => tag("EventID", eventId)(retime(fixture("16_02_01_220728_VXKO50"), at));
+    const cancel = (eventId: string, at: number) => tag("EventID", eventId)(retime(fixture("synthetic_VXKO50_cancel"), at));
+    const id = (eventId: string) => createHash("sha256").update(JSON.stringify(["U-R", "normal", `normal/VXKO50/${eventId}`]), "utf8").digest("hex");
     await t.live("VXKO50", flood("123456789051", old));
-    t.bodies.set("r2", xml(flood("123456789052", T0 - MINUTE)));
+    await t.live("VXKO50", flood("123456789053", T0 - 2 * MINUTE));
+    t.bodies.set("r2", xml(cancel("123456789053", T0 - MINUTE)));
     const heldAdopt = t.h.holdRequests((_, request) => request.kind === "recovery" && request.phase === "adopt");
-    await t.startup([headOf("U-R", "r2", { type: "VXKO50", xml: flood("123456789052", T0 - MINUTE) }, T0 - MINUTE)], "U-R");
+    await t.startup([headOf("U-R", "r2", { type: "VXKO50", xml: cancel("123456789053", T0 - MINUTE) }, T0 - MINUTE)], "U-R");
     t.advance(7_500);
     heldAdopt();
     t.h.releaseRequests();
     await t.drive();
-    expect(rawChanges(t.adopted("U-R").output.displayChanges)).toEqual({ "normal/VXKO50/123456789051": GONE, "normal/VXKO50/123456789052": NEW });
-    const id = createHash("sha256").update(JSON.stringify(["U-R", "normal", "normal/VXKO50/123456789051"]), "utf8").digest("hex");
-    expect(t.wires.at(-1)!.removals["U-R"]?.items.map((item) => [item.ref.id, item.reason])).toEqual([[id, "unknown"]]);
+    const net = t.adopted("U-R").output.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal]] : []);
+    expect(net).toEqual([["normal/VXKO50/123456789051", "expired"], ["normal/VXKO50/123456789053", "cancelled"]]);
+    expect(t.wires.at(-1)!.removals["U-R"]?.items.map((item) => [item.ref.id, item.reason]).sort())
+      .toEqual([[id("123456789051"), "expired"], [id("123456789053"), "cancelled"]].sort());
+  });
+
+  // 受入条件 P4-RL-T03 の 3 つ目（P4-RL-AC03 (1)）: 基点に無く候補の中でできて消えたキーは Map に残らず、基点のキーは消えた時に持ち、戻ったら外す（府県の行の原因も外す）。
+  it("P4-RL-T03 acceptance / P4-RL-AC03 (1): a key born and gone inside the candidate leaves no entry; a base key returning drops its removal and causes", () => {
+    const row = (subject: string, current: boolean) => ({ unit: "U-R" as const, operation: "normal" as const, subject, office: null, current: null, subjects: [],
+      ...current ? {} : {} });
+    const removals = new Map<string, DisplayRemoval | null>(), causes = new Map<string, DisplayRemoval[]>();
+    const change = (subject: string, before: boolean, after: boolean, removal: DisplayRemoval = "expired"): RuntimeDisplayChange =>
+      ({ unit: "U-R", operation: "normal", subject, before: before ? row(subject, true) : null, ...after ? { after: row(subject, true) } : { after: null, removal } });
+    noteRemovals(removals, [change("born", false, true), change("born", true, false), change("base", true, false, "cancelled")], causes);
+    expect([...removals]).toEqual([[JSON.stringify(["U-R", "normal", "base"]), "cancelled"]]);
+    causes.set(JSON.stringify(["U-R", "normal", "base"]), ["replaced"]);
+    noteRemovals(removals, [change("base", false, true)], causes);
+    expect([removals.size, causes.size]).toEqual([0, 0]);
   });
 
   // 破棄: 捨てた候補（fetchFailed の discard）と部分集合の検査に外れた候補（generationConflict）は返信の差分 0 で、投影が動かない。
@@ -454,5 +473,55 @@ describe("P3-REC-T21 acceptance: the adopt step's net displayChanges (AC07, Q-RE
       .toEqual([{ unit: "U-R", state: "unsatisfied", reason: "generationConflict" }, 1, []]);
     expect(c.h.root["projection"]!.domains.flood).toEqual(kept);
     expectProjection(c);
+  });
+});
+
+// P4-REMOVAL-LOSS-001 の U-W の府県の行の原因を取り直しの採用で束ねる（P4-RL-AC03 (5)、P4-RL-D-MIXED=B、Q-RL-MIXED-CARRIER）。通常の経路（recovery.ts の bodiesFor の選び →
+// owner-host の候補 → adoptRecoveryOwner）で通す。live は全国報 Y（気象庁、府県 18 に福井市の大雪警報）と、府県 18 に区域を持つ福井の報 X（系列の初報）。
+// 一覧は X の取消（報時刻 11:00）と、後に受けた別の官署の全国報 Y′（報時刻 11:00、府県 18 を持たない、Y より新しい）。
+describe("P4-RL-T02 (a)・T09 contractBoundary: the U-W prefecture row through the adopt", () => {
+  const FUKUI = "18_00_01_260830_VPWW55_fukui_L5", NATIONAL = "weather-alert-kind-area/synthetic-vpws50-change-density-before", AT = "2026-09-06T11:00:00+09:00";
+  const at = (iso: string) => (text: string) => text.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(Date.parse(iso)).toISOString()}`).replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${iso}`);
+  const inBody = (edit: (body: string) => string) => (text: string) => { const from = text.indexOf("<Body"); return text.slice(0, from) + edit(text.slice(from)); };
+  const prefectureOnly = (text: string) => text.replace(/(<Warning type="気象警報・注意報（府県予報区等）">[\s\S]*?<\/Warning>)[\s\S]*<\/Body>/, "$1</Body>");
+  // X の区域が府県の行に出る形（府県予報区等の特別警報 1 行）と、全部が Y に負ける形（Y と同じ区域・Code で Y より古い、T09）。
+  const shownX = prefectureOnly(fixture(FUKUI));
+  const hiddenX = inBody((body) => body.replace("気象警報・注意報（府県予報区等）", "気象警報・注意報（市町村等）")
+    .replace(/<Kind>[\s\S]*?<\/Kind>/, "<Kind><Name>大雪警報</Name><Code>06</Code><Status>発表</Status></Kind>")
+    .replace(/(<Area>\s*<Name>)[^<]*(<\/Name>\s*<Code>)180000/, "$1福井県福井市$21820100"))(shownX);
+  const cancelOf = (text: string) => at(AT)(text.replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>").replace(/<Body[\s\S]*<\/Body>/, "<Body/>"));
+  const yPrime = at(AT)(national(fixture(NATIONAL))).replace(/<EditorialOffice>[^<]*/, "<EditorialOffice>大阪管区気象台").replace(/<Code>18(\d{5})<\/Code>/g, "<Code>19$1</Code>");
+  const head = (id: string, type: string, text: string, receivedAtMs: number): ListHead => ({ ...headOf("U-W", id, { type, xml: text }, receivedAtMs), reportDateTime: AT });
+  const ROW = "normal/area/18", rowId = createHash("sha256").update(JSON.stringify(["U-W", "normal", ROW]), "utf8").digest("hex");
+  async function run(x: string, withY: boolean, beforeAdopt?: (t: Run) => Promise<void>) {
+    const t = await setup();
+    await t.live("VPWS50", national(fixture(NATIONAL)));
+    await t.live("VPWW55", x);
+    let release!: () => void;
+    t.bodies.set("x", xml(cancelOf(x)));
+    if (withY) t.bodies.set("y", beforeAdopt == null ? xml(yPrime) : () => new Promise((done) => { release = () => done(xml(yPrime)); }));
+    const heads = [head("x", "VPWW55", cancelOf(x), T0 - 2 * MINUTE), ...withY ? [head("y", "VPWS50", yPrime, T0 - MINUTE)] : []];
+    if (beforeAdopt == null) await t.startup(heads, "U-W");
+    else { void t.startup(heads, "U-W"); await t.drive(); await beforeAdopt(t); release(); await t.drive(); }
+    const row = t.adopted("U-W").output.displayChanges.find((change) => change.subject === ROW);
+    return { t, row: row == null ? null : row.after == null ? row.removal : "kept", listed: t.wires.at(-1)!.removals["U-W"]?.items.filter((item) => item.ref.id === rowId).map((item) => item.reason) ?? [] };
+  }
+
+  it("P4-RL-T02 (a) contractBoundary / P4-RL-AC02 (2),AC03 (5): X's cancel (departed) and Y's replacement in one adopt make the row mixed; X's cancel alone keeps the row", async () => {
+    expect([(await run(shownX, true)).row, (await run(shownX, true)).listed]).toEqual(["mixed", ["mixed"]]);
+    const alone = await run(shownX, false);
+    expect([alone.row, alone.listed]).toEqual(["kept", []]);
+  });
+
+  it("P4-RL-T09 contractBoundary / P4-RL-AC03 (5): X's areas all lose to Y, so X's cancel leaves the row unchanged, carries no departed and the row is replaced", async () => {
+    const hidden = await run(hiddenX, true);
+    expect([hidden.row, hidden.listed]).toEqual(["replaced", ["replaced"]]);
+  });
+
+  // P4-RL-AC03 (2): 当て直し（候補の間の live の X の取消で基点が変わる）は集めた原因を空にしてから当て直す。前の基点で X の取消が付けた departed が残ると mixed になる。
+  it("P4-RL-T03 acceptance / P4-RL-AC03 (2): a rebase drops the causes collected on the previous base", async () => {
+    const rebased = await run(shownX, true, async (t) => { await t.live("VPWW55", cancelOf(shownX).replace(AT, "2026-09-06T10:59:00+09:00")
+      .replace(new Date(Date.parse(AT)).toISOString(), new Date(Date.parse("2026-09-06T10:59:00+09:00")).toISOString())); });
+    expect(rebased.row).toBe("replaced");
   });
 });

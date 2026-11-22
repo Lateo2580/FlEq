@@ -894,3 +894,28 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-M restores failed and null p
     restore: (state, at) => reduceLocalBulletinsUnit(emptyState(), { kind: "restore", persisted: localBulletinsUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => records(state).find((item) => item.subject === subject)?.notice });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-M の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。期限の回収は見える期限を dueWallMs に持つ。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-M removals are evicted, expired (also clock-pending), cancelled and ended", () => {
+  const removals = (step: LocalBulletinsUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  let full = emptyState();
+  for (let index = 0; index < 128; index++) full = send(full, N50, tornadoN(index)).state;
+  const oldest = full.tornado.find((item) => item.subject.endsWith("/第000府県竜巻注意情報"))!.subject;
+  const nagasaki = send(emptyState(), N50).state, end = ms("2013-07-26T10:30:00+09:00");
+  const first50 = send(emptyState(), T50).state, same = (xml: string) => serial("2")(retime("2009-08-10T07:38:00+09:00")(xml));
+  expect([
+    removals(send(full, N50, tornadoN(128))),
+    removals(tick(nagasaki, end)),
+    removals(reduceLocalBulletinsUnit(nagasaki, { kind: "deadline", clock: clock(end), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(tick(nagasaki, nagasaki.tornado[0].retainUntil)), // 見える期限と retainUntil が同じ回収で来ても、表示の期限を dueWallMs に持つ（P4-RL-AC04 (4)）
+    removals(sendAs(first50, "synthetic_VPHW50_tokyo_cancel", "VPHW50", same)),
+    removals(send(first50, "synthetic_VPHW50_tokyo_release", at("2009-08-10T07:50:00+09:00"))),
+  ]).toEqual([
+    [[oldest, "evicted", null]],
+    [[NAGASAKI, "expired", end]],
+    [[NAGASAKI, "expired", end]],
+    [[NAGASAKI, "expired", end]],
+    [[TOKYO, "cancelled", null]],
+    [[TOKYO, "ended", null]],
+  ]);
+});

@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util"; import { createHash } from "node:crypto";
 
-import type { DiagnosticDetails, JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome, WallBasis } from "../../../contracts/p2-shared-runtime.types";
+import type { DiagnosticDetails, DisplayRemoval, JsonValue, NotificationIntent, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome, WallBasis } from "../../../contracts/p2-shared-runtime.types";
 import type { PersistedWeatherTimeseriesUnit, WeatherTimeseriesInput, WeatherTimeseriesSnapshot, WeatherTimeseriesUnreadableSite,
   WeatherTimeseriesGate, WeatherTimeseriesSubject, WeatherTimeseriesUnitCodec, WeatherTimeseriesUnitState, WeatherTimeseriesUnitStep,
   WeatherTimeseriesUnitView, WeatherTimeseriesPublicSubject, WeatherTimeseriesDetailPeriod, WeatherTimeseriesDetailRequest, WeatherTimeseriesDetailResponse } from "../../../contracts/p2-weather-timeseries-unit.types";
@@ -25,7 +25,7 @@ const encoder = new TextEncoder();
 const cache = new WeakMap<object, number>();
 const subjectDeadlineCache = new WeakMap<WeatherTimeseriesUnitState["subjects"], number>();
 const outcomeCache = new WeakMap<WeatherTimeseriesSubject, SubjectOutcome>();
-type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null) => void;
+type CurrentChange = (before: WeatherTimeseriesSubject | null, after: WeatherTimeseriesSubject | null, removal?: DisplayRemoval, dueWallMs?: number) => void; // removal・dueWallMs: subject を外す変化の理由と期限（P4-RL-AC02・AC04 (4)）
 const emptyEnvelopeBytes = serializedEnvelope({ schemaVersion: SCHEMA, unit: "U-F", generation: 0,
   capturedAt: 0, payload: { schemaVersion: SCHEMA, subjects: [], gates: [], intents: [] }, sha256: "0".repeat(64) }).byteLength + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES; // P3-VM-AC06・P3-NL-AC14 (7)・P3-UM-AC11 (10): envelope の inputBoundary・losses・カードの最大（器からは引かない）
 
@@ -134,7 +134,7 @@ function collect(state: WeatherTimeseriesUnitState, wallTimeMs: number, monotoni
           change(item, kept); expired.push(kept);
         }
       }
-      if (verified && item.retainUntil <= wallTimeMs) { removed = true; change(kept, null); continue; }
+      if (verified && item.retainUntil <= wallTimeMs) { removed = true; change(kept, null, "retentionEnded", item.retainUntil); continue; }
       retained.push(kept);
     }
   const expiredIntents = verified ? state.intents.filter((item) => item.expiresAt <= wallTimeMs) : [];
@@ -262,7 +262,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
       for (const item of [...proposed.subjects].filter((entry) => entry.subject !== source.subject && entry.operation !== "normal")
         .sort((a, b) => Date.parse(a.source?.reportDateTimeRaw ?? "") - Date.parse(b.source?.reportDateTimeRaw ?? "")
           || a.subject.localeCompare(b.subject))) {
-        changed(item, null); removed++;
+        changed(item, null, "evicted"); removed++;
         proposed = { ...proposed, subjects: proposed.subjects.filter((entry) => entry !== item),
           gates: proposed.gates.filter((entry) => entry.subject !== item.subject) };
         if (fits(proposed, generation, input.clock.wallTimeMs)) break;
@@ -564,19 +564,19 @@ function toWeatherTimeseriesView(state: WeatherTimeseriesUnitState): WeatherTime
 }
 
 function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: WeatherTimeseriesInput): WeatherTimeseriesUnitStep {
-  const changes = new Map<string, { before: WeatherTimeseriesSubject | null; after: WeatherTimeseriesSubject | null }>();
-  const result = reduceCore(state, input, (before, after) => {
+  const changes = new Map<string, { before: WeatherTimeseriesSubject | null; after: WeatherTimeseriesSubject | null; removal?: DisplayRemoval; dueWallMs?: number }>();
+  const result = reduceCore(state, input, (before, after, removal, dueWallMs) => { // U-F は subject を外す変化だけが表示から消える（P4-RL-AC01 (3)、最後の変化の理由）
     const key = (after ?? before)!.subject;
-    changes.set(key, { before: changes.has(key) ? changes.get(key)!.before : before, after });
+    changes.set(key, { before: changes.has(key) ? changes.get(key)!.before : before, after, removal, dueWallMs });
   });
   // Q-UFP-REVISION: 新しい object の公開形式を作る前に、その版を記録する。
   if (result.state !== state) for (const { before, after } of changes.values())
     if (after != null && after !== before && !revisionOf.has(after)) revisionOf.set(after, state.contentRevision + 1);
   const subject = displaySubject;
   const displayChanges: WeatherTimeseriesUnitStep["displayChanges"] = result.state === state ? []
-    : [...changes].flatMap(([key, { before, after }]) => before === after ? [] : [{
+    : [...changes].flatMap(([key, { before, after, removal, dueWallMs }]) => before === after ? [] : [{
       unit: "U-F" as const, operation: (after ?? before)!.operation, subject: key,
-      before: before == null ? null : subject(before), ...(after == null ? { after: null, removal: "unknown" as const } : { after: subject(after) }), // P4-RL-AC02 (4): 理由は発注 2
+      before: before == null ? null : subject(before), ...(after == null ? { after: null, removal: removal ?? "unknown", ...dueWallMs == null ? {} : { dueWallMs } } : { after: subject(after) }), // P4-RL-AC02: 理由は消える所が付けた語
     }]);
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-F content revision exhausted");

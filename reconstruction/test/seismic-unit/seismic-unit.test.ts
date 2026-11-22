@@ -1306,3 +1306,35 @@ describe("P3-RR-T06 regression: a depth of +0 survives the save (P3-RR-AC05)", (
     expect(decision(send(restored.state, "32-35_01_03_240613_VXSE53", shallow))).toMatchObject({ decision: "unchanged", reason: "duplicate" });
   });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-Q の行、P4-RL-AC02）: 一覧から外れる差分の removal は消える所が付けた語。取消済みの地震は一覧に残り、保持の期限で retentionEnded。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-Q removals are evicted, expired (also clock-pending at the mark), retentionEnded and cancelled", () => {
+  const removals = (step: SeismicUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const now = Date.parse("2099-01-01T09:00:00+09:00"), seed = eventOf(send(emptyState(), "32-35_04_03_240613_VXSE52").state, "20100125161517")!;
+  const full: SeismicUnitState = { ...emptyState(), earthquakes: Array.from({ length: EVENT_LIMIT }, (_, index): EarthquakeEvent => {
+    const eventId = `E${String(index).padStart(13, "0")}`, at = new Date(now - (1000 - index) * 1000).toISOString();
+    return { ...seed, eventId, strongHold: null, retainUntil: now + HOUR, contributions: seed.contributions.map((item) =>
+      ({ ...item, source: { ...item.source, subject: `normal/${item.source.family}/${eventId}`, reportDateTimeRaw: at } })) };
+  }) };
+  const pushed = receive(full, decodeXml(vxse53({ eventId: "N0001", at: new Date(now).toISOString() }), "VXSE53"), clock(now));
+  const adopted = send(emptyState(), "32-35_04_04_240613_VXSE53").state, end = Date.parse("2010-01-25T16:19:00+09:00") + 24 * HOUR;
+  const lapse = (basis: "verified" | "unverified") => reduceSeismicUnit(adopted, { kind: "deadline", clock: clock(end), basis });
+  const cancelled = send(send(emptyState(), F.s53b).state, "synthetic_VXSE53_cancel").state, kept = eventOf(cancelled)!;
+  const longPeriod = send(send(emptyState(), F.s53b).state, F.s62).state;
+  const lgCancel = send(longPeriod, F.s62, (xml) => xml.replace(/2026-07-28T16:37:00\+09:00/g, "2026-07-28T16:50:00+09:00")
+    .replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>").replace(/<Body([^>]*)>[\s\S]*<\/Body>/, "<Body$1><Text>取消</Text></Body>"));
+  expect([kept.cancelledSummary != null, toSeismicView(cancelled).earthquakes.length]).toEqual([true, 1]);
+  expect([
+    removals(pushed),
+    removals(lapse("verified")),
+    removals(lapse("unverified")), // P4-RL-D-CLOCK-PENDING（seismic-unit.ts の保留の印）
+    removals(reduceSeismicUnit(cancelled, { kind: "deadline", clock: clock(kept.retainUntil) })),
+    removals(lgCancel),
+  ]).toEqual([
+    [["normal/earthquake/E0000000000000", "evicted", null]],
+    [["normal/earthquake/20100125161517", "expired", end]],
+    [["normal/earthquake/20100125161517", "expired", end]],
+    [[`normal/earthquake/${EVENT}`, "retentionEnded", kept.retainUntil]],
+    [[`normal/VXSE62/${EVENT}`, "cancelled", null]],
+  ]);
+});

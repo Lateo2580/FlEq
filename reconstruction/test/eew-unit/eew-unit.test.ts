@@ -1898,3 +1898,25 @@ describe("P4 EEW without Intensity", () => {
     }
   });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-E の行、P4-RL-AC02 (5)）: eew.ts の changed が付けた語。押し出しは evicted、期限は expired、取消は cancelled、最終報は ended。
+it("P4-RL-T01 acceptance / P4-RL-AC02 (5): U-E removals are evicted, expired, cancelled and ended", () => {
+  const removals = (step: EewUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal]] : []);
+  const material = (id: number, operation: Operation) => decodeFixture("37_01_01_240613_VXSE43", "VXSE43", (xml) => withOperation(xml, operation)
+    .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${String(id).padStart(14, "0")}</EventID>`), `${operation}-${id}-rl`);
+  const operations = ["normal", "training", "test"] as const;
+  const full = Array.from({ length: 512 }, (_, index) => material(index + 1, operations[index % 3])).reduce((state, input) => receive(state, input).state, emptyState());
+  const first = receive(emptyState(), decodeFixture("37_01_01_240613_VXSE43", "VXSE43")).state, SUBJECT = first.current[0].subject;
+  const final = decodeFixture("37_01_02_240613_VXSE43", "VXSE43", (xml) => xml.replace("</Body>", "<NextAdvisory>この情報をもって、緊急地震速報：最終報とします。</NextAdvisory></Body>"));
+  expect([
+    removals(receive(full, material(9000, "normal"))),
+    removals(reduceEewUnit(first, { kind: "deadline", clock: clock(Date.parse("2024-04-17T14:14:59Z") + 600_000) })),
+    removals(receive(first, decodeFixture("37_01_03_240613_VXSE43", "VXSE43"))),
+    removals(receive(first, final)),
+  ]).toEqual([
+    [["test/VXSE43/00000000000003", "evicted"]],
+    [[SUBJECT, "expired"]],
+    [[SUBJECT, "cancelled"]],
+    [[SUBJECT, "ended"]],
+  ]);
+});

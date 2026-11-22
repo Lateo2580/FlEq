@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, UnreadableMark, WallBasis,
+  SubjectOutcome, UnreadableMark, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   BriefingArea, BriefingCurrent, BriefingInput, BriefingRecordRainCurrent, BriefingReportCurrent, BriefingIntent, BriefingItem, BriefingKind, BriefingNotificationPayload, BriefingObservation,
@@ -43,7 +43,7 @@ type Visible = Extract<BriefingReportCurrent, Readonly<{ effective: "active" }>>
 type Level = BriefingNotificationPayload["level"];
 type InternalStep = Omit<BriefingUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = BriefingUnitStep["decisions"][number];
-type Change = readonly [before: BriefingCurrent | null, after: BriefingCurrent | null];
+type Change = readonly [before: BriefingCurrent | null, after: BriefingCurrent | null, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 // eventId と inherited は VPBS50 の記録だけが持つ（VPOA50 は系列が EventID の全体）。VPOA50 の記録を組むときは外す（vpoa50Of）。
 type Base = Readonly<{ subject: string; operation: Operation; series: string; eventId: string; inherited?: true; source: ReportRef;
@@ -427,7 +427,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
     const result = { ...state, currents: kept == null ? state.currents.filter((_, at) => at !== found.at)
       : state.currents.map((item, at) => at === found.at ? kept : item), intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) };
-    return vanished([], result, [[found.value, kept]], "semantic");
+    return vanished([], result, [[found.value, kept, "expired"]], "semantic"); // 遅着の採用で消える自分の系列の記録は expired（P4-RL-D-LATE=B）
   }
 
   // P3-C12-CAPACITY=A・P3-C12-EVICT-OPERATION: 退去は入力の前の配列から 1 件を決め、作用は残った記録に当てる。
@@ -519,7 +519,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   // 自分の記録は印を足した後の state の記録（表示の変化の after を state に揃える）。
   const ownAfter = settled === currents ? next : settled[indexOf(settled).subjects.get(subject) ?? -1] ?? next;
   const settle = (value: BriefingCurrent | null) => value == null ? null : after.get(value) ?? value;
-  const touched: Change[] = [[existing, ownAfter], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], settle(value)])];
+  const touched: Change[] = [[existing, ownAfter, candidate.cancelled ? "cancelled" : ownAfter.effective === "replaced" || ownAfter.effective === "aliased" ? "replaced" : undefined], ...[...edits].filter(([at]) => at !== own).map(([at, value]): Change => [values[at], settle(value), "replaced"])]; // ほかの記録の作用で外れるのは置換・alias だけ（表 §1.2 の U-B）
   const editedValues = new Set(edits.values());
   const stripped: Change[] = [...after].filter(([item]) => item.subject !== subject && !editedValues.has(item));
   const shownChange = ([before, value]: Change) => visible(before) !== visible(value) || visible(before) && changed(before, value).length !== 0;
@@ -533,7 +533,7 @@ function receiveCandidate(state: BriefingUnitState, candidate: BriefingCandidate
   const dropped = droppedIn(fit, settled);
   if (dropped !== 0) diagnostics.push({ level: "INFO", component: "briefing", reason: "unreadableDropped", unit: "U-B", count: dropped });
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] as const], ...touched, ...stripped],
+    changes: [...evicted == null ? [] : [[evicted, null, "evicted"] as const], ...touched, ...stripped],
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decision], intents: notices.admitted,
       outcomes: [{ kind: "accepted", change, subjects: touched.flatMap(([before, value]) => value == null ? [] : [outcomeOf(value, changed(before, value))]) }],
       diagnostics },
@@ -592,7 +592,7 @@ function collect(state: BriefingUnitState, clock: ClockReading, basis: WallBasis
     if (applies && shownKind(value) && (value.expiryPending === true || value.retainUntil <= now)) value = lapsed(value, basis);
     const kept = verified && value.effective === "expired" && value.retainUntil <= now ? null : value;
     if (kept === item) return [item];
-    changes.push([item, kept]);
+    changes.push([item, kept, "expired", item.retainUntil]);
     if (item.effective === "held" && kept != null && !silent && now < item.holdUntil + HOLD_MS && visible(kept))
       released.push(...intentsFor(kept, "activated", payloadOf(kept.operation, "VPOA50", "normal", kept.title, bodyOf(kept), "plain"),
         now, kept.notice, versionDigest(kept.source)));
@@ -606,8 +606,8 @@ function collect(state: BriefingUnitState, clock: ClockReading, basis: WallBasis
   const persisted = changes.length !== 0 || notices.intents !== state.intents;
   // 解放の通知の印は released の記録へ足し、表示の変化の after もその記録に揃える。
   const marked = markAdmitted(changes.length === 0 ? state.currents : currents, notices.admitted);
-  const settled = notices.admitted.length === 0 ? changes : changes.map(([before, value]): Change =>
-    [before, value == null ? value : marked[indexOf(marked).subjects.get(value.subject) ?? -1] ?? value]);
+  const settled = notices.admitted.length === 0 ? changes : changes.map(([before, value, ...cause]): Change =>
+    [before, value == null ? value : marked[indexOf(marked).subjects.get(value.subject) ?? -1] ?? value, ...cause]);
   return { state: persisted ? { ...state, currents: marked, intents: notices.intents,
     persistence: dirty(state.persistence, clock.monotonicMs) } : state, changes: settled, expiredIntents, intents: notices.admitted, dropped: notices.dropped };
 }
@@ -703,18 +703,18 @@ function reduceCore(state: BriefingUnitState, input: BriefingInput): Result {
 function reduceBriefingUnit(state: BriefingUnitState, input: BriefingInput): BriefingUnitStep {
   const { step, changes } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active・released）だけを表示の変化にする。
-  const merged = new Map<string, { before: BriefingCurrent | null; after: BriefingCurrent | null }>();
-  for (const [before, value] of changes) {
+  const merged = new Map<string, { before: BriefingCurrent | null; after: BriefingCurrent | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, value, removal, dueWallMs] of changes) {
     const key = (value ?? before)!.subject;
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after: value });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after: value, cause: visible(value) ? undefined : visible(before) ? [removal, dueWallMs] : value == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: BriefingUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after: value }] of merged) {
+  for (const [subject, { before, after: value, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(value) ? value : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-B", operation: (value ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-B content revision exhausted");
   // P3-C12-N2: U-B は確認 scope を作らない。

@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, WallBasis, DiagnosticDetails, FailureMark, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, SubjectUnavailable, UnreadableMark,
+  RuntimeUnitDeadline, SubjectOutcome, SubjectUnavailable, UnreadableMark, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   CancelledSummary, EarthquakeContribution, EarthquakeEvent, EarthquakeEventView, EarthquakeFamily, LongPeriodSubject, PersistedSeismicUnit,
@@ -79,7 +79,7 @@ const FAMILY_ORDER: Readonly<Record<EarthquakeFamily, number>> = { VXSE51: 0, VX
 type Shown = EarthquakeEvent | LongPeriodSubject;
 type Level = SeismicNotificationPayload["level"];
 type InternalStep = Omit<SeismicUnitStep, "displayChanges" | "confirmationEvidence">;
-type Change = readonly [before: Shown | null, after: Shown | null];
+type Change = readonly [before: Shown | null, after: Shown | null, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 // uncovered: この受信が印に結び付けられない取りこぼしを作った（unit/operation の未確認へ、P3-CC-AC02）。
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[]; uncovered?: boolean }>;
 type Daily = SeismicUnitState["daily"];
@@ -778,7 +778,7 @@ const LEVEL_ORDER: readonly Level[] = ["info", "normal", "warning", "critical"];
 // target の変化は呼ぶ側が持つ。
 function planChanges(plan: Plan): Change[] {
   const own = keyOf(plan.target);
-  return [...plan.folded.filter(([item]) => !isEvent(item) && keyOf(item) !== own), ...plan.evicted.map((item): Change => [item, null])];
+  return [...plan.folded.filter(([item]) => !isEvent(item) && keyOf(item) !== own), ...plan.evicted.map((item): Change => [item, null, "evicted"])];
 }
 const evictedNote = (count = 0): DiagnosticDetails[] => count === 0 ? []
   : [{ level: "INFO", component: "seismic", reason: "seismicCapacityEvicted", unit: "U-Q", count }];
@@ -910,7 +910,7 @@ function receiveEarthquake(state: SeismicUnitState, candidate: EarthquakeCandida
   const history = nextHistory(state.daily[candidate.operation], candidate, existing, next, now, basis === "verified");
   const daily = history === state.daily[candidate.operation] ? state.daily : { ...state.daily, [candidate.operation]: history };
   const result = adopt(state, candidate, clock, basis, { earthquakes: replaceAt(state.earthquakes, index, next), longPeriods: state.longPeriods, daily,
-    fresh, semantic, changes: [[existing, next]], target: next, missing: version.missing, version: notice.version,
+    fresh, semantic, changes: [[existing, next, candidate.cancelled ? "cancelled" : "expired"]], target: next, missing: version.missing, version: notice.version,
     outcome: { subject: candidate.subject, operation: candidate.operation, informationType: candidate.source.infoTypeRaw,
       transition: candidate.contribution.effective, severity: null, source: candidate.source, facts: eventView(next), changedFields: fields } });
   // uncovered があるのは拒否の結果だけ（refuse）。採用できたときだけ、外した印を unit の未確認へ移す。
@@ -966,7 +966,7 @@ function receiveLongPeriod(state: SeismicUnitState, candidate: LongPeriodCandida
   const fresh = notify ? intentsFor(candidate, candidate.cancelled ? "cancelled" : wasActive ? "updated" : "activated", now, notice,
     existing == null ? null : { at: existing.source.reportDateTimeRaw, name: existing.hypocenter?.name ?? null }) : [];
   const result = adopt(state, candidate, clock, basis, { earthquakes: state.earthquakes, longPeriods: replaceAt(state.longPeriods, index, next),
-    daily: state.daily, fresh, semantic, changes: [[existing, next]], target: next, missing: version.missing, version: notice.version,
+    daily: state.daily, fresh, semantic, changes: [[existing, next, candidate.cancelled ? "cancelled" : "expired"]], target: next, missing: version.missing, version: notice.version,
     outcome: longPeriodOutcome(next, shownFacts(next), semantic ? ["longPeriod"] : []) });
   return lost && result.uncovered == null ? { ...result, uncovered: true } : result;
 }
@@ -991,7 +991,7 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
       longPeriods = longPeriods.map((item) => item === original ? marked : item);
       target = marked;
     }
-    changes = changes.map(([before, after]): Change => [before, after === original ? target : after]);
+    changes = changes.map(([before, after, ...cause]): Change => [before, after === original ? target : after, ...cause]);
   }
   // 到着の時点で期限を過ぎた記録の無い subject の報は配列へ入れない。同じ reduce で回収される記録のために他の記録を退去しない（予約の超過〔当日履歴の増え〕では fit が記憶を外す、P3-SEISMIC-RESERVE-CLOSE-001）
   // （P3-FINAL-AC01）。before は受信で引いた索引の結果で、記録の有無を引き直さない（P3-FINAL-RES-01）。
@@ -1001,13 +1001,13 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   // P3-UM-AC03 (3): 原文の合計（寄与と長周期の和）が予算を越えたら古い記録の原文から外す（印は残る）。器の退去（fit）より先に当てる。
   const raw = fresh ? null : rawPlan(earthquakes, longPeriods);
   if (raw != null) {
-    const pairs: Change[] = [], original = target;
+    const pairs: (readonly [Shown, Shown])[] = [], original = target;
     const strip = <T extends Shown>(item: T, after: T): T => { if (after !== item) pairs.push([item, after]); return after; };
     earthquakes = earthquakes.map((item) => strip(item, stripEvent(item, raw)));
     longPeriods = longPeriods.map((item) => strip(item, stripRaw(item, raw)));
     target = pairs.find(([item]) => item === original)?.[1] ?? original;
     const own = target;
-    changes = [...changes.map(([prior, after]): Change => [prior, after === original ? own : after]),
+    changes = [...changes.map(([prior, after, ...cause]): Change => [prior, after === original ? own : after, ...cause]),
       ...pairs.filter(([item]) => item !== original)];
   }
   // (0)(a): 受けた報 1 件の byte（event は受けた family の寄与）。
@@ -1019,7 +1019,7 @@ function adopt(state: SeismicUnitState, candidate: SeismicCandidate, clock: Cloc
   // 案が target を畳んだら、表示の変化も畳んだ後を指す（P3-QC-AC03 (4)）。
   if (fitted.target !== target) {
     const planned = target;
-    changes = changes.map(([before, after]): Change => [before, after === planned ? fitted.target : after]);
+    changes = changes.map(([before, after, ...cause]): Change => [before, after === planned ? fitted.target : after, ...cause]);
   }
   const evidence = { family: candidate.family, reportDateTimeMs: candidate.reportDateTimeMs, affectedScope: "subject" as const };
   // 保存の射影が変わらなければ保存世代を進めない（P3-X-C3、P3-FINAL-AC01(5)）。
@@ -1178,7 +1178,7 @@ function markPending(state: SeismicUnitState, clock: ClockReading): Readonly<{ s
   const note = <T extends Shown>(item: T, after: T): T => {
     // P3-SEV-AC06 (4): 長周期は実 byte を足して覚える（event は寄与の byte の cache をそのまま使う）。
     if (!isEvent(after)) byteCache.set(after, bytes(item) + PENDING_MARK_BYTES);
-    changes.push([item, after]);
+    changes.push([item, after, "expired", item.retainUntil]);
     return after;
   };
   const earthquakes = displayMin(state.earthquakes) > now ? state.earthquakes
@@ -1200,17 +1200,17 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
   if (deadlineAt(state) > now && !heldEvents && !heldPeriods) return { state, changes: [], expiredIntents: 0, expired: [] };
   const changes: Change[] = [], expired: SubjectOutcome[] = [];
   // 生きている記録は期限で記憶にし（記憶の期限がもう来ていれば同じ回で消す）、記憶だけの記録は期限で消す。
-  const keep = <T extends Shown>(before: T, after: T | null): T[] => {
-    changes.push([before, after != null && after.retainUntil > now ? after : null]);
+  const keep = <T extends Shown>(before: T, after: T | null, removal: DisplayRemoval): T[] => { // removal: 保持の期限の削除は retentionEnded、記憶へ移すのは expired（表 §1.2 の U-Q）
+    changes.push([before, after != null && after.retainUntil > now ? after : null, removal, before.retainUntil]);
     return after != null && after.retainUntil > now ? [after] : [];
   };
   // ponytail: event 1024・長周期 256 の同時の期限だけが一括の回収になる（上限は保持件数と decode で効く）。
   const aged = minOf(state.earthquakes, eventDeadline) > now && !heldEvents ? state.earthquakes : state.earthquakes.flatMap((item) => {
-    if (item.retainUntil <= now && !visible(item)) return keep(item, null);
+    if (item.retainUntil <= now && !visible(item)) return keep(item, null, "retentionEnded");
     if (item.retainUntil <= now || item.expiryPending === true) {
       const after = expireEvent(item);
       item.contributions.forEach((entry, at) => { if (entry.effective === "active") expired.push(contributionOutcome(after, after.contributions[at])); });
-      return keep(item, after);
+      return keep(item, after, "expired");
     }
     if (item.strongHold == null || item.strongHold.until > now) return [item];
     const after = { ...item, strongHold: null };
@@ -1220,10 +1220,10 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
   const kept = minOf(state.longPeriods, (item) => item.retainUntil) > now && !heldPeriods ? state.longPeriods
     : state.longPeriods.flatMap((item) => {
       if (item.retainUntil > now && item.expiryPending !== true) return [item];
-      if (!visible(item)) return keep(item, null);
+      if (!visible(item)) return keep(item, null, "retentionEnded");
       const after = expireLongPeriod(item);
       expired.push(longPeriodOutcome(after));
-      return keep(item, after);
+      return keep(item, after, "expired");
     });
   let daily = state.daily;
   for (const operation of OPERATIONS) {
@@ -1232,7 +1232,7 @@ function collect(state: SeismicUnitState, clock: ClockReading, basis: WallBasis)
   }
   // P3-SRC-AC01: 記憶へ移した回だけ（予約が増えるのはここだけ）、越えたら同じ回で古い記憶から外す。
   const victims = new Set(expired.length === 0 ? [] : overReserve([...aged, ...kept], reservedBytes(aged, kept, daily), now, true));
-  victims.forEach((item) => changes.push([item, null]));
+  victims.forEach((item) => changes.push([item, null, "evicted"]));
   const earthquakes = victims.size === 0 ? aged : aged.filter((item) => !victims.has(item));
   const longPeriods = victims.size === 0 ? kept : kept.filter((item) => !victims.has(item));
   const intents = minOf(state.intents, (item) => item.expiresAt) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
@@ -1359,18 +1359,18 @@ function reduceCore(state: SeismicUnitState, input: SeismicInput): Result {
 function reduceSeismicUnit(state: SeismicUnitState, input: SeismicInput): SeismicUnitStep {
   const { step, changes, uncovered } = reduceCore(state, input);
   // 同じ鍵の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: Shown | null; after: Shown | null }>();
-  for (const [before, after] of changes) {
+  const merged = new Map<string, { before: Shown | null; after: Shown | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, after, removal, dueWallMs] of changes) {
     const key = keyOf((after ?? before)!);
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after, cause: listed(after) ? undefined : listed(before) ? [removal, dueWallMs] : after == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: SeismicUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after }] of merged) {
+  for (const [subject, { before, after, cause }] of merged) {
     const shownBefore = listed(before) ? before : null, shownAfter = listed(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-Q", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   // 当日履歴も view の一部なので、表示の変化が無くても内容の版を進める。
   const bump = displayChanges.length !== 0 || step.state.daily !== state.daily;

@@ -846,3 +846,26 @@ it("P3-TFC-T01 contractBoundary / P3-TFC-AC02: the first dropped time is the one
   expect(overLimit).toContain("予報　６時間後");
   expect(overLimit).not.toContain("予報　９時間後");
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-Y の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語（確率 zero と解析の終わりの連動は ended）。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-Y removals are evicted, expired (also clock-pending), cancelled and ended", () => {
+  const removals = (step: TyphoonUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const first = send(emptyState(), A01).state, end = ms("2020-09-28T15:50:00+09:00") + 12 * HOUR, probability = send(emptyState(), P41).state;
+  expect([
+    removals(sendXml(fillAnalysis(64), analysisN(64), "VPTW60")),
+    removals(tick(first, end)),
+    removals(reduceTyphoonUnit(first, { kind: "deadline", clock: clock(end), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(tick(first, first.analysis[0].retainUntil)), // 見える期限と retainUntil が同じ回収で来ても、表示の期限を dueWallMs に持つ（P4-RL-AC04 (4)）
+    removals(send(first, CANCEL_A)),
+    removals(send(probability, PZERO)),
+    removals(send(probability, LOWERING)),
+  ]).toEqual([
+    [["normal/typhoonAnalysis/TC0000", "evicted", null]],
+    [[TC2001, "expired", end]],
+    [[TC2001, "expired", end]],
+    [[TC2001, "expired", end]],
+    [[TC2001, "cancelled", null]],
+    [[P2606, "ended", null]],
+    [[P2606, "ended", null]],
+  ]);
+});

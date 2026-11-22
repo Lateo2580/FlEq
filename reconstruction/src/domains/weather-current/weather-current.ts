@@ -10,7 +10,7 @@ import type {
   ReportRef,
   RejectionReason,
   RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   WeatherCurrentHistory,
@@ -506,7 +506,7 @@ function owned(snapshotValue: WeatherCurrentSnapshot): readonly string[] {
   return result;
 }
 
-type CurrentChange = (before: WeatherCurrentSnapshot | null, after: WeatherCurrentSnapshot | null, operation: Operation, subject: string) => void;
+type CurrentChange = (before: WeatherCurrentSnapshot | null, after: WeatherCurrentSnapshot | null, operation: Operation, subject: string, cause?: DisplayRemoval) => void; // cause: 報の変化の原因（府県の行の消えた理由、P4-RL-AC02 (2)）
 
 function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate,
   touched: CurrentChange = () => {}): WeatherCurrentUnitState {
@@ -514,7 +514,7 @@ function applyEnding(state: WeatherCurrentUnitState, candidate: Candidate,
   const ended = (snapshotValue: WeatherCurrentSnapshot) => endSnapshot(snapshotValue, candidate.operation, candidate.reportDateTimeMs!, codes);
   const currentEnded = (value: WeatherCurrentSnapshot) => {
     const next = ended(value);
-    if (next !== value) touched(value, next, value.operation, value.subject);
+    if (next !== value) touched(value, next, value.operation, value.subject, "ended");
     return next;
   };
   const national = Object.fromEntries(Object.entries(state.national).map(([operation, value]) => [operation, currentEnded(value!)]));
@@ -643,7 +643,7 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
       tombstones: [...next.tombstones.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation),
         { subject: candidate.subject, operation: candidate.operation, source: candidate.source, affectedScope: candidate.affectedScope }] };
     const masked = maskSnapshotWithTombstones(next, restored);
-    touched(previous, masked, candidate.operation, candidate.subject);
+    touched(previous, masked, candidate.operation, candidate.subject, "cancelled");
     next = candidate.scope === "national"
       ? { ...next, national: { ...next.national, [candidate.operation]: masked } }
       : { ...next, partials: [...next.partials.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation), masked] };
@@ -664,7 +664,7 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
   if (candidate.scope === "partial" && previous == null && state.partials.reduce((sum, item) => sum + ((item.operation === "normal") === (candidate.operation === "normal") ? 1 : 0), 0) >= (candidate.operation === "normal" ? 384 : 64)) {
     const eligible = candidate.operation === "normal" ? [] : [...state.partials].filter((item) => item.operation !== "normal").sort(compareEntry); // P3-UWC-AC01: normal は退去させず容量の unavailable、training・test は合算 64 件の中で最古を退去
     if (eligible.length === 0) return addUnavailable(state, candidate, "capacityExceeded", null, input.clock.monotonicMs);
-    touched(eligible[0], null, eligible[0].operation, eligible[0].subject);
+    touched(eligible[0], null, eligible[0].operation, eligible[0].subject, "evicted");
     working = removeSubjects(state, new Set([eligible[0].subject]), eligible[0].operation);
     diagnostics.push({ level: "INFO", component: "weather-current", reason: "weatherCurrentCapacityEvicted", unit: "U-W", count: 1 });
   }
@@ -699,8 +699,8 @@ function adoptCandidate(state: WeatherCurrentUnitState, candidate: Candidate, pr
   const projected = maskSnapshotWithTombstones(working, snapshot(candidate));
   const displaced = candidate.scope === "national" ? working.national[candidate.operation] : null;
   if (displaced != null && displaced.subject !== candidate.subject)
-    touched(displaced, null, displaced.operation, displaced.subject);
-  touched(previous, projected, candidate.operation, candidate.subject);
+    touched(displaced, null, displaced.operation, displaced.subject, "replaced");
+  touched(previous, projected, candidate.operation, candidate.subject, "replaced");
   let next: WeatherCurrentUnitState = candidate.scope === "national"
     ? { ...working, national: { ...working.national, [candidate.operation]: projected } }
     : { ...working, partials: [...working.partials.filter((item) => item.subject !== candidate.subject || item.operation !== candidate.operation), projected] };

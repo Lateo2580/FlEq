@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, FailureMark, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef,
-  RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome, SubjectUnavailable, UnreadableMark, WallBasis,
+  RuntimeDisplaySubject, RuntimeUnitDeadline, SubjectOutcome, SubjectUnavailable, UnreadableMark, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedTsunamiUnit, TsunamiAreaClass, TsunamiEstimation, TsunamiForecastArea, TsunamiForecastSubject, TsunamiHeight,
@@ -46,7 +46,7 @@ const FAMILIES = ["VTSE51", "VTSE52"] as const;
 type Subject = TsunamiForecastSubject | TsunamiObservationSubject;
 type Level = TsunamiNotificationPayload["level"];
 type InternalStep = Omit<TsunamiUnitStep, "displayChanges" | "confirmationEvidence">;
-type Change = readonly [before: Subject | null, after: Subject | null]; type Marks = Pick<TsunamiUnitState, "failureMarks" | "unreadableNotices">;
+type Change = readonly [before: Subject | null, after: Subject | null, removal?: DisplayRemoval, dueWallMs?: number]; type Marks = Pick<TsunamiUnitState, "failureMarks" | "unreadableNotices">; // Change の removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 // uncovered: この受信が印に結び付けられない取りこぼしを作った（unit/operation の未確認へ、P3-CC-AC02）。
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[]; uncovered?: boolean }>;
 
@@ -338,7 +338,7 @@ function hold(state: TsunamiUnitState, candidate: ForecastCandidate | Observatio
   if (fitted == null) return { changes: [], step, uncovered: true };
   const next: TsunamiUnitState = { ...state, forecasts: fitted.forecasts, observations: fitted.observations,
     persistence: dirty(state.persistence, clock.monotonicMs) };
-  return { changes: [...(candidate.kind === "forecast" ? fitted.forecasts : fitted.observations).filter((item) => item.subject === candidate.subject).map((item): Change => [found, item]), ...fitted.evicted.map((item): Change => [item, null])], step: { ...step, state: next, nextDeadline: nextDeadline(next), // P3-THM-AC01 (1): 印も表示差分に積む（無いと再起動まで view に出ない）。fit は target を退去しないので after は 1 件
+  return { changes: [...(candidate.kind === "forecast" ? fitted.forecasts : fitted.observations).filter((item) => item.subject === candidate.subject).map((item): Change => [found, item]), ...fitted.evicted.map((item): Change => [item, null, "evicted"])], step: { ...step, state: next, nextDeadline: nextDeadline(next), // P3-THM-AC01 (1): 印も表示差分に積む（無いと再起動まで view に出ない）。fit は target を退去しないので after は 1 件
     diagnostics: [...step.diagnostics, ...fitted.evicted.length === 0 ? [] : [{ level: "INFO" as const, component: "tsunami",
       reason: "tsunamiCapacityEvicted" as const, unit: "U-T" as const, count: fitted.evicted.length }]] } };
 }
@@ -436,7 +436,7 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
     } else if (item.effective === "forecastEnded")
       after = item.validUntil != null && item.validUntil > now ? { ...item, effective: "active", retainUntil: null }
         : lapseObservation(item, now, basis);
-    if (after !== item) { observationsChanged = true; changes.push([item, after]); }
+    if (after !== item) { observationsChanged = true; changes.push([item, after, next.effective !== "active" ? candidate.cancelled ? "cancelled" : "ended" : "expired"]); } // 観測は予報の原因と同じ語（表 §1.2 の U-T）
     return after;
   });
 
@@ -463,7 +463,7 @@ function receiveForecast(state: TsunamiUnitState, candidate: ForecastCandidate, 
     fresh = intentsFor(candidate.source, transition, payloadOf(candidate.operation, maxLevel(change, remaining), title,
       parts.length === 0 ? title : parts.join(" / "), candidate.infoRank === 2), now, notice, raisedToWarning);
   }
-  changes.push([existing, next]);
+  changes.push([existing, next, candidate.cancelled ? "cancelled" : "ended"]);
   const forecasts = index < 0 ? [...state.forecasts, next] : state.forecasts.map((item, at) => at === index ? next : item);
   const semantic = existing == null || existing.effective !== next.effective || observationsChanged || existing.unavailable !== next.unavailable || existing.warningComment !== next.warningComment
     || !isDeepStrictEqual(existing.areas, next.areas) || !isDeepStrictEqual(existing.unkeyedAreas, next.unkeyedAreas);
@@ -594,7 +594,7 @@ function receiveObservation(state: TsunamiUnitState, candidate: ObservationCandi
   const observations = index < 0 ? [...state.observations, next] : state.observations.map((item, at) => at === index ? next : item);
   return adopt(state, candidate, clock, basis, { forecasts: state.forecasts, observations, fresh,
     cancelSubject: candidate.cancelled && next.source === candidate.source ? candidate.subject : null,
-    semantic: touched || existing?.effective !== next.effective, changes: [[existing, next]], target: next, facts: {}, missing, notice,
+    semantic: touched || existing?.effective !== next.effective, changes: [[existing, next, candidate.cancelled ? "cancelled" : late ? "expired" : "ended"]], target: next, facts: {}, missing, notice,
     emergency: false });
 }
 
@@ -637,11 +637,11 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
     if ("stations" in target) {
       const marked = { ...target, notice };
       observations = observations.map((item) => item === target ? marked : item);
-      changes = changes.map(([before, after]): Change => [before, after === target ? marked : after]);
+      changes = changes.map(([before, after, ...cause]): Change => [before, after === target ? marked : after, ...cause]);
     } else {
       const marked = { ...target, notice };
       forecasts = forecasts.map((item) => item === target ? marked : item);
-      changes = changes.map(([before, after]): Change => [before, after === target ? marked : after]);
+      changes = changes.map(([before, after, ...cause]): Change => [before, after === target ? marked : after, ...cause]);
     }
   }
   // P3-UM-AC03 (3): 原文の合計（予報と観測の和）が予算を越えたら古い記録の原文から外す（印は残る）。器の退去（fit）より先に当てる。
@@ -649,11 +649,11 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
   const raw = fitRawBudget<Subject>(rawTotal(slices.forecasts, slices.observations), RAW_BUDGET, () => [...slices.forecasts, ...slices.observations],
     (item) => [Date.parse(item.source.reportDateTimeRaw), item.subject]);
   if (raw != null) {
-    const pairs: Change[] = [], push = (before: Subject, after: Subject) => { pairs.push([before, after]); };
+    const pairs: (readonly [Subject, Subject])[] = [], push = (before: Subject, after: Subject) => { pairs.push([before, after]); };
     forecasts = stripAll(forecasts, raw, push);
     observations = stripAll(observations, raw, push);
     const touched = new Map(pairs);
-    changes = [...changes.map(([before, after]): Change => [before, after == null ? after : touched.get(after) ?? after]),
+    changes = [...changes.map(([before, after, ...cause]): Change => [before, after == null ? after : touched.get(after) ?? after, ...cause]),
       ...pairs.filter(([item]) => !changes.some(([, after]) => after === item))];
   }
   const fitted = fit(forecasts, observations, notices.intents, state, candidate.subject, clock.wallTimeMs, candidate.operation,
@@ -673,7 +673,7 @@ function adopt(state: TsunamiUnitState, candidate: ForecastCandidate | Observati
   const dropped = droppedIn(raw, [...fitted.forecasts, ...fitted.observations]);
   if (dropped !== 0) diagnostics.push({ level: "INFO", component: "tsunami", reason: "unreadableDropped", unit: "U-T", count: dropped });
   return {
-    changes: [...changes, ...fitted.evicted.map((item): Change => [item, null])],
+    changes: [...changes, ...fitted.evicted.map((item): Change => [item, null, "evicted"])],
     step: { state: next, nextDeadline: nextDeadline(next),
       decisions: [{ subject: candidate.subject, operation: candidate.operation, decision: "changed", reason: null, change,
         currentEstablished: evidence }],
@@ -744,7 +744,7 @@ function refuse(state: TsunamiUnitState, candidate: ForecastCandidate | Observat
   if (evicted.length !== 0) diagnostics.push({ level: "INFO", component: "tsunami", reason: "tsunamiCapacityEvicted",
     unit: "U-T", count: evicted.length });
   return {
-    changes: marked == null ? [] : [[record, marked], ...evicted.map((item): Change => [item, null])], uncovered: !covered,
+    changes: marked == null ? [] : [[record, marked], ...evicted.map((item): Change => [item, null, "evicted"])], uncovered: !covered,
     step: { state: next, nextDeadline: nextDeadline(next),
       decisions: [marked == null ? { subject: candidate.subject, operation, decision: "capacityExceeded" }
         : { subject: candidate.subject, operation, decision: "changed", reason: null, change: "semantic", currentEstablished: null }],
@@ -769,7 +769,7 @@ function collect(state: TsunamiUnitState, clock: ClockReading, basis: WallBasis)
   const expired: TsunamiObservationSubject[] = [];
   const forecasts = !verified || recallMin(state.forecasts) > now ? state.forecasts : state.forecasts.filter((item) => {
     if (item.retainUntil == null || item.retainUntil > now) return true;
-    changes.push([item, null]);
+    changes.push([item, null, "expired"]);
     return false;
   });
   const touches = displayMin(state.observations) <= now
@@ -777,14 +777,14 @@ function collect(state: TsunamiUnitState, clock: ClockReading, basis: WallBasis)
   const observations = !touches ? state.observations : state.observations.flatMap((item) => {
     if (item.effective !== "active") {
       if (!verified || item.retainUntil == null || item.retainUntil > now) return [item];
-      changes.push([item, null]);
+      changes.push([item, null, "expired"]);
       return [];
     }
     if (item.expiryPending !== true && (item.validUntil == null || item.validUntil > now) || !verified && item.expiryPending === true) return [item];
     const after = lapseObservation(item, now, basis);
     if (after.effective === "expired") expired.push(after);
     const kept = after.effective === "active" || after.retainUntil != null && after.retainUntil > now;
-    changes.push([item, kept ? after : null]);
+    changes.push([item, kept ? after : null, "expired", item.validUntil ?? undefined]);
     return kept ? [after] : [];
   });
   const intents = !verified || intentDeadline(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
@@ -917,18 +917,18 @@ function reduceCore(state: TsunamiUnitState, input: TsunamiInput): Result {
 function reduceTsunamiUnit(state: TsunamiUnitState, input: TsunamiInput): TsunamiUnitStep {
   const { step, changes, uncovered } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: Subject | null; after: Subject | null }>();
-  for (const [before, after] of changes) {
+  const merged = new Map<string, { before: Subject | null; after: Subject | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, after, removal, dueWallMs] of changes) {
     const key = (after ?? before)!.subject;
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after, cause: visible(after) ? undefined : visible(before) ? [removal, dueWallMs] : after == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: TsunamiUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after }] of merged) {
+  for (const [subject, { before, after, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-T", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-T content revision exhausted");
   // I-U-T.confirmationScope: scope は常態を確立した（active になった）VTSE41 の採用からだけ出す。観測は対象外（P3-C5-N2）。

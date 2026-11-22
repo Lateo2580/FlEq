@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { MaterialValue, Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, PublishedOutcome, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, UnreadablePart, WallBasis,
+  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, UnreadablePart, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedVolcanoUnit, VolcanoAlert, VolcanoAlertFamily, VolcanoAreaGroup, VolcanoAshfall, VolcanoAshfallBatch, VolcanoAshfallGroup,
@@ -52,7 +52,7 @@ type ActiveBulletin = Extract<VolcanoBulletin, Readonly<{ effective: "active" }>
 type Shown = VolcanoAlert | VolcanoEruption | VolcanoAshfall | VolcanoScheduledAshfall | VolcanoBulletin;
 type InternalStep = Omit<VolcanoUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = VolcanoUnitStep["decisions"][number];
-type Change = readonly [before: Shown | null, after: Shown | null];
+type Change = readonly [before: Shown | null, after: Shown | null, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 type Candidate<S extends VolcanoCandidate["slice"]> = Extract<VolcanoCandidate, Readonly<{ slice: S }>>;
 
@@ -698,8 +698,8 @@ function place<T extends Shown>(applied: Applied, values: readonly T[], store: (
   const semantic = fields.length !== 0 || candidate.cancelled && before?.effective === "active";
   if (placed.evicted != null) applied.evicted++;
   applied.state = store(placed.values);
-  if (placed.evicted != null) applied.changes.push([placed.evicted, null]);
-  applied.changes.push([before, after]);
+  if (placed.evicted != null) applied.changes.push([placed.evicted, null, "evicted"]);
+  applied.changes.push([before, after, after.effective === "cancelled" ? "cancelled" : after.effective === "expired" || pending(after) ? "expired" : "ended"]); // 遅着の期限切れの形は expired（P4-RL-D-LATE=B）
   applied.subjects.push(outcomeOf(after, fields, extra));
   applied.semantic ||= semantic || placed.evicted != null;
   decide(applied, candidate, after.subject, { kind: "adopt" }, semantic);
@@ -1034,7 +1034,7 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     values.splice(values.indexOf(victim), 1);
     values.push(verdict.next);
     kept.add(verdict.next.subject);
-    applied.changes.push([victim, null]);
+    applied.changes.push([victim, null, "evicted"]);
   }
   const adoptedCodes = new Set<string>();
   for (const { entry, subject, existing, verdict } of verdicts) {
@@ -1048,7 +1048,7 @@ function applyEntries(applied: Applied, candidate: Candidate<"bulletin">, now: n
     }
     const next = verdict.next;
     const fields = changed(existing, next, ALERT_FIELDS);
-    applied.changes.push([existing, next]);
+    applied.changes.push([existing, next, next.effective === "cancelled" ? "cancelled" : "ended"]);
     // 前の active を期限を過ぎた採用が置き換えるか active でない記録にするなら pending を撤回する（P3-FINAL-AC04、P3-UV2-D-WITHDRAW=A: 解説の intent は警報の subject の pending を置き換えない）。inactive の区分で active が残るなら陸の pending だけ（P3-VL-D-WITHDRAW-SIDE=A）。
     if (existing?.effective === "active") { if (dueAt(next, now) || next.effective !== "active") applied.cancelled.add(subject); else if (!activeKind(entry.kind)) applied.cancelled.add(`${subject}\n${LAND_PART}`); }
     applied.subjects.push(outcomeOf(next, fields));
@@ -1074,8 +1074,8 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, 
   // P3-NL-AC02 (3): admit を通った版と種類を系列の記録の印に足す（全 channel が断られた版は入れない）。
   const marked = notice == null || notices.admitted.length === 0 ? applied.state
     : remark(applied.state, notice.subject, marine, (mark) => markNotice(mark, version, noticeKind(notice.transition)));
-  if (marked !== applied.state) applied.changes = applied.changes.map(([before, after]) => [before, after == null || after.subject !== notice?.subject
-    ? after : noticeRecord(marked, after)]);
+  if (marked !== applied.state) applied.changes = applied.changes.map(([before, after, ...cause]): Change => [before, after == null || after.subject !== notice?.subject
+    ? after : noticeRecord(marked, after), ...cause]);
   let adopted: VolcanoUnitState = { ...marked, intents: notices.intents };
   // P3-UM-AC03 (3): 原文の合計（三 slice と解説の和）が予算を越えたら古い記録の原文から外す（印は残る）。外した記録の view も変わるので
   // 表示の変化に足す（この入力で触れた記録は after を外した記録に揃える）。
@@ -1087,7 +1087,7 @@ function finish(state: VolcanoUnitState, applied: Applied, clock: ClockReading, 
     adopted = { ...adopted, alerts: stripAll(adopted.alerts, fit, push), eruptions: stripAll(adopted.eruptions, fit, push),
       ashfalls: stripAll(adopted.ashfalls, fit, push), bulletins: stripAll(adopted.bulletins, fit, push) };
     const fitted = adopted, touched = new Set(applied.changes.flatMap(([, after]) => after == null ? [] : [after.subject]));
-    applied.changes = [...applied.changes.map(([before, after]): Change => [before, after == null ? after : noticeRecord(fitted, after)]),
+    applied.changes = [...applied.changes.map(([before, after, ...cause]): Change => [before, after == null ? after : noticeRecord(fitted, after), ...cause]),
       ...pairs.filter(([before]) => !touched.has(before!.subject))];
   }
   // 保存しない系列（定時・batch・解説）だけの変化では保存世代を進めない（I-U-V.persisted）。
@@ -1191,7 +1191,7 @@ function collect(state: VolcanoUnitState, clock: ClockReading, basis: WallBasis)
       // 保留の解説は記憶を持たないので、verified では wall によらず除く（時計が後ろへ直っても元の retainUntil まで残さない、P3-EF-AC02 (3)(7)）。
       if (verified && (after.retainUntil <= now && recallable(after) || isBulletin(after) && pending(after))) after = null;
       if (after === item) return [item];
-      changes.push([item, after]);
+      changes.push([item, after, "expired", item.effective === "active" && !isAlert(item) ? shownDeadline(item) : undefined]);
       return after == null ? [] : [after];
     });
   const alerts = sweep(state.alerts, false, (item) => item);
@@ -1354,18 +1354,18 @@ function reduceVolcanoUnit(state: VolcanoUnitState, input: VolcanoInput): Volcan
     diagnostics: [{ level: "ERROR", component: "volcanoGenerationLimit", unit: "U-V", reason: "requiredStructureInvalid", count: 1 }],
     displayChanges: [], confirmationEvidence: [] };
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: Shown | null; after: Shown | null }>();
-  for (const [before, after] of changes) {
+  const merged = new Map<string, { before: Shown | null; after: Shown | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, after, removal, dueWallMs] of changes) {
     const key = (after ?? before)!.subject;
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after, cause: visible(after) ? undefined : visible(before) ? [removal, dueWallMs] : after == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: VolcanoUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after }] of merged) {
+  for (const [subject, { before, after, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-V", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   // 復旧不足も view に載る公開の内容（unavailable・復旧不足を「警報なし」に読み替えない、I-U-V.view）。
   const revised = displayChanges.length !== 0 || step.state.shortfalls !== state.shortfalls;

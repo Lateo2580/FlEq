@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject,
-  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, WallBasis,
+  RuntimeUnitDeadline, SubjectOutcome, UnreadableMark, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   NankaiCurrent, NankaiCurrentLine, NankaiCurrentStatus, NankaiInfoSerial, NankaiInformation, NankaiInformationView, NankaiInput,
@@ -46,7 +46,7 @@ type Shown = NankaiCurrent | NankaiInformation;
 type Level = NankaiNotificationPayload["level"];
 type InternalStep = Omit<NankaiUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = NankaiUnitStep["decisions"][number];
-type Change = readonly [before: Shown | null, after: Shown | null];
+type Change = readonly [before: Shown | null, after: Shown | null, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const isCurrent = (value: Shown): value is NankaiCurrent => "line" in value;
@@ -473,9 +473,9 @@ function receiveCandidate(state: NankaiUnitState, candidate: NankaiCandidate, cl
   const collected = collecting ? collect(adopted, clock, basis) : null;
   const next = collected?.state ?? adopted;
   const changes: Change[] = [];
-  if (nextCurrent != null && !currentDue) changes.push([current, nextCurrent]);
-  if (nextInfo != null && !freshDue && !self) changes.push([info, nextInfo]);
-  if (evicted != null) changes.push([evicted, null]);
+  if (nextCurrent != null && !currentDue) changes.push([current, nextCurrent, nextCurrent.effective === "cancelled" ? "cancelled" : "ended"]);
+  if (nextInfo != null && !freshDue && !self) changes.push([info, nextInfo, candidate.cancelled ? "cancelled" : "ended"]);
+  if (evicted != null) changes.push([evicted, null, "evicted"]);
   changes.push(...stripped);
   // 結果は回収の後の記録で決める（D-OUTCOME=A・D-VANISHED=A、P3-FINAL-AC02）。最終の記録が無ければ accepted に載せず
   // currentEstablished も null。索引は回収のある reduce だけで引く（P3-FINAL-RES-01）。
@@ -531,13 +531,13 @@ function collect(state: NankaiUnitState, clock: ClockReading, basis: WallBasis):
   if (!shows && !recalls && !informationShows && !informationRecalls && !intentsDue) return none;
   const changes: Change[] = [];
   const mappedCurrents = !shows && !recalls ? state.currents : state.currents.flatMap((item): NankaiCurrent[] => {
-    if (verified && item.retainUntil <= now) { changes.push([item, null]); return []; }
+    if (verified && item.retainUntil <= now) { changes.push([item, null, "expired", item.effective === "active" ? item.validUntil : item.retainUntil]); return []; }
     if (item.effective !== "active") return [item];
     if (item.expiryPending === true || item.validUntil <= now) {
       if (!verified) {
         if (item.expiryPending === true) return [item];
         const marked: NankaiCurrent = { ...item, expiryPending: true };
-        changes.push([item, marked]);
+        changes.push([item, marked, "expired", item.validUntil]);
         return [marked];
       }
       // (6): validUntil の到来で expired（事実を捨てる。通知しない、P3-C8-CURRENT-EXPIRY=A）。通知の印は残す（統合担当の決定 D1）。
@@ -545,7 +545,7 @@ function collect(state: NankaiUnitState, clock: ClockReading, basis: WallBasis):
         ...item.notice == null ? {} : { notice: item.notice } };
       const after: NankaiCurrent = item.line === "VYSE60" ? { ...kept, line: "VYSE60", effective: "expired" }
         : { ...kept, line: "nankai", effective: "expired" };
-      changes.push([item, after]);
+      changes.push([item, after, "expired", item.validUntil]);
       return [after];
     }
     // P3-NS-AC03 (2)(3): warningUntil の到来で巨大地震注意へ移る（事実・印・warningUntil は残す。通知しない、P3-NS-D-STEPDOWN-NOTICE=A）。
@@ -558,18 +558,18 @@ function collect(state: NankaiUnitState, clock: ClockReading, basis: WallBasis):
   const currentChanges = changes.length;
   const mappedInformation = !informationShows && !informationRecalls ? state.information
     : state.information.flatMap((item): NankaiInformation[] => {
-      if (verified && item.retainUntil <= now) { changes.push([item, null]); return []; }
+      if (verified && item.retainUntil <= now) { changes.push([item, null, "expired", item.effective === "active" ? item.validUntil : item.retainUntil]); return []; }
       if (item.effective !== "active" || item.expiryPending !== true && item.validUntil > now) return [item];
       if (!verified) {
         if (item.expiryPending === true) return [item];
         const marked: NankaiInformation = { ...item, expiryPending: true };
-        changes.push([item, marked]);
+        changes.push([item, marked, "expired", item.validUntil]);
         return [marked];
       }
       // P3-NS-AC04 (1): 表示の期限で expired の記憶（本文と未確認の印を捨て、source と通知の印を残す。通知しない）。
       const after: NankaiInformation = { subject: item.subject, family: item.family, eventId: item.eventId, operation: item.operation,
         source: item.source, retainUntil: item.retainUntil, effective: "expired", ...item.notice == null ? {} : { notice: item.notice } };
-      changes.push([item, after]);
+      changes.push([item, after, "expired", item.validUntil]);
       return [after];
     });
   const information = changes.length === currentChanges ? state.information : mappedInformation;
@@ -688,18 +688,18 @@ function reduceCore(state: NankaiUnitState, input: NankaiInput): Result {
 function reduceNankaiUnit(state: NankaiUnitState, input: NankaiInput): NankaiUnitStep {
   const { step, changes } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: Shown | null; after: Shown | null }>();
-  for (const [before, after] of changes) {
+  const merged = new Map<string, { before: Shown | null; after: Shown | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, after, removal, dueWallMs] of changes) {
     const key = (after ?? before)!.subject;
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after, cause: visible(after) ? undefined : visible(before) ? [removal, dueWallMs] : after == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: NankaiUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after }] of merged) {
+  for (const [subject, { before, after, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-N", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-N content revision exhausted");
   // P3-C8-N2: U-N は確認 scope を作らない。

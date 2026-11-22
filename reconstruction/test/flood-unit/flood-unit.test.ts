@@ -711,3 +711,27 @@ it("P3-NL-T07 contractBoundary / AC10: a cancel title ending in の取消 is nam
   expect(cancelText("○○川上流氾濫警戒情報の取消", "2022-07-28T09:30:00+09:00"))
     .toEqual({ title: "[取消] ○○川上流氾濫警戒情報（09:30 発表）", body: "09:30 発表の○○川上流氾濫警戒情報を取り消しました" });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-R の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。期限の回収は表示の期限を dueWallMs に持つ。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-R removals are evicted, expired (also clock-pending), cancelled and ended", () => {
+  const removals = (step: FloodUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const first = send(emptyState(), F.sample), now = T0 + HOUR, seed = active(recordOf(first.state))!;
+  const full: FloodUnitState = { ...emptyState(), currents: Array.from({ length: 512 }, (_, index): FloodCurrent => {
+    const subject = `normal/VXKO50/E${String(index).padStart(3, "0")}`, reported = now - (600 - index) * 60_000;
+    return { ...seed, subject, eventId: `E${String(index).padStart(3, "0")}`, source: { ...seed.source, subject, reportDateTimeRaw: iso(reported) }, retainUntil: reported + RETAIN };
+  }) };
+  const pushed = receive(full, decodeFixture(F.sample, (xml) => eventId("N1")(retime(iso(now))(xml))), clock(now));
+  expect([
+    removals(pushed),
+    removals(tick(first.state, T0 + RETAIN)),
+    removals(reduceFloodUnit(first.state, { kind: "deadline", clock: clock(T0 + RETAIN), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(send(send(first.state, F.code31).state, F.cancel)),
+    removals(follow(first.state, rivers([group("10")]))),
+  ]).toEqual([
+    [["normal/VXKO50/E000", "evicted", null]],
+    [[SUBJECT, "expired", T0 + RETAIN]],
+    [[SUBJECT, "expired", T0 + RETAIN]],
+    [[SUBJECT, "cancelled", null]],
+    [[SUBJECT, "ended", null]],
+  ]);
+});

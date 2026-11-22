@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, WallBasis,
+  SubjectOutcome, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   LandslideCurrent, LandslideInput, LandslideIntent, LandslideKindGroup, LandslideNotificationPayload, LandslideUnitCodec,
@@ -42,7 +42,7 @@ type Active = Extract<LandslideCurrent, Readonly<{ effective: "active" }>>;
 type Level = LandslideNotificationPayload["level"];
 type InternalStep = Omit<LandslideUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = LandslideUnitStep["decisions"][number];
-type Change = readonly [before: LandslideCurrent | null, after: LandslideCurrent | null];
+type Change = readonly [before: LandslideCurrent | null, after: LandslideCurrent | null, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
@@ -363,7 +363,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   const dropped = droppedIn(fit, result.currents);
   if (dropped !== 0) diagnostics.push({ level: "INFO", component: "landslide", reason: "unreadableDropped", unit: "U-L", count: dropped });
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] as const], ...stripped, [existing, next], ...collected?.changes ?? []],
+    changes: [...evicted == null ? [] : [[evicted, null, "evicted"] as const], ...stripped, [existing, next, due ? "expired" : candidate.cancelled ? "cancelled" : "ended"], ...collected?.changes ?? []], // due: 同じ reduce の回収が消すので expired（P4-RL-D-LATE=B）
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decided(change, !due)], intents: notices.admitted,
       outcomes: [accepted(change, !due)], diagnostics },
   };
@@ -408,7 +408,7 @@ function collect(state: LandslideUnitState, clock: ClockReading, basis: WallBasi
     if (item.effective === "active" && (item.expiryPending === true || item.retainUntil <= now))
       after = verified ? expiredOf(item) : item.expiryPending === true ? item : { ...item, expiryPending: true };
     if (verified && after.effective !== "active" && after.retainUntil <= now) after = null;
-    if (after !== item) changes.push([item, after]);
+    if (after !== item) changes.push([item, after, "expired", item.retainUntil]);
     return after == null ? [] : [after];
   });
   const intents = !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
@@ -502,18 +502,18 @@ function reduceCore(state: LandslideUnitState, input: LandslideInput): Result {
 function reduceLandslideUnit(state: LandslideUnitState, input: LandslideInput): LandslideUnitStep {
   const { step, changes } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: LandslideCurrent | null; after: LandslideCurrent | null }>();
-  for (const [before, after] of changes) {
+  const merged = new Map<string, { before: LandslideCurrent | null; after: LandslideCurrent | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, after, removal, dueWallMs] of changes) {
     const key = (after ?? before)!.subject;
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after, cause: visible(after) ? undefined : visible(before) ? [removal, dueWallMs] : after == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: LandslideUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after }] of merged) {
+  for (const [subject, { before, after, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-L", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-L content revision exhausted");
   // P3-C10-N2: U-L は確認 scope を作らない。

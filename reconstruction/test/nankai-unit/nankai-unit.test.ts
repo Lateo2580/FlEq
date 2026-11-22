@@ -1278,3 +1278,30 @@ describe("P3-REC-T15 acceptance (U-N): the recovered raise of the current status
       .toBe("invalid");
   });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-N の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。期限の回収は表示の期限を dueWallMs に持つ。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-N removals are evicted, expired (also clock-pending), cancelled and ended", () => {
+  const removals = (step: NankaiUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const now = at("2020-05-12T17:00:00+09:00"), seed = infoOf(send(emptyState(), F.c1).state, "normal/VYSE51/20200512163800");
+  if (seed?.effective !== "active") throw new Error("the seed information is not active");
+  const full: NankaiUnitState = { ...emptyState(), information: Array.from({ length: 64 }, (_, index): NankaiInformation => {
+    const eventId = `I${String(index).padStart(13, "0")}`, subject = `normal/VYSE51/${eventId}`, reported = now - (100 - index) * 60_000;
+    return { ...seed, subject, eventId, retainUntil: reported + 7 * DAY, source: { ...seed.source, subject, reportDateTimeRaw: iso(reported) } };
+  }) };
+  const pushed = receive(full, decodeFixture(F.regular, (xml) => retime("2020-05-12T17:00:00+09:00")(replaceTag("EventID", "N0001")(xml))), clock(now));
+  const advisory = send(emptyState(), F.advisory).state, reported = at("2020-05-12T16:32:00+09:00"), INFO = "normal/VYSE50/20200512163200";
+  const lapse = (basis: WallBasis) => reduceNankaiUnit(advisory, { kind: "deadline", clock: clock(reported + 7 * DAY), basis });
+  expect([
+    removals(pushed),
+    removals(lapse("verified")),
+    removals(lapse("unverified")), // P4-RL-D-CLOCK-PENDING
+    removals(send(advisory, F.cancel)),
+    removals(send(send(emptyState(), F.inv1).state, F.ended)),
+  ]).toEqual([
+    [[full.information[0].subject, "evicted", null]],
+    [[NANKAI, "expired", reported + 7 * DAY], [INFO, "expired", reported + 7 * DAY]],
+    [[NANKAI, "expired", reported + 7 * DAY], [INFO, "expired", reported + 7 * DAY]],
+    [[NANKAI, "cancelled", null], [INFO, "cancelled", null]],
+    [[NANKAI, "ended", null]],
+  ]);
+});

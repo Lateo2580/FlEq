@@ -4,7 +4,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, UnreadableMark, WallBasis,
+  SubjectOutcome, UnreadableMark, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   HeatCurrent, LocalBulletinsInput, LocalBulletinsIntent, LocalBulletinsNotificationPayload, LocalBulletinsUnitCodec, LocalBulletinsUnitState,
@@ -64,7 +64,7 @@ type Domain = LocalBulletinsNotificationPayload["domain"];
 type InternalStep = Omit<LocalBulletinsUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = LocalBulletinsUnitStep["decisions"][number];
 // 前が無ければ後は必ずある（どちらも無い変化は作らない）。
-type Change = readonly [before: Rec, after: Rec | null] | readonly [before: null, after: Rec];
+type Change = readonly [before: Rec, after: Rec | null, removal?: DisplayRemoval, dueWallMs?: number] | readonly [before: null, after: Rec, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 const target = (value: Change): Rec => value[0] == null ? value[1] : value[1] ?? value[0];
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 type State = LocalBulletinsUnitState;
@@ -519,9 +519,9 @@ function receiveWith<T extends Rec, C extends LocalBulletinsCandidate>(lane: Lan
   if (notices.dropped !== 0) diagnostics.push({ level: "INFO", component: "localBulletins", reason: "notificationCapacityEvicted", unit: "U-M", count: notices.dropped });
   const dropped = droppedIn(fit, [...result.tornado, ...result.heat, ...result.transient]);
   if (dropped !== 0) diagnostics.push({ level: "INFO", component: "localBulletins", reason: "unreadableDropped", unit: "U-M", count: dropped });
-  const replaced: Change = existing == null ? [null, next] : [existing, next];
+  const replaced: Change = existing == null ? [null, next] : [existing, next, candidate.cancelled ? "cancelled" : built.late ? "expired" : "ended"]; // 遅着は期限切れの形で採る（P4-RL-D-LATE=B）
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] satisfies Change], ...stripped, replaced],
+    changes: [...evicted == null ? [] : [[evicted, null, "evicted"] satisfies Change], ...stripped, replaced],
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decision], intents: notices.admitted,
       outcomes: [{ kind: "accepted", change: kind, subjects: [outcomeOf(next, changed(existing, next))] }], diagnostics },
   };
@@ -563,20 +563,20 @@ function sweep<T extends Rec>(values: readonly T[], now: number, verified: boole
       if (!verified) {
         if (item.expiryPending === true) return [item];
         const marked: T = { ...item, expiryPending: true };
-        changes.push([item, marked]);
+        changes.push([item, marked, "expired", deadlineOf(item)]);
         persisted ||= expireIsPersisted;
         return [marked];
       }
       // 見える期限と retainUntil が同時に来た active も、先に記憶に移して見えなくなる変化（decision・outcome）を残してから除く。
       const moved = expire(item);
-      changes.push([item, moved]);
+      changes.push([item, moved, "expired", deadlineOf(item)]);
       persisted ||= expireIsPersisted;
       if (moved.retainUntil > now) return [moved];
-      changes.push([moved, null]);
+      changes.push([moved, null, "expired"]);
       persisted = true;
       return [];
     }
-    if (verified && item.retainUntil <= now) { changes.push([item, null]); persisted = true; return []; }
+    if (verified && item.retainUntil <= now) { changes.push([item, null, "expired", deadlineOf(item)]); persisted = true; return []; }
     return [item];
   });
   return { values: next, changes, persisted };
@@ -697,19 +697,19 @@ function reduceCore(state: State, input: LocalBulletinsInput): Result {
 function reduceLocalBulletinsUnit(state: State, input: LocalBulletinsInput): LocalBulletinsUnitStep {
   const { step, changes } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: Rec | null; after: Rec | null; operation: Operation }>();
+  const merged = new Map<string, { before: Rec | null; after: Rec | null; operation: Operation; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
   for (const pair of changes) {
-    const [before, value] = pair;
+    const [before, value, removal, dueWallMs] = pair;
     const { subject: key, operation } = target(pair);
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after: value, operation });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after: value, operation, cause: visible(value) ? undefined : visible(before) ? [removal, dueWallMs] : value == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: LocalBulletinsUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after: value, operation }] of merged) {
+  for (const [subject, { before, after: value, operation, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(value) ? value : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-M", operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-M content revision exhausted");
   // P3-C13-N2: U-M は確認 scope を作らない。

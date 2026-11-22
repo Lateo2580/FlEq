@@ -7,7 +7,7 @@ import type {
   PersistenceStatus,
   ReportRef,
   RuntimeDisplaySubject,
-  SubjectOutcome,
+  SubjectOutcome, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   PersistedWeatherCurrentUnit,
@@ -37,7 +37,7 @@ import type { CurrentChange } from "../../domains/weather-current/weather-curren
 import { deliveryGrowth } from "../../notification-delivery/delivery-growth"; import { count, finite } from "../codec-base";
 import { INPUT_BOUNDARY_MAX_BYTES, LOSS_TALLY_MAX_BYTES, UNREADABLE_CARDS_MAX_BYTES, serializedEnvelope } from "../../checkpoint/checkpoint"; import { compareInputId, readReportRef } from "../../contracts-revision/version";
 import type { UnitModule } from "../../../contracts/p3-unit-table.types";
-import { applyIntentUpdate, readIntentState, restoreStarted, updateEvidence } from "../notice-mark"; import { advanceAreas, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas } from "./weather-current-public"; import { noticeReserve, raiseNotices, readNotices, readPayload, receiveNotices, recoveryNotices as weatherRecoveryNotices, seriesKey } from "./weather-current-notice";
+import { applyIntentUpdate, readIntentState, restoreStarted, updateEvidence } from "../notice-mark"; import { advanceAreas, areaEntry, areaKeys, areaOutcome, areaRows, markUnavailable, publicUnavailable, weatherCurrentAreas } from "./weather-current-public"; import { noticeReserve, raiseNotices, readNotices, readPayload, receiveNotices, recoveryNotices as weatherRecoveryNotices, seriesKey } from "./weather-current-notice";
 
 const SCHEMA = "p2-weather-current-unit-v8" as const;
 type InternalStep = Omit<WeatherCurrentUnitStep, "displayChanges" | "confirmationEvidence">;
@@ -437,10 +437,10 @@ function fitNormalByByte(state: WeatherCurrentUnitState, capturedAt: number, tou
       continue;
     }
     const partial = next.partials.filter((item) => item.operation !== "normal").sort(compareSnapshot)[0];
-    if (partial != null) { touched(partial, null, partial.operation, partial.subject); next = removeSubject(next, partial.subject, partial.operation); count++; continue; }
+    if (partial != null) { touched(partial, null, partial.operation, partial.subject, "evicted"); next = removeSubject(next, partial.subject, partial.operation); count++; continue; }
     const national = Object.values(next.national).filter((item): item is WeatherCurrentSnapshot => item != null && item.operation !== "normal")
       .sort(compareSnapshot)[0];
-    if (national != null) { touched(national, null, national.operation, national.subject); next = removeSubject(next, national.subject, national.operation); count++; continue; }
+    if (national != null) { touched(national, null, national.operation, national.subject, "evicted"); next = removeSubject(next, national.subject, national.operation); count++; continue; }
     const fitted = fitNormalHistories(next, capturedAt, bytes - GENERATION_BYTES); return { state: fitted.state, count: count + fitted.count }; // P3-UWC-AC03: training・test が尽きたら normal の履歴の古い版
   }
   return { state: next, count };
@@ -743,10 +743,10 @@ function displaySubjects(state: WeatherCurrentUnitState, targets?: ReadonlySet<s
 }
 
 function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: WeatherCurrentInput): WeatherCurrentUnitStep {
-  const currents = new Map<string, { before: WeatherCurrentSnapshot | null; after: WeatherCurrentSnapshot | null }>();
-  const step = reduceCore(state, input, (before, after, operation, subject) => {
+  const currents = new Map<string, { before: WeatherCurrentSnapshot | null; after: WeatherCurrentSnapshot | null; cause?: DisplayRemoval }>();
+  const step = reduceCore(state, input, (before, after, operation, subject, cause) => {
     const key = JSON.stringify([operation, subject]);
-    currents.set(key, { before: currents.has(key) ? currents.get(key)!.before : before, after });
+    currents.set(key, { before: currents.has(key) ? currents.get(key)!.before : before, after, cause });
   });
   const displayChanges: WeatherCurrentUnitStep["displayChanges"][number][] = []; let rebuilt: ReadonlySet<string> = new Set<string>();
   const currentChanged = step.state.national !== state.national || step.state.partials !== state.partials;
@@ -761,14 +761,14 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
       const find = (value: WeatherCurrentUnitState) => value.national[decision.operation]?.subject === decision.subject
         ? value.national[decision.operation]!
         : value.partials.find((item) => item.operation === decision.operation && item.subject === decision.subject) ?? null;
-      const before = find(state);
-      currents.set(key, { before, after: currentChanged ? find(step.state) : before });
+      const before = find(state), reason = step.state.unavailable.find((item) => item.operation === decision.operation && item.subject === decision.subject)?.reason;
+      currents.set(key, { before, after: currentChanged ? find(step.state) : before, cause: reason === "historyUnavailable" ? "cancelled" : reason === "capacityExceeded" ? "evicted" : undefined }); // 戻す版の無い取消は cancelled、容量の unavailable は evicted（P4-RL-AC02 (2)）
     }
-    const targets = new Set(currents.keys());
+    const targets = new Set(currents.keys()), departed = new Map<string, DisplayRemoval[]>(); // departed: 府県の行の鍵 → その step で府県から外れた報の原因（P4-RL-AC02 (2)・AC03 (5)）
     // P3-UWC-AC09 (1)(2): 作り直す府県は、current が変わった報の before と after が載せる府県の和集合だけ（退去された報の府県も入る）。
     const areas = new Set<string>();
-    for (const { before, after } of currents.values()) for (const item of [before, after]) if (item != null)
-      for (const { key, operation: value, prefecture } of areaKeys(item)) { areas.add(key); targets.add(JSON.stringify([value, areaSubject(value, prefecture)])); }
+    for (const { before, after, cause } of currents.values()) for (const item of [before, after]) if (item != null)
+      for (const { key, operation: value, prefecture } of areaKeys(item)) { const row = JSON.stringify([value, areaSubject(value, prefecture)]); areas.add(key); targets.add(row); if (item === before && areaRows(item, prefecture) !== 0 && (after == null || areaRows(after, prefecture) === 0) && !departed.get(row)?.includes(cause ?? "unknown")) departed.set(row, [...departed.get(row) ?? [], cause ?? "unknown"]); }
     const before = input.kind === "restore" ? new Map<string, DisplayRow>()
       : displaySubjects(state, targets, [...currents.values()].flatMap((item) => item.before == null ? [] : [item.before]));
     // 新しい公開形と unavailable の記録の版は、この step の内容版（Q-UFP-REVISION と同じ持ち方）。
@@ -777,7 +777,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     rebuilt = areas; if (monitorChanged) { const old = new Set(state.unavailable); for (const record of step.state.unavailable) if (!old.has(record)) markUnavailable(record, revision); }
     const after = input.kind === "restore" ? displaySubjects(step.state)
       : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
-    displayChanges.push(...rowChanges(before, after));
+    displayChanges.push(...rowChanges(before, after, departed, (key) => currents.get(key)?.cause ?? (input.kind === "coverageConfirmed" ? "markCleared" : undefined)));
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-W content revision exhausted");
@@ -795,7 +795,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     displayChanges, confirmationEvidence };
 }
 
-function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<string, DisplayRow>): WeatherCurrentUnitStep["displayChanges"][number][] {
+function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<string, DisplayRow>, departed?: ReadonlyMap<string, readonly DisplayRemoval[]>, monitor?: (key: string) => DisplayRemoval | undefined): WeatherCurrentUnitStep["displayChanges"][number][] {
   // A1 DISPLAY-CHANGES.revision: only freshnessSuspect records are shown (A8 SUMMARY); a non-suspect
   // monitor record is internal and must not advance the content revision on its own.
   // A missing side compares as an empty row, so a monitor-only subject with no shown record is no change either.
@@ -815,7 +815,7 @@ function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<
       && oldShown.length === currentShown.length
       && oldShown.every((item, index) => item === currentShown[index]);
     if (!same && (old != null || current != null)) changes.push({ unit: "U-W",
-      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, ...(current == null ? { after: null, removal: "unknown" as const } : { after: current }) }); // P4-RL-AC02 (4): 府県の行の規則は発注 2
+      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, ...(current == null ? { after: null, removal: old?.current == null ? monitor?.(key) ?? "unknown" : departed?.get(key)?.length === 1 ? departed.get(key)![0] : "unknown" } : { after: current, ...current.current != null && departed?.has(key) ? { departed: departed.get(key)! } : {} }) }); // P4-RL-AC02 (2): 府県の行は外れた報の原因 1 つ、監視の行は報の原因か印が解けた。取り直しの recoveryChanges は引数なしで unknown
   }
   return changes;
 }

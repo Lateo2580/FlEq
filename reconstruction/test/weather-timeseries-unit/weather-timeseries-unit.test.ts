@@ -1067,3 +1067,24 @@ describe("P4-RL-T05 (b) acceptance: U-F capacity evictions count as seriesCapaci
     expect(counted(heavy, fixture(unknown))).toBe(0);
   });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-F の行、P4-RL-AC02）: U-F は subject を外す差分だけが表示から消える（容量の退去は evicted、retainUntil の削除は retentionEnded）。
+// 時計の確認待ちの保留の印は subject を noActiveItems に見せたまま表示に残すので、差分の after は null にならず理由は付かない。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-F removals are evicted and retentionEnded", () => {
+  const removals = (step: ReturnType<typeof reduceWeatherTimeseriesUnit>) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const seed = receive(empty(), fixture(unknown)).state, normal = first(seed);
+  const subjects = Array.from({ length: 512 }, (_, index) => ({ ...normal, subject: `normal/VPWP50/office${index}`, source: { ...normal.source!, subject: `normal/VPWP50/office${index}` } }));
+  const full: WeatherTimeseriesUnitState = { ...seed, subjects: [{ ...subjects[0], subject: "training/VPWP50/office0", operation: "training",
+    source: { ...subjects[0].source!, subject: "training/VPWP50/office0", operation: "training" } }, ...subjects.slice(1)] };
+  const replaceable = { ...full, gates: full.subjects.map((item) => ({ subject: item.subject, operation: item.operation, source: item.source! })) };
+  const pending = reduceWeatherTimeseriesUnit(seed, { kind: "deadline", clock: clock(normal.validUntil!), basis: "unverified" });
+  expect([
+    removals(receive(replaceable, fixture(unknown, (xml) => xml.replaceAll("稚内地方気象台", "new-office")))),
+    removals(reduceWeatherTimeseriesUnit(seed, { kind: "deadline", clock: clock(normal.retainUntil) })),
+    [pending.displayChanges.length, removals(pending)],
+  ]).toEqual([
+    [["training/VPWP50/office0", "evicted", null]],
+    [[normal.subject, "retentionEnded", normal.retainUntil]],
+    [1, []],
+  ]);
+});

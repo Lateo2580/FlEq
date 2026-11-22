@@ -308,6 +308,11 @@ function weatherCurrentDetail(state: State, request: WeatherCurrentDetailRequest
   return { kind: "ok", part: request.part, id: request.id, revision: found.revision, page: request.page, pageCount, rowCount, rows, omitted };
 }
 
+// P4-RL-AC02 (2): 報が府県に載せる行の数（cellsOf の cache から）。areaKeys は行の無い府県も返すので、府県から外れた報の判定はこれで見る。
+function areaRows(snapshot: WeatherCurrentSnapshot, prefecture: string): number {
+  return cellsOf(snapshot).get(prefecture)?.length ?? 0;
+}
+
 export {
-  advanceAreas, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas, weatherCurrentDetail,
+  advanceAreas, areaEntry, areaKeys, areaOutcome, areaRows, markUnavailable, publicUnavailable, weatherCurrentAreas, weatherCurrentDetail,
 };

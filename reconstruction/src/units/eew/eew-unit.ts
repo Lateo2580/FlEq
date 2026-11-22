@@ -1,4 +1,4 @@
-import type { ClockReading, NoticeEvidence, NotificationIntent, PersistenceStatus, ReportRef, RuntimeDisplaySubject, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { ClockReading, DisplayRemoval, NoticeEvidence, NotificationIntent, PersistenceStatus, ReportRef, RuntimeDisplaySubject, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EewInput,
   EewNoticeFamily,
@@ -225,7 +225,7 @@ function intentUpdate(state: EewUnitState,
 }
 
 function reduceCore(state: EewUnitState, input: EewInput,
-  changed: (before: EewUnitState["current"][number] | null, after: EewUnitState["current"][number] | null) => void): InternalStep {
+  changed: (before: EewUnitState["current"][number] | null, after: EewUnitState["current"][number] | null, removal?: DisplayRemoval) => void): InternalStep {
   if (input.kind === "receive") return reduceEewCore(state, input, changed); if (input.kind === "unreadable") return unreadableNotice(state, input);
   if (input.kind === "restore") return restore(state, input.persisted, input.clock, (input.basis ?? "verified") === "verified");
   if (input.kind === "intentUpdate") return intentUpdate(state, input);
@@ -304,11 +304,11 @@ function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
     unit: "U-E", operation: item.operation, subject: item.subject, office: null,
     current: item, subjects: [currentSubject(item)],
   });
-  const step = reduceCore(state, input, (before, after) => {
+  const step = reduceCore(state, input, (before, after, removal) => {
     if (before == null && after == null) return;
     displayChanges.push({ unit: "U-E", operation: (after ?? before)!.operation,
       subject: (after ?? before)!.subject, before: before == null ? null : subject(before),
-      ...(after == null ? { after: null, removal: "unknown" as const } : { after: subject(after) }) }); // P4-RL-AC02 (4): 理由は発注 2 で eew.ts の changed が付ける
+      ...(after == null ? { after: null, removal: removal ?? "unknown" } : { after: subject(after) }) }); // P4-RL-AC02 (5): 理由は eew.ts の changed が付けた語
   });
   if (displayChanges.length !== 0) {
     if (!Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-E content revision exhausted");

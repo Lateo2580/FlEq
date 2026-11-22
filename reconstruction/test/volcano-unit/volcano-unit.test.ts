@@ -1488,3 +1488,32 @@ describe("P3-VOLCANO-LIFT-001: a one-side release keeps the alert the other side
     expect(ended(send(release.state, F.a350, timed("2020-07-31T11:00:20+09:00"), at("2020-07-31T11:00:40+09:00")))).toEqual(final);
   });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-V の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。解説・噴火の期限の回収は表示の期限を dueWallMs に持つ。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-V removals are evicted, expired (also clock-pending), cancelled and ended", () => {
+  const removals = (step: VolcanoUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const now = at("2020-05-22T15:00:00+09:00"), seed = send(emptyState(), F.o1).state.eruptions[0];
+  if (seed.effective !== "active") throw new Error("inactive seed");
+  const full: VolcanoUnitState = { ...emptyState(), eruptions: Array.from({ length: 128 }, (_, index): VolcanoEruption => {
+    const eventId = `E${String(index).padStart(5, "0")}`, subject = `normal/volcano:eruption/${eventId}`, reported = now - (200 - index) * 60_000;
+    return { ...seed, subject, eventId, source: { ...seed.source, subject, reportDateTimeRaw: iso(reported) }, retainUntil: reported + 2 * DAY, validUntil: reported + DAY };
+  }) };
+  const pushed = receive(full, decodeFixture(F.o1, (xml) => retime("2020-05-22T15:00:00+09:00")(replaceTag("EventID", "N1")(xml))), clock(now));
+  const reported = at("2020-05-22T14:49:00+09:00"), one = send(emptyState(), F.o1).state, ERUPTION = one.eruptions[0].subject;
+  const flash = chain([F.e1, F.e3, F.e4]);
+  const raised = send(emptyState(), F.a306, undefined, at("2020-05-22T13:55:30+09:00")).state;
+  const lowered = send(raised, F.b350, (xml) => xml.replaceAll(">350<", ">306<").replaceAll("<Code>12</Code>", "<Code>11</Code>").replaceAll("<Condition>継続</Condition>", "<Condition>引下げ</Condition>"));
+  expect([
+    removals(pushed),
+    removals(tick(one, reported + DAY)),
+    removals(reduceVolcanoUnit(one, { kind: "deadline", clock: clock(reported + DAY), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(flash[2]),
+    removals(lowered),
+  ]).toEqual([
+    [[full.eruptions[0].subject, "evicted", null]],
+    [[ERUPTION, "expired", reported + DAY]],
+    [[ERUPTION, "expired", reported + DAY]],
+    [[eruptionOf(flash[2].state, "20140927120000_312")!.subject, "cancelled", null]],
+    [["normal/volcano:alert/306", "ended", null]],
+  ]);
+});

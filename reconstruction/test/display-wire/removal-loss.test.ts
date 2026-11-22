@@ -20,7 +20,7 @@ import { envelope, harnessedRoot, startHarness, submit } from "../execution-spli
 import { clock as tsunamiClock, decodeXml, receive as receiveTsunami, vtse41 } from "../tsunami-unit/tsunami-fixture";
 import { baseInput, eewStep, eewXml, emptyEew, emptyTsunami, projected, quietLosses, wire } from "./display-wire-fixture";
 
-// P4-REMOVAL-LOSS-001 発注 1 の試験（P4-RL-T04 (c)(d)・T05 (a)(c)(d)・T06・T07・T10）。保存と診断は手元の memory に置き、作者の設定と disk を読まない。
+// P4-REMOVAL-LOSS-001 の試験（発注 1: P4-RL-T04 (c)(d)・T05 (a)(c)(d)・T06・T07・T10、発注 2: T04 (a)(b)・T08）。保存と診断は手元の memory に置き、作者の設定と disk を読まない。
 
 class MemoryFiles implements CheckpointFileSystem {
   readonly files = new Map<string, Uint8Array>();
@@ -82,7 +82,7 @@ const eews = (count: number) => Array.from({ length: count }, (_, index) =>
   eewStep(emptyEew(), eewXml({ eventId: `2099010100${String(index).padStart(4, "0")}`, at: eewAt(index), areas: [["622", "5-", "5-"]] })));
 
 // 契約境界 P4-RL-AC01（運び）。
-describe("P4-RL-T04 contractBoundary: removals ride the display changes into the new projection (order 1)", () => {
+describe("P4-RL-T04 contractBoundary: removals ride the display changes into the new projection", () => {
   it("(c) a subject that leaves and comes back in the same publication is not listed", async () => {
     const [step] = eews(1), current = step.state.current[0];
     const first = await wire({ eew: step.state }, [eewChange(null, current)], null);
@@ -90,22 +90,51 @@ describe("P4-RL-T04 contractBoundary: removals ride the display changes into the
     expect(again.state.removals).toEqual({});
   });
 
-  it("(d) an unknown removal reaches the list through an owner reply and through the shutdown finalization", async () => {
+  // 発注 2 で U-E の期限の回収が expired を付けるので、発注 1 の (d) の unknown の期待を expired に替え、(b) を兼ねる（統合担当の許し 2026-11-22）。
+  it("T04 (b) the deadline removal reaches the list as expired through an owner reply and, after the shutdown finalization, in the next publication", async () => {
     // owner の返信: 期限の要求の deadlineDone が消した EEW。
     const live = await boot();
     await live.send(VXSE43);
     const eventKey = lastWire(live.wires).current.eew.wire.cards[0].ref.id;
     live.h.root.tick(live.move(10 * MINUTE));
     await live.h.settle();
-    expect(lastWire(live.wires).removals["U-E"]).toEqual({ items: [{ unit: "U-E", operation: "normal", at: live.at.wallTimeMs, ref: { id: eventKey }, reason: "unknown" }],
-      omitted: 0 });
-    // 停止の確定: finalizeDone の差分は次の公開の新しい射影にだけ渡る。
+    expect(lastWire(live.wires).removals["U-E"]).toEqual({ items: [{ unit: "U-E", operation: "normal", at: live.at.wallTimeMs, ref: { id: eventKey }, reason: "expired",
+      updatedAt: Date.parse("2024-04-17T14:14:59Z") }], omitted: 0 });
+    // 停止の確定: finalizeDone の差分（停止の入力の期限の回収）は次の公開の新しい射影にだけ渡る。
     const stop = await boot();
     await stop.send(VXSE43);
     const stopAt = stop.move(10 * MINUTE);
     await stop.h.root.shutdownRuntime(0, stopAt);
     await stop.h.settle();
-    expect(lastWire(stop.wires).removals["U-E"]?.items.map((item) => [item.ref.id, item.reason])).toEqual([[eventKey, "unknown"]]);
+    expect(lastWire(stop.wires).removals["U-E"]?.items.map((item) => [item.ref.id, item.reason])).toEqual([[eventKey, "expired"]]);
+  });
+
+  // 前置きの期限（U-E の reclaimDeadlineBeforeReceive）で消えた EventID と、同じ入力の取消で消えた別の EventID が 1 つの inputDone の output に並ぶ。
+  it("T04 (a) a reclaimed subject and a cancelled subject of one inputDone are listed as expired and cancelled", async () => {
+    const t = await boot();
+    const other = "20240417231700";
+    const later = (xml: string, minutes: number) => xml.replace(/<ReportDateTime>[^<]*<\/ReportDateTime>/, `<ReportDateTime>${new Date(REPORT_MS + minutes * MINUTE + 9 * 3_600_000).toISOString().replace(".000Z", "+09:00")}</ReportDateTime>`)
+      .replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(REPORT_MS + minutes * MINUTE).toISOString()}`).replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${other}</EventID>`);
+    await t.send(VXSE43);
+    const first = lastWire(t.wires).current.eew.wire.cards[0].ref.id;
+    t.move(2 * MINUTE);
+    await t.send(later(VXSE43, 2));
+    const second = lastWire(t.wires).current.eew.wire.cards.find((card) => card.ref.id !== first)!.ref.id;
+    t.move(8 * MINUTE);
+    const mark = t.h.delivered.length;
+    await t.send(later(readFileSync("test/fixtures/37_01_03_240613_VXSE43.xml", "utf8"), 3));
+    expect(t.h.delivered.slice(mark).filter(({ reply }) => reply.kind === "inputDone").map(({ reply }) => "output" in reply ? reply.output.displayChanges
+      .map((change) => change.after == null ? change.removal : "shown") : [])).toEqual([["expired", "cancelled"]]);
+    expect(lastWire(t.wires).removals["U-E"]?.items.map((item) => [item.ref.id, item.reason]).sort()).toEqual([[first, "expired"], [second, "cancelled"]].sort());
+  });
+
+  // 発注 2 の後、12 unit の消える所は全部が理由を付け、owner の返信・停止の確定・取り直しの採用の 3 経路では unknown を作れない（成果物に理由）。
+  // unit が unknown を付けた差分が新しい射影の一覧に unknown で載ることは、射影の口で見る。
+  it("(d) an unknown removal in the display changes is listed as unknown", async () => {
+    const [step] = eews(1), current = step.state.current[0];
+    const first = await wire({ eew: step.state }, [eewChange(null, current)], null);
+    const gone = await wire({ eew: emptyEew() }, [eewChange(current, null)], first.state);
+    expect(projected(gone).snapshot.removals["U-E"]?.items.map((item) => item.reason)).toEqual(["unknown"]);
   });
 });
 
@@ -312,5 +341,49 @@ describe("P4-RL-T10 acceptance: a notice of a record the shutdown finalization r
     await t.h.settle();
     expect(t.h.root["projection"]!.notices.map((notice) => notice.kind)).toEqual(["eewNew"]);
     expect(t.wires.slice(published).every((snapshot) => snapshot.notices.length === 0)).toBe(true);
+  });
+});
+
+// 受入条件 P4-RL-T08（P4-RL-AC04 (4)、P4-RL-D-RESTART=A）: 時計の確認待ち（awaiting）で起動した U-R の保存に、停止中に期限が来ていた見える記録 E1・起動の後に期限が来る E2・
+// 起動の後に更新する E3 を入れる。時計が verified になった後の最初の回収で、E1 は expiredWhileStopped で一覧に載らず、E2 と更新した後に期限が来た E3 は expired で載る。
+describe("P4-RL-T08 acceptance: a run restored while the clock is awaiting keeps records expired while stopped off the removal list", () => {
+  it("lists E2 and the updated E3 as expired and leaves E1 out", async () => {
+    const R0 = Date.parse("2026-01-10T00:00:00Z");
+    const at = (offset: number, monotonic = offset): ClockReading => ({ wallTimeMs: R0 + offset, monotonicMs: monotonic });
+    const jst = (ms: number) => new Date(ms + 9 * 3_600_000).toISOString().replace(".000Z", "+09:00");
+    const flood = (eventId: string, reported: number) => Buffer.from(readFileSync("test/fixtures/16_02_01_220728_VXKO50.xml", "utf8")
+      .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`).replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(reported).toISOString()}`)
+      .replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${jst(reported)}`).replace(/<TargetDateTime>[^<]*/, `<TargetDateTime>${jst(reported)}`));
+    const files = new MemoryFiles(), HOUR = 3_600_000, basis = { value: "verified" as const satisfies string as "verified" | "awaiting" };
+    const now = { value: at(10 * HOUR + 1_000) }, wires: DisplayWireSnapshot[] = [];
+    const root = () => harnessedRoot({ appName: "fleq-p4", legacyAppName: "fleq", stateDirectory: "rl-t08", legacyStateDirectory: "rl-t08-old", diagnosticDirectory: "rl-t08-d" },
+      linkedUnitCodecs, { clock: () => now.value, checkpointFileSystem: files, diagnosticFileSystem: new MemoryDiagnostics(), wallBasis: () => basis.value, contentBasis: () => basis.value,
+        display: { publish: () => {}, publishWire: (snapshot) => { wires.push(snapshot); } } });
+    const before = root();
+    await startHarness(before, "rl-t08-a", now.value);
+    await submit(before, envelope("rl-t08-a", "VXKO50", "e1", flood("100000000001", R0), now.value, 1),
+      envelope("rl-t08-a", "VXKO50", "e2", flood("100000000002", R0 + 10 * HOUR), now.value, 2),
+      envelope("rl-t08-a", "VXKO50", "e3", flood("100000000003", R0), now.value, 3));
+    await before.root.driveCheckpoint();
+    await before.settle();
+    await before.root.diagnostics.flush();
+    // 40 時間目に awaiting で起動（E1・E3 の表示の期限 36 時間は停止中に過ぎ、E2 の 46 時間は起動の後）。
+    (basis as { value: string }).value = "awaiting";
+    now.value = at(40 * HOUR, 0);
+    const after = root();
+    await startHarness(after, "rl-t08-b", now.value);
+    now.value = at(40 * HOUR + 1_000, 1_000);
+    await submit(after, envelope("rl-t08-b", "VXKO50", "e3b", flood("100000000003", R0 + 5 * HOUR), now.value, 4));
+    (basis as { value: string }).value = "verified";
+    now.value = at(47 * HOUR, 7 * HOUR);
+    after.root.mailbox.recordWorkerResponse(now.value.monotonicMs);
+    after.root.tick(now.value);
+    await after.settle();
+    const id = (eventId: string) => sha256(["U-R", "normal", `normal/VXKO50/${eventId}`]);
+    // E1・E3 は記憶の期限（表示の期限＋6 時間）も過ぎて同じ回収で消え、E2 は記憶に移る。
+    expect(after.unit("U-R").currents.map((item) => [item.eventId, item.effective])).toEqual([["100000000002", "expired"]]);
+    expect(lastWire(wires).removals["U-R"]?.items.map((item) => [item.ref.id, item.reason]).sort())
+      .toEqual([[id("100000000002"), "expired"], [id("100000000003"), "expired"]].sort());
+    await after.root.diagnostics.flush();
   });
 });

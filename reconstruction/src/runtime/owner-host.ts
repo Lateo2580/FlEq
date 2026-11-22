@@ -56,7 +56,7 @@ const CANDIDATE_BYTES = 16 * 1024 * 1024, URGENT_REAPPLY_ITEMS = 28;
 type Candidate = {
   readonly recoveryId: string; readonly unit: RuntimeUnitId; readonly base: OwnerState; readonly open: OwnerState;
   shadow: OwnerState; readonly items: ParserMailboxItem[]; bytes: number; overflow: boolean;
-  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[]; readonly removals: Map<string, DisplayRemoval | null>; // removals: P4-RL-AC03 の Map
+  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[]; readonly removals: Map<string, DisplayRemoval | null>; readonly causes: Map<string, DisplayRemoval[]>; // removals・causes: P4-RL-AC03 の Map（causes は (5)）
   readonly inputIds: string[]; readonly cancelled: Set<string>; // P3-RRC-AC03 (1): 候補の中で取消に進んだ subject（採用の返信で端末の待ちから外す）
 };
 
@@ -199,7 +199,7 @@ class OwnerHost {
     const step = receiveOwner(candidate.shadow, completion, clock, this.options.units, undefined, basis, seen);
     candidate.shadow = step.state;
     candidate.results.set(item.inputSequence, recoveryResult(completion, step, seen.held));
-    candidate.diagnostics.push(...step.diagnostics); noteRemovals(candidate.removals, step.displayChanges);
+    candidate.diagnostics.push(...step.diagnostics); noteRemovals(candidate.removals, step.displayChanges, candidate.causes);
     candidate.evidence.push(...step.confirmationEvidence.filter((evidence) => evidence.source !== "acceptedReport"));
     candidate.inputIds.push(item.inputId); for (const { outcome } of step.outcomes) if (outcome.kind === "accepted") for (const subject of outcome.subjects) { if (subject.transition === "cancelled") candidate.cancelled.add(subject.subject); else candidate.cancelled.delete(subject.subject); } // P3-RRC-AC03 (2): 後の transition が勝つ。unit の名前で分けない
   }
@@ -212,7 +212,7 @@ class OwnerHost {
       this.options.reply({ kind: "recoveryDone", recoveryId, unit, result, output });
     if (request.phase === "open") {
       if (state.units[unit] == null) throw new Error(`unit ${unit} is not owned here`);
-      this.candidate = { recoveryId, unit, base: state, open: state, shadow: state, items: [], bytes: 0, overflow: false, results: new Map(), removals: new Map(),
+      this.candidate = { recoveryId, unit, base: state, open: state, shadow: state, items: [], bytes: 0, overflow: false, results: new Map(), removals: new Map(), causes: new Map(),
         diagnostics: [], evidence: [], inputIds: [], cancelled: new Set() };
       done({ kind: "opened" });
       return;
@@ -228,9 +228,9 @@ class OwnerHost {
       const items = [...candidate.items];
       Object.assign(candidate, { shadow: state, results: new Map(), diagnostics: [], evidence: [] });
       candidate.inputIds.length = 0; candidate.cancelled.clear(); // P3-RRC-AC03 (3): 開いた時の基点で集めた subject を残すと、当て直しで取消にならない待ちまで外す
-      candidate.removals.clear(); for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis, state); // P4-RL-AC03 (2): removals も当て直しの前に空にする
+      candidate.removals.clear(); candidate.causes.clear(); for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis, state); // P4-RL-AC03 (2): removals も当て直しの前に空にする
     }
-    const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis, candidate.removals);
+    const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis, candidate.removals, candidate.causes);
     // 部分集合の検査に外れた候補は捨てる（P3-REC-D-UNIT-ENTRANCE の共有の検査）。
     if (step == null) { done({ kind: "generationConflict" }); return; }
     this.apply(step);

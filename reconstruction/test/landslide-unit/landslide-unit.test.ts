@@ -710,3 +710,43 @@ it("P3-H27L-T04 regression / AC05: an office whose cancel was evicted during the
   expect(recordOf(candidate)?.effective).toBe("active");
   expect(adopted.intents.filter((item) => "recovered" in item.payload)).toEqual([]);
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-L の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。期限を過ぎて届いた解除を同じ reduce で回収したときは expired（P4-RL-D-LATE=B）。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-L removals are evicted, expired (also clock-pending and late), cancelled and ended", () => {
+  const removals = (step: LandslideUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const first = send(emptyState(), F.soya), now = T0 + HOUR, seed = recordOf(first.state)!;
+  const full: LandslideUnitState = { ...emptyState(), currents: Array.from({ length: 128 }, (_, index): LandslideCurrent => {
+    const name = `官署${String(index).padStart(3, "0")}`, subject = `normal/VPWW56/${name}`, reported = now - (200 - index) * 60_000;
+    return { ...seed, subject, office: name, source: { ...seed.source, subject, reportDateTimeRaw: iso(reported) }, retainUntil: reported + 48 * HOUR };
+  }) };
+  const pushed = receive(full, decodeFixture(F.soya, (xml) => office("N1")(retime(iso(now))(xml))), clock(now));
+  const late = send(first.state, F.soya, (xml) => retime("2020-06-23T00:00:00+09:00")(areas(released())(xml)), T0 + 7 * HOUR + 60_000);
+  expect([
+    removals(pushed),
+    removals(tick(first.state, T0 + 48 * HOUR)),
+    removals(reduceLandslideUnit(first.state, { kind: "deadline", clock: clock(T0 + 48 * HOUR), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(late),
+    removals(send(first.state, F.cancel)),
+    removals(follow(first.state, released())),
+  ]).toEqual([
+    [["normal/VPWW56/官署000", "evicted", null]],
+    [[SUBJECT, "expired", T0 + 48 * HOUR]],
+    [[SUBJECT, "expired", T0 + 48 * HOUR]],
+    [[SUBJECT, "expired", null]],
+    [[SUBJECT, "cancelled", null]],
+    [[SUBJECT, "ended", null]],
+  ]);
+});
+
+// 契約境界 P4-RL-T02 (c)（P4-RL-AC02 (3)、P4-RL-D-LATE=B）: 表示の期限を過ぎた記録への取消を receiveOwner から通すと、前置きの回収（reclaimDeadlineBeforeReceive）が
+// 先に表示から外すので、取消の相手の subject の removal は expired のまま（取消の原因に置き換えない）。
+it("P4-RL-T02 (c) contractBoundary / P4-RL-AC02 (3): a cancel after the display deadline leaves the reclaimed subject expired", () => {
+  const restored = restoreOwner({ runId: "run", place: "deferred", clock: clock(T0), restored: { "U-F": { kind: "empty" }, "U-L": { kind: "empty" },
+    "U-R": { kind: "empty" }, "U-B": { kind: "empty" }, "U-M": { kind: "empty" }, "U-Y": { kind: "empty" } } }, linkedUnitTable, linkedUnitCodecs).state;
+  const material = decodeFixture(F.soya), cancel = decodeFixture(F.cancel);
+  const live = receiveOwner(restored, { runId: "run", inputId: material.inputId, result: { kind: "decoded", material } }, clock(T0), linkedUnitTable).state;
+  const late = receiveOwner(live, { runId: "run", inputId: cancel.inputId, result: { kind: "decoded", material: cancel } }, clock(T0 + 48 * HOUR), linkedUnitTable);
+  expect(late.state.units["U-L"]?.currents.find((item) => item.subject === SUBJECT)?.effective ?? null).not.toBe("active");
+  expect(late.displayChanges.filter((change) => change.subject === SUBJECT).map((change) => [change.before != null, change.after == null ? change.removal : "shown"]))
+    .toEqual([[true, "expired"]]);
+});

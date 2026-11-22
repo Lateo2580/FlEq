@@ -1330,3 +1330,39 @@ describe("P4-AC13R 保存の読み戻しの組み立てと履歴の深さの数�
     expect([wireBytes(length), outcome(length), outcome(length + 1)]).toEqual([LIMIT - outside, ["restored", "encoded"], ["invalid", "refused"]]);
   });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-W の行、P4-RL-AC02 (2)）: 府県の行（operation/area/府県）は、府県から外れた報の原因の 1 語で消える。監視の行は報の原因か、印が解けた markCleared。
+// U-W の府県の行の ended は、VPNO50 の終了で府県の行が特別警報だけのときにしか起きない（Q-RL-MIXED-FREQUENCY (3)）ので、福井の L5 の府県予報区等の 1 行だけの報で作る。
+describe("P4-RL-T01 acceptance / P4-RL-AC02 (2): U-W rows", () => {
+  const FUKUI = "18_00_01_260830_VPWW55_fukui_L5";
+  let serial = 0;
+  const only = (xml: string) => xml.replace(/(<Warning type="気象警報・注意報（府県予報区等）">[\s\S]*?<\/Warning>)[\s\S]*<\/Body>/, "$1</Body>");
+  const shifted = (minutes: number) => (xml: string) => xml.replace(/(<Control>[\s\S]*?<DateTime>)([^<]*)/, (_all, head: string, at: string) => head + new Date(Date.parse(at) + minutes * 60_000).toISOString())
+    .replace(/<ReportDateTime>([^<]*)<\/ReportDateTime>/, (_all, at: string) => `<ReportDateTime>${new Date(Date.parse(at) + minutes * 60_000 + 9 * 3_600_000).toISOString().replace(".000Z", "+09:00")}</ReportDateTime>`);
+  const fukui = (edit: (xml: string) => string = (xml) => xml) => decodeFixture(FUKUI, "VPWW55", (xml) => edit(only(xml)), `rl-uw-${++serial}`);
+  const removals = (step: ReturnType<typeof receive>) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.before?.current == null ? "monitor" : "area"]] : []);
+
+  it("removals are ended, cancelled (no version to restore, also P4-RL-T02 (b)), replaced, evicted and markCleared", () => {
+    const base = receive(emptyState(), fukui()).state;
+    const cancelled = receive(base, fukui((xml) => shifted(1)(xml.replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>").replace(/<Body[\s\S]*<\/Body>/, "<Body/>"))));
+    const drill = (office: string, prefecture: string, minutes: number) => fukui((xml) => shifted(minutes)(xml.replace("<Status>通常</Status>", "<Status>訓練</Status>")
+      .replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${office}</EditorialOffice>`).replaceAll("<Code>180000</Code>", `<Code>${prefecture}0000</Code>`)));
+    let full = receive(emptyState(), drill("官署00", "01", 0)).state;
+    for (let index = 1; index < 64; index++) full = receive(full, drill(`官署${String(index).padStart(2, "0")}`, "18", index)).state;
+    const token = JSON.stringify(["VPWW55", "partial", "福井地方気象台", "all", ""]);
+    expect([
+      removals(receive(base, decodeFixture("18_00_01_260830_VPNO50_switch", "VPNO50", (xml) => xml, `rl-uw-${++serial}`))),
+      removals(cancelled),
+      removals(receive(base, fukui((xml) => shifted(10)(xml).replaceAll("<Code>180000</Code>", "<Code>170000</Code>")))),
+      removals(receive(full, drill("官署99", "18", 100))),
+      removals(reduceWeatherCurrentUnit(cancelled.state, { kind: "coverageConfirmed", operation: "normal", family: "VPWW55",
+        subject: "normal/VPWW55/福井地方気象台", affectedScope: [token], clock: clock() })),
+    ]).toEqual([
+      [["normal/area/18", "ended", "area"]],
+      [["normal/area/18", "cancelled", "area"]],
+      [["normal/area/18", "replaced", "area"]],
+      [["training/VPWW55/官署00", "evicted", "monitor"], ["training/area/01", "evicted", "area"]],
+      [["normal/VPWW55/福井地方気象台", "markCleared", "monitor"]],
+    ]);
+  });
+});

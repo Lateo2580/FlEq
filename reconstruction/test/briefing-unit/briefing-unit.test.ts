@@ -863,3 +863,31 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-B restores failed and null p
     restore: (state, at) => reduceBriefingUnit(emptyState(), { kind: "restore", persisted: briefingUnitCodec.encode(state), clock: at }),
     markOf: (state, subject) => state.currents.find((item) => item.subject === subject)?.notice });
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-B の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。解除（released）は表示に残るので行が無い。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-B removals are evicted, expired (also clock-pending and late), cancelled and replaced", () => {
+  const removals = (step: BriefingUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const now = T0 + HOUR, seed = recordOf(send(emptyState(), F.k1).state)!;
+  const full = Array.from({ length: 256 }, (_, index) => subjectRecord(seed, now, index));
+  const pushed = receive(filled(full), decodeFixture(F.k1, (xml) => eventId("N1")(retime(iso(now))(xml))), clock(now));
+  const short = send(emptyState(), F.hjpna).state, shortEnd = at("2026-08-27T02:58:00+09:00") + SHORT, H = short.currents[0].subject;
+  const t = at("2026-08-27T04:48:00+09:00");
+  const forecast = send(send(emptyState(), F.yjpna, undefined, t + 164 * 60_000).state, F.yjpnb, undefined, t + 164 * 60_000);
+  const inverted = send(forecast.state, F.yjpnb, (xml) => serial("2")(retime("2026-08-27T05:18:00+09:00")(xml.replace(/<Information type="情報タグ">[\s\S]*?<\/Information>/, ""))),
+    t + 165 * 60_000);
+  expect([
+    removals(pushed),
+    removals(tick(short, shortEnd)),
+    removals(reduceBriefingUnit(short, { kind: "deadline", clock: clock(shortEnd), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(inverted), // P4-RL-D-LATE=B: 遅着の採用で自分の系列の見える記録が消える
+    removals(send(send(emptyState(), F.k1).state, F.kcancel)),
+    removals(send(send(emptyState(), F.yjpnb, undefined, t).state, F.hjpnb, undefined, t + 30_000)),
+  ]).toEqual([
+    [[full[0].subject, "evicted", null]],
+    [[H, "expired", shortEnd]],
+    [[H, "expired", shortEnd]],
+    [[KANAZAWA_Y, "expired", null]],
+    [[K, "cancelled", null]],
+    [[KANAZAWA_Y, "replaced", null]],
+  ]);
+});

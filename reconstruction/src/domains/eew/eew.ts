@@ -15,7 +15,7 @@ import type {
   ReportRef,
   RejectionReason,
   RuntimeUnitDeadline,
-  SubjectOutcome,
+  SubjectOutcome, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   EewCurrent,
@@ -360,7 +360,7 @@ function placeNotice(notices: readonly EewNoticeMark[], mark: EewNoticeMark, at:
 // P3-LIFE-AC01: deadline 入力での current・gate の期限回収（期限ちょうどで失効）。失効は取消ではないので取消の表示・通知を作らない。
 // current・gate は非保存なので、ここでは保存世代を進めない。
 function reclaimEewLifetime(state: EewUnitState, wallTimeMs: number,
-  changed: (before: EewCurrent | null, after: EewCurrent | null) => void): Readonly<{ state: EewUnitState; expired: readonly EewCurrent[] }> {
+  changed: (before: EewCurrent | null, after: EewCurrent | null, removal?: DisplayRemoval) => void): Readonly<{ state: EewUnitState; expired: readonly EewCurrent[] }> {
   // 既知の最小がまだ先なら走査しない。走査するときは判定と残る gate の最小を同じ 1 回で求める。
   if ((gateDeadlineCache.get(state.gates) ?? -Infinity) > wallTimeMs) return { state, expired: [] };
   const ending = new Set<string>();
@@ -377,7 +377,7 @@ function reclaimEewLifetime(state: EewUnitState, wallTimeMs: number,
   if (ending.size === 0 && !gateRemoved) { gateDeadlineCache.set(state.gates, next); return { state, expired: [] }; }
   gateDeadlineCache.set(gates, next);
   const expired = state.current.filter((item) => ending.has(item.subject));
-  expired.forEach((item) => changed(item, null));
+  expired.forEach((item) => changed(item, null, "expired")); // P4-RL-AC02 (5)
   const current = expired.length === 0 ? state.current : state.current.filter((item) => !ending.has(item.subject));
   // 印は gate の除去で消えず、evidenceUnknownUntil も延ばさない（P3-NL-AC04 (6)）。
   return { state: { ...state, current, gates }, expired };
@@ -412,7 +412,7 @@ function outcome(candidate: Candidate, transition: string, prediction: EewPredic
 }
 
 function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receive" }>,
-  changed: (before: EewCurrent | null, after: EewCurrent | null) => void = () => {}): Omit<EewUnitStep, "displayChanges" | "confirmationEvidence"> {
+  changed: (before: EewCurrent | null, after: EewCurrent | null, removal?: DisplayRemoval) => void = () => {}): Omit<EewUnitStep, "displayChanges" | "confirmationEvidence"> {
   const validated = validateCandidate(input.material);
   if (validated.kind === "rejected")
     return rejection(state, input.material, validated.reason, validated.diagnostic);
@@ -590,10 +590,10 @@ function reduceEew(state: EewUnitState, input: Extract<EewInput, { kind: "receiv
   const evicted = new Set(needed === 0 ? []
     : [...eligible.sort(res02).slice(0, needed), ...(aged == null ? [] : [aged])].map((item) => item.subject));
   let currents = state.current.filter((item) => {
-    if (evicted.has(item.subject)) changed(item, null);
+    if (evicted.has(item.subject)) changed(item, null, "evicted");
     return item.subject !== candidate.subject && !evicted.has(item.subject);
   });
-  const shownCurrent = projected == null || version.mark == null ? projected : { ...projected, unconfirmed: version.mark }; if (previous !== shownCurrent) changed(previous ?? null, shownCurrent); // P4-DW-D-EEW-UNCONFIRMED=A: 採用の版でも gate と同じ未確認の印を current に写す
+  const shownCurrent = projected == null || version.mark == null ? projected : { ...projected, unconfirmed: version.mark }; if (previous !== shownCurrent) changed(previous ?? null, shownCurrent, candidate.cancelled ? "cancelled" : "ended"); // 終端の current は取消なら cancelled、最終報なら ended（P4-RL-AC02 (5)）。P4-DW-D-EEW-UNCONFIRMED=A: 採用の版でも gate と同じ未確認の印を current に写す
   let gates = state.gates.filter((item) => item.subject !== candidate.subject && !evicted.has(item.subject));
   if (shownCurrent != null) currents = [...currents, shownCurrent];
   const nextGate: EewGate = {

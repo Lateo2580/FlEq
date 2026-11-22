@@ -682,7 +682,7 @@ function recoveryResult(completion: ParserCompletion, step: OwnerStep, held: boo
  * 検査に外れたら null（候補を捨てる）。inputIds は候補に入れた入力（世代の帰属、P2-A3-AC10）。
  */
 function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeUnitId, recoveryId: string, open: OwnerState, inputIds: readonly string[],
-  clock: ClockReading, units: UnitTable, basis: WallBasis, removals: Map<string, DisplayRemoval | null>): OwnerStep | null { // removals: 候補の Map（P4-RL-AC03）
+  clock: ClockReading, units: UnitTable, basis: WallBasis, removals: Map<string, DisplayRemoval | null>, causes: Map<string, DisplayRemoval[]>): OwnerStep | null { // removals・causes: 候補の Map（P4-RL-AC03。causes は府県の行の外れた報の原因、(5)）
   checkClock(clock);
   const before = new Set(ownUnit(live, unit).intents.map((intent) => intent.id));
   if (ownUnit(shadow, unit).intents.some((intent) => !before.has(intent.id))) return null;
@@ -703,10 +703,10 @@ function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeU
   work.changed(unit);
   work.viewed(unit);
   // U-R の期限は基点（採用の直前の live）でその subject が見えていなかった記録の intent を作らない（候補を作る間の回収と同じ規則、P3-REC-AC12・Q-REC-IMPL-4b-1 (b)）。
-  work.applyDeadlines([unit], false, live); noteRemovals(removals, work.displayChanges); // P4-RL-AC03 (3): 空にする前に期限の step の removal を Map に足し、正味の消失に Map の値を付ける（無ければ unknown）
+  work.applyDeadlines([unit], false, live); noteRemovals(removals, work.displayChanges, causes); // P4-RL-AC03 (3): 空にする前に期限の step の removal を Map に足し、正味の消失に Map の値を付ける（無ければ unknown）
   // P3-REC-AC07（投影の直し）: 期限の step が積んだ差分を、採用の直前の live から最終の state への正味の差分に置き換える（追記すると期限を二重に数える）。
   work.displayChanges.length = 0;
-  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change.after == null ? { ...change, removal: removals.get(removalKey(change)) ?? "unknown" } : change);
+  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change.after == null ? { ...change, removal: netRemoval(removals, causes, removalKey(change)) } : change);
   return work.finish();
 }
 
@@ -1100,12 +1100,23 @@ function omitField(event: WireEventHeader | WireLongPeriodHeader, field: WireOmi
 // 候補の各 step の差分から、基点にあった表示のキー（unit・operation・subject）の removal を持つ。値 null は候補の中でできたキーで、ある間だけ持ち消えたら外す
 // （正味の消失にならない）。基点のキーは消えた時に持ち、戻ったら外す。大きさは基点の記録の数と今ある候補のキーの数で抑えられ、入力の数では伸びない。
 const removalKey = (change: RuntimeDisplayChange): string => JSON.stringify([change.unit, change.operation, change.subject]); // unit も入れる（owner-host の復元版は同じ place の別の unit と取り違えない）
-function noteRemovals(removals: Map<string, DisplayRemoval | null>, changes: readonly RuntimeDisplayChange[]): void {
+// causes（AC03 (5)）: 基点にあったキーの差分の departed を語を重ねず集め（最大 4 語）、消えた行が戻ったときと当て直し（呼ぶ側が空にする）だけで外す。
+function noteRemovals(removals: Map<string, DisplayRemoval | null>, changes: readonly RuntimeDisplayChange[], causes: Map<string, DisplayRemoval[]>): void {
   for (const change of changes) {
     const key = removalKey(change);
     if (change.after == null) { if (removals.get(key) === null) removals.delete(key); else removals.set(key, change.removal); }
-    else if (change.before == null) { if (removals.has(key)) removals.delete(key); else removals.set(key, null); }
+    else if (change.before == null) { if (removals.has(key)) { removals.delete(key); causes.delete(key); } else removals.set(key, null); }
+    else if (change.departed != null && removals.get(key) !== null) for (const word of change.departed) {
+      const words = causes.get(key) ?? [];
+      if (words.length < 4 && !words.includes(word)) causes.set(key, [...words, word]);
+    }
   }
+}
+// 正味の消失の理由: 集めた原因（departed と行を消した step の removal）が 2 種以上なら mixed（P4-RL-D-MIXED=B）、1 種ならその語、無ければ unknown。
+function netRemoval(removals: ReadonlyMap<string, DisplayRemoval | null>, causes: ReadonlyMap<string, readonly DisplayRemoval[]>, key: string): DisplayRemoval {
+  const words = new Set(causes.get(key)), removal = removals.get(key);
+  if (removal != null) words.add(removal);
+  return words.size >= 2 ? "mixed" : [...words][0] ?? "unknown";
 }
 // P4-RL-AC08 (7): H39 の理由の行（unit ごとに最大 9 行）。読むだけで state も期限も動かさない。rev は publisher の H39 の欄と同じく行の JSON の sha256（行が無ければ []）。
 function lossDetail(state: OwnerState, request: Extract<WireDetailRequest, { part: "losses" }>): WireDetailResponse {

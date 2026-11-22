@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type {
   ClockReading, DiagnosticDetails, JsonValue, NoticeEvidence, NoticeMark, PersistenceStatus, ReportRef, RuntimeDisplaySubject, RuntimeUnitDeadline,
-  SubjectOutcome, UnreadableMark, WallBasis,
+  SubjectOutcome, UnreadableMark, WallBasis, DisplayRemoval,
 } from "../../../contracts/p2-shared-runtime.types";
 import type {
   FloodCriteria, FloodCurrent, FloodInput, FloodIntent, FloodKindGroup, FloodNotificationPayload, FloodRiver, FloodStation, FloodUnitCodec,
@@ -56,7 +56,7 @@ type Active = Extract<FloodCurrent, Readonly<{ effective: "active" }>>;
 type Level = FloodNotificationPayload["level"];
 type InternalStep = Omit<FloodUnitStep, "displayChanges" | "confirmationEvidence">;
 type Decision = FloodUnitStep["decisions"][number];
-type Change = readonly [before: FloodCurrent | null, after: FloodCurrent | null];
+type Change = readonly [before: FloodCurrent | null, after: FloodCurrent | null, removal?: DisplayRemoval, dueWallMs?: number]; // removal・dueWallMs: 表示から外す変化の理由と表示の期限（P4-RL-AC02・AC04 (4)）
 type Result = Readonly<{ step: InternalStep; changes: readonly Change[] }>;
 
 const reportMs = (source: ReportRef): number => Date.parse(source.reportDateTimeRaw);
@@ -408,7 +408,7 @@ function receiveCandidate(state: FloodUnitState, candidate: FloodCandidate, cloc
   const dropped = droppedIn(fit, currents);
   if (dropped !== 0) diagnostics.push({ level: "INFO", component: "flood", reason: "unreadableDropped", unit: "U-R", count: dropped });
   return {
-    changes: [...evicted == null ? [] : [[evicted, null] as const], ...stripped, [existing, next]],
+    changes: [...evicted == null ? [] : [[evicted, null, "evicted"] as const], ...stripped, [existing, next, candidate.cancelled ? "cancelled" : "ended"]],
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decided(change)], intents: notices.admitted,
       outcomes: [accepted(change)], diagnostics },
   };
@@ -466,7 +466,7 @@ function collect(state: FloodUnitState, clock: ClockReading, basis: WallBasis, b
       after = verified ? expiredOf(item) : item.expiryPending === true ? item : { ...item, expiryPending: true };
     }
     if (verified && after.effective !== "active" && after.retainUntil <= now) after = null;
-    if (after !== item) changes.push([item, after]);
+    if (after !== item) changes.push([item, after, "expired", item.retainUntil]);
     return after == null ? [] : [after];
   });
   const remaining = !verified || intentMin(state.intents) > now ? state.intents : state.intents.filter((item) => item.expiresAt > now);
@@ -564,18 +564,18 @@ function reduceCore(state: FloodUnitState, input: FloodInput): Result {
 function reduceFloodUnit(state: FloodUnitState, input: FloodInput): FloodUnitStep {
   const { step, changes } = reduceCore(state, input);
   // 同じ subject の変化は最初の before と最後の after にまとめ、view に出る側（active）だけを表示の変化にする。
-  const merged = new Map<string, { before: FloodCurrent | null; after: FloodCurrent | null }>();
-  for (const [before, after] of changes) {
+  const merged = new Map<string, { before: FloodCurrent | null; after: FloodCurrent | null; cause?: readonly [DisplayRemoval | undefined, number | undefined] }>();
+  for (const [before, after, removal, dueWallMs] of changes) {
     const key = (after ?? before)!.subject;
-    const found = merged.get(key);
-    merged.set(key, { before: found == null ? before : found.before, after });
+    const found = merged.get(key); // P4-RL-AC01 (3): 理由は表示から外した変化のもの（見えるようになれば外す）。同じ reduce の回収が記録を消したときは expired（P4-RL-D-LATE=B）
+    merged.set(key, { before: found == null ? before : found.before, after, cause: visible(after) ? undefined : visible(before) ? [removal, dueWallMs] : after == null && removal === "expired" ? [removal, found?.cause == null ? dueWallMs : found.cause[1]] : found?.cause });
   }
   const displayChanges: FloodUnitStep["displayChanges"][number][] = [];
-  for (const [subject, { before, after }] of merged) {
+  for (const [subject, { before, after, cause }] of merged) {
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-R", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: cause?.[0] ?? "unknown", ...cause?.[1] == null ? {} : { dueWallMs: cause[1] } } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02: 理由は消える所が付けた語（表 §1.2）
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-R content revision exhausted");
   // P3-C11-N2: U-R は確認 scope を作らない。

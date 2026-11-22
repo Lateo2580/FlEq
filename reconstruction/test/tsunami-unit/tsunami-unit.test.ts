@@ -1254,3 +1254,35 @@ it("P3-C5-T06 acceptance / AC07 (lowering replacement): a lower maximum class re
   expect(restored.intents.map((item) => [item.payload.level, item.lastAttempt])).toEqual([["critical", "failed"], ["critical", "failed"]]);
   expect(pending(send(restored, 30, lower).state)).toEqual(["desktop:normal", "sound:normal"]);
 });
+
+// 受入条件 P4-RL-T01（表 §1.2 の U-T の行、P4-RL-AC02）: 表示から外れる差分の removal は消える所が付けた語。同じ EventID の観測は予報の原因と同じ語。
+it("P4-RL-T01 acceptance / P4-RL-AC02: U-T removals are evicted, expired (also clock-pending), cancelled and ended", () => {
+  const removals = (step: TsunamiUnitStep) => step.displayChanges.flatMap((change) => change.after == null ? [[change.subject, change.removal, change.dueWallMs ?? null]] : []);
+  const at = clock(4_070_908_800_000), area = [{ code: "311", name: "千葉県内房", kind: "51" }];
+  const seed = forecast(receive(emptyState(), decodeXml(vtse41({ at: "2099-01-01T09:00:00+09:00", areas: area }), "VTSE41"), at).state, "normal/VTSE41/20990101000011")!;
+  const clone = (index: number, operation: "normal" | "training" = "normal"): TsunamiForecastSubject => {
+    const eventId = String(20980101000000 + index), subject = `${operation}/VTSE41/${eventId}`;
+    return { ...seed, eventId, subject, operation, source: { ...seed.source, subject, operation, reportDateTimeRaw: new Date(Date.parse("2098-01-01T00:00:00Z") + index * 1000).toISOString() } };
+  };
+  const full: TsunamiUnitState = { ...emptyState(), forecasts: [clone(0, "training"), ...Array.from({ length: 511 }, (_, index) => clone(index + 10))] };
+  const pushed = receive(full, decodeXml(vtse41({ eventId: "20990101000003", at: "2099-01-01T09:00:00+09:00", areas: area }), "VTSE41"), at);
+  const material = decodeFixture("61_11_01_250206_VTSE52", "VTSE52"), reported = Date.parse(material.reportDateTimeRaw);
+  const observed = receive(emptyState(), material, clock(reported)).state, OBSERVED = observed.observations[0].subject;
+  const warning = receive(emptyState(), decodeXml(vtse41({ eventId: EVENT, at: "2011-03-11T14:49:00+09:00", areas: [{ code: "210", name: "岩手県", kind: "52" }] }), "VTSE41"), clock(reported)).state;
+  const watched = receive(warning, decodeFixture("61_11_01_250206_VTSE52", "VTSE52"), clock(reported)).state;
+  const next = (infoType: "発表" | "取消", kind: string) => receive(watched, decodeXml(vtse41({ eventId: EVENT, at: "2011-03-11T15:00:00+09:00", infoType,
+    areas: [{ code: "210", name: "岩手県", kind }] }), "VTSE41"), clock(reported + 600_000));
+  expect([
+    removals(pushed),
+    removals(run(observed, { kind: "deadline", clock: clock(reported + 86_400_000) })),
+    removals(run(observed, { kind: "deadline", clock: clock(reported + 86_400_000), basis: "unverified" })), // P4-RL-D-CLOCK-PENDING
+    removals(next("取消", "52")),
+    removals(next("発表", "50")),
+  ]).toEqual([
+    [[clone(0, "training").subject, "evicted", null]],
+    [[OBSERVED, "expired", reported + 86_400_000]],
+    [[OBSERVED, "expired", reported + 86_400_000]],
+    [[OBSERVED, "cancelled", null], [SUBJECT, "cancelled", null]],
+    [[OBSERVED, "ended", null], [SUBJECT, "ended", null]],
+  ]);
+});
