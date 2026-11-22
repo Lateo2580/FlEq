@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { MaterialValue } from "../../contracts/p1-parser-boundary.types";
 import type { RuntimeDisplayChange, RuntimeUnitView, UnreadableMark } from "../../contracts/p2-shared-runtime.types";
@@ -295,6 +295,16 @@ describe("P4-DV-T02 contractBoundary: the summary rule of the nine domains", () 
     }
     expect("delivery" in result.current.eew).toBe(false);
     expect(bytes(result)).toBeLessThanOrEqual(967_258);
+    // 9 分野の和が上界を越えている間の内容の変わらない step: 保護 3 分野の wire とカードを直列化し直さずに unchanged（P4-DV-AC06）。
+    // items（3 行の固定）は projectDomain の metadata only の道が旧の射影と同じく字で比べる。
+    const state = (await publish(over.views, over.changes)).state;
+    const stringify = vi.spyOn(JSON, "stringify");
+    const again = await publish(over.views, [], state);
+    const big = [state.snapshot?.current.eew, state.snapshot?.current.tsunami, state.snapshot?.current.earthquake].flatMap((domain) => domain == null ? [] : [domain.wire, domain.cards]);
+    const restringified = stringify.mock.calls.filter(([value]) => big.includes(value)
+      || typeof value === "object" && value != null && "wire" in value && big.includes(value.wire)).length;
+    stringify.mockRestore();
+    expect([again.kind, restringified]).toEqual(["unchanged", 0]);
   });
 
   it("publishes each step of O09 (its restart and receive steps) within 1 MiB", async () => {

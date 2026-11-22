@@ -986,7 +986,8 @@ function vocabIndex(state: OwnerState, request: Extract<WireDetailRequest, { par
 }
 // part=item・unreadable（P4-DV-AC12）。読むだけで state も期限も動かさない。消えた対象は revision: null、版の違いは今の revision を返す。
 function vocabDetail(state: OwnerState, request: Extract<WireDetailRequest, { part: "item" | "unreadable" }>): WireDetailResponse {
-  const elements = wireElements(state, request.unit);
+  // 7 分野は版ごとに 1 度だけ作った写し（vocabPaging）を使い、要求ごとに全部の記録を写して hash しない。U-W・U-F は公開形の id と revision を読むだけ。
+  const elements = request.unit === "U-W" || request.unit === "U-F" ? wireElements(state, request.unit) : vocabPaging(state, request.unit)?.elements ?? null;
   if (elements == null) return wireUnavailable;
   const element = elements.find((item) => item.id === request.id);
   if (element == null) return wireChanged(null);

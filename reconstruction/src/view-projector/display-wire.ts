@@ -706,8 +706,12 @@ function mergedByUnit(changes: readonly RuntimeDisplayChange[]): ReadonlyMap<Run
     const key = JSON.stringify([change.unit, change.operation, change.subject]), found = merged.get(key);
     merged.set(key, found == null ? change : { ...change, before: found.before });
   }
+  // unit ごとの配列を 1 度作って足す（差分の数に線形）。
   const byUnit = new Map<RuntimeUnitId, RuntimeDisplayChange[]>();
-  for (const change of merged.values()) byUnit.set(change.unit, [...byUnit.get(change.unit) ?? [], change]);
+  for (const change of merged.values()) {
+    const list = byUnit.get(change.unit);
+    if (list == null) byUnit.set(change.unit, [change]); else list.push(change);
+  }
   return byUnit;
 }
 const NO_CHANGES: readonly RuntimeDisplayChange[] = [];
@@ -780,6 +784,28 @@ function vocabDomain<Unit extends VocabUnit>(unit: Unit, contentRevision: string
   return { unit, contentRevision, items, delivery: "full", wire, cards: projection.cards };
 }
 
+// 1 MiB の判定に使う byte（9 分野の和が上界を越えている間だけ）。大きな部分（保護 3 分野の wire・カード・items、通知の 1 件、復旧の digest）は
+// object ごとに byte を覚え、変わった object だけを数え直す（P4-DV-AC06、P2-A8-COST の公開ごとに 1 回の直列化）。残りの欄は件数の決まった小さい部分。
+const remembered = new WeakMap<object, number>();
+function bytesOf(value: object): number {
+  const found = remembered.get(value);
+  if (found != null) return found;
+  const size = utf8(value);
+  remembered.set(value, size);
+  return size;
+}
+function protectedBytes(domain: Readonly<{ unit: string; contentRevision: string; items: Items; wire: object; cards: readonly object[] }>): number {
+  // 空の items・cards と 0 の wire の字（2・2・1 byte）を覚えた byte に置き換える。
+  return utf8({ unit: domain.unit, contentRevision: domain.contentRevision, items: [], wire: 0, cards: [] }) - 5
+    + bytesOf(domain.items) + bytesOf(domain.wire) + bytesOf(domain.cards);
+}
+function commonBytes(shell: Omit<DisplayWireSnapshot, "sequence" | "generatedAt">, sequence: number, generatedAt: string): number {
+  const current = Object.fromEntries(Object.keys(shell.current).map((key) => [key, 0])), digest = shell.recovery.digest;
+  const notices = shell.notices.reduce((sum, notice) => sum + bytesOf(notice), 0) + commas(shell.notices.length);
+  return utf8({ ...shell, sequence, generatedAt, current, notices: [], recovery: { ...shell.recovery, digest: null } }) - Object.keys(current).length
+    + notices + (digest == null ? 0 : bytesOf(digest) - 4);
+}
+
 // 新しい経路の射影。自分の前の snapshot と比べて変わったときだけ projected を返し、旧の射影の projected・unchanged・rejected に依らない（P4-DW-AC01）。
 function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState | null): DisplayWireResult {
   const base = previous != null && previous.streamId === input.projection.streamId ? previous : null;
@@ -841,9 +867,8 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
   let shell = shellOf(build(new Set()));
   const vocabTotal = VOCAB_KEYS.reduce((sum, key) => sum + bytes[key], 0);
   if (vocabTotal + NEW_PATH_FIXED_BOUND > SNAPSHOT_BYTES) {
-    const sequence = (published?.sequence ?? 0) + 1, empty = Object.fromEntries([...Object.keys(shell.current)].map((key) => [key, 0]));
-    const total = utf8({ ...shell, sequence, generatedAt: source.generatedAt, current: empty }) - Object.keys(empty).length
-      + utf8(protectedCurrent.eew) + utf8(protectedCurrent.tsunami) + utf8(protectedCurrent.earthquake) + vocabTotal;
+    const total = commonBytes(shell, (published?.sequence ?? 0) + 1, source.generatedAt)
+      + protectedBytes(protectedCurrent.eew) + protectedBytes(protectedCurrent.tsunami) + protectedBytes(protectedCurrent.earthquake) + vocabTotal;
     if (total > SNAPSHOT_BYTES) shell = shellOf(build(new Set(VOCAB_KEYS.filter((key) => bytes[key] > DOMAIN_BUDGET))));
   }
   const state = (snapshot: DisplayWireSnapshot | null, seen: Seen | null): DisplayWireState =>

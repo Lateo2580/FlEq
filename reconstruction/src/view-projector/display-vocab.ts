@@ -109,18 +109,19 @@ function vocabItem(source: VocabSource, ids: Ids, detail: boolean): VocabItem {
     case "weatherCurrent.area": {
       const v = source.value;
       // 区域は層ごとに 1 つの一覧（sys は層、区域名は描画が G0 の表から引く、計画 §5.3 の C=A）。areas は [層, Code] の昇順。
-      const layers: VocabList<"areas">[] = [];
+      // 層ごとの配列に 1 行ずつ足す（区域の数に線形。一覧を足すたびに写し直さない）。
+      const layers: { sys: DisplayAreaSystem; rows: (readonly VocabCell[])[] }[] = [];
       for (const [system, code] of v.areas) {
         const last = layers.at(-1);
-        if (last?.sys === system) layers[layers.length - 1] = { ...last, rows: [...last.rows, [code, null]] };
-        else layers.push(codes("areas", [code], system));
+        if (last?.sys === system) last.rows.push([code, null]);
+        else layers.push({ sys: system, rows: [[code, null]] });
       }
       // names は codes の部分集合（p3-uw-canon.types.ts の names）なので、名前の無い Code は null。
       const phenomena = list<"phenomena", "areaCount">("phenomena", Object.keys(v.codes).sort().map((code) =>
         [code, v.names[code] == null ? null : cut.text(v.names[code], WIRE_LIMITS.phenomenonName), v.codes[code]]), { cols: ["areaCount"] });
       const item: VocabItemOf<"weatherCurrent.area"> = { ...head(ids, v, null, cut, { part: "areas", id: v.id, rev: v.revision }), k: source.k,
         facts: [...sourceFacts(v.source, cut), f("prefecture", v.prefecture), f("cellCount", v.cellCount), f("restoredCellCount", v.restoredCellCount)],
-        lists: [...layers, phenomena], texts: [], special: null };
+        lists: [...layers.map((layer) => list<"areas">("areas", layer.rows, { sys: layer.sys })), phenomena], texts: [], special: null };
       return item;
     }
     case "weatherTimeseries.subject": {
