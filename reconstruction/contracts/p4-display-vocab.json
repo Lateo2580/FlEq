@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "894bc55c26fc5cb27086d8a290624debad7fa3597255efff782629b5734b4474",
+    "sha256": "1c1f03f473d97618bcda7a4713d4af4e001ba86aac4cab98985b7b784da3de8e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -385,12 +385,12 @@
     "acceptanceChecks": [
       {
         "id": "P4-DV-AC01",
-        "requirement": "語彙の形と新しい経路（表 §1）: 9 分野を新しい経路の snapshot の current に足し、鍵の並びは eew・tsunami・earthquake・weatherCurrent・weatherTimeseries・nankai・volcano・landslide・flood・briefing・localBulletins・typhoon。包みは表 §1.1 の full（unit・contentRevision・items・delivery・wire・cards）と要約（今の形、カードを持たない）。wire の項目は表 §1.2 の VocabItem（id・rev・k・op・title・time・serial・marks・unread・ref・facts・lists・texts・special）。VocabItem は k（表 §1.4 の 17 種）で分けた判別共用体にし、k ごとに facts の label・一覧の role と cols・texts の role・special の種類を閉じた union 型で固定する（spec:1268）。描画は k と label・role で描き分け、分野（unit）の名前で分けない（R46）。schemaVersion を p4-display-wire-v2、semanticRevision は current の鍵の並びと同じ順の 12 分野の contentRevision の JSON 配列。新しい snapshot に view を入れない。旧 /events の出力は変えない",
+        "requirement": "語彙の形と新しい経路（表 §1）: 9 分野を新しい経路の snapshot の current に足し、鍵の並びは eew・tsunami・earthquake・weatherCurrent・weatherTimeseries・nankai・volcano・landslide・flood・briefing・localBulletins・typhoon。包みは表 §1.1 の full（unit・contentRevision・items・delivery・wire・cards）と要約（今の形、カードを持たない）。wire の項目は表 §1.2 の VocabItem（id・rev・k・op・title・time・serial・marks・unread・ref・facts・lists・texts・special）。VocabItem は k（表 §1.4 の 17 種）で分けた判別共用体にし、k ごとに facts の label・一覧の role と cols・texts の role・special の種類を閉じた union 型で固定する（spec:1268）。描画は k と label・role で描き分け、分野（unit）の名前で分けない（R46）。schemaVersion を p4-display-wire-v2、semanticRevision は current の鍵の並びと同じ順の 12 分野の contentRevision の JSON 配列。新しい snapshot に view を入れない。旧 /events の出力は変えない（版の行は P4-REMOVAL-LOSS-001 の発注 1 で v3 になり、印はその行へ付け直した）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:32 «c0aea1878e65aed9»",
           "reconstruction/contracts/p4-display-vocab-tables.md:31 «caed0b4c7878b149»",
           "reconstruction/contracts/p4-display-vocab-tables.md:79 «1b352bd0e7476907»",
-          "reconstruction/contracts/p4-display-wire.types.ts:100 «49d3da372a453291»",
+          "reconstruction/contracts/p4-display-wire.types.ts:100 «97acae2a45f702ce»",
           "reconstruction/contracts/p4-display-wire.types.ts:101 «e62cf3b5db665b78»",
           "reconstruction/contracts/p4-display-vocab-tables.md:38 «f5df172642868172»"
         ]
@@ -476,7 +476,7 @@
           "reconstruction/contracts/p4-display-vocab-tables.md:288 «63519ad77a31463c»",
           "reconstruction/contracts/p4-display-vocab-tables.md:289 «62af22ef6c204c1f»",
           "reconstruction/contracts/p4-display-vocab-tables.md:295 «1467230dd54c72a4»",
-          "reconstruction/test/display-wire/wire-client.ts:5 «56875c725232c3c2»",
+          "reconstruction/test/display-wire/wire-client.ts:5 «f2890ffcabf1b7ae»",
           "reconstruction/test/display-wire/display-wire-root.test.ts:161 «f1f1eacc7dc696f0»",
           "reconstruction/contracts/p4-display-wire-tables.md:206 «d43239ea9990a271»",
           "reconstruction/src/runtime/composition-root.ts:2497 «8ef6fffccb3e27cc»",
