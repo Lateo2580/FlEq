@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835",
-    "sha256": "e37a7ae3fff4105a5399fe767dc5587b6939742517a247895ddfc69a421121d4",
+    "sha256": "b8662bbe1deb9c666a5f5af3554c762f97e194b4af11ab7fee7c6109a5193c86",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -153,7 +153,7 @@
     "contractId": "P4-DISPLAY-CAPACITY-001",
     "mode": "implementation",
     "objective": "新しい経路の snapshot の容量の規則を仕上げる（計画 §2.1 の B1、§4.3）。全体が 1 MiB を超えたとき 9 分野を作者裁定 B の順で 1 つずつ要約にし、通常の更新の公開を最大 1 秒まとめ、緊急の更新は待たずに公開し、慢性的に遅い SSE の客を切り、671,142 の近道の定数を script の上界に結び、通常合法最大の manifest（E13a）と意図した超過の期待を固定する。保護 3 分野は要約にしない（H37）。設計の表は reconstruction/contracts/p4-display-capacity-tables.md",
-    "baseOid": "unassigned",
+    "baseOid": "09f25b3e77702e97b633728c964cf717f7c1fbe8",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
