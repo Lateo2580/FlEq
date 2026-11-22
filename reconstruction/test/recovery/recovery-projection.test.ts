@@ -10,7 +10,7 @@ import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpo
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { walkStart } from "../../src/recovery/recovery";
 import { linkedUnitCodecs, linkedUnitTable, snapshotInput } from "../../src/runtime/composition-root";
-import { initialUnits, noteRemovals } from "../../src/runtime/owner-runtime";
+import { initialUnits, noteRemovals } from "../../src/runtime/owner-runtime"; import type { CandidateRemoval } from "../../src/runtime/owner-runtime";
 import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
 import { observation, vtse41 } from "../tsunami-unit/tsunami-fixture";
@@ -432,11 +432,11 @@ describe("P3-REC-T21 acceptance: the adopt step's net displayChanges (AC07, Q-RE
   it("P4-RL-T03 acceptance / P4-RL-AC03 (1): a key born and gone inside the candidate leaves no entry; a base key returning drops its removal and causes", () => {
     const row = (subject: string, current: boolean) => ({ unit: "U-R" as const, operation: "normal" as const, subject, office: null, current: null, subjects: [],
       ...current ? {} : {} });
-    const removals = new Map<string, DisplayRemoval | null>(), causes = new Map<string, DisplayRemoval[]>();
+    const removals = new Map<string, CandidateRemoval | null>(), causes = new Map<string, DisplayRemoval[]>();
     const change = (subject: string, before: boolean, after: boolean, removal: DisplayRemoval = "expired"): RuntimeDisplayChange =>
       ({ unit: "U-R", operation: "normal", subject, before: before ? row(subject, true) : null, ...after ? { after: row(subject, true) } : { after: null, removal } });
     noteRemovals(removals, [change("born", false, true), change("born", true, false), change("base", true, false, "cancelled")], causes);
-    expect([...removals]).toEqual([[JSON.stringify(["U-R", "normal", "base"]), "cancelled"]]);
+    expect([...removals]).toEqual([[JSON.stringify(["U-R", "normal", "base"]), ["cancelled", undefined]]]);
     causes.set(JSON.stringify(["U-R", "normal", "base"]), ["replaced"]);
     noteRemovals(removals, [change("base", false, true)], causes);
     expect([removals.size, causes.size]).toEqual([0, 0]);
@@ -508,7 +508,8 @@ describe("P4-RL-T02 (a)・T09 contractBoundary: the U-W prefecture row through t
   }
 
   it("P4-RL-T02 (a) contractBoundary / P4-RL-AC02 (2),AC03 (5): X's cancel (departed) and Y's replacement in one adopt make the row mixed; X's cancel alone keeps the row", async () => {
-    expect([(await run(shownX, true)).row, (await run(shownX, true)).listed]).toEqual(["mixed", ["mixed"]]);
+    const both = await run(shownX, true); // 同じ実行の採用の返信と、その後の公開の一覧を照らす
+    expect([both.row, both.listed]).toEqual(["mixed", ["mixed"]]);
     const alone = await run(shownX, false);
     expect([alone.row, alone.listed]).toEqual(["kept", []]);
   });

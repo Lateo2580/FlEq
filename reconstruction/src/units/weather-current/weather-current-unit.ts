@@ -764,11 +764,11 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
       const before = find(state), reason = step.state.unavailable.find((item) => item.operation === decision.operation && item.subject === decision.subject)?.reason;
       currents.set(key, { before, after: currentChanged ? find(step.state) : before, cause: reason === "historyUnavailable" ? "cancelled" : reason === "capacityExceeded" ? "evicted" : undefined }); // 戻す版の無い取消は cancelled、容量の unavailable は evicted（P4-RL-AC02 (2)）
     }
-    const targets = new Set(currents.keys()), departed = new Map<string, DisplayRemoval[]>(); // departed: 府県の行の鍵 → その step で府県から外れた報の原因（P4-RL-AC02 (2)・AC03 (5)）
+    const targets = new Set(currents.keys()), departed = new Map<string, DisplayRemoval[]>(), covered = new Set<string>(); // departed: 府県の行の鍵 → その step で府県から外れた報の原因（P4-RL-AC02 (2)・AC03 (5)）、covered: 採用した全国報が載せる府県の行
     // P3-UWC-AC09 (1)(2): 作り直す府県は、current が変わった報の before と after が載せる府県の和集合だけ（退去された報の府県も入る）。
     const areas = new Set<string>();
     for (const { before, after, cause } of currents.values()) for (const item of [before, after]) if (item != null)
-      for (const { key, operation: value, prefecture } of areaKeys(item)) { const row = JSON.stringify([value, areaSubject(value, prefecture)]); areas.add(key); targets.add(row); if (item === before && areaRows(item, prefecture) !== 0 && (after == null || areaRows(after, prefecture) === 0) && !departed.get(row)?.includes(cause ?? "unknown")) departed.set(row, [...departed.get(row) ?? [], cause ?? "unknown"]); }
+      for (const { key, operation: value, prefecture } of areaKeys(item)) { const row = JSON.stringify([value, areaSubject(value, prefecture)]); areas.add(key); targets.add(row); if (item === after && item.scope === "national") covered.add(row); if (item === before && areaRows(item, prefecture) !== 0 && (after == null || areaRows(after, prefecture) === 0) && !departed.get(row)?.includes(cause ?? "unknown")) departed.set(row, [...departed.get(row) ?? [], cause ?? "unknown"]); }
     const before = input.kind === "restore" ? new Map<string, DisplayRow>()
       : displaySubjects(state, targets, [...currents.values()].flatMap((item) => item.before == null ? [] : [item.before]));
     // 新しい公開形と unavailable の記録の版は、この step の内容版（Q-UFP-REVISION と同じ持ち方）。
@@ -777,7 +777,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     rebuilt = areas; if (monitorChanged) { const old = new Set(state.unavailable); for (const record of step.state.unavailable) if (!old.has(record)) markUnavailable(record, revision); }
     const after = input.kind === "restore" ? displaySubjects(step.state)
       : displaySubjects(step.state, targets, [...currents.values()].flatMap((item) => item.after == null ? [] : [item.after]));
-    displayChanges.push(...rowChanges(before, after, departed, (key) => currents.get(key)?.cause ?? (input.kind === "coverageConfirmed" ? "markCleared" : undefined)));
+    displayChanges.push(...rowChanges(before, after, departed, covered, (key) => currents.get(key)?.cause ?? (input.kind === "coverageConfirmed" ? "markCleared" : undefined)));
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-W content revision exhausted");
@@ -795,7 +795,7 @@ function reduceWeatherCurrentUnit(state: WeatherCurrentUnitState, input: Weather
     displayChanges, confirmationEvidence };
 }
 
-function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<string, DisplayRow>, departed?: ReadonlyMap<string, readonly DisplayRemoval[]>, monitor?: (key: string) => DisplayRemoval | undefined): WeatherCurrentUnitStep["displayChanges"][number][] {
+function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<string, DisplayRow>, departed?: ReadonlyMap<string, readonly DisplayRemoval[]>, covered?: ReadonlySet<string>, monitor?: (key: string) => DisplayRemoval | undefined): WeatherCurrentUnitStep["displayChanges"][number][] {
   // A1 DISPLAY-CHANGES.revision: only freshnessSuspect records are shown (A8 SUMMARY); a non-suspect
   // monitor record is internal and must not advance the content revision on its own.
   // A missing side compares as an empty row, so a monitor-only subject with no shown record is no change either.
@@ -815,7 +815,7 @@ function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<
       && oldShown.length === currentShown.length
       && oldShown.every((item, index) => item === currentShown[index]);
     if (!same && (old != null || current != null)) changes.push({ unit: "U-W",
-      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, ...(current == null ? { after: null, removal: old?.current == null ? monitor?.(key) ?? "unknown" : departed?.get(key)?.length === 1 ? departed.get(key)![0] : "unknown" } : { after: current, ...current.current != null && departed?.has(key) ? { departed: departed.get(key)! } : {} }) }); // P4-RL-AC02 (2): 府県の行は外れた報の原因 1 つ、監視の行は報の原因か印が解けた。取り直しの recoveryChanges は引数なしで unknown
+      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, ...(current == null ? { after: null, removal: old?.current == null ? monitor?.(key) ?? "unknown" : departed?.get(key)?.length === 1 ? departed.get(key)![0] : departed?.has(key) !== true && covered?.has(key) === true ? "replaced" : "unknown" } : { after: current, ...current.current != null && departed?.has(key) ? { departed: departed.get(key)! } : {} }) }); // P4-RL-AC02 (2): 府県の行は外れた報の原因 1 つ（外れた報が無く採用した全国報が覆ったなら replaced）、監視の行は報の原因か印が解けた。取り直しの recoveryChanges は引数なしで unknown
   }
   return changes;
 }

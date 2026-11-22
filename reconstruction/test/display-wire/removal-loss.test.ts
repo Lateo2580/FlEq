@@ -12,7 +12,7 @@ import { InputBoundaries, LOSS_TALLY_MAX_BYTES } from "../../src/checkpoint/chec
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
 import { startDisplayServer } from "../../src/http-sse/http-sse";
 import { ingestXmlData } from "../../src/ingress/ingress";
-import { RECOVERABLE_UNITS } from "../../src/recovery/recovery";
+import { RECOVERABLE_UNITS, walkStart } from "../../src/recovery/recovery";
 import { linkedUnitCodecs } from "../../src/runtime/composition-root";
 import { currentSubject } from "../../src/units/eew/eew-unit";
 import { projectDisplayWire } from "../../src/view-projector/display-wire";
@@ -384,6 +384,49 @@ describe("P4-RL-T08 acceptance: a run restored while the clock is awaiting keeps
     expect(after.unit("U-R").currents.map((item) => [item.eventId, item.effective])).toEqual([["100000000002", "expired"]]);
     expect(lastWire(wires).removals["U-R"]?.items.map((item) => [item.ref.id, item.reason]).sort())
       .toEqual([[id("100000000002"), "expired"], [id("100000000003"), "expired"]].sort());
+    await after.root.diagnostics.flush();
+  });
+});
+
+// 受入条件 P4-RL-AC04 (4)（品質レビューの P2 の 1、統合担当の決め 2026-11-22）: awaiting で起動して回収を見送った洪水の記録（表示の期限＝報時刻＋36 時間、＋40 時間に起動）が、
+// 本文 0 件の取り直しの open を待つ間に時計が verified になり、採用の期限の step で回収されても、正味の差分は期限（dueWallMs）を保ち、owner が expiredWhileStopped に置き換えて一覧に載せない。
+describe("P4-RL-AC04 (4) acceptance: an adopt step's deadline keeps the record expired while stopped off the removal list", () => {
+  it("adopts an empty candidate after the clock turns verified and lists nothing", async () => {
+    const R0 = Date.parse("2026-01-10T00:00:00Z"), HOUR = 3_600_000;
+    const at = (offset: number, monotonic = offset): ClockReading => ({ wallTimeMs: R0 + offset, monotonicMs: monotonic });
+    const jst = (ms: number) => new Date(ms + 9 * HOUR).toISOString().replace(".000Z", "+09:00");
+    const flood = Buffer.from(readFileSync("test/fixtures/16_02_01_220728_VXKO50.xml", "utf8").replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(R0).toISOString()}`)
+      .replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${jst(R0)}`).replace(/<TargetDateTime>[^<]*/, `<TargetDateTime>${jst(R0)}`));
+    const files = new MemoryFiles(), basis: { value: "verified" | "awaiting" } = { value: "verified" }, now = { value: at(1_000) }, wires: DisplayWireSnapshot[] = [];
+    const root = () => harnessedRoot({ appName: "fleq-p4", legacyAppName: "fleq", stateDirectory: "rl-ac04", legacyStateDirectory: "rl-ac04-old", diagnosticDirectory: "rl-ac04-d" },
+      linkedUnitCodecs, { clock: () => now.value, checkpointFileSystem: files, diagnosticFileSystem: new MemoryDiagnostics(), wallBasis: () => basis.value, contentBasis: () => basis.value,
+        display: { publish: () => {}, publishWire: (snapshot) => { wires.push(snapshot); } } });
+    const before = root();
+    await startHarness(before, "rl-ac04-a", now.value);
+    await submit(before, envelope("rl-ac04-a", "VXKO50", "f1", flood, now.value, 1));
+    await before.root.driveCheckpoint();
+    await before.settle();
+    await before.root.diagnostics.flush();
+    basis.value = "awaiting";
+    now.value = at(40 * HOUR, 0);
+    const after = root();
+    await startHarness(after, "rl-ac04-b", now.value);
+    let sequence = 1;
+    after.root.attachSequence(() => ++sequence, () => sequence);
+    const heldOpen = after.holdRequests((_, request) => request.kind === "recovery" && request.phase === "open");
+    after.root.attachRecovery({ classifications: ["telegram.earthquake"] as const, walk: async (plan) => plan.map(({ unit }) => ({ unit, kind: "listed" as const, heads: [] })),
+      fetchBody: async () => ({ kind: "failed" as const }), notBefore: () => -Infinity }, { "U-R": walkStart(null, "empty", now.value.wallTimeMs) },
+      Promise.resolve([{ unit: "U-R", kind: "listed", heads: [] }]));
+    for (let turn = 0; turn < 10; turn += 1) { await after.settle(); await new Promise((done) => setTimeout(done, 0)); }
+    basis.value = "verified";
+    now.value = at(41 * HOUR, HOUR);
+    heldOpen();
+    after.releaseRequests();
+    for (let turn = 0; turn < 30; turn += 1) { await after.settle(); await new Promise((done) => setTimeout(done, 0)); }
+    const adopted = after.delivered.flatMap(({ reply }) => reply.kind === "recoveryDone" && reply.result.kind === "adopted" ? [reply] : []);
+    expect(adopted.map((reply) => reply.output.displayChanges.map((change) => [change.subject, change.after == null ? change.removal : "shown"])))
+      .toEqual([[["normal/VXKO50/123456789012", "expiredWhileStopped"]]]);
+    expect(lastWire(wires).removals["U-R"]).toBeUndefined();
     await after.root.diagnostics.flush();
   });
 });

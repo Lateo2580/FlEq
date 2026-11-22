@@ -682,7 +682,7 @@ function recoveryResult(completion: ParserCompletion, step: OwnerStep, held: boo
  * 検査に外れたら null（候補を捨てる）。inputIds は候補に入れた入力（世代の帰属、P2-A3-AC10）。
  */
 function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeUnitId, recoveryId: string, open: OwnerState, inputIds: readonly string[],
-  clock: ClockReading, units: UnitTable, basis: WallBasis, removals: Map<string, DisplayRemoval | null>, causes: Map<string, DisplayRemoval[]>): OwnerStep | null { // removals・causes: 候補の Map（P4-RL-AC03。causes は府県の行の外れた報の原因、(5)）
+  clock: ClockReading, units: UnitTable, basis: WallBasis, removals: Map<string, CandidateRemoval | null>, causes: Map<string, DisplayRemoval[]>): OwnerStep | null { // removals・causes: 候補の Map（P4-RL-AC03。causes は府県の行の外れた報の原因、(5)）
   checkClock(clock);
   const before = new Set(ownUnit(live, unit).intents.map((intent) => intent.id));
   if (ownUnit(shadow, unit).intents.some((intent) => !before.has(intent.id))) return null;
@@ -706,7 +706,7 @@ function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeU
   work.applyDeadlines([unit], false, live); noteRemovals(removals, work.displayChanges, causes); // P4-RL-AC03 (3): 空にする前に期限の step の removal を Map に足し、正味の消失に Map の値を付ける（無ければ unknown）
   // P3-REC-AC07（投影の直し）: 期限の step が積んだ差分を、採用の直前の live から最終の state への正味の差分に置き換える（追記すると期限を二重に数える）。
   work.displayChanges.length = 0;
-  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change.after == null ? { ...change, removal: netRemoval(removals, causes, removalKey(change)) } : change);
+  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change.after == null ? { ...change, ...netRemoval(removals, causes, removalKey(change)) } : change);
   return work.finish();
 }
 
@@ -773,7 +773,7 @@ export {
   adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, noteRemovals, ownerViews, recoveryResult, removalKey, sameBase,
   placeUnits, receiveOwner, refreshedViews, reportDateTime, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
 };
-export type { OwnerState, OwnerStep, ParserCompletion };
+export type { CandidateRemoval, OwnerState, OwnerStep, ParserCompletion };
 
 // ---- P4-DISPLAY-WIRE-001（B0）: 新しい part の詳細（P4-DW-AC08、表 §2）。import は行を足さない書き方のため file の最後に置く（宣言は巻き上がる） ----
 import { createHash } from "node:crypto";
@@ -1101,10 +1101,12 @@ function omitField(event: WireEventHeader | WireLongPeriodHeader, field: WireOmi
 // （正味の消失にならない）。基点のキーは消えた時に持ち、戻ったら外す。大きさは基点の記録の数と今ある候補のキーの数で抑えられ、入力の数では伸びない。
 const removalKey = (change: RuntimeDisplayChange): string => JSON.stringify([change.unit, change.operation, change.subject]); // unit も入れる（owner-host の復元版は同じ place の別の unit と取り違えない）
 // causes（AC03 (5)）: 基点にあったキーの差分の departed を語を重ねず集め（最大 4 語）、消えた行が戻ったときと当て直し（呼ぶ側が空にする）だけで外す。
-function noteRemovals(removals: Map<string, DisplayRemoval | null>, changes: readonly RuntimeDisplayChange[], causes: Map<string, DisplayRemoval[]>): void {
+// 値は理由と期限の回収の表示の期限（dueWallMs、AC04 (4)）の対。無いと、採用の期限の step で消えた停止中の期限切れが正味の差分で期限を失い、owner の置き換えを通らない。
+type CandidateRemoval = readonly [removal: DisplayRemoval, dueWallMs?: number];
+function noteRemovals(removals: Map<string, CandidateRemoval | null>, changes: readonly RuntimeDisplayChange[], causes: Map<string, DisplayRemoval[]>): void {
   for (const change of changes) {
     const key = removalKey(change);
-    if (change.after == null) { if (removals.get(key) === null) removals.delete(key); else removals.set(key, change.removal); }
+    if (change.after == null) { if (removals.get(key) === null) removals.delete(key); else removals.set(key, [change.removal, change.dueWallMs]); }
     else if (change.before == null) { if (removals.has(key)) { removals.delete(key); causes.delete(key); } else removals.set(key, null); }
     else if (change.departed != null && removals.get(key) !== null) for (const word of change.departed) {
       const words = causes.get(key) ?? [];
@@ -1113,10 +1115,12 @@ function noteRemovals(removals: Map<string, DisplayRemoval | null>, changes: rea
   }
 }
 // 正味の消失の理由: 集めた原因（departed と行を消した step の removal）が 2 種以上なら mixed（P4-RL-D-MIXED=B）、1 種ならその語、無ければ unknown。
-function netRemoval(removals: ReadonlyMap<string, DisplayRemoval | null>, causes: ReadonlyMap<string, readonly DisplayRemoval[]>, key: string): DisplayRemoval {
-  const words = new Set(causes.get(key)), removal = removals.get(key);
+// 期限は行を消した step の語が残るときだけ付ける（mixed には付けない）。
+function netRemoval(removals: ReadonlyMap<string, CandidateRemoval | null>, causes: ReadonlyMap<string, readonly DisplayRemoval[]>, key: string): Readonly<{ removal: DisplayRemoval; dueWallMs?: number }> {
+  const words = new Set(causes.get(key)), [removal, dueWallMs] = removals.get(key) ?? [];
   if (removal != null) words.add(removal);
-  return words.size >= 2 ? "mixed" : [...words][0] ?? "unknown";
+  const word = words.size >= 2 ? "mixed" : [...words][0] ?? "unknown";
+  return word === removal && dueWallMs != null ? { removal: word, dueWallMs } : { removal: word };
 }
 // P4-RL-AC08 (7): H39 の理由の行（unit ごとに最大 9 行）。読むだけで state も期限も動かさない。rev は publisher の H39 の欄と同じく行の JSON の sha256（行が無ければ []）。
 function lossDetail(state: OwnerState, request: Extract<WireDetailRequest, { part: "losses" }>): WireDetailResponse {

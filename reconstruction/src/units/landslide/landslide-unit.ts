@@ -363,7 +363,7 @@ function receiveCandidate(state: LandslideUnitState, candidate: LandslideCandida
   const dropped = droppedIn(fit, result.currents);
   if (dropped !== 0) diagnostics.push({ level: "INFO", component: "landslide", reason: "unreadableDropped", unit: "U-L", count: dropped });
   return {
-    changes: [...evicted == null ? [] : [[evicted, null, "evicted"] as const], ...stripped, [existing, next, due ? "expired" : candidate.cancelled ? "cancelled" : "ended"], ...collected?.changes ?? []], // due: 同じ reduce の回収が消すので expired（P4-RL-D-LATE=B）
+    changes: [...evicted == null ? [] : [[evicted, null, "evicted"] as const], ...stripped, [existing, next, candidate.cancelled ? "cancelled" : "ended"], ...collected?.changes ?? []], // 同じ reduce の回収が実際に記録を消したときだけ、合流が expired で上書きする（P4-RL-D-LATE=B、AC02 (3)）
     step: { state: result, nextDeadline: nextDeadline(result), decisions: [decided(change, !due)], intents: notices.admitted,
       outcomes: [accepted(change, !due)], diagnostics },
   };

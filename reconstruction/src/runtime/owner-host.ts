@@ -20,7 +20,7 @@ import {
   adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, noteRemovals, ownerViews, placeUnits, removalKey,
   receiveOwner, recoveryResult, refreshedViews, restoreOwner, sameBase, shutdownInputOwner,
 } from "./owner-runtime";
-import type { OwnerState, OwnerStep } from "./owner-runtime";
+import type { CandidateRemoval, OwnerState, OwnerStep } from "./owner-runtime";
 import { completeDiagnostic } from "./runtime-diagnostic";
 import { classifyHeadType } from "./unit-coverage";
 
@@ -56,7 +56,7 @@ const CANDIDATE_BYTES = 16 * 1024 * 1024, URGENT_REAPPLY_ITEMS = 28;
 type Candidate = {
   readonly recoveryId: string; readonly unit: RuntimeUnitId; readonly base: OwnerState; readonly open: OwnerState;
   shadow: OwnerState; readonly items: ParserMailboxItem[]; bytes: number; overflow: boolean;
-  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[]; readonly removals: Map<string, DisplayRemoval | null>; readonly causes: Map<string, DisplayRemoval[]>; // removals・causes: P4-RL-AC03 の Map（causes は (5)）
+  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[]; readonly removals: Map<string, CandidateRemoval | null>; readonly causes: Map<string, DisplayRemoval[]>; // removals・causes: P4-RL-AC03 の Map（causes は (5)）
   readonly inputIds: string[]; readonly cancelled: Set<string>; // P3-RRC-AC03 (1): 候補の中で取消に進んだ subject（採用の返信で端末の待ちから外す）
 };
 

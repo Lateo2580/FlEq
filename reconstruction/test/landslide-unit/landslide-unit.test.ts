@@ -750,3 +750,12 @@ it("P4-RL-T02 (c) contractBoundary / P4-RL-AC02 (3): a cancel after the display 
   expect(late.displayChanges.filter((change) => change.subject === SUBJECT).map((change) => [change.before != null, change.after == null ? change.removal : "shown"]))
     .toEqual([[true, "expired"]]);
 });
+
+// 契約境界 P4-RL-AC02 (3)（品質レビューの P2 の 2、統合担当の決め 2026-11-22）: 期限を過ぎて届いた取消でも、時計が unverified で同じ reduce の回収が記録を消さないなら、
+// 記録は cancelled のまま残り、removal は取消の cancelled（expired で上書きするのは実際に記録を消した回収だけ）。
+it("P4-RL-AC02 (3) contractBoundary: a late same-time cancel under an unverified clock is cancelled while the record stays", () => {
+  const first = send(emptyState(), F.soya).state;
+  const late = reduceLandslideUnit(first, { kind: "receive", material: decodeFixture(F.cancel, retime("2020-06-22T23:00:00+09:00")), clock: clock(T0 + 7 * HOUR), basis: "unverified" });
+  expect([recordOf(late.state)?.effective, late.displayChanges.map((change) => [change.subject, change.after == null ? change.removal : "shown"])])
+    .toEqual(["cancelled", [[SUBJECT, "cancelled"]]]);
+});

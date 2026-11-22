@@ -1365,4 +1365,16 @@ describe("P4-RL-T01 acceptance / P4-RL-AC02 (2): U-W rows", () => {
       [["normal/VPWW55/福井地方気象台", "markCleared", "monitor"]],
     ]);
   });
+
+  // 契約境界 P4-RL-AC02 (2)（品質レビューの P2 の 3、統合担当の決め 2026-11-22）: 府県報の 03 が 1 行の府県に、後着の VPNO50（終了）の後、府県報より新しく VPNO50 より古い全国報が
+  // 初めて入ると、府県報の行は全国報の区域に負けて府県の行が消える。外れた報は無いが、全国報の採用で覆ったので replaced。
+  it("a first national report that covers the prefecture's last row removes the row as replaced", () => {
+    const level3 = (xml: string) => { const from = xml.indexOf("<Body"); return xml.slice(0, from) + xml.slice(from).replace(/<Kind>[\s\S]*?<\/Kind>/, "<Kind><Name>レベル３大雨警報</Name><Code>03</Code><Status>発表</Status></Kind>"); };
+    const ended = receive(receive(emptyState(), fukui(level3)).state, decodeFixture("18_00_01_260830_VPNO50_switch", "VPNO50", (xml) => xml, `rl-uw-${++serial}`)).state;
+    const late = decodeFixture("weather-alert-kind-area/synthetic-vpws50-change-density-before", "VPWS50", (xml) => atTime(bodyWarning(xml), "2026-08-30T10:00:00+09:00")
+      .replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, "$12026-08-30T01:00:00Z").replace(/<Code>18(\d{5})<\/Code>/g, "<Code>19$1</Code>")
+      .replace("</Warning></Body>", "</Warning><Warning type=\"気象警報・注意報（府県予報区等）\"><Item><Kind><Name>レベル５大雨特別警報</Name><Code>33</Code><Status>発表</Status></Kind>"
+        + "<Area><Name>福井県</Name><Code>180000</Code></Area></Item></Warning></Body>"), `rl-uw-${++serial}`);
+    expect(removals(receive(ended, late))).toEqual([["normal/area/18", "replaced", "area"]]);
+  });
 });
