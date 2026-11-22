@@ -133,7 +133,7 @@ function publicArea(operation: Operation, prefecture: string, cells: readonly Ce
     codes: Object.fromEntries([...regions].sort(([left], [right]) => compareText(left, right)).map(([code, seen]) => [code, seen.size])), names: Object.fromEntries(names),
     cellCount: cells.length, restoredCellCount };
   if (previous != null && previous.cells.length === cells.length && isDeepStrictEqual({ ...previous.area, revision: "" }, { ...fields, revision: "" })
-    && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return previous;
+    && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return { area: previous.area, cells }; // cells は今の報の出どころにする（P4-RL-AC02 (2) の負かした報の判定が source を参照で比べる）
   return { area: { ...fields, revision }, cells };
 }
 
@@ -312,7 +312,7 @@ function weatherCurrentDetail(state: State, request: WeatherCurrentDetailRequest
 // changes はこの step で変わった報のうち、その府県に区域を持つもの（unit が areaKeys の走査で府県ごとに集める。全件は走査しない）。
 // 行の語は (a) 行の報が変わったならその原因 (b) 変わっていないなら、変わった報のうちその行を負かした報の原因 (c) どちらも無ければ語なし。
 // removal は語が 1 つに揃えばその語、2 語以上なら mixed（受信の step でも付ける。作者裁定 2026-11-22 A、P4-RL-D-MIXED=B を当てる。訓練・試験の件数の退去と
-// 新しい報の受理が重なる並びがこれ）、語の付かない行が 1 つでもあれば unknown（原因の全部を知らないので 1 語にも mixed にもしない）。
+// 新しい報の受理が重なる並びがこれ。語の付かない行が混ざっても、既知の違う 2 語が揃えば mixed）、既知の 1 語に語の付かない行が混ざれば unknown。
 // departed は府県から外れた報（before にその府県の行があり、after が null か行が 0）の原因に、(b) の原因を足す。行を残したままの報の変化は数えない。
 type AreaChange = Readonly<{ before: WeatherCurrentSnapshot | null; after: WeatherCurrentSnapshot | null; cause?: DisplayRemoval }>;
 function areaCauses(before: State, after: State, operation: Operation, prefecture: string, changes: readonly AreaChange[]): Readonly<{ removal: DisplayRemoval; departed: readonly DisplayRemoval[] }> {
@@ -347,8 +347,8 @@ function areaCauses(before: State, after: State, operation: Operation, prefectur
     if (causes.length === 0) words.add(null);
     for (const cause of causes) { words.add(cause); departed.add(cause ?? "unknown"); }
   }
-  const [word] = words;
-  return { removal: words.has(null) || word == null ? "unknown" : words.size === 1 ? word : "mixed", departed: [...departed] };
+  const known = [...words].filter((word) => word != null);
+  return { removal: known.length >= 2 ? "mixed" : known.length === 1 && !words.has(null) ? known[0] : "unknown", departed: [...departed] };
 }
 
 export {

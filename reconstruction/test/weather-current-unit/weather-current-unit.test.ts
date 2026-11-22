@@ -19,7 +19,7 @@ import { ingestXmlData } from "../../src/ingress/ingress";
 import { deliveryGrowth } from "../../src/notification-delivery/delivery-growth";
 import { linkedUnitCodecs, linkedUnitTable } from "../../src/runtime/composition-root";
 import { intentUpdateOwner, restoreOwner } from "../../src/runtime/owner-runtime";
-import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit"; import { noticeReserve } from "../../src/units/weather-current/weather-current-notice";
+import { reduceWeatherCurrentUnit, toWeatherCurrentView, weatherCurrentUnitCodec } from "../../src/units/weather-current/weather-current-unit"; import { noticeReserve } from "../../src/units/weather-current/weather-current-notice"; import { areaCauses } from "../../src/units/weather-current/weather-current-public";
 import { fixtureDriver, fixtureState, stringCodec , testNotificationChannels, recordingNotificationAdapter} from "../checkpoint-shutdown/runtime-fixture";
 import { callsWith } from "../unit-table/linked-calls";
 import { envelope, harnessedRoot, startHarness, submit } from "../execution-split/owner-harness";
@@ -1387,16 +1387,16 @@ describe("P4-RL-AC02 (2) contractBoundary: a U-W prefecture row is named from th
   let serial = 0;
   const T = (hhmm: string) => `2026-08-30T${hhmm}:00+09:00`;
   // 福井の fixture の Head を借りて、報時刻・官署・Body の区域と Code を書き換える（Code が null の行は「発表警報・注意報はなし」）。
-  const report = (headType: string, office: string, at: string, items: readonly Item[], operation: Operation = "normal") => decodeFixture(FUKUI, headType, (xml) => {
+  const report = (headType: string, office: string, at: string, items: readonly Item[], operation: Operation = "normal", control = at) => decodeFixture(FUKUI, headType, (xml) => {
     const groups = new Map<string, string[]>();
     for (const [type, code, area] of items) groups.set(type, [...groups.get(type) ?? [], `<Item><Kind>${code == null ? "" : `<Name>警報${code}</Name><Code>${code}</Code>`}`
       + `<Status>${code == null ? "発表警報・注意報はなし" : "発表"}</Status></Kind><Area><Name>区域${area}</Name><Code>${area}</Code></Area></Item>`]);
     const body = [...groups].map(([type, list]) => `<Warning type="${type}">${list.join("")}</Warning>`).join("");
-    const timed = xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(Date.parse(at)).toISOString()}`).replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${at}`)
+    const timed = xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(Date.parse(control)).toISOString()}`).replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${at}`)
       .replace(/<EditorialOffice>[^<]*/, `<EditorialOffice>${office}`).replace(/<Body([^>]*)>[\s\S]*<\/Body>/, items.length === 0 ? "<Body/>" : `<Body$1>${body}</Body>`);
     return withOperation(items.length === 0 ? timed.replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>") : timed, operation);
   }, `rl-uw3-${++serial}`);
-  const national = (at: string, items: readonly Item[], office = "気象庁本庁", operation: Operation = "normal") => report("VPWS50", office, at, items, operation);
+  const national = (at: string, items: readonly Item[], office = "気象庁本庁", operation: Operation = "normal", control = at) => report("VPWS50", office, at, items, operation, control);
   const fukui = (at: string, items: readonly Item[], office = "福井地方気象台", operation: Operation = "normal") => report("VPWW55", office, at, items, operation);
   const run = (...materials: DecodedMaterial[]) => materials.reduce<ReturnType<typeof receive> | null>((step, material) => receive(step?.state ?? emptyState(), material), null)!;
   const row = (step: ReturnType<typeof receive>, subject = "normal/area/18") => {
@@ -1452,6 +1452,24 @@ describe("P4-RL-AC02 (2) contractBoundary: a U-W prefecture row is named from th
   // 見分ける試し: 府県に区域を持つ E が同じ step で退去されても、E の行は N に負けて出ていなかったので、行は C の変化だけで消える（evicted を混ぜない）。
   it("a report evicted in the same step whose rows were not shown does not mix in: the row is replaced", () => {
     expect(row(run(...drills([[PREF, "03", "180000"]])), "training/area/18")).toBe("replaced");
+  });
+
+  // ヘルツの再レビューの P2（作者裁定 2026-11-22 16:17 A）: 全国報 N が Control の時刻だけ進んだ更新で公開の area を使い回しても、行は今の N の出どころを持つ。
+  // 無いと、後で X の「なし」が N の行を外したとき、負かした報の判定が旧 N の source で全国報の分岐を通らず unknown になる。
+  it("a national update that only moves Control keeps the row's rows on the current national, so a later 'none' is replaced", () => {
+    expect(row(run(national(T("10:00"), [[PREF, "03", "180000"]]), fukui(T("11:00"), [[PRIMARY, "03", "180010"]]),
+      national(T("10:00"), [[PREF, "03", "180000"]], "気象庁本庁", "normal", T("10:01")), fukui(T("12:00"), [[PREF, null, "180000"]])))).toBe("replaced");
+  });
+
+  // 規則 2（作者裁定 2026-11-22 16:17 A）: 既知の違う 2 語が揃えば語の付かない行が混ざっても mixed、既知 1 語と語なしは unknown。
+  it("known two words with a row without a word are mixed; one known word with it stays unknown", () => {
+    const office = (name: string, area: string) => ({ ...snapshot("normal", "VPWW55", name, "2026-08-30T10:00:00+09:00", name),
+      phenomena: { [JSON.stringify(["VPWW55", "partial", name, PREF, area])]: [{ status: "発表", code: "03", name: "警報03" }] } });
+    const shown = [office("官署A", "180000"), office("官署B", "180010"), office("官署C", "180020")];
+    const before: WeatherCurrentUnitState = { ...emptyState(), partials: shown }, after = emptyState();
+    const gone = (...causes: ("evicted" | "replaced" | undefined)[]) => areaCauses(before, after, "normal", "18",
+      causes.map((cause, index) => ({ before: shown[index], after: null, cause }))).removal;
+    expect([gone("evicted", "replaced", undefined), gone("evicted", undefined)]).toEqual(["mixed", "unknown"]);
   });
 
   it("byte eviction and capacity unavailable remove the prefecture row as evicted", () => {
