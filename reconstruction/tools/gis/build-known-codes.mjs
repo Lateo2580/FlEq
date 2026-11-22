@@ -43,7 +43,7 @@ const decode = (s) =>
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 
 // ふりがな（rPh）を落としてから <t> を連結する。落とさないと「一覧イチラン」のように読みが付く
-export const siText = (si) =>
+const siText = (si) =>
   decode([...si.replace(/<rPh\b.*?<\/rPh>/gs, "").matchAll(/<t\b[^>]*?(?:\/>|>(.*?)<\/t>)/gs)].map((m) => m[1] ?? "").join(""));
 
 // sheet の XML → 値のある cell だけの行（{列: 字}）の並び。値のある cell が無い行は飛ばす
@@ -91,7 +91,7 @@ export function sheetData(files, shared, sheetName, headers, headerA = "Code") {
 }
 
 // コードをキーに集める。同じコードが違う値を持てば止める（黙って後勝ちにしない）
-function collect(label, entries) {
+export function collect(label, entries) {
   const m = new Map();
   for (const [code, value] of entries) {
     const prev = m.get(code);
@@ -103,26 +103,32 @@ function collect(label, entries) {
   return [...m].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-const need = (label, col, row, re) => {
+export const need = (label, col, row, re) => {
   if (!re.test(row[col] ?? "")) throw new Error(`${label} のコード列 ${col} が形に合わない: ${JSON.stringify(row)}`);
   return row[col];
 };
 
 const expectedCounts = () => JSON.parse(readFileSync(join(assetsDir, "manifest.json"), "utf8")).knownCodes.expectedCodeCount;
 
-export function buildKnownCodes(xlsx) {
+// xlsx → sheet を引く関数（sheet 名・見出し・見出しの行の A 列の字を渡す）
+export function workbook(xlsx) {
   const files = unzip(xlsx);
   const ssXml = files.get("xl/sharedStrings.xml")?.toString("utf8");
   if (ssXml == null) throw new Error("sharedStrings.xml が無い");
   const shared = [...ssXml.matchAll(/<si\b[^>]*?(?:\/>|>(.*?)<\/si>)/gs)].map((m) => siText(m[1] ?? ""));
+  return (sheetName, headers, headerA) => sheetData(files, shared, sheetName, headers, headerA);
+}
+
+export function buildKnownCodes(xlsx) {
+  const sheet = workbook(xlsx);
 
   // sheet 24: A〜B が細分区域、D〜E が市区町村等で A がその所属の細分区域
-  const rows24 = sheetData(files, shared, "24", { B: "Name", D: "Code", E: "Name" });
+  const rows24 = sheet("24", { B: "Name", D: "Code", E: "Name" });
   const forecastLocalE = collect("forecastLocalE", rows24.map((r) => [need("sheet 24", "A", r, /^\d{3}$/), r.B ?? ""]));
   const cityRows = collect("city", rows24.map((r) => [need("sheet 24", "D", r, /^\d{7}$/), { name: r.E ?? "", forecastLocalE: r.A }]));
 
   // sheet 31: 備考が「津波予報区」で始まれば予報区、「結合表現」「領域表現」で始まれば結合表現・領域表現
-  const rows31 = sheetData(files, shared, "31", { B: "Name" });
+  const rows31 = sheet("31", { B: "Name" });
   const area = [];
   const group = [];
   for (const r of rows31) {

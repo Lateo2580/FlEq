@@ -5,35 +5,16 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { sheetData, siText, unzip } from "./build-known-codes.mjs";
+import { collect as collectEntries, need, workbook } from "./build-known-codes.mjs";
 
 const assetsDir = join(dirname(fileURLToPath(import.meta.url)), "../../assets/gis");
 
-function workbook(path) {
-  const files = unzip(readFileSync(path));
-  const ssXml = files.get("xl/sharedStrings.xml")?.toString("utf8");
-  if (ssXml == null) throw new Error(`${path} に sharedStrings.xml が無い`);
-  const shared = [...ssXml.matchAll(/<si\b[^>]*?(?:\/>|>(.*?)<\/si>)/gs)].map((m) => siText(m[1] ?? ""));
-  return (sheet, headers, headerA) => sheetData(files, shared, sheet, headers, headerA);
-}
-
-const need = (label, col, row, re) => {
-  if (!re.test(row[col] ?? "")) throw new Error(`${label} の列 ${col} が形に合わない: ${JSON.stringify(row)}`);
-  return row[col];
-};
-
-// コードをキーに集めて昇順に。同じコードが違う値を持つか名前が空なら止める
+// 発注 1 の collect（同じコードの違う値で止め、昇順に並べる）に、名前が空なら止める確かめを足して行の形にする
 function collect(label, entries) {
-  const m = new Map();
-  for (const [code, value] of entries) {
-    if (value.name === "" || value.name == null) throw new Error(`${label} ${code} の名前が空`);
-    const prev = m.get(code);
-    if (prev !== undefined && JSON.stringify(prev) !== JSON.stringify(value)) {
-      throw new Error(`${label} ${code} が違う値を持つ: ${JSON.stringify(prev)} と ${JSON.stringify(value)}`);
-    }
-    m.set(code, value);
-  }
-  return [...m].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([code, v]) => ({ code, ...v }));
+  return collectEntries(label, entries).map(([code, v]) => {
+    if (v.name === "" || v.name == null) throw new Error(`${label} ${code} の名前が空`);
+    return { code, ...v };
+  });
 }
 
 // 旗の列は 0 か 1 だけ（空や別の字を 0 と読まない）
@@ -44,8 +25,8 @@ const flag = (label, col, row) => {
 };
 
 function buildAreaCodes(quakeXlsxPath, weatherXlsxPath) {
-  const quake = workbook(quakeXlsxPath);
-  const weather = workbook(weatherXlsxPath);
+  const quake = workbook(readFileSync(quakeXlsxPath));
+  const weather = workbook(readFileSync(weatherXlsxPath));
 
   const prefecture = collect("prefecture", quake("23", { B: "Name" }).map((r) => [need("sheet 23", "A", r, /^\d{2}$/), { name: r.B ?? "" }]));
 

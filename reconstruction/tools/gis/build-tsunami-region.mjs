@@ -24,7 +24,8 @@ function tsv(path, header) {
 
 function buildTsunamiRegion() {
   const known = JSON.parse(readFileSync(join(assetsDir, "known-codes.v1.json"), "utf8"));
-  const want = JSON.parse(readFileSync(join(assetsDir, "manifest.json"), "utf8")).tsunamiRegion.expectedCodeCount;
+  const manifest = JSON.parse(readFileSync(join(assetsDir, "manifest.json"), "utf8"));
+  const want = manifest.tsunamiRegion.expectedCodeCount;
   const transcription = tsv(join(sourceDir, "transcription.tsv"), ["津波予報区", "都道府県名", "市町村名"]);
   const match = tsv(join(sourceDir, "match.tsv"), ["都道府県名", "市町村名", "コード", "照合"]);
   if (transcription.length !== want.transcriptionItems) {
@@ -37,10 +38,14 @@ function buildTsunamiRegion() {
   if (names.size !== areaByName.size) throw new Error(`転記の津波予報区 ${names.size} が既知の ${areaByName.size} と違う`);
 
   // 照合表: （都道府県名, 市町村名）→ 7 桁の並び、または除外の 1 行
-  const cityCodes = new Set(known.city.map((c) => c.code));
+  const cityName = new Map(known.city.map((c) => [c.code, c.name]));
   const byKey = new Map();
-  for (const [pref, name, code] of match) {
-    if (code !== "除外" && !cityCodes.has(code)) throw new Error(`照合表の ${pref} ${name} の ${code} が city に無い`);
+  const excludedRows = [];
+  for (const [pref, name, code, how] of match) {
+    if (code === "除外") excludedRows.push(`${pref}\t${name}`);
+    else if (!cityName.has(code)) throw new Error(`照合表の ${pref} ${name} の ${code} が city に無い`);
+    // 当てはめではなく、照合表に書いた「完全一致」の確かめ
+    if (how === "完全一致" && cityName.get(code) !== name) throw new Error(`照合表の ${pref} ${name} は完全一致と書くが ${code} の名前は ${cityName.get(code)}`);
     const key = `${pref}\t${name}`;
     const list = byKey.get(key) ?? [];
     list.push(code);
@@ -64,6 +69,10 @@ function buildTsunamiRegion() {
     }
   }
   for (const key of byKey.keys()) if (!used.has(key)) throw new Error(`照合表の行 ${key} が転記に無い`);
+  const listed = manifest.tsunamiRegion.knownGapsAndExclusions.filter((e) => e.kind === "excludedRow").map((e) => `${e.prefecture}\t${e.name}`);
+  if (JSON.stringify([...excludedRows].sort()) !== JSON.stringify([...listed].sort())) {
+    throw new Error(`照合表の除外 ${JSON.stringify(excludedRows)} が manifest の excludedRow ${JSON.stringify(listed)} と違う`);
+  }
 
   const sort = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
   const rows = [...areasByCity].sort(([a], [b]) => sort(a, b)).map(([city, set]) => ({ city, tsunamiAreas: [...set].sort(sort) }));

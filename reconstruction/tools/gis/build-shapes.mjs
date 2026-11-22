@@ -60,7 +60,7 @@ function checkArchive(id, source, archiveDir) {
 // 同じ mapshaper.js を子の node の中で呼び、終わりを exitCode で返して stdout を流し切らせる（作業 file を書かない）
 const RUNNER = `const m = require(${JSON.stringify(join(mapshaperDir, "mapshaper.js"))}); m.enableLogging(); m.runCommands(process.argv.slice(1), (e) => { if (e) process.exitCode = 1; });`;
 function mapshaper(args) {
-  const r = spawnSync(process.execPath, ["-e", RUNNER, ...args], { cwd: repoRoot, encoding: "utf8", maxBuffer: 1 << 30 });
+  const r = spawnSync(process.execPath, ["-e", RUNNER, "--", ...args], { cwd: repoRoot, encoding: "utf8", maxBuffer: 1 << 30 });
   if (r.error != null || r.status !== 0) fail(`mapshaper ${args.join(" ")}\n${r.error ?? ""}\n${r.stderr}`);
   return { geojson: JSON.parse(r.stdout), log: r.stderr.split("\n").map((l) => l.trim()).filter((l) => l !== "") };
 }
@@ -111,8 +111,10 @@ const sameList = (label, got, want) => {
   if (JSON.stringify(a) !== JSON.stringify(b)) fail(`${label}: build ${JSON.stringify(a)} と manifest ${JSON.stringify(b)} が違う`);
 };
 
+// 書くのは全部の確かめが通った後（途中で止まったとき、新しい形と古い形が disk に混ざらないように）
+const pending = [];
 function writeOutput(rel, text, extra) {
-  writeFileSync(join(repoRoot, rel), text);
+  pending.push([rel, text]);
   return { path: rel, sha256: sha256(text), bytes: Buffer.byteLength(text), ...extra };
 }
 
@@ -320,7 +322,9 @@ function buildShapes(archiveDir) {
     floodCity: area.floodCity,
   };
   sameList("層", Object.keys(manifest.layers), Object.keys(tables));
-  mkdirSync(join(assetsDir, "shapes"), { recursive: true });
+  // Map.groupBy（Node 21〜）と、manifest に書く node の版のため
+  const nodes = new Set([...Object.values(manifest.layers), manifest.membership].map((l) => l.transform.node));
+  if (nodes.size !== 1 || !nodes.has(process.version)) fail(`node の版 ${process.version} が manifest の transform.node ${[...nodes]} と違う`);
   const layers = {};
   const zoomKept = {};
   for (const [id, layer] of Object.entries(manifest.layers)) {
@@ -330,6 +334,8 @@ function buildShapes(archiveDir) {
   }
   console.error("[build-shapes] membership");
   const membership = buildMembership(manifest, archiveDir, zoomKept, known.city);
+  mkdirSync(join(assetsDir, "shapes"), { recursive: true });
+  for (const [rel, text] of pending) writeFileSync(join(repoRoot, rel), text);
   return { mapshaper: version, node: process.version, layers, membership };
 }
 

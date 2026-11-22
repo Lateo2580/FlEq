@@ -1597,6 +1597,16 @@
           "ratio": 0.8872
         }
       },
+      "mapshaperRepair": {
+        "overview": {
+          "intersectionsNotRepaired": 309,
+          "sliversRemoved": 177
+        },
+        "zoom": {
+          "intersectionsNotRepaired": 458,
+          "sliversRemoved": 252
+        }
+      },
       "knownGapsAndExclusions": [
         {
           "kind": "excludedFeature",
