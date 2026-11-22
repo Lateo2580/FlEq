@@ -415,8 +415,8 @@
 ### 12.5 新しい経路の notices（§10 の未確認 2）
 
 - 新しい経路は notices を旧の射影の state から写す（`composition-root.ts:2505` の `notices: previous.notices` → `display-wire.ts` の `notices: input.notices`）。旧の射影の notice は差分（`view-projector.ts:831`）・取消の outcome・TTL（`:861`）でしか消えず、停止の確定の差分は新しい経路にだけ渡る（`composition-root.ts:1601`）。
-- 組める並び（U-E）: t=0 に報時刻から 595 秒たった EEW の新しい報を受ける（currentUntil は t+5s、旧の射影の notice の expiresAt は t+15s）→ t+2s に停止が始まる → t+6s の確定で期限の回収が差分を出し、新しい経路の U-E は current を外す → 旧の射影は差分を受けないので「緊急地震速報を確認」の notice が新しい経路に t+15s まで残る（ほかの 11 unit は 60 秒、`view-projector.ts` の TTL）。最後の段がそれより前なら、最後の snapshot に残る。
-- 本契約の範囲（9 分野の語彙と items）の外。受け持つ字は P4-REMOVAL-LOSS-001・計画の B1 の行のどちらにも無かったので、統合担当が P4-REMOVAL-LOSS-001 の Q-RL-PRECHECK に「消え方の届け方で閉じる条文にするか、閉じないなら受け手を名指す」を足した。新築は切替の前なので、画面に出るのは新しい経路を開いた試しの画面だけ。
+- 組める並び（U-E）: t=0 に報時刻から 595 秒たった EEW の新しい報を受ける（currentUntil は t+5s、旧の射影の notice の expiresAt は t+15s）→ t+2s に停止が始まる → t+6s の確定で期限の回収が差分を出し、新しい経路の U-E は current を外す → 旧の射影は差分を受けないので「緊急地震速報を確認」の notice が新しい経路に t+15s まで残る（U-W・U-F の取れないお知らせは 60 秒。お知らせを作るのは U-E・U-W・U-F だけ、`view-projector.ts` の notice の生成と TTL）。最後の段がそれより前なら、最後の snapshot に残る。
+- 本契約の範囲（9 分野の語彙と items）の外。受け持つ字は P4-REMOVAL-LOSS-001・計画の B1 の行のどちらにも無かったので、統合担当が P4-REMOVAL-LOSS-001 の Q-RL-PRECHECK に「消え方の届け方で閉じる条文にするか、閉じないなら受け手を名指す」を足した。同契約の発注前点検（2026-11-22）で AC08 (8) と P4-RL-T10 に条文にした（display-wire.ts の中だけ）。新築は切替の前なので、画面に出るのは新しい経路を開いた試しの画面だけ。
 
 ### 12.6 そのほか
 

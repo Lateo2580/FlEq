@@ -39,7 +39,7 @@
 
 - **型で強いる**: `after` が null の差分は removal を必ず持ち、null でない差分は持たない（判別共用体）。無いと: 12 unit のどれかの消える所が理由を付け忘れても、コンパイラが止めない。
 - **付ける所**: 各 unit の内側の変化（`Change` の組や `changed(before, after)` の呼び出し）を作る行で、消える原因を知っている所が付ける。表示差分にまとめる所（各 unit の merged の Map と push、下の表の「合流」）は理由を作らない。
-- **合流の規則（1 つ）**: 同じ subject の変化をまとめるときは、最初の before と最後の after を取り、removal は最後の変化が after を null にしたときのその変化の removal。owner の output（`owner-host.ts:408`〜`:424`）・publisher の wireChanges（`composition-root.ts:1601`）・display-wire の changesOf（`display-wire.ts:580`〜`:584`、最後が勝つ）も同じ規則で、removal は差分と一緒に運ばれる。
+- **合流の規則（1 つ）**: 同じ subject の変化をまとめるときは、最初の before と最後の after を取り、removal は最後の変化が after を null にしたときのその変化の removal。owner の output（`owner-host.ts:408`〜`:424`）・publisher の wireChanges（`composition-root.ts:1601`）・display-wire の changesOf（`display-wire.ts:697`〜`:701`、最後が勝つ。P4-DISPLAY-VOCAB-001 の後は 9 分野の語彙と 12 分野の items を mergedByUnit〔`:703`〜〕でまとめ、before だけを最初の差分から取る）も同じ規則で、removal は差分と一緒に運ばれる。
 - **読み手の絞り**: wire の消えた理由の一覧に載せるのは、before.current が null でない差分だけ（owner-runtime の leaving と同じ見方、`owner-runtime.ts:361`〜`:362`）。markCleared の差分は値として運ぶが一覧に載せない。expiredWhileStopped も載せない。
 
 ### 1.2 21 組（事実の表 §2.3・ヘルツの返事の 4）
@@ -147,10 +147,10 @@
 ## 3. wire に足すもの
 
 - 版を `p4-display-wire-v3` に上げる（P4-DISPLAY-VOCAB-001 が v1 を v2 にした後、P4-RL-D-ORDER=A）。試験の client（`reconstruction/test/display-wire/wire-client.ts` の VERSION）も v3 にする（発注 1）。本契約の `display-wire.ts` の «» は VOCAB の実装の後の木で付け直す（契約の Q-RL-PRECHECK）。
-- **消えた理由の一覧**: 1 件は `{ unit, operation, reason, at, ref: { id } }`。id は B0 の ref と同じ sha256([unit, operation, subject])（`display-wire.ts:112`〜`:114`）で、描画は前の snapshot の要素と id で結ぶ。at は射影した時の publisher の wall。reason が expired の項目は消える前の記録の最終更新の時刻 updatedAt（報時刻、無ければ null）も運ぶ（C2 が H23 を出すため）。分野ごとに新しい 4 件を残し、古いものから落として分野ごとの外した件数を数える（12 分野で最大 48 件、P4-RL-D-WIRE-CAP=B）。一覧は stream ごとで、新しい streamId で空に戻る。
-- **H39 の欄**（P4-RL-D-H39-SHAPE=B、統合担当の決め 2026-11-22）: unit ごとに `{ dropped, evicted, missed, outcomeUnknown, unreadable, hole, rev }`。区分の件数は LossTally の count を区分ごとに足す（§2.1 の箇条と同じ区分、B0 の表 r7 §13.2 と同じ）。hole は欠けの真偽（U-E・U-F は null）、rev は LossTally の行の JSON の sha256。U-E にだけ H28 の区間の件数と最後の区間。理由の行（reason・count・lastAt）は詳細の part=losses で開く: 要求 `{ unit, part: "losses", revision }`、応答 `{ kind: "ok", part: "losses", unit, revision, rows }`。型は `p4-display-wire.types.ts` の WireDetailRequest・WireDetailResponse に足し（P4-DISPLAY-VOCAB-001 の part=item・unreadable と同じ置き方）、`http-sse.ts` の parseWireDetail（`:362`〜`:380`）の行の中で受け、`owner-runtime.ts` の isWireDetail（`:836`〜`:838`）と wireDetail（`:908`〜）が state.losses を読む。最大 1,013 byte で 1 応答の 65,536（`http-sse.ts:359`）に入る。
+- **消えた理由の一覧**: 1 件は `{ unit, operation, reason, at, ref: { id } }`。id は B0 の ref と同じ sha256([unit, operation, subject])（`display-wire.ts:99`〜`:101`）で、描画は前の snapshot の要素と id で結ぶ。at は射影した時の publisher の wall。reason が expired の項目は消える前の記録の最終更新の時刻 updatedAt（報時刻、無ければ null）も運ぶ（C2 が H23 を出すため）。分野ごとに新しい 4 件を残し、古いものから落として分野ごとの外した件数を数える（12 分野で最大 48 件、P4-RL-D-WIRE-CAP=B）。一覧は stream ごとで、新しい streamId で空に戻る。
+- **H39 の欄**（P4-RL-D-H39-SHAPE=B、統合担当の決め 2026-11-22）: unit ごとに `{ dropped, evicted, missed, outcomeUnknown, unreadable, hole, rev }`。区分の件数は LossTally の count を区分ごとに足す（§2.1 の箇条と同じ区分、B0 の表 r7 §13.2 と同じ）。hole は欠けの真偽（U-E・U-F は null）、rev は LossTally の行の JSON の sha256。U-E にだけ H28 の区間の件数と最後の区間。理由の行（reason・count・lastAt）は詳細の part=losses で開く: 要求 `{ unit, part: "losses", revision }`、応答 `{ kind: "ok", part: "losses", unit, revision, rows }`。型は `p4-display-wire.types.ts` の WireDetailRequest・WireDetailResponse に足し（P4-DISPLAY-VOCAB-001 の part=item・unreadable と同じ置き方）、`http-sse.ts` の parseWireDetail（`:363`〜`:388`。id を持たないので 64 桁の hex の検査の行 `:381` の中）で受け、`owner-runtime.ts` の isWireDetail（`:843`〜`:846`）と wireDetail（`:1003`〜）が state.losses を読む。最大 1,013 byte で 1 応答の 65,536（`http-sse.ts:359`）に入る。
 - **勘定**: 足すものは共通部（65,536、今の上界 49,443、余り 16,093。B0 の表 §12。P4-DISPLAY-VOCAB-001 は共通部に足さない、同契約の表 §4.1）に入れる。script `p4-display-wire-max.mjs` に足して最大を出し、余りが負なら exit 1。見積もり（契約の形の最長の値を python で JSON にして数えた。時刻と件数は script と同じ Number.MAX_SAFE_INTEGER、id と rev は 64 字、理由の語は一覧に載る語の最長 retentionEnded）: 消えた理由の一覧 9,901（1 件 194 byte × 4 件 × 12 分野と分野ごとの外した件数）、H39 の欄 2,942（5 区分と hole と rev、U-E の区間）、欄名 22 で 12,865。余り 3,228。LossTally の行をそのまま運ぶ A の形は H39 の欄 6,474 で余り −304 だったので、ruling の条件どおり B に替えた。
-- 比べ: 消えた理由の一覧と H39 の欄は前の snapshot の object を使い回し、参照で比べる（notices と同じ、`display-wire.ts:602`）。
+- 比べ: 消えた理由の一覧と H39 の欄は前の snapshot の object を使い回し、参照で比べる（notices と同じ、`display-wire.ts:770`）。
 
 ## 4. 触る file と «» と直列
 

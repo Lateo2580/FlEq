@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "37fbd7f3cf6a175af75067c0ad34efb590b1971d",
-    "sha256": "0b2ad4befb25efa761121f7dd4c6678ef115156a316ba6763c05553e39003052",
+    "sha256": "febb7121bcd2c8b01b7f26300c470235e176cfe4d7dc7832a5af4b533038e07b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -131,6 +131,13 @@
     ],
     "questionResolutions": [
       {
+        "id": "Q-RL-PRECHECK",
+        "status": "closed",
+        "source": "統合担当の発注前点検（2026-11-22、main 0ed5dc70。子 2 体の読みを統合担当が行を開いて確かめた）",
+        "closed": "(1) 表 §1.2 の 12 unit の消える所の行: 45bdefda..0ed5dc70 で 12 unit の reducer の file は変わっていない（変わったのは tsunami.ts の 2 行で、本契約は tsunami.ts の行を引かない）。«» の無い行の引用のうち変わっていない file を指すもの 155 件は動いていない。変わった file（display-wire.ts・owner-runtime.ts・composition-root.ts・http-sse.ts・p4-display-wire.types.ts）を指す引用は今の木で主張が成り立ち、AC08 の括弧書き（part=raw だけが U-W を通す）と行の番号（AC08 (7)、表 §1・§3）を直した (2) P4-DISPLAY-VOCAB-001 の後の合計: VOCAB は共通部の欄を足していない（9 分野は current の下）。共通部の余りは同じ数え方で 3,204〜3,241 byte（16,093 − 一覧 9,901 − H39 の欄 2,929〜2,948 − 22、新しい経路の schemaVersion の字が旧の 1 より 19 byte 長い分を引いた幅。U-E の区間の欄の名前で数 byte ゆれる）で負でない。script への 12,865 byte の書き足しは AC08 (4) の仕事 (3) 本契約の display-wire.ts の «» は VOCAB の配送 0ed5dc70 で付け直した（:697・:30・:101）。版は今 v2 で本契約が v3 にする (4) 差分の型の変更: VOCAB の src は直さずに済む（mergedByUnit は最後の差分を写して before だけを替え、projectVocab・projectItems は after を、view-projector.ts の projectDomain は構造の型 Change の before と after だけを読む）。VOCAB の試験 display-vocab.test.ts の literal が型で通らなくなるので AC10 (1) に足し、AC01 (3) に mergedByUnit を足した (5) part=losses の受け口は parseWireDetail の 64 桁の hex の検査の行の中（AC08 (7)） (6) 停止の確定で消えた記録のお知らせ: AC08 (8) と P4-RL-T10 を足した（統合担当の決め。display-wire.ts の中だけで allowedPaths は変えない。お知らせを作るのは U-E・U-W・U-F だけ） (7) 作者の分岐と統合担当の分岐に起草案は無い（どれも確定）",
+        "remaining": "証拠不足: 停止の確定の差分で、U-W・U-F の記録の after が null でないまま取れない状態が解ける並び（view-projector.ts の unavailable の解け）が起こるかは、finalize の出力の中身を読んでいない。AC08 (8) はその並びを覆わない"
+      },
+      {
         "id": "Q-RL-DRAFT-FACTS",
         "status": "closed",
         "source": "2026-11-21 起草（main 37fbd7f3 の木を読んだ。走らせていない）",
@@ -197,7 +204,7 @@
       "reconstruction/src/view-projector/display-wire.ts（AC08）",
       "12 unit の reducer（reconstruction/src/units/*/…-unit.ts）と、変化を作る domain の file（reconstruction/src/domains/eew/eew.ts・reconstruction/src/domains/weather-current/weather-current.ts。ほかの domain の file に消える所があれば、触る前に file:行を報告して止める）",
       "reconstruction/test/ の、AC10 の書き換えと testMapping の試験の追加。reconstruction/test/display-wire/wire-client.ts の VERSION を v3 に（発注 1、AC08 (1)）",
-      "統合担当だけ（配送の commit）: 行を足した file を引く他の契約の «» の付け直しと各 meta.sha256。計画 p4-order-plan.md §3.2 の直列の行に「E0 発注 1 は本契約の発注 2 の後」を書く（ORDER の 2026-11-22 の決め）。本契約の display-wire.ts の «»（AC01・AC08 の evidenceRefs）を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直す。N0（P4-NOTICE-TEXT-SOUND-001）の allowedPaths と本文が素の行番号と行数で引く本契約の触る file（計画 :224 の eew-unit.ts・flood-unit.ts・landslide-unit.ts・briefing-unit.ts と seismic-unit.ts・tsunami-unit.ts）の行は «» でないので付け直しの道具で直らず、N0 の字を書き直す。計画 §3.2 の http-sse.ts の行に本契約（part=losses）を B0 → P4-DISPLAY-VOCAB-001 → 本契約 → B1 → R0 → T0 の位置で書き足す"
+      "統合担当だけ（配送の commit）: 行を足した file を引く他の契約の «» の付け直しと各 meta.sha256。計画 p4-order-plan.md §3.2 の直列の行に「E0 発注 1 は本契約の発注 2 の後」を書く（ORDER の 2026-11-22 の決め）。本契約の display-wire.ts の «»（AC01・AC08 の evidenceRefs）を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直す（済み: VOCAB の配送 0ed5dc70 で :697・:30・:101 に付け直した）。N0（P4-NOTICE-TEXT-SOUND-001）の allowedPaths と本文が素の行番号と行数で引く本契約の触る file（計画 :224 の eew-unit.ts・flood-unit.ts・landslide-unit.ts・briefing-unit.ts と seismic-unit.ts・tsunami-unit.ts）の行は «» でないので付け直しの道具で直らず、N0 の字を書き直す。計画 §3.2 の http-sse.ts の行に本契約（part=losses）を B0 → P4-DISPLAY-VOCAB-001 → 本契約 → B1 → R0 → T0 の位置で書き足す"
     ],
     "allowedGitCommands": [
       "git status --porcelain",
@@ -309,7 +316,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-RL-AC01",
-        "requirement": "消えた理由の型と運び（表 §1.1）: (1) DisplayRemoval は表 §1.1 の閉集合（mixed は P4-RL-D-MIXED=B で、取り直しの採用の正味の差分だけが付ける、AC03 (5)。expiredWhileStopped は AC04 (4) の owner の置き換えだけが付ける）。RuntimeDisplayChange は after が null のとき removal を必ず持ち、null でないとき持たない判別共用体にする。null でない側は U-W の府県の行の departed（AC03 (5)）を、null の側は期限の回収の dueWallMs（AC04 (4)）を任意に持つ（無いと: 12 unit のどれかが理由を付け忘れてもコンパイラが止めない） (2) removal の定義は after が null かつ before が null でない差分 (3) 同じ subject の変化をまとめる所（各 unit の merged と push、owner の output、publisher の wireChanges、display-wire の changesOf）は最初の before と最後の after を取り、removal は最後の変化が after を null にしたときのその変化の removal。後から after が null でない変化が来たら removal は無い (4) 前置きの期限と受信が 1 つの返信に並んでも（owner-host.ts の output）、停止の確定（composition-root.ts:1601 の wireChanges）でも、差分ごとの removal が新しい射影に届く (5) 理由は outcome の transition の字から引かない。outcome・LossTally を下流で突き合わせて理由を決めない（B0 の表 r7 §13.2 の決め方を採らない）",
+        "requirement": "消えた理由の型と運び（表 §1.1）: (1) DisplayRemoval は表 §1.1 の閉集合（mixed は P4-RL-D-MIXED=B で、取り直しの採用の正味の差分だけが付ける、AC03 (5)。expiredWhileStopped は AC04 (4) の owner の置き換えだけが付ける）。RuntimeDisplayChange は after が null のとき removal を必ず持ち、null でないとき持たない判別共用体にする。null でない側は U-W の府県の行の departed（AC03 (5)）を、null の側は期限の回収の dueWallMs（AC04 (4)）を任意に持つ（無いと: 12 unit のどれかが理由を付け忘れてもコンパイラが止めない） (2) removal の定義は after が null かつ before が null でない差分 (3) 同じ subject の変化をまとめる所（各 unit の merged と push、owner の output、publisher の wireChanges、display-wire の changesOf と、P4-DISPLAY-VOCAB-001 が足した mergedByUnit〔display-wire.ts:703〜。before だけを最初の差分から取り、ほかの欄は最後の差分のまま運ぶので、removal は最後の変化のものになる。9 分野の語彙と 12 分野の items と消えた理由の一覧はここを通る〕（発注前点検 2026-11-22））は最初の before と最後の after を取り、removal は最後の変化が after を null にしたときのその変化の removal。後から after が null でない変化が来たら removal は無い (4) 前置きの期限と受信が 1 つの返信に並んでも（owner-host.ts の output）、停止の確定（composition-root.ts:1601 の wireChanges）でも、差分ごとの removal が新しい射影に届く (5) 理由は outcome の transition の字から引かない。outcome・LossTally を下流で突き合わせて理由を決めない（B0 の表 r7 §13.2 の決め方を採らない）",
         "evidenceRefs": [
           "reconstruction/contracts/p2-shared-runtime.types.ts:235 «977307e0b9285bf6»",
           "reconstruction/src/runtime/owner-host.ts:421 «910631e381d4aaba»",
@@ -378,7 +385,7 @@
       },
       {
         "id": "P4-RL-AC08",
-        "requirement": "wire（表 §3）: (1) 版を p4-display-wire-v3 に上げる（display-wire.ts の VERSION と DisplayWireVersion。P4-DISPLAY-VOCAB-001 が v2 にした後、P4-RL-D-ORDER=A）。試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）も v3 にする（無いと: 版を固定した client が新しい snapshot を unsupported にし、既存の描画の試験が落ちる） (2) 消えた理由の一覧: 1 件は { unit, operation, reason, at, ref: { id } }。id は B0 の ref と同じ sha256([unit, operation, subject])。at は射影した時の publisher の wall。reason が expired の項目は、消える前の記録の最終更新の時刻 updatedAt（before の記録の報時刻。unit の view の行が報時刻を持たなければ null）も運ぶ（無いと: 期限切れの後に初めて画面を開いた人に、C2 が H23〔spec:3050〕の最終更新を出せない）。載せるのは before.current が null でない差分だけで、removal が markCleared と expiredWhileStopped の差分は載せない（AC04 (4)）。一覧は stream ごとで、分野（unit）ごとに新しい 4 件を残し、5 件目が来たらその分野の最も古い 1 件を落として分野ごとの外した件数を 1 増やす（12 分野で最大 48 件、P4-RL-D-WIRE-CAP=B、RL-RET-01） (3) H39 の欄（P4-RL-D-H39-SHAPE=B）: unit ごとに { dropped, evicted, missed, outcomeUnknown, unreadable, hole, rev }。区分の件数は unit の LossTally の count を区分ごとに足す（安全な整数で飽和）: dropped は notificationExpired・notificationExpiredClockUnverified・notificationCapacityEvicted、evicted は 12 unit の *CapacityEvicted（U-F は seriesCapacityEvicted）・seismicStationsFolded・noticeMarkEvicted・unreadableDropped、missed は capacityRejected、outcomeUnknown は notificationOutcomeUnknown、unreadable は unreadableReport（表 §2.1、B0 の表 r7 §13.2 と同じ）。hole は AC06 の欠け（U-E・U-F は null）。rev はその unit の LossTally の行の JSON の sha256 の hex（B0 の rev と同じ作り、display-wire.ts:101）で、part=losses の revision に使う。U-E にだけ AC07 の値。無いと（A の形の LossTally の行をそのまま運ぶと）: 共通部の余りが −304 になり script が exit 1 になる（P4-RL-D-H39-SHAPE の ruling） (4) 足すものは共通部の勘定（RL-RES-01）に入れ、script p4-display-wire-max.mjs に足して最大の byte と余りを出す。余りが負なら止めて報告する (5) 消えた理由の一覧と H39 の欄は変わらなければ前の snapshot の object を使い、sameSnapshot は参照で比べる（全体を直列化しない） (6) 新しい描画が読む形で、9 分野の要素が無い間も id と理由は運ぶ (7) 詳細の part=losses（P4-RL-D-H39-SHAPE=B、spec 16.2.6「理由は開けば読める」）: 要求は { unit: 12 unit のどれか, part: \"losses\", revision }（id と page を持たない。part=raw と同じく unit で受ける）、応答は { kind: \"ok\", part: \"losses\", unit, revision, rows: LossTally の行 }（reason・count・lastAt、unit ごとに最大 9 行）。B0 と P4-DISPLAY-VOCAB-001 の置き方に倣う: 型は p4-display-wire.types.ts の WireDetailRequest・WireDetailResponse に 1 つずつ足す（VOCAB の part=item・unreadable と同じ）。http-sse.ts は parseWireDetail（:362〜:380。VOCAB の後は VOCAB が足した part の後）の行の中で part=losses を受け、行を足さない。owner-runtime.ts は isWireDetail（:836〜:838）が part=losses を U-W・U-F でも新しい経路へ回すようにし（今は part=raw だけが U-W を通す）、wireDetail（:908〜）が owner の state.losses[unit]（owner-runtime.ts:47）を読むだけ（state も期限も動かさない）。revision がその unit の今の rev と違えば versionChanged と今の rev（wireChanged、:839）、行が無ければ rows は空。composition-root は詳細を unit の place へ回す今の振り分け（composition-root.ts:1844）のままで変えない。最大は 9 行で 1,013 byte（最長の 9 語・count と lastAt を最長にして数えた）で、1 応答の上限 65,536（http-sse.ts:359 の WIRE_DETAIL_BYTES）に入る。publisher の mirror の行と owner の行は capture の行の外し（owner-runtime.ts:590〜:594）の後、次の delta まで食い違うことがあり、その間は versionChanged の rev で開き直す。無いと: 5 区分の件数だけでは理由を開けず、spec 16.2.6 の「理由は開けば読める」を満たさない",
+        "requirement": "wire（表 §3）: (1) 版を p4-display-wire-v3 に上げる（display-wire.ts の VERSION と DisplayWireVersion。P4-DISPLAY-VOCAB-001 が v2 にした後、P4-RL-D-ORDER=A）。試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）も v3 にする（無いと: 版を固定した client が新しい snapshot を unsupported にし、既存の描画の試験が落ちる） (2) 消えた理由の一覧: 1 件は { unit, operation, reason, at, ref: { id } }。id は B0 の ref と同じ sha256([unit, operation, subject])。at は射影した時の publisher の wall。reason が expired の項目は、消える前の記録の最終更新の時刻 updatedAt（before の記録の報時刻。unit の view の行が報時刻を持たなければ null）も運ぶ（無いと: 期限切れの後に初めて画面を開いた人に、C2 が H23〔spec:3050〕の最終更新を出せない）。載せるのは before.current が null でない差分だけで、removal が markCleared と expiredWhileStopped の差分は載せない（AC04 (4)）。一覧は stream ごとで、分野（unit）ごとに新しい 4 件を残し、5 件目が来たらその分野の最も古い 1 件を落として分野ごとの外した件数を 1 増やす（12 分野で最大 48 件、P4-RL-D-WIRE-CAP=B、RL-RET-01） (3) H39 の欄（P4-RL-D-H39-SHAPE=B）: unit ごとに { dropped, evicted, missed, outcomeUnknown, unreadable, hole, rev }。区分の件数は unit の LossTally の count を区分ごとに足す（安全な整数で飽和）: dropped は notificationExpired・notificationExpiredClockUnverified・notificationCapacityEvicted、evicted は 12 unit の *CapacityEvicted（U-F は seriesCapacityEvicted）・seismicStationsFolded・noticeMarkEvicted・unreadableDropped、missed は capacityRejected、outcomeUnknown は notificationOutcomeUnknown、unreadable は unreadableReport（表 §2.1、B0 の表 r7 §13.2 と同じ）。hole は AC06 の欠け（U-E・U-F は null）。rev はその unit の LossTally の行の JSON の sha256 の hex（B0 の rev と同じ作り、display-wire.ts:101）で、part=losses の revision に使う。U-E にだけ AC07 の値。無いと（A の形の LossTally の行をそのまま運ぶと）: 共通部の余りが −304 になり script が exit 1 になる（P4-RL-D-H39-SHAPE の ruling） (4) 足すものは共通部の勘定（RL-RES-01）に入れ、script p4-display-wire-max.mjs に足して最大の byte と余りを出す。余りが負なら止めて報告する (5) 消えた理由の一覧と H39 の欄は変わらなければ前の snapshot の object を使い、sameSnapshot は参照で比べる（全体を直列化しない） (6) 新しい描画が読む形で、9 分野の要素が無い間も id と理由は運ぶ (7) 詳細の part=losses（P4-RL-D-H39-SHAPE=B、spec 16.2.6「理由は開けば読める」）: 要求は { unit: 12 unit のどれか, part: \"losses\", revision }（id と page を持たない。part=raw と同じく unit で受ける）、応答は { kind: \"ok\", part: \"losses\", unit, revision, rows: LossTally の行 }（reason・count・lastAt、unit ごとに最大 9 行）。B0 と P4-DISPLAY-VOCAB-001 の置き方に倣う: 型は p4-display-wire.types.ts の WireDetailRequest・WireDetailResponse に 1 つずつ足す（VOCAB の part=item・unreadable と同じ）。http-sse.ts は parseWireDetail（:363〜:388）の行の中で part=losses を受け、行を足さない。part=losses は id を持たないので、VOCAB が足した part の後の 64 桁の hex の検査の行（:381）より前で分けないと断られる。行を足さないなら :381 の行の中で受ける（発注前点検 2026-11-22）。owner-runtime.ts は isWireDetail（:843〜:846）が part=losses を U-W・U-F でも新しい経路へ回すようにし（P4-DISPLAY-VOCAB-001 の後は raw・item・unreadable が U-W・U-F を通す。U-W・U-F は WIRE_UNITS に無いので part の並びに足す）、wireDetail（:1003〜）が owner の state.losses[unit]（owner-runtime.ts:47）を読むだけ（state も期限も動かさない）。revision がその unit の今の rev と違えば versionChanged と今の rev（wireChanged、:847）、行が無ければ rows は空。composition-root は詳細を unit の place へ回す今の振り分け（composition-root.ts:1844）のままで変えない。最大は 9 行で 1,013 byte（最長の 9 語・count と lastAt を最長にして数えた）で、1 応答の上限 65,536（http-sse.ts:359 の WIRE_DETAIL_BYTES）に入る。publisher の mirror の行と owner の行は capture の行の外し（owner-runtime.ts:590〜:594）の後、次の delta まで食い違うことがあり、その間は versionChanged の rev で開き直す。無いと: 5 区分の件数だけでは理由を開けず、spec 16.2.6 の「理由は開けば読める」を満たさない (8) 新しい経路のお知らせ（発注 1。発注前点検 2026-11-22 の統合担当の決め、P4-DISPLAY-VOCAB-001 の表 §12.5）: 新しい経路の notices は旧の射影の state から写す（composition-root.ts の wireInput の notices: previous.notices）。旧の射影は停止の確定の差分を受けないので、その差分で消えた記録のお知らせが expiresAt（U-E 15 秒、U-W・U-F 60 秒。お知らせを作るのは U-E・U-W・U-F だけ、view-projector.ts の notice の生成）まで新しい経路に残る。新しい経路は、その公開の表示差分（停止の確定の差分を含み、mergedByUnit で併せた後）で U-W・U-F の記録の after が null になった subject と、U-E の EventID の最後の報が外れた EventID について、その時の notices にあった同じ targetId（sha256([unit, operation, key])、key は U-E が EventID・U-W と U-F が subject）のお知らせを、そのときの expiresAt 以下に限って snapshot に載せない。外した id と expiresAt は display-wire の state に持ち（上限は notices の 64 件）、旧の射影の notices に無くなったら捨てる。同じ id で後から作られたお知らせは expiresAt が大きいので外れない。旧の射影の notices と state は変えない（display-wire.ts の中だけ）。無いと: 停止の確定で消えた記録の「緊急地震速報を確認」が最大 15 秒、U-W・U-F の取れないお知らせが最大 60 秒、記録の無い画面に残り、最後の snapshot ならその後も残る",
         "evidenceRefs": [
           "reconstruction/src/view-projector/display-wire.ts:30 «a1dade12c4f314b0»",
           "reconstruction/src/view-projector/display-wire.ts:101 «cf938dd4f7293b2e»",
@@ -396,7 +403,7 @@
       },
       {
         "id": "P4-RL-AC10",
-        "requirement": "既存の試験の扱い（AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: (1) 型の変更で、試験の中で差分を組み立てる literal（corpus.test.ts・display-wire.test.ts・shared-runtime.test.ts の after: null の差分）に removal を足すのは期待の変更でないので許す (2) toMatchObject で after: null を見る期待（typhoon・weather-timeseries・eew・tsunami・uw-canon・weather-current の各 unit の試験）は変えない (3) 版を固定した試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）を v3 にするのは許す（AC08 (1)） (4) この 3 つのほかに既存の試験の期待を変える要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
+        "requirement": "既存の試験の扱い（AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: (1) 型の変更で、試験の中で差分を組み立てる literal（corpus.test.ts・display-wire.test.ts・shared-runtime.test.ts と、P4-DISPLAY-VOCAB-001 の試験 display-vocab.test.ts〔before と after が null の literal と、view を消す差分を組む 2 か所〕の after: null の差分（発注前点検 2026-11-22））に removal を足すのは期待の変更でないので許す (2) toMatchObject で after: null を見る期待（typhoon・weather-timeseries・eew・tsunami・uw-canon・weather-current の各 unit の試験）は変えない (3) 版を固定した試験の client（reconstruction/test/display-wire/wire-client.ts の VERSION）を v3 にするのは許す（AC08 (1)） (4) この 3 つのほかに既存の試験の期待を変える要が出たら、変える前に試験名・旧の期待・理由を報告して止める",
         "evidenceRefs": [
           "reconstruction/test/display-wire/display-wire.test.ts",
           "reconstruction/test/shared-runtime/shared-runtime.test.ts",
@@ -478,6 +485,14 @@
           "P4-RL-AC03"
         ],
         "behavior": "発注 2。契約境界（ヘルツの r1 の確かめの列 2）。T02 (a) と同じ通常の経路で、X の区域が全部 Y に負けていて P の行の中身が X の取消で変わらない形にする。1 つ目の step は差分を出さず departed も無い。採用の正味の差分で P の行の removal は replaced（X の取消は数えない、統合担当の決め 2026-11-22）"
+      },
+      {
+        "testId": "P4-RL-T10",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-RL-AC08"
+        ],
+        "behavior": "発注 1。受入条件（AC08 (8)、発注前点検 2026-11-22 で足した）。EEW を 1 報受けて新しい経路にお知らせ（eewNew）が出た後、停止の確定の期限の回収でその EventID の記録が外れる公開で、新しい経路の snapshot にそのお知らせが無く、旧の射影の notices には残る。同じ EventID の新しい報が後で来て作られたお知らせは外れない（expiresAt が大きい）"
       }
     ],
     "requiredCommands": [
@@ -565,21 +580,6 @@
       "残存として成果物に書く: U-W の府県の行が取り直しの採用で 2 つ以上の原因で消える回の実の頻度は量れていない（手元の corpus では府県の行が消えた回が 0 で分母 0、Q-RL-MIXED-FREQUENCY、表 §6）"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-RL-PRECHECK",
-        "owner": "integrator",
-        "blocks": [
-          "baseOid の割り当て"
-        ],
-        "resolveBy": "発注前点検（baseOid を割り当てる木で）",
-        "requiredEvidence": [
-          "表 §1.2 の 12 unit の消える所の行（r3 で HEAD 45bdefda の木で開いて確かめた）が baseOid の木で動いていないことの確かめ。N0 発注 3 と P4-TSUNAMI-MULTI-EVENT-001 が先に入っていれば、その後の木で確かめる（P4-RL-D-ORDER=A、計画 §1.3 の N0 の行、P4-TME-D-ORDER）",
-          "P4-DISPLAY-VOCAB-001 が display-wire.ts・p4-display-wire.types.ts・共通部の勘定に足したものと、本契約の足すものの合計の script の出力",
-          "本契約の display-wire.ts の «»（AC01 の :580、AC08 の :27・:114）と p4-display-wire.json:189 の «» を P4-DISPLAY-VOCAB-001 の実装の後の木で付け直した記録（P4-DISPLAY-VOCAB-001 の配送で統合担当が付け直す、同契約の AC07 (4) の (d)。点検ではその行が本契約の主張のままかを読み直す）と、版が v3 であること（ORDER の 2026-11-22 の決め）",
-          "新しい経路の notices は旧の射影の state から写す（composition-root.ts の wireInput の notices: previous.notices）ので、停止の確定の差分で消えた記録のお知らせが expiresAt（U-E 15 秒、ほかの 11 unit 60 秒、view-projector.ts の TTL）まで新しい経路に残る並びが組める（P4-DISPLAY-VOCAB-001 の表 §12.5）。本契約の消え方の届け方（P4-RL-AC01 の停止の確定の差分）で閉じる条文にするか、閉じないなら受け手を名指す（統合担当、P4-DISPLAY-VOCAB-001 の発注前点検 2026-11-22 で足した）",
-          "script p4-display-wire-max.mjs の共通部の余りが負でないこと（H39-SHAPE=B の見積もりは余り 3,228、P4-RL-D-H39-SHAPE の ruling。負なら発注しない）"
-        ]
-      },
       {
         "id": "Q-RL-H17-REASON-TEXT",
         "owner": "integrator",
