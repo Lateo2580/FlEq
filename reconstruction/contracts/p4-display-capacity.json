@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835",
-    "sha256": "e0b837775fd8abec1ce6a735fc7d388ebb013a69a16fe2b9d11ad27ab82ceb79",
+    "sha256": "e37a7ae3fff4105a5399fe767dc5587b6939742517a247895ddfc69a421121d4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -32,7 +32,7 @@
       {
         "id": "P4-DC-D-H37-EXPECT",
         "kind": "統合担当",
-        "A": "O09:21 と津波の 5 本（O09:28・37・46・55・64）の期待を「要約に落ちない（H37）。型の上限を超えた分は件数と詳細の取得に回る」へ書き換える。O09:21 は、既知でない区域は件数と印で詳細は U-E の areas、字の上限を越えた欄は切って印（表 §7）。B0 のカードの上限を越えた報は通常合法最大の側（E4b）で、この系列に入れない（spec:1332・:2048）。書き換えは sequences.json の 6 つの expectation の input.required と（津波の 5 本は）checks の 3 つ目の丸ごとの置き換えで、統合担当が配送で当てる",
+        "A": "O09:21 と津波の 5 本（O09:28・37・46・55・64）の期待を「要約に落ちず（H37）、型の上限を超えた分は件数と印で示し、読める所は詳細の取得に回る（U-E の areas は区域の行だけで、字の上限で切った欄は詳細でも読めない）」へ書き換える。O09:21 は、既知でない区域は件数と印で詳細は U-E の areas、字の上限を越えた欄は切って印で詳細でも読めない（表 §7）。B0 のカードの上限を越えた報は通常合法最大の側（E4b）で、この系列に入れない（spec:1332・:2048）。書き換えは sequences.json の 6 つの expectation の input.required（頭の「対象分野fallback」は「対象分野の意図した超過」に替える）と（津波の 5 本は）checks の 3 つ目の丸ごとの置き換えで、統合担当が配送で当てる",
         "B": "期待を書き換えず、要約に落ちる形を残す（新しい経路では保護 3 分野が要約の形を持たないので成り立たない）",
         "recommended": "A",
         "provisional": "A",
@@ -372,7 +372,7 @@
       },
       {
         "id": "P4-DC-AC06",
-        "requirement": "通常合法最大の manifest（E13a、P4-DC-D-E13A-DEF、表 §8）: (1) E1〜E6 を repo の入力で組んだ試験で、E1・E2 の 1 件の part=item の 1 応答が 65,536 以下、E3 の U-W が全体 1 MiB 以下で full のまま、E4 の U-E（同時の EventID は B0 のカードの上限まで）のカードの区域と合成の段・E5 の U-T（同時の EventID は B0 の津波の件数の上限まで）の予報区の行と区分の合成が期待の集合と一致し、eew.wire.omitted（p4-display-wire.types.ts の EewWire）・tsunami の omittedEvents・omittedUnkeyed が 0（欠け・誤値 0、要約と取得待ちを免除にしない）、E4b の最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件にした組で、合成が全部の通常の報の区域ごとの最大と一致し、eew.wire.omitted が 1、カードは上限の枚数（B1 が主張するのは合成と omitted まで。上限を越えた報の EventID ごとの値は E0 発注 1 の板、Q-DC-MANY-EVENTS の closed）、E6 で全体が 1,048,576 以下・要約は B の順で止まり・E4・E5 の期待集合は欠けない (2) 保護 3 分野は新しい経路で要約にならない（包みに delivery が無い）ことを、旧の経路が U-T・U-Q を要約にする入力（disaster.test.ts の P3-DC-T09 の組み方）で見る (3) E7（N1・N2・N3・W1 の 3 日・W2）は T06 が採取物の dir を環境変数で渡したときだけ流し、統合担当が Mac mini で流して新しい経路の要約 0・全体の最大を配送の記録に書く（r4 の量った値: N1 55,481・N2 72,667・N3 401,045・W1 と W2 の最大 372,121）。採取物が無ければ blocked で、Pass にしない (4) E8（W1 06-26 ＋ 訓練の写し、r4 §7）は repo に入れず、統合担当が r4 の道具で Mac mini で流して配送の記録に書く（量った値: 要約 0、全体の最大 726,105） (5) E13a の外の行（他分野の要約中の O09:8・27・36・45・54・63、対象自身の意図した超過の O09:21〔E4b のカードの上限＋1 件は入れない〕・28・37・46・55・64、津波との同時の O09:22）は PM が持ち、入力の受け渡しは Q-DC-PM-OVERFLOW-INPUTS",
+        "requirement": "通常合法最大の manifest（E13a、P4-DC-D-E13A-DEF、表 §8）: (1) E1〜E6 を repo の入力で組んだ試験で、E1・E2 の 1 件の part=item の 1 応答が 65,536 以下、E3 の U-W が全体 1 MiB 以下で full のまま、E4 の U-E（同時の EventID は B0 のカードの上限まで）のカードの区域と合成の段・E5 の U-T（同時の EventID は B0 の津波の件数の上限まで）の予報区の行と区分の合成が期待の集合と一致し、eew.wire.omitted（p4-display-wire.types.ts の EewWire）・tsunami の omittedEvents・omittedUnkeyed が 0（欠け・誤値 0、要約と取得待ちを免除にしない）、E4b の最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件にした組で、合成が全部の通常の報の区域ごとの最大と一致し、eew.wire.omitted が 1、カードは上限の枚数（B1 が主張するのは合成と omitted まで。E4b の EventID ごとの値は未裁定で、E13a の Pass に数えない〔spec:1865〕。配送の記録に書く。上限を越えた報の EventID ごとの値は E0 発注 1 の板、Q-DC-MANY-EVENTS の closed）、E6 で全体が 1,048,576 以下・要約は B の順で止まり・E4・E5 の期待集合は欠けない (2) 保護 3 分野は新しい経路で要約にならない（包みに delivery が無い）ことを、旧の経路が U-T・U-Q を要約にする入力（disaster.test.ts の P3-DC-T09 の組み方）で見る (3) E7（N1・N2・N3・W1 の 3 日・W2）は T06 が採取物の dir を環境変数で渡したときだけ流し、統合担当が Mac mini で流して新しい経路の要約 0・全体の最大を配送の記録に書く（r4 の量った値: N1 55,481・N2 72,667・N3 401,045・W1 と W2 の最大 372,121）。採取物が無ければ blocked で、Pass にしない (4) E8（W1 06-26 ＋ 訓練の写し、r4 §7）は repo に入れず、統合担当が r4 の道具で Mac mini で流して配送の記録に書く（量った値: 要約 0、全体の最大 726,105） (5) E13a の外の行（他分野の要約中の O09:8・27・36・45・54・63、対象自身の意図した超過の O09:21〔E4b のカードの上限＋1 件は入れない〕・28・37・46・55・64、津波との同時の O09:22）は PM が持ち、入力の受け渡しは Q-DC-PM-OVERFLOW-INPUTS",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
           "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
@@ -383,6 +383,7 @@
           "reconstruction/contracts/p4-display-wire.types.ts:53 «be8bce85916c1286»",
           "reconstruction/src/view-projector/display-wire.ts:227 «b529444d9e0ea812»",
           "reconstruction/src/view-projector/display-wire.ts:244 «bd003b3952ac96bd»",
+          "docs/specs/reconstruction-p0-contracts.md:1865 «2961e3610d7ce08f»",
           "reconstruction/contracts/p4-display-capacity-tables.md"
         ]
       },
@@ -416,7 +417,7 @@
           "reconstruction/tools/corpus/sequences.json#unmet:O09:21",
           "reconstruction/tools/corpus/sequences.json#unmet:O09:28",
           "reconstruction/tools/corpus/sequences.json#unmet:O09:64",
-          "reconstruction/contracts/p4-order-plan.md:326 «7c5f02835991f9fc»",
+          "reconstruction/contracts/p4-order-plan.md:326 «b6556fa5802f3f54»",
           "docs/specs/reconstruction-p0-contracts.md:3064 «79084e1c731015a0»",
           "reconstruction/contracts/p4-display-capacity-tables.md"
         ]
