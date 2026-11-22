@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "1c1a582dba34cd24019767561bb741bc3ef2786b",
-    "sha256": "ea57750a155b55878f970537aafb8f6cd924570e52f9cd82091f044769d0269f",
+    "sha256": "887cbd8a5e8b6f63741ccc89477c98cf826de949cde341db515caa9ed5d16a88",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -200,7 +200,7 @@
           "reconstruction/src/terminal/output.ts:606 «9681fdbaf14e810f»",
           "reconstruction/src/terminal/output.ts:676 «1efcca7a47fc5697»",
           "reconstruction/src/units/briefing/briefing-unit.ts:422 «0573d48dbb3021a5»",
-          "reconstruction/src/units/briefing/briefing-unit.ts:430 «891ecfe0c9984d70»",
+          "reconstruction/src/units/briefing/briefing-unit.ts:430 «110c7a437ef3f15f»",
           "reconstruction/src/terminal/output.ts:590 «54f2348cc3d31d82»",
           "reconstruction/src/terminal/material.ts:40 «57ba2c6087207b3d»",
           "reconstruction/src/decode-material/decode-material.ts:365 «01e9c87cb03feddb»",

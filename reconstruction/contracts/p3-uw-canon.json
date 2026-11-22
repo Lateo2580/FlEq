@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4fc85cc035a23b1d91f9eaa4542c5097491000bd",
-    "sha256": "9dbf5c4c68d1b4a2e948eec476c512f88e8a79c4e9ef35ccc8584235779a13e4",
+    "sha256": "2539cb63eecb36b560b09408b0e40afd5b33d41163bcf013807b8e7164e761e4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -517,7 +517,7 @@
         "requirement": "byteの縮退の順（P3-UWC-D-BYTE-ORDER=A、作者裁定、Q-UWC-AUTHOR-2）。器（GENERATION_BYTES、約16.87 MB）は変えない。normalの受理が器に入らないとき、今の順（training・testの履歴→training・testのpartial→training・testの全国、weather-current-unit.ts:420〜:447）で外し、それでも入らなければ、新しい報を断る前にnormalの履歴（取消のための前の版）を最も古いもの（compareSnapshotの順）から1つずつ外す（外した数はINFO weatherCurrentCapacityEvictedのcountに足す）。費用（品質r1の証拠不足、AGENTS.mdの受信経路の計算量）: 今のfitNormalByByte（:425）は1件外すごとに全体を計り直し、全履歴を走って整列する。normalの段はこれを繰り返さない: 器を越えた分を1回計り、normalの履歴の版の候補を1回だけcompareSnapshotで整列し、古い順に外したときのbyteの減りを足して、越えた分に届いたところで止める。減りは保存の計量（weather-current-unit.ts:66〜:76のarrayBytes・historyBytes）と同じ式で、外す途中の数で数える: (a) 版を外してentryに版が残るとき、その版のbyte＋reportsの区切りの差分（版の数nからn−1へでmax(n−1,0)−max(n−2,0)） (b) 版を外してentryが空になるとき、(a)の代わりにentryのbyte（historyBytes、空の外枠を含む）＋historiesの区切りの差分（entryの数HからH−1へでmax(H−1,0)−max(H−2,0)） (c) その版でその系列（subject・operation）の最後の参照が消えるとき（current・ほかの履歴の版・墓標・unavailableのどれにも残らない。domainのseriesExistsと同じ集合）、その系列の印（unconfirmed）が孤児として消えるので、印のbyte＋unconfirmedの区切りの差分も、その系列で1回だけ足す。系列の参照の有無は、current・墓標・unavailableの系列のSetと系列ごとの履歴の版の数を段の初めに1回作って数える。(c)を数えないと、印の分で足りていたのに次の版まで外し、その版のsubjectの取消を戻せなくする（品質r2のP2-1）。外した版の集合で履歴の配列を1回作り直し、印の孤児（dropOrphanMark）も1回で除き、最後に1回だけ計り直す。計量の回数（reservedGenerationBytesの呼び出し）: normalの段の中は、越えた分を計る1回（training・testの段の最後の計量の値を使ってよく、そのときは0回）と外した後の1回の2回以下。外した後の計量で越えた分が残ったとき（数え違い）だけ、整列し直さずに残りの候補で同じ足し方を続け、続けるたびに計量を1回足す。(a)〜(c)が保存の計量と同じ式なら続けは起きない。呼び元の計量（:458〜:460の初回、:477の採用前の確かめ）はこの数に入れない（範囲の外で、今どおり）。費用は候補の整列1回＋外した数＋計量2回で、受信1回で全件×全件にならない。この段の手順は:533より後の補助の関数に置き、:420〜:447からはその関数を呼ぶだけにして行の数を保つ。training・testの3段（件数の上限で有界）は今の手順のまま。normalの履歴を全部外しても入らないときだけ、今どおり容量のunavailable→lastKnownを落とす→最後の拒否（:469〜:500）にする。normalのcurrent（全国とpartial）は器のために外さない。件数で断った入力はbyteのために退去しない（今どおり、:475）。版を外されたsubjectへの取消は残った版まで戻り、戻す版が無ければhistoryUnavailableのunavailable（P3-UWC-AC02(2)の印）になる。行の制約: :420〜:447の範囲で行の数を変えずに書き換える（:471以降は他の契約が引く）",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-unit.ts:420 «21fd5b83a374c887»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:443 «b309ad0ea9855890»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:443 «95d546a43295b339»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:444 «547d7bd3466e8836»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:475 «59ed3d62d2eb225e»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:45 «646c8b5ca91f8c03»",
@@ -556,7 +556,7 @@
           "reconstruction/src/display/chrome-eew/client.ts:152 «2e2c81dba608ae14»",
           "reconstruction/test/snapshot-sse/corpus.test.ts:125 «987ede3cc62f5833»",
           "reconstruction/src/runtime/shared-runtime.ts:376 «48cea98eabaa8181»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:788 «fe4a670749475aa2»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:799 «fe4a670749475aa2»"
         ]
       },
       {
@@ -604,11 +604,11 @@
         "id": "P3-UWC-AC09",
         "requirement": "受信経路の計算量（AGENTS.md）。(1) 受信1回で作り直す府県は、そのstepでcurrentが変わった全ての報のsubjectのbeforeとafter（weather-current-unit.ts:691を過ぎた後のcurrentsに集まるもの全部: touchedで集まる分〔:671〜:675〕と、touchedに来ないunavailableの置き換え〔domainのaddUnavailable、unitのcapacityUnavailable・lastKnownを落とした分、:680〜:691〕の両方。採用・件数の退去〔weather-current.ts:667〕・byteの退去〔weather-current-unit.ts:440・:443〕・取消の戻し〔weather-current.ts:646〕・全国報の置き換え〔:702〕・VPNO50の終了〔:528〕を含む）の区域が属する(operation, 府県)の和集合だけ。partialの受信1回では実配信で1府県（退去が起きたstepは退去された報の府県も）。和集合から漏れると、退去した報の行が実行中の公開形に残り、保存と復元の後の公開形と割れる（品質r0のP2: trainingが64件で最古のAが府県18のCode03を持つとき、府県26の新しい報でAが退去されても府県18を作り直さないとCode03が残る）。費用はその府県の全国報の行とpartialの行の数＋partialの件数（府県の判定は報のobjectごとのcache）に比例する (2) 全国報の受信（約10分に1通）とVPNO50の終了は、そのoperationの全府県を作り直す（全国報の行の数＋partialの行の数に比例。府県ごとにpartial全部を走り直さず、1回の走査で府県に振り分ける） (3) 受信1回でstateやview全体をJSON.stringifyしない。公開形のbyteはprojectorが行ごとに数える（今どおり） (4) 試験はT09（作り直す府県の範囲と退去の府県）とT15（tombstoneの走査量）で確かめる (5) tombstoneの当て直し（品質r0のP2、P3-UWC-D-TOMBSTONE）: maskSnapshotWithTombstones（weather-current.ts:547〜:566）は、今はtombstone 1件ごとにapplyEnding（:561）を呼び、その中で全履歴の版（:540）・intents（:539）・ownership（:541）を回り、区域ごとにCodeの集合を配列で走る（:519）ので、受信1回がtombstoneの件数N×履歴の版の数Rになる。これを、当てるtombstone（同じoperationのVPNO50で、報時刻がその報以後のもの。今の:553〜:554と同じ）の区域のCodeを1回の走査で集め（完全一致のCodeのSetと、末尾0000のCodeの先頭2桁のSet）、その報のsnapshotの3xの行だけを1回で外す形に書き換える。結果は今と同じ（外す行の集合は当てる順に依らず、1件ずつ当てても全部を一度に当てても同じ。外す行が無ければ同じobjectを返す）。費用は『tombstoneの数＋当てる範囲のCodeの総数＋その報の行の数』で、履歴・intents・ownershipを読まない。VPNO50の終了報の採用（applyEnding、:511〜:545、品質r1のP2）も同じ形にする: 今は区域ごとに[...codes].some(...)でCodeの配列を作って走る（:519）ので、保持の区域の数R（全国・partial・履歴の区域、:531・:532・:540）×終了報のCodeの数C（読み取りに件数の上限が無い、:261）になる。完全一致のCodeのSetと末尾0000のCodeの先頭2桁のSetを1回作り、区域ごとにSetで照合する。費用は『C＋全国・partial・履歴の行の数』で、採用1回に1回。上限と数（区別する）: tombstoneの数の上界はD-TOMBSTONEの推測で最大348件（VPNO50の終了）と、取消・容量のtombstoneがsubjectに1件。Cの上界は無く、Setにしたので費用はCに線形。W1の3日でVPNO50のCode 00の報が出たのは1通（出現の数、Q-UWC-NOTES）で、処理の量の計測値ではない。処理の量はT15で、tombstoneの数・保持の区域の数に対する照合の回数として確かめる（時間の計測値はP3-UWC-AC11の実測で記録する）。行の制約: :511〜:566の中で行の数を保つ（後ろの:577・:579・:593・:615・:636・:637・:664・:666を他の契約が引く）",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:780 «4fc17fd25a722488»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:791 «a6d6a8443ed95ccf»",
           "reconstruction/src/domains/weather-current/weather-current.ts:563 «ed51524b294c9f09»",
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:747 «dfdf4d2d8024d23e»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:440 «55f7fdfc2b82d32c»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:747 «07e9315ecd3856bd»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:440 «f58a74a27608c041»",
           "reconstruction/src/domains/weather-current/weather-current.ts:565 «369b4250040f422e»",
           "reconstruction/src/domains/weather-current/weather-current.ts:529 «2ba90d4bffbc1274»",
           "reconstruction/src/domains/weather-current/weather-current.ts:552 «99301e30518d16ea»",

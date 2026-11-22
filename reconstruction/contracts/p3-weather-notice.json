@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "8c16d9d85c1c9b104817bd90182a9142f0028b98",
-    "sha256": "0c547a2d4f84afb70913dc6c377cc6ce60aab566e2ec9d7a22be07cc3eb3bd8e",
+    "sha256": "dc6e58c8d6a049d5c7c61a50de59b1c64238c7fa51a0c8592b10063bb02d7991",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -616,8 +616,8 @@
         "id": "P3-WN-AC02",
         "requirement": "上がった区域（P3-WN-D-RAISE=A・MERGED=A）。(1) 受信の step で作り直した府県（reduceWeatherCurrentUnit の areas、operation\\0府県）ごとに、受理の前の合わせ（areaEntry(state)）と後の合わせ（advanceAreas の後の areaEntry(step.state)）の勝った行から、区域（WARNING_TYPES の層と区域の Code）×現象の段の最大を 1 回の走査で Map にする (2) 後の段が前の段（無ければ段なし）より高く、後の段を持つ行の source が受けた報（subject と inputId）のものである区域×現象だけを「上がった」と数える。全国報の後に府県の報が同じ段を載せても、府県の報の後に全国報が載せても上がらない。L4 の行で、受理が採った行の Status が「特別警報から危険警報」（前回電文は同じ現象の特別警報）の区域×Code は上がったに数えない（L5 の行は Status によらず数える）（P3-UW-STALE-DOWNGRADE-001、作者裁定 2026-11-14）（取り直しの採用〔P3-WN-AC12〕の上がった判定には含めない） (3) 一つの報で上がった区域があれば、上がった段の最大で AC01 の channel の intent を作る。上がった区域が無い報（引下げ・区域の縮小・事実の同じ続報・事実の同じ訂正・解除・なし）は作らない (4) 取消の採用では数えない（P3-WN-D-CANCEL=A） (5) 費用は作り直した府県の前後の勝った行の和（全国報 1 通で W1 の 3 日の勝った行 2,673 の前後、Q-UWC-SIZE）で、作り直さない府県の行を読まない",
         "evidenceRefs": [
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:769 «f5dce440c6d0cbc3»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:776 «4171168ae0309007»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:776 «37c3d651fdf39a02»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:781 «4171168ae0309007»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:185 «1b1a700b3b2e4445»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:195 «f4a65021cd1bcea0»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
@@ -734,7 +734,7 @@
         "evidenceRefs": [
           "reconstruction/src/runtime/owner-runtime.ts:726 «a087f7117133613b»",
           "reconstruction/src/units/landslide/landslide-unit.ts:671 «e72e89f20cb2a2eb»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:829 «ddca12f199bf8601»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:840 «ddca12f199bf8601»",
           "reconstruction/contracts/p3-recovery.json:386 «58c04337850a479c»",
           "reconstruction/src/runtime/owner-host.ts:225 «0f6799d1ae7251dd»",
           "reconstruction/src/runtime/owner-runtime.ts:688 «bd849811b6986b11»"
@@ -745,7 +745,7 @@
         "requirement": "受信経路の計算量（AGENTS.md）。(1) 上がった区域の判定は、作り直した府県の前後の勝った行を 1 回ずつ走査して区域×現象の Map を作るだけで、全件×全件にしない。作り直さない府県の合わせを読まない (2) 区域名の引きは上がった区域があるときだけ、受けた報の Body を 1 回走査する (3) 印は系列の Map で 1 件引き、版の鍵の digest は受理 1 回に 1 回（P3-NL-AC16） (4) pending の上限の判定は intent ごとの byte の加算（state 全体を JSON にしない） (5) 上限: pending 128 件。印の件数の上界は系列の数で、byte の器が最後の網（P3-WN-D-MARKS=A）",
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
-          "reconstruction/src/units/weather-current/weather-current-unit.ts:769 «f5dce440c6d0cbc3»"
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:776 «37c3d651fdf39a02»"
         ]
       },
       {

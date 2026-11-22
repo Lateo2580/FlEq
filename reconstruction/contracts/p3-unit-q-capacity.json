@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4dad6cb5f60afb3afaacaae4014edf1740e12d85",
-    "sha256": "5d2b71a7b826eb5b1155391ce8379df2fddac7ca7247b1aea15352c52ef6a2b4",
+    "sha256": "3e694dfd395399fc48f72ff290ece9d8f869425aed5870704b5859c392a0c9a4",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -448,7 +448,7 @@
           "reconstruction/contracts/p3-persist-premises.md:227 «7bf68e7cd8de0a64»",
           "reconstruction/contracts/p3-persist-premises.md:378 «d165f36293334e13»",
           "reconstruction/contracts/p3-seismic-unit.json:67 «5bec3040518d4cf4»",
-          "reconstruction/src/units/seismic/seismic-unit.ts:1209 «e85cf715bf3ed3e2»"
+          "reconstruction/src/units/seismic/seismic-unit.ts:1209 «2007d795b17de253»"
         ]
       },
       {

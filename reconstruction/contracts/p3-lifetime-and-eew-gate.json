@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "bf95b8a365fdc82ff297e0dc91fa79a2a7ea7815",
-    "sha256": "f78da238e2caba17446dd8d1807200da1baa28d22ef2a460b84533fd48f30602",
+    "sha256": "b839e1d4d4262e443e51b071ccb122d50523690892edb92f2e437c37281ef856",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -342,7 +342,7 @@
         "requirement": "F11（U-Fの保持期限）: 受信でsubjectを採用するとき、retainUntil＝max(ReportDateTime＋604,800,000, 採用したsubjectのvalidUntil ?? −∞)とする（容量でunavailableを採用する場合はvalidUntil=nullなのでReportDateTime＋7日）。81_09_01_260605_VPWP50の全DurationをP10Dにした報は、validUntil＝retainUntil＝最終periodの終わりとなり、ReportDateTime＋7日のdeadlineでもactiveのままsubjectとgateが残る。validUntil−1ではactive、validUntilちょうどのdeadlineでは既存の規則どおりdecision changed/semantic・outcome deadlineApplied（effective noActiveItems）を出し、同じ手順の中でsubjectとgateを回収する（期限が一致するときもvalidUntilの失効を先に処理し、有効期間の後に7日を足さない）。validUntilがReportDateTime＋7日より前の報（実fixtureの3時間〜67時間の系列）は従来どおり（validUntilでnoActiveItems、ReportDateTime＋7日で回収）。各段階でencode→JSON→decodeがrestoredになる。",
         "evidenceRefs": [
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:220 «452f18db560cfff3»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:137 «e87e8dd009d4cb60»",
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:137 «94dc4fe978fb5dd3»",
           "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:128 «e0a4a54ab3ca5140»",
           "reconstruction/src/domains/weather-timeseries/weather-timeseries.ts:242 «fe37dd1ffd636ef5»",
           "reconstruction/contracts/p2-weather-timeseries-unit.json:343 «c65d86bdce25607b»",
@@ -410,7 +410,7 @@
         "evidenceRefs": [
           "reconstruction/src/domains/eew/eew.ts:607 «8cf8503515b3efc1»",
           "reconstruction/src/domains/eew/eew.ts:362 «a9f9a4e43769a0aa»",
-          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:137 «e87e8dd009d4cb60»"
+          "reconstruction/src/units/weather-timeseries/weather-timeseries-unit.ts:137 «94dc4fe978fb5dd3»"
         ]
       },
       {
