@@ -269,7 +269,7 @@ async function templates(): Promise<Templates> {
 }
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 describe("P4-DV-T02 contractBoundary: the summary rule of the nine domains", () => {
-  it("keeps an over-budget domain full under 1 MiB, summarizes only the over-budget nine above it, and stays within 1 MiB and 967,258", async () => {
+  it("keeps an over-budget domain full under 1 MiB, summarizes only the over-budget nine above it, and stays within 1 MiB", async () => {
     const shapes = await templates();
     // (a) 全体が 1 MiB 以下: 65,536 を越えた U-L も full。
     const under = await bigViews(shapes, [{ unit: "U-L", count: 40, title: 1000 }]);
@@ -294,7 +294,7 @@ describe("P4-DV-T02 contractBoundary: the summary rule of the nine domains", () 
       if (domain.delivery === "summary") expect(domain.originalBytes).toBeGreaterThan(65_536);
     }
     expect("delivery" in result.current.eew).toBe(false);
-    expect(bytes(result)).toBeLessThanOrEqual(967_258);
+    expect(bytes(result)).toBeLessThanOrEqual(1_048_576);
     // 9 分野の和が上界を越えている間の内容の変わらない step: 保護 3 分野の wire とカードを直列化し直さずに unchanged（P4-DV-AC06）。
     // items（3 行の固定）は projectDomain の metadata only の道が旧の射影と同じく字で比べる。
     const state = (await publish(over.views, over.changes)).state;
@@ -482,9 +482,12 @@ describe("P4-DV-T06 regression: the items count from the new path's own changes"
     const flood = projected(result).snapshot.current.flood;
     expect([flood.items[0].activeCount, flood.delivery === "full" ? flood.wire.items.length : -1]).toEqual([0, 0]);
     expect(allPages(finalized.state, "U-R").entries).toEqual([]);
-    // 要約のときも同じ items（訓練の大きな記録を残し、ほかの分野で全体を 1 MiB の上に上げる）。
-    const shapes = await templates();
-    const heavy = await bigViews(shapes, [{ unit: "U-L", count: 400, title: 1000 }, { unit: "U-B", count: 400, title: 1000 }]);
+    // 要約のときも同じ items（訓練の大きな記録を残し、ほかの分野で全体を 1 MiB の上に上げる）。要約は U-F → … → U-R → U-W の順に 1 つずつなので
+    // （P4-DC-D-SUMMARY-ORDER=B）、重くするのは U-R より後の U-W（読めない報のカードの区域、P4-DC-AC08 (2)）。
+    const area = { code: "1000000", name: "地域", value: 0 };
+    const heavy = { views: { ...views, weatherCurrent: { ...views.weatherCurrent, unreadableCards: [{ kind: "unreadable" as const, inputId: "input-w", headType: "VPWW54",
+      operation: "normal" as const, receivedAt: 1, reason: "xmlInvalid" as const, title: null, headline: null, reportDateTimeRaw: null, rawCut: false, count: 1, hasRaw: true,
+      areas: Array.from({ length: 25_000 }, () => area) }] } }, changes: [] };
     const big = { ...record, operation: "training" as const, subject: `${record.subject}/training`, title: "題".repeat(30_000) };
     const normal = { ...record };
     const viewWith = (currents: readonly typeof record[]) => ({ ...views.flood, subjects: [], currents });

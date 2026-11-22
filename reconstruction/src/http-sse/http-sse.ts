@@ -157,8 +157,8 @@ async function startDisplayServer(options: DisplayServerOptions) {
   let latest: DisplaySnapshot | null = null;
   let latestJson = "";
   let worker = options.worker;
-  const clients = new Set<Client>(); const wireClients = new Set<WireClient>(); let wireText: string | null = null, wireVersion: DisplayVersion | null = null; const wireBeat = setInterval(() => beatWire(wireClients, { worker, latestVersion: wireVersion, emittedAt: Date.now() }), HEARTBEAT_MS); wireBeat.unref(); // P4-DW-D-LEGACY=A: 新しい経路の client と最後の 1 通（直列化は公開ごとに 1 回）。heartbeat は旧の /events と同じ間隔（無受信の判定を同じに効かせる）
-
+  const clients = new Set<Client>(); const wireClients = new Set<WireClient>(); let wireText: string | null = null, wireVersion: DisplayVersion | null = null, wireHeld: DisplayWireSnapshot | null = null, wireHoldTimer: NodeJS.Timeout | null = null; const wireBeat = setInterval(() => beatWire(wireClients, { worker, latestVersion: wireVersion, emittedAt: Date.now() }), HEARTBEAT_MS); wireBeat.unref(); // P4-DW-D-LEGACY=A: 新しい経路の client と最後の 1 通（直列化は公開ごとに 1 回）。保留は最後に射影した 1 個と 1,000ms の timer（P4-DC-RET-01）。heartbeat は旧の /events と同じ間隔（無受信の判定を同じに効かせる）
+  const sendWire = (snapshot: DisplayWireSnapshot): void => { if (wireHoldTimer != null) clearTimeout(wireHoldTimer); wireHoldTimer = null; wireHeld = null; wireText = `event: snapshot\nid: ${snapshot.sequence}\ndata: ${JSON.stringify(snapshot)}\n\n`; wireVersion = { streamId: snapshot.streamId, semanticRevision: snapshot.semanticRevision, sequence: snapshot.sequence }; for (const client of wireClients) writeWire(client, wireText); }, flushWire = (): void => { if (wireHeld != null) sendWire(wireHeld); }; // P4-DC-AC04 (3): サーバーの公開（wireText を作る時点）。直列化は公開ごとに 1 回で全 client が共有する（P2-A8-COST）。予約済みの timer は取り消してから保留を空に戻す（取り消した timer は close の後に発火しない）
   const deliver = (client: Client, input: SseClientInput) => {
     const transition = handleSse(client.state, input, performance.now());
     client.state = transition.state;
@@ -256,17 +256,17 @@ async function startDisplayServer(options: DisplayServerOptions) {
     setWorker(next: DisplayWorkerView) { worker = next; },
     heartbeat,
     async close() {
-      clearInterval(interval); clearInterval(wireBeat);
+      clearInterval(interval); clearInterval(wireBeat); if (wireHoldTimer != null) clearTimeout(wireHoldTimer); wireHoldTimer = null;
       for (const client of clients) client.response.destroy(); for (const client of wireClients) client.response.destroy();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
-    // P4-DW-AC01: 新しい経路への公開。直列化は公開ごとに 1 回で、経路の全 client が共有する（P2-A8-COST の移行中の例外）。
-    publishWire(snapshot: DisplayWireSnapshot) {
-      wireText = `event: snapshot\nid: ${snapshot.sequence}\ndata: ${JSON.stringify(snapshot)}\n\n`;
-      wireVersion = { streamId: snapshot.streamId, semanticRevision: snapshot.semanticRevision, sequence: snapshot.sequence };
-      for (const client of wireClients) writeWire(client, wireText);
+    // P4-DW-AC01・P4-DC-AC04 (2): 新しい経路への公開。緊急の更新は待たずに公開し、通常の更新は保留（最後の 1 個、まだ直列化しない）を置き換えて最初の保留から 1,000ms で公開する（後の更新は期限を延ばさない、P4-DC-DLV-01）。
+    publishWire(snapshot: DisplayWireSnapshot, urgent: boolean) {
+      if (urgent) return sendWire(snapshot);
+      wireHeld = snapshot;
+      wireHoldTimer ??= setTimeout(flushWire, 1_000).unref();
     },
-    wireClientCount: () => wireClients.size,
+    flushWire, wireClientCount: () => wireClients.size, // flushWire は保留があれば公開し、無ければ何もしない（停止の完了の root が呼ぶ、P4-DC-AC04 (1)）
   };
 }
 
@@ -321,12 +321,12 @@ const WIRE_EVENTS_PATH = "/api/display/wire/events";
 const WIRE_HTML_PATH = "/display";
 // 名前の白い表が path の確かめ（/chrome-eew/ と同じ形、AC15）。
 const WIRE_MODULE_PATH = /^\/display\/([a-z0-9-]+)\.js$/;
-// 1 client に待ちの 1 通（P2-SNAPSHOT-SSE-001 の AC03 と同じ規則）。旧の handleSse は旧の snapshot の型に結び付いているので、同じ規則を字の 1 通で持つ。
-type WireClient = { response: ServerResponse; waiting: string | null; blocked: boolean; timer: NodeJS.Timeout | null };
+// 1 client に待ちの 1 通（P2-SNAPSHOT-SSE-001 の AC03 と同じ規則）。旧の handleSse は旧の snapshot の型に結び付いているので、同じ規則を字の 1 通で持つ。timer は (i) 書き込みの詰まり、skip は (ii) 版の飛び、overwrote は前の drain から待ちを上書きしたか（P4-DC-D-SLOW-CLIENT）。
+type WireClient = { response: ServerResponse; waiting: string | null; blocked: boolean; timer: NodeJS.Timeout | null; skip: NodeJS.Timeout | null; overwrote: boolean };
 function writeWire(client: WireClient, text: string): void {
-  if (client.blocked) { client.waiting = text; return; }
+  if (client.blocked) { if (client.waiting != null) { client.overwrote = true; client.skip ??= setTimeout(() => client.response.destroy(), SLOW_CLIENT_MS).unref(); } client.waiting = text; return; }
   if (client.response.write(text)) return;
-  // 書けなかった最初の時から 5 秒で切る。待ちの間の新しい 1 通は待ちを置き換えるだけで、期限を延ばさない。
+  // P4-DC-D-SLOW-CLIENT: (i) は書けなかった時から、(ii) は待ちを最初に上書きした時から、どちらかが 5 秒続けば切る。待ちの間の新しい 1 通は待ちを置き換えるだけで、期限を延ばさない。
   client.blocked = true;
   client.timer = setTimeout(() => client.response.destroy(), SLOW_CLIENT_MS);
   client.timer.unref();
@@ -340,16 +340,16 @@ function openWire(clients: Set<WireClient>, response: ServerResponse, latest: st
   if (clients.size >= CLIENT_LIMIT) return sendJson(response, 503, JSON.stringify({ reason: "clientLimit" }));
   response.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", connection: "keep-alive" });
   response.flushHeaders();
-  const client: WireClient = { response, waiting: null, blocked: false, timer: null };
+  const client: WireClient = { response, waiting: null, blocked: false, timer: null, skip: null, overwrote: false };
   clients.add(client);
   response.on("drain", () => {
     if (client.timer != null) clearTimeout(client.timer);
-    const waiting = client.waiting;
-    Object.assign(client, { blocked: false, waiting: null, timer: null });
-    if (waiting != null) writeWire(client, waiting);
+    const waiting = client.waiting, overwrote = client.overwrote;
+    Object.assign(client, { blocked: false, waiting: null, timer: null, overwrote: false });
+    if (waiting != null) writeWire(client, waiting); if (client.skip != null && (!overwrote || !client.blocked)) { clearTimeout(client.skip); client.skip = null; } // (ii) を解くのは、待ちが空・前の drain から上書きが無い（上書きの無い排出の周期）・待ちを書けた（true）のどれか。待ちを書いて false なら (i) は数え直し、(ii) は残す
   });
   response.on("close", () => {
-    if (client.timer != null) clearTimeout(client.timer);
+    if (client.timer != null) clearTimeout(client.timer); if (client.skip != null) clearTimeout(client.skip);
     clients.delete(client);
   });
   if (latest != null) writeWire(client, latest);

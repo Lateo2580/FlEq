@@ -140,7 +140,7 @@ type CompositionOptions = Readonly<{
   measure?: (observation: Extract<P2HostObservation, { kind: "checkpointGrant" | "writeCount" | "shutdownSummaryWrite" | "notificationAdoption" | "generationRaised" }>) => void;
   // P2-A3-A8-LINK: without it snapshots are still projected (state kept) but not published.
   display?: Readonly<{
-    publish: (snapshot: DisplaySnapshot) => void; publishWire?: (snapshot: DisplayWireSnapshot) => void; // P4-DW-AC01: 新しい経路への公開（P4-DW-D-LEGACY=A、旧の publish とは別に判定する）
+    publish: (snapshot: DisplaySnapshot) => void; publishWire?: (snapshot: DisplayWireSnapshot, urgent: boolean) => void; flushWire?: () => void; // P4-DW-AC01: 新しい経路への公開（P4-DW-D-LEGACY=A、旧の publish とは別に判定する）。urgent でなければ http-sse が最大 1 秒まとめ、flushWire は保留を出す（P4-DC-AC04）
     onMarker?: (marker: Readonly<{ point: "T3"; clock: "node"; monotonicMs: number }>, version: DisplayVersion) => void;
     // Keeps /healthz and heartbeat on the same worker view as the snapshot (P2-A8-AC04).
     setWorker?: (worker: DisplayWorkerView) => void; mirror?: (mirror: RuntimeMirror) => void; // P3-TP-AC06 (2): 表示の予算の影響を受けない view の口（入力の行の現況）
@@ -989,7 +989,7 @@ class RuntimeCompositionRoot {
     if (display != null) {
       // A display callback failure surfaces like a notification dispatch failure, after state is adopted.
       const guard = (call: () => void) => { try { call(); } catch (error) { void Promise.reject(error); } };
-      if (stopped) guard(() => display.setWorker?.(worker)); guard(() => display.mirror?.(state.mirror)); if (wire.kind === "projected") guard(() => display.publishWire?.(wire.snapshot)); // P4-DW-AC01: 新しい経路の公開は旧の projected の分岐の外
+      if (stopped) guard(() => display.setWorker?.(worker)); guard(() => display.mirror?.(state.mirror)); if (wire.kind === "projected") guard(() => display.publishWire?.(wire.snapshot, wire.urgent || stopped)); else if (stopped) guard(() => display.flushWire?.()); // P4-DW-AC01: 新しい経路の公開は旧の projected の分岐の外。停止の完了は表示が同じでも保留を出す（P4-DC-AC04 (1)、close の前に捨てない）
       if (result.kind === "projected") {
         const { streamId, semanticRevision, sequence } = result.snapshot;
         guard(() => display.onMarker?.({ point: "T3", clock: "node", monotonicMs: performance.now() },

@@ -47,7 +47,7 @@ async function boot(server?: Awaited<ReturnType<typeof startDisplayServer>>) {
   const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"), legacyStateDirectory: join(path, "old"),
     diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs, { clock: () => at, notificationAdapter: manualAdapter().adapter,
     display: { publish: (snapshot) => { published.push(snapshot); server?.publish(snapshot); },
-      publishWire: (snapshot) => { wires.push(snapshot); server?.publishWire(snapshot); } } });
+      publishWire: (snapshot, urgent) => { wires.push(snapshot); server?.publishWire(snapshot, urgent); }, flushWire: () => server?.flushWire() } });
   harnesses.push(h);
   await startHarness(h, "dw", at);
   let sequence = 0;
@@ -169,21 +169,25 @@ describe("P4-DW-T08 acceptance: the new path", () => {
       const t = await boot(server);
       const stringify = vi.spyOn(JSON, "stringify");
       await t.send(VXSE43);
-      const wireCalls = stringify.mock.calls.filter(([value]) => value === t.wires.at(-1)).length;
+      // 待つ側の公開（P4-DC-AC04）は保留に入るので出してから比べる。比べる相手は最後に書かれた snapshot、直列化は書いた公開ごとに 1 回（P4-DC-AC08 (4)）。
+      server.flushWire();
+      const written = t.wires.filter((wire) => stringify.mock.calls.some(([value]) => value === wire));
+      const wireCalls = written.map((wire) => stringify.mock.calls.filter(([value]) => value === wire).length);
       stringify.mockRestore();
+      const lastWritten = written.at(-1)!;
       const last = (stream: Stream) => stream.frames.length === 0 ? null : dataOf(stream.frames.at(-1)!);
-      await until(() => last(events) === JSON.stringify(t.published.at(-1)) && last(wireA) === JSON.stringify(t.wires.at(-1)) && last(wireB) === last(wireA));
+      await until(() => last(events) === JSON.stringify(t.published.at(-1)) && last(wireA) === JSON.stringify(lastWritten) && last(wireB) === last(wireA));
       expect(dataOf(events.frames.at(-1)!)).toBe(JSON.stringify(t.published.at(-1)));
-      expect(dataOf(wireA.frames.at(-1)!)).toBe(JSON.stringify(t.wires.at(-1)));
+      expect(dataOf(wireA.frames.at(-1)!)).toBe(JSON.stringify(lastWritten));
       expect(dataOf(wireB.frames.at(-1)!)).toBe(dataOf(wireA.frames.at(-1)!));
-      expect(wireCalls).toBe(1);
+      expect(wireCalls).toEqual(written.map(() => 1));
       // heartbeat は旧の /events と同じ 15 秒ごとに、新しい経路にも同じ形で来る。
       const beats = (stream: Stream) => stream.frames.filter((frame) => frame.startsWith("event: heartbeat")).length;
       const [oldBeats, wireBeats] = [beats(events), beats(wireA)];
       vi.advanceTimersByTime(15_000);
       await until(() => beats(events) > oldBeats && beats(wireA) > wireBeats);
       const beat = JSON.parse(dataOf(wireA.frames.filter((frame) => frame.startsWith("event: heartbeat")).at(-1)!));
-      expect(beat).toMatchObject({ worker: { state: "healthy" }, latestVersion: { sequence: t.wires.at(-1)!.sequence } });
+      expect(beat).toMatchObject({ worker: { state: "healthy" }, latestVersion: { sequence: lastWritten.sequence } });
       for (const stream of [events, wireA, wireB]) stream.response.destroy();
     } finally {
       vi.useRealTimers();

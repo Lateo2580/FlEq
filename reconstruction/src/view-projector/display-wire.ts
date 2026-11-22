@@ -691,7 +691,7 @@ type DisplayWireCounts = Readonly<Record<"eew" | "tsunami" | "earthquake", Count
 type DisplayWireVocabCounts = Readonly<Record<VocabKey, Readonly<VocabCounts>>>;
 type DisplayWireResult =
   | Readonly<{ kind: "unchanged"; state: DisplayWireState; counts: DisplayWireCounts; vocabCounts: DisplayWireVocabCounts }>
-  | Readonly<{ kind: "projected"; state: DisplayWireState; snapshot: DisplayWireSnapshot; counts: DisplayWireCounts; vocabCounts: DisplayWireVocabCounts }>;
+  | Readonly<{ kind: "projected"; state: DisplayWireState; snapshot: DisplayWireSnapshot; counts: DisplayWireCounts; vocabCounts: DisplayWireVocabCounts; urgent: boolean }>; // urgent は待たずに公開する更新か（P4-DC-AC03、その公開だけ）
 
 // 同じ subject の変化が 1 step に 2 回あれば最後の after を使う（before は projector の記録から引く）。
 function changesOf(changes: readonly RuntimeDisplayChange[], unit: "U-E" | "U-T" | "U-Q"): readonly Change[] {
@@ -863,20 +863,55 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
       summarize.has("localBulletins") ? bytes.localBulletins : null, published?.current.localBulletins),
     typhoon: vocabDomain("U-Y", views.typhoon.contentRevision, itemsOf("typhoon"), vocab.typhoon, summarize.has("typhoon") ? bytes.typhoon : null, published?.current.typhoon),
   });
-  // 全体が 1,048,576 を超えたときだけ、包みが 65,536 を超えた 9 分野を要約にする（view-projector の RES-06 と同じ式、P4-DV-D-SUMMARY-RULE=A）。保護 3 分野は要約にしない（H37）。
+  // 全体が 1,048,576 を超えたときだけ、包みが 65,536 を超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、
+  // 全体が 1,048,576 以下になったら止める（作者裁定 P4-DC-D-SUMMARY-ORDER=B）。1 つごとに full の byte を引いて要約の包みの実の byte を足す（上界 3,882 で
+  // 代用すると止まる位置が後ろにずれる）。次の公開は同じ式を最初から当て、履歴を持たない。保護 3 分野は要約にしない（H37）。
   let shell = shellOf(build(new Set()));
   const vocabTotal = VOCAB_KEYS.reduce((sum, key) => sum + bytes[key], 0);
   if (vocabTotal + NEW_PATH_FIXED_BOUND > SNAPSHOT_BYTES) {
-    const total = commonBytes(shell, (published?.sequence ?? 0) + 1, source.generatedAt)
+    let total = commonBytes(shell, (published?.sequence ?? 0) + 1, source.generatedAt)
       + protectedBytes(protectedCurrent.eew) + protectedBytes(protectedCurrent.tsunami) + protectedBytes(protectedCurrent.earthquake) + vocabTotal;
-    if (total > SNAPSHOT_BYTES) shell = shellOf(build(new Set(VOCAB_KEYS.filter((key) => bytes[key] > DOMAIN_BUDGET))));
+    const summarize = new Set<VocabKey>();
+    for (const key of ["weatherTimeseries", "localBulletins", "typhoon", "briefing", "landslide", "flood", "weatherCurrent", "volcano", "nankai"] as const) {
+      if (total <= SNAPSHOT_BYTES) break;
+      if (bytes[key] <= DOMAIN_BUDGET) continue;
+      summarize.add(key);
+      total += utf8(vocabDomain(VOCAB_UNIT[key], views[key].contentRevision, itemsOf(key), vocab[key], bytes[key], undefined)) - bytes[key];
+    }
+    if (summarize.size > 0) shell = shellOf(build(summarize));
   }
   const state = (snapshot: DisplayWireSnapshot | null, seen: Seen | null): DisplayWireState =>
     ({ streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake, domains, vocab, removals, losses, hidden });
   if (published != null && sameSnapshot(published, shell)) return { kind: "unchanged", state: state(published, last ?? null), counts, vocabCounts };
   const snapshot: DisplayWireSnapshot = { ...shell, sequence: (published?.sequence ?? 0) + 1, generatedAt: source.generatedAt };
-  return { kind: "projected", state: state(snapshot, { persistence: persistenceKey }), snapshot, counts, vocabCounts };
+  return { kind: "projected", state: state(snapshot, { persistence: persistenceKey }), snapshot, counts, vocabCounts, urgent: urgentOf(byUnit) };
 }
+
+// 待つ・待たないの判定（P4-DC-AC03、表 §4.2）。mergedByUnit の後の差分のどれか 1 つが待たない行に当たれば待たない（取消・解除が通常の更新と
+// 同じ公開に重なっても待たない）。費用は差分の数と差分の subject の区域の数に比例し、全 subject を見ない。worker.state は見ない（停止の完了は root が渡す）。
+function urgentOf(byUnit: ReadonlyMap<RuntimeUnitId, readonly RuntimeDisplayChange[]>): boolean {
+  if (byUnit.has("U-E") || byUnit.has("U-Q")) return true;
+  for (const changes of byUnit.values()) for (const change of changes) {
+    if (change.after == null && (change.removal === "cancelled" || change.removal === "ended")) return true;
+    if (change.unit === "U-T" && !sameForecastShape(forecastShape(change.before), forecastShape(change.after))) return true;
+    // U-W の府県の行: 前にあった [層, Code] が後に無ければ解除・取消（同じ件数の置き換えも含む。Kind だけ減るのは待つ、Q-DC-URGENT-REMAINING）。
+    if (change.after?.unit === "U-W" && change.before?.unit === "U-W" && change.before.current != null) {
+      const kept = new Set((change.after.current?.areas ?? []).map(([system, code]) => `${system}\u0000${code}`));
+      if (change.before.current.areas.some(([system, code]) => !kept.has(`${system}\u0000${code}`))) return true;
+    }
+  }
+  return false;
+}
+// 津波の予報の区域ごとの区分と effective（発令・引上げ・区域拡大・解除・降格・取消が変える欄）。予報でなければ null（観測と、記録の無い側）。
+type ForecastShape = Readonly<{ effective: string; areas: ReadonlySet<string> }> | null;
+function forecastShape(subject: RuntimeDisplaySubject | null): ForecastShape {
+  const current = subject?.unit === "U-T" ? subject.current : null;
+  if (current == null || "stations" in current) return null;
+  return { effective: current.effective, areas: new Set([...current.areas.map((area) => `k\u0000${area.code}\u0000${area.areaClass}`),
+    ...current.unkeyedAreas.map((area) => `u\u0000${area.name}\u0000${classOf(area.kindCode)}`)]) };
+}
+const sameForecastShape = (left: ForecastShape, right: ForecastShape): boolean => left === right
+  || left != null && right != null && left.effective === right.effective && left.areas.size === right.areas.size && [...left.areas].every((key) => right.areas.has(key));
 
 // ---- 消えた理由の一覧・H39 の欄・停止の確定で消えた記録のお知らせ（P4-REMOVAL-LOSS-001、表 §3） ----
 
@@ -959,5 +994,5 @@ function hiddenNotices(previous: ReadonlySet<string>, byUnit: ReadonlyMap<Runtim
   return next.size === previous.size && [...next].every((id) => previous.has(id)) ? previous : next;
 }
 
-export { WIRE_COUNTS, WIRE_LIMITS, cutText, projectDisplayWire };
+export { NEW_PATH_FIXED_BOUND, WIRE_COUNTS, WIRE_LIMITS, cutText, projectDisplayWire };
 export type { DisplayWireCounts, DisplayWireInput, DisplayWireResult, DisplayWireSource, DisplayWireState, DisplayWireVocabCounts, DisplayWireViews };
