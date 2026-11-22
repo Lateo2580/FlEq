@@ -1,6 +1,6 @@
-# P4-DISPLAY-CAPACITY-001 の設計の表 r2（B1: 画面へ送る snapshot の容量・要約になる順・公開頻度・遅い客の切断）
+# P4-DISPLAY-CAPACITY-001 の設計の表 r3（B1: 画面へ送る snapshot の容量・要約になる順・公開頻度・遅い客の切断）
 
-- 起草日: 2026-11-22（起草の子 r0。統合担当の決め 5 つと作者裁定 P4-DC-D-SUMMARY-ORDER=B〔2026-11-22 17:55〕を当てた。同日 r1 で r0〔93c14c9a〕のレビュー 2 本〔ヘルツ Astra high NO-GO・契約適合 Opus 条件付き GO〕と統合担当の決めを当てた。対応は §12。r2 で r1〔366e9919〕の再レビュー〔ヘルツ 条件付き GO・契約適合 GO〕を当て、計画を同期した。対応は §13）。
+- 起草日: 2026-11-22（起草の子 r0。統合担当の決め 5 つと作者裁定 P4-DC-D-SUMMARY-ORDER=B〔2026-11-22 17:55〕を当てた。同日 r1 で r0〔93c14c9a〕のレビュー 2 本〔ヘルツ Astra high NO-GO・契約適合 Opus 条件付き GO〕と統合担当の決めを当てた。対応は §12。r2 で r1〔366e9919〕の再レビュー〔ヘルツ 条件付き GO・契約適合 GO〕を当て、計画を同期した。対応は §13。r3 は発注前点検で Q-DC-MANY-EVENTS を閉じた〔§14〕）。
 - base: main `4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835`（branch draft/p4-b1）。
 - 範囲の真実源: 計画 `reconstruction/contracts/p4-order-plan.md` の B1 の行（:112）・§4.3・§3.2（:223・:230）・§1.2 の容量の行。計画は書き換えない（直す候補は §9）。
 - 数の真実源: 計測 r4（`~/dev/p4-b1-capacity-r4.md`、main 4f4a9a52 の新しい経路、§1〜§7。repo の外なので、実装に要る数は本表に写した）。r0〜r3 は B0 の前の main の見積もりで、本表は引かない。B0 の表 `p4-display-wire-tables.md` §1.4・§1.5、① の表 `p4-display-vocab-tables.md` §4・§12.3・§12.7、script `p4-display-wire-max.mjs`。
@@ -180,6 +180,7 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 | E2 | U-R の 1 件、実の電文の最大（浸水想定地区 33 区域） | 7,006、1 応答 7,241（量った） | repo: `16_12_01_260312_VXKO50`。実装の試験 |
 | E3 | U-W、全国の VPWS50 1 通と、通常と訓練の全国 VPWS50 が並ぶ日（運用区分の混在） | 93,649・186,508（量った） | repo: `15_18_01_250630_VPWS50`、`synthetic_VPWS50_national_0907_1300`・`synthetic_VPWS50_national_training_0907_1301`・`synthetic_VPWS50_national_0907_1302`。実装の試験 |
 | E4 | U-E の複数 EventID: B0 のカードの上限まで EventID が同時に有効で、どれも既知の細分区域 188 を全部持つ | カードの区域（2 件以上は最小の欄）と合成の段が期待と一致、`eew.wire.omitted`（`p4-display-wire.types.ts` の EewWire）が 0 | repo: `77_01_01_240613_VXSE45` の EventID と区域を替えた写し。実装の試験 |
+| E4b | U-E の上限＋1 件: 最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件。上限＋1 件目は、ほかの報より高い区域とその報だけが持つ区域を持つ | 合成が全部の通常の報の区域ごとの最大と一致、`eew.wire.omitted` が 1、カードは上限の枚数（量った: F1 で合成 [100, 6]・[101, 7]・[102, 7]・[105, 4]・[106, 4]・[107, 4]・[110, 4]、omitted 1、カード 6 枚） | repo: `display-wire-fixture.ts` の `eewXml`（F1 の組み方、`~/dev/fleq-b1-facts/.tmp-b1/many.b1.test.ts`）。実装の試験 |
 | E5 | U-T の観測の最大と予報: B0 の津波の件数の上限まで EventID が既知の予報区 66 を全部持つ（区分を混ぜる、コードの無い予報区は 8 行まで、付加文は 2,048 byte まで）、観測は 66 区域の全部 | 予報区の行と区分の合成が期待と一致、omittedEvents・omittedUnkeyed が 0。観測点は詳細の stations のページで全部読める | repo: `32-39_12_02_250206_VTSE41`・`32-39_11_03_250206_VTSE51` の写し。実装の試験 |
 | E6 | 他分野との同時最大: 保護 3 分野・通知・共通部が上界、9 分野が 65,536 を越える分野を複数含み全体が 1 MiB を越える | 全体 ≦ 1,048,576、要約は B の順で止まる、E4・E5 の期待集合は欠けない | repo: ① の試験の組み方（`display-vocab.test.ts` の `bigViews`）と B0 の最大の形。実装の試験。実の採取物の版（§2.2 の導いた行）は試験にしない |
 | E7 | 災害の日と実の採取物の日: N1・N2・N3・W1 の 3 日・W2 | 要約 0、全体の最大 N1 55,481・N2 72,667・N3 401,045・W1 と W2 372,121（量った） | 採取物 `~/dev/fleq-corpus-p0/20260923-capacity`（repo の外。N1・N2 も t0 を x-2026-06-26 から取る）。T06 が採取物の dir を環境変数で渡したときだけ流す。統合担当が Mac mini で実装の後に流す。採取物が無ければ blocked（Pass にしない）。R1 は採取物が無い（Q-DC-R1） |
@@ -189,7 +190,7 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 | 外3 | E13a の外: 津波との同時（O09:22） | 期待の字は変えない | PM が持つ（Q-DC-PM-OVERFLOW-INPUTS） |
 
 - 運用区分の混在は E3（repo の合成の日）と E8（実の採取物の写し）に入る。
-- 意図した超過の側（manifest に入れない）: B0 のカードの上限を越えた EEW・B0 の津波の件数の上限を越えた津波・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から（§7 の O09:21 と津波の 5 本）。同時の EEW の EventID の最大を実の電文で確かめ、上限を越えうるならカードに出ない報の扱いを作者へ出す（Q-DC-MANY-EVENTS、発注前点検）。
+- 意図した超過の側（manifest に入れない）: B0 のカードの上限を越えた EEW・B0 の津波の件数の上限を越えた津波・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から（§7 の O09:21 と津波の 5 本）。E13a の期待集合は区域ごとの予測震度（有効な報をまたいだ値）と読み、上限を越えた最終報の前の通常の EEW の区域の値は合成に入る（E4b）。7 件目の EventID ごとの値・震源・EventID が画面に出ないことは E0 発注 1 の板（DS-OPEN-31）で作者へ出す（Q-DC-MANY-EVENTS は閉じた、§14）。
 - P4-DV-D-ITEM-OVERSIZE=A は成り立つ: manifest の 1 件の 1 応答の最大は E1 の 25,564 で 65,536 に入る。受理上限の U-Y（384・96、名前 24 字の 3 byte の字）も 55,847 で入る。
 - U-R の受理上限で組んだ要素（浸水想定地区の区域の字を全部空、352 区域）は語彙の形 67,532・1 応答 67,767 で入らない。ただし parser を通していない見積もりで、字の空な区域を持つ電文を受理するかは確かめていない（Q-DC-UR-ITEM-LIMIT）。manifest には入れない（受理上限の作り物の側）。
 
@@ -222,7 +223,7 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 
 - 確かめた（今の木で開いた）: `display-wire.ts` の :541・:544・:692〜:694・:747〜:750・:774〜:784・:866〜:872・:962、`http-sse.ts` の :24・:105〜:129・:162〜:183・:209・:247〜:268・:320〜:356・:359〜:417、`composition-root.ts` の :143・:950〜:1000・:2491〜:2517、`owner-runtime.ts` の :847・:1003〜:1040、`tsunami-unit.ts` の :346〜:351、`p3-uw-canon.types.ts` の :12〜:33、`p2-shared-runtime.types.ts` の :206〜:241、`runner.ts` の :340〜:395・:560〜:582、`display-vocab.test.ts` の :271〜:300・:350〜:365・:486〜:497、`display-wire-root.test.ts` の :42〜:56・:108〜:116・:163〜:200、`host.ts`（`publishWire` を配線していない。E0 発注 2 が配線する。停止の経路 :515〜:538、close は :536）、r1 で `composition-root.ts` の :687・:735・:759・:982・:1019・:1775〜:1790、`shared-runtime.ts` の :180、`http-sse.ts` の :255〜:270・:325、`display-wire.ts` の :700〜:716、`weather-current-unit.ts` の :825〜:832、`p4-display-wire.types.ts` の :50〜:53、`owner-runtime.ts` の :1015〜:1026、`display-wire-root.test.ts` の :159〜:162。
 - 既存の試験で B と保留の影響を受けるもの（契約 AC08 で書き換えを許した）: `display-vocab.test.ts` の P4-DV-T02 (b)・P4-DV-T03 の要約から full への戻りの組・P4-DV-T06 の flood の要約の組、`display-wire-root.test.ts` の :164 の試験（送った報の後に待つ側の公開が続くと、最後に射影した snapshot がまだ書かれていない）。P4-DV-T02 の :297 の「967,258 以下」は「1,048,576 以下」に変える。
-- 未決は契約の unresolvedQuestions（Q-DC-UR-ITEM-LIMIT・Q-DC-MANY-EVENTS・Q-DC-PM-OVERFLOW-INPUTS・Q-DC-M5-TOOL・Q-DC-R1・Q-DC-SPEC-REVISION）。
+- 未決は契約の unresolvedQuestions（Q-DC-UR-ITEM-LIMIT・Q-DC-PM-OVERFLOW-INPUTS・Q-DC-M5-TOOL・Q-DC-R1・Q-DC-SPEC-REVISION）。
 
 ## 12. r1 の対応（r0 のレビュー 2 本と統合担当の決め、2026-11-22）
 
@@ -253,3 +254,11 @@ U-W の府県の行の [層, Code] の集合の差は、統合担当の決め 3 
 | 契約適合 5 H37-EXPECT の A の字 | meta の P4-DC-D-H37-EXPECT |
 | 契約適合 6 readPaths | `weather-current-unit.ts`・`host.ts` を足した（どちらも実在） |
 | 計画の同期 | §9 の 1〜10 と D-H37-EXPECT を計画の :3・:52・:68・:69・:112・:123・:171・:223・:230・:317・:321・:325・:326・:400・:641・:940 に行の中で当てた（行の数は変えていない）。本契約が引く計画の «»（:314〜:327）は付け直した。ほかの契約が引く計画の行（:10・:19・:41・:111・:113・:145 ほか）は書き換えていない |
+
+## 14. r3 の対応（発注前点検、Q-DC-MANY-EVENTS を閉じた、統合担当の決め 2026-11-22）
+
+- 根拠: `~/dev/p4-b1-many-eew-r1.md`（main 4f4a9a52 の射影で量った F1〜F3。repo の外なので要る中身は契約の questionResolutions と本節に写した）。
+- F1: 最終報の前の通常の EEW 7 件（別々の EventID）で、カードは 6 枚、`eew.wire.omitted` は 1、7 件目の区域の値は合成に区域ごとの最大として入る（7 件目だけが持つ区域も入る）。合成への足し引きは `display-wire.ts` の :227・:244 で、どちらも運用区分が通常かだけを見る。
+- F2: 7 件目が訓練・試験なら合成にも入らず omitted だけ。7 件目が通常で訓練・試験のカードがあれば、最も古い訓練・試験のカードを外して入る。
+- F3: N1〜N3 の同時の EEW は最大 4 件、omitted は 0。W1・W2 に EEW は無い。
+- 当てた所: 契約の questionResolutions（Q-DC-MANY-EVENTS を移して閉じた）、AC06 (1) と T06 に E4b、§8 に E4b の行と意図した超過の段落、計画の E0 の行（§2.1、:122）と :940 に受けの字（行の中の書き換え。:122・:940 を引く «» は無い）。
