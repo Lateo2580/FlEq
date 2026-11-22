@@ -2,20 +2,23 @@ import { createHash } from "node:crypto";
 
 import type { MaterialValue, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { EewCurrent, EewPredictionIntensity } from "../../contracts/p2-eew-unit.types";
-import type { MarkViewed, PersistenceStatus, ReportRef, RuntimeDisplayChange, RuntimeUnitId, RuntimeViews, SubjectUnavailable, UnitId,
-  UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
-import type { DisplayChannelView, SnapshotProjectionInput, SnapshotProjectionState, VisibleNotice } from "../../contracts/p2-snapshot-sse.types";
+import type { MarkViewed, PersistenceStatus, ReportRef, RuntimeConfirmation, RuntimeDisplayChange, RuntimeDisplaySubject, RuntimeUnitId, RuntimeViews,
+  SubjectUnavailable, UnitId, UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
+import type { DisplayChannelView, DisplaySummaryItem, SnapshotProjectionInput, SnapshotProjectionState, VisibleNotice } from "../../contracts/p2-snapshot-sse.types";
 import type { EarthquakeEventView, LongPeriodSubject, SeismicIntensityItem, SeismicIntensityValue, SeismicRecentQuake, SeismicUnitView } from "../../contracts/p3-seismic-unit.types";
 import type { TsunamiAreaClass, TsunamiForecastSubject, TsunamiObservationSubject, TsunamiUnitView } from "../../contracts/p3-tsunami-unit.types";
 import type { KnownCodeTable } from "../../contracts/p4-gis-assets.types";
 import type {
   DisplayCutText, DisplayDetailRef, DisplayFromTo, DisplayLevel, DisplayPaint, DisplayStateMark, DisplayValueText, DisplayWireCard,
-  DisplayWireSnapshot, EarthquakeRowWire, EarthquakeWire, EewAreaRow, EewCard, EewCardHeader, EewCardLetter, EewMini, EewWire, LongPeriodWire,
-  TsunamiForecastRow, TsunamiForecastWire, TsunamiWire,
+  DisplayVocabDomain, DisplayWireSnapshot, EarthquakeRowWire, EarthquakeWire, EewAreaRow, EewCard, EewCardHeader, EewCardLetter, EewMini, EewWire, LongPeriodWire,
+  TsunamiForecastRow, TsunamiForecastWire, TsunamiWire, VocabFact, VocabItem, VocabUnit, VocabWire,
 } from "../../contracts/p4-display-wire.types";
 import known from "../../assets/gis/known-codes.v1.json";
 import { knownStage } from "../domains/seismic/seismic";
 import { KIND_CLASS } from "../domains/tsunami/tsunami";
+import { WIRE_LIMITS, cutText, vocabItem } from "./display-vocab";
+import { briefingTally, eewTally, floodTally, landslideTally, localBulletinsTally, nankaiTally, projectDomain, seismicTally, timeseriesTally, tsunamiTally,
+  typhoonTally, volcanoTally, weatherTally } from "./view-projector";
 
 // P4-DISPLAY-WIRE-001（B0）: 新しい経路の射影。区域の規則・合成・札の字・文字列の上限の表・共通部の写しをここだけに置く（P4-DW-AC02・AC03・AC10）。
 // 入力は unit の view と表示差分なので、受理の後も復元の後も同じに効く。state は保存しない。
@@ -24,13 +27,9 @@ const table: KnownCodeTable = known;
 const SUBAREAS = table.forecastLocalE.map((item) => item.code), CITIES = table.city.map((item) => item.code), TSUNAMI_AREAS = table.tsunamiArea.map((item) => item.code);
 const SUBAREA_SET = new Set(SUBAREAS), CITY_SET = new Set(CITIES), TSUNAMI_SET = new Set(TSUNAMI_AREAS);
 const OPERATIONS = ["normal", "training", "test"] as const;
-const VERSION = "p4-display-wire-v1" as const;
+const VERSION = "p4-display-wire-v2" as const;
 
-// 表示用の文字列の上限（escape 後の JSON の byte、引用符を除く）の唯一の表（P4-DW-D-STRING-SOURCE、台帳 50）。
-const WIRE_LIMITS = {
-  eventId: 40, time: 40, hypocenter: 192, coordinate: 64, valueRaw: 32, description: 96, place: 192, firstWave: 48, height: 24,
-  unkeyedName: 192, tsunamiEval: 384, cardTitle: 96, cardHeadline: 384, comment: 2048,
-} as const;
+// 文字列の上限の表 WIRE_LIMITS と cutText は display-vocab.ts に 1 つだけ置く（owner も読むので、domain を読むこの file から移した、P4-DV-AC03）。
 // 件数の上限（表 §1.2。EEW 6 枚・今日の地震の行・長周期は板待ちの仮の数）。
 const WIRE_COUNTS = { eewCards: 6, tsunamiEvents: 3, unkeyed: 8, closed: 4, longPeriods: 2 } as const;
 const LETTERS: readonly EewCardLetter[] = ["A", "B", "C", "D", "E", "F"];
@@ -43,18 +42,6 @@ const PERSISTENCE_REASON_BYTES = 256, TRUNCATED_MARKER = "[truncated:fieldLimit]
 
 const sha256 = (value: unknown): string => createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
 const escapedBytes = (value: string): number => Buffer.byteLength(JSON.stringify(value)) - 2;
-// boundedString と同じ単位で字の境で切る。印の字は足さず、cut で返す（P4-DW-AC03）。
-function cutText(value: string, limit: number): DisplayCutText {
-  if (escapedBytes(value) <= limit) return { text: value, cut: false };
-  let text = "", bytes = 0;
-  for (const character of value) {
-    const size = escapedBytes(character);
-    if (bytes + size > limit) break;
-    text += character;
-    bytes += size;
-  }
-  return { text, cut: true };
-}
 const cutOrNull = (value: string | null | undefined, limit: number): DisplayCutText | null => value == null ? null : cutText(value, limit);
 // 時刻・EventID の生の字は上限を越えたら不明（null）にする（表 §1.3）。
 const bounded = (value: string | null | undefined, limit: number): string | null => value == null || escapedBytes(value) > limit ? null : value;
@@ -549,18 +536,144 @@ function boundedPersistence(persistence: SnapshotProjectionInput["persistence"])
 const UNIT_IDS: readonly UnitId[] = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"];
 const runtimeUnit = (value: string): UnitId | undefined => UNIT_IDS.find((unit) => unit === value);
 
+// ---- 9 分野の語彙（P4-DISPLAY-VOCAB-001） ----
+
+const SNAPSHOT_BYTES = 1_048_576, DOMAIN_BUDGET = 65_536;
+// 保護 3 分野・通知・共通部の上界の和（p4-display-wire-max.mjs の newPath.sum、表 §4.1）。9 分野の full の和がこれと合わせて 1 MiB に届かない間は、
+// 全体を数えなくても要約にならないと決まる。届きうるときだけ全体を数える（稀な分岐。共通部と保護 3 分野の直列化は全公開の中で 1 回）。
+const NEW_PATH_FIXED_BOUND = 377_434;
+const VOCAB_KEYS = ["weatherCurrent", "weatherTimeseries", "nankai", "volcano", "landslide", "flood", "briefing", "localBulletins", "typhoon"] as const;
+type VocabKey = typeof VOCAB_KEYS[number];
+const VOCAB_UNIT: Readonly<Record<VocabKey, VocabUnit>> = { weatherCurrent: "U-W", weatherTimeseries: "U-F", nankai: "U-N", volcano: "U-V", landslide: "U-L",
+  flood: "U-R", briefing: "U-B", localBulletins: "U-M", typhoon: "U-Y" };
+const utf8 = (value: unknown): number => Buffer.byteLength(JSON.stringify(value));
+const byKey = <T>(make: (key: VocabKey) => T): Readonly<Record<VocabKey, T>> => ({ weatherCurrent: make("weatherCurrent"), weatherTimeseries: make("weatherTimeseries"),
+  nankai: make("nankai"), volcano: make("volcano"), landslide: make("landslide"), flood: make("flood"), briefing: make("briefing"), localBulletins: make("localBulletins"),
+  typhoon: make("typhoon") });
+const commas = (count: number): number => Math.max(count - 1, 0);
+// P4-DV-AC06 の計数（試験が読む）: 作り直した項目・直列化した項目・並びの併合で書いた要素の数。
+type VocabCounts = { rebuilt: number; serialized: number; moved: number };
+type VocabEntry = Readonly<{ item: VocabItem; bytes: number }>;
+// 項目は (operation, subject) の鍵で持ち、並びは id の昇順の配列（P4-DV-D-ITEM-ID=A）。itemBytes は項目の JSON の byte の和で、変わった項目の差だけを足し引きする。
+type VocabProjection = {
+  readonly entries: Map<string, VocabEntry>; sorted: readonly VocabItem[]; itemBytes: number;
+  view: RuntimeViews[VocabUnit] | null; facts: readonly VocabFact<"freshnessSuspectCount">[]; wire: VocabWire | null;
+  cards: readonly DisplayWireCard[]; cardsBytes: number;
+};
+const subjectKey = (operation: Operation, subject: string): string => `${operation}\u0000${subject}`;
+// 表示差分の after（view の要素と同じ形）を語彙の入力にする。U-W の監視の行は current を持たない。
+function vocabSource(value: RuntimeDisplaySubject): Parameters<typeof vocabItem>[0] | null {
+  switch (value.unit) {
+    case "U-W": return value.current == null ? null : { k: "weatherCurrent.area", value: value.current };
+    case "U-F": return value.current == null ? null : { k: "weatherTimeseries.subject", value: value.current };
+    case "U-N": {
+      const current = value.current;
+      if (current == null) return null;
+      if (!("line" in current)) return { k: "nankai.information", value: current };
+      return current.effective === "active" ? { k: "nankai.current", value: current } : null;
+    }
+    case "U-V": {
+      const current = value.current;
+      if (current == null) return null;
+      if ("family" in current) return { k: "volcano.bulletin", value: current };
+      // 表示差分の after は view に載る active の記録だけ（I-U-V.view）。型は終わった記録も含むので effective で絞る。
+      if (current.effective !== "active") return null;
+      if ("marineSource" in current) return { k: "volcano.alert", value: current };
+      return "flash" in current ? { k: "volcano.eruption", value: current } : { k: "volcano.ashfall", value: current };
+    }
+    case "U-L": return value.current == null ? null : { k: "landslide.office", value: value.current };
+    case "U-R": return value.current == null ? null : { k: "flood.event", value: value.current };
+    case "U-B": return value.current == null ? null : { k: "briefing.current", value: value.current };
+    case "U-M": {
+      const current = value.current;
+      if (current == null) return null;
+      return "sighted" in current ? { k: "localBulletins.tornado", value: current } : "targetDate" in current ? { k: "localBulletins.heat", value: current }
+        : { k: "localBulletins.transient", value: current };
+    }
+    case "U-Y": return value.current == null ? null : "frames" in value.current ? { k: "typhoon.analysis", value: value.current } : { k: "typhoon.probability", value: value.current };
+    default: return null;
+  }
+}
+// id は sha256([unit, operation, subject])、rev は view の object の JSON の sha256（U-W・U-F は公開形の id と revision が同じ式、P4-DV-AC02）。
+function idsOf(unit: VocabUnit, source: Parameters<typeof vocabItem>[0]): Readonly<{ id: string; rev: string }> {
+  if (source.k === "weatherCurrent.area" || source.k === "weatherTimeseries.subject") return { id: source.value.id, rev: source.value.revision };
+  // 不足の記録の subject は unit が使う形（volcano-unit.ts の resolveShortfall）。不足の id をそのまま使うと通常の記録の subject と重なりうる。
+  const subject = source.k === "volcano.shortfall" ? `${source.value.operation}/shortfall/${source.value.id}` : source.value.subject;
+  return { id: sha256([unit, source.value.operation, subject]), rev: sha256(source.value) };
+}
+// 受信 1 回の手間: 変わった subject の K 件だけを作り直して直列化し、並びは前の N 件と 1 度だけ併合する（O(N ＋ K log K)、P4-DV-AC06）。
+function projectVocab(unit: VocabUnit, projection: VocabProjection | null, view: RuntimeViews[VocabUnit], changes: readonly RuntimeDisplayChange[],
+  counts: VocabCounts): VocabProjection {
+  const state: VocabProjection = projection ?? { entries: new Map(), sorted: [], itemBytes: 0, view: null, facts: [], wire: null, cards: [], cardsBytes: 2 };
+  const updates = new Map<string, Parameters<typeof vocabItem>[0] | null>();
+  for (const change of changes) updates.set(subjectKey(change.operation, change.subject), change.after == null ? null : vocabSource(change.after));
+  // view の固定の部分（表示差分に来ない欄、表 §6 の 7）は view の object が前と違うときだけ読み直す（view-projector の metadata only と同じ条件）。
+  if (view !== state.view) {
+    if (view.unit === "U-V") {
+      const wanted = new Set(view.shortfalls.map((item) => subjectKey(item.operation, `${item.operation}/shortfall/${item.id}`)));
+      for (const [key, entry] of state.entries) if (entry.item.k === "volcano.shortfall" && !wanted.has(key)) updates.set(key, null);
+      for (const item of view.shortfalls) {
+        const key = subjectKey(item.operation, `${item.operation}/shortfall/${item.id}`), found = state.entries.get(key);
+        if (found == null || found.item.rev !== sha256(item)) updates.set(key, { k: "volcano.shortfall", value: item });
+      }
+    }
+    if (view.unit === "U-W" && state.facts[0]?.[1] !== view.freshnessSuspectCount) { state.facts = [["freshnessSuspectCount", view.freshnessSuspectCount]]; state.wire = null; }
+    // カードは view に載る（unit ごとに 8 枚、U-M は 16 枚）。view が同じ object なら同じカード。
+    const next = (view.unreadableCards ?? []).map(wireCard);
+    if (next.length !== state.cards.length || next.some((card, index) => JSON.stringify(card) !== JSON.stringify(state.cards[index]))) {
+      state.cards = next;
+      state.cardsBytes = utf8(next);
+    }
+    state.view = view;
+  }
+  if (updates.size === 0) return state;
+  const removed = new Set<string>(), added: VocabItem[] = [];
+  for (const [key, source] of updates) {
+    const old = state.entries.get(key);
+    if (old != null) { removed.add(old.item.id); state.itemBytes -= old.bytes; state.entries.delete(key); }
+    if (source == null) continue;
+    const item = vocabItem(source, idsOf(unit, source), false);
+    counts.rebuilt++;
+    const bytes = utf8(item);
+    counts.serialized++;
+    state.entries.set(key, { item, bytes });
+    state.itemBytes += bytes;
+    added.push(item);
+  }
+  // 何も変わらない差分（U-W の監視の行など、項目の無い subject の取消）は並びも wire も前のまま（P4-DV-AC06 の変わらない分野）。
+  if (removed.size === 0 && added.length === 0) return state;
+  added.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+  const merged: VocabItem[] = [];
+  let index = 0;
+  for (const item of state.sorted) {
+    if (removed.has(item.id)) continue;
+    while (index < added.length && added[index].id < item.id) merged.push(added[index++]);
+    merged.push(item);
+  }
+  while (index < added.length) merged.push(added[index++]);
+  counts.moved += merged.length;
+  state.sorted = merged;
+  state.wire = null;
+  return state;
+}
 // ---- 射影 ----
 
 type Change = Readonly<{ subject: string; after: RuntimeDisplayChange["after"] }>;
 // 新しい経路が読む共通部の欄（旧の射影の入力から、新しい経路が使う欄だけ。publisher は公開ごとに 1 回だけ組む）。
 type DisplayWireSource = Pick<SnapshotProjectionInput, "streamId" | "generatedAt" | "connection" | "worker" | "persistence" | "recovery" | "notificationChannels"
   | "channelProbeComplete" | "channelFailing" | "displayChanges">;
+type DisplayWireViews = Readonly<{
+  eew: RuntimeViews["U-E"]; tsunami: RuntimeViews["U-T"]; earthquake: RuntimeViews["U-Q"]; weatherCurrent: RuntimeViews["U-W"]; weatherTimeseries: RuntimeViews["U-F"];
+  nankai: RuntimeViews["U-N"]; volcano: RuntimeViews["U-V"]; landslide: RuntimeViews["U-L"]; flood: RuntimeViews["U-R"]; briefing: RuntimeViews["U-B"];
+  localBulletins: RuntimeViews["U-M"]; typhoon: RuntimeViews["U-Y"];
+}>;
 type DisplayWireInput = Readonly<{
   projection: DisplayWireSource;
-  // 保護 3 分野の view（読めない報のカードを含む形）。
-  views: Readonly<{ eew: RuntimeViews["U-E"]; tsunami: RuntimeViews["U-T"]; earthquake: RuntimeViews["U-Q"] }>;
-  // 分野の items（確認の状態・件数）と画面のお知らせは旧の射影の state から写す（公開の判定には使わない、P4-DW-AC01）。
-  domains: SnapshotProjectionState["domains"];
+  // 12 分野の view（読めない報のカードを含む形）。
+  views: DisplayWireViews;
+  // 包みの items の確認の状態（P4-DV-AC11。旧の射影の state は読まない）。
+  confirmation: RuntimeConfirmation;
+  // 画面のお知らせは旧の射影の state から写す（本契約の範囲外、表 §12.5）。
   notices: readonly VisibleNotice[];
 }>;
 // seen は公開した snapshot を作った欄（参照の比べにだけ使い、snapshot には載せない）。
@@ -569,12 +682,16 @@ type Seen = Readonly<{ persistence: string }>;
 type DisplayWireState = Readonly<{
   streamId: string; snapshot: DisplayWireSnapshot | null; seen: Seen | null;
   eew: EewProjection | null; tsunami: TsunamiProjection | null; earthquake: QuakeProjection | null;
+  // 12 分野の包みの items を数える新しい経路の自分の state（旧の射影と同じ projectDomain、P4-DV-D-OWN-ITEMS=A。移行中は 1 step に 2 回走る、P4-DV-D-DOUBLE-PROJECTION=A）。
+  domains: SnapshotProjectionState["domains"] | null;
+  vocab: Readonly<Record<VocabKey, VocabProjection>> | null;
 }>;
 // P4-DW-AC05 の計数（試験が読む）: 変わった subject の区域を読んだ数・引き直した区域の数・公開する配列を組んだ数。
 type DisplayWireCounts = Readonly<Record<"eew" | "tsunami" | "earthquake", Counts>>;
+type DisplayWireVocabCounts = Readonly<Record<VocabKey, Readonly<VocabCounts>>>;
 type DisplayWireResult =
-  | Readonly<{ kind: "unchanged"; state: DisplayWireState; counts: DisplayWireCounts }>
-  | Readonly<{ kind: "projected"; state: DisplayWireState; snapshot: DisplayWireSnapshot; counts: DisplayWireCounts }>;
+  | Readonly<{ kind: "unchanged"; state: DisplayWireState; counts: DisplayWireCounts; vocabCounts: DisplayWireVocabCounts }>
+  | Readonly<{ kind: "projected"; state: DisplayWireState; snapshot: DisplayWireSnapshot; counts: DisplayWireCounts; vocabCounts: DisplayWireVocabCounts }>;
 
 // 同じ subject の変化が 1 step に 2 回あれば最後の after を使う（before は projector の記録から引く）。
 function changesOf(changes: readonly RuntimeDisplayChange[], unit: "U-E" | "U-T" | "U-Q"): readonly Change[] {
@@ -582,11 +699,56 @@ function changesOf(changes: readonly RuntimeDisplayChange[], unit: "U-E" | "U-T"
   for (const change of changes) if (change.unit === unit) merged.set(`${change.operation}\u0000${change.subject}`, { subject: change.subject, after: change.after });
   return [...merged.values()];
 }
+// 同じ (unit, operation, subject) の差分が 2 回以上あれば最初の before と最後の after（projectSnapshot と同じ、表 §4.3）。停止の確定の差分は呼び出し側が 1 度だけ前に足す。
+function mergedByUnit(changes: readonly RuntimeDisplayChange[]): ReadonlyMap<RuntimeUnitId, readonly RuntimeDisplayChange[]> {
+  const merged = new Map<string, RuntimeDisplayChange>();
+  for (const change of changes) {
+    const key = JSON.stringify([change.unit, change.operation, change.subject]), found = merged.get(key);
+    merged.set(key, found == null ? change : { ...change, before: found.before });
+  }
+  const byUnit = new Map<RuntimeUnitId, RuntimeDisplayChange[]>();
+  for (const change of merged.values()) byUnit.set(change.unit, [...byUnit.get(change.unit) ?? [], change]);
+  return byUnit;
+}
+const NO_CHANGES: readonly RuntimeDisplayChange[] = [];
+const NO_GATES: ReadonlySet<string> = new Set();
+// 12 分野の包みの items（件数の見出し）を新しい経路の差分と確認の状態から数える（P4-DV-AC11）。gates はお知らせにだけ効くので空。
+function projectItems(previous: SnapshotProjectionState["domains"] | null, views: DisplayWireViews, byUnit: ReadonlyMap<RuntimeUnitId, readonly RuntimeDisplayChange[]>,
+  confirmation: RuntimeConfirmation): SnapshotProjectionState["domains"] {
+  const changes = (unit: RuntimeUnitId) => byUnit.get(unit) ?? NO_CHANGES;
+  const meta = (unit: RuntimeUnitId) => ({ confirmation: confirmation.units[unit] });
+  // 表示差分の無い分野は前の view を渡して projectDomain の metadata only の道に入れる。worker を越えた view は差分が無くても別の object なので、
+  // そのまま渡すと索引の Map を写し直す（P4-DW-AC05、H5）。items は差分と確認の状態だけで決まり、view の byte はここでは使わない。
+  const view = <View>(unit: RuntimeUnitId, previousView: View | undefined, current: View): View => previousView !== undefined && changes(unit).length === 0 ? previousView : current;
+  const none = new Map<string, Readonly<{ forecast: number; warning: number }>>();
+  const eew = projectDomain("U-E", previous?.eew ?? null, view("U-E", previous?.eew.full.view, views.eew), changes("U-E"), meta("U-E"), previous?.eew.eventRefs ?? none, NO_GATES, eewTally);
+  return {
+    eew: { ...eew.projection, eventRefs: eew.eventRefs },
+    weatherCurrent: projectDomain("U-W", previous?.weatherCurrent ?? null, view("U-W", previous?.weatherCurrent.full.view, views.weatherCurrent), changes("U-W"), meta("U-W"), none, NO_GATES, weatherTally).projection,
+    weatherTimeseries: projectDomain("U-F", previous?.weatherTimeseries ?? null, view("U-F", previous?.weatherTimeseries.full.view, views.weatherTimeseries), changes("U-F"), meta("U-F"), none, NO_GATES, timeseriesTally).projection,
+    tsunami: projectDomain("U-T", previous?.tsunami ?? null, view("U-T", previous?.tsunami.full.view, views.tsunami), changes("U-T"), meta("U-T"), none, NO_GATES, tsunamiTally).projection,
+    earthquake: projectDomain("U-Q", previous?.earthquake ?? null, view("U-Q", previous?.earthquake.full.view, views.earthquake), changes("U-Q"), meta("U-Q"), none, NO_GATES, seismicTally).projection,
+    nankai: projectDomain("U-N", previous?.nankai ?? null, view("U-N", previous?.nankai.full.view, views.nankai), changes("U-N"), meta("U-N"), none, NO_GATES, nankaiTally).projection,
+    volcano: projectDomain("U-V", previous?.volcano ?? null, view("U-V", previous?.volcano.full.view, views.volcano), changes("U-V"), meta("U-V"), none, NO_GATES, volcanoTally).projection,
+    landslide: projectDomain("U-L", previous?.landslide ?? null, view("U-L", previous?.landslide.full.view, views.landslide), changes("U-L"), meta("U-L"), none, NO_GATES, landslideTally).projection,
+    flood: projectDomain("U-R", previous?.flood ?? null, view("U-R", previous?.flood.full.view, views.flood), changes("U-R"), meta("U-R"), none, NO_GATES, floodTally).projection,
+    briefing: projectDomain("U-B", previous?.briefing ?? null, view("U-B", previous?.briefing.full.view, views.briefing), changes("U-B"), meta("U-B"), none, NO_GATES, briefingTally).projection,
+    localBulletins: projectDomain("U-M", previous?.localBulletins ?? null, view("U-M", previous?.localBulletins.full.view, views.localBulletins), changes("U-M"), meta("U-M"), none, NO_GATES, localBulletinsTally).projection,
+    typhoon: projectDomain("U-Y", previous?.typhoon ?? null, view("U-Y", previous?.typhoon.full.view, views.typhoon), changes("U-Y"), meta("U-Y"), none, NO_GATES, typhoonTally).projection,
+  };
+}
+type Items = readonly [DisplaySummaryItem, DisplaySummaryItem, DisplaySummaryItem];
+const sameItems = (left: Items, right: Items): boolean => left === right || JSON.stringify(left) === JSON.stringify(right);
+// 9 分野の full の包みの byte（語彙の形、表 §4.2）。項目は足し引きした和を使い、包みの残り（items 3 行・分野の値・空の配列）だけを直列化する。
+function fullBytes(unit: VocabUnit, contentRevision: string, items: Items, projection: VocabProjection): number {
+  return utf8({ unit, contentRevision, items, delivery: "full", wire: { items: [], facts: projection.facts }, cards: [] })
+    + projection.itemBytes + commas(projection.sorted.length) + projection.cardsBytes - 2;
+}
 // 共通部と分野の包みの比べ（全体を直列化しない、P4-DW-AC05）。比べないのは sequence と generatedAt。
 function sameSnapshot(left: DisplayWireSnapshot, right: Omit<DisplayWireSnapshot, "sequence" | "generatedAt">): boolean {
-  const sameDomain = <D extends Readonly<{ contentRevision: string; items: readonly unknown[]; wire: unknown; cards: readonly unknown[] }>>(a: D, b: D) =>
-    // wire とカードはこの射影が作った object（変わらなければ前の object を使う）。items は旧の射影が view の出し直しで作り直すので欄で比べる（3 行の固定）。
-    a.wire === b.wire && a.contentRevision === b.contentRevision && JSON.stringify(a.items) === JSON.stringify(b.items) && a.cards === b.cards;
+  const sameDomain = <D extends Readonly<{ contentRevision: string; items: Items; wire: unknown; cards: readonly unknown[] }>>(a: D, b: D) =>
+    // wire とカードはこの射影が作った object（変わらなければ前の object を使う）。items は projectDomain が差分のある step で作り直すので欄で比べる（3 行の固定）。
+    a.wire === b.wire && a.contentRevision === b.contentRevision && sameItems(a.items, b.items) && a.cards === b.cards;
   const units = (a: DisplayWireSnapshot["persistence"], b: DisplayWireSnapshot["persistence"]) => UNIT_IDS.every((unit) => a[unit] === b[unit]);
   return left.streamId === right.streamId && left.semanticRevision === right.semanticRevision
     && left.connection.state === right.connection.state && left.connection.disconnectedAt === right.connection.disconnectedAt
@@ -599,18 +761,38 @@ function sameSnapshot(left: DisplayWireSnapshot, right: Omit<DisplayWireSnapshot
     && left.channels.desktop === right.channels.desktop && left.channels.sound === right.channels.sound
     && sameDomain(left.current.eew, right.current.eew) && sameDomain(left.current.tsunami, right.current.tsunami)
     && sameDomain(left.current.earthquake, right.current.earthquake)
+    // 9 分野の包みは変わらなければ前の object を使う（vocabDomain）。
+    && VOCAB_KEYS.every((key) => left.current[key] === right.current[key])
     && left.notices.length === right.notices.length && left.notices.every((notice, index) => notice === right.notices[index]);
+}
+const sameUnit = <Unit extends VocabUnit>(domain: DisplayVocabDomain<VocabUnit>, unit: Unit): domain is DisplayVocabDomain<Unit> => domain.unit === unit;
+// 9 分野の包みを組む。前に公開した包みと同じなら前の object を使う（公開の比べを参照で済ませる）。
+function vocabDomain<Unit extends VocabUnit>(unit: Unit, contentRevision: string, items: Items, projection: VocabProjection, summary: number | null,
+  previous: DisplayVocabDomain<VocabUnit> | undefined): DisplayVocabDomain<Unit> {
+  if (summary != null) {
+    if (previous != null && sameUnit(previous, unit) && previous.delivery === "summary" && previous.contentRevision === contentRevision && previous.originalBytes === summary
+      && sameItems(previous.items, items)) return previous;
+    return { unit, contentRevision, items, delivery: "summary", reason: "snapshotBudget", originalBytes: summary, budgetBytes: DOMAIN_BUDGET };
+  }
+  const wire = projection.wire ??= { items: projection.sorted, facts: projection.facts };
+  if (previous != null && sameUnit(previous, unit) && previous.delivery === "full" && previous.wire === wire && previous.cards === projection.cards
+    && previous.contentRevision === contentRevision && sameItems(previous.items, items)) return previous;
+  return { unit, contentRevision, items, delivery: "full", wire, cards: projection.cards };
 }
 
 // 新しい経路の射影。自分の前の snapshot と比べて変わったときだけ projected を返し、旧の射影の projected・unchanged・rejected に依らない（P4-DW-AC01）。
 function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState | null): DisplayWireResult {
   const base = previous != null && previous.streamId === input.projection.streamId ? previous : null;
   const counts: DisplayWireCounts = { eew: freshCounts(), tsunami: freshCounts(), earthquake: freshCounts() };
+  const vocabCounts = byKey((): VocabCounts => ({ rebuilt: 0, serialized: 0, moved: 0 }));
   const source = input.projection;
-  const { eew: eewView, tsunami: tsunamiView, earthquake: quakeView } = input.views;
+  const views = input.views;
   const eew = projectEew(base?.eew ?? null, changesOf(source.displayChanges, "U-E"), counts.eew);
-  const tsunami = projectTsunami(base?.tsunami ?? null, tsunamiView, changesOf(source.displayChanges, "U-T"), counts.tsunami);
-  const earthquake = projectQuake(base?.earthquake ?? null, quakeView, changesOf(source.displayChanges, "U-Q"), counts.earthquake);
+  const tsunami = projectTsunami(base?.tsunami ?? null, views.tsunami, changesOf(source.displayChanges, "U-T"), counts.tsunami);
+  const earthquake = projectQuake(base?.earthquake ?? null, views.earthquake, changesOf(source.displayChanges, "U-Q"), counts.earthquake);
+  const byUnit = mergedByUnit(source.displayChanges);
+  const domains = projectItems(base?.domains ?? null, views, byUnit, input.confirmation);
+  const vocab = byKey((key) => projectVocab(VOCAB_UNIT[key], base?.vocab?.[key] ?? null, views[key], byUnit.get(VOCAB_UNIT[key]) ?? NO_CHANGES, vocabCounts[key]));
   const published = base?.snapshot ?? null, last = base?.seen ?? undefined, persistenceKey = JSON.stringify(source.persistence);
   // カード（unit ごとに 8 枚まで、P3-UM-AC11）は欄が同じなら前に作ったカードを使う。
   const cardsOf = (cards: readonly UnreadableCardView[] | undefined, previousWire: readonly DisplayWireCard[] | undefined): readonly DisplayWireCard[] => {
@@ -618,30 +800,58 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
     return previousWire !== undefined && next.length === previousWire.length && next.every((card, index) => JSON.stringify(card) === JSON.stringify(previousWire[index]))
       ? previousWire : next;
   };
-  const current: DisplayWireSnapshot["current"] = {
-    eew: { unit: "U-E", contentRevision: eewView.contentRevision, items: input.domains.eew.full.items, wire: eewWire(eew),
-      cards: cardsOf(eewView.unreadableCards, published?.current.eew.cards) },
-    tsunami: { unit: "U-T", contentRevision: tsunamiView.contentRevision, items: input.domains.tsunami.full.items, wire: tsunamiWire(tsunami, counts.tsunami),
-      cards: cardsOf(tsunamiView.unreadableCards, published?.current.tsunami.cards) },
-    earthquake: { unit: "U-Q", contentRevision: quakeView.contentRevision, items: input.domains.earthquake.full.items, wire: quakeWire(earthquake, quakeView),
-      cards: cardsOf(quakeView.unreadableCards, published?.current.earthquake.cards) },
+  const protectedCurrent = {
+    eew: { unit: "U-E" as const, contentRevision: views.eew.contentRevision, items: domains.eew.full.items, wire: eewWire(eew),
+      cards: cardsOf(views.eew.unreadableCards, published?.current.eew.cards) },
+    tsunami: { unit: "U-T" as const, contentRevision: views.tsunami.contentRevision, items: domains.tsunami.full.items, wire: tsunamiWire(tsunami, counts.tsunami),
+      cards: cardsOf(views.tsunami.unreadableCards, published?.current.tsunami.cards) },
+    earthquake: { unit: "U-Q" as const, contentRevision: views.earthquake.contentRevision, items: domains.earthquake.full.items, wire: quakeWire(earthquake, views.earthquake),
+      cards: cardsOf(views.earthquake.unreadableCards, published?.current.earthquake.cards) },
   };
-  const shell: Omit<DisplayWireSnapshot, "sequence" | "generatedAt"> = {
+  const itemsOf = (key: VocabKey): Items => domains[key].full.items;
+  const bytes = byKey((key) => fullBytes(VOCAB_UNIT[key], views[key].contentRevision, itemsOf(key), vocab[key]));
+  const shellOf = (current: DisplayWireSnapshot["current"]): Omit<DisplayWireSnapshot, "sequence" | "generatedAt"> => ({
     schemaVersion: VERSION, streamId: source.streamId,
-    semanticRevision: JSON.stringify([eewView.contentRevision, tsunamiView.contentRevision, quakeView.contentRevision]),
+    semanticRevision: JSON.stringify([views.eew.contentRevision, views.tsunami.contentRevision, views.earthquake.contentRevision,
+      ...VOCAB_KEYS.map((key) => views[key].contentRevision)]),
     connection: source.connection, worker: source.worker,
     persistence: published != null && last != null && persistenceKey === last.persistence ? published.persistence : boundedPersistence(source.persistence),
     recovery: source.recovery,
     channels: { desktop: channel(source.notificationChannels.desktop, source.channelProbeComplete, source.channelFailing.desktop),
       sound: channel(source.notificationChannels.sound, source.channelProbeComplete, source.channelFailing.sound) },
     current, notices: input.notices,
-  };
-  if (published != null && sameSnapshot(published, shell))
-    return { kind: "unchanged", state: { streamId: source.streamId, snapshot: published, seen: last ?? null, eew, tsunami, earthquake }, counts };
+  });
+  const build = (summarize: ReadonlySet<VocabKey>): DisplayWireSnapshot["current"] => ({ ...protectedCurrent,
+    weatherCurrent: vocabDomain("U-W", views.weatherCurrent.contentRevision, itemsOf("weatherCurrent"), vocab.weatherCurrent,
+      summarize.has("weatherCurrent") ? bytes.weatherCurrent : null, published?.current.weatherCurrent),
+    weatherTimeseries: vocabDomain("U-F", views.weatherTimeseries.contentRevision, itemsOf("weatherTimeseries"), vocab.weatherTimeseries,
+      summarize.has("weatherTimeseries") ? bytes.weatherTimeseries : null, published?.current.weatherTimeseries),
+    nankai: vocabDomain("U-N", views.nankai.contentRevision, itemsOf("nankai"), vocab.nankai, summarize.has("nankai") ? bytes.nankai : null, published?.current.nankai),
+    volcano: vocabDomain("U-V", views.volcano.contentRevision, itemsOf("volcano"), vocab.volcano, summarize.has("volcano") ? bytes.volcano : null, published?.current.volcano),
+    landslide: vocabDomain("U-L", views.landslide.contentRevision, itemsOf("landslide"), vocab.landslide, summarize.has("landslide") ? bytes.landslide : null,
+      published?.current.landslide),
+    flood: vocabDomain("U-R", views.flood.contentRevision, itemsOf("flood"), vocab.flood, summarize.has("flood") ? bytes.flood : null, published?.current.flood),
+    briefing: vocabDomain("U-B", views.briefing.contentRevision, itemsOf("briefing"), vocab.briefing, summarize.has("briefing") ? bytes.briefing : null,
+      published?.current.briefing),
+    localBulletins: vocabDomain("U-M", views.localBulletins.contentRevision, itemsOf("localBulletins"), vocab.localBulletins,
+      summarize.has("localBulletins") ? bytes.localBulletins : null, published?.current.localBulletins),
+    typhoon: vocabDomain("U-Y", views.typhoon.contentRevision, itemsOf("typhoon"), vocab.typhoon, summarize.has("typhoon") ? bytes.typhoon : null, published?.current.typhoon),
+  });
+  // 全体が 1,048,576 を超えたときだけ、包みが 65,536 を超えた 9 分野を要約にする（view-projector の RES-06 と同じ式、P4-DV-D-SUMMARY-RULE=A）。保護 3 分野は要約にしない（H37）。
+  let shell = shellOf(build(new Set()));
+  const vocabTotal = VOCAB_KEYS.reduce((sum, key) => sum + bytes[key], 0);
+  if (vocabTotal + NEW_PATH_FIXED_BOUND > SNAPSHOT_BYTES) {
+    const sequence = (published?.sequence ?? 0) + 1, empty = Object.fromEntries([...Object.keys(shell.current)].map((key) => [key, 0]));
+    const total = utf8({ ...shell, sequence, generatedAt: source.generatedAt, current: empty }) - Object.keys(empty).length
+      + utf8(protectedCurrent.eew) + utf8(protectedCurrent.tsunami) + utf8(protectedCurrent.earthquake) + vocabTotal;
+    if (total > SNAPSHOT_BYTES) shell = shellOf(build(new Set(VOCAB_KEYS.filter((key) => bytes[key] > DOMAIN_BUDGET))));
+  }
+  const state = (snapshot: DisplayWireSnapshot | null, seen: Seen | null): DisplayWireState =>
+    ({ streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake, domains, vocab });
+  if (published != null && sameSnapshot(published, shell)) return { kind: "unchanged", state: state(published, last ?? null), counts, vocabCounts };
   const snapshot: DisplayWireSnapshot = { ...shell, sequence: (published?.sequence ?? 0) + 1, generatedAt: source.generatedAt };
-  const seen: Seen = { persistence: persistenceKey };
-  return { kind: "projected", state: { streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake }, snapshot, counts };
+  return { kind: "projected", state: state(snapshot, { persistence: persistenceKey }), snapshot, counts, vocabCounts };
 }
 
 export { WIRE_COUNTS, WIRE_LIMITS, cutText, projectDisplayWire };
-export type { DisplayWireCounts, DisplayWireInput, DisplayWireResult, DisplayWireSource, DisplayWireState };
+export type { DisplayWireCounts, DisplayWireInput, DisplayWireResult, DisplayWireSource, DisplayWireState, DisplayWireVocabCounts, DisplayWireViews };

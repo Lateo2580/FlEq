@@ -2492,15 +2492,16 @@ import { projectDisplayWire } from "../view-projector/display-wire";
 import type { DisplayWireInput, DisplayWireState } from "../view-projector/display-wire";
 import type { DisplayRecoveryView } from "../../contracts/p2-snapshot-sse.types";
 
-// 新しい経路の入力。新しい経路が読む欄だけを組み（旧の入力の 12 分野の view と確認の状態は組まない）、旧の snapshotInput と同じ式で写す。
-// 分野の items と画面のお知らせは旧の射影の state から写す（公開の判定には使わない）。
+// 新しい経路の入力。新しい経路が読む欄だけを組み、旧の snapshotInput と同じ式で写す。12 分野の view と確認の状態から包みの items を自分で数え
+// （P4-DV-AC11、旧の射影の domains は読まない）、画面のお知らせだけを旧の射影の state から写す（表 §12.5）。
 function wireInput(state: PublisherState, displayChanges: readonly RuntimeDisplayChange[], streamId: string, nowMs: number, connection: DisplayConnectionView,
   worker: DisplayWorkerView, recovery: Omit<DisplayRecoveryView, "restoration">, failing: Readonly<Record<NotificationChannel, boolean>>, previous: SnapshotProjectionState): DisplayWireInput {
-  const eew = viewOf(state.mirror["U-E"]), tsunami = viewOf(state.mirror["U-T"]), earthquake = viewOf(state.mirror["U-Q"]);
-  if (eew.unit !== "U-E" || tsunami.unit !== "U-T" || earthquake.unit !== "U-Q") throw new Error("mirror view of another unit");
+  const views = snapshotInput({ state, outcomes: [], displayChanges }, streamId, nowMs, connection, worker);
   const date = new Date(nowMs);
   const persistence = Object.fromEntries(runtimeUnits.map((unit) => [unit, state.mirror[unit].persistence]));
   return { projection: { streamId, generatedAt: Number.isNaN(date.getTime()) ? String(nowMs) : date.toISOString(), connection, worker, persistence,
     recovery: { restoration: state.restoration, ...recovery }, notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
-    channelFailing: failing, displayChanges }, views: { eew, tsunami, earthquake }, domains: previous.domains, notices: previous.notices };
+    channelFailing: failing, displayChanges }, views: { eew: views.eew, tsunami: views.tsunami, earthquake: views.earthquake, weatherCurrent: views.weatherCurrent,
+    weatherTimeseries: views.weatherTimeseries, nankai: views.nankai, volcano: views.volcano, landslide: views.landslide, flood: views.flood, briefing: views.briefing,
+    localBulletins: views.localBulletins, typhoon: views.typhoon }, confirmation: state.confirmation, notices: previous.notices };
 }

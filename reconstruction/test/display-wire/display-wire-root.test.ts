@@ -77,12 +77,15 @@ const until = async (check: () => boolean) => { for (let index = 0; index < 200 
 
 // 受入条件 P4-DW-AC01（新しい経路）。
 describe("P4-DW-T08 acceptance: the new path", () => {
-  it("carries only the protected three and the common part, and the follow-up with a new hypocenter name publishes on both paths", async () => {
+  it("carries the twelve domains and the common part, and the follow-up with a new hypocenter name publishes on both paths", async () => {
     const t = await boot();
     await t.send(VXSE43);
     const first = t.wires.at(-1)!;
-    expect(Object.keys(first.current)).toEqual(["eew", "tsunami", "earthquake"]);
-    for (const domain of Object.values(first.current)) expect(Object.keys(domain)).toEqual(["unit", "contentRevision", "items", "wire", "cards"]);
+    expect(Object.keys(first.current)).toEqual(["eew", "tsunami", "earthquake", "weatherCurrent", "weatherTimeseries", "nankai", "volcano", "landslide", "flood", "briefing",
+      "localBulletins", "typhoon"]);
+    for (const [key, domain] of Object.entries(first.current))
+      expect(Object.keys(domain)).toEqual(["eew", "tsunami", "earthquake"].includes(key) ? ["unit", "contentRevision", "items", "wire", "cards"]
+        : ["unit", "contentRevision", "items", "delivery", "wire", "cards"]);
     expect(JSON.stringify(first.current)).not.toContain('"view"');
     expect(first.current.eew.wire.cards[0]).toMatchObject({ letter: "A", hypo: { text: "豊後水道" } });
     expect(renderWire(first)).toEqual({ kind: "rendered", sequence: first.sequence });
@@ -127,19 +130,34 @@ describe("P4-DW-T08 acceptance: the new path", () => {
     expect([last.current.eew.wire.cards, last.current.eew.wire.composites, last.current.eew.wire.omitted]).toEqual([[], [[]], 0]);
   });
 
-  it("does not publish the new path for a step that changes only the old snapshot", async () => {
+  // 実際の不具合の再発防止 P4-DV-T06（台帳 147、保護 3 分野）: 包みの件数の見出しも新しい経路の差分から数えるので、停止の確定で回収した EEW を数えない。
+  it("counts no active EEW in the items after the shutdown finalization collects it", async () => {
+    const t = await boot();
+    await t.send(VXSE43);
+    expect(t.wires.at(-1)!.current.eew.items[0].activeCount).toBe(1);
+    const stopAt = t.move(600_000);
+    await t.h.root.shutdownRuntime(0, stopAt);
+    await t.h.settle();
+    expect(t.wires.at(-1)!.current.eew.items[0].activeCount).toBe(0);
+  });
+
+  // 本契約の後は 12 分野とも新しい経路に載るので、旧だけが変わる受信の step は組めない（表 §5.4）。旧の射影の入力だけを変え、新しい経路の入力
+  // （差分・views・共通部）が前と同じ step で、旧が projected でも新しい経路は unchanged（P4-DW-T08 の条文、P4-DV-AC07 (3)）。
+  it("does not publish the new path for a step that changes only the old projector's input", async () => {
     const at = { wallTimeMs: Date.parse("2026-06-05T17:00:00+09:00"), monotonicMs: 1 };
     const started = await startup(at);
     const before = projectionInput(started, at.wallTimeMs);
     const old = projectSnapshot(before, null);
-    const views = { eew: started.state.views["U-E"], tsunami: started.state.views["U-T"], earthquake: started.state.views["U-Q"] };
-    const first = projectDisplayWire({ projection: before, views, domains: old.state.domains, notices: old.state.notices }, null);
+    const views = { eew: before.eew, tsunami: before.tsunami, earthquake: before.earthquake, weatherCurrent: before.weatherCurrent, weatherTimeseries: before.weatherTimeseries,
+      nankai: before.nankai, volcano: before.volcano, landslide: before.landslide, flood: before.flood, briefing: before.briefing, localBulletins: before.localBulletins,
+      typhoon: before.typhoon };
+    const first = projectDisplayWire({ projection: before, views, confirmation: before.confirmation, notices: old.state.notices }, null);
     const next = await step(started.state, received(started.state.runId, decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), { ...at, wallTimeMs: at.wallTimeMs + 1000 }));
-    // 同じ共通部のまま U-F だけが変わった step。
+    // 旧の射影には U-F の変わった step を渡す。
     const after = { ...projectionInput(next, at.wallTimeMs + 1000), persistence: before.persistence, generatedAt: before.generatedAt };
     const oldNext = projectSnapshot(after, old.state);
     expect(oldNext.kind).toBe("projected");
-    const wireNext = projectDisplayWire({ projection: after, views, domains: oldNext.state.domains, notices: oldNext.state.notices }, first.state);
+    const wireNext = projectDisplayWire({ projection: { ...before, displayChanges: [] }, views, confirmation: before.confirmation, notices: old.state.notices }, first.state);
     expect(wireNext.kind).toBe("unchanged");
   });
 

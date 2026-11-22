@@ -1,6 +1,7 @@
-import type { Operation } from "./p1-parser-boundary.types";
+import type { MaterialValue, Operation } from "./p1-parser-boundary.types";
 import type { MarkViewed, RuntimeUnitId, UnreadableCardView } from "./p2-shared-runtime.types";
 import type {
+  DisplayAreaSystem,
   DisplayChannelView,
   DisplayConnectionView,
   DisplayRecoveryView,
@@ -14,10 +15,8 @@ import type { EewPredictionIntensity } from "./p2-eew-unit.types";
 import type { EewReportArea } from "./p3-eew-facts.types";
 import type { EarthquakeEventView, LongPeriodSubject, SeismicIntensityItem, SeismicIntensityObservation } from "./p3-seismic-unit.types";
 import type { WeatherTimeseriesDetailError } from "./p2-weather-timeseries-unit.types";
-import type { LandslideUnitView } from "./p3-landslide-unit.types";
-import type { FloodUnitView } from "./p3-flood-unit.types";
-import type { BriefingUnitView } from "./p3-briefing-unit.types";
-import type { TyphoonUnitView } from "./p3-typhoon-unit.types";
+import type { TyphoonFrame } from "./p3-typhoon-unit.types";
+import type { FloodStation } from "./p3-flood-unit.types";
 
 // P4-DISPLAY-WIRE-001（B0）: 新しい経路が配る表示の wire（保護 3 分野と今の型のままの共通部）。
 // 鍵の名前は表 p4-display-wire-tables.md の付録 A と script p4-display-wire-max.mjs と同じ（型の最大値の試験が script の数と照らす、P4-DW-AC04）。
@@ -98,7 +97,7 @@ export type DisplayWireDomain<Unit extends RuntimeUnitId, Wire> = Readonly<{
 }>;
 
 // 新しい経路の版（旧の 1 とは別の値）。描画の側は自分の版でない snapshot を描かず非対応を出す（spec §8.3）。
-export type DisplayWireVersion = "p4-display-wire-v1";
+export type DisplayWireVersion = "p4-display-wire-v2";
 export type DisplayWireSnapshot = Readonly<{
   schemaVersion: DisplayWireVersion;
   streamId: string;
@@ -114,6 +113,15 @@ export type DisplayWireSnapshot = Readonly<{
     eew: DisplayWireDomain<"U-E", EewWire>;
     tsunami: DisplayWireDomain<"U-T", TsunamiWire>;
     earthquake: DisplayWireDomain<"U-Q", EarthquakeWire>;
+    weatherCurrent: DisplayVocabDomain<"U-W">;
+    weatherTimeseries: DisplayVocabDomain<"U-F">;
+    nankai: DisplayVocabDomain<"U-N">;
+    volcano: DisplayVocabDomain<"U-V">;
+    landslide: DisplayVocabDomain<"U-L">;
+    flood: DisplayVocabDomain<"U-R">;
+    briefing: DisplayVocabDomain<"U-B">;
+    localBulletins: DisplayVocabDomain<"U-M">;
+    typhoon: DisplayVocabDomain<"U-Y">;
   }>;
   notices: readonly VisibleNotice[];
 }>;
@@ -127,16 +135,22 @@ export type WireDetailRequest =
   | Readonly<{ unit: "U-T"; part: "comment"; id: string; revision: string }>
   | Readonly<{ unit: "U-Q"; part: "event"; id: string; revision: string; page: number }>
   // 読めない報のカードの原文: id はカードの inputId、revision は receivedAt の 10 進（表 §2.3 の例外）。
-  | Readonly<{ unit: RuntimeUnitId; part: "raw"; id: string; revision: string }>;
+  | Readonly<{ unit: RuntimeUnitId; part: "raw"; id: string; revision: string }>
+  // 9 分野の切らない語彙の項目 1 件と、読めない印の部分の原文（P4-DV-AC12）。id と revision は snapshot の項目の id と rev。
+  | Readonly<{ unit: VocabUnit; part: "item"; id: string; revision: string }>
+  | Readonly<{ unit: VocabUnit; part: "unreadable"; id: string; revision: string }>;
 
 export type EewAreaDetail = Readonly<{ code: string; intensity: EewPredictionIntensity; report: EewReportArea | null }>;
-// 索引の項目: 保護 2 分野は part への参照、U-N・U-V・U-M は本文の口の id と revision（生の subject と三つ組）、ほかは現況の要素（DTO）そのもの。
+// 索引の項目: 保護 2 分野は part への参照、7 分野は切らない語彙の項目（本文の参照は項目の ref、P4-DV-AC05）。
 export type WireIndexEntry =
   | Readonly<{ id: string; revision: string; operation: Operation; part: "areas" | "stations" | "comment" | "event" }>
-  | Readonly<{ id: string; revision: string; operation: Operation; part: "text" }>
-  | Readonly<{ id: string; revision: string; operation: Operation; part: "item"; item: LandslideUnitView["currents"][number] | FloodUnitView["currents"][number]
-      | BriefingUnitView["currents"][number] | TyphoonUnitView["analysis"][number] | TyphoonUnitView["probability"][number] }>;
+  | Readonly<{ id: string; revision: string; operation: Operation; part: "item"; item: VocabIndexItem }>;
 export type WireOmitted = Readonly<{ index: number; reason: "pageBudget" }>;
+// 7 分野の索引で 1 件だけで 1 応答に入らない項目の印（P4-DV-D-ITEM-OVERSIZE=A。part=item も 503 になる）。
+export type WireIndexOmitted = WireOmitted | (WireOmitted & Readonly<{ id: string; revision: string }>);
+// part=unreadable の 1 つの印（side は陸上の印か U-V の警報の海上の印）。parts は欠片の鍵 (site, scope) ごとに 1 件（P4-DV-AC12）。
+export type WireUnreadableSide = Readonly<{ side: "land" | "marine"; parts: readonly Readonly<{ site: string; scope: string | null; raw: string | null }>[];
+  headline: string | null }>;
 type WirePage<Part extends string, Item> = Readonly<{ kind: "ok"; part: Part; revision: string; page: number; pageCount: number; itemCount: number;
   items: readonly Readonly<{ index: number; item: Item }>[]; omitted: readonly WireOmitted[] }>;
 export type WireEventHeader = Omit<EarthquakeEventView, "intensity"> & Readonly<{ intensity: Omit<SeismicIntensityObservation, "items"> | null }>;
@@ -146,10 +160,90 @@ export type WireLongPeriodHeader = Omit<MarkViewed<LongPeriodSubject>, "intensit
 export type WireOmittedField = "hypocenter" | "headline" | "title" | "tsunamiComment" | "sources" | "unreadableView" | "unavailable" | "cancelledSummary" | "strongHold";
 export type WireDetailResponse =
   // 索引は U-W の索引と同じ欄の名（entries）。入らない項目は omitted の index で示す。
-  | Readonly<{ kind: "ok"; part: "index"; revision: string; page: number; pageCount: number; entryCount: number; entries: readonly WireIndexEntry[]; omitted: readonly WireOmitted[] }>
+  | Readonly<{ kind: "ok"; part: "index"; revision: string; page: number; pageCount: number; entryCount: number; entries: readonly WireIndexEntry[]; omitted: readonly WireIndexOmitted[] }>
   | (WirePage<"areas", EewAreaDetail | TsunamiForecastArea | TsunamiUnkeyedArea> & Readonly<{ id: string }>)
   | (WirePage<"stations", TsunamiStation> & Readonly<{ id: string }>)
   | (WirePage<"event", SeismicIntensityItem> & Readonly<{ id: string; event: WireEventHeader | WireLongPeriodHeader; omittedFields: readonly WireOmittedField[] }>)
   | Readonly<{ kind: "ok"; part: "comment"; id: string; revision: string; text: string }>
   | Readonly<{ kind: "ok"; part: "raw"; id: string; revision: string; raw: string | null; rawCut: boolean; rawDropped: boolean }>
+  | Readonly<{ kind: "ok"; part: "item"; id: string; revision: string; item: VocabItem }>
+  | Readonly<{ kind: "ok"; part: "unreadable"; id: string; revision: string; sides: readonly WireUnreadableSide[] }>
   | WeatherTimeseriesDetailError;
+
+// ---- 9 分野の語彙（P4-DISPLAY-VOCAB-001、表 §1） ----
+// 描画は k と label・role で描き分け、分野の名前で分けない（R46）。label・role・cols・special は k ごとの閉じた語で、型に無い語は作れない（spec:1268）。
+export type VocabUnit = "U-W" | "U-F" | "U-N" | "U-V" | "U-L" | "U-R" | "U-B" | "U-M" | "U-Y";
+// U-V の噴煙の値（表 §1.3 の sv）。kind ごとに value・bound・raw の入り方が決まる。
+export type VocabMaterial = readonly [tag: "sv", kind: MaterialValue["kind"], value: number | string | null, bound: "lower" | "upper" | null, raw: string | null];
+export type VocabValue = string | number | boolean | null | DisplayCutText | VocabMaterial;
+export type VocabFact<Label extends string> = readonly [label: Label, value: VocabValue];
+export type VocabCell = string | number | boolean | null | DisplayCutText;
+// rows は [鍵, 名前 か null, ...値] で、値の欄の名は cols に 1 回だけ書く。sys は鍵が区域 Code のときだけその層。
+export type VocabList<Role extends string, Col extends string = never, Fact extends string = never> = Readonly<{ role: Role; label: string | null;
+  sys: DisplayAreaSystem | null; cols: readonly Col[]; facts: readonly VocabFact<Fact>[]; rows: readonly (readonly VocabCell[])[]; omitted: number }>;
+type MarkList<Role extends "unreadable" | "marineUnreadable"> = VocabList<Role, "scope" | "raw", "headline" | "addition" | "rawDropped" | "partsCut">;
+// 詳細を開く参照（表 §5.2）。ほかの 13 種は null。
+export type VocabRef = Readonly<{ part: "areas" | "current" | "text"; id: string; rev: string }>;
+type Source = "source.family" | "source.infoType";
+type Shape<Fact extends string, List, Text extends string, Special> = Readonly<{ fact: Fact; list: List; text: Text; special: Special }>;
+type Unread = MarkList<"unreadable">;
+type Codes<Role extends string> = VocabList<Role>;
+type VocabShapes = {
+  "weatherCurrent.area": Shape<Source | "prefecture" | "cellCount" | "restoredCellCount", Codes<"areas"> | VocabList<"phenomena", "areaCount">, never, null>;
+  "weatherTimeseries.subject": Shape<Source | "office" | "effective" | "unavailableReason" | "validUntil" | "unknownCode.unknown" | "unknownCode.missing"
+    | "unknownCode.empty" | "periodCount" | "lastKnownPeriodCount", Codes<"areaCodes"> | Codes<"knownCodes"> | Unread, never, null>;
+  "nankai.current": Shape<Source | "eventId" | "retainUntil" | "line" | "status" | "warningUntil" | "infoSerial.code" | "infoSerial.name" | "truncated"
+    | "validUntil", Unread, "headline", null>;
+  "nankai.information": Shape<Source | "family" | "eventId" | "retainUntil" | "infoKind" | "infoSerial.code" | "infoSerial.name" | "truncated" | "validUntil",
+    Unread, "headline", null>;
+  "volcano.alert": Shape<Source | "volcanoCode" | "eventId" | "marineSource.time" | "marineSource.serial" | "marineSource.family" | "marineSource.infoType"
+    | "landKind.code" | "landKind.name" | "landKind.condition" | "marineKind.code" | "marineKind.name" | "marineKind.condition" | "retainUntil"
+    | "marineUnconfirmed" | "volcanoName" | "kind.code" | "kind.name" | "kind.condition" | "lastKind.code" | "lastKind.name" | "level" | "coordinate"
+    | "truncated" | "marineUnread", Codes<"municipalities"> | Codes<"marineAreas"> | Unread | MarkList<"marineUnreadable">, "headline" | "prevention", null>;
+  "volcano.eruption": Shape<Source | "volcanoCode" | "eventId" | "retainUntil" | "volcanoName" | "flash" | "phenomenon.code" | "phenomenon.name"
+    | "eventDateTimeRaw" | "craterName" | "plumeAboveCrater" | "plumeAboveSeaLevel" | "plumeDirection" | "truncated" | "validUntil",
+    Codes<"municipalities"> | Unread, "headline", null>;
+  "volcano.ashfall": Shape<Source | "volcanoCode" | "eventId" | "retainUntil" | "volcanoName" | "variant" | "forecastStartsAt" | "forecastEndsAt"
+    | "omittedGroupCount" | "truncated", VocabList<"ashGroup", "firstForecastEndAt", "hazardClass" | "ashCode" | "areaCount"> | Unread, "headline", null>;
+  "volcano.bulletin": Shape<Source | "family" | "eventId" | "retainUntil" | "extraordinary" | "truncated", Codes<"volcanoCodes"> | Unread, "headline", null>;
+  "volcano.shortfall": Shape<"id" | "slice" | "scope" | "volcanoCode" | "lastKnown.reportDateTimeRaw" | "lastKnown.serialRaw" | "reason", never, never, null>;
+  "landslide.office": Shape<Source | "office" | "retainUntil" | "truncated", VocabList<"kinds", never, "code" | "level"> | Unread, never, null>;
+  "flood.event": Shape<Source | "headType" | "eventId" | "retainUntil" | "areaName" | "inundation" | "basisReportDateTimeRaw" | "truncated",
+    VocabList<"kinds", never, "code" | "level"> | VocabList<"inundation", "stationCode" | "prefecture" | "city" | "subCities", "text"> | Unread, never,
+    Readonly<{ kind: "floodSeries"; times: readonly string[]; stations: readonly FloodStation[] }>>;
+  "briefing.current": Shape<Source | "series" | "retainUntil" | "headType" | "eventId" | "inherited" | "effective" | "editorialOffice" | "truncated",
+    VocabList<"items", never, "kind" | "condition"> | VocabList<"observations", "part" | "label" | "value" | "unit" | "approximation" | "time"> | Codes<"areas">
+    | Unread, "headline", null>;
+  "localBulletins.tornado": Shape<Source | "retainUntil" | "activeUntil" | "editorialOffice" | "sighted" | "truncated", VocabList<"areas", "layer"> | Unread,
+    "headline", null>;
+  "localBulletins.heat": Shape<Source | "retainUntil" | "activeUntil" | "targetDate" | "editorialOffice" | "areaName" | "truncated", Unread, "headline", null>;
+  "localBulletins.transient": Shape<Source | "family" | "retainUntil" | "visibleUntil" | "editorialOffice" | "truncated", Codes<"areas"> | Codes<"tags"> | Unread,
+    "headline", null>;
+  "typhoon.analysis": Shape<Source | "retainUntil" | "activeUntil" | "baseTime" | "name.name" | "name.nameKana" | "name.number" | "name.remark" | "truncated",
+    Unread, never, Readonly<{ kind: "typhoonFrames"; frames: readonly TyphoonFrame[] }>>;
+  "typhoon.probability": Shape<Source | "retainUntil" | "activeUntil" | "baseTime" | "slotCount" | "name.name" | "name.nameKana" | "name.number" | "name.remark"
+    | "maxFiveDay" | "truncated", Codes<"prefectures"> | VocabList<"areas", "prefectureCode" | "d1" | "d2" | "d3" | "d4" | "d5" | "peak" | "peakSlot"> | Unread,
+    never, null>;
+};
+export type VocabKind = keyof VocabShapes;
+export type VocabUnitKinds = {
+  "U-W": "weatherCurrent.area"; "U-F": "weatherTimeseries.subject"; "U-N": "nankai.current" | "nankai.information";
+  "U-V": "volcano.alert" | "volcano.eruption" | "volcano.ashfall" | "volcano.bulletin" | "volcano.shortfall"; "U-L": "landslide.office"; "U-R": "flood.event";
+  "U-B": "briefing.current"; "U-M": "localBulletins.tornado" | "localBulletins.heat" | "localBulletins.transient"; "U-Y": "typhoon.analysis" | "typhoon.probability";
+};
+// 語彙の項目（表 §1.2）。id は sha256([unit, operation, subject])、rev は view の object の JSON の sha256（U-W・U-F は公開形の revision）。
+export type VocabItemOf<K extends VocabKind> = K extends VocabKind ? Readonly<{
+  id: string; rev: string; k: K; op: Operation; title: string | null; time: string | null; serial: string | null; marks: readonly DisplayStateMark[];
+  unread: boolean; ref: VocabRef | null; facts: readonly VocabFact<VocabShapes[K]["fact"]>[]; lists: readonly VocabShapes[K]["list"][];
+  texts: readonly (readonly [role: VocabShapes[K]["text"], text: string])[]; special: VocabShapes[K]["special"];
+}> : never;
+export type VocabItem = VocabItemOf<VocabKind>;
+// 索引に出る 15 種（unit ごとの種類は VocabUnitKinds で縛る）。
+export type VocabIndexUnit = Exclude<VocabUnit, "U-W" | "U-F">;
+export type VocabIndexItem<Unit extends VocabIndexUnit = VocabIndexUnit> = VocabItemOf<VocabUnitKinds[Unit]>;
+// items は id の昇順。facts は分野に 1 つの値（U-W の freshnessSuspectCount だけ）。
+export type VocabWire = Readonly<{ items: readonly VocabItem[]; facts: readonly VocabFact<"freshnessSuspectCount">[] }>;
+// 9 分野の包み（表 §1.1）。要約は旧の要約と同じ形でカードを持たない（P4-DV-D-SUMMARY-RULE）。
+export type DisplayVocabDomain<Unit extends VocabUnit> = Readonly<{ unit: Unit; contentRevision: string; items: readonly [DisplaySummaryItem, DisplaySummaryItem, DisplaySummaryItem] }> & (
+  | Readonly<{ delivery: "full"; wire: VocabWire; cards: readonly DisplayWireCard[] }>
+  | Readonly<{ delivery: "summary"; reason: "snapshotBudget"; originalBytes: number; budgetBytes: number }>);

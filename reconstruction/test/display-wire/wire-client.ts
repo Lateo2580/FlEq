@@ -2,7 +2,7 @@
 // 読むのは新しい wire の欄だけで、分野の名前で分岐しない。
 type Rendered = Readonly<{ kind: "unsupported"; version: unknown }> | Readonly<{ kind: "rendered"; sequence: unknown }>;
 
-const VERSION = "p4-display-wire-v1";
+const VERSION = "p4-display-wire-v2";
 
 function renderWire(value: unknown): Rendered {
   if (typeof value !== "object" || value == null || !("schemaVersion" in value) || value.schemaVersion !== VERSION)

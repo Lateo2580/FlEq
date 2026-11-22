@@ -92,16 +92,17 @@ describe("P4-DW-T06 acceptance: the detail parts", () => {
         if (index.kind !== "ok" || index.part !== "index" || !("omitted" in index)) throw new Error(`${unit} index`);
         expect([unit, index.omitted]).toEqual([unit, []]);
         for (const item of index.entries) {
-          if (item.part === "text") {
-            // U-M の本文の口は B0 の後の契約が足す（索引は生の subject と三つ組だけ）。
-            if (unit === "U-M") continue;
-            if (unit !== "U-N" && unit !== "U-V") throw new Error("text entry");
-            const text = detailOwner(state, { unit, part: "text", id: item.id, revision: item.revision });
-            expect(text).toMatchObject({ kind: "ok", part: "text", id: item.id });
+          if (item.part === "item") {
+            // U-N の情報と U-V の解説の本文は項目の ref から開く（P4-DV-AC05 (1)）。U-M の本文の口は P4-QUAKE-COMMENTARY-TEXT-001 が足す。
+            const ref = item.item.ref;
+            if (ref?.part !== "text") continue;
+            if (unit !== "U-N" && unit !== "U-V") throw new Error("text ref");
+            const text = detailOwner(state, { unit, part: "text", id: ref.id, revision: ref.rev });
+            expect(text).toMatchObject({ kind: "ok", part: "text", id: ref.id });
             texts++;
             continue;
           }
-          if (item.part === "item" || item.part === "comment") continue;
+          if (item.part === "comment") continue;
           const part = item.part;
           for (let at = 0; ; at++) {
             const request: WireDetailRequest = part === "event" ? { unit: "U-Q", part, id: item.id, revision: item.revision, page: at }
@@ -135,7 +136,7 @@ describe("P4-DW-T06 acceptance: the detail parts", () => {
     const typhoon = toTyphoonView(units("U-Y")["U-Y"]!);
     expect(revisions("U-T")).toEqual([...tsunami.forecasts, ...tsunami.observations].map(sha));
     expect(revisions("U-Q")).toEqual([...quake.earthquakes, ...quake.longPeriods].map(sha));
-    expect(revisions("U-M")).toEqual([...local.tornado, ...local.heat, ...local.transient].map(({ source }) => JSON.stringify([source.inputId, source.reportDateTimeRaw, source.controlDateTimeRaw])));
+    expect(revisions("U-M")).toEqual([...local.tornado, ...local.heat, ...local.transient].map(sha));
     expect(revisions("U-L")).toEqual(landslide.currents.map(sha));
     expect(revisions("U-R")).toEqual(flood.currents.map(sha));
     expect(revisions("U-B")).toEqual(briefing.currents.map(sha));

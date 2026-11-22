@@ -359,6 +359,7 @@ function openWire(clients: Set<WireClient>, response: ServerResponse, latest: st
 const WIRE_DETAIL_PATH = "/api/display/wire/detail", WIRE_DETAIL_BYTES = 65_536;
 const INDEX_UNITS = ["U-T", "U-Q", "U-N", "U-V", "U-M", "U-L", "U-R", "U-B", "U-Y"] as const;
 const CARD_UNITS = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const;
+const VOCAB_UNITS = ["U-W", "U-F", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"] as const;
 function parseWireDetail(url: string): Readonly<{ streamId: string; detail: WireDetailRequest }> | null {
   const query = detailQuery(url);
   if (query == null) return null;
@@ -370,6 +371,13 @@ function parseWireDetail(url: string): Readonly<{ streamId: string; detail: Wire
   const index = INDEX_UNITS.find((item) => item === unit), card = CARD_UNITS.find((item) => item === unit);
   if (part === "index") return index != null && page != null && !params.has("id") && /^\d{1,16}$/.test(revision) ? { streamId, detail: { unit: index, part, revision, page } } : null;
   if (part === "raw") return card != null && id != null && validInputId(id) && /^-?\d{1,16}$/.test(revision) && !params.has("page") ? { streamId, detail: { unit: card, part, id, revision } } : null;
+  // 9 分野の part=item・unreadable（P4-DV-AC12）。U-W・U-F の revision は公開形の 10 進の字なので、64 桁の hex の検査より前に分ける。
+  if (part === "item" || part === "unreadable") {
+    const vocab = VOCAB_UNITS.find((item) => item === unit);
+    if (vocab == null || !hex(id) || params.has("page")) return null;
+    if (!(vocab === "U-W" || vocab === "U-F" ? /^\d{1,16}$/.test(revision) : hex(revision))) return null;
+    return part === "item" ? { streamId, detail: { unit: vocab, part, id, revision } } : { streamId, detail: { unit: vocab, part, id, revision } };
+  }
   if (!hex(id) || !hex(revision)) return null;
   if (part === "comment") return unit === "U-T" && !params.has("page") ? { streamId, detail: { unit, part, id, revision } } : null;
   if (page == null) return null;

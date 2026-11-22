@@ -934,3 +934,4 @@ export { dateValue, projectSnapshot };
 // P3-REC-AC13 (3): UnconfirmedReason に語を足して UNCONFIRMED_KEYS に足し忘れると、ここで型が落ちる（落とすと集計と確認の状態から漏れる）。
 const unconfirmedKeysComplete: [Exclude<UnconfirmedReason, (typeof UNCONFIRMED_KEYS)[number]>] extends [never] ? true : never = true;
 export { SNAPSHOT_BYTES };
+export { briefingTally, eewTally, floodTally, landslideTally, localBulletinsTally, nankaiTally, projectDomain, seismicTally, timeseriesTally, tsunamiTally, typhoonTally, volcanoTally, weatherTally }; // P4-DV-AC11: 新しい経路が自分の差分から包みの items を数える（数え方を写さない、P4-DV-AC10）

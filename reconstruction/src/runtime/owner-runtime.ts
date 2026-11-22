@@ -785,6 +785,12 @@ import type { EarthquakeContribution, EarthquakeEvent, EarthquakeEventView, Eart
 import type { TsunamiForecastSubject, TsunamiObservationSubject } from "../../contracts/p3-tsunami-unit.types";
 import { shown } from "../units/notice-mark";
 import { markView } from "../units/unreadable";
+// P4-DISPLAY-VOCAB-001: 9 分野の索引の項目と part=item・unreadable。weather の 2 つの module は上で既に読む（循環を足さない）。
+import type { UnreadableMark as WireUnreadableMark } from "../../contracts/p2-shared-runtime.types";
+import type { VocabIndexItem, VocabIndexUnit, VocabItem, VocabUnit, WireIndexOmitted, WireUnreadableSide } from "../../contracts/p4-display-wire.types";
+import { vocabItem } from "../view-projector/display-vocab";
+import { timeseriesPublicSubject } from "../units/weather-timeseries/weather-timeseries-unit";
+import { weatherCurrentAreas } from "../units/weather-current/weather-current-public";
 
 // ---- unit の view の写し（P4-DW-AC08 の詳細の照合用） ----
 // owner は unit の toView を import できない（domain が shared-runtime 経由でこの module を読むので、unit の module を読むと循環して
@@ -832,9 +838,11 @@ const quakeViews = (events: readonly EarthquakeEvent[]) => events.filter((event)
 const WIRE_ITEM_PAGE = 256, WIRE_INDEX_PAGE = 32, WIRE_RESPONSE_BYTES = 65_536, WIRE_STREAM_ID = "x".repeat(64);
 const wireSha = (value: unknown): string => createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
 const WIRE_UNITS: ReadonlySet<string> = new Set(["U-E", "U-T", "U-Q", "U-N", "U-V", "U-M", "U-L", "U-R", "U-B", "U-Y"]);
-// 新しい part の要求（index・areas・stations・comment・event・raw）。U-W・U-V・U-N の配送済みの要求はここに入らない（part が index か raw でない U-V・U-N は本文の口）。
+// 新しい part の要求（index・areas・stations・comment・event・raw・item・unreadable）。U-W・U-V・U-N の配送済みの要求はここに入らない（part が index か raw でない
+// U-V・U-N は本文の口）。item・unreadable は U-W・U-F も新しい part で、U-W の口（index・areas・lastKnown）と part の名が重ならない（P4-DV-AC12 (1)）。
 function isWireDetail(request: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest | WireDetailRequest): request is WireDetailRequest {
-  return "unit" in request && request.part !== "text" && (request.part === "raw" || request.unit !== "U-W" && WIRE_UNITS.has(request.unit));
+  return "unit" in request && request.part !== "text" && (request.part === "raw" || request.part === "item" || request.part === "unreadable"
+    || request.unit !== "U-W" && WIRE_UNITS.has(request.unit));
 }
 const wireChanged = (revision: string | null): WireDetailResponse => ({ kind: "error", reason: "versionChanged", revision });
 const wireInvalid: WireDetailResponse = { kind: "error", reason: "invalidRequest", revision: null };
@@ -869,40 +877,126 @@ function locate<T extends Readonly<{ operation: string; subject: string }>>(unit
   return object == null ? null : { object, revision: wireSha(object) };
 }
 const entryOf = (unit: RuntimeUnitId, item: Readonly<{ operation: Operation; subject: string }>) => ({ id: wireSha([unit, item.operation, item.subject]), revision: wireSha(item), operation: item.operation });
-function wireIndex(state: OwnerState, unit: Extract<WireDetailRequest, { part: "index" }>["unit"]): Readonly<{ revision: string; entries: readonly WireIndexEntry[] }> | null {
+function wireIndex(state: OwnerState, unit: "U-T" | "U-Q"): Readonly<{ revision: string; entries: readonly WireIndexEntry[] }> | null {
   const units: Readonly<Partial<WireUnitStates>> = state.units;
-  const items = (list: readonly (Extract<WireIndexEntry, { part: "item" }>["item"])[]): WireIndexEntry[] => list.map((item) => ({ ...entryOf(unit, item), part: "item", item }));
   switch (unit) {
     case "U-T": { const value = units["U-T"]; if (value == null) return null; const view = { forecasts: tsunamiForecasts(value.forecasts), observations: tsunamiObservations(value.observations) };
       return { revision: String(value.contentRevision), entries: [...view.forecasts.flatMap((item): WireIndexEntry[] => [{ ...entryOf(unit, item), part: "areas" },
         ...item.warningComment == null ? [] : [{ ...entryOf(unit, item), part: "comment" as const }]]), ...view.observations.map((item): WireIndexEntry => ({ ...entryOf(unit, item), part: "stations" }))] }; }
     case "U-Q": { const value = units["U-Q"]; if (value == null) return null;
       return { revision: String(value.contentRevision), entries: [...quakeViews(value.earthquakes), ...longViews(value.longPeriods)].map((item): WireIndexEntry => ({ ...entryOf(unit, item), part: "event" })) }; }
-    // 本文の口の id は view の生の subject、revision は source の三つ組の JSON 配列の字（P3-BT-D-KEY、hash にしない）。
-    case "U-V": case "U-N": { const records = unit === "U-V" ? units["U-V"]?.bulletins : units["U-N"]?.information; const value = units[unit]; if (records == null || value == null) return null;
-      return { revision: String(value.contentRevision), entries: records.flatMap((record): WireIndexEntry[] => record.effective !== "active" || record.expiryPending === true ? []
-        : [{ id: record.subject, revision: JSON.stringify([record.source.inputId, record.source.reportDateTimeRaw, record.source.controlDateTimeRaw]), operation: record.operation, part: "text" }]) }; }
-    // 現況の要素は各 unit の toView と同じく「active で保留の印が無い」記録に印の写しを当てたもの（U-R は比べの欄を外す、U-B は released も載る）。
-    // U-M の索引は U-N・U-V と同じく生の subject と source の三つ組を載せる（AC08。本文の口は B0 の後の契約が足す）。
-    case "U-M": { const value = units["U-M"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: [...value.tornado, ...value.heat, ...value.transient].flatMap((record): WireIndexEntry[] => record.effective !== "active"
-        || record.expiryPending === true ? [] : [{ id: record.subject, revision: JSON.stringify([record.source.inputId, record.source.reportDateTimeRaw, record.source.controlDateTimeRaw]),
-          operation: record.operation, part: "text" }]) }; }
-    case "U-L": { const value = units["U-L"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: items(value.currents.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : [])) }; }
-    case "U-R": { const value = units["U-R"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: items(value.currents.flatMap((item) => {
-        if (item.effective !== "active" || item.expiryPending === true) return [];
-        if (item.observedCompare == null) return [shown(item)];
-        const { observedCompare: _compare, ...rest } = item;
-        return [shown(rest)];
-      })) }; }
-    case "U-B": { const value = units["U-B"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: items(value.currents.flatMap((item) => (item.effective === "active" || item.effective === "released") && item.expiryPending !== true ? [shown(item)] : [])) }; }
-    case "U-Y": { const value = units["U-Y"]; if (value == null) return null;
-      return { revision: String(value.contentRevision), entries: items([...value.analysis.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : []),
-        ...value.probability.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [shown(item)] : [])]) }; }
   }
+}
+
+// ---- 9 分野の view の要素の写し（P4-DV-AC05・AC12） ----
+// 各 unit の toView と同じく「active で保留の印が無い」記録に印の写しを当てたもの（U-R は比べの欄を外す、U-B は released も載る、解説・情報は本文を外す）。
+// rev は view の object の JSON の sha256 なので、形と鍵の順が toView と同じであることを P4-DV-T04 が corpus の全部で照らす。record は原文つきの印を持つ記録。
+type WireMarked = Readonly<{ unreadable?: WireUnreadableMark; marineUnreadable?: WireUnreadableMark }>;
+type WireElement = Readonly<{ source: Parameters<typeof vocabItem>[0]; id: string; revision: string; operation: Operation; record: WireMarked }>;
+const nankaiHeading = (value: Extract<NankaiInformation, Readonly<{ effective: "active" }>>) => { const { text: _text, nextAdvisory: _next, ...heading } = value; return shown(heading); };
+const volcanoHeading = (value: Extract<VolcanoBulletin, Readonly<{ effective: "active" }>>) => { const { text: _text, nextAdvisory: _next, ...heading } = value; return shown(heading); };
+function wireElements(state: OwnerState, unit: VocabUnit): readonly WireElement[] | null {
+  const units: Readonly<Partial<WireUnitStates>> = state.units;
+  const of = (source: Parameters<typeof vocabItem>[0], record: WireMarked, operation: Operation, subject: string): WireElement =>
+    ({ source, record, operation, id: wireSha([unit, operation, subject]), revision: wireSha(source.value) });
+  switch (unit) {
+    // U-W・U-F は公開形の id と revision（P3-UW-CANON-001・P3-UF-PUBLIC-001）。U-W の公開形は読めない印を持たない。
+    case "U-W": { const value = units["U-W"]; if (value == null) return null;
+      return weatherCurrentAreas(value).map((area) => ({ source: { k: "weatherCurrent.area", value: area }, record: {}, operation: area.operation, id: area.id, revision: area.revision })); }
+    case "U-F": { const value = units["U-F"]; if (value == null) return null;
+      return value.subjects.map((subject) => { const view = timeseriesPublicSubject(subject);
+        return { source: { k: "weatherTimeseries.subject", value: view }, record: view.unreadableView == null ? {} : subject, operation: view.operation, id: view.id, revision: view.revision }; }); }
+    case "U-N": { const value = units["U-N"]; if (value == null) return null;
+      return [...value.currents.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "nankai.current", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.information.flatMap((item) => item.effective === "active" && item.expiryPending !== true
+          ? [of({ k: "nankai.information", value: nankaiHeading(item) }, item, item.operation, item.subject)] : [])]; }
+    case "U-V": { const value = units["U-V"]; if (value == null) return null;
+      return [...value.alerts.flatMap((item) => item.effective === "active" ? [of({ k: "volcano.alert", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.eruptions.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "volcano.eruption", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.ashfalls.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "volcano.ashfall", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.bulletins.flatMap((item) => item.effective === "active" && item.expiryPending !== true
+          ? [of({ k: "volcano.bulletin", value: volcanoHeading(item) }, item, item.operation, item.subject)] : []),
+        // 不足の subject は unit が使う形（volcano-unit.ts の resolveShortfall、P4-DV-AC02）。
+        ...value.shortfalls.map((item) => of({ k: "volcano.shortfall", value: item }, {}, item.operation, `${item.operation}/shortfall/${item.id}`))]; }
+    case "U-L": { const value = units["U-L"]; if (value == null) return null;
+      return value.currents.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "landslide.office", value: shown(item) }, item, item.operation, item.subject)] : []); }
+    case "U-R": { const value = units["U-R"]; if (value == null) return null;
+      return value.currents.flatMap((item) => {
+        if (item.effective !== "active" || item.expiryPending === true) return [];
+        if (item.observedCompare == null) return [of({ k: "flood.event", value: shown(item) }, item, item.operation, item.subject)];
+        const { observedCompare: _compare, ...rest } = item;
+        return [of({ k: "flood.event", value: shown(rest) }, item, item.operation, item.subject)];
+      }); }
+    case "U-B": { const value = units["U-B"]; if (value == null) return null;
+      return value.currents.flatMap((item) => (item.effective === "active" || item.effective === "released") && item.expiryPending !== true
+        ? [of({ k: "briefing.current", value: shown(item) }, item, item.operation, item.subject)] : []); }
+    case "U-M": { const value = units["U-M"]; if (value == null) return null;
+      return [...value.tornado.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "localBulletins.tornado", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.heat.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "localBulletins.heat", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.transient.flatMap((item) => item.effective === "active" && item.expiryPending !== true
+          ? [of({ k: "localBulletins.transient", value: shown(item) }, item, item.operation, item.subject)] : [])]; }
+    case "U-Y": { const value = units["U-Y"]; if (value == null) return null;
+      return [...value.analysis.flatMap((item) => item.effective === "active" && item.expiryPending !== true ? [of({ k: "typhoon.analysis", value: shown(item) }, item, item.operation, item.subject)] : []),
+        ...value.probability.flatMap((item) => item.effective === "active" && item.expiryPending !== true
+          ? [of({ k: "typhoon.probability", value: shown(item) }, item, item.operation, item.subject)] : [])]; }
+  }
+}
+// 詳細の項目は切らない（P4-DV-D-UNBOUNDED-TEXT=A）。索引に出るのは 15 種（U-W・U-F は既存の索引の口）。
+const detailItem = (element: WireElement): VocabItem => vocabItem(element.source, { id: element.id, rev: element.revision }, true);
+const indexItem = (item: VocabItem): VocabIndexItem | null => item.k === "weatherCurrent.area" || item.k === "weatherTimeseries.subject" ? null : item;
+const indexEntry = (element: WireElement): WireIndexEntry | null => {
+  const item = indexItem(detailItem(element));
+  return item == null ? null : { id: element.id, revision: element.revision, operation: element.operation, part: "item", item };
+};
+// 索引のページの境（P4-DV-D-INDEX-PAGING=A）: 32 件まで、65,536 に入らない項目は次のページの先頭へ繰り越し、1 件だけで入らない項目は印だけのページにする。
+// 境は前のページの byte に依るので、unit の state の版（object）ごとに 1 度だけ全部の項目を変換して数えて持つ（保存しない、版が変われば捨てる）。
+type WirePaging = Readonly<{ revision: string; elements: readonly WireElement[]; pages: readonly Readonly<{ start: number; end: number; oversize: boolean }>[] }>;
+const pagingCache = new WeakMap<object, WirePaging>();
+function vocabPaging(state: OwnerState, unit: VocabIndexUnit): WirePaging | null {
+  const version = state.units[unit];
+  if (version == null) return null;
+  const found = pagingCache.get(version);
+  if (found != null) return found;
+  const elements = wireElements(state, unit) ?? [], revision = String(version.contentRevision), most = Math.max(1, elements.length);
+  // 番号の欄は最大の桁で数える（pageCount と page は項目の数を越えない）。
+  const base = Buffer.byteLength(JSON.stringify({ streamId: WIRE_STREAM_ID, kind: "ok", part: "index", revision, page: most, pageCount: most, entryCount: most, entries: [], omitted: [] }));
+  const sizes = elements.map((element) => Buffer.byteLength(JSON.stringify(indexEntry(element))));
+  const pages: { start: number; end: number; oversize: boolean }[] = [];
+  for (let start = 0; start < elements.length;) {
+    let used = base, end = start;
+    while (end < elements.length && end - start < WIRE_INDEX_PAGE && used + sizes[end] + (end > start ? 1 : 0) <= WIRE_RESPONSE_BYTES) used += sizes[end] + (end > start ? 1 : 0), end++;
+    if (end === start) { pages.push({ start, end: start + 1, oversize: true }); start++; } else { pages.push({ start, end, oversize: false }); start = end; }
+  }
+  if (pages.length === 0) pages.push({ start: 0, end: 0, oversize: false });
+  const result: WirePaging = { revision, elements, pages };
+  pagingCache.set(version, result);
+  return result;
+}
+function vocabIndex(state: OwnerState, request: Extract<WireDetailRequest, { part: "index" }> & Readonly<{ unit: VocabIndexUnit }>): WireDetailResponse {
+  const paging = vocabPaging(state, request.unit);
+  if (paging == null) return wireUnavailable;
+  if (request.revision !== paging.revision) return wireChanged(paging.revision);
+  const page = Number.isSafeInteger(request.page) && request.page >= 0 ? paging.pages[request.page] : undefined;
+  if (page == null) return wireInvalid;
+  // 要求ごとに変換するのはこのページの項目だけ（統合担当の決め 8）。
+  const chosen = paging.elements.slice(page.start, page.end);
+  const omitted: WireIndexOmitted[] = page.oversize ? chosen.map((element, offset) => ({ index: page.start + offset, reason: "pageBudget", id: element.id, revision: element.revision })) : [];
+  const entries = page.oversize ? [] : chosen.flatMap((element) => { const entry = indexEntry(element); return entry == null ? [] : [entry]; });
+  return { kind: "ok", part: "index", revision: paging.revision, page: request.page, pageCount: paging.pages.length, entryCount: paging.elements.length, entries, omitted };
+}
+// part=item・unreadable（P4-DV-AC12）。読むだけで state も期限も動かさない。消えた対象は revision: null、版の違いは今の revision を返す。
+function vocabDetail(state: OwnerState, request: Extract<WireDetailRequest, { part: "item" | "unreadable" }>): WireDetailResponse {
+  const elements = wireElements(state, request.unit);
+  if (elements == null) return wireUnavailable;
+  const element = elements.find((item) => item.id === request.id);
+  if (element == null) return wireChanged(null);
+  if (element.revision !== request.revision) return wireChanged(element.revision);
+  if (request.part === "item") return { kind: "ok", part: "item", id: element.id, revision: element.revision, item: detailItem(element) };
+  // 欠片は (site, scope) ごとに 1 件（unreadable.ts の印）。U-F の付加事項（site addition）も parts に入る。U-V の警報だけ海上の印を marine で持つ。
+  const side = (name: WireUnreadableSide["side"], mark: WireUnreadableMark | undefined): WireUnreadableSide[] => mark == null ? []
+    : [{ side: name, parts: mark.parts.map((part) => ({ site: part.site, scope: part.scope ?? null, raw: part.raw })), headline: mark.headline }];
+  return { kind: "ok", part: "unreadable", id: element.id, revision: element.revision,
+    sides: [...side("land", element.record.unreadable), ...side("marine", element.record.marineUnreadable)] };
 }
 // 新しい part の 1 ページ。読むだけで、state も期限も動かさない（U-W の口と同じ）。
 function wireDetail(state: OwnerState, request: WireDetailRequest): WireDetailResponse {
@@ -913,7 +1007,9 @@ function wireDetail(state: OwnerState, request: WireDetailRequest): WireDetailRe
     if (String(card.receivedAt) !== request.revision) return wireChanged(String(card.receivedAt));
     return { kind: "ok", part: "raw", id: request.id, revision: request.revision, raw: card.raw, rawCut: card.rawCut, rawDropped: card.rawDropped === true };
   }
+  if (request.part === "item" || request.part === "unreadable") return vocabDetail(state, request);
   if (request.part === "index") {
+    if (request.unit !== "U-T" && request.unit !== "U-Q") return vocabIndex(state, { ...request, unit: request.unit });
     const index = wireIndex(state, request.unit);
     if (index == null) return wireUnavailable;
     if (request.revision !== index.revision) return wireChanged(index.revision);
