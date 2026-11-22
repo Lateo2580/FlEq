@@ -76,15 +76,19 @@ async function baseInput(): Promise<Base> {
 }
 type Units = Readonly<{ eew?: EewUnitState; tsunami?: TsunamiUnitState; quake?: SeismicUnitState }>;
 // edit は worker を越えた写し（structuredClone）やカードの付いた view を試験が作るための口。
+// P4-REMOVAL-LOSS-001 の材料の既定（件数・欠け・H28 の区間の無い publisher）。
+const noRows = { losses: [] };
+const quietLosses: DisplayWireInput["removalLoss"] = { at: 0, restored: false, hole: () => null, eewWindow: { count: 0, from: null, to: null },
+  mirror: { "U-E": noRows, "U-W": noRows, "U-F": noRows, "U-T": noRows, "U-Q": noRows, "U-N": noRows, "U-V": noRows, "U-L": noRows, "U-R": noRows, "U-B": noRows, "U-M": noRows, "U-Y": noRows } };
 async function wire(units: Units, changes: readonly RuntimeDisplayChange[], previous: DisplayWireState | null,
-  edit: (views: DisplayWireInput["views"]) => DisplayWireInput["views"] = (views) => views): Promise<DisplayWireResult> {
+  edit: (views: DisplayWireInput["views"]) => DisplayWireInput["views"] = (views) => views, removalLoss = quietLosses): Promise<DisplayWireResult> {
   const { input, old } = await baseInput();
   const unitViews = { eew: toEewView(units.eew ?? emptyEew()), tsunami: toTsunamiView(units.tsunami ?? emptyTsunami()), earthquake: toSeismicView(units.quake ?? emptyQuake()) };
   const views = edit({ ...previous == null ? covering(unitViews, changes) : unitViews,
     weatherCurrent: input.weatherCurrent, weatherTimeseries: input.weatherTimeseries, nankai: input.nankai, volcano: input.volcano, landslide: input.landslide,
     flood: input.flood, briefing: input.briefing, localBulletins: input.localBulletins, typhoon: input.typhoon });
   return projectDisplayWire({ projection: { ...input, displayChanges: changes },
-    views, confirmation: input.confirmation, notices: old.notices }, previous);
+    views, confirmation: input.confirmation, notices: old.notices, removalLoss }, previous);
 }
 // 新しい経路は包みの items を自分の projectDomain で数え、最初の射影の差分が view を覆わないと止まる（startup の検査、P4-DV-AC11）。製品の起動の step は
 // 全部の subject を足すので覆う。試験の手製の差分（合成の長周期・複製した報）に合わせ、保護 3 分野の view の要素と subjects を差分の after から組み直す
@@ -112,5 +116,5 @@ function projected(result: DisplayWireResult): Extract<DisplayWireResult, { kind
   return result;
 }
 
-export { baseInput, eewStep, eewXml, emptyEew, emptyQuake, emptyTsunami, fixture, material, projected, reportTime, wire };
+export { baseInput, eewStep, eewXml, emptyEew, emptyQuake, emptyTsunami, fixture, material, projected, quietLosses, reportTime, wire };
 export type { EewArea, Units };

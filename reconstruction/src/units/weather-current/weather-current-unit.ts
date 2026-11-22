@@ -815,7 +815,7 @@ function rowChanges(before: ReadonlyMap<string, DisplayRow>, after: ReadonlyMap<
       && oldShown.length === currentShown.length
       && oldShown.every((item, index) => item === currentShown[index]);
     if (!same && (old != null || current != null)) changes.push({ unit: "U-W",
-      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, after: current });
+      operation: (current ?? old)!.operation, subject: (current ?? old)!.subject, before: old, ...(current == null ? { after: null, removal: "unknown" as const } : { after: current }) }); // P4-RL-AC02 (4): 府県の行の規則は発注 2
   }
   return changes;
 }

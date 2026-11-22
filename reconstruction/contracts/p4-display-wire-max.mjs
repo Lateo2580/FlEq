@@ -162,6 +162,22 @@ const rowAdded = { depth: mv, magnitudeDescription: nullable(esc(32)), tsunamiCo
 const recentRow = bytes(rowAdded) - 2 + 1;
 const seismicRecent = { perRow: recentRow, rows: 15, growth: 15 * recentRow };
 
-console.log(JSON.stringify({ groups: rows, common, newPath, seismicRecent }, null, 1));
+// ---- P4-REMOVAL-LOSS-001 が共通部に足す欄（契約 P4-RL-AC08 (4)、RL-RES-01）----
+// 消えた理由の一覧は 12 分野 × 新しい 4 件と分野ごとの落とした件数（P4-RL-D-WIRE-CAP=B）。1 件は一覧に載る最長の語で、updatedAt は期限切れの項目だけが持つが上界に数える。
+// H39 の欄は 12 unit の 5 区分・欠け・rev と U-E の区間（P4-RL-D-H39-SHAPE=B）。欄名は snapshot の 2 つの鍵。版の字は旧の経路の 1 から増えた分。
+const UNITS = ["U-E", "U-W", "U-F", "U-T", "U-Q", "U-N", "U-V", "U-L", "U-R", "U-B", "U-M", "U-Y"];
+const REMOVAL_REASON = widest("cancelled", "ended", "expired", "retentionEnded", "evicted", "replaced", "mixed", "unknown");
+const removalItem = { unit: "U-E", operation: OPERATION, at: MS, ref: { id: text(64) }, reason: REMOVAL_REASON, updatedAt: MS };
+const lossRow = { dropped: MS, evicted: MS, missed: MS, outcomeUnknown: MS, unreadable: MS, hole: widest(true, false, null), rev: text(64) };
+const removalLoss = {
+  removals: bytes(Object.fromEntries(UNITS.map((unit) => [unit, { items: array(4, removalItem), omitted: MS }]))),
+  losses: bytes(Object.fromEntries(UNITS.map((unit) => [unit, unit === "U-E" ? { ...lossRow, eewWindow: { count: MS, from: MS, to: MS } } : lossRow]))),
+  names: Buffer.byteLength(',"removals":,"losses":', "utf8"),
+  version: bytes("p4-display-wire-v3") - bytes(1),
+};
+removalLoss.margin = common.margin - removalLoss.removals - removalLoss.losses - removalLoss.names - removalLoss.version;
+
+console.log(JSON.stringify({ groups: rows, common, newPath, seismicRecent, removalLoss }, null, 1));
 // 裁定の組は A短（作者裁定 2026-11-21 08:24）。保護 3 分野・共通部・新しい経路の全体のどれかが負なら失敗にする。
-if (ruled.margin < 0 || common.margin < 0 || newPath.margin < 0) process.exitCode = 1;
+// P4-RL-AC08 (4): 本契約の欄を足した共通部の余りが負でも失敗にする。
+if (ruled.margin < 0 || common.margin < 0 || newPath.margin < 0 || removalLoss.margin < 0) process.exitCode = 1;

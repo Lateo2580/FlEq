@@ -4,7 +4,7 @@ import type {
   CheckpointResult,
   ClockReading,
   CurrentConfirmationEvidence,
-  DiagnosticEvent, InputBoundary,
+  DiagnosticEvent, InputBoundary, LossTally,
   MailboxCompletion,
   MailboxEnvelope,
   NotificationIntent,
@@ -97,7 +97,7 @@ export type OwnerUnitDelta = Readonly<{
   // null: unchanged in this step. A view is the unit's public view, never the unit state.
   view: RuntimeUnitView | null;
   // Pending intents only (at most 128 items / 128 KiB per unit, P2-A7-RES-01/02); terminal records stay in the owner.
-  pendingIntents: readonly NotificationIntent[] | null;
+  pendingIntents: readonly NotificationIntent[] | null; losses: readonly LossTally[] | null; // P4-RL-AC05 (1): unit の LossTally の行（null は変わらない、行の無い unit は []）
 }>;
 
 export type OwnerOutput = Readonly<{

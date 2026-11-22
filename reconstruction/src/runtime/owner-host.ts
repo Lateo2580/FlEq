@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { resolve } from "node:path"; import { isDeepStrictEqual } from "node:util";
 import { performance } from "node:perf_hooks";
 
 import type { ParserMailboxItem, ParserMailboxResult, ProcessingMarks } from "../../contracts/p1-parser-boundary.types";
@@ -8,7 +8,7 @@ import type {
   OwnerHeap, OwnerOutput, OwnerReply, OwnerRequest, OwnerStartData, OwnerUnitDelta, RecoveryInputResult, SentClock,
 } from "../../contracts/p3-execution-split.types";
 import type {
-  CheckpointResult, ClockReading, CurrentConfirmationEvidence, DiagnosticEvent, NotificationIntent, RestoreUnitResult, RuntimeUnitId,
+  CheckpointResult, ClockReading, CurrentConfirmationEvidence, DiagnosticEvent, DisplayRemoval, LossTally, NotificationIntent, RestoreUnitResult, RuntimeDisplayChange, RuntimeDisplaySubject, RuntimeUnitId,
   RuntimeUnitStates, RuntimeUnitView, WallBasis,
 } from "../../contracts/p2-shared-runtime.types";
 import { CheckpointCoordinator } from "../checkpoint/checkpoint";
@@ -17,7 +17,7 @@ import { decodeMaterial } from "../decode-material/decode-material"; import { in
 import { countedCheckpointFileSystem, writeCounters } from "./composition-root";
 import type { WriteCounters } from "./composition-root";
 import {
-  adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, ownerViews, placeUnits,
+  adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, intentUpdateOwner, noteRemovals, ownerViews, placeUnits, removalKey,
   receiveOwner, recoveryResult, refreshedViews, restoreOwner, sameBase, shutdownInputOwner,
 } from "./owner-runtime";
 import type { OwnerState, OwnerStep } from "./owner-runtime";
@@ -56,7 +56,7 @@ const CANDIDATE_BYTES = 16 * 1024 * 1024, URGENT_REAPPLY_ITEMS = 28;
 type Candidate = {
   readonly recoveryId: string; readonly unit: RuntimeUnitId; readonly base: OwnerState; readonly open: OwnerState;
   shadow: OwnerState; readonly items: ParserMailboxItem[]; bytes: number; overflow: boolean;
-  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[];
+  results: Map<number, RecoveryInputResult["result"]>; diagnostics: DiagnosticEvent[]; evidence: CurrentConfirmationEvidence[]; readonly removals: Map<string, DisplayRemoval | null>; // removals: P4-RL-AC03 の Map
   readonly inputIds: string[]; readonly cancelled: Set<string>; // P3-RRC-AC03 (1): 候補の中で取消に進んだ subject（採用の返信で端末の待ちから外す）
 };
 
@@ -71,7 +71,7 @@ class OwnerHost {
   // 不明を項目で持つと上限で捨てたとき不明が消え、P2-A3-AC10 が拒む capture を通してしまう）。
   private readonly unavailable = new Set<RuntimeUnitId>();
   // The intents array each unit last reported; pendingIntents is sent only when it changed.
-  private readonly reported: Partial<Record<RuntimeUnitId, readonly NotificationIntent[]>> = {};
+  private readonly reported: Partial<Record<RuntimeUnitId, readonly NotificationIntent[]>> = {}; private readonly reportedLosses: Partial<Record<RuntimeUnitId, readonly LossTally[] | undefined>> = {}; // P4-RL-AC05 (1): losses も同じく参照で比べ、行の無い unit（capture で外して undefined の後を含む）は [] を書く
   private readonly diagnostics: DiagnosticEvent[] = [];
   private base: SentClock | null = null;
   // P3-EF-AC02 (7): restore・input・deadline の直前の要求の根拠（保存しない。起動後の最初の restore は直前が verified でないと数える）。
@@ -80,7 +80,7 @@ class OwnerHost {
   private readonly writeCounts: WriteCounters | null;
   private readonly fileSystem: CheckpointFileSystem;
   // P3-REC-AC05: 1 回に候補は 1 つ（spec:2211）。採否が決まる・捨てる・shutdownInput で外す。
-  private candidate: Candidate | null = null;
+  private candidate: Candidate | null = null; private stopped: Readonly<{ restoredMs: number; afters: ReadonlyMap<string, RuntimeDisplaySubject> }> | null = null; private settles = false; // P4-RL-AC04 (4): 時計の確認待ちの restore の復元版（保存しない）
 
   constructor(private readonly options: OwnerHostOptions) {
     this.own = placeUnits(options.start.place);
@@ -99,7 +99,7 @@ class OwnerHost {
     this.base = { clock: request.clock, sharedMs: request.sharedMs, basis: request.basis };
     // 根拠の切替えは結果を返して期限を当てる restore・input・deadline の要求だけで数える（detail などは直前の根拠を書き換えない）。
     const switched = (request.kind === "restore" || request.kind === "input" || request.kind === "deadline")
-      && this.switchedToVerified(request.basis);
+      && this.switchedToVerified(request.basis); this.settles = request.basis === "verified" && (request.kind === "input" || request.kind === "deadline");
     if (request.kind === "restore") { this.restore(request.runId, switched); return; }
     const state = this.state;
     if (state == null) throw new Error("owner has not restored");
@@ -199,7 +199,7 @@ class OwnerHost {
     const step = receiveOwner(candidate.shadow, completion, clock, this.options.units, undefined, basis, seen);
     candidate.shadow = step.state;
     candidate.results.set(item.inputSequence, recoveryResult(completion, step, seen.held));
-    candidate.diagnostics.push(...step.diagnostics);
+    candidate.diagnostics.push(...step.diagnostics); noteRemovals(candidate.removals, step.displayChanges);
     candidate.evidence.push(...step.confirmationEvidence.filter((evidence) => evidence.source !== "acceptedReport"));
     candidate.inputIds.push(item.inputId); for (const { outcome } of step.outcomes) if (outcome.kind === "accepted") for (const subject of outcome.subjects) { if (subject.transition === "cancelled") candidate.cancelled.add(subject.subject); else candidate.cancelled.delete(subject.subject); } // P3-RRC-AC03 (2): 後の transition が勝つ。unit の名前で分けない
   }
@@ -212,7 +212,7 @@ class OwnerHost {
       this.options.reply({ kind: "recoveryDone", recoveryId, unit, result, output });
     if (request.phase === "open") {
       if (state.units[unit] == null) throw new Error(`unit ${unit} is not owned here`);
-      this.candidate = { recoveryId, unit, base: state, open: state, shadow: state, items: [], bytes: 0, overflow: false, results: new Map(),
+      this.candidate = { recoveryId, unit, base: state, open: state, shadow: state, items: [], bytes: 0, overflow: false, results: new Map(), removals: new Map(),
         diagnostics: [], evidence: [], inputIds: [], cancelled: new Set() };
       done({ kind: "opened" });
       return;
@@ -228,9 +228,9 @@ class OwnerHost {
       const items = [...candidate.items];
       Object.assign(candidate, { shadow: state, results: new Map(), diagnostics: [], evidence: [] });
       candidate.inputIds.length = 0; candidate.cancelled.clear(); // P3-RRC-AC03 (3): 開いた時の基点で集めた subject を残すと、当て直しで取消にならない待ちまで外す
-      for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis, state);
+      candidate.removals.clear(); for (const item of items) this.applyCandidate(candidate, item, decodeMaterial(item), clock, request.basis, state); // P4-RL-AC03 (2): removals も当て直しの前に空にする
     }
-    const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis);
+    const step = adoptRecoveryOwner(state, candidate.shadow, unit, recoveryId, candidate.open, candidate.inputIds, clock, this.options.units, request.basis, candidate.removals);
     // 部分集合の検査に外れた候補は捨てる（P3-REC-D-UNIT-ENTRANCE の共有の検査）。
     if (step == null) { done({ kind: "generationConflict" }); return; }
     this.apply(step);
@@ -294,9 +294,9 @@ class OwnerHost {
       this.record(unit, base + 1, current, Object.hasOwn(ids, unit) ? ids[unit]! : null);
     }
     const views = new Map(ownerViews(this.state, this.options.units).map((view) => [view.unit, view]));
-    const output = this.output([first, deadline]);
+    const output = this.output([first, deadline]); if (basis === "awaiting") this.stopped = { restoredMs: clock.monotonicMs, afters: restoredAfters(output.displayChanges) };
     this.options.reply({ kind: "restored", output, lastInputSequence: Math.max(0, ...this.own.map((unit) => restored[unit]?.kind === "restored" ? maxInputSequence(restored[unit].envelope) : 0)), units: this.own.map((unit) => ({ ...this.delta(unit, views.get(unit)!),
-      view: views.get(unit)!, pendingIntents: this.pending(unit),
+      view: views.get(unit)!, pendingIntents: this.pending(unit), losses: (this.reportedLosses[unit] = this.state!.losses[unit]) ?? [],
       restoration: first.restoration[unit]!, inputBoundary: first.restoration[unit]?.kind === "restored" && restored[unit]?.kind === "restored" ? restored[unit].envelope.inputBoundary ?? null : null, saves: this.checkpoint.saves(unit) })) }); // P3-VM-AC05・AC06: 復元した世代の境界と保存の可否
   }
 
@@ -402,7 +402,7 @@ class OwnerHost {
   private delta(unit: RuntimeUnitId, view: RuntimeUnitView | null): OwnerUnitDelta {
     const state = this.state!;
     return { unit, persistence: this.persistence(unit), view,
-      pendingIntents: state.units[unit]!.intents === this.reported[unit] ? null : this.pending(unit) };
+      pendingIntents: state.units[unit]!.intents === this.reported[unit] ? null : this.pending(unit), losses: state.losses[unit] === this.reportedLosses[unit] ? null : (this.reportedLosses[unit] = state.losses[unit]) ?? [] };
   }
 
   private output(steps: readonly OwnerStep[]): OwnerOutput {
@@ -415,15 +415,35 @@ class OwnerHost {
         if (!changed.includes(view.unit)) changed.push(view.unit);
       }
     }
-    return {
+    return this.whileStopped({
       units: changed.map((unit) => this.delta(unit, views.get(unit) ?? null)),
       outcomes: steps.flatMap((step) => step.outcomes),
       displayChanges: steps.flatMap((step) => step.displayChanges),
       confirmationEvidence: steps.flatMap((step) => step.confirmationEvidence),
       retiredEvents: steps.flatMap((step) => step.retiredEvents),
       diagnostics: [...this.diagnostics.splice(0), ...steps.flatMap((step) => step.diagnostics)],
-    };
+    });
   }
+
+  // P4-RL-AC04 (4): 時計の確認待ちで起動した後、期限の回収で消えた差分のうち、起動の後に更新されていない復元版（restored の返信の after と同じ中身）で、
+  // 表示の期限（unit が付ける dueWallMs）が restore の時の wall 以下のものを expiredWhileStopped にする（publisher は一覧に載せない）。restore の時の wall は
+  // 要求の時計の wall と monotonic の差で今の根拠に直す。根拠が verified の入力か期限の要求の返信で捨てる（その要求が最初の回収を当てる）。
+  private whileStopped(output: OwnerOutput): OwnerOutput {
+    const stopped = this.stopped;
+    if (stopped == null) return output;
+    if (this.settles) this.stopped = null;
+    const restoredWall = stopped.restoredMs + this.base!.clock.wallTimeMs - this.base!.clock.monotonicMs;
+    if (!output.displayChanges.some((change) => change.after == null && change.dueWallMs != null)) return output;
+    return { ...output, displayChanges: output.displayChanges.map((change) => change.after == null && change.dueWallMs != null && change.dueWallMs <= restoredWall
+      && isDeepStrictEqual(change.before, stopped.afters.get(removalKey(change))) ? { ...change, removal: "expiredWhileStopped" as const } : change) };
+  }
+}
+
+// restored の返信の差分の after を表示のキーごとに持つ（後の差分が勝つ）。
+function restoredAfters(changes: readonly RuntimeDisplayChange[]): ReadonlyMap<string, RuntimeDisplaySubject> {
+  const afters = new Map<string, RuntimeDisplaySubject>();
+  for (const change of changes) if (change.after == null) afters.delete(removalKey(change)); else afters.set(removalKey(change), change.after);
+  return afters;
 }
 
 // P3-FINAL-REVIEW-FIX-001: 保存の envelope の inputId の欄（ReportRef・読めない報のカード・intent の source）にある input-N の最大の N。原文・題名などほかの欄の字は

@@ -1370,7 +1370,7 @@ function reduceSeismicUnit(state: SeismicUnitState, input: SeismicInput): Seismi
     const shownBefore = listed(before) ? before : null, shownAfter = listed(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-Q", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   }
   // 当日履歴も view の一部なので、表示の変化が無くても内容の版を進める。
   const bump = displayChanges.length !== 0 || step.state.daily !== state.daily;
@@ -1699,7 +1699,7 @@ function recoveryChanges(before: SeismicUnitState, after: SeismicUnitState): Sei
     if (shownBefore === shownAfter) return;
     const value = (now ?? was)!;
     changes.push({ unit: "U-Q", operation: value.operation, subject: keyOf(value),
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   };
   for (const item of [...after.earthquakes, ...after.longPeriods]) { add(old.get(keyOf(item)) ?? null, item); old.delete(keyOf(item)); }
   for (const item of old.values()) add(item, null);

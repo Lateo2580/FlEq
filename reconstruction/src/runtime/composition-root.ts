@@ -553,7 +553,7 @@ class RuntimeCompositionRoot {
     const restoration: Partial<Record<RuntimeUnitId, PublisherState["restoration"][RuntimeUnitId]>> = {};
     for (const place of places) for (const unit of this.restored.get(place)!.units) {
       mirror[unit.unit] = { persistence: unit.persistence, view: unit.view,
-        pendingIntents: unit.pendingIntents };
+        pendingIntents: unit.pendingIntents, losses: unit.losses ?? [] };
       restoration[unit.unit] = unit.restoration; this.checkpoint.boundaries.restarted(unit.unit, unit.restoration.kind, unit.inputBoundary); if (!unit.saves) this.checkpoint.stopSaving(unit.unit);
     }
     if (runtimeUnits.some((unit) => mirror[unit] == null || restoration[unit] == null)) throw new Error("an owner did not restore every unit");
@@ -586,7 +586,7 @@ class RuntimeCompositionRoot {
     this.current = state; for (const unit of runtimeUnits) for (const intent of state.mirror[unit].pendingIntents) this.restoredKeys.add(intentKey(intent)); // P3-CK-AC03 (1)
     this.streamId = randomUUID();
     this.evaluateDelivery(clock);
-    this.project(outcomes, displayChanges, clock);
+    this.project(outcomes, displayChanges, clock, true);
   }
 
   // The one way a publisher input (not from an owner) changes the publisher state.
@@ -976,14 +976,14 @@ class RuntimeCompositionRoot {
   }
 
   // P2-A3-A8-LINK: every step is projected; rejected/unchanged states are kept, only projected is published.
-  private project(outcomes: readonly RuntimePublishedOutcome[], displayChanges: readonly RuntimeDisplayChange[], clock: ClockReading): void {
+  private project(outcomes: readonly RuntimePublishedOutcome[], displayChanges: readonly RuntimeDisplayChange[], clock: ClockReading, restored = false): void { // restored: 起動の restored の返信の差分（P4-RL-AC04 (2)）
     const state = this.state;
     // P2-A10-AC13: the host maps the mailbox judgement in; only shutdown completion is decided here.
     const stopped = state.shutdown.stage === "completed";
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
       this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), this.projection);
-    this.projection = result.state; const wireChanges = this.wireChanges.length === 0 ? displayChanges : [...this.wireChanges, ...displayChanges]; this.wireChanges = []; const wire = projectDisplayWire(wireInput(state, wireChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
+    this.projection = result.state; const wireChanges = this.wireChanges.length === 0 ? displayChanges : [...this.wireChanges, ...displayChanges]; this.wireChanges = []; const wire = projectDisplayWire(wireInput(state, wireChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state, { at: clock.wallTimeMs, restored, mirror: state.mirror, hole: (unit) => this.checkpoint.boundaries.lossHole(unit), eewWindow: eewLostView(this.eewLost, clock.wallTimeMs) }), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
     if (display != null) {
@@ -2356,12 +2356,12 @@ class RuntimeCompositionRoot {
 
   // P3-REC-AC14 (5): 札の窓を WARN の履歴に 1 件。timestamp は窓の終わり、durationMs は窓の長さ、同じ行を畳ませないよう count 1 を明示する。
   private noteEewWindow(window: EewWindowCard, clock: ClockReading): void {
-    this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "eewWindowUnverified",
+    this.eewLost = { count: Math.min(eewLostView(this.eewLost, clock.wallTimeMs).count + 1, Number.MAX_SAFE_INTEGER), from: window.fromWallMs, to: window.toWallMs, addedAt: clock.wallTimeMs }; this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "eewWindowUnverified", // P4-RL-AC07 (1): 外した区間を H39 の値に足す
       durationMs: window.toWallMs - window.fromWallMs, count: 1 }, { wallTimeMs: window.toWallMs, monotonicMs: clock.monotonicMs }, this.state.runId));
   }
 
   // P3-NFR-D-BIT-HOME=A: 直近の試行が失敗で終わった channel の印。run の中だけで保存しない（再起動で両方 false）。
-  private readonly channelFailing: Record<NotificationChannel, boolean> = { desktop: false, sound: false };
+  private readonly channelFailing: Record<NotificationChannel, boolean> = { desktop: false, sound: false }; private eewLost: EewLost | null = null; // eewLost: P4-RL-AC07 の区間
 
   // P3-NFR-AC01 (2)・AC02: 遅い close は停止の観測で結果ではない。隔離中の同じ試行だけを idle に戻し、締めた後は捨てる（D-SHUTDOWN=A）。
   private notificationStopped(name: NotificationChannel, observation: StopObservation): void {
@@ -2487,7 +2487,7 @@ export { RuntimeCompositionRoot, countedCheckpointFileSystem, linkedRuntimeCalls
 export type { CompositionOptions, NotificationCalls, ProjectedStep, PublisherInput, RecoveryIo, ShutdownHooks, WriteCounters };
 
 // ---- P4-DISPLAY-WIRE-001（B0）: 新しい経路の入力。import は行を足さない書き方のため file の最後に置く（宣言は巻き上がる） ----
-import type { DisplayWireSnapshot, WireDetailRequest, WireDetailResponse } from "../../contracts/p4-display-wire.types";
+import type { DisplayEewWindow, DisplayWireSnapshot, WireDetailRequest, WireDetailResponse } from "../../contracts/p4-display-wire.types";
 import { projectDisplayWire } from "../view-projector/display-wire";
 import type { DisplayWireInput, DisplayWireState } from "../view-projector/display-wire";
 import type { DisplayRecoveryView } from "../../contracts/p2-snapshot-sse.types";
@@ -2495,7 +2495,7 @@ import type { DisplayRecoveryView } from "../../contracts/p2-snapshot-sse.types"
 // 新しい経路の入力。新しい経路が読む欄だけを組み、旧の snapshotInput と同じ式で写す。12 分野の view と確認の状態から包みの items を自分で数え
 // （P4-DV-AC11、旧の射影の domains は読まない）、画面のお知らせだけを旧の射影の state から写す（表 §12.5）。
 function wireInput(state: PublisherState, displayChanges: readonly RuntimeDisplayChange[], streamId: string, nowMs: number, connection: DisplayConnectionView,
-  worker: DisplayWorkerView, recovery: Omit<DisplayRecoveryView, "restoration">, failing: Readonly<Record<NotificationChannel, boolean>>, previous: SnapshotProjectionState): DisplayWireInput {
+  worker: DisplayWorkerView, recovery: Omit<DisplayRecoveryView, "restoration">, failing: Readonly<Record<NotificationChannel, boolean>>, previous: SnapshotProjectionState, removalLoss: DisplayWireInput["removalLoss"]): DisplayWireInput {
   const views = snapshotInput({ state, outcomes: [], displayChanges }, streamId, nowMs, connection, worker);
   const date = new Date(nowMs);
   const persistence = Object.fromEntries(runtimeUnits.map((unit) => [unit, state.mirror[unit].persistence]));
@@ -2503,5 +2503,11 @@ function wireInput(state: PublisherState, displayChanges: readonly RuntimeDispla
     recovery: { restoration: state.restoration, ...recovery }, notificationChannels: state.notificationChannels, channelProbeComplete: state.notificationProbeComplete,
     channelFailing: failing, displayChanges }, views: { eew: views.eew, tsunami: views.tsunami, earthquake: views.earthquake, weatherCurrent: views.weatherCurrent,
     weatherTimeseries: views.weatherTimeseries, nankai: views.nankai, volcano: views.volcano, landslide: views.landslide, flood: views.flood, briefing: views.briefing,
-    localBulletins: views.localBulletins, typhoon: views.typhoon }, confirmation: state.confirmation, notices: previous.notices };
+    localBulletins: views.localBulletins, typhoon: views.typhoon }, confirmation: state.confirmation, notices: previous.notices, removalLoss };
+}
+
+// P4-RL-AC07: 10 分で外した EEW の未確認の区間の件数と最後の区間（publisher の手元だけ、再起動で消える、P4-RL-D-EEW-WINDOW=A）。最後の追加＋24 時間で消す（RL-RET-02）。
+type EewLost = Readonly<{ count: number; from: number; to: number; addedAt: number }>;
+function eewLostView(lost: EewLost | null, wallTimeMs: number): DisplayEewWindow {
+  return lost != null && wallTimeMs < lost.addedAt + 86_400_000 ? { count: lost.count, from: lost.from, to: lost.to } : { count: 0, from: null, to: null };
 }

@@ -203,7 +203,7 @@ it("R25 + R02 regression / AC02,AC04,AC05: a forged result reply cannot bypass d
   h.root.receive("deferred", { kind: "checkpointDone", grantId: "forged", unit: "U-F", result: fabricated, measurements: [],
     grantStartedMs: null, writeCounts: null, output: { units: [{ unit: "U-F", persistence: { kind: "saved", currentGeneration: 1, savedGeneration: 1,
       savedCapturedAt: attempt.capturedAt, savedAckAt: clock.wallTimeMs, dirtySince: null },
-    view: null, pendingIntents: null }],
+    view: null, pendingIntents: null, losses: null }],
     outcomes: [], displayChanges: [], confirmationEvidence: [], retiredEvents: [], diagnostics: [] } });
   expect(h.root.state.mirror["U-F"].persistence.savedGeneration).toBeNull();
   const before = grants(h.h).length;

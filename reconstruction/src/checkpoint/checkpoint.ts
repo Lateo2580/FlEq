@@ -648,7 +648,7 @@ const NOTICE_LOSSES: readonly LossReason[] = ["notificationExpired", "notificati
 const UNIT_EVICTION: Readonly<Partial<Record<UnitId, LossReason>>> = { "U-E": "eewCapacityEvicted", "U-W": "weatherCurrentCapacityEvicted",
   "U-T": "tsunamiCapacityEvicted", "U-Q": "seismicCapacityEvicted", "U-N": "nankaiCapacityEvicted", "U-V": "volcanoCapacityEvicted",
   "U-L": "landslideCapacityEvicted", "U-R": "floodCapacityEvicted", "U-B": "briefingCapacityEvicted", "U-M": "localBulletinsCapacityEvicted",
-  "U-Y": "typhoonCapacityEvicted" };
+  "U-Y": "typhoonCapacityEvicted", "U-F": "seriesCapacityEvicted" }; // P4-RL-AC05 (4): U-F は予約の変わらない 21 字の語
 function lossReasons(unit: UnitId): readonly LossReason[] {
   const eviction = UNIT_EVICTION[unit];
   return [...NOTICE_LOSSES, ...unit === "U-E" ? ["noticeMarkEvicted" as const] : [], ...eviction == null ? [] : [eviction],
@@ -792,14 +792,14 @@ type OldestHole = Readonly<{ from: number; kind: InputHole; before: BoundaryPosi
 // recovering・afterStart（P3-REC-D-HOLE-AFTER-START=A）: 取り直しを始めた印と、始めた後に開いた最古の穴（run の中だけ、envelope の形は変えない）。
 // holes: 穴を持つ unit か（P3-RB-D-UF=B。U-E・U-F は本文を取り直さず穴を解く口が無いので、穴を置くと境界が run をまたいで止まる）。
 type UnitInputs = { tail: Readonly<{ sequence: number; position: BoundaryPosition }> | null;
-  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null; recovering: boolean; afterStart: OldestHole | null; readonly holes: boolean };
+  readonly pending: Map<number, BoundaryPosition | null>; oldestHole: OldestHole | null; recovering: boolean; afterStart: OldestHole | null; readonly holes: boolean; holeAfterMark: boolean }; // holeAfterMark: confirmable の印の後に開いた穴（P4-RL-D-HOLE=B、H39 の欠けだけが読む）
 
 class InputBoundaries {
   private readonly units: Map<UnitId, UnitInputs>;
 
   constructor(holeUnits: readonly UnitId[]) {
     this.units = new Map(runtimeUnits.map((unit) => [unit, { tail: null, pending: new Map(), oldestHole: null, recovering: false, afterStart: null,
-      holes: holeUnits.includes(unit) }]));
+      holes: holeUnits.includes(unit), holeAfterMark: false }]));
   }
 
   // mailbox が受けた入力。basis は host が frame の entry を読んだ時点の根拠で、受信時刻と一緒に運ぶ（K9 の前は null、AC06）。
@@ -864,7 +864,7 @@ class InputBoundaries {
     if (!record.recovering) return;
     const solved = record.oldestHole?.before ?? null;
     record.oldestHole = record.afterStart;
-    record.recovering = false;
+    record.recovering = false; record.holeAfterMark = false;
     record.afterStart = null;
     // P3-RB-AC03 (4): 位置が両方 null なら、末尾が無いときだけ解いた穴の before を末尾に残す（穴を消して境界を null に落とさない。末尾は処理済みの入力なので戻さない）。
     if (position.dmdataTime == null && position.dmdataId == null) { if (record.tail == null && solved != null) record.tail = { sequence: throughSequence, position: solved }; return; }
@@ -877,7 +877,7 @@ class InputBoundaries {
     const record = this.units.get(unit)!;
     if (!record.recovering) return;
     const hole = record.oldestHole, confirmable = record.afterStart == null;
-    record.recovering = false;
+    record.recovering = false; record.holeAfterMark = false;
     record.afterStart = null;
     if (hole != null) record.oldestHole = { from: hole.from, kind: hole.kind, before: position.dmdataTime == null && position.dmdataId == null ? hole.before : position,
       ...confirmable ? { confirmable: true } : {} };
@@ -885,7 +885,7 @@ class InputBoundaries {
 
   // P3-REC-AC19・AC09（統合担当の決め）: 解決の後にも穴が残る unit には確認を出さない（境界の位置が null でも穴を見る）。印の穴は数えない（P3-RB-AC07 (3)）。
   hasHole(unit: UnitId): boolean { const hole = this.units.get(unit)!.oldestHole; return hole != null && hole.confirmable !== true; }
-
+  lossHole(unit: UnitId): boolean | null { const record = this.units.get(unit)!; return record.holes ? this.hasHole(unit) || record.holeAfterMark : null; } // P4-RL-AC06: H39 の欠け。印の後に開いた穴も数え、穴を持たない unit（U-E・U-F）は null（追えない）
   // 振り分け先の無い入力（ignored・notPorted・unlisted）と取り直しの入力（origin=recovery）は列に入れない。
   private routed(item: MailboxItem): UnitInputs | null {
     const route = classifyHeadType(item.headType);
@@ -899,7 +899,7 @@ class InputBoundaries {
 
   private hole(record: UnitInputs, sequence: number, kind: InputHole): void {
     if (!record.holes) return; // P3-RB-AC04 (1): 断った入力・切断でも穴を開かない（refused は受信末尾を進める）
-    const opened = { from: sequence, kind, before: record.tail?.position ?? null };
+    const opened = { from: sequence, kind, before: record.tail?.position ?? null }; if (record.oldestHole?.confirmable === true) record.holeAfterMark = true; // P4-RL-AC06 (1): 印の穴は残したまま、後に開いた穴を H39 の欠けに数える
     record.oldestHole ??= opened;
     if (record.recovering) record.afterStart ??= opened;
   }

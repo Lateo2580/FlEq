@@ -109,7 +109,7 @@ describe("P3-C3A execution split (TEST-PATH (2): publisher with in-process owner
       recoveryDone: ["kind", "output", "recoveryId", "result", "unit"],
     };
     const outputKeys = ["confirmationEvidence", "diagnostics", "displayChanges", "outcomes", "retiredEvents", "units"];
-    const deltaKeys = ["pendingIntents", "persistence", "unit", "view"];
+    const deltaKeys = ["losses", "pendingIntents", "persistence", "unit", "view"];
     const seen = new Set<string>();
     const plain = (value: unknown, allowBytes: boolean) => {
       const found: string[] = [];

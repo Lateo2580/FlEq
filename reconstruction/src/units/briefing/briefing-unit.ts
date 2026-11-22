@@ -714,7 +714,7 @@ function reduceBriefingUnit(state: BriefingUnitState, input: BriefingInput): Bri
     const shownBefore = visible(before) ? before : null, shownAfter = visible(value) ? value : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-B", operation: (value ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-B content revision exhausted");
   // P3-C12-N2: U-B は確認 scope を作らない。
@@ -917,7 +917,7 @@ function recoveryChanges(before: BriefingUnitState, after: BriefingUnitState): B
     if (shownBefore === shownAfter) return;
     const value = (now ?? was)!;
     changes.push({ unit: "U-B", operation: value.operation, subject: value.subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   };
   for (const item of after.currents) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
   for (const item of old.values()) add(item, null);

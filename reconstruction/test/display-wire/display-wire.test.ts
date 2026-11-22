@@ -30,7 +30,7 @@ const eewId = (index: number) => `2099010100${String(index).padStart(4, "0")}`;
 function eewChange(before: EewCurrent | null, after: EewCurrent | null): RuntimeDisplayChange {
   const one = (item: EewCurrent) => ({ unit: "U-E" as const, operation: item.operation, subject: item.subject, office: null, current: item, subjects: [currentSubject(item)] });
   const value = (after ?? before)!;
-  return { unit: "U-E", operation: value.operation, subject: value.subject, before: before == null ? null : one(before), after: after == null ? null : one(after) };
+  return { unit: "U-E", operation: value.operation, subject: value.subject, before: before == null ? null : one(before), ...(after == null ? { after: null, removal: "unknown" as const } : { after: one(after) }) };
 }
 
 // 契約の境界 P4-DW-AC04・AC03（型の最大値）: display-wire.ts の型と上限の表で最大の形を組み、script の組 A短 の数と照らす。
@@ -304,7 +304,7 @@ describe("P4-DW-T02 contractBoundary: the work per update", () => {
     const eventChange = (before: EarthquakeEventView | null, after: EarthquakeEventView | null): RuntimeDisplayChange => {
       const one = (item: EarthquakeEventView) => ({ unit: "U-Q" as const, operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] });
       const value = (after ?? before)!;
-      return { unit: "U-Q", operation: value.operation, subject: value.subject, before: before == null ? null : one(before), after: after == null ? null : one(after) };
+      return { unit: "U-Q", operation: value.operation, subject: value.subject, before: before == null ? null : one(before), ...(after == null ? { after: null, removal: "unknown" as const } : { after: one(after) }) };
     };
     const events = Array.from({ length: 1023 }, (_, index): EarthquakeEventView => ({ ...event, operation: "normal", subject: `normal/earthquake/E${index}`, eventId: `E${index}` }));
     const filled = await wire({ quake: quake.state }, events.map((item) => eventChange(null, item)), null);
@@ -322,7 +322,7 @@ describe("P4-DW-T02 contractBoundary: the work per update", () => {
     const tsunamiChanges = Array.from({ length: 511 }, (_, index): RuntimeDisplayChange => ({ unit: "U-T", operation: "normal", subject: `normal/VTSE41/T${index}`,
       before: null, after: { ...record, subject: `normal/VTSE41/T${index}`, current: { ...one, subject: `normal/VTSE41/T${index}` } } }));
     const tsunamiFilled = await wire({ tsunami: forecast.state }, tsunamiChanges, null);
-    const tsunamiMoved = await wire({ tsunami: forecast.state }, [{ ...tsunamiChanges[3], before: tsunamiChanges[3].after, after: null }], tsunamiFilled.state);
+    const tsunamiMoved = await wire({ tsunami: forecast.state }, [{ ...tsunamiChanges[3], before: tsunamiChanges[3].after, after: null, removal: "unknown" as const }], tsunamiFilled.state);
     expect(tsunamiMoved.counts.tsunami.read).toBe(2 + 0);
     expect(tsunamiMoved.counts.tsunami.recomputed).toBe(0 + 2);
   });

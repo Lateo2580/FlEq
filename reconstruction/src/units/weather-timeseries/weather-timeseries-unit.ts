@@ -255,14 +255,14 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     if (after !== item) changed(item, after);
     return after;
   }) };
-  const generation = state.persistence.currentGeneration + 1;
-  if (!fits(proposed, generation, input.clock.wallTimeMs)) {
+  const generation = state.persistence.currentGeneration + 1; let stripped: ReadonlySet<WeatherTimeseriesSubject> = new Set(), removed = 0; // P4-RL-AC05 (3): 容量の退去の件数（lastKnown だけを外した版と外した subject）
+  if (!fits(proposed, generation, input.clock.wallTimeMs)) { const unstripped = new Set(proposed.subjects);
     proposed = evict(proposed, source.subject, generation, input.clock.wallTimeMs, changed);
-    if (!fits(proposed, generation, input.clock.wallTimeMs)) {
+    stripped = new Set(proposed.subjects.filter((item) => !unstripped.has(item))); if (!fits(proposed, generation, input.clock.wallTimeMs)) { // evict が置き換えた版（lastKnown だけを外した記録）
       for (const item of [...proposed.subjects].filter((entry) => entry.subject !== source.subject && entry.operation !== "normal")
         .sort((a, b) => Date.parse(a.source?.reportDateTimeRaw ?? "") - Date.parse(b.source?.reportDateTimeRaw ?? "")
           || a.subject.localeCompare(b.subject))) {
-        changed(item, null);
+        changed(item, null); removed++;
         proposed = { ...proposed, subjects: proposed.subjects.filter((entry) => entry !== item),
           gates: proposed.gates.filter((entry) => entry.subject !== item.subject) };
         if (fits(proposed, generation, input.clock.wallTimeMs)) break;
@@ -293,7 +293,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: rejected };
   proposed = { ...proposed, persistence: dirty(state.persistence, input.clock.monotonicMs) };
   // P3-UM-AC03 (4): 外した原文は確定した state に残った記録だけ数える（拒否で戻した仮の state の分は数えない）。
-  const dropped = droppedIn(raw, proposed.subjects);
+  const dropped = droppedIn(raw, proposed.subjects), evicted = removed + proposed.subjects.filter((item) => stripped.has(item)).length; // 退去の件数も確定した state に残った分だけ
   const finalFields = established == null ? ["source", "effective", "periods", "validUntil", "retainUntil",
     "unavailableReason", "lastKnown", "affectedScope"] : changedFields;
   const deadlineOutcomes: PublishedOutcome[] = [];
@@ -306,8 +306,8 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     decision: "changed", reason: null, change: established == null ? "semantic" : change,
     currentEstablished: established }],
     outcomes: [...deadlineOutcomes, { kind: "accepted", change: established == null ? "semantic" : change,
-      subjects: [outcome(adopted, finalFields)] }], diagnostics: dropped === 0 ? rejected
-      : [...rejected, { level: "INFO", component: "weather-timeseries", reason: "unreadableDropped", unit: "U-F", count: dropped }] };
+      subjects: [outcome(adopted, finalFields)] }], diagnostics: [...rejected, ...evicted === 0 ? [] : [{ level: "INFO" as const, component: "weather-timeseries", reason: "seriesCapacityEvicted" as const, unit: "U-F" as const, count: evicted }],
+      ...dropped === 0 ? [] : [{ level: "INFO" as const, component: "weather-timeseries", reason: "unreadableDropped" as const, unit: "U-F" as const, count: dropped }]] };
 }
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -576,7 +576,7 @@ function reduceWeatherTimeseriesUnit(state: WeatherTimeseriesUnitState, input: W
   const displayChanges: WeatherTimeseriesUnitStep["displayChanges"] = result.state === state ? []
     : [...changes].flatMap(([key, { before, after }]) => before === after ? [] : [{
       unit: "U-F" as const, operation: (after ?? before)!.operation, subject: key,
-      before: before == null ? null : subject(before), after: after == null ? null : subject(after),
+      before: before == null ? null : subject(before), ...(after == null ? { after: null, removal: "unknown" as const } : { after: subject(after) }), // P4-RL-AC02 (4): 理由は発注 2
     }]);
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1))
     throw new RangeError("U-F content revision exhausted");

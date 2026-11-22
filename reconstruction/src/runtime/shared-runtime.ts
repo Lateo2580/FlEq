@@ -18,7 +18,7 @@ import type {
   ShutdownState,
   ShutdownSummary,
   ShutdownStage,
-  NotificationIntent,
+  NotificationIntent, LossTally,
 } from "../../contracts/p2-shared-runtime.types";
 import { boundedString } from "./runtime-diagnostic";
 import { normalizeScopes, parseScopeToken, scopeContains } from "../domains/weather-current/weather-current";
@@ -33,7 +33,7 @@ export { validateSemanticEnvelope } from "./owner-runtime";
 type MirrorUnit = Readonly<{
   persistence: PersistenceStatus;
   view: RuntimeUnitView;
-  pendingIntents: readonly NotificationIntent[];
+  pendingIntents: readonly NotificationIntent[]; losses: readonly LossTally[]; // P4-RL-AC05 (2): unit の H39 の件数の行（delta が null なら前のまま）
 }>;
 type RuntimeMirror = Readonly<Record<RuntimeUnitId, MirrorUnit>>;
 
@@ -59,7 +59,7 @@ function applyDeltas(mirror: RuntimeMirror, deltas: readonly OwnerUnitDelta[]): 
     const previous = next[delta.unit];
     if (delta.view != null && delta.view.unit !== delta.unit) throw new Error("owner view of another unit");
     next[delta.unit] = { persistence: delta.persistence,
-      view: delta.view ?? previous.view, pendingIntents: delta.pendingIntents ?? previous.pendingIntents };
+      view: delta.view ?? previous.view, pendingIntents: delta.pendingIntents ?? previous.pendingIntents, losses: delta.losses ?? previous.losses };
   }
   return next;
 }

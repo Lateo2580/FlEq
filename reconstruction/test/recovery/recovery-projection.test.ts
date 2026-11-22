@@ -1,10 +1,10 @@
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto"; import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import type { ClockReading, NotificationResult, RuntimeDisplayChange, RuntimeUnitId, RuntimeUnitStates } from "../../contracts/p2-shared-runtime.types";
 import type { NotificationAttempt } from "../../contracts/p2-notification-delivery.types";
 import type { BodyResult, ListHead, UnitWalk, UnitWalkResult } from "../../contracts/p3-recovery.types";
-import type { OwnerReply } from "../../contracts/p3-execution-split.types";
+import type { OwnerReply } from "../../contracts/p3-execution-split.types"; import type { DisplayWireSnapshot } from "../../contracts/p4-display-wire.types";
 import type { UnitTable } from "../../contracts/p3-unit-table.types";
 import type { CheckpointFileSystem, WritableCheckpoint } from "../../src/checkpoint/checkpoint";
 import type { DiagnosticFileSystem } from "../../src/checkpoint/persistent-diagnostic-sink";
@@ -63,12 +63,12 @@ const DOMAINS: Readonly<Record<Domain, RuntimeUnitId>> = { tsunami: "U-T", earth
 async function setup() {
   let now: ClockReading = { wallTimeMs: T0, monotonicMs: 1_000 };
   // 通知の adapter は試行を記録して即 delivered を返す（本物を呼ばない）。
-  const sent: NotificationAttempt[] = [];
+  const sent: NotificationAttempt[] = [], wires: DisplayWireSnapshot[] = []; // wires: 新しい経路の snapshot（P4-RL-T04 (d)）
   const adapter = { run: async (attempt: NotificationAttempt, at: () => ClockReading): Promise<NotificationResult> => { sent.push(attempt);
     return { kind: "delivered", attemptId: attempt.attemptId, intentId: attempt.intentId, channel: attempt.channel, completedAt: at() }; },
   abort: async () => ({ stopped: true }) };
   const h = harnessedRoot(config, linkedUnitCodecs, { clock: () => now, notificationAdapter: adapter,
-    checkpointFileSystem: new MemoryFiles(), diagnosticFileSystem: new MemoryDiagnostics(), display: { publish: () => {} } });
+    checkpointFileSystem: new MemoryFiles(), diagnosticFileSystem: new MemoryDiagnostics(), display: { publish: () => {}, publishWire: (snapshot) => { wires.push(snapshot); } } });
   await startHarness(h, "rec-proj", now);
   let sequence = 0;
   h.root.attachSequence(() => ++sequence, () => sequence);
@@ -80,7 +80,7 @@ async function setup() {
     notBefore: () => -Infinity,
   };
   const t = {
-    h, bodies, sent,
+    h, bodies, sent, wires,
     get now() { return now; },
     advance(ms: number) { now = { wallTimeMs: now.wallTimeMs + ms, monotonicMs: now.monotonicMs + ms }; },
     async startup(heads: readonly ListHead[], unit: RuntimeUnitId) {
@@ -404,6 +404,23 @@ describe("P3-REC-T21 acceptance: the adopt step's net displayChanges (AC07, Q-RE
     const expiries = t.sent.slice(before).filter((attempt) => attempt.subject === "normal/VXKO50/123456789051").map((attempt) => attempt.channel);
     expect(expiries).toEqual(row.seen ? ["desktop"] : []);
     expectProjection(t);
+  });
+
+  // 契約境界 P4-RL-T04 (d)（発注 1）: 採用の step の期限で消えた基点の記録は、候補の Map を通って新しい射影の消えた理由の一覧に unit の付けた語（発注 1 は unknown）で載る。
+  it("P4-RL-T04 (d) contractBoundary / AC01,AC03: a base record the adopt step's deadline removes reaches the new path's removal list", async () => {
+    const t = await setup(), old = T0 - 36 * HOUR + 4_000;
+    const flood = (eventId: string, at: number) => tag("EventID", eventId)(retime(fixture("16_02_01_220728_VXKO50"), at));
+    await t.live("VXKO50", flood("123456789051", old));
+    t.bodies.set("r2", xml(flood("123456789052", T0 - MINUTE)));
+    const heldAdopt = t.h.holdRequests((_, request) => request.kind === "recovery" && request.phase === "adopt");
+    await t.startup([headOf("U-R", "r2", { type: "VXKO50", xml: flood("123456789052", T0 - MINUTE) }, T0 - MINUTE)], "U-R");
+    t.advance(7_500);
+    heldAdopt();
+    t.h.releaseRequests();
+    await t.drive();
+    expect(rawChanges(t.adopted("U-R").output.displayChanges)).toEqual({ "normal/VXKO50/123456789051": GONE, "normal/VXKO50/123456789052": NEW });
+    const id = createHash("sha256").update(JSON.stringify(["U-R", "normal", "normal/VXKO50/123456789051"]), "utf8").digest("hex");
+    expect(t.wires.at(-1)!.removals["U-R"]?.items.map((item) => [item.ref.id, item.reason])).toEqual([[id, "unknown"]]);
   });
 
   // 破棄: 捨てた候補（fetchFailed の discard）と部分集合の検査に外れた候補（generationConflict）は返信の差分 0 で、投影が動かない。

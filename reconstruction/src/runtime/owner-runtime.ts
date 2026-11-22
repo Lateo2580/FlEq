@@ -24,7 +24,7 @@ import type {
   RuntimeUnitSteps,
   RuntimeUnitView,
   RuntimeViews,
-  SemanticEnvelopeResult, UnreadableCard, UnreadableCardView, WallBasis,
+  SemanticEnvelopeResult, UnreadableCard, UnreadableCardView, WallBasis, DisplayRemoval,
 } from "../../contracts/p2-shared-runtime.types";
 import type { CodecMap } from "../checkpoint/checkpoint";
 import { CARD_AREAS, CARD_AREAS_BYTES, CARD_TEXT, cardLimits, keptCards, keptLosses, lossReasons } from "../checkpoint/checkpoint";
@@ -682,7 +682,7 @@ function recoveryResult(completion: ParserCompletion, step: OwnerStep, held: boo
  * 検査に外れたら null（候補を捨てる）。inputIds は候補に入れた入力（世代の帰属、P2-A3-AC10）。
  */
 function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeUnitId, recoveryId: string, open: OwnerState, inputIds: readonly string[],
-  clock: ClockReading, units: UnitTable, basis: WallBasis): OwnerStep | null {
+  clock: ClockReading, units: UnitTable, basis: WallBasis, removals: Map<string, DisplayRemoval | null>): OwnerStep | null { // removals: 候補の Map（P4-RL-AC03）
   checkClock(clock);
   const before = new Set(ownUnit(live, unit).intents.map((intent) => intent.id));
   if (ownUnit(shadow, unit).intents.some((intent) => !before.has(intent.id))) return null;
@@ -703,10 +703,10 @@ function adoptRecoveryOwner(live: OwnerState, shadow: OwnerState, unit: RuntimeU
   work.changed(unit);
   work.viewed(unit);
   // U-R の期限は基点（採用の直前の live）でその subject が見えていなかった記録の intent を作らない（候補を作る間の回収と同じ規則、P3-REC-AC12・Q-REC-IMPL-4b-1 (b)）。
-  work.applyDeadlines([unit], false, live);
+  work.applyDeadlines([unit], false, live); noteRemovals(removals, work.displayChanges); // P4-RL-AC03 (3): 空にする前に期限の step の removal を Map に足し、正味の消失に Map の値を付ける（無ければ unknown）
   // P3-REC-AC07（投影の直し）: 期限の step が積んだ差分を、採用の直前の live から最終の state への正味の差分に置き換える（追記すると期限を二重に数える）。
   work.displayChanges.length = 0;
-  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change);
+  for (const change of netChanges(units, unit, live, work.state)) work.displayChanges.push(change.after == null ? { ...change, removal: removals.get(removalKey(change)) ?? "unknown" } : change);
   return work.finish();
 }
 
@@ -770,7 +770,7 @@ function cardAreas(areas: CardAreas): Readonly<{ areas: CardAreas; dropped: bool
 }
 
 export {
-  adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, ownerViews, recoveryResult, sameBase,
+  adoptRecoveryOwner, capturedOwner, checkpointResultOwner, deadlineOwner, detailOwner, finalizeOwner, initialUnits, intentUpdateOwner, noteRemovals, ownerViews, recoveryResult, removalKey, sameBase,
   placeUnits, receiveOwner, refreshedViews, reportDateTime, restoreOwner, shutdownInputOwner, validateSemanticEnvelope,
 };
 export type { OwnerState, OwnerStep, ParserCompletion };
@@ -841,7 +841,7 @@ const WIRE_UNITS: ReadonlySet<string> = new Set(["U-E", "U-T", "U-Q", "U-N", "U-
 // 新しい part の要求（index・areas・stations・comment・event・raw・item・unreadable）。U-W・U-V・U-N の配送済みの要求はここに入らない（part が index か raw でない
 // U-V・U-N は本文の口）。item・unreadable は U-W・U-F も新しい part で、U-W の口（index・areas・lastKnown）と part の名が重ならない（P4-DV-AC12 (1)）。
 function isWireDetail(request: WeatherTimeseriesDetailRequest | WeatherCurrentDetailRequest | BulletinTextRequest | WireDetailRequest): request is WireDetailRequest {
-  return "unit" in request && request.part !== "text" && (request.part === "raw" || request.part === "item" || request.part === "unreadable"
+  return "unit" in request && request.part !== "text" && (request.part === "raw" || request.part === "item" || request.part === "unreadable" || request.part === "losses"
     || request.unit !== "U-W" && WIRE_UNITS.has(request.unit));
 }
 const wireChanged = (revision: string | null): WireDetailResponse => ({ kind: "error", reason: "versionChanged", revision });
@@ -1008,7 +1008,7 @@ function wireDetail(state: OwnerState, request: WireDetailRequest): WireDetailRe
     if (String(card.receivedAt) !== request.revision) return wireChanged(String(card.receivedAt));
     return { kind: "ok", part: "raw", id: request.id, revision: request.revision, raw: card.raw, rawCut: card.rawCut, rawDropped: card.rawDropped === true };
   }
-  if (request.part === "item" || request.part === "unreadable") return vocabDetail(state, request);
+  if (request.part === "item" || request.part === "unreadable") return vocabDetail(state, request); if (request.part === "losses") return lossDetail(state, request); // P4-RL-AC08 (7)
   if (request.part === "index") {
     if (request.unit !== "U-T" && request.unit !== "U-Q") return vocabIndex(state, { ...request, unit: request.unit });
     const index = wireIndex(state, request.unit);
@@ -1094,4 +1094,22 @@ function omitField(event: WireEventHeader | WireLongPeriodHeader, field: WireOmi
     case "unavailable": return event.unavailable == null ? event : { ...bare, ...event.unreadableView == null ? {} : { unreadableView: event.unreadableView } };
     default: return event;
   }
+}
+
+// ---- P4-REMOVAL-LOSS-001: 取り直しの候補の消えた理由（P4-RL-AC03 (1)〜(4)） ----
+// 候補の各 step の差分から、基点にあった表示のキー（operation と subject）の removal を持つ。値 null は候補の中でできたキーで、ある間だけ持ち消えたら外す
+// （正味の消失にならない）。基点のキーは消えた時に持ち、戻ったら外す。大きさは基点の記録の数と今ある候補のキーの数で抑えられ、入力の数では伸びない。
+const removalKey = (change: RuntimeDisplayChange): string => JSON.stringify([change.operation, change.subject]);
+function noteRemovals(removals: Map<string, DisplayRemoval | null>, changes: readonly RuntimeDisplayChange[]): void {
+  for (const change of changes) {
+    const key = removalKey(change);
+    if (change.after == null) { if (removals.get(key) === null) removals.delete(key); else removals.set(key, change.removal); }
+    else if (change.before == null) { if (removals.has(key)) removals.delete(key); else removals.set(key, null); }
+  }
+}
+// P4-RL-AC08 (7): H39 の理由の行（unit ごとに最大 9 行）。読むだけで state も期限も動かさない。rev は publisher の H39 の欄と同じく行の JSON の sha256（行が無ければ []）。
+function lossDetail(state: OwnerState, request: Extract<WireDetailRequest, { part: "losses" }>): WireDetailResponse {
+  if (state.units[request.unit] == null) return wireUnavailable;
+  const rows = state.losses[request.unit] ?? EMPTY, revision = wireSha(rows);
+  return revision === request.revision ? { kind: "ok", part: "losses", unit: request.unit, revision, rows } : wireChanged(revision);
 }

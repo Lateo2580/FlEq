@@ -1365,7 +1365,7 @@ function reduceVolcanoUnit(state: VolcanoUnitState, input: VolcanoInput): Volcan
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-V", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   }
   // 復旧不足も view に載る公開の内容（unavailable・復旧不足を「警報なし」に読み替えない、I-U-V.view）。
   const revised = displayChanges.length !== 0 || step.state.shortfalls !== state.shortfalls;
@@ -1741,7 +1741,7 @@ function recoveryChanges(before: VolcanoUnitState, after: VolcanoUnitState): Vol
     if (shownBefore === shownAfter) return;
     const value = (now ?? was)!;
     changes.push({ unit: "U-V", operation: value.operation, subject: value.subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   };
   for (const item of [...after.alerts, ...after.eruptions, ...after.ashfalls, ...after.bulletins]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
   for (const item of old.values()) add(item, null);

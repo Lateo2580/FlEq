@@ -378,7 +378,7 @@ function parseWireDetail(url: string): Readonly<{ streamId: string; detail: Wire
     if (!(vocab === "U-W" || vocab === "U-F" ? /^\d{1,16}$/.test(revision) : hex(revision))) return null;
     return part === "item" ? { streamId, detail: { unit: vocab, part, id, revision } } : { streamId, detail: { unit: vocab, part, id, revision } };
   }
-  if (!hex(id) || !hex(revision)) return null;
+  if (part === "losses" || !hex(id) || !hex(revision)) return part === "losses" && card != null && !params.has("id") && !params.has("page") && hex(revision) ? { streamId, detail: { unit: card, part, revision } } : null; // P4-RL-AC08 (7): id を持たない H39 の理由の行
   if (part === "comment") return unit === "U-T" && !params.has("page") ? { streamId, detail: { unit, part, id, revision } } : null;
   if (page == null) return null;
   if (part === "areas" && (unit === "U-E" || unit === "U-T")) return unit === "U-E" ? { streamId, detail: { unit, part, id, revision, page } } : { streamId, detail: { unit, part, id, revision, page } };

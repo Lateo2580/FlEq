@@ -138,12 +138,12 @@ describe("P2-A8-T05 corpusHistory (AC07/AC09)", () => {
       .toEqual([["U-F", at + 60_000], ["U-W", at + 60_000]]);
     // Branch 1: U-F normal adoption resolves its notice; U-W target removal (no outcome) reclaims its notice.
     const recoveredF = timeseriesChange({ ...lostF, unavailableReason: "historyUnavailable" }, active);
-    const removedW = { ...w.change, before: w.change.after, after: null };
+    const removedW = { ...w.change, before: w.change.after, after: null, removal: "unknown" as const };
     const done = projected(projectSnapshot(projectionInput({ ...adopted, outcomes: [recoveredF.outcome],
       displayChanges: [recoveredF.change, removedW] }, at + 20_000), replaced.state));
     expect(done.snapshot.notices).toEqual([]);
     // Branch 2: U-W normal adoption (unavailable resolved, current kept) reclaims only the U-W notice.
-    const recoveredW = { ...w.change, before: w.change.after, after: w.change.before };
+    const recoveredW: RuntimeDisplayChange = { unit: w.change.unit, operation: w.change.operation, subject: w.change.subject, before: w.change.after, ...(w.change.before == null ? { after: null, removal: "unknown" as const } : { after: w.change.before }) };
     const partly = projected(projectSnapshot(projectionInput({ ...adopted, outcomes: [w.outcome],
       displayChanges: [recoveredW] }, at + 20_000), replaced.state));
     expect(partly.snapshot.notices.map((item) => item.unit)).toEqual(["U-F"]);

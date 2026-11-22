@@ -196,7 +196,7 @@ async function step(state: RuntimeState, input: Input): Promise<Step> {
 function publisherOf(state: RuntimeState): PublisherState {
   const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: state.units[unit].persistence,
     view: state.views[unit],
-    pendingIntents: state.units[unit].intents.filter((item) => item.disposition === "pending") });
+    pendingIntents: state.units[unit].intents.filter((item) => item.disposition === "pending"), losses: [] });
   return { runId: state.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
     "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V"), "U-L": mirror("U-L"), "U-R": mirror("U-R"),
     "U-B": mirror("U-B"), "U-M": mirror("U-M"), "U-Y": mirror("U-Y") },
@@ -287,7 +287,7 @@ function timeseriesChange(before: WeatherTimeseriesSubject | null, after: Weathe
     subjects: [timeseriesSubjectOutcome(current, [])] });
   const target = (after ?? before)!;
   return { change: { unit: "U-F", operation: target.operation, subject: target.subject,
-    before: before == null ? null : subject(before), after: after == null ? null : subject(after) },
+    before: before == null ? null : subject(before), ...(after == null ? { after: null, removal: "unknown" as const } : { after: subject(after) }) },
   outcome: { unit: "U-F", outcome: { kind: "accepted", change: "semantic", subjects: [timeseriesSubjectOutcome(target, [])] } } };
 }
 

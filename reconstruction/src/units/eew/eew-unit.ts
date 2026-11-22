@@ -308,7 +308,7 @@ function reduceEewUnit(state: EewUnitState, input: EewInput): EewUnitStep {
     if (before == null && after == null) return;
     displayChanges.push({ unit: "U-E", operation: (after ?? before)!.operation,
       subject: (after ?? before)!.subject, before: before == null ? null : subject(before),
-      after: after == null ? null : subject(after) });
+      ...(after == null ? { after: null, removal: "unknown" as const } : { after: subject(after) }) }); // P4-RL-AC02 (4): 理由は発注 2 で eew.ts の changed が付ける
   });
   if (displayChanges.length !== 0) {
     if (!Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-E content revision exhausted");

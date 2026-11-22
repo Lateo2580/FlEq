@@ -19,7 +19,7 @@ import type { DisplayWireInput, DisplayWireResult, DisplayWireState } from "../.
 import manifest from "../../tools/corpus/manifest.json";
 import sequences from "../../tools/corpus/sequences.json";
 import contract from "../../contracts/p4-display-vocab.json";
-import { baseInput, material, projected } from "./display-wire-fixture";
+import { baseInput, material, projected, quietLosses } from "./display-wire-fixture";
 
 // P4-DISPLAY-VOCAB-001 の試験。owner の 1 step の表示差分と view を新しい経路に渡し、同じ owner の state に詳細を問う（snapshot と詳細が同じ object から作られる）。
 
@@ -65,7 +65,7 @@ async function baseViews(): Promise<Views> {
 }
 async function publish(views: Views, changes: readonly RuntimeDisplayChange[], previous: DisplayWireState | null = null): Promise<DisplayWireResult> {
   const { input } = await baseInput();
-  return projectDisplayWire({ projection: { ...input, displayChanges: changes }, views, confirmation: input.confirmation, notices: [] }, previous);
+  return projectDisplayWire({ projection: { ...input, displayChanges: changes }, views, confirmation: input.confirmation, notices: [], removalLoss: quietLosses }, previous);
 }
 const KEYS: Readonly<Record<VocabUnit, keyof Views>> = { "U-W": "weatherCurrent", "U-F": "weatherTimeseries", "U-N": "nankai", "U-V": "volcano", "U-L": "landslide",
   "U-R": "flood", "U-B": "briefing", "U-M": "localBulletins", "U-Y": "typhoon" };
@@ -155,7 +155,7 @@ describe("P4-DV-T01 acceptance: the vocabulary of the nine domains", () => {
     const seen = new Set<VocabKind>();
     for (const fixtureId of [...FIXTURE_IDS, ...EXTRA_IDS]) {
       const { views, snapshot } = await onePublication(fixtureId);
-      expect(snapshot.schemaVersion).toBe("p4-display-wire-v2");
+      expect(snapshot.schemaVersion).toBe("p4-display-wire-v3");
       expect(Object.keys(snapshot.current)).toEqual(["eew", "tsunami", "earthquake", "weatherCurrent", "weatherTimeseries", "nankai", "volcano", "landslide", "flood", "briefing",
         "localBulletins", "typhoon"]);
       expect(snapshot.semanticRevision).toBe(JSON.stringify(Object.values(snapshot.current).map((domain) => domain.contentRevision)));
@@ -339,7 +339,7 @@ describe("P4-DV-T03 contractBoundary: the work per update in a 512-item domain",
     const update = (indexes: readonly number[], title: string, remove = false) => indexes.map((index): RuntimeDisplayChange => {
       const before = list[index], after = { ...before, title };
       return { unit: "U-L", operation: before.operation, subject: before.subject, before: { unit: "U-L", operation: before.operation, subject: before.subject, office: null,
-        current: before, subjects: [] }, after: remove ? null : { unit: "U-L", operation: before.operation, subject: before.subject, office: null, current: after, subjects: [] } };
+        current: before, subjects: [] }, ...(remove ? { after: null, removal: "unknown" as const } : { after: { unit: "U-L", operation: before.operation, subject: before.subject, office: null, current: after, subjects: [] } }) };
     });
     const step = async (changes: readonly RuntimeDisplayChange[], view = base) => {
       result = await publish({ ...filled.views, landslide: view }, changes, result.state);
@@ -353,7 +353,7 @@ describe("P4-DV-T03 contractBoundary: the work per update in a 512-item domain",
     // metadata だけ（表示差分なし・同じ view）。
     expect(await step([])).toEqual({ rebuilt: 0, serialized: 0, moved: 0 });
     // 項目の無い subject の差分（前も後も無い）は並びを動かさず、公開もしない。
-    const absent: RuntimeDisplayChange = { unit: "U-L", operation: "normal", subject: "normal/VPWW56/absent", before: null, after: null };
+    const absent: RuntimeDisplayChange = { unit: "U-L", operation: "normal", subject: "normal/VPWW56/absent", before: null, after: null, removal: "unknown" as const };
     expect(await step([absent])).toEqual({ rebuilt: 0, serialized: 0, moved: 0 });
     expect(result.kind).toBe("unchanged");
     // 要約から full への戻り: ほかの分野で全体を 1 MiB の上に上げて U-L を要約にし、外すと full に戻る。どちらの step も U-L の作り直しは 0。
@@ -361,7 +361,7 @@ describe("P4-DV-T03 contractBoundary: the work per update in a 512-item domain",
     result = await publish({ ...heavy.views, landslide: base }, heavy.changes, result.state);
     expect(projected(result).snapshot.current.landslide.delivery).toBe("summary");
     expect(result.vocabCounts.landslide).toEqual({ rebuilt: 0, serialized: 0, moved: 0 });
-    const removals = heavy.changes.map((change) => ({ ...change, before: change.after, after: null }));
+    const removals = heavy.changes.map((change) => ({ ...change, before: change.after, after: null, removal: "unknown" as const }));
     result = await publish({ ...filled.views, landslide: base }, removals, result.state);
     expect(projected(result).snapshot.current.landslide.delivery).toBe("full");
     expect(result.vocabCounts.landslide).toEqual({ rebuilt: 0, serialized: 0, moved: 0 });
@@ -492,7 +492,7 @@ describe("P4-DV-T06 regression: the items count from the new path's own changes"
       after: { unit: "U-R", operation: item.operation, subject: item.subject, office: null, current: item, subjects: [] } });
     let summary = await publish({ ...heavy.views, flood: viewWith([normal, big]) }, [...heavy.changes, add(normal), add(big)]);
     expect(projected(summary).snapshot.current.flood.items[0].activeCount).toBe(1);
-    summary = await publish({ ...heavy.views, flood: viewWith([big]) }, [{ ...add(normal), before: add(normal).after, after: null }], summary.state);
+    summary = await publish({ ...heavy.views, flood: viewWith([big]) }, [{ ...add(normal), before: add(normal).after, after: null, removal: "unknown" as const }], summary.state);
     const after = projected(summary).snapshot.current.flood;
     expect([after.delivery, after.items[0].activeCount, after.items[1].activeCount]).toEqual(["summary", 0, 1]);
   });

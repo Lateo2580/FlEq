@@ -255,7 +255,7 @@ async function runtime(stubs: StubCalls = {}, start: ClockReading = clock,
 function publisherState(whole: RuntimeState): PublisherState {
   const mirror = <K extends RuntimeUnitId>(unit: K) => ({ persistence: whole.units[unit].persistence,
     view: whole.views[unit],
-    pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending") });
+    pendingIntents: whole.units[unit].intents.filter((item) => item.disposition === "pending"), losses: [] });
   return { runId: whole.runId, mirror: { "U-E": mirror("U-E"), "U-W": mirror("U-W"), "U-F": mirror("U-F"), "U-T": mirror("U-T"),
     "U-Q": mirror("U-Q"), "U-N": mirror("U-N"), "U-V": mirror("U-V"), "U-L": mirror("U-L"), "U-R": mirror("U-R"),
     "U-B": mirror("U-B"), "U-M": mirror("U-M"), "U-Y": mirror("U-Y") },
@@ -307,7 +307,7 @@ describe("P2 shared runtime", () => {
     const output = (evidence: readonly CurrentConfirmationEvidence[], retired: readonly string[] = []) => ({ units: [], outcomes: [],
       diagnostics: [], confirmationEvidence: evidence, retiredEvents: retired.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const,
         eventId })), displayChanges: retired.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const, subject: eventId,
-        before: { unit: "U-E" as const, operation: "normal" as const, subject: eventId, office: null, subjects: [], current: null }, after: null })) });
+        before: { unit: "U-E" as const, operation: "normal" as const, subject: eventId, office: null, subjects: [], current: null }, after: null, removal: "unknown" as const })) });
     const lost: CurrentConfirmationEvidence = { source: "capacityExceeded", scopes: [{ unit: "U-E", operation: "normal", kind: "unit" }] };
     const accepted = (...eventIds: string[]): CurrentConfirmationEvidence => ({ source: "acceptedReport",
       scopes: eventIds.map((eventId) => ({ unit: "U-E" as const, operation: "normal" as const, kind: "event" as const, eventId })) });

@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 
 import type { MaterialValue, Operation } from "../../contracts/p1-parser-boundary.types";
 import type { EewCurrent, EewPredictionIntensity } from "../../contracts/p2-eew-unit.types";
-import type { MarkViewed, PersistenceStatus, ReportRef, RuntimeConfirmation, RuntimeDisplayChange, RuntimeDisplaySubject, RuntimeUnitId, RuntimeViews,
+import type { LossReason, LossTally, MarkViewed, PersistenceStatus, ReportRef, RuntimeConfirmation, RuntimeDisplayChange, RuntimeDisplaySubject, RuntimeUnitId, RuntimeViews,
   SubjectUnavailable, UnitId, UnreadableCardView } from "../../contracts/p2-shared-runtime.types";
 import type { DisplayChannelView, DisplaySummaryItem, SnapshotProjectionInput, SnapshotProjectionState, VisibleNotice } from "../../contracts/p2-snapshot-sse.types";
 import type { EarthquakeEventView, LongPeriodSubject, SeismicIntensityItem, SeismicIntensityValue, SeismicRecentQuake, SeismicUnitView } from "../../contracts/p3-seismic-unit.types";
 import type { TsunamiAreaClass, TsunamiForecastSubject, TsunamiObservationSubject, TsunamiUnitView } from "../../contracts/p3-tsunami-unit.types";
 import type { KnownCodeTable } from "../../contracts/p4-gis-assets.types";
 import type {
-  DisplayCutText, DisplayDetailRef, DisplayFromTo, DisplayLevel, DisplayPaint, DisplayStateMark, DisplayValueText, DisplayWireCard,
+  DisplayCutText, DisplayDetailRef, DisplayEewWindow, DisplayFromTo, DisplayLevel, DisplayLossRow, DisplayLossWire, DisplayPaint, DisplayRemovalItem, DisplayRemovalWire, DisplayStateMark, DisplayValueText, DisplayWireCard,
   DisplayVocabDomain, DisplayWireSnapshot, EarthquakeRowWire, EarthquakeWire, EewAreaRow, EewCard, EewCardHeader, EewCardLetter, EewMini, EewWire, LongPeriodWire,
   TsunamiForecastRow, TsunamiForecastWire, TsunamiWire, VocabFact, VocabItem, VocabUnit, VocabWire,
 } from "../../contracts/p4-display-wire.types";
@@ -27,7 +27,7 @@ const table: KnownCodeTable = known;
 const SUBAREAS = table.forecastLocalE.map((item) => item.code), CITIES = table.city.map((item) => item.code), TSUNAMI_AREAS = table.tsunamiArea.map((item) => item.code);
 const SUBAREA_SET = new Set(SUBAREAS), CITY_SET = new Set(CITIES), TSUNAMI_SET = new Set(TSUNAMI_AREAS);
 const OPERATIONS = ["normal", "training", "test"] as const;
-const VERSION = "p4-display-wire-v2" as const;
+const VERSION = "p4-display-wire-v3" as const;
 
 // 文字列の上限の表 WIRE_LIMITS と cutText は display-vocab.ts に 1 つだけ置く（owner も読むので、domain を読むこの file から移した、P4-DV-AC03）。
 // 件数の上限（表 §1.2。EEW 6 枚・今日の地震の行・長周期は板待ちの仮の数）。
@@ -674,7 +674,7 @@ type DisplayWireInput = Readonly<{
   // 包みの items の確認の状態（P4-DV-AC11。旧の射影の state は読まない）。
   confirmation: RuntimeConfirmation;
   // 画面のお知らせは旧の射影の state から写す（本契約の範囲外、表 §12.5）。
-  notices: readonly VisibleNotice[];
+  notices: readonly VisibleNotice[]; removalLoss: RemovalLossSource; // removalLoss: P4-REMOVAL-LOSS-001 の材料（file の末尾の RemovalLossSource）
 }>;
 // seen は公開した snapshot を作った欄（参照の比べにだけ使い、snapshot には載せない）。
 // 共通部と読めない報のカードも worker を越えて来るので、参照ではなく欄で比べる（どちらも件数の上限が決まっている）。
@@ -684,7 +684,7 @@ type DisplayWireState = Readonly<{
   eew: EewProjection | null; tsunami: TsunamiProjection | null; earthquake: QuakeProjection | null;
   // 12 分野の包みの items を数える新しい経路の自分の state（旧の射影と同じ projectDomain、P4-DV-D-OWN-ITEMS=A。移行中は 1 step に 2 回走る、P4-DV-D-DOUBLE-PROJECTION=A）。
   domains: SnapshotProjectionState["domains"] | null;
-  vocab: Readonly<Record<VocabKey, VocabProjection>> | null;
+  vocab: Readonly<Record<VocabKey, VocabProjection>> | null; removals: DisplayRemovalWire; losses: LossProjection | null; hidden: ReadonlySet<string>; // 後の 3 つは P4-REMOVAL-LOSS-001（保存しない）
 }>;
 // P4-DW-AC05 の計数（試験が読む）: 変わった subject の区域を読んだ数・引き直した区域の数・公開する配列を組んだ数。
 type DisplayWireCounts = Readonly<Record<"eew" | "tsunami" | "earthquake", Counts>>;
@@ -767,7 +767,7 @@ function sameSnapshot(left: DisplayWireSnapshot, right: Omit<DisplayWireSnapshot
     && sameDomain(left.current.earthquake, right.current.earthquake)
     // 9 分野の包みは変わらなければ前の object を使う（vocabDomain）。
     && VOCAB_KEYS.every((key) => left.current[key] === right.current[key])
-    && left.notices.length === right.notices.length && left.notices.every((notice, index) => notice === right.notices[index]);
+    && left.notices.length === right.notices.length && left.notices.every((notice, index) => notice === right.notices[index]) && left.removals === right.removals && left.losses === right.losses; // 一覧と H39 の欄は参照（P4-RL-AC08 (5)）
 }
 const sameUnit = <Unit extends VocabUnit>(domain: DisplayVocabDomain<VocabUnit>, unit: Unit): domain is DisplayVocabDomain<Unit> => domain.unit === unit;
 // 9 分野の包みを組む。前に公開した包みと同じなら前の object を使う（公開の比べを参照で済ませる）。
@@ -816,7 +816,7 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
   const eew = projectEew(base?.eew ?? null, changesOf(source.displayChanges, "U-E"), counts.eew);
   const tsunami = projectTsunami(base?.tsunami ?? null, views.tsunami, changesOf(source.displayChanges, "U-T"), counts.tsunami);
   const earthquake = projectQuake(base?.earthquake ?? null, views.earthquake, changesOf(source.displayChanges, "U-Q"), counts.earthquake);
-  const byUnit = mergedByUnit(source.displayChanges);
+  const byUnit = mergedByUnit(source.displayChanges), removals = projectRemovals(base?.removals ?? NO_REMOVALS, byUnit, input.removalLoss), losses = projectLosses(base?.losses ?? null, input.removalLoss), hidden = hiddenNotices(base?.hidden ?? NO_HIDDEN, byUnit, eew, input.notices);
   const domains = projectItems(base?.domains ?? null, views, byUnit, input.confirmation);
   const vocab = byKey((key) => projectVocab(VOCAB_UNIT[key], base?.vocab?.[key] ?? null, views[key], byUnit.get(VOCAB_UNIT[key]) ?? NO_CHANGES, vocabCounts[key]));
   const published = base?.snapshot ?? null, last = base?.seen ?? undefined, persistenceKey = JSON.stringify(source.persistence);
@@ -845,7 +845,7 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
     recovery: source.recovery,
     channels: { desktop: channel(source.notificationChannels.desktop, source.channelProbeComplete, source.channelFailing.desktop),
       sound: channel(source.notificationChannels.sound, source.channelProbeComplete, source.channelFailing.sound) },
-    current, notices: input.notices,
+    current, notices: hidden.size === 0 ? input.notices : input.notices.filter((notice) => !hidden.has(notice.targetId)), removals, losses: losses.wire,
   });
   const build = (summarize: ReadonlySet<VocabKey>): DisplayWireSnapshot["current"] => ({ ...protectedCurrent,
     weatherCurrent: vocabDomain("U-W", views.weatherCurrent.contentRevision, itemsOf("weatherCurrent"), vocab.weatherCurrent,
@@ -872,10 +872,91 @@ function projectDisplayWire(input: DisplayWireInput, previous: DisplayWireState 
     if (total > SNAPSHOT_BYTES) shell = shellOf(build(new Set(VOCAB_KEYS.filter((key) => bytes[key] > DOMAIN_BUDGET))));
   }
   const state = (snapshot: DisplayWireSnapshot | null, seen: Seen | null): DisplayWireState =>
-    ({ streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake, domains, vocab });
+    ({ streamId: source.streamId, snapshot, seen, eew, tsunami, earthquake, domains, vocab, removals, losses, hidden });
   if (published != null && sameSnapshot(published, shell)) return { kind: "unchanged", state: state(published, last ?? null), counts, vocabCounts };
   const snapshot: DisplayWireSnapshot = { ...shell, sequence: (published?.sequence ?? 0) + 1, generatedAt: source.generatedAt };
   return { kind: "projected", state: state(snapshot, { persistence: persistenceKey }), snapshot, counts, vocabCounts };
+}
+
+// ---- 消えた理由の一覧・H39 の欄・停止の確定で消えた記録のお知らせ（P4-REMOVAL-LOSS-001、表 §3） ----
+
+// publisher が組む材料（P4-RL-AC04 (2)・AC05〜AC08）: at は publisher の wall、restored は表示差分が restored の返信のものか（一覧に載せない）、
+// mirror は unit の LossTally の行、hole は H39 の欠け（穴を持たない unit は null）、eewWindow は H28 の外した区間（publisher の手元）。
+type RemovalLossSource = Readonly<{ at: number; restored: boolean; mirror: Readonly<Record<UnitId, Readonly<{ losses: readonly LossTally[] }>>>;
+  hole: (unit: UnitId) => boolean | null; eewWindow: DisplayEewWindow }>;
+const REMOVALS_PER_UNIT = 4;
+const NO_REMOVALS: DisplayRemovalWire = {};
+const NO_HIDDEN: ReadonlySet<string> = new Set();
+// 消える前の記録の最終更新: before の subject の報時刻の最も新しいもの（報時刻を持たなければ null、P4-RL-AC08 (2)）。
+function updatedAtOf(before: RuntimeDisplaySubject): number | null {
+  let latest: number | null = null;
+  for (const item of before.subjects) {
+    const time = item.source == null ? Number.NaN : Date.parse(item.source.reportDateTimeRaw);
+    if (Number.isFinite(time) && (latest == null || time > latest)) latest = time;
+  }
+  return latest;
+}
+// 一覧は mergedByUnit の後の差分から作る（同じ公開で消えて戻った subject は載らない、P4-RL-AC01 (3)）。載せるのは before.current のある消失だけで、
+// markCleared と expiredWhileStopped と restored の返信の差分は載せない（AC04 (2)(4)）。分野ごとに新しい 4 件を残し、落とした数を数える（1 件 O(1)）。
+function projectRemovals(previous: DisplayRemovalWire, byUnit: ReadonlyMap<RuntimeUnitId, readonly RuntimeDisplayChange[]>, source: RemovalLossSource): DisplayRemovalWire {
+  if (source.restored) return previous;
+  let next = previous;
+  for (const [unit, changes] of byUnit) for (const change of changes) {
+    if (change.after != null || change.before?.current == null || change.removal === "markCleared" || change.removal === "expiredWhileStopped") continue;
+    const base = { unit, operation: change.operation, at: source.at, ref: { id: sha256([unit, change.operation, change.subject]) } };
+    const item: DisplayRemovalItem = change.removal === "expired" ? { ...base, reason: "expired", updatedAt: updatedAtOf(change.before) } : { ...base, reason: change.removal };
+    const old = next[unit], items = [item, ...old?.items ?? []];
+    next = { ...next, [unit]: { items: items.slice(0, REMOVALS_PER_UNIT), omitted: (old?.omitted ?? 0) + Math.max(0, items.length - REMOVALS_PER_UNIT) } };
+  }
+  return next;
+}
+
+// H39 の 5 区分（P4-RL-AC08 (3)、B0 の表 r7 §13.2）。閉集合の語を全部書くので、語が増えたらコンパイラが止める。
+const LOSS_CLASS: Readonly<Record<LossReason, "dropped" | "evicted" | "missed" | "outcomeUnknown" | "unreadable">> = {
+  notificationExpired: "dropped", notificationExpiredClockUnverified: "dropped", notificationCapacityEvicted: "dropped", notificationOutcomeUnknown: "outcomeUnknown",
+  capacityRejected: "missed", unreadableReport: "unreadable", noticeMarkEvicted: "evicted", seismicStationsFolded: "evicted", unreadableDropped: "evicted",
+  eewCapacityEvicted: "evicted", weatherCurrentCapacityEvicted: "evicted", seriesCapacityEvicted: "evicted", tsunamiCapacityEvicted: "evicted", seismicCapacityEvicted: "evicted",
+  nankaiCapacityEvicted: "evicted", volcanoCapacityEvicted: "evicted", landslideCapacityEvicted: "evicted", floodCapacityEvicted: "evicted", briefingCapacityEvicted: "evicted",
+  localBulletinsCapacityEvicted: "evicted", typhoonCapacityEvicted: "evicted",
+};
+// seen は欄を作った行の参照と欠けの値。unit ごとに前と同じなら前の欄の object を使い、変わった unit だけ和と rev を作り直す（公開ごとに 12 回 hash しない）。
+type LossSeen = Readonly<{ rows: readonly LossTally[]; hole: boolean | null }>;
+type LossProjection = Readonly<{ wire: DisplayLossWire; seen: Readonly<Record<UnitId, LossSeen>> }>;
+const perUnit = <T>(make: (unit: UnitId) => T): Readonly<Record<UnitId, T>> => ({ "U-E": make("U-E"), "U-W": make("U-W"), "U-F": make("U-F"), "U-T": make("U-T"),
+  "U-Q": make("U-Q"), "U-N": make("U-N"), "U-V": make("U-V"), "U-L": make("U-L"), "U-R": make("U-R"), "U-B": make("U-B"), "U-M": make("U-M"), "U-Y": make("U-Y") });
+const sameWindow = (left: DisplayEewWindow | undefined, right: DisplayEewWindow): boolean =>
+  left != null && left.count === right.count && left.from === right.from && left.to === right.to;
+function lossRow(seen: LossSeen, eewWindow: DisplayEewWindow | null): DisplayLossRow {
+  const sums = { dropped: 0, evicted: 0, missed: 0, outcomeUnknown: 0, unreadable: 0 };
+  for (const row of seen.rows) { const key = LOSS_CLASS[row.reason]; sums[key] = Math.min(sums[key] + row.count, Number.MAX_SAFE_INTEGER); }
+  return { ...sums, hole: seen.hole, rev: sha256(seen.rows), ...eewWindow == null ? {} : { eewWindow } };
+}
+function projectLosses(previous: LossProjection | null, source: RemovalLossSource): LossProjection {
+  const seen = perUnit((unit): LossSeen => {
+    const rows = source.mirror[unit].losses, hole = source.hole(unit), old = previous?.seen[unit];
+    return old != null && old.rows === rows && old.hole === hole ? old : { rows, hole };
+  });
+  const kept = (unit: UnitId) => previous != null && previous.seen[unit] === seen[unit] && (unit !== "U-E" || sameWindow(previous.wire["U-E"].eewWindow, source.eewWindow));
+  if (previous != null && UNIT_IDS.every(kept)) return previous;
+  return { seen, wire: perUnit((unit) => previous != null && kept(unit) ? previous.wire[unit] : lossRow(seen[unit], unit === "U-E" ? source.eewWindow : null)) };
+}
+
+// P4-RL-AC08 (8): 旧の射影は停止の確定の差分を受けないので、その差分で消えた記録のお知らせが旧の notices に残る。この公開の差分で U-W・U-F の記録が
+// 消えた subject と、U-E の EventID の最後の報が外れた（EEW の events の鍵が消えた）EventID の targetId を新しい経路から外す。持つのは旧の notices に
+// 今ある targetId だけ（上限は notices の 64 件）で、旧から消えたら捨てる。stream が替われば state ごと捨てる。
+function hiddenNotices(previous: ReadonlySet<string>, byUnit: ReadonlyMap<RuntimeUnitId, readonly RuntimeDisplayChange[]>, eew: EewProjection,
+  notices: readonly VisibleNotice[]): ReadonlySet<string> {
+  const leaving: string[] = [];
+  for (const unit of ["U-E", "U-W", "U-F"] as const) for (const change of byUnit.get(unit) ?? NO_CHANGES) {
+    if (change.after != null || change.before == null) continue;
+    if (change.before.unit !== "U-E") leaving.push(sha256([unit, change.operation, change.subject]));
+    else if (change.before.current != null && !eew.events.has(`${change.operation}/${change.before.current.eventId}`))
+      leaving.push(sha256(["U-E", change.operation, change.before.current.eventId]));
+  }
+  if (leaving.length === 0 && previous.size === 0) return previous;
+  const present = new Set(notices.map((notice) => notice.targetId));
+  const next = new Set([...previous, ...leaving].filter((id) => present.has(id)));
+  return next.size === previous.size && [...next].every((id) => previous.has(id)) ? previous : next;
 }
 
 export { WIRE_COUNTS, WIRE_LIMITS, cutText, projectDisplayWire };

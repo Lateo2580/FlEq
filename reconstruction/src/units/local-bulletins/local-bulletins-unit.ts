@@ -709,7 +709,7 @@ function reduceLocalBulletinsUnit(state: State, input: LocalBulletinsInput): Loc
     const shownBefore = visible(before) ? before : null, shownAfter = visible(value) ? value : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-M", operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-M content revision exhausted");
   // P3-C13-N2: U-M は確認 scope を作らない。
@@ -936,7 +936,7 @@ function recoveryChanges(before: State, after: State): LocalBulletinsUnitStep["d
     if (shownBefore === shownAfter) return;
     const value = (now ?? was)!;
     changes.push({ unit: "U-M", operation: value.operation, subject: value.subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   };
   for (const item of [...after.tornado, ...after.heat, ...after.transient]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
   for (const item of old.values()) add(item, null);

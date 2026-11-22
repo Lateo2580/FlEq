@@ -1,5 +1,5 @@
 import type { MaterialValue, Operation } from "./p1-parser-boundary.types";
-import type { MarkViewed, RuntimeUnitId, UnreadableCardView } from "./p2-shared-runtime.types";
+import type { DisplayRemoval, LossTally, MarkViewed, RuntimeUnitId, UnreadableCardView } from "./p2-shared-runtime.types";
 import type {
   DisplayAreaSystem,
   DisplayChannelView,
@@ -97,7 +97,7 @@ export type DisplayWireDomain<Unit extends RuntimeUnitId, Wire> = Readonly<{
 }>;
 
 // 新しい経路の版（旧の 1 とは別の値）。描画の側は自分の版でない snapshot を描かず非対応を出す（spec §8.3）。
-export type DisplayWireVersion = "p4-display-wire-v2";
+export type DisplayWireVersion = "p4-display-wire-v3";
 export type DisplayWireSnapshot = Readonly<{
   schemaVersion: DisplayWireVersion;
   streamId: string;
@@ -123,7 +123,7 @@ export type DisplayWireSnapshot = Readonly<{
     localBulletins: DisplayVocabDomain<"U-M">;
     typhoon: DisplayVocabDomain<"U-Y">;
   }>;
-  notices: readonly VisibleNotice[];
+  notices: readonly VisibleNotice[]; removals: DisplayRemovalWire; losses: DisplayLossWire; // removals・losses: 消えた理由の一覧と H39 の欄（P4-REMOVAL-LOSS-001、file の末尾）
 }>;
 
 // ---- 詳細の要求と応答（P4-DW-AC08、表 §2。応答の payload は分野ごとの DTO、P4-DW-D-DETAIL-PAYLOAD=B） ----
@@ -138,7 +138,7 @@ export type WireDetailRequest =
   | Readonly<{ unit: RuntimeUnitId; part: "raw"; id: string; revision: string }>
   // 9 分野の切らない語彙の項目 1 件と、読めない印の部分の原文（P4-DV-AC12）。id と revision は snapshot の項目の id と rev。
   | Readonly<{ unit: VocabUnit; part: "item"; id: string; revision: string }>
-  | Readonly<{ unit: VocabUnit; part: "unreadable"; id: string; revision: string }>;
+  | Readonly<{ unit: VocabUnit; part: "unreadable"; id: string; revision: string }> | Readonly<{ unit: RuntimeUnitId; part: "losses"; revision: string }>; // losses: H39 の理由の行（P4-RL-AC08 (7)、revision は H39 の欄の rev）
 
 export type EewAreaDetail = Readonly<{ code: string; intensity: EewPredictionIntensity; report: EewReportArea | null }>;
 // 索引の項目: 保護 2 分野は part への参照、7 分野は切らない語彙の項目（本文の参照は項目の ref、P4-DV-AC05）。
@@ -168,6 +168,7 @@ export type WireDetailResponse =
   | Readonly<{ kind: "ok"; part: "raw"; id: string; revision: string; raw: string | null; rawCut: boolean; rawDropped: boolean }>
   | Readonly<{ kind: "ok"; part: "item"; id: string; revision: string; item: VocabItem }>
   | Readonly<{ kind: "ok"; part: "unreadable"; id: string; revision: string; sides: readonly WireUnreadableSide[] }>
+  | Readonly<{ kind: "ok"; part: "losses"; unit: RuntimeUnitId; revision: string; rows: readonly LossTally[] }>
   | WeatherTimeseriesDetailError;
 
 // ---- 9 分野の語彙（P4-DISPLAY-VOCAB-001、表 §1） ----
@@ -247,3 +248,19 @@ export type VocabWire = Readonly<{ items: readonly VocabItem[]; facts: readonly 
 export type DisplayVocabDomain<Unit extends VocabUnit> = Readonly<{ unit: Unit; contentRevision: string; items: readonly [DisplaySummaryItem, DisplaySummaryItem, DisplaySummaryItem] }> & (
   | Readonly<{ delivery: "full"; wire: VocabWire; cards: readonly DisplayWireCard[] }>
   | Readonly<{ delivery: "summary"; reason: "snapshotBudget"; originalBytes: number; budgetBytes: number }>);
+
+// ---- 消えた理由の一覧と H39 の欄（P4-REMOVAL-LOSS-001、表 §3） ----
+// 一覧の 1 件（P4-RL-AC08 (2)）。id は B0 の ref と同じ sha256([unit, operation, subject])、at は射影した時の publisher の wall。markCleared と
+// expiredWhileStopped は一覧に載らない。期限切れだけが消える前の記録の最終更新（報時刻、無ければ null）を運ぶ（C2 が H23 を出す）。
+export type DisplayRemovalItem = Readonly<{ unit: UnitId; operation: Operation; at: number; ref: Readonly<{ id: string }> }> & (
+  | Readonly<{ reason: "expired"; updatedAt: number | null }>
+  | Readonly<{ reason: Exclude<DisplayRemoval, "expired" | "markCleared" | "expiredWhileStopped"> }>);
+// 分野ごとに新しい順の 4 件と、落とした件数（P4-RL-D-WIRE-CAP=B、RL-RET-01）。消えたことの無い分野は欄を持たない。stream ごとに空から始まる。
+export type DisplayRemovalWire = Readonly<Partial<Record<UnitId, Readonly<{ items: readonly DisplayRemovalItem[]; omitted: number }>>>>;
+// H28 の 10 分で外した EEW の未確認の区間（publisher の手元、P4-RL-AC07）。区間が無ければ count 0 と null。
+export type DisplayEewWindow = Readonly<{ count: number; from: number | null; to: number | null }>;
+// H39 の unit の欄（P4-RL-D-H39-SHAPE=B）。5 区分は LossTally の count の和（安全な整数で飽和）、hole は件数の分からない欠け（穴を持たない unit は null）、
+// rev は LossTally の行の JSON の sha256 の hex で part=losses の revision。eewWindow は U-E の欄だけが持つ。
+export type DisplayLossRow = Readonly<{ dropped: number; evicted: number; missed: number; outcomeUnknown: number; unreadable: number; hole: boolean | null; rev: string;
+  eewWindow?: DisplayEewWindow }>;
+export type DisplayLossWire = Readonly<Record<UnitId, DisplayLossRow>>;

@@ -232,13 +232,13 @@ export type RuntimeDisplaySubject = Readonly<{
   | Readonly<{ unit: "U-Y"; current: TyphoonUnitView["analysis"][number] | TyphoonUnitView["probability"][number] | null }>
 );
 
-export type RuntimeDisplayChange = Readonly<{
-  unit: RuntimeUnitId;
-  operation: Operation;
-  subject: string;
-  before: RuntimeDisplaySubject | null;
-  after: RuntimeDisplaySubject | null;
-}>;
+export type RuntimeDisplayChange = Readonly<{ unit: RuntimeUnitId; operation: Operation; subject: string; before: RuntimeDisplaySubject | null }> & ( // P4-RL-AC01 (1): after が null なら removal を必ず持ち、null でなければ持たない（無いと unit の付け忘れをコンパイラが止めない）
+  // departed は U-W の府県の行の外れた報の原因（AC03 (5)）、dueWallMs は期限の回収の記録の表示の期限（AC04 (4)）。どちらも保存せず wire に載せない。
+  | Readonly<{ after: RuntimeDisplaySubject; removal?: undefined; departed?: readonly DisplayRemoval[] }>
+  | Readonly<{ after: null; removal: DisplayRemoval; dueWallMs?: number }>
+);
+// P4-RL-AC01 (1): 消えた理由の閉集合（表 §1.1）。mixed は取り直しの採用の正味の差分だけ、expiredWhileStopped は owner の置き換えだけが付ける。
+export type DisplayRemoval = "cancelled" | "ended" | "expired" | "retentionEnded" | "evicted" | "replaced" | "expiredWhileStopped" | "markCleared" | "mixed" | "unknown";
 
 // P3-UM-AC11 (8): owner が envelope のカードを写して置く（unit の view の関数は変えない。カードの無い unit は欄を書かない）。
 type CardsViewed<View> = View & Readonly<{ unreadableCards?: readonly UnreadableCardView[] }>;
@@ -316,7 +316,7 @@ export type DiagnosticReason = ParserDiagnosticReason | RejectionReason | Infras
   // P3-UNIT-B-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-B capacity eviction.
   | "briefingRevisionConflict" | "briefingCapacityEvicted"
   // P3-UNIT-M-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-M capacity eviction.
-  | "localBulletinsRevisionConflict" | "localBulletinsCapacityEvicted"
+  | "localBulletinsRevisionConflict" | "localBulletinsCapacityEvicted" | "seriesCapacityEvicted" // seriesCapacityEvicted: U-F の容量の退去（P4-RL-AC05 (4)、U-F は revision の衝突の語を持たない）
   // P3-UNIT-Y-001 Q-ENUM.diagnosticReasons: a same-revision conflict and a U-Y capacity eviction.
   | "typhoonRevisionConflict" | "typhoonCapacityEvicted"
   | "notificationAttemptFailed" | "notificationExpired" | "notificationExpiredClockUnverified" | "notificationCapacityEvicted" | "notificationAdapterIsolated"
@@ -547,7 +547,7 @@ export type CheckpointEnvelope = Readonly<{
 export type LossReason = NotificationLossReason | "notificationCapacityEvicted" | "noticeMarkEvicted" | "capacityRejected"
   | "eewCapacityEvicted" | "weatherCurrentCapacityEvicted" | "tsunamiCapacityEvicted" | "seismicCapacityEvicted" | "seismicStationsFolded" | "nankaiCapacityEvicted"
   | "volcanoCapacityEvicted" | "landslideCapacityEvicted" | "floodCapacityEvicted" | "briefingCapacityEvicted" | "localBulletinsCapacityEvicted"
-  | "typhoonCapacityEvicted" | "unreadableDropped" | "unreadableReport";
+  | "typhoonCapacityEvicted" | "unreadableDropped" | "unreadableReport" | "seriesCapacityEvicted";
 export type LossTally = Readonly<{ reason: LossReason; count: number; lastAt: number }>;
 
 // Unit reducers own codecs; A3 calls them at capture/restore, not on idle ticks.

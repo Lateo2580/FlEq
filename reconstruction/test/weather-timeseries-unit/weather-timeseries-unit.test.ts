@@ -1028,3 +1028,42 @@ it("P3-NL-T07 contractBoundary / AC08・AC15 (4): U-F restores failed and null p
   expectRestoreStarted({ intents: [intent("a", "desktop"), intent("b", "sound")], make: (intents) => ({ ...empty(), intents }),
     restore: (state, at) => reduceWeatherTimeseriesUnit(empty(), { kind: "restore", persisted: weatherTimeseriesUnitCodec.encode(state), clock: at }) });
 });
+
+// 受入条件 P4-RL-T05 (b)（P4-REMOVAL-LOSS-001 の AC05 (3)）: U-F の容量の退去を H39 に数える。数えるのは最後に採用した state に残った分だけ。
+describe("P4-RL-T05 (b) acceptance: U-F capacity evictions count as seriesCapacityEvicted", () => {
+  const runtime = fixtureState({}, {}, "a6"), linked = callsWith({ reduceWeatherTimeseriesUnit }).units;
+  const counted = (state: WeatherTimeseriesUnitState, material: DecodedMaterial) => receiveOwner(ownerFixture("deferred", { ...runtime, units: { ...runtime.units, "U-F": state } }),
+    { runId: "a6", inputId: "evict", result: { kind: "decoded", material } }, clock(DATE), linked).state.losses["U-F"]?.find((row) => row.reason === "seriesCapacityEvicted")?.count ?? 0;
+  const bytes = (state: WeatherTimeseriesUnitState) => serializedEnvelope({ schemaVersion: state.schemaVersion, unit: "U-F", generation: 0, capturedAt: 0,
+    payload: weatherTimeseriesUnitCodec.encode(state), sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + marksOf(state);
+
+  it("counts one for a training record whose lastKnown alone is dropped, one for a dropped subject, and none for a refused input", () => {
+    const seed = receive(empty(), fixture(unknown)).state, normal = first(seed);
+    const blocker = { ...normal, subject: "normal/VPWP50/blocker", source: { ...normal.source!, subject: "normal/VPWP50/blocker" } };
+    const kept = { strings: normal.strings, attributes: normal.attributes, values: normal.values, series: normal.series, areas: normal.areas, locals: normal.locals,
+      kinds: normal.kinds, periods: normal.periods };
+    const training = { ...normal, subject: "training/VPWP50/office", operation: "training" as const, source: { ...normal.source!, subject: "training/VPWP50/office", operation: "training" as const },
+      effective: "unavailable" as const, unavailableReason: "capacityExceeded" as const, periods: [], lastKnown: kept };
+    delete (training as { unreadable?: unknown }).unreadable; // 読めない所の印は active にだけ置ける
+    const base: WeatherTimeseriesUnitState = { ...seed, subjects: [blocker, training], gates: [blocker, training].map((item) => ({ subject: item.subject, operation: item.operation, source: item.source })) };
+    const added = bytes({ ...base, subjects: [...base.subjects, normal], gates: [...base.gates, ...seed.gates] }) - bytes(base), lastKnown = bytes(base) - bytes({ ...base, subjects: [blocker, { ...training, lastKnown: null }] });
+    // lastKnown を外せば収まる重さ: 新しい subject の分だけ越え、lastKnown の半分の余りが残る。
+    const stripped = receive(inflated(base, LIMIT - added + Math.floor(lastKnown / 2)), fixture(unknown));
+    expect([stripped.decisions[0].decision, stripped.state.subjects.find((item) => item.subject === training.subject)?.lastKnown]).toEqual(["changed", null]);
+    expect(stripped.diagnostics).toContainEqual({ level: "INFO", component: "weather-timeseries", reason: "seriesCapacityEvicted", unit: "U-F", count: 1 });
+    expect(counted(inflated(base, LIMIT - added + Math.floor(lastKnown / 2)), fixture(unknown))).toBe(1);
+    // subject を外す: 512 件の器で、最も古い訓練の subject を外して新しい官署を入れる。
+    const subjects = Array.from({ length: 512 }, (_, index) => ({ ...normal, subject: `normal/VPWP50/office${index}`, source: { ...normal.source!, subject: `normal/VPWP50/office${index}` } }));
+    const full: WeatherTimeseriesUnitState = { ...seed, subjects: [{ ...subjects[0], subject: "training/VPWP50/office0", operation: "training",
+      source: { ...subjects[0].source!, subject: "training/VPWP50/office0", operation: "training" } }, ...subjects.slice(1)] };
+    const replaceable = { ...full, gates: full.subjects.map((item) => ({ subject: item.subject, operation: item.operation, source: item.source! })) };
+    const other = fixture(unknown, (xml) => xml.replaceAll("稚内地方気象台", "new-office"));
+    expect(receive(replaceable, other).diagnostics).toContainEqual({ level: "INFO", component: "weather-timeseries", reason: "seriesCapacityEvicted", unit: "U-F", count: 1 });
+    expect(counted(replaceable, other)).toBe(1);
+    // 拒否で戻した仮の state（lastKnown と訓練の subject を外しても収まらない）の分は数えない。
+    const heavy = inflated(base, LIMIT + bytes(base));
+    const refused = receive(heavy, fixture(unknown));
+    expect([refused.decisions[0].decision, refused.diagnostics.some((item) => item.reason === "seriesCapacityEvicted")]).toEqual(["capacityExceeded", false]);
+    expect(counted(heavy, fixture(unknown))).toBe(0);
+  });
+});

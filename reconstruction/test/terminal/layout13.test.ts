@@ -24,7 +24,7 @@ describe("P3-TL13 台風の帯の版の印・種類の分からない電文・ti
       title: null, headline: null, reportDateTimeRaw: null, rawCut: false, count: 1, hasRaw: true } as const;
     const lines = async (kind: "unknownType" | "unreadable"): Promise<string[]> => {
       const h = harness();
-      h.output.sink.inputDone(inputDoneOf("w1", null, [], [{ unit: "U-M", persistence: SAVED, pendingIntents: null,
+      h.output.sink.inputDone(inputDoneOf("w1", null, [], [{ unit: "U-M", persistence: SAVED, pendingIntents: null, losses: null,
         view: { unit: "U-M", semanticRevision: "", contentRevision: "", subjects: [], tornado: [], heat: [], transient: [], unreadableCards: [{ ...card, kind }] } }]));
       await h.output.close();
       return h.lines.filter((text) => text !== "");

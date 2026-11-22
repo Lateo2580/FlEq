@@ -928,7 +928,7 @@ function reduceTsunamiUnit(state: TsunamiUnitState, input: TsunamiInput): Tsunam
     const shownBefore = visible(before) ? before : null, shownAfter = visible(after) ? after : null;
     if (shownBefore === shownAfter) continue;
     displayChanges.push({ unit: "U-T", operation: (after ?? before)!.operation, subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   }
   if (displayChanges.length !== 0 && !Number.isSafeInteger(state.contentRevision + 1)) throw new RangeError("U-T content revision exhausted");
   // I-U-T.confirmationScope: scope は常態を確立した（active になった）VTSE41 の採用からだけ出す。観測は対象外（P3-C5-N2）。
@@ -1267,7 +1267,7 @@ function recoveryChanges(before: TsunamiUnitState, after: TsunamiUnitState): Tsu
     if (shownBefore === shownAfter) return;
     const value = (now ?? was)!;
     changes.push({ unit: "U-T", operation: value.operation, subject: value.subject,
-      before: shownBefore == null ? null : displaySubject(shownBefore), after: shownAfter == null ? null : displaySubject(shownAfter) });
+      before: shownBefore == null ? null : displaySubject(shownBefore), ...(shownAfter == null ? { after: null, removal: "unknown" as const } : { after: displaySubject(shownAfter) }) }); // P4-RL-AC02 (4): 理由は発注 2 で消える所が付ける
   };
   for (const item of [...after.forecasts, ...after.observations]) { add(old.get(item.subject) ?? null, item); old.delete(item.subject); }
   for (const item of old.values()) add(item, null);

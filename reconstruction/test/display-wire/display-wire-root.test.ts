@@ -14,7 +14,7 @@ import { projectSnapshot } from "../../src/view-projector/view-projector";
 import { envelope, harnessedRoot, manualAdapter, startHarness, submit } from "../execution-split/owner-harness";
 import type { Harness } from "../execution-split/owner-harness";
 import { decode, projectionInput, received, startup, step } from "../snapshot-sse/projection-fixture";
-import { renderWire } from "./wire-client";
+import { renderWire } from "./wire-client"; import { quietLosses } from "./display-wire-fixture";
 
 // 旧の射影の戻り値を unchanged に固定する境界（P4-DW-T08）。各試験の前に戻す。
 const forced = vi.hoisted(() => ({ unchanged: false }));
@@ -151,13 +151,13 @@ describe("P4-DW-T08 acceptance: the new path", () => {
     const views = { eew: before.eew, tsunami: before.tsunami, earthquake: before.earthquake, weatherCurrent: before.weatherCurrent, weatherTimeseries: before.weatherTimeseries,
       nankai: before.nankai, volcano: before.volcano, landslide: before.landslide, flood: before.flood, briefing: before.briefing, localBulletins: before.localBulletins,
       typhoon: before.typhoon };
-    const first = projectDisplayWire({ projection: before, views, confirmation: before.confirmation, notices: old.state.notices }, null);
+    const first = projectDisplayWire({ projection: before, views, confirmation: before.confirmation, notices: old.state.notices, removalLoss: quietLosses }, null);
     const next = await step(started.state, received(started.state.runId, decode("81_02_01_260605_VPWP50_high_severity", "VPWP50"), { ...at, wallTimeMs: at.wallTimeMs + 1000 }));
     // 旧の射影には U-F の変わった step を渡す。
     const after = { ...projectionInput(next, at.wallTimeMs + 1000), persistence: before.persistence, generatedAt: before.generatedAt };
     const oldNext = projectSnapshot(after, old.state);
     expect(oldNext.kind).toBe("projected");
-    const wireNext = projectDisplayWire({ projection: { ...before, displayChanges: [] }, views, confirmation: before.confirmation, notices: old.state.notices }, first.state);
+    const wireNext = projectDisplayWire({ projection: { ...before, displayChanges: [] }, views, confirmation: before.confirmation, notices: old.state.notices, removalLoss: quietLosses }, first.state);
     expect(wireNext.kind).toBe("unchanged");
   });
 

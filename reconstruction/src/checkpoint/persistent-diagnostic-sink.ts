@@ -61,7 +61,7 @@ const diagnosticReasons = [
   "dmdataSocketStartFailed", "dmdataSocketStartUncertain", "dmdataSocketCloseFailed", "dmdataAuthRejected",
   "dmdataErrorFrame", "connectionLivenessExpired", "ownerStopped",
   "eewHorizonStale", "hostClockAhead", "hostClockBehind", "hostClockUnverified", "capacityRejected",
-  "weatherTimeseriesElementSkipped", "weatherTimeseriesScopeUnclear", "unreadableDropped", "unreadableReport", "recoveryFetchFailed", "recoveryLimit", "recoveryAuthRejected", "eewWindowUnverified",
+  "weatherTimeseriesElementSkipped", "weatherTimeseriesScopeUnclear", "unreadableDropped", "unreadableReport", "recoveryFetchFailed", "recoveryLimit", "recoveryAuthRejected", "eewWindowUnverified", "seriesCapacityEvicted",
   "recoveryGenerationConflict", "recoveryBaseMissing", "recoveryClockEvidenceMissing", "recoveryOwnerStopped", "recoveryNotAdopted",
 ] satisfies readonly DiagnosticReason[];
 

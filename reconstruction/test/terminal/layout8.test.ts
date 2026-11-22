@@ -147,7 +147,7 @@ describe("P3-TL8-T04 前と同じ全国の集約通報を出さない", () => {
     const h = harness();
     h.attach();
     const base = original();
-    const withIntent = (id: string, owner: string) => inputDoneOf(id, base, [], [{ unit: "U-W", persistence: SAVED, view: null, pendingIntents: [intent(owner)] }]);
+    const withIntent = (id: string, owner: string) => inputDoneOf(id, base, [], [{ unit: "U-W", persistence: SAVED, view: null, pendingIntents: [intent(owner)], losses: null }]);
     h.output.sink.inputDone(inputDoneOf("r0", base));
     h.output.sink.inputDone(withIntent("r1", "r0"));
     expect(shown(h.lines)).toHaveLength(1);
@@ -190,7 +190,7 @@ describe("P3-TL8-T04 前と同じ全国の集約通報を出さない", () => {
       title: "震源・震度に関する情報", headline: null, reportDateTimeRaw: null, rawCut: false, count: 1, hasRaw: true } as const;
     const debug = harness({ debug: true });
     debug.output.sink.inputDone(inputDoneOf("r0", base));
-    debug.output.sink.inputDone(inputDoneOf("r1", base, [], [{ unit: "U-N", persistence: SAVED, pendingIntents: null,
+    debug.output.sink.inputDone(inputDoneOf("r1", base, [], [{ unit: "U-N", persistence: SAVED, pendingIntents: null, losses: null,
       view: { unit: "U-N", semanticRevision: "", contentRevision: "", subjects: [], currents: [], information: [], unreadableCards: [card] } }]));
     expect(debug.lines.filter((text) => text.startsWith("debug: "))).toEqual(["debug: VPWS50 r0（U-W、出した）", "debug: VPWS50 r1（U-W、出さない・前と同じ）"]);
     expect(debug.lines.some((text) => text.includes("処理できなかった電文"))).toBe(false);
