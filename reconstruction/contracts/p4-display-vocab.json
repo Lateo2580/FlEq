@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "cd22b17b69a594adb7198ef594cc14c20c1ec066d6a951d98247c987160d3dea",
+    "sha256": "7e958ea473d69a26ff4f2e35c57067d9a484107620bc8f648545985759199978",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -190,7 +190,7 @@
     "contractId": "P4-DISPLAY-VOCAB-001",
     "mode": "implementation",
     "objective": "新しい経路（/display-wire）に 9 分野（U-W・U-F・U-N・U-V・U-L・U-R・U-B・U-M・U-Y）を載せる。B0（P4-DISPLAY-WIRE-001）は保護 3 分野と共通部だけを載せ、9 分野の語彙を外した（view の codes・names が辞書、読めない印の parts が構造の列で、単値の事実の行に写す前提が成り立たなかった、P4-DW-D-SCOPE-NARROW）。本契約は単値と展開の欄を 1 つの形（安定した id を持つ語彙の項目）に写し、表 1 の ✕ 26 欄と共通の 3 種に 1 つずつ行き先を決め、表示を終える期限を全部写し、詳細の索引の項目を同じ語彙に変えて要約の間も全部の項目に届かせる（P4-DW-D-DETAIL-PAYLOAD=B が送った分）。包みの件数の見出しは新しい経路の差分から数える（台帳 147、保護 3 分野も）。最初の読み手は Wave 3 の C0 発注 1（気象の警報のカード、U-W）",
-    "baseOid": "unassigned",
+    "baseOid": "42857315364acfae84a32a2d507b8b65e670b854",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
