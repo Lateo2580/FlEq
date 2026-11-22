@@ -293,7 +293,7 @@ function reduceWeatherTimeseriesCore(state: WeatherTimeseriesUnitState,
     decisions: [{ subject: source.subject, operation: source.operation, decision: "capacityExceeded" }], diagnostics: rejected };
   proposed = { ...proposed, persistence: dirty(state.persistence, input.clock.monotonicMs) };
   // P3-UM-AC03 (4): 外した原文は確定した state に残った記録だけ数える（拒否で戻した仮の state の分は数えない）。
-  const dropped = droppedIn(raw, proposed.subjects), evicted = removed + proposed.subjects.filter((item) => stripped.has(item)).length; // 退去の件数も確定した state に残った分だけ
+  const dropped = droppedIn(raw, proposed.subjects), evicted = removed + (stripped.size === 0 ? 0 : proposed.subjects.filter((item) => stripped.has(item)).length); // 退去の件数も確定した state に残った分だけ（退去の無い受信は走査しない）
   const finalFields = established == null ? ["source", "effective", "periods", "validUntil", "retainUntil",
     "unavailableReason", "lastKnown", "affectedScope"] : changedFields;
   const deadlineOutcomes: PublishedOutcome[] = [];

@@ -62,7 +62,9 @@ async function boot(start = 1_000) {
   let sequence = 0;
   const send = (xml: string) => submit(h, envelope("rl", "VXSE43", `input-${++sequence}`, Buffer.from(xml), at, sequence));
   const move = (ms: number) => { at = { wallTimeMs: at.wallTimeMs + ms, monotonicMs: at.monotonicMs + ms }; return at; };
-  return { h, wires, send, move, get at() { return at; } };
+  // wall だけを動かす（実運用の wall は Date.now() で戻りうる）。
+  const shift = (ms: number) => { at = { wallTimeMs: at.wallTimeMs + ms, monotonicMs: at.monotonicMs + 1 }; return at; };
+  return { h, wires, send, move, shift, get at() { return at; } };
 }
 const lastWire = (wires: readonly DisplayWireSnapshot[]) => wires.at(-1)!;
 // 読めない VXSE43（Head の無い報は U-E が断り、H43 のカードになる）。
@@ -145,6 +147,33 @@ describe("P4-RL-T05 acceptance: H39 counts reach the new projection", () => {
     await t.h.settle();
     expect(lastWire(t.wires).recovery.eewUnverified).toBeNull();
     expect(lastWire(t.wires).losses["U-E"].eewWindow).toEqual({ count: 1, from: card?.fromWallMs, to: card?.toWallMs });
+  });
+
+  // 契約境界 P4-RL-AC07 (3)（RL-RET-02）: 最後の追加＋24 時間で値を捨て、その後に wall が戻っても同じ区間を出し直さない（ヘルツの品質レビューの P2）。
+  it("(c) the window value leaves at the last addition plus 24 hours and stays at zero when the wall goes back", async () => {
+    const t = await boot();
+    t.h.root.watchEewWindow();
+    t.h.root.recordFrame(t.at.wallTimeMs);
+    t.move(5 * MINUTE);
+    t.h.root.dispatch({ kind: "connectionLost", acceptedThroughSequence: -1, clock: t.at });
+    t.h.root.recordFrame(t.at.wallTimeMs);
+    t.h.root.recordConnected(t.at.wallTimeMs);
+    t.h.root.tick(t.at);
+    await t.h.settle();
+    t.h.root.tick(t.move(10 * MINUTE));
+    await t.h.settle();
+    const addedAt = t.at.wallTimeMs, window = (count: number) => lastWire(t.wires).losses["U-E"].eewWindow?.count === count;
+    expect(window(1)).toBe(true);
+    t.h.root.tick(t.shift(86_400_000 - 1));
+    await t.h.settle();
+    expect(window(1)).toBe(true);
+    t.h.root.tick(t.shift(1));
+    await t.h.settle();
+    expect([t.at.wallTimeMs - addedAt, window(0)]).toEqual([86_400_000, true]);
+    t.h.root.tick(t.shift(-1_000));
+    await t.h.settle();
+    expect(window(0)).toBe(true);
+    expect(lastWire(t.wires).losses["U-E"].eewWindow).toEqual({ count: 0, from: null, to: null });
   });
 
   it("(d) LOSS_TALLY_MAX_BYTES keeps the value it had before the U-F word", () => {
@@ -231,6 +260,14 @@ describe("P4-RL-T07 contractBoundary: the removal list and the H39 field on the 
     await t.send(unreadable(1));
     const now = lastWire(t.wires), rows = t.h.root.state.mirror["U-E"].losses;
     expect(now.losses["U-E"]).toMatchObject({ unreadable: 2, evicted: 0, rev: sha256(rows) });
+    // 5 区分の分け方: 区分ごとに別の 0 でない値を置き、同じ区分の 2 つの理由（dropped と evicted）は足し合わせる。
+    const mixed = [{ reason: "notificationExpired" as const, count: 1, lastAt: 0 }, { reason: "notificationCapacityEvicted" as const, count: 2, lastAt: 0 },
+      { reason: "eewCapacityEvicted" as const, count: 4, lastAt: 0 }, { reason: "noticeMarkEvicted" as const, count: 8, lastAt: 0 },
+      { reason: "capacityRejected" as const, count: 16, lastAt: 0 }, { reason: "notificationOutcomeUnknown" as const, count: 32, lastAt: 0 },
+      { reason: "unreadableReport" as const, count: 64, lastAt: 0 }];
+    const classes = await wire({}, [], null, undefined, { ...quietLosses, mirror: { ...quietLosses.mirror, "U-E": { losses: mixed } } });
+    expect(projected(classes).snapshot.losses["U-E"]).toEqual({ dropped: 3, evicted: 12, missed: 16, outcomeUnknown: 32, unreadable: 64, hole: null, rev: sha256(mixed),
+      eewWindow: { count: 0, from: null, to: null } });
     const opened = t.h.root.requestDetail({ streamId: now.streamId, detail: { unit: "U-E", part: "losses", revision: now.losses["U-E"].rev } });
     const stale = t.h.root.requestDetail({ streamId: now.streamId, detail: { unit: "U-E", part: "losses", revision: old.losses["U-E"].rev } });
     await t.h.settle();

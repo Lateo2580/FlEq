@@ -1097,9 +1097,9 @@ function omitField(event: WireEventHeader | WireLongPeriodHeader, field: WireOmi
 }
 
 // ---- P4-REMOVAL-LOSS-001: 取り直しの候補の消えた理由（P4-RL-AC03 (1)〜(4)） ----
-// 候補の各 step の差分から、基点にあった表示のキー（operation と subject）の removal を持つ。値 null は候補の中でできたキーで、ある間だけ持ち消えたら外す
+// 候補の各 step の差分から、基点にあった表示のキー（unit・operation・subject）の removal を持つ。値 null は候補の中でできたキーで、ある間だけ持ち消えたら外す
 // （正味の消失にならない）。基点のキーは消えた時に持ち、戻ったら外す。大きさは基点の記録の数と今ある候補のキーの数で抑えられ、入力の数では伸びない。
-const removalKey = (change: RuntimeDisplayChange): string => JSON.stringify([change.operation, change.subject]);
+const removalKey = (change: RuntimeDisplayChange): string => JSON.stringify([change.unit, change.operation, change.subject]); // unit も入れる（owner-host の復元版は同じ place の別の unit と取り違えない）
 function noteRemovals(removals: Map<string, DisplayRemoval | null>, changes: readonly RuntimeDisplayChange[]): void {
   for (const change of changes) {
     const key = removalKey(change);

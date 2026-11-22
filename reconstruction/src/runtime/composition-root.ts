@@ -983,7 +983,7 @@ class RuntimeCompositionRoot {
     const worker: DisplayWorkerView = stopped ? { ...this.snapshotWorker, state: "stopped" } : this.snapshotWorker;
     const result = projectSnapshot(snapshotInput({ state, outcomes, displayChanges }, this.streamId, clock.wallTimeMs,
       this.connectionView(state), worker, { digest: this.recoveryDigest, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView }, this.channelFailing), this.projection);
-    this.projection = result.state; const wireChanges = this.wireChanges.length === 0 ? displayChanges : [...this.wireChanges, ...displayChanges]; this.wireChanges = []; const wire = projectDisplayWire(wireInput(state, wireChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state, { at: clock.wallTimeMs, restored, mirror: state.mirror, hole: (unit) => this.checkpoint.boundaries.lossHole(unit), eewWindow: eewLostView(this.eewLost, clock.wallTimeMs) }), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
+    this.eewLost = keptEewLost(this.eewLost, clock.wallTimeMs); this.projection = result.state; const wireChanges = this.wireChanges.length === 0 ? displayChanges : [...this.wireChanges, ...displayChanges]; this.wireChanges = []; const wire = projectDisplayWire(wireInput(state, wireChanges, this.streamId, clock.wallTimeMs, this.connectionView(state), worker, { digest: this.recoveryDigest?.digest ?? null, eewUnverified: this.eewWindow?.card() ?? null, progress: this.progressView ?? null }, this.channelFailing, result.state, { at: clock.wallTimeMs, restored, mirror: state.mirror, hole: (unit) => this.checkpoint.boundaries.lossHole(unit), eewWindow: eewLostView(this.eewLost) }), this.wireProjection); this.wireProjection = wire.state; // P4-DW-AC01: 新しい射影は旧の結果の種類に依らず毎 step 走る。入力は新しい経路が読む欄だけを組む
     for (const details of result.diagnostics) this.enqueueDiagnostic(completeDiagnostic(details, clock, state.runId));
     const display = this.display;
     if (display != null) {
@@ -2356,7 +2356,7 @@ class RuntimeCompositionRoot {
 
   // P3-REC-AC14 (5): 札の窓を WARN の履歴に 1 件。timestamp は窓の終わり、durationMs は窓の長さ、同じ行を畳ませないよう count 1 を明示する。
   private noteEewWindow(window: EewWindowCard, clock: ClockReading): void {
-    this.eewLost = { count: Math.min(eewLostView(this.eewLost, clock.wallTimeMs).count + 1, Number.MAX_SAFE_INTEGER), from: window.fromWallMs, to: window.toWallMs, addedAt: clock.wallTimeMs }; this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "eewWindowUnverified", // P4-RL-AC07 (1): 外した区間を H39 の値に足す
+    this.eewLost = { count: Math.min((keptEewLost(this.eewLost, clock.wallTimeMs)?.count ?? 0) + 1, Number.MAX_SAFE_INTEGER), from: window.fromWallMs, to: window.toWallMs, addedAt: clock.wallTimeMs }; this.enqueueDiagnostic(completeDiagnostic({ level: "WARN", component: "recovery", reason: "eewWindowUnverified", // P4-RL-AC07 (1): 外した区間を H39 の値に足す
       durationMs: window.toWallMs - window.fromWallMs, count: 1 }, { wallTimeMs: window.toWallMs, monotonicMs: clock.monotonicMs }, this.state.runId));
   }
 
@@ -2508,6 +2508,10 @@ function wireInput(state: PublisherState, displayChanges: readonly RuntimeDispla
 
 // P4-RL-AC07: 10 分で外した EEW の未確認の区間の件数と最後の区間（publisher の手元だけ、再起動で消える、P4-RL-D-EEW-WINDOW=A）。最後の追加＋24 時間で消す（RL-RET-02）。
 type EewLost = Readonly<{ count: number; from: number; to: number; addedAt: number }>;
-function eewLostView(lost: EewLost | null, wallTimeMs: number): DisplayEewWindow {
-  return lost != null && wallTimeMs < lost.addedAt + 86_400_000 ? { count: lost.count, from: lost.from, to: lost.to } : { count: 0, from: null, to: null };
+// 期限に届いたら値ごと捨てる（無いと、境界を越えた後に wall が戻ると同じ区間が再び出る）。捨てた後は新しい区間ができるまで 0 件。
+function keptEewLost(lost: EewLost | null, wallTimeMs: number): EewLost | null {
+  return lost != null && wallTimeMs < lost.addedAt + 86_400_000 ? lost : null;
+}
+function eewLostView(lost: EewLost | null): DisplayEewWindow {
+  return lost == null ? { count: 0, from: null, to: null } : { count: lost.count, from: lost.from, to: lost.to };
 }
