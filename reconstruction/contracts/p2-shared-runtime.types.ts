@@ -237,7 +237,7 @@ export type RuntimeDisplayChange = Readonly<{ unit: RuntimeUnitId; operation: Op
   | Readonly<{ after: RuntimeDisplaySubject; removal?: undefined; departed?: readonly DisplayRemoval[] }>
   | Readonly<{ after: null; removal: DisplayRemoval; dueWallMs?: number }>
 );
-// P4-RL-AC01 (1): 消えた理由の閉集合（表 §1.1）。mixed は取り直しの採用の正味の差分だけ、expiredWhileStopped は owner の置き換えだけが付ける。
+// P4-RL-AC01 (1): 消えた理由の閉集合（表 §1.1）。mixed は取り直しの採用の正味の差分と、U-W の府県の行の受信の step で行ごとの語が 2 語以上に分かれたとき（作者裁定 2026-11-22 A）だけ、expiredWhileStopped は owner の置き換えだけが付ける。
 export type DisplayRemoval = "cancelled" | "ended" | "expired" | "retentionEnded" | "evicted" | "replaced" | "expiredWhileStopped" | "markCleared" | "mixed" | "unknown";
 
 // P3-UM-AC11 (8): owner が envelope のカードを写して置く（unit の view の関数は変えない。カードの無い unit は欄を書かない）。

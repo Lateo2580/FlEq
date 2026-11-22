@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
-import type { ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
+import type { DisplayRemoval, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
 import type { DisplayAreaSystem } from "../../../contracts/p2-snapshot-sse.types";
 import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "../../../contracts/p2-weather-current-unit.types";
 import type {
@@ -308,11 +308,49 @@ function weatherCurrentDetail(state: State, request: WeatherCurrentDetailRequest
   return { kind: "ok", part: request.part, id: request.id, revision: found.revision, page: request.page, pageCount, rowCount, rows, omitted };
 }
 
-// P4-RL-AC02 (2): 報が府県に載せる行の数（cellsOf の cache から）。areaKeys は行の無い府県も返すので、府県から外れた報の判定はこれで見る。
-function areaRows(snapshot: WeatherCurrentSnapshot, prefecture: string): number {
-  return cellsOf(snapshot).get(prefecture)?.length ?? 0;
+// P4-RL-AC02 (2)・AC03 (5)（統合担当の規則 2026-11-22）: 府県の行の、before の entry にあって after の entry に無い行ごとの語。
+// changes はこの step で変わった報のうち、その府県に区域を持つもの（unit が areaKeys の走査で府県ごとに集める。全件は走査しない）。
+// 行の語は (a) 行の報が変わったならその原因 (b) 変わっていないなら、変わった報のうちその行を負かした報の原因 (c) どちらも無ければ語なし。
+// removal は語が 1 つに揃えばその語、2 語以上なら mixed（受信の step でも付ける。作者裁定 2026-11-22 A、P4-RL-D-MIXED=B を当てる。訓練・試験の件数の退去と
+// 新しい報の受理が重なる並びがこれ）、語の付かない行が 1 つでもあれば unknown（原因の全部を知らないので 1 語にも mixed にもしない）。
+// departed は府県から外れた報（before にその府県の行があり、after が null か行が 0）の原因に、(b) の原因を足す。行を残したままの報の変化は数えない。
+type AreaChange = Readonly<{ before: WeatherCurrentSnapshot | null; after: WeatherCurrentSnapshot | null; cause?: DisplayRemoval }>;
+function areaCauses(before: State, after: State, operation: Operation, prefecture: string, changes: readonly AreaChange[]): Readonly<{ removal: DisplayRemoval; departed: readonly DisplayRemoval[] }> {
+  const key = entryKey(operation, prefecture), national = after.national[operation];
+  const rows = (snapshot: WeatherCurrentSnapshot | null) => snapshot == null ? 0 : cellsOf(snapshot).get(prefecture)?.length ?? 0;
+  const bySubject = new Map(changes.map((change) => [(change.before ?? change.after)!.subject, change]));
+  const departed = new Set<DisplayRemoval>(), words = new Set<DisplayRemoval | null>();
+  for (const change of changes) if (rows(change.before) !== 0 && rows(change.after) === 0) departed.add(change.cause ?? "unknown");
+  const kept = new Set(merged(after).entries.get(key)?.cells ?? []), keys = new Map<WeatherCurrentSnapshot, ReadonlySet<string>>();
+  const sameTime = (left: ReportRef, right: ReportRef) => Date.parse(left.reportDateTimeRaw) === Date.parse(right.reportDateTimeRaw);
+  const notOlder = (left: ReportRef, right: ReportRef) => compareVersion(left, right) === "newer" || sameTime(left, right);
+  const sameKey = (report: WeatherCurrentSnapshot, cell: Cell) => {
+    let found = keys.get(report);
+    if (found == null) keys.set(report, found = new Set((cellsOf(report).get(prefecture) ?? []).map((item) => `${regionKey(item)}\u0000${item.code}`)));
+    return found.has(`${regionKey(cell)}\u0000${cell.code}`);
+  };
+  // mergeCells の勝ち負けの条件に合わせる（行の数ではなく出どころで決める）: 全国報が区域を載せると、全国報より newer でも報時刻が同じでもない partial の行と
+  // Code の無い partial の行は負ける。partial は、全国報の行には全国報より newer か報時刻が同じで、その区域を語った同じ種類か同じ区域・Code の行を持つとき勝ち、
+  // partial の行には同じ区域・Code の行を持ち newer なとき勝つ。
+  const beats = (report: WeatherCurrentSnapshot, cell: Cell) => {
+    if (report === national) return regionsOf(report, prefecture).has(regionKey(cell)) && (cell.code == null || !notOlder(report.source, cell.source));
+    if (cell.code == null) return false;
+    if (national != null && cell.source === national.source) return notOlder(cell.source, report.source)
+      && (CODE_FAMILY.get(cell.code) === report.source.family && regionsOf(report, prefecture).has(regionKey(cell)) || sameKey(report, cell));
+    return compareVersion(cell.source, report.source) === "newer" && sameKey(report, cell);
+  };
+  for (const cell of merged(before).entries.get(key)?.cells ?? []) {
+    if (kept.has(cell)) continue;
+    const own = bySubject.get(cell.source.subject);
+    if (own != null) { words.add(own.cause ?? null); continue; }
+    const causes = changes.flatMap((change) => change.after != null && beats(change.after, cell) ? [change.cause ?? null] : []);
+    if (causes.length === 0) words.add(null);
+    for (const cause of causes) { words.add(cause); departed.add(cause ?? "unknown"); }
+  }
+  const [word] = words;
+  return { removal: words.has(null) || word == null ? "unknown" : words.size === 1 ? word : "mixed", departed: [...departed] };
 }
 
 export {
-  advanceAreas, areaEntry, areaKeys, areaOutcome, areaRows, markUnavailable, publicUnavailable, weatherCurrentAreas, weatherCurrentDetail,
+  advanceAreas, areaCauses, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas, weatherCurrentDetail,
 };

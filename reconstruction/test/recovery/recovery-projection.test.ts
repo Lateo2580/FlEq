@@ -526,3 +526,30 @@ describe("P4-RL-T02 (a)・T09 contractBoundary: the U-W prefecture row through t
     expect(rebased.row).toBe("replaced");
   });
 });
+
+// 契約境界 P4-RL-AC03 (5)・AC02 (2)（統合担当の規則 2026-11-22 の 4、S6）: 取り直しの候補で「覆って行を減らした報」の原因も mixed の判定に入る。live は福井の報 X（府県予報区等 180000 に 03）、
+// 官署Z の報 Z（一次細分 180010 に 20、系列の初報）、VPNO50 の切替。一覧は全国報 N（報時刻 11:00、180000 の 33 は VPNO50 の墓標で外れて空の区域）と Z の取消（戻す版なし）。
+// N が X の行を覆い（行は Z で残り departed は replaced）、Z の取消で府県の行が cancelled で消えるので、正味は mixed。
+describe("P4-RL-AC03 (5) contractBoundary: a report that covered the row's rows counts in the adopt's mixed", () => {
+  const FUKUI = "18_00_01_260830_VPWW55_fukui_L5";
+  const report = (office: string, at: string, warnings: string) => fixture(FUKUI).replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(Date.parse(at)).toISOString()}`)
+    .replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${at}`).replace(/<EditorialOffice>[^<]*/, `<EditorialOffice>${office}`)
+    .replace(/<Body([^>]*)>[\s\S]*<\/Body>/, warnings === "" ? "<Body/>" : `<Body$1>${warnings}</Body>`);
+  const warning = (type: string, code: string, area: string) => `<Warning type="気象警報・注意報（${type}）"><Item><Kind><Name>警報${code}</Name><Code>${code}</Code><Status>発表</Status></Kind>`
+    + `<Area><Name>区域${area}</Name><Code>${area}</Code></Area></Item></Warning>`;
+  const ROW = "normal/area/18";
+
+  it("the national N's replaced (departed) and Z's cancel make the row mixed", async () => {
+    const t = await setup();
+    await t.live("VPWW55", report("福井地方気象台", "2026-08-30T10:00:00+09:00", warning("府県予報区等", "03", "180000")));
+    await t.live("VPWW55", report("官署Z", "2026-08-30T10:00:00+09:00", warning("一次細分区域等", "20", "180010")));
+    await t.live("VPNO50", fixture("18_00_01_260830_VPNO50_switch"));
+    const n = report("気象庁本庁", "2026-08-30T11:00:00+09:00", warning("府県予報区等", "33", "180000") + warning("府県予報区等", "03", "190000"));
+    const cancel = report("官署Z", "2026-08-30T10:10:00+09:00", "").replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>");
+    t.bodies.set("n", xml(n)); t.bodies.set("z", xml(cancel));
+    await t.startup([{ ...headOf("U-W", "n", { type: "VPWS50", xml: n }, T0 - 2 * MINUTE), reportDateTime: "2026-08-30T11:00:00+09:00" },
+      { ...headOf("U-W", "z", { type: "VPWW55", xml: cancel }, T0 - MINUTE), reportDateTime: "2026-08-30T10:10:00+09:00", infoType: "取消" }], "U-W");
+    const row = t.adopted("U-W").output.displayChanges.find((change) => change.subject === ROW);
+    expect(row == null ? null : row.after == null ? row.removal : "kept").toBe("mixed");
+  });
+});

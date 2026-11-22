@@ -1378,3 +1378,95 @@ describe("P4-RL-T01 acceptance / P4-RL-AC02 (2): U-W rows", () => {
     expect(removals(receive(ended, late))).toEqual([["normal/area/18", "replaced", "area"]]);
   });
 });
+
+// 契約境界 P4-RL-AC02 (2)・AC03 (5)（統合担当の規則 2026-11-22、発注 2 の 3 巡目）: 府県の行の語は、消える前に出ていた行ごとに、行の報が変わったならその原因、
+// 変わっていないなら行を負かした報の原因で決め、2 語以上に分かれたら mixed（作者裁定 2026-11-22 A）。表（外れる報・覆う報の原因の語）の欄ごとに 1 本。
+describe("P4-RL-AC02 (2) contractBoundary: a U-W prefecture row is named from the rows shown before", () => {
+  const FUKUI = "18_00_01_260830_VPWW55_fukui_L5", PREF = "気象警報・注意報（府県予報区等）", PRIMARY = "気象警報・注意報（一次細分区域等）";
+  type Item = readonly [type: string, code: string | null, area: string];
+  let serial = 0;
+  const T = (hhmm: string) => `2026-08-30T${hhmm}:00+09:00`;
+  // 福井の fixture の Head を借りて、報時刻・官署・Body の区域と Code を書き換える（Code が null の行は「発表警報・注意報はなし」）。
+  const report = (headType: string, office: string, at: string, items: readonly Item[], operation: Operation = "normal") => decodeFixture(FUKUI, headType, (xml) => {
+    const groups = new Map<string, string[]>();
+    for (const [type, code, area] of items) groups.set(type, [...groups.get(type) ?? [], `<Item><Kind>${code == null ? "" : `<Name>警報${code}</Name><Code>${code}</Code>`}`
+      + `<Status>${code == null ? "発表警報・注意報はなし" : "発表"}</Status></Kind><Area><Name>区域${area}</Name><Code>${area}</Code></Area></Item>`]);
+    const body = [...groups].map(([type, list]) => `<Warning type="${type}">${list.join("")}</Warning>`).join("");
+    const timed = xml.replace(/(<Control>[\s\S]*?<DateTime>)[^<]*/, `$1${new Date(Date.parse(at)).toISOString()}`).replace(/<ReportDateTime>[^<]*/, `<ReportDateTime>${at}`)
+      .replace(/<EditorialOffice>[^<]*/, `<EditorialOffice>${office}`).replace(/<Body([^>]*)>[\s\S]*<\/Body>/, items.length === 0 ? "<Body/>" : `<Body$1>${body}</Body>`);
+    return withOperation(items.length === 0 ? timed.replace("<InfoType>発表</InfoType>", "<InfoType>取消</InfoType>") : timed, operation);
+  }, `rl-uw3-${++serial}`);
+  const national = (at: string, items: readonly Item[], office = "気象庁本庁", operation: Operation = "normal") => report("VPWS50", office, at, items, operation);
+  const fukui = (at: string, items: readonly Item[], office = "福井地方気象台", operation: Operation = "normal") => report("VPWW55", office, at, items, operation);
+  const run = (...materials: DecodedMaterial[]) => materials.reduce<ReturnType<typeof receive> | null>((step, material) => receive(step?.state ?? emptyState(), material), null)!;
+  const row = (step: ReturnType<typeof receive>, subject = "normal/area/18") => {
+    const change = step.displayChanges.find((item) => item.subject === subject);
+    return change == null ? null : change.after == null ? change.removal : change.departed ?? [];
+  };
+  const switchVpno50 = () => decodeFixture("18_00_01_260830_VPNO50_switch", "VPNO50", (xml) => xml, `rl-uw3-${++serial}`);
+
+  it("cancel with a version to restore, outgoing: the restored national has no row in the prefecture → cancelled", () => {
+    expect(row(run(national(T("06:00"), [[PREF, "03", "170000"]]), national(T("06:10"), [[PREF, "03", "180000"]]), national(T("06:20"), [])))).toBe("cancelled");
+  });
+
+  // ヘルツの 2 巡目の (b): 全国報 B の取消で前の版 A に戻り、A の区域（VPNO50 の終了で 33 が外れて空）が府県の報の行を覆う。
+  it("cancel with a version to restore, covering (national, S4.5): the restored national covers the partial's last row → cancelled", () => {
+    expect(row(run(national(T("10:00"), [[PREF, "33", "180000"], [PREF, "03", "190000"]]), fukui(T("09:00"), [[PREF, "03", "180000"]]),
+      national(T("10:30"), [[PREF, "03", "190000"]]), switchVpno50(), national(T("10:40"), [])))).toBe("cancelled");
+  });
+
+  it("cancel with a version to restore, covering (prefectural, S5): the restored 'none' version drops the national row → cancelled", () => {
+    const steps = [national(T("06:00"), [[PREF, "03", "180000"]]), fukui(T("07:00"), [[PREF, null, "180000"]]), fukui(T("07:10"), [[PREF, "03", "170000"]]), fukui(T("07:20"), [])];
+    expect([row(run(...steps.slice(0, 2))), row(run(...steps))]).toEqual(["replaced", "cancelled"]);
+  });
+
+  it("national replacement, outgoing: the displaced national's rows leave with it → replaced", () => {
+    expect(row(run(national(T("06:00"), [[PREF, "03", "180000"]]), national(T("06:10"), [[PREF, "03", "190000"]], "大阪管区気象台")))).toBe("replaced");
+  });
+
+  it("national replacement, covering: the new national covers a partial row and the row stays with departed replaced", () => {
+    expect(row(run(national(T("06:00"), [[PREF, "03", "190000"]]), fukui(T("05:00"), [[PREF, "10", "180000"]]),
+      national(T("06:10"), [[PREF, "03", "180000"]], "大阪管区気象台")))).toEqual(["replaced"]);
+  });
+
+  it("report update, covering: a national update (departed) and a prefectural 'none' update (S2, removal) are replaced", () => {
+    expect([
+      row(run(national(T("06:00"), [[PREF, "03", "190000"]]), fukui(T("05:00"), [[PREF, "10", "180000"]]), national(T("06:10"), [[PREF, "03", "180000"]]))),
+      row(run(national(T("06:00"), [[PREF, "03", "180000"]]), fukui(T("07:00"), [[PREF, "03", "170000"]]), fukui(T("07:10"), [[PREF, null, "180000"]]))),
+    ]).toEqual([["replaced"], "replaced"]);
+  });
+
+  it("first adoption, covering (S1): a first prefectural 'none' report drops the national row → replaced", () => {
+    expect(row(run(national(T("06:00"), [[PREF, "03", "180000"]]), fukui(T("07:00"), [[PREF, null, "180000"]])))).toBe("replaced");
+  });
+
+  // S3: 件数の退去（最古の府県報 E の行が出ていた）と、福井の初報 C の「なし」が全国報 N の行を外す受理が重なる。行ごとの語が evicted と replaced に分かれる。
+  const drills = (eItems: readonly Item[]) => [national(T("06:00"), [[PREF, "03", "180000"]], "気象庁本庁", "training"), fukui(T("03:00"), eItems, "官署E", "training"),
+    ...Array.from({ length: 63 }, (_, index) => fukui(T(`0${4 + Math.floor(index / 60)}:${String(index % 60).padStart(2, "0")}`), [[PREF, "20", "010000"]], `官署${String(index + 1).padStart(2, "0")}`, "training")),
+    fukui(T("07:30"), [[PREF, null, "180000"]], "福井地方気象台", "training")];
+  it("count eviction overlapping a new report's covering (S3) is mixed — author's ruling 2026-11-22 A", () => {
+    const step = run(...drills([[PRIMARY, "03", "180010"]]));
+    expect([row(step, "training/area/18"), step.state.partials.some((item) => item.office === "官署E")]).toEqual(["mixed", false]);
+  });
+
+  // 見分ける試し: 府県に区域を持つ E が同じ step で退去されても、E の行は N に負けて出ていなかったので、行は C の変化だけで消える（evicted を混ぜない）。
+  it("a report evicted in the same step whose rows were not shown does not mix in: the row is replaced", () => {
+    expect(row(run(...drills([[PREF, "03", "180000"]])), "training/area/18")).toBe("replaced");
+  });
+
+  it("byte eviction and capacity unavailable remove the prefecture row as evicted", () => {
+    const cells = (family: string, scope: "national" | "partial", office: string) => ({ [JSON.stringify([family, scope, office, PREF, "180000"])]: [{ status: "発表", code: "03", name: "警報03" }] });
+    const envelopeSize = (value: WeatherCurrentUnitState) => serializedEnvelope({ schemaVersion: value.schemaVersion, unit: "U-W", generation: value.persistence.currentGeneration, capturedAt: NOW, payload: weatherCurrentUnitCodec.encode(value), sha256: "0".repeat(64) }).byteLength;
+    // byte: training の府県報が器を占め、normal の受理で退去される。
+    const drill = snapshot("training", "VPWW55", "官署D", "2026-08-30T05:00:00+09:00", "drill");
+    const withDrill = (padding: string): WeatherCurrentUnitState => ({ ...emptyState(), partials: [{ ...drill, phenomena: { ...cells("VPWW55", "partial", "官署D"), padding } }] });
+    const byBytes = receive(withDrill("x".repeat(LIMIT - envelopeSize(withDrill("")) - 100)), fukui(T("07:00"), [[PREF, "03", "170000"]]));
+    // 容量の unavailable: P3-CC-T11 と同じ器の際で、前の版の全国報（府県 18 に行）が lastKnown に移る。
+    const current = snapshot("normal", "VPWW55", "福井地方気象台", "2026-09-06T10:00:00+09:00", "current");
+    const previous = { ...snapshot("normal", "VPWS50", "気象庁本庁", "2019-01-01T00:00:00+09:00", "previous"), phenomena: { ...cells("VPWS50", "national", "気象庁本庁"), padding: "x".repeat(2_000) } };
+    const base: WeatherCurrentUnitState = { ...emptyState(), national: { normal: previous }, partials: [{ ...current, phenomena: { padding: "" } }] };
+    const margin = 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + 100_000 + admissionExtra("normal/VPWS50/気象庁本庁");
+    const byUnavailable = receive({ ...base, partials: [{ ...current, phenomena: { padding: "x".repeat(LIMIT - envelopeSize(base) - margin) } }] }, decodeFixture("15_18_01_250630_VPWS50", "VPWS50"));
+    expect([row(byBytes, "training/area/18"), row(byUnavailable), byUnavailable.state.unavailable.map((item) => item.reason)]).toEqual(["evicted", "evicted", ["capacityExceeded"]]);
+  });
+});
