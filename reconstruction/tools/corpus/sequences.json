@@ -1,7 +1,7 @@
 {
   "meta": {
     "baseOid": "3669dfd6a98e6c116c86f7db1cd27aa63002a90d",
-    "sha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
+    "sha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "clock": "synthetic epoch milliseconds; receivedAt/evaluatedAt は合成固定時計。原XML日時は不変。系列内ケース間のrestartで時計と空stateを再設定。受信時刻の実測ではない。",
@@ -19719,7 +19719,7 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
       ],
       "input": {
-        "required": "独立母集団: EEW / 対象分野fallback。共通時計2026-01-01T12:00:00+09:00、VXSE45 normal EventID=P0-EEW-A、Serial1、body全日時整合。U-Eだけ意図的予算超過。通常合法最大とは別集計。最小事実/省略表示/旧地図除去をT6とする。 派生入力と容量値はQ-PERF/Q-LIMITで凍結。",
+        "required": "独立母集団: EEW / 対象分野の意図した超過。共通時計2026-01-01T12:00:00+09:00、VXSE45 normal EventID=P0-EEW-A、Serial1、body全日時整合。U-Eだけ意図的に型の上限を超える。通常合法最大とは別集計。U-E は要約に落ちない（H37）。型の上限を超えた分: 既知でない区域は件数と印で、詳細は U-E の areas（U-E は索引〔part=index〕を持たない）。字の上限を越えた欄は切って印で、詳細でも読めない（U-E の areas は区域の行だけ）（B0 の表 §1.2・§1.3・§1.5）。B0 のカードの上限を越えた報は通常合法最大の側（B1 の E4b）で、この系列に入れない。T6 は出ているカード・合成の塗り・件数と印の表示の完了。 派生入力と容量値はQ-PERF/Q-LIMITで凍結。",
         "acquisition": "synthetic"
       },
       "checks": [
@@ -19950,13 +19950,13 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
       ],
       "input": {
-        "required": "独立母集団: 津波発令 / 対象分野fallback。VTSE41、Control.Status通常、EventID=P0-T-発令、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期は311/312とも無発令。新報は311=津波警報。 U-Tだけ意図的予算超過。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
+        "required": "独立母集団: 津波発令 / 対象分野の意図した超過。VTSE41、Control.Status通常、EventID=P0-T-発令、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期は311/312とも無発令。新報は311=津波警報。 U-Tだけ意図的に型の上限を超える（B0 の津波の件数の上限を越えた同時の EventID・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から）。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
         "acquisition": "synthetic"
       },
       "checks": [
         "津波発令だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
         "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
-        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
+        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過は要約に落ちず（H37）、型の上限を超えた分は件数と詳細の取得に回り（B0 の表 §1.5）、塗りの合成は全件を含む。T6 は大カード/警報区分/海岸線と件数の表示。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
@@ -20249,13 +20249,13 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
       ],
       "input": {
-        "required": "独立母集団: 津波引上げ / 対象分野fallback。VTSE41、Control.Status通常、EventID=P0-T-引上げ、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=津波警報、新報311=大津波警報。 U-Tだけ意図的予算超過。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
+        "required": "独立母集団: 津波引上げ / 対象分野の意図した超過。VTSE41、Control.Status通常、EventID=P0-T-引上げ、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=津波警報、新報311=大津波警報。 U-Tだけ意図的に型の上限を超える（B0 の津波の件数の上限を越えた同時の EventID・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から）。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
         "acquisition": "synthetic"
       },
       "checks": [
         "津波引上げだけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
         "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
-        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
+        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過は要約に落ちず（H37）、型の上限を超えた分は件数と詳細の取得に回り（B0 の表 §1.5）、塗りの合成は全件を含む。T6 は大カード/警報区分/海岸線と件数の表示。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
@@ -20548,13 +20548,13 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
       ],
       "input": {
-        "required": "独立母集団: 津波区域拡大 / 対象分野fallback。VTSE41、Control.Status通常、EventID=P0-T-区域拡大、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=無発令。新報311/312=大津波警報。 U-Tだけ意図的予算超過。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
+        "required": "独立母集団: 津波区域拡大 / 対象分野の意図した超過。VTSE41、Control.Status通常、EventID=P0-T-区域拡大、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=無発令。新報311/312=大津波警報。 U-Tだけ意図的に型の上限を超える（B0 の津波の件数の上限を越えた同時の EventID・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から）。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
         "acquisition": "synthetic"
       },
       "checks": [
         "津波区域拡大だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
         "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
-        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
+        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過は要約に落ちず（H37）、型の上限を超えた分は件数と詳細の取得に回り（B0 の表 §1.5）、塗りの合成は全件を含む。T6 は大カード/警報区分/海岸線と件数の表示。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
@@ -20847,13 +20847,13 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
       ],
       "input": {
-        "required": "独立母集団: 津波解除 / 対象分野fallback。VTSE41、Control.Status通常、EventID=P0-T-解除、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報で両区域を解除。 U-Tだけ意図的予算超過。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
+        "required": "独立母集団: 津波解除 / 対象分野の意図した超過。VTSE41、Control.Status通常、EventID=P0-T-解除、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報で両区域を解除。 U-Tだけ意図的に型の上限を超える（B0 の津波の件数の上限を越えた同時の EventID・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から）。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
         "acquisition": "synthetic"
       },
       "checks": [
         "津波解除だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
         "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
-        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
+        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過は要約に落ちず（H37）、型の上限を超えた分は件数と詳細の取得に回り（B0 の表 §1.5）、塗りの合成は全件を含む。T6 は大カード/警報区分/海岸線と件数の表示。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },
@@ -21146,13 +21146,13 @@
         "L1: docs/specs/reconstruction-p0-contracts.md:1155 «253098a9cc645bbc»"
       ],
       "input": {
-        "required": "独立母集団: 津波降格 / 対象分野fallback。VTSE41、Control.Status通常、EventID=P0-T-降格、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報311=津波警報、312=注意報。 U-Tだけ意図的予算超過。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
+        "required": "独立母集団: 津波降格 / 対象分野の意図した超過。VTSE41、Control.Status通常、EventID=P0-T-降格、初期ReportDateTime=2026-01-01T11:59:00+09:00/Serial1、新報12:00:00/Serial2。初期311=大津波警報、312=津波警報。新報311=津波警報、312=注意報。 U-Tだけ意図的に型の上限を超える（B0 の津波の件数の上限を越えた同時の EventID・コードの無い予報区の 9 行目から・付加文の 2,049 byte 目から）。通常合法最大試験とは分離。 同一operation/family/subjectの先行報を飛ばさない。原fixtureを改変せず別synthetic bodyが必要。body全日時・初期checkpoint・投入offset・合法最大容量と端末はQ-PERF/Q-LIMITで凍結。",
         "acquisition": "synthetic"
       },
       "checks": [
         "津波降格だけを別集計。入力側EEW候補→VTSE41候補→その他の優先順は解除/降格も対象。通知の津波緊急群とは別。",
         "各母集団100 warm-up、1000標本×3run。各run p99(U_i)≤250ms、T0から10秒無paint欠落0。T6は発令系の大カード/警報区分/海岸線、解除の旧表示除去、降格の色/点滅/文言更新の完了。",
-        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過だけ最小事実/省略表示/旧地図除去をT6とする。他分野summaryは免除理由にしない。",
+        "通常合法最大は予報区別警報の欠落/誤値0。対象分野の意図的超過は要約に落ちず（H37）、型の上限を超えた分は件数と詳細の取得に回り（B0 の表 §1.5）、塗りの合成は全件を含む。T6 は大カード/警報区分/海岸線と件数の表示。他分野summaryは免除理由にしない。",
         "Q-PERF未充足。時計不確かさ込み判定、DOM/rAFで実paintを代用しない。原因をparse/encode/射影/転送に分け、parse起因だけB移行。"
       ]
     },

@@ -1,10 +1,10 @@
 {
   "meta": {
     "draftedFromOid": "4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835",
-    "sha256": "b8662bbe1deb9c666a5f5af3554c762f97e194b4af11ab7fee7c6109a5193c86",
+    "sha256": "6696719154c5f05220f4076f6e70b0155dcf98b4456e059e3f7aba17f63a8270",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
-    "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
+    "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
@@ -109,6 +109,20 @@
     ],
     "questionResolutions": [
       {
+        "id": "Q-DC-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-22、impl/b1 の 3 commit 18809f58・4d9a0c74・2319c0ba を main ebae7382 の上へ載せ直した e292a3ba・ade8c6d1・feb9c280。レビューは品質〔ヘルツ Astra high、thread 01a202fb〕条件付き GO → GO、契約適合〔Opus〕条件付き GO → 再レビュー 条件付き GO〔E6 の長周期〕→ 当てた。Mac mini のゲートは impl 18809f58 で緑、297 秒）",
+        "closed": "(1) E6 の量った値（T06 の E6 の組）: U-E 17,910・U-T 26,450・U-Q 37,497・通知 129,729・共通部 65,215・固定部 276,830、公開 960,832、9 分野を全部 full にしたときの全体 1,411,205。要約は B の順で止まり、E4・E5 の期待集合は欠けない (2) E7（Mac mini、deliver/p4-b1 feb9c280 の dist、FLEQ_B1_E7_DATA に採取物 20260923-capacity、vitest --maxWorkers=2、rc 0、7 本とも Pass、1,145 秒）: 新しい経路の要約は 7 本とも 0。全体の最大は N1 55,481（公開 15,243）・N2 72,667（30,655）・N3 401,045（35,276）・W1 06-03 296,953（4,065）・W1 06-26 372,121（5,006）・W1 09-21 263,274（2,936）・W2 368,479（10,886）で、r4 の量った値と一致する。R1 は採取物が無く流していない（Q-DC-R1） (3) E8（Mac mini、r4 の道具 ~/dev/fleq-b1-facts/.tmp-b1/m2.b1.test.ts の M5 を同じ木で、rc 0、305 秒）: frame 6,920（訓練の写し 3,460）、公開 9,244、要約のある公開 0、全体の最大 726,105、9 分野の和の最大 715,291（671,142 を越えて全体を数える分岐に入る）。r4 の値と一致する。道具は repo に入れない（Q-DC-M5-TOOL） (4) 原文の改訂: sequences.json の unmet:O09:21・28・37・46・55・64 を表 §7 の字に（全 170 契約の sequencesSha256 と meta.sha256 を取り直した）、P4-DISPLAY-VOCAB-001 の P4-DV-D-SUMMARY-RULE の A・P4-DV-RES-01・P4-DV-RES-03・AC04 の字と同契約の表 §4.2、P4-DISPLAY-WIRE-001 の P4-DW-RES-03 の注記、表 §8 の E6 と AC06 (1) の E6 の句、allowedPaths と表 §10 の flushWire の置き場（定義は元の空行 :161、返す object の欄は :269）、計画 §2.1 の B1 の行の状態、Q-DC-SPEC-REVISION を閉じた (5) 印の付け直し: 本契約の 12 本（display-wire.ts の :866・:869→:871・:872→:875・:962→:997、http-sse.ts の :264・:265→:161〔直列化が sendWire に移った〕・:325・:348、composition-root.ts の :143・:992、display-vocab.test.ts の :297、display-wire-root.test.ts の :50）。P4-DISPLAY-VOCAB-001 の表の :226 は行の中の書き換えで付け直した。ほかの契約が引く display-wire.ts・http-sse.ts・display-wire-root.test.ts の行はずれていない（check-contract）",
+        "remaining": "残存: E6 の U-Q は B0 の行数の上限で組んだ値で escape の最悪ではない（377,434 との組は P4-DW-AC04 と表 §2.1 の算術が持つ）。U-R の受理上限の 1 件は parser を通していない（Q-DC-UR-ITEM-LIMIT）。U-B の解除・U-F の取消・U-W の種類だけの解除は最大 1 秒待つ（Q-DC-URGENT-REMAINING）。詰まった客は途中の版が飛び、停止の最後の 1 通が close までに届かないことがある（AC04 (7)）。host の配線（publishWire・flushWire・urgent を渡し、停止で close の前に flush する）は E0 発注 2 か S0。E4b の EventID ごとの値は未裁定で E13a の Pass に数えない（Q-DC-MANY-EVENTS）。T04 (b) の close の後の spy は保留が空なので落ちえず、timer の取り消しは timer の数で見ている。P4-DISPLAY-VOCAB-001 の表 §4.1 の (b)（:219）は越えた 9 分野を全部要約にする字のまま（同表 §4.2 の改訂で 967,258 は全部を要約にしたときだけと書いた）"
+      },
+      {
+        "id": "Q-DC-SPEC-REVISION",
+        "status": "closed",
+        "source": "統合担当の決め（本契約の配送、2026-11-22）。計画 §4.6 の表の spec:1332・:1852・:1372・:1397 の行の時期（B1 の凍結時）",
+        "closed": "spec（docs/specs/reconstruction-p0-contracts.md）の本文は置き換えない。spec:1332・:1372・:1397・:1852（※ の行）は計画 §4.6 の表のとおり文言を変えずに §16 を優先して読む行の扱いのまま、B1 の候補の行（spec:1396 予算を超えた分野を順に 1 つずつ・入ったら止める、:1137 意図した超過の T6 の期待、:1389 版の飛びと書き込みの詰まりの 2 つの始まり、:1386・:1390 最新 1 個と再接続の snapshot）も同じ扱いにして、B1 の条文（AC01・AC04・AC05・AC09、表 §2.1・§4.3・§5・§7）を真実源とする。spec は変えない（行の数も被引用の anchor も変わらない）",
+        "remaining": "なし"
+      },
+      {
         "id": "Q-DC-MANY-EVENTS",
         "status": "closed",
         "source": "発注前点検（統合担当の決め 2026-11-22、r4 で統合担当が読みを直した、根拠 ~/dev/p4-b1-many-eew-r1.md の F1〜F3、main 4f4a9a52 の射影で量った）",
@@ -184,7 +198,7 @@
     ],
     "allowedPaths": [
       "reconstruction/src/view-projector/display-wire.ts（AC01・AC03・AC07。結果の型 :692〜:694 に urgent を行の中で足す、要約の選び :866〜:872、待つ・待たないの判定は projectDisplayWire の中で :830 より後、末尾の export の行 :962。:830 より前に行を足さない〔:30・:101・:697・:830 を P4-REMOVAL-LOSS-001・P4-DISPLAY-VOCAB-001 が引く〕）",
-      "reconstruction/src/http-sse/http-sse.ts（AC04・AC05。publishWire の保留 :264〜:268、保留を出す flushWire（既存の :269 の行に置く）、close の保留の timer、WireClient の欄 :325 と writeWire と openWire の drain の扱い :326〜:356〔AC05 だけ。:209 の openWire の呼びとつないだ時の書き込みは変えない、P4-DC-D-HOLD-CONNECT=B〕。:363 より前は行の中の書き換えだけ（保留と始まりの欄は既存の行に置く）。どうしても行を足すなら、:165〔P3-SEISMIC-PLACE-001〕・:204〔P3-UF-PUBLIC-001〕・:208〔P3-UW-CANON-001〕・:232〔P3-PI-HARNESS-001〕・:245・:258〔P3-CLI-REPL-001〕・:363〔P4-DISPLAY-VOCAB-001〕のうち足した位置より後の行を成果物に書く。旧の handleSse と /events は変えない）",
+      "reconstruction/src/http-sse/http-sse.ts（AC04・AC05。publishWire の保留 :264〜:268、保留を出す flushWire（定義は元の空行 :161 に sendWire と並べて置いた〔行の数は変わらない〕。返す object の欄は既存の :269 の行）、close の保留の timer、WireClient の欄 :325 と writeWire と openWire の drain の扱い :326〜:356〔AC05 だけ。:209 の openWire の呼びとつないだ時の書き込みは変えない、P4-DC-D-HOLD-CONNECT=B〕。:363 より前は行の中の書き換えだけ（保留と始まりの欄は既存の行に置く）。どうしても行を足すなら、:165〔P3-SEISMIC-PLACE-001〕・:204〔P3-UF-PUBLIC-001〕・:208〔P3-UW-CANON-001〕・:232〔P3-PI-HARNESS-001〕・:245・:258〔P3-CLI-REPL-001〕・:363〔P4-DISPLAY-VOCAB-001〕のうち足した位置より後の行を成果物に書く。旧の handleSse と /events は変えない）",
       "reconstruction/src/runtime/composition-root.ts（AC04。:143 の display の型に publishWire?(snapshot, urgent: boolean) と flushWire?(): void、:992 の呼びに wire.urgent || stopped と、unchanged のとき stopped なら flushWire。どちらも行の中の書き換えで、行を足さない）",
       "reconstruction/test/ の新しい試験の file（testMapping）と、AC08 が許す既存の試験の書き換え。reconstruction/test/disaster/runner.ts は変えない（34 本の «» が引く）",
       "統合担当だけ（配送の commit）: sequences.json の 6 つの expectation の書き換え（AC09、表 §7）と全契約（170 本）の sequencesSha256・meta.sha256 の取り直し、P4-DISPLAY-VOCAB-001 の P4-DV-D-SUMMARY-RULE・P4-DV-RES-01・P4-DV-RES-03〔上界は 1,048,576、967,258 は予算を越えた分野を全部要約にしたときだけ〕・AC04 の要約の規則の字と ① の表 §4.2 の改訂、P4-DISPLAY-WIRE-001 の RES-03 の注記（VOCAB の後の規則を B に）、http-sse.ts の :363 より前に行が足されたときの 7 本の «» と、display-wire-root.test.ts の行が動いたときの P4-DISPLAY-VOCAB-001 の :161 の «» の付け直し、計画の同期（表 §9）"
@@ -297,9 +311,9 @@
         "id": "P4-DC-AC01",
         "requirement": "要約の選び（作者裁定 P4-DC-D-SUMMARY-ORDER=B、表 §2.1）: (1) 9 分野の full の和と NEW_PATH_FIXED_BOUND の和が 1,048,576 以下なら全体を数えない（今の近道のまま） (2) 全体を数えて 1,048,576 以下なら全部 full (3) 越えたら、包みが 65,536 を越えた 9 分野だけを U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、1 つごとに全体から full の byte を引いて要約の包みの実の byte を足し（上界 3,882 で代用しない）、1,048,576 以下になったら止める。65,536 以下の分野と保護 3 分野は要約にしない (4) 繰り返しは 9 回まで、全 subject の数え直しと全 state の直列化をしない (5) 次の公開で同じ式を最初から当てる（復帰の timer・履歴を持たない） (6) :866 のコメントを B の字に書き換える (7) 公開の上界は 1,048,576。967,258 は予算を越えた分野を全部要約にしたときだけ",
         "evidenceRefs": [
-          "reconstruction/src/view-projector/display-wire.ts:866 «52bab62177ceafe5»",
-          "reconstruction/src/view-projector/display-wire.ts:869 «7bc2896cb98ff782»",
-          "reconstruction/src/view-projector/display-wire.ts:872 «8482432b94502201»",
+          "reconstruction/src/view-projector/display-wire.ts:866 «9a92f96bb58f5dd2»",
+          "reconstruction/src/view-projector/display-wire.ts:871 «7bc2896cb98ff782»",
+          "reconstruction/src/view-projector/display-wire.ts:875 «7febc089d1870408»",
           "docs/specs/reconstruction-p0-contracts.md:1396 «1fb28b24b1c20bd4»",
           "docs/specs/reconstruction-p0-contracts.md:1399 «0cf9ee68c956003f»",
           "reconstruction/contracts/p4-order-plan.md:314 «b5552b347baa4f75»",
@@ -337,14 +351,14 @@
         "id": "P4-DC-AC04",
         "requirement": "保留（表 §4.3・§4.4、P4-DC-DLV-01・P4-DC-RET-01）: (1) composition root は :992 で publishWire に wire.urgent || stopped を渡し（stopped は :982 の state.shutdown.stage が completed）、結果が unchanged で stopped なら flushWire を呼ぶ（行の中） (2) http-sse の publishWire は urgent なら timer を止めてその snapshot を直列化 1 回で全 client に書き、保留と timer を空にする。urgent でなければ保留を置き換え、timer が無ければ 1,000ms の timer を張る（延ばさない） (3) timer の発火と flushWire は保留があれば直列化 1 回で全 client に書き、予約済みの timer を clearTimeout で取り消してから保留を空に戻す（flushWire は保留が無ければ何もしない。urgent の公開も同じく timer を取り消す） (4) heartbeat の latestVersion は最後に書いた snapshot の版 (5) イベント列の期待（「公開」の終点はサーバーの公開、publishWire・timer・flushWire が wireText を作る時点）: (a) 保留中に開いた詳細は 409 versionChanged、次の公開の版で開ける（P4-DC-D-HOLD-DETAIL=A） (b) owner が 1 つ先に止まり（監視が worker を stopped にする）→ 停止の要求 → 通常の更新が保留 → 停止の完了（表示が同じで unchanged）→ close の列で、停止の完了の root の project が保留を公開し、close の前に最後に作った wireText が保留の分を含む (c) 保留中につないだ客には最後に公開した snapshot（wireText）をそのまま書き、保留を先に公開しない。保留の分は 1 秒以内の次の公開で全客に届く（P4-DC-D-HOLD-CONNECT=B） (d) 緊急の公開は保留の分を含み、保留と timer を捨てる (e) 続く通常の更新は 1,000ms を越えて待たせず、発火の後の次の通常の更新は新しい窓（もう 1 回 1,000ms 以内）で公開する (6) client に届く sequence は増えるだけで飛ぶ（spec:1387 の置き換えと同じ） (7) 詰まっている客には drain の後に最新が届き（途中の版は上書きで飛ぶ）、停止の最後の snapshot が close までに詰まった客へ届かないことはありうる（残存）",
         "evidenceRefs": [
-          "reconstruction/src/runtime/composition-root.ts:143 «1207a02bec183795»",
+          "reconstruction/src/runtime/composition-root.ts:143 «85f8cd15e6437efe»",
           "reconstruction/src/runtime/composition-root.ts:982 «38ad5325a93cc186»",
-          "reconstruction/src/runtime/composition-root.ts:992 «c7ee00cc0eb8795e»",
+          "reconstruction/src/runtime/composition-root.ts:992 «bc426f3e1ac45869»",
           "reconstruction/src/runtime/composition-root.ts:1786 «0b4b8d784265a3ba»",
           "reconstruction/src/runtime/shared-runtime.ts:180 «0a9acb7e7ce84d26»",
           "reconstruction/src/host/host.ts:536 «6a1da25a695ded94»",
-          "reconstruction/src/http-sse/http-sse.ts:264 «cfe1935720a9fed1»",
-          "reconstruction/src/http-sse/http-sse.ts:265 «90b58b06e7ae7fc9»",
+          "reconstruction/src/http-sse/http-sse.ts:264 «e3f539c48ff4fc49»",
+          "reconstruction/src/http-sse/http-sse.ts:161 «4510bdbbc4904e3e»",
           "reconstruction/src/http-sse/http-sse.ts:258 «932fff4980f6c230»",
           "docs/specs/reconstruction-p0-contracts.md:1387 «a0c8665912cd9df7»",
           "docs/specs/reconstruction-p0-contracts.md:1390 «fe02c39d22b8ac89»",
@@ -358,11 +372,11 @@
         "requirement": "遅い客の切断（統合担当の決め 4、P4-DC-D-SLOW-CLIENT、表 §5、O11:6、P4-DC-RES-02）: 新しい経路の client ごとに (i) 書き込みの詰まりの始まり（write が false を返した時刻、drain で消す）と (ii) 版の飛びの始まり（待ちの 1 通が書かれないまま次の版で上書きされた最初の時刻、drain の時点で待ちが空なら消す。drain で待ちを書いて true でも消す。前の drain からこの drain までの間に上書きが 1 回も無ければ消す。false なら (ii) は残し (i) をその時刻から数え直す）を持ち、どちらかが 5 秒続けば切る。待ちの間の新しい 1 通は待ちを置き換えるだけ。表 §5 の列の期待を満たす（上書きが続く客は (ii) で 5 秒、1 回の write が 5 秒 drain しない客は (i) で切る。毎回 drain して全部の版を送れている客〔大きい緊急の公開が drain の直前に 1 通ずつ来て write が毎回 false〕と、一度だけ版を飛ばした後に上書きの無い排出に戻った客と、大きな snapshot の健康な客は切らない。遅い 1 つがほかの client を待たせない）。旧の handleSse は変えない",
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:24 «213b534838ef9531»",
-          "reconstruction/src/http-sse/http-sse.ts:325 «6fa6d21f1def713c»",
+          "reconstruction/src/http-sse/http-sse.ts:325 «1a1f8f4336b548cd»",
           "reconstruction/src/http-sse/http-sse.ts:326 «0e0bdda3c282d6e0»",
           "reconstruction/src/http-sse/http-sse.ts:331 «67a057ed230acadf»",
           "reconstruction/src/http-sse/http-sse.ts:345 «d7201f6971d748a9»",
-          "reconstruction/src/http-sse/http-sse.ts:348 «f677ee0f3af4a65c»",
+          "reconstruction/src/http-sse/http-sse.ts:348 «dc49f84f0138a70c»",
           "reconstruction/src/http-sse/http-sse.ts:119 «afda0df50e7ce3d7»",
           "docs/specs/reconstruction-p0-contracts.md:1389 «ab2ebb427b76d19c»",
           "docs/specs/reconstruction-p0-contracts.md:1405 «8c29206ac41c0a18»",
@@ -372,7 +386,7 @@
       },
       {
         "id": "P4-DC-AC06",
-        "requirement": "通常合法最大の manifest（E13a、P4-DC-D-E13A-DEF、表 §8）: (1) E1〜E6 を repo の入力で組んだ試験で、E1・E2 の 1 件の part=item の 1 応答が 65,536 以下、E3 の U-W が全体 1 MiB 以下で full のまま、E4 の U-E（同時の EventID は B0 のカードの上限まで）のカードの区域と合成の段・E5 の U-T（同時の EventID は B0 の津波の件数の上限まで）の予報区の行と区分の合成が期待の集合と一致し、eew.wire.omitted（p4-display-wire.types.ts の EewWire）・tsunami の omittedEvents・omittedUnkeyed が 0（欠け・誤値 0、要約と取得待ちを免除にしない）、E4b の最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件にした組で、合成が全部の通常の報の区域ごとの最大と一致し、eew.wire.omitted が 1、カードは上限の枚数（B1 が主張するのは合成と omitted まで。E4b の EventID ごとの値は未裁定で、E13a の Pass に数えない〔spec:1865〕。配送の記録に書く。上限を越えた報の EventID ごとの値は E0 発注 1 の板、Q-DC-MANY-EVENTS の closed）、E6 で全体が 1,048,576 以下・要約は B の順で止まり・E4・E5 の期待集合は欠けない (2) 保護 3 分野は新しい経路で要約にならない（包みに delivery が無い）ことを、旧の経路が U-T・U-Q を要約にする入力（disaster.test.ts の P3-DC-T09 の組み方）で見る (3) E7（N1・N2・N3・W1 の 3 日・W2）は T06 が採取物の dir を環境変数で渡したときだけ流し、統合担当が Mac mini で流して新しい経路の要約 0・全体の最大を配送の記録に書く（r4 の量った値: N1 55,481・N2 72,667・N3 401,045・W1 と W2 の最大 372,121）。採取物が無ければ blocked で、Pass にしない (4) E8（W1 06-26 ＋ 訓練の写し、r4 §7）は repo に入れず、統合担当が r4 の道具で Mac mini で流して配送の記録に書く（量った値: 要約 0、全体の最大 726,105） (5) E13a の外の行（他分野の要約中の O09:8・27・36・45・54・63、対象自身の意図した超過の O09:21〔E4b のカードの上限＋1 件は入れない〕・28・37・46・55・64、津波との同時の O09:22）は PM が持ち、入力の受け渡しは Q-DC-PM-OVERFLOW-INPUTS",
+        "requirement": "通常合法最大の manifest（E13a、P4-DC-D-E13A-DEF、表 §8）: (1) E1〜E6 を repo の入力で組んだ試験で、E1・E2 の 1 件の part=item の 1 応答が 65,536 以下、E3 の U-W が全体 1 MiB 以下で full のまま、E4 の U-E（同時の EventID は B0 のカードの上限まで）のカードの区域と合成の段・E5 の U-T（同時の EventID は B0 の津波の件数の上限まで）の予報区の行と区分の合成が期待の集合と一致し、eew.wire.omitted（p4-display-wire.types.ts の EewWire）・tsunami の omittedEvents・omittedUnkeyed が 0（欠け・誤値 0、要約と取得待ちを免除にしない）、E4b の最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件にした組で、合成が全部の通常の報の区域ごとの最大と一致し、eew.wire.omitted が 1、カードは上限の枚数（B1 が主張するのは合成と omitted まで。E4b の EventID ごとの値は未裁定で、E13a の Pass に数えない〔spec:1865〕。配送の記録に書く。上限を越えた報の EventID ごとの値は E0 発注 1 の板、Q-DC-MANY-EVENTS の closed）、E6（保護 3 分野・通知・共通部は E13a の最大で組む。U-E は E4、U-T は E5。U-Q は B0 の行数の上限（区分ごとに 5 行、既知の市町村 1,894 の合成、長周期の見出し 2 件）。通知は 64 件で 131,072 の手前、共通部は 65,536 の手前。escape の最悪で組む 377,434 との組は、型の最大値の試験（P4-DW-AC04）と表 §2.1 の算術が持つ）で全体が 1,048,576 以下・要約は B の順で止まり・E4・E5 の期待集合は欠けない (2) 保護 3 分野は新しい経路で要約にならない（包みに delivery が無い）ことを、旧の経路が U-T・U-Q を要約にする入力（disaster.test.ts の P3-DC-T09 の組み方）で見る (3) E7（N1・N2・N3・W1 の 3 日・W2）は T06 が採取物の dir を環境変数で渡したときだけ流し、統合担当が Mac mini で流して新しい経路の要約 0・全体の最大を配送の記録に書く（r4 の量った値: N1 55,481・N2 72,667・N3 401,045・W1 と W2 の最大 372,121）。採取物が無ければ blocked で、Pass にしない (4) E8（W1 06-26 ＋ 訓練の写し、r4 §7）は repo に入れず、統合担当が r4 の道具で Mac mini で流して配送の記録に書く（量った値: 要約 0、全体の最大 726,105） (5) E13a の外の行（他分野の要約中の O09:8・27・36・45・54・63、対象自身の意図した超過の O09:21〔E4b のカードの上限＋1 件は入れない〕・28・37・46・55・64、津波との同時の O09:22）は PM が持ち、入力の受け渡しは Q-DC-PM-OVERFLOW-INPUTS",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
           "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
@@ -392,7 +406,7 @@
         "requirement": "671,142 の判定の定数（統合担当の決め 5、表 §6）: NEW_PATH_FIXED_BOUND を display-wire.ts の末尾の export { … } の行で出し、node reconstruction/contracts/p4-display-wire-max.mjs の newPath.sum と等しいことを試験で見る（既存の試験と同じく execFileSync で script を読む）",
         "evidenceRefs": [
           "reconstruction/src/view-projector/display-wire.ts:544 «200e4e54f06f0a6b»",
-          "reconstruction/src/view-projector/display-wire.ts:962 «b27d8cf9396de9e5»",
+          "reconstruction/src/view-projector/display-wire.ts:997 «f07e452fad051373»",
           "reconstruction/src/view-projector/display-wire.ts:541 «f0ffdc8fb6d3d66f»",
           "reconstruction/contracts/p4-display-wire-max.mjs",
           "reconstruction/contracts/p4-display-capacity-tables.md"
@@ -404,9 +418,9 @@
         "evidenceRefs": [
           "reconstruction/test/display-wire/display-vocab.test.ts:271 «511a90439c2433d8»",
           "reconstruction/test/display-wire/display-vocab.test.ts:287 «9cf5123bf3a13518»",
-          "reconstruction/test/display-wire/display-wire-root.test.ts:50 «c1388176d30311ee»",
+          "reconstruction/test/display-wire/display-wire-root.test.ts:50 «9d473f60b6ce4d3d»",
           "reconstruction/test/display-wire/display-wire-root.test.ts:164 «c069130f856fc3f0»",
-          "reconstruction/test/display-wire/display-vocab.test.ts:297 «26e462929055ced4»",
+          "reconstruction/test/display-wire/display-vocab.test.ts:297 «65f535934980b4d5»",
           "reconstruction/contracts/p4-display-capacity-tables.md"
         ]
       },
@@ -618,17 +632,6 @@
         "resolveBy": "PM 発注 1 の前",
         "requiredEvidence": [
           "R1（2024-01-01・01-02）の採取物が手元の Mac・Mac mini のどちらの dir にも無い（r4 §6）。取り直すか、R1 を E7 から外す理由を書く"
-        ]
-      },
-      {
-        "id": "Q-DC-SPEC-REVISION",
-        "owner": "integrator",
-        "blocks": [
-          "B1 の凍結（計画 §4.6）"
-        ],
-        "resolveBy": "本契約の配送",
-        "requiredEvidence": [
-          "spec:1396（予算を超えた分野を B の順で 1 つずつ、入ったら止める）・spec:1137（意図した超過の T6 の期待）・spec:1389（版の飛びと書き込みの詰まりの 2 つの始まり）・spec:1332・:1372・:1397・:1852（H37 の ※ の行）・spec:1386・:1390（最新 1 個と再接続の snapshot を最後に公開したものと読む）を本文に書くか、§16 の H37 の行の注記で済ませるかの統合担当の決め（表 §9 の 6）"
         ]
       }
     ]

@@ -1,16 +1,16 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "1c1f03f473d97618bcda7a4713d4af4e001ba86aac4cab98985b7b784da3de8e",
+    "sha256": "1803889e3af66ef4b4d12d4d5066be94c1d6a3378d53029c579e3834168301bb",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
-    "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
+    "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
     "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
     "decisionBranches": [
       {
         "id": "P4-DV-D-SUMMARY-RULE",
         "kind": "統合担当",
-        "A": "9 分野は今の規則を新しい経路にそのまま当てる: 新しい経路の snapshot の全体が 1,048,576 byte を超えたときだけ、包みの byte が 65,536 を超えた 9 分野を要約にする。要約は今の形（unit・contentRevision・items・delivery・reason・originalBytes・budgetBytes、4 KiB 以下）でカードを持たない。保護 3 分野は要約にしない（H37）",
+        "A": "9 分野は今の規則を新しい経路にそのまま当てる: 新しい経路の snapshot の全体が 1,048,576 byte を超えたときだけ、包みの byte が 65,536 を超えた 9 分野を要約にする。要約は今の形（unit・contentRevision・items・delivery・reason・originalBytes・budgetBytes、4 KiB 以下）でカードを持たない。保護 3 分野は要約にしない（H37）（P4-DISPLAY-CAPACITY-001 の配送で改めた〔作者裁定 P4-DC-D-SUMMARY-ORDER=B、同契約の AC01〕: 全体が 1,048,576 を超えたら、包みが 65,536 を超えた 9 分野だけを U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める。要約の形と保護 3 分野の扱いは変えない）",
         "B": "9 分野ごとに 65,536 を超えたら常に要約にする、または要約にカードを残す",
         "recommended": "A",
         "provisional": "A",
@@ -331,7 +331,7 @@
         "target": "新しい経路の 9 分野の包み（full のとき、wire と cards と包みの欄）",
         "limit": 65536,
         "unit": "UTF-8 JSON bytes",
-        "scope": "全体が 1,048,576 を超えたとき、これを超えた分野を要約にする（今の規則、P4-DV-D-SUMMARY-RULE）。全体が 1,048,576 以下の間は超えても full のまま",
+        "scope": "全体が 1,048,576 を超えたとき、これを超えた分野を要約にする（今の規則、P4-DV-D-SUMMARY-RULE）。全体が 1,048,576 以下の間は超えても full のまま。P4-DISPLAY-CAPACITY-001 の配送で改めた: 超えた分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める（同契約の AC01）",
         "source": "表 §4.2・view-projector.ts:36"
       },
       {
@@ -347,7 +347,7 @@
         "target": "新しい経路の snapshot 全体（保護 3 分野・9 分野・通知・共通部）",
         "limit": 1048576,
         "unit": "UTF-8 JSON bytes",
-        "scope": "全公開の上界。全体が超えて要約にした後は 180,826 ＋ 9 × 65,536 ＋ 131,072 ＋ 65,536 ＝ 967,258 以下。全体の拒否は足さない（B0 の P4-DW-RES-03 を改める）",
+        "scope": "全公開の上界。全体が超えて要約にした後は 180,826 ＋ 9 × 65,536 ＋ 131,072 ＋ 65,536 ＝ 967,258 以下。全体の拒否は足さない（B0 の P4-DW-RES-03 を改める）。P4-DISPLAY-CAPACITY-001 の配送で改めた: 要約は決めた順に 1 つずつで全体が 1,048,576 以下になったら止まるので、要約にした後の上界も 1,048,576。967,258 は予算を越えた分野を全部要約にしたときだけ（同契約の AC01 (7)）",
         "source": "表 §4.1・p4-display-wire-max.mjs の newPath"
       },
       {
@@ -429,10 +429,10 @@
       },
       {
         "id": "P4-DV-AC04",
-        "requirement": "予算と要約（表 §4.1・§4.2、P4-DV-D-SUMMARY-RULE）: 9 分野の包みの byte は語彙の形の byte（表示差分のあった項目だけを数えて足し引き）で数え、カードを含める。新しい経路の snapshot の全体が 1,048,576 byte を超えたときだけ、包みが 65,536 byte を超えた 9 分野を要約にする（view-projector.ts:904〜:906 と同じ式）。保護 3 分野は要約にしない（H37）。要約は今の形（3,882 byte 以下、カードを持たない）。全公開は 1,048,576 以下、要約にした後は 180,826 ＋ 131,072 ＋ 65,536 ＋ 9 × 65,536 ＝ 967,258 以下なので、新しい経路に全体の拒否は足さない。要約の間の入口は分野ごとに: U-W は U-W の P3 の索引（既存の口・既存の URL）、U-F は U-F の P3 の索引（同）、U-N・U-V・U-L・U-R・U-B・U-M・U-Y は B0 の新しい経路の part=index（包みの contentRevision）で、9 分野の全部の項目に届く（表 §5.3、AC05）",
+        "requirement": "予算と要約（表 §4.1・§4.2、P4-DV-D-SUMMARY-RULE）: 9 分野の包みの byte は語彙の形の byte（表示差分のあった項目だけを数えて足し引き）で数え、カードを含める。新しい経路の snapshot の全体が 1,048,576 byte を超えたときだけ、包みが 65,536 byte を超えた 9 分野を要約にする（view-projector.ts:904〜:906 と同じ式）。P4-DISPLAY-CAPACITY-001 の配送で改めた: 超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める（同契約の AC01）。保護 3 分野は要約にしない（H37）。要約は今の形（3,882 byte 以下、カードを持たない）。全公開は 1,048,576 以下（予算を越えた分野を全部要約にしたときは 180,826 ＋ 131,072 ＋ 65,536 ＋ 9 × 65,536 ＝ 967,258 以下）なので、新しい経路に全体の拒否は足さない。要約の間の入口は分野ごとに: U-W は U-W の P3 の索引（既存の口・既存の URL）、U-F は U-F の P3 の索引（同）、U-N・U-V・U-L・U-R・U-B・U-M・U-Y は B0 の新しい経路の part=index（包みの contentRevision）で、9 分野の全部の項目に届く（表 §5.3、AC05）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:219 «ec4c91d75f2f87e6»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:226 «a66da1b8db5c8b3a»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:226 «eeaf79fd13e2deb3»",
           "reconstruction/contracts/p4-display-vocab-tables.md:28 «5145ba6548159173»",
           "reconstruction/contracts/p4-display-vocab-tables.md:270 «0a50cc1aafa3ad77»",
           "reconstruction/contracts/p4-display-vocab-tables.md:271 «fb7987bc16f98f93»",

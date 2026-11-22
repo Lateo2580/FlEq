@@ -1,10 +1,10 @@
 {
  "meta": {
   "draftedFromOid": "dc805187ce91949a66f62c9deaf60096b988bc20",
-  "sha256": "881b7279c3ca8b3f23ceeb489c0be9b8a2d4ef7bd5db6a29aab7e6310e6d9ad5",
+  "sha256": "131dc0ea697f82f2b9dc68f339fe7d4a434e6b4618e87f4b5ddd76cae4dafaf0",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
-  "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
+  "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
   "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
   "decisionBranches": [
    {
@@ -512,7 +512,7 @@
     "target": "新しい経路の snapshot 全体（保護 3 分野・通知・共通部）",
     "limit": 1048576,
     "unit": "UTF-8 JSON bytes",
-    "scope": "保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 377,434 で入るので、縮退の規則を持たない（AC01）。共通部は今の 65,536（P2-A8-RES-04、今の上界 49,443）。P4-DISPLAY-VOCAB-001 の後は 9 分野を足し、全体が 1 MiB を超えたときの 9 分野の要約の規則を持つ（同契約の P4-DV-RES-03 が改める）",
+    "scope": "保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 377,434 で入るので、縮退の規則を持たない（AC01）。共通部は今の 65,536（P2-A8-RES-04、今の上界 49,443）。P4-DISPLAY-VOCAB-001 の後は 9 分野を足し、全体が 1 MiB を超えたときの 9 分野の要約の規則を持つ（同契約の P4-DV-RES-03 が改める）。P4-DISPLAY-CAPACITY-001 の配送の後、その規則は B（包みが 65,536 を超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める、同契約の AC01）",
     "source": "表 §3.2・§12・script の newPath と common"
    }
   ],
