@@ -271,5 +271,5 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     expectMatchesReference(projection, reference({ state, outcomes: [], displayChanges: [],
       }, at, { connection: { state: "connected", disconnectedAt: null, lastInputAt } }));
     console.info(JSON.stringify({ test: "P2-A8-T06", ...report }));
-  }, 120_000);
+  }, 300_000); // 量った subject の数を見る試験で時間は見ない。CI は手元の 2〜3.5 倍かかり（2026-11-22 に 120 秒超で落ちた）、上限は止まったときの安全網にすぎない
 });
