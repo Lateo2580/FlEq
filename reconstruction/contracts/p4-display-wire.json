@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "dc805187ce91949a66f62c9deaf60096b988bc20",
-  "sha256": "cc3b8837faa29ee7e46011c285d8714f38354b1b5bbae408807da5a12ba96473",
+  "sha256": "881b7279c3ca8b3f23ceeb489c0be9b8a2d4ef7bd5db6a29aab7e6310e6d9ad5",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
   "sequencesSha256": "b56e6a9a1ff50f291bf219707a74b77973f8424169e5be15ea5afa2ca9c23de6",
@@ -93,7 +93,7 @@
     "provisional": "B",
     "status": "確定（統合担当の決め 2026-11-21 18:5x で A から B に改めた）",
     "ruling": "B（統合担当、2026-11-21 18:5x。2026-11-21 の A を改めた）",
-    "reason": "表 §7・§2.3。B0 の詳細の応答は分野ごとの DTO（今の view の該当の object、表 §2.2 の part の形）に固定し、境界型は分野の DTO の union で許可欄をそこに固定する（spec:1268）。改めた理由: 9 分野の語彙を外した（P4-DW-D-SCOPE-NARROW）ので、A（worker の側で表示語彙の行にして返す、R46）の返す形が決まらない（ヘルツの r3 のレビュー）。表示語彙の行への変換は B0 の後の別の契約で、それまで新しい描画は試験の client だけ"
+    "reason": "表 §7・§2.3。B0 の詳細の応答は分野ごとの DTO（今の view の該当の object、表 §2.2 の part の形）に固定し、境界型は分野の DTO の union で許可欄をそこに固定する（spec:1268）。改めた理由: 9 分野の語彙を外した（P4-DW-D-SCOPE-NARROW）ので、A（worker の側で表示語彙の行にして返す、R46）の返す形が決まらない（ヘルツの r3 のレビュー）。表示語彙の行への変換は B0 の後の別の契約で、それまで新しい描画は試験の client だけ。表示語彙の行への変換は P4-DISPLAY-VOCAB-001 が 9 分野の索引の項目と新しい part で行った（保護 3 分野の DTO は変えない、同契約の P4-DV-D-DETAIL-SCOPE）"
    },
    {
     "id": "P4-DW-D-QROW",
@@ -164,7 +164,7 @@
    {
     "id": "P4-DW-D-STRING-SOURCE",
     "kind": "統合担当",
-    "A": "表示用の文字列の上限（escape 後の byte）は B0 の display-wire.ts の上限の表 1 つを真実源にする（台帳 50）",
+    "A": "表示用の文字列の上限（escape 後の byte）は B0 の display-wire.ts の上限の表 1 つを真実源にする（台帳 50）（P4-DISPLAY-VOCAB-001 の後、表は display-vocab.ts に移り、display-wire.ts は同じ名で再 export する）",
     "B": "分野ごとに持つ",
     "recommended": "A",
     "provisional": "A",
@@ -186,7 +186,7 @@
    {
     "id": "P4-DW-D-SCOPE-NARROW",
     "kind": "統合担当",
-    "A": "B0 の新しい経路は保護 3 分野と今の型のままの共通部（connection・worker・persistence・recovery・channels・notices）だけにする。9 分野の語彙と H17・H39 の値は、B0 の後・Wave 3 の前に別の契約（名前は統合担当が決める）が display-wire.ts の直列で足し、display の版を上げる",
+    "A": "B0 の新しい経路は保護 3 分野と今の型のままの共通部（connection・worker・persistence・recovery・channels・notices）だけにする。9 分野の語彙と H17・H39 の値は、B0 の後・Wave 3 の前に別の契約（名前は統合担当が決める）が display-wire.ts の直列で足し、display の版を上げる（別の契約は P4-DISPLAY-VOCAB-001〔9 分野の語彙〕と P4-REMOVAL-LOSS-001〔H17・H39〕）",
     "B": "r1〜r2 のとおり 9 分野の語彙（単値の事実の行に写す）と H17・H39（outcome から消えた理由を読む、losses を詳細で読む）を B0 に入れる",
     "recommended": "A",
     "provisional": "A",
@@ -343,7 +343,7 @@
  "contract": {
   "contractId": "P4-DISPLAY-WIRE-001",
   "mode": "implementation",
-  "objective": "ブラウザへ送る表示の wire（保護 3 分野の表示の形・区域の規則・型と文字列の上限・合成 1 枚・今の型のままの共通部・詳細の要求と応答）を作り、保護 3 分野の型の最大が 262,144 byte 以下であることを試験で示して D-H37-EXPECT を閉じる（計画 §2.1 の B0、§4.1）。9 分野の語彙と H17・H39 の値は B0 の後の別の契約（P4-DW-D-SCOPE-NARROW）。真実源は表 reconstruction/contracts/p4-display-wire-tables.md と script reconstruction/contracts/p4-display-wire-max.mjs。計画の同期は統合担当",
+  "objective": "ブラウザへ送る表示の wire（保護 3 分野の表示の形・区域の規則・型と文字列の上限・合成 1 枚・今の型のままの共通部・詳細の要求と応答）を作り、保護 3 分野の型の最大が 262,144 byte 以下であることを試験で示して D-H37-EXPECT を閉じる（計画 §2.1 の B0、§4.1）。9 分野の語彙と H17・H39 の値は B0 の後の別の契約（P4-DW-D-SCOPE-NARROW）。真実源は表 reconstruction/contracts/p4-display-wire-tables.md と script reconstruction/contracts/p4-display-wire-max.mjs。計画の同期は統合担当。9 分野の語彙と詳細の語彙は P4-DISPLAY-VOCAB-001 が足し、display の版を v2 にした（同契約の AC01・AC07）",
   "baseOid": "cee96025b244fd5c0e5cb8a71d02af6e3d9a48dd",
   "cleanTreeRequired": true,
   "readPaths": [
@@ -512,7 +512,7 @@
     "target": "新しい経路の snapshot 全体（保護 3 分野・通知・共通部）",
     "limit": 1048576,
     "unit": "UTF-8 JSON bytes",
-    "scope": "保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 377,434 で入るので、縮退の規則を持たない（AC01）。共通部は今の 65,536（P2-A8-RES-04、今の上界 49,443）",
+    "scope": "保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 377,434 で入るので、縮退の規則を持たない（AC01）。共通部は今の 65,536（P2-A8-RES-04、今の上界 49,443）。P4-DISPLAY-VOCAB-001 の後は 9 分野を足し、全体が 1 MiB を超えたときの 9 分野の要約の規則を持つ（同契約の P4-DV-RES-03 が改める）",
     "source": "表 §3.2・§12・script の newPath と common"
    }
   ],
@@ -531,7 +531,7 @@
   ],
   "outOfScope": [
    "台帳 98（Intensity の無い EEW を受ける直し、eew.ts:191・:195・:201・:628〜:638 と p2-eew-unit.json の familyTable の required）: 別の小さい契約。eew.ts を触る順は B0 → 台帳 98 の契約 → E0 発注 1（表 §9、dependsOn は契約ができてから統合担当が足す）",
-   "9 分野の表示語彙と H17・H39 の値（退去の理由・件数の不明・通知の結果の不明）と H11 の画面のお知らせの値と、詳細の応答を表示語彙の行に変えること（P4-DW-D-DETAIL-PAYLOAD=B）: B0 の後・Wave 3 の前の別の契約（名前は統合担当が決める）が display-wire.ts の直列で足し、display の版を上げる（P4-DW-D-SCOPE-NARROW、表 §3.2）",
+   "9 分野の表示語彙と H17・H39 の値（退去の理由・件数の不明・通知の結果の不明）と H11 の画面のお知らせの値と、詳細の応答を表示語彙の行に変えること（P4-DW-D-DETAIL-PAYLOAD=B）: B0 の後・Wave 3 の前の別の契約（名前は統合担当が決める）が display-wire.ts の直列で足し、display の版を上げる（P4-DW-D-SCOPE-NARROW、表 §3.2） → P4-DISPLAY-VOCAB-001（9 分野の語彙と詳細の語彙）と P4-REMOVAL-LOSS-001（H17・H39）",
    "U-M の地震の解説の本文の part（TransientCurrent に本文の欄が無い。計画:177 の行の契約の仕事、r5 で外した）",
    "B1（P4-DISPLAY-CAPACITY-001）: 落ちる順・残す順位・要約にする判定・分野の予算の配り方・公開頻度の上限・遅い客の切断",
    "S0・各カードの契約: 配置・色・px・描画。詳細を取りに行く時（P4-DW-D-TSUNAMI-DETAIL=A のページ送りの取得は S0・T0）",
@@ -545,11 +545,11 @@
   "acceptanceChecks": [
    {
     "id": "P4-DW-AC01",
-    "requirement": "表示の形と新しい経路（P4-DW-D-LEGACY=A・P4-DW-D-SCOPE-NARROW=A）: B0 は新しい file（reconstruction/contracts/p4-display-wire.types.ts・reconstruction/src/view-projector/display-wire.ts）に保護 3 分野の表示の形と射影を置き、新しい SSE の経路で display だけの、保護 3 分野と共通部の snapshot を配る。保護 3 分野は表 §1（AC02〜AC04）、共通部は今の snapshot の型の形のまま（connection・worker・persistence・recovery・channels・notices と版の欄、表 §12）。9 分野と H17・H39 の値は載せない（B0 の後の別の契約が足し、display の版を上げる）。上界は 377,434（RES-03）で、縮退の規則を持たない。新しい snapshot に旧の current.<分野>.view を入れない。公開の判定は経路ごとに独立にする: 新しい射影は自分の前の snapshot と比べて変わったときだけ公開し、旧の projector の projected・unchanged・rejected に依らない（composition-root.ts の :986 で新しい射影を呼び、:992 で公開する。旧の公開 :997 は旧の projected の分岐 :993 の内側のまま、表 §3.2）。旧 /events は今の projector の出力のまま変えない（p2-snapshot-sse.types.ts・view-projector.ts は T0 まで変えない）。新しい描画の骨組みを別の path に出す最小の経路を http-sse.ts に作る（計画:229）。display の版が自分の版でないときは未知の payload を描かず非対応を出す（spec §8.3）",
+    "requirement": "表示の形と新しい経路（P4-DW-D-LEGACY=A・P4-DW-D-SCOPE-NARROW=A）: B0 は新しい file（reconstruction/contracts/p4-display-wire.types.ts・reconstruction/src/view-projector/display-wire.ts）に保護 3 分野の表示の形と射影を置き、新しい SSE の経路で display だけの、保護 3 分野と共通部の snapshot を配る。保護 3 分野は表 §1（AC02〜AC04）、共通部は今の snapshot の型の形のまま（connection・worker・persistence・recovery・channels・notices と版の欄、表 §12）。9 分野と H17・H39 の値は載せない（B0 の後の別の契約が足し、display の版を上げる）。上界は 377,434（RES-03）で、縮退の規則を持たない。新しい snapshot に旧の current.<分野>.view を入れない。公開の判定は経路ごとに独立にする: 新しい射影は自分の前の snapshot と比べて変わったときだけ公開し、旧の projector の projected・unchanged・rejected に依らない（composition-root.ts の :986 で新しい射影を呼び、:992 で公開する。旧の公開 :997 は旧の projected の分岐 :993 の内側のまま、表 §3.2）。旧 /events は今の projector の出力のまま変えない（p2-snapshot-sse.types.ts・view-projector.ts は T0 まで変えない）。新しい描画の骨組みを別の path に出す最小の経路を http-sse.ts に作る（計画:229）。display の版が自分の版でないときは未知の payload を描かず非対応を出す（spec §8.3）。P4-DISPLAY-VOCAB-001 の後、新しい経路は 12 分野を載せ、版は v2（同契約の AC01）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:206 «6e4d7b2c0fd08346»",
+     "reconstruction/contracts/p4-display-wire-tables.md:206 «d43239ea9990a271»",
      "reconstruction/contracts/p4-display-wire-tables.md:207 «ad8ac38c0b21ff66»",
-     "reconstruction/contracts/p4-display-wire-tables.md:215 «0acee327769d07df»",
+     "reconstruction/contracts/p4-display-wire-tables.md:215 «c1df82f2e8b78660»",
      "reconstruction/contracts/p4-display-wire-tables.md:432 «94b21dc900de3a5f»",
      "reconstruction/contracts/p4-order-plan.md:111 «152f2c3d7f56b71d»"
     ]
@@ -620,7 +620,7 @@
    },
    {
     "id": "P4-DW-AC08",
-    "requirement": "詳細の要求・応答・ページ（表 §2、配送済みの形に倣う）: 新しい part（U-E の areas、U-T の index・areas・stations・comment、U-Q の index・event、U-N・U-V・U-M の index、U-L・U-R・U-B・U-Y の index、読めない報のカードの raw）は、U-W の索引とページ（1 ページの件数を固定し、HTTP の本文を wrapper 込みで加算して数え、入らない項目は { index, reason: \"pageBudget\" } で省く、P3-UWC-AC06 (3)・P3-UWC-RES-05）と U-V・U-N の本文 1 件の形に倣う。要求は unit・part・id・revision・page（operation は id の sha256 に入るので要求に持たない。U-W の要求と同じ。索引の項目には operation を載せる）。id は sha256(JSON.stringify([unit, operation, subject])) の hex、rev はその part が返す view の object の JSON.stringify の sha256 の hex（返す内容が変われば変わる。読めない報のカードの raw だけは例外で id＝inputId・rev＝receivedAt、原文が外れたかは応答の rawDropped・rawCut で返す）。索引は分野の contentRevision で照合する。参照は part ごとに表 §2.3 の形のどれか 1 つで、混ぜない: view の object を返す part（U-E の areas、U-T の areas・stations・comment、U-Q の event、U-L・U-R・U-B・U-Y の項目）は id＝sha256・rev＝object の JSON の sha256。各分野の index は id を持たず revision＝分野の contentRevision。U-N・U-V の本文は配送済みの口のまま id＝view の生の subject・revision＝source の三つ組の JSON 配列の字（spec:1339 の 4）で、U-N・U-V の index の項目はこの id と revision をそのまま載せる（hash にしない）。U-M の本文の part は足さない（TransientCurrent に本文の欄が無く、計画:177 の行の契約の仕事）。U-Q の event の応答は、見出しの欄が 1 応答に入らないとき、その欄の値を外して欄の名を omittedFields に挙げる。長周期の見出しの ref も event の part で開く。応答の payload は分野ごとの DTO（今の view の該当の object、表 §2.2 の part の形）に固定し、表示語彙の行には変えない（P4-DW-D-DETAIL-PAYLOAD=B。変換は B0 の後の別の契約）。境界型は分野の DTO の union で、許可欄はそこに固定する（spec:1268）。本文の全体（streamId と wrapper 込み）が 65,536 byte を越えたら、返す直前に 503 と { streamId, kind: \"error\", reason: \"responseTooLarge\", revision: null } を返し、200 にしない。これは HTTP の層だけの応答で、worker との境界型 WireDetailResponse には足さない（P4-DW-D-RESPONSE-TOO-LARGE、境界の許可欄 spec:1268 を広げない最後の守り）。版が違えば 409 versionChanged、対象が消えていれば revision: null。要約になった U-N・U-V・U-M は part=index で最初の要求を組む。B0 は p3-execution-split.types.ts の detail・detailDone、composition-root.ts の DetailRequest・DetailResponse、http-sse.ts の DetailPort、owner-runtime.ts の detailOwner の union を全部作り、C1 は触らない。通常合法 corpus の全ページで省略 0 件（spec:1341、P3-UFP-T08 の前例）",
+    "requirement": "詳細の要求・応答・ページ（表 §2、配送済みの形に倣う）: 新しい part（U-E の areas、U-T の index・areas・stations・comment、U-Q の index・event、U-N・U-V・U-M の index、U-L・U-R・U-B・U-Y の index、読めない報のカードの raw）は、U-W の索引とページ（1 ページの件数を固定し、HTTP の本文を wrapper 込みで加算して数え、入らない項目は { index, reason: \"pageBudget\" } で省く、P3-UWC-AC06 (3)・P3-UWC-RES-05）と U-V・U-N の本文 1 件の形に倣う。要求は unit・part・id・revision・page（operation は id の sha256 に入るので要求に持たない。U-W の要求と同じ。索引の項目には operation を載せる）。id は sha256(JSON.stringify([unit, operation, subject])) の hex、rev はその part が返す view の object の JSON.stringify の sha256 の hex（返す内容が変われば変わる。読めない報のカードの raw だけは例外で id＝inputId・rev＝receivedAt、原文が外れたかは応答の rawDropped・rawCut で返す）。索引は分野の contentRevision で照合する。参照は part ごとに表 §2.3 の形のどれか 1 つで、混ぜない: view の object を返す part（U-E の areas、U-T の areas・stations・comment、U-Q の event、U-L・U-R・U-B・U-Y の項目）は id＝sha256・rev＝object の JSON の sha256。各分野の index は id を持たず revision＝分野の contentRevision。U-N・U-V の本文は配送済みの口のまま id＝view の生の subject・revision＝source の三つ組の JSON 配列の字（spec:1339 の 4）で、U-N・U-V の index の項目はこの id と revision をそのまま載せる（hash にしない）。U-M の本文の part は足さない（TransientCurrent に本文の欄が無く、計画:177 の行の契約の仕事）。U-Q の event の応答は、見出しの欄が 1 応答に入らないとき、その欄の値を外して欄の名を omittedFields に挙げる。長周期の見出しの ref も event の part で開く。応答の payload は分野ごとの DTO（今の view の該当の object、表 §2.2 の part の形）に固定し、表示語彙の行には変えない（P4-DW-D-DETAIL-PAYLOAD=B。変換は B0 の後の別の契約）。境界型は分野の DTO の union で、許可欄はそこに固定する（spec:1268）。本文の全体（streamId と wrapper 込み）が 65,536 byte を越えたら、返す直前に 503 と { streamId, kind: \"error\", reason: \"responseTooLarge\", revision: null } を返し、200 にしない。これは HTTP の層だけの応答で、worker との境界型 WireDetailResponse には足さない（P4-DW-D-RESPONSE-TOO-LARGE、境界の許可欄 spec:1268 を広げない最後の守り）。版が違えば 409 versionChanged、対象が消えていれば revision: null。要約になった U-N・U-V・U-M は part=index で最初の要求を組む。B0 は p3-execution-split.types.ts の detail・detailDone、composition-root.ts の DetailRequest・DetailResponse、http-sse.ts の DetailPort、owner-runtime.ts の detailOwner の union を全部作り、C1 は触らない。通常合法 corpus の全ページで省略 0 件（spec:1341、P3-UFP-T08 の前例）。9 分野の索引の項目と part=item・unreadable は P4-DISPLAY-VOCAB-001 が表示語彙に変えた（同契約の AC05・AC12）",
     "evidenceRefs": [
      "reconstruction/contracts/p4-display-wire-tables.md:155 «1b9b2ba4815612dd»",
      "reconstruction/contracts/p4-display-wire-tables.md:159 «cbdcc44767094613»",
@@ -628,7 +628,7 @@
      "reconstruction/contracts/p4-display-wire-tables.md:165 «206dc9e982eeeb03»",
      "reconstruction/src/units/weather-current/weather-current-public.ts:293 «79073a96e6013c8a»",
      "docs/specs/reconstruction-p0-contracts.md:1341 «2a86d7b2b42bba77»",
-     "reconstruction/contracts/p4-display-wire-tables.md:192 «186d653077272e2e»"
+     "reconstruction/contracts/p4-display-wire-tables.md:192 «920abe155d5d1222»"
     ]
    },
    {
@@ -756,7 +756,7 @@
     "referenceIds": [
      "P4-DW-AC01"
     ],
-    "behavior": "受入条件（新しい経路）。新しい経路の snapshot が保護 3 分野と共通部を 1 通に持ち、current の下に旧の view の鍵も 9 分野も無い。/events の本文は同じ入力の projectSnapshot の出力と byte まで同じ。試験の client は版の違う snapshot を描かず非対応を出す。震源名だけが変わる EEW の続報では、旧が要約の間でも両経路とも公開する（contentRevision が進み旧の要約にも載る）。公開の判定の独立は境界の試験で確かめる: 旧の projector の戻り値を unchanged に固定しても、新しい経路は自分の前の snapshot との差分で公開する。新しい経路の snapshot が変わらない step では、旧が projected でも新しい経路は公開しない"
+    "behavior": "受入条件（新しい経路）。新しい経路の snapshot が保護 3 分野と共通部を 1 通に持ち、current の下に旧の view の鍵も 9 分野も無い。/events の本文は同じ入力の projectSnapshot の出力と byte まで同じ。試験の client は版の違う snapshot を描かず非対応を出す。震源名だけが変わる EEW の続報では、旧が要約の間でも両経路とも公開する（contentRevision が進み旧の要約にも載る）。公開の判定の独立は境界の試験で確かめる: 旧の projector の戻り値を unchanged に固定しても、新しい経路は自分の前の snapshot との差分で公開する。新しい経路の snapshot が変わらない step では、旧が projected でも新しい経路は公開しない（P4-DISPLAY-VOCAB-001 の後は 9 分野も載り、試験は同契約の AC07 (3) の形に改めた）"
    },
    {
     "testId": "P4-DW-T09",

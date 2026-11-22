@@ -174,9 +174,9 @@ owner は、表示差分があるか内容版が変わったときだけ view �
 | earthquake（U-Q） | 索引は U-W の `index`、震度の要素は U-W の `areas` | part は `index`・`event`（震度の要素と既知でない区域。U-Q の既知でない区域を読む part は `event` だけで、`areas` は置かない）。rev は event の object の JSON の sha256（§2.1）。r11: 長周期の見出しの `ref` も `event` の part で開く。`event` の応答は、見出しの欄が 1 応答に入らないとき、その欄の値を外して欄の名を `omittedFields` に挙げる | 要約にしない（H37） | seismic | C0 発注 2。行から開く操作 |
 | weatherCurrent（U-W） | 既存（P3-UW-CANON-001） | 無し | 既存（`part=index`・`revision=contentRevision`） | weatherCurrent | C0 |
 | weatherTimeseries（U-F） | 既存（P3-UF-PUBLIC-001） | 無し | 既存 | deferred | C1 |
-| nankai・volcano（U-N・U-V） | 本文は既存（P3-BULLETIN-TEXT-API-001）、索引は U-W の `index` | `part=index` を足す（要約に subject が無いため。subject と revision の組 約 170 byte × 64 件で要約 4 KiB に入らない、`nankai-unit.ts:31`・`volcano-unit.ts:35`） | `part=index`・`revision=contentRevision`・`page` | urgent | C1（C1-1） |
-| localBulletins（U-M） | 索引は U-W の `index` | part は `index` だけ。本文の part は B0 で足さない（r11: TransientCurrent に本文の欄が無く、地震の解説の本文は計画:177 の行の契約の仕事） | 同上 | deferred | C1 |
-| landslide・flood・briefing・typhoon | 索引は U-W の `index`、項目は U-W の `areas` | 項目は今の view の現況の要素 | 同上 | deferred | C1。要約の「詳細は個別取得」から（spec:1330） |
+| nankai・volcano（U-N・U-V） | 本文は既存（P3-BULLETIN-TEXT-API-001）、索引は U-W の `index` | `part=index` を足す（要約に subject が無いため。subject と revision の組 約 170 byte × 64 件で要約 4 KiB に入らない、`nankai-unit.ts:31`・`volcano-unit.ts:35`） | `part=index`・`revision=contentRevision`・`page` | urgent | C1（C1-1）（P4-DISPLAY-VOCAB-001 の後: 9 分野の索引の項目と part=item・unreadable は表示語彙。同契約の表 §5） |
+| localBulletins（U-M） | 索引は U-W の `index` | part は `index` だけ。本文の part は B0 で足さない（r11: TransientCurrent に本文の欄が無く、地震の解説の本文は計画:177 の行の契約の仕事） | 同上 | deferred | C1（P4-DISPLAY-VOCAB-001 の後: 9 分野の索引の項目と part=item・unreadable は表示語彙。同契約の表 §5） |
+| landslide・flood・briefing・typhoon | 索引は U-W の `index`、項目は U-W の `areas` | 項目は今の view の現況の要素 | 同上 | deferred | C1。要約の「詳細は個別取得」から（spec:1330）（P4-DISPLAY-VOCAB-001 の後: 9 分野の索引の項目と part=item・unreadable は表示語彙。同契約の表 §5） |
 | 読めない報のカード | U-V・U-N の本文 1 件 | `raw`（§2.1 の rev の共通規則の例外: id＝カードの inputId、rev＝`receivedAt`）。カードは inputId と受信時刻で 1 枚に決まり、原文が器の都合で外れたかは応答の中の `rawDropped`・`rawCut` で返す（版の不一致にしない）。原文は 16,382 byte まで（`checkpoint.ts:688`）で 1 応答に入る | — | そのカードの unit の owner | C2。操作 |
 
 urgent の場所の詳細は、開始済みの射影の非中断区間も E01 の負荷条件に含める（spec:1288）。
@@ -187,9 +187,9 @@ urgent の場所の詳細は、開始済みの射影の非中断区間も E01 �
 
 | part | id | revision | 参照を持つ所 |
 |---|---|---|---|
-| U-E の `areas`、U-T の `areas`・`stations`・`comment`、U-Q の `event`（長周期の見出しの `ref` もここで開く、r11）、U-L・U-R・U-B・U-Y の項目 | sha256(JSON.stringify([unit, operation, subject])) の hex | その part が返す view の object の JSON の sha256 の hex（§2.1） | snapshot のカード・見出し・行の `ref`（保護 3 分野）、索引の項目（U-L・U-R・U-B・U-Y） |
+| U-E の `areas`、U-T の `areas`・`stations`・`comment`、U-Q の `event`（長周期の見出しの `ref` もここで開く、r11）、U-L・U-R・U-B・U-Y の項目 | sha256(JSON.stringify([unit, operation, subject])) の hex | その part が返す view の object の JSON の sha256 の hex（§2.1） | snapshot のカード・見出し・行の `ref`（保護 3 分野）、索引の項目（U-L・U-R・U-B・U-Y）（P4-DISPLAY-VOCAB-001 の後: 9 分野の索引の項目と part=item・unreadable は表示語彙。同契約の表 §5） |
 | 各分野の `index`（U-T・U-Q・U-N・U-V・U-M・U-L・U-R・U-B・U-Y） | 持たない | 分野の contentRevision（U-W・U-F の index と同じ） | 分野の包みの contentRevision |
-| U-N・U-V の本文 `text`（P3-BULLETIN-TEXT-API-001。U-M の本文は B0 で足さない、r11） | view の生の subject | view の source の inputId・reportDateTimeRaw・controlDateTimeRaw を順に並べた JSON 配列の字（spec:1339 の 4、`p3-bulletin-text-api.types.ts:3`〜`:7`） | U-N・U-V の `index` の項目が、この id と revision をそのまま載せる（hash にしない） |
+| U-N・U-V の本文 `text`（P3-BULLETIN-TEXT-API-001。U-M の本文は B0 で足さない、r11） | view の生の subject | view の source の inputId・reportDateTimeRaw・controlDateTimeRaw を順に並べた JSON 配列の字（spec:1339 の 4、`p3-bulletin-text-api.types.ts:3`〜`:7`） | U-N・U-V の `index` の項目が、この id と revision をそのまま載せる（hash にしない）（P4-DISPLAY-VOCAB-001 の後: 9 分野の索引の項目と part=item・unreadable は表示語彙。同契約の表 §5） |
 | 読めない報のカードの `raw` | カードの inputId | `receivedAt` | カードの欄 |
 | U-W・U-F の既存の part | 今のまま（P3-UW-CANON-001・P3-UF-PUBLIC-001） | 今のまま | 今のまま |
 
@@ -203,7 +203,7 @@ urgent の場所の詳細は、開始済みの射影の非中断区間も E01 �
 
 ### 3.2 移行中（B0〜T0）: SSE を分ける（I-B0-LEGACY=A）
 
-- 旧 `/events` は今の projector の出力のまま。新しい描画は新しい経路で `display` だけの snapshot を受ける。1 MiB の判定は経路ごと。旧は今の規則。新は保護 3 分野と共通部だけで、上界 377,434（保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536、script の newPath）が 1 MiB に入るので縮退の規則を持たない。保護 3 分野は要約にしない（H37）。
+- 旧 `/events` は今の projector の出力のまま。新しい描画は新しい経路で `display` だけの snapshot を受ける。1 MiB の判定は経路ごと。旧は今の規則。新は保護 3 分野と共通部だけで、上界 377,434（保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536、script の newPath）が 1 MiB に入るので縮退の規則を持たない。保護 3 分野は要約にしない（H37）。（P4-DISPLAY-VOCAB-001 の後は 9 分野を足し、全体が 1 MiB を超えたら 9 分野を要約にする。同契約の P4-DV-RES-03・表 §4）
 - 公開の判定は経路ごとに独立（r8、ヘルツの r2 のレビュー）。旧の公開（`composition-root.ts:997`）は旧の projector の projected の分岐（:993、`view-projector.ts:927`）の内側にあり、旧の snapshot が同じなら unchanged で公開しない。新しい射影は自分の前の snapshot と比べて変わったときだけ公開し、旧の projected・unchanged・rejected に依らない。新しい射影を呼ぶのは :986 の行の中、新しい経路への公開は :992 の行の中（旧の projected の分岐の外）。例: 震源名だけが変わる EEW の続報では、表示差分で U-E の contentRevision が進み（`eew-unit.ts:322`）、旧の要約にも載る（`view-projector.ts:753`・`:763`・`:887`・`:927`）ので、旧が要約の間でも両経路とも公開する（r9 で直した。r8 の「旧は unchanged」は起きない）。独立は、旧の projector の戻り値を unchanged に固定した境界の試験で確かめる（新しい経路は自分の前の snapshot との差分で公開する）。
 - 旧画面と runner の保証は今と同じ規則（全体超過のとき予算超過の旧分野を要約）。B0 が旧 view に欄を足す（§4 の EEW・地震の行など）ので、C4・C6 の manifest で旧 full が予算に入ることは B0 で数え直す（ヘルツの証拠不足）。
 - 費用: 公開ごとに射影と直列化が経路ごとに 1 回ずつ、計 2 回。これは配送済みの P2-A8-COST（`p2-snapshot-sse.json:99`「最終配送 JSON ≤ 1 MiB の直列化は一公開につき 1 回」）とぶつかるので、§4 で移行中の例外として改める。
@@ -212,7 +212,7 @@ urgent の場所の詳細は、開始済みの射影の非中断区間も E01 �
 | 配送 | 読める組 | 製品の入口 `/` | 旧の経路 |
 |---|---|---|---|
 | B0 | 旧 → chrome-eew、`display-wire.ts` → 新しい描画（S0 までは試験の client だけ） | chrome-eew | 今のまま |
-| B0 の後・Wave 3 の前（別の契約、名前は統合担当が決める） | 同上。9 分野の語彙と H17・H39 の値を `display-wire.ts` の直列で足し、display の版を上げる（新しい描画は版の違う snapshot を描かない、AC01） | chrome-eew | 今のまま |
+| B0 の後・Wave 3 の前（別の契約、名前は統合担当が決める） | 同上。9 分野の語彙と H17・H39 の値を `display-wire.ts` の直列で足し、display の版を上げる（新しい描画は版の違う snapshot を描かない、AC01） | chrome-eew | 今のまま（P4-DISPLAY-VOCAB-001 が 9 分野の語彙を足して版を v2 にした。H17・H39 は P4-REMOVAL-LOSS-001） |
 | B1・S0・E0 発注 2 | 同上。EEW の runner は E0 発注 2 で新しい描画へ | chrome-eew | 今のまま |
 | T0 | 新しい描画だけ | 新しい描画 | 旧の経路・旧の出力を消し、`schemaVersion` を上げ、chrome-eew の path を外す。直列化は 1 回に戻る |
 | FG | 同上 | 同上 | 旧の資材・設定・anchor を消すだけ |
