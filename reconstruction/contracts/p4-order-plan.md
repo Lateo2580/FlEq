@@ -191,7 +191,7 @@ Wave 0（起草だけ）: B1 の容量の設計の最初の 1 手（受理・保
 Wave 1: G0 発注 1（既知コードの表）→ B0 実装 ∥ G0 発注 2（形。発注 1 の後）∥ W0（配送済み、main ad640c6b）
 Wave 2: B1 実装（B0・P4-DISPLAY-VOCAB-001 の後、`display-wire.ts` と `http-sse.ts` の直列。P4-REMOVAL-LOSS-001 の後、P4-RL-D-ORDER=A で確定 2026-11-22）∥ S0（B0・裁定・表示設計 spec の後）∥ S1 の起草 ∥ P4-DISPLAY-VOCAB-001（9 分野の語彙、B0 の後・Wave 3 の前）→ P4-REMOVAL-LOSS-001（H17・H39、12 unit の reducer、分岐 10 は 2026-11-22 に全部確定、r1 の後にレビュー）∥ P4-TSUNAMI-MULTI-EVENT-001（津波の EventID の並び、P4-TME-D-IDENTITY=A で直列の外で先に、r0 はレビューへ）∥ P4-EEW-NO-INTENSITY-001（済み）
 Wave 3: M0 発注 1（S0・G0 発注 2）∥ E0 発注 1（S0・P4-EEW-NO-INTENSITY-001）∥ C0 発注 1（S0）∥ C2（S0・B0）
-Wave 4: PI 発注 1（S0・M0 発注 1・E0 発注 1。段 1 は B0 の二重の射影の下で走るので、公開の費用に依る値は段 1 で決めない、B0 の表 §3.2）→ S1 実装（N15 と受信演出の camera の規則の後）∥ N0（E0 発注 1 の後。U-Q・U-T の file を B0・E0 発注 1 の後に触る）→ R0（G0・C0 発注 1・E0 発注 1・N0。CLI の file を N0 の後に触る）
+Wave 4: PI 発注 1（S0・M0 発注 1・E0 発注 1。段 1 は B0 の二重の射影（P4-DISPLAY-VOCAB-001 の後は 12 分野の projectDomain も旧と新で 2 回、P4-DV-D-DOUBLE-PROJECTION）の下で走るので、公開の費用に依る値は段 1 で決めない、B0 の表 §3.2）→ S1 実装（N15 と受信演出の camera の規則の後）∥ N0（E0 発注 1 の後。U-Q・U-T の file を B0・E0 発注 1 の後に触る）→ R0（G0・C0 発注 1・E0 発注 1・N0。CLI の file を N0 の後に触る）
 Wave 5: M0 発注 2（S1・PI 発注 1）∥ E0 発注 2（M0 発注 1・S1。新しい画面を別の path に出し、EEW の runner を向ける）∥ C0 発注 2（S1・M0 発注 1）∥ C1（C0 の後、分野ごとに並べる）∥ X0 の場面の行を取る仕組み
 Wave 6: T0（E0 発注 2・M0 発注 2・N0。`/` を新しい画面へ切り替え、津波の runner を移し、旧の経路と旧の出力を消して `schemaVersion` を上げる）
 Wave 7: PI 発注 2（T0・S1・M0 発注 2・C0・C2・R0）→ PM 発注 1（予備測定 → manifest の凍結）→ PM 発注 2（正式測定）∥ X0 の歩きの検収（T0・C1・C2 の後）→ FG
@@ -322,7 +322,7 @@ B1 は次を条文と表に書く（B1 が持つのは落ちる順・残す順�
    - 通常の更新の最大の待ちを条文に書く。
 5. 遅い客の切断: 今は drain のたびに詰まりの始まりが消える（`http-sse.ts:115`〜`:120` の `blockedSinceMonotonicMs: null`）ので、慢性的に遅い客を切れない。
    - 詰まりの始まりを drain で消さない形にするかを B1 で決める（O11:6）。
-6. 通常合法最大の manifest（E13a）に、U-T の観測の最大、U-E の複数 EventID、他分野との同時最大、運用区分の混在を入れる（spec:2065）。
+6. 通常合法最大の manifest（E13a）に、U-T の観測の最大、U-E の複数 EventID、他分野との同時最大、運用区分の混在を入れる（spec:2065）。9 分野の 1 件の最悪（U-Y の probability を unit の上限まで埋めた形など）を入れるかも決める: 入れるなら P4-DV-D-ITEM-OVERSIZE=A は spec:1341 で受入不可になり B に替える（P4-DISPLAY-VOCAB-001 の同分岐の reason と表 §12.3）。
 7. 意図して上限を超える筋書き（O09:21 と津波 5 本）の期待は、§5.1 の P4-PLAN-D-H37-EXPECT の答えに従う。
    通常合法最大・他分野の要約中・対象自身の意図した超過・津波との同時を、別の行として manifest に書く。
 
