@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "d7f2a13d37986f4cb9b837bfe8b19f8c2636a4ae8a9fb67f38b634d759ba3449",
+    "sha256": "5c52d00a53449c5a5a405056482649ef14c0a0d15d4cbb8414313ba661b24266",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -197,7 +197,7 @@
         "requirement": "【発注 3】演じ手の画面を新しい描画の行に替える（P4-PLAN-D-WALK-SCREEN=A）。着手条件: S0 の配送で行の関数が export されている（Q-PWT3-ROWS-FN）、E0 発注 1・C0 発注 1 の配送、D-PAGE・D-MAP の裁定: (1) runner.ts の SceneLog.capture は、その時刻の snapshot 全体を SceneCapture に渡す（場面の口だけ。formal の run の本体を変えない） (2) persona-scenes.test.ts の actorFile は、screen の代わりに、行の関数を snapshot・場面の時刻・ページ（D-PAGE）で呼んで返った行を渡す。地図は D-MAP。どのページにも載らない行・要約で畳まれた行・隠れた行は渡さない。返った行を写すだけで、組み直しや表示の条件の写しはしない（条件を写して揃えると 2 巡続けて別の行が欠けた、ヘルツ thread 01a1ed15 の r1・r2）。発注 3 の時点で行の関数が描かない分野（津波・C1 の分野・C2 の状態）は、関数が返すままにする（場面の口で補わない） (3) 評価者の file は今の fullScreen と facts のまま (4) 引く: runner.ts の screenOf と、それだけが使う定義（screenValue・SCREEN_LIMITS・ORDER ほか）、persona-scenes.test.ts の actorScreen と 3b3 の (i)〜(iii)（screenOf を確かめる試験）。P4-PWT-T05 は、1 つ目の期待（起動の確認が製品どおりに外れる、今は演じ手の画面の current の delivery・items を読む）を評価者の fullScreen（fullScreen.current の各分野の items の同じ 3 欄）から読む形に替え、外すのは演じ手の画面に 3 欄が写る期待だけにする（既存の試験の期待を変える理由: D-WALK-SCREEN=A で演じ手の画面が snapshot の写しでなくなる）。帳簿 W1-06-03#4（洪水の水位を ORDER の無い古い側 5 件で切る）はこの削除で消える (5) 照合（D-MATCH=A）は配送で統合担当が行う。裁定 A の字は『描画の関数を capture の時点で呼ぶ』（p4-order-plan.md:613）で、本契約は capture で snapshot を持たせ actorFile で関数を呼ぶ。同じ snapshot・同じ時刻で呼ぶので返る行は同じ。無いと: 演じ手は製品が見せない training・test の行と確認の欄を見て、製品が描く容量超過の行を見ない（バックログ『ペルソナ歩きの演じ手の画面を、製品の描画に揃える』、chrome-eew は client.ts で要約・容量超過・確認状態の行を絞って描く）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-order-plan.md:613 «20fc32e9278e539a»",
-          "reconstruction/contracts/p4-order-plan.md:195 «71bfa9c95ace266d»",
+          "reconstruction/contracts/p4-order-plan.md:195 «6580cfdf2d3ad7fb»",
           "reconstruction/test/disaster/runner.ts:810 «abc2216e2d0eaee3»",
           "reconstruction/test/disaster/runner.ts:729 «7f3e4a2f71a09085»",
           "reconstruction/test/disaster/runner.ts:680 «e172a8b969f21df8»",
