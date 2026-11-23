@@ -383,7 +383,7 @@ README:93 は「どの部品も bundle.css の共通のスタイルから値を�
 - DS-CSS-03 震度の札 `fx-int`: 96×72、字 38px・700、角 `radius-chip`。`is-small` 72×44・30px、`is-large` 220×140・100px・角 `radius-card`、`is-mid` は大きさを変えず（96×72）字 48px・角 `radius-card`、`is-xs` 64×40・30px（bundle.css:16〜:20）。
 - DS-CSS-04 震度の札の縁: 7 は 6px の `int-7-edge`（`is-small`・`is-xs` 4px、`is-large` 10px）、6強と 3 は 2px の `line`。取消 `is-cancel` は `cancel` の面で字 32px。`is-pending` は面なし・字 `ink`・3px の破線 `ink-muted`・字 30px（bundle.css:22〜:35）。
 - DS-CSS-05 警戒レベルの札 `fx-lv`: `chip-level`×48、字 30px・700。lv5 と lv4 は字 `ink` と 2px の `line` の縁（bundle.css:38〜:42）。
-- DS-CSS-06 今日の地震の行: 札と字の間 `space-4`。右側は縦に並べ、間は `space-1`。震源 32px・700（長い名前は 30px）。2 行目は補足と時刻を両端に寄せ、入らないときは時刻を次の行の右へ落とす（flex-wrap、時刻は折らない）。津波の札 `fx-quake-badge` は高さ 48px・左右の内側 `space-3`・30px・700・面 `ink`・字 `ink-dark`、`is-pending` は面なし・3px の破線 `ink-muted`・字 `ink`・400（bundle.css:45〜:52）。
+- DS-CSS-06 今日の地震の行: 札と字の間 `space-4`。右側は縦に並べ、間は `space-1`。震源 32px・700（長い名前は 30px）。2 行目は補足と時刻（どちらも 30px）を両端に寄せ、間は `space-4`、入らないときは時刻を次の行の右へ落とす（flex-wrap、時刻は折らない）。津波の札 `fx-quake-badge` は高さ 48px・左右の内側 `space-3`・角 `radius-chip`・30px・700・面 `ink`・字 `ink-dark`、`is-pending` は面なし・3px の破線 `ink-muted`・字 `ink`・400（bundle.css:45〜:52）。
 - DS-CSS-07 気象の警報の段: 段の中の間 `space-1`、札と種別の間 14px、種別 36px・700、市町村 30px（bundle.css:55〜:58）。
 - DS-CSS-08 大カード `fx-eew`: 面 `surface`、線 4px の `alert`、内側 18px 22px 20px、行の間 `space-3`。見出し 42px・700・`alert`。行 30px で、行の中の間 10px、地域は太字（bundle.css:61〜:64）。
 - DS-CSS-09 小さいカード `fx-eewc`: 幅 `column-right`（540px）×322（`is-two` 492px）、線 4px の `alert`、内側 12px 22px、行の間 10px（`is-two` は `space-2`）。行の区切りの下の内側は `space-2`。見出し 30px・700・`alert`、第 N 報 30px・700、ラベル 30px の `ink-muted`、太字の値 `fx-eewc-b` 30px・700、地域 34px・700、発表時刻は右 22px・下 10px に 24px の `ink-muted`（bundle.css:67〜:78）。
@@ -395,7 +395,7 @@ README:93 は「どの部品も bundle.css の共通のスタイルから値を�
 
 ## 11. 未決
 
-DS 版 32 の「まだ決まっていないこと」（README:99〜:106）:
+DS 版 37 の「まだ決まっていないこと」（README:99〜:106。版 32 と同じ節）:
 
 - DS-OPEN-01 判断カード 1〜9（調査報告、作業ノート、repo 外）のうち、字の視距離、テロップ、点滅、受信の演出。カードの透け具合は不透明で決まり（2026-11-12）、EEW の中身は 2026-11-14 に決まった（EewCard の README）（README:101）。
 - DS-OPEN-02 減光の量（旧築は 35%）と、中間の明るさ（60%）の値。Pi の実機で、暗い部屋で確かめる（README:102）。
@@ -453,7 +453,7 @@ DS の部品の README と tokens に散る未決:
 
 ### 12.1 次の問い・計画と DS の差
 
-本文（§1〜§10）は DS 版 32 を写した。
+本文（§1〜§10）は DS 版 32 を写し、r2 で版 37 に合わせた（版 37 の新しい決まりは §13）。
 次の問いと計画の裁定で DS と食い違うもの、DS に写っていないものをここに並べる。
 DIFF-01・02・04・05・07・08 は DS 版 32 の側を正とする（DS の方が新しい作者裁定。統合担当の決め、2026-11-21）。
 DIFF-03・06 は、覆した裁定が無いので本文に決まりとして入れた（出典は次の問い）。
