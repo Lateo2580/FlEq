@@ -4,38 +4,38 @@
 P4 の各カードの契約は、見た目の決まりをこの spec の行から «» で引く（P4 発注計画 §4.2）。
 作り方（snapshot・scene・timer・取得の API）は契約に書き、ここには書かない。
 
-状態: r1（2026-11-21）。
+状態: r2（2026-11-23）。r1（2026-11-21）に、DS 版 37 の写しと 2026-11-23 の作者裁定（列の幅 540px・津波の大きいカード・収まらないとき・今日の地震の行・深さの書き方）を当てた。
 r0（同日）に、写しの照合 25 件と統合担当の決め 8 つを当てた。
-中身はデザインシステム「FlEq 表示 D1 夜」（以下 DS）の版 32 と、作業ノート（repo 外）の「P4 試作の次の問い」の裁定と、P4 発注計画 §5.1 の作者裁定の写しである。
+中身はデザインシステム「FlEq 表示 D1 夜」（以下 DS）の版 37（2026-11-23。r1 は版 32）と、作業ノート（repo 外）の「P4 試作の次の問い」の裁定と、P4 発注計画 §5.1 の作者裁定の写しである。
 P4 発注計画 §1.1 の 8 は、px の値を計画や契約の起草で新しく作らないことを求める（計画:55〜:56）。
 この spec の起草でも、px の値と色を新しく作らない。
 DS と次の問いと計画に無い決まりを足さない。
 
 ## 0. 真実源と同期
 
-- 真実源は DS 版 32 である（計画:24）。
-- design-system.json の lastChange は 2026-11-19T10:25:00Z で、note の冒頭は「最大予測震度のみの報が同時 2 件以上のとき: 小さいカードの 2 段の札は 40px・22px」である。
+- 真実源は DS 版 37 である（2026-11-23 に版 32 から改めた。版 32 を真実源にした裁定は計画:24）。
+- design-system.json の lastChange は 2026-11-23T02:46:56Z で、note の冒頭は「緊急地震速報のカード（大・小）と字の型の見本の深さも」である。
 - 写した file の sha256 は次のとおり。
-- README.md 5a619922b356c6fecd98f208d2acb1aa9d31aabcf5106fd16f4a414797db0e60
-- tokens.json 1b50392ddfd9756bd58afc5d8b0e85b681455550acb071b7bda593101baa37e3
-- components/bundle.css 57343e639fd1f63e2c87d573405b0b5e3353da78a1ec2ec3d57fd700bbae4a77
-- design-system.json 8864de197e1286db62d7ce9bfb68708c09b222f2e2a8b15ce6f1de1dde209501
-- components/Clock/README.md 88e624b0935d0b5d69ce1e2e74320c584ad768f356db259542d9964d84217c15
-- components/EewCard/README.md 18379f1c624fd629b173f8a0e7bd7a7f5ff1c8914eda4f91cd1d8bf451b5c0e4
-- components/EewCardSmall/README.md dae7d8950c32e8010047ddd674c05bbbd8c309c48a90a45178600539b731cacf
+- README.md 2a1f9fe65b199df1682aeb5c2744de302d039f95e78f0fbcc563d6aca61d671d
+- tokens.json 7fd8a7a96bdc1b03a66a1a4769ec3d47f2c58697160b4667f0ae3d5c32c6ad35
+- components/bundle.css af48adfd2256fcc32fdd30f25e37ea33b0460ce9ecbcba68b01b5f541df7a9f5
+- design-system.json 42e264307f56143bfc8c9e8d726b373d8af83c44adb18e21c492e952aed6c08e
+- components/Clock/README.md 92e13d80bf9852f0307b9b0a3c04f5ddaa0fe45f25a656a4705e54a2a04f84bb
+- components/EewCard/README.md 6e22f4b02271c867d65aa5a80002aaa02a8edd7006c190d8d0e4ebf679ea727f
+- components/EewCardSmall/README.md 32e7a397155c1d3a21cb079327d0fa198a6dbd34d4b7bd8c9d3ea46a124b607c
 - components/IntensityChip/README.md d4e592728434e44b0bf29bcccea885d2b3f24e5da0ef21565e78e570e89cc4a9
 - components/LevelChip/README.md 21cb8f08000fd4b780007b286acc0c579018ebc75b1e95e0e542d04b7da68cb0
 - components/MapArea/README.md 1a2fc20820d354cac85ff700c6471f42de2b81f126983a0183e3daaade678052
-- components/QuakeRow/README.md 1f5bed91eeb0582c561afd6980e834fce218324581216fa7e9d163fdc5489749
+- components/QuakeRow/README.md c5b593a2659a5dfb0fd952fd1155204396893d62144217cdc3060bb55b8b6b00
 - components/WarningCard/README.md 182441c6c8878e26b63b6dbf3891e884a46454a0b2aa6e9506238e712136c05b
 - tokens.json の `"version": 1` は DS の版の番号ではない。
 - repo に入れた後はこの spec を正とする。DS を改めたら同じ日にこの spec を改訂する（契約が «» で引くのは spec の行なので、DS が先に動くと根拠が消える。計画:296）。
 
 出典の書き方:
 
-- 「README:n」は DS 版 32 の README.md の n 行目を指す。
-- 「部品名 README:n」は DS 版 32 の components/部品名/README.md の n 行目を指す（例: EewCard README:12）。
-- 「tokens」は DS 版 32 の tokens.json、「bundle.css:n」は components/bundle.css の n 行目を指す。
+- 「README:n」は DS 版 37 の README.md の n 行目を指す。
+- 「部品名 README:n」は DS 版 37 の components/部品名/README.md の n 行目を指す（例: EewCard README:12）。
+- 「tokens」は DS 版 37 の tokens.json、「bundle.css:n」は components/bundle.css の n 行目を指す。
 - 「次の問い:n」は作業ノート（repo 外）の「P4 試作の次の問い」（2026-11-14 起こし、225 行の版）の n 行目を指す。
 - 「計画:n」は `reconstruction/contracts/p4-order-plan.md` の n 行目を指す（main 7b45edd6 の版）。
 - bundle.css の値は §10 に分けて置く。README の決まりと bundle.css の値が食い違う所は §12.2 に置く。
@@ -60,7 +60,7 @@ DS と次の問いと計画に無い決まりを足さない。
 画面の決まり（README:26〜:33）:
 
 - DS-ALL-10 ヘッダの帯を作らない。平常時は接続の状態を出さない（README:28）。
-- DS-ALL-11 緊急のカード（EEW など）は右の列、それ以外は左の列（README:29）。10 月の決まり（H21）と試作の DS の決めで、暫定（細かい配置は P4 で詰める、計画:454）。例外は §4 の DS-LAYOUT-16〜18。
+- DS-ALL-11 緊急のカード（EEW など）は右の列、それ以外は左の列（README:29）。10 月の決まり（H21）と試作の DS の決めで、暫定（細かい配置は P4 で詰める、計画:454）。例外は §4 の DS-LAYOUT-16〜18 と、§13 の DS-COL-02（津波の大きいカードは左の列の上、2026-11-23）。
 - DS-ALL-12 常設の時計は左下（README:30）。例外は §4 の DS-LAYOUT-18。
 - DS-ALL-13 全部のカードに更新時刻を出す（README:31）。
 - DS-ALL-14 震源の無い行を「不明」にしない。未確認を「なし」にしない（README:33）。
@@ -150,7 +150,7 @@ DS と次の問いと計画に無い決まりを足さない。
 - DS-TYPE-04 例外 1: 小さい緊急のカードの発表時刻（24px・`ink-muted`）。遠くから読めなくてよい内部の情報として、作者が裁定した（2026-11-14）（README:66）。
 - DS-TYPE-05 例外 2: 2 段の札の「以上」（22px）。予測地域の一覧の小さい札（72×60、段の名前 30px。作者の裁定 2026-11-17）と、小さい緊急のカードの最大予測震度の札（96×72、段の名前 40px。作者の裁定 2026-11-19）。段の名前を先に読ませ、札の高さを抑える（README:67）。
 - DS-TYPE-06 カードの見出しは 40px 以上、最大予測震度は 100px（README:68）。
-- DS-TYPE-07 語の途中で折らない（`word-break: keep-all`）。地名は空白でだけ折れる（README:69）。
+- DS-TYPE-07 語の途中で折らない（`word-break: keep-all`）。地名は空白でだけ折れる。収まらないときの例外は §13 の DS-FIT-01〜06（2026-11-23）（README:69）。
 
 字の型（tokens の type の「画面」の群）:
 
@@ -160,7 +160,7 @@ DS と次の問いと計画に無い決まりを足さない。
 - DS-TYPE-11 `card-title` 40px・1.25・700（見本「今日の地震　福井県　大雨」）。
 - DS-TYPE-12 `kind` 36px・1.25・700（見本「大雨特別警報」）。
 - DS-TYPE-13 `place` 34px・1.25・700（見本「大隅半島東方沖」）。
-- DS-TYPE-14 `body` 30px・1.25・400（見本「福井市 大野市 勝山市　M5.3　深さ 50 km　23:15:10」）。
+- DS-TYPE-14 `body` 30px・1.25・400（見本「福井市 大野市 勝山市　M5.3　深さ 50km　23:15:10」）。
 - DS-TYPE-15 `chip` 30px・1.0・700（見本「レベル5」）。
 
 ## 4. 配置
@@ -169,9 +169,9 @@ DS と次の問いと計画に無い決まりを足さない。
 
 - DS-SIZE-01 `screen-w` 1920px: Pi の画面の幅（倍率 1.0、530×290 mm）。
 - DS-SIZE-02 `screen-h` 1080px: Pi の画面の高さ。
-- DS-SIZE-03 `column-left` 600px: 左の列（緊急以外のカード）の幅。
-- DS-SIZE-04 `column-right` 536px: 右の列（緊急のカード）の幅。
-- DS-SIZE-05 `clock-w` 540px: 左下の常設の時計の幅（高さ 80px）。年月日と曜日（30px）と時分（56px）を 1 行に並べる。
+- DS-SIZE-03 `column-left` 540px: 左の列（緊急以外のカード、津波の大きいカード、EEW 4 件目からの小さいカード）の幅。左右の列と時計を 540px で揃える（作者の裁定 2026-11-23、それまでは 600px）。
+- DS-SIZE-04 `column-right` 540px: 右の列（緊急のカード）の幅（作者の裁定 2026-11-23、それまでは 536px）。
+- DS-SIZE-05 `clock-w` 540px: 左下の常設の時計の幅（高さ 80px）。年月日と曜日（30px）と時分（56px）を 1 行に並べる。左右の列と同じ幅（2026-11-23）。
 - DS-SIZE-06 `chip-int` 96px: 地震の行の震度の札の幅（高さ 72px）。
 - DS-SIZE-07 `chip-level` 130px: 警報の段の札「レベル5」の幅（高さ 48px）。
 - DS-SIZE-08 `space-1` 4px: 札と 2 行目の間。
@@ -185,7 +185,7 @@ DS と次の問いと計画に無い決まりを足さない。
 
 ### 4.2 列と時計
 
-- DS-LAYOUT-01 左の列 `column-left`: 今日の地震のカード、気象の警報のカード（README:73）。
+- DS-LAYOUT-01 左の列 `column-left`: 今日の地震のカード、気象の警報のカード（README:73。2026-11-23 に左右の列と時計を 540px で揃えた）。
 - DS-LAYOUT-02 右の列 `column-right`: 緊急のカード（緊急地震速報）。平常時は空けて地図を見せる（README:74）。
 - DS-LAYOUT-03 左下: 時計 `clock-w`。年月日と曜日と時分を 1 行に（例「2026/11/12 (Thu) 06:58」）（README:75）。
 - DS-LAYOUT-04 真ん中: 地図（README:85）。地図の決まりは §5。
@@ -211,7 +211,7 @@ DS と次の問いと計画に無い決まりを足さない。
 
 - DS-LAYOUT-16 4 件: D のカード、今日の地震（2 行に減らす）、気象の警報のカード（大雨）、時計（README:82）。
 - DS-LAYOUT-17 5 件: D・E のカード、気象の警報のカード（「ほかに…」の行を落とす）、時計。今日の地震は隠れる（README:83）。
-- DS-LAYOUT-18 6 件: D・E・F のカード。気象の警報のカードは隠れ、時計はその間だけ地図の下（左 680px・上 960px）へ動く（時計は左下という決まりの例外）（README:84）。
+- DS-LAYOUT-18 6 件: D・E・F のカード。気象の警報のカードは隠れ、時計はその間だけ地図の下（左 620px・上 960px。40＋540＋40 の算術で、2026-11-23 に 680px から改めた）へ動く（時計は左下という決まりの例外）（README:84）。
 
 EEW が 5 件以上のとき（P4-PLAN-D-EEW-MANY=A、作者裁定 2026-11-19 20:4x、計画:469・:489）:
 
@@ -294,17 +294,17 @@ P4-PLAN-D-R58=A（作者裁定 2026-11-19 20:4x、計画:662・:673）:
 
 ### 7.1 QuakeRow（今日の地震の行）
 
-- DS-QROW-01 今日の地震のカードの 1 行。左に震度の札、右の 1 行目に震源と時刻（時刻は右寄せ、折らない）、2 行目に補足、3 行目に津波の評価（QuakeRow README:3）。
-- DS-QROW-02 並びの順は、最大震度 → 震源 → 補足（M と深さ、または観測した地域）→ 時刻 → 津波の評価（QuakeRow README:5）。
+- DS-QROW-01 今日の地震のカードの 1 行。左に震度の札、右の 1 行目に震源名だけ、2 行目に補足と時刻（時刻は右寄せ、折らない）、3 行目に津波の札（ある時だけ）（作者の裁定 2026-11-23）（QuakeRow README:3）。
+- DS-QROW-02 並びの順は、最大震度 → 震源 → 補足（M と深さ、または観測した地域）→ 時刻 → 津波の札（QuakeRow README:5）。
 - DS-QROW-03 震源の無い行（震度速報だけ）は 1 行目を「震源は調査中です」にし、2 行目に最も強い地域を出す。「不明」と書かない（作者の裁定、2026-11-12。端末は Q-TO3-MEANING で「調査中」を足さないので、言い方が端末と違う）（QuakeRow README:6）。
-- DS-QROW-04 時刻は発生の時刻に「ごろ」を付ける（例「05:07ごろ」、作者の裁定、2026-11-12。端末は電文と同じ「ころ」）。震度速報は Head/TargetDateTime、ほかは OriginTime。日付は出さない（QuakeRow README:7）。
-- DS-QROW-05 M が数値でない報は、電文の description（例「Ｍ８を超える巨大地震」）をそのまま出す（QuakeRow README:8）。
+- DS-QROW-04 時刻は発生の時刻で、「ごろ」を付けない（例「05:07」、作者の裁定 2026-11-23 で 11-12 の「ごろ」を改めた。値は変わらない。端末は電文と同じ「ころ」）。震度速報は Head/TargetDateTime、ほかは OriginTime。日付は出さない（QuakeRow README:7）。
+- DS-QROW-05 M が数値でない報は、電文の description（例「Ｍ８を超える巨大地震」）をそのまま出す。540px ではこの行だけ時刻が次の行の右へ落ちる（作者の裁定 2026-11-23）（QuakeRow README:8）。
 - DS-QROW-06 震度の値が無い報は札を `is-pending`（まだ）にする（QuakeRow README:9）。
-- DS-QROW-07 津波の評価は 3 行目に、電文の文から主語「この地震による」と句点だけを省いて出す（例「津波の心配はありません」、作者の裁定 A、2026-11-12）（QuakeRow README:10）。
-- DS-QROW-08 震度速報だけで津波の文が無い行は「津波の情報はまだありません」。「なし」と書かない（QuakeRow README:10）。
+- DS-QROW-07 3 行目の津波の札は 1 つ「津波情報あり」（`fx-quake-badge`、白い面 `ink`・黒い字 `ink-dark`）。出す報は津波警報等を発表中（固定付加文 0211）と、海面変動・津波の可能性（0212〜0214、0221〜0228）。心配なし・影響なし（0215、0230）は 3 行目を出さない（作者の裁定 2026-11-23）（QuakeRow README:10・:16）。
+- DS-QROW-08 まだ分からないとき（文の無い震度速報、0216・0217・0229）は破線の札「津波　調査中」（`fx-quake-badge is-pending`）。「なし」と書かない（作者の裁定 2026-11-23）（QuakeRow README:10・:16）。
 - DS-QROW-09 取消の行は一覧に残し、件数に数えない（H18）。札を `is-cancel`（「取消」、`cancel` の面）にし、元の震源名・M・時刻を残す（作者の裁定 A）。電文の取消の文は出さない（QuakeRow README:11）。
-- DS-QROW-10 語の途中で折らない（`word-break: keep-all`）。カードの幅は `column-left`（600px）（QuakeRow README:12）。
-- DS-QROW-11 使う側が渡すもの: 最大震度（か、まだ、か取消）、震源名（か、無い）、補足の文、発生の時刻、津波の評価の文（か、まだ無い）（QuakeRow README:14）。
+- DS-QROW-10 語の途中で折らない（`word-break: keep-all`）。収まらないときは §13 の DS-FIT。カードの幅は `column-left`（540px）（QuakeRow README:12）。
+- DS-QROW-11 使う側が渡すもの: 最大震度（か、まだ、か取消）、震源名（か、無い）、補足の文、発生の時刻、津波の札の種類（ある・まだ分からない・出さない）（QuakeRow README:14）。
 
 ### 7.2 WarningCard（気象の警報のカード）
 
@@ -329,7 +329,7 @@ P4-PLAN-D-R58=A（作者裁定 2026-11-19 20:4x、計画:662・:673）:
 ### 8.2 EewCard（大カード、1 件のとき）
 
 - DS-EEW-01 緊急地震速報を右の列に出す大カード。最大予測震度を最も大きく、次に地域、震源、設定した地域、予測地域の一覧の順に並べる（EewCard README:3）。
-- DS-EEW-02 幅は `column-right`（536px）、高さは画面の縁から縁まで（1000px）（EewCard README:5）。
+- DS-EEW-02 幅は `column-right`（540px、2026-11-23）、高さは画面の縁から縁まで（1000px）（EewCard README:5）。
 - DS-EEW-03 到達予想時刻は一覧の列にだけ出し、秒読みはしない。気象庁のガイドラインの型②（作者の裁定 2026-11-14、判断カード 8）（EewCard README:7）。
 - DS-EEW-04 区域の「既に主要動到達と推測」は電文の字のまま 2 行目に出す。短くしない（EewCard README:9）。
 - DS-EEW-05 仮定震源要素の報（震源と M がまだ決まらず、PLUM 法だけで出た報）: 震源の行は「震源は調査中です」。M と深さは出さない。地図に × 印を出さない（作者の裁定 2026-11-14）（EewCard README:11）。
@@ -348,11 +348,11 @@ P4-PLAN-D-R58=A（作者裁定 2026-11-19 20:4x、計画:662・:673）:
 ### 8.3 EewCardSmall（小さいカード、2 件以上のとき）
 
 - DS-EEWS-01 緊急地震速報が 2 件以上同時に出ているとき、地震ごとに出す小さいカード。1 件のときは大カード `EewCard`（EewCardSmall README:3）。
-- DS-EEWS-02 幅は `column-right`（536px）。高さは 3 件以上で 322px、2 件で 492px（`is-two`）（EewCardSmall README:5）。
+- DS-EEWS-02 幅は `column-right`（540px、2026-11-23）。高さは 3 件以上で 322px、2 件で 492px（`is-two`）（EewCardSmall README:5）。
 - DS-EEWS-03 枠と見出しは、警報が `alert` の赤、予報が `eew-forecast` の黄（`is-forecast`。作者の裁定 2026-11-15 で、11-14 の「赤のまま」を改めた）。地震の見分けは札（`eq-a`〜`eq-f`）で付ける（EewCardSmall README:6）。
 - DS-EEWS-04 並びは出た順で固定。報が進んでも入れ替えない。A・B・C は右の列に上から、D・E・F は左の列に上から。7 件目からは最終報が出た古いカードから入れ替える（EewCardSmall README:8）。
 - DS-EEWS-05 札が空いたら次の字へ進み、空いた段は下のカードが詰める。消える時は §4.3（作者の裁定 2026-11-15）（EewCardSmall README:9）。
-- DS-EEWS-06 中身（3 件以上）: 1 行目 札、「緊急地震速報（警報／予報）」、第 N 報。2 行目 最大予測震度の札（96×72、字 48px）と地域。3 行目「設定した地域」と震度の札と地域（設定した地域が予測に入るときだけ）。4 行目「震源 ○○」。5 行目「M6.6　深さ 40 km」。右下に発表時刻（EewCardSmall README:10）。
+- DS-EEWS-06 中身（3 件以上）: 1 行目 札、「緊急地震速報（警報／予報）」、第 N 報。2 行目 最大予測震度の札（96×72、字 48px）と地域。3 行目「設定した地域」と震度の札と地域（設定した地域が予測に入るときだけ）。4 行目「震源 ○○」。5 行目「M6.6　深さ 40km」。右下に発表時刻（EewCardSmall README:10）。
 - DS-EEWS-07 最大予測震度のみの報の中身: 2 行目は 2 段の札（96×72、「5弱」40px・「以上」22px）と、その横に「最大予測震度」と場所の文（34px、ほかのカードの地域名と同じ位置。12 字ほどの長い名前は 2 行に折れてよい）。3 行目「震源は調査中です」。M・深さ・設定した地域・予測地域の行は出さない（作者の裁定 2026-11-19）（EewCardSmall README:11）。
 - DS-EEWS-08 最大予測震度のみの報で場所の文が切り出せないときは場所の行を詰める（作者の裁定 2026-11-19）（EewCardSmall README:11）。
 - DS-EEWS-09 仮定震源要素の報と最大予測震度のみの報は、地図に × 印も名札も出ない。その地震の札はこのカードにだけ出る（作者の裁定 2026-11-19）（EewCardSmall README:12）。
@@ -365,8 +365,8 @@ P4-PLAN-D-R58=A（作者裁定 2026-11-19 20:4x、計画:662・:673）:
 ## 9. 時計（Clock）
 
 - DS-CLOCK-01 画面の左下に常に出す時計。年月日と曜日、時と分を 1 行に並べる（例「2026/11/12 (Thu) 06:58」）（Clock README:3）。
-- DS-CLOCK-02 位置は左下（作者の想定、2026-11-12）。画面の縁から `space-6`（40px）（Clock README:5）。
-- DS-CLOCK-03 大きさは `clock-w`（540px）×80px。年月日と曜日は 30px、時分は 56px の太字（Clock README:6）。
+- DS-CLOCK-02 位置は左下（作者の想定、2026-11-12）。画面の縁から `space-6`（40px）。緊急地震速報が 6 件の間だけ地図の下（左 620px・上 960px、2026-11-23）（Clock README:5）。
+- DS-CLOCK-03 大きさは `clock-w`（540px、左右の列と同じ幅、2026-11-23）×80px。年月日と曜日は 30px、時分は 56px の太字（Clock README:6）。
 - DS-CLOCK-04 書き方は作者の指定どおり「YYYY/MM/DD (曜)」、曜日は英語の 3 文字（Sun Mon Tue Wed Thu Fri Sat）（Clock README:7）。
 - DS-CLOCK-05 色は本文より一段暗い `ink-clock` で、夜に目立たせない（Clock README:8）。
 - DS-CLOCK-06 面は不透明。地図の塗りの上に重ねない（Clock README:9）。
@@ -383,10 +383,10 @@ README:93 は「どの部品も bundle.css の共通のスタイルから値を�
 - DS-CSS-03 震度の札 `fx-int`: 96×72、字 38px・700、角 `radius-chip`。`is-small` 72×44・30px、`is-large` 220×140・100px・角 `radius-card`、`is-mid` は大きさを変えず（96×72）字 48px・角 `radius-card`、`is-xs` 64×40・30px（bundle.css:16〜:20）。
 - DS-CSS-04 震度の札の縁: 7 は 6px の `int-7-edge`（`is-small`・`is-xs` 4px、`is-large` 10px）、6強と 3 は 2px の `line`。取消 `is-cancel` は `cancel` の面で字 32px。`is-pending` は面なし・字 `ink`・3px の破線 `ink-muted`・字 30px（bundle.css:22〜:35）。
 - DS-CSS-05 警戒レベルの札 `fx-lv`: `chip-level`×48、字 30px・700。lv5 と lv4 は字 `ink` と 2px の `line` の縁（bundle.css:38〜:42）。
-- DS-CSS-06 今日の地震の行: 札と字の間 `space-4`、震源 32px・700（長い名前は 30px）、時刻・補足・津波の評価 30px、時刻は折らない。1 行目と 2 行目は両端に寄せ、間は `space-4`（bundle.css:45〜:52）。
+- DS-CSS-06 今日の地震の行: 札と字の間 `space-4`。右側は縦に並べ、間は `space-1`。震源 32px・700（長い名前は 30px）。2 行目は補足と時刻を両端に寄せ、入らないときは時刻を次の行の右へ落とす（flex-wrap、時刻は折らない）。津波の札 `fx-quake-badge` は高さ 48px・左右の内側 `space-3`・30px・700・面 `ink`・字 `ink-dark`、`is-pending` は面なし・3px の破線 `ink-muted`・字 `ink`・400（bundle.css:45〜:52）。
 - DS-CSS-07 気象の警報の段: 段の中の間 `space-1`、札と種別の間 14px、種別 36px・700、市町村 30px（bundle.css:55〜:58）。
 - DS-CSS-08 大カード `fx-eew`: 面 `surface`、線 4px の `alert`、内側 18px 22px 20px、行の間 `space-3`。見出し 42px・700・`alert`。行 30px で、行の中の間 10px、地域は太字（bundle.css:61〜:64）。
-- DS-CSS-09 小さいカード `fx-eewc`: 536×322（`is-two` 492px）、線 4px の `alert`、内側 12px 22px、行の間 10px（`is-two` は `space-2`）。行の区切りの下の内側は `space-2`。見出し 30px・700・`alert`、第 N 報 30px・700、ラベル 30px の `ink-muted`、太字の値 `fx-eewc-b` 30px・700、地域 34px・700、発表時刻は右 22px・下 10px に 24px の `ink-muted`（bundle.css:67〜:78）。
+- DS-CSS-09 小さいカード `fx-eewc`: 幅 `column-right`（540px）×322（`is-two` 492px）、線 4px の `alert`、内側 12px 22px、行の間 10px（`is-two` は `space-2`）。行の区切りの下の内側は `space-2`。見出し 30px・700・`alert`、第 N 報 30px・700、ラベル 30px の `ink-muted`、太字の値 `fx-eewc-b` 30px・700、地域 34px・700、発表時刻は右 22px・下 10px に 24px の `ink-muted`（bundle.css:67〜:78）。
 - DS-CSS-10 予報は枠と見出しを `eew-forecast` にする（大・小とも）（bundle.css:72〜:73）。
 - DS-CSS-11 地震の札 `fx-eq`: 60×48、図形の塗りは札の色、字 30px・700・`ink-dark`。角を丸める図形は線 8 で丸める（bundle.css:81〜:85）。
 - DS-CSS-12 時計 `fx-clock`: `clock-w`×80、面 `surface`、線 2px の `surface-edge`、字 `ink-clock`。年月日と時分は字の下の線で揃え、間 18px、上の内側 6px。年月日 30px・400、時分 56px・700（bundle.css:88〜:90）。
@@ -411,7 +411,7 @@ DS の部品の README と tokens に散る未決:
 - DS-OPEN-09 レベルの付かない特別警報（暴風・大雪など）の札の形は、まだ決めていない（LevelChip README:8）。
 - DS-OPEN-10 大津波警報の点滅の扱いは判断カード 6 で未決（tokens の `tsunami-major`）。
 - DS-OPEN-11 最大予測震度のみの報が画面にどれくらい残るかは未確認（手元の corpus と fixture に実例 0 件）（EewCard README:14）。
-- DS-OPEN-12 津波の評価は、今の表示の wire の行（`SeismicRecentQuake`）に無い。出すには足す契約が要る（QuakeRow README:13）。
+- DS-OPEN-12 津波の札を分けるコードは、今の表示の wire（`EarthquakeRowWire.tsunami` は文だけ）に無い。出すには足す契約が要る。どの報にどのコードが来るか、1 報に複数のコードが来たときどれで札を決めるかも未決（C0 の起草で表にする）（QuakeRow README:13・:17）。
 - DS-OPEN-13 区域名は今の表示の wire に無い。出すには区域の資材から引く契約が要る（WarningCard README:10）。
 
 次の問いの未決と未確認:
@@ -424,7 +424,7 @@ DS の部品の README と tokens に散る未決:
 計画の保留の問いと、契約へ運ぶときの宿題（DS の決まりに掛かるもの）:
 
 - DS-OPEN-18 EEW が 5 件以上の後に戻った対象を描く「決めた時間」の値と、対象の集合・再び隠れたときの時計と未表示の進捗は、E0 と S0 の凍結で決める（計画:495）。
-- DS-OPEN-19 津波の大きいカードの列（左か右か）は保留（P4-PLAN-D-TSUNAMI-COLUMN、計画:448）。DS-ALL-11「緊急のカードは右の列」と、EEW が 4 件以上のときの左の列の譲り方に掛かる。A のときの左の列の並びは計画 §5.2 の E0-6（計画:690）。
+- DS-OPEN-19 津波の大きいカードの列は左の列の上に決まった（P4-PLAN-D-TSUNAMI-COLUMN=C、作者裁定 2026-11-23、§13 の DS-COL-02）。緊急地震速報が 4 件以上と同時のときの左の列の並びは未決（計画 §5.2 の E0-6）。
 - DS-OPEN-20 ページのドットの大きさは DS でまだ決まっていない（計画:428）。
 - DS-OPEN-21 左の列のカードの間の余白は DS で未固定（計画:546）。
 - DS-OPEN-22 自動のページ送りの一巡の上限は保留（P4-PLAN-D-ROTATION、計画:541）。
@@ -485,3 +485,33 @@ DIFF-09 は本文の両方を残し、§11 の DS-OPEN-30 で作者に出す。
 | DS-GAP-06 | 最大予測震度は 100px（README:68）。README:67 が例外にするのは「以上」の 22px だけ | 小さいカードの最大予測震度の札は字 48px（EewCardSmall README:10）、2 段の札は「5弱」40px（EewCardSmall README:11）、`is-large` の 2 段の札は「5弱」84px・「以上」40px（IntensityChip README:12） |
 | DS-GAP-07 | どの部品も tokens の変数だけから値を読む（README:93、bundle.css:1） | bundle.css は tokens に無い px を直に書く: :9 の 18px、:56 の 14px、:61 の 18px 22px 20px、:63 の 10px、:67 の 12px 22px と 10px、:78 の 22px と 10px、:88 の 18px と 6px、:103 の 0 6px、:105 の 8px と 2px 8px 2px 2px |
 | DS-GAP-08 | `ink-dark` の用途は明るい札（lv3・lv2・int-6m〜int-4・int-2・int-1）と明るい区域の上の字（tokens の `ink-dark`） | `cancel` と `eq-a`〜`eq-f` の字も ink-dark（tokens の各 usage）、震央の黒い縁も ink-dark（tokens の `epicenter`）で、`ink-dark` の用途に挙がっていない |
+
+## 13. 2026-11-23 の決め（DS 版 37）
+
+作者の裁定（2026-11-23）を DS 版 37 に写した決まり。
+見本の図は作業ノート（repo 外）の判断カード「2026-11-23-P4-S0の前の配置と折れ」から引く。
+
+列の幅（README:117〜:120）:
+
+- DS-COL-01 左の列 `column-left`、右の列 `column-right`、時計 `clock-w` を全部 540px にする。地図の見える幅は 704px から 760px に広がる。左の列に入る緊急地震速報の小さいカード（D・E・F）も 540px（README:119〜:120）。
+- DS-COL-02 津波の大きいカードは左の列の上に置く（P4-PLAN-D-TSUNAMI-COLUMN=C）。幅は左の列と同じ 540px、高さは使える最大で 322px（緊急地震速報が 4 件のときの D の場所）。下に今日の地震（2 行に減らす形）と気象の警報が続く。緊急地震速報の大カードは右の列で 1000px のまま（README:124）。
+- DS-COL-03 津波の大きいカードの中身と高さは津波の契約で決める。緊急地震速報が 4 件以上と同時のときの左の列の並びは未決（README:125）。
+
+収まらないとき（README:127〜:134）:
+
+- DS-FIT-01 まず文言を考え直す。FlEq が作る字は短い言い方を先に考える。電文の字は値と意味を変えない範囲でだけ言い換え、作者に見せる（README:129）。
+- DS-FIT-02 欄ごとに、行数を先に取っておくか、行を返す関数が描く前に折る所を決める。配置は宣言した高さで計算し、中身を DOM で測らない（README:130）。
+- DS-FIT-03 定型の文は、人が確かめた文節の後ろにだけ折り位置を置く（README:131）。
+- DS-FIT-04 名前と右寄せの時刻が 1 行に並ばないときは、時刻を次の行の右へ落とす（README:132）。
+- DS-FIT-05 取っておいた行数を超えたら、本文を札の下まで広げ、それでも入らなければ次のページへ送る。字は欠かさない（README:133）。
+- DS-FIT-06 最後の受けとして、名前と地域の欄は語の途中でも折る（`overflow-wrap: anywhere`、DS-TYPE-07 の例外）。コード表の名前と付加文では起きないことを試験で確かめる（README:134）。
+
+今日の地震の行（QuakeRow README:13〜:19）:
+
+- DS-QROW-12 深さは「深さ 50km」（「深さ」と数の間に空白、数と km の間は空白なし）。緊急地震速報のカード（大・小）も「深さ 40km」に揃える（作者の裁定 2026-11-23）（QuakeRow README:15）。
+- DS-QROW-13 電文の津波の評価の文（全文）は詳細で読む（QuakeRow README:18）。
+- DS-QROW-14 札は高さ 48px、左右の内側 `space-3`（12px）、字 30px（リーベの案、2026-11-23 の見本の図で作者が A を採った）（QuakeRow README:19）。
+
+部品の CSS（bundle.css:107〜:108）:
+
+- DS-CSS-15 語の途中でも折る最後の受け（DS-FIT-06）は、名前と地域の欄（`fx-quake-place`、`fx-quake-sub` の補足、`fx-warn-areas`、`fx-eewc-area`、`fx-eew-area`）にだけ掛ける。時刻・数字・札には掛けない（bundle.css:107〜:108）。
