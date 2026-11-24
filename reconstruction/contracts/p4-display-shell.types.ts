@@ -25,6 +25,8 @@ export type ShellCard = Readonly<{
 }>;
 // カードの契約が cards.ts に 1 行で登録する関数（計画:227）。分野の包みは要約・取得待ちのまま渡す。
 export type ShellCardSource = (snapshot: DisplayWireSnapshot, nowMs: number) => readonly ShellCard[];
+// 登録の 1 行。max はその関数が返すカードの最大の枚数（列のカードの数の上限 K は max の和、P4-DS-D-CARD-BOUND）。
+export type ShellCardEntry = Readonly<{ source: ShellCardSource; max: number }>;
 
 // 列の割りの結果。mark はページの表示（2 ページ以上の列だけ。dots は 7 ページまで、DS-PAGE-11・14）。右の列は cardId のカードの最後の行に置く。
 export type ShellCardSlice = Readonly<{ id: string; rect: ShellRect; form: number; rows: readonly ShellRow[] }>;
@@ -34,7 +36,7 @@ export type ShellColumnPages = Readonly<{ column: ShellColumn; pages: readonly S
 
 export type ShellTop = Readonly<{ id: string; rect: ShellRect }>;
 export type ShellMiddle = Readonly<{ id: string; column: ShellColumn; rect: ShellRect }>;
-// eew は緊急地震速報のカードの場所（場所の番号の順）、open は開いたカード（最上層の一番手前）、raised は上がったカードの id、middle は列のカードの割りの位置。
+// eew は緊急地震速報のカードの場所（場所の番号の順）、open は開いたカード（左の列の x の中で、緊急地震速報の場所と上がったカードに重ならない、DS-LAYER-23）、raised は上がったカードの id、middle は列のカードの割りの位置。
 export type ShellLayerInput = Readonly<{ eew: readonly ShellMiddle[]; open: ShellTop | null; raised: readonly string[]; middle: readonly ShellMiddle[] }>;
 // dimmed は暗い、shifted は中央寄りへ 96px ずらした（rect はずらした後）。under は下がった緊急地震速報のカードに重なる上がったカードの id（ほかは空）。
 export type ShellPlacement = Readonly<{ id: string; layer: "top" | "middle"; rect: ShellRect; dimmed: boolean; shifted: boolean; under: readonly string[] }>;
@@ -46,7 +48,7 @@ export type ShellLayerResult = Readonly<{ top: readonly ShellPlacement[]; middle
 // 下がった緊急地震速報のカードは raised から導く（上がったカードに重なるもの）。
 export type ShellState = Readonly<{ open: boolean; raised: readonly string[]; eew: readonly string[] }>;
 // reduceShell の事象。press はその時の frame と押した点（1920×1080 の座標。相手は点に描かれた一番手前の面）。
-// sync は snapshot を受けるたびと描く前に当てる、緊急地震速報のカードの id の組と、開けるカードがあるか（shellSync が作る）。
+// sync は snapshot を受けるたびと描く前に当てる、緊急地震速報のカードの id の組（slot の順。4 件目からは左の列）と、開けるカードがあるか（shellSync が作る）。
 export type ShellEvent = Readonly<{ kind: "press"; frame: ShellFrame; x: number; y: number }> | Readonly<{ kind: "sync"; eew: readonly string[]; openable: boolean }>;
 
 export type ShellDomainKey = keyof DisplayWireSnapshot["current"];
@@ -59,15 +61,21 @@ export type ShellClientState = Readonly<{ snapshot: DisplayWireSnapshot | null; 
 // 地図の塗りの役目と印（M0 が埋める。S0 は空を返す、Q-PWT3-ROWS-FN）。
 export type ShellMapPaint = Readonly<{ code: string; token: string }>;
 export type ShellMapMark = Readonly<{ id: string; lat: number; lon: number; token: string }>;
-// 描く 1 枚。frame の cards は最上層（前から奥）、続けて中間の層（奥から手前）の順。openable は押して開けるカード。
+// 描く 1 枚。frame の cards は最上層（前から奥、開いたカードは先頭）、続けて中間の層（奥から手前）の順。openable は押して開けるカード。
 // under は下がった緊急地震速報のカードだけが持つ、そのカードに重なる上がったカードの id（ほかは空）。
+// mark はそのカードに描くページの表示（text は「2/4」の字、dots は点を描くか、at は見出しの行か最後の行か。DS-PAGE-11・14、DS-QROW-21）。
+export type ShellDrawMark = Readonly<{ text: string; page: number; pages: number; dots: boolean; at: "head" | "last" }>;
 export type ShellDrawCard = Readonly<{
   id: string; layer: "top" | "middle"; rect: ShellRect; dimmed: boolean; shifted: boolean; openable: boolean; under: readonly string[]; rows: readonly ShellRow[];
+  mark: ShellDrawMark | null;
 }>;
 export type ShellFrameInput = Readonly<{ state: ShellClientState; nowMs: number; page: Readonly<Record<ShellColumn, number>>; shell: ShellState }>;
-// DOM はこの値だけを描く（Q-PWT3-ROWS-FN）。
+// DOM はこの値だけを描く（Q-PWT3-ROWS-FN）。shell はこの frame を組んだ時の ShellState（押下はこれが今の状態と同じ object のときだけ効く、DS-LAYER-23 の R2）。
 export type ShellFrame = Readonly<{
+  shell: ShellState;
   clock: Readonly<{ rect: ShellRect; text: string }>; status: readonly string[];
   cards: readonly ShellDrawCard[]; cover: readonly ShellRect[]; pageCount: Readonly<Record<ShellColumn, number>>; eew: readonly string[];
   map: readonly ShellMapPaint[]; marks: readonly ShellMapMark[];
+  // source が max を越えて返したときの診断（越えるのは source の実装の誤り。前から max 枚を使う、P4-DS-D-CARD-BOUND）。
+  diagnostics: readonly Readonly<{ reason: "cardSourceOverMax"; entry: number; returned: number; max: number }>[];
 }>;
