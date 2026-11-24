@@ -54,7 +54,10 @@ export type ShellEvent = Readonly<{ kind: "press"; frame: ShellFrame; x: number;
 export type ShellDomainKey = keyof DisplayWireSnapshot["current"];
 // 開いている詳細 1 件（D02）。refetch は対象分野の内容版か stream が変わったか、応答が 409 versionChanged だった。
 // streamId は要求した時の stream。応答はこの object がまだ今の詳細で、stream が今と同じときだけ採る。
-export type ShellDetail = Readonly<{ request: WireDetailRequest; streamId: string; status: "loading" | "ready" | "refetch"; response: WireDetailResponse | null }>;
+// failed は 409 以外で読めなかった（400・429・503・504・responseTooLarge・通信の失敗）。理由は main.ts が log に残す。
+export type ShellDetail = Readonly<{ request: WireDetailRequest; streamId: string; status: "loading" | "ready" | "refetch" | "failed"; response: WireDetailResponse | null }>;
+// detailAnswered に渡す応答。failed は main.ts が 200・409 以外の HTTP の応答と通信の失敗から作る（WireDetailResponse に responseTooLarge が無いため、表 §11）。
+export type ShellDetailAnswer = WireDetailResponse | Readonly<{ kind: "failed"; reason: string }>;
 // changed は直前の snapshot から contentRevision が変わった分野（stream が変われば全部）。
 export type ShellClientState = Readonly<{ snapshot: DisplayWireSnapshot | null; unsupported: boolean; changed: readonly ShellDomainKey[]; detail: ShellDetail | null }>;
 
