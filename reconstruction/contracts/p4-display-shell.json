@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "3ba94c6c898a500e71be9fa0dd8dfc2f71539e6d59fb98ad0bc5f64884b64575",
+    "sha256": "685200a875c7e820dec8aa601e59d6e5f06d6c09f049a1e7588e4287740f48bd",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -130,7 +130,7 @@
         "id": "Q-DS-R2-REVIEW",
         "status": "closed",
         "source": "r1（80b07fd4）へのヘルツの再確認（前の 1〜13 は 8 を除いて阻止、NO-GO、残り 8・14・15・16・17）と統合担当の決め（2026-11-24 22:0x、R1〜R5、相談役の助言から）",
-        "closed": "8 登録の max と K（P4-DS-D-CARD-BOUND）、組み直しは行の中身が変わった frame だけ 14 DS-LAYER-23 で開いたカードと左の列の緊急地震速報のカードの組を作らない（P4-DS-D-OPEN-WHILE-EEW） 15 frame の shell、旧い frame への押下は効かない 16 ShellDrawCard の mark 17 head だけで列の高さ以下。spec の末尾に DS-LAYER-23。P4-DS-D-SECOND-GROUP は見た目に別の案がある物だけに絞った（表 §15）",
+        "closed": "8 登録の max と K（P4-DS-D-CARD-BOUND）、組み直しは行の中身が変わった frame だけ〔r4 で AC08 (12) の入力の全部の一致に改めた〕 14 DS-LAYER-23 で開いたカードと左の列の緊急地震速報のカードの組を作らない（P4-DS-D-OPEN-WHILE-EEW） 15 frame の shell、旧い frame への押下は効かない 16 ShellDrawCard の mark 17 head だけで列の高さ以下。spec の末尾に DS-LAYER-23。P4-DS-D-SECOND-GROUP は見た目に別の案がある物だけに絞った（表 §15）",
         "remaining": "OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は 作者の裁定 2026-11-25 07:0x で A。残りは P4-DS-D-READINGS と Q-DS-COLUMN-FLOW・Q-DS-STATUS-WORDS"
       },
       {
@@ -138,6 +138,13 @@
         "status": "closed",
         "source": "r2（915ca317）へのヘルツの 3 巡目（NO-GO、指摘 18）と契約適合レビュー（条件付き GO、P2 2・P3 11）、作者の裁定 2026-11-25 07:0x（「判断事項については、全て推奨で進めてください。」）、統合担当の決め 2026-11-25 07:05",
         "closed": "18 割りの使い回しは paginateColumn の入力の全部が同じとき（AC08 (12)、T06 (h)）。P2-1 起草の読み 8 件を統合担当が確定、見た目の 3 つと D1 は P4-DS-D-READINGS。P2-2 Q-DS-SWAP-HOLES と D1 の根拠の字。P3-3 ずれて出た所の出どころ。P3-4 OPEN-WHILE-EEW の reason。P3-5 D-AC05（AC13 (4)(5)）。P3-6・7 表 §11・§12。P3-8 T10 (f)。P3-9 AC09 (1)・AC11 (1)・T08。P3-10 詳細の failed（AC03 (5)、T05）。P3-11 古い字と時刻の日付。spec の出どころの字を行の中で直した（709 行のまま）。表 §16",
+        "remaining": "P4-DS-D-READINGS、Q-DS-COLUMN-FLOW、Q-DS-STATUS-WORDS"
+      },
+      {
+        "id": "Q-DS-R4-REVIEW",
+        "status": "closed",
+        "source": "r3（04ad088b）へのヘルツの 4 巡目（NO-GO、18 の直し残りと 19）",
+        "closed": "18 AC05 (6)・表 §4.3・RES-02 を AC08 (12) の条件を指す字にした。19 frame.status に詳細の failed の札（順は版が合わない方が先、AC10 (3)・AC08 (5)・表 §2.4、T06 (j)）。突き合わせで ShellColumnPages の column を外し、T06 (a)(c)(k)・T10 (a) に欄の試験を入れた（表 §17）",
         "remaining": "P4-DS-D-READINGS、Q-DS-COLUMN-FLOW、Q-DS-STATUS-WORDS"
       }
     ],
@@ -279,7 +286,7 @@
         "target": "paginateColumn の組み直しの回数",
         "limit": "K＋1（K は列に置かれうる登録の max の和）",
         "unit": "回",
-        "scope": "1 列ごと。1 回の割りは列の全部の行×形の数で、それを K＋1 回まで。組み直しは列の行の中身が変わった frame だけ（表 §4.3）。P4-DS-D-REPAGE-CAP=A、P4-DS-D-CARD-BOUND=A",
+        "scope": "1 列ごと。1 回の割りは列の全部の行×形の数で、それを K＋1 回まで。組み直しは AC08 (12) の割りの使い回しの条件に当たらない frame だけ（表 §4.3）。P4-DS-D-REPAGE-CAP=A、P4-DS-D-CARD-BOUND=A",
         "source": "表 §4.3"
       },
       {
@@ -409,7 +416,7 @@
       },
       {
         "id": "P4-DS-AC05",
-        "requirement": "列の割り（paginateColumn、D04・D-AC06、表 §4）: (1) 列のカード（slot が null）を列の高さ（左 903・右 1000、上端 40）とカードの間 17 で列のページに割る。カードの高さは中身の行の宣言した高さの和（DS-PAGE-02） (2) 入り切らない行は隠さずその列の次のページへ送る（DS-PAGE-06、作者が 13:52 に受けた）。ページの番号は列ごとに 1 つ（DS-PAGE-10）。行は ShellRow の単位で分け、次のページの頭にはその行の continuation を出し直す（DS-PAGE-13）。形の head はそのカードが出る全部のページに出す (3) カードの形は forms の順に試し、ページの数が maxPages 以下で、最後を除く全部のページに本文の行が minBodyRows 以上入り、置かれる最初のページの残りの高さに head と本文の 1 行（minBodyRows が 0 の形は head だけ）が入る最初の形を使う。どの形も満たさないとき、mayHide のカードは出さず、ほかのカードは最後の形を使う。mayHide のカードは次のページへ回して形を満たすことをしない（DS-PAGE-07 の字: 13:52 の「1 行も入らないカードは次のページ」は今日の地震について DS-QROW-18 の形の順に置き換わった）。ほかのカードは 1 行も入らないとき次のページへ回る（forms で DS-QROW-18 を受ける形は統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）） (4) 高さを先に取る順は take、列の上下の順は place（DS-PAGE-07: 津波 → 設定した地域 → 今日の地震、DS-LAYOUT-25: 設定した地域 → 津波 → 今日の地震） (5) ページを送るカードは、同じカードの組が並ぶページの間でいちばん高いページの高さに固定し、並ぶカードの枚数が変わるページでは高さが変わってよい（DS-PAGE-03・12、作者の裁定 13:42・20:08）。右の列で 1 枚だけのページはそのカードを 1000 にする（DS-PAGE-12） (6) 固定した高さで組み直し、割りが前の回と同じになったら止める。上限は K＋1 回（K はその列に置かれうる登録の max の和、P4-DS-D-CARD-BOUND=A、統合担当の決め 2026-11-24 22:0x）で、揃わなければ最後に組んだ回の割りを画面に出す（隠さない・空にしない。DS-PAGE-04・16、P4-DS-D-REPAGE-CAP=A、統合担当の決め 2026-11-24 21:1x）。上限で止まった割りでも、列の高さ以下・本文はちょうど 1 つのページ・同じカードの組が並ぶページの間で高さが同じ、は保たれ、固定した高さがその割りのいちばん高いページの高さと等しいことは保たれない（下が空くことがある）。組み直しは、その列のカードの行の中身（id・形・行の高さと字）が最後に割った時から変わった frame だけで走る（metadata だけ・ページを送るだけ・時計だけの更新では走らない） (7) どの入力でも: 出すカードの本文の行はちょうど 1 つのページに出る、各ページのカードの高さとカードの間の和は列の高さ以下。入力の条件（カードの契約が宣言する。破る入力の答えは定めない）: (a) どの形も head だけで列の高さ以下（本文の無い形を含む） (b) どの形も head と、本文のどの 1 行とその行の continuation の高さの和が列の高さ以下 (c) 右の列は (a)(b) にページの表示の行の高さを足しても列の高さ以下（行の高さは Q-DS-COLUMN-FLOW）、同じ入力からは同じ結果 (8) 計算量は 1 回の割りが列の全部の行×形の数、それを K＋1 回まで（P4-DS-RES-02）。K は登録で決まる定数なので、受信 1 回の費用は行の数に比例する。DOM を読まない (10) 2 ページ以上の列は各ページに mark を返す。cardId はそのページで一番下のカード（右の列はその最後の行にページの表示を置く、DS-PAGE-11）、1 ページなら null、8 ページ以上は dots を偽（DS-PAGE-14） (9) place と take が違うときにどのカードが先に次のページへ回るか、ページの少ないカードが後ろのページで出すもの、右の列のページの表示（DS-PAGE-11）の行の高さは Q-DS-COLUMN-FLOW の答えで表 §4 に足す（本 AC の (1)〜(8) は変えない）",
+        "requirement": "列の割り（paginateColumn、D04・D-AC06、表 §4）: (1) 列のカード（slot が null）を列の高さ（左 903・右 1000、上端 40）とカードの間 17 で列のページに割る。カードの高さは中身の行の宣言した高さの和（DS-PAGE-02） (2) 入り切らない行は隠さずその列の次のページへ送る（DS-PAGE-06、作者が 13:52 に受けた）。ページの番号は列ごとに 1 つ（DS-PAGE-10）。行は ShellRow の単位で分け、次のページの頭にはその行の continuation を出し直す（DS-PAGE-13）。形の head はそのカードが出る全部のページに出す (3) カードの形は forms の順に試し、ページの数が maxPages 以下で、最後を除く全部のページに本文の行が minBodyRows 以上入り、置かれる最初のページの残りの高さに head と本文の 1 行（minBodyRows が 0 の形は head だけ）が入る最初の形を使う。どの形も満たさないとき、mayHide のカードは出さず、ほかのカードは最後の形を使う。mayHide のカードは次のページへ回して形を満たすことをしない（DS-PAGE-07 の字: 13:52 の「1 行も入らないカードは次のページ」は今日の地震について DS-QROW-18 の形の順に置き換わった）。ほかのカードは 1 行も入らないとき次のページへ回る（forms で DS-QROW-18 を受ける形は統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）） (4) 高さを先に取る順は take、列の上下の順は place（DS-PAGE-07: 津波 → 設定した地域 → 今日の地震、DS-LAYOUT-25: 設定した地域 → 津波 → 今日の地震） (5) ページを送るカードは、同じカードの組が並ぶページの間でいちばん高いページの高さに固定し、並ぶカードの枚数が変わるページでは高さが変わってよい（DS-PAGE-03・12、作者の裁定 13:42・20:08）。右の列で 1 枚だけのページはそのカードを 1000 にする（DS-PAGE-12） (6) 固定した高さで組み直し、割りが前の回と同じになったら止める。上限は K＋1 回（K はその列に置かれうる登録の max の和、P4-DS-D-CARD-BOUND=A、統合担当の決め 2026-11-24 22:0x）で、揃わなければ最後に組んだ回の割りを画面に出す（隠さない・空にしない。DS-PAGE-04・16、P4-DS-D-REPAGE-CAP=A、統合担当の決め 2026-11-24 21:1x）。上限で止まった割りでも、列の高さ以下・本文はちょうど 1 つのページ・同じカードの組が並ぶページの間で高さが同じ、は保たれ、固定した高さがその割りのいちばん高いページの高さと等しいことは保たれない（下が空くことがある）。組み直しは、AC08 (12) の割りの使い回しの条件（paginateColumn の入力の全部が最後に割った時と同じ）に当たらない frame だけで走る（metadata だけ・ページを送るだけ・時計だけの更新では入力が同じなので走らない） (7) どの入力でも: 出すカードの本文の行はちょうど 1 つのページに出る、各ページのカードの高さとカードの間の和は列の高さ以下。入力の条件（カードの契約が宣言する。破る入力の答えは定めない）: (a) どの形も head だけで列の高さ以下（本文の無い形を含む） (b) どの形も head と、本文のどの 1 行とその行の continuation の高さの和が列の高さ以下 (c) 右の列は (a)(b) にページの表示の行の高さを足しても列の高さ以下（行の高さは Q-DS-COLUMN-FLOW）、同じ入力からは同じ結果 (8) 計算量は 1 回の割りが列の全部の行×形の数、それを K＋1 回まで（P4-DS-RES-02）。K は登録で決まる定数なので、受信 1 回の費用は行の数に比例する。DOM を読まない (10) 2 ページ以上の列は各ページに mark を返す。cardId はそのページで一番下のカード（右の列はその最後の行にページの表示を置く、DS-PAGE-11）、1 ページなら null、8 ページ以上は dots を偽（DS-PAGE-14） (9) place と take が違うときにどのカードが先に次のページへ回るか、ページの少ないカードが後ろのページで出すもの、右の列のページの表示（DS-PAGE-11）の行の高さは Q-DS-COLUMN-FLOW の答えで表 §4 に足す（本 AC の (1)〜(8) は変えない）",
         "evidenceRefs": [
           "docs/specs/reconstruction-display-design.md:535 «3eab4d9a7d22e491»",
           "docs/specs/reconstruction-display-design.md:536 «84a2584a52ec00fe»",
@@ -483,7 +490,7 @@
       },
       {
         "id": "P4-DS-AC08",
-        "requirement": "描く値を返す関数（screenFrame、Q-PWT3-ROWS-FN、表 §2.4）: (1) screenFrame(input) は client の状態・時刻・列ごとのページの番号・ShellState から ShellFrame を返す純粋な関数で、vitest から import できる（DOM・EventSource・performance に依らない） (2) main.ts は screenFrame が返した値だけを描く（時計の矩形と字、状態の札、カードの層・矩形・暗さ・ずらし・行、覆いの範囲、地図の塗りの役目と印）。行の字と矩形を DOM の側で作らない (3) カードは cards.ts の CARD_SOURCES（ShellCardEntry: source と max）から集める。max は source の作りで決まる数。source が max を越えて返したら前から max 枚だけを使い、診断を 1 件残す（frame の diagnostics に reason \"cardSourceOverMax\"・登録の番号・返した枚数・max を入れ、main.ts が console へ出す。黙って落とさない）。S0 の登録は 0 本で、各カードの契約が 1 行ずつ足す（計画:227、P4-DS-D-CARD-BOUND=A） (4) 中間の層は paginateColumn の結果のうち、その列のページの番号のページ（番号がページの数以上なら最後のページ）。最上層は slot のあるカードを slot の小さい順に並べ、その順で eewSlots（枚数、6 まで）の場所に置き（7 枚目からは置かない。7 件目は E0、DS-LAYOUT-07）、置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を placeLayers の open に渡す（開いたカードは frame の cards の先頭。ほかの最上層のカードと面で重ならない、DS-LAYER-23）。上がったカードと下げる緊急地震速報のカードは AC06 と AC16 (5) snapshot が無いか unsupported のときはカードを出さず、時計と状態の札だけ (6) 空の災害カードを作らない: カードは登録した関数が返したものだけで、S0 は分野の包みを見てカードを足さない。分野の包みは要約・取得待ちのまま関数へ渡し、無発令に置き換えない（D-AC02 の S0 分） (7) 取消・失効は最新の snapshot から作り直すことで、今のページの外のカードにも効く（D-AC02） (8) 地図の塗りの役目（map）と印（marks）は M0 が埋めるまで空の配列 (9) 計算量: 1 回の frame は登録した関数の返した行の数と、P4-DS-RES-01・RES-02 の費用の和。全 subject・snapshot 全体を直列化しない (10) frame の shell は組んだ時の ShellState（AC07 (0)） (11) ページの表示: 列のページの mark を、右の列は mark.cardId のカードの ShellDrawCard の mark（at は last、dots は mark.dots）に、左の列はそのページの mayHide のカード（今日の地震）の mark（at は head、dots は偽、DS-QROW-21）に入れる。text は「ページの番号＋1/ページの数」の字。DOM は mark の字と点を描くだけで字を組まない。左の列のページに mayHide のカードが無いときの置き場は Q-DS-COLUMN-FLOW。左の列の置き場（今日の地震の見出しの行）は統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）で、作者の確認待ち（P4-DS-D-READINGS） (12) 割りは、paginateColumn の入力の全部（列と、その列の ShellCard の全部の欄: id・place・take・slot・mayHide・forms の head と body の各行の height・texts〔text と token〕・continuation・maxPages・minBodyRows・opened）が最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例（ヘルツの指摘 18）",
+        "requirement": "描く値を返す関数（screenFrame、Q-PWT3-ROWS-FN、表 §2.4）: (1) screenFrame(input) は client の状態・時刻・列ごとのページの番号・ShellState から ShellFrame を返す純粋な関数で、vitest から import できる（DOM・EventSource・performance に依らない） (2) main.ts は screenFrame が返した値だけを描く（時計の矩形と字、状態の札、カードの層・矩形・暗さ・ずらし・行、覆いの範囲、地図の塗りの役目と印）。行の字と矩形を DOM の側で作らない (3) カードは cards.ts の CARD_SOURCES（ShellCardEntry: source と max）から集める。max は source の作りで決まる数。source が max を越えて返したら前から max 枚だけを使い、診断を 1 件残す（frame の diagnostics に reason \"cardSourceOverMax\"・登録の番号・返した枚数・max を入れ、main.ts が console へ出す。黙って落とさない）。S0 の登録は 0 本で、各カードの契約が 1 行ずつ足す（計画:227、P4-DS-D-CARD-BOUND=A） (4) 中間の層は paginateColumn の結果のうち、その列のページの番号のページ（番号がページの数以上なら最後のページ）。最上層は slot のあるカードを slot の小さい順に並べ、その順で eewSlots（枚数、6 まで）の場所に置き（7 枚目からは置かない。7 件目は E0、DS-LAYOUT-07）、置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を placeLayers の open に渡す（開いたカードは frame の cards の先頭。ほかの最上層のカードと面で重ならない、DS-LAYER-23）。上がったカードと下げる緊急地震速報のカードは AC06 と AC16 (5) snapshot が無いか unsupported のときはカードを出さず、時計と状態の札だけ。frame の status は AC10 (3) の札の並び (6) 空の災害カードを作らない: カードは登録した関数が返したものだけで、S0 は分野の包みを見てカードを足さない。分野の包みは要約・取得待ちのまま関数へ渡し、無発令に置き換えない（D-AC02 の S0 分） (7) 取消・失効は最新の snapshot から作り直すことで、今のページの外のカードにも効く（D-AC02） (8) 地図の塗りの役目（map）と印（marks）は M0 が埋めるまで空の配列 (9) 計算量: 1 回の frame は登録した関数の返した行の数と、P4-DS-RES-01・RES-02 の費用の和。全 subject・snapshot 全体を直列化しない (10) frame の shell は組んだ時の ShellState（AC07 (0)） (11) ページの表示: 列のページの mark を、右の列は mark.cardId のカードの ShellDrawCard の mark（at は last、dots は mark.dots）に、左の列はそのページの mayHide のカード（今日の地震）の mark（at は head、dots は偽、DS-QROW-21）に入れる。text は「ページの番号＋1/ページの数」の字。DOM は mark の字と点を描くだけで字を組まない。左の列のページに mayHide のカードが無いときの置き場は Q-DS-COLUMN-FLOW。左の列の置き場（今日の地震の見出しの行）は統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）で、作者の確認待ち（P4-DS-D-READINGS） (12) 割りは、paginateColumn の入力の全部（列と、その列の ShellCard の全部の欄: id・place・take・slot・mayHide・forms の head と body の各行の height・texts〔text と token〕・continuation・maxPages・minBodyRows・opened）が最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例（ヘルツの指摘 18）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»",
           "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
@@ -511,7 +518,7 @@
       },
       {
         "id": "P4-DS-AC10",
-        "requirement": "状態の札の置き場（H01・H02、表 §1.1）: (1) ヘッダの帯を作らない（H02、DS-ALL-10） (2) 状態の札の置き場は画面の上端の中央で、横の中心 960px・上端 40px（作者の裁定 13:52〔送信 13:51:15〕の字「状態の印は上端中央としてください。」、位置の数は統合担当の読み DS-LAYOUT-22。「上 40px」を上端と読むのは統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）で、作者の確認待ち（P4-DS-D-READINGS））。出すものがあるときだけ、要る大きさで地図の上に浮かせる。平常時は何も出さない（H01・H02）。受信が止まっている表示の場所もここ（DS-LAYOUT-27） (3) S0 が出すのは版が合わない（unsupported）ときの 1 つだけ。字は Q-DS-STATUS-WORDS の答え。中身の種類・同時に出す数・形と強さは C2 (4) frame の status が空なら DOM に札の要素を置かない",
+        "requirement": "状態の札の置き場（H01・H02、表 §1.1）: (1) ヘッダの帯を作らない（H02、DS-ALL-10） (2) 状態の札の置き場は画面の上端の中央で、横の中心 960px・上端 40px（作者の裁定 13:52〔送信 13:51:15〕の字「状態の印は上端中央としてください。」、位置の数は統合担当の読み DS-LAYOUT-22。「上 40px」を上端と読むのは統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）で、作者の確認待ち（P4-DS-D-READINGS））。出すものがあるときだけ、要る大きさで地図の上に浮かせる。平常時は何も出さない（H01・H02）。受信が止まっている表示の場所もここ（DS-LAYOUT-27） (3) S0 が出すのは 2 つ: 版が合わない（unsupported）ときの札と、詳細を読めなかった（state.detail.status が failed）ときの札。両方なら版が合わない方を先に置く。failed の札は detailRequested で loading になるか、置き換えで refetch になれば次の frame で消える（AC03 (5)）。字は Q-DS-STATUS-WORDS の答え。中身の種類・同時に出す数・形と強さは C2 (4) frame の status が空なら DOM に札の要素を置かない",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:3028 «871b87419ae2cb30»",
           "docs/specs/reconstruction-p0-contracts.md:3029 «a4fb170e00c3b22b»",
@@ -636,11 +643,13 @@
         "testId": "P4-DS-T06",
         "purpose": "acceptance",
         "referenceIds": [
+          "P4-DS-AC03",
+          "P4-DS-AC05",
           "P4-DS-AC08",
           "P4-DS-AC10",
-          "P4-DS-AC05"
+          "P4-DS-AC16"
         ],
-        "behavior": "受入条件。CARD_SOURCES を試験の中で 2 本の作り物の関数に差し替えた screenFrame で、(a) snapshot が無い・unsupported のときはカード 0 で時計だけ、unsupported の札が 1 つ (b) 平常の snapshot で status が空 (c) 列のページの番号がページの数以上なら最後のページ (d) 取消でカードが消えた snapshot の後は今のページの外のカードも消える (e) slot のあるカードが eewSlots の場所で最上層、shell.open で開いたカードが frame の cards の先頭に入り、開いている間は中間の層に開いたカードが無い (f) 要約の分野の包みがそのまま関数に渡る (g) 2 ページ以上の右の列で、一番下のカードの ShellDrawCard に mark（at が last、text が「1/3」など、dots）が入り、左の列は今日の地震の mark（at が head、dots が偽）に入る (h) 同じ入力で 2 回組むと 2 回目は割りを組み直さない（列ごとの前の結果を使う）。続けて、行・id・形を同じにして右の列の 2 枚 A・B の place と take だけを入れ替えた入力で組むと、前は A が上・B が下、後は B が上・A が下になる（入力が違うので使い回さない、ヘルツの指摘 18） (i) max を越えて返す作り物の source で、前から max 枚だけが描かれ、diagnostics に cardSourceOverMax が 1 件入る"
+        "behavior": "受入条件。CARD_SOURCES を試験の中で 2 本の作り物の関数に差し替えた screenFrame で、(a) snapshot が無い・unsupported のときはカード 0 で時計だけ、unsupported の札が 1 つ、map と marks は空 (b) 平常の snapshot で status が空 (c) 列のページの番号がページの数以上なら最後のページで、pageCount がその列のページの数 (d) 取消でカードが消えた snapshot の後は今のページの外のカードも消える (e) slot のあるカードが eewSlots の場所で最上層、shell.open で開いたカードが frame の cards の先頭に入り、開いている間は中間の層に開いたカードが無い (f) 要約の分野の包みがそのまま関数に渡る (g) 2 ページ以上の右の列で、一番下のカードの ShellDrawCard に mark（at が last、text が「1/3」など、dots）が入り、左の列は今日の地震の mark（at が head、dots が偽）に入る (h) 同じ入力で 2 回組むと 2 回目は割りを組み直さない（列ごとの前の結果を使う）。続けて、行・id・形を同じにして右の列の 2 枚 A・B の place と take だけを入れ替えた入力で組むと、前は A が上・B が下、後は B が上・A が下になる（入力が違うので使い回さない、ヘルツの指摘 18） (i) max を越えて返す作り物の source で、前から max 枚だけが描かれ、diagnostics に cardSourceOverMax が 1 件入る (j) 詳細が failed の client の状態で status に詳細を読めなかった札が 1 つ入り、unsupported と failed が同時なら版が合わない札が先、detailRequested で loading にした状態と、置き換えで refetch になった状態では札が無い（ヘルツの指摘 19） (k) shellSync が slot のカードの id（slot の順、6 まで）と opened のあるカードの有無を返す"
       },
       {
         "testId": "P4-DS-T07",
@@ -679,7 +688,7 @@
           "P4-DS-AC11",
           "P4-DS-AC12"
         ],
-        "behavior": "受入条件（実 Chrome、node reconstruction/test/screen/smoke.mjs、統合担当が開発機で走らせる）。(a) AC09 (2) の字の差し替えで要素の数と実行される要素 0 と字面 (b) AC11 (2) の再接続とページの切替の後の listener・timer・EventSource の数 (c) layout を読む API の呼びを数える包みを先に入れて、更新と時計の更新で 0 (d) AC12 の 2 つの mark の差を記録する（合否にしない） (e) server が名前つきの event: snapshot で送った 1 通が画面に出る（AC03 (1)）。2 ページ以上の列でページの表示の字と点が画面に出る（AC08 (11)）。カードの面の色と時計の位置が tokens.ts の値で描かれる（T01 を外して寄せた） (f) viewport を Emulation.setDeviceMetricsOverride で 1920×1080 にして時計が (40, 960) に描かれ、960×540 にすると全体が 0.5 倍で時計が (20, 480) に描かれ、その大きさで押した点が 1920×1080 の座標に戻って reduceShell に渡る（AC04 (5)、DS-SCREEN-02）"
+        "behavior": "受入条件（実 Chrome、node reconstruction/test/screen/smoke.mjs、統合担当が開発機で走らせる）。(a) AC09 (2) の字の差し替えで要素の数と実行される要素 0 と字面。tokens.ts の表に無い token の字には class が付かない（AC09 (1)） (b) AC11 (2) の再接続とページの切替の後の listener・timer・EventSource の数 (c) layout を読む API の呼びを数える包みを先に入れて、更新と時計の更新で 0 (d) AC12 の 2 つの mark の差を記録する（合否にしない） (e) server が名前つきの event: snapshot で送った 1 通が画面に出る（AC03 (1)）。2 ページ以上の列でページの表示の字と点が画面に出る（AC08 (11)）。カードの面の色と時計の位置が tokens.ts の値で描かれる（T01 を外して寄せた） (f) viewport を Emulation.setDeviceMetricsOverride で 1920×1080 にして時計が (40, 960) に描かれ、960×540 にすると全体が 0.5 倍で時計が (20, 480) に描かれ、その大きさで押した点が 1920×1080 の座標に戻って reduceShell に渡る（AC04 (5)、DS-SCREEN-02）"
       },
       {
         "testId": "P4-DS-T11",

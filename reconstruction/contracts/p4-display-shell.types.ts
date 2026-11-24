@@ -32,7 +32,7 @@ export type ShellCardEntry = Readonly<{ source: ShellCardSource; max: number }>;
 export type ShellCardSlice = Readonly<{ id: string; rect: ShellRect; form: number; rows: readonly ShellRow[] }>;
 export type ShellPageMark = Readonly<{ cardId: string; page: number; pages: number; dots: boolean }>;
 export type ShellColumnPage = Readonly<{ cards: readonly ShellCardSlice[]; mark: ShellPageMark | null }>;
-export type ShellColumnPages = Readonly<{ column: ShellColumn; pages: readonly ShellColumnPage[] }>;
+export type ShellColumnPages = Readonly<{ pages: readonly ShellColumnPage[] }>;
 
 export type ShellTop = Readonly<{ id: string; rect: ShellRect }>;
 export type ShellMiddle = Readonly<{ id: string; column: ShellColumn; rect: ShellRect }>;
@@ -73,7 +73,7 @@ export type ShellDrawCard = Readonly<{
   mark: ShellDrawMark | null;
 }>;
 export type ShellFrameInput = Readonly<{ state: ShellClientState; nowMs: number; page: Readonly<Record<ShellColumn, number>>; shell: ShellState }>;
-// DOM はこの値だけを描く（Q-PWT3-ROWS-FN）。shell はこの frame を組んだ時の ShellState（押下はこれが今の状態と同じ object のときだけ効く、DS-LAYER-23 の R2）。
+// DOM はこの値だけを描く（Q-PWT3-ROWS-FN）。status は札の字の並び（unsupported の札、詳細が failed の札の順。AC10 (3)）。shell はこの frame を組んだ時の ShellState（押下はこれが今の状態と同じ object のときだけ効く、DS-LAYER-23 の R2）。
 export type ShellFrame = Readonly<{
   shell: ShellState;
   clock: Readonly<{ rect: ShellRect; text: string }>; status: readonly string[];
