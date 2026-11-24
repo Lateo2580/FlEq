@@ -48,15 +48,15 @@ export type ShellLayerResult = Readonly<{ top: readonly ShellPlacement[]; middle
 // 下がった緊急地震速報のカードは raised から導く（上がったカードに重なるもの）。
 export type ShellState = Readonly<{ open: boolean; raised: readonly string[]; eew: readonly string[] }>;
 // reduceShell の事象。press はその時の frame と押した点（1920×1080 の座標。相手は点に描かれた一番手前の面）。
-// sync は snapshot を受けるたびと描く前に当てる、緊急地震速報のカードの id の組（slot の順。4 件目からは左の列）と、開けるカードがあるか（shellSync が作る）。
+// sync は snapshot を採るたびと描く前に当てる、緊急地震速報のカードの id の組（slot の順。4 件目からは左の列）と、開けるカードがあるか（shellSync が screenFrame と同じ集め方で作る）。
 export type ShellEvent = Readonly<{ kind: "press"; frame: ShellFrame; x: number; y: number }> | Readonly<{ kind: "sync"; eew: readonly string[]; openable: boolean }>;
 
 export type ShellDomainKey = keyof DisplayWireSnapshot["current"];
 // 開いている詳細 1 件（D02）。refetch は対象分野の内容版か stream が変わったか、応答が 409 versionChanged だった。
 // streamId は要求した時の stream。応答はこの object がまだ今の詳細で、stream が今と同じときだけ採る。
-// failed は 409 以外で読めなかった（400・429・503・504・responseTooLarge・通信の失敗）。理由は main.ts が log に残す。
+// ready・refetch・failed は detailAnswered が answer から決める（表 §2.3、AC03 (5)）。理由は main.ts が log に残す。
 export type ShellDetail = Readonly<{ request: WireDetailRequest; streamId: string; status: "loading" | "ready" | "refetch" | "failed"; response: WireDetailResponse | null }>;
-// detailAnswered に渡す応答。failed は main.ts が 200・409 以外の HTTP の応答と通信の失敗から作る（WireDetailResponse に responseTooLarge が無いため、表 §11）。
+// detailAnswered に渡す answer。failed への変換は main.ts だけが行う（表 §2.3。WireDetailResponse に responseTooLarge が無い、表 §11）。
 export type ShellDetailAnswer = WireDetailResponse | Readonly<{ kind: "failed"; reason: string }>;
 // changed は直前の snapshot から contentRevision が変わった分野（stream が変われば全部）。
 export type ShellClientState = Readonly<{ snapshot: DisplayWireSnapshot | null; unsupported: boolean; changed: readonly ShellDomainKey[]; detail: ShellDetail | null }>;
