@@ -31,17 +31,25 @@ export type ShellCardSlice = Readonly<{ id: string; rect: ShellRect; form: numbe
 export type ShellColumnPage = Readonly<{ cards: readonly ShellCardSlice[] }>;
 export type ShellColumnPages = Readonly<{ column: ShellColumn; pages: readonly ShellColumnPage[]; passes: number }>;
 
-// 最上層の 1 枚。配列の順が前から奥（開いたカードと緊急地震速報の前後 DS-OPEN-46 は呼ぶ側が決める）。
 export type ShellTop = Readonly<{ id: string; rect: ShellRect }>;
 export type ShellMiddle = Readonly<{ id: string; column: ShellColumn; rect: ShellRect }>;
-export type ShellLayerInput = Readonly<{ top: readonly ShellTop[]; middle: readonly ShellMiddle[] }>;
-// dimmed は覆いの範囲と面が重なる。shifted は全体が覆いの範囲に入り、中央寄りへ 96px ずらした（rect はずらした後）。
-export type ShellMiddlePlacement = Readonly<{ id: string; rect: ShellRect; dimmed: boolean; shifted: boolean }>;
-// cover は覆いの範囲（最上層のカードの矩形と、上下に続く最上層のカードの間）。中間の層はこの中を描かない。
-export type ShellLayerResult = Readonly<{ top: readonly ShellTop[]; middle: readonly ShellMiddlePlacement[]; cover: readonly ShellRect[] }>;
+// eew は緊急地震速報のカードの場所（場所の番号の順）、open は開いたカード、raised は上がったカードの id、middle は列のカードの割りの位置。
+// openFront は開いたカードを緊急地震速報のカードより前に置くか（DS-OPEN-46。開いたカードは上がったカードより常に前、DS-LAYER-20）。
+export type ShellLayerInput = Readonly<{ eew: readonly ShellMiddle[]; open: ShellTop | null; openFront: boolean; raised: readonly string[]; middle: readonly ShellMiddle[] }>;
+// dimmed は暗い、shifted は中央寄りへ 96px ずらした（rect はずらした後）。under は下がった緊急地震速報のカードに重なる上がったカードの id（ほかは空）。
+export type ShellPlacement = Readonly<{ id: string; layer: "top" | "middle"; rect: ShellRect; dimmed: boolean; shifted: boolean; under: readonly string[] }>;
+// top は前から奥、middle は奥から手前（列のカード、その手前に下がった緊急地震速報のカード）の描く順。
+// cover は最上層のカードの矩形と上下に続く最上層のカードの間で、中間の層はこの中を描かない。
+export type ShellLayerResult = Readonly<{ top: readonly ShellPlacement[]; middle: readonly ShellPlacement[]; cover: readonly ShellRect[] }>;
 
-// 押した所（DOM が frame の矩形から決める）。dimmed は暗く、ずれていない中間の層のカード。
-export type ShellHit = "opened" | "openable" | "shifted" | "dimmed" | "other";
+// 押した所（DOM が frame の矩形から決める）。card は frame の cards の中間の層の 1 枚（下がった緊急地震速報のカードを含む）。
+// opened は開いたカードの中、other はそれ以外（地図・時計・状態の札・最上層の緊急地震速報・上がったカード）。
+export type ShellHit = Readonly<{ kind: "opened" }> | Readonly<{ kind: "other" }> | Readonly<{ kind: "card"; id: string }>;
+// 押したことで変わる状態。raised は上がったカードの id（DS-LAYER-06・15）、eew は最後に見た緊急地震速報のカードの id の組（DS-LAYER-21）。
+// 下がった緊急地震速報のカードは raised から導く（上がったカードに重なるもの）。
+export type ShellState = Readonly<{ open: boolean; raised: readonly string[]; eew: readonly string[] }>;
+// reduceShell の事象。press は押した所、eew は frame の緊急地震速報のカードの id の組。
+export type ShellEvent = Readonly<{ kind: "press"; frame: ShellFrame; hit: ShellHit }> | Readonly<{ kind: "eew"; ids: readonly string[] }>;
 
 export type ShellDomainKey = keyof DisplayWireSnapshot["current"];
 // 開いている詳細 1 件（D02）。refetch は対象分野の内容版か stream が変わったか、応答が 409 versionChanged だった。
@@ -52,13 +60,16 @@ export type ShellClientState = Readonly<{ snapshot: DisplayWireSnapshot | null; 
 // 地図の塗りの役目と印（M0 が埋める。S0 は空を返す、Q-PWT3-ROWS-FN）。
 export type ShellMapPaint = Readonly<{ code: string; token: string }>;
 export type ShellMapMark = Readonly<{ id: string; lat: number; lon: number; token: string }>;
-// 描く 1 枚。frame の cards の中の最上層は前から奥の順。
-export type ShellDrawCard = Readonly<{ id: string; layer: "top" | "middle"; rect: ShellRect; dimmed: boolean; shifted: boolean; rows: readonly ShellRow[] }>;
-// openFront は開いたカードを緊急地震速報のカードより前に置くか（DS-OPEN-46。S0 は決めず、呼ぶ側が渡す）。
-export type ShellFrameInput = Readonly<{ state: ShellClientState; nowMs: number; page: Readonly<Record<ShellColumn, number>>; open: boolean; openFront: boolean }>;
+// 描く 1 枚。frame の cards は最上層（前から奥）、続けて中間の層（奥から手前）の順。openable は押して開けるカード。
+// under は下がった緊急地震速報のカードだけが持つ、そのカードに重なる上がったカードの id（ほかは空）。
+export type ShellDrawCard = Readonly<{
+  id: string; layer: "top" | "middle"; rect: ShellRect; dimmed: boolean; shifted: boolean; openable: boolean; under: readonly string[]; rows: readonly ShellRow[];
+}>;
+// openFront は開いたカードを緊急地震速報のカードより前に置くか（DS-OPEN-46。S0 は決めず、呼ぶ側が渡す。main.ts は真を渡す）。
+export type ShellFrameInput = Readonly<{ state: ShellClientState; nowMs: number; page: Readonly<Record<ShellColumn, number>>; shell: ShellState; openFront: boolean }>;
 // DOM はこの値だけを描く（Q-PWT3-ROWS-FN）。
 export type ShellFrame = Readonly<{
   clock: Readonly<{ rect: ShellRect; text: string }>; status: readonly string[];
-  cards: readonly ShellDrawCard[]; cover: readonly ShellRect[]; pageCount: Readonly<Record<ShellColumn, number>>;
+  cards: readonly ShellDrawCard[]; cover: readonly ShellRect[]; pageCount: Readonly<Record<ShellColumn, number>>; eew: readonly string[];
   map: readonly ShellMapPaint[]; marks: readonly ShellMapMark[];
 }>;

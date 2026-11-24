@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "c1b0130cdec628fb69521fce033acc0f0053f32b2d2d88000524a41856c67792",
+    "sha256": "755f6a7d15aa64f3805ac7a888bbc30279ee66deeba5a289049525276f50ef12",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -14,8 +14,8 @@
         "B": "各カードの契約が reconstruction/src/display/<部品>/ を持ち、http-sse.ts の WIRE_MODULE_PATH を 2 階層に広げて moduleDirectory を親の dir にする（S0 か別の契約が http-sse.ts の直列に入る）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の確定待ち）",
-        "ruling": "未",
+        "status": "確定（統合担当の決め 2026-11-24 21:1x）",
+        "ruling": "A",
         "reason": "表 §7。http-sse.ts:323 は 1 階層の [a-z0-9-]+.js だけを配り、:198 は 1 つの moduleDirectory から読む。tsc は rootDir からの dir の形を dist に残すので、部品ごとの dir は 1 つの moduleDirectory に並ばない。S0 は http-sse.ts の直列（計画:230）に入っていない。B は配る path の判定を広げ、名前の確かめを足すことになる"
       },
       {
@@ -33,12 +33,12 @@
       {
         "id": "P4-DS-D-REPAGE-CAP",
         "kind": "統合担当",
-        "A": "組み直し（DS-PAGE-16）は 1 列の「列のカードの数＋1」回まで。各回は前の回の固定した高さを当てて組み、割りが前の回と同じになったら止める。上限で揃わなければ最後の回の割りを使い、結果の passes に回数を出す",
+        "A": "組み直し（DS-PAGE-16）は 1 列の「列のカードの数＋1」回まで。各回は前の回の固定した高さを当てて組み、割りが前の回と同じになったら止める。上限で揃わなければ最後に組んだ回の割りを画面に出し（隠さない・空にしない）、結果の passes に回数を出す",
         "B": "上限を置かず、揃うまで組み直す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の確定待ち）",
-        "ruling": "未",
+        "status": "確定（統合担当の決め 2026-11-24 21:1x）",
+        "ruling": "A",
         "reason": "表 §4.3。DS-PAGE-16 は上限を書かない。B は揃わない入力で受信ごとの処理が止まらない（AGENTS.md の受信経路の計算量）。高さを取る順（take）で前のカードの高さだけが後ろのカードの割りを変えるなら、k 枚の列は k＋1 回で揃う（起草の読み。証明はしていない。揃わない入力が見つかったら上限の値ではなく割りの決まりを直す）"
       },
       {
@@ -53,7 +53,29 @@
         "reason": "表 §1.2。DS-OPEN-48 は未決で送り先が無い。B は D-AC05「時計…を隠さない」（spec:1842）に当たる。見本の図は A で撮った（DS-OPEN-48 の字）"
       }
     ],
-    "questionResolutions": [],
+    "questionResolutions": [
+      {
+        "id": "Q-DS-SWAP",
+        "status": "closed",
+        "source": "作者裁定 2026-11-24 20:46（「ずれた状態で中間層に配置されたカードは、クリックして最上層に移動した後もずれたままにしましょう。」「最上層に移動した後に再移動させる手間が省けます。」）と 20:54（「その読みで合っています。　続けてください！」、見比べのページ版 13 の文 1〜4 への返事）",
+        "closed": "文 1（暗いカードを押すと最上層へ上がって全部見え、重なっていた緊急地震速報のカードは何枚でも全部中間の層へ下がって暗くなる、DS-LAYER-15）、文 2（下がった緊急地震速報のカードを押すと最上層へ戻り、上がっていたカードが中間の層へ戻る、DS-LAYER-06 の後半）、文 3（ずれていたカードは上がった後もずれたまま、DS-LAYER-18）、文 4（下がったカードの全体が覆われたら 96px ずらす、DS-LAYER-19・DS-OPEN-63）を AC07・AC16 と表 §5.2 に書いた。暗い今日の地震を押したときは S0 で決めず DS-OPEN-75（S1・E0）、決まるまでは入れ替え。spec の §15 は 2 回目に当てた",
+        "remaining": "DS-OPEN-45・46・75（S1・E0）。2 回目の表 §5.3 の 1〜4 は Q-DS-SWAP-HOLES で閉じた"
+      },
+      {
+        "id": "Q-DS-SECOND-GROUP",
+        "status": "closed",
+        "source": "見比べのページ版 13 の「聞かずに進めること」を作者に見せ、20:54 の返事（「その読みで合っています。　続けてください！」）に異論が無かった（作業ノートの 20:54 の節）",
+        "closed": "DS-LAYER-09 の後半（開いているとき暗いカードを押しても閉じるだけ）と DS-LAYER-16（開いている間は中間の層に開いたカードを渡さない）を、統合担当の読み・決め（版 13 で作者に見せた）として AC07 (6)・AC16 (5) に入れた。暗くする形（明るさを下げ、面は不透明、DS-OPEN-62 の形）とずらす向き（列で書く、DS-OPEN-64）も同じ出どころで、spec の DS-OPEN-62・64 を 2 回目に改めた",
+        "remaining": "DS-OPEN-62 の値（C0）"
+      },
+      {
+        "id": "Q-DS-SWAP-HOLES",
+        "status": "closed",
+        "source": "統合担当の決め 2026-11-24 21:2x（D1〜D4）。D1 の根拠は、作者が 20:54 に受けた見比べのページ版 13 の箇条「押す前と押した後で、どのカードも横に動かない。」と図 sp-23k（統合担当が目で見た: 津波のカードを上げた後も設定した地域のカードは x 136 にずれたまま暗く、下がった D がその手前）",
+        "closed": "D1 列のカードの位置と暗さは緊急地震速報のカード全部の覆いで決め、上がっているかに依らない。上がったカードは暗くしない。下がったカードは列のカードの手前で、上がったカードに全体を覆われたときだけ 96px ずらす（raised は id だけ）。D2 緊急地震速報に重ならない上がったカードは上がっていない扱い。D3 緊急地震速報のカードの組が変わったら raised を空にし閉じる（DS-OPEN-45・46 が決まるまで）。D4 開いたカードは上がったカードの手前、main.ts は openFront を真で渡す。AC06・AC07・AC16、表 §3.1・§5、spec の DS-LAYER-20・21 に書いた",
+        "remaining": "表 §5.3 の「なお決まらない組」2 つ（開いたカードに全体を覆われた上がったカード・下がったカード）"
+      }
+    ],
     "operationContract": {
       "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
       "rule": "運用区分の扱いを変えない。画面の骨組みは運用区分を見ず、分野の包みを登録したカードの関数へそのまま渡す（訓練・試験の見分けはカードの契約）"
@@ -62,7 +84,7 @@
   "contract": {
     "contractId": "P4-DISPLAY-SHELL-001",
     "mode": "implementation",
-    "objective": "新しい画面の骨組みを作る（計画 §2.1 の S0）。新しい経路の snapshot を受けて置き換える client（D02）、配置の宣言値と列の割り（D04）、3 つの層と覆い・暗くする・96px のずらし・押して開く／外を押して閉じる（DS-LAYER の 1 つ目の群）、snapshot・時刻・ページから描く値を返す純粋な関数（Q-PWT3-ROWS-FN）、時計と状態の札の置き場（D05、H01〜H03）、字を text node でだけ入れること（P2-A9-AC08）と日本時間の整形（P2-A9-AC10）、購読と timer の破棄経路（R52）、host.ts の配線（publishWire・flushWire・urgent、開き直しの送り直し、/display の別の path）。r0 は押して層を入れ替える動きを書かない（作者の確認の後に 2 回目で起草する）。設計の表は reconstruction/contracts/p4-display-shell-tables.md",
+    "objective": "新しい画面の骨組みを作る（計画 §2.1 の S0）。新しい経路の snapshot を受けて置き換える client（D02）、配置の宣言値と列の割り（D04）、3 つの層と覆い・暗くする・96px のずらし・押して開く／外を押して閉じる、snapshot・時刻・ページから描く値を返す純粋な関数（Q-PWT3-ROWS-FN）、時計と状態の札の置き場（D05、H01〜H03）、字を text node でだけ入れること（P2-A9-AC08）と日本時間の整形（P2-A9-AC10）、購読と timer の破棄経路（R52）、host.ts の配線（publishWire・flushWire・urgent、開き直しの送り直し、/display の別の path）。押して層を入れ替える動き（作者の裁定 2026-11-24 20:46・20:54、上がったカードの組だけを状態に持つ）。設計の表は reconstruction/contracts/p4-display-shell-tables.md",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -135,13 +157,15 @@
       "reconstruction/contracts/p4-display-shell.types.ts#ShellLayerInput",
       "reconstruction/contracts/p4-display-shell.types.ts#ShellLayerResult",
       "reconstruction/contracts/p4-display-shell.types.ts#ShellHit",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellState",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellEvent",
       "reconstruction/contracts/p4-display-shell.types.ts#ShellClientState",
       "reconstruction/contracts/p4-display-shell.types.ts#ShellFrameInput",
       "reconstruction/contracts/p4-display-shell.types.ts#ShellFrame",
       "reconstruction/contracts/p4-display-wire.types.ts#DisplayWireSnapshot"
     ],
     "publicFunctions": [
-      "reconstruction/src/display/screen/ の純粋な file の末尾の export { … } で出す（export function・export const にしない。P1-T04 が数える）: tokens.ts の LAYOUT と COLORS（AC04）、layout.ts の eewSlots(count)・clockRect(count)・placeLayers(input: ShellLayerInput): ShellLayerResult・paginateColumn(column, cards): ShellColumnPages・pressShell(open, hit): boolean（AC04〜AC07）、client.ts の acceptSnapshot(state, data: string): ShellClientState と detailAnswered(state, response): ShellClientState（AC03）、frame.ts の screenFrame(input: ShellFrameInput): ShellFrame・formatJst(value)・clockText(epochMs)（AC08・AC09。Q-PWT3-ROWS-FN の関数は screenFrame）、cards.ts の CARD_SOURCES（ShellCardSource の配列、S0 は 0 本）。main.ts は export しない。http-sse.ts・composition-root.ts の口は変えない"
+      "reconstruction/src/display/screen/ の純粋な file の末尾の export { … } で出す（export function・export const にしない。P1-T04 が数える）: tokens.ts の LAYOUT と COLORS（AC04）、layout.ts の eewSlots(count)・clockRect(count)・placeLayers(input: ShellLayerInput): ShellLayerResult・paginateColumn(column, cards): ShellColumnPages・reduceShell(state: ShellState, event: ShellEvent): ShellState（AC04〜AC07）、client.ts の acceptSnapshot(state, data: string): ShellClientState と detailAnswered(state, response): ShellClientState（AC03）、frame.ts の screenFrame(input: ShellFrameInput): ShellFrame・formatJst(value)・clockText(epochMs)（AC08・AC09。Q-PWT3-ROWS-FN の関数は screenFrame）、cards.ts の CARD_SOURCES（ShellCardSource の配列、S0 は 0 本）。main.ts は export しない。http-sse.ts・composition-root.ts の口は変えない"
     ],
     "allowedDependencies": [
       "既存の依存だけ（jsdom などを足さない。DOM の検収は実 Chrome の smoke）"
@@ -204,11 +228,11 @@
     "persistenceUnits": [],
     "persistedFields": [],
     "nonPersistedFields": [
-      "ブラウザの client の状態（snapshot・unsupported・changed・詳細）、開いているか、列ごとのページの番号、破棄の表",
+      "ブラウザの client の状態（snapshot・unsupported・changed・詳細）、ShellState（開いているか・上がったカードの id の組・最後に見た緊急地震速報のカードの id の組）、列ごとのページの番号、破棄の表",
       "host の latestWire"
     ],
     "outOfScope": [
-      "押して層を入れ替える動き（上がったカードの組・下がった緊急地震速報のカード・押して戻す。DS-LAYER-06・15、DS-OPEN-63）。作者の確認の後に 2 回目で起草する（Q-DS-SWAP）",
+      "押して層を入れ替えた後の後始末のうち、続報・時間で戻すかと上がったカードの寿命（DS-OPEN-45）、開いたカードと緊急地震速報の前後（DS-OPEN-46）、暗い今日の地震を押したときの決め（DS-OPEN-75）は S1・E0。決まるまでは DS-LAYER-21（組が変わったら空にし閉じる）と入れ替え",
       "各分野のカードの中身と行（E0・T0・C0・C1・C2）、札 A〜F の割当と空いた後と 7 件目（DS-LAYOUT-07〜11、E0）、今日の地震の形の中身（C0）、開いたカードの矩形とページ（DS-OPEN-65、C0）",
       "自動のページ送り・6 秒の起点・ページの引継ぎ・手動の停止・動きを減らす指定（S1）",
       "地図の描画・塗り・camera・印（M0、E0 発注 2）",
@@ -223,7 +247,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-DS-AC01",
-        "requirement": "置き場と build（P4-DS-D-MODULE-PATH の起草案 A、表 §7）: (1) 新しい画面の file は reconstruction/src/display/screen/ の 1 つの directory に平らに置く（index.html、tsconfig.json、DOM の入口 main.ts、純粋な tokens.ts・layout.ts・client.ts・frame.ts・cards.ts）。名前は [a-z0-9-]+ と拡張子だけ（http-sse.ts:323 の 1 階層の名前で配れる形）。DOM・EventSource・performance を触るのは main.ts だけで、ほかの file は DOM の型を参照しない（vitest が import する。p2-chrome-eew.json の DOM の型の分け方と同じ） (2) screen/tsconfig.json は chrome-eew の tsconfig と同じ形（lib に DOM、rootDir は reconstruction/、outDir は reconstruction/dist/screen）で、module は reconstruction/dist/screen/src/display/screen/ に平らに並ぶ (3) reconstruction/tsconfig.json の :16 の exclude に \"src/display/screen/**\" を 1 つ足す（root の tsc は DOM の lib を持たない） (4) screen の tsc を、test.yml の :86・test-windows.yml の :49・AGENTS.md の :16 の chrome-eew の tsc に行の中で続ける（行を足さない） (5) index.html は /display/main.js を module で読み、CSS は index.html の中の style に置く（server が配るのは /display の html と /display/<name>.js だけ、http-sse.ts:198）。px と色は tokens.ts の値を main.ts が起動の時に 1 回だけ CSS の変数に入れ、CSS に px と色の字を直に書かない",
+        "requirement": "置き場と build（P4-DS-D-MODULE-PATH=A、統合担当の決め 2026-11-24 21:1x、表 §7）: (1) 新しい画面の file は reconstruction/src/display/screen/ の 1 つの directory に平らに置く（index.html、tsconfig.json、DOM の入口 main.ts、純粋な tokens.ts・layout.ts・client.ts・frame.ts・cards.ts）。名前は [a-z0-9-]+ と拡張子だけ（http-sse.ts:323 の 1 階層の名前で配れる形）。DOM・EventSource・performance を触るのは main.ts だけで、ほかの file は DOM の型を参照しない（vitest が import する。p2-chrome-eew.json の DOM の型の分け方と同じ） (2) screen/tsconfig.json は chrome-eew の tsconfig と同じ形（lib に DOM、rootDir は reconstruction/、outDir は reconstruction/dist/screen）で、module は reconstruction/dist/screen/src/display/screen/ に平らに並ぶ (3) reconstruction/tsconfig.json の :16 の exclude に \"src/display/screen/**\" を 1 つ足す（root の tsc は DOM の lib を持たない） (4) screen の tsc を、test.yml の :86・test-windows.yml の :49・AGENTS.md の :16 の chrome-eew の tsc に行の中で続ける（行を足さない） (5) index.html は /display/main.js を module で読み、CSS は index.html の中の style に置く（server が配るのは /display の html と /display/<name>.js だけ、http-sse.ts:198）。px と色は tokens.ts の値を main.ts が起動の時に 1 回だけ CSS の変数に入れ、CSS に px と色の字を直に書かない",
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:198 «2983faaca6303652»",
           "reconstruction/src/http-sse/http-sse.ts:323 «c9e50c28e896e7a6»",
@@ -299,7 +323,7 @@
           "docs/specs/reconstruction-display-design.md:190 «7867ad904a981447»",
           "docs/specs/reconstruction-display-design.md:214 «3b3a0ad59e14fb18»",
           "docs/specs/reconstruction-display-design.md:676 «fcaa9edcb28b2f88»",
-          "docs/specs/reconstruction-display-design.md:690 «875d40a833e903b9»",
+          "docs/specs/reconstruction-display-design.md:690 «86ef7a70fcbe2c20»",
           "docs/specs/reconstruction-display-design.md:527 «8ca9084c0835f573»",
           "docs/specs/reconstruction-display-design.md:107 «e411e95be207a058»",
           "docs/specs/reconstruction-display-design.md:143 «e674c373891fc5d7»",
@@ -315,7 +339,7 @@
       },
       {
         "id": "P4-DS-AC05",
-        "requirement": "列の割り（paginateColumn、D04・D-AC06、表 §4）: (1) 列のカード（slot が null）を列の高さ（左 903・右 1000、上端 40）とカードの間 17 で列のページに割る。カードの高さは中身の行の宣言した高さの和（DS-PAGE-02） (2) 入り切らない行は隠さずその列の次のページへ送る（DS-PAGE-06、作者が 13:52 に受けた）。ページの番号は列ごとに 1 つ（DS-PAGE-10）。行は ShellRow の単位で分け、次のページの頭にはその行の continuation を出し直す（DS-PAGE-13）。形の head はそのカードが出る全部のページに出す (3) カードの形は forms の順に試し、ページの数が maxPages 以下で、最後を除く全部のページに本文の行が minBodyRows 以上入り、置かれる最初のページの残りの高さに head と本文の 1 行（minBodyRows が 0 の形は head だけ）が入る最初の形を使う。どの形も満たさないとき、mayHide のカードは出さず、ほかのカードは最後の形を使う。mayHide のカードは次のページへ回して形を満たすことをしない（DS-PAGE-07 の字: 13:52 の「1 行も入らないカードは次のページ」は今日の地震について DS-QROW-18 の形の順に置き換わった）。ほかのカードは 1 行も入らないとき次のページへ回る (4) 高さを先に取る順は take、列の上下の順は place（DS-PAGE-07: 津波 → 設定した地域 → 今日の地震、DS-LAYOUT-25: 設定した地域 → 津波 → 今日の地震） (5) ページを送るカードは、同じカードの組が並ぶページの間でいちばん高いページの高さに固定し、並ぶカードの枚数が変わるページでは高さが変わってよい（DS-PAGE-03・12、作者の裁定 13:42・20:08）。右の列で 1 枚だけのページはそのカードを 1000 にする（DS-PAGE-12） (6) 固定した高さで組み直し、割りが前の回と同じになったら止める。上限は列のカードの数＋1 回で、揃わなければ最後の回の割りを使う（DS-PAGE-04・16、P4-DS-D-REPAGE-CAP の起草案 A） (7) どの入力でも: 出すカードの本文の行はちょうど 1 つのページに出る、各ページのカードの高さとカードの間の和は列の高さ以下（1 行で列の高さを越える行は、その行だけのページに置く）、同じ入力からは同じ結果 (8) 計算量は行の数×形の数×組み直しの回数まで。DOM を読まない (9) place と take が違うときにどのカードが先に次のページへ回るか、ページの少ないカードが後ろのページで出すもの、右の列のページの表示（DS-PAGE-11）の行の高さは Q-DS-COLUMN-FLOW の答えで表 §4 に足す（本 AC の (1)〜(8) は変えない）",
+        "requirement": "列の割り（paginateColumn、D04・D-AC06、表 §4）: (1) 列のカード（slot が null）を列の高さ（左 903・右 1000、上端 40）とカードの間 17 で列のページに割る。カードの高さは中身の行の宣言した高さの和（DS-PAGE-02） (2) 入り切らない行は隠さずその列の次のページへ送る（DS-PAGE-06、作者が 13:52 に受けた）。ページの番号は列ごとに 1 つ（DS-PAGE-10）。行は ShellRow の単位で分け、次のページの頭にはその行の continuation を出し直す（DS-PAGE-13）。形の head はそのカードが出る全部のページに出す (3) カードの形は forms の順に試し、ページの数が maxPages 以下で、最後を除く全部のページに本文の行が minBodyRows 以上入り、置かれる最初のページの残りの高さに head と本文の 1 行（minBodyRows が 0 の形は head だけ）が入る最初の形を使う。どの形も満たさないとき、mayHide のカードは出さず、ほかのカードは最後の形を使う。mayHide のカードは次のページへ回して形を満たすことをしない（DS-PAGE-07 の字: 13:52 の「1 行も入らないカードは次のページ」は今日の地震について DS-QROW-18 の形の順に置き換わった）。ほかのカードは 1 行も入らないとき次のページへ回る (4) 高さを先に取る順は take、列の上下の順は place（DS-PAGE-07: 津波 → 設定した地域 → 今日の地震、DS-LAYOUT-25: 設定した地域 → 津波 → 今日の地震） (5) ページを送るカードは、同じカードの組が並ぶページの間でいちばん高いページの高さに固定し、並ぶカードの枚数が変わるページでは高さが変わってよい（DS-PAGE-03・12、作者の裁定 13:42・20:08）。右の列で 1 枚だけのページはそのカードを 1000 にする（DS-PAGE-12） (6) 固定した高さで組み直し、割りが前の回と同じになったら止める。上限は列のカードの数＋1 回で、揃わなければ最後に組んだ回の割りを画面に出す（隠さない・空にしない。DS-PAGE-04・16、P4-DS-D-REPAGE-CAP=A、統合担当の決め 2026-11-24 21:1x） (7) どの入力でも: 出すカードの本文の行はちょうど 1 つのページに出る、各ページのカードの高さとカードの間の和は列の高さ以下（1 行で列の高さを越える行は、その行だけのページに置く）、同じ入力からは同じ結果 (8) 計算量は行の数×形の数×組み直しの回数まで。DOM を読まない (9) place と take が違うときにどのカードが先に次のページへ回るか、ページの少ないカードが後ろのページで出すもの、右の列のページの表示（DS-PAGE-11）の行の高さは Q-DS-COLUMN-FLOW の答えで表 §4 に足す（本 AC の (1)〜(8) は変えない）",
         "evidenceRefs": [
           "docs/specs/reconstruction-display-design.md:535 «3eab4d9a7d22e491»",
           "docs/specs/reconstruction-display-design.md:536 «84a2584a52ec00fe»",
@@ -340,7 +364,7 @@
       },
       {
         "id": "P4-DS-AC06",
-        "requirement": "レイヤー（eewSlots・placeLayers、表 §3。凍結するのは作者の言葉で裏の取れる DS-LAYER-01〜05・07・13・14・17 と、統合担当の読みと明記した所）: (1) 層は 3 つ。最下層は地図、中間の層は列のカード、最上層は緊急地震速報のカード（slot のあるカード）と押して開いたカード。列を問わない（DS-LAYER-01・04、作者の裁定 21:44・訂正 21:51） (2) eewSlots(count)（1〜6）は、1 件は右の列の (1340, 40, 540, 1000)、2 件は右の列の 540×492 を上端 40・548、3〜6 件は 540×322 を上端 40・379・718 で 1〜3 番目は右の列・4〜6 番目は左の列（DS-LAYOUT-05・06、DS-LAYER-03、DS-EEW-02、DS-EEWS-02）。札の字の割当と空いた後（DS-LAYOUT-07〜11）は E0 (3) placeLayers は中間の層のカードを押し下げない。中間の層の矩形は最上層が無いときと同じ（DS-LAYER-02、作者の裁定 21:44） (4) 覆いの範囲は最上層のカードの矩形と、x と幅が同じで上下に並ぶ最上層のカードの間が 17px 以下のときのその間（3 件で 17px、2 件で 16px。DS-LAYER-13、作者の裁定 19:12）。中間の層はこの範囲の中を描かず、地図が見える (5) 覆いの範囲と面が重なる中間の層のカードは暗くする（DS-LAYER-05、作者の裁定 21:44。一部だけ重なるカードも暗くするのは、DS-LAYER-11 の表が一部の重なりを「覆われたカード」に数えることからの起草の読み） (6) 全体が覆いの範囲に入る中間の層のカードは、左の列のカードは右へ、右の列のカードは左へ 96px ずらす（DS-LAYER-07・14、作者の裁定 21:44・21:59・19:12。向きは作者の字「やや中央寄りに」を列で書いた統合担当の読み、DS-OPEN-64）。押して開いたカードに全体が覆われたカードも同じ（DS-LAYER-17、作者の裁定 19:49） (7) 最上層は入力の順（前から奥）のまま返し、前後を決めない（DS-OPEN-46）。どの入力の組でも答えを返す (8) 中間の層に緊急地震速報のカードを入れた入力の結果（押して下がったカード、DS-OPEN-63）は r0 では凍結しない（Q-DS-SWAP） (9) 96px の押せる所に何を描くか（DS-OPEN-67）は凍結しない。r0 はずらしたカードをそのまま描く (10) 費用は最上層の数（7 以下）×中間の層の数",
+        "requirement": "レイヤー（eewSlots・placeLayers、表 §3）: (1) 層は 3 つ。最下層は地図、中間の層は列のカード、最上層は緊急地震速報のカード（slot のあるカード）と押して開いたカードと押して上がったカード。列を問わない（DS-LAYER-01・04、作者の裁定 21:44・訂正 21:51） (2) eewSlots(count)（1〜6）は、1 件は右の列の (1340, 40, 540, 1000)、2 件は右の列の 540×492 を上端 40・548、3〜6 件は 540×322 を上端 40・379・718 で 1〜3 番目は右の列・4〜6 番目は左の列（DS-LAYOUT-05・06、DS-LAYER-03、DS-EEW-02、DS-EEWS-02）。札の字の割当と空いた後（DS-LAYOUT-07〜11）は E0 (3) 列のカードの割りの位置を押し下げない（DS-LAYER-02、作者の裁定 21:44） (4) 覆いの範囲は、矩形の組に、x と幅が同じで上下の間が 17px 以下のときのその間を足した範囲（3 件で 17px、2 件で 16px。DS-LAYER-13、作者の裁定 19:12） (5) 列のカード（上がったカードを含む）は「覆い E」（緊急地震速報のカード全部〔最上層のものも下がったものも〕の場所と開いたカードの矩形の覆いの範囲）で決める: 面が重なれば暗くし（上がったカードは暗くしない）、全体が入れば左の列は右へ・右の列は左へ 96px ずらす。上げても下げても列のカードは横に動かない（DS-LAYER-05・07・14・17・20。作者の裁定 21:44・21:59・19:12・19:49、D1 は統合担当の決め 21:2x。一部だけ重なるカードも暗くするのは DS-LAYER-11 の表からの起草の読み） (6) 上がったカードは raised の id で列のカードにあり、緊急地震速報の場所に面で重なるもの。(5) の位置のまま最上層に置く（DS-LAYER-18 は (5) の帰結）。重ならない id は上がっていない扱い（D2） (7) 緊急地震速報の場所のうち上がったカードの矩形と面で重なるものは、何枚でも全部中間の層へ下げて暗くし、under に重なる上がったカードの id を入れる。上がったカードの矩形の覆いの範囲に全体が入るときだけ 96px ずらす。列のカードの手前に描く（DS-LAYER-15・19・20、文 1・文 4） (8) 最上層の前後は、openFront が真なら開いたカード → 緊急地震速報のカード → 上がったカード、偽なら緊急地震速報のカード → 開いたカード → 上がったカード（DS-OPEN-46 は入力、開いたカードが上がったカードの手前は D4） (9) cover は最上層のカードの矩形の覆いの範囲で、中間の層はこの中を描かず地図が見える（DS-LAYER-13） (10) 96px の押せる所の中身は凍結しない（DS-OPEN-67）。どの入力の組でも答えを返す。費用は（緊急地震速報・開いたカード・上がったカードの数）×列のカードの数",
         "evidenceRefs": [
           "docs/specs/reconstruction-display-design.md:632 «9cbaeef73e20db9b»",
           "docs/specs/reconstruction-display-design.md:633 «ddf642c59a7fbb9c»",
@@ -357,31 +381,37 @@
           "docs/specs/reconstruction-display-design.md:332 «e3ec7013c0416cd9»",
           "docs/specs/reconstruction-display-design.md:351 «d40e59a09ff0a188»",
           "docs/specs/reconstruction-display-design.md:674 «35a2c44ae6f4d57f»",
-          "docs/specs/reconstruction-display-design.md:691 «fc2a575d52284a33»",
-          "docs/specs/reconstruction-display-design.md:692 «199ef0e443a63d47»",
+          "docs/specs/reconstruction-display-design.md:691 «ac4c93342c289e85»",
+          "docs/specs/reconstruction-display-design.md:692 «0bfc84c49a8e8ac5»",
           "docs/specs/reconstruction-display-design.md:695 «1a845b92b2682268»",
           "reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4»",
+          "docs/specs/reconstruction-display-design.md:704 «d76e1d7890b4c1b7»",
+          "docs/specs/reconstruction-display-design.md:706 «d860b6db04cd2907»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
       },
       {
         "id": "P4-DS-AC07",
-        "requirement": "押して開く・閉じる（pressShell、表 §5）。r0 で条文にするのは次の行だけ: (1) 開いていないとき、暗くない今日の地震のカード（openable）を押すと開く。全部の行が最上層に開く（DS-LAYER-08、作者の裁定 21:44） (2) 開いているとき、開いたカードの外の地図・時計・状態の札・最上層の緊急地震速報・暗くない中間の層のカード（other）を押すと閉じる（DS-LAYER-09 の前半、作者の言葉「カード外部分をクリックしたときに展開を解除」） (3) 開いているとき、ずれて出た所（shifted）を押すと閉じ、入れ替えない（DS-LAYER-17、作者の裁定 19:49） (4) 開いたカードの中（opened）を押しても変えない（統合担当の決め。もう一度押して閉じる形は DS-OPEN-68、C0） (5) 開いている間も自動のページ送りを止めない（DS-LAYER-08。送るのは S1） (6) 津波の札を押して報を流し直す機能は作らない（DS-LAYER-12・DS-LAYOUT-24） (7) 開いていないときに暗いカード・ずれて出た所を押したとき（入れ替え、DS-LAYER-06 の前半を含む）と、開いているときに暗くずれていないカードを押したとき（DS-LAYER-09 の後半）は、r0 の条文にしない（Q-DS-SWAP・Q-DS-SECOND-GROUP）。r0 の実装は、開いていないときのこの 2 つでは状態を変えず、開いているときの暗いカードでは (2) と同じく閉じる（統合担当の読み。作業ノートで「聞かずに進め、一覧で作者に見せる」と置いた DS-LAYER-09 の後半。試験と条文は 2 回目）",
+        "requirement": "押したときと、緊急地震速報の組が変わったとき（reduceShell、表 §5.1）。reduceShell(state, event) は ShellState（開いているか・上がったカードの id の組 raised・最後に見た緊急地震速報のカードの id の組 eew）を返す純粋な関数で、ShellState と ShellEvent の全部の組に答えを返す。press の事象: (1) 開いていないとき、暗くない openable のカード（今日の地震）を押すと開く。全部の行が最上層に開く（DS-LAYER-08、作者の裁定 21:44） (2) 開いていないとき、暗く under が空の中間の層のカード（ずれて出た所を含む）を押すと、raised に id を足す（DS-LAYER-06 の前半・15。作者の裁定 21:44、20:54 に受けた文 1。ずれたまま上がるのは位置の決まり AC06 (5)(6) の帰結） (3) 開いていないとき、under が空でないカード（下がった緊急地震速報のカード）を押すと、under の id を raised から外す（押す前の重なりに戻る。DS-LAYER-06 の後半、20:54 に受けた文 2） (4) 開いていないとき、暗い openable のカード（緊急地震速報に覆われた今日の地震）を押すと (2) と同じ入れ替え（DS-OPEN-75 が決まるまで。S1・E0） (5) 開いていないとき、暗くなく openable でないカードと other（地図・時計・状態の札・最上層の緊急地震速報・上がったカード）は状態を変えない（統合担当の決め） (6) 開いているとき、opened を押しても変えない（統合担当の決め。もう一度押して閉じる形は DS-OPEN-68、C0）。ほかの全部（other と、暗いカード・ずれて出た所・下がった緊急地震速報のカードを含む全部の card）は閉じるだけで raised を変えない（DS-LAYER-09。前半は作者の言葉 21:44「カード外部分をクリックしたときに展開を解除」、後半は統合担当の読みで版 13 で作者に見せた。ずれて出た所は DS-LAYER-17、作者の裁定 19:49） (7) 開いている間も自動のページ送りを止めない（DS-LAYER-08。送るのは S1） (8) 津波の札を押して報を流し直す機能は作らない（DS-LAYER-12・DS-LAYOUT-24） (9) eew の事象: ids の組が state.eew の組と違えば（event が増えた・減った・入れ替わった）raised を空にし、閉じ、eew を ids にする。組が同じなら（同じ event の続報、並びだけの違い）変えない（DS-LAYER-21、D3、統合担当の決め 21:2x。DS-OPEN-45・46 が決まるまで）",
         "evidenceRefs": [
-          "docs/specs/reconstruction-display-design.md:637 «d0ebd58346a6f20d»",
+          "docs/specs/reconstruction-display-design.md:637 «607da88cacaf0a69»",
           "docs/specs/reconstruction-display-design.md:639 «c9a1a5a2e24078a9»",
-          "docs/specs/reconstruction-display-design.md:640 «ff1afed368948b52»",
+          "docs/specs/reconstruction-display-design.md:640 «4adef485ca25b58c»",
           "docs/specs/reconstruction-display-design.md:658 «aa1e855dc2e8b752»",
           "docs/specs/reconstruction-display-design.md:663 «a452930e56102224»",
           "docs/specs/reconstruction-display-design.md:531 «da5a159a2642244d»",
           "docs/specs/reconstruction-display-design.md:696 «72cbbbf6b60f51cc»",
           "reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4»",
+          "docs/specs/reconstruction-display-design.md:661 «17c95a272fa4b451»",
+          "docs/specs/reconstruction-display-design.md:703 «6650b841e65403dc»",
+          "docs/specs/reconstruction-display-design.md:705 «92dadf204119d04d»",
+          "docs/specs/reconstruction-display-design.md:707 «ed642b10bd407562»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
       },
       {
         "id": "P4-DS-AC08",
-        "requirement": "描く値を返す関数（screenFrame、Q-PWT3-ROWS-FN、表 §2.4）: (1) screenFrame(input) は client の状態・時刻・列ごとのページの番号・開いているか・開いたカードを前にするかから ShellFrame を返す純粋な関数で、vitest から import できる（DOM・EventSource・performance に依らない） (2) main.ts は screenFrame が返した値だけを描く（時計の矩形と字、状態の札、カードの層・矩形・暗さ・ずらし・行、覆いの範囲、地図の塗りの役目と印）。行の字と矩形を DOM の側で作らない (3) カードは cards.ts の CARD_SOURCES の関数から集める。S0 の登録は 0 本で、各カードの契約が 1 行ずつ足す（計画:227） (4) 中間の層は paginateColumn の結果のうち、その列のページの番号のページ（番号がページの数以上なら最後のページ）。最上層は slot のあるカードを slot の小さい順に並べ、その順で eewSlots（枚数、6 まで）の場所に置き（7 枚目からは置かない。7 件目は E0、DS-LAYOUT-07）、開いているときは opened のあるカードの opened を openFront の側に足す (5) snapshot が無いか unsupported のときはカードを出さず、時計と状態の札だけ (6) 空の災害カードを作らない: カードは登録した関数が返したものだけで、S0 は分野の包みを見てカードを足さない。分野の包みは要約・取得待ちのまま関数へ渡し、無発令に置き換えない（D-AC02 の S0 分） (7) 取消・失効は最新の snapshot から作り直すことで、今のページの外のカードにも効く（D-AC02） (8) 地図の塗りの役目（map）と印（marks）は M0 が埋めるまで空の配列 (9) 計算量: 1 回の frame は登録した関数の返した行の数と組み直しの上限と最上層×中間の層に比例する。全 subject・snapshot 全体を直列化しない",
+        "requirement": "描く値を返す関数（screenFrame、Q-PWT3-ROWS-FN、表 §2.4）: (1) screenFrame(input) は client の状態・時刻・列ごとのページの番号・ShellState・開いたカードを前にするかから ShellFrame を返す純粋な関数で、vitest から import できる（DOM・EventSource・performance に依らない） (2) main.ts は screenFrame が返した値だけを描く（時計の矩形と字、状態の札、カードの層・矩形・暗さ・ずらし・行、覆いの範囲、地図の塗りの役目と印）。行の字と矩形を DOM の側で作らない (3) カードは cards.ts の CARD_SOURCES の関数から集める。S0 の登録は 0 本で、各カードの契約が 1 行ずつ足す（計画:227） (4) 中間の層は paginateColumn の結果のうち、その列のページの番号のページ（番号がページの数以上なら最後のページ）。最上層は slot のあるカードを slot の小さい順に並べ、その順で eewSlots（枚数、6 まで）の場所に置き（7 枚目からは置かない。7 件目は E0、DS-LAYOUT-07）、置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を placeLayers の open に渡す。上がったカードと下げる緊急地震速報のカードは AC06 と AC16 (5) snapshot が無いか unsupported のときはカードを出さず、時計と状態の札だけ (6) 空の災害カードを作らない: カードは登録した関数が返したものだけで、S0 は分野の包みを見てカードを足さない。分野の包みは要約・取得待ちのまま関数へ渡し、無発令に置き換えない（D-AC02 の S0 分） (7) 取消・失効は最新の snapshot から作り直すことで、今のページの外のカードにも効く（D-AC02） (8) 地図の塗りの役目（map）と印（marks）は M0 が埋めるまで空の配列 (9) 計算量: 1 回の frame は登録した関数の返した行の数と組み直しの上限と最上層×中間の層に比例する。全 subject・snapshot 全体を直列化しない",
         "evidenceRefs": [
           "reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»",
           "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
@@ -479,6 +509,19 @@
           "reconstruction/contracts/p4-display-capacity.json:487 «1428ba957654fca1»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
+      },
+      {
+        "id": "P4-DS-AC16",
+        "requirement": "押して層を入れ替えた形の組み立て（screenFrame と main.ts、表 §5.2、作者の裁定 2026-11-24 20:46・20:54、統合担当の決め D1〜D4 21:2x）: (1) screenFrame は shell.raised のうち今のページの列のカードにある id だけを placeLayers に渡す（ほかは無視する） (2) 下がったカードを状態に持たない。raised から id を外せば、重なる上がったカードの無くなった緊急地震速報のカードは最上層へ戻り、上がっていたカードは中間の層の同じ位置へ戻る（文 2 の「押す前の重なりに戻る」、AC06 (5)〜(7)） (3) 開いている間は、中間の層に開いたカード（opened のあるカード）を渡さない（DS-LAYER-16、統合担当の決め、版 13 で作者に見せた） (4) main.ts は snapshot から frame を作ったら、描く前に reduceShell に eew の事象（frame の eew）を当て、状態が変わったら frame を作り直してから描く（D3。新しく届いた緊急地震速報のカードを、前の操作で上げたカードや開いたカードの後ろに 1 度も描かない）。openFront には真を渡す（D4）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-display-design.md:637 «607da88cacaf0a69»",
+          "docs/specs/reconstruction-display-design.md:661 «17c95a272fa4b451»",
+          "docs/specs/reconstruction-display-design.md:662 «d30dc674c3b575b9»",
+          "docs/specs/reconstruction-display-design.md:703 «6650b841e65403dc»",
+          "docs/specs/reconstruction-display-design.md:704 «d76e1d7890b4c1b7»",
+          "docs/specs/reconstruction-display-design.md:705 «92dadf204119d04d»",
+          "reconstruction/contracts/p4-display-shell-tables.md"
+        ]
       }
     ],
     "testMapping": [
@@ -497,7 +540,7 @@
           "P4-DS-AC06",
           "P4-DS-AC13"
         ],
-        "behavior": "受入条件。表 §3 の場面の表（L1〜L9）の入力を placeLayers に渡し、各中間の層のカードの dimmed・shifted・rect と cover が表の期待に一致する。どの場面でも shifted でないカードの rect は入力のまま（AC13 (1)）"
+        "behavior": "受入条件。表 §3.2 の L1〜L10 の入力（raised は空）を placeLayers に渡し、各列のカードの dimmed・shifted・rect と cover と最上層の前後が表の期待に一致する。どの場面でも shifted でないカードの rect は入力のまま（AC13 (1)）"
       },
       {
         "testId": "P4-DS-T03",
@@ -513,7 +556,7 @@
         "referenceIds": [
           "P4-DS-AC07"
         ],
-        "behavior": "受入条件。表 §5 の r0 の行（開いていない × openable、開いている × other・shifted・opened）を 1 つの表で pressShell に渡し、返す値が表に一致する。r0 の条文にしない入力（AC07 (7)）は試験に入れない"
+        "behavior": "受入条件。表 §5.1 の press の 7 行を 1 つの表で reduceShell に渡し（frame は試験の中で組んだ ShellFrame）、返す ShellState が表に一致する: 開いていない × 暗くない openable で開く、暗く under が空のカード（ずれたカードとずれていないカード）で raised に id を足す、under のあるカードで under の id を外す、暗い openable で入れ替える、暗くないカードと other で変えない。開いている × opened で変えない、other・暗いカード・ずれて出た所・下がったカードで閉じて raised は変えない"
       },
       {
         "testId": "P4-DS-T05",
@@ -531,7 +574,7 @@
           "P4-DS-AC08",
           "P4-DS-AC10"
         ],
-        "behavior": "受入条件。CARD_SOURCES を試験の中で 2 本の作り物の関数に差し替えた screenFrame で、(a) snapshot が無い・unsupported のときはカード 0 で時計だけ、unsupported の札が 1 つ (b) 平常の snapshot で status が空 (c) 列のページの番号がページの数以上なら最後のページ (d) 取消でカードが消えた snapshot の後は今のページの外のカードも消える (e) slot のあるカードが eewSlots の場所で最上層、open と openFront で開いたカードが最上層の前か奥に入る (f) 要約の分野の包みがそのまま関数に渡る"
+        "behavior": "受入条件。CARD_SOURCES を試験の中で 2 本の作り物の関数に差し替えた screenFrame で、(a) snapshot が無い・unsupported のときはカード 0 で時計だけ、unsupported の札が 1 つ (b) 平常の snapshot で status が空 (c) 列のページの番号がページの数以上なら最後のページ (d) 取消でカードが消えた snapshot の後は今のページの外のカードも消える (e) slot のあるカードが eewSlots の場所で最上層、shell.open と openFront で開いたカードが最上層の前か奥に入り、開いている間は中間の層に開いたカードが無い (f) 要約の分野の包みがそのまま関数に渡る"
       },
       {
         "testId": "P4-DS-T07",
@@ -569,6 +612,24 @@
           "P4-DS-AC12"
         ],
         "behavior": "受入条件（実 Chrome、node reconstruction/test/screen/smoke.mjs、統合担当が開発機で走らせる）。(a) AC09 (2) の字の差し替えで要素の数と実行される要素 0 と字面 (b) AC11 (2) の再接続とページの切替の後の listener・timer・EventSource の数 (c) layout を読む API の呼びを数える包みを先に入れて、更新と時計の更新で 0 (d) AC12 の 2 つの mark の差を記録する（合否にしない）"
+      },
+      {
+        "testId": "P4-DS-T11",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-DS-AC16",
+          "P4-DS-AC06"
+        ],
+        "behavior": "受入条件。表 §3.2 の L11（場面 22k）・L12（場面 23k、設定した地域は x 136 のまま暗く、D・E がその手前）・L13（文 4）・L14（D2）を、CARD_SOURCES を試験の中で差し替えた screenFrame に ShellState で渡し、上がったカードの層と矩形と暗くないこと、下がった緊急地震速報のカードの層・暗さ・ずらし・under・描く順、列のカードの位置と暗さ、残った緊急地震速報のカードが表の期待に一致する。L11 の状態から under のあるカードを reduceShell で押した後の frame で、A・B が最上層に戻り警報のカードが中間の層の (1244, …) に戻る"
+      },
+      {
+        "testId": "P4-DS-T12",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-DS-AC07",
+          "P4-DS-AC16"
+        ],
+        "behavior": "受入条件（D3）。raised が 1 つで開いている ShellState に、reduceShell の eew の事象を (a) id が 1 つ増えた組 (b) 同じ組（同じ event の続報、並びだけ違う組を含む）で当て、(a) は raised が空で閉じ eew が新しい組、(b) は変わらない"
       }
     ],
     "requiredCommands": [
@@ -652,42 +713,18 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最初の作業: decisionBranches の 4 件と unresolvedQuestions を読む。発注は P4-DS-D-MODULE-PATH・P4-DS-D-REPAGE-CAP・P4-DS-D-CLOCK-SIX の確定と Q-DS-COLUMN-FLOW・Q-DS-STATUS-WORDS の答えの後（統合担当が割り当てる）",
+      "最初の作業: decisionBranches（MODULE-PATH・REPAGE-CAP は確定 A、CLOCK-SIX・FONT は作者に見せてから）と unresolvedQuestions を読む。発注は CLOCK-SIX の確定と Q-DS-COLUMN-FLOW・Q-DS-STATUS-WORDS の答えの後（統合担当が割り当てる）",
       "最小実装: 足す仕組みは表 §9 の行だけ（各々の「無いと何が壊れるか」は表 §9）。ほかに helper・型・設定・層を足すときは、無いと何が壊れるかを 1 行で成果物に書く。実装が 1 つしかない interface、変わらない値の設定化、将来のための拡張点を作らない",
-      "最小テスト: 追加した試験ごとに対応（受入条件・契約境界・実不具合・corpus 履歴）を 1 行で書く。testMapping の 10 本のほかに足さない",
+      "最小テスト: 追加した試験ごとに対応（受入条件・契約境界・実不具合・corpus 履歴）を 1 行で書く。testMapping の 12 本のほかに足さない",
       "export の末尾形: 純粋な file の公開の関数と定数は file の末尾の export { … } で出す（export function・export const にしない。parser-boundary の P1-T04 が数える）。vitest の全体で P1-T04 を含む parser-boundary の試験を回したことを書く",
       "受信経路の計算量（AGENTS.md）: 更新 1 回の処理で全件×全件の走査、snapshot 全体の直列化、DOM の計測をしない。成果物に、足した処理ごとの計算量を 1 行で書く（acceptSnapshot は 12 分野、paginateColumn は行×形×組み直しの上限、placeLayers は最上層×中間の層）",
       "行の数: host.ts は行を足さない（:12・:91・:98・:180・:628 の行の中だけ）。test-windows.yml・AGENTS.md・test.yml・reconstruction/tsconfig.json も行の中だけ。check-contract の結果を付ける",
       "試験の設定の隔離: 試験は作者の設定の file を読まない。host を起こす試験は XDG_CONFIG_HOME と保存の dir を一時の dir にする",
       "品質レビューはヘルツ（Astra high、新規 read-only スレッド。snapshot client の状態と host の停止・開き直しの順を含む、計画:15）、契約適合レビューは Claude（Opus）を同じ固定 patch に並行で当てる",
-      "残存として成果物に書く: smoke を走らせていない（統合担当が走らせる）、書体は P4-DS-D-FONT の裁定まで font-family の名前だけ、押して入れ替える動きは r0 に無い、地図の塗りと印は空",
+      "残存として成果物に書く: smoke を走らせていない（統合担当が走らせる）、書体は P4-DS-D-FONT の裁定まで font-family の名前だけ、地図の塗りと印は空",
       "旧築（src/）と test/fixtures と sequences.json と http-sse.ts と composition-root.ts を変えない"
     ],
     "unresolvedQuestions": [
-      {
-        "id": "Q-DS-SWAP",
-        "owner": "user",
-        "blocks": [
-          "2 回目の起草（押して層を入れ替える節、表 §5.2）"
-        ],
-        "resolveBy": "作者の問い 1 の答え（見比べのページの版 12）",
-        "requiredEvidence": [
-          "文 1「重なっていた緊急地震速報のカードは何枚でも全部下がる」（DS-LAYER-15、統合担当の読み）、文 2「下がったカードを押すと最上層へ戻り、上がっていたカードが中間の層へ戻る」（DS-LAYER-06 の後半、統合担当の読み）、文 3「下がったカードの全体が覆われたら 96px ずらす」（DS-OPEN-63、案）への作者の答え",
-          "答えに合わせて、上がったカードの組と下がった緊急地震速報のカードを placeLayers の入力に入れる形と、pressShell の開いていないときの暗いカード・ずれて出た所の行を条文にする。暗い今日の地震のカードを押したとき（作業ノートの表で DS-OPEN-75 と呼んだ所、spec に行が無い）も同じ時に決める"
-        ]
-      },
-      {
-        "id": "Q-DS-SECOND-GROUP",
-        "owner": "user",
-        "blocks": [
-          "DS-LAYER-09 の後半と DS-LAYER-16 の凍結（2 回目）"
-        ],
-        "resolveBy": "2 回目の起草の前（計画:114 の 2 つ目の群を見本の図と一緒に作者に見せる）",
-        "requiredEvidence": [
-          "DS-LAYER-09 の後半「暗いカードの上を押しても閉じる」と DS-LAYER-16「開いている間は中間の層に今日の地震のカードを描かない」への作者の答え。r0 は DS-LAYER-16 を決めず、開いている間に中間の層へ今日の地震のカードを渡すかは登録したカードの関数の側に残している",
-          "r0 で統合担当の決め・読みとして書いた 2 つ（暗くする形を明るさで、DS-OPEN-62 の形。ずらす向きを列で、DS-OPEN-64）を作者に見せた記録"
-        ]
-      },
       {
         "id": "Q-DS-COLUMN-FLOW",
         "owner": "integrator",
