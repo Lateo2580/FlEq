@@ -19,7 +19,7 @@ export type ShellCardForm = Readonly<{ head: readonly ShellRow[]; body: readonly
 // 登録したカードが返す 1 枚。place は列の上下の順（DS-LAYOUT-25）、take は高さを先に取る順（DS-PAGE-07）。
 // slot は最上層の緊急地震速報の場所の番号（0 から、eewSlots の順）で、null なら中間の層で列に入る。
 // mayHide は、どの形も入らないときに出さなくてよいカード（今日の地震だけ、DS-QROW-18）。
-// opened は押して開けるカード（今日の地震、DS-LAYER-08）だけが返す、開いたときの矩形と行（矩形の決め方は DS-OPEN-65、C0）。
+// opened は押して開けるカード（今日の地震、DS-LAYER-08）だけが返す、開いたときの矩形と行（矩形の決め方は DS-OPEN-65、C0）。その列で place がいちばん後ろ（AC05 (7)(g)）。
 export type ShellCard = Readonly<{
   id: string; column: ShellColumn; place: number; take: number; slot: number | null; mayHide: boolean;
   forms: readonly ShellCardForm[]; opened: Readonly<{ rect: ShellRect; rows: readonly ShellRow[] }> | null;
@@ -53,11 +53,11 @@ export type ShellState = Readonly<{ open: boolean; raised: readonly string[]; ee
 export type ShellEvent = Readonly<{ kind: "press"; frame: ShellFrame; x: number; y: number }> | Readonly<{ kind: "sync"; eew: readonly string[]; openable: boolean }>;
 
 export type ShellDomainKey = keyof DisplayWireSnapshot["current"];
-// 開いている詳細 1 件（D02）。refetch は対象分野の内容版か stream が変わったか、応答が 409 versionChanged だった。
+// 開いている詳細 1 件（D02）。refetch は対象分野の内容版か stream が変わったか、対象分野の unit が新しい snapshot に無いか、応答が 409 versionChanged だった。
 // streamId は要求した時の stream。応答はこの object がまだ今の詳細で、stream が今と同じときだけ採る。
-// ready・refetch・failed は detailAnswered が answer から決める（表 §2.3、AC03 (5)）。理由は main.ts が log に残す。
+// ready・refetch・failed は detailAnswered が answer から決める（表 §2.3、AC03 (5)）。理由は main.ts が log に残す（足すのは最初に詳細を開くカードの契約〔C0・C1〕）。
 export type ShellDetail = Readonly<{ request: WireDetailRequest; streamId: string; status: "loading" | "ready" | "refetch" | "failed"; response: WireDetailResponse | null }>;
-// detailAnswered に渡す answer。failed への変換は main.ts だけが行う（表 §2.3。WireDetailResponse に responseTooLarge が無い、表 §11）。
+// detailAnswered に渡す answer。failed への変換は main.ts だけが行う（足すのは最初に詳細を開くカードの契約〔C0・C1〕。表 §2.3。WireDetailResponse に responseTooLarge が無い、表 §11）。
 export type ShellDetailAnswer = WireDetailResponse | Readonly<{ kind: "failed"; reason: string }>;
 // changed は直前の snapshot から contentRevision が変わった分野（stream が変われば全部）。
 export type ShellClientState = Readonly<{ snapshot: DisplayWireSnapshot | null; unsupported: boolean; changed: readonly ShellDomainKey[]; detail: ShellDetail | null }>;
