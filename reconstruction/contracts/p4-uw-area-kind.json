@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "dfca3863db9b5bea0473879b00adad174abd8d68dae8143d10a63e1ae24c879c",
+    "sha256": "648ffba0d690c792357f286094100258e14c7cc98082cbf2b2b5bd85e8e12e14",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -104,7 +104,7 @@
     "contractId": "P4-UW-AREA-KIND-001",
     "mode": "implementation",
     "objective": "U-W の府県の項目ごとに「どの区域にどの種別が出ているか」を、合わせの後の勝った行から作って新しい経路の weatherCurrent.area に載せる。C0 発注 1 の右の列の 3 枚（DS-WARN-09〔作者の裁定 2026-11-23 13:32「案1でいきましょう」の形〕）と、左の列の設定した地域のカード（DS-WARN-12〔統合担当の案を作者が 13:52 に受けた、C0 の見本の図でもう一度見せる〕）の材料。公開形（view）と旧の経路は変えず、保存・合わせ・差分の条件も変えない。設計の表は reconstruction/contracts/p4-uw-area-kind-tables.md、型は reconstruction/contracts/p4-uw-area-kind.types.ts",
-    "baseOid": "unassigned",
+    "baseOid": "d645a1d0c7f18944a72d332949ad70f04c2b6086",
     "cleanTreeRequired": true,
     "readPaths": [
       "reconstruction/src/units/weather-current/weather-current-public.ts",
