@@ -44,7 +44,7 @@ describe("P4-DS-T06 screenFrame・shellSync", () => {
 
   it("(d) 取消でカードが消えた snapshot の後は、今のページの外にあったカードも消える", () => {
     const long = card("long", "right", { place: 0, take: 0, forms: [form(90, rows(30))] });
-    const side = card("side", "left", { forms: [form(90, rows(1))] });
+    const side = card("side", "left", { forms: [form(90, [])] });
     const second = { ...snapshot, sequence: 2 } as DisplayWireSnapshot;
     use({ source: (snap) => (snap === snapshot ? [long, side] : [side]), max: 2 });
     const before = screenFrame(input(live, { page: { left: 0, right: 2 } }));

@@ -14,7 +14,7 @@ export type ShellText = Readonly<{ text: string; token: string | null }>;
 export type ShellRow = Readonly<{ height: number; token: string | null; texts: readonly ShellText[]; continuation: readonly ShellRow[] }>;
 
 // カードの形 1 つ。形は順に試し、条件に合う最初の形を使う（今日の地震の形の順 DS-QROW-18 を受ける）。
-// maxPages はページの数の上限（null は上限なし）。minBodyRows は最後を除く全部のページに入る本文の行の数の下限。
+// maxPages はページの数の上限（null は上限なし）。minBodyRows は最後を除く全部のページに入る本文の行の数の下限で、本文のある形は 1 以上（AC05 (7)(i)）。形を選ぶカードは左の列の 1 枚だけ（AC05 (7)(h)）。
 export type ShellCardForm = Readonly<{ head: readonly ShellRow[]; body: readonly ShellRow[]; maxPages: number | null; minBodyRows: number }>;
 // 登録したカードが返す 1 枚。place は列の上下の順（DS-LAYOUT-25）、take は高さを先に取る順（DS-PAGE-07）。
 // slot は最上層の緊急地震速報の場所の番号（0 から、eewSlots の順）で、null なら中間の層で列に入る。
