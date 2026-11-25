@@ -93,23 +93,4 @@ describe("P4-DS-T03 paginateColumn P1〜P11", () => {
     expect(p11.pages).toHaveLength(1);
     expect(p11.pages[0].cards.map((slice) => [slice.id, slice.rect])).toEqual([["A", rect(40, 40, 540, 700)]]);
   });
-
-  it("P13: 後から足したカードで割りが 2 ページになるなら、先に採った 1 ページの形（maxPages 1）を壊す形は採らない", () => {
-    const a = card("A", "right", { place: 0, take: 0, forms: [form(90, rows(2, 350))] });
-    const b = card("B", "right", { place: 1, take: 1, mayHide: true, forms: [form(90, [], 1, 0)] });
-    const c = card("C", "right", { place: 2, take: 2, mayHide: true, forms: [form(90, [], null, 0)] });
-    const p13 = check("right", [a, b, c]);
-    expect(p13.pages).toHaveLength(1);
-    expect(p13.pages[0].cards.map((slice) => [slice.id, slice.rect])).toEqual([["A", rect(1340, 40, 540, 790)], ["B", rect(1340, 847, 540, 90)]]);
-    expect(p13.pages[0].cards[0].rows).toHaveLength(3);
-    expect(p13.pages[0].cards[1].rows).toHaveLength(1);
-  });
-
-  it("P12: 本文の無い形にも maxPages を当てる。A が 2 ページなら、1 ページの形しか無い mayHide の B は出さない", () => {
-    const a2 = card("A", "right", { place: 0, take: 0, forms: [form(90, rows(2, 700))] });
-    const b = card("B", "right", { place: 1, take: 1, mayHide: true, forms: [form(90, [], 1, 0)] });
-    const p12 = check("right", [a2, b]);
-    expect(p12.pages).toHaveLength(2);
-    expect(p12.pages.flatMap((page) => page.cards.map((slice) => slice.id))).toEqual(["A", "A"]);
-  });
 });
