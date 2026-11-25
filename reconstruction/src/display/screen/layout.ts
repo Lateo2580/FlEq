@@ -89,7 +89,7 @@ function placeLayers(input: ShellLayerInput): ShellLayerResult {
 
 // ---- 列の割り（表 §4）----
 
-type Plan = Readonly<{ card: ShellCard; index: number; form: ShellCardForm; headH: number; bodyless: boolean }>;
+type Plan = Readonly<{ card: ShellCard; index: number; form: ShellCardForm; headH: number; bodyless: boolean; fitted: boolean }>;
 type Placed = { plan: number; from: number; to: number; cont: boolean; natural: number; height: number; y: number };
 type Division = Readonly<{ pages: Placed[][]; overflow: boolean; reached: number[]; started: number[] }>;
 type Solved = Readonly<{ plans: readonly Plan[]; division: Division }>;
@@ -163,9 +163,10 @@ function byPlace(plans: readonly Plan[]): Plan[] {
   return [...plans].sort((a, b) => a.card.place - b.card.place || a.card.take - b.card.take || a.index - b.index);
 }
 
-function makePlan(card: ShellCard, index: number, formIndex: number): Plan {
+// fitted は、形の条件を満たして採られたカード。どの形も満たさず最後の形を使ったカード（mayHide でない）は、後から足す候補の検査から外す
+function makePlan(card: ShellCard, index: number, formIndex: number, fitted: boolean): Plan {
   const form = card.forms[formIndex];
-  return { card, index, form, headH: sumHeights(form.head), bodyless: form.body.length === 0 };
+  return { card, index, form, headH: sumHeights(form.head), bodyless: form.body.length === 0, fitted };
 }
 
 // 形の選び（表 §4.1）: take の順に、先に選び終えたカードとこの形で 1 回流し、4 つの条件を見る。
@@ -176,34 +177,37 @@ function choose(cards: readonly ShellCard[], limit: number, markH: number): Plan
   for (const { card, index } of order) {
     let pick: Plan | null = null;
     for (let f = 0; f < card.forms.length && pick == null; f++) {
-      const plan = makePlan(card, index, f);
+      const plan = makePlan(card, index, f, true);
       if (formFits(plan, byPlace([...chosen, plan]), limit, markH)) pick = plan;
     }
     if (pick == null) {
       if (card.mayHide) continue;
-      pick = makePlan(card, index, card.forms.length - 1);
+      pick = makePlan(card, index, card.forms.length - 1, false);
     }
     chosen.push(pick);
   }
   return byPlace(chosen);
 }
 
-function formFits(plan: Plan, plans: readonly Plan[], limit: number, markH: number): boolean {
+// 候補を足して流した割りで、候補と、先に条件を満たして採られたカード全部の形の条件が成り立つこと（候補が後から割りを変えても保つ）
+function formFits(candidate: Plan, plans: readonly Plan[], limit: number, markH: number): boolean {
   const division = flow(plans, limit, markH, null);
   if (division.overflow) return false;
-  // 本文の無い形は全ページに出るので、出るページの数は列のページの数
-  if (plan.bodyless) return plan.form.maxPages == null || division.pages.length <= plan.form.maxPages;
-  const at = plans.indexOf(plan);
-  const mine = division.pages.flatMap((page) => page.filter((item) => item.plan === at));
-  const { maxPages, minBodyRows } = plan.form;
-  if (maxPages != null && mine.length > maxPages) return false;
-  if (mine.slice(0, -1).some((item) => item.to - item.from < minBodyRows)) return false;
-  if (division.started[at] !== division.reached[at]) return false;
-  // 本文のどの行も、本文の無い形のカードだけが並ぶ新しいページに、head と continuation と一緒に入る
+  // 本文の無い形のカードだけが並ぶ新しいページの高さ
   const bodyless = plans.reduce((total, other) => total + (other.bodyless ? other.headH + LAYOUT.gap : 0), 0);
-  return plan.form.body.every((row, j) => plan.headH + (j > 0 ? sumHeights(row.continuation) : 0) + row.height + markH + bodyless <= limit);
+  return plans.every((plan, at) => {
+    if (plan !== candidate && !plan.fitted) return true;
+    const { maxPages, minBodyRows } = plan.form;
+    // 本文の無い形は全ページに出るので、出るページの数は列のページの数
+    if (plan.bodyless) return maxPages == null || division.pages.length <= maxPages;
+    const mine = division.pages.flatMap((page) => page.filter((item) => item.plan === at));
+    if (maxPages != null && mine.length > maxPages) return false;
+    if (mine.slice(0, -1).some((item) => item.to - item.from < minBodyRows)) return false;
+    if (division.started[at] !== division.reached[at]) return false;
+    // 本文のどの行も、本文の無い形のカードだけが並ぶ新しいページに、head と continuation と一緒に入る
+    return plan.form.body.every((row, j) => plan.headH + (j > 0 ? sumHeights(row.continuation) : 0) + row.height + markH + bodyless <= limit);
+  });
 }
-
 
 function groupMax(solved: Solved): Map<string, number> {
   const out = new Map<string, number>();

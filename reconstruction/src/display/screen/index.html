@@ -34,8 +34,8 @@
   .dot.on { width: var(--dots-on); height: var(--dots-on); background: var(--c-ink); border-color: var(--c-ink); }
   /* 時計（DS-CSS-12）: 年月日 30px・400、時分 56px・700、字の下の線で揃え、上の内側 6px */
   #clock { position: absolute; box-sizing: border-box; display: flex; justify-content: center; align-items: baseline; gap: var(--clock-text-gap);
-    padding-top: var(--clock-text-pad-top); white-space: nowrap; z-index: 3; background: var(--c-surface); border-radius: var(--card-radius);
-    outline: var(--card-border) solid var(--c-surface-edge); outline-offset: calc(-1 * var(--card-border)); color: var(--c-ink-clock); }
+    padding-top: var(--clock-text-pad-top); white-space: nowrap; z-index: 3; background: var(--c-surface); border: var(--card-border) solid var(--c-surface-edge);
+    border-radius: var(--card-radius); color: var(--c-ink-clock); }
   #clock-date { font-size: var(--clock-text-date); font-weight: 400; }
   #clock-time { font-size: var(--clock-text-time); font-weight: 700; line-height: 1; }
   /* 状態の札の置き場: 上端の中央。出すものがあるときだけ main.ts が置く（H01・H02）。字は根の大きさ */

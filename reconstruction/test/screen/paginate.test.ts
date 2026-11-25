@@ -17,6 +17,14 @@ function check(column: ShellColumn, cards: readonly ShellCard[]): ShellColumnPag
     const bodyTexts = shown.flatMap((slice) => slice.rows.filter((r) => used.body.includes(r)).map((r) => r.texts[0]?.text));
     expect(bodyTexts).toEqual(used.body.map((r) => r.texts[0]?.text));
   }
+  // 形の条件を満たして採られたカード（mayHide のカードは、満たすときだけ出る）は、返した割りで maxPages と minBodyRows を満たす
+  for (const source of cards.filter((item) => item.mayHide)) {
+    const shown = result.pages.flatMap((page) => page.cards.filter((slice) => slice.id === source.id));
+    if (shown.length === 0) continue;
+    const used = source.forms[shown[0].form];
+    if (used.maxPages != null) expect(shown.length, `${source.id} maxPages`).toBeLessThanOrEqual(used.maxPages);
+    for (const slice of shown.slice(0, -1)) expect(slice.rows.filter((r) => used.body.includes(r)).length, `${source.id} minBodyRows`).toBeGreaterThanOrEqual(used.minBodyRows);
+  }
   expect(paginateColumn(column, cards)).toEqual(result);
   return result;
 }
@@ -84,6 +92,17 @@ describe("P4-DS-T03 paginateColumn P1〜P11", () => {
     const p11 = check("left", [a(700), mayHideQ(form(90, [row(50, "r1"), row(800, "r2")]))]);
     expect(p11.pages).toHaveLength(1);
     expect(p11.pages[0].cards.map((slice) => [slice.id, slice.rect])).toEqual([["A", rect(40, 40, 540, 700)]]);
+  });
+
+  it("P13: 後から足したカードで割りが 2 ページになるなら、先に採った 1 ページの形（maxPages 1）を壊す形は採らない", () => {
+    const a = card("A", "right", { place: 0, take: 0, forms: [form(90, rows(2, 350))] });
+    const b = card("B", "right", { place: 1, take: 1, mayHide: true, forms: [form(90, [], 1, 0)] });
+    const c = card("C", "right", { place: 2, take: 2, mayHide: true, forms: [form(90, [], null, 0)] });
+    const p13 = check("right", [a, b, c]);
+    expect(p13.pages).toHaveLength(1);
+    expect(p13.pages[0].cards.map((slice) => [slice.id, slice.rect])).toEqual([["A", rect(1340, 40, 540, 790)], ["B", rect(1340, 847, 540, 90)]]);
+    expect(p13.pages[0].cards[0].rows).toHaveLength(3);
+    expect(p13.pages[0].cards[1].rows).toHaveLength(1);
   });
 
   it("P12: 本文の無い形にも maxPages を当てる。A が 2 ページなら、1 ページの形しか無い mayHide の B は出さない", () => {

@@ -52,6 +52,15 @@ describe("P4-DS-T06 screenFrame・shellSync", () => {
     const after = screenFrame(input({ ...live, snapshot: second }, { page: { left: 0, right: 2 } }));
     expect(after.cards.map((item) => item.id)).toEqual(["side"]);
     expect(after.pageCount.right).toBe(1);
+
+    // 1 ページ目だけに出るカード（本文の行を持つ形）は、2 ページ目を見ている間に消えても、1 ページ目からも消える
+    const first = card("first", "right", { place: 0, take: 0, forms: [form(90, rows(2, 100, "f"))] });
+    const flowing = card("flowing", "right", { place: 1, take: 1, forms: [form(90, rows(30))] });
+    use({ source: (snap) => (snap === snapshot ? [first, flowing] : [flowing]), max: 2 });
+    const viewing = screenFrame(input(live, { page: { left: 0, right: 1 } }));
+    expect(viewing.cards.map((item) => item.id)).toEqual(["flowing"]);
+    expect(screenFrame(input(live, { page: { left: 0, right: 0 } })).cards.map((item) => item.id).sort()).toEqual(["first", "flowing"]);
+    for (const right of [1, 0]) expect(screenFrame(input({ ...live, snapshot: second }, { page: { left: 0, right } })).cards.map((item) => item.id)).toEqual(["flowing"]);
   });
 
   it("(e)(k)(l) slot のカードは eewSlots の場所で最上層、開いたカードは先頭で中間の層に無く、同じ集め方で shellSync が組を返し、7 枚目は置かない", () => {

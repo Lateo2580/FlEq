@@ -41,13 +41,14 @@ const patch = (pattern, replacement) => {
 };
 patch(/reduceShell\(shell, \{ kind: "press", frame, x: event\.clientX \/ scale, y: event\.clientY \/ scale \}\)/, (call) => `(window.__press = { x: event.clientX / scale, y: event.clientY / scale }, ${call})`);
 patch(/const page = \{ left: 0, right: 0 \};/, "const page = window.__page = { left: 0, right: 0 };");
+patch(/const MARK_KEEP = 64;/, "const MARK_KEEP = 2;"); // 追い出しを少ない版で起こす
 patch(/\nboot\(\);/, "\nwindow.__requestFrame = requestFrame;\nboot();");
 writeFileSync(mainPath, main);
 
 // ---- snapshot（外形だけの v3。client が確かめるのは外形で、カードは試験用の登録が smokeTexts・smokeSlots から作る）----
 const UNITS = { eew: "U-E", tsunami: "U-T", earthquake: "U-Q", weatherCurrent: "U-W", weatherTimeseries: "U-F", nankai: "U-N",
   volcano: "U-V", landslide: "U-L", flood: "U-R", briefing: "U-B", localBulletins: "U-M", typhoon: "U-Y" };
-const snapshot = (sequence, texts, slots = 0) => ({ schemaVersion: "p4-display-wire-v3", streamId: "smoke", sequence, semanticRevision: `s${sequence}`,
+const snapshot = (sequence, texts, slots = 0, streamId = "smoke") => ({ schemaVersion: "p4-display-wire-v3", streamId, sequence, semanticRevision: `s${sequence}`,
   current: Object.fromEntries(Object.entries(UNITS).map(([key, unit]) => [key, { unit, contentRevision: `r${sequence}` }])), notices: [], smokeTexts: texts, smokeSlots: slots });
 const plain = (tag = "") => Array.from({ length: 30 }, (_, i) => `行${tag} ${i + 1}`);
 const WORKER = { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null };
@@ -149,9 +150,11 @@ async function run() {
   for (let round = 0; round < 5; round++) {
     await server.close();
     server = await serve(serverPort);
-    server.publishWire(snapshot(10 + round, plain(`#${round}`)), true);
+    // 3 回目（round 2）は新しい streamId で sequence 1（host の起動し直しと同じ形）。以降はその stream で続ける
+    const fresh = round === 2;
+    server.publishWire(snapshot(fresh ? 1 : 10 + round, plain(`#${round}`), 0, round >= 2 ? "smoke2" : "smoke"), true);
     // EventSource の自動の再接続（既定の待ちは約 3 秒）の後、この回に固有の版が画面に届く
-    check(`T10-b 再接続 ${round + 1} 回目の版が画面に届く`, await until(`document.querySelector(".card .row:nth-child(2) span")?.textContent === "行#${round} 1"`, 15000), `版 ${10 + round}`);
+    check(`T10-b 再接続 ${round + 1} 回目の版が画面に届く`, await until(`document.querySelector(".card .row:nth-child(2) span")?.textContent === "行#${round} 1"`, 15000), fresh ? "新しい stream・sequence 1" : `版 ${10 + round}`);
   }
   for (let i = 0; i < 20; i++) {
     const to = i % 3;
@@ -174,6 +177,15 @@ async function run() {
   const got = late == null ? null : marks.find(([name]) => name === late[0].replace("painted", "received"));
   results.push({ id: "T10-d E04 received→painted", status: "Record", detail: late == null || got == null ? "mark なし" : `${Math.round((late[1] - got[1]) * 10) / 10} ms (${late[0]})` });
 
+  // 印の名前は streamId と sequence の両方。古い stream の追い出しが、新しい stream の同じ sequence の印を消さない（MARK_KEEP を 2 に差し替えてある）
+  const markCount = (kind, version) => evaluate(`performance.getEntriesByName("fleq:s0:${kind}:${version}", "mark").length`);
+  for (const [stream, sequence] of [["sa", 1], ["sa", 2], ["sb", 1]]) {
+    server.publishWire(snapshot(sequence, ["一"], 0, stream), true);
+    await until(`performance.getEntriesByName("fleq:s0:painted:${stream}:${sequence}", "mark").length === 1`, 5000);
+  }
+  check("T10-b2 追い出された版の印は消える", (await markCount("painted", "sa:1")) === 0 && (await markCount("received", "sa:1")) === 0, "sa:1");
+  check("T10-b2 新しい stream の sequence 1 の印が残る", (await markCount("received", "sb:1")) === 1 && (await markCount("painted", "sb:1")) === 1, "sb:1");
+
   // C5: 伸ばさないカードで、1 行目の上端＝カードの上端、最後の行の下端＝カードの下端。時計の字の大きさと上の内側
   server.publishWire(snapshot(30, ["一", "二"]), true);
   await until(`document.querySelectorAll(".card .row").length === 3`);
@@ -190,7 +202,14 @@ async function run() {
   await sleep(200);
   check("T10-c1 間を押しても状態が変わらない", await evaluate(`document.querySelectorAll("#cards-top .card").length === 3 && document.querySelectorAll("#cards-middle .card.dim").length === 1`), "top 3");
   await click(1260, 300);
+  // 製品に属性を足さず、カードは見出しの字で見分ける（試験用の登録の右の列のカードは「見出し」、緊急は「緊急 N」）
+  const parentOf = (text) => `[...document.querySelectorAll(".card")].find((c) => c.textContent.startsWith(${JSON.stringify(text)}))?.parentElement.id`;
   check("T10-c1 ずれて出た所を押すと上がる", await until(`document.querySelectorAll("#cards-top .card").length !== 3`, 3000), "raised");
+  check("T10-c1 上げたカードの親は最上層", (await evaluate(parentOf("見出し"))) === "cards-top", "#cards-top");
+  check("T10-c1 下がった緊急地震速報のカードの親は中間の層", (await evaluate(parentOf("緊急 0"))) === "cards-middle", "#cards-middle");
+  await click(1830, 100);
+  check("T10-c1 下がったカードを押すと戻る", await until(`(${parentOf("見出し")}) === "cards-middle" && (${parentOf("緊急 0")}) === "cards-top"`, 3000), "戻した後の親");
+  check("T10-c1 戻した後に間の点がまた地図になる", await evaluate(`!document.elementsFromPoint(1500, 370).some((node) => node.closest(".card"))`), "elementsFromPoint (1500, 370)");
 
   // (f) viewport 1920×1080 で時計 (40,960)、960×540 で全体 0.5 倍・時計 (20,480)、押した点が 1920×1080 の座標に戻る
   server.publishWire(snapshot(50, ["一"]), true);

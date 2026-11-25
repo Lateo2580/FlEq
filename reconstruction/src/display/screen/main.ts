@@ -61,9 +61,10 @@ const page: Record<ShellColumn, number> = { left: 0, right: 0 };
 let frame: ShellFrame | null = null;
 // E04 の印は版ごとに 2 つ増えるので、直近 MARK_KEEP 版だけ残す（72 時間の稼働で印が増え続けるのを防ぐ）
 const MARK_KEEP = 64;
-const received: number[] = [];
-const painted: number[] = [];
-const markName = (kind: "received" | "painted", sequence: number) => `fleq:s0:${kind}:${sequence}`;
+// 版の名前は streamId と sequence の両方で作る（host の起動し直しで streamId が替わり、sequence は 1 から振り直されるため。掃除が新しい stream の印を消さない）
+const received: string[] = [];
+const painted: string[] = [];
+const markName = (kind: "received" | "painted", version: string) => `fleq:s0:${kind}:${version}`;
 
 // ---- 描画 ----
 type Drawn = { node: HTMLElement; key: string };
@@ -172,14 +173,14 @@ function render(): void {
   }
   frame = next;
   // E04: 描いた後の最初の paint に印を置く（P4-DS-AC12）
-  const sequence = received.pop();
+  const version = received.pop();
   // 描く前に合流して消えた版の received は消す
   for (const skipped of received.splice(0)) performance.clearMarks(markName("received", skipped));
-  if (sequence != null) {
-    painted.push(sequence);
+  if (version != null) {
+    painted.push(version);
     const old = painted.length > MARK_KEEP ? painted.shift() : undefined;
     if (old != null) { performance.clearMarks(markName("received", old)); performance.clearMarks(markName("painted", old)); }
-    nextPaint(() => { performance.mark(markName("painted", sequence)); });
+    nextPaint(() => { performance.mark(markName("painted", version)); });
   }
 }
 
@@ -220,7 +221,7 @@ function boot(): void {
     if (!(event instanceof MessageEvent) || typeof event.data !== "string") return;
     const next = acceptSnapshot(client, event.data);
     if (next === client) return;
-    const accepted = next.snapshot != null && next.snapshot !== client.snapshot ? next.snapshot.sequence : null;
+    const accepted = next.snapshot != null && next.snapshot !== client.snapshot ? `${next.snapshot.streamId}:${next.snapshot.sequence}` : null;
     client = next;
     if (accepted != null) { performance.mark(markName("received", accepted), { startTime: receivedAt }); received.push(accepted); }
     // 描画の止まる間（隠れた tab）も印を溜めない
