@@ -93,7 +93,7 @@
 
 - `screenFrame(input: ShellFrameInput): ShellFrame`。
   - input: client の状態、時刻（epoch ms）、列ごとのページの番号、ShellState。
-  - カード: `cards.ts` の `CARD_SOURCES`（ShellCardEntry〔source と max〕の配列）を順に呼んで集める。S0 の登録は 0 本。各カードの契約が 1 行ずつ足す（reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»）。
+  - カード: `cards.ts` の `CARD_SOURCES`（ShellCardEntry〔source と max〕の配列）を順に呼んで集める。S0 の登録は 0 本。各カードの契約が 1 行ずつ足す（reconstruction/contracts/p4-order-plan.md:227 «d0b772e0ecc3ed64»）。
   - 中間の層: 列ごとに `paginateColumn` の結果のうち、ページの番号のページ。番号がページの数以上なら最後のページ（自動の送りと番号の引継ぎは S1）。
   - 最上層: slot のあるカードを slot の小さい順に並べ、その順で `eewSlots`（枚数、6 まで）の場所に置く。7 枚目からは置かない（7 件目は E0、DS-LAYOUT-07）。置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を open として placeLayers に渡す。上がったカードと下げる緊急地震速報のカードは placeLayers が決める（§3.1・§5.2）。
   - 層: 緊急地震速報の場所・開いたカード・raised（今のページの列のカードにある id だけ）・列のカードを `placeLayers` に渡し、cards（ShellDrawCard の列。最上層を前から奥、続けて中間の層を奥から手前）と cover を返す。開いたカードは frame の cards の先頭に置く。開いたカードは左の列にしか無く、開いている間は左の列に緊急地震速報のカードが無い（DS-LAYER-23）ので、最上層のほかのカードと面で重ならず、前後を決めない（DS-OPEN-46 は S1・E0）。
@@ -469,7 +469,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 2026-11-26 の配送で当てた物と当てなかった物は JSON の questionResolutions の Q-DS-DELIVERY・Q-DS-SPEC-REVISION。
 
 1. 計画:114 の S0 の行（reconstruction/contracts/p4-order-plan.md:114 «c38868f9bf244f45»）: 「1 つ目の群」に、凍結に入れた統合担当の決め・読み（§10）を足す。「2 つ目の群」の字を改める: DS-LAYER-06 の後半・15 と DS-OPEN-63 は 2026-11-24 20:54 の作者の確認つきで凍結へ移った（文 1・2・4）、DS-LAYER-18（20:46）・19 も凍結、DS-LAYER-09 の後半・16・21 と DS-OPEN-62 の形は作者の裁定 2026-11-25 07:0x（P4-DS-D-SECOND-GROUP=A）、DS-LAYER-23 の開かない所は同じ裁定（P4-DS-D-OPEN-WHILE-EEW=A）、DS-LAYER-20・22・23 の残りは統合担当の決め、D1 と見た目の 3 つは作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）。凍結しないのは DS-LAYER-10・11、DS-OPEN-62 の値・65・67、DS-OPEN-75（S1・E0）。S0 の行を配送済みにする。
-2. 計画:227（reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»）: P4-DS-D-MODULE-PATH=A を確定したら、directory の名前を `screen` に、「自分の部品の directory」を「`reconstruction/src/display/screen/` の自分の部品の file と cards.ts の 1 行」に改める。
+2. 計画:227（reconstruction/contracts/p4-order-plan.md:227 «d0b772e0ecc3ed64»）: P4-DS-D-MODULE-PATH=A を確定したら、directory の名前を `screen` に、「自分の部品の directory」を「`reconstruction/src/display/screen/` の自分の部品の file と cards.ts の 1 行」に改める。
 3. 計画:91（reconstruction/contracts/p4-order-plan.md:91 «16c59b4b17071c38»）: 新しい画面の path が `/display` であることを書く。
 4. 計画 §4.6 の「S0 の凍結時」の行: reconstruction/contracts/p4-order-plan.md:383 «d032ca260ac4d42b»（spec:167・:2959・:2961・:1688 を P4-PLAN-D-SCREEN の結果へ、Pi のブラウザの資源を予算に〔R52〕）、reconstruction/contracts/p4-order-plan.md:389 «f0d422374901263a»（spec:1845・:1847 に DS-LAYER-10 の例外）、reconstruction/contracts/p4-order-plan.md:394 «83949472d1d9ef02»（spec:1597〜:1624 の列の割当を D-TSUNAMI-COLUMN=C の結果へ）。改め方は計画の字のとおり。B1 の Q-DC-SPEC-REVISION と同じく spec の本文を変えずに本契約を真実源とする形もある（統合担当が決める）。〔本文を置き換えない形に決めた（統合担当の決め、Q-DS-SPEC-REVISION）〕
 5. 計画:937 の S0 の着手ゲート（reconstruction/contracts/p4-order-plan.md:937 «dc576f762ca61a46»）: 発注前点検の問いは全部閉じた（Q-DS-COLUMN-FLOW は統合担当 2026-11-25 19:30、Q-DS-STATUS-WORDS は作者の裁定 2026-11-25 19:09。READINGS・MODULE-PATH・REPAGE-CAP・CARD-BOUND・OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は閉じた）。
@@ -485,7 +485,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 15. D-AC05（spec:1842）: 押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形を、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による例外として書く（ユーザーが押した間だけ、組が変われば戻る、DS-LAYER-21）。下端の補正とページの操作を隠さないは C0（DS-OPEN-65）。〔本文を置き換えない形に決めた（統合担当の決め、Q-DS-SPEC-REVISION）〕
 16. 計画:114 の群の分け方: DS-LAYER-03 の 40・379・718px は DS-LAYOUT-05〜06 から来ると書く。DS-OPEN-64 は 2 つ目の群から統合担当の決め（2026-11-24 22:0x）へ移したと書く。
 17. §12 の 1・2・3・7・9・18 が書き換える行を引く本契約の «» 9 本（計画 :114 が 3 本、:227 が 2 本、:91、:124〔この節の 18〕、p4-persona-walk-tools3.json:323、p0-contracts:1855）を、書き換えの後に付け直す。〔配送で付け直した数は Q-DS-DELIVERY の (3)〕
-18. 計画の C0 の行（reconstruction/contracts/p4-order-plan.md:124 «65dbf8ea4b1edcf8»）: 詳細の取得と、200・409 以外の応答を failed に変える所と、log（reason "detailFailed"）は、最初に詳細を開くカードの契約（C0・C1）が main.ts に足す、の受けを書く（統合担当の決め 2026-11-25 21:3x、r10-items.md の #11）。
+18. 計画の C0 の行（reconstruction/contracts/p4-order-plan.md:124 «a8d42a2d3348eb19»）: 詳細の取得と、200・409 以外の応答を failed に変える所と、log（reason "detailFailed"）は、最初に詳細を開くカードの契約（C0・C1）が main.ts に足す、の受けを書く（統合担当の決め 2026-11-25 21:3x、r10-items.md の #11）。
 19. S1 の起草: 開いている間の左の列の pageCount は、開いたカードを外した割りのページの数。その送りの受け方は S1 が決める（統合担当の決め 2026-11-25 21:3x、r10-items.md の #16）。
 20. 各カードの契約（C0・T0 ほか）: 形を選ぶカード（形が 2 つ以上・null でない maxPages・2 以上の minBodyRows・mayHide）は左の列の take がいちばん後ろの 1 枚（今日の地震）だけ（AC05 (7)(h)）。ほかに要る契約は、その契約で (h) と形の選び（layout.ts の choose）を広げる。津波の小さい形（docs/specs/reconstruction-display-design.md:540 «032bc9d035afefb1» が T0 へ送った字）は、津波が先に高さを取るので今の順では使われず、T0 が扱いを決める。本文のある形の minBodyRows は 1 以上（(i)）。計画の C0・T0 の行に配送で書く。
 

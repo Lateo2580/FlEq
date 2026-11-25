@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "9082f24d0e4c428ecc69a65567aa24c33c07a9f39523b6e52fb120e2a96fcb4d",
+    "sha256": "6096a580fa2618a658d1a61cfd17eae9e02ceb7ae42e059dc90eece0dc001e2c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -207,15 +207,15 @@
         "id": "Q-DS-DELIVERY",
         "status": "closed",
         "source": "統合担当の配送（2026-11-26、impl/s0 の 826b2afb・9e240899・8b6f18d4・9a43af36・fd73a45c と契約 r10 の 8e071bb4・r11 の 5cfbd2fa を、main 7bf652f1 の上で順に。レビューは品質〔ヘルツ Astra high、thread 01a212ab〕4 巡〔NO-GO 3 巡、裁定 A′ の後の 5cfbd2fa で GO、P3 1 件〕、契約適合〔Opus〕〔826b2afb 条件付き GO → 9e240899 コードは GO → 8b6f18d4 GO（字の条件つき）→ 5cfbd2fa 条件付き GO、P3 5 件〕。P3 6 件は fd73a45c で当てた。Mac mini のゲートは 826b2afb・9e240899・8b6f18d4・5cfbd2fa で全段 rc=0。配送の最後の commit の結果は記録の外（作業ノート））",
-        "closed": "(1) smoke（T10、実 Chrome、2026-11-26 06:5x、5cfbd2fa の dist）: 34 項目 Pass、Fail 0。E04 の 2 つの mark の差の記録は 3.1 ms（合否にしない）。表 §4.5 の 5 場面の割り直しは 5 場面とも図の道具と一致。時計の矩形は DS 版 41 の見本と一致（2026-11-25 21:52） (2) 原文の改訂: 計画 §2.1 の S0 の行の状態と群の字・C0 の行と T0 の行の受け、:91・:227 の字、§4.6 の :383・:389・:394 の時期の字、P4-PERSONA-WALK-TOOLS-003 の Q-PWT3-ROWS-FN と publicFunctions の字、P4-DISPLAY-CAPACITY-001 の outOfScope と Q-DC-DELIVERY の remaining の字、Q-DS-SPEC-REVISION を閉じた (3) 印の付け直し: 本契約の JSON の 6 本と表の 11 本（計画の :91・:114・:124・:227・:383・:389・:394）。ほかの契約は 0 (4) §12 の 10（DS の README の次の版）・11・12・14・19 は、受け手の起草と DS の次の版で当てる。計画:212・:229・:937 と、「host の配線は E0 発注 2」と書く当時の記録 3 か所は直さない",
+        "closed": "(1) smoke（T10、実 Chrome、2026-11-26 06:5x、5cfbd2fa の dist）: 34 項目 Pass、Fail 0。E04 の 2 つの mark の差の記録は 3.1 ms（合否にしない）。表 §4.5 の 5 場面の割り直しは 5 場面とも図の道具と一致。時計の矩形は DS 版 41 の見本と一致（2026-11-25 21:52） (2) 原文の改訂: 計画 §2.1 の S0 の行の状態と群の字・C0 の行と T0 の行の受け、:91・:227 の字、§4.6 の :383・:389・:394 の時期の字、P4-PERSONA-WALK-TOOLS-003 の Q-PWT3-ROWS-FN と publicFunctions の字、P4-DISPLAY-CAPACITY-001 の outOfScope と Q-DC-DELIVERY の remaining の字、Q-DS-SPEC-REVISION を閉じた (3) 印の付け直し: 本契約の JSON の 6 本と表の 11 本（計画の :91・:114・:124・:227・:383・:389・:394）。ほかの契約は 0 (4) §12 の 10（DS の README の次の版）・11・12・14・19 は、受け手の起草と DS の次の版で当てる。計画:212・:229・:937 と、「host の配線は E0 発注 2」と書く当時の記録 3 か所（p4-display-capacity-tables.md:224、p4-display-wire.json:272、reconstruction/test/display-wire/display-capacity-sse.test.ts:115）は直さない",
         "remaining": "詰まっている客には保留が届かない（AC02 (6)）。http-sse.ts の wireBeat の timer（listen の失敗で残る、B1〔e292a3ba〕の既存）は構造的欠陥台帳の 151。詳細の取得は最初に詳細を開くカードの契約（C0・C1、AC03 (5)）。形を選ぶカードを 2 枚以上か右の列に置く契約は、その契約で AC05 (7)(h) を広げる。書体は Pi の配送の手順。地図の塗りと印は M0。Pi の Chromium の資源と E04 の測定は PM"
       },
       {
         "id": "Q-DS-SPEC-REVISION",
         "status": "closed",
         "source": "統合担当の決め（本契約の配送、2026-11-26）。計画 §4.6 の表の spec:167 ほか・:1845 ほか・:1597 ほかの行の時期（S0 の凍結時）と、表 §12 の 9・15",
-        "closed": "spec（docs/specs/reconstruction-p0-contracts.md）の本文は置き換えない。列の割当（:1597・:1598・:1601・:1615・:1617・:1619・:1624）は本契約の AC04 (1)・AC05 (4)・AC06 (1)〜(3)、D-AC05（:1842）は AC13 (1)(2)(4)(5)、D-AC18（:1855）は AC13 (3) を真実源とする。D-AC08・D-AC10（:1845・:1847）の例外は表示設計 spec の DS-LAYER-10 と計画:137、検収端末（:167・:1688・:2959・:2961）は計画 §5.1 の P4-PLAN-D-SCREEN=A と計画:71 を指す。spec は変えない（行の数も被引用の anchor も変わらない）",
-        "remaining": "検収端末の行は PM の起草で本文を置き換えるかを決める。点滅は T0 の凍結時"
+        "closed": "spec（docs/specs/reconstruction-p0-contracts.md）の本文は置き換えない。列の割当（:1597・:1601・:1615・:1617・:1619・:1624）は本契約の AC04 (1)・AC05 (4)・AC06 (1)〜(3)、D-AC05（:1842）は AC13 (1)(2)(4)(5)、D-AC18（:1855）は AC13 (3) を真実源とする。D-AC08・D-AC10（:1845・:1847）の例外は表示設計 spec の DS-LAYER-10 と計画:137、検収端末（:167・:1688・:2959・:2961）は計画 §5.1 の P4-PLAN-D-SCREEN=A と計画:71 を指す。spec は変えない（行の数も被引用の anchor も変わらない）",
+        "remaining": "検収端末の行は PM の起草で本文を置き換えるかを決める。点滅（:1598）は T0 の凍結時"
       }
     ],
     "operationContract": {
@@ -407,7 +407,7 @@
           "reconstruction/src/display/chrome-eew/tsconfig.json:8 «63b55f2ada487125»",
           "reconstruction/src/display/chrome-eew/tsconfig.json:9 «3b6fd5df2e4fbb39»",
           "reconstruction/contracts/p2-chrome-eew.json:633 «81593d9d26dc05df»",
-          "reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»",
+          "reconstruction/contracts/p4-order-plan.md:227 «d0b772e0ecc3ed64»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
       },
@@ -576,7 +576,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»",
           "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
-          "reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»",
+          "reconstruction/contracts/p4-order-plan.md:227 «d0b772e0ecc3ed64»",
           "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
           "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
           "docs/specs/reconstruction-display-design.md:560 «43627ca90f37ce4b»",
