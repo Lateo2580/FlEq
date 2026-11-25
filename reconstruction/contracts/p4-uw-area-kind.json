@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "bc98153f8dea0d961e4d6b99474eb2b62ad58b81b4458ee5a58fc0b32ee9e910",
+    "sha256": "a234acab13e5a9fb3527416886632580261af49bc0ac6924393ce2f9bb844588",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -89,7 +89,7 @@
   "contract": {
     "contractId": "P4-UW-AREA-KIND-001",
     "mode": "implementation",
-    "objective": "U-W の府県の項目ごとに「どの区域にどの種別が出ているか」を、合わせの後の勝った行から作って新しい経路の weatherCurrent.area に載せる。C0 発注 1 の右の列の 3 枚（作者の裁定 DS-WARN-09・12）と設定した地域のカードの材料。公開形（view）と旧の経路は変えず、保存・合わせ・差分の条件も変えない。設計の表は reconstruction/contracts/p4-uw-area-kind-tables.md、型は reconstruction/contracts/p4-uw-area-kind.types.ts",
+    "objective": "U-W の府県の項目ごとに「どの区域にどの種別が出ているか」を、合わせの後の勝った行から作って新しい経路の weatherCurrent.area に載せる。C0 発注 1 の右の列の 3 枚（DS-WARN-09〔作者の裁定 2026-11-23 13:32「案1でいきましょう」の形〕と、DS-WARN-12〔統合担当の案を作者が 13:52 に受けた、C0 の見本の図でもう一度見せる〕）と設定した地域のカードの材料。公開形（view）と旧の経路は変えず、保存・合わせ・差分の条件も変えない。設計の表は reconstruction/contracts/p4-uw-area-kind-tables.md、型は reconstruction/contracts/p4-uw-area-kind.types.ts",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
