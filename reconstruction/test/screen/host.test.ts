@@ -69,10 +69,16 @@ const shifted = (xml: string, deltaMs: number) => xml.replace(/(\d{4})-(\d{2})-(
 });
 const eewXml = () => shifted(text("77_01_01_240613_VXSE45"), Date.parse("2019-10-12T09:09:30+09:00") - Date.parse("2024-04-17T23:14:57+09:00"));
 const cleanups: (() => Promise<void> | void)[] = [];
+// 保留の timer（http-sse の flushWire）だけを延ばす。1 秒のままだと、遅い機械では VPWS50 を読み終える前に期限が来て、急ぎの版や close より先に保留の版が届く。1 秒の期限は P4-DC-T04 が見る
+const HOLD_MS = 60_000;
+const realSetTimeout = globalThis.setTimeout;
+const stretchHold = () => vi.spyOn(globalThis, "setTimeout").mockImplementation(((handler: (...args: unknown[]) => void, delay?: number, ...args: unknown[]) =>
+  realSetTimeout(handler, handler.name === "flushWire" ? HOLD_MS : delay, ...args)) as typeof setTimeout);
 const savedConfig = process.env.XDG_CONFIG_HOME;
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
   await until(() => owners.live.size === 0);
+  vi.restoreAllMocks();
   failing.shutdown = false;
   wireCalls.list.length = 0;
   if (savedConfig == null) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = savedConfig;
@@ -90,6 +96,7 @@ const frame = (headType: string, classification: string, body: string) => JSON.s
   xmlReport: { control: { status: "通常" } }, body });
 
 async function boot() {
+  stretchHold();
   const path = await fileSystem.mkdtemp(join(tmpdir(), "fleq-s0-host-"));
   cleanups.push(() => fileSystem.rm(path, { recursive: true, force: true }));
   process.env.XDG_CONFIG_HOME = join(path, "config");
@@ -166,10 +173,10 @@ describe("P4-DS-T09 host の配線", () => {
     const held = await nextCall("held", start, true);
     sendUrgent(sockets);
     const urgent = await nextCall("urgent", start);
-    await until(() => wire.events.length >= 1);
+    await until(() => wire.events.some((event) => event.sequence >= held.sequence));
     await new Promise((done) => setTimeout(done, 200));
     // 接続の時に届く既公開の版の再送（held より前の版）は試験の対象の外。held の版以降で、最初の保留の期限より前に届いた版を見る
-    const inWindow = wire.events.filter((event) => event.sequence >= held.sequence && event.at < holdStart.at + 900);
+    const inWindow = wire.events.filter((event) => event.sequence >= held.sequence && event.at < holdStart.at + HOLD_MS);
     expect(inWindow.map((event) => event.sequence)).toEqual([urgent.sequence]);
     expect(urgent.sequence).toBeGreaterThan(held.sequence);
     // VPWS50 固有の気象の中身（内容版が最初の 0 から進んだ分）が、急ぎの版に残っている
@@ -191,10 +198,9 @@ describe("P4-DS-T09 host の配線", () => {
     const reopened = await host.openDisplay(0);
     expect(reopened.kind).toBe("opened");
     const second = listen((reopened as { port: number }).port);
-    const asked = performance.now();
-    await until(() => second.events.length >= 1, 2_000);
+    // 開き直しの版が保留されると HOLD_MS まで届かず、until（15 秒）で落ちる
+    await until(() => second.events.length >= 1);
     expect(second.events[0].sequence).toBeGreaterThanOrEqual(urgent.sequence);
-    expect(second.events[0].at - asked).toBeLessThan(500);
   }, 60_000);
 
   // サーバーが書いた版と、response を壊した時を順に記録する（client に届く前。書いた直後の destroy で届かないことは契約の残存）
