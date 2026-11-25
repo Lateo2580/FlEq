@@ -725,13 +725,13 @@ function displaySubjects(state: WeatherCurrentUnitState, targets?: ReadonlySet<s
     target.office ??= parseScopeToken(item.target.affectedScope[0])?.[2] ?? null;
   }
   const result = new Map<string, DisplayRow>([...rows].map(([key, item]) => [key, { unit: "U-W" as const,
-    operation: item.operation, subject: item.subject, office: item.office, current: null,
+    operation: item.operation, subject: item.subject, office: item.office, current: null, areaKinds: null,
     currentActive: item.current != null && currentActive(item.current), currentScope: item.current == null ? EMPTY : currentScope(item.current),
     unavailable: item.unavailable.map(publicUnavailable), freshness: item.freshness, subjects: item.unavailable.map(unavailableSubject) }]));
   const area = (operation: Operation, prefecture: string) => {
     const entry = areaEntry(state, `${operation}\u0000${prefecture}`);
     if (entry != null) result.set(JSON.stringify([operation, entry.area.subject]), { unit: "U-W", operation, subject: entry.area.subject,
-      office: null, current: entry.area, currentActive: false, currentScope: EMPTY, unavailable: EMPTY, freshness: EMPTY, subjects: [areaOutcome(entry.area)] });
+      office: null, current: entry.area, areaKinds: entry.areaKinds, currentActive: false, currentScope: EMPTY, unavailable: EMPTY, freshness: EMPTY, subjects: [areaOutcome(entry.area)] });
   };
   if (targets == null) for (const value of weatherCurrentAreas(state)) area(value.operation, value.prefecture);
   else for (const key of targets) {

@@ -190,7 +190,7 @@ type Shape<Fact extends string, List, Text extends string, Special> = Readonly<{
 type Unread = MarkList<"unreadable">;
 type Codes<Role extends string> = VocabList<Role>;
 type VocabShapes = {
-  "weatherCurrent.area": Shape<Source | "prefecture" | "cellCount" | "restoredCellCount", Codes<"areas"> | VocabList<"phenomena", "areaCount">, never, null>;
+  "weatherCurrent.area": Shape<Source | "prefecture" | "cellCount" | "restoredCellCount", VocabList<"areas", "kinds"> | VocabList<"phenomena", "areaCount">, never, null>;
   "weatherTimeseries.subject": Shape<Source | "office" | "effective" | "unavailableReason" | "validUntil" | "unknownCode.unknown" | "unknownCode.missing"
     | "unknownCode.empty" | "periodCount" | "lastKnownPeriodCount", Codes<"areaCodes"> | Codes<"knownCodes"> | Unread, never, null>;
   "nankai.current": Shape<Source | "eventId" | "retainUntil" | "line" | "status" | "warningUntil" | "infoSerial.code" | "infoSerial.name" | "truncated"

@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import type { Operation } from "../../../contracts/p1-parser-boundary.types";
 import type { DisplayRemoval, ReportRef, SubjectOutcome } from "../../../contracts/p2-shared-runtime.types";
-import type { DisplayAreaSystem } from "../../../contracts/p2-snapshot-sse.types";
+import type { DisplayAreaSystem } from "../../../contracts/p2-snapshot-sse.types"; import type { WeatherCurrentAreaKinds, WeatherCurrentVocabSource } from "../../../contracts/p4-uw-area-kind.types";
 import type { WeatherCurrentSnapshot, WeatherCurrentUnitState } from "../../../contracts/p2-weather-current-unit.types";
 import type {
   WeatherCurrentDetailIndexEntry,
@@ -26,7 +26,7 @@ type Cell = Readonly<{
   type: number; areaCode: string; code: string | null; status: string; name: string | null;
   source: ReportRef; restored: boolean;
 }>;
-type Entry = Readonly<{ area: WeatherCurrentPublicArea; cells: readonly Cell[] }>;
+type Entry = Readonly<{ area: WeatherCurrentPublicArea; cells: readonly Cell[]; areaKinds: WeatherCurrentAreaKinds }>; // areaKinds は area と同じ勝った行から作る派生の値（P4-UAK-AC01、保存しない）
 type Merged = Readonly<{ national: State["national"]; entries: ReadonlyMap<string, Entry> }>;
 
 // P3-UWC-AC04: view-projector の WEATHER_AREA_SYSTEM と同じ対応（owner は publisher の module を読まないので写す）。
@@ -116,25 +116,25 @@ const activeCell = (cell: Cell) => !cell.restored && cell.code != null && cell.c
 
 // P3-UWC-AC05 (3): 公開形。前の object と勝った行の列・欄が同じなら前の object を使い回す（Q-UWC-MERGE-TIE (3)）。
 function publicArea(operation: Operation, prefecture: string, cells: readonly Cell[], revision: string, previous: Entry | undefined): Entry {
-  const areas = new Map<string, readonly [DisplayAreaSystem, string]>(), regions = new Map<string, Set<string>>(), names = new Map<string, string>();
+  const areas = new Map<string, [DisplayAreaSystem, string, string[]]>(), regions = new Map<string, Set<string>>(), names = new Map<string, string>();
   let source: ReportRef | null = null, restoredCellCount = 0;
   for (const cell of cells) {
     if (source == null || compareVersion(source, cell.source) === "newer") source = cell.source;
     if (cell.restored) restoredCellCount++;
     if (!activeCell(cell)) continue;
-    areas.set(`${cell.type}\u0000${cell.areaCode}`, [AREA_SYSTEMS[cell.type], cell.areaCode]);
+    const areaKey = `${cell.type}\u0000${cell.areaCode}`, slot: [DisplayAreaSystem, string, string[]] = areas.get(areaKey) ?? [AREA_SYSTEMS[cell.type], cell.areaCode, []]; slot[2].push(cell.code!); areas.set(areaKey, slot); // 勝った行は Code の昇順・区域×Code で一意なので kinds は昇順で重複なし（P4-UAK-AC01）
     const seen = regions.get(cell.code!) ?? new Set<string>();
     seen.add(regionKey(cell));
     regions.set(cell.code!, seen); if (cell.name != null && cell.name !== "" && !names.has(cell.code!)) names.set(cell.code!, cell.name); // P3-TP-AC09: 空の字は名前なし
   }
-  const subject = `${operation}/area/${prefecture}`;
+  const subject = `${operation}/area/${prefecture}`, sortedAreas = [...areas.values()].sort((left, right) => compareText(left[0], right[0]) || compareText(left[1], right[1]));
   const fields = { subject, operation, prefecture, id: sha256(["U-W", operation, subject]), source: source!,
-    areas: [...areas.values()].sort((left, right) => compareText(left[0], right[0]) || compareText(left[1], right[1])),
+    areas: sortedAreas.map(([system, code]): readonly [DisplayAreaSystem, string] => [system, code]),
     codes: Object.fromEntries([...regions].sort(([left], [right]) => compareText(left, right)).map(([code, seen]) => [code, seen.size])), names: Object.fromEntries(names),
     cellCount: cells.length, restoredCellCount };
   if (previous != null && previous.cells.length === cells.length && isDeepStrictEqual({ ...previous.area, revision: "" }, { ...fields, revision: "" })
-    && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return previous.cells.every((cell, index) => cell === cells[index]) ? previous : { area: previous.area, cells }; // cells は今の報の出どころにする（P4-RL-AC02 (2) の負かした報の判定が source を参照で比べる）。行の参照が全部同じなら entry ごと使い回す（通知の levelCache を外さない）
-  return { area: { ...fields, revision }, cells };
+    && previous.cells.every((cell, index) => isDeepStrictEqual(detailRow(cell), detailRow(cells[index])))) return previous.cells.every((cell, index) => cell === cells[index]) ? previous : { area: previous.area, cells, areaKinds: previous.areaKinds }; // cells は今の報の出どころにする（P4-RL-AC02 (2) の負かした報の判定が source を参照で比べる）。行の参照が全部同じなら entry ごと使い回す（通知の levelCache を外さない）
+  return { area: { ...fields, revision }, cells, areaKinds: sortedAreas };
 }
 
 // そのoperationの府県の partial を compareSnapshot の順（報時刻→operation→subject→inputId、state だけで決まる全順序）で返す。
@@ -351,6 +351,11 @@ function areaCauses(before: State, after: State, operation: Operation, prefectur
   return { removal: known.length >= 2 ? "mixed" : known.length === 1 && !words.has(null) ? known[0] : "unknown", departed: [...departed] };
 }
 
+// P4-UAK-AC02 (4): part=item が公開形と areaKinds の組で語彙の項目を作る口（snapshot の vocabSource と同じ形）。項目 1 件ごとに欄を足した写しを作る（O(件数)、今の areas の map と同じ）。
+function weatherCurrentVocabSources(state: State): readonly WeatherCurrentVocabSource[] {
+  return [...merged(state).entries.values()].map(({ area, areaKinds }) => ({ ...area, areaKinds }));
+}
+
 export {
-  advanceAreas, areaCauses, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas, weatherCurrentDetail,
+  advanceAreas, areaCauses, areaEntry, areaKeys, areaOutcome, markUnavailable, publicUnavailable, weatherCurrentAreas, weatherCurrentDetail, weatherCurrentVocabSources,
 };

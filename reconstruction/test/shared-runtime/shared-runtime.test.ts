@@ -396,7 +396,7 @@ describe("P2 shared runtime", () => {
     const source = { inputId: "late", origin: "replay" as const, operation: "normal" as const, family: "VPWW57",
       subject: "normal/VPWW57/office", reportDateTimeRaw: "", controlDateTimeRaw: "", serialRaw: "", infoTypeRaw: "発表" };
     const after = { unit: "U-W" as const, operation: "normal" as const, subject: source.subject, office: "office", currentActive: false, currentScope: [],
-      current: null, unavailable: [], subjects: [], freshness: [{ target: { operation: "normal" as const, family: "VPWW57",
+      current: null, areaKinds: null, unavailable: [], subjects: [], freshness: [{ target: { operation: "normal" as const, family: "VPWW57",
         subject: source.subject, affectedScope: [token] }, candidateSource: source, currentSource: null,
         currentSemanticRevision: null, decision: "rejected", reason: "reportDateTimeMissing", revisionOrder: "unknown" as const,
         freshnessSuspect: false, suspectedSource: null, confirmedScope: [],

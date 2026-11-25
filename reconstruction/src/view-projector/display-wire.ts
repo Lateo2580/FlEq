@@ -564,7 +564,7 @@ const subjectKey = (operation: Operation, subject: string): string => `${operati
 // 表示差分の after（view の要素と同じ形）を語彙の入力にする。U-W の監視の行は current を持たない。
 function vocabSource(value: RuntimeDisplaySubject): Parameters<typeof vocabItem>[0] | null {
   switch (value.unit) {
-    case "U-W": return value.current == null ? null : { k: "weatherCurrent.area", value: value.current };
+    case "U-W": return value.current == null ? null : { k: "weatherCurrent.area", value: { ...value.current, areaKinds: value.areaKinds } };
     case "U-F": return value.current == null ? null : { k: "weatherTimeseries.subject", value: value.current };
     case "U-N": {
       const current = value.current;

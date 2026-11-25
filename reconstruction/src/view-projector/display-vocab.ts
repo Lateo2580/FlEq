@@ -8,7 +8,7 @@ import type { LandslideUnitView } from "../../contracts/p3-landslide-unit.types"
 import type { LocalBulletinsUnitView } from "../../contracts/p3-local-bulletins-unit.types";
 import type { NankaiInformationView, NankaiUnitView } from "../../contracts/p3-nankai-unit.types";
 import type { TyphoonName, TyphoonUnitView } from "../../contracts/p3-typhoon-unit.types";
-import type { WeatherCurrentPublicArea } from "../../contracts/p3-uw-canon.types";
+import type { WeatherCurrentVocabSource } from "../../contracts/p4-uw-area-kind.types";
 import type { VolcanoBulletinView, VolcanoShortfall, VolcanoUnitView } from "../../contracts/p3-volcano-unit.types";
 import type {
   DisplayCutText, DisplayStateMark, VocabCell, VocabFact, VocabItem, VocabItemOf, VocabKind, VocabList, VocabMaterial, VocabRef, VocabValue,
@@ -39,7 +39,7 @@ function cutText(value: string, limit: number): DisplayCutText {
 }
 
 type VocabSources = {
-  "weatherCurrent.area": WeatherCurrentPublicArea;
+  "weatherCurrent.area": WeatherCurrentVocabSource;
   "weatherTimeseries.subject": WeatherTimeseriesPublicSubject;
   "nankai.current": NankaiUnitView["currents"][number];
   "nankai.information": NankaiInformationView;
@@ -108,20 +108,20 @@ function vocabItem(source: VocabSource, ids: Ids, detail: boolean): VocabItem {
   switch (source.k) {
     case "weatherCurrent.area": {
       const v = source.value;
-      // 区域は層ごとに 1 つの一覧（sys は層、区域名は描画が G0 の表から引く、計画 §5.3 の C=A）。areas は [層, Code] の昇順。
+      // 区域は層ごとに 1 つの一覧（sys は層、区域名は描画が G0 の表から引く、計画 §5.3 の C=A）。areaKinds は [層, Code] の昇順で、行は [Code, null, 種別の字]（P4-UAK-AC02）。
       // 層ごとの配列に 1 行ずつ足す（区域の数に線形。一覧を足すたびに写し直さない）。
       const layers: { sys: DisplayAreaSystem; rows: (readonly VocabCell[])[] }[] = [];
-      for (const [system, code] of v.areas) {
+      for (const [system, code, kinds] of v.areaKinds) {
         const last = layers.at(-1);
-        if (last?.sys === system) last.rows.push([code, null]);
-        else layers.push({ sys: system, rows: [[code, null]] });
+        if (last?.sys === system) last.rows.push([code, null, kinds.join(" ")]);
+        else layers.push({ sys: system, rows: [[code, null, kinds.join(" ")]] });
       }
       // names は codes の部分集合（p3-uw-canon.types.ts の names）なので、名前の無い Code は null。
       const phenomena = list<"phenomena", "areaCount">("phenomena", Object.keys(v.codes).sort().map((code) =>
         [code, v.names[code] == null ? null : cut.text(v.names[code], WIRE_LIMITS.phenomenonName), v.codes[code]]), { cols: ["areaCount"] });
       const item: VocabItemOf<"weatherCurrent.area"> = { ...head(ids, v, null, cut, { part: "areas", id: v.id, rev: v.revision }), k: source.k,
         facts: [...sourceFacts(v.source, cut), f("prefecture", v.prefecture), f("cellCount", v.cellCount), f("restoredCellCount", v.restoredCellCount)],
-        lists: [...layers.map((layer) => list<"areas">("areas", layer.rows, { sys: layer.sys })), phenomena], texts: [], special: null };
+        lists: [...layers.map((layer) => list<"areas", "kinds">("areas", layer.rows, { sys: layer.sys, cols: ["kinds"] })), phenomena], texts: [], special: null };
       return item;
     }
     case "weatherTimeseries.subject": {

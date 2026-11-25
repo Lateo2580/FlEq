@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "648ffba0d690c792357f286094100258e14c7cc98082cbf2b2b5bd85e8e12e14",
+    "sha256": "3c5b1ff5b143c028244f979ffeddd10fcd132c4659990ee84c6d6414ffeab9d7",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -244,12 +244,12 @@
         "requirement": "区域ごとの種別の値（P4-UAK-D-PLACE・D-LAYER）。(1) reconstruction/contracts/p4-uw-area-kind.types.ts の WeatherCurrentAreaKinds を、府県の勝った行のうち active の行（activeCell と同じ述語: 復元して未確認・Code 無し・Code 00・解除・なしを除く）から作る。各要素は [層, 区域 Code, kinds] で、kinds はその区域の active の Kind/Code の重複なし・昇順（1 つ以上）。要素の集合と並びは、その公開形の areas と同じ（層の名前の字の昇順〔municipality → municipalityGroup → prefecture → primary → stormSurge〕、同じ層の中は Code の昇順。勝った行の並び〔WARNING_TYPES の番号の順〕とは層の順が違う） (2) 値は公開形（同じ勝った行の列）と 1 対 1 で、公開形の object が使い回されるとき（勝った行の列が前と同じ）は同じ値を使い、公開形が新しくなれば作り直す。持ち方は決めない（公開形と勝った行を持つ Entry に添える形を推す）。府県の公開形は publicArea の中でだけ作られ、areaKinds も同じ所で作るので、府県の公開形があって areaKinds が無いことは起きない。取り出す所に例外や空の代わりの値を足さない。口を 1 つ足すときは公開形と areaKinds の組を返す形にし、非 null 断言（!）で読まない (3) RuntimeDisplaySubject の U-W の行を、current が値なら areaKinds も値、current が null なら areaKinds も null の判別共用体にする（今の Readonly<{…}> に & (Readonly<{ current: WeatherCurrentPublicArea; areaKinds: WeatherCurrentAreaKinds }> | Readonly<{ current: null; areaKinds: null }>) を足す）。片方だけ null の行は型で作れない。p2-shared-runtime.types.ts は :213〜:214 の行の中と import の行だけで、:213（他の契約が引く）の字は変えず :214 の末尾に足す（試作の型検査で通った、表 §7） (4) 保存しない。codec・schemaVersion（v8 のまま）・checkpoint・復元の境界を変えない",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-public.ts:115 «e5b4058391f6d7ba»",
-          "reconstruction/src/units/weather-current/weather-current-public.ts:125 «fa6b216b19f03e99»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:125 «008936da62e2a054»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
           "reconstruction/contracts/p3-uw-canon.types.ts:24 «2210128a84672507»",
           "reconstruction/contracts/p3-uw-canon.types.ts:26 «7ff5f9da83de37cb»",
           "reconstruction/contracts/p4-uw-area-kind.types.ts:6 «f1abc26a3e599cb5»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:214 «098ca3b51073425a»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:214 «fd29f6cc8b9db8c5»",
           "reconstruction/contracts/p2-weather-current-unit.types.ts:37 «94bc445bbab1692e»"
         ]
       },
@@ -258,11 +258,11 @@
         "requirement": "新しい経路の語彙（P4-UAK-D-FORM、P4-DV-AC02 の weatherCurrent.area）。(1) 語彙の areas の行は areaKinds だけを回して作る（current.areas を回して引かない。手で組んだ行の current.areas だけを替えた試験〔display-capacity.test.ts:267〜274〕でも投影が落ちない）。一覧 role areas（層ごとに 1 つ、sys は層）の行を [区域 Code, null, \"種別を昇順に半角の空白で区切った字\"]、cols を [\"kinds\"] にする。行の順・集合は今の areas の行と同じ（復元して未確認の行だけの府県は areas が空のまま） (2) phenomena・facts・head・texts・special は変えない。種別の字は phenomena の鍵（Kind/Code）で、名前は phenomena の行が持つ (3) projector は表示差分の current と areaKinds（WeatherCurrentVocabSource）から作り、view と owner の手元からは作らない。current が null の行（監視の行）だけ項目を作らず、府県の行で areaKinds を黙って空にする書き方（?? [] など）をしない（型が current の null と areaKinds の null を揃える）。項目の id・rev は公開形のまま (4) 詳細の part=item の成功応答は、snapshot と同じ関数・同じ areaKinds で同じ areas の一覧を返す（本文の全体が 65,536 byte を越えるときは今の規則どおり 503 responseTooLarge、AC06） (5) 型は VocabShapes の \"weatherCurrent.area\" の areas を VocabList<\"areas\", \"kinds\"> にする。ほかの種類の areas（U-B・U-M・U-Y）は変えない (6) 全部の行の kinds を種別ごとに数えた数が、その項目の phenomena の areaCount に等しい",
         "evidenceRefs": [
           "reconstruction/src/view-projector/display-vocab.ts:109 «585bfd10334ca540»",
-          "reconstruction/src/view-projector/display-vocab.ts:114 «3c8882553916e2b1»",
-          "reconstruction/src/view-projector/display-wire.ts:567 «a19a7f96d76c2681»",
+          "reconstruction/src/view-projector/display-vocab.ts:114 «361b671a7c81697c»",
+          "reconstruction/src/view-projector/display-wire.ts:567 «572f78141831d596»",
           "reconstruction/src/view-projector/display-wire.ts:599 «de7a2085cb029867»",
-          "reconstruction/src/runtime/owner-runtime.ts:905 «5f32aabc8fc587f5»",
-          "reconstruction/contracts/p4-display-wire.types.ts:193 «786c10cbecdc58ec»",
+          "reconstruction/src/runtime/owner-runtime.ts:905 «613cd500c9b7f145»",
+          "reconstruction/contracts/p4-display-wire.types.ts:193 «5aa07fe7775fbcd3»",
           "reconstruction/contracts/p4-uw-area-kind.types.ts:8 «9d6c7f653393fa52»"
         ]
       },
@@ -312,9 +312,9 @@
         "requirement": "最小実装・最小試験・範囲（AGENTS.md）。(1) 仕組みは型 2 つ（types の file）・府県の公開形と一緒に使い回す派生の値・表示差分の行の欄・語彙の 1 列・読み手 2 か所（projector・owner の part=item）だけ。外形（表示差分の areaKinds・語彙の kinds 列）・同じ公開形なら同じ値・保存しないことを求め、値の持ち方は決めない。新しい interface・設定・拡張点を足さない。無いと何が壊れるか: 型と値が無いと区分ごとのカードと設定した地域のカードが、どの区域にどの種別が出ているかを作れない (2) 試験は testMapping の 3 本で、どれに当たるかを成果物に 1 行で書く。既存の試験の期待は、shared-runtime.test.ts の U-W の行に areaKinds: null を足す 1 か所（型検査のため）のほかに変えない（表示差分の行の鍵や字を期待に持つ試験は、表 §7 の範囲で見つからなかった） (3) allowedPaths の中だけ（書く位置は表 §1・§4。weather-current-public.ts は「«» の最後の行 :293 より後に関数を足し、途中は行の中の書き換えだけ」、weather-current-unit.ts・display-wire.ts・display-vocab.ts・owner-runtime.ts・p2-shared-runtime.types.ts・p4-display-wire.types.ts は行の中だけ）。行の数を変えた file と、それで動く «» を成果物に列挙する (4) ほかの契約・計画の字は統合担当が配送で改める（表 §6）",
         "evidenceRefs": [
           "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
-          "reconstruction/contracts/p2-shared-runtime.types.ts:214 «098ca3b51073425a»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:214 «fd29f6cc8b9db8c5»",
           "reconstruction/test/shared-runtime/shared-runtime.test.ts:398 «f6bca27881a33331»",
-          "reconstruction/contracts/p4-display-wire.types.ts:193 «786c10cbecdc58ec»"
+          "reconstruction/contracts/p4-display-wire.types.ts:193 «5aa07fe7775fbcd3»"
         ]
       }
     ],

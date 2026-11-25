@@ -14,19 +14,19 @@
 ## 1. 今の材料と、どこが公開形を読むか
 | 読む所 | file:行 | 何を読むか | 本契約で変わるか |
 |---|---|---|---|
-| 府県の合わせ（勝った行）と公開形 | reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»・reconstruction/src/units/weather-current/weather-current-public.ts:125 «fa6b216b19f03e99» | 勝った行 → areas・codes・names | 行の中に種別の組を作る 1 か所だけ足す |
+| 府県の合わせ（勝った行）と公開形 | reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»・reconstruction/src/units/weather-current/weather-current-public.ts:125 «008936da62e2a054» | 勝った行 → areas・codes・names | 行の中に種別の組を作る 1 か所だけ足す |
 | 勝った行が動いたかの比べ | reconstruction/src/units/weather-current/weather-current-public.ts:111 «f67ad638eb296f86» | 層・区域・Code・Status・名前・報時刻・復元の印。公開形の欄が同じでも、この列が違えば版が進む | 変えない（§3） |
 | owner の view | reconstruction/contracts/p2-weather-current-unit.types.ts:85 «ecc2d5c29310daae»・reconstruction/src/units/weather-current/weather-current-public.ts:199 «bb5093a4fb1617b0» | areas（公開形） | 変えない |
-| 表示差分の府県の行 | reconstruction/src/units/weather-current/weather-current-unit.ts:734 «76a6ae522e012f6e» | current に公開形 | areaKinds を添える |
+| 表示差分の府県の行 | reconstruction/src/units/weather-current/weather-current-unit.ts:734 «43965e35fc0c4113» | current に公開形 | areaKinds を添える |
 | 表示差分の監視の行 | reconstruction/src/units/weather-current/weather-current-unit.ts:729 «fdf335a77eeb18af» | current は null | areaKinds は null |
 | 取り直しの採用の差分 | reconstruction/src/units/weather-current/weather-current-unit.ts:863 «200a8d3e0af8aa54» | displaySubjects を前後で比べる | 変えない（同じ行を通る） |
 | 旧の要約と計量 | reconstruction/src/view-projector/view-projector.ts:225 «df632f347d770f91»・reconstruction/src/view-projector/view-projector.ts:214 «09afc2f0651a8562»・view-projector.ts:456〜:458 | areas・codes・view の byte | 変えない |
 | 旧の Current（view）を読む端末 | prompt-current.ts:69 | codes・names | 変えない |
 | 通知の step | weather-current-notice.ts:67・:309 | 府県の entry・公開形 | 変えない |
-| 新しい経路の語彙 | reconstruction/src/view-projector/display-vocab.ts:109 «585bfd10334ca540»・reconstruction/src/view-projector/display-vocab.ts:114 «3c8882553916e2b1» | areas → 層ごとの一覧、codes → phenomena | areas の行に kinds の列を足す |
-| 新しい経路の入力 | reconstruction/src/view-projector/display-wire.ts:567 «a19a7f96d76c2681»・reconstruction/src/view-projector/display-wire.ts:599 «de7a2085cb029867» | 表示差分の current（:599 の idsOf は公開形の id・revision を読むだけ） | :567 で areaKinds を添えて渡す。:599 は変えない |
+| 新しい経路の語彙 | reconstruction/src/view-projector/display-vocab.ts:109 «585bfd10334ca540»・reconstruction/src/view-projector/display-vocab.ts:114 «361b671a7c81697c» | areas → 層ごとの一覧、codes → phenomena | areas の行に kinds の列を足す |
+| 新しい経路の入力 | reconstruction/src/view-projector/display-wire.ts:567 «572f78141831d596»・reconstruction/src/view-projector/display-wire.ts:599 «de7a2085cb029867» | 表示差分の current（:599 の idsOf は公開形の id・revision を読むだけ） | :567 で areaKinds を添えて渡す。:599 は変えない |
 | 待つ・待たないの判定 | reconstruction/src/view-projector/display-wire.ts:899 «219408204dece296» | before と after の areas の集合 | 変えない（種別だけの減りは今どおり待つ、Q-DC-URGENT-REMAINING） |
-| 詳細の part=item | reconstruction/src/runtime/owner-runtime.ts:905 «5f32aabc8fc587f5» | 公開形 → 語彙の項目（切らない） | areaKinds を渡す |
+| 詳細の part=item | reconstruction/src/runtime/owner-runtime.ts:905 «613cd500c9b7f145» | 公開形 → 語彙の項目（切らない） | areaKinds を渡す |
 | 詳細の part=areas・index | weather-current-public.ts:258〜:310 | 勝った行・公開形 | 変えない |
 | 災害の runner | test/disaster/runner.ts:105・:679 | 保存の byte と view の codes | 変えない |
 

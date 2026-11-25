@@ -790,7 +790,7 @@ import type { UnreadableMark as WireUnreadableMark } from "../../contracts/p2-sh
 import type { VocabIndexItem, VocabIndexUnit, VocabItem, VocabUnit, WireIndexOmitted, WireUnreadableSide } from "../../contracts/p4-display-wire.types";
 import { vocabItem } from "../view-projector/display-vocab";
 import { timeseriesPublicSubject } from "../units/weather-timeseries/weather-timeseries-unit";
-import { weatherCurrentAreas } from "../units/weather-current/weather-current-public";
+import { weatherCurrentVocabSources } from "../units/weather-current/weather-current-public";
 
 // ---- unit の view の写し（P4-DW-AC08 の詳細の照合用） ----
 // owner は unit の toView を import できない（domain が shared-runtime 経由でこの module を読むので、unit の module を読むと循環して
@@ -902,7 +902,7 @@ function wireElements(state: OwnerState, unit: VocabUnit): readonly WireElement[
   switch (unit) {
     // U-W・U-F は公開形の id と revision（P3-UW-CANON-001・P3-UF-PUBLIC-001）。U-W の公開形は読めない印を持たない。
     case "U-W": { const value = units["U-W"]; if (value == null) return null;
-      return weatherCurrentAreas(value).map((area) => ({ source: { k: "weatherCurrent.area", value: area }, record: {}, operation: area.operation, id: area.id, revision: area.revision })); }
+      return weatherCurrentVocabSources(value).map((area) => ({ source: { k: "weatherCurrent.area", value: area }, record: {}, operation: area.operation, id: area.id, revision: area.revision })); }
     case "U-F": { const value = units["U-F"]; if (value == null) return null;
       return value.subjects.map((subject) => { const view = timeseriesPublicSubject(subject);
         return { source: { k: "weatherTimeseries.subject", value: view }, record: view.unreadableView == null ? {} : subject, operation: view.operation, id: view.id, revision: view.revision }; }); }
