@@ -77,6 +77,7 @@ export type ShellFrameInput = Readonly<{ state: ShellClientState; nowMs: number;
 export type ShellFrame = Readonly<{
   shell: ShellState;
   clock: Readonly<{ rect: ShellRect; text: string }>; status: readonly string[];
+  // eew は frame に置いた緊急地震速報のカードの id（slot の順、6 まで）。時計の件数は eew.length（clockRect の入力）。
   cards: readonly ShellDrawCard[]; cover: readonly ShellRect[]; pageCount: Readonly<Record<ShellColumn, number>>; eew: readonly string[];
   map: readonly ShellMapPaint[]; marks: readonly ShellMapMark[];
   // source が max を越えて返したときの診断（越えるのは source の実装の誤り。前から max 枚を使う、P4-DS-D-CARD-BOUND）。
