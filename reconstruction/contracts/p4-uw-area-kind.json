@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "a234acab13e5a9fb3527416886632580261af49bc0ac6924393ce2f9bb844588",
+    "sha256": "ac088b403b255c177483ef6a4c2d27aa4ca6ce04d4e5aff36dd1ecb34c601093",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -14,8 +14,8 @@
         "B": "公開形（WeatherCurrentPublicArea）に欄を足す。旧の経路の view と要約の計量の byte が増え（全国 1 通で ＋35,879、script）、P3-UWC-AC05 (1)(3) と p3-uw-canon.types.ts の :24（容量の契約が引く）と T05 の公開形の鍵の期待が変わる",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 07:53）",
+        "ruling": "A",
         "reason": "表 §2.1。旧の経路の出力は T0 まで今のまま（P4-DW-D-LEGACY=A）で、U-W は既に 65,536 を越えているので旧の総量が増えると旧の要約の組が変わりうる。A は配る値が表示差分 1 か所で済む"
       },
       {
@@ -26,8 +26,8 @@
         "C": "市町村等の層を、府県の項目ごとの [種別, 市町村の Code の並び] の別の一覧にする（＋48,985 byte。areas と二重に持つ）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 07:53）",
+        "ruling": "A",
         "reason": "表 §2.2・§5。下調べの推奨（市町村等だけ）の根拠は別の一覧（種別→市町村）の 48,985 だったが、areas の行に足せば全層でその半分で収まり、上の層だけの種別も落ちない。fixture 17 本で上の層だけの種別は 0 件だが、partial の数が少ないので、起きないとは言えない"
       },
       {
@@ -38,8 +38,8 @@
         "C": "special に専用部品（種別→区域の Code の並び）を足す（市町村等だけで ＋48,985、4 層を種別ごとで ＋80,023）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 07:53）",
+        "ruling": "A",
         "reason": "表 §2.3。Kind/Code は受理で 2 桁の数字に限るので空白で割って読める。区域ごとの種別は phenomena の areaCount と足し合わせで照らせる"
       },
       {
@@ -49,9 +49,9 @@
         "B": "p4-display-wire-v4 に上げる（S0 の client の定数と、その行を引く契約の «» を付け直す。開いたままの画面は非対応の表示になる）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
-        "reason": "表 §2.4。areas の行を読む描画はまだ無く、client と server は同じ build で出る"
+        "status": "確定（統合担当の決め 2026-11-26 07:53）",
+        "ruling": "A",
+        "reason": "表 §2.4。areas の行を読む描画はまだ無く、client と server は同じ build で出る。S0 の配送（e6dae65d）の後も、client の外形の確かめ（reconstruction/src/display/screen/client.ts の isWireSnapshot）は分野の unit と contentRevision が字であることまでしか見ないので、areas の行の列が増えても弾かない"
       },
       {
         "id": "P4-UAK-D-ORDER",
@@ -60,8 +60,8 @@
         "B": "E0 発注 1 の後（C0 発注 1 が材料を待つ）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 07:53）",
+        "ruling": "A",
         "reason": "表 §2.5。C0 発注 1 の材料で、E0 発注 1 が触る display-wire.ts と同じ直列"
       }
     ],
@@ -79,6 +79,20 @@
         "source": "script（.tmp-p1/uwbytes.py、git に入らない）と area-codes.v1.json の親子",
         "closed": "VPWS50 5 本（本文は 2 種類）と VPWW55・57〜61 の 12 本（合成を含む）で、上の層だけの種別は 0 件。高潮予報区間は VPWW57 の 1 区域で、その種別は市町村等にもある",
         "remaining": "実の partial の数が少ない（VPWW58〜61 は 1 本ずつ）"
+      },
+      {
+        "id": "Q-UAK-ORDER",
+        "status": "closed",
+        "source": "統合担当の決め 2026-11-26 07:53（作者の字ではない）",
+        "closed": "P4-UAK-D-ORDER=A。計画 :223 の直列で B1 の後・E0 発注 1 の前に 1 本。B1（P4-DISPLAY-CAPACITY-001）と S0（P4-DISPLAY-SHELL-001、main e6dae65d）は配送済みで、display-wire.ts・p4-display-wire.types.ts を触るほかの契約で発注済みの物は無い。baseOid は本契約の main への取り込みの時に割り当てる。計画 :124・:193・:866 の C0 発注 1 の依存の字と :223 の直列は、本契約の配送で統合担当が改める",
+        "remaining": "P2（U-Q の今日の地震の材料、起草前）も display-wire.ts を通るので、本契約の後の直列に置く"
+      },
+      {
+        "id": "Q-UAK-REMEASURE",
+        "status": "closed",
+        "source": "統合担当の決め 2026-11-26 07:53",
+        "closed": "発注を止める問いではなく配送の前の確かめなので、artifactRequirements の最後の項（配送の前に統合担当が Mac mini で数え直す）へ移した",
+        "remaining": "数え直しの結果は配送の時に Q-UAK-DELIVERY へ"
       }
     ],
     "operationContract": {
@@ -401,32 +415,9 @@
       "「«»」: 行の数を変えない書き方をし、変えた file と足した位置、動いた «» を列挙する。check-contract の FAIL の一覧を付ける",
       "既存の試験の期待は AC07 (2) のほかに変えない。変える要が出たら止めて報告する",
       "実行の後に、15_18_01_250630_VPWS50 の U-W の包みの実の byte を報告する（表 §5 の 118,242 は計算）",
-      "旧築（src/）と test/fixtures と sequences.json と manifest を変えない"
+      "旧築（src/）と test/fixtures と sequences.json と manifest を変えない",
+      "配送の前に統合担当が Mac mini で数え直す（表 §5）: W1・W2 の採取物と M5 の筋書きで、U-W の包み・全体・要約になる分野。U-W の実の最大と、要約になる分野が U-F だけのままであること、表 §5 の見積もり（全国 1 通 ＋24,593）との差を Q-UAK-DELIVERY に書く。要約になる分野が増えたら配送しない（容量の契約の U-W の値の改訂が先）"
     ],
-    "unresolvedQuestions": [
-      {
-        "id": "Q-UAK-REMEASURE",
-        "owner": "integrator",
-        "blocks": [
-          "配送の可否（容量の契約の U-W の値の改訂）"
-        ],
-        "resolveBy": "実装の後に Mac mini で、W1・W2 の採取物と M5 の筋書きで U-W の包み・全体・要約になる分野を数え直す（repo の外の採取物、表 §5）",
-        "requiredEvidence": [
-          "U-W の実の最大と、要約になる分野が U-F だけのままであること",
-          "表 §5 の見積もり（全国 1 通 ＋24,593）との差"
-        ]
-      },
-      {
-        "id": "Q-UAK-ORDER",
-        "owner": "integrator",
-        "blocks": [
-          "C0 発注 1 の依存の字（計画 :124・:193・:866）と本契約の baseOid の割当"
-        ],
-        "resolveBy": "計画 :223 の直列に本契約を足す時期（E0 発注 1 の前か後か、P4-UAK-D-ORDER）を決め、impl/s0 の配送の順と一緒に割り当てる",
-        "requiredEvidence": [
-          "display-wire.ts と p4-display-wire.types.ts を触るほかの契約の予定"
-        ]
-      }
-    ]
+    "unresolvedQuestions": []
   }
 }

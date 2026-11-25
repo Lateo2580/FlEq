@@ -1,8 +1,8 @@
-# P4-UW-AREA-KIND-001 の設計の表 r2（U-W の区域ごとの種別を新しい経路へ載せる）
+# P4-UW-AREA-KIND-001 の設計の表 r3（U-W の区域ごとの種別を新しい経路へ載せる）
 
-- 起草: 2026-11-26 00:14（date の値。起草の子 r0）。r1 は r0（024eaf2e）へのヘルツの独立レビュー（NO-GO、6 件）と契約適合レビュー（条件付き GO）を統合担当がまとめた直し 11 件を当てた（対応は §8）。基点 7bf652f1953809c5c9b0913828fb0c5a31cce2f7（branch draft/p4-uw-area-kind）。行番号と anchor はこの HEAD の値（024eaf2e は本契約の 3 file だけを足した commit）。
+- 起草: 2026-11-26 00:14（date の値。起草の子 r0）。r1 は r0（024eaf2e）へのヘルツの独立レビュー（NO-GO、6 件）と契約適合レビュー（条件付き GO）を統合担当がまとめた直し 11 件を当てた（対応は §8）。基点 7bf652f1953809c5c9b0913828fb0c5a31cce2f7（branch draft/p4-uw-area-kind）。行番号と anchor はこの HEAD の値（024eaf2e は本契約の 3 file だけを足した commit）。r3 は発注前点検（2026-11-26 07:53）: branch を main e6dae65d〔S0 の配送の後〕の上へ載せ直し（衝突なし、本契約の «» 72 本は今の木でも全部合う）、decisionBranches 5 件を統合担当が A で確定し、未決の問い 2 つを閉じた（JSON の questionResolutions）。
 - 範囲の元: Q-DV-UW-AREA-KIND（reconstruction/contracts/p4-display-vocab.json:702 «3e4466f31a4e558e»）。要る根拠は、行の形の作者の裁定 DS-WARN-09（2026-11-23 13:32「案1でいきましょう」。docs/specs/reconstruction-display-design.md:548 «270f2e082ef2a24c»）と、DS-WARN-12（統合担当の案を作者が 13:52 に受けた「設定地域カードについてはその案で進めてみてください。」、C0 の見本の図でもう一度見せる。docs/specs/reconstruction-display-design.md:551 «df92bf49b5f7805e»）。
-- 出どころの書き方: 「統合担当の案」は起草の子が置いた案で、decisionBranches の status は「起草案」。「作者の裁定」は原文のある物だけ。
+- 出どころの書き方: 「統合担当の案」は起草の子が置いた案。decisionBranches の 5 件は 2026-11-26 07:53 に統合担当が A で確定した（作者の字ではない。どれも wire の形・版・順の内部の決めで、画面の見え方は変えない）。「作者の裁定」は原文のある物だけ。
 - 範囲外: 区域名（Q-DV-UW-AREA-NAMES）、カードの描画、区分・重い順・名前の縮め、設定した地域の値、U-Q。
 
 ## 0. 結論
@@ -32,7 +32,7 @@
 
 表示差分・公開形・語彙のほかに、`weatherCurrent.areas`・`codes` を読む所を reconstruction/src と reconstruction/test で数えた（grep は §7）。地図の描画（M0）と画面のカード（C0）はまだ無い。
 
-## 2. 決めること（統合担当の案）
+## 2. 決めること（統合担当の案。2026-11-26 07:53 に 5 件とも A で確定）
 ### 2.1 置き場（D-PLACE）
 | 案 | 中身 | 旧の経路 | 触る所 |
 |---|---|---|---|
@@ -63,7 +63,7 @@
 - 読み手の確かめ: 各区域の行の kinds は 1 つ以上・重複なし・昇順の 2 桁。全部の行の kinds を種別ごとに数えた数は、その項目の phenomena の areaCount と一致する（復元して未確認の行は両方に入らない）。
 
 ### 2.4 版（D-VERSION）
-A 版は v3 のまま（推奨、reconstruction/contracts/p4-display-wire.types.ts:100 «97acae2a45f702ce»）。areas の行を読む描画はまだ無く、client と server は同じ repo の同じ build で出る。B `p4-display-wire-v4` にする（S0 の client の定数と、その行を引く 3 契約の «» の付け直し、開いたままの画面は非対応の表示になる）。
+A 版は v3 のまま（推奨、reconstruction/contracts/p4-display-wire.types.ts:100 «97acae2a45f702ce»）。areas の行を読む描画はまだ無く、client と server は同じ repo の同じ build で出る。S0 の client の外形の確かめ（reconstruction/src/display/screen/client.ts の isWireSnapshot）は分野の unit と contentRevision までで、行の列が増えても弾かない（S0 の配送 e6dae65d の後に確かめた）。B `p4-display-wire-v4` にする（S0 の client の定数と、その行を引く 3 契約の «» の付け直し、開いたままの画面は非対応の表示になる）。
 
 ### 2.5 計画の直列（D-ORDER）
 A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «9abef27fd39b349e» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
@@ -125,7 +125,7 @@ A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4
 
 - 読み: 要約になる分野は今と同じ U-F だけで、その時間が長くなる。U-W（7 番目）が要約になる組は出ない。どの公開も 1 MiB に収まる（M5 の 9 分野の和の最大 764,477 に 377,434 を足して 1,141,911 だが、要約で 1,048,576 以下へ落ちる）。
 - m5-add.py との違い: 同じ集計（同じ 9,244 公開・同じ順・同じ上界）で、足す byte だけを替えた。1 通の値を全部の時刻に当てた上側の見積もりなのは同じ。M5 の各時刻の実の区域×種別の量は分からない（採取物は repo の外）。
-- 分からない所: W1・W2 の実の日の U-W の増え（M5 は W1 06-26 の写し）、1 府県に全国 1 通より多い種別が並ぶ日、区域の数が表を越える報。統合担当が配送の前に Mac mini で数える（§7 の Q-UAK-REMEASURE）。
+- 分からない所: W1・W2 の実の日の U-W の増え（M5 は W1 06-26 の写し）、1 府県に全国 1 通より多い種別が並ぶ日、区域の数が表を越える報。統合担当が配送の前に Mac mini で数える（JSON の artifactRequirements の最後の項）。
 - 予算 65,536・1 MiB・要約の順（P4-DC-D-SUMMARY-ORDER=B）・要約の形は変えない。容量の契約の値の改訂は §6。
 
 ## 6. ほかの契約・計画の字で、改める必要がある所（改めていない）
