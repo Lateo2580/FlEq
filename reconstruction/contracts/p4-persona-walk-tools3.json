@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "5c52d00a53449c5a5a405056482649ef14c0a0d15d4cbb8414313ba661b24266",
+    "sha256": "37774c623e0e007c3fd4c771587a6daaf1a2720b78995eb4c89af45bad3c19c8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -152,7 +152,7 @@
       "reconstruction/contracts/p2-snapshot-sse.types.ts#DisplaySnapshot"
     ],
     "publicFunctions": [
-      "使う口（変えない）: runStage1・factsOf（runner.ts）、readScenario（scenario.ts）、S0 が export する行の関数（Q-PWT3-ROWS-FN、名前は S0 で固定）",
+      "使う口（変えない）: runStage1・factsOf（runner.ts）、readScenario（scenario.ts）、S0 が export する行の関数（Q-PWT3-ROWS-FN、frame.ts の screenFrame）",
       "変える口: 発注 3 で runner.ts の SceneCapture に snapshot（その時刻の DisplaySnapshot 全体か null）を足し、screen を外す。screenOf を末尾の export の一覧から外す。reconstruction/src の export・型・関数は足さない・変えない"
     ],
     "allowedDependencies": [
@@ -328,7 +328,7 @@
         ],
         "resolveBy": "S0 の起草の発注前点検（S0 の契約に、行の関数の export と、DOM の層がその関数の行だけを描く決まりを入れるか）",
         "requiredEvidence": [
-          "S0 の契約の publicFunctions に、snapshot・時刻・ページから描く行（と地図の塗りの役目と印）を返す純粋な関数があり、vitest から import できる（DOM・EventSource に依らない。chrome-eew の pure.ts と client.ts の分け方と同じ）",
+          "〔S0 の分は満たした: P4-DISPLAY-SHELL-001（9a43af36）の reconstruction/src/display/screen/frame.ts の screenFrame。DOM（main.ts）はその値だけを描く、P4-DS-AC08〕S0 の契約の publicFunctions に、snapshot・時刻・ページから描く行（と地図の塗りの役目と印）を返す純粋な関数があり、vitest から import できる（DOM・EventSource に依らない。chrome-eew の pure.ts と client.ts の分け方と同じ）",
           "E0 発注 1・C0 発注 1 のカードの行が、その関数を通って返る",
           "M0・E0 発注 2・C0 発注 2 が埋める行（ページ送り）と地図の塗りと印も、同じ関数を通って返る（発注 4 の起こす前の確かめ、AC02 (6)）",
           "無ければ: 発注 3 は依存（jsdom など）を足すか headless Chrome の DOM を読む形になり、src を変えない条件のまま組めるかを本契約で作り直す"

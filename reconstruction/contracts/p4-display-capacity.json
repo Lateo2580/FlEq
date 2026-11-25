@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835",
-    "sha256": "6696719154c5f05220f4076f6e70b0155dcf98b4456e059e3f7aba17f63a8270",
+    "sha256": "5c0ffec16fd885cde2965d0042f0118286cfbed4c0709bddf0dc01fb00156fa8",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -113,7 +113,7 @@
         "status": "closed",
         "source": "統合担当の配送（2026-11-22、impl/b1 の 3 commit 18809f58・4d9a0c74・2319c0ba を main ebae7382 の上へ載せ直した e292a3ba・ade8c6d1・feb9c280。レビューは品質〔ヘルツ Astra high、thread 01a202fb〕条件付き GO → GO、契約適合〔Opus〕条件付き GO → 再レビュー 条件付き GO〔E6 の長周期〕→ 当てた。Mac mini のゲートは impl 18809f58 で緑、297 秒）",
         "closed": "(1) E6 の量った値（T06 の E6 の組）: U-E 17,910・U-T 26,450・U-Q 37,497・通知 129,729・共通部 65,215・固定部 276,830、公開 960,832、9 分野を全部 full にしたときの全体 1,411,205。要約は B の順で止まり、E4・E5 の期待集合は欠けない (2) E7（Mac mini、deliver/p4-b1 feb9c280 の dist、FLEQ_B1_E7_DATA に採取物 20260923-capacity、vitest --maxWorkers=2、rc 0、7 本とも Pass、1,145 秒）: 新しい経路の要約は 7 本とも 0。全体の最大は N1 55,481（公開 15,243）・N2 72,667（30,655）・N3 401,045（35,276）・W1 06-03 296,953（4,065）・W1 06-26 372,121（5,006）・W1 09-21 263,274（2,936）・W2 368,479（10,886）で、r4 の量った値と一致する。R1 は採取物が無く流していない（Q-DC-R1） (3) E8（Mac mini、r4 の道具 ~/dev/fleq-b1-facts/.tmp-b1/m2.b1.test.ts の M5 を同じ木で、rc 0、305 秒）: frame 6,920（訓練の写し 3,460）、公開 9,244、要約のある公開 0、全体の最大 726,105、9 分野の和の最大 715,291（671,142 を越えて全体を数える分岐に入る）。r4 の値と一致する。道具は repo に入れない（Q-DC-M5-TOOL） (4) 原文の改訂: sequences.json の unmet:O09:21・28・37・46・55・64 を表 §7 の字に（全 170 契約の sequencesSha256 と meta.sha256 を取り直した）、P4-DISPLAY-VOCAB-001 の P4-DV-D-SUMMARY-RULE の A・P4-DV-RES-01・P4-DV-RES-03・AC04 の字と同契約の表 §4.2、P4-DISPLAY-WIRE-001 の P4-DW-RES-03 の注記、表 §8 の E6 と AC06 (1) の E6 の句、allowedPaths と表 §10 の flushWire の置き場（定義は元の空行 :161、返す object の欄は :269）、計画 §2.1 の B1 の行の状態、Q-DC-SPEC-REVISION を閉じた (5) 印の付け直し: 本契約の 12 本（display-wire.ts の :866・:869→:871・:872→:875・:962→:997、http-sse.ts の :264・:265→:161〔直列化が sendWire に移った〕・:325・:348、composition-root.ts の :143・:992、display-vocab.test.ts の :297、display-wire-root.test.ts の :50）。P4-DISPLAY-VOCAB-001 の表の :226 は行の中の書き換えで付け直した。ほかの契約が引く display-wire.ts・http-sse.ts・display-wire-root.test.ts の行はずれていない（check-contract）",
-        "remaining": "残存: E6 の U-Q は B0 の行数の上限で組んだ値で escape の最悪ではない（377,434 との組は P4-DW-AC04 と表 §2.1 の算術が持つ）。U-R の受理上限の 1 件は parser を通していない（Q-DC-UR-ITEM-LIMIT）。U-B の解除・U-F の取消・U-W の種類だけの解除は最大 1 秒待つ（Q-DC-URGENT-REMAINING）。詰まった客は途中の版が飛び、停止の最後の 1 通が close までに届かないことがある（AC04 (7)）。host の配線（publishWire・flushWire・urgent を渡し、停止で close の前に flush する）は E0 発注 2 か S0。E4b の EventID ごとの値は未裁定で E13a の Pass に数えない（Q-DC-MANY-EVENTS）。T04 (b) の close の後の spy は保留が空なので落ちえず、timer の取り消しは timer の数で見ている。P4-DISPLAY-VOCAB-001 の表 §4.1 の (b)（:219）は越えた 9 分野を全部要約にする字のまま（同表 §4.2 の改訂で 967,258 は全部を要約にしたときだけと書いた）"
+        "remaining": "残存: E6 の U-Q は B0 の行数の上限で組んだ値で escape の最悪ではない（377,434 との組は P4-DW-AC04 と表 §2.1 の算術が持つ）。U-R の受理上限の 1 件は parser を通していない（Q-DC-UR-ITEM-LIMIT）。U-B の解除・U-F の取消・U-W の種類だけの解除は最大 1 秒待つ（Q-DC-URGENT-REMAINING）。詰まった客は途中の版が飛び、停止の最後の 1 通が close までに届かないことがある（AC04 (7)）。host の配線（publishWire・flushWire・urgent を渡し、停止で close の前に flush する）は S0（P4-DISPLAY-SHELL-001）で配送した〔9a43af36〕。E4b の EventID ごとの値は未裁定で E13a の Pass に数えない（Q-DC-MANY-EVENTS）。T04 (b) の close の後の spy は保留が空なので落ちえず、timer の取り消しは timer の数で見ている。P4-DISPLAY-VOCAB-001 の表 §4.1 の (b)（:219）は越えた 9 分野を全部要約にする字のまま（同表 §4.2 の改訂で 967,258 は全部を要約にしたときだけと書いた）"
       },
       {
         "id": "Q-DC-SPEC-REVISION",
@@ -299,7 +299,7 @@
     ],
     "outOfScope": [
       "旧の /events と旧の射影（view-projector.ts の要約の規則・handleSse の drain）。T0 が経路ごと消す",
-      "host.ts の配線（新しい経路を製品で流すのは E0 発注 2）",
+      "host.ts の配線（新しい経路を製品で流すのは S0、P4-DISPLAY-SHELL-001）",
       "runner.ts の合否（failingSummary は旧の経路を読んだまま T0 まで。新しい経路の要約は AC06 の試験と統合担当の Mac mini の実行で見る）",
       "要約の形・要約の間の入口（P4-DISPLAY-VOCAB-001）、保護 3 分野の型と型の最大値の試験（P4-DISPLAY-WIRE-001）",
       "Pi の Chromium の負荷と実 paint の測定（PI・PM）。O09 の 26 本の E01 の測定は PM",

@@ -1,7 +1,7 @@
 # P4-DISPLAY-SHELL-001 の設計の表 r11（S0: 新しい画面の骨組み）
 
 - 起草日: 2026-11-24（起草の子 r0。1 回目は base `7ead43004a48a98292ae10eb6cb7ad7293c16085`、2 回目は 1 回目の commit `ded0cd79da3b6ecf33cd45f5589a796e05eb2d2c` の上で、作者の裁定 2026-11-24 20:46・20:54 を当てた。3 回目は同じ木の上で、統合担当の決め D1〜D4〔2026-11-24 21:2x〕を当てた。r1 は r0〔457f0cda〕へのヘルツ〔Astra high、read-only〕の独立レビュー〔NO-GO、指摘 13 件〕と統合担当の決め〔2026-11-24 21:4x、根 A〜F〕を当てた。対応は §14。r2 は r1〔80b07fd4〕へのヘルツの再確認〔NO-GO、残り 8・14〜17〕と統合担当の決め〔2026-11-24 22:0x、R1〜R5〕を当てた。対応は §15。r3 は r2〔915ca317〕へのヘルツの 3 巡目〔NO-GO、指摘 18〕と契約適合レビュー〔条件付き GO、P2 2・P3 11〕と、作者の裁定 2026-11-25 07:0x〔分岐 4 つを A〕を当てた。対応は §16。r4 は r3〔04ad088b〕へのヘルツの 4 巡目〔NO-GO、18 の直し残りと 19〕を当て、同じ決まりを書いた場所と、型の欄の作る所・読む所・試験を数え直した。対応は §17。r5 は r4〔7c743b51〕の同じ決まりの場所の突き合わせ〔食い違い 10 件・古い字 5 か所〕と統合担当の決め 2026-11-25 07:2x を当てた。対応は §18。r6 は r5〔2a785dcc〕へのヘルツの 5 巡目〔指摘 20〕と、作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）と、spec の字の直しを当てた。対応は §19。r7 は発注前点検の Q-DS-COLUMN-FLOW の細部 a〜f と P7 を統合担当の決め 2026-11-25 19:07 で写した。対応は §20。r8 はヘルツの指摘 21・22 と spec §0 の DS 版 41。対応は §21。r9 はヘルツの指摘 23。対応は §22。r10 は実装〔826b2afb・9e240899・8b6f18d4〕とそのレビューで出た字。対応は §23。r11 は Q-DS-FORM-FIT への作者の裁定 2026-11-26 06:45。対応は §24）。
-- 範囲の真実源: 計画の S0 の行 reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4» と、表示設計 spec r4（`docs/specs/reconstruction-display-design.md`、以下 DS spec）の §4・§13〜§15。
+- 範囲の真実源: 計画の S0 の行 reconstruction/contracts/p4-order-plan.md:114 «c38868f9bf244f45» と、表示設計 spec r4（`docs/specs/reconstruction-display-design.md`、以下 DS spec）の §4・§13〜§15。
 - 計画と spec は書き換えない。DS spec は 2 回目に限り、統合担当の指示で §15 の 11 行を行の中で改め、末尾に DS-LAYER-18・19 と DS-OPEN-75 の 3 行を足した（705 行）。3 回目は末尾に DS-LAYER-20・21 の 2 行を、r1 は DS-LAYER-22、r2 は DS-LAYER-23 の 1 行ずつを足した（709 行）。r3 は行を足さず、:7・:586・:611・:640・:660・:662・:676・:690・:706・:707・:709 の出どころの字を行の中で直した。ほかに改める所は §12 に置き、統合担当が配送で当てる。
 - 出どころの書き分け: 「作者の裁定」は作業ノート（repo 外）の S0 の準備の記録にある作者の言葉の「」の字で裏が取れる所だけに書く。spec が「統合担当の決め」「統合担当の読み」と書く所はそのまま写す。本起草で決めた所は「起草の読み」と書き、統合担当が 2026-11-25 07:05 に今の字のまま確定した 8 件は「統合担当の決め（07:05 確定）」と書く（§10）。
 - 1 回目は押して層を入れ替える動きを書かなかった。2 回目に作者の答え（20:46・20:54）で §5.2 を起草し、Q-DS-SWAP・Q-DS-SECOND-GROUP を閉じた。
@@ -93,7 +93,7 @@
 
 - `screenFrame(input: ShellFrameInput): ShellFrame`。
   - input: client の状態、時刻（epoch ms）、列ごとのページの番号、ShellState。
-  - カード: `cards.ts` の `CARD_SOURCES`（ShellCardEntry〔source と max〕の配列）を順に呼んで集める。S0 の登録は 0 本。各カードの契約が 1 行ずつ足す（reconstruction/contracts/p4-order-plan.md:227 «810399aebefa7fee»）。
+  - カード: `cards.ts` の `CARD_SOURCES`（ShellCardEntry〔source と max〕の配列）を順に呼んで集める。S0 の登録は 0 本。各カードの契約が 1 行ずつ足す（reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»）。
   - 中間の層: 列ごとに `paginateColumn` の結果のうち、ページの番号のページ。番号がページの数以上なら最後のページ（自動の送りと番号の引継ぎは S1）。
   - 最上層: slot のあるカードを slot の小さい順に並べ、その順で `eewSlots`（枚数、6 まで）の場所に置く。7 枚目からは置かない（7 件目は E0、DS-LAYOUT-07）。置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を open として placeLayers に渡す。上がったカードと下げる緊急地震速報のカードは placeLayers が決める（§3.1・§5.2）。
   - 層: 緊急地震速報の場所・開いたカード・raised（今のページの列のカードにある id だけ）・列のカードを `placeLayers` に渡し、cards（ShellDrawCard の列。最上層を前から奥、続けて中間の層を奥から手前）と cover を返す。開いたカードは frame の cards の先頭に置く。開いたカードは左の列にしか無く、開いている間は左の列に緊急地震速報のカードが無い（DS-LAYER-23）ので、最上層のほかのカードと面で重ならず、前後を決めない（DS-OPEN-46 は S1・E0）。
@@ -346,7 +346,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 - 変えない行: reconstruction/src/host/host.ts:92 «e96e8b3876848ef5»、reconstruction/src/host/host.ts:95 «371bcde3a6b33955»、reconstruction/src/host/host.ts:96 «3eba4c9225f4762a»（`/` の chrome-eew、切替は T0）、reconstruction/src/host/host.ts:526 «e74d6a66c5815e63»、reconstruction/src/host/host.ts:536 «6a1da25a695ded94»、reconstruction/src/host/host.ts:629 «f08b37f228105594»。
 - 停止の close の前の flush: 正常な停止では、root の停止の完了の project が projected なら急ぎの完全な版を公開し、unchanged なら flushWire を呼ぶ（reconstruction/src/runtime/composition-root.ts:992 «bc426f3e1ac45869»、P4-DC-AC04 (1)）。それは `root.shutdownRuntime`（:526）の中で `closeDisplay`（:536）より前に起きる。r1 は closeServer（:606）でも close の前に flushWire を呼ぶので、停止の完了の前の例外（finally から closeDisplay）と、停止を待つ間の closeDisplay でも、その時の保留が、詰まっていない client に書かれてから close する。残る場合: close の後に root が作った版は届かない（server が null。latestWire に残り、開き直しで送る。停止中は開き直せない）。書き込みが詰まっている客（前の write が false を返し drain を待つ客）には保留は書かれず、その客の待ちに置かれるまでで、close の destroy で届かない（P4-DC-AC04 (7) の残存。統合担当の決め 2026-11-25 21:3x、r10-items.md の #12）。最後の write が false を返した客には、書いた直後の destroy で届かないことがある（P4-DC-AC04 (7) と同じ）。
 - urgent は root が決めた値（`wire.urgent || stopped`）をそのまま server に渡す。
-- 新しい画面の path は `/display`（reconstruction/src/http-sse/http-sse.ts:321 «4e7f7f00392b2039»）。E0 発注 2 の EEW の runner はここへ向ける（reconstruction/contracts/p4-order-plan.md:91 «a9368d6efdc9a4e0»）。
+- 新しい画面の path は `/display`（reconstruction/src/http-sse/http-sse.ts:321 «4e7f7f00392b2039»）。E0 発注 2 の EEW の runner はここへ向ける（reconstruction/contracts/p4-order-plan.md:91 «16c59b4b17071c38»）。
 
 ## 7. 置き場と build と配る経路
 
@@ -450,40 +450,42 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 |---|---|---|
 | 時計の位置 | spec:425（D05）の「右下時計」（docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»）、H03 の「地図の上の真ん中」（docs/specs/reconstruction-p0-contracts.md:3030 «c923951e64029e12»）と、計画・DS spec の「左下」 | 左下（reconstruction/contracts/p4-order-plan.md:787 «609c001782c081da»、DS-CLOCK-02）。spec の本文の改めは計画:386 の「表示設計 spec の凍結時」 |
 | ヘッダ | spec:425 の「表示モード・接続状態だけのヘッダ」と H02 の「ヘッダの帯は作らない」（docs/specs/reconstruction-p0-contracts.md:3029 «a4fb170e00c3b22b»） | 帯を作らない（H02、reconstruction/contracts/p4-order-plan.md:786 «e22a0b111f2147a6»） |
-| 検収端末 | spec:167（docs/specs/reconstruction-p0-contracts.md:167 «2cc109ef03d71ce4»）・:1688・:2961 の「開発機の Chrome」と、計画:383 の「S0 の凍結時に P4-PLAN-D-SCREEN の結果へ」（reconstruction/contracts/p4-order-plan.md:383 «ddfca608561e1297»） | smoke は開発機の Chrome。Pi の Chromium の資源は PM。spec の改めは §12 |
+| 検収端末 | spec:167（docs/specs/reconstruction-p0-contracts.md:167 «2cc109ef03d71ce4»）・:1688・:2961 の「開発機の Chrome」と、計画:383 の「S0 の凍結時に P4-PLAN-D-SCREEN の結果へ」（reconstruction/contracts/p4-order-plan.md:383 «d032ca260ac4d42b»） | smoke は開発機の Chrome。Pi の Chromium の資源は PM。spec の本文は置き換えない（Q-DS-SPEC-REVISION） |
 | P2-A9 の在り処 | 依頼の字は p2-snapshot-sse.json、定義は p2-chrome-eew.json | p2-chrome-eew.json の AC01・AC08・AC10 を引く（reconstruction/contracts/p2-chrome-eew.json:414 «3b73f7c36e965a88»） |
 | P2-A9-AC01・AC10 の型 | 旧の DisplaySnapshot と旧の EEW の時刻の欄を名指す | 新しい経路の DisplayWireSnapshot に読み替える。EEW の時刻の欄は E0 のカードが formatJst を使う |
 | O11:6 | 計画:72 の「6 は SSE と S0」と、B1 が SSE の側を持った | S0 は画面の側の合流だけ（AC15 (1)） |
 | 部品の directory | 計画:227 の「各カードの契約は自分の部品の directory」と http-sse.ts:323 の 1 階層 | P4-DS-D-MODULE-PATH=A（§7.1） |
 | host の配線の持ち主 | B1 の outOfScope「host.ts の配線（新しい経路を製品で流すのは E0 発注 2）」と、計画:229 の S0（2026-11-23） | S0 が持つ（reconstruction/contracts/p4-order-plan.md:229 «5087b78524621456»）。B1 の字は §12 で改める |
-| D-AC18 | spec:1855 の「container／on／band、基準下辺 4px」（docs/specs/reconstruction-p0-contracts.md:1855 «28217bd0fdd3a039»）は DS spec の字に無い | S0 は DS-CSS-02 のカードの枠と見出しの行を持つ。「基準下辺 4px」「band」は DS の形に無いので条文にしない。統合担当が D-AC18 の字を DS の形に合わせるかを見る（§12） |
+| D-AC18 | spec:1855 の「container／on／band、基準下辺 4px」（docs/specs/reconstruction-p0-contracts.md:1855 «28217bd0fdd3a039»）は DS spec の字に無い | S0 は DS-CSS-02 のカードの枠と見出しの行を持つ。「基準下辺 4px」「band」は DS の形に無いので条文にしない。spec の本文は置き換えず AC13 (3) を真実源とする（Q-DS-SPEC-REVISION） |
 | D-AC02 | S0 の分の範囲を計画が書いていない | 空の災害カードを作らない・ページの外にも取消が効く・要約を無発令にしない、を骨組みの側で（AC08 (6)(7)）。状態の分は C2 |
 | E04 | S0 と PM の分け方を計画が書いていない | S0 は測る所、PM が測る（§8） |
-| D-AC05 | spec:1842（docs/specs/reconstruction-p0-contracts.md:1842 «bb8fc66481fec539»）の overlay は §8.6 の詳細の overlay の行で、周囲の概要矩形が不変・減光と下端の補正・時計とページの操作と緊急の大カードを隠さない、を求める | S0 分は AC13 (1)(2)。下端の補正とページの操作を隠さないの 2 つは C0（DS-OPEN-65、開いたカードの下端とページの表示）へ送る。押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形は、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による「緊急大カードを隠さない」の例外で、ユーザーが押した間だけ、緊急地震速報のカードの組が変われば戻る（DS-LAYER-21）。配送で D-AC05 の行に例外を書く（§12 の 15） |
+| D-AC05 | spec:1842（docs/specs/reconstruction-p0-contracts.md:1842 «bb8fc66481fec539»）の overlay は §8.6 の詳細の overlay の行で、周囲の概要矩形が不変・減光と下端の補正・時計とページの操作と緊急の大カードを隠さない、を求める | S0 分は AC13 (1)(2)。下端の補正とページの操作を隠さないの 2 つは C0（DS-OPEN-65、開いたカードの下端とページの表示）へ送る。押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形は、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による「緊急大カードを隠さない」の例外で、ユーザーが押した間だけ、緊急地震速報のカードの組が変われば戻る（DS-LAYER-21）。spec の本文は置き換えず AC13 (5) を真実源とする（Q-DS-SPEC-REVISION） |
 | 詳細の応答 | http-sse.ts:414 の responseTooLarge の応答は、WireDetailResponse の union に無い（B0・B1 の型の欠け） | S0 では直さない。main.ts が 200・409 以外の応答と通信の失敗を `{ kind: "failed", reason }`（ShellDetailAnswer）に変えて渡す（表 §2.3、AC03 (5)）。詳細の取得と、200・409 以外の応答を failed に変える所と、log（reason "detailFailed"）は、最初に詳細を開くカードの契約（C0・C1）が main.ts に足す（S0 に呼び手が無い。統合担当の決め 2026-11-25 21:3x、r10-items.md の #11） |
 | schemaVersion の字でない値 | spec:1391（docs/specs/reconstruction-p0-contracts.md:1391 «3f9c6bc381ec057b»）は schema の不一致で非対応を明示すると書き、字でない・無い値を分けていない | schemaVersion が字でない・無いときは外形が合わない側で、状態を変えない（数の schemaVersion は作り手から出ない〔wire の型は字の literal〕。統合担当の決め 2026-11-25 21:3x・21:5x、r10-items.md の #9）（表 §2.3、AC03 (2)） |
 | 計画:114 の群 | DS-LAYER-03 は 1 つ目の群で spec :634 も作者の裁定 21:44 と書くが、40・379・718px は 21:44 の「」に無く DS-LAYOUT-05〜06 から来る。DS-OPEN-64 は 2 つ目の群だが、作者に聞かず統合担当の決め（2026-11-24 22:0x）で凍結した | §12 の 16 で計画の字を改める |
 
 ## 12. 配送で統合担当が原文を改める項
 
-1. 計画:114 の S0 の行（reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4»）: 「1 つ目の群」に、凍結に入れた統合担当の決め・読み（§10）を足す。「2 つ目の群」の字を改める: DS-LAYER-06 の後半・15 と DS-OPEN-63 は 2026-11-24 20:54 の作者の確認つきで凍結へ移った（文 1・2・4）、DS-LAYER-18（20:46）・19 も凍結、DS-LAYER-09 の後半・16・21 と DS-OPEN-62 の形は作者の裁定 2026-11-25 07:0x（P4-DS-D-SECOND-GROUP=A）、DS-LAYER-23 の開かない所は同じ裁定（P4-DS-D-OPEN-WHILE-EEW=A）、DS-LAYER-20・22・23 の残りは統合担当の決め、D1 と見た目の 3 つは作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）。凍結しないのは DS-LAYER-10・11、DS-OPEN-62 の値・65・67、DS-OPEN-75（S1・E0）。S0 の行を配送済みにする。
-2. 計画:227（reconstruction/contracts/p4-order-plan.md:227 «810399aebefa7fee»）: P4-DS-D-MODULE-PATH=A を確定したら、directory の名前を `screen` に、「自分の部品の directory」を「`reconstruction/src/display/screen/` の自分の部品の file と cards.ts の 1 行」に改める。
-3. 計画:91（reconstruction/contracts/p4-order-plan.md:91 «a9368d6efdc9a4e0»）: 新しい画面の path が `/display` であることを書く。
-4. 計画 §4.6 の「S0 の凍結時」の行: reconstruction/contracts/p4-order-plan.md:383 «ddfca608561e1297»（spec:167・:2959・:2961・:1688 を P4-PLAN-D-SCREEN の結果へ、Pi のブラウザの資源を予算に〔R52〕）、reconstruction/contracts/p4-order-plan.md:389 «5a5f5292467cc068»（spec:1845・:1847 に DS-LAYER-10 の例外）、reconstruction/contracts/p4-order-plan.md:394 «2717d3e984bf95f5»（spec:1597〜:1624 の列の割当を D-TSUNAMI-COLUMN=C の結果へ）。改め方は計画の字のとおり。B1 の Q-DC-SPEC-REVISION と同じく spec の本文を変えずに本契約を真実源とする形もある（統合担当が決める）。
+2026-11-26 の配送で当てた物と当てなかった物は JSON の questionResolutions の Q-DS-DELIVERY・Q-DS-SPEC-REVISION。
+
+1. 計画:114 の S0 の行（reconstruction/contracts/p4-order-plan.md:114 «c38868f9bf244f45»）: 「1 つ目の群」に、凍結に入れた統合担当の決め・読み（§10）を足す。「2 つ目の群」の字を改める: DS-LAYER-06 の後半・15 と DS-OPEN-63 は 2026-11-24 20:54 の作者の確認つきで凍結へ移った（文 1・2・4）、DS-LAYER-18（20:46）・19 も凍結、DS-LAYER-09 の後半・16・21 と DS-OPEN-62 の形は作者の裁定 2026-11-25 07:0x（P4-DS-D-SECOND-GROUP=A）、DS-LAYER-23 の開かない所は同じ裁定（P4-DS-D-OPEN-WHILE-EEW=A）、DS-LAYER-20・22・23 の残りは統合担当の決め、D1 と見た目の 3 つは作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）。凍結しないのは DS-LAYER-10・11、DS-OPEN-62 の値・65・67、DS-OPEN-75（S1・E0）。S0 の行を配送済みにする。
+2. 計画:227（reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»）: P4-DS-D-MODULE-PATH=A を確定したら、directory の名前を `screen` に、「自分の部品の directory」を「`reconstruction/src/display/screen/` の自分の部品の file と cards.ts の 1 行」に改める。
+3. 計画:91（reconstruction/contracts/p4-order-plan.md:91 «16c59b4b17071c38»）: 新しい画面の path が `/display` であることを書く。
+4. 計画 §4.6 の「S0 の凍結時」の行: reconstruction/contracts/p4-order-plan.md:383 «d032ca260ac4d42b»（spec:167・:2959・:2961・:1688 を P4-PLAN-D-SCREEN の結果へ、Pi のブラウザの資源を予算に〔R52〕）、reconstruction/contracts/p4-order-plan.md:389 «f0d422374901263a»（spec:1845・:1847 に DS-LAYER-10 の例外）、reconstruction/contracts/p4-order-plan.md:394 «83949472d1d9ef02»（spec:1597〜:1624 の列の割当を D-TSUNAMI-COLUMN=C の結果へ）。改め方は計画の字のとおり。B1 の Q-DC-SPEC-REVISION と同じく spec の本文を変えずに本契約を真実源とする形もある（統合担当が決める）。〔本文を置き換えない形に決めた（統合担当の決め、Q-DS-SPEC-REVISION）〕
 5. 計画:937 の S0 の着手ゲート（reconstruction/contracts/p4-order-plan.md:937 «dc576f762ca61a46»）: 発注前点検の問いは全部閉じた（Q-DS-COLUMN-FLOW は統合担当 2026-11-25 19:30、Q-DS-STATUS-WORDS は作者の裁定 2026-11-25 19:09。READINGS・MODULE-PATH・REPAGE-CAP・CARD-BOUND・OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は閉じた）。
 6. 表示設計 spec: DS-OPEN-48 は r3 で閉じた。DS-OPEN-62・63・64・65・69、DS-LAYER-06・09・15・16 の字と DS-LAYER-18〜23・DS-OPEN-75 の 7 行は 2 回目〜r2 に、分岐の裁定の後の出どころの字（:640・:662・:676・:690・:707・:709）と D1 の根拠（:706）と DS-LAYER-14・DS-PAGE-12 の出どころは r3 に当てた（済み）。READINGS の裁定（2026-11-25 18:50）の字は r6 で :636・:706 と契約に当てた（済み）。
 7. `reconstruction/contracts/p4-persona-walk-tools3.json` の Q-PWT3-ROWS-FN（reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»）: 関数は frame.ts の screenFrame、DOM はその値だけを描く（P4-DS-AC08）と書く。
 8. `reconstruction/contracts/p4-display-capacity.json` の outOfScope の「host.ts の配線（新しい経路を製品で流すのは E0 発注 2）」と Q-DC-DELIVERY の remaining の「host の配線…は E0 発注 2 か S0」: S0 に改める。
-9. spec:1855（D-AC18）の字を DS-CSS-02 の形に合わせるか（§11）。
+9. spec:1855（D-AC18）の字を DS-CSS-02 の形に合わせるか（§11）。〔本文を置き換えない形に決めた（統合担当の決め、Q-DS-SPEC-REVISION）〕
 10. DS（「FlEq 表示 D1 夜」）の README へ、次の版で写す: DS-LAYER-06 の後半・15 の出どころ（20:54）、DS-LAYER-18〜21・DS-OPEN-75 の新しい行（r6 で spec の :703〜:709 を版 40 の README の行〔:241〜:246・:268〕に付け直した）、DS-OPEN-62 の形（明るさを下げる）と 63・64 を閉じたこと、DS-OPEN-65 を C0 へ送ること、DS-OPEN-69 の条件（場面 22k）、README:234 の案の行（0.6・ずらしを当てる・向き）の改め。写したら spec の §0 の sha256 と、新しい 7 行（DS-LAYER-18〜23・DS-OPEN-75）の「README の行は無い」を改める。
 11. E0 の起草: slot のカードの id は event ごとに 1 つ（続報で変えない）。DS-LAYER-21（D3）がこの id の組で緊急地震速報の組の変化を見るため。
 12. S1・E0 の起草: DS-OPEN-46・75 を決めたら、本契約の DS-LAYER-23（左の列に緊急地震速報のカードがある間は開かない）を契約の改訂で改める。DS-LAYER-22 の 1 文目の「開いたカード」の所は DS-LAYER-23 で改めた（spec の :708 は変えていない。DS の次の版で写すときに 1 文にまとめる）。
 13. 計画:114 の 2 つ目の群の字は、P4-DS-D-SECOND-GROUP の作者の確認の後に改める（1 の字はそれまで当てない）。
 14. 各カードの契約: 登録の max は自分の source の作りで決まる数にし、source が max を越えないことを自分の試験で示す（S0 は越えたときの診断までを持つ、P4-DS-D-CARD-BOUND=A）。
-15. D-AC05（spec:1842）: 押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形を、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による例外として書く（ユーザーが押した間だけ、組が変われば戻る、DS-LAYER-21）。下端の補正とページの操作を隠さないは C0（DS-OPEN-65）。
+15. D-AC05（spec:1842）: 押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形を、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による例外として書く（ユーザーが押した間だけ、組が変われば戻る、DS-LAYER-21）。下端の補正とページの操作を隠さないは C0（DS-OPEN-65）。〔本文を置き換えない形に決めた（統合担当の決め、Q-DS-SPEC-REVISION）〕
 16. 計画:114 の群の分け方: DS-LAYER-03 の 40・379・718px は DS-LAYOUT-05〜06 から来ると書く。DS-OPEN-64 は 2 つ目の群から統合担当の決め（2026-11-24 22:0x）へ移したと書く。
-17. §12 の 1・2・3・7・9・18 が書き換える行を引く本契約の «» 9 本（計画 :114 が 3 本、:227 が 2 本、:91、:124〔この節の 18〕、p4-persona-walk-tools3.json:323、p0-contracts:1855）を、書き換えの後に付け直す。
-18. 計画の C0 の行（reconstruction/contracts/p4-order-plan.md:124 «9b9955710b907f48»）: 詳細の取得と、200・409 以外の応答を failed に変える所と、log（reason "detailFailed"）は、最初に詳細を開くカードの契約（C0・C1）が main.ts に足す、の受けを書く（統合担当の決め 2026-11-25 21:3x、r10-items.md の #11）。
+17. §12 の 1・2・3・7・9・18 が書き換える行を引く本契約の «» 9 本（計画 :114 が 3 本、:227 が 2 本、:91、:124〔この節の 18〕、p4-persona-walk-tools3.json:323、p0-contracts:1855）を、書き換えの後に付け直す。〔配送で付け直した数は Q-DS-DELIVERY の (3)〕
+18. 計画の C0 の行（reconstruction/contracts/p4-order-plan.md:124 «65dbf8ea4b1edcf8»）: 詳細の取得と、200・409 以外の応答を failed に変える所と、log（reason "detailFailed"）は、最初に詳細を開くカードの契約（C0・C1）が main.ts に足す、の受けを書く（統合担当の決め 2026-11-25 21:3x、r10-items.md の #11）。
 19. S1 の起草: 開いている間の左の列の pageCount は、開いたカードを外した割りのページの数。その送りの受け方は S1 が決める（統合担当の決め 2026-11-25 21:3x、r10-items.md の #16）。
 20. 各カードの契約（C0・T0 ほか）: 形を選ぶカード（形が 2 つ以上・null でない maxPages・2 以上の minBodyRows・mayHide）は左の列の take がいちばん後ろの 1 枚（今日の地震）だけ（AC05 (7)(h)）。ほかに要る契約は、その契約で (h) と形の選び（layout.ts の choose）を広げる。津波の小さい形（docs/specs/reconstruction-display-design.md:540 «032bc9d035afefb1» が T0 へ送った字）は、津波が先に高さを取るので今の順では使われず、T0 が扱いを決める。本文のある形の minBodyRows は 1 以上（(i)）。計画の C0・T0 の行に配送で書く。
 

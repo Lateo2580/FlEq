@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "d9b4618ab63aaf4b7c73f817de8f0cc21ac6254cd432f63ccaec53778083a5bc",
+    "sha256": "9082f24d0e4c428ecc69a65567aa24c33c07a9f39523b6e52fb120e2a96fcb4d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -202,6 +202,20 @@
         "source": "Q-DS-FORM-FIT（実装のレビュー 3 巡目のヘルツの NO-GO、8b6f18d4、P2 1 件）への 作者の裁定 2026-11-26 06:45「判断についてはA(判断カードでのAダッシュ)で進めてください。」",
         "closed": "入力の条件 (h) を足した（AC05 (7)、§4.1・§4.4 の i・§4.5）。コードの形の選びは 9e240899 の形（候補のカードの条件だけを見る）へ戻し、8b6f18d4 の Plan.fitted を消した。T03 は P1〜P11 のまま（P12・P13 とヘルツの 3 枚の例は右の列に形を選ぶカードがあり、(h) の外。P12・P13 の入力は 8b6f18d4 の reconstruction/test/screen/paginate.test.ts、3 枚の例は 8e071bb4 の本契約の Q-DS-FORM-FIT）。#8 は入力の条件 (i)（統合担当の決め 2026-11-26 06:47、作者の字ではない）。統合担当の同じ決めで、AC05 (7) の性質に mayHide のカードの maxPages と minBodyRows を書き、AC05 (10) の「形の選びが別の形へ移って 1 ページになる」は (h) の下では起きないと書いた",
         "remaining": "なし"
+      },
+      {
+        "id": "Q-DS-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-26、impl/s0 の 826b2afb・9e240899・8b6f18d4・9a43af36・fd73a45c と契約 r10 の 8e071bb4・r11 の 5cfbd2fa を、main 7bf652f1 の上で順に。レビューは品質〔ヘルツ Astra high、thread 01a212ab〕4 巡〔NO-GO 3 巡、裁定 A′ の後の 5cfbd2fa で GO、P3 1 件〕、契約適合〔Opus〕〔826b2afb 条件付き GO → 9e240899 コードは GO → 8b6f18d4 GO（字の条件つき）→ 5cfbd2fa 条件付き GO、P3 5 件〕。P3 6 件は fd73a45c で当てた。Mac mini のゲートは 826b2afb・9e240899・8b6f18d4・5cfbd2fa で全段 rc=0。配送の最後の commit の結果は記録の外（作業ノート））",
+        "closed": "(1) smoke（T10、実 Chrome、2026-11-26 06:5x、5cfbd2fa の dist）: 34 項目 Pass、Fail 0。E04 の 2 つの mark の差の記録は 3.1 ms（合否にしない）。表 §4.5 の 5 場面の割り直しは 5 場面とも図の道具と一致。時計の矩形は DS 版 41 の見本と一致（2026-11-25 21:52） (2) 原文の改訂: 計画 §2.1 の S0 の行の状態と群の字・C0 の行と T0 の行の受け、:91・:227 の字、§4.6 の :383・:389・:394 の時期の字、P4-PERSONA-WALK-TOOLS-003 の Q-PWT3-ROWS-FN と publicFunctions の字、P4-DISPLAY-CAPACITY-001 の outOfScope と Q-DC-DELIVERY の remaining の字、Q-DS-SPEC-REVISION を閉じた (3) 印の付け直し: 本契約の JSON の 6 本と表の 11 本（計画の :91・:114・:124・:227・:383・:389・:394）。ほかの契約は 0 (4) §12 の 10（DS の README の次の版）・11・12・14・19 は、受け手の起草と DS の次の版で当てる。計画:212・:229・:937 と、「host の配線は E0 発注 2」と書く当時の記録 3 か所は直さない",
+        "remaining": "詰まっている客には保留が届かない（AC02 (6)）。http-sse.ts の wireBeat の timer（listen の失敗で残る、B1〔e292a3ba〕の既存）は構造的欠陥台帳の 151。詳細の取得は最初に詳細を開くカードの契約（C0・C1、AC03 (5)）。形を選ぶカードを 2 枚以上か右の列に置く契約は、その契約で AC05 (7)(h) を広げる。書体は Pi の配送の手順。地図の塗りと印は M0。Pi の Chromium の資源と E04 の測定は PM"
+      },
+      {
+        "id": "Q-DS-SPEC-REVISION",
+        "status": "closed",
+        "source": "統合担当の決め（本契約の配送、2026-11-26）。計画 §4.6 の表の spec:167 ほか・:1845 ほか・:1597 ほかの行の時期（S0 の凍結時）と、表 §12 の 9・15",
+        "closed": "spec（docs/specs/reconstruction-p0-contracts.md）の本文は置き換えない。列の割当（:1597・:1598・:1601・:1615・:1617・:1619・:1624）は本契約の AC04 (1)・AC05 (4)・AC06 (1)〜(3)、D-AC05（:1842）は AC13 (1)(2)(4)(5)、D-AC18（:1855）は AC13 (3) を真実源とする。D-AC08・D-AC10（:1845・:1847）の例外は表示設計 spec の DS-LAYER-10 と計画:137、検収端末（:167・:1688・:2959・:2961）は計画 §5.1 の P4-PLAN-D-SCREEN=A と計画:71 を指す。spec は変えない（行の数も被引用の anchor も変わらない）",
+        "remaining": "検収端末の行は PM の起草で本文を置き換えるかを決める。点滅は T0 の凍結時"
       }
     ],
     "operationContract": {
@@ -393,7 +407,7 @@
           "reconstruction/src/display/chrome-eew/tsconfig.json:8 «63b55f2ada487125»",
           "reconstruction/src/display/chrome-eew/tsconfig.json:9 «3b6fd5df2e4fbb39»",
           "reconstruction/contracts/p2-chrome-eew.json:633 «81593d9d26dc05df»",
-          "reconstruction/contracts/p4-order-plan.md:227 «810399aebefa7fee»",
+          "reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
       },
@@ -416,7 +430,7 @@
           "reconstruction/src/http-sse/http-sse.ts:355 «37aaf4e51c213ced»",
           "reconstruction/src/runtime/composition-root.ts:143 «85f8cd15e6437efe»",
           "reconstruction/src/runtime/composition-root.ts:992 «bc426f3e1ac45869»",
-          "reconstruction/contracts/p4-order-plan.md:91 «a9368d6efdc9a4e0»",
+          "reconstruction/contracts/p4-order-plan.md:91 «16c59b4b17071c38»",
           "reconstruction/contracts/p4-order-plan.md:229 «5087b78524621456»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
@@ -449,7 +463,7 @@
         "id": "P4-DS-AC04",
         "requirement": "配置の宣言値（D04、表 §1）: (1) 配置の値は tokens.ts の LAYOUT だけに置き、layout.ts・frame.ts・main.ts はそこから読む。値は表 §1.1 のとおり（画面 1920×1080、画面の縁 40、左の列 x 40・幅 540・使える高さ 903、右の列 x 1340・幅 540・高さ 1000、上端はどちらも 40、カードの間 17、時計 540×80 を左 40・上 960、状態の印の横の中心 960・上端 40、ずらす量 96、ページの表示の行 PAGE_MARK_ROW 37.5〔字 30px × 行の高さ 1.25、DS の bundle.css の値〕とその上の間 PAGE_MARK_GAP 8〔統合担当の決め 2026-11-25 19:12〕、space の s3 12・s4 16・s5 24、card の border 2・radius 4・text 30・headText 40・divider 2、clockText の date 30・time 56・gap 18・padTop 6、dots の on 16・off 12・line 2・gap 12〔統合担当の決め 2026-11-25 21:5x、r10-items.md の #18〕）。色は COLORS に DS-TOKEN-01〜37 の名前と値をそのまま置く (2) 覆われたカードを暗くする形は、明るさを下げてカードの面は不透明のまま（CSS の不透明度で透かさない。作者の 2026-11-23 21:2x の案の字「影のように明るさを下げる」と DS-MAP-22 の「面は不透明」から統合担当が決めた）。値は案 0.6 を tokens.ts に置き、凍結しない（DS-OPEN-62、C0 で決める） (3) clockRect(count) の count はframe に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6）で、0〜5 件で左 40・上 960、6 件で左 620・上 960（DS-LAYOUT-18、P4-DS-D-CLOCK-SIX=A、作者の裁定 2026-11-25 07:0x） (4) 配置は宣言値と、カードが宣言した行の高さだけで計算し、描いた後の DOM の大きさに依らない（DS-FIT-02、D-AC06）。割りは snapshot と宣言値だけで決まる（台帳 37） (5) 1920×1080 でない画面は全体を min（幅÷1920、高さ÷1080）倍に縮める（DS-SCREEN-01〜03・05）",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4»",
+          "reconstruction/contracts/p4-order-plan.md:114 «c38868f9bf244f45»",
           "docs/specs/reconstruction-display-design.md:170 «acb8d52f2074614c»",
           "docs/specs/reconstruction-display-design.md:171 «69f213fe9a7a29fb»",
           "docs/specs/reconstruction-display-design.md:172 «2db40e9f8df8087a»",
@@ -529,7 +543,7 @@
           "docs/specs/reconstruction-display-design.md:691 «ac4c93342c289e85»",
           "docs/specs/reconstruction-display-design.md:692 «0bfc84c49a8e8ac5»",
           "docs/specs/reconstruction-display-design.md:695 «afadb0d2c42d70b3»",
-          "reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4»",
+          "reconstruction/contracts/p4-order-plan.md:114 «c38868f9bf244f45»",
           "docs/specs/reconstruction-display-design.md:704 «7e3a9c21b1209f8f»",
           "docs/specs/reconstruction-display-design.md:706 «08990d19480f4bdc»",
           "docs/specs/reconstruction-display-design.md:709 «4458c7a23a81d028»",
@@ -547,7 +561,7 @@
           "docs/specs/reconstruction-display-design.md:663 «3f8ce75d003426b5»",
           "docs/specs/reconstruction-display-design.md:531 «da5a159a2642244d»",
           "docs/specs/reconstruction-display-design.md:696 «f9f222a93fbbcd43»",
-          "reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4»",
+          "reconstruction/contracts/p4-order-plan.md:114 «c38868f9bf244f45»",
           "docs/specs/reconstruction-display-design.md:661 «17c95a272fa4b451»",
           "docs/specs/reconstruction-display-design.md:703 «a9201cfba7958180»",
           "docs/specs/reconstruction-display-design.md:705 «71b0045df6757fc6»",
@@ -562,7 +576,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»",
           "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
-          "reconstruction/contracts/p4-order-plan.md:227 «810399aebefa7fee»",
+          "reconstruction/contracts/p4-order-plan.md:227 «12fe6cb5cb36c534»",
           "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
           "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
           "docs/specs/reconstruction-display-design.md:560 «43627ca90f37ce4b»",
@@ -621,7 +635,7 @@
       },
       {
         "id": "P4-DS-AC13",
-        "requirement": "D-AC05・D-AC18 の S0 分（表 §1・§3）: (1) 最上層のカードが出入りしても列の割りの矩形は変わらない（AC06 (3)。描く矩形は覆いで 96px ずれる、AC06 (5)） (2) 時計の矩形は 1〜5 件の緊急地震速報の場所と重ならず、6 件では clockRect が F の場所の外へ動かす（AC04 (3)。件数はframe に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6））。開いたカードと時計の関係は DS-OPEN-65 と一緒に C0 (3) カードの枠（DS-CSS-02: 面 surface、線 2px の surface-edge、角 radius-card 4px で中を切る、行の区切り 2px の divider、見出しの行。見出しの行と行の区切りの class は ShellRow の token を tokens.ts の固定表で引いて付ける。カードの線 2px は高さに含め、中身の矩形を縮めない〔時計の線は DS-CSS-12 の border のまま〕。統合担当の決め 2026-11-25 21:3x・22:0x、r10-items.md の #15）と画面の根（DS-CSS-01）と時計の札（DS-CSS-12・DS-CLOCK-03）の CSS を S0 が index.html の style に 1 つずつ置き、各カードはその class を使う。縦のリボンを作らない (4) D-AC05 の S0 分は (1)(2)。下端の補正とページの操作を隠さないの 2 つは C0（DS-OPEN-65、開いたカードの下端とページの表示）へ送る (5) 押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形は、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による D-AC05「緊急大カードを隠さない」の例外。ユーザーが押した間だけで、緊急地震速報のカードの組が変われば戻る（DS-LAYER-21）。配送で D-AC05 の行に例外を書く（表 §12 の 15）",
+        "requirement": "D-AC05・D-AC18 の S0 分（表 §1・§3）: (1) 最上層のカードが出入りしても列の割りの矩形は変わらない（AC06 (3)。描く矩形は覆いで 96px ずれる、AC06 (5)） (2) 時計の矩形は 1〜5 件の緊急地震速報の場所と重ならず、6 件では clockRect が F の場所の外へ動かす（AC04 (3)。件数はframe に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6））。開いたカードと時計の関係は DS-OPEN-65 と一緒に C0 (3) カードの枠（DS-CSS-02: 面 surface、線 2px の surface-edge、角 radius-card 4px で中を切る、行の区切り 2px の divider、見出しの行。見出しの行と行の区切りの class は ShellRow の token を tokens.ts の固定表で引いて付ける。カードの線 2px は高さに含め、中身の矩形を縮めない〔時計の線は DS-CSS-12 の border のまま〕。統合担当の決め 2026-11-25 21:3x・22:0x、r10-items.md の #15）と画面の根（DS-CSS-01）と時計の札（DS-CSS-12・DS-CLOCK-03）の CSS を S0 が index.html の style に 1 つずつ置き、各カードはその class を使う。縦のリボンを作らない (4) D-AC05 の S0 分は (1)(2)。下端の補正とページの操作を隠さないの 2 つは C0（DS-OPEN-65、開いたカードの下端とページの表示）へ送る (5) 押して上げたカードが緊急地震速報のカード（大カードを含む）の手前に出る形は、作者の裁定（2026-11-23 21:44・21:51、2026-11-24 20:54）による D-AC05「緊急大カードを隠さない」の例外。ユーザーが押した間だけで、緊急地震速報のカードの組が変われば戻る（DS-LAYER-21）。spec:1842 の本文は置き換えず、この条を真実源とする（Q-DS-SPEC-REVISION）",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:1842 «bb8fc66481fec539»",
           "docs/specs/reconstruction-p0-contracts.md:1855 «28217bd0fdd3a039»",
