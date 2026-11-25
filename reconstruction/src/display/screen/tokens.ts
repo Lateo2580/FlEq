@@ -18,9 +18,10 @@ const LAYOUT = {
   // 暗くする値は案（P4-DS-AC04 (2)、DS-OPEN-62 は C0 で決める）。明るさを下げ、面は不透明のまま
   dim: 0.6,
   eew: { one: { h: 1000 }, two: { h: 492, gap: 16 }, small: { h: 322, tops: [40, 379, 718] } },
-  card: { border: 2, radius: 4, text: 30 },
-  clockText: { date: 30, time: 56, gap: 18 },
-  statusText: { size: 30, pad: 12 },
+  card: { border: 2, radius: 4, text: 30, headText: 40, divider: 2 },
+  // DS の間の値（DS-SIZE-10〜12）。行の左右の内側 s5、見出しの行の間 s4、行の区切りの下の内側 s3、状態の札の内側 s3
+  space: { s3: 12, s4: 16, s5: 24 },
+  clockText: { date: 30, time: 56, gap: 18, padTop: 6 },
 } as const;
 
 const COLORS = {
@@ -36,7 +37,11 @@ const COLORS = {
 } as const;
 
 // ShellText の token から class への固定表。表に無い token には class を付けない（P2-A9-AC08、P4-DS-AC09 (1)）。
-// 各カードの契約が自分の token をここへ足す。S0 は本文と補足の字の 2 つだけ。
-const TOKEN_CLASS: Readonly<Record<string, string>> = { ink: "t-ink", "ink-muted": "t-ink-muted" };
+// 各カードの契約が自分の token をここへ足す。S0 は DS-CSS-02 のカードの枠が使う 6 つだけ。
+const TOKEN_CLASS: Readonly<Record<string, string>> = {
+  ink: "t-ink", "ink-muted": "t-ink-muted",
+  // 見出しの行・行の区切り（行の class）と、見出しの字・補足の字（DS-CSS-02、AC13 (3)）
+  "row-head": "r-head", "row-divider": "r-divider", "text-head": "t-head", "text-sub": "t-sub",
+};
 
 export { COLORS, LAYOUT, TOKEN_CLASS };

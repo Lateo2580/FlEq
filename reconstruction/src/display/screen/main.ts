@@ -1,7 +1,7 @@
 // P4-DISPLAY-SHELL-001（S0）DOM の入口。ここだけが DOM・EventSource・performance・timer を触る（P4-DS-AC01 (1)）。
 // 描くのは screenFrame が返した値だけで、行の字と矩形を DOM の側で作らない（P4-DS-AC08 (2)）。
 
-import type { ShellClientState, ShellColumn, ShellDrawCard, ShellFrame, ShellRow, ShellState } from "../../../contracts/p4-display-shell.types";
+import type { ShellClientState, ShellColumn, ShellDrawCard, ShellFrame, ShellRect, ShellRow, ShellState } from "../../../contracts/p4-display-shell.types";
 import { acceptSnapshot } from "./client.js";
 import { screenFrame, shellSync } from "./frame.js";
 import { reduceShell } from "./layout.js";
@@ -27,7 +27,8 @@ function requireElement(id: string): HTMLElement {
   return node;
 }
 const screenEl = requireElement("screen");
-const cardsEl = requireElement("cards");
+const topEl = requireElement("cards-top");
+const middleEl = requireElement("cards-middle");
 const clockEl = requireElement("clock");
 const clockDate = requireElement("clock-date");
 const clockTime = requireElement("clock-time");
@@ -55,23 +56,29 @@ function readViewport(): void {
 // ---- 状態 ----
 let client: ShellClientState = { snapshot: null, unsupported: false, changed: [], detail: null };
 let shell: ShellState = { open: false, raised: [], eew: [] };
+// ページの番号を替えるのは S1（自動のページ送り）。S0 は 0 のまま
 const page: Record<ShellColumn, number> = { left: 0, right: 0 };
 let frame: ShellFrame | null = null;
-let paintSequence: number | null = null;
+// E04 の印は版ごとに 2 つ増えるので、直近 MARK_KEEP 版だけ残す（72 時間の稼働で印が増え続けるのを防ぐ）
+const MARK_KEEP = 64;
+const received: number[] = [];
+const painted: number[] = [];
+const markName = (kind: "received" | "painted", sequence: number) => `fleq:s0:${kind}:${sequence}`;
 
 // ---- 描画 ----
 type Drawn = { node: HTMLElement; key: string };
+let clipKey = "";
 const drawn = new Map<string, Drawn>();
 const loggedDiagnostics = new Set<string>();
 let statusEl: HTMLElement | null = null;
 
 const rowsKey = (rows: readonly ShellRow[]): string =>
-  rows.map((row) => `${row.height}|${row.texts.map((text) => `${text.token ?? ""}\u0001${text.text}`).join("\u0002")}`).join("\u0003");
+  rows.map((row) => `${row.height}|${row.token ?? ""}|${row.texts.map((text) => `${text.token ?? ""}\u0001${text.text}`).join("\u0002")}`).join("\u0003");
 const px = (value: number): string => `${value}px`;
 
 function rowNode(row: ShellRow): HTMLElement {
   const node = document.createElement("div");
-  node.className = "row";
+  node.className = row.token != null && Object.hasOwn(TOKEN_CLASS, row.token) ? `row ${TOKEN_CLASS[row.token]}` : "row";
   node.style.height = px(row.height);
   for (const text of row.texts) {
     const span = document.createElement("span");
@@ -99,6 +106,15 @@ function markNode(card: ShellDrawCard): HTMLElement | null {
   return node;
 }
 
+// 中間の層は cover（最上層のカードとその間）の中を描かず、地図を見せる（AC06 (9)）。layout は読まず、frame の矩形から切り抜きの字を作る
+function clipMiddle(cover: readonly ShellRect[]): void {
+  const hole = (r: ShellRect) => `M${r.x} ${r.y}h${r.w}v${r.h}h${-r.w}Z`;
+  const key = cover.length === 0 ? "none" : `path(evenodd, "M0 0H${LAYOUT.screen.w}V${LAYOUT.screen.h}H0Z ${cover.map(hole).join(" ")}")`;
+  if (key === clipKey) return;
+  clipKey = key;
+  middleEl.style.clipPath = key === "none" ? "none" : key;
+}
+
 function drawCards(cards: readonly ShellDrawCard[]): void {
   const topCount = cards.filter((card) => card.layer === "top").length;
   let topIndex = 0, middleIndex = 0;
@@ -110,8 +126,10 @@ function drawCards(cards: readonly ShellDrawCard[]): void {
       const node = document.createElement("div");
       entry = { node, key: "" };
       drawn.set(card.id, entry);
-      cardsEl.append(node);
     }
+    // 最上層と中間の層は別の container。層が替わったカードは移す
+    const container = card.layer === "top" ? topEl : middleEl;
+    if (entry.node.parentElement !== container) container.append(entry.node);
     const key = `${rowsKey(card.rows)}\u0004${card.mark == null ? "" : `${card.mark.text}|${card.mark.dots}|${card.mark.at}`}`;
     if (key !== entry.key) {
       entry.key = key;
@@ -125,7 +143,7 @@ function drawCards(cards: readonly ShellDrawCard[]): void {
     entry.node.style.top = px(card.rect.y);
     entry.node.style.width = px(card.rect.w);
     entry.node.style.height = px(card.rect.h);
-    entry.node.style.zIndex = String(card.layer === "top" ? 1000 + topCount - topIndex++ : 1 + middleIndex++);
+    entry.node.style.zIndex = String(card.layer === "top" ? topCount - topIndex++ : 1 + middleIndex++);
   }
   for (const [id, entry] of drawn) if (!seen.has(id)) { entry.node.remove(); drawn.delete(id); }
 }
@@ -141,6 +159,7 @@ function render(): void {
   const now = Date.now();
   shell = reduceShell(shell, shellSync(client, now));
   const next = screenFrame({ state: client, nowMs: now, page, shell });
+  clipMiddle(next.cover);
   drawCards(next.cards);
   const { rect, text } = next.clock;
   clockEl.style.left = px(rect.x); clockEl.style.top = px(rect.y); clockEl.style.width = px(rect.w); clockEl.style.height = px(rect.h);
@@ -153,9 +172,15 @@ function render(): void {
   }
   frame = next;
   // E04: 描いた後の最初の paint に印を置く（P4-DS-AC12）
-  const sequence = paintSequence;
-  paintSequence = null;
-  if (sequence != null) nextPaint(() => { performance.mark(`fleq:s0:painted:${sequence}`); });
+  const sequence = received.pop();
+  // 描く前に合流して消えた版の received は消す
+  for (const skipped of received.splice(0)) performance.clearMarks(markName("received", skipped));
+  if (sequence != null) {
+    painted.push(sequence);
+    const old = painted.length > MARK_KEEP ? painted.shift() : undefined;
+    if (old != null) { performance.clearMarks(markName("received", old)); performance.clearMarks(markName("painted", old)); }
+    nextPaint(() => { performance.mark(markName("painted", sequence)); });
+  }
 }
 
 let frameRelease: (() => void) | null = null;
@@ -197,7 +222,10 @@ function boot(): void {
     if (next === client) return;
     const accepted = next.snapshot != null && next.snapshot !== client.snapshot ? next.snapshot.sequence : null;
     client = next;
-    if (accepted != null) { performance.mark(`fleq:s0:received:${accepted}`, { startTime: receivedAt }); paintSequence = accepted; }
+    if (accepted != null) { performance.mark(markName("received", accepted), { startTime: receivedAt }); received.push(accepted); }
+    // 描画の止まる間（隠れた tab）も印を溜めない
+    const dropped = received.length > MARK_KEEP ? received.shift() : undefined;
+    if (dropped != null) performance.clearMarks(markName("received", dropped));
     // snapshot を採るたびに sync を当てる（合流しない。D3）
     shell = reduceShell(shell, shellSync(client, Date.now()));
     requestFrame();
@@ -207,6 +235,3 @@ function boot(): void {
 }
 
 boot();
-
-// smoke と後の契約（S1 のページ送り）が使う入口。ページの番号を替えて描き直す
-Object.assign(window, { fleqScreenSetPage: (column: ShellColumn, index: number) => { page[column] = index; requestFrame(); } });

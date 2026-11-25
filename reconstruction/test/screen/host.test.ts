@@ -39,15 +39,16 @@ vi.mock("../../src/notification-delivery/adapter", async (importOriginal) => ({
 // 停止の完了の前に shutdownRuntime が投げる形を作る（finally の closeDisplay が close の前に保留を書くことを見る）
 const failing = vi.hoisted(() => ({ shutdown: false }));
 // root が host の publishWire を呼んだ記録（保留される通常の版と急ぎの版を、公開の側から見分けるため）
-const wireCalls = vi.hoisted(() => ({ list: [] as { sequence: number; urgent: boolean; at: number }[] }));
+const wireCalls = vi.hoisted(() => ({ list: [] as { sequence: number; urgent: boolean; at: number; weather: string; eew: string }[] }));
 vi.mock("../../src/runtime/composition-root", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/runtime/composition-root")>();
   class RuntimeCompositionRoot extends actual.RuntimeCompositionRoot {
     constructor(...args: ConstructorParameters<typeof actual.RuntimeCompositionRoot>) {
       super(...args);
-      const display = args[2].display as { publishWire?: (snapshot: { sequence: number }, urgent: boolean) => void } | undefined;
+      type Wire = { sequence: number; current: { weatherCurrent: { contentRevision: string }; eew: { contentRevision: string } } };
+      const display = args[2].display as { publishWire?: (snapshot: Wire, urgent: boolean) => void } | undefined;
       const original = display?.publishWire;
-      if (display != null && original != null) display.publishWire = (snapshot, urgent) => { wireCalls.list.push({ sequence: snapshot.sequence, urgent, at: performance.now() }); original(snapshot, urgent); };
+      if (display != null && original != null) display.publishWire = (snapshot, urgent) => { wireCalls.list.push({ sequence: snapshot.sequence, urgent, at: performance.now(), weather: snapshot.current.weatherCurrent.contentRevision, eew: snapshot.current.eew.contentRevision }); original(snapshot, urgent); };
     }
     override shutdownRuntime(...args: Parameters<InstanceType<typeof actual.RuntimeCompositionRoot>["shutdownRuntime"]>) {
       if (failing.shutdown) return Promise.reject(new Error("shutdown threw before completion"));
@@ -138,9 +139,11 @@ function listen(port: number): { events: Received[]; closed: () => boolean; dest
   return { events, closed: () => closed, destroy: () => call.destroy() };
 }
 // 次の公開を待つ。held は保留される通常の版（最初の 1 つ）、urgent は急ぎの版
-async function nextCall(kind: "held" | "urgent", after: number) {
-  await until(() => wireCalls.list.slice(after).some((call) => call.urgent === (kind === "urgent")));
-  return wireCalls.list.slice(after).find((call) => call.urgent === (kind === "urgent"))!;
+// content は、VPWS50 の気象の中身（内容版が 0 から進んだ版）を持つ公開だけを待つ
+async function nextCall(kind: "held" | "urgent", after: number, content = false) {
+  const match = (call: (typeof wireCalls.list)[number]) => call.urgent === (kind === "urgent") && (!content || Number(call.weather) > 0);
+  await until(() => wireCalls.list.slice(after).some(match));
+  return wireCalls.list.slice(after).find(match)!;
 }
 const sendHeld = (sockets: WebSocket[]) => sockets[0].send(frame("VPWS50", "telegram.weather", text("15_18_01_250630_VPWS50")));
 const sendUrgent = (sockets: WebSocket[]) => sockets[0].send(frame("VXSE45", "eew.forecast", eewXml()));
@@ -159,15 +162,22 @@ describe("P4-DS-T09 host の配線", () => {
     const wire = listen(port);
     const start = wireCalls.list.length;
     sendHeld(sockets);
-    const held = await nextCall("held", start);
+    const holdStart = await nextCall("held", start);
+    const held = await nextCall("held", start, true);
     sendUrgent(sockets);
     const urgent = await nextCall("urgent", start);
     await until(() => wire.events.length >= 1);
     await new Promise((done) => setTimeout(done, 200));
-    const inWindow = wire.events.filter((event) => event.at < held.at + 900);
+    // 接続の時に届く既公開の版の再送（held より前の版）は試験の対象の外。held の版以降で、最初の保留の期限より前に届いた版を見る
+    const inWindow = wire.events.filter((event) => event.sequence >= held.sequence && event.at < holdStart.at + 900);
     expect(inWindow.map((event) => event.sequence)).toEqual([urgent.sequence]);
     expect(urgent.sequence).toBeGreaterThan(held.sequence);
-    expect(inWindow[0].data.schemaVersion).toBe("p4-display-wire-v3");
+    // VPWS50 固有の気象の中身（内容版が最初の 0 から進んだ分）が、急ぎの版に残っている
+    const current = inWindow[0].data.current as { weatherCurrent: { contentRevision: string }; eew: { contentRevision: string } };
+    expect(Number(held.weather)).toBeGreaterThan(0);
+    expect(current.weatherCurrent.contentRevision).toBe(held.weather);
+    expect(current.eew.contentRevision).toBe(urgent.eew);
+    expect(Number(urgent.eew)).toBeGreaterThan(0);
   }, 60_000);
 
   it("(c) 表示を閉じて開き直すと、次の電文を待たずに最後の 1 枚が届く", async () => {
@@ -189,15 +199,16 @@ describe("P4-DS-T09 host の配線", () => {
 
   // サーバーが書いた版と、response を壊した時を順に記録する（client に届く前。書いた直後の destroy で届かないことは契約の残存）
   function recordServerWrites() {
-    const log: { kind: "write" | "destroy"; sequence: number }[] = [];
+    const log: { kind: "write" | "destroy"; sequence: number; weather: string }[] = [];
     const write = ServerResponse.prototype.write, destroy = ServerResponse.prototype.destroy;
     vi.spyOn(ServerResponse.prototype, "write").mockImplementation(function (this: ServerResponse, ...args: Parameters<ServerResponse["write"]>) {
       const sequence = typeof args[0] === "string" ? /^event: snapshot\nid: (\d+)\n/.exec(args[0])?.[1] : undefined;
-      if (sequence != null) log.push({ kind: "write", sequence: Number(sequence) });
+      const body = typeof args[0] === "string" ? /\ndata: (.*)\n\n$/s.exec(args[0])?.[1] : undefined;
+      if (sequence != null) log.push({ kind: "write", sequence: Number(sequence), weather: body == null ? "" : JSON.parse(body).current.weatherCurrent.contentRevision });
       return write.apply(this, args);
     });
     vi.spyOn(ServerResponse.prototype, "destroy").mockImplementation(function (this: ServerResponse, ...args: Parameters<ServerResponse["destroy"]>) {
-      log.push({ kind: "destroy", sequence: -1 });
+      log.push({ kind: "destroy", sequence: -1, weather: "" });
       return destroy.apply(this, args);
     });
     return log;
@@ -210,7 +221,7 @@ describe("P4-DS-T09 host の配線", () => {
       const log = recordServerWrites();
       const start = wireCalls.list.length;
       sendHeld(sockets);
-      const held = await nextCall("held", start);
+      const held = await nextCall("held", start, true);
       expect(log.some((item) => item.kind === "write" && item.sequence >= held.sequence), how).toBe(false);
       if (how === "closeDisplay") await host.closeDisplay();
       else if (how === "stop") await host.stop();
@@ -219,6 +230,10 @@ describe("P4-DS-T09 host の配線", () => {
       const destroyed = log.findIndex((item) => item.kind === "destroy");
       expect(written, how).toBeGreaterThanOrEqual(0);
       expect(written, how).toBeLessThan(destroyed);
+      // 最後に書かれた版に、保留の中身（VPWS50 の気象の内容版）がある
+      const lastWritten = log.slice(0, destroyed).filter((item) => item.kind === "write").at(-1);
+      expect(Number(lastWritten?.weather), how).toBeGreaterThanOrEqual(Number(held.weather));
+      expect(Number(held.weather), how).toBeGreaterThan(0);
       vi.restoreAllMocks();
       while (cleanups.length > 0) await cleanups.pop()?.();
     }

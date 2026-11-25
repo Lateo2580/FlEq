@@ -10,7 +10,8 @@ export type ShellColumn = "left" | "right";
 // 字の 1 区切り。text は wire の字のまま text node でだけ入れる（P2-A9-AC08）。token は tokens.ts の固定表の鍵で、class へは表で写す。
 export type ShellText = Readonly<{ text: string; token: string | null }>;
 // 割りの単位（DS-PAGE-13）。height はカードが宣言した高さ。continuation は、この行からページが始まるときに前へ出し直す行（府県の見出しと種別の組など）。
-export type ShellRow = Readonly<{ height: number; texts: readonly ShellText[]; continuation: readonly ShellRow[] }>;
+// token は行の class（見出しの行・行の区切り）を字と同じ固定表で引く鍵で、null なら付けない。
+export type ShellRow = Readonly<{ height: number; token: string | null; texts: readonly ShellText[]; continuation: readonly ShellRow[] }>;
 
 // カードの形 1 つ。形は順に試し、条件に合う最初の形を使う（今日の地震の形の順 DS-QROW-18 を受ける）。
 // maxPages はページの数の上限（null は上限なし）。minBodyRows は最後を除く全部のページに入る本文の行の数の下限。

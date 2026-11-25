@@ -37,12 +37,12 @@ function clockRect(count: number): ShellRect {
   return rect(count >= 6 ? clock.sixX : clock.x, clock.y, clock.w, clock.h);
 }
 
-// 上下に隣り合う場所の間（宣言値の 16・17px だけ。宣言値に無い並びは数えない、DS-LAYER-13）
+// 上下に隣り合う場所の間（宣言値 LAYOUT.eew.two.gap・LAYOUT.gap だけ。宣言値に無い並びは数えない、DS-LAYER-13）
 function gapsBetween(slots: readonly ShellRect[]): ShellRect[] {
   const out: ShellRect[] = [];
   for (const a of slots) for (const b of slots) {
     const gap = b.y - (a.y + a.h);
-    if (a.x === b.x && a.w === b.w && (gap === 16 || gap === 17)) out.push(rect(a.x, a.y + a.h, a.w, gap));
+    if (a.x === b.x && a.w === b.w && (gap === LAYOUT.eew.two.gap || gap === LAYOUT.gap)) out.push(rect(a.x, a.y + a.h, a.w, gap));
   }
   return out;
 }
@@ -103,11 +103,12 @@ const SEP = "\u0001";
 function flow(plans: readonly Plan[], limit: number, markH: number, fixed: ReadonlyMap<string, number> | null): Division {
   const gap = LAYOUT.gap;
   const next = plans.map(() => 0);
-  const reserve = plans.map((_, i) => {
-    let size = 0, any = false;
-    for (let j = i + 1; j < plans.length; j++) if (plans[j].bodyless) { size += plans[j].headH + gap; any = true; }
-    return { size, any };
-  });
+  // 後ろの本文の無いカードの高さの和（末尾からの累積）
+  const reserve = Array.from({ length: plans.length }, () => ({ size: 0, any: false }));
+  for (let i = plans.length - 2; i >= 0; i--) {
+    const after = plans[i + 1], rest = reserve[i + 1];
+    reserve[i] = after.bodyless ? { size: rest.size + after.headH + gap, any: true } : rest;
+  }
   const totalRows = plans.reduce((total, plan) => total + plan.form.body.length, 0);
   const pages: Placed[][] = [];
   const reached = plans.map(() => -1), started = plans.map(() => -1);
@@ -190,7 +191,8 @@ function choose(cards: readonly ShellCard[], limit: number, markH: number): Plan
 function formFits(plan: Plan, plans: readonly Plan[], limit: number, markH: number): boolean {
   const division = flow(plans, limit, markH, null);
   if (division.overflow) return false;
-  if (plan.bodyless) return true;
+  // 本文の無い形は全ページに出るので、出るページの数は列のページの数
+  if (plan.bodyless) return plan.form.maxPages == null || division.pages.length <= plan.form.maxPages;
   const at = plans.indexOf(plan);
   const mine = division.pages.flatMap((page) => page.filter((item) => item.plan === at));
   const { maxPages, minBodyRows } = plan.form;
@@ -202,10 +204,6 @@ function formFits(plan: Plan, plans: readonly Plan[], limit: number, markH: numb
   return plan.form.body.every((row, j) => plan.headH + (j > 0 ? sumHeights(row.continuation) : 0) + row.height + markH + bodyless <= limit);
 }
 
-function solve(cards: readonly ShellCard[], limit: number, markH: number, fixed: ReadonlyMap<string, number> | null): Solved {
-  const plans = choose(cards, limit, markH);
-  return { plans, division: flow(plans, limit, markH, fixed) };
-}
 
 function groupMax(solved: Solved): Map<string, number> {
   const out = new Map<string, number>();
@@ -231,15 +229,18 @@ function sameSplit(a: Solved, b: Solved): boolean {
 function paginateColumn(column: ShellColumn, cards: readonly ShellCard[]): ShellColumnPages {
   const limit = column === "left" ? LAYOUT.left.usable : LAYOUT.right.h;
   const markH = column === "right" ? LAYOUT.pageMarkRow + LAYOUT.pageMarkGap : 0;
-  let current = solve(cards, limit, 0, null);
+  // 形の選びは固定に依らないので、数えない割りと数える割りの 2 回だけ選ぶ。固定の組み直しは選んだ形で flow だけ回す
+  let plans = choose(cards, limit, 0);
+  let current: Solved = { plans, division: flow(plans, limit, 0, null) };
   if (current.division.pages.length < 2) return build(column, current, limit, false);
   let counted = 1;
   if (markH > 0) {
-    current = solve(cards, limit, markH, null);
+    plans = choose(cards, limit, markH);
+    current = { plans, division: flow(plans, limit, markH, null) };
     if (current.division.pages.length < 2) return build(column, current, limit, false);
   }
   while (counted < cards.length + 1) {
-    const next = solve(cards, limit, markH, groupMax(current));
+    const next: Solved = { plans, division: flow(plans, limit, markH, groupMax(current)) };
     counted++;
     const same = sameSplit(next, current);
     current = next;
@@ -264,7 +265,7 @@ function build(column: ShellColumn, solved: Solved, limit: number, multi: boolea
     const bottom = cardsOut[cardsOut.length - 1];
     return { cards: cardsOut, mark: multi && bottom != null ? { cardId: bottom.id, page: p, pages: count, dots: count <= 7 } : null };
   });
-  return { pages: pages.length > 0 ? pages : [{ cards: [], mark: null }] };
+  return { pages };
 }
 
 // ---- 押したときと sync（表 §5）----

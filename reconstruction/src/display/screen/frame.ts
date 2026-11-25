@@ -5,6 +5,7 @@ import type {
 } from "../../../contracts/p4-display-shell.types";
 import { CARD_SOURCES } from "./cards.js";
 import { clockRect, eewSlots, paginateColumn, placeLayers } from "./layout.js";
+import { LAYOUT } from "./tokens.js";
 
 const EEW_LIMIT = 6;
 const JST_OFFSET_MS = 32_400_000;
@@ -38,7 +39,7 @@ function shellSync(state: ShellClientState, nowMs: number): ShellEvent {
 // ---- 割りの使い回し（AC08 (12)）: 列ごとに最後の 1 組。入力の全部が同じなら前の結果を返す。比べは行の数に比例 ----
 
 const sameRows = (a: readonly ShellRow[], b: readonly ShellRow[]): boolean => a.length === b.length && a.every((row, i) =>
-  row.height === b[i].height && row.texts.length === b[i].texts.length && row.texts.every((t, k) => t.text === b[i].texts[k].text && t.token === b[i].texts[k].token)
+  row.height === b[i].height && row.token === b[i].token && row.texts.length === b[i].texts.length && row.texts.every((t, k) => t.text === b[i].texts[k].text && t.token === b[i].texts[k].token)
   && sameRows(row.continuation, b[i].continuation));
 const sameCard = (a: ShellCard, b: ShellCard): boolean => a.id === b.id && a.column === b.column && a.place === b.place && a.take === b.take
   && a.slot === b.slot && a.mayHide === b.mayHide && a.forms.length === b.forms.length
@@ -59,7 +60,14 @@ function paginateMemo(column: ShellColumn, cards: readonly ShellCard[]): ShellCo
 // ---- 時刻（P2-A9-AC10）: epoch ms に 32,400,000 を足して getUTC* で読む。端末の時差に依らない ----
 
 const pad = (value: number, width = 2): string => String(value).padStart(width, "0");
-const OFFSET_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const OFFSET_ISO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):(\d{2}))$/;
+
+// 暦に無い日付（2026-02-30）と 24 時は、Date.parse が繰り上げて読むので、項目を読み戻して照らす
+function isCalendar(match: RegExpExecArray): boolean {
+  const [year, month, day, hour, minute, second = 0, offsetHour = 0, offsetMinute = 0] = match.slice(1).map((part) => (part == null ? 0 : Number(part)));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return month >= 1 && month <= 12 && date.getUTCDate() === day && hour <= 23 && minute <= 59 && second <= 59 && offsetHour <= 23 && offsetMinute <= 59;
+}
 
 function jst(epochMs: number): Date | null {
   const shifted = new Date(epochMs + JST_OFFSET_MS);
@@ -67,7 +75,8 @@ function jst(epochMs: number): Date | null {
 }
 
 function formatJst(value: number | string | null): string {
-  const epoch = typeof value === "number" ? value : typeof value === "string" && OFFSET_ISO.test(value) ? Date.parse(value) : Number.NaN;
+  const parts = typeof value === "string" ? OFFSET_ISO.exec(value) : null;
+  const epoch = typeof value === "number" ? value : parts != null && isCalendar(parts) ? Date.parse(parts[0]) : Number.NaN;
   const at = Number.isFinite(epoch) ? jst(epoch) : null;
   return at == null ? "時刻不明" : `${pad(at.getUTCFullYear(), 4)}/${pad(at.getUTCMonth() + 1)}/${pad(at.getUTCDate())} ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}`;
 }
@@ -85,7 +94,7 @@ function screenFrame(input: ShellFrameInput): ShellFrame {
   const { cards, diagnostics } = collect(state, nowMs);
   const slotted = slotCards(cards);
   const slots = eewSlots(slotted.length);
-  const eew: ShellMiddle[] = slotted.map((card, i) => ({ id: card.id, column: slots[i].x < 1000 ? "left" : "right", rect: slots[i] }));
+  const eew: ShellMiddle[] = slotted.map((card, i) => ({ id: card.id, column: slots[i].x < LAYOUT.right.x ? "left" : "right", rect: slots[i] }));
   const opener = shell.open ? cards.find((card) => card.opened != null) ?? null : null;
 
   const pages: Record<ShellColumn, ShellColumnPages> = { left: { pages: [] }, right: { pages: [] } };

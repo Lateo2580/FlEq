@@ -35,10 +35,11 @@ function acceptSnapshot(state: ShellClientState, data: string): ShellClientState
   const sameStream = previous != null && previous.streamId === parsed.streamId;
   if (sameStream && parsed.sequence <= previous.sequence) return state;
   const changed = DOMAIN_KEYS.filter((key) => !sameStream || previous.current[key].contentRevision !== parsed.current[key].contentRevision);
-  // 詳細は、その分野の内容版か stream が変わったときだけ取り直しにする。ほかの分野・metadata だけの更新では保つ
+  // 詳細は、同じ unit の分野が新しい snapshot にあり、その内容版が変わっていないときだけ保つ（unit が無いときも取り直し）
   const detail = state.detail;
-  const stale = detail != null && (!sameStream || changed.some((key) => parsed.current[key].unit === detail.request.unit));
-  return { snapshot: parsed, unsupported: false, changed, detail: detail != null && stale ? { ...detail, status: "refetch" } : detail };
+  const key = detail == null ? undefined : DOMAIN_KEYS.find((candidate) => parsed.current[candidate].unit === detail.request.unit);
+  const kept = sameStream && key != null && !changed.includes(key);
+  return { snapshot: parsed, unsupported: false, changed, detail: detail != null && !kept ? { ...detail, status: "refetch" } : detail };
 }
 
 function detailRequested(state: ShellClientState, request: WireDetailRequest): ShellClientState {

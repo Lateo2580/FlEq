@@ -3,7 +3,7 @@ import type {
 } from "../../contracts/p4-display-shell.types";
 
 const rect = (x: number, y: number, w: number, h: number): ShellRect => ({ x, y, w, h });
-const row = (height: number, text = "", continuation: readonly ShellRow[] = []): ShellRow => ({ height, texts: text === "" ? [] : [{ text, token: null }], continuation });
+const row = (height: number, text = "", continuation: readonly ShellRow[] = []): ShellRow => ({ height, token: null, texts: text === "" ? [] : [{ text, token: null }], continuation });
 const form = (head: number, body: readonly ShellRow[], maxPages: number | null = null, minBodyRows = 1): ShellCardForm =>
   ({ head: [row(head, "head")], body, maxPages, minBodyRows });
 const rows = (count: number, height = 100, text = "r"): ShellRow[] => Array.from({ length: count }, (_, i) => row(height, `${text}${i + 1}`));

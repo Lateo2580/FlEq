@@ -8,7 +8,8 @@ import { card, form, rect, row, rows } from "./screen-fixture";
 const registry = vi.hoisted(() => ({ list: [] as ShellCardEntry[] }));
 vi.mock("../../src/display/screen/cards", () => ({ get CARD_SOURCES() { return registry.list; } }));
 
-const snapshot = { schemaVersion: "p4-display-wire-v3", streamId: "a", sequence: 1, current: { weatherCurrent: { unit: "U-W", contentRevision: "r", items: [] } } } as unknown as DisplayWireSnapshot;
+// 要約の形（delivery summary）の分野の包みを持つ snapshot
+const snapshot = { schemaVersion: "p4-display-wire-v3", streamId: "a", sequence: 1, current: { weatherCurrent: { unit: "U-W", contentRevision: "r", delivery: "summary", items: [] } } } as unknown as DisplayWireSnapshot;
 const live: ShellClientState = { snapshot, unsupported: false, changed: [], detail: null };
 const IDLE: ShellState = { open: false, raised: [], eew: [] };
 const NOW = Date.UTC(2026, 10, 25, 12, 34);
@@ -28,15 +29,29 @@ describe("P4-DS-T06 screenFrame・shellSync", () => {
     expect(screenFrame(input(live))).toMatchObject({ status: [], cards: [{ id: "c" }] });
   });
 
-  it("(c)(d)(f) ページの番号が多ければ最後のページ、取消で消えたカードは今のページの外でも消え、分野の包みはそのまま関数へ渡る", () => {
+  it("(c)(f) ページの番号が多ければ最後のページ、要約の形の分野の包みはそのまま（無発令に替えず）関数へ渡り、カードは関数が返したものだけ", () => {
     const long = card("long", "right", { forms: [form(90, rows(30))] });
     const seen: unknown[] = [];
-    use({ source: (snap) => { seen.push(snap.current.weatherCurrent); return snap === snapshot ? [long] : []; }, max: 1 });
+    use({ source: (snap) => { seen.push(snap.current.weatherCurrent); return [long]; }, max: 1 });
     const last = screenFrame(input(live, { page: { left: 0, right: 99 } }));
     expect(last.pageCount.right).toBe(4);
     expect(find(last, "long")?.rows.at(-1)?.texts[0]?.text).toBe("r30");
     expect(seen[0]).toBe(snapshot.current.weatherCurrent);
-    expect(screenFrame(input({ ...live, snapshot: { ...snapshot, sequence: 2 } as DisplayWireSnapshot })).cards).toEqual([]);
+    expect(seen[0]).toMatchObject({ delivery: "summary" });
+    use({ source: () => [], max: 1 });
+    expect(screenFrame(input(live)).cards).toEqual([]);
+  });
+
+  it("(d) 取消でカードが消えた snapshot の後は、今のページの外にあったカードも消える", () => {
+    const long = card("long", "right", { place: 0, take: 0, forms: [form(90, rows(30))] });
+    const side = card("side", "left", { forms: [form(90, rows(1))] });
+    const second = { ...snapshot, sequence: 2 } as DisplayWireSnapshot;
+    use({ source: (snap) => (snap === snapshot ? [long, side] : [side]), max: 2 });
+    const before = screenFrame(input(live, { page: { left: 0, right: 2 } }));
+    expect(before.cards.map((item) => item.id).sort()).toEqual(["long", "side"]);
+    const after = screenFrame(input({ ...live, snapshot: second }, { page: { left: 0, right: 2 } }));
+    expect(after.cards.map((item) => item.id)).toEqual(["side"]);
+    expect(after.pageCount.right).toBe(1);
   });
 
   it("(e)(k)(l) slot のカードは eewSlots の場所で最上層、開いたカードは先頭で中間の層に無く、同じ集め方で shellSync が組を返し、7 枚目は置かない", () => {
@@ -49,6 +64,16 @@ describe("P4-DS-T06 screenFrame・shellSync", () => {
     expect(find(frame, "e1")).toMatchObject({ layer: "top", rect: rect(1340, 548, 540, 492) });
     expect(shellSync(live, NOW)).toEqual({ kind: "sync", eew: ["e0", "e1"], openable: true });
     expect(shellSync({ ...live, unsupported: true }, NOW)).toEqual({ kind: "sync", eew: [], openable: false });
+
+    // 集める順が slot の逆でも slot の順に並べ、6 までしか数えない
+    use(cards([...slots].reverse(), 7));
+    expect(shellSync(live, NOW)).toEqual({ kind: "sync", eew: ["e0", "e1", "e2", "e3", "e4", "e5"], openable: false });
+    // max を越えた分は、slot のカードも opened のあるカードも使わない
+    const extra = [card("a", "right", { slot: 0, forms: [form(100, [])] }), card("b", "right", { slot: 1, forms: [form(100, [])] }),
+      card("c", "left", { slot: 2, forms: [form(100, [])], opened: { rect: rect(40, 145, 540, 717), rows: [] } })];
+    use(cards(extra, 2));
+    expect(shellSync(live, NOW)).toEqual({ kind: "sync", eew: ["a", "b"], openable: false });
+    use(cards(slots.slice(0, 2), 2), cards([quake]));
 
     use(cards(slots, 7));
     const seven = screenFrame(input(live));
@@ -104,7 +129,8 @@ describe("P4-DS-T07 formatJst・clockText", () => {
   it("epoch・Z・±hh:mm は同じ日本時間になり、時差の無い字・null・読めない字は「時刻不明」", () => {
     const want = "2026/11/25 21:34:56";
     for (const value of [Date.UTC(2026, 10, 25, 12, 34, 56), "2026-11-25T12:34:56Z", "2026-11-25T21:34:56+09:00", "2026-11-25T07:34:56-05:00"]) expect(formatJst(value)).toBe(want);
-    for (const value of ["2026-11-25T21:34:56", null, "garbage", Number.NaN]) expect(formatJst(value)).toBe("時刻不明");
+    // 暦に無い日付と 24 時は、繰り上げて読まず「時刻不明」
+    for (const value of ["2026-11-25T21:34:56", null, "garbage", Number.NaN, "2026-02-30T00:00:00+09:00", "2026-11-25T24:00:00+09:00"]) expect(formatJst(value)).toBe("時刻不明");
   });
 
   it("process.env.TZ を替えても結果は変わらず、時計の曜日と 0 埋めが出る", () => {

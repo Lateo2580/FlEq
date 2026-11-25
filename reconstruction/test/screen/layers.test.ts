@@ -28,45 +28,65 @@ describe("P4-DS-T02 eewSlots・clockRect・placeLayers L1〜L9", () => {
     expect(clockRect(6)).toEqual(rect(620, 960, 540, 80));
   });
 
-  it("L1〜L9: 暗さ・ずらし・cover が表の期待に一致し、ずれない列のカードは割りの矩形のまま", () => {
+  it("eewSlots の 4・5 件は、4 件目から左の列の上端 40・379 に置く", () => {
+    expect(eewSlots(4)).toEqual([...eewSlots(3), rect(40, 40, 540, 322)]);
+    expect(eewSlots(5)).toEqual([...eewSlots(3), rect(40, 40, 540, 322), rect(40, 379, 540, 322)]);
+  });
+
+  // 全カードの層・暗さ・ずらし・矩形をそのまま見る（表 §3.2 の期待）
+  const shape = (result: ReturnType<typeof placeLayers>) => Object.fromEntries([...result.top, ...result.middle].map((item) => [item.id, [item.layer, item.dimmed, item.shifted, item.rect]]));
+  const topSlots = (ids: readonly string[]) => Object.fromEntries(eewOf(ids).map((slot) => [slot.id, ["top", false, false, slot.rect]]));
+  const A = rect(1340, 40, 540, 322), B = rect(1340, 379, 540, 322), C = rect(1340, 718, 540, 322), D = rect(40, 40, 540, 322), E = rect(40, 379, 540, 322);
+  const gapAB = rect(1340, 362, 540, 17), gapBC = rect(1340, 701, 540, 17), gapDE = rect(40, 362, 540, 17);
+  const tsunami = middle("tsunami", "left", rect(40, 315.5, 540, 322));
+  const quake5 = middle("quake", "left", rect(40, 315.5, 540, 300));
+
+  it("L1: 最上層が無ければ暗くもずらしもせず、cover は空で、矩形は割りのまま", () => {
     const l1 = place({ middle: [home, warn] });
     expect(l1.cover).toEqual([]);
-    for (const item of l1.middle) expect([item.dimmed, item.shifted]).toEqual([false, false]);
+    expect(shape(l1)).toEqual({ home: ["middle", false, false, home.rect], warn: ["middle", false, false, warn.rect] });
+  });
 
+  it("L2・L3: 右の列の警報は覆われて暗く (1244, 40) へずれ、2 件のとき cover に間 16px が入る", () => {
     const l2 = place({ eew: eewOf(["A"]), middle: [warn] });
-    expect(find(l2, "warn")).toMatchObject({ dimmed: true, shifted: true, rect: rect(1244, 40, 540, 543) });
-
+    expect(l2.cover).toEqual([rect(1340, 40, 540, 1000)]);
+    expect(shape(l2).warn).toEqual(["middle", true, true, rect(1244, 40, 540, 543)]);
     const l3 = place({ eew: eewOf(["A", "B"]), middle: [warn] });
-    expect(l3.cover).toContainEqual(rect(1340, 532, 540, 16));
-    expect(find(l3, "warn")).toMatchObject({ dimmed: true, shifted: true, rect: rect(1244, 40, 540, 543) });
+    expect(l3.cover).toEqual([...eewSlots(2), rect(1340, 532, 540, 16)]);
+    expect(shape(l3).warn).toEqual(["middle", true, true, rect(1244, 40, 540, 543)]);
+  });
 
+  it("L4: 3 件で cover に間 17px が 2 つ入り、警報はずれる。A〜C は最上層で動かない", () => {
     const l4 = place({ eew: eewOf(["A", "B", "C"]), middle: [warn] });
-    expect(l4.cover).toContainEqual(rect(1340, 362, 540, 17));
-    expect(l4.cover).toContainEqual(rect(1340, 701, 540, 17));
-    expect(find(l4, "warn")).toMatchObject({ shifted: true });
+    expect(l4.cover).toEqual([A, B, C, gapAB, gapBC]);
+    expect(shape(l4)).toEqual({ ...topSlots(["A", "B", "C"]), warn: ["middle", true, true, rect(1244, 40, 540, 543)] });
+  });
 
-    const quake = middle("quake", "left", rect(40, 315.5, 540, 300));
-    const l5 = place({ eew: eewOf(["A", "B", "C", "D"]), middle: [home, quake, warn] });
-    expect(find(l5, "home")).toMatchObject({ dimmed: true, shifted: true, rect: rect(136, 40, 540, 258.5) });
-    expect(find(l5, "quake")).toMatchObject({ dimmed: true, shifted: false, rect: rect(40, 315.5, 540, 300) });
-    expect(find(l5, "warn")).toMatchObject({ shifted: true });
+  it("L5・L6: 4 件で設定した地域はずれ、一部だけ覆われた今日の地震・津波は暗いだけ", () => {
+    const four = eewOf(["A", "B", "C", "D"]);
+    const l5 = place({ eew: four, middle: [home, quake5, warn] });
+    expect(l5.cover).toEqual([A, B, C, D, gapAB, gapBC]);
+    expect(shape(l5)).toEqual({ ...topSlots(["A", "B", "C", "D"]), home: ["middle", true, true, rect(136, 40, 540, 258.5)],
+      quake: ["middle", true, false, quake5.rect], warn: ["middle", true, true, rect(1244, 40, 540, 543)] });
+    const l6 = place({ eew: four, middle: [home, tsunami] });
+    expect(l6.cover).toEqual([A, B, C, D, gapAB, gapBC]);
+    expect(shape(l6)).toEqual({ ...topSlots(["A", "B", "C", "D"]), home: ["middle", true, true, rect(136, 40, 540, 258.5)], tsunami: ["middle", true, false, tsunami.rect] });
+  });
 
-    const tsunami = middle("tsunami", "left", rect(40, 315.5, 540, 322));
-    const l6 = place({ eew: eewOf(["A", "B", "C", "D"]), middle: [home, tsunami] });
-    expect(find(l6, "home")).toMatchObject({ shifted: true });
-    expect(find(l6, "tsunami")).toMatchObject({ dimmed: true, shifted: false });
-
+  it("L7: 5 件で cover に左の間 362〜379 も入り、設定した地域と津波はずれ、今日の地震は暗いだけ", () => {
     const late = middle("quake", "left", rect(40, 654.5, 540, 288.5));
     const l7 = place({ eew: eewOf(["A", "B", "C", "D", "E"]), middle: [home, tsunami, late] });
-    expect(l7.cover).toContainEqual(rect(40, 362, 540, 17));
-    expect(find(l7, "home")).toMatchObject({ shifted: true });
-    expect(find(l7, "tsunami")).toMatchObject({ shifted: true });
-    expect(find(l7, "quake")).toMatchObject({ dimmed: true, shifted: false });
+    expect(l7.cover).toEqual([A, B, C, D, E, gapAB, gapBC, gapDE]);
+    expect(shape(l7)).toEqual({ ...topSlots(["A", "B", "C", "D", "E"]), home: ["middle", true, true, rect(136, 40, 540, 258.5)],
+      tsunami: ["middle", true, true, rect(136, 315.5, 540, 322)], quake: ["middle", true, false, late.rect] });
+  });
 
-    const l9 = place({ open: { id: "open", rect: rect(40, 145, 540, 717) }, middle: [home, tsunami] });
-    expect(find(l9, "home")).toMatchObject({ dimmed: true, shifted: false, rect: rect(40, 40, 540, 258.5) });
-    expect(find(l9, "tsunami")).toMatchObject({ shifted: true, rect: rect(136, 315.5, 540, 322) });
-    expect(l9.top[0]).toMatchObject({ id: "open" });
+  it("L9: 開いたカードは先頭の最上層で cover は開いたカードの矩形、重なった津波はずれ、設定した地域は暗いだけ", () => {
+    const open = rect(40, 145, 540, 717);
+    const l9 = place({ open: { id: "open", rect: open }, middle: [home, tsunami] });
+    expect(l9.cover).toEqual([open]);
+    expect(shape(l9)).toEqual({ open: ["top", false, false, open], home: ["middle", true, false, home.rect], tsunami: ["middle", true, true, rect(136, 315.5, 540, 322)] });
+    expect(l9.top[0].id).toBe("open");
   });
 });
 
@@ -103,9 +123,9 @@ describe("P4-DS-T11 placeLayers L11〜L14", () => {
   it("L13: 今日の地震を上げると、全体が覆われた E は 96px ずれ、D は暗いだけ（文 4）", () => {
     const quake = middle("quake", "left", rect(40, 315.5, 540, 464.5));
     const result = place({ eew: eewOf(["A", "B", "C", "D", "E"]), raised: ["quake"], middle: [quake] });
-    expect(find(result, "quake")).toMatchObject({ layer: "top", shifted: false, rect: rect(40, 315.5, 540, 464.5) });
-    expect(find(result, "D")).toMatchObject({ dimmed: true, shifted: false });
-    expect(find(result, "E")).toMatchObject({ dimmed: true, shifted: true, rect: rect(136, 379, 540, 322) });
+    expect(find(result, "quake")).toMatchObject({ layer: "top", dimmed: false, shifted: false, rect: rect(40, 315.5, 540, 464.5), under: [] });
+    expect(find(result, "D")).toMatchObject({ layer: "middle", dimmed: true, shifted: false, under: ["quake"] });
+    expect(find(result, "E")).toMatchObject({ layer: "middle", dimmed: true, shifted: true, under: ["quake"], rect: rect(136, 379, 540, 322) });
   });
 
   it("L14: 緊急地震速報に重ならない上がったカードは、上がっていない扱い（D2）", () => {
