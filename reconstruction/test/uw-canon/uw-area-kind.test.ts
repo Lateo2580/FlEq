@@ -115,9 +115,15 @@ const at = (time: string) => (xml: string) => xml.replace(/<ReportDateTime>[^<]*
 const office = (name: string) => (xml: string) => xml.replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${name}</EditorialOffice>`);
 const compose = (...steps: ((xml: string) => string)[]) => (xml: string) => steps.reduce((value, step) => step(value), xml);
 const FUKUI = "18_00_01_260830_VPWW55_fukui_L5", DOWNGRADE = "18_00_01_260830_VPWW55_fukui_downgrade", RELEASE = "18_00_01_260830_VPWW55_fukui_release", KYOTO = "15_16_02_251222_VPWW57";
-const kindsRows = (state: WeatherCurrentUnitState, prefecture: string): [string, string, string][] =>
-  (areaEntry(state, `normal\u0000${prefecture}`)?.areaKinds ?? []).map(([system, code, kinds]): [string, string, string] => [system, code, kinds.join(" ")]);
-const kindsOf = (state: WeatherCurrentUnitState, code: string) => kindsRows(state, "18").find((row) => row[1] === code)?.[2];
+// 府県の項目が無いときは null（項目があって areaKinds が空のときの [] と見分ける）。areaKinds の [層, Code] の並びは公開形の areas と同じ順（P4-UAK-AC01）。
+const kindsRows = (state: WeatherCurrentUnitState, prefecture: string): [string, string, string][] | null => {
+  const entry = areaEntry(state, `normal\u0000${prefecture}`);
+  if (entry == null) return null;
+  expect(entry.areaKinds.map(([system, code]) => [system, code])).toEqual(entry.area.areas);
+  return entry.areaKinds.map(([system, code, kinds]): [string, string, string] => [system, code, kinds.join(" ")]);
+};
+const kindsOf = (state: WeatherCurrentUnitState, code: string) => kindsRows(state, "18")?.find((row) => row[1] === code)?.[2];
+const controlLater = (xml: string) => xml.replace("<DateTime>2026-08-29T21:51:02Z</DateTime>", "<DateTime>2026-08-29T21:55:00Z</DateTime>");
 // 1820700 の「レベル３大雨警報（03）」と 1820900 の「レベル２大雨注意報（10）」の Kind を入れ替える（同じ官署の続報、Name・Code ごと）。
 const swapKinds = (xml: string) => xml.split("</Item>").map((item) => item.includes("<Code>1820700</Code>")
   ? item.replace(/レベル３大雨警報/g, "レベル２大雨注意報").replace(/<Code>03<\/Code>/g, "<Code>10</Code>")
@@ -126,10 +132,14 @@ const cancel = (time: string) => (xml: string) => at(time)(xml).replace("<InfoTy
 
 // P4-UAK-T02 acceptance（AC03・AC04）: 区域×種別の対応が続報・取消・復元で古いまま残らず、触れていない府県の object は動かない。
 describe("P4-UAK-T02 acceptance: the kinds follow the winning rows through follow-ups, a cancel and a restore", () => {
-  it("(ア) single reports give the counted Fukui hashes, and a release empties the rows", () => {
-    expect(rowsHash(kindsRows(receive(empty(), FUKUI, "VPWW55").state, "18"))).toBe("0a12dc708bd83b979aeff8ce094138936f814c6a0cd3a6d8a9e8e68d0e9838bc");
-    expect(rowsHash(kindsRows(receive(empty(), DOWNGRADE, "VPWW55").state, "18"))).toBe("110aa54a838f54f0d2d56a894b36dbcfb71dee133334290c0fe6aeed486a88ef");
-    expect(kindsRows(receive(empty(), RELEASE, "VPWW55").state, "18")).toEqual([]);
+  it("(ア) one unit takes L5, downgrade and release in turn: 33 → 43 → gone, and the item stays with no areas after the release", () => {
+    let state = receive(empty(), FUKUI, "VPWW55").state;
+    expect([rowsHash(kindsRows(state, "18")!), kindsOf(state, "1820100")]).toEqual(["0a12dc708bd83b979aeff8ce094138936f814c6a0cd3a6d8a9e8e68d0e9838bc", "33"]);
+    state = receive(state, DOWNGRADE, "VPWW55").state;
+    expect([rowsHash(kindsRows(state, "18")!), kindsOf(state, "1820100")]).toEqual(["110aa54a838f54f0d2d56a894b36dbcfb71dee133334290c0fe6aeed486a88ef", "43"]);
+    state = receive(state, RELEASE, "VPWW55").state;
+    const entry = areaEntry(state, "normal\u000018");
+    expect([entry == null, kindsRows(state, "18"), entry?.area.areas, kindsOf(state, "1820100")]).toEqual([false, [], [], undefined]);
   });
 
   it("(イ)(ウ) moves kinds between areas without a stale pair, leaves Kyoto's object alone, and restores empty", () => {
@@ -140,6 +150,13 @@ describe("P4-UAK-T02 acceptance: the kinds follow the winning rows through follo
     const first = receive(state, FUKUI, "VPWW55");
     const before = areaEntry(first.state, "normal\u000018")!;
     expect([kindsOf(first.state, "1820700"), kindsOf(first.state, "1820900")]).toEqual(["03 23", "10 20"]);
+    // 報時刻・名前・状態を変えず Control の時刻だけを進めて種別だけを替えた訂正でも、使い回しは止まり areaKinds が新しくなる（比べが Kind/Code を含む、AC03）。
+    const correction = receive(first.state, FUKUI, "VPWW55", compose(controlLater, swapKinds), "control-only");
+    const corrected = areaEntry(correction.state, "normal\u000018")!;
+    expect([corrected === before, corrected.area.source, corrected.area.areas, kindsOf(correction.state, "1820700"), kindsOf(correction.state, "1820900"),
+      correction.displayChanges.some((change) => change.subject === "normal/area/18" && change.after?.unit === "U-W" && change.after.areaKinds != null
+        && change.after.areaKinds.some(([, code, kinds]) => code === "1820700" && kinds.join(" ") === "10 23"))])
+      .toEqual([false, before.area.source, before.area.areas, "10 23", "03 20", true]);
     const swapped = receive(first.state, FUKUI, "VPWW55", compose(at("2026-08-30T06:52:00+09:00"), swapKinds), "swap");
     const after = areaEntry(swapped.state, "normal\u000018")!;
     expect([after === before, after.area.revision === before.area.revision, after.area.source, after.area.areas, after.area.codes, after.area.names,
@@ -147,13 +164,15 @@ describe("P4-UAK-T02 acceptance: the kinds follow the winning rows through follo
       .toEqual([false, false, before.area.source, before.area.areas, before.area.codes, before.area.names, true, "10 23", "03 20"]);
     const cancelled = receive(swapped.state, FUKUI, "VPWW55", cancel("2026-08-30T06:53:00+09:00"), "cancel");
     expect([kindsOf(cancelled.state, "1820700"), kindsOf(cancelled.state, "1820900")]).toEqual(["03 23", "10 20"]);
-    for (const step of [first, swapped, cancelled]) expect(areaEntry(step.state, "normal\u000026")).toBe(kyoto);
+    for (const step of [first, correction, swapped, cancelled]) expect(areaEntry(step.state, "normal\u000026")).toBe(kyoto);
     // 保存して復元した直後は復元して未確認で空。続けて downgrade を受けると (ア) の値になり、京都の object は動かない。
     const restored = reduceWeatherCurrentUnit(empty(), { kind: "restore", persisted: weatherCurrentUnitCodec.encode(cancelled.state), clock }).state;
     expect([kindsRows(restored, "18"), kindsRows(restored, "26")]).toEqual([[], []]);
     const restoredKyoto = areaEntry(restored, "normal\u000026");
+    expect(restoredKyoto).not.toBeUndefined();
     const downgraded = receive(restored, DOWNGRADE, "VPWW55");
-    expect([rowsHash(kindsRows(downgraded.state, "18")), areaEntry(downgraded.state, "normal\u000026")]).toEqual(["110aa54a838f54f0d2d56a894b36dbcfb71dee133334290c0fe6aeed486a88ef", restoredKyoto]);
+    expect(rowsHash(kindsRows(downgraded.state, "18")!)).toBe("110aa54a838f54f0d2d56a894b36dbcfb71dee133334290c0fe6aeed486a88ef");
+    expect(areaEntry(downgraded.state, "normal\u000026")).toBe(restoredKyoto);
   });
 });
 
@@ -171,11 +190,16 @@ describe("P4-UAK-T03 contractBoundary: a structuredClone of the owner's changes 
       const lists = (value: VocabItem) => value.lists.filter((list) => list.role === "areas").map(({ sys, cols, rows }) => ({ sys, cols, rows }));
       expect(lists(response.item)).toEqual(lists(item));
       expect(lists(item).length).toBeGreaterThan(0);
-      expect(lists(item).flatMap((list) => [list.cols.join(), ...list.rows.map((row) => [row.length, /^\d{2}( \d{2})*$/.test(String(row[2]))])])).toSatisfy(
-        (values: unknown[]) => values.every((value) => value === "kinds" || (Array.isArray(value) && value[0] === 3 && value[1] === true)));
+      for (const list of lists(item)) {
+        expect(list.cols).toEqual(["kinds"]);
+        for (const row of list.rows) {
+          const kinds = String(row[2]).split(" ");
+          expect([row.length, row[1], kinds.every((kind) => /^\d{2}$/.test(kind)), kinds.every((kind, index) => index === 0 || kinds[index - 1] < kind)]).toEqual([3, null, true, true]);
+        }
+      }
       expect(answerBytes(step.state, item)).toBeLessThanOrEqual(65_536);
     }
-    expect(items.flatMap(itemRows).some(([system]) => system === "stormSurge")).toBe(true);
+    expect(items.flatMap((item) => item.lists.flatMap((list) => list.role === "areas" && list.sys === "stormSurge" ? list.rows : []))).toEqual([["2635999", null, "48"]]);
     expect([result.snapshot.current.weatherCurrent.delivery, bytes(result.snapshot) <= MIB]).toEqual(["full", true]);
     const weatherRows = step.displayChanges.flatMap((change) => change.after?.unit === "U-W" ? [change.after] : []);
     expect(weatherRows.every((row) => row.current == null ? row.areaKinds == null : row.areaKinds != null)).toBe(true);
