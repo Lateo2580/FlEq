@@ -1,0 +1,431 @@
+{
+  "meta": {
+    "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
+    "sha256": "c1dc02ab51824d626214e616d055fb2a4bc9ac532e0454e0db2e642ce8943576",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
+    "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-UAK-D-PLACE",
+        "kind": "統合担当",
+        "A": "公開形（WeatherCurrentPublicArea と view）は変えず、表示差分の U-W の府県の行に areaKinds（p4-uw-area-kind.types.ts の WeatherCurrentAreaKinds、監視の行は null）を添える。公開形の object ごとに 1 つ作り WeakMap に覚える。旧の経路 /events の view・要約・計量は変わらない",
+        "B": "公開形（WeatherCurrentPublicArea）に欄を足す。旧の経路の view と要約の計量の byte が増え（全国 1 通で ＋35,879、script）、P3-UWC-AC05 (1)(3) と p3-uw-canon.types.ts の :24（容量の契約が引く）と T05 の公開形の鍵の期待が変わる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.1。旧の経路の出力は T0 まで今のまま（P4-DW-D-LEGACY=A）で、U-W は既に 65,536 を越えているので旧の総量が増えると旧の要約の組が変わりうる。A は配る値が表示差分 1 か所で済む"
+      },
+      {
+        "id": "P4-UAK-D-LAYER",
+        "kind": "統合担当",
+        "A": "府県予報区等・一次細分・まとめた地域等・市町村等・高潮予報区間の、今の areas に出る全部の区域の行に種別を入れる（全国 1 通 ＋24,593 byte）",
+        "B": "市町村等の層の行だけ（＋17,732 byte。上の層だけの種別は、どの区域に出ているかが wire から分からない）",
+        "C": "市町村等の層を、府県の項目ごとの [種別, 市町村の Code の並び] の別の一覧にする（＋48,985 byte。areas と二重に持つ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.2・§5。下調べの推奨（市町村等だけ）の根拠は別の一覧（種別→市町村）の 48,985 だったが、areas の行に足せば全層でその半分で収まり、上の層だけの種別も落ちない。fixture 17 本で上の層だけの種別は 0 件だが、partial の数が少ないので、起きないとは言えない"
+      },
+      {
+        "id": "P4-UAK-D-FORM",
+        "kind": "統合担当",
+        "A": "areas の行の 3 列目に、種別の Code を半角の空白で区切った字（cols は [\"kinds\"]）。VocabCell は広げない",
+        "B": "行の 3 列目を字の配列にする（＋37,195 byte。VocabCell に配列を足し、17 種の一覧の読み手が配列を考える）",
+        "C": "special に専用部品（種別→区域の Code の並び）を足す（市町村等だけで ＋48,985、4 層を種別ごとで ＋80,023）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.3。Kind/Code は受理で 2 桁の数字に限るので空白で割って読める。区域ごとの種別は phenomena の areaCount と足し合わせで照らせる"
+      },
+      {
+        "id": "P4-UAK-D-VERSION",
+        "kind": "統合担当",
+        "A": "schemaVersion は p4-display-wire-v3 のまま",
+        "B": "p4-display-wire-v4 に上げる（S0 の client の定数と、その行を引く契約の «» を付け直す。開いたままの画面は非対応の表示になる）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.4。areas の行を読む描画はまだ無く、client と server は同じ build で出る"
+      },
+      {
+        "id": "P4-UAK-D-ORDER",
+        "kind": "統合担当",
+        "A": "計画 :223 の直列で B1 の後・E0 発注 1 の前",
+        "B": "E0 発注 1 の後（C0 発注 1 が材料を待つ）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.5。C0 発注 1 の材料で、E0 発注 1 が触る display-wire.ts と同じ直列"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-UAK-STATE",
+        "status": "closed",
+        "source": "起草の子が基点 7bf652f1 で読んだ（表 §0・§1）",
+        "closed": "U-W の state は区域ごとの種別を持っている（報の phenomena が区域の token → 種別の列、合わせの後の勝った行が層・区域 Code・Kind/Code・Status・復元の印を持つ）。公開形にするときに捨てているだけなので、本契約は写すだけで、保存・合わせ・差分の条件は変えない",
+        "remaining": ""
+      },
+      {
+        "id": "Q-UAK-UPPER-ONLY",
+        "status": "closed",
+        "source": "script（.tmp-p1/uwbytes.py、git に入らない）と area-codes.v1.json の親子",
+        "closed": "VPWS50 5 本（本文は 2 種類）と VPWW55・57〜61 の 12 本（合成を含む）で、上の層だけの種別は 0 件。高潮予報区間は VPWW57 の 1 区域で、その種別は市町村等にもある",
+        "remaining": "実の partial の数が少ない（VPWW58〜61 は 1 本ずつ）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。府県の行は (operation, 府県) ごとで、種別もその operation の勝った行だけから作る"
+    }
+  },
+  "contract": {
+    "contractId": "P4-UW-AREA-KIND-001",
+    "mode": "implementation",
+    "objective": "U-W の府県の項目ごとに「どの区域にどの種別が出ているか」を、合わせの後の勝った行から作って新しい経路の weatherCurrent.area に載せる。C0 発注 1 の右の列の 3 枚（作者の裁定 DS-WARN-09・12）と設定した地域のカードの材料。公開形（view）と旧の経路は変えず、保存・合わせ・差分の条件も変えない。設計の表は reconstruction/contracts/p4-uw-area-kind-tables.md、型は reconstruction/contracts/p4-uw-area-kind.types.ts",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "reconstruction/src/units/weather-current/weather-current-public.ts",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts",
+      "reconstruction/src/domains/weather-current/weather-current.ts",
+      "reconstruction/src/units/weather-current/weather-current-notice.ts",
+      "reconstruction/src/view-projector/display-vocab.ts",
+      "reconstruction/src/view-projector/display-wire.ts",
+      "reconstruction/src/view-projector/view-projector.ts",
+      "reconstruction/src/runtime/owner-runtime.ts",
+      "reconstruction/src/runtime/composition-root.ts",
+      "reconstruction/contracts/p3-uw-canon.types.ts",
+      "reconstruction/contracts/p2-weather-current-unit.types.ts",
+      "reconstruction/contracts/p4-display-wire.types.ts",
+      "reconstruction/contracts/p2-shared-runtime.types.ts",
+      "reconstruction/contracts/p3-uw-canon.json",
+      "reconstruction/contracts/p4-display-vocab.json",
+      "reconstruction/contracts/p4-display-vocab-tables.md",
+      "reconstruction/contracts/p4-display-capacity-tables.md",
+      "reconstruction/contracts/p4-display-capacity.json",
+      "reconstruction/contracts/p4-uw-area-kind-tables.md",
+      "reconstruction/contracts/p4-uw-area-kind.types.ts",
+      "reconstruction/assets/gis/area-codes.v1.json",
+      "docs/specs/reconstruction-display-design.md",
+      "reconstruction/contracts/p4-order-plan.md",
+      "reconstruction/test/uw-canon/**",
+      "reconstruction/test/display-wire/**",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts",
+      "reconstruction/test/snapshot-sse/projection-fixture.ts",
+      "test/fixtures/**"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p4-uw-area-kind.types.ts（起草で置いた型。実装が変えるときは成果物に書く）",
+      "reconstruction/contracts/p2-shared-runtime.types.ts（:214 の行の中に areaKinds、:12 の import の行に型の import）",
+      "reconstruction/contracts/p4-display-wire.types.ts（:193 の areas の形だけ、行の中）",
+      "reconstruction/src/units/weather-current/weather-current-public.ts（publicArea の中の行の書き換えと、file の最後の export の前後に関数を足す。«» の引く行〔:115・:118・:140〜:293〕の行番号を動かさない）",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts（:40 の import・:729・:734 の行の中）",
+      "reconstruction/src/view-projector/display-wire.ts（:567・:599 の行の中。import の行の中）",
+      "reconstruction/src/view-projector/display-vocab.ts（:42 の型、:109〜:124 の行の中）",
+      "reconstruction/src/runtime/owner-runtime.ts（:793 の import と :905 の行の中）",
+      "reconstruction/test/uw-canon/uw-area-kind.test.ts（新しい file）",
+      "reconstruction/test/shared-runtime/shared-runtime.test.ts（:398 の行の U-W の行に areaKinds: null を足すだけ。型検査のため）",
+      "統合担当だけ（配送の commit）: 表 §6 の改訂と「«»」の付け直し"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-uw-area-kind.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "M06",
+      "B02",
+      "B06",
+      "B08",
+      "B11"
+    ],
+    "integrationContractIds": [
+      "P4-DISPLAY-CAPACITY-001"
+    ],
+    "dependsOnContractIds": [
+      "P3-UW-CANON-001",
+      "P3-UW-STALE-DOWNGRADE-001",
+      "P4-DISPLAY-WIRE-001",
+      "P4-DISPLAY-VOCAB-001",
+      "P4-DISPLAY-CAPACITY-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p4-uw-area-kind.types.ts#WeatherCurrentAreaKinds",
+      "reconstruction/contracts/p4-uw-area-kind.types.ts#WeatherCurrentVocabSource",
+      "reconstruction/contracts/p2-shared-runtime.types.ts#RuntimeDisplaySubject",
+      "reconstruction/contracts/p4-display-wire.types.ts#VocabItemOf"
+    ],
+    "publicFunctions": [
+      "weather-current-public.ts に公開形の object から areaKinds を返す関数を 1 つ足して export する（unit と owner-runtime が読む。名前は実装で決め、export の形は末尾の並びに足す）。ほかの口は変えない"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__synthetic_VPWS50_fukui_base",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_downgrade",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_release",
+      "test__fixtures__15_16_02_251222_VPWW57"
+    ],
+    "sequenceIds": [
+      "O03"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [
+      {
+        "id": "P4-UAK-RET-01",
+        "target": "公開形の object に結び付けた areaKinds",
+        "limit": 1,
+        "unit": "公開形の object ごと",
+        "scope": "(operation, 府県) の今の公開形だけ。前の公開形の値は object とともに消える（WeakMap、保存しない）",
+        "source": "表 §2.1、AC01 (2)"
+      }
+    ],
+    "resourceLimits": [
+      {
+        "id": "P4-UAK-RES-01",
+        "target": "U-W の包み（新しい経路）",
+        "limit": 1048576,
+        "unit": "UTF-8 JSON bytes（全体）",
+        "scope": "全体の上限と要約の順は変えない（P4-DC-D-SUMMARY-ORDER=B）。区域×種別の数に定数の上限は無く、全国の VPWS50 1 通で areas の一覧が ＋24,593 byte（表 §5）。越えたときは今どおり U-F から要約",
+        "source": "表 §4・§5"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "RuntimeDisplaySubject の U-W の府県の行の areaKinds（表示差分にだけ載る）",
+      "語彙 weatherCurrent.area の areas の行の kinds 列（snapshot と詳細の応答だけ）"
+    ],
+    "outOfScope": [
+      "区域名（Q-DV-UW-AREA-NAMES）と、表に無い 15 の市町村コード・高潮予報区間の名前",
+      "カードの描画・区分（特別警報・危険警報・警報）・重い順・種別の名前の縮め方・設定した地域の値と行（C0 発注 1・R0）",
+      "U-W が要約のときのカードの見え方（C0）",
+      "種別だけの減りの解除を待たずに公開すること（Q-DC-URGENT-REMAINING）",
+      "U-Q の行の数・津波のコード・深さ、ほかの分野",
+      "旧の経路 /events の変更、旧の view の変更、T0",
+      "保存の形・合わせの規則（P3-UW-CANON-001・P3-UW-STALE-DOWNGRADE-001）・通知"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-UAK-AC01",
+        "requirement": "区域ごとの種別の値（P4-UAK-D-PLACE・D-LAYER）。(1) reconstruction/contracts/p4-uw-area-kind.types.ts の WeatherCurrentAreaKinds を、府県の勝った行のうち active の行（activeCell と同じ述語: 復元して未確認・Code 無し・Code 00・解除・なしを除く）から作る。各要素は [層, 区域 Code, kinds] で、kinds はその区域の active の Kind/Code の重複なし・昇順（1 つ以上）。要素の集合と並びは、その公開形の areas と同じ（層の名前の字の昇順〔municipality → municipalityGroup → prefecture → primary → stormSurge〕、同じ層の中は Code の昇順。勝った行の並び〔WARNING_TYPES の番号の順〕とは層の順が違う） (2) weather-current-public.ts の publicArea が公開形の object を作るときに、その object に 1 つだけ結び付けて覚える（WeakMap）。公開形の object が使い回されるとき（勝った行の列が前と同じ）は同じ値を使い、新しい object には必ず作り直す。取り出す関数は公開形の object を引数に取り、無い object は例外にする（公開形は publicArea の中でしか作られない。黙って空を返さない） (3) RuntimeDisplaySubject の U-W の行に areaKinds（府県の行は値、監視の行は null）を持たせる。p2-shared-runtime.types.ts は :214 の行の中だけ（:213 は他の契約が引く） (4) 保存しない。codec・schemaVersion（v8 のまま）・checkpoint・復元の境界を変えない",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-public.ts:115 «e5b4058391f6d7ba»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:125 «fa6b216b19f03e99»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
+          "reconstruction/contracts/p3-uw-canon.types.ts:24 «2210128a84672507»",
+          "reconstruction/contracts/p3-uw-canon.types.ts:26 «7ff5f9da83de37cb»",
+          "reconstruction/contracts/p4-uw-area-kind.types.ts:6 «f1abc26a3e599cb5»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:214 «098ca3b51073425a»",
+          "reconstruction/contracts/p2-weather-current-unit.types.ts:37 «94bc445bbab1692e»"
+        ]
+      },
+      {
+        "id": "P4-UAK-AC02",
+        "requirement": "新しい経路の語彙（P4-UAK-D-FORM、P4-DV-AC02 の weatherCurrent.area）。(1) 一覧 role areas（層ごとに 1 つ、sys は層）の行を [区域 Code, null, \"種別を昇順に半角の空白で区切った字\"]、cols を [\"kinds\"] にする。行の順・集合は今の areas の行と同じ（復元して未確認の行だけの府県は areas が空のまま） (2) phenomena・facts・head・texts・special は変えない。種別の字は phenomena の鍵（Kind/Code）で、名前は phenomena の行が持つ (3) projector は表示差分の current と areaKinds（WeatherCurrentVocabSource）から作り、view からは作らない。項目の id・rev は公開形のまま (4) 詳細の part=item は、snapshot と同じ関数・同じ areaKinds で同じ areas の一覧を返す（snapshot で切らない字と同じ規則で切らない） (5) 型は VocabShapes の \"weatherCurrent.area\" の areas を VocabList<\"areas\", \"kinds\"> にする。ほかの種類の areas（U-B・U-M・U-Y）は変えない (6) 全部の行の kinds を種別ごとに数えた数が、その項目の phenomena の areaCount に等しい",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/display-vocab.ts:109 «585bfd10334ca540»",
+          "reconstruction/src/view-projector/display-vocab.ts:114 «3c8882553916e2b1»",
+          "reconstruction/src/view-projector/display-wire.ts:567 «a19a7f96d76c2681»",
+          "reconstruction/src/view-projector/display-wire.ts:599 «de7a2085cb029867»",
+          "reconstruction/src/runtime/owner-runtime.ts:905 «5f32aabc8fc587f5»",
+          "reconstruction/contracts/p4-display-wire.types.ts:193 «786c10cbecdc58ec»",
+          "reconstruction/contracts/p4-uw-area-kind.types.ts:8 «9d6c7f653393fa52»"
+        ]
+      },
+      {
+        "id": "P4-UAK-AC03",
+        "requirement": "古い対応を残さない（表 §3）。同じ府県に複数の報・訂正・取消・解除・なし・全国報の置き換え・VPNO50 の終了・退去・復元・取り直しのどの step でも、areaKinds はその step の後の府県の勝った行から作った値になる。特に、区域の集合と種別ごとの数が変わらないまま種別が別の区域へ移った続報でも、新しい公開形の object と版・表示差分・項目になる（今のコードの性質: 勝った行の列の比べ〔detailRow〕が Kind/Code を含むので、公開形の欄が全部同じでも新しい object になる。T02 が、府県の source を動かさない組で確かめる）",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-public.ts:111 «f67ad638eb296f86»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:185 «1b1a700b3b2e4445»",
+          "reconstruction/src/units/weather-current/weather-current-unit.ts:863 «200a8d3e0af8aa54»",
+          "reconstruction/contracts/p3-uw-canon.json:543 «dcd3607266f33319»"
+        ]
+      },
+      {
+        "id": "P4-UAK-AC04",
+        "requirement": "受信経路の計算量（AGENTS.md、P3-UWC-AC09、P4-DV-AC06）。受信 1 回で作り直すのは、その step で current が変わった報の before と after が載せる府県だけ（今のまま）。種別の組は、その府県の勝った行を 1 回走って層ごとに分け（勝った行は層の番号 → 区域 Code → Kind/Code の順なので、同じ区域の行は隣り合い、層の中は区域 Code の昇順のまま）、層の名前の順につないで作る（並べ直しは高々 5 層。区域ごとの集合の作り直し・全国の走査・全件×全件の走査・state や view の全体の直列化をしない）。全国報と VPNO50 の終了は今どおりその operation の全府県。項目の作り直しは変わった項目だけ（P4-DV-T03 の計数がそのまま効く）。区域×種別の数に定数の上限は無い（今の areas と同じ性質）ことを成果物に書く",
+        "evidenceRefs": [
+          "reconstruction/src/units/weather-current/weather-current-public.ts:185 «1b1a700b3b2e4445»",
+          "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»"
+        ]
+      },
+      {
+        "id": "P4-UAK-AC05",
+        "requirement": "旧の経路を変えない（P4-DW-D-LEGACY=A）。WeatherCurrentUnitView・公開形・要約・weatherTally・fixedBytes・/events の本文・通知・確認の scope・端末の読み手は変えない。公開形の鍵の集合（uw-canon-unit.test.ts の T05 の期待）と、snapshot-sse の試験の期待を変えない。display-wire.ts の urgentOf（種別だけの減りは待つ、Q-DC-URGENT-REMAINING）も変えない",
+        "evidenceRefs": [
+          "reconstruction/contracts/p2-weather-current-unit.types.ts:85 «ecc2d5c29310daae»",
+          "reconstruction/src/view-projector/view-projector.ts:225 «df632f347d770f91»",
+          "reconstruction/src/view-projector/view-projector.ts:214 «09afc2f0651a8562»",
+          "reconstruction/src/view-projector/display-wire.ts:899 «219408204dece296»",
+          "reconstruction/test/uw-canon/uw-canon-unit.test.ts:193 «02a86cd62190aa94»"
+        ]
+      },
+      {
+        "id": "P4-UAK-AC06",
+        "requirement": "容量（表 §5）。新しい経路の wire は、D-LAYER=A・D-FORM=A で、全国の VPWS50（15_18_01_250630_VPWS50）1 通につき areas の一覧が 53,841 → 78,434 byte になる（script の値。配送の試験は byte を固定の期待にせず、U-W が full で全体が 1 MiB 以下であることを見る）。分野の予算 65,536・1 MiB・要約の順を変えない。1 項目が 65,536 を越えないこと。統合担当が Mac mini で W1・W2 の採取物と M5 を数え直し、要約になる分野が U-F だけであることを記録してから配送する（配送の前に数が表 §5 の見積もりを大きく越えたら作者へ）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-display-capacity-tables.md:29 «b39db86b87a4964c»",
+          "reconstruction/contracts/p4-display-capacity-tables.md:181 «ab62d8c865a62101»",
+          "reconstruction/contracts/p4-display-capacity-tables.md:65 «484e6e8dcb1ebd87»",
+          "reconstruction/test/display-wire/display-capacity-manifest.test.ts:254 «26ddbd5ba19ce0c3»"
+        ]
+      },
+      {
+        "id": "P4-UAK-AC07",
+        "requirement": "最小実装・最小試験・範囲（AGENTS.md）。(1) 仕組みは型 2 つ（types の file）・公開形の object に結び付けた表示の値 1 つ・語彙の 1 列・読み手 2 か所（projector・owner の part=item）だけ。新しい interface・設定・拡張点を足さない。無いと何が壊れるか: 型と値が無いと区分ごとのカードと設定した地域のカードが、どの区域にどの種別が出ているかを作れない (2) 試験は testMapping の 3 本で、どれに当たるかを成果物に 1 行で書く。既存の試験の期待は、shared-runtime.test.ts の U-W の行に areaKinds: null を足す 1 か所（型検査のため）のほかに変えない（表示差分の行の鍵や字を期待に持つ試験は、表 §7 の範囲で見つからなかった） (3) allowedPaths の中だけ（書く位置は表 §1・§4。weather-current-public.ts は「«» の最後の行 :293 より後に関数を足し、途中は行の中の書き換えだけ」、weather-current-unit.ts・display-wire.ts・display-vocab.ts・owner-runtime.ts・p2-shared-runtime.types.ts・p4-display-wire.types.ts は行の中だけ）。行の数を変えた file と、それで動く «» を成果物に列挙する (4) ほかの契約・計画の字は統合担当が配送で改める（表 §6）",
+        "evidenceRefs": [
+          "AGENTS.md:25 «b7f4c3a89b5bb3b2»",
+          "reconstruction/contracts/p2-shared-runtime.types.ts:214 «098ca3b51073425a»",
+          "reconstruction/test/shared-runtime/shared-runtime.test.ts:398 «f6bca27881a33331»",
+          "reconstruction/contracts/p4-display-wire.types.ts:193 «786c10cbecdc58ec»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-UAK-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P4-UAK-AC01",
+          "P4-UAK-AC02",
+          "P4-UAK-AC06"
+        ],
+        "behavior": "corpus 履歴（独立に XML から数えた値で照らす）。空の owner に 15_18_01_250630_VPWS50（全国、2019-10-12）を受けた新しい経路の weatherCurrent の全部の項目の areas の行を合わせた列の hash（作り方: 行を [層の名前, 区域 Code, kinds の列の字〔空白区切り、例 \"14 15 16\"〕] にし、層の名前の字 → Code の昇順に並べ、空白なしの JSON〔JSON.stringify〕の UTF-8 の sha256）が c9452ce65f0c21e64a8cb0a6bb4031eacd7e7b1b8f95d194ce30261857c2c5e7（2,187 行: 市町村等 1,647・まとめ 350・一次細分 132・府県予報区等 58、種別の組 6,301）。続けて synthetic_VPWS50_fukui_base（2026-08-30、福井だけ別の報から写した全国報）を受けると sha256 が cd7595b54ec9b17e93b16b20280eae5e811ce3a4f251e2b986e5f8290727dfb2（2,176 行、6,204 組。消えた区域 11・種別の減った区域 14・種別の増えた区域 14、福井の外は同じ）。読める値: 1 通目の municipality 0820200（日立市）は \"07 10 14 15 19 49\"、1820200（敦賀市）は \"14 15 16 19 29\"、2 通目の 1820200 は行が無い。期待は script が XML の Warning/Item/Kind（Status が解除・なしでない、Code が 00 でない）から数えた値で、unit の関数を使わない。あわせて全部の行の kinds を種別ごとに数えた和が phenomena の areaCount と一致し、分野は full で包みが 1 MiB 以下の snapshot に入る"
+      },
+      {
+        "testId": "P4-UAK-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-UAK-AC03",
+          "P4-UAK-AC04"
+        ],
+        "behavior": "受入条件。空の unit に 18_00_01_260830_VPWW55_fukui_L5 を受けると、福井の項目（府県 18）の areas の行の hash（T01 と同じ作り方）が 0a12dc708bd83b979aeff8ce094138936f814c6a0cd3a6d8a9e8e68d0e9838bc、18_00_01_260830_VPWW55_fukui_downgrade を受けると 110aa54a838f54f0d2d56a894b36dbcfb71dee133334290c0fe6aeed486a88ef（同じ官署の続報。1820100・1820500・1820600 が \"33\" から \"43\" に、1820900 が \"10\" から \"03\" に、1838200・1840400 が新しく \"10\"）、18_00_01_260830_VPWW55_fukui_release を受けると areas の一覧が 0 件（解除）。種別だけ移る続報（P3-UWC-T05 と同じ組: 別の官署「福井X」の 10:00 の報〔Code を 2x に替えて行を重ねない〕を先に受け、府県の source をその報に止める）: L5 の後、報時刻 06:52 で本文の市町村 1820700 と 1820900 の Kind（Name・Code・Status ごと）を入れ替えた続報を受けると、公開形の source・areas・codes・names は前と同じまま、公開形の object と版が新しくなり、表示差分が出て、1820700 の kinds が \"03 23\" から \"10 23\"、1820900 が \"10 20\" から \"03 20\" になる（23・20 は福井X の行。古い対応が残らない）。その続報を取り消すと L5 の値へ戻る。保存して復元した直後は areaKinds が空で areas の一覧も 0 件、downgrade を受けると downgrade の値になる。どの step でも、触れた府県だけの公開形の object が新しく、ほかの府県の行は同じ object（P3-UWC-AC09 の範囲）"
+      },
+      {
+        "testId": "P4-UAK-T03",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P4-UAK-AC02",
+          "P4-UAK-AC05"
+        ],
+        "behavior": "契約境界。15_16_02_251222_VPWW57 を通した owner で、part=item の U-W の項目の areas の一覧（cols・rows）が snapshot の項目と同じ（高潮予報区間 1 区域の行を含む）。どの行も 3 列で、kinds は 2 桁の数字の昇順・重複なし・1 つ以上。旧の経路: 同じ入力で、areaKinds の字は displayChanges の行（府県の行は値、監視の行は null）にだけ現れ、view（toWeatherCurrentView）の JSON には現れない"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O03 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。行を変えた file を引く契約の FAIL は成果物に列挙し、統合担当が付け直す"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist の生成（試験が dist を読む。vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（U-W の行の areaKinds の付け忘れを止める）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/uw-canon/ reconstruction/test/display-wire/ reconstruction/test/snapshot-sse/ reconstruction/test/shared-runtime/ reconstruction/test/recovery/",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "触る所の試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: decisionBranches の 5 件の ruling を読む（baseOid 割当の前に「起草案」が 0 件であること）",
+      "最小実装: 足す物は型 2 つ・公開形の object に結び付けた値・語彙の 1 列・projector と part=item の受け渡しだけ。ほかに helper・設定・抽象を足さない",
+      "最小テスト: testMapping の 3 本のほかに足さない。各テストの対応（受入条件・契約境界・corpus 履歴）を 1 行で書く",
+      "「«»」: 行の数を変えない書き方をし、変えた file と足した位置、動いた «» を列挙する。check-contract の FAIL の一覧を付ける",
+      "既存の試験の期待は AC07 (2) のほかに変えない。変える要が出たら止めて報告する",
+      "実行の後に、15_18_01_250630_VPWS50 の U-W の包みの実の byte を報告する（表 §5 の 118,242 は計算）",
+      "旧築（src/）と test/fixtures と sequences.json と manifest を変えない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-UAK-REMEASURE",
+        "owner": "integrator",
+        "blocks": [
+          "配送の可否（容量の契約の U-W の値の改訂）"
+        ],
+        "resolveBy": "実装の後に Mac mini で、W1・W2 の採取物と M5 の筋書きで U-W の包み・全体・要約になる分野を数え直す（repo の外の採取物、表 §5）",
+        "requiredEvidence": [
+          "U-W の実の最大と、要約になる分野が U-F だけのままであること",
+          "表 §5 の見積もり（全国 1 通 ＋24,593）との差"
+        ]
+      },
+      {
+        "id": "Q-UAK-ORDER",
+        "owner": "integrator",
+        "blocks": [
+          "C0 発注 1 の依存の字（計画 :124・:193・:866）と本契約の baseOid の割当"
+        ],
+        "resolveBy": "計画 :223 の直列に本契約を足す時期（E0 発注 1 の前か後か、P4-UAK-D-ORDER）を決め、impl/s0 の配送の順と一緒に割り当てる",
+        "requiredEvidence": [
+          "display-wire.ts と p4-display-wire.types.ts を触るほかの契約の予定"
+        ]
+      }
+    ]
+  }
+}
