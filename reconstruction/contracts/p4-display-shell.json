@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "aad856644bfd9716e820a11b1f78a65d494cf2fc0e508b9db98a9b463d7b3f03",
+    "sha256": "a8156bffb4bb7821e88ab86e19d1b2727c9d6f81f7e57e75deb4c07d420ddb21",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -199,7 +199,7 @@
     "contractId": "P4-DISPLAY-SHELL-001",
     "mode": "implementation",
     "objective": "新しい画面の骨組みを作る（計画 §2.1 の S0）。新しい経路の snapshot を受けて置き換える client（D02）、配置の宣言値と列の割り（D04）、3 つの層と覆い・暗くする・96px のずらし・押して開く／外を押して閉じる、snapshot・時刻・ページから描く値を返す純粋な関数（Q-PWT3-ROWS-FN）、時計と状態の札の置き場（D05、H01〜H03）、字を text node でだけ入れること（P2-A9-AC08）と日本時間の整形（P2-A9-AC10）、購読と timer の破棄経路（R52）、host.ts の配線（publishWire・flushWire・urgent、開き直しの送り直し、/display の別の path）。押して層を入れ替える動き（作者の裁定 2026-11-24 20:46・20:54、上がったカードの組だけを状態に持つ）。設計の表は reconstruction/contracts/p4-display-shell-tables.md",
-    "baseOid": "unassigned",
+    "baseOid": "3b2e610ddfdd6a45194bff3f1f71ae64ba5772ed",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
