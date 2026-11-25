@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "d03ad0a108c6cf235c18f95938303e733a0ec8794a96fef47a4462722c5fb843",
+    "sha256": "bc98153f8dea0d961e4d6b99474eb2b62ad58b81b4458ee5a58fc0b32ee9e910",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -168,7 +168,7 @@
       "reconstruction/contracts/p4-display-wire.types.ts#VocabItemOf"
     ],
     "publicFunctions": [
-      "unit の displaySubjects と owner-runtime の part=item が府県の公開形と一緒に areaKinds を読む口を、weather-current-public.ts に要れば 1 つ足してよい（今の areaEntry の返りに欄を足す形でよい。名前は実装で決める）。ほかの口は変えない"
+      "unit の displaySubjects と owner-runtime の part=item が府県の公開形と一緒に areaKinds を読む口を、weather-current-public.ts に要れば 1 つ足してよい（displaySubjects は今の areaEntry の返りに欄を足す形、part=item は公開形と areaKinds の組を返す口で読む。名前は実装で決める）。ほかの口は変えない"
     ],
     "allowedDependencies": [
       "既存の依存だけ"

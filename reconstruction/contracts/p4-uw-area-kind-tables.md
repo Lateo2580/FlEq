@@ -1,4 +1,4 @@
-# P4-UW-AREA-KIND-001 の設計の表 r1（U-W の区域ごとの種別を新しい経路へ載せる）
+# P4-UW-AREA-KIND-001 の設計の表 r2（U-W の区域ごとの種別を新しい経路へ載せる）
 
 - 起草: 2026-11-26 00:14（date の値。起草の子 r0）。r1 は r0（024eaf2e）へのヘルツの独立レビュー（NO-GO、6 件）と契約適合レビュー（条件付き GO）を統合担当がまとめた直し 11 件を当てた（対応は §8）。基点 7bf652f1953809c5c9b0913828fb0c5a31cce2f7（branch draft/p4-uw-area-kind）。行番号と anchor はこの HEAD の値（024eaf2e は本契約の 3 file だけを足した commit）。
 - 範囲の元: Q-DV-UW-AREA-KIND（reconstruction/contracts/p4-display-vocab.json:702 «3e4466f31a4e558e»）。要る根拠は作者の裁定 DS-WARN-09（docs/specs/reconstruction-display-design.md:548 «270f2e082ef2a24c»）と DS-WARN-12（docs/specs/reconstruction-display-design.md:551 «df92bf49b5f7805e»）。
