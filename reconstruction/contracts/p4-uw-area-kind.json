@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "ac088b403b255c177483ef6a4c2d27aa4ca6ce04d4e5aff36dd1ecb34c601093",
+    "sha256": "dfca3863db9b5bea0473879b00adad174abd8d68dae8143d10a63e1ae24c879c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -103,7 +103,7 @@
   "contract": {
     "contractId": "P4-UW-AREA-KIND-001",
     "mode": "implementation",
-    "objective": "U-W の府県の項目ごとに「どの区域にどの種別が出ているか」を、合わせの後の勝った行から作って新しい経路の weatherCurrent.area に載せる。C0 発注 1 の右の列の 3 枚（DS-WARN-09〔作者の裁定 2026-11-23 13:32「案1でいきましょう」の形〕と、DS-WARN-12〔統合担当の案を作者が 13:52 に受けた、C0 の見本の図でもう一度見せる〕）と設定した地域のカードの材料。公開形（view）と旧の経路は変えず、保存・合わせ・差分の条件も変えない。設計の表は reconstruction/contracts/p4-uw-area-kind-tables.md、型は reconstruction/contracts/p4-uw-area-kind.types.ts",
+    "objective": "U-W の府県の項目ごとに「どの区域にどの種別が出ているか」を、合わせの後の勝った行から作って新しい経路の weatherCurrent.area に載せる。C0 発注 1 の右の列の 3 枚（DS-WARN-09〔作者の裁定 2026-11-23 13:32「案1でいきましょう」の形〕）と、左の列の設定した地域のカード（DS-WARN-12〔統合担当の案を作者が 13:52 に受けた、C0 の見本の図でもう一度見せる〕）の材料。公開形（view）と旧の経路は変えず、保存・合わせ・差分の条件も変えない。設計の表は reconstruction/contracts/p4-uw-area-kind-tables.md、型は reconstruction/contracts/p4-uw-area-kind.types.ts",
     "baseOid": "unassigned",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -299,7 +299,7 @@
       },
       {
         "id": "P4-UAK-AC06",
-        "requirement": "容量（表 §5）。指定 corpus の値と今の規則に限る（全部の入力の上界は持たない。受理は XML の節点と本文の上限のほかに区域の件数の上限を持たず、今の areas も同じ）。(1) 指定 corpus（T01 の 2 通〔15_18_01_250630_VPWS50・synthetic_VPWS50_fukui_base〕の 2 段、T03 の 15_16_02_251222_VPWW57）で、U-W の包みは full で、新しい経路の snapshot は 1,048,576 byte 以下、各項目の part=item の応答は 65,536 byte 以下。synthetic_VPWS50_national_0907_1300・1302・training_0907_1301 の 3 通は、既存の E3（display-capacity-manifest.test.ts:254〜268）が最後の snapshot の full と 1,048,576 以下を見る範囲だけ（途中の 2 段と part=item は見ない）。18_00_01_260830_VPWW55_fukui_L5 と downgrade は値だけを T02 が見る。areas の一覧の増えは表 §5 の数（15_18_01_250630_VPWS50 で 53,841 → 78,434、＋24,593）で、試験は byte を固定の期待にせず full と上限だけを見る (2) 1 府県に 2,979 件以上の区域（7 桁の Code・各 1 種）が来る入力では、行だけで 65,536 を越える（包みの分があるので実際はもっと少ない件数で越える。3,000 件で 66,001 byte、script r1count.py）。越える応答は今の HTTP の規則どおり 503 responseTooLarge（P4-DW-RES-02、http-sse.ts の返す直前の検査）で、ページ分けも切り詰めもしない。1 MiB を越えたときの要約の順・分野の予算 65,536・要約の形は変えない (3) 統合担当が Mac mini で W1・W2 の採取物と M5 を数え直し、fixture ごとの実測の数と要約になる分野を配送の記録に書く（Q-UAK-REMEASURE）",
+        "requirement": "容量（表 §5）。指定 corpus の値と今の規則に限る（全部の入力の上界は持たない。受理は XML の節点と本文の上限のほかに区域の件数の上限を持たず、今の areas も同じ）。(1) 指定 corpus（T01 の 2 通〔15_18_01_250630_VPWS50・synthetic_VPWS50_fukui_base〕の 2 段、T03 の 15_16_02_251222_VPWW57）で、U-W の包みは full で、新しい経路の snapshot は 1,048,576 byte 以下、各項目の part=item の応答は 65,536 byte 以下。synthetic_VPWS50_national_0907_1300・1302・training_0907_1301 の 3 通は、既存の E3（display-capacity-manifest.test.ts:254〜268）が最後の snapshot の full と 1,048,576 以下を見る範囲だけ（途中の 2 段と part=item は見ない）。18_00_01_260830_VPWW55_fukui_L5 と downgrade は値だけを T02 が見る。areas の一覧の増えは表 §5 の数（15_18_01_250630_VPWS50 で 53,841 → 78,434、＋24,593）で、試験は byte を固定の期待にせず full と上限だけを見る (2) 1 府県に 2,979 件以上の区域（7 桁の Code・各 1 種）が来る入力では、行だけで 65,536 を越える（包みの分があるので実際はもっと少ない件数で越える。3,000 件で 66,001 byte、script r1count.py）。越える応答は今の HTTP の規則どおり 503 responseTooLarge（P4-DW-RES-02、http-sse.ts の返す直前の検査）で、ページ分けも切り詰めもしない。1 MiB を越えたときの要約の順・分野の予算 65,536・要約の形は変えない (3) 統合担当が Mac mini で W1・W2 の採取物と M5 を数え直し、fixture ごとの実測の数と要約になる分野を配送の記録に書く（Q-UAK-DELIVERY）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-capacity-tables.md:29 «b39db86b87a4964c»",
           "reconstruction/contracts/p4-display-capacity-tables.md:181 «ab62d8c865a62101»",
@@ -384,6 +384,20 @@
         "target": "reconstruction/tsconfig.test.json",
         "stage": "implementation",
         "purpose": "test/ を含む型検査（U-W の行の areaKinds の付け忘れを止める）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist/chrome-eew の生成（AGENTS.md のゲートの順。C6 の runner が import する）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/screen/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/screen/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist/screen の生成と screen の program の型検査（p4-display-wire.types.ts から本契約の型が screen の program に入る。host.test.ts が dist/screen の main.js を読むので vitest より先）"
       },
       {
         "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/uw-canon/ reconstruction/test/display-wire/ reconstruction/test/snapshot-sse/ reconstruction/test/shared-runtime/ reconstruction/test/recovery/",
