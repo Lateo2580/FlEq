@@ -28,7 +28,7 @@ export type ShellCardSource = (snapshot: DisplayWireSnapshot, nowMs: number) => 
 // 登録の 1 行。max はその関数が返すカードの最大の枚数（列のカードの数の上限 K は max の和、P4-DS-D-CARD-BOUND）。
 export type ShellCardEntry = Readonly<{ source: ShellCardSource; max: number }>;
 
-// 列の割りの結果。mark はページの表示（2 ページ以上の列だけ。dots は 7 ページまで、DS-PAGE-11・14）。右の列は cardId のカードの最後の行に置く。
+// 列の割りの結果。mark はページの表示（2 ページ以上の列だけ。dots は 7 ページまで、DS-PAGE-11・14）。右の列は cardId のカードの最後の行として、カードの下端に置く（表 §4.4 の c）。
 export type ShellCardSlice = Readonly<{ id: string; rect: ShellRect; form: number; rows: readonly ShellRow[] }>;
 export type ShellPageMark = Readonly<{ cardId: string; page: number; pages: number; dots: boolean }>;
 export type ShellColumnPage = Readonly<{ cards: readonly ShellCardSlice[]; mark: ShellPageMark | null }>;
@@ -66,7 +66,7 @@ export type ShellMapPaint = Readonly<{ code: string; token: string }>;
 export type ShellMapMark = Readonly<{ id: string; lat: number; lon: number; token: string }>;
 // 描く 1 枚。frame の cards は最上層（前から奥、開いたカードは先頭）、続けて中間の層（奥から手前）の順。openable は押して開けるカード。
 // under は下がった緊急地震速報のカードだけが持つ、そのカードに重なる上がったカードの id（ほかは空）。
-// mark はそのカードに描くページの表示（text は「2/4」の字、dots は点を描くか、at は見出しの行か最後の行か。DS-PAGE-11・14、DS-QROW-21）。
+// mark はそのカードに描くページの表示（text は「2/4」の字、dots は点を描くか、at は見出しの行か、カードの下端の最後の行か。DS-PAGE-11・14、DS-QROW-21）。
 export type ShellDrawMark = Readonly<{ text: string; page: number; pages: number; dots: boolean; at: "head" | "last" }>;
 export type ShellDrawCard = Readonly<{
   id: string; layer: "top" | "middle"; rect: ShellRect; dimmed: boolean; shifted: boolean; openable: boolean; under: readonly string[]; rows: readonly ShellRow[];

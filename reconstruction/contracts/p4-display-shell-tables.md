@@ -1,6 +1,6 @@
-# P4-DISPLAY-SHELL-001 の設計の表 r6（S0: 新しい画面の骨組み）
+# P4-DISPLAY-SHELL-001 の設計の表 r7（S0: 新しい画面の骨組み）
 
-- 起草日: 2026-11-24（起草の子 r0。1 回目は base `7ead43004a48a98292ae10eb6cb7ad7293c16085`、2 回目は 1 回目の commit `ded0cd79da3b6ecf33cd45f5589a796e05eb2d2c` の上で、作者の裁定 2026-11-24 20:46・20:54 を当てた。3 回目は同じ木の上で、統合担当の決め D1〜D4〔2026-11-24 21:2x〕を当てた。r1 は r0〔457f0cda〕へのヘルツ〔Astra high、read-only〕の独立レビュー〔NO-GO、指摘 13 件〕と統合担当の決め〔2026-11-24 21:4x、根 A〜F〕を当てた。対応は §14。r2 は r1〔80b07fd4〕へのヘルツの再確認〔NO-GO、残り 8・14〜17〕と統合担当の決め〔2026-11-24 22:0x、R1〜R5〕を当てた。対応は §15。r3 は r2〔915ca317〕へのヘルツの 3 巡目〔NO-GO、指摘 18〕と契約適合レビュー〔条件付き GO、P2 2・P3 11〕と、作者の裁定 2026-11-25 07:0x〔分岐 4 つを A〕を当てた。対応は §16。r4 は r3〔04ad088b〕へのヘルツの 4 巡目〔NO-GO、18 の直し残りと 19〕を当て、同じ決まりを書いた場所と、型の欄の作る所・読む所・試験を数え直した。対応は §17。r5 は r4〔7c743b51〕の同じ決まりの場所の突き合わせ〔食い違い 10 件・古い字 5 か所〕と統合担当の決め 2026-11-25 07:2x を当てた。対応は §18。r6 は r5〔2a785dcc〕へのヘルツの 5 巡目〔指摘 20〕と、作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）と、spec の字の直しを当てた。対応は §19）。
+- 起草日: 2026-11-24（起草の子 r0。1 回目は base `7ead43004a48a98292ae10eb6cb7ad7293c16085`、2 回目は 1 回目の commit `ded0cd79da3b6ecf33cd45f5589a796e05eb2d2c` の上で、作者の裁定 2026-11-24 20:46・20:54 を当てた。3 回目は同じ木の上で、統合担当の決め D1〜D4〔2026-11-24 21:2x〕を当てた。r1 は r0〔457f0cda〕へのヘルツ〔Astra high、read-only〕の独立レビュー〔NO-GO、指摘 13 件〕と統合担当の決め〔2026-11-24 21:4x、根 A〜F〕を当てた。対応は §14。r2 は r1〔80b07fd4〕へのヘルツの再確認〔NO-GO、残り 8・14〜17〕と統合担当の決め〔2026-11-24 22:0x、R1〜R5〕を当てた。対応は §15。r3 は r2〔915ca317〕へのヘルツの 3 巡目〔NO-GO、指摘 18〕と契約適合レビュー〔条件付き GO、P2 2・P3 11〕と、作者の裁定 2026-11-25 07:0x〔分岐 4 つを A〕を当てた。対応は §16。r4 は r3〔04ad088b〕へのヘルツの 4 巡目〔NO-GO、18 の直し残りと 19〕を当て、同じ決まりを書いた場所と、型の欄の作る所・読む所・試験を数え直した。対応は §17。r5 は r4〔7c743b51〕の同じ決まりの場所の突き合わせ〔食い違い 10 件・古い字 5 か所〕と統合担当の決め 2026-11-25 07:2x を当てた。対応は §18。r6 は r5〔2a785dcc〕へのヘルツの 5 巡目〔指摘 20〕と、作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）と、spec の字の直しを当てた。対応は §19。r7 は発注前点検の Q-DS-COLUMN-FLOW の細部 a〜f と P7 を統合担当の決め 2026-11-25 19:07 で写した。対応は §20）。
 - 範囲の真実源: 計画の S0 の行 reconstruction/contracts/p4-order-plan.md:114 «86d2b2b7211d64c4» と、表示設計 spec r4（`docs/specs/reconstruction-display-design.md`、以下 DS spec）の §4・§13〜§15。
 - 計画と spec は書き換えない。DS spec は 2 回目に限り、統合担当の指示で §15 の 11 行を行の中で改め、末尾に DS-LAYER-18・19 と DS-OPEN-75 の 3 行を足した（705 行）。3 回目は末尾に DS-LAYER-20・21 の 2 行を、r1 は DS-LAYER-22、r2 は DS-LAYER-23 の 1 行ずつを足した（709 行）。r3 は行を足さず、:7・:586・:611・:640・:660・:662・:676・:690・:706・:707・:709 の出どころの字を行の中で直した。ほかに改める所は §12 に置き、統合担当が配送で当てる。
 - 出どころの書き分け: 「作者の裁定」は作業ノート（repo 外）の S0 の準備の記録にある作者の言葉の「」の字で裏が取れる所だけに書く。spec が「統合担当の決め」「統合担当の読み」と書く所はそのまま写す。本起草で決めた所は「起草の読み」と書き、統合担当が 2026-11-25 07:05 に今の字のまま確定した 8 件は「統合担当の決め（07:05 確定）」と書く（§10）。
@@ -13,7 +13,7 @@
 - 配置は宣言値（§1）とカードが宣言した行の高さだけで計算し、DOM を測らない（§2.2・§4）。
 - 3 つの層と覆い・暗くする・96px のずらしは `placeLayers` が返す（§3）。どの入力の組でも答えを返し、最上層の中の前後は入力で受ける。
 - 押して層を入れ替える動きは、状態を「開いているか」「上がったカードの id の組」「最後に見た緊急地震速報のカードの組」にし、下がった緊急地震速報のカードはそこから導く（§5.2）。カードの位置は上がっているかどうかに依らない（D1、DS-LAYER-20）。
-- 決めていない所は、unresolvedQuestions 2 件（COLUMN-FLOW・STATUS-WORDS）。P4-DS-D-READINGS は作者の裁定 2026-11-25 18:50 で A。MODULE-PATH・REPAGE-CAP・CARD-BOUND は統合担当が A で確定、OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は作者の裁定 2026-11-25 07:0x で A。
+- 決めていない所は、unresolvedQuestions 1 件（COLUMN-FLOW。各ページの行の数を行の並びで照らすこと、表 §4.5）。Q-DS-STATUS-WORDS は作者の裁定 2026-11-25 19:09で閉じた。P4-DS-D-READINGS は作者の裁定 2026-11-25 18:50 で A。MODULE-PATH・REPAGE-CAP・CARD-BOUND は統合担当が A で確定、OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は作者の裁定 2026-11-25 07:0x で A。
 
 ## 1. 凍結する値（tokens.ts）
 
@@ -26,10 +26,12 @@
 | 左の列 | x 40・幅 540 | docs/specs/reconstruction-display-design.md:172 «2db40e9f8df8087a»（2026-11-23 の作者の裁定と spec が書く） | spec の字 |
 | 右の列 | x 1340・幅 540（1920−40−540） | docs/specs/reconstruction-display-design.md:173 «0b95e7c272ff075b» | spec の字と算術 |
 | 左の列の使える高さ | 903（上端 40） | docs/specs/reconstruction-display-design.md:614 «81463bdff3b8059f» | 統合担当の決め（14:5x） |
-| 右の列の高さ | 1000（上端 40、下端 1040） | docs/specs/reconstruction-display-design.md:611 «6c8e100d575fae9c»（「列いっぱい（1000px）」）、docs/specs/reconstruction-display-design.md:332 «e3ec7013c0416cd9» | spec の字 |
+| 右の列の高さ | 1000（上端 40、下端 1040） | docs/specs/reconstruction-display-design.md:611 «379eee6db9c243bb»（「列いっぱい（1000px）」）、docs/specs/reconstruction-display-design.md:332 «e3ec7013c0416cd9» | spec の字 |
 | カードの間 | 17 | docs/specs/reconstruction-display-design.md:542 «064863dc9d475bd8» | 統合担当の決め |
 | 時計 | 540×80、左 40・上 960（1080−40−80） | docs/specs/reconstruction-display-design.md:174 «6334b42e563cd7ee»、docs/specs/reconstruction-display-design.md:190 «7867ad904a981447»、docs/specs/reconstruction-display-design.md:368 «6a5d5cc9a5ec8043» | spec の字と算術 |
 | 状態の札の置き場 | 横の中心 960・上端 40 | docs/specs/reconstruction-display-design.md:529 «725252d3d78bddaa» | 場所は作者の裁定 13:52（送信 13:51:15、「状態の印は上端中央としてください。」）、数は統合担当の読み。「上 40px」を上端と読むのは統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）で、作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS） |
+| ページの表示の行（PAGE_MARK_ROW） | 37.5（字 30px × 行の高さ 1.25） | docs/specs/reconstruction-display-design.md:667 «0655eee5323b21b4»（fx-card-pg の字 30px）、docs/specs/reconstruction-display-design.md:381 «3dbd7da628040ff3»（行の高さ 1.25） | DS の bundle.css の値。統合担当の決め 2026-11-25 19:07（表 §4.4 の c） |
+| ページの表示の行の上の間（PAGE_MARK_GAP） | 8（右の列。PAGE_MARK_ROW と合わせて 45.5 をそのカードの高さに数える） | 図の道具の実測 .tmp-s0/sp-rows.md の :7 | 統合担当の決め 2026-11-25 19:12。上の間が 8 でないカードを右の列に足す契約は、その契約でこの宣言値を改める |
 | ずらす量 | 96 | docs/specs/reconstruction-display-design.md:638 «d7d60f20f976c065» | 作者の裁定 21:59（「また、ずらす量は96pxにしてください。」） |
 | 暗くする値 | 案 0.6（凍結しない） | docs/specs/reconstruction-display-design.md:690 «4c4aed70b2fd6a66» | 案。C0 で決める |
 | 色 | DS-TOKEN-01〜37 の名前と値 | docs/specs/reconstruction-display-design.md:107 «e411e95be207a058» 〜 docs/specs/reconstruction-display-design.md:143 «e674c373891fc5d7» | spec の字 |
@@ -79,7 +81,7 @@
   - 同じ streamId で sequence が今以下: 捨てる。違う streamId: 置き換える（A9 の replaceDisplaySnapshot と同じ順）。
   - 外形として確かめるのは schemaVersion・streamId・sequence・semanticRevision と、current の 12 分野それぞれの unit と contentRevision。分野の中身はその分野を読むカードが確かめる（reconstruction/src/display/chrome-eew/pure.ts:387 «49c882312a743337»）。
   - changed: contentRevision が変わった分野。streamId が変われば 12 分野の全部。費用は 12 分野の数で、snapshot を直列化・走査しない。
-- 詳細（D-AC12、docs/specs/reconstruction-p0-contracts.md:1849 «e09bf4fe43b4fa7f»）: 開いている詳細 1 件と取得中 1 件だけ。置き換えで、詳細の分野の contentRevision か streamId が変わったときだけ status を refetch にする。metadata だけ・ほかの分野だけの更新では保つ。`detailRequested(state, request)` は詳細を loading にし、要求した時の streamId を持たせた新しい object にする。`detailAnswered(state, asked, answer)` は、asked が今の詳細の object と同じで、asked.streamId が今の snapshot の streamId と同じときだけ応答を採る。ほか（stream が変わった後に遅れて届いた旧い応答、置き換えた後の応答）は捨てる（ヘルツの指摘 11）。main.ts は HTTP の 200 と 409 の body だけをそのまま answer にし、ほか（400・429・503・504・responseTooLarge）と通信の失敗は { kind: "failed", reason } に変えて渡す（変えるのは main.ts だけで、detailAnswered は変換しない）。detailAnswered は、採った answer の kind が ok なら status を ready にして response に入れ、kind が error で reason が versionChanged なら refetch、kind が failed（とそのほかの error）なら failed にする（409 は P4-DC-AC04 (5)(a)、保留中に開いた詳細）。理由は main.ts が log（reason "detailFailed"）に残す。この決まりはここと AC03 (5) に同じ字で書く。画面に出す字は Q-DS-STATUS-WORDS。409 の body は WireDetailResponse の `{ kind: "error", reason: "versionChanged", revision }`（reconstruction/contracts/p2-weather-timeseries-unit.types.ts:179 «2568df56425bb4ea»、reconstruction/src/http-sse/http-sse.ts:33 «20d2663981904f12»）。9 分野の包みは要約の形でも unit と contentRevision を持つ（reconstruction/contracts/p4-display-wire.types.ts:248 «952066e41b148dc9»）ので、changed と refetch の決まりは 12 分野で同じ。詳細を開く UI と取得の要求の組み立ては、詳細を持つカードの契約（C0・C1）。
+- 詳細（D-AC12、docs/specs/reconstruction-p0-contracts.md:1849 «e09bf4fe43b4fa7f»）: 開いている詳細 1 件と取得中 1 件だけ。置き換えで、詳細の分野の contentRevision か streamId が変わったときだけ status を refetch にする。metadata だけ・ほかの分野だけの更新では保つ。`detailRequested(state, request)` は詳細を loading にし、要求した時の streamId を持たせた新しい object にする。`detailAnswered(state, asked, answer)` は、asked が今の詳細の object と同じで、asked.streamId が今の snapshot の streamId と同じときだけ応答を採る。ほか（stream が変わった後に遅れて届いた旧い応答、置き換えた後の応答）は捨てる（ヘルツの指摘 11）。main.ts は HTTP の 200 と 409 の body だけをそのまま answer にし、ほか（400・429・503・504・responseTooLarge）と通信の失敗は { kind: "failed", reason } に変えて渡す（変えるのは main.ts だけで、detailAnswered は変換しない）。detailAnswered は、採った answer の kind が ok なら status を ready にして response に入れ、kind が error で reason が versionChanged なら refetch、kind が failed（とそのほかの error）なら failed にする（409 は P4-DC-AC04 (5)(a)、保留中に開いた詳細）。理由は main.ts が log（reason "detailFailed"）に残す。この決まりはここと AC03 (5) に同じ字で書く。画面に出す字は「詳細を表示できません」（作者の裁定 2026-11-25 19:09、AC10 (3)）。409 の body は WireDetailResponse の `{ kind: "error", reason: "versionChanged", revision }`（reconstruction/contracts/p2-weather-timeseries-unit.types.ts:179 «2568df56425bb4ea»、reconstruction/src/http-sse/http-sse.ts:33 «20d2663981904f12»）。9 分野の包みは要約の形でも unit と contentRevision を持つ（reconstruction/contracts/p4-display-wire.types.ts:248 «952066e41b148dc9»）ので、changed と refetch の決まりは 12 分野で同じ。詳細を開く UI と取得の要求の組み立ては、詳細を持つカードの契約（C0・C1）。
 - 持つもの: 最新の snapshot 1 個・詳細 1 件・取得中 1 件（P4-DS-RET-01）。旧版・差分・通知の履歴を持たない。
 - O11 の S0 分: O11:6 は画面の側の合流（animation frame ごとに最新 1 枚を描く）、O11:7 は metadata だけの更新で changed が空・開いているか・ページの番号・詳細が初期化されない、O11:8 は最新の snapshot の notices をそのまま持ち履歴を貯めない（docs/specs/reconstruction-p0-contracts.md:1787 «093b2c02be506dfb»）。SSE の側の O11:6 は B1（reconstruction/contracts/p4-display-capacity.json:487 «1428ba957654fca1»）。
 
@@ -96,10 +98,10 @@
   - frame の shell には組んだ時の ShellState をそのまま入れる（R2）。
   - CARD_SOURCES は ShellCardEntry（source と max）の配列。max は source の作りで決まる数（例: 区分ごとのカードは区分の数）。source が max を越えて返したときは前から max 枚だけを使い、診断を 1 件残す（frame の diagnostics に reason "cardSourceOverMax"・登録の番号・返した枚数・max を入れ、main.ts が console へ出す。黙って落とさない）。列のカードの数の上限 K は、その列に置かれうる entry の max の和（P4-DS-D-CARD-BOUND=A、統合担当の決め 2026-11-24 22:0x）。
   - 割りは、paginateColumn の入力の全部（列と、その列の ShellCard の全部の欄: id・place・take・slot・mayHide・forms の head と body の各行の height・texts〔text と token〕・continuation・maxPages・minBodyRows・opened）が、その列で最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例。同じ入力なら同じ結果なので、覚えても答えは変わらない（ヘルツの指摘 18）。metadata だけの snapshot、ページを送るだけの frame、時計だけの更新では入力が同じなので組み直さない（R3）。
-  - ページの表示: 列のページに mark があれば、右の列は mark.cardId のカードの ShellDrawCard の mark に、at を "last"・dots を mark.dots にして入れる。左の列は、そのページの mayHide のカード（今日の地震）の mark に、at を "head"・dots を偽にして入れる（DS-QROW-21）。text は「ページの番号＋1/ページの数」の字（例「2/4」）。左の列のページに mayHide のカードが無いときの置き場は Q-DS-COLUMN-FLOW（R4）。
+  - ページの表示: 列のページに mark があれば、右の列は mark.cardId のカードの ShellDrawCard の mark に、at を "last"・dots を mark.dots にして入れる。左の列は、そのページの mayHide のカード（今日の地震）の mark に、at を "head"・dots を偽にして入れる（DS-QROW-21）。text は「ページの番号＋1/ページの数」の字（例「2/4」）。右の列の at "last" は、そのページで一番下のカードの最後の行として、カードの下端に置く形（表 §4.4 の c）。左の列の 2 ページ以上の各ページには mayHide のカードがある（AC05 (7)(d)、表 §4.4 の d）（R4）。
   - 描く行: 中間の層は割りのページの行（head・continuation・本文）。slot のカードは forms[0] の head と本文を場所の矩形へ描く（大カードの中のページは E0）。開いたカードは opened.rows を opened.rect へ描く（ページは DS-OPEN-65、C0）。
   - 時計: `clockRect`（frame に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6）。7 枚目からは置かないので数えない）と `clockText(nowMs)`。
-  - status: 次の順に札を入れる。(1) unsupported のとき「版が合わない」の札 (2) state.detail.status が failed のとき「詳細を読めなかった」の札。両方なら版が合わない方を先に置く。どちらも無ければ空（中身は C2）。failed の札は detailRequested で loading になるか、置き換えで refetch になれば次の frame で消える。字は Q-DS-STATUS-WORDS（ヘルツの指摘 19）。
+  - status: 次の順に札を入れる。(1) unsupported のとき、版が合わないときの札「受け取った情報を表示できません」 (2) state.detail.status が failed のとき、詳細を読めなかったときの札「詳細を表示できません」。両方なら版が合わない方を先に置く。どちらも無ければ空（中身は C2）。failed の札は detailRequested で loading になるか、置き換えで refetch になれば次の frame で消える。字は作者の裁定 2026-11-25 19:09（ヘルツの指摘 19）。
   - map・marks: 空の配列（M0 が埋める）。pageCount: 列ごとのページの数（S1 が読む）。
   - snapshot が無いか unsupported なら、カードを出さず時計と status だけ。
 - 開いている間は、中間の層に開いたカード（opened のあるカード）を渡さない（DS-LAYER-16、docs/specs/reconstruction-display-design.md:662 «f0b7e6009716cb45»。統合担当の決め・読み（作者の裁定 2026-11-25 07:0x（「判断事項については、全て推奨で進めてください。」）、P4-DS-D-SECOND-GROUP=A で凍結））。
@@ -172,22 +174,22 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 | # | 決まり | 出どころ | 種類 |
 |---|---|---|---|
 | 1 | カードの高さは種類ごとの固定値を持たず、中身の行の宣言した高さから計算する。配置は宣言した高さで組む | docs/specs/reconstruction-display-design.md:535 «3eab4d9a7d22e491»、docs/specs/reconstruction-display-design.md:503 «0b575fc39cfbbc04» | 作者の裁定 13:45（13:42 の「その2つの形でお願いします。」） |
-| 2 | ページを送るカードは、いちばん高いページの高さで固定する。固定するのは同じカードの組が並ぶページの間で、並ぶカードの枚数が変わるページでは変わってよい | docs/specs/reconstruction-display-design.md:536 «84a2584a52ec00fe»、docs/specs/reconstruction-display-design.md:611 «6c8e100d575fae9c» | 作者の裁定 13:45（13:42）、2026-11-24 20:08（「変わってよい形で進めてください。」） |
+| 2 | ページを送るカードは、いちばん高いページの高さで固定する。固定するのは同じカードの組が並ぶページの間で、並ぶカードの枚数が変わるページでは変わってよい | docs/specs/reconstruction-display-design.md:536 «84a2584a52ec00fe»、docs/specs/reconstruction-display-design.md:611 «379eee6db9c243bb» | 作者の裁定 13:45（13:42）、2026-11-24 20:08（「変わってよい形で進めてください。」） |
 | 3 | 組み方: 全ページを先に組み、カードごとに最大のページの高さを取り、その高さを当てて組み直す。割りが前の回と揃うまで組み直す | docs/specs/reconstruction-display-design.md:537 «27a1d3578ae8be1f»、docs/specs/reconstruction-display-design.md:615 «bfe39a9786975059» | 統合担当の実装の形・統合担当の決め（14:5x） |
 | 4 | 入り切らないときは隠さず、その列のページを送る | docs/specs/reconstruction-display-design.md:539 «5c7631d951df848a» | 統合担当の案を作者が 13:52 に受けた（13:51 の「入りきらないときについて、案通りでお願いします。」） |
 | 5 | 高さを先に取る順は 津波 → 設定した地域 → 今日の地震（take）。列の上下の順は 設定した地域 → 津波 → 今日の地震（place） | docs/specs/reconstruction-display-design.md:540 «032bc9d035afefb1»、docs/specs/reconstruction-display-design.md:593 «880aea340f7bd4bd»、docs/specs/reconstruction-display-design.md:594 «1568355604ac0289» | take は統合担当の読み（2026-11-24）。place は作者の裁定 15:56（「2. 設定地域カードを上にしましょう。」） |
 | 6 | 左の列のカードの間は 17px。左の列の使える高さは 903px | docs/specs/reconstruction-display-design.md:542 «064863dc9d475bd8»、docs/specs/reconstruction-display-design.md:614 «81463bdff3b8059f» | 統合担当の決め |
 | 7 | ページの番号は列ごとに 1 つ | docs/specs/reconstruction-display-design.md:609 «7e5ad94131634bba» | 統合担当の決め（16:1x） |
-| 8 | 右の列のページの表示は、そのページで一番下のカードの最後の行。1 ページのときは出さない | docs/specs/reconstruction-display-design.md:610 «ca0991475f950aaa» | 統合担当の決め（16:1x）。行の高さは Q-DS-COLUMN-FLOW |
-| 9 | 右の列で 1 枚だけのページはそのカードを列いっぱい（1000px）にする | docs/specs/reconstruction-display-design.md:611 «6c8e100d575fae9c» | 作者の裁定 20:08 |
+| 8 | 右の列のページの表示は、そのページで一番下のカードの最後の行として、カードの下端に置く。1 ページのときは出さない | docs/specs/reconstruction-display-design.md:610 «2add107071eeb1e1» | 統合担当の決め（16:1x）。カードの下端の読みと行の高さは表 §4.4 の c（統合担当の決め 2026-11-25 19:07） |
+| 9 | 2 ページ以上の右の列で、1 枚だけのページはそのカードを列いっぱい（1000）にする。1 ページの列のカードは伸ばさない | docs/specs/reconstruction-display-design.md:611 «379eee6db9c243bb» | 1000 と「列いっぱい」は統合担当の字（作者の 2026-11-24 20:08 の字は「変わってよい形で進めてください。」）。1 ページの列で伸ばさないのは、表 §3.2 の L1・L2・L4 と、作者が 2026-11-24 20:54 に受けた版 13 の図 sp-05 の右の警報が 40〜583（543px）であることから（統合担当の決め 2026-11-25 19:07） |
 | 10 | 行は字の 1 行の単位でページに分けてよい。続きのページは府県の見出しと種別の組を出し直す | docs/specs/reconstruction-display-design.md:612 «aea3fc7b49e541cc» | 統合担当の決め（14:5x）。ShellRow の continuation で受ける |
-| 11 | 8 ページ以上は点を出さず字だけ | docs/specs/reconstruction-display-design.md:613 «363ac70cbc4a3838» | 統合担当の決め（14:5x）。ページの表示を描くのは S0 の DOM（字の形は AC08 (11) の「ページの番号＋1/ページの数」、点の描き方は §4.4） |
+| 11 | 8 ページ以上は点を出さず字だけ | docs/specs/reconstruction-display-design.md:613 «363ac70cbc4a3838» | 統合担当の決め（14:5x）。ページの表示を描くのは S0 の DOM（字の形は AC08 (11) の「ページの番号＋1/ページの数」、点の描き方は表 §4.4 の f） |
 | 12 | 今日の地震の形の順（ふつう 1 ページ → ふつうでページ送り → 圧縮 → 折りたたみ → 出さない）を、forms の順と maxPages・minBodyRows と mayHide で受ける | docs/specs/reconstruction-display-design.md:619 «0977920b24e986e2» | 作者の裁定 20:10 の問い 7（「判断事項についてはすべて推奨で大丈夫です。」）。受け方（forms）は統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定） |
 | 13 | 右の列でも「毎ページ出す要素」を受けられる形にする | docs/specs/reconstruction-display-design.md:679 «25e7d6e80255662c» | 未決（中身は C0）。形の head で受ける |
 
 - 形の選び: forms を順に試し、次の 3 つを満たす最初の形を使う。ページの数が maxPages 以下（null は上限なし）。最後を除く全部のページに本文の行が minBodyRows 以上入る。置かれる最初のページの残りの高さに head と本文の 1 行（minBodyRows が 0 の形は head だけ）が入る。どの形も満たさないとき、mayHide のカードは出さず、ほかのカードは最後の形を使う。
 - mayHide のカードは、次のページへ回して形を満たすことをしない。DS-PAGE-07 が「13:52 の『1 行も入らないカードは次のページ』は、今日の地震については DS-QROW-18 の形の順に置き換わった」と書くため（docs/specs/reconstruction-display-design.md:540 «032bc9d035afefb1»）。ほかのカードは 1 行も入らないとき次のページへ回る。
-- 入力の条件（カードの契約が宣言する。条件を破る入力の答えは定めない・試験しない）: (a) どの形も head だけで列の高さ以下（本文の無い形を含む、ヘルツの指摘 17）。(b) どの形も「head と、本文のどの 1 行とその行の continuation」の高さの和が列の高さ以下（指摘 10）。(c) 右の列は (a)(b) にページの表示の行の高さを足しても列の高さ以下。ページの表示の行の高さは Q-DS-COLUMN-FLOW で決まり、決まるまで (c) は発注前点検で閉じる（統合担当の決め 2026-11-24 21:4x の根 E・2026-11-24 22:0x の R5）。
+- 入力の条件（カードの契約が宣言する。条件を破る入力の答えは定めない・試験しない）: (a) どの形も head だけで列の高さ以下（本文の無い形を含む、ヘルツの指摘 17）。(b) どの形も「head と、本文のどの 1 行とその行の continuation」の高さの和が列の高さ以下（指摘 10）。(c) 右の列は (a)(b) に 45.5px（PAGE_MARK_ROW 37.5＋PAGE_MARK_GAP 8）を足しても列の高さ以下。左の列は 0（見出しの行の中。実測 sp-rows.md の :8 で、見出しの行 50px は表示の有無で変わらない）（表 §4.4 の e。統合担当の決め 2026-11-25 19:12）。(d) 左の列で本文を持つ形のカードは mayHide のカードだけ（破る入力の答えは定めない）。これで左の列の 2 ページ以上の各ページには mayHide のカードがあり、ページの表示はその見出しの行に置ける（表 §4.4 の d）（統合担当の決め 2026-11-24 21:4x の根 E・2026-11-24 22:0x の R5）。
 - 計算量は 行の数×形の数×（K＋1）まで（§4.3）。DOM を読まない。結果は入力だけで決まる（同じ入力からは同じ結果。これは結果の性質で、入力の条件ではない）（台帳 37、reconstruction/contracts/p4-order-plan.md:808 «0554f4ef9e115079»）。
 
 ### 4.2 割りの組（T03 の入力と期待）
@@ -202,11 +204,12 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 | P4 | A（take 0・place 1、本文 700 の 1 行）と B（take 1・place 2、mayHide、形 F1〜F4）。B の形: F1 maxPages 1・minBodyRows 1・head 90・本文 100×2、F2 maxPages なし・minBodyRows 2・同じ行、F3 maxPages なし・minBodyRows 1・head 90・本文 50×1、F4 maxPages 1・minBodyRows 0・head 90・本文なし | A は (40, 40, 540, 700)。B に残る高さは 186（943−757）。F1・F2 は最初のページに head と本文 1 行（190）が入らず、F3 を使い (40, 757, 540, 140)。1 ページ |
 | P5 | P4 の A を本文 786 にする（B に残る高さ 100） | F3（140）は入らず、F4 を使い (40, 843, 540, 90) |
 | P6 | P4 の A を本文 806 にする（B に残る高さ 80） | どの形も入らず、mayHide の B は出さない。A だけの 1 ページ |
-| P7 | 右の列（上端 40、高さ 1000）、カード 1 枚（head 90、本文 100×3） | 1 枚だけのページなので (1340, 40, 540, 1000)。1 ページなので mark は null（DS-PAGE-11） |
-| P8 | 右の列、カード X（take 0・place 0、head 90・本文 100×2）と Y（take 1・place 1、head 90・本文 100×20） | 3 ページ以上。2 ページ以上なので各ページに mark があり、cardId はそのページで一番下のカード（1 ページ目は Y）、pages は結果のページの数、dots は真（DS-PAGE-11） |
-| P9 | 右の列、カード 1 枚（head 90・本文 100×70） | 8 ページ以上で、mark の dots は偽（DS-PAGE-14） |
+| P7 | 右の列（上端 40、高さ 1000）、カード 1 枚（head 90、本文 100×3） | 1 ページの列なので伸ばさず (1340, 40, 540, 390)。mark は null（DS-PAGE-11・12、表 §4.4 の P7） |
+| P8 | 右の列、カード X（take 0・place 0、head 90・本文 100×2）と Y（take 1・place 1、head 90・本文 100×20） | 3 ページ（Y の本文 5・8・7 行。一番下の Y は表示の 45.5 を高さに数える）。X は本文の載る 1 ページ目だけに出て、2 ページ目からは Y だけで、1 枚だけのページなので Y は (1340, 40, 540, 1000)（表 §4.4 の b・P7）。2 ページ以上なので各ページに mark があり、cardId はそのページで一番下のカード（1 ページ目は Y）、pages は結果のページの数、dots は真（DS-PAGE-11） |
+| P9 | 右の列、カード 1 枚（head 90・本文 100×70） | 9 ページ（本文 8 行ずつ、最後は 6 行。1 ページに入るのは 1000−90−45.5＝864.5 に 8 行）で、mark の dots は偽（DS-PAGE-14） |
+| P10 | 左の列、カード A（take 0・place 0、本文の無い形: head 200）と mayHide の Q（take 1・place 1、形 1 つ: maxPages なし・minBodyRows 1・head 90・本文 100×10） | 2 ページ。A は本文の無い形なので両方のページに (40, 40, 540, 200)。Q は (40, 257, 540, 680) に本文 5 行ずつ（943−257＝686 に head と 5 行の 680 が入る）。左の列の表示の行は 0（表 §4.4 の b・e） |
 
-- P8・P9 はページの表示の行の高さ（Q-DS-COLUMN-FLOW）に依らず成り立つ数で組んだ（1 ページに入る本文が 8 行でも 9 行でも、P8 は 3 ページ、P9 は 8 ページ以上）。
+- P8・P9 の数は、右の列で一番下のカードに表示の 45.5（PAGE_MARK_ROW 37.5＋PAGE_MARK_GAP 8、表 §4.4 の c）を数えて出した。P8 の 1 ページ目は X（40〜330）の後に Y が 347 から入り、残り 693 に head・表示と本文 5 行（635.5）が入る。
 
 ### 4.3 組み直しの上限（P4-DS-D-REPAGE-CAP=A、P4-DS-D-CARD-BOUND=A）
 
@@ -217,12 +220,44 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 - 上限で止まったときの割りで保たれるもの: 列の高さ以下、本文はちょうど 1 つのページ、同じカードの組が並ぶページの間でカードの高さが同じ。保たれないもの: 固定した高さが、その割りのいちばん高いページの高さと等しいこと（DS-PAGE-03 の「いちばん高いページの高さ」。カードの下が空くことがある）。
 - 上限の根拠: take で前のカードの高さだけが後ろのカードの割りを変えるなら、k 枚の列は k＋1 回で揃う（起草の読み、証明はしていない）。上限が無いと、揃わない入力で受信ごとの処理が止まらない。
 
-### 4.4 r0 で決めない割りの細部（Q-DS-COLUMN-FLOW）
+### 4.4 割りの細部（統合担当の決め 2026-11-25 19:07。作者の字ではない）
 
-- place と take が違うときに、どのカードが先に次のページへ回るか。
-- ページの少ないカードが、後ろのページで何を出すか（最後のページを出し続けるか、出さないか）。左右の列の間の進め方（見本の図はページの少ない列が最後のページのまま、作業ノート 2026-11-23 15:2x）は S1。
-- 右の列のページの表示（#8）の行の高さを誰が宣言するか。ページの表示の点の描き方（DS-PAGE-08・14。字の形は AC08 (11) で決まっている）。
-- 発注前点検で、見本の図の割り（配置 sp の場面 10・12・17 など、作業ノートの sp-heights.json）と突き合わせた表をこの節に足す。
+材料は子 s0-conform の調べ（作業ノートの .tmp-s0/q-ds-precheck.md）。図の道具（scenes.py）の行は、本起草では開いていない。
+
+| 項 | 決まり | 出どころ |
+|---|---|---|
+| a | 高さは take の順に先に取る。本文を持つカードが 2 枚以上ある列では、本文を place の順に詰める（今の場面には無い） | DS-PAGE-07（docs/specs/reconstruction-display-design.md:540 «032bc9d035afefb1»）・DS-LAYOUT-25 に、どちらが次のページへ回るかの字が無い。図の道具は take の前の 2 枚を全ページに置き、今日の地震だけを流す |
+| b | 本文の行を持つ形（body が空でない形）を選んだカードは、本文の載るページにだけ出る。本文の無い形（head だけ）を選んだカードは、その列の全部のページに出る。どちらの形かは各カードの契約が forms で宣言し、S0 の条文はカードの名前で決めない（例: 今の見本の図では設定した地域・津波は本文の無い形、右の列の特別警報は本文のある形） | 見本の図 sp-10 の右（1 ページ目だけ特別警報、版 11 で作者が 2026-11-24 20:08 に受けた形）と sp-11・sp-12・sp-20 の左（図の道具の割り）。型に欄を足さない。津波のカードを 2 ページ目以降にも出す図を作者に見せた記録は無い（spec の DS-OPEN-76） |
+| c | 右の列のページの表示は、そのページで一番下のカードの最後の行として、カードの下端に置く（版 11 の図 sp-10-wide-p2 の形）。tokens.ts に、表示の行の高さ PAGE_MARK_ROW 37.5px（字 30px × 行の高さ 1.25、DS の bundle.css の値）と、その上の間 PAGE_MARK_GAP 8px を宣言し、合わせて 45.5px をそのカードの高さに数える（統合担当の決め 2026-11-25 19:12。出どころは図の道具の実測 .tmp-s0/sp-rows.md の :7: sp-10 右・sp-12 右で行 37.5、上の間 8、その下にカードの下端の余白）。右の列で上の間が 8px でないカードを足す契約は、その契約でこの宣言値を改める。型に欄は足さない | DS-PAGE-11（docs/specs/reconstruction-display-design.md:610 «2add107071eeb1e1»）は置き場だけで高さの字が無い。カードの下端の読みは版 11 の図の形 |
+| d | 左の列で本文を持つ形のカードは mayHide のカードだけ（破る入力の答えは定めない）。これで左の列の 2 ページ以上の各ページには mayHide のカードがあり、ページの表示はその見出しの行に置ける | 条文は無い。図の道具では左の列で流れるのは今日の地震だけ |
+| e | AC05 (7)(c): 右の列は (a)(b) に 45.5px（PAGE_MARK_ROW 37.5＋PAGE_MARK_GAP 8）を足しても列の高さ以下。左の列は 0（見出しの行の中。実測 sp-rows.md の :8 で、見出しの行 50px は表示の有無で変わらない） | c と d から |
+| f | 点の描き方: 「1/4」の字の後に、今のページは塗った 16px の丸、ほかは 2px の線の 12px の丸、間は 12px（DS-PAGE-08）。8 ページ以上は点を出さず字だけ（DS-PAGE-14）。左の列（今日の地震の見出しの行）は字だけ（DS-QROW-21） | docs/specs/reconstruction-display-design.md:541 «44e052f31d6014ce»、docs/specs/reconstruction-display-design.md:613 «363ac70cbc4a3838»、docs/specs/reconstruction-display-design.md:622 «75d449cf21a3211f» |
+| P7 | 2 ページ以上の右の列で、1 枚だけのページはそのカードを列いっぱい（1000）にする。1 ページの列のカードは伸ばさない | 1000 と「列いっぱい」は統合担当の字（作者の 2026-11-24 20:08 の字は「変わってよい形で進めてください。」）。1 ページの列で伸ばさないのは、表 §3.2 の L1・L2・L4 と、作者が 2026-11-24 20:54 に受けた版 13 の図 sp-05 の右の警報が 40〜583（543px）であることから（統合担当の決め 2026-11-25 19:07） |
+
+- 左右の列の間の進め方（見本の図はページの少ない列が最後のページのまま、作業ノート 2026-11-23 15:2x）は S1。
+- c の上の間は、r7 の 1 回目では欄が無く決めが要る所だったが、統合担当の決め 2026-11-25 19:12で tokens.ts の PAGE_MARK_GAP 8 にした（型に欄は足さない）。
+
+### 4.5 見本の図の割りとの突き合わせ（行の高さの実測と、r7 の条文で確かめた範囲）
+
+材料は図の道具の実測 .tmp-s0/sp-rows.md（86 行、版 39 の DS で 1920×1080、getBoundingClientRect）。行の高さは道具の実測を写したもので、別の経路では出していない。sp-rows.md には行の高さの種類と数だけがあり、行の並びが無い。図の道具は起草の許可 root の外にある。
+
+- 数え方: カードの高さは「行の宣言した高さの和」（AC05 (1)）。行の間とカードの上下の余白は、行の高さに含めてカードが宣言する形で数える。head は上の余白 20＋見出し 50＋下の余白 20＝90（どのページにも付く）。本文の行は「その行の高さ＋その行の上の間」（気象の警報のカードは見出しの後・府県の見出しの前後・新しい区分の最初の行が 8、同じ区分の折り返しの行が 0。今日の地震は 12）。右の列で一番下のカードにはページの表示の 45.5（§4.4 の c）。左の列の使える高さは、本文の無い形のカード（設定した地域・津波）を take の順に先に取った残り（§4.4 の a・b）。
+- 行の数の単位: 道具の「行」は府県の見出しも 1 行に数える（sp-10 右の p1 の特別警報 12 行は見出し 2＋行 10）。C0 が府県の見出しと最初の行を 1 つの ShellRow にすると、ShellRow の数は見出しの数だけ少なくなる。
+
+| 場面・列 | 入力（実測の行） | r7 の条文で確かめた範囲 | 図の道具 |
+|---|---|---|---|
+| sp-10 右 | 特別警報: 府県の見出し 2×52.5、行 10×37.5。警報: 府県の見出し 17×52.5、行 164×37.5・7×75 | p1 は並びに依らず確かめた: 特別警報 602＝90＋本文 480＋間 4×8、警報 354＝90＋表示 45.5＋見出し 52.5＋行 4×37.5＋間 2×8、次の 37.5 の行は 1040 を越える。p2〜p12 の本文 18・17・18・17・19・18・17・18・18・19・4 行は図の道具の割り直しの数の写しで、並びが無いので r7 の条文では割っていない | 12 ページ |
+| sp-12 右 | sp-10 右と同じ | sp-10 右と同じ | 12 ページ |
+| sp-11 左 | 設定した地域 258.5（本文の無い形、全ページ）。今日の地震（ふつう）: 行 6×95.5・2×133・1×185、間 12 | 使える高さ 627.5、固定 609.5＝90＋185＋95.5×3＋間 4×12。本文 4・4・1 行になる並びがあることまで（95.5 が 5 行続くと 537.5 にちょうど入るので、並びで行の数が変わる） | 3 ページ、4・4・1 行 |
+| sp-12 左 | 設定した地域 311.5・津波 322（本文の無い形、全ページ）。今日の地震（圧縮）: 行 8×54・1×103.5、間 12 | 使える高さ 235.5、固定 222＝90＋54×2＋間 2×12。本文 1・1・2・2・2・1 行になるのは、並びが 54・103.5・54×7 のときだけ | 6 ページ、1・1・2・2・2・1 行 |
+| sp-20 左 | 設定した地域 311.5・津波 322。今日の地震（圧縮）: 行 1×103.5・1×54、間 12 | 並びに依らず確かめた: 2 行は 235.5 に一緒に入らず 2 ページ、固定 205.5、本文 1・1 行 | 2 ページ、1・1 行 |
+
+- 警報を 995.5 に固定しても、P7 で 1000 にしても、右の列の本文の行の割りは変わらない（固定の前の割りは列の 1000 で入らない行を次へ送っていて、どのページも 995.5 以下）。
+- 道具にあって S0 の条文に無い決まり（sp-rows.md の :80・:81）:
+  - 「固定した高さを当てると入らないカードは固定せずに試す」: r7 の AC05 (5)(6) は同じカードの組が並ぶページの間でだけ固定する。sp-10 右の警報は p1（特別警報と 2 枚）と p2〜p12（1 枚）で組が違うので、p1 は 354 のまま、p2〜p12 は 995.5 に固定され、この 5 場面では道具と同じになる。S0 の条文は足さない。
+  - 「ページの末尾に残った府県の見出しの行は次のページへ送る」: C0 の宣言の形で受ける見込み。府県の見出しとその最初の行を 1 つの ShellRow にすれば、見出しだけがページの末尾に残る割りは作れない。ただし道具は、続きの見出しの後に、元の上の間が 0 の行（同じ区分の折り返しの行）でも 8 をあける（sp-rows.md の :16、続きの見出し→行 8 が 9 組）。宣言の和を合わせるには、continuation の高さを「52.5＋8＋（8−その行の上の間）」にする（上の間が 0 の行は 68.5、8 の行は 60.5）。この形で p2〜p12 が道具と同じになるかは、並びが無いので照らしていない。
+  - 「最大 4 回で割りが揃うまで固定の高さを組み直す」: r7 は K＋1 回（AC05 (6)）。5 場面とも道具は 2 回目で揃っている（回ごとのページ数 [12, 12]・[3, 3]・[6, 6]・[2, 2]）。
+- 『1 枚だけのページはそのカードを 1000 にする』は、道具では描くときだけの後処理（sp-rows.md の :82）。r7 では P7（AC05 (5)）で高さに入るが、列の高さも 1000 なので本文の行の割りは変わらない。
 
 ## 5. 押したとき（reduceShell）
 
@@ -285,7 +320,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 
 - 閉じた（統合担当の決め 2026-11-24 21:2x・2026-11-24 21:4x・2026-11-24 22:0x）: 緊急地震速報の組が変わったとき（D3）、今のページに無い id（S4）、ずれていたかを持たない（状態の数を減らした所）、押した点の相手（根 A の 2）、今日の地震のカードが無くなったときの開いた状態（根 A の 3）、描く前の合流と D3（根 A の 4）、開いたカードと左の列の緊急地震速報のカード・上がったカード・下がったカードの組は作らない（R1、DS-LAYER-23）、状態が変わった後の旧い frame への押下は効かない（R2）。D1（下げたカードと列のカードの前後、横に動かない）は統合担当の決めのまま作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS）。
 - 後の契約へ送る: DS-OPEN-45（下がった緊急地震速報のカードを続報・時間で戻すか、上がったカードの寿命。S1・E0。決まるまでは D3）、DS-OPEN-46（開いたカードと緊急地震速報のカードの前後。S1・E0。決まるまでは左の列に緊急地震速報のカードがある間は開かない、DS-LAYER-23）、DS-OPEN-75（暗い今日の地震を押したとき。S1・E0。決まるまでは入れ替え）。
-- r2 の直しの後も決まらない組: 間（16・17px）だけに入る高さの列のカードと、左の列の x の外にある開いた矩形は入力の条件の外で、答えを定めない（§3.1 の 11）。左の列のページに mayHide のカードが無いときのページの表示の置き場は Q-DS-COLUMN-FLOW。
+- r2 の直しの後も決まらない組: 間（16・17px）だけに入る高さの列のカードと、左の列の x の外にある開いた矩形は入力の条件の外で、答えを定めない（§3.1 の 11）。左の列のページに mayHide のカードが無い組は、r7 の入力の条件（AC05 (7)(d)）で作れない。
 
 ## 6. host の配線（reconstruction/src/host/host.ts）
 
@@ -390,7 +425,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 
 ## 10. 凍結に入れた「統合担当の決め・読み」と、作者の裁定の区分
 
-- 作者の裁定（「」の字で裏が取れる）: DS-LAYER-01・02・04・05・07（向きを除く）・08・09 の前半・12・13・14・17・18、DS-LAYER-06 の前半（2026-11-23 21:44）、DS-LAYER-06 の後半・15・19 と DS-OPEN-63（統合担当の読みを作者が 2026-11-24 20:54 に受けた）、DS-PAGE-02・03・12、DS-PAGE-06（統合担当の案を作者が 2026-11-23 13:51:15 に受けた）、DS-LAYOUT-25・DS-COL-04（15:56）、DS-LAYOUT-22 の場所（13:52）、DS-LAYOUT-24（13:52）、DS-QROW-18（20:10）。2026-11-25 07:0x の作者の言葉「判断事項については、全て推奨で進めてください。」で A にした分岐: P4-DS-D-OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT（中身は帯に出した A の字＝契約 r2 の A）。
+- 作者の裁定（「」の字で裏が取れる）: 状態の札の字「受け取った情報を表示できません」・「詳細を表示できません」（作者の裁定 2026-11-25 19:09。選んだ選択肢の字で、選択肢は統合担当の字）、DS-LAYER-01・02・04・05・07（向きを除く）・08・09 の前半・12・13・14・17・18、DS-LAYER-06 の前半（2026-11-23 21:44）、DS-LAYER-06 の後半・15・19 と DS-OPEN-63（統合担当の読みを作者が 2026-11-24 20:54 に受けた）、DS-PAGE-02・03・12、DS-PAGE-06（統合担当の案を作者が 2026-11-23 13:51:15 に受けた）、DS-LAYOUT-25・DS-COL-04（15:56）、DS-LAYOUT-22 の場所（13:52）、DS-LAYOUT-24（13:52）、DS-QROW-18（20:10）。2026-11-25 07:0x の作者の言葉「判断事項については、全て推奨で進めてください。」で A にした分岐: P4-DS-D-OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT（中身は帯に出した A の字＝契約 r2 の A）。
 - spec が作者の裁定と書くが、作業ノートの「」で本起草は確かめていないもの: DS-SIZE-03・04 の 540（2026-11-23）、DS-MAP-22 の層（13:03。「」は層の一文だけで、「面は不透明」は spec の地の文）。r0 はこれらを「spec の字」として引く。
 - 統合担当の決め・読みとして凍結に入れた: DS-PAGE-04・07・09・10・11・13・14・15・16、DS-LAYOUT-22 の位置の数、DS-LAYER-03 の 40・379・718（DS-LAYOUT-05〜06 から）、P4-DS-D-MODULE-PATH・REPAGE-CAP（2026-11-24 21:1x）、根 A〜F（2026-11-24 21:4x、DS-LAYER-22）のうち、押した点の相手・close の前の flush・カードが消えたら閉じる・合流と sync、D2（2026-11-24 21:2x、DS-LAYER-20）、ずらす向きを列で書いたこと（DS-OPEN-64）、R2〜R5（2026-11-24 22:0x）、P4-DS-D-CARD-BOUND（2026-11-24 22:0x）。ここまでは作者への問いにしない（統合担当の決め 2026-11-24 22:0x。D1 は 2026-11-25 07:2x に P4-DS-D-READINGS へ入れた）。2026-11-25 07:05 に今の字のまま確定した起草の読み 8 件: 一部だけ重なるカードも暗くする（§3.1 の 4）、「上 40px」は上端、時差の無い字は「時刻不明」、forms で DS-QROW-18 を受ける形、E04 の S0 と PM の分け方、CLOCK-SIX の起草案（作者の A で閉じた）、§5.4 の S4、左の列のページの表示を mayHide のカードの見出しに置くこと（§2.4）。
 - 作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS、作者の言葉「判断事項については、すべて推奨で進めてください。」。見た目に別の案がある物で、中身は帯に統合担当が書いた A「このまま」と 4 つの字。条文は今の図の形の 1 本）: 一部だけ覆われたカードも暗くする（AC06 (5)）、左の列のページの表示は今日の地震の見出しの行（AC08 (11)）、状態の印の「上 40px」は上端（AC10 (2)）、D1（版 13 の図 sp-23k の形: 上げても下げても列のカードは横に動かない（覆いは緊急地震速報のカード全部で取る）、下がったカードは上がっていない列のカードの手前に描く（DS-LAYER-20）。見比べのページ版 13 の箇条「押す前と押した後で、どのカードも横に動かない。」と図 sp-23k で作者に見せた。箇条の字は作業ノート）。
@@ -424,7 +459,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 2. 計画:227（reconstruction/contracts/p4-order-plan.md:227 «810399aebefa7fee»）: P4-DS-D-MODULE-PATH=A を確定したら、directory の名前を `screen` に、「自分の部品の directory」を「`reconstruction/src/display/screen/` の自分の部品の file と cards.ts の 1 行」に改める。
 3. 計画:91（reconstruction/contracts/p4-order-plan.md:91 «a9368d6efdc9a4e0»）: 新しい画面の path が `/display` であることを書く。
 4. 計画 §4.6 の「S0 の凍結時」の行: reconstruction/contracts/p4-order-plan.md:383 «ddfca608561e1297»（spec:167・:2959・:2961・:1688 を P4-PLAN-D-SCREEN の結果へ、Pi のブラウザの資源を予算に〔R52〕）、reconstruction/contracts/p4-order-plan.md:389 «5a5f5292467cc068»（spec:1845・:1847 に DS-LAYER-10 の例外）、reconstruction/contracts/p4-order-plan.md:394 «2717d3e984bf95f5»（spec:1597〜:1624 の列の割当を D-TSUNAMI-COLUMN=C の結果へ）。改め方は計画の字のとおり。B1 の Q-DC-SPEC-REVISION と同じく spec の本文を変えずに本契約を真実源とする形もある（統合担当が決める）。
-5. 計画:937 の S0 の着手ゲート（reconstruction/contracts/p4-order-plan.md:937 «dc576f762ca61a46»）: Q-DS-COLUMN-FLOW・Q-DS-STATUS-WORDS の答えを足す（READINGS・MODULE-PATH・REPAGE-CAP・CARD-BOUND・OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は閉じた）。
+5. 計画:937 の S0 の着手ゲート（reconstruction/contracts/p4-order-plan.md:937 «dc576f762ca61a46»）: Q-DS-COLUMN-FLOW の答えを足す（Q-DS-STATUS-WORDS は作者の裁定 2026-11-25 19:09で閉じた。READINGS・MODULE-PATH・REPAGE-CAP・CARD-BOUND・OPEN-WHILE-EEW・SECOND-GROUP・CLOCK-SIX・FONT は閉じた）。
 6. 表示設計 spec: DS-OPEN-48 は r3 で閉じた。DS-OPEN-62・63・64・65・69、DS-LAYER-06・09・15・16 の字と DS-LAYER-18〜23・DS-OPEN-75 の 7 行は 2 回目〜r2 に、分岐の裁定の後の出どころの字（:640・:662・:676・:690・:707・:709）と D1 の根拠（:706）と DS-LAYER-14・DS-PAGE-12 の出どころは r3 に当てた（済み）。READINGS の裁定（2026-11-25 18:50）の字は r6 で :636・:706 と契約に当てた（済み）。
 7. `reconstruction/contracts/p4-persona-walk-tools3.json` の Q-PWT3-ROWS-FN（reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»）: 関数は frame.ts の screenFrame、DOM はその値だけを描く（P4-DS-AC08）と書く。
 8. `reconstruction/contracts/p4-display-capacity.json` の outOfScope の「host.ts の配線（新しい経路を製品で流すのは E0 発注 2）」と Q-DC-DELIVERY の remaining の「host の配線…は E0 発注 2 か S0」: S0 に改める。
@@ -525,4 +560,14 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 | 指摘 20 時計へ渡す件数 | clockRect の入力を「frame に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6）」と、§1.2・§2.2・§2.4・AC04 (3)・AC13 (2)・publicFunctions・型の ShellFrame のコメントに同じ字で書いた。T06 (l) に 7 枚の入力を足した |
 | P4-DS-D-READINGS | 作者の裁定 2026-11-25 18:50 で A（作者の言葉「判断事項については、すべて推奨で進めてください。」）。確認待ちの字を裁定済みの字に直した（条文の形・数・条件は変えない） |
 | spec の字 | :36・:537・:611・:630・:634・:636・:638・:660・:663・:703〜:709 と、README の行番号（版 40 で :241 より後が 6 行ずれた）を当てた。spec §0 を DS 版 40（2026-11-25 18:56 に送った、Artifact の側の 43、1795600621-e081）の版の字と 5 file の sha256 に改めた（:7・:9・:16〜:38・:580〜:582・:586） |
+
+## 20. r7 の対応（発注前点検の Q-DS-COLUMN-FLOW の細部、統合担当の決め 2026-11-25 19:07）
+
+| 項 | 対応 |
+|---|---|
+| a〜f・P7 | AC05 (2)(4)(5)(7)(9)(10)、AC08 (11)、AC04 (1)、表 §1.1・§2.4・§4.1・§4.2・§4.4、型のコメントに同じ字で書いた。T03 に P10 を足し、P7・P8 の期待を改めた |
+| 突き合わせ | §4.5（5 場面とも b の決まりで合う。ページの数は実測待ち） |
+| Q-DS-COLUMN-FLOW | 1 回目は requiredEvidence をページの数の確かめだけに縮め、細部は Q-DS-COLUMN-FLOW-DETAILS に書いた。続きで、c の上の間を統合担当の決め 2026-11-25 19:12で PAGE_MARK_GAP 8 にし、行の高さの実測（sp-rows.md）との突き合わせを §4.5 に書いた。行の並びが sp-rows.md に無く、右の列の p2〜p12 と左の 2 場面の行の数は照らせなかったので閉じていない。§4.2 の P8・P9 は 45.5 を数えた数（3 ページ・9 ページ）にした |
+| spec | DS-PAGE-11・DS-PAGE-12 の字と、末尾に DS-OPEN-76 |
+| Q-DS-STATUS-WORDS | 作者の裁定 2026-11-25 19:09で閉じた。「受け取った情報を表示できません」と「詳細を表示できません」を AC03 (5)・AC10 (3)・AC14・T06 (a)(j)、§0・§2.3・§2.4・§10・§12 の 5 に同じ字で書いた |
 
