@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>FlEq</title>
+<style>
+  /* px と色は tokens.ts の値を main.ts が起動の時に CSS の変数へ入れる。ここに数と色の字を直に書かない（P4-DS-AC01 (5)）。 */
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--c-ground-sea); }
+  #screen { position: absolute; left: 0; top: 0; width: var(--screen-w); height: var(--screen-h); transform-origin: 0 0;
+    color: var(--c-ink); font-family: "BIZ UDPGothic", sans-serif; font-size: var(--card-text); line-height: 1.25; word-break: keep-all; }
+  /* カードの枠（DS-CSS-02）: 面は不透明。暗くするのは明るさを下げる形で、不透明度では透かさない（DS-OPEN-62） */
+  .card { position: absolute; box-sizing: border-box; overflow: hidden; background: var(--c-surface);
+    border: var(--card-border) solid var(--c-surface-edge); border-radius: var(--card-radius); }
+  .card.dim { filter: brightness(var(--dim)); }
+  .row { display: flex; align-items: baseline; box-sizing: border-box; overflow: hidden; }
+  .t-ink { color: var(--c-ink); }
+  .t-ink-muted { color: var(--c-ink-muted); }
+  .mark { position: absolute; display: flex; align-items: center; color: var(--c-ink-muted); }
+  .mark.last { left: 0; right: 0; bottom: 0; height: var(--page-mark-row); justify-content: flex-end; }
+  .mark.head { right: var(--card-border); top: var(--card-border); }
+  .dot { margin-left: var(--dots-gap); box-sizing: border-box; border-radius: 50%; width: var(--dots-off); height: var(--dots-off);
+    border: var(--dots-line) solid var(--c-ink-muted); }
+  .dot.on { width: var(--dots-on); height: var(--dots-on); background: var(--c-ink); border-color: var(--c-ink); }
+  /* 時計（DS-CSS-12） */
+  #clock { position: absolute; box-sizing: border-box; display: flex; align-items: baseline; gap: var(--clock-text-gap);
+    background: var(--c-surface); border: var(--card-border) solid var(--c-surface-edge); border-radius: var(--card-radius); color: var(--c-ink-clock); }
+  #clock-date { font-size: var(--clock-text-date); }
+  #clock-time { font-size: var(--clock-text-time); font-weight: 700; }
+  /* 状態の札の置き場: 上端の中央。出すものがあるときだけ main.ts が置く（H01・H02） */
+  #status { position: absolute; left: var(--status-center-x); top: var(--status-top); transform: translateX(-50%); z-index: 3000;
+    padding: var(--status-text-pad); background: var(--c-surface); border: var(--card-border) solid var(--c-surface-edge);
+    border-radius: var(--card-radius); font-size: var(--status-text-size); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="screen">
+  <div id="cards"></div>
+  <div id="clock"><span id="clock-date"></span><span id="clock-time"></span></div>
+</div>
+<script type="module" src="/display/main.js"></script>
+</body>
+</html>

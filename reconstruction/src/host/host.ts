@@ -9,7 +9,7 @@ import type { P2HostObservation } from "../../contracts/p2-eew-e01.types";
 import type { ParserDiagnostic } from "../../contracts/p1-parser-boundary.types";
 import type { ClockReading, DiagnosticLevel, DiagnosticReason, MailboxEnvelope, ShutdownSummary, WallBasis } from "../../contracts/p2-shared-runtime.types";
 import type { DmdataClassification, DmdataSubscription } from "../../contracts/p3-dmdata-connect.types"; import type { HostCommandPort, HostStatus, NotificationGate, NotificationGateVerdict } from "../../contracts/p3-cli-repl.types";
-import { startDisplayServer } from "../http-sse/http-sse"; import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types"; import type { TerminalSink } from "../terminal/output";
+import { startDisplayServer } from "../http-sse/http-sse"; import type { DisplaySnapshot, DisplayWorkerView } from "../../contracts/p2-snapshot-sse.types"; import type { TerminalSink } from "../terminal/output"; import type { DisplayWireSnapshot } from "../../contracts/p4-display-wire.types";
 import { ingestXmlData } from "../ingress/ingress";
 import type { ParsedFrame } from "../ingress/ingress";
 import { abortNotificationAttempt, resolveRepoPath, runNotificationAttempt } from "../notification-delivery/adapter";
@@ -88,14 +88,14 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
     if (config.observe == null) return;
     try { config.observe(observation); } catch { /* observer failure is the runner's to detect */ }
   };
-
+  let latestWire: DisplayWireSnapshot | null = null; // P4-DS-RET-02: 表示を閉じている間も持ち、開き直しで送る
   let server: Awaited<ReturnType<typeof startDisplayServer>> | null = null, latestSnapshot: DisplaySnapshot | null = null, latestWorker: DisplayWorkerView = { state: "healthy", lastProgressAtMonotonicMs: null, lastResponseAtMonotonicMs: null }; const displayOptions = (port: number): Parameters<typeof startDisplayServer>[0] => ({
     host: config.displayBind ?? "127.0.0.1", port,
     worker: latestWorker,
     browserAssets: { htmlPath: resolveRepoPath("reconstruction/src/display/chrome-eew/index.html"),
       moduleDirectory: resolveRepoPath("reconstruction/dist/chrome-eew/src/display/chrome-eew") },
     onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T4", runId, displayVersion, monotonicMs: marker.monotonicMs }),
-    onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }), detail: (request) => root.requestDetail(request),
+    onSerialize: ({ version, bytes, durationMs }) => emit({ kind: "publishSerialization", displayVersion: version, bytes, durationMs }), detail: (request) => root.requestDetail(request), wireAssets: { htmlPath: resolveRepoPath("reconstruction/src/display/screen/index.html"), moduleDirectory: resolveRepoPath("reconstruction/dist/screen/src/display/screen") },
   }); let displayQueue: Promise<unknown> = Promise.resolve(); if (config.displayPort != null) server = await startDisplayServer(displayOptions(config.displayPort)); // P3-CLI-D-O2-HOST-LINES: 表示と門の包みは startRuntime の間から呼ばれるので、読む変数はここで宣言する
 
   // P3-C3A-AC01: one resident owner thread per execution place (dist worker entry), created once here, never per input or request.
@@ -177,7 +177,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
       send: (place, request) => workers.get(place)!.postMessage(request), clock, wallBasis: (at) => { const basis = wallBasis(at); return deadlineMissed ? "unverified" : basis; }, measure: config.observe == null ? undefined : emit,
       contentBasis: wallBasis, // P3-EF-AC01: 締切の印を反映しない生の状態
       notificationAdapter: config.notificationGate == null ? undefined : gatedAdapter(config.notificationGate), display: { publish: publishDisplay, setWorker: setDisplayWorker,
-        onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }), mirror: (mirror) => { config.terminal?.mirror(mirror); } }, // P3-TP-AC06 (2)
+        onMarker: (marker, displayVersion) => emit({ kind: "marker", point: "T3", runId, displayVersion, monotonicMs: marker.monotonicMs }), mirror: (mirror) => { config.terminal?.mirror(mirror); }, publishWire: (snapshot, urgent) => { latestWire = snapshot; server?.publishWire(snapshot, urgent); }, flushWire: () => server?.flushWire() }, // P3-TP-AC06 (2)
       onMeasurements: (measurements) => { for (const measurement of measurements) emit({ kind: "checkpoint", measurement }); },
       onInputDone: (reply) => {
         const { inputId } = reply.settlement;
@@ -603,7 +603,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
     } };
   }
   // P3-CLI-AC16 (5): http-sse の close() は SSE の client だけを切る。keep-alive や読みかけの普通の接続も切らないと close が終わらない。
-  function closeServer(open: Awaited<ReturnType<typeof startDisplayServer>>): Promise<void> {
+  function closeServer(open: Awaited<ReturnType<typeof startDisplayServer>>): Promise<void> { open.flushWire();
     const closing = open.close();
     open.server.closeAllConnections();
     return closing;
@@ -625,7 +625,7 @@ async function startP2Host(config: P2HostConfig): Promise<HostCommandPort & Read
       if (stopping != null) { await closeServer(opened); return { kind: "stopping" }; }
       server = opened;
       // listen を待つ間に来た worker の値も渡す（AC16 (4)）。
-      opened.setWorker(latestWorker);
+      opened.setWorker(latestWorker); if (latestWire != null) opened.publishWire(latestWire, true);
       if (latestSnapshot != null) opened.publish(latestSnapshot);
       return { kind: "opened", port: opened.port };
     });

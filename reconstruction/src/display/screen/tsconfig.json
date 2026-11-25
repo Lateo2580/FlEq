@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    // chrome-eew と同じ形。契約の型 import も program に入るので rootDir は reconstruction/。
+    // module は reconstruction/dist/screen/src/display/screen/ に平らに並び、host がここを moduleDirectory に渡す（P4-DS-AC01 (2)）。
+    "rootDir": "../../..",
+    "outDir": "../../../dist/screen",
+    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}
