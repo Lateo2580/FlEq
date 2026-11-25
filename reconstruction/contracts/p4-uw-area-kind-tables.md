@@ -134,6 +134,7 @@ A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4
 | reconstruction/contracts/p4-display-vocab.json | :702 | Q-DV-UW-AREA-KIND を閉じる（本契約の範囲・D-LAYER・D-FORM） |
 | 同 | :378・:388・:400 | outOfScope の「U-W の公開形の変更（区域と種別の対応）」から外す、AC01・AC02 の areas の一覧の字（cols に kinds）。AC02（:399 は id の行、条文は :400）の「今の view の欄を落とさない・足さない（id は足す）」は、view に無い kinds の列を足す本契約が改める条文 |
 | reconstruction/contracts/p4-display-vocab-tables.md | :69・:112・:117・:119・:298・:329・:404 | areas の行が `[Code, null, kinds]`、§2.1 の表、:117 の「表示差分の … は載せない」の行に areaKinds（これは載せる）、:119 の「今の公開形に無い」の段落、:298 の「語彙は view の object の純粋な関数」（areaKinds も入力になる）、:329 の直列、:404 の part=item の実測（U-W 4,666〔累積 5,594〕を量り直す） |
+| reconstruction/contracts/p3-uw-canon.json | :605 | P3-UWC-AC09 (2) の「全国報の受信と VPNO50 の終了は、その operation の全府県を作り直す」（実装と P3-UWC-T09 は変わった報が載せる府県だけで、条文の字の側が広い） |
 | reconstruction/contracts/p3-uw-canon.json | :543 | P3-UWC-AC05 (2) の府県の行に areaKinds（公開形の (1)(3) は変わらない） |
 | reconstruction/contracts/p2-shared-runtime.json | :222 | P2-A1-DISPLAY-CHANGES.port の U-W の行の形に areaKinds |
 | reconstruction/contracts/p4-display-capacity-tables.md | :29・:181・:64・:65 | U-W の 1 通・E3・M5 の数（実測で置き換え。AC06 の E3 の試験は byte を決めずに full を見るので変わらない） |

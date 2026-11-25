@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "2cd8205df3bd71d17ddf72d9345ade927c862d191af572ce70feb844d7001df7",
+    "sha256": "d03ad0a108c6cf235c18f95938303e733a0ec8794a96fef47a4462722c5fb843",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -227,7 +227,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-UAK-AC01",
-        "requirement": "区域ごとの種別の値（P4-UAK-D-PLACE・D-LAYER）。(1) reconstruction/contracts/p4-uw-area-kind.types.ts の WeatherCurrentAreaKinds を、府県の勝った行のうち active の行（activeCell と同じ述語: 復元して未確認・Code 無し・Code 00・解除・なしを除く）から作る。各要素は [層, 区域 Code, kinds] で、kinds はその区域の active の Kind/Code の重複なし・昇順（1 つ以上）。要素の集合と並びは、その公開形の areas と同じ（層の名前の字の昇順〔municipality → municipalityGroup → prefecture → primary → stormSurge〕、同じ層の中は Code の昇順。勝った行の並び〔WARNING_TYPES の番号の順〕とは層の順が違う） (2) 値は公開形（同じ勝った行の列）と 1 対 1 で、公開形の object が使い回されるとき（勝った行の列が前と同じ）は同じ値を使い、公開形が新しくなれば作り直す。持ち方は決めない（公開形と勝った行を持つ Entry に添える形を推す）。府県の公開形は publicArea の中でだけ作られ、areaKinds も同じ所で作るので、府県の公開形があって areaKinds が無いことは起きない。取り出す所に例外や空の代わりの値を足さない (3) RuntimeDisplaySubject の U-W の行を、current が値なら areaKinds も値、current が null なら areaKinds も null の判別共用体にする（今の Readonly<{…}> に & (Readonly<{ current: WeatherCurrentPublicArea; areaKinds: WeatherCurrentAreaKinds }> | Readonly<{ current: null; areaKinds: null }>) を足す）。片方だけ null の行は型で作れない。p2-shared-runtime.types.ts は :213〜:214 の行の中と import の行だけで、:213（他の契約が引く）の字は変えず :214 の末尾に足す（試作の型検査で通った、表 §7） (4) 保存しない。codec・schemaVersion（v8 のまま）・checkpoint・復元の境界を変えない",
+        "requirement": "区域ごとの種別の値（P4-UAK-D-PLACE・D-LAYER）。(1) reconstruction/contracts/p4-uw-area-kind.types.ts の WeatherCurrentAreaKinds を、府県の勝った行のうち active の行（activeCell と同じ述語: 復元して未確認・Code 無し・Code 00・解除・なしを除く）から作る。各要素は [層, 区域 Code, kinds] で、kinds はその区域の active の Kind/Code の重複なし・昇順（1 つ以上）。要素の集合と並びは、その公開形の areas と同じ（層の名前の字の昇順〔municipality → municipalityGroup → prefecture → primary → stormSurge〕、同じ層の中は Code の昇順。勝った行の並び〔WARNING_TYPES の番号の順〕とは層の順が違う） (2) 値は公開形（同じ勝った行の列）と 1 対 1 で、公開形の object が使い回されるとき（勝った行の列が前と同じ）は同じ値を使い、公開形が新しくなれば作り直す。持ち方は決めない（公開形と勝った行を持つ Entry に添える形を推す）。府県の公開形は publicArea の中でだけ作られ、areaKinds も同じ所で作るので、府県の公開形があって areaKinds が無いことは起きない。取り出す所に例外や空の代わりの値を足さない。口を 1 つ足すときは公開形と areaKinds の組を返す形にし、非 null 断言（!）で読まない (3) RuntimeDisplaySubject の U-W の行を、current が値なら areaKinds も値、current が null なら areaKinds も null の判別共用体にする（今の Readonly<{…}> に & (Readonly<{ current: WeatherCurrentPublicArea; areaKinds: WeatherCurrentAreaKinds }> | Readonly<{ current: null; areaKinds: null }>) を足す）。片方だけ null の行は型で作れない。p2-shared-runtime.types.ts は :213〜:214 の行の中と import の行だけで、:213（他の契約が引く）の字は変えず :214 の末尾に足す（試作の型検査で通った、表 §7） (4) 保存しない。codec・schemaVersion（v8 のまま）・checkpoint・復元の境界を変えない",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-public.ts:115 «e5b4058391f6d7ba»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:125 «fa6b216b19f03e99»",
@@ -265,7 +265,7 @@
       },
       {
         "id": "P4-UAK-AC04",
-        "requirement": "受信経路の計算量（AGENTS.md、P3-UWC-AC09、P4-DV-AC06）。仕事を 4 つに分けて数える。(1) 対象の府県を選ぶ走査: その step で current が変わった報の before と after が載せる (operation, 府県) の和集合（weather-current-unit.ts の currents と areaKeys。報ごとの府県の集合は報の object の cache。全国報・VPNO50 の終了でも、変わった報が載せる府県だけで、その operation の全府県ではない。全国報に現れない partial だけの府県は触らない、既存 P3-UWC-T09） (2) 対象の府県の作り直し: 今の合わせのとおり（その operation の全国報の行と partial の行を読む）。本契約が足すのは、その府県の勝った行を 1 回走って層ごとに分け（勝った行は層の番号 → 区域 Code → Kind/Code の順なので同じ区域の行は隣り合う）、層の名前の順につなぐ分だけ（並べ直しは高々 5 層） (3) 変わった項目 K 件の作り直しと直列化（P4-DV-T03 の計数がそのまま効く） (4) 既存の N 件との並びの併合 1 回（今のまま）。区域ごとの集合の作り直し・全国の走査・全件×全件の走査・state や view の全体の直列化をしない。区域×種別の数に定数の上限は無い（今の areas と同じ性質）ことを成果物に書く",
+        "requirement": "受信経路の計算量（AGENTS.md、P3-UWC-AC09、P4-DV-AC06）。仕事を 4 つに分けて数える。(1) 対象の府県を選ぶ走査: その step で current が変わった報の before と after が載せる (operation, 府県) の和集合（weather-current-unit.ts の currents と areaKeys。報ごとの府県の集合は報の object の cache。全国報・VPNO50 の終了でも、変わった報が載せる府県だけで、その operation の全府県ではない。全国報に現れない partial だけの府県は触らない、既存 P3-UWC-T09） (2) 対象の府県の作り直し: 今の合わせのとおり（その operation の全国報の行と partial の行を読む）。本契約が足すのは、その府県の勝った行を 1 回走って層ごとに分け（勝った行は層の番号 → 区域 Code → Kind/Code の順なので同じ区域の行は隣り合う）、層の名前の順につなぐ分だけ（並べ直しは高々 5 層） (3) 変わった項目 K 件の作り直しと直列化（P4-DV-T03 の計数がそのまま効く） (4) 既存の N 件との並びの併合 1 回（今のまま）。区域ごとの集合の作り直し・全国の走査・全件×全件の走査・state や view の全体の直列化をしない。区域×種別の数に定数の上限は無い（今の areas と同じ性質）ことを成果物に書く。依存先の P3-UWC-AC09 (2)（全国報と VPNO50 の終了は、その operation の全府県を作り直す）の字より実装が狭い（変わった報の府県だけ）ので、本契約は実装の側を条件にする",
         "evidenceRefs": [
           "reconstruction/src/units/weather-current/weather-current-public.ts:185 «1b1a700b3b2e4445»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
@@ -285,7 +285,7 @@
       },
       {
         "id": "P4-UAK-AC06",
-        "requirement": "容量（表 §5）。指定 corpus の値と今の規則に限る（全部の入力の上界は持たない。受理は XML の節点と本文の上限のほかに区域の件数の上限を持たず、今の areas も同じ）。(1) 指定 corpus（15_18_01_250630_VPWS50・synthetic_VPWS50_fukui_base・synthetic_VPWS50_national_0907_1300・同 1302・同 training_0907_1301・18_00_01_260830_VPWW55_fukui_L5・同 downgrade・15_16_02_251222_VPWW57）で、U-W の包みは full で、新しい経路の snapshot は 1,048,576 byte 以下、各項目の part=item の応答は 65,536 byte 以下。areas の一覧の増えは表 §5 の数（15_18_01_250630_VPWS50 で 53,841 → 78,434、＋24,593）で、試験は byte を固定の期待にせず full と上限だけを見る（全国の 2 通は T01、0907 の 3 通は既存の E3、partial は T02・T03） (2) 1 府県に 2,979 件以上の区域（7 桁の Code・各 1 種）が来る入力では、行だけで 65,536 を越える（包みの分があるので実際はもっと少ない件数で越える。3,000 件で 66,001 byte、script r1count.py）。越える応答は今の HTTP の規則どおり 503 responseTooLarge（P4-DW-RES-02、http-sse.ts の返す直前の検査）で、ページ分けも切り詰めもしない。1 MiB を越えたときの要約の順・分野の予算 65,536・要約の形は変えない (3) 統合担当が Mac mini で W1・W2 の採取物と M5 を数え直し、fixture ごとの実測の数と要約になる分野を配送の記録に書く（Q-UAK-REMEASURE）",
+        "requirement": "容量（表 §5）。指定 corpus の値と今の規則に限る（全部の入力の上界は持たない。受理は XML の節点と本文の上限のほかに区域の件数の上限を持たず、今の areas も同じ）。(1) 指定 corpus（T01 の 2 通〔15_18_01_250630_VPWS50・synthetic_VPWS50_fukui_base〕の 2 段、T03 の 15_16_02_251222_VPWW57）で、U-W の包みは full で、新しい経路の snapshot は 1,048,576 byte 以下、各項目の part=item の応答は 65,536 byte 以下。synthetic_VPWS50_national_0907_1300・1302・training_0907_1301 の 3 通は、既存の E3（display-capacity-manifest.test.ts:254〜268）が最後の snapshot の full と 1,048,576 以下を見る範囲だけ（途中の 2 段と part=item は見ない）。18_00_01_260830_VPWW55_fukui_L5 と downgrade は値だけを T02 が見る。areas の一覧の増えは表 §5 の数（15_18_01_250630_VPWS50 で 53,841 → 78,434、＋24,593）で、試験は byte を固定の期待にせず full と上限だけを見る (2) 1 府県に 2,979 件以上の区域（7 桁の Code・各 1 種）が来る入力では、行だけで 65,536 を越える（包みの分があるので実際はもっと少ない件数で越える。3,000 件で 66,001 byte、script r1count.py）。越える応答は今の HTTP の規則どおり 503 responseTooLarge（P4-DW-RES-02、http-sse.ts の返す直前の検査）で、ページ分けも切り詰めもしない。1 MiB を越えたときの要約の順・分野の予算 65,536・要約の形は変えない (3) 統合担当が Mac mini で W1・W2 の採取物と M5 を数え直し、fixture ごとの実測の数と要約になる分野を配送の記録に書く（Q-UAK-REMEASURE）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-capacity-tables.md:29 «b39db86b87a4964c»",
           "reconstruction/contracts/p4-display-capacity-tables.md:181 «ab62d8c865a62101»",
@@ -329,9 +329,10 @@
         "purpose": "contractBoundary",
         "referenceIds": [
           "P4-UAK-AC02",
-          "P4-UAK-AC05"
+          "P4-UAK-AC05",
+          "P4-UAK-AC06"
         ],
-        "behavior": "契約境界（worker をまたぐ）。15_16_02_251222_VPWW57 を通した owner の返信の表示差分を structuredClone した写しを snapshot の射影に渡し（owner と main は別の object を持つ）、part=item は元の owner の state に要求する。写しを渡しても、snapshot の項目の areas の一覧（cols・rows、高潮予報区間 1 区域の行を含む）は part=item の成功応答の項目と同じで、行は 1 つ以上ある。どの行も 3 列で、kinds は 2 桁の数字の昇順・重複なし・1 つ以上。旧の経路: 同じ入力で、areaKinds の字は displayChanges の行（府県の行は値、監視の行は null）にだけ現れ、view（toWeatherCurrentView）の JSON には現れない"
+        "behavior": "契約境界（worker をまたぐ）。15_16_02_251222_VPWW57 を通した owner の返信の表示差分を structuredClone した写しを snapshot の射影に渡し（owner と main は別の object を持つ）、part=item は元の owner の state に要求する。写しを渡しても、snapshot の項目の areas の一覧（cols・rows、高潮予報区間 1 区域の行を含む）は part=item の成功応答の項目と同じで、行は 1 つ以上ある。どの行も 3 列で、kinds は 2 桁の数字の昇順・重複なし・1 つ以上。容量（AC06）: 分野は full で snapshot の全体が 1,048,576 byte 以下、各項目の part=item の成功応答の本文が 65,536 byte 以下。旧の経路: 同じ入力で、areaKinds の字は displayChanges の行（府県の行は値、監視の行は null）にだけ現れ、view（toWeatherCurrentView）の JSON には現れない"
       }
     ],
     "requiredCommands": [
