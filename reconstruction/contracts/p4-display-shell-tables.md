@@ -332,16 +332,16 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 ## 6. host の配線（reconstruction/src/host/host.ts）
 
 行を足さない。他の契約の «» が :23〜:684 の多くの行を引く（起草時に `git grep` で数えた。:12・:91・:98・:180・:606・:628 を引く契約は 0）。
-下の表の :12・:98・:180・:606・:628 の «» は起草時の字で、実装が字を変えた後は合わなくなる。本契約の JSON はこの 5 行を引かない（表の file は checker の外）。
+下の表の :12・:98・:180・:606・:628 の «» は実装の後の字（変え方を当てた行）に付け直した（2026-11-26。起草時の字は 3383bd48 の版で読める）。本契約の JSON はこの 5 行を引かない（表の file は checker の外）。
 
 | 行 | 今の字（要旨） | 変え方 | 理由 |
 |---|---|---|---|
-| reconstruction/src/host/host.ts:12 «f4b10320134ad55c» | http-sse の import と DisplaySnapshot の型の import | 行の中に DisplayWireSnapshot の型の import を足す | (2)(3) の型 |
+| reconstruction/src/host/host.ts:12 «6969316868aaa201» | http-sse の import と DisplaySnapshot の型の import | 行の中に DisplayWireSnapshot の型の import を足す | (2)(3) の型 |
 | :91（空の行） | — | `let latestWire: DisplayWireSnapshot \| null = null;` を置く | 表示の包みが読む変数は startRuntime より前に宣言する（reconstruction/src/host/host.ts:589 «7f172fccc2943a05»） |
-| reconstruction/src/host/host.ts:98 «8462acde5031c2c6» | displayOptions の onSerialize と detail | 行の中に wireAssets（htmlPath `reconstruction/src/display/screen/index.html`、moduleDirectory `reconstruction/dist/screen/src/display/screen`）を足す | http-sse は wireAssets があるときだけ /display を出す（reconstruction/src/http-sse/http-sse.ts:151 «e01014c2d3332698»、reconstruction/src/http-sse/http-sse.ts:198 «2983faaca6303652»） |
-| reconstruction/src/host/host.ts:180 «a56ac2644d37c97a» | root へ渡す display の object の後半 | 行の中に publishWire（latestWire を置き換え、`server?.publishWire(snapshot, urgent)`）と flushWire（`server?.flushWire()`）を足す | root は display の publishWire?・flushWire? を呼ぶ（reconstruction/src/runtime/composition-root.ts:143 «85f8cd15e6437efe»、reconstruction/src/runtime/composition-root.ts:992 «bc426f3e1ac45869»）。今の host は渡していない（reconstruction/src/host/host.ts:179 «03be71ad623bc519»） |
-| reconstruction/src/host/host.ts:606 «5ed3099d844595fa» | closeServer の始まり | 行の中の `{` の後に `open.flushWire();` を足す（close の前に保留を、詰まっていない client に書く） | closeServer は停止の finally の closeDisplay（:536）、並行した closeDisplay（:633〜:640）、開く途中の停止（:625）、起動の失敗（:201）の全部の close の入口。http-sse の close は保留の timer を消して client を destroy する（reconstruction/src/http-sse/http-sse.ts:259 «2f21ef90938f67c1»・:260）ので、ここで flush しないと停止の完了の前の例外と並行した closeDisplay で保留が消える（ヘルツの指摘 6） |
-| reconstruction/src/host/host.ts:628 «a64363c499090257» | 開き直しで worker の値を渡す | 行の中に `if (latestWire != null) opened.publishWire(latestWire, true);` を足す | openWire はつないだ客に最後に公開した 1 通だけを書く（reconstruction/src/http-sse/http-sse.ts:355 «37aaf4e51c213ced»）。urgent を偽にすると最大 1 秒は何も届かない |
+| reconstruction/src/host/host.ts:98 «f34663b3d66bc193» | displayOptions の onSerialize と detail | 行の中に wireAssets（htmlPath `reconstruction/src/display/screen/index.html`、moduleDirectory `reconstruction/dist/screen/src/display/screen`）を足す | http-sse は wireAssets があるときだけ /display を出す（reconstruction/src/http-sse/http-sse.ts:151 «e01014c2d3332698»、reconstruction/src/http-sse/http-sse.ts:198 «2983faaca6303652»） |
+| reconstruction/src/host/host.ts:180 «98e51eb62bd5aee7» | root へ渡す display の object の後半 | 行の中に publishWire（latestWire を置き換え、`server?.publishWire(snapshot, urgent)`）と flushWire（`server?.flushWire()`）を足す | root は display の publishWire?・flushWire? を呼ぶ（reconstruction/src/runtime/composition-root.ts:143 «85f8cd15e6437efe»、reconstruction/src/runtime/composition-root.ts:992 «bc426f3e1ac45869»）。今の host は渡していない（reconstruction/src/host/host.ts:179 «03be71ad623bc519»） |
+| reconstruction/src/host/host.ts:606 «b3aaf3c065c688c5» | closeServer の始まり | 行の中の `{` の後に `open.flushWire();` を足す（close の前に保留を、詰まっていない client に書く） | closeServer は停止の finally の closeDisplay（:536）、並行した closeDisplay（:633〜:640）、開く途中の停止（:625）、起動の失敗（:201）の全部の close の入口。http-sse の close は保留の timer を消して client を destroy する（reconstruction/src/http-sse/http-sse.ts:259 «2f21ef90938f67c1»・:260）ので、ここで flush しないと停止の完了の前の例外と並行した closeDisplay で保留が消える（ヘルツの指摘 6） |
+| reconstruction/src/host/host.ts:628 «1d458f7ec37e58f7» | 開き直しで worker の値を渡す | 行の中に `if (latestWire != null) opened.publishWire(latestWire, true);` を足す | openWire はつないだ客に最後に公開した 1 通だけを書く（reconstruction/src/http-sse/http-sse.ts:355 «37aaf4e51c213ced»）。urgent を偽にすると最大 1 秒は何も届かない |
 
 - 変えない行: reconstruction/src/host/host.ts:92 «e96e8b3876848ef5»、reconstruction/src/host/host.ts:95 «371bcde3a6b33955»、reconstruction/src/host/host.ts:96 «3eba4c9225f4762a»（`/` の chrome-eew、切替は T0）、reconstruction/src/host/host.ts:526 «e74d6a66c5815e63»、reconstruction/src/host/host.ts:536 «6a1da25a695ded94»、reconstruction/src/host/host.ts:629 «f08b37f228105594»。
 - 停止の close の前の flush: 正常な停止では、root の停止の完了の project が projected なら急ぎの完全な版を公開し、unchanged なら flushWire を呼ぶ（reconstruction/src/runtime/composition-root.ts:992 «bc426f3e1ac45869»、P4-DC-AC04 (1)）。それは `root.shutdownRuntime`（:526）の中で `closeDisplay`（:536）より前に起きる。r1 は closeServer（:606）でも close の前に flushWire を呼ぶので、停止の完了の前の例外（finally から closeDisplay）と、停止を待つ間の closeDisplay でも、その時の保留が、詰まっていない client に書かれてから close する。残る場合: close の後に root が作った版は届かない（server が null。latestWire に残り、開き直しで送る。停止中は開き直せない）。書き込みが詰まっている客（前の write が false を返し drain を待つ客）には保留は書かれず、その客の待ちに置かれるまでで、close の destroy で届かない（P4-DC-AC04 (7) の残存。統合担当の決め 2026-11-25 21:3x、r10-items.md の #12）。最後の write が false を返した客には、書いた直後の destroy で届かないことがある（P4-DC-AC04 (7) と同じ）。
@@ -371,14 +371,14 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 
 ### 7.2 build と CI
 
-下の表の «» は起草時の字で、実装の後は合わなくなる。本契約の JSON はこの 4 行を引かない。
+下の表の «» は実装の後の字（変え方を当てた行）に付け直した（2026-11-26。起草時の字は 3383bd48 の版で読める）。本契約の JSON はこの 4 行を引かない。
 
 | 所 | 変え方 |
 |---|---|
-| reconstruction/tsconfig.json:16 «ca7530796acf3763» | exclude に `"src/display/screen/**"` を行の中で足す（root の lib は ES2022 だけ） |
-| .github/workflows/test.yml:86 «dd03eaeff6ad9708» | 行の中に `&& ./node_modules/.bin/tsc --project reconstruction/src/display/screen/tsconfig.json` を続ける |
-| .github/workflows/test-windows.yml:49 «dd03eaeff6ad9708» | 同じ。:50 を P3-WINDOWS-CI-001 が引くので行を足さない |
-| AGENTS.md:16 «822cf35f5bc51e4c» | reconstruction ゲートの命令の列に screen の tsc を行の中で足す（:24〜:28 を多くの契約が引く） |
+| reconstruction/tsconfig.json:16 «48e889c0729f24a8» | exclude に `"src/display/screen/**"` を行の中で足す（root の lib は ES2022 だけ） |
+| .github/workflows/test.yml:86 «c4082d0925f6e664» | 行の中に `&& ./node_modules/.bin/tsc --project reconstruction/src/display/screen/tsconfig.json` を続ける |
+| .github/workflows/test-windows.yml:49 «c4082d0925f6e664» | 同じ。:50 を P3-WINDOWS-CI-001 が引くので行を足さない |
+| AGENTS.md:16 «5b318b9d81eab4ca» | reconstruction ゲートの命令の列に screen の tsc を行の中で足す（:24〜:28 を多くの契約が引く） |
 
 - package.json の watch の命令は変えない。
 
