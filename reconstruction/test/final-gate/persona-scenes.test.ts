@@ -694,8 +694,8 @@ describe("P4-PERSONA-WALK-TOOLS-001 order 3", () => {
     // 観測の第 1 波 ≦ 最大波 ≦ 報時刻、沿岸の観測点は予報区の沿岸の組（code の頭 3 桁が予報区）。
     const observations = Object.values(lists).flat().filter((item) => /^synth:.*VTSE5[12]$/.test(item.source));
     const observed = (item: Frame) => text(item).slice(text(item).indexOf("<Observation>"), text(item).indexOf("</Observation>"));
-    expect(observations.filter((item) => [...observed(item).matchAll(/<FirstHeight>\s*<ArrivalTime>([^<]*)<\/ArrivalTime>[\s\S]*?<MaxHeight>\s*<DateTime>([^<]*)</g)]
-      .some(([, first, max]) => !(Date.parse(first) <= Date.parse(max) && Date.parse(max) <= Date.parse(tag(text(item), "ReportDateTime")!)))).map((item) => item.source)).toEqual([]);
+    expect(observations.filter((item) => { const reported = Date.parse(tag(text(item), "ReportDateTime")!); return [...observed(item).matchAll(/<FirstHeight>\s*<ArrivalTime>([^<]*)<\/ArrivalTime>[\s\S]*?<MaxHeight>\s*<DateTime>([^<]*)</g)]
+      .some(([, first, max]) => !(Date.parse(first) <= Date.parse(max) && Date.parse(max) <= reported)); }).map((item) => item.source)).toEqual([]); // 報時刻は 1 報 1 回（観測ごとに報全体を文字列にし直すと単独で 4 秒かかった）
     expect(observations.filter((item) => item.headType === "VTSE51").flatMap((item) => [...observed(item).matchAll(/<Item>\s*<Area><Name>[^<]*<\/Name><Code>(\d+)<\/Code><\/Area>([\s\S]*?)<\/Item>/g)]
       .flatMap(([, area, stations]) => [...stations.matchAll(/<Station><Name>[^<]*<\/Name><Code>(\d+)/g)].filter(([, code]) => code.slice(0, 3) !== area).map(([, code]) => code)))).toEqual([]);
     // 沖合の観測の推定の区域は同じ地震の津波の予報の大津波警報の区域の中で、時刻は発生より後（実装レビュー r1: N 系に 2011 の型の青森・岩手の推定が残った）。
