@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "fa3d930028cfd91d1618d6fb44a606c85aee7a94",
-    "sha256": "88b68ab94401f70fc2035268139ff59f4ff526e8cf25803edb7f902760660459",
+    "draftedFromOid": "a9dde7edc28e84a52816f87603c87075c5f0d971",
+    "sha256": "dd4c522ad8bab0fd03e1ce25c24b9f31e30ff30b5f3a79c39c26bde4d1aa7881",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -67,12 +67,20 @@
           "B": "宮城野区・若林区・駿河区・清水区・浜松中央区・浜名区と相模原の 3 区の利用者（9 区）は、設定した地域のカードに気象の警報が出ない。青葉区・太白区・葵区の利用者には、仙台市東部・静岡市南部の警報が出ない。仙台市東部・静岡市南部・浜松市南部・相模原市西部・東部の 5 つは、どの市区町村からも引けない",
           "C": "宮城野区の利用者に、山側の仙台市西部（泉区など）だけの警報も設定した地域として出る。相模原の 3 区の利用者には、反対側の警報も出る"
         },
-        "status": "作者の裁定待ち",
-        "blocks": "baseOid の割当（照合表と期待の一覧の根拠「形」の 12 行と相模原の 3 行、AC01 の不変条件と被覆、manifest の件数、T01、AC04、AC06 の P3 が答えで変わる）",
+        "status": "確定（作者の裁定 2026-11-26 15:06、A。判断カード『設定した地域が電文の区域と1対1でないとき』）",
+        "blocks": "なし（裁定済み）",
+        "ruling": "A（作者の原文「地震・対応表ともに判断事項は全て推奨で進めてください！」〔2026-11-26 15:06〕）",
         "reason": "表 §10。S1 の B 列の 156 組と S2 の別表の 64 組は、気象庁の表の字を 1 行ずつ記録する形で AC10 の許す形に入る（津波の対応表の PDF と同じ、P4-GIS-AC11）。残りの 12 区は名前の照合でなく、字からの読みと形の重なりで決まり、AC10 に入るかの判断が割れる。入れ方で設定した地域のカードに警報が出るかが変わるので、統合担当の決めにしない（P4-GIS-D-TSUNAMI-REGION が作者の分岐だったのと同じ理由、起草の読み）。A は下見で 12 区とも形が合い（候補の割合の最小 0.1321、候補の外 0）、B・C より出ない警報・余分な警報が無い"
       }
     ],
     "questionResolutions": [
+      {
+        "id": "Q-GCM-PRECHECK",
+        "status": "open",
+        "source": "統合担当の発注前点検 AC06 の先取り（2026-11-26。P1・P2・転記は 14:46〜14:48 に worktree ~/dev/fleq-citymap の a9dde7ed で、記録は .tmp-cm/precheck/ の p2.md・sources-s2.md・extract.py。P3 は 14:24 に Mac mini の ~/dev/citymap-check で、Mac mini の ~/dev/fleq-st-gate〔main 3e075651〕の manifest と mapshaper 0.7.49、記録は .tmp-cm/shape-check/result.md）",
+        "closed": "(1) P1: 利用規約のページ coment.html を 14:46 に取り直し、sha256 ff2b45042e6207053d8f6aa617656aa6a144e462db138f0b8138de6eefbeff48（23,377 byte、last-modified Thu, 06 Aug 2026 02:24:21 GMT）と 83 行目の原文が表 §1.2 と一致。表 §1.2 のほかの引用（出典と加工の記載、適用外の 2 つ、ml-17・ml-23 の気象業務法の 2 条）も原文にある。S2 の html も sha256 fc0b420ea7bdac5c60ff971f276b76b1c9eca6f44c1727a56d4b9db891725e07（81,316 byte）で表 §1.2 と一致し、権利表記の grep は 0 件。sources.md の末尾に足す節の下書きは .tmp-cm/precheck/sources-s2.md (2) P2: S2 の名称 106 が全部 S1 の F=1 の @name にちょうど 1 つずつある。S1 の B 列が参照文の F=1 の行 72（気象だけ 68・同じコードの佐世保市 2・薩摩川内市 2）で、「」の中の名前の違いは 0。地理の記述で S2 にも名称がある行 34 で、郡名を落として字が違うのは 3 行（1410011 横浜市北部・1415011 相模原市西部・1415012 相模原市東部、表 §5 の期待どおり）。72＋34＝106 (3) P3: 間引く前の形（city 20241128 の zip sha256 56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65、weatherCity 20260226 の zip sha256 a3a847ca6e1fddb87a622a42b40c735b8e8400b0089dced75cbfe8030fac958c、どちらも manifest の archiveSha256 と一致。build-shapes.mjs の県の所属と同じ読みで -simplify なし）、格子 200×200、丸める前の点の数の比で、12 区とも合格。候補の割合の最小は 0.1331（0410100 → 0410001、16,953 点のうち 2,257 点）、候補の外は 12 区とも 0、点 0 の区は無し。相模原は 1415100 → 1415011、1415200・1415300 → 1415012 で S1 の側。zoom の下見（表 §4）との差は分割 3 区の比の 0.001〜0.002 だけで、合否と候補の集合は同じ (4) P4: decisionBranches は作者 1・統合担当 4 とも確定で、起草案と作者の裁定待ちは 0 件 (5) P6 の転記: S2 の html から .tmp-cm/precheck/extract.py で取り出した transcription.tsv は 106 行（見出しを入れて 107 行）、sha256 123e21cf36388ced2abee0be950d0c2ca4c274bb8a58d034d18b4decafb54613。2 回回して同じ byte、字の中の改行・タブは 0",
+        "remaining": "P5（fixture の照らし）と、P6 の期待の一覧 expected-pairs.tsv・転記と期待の一覧の sha256 の AC03 への書き足し・S2 の html と転記の repo への配置、P3 の値の表への書き足し、sources.md の §9 は未（親が後で書く）"
+      },
       {
         "id": "Q-GCM-S2-TERMS",
         "status": "closed",
@@ -284,7 +292,7 @@
       },
       {
         "id": "P4-GCM-AC06",
-        "requirement": "【点検、統合担当が baseOid の割当の前に行う】P1 S2 と利用条件の取り直し: https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html を curl で取り、byte・sha256・last-modified を表に書き足し、reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html に置く。sha256 が表 §1.2 の値と違えば、P2 の照らしをやり直してから置く。利用規約のページ https://www.jma.go.jp/jma/kishou/info/coment.html も curl で取り、表 §1.2 の原文（権利表記の記載がない限り公共データ利用規約に準拠する字、出典と加工の記載、適用外の 2 つ、気象業務法の 2 条）がそのままあることを確かめ、p4-gis-assets-sources.md の末尾に S2 の節として、byte・sha256・last-modified と原文を引いて足す（同じ file の §6.1 の津波の対応表と同じ書き方）。S2 の html に権利表記か別の利用ルールの明示が出た、または規約の字が変わって S2 が公共データ利用規約の下と読めなくなったら、baseOid を割り当てず、S2 を使うかを作者に問う（前例は Q-GIS-VOLCANO-KML-TERMS を作者の裁定で閉じた形。使わないと地震の市区町村 38 が候補なし、気象の市町村等 68 がどこからも引けない、表 §11）。P2 S1 と S2 の照らし: S2 の別表の名称 106 が全部、S1 の F=1 の @name に 1 つずつあること。S1 の B 列が参照文（「気象庁予報警報規程別表第四の二に示す「X」の区域」）の F=1 の行は字を比べず、「」の中の X が S1 の @name と同じで S2 の名称にあることだけを確かめる。S1 の B 列が地理の記述（都道府県名で始まる字）で S2 にも同じ名称の区域がある行は、両方から郡名（都道府県名の直後から最初の「郡」までの字）を落として比べ、字が違うのが表 §5 の 3 行（相模原市東部・西部、横浜市北部）だけであること。どれかが違えば表と期待の一覧を数え直す。P3 形の確かめ: AC04 の (1) を repo で、(2) を Mac mini で回し、12 区の点の数と割合（zoom と間引く前の両方）を表に書き足す（実装担当が manifest の shapeCheck へ写す）。条件を満たさない値が出たら baseOid を割り当てない。P4 decisionBranches の status「起草案」と「作者の裁定待ち」が 0 件。P5 fixture の照らし: 18_00_01_260830_VPWW55_fukui_L5 の Body の市町村等のコードが全部 weatherCity にあり、15_18_01_250630_VPWS50 の 15 コードが表 §7 と同じこと（範囲の外の事実で、表を変えない）。P6 転記と期待の一覧: P1 で置いた html の別表の 106 行（tr id の付いた行の 2 つの td）を script で取り出して transcription.tsv に置き、S1 と S2 の原文から照合表と別に expected-pairs.tsv（232 行、P4-GCM-D-UNNAMED-ROWS の裁定の形）を書いて置き、2 つの sha256 を AC03 の末尾に書き足す（AC03 (1)）",
+        "requirement": "【点検、統合担当が baseOid の割当の前に行う】P1 S2 と利用条件の取り直し: https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html を curl で取り、byte・sha256・last-modified を表に書き足し、reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html に置く。sha256 が表 §1.2 の値と違えば、P2 の照らしをやり直してから置く。利用規約のページ https://www.jma.go.jp/jma/kishou/info/coment.html も curl で取り、表 §1.2 の原文（権利表記の記載がない限り公共データ利用規約に準拠する字、出典と加工の記載、適用外の 2 つ、気象業務法の 2 条）がそのままあることを確かめ、p4-gis-assets-sources.md の末尾に S2 の節として、byte・sha256・last-modified と原文を引いて足す（同じ file の §6.1 の津波の対応表と同じ書き方）。S2 の html に権利表記か別の利用ルールの明示が出た、または規約の字が変わって S2 が公共データ利用規約の下と読めなくなったら、baseOid を割り当てず、S2 を使うかを作者に問う（前例は Q-GIS-VOLCANO-KML-TERMS を作者の裁定で閉じた形。使わないと地震の市区町村 38 が候補なし、気象の市町村等 68 がどこからも引けない、表 §11）。P2 S1 と S2 の照らし: S2 の別表の名称 106 が全部、S1 の F=1 の @name に 1 つずつあること。S1 の B 列が参照文（「気象庁予報警報規程別表第四の二に示す「X」の区域」）の F=1 の行は字を比べず、「」の中の X が S1 の @name と同じで S2 の名称にあることだけを確かめる。S1 の B 列が地理の記述（都道府県名で始まる字）で S2 にも同じ名称の区域がある行は、両方から郡名（都道府県名の直後から最初の「郡」までの字）を落として比べ（この規則は郡山市のように名前に「郡」を含む字にも当たりうるが、両側に同じく当てるので比べの結果は変わらない。2026-11-26 の点検の 34 行で当たった行は 0）、字が違うのが表 §5 の 3 行（相模原市東部・西部、横浜市北部）だけであること。どれかが違えば表と期待の一覧を数え直す。P3 形の確かめ: AC04 の (1) を repo で、(2) を Mac mini で回し、12 区の点の数と割合（zoom と間引く前の両方）を表に書き足す（実装担当が manifest の shapeCheck へ写す）。条件を満たさない値が出たら baseOid を割り当てない。P4 decisionBranches の status「起草案」と「作者の裁定待ち」が 0 件。P5 fixture の照らし: 18_00_01_260830_VPWW55_fukui_L5 の Body の市町村等のコードが全部 weatherCity にあり、15_18_01_250630_VPWS50 の 15 コードが表 §7 と同じこと（範囲の外の事実で、表を変えない）。P6 転記と期待の一覧: P1 で置いた html の別表の 106 行（tr id の付いた行の 2 つの td）を script で取り出して transcription.tsv に置き、S1 と S2 の原文から照合表と別に expected-pairs.tsv（232 行、P4-GCM-D-UNNAMED-ROWS の裁定の形）を書いて置き、2 つの sha256 を AC03 の末尾に書き足す（AC03 (1)）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-city-map-tables.md:19 «5bb10af3fce69c50»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:21 «590d0ae7199b804f»",
