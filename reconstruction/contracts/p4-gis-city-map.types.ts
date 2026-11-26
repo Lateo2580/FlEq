@@ -1,5 +1,5 @@
 // 市区町村（地震津波関係、7 桁）→ 市町村等（気象警報等、7 桁）の対応表の形（P4-GIS-CITY-MAP-001 の AC01）。
-// 生成物 reconstruction/assets/gis/city-weather-map.v1.json はこの形で、C0・R0 は resolveJsonModule で import して代入で受ける（as を使わない）。
+// 生成物 reconstruction/assets/gis/city-weather-map.v1.json はこの形。受け手（C0・R0）が読む経路は R0 の問いで、読むときは as を使わず、この型に代入できる形で受ける。
 // JSON の import は字の literal を string に広げるので、relation は string で書く（値は same・within・part の 3 つ、build が止める）。
 
 // 地震の区域の側から見た関係。same は同じ行、within は気象の区域 1 つの中、part は気象の区域が一部を受け持つ（p4-gis-city-map-tables.md §3）
