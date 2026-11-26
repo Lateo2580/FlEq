@@ -151,7 +151,7 @@
 ## 6. 配送で統合担当が原文を改める項
 
 1. P4-DISPLAY-SHELL-001 の JSON: AC01 (1) の file の列挙に time.ts・area-names.ts、AC01 (6) に「カードの中のページの番号も外から替える公開物を置かない（替えるのは S1）」、AC08 (2) の描く物にカードの token、AC08 (4) に列の外に描くカードの inner のページ、AC08 (12) の比べる欄に行の id と kind と束（カードの token と inner は割りに効かないので比べず、描く時に最新のカードから読む、と「全部の欄」を改める）、AC09 (1) に「束の字も text node、束とカードの token も固定表で class へ」、AC09 (3)(4) の置き場を time.ts、publicFunctions の formatJst・clockText を time.ts へ移し formatJstTime と areaName を足す。 outOfScope の「開いたカードの矩形とページ（DS-OPEN-65、C0）」を「開いたカードの矩形とページの割り方・表示（C0）。ページの番号の受け渡しは P4-SHELL-TYPES-001」に。
-2. 同じ契約の表: §2.4 の描く行（slot のカードと開いたカードの inner）、§2.5 の置き場と formatJstTime、§11 の :455「EEW の時刻の欄は E0 のカードが formatJst を使う」を formatJstTime に、§12 の 11（slot のカードの id は event ごとに 1 つ）に「inner の番号もこの id で引く」。
+2. 同じ契約の表: §2.4 の :104 の割りの比べる欄の列挙「texts〔text と token〕」を §6 の 1 の AC08 (12) と同じ字（行は id・kind・束の字と token・continuation、カードの token と inner は比べない）に、§2.4 の描く行（slot のカードと開いたカードの inner）、§2.5 の置き場と formatJstTime、§11 の :455「EEW の時刻の欄は E0 のカードが formatJst を使う」を formatJstTime に、§12 の 11（slot のカードの id は event ごとに 1 つ）に「inner の番号もこの id で引く」。
 3. 計画（005f72fb）: 本契約の順（S0 の後・カードの契約の前、:192・:227）と、C0 発注 1（:124・:193・:866）・E0 発注 1b（:122・:193・:865）・S1 発注 1（:115・:193・:870）の依存、:227 の screen/ の行の字は計画に入った（改めない）。残るのは C2（:126・:193・:867）と M0 発注 1（:121・:193・:864）の依存に本契約を足すこと（C2 は ShellRow の id と束を書き、M0 発注 1 は ShellMapPaint.layer を書く）。
 4. 上の 1〜3 が書き換える行を引く «»（db5ac5d2 の木で数えた）: 計画の :121・:126・:193・:864・:867 を引く «» は 0 本。S0 の表 :455 を本契約の AC05 が 1 本。本契約の AC03 は計画 :227 を今の字（«bf70d2880e7bbf80»）で引き、:227 は本契約の配送では改めない。ほかの契約から S0 の JSON・表・型・screen の file の行を引く «» は 0 件（`git grep` で確かめた）。数は db5ac5d2 の木で、本契約の S0 の JSON・表の書き換え（1・2）で行が動けば、その後に数え直す。
 5. 本契約の evidenceRefs のうち screen の file と S0 の型の行は実装で動く。配送で付け直す。
