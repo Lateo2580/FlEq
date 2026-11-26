@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "0131ba16dd352e83ae5e9d44e7eda2301f46d07a",
-    "sha256": "563071b6b0d2a8d7cfbd22569a9d38f0c632ac52990386253ad17b29a5a53b14",
+    "draftedFromOid": "fa3d930028cfd91d1618d6fb44a606c85aee7a94",
+    "sha256": "5018b37e44efd62dbee376e50700c0532c87adc199648381ba000f01f1ee050d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -50,7 +50,7 @@
         "provisional": "A",
         "status": "確定（統合担当の決め、2026-11-26）",
         "ruling": "A",
-        "reason": "形が変わるのは G0 の資材の版が替わるときだけで、そのときは manifest の zoom と archive の sha256 が変わり、AC06 の P3 を回し直す。下見（表 §4、zoom、60×60）では 12 区の候補の割合の最小が 0.1321、候補の外の区域に入った点の割合が 0。zoom の weatherCity には直せない交差が 458 あり、セルより小さい細片は点に出ないので、間引く前の形でも 1 度照らす（表 §4 の点検の本番）。合格の条件（候補ごとに 0.05 以上、候補の外の合計 0.01 以下）は起草の決めで、下見の値の間に置いた"
+        "reason": "形が変わるのは G0 の資材の版が替わるときだけで、そのときは manifest の zoom と archive の sha256 が変わり、AC06 の P3 を回し直す。下見（表 §4、zoom、60×60）では 12 区の候補の割合の最小が 0.1321、候補の外の区域に入った点の割合が 0。zoom の weatherCity には、G0 の点検 P8 の下見で mapshaper の -simplify が直せなかった交差が 458 あり（原因は未確認）、セルより小さい細片は点に出ないので、間引く前の形でも 1 度照らす（表 §4 の点検の本番）。合格の条件（候補ごとに 0.05 以上、候補の外の合計 0.01 以下）は起草の決めで、下見の値の間に置いた"
       },
       {
         "id": "P4-GCM-D-UNNAMED-ROWS",
@@ -254,7 +254,7 @@
           "reconstruction/contracts/p4-gis-city-map-tables.md:93 «c43480f342dd893b»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:96 «9ecba27ac6340256»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:97 «427f1c31cef884cb»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:98 «88e8b32ef8cc0e77»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:98 «be56812c52deb97c»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:99 «42d832c5716223b0»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:146 «1b74bb641ee055e1»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:152 «4a48fddc5fccee6d»",
