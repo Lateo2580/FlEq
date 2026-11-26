@@ -142,7 +142,7 @@ describe("P3-TSUNAMI-UNIT-001 input priority on the product path", () => {
     for (const id of ["input-121", "input-122", "input-123", "input-124"])
       expect(marker(observations, "T1", id)!).toBeGreaterThanOrEqual(marker(observations, "T0", id)!);
     owners.hold = false;
-    await drain(() => true);
+    await drain(() => owners.held.length === 0); // 止めた返信を残して停止すると、入力が in-flight のまま停止の段の期限（mailboxDrain 10 秒〜計 25 秒）まで待つ
     await h.stop();
   }, 60_000);
 
@@ -161,7 +161,7 @@ describe("P3-TSUNAMI-UNIT-001 input priority on the product path", () => {
     expect(marker(observations, "T1", "input-122")).toBeUndefined();
     await until(() => h.socket().readyState !== 1);
     owners.hold = false;
-    await drain(() => true);
+    await drain(() => owners.held.length === 0);
     await h.stop();
   }, 60_000);
 });

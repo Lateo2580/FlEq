@@ -903,5 +903,5 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
     const top = prefs.reduce((max, match) => order.indexOf(match[2]) > order.indexOf(max) ? match[2] : max, "0");
     expect(prefs.length).toBeGreaterThan(0);
     expect(prefs.filter((match) => match[2] === top).map((match) => match[1]).every((name) => ["宮城県", "福島県", "茨城県", "栃木県"].includes(name))).toBe(true);
-  }, 180_000);
+  }, 300_000); // 合成の報の形を見る試験で時間は見ない。CI は最大 129.4 秒で 180 秒に近く（2026-11-26 の集計）、上限は止まったときの安全網にすぎない
 });

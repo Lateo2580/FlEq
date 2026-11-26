@@ -160,7 +160,7 @@ describe("P2-A8-T06 regression (AC06/AC13)", () => {
     expect([measured.unchanged, measured.eew, measured.weather, measured.whole]).toEqual([0, 0, 0, 0]);
     expectConsistent(full.state, full.snapshot, full.utf8Bytes);
     expectMatchesReference(full.state, reference(collected, at));
-  });
+  }, 60_000); // 量った subject の数を見る試験で時間は見ない。CI は最大 21.9 秒で既定の 30 秒に近く（2026-11-26 の集計）、上限は止まったときの安全網にすぎない
 
   it("P2-A8-T06 / P2-A8-COST.acceptance: near the legal retention bounds each update measures only its own subject", async () => {
     const views = { eew: 0, weather: 0, timeseries: 0 };
