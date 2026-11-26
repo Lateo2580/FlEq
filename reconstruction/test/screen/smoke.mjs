@@ -21,13 +21,25 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const modules = join(work, "modules");
 cpSync(join(repo, "reconstruction/dist/screen/src/display/screen"), modules, { recursive: true });
 writeFileSync(join(modules, "cards.js"), `
-const row = (height, text, token) => ({ height, token: null, texts: [{ text, token }], continuation: [] });
-const head = (text) => ({ height: 90, token: null, texts: [{ text, token: "ink" }], continuation: [] });
+const row = (height, text, token) => ({ id: null, height, token: null, texts: [{ kind: "text", text, token }], continuation: [] });
+const head = (text) => ({ id: null, height: 90, token: null, texts: [{ kind: "text", text, token: "ink" }], continuation: [] });
+const text = (value) => ({ kind: "text", text: value, token: "ink" });
+// T04（P4-ST-AC03）: 束（表にある token と無い token）、カードの token（表にある物と無い物）、鍵の衝突の行。字は snapshot の smokeT04 から取る
+const t04 = ({ groups, collide }) => [
+  { id: "g1", column: "right", place: 0, take: 0, slot: null, mayHide: false, opened: null, token: "ink", inner: null,
+    forms: [{ head: [head("束")], body: [
+      { id: "b1", height: 100, token: null, texts: [{ kind: "group", token: "ink", texts: groups.slice(0, 2).map(text) }, { kind: "group", token: "bogus-group", texts: groups.slice(2, 4).map(text) }], continuation: [] },
+      // 鍵の衝突は token が全部 null のときに起きた形なので、この行の字は token を持たない
+      { id: "b2", height: 100, token: null, texts: collide.map((value) => ({ kind: "text", text: value, token: null })), continuation: [] },
+    ], maxPages: null, minBodyRows: 1 }] },
+  { id: "g2", column: "right", place: 1, take: 1, slot: null, mayHide: false, opened: null, token: "bogus-card", inner: null,
+    forms: [{ head: [head("札")], body: [], maxPages: null, minBodyRows: 0 }] },
+];
 // 本文の字と slot のカードの数は snapshot の欄から取る（同じ構造・同じ件数で字だけを替える、AC09 (2)）
-const source = (snapshot) => [
-  { id: "t1", column: "right", place: 0, take: 0, slot: null, mayHide: false, opened: null,
+const source = (snapshot) => snapshot.smokeT04 != null ? t04(snapshot.smokeT04) : [
+  { id: "t1", column: "right", place: 0, take: 0, slot: null, mayHide: false, opened: null, token: null, inner: null,
     forms: [{ head: [head("見出し")], body: (snapshot.smokeTexts ?? []).map((text, i) => row(100, text, i % 2 === 0 ? "ink" : "bogus-token")), maxPages: null, minBodyRows: 1 }] },
-  ...Array.from({ length: snapshot.smokeSlots ?? 0 }, (_, i) => ({ id: "e" + i, column: "right", place: 0, take: 0, slot: i, mayHide: false, opened: null,
+  ...Array.from({ length: snapshot.smokeSlots ?? 0 }, (_, i) => ({ id: "e" + i, column: "right", place: 0, take: 0, slot: i, mayHide: false, opened: null, token: null, inner: null,
     forms: [{ head: [head("緊急 " + i)], body: [], maxPages: null, minBodyRows: 0 }] })),
 ];
 const CARD_SOURCES = [{ source, max: 10 }];
@@ -210,6 +222,27 @@ async function run() {
   await click(1830, 100);
   check("T10-c1 下がったカードを押すと戻る", await until(`(${parentOf("見出し")}) === "cards-middle" && (${parentOf("緊急 0")}) === "cards-top"`, 3000), "戻した後の親");
   check("T10-c1 戻した後に間の点がまた地図になる", await evaluate(`!document.elementsFromPoint(1500, 370).some((node) => node.closest(".card"))`), "elementsFromPoint (1500, 370)");
+
+  // T04（P4-ST-AC03）: 束の中の字の差し替え、鍵の衝突、束とカードの token の class
+  const t04Snapshot = (sequence, groups, collide) => ({ ...snapshot(sequence, []), smokeT04: { groups, collide } });
+  const groupCard = `[...document.querySelectorAll(".card")].find((c) => c.textContent.startsWith("束"))`;
+  server.publishWire(t04Snapshot(41, ["一", "二", "三", "四"], ["a\u0002\u0001b"]), true);
+  await until(`!!(${groupCard})`);
+  const groupBefore = await evaluate(`${groupCard}.querySelectorAll("*").length`);
+  const hostileGroups = [`<img src=x onerror="window.__y=1">`, `<script>window.__y=2</script>`, `&lt;b&gt;`, `改\n行`];
+  server.publishWire(t04Snapshot(42, hostileGroups, ["a\u0002\u0001b"]), true);
+  await until(`${groupCard}?.querySelector(".row:nth-child(2) span span")?.textContent === ${JSON.stringify(hostileGroups[0])}`);
+  check("T04 束の字の差し替えで要素の数が変わらない", (await evaluate(`${groupCard}.querySelectorAll("*").length`)) === groupBefore, "count");
+  check("T04 束の字で実行される要素が 0", await evaluate(`typeof window.__y === "undefined" && document.querySelectorAll(".card img, .card script").length === 0`), "no exec");
+  check("T04 束の字面が一致", JSON.stringify(await evaluate(`[...${groupCard}.querySelectorAll(".row:nth-child(2) > span > span")].map((s) => s.textContent)`)) === JSON.stringify(hostileGroups), "textContent");
+  const collided = `[...${groupCard}.querySelectorAll(".row:nth-child(3) > span")].map((s) => s.textContent)`;
+  const one = await evaluate(collided);
+  server.publishWire(t04Snapshot(43, hostileGroups, ["a", "b"]), true);
+  await until(`${groupCard}?.querySelectorAll(".row:nth-child(3) > span").length === 2`, 3000);
+  const two = await evaluate(collided);
+  check("T04 字 1 個 a\\u0002\\u0001b と字 2 個 a・b で描いた span が替わる", JSON.stringify(one) === JSON.stringify(["a\u0002\u0001b"]) && JSON.stringify(two) === JSON.stringify(["a", "b"]), JSON.stringify({ one, two }));
+  check("T04 束の token は表の値だけ、表に無い物は class なし", await evaluate(`(() => { const [ink, bogus] = ${groupCard}.querySelectorAll(".row:nth-child(2) > span"); return ink.className === "t-ink" && bogus.className === ""; })()`), "group class");
+  check("T04 カードの token は表の値だけ、表に無い物は class なし", await evaluate(`${groupCard}.className === "card t-ink" && [...document.querySelectorAll(".card")].find((c) => c.textContent.startsWith("札"))?.className === "card"`), "card class");
 
   // (f) viewport 1920×1080 で時計 (40,960)、960×540 で全体 0.5 倍・時計 (20,480)、押した点が 1920×1080 の座標に戻る
   server.publishWire(snapshot(50, ["一"]), true);

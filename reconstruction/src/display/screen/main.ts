@@ -1,7 +1,8 @@
 // P4-DISPLAY-SHELL-001（S0）DOM の入口。ここだけが DOM・EventSource・performance・timer を触る（P4-DS-AC01 (1)）。
 // 描くのは screenFrame が返した値だけで、行の字と矩形を DOM の側で作らない（P4-DS-AC08 (2)）。
 
-import type { ShellClientState, ShellColumn, ShellDrawCard, ShellFrame, ShellRect, ShellRow, ShellState } from "../../../contracts/p4-display-shell.types";
+import type { ShellClientState, ShellColumn, ShellDrawCard, ShellFrame, ShellRect, ShellRow, ShellState, ShellText } from "../../../contracts/p4-display-shell.types";
+import type { ShellPart } from "../../../contracts/p4-shell-types.types";
 import { acceptSnapshot } from "./client.js";
 import { screenFrame, shellSync } from "./frame.js";
 import { reduceShell } from "./layout.js";
@@ -58,6 +59,8 @@ let client: ShellClientState = { snapshot: null, unsupported: false, changed: []
 let shell: ShellState = { open: false, raised: [], eew: [] };
 // ページの番号を替えるのは S1（自動のページ送り）。S0 は 0 のまま
 const page: Record<ShellColumn, number> = { left: 0, right: 0 };
+// カードの中のページの番号（カードの id → 番号）を替えるのも S1。今は空で、全部のカードが 1 ページ目（P4-ST-AC04 (1)）
+const innerPage: Readonly<Partial<Record<string, number>>> = {};
 let frame: ShellFrame | null = null;
 // E04 の印は版ごとに 2 つ増えるので、直近 MARK_KEEP 版だけ残す（72 時間の稼働で印が増え続けるのを防ぐ）
 const MARK_KEEP = 64;
@@ -73,21 +76,46 @@ const drawn = new Map<string, Drawn>();
 const loggedDiagnostics = new Set<string>();
 let statusEl: HTMLElement | null = null;
 
-const rowsKey = (rows: readonly ShellRow[]): string =>
-  rows.map((row) => `${row.height}|${row.token ?? ""}|${row.texts.map((text) => `${text.token ?? ""}\u0001${text.text}`).join("\u0002")}`).join("\u0003");
+// 描画の鍵（P4-ST-AC03 (3)）。字と token は「長さ:字」、null は長さを持たない「-」で並べ、区切りの字を含む字どうしでも鍵が重ならない
+const keyOf = (value: string | null): string => (value == null ? "-" : `${value.length}:${value}`);
+function partKey(part: ShellPart): string {
+  switch (part.kind) {
+    case "text": return `t${keyOf(part.token)}${keyOf(part.text)}`;
+    case "group": return `g${keyOf(part.token)}${part.texts.length}:${part.texts.map((text) => keyOf(text.token) + keyOf(text.text)).join("")}`;
+  }
+}
+const rowsKey = (rows: readonly ShellRow[]): string => rows.map((row) => `${row.height}|${keyOf(row.token)}${row.texts.map(partKey).join("")}`).join("");
 const px = (value: number): string => `${value}px`;
+// class は tokens.ts の固定表の値だけ。表に無い token には付けない（P4-DS-AC09 (1)）
+const tokenClass = (token: string | null): string | null => (token != null && Object.hasOwn(TOKEN_CLASS, token) ? TOKEN_CLASS[token] : null);
+
+function textNode(text: ShellText): HTMLElement {
+  const span = document.createElement("span");
+  span.textContent = text.text;
+  const name = tokenClass(text.token);
+  if (name != null) span.className = name;
+  return span;
+}
+
+function partNode(part: ShellPart): HTMLElement {
+  switch (part.kind) {
+    case "text": return textNode(part);
+    case "group": {
+      const span = document.createElement("span");
+      const name = tokenClass(part.token);
+      if (name != null) span.className = name;
+      span.append(...part.texts.map(textNode));
+      return span;
+    }
+  }
+}
 
 function rowNode(row: ShellRow): HTMLElement {
   const node = document.createElement("div");
-  node.className = row.token != null && Object.hasOwn(TOKEN_CLASS, row.token) ? `row ${TOKEN_CLASS[row.token]}` : "row";
+  const name = tokenClass(row.token);
+  node.className = name != null ? `row ${name}` : "row";
   node.style.height = px(row.height);
-  for (const text of row.texts) {
-    const span = document.createElement("span");
-    span.textContent = text.text;
-    // class は tokens.ts の固定表の値だけ。表に無い token には付けない（P4-DS-AC09 (1)）
-    if (text.token != null && Object.hasOwn(TOKEN_CLASS, text.token)) span.className = TOKEN_CLASS[text.token];
-    node.append(span);
-  }
+  node.append(...row.texts.map(partNode));
   return node;
 }
 
@@ -139,7 +167,8 @@ function drawCards(cards: readonly ShellDrawCard[]): void {
       if (mark != null) children.push(mark);
       entry.node.replaceChildren(...children);
     }
-    entry.node.className = card.dimmed ? "card dim" : "card";
+    const cardClass = tokenClass(card.token);
+    entry.node.className = `${card.dimmed ? "card dim" : "card"}${cardClass != null ? ` ${cardClass}` : ""}`;
     entry.node.style.left = px(card.rect.x);
     entry.node.style.top = px(card.rect.y);
     entry.node.style.width = px(card.rect.w);
@@ -159,7 +188,7 @@ function drawStatus(status: readonly string[]): void {
 function render(): void {
   const now = Date.now();
   shell = reduceShell(shell, shellSync(client, now));
-  const next = screenFrame({ state: client, nowMs: now, page, shell });
+  const next = screenFrame({ state: client, nowMs: now, page, innerPage, shell });
   clipMiddle(next.cover);
   drawCards(next.cards);
   const { rect, text } = next.clock;

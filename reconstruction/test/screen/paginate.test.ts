@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ShellCard, ShellColumn, ShellColumnPages } from "../../contracts/p4-display-shell.types";
 import { paginateColumn } from "../../src/display/screen/layout";
-import { card, form, rect, row, rows } from "./screen-fixture";
+import { card, form, rect, row, rows, textOf } from "./screen-fixture";
 
 // 全部の組に共通の性質（AC05 (7)）: 本文の行はちょうど 1 つのページに出る、各ページの高さの和は列の高さ以下、同じ入力から同じ結果。
 function check(column: ShellColumn, cards: readonly ShellCard[]): ShellColumnPages {
@@ -14,8 +14,8 @@ function check(column: ShellColumn, cards: readonly ShellCard[]): ShellColumnPag
     if (shown.length === 0) continue;
     const used = source.forms[shown[0].form];
     if (used.body.length === 0) continue;
-    const bodyTexts = shown.flatMap((slice) => slice.rows.filter((r) => used.body.includes(r)).map((r) => r.texts[0]?.text));
-    expect(bodyTexts).toEqual(used.body.map((r) => r.texts[0]?.text));
+    const bodyTexts = shown.flatMap((slice) => slice.rows.filter((r) => used.body.includes(r)).map((r) => textOf(r)));
+    expect(bodyTexts).toEqual(used.body.map((r) => textOf(r)));
   }
   // 形の条件を満たして採られたカード（mayHide のカードは、満たすときだけ出る）は、返した割りで maxPages と minBodyRows を満たす
   for (const source of cards.filter((item) => item.mayHide)) {
@@ -28,7 +28,7 @@ function check(column: ShellColumn, cards: readonly ShellCard[]): ShellColumnPag
   expect(paginateColumn(column, cards)).toEqual(result);
   return result;
 }
-const counts = (result: ShellColumnPages, id: string) => result.pages.map((page) => page.cards.find((slice) => slice.id === id)?.rows.filter((r) => r.texts[0]?.text.startsWith("r")).length ?? 0);
+const counts = (result: ShellColumnPages, id: string) => result.pages.map((page) => page.cards.find((slice) => slice.id === id)?.rows.filter((r) => textOf(r)?.startsWith("r")).length ?? 0);
 const mayHideQ = (...forms: ReturnType<typeof form>[]) => card("Q", "left", { place: 1, take: 1, mayHide: true, forms });
 
 // T03 受入条件（P4-DS-AC05）: 表 §4.2 の P1〜P11。

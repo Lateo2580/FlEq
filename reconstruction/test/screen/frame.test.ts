@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { DisplayWireSnapshot } from "../../contracts/p4-display-wire.types";
 import type { ShellCard, ShellCardEntry, ShellClientState, ShellDetail, ShellFrameInput, ShellState } from "../../contracts/p4-display-shell.types";
-import { clockText, formatJst, screenFrame, shellSync } from "../../src/display/screen/frame";
-import { card, form, rect, row, rows } from "./screen-fixture";
+import { screenFrame, shellSync } from "../../src/display/screen/frame";
+import { clockText, formatJst } from "../../src/display/screen/time";
+import { card, form, rect, row, rows, textOf } from "./screen-fixture";
 
 const registry = vi.hoisted(() => ({ list: [] as ShellCardEntry[] }));
 vi.mock("../../src/display/screen/cards", () => ({ get CARD_SOURCES() { return registry.list; } }));
@@ -13,7 +14,7 @@ const snapshot = { schemaVersion: "p4-display-wire-v3", streamId: "a", sequence:
 const live: ShellClientState = { snapshot, unsupported: false, changed: [], detail: null };
 const IDLE: ShellState = { open: false, raised: [], eew: [] };
 const NOW = Date.UTC(2026, 10, 25, 12, 34);
-const input = (state: ShellClientState, extra: Partial<ShellFrameInput> = {}): ShellFrameInput => ({ state, nowMs: NOW, page: { left: 0, right: 0 }, shell: IDLE, ...extra });
+const input = (state: ShellClientState, extra: Partial<ShellFrameInput> = {}): ShellFrameInput => ({ state, nowMs: NOW, page: { left: 0, right: 0 }, innerPage: {}, shell: IDLE, ...extra });
 const use = (...sources: ShellCardEntry[]) => { registry.list = sources; };
 const cards = (list: readonly ShellCard[], max = list.length): ShellCardEntry => ({ source: () => list, max });
 const find = (frame: ReturnType<typeof screenFrame>, id: string) => frame.cards.find((item) => item.id === id);
@@ -35,7 +36,7 @@ describe("P4-DS-T06 screenFrame・shellSync", () => {
     use({ source: (snap) => { seen.push(snap.current.weatherCurrent); return [long]; }, max: 1 });
     const last = screenFrame(input(live, { page: { left: 0, right: 99 } }));
     expect(last.pageCount.right).toBe(4);
-    expect(find(last, "long")?.rows.at(-1)?.texts[0]?.text).toBe("r30");
+    expect(textOf(find(last, "long")?.rows.at(-1))).toBe("r30");
     expect(seen[0]).toBe(snapshot.current.weatherCurrent);
     expect(seen[0]).toMatchObject({ delivery: "summary" });
     use({ source: () => [], max: 1 });
