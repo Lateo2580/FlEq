@@ -18,7 +18,7 @@
 | 読む所 | file:行 | 今の振る舞い | 本契約で変わるか |
 |---|---|---|---|
 | 行の上限 | reconstruction/src/units/seismic/seismic-unit.ts:54 «5b20638b16ebc429» | `RECENT_LIMIT = 5` | 9 にする（行の中） |
-| 今日の判定 | reconstruction/src/units/seismic/seismic-unit.ts:470 «5c9502c91a40cd3b»・reconstruction/src/units/seismic/seismic-unit.ts:471 «bd30394a2ae65b0a» | 発生時刻（無ければ報の ReportDateTime）が受信日と同じときだけ行に入れる。読めなければ入れない | :470 の発生時刻を :416 の boundTime を通した字にする（D-KEY=A。判定と並びの鍵を同じ字にそろえる） |
+| 今日の判定 | reconstruction/src/units/seismic/seismic-unit.ts:470 «5c9502c91a40cd3b»・reconstruction/src/units/seismic/seismic-unit.ts:471 «bd30394a2ae65b0a» | 発生時刻（無ければ報の ReportDateTime）が受信日と同じときだけ行に入れる。読めなければ入れない | :470 で、40 字を超える発生時刻の報は今日の判定を通さない（行を作らず、ある行も触らない。D-KEY=A。判定と並びの鍵を同じ字にそろえる） |
 | 行の時刻の欄 | reconstruction/src/units/seismic/seismic-unit.ts:416 «8381eb3e8dd350c6»・reconstruction/src/units/seismic/seismic-unit.ts:476 «ae5d7bf973b11c83» | 発生時刻・報の時刻は 40 字を超えると null。報の時刻は行を作り直した報（最後に採った報）の値 | 変えない。並びの鍵はこの 2 つの欄から作る（§2.1）。報の時刻は受理が 25 字以内に限る（seismic.ts:58・:66）ので null にならない |
 | 行を作る所 | reconstruction/src/units/seismic/seismic-unit.ts:479 «b81c845945742c8e» | 津波は評価の文だけ（VXSE52・VXSE53 の文、VXSE51 は null）、128 字で切る | 同じ所でコードの組を足す（§2.3） |
 | 行を入れて切る所 | reconstruction/src/units/seismic/seismic-unit.ts:481 «5a0c6b63f1545473» | 作った行を先頭へ入れ、先頭の 5 行を残す（最後に受けた順） | 並べ直して先頭の 9 行を残す（§3） |
@@ -42,11 +42,12 @@
 
 | 案 | 中身 | 起きること |
 |---|---|---|
-| A 行の保存した欄から作り、今日の判定も同じ字にそろえる（推奨） | 鍵は `Date.parse(originTimeRaw ?? reportDateTimeRaw)`（行の欄、読めない値は最も古い扱い）。:470 の今日の判定も `boundTime(view.originTimeRaw) ?? 報の時刻` にする（40 字を超える発生時刻は、判定でも鍵でも無いものとして報の時刻を使う） | 鍵が行の欄だけで決まるので、復元の後も同じ順で、判定と鍵が食い違わない。発生時刻の無い行は、採用した報の時刻の位置へ動く（続報のたびに動く）。40 字を超える読める OriginTime の報は、今は発生日で判定するが、本契約の後は報の日で判定する（test/fixtures の OriginTime は最長 25 字で、この形は無い） |
+| A 行の保存した欄から作り、40 字を超える発生時刻の報は今日の判定を通さない（推奨） | 鍵は `Date.parse(originTimeRaw ?? reportDateTimeRaw)`（行の欄、読めない値は最も古い扱い）。:470 は、発生時刻が無ければ報の時刻で判定し、発生時刻が 40 字を超えれば読めないものとして判定を通さない（行を作らず、ある行も触らない）。だから行の発生時刻の欄は :416 で null にならず、鍵と判定が同じ字になる | 鍵が行の欄だけで決まるので、復元の後も同じ順。発生時刻の無い行は、採用した報の時刻の位置へ動く（続報のたびに動く）。40 字を超える発生時刻の報は、今日の地震でも行に出ない（件数は :460 の今の規則のまま、表 §3 の 14''）。test/fixtures の OriginTime は最長 25 字で、この形は無い |
 | B 行に並びの鍵の数を保存する | 行を作るときの `origin`（:470 の値、40 字で切る前の字の ms）を新しい欄に持つ | 保存の欄がもう 1 つ増え、予算の式と decode の確かめも増える。40 字を超える発生時刻でも今日の判定と同じ値で並ぶ |
+| C 40 字を超える発生時刻を無いものとして報の時刻で判定する（r1 の A） | :470 を `boundTime(view.originTimeRaw) ?? 報の時刻` に | 前の日の発生時刻を 40 字超で書いた報が、報の時刻で今日の判定を通り、発生不明の今日の行を更新する（ヘルツ P2、表 §3 の 14'）。recovery で空の state に受けると、件数は :460 が生の発生時刻で前の日と判定して 0、行は 1 になる |
 
 - 無いと何が壊れるか: 鍵が決まらないと B4 の「発生の新しい順」を unit が作れない。
-- r0 の A は鍵だけを行の欄から作り、判定は 40 字で切る前の字のままだった。40 字を超える読める OriginTime の報は判定を通るのに保存の欄が null になり、報の時刻で並んで崩れる（ヘルツ P2）。r1 は判定を鍵の字にそろえた。
+- r0 の A は鍵だけを行の欄から作り、判定は 40 字で切る前の字のままだった。40 字を超える読める OriginTime の報は判定を通るのに保存の欄が null になり、報の時刻で並んで崩れる（ヘルツ P2）。r1 は判定を鍵の字にそろえたが（C）、40 字を超える前の日の発生時刻で行を作り直した（ヘルツ P2）。r2 は 40 字を超える発生時刻の報を判定から外した。
 - A の根拠: test/fixtures の OriginTime は最長 25 字（例 `2026-11-26T10:00:00+09:00`、grep で数えた）で、40 字を超える形は無い。発生時刻の無い行は、OriginTime の無い VXSE61・VXSE53・VXSE52 と TargetDateTime の無い VXSE51 だけの地震（:235〜:236 の originOf）。
 
 ### 2.2 同時刻の順（D-TIE）
@@ -142,11 +143,14 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | 12 | 7 の後に、Q5 の全取消 | Q9〜Q6・Q5（取消）・Q4〜Q1 | 全取消の行は位置を変えず、9 行の 1 つを占めたまま残る（DS-QROW-09） |
 | 12' | 7 の後に、Q5 の VXSE51（TargetDateTime 09:40）を受け、Q5 の VXSE53 だけを取消 | Q5・Q9〜Q6・Q4〜Q1（Q5 は取消でない） | 一部取消。行の中の地震でも、採用の後の facts で作り直すので鍵が 05:00 から 09:40 に動く |
 | 13 | 7 の後に、Q9 の訂正で発生時刻が 00:10 に | Q8〜Q1・Q9（Q0 は戻らない） | 外した地震の行を unit は持たないので、鍵が古い側へ動くと、間の 00:30 の Q0 は行に無いまま（既知の性質） |
-| 14 | 00:01 着の OriginTime の無い G の報（報の時刻 00:01）→ G の報（OriginTime は前の日の 23:59） | G（鍵 00:01、中身は最初の報のまま） | 2 つ目の報は今日の判定（:471）を通らないので行を触らない。今のまま（本契約で変えない、outOfScope） |
+| 14 | 00:01 着の OriginTime の無い G の報（報の時刻 00:01）→ G の報（OriginTime は前の日の 23:59、40 字以下、00:02 着） | G（鍵 00:01、中身は最初の報のまま） | 2 つ目の報は今日の判定（:471）を通らないので行を触らない。今のまま（本契約で変えない、outOfScope） |
+| 14' | 14 と同じで、2 つ目の報の OriginTime が `2026-11-25T23:59:00.0000000000000000+09:00`（42 字、読める）か、40 字を超える読めない長い字 | G（鍵 00:01、中身は最初の報のまま） | 40 字を超える発生時刻の報は今日の判定を通さない（D-KEY=A）。C なら発生時刻の欄が null で報の時刻 00:02 で判定を通り、G の鍵と中身が更新される |
+| 14'' | 空の state に、14' の 2 つ目の報だけを受ける（通常の受信と、取り直し〔recovery〕の 2 通り） | 行は 0。件数は、通常の受信なら 1（受信日に数える）、recovery なら 0 | 行は D-KEY=A で作らない。件数は :460（reconstruction/src/units/seismic/seismic-unit.ts:460 «b5eb2510fce4e2a6»）の今の規則のまま変えない: 通常の受信は受信日に数え、recovery は生の発生時刻で今日の地震だけを数える（V8 の Date.parse は 42 字の字も読み、前の日と判定する） |
 | 15a | v9 の slot だけ（A・B のどちらも v9、または v9 と空） | checkpoint は unavailable（unknownSchema）を返し、その run は U-Q を保存しない | 一覧に無い版（reconstruction/src/checkpoint/checkpoint.ts:177 «b0d70fcd0041aaef»・reconstruction/src/checkpoint/checkpoint.ts:186 «9c82ce3abff6a475»）。行は読まれない |
 | 15b | v10 と v9 の slot が並ぶ | v10 の slot から復元し、その run は保存しない（checkpointRestoreRejected の unknownSchema） | 同じ :177 の枝 |
 | 15c | 作者の了承で開発機の v9 の slot を消した後（A・B とも無い） | empty（初期の state）から始まり、保存する | reconstruction/src/checkpoint/checkpoint.ts:173 «564a91036c15104a» |
-| 15d | v10 の slot の payload が decode で invalid（行が 10 個・並びが崩れた・EventID が重なった・欄が上限の外） | unit の restore が requiredStructureInvalid の rejected を返し、state は初期のまま | reconstruction/src/units/seismic/seismic-unit.ts:1313 «f91fce8a083f2983» |
+| 15d | v10 の slot の payload が decode で invalid（行が 10 個・並びが崩れた・EventID が重なった・欄が上限の外）。A が不正・B が有効なら | B から復元する。A・B とも不正なら unavailable（noValidSlot） | checkpoint は slot を読むときに codec の decode を通し、restored でない slot を invalid にする（reconstruction/src/checkpoint/checkpoint.ts:480 «0e8127099404455e»・reconstruction/src/checkpoint/checkpoint.ts:481 «58affb1ef56e7cfe»）。有効な slot が無ければ :186 の枝 |
+| 15e | checkpoint を通さず、不正な payload を unit の restore に直に入れる（試験など） | unit が requiredStructureInvalid の rejected を返し、state は初期のまま | reconstruction/src/units/seismic/seismic-unit.ts:1313 «f91fce8a083f2983» |
 | 16 | v10 の保存（9 行）から同じ日に、確かめた時計で起動 | 保存した順のまま | 保存は受けるたびに並べ直した列。日が変わっていれば、復元の期限の回収（:1231）が当日履歴を空にする。時計が確かめられない間（awaiting・unverified）は回収を止める（:1196〜:1197）ので保存した順のまま残り、確かめた時計の期限で空になる（今のまま） |
 
 - 計算量: 受信 1 回で並べ直すのは高々 10 行（その区分の 9 行と作った 1 行）。全件の走査や当日履歴の全体の直列化を足さない。byte は今の `historyBytes`（行の配列ごとの cache）のまま数える。
@@ -183,7 +187,7 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 
 ### 5.2 M5 の導いた組（量り直した M5）
 
-統合担当が Mac mini で量り直した M5（P4-UW-AREA-KIND-001 の後の木 c7bdd8dd の 9,244 公開、repo 外の m2-M5.json と m5derive.py、式は B1 の表 §2.2 と同じ。2026-11-26 18:1x に統合担当が実行）の各公開の 9 分野の byte に、保護 3 分野・通知・共通部の上界を足した。
+統合担当が Mac mini で量り直した M5（P4-UW-AREA-KIND-001 の後の木 c7bdd8dd の 9,244 公開、repo 外の m2-M5.json と m5derive.py、式は B1 の表 §2.2 と同じ。2026-11-26 18:00 に統合担当が実行）の各公開の 9 分野の byte に、保護 3 分野・通知・共通部の上界を足した。
 
 | 上界 | 1 MiB を越えた公開 | 要約になる分野（作者裁定 B） | 最悪の公開（06-26 07:40:59） | 要約の後 | 収まらない | A なら |
 |---|---|---|---|---|---|---|
@@ -205,7 +209,7 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 
 | 案 | 中身 | 旧の U-Q の view の増え（上界、1 字 6 byte） | 前例 |
 |---|---|---|---|
-| A 旧の view にも 9 行と新しい 2 欄をそのまま出す（推奨） | view の形を変えない | ＋48,852（増えた 12 行 ×〔元の欄 2,310 ＋ 足した欄 1,656〕＋ 元の 15 行 × 新しい 2 欄 84。保存の増えと同じ） | P4-DW-AC16（B0 が行に足した欄は旧にも出た） |
+| A 旧の view にも 9 行と新しい 2 欄をそのまま出す（推奨） | view の形を変えない | ＋48,852（増えた 12 行 ×〔元の欄 2,310 ＋ 足した欄 1,656〕＋ 元の 15 行 × 新しい 2 欄 84） | P4-DW-AC16（B0 が行に足した欄は旧にも出た） |
 | B 旧の view は区分ごとに先頭の 5 行と B0 までの欄に切る | 旧の projector が U-Q の view を旧の snapshot に入れる所（reconstruction/src/view-projector/view-projector.ts:799 «b66083ff9c611305»）で切る。toSeismicView では切らない（新しい経路の display-wire.ts:501・:734 も同じ view を読むので、toSeismicView で切ると新しい経路の 6〜9 行目が消える） | 0（並びは変わる） | P4-UAK-D-PLACE=A（旧の経路の出力を変えない側） |
 
 - A の根拠: 旧の経路は T0 で消え、端末は daily を読まない。旧の U-Q は分野の予算 65,536 を既に越えうる（N2・N3 の旧の経路は U-Q を要約にしている、p4-display-capacity-tables.md の §2.2 の下の段落）ので、旧の要約の組が変わるのは旧の全体が 1 MiB を越える公開だけ。B は旧のためだけに投影の処理を足す。
@@ -306,4 +310,9 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | 9 | 契約の字を読む試験・checker の確かめ | §8.1 の後の箇条 |
 | 10 | §8.1 の漏れ・計画 :223 の字・行の数の書き方・RULINGS（適合 P3） | §8.1（wire.json:569・計画 :548・capacity.json:389）、allowedPaths と AC08、Q-UQR-RULINGS |
 | 11 | 旧の経路の行を期待に持つ試験の確かめ | §9 の後の箇条 |
-| 追 | M5 の 1 MiB を越えた公開を量り直しの値に（統合担当、2026-11-26 18:1x） | §0、§5.2、§5.3、Q-UQR-CAPACITY・Q-UQR-CAPT-DIFF・Q-UQR-RULINGS、AC06 (1)(3) |
+| 追 | M5 の 1 MiB を越えた公開を量り直しの値に（統合担当、2026-11-26 18:00） | §0、§5.2、§5.3、Q-UQR-CAPACITY・Q-UQR-CAPT-DIFF・Q-UQR-RULINGS、AC06 (1)(3) |
+| r2-1 | 40 字を超える発生時刻で表 14 が崩れる・件数と行の食い違い（ヘルツ P2） | §2.1 の D-KEY（A を判定から外す形に、r1 の A は C に）、§1、§3 の 14・14'・14''、AC01 (2)、T01 |
+| r2-2 | 不正な v10 の slot は checkpoint の decode で落ちる（ヘルツ P2） | §3 の 15d・15e |
+| r2-3 | D-LEGACY の B の字（ヘルツ P2） | JSON の P4-UQR-D-LEGACY の B |
+| r2-4 | 旧の経路の増えの「保存の増えと同じ」（適合 P3） | §6、JSON の D-LEGACY の reason |
+| r2-5 | 量り直しの時刻の字 | §5.2・§11、Q-UQR-CAPACITY（18:00） |

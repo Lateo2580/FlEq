@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e5e65ac5cc817815eef1d69203a3d56f3dfc0225",
-    "sha256": "d0a271f4eb3e12f899a4c9696e4d6c9988016ecfe5fa0b6146dbfbd4e9ce7b08",
+    "sha256": "0b5a5126277cdc3d5ca835589d9e020c163775a16e32e72a785aa38ca581b913",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -44,8 +44,9 @@
       {
         "id": "P4-UQR-D-KEY",
         "kind": "統合担当",
-        "A": "並びの鍵は行の保存した欄から Date.parse(originTimeRaw ?? reportDateTimeRaw)（読めない値は最も古い扱い）。seismic-unit.ts:470 の今日の判定も boundTime(view.originTimeRaw) ?? 報の時刻 にして、判定と鍵を同じ字にそろえる（40 字を超える発生時刻は、判定でも鍵でも無いものとして報の時刻を使う）",
+        "A": "並びの鍵は行の保存した欄から Date.parse(originTimeRaw ?? reportDateTimeRaw)（読めない値は最も古い扱い）。seismic-unit.ts:470 は、発生時刻が無ければ報の時刻で判定し、発生時刻が 40 字を超えれば読めないものとして今日の判定を通さない（行を作らず、ある行も触らない）。行の発生時刻の欄は :416 で null にならず、判定と鍵が同じ字になる",
         "B": "行を作るときの origin（seismic-unit.ts:470 の値、40 字で切る前の字の ms）を新しい欄に保存して鍵にする",
+        "C": "40 字を超える発生時刻を無いものとして報の時刻で判定する（r1 の A。boundTime(view.originTimeRaw) ?? 報の時刻）",
         "recommended": "A",
         "provisional": "A",
         "status": "起草案（統合担当の案、裁定前）",
@@ -147,12 +148,12 @@
         "id": "P4-UQR-D-LEGACY",
         "kind": "統合担当",
         "A": "旧の経路 /events の U-Q の view にも、区分ごとに 9 行と新しい 2 欄（tsunamiCodes・omittedTsunamiCodes）をそのまま出す（view の形を変えない）",
-        "B": "旧の view は区分ごとに先頭の 5 行と B0 までの欄に切る（toSeismicView に切る処理を足す）",
+        "B": "旧の view は区分ごとに先頭の 5 行と B0 までの欄に切る。切るのは旧の projector が U-Q の view を旧の snapshot に入れる所（view-projector.ts:799 の行の中）で、toSeismicView では切らない（新しい経路の display-wire.ts:501・:734 も同じ view を読む）",
         "recommended": "A",
         "provisional": "A",
         "status": "起草案（統合担当の案、裁定前）",
         "ruling": "未定",
-        "reason": "表 §6。前例が割れている: P4-DW-AC16 は行に足した欄を旧にも出し、P4-UAK-D-PLACE=A は旧の出力を変えない側を選んだ。A の旧の U-Q の view の増えの上界は ＋48,852 byte（1 字 6 byte、保存の増えと同じ）。旧の経路は T0 で消え、端末は daily を読まず、旧の U-Q は分野の予算 65,536 を既に越えうる（N2・N3 の旧の経路は U-Q を要約にしている）ので、旧の要約の組が変わるのは旧の全体が 1 MiB を越える公開だけ。B は旧のためだけに投影の処理を足す。並びは unit の state の並びなので、どちらの案でも旧の view の行も発生の新しい順になる"
+        "reason": "表 §6。前例が割れている: P4-DW-AC16 は行に足した欄を旧にも出し、P4-UAK-D-PLACE=A は旧の出力を変えない側を選んだ。A の旧の U-Q の view の増えの上界は ＋48,852 byte（1 字 6 byte）。旧の経路は T0 で消え、端末は daily を読まず、旧の U-Q は分野の予算 65,536 を既に越えうる（N2・N3 の旧の経路は U-Q を要約にしている）ので、旧の要約の組が変わるのは旧の全体が 1 MiB を越える公開だけ。B は旧のためだけに投影の処理を足す。並びは unit の state の並びなので、どちらの案でも旧の view の行も発生の新しい順になる"
       }
     ],
     "questionResolutions": [
@@ -173,7 +174,7 @@
       {
         "id": "Q-UQR-CAPACITY",
         "status": "closed",
-        "source": "起草の子の script（.tmp-uq/wire-max-uq.mjs、git に入らない。基点 e5e65ac5 の上）と、統合担当が Mac mini で量り直した M5（P4-UW-AREA-KIND-001 の後の木 c7bdd8dd の 9,244 公開、repo 外の m2-M5.json と m5derive.py、式は B1 の表 §2.2 と同じ。2026-11-26 18:1x に統合担当が実行）",
+        "source": "起草の子の script（.tmp-uq/wire-max-uq.mjs、git に入らない。基点 e5e65ac5 の上）と、統合担当が Mac mini で量り直した M5（P4-UW-AREA-KIND-001 の後の木 c7bdd8dd の 9,244 公開、repo 外の m2-M5.json と m5derive.py、式は B1 の表 §2.2 と同じ。2026-11-26 18:00 に統合担当が実行）",
         "closed": "新しい欄込み・区分ごとに 9 行: U-Q の型の最大 77,279 byte、保護 3 分野（組 A短）202,669 byte で 262,144 に余り 59,475、新しい経路の上界 399,277。量り直した M5 に上界 399,277 を足した導いた組は 1,789 公開で 1 MiB を越え、作者裁定 B の要約は 1,789 公開とも U-F 1 つ、最悪の公開 06-26 07:40:59 で 1,155,300 → 969,056、収まらない公開 0（A なら U-F・U-M・U-R・U-W）。上界 377,434 では 1,610・1,133,457 → 947,213 で容量の表 :65 と一致した。起草の子の推計（量り直す前の m2-M5.json に U-W を一律に足した 1,911・1,918・2,124）は量り直しの値で置き換えた。依頼の止める条件（要約は U-F だけ・収まらない公開 0・保護 3 分野の上限内）から外れない（表 §5）",
         "remaining": "実装の後の script の newPath.sum が 399,277 と違えば、配送の前に数え直す（AC06 (3)）。区分ごとに塗る組 R短（作者の選んだ組ではない）は余りが −11,454 になる"
       },
@@ -181,7 +182,7 @@
         "id": "Q-UQR-CAPT-DIFF",
         "status": "closed",
         "source": "p4-display-capacity-tables.md:64・:65、p4-uw-area-kind.json の Q-UAK-DELIVERY (1)、.tmp-s0/a17-count.md と m2-M5.json（repo 外）、起草の子の script（.tmp-uq/m5.py）",
-        "closed": "容量の表の 1,610 公開・1,133,457 は、P4-UW-AREA-KIND-001 の配送で Mac mini が量り直した M5 の行（9 分野の和の最大 756,023）に 377,434 を足した値。a17count の 1,621・1,133,421 は、量り直す前の m2-M5.json（最大 715,291）の全部の公開の U-W に、U-W の最大どうしの差 40,696（229,286 − 188,590）を一律に足した値。量り直した行の 9 分野の和の最大は同じ 07:40:59 の 756,023 で、715,291 との差 40,732 は 40,696 より 36 多く、1,133,457 − 1,133,421 ＝ 36 と合う。統合担当の量り直し（2026-11-26 18:1x）でも上界 377,434 で 1,610・1,133,457 が出た。差は入力の違い（a17count は量り直す前の m2-M5.json に U-W を一律に足した推計、容量の表は量り直した M5）から出る（表 §5.3）",
+        "closed": "容量の表の 1,610 公開・1,133,457 は、P4-UW-AREA-KIND-001 の配送で Mac mini が量り直した M5 の行（9 分野の和の最大 756,023）に 377,434 を足した値。a17count の 1,621・1,133,421 は、量り直す前の m2-M5.json（最大 715,291）の全部の公開の U-W に、U-W の最大どうしの差 40,696（229,286 − 188,590）を一律に足した値。量り直した行の 9 分野の和の最大は同じ 07:40:59 の 756,023 で、715,291 との差 40,732 は 40,696 より 36 多く、1,133,457 − 1,133,421 ＝ 36 と合う。統合担当の量り直し（2026-11-26 18:00）でも上界 377,434 で 1,610・1,133,457 が出た。差は入力の違い（a17count は量り直す前の m2-M5.json に U-W を一律に足した推計、容量の表は量り直した M5）から出る（表 §5.3）",
         "remaining": ""
       },
       {
@@ -359,7 +360,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-UQR-AC01",
-        "requirement": "行の数と並び（作者の裁定 A17・B4、P4-UQR-D-KEY・D-TIE）。(1) RECENT_LIMIT を 9 にする（区分ごとに数える形は変えない） (2) 並びの鍵は行の欄から Date.parse(originTimeRaw ?? reportDateTimeRaw)（両方 null か読めなければ最も古い扱い）、鍵の降順、同じ値は EventID の字（UTF-16 の順）の降順。:470 の今日の判定は boundTime(view.originTimeRaw) ?? 報の時刻 にして鍵と同じ字にそろえる (3) 行を作ったら（:471 の今日の判定と :474 の条件は今のまま）、その EventID の行を除いた行に作った行を足して (2) で並べ、先頭の 9 行を残す。作った行が 10 番目以降に並び、その EventID の行が前に無かったときは、recent の配列を前と同じ object のまま残す。取消は採用の後に active な寄与が残るかで分ける。全取消は今どおり、行があれば前の行に cancelled: true を付けて位置を変えず（:480）、行が無ければ作らない。一部取消は active の受信と同じで、採用の後の公開事実から行を作り直し、鍵も採用の後の facts から作る（行の外の地震が入る・行の中の地震が動くことがある、表 §3 の 11'・12'） (4) 表 §3 の 1〜14（5'・5''・11'・12' を含む）の列で、行の並びが表のとおりになる。行の中の地震の訂正は、発生時刻が同じなら位置を変えず、発生時刻が変われば新しい鍵の位置へ動く。9 行の外の地震は、訂正で鍵が 9 行の内に入るときだけ入る (5) 並べる所は seismic-unit.ts の 1 か所だけ。display-wire.ts:501 は並べ直さず、通常・訓練・試験の順に繋ぐ (6) 件数・最大震度・counted・日の切替えの規則は変えない",
+        "requirement": "行の数と並び（作者の裁定 A17・B4、P4-UQR-D-KEY・D-TIE）。(1) RECENT_LIMIT を 9 にする（区分ごとに数える形は変えない） (2) 並びの鍵は行の欄から Date.parse(originTimeRaw ?? reportDateTimeRaw)（両方 null か読めなければ最も古い扱い）、鍵の降順、同じ値は EventID の字（UTF-16 の順）の降順。:470 は、発生時刻が無ければ報の時刻で判定し、発生時刻が 40 字を超えれば今日の判定を通さない（行を作らず、ある行も触らない）。件数・最大震度・counted の :460 の判定（recovery は生の発生時刻）は変えない（表 §3 の 14''） (3) 行を作ったら（:471 の今日の判定と :474 の条件は今のまま）、その EventID の行を除いた行に作った行を足して (2) で並べ、先頭の 9 行を残す。作った行が 10 番目以降に並び、その EventID の行が前に無かったときは、recent の配列を前と同じ object のまま残す。取消は採用の後に active な寄与が残るかで分ける。全取消は今どおり、行があれば前の行に cancelled: true を付けて位置を変えず（:480）、行が無ければ作らない。一部取消は active の受信と同じで、採用の後の公開事実から行を作り直し、鍵も採用の後の facts から作る（行の外の地震が入る・行の中の地震が動くことがある、表 §3 の 11'・12'） (4) 表 §3 の 1〜14（5'・5''・11'・12'・14'・14'' を含む）の列で、行の並びが表のとおりになる。行の中の地震の訂正は、発生時刻が同じなら位置を変えず、発生時刻が変われば新しい鍵の位置へ動く。9 行の外の地震は、訂正で鍵が 9 行の内に入るときだけ入る (5) 並べる所は seismic-unit.ts の 1 か所だけ。display-wire.ts:501 は並べ直さず、通常・訓練・試験の順に繋ぐ (6) 件数・最大震度・counted・日の切替えの規則は変えない",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:54 «5b20638b16ebc429»",
           "reconstruction/src/units/seismic/seismic-unit.ts:470 «5c9502c91a40cd3b»",
@@ -475,7 +476,7 @@
           "P4-UQR-AC01",
           "P4-UQR-AC07"
         ],
-        "behavior": "受入条件（並び）。表 §3 の 1〜14（5'・5'' を含む）の列を、seismic-fixture.ts の vxse53（通常の区分、発生時刻は origin、OriginTime の無い報は vxse53 の字から <OriginTime> の要素を外した字、訂正・取消は infoType）と、5'' の震度速報は 32-35_01_01_260824_VXSE51 の EventID・ReportDateTime・TargetDateTime を replaceTag で替えた字と、receive で、報の時刻を時計にして 2026-11-26（JST）に流す。各段の daily.normal.recent の EventID の列が表のとおり。7・9・11 の段では recent の配列が前の段と同じ object。5' では D の行の鍵が後の報の時刻で上に残り、5'' では H が VXSE53 の後に OriginTime の位置へ動き、6 では受けた順を逆にしても同じ列。12 の全取消の行は cancelled が true で位置が変わらない。11' では H が 10:31 の位置で入り Q1 が外れ、12' では Q5 が cancelled false のまま 09:40 の位置へ動く。14 では 2 つ目の報の後も G の行の中身と位置が変わらない"
+        "behavior": "受入条件（並び）。表 §3 の 1〜14（5'・5''・11'・12'・14'・14'' を含む）の列を、seismic-fixture.ts の vxse53（通常の区分、発生時刻は origin、OriginTime の無い報は vxse53 の字から <OriginTime> の要素を外した字、訂正・取消は infoType）と、5'' の震度速報は 32-35_01_01_260824_VXSE51 の EventID・ReportDateTime・TargetDateTime を replaceTag で替えた字と、receive で、報の時刻を時計にして 2026-11-26（JST）に流す。各段の daily.normal.recent の EventID の列が表のとおり。7・9・11 の段では recent の配列が前の段と同じ object。5' では D の行の鍵が後の報の時刻で上に残り、5'' では H が VXSE53 の後に OriginTime の位置へ動き、6 では受けた順を逆にしても同じ列。12 の全取消の行は cancelled が true で位置が変わらない。11' では H が 10:31 の位置で入り Q1 が外れ、12' では Q5 が cancelled false のまま 09:40 の位置へ動く。14 と 14' では 2 つ目の報（14' は OriginTime が 2026-11-25T23:59:00.0000000000000000+09:00 の 42 字）の後も G の行の中身と位置が変わらない。14'' は空の state に 14' の 2 つ目の報だけを受け、通常の受信なら件数 1・行 0、recovery なら件数 0・行 0"
       },
       {
         "testId": "P4-UQR-T02",
