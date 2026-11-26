@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d89a98fcf536aedb4b41231c2374498105bc4ab",
-    "sha256": "00ad0293a50f3466a853b0ae56e6314297d46578ca3d6b22eb96aebca3378daa",
+    "sha256": "ca8f2795168ed1f7f36d80e8ba7179150007fdf51e4db6cd296152b5d838e327",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -329,7 +329,7 @@
           "reconstruction/src/display/screen/frame.ts:52 «619c8c847bfea5d2»",
           "reconstruction/src/display/screen/frame.ts:104 «d2cc71f5a794b09c»",
           "reconstruction/src/display/screen/frame.ts:120 «fbf09f62b14f5ba6»",
-          "reconstruction/contracts/p4-display-shell.json:575 «557dddb1a56269c2»"
+          "reconstruction/contracts/p4-display-shell.json:575 «24ab50a4d407f999»"
         ]
       },
       {
@@ -348,7 +348,7 @@
       },
       {
         "id": "P4-ST-AC04",
-        "requirement": "カードの中のページ（P4-ST-D-INNER、表 §2.3）。(1) 番号は scene（S1 発注 1）が持つ。main.ts は module の innerPage を空の object の定数で持ち（列の page と同じ形、main.ts:60）、screenFrame の入力に渡す。番号を外から替える公開物を置かない（S0 の AC01 (6) と同じ。替えるのは S1 発注 1）。metadata だけの更新で番号は変わらない（O11:7 の S0 分、S0 の AC15 (2)） (2) screenFrame は、列の割りの外に描くカード（frame に置いた緊急地震速報の場所のカード〔最上層と下がった物〕と、開いているときの開いたカード）のうち inner が null でないカードについて、番号 k を「innerPage の own key で値が有限の整数ならその値、ほか（無い・継承したキー・整数でない）は 0」とし、0 以上・ページの数−1 以下に丸めたページの行だけを描く（ページが減って番号がページの数以上なら最後のページ。状態の番号は直さない、番号は S1 発注 1 が保つ。列の番号の丸め frame.ts:108 と同じ）。innerPageCount には、その frame で実際に inner から行を選んだカードの id だけをキーにしてページの数を入れる（層では決めない。閉じた今日の地震のように inner を持って列に描かれたカードはキーを持たない）。本契約の frame は inner のカードに mark を付けない。ページの表示の形（mark か行の中か）と押す相手は S1 発注 1・E0 発注 1b・C0 が決める (3) inner があるとき opened.rows と forms[0] は描かない。inner が null のカードは今どおり（slot のカードは forms[0] の head と本文、開いたカードは opened.rows）。列のカードの描く行と mark は今どおり列の割りから (4) 入力の条件（カードの契約が宣言する。破る入力の答えは定めない）: 各ページの行の高さの和はそのカードを描く矩形の高さ以下。ページが無くなったら作り手は inner を null にする（型が空の並びを許さない）。S0 はページを割らず高さを照らさない (5) reduceShell と layout.ts は変えない",
+        "requirement": "カードの中のページ（P4-ST-D-INNER、表 §2.3）。(1) 番号は scene（S1 発注 1）が持つ。main.ts は module の innerPage を空の object の定数で持ち（列の page と同じ形、main.ts:60）、screenFrame の入力に渡す。番号を外から替える公開物を置かない（S0 の AC01 (6) と同じ。替えるのは S1 発注 1）。metadata だけの更新で番号は変わらない（O11:7 の S0 分、S0 の AC15 (2)） (2) screenFrame は、列の割りの外に描くカード（frame に置いた緊急地震速報の場所のカード〔最上層と下がった物〕と、開いているときの開いたカード）のうち inner が null でないカードについて、番号 k を「innerPage の own key で値が有限の整数ならその値、ほか（無い・継承したキー・整数でない）は 0」とし、0 以上・ページの数−1 以下に丸めたページの行だけを描く（ページが減って番号がページの数以上なら最後のページ。状態の番号は直さない、番号は S1 発注 1 が保つ。列の番号の丸め frame.ts:86 と同じ）。innerPageCount には、その frame で実際に inner から行を選んだカードの id だけをキーにしてページの数を入れる（層では決めない。閉じた今日の地震のように inner を持って列に描かれたカードはキーを持たない）。本契約の frame は inner のカードに mark を付けない。ページの表示の形（mark か行の中か）と押す相手は S1 発注 1・E0 発注 1b・C0 が決める (3) inner があるとき opened.rows と forms[0] は描かない。inner が null のカードは今どおり（slot のカードは forms[0] の head と本文、開いたカードは opened.rows）。列のカードの描く行と mark は今どおり列の割りから (4) 入力の条件（カードの契約が宣言する。破る入力の答えは定めない）: 各ページの行の高さの和はそのカードを描く矩形の高さ以下。ページが無くなったら作り手は inner を null にする（型が空の並びを許さない）。S0 はページを割らず高さを照らさない (5) reduceShell と layout.ts は変えない",
         "evidenceRefs": [
           "reconstruction/src/display/screen/frame.ts:86 «882149d26e3befd1»",
           "reconstruction/src/display/screen/frame.ts:116 «d0d66f0b2f9d8572»",

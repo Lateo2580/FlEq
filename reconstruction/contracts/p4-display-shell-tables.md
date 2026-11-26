@@ -92,7 +92,7 @@
 ### 2.4 frame.ts（Q-PWT3-ROWS-FN、reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»）
 
 - `screenFrame(input: ShellFrameInput): ShellFrame`。
-  - input: client の状態、時刻（epoch ms）、列ごとのページの番号、ShellState。
+  - input: client の状態、時刻（epoch ms）、列ごとのページの番号、カードの中のページの番号 innerPage（カードの id をキーとする辞書で、指定が無ければ {} を渡す。必須の欄、main.ts は S1 発注 1 まで {}、P4-SHELL-TYPES-001）、ShellState。
   - カード: `cards.ts` の `CARD_SOURCES`（ShellCardEntry〔source と max〕の配列）を順に呼んで集める。S0 の登録は 0 本。各カードの契約が 1 行ずつ足す（reconstruction/contracts/p4-order-plan.md:227 «bf70d2880e7bbf80»）。
   - 中間の層: 列ごとに `paginateColumn` の結果のうち、ページの番号のページ。番号がページの数以上なら最後のページ（自動の送りと番号の引継ぎは S1）。
   - 最上層: slot のあるカードを slot の小さい順に並べ、その順で `eewSlots`（枚数、6 まで）の場所に置く。7 枚目からは置かない（7 件目は E0、DS-LAYOUT-07）。置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を open として placeLayers に渡す。上がったカードと下げる緊急地震速報のカードは placeLayers が決める（§3.1・§5.2）。
@@ -101,9 +101,9 @@
   - `shellSync(state, nowMs)`: 上の集め方で集めたカードから、slot のカードの id（slot の順、6 まで）と、opened のあるカードがあるかを sync の事象にして返す（frame の組み立てはしない）。
   - frame の shell には組んだ時の ShellState をそのまま入れる（R2）。
   - CARD_SOURCES は ShellCardEntry（source と max）の配列。max は source の作りで決まる数（例: 区分ごとのカードは区分の数）。source が max を越えて返したときは前から max 枚だけを使い、診断を 1 件残す（frame の diagnostics に reason "cardSourceOverMax"・登録の番号・返した枚数・max を入れ、main.ts が console へ出す。黙って落とさない）。列のカードの数の上限 K は、その列に置かれうる entry の max の和（P4-DS-D-CARD-BOUND=A、統合担当の決め 2026-11-24 22:0x）。
-  - 割りは、paginateColumn の入力（列と、その列の ShellCard の欄: id・place・take・slot・mayHide・forms の head と body の各行の id・height・token・texts〔kind と、字の text と token、束の token と中の字〕・continuation・maxPages・minBodyRows・opened。カードの token と inner は割りに効かないので比べず、描く時に最新のカードから読む、P4-SHELL-TYPES-001 の AC02）が、その列で最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例。同じ入力なら同じ結果なので、覚えても答えは変わらない（ヘルツの指摘 18）。metadata だけの snapshot、ページを送るだけの frame、時計だけの更新では入力が同じなので組み直さない（R3）。
+  - 割りは、paginateColumn の入力（列と、その列の ShellCard の欄: id・place・take・slot・mayHide・forms の head と body の各行の id・height・token・texts〔kind と、字の text と token、束の token と中の字〕・continuation・maxPages・minBodyRows・opened。カードの token と inner は割りに効かないので比べず、描く時に最新のカードから読む、P4-SHELL-TYPES-001 の AC02）が、その列で最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行・束・字の要素の数に比例（P4-SHELL-TYPES-001 の AC02 (5)）。同じ入力なら同じ結果なので、覚えても答えは変わらない（ヘルツの指摘 18）。metadata だけの snapshot、ページを送るだけの frame、時計だけの更新では入力が同じなので組み直さない（R3）。
   - ページの表示: 列のページに mark があれば、右の列は mark.cardId のカードの ShellDrawCard の mark に、at を "last"・dots を mark.dots にして入れる。左の列は、そのページの mayHide のカード（今日の地震）の mark に、at を "head"・dots を偽にして入れる（DS-QROW-21）。text は「ページの番号＋1/ページの数」の字（例「2/4」）。右の列の at "last" は、そのページで一番下のカードの最後の行として、カードの下端に置く形（表 §4.4 の c）。左の列の 2 ページ以上の各ページには mayHide のカードがある（AC05 (7)(d)、表 §4.4 の d）（R4）。
-  - 描く行: 中間の層は割りのページの行（head・continuation・本文）。slot のカードは forms[0] の head と本文を場所の矩形へ描く。開いたカードは opened.rows を opened.rect へ描く。どちらも inner があれば、forms[0]・opened.rows の代わりに innerPage の番号のページの行を描く（番号の持ち主は S1 発注 1、ページの割り方と表示は E0 発注 1b・C0〔DS-OPEN-65〕、P4-SHELL-TYPES-001 の AC04）。
+  - 描く行: 列の割りに参加したカード（押して上がった後も）は割りのページの行（head・continuation・本文）。slot のカード（最上層でも、上がったカードに重なって中間の層へ下がっても）は forms[0] の head と本文を場所の矩形へ描く。開いたカードは opened.rows を opened.rect へ描く。どちらも inner があれば、forms[0]・opened.rows の代わりに innerPage の番号のページの行を描く（番号の持ち主は S1 発注 1、ページの割り方は E0 発注 1b・C0〔DS-OPEN-65〕、ページの表示の形と押す相手は S1 発注 1・E0 発注 1b・C0、P4-SHELL-TYPES-001 の AC04）。
   - 時計: `clockRect`（frame に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6）。7 枚目からは置かないので数えない）と `clockText(nowMs)`。
   - status: 次の順に札を入れる。(1) unsupported のとき、版が合わないときの札「受け取った情報を表示できません」 (2) state.detail.status が failed のとき、詳細を読めなかったときの札「詳細を表示できません」。両方なら版が合わない方を先に置く。どちらも無ければ空（中身は C2）。failed の札は detailRequested で loading になるか、置き換えで refetch になれば次の frame で消える。字は作者の裁定 2026-11-25 19:09（ヘルツの指摘 19）。
   - map・marks: 空の配列（M0 が埋める）。pageCount: 列ごとのページの数（S1 が読む）。開いている間の左の列の pageCount は、開いたカードを外した割りのページの数。その送りの受け方は S1 が決める（統合担当の決め 2026-11-25 21:3x、r10-items.md の #16）。
@@ -362,7 +362,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 | tokens.ts | LAYOUT・COLORS・token の class の表 | 使わない |
 | layout.ts | eewSlots・clockRect・placeLayers・paginateColumn・reduceShell | 使わない |
 | client.ts | acceptSnapshot・detailRequested・detailAnswered | 使わない |
-| frame.ts | screenFrame・shellSync・formatJst・clockText | 使わない |
+| frame.ts・time.ts・area-names.ts（後の 2 つは P4-SHELL-TYPES-001） | frame.ts は screenFrame・shellSync、time.ts は formatJst・clockText・formatJstTime、area-names.ts（生成物）は areaName | 使わない |
 | cards.ts | CARD_SOURCES（S0 は 0 本） | 使わない |
 
 - 名前は [a-z0-9-]+ と拡張子だけ。server は `/display/<name>.js` を 1 つの moduleDirectory から 1 階層で配る（reconstruction/src/http-sse/http-sse.ts:323 «c9e50c28e896e7a6»）。import は同じ directory の `./<name>.js` と、契約の型の `import type` だけ。
