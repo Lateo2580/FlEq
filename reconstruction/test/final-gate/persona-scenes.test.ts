@@ -870,9 +870,14 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
     expect(falls).toEqual([0, 0, 0]);
     // (3) 余震の EventID ごとに、EEW・震源に関する情報・震源・震度に関する情報の規模は 1 つ。
     const magnitudes = (list: readonly Frame[]) => {
-      const events = new Set(list.filter((item) => item.source.startsWith("synth:aftershock:")).map((item) => tag(text(item), "EventID")));
-      return [...events].map((eventId) => new Set(list.filter((item) => /^VXSE(45|52|53)$/.test(item.headType) && tag(text(item), "EventID") === eventId)
-        .map((item) => /<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/.exec(text(item))?.[0])).size);
+      // 文字列化と正規表現は 1 報 1 回にする（余震の EventID ごとに list 全体へかけ直すと単独 8 秒・CI で最大 129 秒かかった）。
+      const decoded = list.filter((item) => item.source.startsWith("synth:aftershock:") || /^VXSE(45|52|53)$/.test(item.headType))
+        .map((item) => { const xml = text(item); return { item, xml, eventId: tag(xml, "EventID") }; });
+      const events = new Set(decoded.filter(({ item }) => item.source.startsWith("synth:aftershock:")).map(({ eventId }) => eventId));
+      const found = new Map<string | null, Set<string | undefined>>();
+      for (const { item, xml, eventId } of decoded) if (/^VXSE(45|52|53)$/.test(item.headType) && events.has(eventId))
+        found.set(eventId, (found.get(eventId) ?? new Set()).add(/<jmx_eb:Magnitude[^>]*>[^<]*<\/jmx_eb:Magnitude>/.exec(xml)?.[0]));
+      return [...events].map((eventId) => found.get(eventId)?.size ?? 0);
     };
     expect([lists.N1, lists.N2].map((list) => magnitudes(list).filter((size) => size !== 1))).toEqual([[], []]);
     // (4) 津波の区分の Kind: R2 の 15:30 は新しく大津波警報の 100・101・102・320 が 53、続く大津波警報の区域は 52。N の +3 分は全部 53、+15 分は全部 52。
@@ -903,5 +908,5 @@ describe("P4-PERSONA-WALK-TOOLS-002 order 2", () => {
     const top = prefs.reduce((max, match) => order.indexOf(match[2]) > order.indexOf(max) ? match[2] : max, "0");
     expect(prefs.length).toBeGreaterThan(0);
     expect(prefs.filter((match) => match[2] === top).map((match) => match[1]).every((name) => ["宮城県", "福島県", "茨城県", "栃木県"].includes(name))).toBe(true);
-  }, 300_000); // 合成の報の形を見る試験で時間は見ない。CI は最大 129.4 秒で 180 秒に近く（2026-11-26 の集計）、上限は止まったときの安全網にすぎない
+  }, 180_000);
 });
