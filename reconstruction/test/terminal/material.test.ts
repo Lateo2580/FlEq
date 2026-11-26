@@ -37,6 +37,8 @@ describe("P3-TO-T08 材料を作る入力（AC01 (2)）", () => {
     await submit(h, input("VXSE53", "quake-2", "32-35_04_04_240613_VXSE53.xml", "live", 2, clock));
     await submit(h, input("VXSE45", "eew-1", "77_01_01_240613_VXSE45.xml", "live", 3, clock));
     await submit(h, input("VXSE53", "recovered-1", "32-35_01_03_240613_VXSE53.xml", "recovery", 4, clock));
+    // 最後の報の WARN の診断は sink の列に入るだけで、settle() は書き出しを待たない。afterEach の rm と競わないよう書き終わりを待つ。
+    await h.root.diagnostics.flush();
     const terminals = new Map(h.delivered.flatMap(({ reply }) => reply.kind === "inputDone" ? [[reply.settlement.inputId, reply.terminal] as const] : []));
     expect(terminals.get("quake-1")?.kind).toBe("seismic");
     expect([...terminals].filter(([id]) => id !== "quake-1")).toEqual([["quake-2", null], ["eew-1", null], ["recovered-1", null]]);
@@ -51,6 +53,7 @@ describe("P3-TL5-T02 owner-host の満潮の報と拒否の報", () => {
     const tide = "32-39_11_03_250206_VTSE51.xml";
     await submit(h, input("VTSE51", "tide-ok", tide, "live", 1, clock));
     await submit(h, input("VTSE51", "tide-rejected", tide, "live", 2, clock, (xml) => xml.replace(/<EventID>.*<\/EventID>/, "")));
+    await h.root.diagnostics.flush(); // 上の it と同じ（拒否の WARN の診断の書き出し）
     const terminals = new Map(h.delivered.flatMap(({ reply }) => reply.kind === "inputDone" ? [[reply.settlement.inputId, reply.terminal?.kind ?? null] as const] : []));
     expect([...terminals]).toEqual([["tide-ok", "tsunami"], ["tide-rejected", null]]);
   });
