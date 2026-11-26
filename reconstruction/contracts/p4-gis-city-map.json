@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a9dde7edc28e84a52816f87603c87075c5f0d971",
-    "sha256": "dd4c522ad8bab0fd03e1ce25c24b9f31e30ff30b5f3a79c39c26bde4d1aa7881",
+    "sha256": "13e25c14aa8975384096837fdf86ccf2d04d55448db20cd4a6a5ab68cb34f9bf",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -76,10 +76,10 @@
     "questionResolutions": [
       {
         "id": "Q-GCM-PRECHECK",
-        "status": "open",
+        "status": "closed",
         "source": "統合担当の発注前点検 AC06 の先取り（2026-11-26。P1・P2・転記は 14:46〜14:48 に worktree ~/dev/fleq-citymap の a9dde7ed で、記録は .tmp-cm/precheck/ の p2.md・sources-s2.md・extract.py。P3 は 14:24 に Mac mini の ~/dev/citymap-check で、Mac mini の ~/dev/fleq-st-gate〔main 3e075651〕の manifest と mapshaper 0.7.49、記録は .tmp-cm/shape-check/result.md）",
-        "closed": "(1) P1: 利用規約のページ coment.html を 14:46 に取り直し、sha256 ff2b45042e6207053d8f6aa617656aa6a144e462db138f0b8138de6eefbeff48（23,377 byte、last-modified Thu, 06 Aug 2026 02:24:21 GMT）と 83 行目の原文が表 §1.2 と一致。表 §1.2 のほかの引用（出典と加工の記載、適用外の 2 つ、ml-17・ml-23 の気象業務法の 2 条）も原文にある。S2 の html も sha256 fc0b420ea7bdac5c60ff971f276b76b1c9eca6f44c1727a56d4b9db891725e07（81,316 byte）で表 §1.2 と一致し、権利表記の grep は 0 件。sources.md の末尾に足す節の下書きは .tmp-cm/precheck/sources-s2.md (2) P2: S2 の名称 106 が全部 S1 の F=1 の @name にちょうど 1 つずつある。S1 の B 列が参照文の F=1 の行 72（気象だけ 68・同じコードの佐世保市 2・薩摩川内市 2）で、「」の中の名前の違いは 0。地理の記述で S2 にも名称がある行 34 で、郡名を落として字が違うのは 3 行（1410011 横浜市北部・1415011 相模原市西部・1415012 相模原市東部、表 §5 の期待どおり）。72＋34＝106 (3) P3: 間引く前の形（city 20241128 の zip sha256 56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65、weatherCity 20260226 の zip sha256 a3a847ca6e1fddb87a622a42b40c735b8e8400b0089dced75cbfe8030fac958c、どちらも manifest の archiveSha256 と一致。build-shapes.mjs の県の所属と同じ読みで -simplify なし）、格子 200×200、丸める前の点の数の比で、12 区とも合格。候補の割合の最小は 0.1331（0410100 → 0410001、16,953 点のうち 2,257 点）、候補の外は 12 区とも 0、点 0 の区は無し。相模原は 1415100 → 1415011、1415200・1415300 → 1415012 で S1 の側。zoom の下見（表 §4）との差は分割 3 区の比の 0.001〜0.002 だけで、合否と候補の集合は同じ (4) P4: decisionBranches は作者 1・統合担当 4 とも確定で、起草案と作者の裁定待ちは 0 件 (5) P6 の転記: S2 の html から .tmp-cm/precheck/extract.py で取り出した transcription.tsv は 106 行（見出しを入れて 107 行）、sha256 123e21cf36388ced2abee0be950d0c2ca4c274bb8a58d034d18b4decafb54613。2 回回して同じ byte、字の中の改行・タブは 0",
-        "remaining": "P5（fixture の照らし）と、P6 の期待の一覧 expected-pairs.tsv・転記と期待の一覧の sha256 の AC03 への書き足し・S2 の html と転記の repo への配置、P3 の値の表への書き足し、sources.md の §9 は未（親が後で書く）"
+        "closed": "(1) P1: 利用規約のページ coment.html を 14:46 に取り直し、sha256 ff2b45042e6207053d8f6aa617656aa6a144e462db138f0b8138de6eefbeff48（23,377 byte、last-modified Thu, 06 Aug 2026 02:24:21 GMT）と 83 行目の原文が表 §1.2 と一致。表 §1.2 のほかの引用（出典と加工の記載、適用外の 2 つ、ml-17・ml-23 の気象業務法の 2 条）も原文にある。S2 の html も sha256 fc0b420ea7bdac5c60ff971f276b76b1c9eca6f44c1727a56d4b9db891725e07（81,316 byte）で表 §1.2 と一致し、権利表記の grep は 0 件。sources.md の末尾に足す節の下書きは .tmp-cm/precheck/sources-s2.md (2) P2: S2 の名称 106 が全部 S1 の F=1 の @name にちょうど 1 つずつある。S1 の B 列が参照文の F=1 の行 72（気象だけ 68・同じコードの佐世保市 2・薩摩川内市 2）で、「」の中の名前の違いは 0。地理の記述で S2 にも名称がある行 34 で、郡名を落として字が違うのは 3 行（1410011 横浜市北部・1415011 相模原市西部・1415012 相模原市東部、表 §5 の期待どおり）。72＋34＝106 (3) P3: 間引く前の形（city 20241128 の zip sha256 56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65、weatherCity 20260226 の zip sha256 a3a847ca6e1fddb87a622a42b40c735b8e8400b0089dced75cbfe8030fac958c、どちらも manifest の archiveSha256 と一致。build-shapes.mjs の県の所属と同じ読みで -simplify なし）、格子 200×200、丸める前の点の数の比で、12 区とも合格。候補の割合の最小は 0.1331（0410100 → 0410001、16,953 点のうち 2,257 点）、候補の外は 12 区とも 0、点 0 の区は無し。相模原は 1415100 → 1415011、1415200・1415300 → 1415012 で S1 の側。zoom の下見（表 §4）との差は分割 3 区の比の 0.001〜0.002 だけで、合否と候補の集合は同じ (4) P4: decisionBranches は作者 1・統合担当 4 とも確定で、起草案と作者の裁定待ちは 0 件 (5) P6 の転記: S2 の html から .tmp-cm/precheck/extract.py で取り出した transcription.tsv は 106 行（見出しを入れて 107 行）、sha256 123e21cf36388ced2abee0be950d0c2ca4c274bb8a58d034d18b4decafb54613。2 回回して同じ byte、字の中の改行・タブは 0 (6) P5: 統合担当が 15:1x に回した。18_00_01_260830_VPWW55_fukui_L5 の Body の市町村等の 7 桁コード 17 は全部 weatherCity にあり、15_18_01_250630_VPWS50 は 1,772 コードのうち 15 が weatherCity に無く、表 §7 と同じ 15 コード (7) P6 の期待の一覧: expected-pairs.tsv（232 組、sha256 cd0946deaaa56aaa039bc907455fa01eff1c8376e7c03e257256f7185c916a9f）は、照合表と別の子が原文の字を読んで 1 行ずつ書いた。ヘルツ（Astra high、新規 thread、記録は .tmp-cm/hz4/out.txt）が xlsx の原本と S2 の別表から拾い直し、232 組すべてで両コード・関係・根拠が一致、漏れ・余分・重複 0、根拠の行番号も xlsx の実セルと一致 (8) 配置: S2 の html（fc0b420e…）・transcription.tsv（123e21cf…）・expected-pairs.tsv（cd0946de…）を reconstruction/assets/gis/source/city-weather-map/ に写し、写した後の sha256 が元と同じことを確かめた。2 つの tsv の sha256 を AC03 の末尾に書き足し、p4-gis-assets-sources.md の末尾に §9（S2 の入手元・版・利用条件の原文）を足した（既存の行は動かしていない）。P3 の間引く前の形の 12 区の点の数と割合を表 §4 に書き足した",
+        "remaining": "なし"
       },
       {
         "id": "Q-GCM-S2-TERMS",
@@ -229,7 +229,7 @@
       },
       {
         "id": "P4-GCM-AC03",
-        "requirement": "転記・期待の一覧・照合表（P4-GCM-D-METHOD=A、P4-GIS-AC10 の範囲）。置き場と列は表 §6。(1) transcription.tsv（S2 の別表の 106 行）と expected-pairs.tsv（組の期待の一覧 232 行、列は 地震コード・気象コード・関係・根拠）は統合担当が AC06 の P6 で置き、実装担当は変えない。転記は AC06 の P1 で置いた html の別表から script で取り出し（build に html の解析を入れない）、期待の一覧は S1 と S2 の原文から照合表と別に書く。2 つの sha256 は P6 で統合担当が本 AC の末尾に書き足してから baseOid を割り当てる（起草の時点では未定） (2) match.tsv は実装担当が原文から書く。地震だけの 187 コードから出る組を 1 組 1 行（232 行）。列は 地震コード・気象コード・関係（within・part）・根拠（コード表B列・一覧表別表・形）・地震の字・気象の字 (3) build が確かめること: 地震コードは city にあって same でない、気象コードは weatherCity にあって same でない、地震の字は地震コードの S1 の B 列の字（前後の空白を落として）と同じ、気象の字は根拠がコード表B列なら気象コードの S1 の B 列の字と同じ、一覧表別表・形なら気象コードの S1 の C 列の @name と名称が完全に同じ転記の行の区域と同じ（名称が転記に 2 行あれば止める）、地震だけの 187 は全部 1 行以上を持つ、照合表の（地震コード, 気象コード, 関係, 根拠）の集合と期待の一覧の集合が重複なしで完全に一致する（どちらかに同じ組が 2 行あっても止める。津波の build-tsunami-region.mjs が転記の鍵と照合表の鍵を両方向の過不足で止める形に倣う）。違えば止める (4) 組の読み（どの字がどの組を支えるか）は実装担当と統合担当がそれぞれ原文から書き、build は名前の部分一致・コードの先頭一致・「のうち」の前後の割りで組を作らない（AC10、spec:1720）。起草の数え（表 §2.2・§10）: 根拠がコード表B列 156（相模原の 3 を含む）・一覧表別表 64・形 12（P4-GCM-D-UNNAMED-ROWS=A のとき）。形で点検する組は形の 12 と相模原の 3 の 15（AC04）。違えば報告に書く（build は根拠ごとの数を止めない。期待の一覧との一致が止める） (5) 名前が地震の市区町村と同じでコードが違う気象の部分 3 つ（表 §2.3 の羽幌町・郡山市・天栄村）は、名前でなくコードで書く (6) 照らしの分担: S1 の字は build が xlsx のセルと、S2 の字は build が転記と照らす。転記と html の一致は統合担当の P6 の取り出しが担い、その転記の sha256 を本 AC と manifest の transcriptionSha256 に固定する（T01 が file と manifest を照らす）。転記を変えるときは P6 の取り出しからやり直す。字・数・被覆が保たれる組の取り違え（郡山市 0720300 と天栄村 0734400 の部分 0720301・0734401 の入れ替えなど）は、(3) の期待の一覧との一致で止まる",
+        "requirement": "転記・期待の一覧・照合表（P4-GCM-D-METHOD=A、P4-GIS-AC10 の範囲）。置き場と列は表 §6。(1) transcription.tsv（S2 の別表の 106 行）と expected-pairs.tsv（組の期待の一覧 232 行、列は 地震コード・気象コード・関係・根拠）は統合担当が AC06 の P6 で置き、実装担当は変えない。転記は AC06 の P1 で置いた html の別表から script で取り出し（build に html の解析を入れない）、期待の一覧は S1 と S2 の原文から照合表と別に書く。2 つの sha256 は P6 で統合担当が本 AC の末尾に書き足してから baseOid を割り当てる（起草の時点では未定） (2) match.tsv は実装担当が原文から書く。地震だけの 187 コードから出る組を 1 組 1 行（232 行）。列は 地震コード・気象コード・関係（within・part）・根拠（コード表B列・一覧表別表・形）・地震の字・気象の字 (3) build が確かめること: 地震コードは city にあって same でない、気象コードは weatherCity にあって same でない、地震の字は地震コードの S1 の B 列の字（前後の空白を落として）と同じ、気象の字は根拠がコード表B列なら気象コードの S1 の B 列の字と同じ、一覧表別表・形なら気象コードの S1 の C 列の @name と名称が完全に同じ転記の行の区域と同じ（名称が転記に 2 行あれば止める）、地震だけの 187 は全部 1 行以上を持つ、照合表の（地震コード, 気象コード, 関係, 根拠）の集合と期待の一覧の集合が重複なしで完全に一致する（どちらかに同じ組が 2 行あっても止める。津波の build-tsunami-region.mjs が転記の鍵と照合表の鍵を両方向の過不足で止める形に倣う）。違えば止める (4) 組の読み（どの字がどの組を支えるか）は実装担当と統合担当がそれぞれ原文から書き、build は名前の部分一致・コードの先頭一致・「のうち」の前後の割りで組を作らない（AC10、spec:1720）。起草の数え（表 §2.2・§10）: 根拠がコード表B列 156（相模原の 3 を含む）・一覧表別表 64・形 12（P4-GCM-D-UNNAMED-ROWS=A のとき）。形で点検する組は形の 12 と相模原の 3 の 15（AC04）。違えば報告に書く（build は根拠ごとの数を止めない。期待の一覧との一致が止める） (5) 名前が地震の市区町村と同じでコードが違う気象の部分 3 つ（表 §2.3 の羽幌町・郡山市・天栄村）は、名前でなくコードで書く (6) 照らしの分担: S1 の字は build が xlsx のセルと、S2 の字は build が転記と照らす。転記と html の一致は統合担当の P6 の取り出しが担い、その転記の sha256 を本 AC と manifest の transcriptionSha256 に固定する（T01 が file と manifest を照らす）。転記を変えるときは P6 の取り出しからやり直す。字・数・被覆が保たれる組の取り違え（郡山市 0720300 と天栄村 0734400 の部分 0720301・0734401 の入れ替えなど）は、(3) の期待の一覧との一致で止まる。(1) の sha256（AC06 の P6 で統合担当が書き足した、2026-11-26）: transcription.tsv 123e21cf36388ced2abee0be950d0c2ca4c274bb8a58d034d18b4decafb54613（106 行）、expected-pairs.tsv cd0946deaaa56aaa039bc907455fa01eff1c8376e7c03e257256f7185c916a9f（232 組）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-assets.json:679 «aa7890bb2a02fd47»",
           "docs/specs/reconstruction-p0-contracts.md:1720 «9d00197c5e5ae404»",
@@ -237,13 +237,13 @@
           "reconstruction/tools/gis/build-tsunami-region.mjs:48 «089fa1e300283851»",
           "reconstruction/tools/gis/build-tsunami-region.mjs:62 «44ae696bc8b93b2d»",
           "reconstruction/tools/gis/build-tsunami-region.mjs:71 «7a9f7b4bc5a9e7de»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:112 «c0304e76af9c3d5f»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:113 «cd6680db8530b25f»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:114 «85b20f9b47fb0932»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:118 «71779de28a28400b»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:120 «7e117989782d8164»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:129 «c0304e76af9c3d5f»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:130 «cd6680db8530b25f»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:131 «85b20f9b47fb0932»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:135 «71779de28a28400b»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:137 «7e117989782d8164»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:51 «7f7699abff893fbd»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:150 «6d4d6139dcf66469»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:167 «6d4d6139dcf66469»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:57 «94651b04700b6211»"
         ]
       },
@@ -264,8 +264,8 @@
           "reconstruction/contracts/p4-gis-city-map-tables.md:97 «427f1c31cef884cb»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:98 «be56812c52deb97c»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:99 «42d832c5716223b0»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:146 «1b74bb641ee055e1»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:152 «4a48fddc5fccee6d»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:163 «1b74bb641ee055e1»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:169 «4a48fddc5fccee6d»",
           "docs/specs/reconstruction-p0-contracts.md:1724 «014de5bcd86ad48c»",
           "reconstruction/assets/gis/manifest.json:878 «a61fce137350b76c»",
           "reconstruction/assets/gis/manifest.json:1868 «abc4886501c4a14a»",
@@ -273,7 +273,7 @@
           "reconstruction/tools/gis/build-shapes.mjs:281 «dcc45d9fe8a18441»",
           "reconstruction/tools/gis/build-shapes.mjs:282 «2ad7db36ac3e620f»",
           "reconstruction/tools/gis/build-tsunami-region.mjs:73 «3e4d0dc920bd25ee»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:119 «bd898471ad01d392»"
+          "reconstruction/contracts/p4-gis-city-map-tables.md:136 «bd898471ad01d392»"
         ]
       },
       {
@@ -287,7 +287,7 @@
           "reconstruction/contracts/p4-gis-city-map-tables.md:23 «f3108658e329a6ad»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:27 «61a53cd2b0f95254»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:15 «0eef4d53c1ab5f62»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:105 «28a8534aa5afad73»"
+          "reconstruction/contracts/p4-gis-city-map-tables.md:122 «28a8534aa5afad73»"
         ]
       },
       {
@@ -296,12 +296,13 @@
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-city-map-tables.md:19 «5bb10af3fce69c50»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:21 «590d0ae7199b804f»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:106 «efb8a9e4821e26d9»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:156 «389ee4a85379cb19»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:124 «afa86d9c3cd232ee»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:125 «49c910b86edcc071»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:123 «efb8a9e4821e26d9»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:173 «389ee4a85379cb19»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:141 «afa86d9c3cd232ee»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:142 «49c910b86edcc071»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:99 «42d832c5716223b0»",
-          "reconstruction/contracts/p4-gis-city-map-tables.md:113 «cd6680db8530b25f»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:101 «c210ea5e5018135d»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:130 «cd6680db8530b25f»",
           "reconstruction/contracts/p4-gis-assets-sources.md:298 «742a87fbeee0de32»"
         ]
       }
