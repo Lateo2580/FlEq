@@ -74,8 +74,8 @@ export type TsunamiWire = Readonly<{
 // 日次行の ref の rev は同じ snapshot に event があるときだけ（表 §5.6）。
 export type EarthquakeRowWire = Readonly<{
   eventId: string; operation: Operation; origin: string | null; reportTime: string | null; hypo: DisplayCutText | null;
-  mag: DisplayValueText | null; depth: DisplayValueText | null; maxInt: DisplayLevel; cancelled: boolean; tsunami: DisplayCutText | null;
-  strongest: readonly string[]; omittedStrongest: number; marks: readonly DisplayStateMark[]; unknownAreas: number;
+  mag: DisplayValueText | null; depth: DisplayValueText | null; depthBound: "lower" | "upper" | null; maxInt: DisplayLevel; cancelled: boolean; tsunami: DisplayCutText | null;
+  strongest: readonly string[]; omittedStrongest: number; tsunamiCodes: readonly string[]; omittedTsunamiCodes: number; marks: readonly DisplayStateMark[]; unknownAreas: number;
   ref: Readonly<{ id: string; rev: string | null }>;
 }>;
 export type LongPeriodWire = Readonly<{ eventId: string; operation: Operation; reportTime: string | null; maxLg: DisplayLevel;

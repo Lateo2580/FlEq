@@ -83,7 +83,7 @@ function earthquake(paintOperations, municipality) {
     eventId: text(LIMIT.eventId), operation: OPERATION, origin: nullable(text(LIMIT.time)), reportTime: nullable(text(LIMIT.time)),
     hypo: nullable(cut(LIMIT.hypocenter)), mag: nullable({ v: text(LIMIT.valueRaw), desc: text(LIMIT.description), cut: BOOL }),
     depth: nullable({ v: text(LIMIT.valueRaw), desc: text(LIMIT.description), cut: BOOL }), maxInt: LEVEL, cancelled: BOOL,
-    tsunami: nullable(cut(LIMIT.tsunamiEval)), strongest: array(8, "99999999"), omittedStrongest: MS, marks: MARKS,
+    tsunami: nullable(cut(LIMIT.tsunamiEval)), tsunamiCodes: array(4, "9999"), omittedTsunamiCodes: MS, depthBound: widest(null, "lower", "upper"), strongest: array(8, "99999999"), omittedStrongest: MS, marks: MARKS,
     // 既知でない区域の件数（EEW・津波と同じ置き方、表 §1.1）。U-Q は同じ階層の重複を parser が断る（seismic.ts:125〜:129）ので dupAreas は持たない。
     unknownAreas: MS,
     // 最も強い地域のコードは decode が通す 8 桁で数える（統合担当の決め 2026-11-21）。日次行の ref は id だけが必ずあり、rev は同じ snapshot に event があるときだけ（表 §5.6）。
@@ -91,7 +91,7 @@ function earthquake(paintOperations, municipality) {
   };
   const longPeriod = { eventId: text(LIMIT.eventId), operation: OPERATION, reportTime: nullable(text(LIMIT.time)), maxLg: LEVEL, marks: MARKS, unknownAreas: MS, ref: REF };
   return bytes({
-    rows: array(15, row),
+    rows: array(27, row),
     daily: array(3, { operation: OPERATION, count: MS, maxInt: LEVEL }),
     // 合成は行に出ない地震（前の日・6 件目から）も含むので、合成ごとに既知でない区域の件数を持つ。
     composites: array(paintOperations, { areas: municipality ? municipalityComposite : subareaComposite, unknownAreas: MS }),
@@ -157,10 +157,10 @@ const newPath = { protected: ruled.sum, notices: 131072, common: 65536, sum: rul
 const esc = (n) => "\u0001".repeat(n);
 const mv = widest({ kind: "text", value: esc(32), raw: esc(32) }, { kind: "range", bound: "upper", value: -1.2345678901234567e-300, raw: esc(32) },
   { kind: "missing" });
-const rowAdded = { depth: mv, magnitudeDescription: nullable(esc(32)), tsunamiComment: nullable(esc(128)), strongest: array(8, "99999999"), omittedStrongest: MS };
-// 行の object に足す鍵の分（外の括弧 2 を除き、前の鍵との区切り 1 を足す）。区分 3 × 5 行。
+const rowAdded = { depth: mv, magnitudeDescription: nullable(esc(32)), tsunamiComment: nullable(esc(128)), strongest: array(8, "99999999"), omittedStrongest: MS, tsunamiCodes: array(4, "9999"), omittedTsunamiCodes: MS }; const baseRow = { eventId: "E".repeat(40), originTimeRaw: nullable(esc(40)), reportDateTimeRaw: nullable(esc(40)), hypocenterName: nullable(esc(64)), magnitude: mv, maxInt: widest(mv, { kind: "fromTo", from: mv, to: mv }), cancelled: BOOL };
+// 行の object に足す鍵の分（外の括弧 2 を除き、前の鍵との区切り 1 を足す）。区分 3 × 9 行。元の欄（baseRow）も 1 字 6 byte で数え、283_209 の中の P3-C7 の 15 行（1 行 1,206）を引く（P4-UQR-AC04 (2)）。
 const recentRow = bytes(rowAdded) - 2 + 1;
-const seismicRecent = { perRow: recentRow, rows: 15, growth: 15 * recentRow };
+const seismicRecent = { perRow: recentRow, baseRow: bytes(baseRow) + 1, rows: 27, reservedRows: 15, reservedRow: 1206, growth: 27 * (recentRow + bytes(baseRow) + 1) - 15 * 1206 };
 
 // ---- P4-REMOVAL-LOSS-001 が共通部に足す欄（契約 P4-RL-AC08 (4)、RL-RES-01）----
 // 消えた理由の一覧は 12 分野 × 新しい 4 件と分野ごとの落とした件数（P4-RL-D-WIRE-CAP=B）。1 件は一覧に載る最長の語で、updatedAt は期限切れの項目だけが持つが上界に数える。

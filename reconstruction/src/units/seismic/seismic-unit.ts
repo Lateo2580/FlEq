@@ -33,7 +33,7 @@ import type { RawPlan } from "../unreadable";
 
 // P3-UNIT-Q-001（C7、I-U-Q）: U-Q の意味・当日履歴・通知・容量・codec・射影。
 
-const SCHEMA = "p3-seismic-unit-v9" as const;
+const SCHEMA = "p3-seismic-unit-v10" as const;
 const OPERATIONS = ["normal", "training", "test"] as const;
 // P3-C7-CAPACITY=A・P3-C7-RES-01・RET-01〜05。
 const EVENT_LIMIT = 1024, LONG_PERIOD_LIMIT = 256;
@@ -51,12 +51,12 @@ const HOLD_GROWTH = EVENT_LIMIT * EARTHQUAKE_FAMILIES.length * (sizeOf(`,"unconf
 // 強震保持の event にも残る）。外した終端 intent の予算 131,072（P3-NL-AC05 (2)）は器から引く。
 const MARK_BYTES = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = EVENT_LIMIT * EARTHQUAKE_FAMILIES.length * MARK_BYTES;
 const NOTICE_GROWTH = CONTRIBUTION_MARKS + LONG_PERIOD_LIMIT * MARK_BYTES;
-const RECENT_LIMIT = 5, COUNTED_LIMIT = 2048;
+const RECENT_LIMIT = 9, COUNTED_LIMIT = 2048;
 // P3-QC-AC05 (2)(3)・Q-QC-BYTES (3): 退去できない記録に本契約が足す欄の最悪の分。取り消した地震の一覧の印（震源名 64 文字・発生時刻 40 文字を
 // 1 文字 3 byte）、当日の数えた組の段階（`["id",9]` は `"id"` より 4 byte 多い）、記憶にも残る守りの欄（from は有限な数の JSON の最長 25 文字）。
 const SUMMARY_BYTES = sizeOf(`,"cancelledSummary":${JSON.stringify({ hypocenterName: "あ".repeat(64), originTimeRaw: "あ".repeat(40) })}`);
-const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.0000012345678901234567, on: 3 })}`); // P4-DW-AC16 (3): 当日の行に足す欄（depth・magnitudeDescription・tsunamiComment・strongest・omittedStrongest）の上限いっぱいを、復元の境界と同じ字の長さの単位で 1 字 6 byte（escape の最悪）に数える
-const RECENT_GROWTH = OPERATIONS.length * RECENT_LIMIT * (sizeOf(JSON.stringify({ depth: { kind: "text", value: "\u0001".repeat(32), raw: "\u0001".repeat(32) }, magnitudeDescription: "\u0001".repeat(32), tsunamiComment: "\u0001".repeat(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER })) - 1); const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
+const GUARD_BYTES = sizeOf(`,"guard":${JSON.stringify({ from: -0.0000012345678901234567, on: 3 })}`); // P4-DW-AC16 (3)・P4-UQR-AC04 (2): 当日の行（区分ごとに 9 行）の全欄の上限いっぱいを、復元の境界と同じ字の長さの単位で 1 字 6 byte（escape の最悪）に数え、283_209 の中にある P3-C7 の当日の行（5 行×3 区分、1 行 1,206 byte）を引く
+const RECENT_GROWTH = OPERATIONS.length * RECENT_LIMIT * (sizeOf(JSON.stringify({ depth: { kind: "text", value: "\u0001".repeat(32), raw: "\u0001".repeat(32) }, magnitudeDescription: "\u0001".repeat(32), tsunamiComment: "\u0001".repeat(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER, tsunamiCodes: Array.from({ length: 4 }, () => "9999"), omittedTsunamiCodes: Number.MAX_SAFE_INTEGER })) - 1 + sizeOf(JSON.stringify({ eventId: "E".repeat(40), originTimeRaw: "\u0001".repeat(40), reportDateTimeRaw: "\u0001".repeat(40), hypocenterName: "\u0001".repeat(64), magnitude: { kind: "text", value: "\u0001".repeat(32), raw: "\u0001".repeat(32) }, maxInt: { kind: "fromTo", from: { kind: "text", value: "\u0001".repeat(32), raw: "\u0001".repeat(32) }, to: { kind: "text", value: "\u0001".repeat(32), raw: "\u0001".repeat(32) } }, cancelled: false })) + 1) - OPERATIONS.length * 5 * 1_206; const MEMORY_GROWTH = EVENT_LIMIT * SUMMARY_BYTES + OPERATIONS.length * COUNTED_LIMIT * (sizeOf('["",9]') - sizeOf('""'))
   + (EVENT_LIMIT + LONG_PERIOD_LIMIT) * GUARD_BYTES + RECENT_GROWTH;
 // 4 MiB に、同時最大状態の Control/DateTime と印の分（121,513）と強震保持の増え分を足す。Q-QC-DECIDED (1): 退去できない記録の増えと同じ分だけ広げる。
 // P3-UM-RES-09: 読めない所の印（寄与 1024×4 と長周期 256 の全部）・原文の予算・カードの分も足す。P3-SEV-RES-01: 全部の記録に付く保留の印の分も足す。
@@ -413,7 +413,7 @@ function boundValue(value: MaterialValue): MaterialValue {
 function boundIntensity(value: SeismicIntensityValue): SeismicIntensityValue {
   return value.kind === "fromTo" ? { kind: "fromTo", from: boundValue(value.from), to: boundValue(value.to) } : boundValue(value);
 }
-const boundTime = (value: string | null) => value == null || value.length > 40 ? null : value;
+const boundTime = (value: string | null) => value == null || value.length > 40 ? null : value; const byRecent = (a: SeismicRecentQuake, b: SeismicRecentQuake): number => { const [x, y] = [a, b].map((row) => ((at) => Number.isFinite(at) ? at : -Infinity)(Date.parse(row.originTimeRaw ?? row.reportDateTimeRaw ?? ""))); return x > y ? -1 : x < y ? 1 : a.eventId > b.eventId ? -1 : a.eventId < b.eventId ? 1 : 0; }; // P4-UQR-D-KEY・D-TIE=A: 当日の行の並び。鍵は行の発生時刻（無ければ報の時刻）の降順で読めなければ最も古い、同じ鍵は EventID の字（UTF-16）の降順。引き算にしない（読めない鍵どうしが NaN になる）
 // counted（最大 2048 組）は配列に結び付けた索引で引く（受信ごとに配列を走査しない、I-U-Q.computation）。
 const countedCache = new WeakMap<Counted, ReadonlyMap<string, number>>();
 function countedIndex(values: Counted): ReadonlyMap<string, number> {
@@ -464,10 +464,10 @@ function nextHistory(history: SeismicDailyHistory, candidate: EarthquakeCandidat
       next = { ...base, count: found == null ? base.count + 1 : base.count, maxInt: higher ? boundValue(maxInt) : base.maxInt, counted: pairs };
     }
   }
-  // recent は event の発生日（無ければ報の ReportDateTime）が受信日と同じときだけ、新しい順に 5 行。
+  // recent は event の発生日（無ければ報の ReportDateTime）が受信日と同じときだけ、発生の新しい順に 9 行（P4-UQR-AC01）。
   const view = factsOf(after);
   // 発生時刻の文字列は報のまま（日付として読めなければ recent に入れない）。
-  const origin = Date.parse(view.originTimeRaw ?? candidate.source.reportDateTimeRaw);
+  const origin = view.originTimeRaw == null ? Date.parse(candidate.source.reportDateTimeRaw) : view.originTimeRaw.length > 40 ? Number.NaN : Date.parse(view.originTimeRaw); // P4-UQR-D-KEY=A: 40 字を超える発生時刻は行の欄が null になり鍵と食い違うので、今日の判定を通さない
   if (Number.isFinite(origin) && dayKeyOf(origin) === today) {
     const found = next.recent.find((item) => item.eventId === candidate.eventId);
     const active = visible(after);
@@ -476,9 +476,9 @@ function nextHistory(history: SeismicDailyHistory, candidate: EarthquakeCandidat
         originTimeRaw: boundTime(view.originTimeRaw), reportDateTimeRaw: boundTime(candidate.source.reportDateTimeRaw),
         hypocenterName: view.hypocenter?.name == null ? null : cut(view.hypocenter.name, 64),
         magnitude: boundValue(view.hypocenter?.magnitude ?? { kind: "missing" }), depth: boundValue(view.hypocenter?.depthKm ?? { kind: "missing" }), magnitudeDescription: view.hypocenter?.magnitudeDescription == null ? null : cut(view.hypocenter.magnitudeDescription, 32),
-        maxInt: boundIntensity(view.intensity?.maxInt ?? { kind: "missing" }), tsunamiComment: view.tsunamiCommentFamily == null || view.tsunamiCommentFamily === "VXSE51" || view.tsunamiComment?.text == null ? null : cut(view.tsunamiComment.text, 128), ...((codes: readonly string[]) => ({ strongest: codes.slice(0, 8), omittedStrongest: Math.max(0, codes.length - 8) }))(view.sources.length === 0 || view.sources.some((item) => item.family !== "VXSE51") || view.intensity == null || view.intensity.maxInt.kind === "fromTo" ? [] : view.intensity.items.flatMap((item) => item.level === "area" && item.code != null && /^\d{1,8}$/.test(item.code) && item.maxInt.kind !== "fromTo" && view.intensity != null && view.intensity.maxInt.kind !== "fromTo" && knownStage(item.maxInt) != null && knownStage(item.maxInt) === knownStage(view.intensity.maxInt) ? [item.code] : [])), cancelled: !active } // P4-DW-AC09: 震度速報だけの行の最も強い地域のコード（8 個まで、残りは件数）
+        maxInt: boundIntensity(view.intensity?.maxInt ?? { kind: "missing" }), tsunamiComment: view.tsunamiCommentFamily == null || view.tsunamiCommentFamily === "VXSE51" || view.tsunamiComment?.text == null ? null : cut(view.tsunamiComment.text, 128), ...((codes: readonly string[]) => ({ strongest: codes.slice(0, 8), omittedStrongest: Math.max(0, codes.length - 8) }))(view.sources.length === 0 || view.sources.some((item) => item.family !== "VXSE51") || view.intensity == null || view.intensity.maxInt.kind === "fromTo" ? [] : view.intensity.items.flatMap((item) => item.level === "area" && item.code != null && /^\d{1,8}$/.test(item.code) && item.maxInt.kind !== "fromTo" && view.intensity != null && view.intensity.maxInt.kind !== "fromTo" && knownStage(item.maxInt) != null && knownStage(item.maxInt) === knownStage(view.intensity.maxInt) ? [item.code] : [])), ...((codes: readonly string[]) => ((kept: readonly string[]) => ({ tsunamiCodes: kept, omittedTsunamiCodes: codes.length - kept.length }))(codes.filter((code) => /^\d{4}$/.test(code)).slice(0, 4)))(view.tsunamiComment?.codes ?? []), cancelled: !active } // P4-UQR-AC02 (2): 公開事実の寄与の固定付加文のコード（4 桁の数字を 4 個まで、残りは件数）。P4-DW-AC09: 震度速報だけの行の最も強い地域のコード（8 個まで、残りは件数）
         : { ...found, cancelled: true };
-      next = { ...next, recent: [row, ...next.recent.filter((item) => item.eventId !== candidate.eventId)].slice(0, RECENT_LIMIT) };
+      const sorted = [row, ...next.recent.filter((item) => item.eventId !== candidate.eventId)].sort(byRecent).slice(0, RECENT_LIMIT); if (found != null || sorted.includes(row)) next = { ...next, recent: sorted }; // P4-UQR-AC01 (3): 9 行に入らなかった新しい地震では当日履歴を作り替えない
     }
   }
   // 何も記録しなかった報は当日履歴を変えない（日付の切り替えは期限の入力で行う）。
@@ -1592,14 +1592,14 @@ function boundedValue(value: MaterialValue): boolean {
 }
 function recent(value: unknown): SeismicRecentQuake | null {
   const row = record(value);
-  const magnitude = materialValue(row?.magnitude), maxInt = intensityValue(row?.maxInt), depth = materialValue(row?.depth), listed: unknown = row?.strongest; // P4-DW-AC16 (2): 足した欄も項目ごとに確かめる
-  const strongest = Array.isArray(listed) && listed.length <= 8 ? listed.flatMap((code: unknown) => typeof code === "string" && /^\d{1,8}$/.test(code) ? [code] : []) : null; if (row == null || magnitude == null || maxInt == null || !isText(row.eventId) || !validEventId(row.eventId)
+  const magnitude = materialValue(row?.magnitude), maxInt = intensityValue(row?.maxInt), depth = materialValue(row?.depth), listed: unknown = row?.strongest, listedCodes: unknown = row?.tsunamiCodes; // P4-DW-AC16 (2)・P4-UQR-AC02 (3): 足した欄も項目ごとに確かめる
+  const strongest = Array.isArray(listed) && listed.length <= 8 ? listed.flatMap((code: unknown) => typeof code === "string" && /^\d{1,8}$/.test(code) ? [code] : []) : null; const tsunamiCodes = Array.isArray(listedCodes) && listedCodes.length <= 4 ? listedCodes.flatMap((code: unknown) => typeof code === "string" && /^\d{4}$/.test(code) ? [code] : []) : null; if (row == null || magnitude == null || maxInt == null || !isText(row.eventId) || !validEventId(row.eventId)
     || !textOrNull(row.originTimeRaw) || !textOrNull(row.reportDateTimeRaw) || !textOrNull(row.hypocenterName)
     || typeof row.cancelled !== "boolean" || (row.originTimeRaw?.length ?? 0) > 40 || (row.reportDateTimeRaw?.length ?? 0) > 40
-    || (row.hypocenterName?.length ?? 0) > 64 || !boundedValue(magnitude) || depth == null || !boundedValue(depth) || !textOrNull(row.magnitudeDescription) || (row.magnitudeDescription?.length ?? 0) > 32 || !textOrNull(row.tsunamiComment) || (row.tsunamiComment?.length ?? 0) > 128 || strongest == null || !Array.isArray(listed) || strongest.length !== listed.length || typeof row.omittedStrongest !== "number" || !Number.isSafeInteger(row.omittedStrongest) || row.omittedStrongest < 0
+    || (row.hypocenterName?.length ?? 0) > 64 || !boundedValue(magnitude) || depth == null || !boundedValue(depth) || !textOrNull(row.magnitudeDescription) || (row.magnitudeDescription?.length ?? 0) > 32 || !textOrNull(row.tsunamiComment) || (row.tsunamiComment?.length ?? 0) > 128 || strongest == null || !Array.isArray(listed) || strongest.length !== listed.length || typeof row.omittedStrongest !== "number" || !Number.isSafeInteger(row.omittedStrongest) || row.omittedStrongest < 0 || tsunamiCodes == null || !Array.isArray(listedCodes) || tsunamiCodes.length !== listedCodes.length || typeof row.omittedTsunamiCodes !== "number" || !Number.isSafeInteger(row.omittedTsunamiCodes) || row.omittedTsunamiCodes < 0
     || !(maxInt.kind === "fromTo" ? boundedValue(maxInt.from) && boundedValue(maxInt.to) : boundedValue(maxInt))) return null;
   return { eventId: row.eventId, originTimeRaw: row.originTimeRaw, reportDateTimeRaw: row.reportDateTimeRaw,
-    hypocenterName: row.hypocenterName, magnitude, depth, magnitudeDescription: row.magnitudeDescription, maxInt, tsunamiComment: row.tsunamiComment, strongest, omittedStrongest: row.omittedStrongest, cancelled: row.cancelled };
+    hypocenterName: row.hypocenterName, magnitude, depth, magnitudeDescription: row.magnitudeDescription, maxInt, tsunamiComment: row.tsunamiComment, strongest, omittedStrongest: row.omittedStrongest, tsunamiCodes, omittedTsunamiCodes: row.omittedTsunamiCodes, cancelled: row.cancelled };
 }
 // [EventID, 段階]。段階は I-U-Q.intensityScale の rank（0〜9 の整数、P3-QC-D-DAILY-MAX=A）。
 function pair(value: unknown): Counted[number] | null {
@@ -1615,7 +1615,7 @@ function history(value: unknown): SeismicDailyHistory | null {
   const maxInt = row?.maxInt === null ? null : materialValue(row?.maxInt);
   if (row == null || pairs == null || rows == null || (row.maxInt !== null && (maxInt == null || !boundedValue(maxInt)))
     || !Number.isSafeInteger(row.count) || Number(row.count) < 0 || rows.length > RECENT_LIMIT || pairs.length > COUNTED_LIMIT
-    || !unique(pairs.map(([eventId]) => eventId)) || !(row.dayKey === null || isText(row.dayKey) && /^\d{4}-\d{2}-\d{2}$/.test(row.dayKey)
+    || !unique(pairs.map(([eventId]) => eventId)) || !unique(rows.map((item) => item.eventId)) || rows.some((item, at) => at > 0 && byRecent(rows[at - 1], item) >= 0) || !(row.dayKey === null || isText(row.dayKey) && /^\d{4}-\d{2}-\d{2}$/.test(row.dayKey)
       && Number.isFinite(nextMidnight(row.dayKey)))) return null;
   return { dayKey: row.dayKey, count: Number(row.count), maxInt, counted: pairs, recent: rows };
 }

@@ -487,8 +487,8 @@ function quakeRow(row: SeismicRecentQuake, operation: Operation, event: QuakeEnt
   return {
     eventId: row.eventId, operation, origin: bounded(row.originTimeRaw, WIRE_LIMITS.time), reportTime: bounded(row.reportDateTimeRaw, WIRE_LIMITS.time),
     hypo: cutOrNull(row.hypocenterName, WIRE_LIMITS.hypocenter), mag: valueText(rawOf(row.magnitude), row.magnitudeDescription),
-    depth: valueText(rawOf(row.depth), null), maxInt: intensityLevel(row.maxInt), cancelled: row.cancelled,
-    tsunami: cutOrNull(row.tsunamiComment, WIRE_LIMITS.tsunamiEval), strongest, omittedStrongest: row.omittedStrongest,
+    depth: valueText(rawOf(row.depth), null), depthBound: row.depth.kind === "range" ? row.depth.bound : null, maxInt: intensityLevel(row.maxInt), cancelled: row.cancelled,
+    tsunami: cutOrNull(row.tsunamiComment, WIRE_LIMITS.tsunamiEval), strongest, omittedStrongest: row.omittedStrongest, tsunamiCodes: row.tsunamiCodes, omittedTsunamiCodes: row.omittedTsunamiCodes,
     // event があればその既知でない区域の件数（地域の要素を含む）、無ければ最も強い地域のうち既知でないコードの数。
     marks: event?.marks ?? [], unknownAreas: event?.unknownAreas ?? row.strongest.length - strongest.length,
     // 日次行の ref は id を必ず持ち、rev は同じ snapshot に event があるときだけ（表 §5.6）。
@@ -541,7 +541,7 @@ const runtimeUnit = (value: string): UnitId | undefined => UNIT_IDS.find((unit) 
 const SNAPSHOT_BYTES = 1_048_576, DOMAIN_BUDGET = 65_536;
 // 保護 3 分野・通知・共通部の上界の和（p4-display-wire-max.mjs の newPath.sum、表 §4.1）。9 分野の full の和がこれと合わせて 1 MiB に届かない間は、
 // 全体を数えなくても要約にならないと決まる。届きうるときだけ全体を数える（稀な分岐。共通部と保護 3 分野の直列化は全公開の中で 1 回）。
-const NEW_PATH_FIXED_BOUND = 377_434;
+const NEW_PATH_FIXED_BOUND = 399_277;
 const VOCAB_KEYS = ["weatherCurrent", "weatherTimeseries", "nankai", "volcano", "landslide", "flood", "briefing", "localBulletins", "typhoon"] as const;
 type VocabKey = typeof VOCAB_KEYS[number];
 const VOCAB_UNIT: Readonly<Record<VocabKey, VocabUnit>> = { weatherCurrent: "U-W", weatherTimeseries: "U-F", nankai: "U-N", volcano: "U-V", landslide: "U-L",

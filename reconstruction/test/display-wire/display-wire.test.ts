@@ -66,11 +66,11 @@ describe("P4-DW-T01 contractBoundary: the protected three fit 262,144 bytes", ()
       composites: [{ forecast: Array.from({ length: tsunamiAreas }, () => ["100", "majorWarning"] as const), observed: Array.from({ length: tsunamiAreas }, () => ["100", x(WIRE_LIMITS.height)] as const) }],
       closed: Array.from({ length: 3 }, () => ({ items: Array.from({ length: WIRE_COUNTS.closed }, () => closed), omitted: MS })) };
     const quakeRow: EarthquakeRowWire = { eventId: x(WIRE_LIMITS.eventId), operation: "training", origin: x(WIRE_LIMITS.time), reportTime: x(WIRE_LIMITS.time),
-      hypo: cut(WIRE_LIMITS.hypocenter), mag: value(), depth: value(), maxInt: null, cancelled: false, tsunami: cut(WIRE_LIMITS.tsunamiEval),
-      strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: MS, marks, unknownAreas: MS, ref: { id: x(64), rev: x(64) } };
+      hypo: cut(WIRE_LIMITS.hypocenter), mag: value(), depth: value(), depthBound: "upper", maxInt: null, cancelled: false, tsunami: cut(WIRE_LIMITS.tsunamiEval),
+      strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: MS, tsunamiCodes: Array.from({ length: 4 }, () => "9999"), omittedTsunamiCodes: MS, marks, unknownAreas: MS, ref: { id: x(64), rev: x(64) } };
     const longPeriod: LongPeriodWire = { eventId: x(WIRE_LIMITS.eventId), operation: "training", reportTime: x(WIRE_LIMITS.time), maxLg: null, marks, unknownAreas: MS, ref };
-    // 今日の地震は区分ごとに 5 行（U-Q の recent の上限、板待ちの仮の数）。
-    const quake: EarthquakeWire = { rows: Array.from({ length: 15 }, () => quakeRow), daily: Array.from({ length: 3 }, () => ({ operation: "training" as const, count: MS, maxInt: null })),
+    // 今日の地震は区分ごとに 9 行（U-Q の recent の上限、P4-UQR-D-ROWS=A）で 27 行。
+    const quake: EarthquakeWire = { rows: Array.from({ length: 27 }, () => quakeRow), daily: Array.from({ length: 3 }, () => ({ operation: "training" as const, count: MS, maxInt: null })),
       composites: [{ areas: paint("2230600", cities), unknownAreas: MS }], longPeriods: [longPeriod, longPeriod], omittedLongPeriods: MS,
       longPeriodComposites: [{ areas: paint("622", subareas), unknownAreas: MS }] };
     // 分野の包み（unit・contentRevision・items 3 つ）と読めない報のカード 8 枚も型の最大の形で組む。
@@ -475,7 +475,7 @@ describe("P4-DW-T12 contractBoundary: the U-Q save version", () => {
     const quake = receiveQuake(emptyQuake(), decodeFixture("32-35_01_03_240613_VXSE53"), clock(Date.parse("2009-10-01T13:51:00+09:00")));
     const wide = (n: number) => "\u0001".repeat(n);
     const row: SeismicRecentQuake = { ...quake.state.daily.training.recent[0], depth: { kind: "text", value: wide(32), raw: wide(32) },
-      magnitudeDescription: wide(32), tsunamiComment: wide(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER };
+      magnitudeDescription: wide(32), tsunamiComment: wide(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER, tsunamiCodes: Array.from({ length: 4 }, () => "9999"), omittedTsunamiCodes: Number.MAX_SAFE_INTEGER };
     return { ...quake.state, daily: { ...quake.state.daily, training: { ...quake.state.daily.training, recent: [row] } } };
   };
   const roundTrip = (payload: unknown) => seismicUnitCodec.decode(JSON.parse(JSON.stringify(payload)));
@@ -497,14 +497,14 @@ describe("P4-DW-T12 contractBoundary: the U-Q save version", () => {
     expect(over((row) => ({ ...row, depth: { kind: "text", value: "a", raw: "a".repeat(33) } }))).toBe("invalid");
     expect(over((row) => ({ ...row, omittedStrongest: -1 }))).toBe("invalid");
     expect(roundTrip({ ...encoded, schemaVersion: "p3-seismic-unit-v8" }).kind).toBe("invalid");
-    // 増え分は 1 字 6 byte で数えた 5 欄の上限いっぱい（script の seismicRecent）と同じ。
+    // 増え分は 1 字 6 byte で数えた 7 欄の上限いっぱい（script の seismicRecent）と同じ。
     const row = state.daily.training.recent[0];
-    const { depth, magnitudeDescription, tsunamiComment, strongest, omittedStrongest, ...rest } = row;
+    const { depth, magnitudeDescription, tsunamiComment, strongest, omittedStrongest, tsunamiCodes, omittedTsunamiCodes, ...rest } = row;
     const added = Buffer.byteLength(JSON.stringify(row)) - Buffer.byteLength(JSON.stringify(rest));
-    expect([depth, magnitudeDescription, tsunamiComment, strongest, omittedStrongest]).toHaveLength(5);
+    expect([depth, magnitudeDescription, tsunamiComment, strongest, omittedStrongest, tsunamiCodes, omittedTsunamiCodes]).toHaveLength(7);
     const script: unknown = JSON.parse(execFileSync(process.execPath, ["reconstruction/contracts/p4-display-wire-max.mjs"], { encoding: "utf8" }));
     const recent = typeof script === "object" && script != null && "seismicRecent" in script ? script.seismicRecent : null;
-    expect(recent).toEqual({ perRow: added, rows: 15, growth: 15 * added });
+    expect(recent).toEqual({ perRow: added, baseRow: 2_310, rows: 27, reservedRows: 15, reservedRow: 1_206, growth: 27 * (added + 2_310) - 15 * 1_206 });
     expect(toSeismicView(state).daily.training.recent[0].strongest).toHaveLength(8);
   });
 });

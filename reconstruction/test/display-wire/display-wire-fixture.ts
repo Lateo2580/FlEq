@@ -24,7 +24,7 @@ const emptyEew = (): EewUnitState => ({ schemaVersion: "p2-eew-unit-v5", content
   unreadableNotices: [], persistence: saved });
 const emptyTsunami = (): TsunamiUnitState => ({ schemaVersion: "p3-tsunami-unit-v9", contentRevision: 0, forecasts: [], observations: [], intents: [],
   failureMarks: [], unreadableNotices: [], persistence: saved });
-const emptyQuake = (): SeismicUnitState => ({ schemaVersion: "p3-seismic-unit-v9", contentRevision: 0, earthquakes: [], longPeriods: [], daily: emptyDaily,
+const emptyQuake = (): SeismicUnitState => ({ schemaVersion: "p3-seismic-unit-v10", contentRevision: 0, earthquakes: [], longPeriods: [], daily: emptyDaily,
   intents: [], failureMarks: [], persistence: saved });
 
 let sequence = 0;

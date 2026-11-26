@@ -192,16 +192,16 @@ const cardOf = (inputId: string, areas: number): UnreadableCardView => ({ kind: 
   reason: "xmlInvalid", title: null, headline: null, reportDateTimeRaw: null, rawCut: false, count: 1, hasRaw: true,
   areas: Array.from({ length: areas }, () => ({ code: "1000000", name: "地域", value: 0 })) });
 
-// E6 の部品。U-Q は B0 の最大の形の数（区分ごとに 5 行の 15 行、通常の報が既知の市町村 1,894 を全部持つ合成の段、長周期の見出し 2 件〔B0 の表の上限〕）。
+// E6 の部品。U-Q は B0 の最大の形の数（区分ごとに 9 行の 27 行、通常の報が既知の市町村 1,894 を全部持つ合成の段、長周期の見出し 2 件〔B0 の表の上限〕）。
 // 長周期は synthetic_phase4a_VXSE62_special の写しの EventID と時刻を替えた 2 件。
 function quakeAtShape(longPeriods = 2): Readonly<{ state: SeismicUnitState; changes: RuntimeDisplayChange[] }> {
   let state = emptyQuake();
   const changes: RuntimeDisplayChange[] = [];
   const cities = table.city.map(({ code }, index) => `<City><Name>市${code}</Name><Code>${code}</Code><MaxInt>${["1", "2", "3", "4", "5-"][index % 5]}</MaxInt></City>`).join("");
   (["通常", "訓練", "試験"] as const).forEach((operation, kind) => {
-    for (let index = 0; index < 5; index++) {
-      const at = new Date(Date.parse("2099-01-01T09:00:00+09:00") + (kind * 5 + index) * 60_000).toISOString().replace(/\.\d{3}Z$/, "+00:00");
-      const step = receiveQuake(state, decodeQuake(vxse53({ eventId: `2099010109${String(kind * 5 + index).padStart(4, "0")}`, at, maxInt: "5-", operation,
+    for (let index = 0; index < 9; index++) {
+      const at = new Date(Date.parse("2099-01-01T09:00:00+09:00") + (kind * 9 + index) * 60_000).toISOString().replace(/\.\d{3}Z$/, "+00:00");
+      const step = receiveQuake(state, decodeQuake(vxse53({ eventId: `2099010109${String(kind * 9 + index).padStart(4, "0")}`, at, maxInt: "5-", operation,
         city: operation === "通常" ? cities : "" }), "VXSE53"), clock(Date.parse(at) + 1000));
       state = step.state;
       changes.push(...step.displayChanges);

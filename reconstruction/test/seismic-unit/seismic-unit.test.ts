@@ -32,7 +32,7 @@ const HOUR = 3_600_000;
 // Control/DateTime と印の分＋HOLD_GROWTH＋通知の印（寄与 512×4・長周期 256）＋失敗の印−外した終端 intent の予算 131,072
 // ＋P3-UNIT-Q-CAPACITY-001 の増え（cancelledSummary 512×372・counted 3×2048×4・記憶の guard 768×50、P3-QC-AC05）。
 const MARK = noticeMarkBytes("notice"), CONTRIBUTION_MARKS = EVENT_LIMIT * 4 * MARK, NOTICE_GROWTH = CONTRIBUTION_MARKS + 256 * MARK;
-const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50 + 3 * 5 * 1_572;
+const MEMORY_GROWTH = EVENT_LIMIT * 372 + 3 * 2048 * 4 + (EVENT_LIMIT + 256) * 50 + 88_992;
 const RESERVE_HEAD = EVENT_LIMIT * 1_833 + 256 * 530 + 283_209 + (EVENT_LIMIT * 4 + 256) * 49; const HOLD_GROWTH = seismicUnitCodec.maxEnvelopeBytes! - 4_194_304 - 121_513 - (RESERVE_HEAD - 1_470_281) - NOTICE_GROWTH - FAILURE_MARKS_MAX_BYTES + 131_072 - MEMORY_GROWTH - (EVENT_LIMIT + 256) * 21;
 const RESERVE_BYTES = RESERVE_HEAD + NOTICE_GROWTH + MEMORY_GROWTH;
 const ORIGIN = Date.parse("2026-07-28T16:27:00+09:00");
@@ -331,7 +331,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     expect(day(send(emptyState(), F.s51a).state).recent).toMatchObject([{ originTimeRaw: "2026-07-28T16:27:00+09:00" }]);
     const noOrigin = send(emptyState(), "synthetic_phase4a_VXSE53_special");
     expect(day(noOrigin.state).recent).toMatchObject([{ originTimeRaw: null, reportDateTimeRaw: "2026-08-01T21:00:30+09:00" }]);
-    // 同じ EventID の続報で件数を足さない。recent の 6 行目は落ち、counted の 2049 件目は組に足さずに数える。
+    // 同じ EventID の続報で件数を足さない。同じ発生時刻の 6 件は 9 行に全部残って EventID の降順に並び（P4-UQR-D-TIE=A）、counted の 2049 件目は組に足さずに数える。
     let state = emptyState();
     for (let index = 0; index < 6; index++)
       state = receive(state, report(`2026080200000${index}`, "2026-08-02T00:10:00+09:00", "2026-08-02T00:05:00+09:00"),
@@ -339,8 +339,8 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     state = receive(state, report("20260802000005", "2026-08-02T00:11:00+09:00", "2026-08-02T00:05:00+09:00"),
       clock(Date.parse("2026-08-02T00:11:00+09:00"))).state;
     expect(day(state).count).toBe(6);
-    expect(day(state).recent.map((item) => item.eventId)).toEqual(["20260802000005", "20260802000004", "20260802000003", "20260802000002",
-      "20260802000001"]);
+    expect(day(state).recent.map((item) => item.eventId)).toEqual(["20260802000005", "20260802000004", "20260802000003", "20260802000002", "20260802000001",
+      "20260802000000"]);
     const ids = Array.from({ length: 2048 }, (_, index) => `full-${index}`);
     const full: SeismicUnitState = { ...emptyState(), daily: { ...emptyState().daily, normal: { dayKey: "2026-08-02", count: 2048, maxInt: null,
       counted: ids.map((id) => [id, 3] as const), recent: [] } } };
@@ -540,7 +540,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
     const live = value.intents.find((item) => item.disposition === "pending")!;
     const withPad = (pad: number) => ({ ...value, intents: [live], earthquakes: [{ ...quake, contributions: contributions.map((item) => item === active
       ? { ...item, title: `${String(item.title)}${"x".repeat(pad)}` } : item) }, ...value.earthquakes.slice(1)] });
-    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0, capturedAt: 0,
+    const generation = (pad: number) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v10", unit: "U-Q", generation: 0, capturedAt: 0,
       payload: withPad(pad) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES
       + (value.earthquakes.length + value.longPeriods.length) * 21; // 見えて印の無い記録の予約（P3-SEV-AC06）
     const limit = seismicUnitCodec.maxEnvelopeBytes!;
@@ -569,7 +569,7 @@ describe("P3-UNIT-Q-001 U-Q reducer", () => {
       ["reserve exceeded", { ...value, earthquakes: many(EVENT_LIMIT, (index) => ({ ...eventN(index), guard: { ...(quake.guard as Row), on: 0 }, contributions: [{ ...cancelled,
         source: { ...(cancelled.source as Row), inputId: "x".repeat(3_100), subject: `normal/${String(cancelled.family)}/E${index}` } }] })) }],
       ["strongHold until", withQuake({ strongHold: hold == null ? null : { ...hold, until: Number(hold.until) + 1 } })],
-      ["recent > 5", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, recent: many(6, () => (value.daily.normal.recent as Row[])[0]) } } }],
+      ["recent > 9", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, recent: many(10, (index) => ({ ...(value.daily.normal.recent as Row[])[0], eventId: `2026080100000${9 - index}` })) } } }],
       ["recent string limit", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, recent: [{ ...(value.daily.normal.recent as Row[])[0],
         hypocenterName: "x".repeat(65) }] } } }],
       ["counted > 2048", { ...value, daily: { ...value.daily, normal: { ...value.daily.normal, counted: many(2049, (index) => [`c${index}`, 1]) } } }],
@@ -902,7 +902,7 @@ describe("P3-CURRENCY-COVERAGE-001 U-Q", () => {
     .replace(/2026-07-28T16:2[78]:00\+09:00/g, at).replace(/<MaxInt>7<\/MaxInt>/g, "<MaxInt>3</MaxInt>"));
   const atOf = (iso: string, plus = 0) => clock(Date.parse(iso) + plus);
   const notices = (state: SeismicUnitState) => state.intents.filter((item) => item.subject === FAIL);
-  const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v4", unit: "U-Q", generation: 0,
+  const generation = (state: SeismicUnitState) => serializedEnvelope({ schemaVersion: "p3-seismic-unit-v10", unit: "U-Q", generation: 0,
     capturedAt: 0, payload: seismicUnitCodec.encode(state) as JsonValue, sha256: "0".repeat(64) }).byteLength + 62 + INPUT_BOUNDARY_MAX_BYTES
     + LOSS_TALLY_MAX_BYTES + UNREADABLE_CARDS_MAX_BYTES + pending(state).reduce((sum, item) => sum + deliveryGrowth(item), 0);
   // 世代を器の上限 − slack にする。normal の受理は普通は退去で収まるので、退去の候補にならない記録だけで埋める: 観測点を持たない守る地震
@@ -1157,8 +1157,8 @@ function budgetState(now: number): SeismicUnitState {
   const text = (length: number) => ({ kind: "text" as const, value: wide(length), raw: wide(length) });
   const history = (prefix: string): SeismicDailyHistory => ({ dayKey: new Date(now + 32_400_000).toISOString().slice(0, 10), count: 9_999,
     maxInt: text(32), counted: Array.from({ length: 2048 }, (_, index) => [id40(prefix, index), 9] as const),
-    recent: Array.from({ length: 5 }, (_, index) => ({ eventId: id40(prefix, index), originTimeRaw: wide(40), reportDateTimeRaw: "2099-01-01T08:59:59+09:00",
-      hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false, depth: text(32), magnitudeDescription: wide(32), tsunamiComment: wide(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER })) });
+    recent: Array.from({ length: 9 }, (_, index) => ({ eventId: id40(prefix, 8 - index), originTimeRaw: wide(40), reportDateTimeRaw: "2099-01-01T08:59:59+09:00",
+      hypocenterName: wide(64), magnitude: text(32), maxInt: { kind: "fromTo" as const, from: text(32), to: text(32) }, cancelled: false, depth: text(32), magnitudeDescription: wide(32), tsunamiComment: wide(128), strongest: Array.from({ length: 8 }, () => "99999999"), omittedStrongest: Number.MAX_SAFE_INTEGER, tsunamiCodes: Array.from({ length: 4 }, () => "9999"), omittedTsunamiCodes: Number.MAX_SAFE_INTEGER })) });
   const intent = (index: number): SeismicIntent => {
     const eventId = id40("i", index), subject = `normal/VXSE53/${eventId}`;
     return { id: `U-Q:${subject}:${index}:desktop`, unit: "U-Q", subject, operation: "normal", source: source("normal", "VXSE53", eventId, "発表"),
