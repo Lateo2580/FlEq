@@ -101,9 +101,9 @@
   - `shellSync(state, nowMs)`: 上の集め方で集めたカードから、slot のカードの id（slot の順、6 まで）と、opened のあるカードがあるかを sync の事象にして返す（frame の組み立てはしない）。
   - frame の shell には組んだ時の ShellState をそのまま入れる（R2）。
   - CARD_SOURCES は ShellCardEntry（source と max）の配列。max は source の作りで決まる数（例: 区分ごとのカードは区分の数）。source が max を越えて返したときは前から max 枚だけを使い、診断を 1 件残す（frame の diagnostics に reason "cardSourceOverMax"・登録の番号・返した枚数・max を入れ、main.ts が console へ出す。黙って落とさない）。列のカードの数の上限 K は、その列に置かれうる entry の max の和（P4-DS-D-CARD-BOUND=A、統合担当の決め 2026-11-24 22:0x）。
-  - 割りは、paginateColumn の入力の全部（列と、その列の ShellCard の全部の欄: id・place・take・slot・mayHide・forms の head と body の各行の height・token・texts〔text と token〕・continuation・maxPages・minBodyRows・opened）が、その列で最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例。同じ入力なら同じ結果なので、覚えても答えは変わらない（ヘルツの指摘 18）。metadata だけの snapshot、ページを送るだけの frame、時計だけの更新では入力が同じなので組み直さない（R3）。
+  - 割りは、paginateColumn の入力（列と、その列の ShellCard の欄: id・place・take・slot・mayHide・forms の head と body の各行の id・height・token・texts〔kind と、字の text と token、束の token と中の字〕・continuation・maxPages・minBodyRows・opened。カードの token と inner は割りに効かないので比べず、描く時に最新のカードから読む、P4-SHELL-TYPES-001 の AC02）が、その列で最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例。同じ入力なら同じ結果なので、覚えても答えは変わらない（ヘルツの指摘 18）。metadata だけの snapshot、ページを送るだけの frame、時計だけの更新では入力が同じなので組み直さない（R3）。
   - ページの表示: 列のページに mark があれば、右の列は mark.cardId のカードの ShellDrawCard の mark に、at を "last"・dots を mark.dots にして入れる。左の列は、そのページの mayHide のカード（今日の地震）の mark に、at を "head"・dots を偽にして入れる（DS-QROW-21）。text は「ページの番号＋1/ページの数」の字（例「2/4」）。右の列の at "last" は、そのページで一番下のカードの最後の行として、カードの下端に置く形（表 §4.4 の c）。左の列の 2 ページ以上の各ページには mayHide のカードがある（AC05 (7)(d)、表 §4.4 の d）（R4）。
-  - 描く行: 中間の層は割りのページの行（head・continuation・本文）。slot のカードは forms[0] の head と本文を場所の矩形へ描く（大カードの中のページは E0）。開いたカードは opened.rows を opened.rect へ描く（ページは DS-OPEN-65、C0）。
+  - 描く行: 中間の層は割りのページの行（head・continuation・本文）。slot のカードは forms[0] の head と本文を場所の矩形へ描く。開いたカードは opened.rows を opened.rect へ描く。どちらも inner があれば、forms[0]・opened.rows の代わりに innerPage の番号のページの行を描く（番号の持ち主は S1 発注 1、ページの割り方と表示は E0 発注 1b・C0〔DS-OPEN-65〕、P4-SHELL-TYPES-001 の AC04）。
   - 時計: `clockRect`（frame に置いた緊急地震速報のカードの枚数（frame.eew.length、最大 6）。7 枚目からは置かないので数えない）と `clockText(nowMs)`。
   - status: 次の順に札を入れる。(1) unsupported のとき、版が合わないときの札「受け取った情報を表示できません」 (2) state.detail.status が failed のとき、詳細を読めなかったときの札「詳細を表示できません」。両方なら版が合わない方を先に置く。どちらも無ければ空（中身は C2）。failed の札は detailRequested で loading になるか、置き換えで refetch になれば次の frame で消える。字は作者の裁定 2026-11-25 19:09（ヘルツの指摘 19）。
   - map・marks: 空の配列（M0 が埋める）。pageCount: 列ごとのページの数（S1 が読む）。開いている間の左の列の pageCount は、開いたカードを外した割りのページの数。その送りの受け方は S1 が決める（統合担当の決め 2026-11-25 21:3x、r10-items.md の #16）。
@@ -111,12 +111,12 @@
 - 開いている間は、中間の層に開いたカード（opened のあるカード）を渡さない（DS-LAYER-16、docs/specs/reconstruction-display-design.md:662 «f0b7e6009716cb45»。統合担当の決め・読み（作者の裁定 2026-11-25 07:0x（「判断事項については、全て推奨で進めてください。」）、P4-DS-D-SECOND-GROUP=A で凍結））。
 - main.ts は ShellFrame だけを描く。行の字と矩形を DOM の側で作らない。
 
-### 2.5 frame.ts の時刻（P2-A9-AC10、reconstruction/contracts/p2-chrome-eew.json:502 «f17c6fe9984131d4»）
+### 2.5 time.ts の時刻（P4-SHELL-TYPES-001 で frame.ts から移した）（P2-A9-AC10、reconstruction/contracts/p2-chrome-eew.json:502 «f17c6fe9984131d4»）
 
 - `formatJst(value)`: epoch ms の数か、Z か ±hh:mm の時差を持つ ISO 8601 の字を受ける。epoch ms に 32,400,000 を足し、Date の getUTC* で読む。字は YYYY/MM/DD HH:mm:ss（0 埋め・24 時間制・時差の字なし）。null・時差の無い字・暦に無い日付・24 時・解釈できない値は「時刻不明」（暦に無い日付と 24 時は統合担当の決め 2026-11-25 21:3x、r10-items.md の #13）。
   - 時差の無い字を「時刻不明」にするのは統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）。時差の無い字を Date.parse に渡すと端末の時差で読まれ、P2-A9-AC10 の「端末のタイムゾーンに依存しない」に当たる。
 - `clockText(epochMs)`: 同じ計算で「YYYY/MM/DD (曜) HH:mm」。曜は Sun Mon Tue Wed Thu Fri Sat（docs/specs/reconstruction-display-design.md:367 «0ba4a1081a227acb»、docs/specs/reconstruction-display-design.md:370 «4bad5bfae7e8b540»）。時計の時刻はブラウザの時計。
-- 各分野の時刻の字の形（「02:50 更新」など）はカードの契約が formatJst の字から切り出すか、同じ計算を使う。
+- `formatJstTime(value, unit)`: 同じ照らしで second は「HH:mm:ss」、minute は「HH:mm」、読めない値は「時刻不明」（P4-SHELL-TYPES-001 の AC05）。各分野の時刻の字の形（「02:50 更新」など）はカードの契約が formatJstTime を使って組む。
 
 ### 2.6 main.ts（DOM の入口）
 
@@ -452,7 +452,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 | ヘッダ | spec:425 の「表示モード・接続状態だけのヘッダ」と H02 の「ヘッダの帯は作らない」（docs/specs/reconstruction-p0-contracts.md:3029 «a4fb170e00c3b22b»） | 帯を作らない（H02、reconstruction/contracts/p4-order-plan.md:786 «e22a0b111f2147a6»） |
 | 検収端末 | spec:167（docs/specs/reconstruction-p0-contracts.md:167 «2cc109ef03d71ce4»）・:1688・:2961 の「開発機の Chrome」と、計画:383 の「S0 の凍結時に P4-PLAN-D-SCREEN の結果へ」（reconstruction/contracts/p4-order-plan.md:383 «d032ca260ac4d42b»） | smoke は開発機の Chrome。Pi の Chromium の資源は PM。spec の本文は置き換えない（Q-DS-SPEC-REVISION） |
 | P2-A9 の在り処 | 依頼の字は p2-snapshot-sse.json、定義は p2-chrome-eew.json | p2-chrome-eew.json の AC01・AC08・AC10 を引く（reconstruction/contracts/p2-chrome-eew.json:414 «3b73f7c36e965a88»） |
-| P2-A9-AC01・AC10 の型 | 旧の DisplaySnapshot と旧の EEW の時刻の欄を名指す | 新しい経路の DisplayWireSnapshot に読み替える。EEW の時刻の欄は E0 のカードが formatJst を使う |
+| P2-A9-AC01・AC10 の型 | 旧の DisplaySnapshot と旧の EEW の時刻の欄を名指す | 新しい経路の DisplayWireSnapshot に読み替える。EEW の時刻の欄は E0 のカードが formatJstTime（time.ts、P4-SHELL-TYPES-001）を使う |
 | O11:6 | 計画:72 の「6 は SSE と S0」と、B1 が SSE の側を持った | S0 は画面の側の合流だけ（AC15 (1)） |
 | 部品の directory | 計画:227 の「各カードの契約は自分の部品の directory」と http-sse.ts:323 の 1 階層 | P4-DS-D-MODULE-PATH=A（§7.1） |
 | host の配線の持ち主 | B1 の outOfScope「host.ts の配線（新しい経路を製品で流すのは E0 発注 2）」と、計画:229 の S0（2026-11-23） | S0 が持つ（reconstruction/contracts/p4-order-plan.md:229 «5087b78524621456»）。B1 の字は §12 で改める |
@@ -478,7 +478,7 @@ L1〜L9 は placeLayers の入力（raised は空、T02）。「最上層」の�
 8. `reconstruction/contracts/p4-display-capacity.json` の outOfScope の「host.ts の配線（新しい経路を製品で流すのは E0 発注 2）」と Q-DC-DELIVERY の remaining の「host の配線…は E0 発注 2 か S0」: S0 に改める。
 9. spec:1855（D-AC18）の字を DS-CSS-02 の形に合わせるか（§11）。〔本文を置き換えない形に決めた（統合担当の決め、Q-DS-SPEC-REVISION）〕
 10. DS（「FlEq 表示 D1 夜」）の README へ、次の版で写す: DS-LAYER-06 の後半・15 の出どころ（20:54）、DS-LAYER-18〜21・DS-OPEN-75 の新しい行（r6 で spec の :703〜:709 を版 40 の README の行〔:241〜:246・:268〕に付け直した）、DS-OPEN-62 の形（明るさを下げる）と 63・64 を閉じたこと、DS-OPEN-65 を C0 へ送ること、DS-OPEN-69 の条件（場面 22k）、README:234 の案の行（0.6・ずらしを当てる・向き）の改め。写したら spec の §0 の sha256 と、新しい 7 行（DS-LAYER-18〜23・DS-OPEN-75）の「README の行は無い」を改める。
-11. E0 の起草: slot のカードの id は event ごとに 1 つ（続報で変えない）。DS-LAYER-21（D3）がこの id の組で緊急地震速報の組の変化を見るため。
+11. E0 の起草: slot のカードの id は event ごとに 1 つ（続報で変えない）。DS-LAYER-21（D3）がこの id の組で緊急地震速報の組の変化を見るため。カードの中のページの番号（innerPage）もこの id で引く（P4-SHELL-TYPES-001 の AC04）。
 12. S1・E0 の起草: DS-OPEN-46・75 を決めたら、本契約の DS-LAYER-23（左の列に緊急地震速報のカードがある間は開かない）を契約の改訂で改める。DS-LAYER-22 の 1 文目の「開いたカード」の所は DS-LAYER-23 で改めた（spec の :708 は変えていない。DS の次の版で写すときに 1 文にまとめる）。
 13. 計画:114 の 2 つ目の群の字は、P4-DS-D-SECOND-GROUP の作者の確認の後に改める（1 の字はそれまで当てない）。
 14. 各カードの契約: 登録の max は自分の source の作りで決まる数にし、source が max を越えないことを自分の試験で示す（S0 は越えたときの診断までを持つ、P4-DS-D-CARD-BOUND=A）。
