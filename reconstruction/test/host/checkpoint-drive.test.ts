@@ -24,15 +24,15 @@ async function drivenRoot(checkpointFileSystem: CheckpointFileSystem) {
   const clock = () => ({ ...now });
   const h = harnessedRoot({ appName: "fleq-p2", legacyAppName: "fleq", stateDirectory: join(path, "state"),
     legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs,
-  { runtimeCalls, notificationAdapter: recordingNotificationAdapter(), clock, checkpointFileSystem });
+  { runtimeCalls, notificationAdapter: recordingNotificationAdapter(), clock, checkpointFileSystem }); roots.push(h.root);
   await startHarness(h, "run", clock());
   return { h, root: h.root, now, clock };
 }
 
 const runtimeCalls = { ...linkedRuntimeCalls, selectNotificationAttempt: (delivery: NotificationDeliveryState) =>
   ({ state: delivery, attempts: [], abortRequests: [], diagnostics: [] }) };
-const directories: string[] = [];
-afterEach(async () => { for (const path of directories.splice(0)) await fileSystem.rm(path, { recursive: true, force: true }); });
+const directories: string[] = [], roots: { diagnostics: { flush(): Promise<void> } }[] = [];
+afterEach(async () => { for (const root of roots.splice(0)) await root.diagnostics.flush(); for (const path of directories.splice(0)) await fileSystem.rm(path, { recursive: true, force: true }); }); // 診断の sink の書き出しを待ってから消す（settle() は sink を待たず、rm と競うと ENOTEMPTY になる）
 
 // P2-A10-AC12 (save driving): without a repeated reconciliation the unit stays uncertain and is never saved again.
 it("P2-A10-T06 / AC12: driveCheckpoint reconciles an uncertain unit on each due tick until it is saved, then saves the next generation", async () => {

@@ -274,7 +274,7 @@ async function seedIntents(r: Awaited<ReturnType<typeof runtime>>, unit: Runtime
 describe("P2 shared runtime", () => {
   it("P2-A1-T08 contractBoundary / AC08: startup is the only null-state input and runs once", async () => {
     // U-F has no codec here, so its restore is unavailable (unknownSchema) as in the P2 startup input.
-    const h = harnessedRoot(config(), { "U-E": linkedUnitCodecs["U-E"], "U-W": linkedUnitCodecs["U-W"] }, { clock: () => clock });
+    const h = harnessedRoot(config(), { "U-E": linkedUnitCodecs["U-E"], "U-W": linkedUnitCodecs["U-W"] }, { clock: () => clock }); roots.push(h.root); // afterEach の flush に乗せる（rm と競うと ENOTEMPTY）
     expect(() => h.root.state).toThrow("runtime has not received its initial state");
     h.root.mailbox.enqueue(envelope("fresh", "VXSE43", "early", unitBodies["U-E"].body, clock));
     h.root.pump();

@@ -51,8 +51,8 @@ type Step = Readonly<{ state: RuntimeState; outcomes: readonly RuntimePublishedO
 // Each step remembers the run it came from; continuing from a run's latest step reuses it, an earlier one replays.
 type Run = { h: Harness; inputs: Input[]; clock: { now: ClockReading }; restored: Restored; units?: UnitTable };
 const runs = new WeakMap<RuntimeState, Readonly<{ run: Run; length: number }>>();
-const directories: string[] = [];
-afterAll(() => { for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); });
+const directories: string[] = [], roots: { diagnostics: { flush(): Promise<void> } }[] = [];
+afterAll(async () => { for (const root of roots.splice(0)) await root.diagnostics.flush(); for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); }); // 診断の sink の書き出しを待ってから消す（settle() は sink を待たず、rm と競うと ENOTEMPTY になる）
 
 type Restored = Readonly<Record<RuntimeUnitId, RestoreUnitResult>>;
 const empty: Restored = { "U-E": { kind: "empty" }, "U-W": { kind: "empty" }, "U-F": { kind: "empty" }, "U-T": { kind: "empty" },
@@ -105,7 +105,7 @@ async function open(clock: ClockReading, restored: Restored, units?: UnitTable):
     legacyStateDirectory: join(path, "legacy"), diagnosticDirectory: join(path, "diagnostics") }, linkedUnitCodecs, {
     clock: () => time.now, runtimeCalls: { ...calls, units: units ?? calls.units },
     notificationAdapter: { run: () => new Promise(() => {}), abort: async () => ({}) }, reportFailure: () => {},
-    checkpointFileSystem: memoryWrites() });
+    checkpointFileSystem: memoryWrites() }); roots.push(h.root);
   const started = h.root.startRuntime("run", clock, idleChannels);
   await h.settle();
   await started;

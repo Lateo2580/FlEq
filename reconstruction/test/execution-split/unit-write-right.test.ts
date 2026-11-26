@@ -22,11 +22,11 @@ const at = (ms: number): ClockReading => ({ wallTimeMs: 1_800_000_000_000 + ms, 
 const codecs = { "U-E": stringCodec("U-E"), "U-W": stringCodec("U-W"), "U-F": stringCodec("U-F"), "U-Q": stringCodec("U-Q") };
 const units = ["U-E", "U-W", "U-F", "U-Q"] as const;
 
-const directories: string[] = [];
-afterEach(() => {
+const directories: string[] = [], roots: { diagnostics: { flush(): Promise<void> } }[] = [];
+afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true });
+  for (const root of roots.splice(0)) await root.diagnostics.flush(); for (const path of directories.splice(0)) rmSync(path, { recursive: true, force: true }); // 診断の sink の書き出しを待ってから消す（settle() は sink を待たず、rm と競うと ENOTEMPTY になる）
 });
 function config() {
   const path = mkdtempSync(join(tmpdir(), "fleq-uwr-"));
@@ -84,7 +84,7 @@ async function runtime(options: Readonly<{ measure?: (observation: P2HostObserva
     runtimeCalls: driver.calls, checkpointFileSystem: files.system, onMeasurements: (batch) => { measurements.push(...batch); },
     shutdownHooks: { drainMailbox: (_deadline, active) => h.root.drainInputs(active) },
     ...(options.measure == null ? {} : { measure: options.measure }),
-    owners: { measured: options.measure != null, ...(options.sharedNow == null ? {} : { sharedNow: options.sharedNow }) } });
+    owners: { measured: options.measure != null, ...(options.sharedNow == null ? {} : { sharedNow: options.sharedNow }) } }); roots.push(h.root);
   const recorded = vi.spyOn(h.root.diagnostics, "enqueueDiagnostic");
   await startHarness(h, "uwr", now);
   // The state that raises one unit to `generation` with the given input ID (the stub reducer sets it as is).

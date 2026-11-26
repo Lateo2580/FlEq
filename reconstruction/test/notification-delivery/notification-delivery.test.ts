@@ -20,8 +20,8 @@ vi.mock("node:fs", async importOriginal => {
 });
 vi.mock("node:child_process", () => ({ spawn: vi.fn() }));
 
-const directories: string[] = [];
-afterEach(async () => { for (const path of directories.splice(0)) await fs.rm(path, { recursive: true, force: true, maxRetries: 3 }); });
+const directories: string[] = [], roots: { diagnostics: { flush(): Promise<void> } }[] = [];
+afterEach(async () => { for (const root of roots.splice(0)) await root.diagnostics.flush(); for (const path of directories.splice(0)) await fs.rm(path, { recursive: true, force: true, maxRetries: 3 }); }); // 診断の sink の書き出しを待ってから消す（settle() は sink を待たず、rm と競うと ENOTEMPTY になる）
 function config() {
   const directory = fileSystem.mkdtempSync(join(tmpdir(), "fleq-a7-"));
   directories.push(directory);
@@ -35,7 +35,7 @@ async function delivery(start: ClockReading, options: Readonly<{ probe?: boolean
   const seeds = seeded(calls.units);
   const notices = manualAdapter();
   const h = harnessedRoot(config(), linkedUnitCodecs, { clock: () => now, notificationAdapter: notices.adapter,
-    runtimeCalls: { ...calls, units: seeds.units } });
+    runtimeCalls: { ...calls, units: seeds.units } }); roots.push(h.root);
   await startHarness(h, "a7", start, false);
   if (options.probe !== false) {
     h.root.dispatch({ kind: "notificationProbeCompleted", channels: options.channels ?? testNotificationChannels, clock: start });
