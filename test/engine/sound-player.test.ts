@@ -397,14 +397,26 @@ describe("sound-player", () => {
       throw new Error("EACCES");
     });
     const os = await import("os");
+    const path = await import("path");
     const fs = await vi.importActual<typeof import("fs")>("fs");
-    const countProbeDirs = (): number =>
-      fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith("fleq-sound-probe-")).length;
-    const before = countProbeDirs();
-    const sp = await import("../../src/engine/notification/sound-player");
-    await expect(sp.checkSoundBackend()).rejects.toThrow("EACCES");
-    expect(mockExecFile).not.toHaveBeenCalled();
-    expect(countProbeDirs()).toBe(before);
+    // 共有の os.tmpdir() には別 file の worker も probe の dir を作る (cli-run.test の起動バナーが
+    // 本物の checkSoundBackend を呼ぶ) ので、この試験の間だけ専用の置き場へ向けて数える
+    const ownTmp = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-sound-test-tmp-"));
+    const originalTmpdir = process.env.TMPDIR;
+    process.env.TMPDIR = ownTmp;
+    try {
+      const countProbeDirs = (): number =>
+        fs.readdirSync(os.tmpdir()).filter((n) => n.startsWith("fleq-sound-probe-")).length;
+      const before = countProbeDirs();
+      const sp = await import("../../src/engine/notification/sound-player");
+      await expect(sp.checkSoundBackend()).rejects.toThrow("EACCES");
+      expect(mockExecFile).not.toHaveBeenCalled();
+      expect(countProbeDirs()).toBe(before);
+    } finally {
+      if (originalTmpdir == null) delete process.env.TMPDIR;
+      else process.env.TMPDIR = originalTmpdir;
+      fs.rmSync(ownTmp, { recursive: true, force: true });
+    }
   });
 
   // 契約境界: timeout で kill された player の失敗では次の player を起動しない
