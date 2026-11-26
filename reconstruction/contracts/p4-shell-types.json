@@ -1,0 +1,521 @@
+{
+  "meta": {
+    "draftedFromOid": "7d89a98fcf536aedb4b41231c2374498105bc4ab",
+    "sha256": "5b549d7bff0ac154857b9001452527d1429bf680962d354d8ad23afef2b086d2",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
+    "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-ST-D-ROW-ID",
+        "kind": "統合担当",
+        "A": "ShellRow に id: string | null を足す。本文の行（forms の body・inner の pages・opened.rows の対象の行）はその行が表す対象の id、head・continuation・飾りの行は null。1 つの形の body の中・1 つの inner の pages の全部の中・opened.rows の中で null でない id は重ならず、同じ対象は snapshot と形をまたいで同じ字（字の作り方は書くカードの契約）",
+        "B": "今のまま ShellCard.id だけ。区分ごとのカードは 1 枚で何ページにもなる（見本の場面 10・12 の右の列は全 12 ページ、DS-PAGE-12）ので、ページの中の対象を数えられず spec:1506 の「ページ先頭の安定 ID」と D-AC08 を満たせない",
+        "C": "府県と種別の組など、行をまとめた単位の id。組が 2 ページにまたがると「先頭の対象を含むページ」が 1 つに決まらない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.1。単位は S1 の下調べの B2。行を単位にすると組や件は S1 が行の id から作れる"
+      },
+      {
+        "id": "P4-ST-D-PART",
+        "kind": "統合担当",
+        "A": "ShellRow.texts の要素を ShellText か ShellGroup（token と ShellText の並び、1 段）にし、ShellCard と ShellDrawCard にカード単位の token を足す。束とカードの token は字と同じ TOKEN_CLASS で class へ写す",
+        "B": "型を変えず、行の token と字の token と CSS の格子だけで書く（C0 の下調べの C7 の案）。札の色（震度ごとの token、DS-INT-04）と札の中の 2 段の字を 1 つの箱にするには行の token に「震度×形」の組を作り、札の右の行の中の字の並びを span の順の CSS で決めることになる。カードの枠の色（DS-CSS-08〜10）はどちらにしてもカード単位の token が要る",
+        "C": "束の入れ子を何段でも許す。2 段の受け手は無い（AGENTS.md の最小実装: 将来のための拡張点は作らない）",
+        "D": "A の束と字の見分けを、ShellText と ShellGroup の両方に kind を足す判別共用体にする（AGENTS.md・CLAUDE.md の「判別共用体は switch で網羅」に揃う）。今の字の literal（screen-fixture.ts・smoke.mjs と、後のカードの全部の字）に kind が要る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §1 の 2・3、§2.2。受け手の形（EEW の小さいカードと大カード・今日の地震の 1 行・府県の見出し＋最初の行・カードの中のページの表示）は、表 §2.2 の割りの表でどれも 1 段で書ける"
+      },
+      {
+        "id": "P4-ST-D-INNER",
+        "kind": "統合担当",
+        "A": "カードの中のページの番号は scene（S1 発注 1、P4-SCENE-001。005f72fb の計画 :115 で S1 発注 1 は S0・本契約の後、Pi の段 1 を待たない）が持ち、ShellFrameInput.innerPage（カードの id → 番号）で screenFrame へ渡す。カードは ShellCard.inner でページごとの行（ページの表示の「1/4」と点もその行の中の字と token）を返し、frame が番号のページを描いて ShellFrame.innerPageCount にページの数を返す。frame は表示の置き場を決めず mark を出さない。使うのは緊急地震速報の場所のカードと開いたカードだけ。S1 までは main.ts が空の object を渡す",
+        "B": "番号をカードの契約（E0・C0）の module の状態に持つ。source は snapshot と nowMs の純粋な関数（S0 の AC08 (1)(3)）で、module の状態を読むと screenFrame が純粋でなくなり、S1 の手動の停止・再開（spec:1509）と合わせられない",
+        "C": "ShellCardSource に番号を渡し、source がページを選ぶ。source の返り値がページで変わるので、C0 の「分野の contentRevision を鍵にカードを使い回す」（C0 の下調べ §5）が効かず、ページを送るたびに割りの比べが走る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.3。凍結するのは番号の持ち主と受け渡し（innerPage・丸め・innerPageCount）だけ。1 ページに入れる行とページの表示の形・置き場はカードの契約（E0 の F4、DS-OPEN-65 は C0）。続報で 1 ページ目へ戻すかは作者の問い（Q-ST-INNER-RESET）"
+      },
+      {
+        "id": "P4-ST-D-TIME",
+        "kind": "統合担当",
+        "A": "新しい screen/time.ts に formatJstTime(value, \"second\" | \"minute\") を足し、formatJst・clockText も frame.ts から移す。frame.ts は time.ts から clockText を import する",
+        "B": "frame.ts に足す。カードの部品の file が frame.ts を import すると frame.ts → cards.ts → 部品 → frame.ts の輪になり、試験が部品の file を先に import すると cards.ts の登録の const が未初期化の名前を読む",
+        "C": "足さず、各カードが formatJst の字を切り出す",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §1 の 5、§2.4。formatJst の字を切り出す形（S0 の表 §2.5 が許す形）は、読めない値の「時刻不明」が空の字になり、同じ照らしを C0 と E0 が別々に写すことになる"
+      },
+      {
+        "id": "P4-ST-D-NAMES",
+        "kind": "統合担当",
+        "A": "screen/area-names.ts に G0 の名前の表 10 本を全部（形の層 9 つと津波予報区の結合表現）。148,943 byte、6,354 件",
+        "B": "C0・E0 発注 1 が読む 4 層（pref・forecastLocalE・tsunamiArea・weatherCity）だけ。50,020 byte。R0（震度の市区町村）・M0 の名札・floodCity の 15 コード・T0 の結合表現のたびに生成の表と型を変える",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §3。配るのは loopback の JS 1 本で、層ごとの選びの仕組み（引数・設定）を作らずに済む。Pi の Chromium での読み込みの時間は測っていない（PI 発注 1）"
+      },
+      {
+        "id": "P4-ST-D-MAP-LAYER",
+        "kind": "統合担当",
+        "A": "ShellMapPaint に layer: ShellAreaLayer（G0 の manifest.json の layers の鍵 9 つ）を足す。津波予報区が線であることは層の名前で分かる",
+        "B": "塗りの欄とは別に線の欄（coast）を足す（M0 の下調べの Y1 の別案）。層の名前で面か線か決まるので欄が増えるだけ",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §2.5。wire の sys から層への対応は分野ごとに違う（M0 の下調べの X11）のでここで決めない"
+      },
+      {
+        "id": "P4-ST-D-ORDER",
+        "kind": "統合担当",
+        "A": "S0 の後・カードの契約（C0 発注 1・E0 発注 1b・S1 発注 1・C2・M0 発注 1・T0）の発注の前に 1 本（005f72fb の計画 :192・:193・:227 はこの形。C2・M0 発注 1 の依存はまだ無い）。カードの契約の起草はこの契約の型を引いてよい",
+        "B": "S1 発注 1 の最初の commit に入れる（common-prereq §2.4 の別案）。C0 発注 1 と E0 発注 1b が S1 発注 1 の配送を待ち、S1 発注 1 と同じ時に型が変わる",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "C0 発注 1・E0 発注 1b・C2 の起草の前に書く側の型（行の id・束・token・inner）が要る。S0 は main e6dae65d で配送済み。screen/ と S0 の型を allowedPaths に持つ契約は S0 と本契約だけ（005f72fb の全契約の allowedPaths を数えた）"
+      },
+      {
+        "id": "P4-ST-D-SEND",
+        "kind": "統合担当",
+        "A": "C2 の候補 5 つ（状態の札とお知らせの入れ物・幅の上限・押す相手・無受信の状態・timer の持ち主）と地域の値の届き方（行 22）は型に入れず、表 §5 の行き先へ送る",
+        "B": "状態の札の入れ物（status を字の並びから token つきの行へ広げる）だけを先に入れる。札の登録の口（列に属さない面）・同時に出す数（C2 の F2）・置き場（F3）・平常の定義（G1）が決まらないと形が決まらず、C2 が frame.ts・main.ts を改める回は減らない",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §5。C2 は 45 秒の無受信で main.ts の購読と timer を足す（S0 の AC11 の改訂）ので、S0 の file を改める回は C2 にどちらにしても 1 回ある。地域の値は wire に載る形なら型が変わらず、別の形かは R0 の T2"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-ST-PHASE0",
+        "status": "closed",
+        "source": "起草の子が 7d89a98f で下調べ 7 本の引いた行を開き直した（作業ノートの段 0 の表、script）",
+        "closed": "866 件のうち合う 811、行がずれた 31、字が変わった 24。本契約が持つ 6 行と C2 の候補で引く行（S0 の型の :14・:66・:71・:76、http-sse.ts:160・:198・:323、display-wire.ts:16、shared-runtime.ts:219、frame.ts の formatJst、main.ts の listen）は全部合う。ずれたのは S0 の r11（layout.ts が 4 行減り、S0 の JSON が 21 行増えた）と P1 の配送（計画 :124・:193・:223・:227・:866、p4-display-wire.types.ts:193）。本契約は今の行で引く",
+        "remaining": ""
+      },
+      {
+        "id": "Q-ST-FORM-FIT",
+        "status": "closed",
+        "source": "P4-DISPLAY-SHELL-001 の AC05 (7)(h)(i)（r11、作者の裁定 2026-11-26 06:45「判断についてはA(判断カードでのAダッシュ)で進めてください。」）",
+        "closed": "下調べ（common-prereq §2.4、C0 の J30）が待っていた s0-form-fit の裁定は済んだ。形を選ぶカードは左の列の take がいちばん後ろの 1 枚だけで、本契約の型の形には効かない（本契約は割りと形の選びを変えない）",
+        "remaining": "右の列のカードの条件（形 1 つ・maxPages null・minBodyRows 1・mayHide 偽）は C0 発注 1 が宣言する"
+      },
+      {
+        "id": "Q-ST-ANCHORS",
+        "status": "closed",
+        "source": "git grep（reconstruction/contracts と docs/specs）",
+        "closed": "p4-display-shell.types.ts・screen/ の file・p4-display-shell.json・p4-display-shell-tables.md の行を引く «» は、ほかの契約・spec・DS に 0 件。S0 の型と screen の file は行を足して書いてよい。計画の S0 の後の順・C0 発注 1・E0 発注 1b・S1 発注 1 の依存と :227 の screen/ の行は 005f72fb の計画に入った（:115・:122・:124・:192・:193・:227・:865・:866・:870）。配送で計画に残る改めは C2 と M0 発注 1 の依存（:121・:126・:193・:864・:867）だけで、その 5 行を引く «» は 0 本（表 §6 の 4）",
+        "remaining": "数は 005f72fb の木。配送で S0 の JSON・表を書き換えて行が動けば数え直す"
+      },
+      {
+        "id": "Q-ST-NAMES-TRIAL",
+        "status": "closed",
+        "source": "起草の子の試し（作業ノート .tmp-st の写し、2026-11-26 12:39〜12:54）",
+        "closed": "生成した area-names.ts は 148,943 byte（gzip 48,253）・6,354 件。型の変更と frame.ts・main.ts・time.ts の試しの実装を当てた screen の写しで tsc の rc 0（型だけを当てた段は frame.ts:42・:133・:137 と main.ts:77・:86・:162 の 6 か所が落ちた）。test/screen の frame・paginate・layers・client・static の試験と screen-fixture に表 §4 の fixture・import・.texts[0]?.text の読みの直しを当てた写しで、test の tsc の rc 0、vitest の 84 試験が通った（期待は変えていない。host.test.ts は dist の host が要るので外した）。出力は dist/screen/src/display/screen/area-names.js（161,299 byte）で /display/area-names.js の形に合う。VPWS50（15_18_01_250630）の市町村等の Code 1,718 個のうち weatherCity に無いのは 15 個で、15 個とも floodCity にある",
+        "remaining": "Pi の Chromium での読み込みの時間（PI 発注 1）"
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。画面の骨組みは運用区分を見ず、訓練・試験の見分けと行の id の字はカードの契約が持つ"
+    }
+  },
+  "contract": {
+    "contractId": "P4-SHELL-TYPES-001",
+    "mode": "implementation",
+    "objective": "新しい画面（reconstruction/src/display/screen/）の型を、後のカードの契約（C0 発注 1 今日の地震と気象の警報・E0 発注 1b EEW のカードの部品・C2 状態とお知らせ・S1 発注 1 ページ送りの scene・M0 発注 1 地図）が書く分だけ 1 回で広げる。足すのは、行の対象の id、行の中の字の束とカード単位の token、カードの中のページの番号の受け渡し（持ち主は S1）、時分秒・時分の字の関数、地図の塗りの層、区域名の file（G0 の名前の表から生成）。画面の見え方（色・大きさ・字・出る/出ない・置き場）は変えず、決めない。設計の表は reconstruction/contracts/p4-shell-types-tables.md、新しい型は reconstruction/contracts/p4-shell-types.types.ts",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-display-shell.json",
+      "reconstruction/contracts/p4-display-shell-tables.md",
+      "reconstruction/contracts/p4-display-shell.types.ts",
+      "reconstruction/contracts/p4-shell-types.types.ts",
+      "reconstruction/contracts/p4-shell-types-tables.md",
+      "reconstruction/contracts/p4-display-wire.types.ts",
+      "reconstruction/contracts/p4-gis-assets.types.ts",
+      "reconstruction/contracts/p4-gis-assets.json",
+      "reconstruction/contracts/p4-order-plan.md",
+      "docs/specs/reconstruction-display-design.md",
+      "docs/specs/reconstruction-p0-contracts.md",
+      "reconstruction/src/display/screen/**",
+      "reconstruction/src/http-sse/http-sse.ts",
+      "reconstruction/assets/gis/known-codes.v1.json",
+      "reconstruction/assets/gis/area-codes.v1.json",
+      "reconstruction/assets/gis/manifest.json",
+      "reconstruction/tools/gis/**",
+      "reconstruction/test/screen/**",
+      "reconstruction/test/gis/known-codes.test.ts",
+      "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts",
+      "reconstruction/tsconfig.json",
+      "reconstruction/tsconfig.test.json",
+      "reconstruction/vitest.config.ts",
+      "test/fixtures/15_18_01_250630_VPWS50.xml"
+    ],
+    "allowedPaths": [
+      "reconstruction/contracts/p4-display-shell.types.ts（表 §2: :1 の次に import を 1 行、:12〜:14・:24・:66・:73・:76・:82 の行の中）",
+      "reconstruction/contracts/p4-shell-types.types.ts（起草で置いた型。実装が変えるときは成果物に書く）",
+      "reconstruction/src/display/screen/time.ts（新しい file）",
+      "reconstruction/src/display/screen/frame.ts（表 §4: 時刻の関数を time.ts へ移す、比べ・描く行・innerPageCount・export）",
+      "reconstruction/src/display/screen/main.ts（表 §4: import の行、innerPage の定数、束の描画と rowsKey、カードの class、screenFrame の入力）",
+      "reconstruction/src/display/screen/area-names.ts（新しい file。生成物）",
+      "reconstruction/tools/gis/build-area-names.mjs（新しい file）",
+      "reconstruction/tools/gis/build-area-names.d.mts（新しい file）",
+      "reconstruction/test/screen/shell-types.test.ts（新しい file。T01〜T03）",
+      "reconstruction/test/screen/screen-fixture.ts（row・card・frameOf の既定に新しい欄と、行の先頭の字を読む textOf。期待は変えない）",
+      "reconstruction/test/screen/frame.test.ts（:5 の import の行〔clockText・formatJst を time から、textOf〕、:16 の input の既定に innerPage: {}、:38 の .texts[0]?.text を textOf に。期待は変えない）",
+      "reconstruction/test/screen/paginate.test.ts（:5 の import に textOf、:17・:18・:31 の .texts[0]?.text を textOf に。期待は変えない）",
+      "reconstruction/test/screen/smoke.mjs（T04 の束とカードの token の行）",
+      "統合担当だけ（配送の commit）: 表 §6 の改訂と「«»」の付け直し"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-shell-types.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "D01",
+      "D04",
+      "D05",
+      "D07"
+    ],
+    "integrationContractIds": [
+      "P4-DISPLAY-SHELL-001"
+    ],
+    "dependsOnContractIds": [
+      "P4-DISPLAY-SHELL-001",
+      "P4-GIS-ASSETS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p4-shell-types.types.ts#ShellAreaLayer",
+      "reconstruction/contracts/p4-shell-types.types.ts#ShellGroup",
+      "reconstruction/contracts/p4-shell-types.types.ts#ShellPart",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellRow",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellCard",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellDrawCard",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellFrameInput",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellFrame",
+      "reconstruction/contracts/p4-display-shell.types.ts#ShellMapPaint"
+    ],
+    "publicFunctions": [
+      "reconstruction/src/display/screen/time.ts の formatJst(value)・clockText(epochMs)（frame.ts から移す。字は変えない）と formatJstTime(value: number | string | null, unit: \"second\" | \"minute\"): string",
+      "reconstruction/src/display/screen/area-names.ts の areaName(table: ShellAreaLayer | \"tsunamiAreaGroup\", code: string): string | null",
+      "reconstruction/tools/gis/build-area-names.mjs の buildAreaNames(): string",
+      "frame.ts の screenFrame・shellSync の形は変えない（入力と出力の型に欄が増えるだけ）。どれも末尾の export { … } で出す（P1-T04）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ（生成の道具は node の組み込みだけ）"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50"
+    ],
+    "sequenceIds": [
+      "O11"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [
+      {
+        "id": "P4-ST-RES-01",
+        "target": "screenFrame の割りの使い回しの比べ（sameRows・sameCard）と main.ts の描画の鍵（rowsKey）",
+        "limit": "行と字と束の数に比例（inner はページの行の数を足す）",
+        "unit": "回",
+        "scope": "受信 1 回・描く 1 回ごと。束は 1 段なので入れ子の深さで増えない。snapshot の全体を直列化しない（AGENTS.md の受信経路の計算量）",
+        "source": "表 §4、AC02 (5)"
+      }
+    ],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [
+      "main.ts の innerPage（S1 発注 1 までは空の object の定数。S1 発注 1 の scene の状態になる）",
+      "area-names.ts の表（生成物の定数）"
+    ],
+    "outOfScope": [
+      "見た目: 束とカードの token の項目・CSS・class の名前、束の中の字の並べ方、カードの中のページの表示の置き場と 1 ページに入れる行（使うカードの契約、E0 の F4、DS-OPEN-65 は C0）",
+      "行の id の字の作り方と、どの行を対象にするか（書くカードの契約）",
+      "S1 の状態（番号を替える・送る・停止・続報で戻すか）と、frame が全ページの対象の id を出す形（S1 発注 1、表 §5）",
+      "状態の札とお知らせの入れ物・幅の上限・押す相手・無受信の状態・timer の持ち主（C2・S1、表 §5、P4-ST-D-SEND）",
+      "地域の値の届き方（R0 の T2、common-prereq の行 22）",
+      "wire の sys から層への対応と塗りの値（M0・各カードの契約）",
+      "区域名の出し方（表に無いコードの見せ方、VPWS50 の 15 コードを floodCity で補うか、C0）と深さ・M の字（C0・E0）",
+      "Pi の Chromium での area-names.js の読み込みの時間（PI 発注 1）",
+      "http-sse.ts・host.ts・wire・unit の変更と、G0 の資材と道具（build-known-codes.mjs・build-area-codes.mjs・build-shapes.mjs・build-tsunami-region.mjs）の変更",
+      "layout.ts（割り・層・押下）と client.ts と cards.ts と index.html と tokens.ts の変更。形を選ぶカードの広げ（S0 の AC05 (7)(h)、要る契約）",
+      "spec・計画・表示設計 spec の本文の編集（統合担当）",
+      "旧築（src/）と test/fixtures・sequences.json・manifest"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-ST-AC01",
+        "requirement": "型（P4-ST-D-ROW-ID・PART・INNER・MAP-LAYER、表 §2）。(1) reconstruction/contracts/p4-shell-types.types.ts の ShellAreaLayer・ShellGroup・ShellPart を使う（起草で置いた。実装が変えるときは成果物に書く） (2) p4-display-shell.types.ts を表 §2 の表のとおり書き換える: :1 の次に p4-shell-types.types.ts の import を 1 行、ShellRow に id: string | null と texts: readonly ShellPart[]（:12〜:13 のコメントに id の決まり）、ShellCard に token: string | null と inner: readonly (readonly ShellRow[])[] | null（:19〜:22 のコメントに inner の決まり）、ShellDrawCard に token: string | null、ShellFrameInput に innerPage: Readonly<Record<string, number>>、ShellFrame に innerPageCount: Readonly<Record<string, number>>、ShellMapPaint に layer: ShellAreaLayer。欄は省略できる欄（?）にしない（書き忘れを型で止める） (3) 字と束の見分けは P4-ST-D-PART の裁定に従う（起草案 A は ShellText の形を変えず \"texts\" in で見分ける）。as と any で言い換えない (4) 行の id の決まり（表 §2.1）: 本文の行はその行が表す対象の id、head・continuation・飾りの行（ページの表示の行を含む）は null。1 つの形の body の中・1 つの inner の全部のページの中・opened.rows の中で null でない id は重ならない。字の作り方と、同じ対象に同じ字を付けることは書くカードの契約が持つ（S0 は運ぶだけで字を作らない・直さない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-display-shell.types.ts:11 «43cf82f8dd7f512d»",
+          "reconstruction/contracts/p4-display-shell.types.ts:14 «ed5f984662bd17fd»",
+          "reconstruction/contracts/p4-display-shell.types.ts:24 «85aca673cbc20c86»",
+          "reconstruction/contracts/p4-display-shell.types.ts:66 «9b69bb1025322766»",
+          "reconstruction/contracts/p4-display-shell.types.ts:73 «4d9c84729ca8a956»",
+          "reconstruction/contracts/p4-display-shell.types.ts:76 «68b4fea9de8235cc»",
+          "reconstruction/contracts/p4-display-shell.types.ts:82 «6ac8d64774c7ac4f»",
+          "reconstruction/contracts/p4-shell-types.types.ts:8 «b7049338a1a89594»",
+          "reconstruction/contracts/p4-shell-types.types.ts:11 «d9d8e4dd51a4513a»",
+          "reconstruction/contracts/p4-shell-types.types.ts:13 «94b86dbf4c2eff96»",
+          "docs/specs/reconstruction-p0-contracts.md:1506 «6fbe15b4ec3303f1»",
+          "docs/specs/reconstruction-p0-contracts.md:1845 «4372e39cf2d99c95»",
+          "reconstruction/assets/gis/manifest.json:919 «31499af99240369d»"
+        ]
+      },
+      {
+        "id": "P4-ST-AC02",
+        "requirement": "screenFrame の比べと受け渡し（S0 の AC08 (12) を保つ）。(1) sameRows は今の欄に加えて行の id と、texts の各要素が同じ種類（字か束か）で、字なら text と token、束なら token と中の字の並び（text と token）が同じことを比べる (2) sameCard は今の欄に加えて token と inner（ページの数と各ページの行の sameRows）を比べる。割りの使い回しは入力の全部の欄が同じときだけ前の結果を返し、行の id だけ・束の token だけが違う入力で古い行を返さない (3) ShellDrawCard の token はそのカードの ShellCard.token をそのまま入れる（列のカード・slot のカード・開いたカードとも） (4) frame は行と束と id を書き換えない (5) 費用: 比べは行と字と束の数に比例（今と同じ形の走査）。snapshot の全体を直列化しない",
+        "evidenceRefs": [
+          "reconstruction/src/display/screen/frame.ts:41 «63f016007730c625»",
+          "reconstruction/src/display/screen/frame.ts:44 «619c8c847bfea5d2»",
+          "reconstruction/src/display/screen/frame.ts:133 «fbf09f62b14f5ba6»",
+          "reconstruction/contracts/p4-display-shell.json:575 «0751b1514a356c8d»"
+        ]
+      },
+      {
+        "id": "P4-ST-AC03",
+        "requirement": "描画（main.ts、S0 の AC09 (1)・AC11 を保つ）。(1) 束は span の要素 1 つにし、その中に束の字を字の span で入れる。字は textContent でだけ入れ、class は TOKEN_CLASS の値だけ（表に無い token には付けない、Object.hasOwn で引く今の形） (2) カードの要素の class は今の「card」「card dim」の後に、ShellDrawCard.token が TOKEN_CLASS にあればその値を足す (3) 描画の鍵 rowsKey は、束の境目と束の token と字の token と字を全部含み、束の分け方・token・字のどれが変わっても鍵が変わる（今の区切りの字 \\u0001〜\\u0004 と重ならない区切りを使う）。行の id は描かないので鍵に入れない (4) index.html と tokens.ts は変えない（束とカードの token の項と CSS は使うカードの契約が足す。計画 :227） (5) S0 の静的検査（T08）がそのまま通る",
+        "evidenceRefs": [
+          "reconstruction/src/display/screen/main.ts:76 «a23cfbb2975d1279»",
+          "reconstruction/src/display/screen/main.ts:84 «14995e1a7550e2c6»",
+          "reconstruction/src/display/screen/main.ts:88 «4e45d6a4f0d08f4c»",
+          "reconstruction/src/display/screen/main.ts:142 «914956c781dd5d08»",
+          "reconstruction/src/display/screen/tokens.ts:40 «979a1033a2353a26»",
+          "reconstruction/src/display/screen/tokens.ts:41 «329e8d26d6ae4df7»",
+          "reconstruction/contracts/p4-order-plan.md:227 «bf70d2880e7bbf80»"
+        ]
+      },
+      {
+        "id": "P4-ST-AC04",
+        "requirement": "カードの中のページ（P4-ST-D-INNER、表 §2.3）。(1) 番号は scene（S1 発注 1）が持つ。main.ts は module の innerPage を空の object の定数で持ち（列の page と同じ形、main.ts:60）、screenFrame の入力に渡す。番号を外から替える公開物を置かない（S0 の AC01 (6) と同じ。替えるのは S1）。metadata だけの更新で番号は変わらない（O11:7 の S0 分、S0 の AC15 (2)） (2) screenFrame は、列の割りの外に描くカード（frame に置いた緊急地震速報の場所のカード〔最上層と下がった物〕と、開いているときの開いたカード）のうち inner が null でなくページが 1 つ以上のカードについて、innerPage[id]（無ければ 0）を 0 以上・ページの数−1 以下に丸めたページの行だけを描き（forms[0].head を足さない。状態の番号は直さない。列の番号の丸め frame.ts:108 と同じ）、innerPageCount[id] にページの数を入れる。mark は出さない（ShellDrawMark は列のページのまま。カードの中のページの表示の字と点は、カードがページの行の中に書く） (3) inner が null のカードは今どおり（slot のカードは forms[0] の head と本文、開いたカードは opened.rows）。列のカードの描く行と mark は今どおり列の割りから (4) 入力の条件（カードの契約が宣言する。破る入力の答えは定めない）: inner のページは 1 つ以上で、各ページの行の高さの和はそのカードを描く矩形の高さ以下。S0 はページを割らず高さを照らさない (5) reduceShell と layout.ts は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/display/screen/frame.ts:108 «882149d26e3befd1»",
+          "reconstruction/src/display/screen/frame.ts:130 «d0d66f0b2f9d8572»",
+          "reconstruction/src/display/screen/main.ts:60 «2f905800816dc220»",
+          "reconstruction/src/display/screen/main.ts:162 «afd57c62da3a8247»",
+          "reconstruction/contracts/p4-display-shell.types.ts:71 «f45a9ea9d8cc48c5»",
+          "docs/specs/reconstruction-display-design.md:343 «0cc1760317bdf993»",
+          "docs/specs/reconstruction-display-design.md:693 «086c1168de7b30e1»",
+          "reconstruction/contracts/p4-order-plan.md:814 «a4ce9c037d46ad8d»"
+        ]
+      },
+      {
+        "id": "P4-ST-AC05",
+        "requirement": "時刻の字（P4-ST-D-TIME、表 §2.4）。(1) 新しい reconstruction/src/display/screen/time.ts に formatJst と clockText を frame.ts から移し（字と照らしは変えない、S0 の AC09 (3)(4)）、formatJstTime(value: number | string | null, unit: \"second\" | \"minute\"): string を足す。受ける値と照らしは formatJst と同じ（epoch ms か、Z・±hh:mm の時差を持つ ISO 8601 の字。32,400,000 を足して getUTC* で読む。Intl と端末の時差に依らない）で、second は「HH:mm:ss」、minute は「HH:mm」（0 埋め・24 時間制）、読めない値（null・時差の無い字・暦に無い日付・24 時・解釈できない値）は「時刻不明」 (2) 解釈は 1 か所にし、formatJst と formatJstTime が同じ照らしを使う (3) frame.ts は time.ts から clockText を import し、export は screenFrame と shellSync にする (4) time.ts は DOM を参照せず、末尾の export { … } で出す（P1-T04）",
+        "evidenceRefs": [
+          "reconstruction/src/display/screen/frame.ts:77 «baa2cf0195f51f61»",
+          "reconstruction/src/display/screen/frame.ts:145 «9e864bcf58e9ce53»",
+          "docs/specs/reconstruction-display-design.md:163 «abc2ec5d971777db»",
+          "docs/specs/reconstruction-display-design.md:300 «24baa1a2806b4277»",
+          "reconstruction/contracts/p4-display-shell-tables.md:455 «6b228630bbdee0b1»",
+          "reconstruction/test/parser-boundary/p1-parser-boundary.test.ts:114 «a0627af19ee7fd16»"
+        ]
+      },
+      {
+        "id": "P4-ST-AC06",
+        "requirement": "区域名の file（P4-ST-D-NAMES、表 §3）。(1) 新しい reconstruction/tools/gis/build-area-names.mjs は node の組み込みだけで、G0 の reconstruction/assets/gis/known-codes.v1.json・area-codes.v1.json・manifest.json を読み、area-names.ts の字を返す buildAreaNames() を export し、直に走らせたときは reconstruction/src/display/screen/area-names.ts に書く。型は build-area-names.d.mts（build-known-codes.d.mts と同じ形）。manifest の layers の鍵 9 つと、名前の表 10 本（pref は area-codes の prefecture、ほかは同じ名前の表、加えて tsunamiAreaGroup）の組が合わない・Code の重複・名前が空・code か name が字でない行では例外で止まる。出力は同じ入力から同じ字 (2) area-names.ts は生成物（手で直さない）で、層ごとの Code → 名前の表を module の const に持ち、areaName(table: ShellAreaLayer | \"tsunamiAreaGroup\", code: string): string | null だけを末尾の export { … } で出す。表に無いコードは null（名前を推して埋めない） (3) 配る経路は screen の tsc の出力 dist/screen/src/display/screen/area-names.js と http-sse.ts:323 の名前の形。http-sse.ts・host.ts・G0 の資材と道具（build-known-codes.mjs・build-area-codes.mjs など）は変えない",
+        "evidenceRefs": [
+          "reconstruction/src/http-sse/http-sse.ts:198 «2983faaca6303652»",
+          "reconstruction/src/http-sse/http-sse.ts:323 «c9e50c28e896e7a6»",
+          "reconstruction/src/http-sse/http-sse.ts:190 «8340d9e51d11b640»",
+          "reconstruction/contracts/p4-gis-assets.types.ts:21 «30c766d74d9f7eaa»",
+          "reconstruction/contracts/p4-gis-assets.types.ts:74 «93773fc75ee74366»",
+          "reconstruction/assets/gis/manifest.json:278 «ac7bf352290bdec8»",
+          "reconstruction/tools/gis/build-known-codes.d.mts:1 «f90960307ba591e1»"
+        ]
+      },
+      {
+        "id": "P4-ST-AC07",
+        "requirement": "最小実装・最小試験・範囲（AGENTS.md）。(1) 足す仕組みは型 3 つと欄 7 つ（表 §2）、比べの 2 つの足し、束の描画、inner の選び、time.ts、区域名の生成の道具と生成物だけ。無いと何が壊れるかは表 §1 の各行（受け手の契約と項目）。新しい interface・設定・層ごとの選びの引数・拡張点を足さない (2) 試験は testMapping の 4 本で、どれに当たるか（受入条件・契約境界・corpus 履歴）を成果物に 1 行で書く。既存の試験の期待は変えない。型のために変えるのは screen-fixture.ts の row・card・frameOf の既定と textOf、frame.test.ts の import の行と input の既定と :38、paginate.test.ts の import と :17・:18・:31 の `.texts[0]?.text` の読み（表 §4）だけ。S0 の T05（O11:6・7・8 の S0 分）を含む既存の試験はそのまま通る (3) allowedPaths の中だけ。index.html・tokens.ts・layout.ts・client.ts・cards.ts は変えない (4) ほかの契約・計画の字は統合担当が配送で改める（表 §6）",
+        "evidenceRefs": [
+          "AGENTS.md:24 «c1288cfa5b0d16dc»",
+          "AGENTS.md:26 «2c223bbb66635b53»",
+          "reconstruction/test/screen/screen-fixture.ts:6 «f1946b519fe3ad64»",
+          "reconstruction/test/screen/frame.test.ts:5 «2e7da40fbf94811d»",
+          "reconstruction/test/screen/frame.test.ts:16 «6b15630837439b85»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-ST-T01",
+        "purpose": "corpusHistory",
+        "referenceIds": [
+          "P4-ST-AC06"
+        ],
+        "behavior": "契約境界と corpus 履歴（新しい reconstruction/test/screen/shell-types.test.ts）。(ア) reconstruction/src/display/screen/area-names.ts の字が buildAreaNames() の返す字と同じ（生成物を手で直していない） (イ) areaName(\"forecastLocalE\", \"100\") は「石狩地方北部」、areaName(\"tsunamiArea\", \"100\") は「北海道太平洋沿岸東部」、areaName(\"city\", \"0123600\") は「渡島北斗市」、areaName(\"weatherCity\", \"0123600\") は「北斗市」、areaName(\"tsunamiAreaGroup\", \"191\") は「北海道太平洋沿岸」、areaName(\"pref\", \"01\") は「北海道」、表に無いコード（\"9999999\"・\"constructor\"）は null (ウ) test/fixtures/15_18_01_250630_VPWS50.xml の Information type=\"気象警報・注意報（市町村等）\" の Code（7 桁）1,718 個のうち areaName(\"weatherCity\", …) が null なのは 15 個で、15 個とも areaName(\"floodCity\", …) が名前を返す（0920600 は「日光市」、1410000 は「横浜市」）。期待は XML の字を数えた値で、area-names.ts を使わずに数えた"
+      },
+      {
+        "testId": "P4-ST-T02",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-ST-AC01",
+          "P4-ST-AC02",
+          "P4-ST-AC04"
+        ],
+        "behavior": "受入条件（同じ file、S0 の frame.test.ts の CARD_SOURCES の差し替えの形）。(ア) 右の列の 1 枚のカードで、次の snapshot が行の id だけ違う（または束の token だけ違う）カードを返すと、frame の描く行がその新しい id（束の token）になる（割りの使い回しが古い行を返さない） (イ) token \"x\" の列のカードと token \"y\" の slot のカードの ShellDrawCard.token が \"x\"・\"y\" (ウ) slot 0 のカードに inner（ページ 3 つ）: innerPage {} で 1 ページ目の行だけ（forms[0].head を足さない）、innerPage { id: 1 } で 2 ページ目、innerPage { id: 99 } で 3 ページ目、innerPage { id: -1 } で 1 ページ目、どれも mark は null で innerPageCount[id] は 3 (エ) inner が null の slot のカードは forms[0] の head と本文（今どおり）で innerPageCount に id が無い (オ) opened と inner（ページ 2 つ）を持つ今日の地震のカードを開いた shell では、開いたカードが opened.rect に inner の番号のページの行で描かれ、開いていない shell では列の割りの行で描かれる"
+      },
+      {
+        "testId": "P4-ST-T03",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-ST-AC05"
+        ],
+        "behavior": "受入条件（同じ file）。formatJstTime に Date.UTC(2026, 10, 25, 12, 34, 56)・\"2026-11-25T12:34:56Z\"・\"2026-11-25T21:34:56+09:00\"・\"2026-11-25T07:34:56-05:00\" を渡し、second は \"21:34:56\"、minute は \"21:34\"。\"2026-11-25T21:34:56\"・null・\"garbage\"・Number.NaN・\"2026-02-30T00:00:00+09:00\"・\"2026-11-25T24:00:00+09:00\" は second・minute とも「時刻不明」。process.env.TZ を別の時差にしても同じ。S0 の T07（formatJst・clockText、import は time から）の期待はそのまま通る"
+      },
+      {
+        "testId": "P4-ST-T04",
+        "purpose": "contractBoundary",
+        "referenceIds": [
+          "P4-ST-AC03"
+        ],
+        "behavior": "契約境界（実 Chrome、node reconstruction/test/screen/smoke.mjs、統合担当が開発機で走らせる。子の sandbox は listen できない）。smoke の試験用の cards.js の行に束（token は表にある物と表に無い物）とカードの token（表にある物と無い物）を入れ、S0 の T10 (a) と同じく、同じ構造・同じ件数で束の中の字だけを <img src=x onerror=…>・<script>・&lt;・改行を含む字に替えても、要素の数が変わらず、新しく実行される要素が 0 で、字面が一致する。表に無い束の token・カードの token には class が付かず、表にある物には表の値だけが付く。実装担当は smoke を書き、走らせていないことを成果物に書く"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture 台帳と hash（本契約は manifest を変えない）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "O11 の参照"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。本契約の evidenceRefs のうち S0 の型と screen の file の行は実装で動くので、その FAIL は成果物に列挙し、統合担当が配送で付け直す"
+      },
+      {
+        "command": "node reconstruction/tools/gis/build-area-names.mjs",
+        "cwd": ".",
+        "target": "reconstruction/src/display/screen/area-names.ts",
+        "stage": "implementation",
+        "purpose": "区域名の file を生成する（T01 の (ア) が字の一致を見る）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型（p4-display-shell.types.ts・p4-shell-types.types.ts）と dist"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "test/ を含む型検査（screen の純粋な file を DOM の lib なしで。fixture の欄の付け忘れを止める）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "dist/chrome-eew の生成（AGENTS.md のゲートの順）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/screen/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/screen/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "screen の DOM の型検査と dist（time.js・area-names.js を含む。host.test.ts が dist/screen の main.js を読むので vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 reconstruction/test/screen/ reconstruction/test/gis/ reconstruction/test/parser-boundary/",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "触る所の試験と P1-T04（export の形）"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2 --sequence.shuffle reconstruction/test/screen/",
+        "cwd": ".",
+        "target": "reconstruction/test/screen/",
+        "stage": "implementation",
+        "purpose": "frame.ts の割りの使い回し（module の手元の memo）の比べを変えるので順を変えて回す（AGENTS.md）"
+      },
+      {
+        "command": "node reconstruction/test/screen/smoke.mjs",
+        "cwd": ".",
+        "target": "reconstruction/test/screen/smoke.mjs",
+        "stage": "implementation",
+        "purpose": "T04。実 Chrome は統合担当が開発機で走らせる。実装担当は smoke を書いて、走らせていないことを成果物に書く"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: decisionBranches の 8 件の ruling を読む（baseOid 割当の前に「起草案」が 0 件であること）",
+      "最小実装: 足す物は AC07 (1) の列挙だけ。helper・設定・抽象・層ごとの選びの引数を足さない。足した仕組みごとに、無いと何が壊れるか（表 §1 の行）を 1 行で書く",
+      "最小テスト: testMapping の 4 本のほかに足さない。各テストの対応（受入条件・契約境界・corpus 履歴）を 1 行で書く",
+      "既存の試験の期待は変えない。fixture の既定と import の行のほかに変える要が出たら止めて報告する",
+      "生成した area-names.ts の byte と件数を報告する（表 §3.2 の 148,943・6,354 は試しの値）",
+      "本契約の evidenceRefs のうち、動いた S0 の型と screen の file の行を列挙する（check-contract の FAIL の一覧）",
+      "旧築（src/）と test/fixtures と sequences.json と manifest と G0 の資材を変えない"
+    ],
+    "unresolvedQuestions": [
+      {
+        "id": "Q-ST-INNER-RESET",
+        "owner": "user",
+        "blocks": [
+          "P4-SCENE-001（S1）発注 1 の起草のカードの中のページの状態と事象の表",
+          "P4-EEW-DISPLAY-001（E0）発注 1b の大カードのページ（E0 の F4・G15）"
+        ],
+        "resolveBy": "S1 発注 1 の起草の前。E0 発注 1b の見本の図（大カードのページの表示）と一緒に作者へ見せる。推奨は「同じ EventID の続報でカードの中のページを 1 ページ目へ戻さない」（計画 :814 の台帳 92 の行「続報で先頭に戻さない」）。本契約の型はどちらの答えでも変わらない",
+        "requiredEvidence": [
+          "reconstruction/contracts/p4-order-plan.md:814 の台帳 92 の行",
+          "続報で予測地域の並び（強い順）が入れ替わったときに、今のページに出る地域が変わる場面の図（E0 の見本）"
+        ]
+      }
+    ]
+  }
+}
