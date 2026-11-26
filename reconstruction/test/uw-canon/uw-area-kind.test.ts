@@ -61,6 +61,8 @@ function areaItems(snapshot: DisplayWireSnapshot): readonly VocabItem[] {
   return domain.wire.items.filter((item) => item.k === "weatherCurrent.area");
 }
 const itemRows = (item: VocabItem): [string, string, string][] => item.lists.flatMap((list) => list.role !== "areas" ? [] : list.rows.map((row): [string, string, string] => [String(list.sys), String(row[0]), String(row[2])]));
+// 語彙の areas の行は [層, 区域 Code] の昇順（rowsHash は並べ直してから取るので、出した順はここで見る。AC02 (1)）。
+const inOrder = (item: VocabItem) => itemRows(item).every((row, index, rows) => index === 0 || rows[index - 1][0] < row[0] || (rows[index - 1][0] === row[0] && rows[index - 1][1] < row[1]));
 // 全部の行の kinds を種別ごとに数えた数が phenomena の areaCount と等しい（AC02 (6)）。
 function countsMatch(item: VocabItem): boolean {
   const counted = new Map<string, number>();
@@ -86,7 +88,7 @@ describe("P4-UAK-T01 corpusHistory: the areas rows of a national VPWS50 and its 
       const result = projected(await project(views, step.displayChanges, previous));
       previous = result.state;
       const items = areaItems(result.snapshot), rows = items.flatMap(itemRows);
-      expect(items.every(countsMatch)).toBe(true);
+      expect([items.every(countsMatch), items.every(inOrder)]).toEqual([true, true]);
       expect([result.snapshot.current.weatherCurrent.delivery, bytes(result.snapshot) <= MIB]).toEqual(["full", true]);
       expect(items.every((item) => answerBytes(step.state, item) <= 65_536)).toBe(true);
       seen.push({ rows, hash: rowsHash(rows) });
@@ -150,7 +152,7 @@ describe("P4-UAK-T02 acceptance: the kinds follow the winning rows through follo
     const first = receive(state, FUKUI, "VPWW55");
     const before = areaEntry(first.state, "normal\u000018")!;
     expect([kindsOf(first.state, "1820700"), kindsOf(first.state, "1820900")]).toEqual(["03 23", "10 20"]);
-    // 報時刻・名前・状態を変えず Control の時刻だけを進めて種別だけを替えた訂正でも、使い回しは止まり areaKinds が新しくなる（比べが Kind/Code を含む、AC03）。
+    // 報時刻を変えず Control の時刻だけを進め、2 区域の Kind（Name と Code）を入れ替えた訂正でも、使い回しは止まり areaKinds が新しくなる（AC03。Code だけを替える入力は契約 T02 の列の外）。
     const correction = receive(first.state, FUKUI, "VPWW55", compose(controlLater, swapKinds), "control-only");
     const corrected = areaEntry(correction.state, "normal\u000018")!;
     expect([corrected === before, corrected.area.source, corrected.area.areas, kindsOf(correction.state, "1820700"), kindsOf(correction.state, "1820900"),
@@ -169,7 +171,7 @@ describe("P4-UAK-T02 acceptance: the kinds follow the winning rows through follo
     const restored = reduceWeatherCurrentUnit(empty(), { kind: "restore", persisted: weatherCurrentUnitCodec.encode(cancelled.state), clock }).state;
     expect([kindsRows(restored, "18"), kindsRows(restored, "26")]).toEqual([[], []]);
     const restoredKyoto = areaEntry(restored, "normal\u000026");
-    expect(restoredKyoto).not.toBeUndefined();
+    expect(restoredKyoto).not.toBeNull();
     const downgraded = receive(restored, DOWNGRADE, "VPWW55");
     expect(rowsHash(kindsRows(downgraded.state, "18")!)).toBe("110aa54a838f54f0d2d56a894b36dbcfb71dee133334290c0fe6aeed486a88ef");
     expect(areaEntry(downgraded.state, "normal\u000026")).toBe(restoredKyoto);
@@ -190,6 +192,7 @@ describe("P4-UAK-T03 contractBoundary: a structuredClone of the owner's changes 
       const lists = (value: VocabItem) => value.lists.filter((list) => list.role === "areas").map(({ sys, cols, rows }) => ({ sys, cols, rows }));
       expect(lists(response.item)).toEqual(lists(item));
       expect(lists(item).length).toBeGreaterThan(0);
+      expect(inOrder(item)).toBe(true);
       for (const list of lists(item)) {
         expect(list.cols).toEqual(["kinds"]);
         for (const row of list.rows) {
