@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d89a98fcf536aedb4b41231c2374498105bc4ab",
-    "sha256": "50711a533d2374c15f90289567ea3f4b4c3e65561e2b73c6de9305ea883c9124",
+    "sha256": "9559a512ee39212650313db5030d36a904ed3bdc7c5ad760823595dd4ace6d68",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -77,7 +77,7 @@
         "provisional": "A",
         "status": "確定（統合担当の決め 2026-11-26。r0 へのレビュー 2 本〔品質・契約適合〕の後の裁き。作者の裁定ではない）",
         "ruling": "A",
-        "reason": "表 §2.5。code は string のままなので、層は Code の出どころから M0 と各カードの変換の境界が決め、その層の表だけで照らす（未知のコードを別の層で引き直さない）。wire の sys から層への対応は分野ごとに違う（M0 の下調べの X11）のでここで決めない"
+        "reason": "表 §2.5。code は string のままなので、層は Code の出どころから M0 と各カードの変換の境界が決め、その層の表で照らす（areaName が自動に別の層で引き直すことはしない。明示して別の表で補うかは読むカードの契約）。wire の sys から層への対応は分野ごとに違う（M0 の下調べの X11）のでここで決めない"
       },
       {
         "id": "P4-ST-D-ORDER",
@@ -143,6 +143,13 @@
         "status": "closed",
         "source": "r0（db5ac5d2）への品質レビュー（ヘルツ、条件付き GO、P2 6・P3 3）と契約適合レビュー（Opus、条件付き GO、P2 1・P3 8・証拠不足 1）、統合担当の裁き 2026-11-26",
         "closed": "当てた: inner を非空のタプルか null に、innerPage・innerPageCount を Partial の辞書に、入力の番号は own key の有限の整数だけ（ほかは 0）、innerPageCount のキーは inner から行を選んだ id だけ（AC01・AC04、T02）。字と束を kind の判別共用体に（P4-ST-D-PART=D）。行の比べは id・kind・束の字と token・continuation を全部、カードの token と inner は描く時に最新のカードから読み列の比べから外す（AC02、表 §6 の 1 で S0 の AC08 (12) を改める）。描画の鍵に kind と字の長さ（AC03）。重複の禁止は同じ表の中の (表, Code)、引くのは指定の表の own key だけ、生成の決定性と配送の SHA-256（AC06）。層の照らしの責任（P4-ST-D-MAP-LAYER、outOfScope）。配る JS の byte と PI の測定の条件（表 §3.2・§5）。mark を付けない所まで（AC04 (2)、表示の形は S1 発注 1・E0 発注 1b・C0）、S0 の outOfScope の改訂（表 §6 の 1）、鍵の組（AC06 (1)）、ORDER から T0 を外した、inner のとき opened.rows と forms[0] を描かない（AC04 (3)）、時刻不明の見せ方はカードの契約（AC05 (1)）、G15 を決めない（Q-ST-INNER-RESET）、P4-ST-D-PART の E、上の 3 層の受け手（表 §1 の 7）、図形の札の送り（表 §5）。退けた: 契約適合の「DS:611 に 12 ページの字は無い」は、DS:611（DS-PAGE-12）の後半に「全 12 ページ」があるので出どころを変えない",
+        "remaining": ""
+      },
+      {
+        "id": "Q-ST-R2-REVIEW",
+        "status": "closed",
+        "source": "r1（a20955da）への品質レビューの再確認（ヘルツ、条件付き GO、前回の 9 件は全部 ADDRESSED、新しい P2 1 件）、統合担当の裁き 2026-11-26",
+        "closed": "AC06 (2) の禁止が読むカードにも掛かるように読め、C0 が VPWS50 の 15 コードを floodCity で補う判断と両方に読めた。禁止を「areaName の中で自動に別の層へ引き直さない（指定の表の own key だけを引く）」に絞り、明示して別の表で補うかは読むカードの契約（C0）の判断とした（AC06 (2)・P4-ST-D-MAP-LAYER・outOfScope、表 §2.5・§3.1・§5）。層の照らしの責任は M0 と各カードの変換の境界のまま",
         "remaining": ""
       }
     ],
@@ -276,7 +283,7 @@
       "S1 の状態（番号を替える・送る・停止）と、frame が全ページの対象の id を出す形（S1 発注 1、表 §5）",
       "状態の札とお知らせの入れ物・幅の上限・押す相手・無受信の状態・timer の持ち主（C2・S1、表 §5、P4-ST-D-SEND）",
       "地域の値の届き方（R0 の T2、common-prereq の行 22）",
-      "wire の sys から層への対応と塗りの値。Code の出どころから層を決め、その層の表だけで照らす責任（未知のコードを別の層で引き直さない）は M0 と各カードの変換の境界が持つ",
+      "wire の sys から層への対応と塗りの値。Code の出どころから層を決め、その層の表で照らす責任は M0 と各カードの変換の境界が持つ（areaName は自動に別の層で引き直さない。明示して別の表で補うかは読むカードの契約）",
       "区域名の出し方（表に無いコードの見せ方、VPWS50 の 15 コードを floodCity で補うか、C0）と深さ・M の字（C0・E0）",
       "Pi の Chromium での area-names.js の読み込みの時間（PI 発注 1。区域名を使うカードを組み込んだ最初の表示で測る）",
       "図形の札（DS-EQ-01・DS-CSS-11 の三角の角を線 8 で丸める形）が span と class の CSS で描けるか（E0 発注 1b。SVG が要るなら部品の種類がもう 1 つ要り、その契約で S0 の型を改める）",
@@ -360,7 +367,7 @@
       },
       {
         "id": "P4-ST-AC06",
-        "requirement": "区域名の file（P4-ST-D-NAMES、表 §3）。(1) 新しい reconstruction/tools/gis/build-area-names.mjs は node の組み込みだけで、G0 の reconstruction/assets/gis/known-codes.v1.json・area-codes.v1.json・manifest.json を読み、area-names.ts の字を返す buildAreaNames() を export し、直に走らせたときは reconstruction/src/display/screen/area-names.ts に書く。型は build-area-names.d.mts（build-known-codes.d.mts と同じ形）。manifest の layers の鍵 9 つと名前の表の鍵（pref は area-codes の prefecture、ほかは同じ名前の表、加えて tsunamiAreaGroup）の組が合わないとき、同じ表の中で (表, Code) が重なるとき、名前が空のとき、code か name が字でないときは例外で止まる（表をまたぐ同じ Code は正しい入力。Code の件数は manifest と照らさない: tsunamiArea は manifest の distinctCodeCount 67・expectedCodeCount 66、名前の表は 66）。出力は決まった字: 表の順は pref・forecastLocalE・city・tsunamiArea・weatherPrefecture・weatherPrimary・weatherGroup・weatherCity・floodCity・tsunamiAreaGroup、表の中は Code の字の順（先頭の 0 を保つ字のまま比べる）、UTF-8・改行は LF、末尾に改行 1 つ (2) area-names.ts は生成物（手で直さない）で、表ごとの Code → 名前を module の const に持ち、areaName(table: ShellAreaLayer | \"tsunamiAreaGroup\", code: string): string | null だけを末尾の export { … } で出す。引くのは指定の表の own key だけで、表に無いコードと継承したキー（\"constructor\" など）は null（名前を推して埋めない）。層は Code の出どころから読む側（M0・各カードの変換の境界）が決め、その層の表だけで照らす（未知のコードを別の層で引き直さない） (3) 配る経路は screen の tsc の出力 dist/screen/src/display/screen/area-names.js と http-sse.ts:323 の名前の形（GET は非圧縮・no-store、http-sse.ts:190）。http-sse.ts・host.ts・G0 の資材と道具（build-known-codes.mjs・build-area-codes.mjs など）は変えない",
+        "requirement": "区域名の file（P4-ST-D-NAMES、表 §3）。(1) 新しい reconstruction/tools/gis/build-area-names.mjs は node の組み込みだけで、G0 の reconstruction/assets/gis/known-codes.v1.json・area-codes.v1.json・manifest.json を読み、area-names.ts の字を返す buildAreaNames() を export し、直に走らせたときは reconstruction/src/display/screen/area-names.ts に書く。型は build-area-names.d.mts（build-known-codes.d.mts と同じ形）。manifest の layers の鍵 9 つと名前の表の鍵（pref は area-codes の prefecture、ほかは同じ名前の表、加えて tsunamiAreaGroup）の組が合わないとき、同じ表の中で (表, Code) が重なるとき、名前が空のとき、code か name が字でないときは例外で止まる（表をまたぐ同じ Code は正しい入力。Code の件数は manifest と照らさない: tsunamiArea は manifest の distinctCodeCount 67・expectedCodeCount 66、名前の表は 66）。出力は決まった字: 表の順は pref・forecastLocalE・city・tsunamiArea・weatherPrefecture・weatherPrimary・weatherGroup・weatherCity・floodCity・tsunamiAreaGroup、表の中は Code の字の順（先頭の 0 を保つ字のまま比べる）、UTF-8・改行は LF、末尾に改行 1 つ (2) area-names.ts は生成物（手で直さない）で、表ごとの Code → 名前を module の const に持ち、areaName(table: ShellAreaLayer | \"tsunamiAreaGroup\", code: string): string | null だけを末尾の export { … } で出す。引くのは指定の表の own key だけで、表に無いコードと継承したキー（\"constructor\" など）は null（名前を推して埋めない）。areaName は表に無いコードを自動に別の表で引き直さない（null を返す）。層は Code の出どころから読む側（M0・各カードの変換の境界）が決め、その層の表で照らす責任を持つ。null のときにカードが明示して別の表の名前で補うか（例: VPWS50 の市町村等の 15 コードを floodCity で）は、読むカードの契約（C0 など）の判断 (3) 配る経路は screen の tsc の出力 dist/screen/src/display/screen/area-names.js と http-sse.ts:323 の名前の形（GET は非圧縮・no-store、http-sse.ts:190）。http-sse.ts・host.ts・G0 の資材と道具（build-known-codes.mjs・build-area-codes.mjs など）は変えない",
         "evidenceRefs": [
           "reconstruction/src/http-sse/http-sse.ts:198 «2983faaca6303652»",
           "reconstruction/src/http-sse/http-sse.ts:323 «c9e50c28e896e7a6»",

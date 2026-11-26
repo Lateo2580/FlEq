@@ -1,4 +1,4 @@
-# P4-SHELL-TYPES-001 の設計の表 r1（新しい画面の型を 1 回で広げる）
+# P4-SHELL-TYPES-001 の設計の表 r2（新しい画面の型を 1 回で広げる）
 
 起草 2026-11-26 12:4x〜12:5x、基点 main 7d89a98f（S0〔P4-DISPLAY-SHELL-001〕と P1〔P4-UW-AREA-KIND-001〕の配送の後）。2 回目（2026-11-26）に main 005f72fb の計画の改訂（S1 と E0 発注 1 の割り、本契約の順と依存）へ合わせ、«» を数え直した。r1（3 回目）は r0（db5ac5d2）への品質レビューと契約適合レビューの指摘を当てた（JSON の Q-ST-R1-REVIEW）。
 材料は作業ノート（repo の外）の下調べ 7 本（common-prereq・c0・e0・s1・c2・m0・r0、基点 8e071bb4）。下調べの記号は「C0 の C7」「E0 の T7」「S1 の B2」の形で引く。
@@ -81,7 +81,7 @@
 ### 2.5 地図の塗りの層（行 13、P4-ST-D-MAP-LAYER）
 
 - `ShellAreaLayer` は G0 の manifest.json の layers の鍵 9 つ（pref・forecastLocalE・city・tsunamiArea・weatherPrefecture・weatherPrimary・weatherGroup・weatherCity・floodCity）。津波予報区が線であることは層で分かる（manifest の tsunamiArea の geometryType は polyline、manifest.json:919）ので、線の別の欄を足さない。
-- wire の sys（"municipality" など）から層への対応は分野ごとに違う（U-W の気象の市町村等・U-L の土砂・U-V の火山、m0-prep の X11）ので、ここで決めない（M0 と各カードの契約）。 code は string のままなので、層は Code の出どころ（電文の区域の種類）から M0 と各カードの変換の境界が決め、その層の表だけで照らす（未知のコードを別の層で引き直さない。例: "100" は細分区域にも津波予報区にもあり、pref に "0123600" を渡しても型は止めない）。
+- wire の sys（"municipality" など）から層への対応は分野ごとに違う（U-W の気象の市町村等・U-L の土砂・U-V の火山、m0-prep の X11）ので、ここで決めない（M0 と各カードの契約）。 code は string のままなので、層は Code の出どころ（電文の区域の種類）から M0 と各カードの変換の境界が決め、その層の表で照らす（例: "100" は細分区域にも津波予報区にもあり、pref に "0123600" を渡しても型は止めない）。areaName は表に無いコードを自動に別の層で引き直さず null を返す。null のときにカードが明示して別の表の名前で補うか（VPWS50 の市町村等の 15 コードを floodCity で、など）は読むカードの契約の判断（§3.1・§5）。
 - S0 の screenFrame は map を空のまま返す（M0 が埋める）。
 
 ## 3. 区域名の file（行 1、P4-ST-D-NAMES）
@@ -90,7 +90,7 @@
 
 - 生成の道具 `reconstruction/tools/gis/build-area-names.mjs`（新しい file）。G0 の known-codes.v1.json と area-codes.v1.json の名前の表 10 本（形の層 9 つ〔pref は area-codes の prefecture〕と津波予報区の結合表現 tsunamiAreaGroup）を読み、Code → 名前の表を層ごとに持つ `reconstruction/src/display/screen/area-names.ts` の字を返す関数 `buildAreaNames()` を export し、直に走らせたときは file に書く。型は `build-area-names.d.mts`（G0 の build-known-codes.d.mts と同じ形）。G0 の file と資材は変えない。
 - 道具は manifest の layers の鍵 9 つと名前の表の鍵の組が合うことを確かめ、合わない・同じ表の中の (表, Code) の重なり・名前の空・形の違う行では止まる（表をまたぐ同じ Code は正しい入力。Code の件数は manifest と照らさない: tsunamiArea は manifest の distinctCodeCount 67・expectedCodeCount 66、名前の表は 66、manifest.json:921）。出力は決まった字: 表の順は pref・forecastLocalE・city・tsunamiArea・weatherPrefecture・weatherPrimary・weatherGroup・weatherCity・floodCity・tsunamiAreaGroup、表の中は Code の字の順（先頭の 0 を保つ字のまま）、UTF-8・LF・末尾に改行 1 つ。配送のときは生成物の SHA-256・byte・件数と dist の JS の byte を記録に書く。
-- area-names.ts は `areaName(table: ShellAreaLayer | "tsunamiAreaGroup", code: string): string | null` だけを末尾の `export { … }` で出す。引くのは指定の表の own key だけで、"constructor" のような継承したキーと表に無いコードは null（P1-T04 は export function・export const を数える）。表に無いコードは null（名前を推して埋めない。どう出すかは読むカードの契約。VPWS50 の 15 コードを floodCity から補うかは C0）。
+- area-names.ts は `areaName(table: ShellAreaLayer | "tsunamiAreaGroup", code: string): string | null` だけを末尾の `export { … }` で出す。引くのは指定の表の own key だけで、"constructor" のような継承したキーと表に無いコードは null（P1-T04 は export function・export const を数える）。表に無いコードは null（名前を推して埋めない。areaName の中で自動に別の表へ引き直さない）。null のときにどう出すか、明示して別の表で補うか（VPWS50 の市町村等の 15 コードを floodCity から、など）は読むカードの契約（C0）の判断。
 - 配る経路: screen の tsc が dist/screen/src/display/screen/area-names.js を作り、http-sse.ts:323 の名前の形 `[a-z0-9-]+` で /display/area-names.js として配られる。http-sse.ts と host.ts は変えない。
 
 ### 3.2 試し（作業ノート .tmp-st の写しの中、2026-11-26 12:39〜12:54）
@@ -143,6 +143,7 @@
 | 平常の定義（行 19） | C2 の G1（作者） | 見た目 |
 | 警報のカードが画面にある値（E0 の E40）・カードに出ない件数（E0 の F1） | E0・R0 | 件数の置き場は作者の問い。中間の明るさの値は R0・PI |
 | wire の sys から層への対応 | M0・各カードの契約 | 分野ごとに違う（§2.5） |
+| 表に無いコードのとき、明示して別の表の名前で補うか（VPWS50 の市町村等の 15 コードを floodCity から） | C0（読むカードの契約） | 禁じるのは areaName の中の自動の引き直しだけ（AC06 (2)）。補う形を採るときは、どの表で補うかをカードの契約が書く |
 | area-names.js の Pi での読み込みの時間 | PI 発注 1 | 測っていない。区域名を使うカードを組み込んだ最初の表示で測る（配る JS は試しで 161,299 byte、非圧縮・no-store）。問題になれば層を絞る（生成の道具の表を減らす） |
 | 図形の札（DS-EQ-01・DS-CSS-11、三角と逆三角の角を線 8 で丸める） | E0 発注 1b | span と class の CSS で描けるかは確かめていない（DS:289・:391）。SVG が要るなら部品の種類がもう 1 つ要り、E0 発注 1b が S0 の型を改める |
 | 続報でカードの中のページを 1 ページ目へ戻すか | S1 発注 1・E0 発注 1b | 計画 :814 と台帳 92 の再構成での扱いに「続報で先頭に戻さない」とある。本契約の型はどちらでも変わらない。E0 の G15 は E0 の作者の問い |

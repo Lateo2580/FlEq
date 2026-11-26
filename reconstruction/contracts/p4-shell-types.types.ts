@@ -5,7 +5,7 @@ import type { ShellText } from "./p4-display-shell.types";
 
 // 区域の層。G0 の reconstruction/assets/gis/manifest.json の layers の鍵（形の file の名前）と同じ 9 つ。
 // 同じ Code が層をまたいで別の区域を指す（細分区域と津波予報区で 60 個、震度の市区町村と気象の市町村等で 1,707 個）ので、Code は層と組で持つ。
-// 層は Code の出どころ（電文の区域の種類）から読む側が決め、その層の表だけで Code を照らす（別の層で引き直さない）。
+// 層は Code の出どころ（電文の区域の種類）から読む側が決め、その層の表で Code を照らす。areaName は別の層を自動に引き直さず、明示して別の表で補うかは読むカードの契約。
 export type ShellAreaLayer = "pref" | "forecastLocalE" | "city" | "tsunamiArea" | "weatherPrefecture" | "weatherPrimary" | "weatherGroup" | "weatherCity" | "floodCity";
 
 // 行の中の字の束（札と札の中の 2 段の字、札の右の行など）。token は字と同じ tokens.ts の固定表で class へ写す。束の中に束を入れない（1 段まで）。
