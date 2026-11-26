@@ -66,7 +66,7 @@
 A 版は v3 のまま（推奨、reconstruction/contracts/p4-display-wire.types.ts:100 «97acae2a45f702ce»）。areas の行を読む描画はまだ無く、client と server は同じ repo の同じ build で出る。S0 の client の外形の確かめ（reconstruction/src/display/screen/client.ts の isWireSnapshot）は分野の unit と contentRevision までで、行の列が増えても弾かない（S0 の配送 e6dae65d の後に確かめた）。B `p4-display-wire-v4` にする（S0 の client の定数と、その行を引く 3 契約の «» の付け直し、開いたままの画面は非対応の表示になる）。
 
 ### 2.5 計画の直列（D-ORDER）
-A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «a7a61693accc6814» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
+A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «48699720ad2e2d7f» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
 
 ## 3. 種別と区域の対応が古いまま残らない条件
 | 起きること | 何が変わるか | 根拠 |

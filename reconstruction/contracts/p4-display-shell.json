@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "6096a580fa2618a658d1a61cfd17eae9e02ceb7ae42e059dc90eece0dc001e2c",
+    "sha256": "8152746e9369d1d4f113081ac48c33ee1f502e133536ab4cfb529d66ab3b1cad",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -407,7 +407,7 @@
           "reconstruction/src/display/chrome-eew/tsconfig.json:8 «63b55f2ada487125»",
           "reconstruction/src/display/chrome-eew/tsconfig.json:9 «3b6fd5df2e4fbb39»",
           "reconstruction/contracts/p2-chrome-eew.json:633 «81593d9d26dc05df»",
-          "reconstruction/contracts/p4-order-plan.md:227 «d0b772e0ecc3ed64»",
+          "reconstruction/contracts/p4-order-plan.md:227 «bf70d2880e7bbf80»",
           "reconstruction/contracts/p4-display-shell-tables.md"
         ]
       },
@@ -576,7 +576,7 @@
         "evidenceRefs": [
           "reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»",
           "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
-          "reconstruction/contracts/p4-order-plan.md:227 «d0b772e0ecc3ed64»",
+          "reconstruction/contracts/p4-order-plan.md:227 «bf70d2880e7bbf80»",
           "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
           "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
           "docs/specs/reconstruction-display-design.md:560 «43627ca90f37ce4b»",
