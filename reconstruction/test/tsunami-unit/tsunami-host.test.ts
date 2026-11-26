@@ -120,10 +120,10 @@ describe("P3-TSUNAMI-UNIT-001 input priority on the product path", () => {
     h.send(frame("VTSE51", withEvent(vtse51, "20110311144641")));
     h.send(frame("VTSE41", text("32-39_12_02_250206_VTSE41"), "訓練"));
     h.send(frame("VTSE51", withEvent(vtse51, "20110311144642")));
-    // 通常枠（120 件）を weatherCurrent の VPWW57 で埋める（in-flight 1 件と pending 115 件）。
-    const weather = text("15_16_02_251222_VPWW57");
-    for (let index = 0; index < 116; index++) h.send(frame("VPWW57", weather));
-    await until(() => marker(observations, "T1", "input-120") != null);
+    // 通常枠（14 MiB）を VPWS50 3 件・VPWP50 3 件で埋める。VTSE51・訓練の VTSE41 と合わせた残りは、後に送る最小の REST 本文（2,520 バイト）より小さい。
+    const weather = [...Array(3).fill("15_18_01_250630_VPWS50"), "81_01_01_260129_VPWP50", "81_01_02_260129_VPWP50", "81_09_01_260605_VPWP50_local_identity"];
+    for (const name of weather) h.send(frame(name.includes("VPWS50") ? "VPWS50" : "VPWP50", text(name)));
+    await until(() => marker(observations, "T1", "input-10") != null);
     // (a) 通常枠が埋まっていても normal の VTSE41（発令・REST 本文の注意報解除・合成の降格）は予約枠で受理される。
     const downgrade = text("32-39_11_09_250206_VTSE41").replace(/<Code>52<\/Code>/g, "<Code>51</Code>");
     h.send(frame("VTSE41", text("32-39_11_02_250206_VTSE41")));
@@ -131,15 +131,15 @@ describe("P3-TSUNAMI-UNIT-001 input priority on the product path", () => {
     h.send(frame("VTSE41", downgrade));
     // (c) EEW 候補は VTSE41 より先。
     h.send(frame("VXSE43", text("37_01_01_240613_VXSE43")));
-    await until(() => ["input-121", "input-122", "input-123", "input-124"].every((id) => marker(observations, "T1", id) != null));
+    await until(() => ["input-11", "input-12", "input-13", "input-14"].every((id) => marker(observations, "T1", id) != null));
     expect(h.socket().readyState).toBe(1);
     // urgent の in-flight の完了後: EEW → VTSE41 ×3（同じ headType の normal を飛ばさない）→ VTSE51 → training の VTSE41 → VTSE51。
     await drain(() => urgentInputs().length === 8);
-    expect(urgentInputs()).toEqual(["input-1", "input-124", "input-121", "input-122", "input-123", "input-2", "input-3", "input-4"]);
+    expect(urgentInputs()).toEqual(["input-1", "input-14", "input-11", "input-12", "input-13", "input-2", "input-3", "input-4"]);
     // T0〜T1 は受信の順に並ぶ（observe の記録）。
-    const t0 = ["input-120", "input-121", "input-122", "input-123", "input-124"].map((id) => marker(observations, "T0", id)!);
+    const t0 = ["input-10", "input-11", "input-12", "input-13", "input-14"].map((id) => marker(observations, "T0", id)!);
     expect(t0).toEqual([...t0].sort((left, right) => left - right));
-    for (const id of ["input-121", "input-122", "input-123", "input-124"])
+    for (const id of ["input-11", "input-12", "input-13", "input-14"])
       expect(marker(observations, "T1", id)!).toBeGreaterThanOrEqual(marker(observations, "T0", id)!);
     owners.hold = false;
     await drain(() => owners.held.length === 0); // 止めた返信を残して停止すると、入力が in-flight のまま停止の段の期限（mailboxDrain 10 秒〜計 25 秒）まで待つ
