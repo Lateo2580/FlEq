@@ -99,6 +99,9 @@ describe("P4-UQ-QUAKE-ROWS-001", () => {
     expect(withRecent(rows(9, 8, 7, 6, 5, 4, 3, 2, 1, 0))).toBe("invalid");
     expect(withRecent([row(8), { ...row(7), eventId: row(8).eventId }])).toBe("invalid");
     expect(withRecent(rows(7, 8))).toBe("invalid");
+    // 形は ISO でも読めない時刻（月 99）は最も古い鍵になる（並べ替えと今日の判定の読みをそろえる、P4-UQR-D-KEY）。
+    const unreadable = { ...row(9), originTimeRaw: "2026-99-26T12:00:00+09:00" };
+    expect([withRecent([row(8), unreadable]), withRecent([unreadable, row(8)])]).toEqual(["restored", "invalid"]);
     expect(withRecent([row(8), { ...row(8), eventId: "20261126000009" }])).toBe("invalid");
     expect(seismicUnitCodec.decode({ ...payload, schemaVersion: "p3-seismic-unit-v9" } as JsonValue).kind).toBe("invalid");
   });
