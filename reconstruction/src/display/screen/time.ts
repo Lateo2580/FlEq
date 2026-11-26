@@ -7,10 +7,12 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 const pad = (value: number, width = 2): string => String(value).padStart(width, "0");
 const OFFSET_ISO = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):(\d{2}))$/;
 
-// 暦に無い日付（2026-02-30）と 24 時は、Date.parse が繰り上げて読むので、項目を読み戻して照らす
+// 暦に無い日付（2026-02-30）と 24 時は、Date.parse が繰り上げて読むので、項目を読み戻して照らす。
+// Date.UTC は年 0〜99 を 1900 年台に読み替えるので、setUTCFullYear で年をそのまま置く（0000-02-29 を epoch と同じに読む）
 function isCalendar(match: RegExpExecArray): boolean {
   const [year, month, day, hour, minute, second = 0, offsetHour = 0, offsetMinute = 0] = match.slice(1).map((part) => (part == null ? 0 : Number(part)));
-  const date = new Date(Date.UTC(year, month - 1, day));
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
   return month >= 1 && month <= 12 && date.getUTCDate() === day && hour <= 23 && minute <= 59 && second <= 59 && offsetHour <= 23 && offsetMinute <= 59;
 }
 

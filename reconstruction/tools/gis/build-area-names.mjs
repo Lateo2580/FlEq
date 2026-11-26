@@ -12,6 +12,9 @@ const outPath = join(here, "../../src/display/screen/area-names.ts");
 // 出力の表の順（AC06 (1)）。最初の 9 つは manifest の layers の鍵、最後は津波予報区の結合表現
 const LAYERS = ["pref", "forecastLocalE", "city", "tsunamiArea", "weatherPrefecture", "weatherPrimary", "weatherGroup", "weatherCity", "floodCity"];
 const ORDER = [...LAYERS, "tsunamiAreaGroup"];
+// 表ごとに読む file を 1 つに決める。2 つの file に同じ名前の表があると、片方が黙ってもう片方を上書きするので止める
+const KNOWN_TABLES = ["forecastLocalE", "city", "tsunamiArea", "tsunamiAreaGroup"];
+const AREA_TABLES = ["prefecture", "weatherPrefecture", "weatherPrimary", "weatherGroup", "weatherCity", "floodCity"];
 
 const sameSet = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 
@@ -31,16 +34,20 @@ function entries(name, rows) {
   return list.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
-function buildAreaNames() {
+const readAssets = () => {
   const read = (name) => JSON.parse(readFileSync(join(assetsDir, name), "utf8"));
-  const known = read("known-codes.v1.json"), area = read("area-codes.v1.json"), manifest = read("manifest.json");
-  // 名前の表の鍵（pref は area-codes の prefecture）と manifest の layers の鍵 9 つが同じ組であることを確かめる
-  const nameKeys = [...Object.keys(known), ...Object.keys(area)].filter((key) => key !== "schemaVersion" && key !== "tsunamiAreaGroup")
-    .map((key) => (key === "prefecture" ? "pref" : key));
-  if (!sameSet(Object.keys(manifest.layers ?? {}), LAYERS) || !sameSet(nameKeys, LAYERS) || !("tsunamiAreaGroup" in known))
-    throw new Error(`manifest の layers ${JSON.stringify(Object.keys(manifest.layers ?? {}))} と名前の表 ${JSON.stringify(nameKeys)} の組が合わない`);
-  const source = { ...known, ...area, pref: area.prefecture };
-  const tables = ORDER.map((name) => `  ${name}: {${entries(name, source[name]).map(([code, value]) => `${JSON.stringify(code)}:${JSON.stringify(value)}`).join(",")}},`);
+  return { known: read("known-codes.v1.json"), area: read("area-codes.v1.json"), manifest: read("manifest.json") };
+};
+
+// inputs は試験が file の中身を差し替えて止まる条件を見るためだけに渡す（既定は G0 の資材）
+function buildAreaNames({ known, area, manifest } = readAssets()) {
+  // manifest の layers の鍵 9 つと、file ごとの表の名前（pref は area-codes の prefecture）が決まった組であることを確かめる
+  const tablesOf = (file) => Object.keys(file).filter((key) => key !== "schemaVersion");
+  const layerKeys = Object.keys(manifest.layers ?? {});
+  if (!sameSet(layerKeys, LAYERS) || !sameSet(tablesOf(known), KNOWN_TABLES) || !sameSet(tablesOf(area), AREA_TABLES))
+    throw new Error(`manifest の layers ${JSON.stringify(layerKeys)} と名前の表 ${JSON.stringify({ known: tablesOf(known), area: tablesOf(area) })} の組が合わない`);
+  const table = (name) => (name === "pref" ? area.prefecture : KNOWN_TABLES.includes(name) ? known[name] : area[name]);
+  const tables = ORDER.map((name) => `  ${name}: {${entries(name, table(name)).map(([code, value]) => `${JSON.stringify(code)}:${JSON.stringify(value)}`).join(",")}},`);
   return [
     "// 生成物（P4-SHELL-TYPES-001 AC06）。手で直さない。node reconstruction/tools/gis/build-area-names.mjs で G0 の名前の表から作り直す。",
     'import type { ShellAreaLayer } from "../../../contracts/p4-shell-types.types";',

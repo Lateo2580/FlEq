@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import type { DisplayWireSnapshot } from "../../contracts/p4-display-wire.types";
 import type { ShellCard, ShellCardEntry, ShellClientState, ShellFrameInput, ShellRow, ShellState } from "../../contracts/p4-display-shell.types";
 import type { ShellPart } from "../../contracts/p4-shell-types.types";
 import { areaName } from "../../src/display/screen/area-names";
+import { acceptSnapshot } from "../../src/display/screen/client";
 import { screenFrame } from "../../src/display/screen/frame";
 import { formatJstTime } from "../../src/display/screen/time";
 import { buildAreaNames } from "../../tools/gis/build-area-names.mjs";
@@ -14,8 +14,12 @@ import { card, form, rect, row, rows, textOf } from "./screen-fixture";
 const registry = vi.hoisted(() => ({ list: [] as ShellCardEntry[] }));
 vi.mock("../../src/display/screen/cards", () => ({ get CARD_SOURCES() { return registry.list; } }));
 
-const snapshot = { schemaVersion: "p4-display-wire-v3", streamId: "a", sequence: 1, current: {} } as unknown as DisplayWireSnapshot;
-const live: ShellClientState = { snapshot, unsupported: false, changed: [], detail: null };
+// snapshot は製品の受け入れ（acceptSnapshot の外形の確かめ）を通して作る（as で言い換えない）
+const UNITS = { eew: "U-E", tsunami: "U-T", earthquake: "U-Q", weatherCurrent: "U-W", weatherTimeseries: "U-F", nankai: "U-N",
+  volcano: "U-V", landslide: "U-L", flood: "U-R", briefing: "U-B", localBulletins: "U-M", typhoon: "U-Y" };
+const live: ShellClientState = acceptSnapshot({ snapshot: null, unsupported: false, changed: [], detail: null }, JSON.stringify({ schemaVersion: "p4-display-wire-v3",
+  streamId: "a", sequence: 1, semanticRevision: "s", current: Object.fromEntries(Object.entries(UNITS).map(([key, unit]) => [key, { unit, contentRevision: "r0" }])) }));
+const assets = (name: string): Readonly<Record<string, unknown>> => JSON.parse(readFileSync(join(__dirname, "../../assets/gis", name), "utf8"));
 const IDLE: ShellState = { open: false, raised: [], eew: [] };
 const input = (extra: Partial<ShellFrameInput> = {}): ShellFrameInput =>
   ({ state: live, nowMs: Date.UTC(2026, 10, 25, 12, 34), page: { left: 0, right: 0 }, innerPage: {}, shell: IDLE, ...extra });
@@ -58,6 +62,11 @@ describe("P4-ST-T01 area-names", () => {
     expect(areaName("floodCity", "0920600")).toBe("日光市");
     expect(areaName("floodCity", "1410000")).toBe("横浜市");
   });
+
+  it("(オ) 契約境界: 2 つの file に同じ名前の表があると、上書きせずに止まる", () => {
+    const known = assets("known-codes.v1.json"), area = assets("area-codes.v1.json"), manifest = assets("manifest.json");
+    expect(() => buildAreaNames({ known, area: { ...area, tsunamiAreaGroup: [] }, manifest })).toThrow(/tsunamiAreaGroup/);
+  });
 });
 
 // T02 受入条件（P4-ST-AC01・AC02・AC04）: 行の id・束の token の比べ、カードの token、カードの中のページ。
@@ -86,26 +95,31 @@ describe("P4-ST-T02 screenFrame の行の id・束・token・inner", () => {
     expect(find(second, "C")?.token).toBe("z");
   });
 
-  it("(ウ)(エ)(オ) slot のカードの inner は番号のページだけを描き、丸め、ページの数を返す。inner が null なら forms[0]", () => {
-    const withInner = (count: number) => card("E", "right", { slot: 0, inner: pages("p", count), forms: [form(100, rows(1, 50, "f"))] });
+  const withInner = (count: number) => card("E", "right", { slot: 0, inner: pages("p", count), forms: [form(100, rows(1, 50, "f"))] });
+  const shown = (innerPage: ShellFrameInput["innerPage"]) => {
+    const frame = screenFrame(input({ innerPage }));
+    return { text: find(frame, "E")?.rows.map((r) => textOf(r)), mark: find(frame, "E")?.mark, count: frame.innerPageCount.E };
+  };
+
+  it("(ウ)(オ) slot のカードの inner は番号のページだけを描き、丸め、ページの数を返す。inner が null なら forms[0]", () => {
     list = [withInner(3)];
-    const shown = (innerPage: ShellFrameInput["innerPage"]) => {
-      const frame = screenFrame(input({ innerPage }));
-      return { text: find(frame, "E")?.rows.map((r) => textOf(r)), mark: find(frame, "E")?.mark, count: frame.innerPageCount.E };
-    };
     const inherited: ShellFrameInput["innerPage"] = Object.create({ E: 2 });
     expect(shown({})).toEqual({ text: ["p1"], mark: null, count: 3 });
     for (const [innerPage, want] of [[{ E: 2 }, "p3"], [{ E: 99 }, "p3"], [{ E: -1 }, "p1"], [{ E: 1.5 }, "p1"], [{ E: Number.NaN }, "p1"], [inherited, "p1"]] as const)
       expect(shown(innerPage)).toEqual({ text: [want], mark: null, count: 3 });
-    // 番号 2 のまま、続報で 2 ページになると最後のページ、3 ページへ戻ると 3 ページ目（番号は直さない）
-    list = [withInner(2)];
-    expect(shown({ E: 2 })).toEqual({ text: ["p2"], mark: null, count: 2 });
-    list = [withInner(3)];
-    expect(shown({ E: 2 })).toEqual({ text: ["p3"], mark: null, count: 3 });
     list = [card("E", "right", { slot: 0, forms: [form(100, rows(1, 50, "f"))] })];
     const plain = screenFrame(input());
     expect(find(plain, "E")?.rows.map((r) => textOf(r))).toEqual(["head", "f1"]);
     expect(Object.hasOwn(plain.innerPageCount, "E")).toBe(false);
+  });
+
+  it("(エ) 同じ番号の object のまま、続報で 2 ページになると最後のページ、3 ページへ戻ると 3 ページ目で、番号は 2 のまま残る", () => {
+    const kept = { E: 2 };
+    for (const [count, want] of [[3, "p3"], [2, "p2"], [3, "p3"]] as const) {
+      list = [withInner(count)];
+      expect(shown(kept)).toEqual({ text: [want], mark: null, count });
+    }
+    expect(kept).toEqual({ E: 2 });
   });
 
   it("(カ) 開いたカードは inner の番号のページ、閉じていれば列の割り、下がった slot のカードも inner から選べばキーを持つ", () => {
@@ -140,6 +154,8 @@ describe("P4-ST-T03 formatJstTime", () => {
         }
         for (const value of ["2026-11-25T21:34:56", null, "garbage", Number.NaN, "2026-02-30T00:00:00+09:00", "2026-11-25T24:00:00+09:00"])
           for (const unit of ["second", "minute"] as const) expect(formatJstTime(value, unit)).toBe("時刻不明");
+        // 年 0〜99 も字と epoch で同じ瞬間（0000-02-29T00:00:00Z）
+        expect([formatJstTime("0000-02-29T00:00:00Z", "second"), formatJstTime(-62_162_121_600_000, "second")]).toEqual(["09:00:00", "09:00:00"]);
       }
     } finally { if (original == null) delete process.env.TZ; else process.env.TZ = original; }
   });
