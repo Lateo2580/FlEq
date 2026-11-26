@@ -501,7 +501,6 @@ describe("P4-DW-T12 contractBoundary: the U-Q save version", () => {
     const row = state.daily.training.recent[0];
     const { depth, magnitudeDescription, tsunamiComment, strongest, omittedStrongest, tsunamiCodes, omittedTsunamiCodes, ...rest } = row;
     const added = Buffer.byteLength(JSON.stringify(row)) - Buffer.byteLength(JSON.stringify(rest));
-    expect([depth, magnitudeDescription, tsunamiComment, strongest, omittedStrongest, tsunamiCodes, omittedTsunamiCodes]).toHaveLength(7);
     const script: unknown = JSON.parse(execFileSync(process.execPath, ["reconstruction/contracts/p4-display-wire-max.mjs"], { encoding: "utf8" }));
     const recent = typeof script === "object" && script != null && "seismicRecent" in script ? script.seismicRecent : null;
     expect(recent).toEqual({ perRow: added, baseRow: 2_310, rows: 27, reservedRows: 15, reservedRow: 1_206, growth: 27 * (added + 2_310) - 15 * 1_206 });

@@ -413,7 +413,7 @@ function boundValue(value: MaterialValue): MaterialValue {
 function boundIntensity(value: SeismicIntensityValue): SeismicIntensityValue {
   return value.kind === "fromTo" ? { kind: "fromTo", from: boundValue(value.from), to: boundValue(value.to) } : boundValue(value);
 }
-const boundTime = (value: string | null) => value == null || value.length > 40 ? null : value; const byRecent = (a: SeismicRecentQuake, b: SeismicRecentQuake): number => { const [x, y] = [a, b].map((row) => ((at) => Number.isFinite(at) ? at : -Infinity)(Date.parse(row.originTimeRaw ?? row.reportDateTimeRaw ?? ""))); return x > y ? -1 : x < y ? 1 : a.eventId > b.eventId ? -1 : a.eventId < b.eventId ? 1 : 0; }; // P4-UQR-D-KEY・D-TIE=A: 当日の行の並び。鍵は行の発生時刻（無ければ報の時刻）の降順で読めなければ最も古い、同じ鍵は EventID の字（UTF-16）の降順。引き算にしない（読めない鍵どうしが NaN になる）
+const boundTime = (value: string | null) => value == null || value.length > 40 ? null : value; const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/; const byRecent = (a: SeismicRecentQuake, b: SeismicRecentQuake): number => { const [x, y] = [a, b].map((row) => ((text) => text != null && ISO_TIME.test(text) ? Date.parse(text) : -Infinity)(row.originTimeRaw ?? row.reportDateTimeRaw)); return x > y ? -1 : x < y ? 1 : a.eventId > b.eventId ? -1 : a.eventId < b.eventId ? 1 : 0; }; // P4-UQR-D-KEY・D-TIE=A: 当日の行の並び。鍵は行の発生時刻（無ければ報の時刻）の降順で読めなければ最も古い、同じ鍵は EventID の字（UTF-16）の降順。時差を明示した ISO の形だけを読む（時差の無い字は process のタイムゾーンで読まれ、復元の並びの確かめが機械で変わる）。引き算にしない（読めない鍵どうしが NaN になる）
 // counted（最大 2048 組）は配列に結び付けた索引で引く（受信ごとに配列を走査しない、I-U-Q.computation）。
 const countedCache = new WeakMap<Counted, ReadonlyMap<string, number>>();
 function countedIndex(values: Counted): ReadonlyMap<string, number> {
@@ -467,7 +467,7 @@ function nextHistory(history: SeismicDailyHistory, candidate: EarthquakeCandidat
   // recent は event の発生日（無ければ報の ReportDateTime）が受信日と同じときだけ、発生の新しい順に 9 行（P4-UQR-AC01）。
   const view = factsOf(after);
   // 発生時刻の文字列は報のまま（日付として読めなければ recent に入れない）。
-  const origin = view.originTimeRaw == null ? Date.parse(candidate.source.reportDateTimeRaw) : view.originTimeRaw.length > 40 ? Number.NaN : Date.parse(view.originTimeRaw); // P4-UQR-D-KEY=A: 40 字を超える発生時刻は行の欄が null になり鍵と食い違うので、今日の判定を通さない
+  const origin = ((text: string) => text.length > 40 || !ISO_TIME.test(text) ? Number.NaN : Date.parse(text))(view.originTimeRaw ?? candidate.source.reportDateTimeRaw); // P4-UQR-D-KEY=A: 40 字を超える・時差の無い時刻は行の鍵と食い違うので、今日の判定を通さない
   if (Number.isFinite(origin) && dayKeyOf(origin) === today) {
     const found = next.recent.find((item) => item.eventId === candidate.eventId);
     const active = visible(after);

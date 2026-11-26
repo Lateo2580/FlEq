@@ -74,6 +74,8 @@ describe("P4-UQ-QUAKE-ROWS-001", () => {
     expect([normal.count, normal.recent.length, recovery.count, recovery.recent.length]).toEqual([1, 0, 0, 0]); // 14''
     // AC01 (2): 今日の時刻でも 40 字を超える発生時刻は今日の判定を通さない（通すと行の発生時刻が null になり報の時刻で並ぶ）。
     expect(take(emptyState(), quake(G, t("00:02"), "2026-11-26T00:01:00.0000000000000000+09:00")).daily.normal.recent).toEqual([]);
+    // 時差の無い発生時刻は機械のタイムゾーンで読まれるので、今日の時刻でも判定を通さない（並びと復元が process に依らない）。
+    expect(take(emptyState(), quake(G, t("12:01"), "2026-11-26T12:00:00")).daily.normal.recent).toEqual([]);
   });
 
   // 契約境界 P4-UQR-AC02・AC04: 保存の版 v10 と、行の欄・行の数・並び・EventID の一意の境界。
