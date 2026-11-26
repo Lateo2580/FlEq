@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7ead43004a48a98292ae10eb6cb7ad7293c16085",
-    "sha256": "8152746e9369d1d4f113081ac48c33ee1f502e133536ab4cfb529d66ab3b1cad",
+    "sha256": "a0d0081c8d2125c3b66c345523ba22f1f46f0cf14b3f406001bcc7304f85a6e2",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -575,7 +575,7 @@
         "requirement": "描く値を返す関数（screenFrame、Q-PWT3-ROWS-FN、表 §2.4）: (1) screenFrame(input) は client の状態・時刻・列ごとのページの番号・ShellState から ShellFrame を返す純粋な関数で、vitest から import できる（DOM・EventSource・performance に依らない） (2) main.ts は screenFrame が返した値だけを描く（時計の矩形と字、状態の札、カードの層・矩形・暗さ・ずらし・行、覆いの範囲、地図の塗りの役目と印）。行の字と矩形を DOM の側で作らない (3) カードの集め方（shellSync も同じく使う。表 §2.4）: cards.ts の CARD_SOURCES（ShellCardEntry: source と max）から集める。max は source の作りで決まる数。source が max を越えて返したら前から max 枚だけを使い、診断を 1 件残す（frame の diagnostics に reason \"cardSourceOverMax\"・登録の番号・返した枚数・max を入れ、main.ts が console へ出す。黙って落とさない）。S0 の登録は 0 本で、各カードの契約が 1 行ずつ足す（計画:227、P4-DS-D-CARD-BOUND=A） (4) 中間の層は paginateColumn の結果のうち、その列のページの番号のページ（番号がページの数以上なら最後のページ）。最上層は slot のあるカードを slot の小さい順に並べ、その順で eewSlots（枚数、6 まで）の場所に置き（7 枚目からは置かない。7 件目は E0、DS-LAYOUT-07）、置いたカードの id を frame の eew に返す。開いているときは opened のあるカードの opened を placeLayers の open に渡す（開いたカードは frame の cards の先頭。ほかの最上層のカードと面で重ならない、DS-LAYER-23）。上がったカードと下げる緊急地震速報のカードは AC06 と AC16 (5) snapshot が無いか unsupported のときはカードを出さず、時計と状態の札だけ。frame の status は AC10 (3) の札の並び (6) 空の災害カードを作らない: カードは登録した関数が返したものだけで、S0 は分野の包みを見てカードを足さない。分野の包みは要約・取得待ちのまま関数へ渡し、無発令に置き換えない（D-AC02 の S0 分） (7) 取消・失効は最新の snapshot から作り直すことで、今のページの外のカードにも効く（D-AC02） (8) 地図の塗りの役目（map）と印（marks）は M0 が埋めるまで空の配列 (9) 計算量: 1 回の frame は登録した関数の返した行の数と、P4-DS-RES-01・RES-02 の費用の和。全 subject・snapshot 全体を直列化しない (10) frame の shell は組んだ時の ShellState（AC07 (0)） (11) ページの表示: 列のページの mark を、右の列は mark.cardId のカードの ShellDrawCard の mark（at は last＝そのページで一番下のカードの最後の行として、カードの下端。dots は mark.dots）に、左の列はそのページの mayHide のカード（今日の地震）の mark（at は head、dots は偽、DS-QROW-21）に入れる。text は「ページの番号＋1/ページの数」の字。DOM は mark の字と点を描くだけで字を組まない。点の描き方: 「1/4」の字の後に、今のページは塗った 16px の丸、ほかは 2px の線の 12px の丸、間は 12px（DS-PAGE-08）。8 ページ以上は点を出さず字だけ（DS-PAGE-14）。左の列（今日の地震の見出しの行）は字だけ（DS-QROW-21）。左の列の 2 ページ以上の各ページには mayHide のカードがある（AC05 (7)(d)）。左の列の置き場（今日の地震の見出しの行）は統合担当の決め（2026-11-25 07:05 に起草の読みを今の字のまま確定）で、作者の裁定 2026-11-25 18:50 で A（P4-DS-D-READINGS） (12) 割りは、paginateColumn の入力の全部（列と、その列の ShellCard の全部の欄: id・place・take・slot・mayHide・forms の head と body の各行の height・token・texts〔text と token〕・continuation・maxPages・minBodyRows・opened）が最後に割った時と同じなら前の結果を使う。純粋な関数の結果の使い回しで、frame.ts は列ごとに最後の 1 組（入力と結果）を覚える。比べは行の数に比例（ヘルツの指摘 18）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-persona-walk-tools3.json:323 «210bdb0a83dd3b3c»",
-          "reconstruction/contracts/p4-order-plan.md:146 «006622f8e0d7ea44»",
+          "reconstruction/contracts/p4-order-plan.md:146 «9eac62afe8d03827»",
           "reconstruction/contracts/p4-order-plan.md:227 «bf70d2880e7bbf80»",
           "docs/specs/reconstruction-p0-contracts.md:425 «8c167706c5a0a9ab»",
           "docs/specs/reconstruction-p0-contracts.md:1839 «6b9ddf567779f91e»",
