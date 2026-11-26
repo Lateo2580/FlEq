@@ -32,7 +32,7 @@
 | wire の行の列 | reconstruction/src/view-projector/display-wire.ts:501 «015b54c047b5fe26» | 通常・訓練・試験の順に各区分の recent を繋ぐ。上限の定数は無い（15 は `RECENT_LIMIT`×3 から出る） | 変えない（最大 27 行になる） |
 | 新しい経路の上界 | reconstruction/src/view-projector/display-wire.ts:544 «200e4e54f06f0a6b» | `NEW_PATH_FIXED_BOUND = 377_434`（9 分野の和がこれと合わせて 1 MiB に届かない間は全体を数えない近道） | 399,277 にする（§5.1）。下回ると近道が 1 MiB 越えを見落とす |
 | 型 | reconstruction/contracts/p3-seismic-unit.types.ts:158 «1e8bf8f982e918f6»・reconstruction/contracts/p4-display-wire.types.ts:77 «6268402a8543ac81» | SeismicRecentQuake・EarthquakeRowWire | 行の中で欄を足す |
-| 旧の経路の view | reconstruction/src/view-projector/view-projector.ts:463 «8c56caf1e30c6a7c» | U-Q の view の daily（recent を含む）を full の固定の部分として数える | 旧の /events にも 9 行と新しい欄が出る（§6） |
+| 旧の経路の view | reconstruction/src/view-projector/view-projector.ts:463 «8c56caf1e30c6a7c» | U-Q の view の daily（recent を含む）を full の固定の部分として数える | 旧の /events の行の数と欄は D-LEGACY で決める（§6）。並びはどちらの案でも発生の新しい順 |
 
 - `daily.recent` を読む所は、reconstruction/src の grep（`\.recent\b`・`recent\[`）で seismic-unit.ts のほかに display-wire.ts:501 だけ。reconstruction/src/cli・reconstruction/src/terminal に `daily` を読む行は無い（grep）。端末の画面は変わらない。
 
@@ -121,6 +121,7 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | 4 | 1 の後に、OriginTime の無い D の報（報の時刻 11:05） | D・C・B・A | 発生時刻が無いので報の時刻で並ぶ（今日の判定と同じ字） |
 | 5 | 4 の後に、D の報（OriginTime 09:45、11:20 着） | C・D・B・A | 発生時刻が付くと、その時刻の位置へ動く |
 | 5' | 4 の後に、D の OriginTime の無い続報（報の時刻 11:20） | D・C・B・A（D の鍵は 11:20） | 鍵は行の報の時刻（最後に採った報）なので、発生時刻の無い行は続報で上へ動く（D-KEY=A の性質） |
+| 5'' | 1 の後に、H の震度速報 VXSE51（TargetDateTime 10:31）→ H の VXSE53（OriginTime 09:58） | H・C・B・A → C・H・B・A | VXSE51 の発生時刻は TargetDateTime（:236）、VXSE53 が来ると OriginTime（:235）に替わり、鍵が動く。実の地震のふつうの順 |
 | 6 | 発生時刻が同じ 10:00:00 の E（EventID 20261126100001）と F（20261126100005）。F を先に受ける | F・E | 時刻に直して同じなら EventID の字の降順（D-TIE=A）。受けた順に依らない |
 | 7 | Q1〜Q9（01:00〜09:00）が 9 行ある所に、00:30 の Q0 の報 | Q9〜Q1 のまま（recent は同じ object） | 9 行より古い 10 件目は入らず、新しい行を押し出さない。件数と最大震度は今どおり数える |
 | 8 | 7 の後に、09:30 の Q10 の報 | Q10・Q9〜Q2（Q1 が外れる） | 新しい地震は入り、いちばん古い行が外れる |
@@ -171,7 +172,7 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | ＋40,696（a17count と同じ） | 377,434（5 行） | 1,621 | U-F だけ | 1,133,421 | 947,177 | 0 |
 | 同 | 396,442（9 行、今の欄） | 1,789 | U-F だけ | 1,152,429 | 966,185 | 0 |
 | 同 | 399,277（本契約） | 1,911 | U-F だけ | 1,155,264 | 969,020 | 0 |
-| ＋40,732（最悪の公開の量った増え） | 399,277 | 1,918 | U-F だけ | 1,155,300 | 969,056 | 0 |
+| ＋40,732（最悪の公開の増え、量った 2 つの和の差から導いた） | 399,277 | 1,918 | U-F だけ | 1,155,300 | 969,056 | 0 |
 | ＋49,186（P4-UW-AREA-KIND-001 の見積もり、通常と訓練） | 399,277 | 2,124 | U-F だけ | 1,163,754 | 977,510 | 0 |
 
 - どの行も要約になるのは U-F だけで、2 つ目の U-M に届かない。収まらない公開は 0。
@@ -181,12 +182,20 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 
 - 容量の表 reconstruction/contracts/p4-display-capacity-tables.md:65 «d04ca2e6f76aeb84» の 1,610 公開・1,133,457 は、P4-UW-AREA-KIND-001 の配送で Mac mini が量り直した M5 の行（c7bdd8dd の木、Q-UAK-DELIVERY (1)）に 377,434 を足した値。量り直した行の 9 分野の和の最大は 756,023（reconstruction/contracts/p4-display-capacity-tables.md:64 «6f98719edc1cbf61»）。
 - a17count の 1,621・1,133,421 は、量り直す前の m2-M5.json（9 分野の和の最大 715,291）の全部の公開の U-W に、U-W の最大どうしの差 40,696（229,286 − 188,590）を一律に足した値。
-- 最悪の公開の差 36 byte: 量り直す前の最悪の公開 07:40:59 の U-W は 188,492、U-W の最大は 07:10:58 の 188,590（m2-M5.json）。量り直した行の 9 分野の和の最大 756,023 は 715,291 ＋ 40,732 なので、07:40:59 の U-W の増えは 40,732（40,696 より 36 多い）。1,133,457 − 1,133,421 ＝ 36 と合う。
-- 公開の数の差 11: 一律に ＋40,696 を足しても ＋40,732 を足しても 1,621 で同じ（§5.2 の script）。だから差は足す量の違いではなく、量り直した行では公開ごとに U-W の増えが違い（その時刻に出ていた区域×種別の数で決まる）、一律の足し方より増えの小さい公開が 1 MiB の手前に残ったことから出る。一律の足し方は公開の数を多めに数える。
+- 最悪の公開の差 36 byte: 量り直す前の最悪の公開 07:40:59 の U-W は 188,492、U-W の最大は 07:10:58 の 188,590（m2-M5.json）。量り直した行の 9 分野の和の最大は同じ 07:40:59 の 756,023（:64）で、715,291 ＋ 40,732。U-W のほかの分野が前と同じなら、07:40:59 の U-W の増えは 40,732（40,696 より 36 多い）で、1,133,457 − 1,133,421 ＝ 36 と合う（導いた値。ほかの分野が同じかは量った行で確かめていない）。
+- 公開の数の差 11（推定）: 一律に ＋40,696 を足しても ＋40,732 を足しても 1,621 で同じ（§5.2 の script）なので、差は足す量の違いからは出ない。量り直した行で U-W のほかの分野が前と同じなら、公開ごとに U-W の増えが違う（その時刻に出ていた区域×種別の数で決まる）ことから出る、と読める。量り直した公開ごとの行は Mac mini の側にあり、起草の子は読んでいないので、この読みと「一律の足し方が公開の数を多めに数えるか」は確かめていない（最悪の公開では量った増え 40,732 が一律の 40,696 より大きい）。配送の前の数え直し（AC06 (3)）で統合担当が量った行から数える。
 
-## 6. 旧の経路への影響
+## 6. 旧の経路への影響（D-LEGACY）
 
-- 旧の /events の U-Q の view は daily（recent を含む）をそのまま載せる（view-projector.ts:463）。本契約の後は旧の view にも区分ごとに 9 行・新しい 2 欄が出て、行は発生の新しい順になる。B0 の P4-DW-AC16（行に欄を足した）と同じ扱いで、旧の要約の規則・計量の式は変えない。旧の経路は T0 で消える。
+- 旧の /events の U-Q の view は daily（recent を含む）をそのまま載せる（view-projector.ts:463、toSeismicView は state の daily を渡す）。並びは unit の state の並びなので、どちらの案でも旧の view の行も発生の新しい順になる。
+
+| 案 | 中身 | 旧の U-Q の view の増え（上界、1 字 6 byte） | 前例 |
+|---|---|---|---|
+| A 旧の view にも 9 行と新しい 2 欄をそのまま出す（推奨） | view の形を変えない | ＋48,852（増えた 12 行 ×〔元の欄 2,310 ＋ 足した欄 1,656〕＋ 元の 15 行 × 新しい 2 欄 84。保存の増えと同じ） | P4-DW-AC16（B0 が行に足した欄は旧にも出た） |
+| B 旧の view は区分ごとに先頭の 5 行と B0 までの欄に切る | toSeismicView に切る処理を足す | 0（並びは変わる） | P4-UAK-D-PLACE=A（旧の経路の出力を変えない側） |
+
+- A の根拠: 旧の経路は T0 で消え、端末は daily を読まない。旧の U-Q は分野の予算 65,536 を既に越えうる（N2・N3 の旧の経路は U-Q を要約にしている、p4-display-capacity-tables.md の §2.2 の下の段落）ので、旧の要約の組が変わるのは旧の全体が 1 MiB を越える公開だけ。B は旧のためだけに投影の処理を足す。
+- 旧の要約の規則・計量の式（fixedBytes）はどちらの案でも変えない。
 - 端末（reconstruction/src/cli・reconstruction/src/terminal）は daily を読まない（grep 0 件）ので、端末の画面は変わらない。
 - 試験の道具 reconstruction/test/disaster/runner.ts:657〜:658 は、旧の view の earthquake.recent の先頭 4 行を記録の画面の量として残す。行の並びが変わるので、記録に出る 4 行の中身が変わりうる。
 
@@ -203,24 +212,37 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 
 ## 8. ほかの契約・計画・spec の字で、改める必要がある所（改めていない。配送で統合担当が当てる）
 
+数え方: contracts（*.json・*.md）と docs/specs の 2 本を、55,436・180,826・81,318・377,434・967,258・671,142・1,572・23,580・94,403・1,206・283,209・283_209・1,958,729・MEMORY_GROWTH・RECENT_GROWTH・「15 行」「5行」で grep し（`.tmp-uq/g.py`、git に入らない。「15 行」「5行」は U-Q の行の数を指すヒットだけを数えた）、全部のヒットを「改める」と「記録」に割った。「記録」は、閉じた questionResolutions・decisionBranches の reason・remaining、配送済みの契約の allowedPaths・artifactRequirements、前の契約の配送の記録と、その時点の値を書いた計算の字（件数 512 の時代の 1,958,729 など）で、その時の値なので改めない。
+
+### 8.1 改める（今の規則・上限・条文として書いている字）
+
 | file | 行 | 改める字 |
 |---|---|---|
 | reconstruction/contracts/p4-order-plan.md | :124・:192・:223・:225 | 本契約の起草済み・配送の印（C0 の依存の字、Wave 2 の「未起草」、直列の字） |
-| reconstruction/contracts/p3-seismic-unit.json | :310 | capacityReserve の当日履歴の上限に、増えた 4 行×3 区分を `RECENT_GROWTH` で足したこと |
-| 同 | :799 | P3 の AC の「recent 5行」を 9 行・発生の新しい順に |
-| reconstruction/contracts/p3-seismic-unit.types.ts | :146〜:150 | SeismicRecentQuake の注記（新しい順に最大 5 行 → 発生の新しい順に最大 9 行、足した 2 欄の上限）。実装の allowedPaths に入れる |
-| reconstruction/contracts/p4-display-wire.json | :499・:515・:548・:581・:702 | 保護 3 分野 180,826・余り 81,318・上界 377,434 を 202,669・59,475・399,277 に |
-| 同 | :684 | P4-DW-AC16 の「1 行 1,572・15 行 23,580」は本契約が改めた（1,656×27 ＋ 2,310×12 ＝ 72,432） |
-| reconstruction/contracts/p4-display-wire-tables.md | :16・:21・:60・:98〜:107・:206・:242・:411・:461 | 地震の行の数（区分ごとに 9 行・3 区分で 27 行、「板待ち: C0」を外す）、地震の最大と保護 3 分野・上界の数、U-Q の増え分 |
-| reconstruction/contracts/p4-display-capacity-tables.md | :13・:28・:52・:65 | U-Q の型の上限 77,279、上界 399,277、M5 の導いた組の公開の数（配送の前の数え直しの値で） |
-| reconstruction/contracts/p4-display-capacity.json | :281 | 967,258（377,434 ＋ 9 × 65,536）を 989,101 に |
-| reconstruction/contracts/p4-display-vocab-tables.md | :212・:219・:220・:436・:443 | 保護 3 分野・上界・671,142 の近道の数（1,048,576 − 399,277 ＝ 649,299） |
-| reconstruction/contracts/p4-display-vocab.json | :357・:439 | 上界の式の数 |
+| reconstruction/contracts/p3-seismic-unit.json | :310 | capacityReserve の当日履歴の上限に、増えた 4 行×3 区分を RECENT_GROWTH で足したこと（283,209 の式は変えない） |
+| 同 | :799 | P3 の AC の「recent 5行」を、区分ごとに 9 行・発生の新しい順に |
+| reconstruction/contracts/p3-seismic-unit.types.ts | :146〜:150 | SeismicRecentQuake の注記（新しい順に最大 5 行 → 発生の新しい順に最大 9 行、1 行 1,572 → 足した欄 1,656 と増えた行の 2,310）。実装の allowedPaths に入れる |
+| reconstruction/contracts/p4-display-wire.json | :499・:515 | resourceLimits の scope の 180,826・377,434 を 202,669・399,277 に |
+| 同 | :548・:581・:702 | AC と試験の字の 180,826・81,318・377,434 |
+| 同 | :684 | P4-DW-AC16 の「1 行 1,572・15 行 23,580」（本契約が 1,656×27 ＋ 2,310×12 ＝ 72,432 に改めた） |
+| reconstruction/contracts/p4-display-wire-tables.md | :16・:21・:60・:98〜:107・:206・:242・:411・:461 | 地震の行の数（区分ごとに 9 行・3 区分で 27 行、:60 の「板待ち: C0」を外す）、地震の最大・保護 3 分野・上界の数、U-Q の増え分 |
+| reconstruction/contracts/p4-display-capacity-tables.md | :13・:28・:46・:51・:52・:65・:152・:161・:185 | 上界 377,434 → 399,277（:13・:46・:52・:65）、保護 3 分野 180,826 → 202,669（:52・:161）、967,258 → 989,101（:51・:52）、671,142 → 649,299（:152 の節の題）、U-Q の型の上限 55,436 → 77,279（:28）、E6 の U-Q の形（:185 の「区分ごとに 5 行」）、M5 の導いた組の公開の数（:13・:65、配送の前の数え直しの値で） |
+| reconstruction/contracts/p4-display-capacity.json | :169・:281・:312・:389・:406・:417 | objective・scope・AC の 377,434・967,258・671,142 |
+| reconstruction/contracts/p4-display-vocab-tables.md | :16・:212・:219・:220・:222・:226・:229・:436・:443 | 保護 3 分野・上界・967,258・671,142 の数 |
+| reconstruction/contracts/p4-display-vocab.json | :357・:439・:568 | scope・AC・試験の字の 180,826・967,258 |
 | docs/specs/reconstruction-display-design.md | :414 | DS-OPEN-12 の「wire は文だけ」（コードは wire に載った。どの報にどのコードかと札の決め方は C0-Q1） |
 
-- 記録の字（閉じた questionResolutions・decisionBranches の reason・前の契約の配送の記録）は、その時の値なので改めない: p4-display-wire.json:297・:334・:857、p4-display-capacity.json:19・:41・:116、p4-display-vocab.json:159・:188、p3-seismic-unit.json:85・:90・:95・:100・:338、p4-uw-area-kind-tables.md:115・:126。
-- 実装で中身が変わり、他の契約の «» が引いている行（統合担当が付け直す）: reconstruction/src/view-projector/display-wire.ts:544（p4-display-capacity.json:408）、reconstruction/src/runtime/owner-runtime.ts:84（p3-unit-q-capacity.json:476）、reconstruction/contracts/p4-display-wire-max.mjs:163（p4-display-wire.json:688）。
-- `283_209` を引く契約（p3-seismic-unit.json:85・:310・:338、p3-seismic-event-limit.json:271）は D-BUDGET=A なら変わらない。:63・:69 を引く契約（p3-c7t05-fill・p3-currency-coverage・p3-disaster-capacity・p3-seismic-event-limit・p3-unit-q-capacity・p3-seismic-reserve-close）の «» も、行の字を変えないので動かない。
+### 8.2 記録（改めない）
+
+- p4-display-wire.json:297・:334・:419・:420・:524・:603・:856・:857、p4-display-wire-tables.md:233・:238・:363・:390。
+- p4-display-capacity.json:19・:41・:115・:116・:204、p4-display-capacity-tables.md:187・:220・:225・:236。
+- p4-display-vocab.json:19・:159・:188、p4-display-vocab-tables.md:291、p4-uw-area-kind.json:101、p4-uw-area-kind-tables.md:115・:126。
+- p3-seismic-unit.json:85・:90・:95・:100・:338・:815、p3-seismic-event-limit.json:40・:54・:61・:198・:271・:392、p3-seismic-reserve-close.json:67・:78・:191、p3-unit-q-capacity.json:68・:124・:140・:312・:677、p3-persist-premises.md:550。283,209 の式（:63・:69 の頭）は D-BUDGET=A で変わらないので、p3-seismic-event-limit.json:271 の器と予約の式も今の字のまま成り立つ。
+
+### 8.3 «» の付け直し（実装で中身が変わる行を引く所）
+
+- reconstruction/src/view-projector/display-wire.ts:544（p4-display-capacity.json:408）、reconstruction/src/runtime/owner-runtime.ts:84（p3-unit-q-capacity.json:476）、reconstruction/contracts/p4-display-wire-max.mjs:163（p4-display-wire.json:688）。
+- :63・:69 を引く契約（p3-c7t05-fill・p3-currency-coverage・p3-disaster-capacity・p3-seismic-event-limit・p3-unit-q-capacity・p3-seismic-reserve-close）の «» は、行の字を変えないので動かない。
 - 旧築（src/）は改める対象にしない。
 
 ## 9. 既存の試験で期待が変わる所（実装の前に分かっているもの）
@@ -232,6 +254,7 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | seismic-unit.test.ts・seismic-capacity.test.ts | :35・:23・:419 | `MEMORY_GROWTH` の写しと期待の `3 * 5 * 1_572` | 72,432（§4） |
 | seismic-unit.test.ts・seismic-capacity.test.ts（同時最大状態） | :1160・:699 | 当日履歴の上限を 5 行で組む | 9 行と新しい 2 欄の上限いっぱいで組む（上限の状態の試験なので） |
 | display-wire.test.ts（型の最大） | :68〜:73 | 行は 15、欄は今の型 | 27 行と新しい 3 欄（期待は script と同じ数のまま） |
+| display-capacity-manifest.test.ts（P4-DC-T06 の E6 の部品 quakeAtShape） | :195〜:205 | 区分ごとに 5 行で U-Q の最大の形を組む | 区分ごとに 9 行で組む（期待は止まる所を実の byte で数え直す形なので変わらない。:254 より前なので行の数を変えない） |
 | display-wire.test.ts（P4-DW-T12） | :482〜:507 | seismicRecent が `{ perRow, rows: 15, growth }`、足した欄は 5 つ | script の新しい形（perRow・rows 27・extraRow・extraRows 12・growth）、足した欄は 7 つ |
 | 版の字の 4 か所 | seismic-fixture.ts:17・display-wire-fixture.ts:27・shared-runtime.test.ts:74・seismic-capacity.test.ts:49 | p3-seismic-unit-v9 | v10 |
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e5e65ac5cc817815eef1d69203a3d56f3dfc0225",
-    "sha256": "e13bf79dd4f0f5a1a7ed65102ba74fee67550c34832974bd56a4d1fc528cd1fa",
+    "sha256": "a20943269c69e186e808f60a05d3862ff3ab507bb8aacf1fe0e8165cae1d055e",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -131,6 +131,17 @@
         "status": "起草案（統合担当の案、裁定前）",
         "ruling": "未定",
         "reason": "表 §2.9。行を読む描画（C0）はまだ無く、client の外形の確かめ（client.ts の isWireSnapshot）は分野の unit と contentRevision が字であることまでしか見ないので、行の欄が増えても弾かない。P4-UAK-D-VERSION=A と同じ"
+      },
+      {
+        "id": "P4-UQR-D-LEGACY",
+        "kind": "統合担当",
+        "A": "旧の経路 /events の U-Q の view にも、区分ごとに 9 行と新しい 2 欄（tsunamiCodes・omittedTsunamiCodes）をそのまま出す（view の形を変えない）",
+        "B": "旧の view は区分ごとに先頭の 5 行と B0 までの欄に切る（toSeismicView に切る処理を足す）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当の案、裁定前）",
+        "ruling": "未定",
+        "reason": "表 §6。前例が割れている: P4-DW-AC16 は行に足した欄を旧にも出し、P4-UAK-D-PLACE=A は旧の出力を変えない側を選んだ。A の旧の U-Q の view の増えの上界は ＋48,852 byte（1 字 6 byte、保存の増えと同じ）。旧の経路は T0 で消え、端末は daily を読まず、旧の U-Q は分野の予算 65,536 を既に越えうる（N2・N3 の旧の経路は U-Q を要約にしている）ので、旧の要約の組が変わるのは旧の全体が 1 MiB を越える公開だけ。B は旧のためだけに投影の処理を足す。並びは unit の state の並びなので、どちらの案でも旧の view の行も発生の新しい順になる"
       }
     ],
     "questionResolutions": [
@@ -139,7 +150,7 @@
         "status": "closed",
         "source": "判断カード 2026-11-26-P4-今日の地震の行の数と並び.md（repo 外）の末尾「裁定」",
         "closed": "作者の裁定は A17（区分ごとに 9 行）と B4（発生の新しい順、上限の行を残すときも同じ順）の 2 つだけ（P4-UQR-D-ROWS・P4-UQR-D-ORDER-RULE）。原文は 2026-11-26 15:06「作業お疲れ様です。地震・対応表ともに判断事項は全て推奨で進めてください！」。ほかの decisionBranches は統合担当の案（起草の子が置いた案）",
-        "remaining": "判断カード §5 の容量の値（U-Q 74,444・1,789 公開・余り 62,310）は今の欄のまま 9 行にした値で、本契約の新しい欄込みでは 77,279・1,911 公開・余り 59,475（表 §5）。要約は U-F だけ・収まらない公開 0 は変わらない。作者に見せ直すかは統合担当が決める"
+        "remaining": "判断カード §5 の容量の値（U-Q 74,444・1,789 公開・余り 62,310）は今の欄のまま 9 行にした値で、本契約の新しい欄込みでは 77,279・1,911 公開・余り 59,475（表 §5）。要約は U-F だけ・収まらない公開 0 は変わらない。U-F が要約になる公開は 5 行の 1,621 から 1,911（約 18% 増。カードは 1,789 で約 1 割と書いた）。作者に見せ直すかは統合担当が決める"
       },
       {
         "id": "Q-UQR-WIRE-CAP-FACT",
@@ -157,16 +168,16 @@
       },
       {
         "id": "Q-UQR-CAPT-DIFF",
-        "status": "closed",
+        "status": "closed（入力の違い）・推定（11 公開の出どころ。配送の前の数え直しで統合担当が量った行から数える）",
         "source": "p4-display-capacity-tables.md:64・:65、p4-uw-area-kind.json の Q-UAK-DELIVERY (1)、.tmp-s0/a17-count.md と m2-M5.json（repo 外）、起草の子の script（.tmp-uq/m5.py）",
-        "closed": "容量の表の 1,610 公開・1,133,457 は、P4-UW-AREA-KIND-001 の配送で Mac mini が量り直した M5 の行（9 分野の和の最大 756,023）に 377,434 を足した値。a17count の 1,621・1,133,421 は、量り直す前の m2-M5.json（最大 715,291）の全部の公開の U-W に、U-W の最大どうしの差 40,696（229,286 − 188,590）を一律に足した値。最悪の公開 07:40:59 の量った U-W の増えは 40,732（756,023 − 715,291）で、40,696 との差 36 が 1,133,457 − 1,133,421 と合う。一律に ＋40,696 を足しても ＋40,732 を足しても 1,621 公開で同じなので、11 公開の差は足す量ではなく、量った行では公開ごとに U-W の増えが違う（その時刻に出ていた区域×種別の数で決まる）ことから出る。一律の足し方は公開の数を多めに数える（表 §5.3）",
-        "remaining": "量り直した公開ごとの行は Mac mini の側にあり、起草の子の読める所に無い。どの 11 公開かの名指しはしていない"
+        "closed": "容量の表の 1,610 公開・1,133,457 は、P4-UW-AREA-KIND-001 の配送で Mac mini が量り直した M5 の行（9 分野の和の最大 756,023）に 377,434 を足した値。a17count の 1,621・1,133,421 は、量り直す前の m2-M5.json（最大 715,291）の全部の公開の U-W に、U-W の最大どうしの差 40,696（229,286 − 188,590）を一律に足した値。量り直した行の 9 分野の和の最大は同じ 07:40:59 の 756,023 で、715,291 との差 40,732 は 40,696 より 36 多く、1,133,457 − 1,133,421 ＝ 36 と合う（U-W のほかの分野が前と同じとした導いた値）。一律に ＋40,696 を足しても ＋40,732 を足しても 1,621 公開で同じなので、11 公開の差は足す量の違いからは出ない（表 §5.3）",
+        "remaining": "推定: 量り直した行では公開ごとに U-W の増えが違う（その時刻に出ていた区域×種別の数で決まる）ことから 11 公開の差が出る、と読める。量り直した公開ごとの行は Mac mini の側にあり、起草の子は読んでいないので、この読みと、一律の足し方が公開の数を多めに数えるか（最悪の公開では量った増え 40,732 が一律の 40,696 より大きい）は確かめていない"
       },
       {
         "id": "Q-UQR-OLD-PATH",
         "status": "closed",
         "source": "view-projector.ts:463 の fixedBytes、reconstruction/src の grep（`\\.recent\\b`・`recent\\[`、cli と terminal の `daily`）",
-        "closed": "旧の /events の U-Q の view は daily（recent を含む）をそのまま載せるので、旧の経路にも区分ごとに 9 行・新しい 2 欄が出て、行は発生の新しい順になる（B0 の P4-DW-AC16 と同じ扱い。旧の要約の規則・計量の式は変えない、T0 で消える）。端末（cli・terminal）は daily を読まないので画面は変わらない。試験の道具 runner.ts:657〜:658 は旧の view の earthquake.recent の先頭 4 行を記録に残すので、記録の 4 行の中身が変わりうる",
+        "closed": "旧の /events の U-Q の view は daily（recent を含む）をそのまま載せる（toSeismicView は state の daily を渡す）。行の数と欄を旧に出すかは P4-UQR-D-LEGACY で決める。並びは unit の state の並びなので、どちらの案でも旧の view の行も発生の新しい順になる。端末（cli・terminal）は daily を読まないので画面は変わらない。試験の道具 runner.ts:657〜:658 は旧の view の earthquake.recent の先頭 4 行を記録に残すので、記録の 4 行の中身が変わりうる",
         "remaining": ""
       },
       {
@@ -233,6 +244,7 @@
       "reconstruction/test/display-wire/display-wire-fixture.ts（:27 の版の字だけ）",
       "reconstruction/test/display-wire/display-wire.test.ts（:68〜:73 の型の最大の行と、:476〜:507 の P4-DW-T12。:21 より後なので行を足してよい）",
       "reconstruction/test/shared-runtime/shared-runtime.test.ts（:74 の版の字だけ）",
+      "reconstruction/test/display-wire/display-capacity-manifest.test.ts（:195〜:205 の E6 の部品 quakeAtShape の行の中で、区分ごとに 9 行にする。:254 より前なので行の数を変えない）",
       "統合担当だけ（配送の commit）: 表 §8 の改訂と「«»」の付け直し"
     ],
     "allowedGitCommands": [
@@ -335,7 +347,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-UQR-AC01",
-        "requirement": "行の数と並び（作者の裁定 A17・B4、P4-UQR-D-KEY・D-TIE）。(1) RECENT_LIMIT を 9 にする（区分ごとに数える形は変えない） (2) 並びの鍵は行の欄から Date.parse(originTimeRaw ?? reportDateTimeRaw)（両方 null か読めなければ最も古い扱い）、鍵の降順、同じ値は EventID の字（UTF-16 の順）の降順 (3) 行を作ったら（:471 の今日の判定と :474 の条件は今のまま）、その EventID の行を除いた行に作った行を足して (2) で並べ、先頭の 9 行を残す。作った行が 10 番目以降に並び、その EventID の行が前に無かったときは、recent の配列を前と同じ object のまま残す。取消は今どおり前の行に cancelled: true を付け、位置は変えない (4) 表 §3 の 1〜14 と 16 の列で、行の並びが表のとおりになる。行の中の地震の訂正は、発生時刻が同じなら位置を変えず、発生時刻が変われば新しい鍵の位置へ動く。9 行の外の地震は、訂正で鍵が 9 行の内に入るときだけ入る (5) 並べる所は seismic-unit.ts の 1 か所だけ。display-wire.ts:501 は並べ直さず、通常・訓練・試験の順に繋ぐ (6) 件数・最大震度・counted・日の切替えの規則は変えない",
+        "requirement": "行の数と並び（作者の裁定 A17・B4、P4-UQR-D-KEY・D-TIE）。(1) RECENT_LIMIT を 9 にする（区分ごとに数える形は変えない） (2) 並びの鍵は行の欄から Date.parse(originTimeRaw ?? reportDateTimeRaw)（両方 null か読めなければ最も古い扱い）、鍵の降順、同じ値は EventID の字（UTF-16 の順）の降順 (3) 行を作ったら（:471 の今日の判定と :474 の条件は今のまま）、その EventID の行を除いた行に作った行を足して (2) で並べ、先頭の 9 行を残す。作った行が 10 番目以降に並び、その EventID の行が前に無かったときは、recent の配列を前と同じ object のまま残す。取消は今どおり前の行に cancelled: true を付け、位置は変えない (4) 表 §3 の 1〜14（5'・5'' を含む）の列で、行の並びが表のとおりになる。行の中の地震の訂正は、発生時刻が同じなら位置を変えず、発生時刻が変われば新しい鍵の位置へ動く。9 行の外の地震は、訂正で鍵が 9 行の内に入るときだけ入る (5) 並べる所は seismic-unit.ts の 1 か所だけ。display-wire.ts:501 は並べ直さず、通常・訓練・試験の順に繋ぐ (6) 件数・最大震度・counted・日の切替えの規則は変えない",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:54 «5b20638b16ebc429»",
           "reconstruction/src/units/seismic/seismic-unit.ts:470 «5c9502c91a40cd3b»",
@@ -375,7 +387,7 @@
       },
       {
         "id": "P4-UQR-AC04",
-        "requirement": "保存の版と予算（P4-UQR-D-RESTORE・D-BUDGET、P3-MIG-AC02 (2)、前例 P4-DW-AC16）。(1) schemaVersion を p3-seismic-unit-v10 にする（seismic-unit.ts:36、型の :180・:192・:256、owner-runtime.ts:84、試験の 4 か所〔seismic-fixture.ts:17・display-wire-fixture.ts:27・shared-runtime.test.ts:74・seismic-capacity.test.ts:49〕）。一覧に足さず、旧い形を読む移行を作らない (2) :59 の行の中で RECENT_GROWTH を、OPERATIONS.length × RECENT_LIMIT ×（足した欄〔B0 の 5 欄と tsunamiCodes 4 個・omittedTsunamiCodes の上限いっぱい、1 字 6 byte〕の sizeOf − 1）＋ OPERATIONS.length ×（RECENT_LIMIT − 283_209 の中の 5 行）×（元の欄の上限いっぱいの 1 行〔eventId 40・発生時刻と報の時刻 40 字・震源名 64 字・M の値 32 字・震度は fromTo の 32 字×2・cancelled〕の sizeOf ＋ 1）にする。値は 72,432（表 §4）。283_209 と :63・:69 の字は変えない。5 の出どころ（P3-C7 の 5×1,206）を 1 行のコメントで書く (3) v10 の decode は行の並びを確かめない。行の数の上限は今どおり RECENT_LIMIT (4) 区分ごとに 9 行・新しい欄の上限いっぱいの当日履歴は encode→JSON→decode で同じ state になり、v9 の保存は invalid (5) 試験の写し seismic-unit.test.ts:35・seismic-capacity.test.ts:23 の MEMORY_GROWTH と seismic-capacity.test.ts:419 の期待の 3 * 5 * 1_572 を 72,432 に、同時最大状態の当日履歴（seismic-unit.test.ts:1160・seismic-capacity.test.ts:699）を 9 行と新しい欄の上限いっぱいにする。ほかに上界の数で期待が動く既存の試験があれば、変える前に試験名・旧の期待・理由を報告して止める",
+        "requirement": "保存の版と予算（P4-UQR-D-RESTORE・D-BUDGET、P3-MIG-AC02 (2)、前例 P4-DW-AC16）。(1) schemaVersion を p3-seismic-unit-v10 にする（seismic-unit.ts:36、型の :180・:192・:256、owner-runtime.ts:84、試験の 4 か所〔seismic-fixture.ts:17・display-wire-fixture.ts:27・shared-runtime.test.ts:74・seismic-capacity.test.ts:49〕）。一覧に足さず、旧い形を読む移行を作らない (2) :59 の行の中で RECENT_GROWTH を、OPERATIONS.length × RECENT_LIMIT ×（足した欄〔B0 の 5 欄と tsunamiCodes 4 個・omittedTsunamiCodes の上限いっぱい、1 字 6 byte〕の sizeOf − 1）＋ OPERATIONS.length ×（RECENT_LIMIT − 283_209 の中の 5 行）×（元の欄の上限いっぱいの 1 行〔eventId 40・発生時刻と報の時刻 40 字・震源名 64 字・M の値 32 字・震度は fromTo の 32 字×2・cancelled〕の sizeOf ＋ 1）にする。値は 72,432（表 §4）。283_209 と :63・:69 の字は変えない。5 の出どころ（P3-C7 の 5×1,206）を 1 行のコメントで書く (3) v10 の decode は行の並びを確かめない。行の数の上限は今どおり RECENT_LIMIT (4) 区分ごとに 9 行・新しい欄の上限いっぱいの当日履歴は encode→JSON→decode で行の順まで同じ state になり（表 §3 の 16）、v9 の保存は invalid (5) 試験の写し seismic-unit.test.ts:35・seismic-capacity.test.ts:23 の MEMORY_GROWTH と seismic-capacity.test.ts:419 の期待の 3 * 5 * 1_572 を 72,432 に、同時最大状態の当日履歴（seismic-unit.test.ts:1160・seismic-capacity.test.ts:699）を 9 行と新しい欄の上限いっぱいにする。ほかに上界の数で期待が動く既存の試験があれば、変える前に試験名・旧の期待・理由を報告して止める",
         "evidenceRefs": [
           "reconstruction/src/units/seismic/seismic-unit.ts:36 «c896f909a2139054»",
           "reconstruction/src/units/seismic/seismic-unit.ts:59 «61c045e083c85ef2»",
@@ -430,6 +442,14 @@
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:572 «6314c573a76790bb»",
           "reconstruction/test/seismic-unit/seismic-unit.test.ts:35 «378469072d77da49»"
         ]
+      },
+      {
+        "id": "P4-UQR-AC09",
+        "requirement": "旧の経路（P4-UQR-D-LEGACY、表 §6）。A のとき: toSeismicView と旧の projector（view-projector.ts の fixedBytes・要約の規則）は変えず、旧の /events の U-Q の view に区分ごとに 9 行と新しい 2 欄が出る。旧の U-Q の view の増えの上界は ＋48,852 byte（増えた 12 行 ×〔元の欄 2,310 ＋ 足した欄 1,656〕＋ 元の 15 行 × 84）で、旧の分野の予算 65,536 と要約の規則は今のまま（T0 で消える）。B のとき: toSeismicView が区分ごとに先頭の 5 行と B0 までの欄だけを渡し、新しい経路の材料（表示差分と display-wire.ts の読む view）は 9 行と新しい欄のまま。どちらでも端末の表示は変わらない",
+        "evidenceRefs": [
+          "reconstruction/src/view-projector/view-projector.ts:463 «8c56caf1e30c6a7c»",
+          "reconstruction/src/units/seismic/seismic-unit.ts:1392 «b2e1357512e060b2»"
+        ]
       }
     ],
     "testMapping": [
@@ -440,7 +460,7 @@
           "P4-UQR-AC01",
           "P4-UQR-AC07"
         ],
-        "behavior": "受入条件（並び）。表 §3 の 1〜13 の列を、seismic-fixture.ts の vxse53（通常の区分、発生時刻は origin、OriginTime の無い報は vxse53 の字から <OriginTime> の要素を外した字、訂正・取消は infoType）と receive で、報の時刻を時計にして 2026-11-26（JST）に流す。各段の daily.normal.recent の EventID の列が表のとおり。7・9・11 の段では recent の配列が前の段と同じ object。5' では D の行の鍵が後の報の時刻で上に残り、6 では受けた順を逆にしても同じ列。12 の取消の行は cancelled が true で位置が変わらない。14 では 2 つ目の報の後も G の行の中身と位置が変わらない"
+        "behavior": "受入条件（並び）。表 §3 の 1〜14（5'・5'' を含む）の列を、seismic-fixture.ts の vxse53（通常の区分、発生時刻は origin、OriginTime の無い報は vxse53 の字から <OriginTime> の要素を外した字、訂正・取消は infoType）と、5'' の震度速報は 32-35_01_01_260824_VXSE51 の EventID・ReportDateTime・TargetDateTime を replaceTag で替えた字と、receive で、報の時刻を時計にして 2026-11-26（JST）に流す。各段の daily.normal.recent の EventID の列が表のとおり。7・9・11 の段では recent の配列が前の段と同じ object。5' では D の行の鍵が後の報の時刻で上に残り、5'' では H が VXSE53 の後に OriginTime の位置へ動き、6 では受けた順を逆にしても同じ列。12 の取消の行は cancelled が true で位置が変わらない。14 では 2 つ目の報の後も G の行の中身と位置が変わらない"
       },
       {
         "testId": "P4-UQR-T02",
@@ -550,7 +570,7 @@
     ],
     "artifactRequirements": [
       "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
-      "最初の作業: decisionBranches の 11 件の ruling を読む（baseOid 割当の前に「起草案」が 0 件であること）",
+      "最初の作業: decisionBranches の 12 件の ruling を読む（baseOid 割当の前に「起草案」が 0 件であること）",
       "最小実装: 足す物は並べ替えの比べ 1 つ・保存の行の 2 欄・wire の行の 3 欄・定数の書き換えだけ。ほかに helper・設定・抽象を足さない",
       "最小テスト: testMapping の 3 本のほかに足さない。各テストの対応（受入条件・契約境界・corpus 履歴）を 1 行で書く",
       "「«»」: 行の数を変えない書き方をし（AC08 (3)）、中身を変えた行と、動いた «» を列挙する。check-contract の FAIL の一覧を付ける",
