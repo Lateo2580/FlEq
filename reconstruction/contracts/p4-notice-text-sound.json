@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7b45edd6cffea3505c3c5991bcd423736c3058bc",
-    "sha256": "f156339b1cec3ba316e22aa2386dfcbd310068c93273efb34928e65e4aa1f97f",
+    "sha256": "198e95f6aa838ccc997e755f13d6e231b35f0ff34f0dc020a7ba6c0b2158c91d",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -257,7 +257,7 @@
       {
         "id": "P4-NTS-D-ORDER",
         "kind": "統合担当",
-        "A": "発注 1（U-Q の M の字。AC01）、発注 2（題と本文の字。AC02・AC04・AC05）、発注 3（音と既定と量。AC07〜AC10）の 3 つに割る（P4-NTS-D-ORDER）。r0 の AC03（津波の引下げの題）と AC06（出し直しの印）は r1 で外した（Q-NTS-R1-REMOVED）。各発注は自分の AC と testMapping の行だけを持ち、作者の分岐 1 つが他の発注を止めない。着手条件: 発注 1 は E0 発注 1 の配送の後（計画 §3.2〔main 42b3b1fe〕の seismic-unit.ts の直列 B0 → P4-REMOVAL-LOSS-001 → E0 発注 1 → N0。P4-REMOVAL-LOSS-001 の位置は同契約の P4-RL-D-ORDER=A で確定〔2026-11-22〕。B0 は配送済み 5e013012）。発注 2 は発注 1 の配送の後で T0 の前（tsunami-unit.ts の直列 B0 → P4-REMOVAL-LOSS-001〔位置は案〕→ N0 → T0）、P4-NTS-D-TEXT の裁定。発注 3 は P4-REMOVAL-LOSS-001 より先でよい（tsunami-unit.ts:470・flood-unit.ts・landslide-unit.ts は P4-REMOVAL-LOSS-001 も触る 12 unit の reducer に入るが、裁定済みで小さい発注 3 を先にし、REMOVAL-LOSS が発注 3 の後の木で行を読み直す。統合担当の既定 2026-11-22 00:1x、P4-RL-D-ORDER=A で確定〔2026-11-22〕）。条件は P4-NTS-D-FLOOD-DEFAULT・P4-NTS-D-FLOOD-OBSERVED・P4-NTS-D-L4-SOUND・P4-NTS-D-SOUND-CLASH の裁定（SOUND-CLASH=B なら作者の聞き比べ）と、AC10 だけは Q-NTS-VOLUME-COUNT と P4-NTS-D-VOLUME の裁定。R0 は発注 3 の後に notification-gate.ts を触る。各発注の baseOid を割り当てる前に、その時点の main の木（P4-REMOVAL-LOSS-001・E0 発注 1 が先に配送されていればその後）で allowedPaths・evidenceRefs の行番号と行の数を読み直す",
+        "A": "発注 1（U-Q の M の字。AC01）、発注 2（題と本文の字。AC02・AC04・AC05）、発注 3（音と既定と量。AC07〜AC10）の 3 つに割る（P4-NTS-D-ORDER）。r0 の AC03（津波の引下げの題）と AC06（出し直しの印）は r1 で外した（Q-NTS-R1-REMOVED）。各発注は自分の AC と testMapping の行だけを持ち、作者の分岐 1 つが他の発注を止めない。着手条件: 発注 1 は E0 発注 1a の配送の後（2026-11-26 に計画が E0 発注 1 を 1a・1b に割り、N0 が待つのは 1a。計画 §3.2〔main 42b3b1fe〕の seismic-unit.ts の直列 B0 → P4-REMOVAL-LOSS-001 → E0 発注 1（今の計画では P4-UQ-QUAKE-ROWS-001 → E0 発注 1a）→ N0。P4-REMOVAL-LOSS-001 の位置は同契約の P4-RL-D-ORDER=A で確定〔2026-11-22〕。B0 は配送済み 5e013012）。発注 2 は発注 1 の配送の後で T0 の前（tsunami-unit.ts の直列 B0 → P4-REMOVAL-LOSS-001〔位置は案〕→ N0 → T0）、P4-NTS-D-TEXT の裁定。発注 3 は P4-REMOVAL-LOSS-001 より先でよい（tsunami-unit.ts:470・flood-unit.ts・landslide-unit.ts は P4-REMOVAL-LOSS-001 も触る 12 unit の reducer に入るが、裁定済みで小さい発注 3 を先にし、REMOVAL-LOSS が発注 3 の後の木で行を読み直す。統合担当の既定 2026-11-22 00:1x、P4-RL-D-ORDER=A で確定〔2026-11-22〕）。条件は P4-NTS-D-FLOOD-DEFAULT・P4-NTS-D-FLOOD-OBSERVED・P4-NTS-D-L4-SOUND・P4-NTS-D-SOUND-CLASH の裁定（SOUND-CLASH=B なら作者の聞き比べ）と、AC10 だけは Q-NTS-VOLUME-COUNT と P4-NTS-D-VOLUME の裁定。R0 は発注 3 の後に notification-gate.ts を触る。各発注の baseOid を割り当てる前に、その時点の main の木（P4-REMOVAL-LOSS-001・E0 発注 1a が先に配送されていればその後）で allowedPaths・evidenceRefs の行番号と行の数を読み直す",
         "B": "1 本の発注で全部を当てる",
         "recommended": "A",
         "provisional": "A",
