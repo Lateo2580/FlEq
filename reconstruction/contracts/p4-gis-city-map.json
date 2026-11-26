@@ -1,7 +1,7 @@
 {
   "meta": {
-    "draftedFromOid": "8f95ab042b5bea87a3f6017818b36f99c47e3132",
-    "sha256": "10cec56c3b1dc9db461c8a3cff61e447f9e475f00fdc573cd6b9f856628e0f74",
+    "draftedFromOid": "0131ba16dd352e83ae5e9d44e7eda2301f46d07a",
+    "sha256": "563071b6b0d2a8d7cfbd22569a9d38f0c632ac52990386253ad17b29a5a53b14",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -241,7 +241,7 @@
       },
       {
         "id": "P4-GCM-AC04",
-        "requirement": "【P4-GCM-D-UNNAMED-ROWS=A のとき。B・C の裁定なら、照合表と期待の一覧の 15 行・本 AC・AC01 の不変条件と被覆と件数・T01 を裁定の形に改めてから baseOid を割り当てる】形の確かめ（P4-GCM-D-SHAPE-CHECK=A、統合担当が AC06 の P3 で 1 回）。対象は字だけでは決まらない 12 区: 補集合の読み 6（0410200・0410300・2210200・2210300・2213800・2213900）、分割 3（0410100・0410400・2210100）、S1 と S2 が食い違う相模原 3（1415100・1415200・1415300）。(1) zoom の形: 表 §4 の方法（city.zoom.v1.json と weatherCity.zoom.v1.json、manifest の zoom の sha256 と同じこと、外接矩形の 60×60 のセルの中心、全輪の偶奇、どの区域にも入らない点・2 つ以上に入る点は候補の外） (2) 間引く前の形: 表 §4 の点検の本番の行（Mac mini の main の checkout の mapshaper 0.7.49、manifest の layers.city・layers.weatherCity の archive を source.archiveSha256 と照らし、build-shapes.mjs が県の所属で使う読み〔archive・encoding=utf8・transform.args.zoom の -simplify より前の引数・-o - format=geojson precision=0.0000001〕で GeoJSON にする。格子は 200×200） (3) 合格の条件（起草の決め、P4-GCM-D-SHAPE-CHECK）: (1)(2) の両方で、各区の照合表の候補の割合がどれも 0.05 以上、候補の外の割合の合計が 0.01 以下。割合は丸める前の点の数の比で比べる。中に入る点が 0 の区は止める。割合 0.01 未満の細片は、境の描き方の差と区別できないので候補の判定に使わない（この大きさより小さい候補の漏れは見逃す、表 §4 の下見の限り）。下見（zoom、60×60）の値は候補の最小 0.1321（0410100 → 0410001）、候補の外は 12 区とも 0。条件を満たさない値が出たら、その区の組を照合表と期待の一覧に書かず、点検を止めて blocked とする (4) 相模原は、(1)(2) の形が S1 の側（1415100 → 1415011、1415200・1415300 → 1415012）を支持したときだけ S1 の字で照合する（P4-GCM-D-UNNAMED-ROWS の A）。S2 の側を支持したら止めて、統合担当が作者へ戻す (5) manifest の knownGapsAndExclusions の kind「shapeCheck」の要素（city・weatherCity・basis・pointsZoom・shareZoom・pointsSource・shareSource）の（city, weatherCity, basis）の集合は、照合表の根拠「形」の 12 行と、kind「sourceConflict」の cities（相模原の 3 コード）を地震コードに持つ 3 行の（地震コード, 気象コード, 根拠）の集合と、重複なしで完全に一致する（期待 15。津波の build-tsunami-region.mjs が excludedRow を manifest と並べ替えて完全一致で照らす形に倣う）。build はこの一致を確かめて止め、割合は計算し直さない。無いと壊れる振る舞い: 補集合の 6 区と分割の 3 区の組は字の読みだけに依り、相模原は 2 つの公的な資料のどちらを採ったかを確かめる手が無い",
+        "requirement": "【P4-GCM-D-UNNAMED-ROWS=A のとき。B・C の裁定なら、照合表と期待の一覧の 15 行・本 AC・AC01 の不変条件と被覆と件数・T01 を裁定の形に改めてから baseOid を割り当てる】形の確かめ（P4-GCM-D-SHAPE-CHECK=A、統合担当が AC06 の P3 で 1 回）。対象は字だけでは決まらない 12 区: 補集合の読み 6（0410200・0410300・2210200・2210300・2213800・2213900）、分割 3（0410100・0410400・2210100）、S1 と S2 が食い違う相模原 3（1415100・1415200・1415300）。(1) zoom の形: 表 §4 の方法（city.zoom.v1.json と weatherCity.zoom.v1.json、manifest の zoom の sha256 と同じこと、外接矩形の 60×60 のセルの中心、全輪の偶奇、どの区域にも入らない点・2 つ以上に入る点は候補の外） (2) 間引く前の形: 表 §4 の点検の本番の行（Mac mini の main の checkout の mapshaper 0.7.49、manifest の layers.city・layers.weatherCity の archive を source.archiveSha256 と照らし、build-shapes.mjs が県の所属で使う読み〔archive・encoding=utf8・transform.args.zoom の -simplify より前の引数・-o - format=geojson precision=0.0000001〕で GeoJSON にする。格子は 200×200） (3) 合格の条件（起草の決め、P4-GCM-D-SHAPE-CHECK）: (1)(2) の両方で、各区の照合表の候補の割合がどれも 0.05 以上、候補の外の割合の合計が 0.01 以下。割合は丸める前の点の数の比で比べる。中に入る点が 0 の区は止める。割合 0.01 未満の細片は、境の描き方の差と区別できないので候補の判定に使わない（この大きさより小さい候補の漏れは見逃す、表 §4 の下見の限り）。下見（zoom、60×60）の値は候補の最小 0.1321（0410100 → 0410001）、候補の外は 12 区とも 0。条件を満たさない値が出たら、その区の組を照合表と期待の一覧に書かず、点検を止めて blocked とする (4) 相模原は、(1)(2) の形が S1 の側（1415100 → 1415011、1415200・1415300 → 1415012）を支持したときだけ S1 の字で照合する（P4-GCM-D-UNNAMED-ROWS の A）。S2 の側を支持したら止めて、統合担当が作者へ戻す (5) manifest の knownGapsAndExclusions の kind「shapeCheck」の要素（city・weatherCity・basis・pointsZoom・shareZoom・pointsSource・shareSource）の（city, weatherCity, basis）の集合は、照合表の根拠「形」の 12 行と、kind「sourceConflict」の cities（相模原の 3 コード）を地震コードに持つ 3 行の（地震コード, 気象コード, 根拠）の集合と、重複なしで完全に一致する（期待 15。津波の build-tsunami-region.mjs が excludedRow を manifest と並べ替えて完全一致で照らす形に倣う）。あわせて build は、kind「sourceConflict」の要素がちょうど 1 つで、その cities が相模原の 3 区の地震コード {1415100 相模原緑区, 1415200 相模原中央区, 1415300 相模原南区}（S1 の B 列「神奈川県相模原市のうち緑区」「…のうち中央区」「…のうち南区」、表 §4 の行）と重複なしで完全に一致することを確かめる（cities と shapeCheck を別の 3 行へ一緒に差し替えると、15 件と集合の一致が保たれたまま相模原の証跡が落ちるため）。build はこの 2 つの一致を確かめて止め、割合は計算し直さない。無いと壊れる振る舞い: 補集合の 6 区と分割の 3 区の組は字の読みだけに依り、相模原は 2 つの公的な資料のどちらを採ったかを確かめる手が無い",
         "evidenceRefs": [
           "reconstruction/contracts/p4-gis-city-map-tables.md:75 «09450e52e45fb224»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:77 «867ecb6d4871bd50»",
@@ -250,6 +250,8 @@
           "reconstruction/contracts/p4-gis-city-map-tables.md:85 «961d2510765c3122»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:86 «f23fad3f2f25c730»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:91 «5ff23fef73a4c00e»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:92 «5cb119d2db0e2d32»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:93 «c43480f342dd893b»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:96 «9ecba27ac6340256»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:97 «427f1c31cef884cb»",
           "reconstruction/contracts/p4-gis-city-map-tables.md:98 «88e8b32ef8cc0e77»",
