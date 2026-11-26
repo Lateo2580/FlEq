@@ -1,7 +1,7 @@
 # P4-UQ-QUAKE-ROWS-001 の設計の表 r4（今日の地震の材料を新しい経路に足す）
 
 - 起草: 2026-11-26 17:33（date の値。起草の子 r0）。基点 e5e65ac5cc817815eef1d69203a3d56f3dfc0225（branch draft/p4-uq-quake-rows）。行番号と anchor はこの HEAD の値。r1（2026-11-26 夜）は r0（9ff3cade）へのヘルツ（品質、NO-GO: P1 1・P2 6）と契約適合の子（条件付き GO: P2 2・P3 6）の指摘を統合担当がまとめた直し 11 件を当てた（対応は §11）。r3（2026-11-26 18:20）で統合担当の分岐 10 件を A で確定し、r4（2026-11-26 18:38 の後）で作者が D-EDGE に A と答えた。実装と配送は次のセッション（作者の指示）で、baseOid は割り当てていない。
-- 範囲の元: 計画 reconstruction/contracts/p4-order-plan.md:124 «81df930d148e1b35»（C0 の依存の字）・reconstruction/contracts/p4-order-plan.md:192 «7fb74ce4b983f6c1»（Wave 2 の直列）・reconstruction/contracts/p4-order-plan.md:223 «a604c88e73f7fd83»（display-wire.ts の直列）・reconstruction/contracts/p4-order-plan.md:225 «ed4c1d57134bc802»（seismic-unit.ts の直列）。
+- 範囲の元: 計画 reconstruction/contracts/p4-order-plan.md:124 «9e5c2e60c4b40877»（C0 の依存の字）・reconstruction/contracts/p4-order-plan.md:192 «faa5d3700dd6dbcb»（Wave 2 の直列）・reconstruction/contracts/p4-order-plan.md:223 «6869c9a26915589c»（display-wire.ts の直列）・reconstruction/contracts/p4-order-plan.md:225 «0e33a4895d9472de»（seismic-unit.ts の直列）。
 - 作者の裁定は 3 つ（9 行を選ぶ母集団 P4-UQR-D-EDGE は 作者の裁定 2026-11-26 18:38「「9行の端で訂正」についてはAでお願いします。」、§2.10）: A17（区分ごとに 9 行）と B4（発生の新しい順、上限の行を残すときも同じ順）。2026-11-26 15:06 の発言「作業お疲れ様です。地震・対応表ともに判断事項は全て推奨で進めてください！」を、判断カード `2026-11-26-P4-今日の地震の行の数と並び.md`（repo 外）の末尾「裁定」が A17・B4 の推奨と読んだ。ほかの決めは decisionBranches の統合担当の案（起草の子が置いた案）で、10 件とも 2026-11-26 18:20 に統合担当が A で確定した（作者の字ではない）。
 - 範囲外: コードから札の字への対応と、深さの字（「以上」「未満」・欠け・読めない座標）。どちらも画面が変わる未裁定の問いなので §7 に C0（P4-STANDBY-CARDS-001、未起草）への問いとして書く。
 
@@ -17,21 +17,21 @@
 
 | 読む所 | file:行 | 今の振る舞い | 本契約で変わるか |
 |---|---|---|---|
-| 行の上限 | reconstruction/src/units/seismic/seismic-unit.ts:54 «5b20638b16ebc429» | `RECENT_LIMIT = 5` | 9 にする（行の中） |
-| 今日の判定 | reconstruction/src/units/seismic/seismic-unit.ts:470 «5c9502c91a40cd3b»・reconstruction/src/units/seismic/seismic-unit.ts:471 «bd30394a2ae65b0a» | 発生時刻（無ければ報の ReportDateTime）が受信日と同じときだけ行に入れる。読めなければ入れない | :470 で、40 字を超える発生時刻の報は今日の判定を通さない（行を作らず、ある行も触らない。D-KEY=A。判定と並びの鍵を同じ字にそろえる） |
-| 行の時刻の欄 | reconstruction/src/units/seismic/seismic-unit.ts:416 «8381eb3e8dd350c6»・reconstruction/src/units/seismic/seismic-unit.ts:476 «ae5d7bf973b11c83» | 発生時刻・報の時刻は 40 字を超えると null。報の時刻は行を作り直した報（最後に採った報）の値 | 変えない。並びの鍵はこの 2 つの欄から作る（§2.1）。報の時刻は受理が 25 字以内に限る（seismic.ts:58・:66）ので null にならない |
-| 行を作る所 | reconstruction/src/units/seismic/seismic-unit.ts:479 «b81c845945742c8e» | 津波は評価の文だけ（VXSE52・VXSE53 の文、VXSE51 は null）、128 字で切る | 同じ所でコードの組を足す（§2.3） |
-| 行を入れて切る所 | reconstruction/src/units/seismic/seismic-unit.ts:481 «5a0c6b63f1545473» | 作った行を先頭へ入れ、先頭の 5 行を残す（最後に受けた順） | 並べ直して先頭の 9 行を残す（§3） |
+| 行の上限 | reconstruction/src/units/seismic/seismic-unit.ts:54 «87d4b6ed6bf60bc8» | `RECENT_LIMIT = 5`（配送の後は 9） | 9 にする（行の中） |
+| 今日の判定 | reconstruction/src/units/seismic/seismic-unit.ts:470 «7e268fabb9c7fef6»・reconstruction/src/units/seismic/seismic-unit.ts:471 «bd30394a2ae65b0a» | 発生時刻（無ければ報の ReportDateTime）が受信日と同じときだけ行に入れる。読めなければ入れない（配送の後は、40 字を超えるか時差を明示した ISO の形〔`ISO_TIME`、:416〕でない発生時刻〔無ければ報の時刻〕の報は今日の判定を通さない。Q-UQR-ISO-TIME） | :470 で、40 字を超える発生時刻の報は今日の判定を通さない（行を作らず、ある行も触らない。D-KEY=A。判定と並びの鍵を同じ字にそろえる） |
+| 行の時刻の欄 | reconstruction/src/units/seismic/seismic-unit.ts:416 «f7e5ee84d9bd6925»・reconstruction/src/units/seismic/seismic-unit.ts:476 «ae5d7bf973b11c83» | 発生時刻・報の時刻は 40 字を超えると null。報の時刻は行を作り直した報（最後に採った報）の値 | 変えない。並びの鍵はこの 2 つの欄から作る（§2.1）。報の時刻は受理が 25 字以内に限る（seismic.ts:58・:66）ので null にならない |
+| 行を作る所 | reconstruction/src/units/seismic/seismic-unit.ts:479 «e077e294e50e3991» | 津波は評価の文だけ（VXSE52・VXSE53 の文、VXSE51 は null）、128 字で切る（配送の後はコードの組 `tsunamiCodes`・`omittedTsunamiCodes` も入れる） | 同じ所でコードの組を足す（§2.3） |
+| 行を入れて切る所 | reconstruction/src/units/seismic/seismic-unit.ts:481 «4550283ee0f91bf6» | 作った行を先頭へ入れ、先頭の 5 行を残す（最後に受けた順。配送の後は発生の新しい順に並べて先頭の 9 行） | 並べ直して先頭の 9 行を残す（§3） |
 | 公開事実の津波の欄 | reconstruction/src/units/seismic/seismic-unit.ts:246 «142e88a6b31d85cb»・reconstruction/src/units/seismic/seismic-unit.ts:250 «7ecce1cc8e4edafa» | VXSE53・VXSE52 の新しい方、どちらも無ければ VXSE51 の寄与の固定付加文（コードの組と文） | 変えない。コードの組はこの寄与から取る |
 | 固定付加文の受理 | reconstruction/src/domains/seismic/seismic.ts:188 «ad38c48131d2f23d» | Code の字を空白で割った全部の字。件数・字の形の上限は無い | 変えない。行に写すときに上限を当てる（§2.3） |
 | 深さの受理 | reconstruction/src/domains/seismic/seismic.ts:165 «7572b73b89c45980»・reconstruction/src/domains/seismic/seismic.ts:167 «a8792c11809bf6f1» | description の「深さ N km 以上」は range lower、「未満」「以下」は range upper（2 つを区別しない）。数と食い違えば number のまま（depthConflict） | 変えない |
-| 行の復元 | reconstruction/src/units/seismic/seismic-unit.ts:1599 «1ae058f5aa3719d2»・reconstruction/src/units/seismic/seismic-unit.ts:1617 «4d5976ed5fdb24ce» | 欄ごとに字の長さと形を確かめる。行の数は `RECENT_LIMIT` まで | 新しい欄と、行の並び・EventID の一意を確かめる（§2.6）。:1617 は他の契約が引くので変えず、:1614〜:1616・:1618〜:1620 の行の中に置く |
-| 保存の版 | reconstruction/src/units/seismic/seismic-unit.ts:36 «c896f909a2139054» | p3-seismic-unit-v9 | v10（§2.6） |
-| 保存の予算 | reconstruction/src/units/seismic/seismic-unit.ts:59 «61c045e083c85ef2»・reconstruction/src/units/seismic/seismic-unit.ts:63 «8cb830971ba4bd10»・reconstruction/src/units/seismic/seismic-unit.ts:69 «ebda797d76ae3016» | 当日の行に足した欄（B0）の増え `RECENT_GROWTH` が `MEMORY_GROWTH` を通って `GENERATION_LIMIT`・`RESERVE_BYTES` に入る。元の 5 行の欄は `283_209` の中（1 行 1,206 byte、1 字 3 byte） | :58〜:59 の行の中だけを変える（§4）。:63・:69 は変えない |
-| wire の行 | reconstruction/src/view-projector/display-wire.ts:490 «0d89ea8c93445cb0»・reconstruction/src/view-projector/display-wire.ts:491 «0fd4e5e595d753ab» | 深さは生の字だけ（`valueText(rawOf(row.depth), null)`）、津波は文だけ | `depthBound`・`tsunamiCodes`・`omittedTsunamiCodes` を足す |
-| wire の行の列 | reconstruction/src/view-projector/display-wire.ts:501 «015b54c047b5fe26» | 通常・訓練・試験の順に各区分の recent を繋ぐ。上限の定数は無い（15 は `RECENT_LIMIT`×3 から出る） | 変えない（最大 27 行になる） |
-| 新しい経路の上界 | reconstruction/src/view-projector/display-wire.ts:544 «200e4e54f06f0a6b» | `NEW_PATH_FIXED_BOUND = 377_434`（9 分野の和がこれと合わせて 1 MiB に届かない間は全体を数えない近道） | 399,277 にする（§5.1）。下回ると近道が 1 MiB 越えを見落とす |
-| 型 | reconstruction/contracts/p3-seismic-unit.types.ts:158 «1e8bf8f982e918f6»・reconstruction/contracts/p4-display-wire.types.ts:77 «6268402a8543ac81» | SeismicRecentQuake・EarthquakeRowWire | 行の中で欄を足す |
+| 行の復元 | reconstruction/src/units/seismic/seismic-unit.ts:1599 «77eaff8782af9472»・reconstruction/src/units/seismic/seismic-unit.ts:1617 «4d5976ed5fdb24ce» | 欄ごとに字の長さと形を確かめる。行の数は `RECENT_LIMIT` まで（配送の後は新しい 2 欄・行の並び・EventID の一意も確かめる） | 新しい欄と、行の並び・EventID の一意を確かめる（§2.6）。:1617 は他の契約が引くので変えず、:1614〜:1616・:1618〜:1620 の行の中に置く |
+| 保存の版 | reconstruction/src/units/seismic/seismic-unit.ts:36 «51ecd1c5f96ca6f0» | p3-seismic-unit-v9（配送の後は v10） | v10（§2.6） |
+| 保存の予算 | reconstruction/src/units/seismic/seismic-unit.ts:59 «a8e95aa09933eaa4»・reconstruction/src/units/seismic/seismic-unit.ts:63 «8cb830971ba4bd10»・reconstruction/src/units/seismic/seismic-unit.ts:69 «ebda797d76ae3016» | 当日の行に足した欄（B0）の増え `RECENT_GROWTH` が `MEMORY_GROWTH` を通って `GENERATION_LIMIT`・`RESERVE_BYTES` に入る。元の 5 行の欄は `283_209` の中（1 行 1,206 byte、1 字 3 byte。配送の後は `RECENT_GROWTH` が 27 行の全欄を 1 字 6 byte で数えて 15×1,206 を引く、88,992） | :58〜:59 の行の中だけを変える（§4）。:63・:69 は変えない |
+| wire の行 | reconstruction/src/view-projector/display-wire.ts:490 «a785cc27e564faf5»・reconstruction/src/view-projector/display-wire.ts:491 «06bc13e6ab8c1e38» | 深さは生の字だけ（`valueText(rawOf(row.depth), null)`）、津波は文だけ（配送の後は `depthBound`・`tsunamiCodes`・`omittedTsunamiCodes` も載る） | `depthBound`・`tsunamiCodes`・`omittedTsunamiCodes` を足す |
+| wire の行の列 | reconstruction/src/view-projector/display-wire.ts:501 «015b54c047b5fe26» | 通常・訓練・試験の順に各区分の recent を繋ぐ。上限の定数は無い（15 は `RECENT_LIMIT`×3 から出る。配送の後は 27） | 変えない（最大 27 行になる） |
+| 新しい経路の上界 | reconstruction/src/view-projector/display-wire.ts:544 «d4fe00fb27a44051» | `NEW_PATH_FIXED_BOUND = 377_434`（9 分野の和がこれと合わせて 1 MiB に届かない間は全体を数えない近道。配送の後は `399_277`） | 399,277 にする（§5.1）。下回ると近道が 1 MiB 越えを見落とす |
+| 型 | reconstruction/contracts/p3-seismic-unit.types.ts:158 «07bfe59a02d70b05»・reconstruction/contracts/p4-display-wire.types.ts:77 «defe13a9fe21009f» | SeismicRecentQuake・EarthquakeRowWire | 行の中で欄を足す |
 | 旧の経路の view | reconstruction/src/view-projector/view-projector.ts:463 «8c56caf1e30c6a7c» | U-Q の view の daily（recent を含む）を full の固定の部分として数える | 旧の /events の行の数と欄は D-LEGACY で決める（§6）。並びはどちらの案でも発生の新しい順 |
 
 - `daily.recent` を読む所は、reconstruction/src の grep（`\.recent\b`・`recent\[`）で seismic-unit.ts のほかに display-wire.ts:501 だけ。reconstruction/src/cli・reconstruction/src/terminal に `daily` を読む行は無い（grep）。端末の画面は変わらない。
@@ -66,7 +66,7 @@
 | B 最大 8 個（数を持たない） | `tsunamiCodes` だけ。9 個目からと形の外れた字は黙って落ちる | ＋73 |
 | C Code の字を 1 本のまま（32 字で切る） | `tsunamiCode: string \| null` | ＋209 |
 
-- 無いと何が壊れるか: コードが wire に無いと、C0 は札（DS-QROW-07・08、docs/specs/reconstruction-display-design.md:303 «c475f3e514d6d25e»・docs/specs/reconstruction-display-design.md:304 «63b49230db87d968»）を評価の文の字から推すしかない（DS-OPEN-12、docs/specs/reconstruction-display-design.md:414 «a4f0fb6c8a0b7105»）。
+- 無いと何が壊れるか: コードが wire に無いと、C0 は札（DS-QROW-07・08、docs/specs/reconstruction-display-design.md:303 «c475f3e514d6d25e»・docs/specs/reconstruction-display-design.md:304 «63b49230db87d968»）を評価の文の字から推すしかない（DS-OPEN-12、docs/specs/reconstruction-display-design.md:414 «268e52137679aba8»）。
 - A の根拠: fixture の実物は 1 報に 1〜2 個（`0215 0241`・`0211 0241`、c0-prep の数え。repo 外）。受理（seismic.ts:188）は件数も字の形も見ないので、保存の上限と decode の確かめが要る。数を持つので、落とした字があったことが画面の側に残る。
 - 保存の byte は decode が各コードを `^\d{4}$` と確かめる前提で 1 字 1 byte。
 
@@ -90,7 +90,7 @@
 
 | 案 | 中身 | 起きること |
 |---|---|---|
-| A v10 に上げ、v9 は読まない。v10 の decode は区分ごとに行が 9 以下・鍵の降順（§2.2 の同時刻の順）・EventID の一意を確かめ、外れたら invalid（推奨） | 前例 P4-DW-AC16（reconstruction/contracts/p4-display-wire.json:684 «545ae74aa0f044cf»）と同じ。v9 の slot は一覧に無い版として unknownSchema で読まれ、その run で U-Q は保存しない（P3-MIG-AC01）。配送で、開発機の新築の U-Q-A.json・U-Q-B.json のうち v10 でない slot を作者の了承を得て消す（P3-MIG-AC02 (2)）。Pi は旧築なので消さない | v9 の 5 行（最後に受けた順）は読まれない。新築は未稼働で、P5 の前は保存の初期化を許す（作者の裁定 2026-10-20）。並びが崩れた・EventID が重なった保存を読むと、表示の行が規則の外になり、:481 の「その EventID の行を除く」が重なった行を両方消すので、境界で拒む。試験が手で組む当日履歴（seismic-capacity.test.ts:699・seismic-unit.test.ts:1160 は読めない字の発生時刻〔同じ鍵〕の行を EventID の昇順に並べる）は EventID の降順に組み直す |
+| A v10 に上げ、v9 は読まない。v10 の decode は区分ごとに行が 9 以下・鍵の降順（§2.2 の同時刻の順）・EventID の一意を確かめ、外れたら invalid（推奨） | 前例 P4-DW-AC16（reconstruction/contracts/p4-display-wire.json:684 «c3bc6ea8b5eba5b9»）と同じ。v9 の slot は一覧に無い版として unknownSchema で読まれ、その run で U-Q は保存しない（P3-MIG-AC01）。配送で、開発機の新築の U-Q-A.json・U-Q-B.json のうち v10 でない slot を作者の了承を得て消す（P3-MIG-AC02 (2)）。Pi は旧築なので消さない | v9 の 5 行（最後に受けた順）は読まれない。新築は未稼働で、P5 の前は保存の初期化を許す（作者の裁定 2026-10-20）。並びが崩れた・EventID が重なった保存を読むと、表示の行が規則の外になり、:481 の「その EventID の行を除く」が重なった行を両方消すので、境界で拒む。試験が手で組む当日履歴（seismic-capacity.test.ts:699・seismic-unit.test.ts:1160 は読めない字の発生時刻〔同じ鍵〕の行を EventID の昇順に並べる）は EventID の降順に組み直す |
 | B v10 で decode は並びを確かめない | 保存は受けるたびに並べ直した列だけが書かれる | r0 の推奨。崩れた保存を読むと次の受信まで規則の外の並びが出る（ヘルツ P2） |
 | C v9 を読んで並べ直す（移行） | v9 の行に新しい欄の空の値を足して並べ直す | 旧い形を読む移行を作る（AC16 は作らなかった）。新しい欄の値は v9 から作れない |
 
@@ -194,7 +194,7 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | 377,434（今） | 1,610 | U-F だけ | 1,133,457 | 947,213 | 0 | — |
 | 399,277（本契約） | 1,789 | U-F だけ（1,789 公開とも U-F 1 つ） | 1,155,300 | 969,056 | 0 | U-F・U-M・U-R・U-W |
 
-- 377,434 の行は容量の表 reconstruction/contracts/p4-display-capacity-tables.md:65 «d04ca2e6f76aeb84» の 1,610 公開・1,133,457 と一致する。
+- 377,434 の行は容量の表 reconstruction/contracts/p4-display-capacity-tables.md:65 «53a13115de77f355» の 1,610 公開・1,133,457 と一致する。
 - 2 つ目の U-M に届かず、収まらない公開は 0。保護 3 分野は要約にならない（H37）。本契約の 9 行は上界 399,277 の中に入っている。
 - 判断カード §5 の 1,789（今の欄で 9 行、子 a17count の推計）と同じ数になった。
 - 記録: r0・r1 の起草の子の推計（`.tmp-uq/m5.py`、量り直す前の `.tmp-s0/m2-M5.json` の全部の公開に U-W を一律に ＋40,696・＋40,732・＋49,186 を足した値）は 1,911・1,918・2,124 公開だった。量り直しの値で置き換えた。

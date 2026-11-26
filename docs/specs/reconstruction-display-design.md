@@ -411,7 +411,7 @@ DS の部品の README と tokens に散る未決:
 - DS-OPEN-09 レベルの付かない特別警報（暴風・大雪など）の札の形は、まだ決めていない（LevelChip README:8）。札の欄が空く行の見え方も一緒に決める（2026-11-23 夜の点検、README:257）。
 - DS-OPEN-10 大津波警報の点滅の扱いは判断カード 6 で未決（tokens の `tsunami-major`）。
 - DS-OPEN-11 最大予測震度のみの報が画面にどれくらい残るかは未確認（手元の corpus と fixture に実例 0 件）（EewCard README:14）。
-- DS-OPEN-12 津波の札を分けるコードは、今の表示の wire（`EarthquakeRowWire.tsunami` は文だけ）に無い。出すには足す契約が要る。どの報にどのコードが来るか、1 報に複数のコードが来たときどれで札を決めるかも未決（C0 の起草で表にする）（QuakeRow README:13・:17）。
+- DS-OPEN-12 津波の札を分けるコードは、P4-UQ-QUAKE-ROWS-001 で wire に載った（`EarthquakeRowWire.tsunamiCodes`〔4 桁の数字を電文の順に 4 個まで〕と `omittedTsunamiCodes`。`tsunami` は評価の文）。どの報にどのコードが来るか、1 報に複数のコードが来たときどれで札を決めるかは未決（C0 の起草で表にする、同契約の C0-Q1）（QuakeRow README:13・:17）。
 - DS-OPEN-13 区域名は今の表示の wire に無い。出すには区域の資材から引く契約が要る（WarningCard README:10）。
 
 次の問いの未決と未確認:

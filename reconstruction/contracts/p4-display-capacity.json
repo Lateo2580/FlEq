@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "4f4a9a5203efdf9fc3e56b9604d7e81eb8ac8835",
-    "sha256": "5c0ffec16fd885cde2965d0042f0118286cfbed4c0709bddf0dc01fb00156fa8",
+    "sha256": "3ff2966b76a06710d37f79416657e2dd769df4cfe78ea30eb16273daa8fcc7d1",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -166,7 +166,7 @@
   "contract": {
     "contractId": "P4-DISPLAY-CAPACITY-001",
     "mode": "implementation",
-    "objective": "新しい経路の snapshot の容量の規則を仕上げる（計画 §2.1 の B1、§4.3）。全体が 1 MiB を超えたとき 9 分野を作者裁定 B の順で 1 つずつ要約にし、通常の更新の公開を最大 1 秒まとめ、緊急の更新は待たずに公開し、慢性的に遅い SSE の客を切り、671,142 の近道の定数を script の上界に結び、通常合法最大の manifest（E13a）と意図した超過の期待を固定する。保護 3 分野は要約にしない（H37）。設計の表は reconstruction/contracts/p4-display-capacity-tables.md",
+    "objective": "新しい経路の snapshot の容量の規則を仕上げる（計画 §2.1 の B1、§4.3）。全体が 1 MiB を超えたとき 9 分野を作者裁定 B の順で 1 つずつ要約にし、通常の更新の公開を最大 1 秒まとめ、緊急の更新は待たずに公開し、慢性的に遅い SSE の客を切り、649,299 の近道の定数（P4-UQ-QUAKE-ROWS-001 で改訂）を script の上界に結び、通常合法最大の manifest（E13a）と意図した超過の期待を固定する。保護 3 分野は要約にしない（H37）。設計の表は reconstruction/contracts/p4-display-capacity-tables.md",
     "baseOid": "09f25b3e77702e97b633728c964cf717f7c1fbe8",
     "cleanTreeRequired": true,
     "readPaths": [
@@ -278,7 +278,7 @@
         "target": "新しい経路の snapshot 全体",
         "limit": 1048576,
         "unit": "UTF-8 JSON bytes",
-        "scope": "全公開の上界（B は途中で止まるので公開の上界は 1,048,576）。越えたら 65,536 を越えた 9 分野を B の順で 1 つずつ要約にし、入ったら止める。予算を越えた分野を全部要約にしたときの上界は 377,434 ＋ 9 × 65,536 ＝ 967,258（P4-DV-RES-03 を改める）",
+        "scope": "全公開の上界（B は途中で止まるので公開の上界は 1,048,576）。越えたら 65,536 を越えた 9 分野を B の順で 1 つずつ要約にし、入ったら止める。予算を越えた分野を全部要約にしたときの上界は 399,277 ＋ 9 × 65,536 ＝ 989,101（P4-UQ-QUAKE-ROWS-001 で改訂）（P4-DV-RES-03 を改める）",
         "source": "表 §2.1"
       },
       {
@@ -309,7 +309,7 @@
     "acceptanceChecks": [
       {
         "id": "P4-DC-AC01",
-        "requirement": "要約の選び（作者裁定 P4-DC-D-SUMMARY-ORDER=B、表 §2.1）: (1) 9 分野の full の和と NEW_PATH_FIXED_BOUND の和が 1,048,576 以下なら全体を数えない（今の近道のまま） (2) 全体を数えて 1,048,576 以下なら全部 full (3) 越えたら、包みが 65,536 を越えた 9 分野だけを U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、1 つごとに全体から full の byte を引いて要約の包みの実の byte を足し（上界 3,882 で代用しない）、1,048,576 以下になったら止める。65,536 以下の分野と保護 3 分野は要約にしない (4) 繰り返しは 9 回まで、全 subject の数え直しと全 state の直列化をしない (5) 次の公開で同じ式を最初から当てる（復帰の timer・履歴を持たない） (6) :866 のコメントを B の字に書き換える (7) 公開の上界は 1,048,576。967,258 は予算を越えた分野を全部要約にしたときだけ",
+        "requirement": "要約の選び（作者裁定 P4-DC-D-SUMMARY-ORDER=B、表 §2.1）: (1) 9 分野の full の和と NEW_PATH_FIXED_BOUND の和が 1,048,576 以下なら全体を数えない（今の近道のまま） (2) 全体を数えて 1,048,576 以下なら全部 full (3) 越えたら、包みが 65,536 を越えた 9 分野だけを U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、1 つごとに全体から full の byte を引いて要約の包みの実の byte を足し（上界 3,882 で代用しない）、1,048,576 以下になったら止める。65,536 以下の分野と保護 3 分野は要約にしない (4) 繰り返しは 9 回まで、全 subject の数え直しと全 state の直列化をしない (5) 次の公開で同じ式を最初から当てる（復帰の timer・履歴を持たない） (6) :866 のコメントを B の字に書き換える (7) 公開の上界は 1,048,576。989,101 は予算を越えた分野を全部要約にしたときだけ",
         "evidenceRefs": [
           "reconstruction/src/view-projector/display-wire.ts:866 «9a92f96bb58f5dd2»",
           "reconstruction/src/view-projector/display-wire.ts:871 «7bc2896cb98ff782»",
@@ -386,7 +386,7 @@
       },
       {
         "id": "P4-DC-AC06",
-        "requirement": "通常合法最大の manifest（E13a、P4-DC-D-E13A-DEF、表 §8）: (1) E1〜E6 を repo の入力で組んだ試験で、E1・E2 の 1 件の part=item の 1 応答が 65,536 以下、E3 の U-W が全体 1 MiB 以下で full のまま、E4 の U-E（同時の EventID は B0 のカードの上限まで）のカードの区域と合成の段・E5 の U-T（同時の EventID は B0 の津波の件数の上限まで）の予報区の行と区分の合成が期待の集合と一致し、eew.wire.omitted（p4-display-wire.types.ts の EewWire）・tsunami の omittedEvents・omittedUnkeyed が 0（欠け・誤値 0、要約と取得待ちを免除にしない）、E4b の最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件にした組で、合成が全部の通常の報の区域ごとの最大と一致し、eew.wire.omitted が 1、カードは上限の枚数（B1 が主張するのは合成と omitted まで。E4b の EventID ごとの値は未裁定で、E13a の Pass に数えない〔spec:1865〕。配送の記録に書く。上限を越えた報の EventID ごとの値は E0 発注 1 の板、Q-DC-MANY-EVENTS の closed）、E6（保護 3 分野・通知・共通部は E13a の最大で組む。U-E は E4、U-T は E5。U-Q は B0 の行数の上限（区分ごとに 5 行、既知の市町村 1,894 の合成、長周期の見出し 2 件）。通知は 64 件で 131,072 の手前、共通部は 65,536 の手前。escape の最悪で組む 377,434 との組は、型の最大値の試験（P4-DW-AC04）と表 §2.1 の算術が持つ）で全体が 1,048,576 以下・要約は B の順で止まり・E4・E5 の期待集合は欠けない (2) 保護 3 分野は新しい経路で要約にならない（包みに delivery が無い）ことを、旧の経路が U-T・U-Q を要約にする入力（disaster.test.ts の P3-DC-T09 の組み方）で見る (3) E7（N1・N2・N3・W1 の 3 日・W2）は T06 が採取物の dir を環境変数で渡したときだけ流し、統合担当が Mac mini で流して新しい経路の要約 0・全体の最大を配送の記録に書く（r4 の量った値: N1 55,481・N2 72,667・N3 401,045・W1 と W2 の最大 372,121）。採取物が無ければ blocked で、Pass にしない (4) E8（W1 06-26 ＋ 訓練の写し、r4 §7）は repo に入れず、統合担当が r4 の道具で Mac mini で流して配送の記録に書く（量った値: 要約 0、全体の最大 726,105） (5) E13a の外の行（他分野の要約中の O09:8・27・36・45・54・63、対象自身の意図した超過の O09:21〔E4b のカードの上限＋1 件は入れない〕・28・37・46・55・64、津波との同時の O09:22）は PM が持ち、入力の受け渡しは Q-DC-PM-OVERFLOW-INPUTS",
+        "requirement": "通常合法最大の manifest（E13a、P4-DC-D-E13A-DEF、表 §8）: (1) E1〜E6 を repo の入力で組んだ試験で、E1・E2 の 1 件の part=item の 1 応答が 65,536 以下、E3 の U-W が全体 1 MiB 以下で full のまま、E4 の U-E（同時の EventID は B0 のカードの上限まで）のカードの区域と合成の段・E5 の U-T（同時の EventID は B0 の津波の件数の上限まで）の予報区の行と区分の合成が期待の集合と一致し、eew.wire.omitted（p4-display-wire.types.ts の EewWire）・tsunami の omittedEvents・omittedUnkeyed が 0（欠け・誤値 0、要約と取得待ちを免除にしない）、E4b の最終報の前の通常の EEW を別々の EventID で B0 のカードの上限＋1 件にした組で、合成が全部の通常の報の区域ごとの最大と一致し、eew.wire.omitted が 1、カードは上限の枚数（B1 が主張するのは合成と omitted まで。E4b の EventID ごとの値は未裁定で、E13a の Pass に数えない〔spec:1865〕。配送の記録に書く。上限を越えた報の EventID ごとの値は E0 発注 1 の板、Q-DC-MANY-EVENTS の closed）、E6（保護 3 分野・通知・共通部は E13a の最大で組む。U-E は E4、U-T は E5。U-Q は B0 の行数の上限（区分ごとに 9 行〔P4-UQ-QUAKE-ROWS-001〕、既知の市町村 1,894 の合成、長周期の見出し 2 件）。通知は 64 件で 131,072 の手前、共通部は 65,536 の手前。escape の最悪で組む 399,277 との組は、型の最大値の試験（P4-DW-AC04）と表 §2.1 の算術が持つ）で全体が 1,048,576 以下・要約は B の順で止まり・E4・E5 の期待集合は欠けない (2) 保護 3 分野は新しい経路で要約にならない（包みに delivery が無い）ことを、旧の経路が U-T・U-Q を要約にする入力（disaster.test.ts の P3-DC-T09 の組み方）で見る (3) E7（N1・N2・N3・W1 の 3 日・W2）は T06 が採取物の dir を環境変数で渡したときだけ流し、統合担当が Mac mini で流して新しい経路の要約 0・全体の最大を配送の記録に書く（r4 の量った値: N1 55,481・N2 72,667・N3 401,045・W1 と W2 の最大 372,121）。採取物が無ければ blocked で、Pass にしない (4) E8（W1 06-26 ＋ 訓練の写し、r4 §7）は repo に入れず、統合担当が r4 の道具で Mac mini で流して配送の記録に書く（量った値: 要約 0、全体の最大 726,105） (5) E13a の外の行（他分野の要約中の O09:8・27・36・45・54・63、対象自身の意図した超過の O09:21〔E4b のカードの上限＋1 件は入れない〕・28・37・46・55・64、津波との同時の O09:22）は PM が持ち、入力の受け渡しは Q-DC-PM-OVERFLOW-INPUTS",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:2065 «67443c1d1be88906»",
           "docs/specs/reconstruction-p0-contracts.md:1137 «c06677d2196cd39e»",
@@ -403,9 +403,9 @@
       },
       {
         "id": "P4-DC-AC07",
-        "requirement": "671,142 の判定の定数（統合担当の決め 5、表 §6）: NEW_PATH_FIXED_BOUND を display-wire.ts の末尾の export { … } の行で出し、node reconstruction/contracts/p4-display-wire-max.mjs の newPath.sum と等しいことを試験で見る（既存の試験と同じく execFileSync で script を読む）",
+        "requirement": "649,299 の判定の定数（P4-UQ-QUAKE-ROWS-001 で改訂）（統合担当の決め 5、表 §6）: NEW_PATH_FIXED_BOUND を display-wire.ts の末尾の export { … } の行で出し、node reconstruction/contracts/p4-display-wire-max.mjs の newPath.sum と等しいことを試験で見る（既存の試験と同じく execFileSync で script を読む）",
         "evidenceRefs": [
-          "reconstruction/src/view-projector/display-wire.ts:544 «200e4e54f06f0a6b»",
+          "reconstruction/src/view-projector/display-wire.ts:544 «d4fe00fb27a44051»",
           "reconstruction/src/view-projector/display-wire.ts:997 «f07e452fad051373»",
           "reconstruction/src/view-projector/display-wire.ts:541 «f0ffdc8fb6d3d66f»",
           "reconstruction/contracts/p4-display-wire-max.mjs",
@@ -414,7 +414,7 @@
       },
       {
         "id": "P4-DC-AC08",
-        "requirement": "既存の試験の扱い（AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: (1) P4-DV-T02（display-vocab.test.ts の「the summary rule of the nine domains」）の (b) の要約の分野の期待は B の順で決まる分野に変えてよい（今は 65,536 を越えた U-L・U-R・U-Y を全部要約と見る）。:297 の「967,258 以下」は「1,048,576 以下」に変える（B は途中で止まるので 967,258 は予算を越えた分野を全部要約にしたときだけの上界）。要約の包みの形・保護 3 分野に delivery が無いことの期待は変えない (2) 同じ file の P4-DV-T03 の要約から full への戻りの組と P4-DV-T06 の flood の要約の組は、B で要約にならなくなるなら、要約にする分野の組み方（どの分野を重くするか）を直してよい。見るもの（作り直し 0・activeCount）は変えない (3) display-wire-root.test.ts の harness の publishWire の lambda に urgent を通す書き換えは期待の変更でないので許す (4) display-wire-root.test.ts の「serves /events byte for byte … one serialization per publish」は、送った報の後に待つ側の公開が続くと、最後に射影した snapshot（t.wires.at(-1)）がまだ書かれていない。比べる相手を「最後に書かれた snapshot」に、JSON.stringify の数えを「書いた公開ごとに 1 回」に、heartbeat の latestVersion の比べを最後に書いた版に変えてよい（見るもの〔直列化の共有・/events の不変・heartbeat の間隔〕は変えない） (5) ほかの既存の試験の期待は変えない。変える要が出たら止めて報告する",
+        "requirement": "既存の試験の扱い（AGENTS.md の「変更前に理由を報告」を本 AC で済ませる）: (1) P4-DV-T02（display-vocab.test.ts の「the summary rule of the nine domains」）の (b) の要約の分野の期待は B の順で決まる分野に変えてよい（今は 65,536 を越えた U-L・U-R・U-Y を全部要約と見る）。:297 の「967,258 以下」は「1,048,576 以下」に変える（B は途中で止まるので 967,258〔P4-UQ-QUAKE-ROWS-001 の後は 989,101〕は予算を越えた分野を全部要約にしたときだけの上界）。要約の包みの形・保護 3 分野に delivery が無いことの期待は変えない (2) 同じ file の P4-DV-T03 の要約から full への戻りの組と P4-DV-T06 の flood の要約の組は、B で要約にならなくなるなら、要約にする分野の組み方（どの分野を重くするか）を直してよい。見るもの（作り直し 0・activeCount）は変えない (3) display-wire-root.test.ts の harness の publishWire の lambda に urgent を通す書き換えは期待の変更でないので許す (4) display-wire-root.test.ts の「serves /events byte for byte … one serialization per publish」は、送った報の後に待つ側の公開が続くと、最後に射影した snapshot（t.wires.at(-1)）がまだ書かれていない。比べる相手を「最後に書かれた snapshot」に、JSON.stringify の数えを「書いた公開ごとに 1 回」に、heartbeat の latestVersion の比べを最後に書いた版に変えてよい（見るもの〔直列化の共有・/events の不変・heartbeat の間隔〕は変えない） (5) ほかの既存の試験の期待は変えない。変える要が出たら止めて報告する",
         "evidenceRefs": [
           "reconstruction/test/display-wire/display-vocab.test.ts:271 «511a90439c2433d8»",
           "reconstruction/test/display-wire/display-vocab.test.ts:287 «9cf5123bf3a13518»",

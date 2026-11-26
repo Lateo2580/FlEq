@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "ba8cae104204f6769fff88ad3caea9a836402d8442207fafaf57e12c1f345301",
+    "sha256": "da390fe26ad9b3b2317ed7fc0477c2a8ff5a81cc812e19db40e1d12d61e4630c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -354,7 +354,7 @@
         "target": "新しい経路の snapshot 全体（保護 3 分野・9 分野・通知・共通部）",
         "limit": 1048576,
         "unit": "UTF-8 JSON bytes",
-        "scope": "全公開の上界。全体が超えて要約にした後は 180,826 ＋ 9 × 65,536 ＋ 131,072 ＋ 65,536 ＝ 967,258 以下。全体の拒否は足さない（B0 の P4-DW-RES-03 を改める）。P4-DISPLAY-CAPACITY-001 の配送で改めた: 要約は決めた順に 1 つずつで全体が 1,048,576 以下になったら止まるので、要約にした後の上界も 1,048,576。967,258 は予算を越えた分野を全部要約にしたときだけ（同契約の AC01 (7)）",
+        "scope": "全公開の上界。全体が超えて要約にした後は 202,669 ＋ 9 × 65,536 ＋ 131,072 ＋ 65,536 ＝ 989,101 以下（P4-UQ-QUAKE-ROWS-001 で改訂）。全体の拒否は足さない（B0 の P4-DW-RES-03 を改める）。P4-DISPLAY-CAPACITY-001 の配送で改めた: 要約は決めた順に 1 つずつで全体が 1,048,576 以下になったら止まるので、要約にした後の上界も 1,048,576。989,101 は予算を越えた分野を全部要約にしたときだけ（同契約の AC01 (7)）",
         "source": "表 §4.1・p4-display-wire-max.mjs の newPath"
       },
       {
@@ -436,10 +436,10 @@
       },
       {
         "id": "P4-DV-AC04",
-        "requirement": "予算と要約（表 §4.1・§4.2、P4-DV-D-SUMMARY-RULE）: 9 分野の包みの byte は語彙の形の byte（表示差分のあった項目だけを数えて足し引き）で数え、カードを含める。新しい経路の snapshot の全体が 1,048,576 byte を超えたときだけ、包みが 65,536 byte を超えた 9 分野を要約にする（view-projector.ts:904〜:906 と同じ式）。P4-DISPLAY-CAPACITY-001 の配送で改めた: 超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める（同契約の AC01）。保護 3 分野は要約にしない（H37）。要約は今の形（3,882 byte 以下、カードを持たない）。全公開は 1,048,576 以下（予算を越えた分野を全部要約にしたときは 180,826 ＋ 131,072 ＋ 65,536 ＋ 9 × 65,536 ＝ 967,258 以下）なので、新しい経路に全体の拒否は足さない。要約の間の入口は分野ごとに: U-W は U-W の P3 の索引（既存の口・既存の URL）、U-F は U-F の P3 の索引（同）、U-N・U-V・U-L・U-R・U-B・U-M・U-Y は B0 の新しい経路の part=index（包みの contentRevision）で、9 分野の全部の項目に届く（表 §5.3、AC05）",
+        "requirement": "予算と要約（表 §4.1・§4.2、P4-DV-D-SUMMARY-RULE）: 9 分野の包みの byte は語彙の形の byte（表示差分のあった項目だけを数えて足し引き）で数え、カードを含める。新しい経路の snapshot の全体が 1,048,576 byte を超えたときだけ、包みが 65,536 byte を超えた 9 分野を要約にする（view-projector.ts:904〜:906 と同じ式）。P4-DISPLAY-CAPACITY-001 の配送で改めた: 超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める（同契約の AC01）。保護 3 分野は要約にしない（H37）。要約は今の形（3,882 byte 以下、カードを持たない）。全公開は 1,048,576 以下（予算を越えた分野を全部要約にしたときは 202,669 ＋ 131,072 ＋ 65,536 ＋ 9 × 65,536 ＝ 989,101 以下（P4-UQ-QUAKE-ROWS-001 で改訂））なので、新しい経路に全体の拒否は足さない。要約の間の入口は分野ごとに: U-W は U-W の P3 の索引（既存の口・既存の URL）、U-F は U-F の P3 の索引（同）、U-N・U-V・U-L・U-R・U-B・U-M・U-Y は B0 の新しい経路の part=index（包みの contentRevision）で、9 分野の全部の項目に届く（表 §5.3、AC05）",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-display-vocab-tables.md:219 «ec4c91d75f2f87e6»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:226 «eeaf79fd13e2deb3»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:219 «00df4684f7cce81d»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:226 «5adba7bc26d6e66c»",
           "reconstruction/contracts/p4-display-vocab-tables.md:28 «5145ba6548159173»",
           "reconstruction/contracts/p4-display-vocab-tables.md:270 «0a50cc1aafa3ad77»",
           "reconstruction/contracts/p4-display-vocab-tables.md:271 «fb7987bc16f98f93»",
@@ -485,7 +485,7 @@
           "reconstruction/contracts/p4-display-vocab-tables.md:295 «1467230dd54c72a4»",
           "reconstruction/test/display-wire/wire-client.ts:5 «f2890ffcabf1b7ae»",
           "reconstruction/test/display-wire/display-wire-root.test.ts:161 «f1f1eacc7dc696f0»",
-          "reconstruction/contracts/p4-display-wire-tables.md:206 «d43239ea9990a271»",
+          "reconstruction/contracts/p4-display-wire-tables.md:206 «3bcb76dfe1f0da5e»",
           "reconstruction/src/runtime/composition-root.ts:2497 «8ef6fffccb3e27cc»",
           "reconstruction/contracts/p4-display-vocab-tables.md:290 «8599a3086de1c895»",
           "reconstruction/contracts/p4-display-vocab-tables.md:291 «b2f397b19bee0e8f»",
@@ -565,7 +565,7 @@
         "referenceIds": [
           "P4-DV-AC04"
         ],
-        "behavior": "契約の境界。9 分野の包みを 65,536 byte の少し下と少し上の形（U-Y のカード 8 枚に区域列を持たせた形を含む）で組み、(a) 全体が 1,048,576 以下なら 65,536 を超えた分野も full のまま (b) 全体が超えたら 65,536 を超えた 9 分野だけ要約になり、要約は今の形でカードを持たず 3,882 byte 以下、保護 3 分野は要約にならない (c) どの組でも公開した snapshot の全体が 1,048,576 以下で、(b) の後は 967,258 以下。O09 の筋書きを流し、各公開が 1,048,576 以下"
+        "behavior": "契約の境界。9 分野の包みを 65,536 byte の少し下と少し上の形（U-Y のカード 8 枚に区域列を持たせた形を含む）で組み、(a) 全体が 1,048,576 以下なら 65,536 を超えた分野も full のまま (b) 全体が超えたら 65,536 を超えた 9 分野だけ要約になり、要約は今の形でカードを持たず 3,882 byte 以下、保護 3 分野は要約にならない (c) どの組でも公開した snapshot の全体が 1,048,576 以下で、(b) の後は 989,101 以下。O09 の筋書きを流し、各公開が 1,048,576 以下"
       },
       {
         "testId": "P4-DV-T03",

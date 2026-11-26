@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "2d1696da9cea2ea624248e00c494637f5bc5846f",
-    "sha256": "f253bc47fc2d7b5d026dff015801ae03377f31483144fcaf4a8c57595de213d4",
+    "sha256": "d34cdc4a2a4779a629aae628a3bc427e7b6a685ca3c7c0c7e021e00e75b6249f",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -691,7 +691,7 @@
       {
         "id": "P3-C7-RET-03",
         "target": "daily history recent rows",
-        "limit": 5,
+        "limit": 9,
         "unit": "rows per operation",
         "source": "旧築constants.ts:6、P3-C7-DAILY（深さの上限。capacityExceededにしない）"
       },
@@ -796,7 +796,7 @@
       },
       {
         "id": "P3-C7-AC04",
-        "requirement": "強震保持と当日履歴: I-U-Q.strongHold（P3-C7-INTENSITY-CARRY=A。eventが導いた震度が7未満になったとき・震度を持つactiveの寄与が無くなったとき・untilの到来だけで外れ、VXSE52/61・遅れて届いた古い報・unknownの続報では外れず、untilを延ばさない）と、P3-C7-DAILY=A・P3-C7-DAILY-BASIS=B（件数・最大震度は受信時刻のJST暦日、recentは発生時刻のJST暦日、既知の段階の震度を持つeventを1件、取消で減らさない（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）、recent 5行、countedEventIds 2048件、時計のJST 0時で空へ戻す）。震度の段階はI-U-Q.intensityScaleの1つの表で決める",
+        "requirement": "強震保持と当日履歴: I-U-Q.strongHold（P3-C7-INTENSITY-CARRY=A。eventが導いた震度が7未満になったとき・震度を持つactiveの寄与が無くなったとき・untilの到来だけで外れ、VXSE52/61・遅れて届いた古い報・unknownの続報では外れず、untilを延ばさない）と、P3-C7-DAILY=A・P3-C7-DAILY-BASIS=B（件数・最大震度は受信時刻のJST暦日、recentは発生時刻のJST暦日、既知の段階の震度を持つeventを1件、取消で減らさない（P3-UNIT-Q-CAPACITY-001 で改訂、H18: 全寄与が取消になった地震を件数から引く。最大震度は P3-QC-D-DAILY-MAX の裁定、P3-QC-AC07）、recent は区分ごとに9行・発生の新しい順（P4-UQ-QUAKE-ROWS-001 で改訂、P4-UQR-RET-01）、countedEventIds 2048件、時計のJST 0時で空へ戻す）。震度の段階はI-U-Q.intensityScaleの1つの表で決める",
         "evidenceRefs": [
           "docs/specs/reconstruction-p0-contracts.md:570 «c30aa20c62e5265e»",
           "docs/specs/reconstruction-p0-contracts.md:1783 «bb8e18a6762c105d»",

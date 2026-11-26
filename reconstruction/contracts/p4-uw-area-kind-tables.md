@@ -66,7 +66,7 @@
 A 版は v3 のまま（推奨、reconstruction/contracts/p4-display-wire.types.ts:100 «97acae2a45f702ce»）。areas の行を読む描画はまだ無く、client と server は同じ repo の同じ build で出る。S0 の client の外形の確かめ（reconstruction/src/display/screen/client.ts の isWireSnapshot）は分野の unit と contentRevision までで、行の列が増えても弾かない（S0 の配送 e6dae65d の後に確かめた）。B `p4-display-wire-v4` にする（S0 の client の定数と、その行を引く 3 契約の «» の付け直し、開いたままの画面は非対応の表示になる）。
 
 ### 2.5 計画の直列（D-ORDER）
-A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «a604c88e73f7fd83» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
+A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «6869c9a26915589c» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
 
 ## 3. 種別と区域の対応が古いまま残らない条件
 | 起きること | 何が変わるか | 根拠 |
@@ -112,7 +112,7 @@ A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4
 
 - 1 府県の最大（VPWS50 の fixture）: 今 2,870（01 北海道）、＋A 1,308（20 長野県）。1 区域の種別の最大は 6（例 茨城県日立市）。part=item の 1 件は P4-DISPLAY-VOCAB-001 の表 §12 の実測で U-W 4,666〔累積 5,594〕で、＋1,308 足しても 65,536 に遠い。
 - U-W の分野: 全国 1 通 93,649 → 118,242、通常と訓練 186,508 → 235,694（reconstruction/contracts/p4-display-capacity-tables.md:181 «98977462e3598fca» の値に ＋A を足した計算で、量っていない）。1 分野の予算 65,536 は今も越えている（reconstruction/contracts/p4-display-capacity-tables.md:29 «cad7e5710305f2d7»）。
-- M5 の数え直し（`.tmp-p1/m5.py`、s0-draft の `m2-M5.json` の 9,244 公開に同じ byte を足し、上界 377,434 を足した「導いた組」。0 の行は capt の reconstruction/contracts/p4-display-capacity-tables.md:65 «d04ca2e6f76aeb84» と同じ 960 公開・1,092,725）:
+- M5 の数え直し（`.tmp-p1/m5.py`、s0-draft の `m2-M5.json` の 9,244 公開に同じ byte を足し、上界 377,434 を足した「導いた組」。0 の行は capt の reconstruction/contracts/p4-display-capacity-tables.md:65 «53a13115de77f355» と同じ 960 公開・1,092,725）:
 
 | U-W に足す byte | 中身 | 1 MiB を越えた公開 | 要約になる分野 | 最悪の公開 |
 |---|---|---|---|---|

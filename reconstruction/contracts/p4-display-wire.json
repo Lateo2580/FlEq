@@ -1,7 +1,7 @@
 {
  "meta": {
   "draftedFromOid": "dc805187ce91949a66f62c9deaf60096b988bc20",
-  "sha256": "131dc0ea697f82f2b9dc68f339fe7d4a434e6b4618e87f4b5ddd76cae4dafaf0",
+  "sha256": "e9707635d319c5077130ec60bdb464e72d9cca295d9c429a3b7ff44eead8cff1",
   "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
   "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
   "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -496,7 +496,7 @@
     "target": "新しい経路の snapshot の保護 3 分野（eew・tsunami・earthquake の wire と wrapper と読めない報のカード）",
     "limit": 262144,
     "unit": "UTF-8 JSON bytes",
-    "scope": "型の最大値（AC04）。作者裁定の組で 180,826",
+    "scope": "型の最大値（AC04）。作者裁定の組で 202,669（P4-UQ-QUAKE-ROWS-001 で改訂）",
     "source": "表 §1.4・計画 §4.3 の 1"
    },
    {
@@ -512,7 +512,7 @@
     "target": "新しい経路の snapshot 全体（保護 3 分野・通知・共通部）",
     "limit": 1048576,
     "unit": "UTF-8 JSON bytes",
-    "scope": "保護 3 分野 180,826 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 377,434 で入るので、縮退の規則を持たない（AC01）。共通部は今の 65,536（P2-A8-RES-04、今の上界 49,443）。P4-DISPLAY-VOCAB-001 の後は 9 分野を足し、全体が 1 MiB を超えたときの 9 分野の要約の規則を持つ（同契約の P4-DV-RES-03 が改める）。P4-DISPLAY-CAPACITY-001 の配送の後、その規則は B（包みが 65,536 を超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める、同契約の AC01）",
+    "scope": "保護 3 分野 202,669 ＋ 通知 131,072 ＋ 共通部 65,536 ＝ 399,277（P4-UQ-QUAKE-ROWS-001 で改訂）で入るので、縮退の規則を持たない（AC01）。共通部は今の 65,536（P2-A8-RES-04、今の上界 49,443）。P4-DISPLAY-VOCAB-001 の後は 9 分野を足し、全体が 1 MiB を超えたときの 9 分野の要約の規則を持つ（同契約の P4-DV-RES-03 が改める）。P4-DISPLAY-CAPACITY-001 の配送の後、その規則は B（包みが 65,536 を超えた 9 分野を U-F → U-M → U-Y → U-B → U-L → U-R → U-W → U-V → U-N の順に 1 つずつ要約にし、全体が 1,048,576 以下になったら止める、同契約の AC01）",
     "source": "表 §3.2・§12・script の newPath と common"
    }
   ],
@@ -545,9 +545,9 @@
   "acceptanceChecks": [
    {
     "id": "P4-DW-AC01",
-    "requirement": "表示の形と新しい経路（P4-DW-D-LEGACY=A・P4-DW-D-SCOPE-NARROW=A）: B0 は新しい file（reconstruction/contracts/p4-display-wire.types.ts・reconstruction/src/view-projector/display-wire.ts）に保護 3 分野の表示の形と射影を置き、新しい SSE の経路で display だけの、保護 3 分野と共通部の snapshot を配る。保護 3 分野は表 §1（AC02〜AC04）、共通部は今の snapshot の型の形のまま（connection・worker・persistence・recovery・channels・notices と版の欄、表 §12）。9 分野と H17・H39 の値は載せない（B0 の後の別の契約が足し、display の版を上げる）。上界は 377,434（RES-03）で、縮退の規則を持たない。新しい snapshot に旧の current.<分野>.view を入れない。公開の判定は経路ごとに独立にする: 新しい射影は自分の前の snapshot と比べて変わったときだけ公開し、旧の projector の projected・unchanged・rejected に依らない（composition-root.ts の :986 で新しい射影を呼び、:992 で公開する。旧の公開 :997 は旧の projected の分岐 :993 の内側のまま、表 §3.2）。旧 /events は今の projector の出力のまま変えない（p2-snapshot-sse.types.ts・view-projector.ts は T0 まで変えない）。新しい描画の骨組みを別の path に出す最小の経路を http-sse.ts に作る（計画:229）。display の版が自分の版でないときは未知の payload を描かず非対応を出す（spec §8.3）。P4-DISPLAY-VOCAB-001 の後、新しい経路は 12 分野を載せ、版は v2（同契約の AC01）",
+    "requirement": "表示の形と新しい経路（P4-DW-D-LEGACY=A・P4-DW-D-SCOPE-NARROW=A）: B0 は新しい file（reconstruction/contracts/p4-display-wire.types.ts・reconstruction/src/view-projector/display-wire.ts）に保護 3 分野の表示の形と射影を置き、新しい SSE の経路で display だけの、保護 3 分野と共通部の snapshot を配る。保護 3 分野は表 §1（AC02〜AC04）、共通部は今の snapshot の型の形のまま（connection・worker・persistence・recovery・channels・notices と版の欄、表 §12）。9 分野と H17・H39 の値は載せない（B0 の後の別の契約が足し、display の版を上げる）。上界は 399,277（RES-03、P4-UQ-QUAKE-ROWS-001 で改訂）で、縮退の規則を持たない。新しい snapshot に旧の current.<分野>.view を入れない。公開の判定は経路ごとに独立にする: 新しい射影は自分の前の snapshot と比べて変わったときだけ公開し、旧の projector の projected・unchanged・rejected に依らない（composition-root.ts の :986 で新しい射影を呼び、:992 で公開する。旧の公開 :997 は旧の projected の分岐 :993 の内側のまま、表 §3.2）。旧 /events は今の projector の出力のまま変えない（p2-snapshot-sse.types.ts・view-projector.ts は T0 まで変えない）。新しい描画の骨組みを別の path に出す最小の経路を http-sse.ts に作る（計画:229）。display の版が自分の版でないときは未知の payload を描かず非対応を出す（spec §8.3）。P4-DISPLAY-VOCAB-001 の後、新しい経路は 12 分野を載せ、版は v2（同契約の AC01）",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:206 «d43239ea9990a271»",
+     "reconstruction/contracts/p4-display-wire-tables.md:206 «3bcb76dfe1f0da5e»",
      "reconstruction/contracts/p4-display-wire-tables.md:207 «ad8ac38c0b21ff66»",
      "reconstruction/contracts/p4-display-wire-tables.md:215 «c1df82f2e8b78660»",
      "reconstruction/contracts/p4-display-wire-tables.md:432 «94b21dc900de3a5f»",
@@ -566,21 +566,21 @@
    },
    {
     "id": "P4-DW-AC03",
-    "requirement": "型の上限・文字列の上限・有限のコード（表 §1.2・§1.3、P4-DW-D-STRING-SOURCE・P4-DW-D-CONDITION-CODE）: 件数の上限と、超えた分の画面と残す順を表 §1.2 のとおりにする（EEW のカード 6 枚・津波の EventID 3 件〔P4-DW-D-TSUNAMI-COUNT=A〕・コードなし予報区 8 行・閉じた観測の印は区分ごとに 4 件・今日の地震は区分ごとに 5 行・長周期の見出し 2 件）。EEW 6 枚・今日の地震の行・長周期・市区町村の塗りは板待ちの仮の数（E0-1・C0・長周期・M0-1）で、後の契約が数を変えたら AC04 の試験で数え直す。EEW のカード 6 枚は運用区分をまたいで数え、6 枚とも最終報の前のとき、通常の報は訓練・試験のカードより先に入る（spec:1636、P4-DW-D-SEVENTH-OPERATION=A。外した報は件数だけ）。どの訓練・試験のカードを外すか（仮に出た順の最も古いもの）と、7 件目が訓練・試験の報か 6 枚とも通常の報のとき（仮に合成〔通常の報だけ〕と件数）は仮の規則で、E0-1 の板で決め直す。最終報の出たカードと入れ替える規則（DS-LAYOUT-07）と、外した訓練・試験の報が後でカードへ戻るか・外れたカードの札の字は E0 が置く（E0-1 の板）。文字列の上限は escape 後の JSON の byte（引用符を除く、runtime-diagnostic.ts の boundedString と同じ単位）で、切るときは字の境で切り欄ごとに cut: true を付ける。WarningComment は 2,048 byte（P4-DW-D-TSUNAMI-COMMENT=A）、読めない報のカードの題 96 byte・見出し 384 byte で、どちらも {text, cut}（P4-DW-D-CARD-TEXT=A、保存の 1,536 byte は変えない）。段・区分・Condition・到達の状況は有限のコードで、表外の値は −2 か unknown と印（H51）。詳細の参照 ref は id 64・rev 64 の hex で、日次行の ref の rev は event があるときだけ（表 §5.6）",
+    "requirement": "型の上限・文字列の上限・有限のコード（表 §1.2・§1.3、P4-DW-D-STRING-SOURCE・P4-DW-D-CONDITION-CODE）: 件数の上限と、超えた分の画面と残す順を表 §1.2 のとおりにする（EEW のカード 6 枚・津波の EventID 3 件〔P4-DW-D-TSUNAMI-COUNT=A〕・コードなし予報区 8 行・閉じた観測の印は区分ごとに 4 件・今日の地震は区分ごとに 9 行〔P4-UQ-QUAKE-ROWS-001 の P4-UQR-RET-01〕・長周期の見出し 2 件）。EEW 6 枚・長周期・市区町村の塗りは板待ちの仮の数（E0-1・長周期・M0-1）で、後の契約が数を変えたら AC04 の試験で数え直す。EEW のカード 6 枚は運用区分をまたいで数え、6 枚とも最終報の前のとき、通常の報は訓練・試験のカードより先に入る（spec:1636、P4-DW-D-SEVENTH-OPERATION=A。外した報は件数だけ）。どの訓練・試験のカードを外すか（仮に出た順の最も古いもの）と、7 件目が訓練・試験の報か 6 枚とも通常の報のとき（仮に合成〔通常の報だけ〕と件数）は仮の規則で、E0-1 の板で決め直す。最終報の出たカードと入れ替える規則（DS-LAYOUT-07）と、外した訓練・試験の報が後でカードへ戻るか・外れたカードの札の字は E0 が置く（E0-1 の板）。文字列の上限は escape 後の JSON の byte（引用符を除く、runtime-diagnostic.ts の boundedString と同じ単位）で、切るときは字の境で切り欄ごとに cut: true を付ける。WarningComment は 2,048 byte（P4-DW-D-TSUNAMI-COMMENT=A）、読めない報のカードの題 96 byte・見出し 384 byte で、どちらも {text, cut}（P4-DW-D-CARD-TEXT=A、保存の 1,536 byte は変えない）。段・区分・Condition・到達の状況は有限のコードで、表外の値は −2 か unknown と印（H51）。詳細の参照 ref は id 64・rev 64 の hex で、日次行の ref の rev は event があるときだけ（表 §5.6）",
     "evidenceRefs": [
      "reconstruction/contracts/p4-display-wire-tables.md:50 «7e6e919f32912313»",
      "reconstruction/contracts/p4-display-wire-tables.md:54 «60bac92522eec114»",
      "reconstruction/contracts/p4-display-wire-tables.md:58 «70a8c970c9c65b5c»",
-     "reconstruction/contracts/p4-display-wire-tables.md:60 «7f0991c9aa0fd8e3»",
+     "reconstruction/contracts/p4-display-wire-tables.md:60 «fbb3d5bc22c34c7a»",
      "reconstruction/contracts/p4-display-wire-tables.md:63 «49889467a92a7ec2»",
      "reconstruction/contracts/p4-display-wire-tables.md:87 «0df973a08cb6019b»"
     ]
    },
    {
     "id": "P4-DW-AC04",
-    "requirement": "型の最大値の試験（決め 4、D-H37-EXPECT を閉じる）: script p4-display-wire-max.mjs の組み方（同じ欄に入りうる値のうち直列化が最も長いもの〔null・false・負の番号を含む〕、上限いっぱいの字、最大の安全整数、operation は training、状態の印 4 語、EventID 40 byte、短いカードの題と見出しは {text, cut}）で、display-wire.ts の型と上限の表から最大の形の保護 3 分野（eew・tsunami・earthquake の wire と wrapper と読めない報のカード）を組み、JSON.stringify の UTF-8 byte が 262,144 以下であることを reconstruction/test の試験で示す。組は作者裁定の組（通常だけ塗る・津波 3 件・付加文 2,048 byte・カードを短く・市区町村の塗り）で、script では組 A短 180,826（余り 81,318）。script は contracts に残して requiredCommands で回し、試験は script の出力の数と照らすだけにする。鍵の名前を決め直して数が表 §1.4 と食い違えば、成果物に書く",
+    "requirement": "型の最大値の試験（決め 4、D-H37-EXPECT を閉じる）: script p4-display-wire-max.mjs の組み方（同じ欄に入りうる値のうち直列化が最も長いもの〔null・false・負の番号を含む〕、上限いっぱいの字、最大の安全整数、operation は training、状態の印 4 語、EventID 40 byte、短いカードの題と見出しは {text, cut}）で、display-wire.ts の型と上限の表から最大の形の保護 3 分野（eew・tsunami・earthquake の wire と wrapper と読めない報のカード）を組み、JSON.stringify の UTF-8 byte が 262,144 以下であることを reconstruction/test の試験で示す。組は作者裁定の組（通常だけ塗る・津波 3 件・付加文 2,048 byte・カードを短く・市区町村の塗り）で、script では組 A短 202,669（余り 59,475、P4-UQ-QUAKE-ROWS-001 で改訂）。script は contracts に残して requiredCommands で回し、試験は script の出力の数と照らすだけにする。鍵の名前を決め直して数が表 §1.4 と食い違えば、成果物に書く",
     "evidenceRefs": [
-     "reconstruction/contracts/p4-display-wire-tables.md:99 «57be554db7873215»",
+     "reconstruction/contracts/p4-display-wire-tables.md:99 «95c47df4b3ffc1ed»",
      "reconstruction/contracts/p4-display-wire-max.mjs:112 «e88dd68396fab165»",
      "reconstruction/contracts/p4-display-wire-tables.md:114 «78bbd951ab4beb50»",
      "reconstruction/contracts/p4-order-plan.md:41 «c09403c8b4611cb5»"
@@ -681,11 +681,11 @@
    },
    {
     "id": "P4-DW-AC16",
-    "requirement": "U-Q の保存の版上げ（P4-DW-D-QROW=A、P3-MIG-AC02 (2)、前例 P3-SEISMIC-EXPIRY-VIEW-001 の AC の (1)〜(4)）: (1) schemaVersion を p3-seismic-unit-v9 に上げる（seismic-unit.ts:36 の SCHEMA、型の :180・:192・:256、owner-runtime.ts:84 の U-Q の初期 state、試験の 3 か所〔seismic-fixture.ts・seismic-capacity.test.ts・shared-runtime.test.ts の版の字〕）。discardableSchemaVersions に足さず、旧い形を読む移行を作らない。(2) SeismicRecentQuake に depth（MaterialValue、magnitude と同じ 32 字の上限）・magnitudeDescription（32 字）・tsunamiComment（128 字）・strongest（区域コード 8 個）・omittedStrongest を足し、行を作る所（seismic-unit.ts の :477〜:479）で入れる。decode（:1593〜:1602 の recent）は新しい欄を項目ごとに確かめて組み立てる（確かめた後に全体を as で言い換えない）。上限の外は invalid。(3) 上界は «» 0 の行（:57〜:60）に増え分の定数を置いて MEMORY_GROWTH に足す。増え分は、復元の境界（:1590 の boundedValue と recent）が字の長さだけを確かめる単位に揃え、1 字を JSON の escape の最悪 6 byte で数える（表 §4 の U-Q の増え分。script の seismicRecent で 1 行 1,572 byte・15 行 23,580 byte。実装は sizeOf で同じ形を数える）。strongest の区域コードは decode が 1〜8 桁の数字かを確かめる。:63 の GENERATION_LIMIT と :69 の RESERVE_BYTES の行、283_209 は変えない。試験の写し seismic-unit.test.ts の MEMORY_GROWTH（:35）と seismic-capacity.test.ts の MEMORY_GROWTH（:23、:25 の RESERVE と :26 の EXPECTED_L が使う）に同じ増え分を足す。ほかに上界の数で期待が動く既存の試験があれば、変える前に試験名・旧の期待・理由を報告して止める。(4) 新しい欄のある行は encode→JSON→decode で同じ state になる。(5) 配送の手順は artifactRequirements（開発機の古い slot は作者の了承で消し、Pi は旧築なので消さない）",
+    "requirement": "U-Q の保存の版上げ（P4-DW-D-QROW=A、P3-MIG-AC02 (2)、前例 P3-SEISMIC-EXPIRY-VIEW-001 の AC の (1)〜(4)）: (1) schemaVersion を p3-seismic-unit-v9 に上げる（seismic-unit.ts:36 の SCHEMA、型の :180・:192・:256、owner-runtime.ts:84 の U-Q の初期 state、試験の 3 か所〔seismic-fixture.ts・seismic-capacity.test.ts・shared-runtime.test.ts の版の字〕）。discardableSchemaVersions に足さず、旧い形を読む移行を作らない。(2) SeismicRecentQuake に depth（MaterialValue、magnitude と同じ 32 字の上限）・magnitudeDescription（32 字）・tsunamiComment（128 字）・strongest（区域コード 8 個）・omittedStrongest を足し、行を作る所（seismic-unit.ts の :477〜:479）で入れる。decode（:1593〜:1602 の recent）は新しい欄を項目ごとに確かめて組み立てる（確かめた後に全体を as で言い換えない）。上限の外は invalid。(3) 上界は «» 0 の行（:57〜:60）に増え分の定数を置いて MEMORY_GROWTH に足す。増え分は、復元の境界（:1590 の boundedValue と recent）が字の長さだけを確かめる単位に揃え、1 字を JSON の escape の最悪 6 byte で数える（表 §4 の U-Q の増え分。script の seismicRecent で 1 行 1,572 byte・15 行 23,580 byte。P4-UQ-QUAKE-ROWS-001 が区分ごとに 9 行・元の欄も 1 字 6 byte で数える形に改め、27 ×（1,656 ＋ 2,310）− 15 × 1,206 ＝ 88,992 byte（同契約の P4-UQR-AC04 (2)）。実装は sizeOf で同じ形を数える）。strongest の区域コードは decode が 1〜8 桁の数字かを確かめる。:63 の GENERATION_LIMIT と :69 の RESERVE_BYTES の行、283_209 は変えない。試験の写し seismic-unit.test.ts の MEMORY_GROWTH（:35）と seismic-capacity.test.ts の MEMORY_GROWTH（:23、:25 の RESERVE と :26 の EXPECTED_L が使う）に同じ増え分を足す。ほかに上界の数で期待が動く既存の試験があれば、変える前に試験名・旧の期待・理由を報告して止める。(4) 新しい欄のある行は encode→JSON→decode で同じ state になる。(5) 配送の手順は artifactRequirements（開発機の古い slot は作者の了承で消し、Pi は旧築なので消さない）",
     "evidenceRefs": [
      "reconstruction/contracts/p4-display-wire-tables.md:233 «85613222888e42e2»",
-     "reconstruction/contracts/p4-display-wire-tables.md:242 «e763b202a9478a52»",
-     "reconstruction/contracts/p4-display-wire-max.mjs:163 «2b807fc1b904fd53»",
+     "reconstruction/contracts/p4-display-wire-tables.md:242 «eb6fe1dff1e56604»",
+     "reconstruction/contracts/p4-display-wire-max.mjs:163 «4e1f3f645452ef37»",
      "reconstruction/contracts/p3-seismic-expiry-view.json:272 «d7af8320c30b079e»",
      "reconstruction/contracts/p3-seismic-expiry-view.json:435 «3b854b49f8e16d13»"
     ]
@@ -699,7 +699,7 @@
      "P4-DW-AC04",
      "P4-DW-AC03"
     ],
-    "behavior": "契約の境界（型の最大値）。display-wire.ts の型と上限の表から最大の形の保護 3 分野を組み、作者裁定の組（script の組 A短、180,826）で JSON.stringify の UTF-8 byte が 262,144 以下。文字列は上限いっぱいの escape 後の byte、null・false・負の番号のうち長いもの、operation は training、短いカードの題と見出しは {text, cut}。数は script の出力と照らす"
+    "behavior": "契約の境界（型の最大値）。display-wire.ts の型と上限の表から最大の形の保護 3 分野を組み、作者裁定の組（script の組 A短、202,669）で JSON.stringify の UTF-8 byte が 262,144 以下。文字列は上限いっぱいの escape 後の byte、null・false・負の番号のうち長いもの、operation は training、短いカードの題と見出しは {text, cut}。数は script の出力と照らす"
    },
    {
     "testId": "P4-DW-T02",
