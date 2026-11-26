@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7bf652f1953809c5c9b0913828fb0c5a31cce2f7",
-    "sha256": "3c5b1ff5b143c028244f979ffeddd10fcd132c4659990ee84c6d6414ffeab9d7",
+    "sha256": "1d8a018e7561d7622c33d4ecdba718185734131d507a6b6bb48a56ca5901ee41",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -93,6 +93,13 @@
         "source": "統合担当の決め 2026-11-26 07:53",
         "closed": "発注を止める問いではなく配送の前の確かめなので、artifactRequirements の最後の項（配送の前に統合担当が Mac mini で数え直す）へ移した",
         "remaining": "数え直しの結果は配送の時に Q-UAK-DELIVERY へ"
+      },
+      {
+        "id": "Q-UAK-DELIVERY",
+        "status": "closed",
+        "source": "統合担当の配送（2026-11-26、impl/p1 の c7bdd8dd・edb31017・808856ac と配送の commit を main 54f9b2ff の上で。レビューは品質〔ヘルツ Astra high、thread 01a2151b〕条件付き GO〔試験の P2 2・P3 1〕→ 条件付き GO〔並びの P2 1〕→ GO、契約適合〔Opus〕条件付き GO〔試験の P2 1・P3 3〕→ GO。試験の直しは edb31017・808856ac、残りの P3〔コメントの字・常に通る期待・:728 の字〕は配送の commit。Mac mini のゲートは c7bdd8dd で全段 rc=0、配送の commit でも回す）",
+        "closed": "(1) 数え直し（AC06 (3)、Mac mini、2026-11-26 09:0x〜09:39、c7bdd8dd の木。B1 の r4 の道具〔M2・M4〕と P4-DC-T06 の E7）: U-W の包みは 15_18_01_250630_VPWS50 で 118,242（表 §5 の計算と同じ）、通常と訓練の日で 235,408（計算 235,694 より 286 少ない）、VPWS50 の 1 通の最大は synthetic_VPWS50_national_training_0907_1301 の 118,336（前は 93,743、＋24,593 は見積もりどおり）。実の採取物の日の U-W の最大は W1 06-03 で 87,724 → 107,662、W1 06-26 と W2 で 94,834 → 115,182、W1 09-21 で 86,314 → 103,566、M5 で 188,590 → 229,286。全体の最大は W1 06-26 で 392,487、W2 で 388,845、N3 で 421,399、M5 で 766,837（どれも 1 MiB 以下）。要約になった公開は E7 の 7 日と M5 で 0。M5 の各公開に上界 377,434 を足した導いた組（表 §2.2 と同じ式、B1 の値 715,291・1,092,725・960 公開・906,481 を同じ式で再現して確かめた）は 1,610 公開で 1 MiB を越え、作者裁定 B の順で要約になるのは U-F だけ（最悪の公開 1,133,457 → 947,213、収まらない公開 0）。要約になる分野は増えていない (2) 原文の改訂: P4-DISPLAY-VOCAB-001 の Q-DV-UW-AREA-KIND を questionResolutions へ移して閉じた、outOfScope と P4-DV-AC02 の字、同表の §2.1 の areas と表示差分の行と表の後の段落・§5.4 の語彙の純粋さ・§7 の直列。P3-UW-CANON-001 の P3-UWC-AC05 (2) の areaKinds と P3-UWC-AC09 (2) の作り直す府県の字。P2-SHARED-RUNTIME-001 の P2-A1-DISPLAY-CHANGES.port。P4-DISPLAY-CAPACITY-001 の表 :29・:64・:65・:181 の数。計画 :223 の直列と :124・:193・:866 の C0 発注 1 の依存、:192 の Wave 2。本契約の allowedPaths と表 §1 の監視の行を weather-current-unit.ts:728 に（契約適合レビューの指摘） (3) 印の付け直し: 13 行（ほかの契約の JSON 4 行〔P3-CURRENCY-COVERAGE-001・P3-UF-PUBLIC-001・P3-UW-CANON-001・P4-DISPLAY-VOCAB-001〕、S0 の表 1 行〔計画 :124〕、本契約の JSON 4 行と表 4 行）。check-contract は FAIL 0 (4) 直さない: P4-DV-AC01 と同表 :69（字が既に合う）、同表 :404（view の形の量りで、本契約は view を変えない）、p4-display-wire-tables.md:175（part は無しのまま）",
+        "remaining": "区域×種別の数に定数の上限は無く、1 府県に 2,979 件以上で詳細の 1 応答は 503（AC06 (2)、今の areas と同じ）。上の層だけの種別は fixture 17 本で 0 件で、実の partial が少ない（Q-UAK-UPPER-ONLY）。種別だけの減りは今どおり最大 1 秒待つ（Q-DC-URGENT-REMAINING）。どの層で描くかと描き方は C0 発注 1。T02 の種別の入れ替えは Kind の Name と Code を一緒に替えるので、使い回しの比べから Code だけを外しても Name の比べで止まる（Code だけを替える入力は T02 の列の外。ヘルツ・実装の子の報告）。N3 の U-W の byte は数えていない（全体の最大だけ）"
       }
     ],
     "operationContract": {
@@ -141,7 +148,7 @@
       "reconstruction/contracts/p2-shared-runtime.types.ts（:213〜:214 の行の中。:213 の字は変えず :214 の末尾に判別の共用体を足す。:12 の import の行に型の import）",
       "reconstruction/contracts/p4-display-wire.types.ts（:193 の areas の形だけ、行の中）",
       "reconstruction/src/units/weather-current/weather-current-public.ts（import の行、Entry の型の行 :29、publicArea の中の行の書き換えと、:293 より後に関数を足す。«» の引く行〔:84〜:118・:140〜:293〕の行番号と字を動かさない）",
-      "reconstruction/src/units/weather-current/weather-current-unit.ts（:40 の import・:729・:734 の行の中）",
+      "reconstruction/src/units/weather-current/weather-current-unit.ts（:40 の import・:728・:734 の行の中）",
       "reconstruction/src/view-projector/display-wire.ts（:567 の行の中。import の行の中）",
       "reconstruction/src/view-projector/display-vocab.ts（:11 の import の行、:42 の型、:109〜:124 の行の中）",
       "reconstruction/src/runtime/owner-runtime.ts（:793 の import と :905 の行の中）",
@@ -274,7 +281,7 @@
           "reconstruction/src/units/weather-current/weather-current-public.ts:118 «d4f7cb4e885c6b5a»",
           "reconstruction/src/units/weather-current/weather-current-public.ts:185 «1b1a700b3b2e4445»",
           "reconstruction/src/units/weather-current/weather-current-unit.ts:863 «200a8d3e0af8aa54»",
-          "reconstruction/contracts/p3-uw-canon.json:543 «dcd3607266f33319»"
+          "reconstruction/contracts/p3-uw-canon.json:543 «027bd21517e9ba71»"
         ]
       },
       {
@@ -301,9 +308,9 @@
         "id": "P4-UAK-AC06",
         "requirement": "容量（表 §5）。指定 corpus の値と今の規則に限る（全部の入力の上界は持たない。受理は XML の節点と本文の上限のほかに区域の件数の上限を持たず、今の areas も同じ）。(1) 指定 corpus（T01 の 2 通〔15_18_01_250630_VPWS50・synthetic_VPWS50_fukui_base〕の 2 段、T03 の 15_16_02_251222_VPWW57）で、U-W の包みは full で、新しい経路の snapshot は 1,048,576 byte 以下、各項目の part=item の応答は 65,536 byte 以下。synthetic_VPWS50_national_0907_1300・1302・training_0907_1301 の 3 通は、既存の E3（display-capacity-manifest.test.ts:254〜268）が最後の snapshot の full と 1,048,576 以下を見る範囲だけ（途中の 2 段と part=item は見ない）。18_00_01_260830_VPWW55_fukui_L5 と downgrade は値だけを T02 が見る。areas の一覧の増えは表 §5 の数（15_18_01_250630_VPWS50 で 53,841 → 78,434、＋24,593）で、試験は byte を固定の期待にせず full と上限だけを見る (2) 1 府県に 2,979 件以上の区域（7 桁の Code・各 1 種）が来る入力では、行だけで 65,536 を越える（包みの分があるので実際はもっと少ない件数で越える。3,000 件で 66,001 byte、script r1count.py）。越える応答は今の HTTP の規則どおり 503 responseTooLarge（P4-DW-RES-02、http-sse.ts の返す直前の検査）で、ページ分けも切り詰めもしない。1 MiB を越えたときの要約の順・分野の予算 65,536・要約の形は変えない (3) 統合担当が Mac mini で W1・W2 の採取物と M5 を数え直し、fixture ごとの実測の数と要約になる分野を配送の記録に書く（Q-UAK-DELIVERY）",
         "evidenceRefs": [
-          "reconstruction/contracts/p4-display-capacity-tables.md:29 «b39db86b87a4964c»",
-          "reconstruction/contracts/p4-display-capacity-tables.md:181 «ab62d8c865a62101»",
-          "reconstruction/contracts/p4-display-capacity-tables.md:65 «484e6e8dcb1ebd87»",
+          "reconstruction/contracts/p4-display-capacity-tables.md:29 «cad7e5710305f2d7»",
+          "reconstruction/contracts/p4-display-capacity-tables.md:181 «98977462e3598fca»",
+          "reconstruction/contracts/p4-display-capacity-tables.md:65 «d04ca2e6f76aeb84»",
           "reconstruction/test/display-wire/display-capacity-manifest.test.ts:254 «26ddbd5ba19ce0c3»"
         ]
       },

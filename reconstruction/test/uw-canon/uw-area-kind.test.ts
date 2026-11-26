@@ -152,7 +152,7 @@ describe("P4-UAK-T02 acceptance: the kinds follow the winning rows through follo
     const first = receive(state, FUKUI, "VPWW55");
     const before = areaEntry(first.state, "normal\u000018")!;
     expect([kindsOf(first.state, "1820700"), kindsOf(first.state, "1820900")]).toEqual(["03 23", "10 20"]);
-    // 報時刻を変えず Control の時刻だけを進め、2 区域の Kind（Name と Code）を入れ替えた訂正でも、使い回しは止まり areaKinds が新しくなる（AC03。Code だけを替える入力は契約 T02 の列の外）。
+    // 報時刻を変えず Control の時刻だけを進め、2 区域の Kind（Name と Code）を入れ替えた更新でも、使い回しは止まり areaKinds が新しくなる（AC03。Code だけを替える入力は契約 T02 の列の外）。
     const correction = receive(first.state, FUKUI, "VPWW55", compose(controlLater, swapKinds), "control-only");
     const corrected = areaEntry(correction.state, "normal\u000018")!;
     expect([corrected === before, corrected.area.source, corrected.area.areas, kindsOf(correction.state, "1820700"), kindsOf(correction.state, "1820900"),

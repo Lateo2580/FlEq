@@ -1,7 +1,7 @@
 # P4-UW-AREA-KIND-001 の設計の表 r3（U-W の区域ごとの種別を新しい経路へ載せる）
 
 - 起草: 2026-11-26 00:14（date の値。起草の子 r0）。r1 は r0（024eaf2e）へのヘルツの独立レビュー（NO-GO、6 件）と契約適合レビュー（条件付き GO）を統合担当がまとめた直し 11 件を当てた（対応は §8）。基点 7bf652f1953809c5c9b0913828fb0c5a31cce2f7（branch draft/p4-uw-area-kind）。行番号と anchor はこの HEAD の値（024eaf2e は本契約の 3 file だけを足した commit）。r3 は発注前点検（2026-11-26 07:53）: branch を main e6dae65d〔S0 の配送の後〕の上へ載せ直し（衝突なし、本契約の «» 72 本は今の木でも全部合う）、decisionBranches 5 件を統合担当が A で確定し、未決の問い 2 つを閉じた（JSON の questionResolutions）。
-- 範囲の元: Q-DV-UW-AREA-KIND（reconstruction/contracts/p4-display-vocab.json:702 «3e4466f31a4e558e»）。要る根拠は、行の形の作者の裁定 DS-WARN-09（2026-11-23 13:32「案1でいきましょう」。docs/specs/reconstruction-display-design.md:548 «270f2e082ef2a24c»）と、DS-WARN-12（統合担当の案を作者が 13:52 に受けた「設定地域カードについてはその案で進めてみてください。」、C0 の見本の図でもう一度見せる。docs/specs/reconstruction-display-design.md:551 «df92bf49b5f7805e»）。
+- 範囲の元: Q-DV-UW-AREA-KIND（reconstruction/contracts/p4-display-vocab.json:191 «3e4466f31a4e558e»）。要る根拠は、行の形の作者の裁定 DS-WARN-09（2026-11-23 13:32「案1でいきましょう」。docs/specs/reconstruction-display-design.md:548 «270f2e082ef2a24c»）と、DS-WARN-12（統合担当の案を作者が 13:52 に受けた「設定地域カードについてはその案で進めてみてください。」、C0 の見本の図でもう一度見せる。docs/specs/reconstruction-display-design.md:551 «df92bf49b5f7805e»）。
 - 出どころの書き方: 「統合担当の案」は起草の子が置いた案。decisionBranches の 5 件は 2026-11-26 07:53 に統合担当が A で確定した（作者の字ではない。どれも wire の形・版・順の内部の決めで、画面の見え方は変えない）。「作者の裁定」は原文のある物だけ。
 - 範囲外: 区域名（Q-DV-UW-AREA-NAMES）、カードの描画、区分・重い順・名前の縮め、設定した地域の値、U-Q。
 
@@ -18,7 +18,7 @@
 | 勝った行が動いたかの比べ | reconstruction/src/units/weather-current/weather-current-public.ts:111 «f67ad638eb296f86» | 層・区域・Code・Status・名前・報時刻・復元の印。公開形の欄が同じでも、この列が違えば版が進む | 変えない（§3） |
 | owner の view | reconstruction/contracts/p2-weather-current-unit.types.ts:85 «ecc2d5c29310daae»・reconstruction/src/units/weather-current/weather-current-public.ts:199 «bb5093a4fb1617b0» | areas（公開形） | 変えない |
 | 表示差分の府県の行 | reconstruction/src/units/weather-current/weather-current-unit.ts:734 «43965e35fc0c4113» | current に公開形 | areaKinds を添える |
-| 表示差分の監視の行 | reconstruction/src/units/weather-current/weather-current-unit.ts:729 «fdf335a77eeb18af» | current は null | areaKinds は null |
+| 表示差分の監視の行 | reconstruction/src/units/weather-current/weather-current-unit.ts:728 «476aeb92eb05feef» | current は null | areaKinds は null |
 | 取り直しの採用の差分 | reconstruction/src/units/weather-current/weather-current-unit.ts:863 «200a8d3e0af8aa54» | displaySubjects を前後で比べる | 変えない（同じ行を通る） |
 | 旧の要約と計量 | reconstruction/src/view-projector/view-projector.ts:225 «df632f347d770f91»・reconstruction/src/view-projector/view-projector.ts:214 «09afc2f0651a8562»・view-projector.ts:456〜:458 | areas・codes・view の byte | 変えない |
 | 旧の Current（view）を読む端末 | prompt-current.ts:69 | codes・names | 変えない |
@@ -66,7 +66,7 @@
 A 版は v3 のまま（推奨、reconstruction/contracts/p4-display-wire.types.ts:100 «97acae2a45f702ce»）。areas の行を読む描画はまだ無く、client と server は同じ repo の同じ build で出る。S0 の client の外形の確かめ（reconstruction/src/display/screen/client.ts の isWireSnapshot）は分野の unit と contentRevision までで、行の列が増えても弾かない（S0 の配送 e6dae65d の後に確かめた）。B `p4-display-wire-v4` にする（S0 の client の定数と、その行を引く 3 契約の «» の付け直し、開いたままの画面は非対応の表示になる）。
 
 ### 2.5 計画の直列（D-ORDER）
-A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «9abef27fd39b349e» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
+A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4-order-plan.md:223 «a7a61693accc6814» の直列に足す）。display-wire.ts は :567 の行の中だけ、display-vocab.ts と p4-display-wire.types.ts は C0 発注 1 の前に要る。B E0 発注 1 の後（C0 発注 1 が材料を待つ）。
 
 ## 3. 種別と区域の対応が古いまま残らない条件
 | 起きること | 何が変わるか | 根拠 |
@@ -111,8 +111,8 @@ A B1 の後・E0 発注 1 の前に 1 本（推奨、reconstruction/contracts/p4
 | 18_00_01_260830_VPWW55_fukui_L5（14）／downgrade（16） | 599／633 | 98／108 | 52／62 | 127／138 | 331／327 |
 
 - 1 府県の最大（VPWS50 の fixture）: 今 2,870（01 北海道）、＋A 1,308（20 長野県）。1 区域の種別の最大は 6（例 茨城県日立市）。part=item の 1 件は P4-DISPLAY-VOCAB-001 の表 §12 の実測で U-W 4,666〔累積 5,594〕で、＋1,308 足しても 65,536 に遠い。
-- U-W の分野: 全国 1 通 93,649 → 118,242、通常と訓練 186,508 → 235,694（reconstruction/contracts/p4-display-capacity-tables.md:181 «ab62d8c865a62101» の値に ＋A を足した計算で、量っていない）。1 分野の予算 65,536 は今も越えている（reconstruction/contracts/p4-display-capacity-tables.md:29 «b39db86b87a4964c»）。
-- M5 の数え直し（`.tmp-p1/m5.py`、s0-draft の `m2-M5.json` の 9,244 公開に同じ byte を足し、上界 377,434 を足した「導いた組」。0 の行は capt の reconstruction/contracts/p4-display-capacity-tables.md:65 «484e6e8dcb1ebd87» と同じ 960 公開・1,092,725）:
+- U-W の分野: 全国 1 通 93,649 → 118,242、通常と訓練 186,508 → 235,694（reconstruction/contracts/p4-display-capacity-tables.md:181 «98977462e3598fca» の値に ＋A を足した計算で、量っていない）。1 分野の予算 65,536 は今も越えている（reconstruction/contracts/p4-display-capacity-tables.md:29 «cad7e5710305f2d7»）。
+- M5 の数え直し（`.tmp-p1/m5.py`、s0-draft の `m2-M5.json` の 9,244 公開に同じ byte を足し、上界 377,434 を足した「導いた組」。0 の行は capt の reconstruction/contracts/p4-display-capacity-tables.md:65 «d04ca2e6f76aeb84» と同じ 960 公開・1,092,725）:
 
 | U-W に足す byte | 中身 | 1 MiB を越えた公開 | 要約になる分野 | 最悪の公開 |
 |---|---|---|---|---|

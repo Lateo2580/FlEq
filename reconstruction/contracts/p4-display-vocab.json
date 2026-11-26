@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "3434966e629f0c704447c8521ad897604ee285fd",
-    "sha256": "1803889e3af66ef4b4d12d4d5066be94c1d6a3378d53029c579e3834168301bb",
+    "sha256": "ba8cae104204f6769fff88ad3caea9a836402d8442207fafaf57e12c1f345301",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -186,6 +186,13 @@
         "source": "統合担当の配送（2026-11-22、impl/vocab の 2 commit を main 0557be5c の上へ載せ直した木。Mac mini のゲート 16 段は check-contract の見込みの FAIL のほか rc 0、レビューは契約適合 GO〔P3 6〕・品質〔ヘルツ Astra high〕条件付き GO〔P2 2・P3 2〕→ 直しの後の再レビュー GO）",
         "closed": "(1) 直したもの: U-W の区域の一覧と差分のまとめの写しを線形に、1 MiB の判定の byte を object ごとに覚える、part=item は版ごとの写しを使う（品質の P2 2・両レビューの P3） (2) 配送の一覧 (a)(b)(d) を当て、印を付け直した（P4-TSUNAMI-MULTI-EVENT-001 の WIRE_LIMITS の行は display-vocab.ts へ、P4-REMOVAL-LOSS-001 の版の行は v2 の行へ、本契約自身の行） (3) 実装が契約から外れた所で採用したもの・事実の書き足しは表 §12.7",
         "remaining": "残存（表 §12.7）: T06 は期限で消える→再起動・復元→取り直しの採用の列を流さず U-R は composition-root を通らない。O09 の試験は restart で状態が空に戻り失敗注入と fixtureId の無い受信を飛ばす。VocabIndexItem<Unit> が索引の応答の型を縛らない。T07 は U-W の lastKnown を通さない。U-W の分野は語彙の形で 1 通 93,743 byte になる fixture がある（B1 の材料）。9 分野の和が 671,142 以下の間に全体を数えない近道は、B0 の上界 377,434 を script の数で頼る。snapshot の rev と owner の revision の一致は U-L・U-B・U-M・U-Y を corpus の試験でだけ示す。新しい経路の notices は旧から借りたまま（表 §12.5）"
+      },
+      {
+        "id": "Q-DV-UW-AREA-KIND",
+        "status": "closed",
+        "source": "P4-UW-AREA-KIND-001 の配送（統合担当）。起票は本契約の unresolvedQuestions（owner integrator、blocks は C0 発注 1 の起草、resolveBy は「C0 の板で初期画面にこの対応が要ると決まったら、公開形を開け直す別の契約を起こす」）",
+        "closed": "公開形は開け直さず、表示差分の U-W の府県の行に areaKinds を添え、weatherCurrent.area の areas の行に kinds 列（種別の Code を昇順に半角の空白で区切った字、cols は [\"kinds\"]）を載せた（P4-UAK-D-PLACE・D-LAYER・D-FORM=A、P4-UAK-AC01・AC02）。要ることの根拠は DS-WARN-09（作者の裁定）と DS-WARN-12（統合担当の案を作者が受けた）。起票の時の requiredEvidence の府県ごとの byte は P4-UW-AREA-KIND-001 の表 §5（全国の VPWS50 1 通で ＋24,593、1 府県の最大 ＋1,308）と、配送の前の数え直し（同契約の Q-UAK-DELIVERY）",
+        "remaining": "区域名は Q-DV-UW-AREA-NAMES のまま。どの層で描くかと描き方は C0 発注 1"
       }
     ],
     "operationContract": {
@@ -375,7 +382,7 @@
       "U-M の地震の解説（VXSE56・VXSE60・VZSE40）の本文: P4-QUAKE-COMMENTARY-TEXT-001（表 §8）",
       "B1（P4-DISPLAY-CAPACITY-001）: 9 分野の予算の配り方・落ちる順・残す順位・公開頻度・E13a の検収。本契約は今の要約の規則を新しい経路に当てるだけ",
       "描き方と描く欄の選び方（C0・C1・C2 の板）。描かないと決めた欄を wire から外すのは、その板の契約",
-      "U-W の公開形（P3-UW-CANON-001）・U-F の公開形（P3-UF-PUBLIC-001）の変更（区域と種別の対応 Q-DV-UW-AREA-KIND、U-F の retainUntil Q-DV-UF-RETAIN）と、気象の区域名の表（Q-DV-UW-AREA-NAMES）",
+      "U-W の公開形（P3-UW-CANON-001）・U-F の公開形（P3-UF-PUBLIC-001）の変更（区域と種別の対応 Q-DV-UW-AREA-KIND〔公開形を変えずに P4-UW-AREA-KIND-001 が表示差分から載せて閉じた〕、U-F の retainUntil Q-DV-UF-RETAIN）と、気象の区域名の表（Q-DV-UW-AREA-NAMES）",
       "保護 3 分野の詳細の行と、U-W・U-F・U-N・U-V の既存の詳細の口の形（P4-DV-D-DETAIL-SCOPE=A）",
       "新しい経路の notices を旧の射影から借りること（停止の確定の差分で消えた記録のお知らせ。表 §10）",
       "T0: 旧 /events の経路と旧の出力の撤去",
@@ -397,7 +404,7 @@
       },
       {
         "id": "P4-DV-AC02",
-        "requirement": "行き先と写し方（表 §1.3・§1.5・§2）: 全部の項目に id＝sha256(JSON.stringify([unit, operation, subject]))（volcano.shortfall の subject は unit が使う形 ${operation}/shortfall/${id}、volcano-unit.ts:1280。shortfall の id をそのまま使うと通常の記録の subject と同じ hash の入力になりうる）と rev（view の object の JSON の sha256、U-W・U-F は公開形の revision）を持たせ、wire の項目の並びは id の昇順。表示の期限の欄は表 §1.5 のとおり全部写す。表 1 の ✕ 26 欄は表 §2.1・§2.2（snapshot の一覧 23・専用部品 3・詳細だけ 0）、共通の 3 種は表 §2.4、U-W の表示差分の unavailable・freshness・currentActive・currentScope は載せない。辞書は鍵の昇順の一覧 1 つ: U-W は codes を基準に一覧 phenomena の rows [Kind/Code, Kind/Name か null, 区域の数]（names は codes の部分集合なので名前の無い Code は null）。構造の列は group ごとの一覧（group の単値は一覧の facts）。VocabList は { role, label, sys, cols, facts, rows, omitted }（sys は鍵が DisplayAreaSystem の区域 Code のときだけ）。MaterialValue は表 §1.3 の sv の表（kind ごとに value・bound・raw）。副の ReportRef は unconfirmed が印・marineUnconfirmed が真偽・marineSource が主の source と同じ規則の事実の行。unit が上限を持つ字は素の字、§3.2 で切る欄だけ DisplayCutText。今の view の欄を落とさない（載せない欄は表 §1.3 の列挙だけ）・足さない（id は足す）",
+        "requirement": "行き先と写し方（表 §1.3・§1.5・§2）: 全部の項目に id＝sha256(JSON.stringify([unit, operation, subject]))（volcano.shortfall の subject は unit が使う形 ${operation}/shortfall/${id}、volcano-unit.ts:1280。shortfall の id をそのまま使うと通常の記録の subject と同じ hash の入力になりうる）と rev（view の object の JSON の sha256、U-W・U-F は公開形の revision）を持たせ、wire の項目の並びは id の昇順。表示の期限の欄は表 §1.5 のとおり全部写す。表 1 の ✕ 26 欄は表 §2.1・§2.2（snapshot の一覧 23・専用部品 3・詳細だけ 0）、共通の 3 種は表 §2.4、U-W の表示差分の unavailable・freshness・currentActive・currentScope は載せない。辞書は鍵の昇順の一覧 1 つ: U-W は codes を基準に一覧 phenomena の rows [Kind/Code, Kind/Name か null, 区域の数]（names は codes の部分集合なので名前の無い Code は null）。構造の列は group ごとの一覧（group の単値は一覧の facts）。VocabList は { role, label, sys, cols, facts, rows, omitted }（sys は鍵が DisplayAreaSystem の区域 Code のときだけ）。MaterialValue は表 §1.3 の sv の表（kind ごとに value・bound・raw）。副の ReportRef は unconfirmed が印・marineUnconfirmed が真偽・marineSource が主の source と同じ規則の事実の行。unit が上限を持つ字は素の字、§3.2 で切る欄だけ DisplayCutText。今の view の欄を落とさない（載せない欄は表 §1.3 の列挙だけ）・足さない（id は足す。U-W の areas の行の kinds 列は、view に無い表示差分の areaKinds から足す、P4-UW-AREA-KIND-001 の P4-UAK-AC02）",
         "evidenceRefs": [
           "reconstruction/contracts/p4-display-vocab-tables.md:73 «3017c8940c080bbb»",
           "reconstruction/contracts/p4-display-vocab-tables.md:70 «06482b25579bede5»",
@@ -405,7 +412,7 @@
           "reconstruction/contracts/p4-display-vocab-tables.md:72 «e007c54f830775ae»",
           "reconstruction/contracts/p4-display-vocab-tables.md:59 «f5f7edf69d2bb4ba»",
           "reconstruction/contracts/p4-display-vocab-tables.md:97 «ad96899e339dc8df»",
-          "reconstruction/contracts/p4-display-vocab-tables.md:117 «b63c4331fe61b5f3»",
+          "reconstruction/contracts/p4-display-vocab-tables.md:117 «031e6170133d9aaf»",
           "reconstruction/contracts/p4-display-vocab-tables.md:150 «da6700febe81e907»",
           "reconstruction/src/domains/weather-current/weather-current.ts:284 «c5e9169cb8544d1c»",
           "reconstruction/contracts/p4-display-vocab-tables.md:38 «f5df172642868172»",
@@ -696,18 +703,6 @@
         "requiredEvidence": [
           "気象の区域の 5 層のコード表の出どころと件数",
           "C=B に替えるなら U-W の公開形と本契約の一覧 areas の rows の名前の欄の上限"
-        ]
-      },
-      {
-        "id": "Q-DV-UW-AREA-KIND",
-        "owner": "integrator",
-        "blocks": [
-          "C0 発注 1 の起草（計画 §5.2 の C0-1 の種別と地域を結ぶ並び）"
-        ],
-        "resolveBy": "どの区域にどの種別の警報が出ているかは今の公開形に無く、U-W の詳細 part=areas の行で読む（P3-UW-CANON-001）。C0 の板で初期画面にこの対応が要ると決まったら、公開形を開け直す別の契約を起こす。本契約は今の公開形の欄だけを写す",
-        "requiredEvidence": [
-          "C0 の板の裁定",
-          "対応を snapshot に載せるときの府県ごとの byte（区域 × 種別）"
         ]
       },
       {

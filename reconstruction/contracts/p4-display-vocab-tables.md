@@ -109,14 +109,14 @@
 
 | 欄 | 形と上限 | 行き先 | 新しく切るか | 画面から落ちるもの | 残りを読む所 |
 |---|---|---|---|---|---|
-| U-W areas（`p3-uw-canon.types.ts:24`） | `[層, Code][]`。区域 Code は数字だけで桁数・件数の定数なし（ヘルツの返事 5） | 一覧 role `areas`。層ごとに 1 つ（sys は層、rows は `[Code, null]`）。区域名は載せない（計画 §5.3 の即断候補 C=A、描画が引く） | 切らない（件数は分野の 65,536 と要約で閉じる） | 無し | — |
+| U-W areas（`p3-uw-canon.types.ts:24`） | `[層, Code][]`。区域 Code は数字だけで桁数・件数の定数なし（ヘルツの返事 5） | 一覧 role `areas`。層ごとに 1 つ（sys は層、rows は `[Code, null, kinds]`、cols は `["kinds"]`。kinds は区域ごとの種別の Code を昇順に半角の空白で区切った字で、表示差分の府県の行の areaKinds から作る〔P4-UW-AREA-KIND-001〕）。区域名は載せない（計画 §5.3 の即断候補 C=A、描画が引く） | 切らない（件数は分野の 65,536 と要約で閉じる） | 無し | — |
 | U-W codes（:26） | 辞書 Kind/Code → 区域の数。鍵は 2 桁の数字（受理で検査） | 一覧 `phenomena` の鍵と 3 列目（rows の基準） | 切らない | 無し | — |
 | U-W names（:28） | 辞書 Kind/Code → Kind/Name。codes の部分集合。値の字は unit の上限なし（text node の 16,384 字まで） | 一覧 `phenomena` の 2 列目（`DisplayCutText`、名前の無い Code は null） | snapshot で切る（§3.2 の 1,536 byte） | snapshot では 1,536 byte から後（実の Kind/Name は 10 字ほど） | 詳細 part=item（§5.5、切らない） |
 | U-W の単値（operation・prefecture・id・revision・source・cellCount・restoredCellCount） | 単値と ReportRef | 見出しと事実の行。id は `VocabItem.id` と同じ字、revision は ref（part=areas） | 生の字の欄だけ（§3.2） | 時刻・番号・InfoType が 40 byte を越えたときその欄が null | U-W の詳細 part=areas と part=item |
 | U-W freshnessSuspectCount（view） | 単値 | `VocabWire.facts` | 切らない | 無し | — |
-| U-W の表示差分の unavailable・freshness・currentActive・currentScope（`p2-shared-runtime.types.ts:213`） | 監視の行と鮮度の記録。affectedScope は件数・字の上限なし（ヘルツの返事 5） | 載せない。view の areas に無い（表示差分の材料だけ）。unavailable は今の notices（VisibleNotice の unavailable）で出る | — | 無し（今の view にも無い） | 旧と同じ notices |
+| U-W の表示差分の unavailable・freshness・currentActive・currentScope（`p2-shared-runtime.types.ts:213`） | 監視の行と鮮度の記録。affectedScope は件数・字の上限なし（ヘルツの返事 5） | 載せない。view の areas に無い（表示差分の材料だけ）。同じ表示差分の府県の行の areaKinds は載せる（§2.1 の areas の行の kinds 列、P4-UW-AREA-KIND-001）。unavailable は今の notices（VisibleNotice の unavailable）で出る | — | 無し（今の view にも無い） | 旧と同じ notices |
 
-- 区域と種別の対応（どの区域にどの警報が出ているか）は今の公開形に無く、詳細 part=areas の行で読む（P3-UW-CANON-001 の決め）。本契約は公開形を変えない（Q-DV-UW-AREA-KIND）。
+- 区域と種別の対応（どの区域にどの警報が出ているか）は今の公開形に無く、詳細 part=areas の行で読む（P3-UW-CANON-001 の決め）。本契約は公開形を変えない（Q-DV-UW-AREA-KIND）。P4-UW-AREA-KIND-001 が、公開形を変えずに表示差分の府県の行の areaKinds から areas の行の kinds 列へ載せた（Q-DV-UW-AREA-KIND を閉じた）。
 
 ### 2.2 U-F から U-Y（✕ 23 欄）
 
@@ -295,7 +295,7 @@
 - :130〜:144 の it の直し方（B0 の P4-DW-T08 の条文を残す）: 本契約の後は 12 分野とも新しい経路に載るので、U-F だけが変わる step では新しい経路も変わる。新しい経路に載らない欄だけが変わる受信の step は、もう組めない: 表示差分は必ず分野の contentRevision を上げて包みに載り、期限の欄も載り（決め 2）、notices は旧から借り、共通部の connection・worker は両方の比べが全部の欄を見る（`sameSnapshot` と `comparable`）。旧だけが変わるのは旧の経路の要約の切替（12 分野の view の形の合計が 1 MiB を越える）だけで、試験で組むには 1 MiB の view が要る。it は「旧の射影が projected を返す step で、新しい経路の入力（差分・views・共通部）が前と同じなら新しい経路は unchanged」を、旧の射影の入力だけを変えて組む形に書き換える。経路ごとの公開の独立は :104 の it（旧の射影を unchanged に固定）が逆向きを見る。
 - `display-vocab.ts` が無いと壊れる振る舞い: owner（worker）と publisher（main）が同じ項目を別々に組み、snapshot と詳細で語彙が食い違う。owner-runtime は unit・domain の module を読むと循環する（`owner-runtime.ts` の詳細の写しのコメント）。
 - 変えないもの: `p3-execution-split.types.ts`（:73・:142 は `p4-display-wire.types.ts` の別名なので型の変更が届く）、旧 `/events` の出力、P2-SNAPSHOT-SSE-001 の P2-A8-COST（新しい経路の直列化は公開ごとに 1 回のまま）。
-- rev の式（その part が返す view の object の JSON の sha256）は変えない。語彙は view の object の純粋な関数なので、object が同じなら語彙も同じ。
+- rev の式（その part が返す view の object の JSON の sha256）は変えない。語彙は view の object（U-W の府県の項目は、公開形と、それと 1 対 1 の表示差分の areaKinds〔P4-UW-AREA-KIND-001 の P4-UAK-AC01 (2)〕）の純粋な関数なので、object が同じなら語彙も同じ。
 
 ### 5.5 新しい part（統合担当の決め 5・6、P4-DV-D-HTTP-PARTS）
 
@@ -326,7 +326,7 @@
 
 | 衝突源 | 順 | 出どころ |
 |---|---|---|
-| `display-wire.ts`・`p4-display-wire.types.ts` | B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → E0 発注 1 → C2 → T0 | 計画 db2b32d7 の §3.2 の行（統合担当が書いた） |
+| `display-wire.ts`・`p4-display-wire.types.ts` | B0 → 本契約 → P4-REMOVAL-LOSS-001 → B1 → P4-UW-AREA-KIND-001 → E0 発注 1 → C2 → T0 | 計画 db2b32d7 の §3.2 の行（統合担当が書いた） |
 | `owner-runtime.ts` の `wireIndex`・`wireDetail` | B0 → 本契約 | 同じ関数の中 |
 | `http-sse.ts` | B0 → 本契約 → B1 → R0 → T0 | 計画 3f778efc の :230（P4-DV-D-HTTP-PARTS=A で確定） |
 | `view-projector.ts` | 本契約は file の最後に export の行を足すだけ。B1 の要約の規則（:904〜:906）とぶつからない | §4.3 |
