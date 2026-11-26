@@ -1,0 +1,384 @@
+{
+  "meta": {
+    "draftedFromOid": "005f72fb53e09226fe01adfe1512791fec790d58",
+    "sha256": "a8fbb1be8ee0ca9a37a74423b4bc6d16b0dc4ff6903d1e1d4758d6baed90a822",
+    "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
+    "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
+    "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
+    "contractTypeRef": "docs/specs/reconstruction-p0-contracts.md:2842 «c0f08264b8377956»",
+    "decisionBranches": [
+      {
+        "id": "P4-GCM-D-FORM",
+        "kind": "統合担当",
+        "A": "全 1,894 行に、候補の市町村等の並びと関係の種別（same・within・part）を持つ（142,154 byte、gzip 10,647、表 §8）",
+        "B": "地震だけの 187 行だけを持ち、残りは同じコードで引く（9,268 byte）",
+        "C": "全 1,894 行に候補の並びだけ（89,497 byte。候補が地震の区域の一部か、地震の区域を丸ごと含むかが字から分からない）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-26 の依頼文）",
+        "ruling": "A",
+        "reason": "画面に何を出すか（表 §9 の C0・R0 への送り）の答えに依らず、どの答えにも要る情報を落とさない。B は関係の種別を画面の側で推し量ることになる"
+      },
+      {
+        "id": "P4-GCM-D-METHOD",
+        "kind": "統合担当",
+        "A": "照合表 match.tsv の 232 組と、一覧表の別表の転記 transcription.tsv を実装担当が原文から 1 行ずつ書き、build は字（S1 の字は xlsx のセル、S2 の字は転記）と数・不変条件を確かめるだけ。転記と html の照らしは配送の前に統合担当が行う（AC03 (6)）。同じコードの 1,707 は build が S1 の同じ行で数える（津波の前例 build-tsunami-region.mjs と同じ形）",
+        "B": "S1 の B 列と別表の字を規則（「のうち」の前後・区名の列挙）で割って、build が組を作る",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-26 の依頼文）",
+        "ruling": "A",
+        "reason": "B は名前の部分一致で自動に当てはめる資材で、P4-GIS-AC10 と spec:1720 が禁じる。A は公的な表の字を 1 行ずつ照合して記録する形で、AC10 が当てはめに当たらないとする形"
+      },
+      {
+        "id": "P4-GCM-D-SCOPE",
+        "kind": "統合担当",
+        "A": "本契約は表を reconstruction/assets/gis/ に hash 付きで置くところまで。どれを画面に出すか（part の 36 行、within の行の名前）と配る経路（server で引くか画面で引くか）は C0・R0 の契約で決める",
+        "B": "本契約で出し方の既定（例: 候補の種別を合わせて重い順）と配る経路まで決める",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "確定（統合担当の決め、2026-11-26 の依頼文）",
+        "ruling": "A",
+        "reason": "出し方は画面の出る／出ないが変わる作者の問いで、設定した地域のカードの契約（C0）と地域設定（R0）の板で出す。表 §9 に送る"
+      },
+      {
+        "id": "P4-GCM-D-SHAPE-CHECK",
+        "kind": "統合担当",
+        "A": "（P4-GCM-D-UNNAMED-ROWS=A のとき）形の確かめ（AC04）は、統合担当が baseOid の割当の前の点検（AC06 の P3）で 1 回回し、値を表と manifest に残す。入力は repo の zoom（1%）の形 2 file。build に形の計算を入れない",
+        "B": "build が毎回、zoom の形で AC04 を計算して止める（点・多角形の計算が build に約 40 行増える）",
+        "C": "点検で、repo の外の間引く前の archive（G0 の点検の 20241128 と 20260226 の zip）から形を作って回す（mapshaper が要る。この worktree の node_modules には無い）",
+        "recommended": "A",
+        "provisional": "A",
+        "status": "起草案（統合担当が baseOid の割当の前に決める）",
+        "reason": "形が変わるのは G0 の資材の版が替わるときだけで、そのときは manifest の zoom の sha256 が変わり、AC06 の P3 を回し直す。下見（表 §4）では 12 区の候補の割合の最小が 0.1321、候補の外の区域に入った点の割合が 0（12 区の外の泉区・天竜区で 0.0007 以下）。合格の条件（候補ごとに 0.05 以上、候補の外の合計 0.01 以下）は起草の決めで、この値の間に置いた。値が合格の条件を満たさないときだけ C に替える"
+      },
+      {
+        "id": "P4-GCM-D-UNNAMED-ROWS",
+        "kind": "作者",
+        "question": "公的な字が区を名指ししない組（6 区と分割の 3 区）と、2 つの公的な表が逆に書く相模原の 3 区を、対応表にどう入れるか",
+        "scene": "利用者が地域設定で仙台市宮城野区を選ぶ。仙台市東部（0410001）に大雨警報が出る。気象庁のコード表は東部を「気象庁予報警報規程別表第四の二に示す「仙台市東部」の区域」としか書かず、細分区域等一覧表の別表は東部を「宮城県仙台市のうち仙台市西部の区域を除く区域」、西部を「宮城県仙台市のうち泉区、青葉区宮城総合支所及び太白区秋保総合支所管内」と書く。宮城野区の名前はどの字にも無く、西部に入らないので東部、と読むことになる。区域の形を重ねると、宮城野区の中の点は全部東部に入る（表 §4）。同じ形の区が、宮城野区・若林区・静岡市の駿河区と清水区・浜松市の中央区と浜名区の 6 つ。青葉区・太白区・葵区の 3 つは 2 つの区域に割れ、名指しされない側（仙台市東部・静岡市南部）がある。相模原市は、コード表が緑区を西部、一覧表が緑区を東部と書く（表 §5）",
+        "A": "字からの読み（補集合）で組を書き、区域の形の重なりで確かめた組だけを入れる（AC04。確かめに通らなければ止める）。相模原はコード表の字で書き、形がコード表の側を支持したときだけ入れる。manifest に根拠「形」と、相模原の食い違いを残す",
+        "B": "字で名指しされた組だけを入れる。6 区は候補なし、分割の 3 区は名指しされた側（仙台市西部・静岡市北部）だけ、相模原の 3 区は 2 つの表が食い違うので候補なし（AC01 の不変条件に「候補 0 の行」と「part 1 つの行」を足す）",
+        "C": "名指しされない区には、その市の分割された市町村等の全部を part の候補にする（宮城野区 → 仙台市東部・西部）。相模原は 3 区とも相模原市西部・東部の両方",
+        "recommended": "A",
+        "provisional": "A",
+        "screenLoss": {
+          "A": "形の重なりは、AC10 の字（公的な表の名前を 1 行ずつ照合して記録する）にも spec:1720 にも書かれていない根拠で、起草の判断で足す（形の包含を書いた spec の行は都道府県の所属の spec:1724 だけ）。G0 の形の版が替わると確かめ直しになる",
+          "B": "宮城野区・若林区・駿河区・清水区・浜松中央区・浜名区と相模原の 3 区の利用者（9 区）は、設定した地域のカードに気象の警報が出ない。青葉区・太白区・葵区の利用者には、仙台市東部・静岡市南部の警報が出ない。仙台市東部・静岡市南部・浜松市南部・相模原市西部・東部の 5 つは、どの市区町村からも引けない",
+          "C": "宮城野区の利用者に、山側の仙台市西部（泉区など）だけの警報も設定した地域として出る。相模原の 3 区の利用者には、反対側の警報も出る"
+        },
+        "status": "作者の裁定待ち",
+        "blocks": "baseOid の割当（照合表の根拠「形」の 12 行と相模原の 3 行、AC01 の不変条件、AC04、AC06 の P3 が答えで変わる）",
+        "reason": "表 §10。S1 の B 列の 156 組と S2 の別表の 64 組は、気象庁の表の字を 1 行ずつ記録する形で AC10 の許す形に入る（津波の対応表の PDF と同じ、P4-GIS-AC11）。残りの 12 区は名前の照合でなく、字からの読みと形の重なりで決まり、AC10 に入るかの判断が割れる。入れ方で設定した地域のカードに警報が出るかが変わるので、統合担当の決めにしない（P4-GIS-D-TSUNAMI-REGION が作者の分岐だったのと同じ理由）。A は下見で 12 区とも形が合い（候補の割合の最小 0.1321、候補の外 0）、B・C より出ない警報・余分な警報が無い"
+      }
+    ],
+    "questionResolutions": [
+      {
+        "id": "Q-GCM-S2-TERMS",
+        "status": "closed",
+        "source": "2026-11-26 に curl で取った coment.html（23,377 byte、sha256 ff2b4504…）と ml-17.html・ml-23.html、S2 の html（表 §1.2）",
+        "closed": "S2 は気象庁ホームページのページで、権利表記も別の利用ルールの明示も無く、規約の「権利表記の記載がない限り「公共データ利用規約（第1.0版）」に準拠」に当たる。出典と加工の記載が要る。気象業務法の 2 条は予報・警報をする行いの制限。確かめられない側の分岐は置かない（表 §1.2・§11）",
+        "remaining": "AC06 の P1 で取り直して p4-gis-assets-sources.md の末尾に原文を引く。字が変わっていたら作者の分岐を足す"
+      },
+      {
+        "id": "Q-GCM-PUBLIC-TABLE",
+        "status": "closed",
+        "source": "起草の下調べ（2026-11-26、curl の生の html と S1 の xlsx をセル番地で読んだ）",
+        "closed": "市区町村（地震）→ 市町村等（気象警報）を直に書いた公的な表は見つからない。組み立ては S1（AreaInformationCity の同じ行と B 列）と S2（細分区域等一覧表の別表）でできる（表 §1・§2）",
+        "remaining": "S2 は Web のページで、版（令和8年5月29日現在）と S1（R8.11.18）の間の改訂の有無は、AC06 の P2 の照らしでだけ確かめる"
+      },
+      {
+        "id": "Q-GCM-S3-SOURCE",
+        "status": "closed",
+        "source": "e-Gov の法令 API（law_title と keyword、2026-11-26）",
+        "closed": "S1 の B 列が引く気象庁予報警報規程 別表第四の二の原文は見つからない（表 §1.3）。親の市町村は S2 の別表の字に依る。発注は止めない",
+        "remaining": "原文が見つかれば、S2 の字と照らして表の根拠を足せる（版の改訂のとき）"
+      },
+      {
+        "id": "Q-GCM-OLD-CODES",
+        "status": "closed",
+        "source": "起草の script（test/fixtures の VPW の xml の Body の市町村等の Code を area-codes の weatherCity と照らした）",
+        "closed": "15_18_01_250630_VPWS50（2019-10-12）と同じ本文の写し 4 本だけ、weatherCity に無いコードが 15（S1 で F=0・K=1）。2026 年の VPWW は 0。本表は S1 の F=1 だけを引き、古い区割りのコードは範囲の外（表 §7）。C0 へ送る（表 §9）",
+        "remaining": ""
+      }
+    ],
+    "operationContract": {
+      "ref": "P2-SHARED-RUNTIME-001#meta.operationContract",
+      "rule": "運用区分の扱いを変えない。本契約は静的な資材（市区町村と市町村等の対応の表）を置くだけで、受信・判定・通知・保存・描画の製品の挙動を変えない"
+    }
+  },
+  "contract": {
+    "contractId": "P4-GIS-CITY-MAP-001",
+    "mode": "implementation",
+    "objective": "新築 P4 の設定した地域のカード（C0、表示設計 spec の DS-WARN-12・16）と地域設定（R0、spec:3093）が要る、市区町村（地震津波関係の 7 桁、known-codes の city 1,894）→ 市町村等（気象警報等の 7 桁、area-codes の weatherCity 1,805）の対応表を、入手元・版・利用条件・hash の付いた生成物 reconstruction/assets/gis/city-weather-map.v1.json として置く。対応を直に書いた公的な表は無いので、気象庁の個別コード表 AreaInformationCity の同じ行（同じコード 1,707）と、同じ表の B 列と細分区域等一覧表の別表の字を 1 行ずつ照合した照合表（232 組）から作る（P4-GIS-AC10 の範囲）。字だけで決まらない 12 区の入れ方は作者の分岐 P4-GCM-D-UNNAMED-ROWS で、推奨の A では統合担当の点検で形の重なりを確かめた組だけを入れる。どれを画面に出すかと配る経路は決めない（C0・R0）。設計の表は reconstruction/contracts/p4-gis-city-map-tables.md、型は reconstruction/contracts/p4-gis-city-map.types.ts",
+    "baseOid": "unassigned",
+    "cleanTreeRequired": true,
+    "readPaths": [
+      "AGENTS.md",
+      "reconstruction/contracts/p4-gis-city-map.json",
+      "reconstruction/contracts/p4-gis-city-map-tables.md",
+      "reconstruction/contracts/p4-gis-city-map.types.ts",
+      "reconstruction/contracts/p4-gis-assets.json（AC10・AC11 と manifest の欄の前例）",
+      "reconstruction/contracts/p4-gis-assets-sources.md",
+      "reconstruction/tools/gis/build-known-codes.mjs（workbook・need・collect）",
+      "reconstruction/tools/gis/build-area-codes.mjs（S1 の見出しの字と F 列の読み）",
+      "reconstruction/tools/gis/build-tsunami-region.mjs（転記と照合表の前例）",
+      "reconstruction/assets/gis/source/code-20261118/weather-area-codes.xlsx（S1、入力）",
+      "reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html（S2、統合担当が AC06 の P1 で置く。読むだけ）",
+      "reconstruction/assets/gis/known-codes.v1.json と reconstruction/assets/gis/area-codes.v1.json と reconstruction/assets/gis/manifest.json",
+      "reconstruction/test/gis/known-codes.test.ts と reconstruction/test/gis/shapes.test.ts（試験の前例）",
+      "reconstruction/vitest.config.ts"
+    ],
+    "allowedPaths": [
+      "reconstruction/tools/gis/build-city-weather-map.mjs（新しい file。node の組み込みと build-known-codes.mjs の workbook・need・collect だけ。TSV の読みは build-tsunami-region.mjs の tsv と同じ形を写す〔P4-GIS-ASSETS-001 の publicFunctions が build-tsunami-region.mjs に export を持たせないため〕）",
+      "reconstruction/assets/gis/source/city-weather-map/transcription.tsv（新しい file）",
+      "reconstruction/assets/gis/source/city-weather-map/match.tsv（新しい file）",
+      "reconstruction/assets/gis/city-weather-map.v1.json（新しい file。生成物、手で直さない）",
+      "reconstruction/assets/gis/manifest.json（末尾に cityWeatherMap を足すだけ。既存の項目の値は変えない）",
+      "reconstruction/test/gis/city-weather-map.test.ts（新しい file）",
+      "reconstruction/contracts/p4-gis-city-map.types.ts（起草で置いた型。変えるときは成果物に書く）"
+    ],
+    "allowedGitCommands": [
+      "git status --porcelain",
+      "git rev-parse HEAD",
+      "git cat-file -e <oid>:reconstruction/contracts/p4-gis-city-map.json",
+      "git diff --binary --no-ext-diff -- <allowed_paths>",
+      "git diff --check -- <allowed_paths>",
+      "git show <required-path-or-object>",
+      "git ls-files <required-path>"
+    ],
+    "moduleIds": [
+      "D01"
+    ],
+    "integrationContractIds": [],
+    "dependsOnContractIds": [
+      "P4-GIS-ASSETS-001"
+    ],
+    "publicTypes": [
+      "reconstruction/contracts/p4-gis-city-map.types.ts#CityWeatherMapTable",
+      "reconstruction/contracts/p4-gis-city-map.types.ts#CityWeatherMapRow",
+      "reconstruction/contracts/p4-gis-city-map.types.ts#CityWeatherCity"
+    ],
+    "publicFunctions": [
+      "build-city-weather-map.mjs は export を持たない（試験は生成物と manifest を読む、build-tsunami-region.mjs の前例）。直に node で回す: node reconstruction/tools/gis/build-city-weather-map.mjs は S1 の xlsx・known-codes・area-codes・転記・照合表・manifest を読み、city-weather-map.v1.json を書き、出力の sha256 を標準出力に出す。manifest は書かない",
+      "src の関数・型は足さず変えない。C0・R0 は city-weather-map.v1.json を resolveJsonModule で import し、CityWeatherMapTable へ代入で受ける（as を使わない）"
+    ],
+    "allowedDependencies": [
+      "既存の依存だけ。package.json・package-lock.json を変えない"
+    ],
+    "fixtureIds": [
+      "test__fixtures__15_18_01_250630_VPWS50",
+      "test__fixtures__18_00_01_260830_VPWW55_fukui_L5"
+    ],
+    "sequenceIds": [
+      "O03"
+    ],
+    "expectedDecisions": [],
+    "expectationEvidence": [],
+    "semanticDeadlines": [],
+    "deliveryDeadlines": [],
+    "retentionLimits": [],
+    "resourceLimits": [],
+    "workDeadline": null,
+    "persistenceUnits": [],
+    "persistedFields": [],
+    "nonPersistedFields": [],
+    "outOfScope": [
+      "どれを画面に出すか: part の 36 行で候補の種別を合わせるか部分ごとに出すか、within の行の名前（区の名前か電文の市町村等の名前か）。受け手 C0・R0 へ送る（表 §9、P4-GCM-D-SCOPE=A）",
+      "配る経路（server で引くか画面で引くか、生成した .ts を画面へ配る形）。R0 の問い",
+      "古い区割りの電文のコード（15_18_01_250630_VPWS50 系の 15、表 §7）と、洪水予報の区域（floodCity）・土砂災害警戒情報など S1 の F 列以外の区域の対応",
+      "reconstruction/src の変更と、G0 の既存の資材（known-codes・area-codes・形・津波の表・県の所属の表）の変更",
+      "S2 の改訂を追う仕組み（版が替われば AC06 の点検からやり直す）",
+      "計画 p4-order-plan.md・ほかの契約・p4-gis-assets-sources.md の改訂（配送で統合担当）"
+    ],
+    "acceptanceChecks": [
+      {
+        "id": "P4-GCM-AC01",
+        "requirement": "出力の形（P4-GCM-D-FORM=A）。build-city-weather-map.mjs が reconstruction/assets/gis/city-weather-map.v1.json を書く。形は reconstruction/contracts/p4-gis-city-map.types.ts の CityWeatherMapTable（schemaVersion 1、rows）。(1) rows は known-codes.v1.json の city の 1,894 コードを 1 行ずつ、city の昇順。各行の weatherCities は area-codes.v1.json の weatherCity のコードと関係の種別の組で、コードの昇順 (2) 関係の 3 種の定義は表 §3（地震の区域の側から書く。same は S1 の同じ行、within は地震の区域が気象の区域 1 つの中、part は気象の区域が地震の区域の一部を受け持つ。part は包含の向きを決めない） (3) 行の不変条件: same 1 つ・within 1 つ・part 2 つ以上のどれか。違えば build が止める (4) weatherCity の 1,805 コードは全部、どれかの行の候補に出る。出ないコードがあれば止める (5) 出力は JSON.stringify に改行 1 つ。区域名は持たない（known-codes と area-codes から引く）。無いと壊れる振る舞い: 設定した地域のカード（C0）が、設定した市区町村（spec:3093、R0）に出ている気象の警報・注意報の行（表示設計 spec の DS-WARN-12・DS-WARN-16）を引けない。spec:3094 の字は EEW の区域と津波予報区だけで、気象の区域を書いていない（計画・spec の改訂は配送で統合担当）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:3093 «c5ea3cce6918fb43»",
+          "docs/specs/reconstruction-p0-contracts.md:3094 «825ec0860a56166e»",
+          "docs/specs/reconstruction-display-design.md:551 «df92bf49b5f7805e»",
+          "docs/specs/reconstruction-display-design.md:601 «c238f4133a490b9c»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:67 «d6b4a895a3ff580c»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:68 «e38aab3842c23953»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:69 «8c2339856e804b88»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:71 «d1abe72d3218c3ec»",
+          "reconstruction/contracts/p4-order-plan.md:127 «e9aaaa0e604190e9»"
+        ]
+      },
+      {
+        "id": "P4-GCM-AC02",
+        "requirement": "same の 1,707（P4-GCM-D-METHOD=A）。build は S1（weather-area-codes.xlsx の sheet「AreaInformationCity」、build-known-codes.mjs の workbook で読む。見出しは A「@code」の行で、B「コードが示す地域等」・C「@name」・F は build-area-codes.mjs と同じ字・N「@name」を確かめる）の各行のうち、F が 1 で N 列に字がある行を same の組（その行の @code → 同じ @code）として数える。名前は比べない（同じコードで C 列と N 列の名前が違う行が 147、表 §2.1）。N 列に字がある行の集合が known-codes の city と、F が 1 の行の集合が area-codes の weatherCity と過不足なく一致しなければ止める。same の行が照合表に出たら止める。期待は 1,707（manifest の expectedCodeCount）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-gis-city-map-tables.md:13 «c518ec3d578db84f»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:14 «a04140c639271af4»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:37 «b19c3c0393a57893»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:40 «c03029a79504bb16»",
+          "reconstruction/tools/gis/build-area-codes.mjs:45 «843df9c875393889»",
+          "reconstruction/tools/gis/build-area-codes.mjs:50 «a30c519c6af1556c»"
+        ]
+      },
+      {
+        "id": "P4-GCM-AC03",
+        "requirement": "転記と照合表（P4-GCM-D-METHOD=A、P4-GIS-AC10 の範囲）。置き場と列は表 §6。(1) transcription.tsv は S2 の別表の 106 行の転記（名称・区域、html のとおりの字で前後の空白だけ落とす）。build に html の解析を入れない (2) match.tsv は地震だけの 187 コードから出る組を 1 組 1 行（期待 232 行）。列は 地震コード・気象コード・関係（within・part）・根拠（コード表B列・一覧表別表・形）・地震の字・気象の字 (3) build が確かめるのは字と数だけ: 地震コードは city にあって same でない、気象コードは weatherCity にあって same でない、地震の字は地震コードの S1 の B 列の字（前後の空白を落として）と同じ、気象の字は根拠がコード表B列なら気象コードの S1 の B 列の字と同じ、一覧表別表・形なら気象コードの S1 の C 列の @name と名称が完全に同じ転記の行の区域と同じ（名称が転記に 2 行あれば止める）、同じ組が 2 行無い、地震だけの 187 は全部 1 行以上を持つ。違えば止める (4) 組の読み（どの字がどの組を支えるか）は実装担当が原文から書き、build は名前の部分一致・コードの先頭一致・「のうち」の前後の割りで組を作らない（AC10、spec:1720）。起草の数え（表 §2.2）では、根拠がコード表B列 156（政令市の全体への 122・横浜 18・相模原 3・部分の B 列が親を書く 6 市の 13）、一覧表別表 64（部分 62・天竜区・泉区）、形 12（P4-GCM-D-UNNAMED-ROWS=A のとき）。違えば報告に書く（build は根拠ごとの数を止めない） (5) 名前が地震の市区町村と同じでコードが違う気象の部分 3 つ（表 §2.3 の羽幌町・郡山市・天栄村）は、名前でなくコードで書く (6) 転記と S2 の html の照らし: build は html を読まないので、配送の前に統合担当が html の別表の 106 行（tr id の付いた行の 2 つの td）を script で取り出し、transcription.tsv と行ごとに字が同じことを確かめる（表 §6 の最後の項）。違えば配送しない。S2 の名称 106 は S1 の F=1 の @name にちょうど 1 つずつ当たる（起草の script で確かめた）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-gis-assets.json:679 «aa7890bb2a02fd47»",
+          "docs/specs/reconstruction-p0-contracts.md:1720 «9d00197c5e5ae404»",
+          "reconstruction/tools/gis/build-tsunami-region.mjs:3 «e1c0a03f8cac1ac1»",
+          "reconstruction/tools/gis/build-tsunami-region.mjs:48 «089fa1e300283851»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:110 «2de2a73878188778»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:111 «85b20f9b47fb0932»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:115 «71779de28a28400b»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:51 «7f7699abff893fbd»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:57 «94651b04700b6211»"
+        ]
+      },
+      {
+        "id": "P4-GCM-AC04",
+        "requirement": "【P4-GCM-D-UNNAMED-ROWS=A のとき。B・C なら照合表の 15 行と本 AC を裁定の形に改めてから baseOid を割り当てる】形の確かめ（P4-GCM-D-SHAPE-CHECK）。対象は字だけでは決まらない 12 区: 補集合の読み 6（0410200・0410300・2210200・2210300・2213800・2213900）、分割 3（0410100・0410400・2210100）、S1 と S2 が食い違う相模原 3（1415100・1415200・1415300）。方法は表 §4 の行（city.zoom.v1.json と weatherCity.zoom.v1.json、manifest の zoom の sha256 と同じこと、外接矩形の 60×60 のセルの中心、全輪の偶奇、どの区域にも入らない点・2 つ以上に入る点は候補の外）。合格の条件（起草の決め、P4-GCM-D-SHAPE-CHECK）: 各区の照合表の候補の割合がどれも 0.05 以上、候補の外の割合の合計が 0.01 以下。下見の値は候補の最小 0.1321（0410100 → 0410001）、候補の外は 12 区とも 0。合格の条件を満たさない値（候補の割合が 0.05 未満か、候補の外の合計が 0.01 を超える）が出たら、その区の組を照合表に書かず、点検を止めて blocked とする（P4-GCM-D-SHAPE-CHECK の C へ替えるかは統合担当が決める）。相模原は、形が S1 の側（1415100 → 1415011、1415200・1415300 → 1415012）を支持したときだけ S1 の字で照合する（P4-GCM-D-UNNAMED-ROWS の A）。S2 の側を支持したら止めて、統合担当が作者へ戻す。照合表の根拠「形」の 12 行（相模原を除く 9 区）と相模原の 3 行は、manifest の knownGapsAndExclusions の kind「shapeCheck」の 15 要素（city・weatherCity・share・points）と組で一致し、build は (a) 根拠が形の行は全部 shapeCheck にある (b) shapeCheck の組は全部照合表にある、を確かめる（値は計算し直さない）。無いと壊れる振る舞い: 補集合の 6 区と分割の 3 区の組は字の読みだけに依り、相模原は 2 つの公的な資料のどちらを採ったかを確かめる手が無い",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-gis-city-map-tables.md:75 «09450e52e45fb224»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:77 «867ecb6d4871bd50»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:78 «e0efe4f3dd6f6353»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:82 «0e1ac104e5b02f7b»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:85 «961d2510765c3122»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:86 «f23fad3f2f25c730»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:91 «5ff23fef73a4c00e»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:96 «9ecba27ac6340256»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:97 «427f1c31cef884cb»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:143 «9de0459894b9000c»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:147 «34e1ead68082d048»",
+          "docs/specs/reconstruction-p0-contracts.md:1724 «014de5bcd86ad48c»",
+          "reconstruction/assets/gis/manifest.json:878 «a61fce137350b76c»",
+          "reconstruction/assets/gis/manifest.json:1868 «abc4886501c4a14a»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:116 «bd898471ad01d392»"
+        ]
+      },
+      {
+        "id": "P4-GCM-AC05",
+        "requirement": "manifest と出典（spec:1727）。reconstruction/assets/gis/manifest.json の末尾（既存の membership の後）に cityWeatherMap を足し、欄は tsunamiRegion の行と同じ: output（path・sha256）、source（S1 は areaCodes の source の 2 つ目と同じ値、S2 は url https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html・version「令和8年5月29日現在」・retrievedAt・inputPath reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html・inputSha256・transcriptionPath・transcriptionSha256・matchPath・matchSha256）、license「気象庁ホームページの利用規約（公共データ利用規約 第1.0版）」、transform（script・node・args）、expectedCodeCount（rows 1,894・same 1,707・withinRows 151・partRows 36・matchRows 232・transcriptionItems 106）、knownGapsAndExclusions（kind「shapeCheck」15 要素〔AC04〕と、kind「sourceConflict」1 要素〔相模原、S1 と S2 の字と採った側、表 §5〕）、attribution「出典：気象庁ホームページ（https://xml.kishou.go.jp/tec_material.html）の個別コード表（AreaInformationCity・AreaForecastLocalM コード表、R8.11.18）と、気象庁ホームページ（https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html）の「特別警報・危険警報・警報・注意報や天気予報の発表区域（細分区域等一覧表）」（令和8年5月29日現在）を加工して作成。加工：FlEq」。build は manifest を書かず（P4-GIS-ASSETS-001 の P4-GIS-AC06 (4) の前例どおり）、書いた file の sha256 を標準出力に出し、実装担当が manifest へ写す。入力と出力の sha256 の照合は P4-GCM-T01 の 1 か所（build-tsunami-region.mjs の前例と同じく build は sha256 を見ない）。既存の knownCodes・areaCodes・tsunamiRegion・projection・layers・membership の項目の値は変えない（membership の閉じの行にコンマが付くだけ）",
+        "evidenceRefs": [
+          "docs/specs/reconstruction-p0-contracts.md:1727 «0bc1409b1590c55f»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:12 «e77c175eb8025810»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:20 «96317f82962cc2d7»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:22 «65f252a087562d92»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:23 «f3108658e329a6ad»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:27 «61a53cd2b0f95254»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:15 «0eef4d53c1ab5f62»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:103 «28a8534aa5afad73»"
+        ]
+      },
+      {
+        "id": "P4-GCM-AC06",
+        "requirement": "【点検、統合担当が baseOid の割当の前に行う】P1 S2 と利用条件の取り直し: https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html を curl で取り、byte・sha256・last-modified を表に書き足し、reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html に置く。sha256 が表 §1.2 の値と違えば、P2 の照らしをやり直してから置く。利用規約のページ https://www.jma.go.jp/jma/kishou/info/coment.html も curl で取り、表 §1.2 の原文（権利表記の記載がない限り公共データ利用規約に準拠する字、出典と加工の記載、適用外の 2 つ、気象業務法の 2 条）がそのままあることを確かめ、p4-gis-assets-sources.md の末尾に S2 の節として、byte・sha256・last-modified と原文を引いて足す（P4-GIS-ASSETS-001 の sources の §6.1 の津波の対応表と同じ書き方）。S2 の html に権利表記か別の利用ルールの明示が出た、または規約の字が変わって S2 が公共データ利用規約の下と読めなくなったら、baseOid を割り当てず、「確かめられないので S2 を使わない」側を作者の分岐として足す（P4-GIS-D-VOLCANO-MAP・Q-GIS-VOLCANO-KML-TERMS の前例。使わないと地震の市区町村 38 が候補なし、気象の市町村等 68 がどこからも引けない、表 §11）。P2 S1 と S2 の照らし: S2 の別表の名称 106 が全部、S1 の F=1 の @name に 1 つずつあること。S1 の B 列が「気象庁予報警報規程別表第四の二に示す」で始まる F=1 の行の @name が全部 S2 の名称にあること。S1 の B 列と S2 の区域が両方ある行で字が違うのが表 §5 の 3 行だけであること（郡名を落として比べる）。どれかが違えば表と照合表の期待を数え直す。P3 形の確かめ: AC04 を回し、12 区の点の数と割合を表に書き足す（実装担当が manifest の shapeCheck へ写す）。合格の条件を満たさない値が出たら baseOid を割り当てない。P4 decisionBranches の status「起草案」と「作者の裁定待ち」が 0 件。P5 fixture の照らし: 18_00_01_260830_VPWW55_fukui_L5 の Body の市町村等のコードが全部 weatherCity にあり、15_18_01_250630_VPWS50 の 15 コードが表 §7 と同じこと（範囲の外の事実で、表を変えない）",
+        "evidenceRefs": [
+          "reconstruction/contracts/p4-gis-city-map-tables.md:19 «5bb10af3fce69c50»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:21 «590d0ae7199b804f»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:104 «41728cce3a8e6c58»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:151 «389ee4a85379cb19»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:121 «afa86d9c3cd232ee»",
+          "reconstruction/contracts/p4-gis-city-map-tables.md:122 «49c910b86edcc071»",
+          "reconstruction/contracts/p4-gis-assets-sources.md:298 «742a87fbeee0de32»"
+        ]
+      }
+    ],
+    "testMapping": [
+      {
+        "testId": "P4-GCM-T01",
+        "purpose": "acceptance",
+        "referenceIds": [
+          "P4-GCM-AC01",
+          "P4-GCM-AC02",
+          "P4-GCM-AC03",
+          "P4-GCM-AC05"
+        ],
+        "behavior": "受入条件。manifest の cityWeatherMap の output・S1 の xlsx・S2 の html・転記・照合表の sha256 が manifest と一致する。city-weather-map.v1.json を CityWeatherMapTable へ import して代入で受け（as を使わない）、行の数・関係ごとの行の数（same・within・part）・転記と照合表の行の数が manifest の expectedCodeCount と一致する。読める値: 0110100 は [0110000 within]、0123600 は [0123600 same]（名前が違う同じコード）、0148400 は [0148401 part・0148402 part]（名前が同じでコードが違う部分）、0120600 は [0120601・0120602・0120603 part]、0410100 は [0410001 part・0410002 part]、1415100 は [1415011 within]。AC01 (3)(4)・AC02・AC03 (3)・AC04 の組の照合は build の失敗で止める（試験で言い換えない）"
+      }
+    ],
+    "requiredCommands": [
+      {
+        "command": "node reconstruction/tools/gis/build-city-weather-map.mjs",
+        "cwd": ".",
+        "target": "reconstruction/assets/gis/city-weather-map.v1.json",
+        "stage": "implementation",
+        "purpose": "生成。2 回回して標準出力の sha256 が同じ"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "src と契約の型の検査（p4-gis-city-map.types.ts）と dist の生成（vitest より先）"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/tsconfig.test.json",
+        "cwd": ".",
+        "target": "reconstruction/tsconfig.test.json",
+        "stage": "implementation",
+        "purpose": "city-weather-map.test.ts の JSON の import と CityWeatherMapTable への代入"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/chrome-eew/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/chrome-eew/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/tsc --project reconstruction/src/display/screen/tsconfig.json",
+        "cwd": ".",
+        "target": "reconstruction/src/display/screen/tsconfig.json",
+        "stage": "implementation",
+        "purpose": "reconstruction の型検査の一式"
+      },
+      {
+        "command": "./node_modules/.bin/vitest run --config reconstruction/vitest.config.ts --maxWorkers=2",
+        "cwd": ".",
+        "target": "reconstruction/test/",
+        "stage": "implementation",
+        "purpose": "全 reconstruction 試験（P4-GCM-T01 と、既存の P4-GIS-T01・T03・T04・T05）"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-manifest.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/manifest.json",
+        "stage": "contract",
+        "purpose": "fixture を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/tools/corpus/check-sequences.mjs",
+        "cwd": ".",
+        "target": "reconstruction/tools/corpus/sequences.json",
+        "stage": "contract",
+        "purpose": "sequences.json を変えない確かめ"
+      },
+      {
+        "command": "node reconstruction/contracts/check-contract.mjs",
+        "cwd": ".",
+        "target": "reconstruction/contracts/*.json",
+        "stage": "contract",
+        "purpose": "全契約。実装は契約の引く行を変えない（manifest は末尾に足すので、既存の行の番号は動かない）"
+      },
+      {
+        "command": "git diff --check -- <allowed_paths>",
+        "cwd": ".",
+        "target": "allowedPaths",
+        "stage": "implementation",
+        "purpose": "空白の誤り"
+      }
+    ],
+    "artifactRequirements": [
+      "allowed_paths に限定した git diff --binary --no-ext-diff の patch、変更ファイル一覧、requiredCommands の実行結果、未実行の検証と理由、残存リスク",
+      "最初の作業: (a) S1 の xlsx の sha256 が 3c410605201b9250df2763ea77986e96553bb38655de4b4f646fd914e0ae96d6 (b) reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html があり、sha256 が表に書き足された AC06 の P1 の値 (c) 表に AC06 の P3 の 12 区の値がある (d) decisionBranches の status「起草案」「作者の裁定待ち」が 0 件で、P4-GCM-D-UNNAMED-ROWS の ruling が照合表の期待（表 §6）と合っている。どれかが違えば着手せず blocked で返す",
+      "最小実装: 足す仕組みは build の script 1 本（無いと照合表から表を作り直せない）・転記 1（無いと一覧表別表の根拠の字を確かめられない）・照合表 1（無いと 232 組の根拠が残らない）・生成物 1・manifest の行 1（無いと spec:1727 の入手元と hash が無い）・試験 1 file。形の計算・汎用の TSV や xlsx の部品・設定・CLI の選択肢・.d.mts を足さない",
+      "最小テスト: testMapping の P4-GCM-T01 のほかに足さない。成果物に「T01: 受入条件（AC01・AC02・AC03・AC05）」の形で対応を 1 行書く",
+      "build の失敗は理由つきで止める（見出しの字が違う・sha256 が manifest と違う・件数が違う・字が原文と違う・不変条件が崩れる・届かないコードがある）。黙って行を飛ばさない",
+      "報告に、照合表の根拠ごとの行の数（起草の数え: コード表B列 156・一覧表別表 64・形 12）と違った所、関係ごとの行の数、出力の byte を書く",
+      "「«»」: 行の数を変えない書き方をする（manifest は末尾に足すので既存の行の番号は動かない。変わるのは membership の閉じの行にコンマが付くことだけ）。check-contract の FAIL の一覧を付ける",
+      "既存の試験の期待を変えない。変える要が出たら止めて報告する",
+      "旧築（src/）と test/fixtures と sequences.json と corpus の manifest を変えない"
+    ],
+    "unresolvedQuestions": []
+  }
+}
