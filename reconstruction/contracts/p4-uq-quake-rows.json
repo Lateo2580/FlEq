@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e5e65ac5cc817815eef1d69203a3d56f3dfc0225",
-    "sha256": "2ed49e15a47b71771cc98a6fc3097d83088fc564e3105739cdca2a761fa460db",
+    "sha256": "64ec287251b7a5652de3d58561989d4e6418bedf6f89a4f41ae9011fb6af5312",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -216,7 +216,7 @@
     "contractId": "P4-UQ-QUAKE-ROWS-001",
     "mode": "implementation",
     "objective": "今日の地震の材料を新しい経路に足す（C0 の今日の地震のカード〔DS の QuakeRow〕の材料）。U-Q の当日履歴の行を区分ごとに 9 行にし（作者の裁定 A17）、発生の新しい順に並べて同じ順で残し（作者の裁定 B4）、行に津波の固定付加文のコードの組を足して wire へ載せ、wire の行に深さの range の bound を足す。並べる所は unit の 1 か所だけ。コードから札の字への対応と深さの字は決めない（C0 への未決の問い、Q-UQR-C0-OPEN）。設計の表は reconstruction/contracts/p4-uq-quake-rows-tables.md",
-    "baseOid": "unassigned",
+    "baseOid": "ad78f26d673ef2867b68e3ccebd9cbcc6ee9378f",
     "cleanTreeRequired": true,
     "readPaths": [
       "reconstruction/src/units/seismic/seismic-unit.ts",
