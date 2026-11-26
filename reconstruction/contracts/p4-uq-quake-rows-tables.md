@@ -1,8 +1,8 @@
-# P4-UQ-QUAKE-ROWS-001 の設計の表 r1（今日の地震の材料を新しい経路に足す）
+# P4-UQ-QUAKE-ROWS-001 の設計の表 r3（今日の地震の材料を新しい経路に足す）
 
 - 起草: 2026-11-26 17:33（date の値。起草の子 r0）。基点 e5e65ac5cc817815eef1d69203a3d56f3dfc0225（branch draft/p4-uq-quake-rows）。行番号と anchor はこの HEAD の値。r1（2026-11-26 夜）は r0（9ff3cade）へのヘルツ（品質、NO-GO: P1 1・P2 6）と契約適合の子（条件付き GO: P2 2・P3 6）の指摘を統合担当がまとめた直し 11 件を当てた（対応は §11）。
 - 範囲の元: 計画 reconstruction/contracts/p4-order-plan.md:124 «81df930d148e1b35»（C0 の依存の字）・reconstruction/contracts/p4-order-plan.md:192 «7fb74ce4b983f6c1»（Wave 2 の直列）・reconstruction/contracts/p4-order-plan.md:223 «a604c88e73f7fd83»（display-wire.ts の直列）・reconstruction/contracts/p4-order-plan.md:225 «ed4c1d57134bc802»（seismic-unit.ts の直列）。
-- 作者の裁定は 2 つだけ（9 行を選ぶ母集団 P4-UQR-D-EDGE は作者待ち、§2.10）: A17（区分ごとに 9 行）と B4（発生の新しい順、上限の行を残すときも同じ順）。2026-11-26 15:06 の発言「作業お疲れ様です。地震・対応表ともに判断事項は全て推奨で進めてください！」を、判断カード `2026-11-26-P4-今日の地震の行の数と並び.md`（repo 外）の末尾「裁定」が A17・B4 の推奨と読んだ。ほかの決めは decisionBranches の統合担当の案（起草の子が置いた案、裁定前）。
+- 作者の裁定は 2 つだけ（9 行を選ぶ母集団 P4-UQR-D-EDGE は作者待ち、§2.10）: A17（区分ごとに 9 行）と B4（発生の新しい順、上限の行を残すときも同じ順）。2026-11-26 15:06 の発言「作業お疲れ様です。地震・対応表ともに判断事項は全て推奨で進めてください！」を、判断カード `2026-11-26-P4-今日の地震の行の数と並び.md`（repo 外）の末尾「裁定」が A17・B4 の推奨と読んだ。ほかの決めは decisionBranches の統合担当の案（起草の子が置いた案）で、10 件とも 2026-11-26 18:20 に統合担当が A で確定した（作者の字ではない）。
 - 範囲外: コードから札の字への対応と、深さの字（「以上」「未満」・欠け・読めない座標）。どちらも画面が変わる未裁定の問いなので §7 に C0（P4-STANDBY-CARDS-001、未起草）への問いとして書く。
 
 ## 0. 結論
@@ -36,7 +36,7 @@
 
 - `daily.recent` を読む所は、reconstruction/src の grep（`\.recent\b`・`recent\[`）で seismic-unit.ts のほかに display-wire.ts:501 だけ。reconstruction/src/cli・reconstruction/src/terminal に `daily` を読む行は無い（grep）。端末の画面は変わらない。
 
-## 2. 決めること（統合担当の案。どれも裁定前）
+## 2. 決めること（統合担当の案。D-EDGE のほかは 2026-11-26 18:20 に統合担当が A で確定）
 
 ### 2.1 並びの鍵（D-KEY）
 
@@ -316,3 +316,12 @@ A `p4-display-wire-v3` のまま（推奨）。行を読む描画（C0）はま�
 | r2-3 | D-LEGACY の B の字（ヘルツ P2） | JSON の P4-UQR-D-LEGACY の B |
 | r2-4 | 旧の経路の増えの「保存の増えと同じ」（適合 P3） | §6、JSON の D-LEGACY の reason |
 | r2-5 | 量り直しの時刻の字 | §5.2・§11、Q-UQR-CAPACITY（18:00） |
+
+### レビューの経過
+
+| 版 | 品質（ヘルツ Astra high） | 契約適合（Opus） |
+|---|---|---|
+| r0（9ff3cade） | NO-GO（P1 1・P2 6） | 条件付き GO（P2 2・P3 6） |
+| r1（63946163・eb77bf73） | 条件付き GO（新 P2 3、D-EDGE のほかの前の指摘は閉じた） | GO（P3 1） |
+| r2（0c3d83c9・e310b3d5） | 遷移 3 件を閉じた、字 1 件は e310b3d5 で直った（thread 01a2170c） | — |
+| r3 | 統合担当が統合担当の分岐 10 件を A で確定（2026-11-26 18:20）、D-EDGE は作者待ち | |

@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "e5e65ac5cc817815eef1d69203a3d56f3dfc0225",
-    "sha256": "a64bfc6d074fe614899f77f627b54203cd819d09a1c012f840b2ca7c2f28eebc",
+    "sha256": "961a8577e9ca2456bcb4bf7061e99b162cf8fabd595a468a38b255fcfab22d1c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -49,8 +49,8 @@
         "C": "40 字を超える発生時刻を無いものとして報の時刻で判定する（r1 の A。boundTime(view.originTimeRaw) ?? 報の時刻）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.1。A は鍵が行の欄だけで決まり、復元の後も同じ順で、判定と鍵が食い違わず、保存の欄が増えない。発生時刻の無い行は採用した報の時刻の位置へ動く（表 §3 の 5'）。r0 の A は判定だけ 40 字で切る前の字を使い、40 字を超える読める OriginTime の報が判定を通るのに保存の欄が null で報の時刻で並んだ（ヘルツ P2）。r1 の A（C）は判定を鍵の字にそろえたが、40 字を超える前の日の発生時刻の報が報の時刻で判定を通り、発生不明の今日の行を作り直した（ヘルツ P2、表 §3 の 14'）。A の後は、40 字を超える発生時刻の報は今日の判定を通さず、行を作らず、ある行も触らない（件数は :460 の今の規則のまま、表 §3 の 14''）。test/fixtures の OriginTime は最長 25 字で、この形は無い"
       },
       {
@@ -61,8 +61,8 @@
         "C": "同じ値は後に受けた方を上（安定な並べ替え）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.2。A は順が行の集合だけで決まり、受けた順に依らない。B は時差の書き方が違う同じ時刻を別の位置にする。C は訂正のたびに同時刻の中で先頭へ動く"
       },
       {
@@ -73,8 +73,8 @@
         "C": "Code の字を 1 本のまま 32 字で切って持つ",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.3。受理（seismic.ts:188）は件数も字の形も見ないので、保存の上限と decode の確かめが要る。fixture の実物は 1 報に 1〜2 個（0215 0241・0211 0241）。数を持つので落とした字があったことが画面の側に残る。保存の 1 行の増えは A ＋84、B ＋73、C ＋209 byte"
       },
       {
@@ -84,8 +84,8 @@
         "B": "評価の文と同じ寄与だけ（VXSE52・VXSE53）。VXSE51 のときはコードも空",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.4。A なら VXSE51 の 0217（32-35_01_01_260824_VXSE51）が wire に出て、DS-QROW-08 の「調査中」をコードから作れる。B は震度速報だけの行の材料をコードから外す"
       },
       {
@@ -95,8 +95,8 @@
         "B": "DisplayValueText に bound を足す（EEW のカードの depth・mag の型も広がる）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.5。unit の行は今も depth の range と bound を保存している（seismic-unit.ts:411、decode の materialValue も range を読む）ので、変えるのは wire だけ。B は EEW の wire の最大も動かす"
       },
       {
@@ -107,8 +107,8 @@
         "C": "v9 を読んで新しい欄を空にして並べ直す移行を作る",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.6。前例 P4-DW-AC16（版上げ、移行を作らない）と P3-MIG-AC01・AC02 のとおり。新築は未稼働で、P5 の前は保存の初期化を許す（作者の裁定 2026-10-20）。並びが崩れた・EventID が重なった保存を読むと表示の行が規則の外になり、seismic-unit.ts:481 の「その EventID の行を除く」が重なった行を両方消すので、境界で拒む（ヘルツ P2）。試験が手で組む当日履歴（同じ鍵の行）は EventID の降順に組み直す。B は崩れた保存を次の受信まで表示する。C は v9 から新しい欄の値を作れない"
       },
       {
@@ -118,8 +118,8 @@
         "B": "当日の行の全部（27 行の全欄）を 1 字 6 byte で数え直し、283_209 の中の 5×1,206 を式から置き換える（値は A と同じ）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.7・§4。27 行の最悪でも必ず入る。r0 の A（72,432）は元の 15 行を 1 字 3 byte のまま残し、15×(2,310 − 1,206) ＝ 16,560 足りなかった（ヘルツ P2）。A は 283_209 を引く契約（p3-seismic-unit.json:85・:310・:338、p3-seismic-event-limit.json:271）と :63・:69 の «» を動かさない"
       },
       {
@@ -129,8 +129,8 @@
         "B": "display-wire.ts に 27 行の切りを足す",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.8。今の display-wire.ts:501 にも定数は無く、15 は RECENT_LIMIT×3 から出ている。unit が 9 で切るので、wire の切りには切る対象が無い"
       },
       {
@@ -140,8 +140,8 @@
         "B": "p4-display-wire-v4 に上げる",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §2.9。行を読む描画（C0）はまだ無く、client の外形の確かめ（client.ts の isWireSnapshot）は分野の unit と contentRevision が字であることまでしか見ないので、行の欄が増えても弾かない。P4-UAK-D-VERSION=A と同じ"
       },
       {
@@ -151,8 +151,8 @@
         "B": "旧の view は区分ごとに先頭の 5 行と B0 までの欄に切る。切るのは旧の projector が U-Q の view を旧の snapshot に入れる所（view-projector.ts:799 の行の中）で、toSeismicView では切らない（新しい経路の display-wire.ts:501・:734 も同じ view を読む）",
         "recommended": "A",
         "provisional": "A",
-        "status": "起草案（統合担当の案、裁定前）",
-        "ruling": "未定",
+        "status": "確定（統合担当の決め 2026-11-26 18:20、レビュー 2 本〔適合 Opus GO、品質 ヘルツ Astra high thread 01a2170c 条件付き GO → r2 で閉じた〕の後）",
+        "ruling": "A",
         "reason": "表 §6。前例が割れている: P4-DW-AC16 は行に足した欄を旧にも出し、P4-UAK-D-PLACE=A は旧の出力を変えない側を選んだ。A の旧の U-Q の view の増えの上界は ＋48,852 byte（1 字 6 byte）。旧の経路は T0 で消え、端末は daily を読まず、旧の U-Q は分野の予算 65,536 を既に越えうる（N2・N3 の旧の経路は U-Q を要約にしている）ので、旧の要約の組が変わるのは旧の全体が 1 MiB を越える公開だけ。B は旧のためだけに投影の処理を足す。並びは unit の state の並びなので、どちらの案でも旧の view の行も発生の新しい順になる"
       }
     ],
