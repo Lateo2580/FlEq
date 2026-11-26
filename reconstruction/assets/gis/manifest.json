@@ -2259,5 +2259,223 @@
     },
     "knownGapsAndExclusions": [],
     "attribution": "出典：気象庁ホームページ（https://www.data.jma.go.jp/developer/gis.html）の「地震情報／都道府県等」「地震情報／細分区域」「市町村等（地震津波関係）」を加工して作成。加工：FlEq"
+  },
+  "cityWeatherMap": {
+    "output": {
+      "path": "reconstruction/assets/gis/city-weather-map.v1.json",
+      "sha256": "22807c72b4f76d9e2a623509941cacdae763400db89655fd1e14e984ba18148e"
+    },
+    "source": [
+      {
+        "url": "https://xml.kishou.go.jp/jmaxml_20261118_Code.zip",
+        "page": "https://xml.kishou.go.jp/tec_material.html",
+        "version": "R8.11.18（2026-11-18）",
+        "retrievedAt": "2026-11-21",
+        "archiveSha256": "194122222848f42d61a3461f79822d5b84d3dc4d1dc9d246cc5ffc7f07d47198",
+        "inputPath": "reconstruction/assets/gis/source/code-20261118/weather-area-codes.xlsx",
+        "inputOriginalName": "20261118_AreaInformationCity-AreaForecastLocalM.xlsx",
+        "inputSha256": "3c410605201b9250df2763ea77986e96553bb38655de4b4f646fd914e0ae96d6"
+      },
+      {
+        "url": "https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html",
+        "version": "令和8年5月29日現在",
+        "retrievedAt": "2026-11-26",
+        "inputPath": "reconstruction/assets/gis/source/city-weather-map/shichoson_ichiran.html",
+        "inputSha256": "fc0b420ea7bdac5c60ff971f276b76b1c9eca6f44c1727a56d4b9db891725e07",
+        "termsUrl": "https://www.jma.go.jp/jma/kishou/info/coment.html",
+        "termsSha256": "ff2b45042e6207053d8f6aa617656aa6a144e462db138f0b8138de6eefbeff48",
+        "transcriptionPath": "reconstruction/assets/gis/source/city-weather-map/transcription.tsv",
+        "transcriptionSha256": "123e21cf36388ced2abee0be950d0c2ca4c274bb8a58d034d18b4decafb54613",
+        "expectedPairsPath": "reconstruction/assets/gis/source/city-weather-map/expected-pairs.tsv",
+        "expectedPairsSha256": "cd0946deaaa56aaa039bc907455fa01eff1c8376e7c03e257256f7185c916a9f",
+        "matchPath": "reconstruction/assets/gis/source/city-weather-map/match.tsv",
+        "matchSha256": "83f26afd9c24276057b5cef28d8c9718f002b3d87604c0a38758bdfb21701cf7"
+      }
+    ],
+    "license": "気象庁ホームページの利用規約（公共データ利用規約 第1.0版）",
+    "transform": {
+      "script": "reconstruction/tools/gis/build-city-weather-map.mjs",
+      "node": "v26.12.1",
+      "args": []
+    },
+    "expectedCodeCount": {
+      "rows": 1894,
+      "same": 1707,
+      "withinRows": 151,
+      "partRows": 36,
+      "matchRows": 232,
+      "expectedPairs": 232,
+      "transcriptionItems": 106
+    },
+    "knownGapsAndExclusions": [
+      {
+        "kind": "shapeCheck",
+        "city": "0410100",
+        "weatherCity": "0410001",
+        "basis": "形",
+        "pointsZoom": 1522,
+        "shareZoom": 0.1321,
+        "pointsSource": 16953,
+        "shareSource": 0.1331
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "0410100",
+        "weatherCity": "0410002",
+        "basis": "形",
+        "pointsZoom": 1522,
+        "shareZoom": 0.8679,
+        "pointsSource": 16953,
+        "shareSource": 0.8669
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "0410200",
+        "weatherCity": "0410001",
+        "basis": "形",
+        "pointsZoom": 1197,
+        "shareZoom": 1,
+        "pointsSource": 11600,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "0410300",
+        "weatherCity": "0410001",
+        "basis": "形",
+        "pointsZoom": 1873,
+        "shareZoom": 1,
+        "pointsSource": 20765,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "0410400",
+        "weatherCity": "0410001",
+        "basis": "形",
+        "pointsZoom": 906,
+        "shareZoom": 0.3653,
+        "pointsSource": 9931,
+        "shareSource": 0.3673
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "0410400",
+        "weatherCity": "0410002",
+        "basis": "形",
+        "pointsZoom": 906,
+        "shareZoom": 0.6347,
+        "pointsSource": 9931,
+        "shareSource": 0.6327
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "2210100",
+        "weatherCity": "2210001",
+        "basis": "形",
+        "pointsZoom": 1568,
+        "shareZoom": 0.2085,
+        "pointsSource": 17267,
+        "shareSource": 0.21
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "2210100",
+        "weatherCity": "2210002",
+        "basis": "形",
+        "pointsZoom": 1568,
+        "shareZoom": 0.7915,
+        "pointsSource": 17267,
+        "shareSource": 0.79
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "2210200",
+        "weatherCity": "2210001",
+        "basis": "形",
+        "pointsZoom": 1322,
+        "shareZoom": 1,
+        "pointsSource": 14619,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "2210300",
+        "weatherCity": "2210001",
+        "basis": "形",
+        "pointsZoom": 1615,
+        "shareZoom": 1,
+        "pointsSource": 17870,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "2213800",
+        "weatherCity": "2213001",
+        "basis": "形",
+        "pointsZoom": 2292,
+        "shareZoom": 1,
+        "pointsSource": 25427,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "2213900",
+        "weatherCity": "2213001",
+        "basis": "形",
+        "pointsZoom": 1560,
+        "shareZoom": 1,
+        "pointsSource": 17159,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "1415100",
+        "weatherCity": "1415011",
+        "basis": "コード表B列",
+        "pointsZoom": 1548,
+        "shareZoom": 1,
+        "pointsSource": 17222,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "1415200",
+        "weatherCity": "1415012",
+        "basis": "コード表B列",
+        "pointsZoom": 1920,
+        "shareZoom": 1,
+        "pointsSource": 21241,
+        "shareSource": 1
+      },
+      {
+        "kind": "shapeCheck",
+        "city": "1415300",
+        "weatherCity": "1415012",
+        "basis": "コード表B列",
+        "pointsZoom": 1873,
+        "shareZoom": 1,
+        "pointsSource": 20553,
+        "shareSource": 1
+      },
+      {
+        "kind": "sourceConflict",
+        "cities": [
+          "1415100",
+          "1415200",
+          "1415300"
+        ],
+        "s1": [
+          "1415011 相模原市西部: 神奈川県相模原市のうち緑区",
+          "1415012 相模原市東部: 神奈川県相模原市のうち中央区及び南区"
+        ],
+        "s2": [
+          "相模原市東部: 神奈川県相模原市のうち緑区",
+          "相模原市西部: 神奈川県相模原市のうち相模原市西部の区域を除く区域"
+        ],
+        "adopted": "S1（区域の形の重なりが zoom と間引く前の両方で S1 の側を支持した、P4-GCM-D-UNNAMED-ROWS=A）"
+      }
+    ],
+    "attribution": "出典：気象庁ホームページ（https://xml.kishou.go.jp/tec_material.html）の個別コード表（AreaInformationCity・AreaForecastLocalM コード表、R8.11.18）と、気象庁ホームページ（https://www.jma.go.jp/jma/kishou/know/yougo_hp/shichoson_ichiran.html）の「特別警報・危険警報・警報・注意報や天気予報の発表区域（細分区域等一覧表）」（令和8年5月29日現在）を加工して作成。加工：FlEq"
   }
 }
