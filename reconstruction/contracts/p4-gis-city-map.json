@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "a9dde7edc28e84a52816f87603c87075c5f0d971",
-    "sha256": "13e25c14aa8975384096837fdf86ccf2d04d55448db20cd4a6a5ab68cb34f9bf",
+    "sha256": "cd511085d99a2a3dcc7d4892c878d4d4ad2027607f4464d91c70ef6a5016c01c",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -119,7 +119,7 @@
     "contractId": "P4-GIS-CITY-MAP-001",
     "mode": "implementation",
     "objective": "新築 P4 の設定した地域のカード（C0、表示設計 spec の DS-WARN-12・16）と地域設定（R0、spec:3093）が要る、市区町村（地震津波関係の 7 桁、known-codes の city 1,894）→ 市町村等（気象警報等の 7 桁、area-codes の weatherCity 1,805）の対応表を、入手元・版・利用条件・hash の付いた生成物 reconstruction/assets/gis/city-weather-map.v1.json として置く。対応を直に書いた公的な表は無いので、気象庁の個別コード表 AreaInformationCity の同じ行（同じコード 1,707）と、同じ表の B 列と細分区域等一覧表の別表の字を 1 行ずつ照合した照合表（232 組）から作り、統合担当が原文から別に書いた組の期待の一覧と完全に一致させる（P4-GIS-AC10 の範囲）。字だけで決まらない 12 区の入れ方は作者の分岐 P4-GCM-D-UNNAMED-ROWS で、推奨の A では統合担当の点検で形の重なりを確かめた組だけを入れる。どれを画面に出すかと配る経路は決めない（C0・R0）。設計の表は reconstruction/contracts/p4-gis-city-map-tables.md、型は reconstruction/contracts/p4-gis-city-map.types.ts",
-    "baseOid": "unassigned",
+    "baseOid": "6247ddb3143e1955697fb138678c0e967e3ff28b",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
