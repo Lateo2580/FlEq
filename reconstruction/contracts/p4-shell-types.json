@@ -1,7 +1,7 @@
 {
   "meta": {
     "draftedFromOid": "7d89a98fcf536aedb4b41231c2374498105bc4ab",
-    "sha256": "9559a512ee39212650313db5030d36a904ed3bdc7c5ad760823595dd4ace6d68",
+    "sha256": "c872a3d5093643469a16b78e29df54d64cc969e03bb52c13b5366f63920e1160",
     "hashConvention": "sha256 of UTF-8 file bytes with meta.sha256 replaced by 64 ASCII zeroes",
     "manifestSha256": "aae08bb889942305449cb9c773380068b3a0200a2061df7253e40c9bbec23c70",
     "sequencesSha256": "76e8a88f416c1206874215d53ab299d4ec47ec2244ee2db9ff1b023e5001b73b",
@@ -162,7 +162,7 @@
     "contractId": "P4-SHELL-TYPES-001",
     "mode": "implementation",
     "objective": "新しい画面（reconstruction/src/display/screen/）の型を、後のカードの契約（C0 発注 1 今日の地震と気象の警報・E0 発注 1b EEW のカードの部品・C2 状態とお知らせ・S1 発注 1 ページ送りの scene・M0 発注 1 地図）が書く分だけ 1 回で広げる。足すのは、行の対象の id、行の中の字の束（字と束を kind で分ける）とカード単位の token、カードの中のページの番号の受け渡し（持ち主は S1 発注 1）、時分秒・時分の字の関数、地図の塗りの層、区域名の file（G0 の名前の表から生成）。画面の見え方（色・大きさ・字・出る/出ない・置き場）は変えず、決めない。設計の表は reconstruction/contracts/p4-shell-types-tables.md、新しい型は reconstruction/contracts/p4-shell-types.types.ts",
-    "baseOid": "unassigned",
+    "baseOid": "d7f4a4b25aa9c15dc2a361a814300a01860df5fd",
     "cleanTreeRequired": true,
     "readPaths": [
       "AGENTS.md",
